@@ -1,3 +1,4 @@
+// Helper de UI que dibuja los controles del router estéreo y enlaza con el motor
 import { Knob } from './knob.js';
 
 export function createOutputRouterUI(engine, container) {

@@ -1,3 +1,4 @@
+// Módulo OutputRouterModule: expone entradas de CV para controlar los buses de salida
 import { Module } from '../core/engine.js';
 
 export class OutputRouterModule extends Module {

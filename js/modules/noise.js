@@ -1,3 +1,4 @@
+// Módulo NoiseModule: generador de ruido filtrado con control de color y nivel
 import { Module } from '../core/engine.js';
 import { Knob } from '../ui/knob.js';
 

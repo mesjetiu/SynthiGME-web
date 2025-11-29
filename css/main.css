@@ -1,4 +1,6 @@
 html, body {
+  /* Hoja de estilos globales para el panel Synthi y sus controles modulares */
+  :root {
   margin: 0;
   padding: 0;
   height: 100%;

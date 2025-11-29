@@ -1,3 +1,4 @@
+// Módulo JoystickModule: fuente de control XY con salidas de CV para la matriz
 import { Module } from '../core/engine.js';
 
 export class JoystickModule extends Module {

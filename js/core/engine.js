@@ -1,3 +1,4 @@
+// Núcleo de audio: contexto WebAudio y clase base Module para el resto del sistema
 export class AudioEngine {
   constructor() {
     this.audioCtx = null;

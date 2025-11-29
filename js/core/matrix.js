@@ -1,3 +1,4 @@
+// Administrador de la matriz de pines que conecta fuentes y destinos entre módulos
 export class Matrix {
   constructor(engine, tableEl, sourcePorts, destPorts, options = {}) {
     this.engine = engine;

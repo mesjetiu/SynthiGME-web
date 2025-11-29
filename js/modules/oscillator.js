@@ -1,3 +1,4 @@
+// Módulo OscillatorModule: voces senoidales básicas con controles de frecuencia y nivel
 import { Module } from '../core/engine.js';
 import { Knob } from '../ui/knob.js';
 

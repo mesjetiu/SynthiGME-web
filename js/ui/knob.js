@@ -1,3 +1,4 @@
+// Componente Knob reutilizable para parámetros continuos en la interfaz
 export class Knob {
   constructor(rootEl, options) {
     this.rootEl = rootEl;

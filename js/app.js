@@ -1,3 +1,4 @@
+// Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { AudioEngine } from './core/engine.js';
 import { Matrix } from './core/matrix.js';
 import { OscillatorModule } from './modules/oscillator.js';

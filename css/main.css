@@ -13,6 +13,7 @@ body {
   background: #000;
   color: #eee;
   overflow: hidden;
+  user-select: none;
 }
 .panel {
   max-width: 1100px;
@@ -200,6 +201,7 @@ small { color:#aaa; }
   overflow: hidden;
   touch-action: none;
   background: #000;
+  user-select: none;
 }
 #viewportInner {
   width: 100%;
@@ -209,6 +211,7 @@ small { color:#aaa; }
   gap: 1.5rem;
   align-items: flex-start;
   flex-wrap: nowrap;
+  user-select: none;
 }
 
 .panel {
@@ -217,4 +220,5 @@ small { color:#aaa; }
   width: var(--panel-width);
   display: flex;
   flex-direction: column;
+  user-select: none;
 }

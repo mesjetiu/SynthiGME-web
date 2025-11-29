@@ -7,16 +7,29 @@ import { NoiseModule } from './modules/noise.js';
 import { JoystickModule } from './modules/joystick.js';
 import { OutputRouterModule } from './modules/outputRouter.js';
 import { createOutputRouterUI } from './ui/outputRouter.js';
+import { PanelManager } from './ui/panelManager.js';
 
 class App {
   constructor() {
     this.engine = new AudioEngine();
-    this.oscRowEl = document.getElementById('oscRow');
-    this.pulseRowEl = document.getElementById('pulseRow');
-    this.noiseRowEl = document.getElementById('noiseRow');
-    this.matrixEl = document.getElementById('matrixTable');
-    this.stickRowEl = document.getElementById('stickRow');
-    this.routerRowEl = document.getElementById('routerRow');
+    this.panelManager = new PanelManager(document.getElementById('viewportInner'));
+    this.mainPanel = this.panelManager.createPanel({
+      id: 'panel-main',
+      title: 'Synthi VCS3 – Prototipo Web',
+      subtitle: '3 osciladores + matriz tipo EMS + stick (-1..1) + router estéreo (Output Ch1/Ch2 → L/R).'
+    });
+
+    this.muteBtn = document.createElement('button');
+    this.muteBtn.id = 'muteBtn';
+    this.muteBtn.textContent = '🔊 Audio ON';
+    this.mainPanel.addHeaderElement(this.muteBtn);
+
+    this.oscRowEl = this.mainPanel.addSection({ id: 'oscRow', title: 'Oscillators 1–3', type: 'row' });
+    this.pulseRowEl = this.mainPanel.addSection({ id: 'pulseRow', title: 'Oscillator 3 / Pulse', type: 'row' });
+    this.noiseRowEl = this.mainPanel.addSection({ id: 'noiseRow', title: 'Noise Generator', type: 'row' });
+    this.matrixEl = this.mainPanel.addSection({ id: 'matrixTable', title: 'Pin Matrix (tipo Synthi)', type: 'matrix' });
+    this.stickRowEl = this.mainPanel.addSection({ id: 'stickRow', title: 'Stick (Joystick)', type: 'row' });
+    this.routerRowEl = this.mainPanel.addSection({ id: 'routerRow', title: 'Output Router (buses → L/R)', type: 'row' });
     this.matrix = null;
     this._setupModules();
     this._setupUI();
@@ -95,7 +108,8 @@ class App {
   }
 
   _setupUI() {
-    const muteBtn = document.getElementById('muteBtn');
+    const muteBtn = this.muteBtn;
+    if (!muteBtn) return;
     muteBtn.addEventListener('click', () => {
       this.ensureAudio();
       this.engine.toggleMute();

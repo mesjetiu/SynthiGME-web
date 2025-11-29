@@ -129,20 +129,84 @@ class App {
   let scale = 1;
   let minScale = 0.1; // permite alejar mucho
   let maxScale = 3.0;
+  const wheelPanFactor = 0.65; // ajuste fino para gestos de dos dedos
+  const wheelPanSmoothing = 0.85; // suaviza el gesto en trackpads
+  const panClampPadding = 200;
+  let clampDisabled = false;
   let offsetX = 0;
   let offsetY = 0;
 
+  function clampOffsets(padding = panClampPadding) {
+    if (clampDisabled) return;
+    const contentWidth = inner.scrollWidth;
+    const contentHeight = inner.scrollHeight;
+    if (!contentWidth || !contentHeight) return;
+    const visibleWidth = outer.clientWidth / scale;
+    const visibleHeight = outer.clientHeight / scale;
+    const extraWidth = Math.max(visibleWidth - contentWidth, 0);
+    const extraHeight = Math.max(visibleHeight - contentHeight, 0);
+
+    const minX = extraWidth > 0
+      ? -padding
+      : visibleWidth - contentWidth - padding;
+    const maxX = extraWidth > 0
+      ? visibleWidth - contentWidth + padding
+      : padding;
+
+    const minY = extraHeight > 0
+      ? -padding
+      : visibleHeight - contentHeight - padding;
+    const maxY = extraHeight > 0
+      ? visibleHeight - contentHeight + padding
+      : padding;
+
+    offsetX = Math.min(Math.max(offsetX, minX), maxX);
+    offsetY = Math.min(Math.max(offsetY, minY), maxY);
+  }
+
   function applyTransform() {
+    clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
   }
   applyTransform();
+
+  function setClampDisabled(value) {
+    if (clampDisabled === value) return;
+    clampDisabled = value;
+    applyTransform();
+  }
+
+  window.addEventListener('keydown', ev => {
+    if (ev.key === 'Shift') {
+      setClampDisabled(true);
+    }
+  });
+
+  window.addEventListener('keyup', ev => {
+    if (ev.key === 'Shift') {
+      setClampDisabled(false);
+    }
+  });
+
+  window.addEventListener('blur', () => {
+    setClampDisabled(false);
+  });
 
   function isInteractiveTarget(el) {
     if (!el) return false;
     return !!el.closest('.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle');
   }
 
-  // Zoom con rueda (desktop), centrado en el cursor
+  function adjustOffsetsForZoom(cx, cy, newScale) {
+    const worldX = (cx - offsetX) / scale;
+    const worldY = (cy - offsetY) / scale;
+    scale = newScale;
+    offsetX = cx - worldX * scale;
+    offsetY = cy - worldY * scale;
+    applyTransform();
+  }
+
+  // Zoom con rueda (desktop), centrado en el cursor; pan con gesto normal de dos dedos
   outer.addEventListener('wheel', ev => {
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
@@ -151,13 +215,18 @@ class App {
       const cy = ev.clientY - rect.top;
       const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
-      const sx = cx - offsetX;
-      const sy = cy - offsetY;
-      offsetX = cx - sx * (newScale / scale);
-      offsetY = cy - sy * (newScale / scale);
-      scale = newScale;
-      applyTransform();
+      adjustOffsetsForZoom(cx, cy, newScale);
+      return;
     }
+
+    ev.preventDefault();
+    const lineHeight = 16;
+    const deltaUnit = ev.deltaMode === 1 ? lineHeight : (ev.deltaMode === 2 ? outer.clientHeight : 1);
+    const moveX = ev.deltaX * deltaUnit * wheelPanFactor * wheelPanSmoothing;
+    const moveY = ev.deltaY * deltaUnit * wheelPanFactor * wheelPanSmoothing;
+    offsetX -= moveX;
+    offsetY -= moveY;
+    applyTransform();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -199,12 +268,7 @@ class App {
       if (lastDist != null) {
         const zoomFactor = dist / lastDist;
         const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
-        const sx = cx - offsetX;
-        const sy = cy - offsetY;
-        offsetX = cx - sx * (newScale / scale);
-        offsetY = cy - sy * (newScale / scale);
-        scale = newScale;
-        applyTransform();
+        adjustOffsetsForZoom(cx, cy, newScale);
       }
       lastDist = dist;
       // Cuando hay dos dedos, desactivamos pan a un dedo

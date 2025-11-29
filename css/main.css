@@ -208,11 +208,13 @@ small { color:#aaa; }
   display: flex;
   gap: 1.5rem;
   align-items: flex-start;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .panel {
-  flex: 1 1 45%;
-  max-width: none;
-  min-width: 420px;
+  --panel-width: 960px;
+  flex: 0 0 var(--panel-width);
+  width: var(--panel-width);
+  display: flex;
+  flex-direction: column;
 }

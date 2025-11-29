@@ -36,8 +36,11 @@ class App {
     this.stickRowEl = this.mainPanel.addSection({ id: 'stickRow', title: 'Stick (Joystick)', type: 'row' });
     this.routerRowEl = this.mainPanel.addSection({ id: 'routerRow', title: 'Output Router (buses → L/R)', type: 'row' });
     this.matrix = null;
+    this._heightSyncScheduled = false;
     this._setupModules();
     this._setupUI();
+    this._schedulePanelSync();
+    window.addEventListener('resize', () => this._schedulePanelSync());
   }
 
   ensureAudio() { this.engine.start(); }
@@ -120,6 +123,29 @@ class App {
       this.engine.toggleMute();
       muteBtn.textContent = this.engine.muted ? '🔇 Mute ON' : '🔊 Audio ON';
       muteBtn.classList.toggle('off', this.engine.muted);
+    });
+  }
+
+  _schedulePanelSync() {
+    if (this._heightSyncScheduled) return;
+    this._heightSyncScheduled = true;
+    requestAnimationFrame(() => {
+      this._heightSyncScheduled = false;
+      this._syncPanelHeights();
+    });
+  }
+
+  _syncPanelHeights() {
+    const panels = document.querySelectorAll('#viewportInner .panel');
+    if (!panels.length) return;
+    let maxHeight = 0;
+    panels.forEach(panel => {
+      panel.style.height = 'auto';
+      const panelHeight = panel.offsetHeight;
+      if (panelHeight > maxHeight) maxHeight = panelHeight;
+    });
+    panels.forEach(panel => {
+      panel.style.height = `${maxHeight}px`;
     });
   }
 }

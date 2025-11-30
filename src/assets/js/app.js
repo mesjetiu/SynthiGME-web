@@ -15,7 +15,7 @@ class App {
     this.panelManager = new PanelManager(document.getElementById('viewportInner'));
     this.mainPanel = this.panelManager.createPanel({
       id: 'panel-main',
-      title: 'Synthi VCS3 – Prototipo Web',
+      title: 'Synthi GME (emulador del EMS Synthi 100) – Prototipo Web',
       subtitle: '3 osciladores + matriz tipo EMS + stick (-1..1) + router estéreo (Output Ch1/Ch2 → L/R).'
     });
     this.matrixPanel = this.panelManager.createPanel({

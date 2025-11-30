@@ -1,0 +1,27 @@
+{
+  "name": "synthigme-web",
+  "version": "1.0.0",
+  "description": "Prototype EMS Synthi interface in WebAudio",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mesjetiu/SynthiGME-web.git"
+  },
+  "keywords": [
+    "web-audio",
+    "synth",
+    "ems"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mesjetiu/SynthiGME-web/issues"
+  },
+  "homepage": "https://github.com/mesjetiu/SynthiGME-web#readme",
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  }
+}

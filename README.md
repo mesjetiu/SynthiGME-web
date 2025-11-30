@@ -1,33 +1,39 @@
-# SynthiGME-web – Flujo de compilación
+# SynthiGME-web
 
-Este documento describe únicamente el flujo actual para preparar un build estático del proyecto.
+SynthiGME-web es un port del sintetizador modular Synthi GME ("GME Modular Emulator"), inspirado en el EMS Synthi 100 del Gabinete de Música Electroacústica (GME) de Cuenca. El proyecto nació como Trabajo Final del Máster en Arte Sonoro de la Universitat de Barcelona (curso 2019/2020) bajo la tutoría de José Manuel Berenguer Alarcón y se concibió como herramienta de documentación, divulgación y experimentación sonora. Esta versión web persigue el mismo objetivo pedagógico pero con una distribución sin fricciones: basta un navegador moderno para explorar el sistema, sin instalaciones locales ni dependencias especializadas.
 
-## Requisitos previos
+## Relación con SynthiGME (SuperCollider)
+El repositorio original en SuperCollider, [SynthiGME](https://github.com/mesjetiu/SynthiGME), contiene la implementación completa como Quark, documentación histórica detallada y material audiovisual del instrumento. SynthiGME-web reutiliza esa investigación y traslada los paneles a la web para facilitar su difusión; cualquier mejora conceptual debería mantenerse alineada con la referencia original.
+
+## Flujo de compilación
+El enfoque técnico actual se limita a generar un bundle estático listo para publicar. Estas instrucciones se centran en ese flujo de trabajo.
+
+### Requisitos previos
 - Node.js 18 o superior
 - npm (incluido junto a Node.js)
 
-Puedes verificar tus versiones con:
+Verifica tus versiones con:
 
 ```bash
 node -v
 npm -v
 ```
 
-## Instalación de dependencias
+### Instalación de dependencias
 Desde la raíz del repositorio ejecuta una sola vez:
 
 ```bash
 npm install
 ```
 
-Esto instala `esbuild`, que es la herramienta utilizada para empaquetar y minificar los assets.
+Esto instala `esbuild`, la herramienta utilizada para empaquetar y minificar los assets.
 
-## Estructura de carpetas
+### Estructura de carpetas
 - `src/`: código fuente editable. Incluye `index.html`, `assets/css/main.css` y `assets/js/` con todos los módulos.
 - `scripts/`: tareas auxiliares. Actualmente contiene `build.mjs`, que orquesta la compilación.
 - `dist/`: salida generada automáticamente por el comando de build. No debes editar nada aquí; su contenido se regenera cada vez.
 
-## Ejecutar el build
+### Ejecutar el build
 Lanza el proceso de empaquetado con:
 
 ```bash
@@ -38,10 +44,10 @@ Este comando ejecuta `node scripts/build.mjs`, que realiza los siguientes pasos:
 1. Limpia la carpeta `dist/` completa.
 2. Bundlea y minifica el JavaScript partiendo de `src/assets/js/app.js` (incluyendo sus módulos) usando esbuild.
 3. Minifica `src/assets/css/main.css` y lo coloca en `dist/assets/css/`.
-4. Copia `src/index.html` a `dist/index.html` y ajusta las rutas relativas a los assets generados.
+4. Copia `src/index.html` a `dist/index.html` para apuntar a los assets generados.
 
 El resultado está listo para publicarse directamente desde la carpeta `dist/`.
 
-## Notas de trabajo
+### Notas de trabajo
 - Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado.
 - Evita modificar manualmente el contenido de `dist/` para prevenir inconsistencias entre builds.

@@ -2,11 +2,14 @@
 
 SynthiGME-web es un port del sintetizador modular Synthi GME ("GME Modular Emulator"), inspirado en el EMS Synthi 100 del Gabinete de Música Electroacústica (GME) de Cuenca. El proyecto nació como Trabajo Final del Máster en Arte Sonoro de la Universitat de Barcelona (curso 2019/2020) bajo la tutoría de José Manuel Berenguer Alarcón y se concibió como herramienta de documentación, divulgación y experimentación sonora. Esta versión web persigue el mismo objetivo pedagógico pero con una distribución sin fricciones: basta un navegador moderno para explorar el sistema, sin instalaciones locales ni dependencias especializadas.
 
+## Acceso en línea
+La versión compilada está disponible en GitHub Pages: **https://mesjetiu.github.io/SynthiGME-web/**. Solo necesitas abrir ese enlace en un navegador moderno para experimentar el instrumento; no es necesario clonar ni compilar nada para usarlo.
+
 ## Relación con SynthiGME (SuperCollider)
 El repositorio original en SuperCollider, [SynthiGME](https://github.com/mesjetiu/SynthiGME), contiene la implementación completa como Quark, documentación histórica detallada y material audiovisual del instrumento. SynthiGME-web reutiliza esa investigación y traslada los paneles a la web para facilitar su difusión; cualquier mejora conceptual debería mantenerse alineada con la referencia original.
 
 ## Flujo de compilación
-El enfoque técnico actual se limita a generar un bundle estático listo para publicar. Estas instrucciones se centran en ese flujo de trabajo.
+Esta sección solo es necesaria si vas a mantener el proyecto o desplegarlo fuera de GitHub Pages. El flujo técnico genera un bundle estático en `docs/`, que también sirve para alimentar Pages (rama `main` + carpeta `/docs`).
 
 ### Requisitos previos
 - Node.js 18 o superior
@@ -49,5 +52,5 @@ Este comando ejecuta `node scripts/build.mjs`, que realiza los siguientes pasos:
 El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 
 ### Notas de trabajo
-- Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages).
-- Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds.
+- Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages u otro servidor).
+- Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds. Tras construir, haz commit/push de `docs/` para que Pages publique la última versión.

@@ -31,7 +31,7 @@ Esto instala `esbuild`, la herramienta utilizada para empaquetar y minificar los
 ### Estructura de carpetas
 - `src/`: código fuente editable. Incluye `index.html`, `assets/css/main.css` y `assets/js/` con todos los módulos.
 - `scripts/`: tareas auxiliares. Actualmente contiene `build.mjs`, que orquesta la compilación.
-- `dist/`: salida generada automáticamente por el comando de build. No debes editar nada aquí; su contenido se regenera cada vez.
+- `docs/`: salida generada automáticamente por el comando de build. Esta carpeta es la que puede publicar GitHub Pages (rama `main` + carpeta `/docs`). No edites su contenido a mano; se regenera cada vez.
 
 ### Ejecutar el build
 Lanza el proceso de empaquetado con:
@@ -41,13 +41,13 @@ npm run build
 ```
 
 Este comando ejecuta `node scripts/build.mjs`, que realiza los siguientes pasos:
-1. Limpia la carpeta `dist/` completa.
+1. Limpia la carpeta `docs/` completa.
 2. Bundlea y minifica el JavaScript partiendo de `src/assets/js/app.js` (incluyendo sus módulos) usando esbuild.
-3. Minifica `src/assets/css/main.css` y lo coloca en `dist/assets/css/`.
-4. Copia `src/index.html` a `dist/index.html` para apuntar a los assets generados.
+3. Minifica `src/assets/css/main.css` y lo coloca en `docs/assets/css/`.
+4. Copia `src/index.html` a `docs/index.html` para apuntar a los assets generados.
 
-El resultado está listo para publicarse directamente desde la carpeta `dist/`.
+El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 
 ### Notas de trabajo
-- Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado.
-- Evita modificar manualmente el contenido de `dist/` para prevenir inconsistencias entre builds.
+- Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages).
+- Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds.

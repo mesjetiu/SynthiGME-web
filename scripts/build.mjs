@@ -7,15 +7,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const srcDir = path.join(projectRoot, 'src');
-const distDir = path.join(projectRoot, 'dist');
+const docsDir = path.join(projectRoot, 'docs');
 
 async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
-async function cleanDist() {
-  await fs.rm(distDir, { recursive: true, force: true });
-  await ensureDir(distDir);
+async function cleanDocs() {
+  await fs.rm(docsDir, { recursive: true, force: true });
+  await ensureDir(docsDir);
 }
 
 async function copyFile(src, dest) {
@@ -24,7 +24,7 @@ async function copyFile(src, dest) {
 }
 
 async function copyHtml() {
-  await copyFile(path.join(srcDir, 'index.html'), path.join(distDir, 'index.html'));
+  await copyFile(path.join(srcDir, 'index.html'), path.join(docsDir, 'index.html'));
 }
 
 async function buildJs() {
@@ -36,7 +36,7 @@ async function buildJs() {
     platform: 'browser',
     format: 'esm',
     target: ['es2020'],
-    outdir: path.join(distDir, 'assets/js')
+    outdir: path.join(docsDir, 'assets/js')
   });
 }
 
@@ -46,13 +46,13 @@ async function buildCss() {
     bundle: true,
     minify: true,
     sourcemap: false,
-    outdir: path.join(distDir, 'assets/css')
+    outdir: path.join(docsDir, 'assets/css')
   });
 }
 
 async function run() {
-  console.log('Cleaning dist/ …');
-  await cleanDist();
+  console.log('Cleaning docs/ …');
+  await cleanDocs();
 
   console.log('Building JS bundle …');
   await buildJs();
@@ -63,7 +63,7 @@ async function run() {
   console.log('Copying static HTML …');
   await copyHtml();
 
-  console.log('Build finished. Output available in dist/.');
+  console.log('Build finished. Output available in docs/.');
 }
 
 run().catch(err => {

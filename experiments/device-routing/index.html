@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Prueba de entradas/salidas WebAudio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main>
+    <h1>Prueba de selección de dispositivos</h1>
+    <p>Este ejemplo mínimo solicita permiso al usuario, lista los dispositivos y permite escoger micro y salida.</p>
+
+    <section class="controls">
+      <button id="requestAccessBtn">Solicitar permiso</button>
+      <button id="refreshBtn" disabled>Actualizar lista</button>
+    </section>
+
+    <section class="selectors">
+      <div>
+        <label for="inputSelect">Entrada (micrófono)</label>
+        <select id="inputSelect" disabled></select>
+        <button id="monitorInputBtn" disabled>Monitorizar entrada</button>
+      </div>
+      <div>
+        <label for="outputSelect">Salida (dispositivo)</label>
+        <select id="outputSelect" disabled></select>
+        <button id="testToneBtn" disabled>Lanzar tono de prueba</button>
+      </div>
+    </section>
+
+    <section class="status" id="status"></section>
+  </main>
+
+  <audio id="inputMonitor" hidden></audio>
+  <audio id="testTone" hidden></audio>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

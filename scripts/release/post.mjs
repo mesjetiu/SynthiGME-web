@@ -33,7 +33,7 @@ async function main() {
   await fs.copyFile(cachedChangelogPath, changelogPath);
   await fs.rm(cacheDir, { recursive: true, force: true });
 
-  run('git add CHANGELOG.md');
+  run('git add CHANGELOG.md docs');
 
   // Si no hay cambios staged, no intentes enmendar.
   try {

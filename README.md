@@ -51,6 +51,9 @@ Este comando ejecuta `node scripts/build.mjs`, que realiza los siguientes pasos:
 
 El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 
+## Licencia
+SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, modificar y redistribuir el código manteniendo la atribución correspondiente.
+
 ### Notas de trabajo
 - Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages u otro servidor).
 - Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds. Tras construir, haz commit/push de `docs/` para que Pages publique la última versión.

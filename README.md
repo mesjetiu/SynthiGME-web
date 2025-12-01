@@ -58,8 +58,10 @@ SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, 
 1. Mantén el número de versión únicamente en `package.json` siguiendo [Semantic Versioning](https://semver.org/lang/es/). Registra tus cambios recientes en `CHANGELOG.md` dentro de la sección `Unreleased`.
 2. Cuando quieras publicar una versión, asegúrate de que el repositorio está limpio en la rama `main`, mueve las notas de `Unreleased` a una nueva entrada (p. ej. `## [0.1.1] - AAAA-MM-DD`) y guarda el archivo.
 3. Ejecuta `npm run release:patch`, `npm run release:minor` o `npm run release:major` según el alcance de los cambios:
+	- El helper `scripts/release/pre.mjs` comprueba que solo `CHANGELOG.md` esté modificado, guarda temporalmente su contenido y limpia el working tree.
 	- El hook `preversion` lanza `npm run build`, regenerando la carpeta `docs/` con la salida lista para GitHub Pages.
 	- `npm version` actualiza `package.json`, crea el commit automático (`release: Synthi GME vX.Y.Z`) y añade el tag `vX.Y.Z`.
+	- El helper `scripts/release/post.mjs` restaura `CHANGELOG.md`, lo añade al commit mediante `git commit --amend --no-edit` y fuerza el tag para apuntar al nuevo commit.
 4. Revisa el diff (incluidos los artefactos de `docs/`). Si todo es correcto, publica la versión con `git push origin main` seguido de `git push origin --tags`.
 
 Tras estos pasos, la carpeta `docs/` contiene la última versión estable y está lista para ser servida por GitHub Pages sin tareas adicionales.

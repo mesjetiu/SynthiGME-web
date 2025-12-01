@@ -54,6 +54,16 @@ El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 ## Licencia
 SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, modificar y redistribuir el código manteniendo la atribución correspondiente.
 
+## Versionado y releases
+1. Mantén el número de versión únicamente en `package.json` siguiendo [Semantic Versioning](https://semver.org/lang/es/). Registra tus cambios recientes en `CHANGELOG.md` dentro de la sección `Unreleased`.
+2. Cuando quieras publicar una versión, asegúrate de que el repositorio está limpio en la rama `main`, mueve las notas de `Unreleased` a una nueva entrada (p. ej. `## [0.1.1] - AAAA-MM-DD`) y guarda el archivo.
+3. Ejecuta `npm run release:patch`, `npm run release:minor` o `npm run release:major` según el alcance de los cambios:
+	- El hook `preversion` lanza `npm run build`, regenerando la carpeta `docs/` con la salida lista para GitHub Pages.
+	- `npm version` actualiza `package.json`, crea el commit automático (`release: Synthi GME vX.Y.Z`) y añade el tag `vX.Y.Z`.
+4. Revisa el diff (incluidos los artefactos de `docs/`). Si todo es correcto, publica la versión con `git push origin main` seguido de `git push origin --tags`.
+
+Tras estos pasos, la carpeta `docs/` contiene la última versión estable y está lista para ser servida por GitHub Pages sin tareas adicionales.
+
 ### Notas de trabajo
 - Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages u otro servidor).
 - Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds. Tras construir, haz commit/push de `docs/` para que Pages publique la última versión.

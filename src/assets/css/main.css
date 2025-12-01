@@ -15,6 +15,33 @@ body {
   overflow: hidden;
   user-select: none;
 }
+.fullscreen-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(30,30,30,0.6);
+  color: #ddd;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+.fullscreen-toggle:hover,
+.fullscreen-toggle:focus-visible {
+  background: rgba(70,70,70,0.85);
+  border-color: rgba(255,255,255,0.45);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0,0,0,0.6);
+}
+.fullscreen-toggle:focus-visible {
+  outline: 1px solid #ffeb3b;
+  outline-offset: 2px;
+}
 .panel {
   max-width: 1100px;
   margin: 1rem auto;

@@ -8,10 +8,32 @@
   <link rel="stylesheet" href="./assets/css/main.css" />
 </head>
 <body>
+  <button id="fullscreenBtn" type="button" style="position:fixed;top:1rem;right:1rem;z-index:1000;">Pantalla completa</button>
   <div id="viewportOuter">
     <div id="viewportInner"></div>
   </div>
 
   <script type="module" src="./assets/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const button = document.getElementById('fullscreenBtn');
+      if (!button) {
+        return;
+      }
+
+      button.addEventListener('click', async () => {
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+            return;
+          }
+
+          await document.documentElement.requestFullscreen();
+        } catch (error) {
+          console.error('No se pudo alternar la pantalla completa.', error);
+        }
+      });
+    });
+  </script>
 </body>
 </html>

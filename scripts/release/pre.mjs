@@ -11,7 +11,7 @@ const cacheDir = path.join(projectRoot, '.release-cache');
 const cachedChangelogPath = path.join(cacheDir, 'CHANGELOG.md');
 
 function run(cmd) {
-  return execSync(cmd, { cwd: projectRoot, stdio: 'pipe', encoding: 'utf8' }).trim();
+  return execSync(cmd, { cwd: projectRoot, stdio: 'pipe', encoding: 'utf8' });
 }
 
 function parseStatus(output) {

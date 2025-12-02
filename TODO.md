@@ -15,6 +15,7 @@
   - [ ] Sonido empieza al interactuar con la matriz no con las perillas (se oye rampa al activar pin si se ha tocado freq de un oscilador)
   - [ ] Añadir icono de Sylvia 
 - [ ] Crear apps standalone en diversas plataformas.
+- [ ] crear tests
 
 
 ## Hecho

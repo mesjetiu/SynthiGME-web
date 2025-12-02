@@ -8,9 +8,11 @@
 - [ ] Versionado, Documentación, Traducción
   - [ ] Documentado del código in situ.
   - [ ] Preparar para multidioma.
-- [ ] Usabilidad, gestos
+  - [ ] Documento con créditos.
+- [ ] Usabilidad, gestos, apariencia 
   - [ ] Hacer arrastre con dos dedos
   - [ ] Hacer canvas más grande. Existe límite de arrastre a alto zoom.
+  - [ ] Añadir icono de Sylvia 
 - [ ] Crear apps standalone en diversas plataformas.
 
 

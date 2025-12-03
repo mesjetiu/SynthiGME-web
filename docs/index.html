@@ -23,11 +23,35 @@
         return;
       }
 
+      const mobileRegex = /Android|iPhone|iPad|iPod/i;
+      const displayModeQueries = ['(display-mode: standalone)', '(display-mode: fullscreen)']
+        .map(query => window.matchMedia ? window.matchMedia(query) : null)
+        .filter(Boolean);
+
+      const isStandaloneDisplay = () => {
+        const matchesQuery = displayModeQueries.some(mq => mq.matches);
+        const navigatorStandalone = typeof window.navigator !== 'undefined' && 'standalone' in window.navigator
+          ? window.navigator.standalone
+          : false;
+        return matchesQuery || Boolean(navigatorStandalone);
+      };
+
+      const shouldHideButton = () => mobileRegex.test(navigator.userAgent || '') && isStandaloneDisplay();
+
       const syncVisibility = () => {
+        if (shouldHideButton()) {
+          button.hidden = true;
+          button.disabled = true;
+          return;
+        }
+        button.disabled = false;
         button.hidden = Boolean(document.fullscreenElement);
       };
 
       button.addEventListener('click', async () => {
+        if (button.disabled) {
+          return;
+        }
         try {
           if (document.fullscreenElement) {
             await document.exitFullscreen();
@@ -41,6 +65,8 @@
       });
 
       document.addEventListener('fullscreenchange', syncVisibility);
+      displayModeQueries.forEach(mq => mq.addEventListener('change', syncVisibility));
+
       syncVisibility();
     });
   </script>

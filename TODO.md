@@ -16,7 +16,7 @@
   - [x] Añadir icono de Sylvia (nuevo set de iconos/base PWA)
   - [ ] Aligerar visual con gráficos vectoriales svg.
   - [ ] Añadir inercia en movimiento de arrastre.
-  - [ ] Quitar botón de "Pantalla completa" cuando se ejecuta como PWA.
+  - [x] Quitar botón de "Pantalla completa" cuando se ejecuta como PWA en dispositivo móvil porque ya aparece en fullscreen por defecto.
   - [ ] Comenzar con zoom out mayor para ver El synthi en su conjunto.
 - [ ] crear tests
 

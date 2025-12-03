@@ -5,6 +5,12 @@ SynthiGME-web es un port del sintetizador modular Synthi GME ("GME Modular Emula
 ## Acceso en línea
 La versión compilada está disponible en GitHub Pages: **https://mesjetiu.github.io/SynthiGME-web/**. Solo necesitas abrir ese enlace en un navegador moderno para experimentar el instrumento; no es necesario clonar ni compilar nada para usarlo.
 
+### Versión PWA e instalación
+- Fija el sitio en tu dispositivo desde Chrome/Edge/Brave: menú → “Instalar Synthi GME Web”.
+- El `manifest.webmanifest` define los iconos (192/512 px) y el modo `standalone`, por lo que la app instalada oculta la UI del navegador.
+- El `service worker` (`sw.js`) precachea `index.html`, CSS, JS e iconos, permitiendo abrir la app sin conexión tras la primera visita.
+- Cuando se publica una versión nueva, el SW permanece “waiting” y la interfaz muestra un diálogo para recargar; solo al aceptar se activa el SW nuevo para evitar interrupciones.
+
 ## Relación con SynthiGME (SuperCollider)
 El repositorio original en SuperCollider, [SynthiGME](https://github.com/mesjetiu/SynthiGME), contiene la implementación completa como Quark, documentación histórica detallada y material audiovisual del instrumento. SynthiGME-web reutiliza esa investigación y traslada los paneles a la web para facilitar su difusión; cualquier mejora conceptual debería mantenerse alineada con la referencia original.
 
@@ -61,7 +67,7 @@ SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, 
 	- El helper `scripts/release/pre.mjs` comprueba que solo `CHANGELOG.md` esté modificado, guarda temporalmente su contenido y limpia el working tree.
 	- El hook `preversion` lanza `npm run build`, regenerando la carpeta `docs/` con la salida lista para GitHub Pages.
 	- `npm version` actualiza `package.json`, crea el commit automático (`release: Synthi GME vX.Y.Z`) y añade el tag `vX.Y.Z`.
-	- El helper `scripts/release/post.mjs` restaura `CHANGELOG.md`, lo añade al commit mediante `git commit --amend --no-edit` y fuerza el tag para apuntar al nuevo commit.
+	- El helper `scripts/release/post.mjs` restaura `CHANGELOG.md`, añade `docs/` y enmienda el commit antes de forzar el tag para apuntar al nuevo snapshot.
 4. Revisa el diff (incluidos los artefactos de `docs/`). Si todo es correcto, publica la versión con `git push origin main` seguido de `git push origin --tags`.
 
 Tras estos pasos, la carpeta `docs/` contiene la última versión estable y está lista para ser servida por GitHub Pages sin tareas adicionales.

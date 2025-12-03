@@ -343,4 +343,44 @@ window.addEventListener('DOMContentLoaded', () => {
   if (window._synthApp && window._synthApp.ensureAudio) {
     window._synthApp.ensureAudio();
   }
+  registerServiceWorker();
 });
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
+  const promptUserToRefresh = waitingWorker => {
+    if (!waitingWorker || !navigator.serviceWorker.controller) return;
+    const shouldUpdate = window.confirm('Hay una nueva versión disponible de SynthiGME-web. ¿Quieres recargar ahora?');
+    if (shouldUpdate) {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    }
+  };
+
+  navigator.serviceWorker.register('./sw.js')
+    .then(registration => {
+      if (registration.waiting) {
+        promptUserToRefresh(registration.waiting);
+      }
+
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') {
+            promptUserToRefresh(newWorker);
+          }
+        });
+      });
+    })
+    .catch(error => {
+      console.error('No se pudo registrar el service worker.', error);
+    });
+}

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Conversión de SynthiGME-web en PWA instalable con soporte offline, incluyendo manifest, service worker versionado y aviso de refresco para el usuario.
+- Añadidos iconos de Sylvia.
 
 ## [0.0.1] - 2025-12-01
 ### Added

@@ -238,8 +238,8 @@ class App {
     const finalHeight = contentHeight * scale;
     const centeredOffsetX = (outerWidth - finalWidth) / 2;
     const centeredOffsetY = (outerHeight - finalHeight) / 2;
-    offsetX = centeredOffsetX / scale;
-    offsetY = centeredOffsetY / scale;
+    offsetX = centeredOffsetX;
+    offsetY = centeredOffsetY;
     applyTransform();
   }
 

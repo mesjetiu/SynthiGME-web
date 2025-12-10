@@ -163,6 +163,8 @@ class App {
   const wheelPanFactor = 0.65; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.85; // suaviza el gesto en trackpads
   const panClampPadding = 200;
+  const PINCH_SCALE_EPSILON = 0.004; // evita que el pellizco dispare zoom por ruido
+  const MULTI_PAN_EPSILON = 0.75; // ignora micro movimientos en desplazamiento multitáctil
   let clampDisabled = false;
   let offsetX = 0;
   let offsetY = 0;
@@ -269,6 +271,7 @@ class App {
   // Pinch-zoom con dos dedos (móvil/tablet), centrado en el punto medio
   const pointers = new Map();
   let lastDist = null;
+  let lastCentroid = null;
 
   outer.addEventListener('pointerdown', ev => {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -287,21 +290,48 @@ class App {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
 
     if (pointers.size === 2) {
-      // Pinch-zoom: dos dedos
+      // Pinch-zoom + pan simultáneo con dos dedos
       ev.preventDefault();
       const arr = Array.from(pointers.values());
-      const dx = arr[0].x - arr[1].x;
-      const dy = arr[0].y - arr[1].y;
+      const [p1, p2] = arr;
+      const dx = p1.x - p2.x;
+      const dy = p1.y - p2.y;
       const dist = Math.hypot(dx, dy);
       const rect = outer.getBoundingClientRect();
-      const cx = (arr[0].x + arr[1].x) / 2 - rect.left;
-      const cy = (arr[0].y + arr[1].y) / 2 - rect.top;
+      const centroidClientX = (p1.x + p2.x) / 2;
+      const centroidClientY = (p1.y + p2.y) / 2;
+      const localCx = centroidClientX - rect.left;
+      const localCy = centroidClientY - rect.top;
+
+      let transformDirty = false;
+      if (lastCentroid) {
+        const panDx = centroidClientX - lastCentroid.x;
+        const panDy = centroidClientY - lastCentroid.y;
+        if (Math.abs(panDx) > MULTI_PAN_EPSILON || Math.abs(panDy) > MULTI_PAN_EPSILON) {
+          offsetX += panDx;
+          offsetY += panDy;
+          transformDirty = true;
+        }
+      }
+
+      let didZoom = false;
       if (lastDist != null) {
         const zoomFactor = dist / lastDist;
-        const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
-        adjustOffsetsForZoom(cx, cy, newScale);
+        if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
+          const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
+          adjustOffsetsForZoom(localCx, localCy, newScale);
+          didZoom = true;
+          transformDirty = false; // adjustOffsetsForZoom ya aplicó la transformación
+        }
       }
+
       lastDist = dist;
+      lastCentroid = { x: centroidClientX, y: centroidClientY };
+
+      if (!didZoom && transformDirty) {
+        applyTransform();
+      }
+
       // Cuando hay dos dedos, desactivamos pan a un dedo
       isPanning = false;
       panPointerId = null;
@@ -322,7 +352,10 @@ class App {
 
   outer.addEventListener('pointerup', ev => {
     pointers.delete(ev.pointerId);
-    if (pointers.size < 2) lastDist = null;
+    if (pointers.size < 2) {
+      lastDist = null;
+      lastCentroid = null;
+    }
     if (panPointerId === ev.pointerId) {
       isPanning = false;
       panPointerId = null;
@@ -330,7 +363,10 @@ class App {
   });
   outer.addEventListener('pointercancel', ev => {
     pointers.delete(ev.pointerId);
-    if (pointers.size < 2) lastDist = null;
+    if (pointers.size < 2) {
+      lastDist = null;
+      lastCentroid = null;
+    }
     if (panPointerId === ev.pointerId) {
       isPanning = false;
       panPointerId = null;

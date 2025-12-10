@@ -344,13 +344,22 @@ small { color:#aaa; }
   letter-spacing: 0.05em;
   border: 1px solid rgba(255,213,79,0.6);
   box-shadow: 0 0 12px rgba(0,0,0,0.6);
-  display: none;
   pointer-events: none;
   z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 20px);
+  transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s ease;
 }
 
-@media (orientation: portrait) {
-  .orientation-hint {
-    display: flex;
-  }
+.orientation-hint.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.orientation-hint.hide {
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 12px);
 }

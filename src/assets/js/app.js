@@ -10,6 +10,8 @@ import { createOutputRouterUI } from './ui/outputRouter.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 
+let orientationHintDismissed = false;
+
 class App {
   constructor() {
     this.engine = new AudioEngine();
@@ -443,12 +445,36 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function ensureOrientationHint() {
-  if (document.getElementById('orientationHint')) return;
-  const hint = document.createElement('div');
-  hint.id = 'orientationHint';
-  hint.className = 'orientation-hint';
-  hint.textContent = 'Gira el dispositivo para ver todo el sintetizador';
-  document.body.appendChild(hint);
+  if (orientationHintDismissed) return;
+  orientationHintDismissed = true;
+  const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+  if (!isPortrait) return;
+
+  let hint = document.getElementById('orientationHint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'orientationHint';
+    hint.className = 'orientation-hint';
+    document.body.appendChild(hint);
+  }
+  hint.textContent = 'Gira el dispositivo en posición horizontal para una mejor experiencia de uso del sintetizador';
+  requestAnimationFrame(() => {
+    hint.classList.remove('hide');
+    hint.classList.add('show');
+  });
+  setTimeout(() => dismissOrientationHint(), 4500);
+}
+
+function dismissOrientationHint() {
+  const hint = document.getElementById('orientationHint');
+  if (!hint) return;
+  hint.classList.add('hide');
+  hint.classList.remove('show');
+  setTimeout(() => {
+    if (hint.parentNode) {
+      hint.parentNode.removeChild(hint);
+    }
+  }, 600);
 }
 
 function registerServiceWorker() {

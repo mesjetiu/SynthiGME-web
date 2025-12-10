@@ -330,3 +330,27 @@ small { color:#aaa; }
   flex-direction: column;
   user-select: none;
 }
+
+.orientation-hint {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.75);
+  color: #ffd54f;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255,213,79,0.6);
+  box-shadow: 0 0 12px rgba(0,0,0,0.6);
+  display: none;
+  pointer-events: none;
+  z-index: 2000;
+}
+
+@media (orientation: portrait) {
+  .orientation-hint {
+    display: flex;
+  }
+}

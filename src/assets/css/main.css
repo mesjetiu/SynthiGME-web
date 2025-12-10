@@ -127,7 +127,6 @@ h1 {
   appearance: none;
   background: transparent;
   cursor: pointer;
-  touch-action: none;
 }
 .output-fader::-webkit-slider-runnable-track {
   width: 6px;

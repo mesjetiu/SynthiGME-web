@@ -244,7 +244,9 @@ class App {
 
   function isInteractiveTarget(el) {
     if (!el) return false;
-    return !!el.closest('.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader-control, .output-fader-track, .output-fader-thumb');
+    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader, .output-fader-shell';
+    if (el.closest('[data-prevent-pan="true"]')) return true;
+    return !!el.closest(selector);
   }
 
   function adjustOffsetsForZoom(cx, cy, newScale) {

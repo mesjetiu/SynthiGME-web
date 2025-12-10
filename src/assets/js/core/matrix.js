@@ -92,9 +92,17 @@ export class Matrix {
       const gain = ctx.createGain();
       gain.gain.value = this.options.outputGain;
       srcNode.connect(gain);
-      if (destInfo.bus === 1 && this.engine.bus1) gain.connect(this.engine.bus1);
-      else if (destInfo.bus === 2 && this.engine.bus2) gain.connect(this.engine.bus2);
-      else if (this.engine.masterL) gain.connect(this.engine.masterL);
+      const busIndex = (destInfo.busIndex != null)
+        ? destInfo.busIndex
+        : (typeof destInfo.bus === 'number' ? destInfo.bus - 1 : null);
+      const busNode = (busIndex != null)
+        ? this.engine.getOutputBusNode(busIndex)
+        : null;
+      if (busNode) {
+        gain.connect(busNode);
+      } else if (this.engine.masterL) {
+        gain.connect(this.engine.masterL);
+      }
       this.connections[r][c] = gain;
       return;
     }

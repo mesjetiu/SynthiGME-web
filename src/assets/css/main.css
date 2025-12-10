@@ -91,6 +91,70 @@ h1 {
   padding: 0.5rem;
   box-shadow: inset 0 0 6px rgba(0,0,0,0.7);
 }
+.output-fader-panel {
+  min-width: 260px;
+}
+.output-fader-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
+  justify-content: center;
+}
+.output-fader-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 60px;
+  min-width: 60px;
+}
+.output-fader-label {
+  font-size: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+.output-fader-control {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  height: 220px;
+}
+.output-fader-track {
+  position: relative;
+  width: 24px;
+  height: 200px;
+  border-radius: 12px;
+  border: 1px solid #666;
+  background: linear-gradient(180deg, #666 0%, #1c1c1c 100%);
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.9);
+  cursor: pointer;
+  touch-action: none;
+}
+.output-fader-fill {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffd54f 0%, #8c6d1f 100%);
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+  height: 0%;
+}
+.output-fader-thumb {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  width: 30px;
+  height: 12px;
+  border-radius: 6px;
+  background: #222;
+  border: 1px solid #ffd54f;
+  box-shadow: 0 0 6px rgba(0,0,0,0.7);
+  pointer-events: auto;
+}
+.output-fader-value {
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: #bbb;
+}
 .voice-title {
   text-align: center;
   font-size: 0.9rem;

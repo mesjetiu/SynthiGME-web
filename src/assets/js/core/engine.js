@@ -1,11 +1,17 @@
 // Núcleo de audio: contexto WebAudio y clase base Module para el resto del sistema
 export class AudioEngine {
-  constructor() {
+  constructor(options = {}) {
+    const { outputChannels = 8 } = options;
     this.audioCtx = null;
     this.modules = [];
     this.isRunning = false;
     this.muted = false;
     this.masterBaseGain = 1.0;
+
+    this.outputChannels = outputChannels;
+    this.outputLevels = Array.from({ length: this.outputChannels }, () => 1.0);
+    this.outputPans = Array.from({ length: this.outputChannels }, () => 0.0);
+    this.outputBuses = [];
 
     this.bus1 = null;
     this.bus2 = null;
@@ -19,10 +25,10 @@ export class AudioEngine {
     this.masterR = null;
     this.merger = null;
 
-    this.bus1Level = 1.0;
-    this.bus1Pan = 0.0;
-    this.bus2Level = 1.0;
-    this.bus2Pan = 0.0;
+    this.bus1Level = this.outputLevels[0] || 1.0;
+    this.bus1Pan = this.outputPans[0] || 0.0;
+    this.bus2Level = this.outputLevels[1] || 1.0;
+    this.bus2Pan = this.outputPans[1] || 0.0;
   }
 
   start() {
@@ -33,38 +39,42 @@ export class AudioEngine {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.audioCtx = ctx;
 
-    this.bus1 = ctx.createGain();
-    this.bus2 = ctx.createGain();
-    this.bus1.gain.value = 1.0;
-    this.bus2.gain.value = 1.0;
-
-    this.bus1Mod = ctx.createGain();
-    this.bus2Mod = ctx.createGain();
-    this.bus1Mod.gain.value = this.bus1Level;
-    this.bus2Mod.gain.value = this.bus2Level;
-
-    this.bus1.connect(this.bus1Mod);
-    this.bus2.connect(this.bus2Mod);
-
-    this.bus1L = ctx.createGain();
-    this.bus1R = ctx.createGain();
-    this.bus2L = ctx.createGain();
-    this.bus2R = ctx.createGain();
-
-    this.bus1Mod.connect(this.bus1L);
-    this.bus1Mod.connect(this.bus1R);
-    this.bus2Mod.connect(this.bus2L);
-    this.bus2Mod.connect(this.bus2R);
-
     this.masterL = ctx.createGain();
     this.masterR = ctx.createGain();
     this.masterL.gain.value = this.muted ? 0 : this.masterBaseGain;
     this.masterR.gain.value = this.muted ? 0 : this.masterBaseGain;
 
-    this.bus1L.connect(this.masterL);
-    this.bus2L.connect(this.masterL);
-    this.bus1R.connect(this.masterR);
-    this.bus2R.connect(this.masterR);
+    this.outputBuses = [];
+    for (let i = 0; i < this.outputChannels; i += 1) {
+      const busInput = ctx.createGain();
+      busInput.gain.value = 1.0;
+      const levelNode = ctx.createGain();
+      levelNode.gain.value = this.outputLevels[i];
+      busInput.connect(levelNode);
+
+      const panLeft = ctx.createGain();
+      const panRight = ctx.createGain();
+      levelNode.connect(panLeft);
+      levelNode.connect(panRight);
+      panLeft.connect(this.masterL);
+      panRight.connect(this.masterR);
+
+      this.outputBuses.push({
+        input: busInput,
+        levelNode,
+        panLeft,
+        panRight
+      });
+    }
+
+    this.bus1 = this.outputBuses[0]?.input || null;
+    this.bus2 = this.outputBuses[1]?.input || null;
+    this.bus1Mod = this.outputBuses[0]?.levelNode || null;
+    this.bus2Mod = this.outputBuses[1]?.levelNode || null;
+    this.bus1L = this.outputBuses[0]?.panLeft || null;
+    this.bus1R = this.outputBuses[0]?.panRight || null;
+    this.bus2L = this.outputBuses[1]?.panLeft || null;
+    this.bus2R = this.outputBuses[1]?.panRight || null;
 
     this.merger = ctx.createChannelMerger(2);
     this.masterL.connect(this.merger, 0, 0);
@@ -74,26 +84,19 @@ export class AudioEngine {
     for (const m of this.modules) {
       if (m.start) m.start();
     }
-    this.updateBusMix(1);
-    this.updateBusMix(2);
+    for (let i = 0; i < this.outputChannels; i += 1) {
+      this.updateOutputPan(i);
+    }
     this.isRunning = true;
   }
 
-  updateBusMix(busIndex) {
+  updateOutputPan(busIndex) {
     const ctx = this.audioCtx;
-    if (!ctx) return;
-    let pan;
-    let gainL;
-    let gainR;
-    if (busIndex === 1) {
-      pan = this.bus1Pan;
-      gainL = this.bus1L.gain;
-      gainR = this.bus1R.gain;
-    } else {
-      pan = this.bus2Pan;
-      gainL = this.bus2L.gain;
-      gainR = this.bus2R.gain;
-    }
+    const bus = this.outputBuses[busIndex];
+    if (!ctx || !bus) return;
+    const pan = this.outputPans[busIndex] ?? 0;
+    const gainL = bus.panLeft.gain;
+    const gainR = bus.panRight.gain;
     const angle = (pan + 1) * 0.25 * Math.PI;
     const left = Math.cos(angle);
     const right = Math.sin(angle);
@@ -104,29 +107,51 @@ export class AudioEngine {
     gainR.setTargetAtTime(right, now, 0.03);
   }
 
-  setBusLevel(bus, value) {
+  setOutputLevel(busIndex, value) {
+    if (busIndex < 0 || busIndex >= this.outputChannels) return;
+    this.outputLevels[busIndex] = value;
     const ctx = this.audioCtx;
-    if (bus === 1) {
-      this.bus1Level = value;
-      if (ctx && this.bus1Mod) {
-        const now = ctx.currentTime;
-        this.bus1Mod.gain.cancelScheduledValues(now);
-        this.bus1Mod.gain.setTargetAtTime(value, now, 0.03);
-      }
-    } else {
-      this.bus2Level = value;
-      if (ctx && this.bus2Mod) {
-        const now = ctx.currentTime;
-        this.bus2Mod.gain.cancelScheduledValues(now);
-        this.bus2Mod.gain.setTargetAtTime(value, now, 0.03);
-      }
+    const bus = this.outputBuses[busIndex];
+    if (ctx && bus) {
+      const now = ctx.currentTime;
+      bus.levelNode.gain.cancelScheduledValues(now);
+      bus.levelNode.gain.setTargetAtTime(value, now, 0.03);
     }
+    if (busIndex === 0) this.bus1Level = value;
+    if (busIndex === 1) this.bus2Level = value;
+  }
+
+  getOutputLevel(busIndex) {
+    return this.outputLevels[busIndex] ?? 1.0;
+  }
+
+  setOutputPan(busIndex, value) {
+    if (busIndex < 0 || busIndex >= this.outputChannels) return;
+    this.outputPans[busIndex] = value;
+    this.updateOutputPan(busIndex);
+    if (busIndex === 0) this.bus1Pan = value;
+    if (busIndex === 1) this.bus2Pan = value;
+  }
+
+  getOutputBusNode(busIndex) {
+    return this.outputBuses[busIndex]?.input || null;
+  }
+
+  connectNodeToOutput(busIndex, node) {
+    const busNode = this.getOutputBusNode(busIndex);
+    if (!busNode || !node) return null;
+    node.connect(busNode);
+    return busNode;
+  }
+
+  setBusLevel(bus, value) {
+    const targetIndex = bus - 1;
+    this.setOutputLevel(targetIndex, value);
   }
 
   setBusPan(bus, value) {
-    if (bus === 1) this.bus1Pan = value;
-    else this.bus2Pan = value;
-    this.updateBusMix(bus);
+    const targetIndex = bus - 1;
+    this.setOutputPan(targetIndex, value);
   }
 
   addModule(module) {

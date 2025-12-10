@@ -8,6 +8,7 @@ import { JoystickModule } from './modules/joystick.js';
 import { OutputRouterModule } from './modules/outputRouter.js';
 import { createOutputRouterUI } from './ui/outputRouter.js';
 import { PanelManager } from './ui/panelManager.js';
+import { OutputFaderModule } from './modules/outputFaders.js';
 
 class App {
   constructor() {
@@ -23,6 +24,11 @@ class App {
       title: 'Pin Matrix & Routing',
       subtitle: 'Cartografía EMS ampliable en panel dedicado.'
     });
+    this.outputPanel = this.panelManager.createPanel({
+      id: 'panel-output',
+      title: 'Output Mixer',
+      subtitle: '8 buses lógicos → estéreo master'
+    });
 
     this.muteBtn = document.createElement('button');
     this.muteBtn.id = 'muteBtn';
@@ -35,6 +41,7 @@ class App {
     this.matrixEl = this.matrixPanel.addSection({ id: 'matrixTable', title: 'Pin Matrix (tipo Synthi)', type: 'matrix' });
     this.stickRowEl = this.mainPanel.addSection({ id: 'stickRow', title: 'Stick (Joystick)', type: 'row' });
     this.routerRowEl = this.mainPanel.addSection({ id: 'routerRow', title: 'Output Router (buses → L/R)', type: 'row' });
+    this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
     this.matrix = null;
     this._heightSyncScheduled = false;
     this._setupModules();
@@ -52,6 +59,7 @@ class App {
     const noise = new NoiseModule(this.engine, 'noise');
     const stick = new JoystickModule(this.engine, 'stick');
     const router = new OutputRouterModule(this.engine, 'router');
+    const outputFaders = new OutputFaderModule(this.engine, 'outputFaders');
 
     this.engine.addModule(osc1);
     this.engine.addModule(osc2);
@@ -59,6 +67,7 @@ class App {
     this.engine.addModule(noise);
     this.engine.addModule(stick);
     this.engine.addModule(router);
+    this.engine.addModule(outputFaders);
 
     osc1.createPanel(this.oscRowEl);
     osc2.createPanel(this.oscRowEl);
@@ -66,6 +75,7 @@ class App {
     noise.createPanel(this.noiseRowEl);
     stick.createPanel(this.stickRowEl);
     createOutputRouterUI(this.engine, this.routerRowEl);
+    outputFaders.createPanel(this.outputFadersRowEl);
 
     const sourcePorts = [
       { moduleId: 'osc1', portId: 'audioOut', label: 'Oscillator 1 I' },
@@ -86,11 +96,18 @@ class App {
       { moduleId: 'stick',  portId: 'yOut', label: 'Stick Y' }
     ];
 
+    const outputDestinations = Array.from({ length: this.engine.outputChannels || 2 }, (_, idx) => ({
+      moduleId: null,
+      portId: null,
+      type: 'output',
+      busIndex: idx,
+      label: `Output Ch ${idx + 1}`
+    }));
+
     const destPorts = [
       // Signal inputs
       { moduleId: null,   portId: null,     type: 'amp',    label: 'Meter' },
-      { moduleId: null,   portId: null,     type: 'output', bus: 1, label: 'Output Ch 1' },
-      { moduleId: null,   portId: null,     type: 'output', bus: 2, label: 'Output Ch 2' },
+      ...outputDestinations,
       { moduleId: null,   portId: null,     type: 'amp',    label: 'Envelope A' },
       { moduleId: null,   portId: null,     type: 'amp',    label: 'Envelope B' },
       { moduleId: null,   portId: null,     type: 'amp',    label: 'Ring Mod A' },

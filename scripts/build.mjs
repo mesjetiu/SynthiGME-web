@@ -9,6 +9,7 @@ const projectRoot = path.resolve(__dirname, '..');
 const srcDir = path.join(projectRoot, 'src');
 const docsDir = path.join(projectRoot, 'docs');
 const packageJsonPath = path.join(projectRoot, 'package.json');
+const bundledAssetDirs = new Set(['js', 'css']);
 
 async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
@@ -46,13 +47,24 @@ async function copyDirectory(src, dest) {
   }));
 }
 
-async function copyPwaAssets() {
-  const pwaDir = path.join(srcDir, 'assets/pwa');
+async function copyStaticAssets() {
+  const assetsDir = path.join(srcDir, 'assets');
   try {
-    await fs.access(pwaDir);
-    await copyDirectory(pwaDir, path.join(docsDir, 'assets/pwa'));
+    const entries = await fs.readdir(assetsDir, { withFileTypes: true });
+    await Promise.all(entries.map(async entry => {
+      if (bundledAssetDirs.has(entry.name)) {
+        return;
+      }
+      const srcPath = path.join(assetsDir, entry.name);
+      const destPath = path.join(docsDir, 'assets', entry.name);
+      if (entry.isDirectory()) {
+        await copyDirectory(srcPath, destPath);
+      } else if (entry.isFile()) {
+        await copyFile(srcPath, destPath);
+      }
+    }));
   } catch {
-    // optional assets
+    // no static assets to copy
   }
 }
 
@@ -108,9 +120,9 @@ async function run() {
   console.log('Copying static HTML …');
   await copyHtml();
 
-  console.log('Copying manifest and PWA assets …');
+  console.log('Copying manifest and asset folders …');
   await copyManifest();
-  await copyPwaAssets();
+  await copyStaticAssets();
 
   console.log('Generating service worker …');
   await buildServiceWorker(version);

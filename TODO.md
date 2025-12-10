@@ -10,18 +10,18 @@
   - [ ] Preparar para multidioma.
   - [ ] Documento con créditos.
 - [ ] Usabilidad, gestos, apariencia 
-  - [ ] Hacer arrastre con dos dedos
+  - [x] Hacer arrastre con dos dedos
   - [ ] Hacer canvas más grande. Existe límite de arrastre a alto zoom.
   - [ ] Sonido empieza al interactuar con la matriz no con las perillas (se oye rampa al activar pin si se ha tocado freq de un oscilador)
   - [x] Añadir icono de Sylvia (nuevo set de iconos/base PWA)
   - [ ] Aligerar visual con gráficos vectoriales svg.
-  - [ ] Añadir inercia en movimiento de arrastre.
-  - [x] Quitar botón de "Pantalla completa" cuando se ejecuta como PWA en dispositivo móvil porque ya aparece en fullscreen por defecto.
+  - [ ] Añadir inercia en movimiento de arrastre. ya aparece en fullscreen por defecto.
   - [ ] Comenzar con zoom out mayor para ver El synthi en su conjunto.
 - [ ] crear tests
 
 
 ## Hecho
-- [x] Elegir y documentar la licencia del proyecto (archivo LICENSE y mención en README.md).
-- [x] Definir y documentar la estrategia de versionado y publicación (relación rama main ↔ compilación en /docs).
-- [x] Crear PWA (manifest, service worker, build/documentación actualizados).
+- Elegir y documentar la licencia del proyecto (archivo LICENSE y mención en README.md).
+- Definir y documentar la estrategia de versionado y publicación (relación rama main ↔ compilación en /docs).
+- Crear PWA (manifest, service worker, build/documentación actualizados).
+- Quitar botón de "Pantalla completa" cuando se ejecuta como PWA en dispositivo móvil porque

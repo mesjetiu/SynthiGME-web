@@ -244,7 +244,7 @@ class App {
 
   function isInteractiveTarget(el) {
     if (!el) return false;
-    return !!el.closest('.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle');
+    return !!el.closest('.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader-control, .output-fader-track, .output-fader-thumb');
   }
 
   function adjustOffsetsForZoom(cx, cy, newScale) {

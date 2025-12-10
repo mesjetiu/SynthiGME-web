@@ -1,12 +1,9 @@
 // Panel de 8 faders verticales para controlar los buses lógicos de salida
 import { Module } from '../core/engine.js';
 
-const clamp01 = value => Math.min(1, Math.max(0, value));
-
 export class OutputFaderModule extends Module {
   constructor(engine, id = 'outputFaders') {
     super(engine, id, 'Output Faders');
-    this.faders = [];
   }
 
   createPanel(container) {
@@ -32,103 +29,42 @@ export class OutputFaderModule extends Module {
       label.textContent = `Out ${i + 1}`;
       column.appendChild(label);
 
-      const { controlEl, valueEl, setValue } = this._createCustomSlider(this.engine.getOutputLevel(i) ?? 1, newValue => {
+      const shell = document.createElement('div');
+      shell.className = 'output-fader-shell';
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = '0';
+      slider.max = '1';
+      slider.step = '0.01';
+      slider.value = String(this.engine.getOutputLevel(i) ?? 1);
+      slider.className = 'output-fader';
+      slider.setAttribute('aria-label', `Nivel salida ${i + 1}`);
+
+      slider.addEventListener('pointerdown', ev => {
+        ev.stopPropagation();
+      });
+
+      slider.addEventListener('input', () => {
+        const numericValue = Number(slider.value);
         if (window._synthApp && window._synthApp.ensureAudio) {
           window._synthApp.ensureAudio();
         }
-        this.engine.setOutputLevel(i, newValue);
+        this.engine.setOutputLevel(i, numericValue);
+        value.textContent = numericValue.toFixed(2);
       });
 
-      column.appendChild(controlEl);
-      column.appendChild(valueEl);
+      const value = document.createElement('div');
+      value.className = 'output-fader-value';
+      value.textContent = Number(slider.value).toFixed(2);
+
+      shell.appendChild(slider);
+      column.appendChild(shell);
+      column.appendChild(value);
       sliderRow.appendChild(column);
-      this.faders.push({ setValue, valueEl });
     }
 
     block.appendChild(sliderRow);
     container.appendChild(block);
-  }
-
-  _createCustomSlider(initialValue, onChange) {
-    const clamped = clamp01(initialValue);
-    const control = document.createElement('div');
-    control.className = 'output-fader-control';
-
-    const track = document.createElement('div');
-    track.className = 'output-fader-track';
-
-    const fill = document.createElement('div');
-    fill.className = 'output-fader-fill';
-    track.appendChild(fill);
-
-    const thumb = document.createElement('div');
-    thumb.className = 'output-fader-thumb';
-    track.appendChild(thumb);
-
-    control.appendChild(track);
-
-    const valueDisplay = document.createElement('div');
-    valueDisplay.className = 'output-fader-value';
-
-    let currentValue = clamped;
-    let activePointerId = null;
-
-    const updateVisuals = value => {
-      const percent = value * 100;
-      fill.style.height = `${percent}%`;
-      thumb.style.bottom = `${percent}%`;
-      valueDisplay.textContent = value.toFixed(2);
-    };
-
-    const updateFromClientY = clientY => {
-      const rect = track.getBoundingClientRect();
-      if (!rect.height) return;
-      const relative = clamp01(1 - ((clientY - rect.top) / rect.height));
-      currentValue = relative;
-      updateVisuals(currentValue);
-      onChange(currentValue);
-    };
-
-    const stopTracking = () => {
-      if (activePointerId == null) return;
-      activePointerId = null;
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
-    };
-
-    const handlePointerMove = event => {
-      if (activePointerId !== event.pointerId) return;
-      event.preventDefault();
-      updateFromClientY(event.clientY);
-    };
-
-    const handlePointerUp = event => {
-      if (activePointerId !== event.pointerId) return;
-      stopTracking();
-    };
-
-    const startTracking = event => {
-      event.preventDefault();
-      track.setPointerCapture(event.pointerId);
-      activePointerId = event.pointerId;
-      updateFromClientY(event.clientY);
-      window.addEventListener('pointermove', handlePointerMove, { passive: false });
-      window.addEventListener('pointerup', handlePointerUp);
-      window.addEventListener('pointercancel', handlePointerUp);
-    };
-
-    track.addEventListener('pointerdown', startTracking, { passive: false });
-
-    updateVisuals(currentValue);
-
-    return {
-      controlEl: control,
-      valueEl: valueDisplay,
-      setValue: value => {
-        currentValue = clamp01(value);
-        updateVisuals(currentValue);
-      }
-    };
   }
 }

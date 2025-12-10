@@ -185,6 +185,7 @@ class App {
   let clampDisabled = false;
   let offsetX = 0;
   let offsetY = 0;
+  let userHasAdjustedView = false;
 
   function clampOffsets(padding = panClampPadding) {
     if (clampDisabled) return;
@@ -220,10 +221,38 @@ class App {
   }
   applyTransform();
 
+  function fitContentToViewport() {
+    if (!outer || !inner) return;
+    const contentWidth = inner.scrollWidth;
+    const contentHeight = inner.scrollHeight;
+    if (!contentWidth || !contentHeight) return;
+    const outerWidth = outer.clientWidth;
+    const outerHeight = outer.clientHeight;
+    if (!outerWidth || !outerHeight) return;
+    const scaleX = outerWidth / contentWidth;
+    const scaleY = outerHeight / contentHeight;
+    const targetScale = Math.min(1, scaleX, scaleY);
+    const clampedScale = Math.min(maxScale, Math.max(minScale, targetScale));
+    scale = clampedScale;
+    const finalWidth = contentWidth * scale;
+    const finalHeight = contentHeight * scale;
+    const centeredOffsetX = (outerWidth - finalWidth) / 2;
+    const centeredOffsetY = (outerHeight - finalHeight) / 2;
+    offsetX = centeredOffsetX / scale;
+    offsetY = centeredOffsetY / scale;
+    applyTransform();
+  }
+
+  requestAnimationFrame(() => fitContentToViewport());
+
   function setClampDisabled(value) {
     if (clampDisabled === value) return;
     clampDisabled = value;
     applyTransform();
+  }
+
+  function markUserAdjusted() {
+    userHasAdjustedView = true;
   }
 
   window.addEventListener('keydown', ev => {
@@ -268,6 +297,7 @@ class App {
       const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
+      markUserAdjusted();
       return;
     }
 
@@ -279,6 +309,7 @@ class App {
     offsetX -= moveX;
     offsetY -= moveY;
     applyTransform();
+    markUserAdjusted();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -349,6 +380,9 @@ class App {
 
       if (!didZoom && transformDirty) {
         applyTransform();
+        if (transformDirty) {
+          markUserAdjusted();
+        }
       }
 
       // Cuando hay dos dedos, desactivamos pan a un dedo
@@ -366,6 +400,7 @@ class App {
       offsetX += dx;
       offsetY += dy;
       applyTransform();
+      markUserAdjusted();
     }
   }, { passive: false });
 
@@ -391,15 +426,30 @@ class App {
       panPointerId = null;
     }
   });
+
+  window.addEventListener('resize', () => {
+    if (userHasAdjustedView) return;
+    fitContentToViewport();
+  });
 })();
 
 window.addEventListener('DOMContentLoaded', () => {
+  ensureOrientationHint();
   window._synthApp = new App();
   if (window._synthApp && window._synthApp.ensureAudio) {
     window._synthApp.ensureAudio();
   }
   registerServiceWorker();
 });
+
+function ensureOrientationHint() {
+  if (document.getElementById('orientationHint')) return;
+  const hint = document.createElement('div');
+  hint.id = 'orientationHint';
+  hint.className = 'orientation-hint';
+  hint.textContent = 'Gira el dispositivo para ver todo el sintetizador';
+  document.body.appendChild(hint);
+}
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;

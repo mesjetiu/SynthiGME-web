@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Conversión de SynthiGME-web en PWA instalable con soporte offline, incluyendo manifest, service worker versionado y aviso de refresco para el usuario.
 - Añadidos iconos de Sylvia.
+- Se puede hacer arrastre (pan) con dos dedos al tiempo que zoom (dispositivos móviles).
 
 ## [0.0.1] - 2025-12-01
 ### Added
-- Primera publicación experimental de SynthiGME-web con interfaz Web Audio funcional y build automatizada hacia `docs/`.
+- Prueba de concepto mínima (interfaz + sonido).
+- Primera publicación experimental de SynthiGME-web con interfaz Web Audio funcional y build automatizada hacia `docs/` (modo PWA).
 
 

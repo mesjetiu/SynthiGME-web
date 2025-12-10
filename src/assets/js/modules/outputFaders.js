@@ -10,6 +10,7 @@ export class OutputFaderModule extends Module {
     if (!container) return;
     const block = document.createElement('div');
     block.className = 'voice-block output-fader-panel';
+    block.dataset.preventPan = 'true';
 
     const title = document.createElement('div');
     title.className = 'voice-title';
@@ -31,6 +32,7 @@ export class OutputFaderModule extends Module {
 
       const shell = document.createElement('div');
       shell.className = 'output-fader-shell';
+      shell.dataset.preventPan = 'true';
 
       const slider = document.createElement('input');
       slider.type = 'range';
@@ -40,16 +42,17 @@ export class OutputFaderModule extends Module {
       slider.value = String(this.engine.getOutputLevel(i) ?? 1);
       slider.className = 'output-fader';
       slider.setAttribute('aria-label', `Nivel salida ${i + 1}`);
+      slider.dataset.preventPan = 'true';
 
       slider.addEventListener('pointerdown', ev => {
         ev.stopPropagation();
+        if (window._synthApp && window._synthApp.ensureAudio) {
+          window._synthApp.ensureAudio();
+        }
       });
 
       slider.addEventListener('input', () => {
         const numericValue = Number(slider.value);
-        if (window._synthApp && window._synthApp.ensureAudio) {
-          window._synthApp.ensureAudio();
-        }
         this.engine.setOutputLevel(i, numericValue);
         value.textContent = numericValue.toFixed(2);
       });

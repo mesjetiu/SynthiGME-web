@@ -290,6 +290,7 @@ table.matrix {
 }
 .matrix.matrix-large td {
   padding: 0;
+  border: none;
 }
 .matrix.matrix-large .pin-btn {
   width: 9px;

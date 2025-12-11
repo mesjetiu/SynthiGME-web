@@ -282,6 +282,14 @@ h1 {
 }
 
 #panel-6 .matrix-container {
+  margin-top: 0;
+  padding-bottom: 0;
+  max-width: 100%;
+  max-height: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 table.matrix {
@@ -291,10 +299,12 @@ table.matrix {
 }
 .matrix.matrix-large {
   font-size: 0;
-  --matrix-large-pin-size: 9px;
+  --matrix-large-pin-size: 11px;
   border-collapse: collapse;
   border-spacing: 0;
   table-layout: fixed;
+  width: auto;
+  height: auto;
 }
 .matrix.matrix-large td {
   padding: 0;

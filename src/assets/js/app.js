@@ -64,6 +64,7 @@ class App {
     this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
     this.matrix = null;
     this._heightSyncScheduled = false;
+    this._panel6LayoutRaf = null;
     this._setupModules();
     this._buildPanel6Matrix();
     this._setupUI();
@@ -225,35 +226,51 @@ class App {
 
     table.appendChild(tbody);
 
-    // Ajustar tamaño de los pines para que la matriz 66x63 quepa en el panel cuadrado
+    // Ajustar layout de la matriz grande dentro del panel 6
     this._resizePanel6Pins();
   }
 
   _resizePanel6Pins() {
     if (!this.panel6 || !this.panel6.element || !this.panel6MatrixEl) return;
 
-    // Usamos el contenedor de la matriz (no todo el panel) como referencia
-    const container = this.panel6MatrixEl.closest('.matrix-container') || this.panel6.element;
-    const rect = container.getBoundingClientRect();
-    const availableWidth = rect.width;
-    const availableHeight = rect.height;
+    // Layout diferido para asegurarnos de que el panel y el contenedor
+    // tienen dimensiones válidas antes de medir y escalar.
+    if (this._panel6LayoutRaf) {
+      cancelAnimationFrame(this._panel6LayoutRaf);
+    }
 
-    if (availableWidth <= 0 || availableHeight <= 0) return;
+    this._panel6LayoutRaf = requestAnimationFrame(() => {
+      this._panel6LayoutRaf = null;
 
-    const cols = 66;
-    const rows = 63;
-    const sizeX = availableWidth / cols;
-    const sizeY = availableHeight / rows;
-    const pinSize = Math.max(4, Math.floor(Math.min(sizeX, sizeY))); // mínimo 4px para no desaparecer
+      const container = this.panel6MatrixEl.closest('.matrix-container');
+      if (!container) return;
 
-    // Ajustamos el tamaño de los pines vía variable CSS en el panel 6
-    this.panel6.element.style.setProperty('--matrix-large-pin-size', `${pinSize}px`);
+      const table = this.panel6MatrixEl;
 
-    // Opcionalmente, fijamos el tamaño visual de la tabla para evitar cualquier overflow por redondeos
-    const tableWidth = pinSize * cols;
-    const tableHeight = pinSize * rows;
-    this.panel6MatrixEl.style.width = `${tableWidth}px`;
-    this.panel6MatrixEl.style.height = `${tableHeight}px`;
+      // Restablecemos cualquier escala previa para obtener el tamaño base
+      table.style.transform = 'none';
+
+      const containerRect = container.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+
+      const availableWidth = containerRect.width;
+      const availableHeight = containerRect.height;
+      const baseWidth = tableRect.width;
+      const baseHeight = tableRect.height;
+
+      if (!availableWidth || !availableHeight || !baseWidth || !baseHeight) return;
+
+      const widthScale = availableWidth / baseWidth;
+      const heightScale = availableHeight / baseHeight;
+
+      // Escala uniforme que garantiza que la matriz completa quepa dentro
+      // del contenedor cuadrado. No ampliamos por encima de 1 para mantener
+      // el tamaño base en pantallas grandes.
+      const scale = Math.min(1, widthScale, heightScale);
+
+      table.style.transformOrigin = 'center center';
+      table.style.transform = `scale(${scale})`;
+    });
   }
 
   _schedulePanelSync() {

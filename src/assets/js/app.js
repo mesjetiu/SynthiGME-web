@@ -17,62 +17,38 @@ class App {
     this.engine = new AudioEngine();
     this.panelManager = new PanelManager(document.getElementById('viewportInner'));
     this.placeholderPanels = {};
-    this.mainPanel = this.panelManager.createPanel({
-      id: 'panel-main',
-      title: 'Synthi GME (emulador del EMS Synthi 100) – Prototipo Web',
-      subtitle: '3 osciladores + matriz tipo EMS + stick (-1..1) + router estéreo (Output Ch1/Ch2 → L/R).'
-    });
-    this._labelPanelSlot(this.mainPanel, 'Panel 1', { row: 1, col: 1 });
+    this.mainPanel = this.panelManager.createPanel({ id: 'panel-main' });
+    this._labelPanelSlot(this.mainPanel, null, { row: 1, col: 1 });
 
     this._createPlaceholderPanel({
       id: 'panel-slot-2',
-      slotLabel: 'Panel 2',
       layout: { row: 1, col: 2 },
-      title: 'Panel 2 — Pendiente',
-      subtitle: 'Espacio reservado para módulos pedidos por el usuario.',
       message: 'Esta ranura corresponde al Panel 2 del Synthi 100 físico. Se llenará cuando se definan los controles requeridos.'
     });
 
     this._createPlaceholderPanel({
       id: 'panel-slot-3',
-      slotLabel: 'Panel 3',
       layout: { row: 1, col: 3 },
-      title: 'Panel 3 — Pendiente',
-      subtitle: 'Esperando especificaciones.',
       message: 'Placeholder temporal mientras se documenta el contenido del Panel 3.'
     });
 
     this._createPlaceholderPanel({
       id: 'panel-slot-4',
-      slotLabel: 'Panel 4',
       layout: { row: 1, col: 4 },
-      title: 'Panel 4 — Pendiente',
-      subtitle: 'Reservado.',
       message: 'Espacio libre para los módulos del Panel 4 del Synthi original.'
     });
 
-    this.matrixPanel = this.panelManager.createPanel({
-      id: 'panel-matrix',
-      title: 'Pin Matrix & Routing',
-      subtitle: 'Cartografía EMS ampliable en panel dedicado.'
-    });
-    this._labelPanelSlot(this.matrixPanel, 'Panel 5', { row: 2, col: 1 });
+    this.matrixPanel = this.panelManager.createPanel({ id: 'panel-matrix' });
+    this._labelPanelSlot(this.matrixPanel, null, { row: 2, col: 1 });
 
-    this._createPlaceholderPanel({
-      id: 'panel-slot-6',
-      slotLabel: 'Panel 6',
-      layout: { row: 2, col: 3 },
-      title: 'Panel 6 — Pendiente',
-      subtitle: 'Reservado para módulos adicionales.',
-      message: 'Contenido en preparación para reflejar el Panel 6 del Synthi 100.'
-    });
+    // Panel 6: gran matriz 66x63 sin rótulos
+    this.panel6 = this.panelManager.createPanel({ id: 'panel-6' });
+    this._labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
+    this.panel6MatrixEl = this.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
+    this.panel6MatrixEl.classList.add('matrix-large');
 
-    this.outputPanel = this.panelManager.createPanel({
-      id: 'panel-output',
-      title: 'Output Mixer',
-      subtitle: '8 buses lógicos → estéreo master'
-    });
-    this._labelPanelSlot(this.outputPanel, 'Panel 7', { row: 2, col: 4 });
+    this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
+    this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
     this.muteBtn = document.createElement('button');
     this.muteBtn.id = 'muteBtn';
@@ -82,13 +58,14 @@ class App {
     this.oscRowEl = this.mainPanel.addSection({ id: 'oscRow', title: 'Oscillators 1–3', type: 'row' });
     this.pulseRowEl = this.mainPanel.addSection({ id: 'pulseRow', title: 'Oscillator 3 / Pulse', type: 'row' });
     this.noiseRowEl = this.mainPanel.addSection({ id: 'noiseRow', title: 'Noise Generator', type: 'row' });
-    this.matrixEl = this.matrixPanel.addSection({ id: 'matrixTable', title: 'Pin Matrix (tipo Synthi)', type: 'matrix' });
+    this.matrixEl = this.matrixPanel.addSection({ id: 'matrixTable', type: 'matrix' });
     this.stickRowEl = this.mainPanel.addSection({ id: 'stickRow', title: 'Stick (Joystick)', type: 'row' });
     this.routerRowEl = this.mainPanel.addSection({ id: 'routerRow', title: 'Output Router (buses → L/R)', type: 'row' });
     this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
     this.matrix = null;
     this._heightSyncScheduled = false;
     this._setupModules();
+    this._buildPanel6Matrix();
     this._setupUI();
     this._schedulePanelSync();
     window.addEventListener('resize', () => this._schedulePanelSync());
@@ -198,20 +175,13 @@ class App {
       panel.element.style.setProperty('--panel-col', layout.col);
       panel.element.dataset.panelCol = layout.col;
     }
-
-    if (!label) return;
-    panel.element.dataset.panelSlot = label;
-    const badge = document.createElement('span');
-    badge.className = 'panel-slot-label';
-    badge.textContent = label;
-    panel.element.insertBefore(badge, panel.element.firstChild);
   }
 
-  _createPlaceholderPanel({ id, slotLabel, title, subtitle, message, layout } = {}) {
-    const panel = this.panelManager.createPanel({ id, title, subtitle });
+  _createPlaceholderPanel({ id, message, layout } = {}) {
+    const panel = this.panelManager.createPanel({ id });
     panel.element.classList.add('panel-placeholder');
-    if (slotLabel || layout) {
-      this._labelPanelSlot(panel, slotLabel, layout);
+    if (layout) {
+      this._labelPanelSlot(panel, null, layout);
     }
 
     const body = document.createElement('div');
@@ -223,6 +193,34 @@ class App {
       this.placeholderPanels[id] = panel;
     }
     return panel;
+  }
+
+  _buildPanel6Matrix() {
+    const table = this.panel6MatrixEl;
+    if (!table) return;
+
+    table.innerHTML = '';
+    const tbody = document.createElement('tbody');
+
+    const rows = 63;
+    const cols = 66;
+
+    for (let r = 0; r < rows; r++) {
+      const tr = document.createElement('tr');
+      for (let c = 0; c < cols; c++) {
+        const td = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.className = 'pin-btn';
+        btn.addEventListener('click', () => {
+          btn.classList.toggle('active');
+        });
+        td.appendChild(btn);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
   }
 
   _schedulePanelSync() {

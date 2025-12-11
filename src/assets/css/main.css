@@ -285,6 +285,17 @@ table.matrix {
   width: 100%;
   font-size: 0.72rem;
 }
+.matrix.matrix-large {
+  font-size: 0;
+}
+.matrix.matrix-large td {
+  padding: 0;
+}
+.matrix.matrix-large .pin-btn {
+  width: 9px;
+  height: 9px;
+  margin: 0;
+}
 .matrix th, .matrix td {
   border: 1px solid #444;
   padding: 0.15rem;

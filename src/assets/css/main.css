@@ -345,23 +345,26 @@ small { color:#aaa; }
   user-select: none;
 }
 #viewportInner {
-  width: 100%;
-  height: 100%;
+  --panel-width: 960px;
+  width: calc(var(--panel-width) * 4 + 1.5rem * 3);
+  min-height: 100%;
   transform-origin: 0 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, var(--panel-width));
+  grid-auto-rows: auto;
   gap: 1.5rem;
-  align-items: flex-start;
-  flex-wrap: nowrap;
+  align-content: start;
   user-select: none;
 }
 
 .panel {
   --panel-width: 960px;
-  flex: 0 0 var(--panel-width);
   width: var(--panel-width);
   display: flex;
   flex-direction: column;
   user-select: none;
+  grid-row: var(--panel-row, auto);
+  grid-column: var(--panel-col, auto);
 }
 
 .orientation-hint {

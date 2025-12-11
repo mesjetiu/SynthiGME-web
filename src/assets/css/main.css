@@ -299,6 +299,8 @@ table.matrix {
 .matrix.matrix-large td {
   padding: 0;
   border: none;
+  width: var(--matrix-large-pin-size);
+  height: var(--matrix-large-pin-size);
 }
 .matrix.matrix-large .pin-btn {
   display: block;

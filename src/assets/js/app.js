@@ -302,7 +302,7 @@ class App {
   let maxScale = 3.0;
   const wheelPanFactor = 0.65; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.85; // suaviza el gesto en trackpads
-  const panClampPadding = 200;
+  const MIN_VISIBLE_STRIP_PX = 32; // franja mínima de contenido que debe seguir visible
   const PINCH_SCALE_EPSILON = 0.004; // evita que el pellizco dispare zoom por ruido
   const MULTI_PAN_EPSILON = 0.75; // ignora micro movimientos en desplazamiento multitáctil
   let clampDisabled = false;
@@ -310,32 +310,46 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
-  function clampOffsets(padding = panClampPadding) {
+  function clampOffsets() {
     if (clampDisabled) return;
     const contentWidth = inner.scrollWidth;
     const contentHeight = inner.scrollHeight;
     if (!contentWidth || !contentHeight) return;
-    const visibleWidth = outer.clientWidth / scale;
-    const visibleHeight = outer.clientHeight / scale;
-    const extraWidth = Math.max(visibleWidth - contentWidth, 0);
-    const extraHeight = Math.max(visibleHeight - contentHeight, 0);
 
-    const minX = extraWidth > 0
-      ? -padding
-      : visibleWidth - contentWidth - padding;
-    const maxX = extraWidth > 0
-      ? visibleWidth - contentWidth + padding
-      : padding;
+    const outerWidth = outer.clientWidth;
+    const outerHeight = outer.clientHeight;
+    if (!outerWidth || !outerHeight) return;
 
-    const minY = extraHeight > 0
-      ? -padding
-      : visibleHeight - contentHeight - padding;
-    const maxY = extraHeight > 0
-      ? visibleHeight - contentHeight + padding
-      : padding;
+    const scaledWidth = contentWidth * scale;
+    const scaledHeight = contentHeight * scale;
 
-    offsetX = Math.min(Math.max(offsetX, minX), maxX);
-    offsetY = Math.min(Math.max(offsetY, minY), maxY);
+    // Definimos la franja mínima que debe seguir visible en cada eje.
+    const visibleStripX = Math.min(MIN_VISIBLE_STRIP_PX, scaledWidth, outerWidth);
+    const visibleStripY = Math.min(MIN_VISIBLE_STRIP_PX, scaledHeight, outerHeight);
+
+    // Para que nunca desaparezca por completo, imponemos que la intersección
+    // entre contenido y viewport tenga como mínimo esa franja visible.
+    // En X esto equivale a limitar offsetX a:
+    //   [visibleStripX - scaledWidth, outerWidth - visibleStripX]
+    const minOffsetX = visibleStripX - scaledWidth;
+    const maxOffsetX = outerWidth - visibleStripX;
+
+    if (minOffsetX <= maxOffsetX) {
+      offsetX = Math.min(Math.max(offsetX, minOffsetX), maxOffsetX);
+    } else {
+      // Caso degenerado: el rango es imposible; fijamos al centro.
+      offsetX = (minOffsetX + maxOffsetX) / 2;
+    }
+
+    // Análogo en Y.
+    const minOffsetY = visibleStripY - scaledHeight;
+    const maxOffsetY = outerHeight - visibleStripY;
+
+    if (minOffsetY <= maxOffsetY) {
+      offsetY = Math.min(Math.max(offsetY, minOffsetY), maxOffsetY);
+    } else {
+      offsetY = (minOffsetY + maxOffsetY) / 2;
+    }
   }
 
   function applyTransform() {

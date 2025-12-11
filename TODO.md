@@ -14,7 +14,6 @@
   - [ ] Sonido empieza al interactuar con la matriz no con las perillas (se oye rampa al activar pin si se ha tocado freq de un oscilador)
   - [ ] Aligerar visual con gráficos vectoriales svg.
   - [ ] Añadir inercia en movimiento de arrastre. ya aparece en fullscreen por defecto.
-  - [ ] Comenzar con zoom out mayor para ver El synthi en su conjunto.
 - [ ] crear tests
 
 
@@ -25,3 +24,4 @@
 - Quitar botón de "Pantalla completa" cuando se ejecuta como PWA en dispositivo móvil.
 - Añadir icono de Sylvia (nuevo set de iconos/base PWA)
 - Hacer arrastre con dos dedos
+- Comenzar con zoom out mayor para ver El synthi en su conjunto.

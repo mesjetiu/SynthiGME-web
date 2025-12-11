@@ -230,12 +230,13 @@ class App {
   }
 
   _resizePanel6Pins() {
-    if (!this.panel6 || !this.panel6.element) return;
-    const panelEl = this.panel6.element;
+    if (!this.panel6 || !this.panel6.element || !this.panel6MatrixEl) return;
 
-    const rect = panelEl.getBoundingClientRect();
-    const availableWidth = rect.width - 16; // pequeño margen interno
-    const availableHeight = rect.height - 16;
+    // Usamos el contenedor de la matriz (no todo el panel) como referencia
+    const container = this.panel6MatrixEl.closest('.matrix-container') || this.panel6.element;
+    const rect = container.getBoundingClientRect();
+    const availableWidth = rect.width;
+    const availableHeight = rect.height;
 
     if (availableWidth <= 0 || availableHeight <= 0) return;
 
@@ -243,9 +244,16 @@ class App {
     const rows = 63;
     const sizeX = availableWidth / cols;
     const sizeY = availableHeight / rows;
-    const pinSize = Math.max(4, Math.min(sizeX, sizeY) - 1); // mínimo 4px para no desaparecer
+    const pinSize = Math.max(4, Math.floor(Math.min(sizeX, sizeY))); // mínimo 4px para no desaparecer
 
-    panelEl.style.setProperty('--matrix-large-pin-size', `${pinSize}px`);
+    // Ajustamos el tamaño de los pines vía variable CSS en el panel 6
+    this.panel6.element.style.setProperty('--matrix-large-pin-size', `${pinSize}px`);
+
+    // Opcionalmente, fijamos el tamaño visual de la tabla para evitar cualquier overflow por redondeos
+    const tableWidth = pinSize * cols;
+    const tableHeight = pinSize * rows;
+    this.panel6MatrixEl.style.width = `${tableWidth}px`;
+    this.panel6MatrixEl.style.height = `${tableHeight}px`;
   }
 
   _schedulePanelSync() {

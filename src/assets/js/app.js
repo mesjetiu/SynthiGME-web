@@ -236,15 +236,8 @@ class App {
 
   _syncPanelHeights() {
     const panels = document.querySelectorAll('#viewportInner .panel');
-    if (!panels.length) return;
-    let maxHeight = 0;
     panels.forEach(panel => {
-      panel.style.height = 'auto';
-      const panelHeight = panel.offsetHeight;
-      if (panelHeight > maxHeight) maxHeight = panelHeight;
-    });
-    panels.forEach(panel => {
-      panel.style.height = `${maxHeight}px`;
+      panel.style.height = '';
     });
   }
 }

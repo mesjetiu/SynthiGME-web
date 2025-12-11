@@ -68,7 +68,10 @@ class App {
     this._buildPanel6Matrix();
     this._setupUI();
     this._schedulePanelSync();
-    window.addEventListener('resize', () => this._schedulePanelSync());
+    window.addEventListener('resize', () => {
+      this._schedulePanelSync();
+      this._resizePanel6Pins();
+    });
   }
 
   ensureAudio() { this.engine.start(); }
@@ -221,6 +224,28 @@ class App {
     }
 
     table.appendChild(tbody);
+
+    // Ajustar tamaño de los pines para que la matriz 66x63 quepa en el panel cuadrado
+    this._resizePanel6Pins();
+  }
+
+  _resizePanel6Pins() {
+    if (!this.panel6 || !this.panel6.element) return;
+    const panelEl = this.panel6.element;
+
+    const rect = panelEl.getBoundingClientRect();
+    const availableWidth = rect.width - 16; // pequeño margen interno
+    const availableHeight = rect.height - 16;
+
+    if (availableWidth <= 0 || availableHeight <= 0) return;
+
+    const cols = 66;
+    const rows = 63;
+    const sizeX = availableWidth / cols;
+    const sizeY = availableHeight / rows;
+    const pinSize = Math.max(4, Math.min(sizeX, sizeY) - 1); // mínimo 4px para no desaparecer
+
+    panelEl.style.setProperty('--matrix-large-pin-size', `${pinSize}px`);
   }
 
   _schedulePanelSync() {

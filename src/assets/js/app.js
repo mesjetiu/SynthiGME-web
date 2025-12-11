@@ -22,11 +22,12 @@ class App {
       title: 'Synthi GME (emulador del EMS Synthi 100) – Prototipo Web',
       subtitle: '3 osciladores + matriz tipo EMS + stick (-1..1) + router estéreo (Output Ch1/Ch2 → L/R).'
     });
-    this._labelPanelSlot(this.mainPanel, 'Panel 1');
+    this._labelPanelSlot(this.mainPanel, 'Panel 1', { row: 1, col: 1 });
 
     this._createPlaceholderPanel({
       id: 'panel-slot-2',
       slotLabel: 'Panel 2',
+      layout: { row: 1, col: 2 },
       title: 'Panel 2 — Pendiente',
       subtitle: 'Espacio reservado para módulos pedidos por el usuario.',
       message: 'Esta ranura corresponde al Panel 2 del Synthi 100 físico. Se llenará cuando se definan los controles requeridos.'
@@ -35,6 +36,7 @@ class App {
     this._createPlaceholderPanel({
       id: 'panel-slot-3',
       slotLabel: 'Panel 3',
+      layout: { row: 1, col: 3 },
       title: 'Panel 3 — Pendiente',
       subtitle: 'Esperando especificaciones.',
       message: 'Placeholder temporal mientras se documenta el contenido del Panel 3.'
@@ -43,6 +45,7 @@ class App {
     this._createPlaceholderPanel({
       id: 'panel-slot-4',
       slotLabel: 'Panel 4',
+      layout: { row: 1, col: 4 },
       title: 'Panel 4 — Pendiente',
       subtitle: 'Reservado.',
       message: 'Espacio libre para los módulos del Panel 4 del Synthi original.'
@@ -53,19 +56,12 @@ class App {
       title: 'Pin Matrix & Routing',
       subtitle: 'Cartografía EMS ampliable en panel dedicado.'
     });
-    this._labelPanelSlot(this.matrixPanel, 'Panel 5');
-
-    this._createPlaceholderPanel({
-      id: 'panel-slot-x',
-      slotLabel: 'Panel X',
-      title: 'Panel X — Placeholder',
-      subtitle: 'Centro matricial',
-      message: 'El mítico Panel X permanece pendiente en esta versión web; aquí aparecerán las conexiones especiales.'
-    });
+    this._labelPanelSlot(this.matrixPanel, 'Panel 5', { row: 2, col: 1 });
 
     this._createPlaceholderPanel({
       id: 'panel-slot-6',
       slotLabel: 'Panel 6',
+      layout: { row: 2, col: 3 },
       title: 'Panel 6 — Pendiente',
       subtitle: 'Reservado para módulos adicionales.',
       message: 'Contenido en preparación para reflejar el Panel 6 del Synthi 100.'
@@ -76,7 +72,7 @@ class App {
       title: 'Output Mixer',
       subtitle: '8 buses lógicos → estéreo master'
     });
-    this._labelPanelSlot(this.outputPanel, 'Panel 7');
+    this._labelPanelSlot(this.outputPanel, 'Panel 7', { row: 2, col: 4 });
 
     this.muteBtn = document.createElement('button');
     this.muteBtn.id = 'muteBtn';
@@ -191,18 +187,32 @@ class App {
     });
   }
 
-  _labelPanelSlot(panel, label) {
-    if (!panel || !panel.element || !label) return;
+  _labelPanelSlot(panel, label, layout = {}) {
+    if (!panel || !panel.element) return;
+
+    if (layout.row) {
+      panel.element.style.setProperty('--panel-row', layout.row);
+      panel.element.dataset.panelRow = layout.row;
+    }
+    if (layout.col) {
+      panel.element.style.setProperty('--panel-col', layout.col);
+      panel.element.dataset.panelCol = layout.col;
+    }
+
+    if (!label) return;
+    panel.element.dataset.panelSlot = label;
     const badge = document.createElement('span');
     badge.className = 'panel-slot-label';
     badge.textContent = label;
     panel.element.insertBefore(badge, panel.element.firstChild);
   }
 
-  _createPlaceholderPanel({ id, slotLabel, title, subtitle, message } = {}) {
+  _createPlaceholderPanel({ id, slotLabel, title, subtitle, message, layout } = {}) {
     const panel = this.panelManager.createPanel({ id, title, subtitle });
     panel.element.classList.add('panel-placeholder');
-    if (slotLabel) this._labelPanelSlot(panel, slotLabel);
+    if (slotLabel || layout) {
+      this._labelPanelSlot(panel, slotLabel, layout);
+    }
 
     const body = document.createElement('div');
     body.className = 'placeholder-body';

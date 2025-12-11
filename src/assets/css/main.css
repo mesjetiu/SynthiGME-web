@@ -389,6 +389,7 @@ small { color:#aaa; }
   align-content: start;
   justify-content: flex-start;
   user-select: none;
+  will-change: transform;
 }
 
 .panel {

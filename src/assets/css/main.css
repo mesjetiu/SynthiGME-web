@@ -295,6 +295,17 @@ table.matrix {
   width: 9px;
   height: 9px;
   margin: 0;
+  border-radius: 50%;
+  background: #000;
+  border: 1px solid #333;
+  box-shadow: none;
+}
+
+.matrix.matrix-large .pin-btn.active {
+  background: #ffb63b;
+  border-radius: 50%;
+  border: 1px solid #ffe27b;
+  box-shadow: none;
 }
 .matrix th, .matrix td {
   border: 1px solid #444;

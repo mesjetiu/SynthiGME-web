@@ -54,6 +54,18 @@ body {
   height: var(--panel-width);
   box-sizing: border-box;
   overflow-y: auto;
+  position: relative;
+}
+
+.panel-build-version {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 8px;
+  opacity: 0.35;
+  color: #fff;
+  pointer-events: none;
+  user-select: none;
 }
 
 .panel-slot-label {

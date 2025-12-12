@@ -8,6 +8,11 @@ class Panel {
     this.element.className = 'panel';
     this.sections = new Map();
 
+    const buildTag = document.createElement('span');
+    buildTag.className = 'panel-build-version';
+    buildTag.textContent = '';
+    this.element.appendChild(buildTag);
+
     if (title) this.setTitle(title);
     if (subtitle) this.setSubtitle(subtitle);
   }

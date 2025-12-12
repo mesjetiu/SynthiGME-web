@@ -12,6 +12,39 @@ import { OutputFaderModule } from './modules/outputFaders.js';
 
 let orientationHintDismissed = false;
 
+// Esta constante será sustituida por esbuild en el bundle de docs/.
+// En /src seguirá siendo el placeholder.
+// typeof __BUILD_VERSION__ es seguro aunque no exista.
+// eslint-disable-next-line no-undef
+const BUILD_VERSION = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION__ : '__BUILD_VERSION__';
+
+function applyBuildVersionToPanels(version) {
+  const els = document.querySelectorAll('.panel-build-version');
+  els.forEach(el => {
+    el.textContent = `Versión ${version}`;
+  });
+}
+
+function detectBuildVersion() {
+  // Caso build (/docs): BUILD_VERSION ya viene inyectado por esbuild.
+  if (BUILD_VERSION && BUILD_VERSION !== '__BUILD_VERSION__') {
+    window.__synthBuildVersion = BUILD_VERSION;
+    applyBuildVersionToPanels(BUILD_VERSION);
+    return;
+  }
+
+  // Caso /src: usamos la version de package.json como referencia.
+  fetch('../package.json', { cache: 'no-store' })
+    .then(resp => (resp && resp.ok ? resp.json() : null))
+    .then(pkg => {
+      if (!pkg || !pkg.version) return;
+      const label = `${pkg.version}-src`;
+      window.__synthBuildVersion = label;
+      applyBuildVersionToPanels(label);
+    })
+    .catch(() => {});
+}
+
 class App {
   constructor() {
     this.engine = new AudioEngine();
@@ -628,6 +661,7 @@ window.addEventListener('DOMContentLoaded', () => {
     window._synthApp.ensureAudio();
   }
   registerServiceWorker();
+    detectBuildVersion();
 });
 
 function ensureOrientationHint() {

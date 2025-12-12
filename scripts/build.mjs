@@ -81,6 +81,40 @@ async function buildServiceWorker(version) {
   }
 }
 
+async function computeCacheVersion() {
+  const pkgRaw = await fs.readFile(packageJsonPath, 'utf8');
+  const { version = '0.0.0' } = JSON.parse(pkgRaw);
+
+  const swDest = path.join(docsDir, 'sw.js');
+  let previous = null;
+  try {
+    const prevContent = await fs.readFile(swDest, 'utf8');
+    const match = prevContent.match(/const\s+CACHE_VERSION\s*=\s*'([^']+)';/);
+    if (match) {
+      previous = match[1];
+    }
+  } catch {
+    // No previous docs/sw.js (first build or cleaned repo)
+  }
+
+  let cacheVersion;
+  if (!previous) {
+    // First time for this version: start at -0
+    cacheVersion = `${version}-0`;
+  } else {
+    const [prevBase, prevSuffixRaw] = previous.split('-');
+    if (prevBase === version) {
+      const prevSuffixNum = Number.isFinite(Number(prevSuffixRaw)) ? Number(prevSuffixRaw) : 0;
+      cacheVersion = `${version}-${prevSuffixNum + 1}`;
+    } else {
+      // Package version changed → reset suffix
+      cacheVersion = `${version}-0`;
+    }
+  }
+
+  return { version, cacheVersion };
+}
+
 async function buildJs() {
   return esbuild({
     entryPoints: [path.join(srcDir, 'assets/js/app.js')],
@@ -105,8 +139,9 @@ async function buildCss() {
 }
 
 async function run() {
-  const pkgRaw = await fs.readFile(packageJsonPath, 'utf8');
-  const { version = '0.0.0' } = JSON.parse(pkgRaw);
+  // Compute cache version BEFORE cleaning docs/, so we can
+  // inspect the previous docs/sw.js from the last build.
+  const { version, cacheVersion } = await computeCacheVersion();
 
   console.log('Cleaning docs/ …');
   await cleanDocs();
@@ -125,9 +160,9 @@ async function run() {
   await copyStaticAssets();
 
   console.log('Generating service worker …');
-  await buildServiceWorker(version);
+  await buildServiceWorker(cacheVersion);
 
-  console.log('Build finished. Output available in docs/.');
+  console.log(`Build finished. Output available in docs/. CACHE_VERSION=${cacheVersion}`);
 }
 
 run().catch(err => {

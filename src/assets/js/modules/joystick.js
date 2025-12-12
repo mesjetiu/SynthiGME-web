@@ -106,6 +106,9 @@ export class JoystickModule extends Module {
     };
 
     pad.addEventListener('pointerdown', ev => {
+      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
+        return;
+      }
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
@@ -113,6 +116,9 @@ export class JoystickModule extends Module {
       processEvent(ev);
     });
     pad.addEventListener('pointermove', ev => {
+      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
+        return;
+      }
       if (ev.buttons === 0) return;
       processEvent(ev);
     });

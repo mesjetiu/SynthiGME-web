@@ -10,7 +10,6 @@ export class OutputFaderModule extends Module {
     if (!container) return;
     const block = document.createElement('div');
     block.className = 'voice-block output-fader-panel';
-    block.dataset.preventPan = 'true';
 
     const title = document.createElement('div');
     title.className = 'voice-title';
@@ -32,7 +31,6 @@ export class OutputFaderModule extends Module {
 
       const shell = document.createElement('div');
       shell.className = 'output-fader-shell';
-      shell.dataset.preventPan = 'true';
 
       const slider = document.createElement('input');
       slider.type = 'range';
@@ -47,12 +45,6 @@ export class OutputFaderModule extends Module {
       let lastCommittedValue = Number(slider.value);
 
       slider.addEventListener('pointerdown', ev => {
-        if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
-          ev.stopPropagation();
-          ev.preventDefault();
-          return;
-        }
-        ev.stopPropagation();
         if (window._synthApp && window._synthApp.ensureAudio) {
           window._synthApp.ensureAudio();
         }

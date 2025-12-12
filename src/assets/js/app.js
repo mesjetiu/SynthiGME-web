@@ -462,9 +462,12 @@ class App {
 
   outer.addEventListener('pointerdown', ev => {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const isMouseLike = ev.pointerType === 'mouse' || ev.pointerType === 'pen';
 
-    // Si solo hay un dedo y no estamos sobre un control interactivo, iniciamos pan
-    if (pointers.size === 1 && !isInteractiveTarget(ev.target)) {
+    // En escritorio (ratón/lápiz), permitimos pan a un dedo sobre zonas no
+    // interactivas. En táctil, un dedo nunca inicia pan: se reserva para
+    // interactuar con los controles.
+    if (isMouseLike && pointers.size === 1 && !isInteractiveTarget(ev.target)) {
       isPanning = true;
       panPointerId = ev.pointerId;
       lastX = ev.clientX;
@@ -528,7 +531,7 @@ class App {
       return;
     }
 
-    // Si hay un solo dedo activo y estamos en modo pan
+    // Si hay un solo puntero activo y estamos en modo pan (solo ratón)
     if (pointers.size === 1 && isPanning && panPointerId === ev.pointerId) {
       const dx = ev.clientX - lastX;
       const dy = ev.clientY - lastY;

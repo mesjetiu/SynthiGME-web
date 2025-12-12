@@ -310,6 +310,14 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
+  // Contador táctil en captura para activar __synthNavGestureActive
+  const activeTouchIds = new Set();
+
+  function updateNavGestureFlagFromCapture() {
+    const navActive = activeTouchIds.size >= 2;
+    window.__synthNavGestureActive = navActive;
+  }
+
   function clampOffsets() {
     if (clampDisabled) return;
     const contentWidth = inner.scrollWidth;
@@ -407,6 +415,23 @@ class App {
   window.addEventListener('blur', () => {
     setClampDisabled(false);
   });
+
+  // Escuchamos punteros táctiles en captura para que el flag global
+  // de gesto de navegación se actualice antes de que lleguen a los widgets.
+  outer.addEventListener('pointerdown', ev => {
+    if (ev.pointerType !== 'touch') return;
+    activeTouchIds.add(ev.pointerId);
+    updateNavGestureFlagFromCapture();
+  }, true);
+
+  const handleTouchEndCapture = ev => {
+    if (ev.pointerType !== 'touch') return;
+    activeTouchIds.delete(ev.pointerId);
+    updateNavGestureFlagFromCapture();
+  };
+
+  outer.addEventListener('pointerup', handleTouchEndCapture, true);
+  outer.addEventListener('pointercancel', handleTouchEndCapture, true);
 
   function isInteractiveTarget(el) {
     if (!el) return false;

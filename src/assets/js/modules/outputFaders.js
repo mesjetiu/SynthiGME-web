@@ -45,6 +45,9 @@ export class OutputFaderModule extends Module {
       let lastCommittedValue = Number(slider.value);
 
       slider.addEventListener('pointerdown', ev => {
+        if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
+          return;
+        }
         if (window._synthApp && window._synthApp.ensureAudio) {
           window._synthApp.ensureAudio();
         }

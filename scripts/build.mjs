@@ -115,7 +115,7 @@ async function computeCacheVersion() {
   return { version, cacheVersion };
 }
 
-async function buildJs() {
+async function buildJs(cacheVersion) {
   return esbuild({
     entryPoints: [path.join(srcDir, 'assets/js/app.js')],
     bundle: true,
@@ -124,7 +124,10 @@ async function buildJs() {
     platform: 'browser',
     format: 'esm',
     target: ['es2020'],
-    outdir: path.join(docsDir, 'assets/js')
+    outdir: path.join(docsDir, 'assets/js'),
+    define: {
+      __BUILD_VERSION__: JSON.stringify(cacheVersion)
+    }
   });
 }
 
@@ -147,7 +150,7 @@ async function run() {
   await cleanDocs();
 
   console.log('Building JS bundle …');
-  await buildJs();
+  await buildJs(cacheVersion);
 
   console.log('Building CSS bundle …');
   await buildCss();

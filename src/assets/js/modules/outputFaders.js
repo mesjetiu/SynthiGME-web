@@ -44,7 +44,14 @@ export class OutputFaderModule extends Module {
       slider.setAttribute('aria-label', `Nivel salida ${i + 1}`);
       slider.dataset.preventPan = 'true';
 
+      let lastCommittedValue = Number(slider.value);
+
       slider.addEventListener('pointerdown', ev => {
+        if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
+          ev.stopPropagation();
+          ev.preventDefault();
+          return;
+        }
         ev.stopPropagation();
         if (window._synthApp && window._synthApp.ensureAudio) {
           window._synthApp.ensureAudio();
@@ -52,7 +59,12 @@ export class OutputFaderModule extends Module {
       });
 
       slider.addEventListener('input', () => {
+        if (window.__synthNavGestureActive) {
+          slider.value = String(lastCommittedValue);
+          return;
+        }
         const numericValue = Number(slider.value);
+        lastCommittedValue = numericValue;
         this.engine.setOutputLevel(i, numericValue);
         value.textContent = numericValue.toFixed(2);
       });

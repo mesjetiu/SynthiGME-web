@@ -23,6 +23,9 @@ export class Knob {
 
   _attach() {
     this.rootEl.addEventListener('pointerdown', ev => {
+      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
+        return;
+      }
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
@@ -34,6 +37,9 @@ export class Knob {
 
     this.rootEl.addEventListener('pointermove', ev => {
       if (!this.dragging) return;
+      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
+        return;
+      }
       const dy = this.startY - ev.clientY;
       const sens = (this.max - this.min) / this.pixelsForFullRange;
       this.setValue(this.startValue + dy * sens);

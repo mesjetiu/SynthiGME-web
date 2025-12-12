@@ -460,8 +460,29 @@ class App {
   let lastDist = null;
   let lastCentroid = null;
 
+  // Flag global de "gesto de navegación" activo (dos o más toques táctiles)
+  let activeTouchCount = 0;
+  let navGestureActive = false;
+  window.__synthNavGestureActive = false;
+
+  function recomputeNavGestureState() {
+    let count = 0;
+    pointers.forEach(p => {
+      if (p && p.pointerType === 'touch') {
+        count += 1;
+      }
+    });
+    activeTouchCount = count;
+    const next = activeTouchCount >= 2;
+    if (next !== navGestureActive) {
+      navGestureActive = next;
+      window.__synthNavGestureActive = navGestureActive;
+    }
+  }
+
   outer.addEventListener('pointerdown', ev => {
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: ev.pointerType });
+    recomputeNavGestureState();
     const isMouseLike = ev.pointerType === 'mouse' || ev.pointerType === 'pen';
 
     // En escritorio (ratón/lápiz), permitimos pan a un dedo sobre zonas no
@@ -546,6 +567,7 @@ class App {
 
   outer.addEventListener('pointerup', ev => {
     pointers.delete(ev.pointerId);
+    recomputeNavGestureState();
     if (pointers.size < 2) {
       lastDist = null;
       lastCentroid = null;
@@ -557,6 +579,7 @@ class App {
   });
   outer.addEventListener('pointercancel', ev => {
     pointers.delete(ev.pointerId);
+    recomputeNavGestureState();
     if (pointers.size < 2) {
       lastDist = null;
       lastCentroid = null;

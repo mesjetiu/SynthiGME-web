@@ -410,7 +410,7 @@ class App {
 
   function isInteractiveTarget(el) {
     if (!el) return false;
-    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader, .output-fader-shell';
+    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader';
     if (el.closest('[data-prevent-pan="true"]')) return true;
     return !!el.closest(selector);
   }

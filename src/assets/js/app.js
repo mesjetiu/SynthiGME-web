@@ -79,8 +79,6 @@ class App {
     // Panel 6: gran matriz 66x63 sin rótulos
     this.panel6 = this.panelManager.createPanel({ id: 'panel-6' });
     this._labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
-    this.panel6MatrixEl = this.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
-    this.panel6MatrixEl.classList.add('matrix-large');
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });

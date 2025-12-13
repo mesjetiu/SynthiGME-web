@@ -9,6 +9,7 @@ import { OutputRouterModule } from './modules/outputRouter.js';
 import { createOutputRouterUI } from './ui/outputRouter.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
+import { LargeMatrix } from './ui/largeMatrix.js';
 
 let orientationHintDismissed = false;
 
@@ -101,14 +102,15 @@ class App {
     this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
     this.matrix = null;
     this._heightSyncScheduled = false;
-    this._panel6LayoutRaf = null;
+    this.largeMatrixAudio = null;
+    this.largeMatrixControl = null;
     this._setupModules();
-    this._buildPanel6Matrix();
+    this._buildLargeMatrices();
     this._setupUI();
     this._schedulePanelSync();
     window.addEventListener('resize', () => {
       this._schedulePanelSync();
-      this._resizePanel6Pins();
+      this._resizeLargeMatrices();
     });
   }
 
@@ -236,78 +238,25 @@ class App {
     return panel;
   }
 
-  _buildPanel6Matrix() {
-    const table = this.panel6MatrixEl;
-    if (!table) return;
+  _buildLargeMatrices() {
+    // Panel 5 y 6: matrices grandes idénticas en tamaño y comportamiento básico
+    this.panel5MatrixEl = this.panel5.addSection({ id: 'panel5Matrix', type: 'matrix' });
+    this.panel6MatrixEl = this.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
 
-    table.innerHTML = '';
-    const tbody = document.createElement('tbody');
+    this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, { rows: 63, cols: 66 });
+    this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, { rows: 63, cols: 66 });
 
-    const rows = 63;
-    const cols = 66;
-
-    for (let r = 0; r < rows; r++) {
-      const tr = document.createElement('tr');
-      for (let c = 0; c < cols; c++) {
-        const td = document.createElement('td');
-        const btn = document.createElement('button');
-        btn.className = 'pin-btn';
-        btn.addEventListener('click', () => {
-          btn.classList.toggle('active');
-        });
-        td.appendChild(btn);
-        tr.appendChild(td);
-      }
-      tbody.appendChild(tr);
-    }
-
-    table.appendChild(tbody);
-
-    // Ajustar layout de la matriz grande dentro del panel 6
-    this._resizePanel6Pins();
+    this.largeMatrixAudio.build();
+    this.largeMatrixControl.build();
   }
 
-  _resizePanel6Pins() {
-    if (!this.panel6 || !this.panel6.element || !this.panel6MatrixEl) return;
-
-    // Layout diferido para asegurarnos de que el panel y el contenedor
-    // tienen dimensiones válidas antes de medir y escalar.
-    if (this._panel6LayoutRaf) {
-      cancelAnimationFrame(this._panel6LayoutRaf);
+  _resizeLargeMatrices() {
+    if (this.largeMatrixAudio) {
+      this.largeMatrixAudio.resizeToFit();
     }
-
-    this._panel6LayoutRaf = requestAnimationFrame(() => {
-      this._panel6LayoutRaf = null;
-
-      const container = this.panel6MatrixEl.closest('.matrix-container');
-      if (!container) return;
-
-      const table = this.panel6MatrixEl;
-
-      // Restablecemos cualquier escala previa para obtener el tamaño base
-      table.style.transform = 'none';
-
-      const containerRect = container.getBoundingClientRect();
-      const tableRect = table.getBoundingClientRect();
-
-      const availableWidth = containerRect.width;
-      const availableHeight = containerRect.height;
-      const baseWidth = tableRect.width;
-      const baseHeight = tableRect.height;
-
-      if (!availableWidth || !availableHeight || !baseWidth || !baseHeight) return;
-
-      const widthScale = availableWidth / baseWidth;
-      const heightScale = availableHeight / baseHeight;
-
-      // Escala uniforme que garantiza que la matriz completa quepa dentro
-      // del contenedor cuadrado. No ampliamos por encima de 1 para mantener
-      // el tamaño base en pantallas grandes.
-      const scale = Math.min(1, widthScale, heightScale);
-
-      table.style.transformOrigin = 'center center';
-      table.style.transform = `scale(${scale})`;
-    });
+    if (this.largeMatrixControl) {
+      this.largeMatrixControl.resizeToFit();
+    }
   }
 
   _schedulePanelSync() {

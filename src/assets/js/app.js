@@ -50,29 +50,30 @@ class App {
     this.engine = new AudioEngine();
     this.panelManager = new PanelManager(document.getElementById('viewportInner'));
     this.placeholderPanels = {};
-    this.mainPanel = this.panelManager.createPanel({ id: 'panel-main' });
-    this._labelPanelSlot(this.mainPanel, null, { row: 1, col: 1 });
+    // Panel 1: panel principal de controles
+    this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
+    this._labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
 
-    this._createPlaceholderPanel({
-      id: 'panel-slot-2',
-      layout: { row: 1, col: 2 },
-      message: 'Esta ranura corresponde al Panel 2 del Synthi 100 físico. Se llenará cuando se definan los controles requeridos.'
-    });
+    // Panel 2: matriz pequeña de ruteo (Matrix)
+    this.panel2 = this.panelManager.createPanel({ id: 'panel-2' });
+    this._labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
 
+    // Panel 3 y 4: placeholders por ahora
     this._createPlaceholderPanel({
-      id: 'panel-slot-3',
+      id: 'panel-3',
       layout: { row: 1, col: 3 },
       message: 'Placeholder temporal mientras se documenta el contenido del Panel 3.'
     });
 
     this._createPlaceholderPanel({
-      id: 'panel-slot-4',
+      id: 'panel-4',
       layout: { row: 1, col: 4 },
       message: 'Espacio libre para los módulos del Panel 4 del Synthi original.'
     });
 
-    this.matrixPanel = this.panelManager.createPanel({ id: 'panel-matrix' });
-    this._labelPanelSlot(this.matrixPanel, null, { row: 2, col: 1 });
+    // Panel 5: por ahora vacío (antiguo panel de matriz pequeña)
+    this.panel5 = this.panelManager.createPanel({ id: 'panel-5' });
+    this._labelPanelSlot(this.panel5, null, { row: 2, col: 1 });
 
     // Panel 6: gran matriz 66x63 sin rótulos
     this.panel6 = this.panelManager.createPanel({ id: 'panel-6' });
@@ -86,14 +87,17 @@ class App {
     this.muteBtn = document.createElement('button');
     this.muteBtn.id = 'muteBtn';
     this.muteBtn.textContent = '🔊 Audio ON';
-    this.mainPanel.addHeaderElement(this.muteBtn);
+    this.panel1.addHeaderElement(this.muteBtn);
 
-    this.oscRowEl = this.mainPanel.addSection({ id: 'oscRow', title: 'Oscillators 1–3', type: 'row' });
-    this.pulseRowEl = this.mainPanel.addSection({ id: 'pulseRow', title: 'Oscillator 3 / Pulse', type: 'row' });
-    this.noiseRowEl = this.mainPanel.addSection({ id: 'noiseRow', title: 'Noise Generator', type: 'row' });
-    this.matrixEl = this.matrixPanel.addSection({ id: 'matrixTable', type: 'matrix' });
-    this.stickRowEl = this.mainPanel.addSection({ id: 'stickRow', title: 'Stick (Joystick)', type: 'row' });
-    this.routerRowEl = this.mainPanel.addSection({ id: 'routerRow', title: 'Output Router (buses → L/R)', type: 'row' });
+    this.oscRowEl = this.panel1.addSection({ id: 'oscRow', title: 'Oscillators 1–3', type: 'row' });
+    this.pulseRowEl = this.panel1.addSection({ id: 'pulseRow', title: 'Oscillator 3 / Pulse', type: 'row' });
+    this.noiseRowEl = this.panel1.addSection({ id: 'noiseRow', title: 'Noise Generator', type: 'row' });
+
+    // Matriz pequeña ahora vive en el Panel 2
+    this.matrixEl = this.panel2.addSection({ id: 'matrixTable', type: 'matrix' });
+
+    this.stickRowEl = this.panel1.addSection({ id: 'stickRow', title: 'Stick (Joystick)', type: 'row' });
+    this.routerRowEl = this.panel1.addSection({ id: 'routerRow', title: 'Output Router (buses → L/R)', type: 'row' });
     this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
     this.matrix = null;
     this._heightSyncScheduled = false;

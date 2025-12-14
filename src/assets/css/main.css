@@ -56,12 +56,17 @@ body {
   overflow-y: auto;
   position: relative;
 }
-#panel-5 {
+#panel-5,
+#panel-6 {
   background-color: #111;
   background-image: url('../panels/panel5_bg.svg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .panel-build-version {
@@ -306,11 +311,7 @@ h1 {
   padding-bottom: 0;
   max-width: 100%;
   max-height: 100%;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  background: transparent;
 }
 table.matrix {
   border-collapse: collapse;
@@ -320,17 +321,25 @@ table.matrix {
 .matrix.matrix-large {
   font-size: 0;
   --matrix-large-pin-size: 11px;
+  --matrix-large-cell-size: 14px;
   border-collapse: collapse;
   border-spacing: 0;
   table-layout: fixed;
   width: auto;
   height: auto;
+  background: transparent;
+}
+.matrix.matrix-large tr,
+.matrix.matrix-large td {
+  background: transparent;
 }
 .matrix.matrix-large td {
   padding: 0;
   border: none;
-  width: var(--matrix-large-pin-size);
-  height: var(--matrix-large-pin-size);
+  width: var(--matrix-large-cell-size);
+  height: var(--matrix-large-cell-size);
+  text-align: center;
+  vertical-align: middle;
 }
 .matrix.matrix-large .pin-btn {
   display: block;
@@ -341,16 +350,16 @@ table.matrix {
   margin: 0 auto;
   padding: 0;
   border-radius: 50%;
-  background: #000;
-  border: 1px solid #333;
-  box-shadow: none;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 0 2px rgba(0,0,0,0.8);
 }
 
 .matrix.matrix-large .pin-btn.active {
   background: #ffb63b;
   border-radius: 50%;
   border: 1px solid #ffe27b;
-  box-shadow: none;
+  box-shadow: 0 0 4px rgba(255, 226, 123, 0.6);
 }
 .matrix th, .matrix td {
   border: 1px solid #444;
@@ -480,4 +489,20 @@ small { color:#aaa; }
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, 12px);
+}
+
+#panel-5,
+#panel-5 .matrix-container {
+  background-image: url("../panels/panel5_bg.svg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+#panel-6,
+#panel-6 .matrix-container {
+  background-image: url("../panels/panel6_bg.svg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
 }

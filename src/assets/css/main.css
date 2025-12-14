@@ -66,6 +66,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Aislar repintado de paneles pesados (móvil) */
+  contain: paint;
+  isolation: isolate;
 }
 
 #panel-5 {
@@ -375,6 +378,12 @@ table.matrix {
   .matrix.matrix-large .pin-btn.active {
     box-shadow: none;
   }
+
+  /* En móvil, miles de bordes también cuestan al pintar */
+  .matrix.matrix-large .pin-btn,
+  .matrix.matrix-large .pin-btn.active {
+    border-color: transparent;
+  }
 }
 .matrix th, .matrix td {
   border: 1px solid #444;
@@ -458,6 +467,7 @@ small { color:#aaa; }
   align-content: start;
   justify-content: flex-start;
   user-select: none;
+  will-change: transform;
 }
 
 .panel {

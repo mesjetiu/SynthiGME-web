@@ -310,30 +310,8 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
-  // `will-change: transform` ayuda durante el gesto, pero en móvil puede
-  // aumentar presión de memoria si se deja siempre activo.
-  let willChangeTimer = null;
-  const WILL_CHANGE_IDLE_MS = 250;
-
-  function startWillChange() {
-    if (inner.style.willChange !== 'transform') {
-      inner.style.willChange = 'transform';
-    }
-    if (willChangeTimer) {
-      clearTimeout(willChangeTimer);
-      willChangeTimer = null;
-    }
-  }
-
-  function stopWillChangeSoon() {
-    if (willChangeTimer) {
-      clearTimeout(willChangeTimer);
-    }
-    willChangeTimer = setTimeout(() => {
-      inner.style.willChange = '';
-      willChangeTimer = null;
-    }, WILL_CHANGE_IDLE_MS);
-  }
+  // Nota: la fluidez depende sobre todo de limitar el trabajo por evento.
+  // Hacemos render de transformaciones como máximo 1 vez por frame.
 
   // Contador táctil en captura para activar __synthNavGestureActive
   const activeTouchIds = new Set();
@@ -343,14 +321,42 @@ class App {
     window.__synthNavGestureActive = navActive;
   }
 
+  const metrics = {
+    contentWidth: 0,
+    contentHeight: 0,
+    outerWidth: 0,
+    outerHeight: 0,
+    outerLeft: 0,
+    outerTop: 0
+  };
+
+  function refreshMetrics() {
+    const rect = outer.getBoundingClientRect();
+    metrics.contentWidth = inner.scrollWidth;
+    metrics.contentHeight = inner.scrollHeight;
+    metrics.outerWidth = outer.clientWidth;
+    metrics.outerHeight = outer.clientHeight;
+    metrics.outerLeft = rect.left;
+    metrics.outerTop = rect.top;
+  }
+
+  let renderRaf = null;
+  function requestRender() {
+    if (renderRaf) return;
+    renderRaf = requestAnimationFrame(() => {
+      renderRaf = null;
+      render();
+    });
+  }
+
   function clampOffsets() {
     if (clampDisabled) return;
-    const contentWidth = inner.scrollWidth;
-    const contentHeight = inner.scrollHeight;
+    const contentWidth = metrics.contentWidth;
+    const contentHeight = metrics.contentHeight;
     if (!contentWidth || !contentHeight) return;
 
-    const outerWidth = outer.clientWidth;
-    const outerHeight = outer.clientHeight;
+    const outerWidth = metrics.outerWidth;
+    const outerHeight = metrics.outerHeight;
     if (!outerWidth || !outerHeight) return;
 
     const scaledWidth = contentWidth * scale;
@@ -385,19 +391,22 @@ class App {
     }
   }
 
-  function applyTransform() {
+  function render() {
     clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
   }
-  applyTransform();
+
+  refreshMetrics();
+  render();
 
   function fitContentToViewport() {
     if (!outer || !inner) return;
-    const contentWidth = inner.scrollWidth;
-    const contentHeight = inner.scrollHeight;
+    refreshMetrics();
+    const contentWidth = metrics.contentWidth;
+    const contentHeight = metrics.contentHeight;
     if (!contentWidth || !contentHeight) return;
-    const outerWidth = outer.clientWidth;
-    const outerHeight = outer.clientHeight;
+    const outerWidth = metrics.outerWidth;
+    const outerHeight = metrics.outerHeight;
     if (!outerWidth || !outerHeight) return;
     const scaleX = outerWidth / contentWidth;
     const scaleY = outerHeight / contentHeight;
@@ -410,7 +419,7 @@ class App {
     const centeredOffsetY = (outerHeight - finalHeight) / 2;
     offsetX = centeredOffsetX;
     offsetY = centeredOffsetY;
-    applyTransform();
+    requestRender();
   }
 
   requestAnimationFrame(() => fitContentToViewport());
@@ -418,7 +427,7 @@ class App {
   function setClampDisabled(value) {
     if (clampDisabled === value) return;
     clampDisabled = value;
-    applyTransform();
+    requestRender();
   }
 
   function markUserAdjusted() {
@@ -471,35 +480,31 @@ class App {
     scale = newScale;
     offsetX = cx - worldX * scale;
     offsetY = cy - worldY * scale;
-    applyTransform();
+    requestRender();
   }
 
   // Zoom con rueda (desktop), centrado en el cursor; pan con gesto normal de dos dedos
   outer.addEventListener('wheel', ev => {
-    startWillChange();
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
-      const rect = outer.getBoundingClientRect();
-      const cx = ev.clientX - rect.left;
-      const cy = ev.clientY - rect.top;
+      const cx = ev.clientX - (metrics.outerLeft || 0);
+      const cy = ev.clientY - (metrics.outerTop || 0);
       const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
-      stopWillChangeSoon();
       return;
     }
 
     ev.preventDefault();
     const lineHeight = 16;
-    const deltaUnit = ev.deltaMode === 1 ? lineHeight : (ev.deltaMode === 2 ? outer.clientHeight : 1);
+    const deltaUnit = ev.deltaMode === 1 ? lineHeight : (ev.deltaMode === 2 ? (metrics.outerHeight || outer.clientHeight) : 1);
     const moveX = ev.deltaX * deltaUnit * wheelPanFactor * wheelPanSmoothing;
     const moveY = ev.deltaY * deltaUnit * wheelPanFactor * wheelPanSmoothing;
     offsetX -= moveX;
     offsetY -= moveY;
-    applyTransform();
+    requestRender();
     markUserAdjusted();
-    stopWillChangeSoon();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -546,7 +551,6 @@ class App {
       panPointerId = ev.pointerId;
       lastX = ev.clientX;
       lastY = ev.clientY;
-      startWillChange();
     }
   });
 
@@ -555,7 +559,6 @@ class App {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
 
     if (pointers.size === 2) {
-      startWillChange();
       // Pinch-zoom + pan simultáneo con dos dedos
       ev.preventDefault();
       const arr = Array.from(pointers.values());
@@ -563,13 +566,13 @@ class App {
       const dx = p1.x - p2.x;
       const dy = p1.y - p2.y;
       const dist = Math.hypot(dx, dy);
-      const rect = outer.getBoundingClientRect();
       const centroidClientX = (p1.x + p2.x) / 2;
       const centroidClientY = (p1.y + p2.y) / 2;
-      const localCx = centroidClientX - rect.left;
-      const localCy = centroidClientY - rect.top;
+      const localCx = centroidClientX - (metrics.outerLeft || 0);
+      const localCy = centroidClientY - (metrics.outerTop || 0);
 
       let transformDirty = false;
+      let didZoom = false;
       if (lastCentroid) {
         const panDx = centroidClientX - lastCentroid.x;
         const panDy = centroidClientY - lastCentroid.y;
@@ -580,28 +583,22 @@ class App {
         }
       }
 
-      let didZoom = false;
       if (lastDist != null) {
         const zoomFactor = dist / lastDist;
         if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
           const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
           adjustOffsetsForZoom(localCx, localCy, newScale);
           didZoom = true;
-          transformDirty = false; // adjustOffsetsForZoom ya aplicó la transformación
         }
       }
 
       lastDist = dist;
       lastCentroid = { x: centroidClientX, y: centroidClientY };
 
-      if (!didZoom && transformDirty) {
-        applyTransform();
-        if (transformDirty) {
-          markUserAdjusted();
-        }
+      if (didZoom || transformDirty) {
+        requestRender();
+        markUserAdjusted();
       }
-
-      stopWillChangeSoon();
 
       // Cuando hay dos dedos, desactivamos pan a un dedo
       isPanning = false;
@@ -611,16 +608,14 @@ class App {
 
     // Si hay un solo puntero activo y estamos en modo pan (solo ratón)
     if (pointers.size === 1 && isPanning && panPointerId === ev.pointerId) {
-      startWillChange();
       const dx = ev.clientX - lastX;
       const dy = ev.clientY - lastY;
       lastX = ev.clientX;
       lastY = ev.clientY;
       offsetX += dx;
       offsetY += dy;
-      applyTransform();
+      requestRender();
       markUserAdjusted();
-      stopWillChangeSoon();
     }
   }, { passive: false });
 
@@ -637,7 +632,7 @@ class App {
     }
 
     if (pointers.size === 0) {
-      stopWillChangeSoon();
+      requestRender();
     }
   });
   outer.addEventListener('pointercancel', ev => {
@@ -653,11 +648,13 @@ class App {
     }
 
     if (pointers.size === 0) {
-      stopWillChangeSoon();
+      requestRender();
     }
   });
 
   window.addEventListener('resize', () => {
+    refreshMetrics();
+    requestRender();
     if (userHasAdjustedView) return;
     fitContentToViewport();
   });

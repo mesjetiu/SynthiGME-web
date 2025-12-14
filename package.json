@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "optimize:panel-svg": "node scripts/tools/optimize-panel-svg.mjs",
     "preversion": "npm run build",
     "release:patch": "node scripts/release/pre.mjs && npm version patch --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:minor": "node scripts/release/pre.mjs && npm version minor --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
@@ -27,6 +28,7 @@
   },
   "homepage": "https://github.com/mesjetiu/SynthiGME-web#readme",
   "devDependencies": {
-    "esbuild": "^0.23.0"
+    "esbuild": "^0.23.0",
+    "svgo": "^4.0.0"
   }
 }

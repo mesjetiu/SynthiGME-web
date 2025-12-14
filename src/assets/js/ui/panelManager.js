@@ -6,6 +6,7 @@ class Panel {
     this.id = id || `panel-${Date.now()}`;
     this.element = document.createElement('div');
     this.element.className = 'panel';
+    this.element.id = this.id;
     this.sections = new Map();
 
     const buildTag = document.createElement('span');

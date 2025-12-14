@@ -19,7 +19,7 @@ export class LargeMatrix {
     const defaults = {
       // Cuadrado base representado en % del panel.
       squarePercent: 90,
-      // Traslación del frame en "pasos" (1 paso = 1/66 del cuadrado).
+      // Traslación del frame en "pasos" (1 paso = 1/cols del cuadrado).
       translateSteps: { x: 0, y: 0 },
       // Márgenes internos del frame en "pasos". Positivo recorta; negativo expande.
       marginsSteps: { left: 0, right: 0, top: 0, bottom: 0 }
@@ -145,13 +145,14 @@ export class LargeMatrix {
 
       // Importante: los márgenes (top/bottom/left/right) deben deformar el frame
       // SIN acoplar dimensiones. Para eso escalamos X e Y por separado.
-      // Además, restamos un pequeño epsilon para evitar clipping por redondeos.
-      const EPS_PX = 2;
-      const safeWidth = Math.max(0, availableWidth - EPS_PX);
-      const safeHeight = Math.max(0, availableHeight - EPS_PX);
+      // En móvil, restar píxeles fijos deja un "marco" visible; usamos un
+      // epsilon multiplicativo muy pequeño, solo cuando reducimos (scale < 1).
+      const widthScale = availableWidth / baseWidth;
+      const heightScale = availableHeight / baseHeight;
 
-      const scaleX = safeWidth / baseWidth;
-      const scaleY = safeHeight / baseHeight;
+      const EPS_SCALE = 0.999;
+      const scaleX = widthScale < 1 ? widthScale * EPS_SCALE : 1;
+      const scaleY = heightScale < 1 ? heightScale * EPS_SCALE : 1;
 
       table.style.transformOrigin = 'center center';
       table.style.transform = `scale(${scaleX}, ${scaleY})`;

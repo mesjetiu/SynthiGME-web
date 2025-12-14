@@ -59,7 +59,6 @@ body {
 #panel-5,
 #panel-6 {
   background-color: #111;
-  background-image: url('../panels/panel5_bg.svg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -67,6 +66,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+#panel-5 {
+  background-image: url('../panels/panel5_bg.svg');
+}
+
+#panel-6 {
+  background-image: url('../panels/panel6_bg.svg');
 }
 
 .panel-build-version {
@@ -361,6 +368,14 @@ table.matrix {
   border: 1px solid #ffe27b;
   box-shadow: 0 0 4px rgba(255, 226, 123, 0.6);
 }
+
+/* En móvil, las sombras en miles de nodos cuestan mucho al repintar. */
+@media (pointer: coarse) {
+  .matrix.matrix-large .pin-btn,
+  .matrix.matrix-large .pin-btn.active {
+    box-shadow: none;
+  }
+}
 .matrix th, .matrix td {
   border: 1px solid #444;
   padding: 0.15rem;
@@ -443,7 +458,6 @@ small { color:#aaa; }
   align-content: start;
   justify-content: flex-start;
   user-select: none;
-  will-change: transform;
 }
 
 .panel {
@@ -491,18 +505,9 @@ small { color:#aaa; }
   transform: translate(-50%, 12px);
 }
 
-#panel-5,
-#panel-5 .matrix-container {
-  background-image: url("../panels/panel5_bg.svg");
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-
-#panel-6,
+/* Evitar duplicar el SVG de fondo dentro del frame (menos overdraw al repintar). */
+#panel-5 .matrix-container,
 #panel-6 .matrix-container {
-  background-image: url("../panels/panel6_bg.svg");
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
+  background: transparent;
+  contain: paint;
 }

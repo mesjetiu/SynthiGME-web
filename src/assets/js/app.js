@@ -241,8 +241,24 @@ class App {
     this.panel5MatrixEl = this.panel5.addSection({ id: 'panel5Matrix', type: 'matrix' });
     this.panel6MatrixEl = this.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
 
-    this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, { rows: 63, cols: 66 });
-    this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, { rows: 63, cols: 66 });
+    // AJUSTE MANUAL (ensayo/error)
+    // Unidades: "pasos" ~= "pines" (fracciones permitidas: 0.1, 0.5, etc.)
+    // Convención de signo (idéntica en los 4 lados):
+    // - margen positivo  => comprime hacia dentro
+    // - margen negativo  => expande hacia fuera
+    const LARGE_MATRIX_TWEAK = {
+      moveSteps: { x: 2, y: 0 },
+      marginsSteps: { left: 2.6, right: 4, top: 4.5, bottom: 2.4 }
+    };
+
+    const LARGE_MATRIX_FRAME = {
+      squarePercent: 90,
+      translateSteps: LARGE_MATRIX_TWEAK.moveSteps,
+      marginsSteps: LARGE_MATRIX_TWEAK.marginsSteps
+    };
+
+    this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, { rows: 63, cols: 66, frame: LARGE_MATRIX_FRAME });
+    this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, { rows: 63, cols: 66, frame: LARGE_MATRIX_FRAME });
 
     this.largeMatrixAudio.build();
     this.largeMatrixControl.build();

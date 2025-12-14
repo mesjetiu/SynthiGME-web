@@ -132,12 +132,28 @@ async function buildJs(cacheVersion) {
 }
 
 async function buildCss() {
+  const externalizePanelSvgs = {
+    name: 'externalize-panel-svgs',
+    setup(build) {
+      build.onResolve({ filter: /\.svg$/ }, args => {
+        // Solo para URLs dentro de CSS (url(...)).
+        if (args.kind !== 'url-token') return;
+        // Mantenemos estables los SVG de paneles como assets estáticos.
+        // copyStaticAssets() ya copia src/assets/panels -> docs/assets/panels.
+        if (args.path.startsWith('../panels/')) {
+          return { path: args.path, external: true };
+        }
+      });
+    }
+  };
+
   return esbuild({
     entryPoints: [path.join(srcDir, 'assets/css/main.css')],
     bundle: true,
     minify: true,
     sourcemap: false,
-    outdir: path.join(docsDir, 'assets/css')
+    outdir: path.join(docsDir, 'assets/css'),
+    plugins: [externalizePanelSvgs]
   });
 }
 

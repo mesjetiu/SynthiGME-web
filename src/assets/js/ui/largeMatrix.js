@@ -4,6 +4,8 @@ export class LargeMatrix {
     this.rows = rows;
     this.cols = cols;
     this._layoutRaf = null;
+    this._built = false;
+    this._onTableClick = null;
     this.frame = this._normalizeFrame(frame);
 
     if (this.table) {
@@ -94,7 +96,22 @@ export class LargeMatrix {
     const table = this.table;
     if (!table) return;
 
+    // Evita reconstrucciones accidentales (muy caras en móvil).
+    if (this._built) {
+      this.resizeToFit();
+      return;
+    }
+
     table.innerHTML = '';
+
+    // Delegación de eventos: 1 listener para todos los pines.
+    this._onTableClick = ev => {
+      const btn = ev.target?.closest?.('button.pin-btn');
+      if (!btn || !table.contains(btn)) return;
+      btn.classList.toggle('active');
+    };
+    table.addEventListener('click', this._onTableClick);
+
     const tbody = document.createElement('tbody');
 
     for (let r = 0; r < this.rows; r++) {
@@ -103,9 +120,6 @@ export class LargeMatrix {
         const td = document.createElement('td');
         const btn = document.createElement('button');
         btn.className = 'pin-btn';
-        btn.addEventListener('click', () => {
-          btn.classList.toggle('active');
-        });
         td.appendChild(btn);
         tr.appendChild(td);
       }
@@ -113,6 +127,8 @@ export class LargeMatrix {
     }
 
     table.appendChild(tbody);
+
+    this._built = true;
 
     this.resizeToFit();
   }

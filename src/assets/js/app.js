@@ -310,6 +310,31 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
+  // `will-change: transform` ayuda durante el gesto, pero en móvil puede
+  // aumentar presión de memoria si se deja siempre activo.
+  let willChangeTimer = null;
+  const WILL_CHANGE_IDLE_MS = 250;
+
+  function startWillChange() {
+    if (inner.style.willChange !== 'transform') {
+      inner.style.willChange = 'transform';
+    }
+    if (willChangeTimer) {
+      clearTimeout(willChangeTimer);
+      willChangeTimer = null;
+    }
+  }
+
+  function stopWillChangeSoon() {
+    if (willChangeTimer) {
+      clearTimeout(willChangeTimer);
+    }
+    willChangeTimer = setTimeout(() => {
+      inner.style.willChange = '';
+      willChangeTimer = null;
+    }, WILL_CHANGE_IDLE_MS);
+  }
+
   // Contador táctil en captura para activar __synthNavGestureActive
   const activeTouchIds = new Set();
 
@@ -451,6 +476,7 @@ class App {
 
   // Zoom con rueda (desktop), centrado en el cursor; pan con gesto normal de dos dedos
   outer.addEventListener('wheel', ev => {
+    startWillChange();
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
       const rect = outer.getBoundingClientRect();
@@ -460,6 +486,7 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
+      stopWillChangeSoon();
       return;
     }
 
@@ -472,6 +499,7 @@ class App {
     offsetY -= moveY;
     applyTransform();
     markUserAdjusted();
+    stopWillChangeSoon();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -518,6 +546,7 @@ class App {
       panPointerId = ev.pointerId;
       lastX = ev.clientX;
       lastY = ev.clientY;
+      startWillChange();
     }
   });
 
@@ -526,6 +555,7 @@ class App {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
 
     if (pointers.size === 2) {
+      startWillChange();
       // Pinch-zoom + pan simultáneo con dos dedos
       ev.preventDefault();
       const arr = Array.from(pointers.values());
@@ -571,6 +601,8 @@ class App {
         }
       }
 
+      stopWillChangeSoon();
+
       // Cuando hay dos dedos, desactivamos pan a un dedo
       isPanning = false;
       panPointerId = null;
@@ -579,6 +611,7 @@ class App {
 
     // Si hay un solo puntero activo y estamos en modo pan (solo ratón)
     if (pointers.size === 1 && isPanning && panPointerId === ev.pointerId) {
+      startWillChange();
       const dx = ev.clientX - lastX;
       const dy = ev.clientY - lastY;
       lastX = ev.clientX;
@@ -587,6 +620,7 @@ class App {
       offsetY += dy;
       applyTransform();
       markUserAdjusted();
+      stopWillChangeSoon();
     }
   }, { passive: false });
 
@@ -601,6 +635,10 @@ class App {
       isPanning = false;
       panPointerId = null;
     }
+
+    if (pointers.size === 0) {
+      stopWillChangeSoon();
+    }
   });
   outer.addEventListener('pointercancel', ev => {
     pointers.delete(ev.pointerId);
@@ -612,6 +650,10 @@ class App {
     if (panPointerId === ev.pointerId) {
       isPanning = false;
       panPointerId = null;
+    }
+
+    if (pointers.size === 0) {
+      stopWillChangeSoon();
     }
   });
 

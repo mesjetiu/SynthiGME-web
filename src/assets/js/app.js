@@ -248,7 +248,7 @@ class App {
     // - margen negativo  => expande hacia fuera
     const LARGE_MATRIX_TWEAK = {
       moveSteps: { x: 2, y: 0 },
-      marginsSteps: { left: 2.6, right: 4, top: 4.5, bottom: 2.4 }
+      marginsSteps: { left: 2.7, right: 4, top: 4.5, bottom: 2.4 }
     };
 
     const LARGE_MATRIX_FRAME = {
@@ -257,8 +257,8 @@ class App {
       marginsSteps: LARGE_MATRIX_TWEAK.marginsSteps
     };
 
-    this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, { rows: 63, cols: 66, frame: LARGE_MATRIX_FRAME });
-    this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, { rows: 63, cols: 66, frame: LARGE_MATRIX_FRAME });
+    this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, { rows: 63, cols: 67, frame: LARGE_MATRIX_FRAME });
+    this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, { rows: 63, cols: 67, frame: LARGE_MATRIX_FRAME });
 
     this.largeMatrixAudio.build();
     this.largeMatrixControl.build();

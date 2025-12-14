@@ -1,5 +1,5 @@
 export class LargeMatrix {
-  constructor(tableElement, { rows = 63, cols = 66, frame = null } = {}) {
+  constructor(tableElement, { rows = 63, cols = 67, frame = null } = {}) {
     this.table = tableElement;
     this.rows = rows;
     this.cols = cols;
@@ -57,7 +57,7 @@ export class LargeMatrix {
     const squarePercent = this.frame.squarePercent;
     const outerMargin = (100 - squarePercent) / 2;
 
-    // Definimos 1 paso como 1/66 del cuadrado (porque el frame es 66x66).
+    // Definimos 1 paso como 1/cols del cuadrado (1 paso ~= 1 columna/pin).
     const steps = this.cols;
     const stepPercent = squarePercent / steps;
 

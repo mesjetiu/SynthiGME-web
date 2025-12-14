@@ -56,6 +56,13 @@ body {
   overflow-y: auto;
   position: relative;
 }
+#panel-5 {
+  background-color: #111;
+  background-image: url('../panels/panel5_bg.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
 
 .panel-build-version {
   position: absolute;

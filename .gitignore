@@ -1,2 +1,3 @@
 .release-cache/
 /local/
+node_modules/

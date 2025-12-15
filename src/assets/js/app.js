@@ -311,6 +311,11 @@ class App {
   const inner = document.getElementById('viewportInner');
   if (!outer || !inner) return;
 
+  // Flags de sesión para bloquear gestos (solo UI móvil los cambia).
+  // Desktop (wheel/ratón) no usa estos locks.
+  window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
+  const navLocks = window.__synthNavLocks;
+
   let scale = 1;
   let minScale = 0.1; // permite alejar mucho
   let maxScale = 3.0;
@@ -654,21 +659,25 @@ class App {
       if (lastCentroid) {
         const panDx = centroidClientX - lastCentroid.x;
         const panDy = centroidClientY - lastCentroid.y;
-        if (Math.abs(panDx) > MULTI_PAN_EPSILON || Math.abs(panDy) > MULTI_PAN_EPSILON) {
-          offsetX += panDx;
-          offsetY += panDy;
-          transformDirty = true;
+        if (!navLocks.panLocked) {
+          if (Math.abs(panDx) > MULTI_PAN_EPSILON || Math.abs(panDy) > MULTI_PAN_EPSILON) {
+            offsetX += panDx;
+            offsetY += panDy;
+            transformDirty = true;
+          }
         }
       }
 
       if (lastDist != null) {
         const zoomFactor = dist / lastDist;
-        if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
-          const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
-          // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
-          adjustOffsetsForZoom(localCx, localCy, newScale, { snap: false });
-          didZoom = true;
-          needsSnapOnEnd = true;
+        if (!navLocks.zoomLocked) {
+          if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
+            const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
+            // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
+            adjustOffsetsForZoom(localCx, localCy, newScale, { snap: false });
+            didZoom = true;
+            needsSnapOnEnd = true;
+          }
         }
       }
 
@@ -748,6 +757,185 @@ class App {
   });
 })();
 
+function setupMobileQuickActionsBar() {
+  const isCoarse = (() => {
+    try {
+      return window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    } catch {
+      return false;
+    }
+  })();
+  if (!isCoarse) return;
+
+  if (document.getElementById('mobileQuickbar')) return;
+
+  window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
+  const navLocks = window.__synthNavLocks;
+
+  const bar = document.createElement('div');
+  bar.id = 'mobileQuickbar';
+  bar.className = 'mobile-quickbar mobile-quickbar--collapsed';
+  bar.setAttribute('data-prevent-pan', 'true');
+
+  const tab = document.createElement('button');
+  tab.type = 'button';
+  tab.className = 'mobile-quickbar__tab';
+  tab.setAttribute('aria-label', 'Abrir acciones rápidas');
+  tab.setAttribute('aria-expanded', 'false');
+  tab.innerHTML = `
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+      <path d="M6 9h12M6 12h12M6 15h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  `;
+
+  const group = document.createElement('div');
+  group.className = 'mobile-quickbar__group';
+
+  const btnPan = document.createElement('button');
+  btnPan.type = 'button';
+  btnPan.className = 'mobile-quickbar__btn';
+  btnPan.setAttribute('aria-label', 'Bloquear paneo');
+  btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
+  btnPan.innerHTML = `
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M12 7l-2 2m2-2l2 2M12 17l-2-2m2 2l2-2M7 12l2-2m-2 2l2 2M17 12l-2-2m2 2l-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 7h2a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M15 11v-1a2 2 0 0 1 4 0v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <rect x="14" y="11" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/>
+    </svg>
+  `;
+
+  const btnZoom = document.createElement('button');
+  btnZoom.type = 'button';
+  btnZoom.className = 'mobile-quickbar__btn';
+  btnZoom.setAttribute('aria-label', 'Bloquear zoom');
+  btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
+  btnZoom.innerHTML = `
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+      <circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M14.5 14.5L21 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M16 7h2a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M15 11v-1a2 2 0 0 1 4 0v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <rect x="14" y="11" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/>
+    </svg>
+  `;
+
+  const btnFs = document.createElement('button');
+  btnFs.type = 'button';
+  btnFs.className = 'mobile-quickbar__btn';
+  btnFs.setAttribute('aria-label', 'Pantalla completa');
+  btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
+  btnFs.innerHTML = `
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+      <path d="M7 3H3v4M17 3h4v4M7 21H3v-4M17 21h4v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+
+  const displayModeQueries = ['(display-mode: standalone)', '(display-mode: fullscreen)']
+    .map(query => window.matchMedia ? window.matchMedia(query) : null)
+    .filter(Boolean);
+
+  const isStandaloneDisplay = () => {
+    const matchesQuery = displayModeQueries.some(mq => mq.matches);
+    const navigatorStandalone = typeof window.navigator !== 'undefined' && 'standalone' in window.navigator
+      ? window.navigator.standalone
+      : false;
+    return matchesQuery || Boolean(navigatorStandalone);
+  };
+
+  const canFullscreen = !!(document.documentElement && document.documentElement.requestFullscreen);
+  const shouldHideFullscreen = () => !canFullscreen || isStandaloneDisplay();
+
+  const applyPressedState = () => {
+    btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
+    btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
+    btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
+
+    btnPan.classList.toggle('is-active', Boolean(navLocks.panLocked));
+    btnZoom.classList.toggle('is-active', Boolean(navLocks.zoomLocked));
+    btnFs.classList.toggle('is-active', Boolean(document.fullscreenElement));
+
+    btnFs.hidden = shouldHideFullscreen();
+    btnFs.disabled = btnFs.hidden;
+  };
+
+  let expanded = false;
+  let autoCloseTimer = null;
+  const scheduleAutoClose = () => {
+    clearTimeout(autoCloseTimer);
+    autoCloseTimer = setTimeout(() => setExpanded(false), 2500);
+  };
+
+  function setExpanded(value) {
+    expanded = Boolean(value);
+    bar.classList.toggle('mobile-quickbar--collapsed', !expanded);
+    bar.classList.toggle('mobile-quickbar--expanded', expanded);
+    tab.setAttribute('aria-expanded', String(expanded));
+    if (expanded) scheduleAutoClose();
+    else clearTimeout(autoCloseTimer);
+  }
+
+  tab.addEventListener('click', () => {
+    setExpanded(!expanded);
+  });
+
+  const closeAfterAction = () => {
+    setExpanded(false);
+  };
+
+  btnPan.addEventListener('click', () => {
+    navLocks.panLocked = !navLocks.panLocked;
+    applyPressedState();
+    closeAfterAction();
+  });
+
+  btnZoom.addEventListener('click', () => {
+    navLocks.zoomLocked = !navLocks.zoomLocked;
+    applyPressedState();
+    closeAfterAction();
+  });
+
+  btnFs.addEventListener('click', async () => {
+    if (btnFs.disabled) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.error('No se pudo alternar la pantalla completa.', error);
+    } finally {
+      applyPressedState();
+      closeAfterAction();
+    }
+  });
+
+  bar.addEventListener('pointerdown', () => {
+    if (expanded) scheduleAutoClose();
+  });
+
+  document.addEventListener('pointerdown', ev => {
+    if (!expanded) return;
+    if (bar.contains(ev.target)) return;
+    setExpanded(false);
+  });
+
+  document.addEventListener('fullscreenchange', applyPressedState);
+  displayModeQueries.forEach(mq => mq.addEventListener('change', applyPressedState));
+
+  group.appendChild(btnPan);
+  group.appendChild(btnZoom);
+  group.appendChild(btnFs);
+
+  bar.appendChild(group);
+  bar.appendChild(tab);
+  document.body.appendChild(bar);
+
+  applyPressedState();
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   ensureOrientationHint();
   window._synthApp = new App();
@@ -755,7 +943,8 @@ window.addEventListener('DOMContentLoaded', () => {
     window._synthApp.ensureAudio();
   }
   registerServiceWorker();
-    detectBuildVersion();
+  detectBuildVersion();
+  setupMobileQuickActionsBar();
 });
 
 function ensureOrientationHint() {

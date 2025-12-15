@@ -44,6 +44,81 @@ body {
   outline: 1px solid #ffeb3b;
   outline-offset: 2px;
 }
+
+/* Barra de acciones rápida (solo móvil/táctil) */
+@media (pointer: coarse) {
+  .fullscreen-toggle {
+    display: none;
+  }
+
+  .mobile-quickbar {
+    position: fixed;
+    top: env(safe-area-inset-top, 0px);
+    right: env(safe-area-inset-right, 0px);
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem;
+    pointer-events: none;
+  }
+
+  .mobile-quickbar__group,
+  .mobile-quickbar__tab {
+    pointer-events: auto;
+  }
+
+  .mobile-quickbar__group {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(30,30,30,0.55);
+    box-shadow: 0 0 8px rgba(0,0,0,0.4);
+  }
+
+  .mobile-quickbar__btn,
+  .mobile-quickbar__tab {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(20,20,20,0.35);
+    color: #ddd;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mobile-quickbar__btn.is-active {
+    background: rgba(70,70,70,0.85);
+    border-color: rgba(255,255,255,0.45);
+    color: #fff;
+  }
+
+  .mobile-quickbar__btn:active,
+  .mobile-quickbar__tab:active {
+    background: rgba(70,70,70,0.75);
+  }
+
+  .mobile-quickbar__btn:disabled {
+    opacity: 0.35;
+  }
+
+  .mobile-quickbar--collapsed .mobile-quickbar__group {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fullscreen-toggle {
+    transition: none;
+  }
+}
 .panel {
   width: var(--panel-width);
   margin: 0;

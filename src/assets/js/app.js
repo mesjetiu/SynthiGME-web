@@ -324,6 +324,16 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
+  // Reducir borrosidad: hacemos "snap" del scale global para que el tamaño
+  // de celdas/pines caiga más cerca de píxeles enteros (sobre todo al alejar).
+  const SNAP_UNIT_PX = 12; // coincide con el cell-size base usado en LargeMatrix
+  function snapScale(value) {
+    const dpr = window.devicePixelRatio || 1;
+    const denom = SNAP_UNIT_PX * dpr;
+    if (!denom) return value;
+    return Math.round(value * denom) / denom;
+  }
+
   // Nota: la fluidez depende sobre todo de limitar el trabajo por evento.
   // Hacemos render de transformaciones como máximo 1 vez por frame.
 
@@ -426,7 +436,7 @@ class App {
     const scaleY = outerHeight / contentHeight;
     const targetScale = Math.min(1, scaleX, scaleY);
     const clampedScale = Math.min(maxScale, Math.max(minScale, targetScale));
-    scale = clampedScale;
+    scale = Math.min(maxScale, Math.max(minScale, snapScale(clampedScale)));
     const finalWidth = contentWidth * scale;
     const finalHeight = contentHeight * scale;
     const centeredOffsetX = (outerWidth - finalWidth) / 2;
@@ -491,7 +501,7 @@ class App {
   function adjustOffsetsForZoom(cx, cy, newScale) {
     const worldX = (cx - offsetX) / scale;
     const worldY = (cy - offsetY) / scale;
-    scale = newScale;
+    scale = Math.min(maxScale, Math.max(minScale, snapScale(newScale)));
     offsetX = cx - worldX * scale;
     offsetY = cy - worldY * scale;
     requestRender();

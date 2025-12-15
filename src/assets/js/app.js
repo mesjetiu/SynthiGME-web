@@ -498,10 +498,11 @@ class App {
     return !!el.closest(selector);
   }
 
-  function adjustOffsetsForZoom(cx, cy, newScale) {
+  function adjustOffsetsForZoom(cx, cy, newScale, { snap = false } = {}) {
     const worldX = (cx - offsetX) / scale;
     const worldY = (cy - offsetY) / scale;
-    scale = Math.min(maxScale, Math.max(minScale, snapScale(newScale)));
+    const clamped = Math.min(maxScale, Math.max(minScale, newScale));
+    scale = snap ? snapScale(clamped) : clamped;
     offsetX = cx - worldX * scale;
     offsetY = cy - worldY * scale;
     requestRender();
@@ -541,6 +542,7 @@ class App {
   const pointers = new Map();
   let lastDist = null;
   let lastCentroid = null;
+  let needsSnapOnEnd = false;
 
   // Flag global de "gesto de navegación" activo (dos o más toques táctiles)
   let activeTouchCount = 0;
@@ -580,7 +582,8 @@ class App {
 
   outer.addEventListener('pointermove', ev => {
     if (!pointers.has(ev.pointerId)) return;
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const prev = pointers.get(ev.pointerId);
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: prev?.pointerType });
 
     if (pointers.size === 2) {
       // Pinch-zoom + pan simultáneo con dos dedos
@@ -611,8 +614,10 @@ class App {
         const zoomFactor = dist / lastDist;
         if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
           const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
-          adjustOffsetsForZoom(localCx, localCy, newScale);
+          // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
+          adjustOffsetsForZoom(localCx, localCy, newScale, { snap: false });
           didZoom = true;
+          needsSnapOnEnd = true;
         }
       }
 
@@ -656,6 +661,10 @@ class App {
     }
 
     if (pointers.size === 0) {
+      if (needsSnapOnEnd) {
+        scale = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
+        needsSnapOnEnd = false;
+      }
       requestRender();
     }
   });
@@ -672,6 +681,10 @@ class App {
     }
 
     if (pointers.size === 0) {
+      if (needsSnapOnEnd) {
+        scale = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
+        needsSnapOnEnd = false;
+      }
       requestRender();
     }
   });

@@ -354,10 +354,43 @@ class App {
     outerTop: 0
   };
 
+  const isCoarsePointer = (() => {
+    try {
+      return window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    } catch {
+      return false;
+    }
+  })();
+
+  function computeContentSizeFromPanels() {
+    const panels = inner.querySelectorAll('.panel');
+    if (!panels || panels.length === 0) {
+      return {
+        width: inner.scrollWidth,
+        height: inner.scrollHeight
+      };
+    }
+
+    let maxRight = 0;
+    let maxBottom = 0;
+    panels.forEach(panel => {
+      const right = (panel.offsetLeft || 0) + (panel.offsetWidth || 0);
+      const bottom = (panel.offsetTop || 0) + (panel.offsetHeight || 0);
+      if (right > maxRight) maxRight = right;
+      if (bottom > maxBottom) maxBottom = bottom;
+    });
+
+    return {
+      width: maxRight,
+      height: maxBottom
+    };
+  }
+
   function refreshMetrics() {
     const rect = outer.getBoundingClientRect();
-    metrics.contentWidth = inner.scrollWidth;
-    metrics.contentHeight = inner.scrollHeight;
+    const content = computeContentSizeFromPanels();
+    metrics.contentWidth = content.width;
+    metrics.contentHeight = content.height;
     metrics.outerWidth = outer.clientWidth;
     metrics.outerHeight = outer.clientHeight;
     metrics.outerLeft = rect.left;
@@ -386,32 +419,48 @@ class App {
     const scaledWidth = contentWidth * scale;
     const scaledHeight = contentHeight * scale;
 
-    // Definimos la franja mínima que debe seguir visible en cada eje.
-    const visibleStripX = Math.min(MIN_VISIBLE_STRIP_PX, scaledWidth, outerWidth);
-    const visibleStripY = Math.min(MIN_VISIBLE_STRIP_PX, scaledHeight, outerHeight);
+    // En móvil/tablet táctil mantenemos el clamp permisivo (deja una franja visible).
+    // En desktop usamos clamp clásico (no permite mostrar fondo, salvo si el contenido
+    // es más pequeño que el viewport, en cuyo caso lo centramos).
+    const allowOverscroll = isCoarsePointer;
 
-    // Para que nunca desaparezca por completo, imponemos que la intersección
-    // entre contenido y viewport tenga como mínimo esa franja visible.
-    // En X esto equivale a limitar offsetX a:
-    //   [visibleStripX - scaledWidth, outerWidth - visibleStripX]
-    const minOffsetX = visibleStripX - scaledWidth;
-    const maxOffsetX = outerWidth - visibleStripX;
+    if (allowOverscroll) {
+      const visibleStripX = Math.min(MIN_VISIBLE_STRIP_PX, scaledWidth, outerWidth);
+      const visibleStripY = Math.min(MIN_VISIBLE_STRIP_PX, scaledHeight, outerHeight);
 
-    if (minOffsetX <= maxOffsetX) {
-      offsetX = Math.min(Math.max(offsetX, minOffsetX), maxOffsetX);
-    } else {
-      // Caso degenerado: el rango es imposible; fijamos al centro.
-      offsetX = (minOffsetX + maxOffsetX) / 2;
+      const minOffsetX = visibleStripX - scaledWidth;
+      const maxOffsetX = outerWidth - visibleStripX;
+      if (minOffsetX <= maxOffsetX) {
+        offsetX = Math.min(Math.max(offsetX, minOffsetX), maxOffsetX);
+      } else {
+        offsetX = (minOffsetX + maxOffsetX) / 2;
+      }
+
+      const minOffsetY = visibleStripY - scaledHeight;
+      const maxOffsetY = outerHeight - visibleStripY;
+      if (minOffsetY <= maxOffsetY) {
+        offsetY = Math.min(Math.max(offsetY, minOffsetY), maxOffsetY);
+      } else {
+        offsetY = (minOffsetY + maxOffsetY) / 2;
+      }
+      return;
     }
 
-    // Análogo en Y.
-    const minOffsetY = visibleStripY - scaledHeight;
-    const maxOffsetY = outerHeight - visibleStripY;
-
-    if (minOffsetY <= maxOffsetY) {
-      offsetY = Math.min(Math.max(offsetY, minOffsetY), maxOffsetY);
+    // Clamp clásico (desktop)
+    if (scaledWidth <= outerWidth) {
+      offsetX = (outerWidth - scaledWidth) / 2;
     } else {
-      offsetY = (minOffsetY + maxOffsetY) / 2;
+      const minOffsetX = outerWidth - scaledWidth;
+      const maxOffsetX = 0;
+      offsetX = Math.min(Math.max(offsetX, minOffsetX), maxOffsetX);
+    }
+
+    if (scaledHeight <= outerHeight) {
+      offsetY = (outerHeight - scaledHeight) / 2;
+    } else {
+      const minOffsetY = outerHeight - scaledHeight;
+      const maxOffsetY = 0;
+      offsetY = Math.min(Math.max(offsetY, minOffsetY), maxOffsetY);
     }
   }
 
@@ -510,6 +559,7 @@ class App {
 
   // Zoom con rueda (desktop), centrado en el cursor; pan con gesto normal de dos dedos
   outer.addEventListener('wheel', ev => {
+    refreshMetrics();
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
       const cx = ev.clientX - (metrics.outerLeft || 0);
@@ -586,6 +636,7 @@ class App {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: prev?.pointerType });
 
     if (pointers.size === 2) {
+      refreshMetrics();
       // Pinch-zoom + pan simultáneo con dos dedos
       ev.preventDefault();
       const arr = Array.from(pointers.values());

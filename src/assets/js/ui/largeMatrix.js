@@ -204,8 +204,6 @@ export class LargeMatrix {
       // SIN deformar la matriz (y sus pines). Escalar X/Y por separado convierte
       // círculos en elipses, así que usamos un escalado uniforme (mismas
       // proporciones siempre) que quepa en ambos ejes.
-      // En móvil, restar píxeles fijos deja un "marco" visible; usamos un
-      // epsilon multiplicativo muy pequeño, solo cuando reducimos (scale < 1).
       const widthScale = availableWidth / baseWidth;
       const heightScale = availableHeight / baseHeight;
 

@@ -60,6 +60,9 @@ El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 ## Licencia
 SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, modificar y redistribuir el código manteniendo la atribución correspondiente.
 
+### Iconos
+- La barra de acciones móviles usa iconos de [Tabler Icons](https://tabler-icons.io/) (MIT). Ver `src/assets/icons/ui-sprite.svg` y `src/assets/icons/LICENSE.tabler-icons.txt`.
+
 ## Versionado y releases
 1. Mantén el número de versión únicamente en `package.json` siguiendo [Semantic Versioning](https://semver.org/lang/es/). Registra tus cambios recientes en `CHANGELOG.md` dentro de la sección `Unreleased`.
 2. Cuando quieras publicar una versión, asegúrate de que el repositorio está limpio en la rama `main`, mueve las notas de `Unreleased` a una nueva entrada (p. ej. `## [0.1.1] - AAAA-MM-DD`) y guarda el archivo.

@@ -772,6 +772,14 @@ function setupMobileQuickActionsBar() {
   window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
   const navLocks = window.__synthNavLocks;
 
+  const ICON_SPRITE = './assets/icons/ui-sprite.svg';
+  const iconSvg = symbolId => `
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <use href="${ICON_SPRITE}#${symbolId}"></use>
+    </svg>
+  `;
+
   const bar = document.createElement('div');
   bar.id = 'mobileQuickbar';
   bar.className = 'mobile-quickbar mobile-quickbar--collapsed';
@@ -782,11 +790,7 @@ function setupMobileQuickActionsBar() {
   tab.className = 'mobile-quickbar__tab';
   tab.setAttribute('aria-label', 'Abrir acciones rápidas');
   tab.setAttribute('aria-expanded', 'false');
-  tab.innerHTML = `
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-      <path d="M6 9h12M6 12h12M6 15h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-  `;
+  tab.innerHTML = iconSvg('ti-menu-2');
 
   const group = document.createElement('div');
   group.className = 'mobile-quickbar__group';
@@ -796,41 +800,21 @@ function setupMobileQuickActionsBar() {
   btnPan.className = 'mobile-quickbar__btn';
   btnPan.setAttribute('aria-label', 'Bloquear paneo');
   btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
-  btnPan.innerHTML = `
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <path d="M12 7l-2 2m2-2l2 2M12 17l-2-2m2 2l2-2M7 12l2-2m-2 2l2 2M17 12l-2-2m2 2l-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M16 7h2a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <path d="M15 11v-1a2 2 0 0 1 4 0v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <rect x="14" y="11" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/>
-    </svg>
-  `;
+  btnPan.innerHTML = iconSvg('ti-hand-stop');
 
   const btnZoom = document.createElement('button');
   btnZoom.type = 'button';
   btnZoom.className = 'mobile-quickbar__btn';
   btnZoom.setAttribute('aria-label', 'Bloquear zoom');
   btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
-  btnZoom.innerHTML = `
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-      <circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M14.5 14.5L21 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <path d="M16 7h2a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <path d="M15 11v-1a2 2 0 0 1 4 0v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <rect x="14" y="11" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/>
-    </svg>
-  `;
+  btnZoom.innerHTML = iconSvg('ti-zoom-cancel');
 
   const btnFs = document.createElement('button');
   btnFs.type = 'button';
   btnFs.className = 'mobile-quickbar__btn';
   btnFs.setAttribute('aria-label', 'Pantalla completa');
   btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
-  btnFs.innerHTML = `
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-      <path d="M7 3H3v4M17 3h4v4M7 21H3v-4M17 21h4v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  `;
+  btnFs.innerHTML = iconSvg('ti-arrows-maximize');
 
   const displayModeQueries = ['(display-mode: standalone)', '(display-mode: fullscreen)']
     .map(query => window.matchMedia ? window.matchMedia(query) : null)
@@ -861,39 +845,25 @@ function setupMobileQuickActionsBar() {
   };
 
   let expanded = false;
-  let autoCloseTimer = null;
-  const scheduleAutoClose = () => {
-    clearTimeout(autoCloseTimer);
-    autoCloseTimer = setTimeout(() => setExpanded(false), 2500);
-  };
-
   function setExpanded(value) {
     expanded = Boolean(value);
     bar.classList.toggle('mobile-quickbar--collapsed', !expanded);
     bar.classList.toggle('mobile-quickbar--expanded', expanded);
     tab.setAttribute('aria-expanded', String(expanded));
-    if (expanded) scheduleAutoClose();
-    else clearTimeout(autoCloseTimer);
   }
 
   tab.addEventListener('click', () => {
     setExpanded(!expanded);
   });
 
-  const closeAfterAction = () => {
-    setExpanded(false);
-  };
-
   btnPan.addEventListener('click', () => {
     navLocks.panLocked = !navLocks.panLocked;
     applyPressedState();
-    closeAfterAction();
   });
 
   btnZoom.addEventListener('click', () => {
     navLocks.zoomLocked = !navLocks.zoomLocked;
     applyPressedState();
-    closeAfterAction();
   });
 
   btnFs.addEventListener('click', async () => {
@@ -908,12 +878,7 @@ function setupMobileQuickActionsBar() {
       console.error('No se pudo alternar la pantalla completa.', error);
     } finally {
       applyPressedState();
-      closeAfterAction();
     }
-  });
-
-  bar.addEventListener('pointerdown', () => {
-    if (expanded) scheduleAutoClose();
   });
 
   document.addEventListener('pointerdown', ev => {

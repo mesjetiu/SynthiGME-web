@@ -24,10 +24,29 @@ export class LargeMatrix {
       // Traslación del frame en "pasos" (1 paso = 1/cols del cuadrado).
       translateSteps: { x: 0, y: 0 },
       // Márgenes internos del frame en "pasos". Positivo recorta; negativo expande.
-      marginsSteps: { left: 0, right: 0, top: 0, bottom: 0 }
+      marginsSteps: { left: 0, right: 0, top: 0, bottom: 0 },
+      // Si es false, durante el ajuste permitimos que el frame se salga del panel.
+      // OJO: esto puede solapar otros paneles. Úsalo solo para ajustar a ojo.
+      clip: true,
+      // Cuánto overflow (en %) permitimos al clamp por cada lado.
+      overflowPercent: { left: 25, right: 60, top: 25, bottom: 60 },
+      // Para ajuste: permitir width/height > 100%.
+      maxSizePercent: 100
     };
 
     if (!frame) return defaults;
+
+    const clip = typeof frame.clip === 'boolean' ? frame.clip : defaults.clip;
+    const overflowPercent = {
+      left: typeof frame.overflowPercent?.left === 'number' ? frame.overflowPercent.left : defaults.overflowPercent.left,
+      right: typeof frame.overflowPercent?.right === 'number' ? frame.overflowPercent.right : defaults.overflowPercent.right,
+      top: typeof frame.overflowPercent?.top === 'number' ? frame.overflowPercent.top : defaults.overflowPercent.top,
+      bottom: typeof frame.overflowPercent?.bottom === 'number' ? frame.overflowPercent.bottom : defaults.overflowPercent.bottom
+    };
+
+    const maxSizePercent = typeof frame.maxSizePercent === 'number'
+      ? frame.maxSizePercent
+      : (clip ? defaults.maxSizePercent : 300);
 
     return {
       squarePercent: typeof frame.squarePercent === 'number' ? frame.squarePercent : defaults.squarePercent,
@@ -40,7 +59,10 @@ export class LargeMatrix {
         right: typeof frame.marginsSteps?.right === 'number' ? frame.marginsSteps.right : defaults.marginsSteps.right,
         top: typeof frame.marginsSteps?.top === 'number' ? frame.marginsSteps.top : defaults.marginsSteps.top,
         bottom: typeof frame.marginsSteps?.bottom === 'number' ? frame.marginsSteps.bottom : defaults.marginsSteps.bottom
-      }
+      },
+      clip,
+      overflowPercent,
+      maxSizePercent
     };
   }
 
@@ -72,13 +94,25 @@ export class LargeMatrix {
     let heightPercent = squarePercent - (m.top + m.bottom) * stepPercent;
 
     // Clamp defensivo para evitar valores degenerados.
-    widthPercent = Math.max(1, Math.min(100, widthPercent));
-    heightPercent = Math.max(1, Math.min(100, heightPercent));
-    leftPercent = Math.min(100 - 1, Math.max(-50, leftPercent));
-    topPercent = Math.min(100 - 1, Math.max(-50, topPercent));
-    // Evitar que el frame se salga demasiado del panel por la derecha/abajo.
-    widthPercent = Math.min(widthPercent, 100 - leftPercent);
-    heightPercent = Math.min(heightPercent, 100 - topPercent);
+    const maxSizePercent = typeof this.frame.maxSizePercent === 'number' ? this.frame.maxSizePercent : 100;
+    widthPercent = Math.max(1, Math.min(maxSizePercent, widthPercent));
+    heightPercent = Math.max(1, Math.min(maxSizePercent, heightPercent));
+
+    // Importante: NO recortamos width/height para "hacer sitio" cuando mueves el frame.
+    // Eso crea un umbral raro donde deja de obedecer. En su lugar, clampamos left/top
+    // en función del width/height reales (solo se limita cuando de verdad tocaría el borde).
+    // Permitimos un pequeño overflow del frame fuera del panel para poder
+    // alinear a ojo con el arte (si no, se "pega" al borde y parece que deja
+    // de obedecer aunque visualmente aún quede margen útil).
+    // Puedes tocar estos valores para dar más "aire" al ajuste a ojo.
+    // En tu caso el problema suele ser el borde derecho.
+    const overflow = this.frame.overflowPercent || { left: 25, top: 25, right: 60, bottom: 60 };
+    const minLeft = -Math.abs(overflow.left || 0);
+    const minTop = -Math.abs(overflow.top || 0);
+    const maxLeft = 100 - widthPercent + Math.abs(overflow.right || 0);
+    const maxTop = 100 - heightPercent + Math.abs(overflow.bottom || 0);
+    leftPercent = Math.min(maxLeft, Math.max(minLeft, leftPercent));
+    topPercent = Math.min(maxTop, Math.max(minTop, topPercent));
 
     container.style.position = 'absolute';
     container.style.left = `${leftPercent}%`;
@@ -88,8 +122,15 @@ export class LargeMatrix {
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.justifyContent = 'center';
-    container.style.overflow = 'hidden';
+    container.style.overflow = this.frame.clip === false ? 'visible' : 'hidden';
     container.style.background = 'transparent';
+
+    // Debug (útil para ver si topas clamp o si es recorte visual)
+    container.dataset.frameLeft = leftPercent.toFixed(3);
+    container.dataset.frameTop = topPercent.toFixed(3);
+    container.dataset.frameWidth = widthPercent.toFixed(3);
+    container.dataset.frameHeight = heightPercent.toFixed(3);
+    container.dataset.frameClip = String(this.frame.clip !== false);
   }
 
   build() {
@@ -160,18 +201,20 @@ export class LargeMatrix {
       if (!availableWidth || !availableHeight || !baseWidth || !baseHeight) return;
 
       // Importante: los márgenes (top/bottom/left/right) deben deformar el frame
-      // SIN acoplar dimensiones. Para eso escalamos X e Y por separado.
+      // SIN deformar la matriz (y sus pines). Escalar X/Y por separado convierte
+      // círculos en elipses, así que usamos un escalado uniforme (mismas
+      // proporciones siempre) que quepa en ambos ejes.
       // En móvil, restar píxeles fijos deja un "marco" visible; usamos un
       // epsilon multiplicativo muy pequeño, solo cuando reducimos (scale < 1).
       const widthScale = availableWidth / baseWidth;
       const heightScale = availableHeight / baseHeight;
 
       const EPS_SCALE = 0.999;
-      const scaleX = widthScale < 1 ? widthScale * EPS_SCALE : 1;
-      const scaleY = heightScale < 1 ? heightScale * EPS_SCALE : 1;
+      const fitScale = Math.min(widthScale, heightScale);
+      const scale = fitScale < 1 ? fitScale * EPS_SCALE : 1;
 
       table.style.transformOrigin = 'center center';
-      table.style.transform = `scale(${scaleX}, ${scaleY})`;
+      table.style.transform = `scale(${scale})`;
     });
   }
 }

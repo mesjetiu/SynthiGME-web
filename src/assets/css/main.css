@@ -71,6 +71,19 @@ body {
   isolation: isolate;
 }
 
+/* MODO AJUSTE: permite que el frame se salga del panel (no recortar pintura). */
+#panel-5.matrix-adjust,
+#panel-6.matrix-adjust {
+  contain: none;
+  overflow: visible;
+}
+
+#panel-5.matrix-adjust .matrix-container,
+#panel-6.matrix-adjust .matrix-container {
+  contain: none;
+  overflow: visible;
+}
+
 #panel-5 {
   background-image: url('../panels/panel5_bg.svg');
 }
@@ -400,8 +413,14 @@ table.matrix {
   font-size: 0.7rem;
 }
 .pin-btn {
+  display: inline-block;
   width: 18px;
   height: 18px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
   border-radius: 50%;
   border: 1px solid #666;
   background: #111;

@@ -247,15 +247,29 @@ class App {
     // - margen positivo  => comprime hacia dentro
     // - margen negativo  => expande hacia fuera
     const LARGE_MATRIX_TWEAK = {
-      moveSteps: { x: 2, y: 0 },
-      marginsSteps: { left: 2.7, right: 4, top: 4.5, bottom: 2.4 }
+      moveSteps: { x: 5.1, y: 0 },
+      marginsSteps: { left: -7.47, right: -3, top: 4.7, bottom: 2.7 }
     };
 
     const LARGE_MATRIX_FRAME = {
       squarePercent: 90,
       translateSteps: LARGE_MATRIX_TWEAK.moveSteps,
-      marginsSteps: LARGE_MATRIX_TWEAK.marginsSteps
+      marginsSteps: LARGE_MATRIX_TWEAK.marginsSteps,
+      // MODO AJUSTE: permite salirse del panel (útil para alinear a ojo)
+      clip: true, // false para ajuste visual
+      overflowPercent: { left: 25, top: 25, right: 200, bottom: 80 },
+      // Permite que los márgenes negativos expandan más allá del 100%
+      maxSizePercent: 300
     };
+
+    // Modo ajuste visual (evitar recortes por CSS durante el ajuste)
+    if (LARGE_MATRIX_FRAME.clip === false) {
+      this.panel5?.element?.classList.add('matrix-adjust');
+      this.panel6?.element?.classList.add('matrix-adjust');
+    } else {
+      this.panel5?.element?.classList.remove('matrix-adjust');
+      this.panel6?.element?.classList.remove('matrix-adjust');
+    }
 
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, { rows: 63, cols: 67, frame: LARGE_MATRIX_FRAME });
     this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, { rows: 63, cols: 67, frame: LARGE_MATRIX_FRAME });

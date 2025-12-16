@@ -598,6 +598,7 @@ class App {
   let lastDist = null;
   let lastCentroid = null;
   let needsSnapOnEnd = false;
+  let lastPinchZoomAnchor = null;
 
   // Flag global de "gesto de navegación" activo (dos o más toques táctiles)
   let activeTouchCount = 0;
@@ -660,6 +661,7 @@ class App {
       const outerH = metrics.outerHeight || outer.clientHeight || 0;
       const zoomAnchorX = navLocks.panLocked ? outerW / 2 : localCx;
       const zoomAnchorY = navLocks.panLocked ? outerH / 2 : localCy;
+      lastPinchZoomAnchor = { x: zoomAnchorX, y: zoomAnchorY };
 
       let transformDirty = false;
       let didZoom = false;
@@ -729,8 +731,15 @@ class App {
 
     if (pointers.size === 0) {
       if (needsSnapOnEnd) {
-        scale = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
+        refreshMetrics();
+        const target = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
+        const outerW = metrics.outerWidth || outer.clientWidth || 0;
+        const outerH = metrics.outerHeight || outer.clientHeight || 0;
+        const fallbackAnchor = { x: outerW / 2, y: outerH / 2 };
+        const anchor = lastPinchZoomAnchor || fallbackAnchor;
+        adjustOffsetsForZoom(anchor.x, anchor.y, target, { snap: false });
         needsSnapOnEnd = false;
+        lastPinchZoomAnchor = null;
       }
       requestRender();
     }
@@ -749,8 +758,15 @@ class App {
 
     if (pointers.size === 0) {
       if (needsSnapOnEnd) {
-        scale = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
+        refreshMetrics();
+        const target = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
+        const outerW = metrics.outerWidth || outer.clientWidth || 0;
+        const outerH = metrics.outerHeight || outer.clientHeight || 0;
+        const fallbackAnchor = { x: outerW / 2, y: outerH / 2 };
+        const anchor = lastPinchZoomAnchor || fallbackAnchor;
+        adjustOffsetsForZoom(anchor.x, anchor.y, target, { snap: false });
         needsSnapOnEnd = false;
+        lastPinchZoomAnchor = null;
       }
       requestRender();
     }

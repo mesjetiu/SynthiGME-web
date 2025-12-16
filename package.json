@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/mesjetiu/SynthiGME-web#readme",
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "esbuild": "^0.23.0",
     "svgo": "^4.0.0"
   }

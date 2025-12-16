@@ -33,25 +33,14 @@ function injectInlinePanelSvgBackground(panelId, svgUrl) {
   host.className = 'panel-inline-bg';
   panel.insertBefore(host, panel.firstChild);
 
-  loadSvgTextOnce(svgUrl)
-    .then(text => {
-      if (!text) return;
-      const parsed = new DOMParser().parseFromString(text, 'image/svg+xml');
-      const svg = parsed && parsed.documentElement;
-      if (!svg || String(svg.nodeName).toLowerCase() !== 'svg') return;
-
-      svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('height', '100%');
-      svg.style.width = '100%';
-      svg.style.height = '100%';
-      svg.style.display = 'block';
-
-      const imported = document.importNode(svg, true);
-      host.replaceChildren(imported);
-      panel.classList.add('has-inline-bg');
-    })
-    .catch(() => {});
+  // Usar <img> en lugar de inline SVG: Chrome Android lo renderiza mejor bajo transform scale.
+  const img = document.createElement('img');
+  img.src = svgUrl;
+  img.style.cssText = 'width: 100%; height: 100%; display: block; object-fit: cover; object-position: center;';
+  img.alt = '';
+  img.setAttribute('aria-hidden', 'true');
+  host.appendChild(img);
+  panel.classList.add('has-inline-bg');
 }
 
 // Esta constante será sustituida por esbuild en el bundle de docs/.

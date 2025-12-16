@@ -329,39 +329,54 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
-  // Algunos navegadores rasterizan los fondos (SVG) al escalar el contenedor.
-  // Forzamos un re-raster inequívoco alternando background-image a 'none'
-  // y restaurándolo en el siguiente frame.
+  // Algunos navegadores rasterizan (y cachean) fondos SVG a baja resolución cuando
+  // todo el viewport está en una capa transformada. Para forzar un repaint real al
+  // terminar el zoom, hacemos dos cosas:
+  // 1) bajamos temporalmente la promoción de capa (`will-change: auto`)
+  // 2) quitamos/restauramos `background-image` + `contain` en paneles 5/6
   let rerasterRaf = null;
   function rerasterizePanelBackgrounds() {
     if (rerasterRaf) return;
 
-    const panels = [document.getElementById('panel-5'), document.getElementById('panel-6')].filter(Boolean);
+    const p5 = document.getElementById('panel-5');
+    const p6 = document.getElementById('panel-6');
+    const panels = [p5, p6].filter(Boolean);
     if (panels.length === 0) return;
 
-    const restore = panels.map(el => ({
+    const restorePanelStyles = panels.map(el => ({
       el,
-      bgImage: getComputedStyle(el).backgroundImage
+      bgImage: el.style.backgroundImage,
+      contain: el.style.contain
     }));
+    const restoreWillChange = inner.style.willChange;
 
-    // Quitar el fondo en este frame.
-    restore.forEach(({ el }) => {
+    // 1) Des-promover la capa del viewport (algunos navegadores re-rasterizan aquí)
+    inner.style.willChange = 'auto';
+
+    // 2) Quitar fondo + containment en este frame
+    restorePanelStyles.forEach(({ el }) => {
       el.style.backgroundImage = 'none';
+      el.style.contain = 'none';
     });
 
-    // Forzar reflow para que el navegador procese el cambio antes de restaurar.
-    // (leer offsetHeight basta).
+    // Forzar reflow para asegurar que el cambio se materializa antes de restaurar.
     // eslint-disable-next-line no-unused-expressions
-    panels[0].offsetHeight;
+    outer.offsetHeight;
 
     rerasterRaf = requestAnimationFrame(() => {
       rerasterRaf = null;
-      restore.forEach(({ el, bgImage }) => {
-        if (bgImage && bgImage !== 'none') {
-          el.style.backgroundImage = bgImage;
-        } else {
-          el.style.backgroundImage = '';
-        }
+
+      restorePanelStyles.forEach(({ el, bgImage, contain }) => {
+        el.style.backgroundImage = bgImage;
+        el.style.contain = contain;
+      });
+
+      // Re-promover el viewport para mantener fluidez en pan/zoom.
+      inner.style.willChange = 'transform';
+
+      // Restaurar cualquier override previo (si existía) en un tick posterior.
+      requestAnimationFrame(() => {
+        inner.style.willChange = restoreWillChange;
       });
     });
   }

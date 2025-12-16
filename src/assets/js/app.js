@@ -318,7 +318,7 @@ class App {
 
   let scale = 1;
   let minScale = 0.1; // permite alejar mucho
-  let maxScale = 3.0;
+  let maxScale = 6.0;
   const wheelPanFactor = 0.35; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.92; // suaviza el gesto en trackpads
   const MIN_VISIBLE_STRIP_PX = 32; // franja mínima de contenido que debe seguir visible

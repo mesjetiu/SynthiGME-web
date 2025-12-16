@@ -141,6 +141,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Evitar scroll/bounce residual en tablets: la regla base .panel tiene overflow-y:auto */
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
   /* Aislar repintado de paneles pesados (móvil) */
   contain: paint;
   isolation: isolate;

@@ -654,6 +654,13 @@ class App {
       const localCx = centroidClientX - (metrics.outerLeft || 0);
       const localCy = centroidClientY - (metrics.outerTop || 0);
 
+      // Si el paneo está bloqueado, anclamos el zoom al centro del viewport para
+      // evitar que el ancla se desplace al mover los dedos durante el pinch.
+      const outerW = metrics.outerWidth || outer.clientWidth || 0;
+      const outerH = metrics.outerHeight || outer.clientHeight || 0;
+      const zoomAnchorX = navLocks.panLocked ? outerW / 2 : localCx;
+      const zoomAnchorY = navLocks.panLocked ? outerH / 2 : localCy;
+
       let transformDirty = false;
       let didZoom = false;
       if (lastCentroid) {
@@ -674,7 +681,7 @@ class App {
           if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
             const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
             // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
-            adjustOffsetsForZoom(localCx, localCy, newScale, { snap: false });
+            adjustOffsetsForZoom(zoomAnchorX, zoomAnchorY, newScale, { snap: false });
             didZoom = true;
             needsSnapOnEnd = true;
           }

@@ -374,6 +374,261 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
+  // --- Fondo hi-res (canvas) ---
+  // Android/Chrome suele rasterizar/capar capas grandes cuando escalamos con transform.
+  // Para obtener nitidez máxima AL SOLTAR el gesto, renderizamos el fondo en canvases
+  // a resolución de pantalla (viewport * DPR) y lo superponemos sobre el contenido.
+  const hiResBg = (() => {
+    const PANEL_SVGS = {
+      'panel-5': './assets/panels/panel5_bg.svg',
+      'panel-6': './assets/panels/panel6_bg.svg'
+    };
+
+    let layer = null;
+    let visible = false;
+    let raf = null;
+    let debounceTimer = null;
+    let renderSeq = 0;
+
+    const panelCanvases = new Map();
+    const svgMetaCache = new Map();
+
+    function ensureLayer() {
+      if (layer) return layer;
+      layer = document.createElement('div');
+      layer.id = 'hiResBgLayer';
+      layer.hidden = true;
+      layer.setAttribute('aria-hidden', 'true');
+      outer.appendChild(layer);
+      return layer;
+    }
+
+    function setVisible(nextVisible) {
+      const l = ensureLayer();
+      visible = Boolean(nextVisible);
+      l.hidden = !visible;
+      document.documentElement.classList.toggle('hires-bg-visible', visible);
+    }
+
+    function hideNow() {
+      if (!visible) return;
+      setVisible(false);
+    }
+
+    function getOrCreateCanvas(panelId) {
+      const l = ensureLayer();
+      let canvas = panelCanvases.get(panelId);
+      if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.className = 'hires-bg-canvas';
+        canvas.dataset.panelId = panelId;
+        l.appendChild(canvas);
+        panelCanvases.set(panelId, canvas);
+      }
+      return canvas;
+    }
+
+    function removeCanvas(panelId) {
+      const canvas = panelCanvases.get(panelId);
+      if (!canvas) return;
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      panelCanvases.delete(panelId);
+    }
+
+    function intersectRect(a, b) {
+      const left = Math.max(a.left, b.left);
+      const top = Math.max(a.top, b.top);
+      const right = Math.min(a.left + a.width, b.left + b.width);
+      const bottom = Math.min(a.top + a.height, b.top + b.height);
+      const width = right - left;
+      const height = bottom - top;
+      if (width <= 0 || height <= 0) return null;
+      return { left, top, width, height };
+    }
+
+    async function getSvgMeta(svgUrl) {
+      if (svgMetaCache.has(svgUrl)) return svgMetaCache.get(svgUrl);
+
+      const promise = loadSvgTextOnce(svgUrl).then(text => {
+        if (!text) return null;
+        const parsed = new DOMParser().parseFromString(text, 'image/svg+xml');
+        const svg = parsed && parsed.documentElement;
+        if (!svg || String(svg.nodeName).toLowerCase() !== 'svg') return null;
+        const vb = svg.getAttribute('viewBox');
+        let minX = 0;
+        let minY = 0;
+        let vbW = 0;
+        let vbH = 0;
+        if (vb) {
+          const parts = vb.trim().split(/[\s,]+/).map(Number);
+          if (parts.length === 4 && parts.every(n => Number.isFinite(n))) {
+            [minX, minY, vbW, vbH] = parts;
+          }
+        }
+        if (!vbW || !vbH) {
+          // Fallback conservador
+          vbW = 210;
+          vbH = 210;
+        }
+        return { text, minX, minY, vbW, vbH };
+      });
+
+      svgMetaCache.set(svgUrl, promise);
+      return promise;
+    }
+
+    function setCanvasBox(canvas, rect, dpr) {
+      canvas.style.left = `${rect.left}px`;
+      canvas.style.top = `${rect.top}px`;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+
+      const w = Math.max(1, Math.round(rect.width * dpr));
+      const h = Math.max(1, Math.round(rect.height * dpr));
+      if (canvas.width !== w) canvas.width = w;
+      if (canvas.height !== h) canvas.height = h;
+    }
+
+    async function renderPanel(panelId, svgUrl, seq) {
+      const panel = document.getElementById(panelId);
+      if (!panel) {
+        removeCanvas(panelId);
+        return;
+      }
+
+      const outerW = metrics.outerWidth || outer.clientWidth || 0;
+      const outerH = metrics.outerHeight || outer.clientHeight || 0;
+      if (!outerW || !outerH) {
+        removeCanvas(panelId);
+        return;
+      }
+
+      const panelX = panel.offsetLeft || 0;
+      const panelY = panel.offsetTop || 0;
+      const panelW = panel.offsetWidth || 0;
+      const panelH = panel.offsetHeight || 0;
+      if (!panelW || !panelH) {
+        removeCanvas(panelId);
+        return;
+      }
+
+      // Panel rect en coordenadas de viewport (post-transform).
+      const screenLeft = offsetX + panelX * scale;
+      const screenTop = offsetY + panelY * scale;
+      const screenW = panelW * scale;
+      const screenH = panelH * scale;
+
+      const vis = intersectRect(
+        { left: screenLeft, top: screenTop, width: screenW, height: screenH },
+        { left: 0, top: 0, width: outerW, height: outerH }
+      );
+      if (!vis) {
+        removeCanvas(panelId);
+        return;
+      }
+
+      const dpr = window.devicePixelRatio || 1;
+      const canvas = getOrCreateCanvas(panelId);
+      setCanvasBox(canvas, vis, dpr);
+
+      // Región visible en coords locales del panel (sin escala).
+      const localX = (vis.left - screenLeft) / scale;
+      const localY = (vis.top - screenTop) / scale;
+      const localW = vis.width / scale;
+      const localH = vis.height / scale;
+
+      const meta = await getSvgMeta(svgUrl);
+      if (seq !== renderSeq) return;
+      if (!meta) {
+        removeCanvas(panelId);
+        return;
+      }
+
+      // Modelo equivalente a preserveAspectRatio="xMidYMid slice" (cover centrado)
+      // pero recortando el viewBox solo a lo visible.
+      const sCover = Math.max(panelW / meta.vbW, panelH / meta.vbH);
+      const drawW = meta.vbW * sCover;
+      const drawH = meta.vbH * sCover;
+      const drawOffsetX = (panelW - drawW) / 2;
+      const drawOffsetY = (panelH - drawH) / 2;
+
+      const vbX = meta.minX + (localX - drawOffsetX) / sCover;
+      const vbY = meta.minY + (localY - drawOffsetY) / sCover;
+      const vbW = localW / sCover;
+      const vbH = localH / sCover;
+      if (!Number.isFinite(vbX) || !Number.isFinite(vbY) || !Number.isFinite(vbW) || !Number.isFinite(vbH) || vbW <= 0 || vbH <= 0) {
+        removeCanvas(panelId);
+        return;
+      }
+
+      // Reescribimos el SVG para que rasterice exactamente el recorte visible
+      // al tamaño en píxeles del canvas.
+      const parsed = new DOMParser().parseFromString(meta.text, 'image/svg+xml');
+      const svg = parsed && parsed.documentElement;
+      if (!svg || String(svg.nodeName).toLowerCase() !== 'svg') {
+        removeCanvas(panelId);
+        return;
+      }
+
+      svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+      svg.setAttribute('preserveAspectRatio', 'none');
+      svg.setAttribute('width', String(canvas.width));
+      svg.setAttribute('height', String(canvas.height));
+
+      const serialized = new XMLSerializer().serializeToString(svg);
+      const blobUrl = URL.createObjectURL(new Blob([serialized], { type: 'image/svg+xml' }));
+
+      await new Promise(resolve => {
+        const img = new Image();
+        img.decoding = 'async';
+        img.onload = () => {
+          try {
+            const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+            if (ctx) {
+              ctx.setTransform(1, 0, 0, 1, 0, 0);
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.imageSmoothingEnabled = true;
+              ctx.drawImage(img, 0, 0);
+            }
+          } finally {
+            URL.revokeObjectURL(blobUrl);
+            resolve();
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(blobUrl);
+          resolve();
+        };
+        img.src = blobUrl;
+      });
+    }
+
+    async function renderAllNow() {
+      ensureLayer();
+      refreshMetrics();
+      const seq = ++renderSeq;
+      const entries = Object.entries(PANEL_SVGS);
+      await Promise.all(entries.map(([panelId, svgUrl]) => renderPanel(panelId, svgUrl, seq)));
+      if (seq !== renderSeq) return;
+      setVisible(true);
+    }
+
+    function scheduleRender(delayMs = 140) {
+      hideNow();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          raf = null;
+          renderAllNow().catch(() => {});
+        });
+      }, delayMs);
+    }
+
+    return { hideNow, scheduleRender };
+  })();
+
   // Reducir borrosidad: hacemos "snap" del scale global para que el tamaño
   // de celdas/pines caiga más cerca de píxeles enteros (sobre todo al alejar).
   const SNAP_UNIT_PX = 12; // coincide con el cell-size base usado en LargeMatrix
@@ -543,6 +798,7 @@ class App {
     offsetX = centeredOffsetX;
     offsetY = centeredOffsetY;
     requestRender();
+    hiResBg.scheduleRender(0);
   }
 
   requestAnimationFrame(() => fitContentToViewport());
@@ -610,6 +866,7 @@ class App {
   // Zoom con rueda (desktop), centrado en el cursor; pan con gesto normal de dos dedos
   outer.addEventListener('wheel', ev => {
     refreshMetrics();
+    hiResBg.hideNow();
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
       const cx = ev.clientX - (metrics.outerLeft || 0);
@@ -618,6 +875,7 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
+      hiResBg.scheduleRender(160);
       return;
     }
 
@@ -630,6 +888,7 @@ class App {
     offsetY -= moveY;
     requestRender();
     markUserAdjusted();
+    hiResBg.scheduleRender(140);
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -690,6 +949,7 @@ class App {
       refreshMetrics();
       // Pinch-zoom + pan simultáneo con dos dedos
       ev.preventDefault();
+      hiResBg.hideNow();
       const arr = Array.from(pointers.values());
       const [p1, p2] = arr;
       const dx = p1.x - p2.x;
@@ -750,6 +1010,7 @@ class App {
 
     // Si hay un solo puntero activo y estamos en modo pan (solo ratón)
     if (pointers.size === 1 && isPanning && panPointerId === ev.pointerId) {
+      hiResBg.hideNow();
       const dx = ev.clientX - lastX;
       const dy = ev.clientY - lastY;
       lastX = ev.clientX;
@@ -779,6 +1040,7 @@ class App {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       requestRender();
+      hiResBg.scheduleRender(0);
     }
   });
   outer.addEventListener('pointercancel', ev => {
@@ -797,12 +1059,14 @@ class App {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       requestRender();
+      hiResBg.scheduleRender(0);
     }
   });
 
   window.addEventListener('resize', () => {
     refreshMetrics();
     requestRender();
+    hiResBg.scheduleRender(0);
     if (userHasAdjustedView) return;
     fitContentToViewport();
   });

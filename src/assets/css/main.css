@@ -134,9 +134,7 @@ body {
 #panel-5,
 #panel-6 {
   background-color: #7D7570;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-image: none;
   padding: 0;
   display: flex;
   align-items: center;
@@ -148,6 +146,28 @@ body {
   /* Aislar repintado de paneles pesados (móvil) */
   contain: paint;
   isolation: isolate;
+}
+
+#panel-5 > .panel-inline-bg,
+#panel-6 > .panel-inline-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#panel-5 > .panel-inline-bg svg,
+#panel-6 > .panel-inline-bg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#panel-5 > :not(.panel-inline-bg),
+#panel-6 > :not(.panel-inline-bg) {
+  position: relative;
+  z-index: 1;
 }
 
 /* MODO AJUSTE: permite que el frame se salga del panel (no recortar pintura). */
@@ -163,13 +183,7 @@ body {
   overflow: visible;
 }
 
-#panel-5 {
-  background-image: url('../panels/panel5_bg.svg');
-}
 
-#panel-6 {
-  background-image: url('../panels/panel6_bg.svg');
-}
 
 .panel-build-version {
   position: absolute;

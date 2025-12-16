@@ -143,9 +143,8 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
-  /* Aislar repintado de paneles pesados (móvil) */
-  contain: paint;
-  isolation: isolate;
+  /* NO usar contain: paint ni isolation: isolate aquí porque fuerzan rasterización
+     del SVG inline a bitmap, causando blur en Android al escalar con transform. */
 }
 
 #panel-5 > .panel-inline-bg,
@@ -557,27 +556,6 @@ small { color:#aaa; }
   touch-action: none;
   background: #000;
   user-select: none;
-}
-
-/* Capa de fondo hi-res (se pinta al finalizar gestos). */
-#hiResBgLayer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-}
-
-#hiResBgLayer .hires-bg-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
-/* Cuando el overlay está activo, ocultamos el SVG inline para evitar doble dibujo. */
-.hires-bg-visible #panel-5 > .panel-inline-bg,
-.hires-bg-visible #panel-6 > .panel-inline-bg {
-  opacity: 0;
 }
 #viewportInner {
   width: calc(var(--panel-width) * 4 + var(--panel-gap) * 3);

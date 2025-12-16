@@ -605,3 +605,20 @@ small { color:#aaa; }
   background: transparent;
   contain: paint;
 }
+
+/* Paneles 5/6 (matrices grandes): evitar scroll/arrastre nativo al tocar pines (móvil). */
+#panel-5:not(.matrix-adjust) .matrix-container,
+#panel-6:not(.matrix-adjust) .matrix-container {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#panel-5:not(.matrix-adjust) .matrix.matrix-large,
+#panel-6:not(.matrix-adjust) .matrix.matrix-large,
+#panel-5:not(.matrix-adjust) .matrix.matrix-large .pin-btn,
+#panel-6:not(.matrix-adjust) .matrix.matrix-large .pin-btn {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

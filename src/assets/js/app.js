@@ -329,6 +329,28 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
+  // Algunos navegadores rasterizan los fondos (SVG) al escalar el contenedor.
+  // Forzamos un repintado del background al terminar el zoom.
+  let bgRerasterToggle = 0;
+  function rerasterizePanelBackgrounds() {
+    bgRerasterToggle ^= 1;
+    const delta = bgRerasterToggle ? '0.01px' : '0px';
+    const pos = `calc(50% + ${delta}) calc(50% + ${delta})`;
+    const p5 = document.getElementById('panel-5');
+    const p6 = document.getElementById('panel-6');
+    if (p5) p5.style.backgroundPosition = pos;
+    if (p6) p6.style.backgroundPosition = pos;
+  }
+
+  let wheelZoomRerasterTimer = null;
+  function scheduleRerasterAfterWheelZoom() {
+    if (wheelZoomRerasterTimer) clearTimeout(wheelZoomRerasterTimer);
+    wheelZoomRerasterTimer = setTimeout(() => {
+      wheelZoomRerasterTimer = null;
+      rerasterizePanelBackgrounds();
+    }, 140);
+  }
+
   // Reducir borrosidad: hacemos "snap" del scale global para que el tamaño
   // de celdas/pines caiga más cerca de píxeles enteros (sobre todo al alejar).
   const SNAP_UNIT_PX = 12; // coincide con el cell-size base usado en LargeMatrix
@@ -573,6 +595,7 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
+      scheduleRerasterAfterWheelZoom();
       return;
     }
 
@@ -733,6 +756,7 @@ class App {
       // perceptible al soltar el último dedo.
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
+      rerasterizePanelBackgrounds();
       requestRender();
     }
   });
@@ -751,6 +775,7 @@ class App {
     if (pointers.size === 0) {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
+      rerasterizePanelBackgrounds();
       requestRender();
     }
   });

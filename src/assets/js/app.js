@@ -330,16 +330,40 @@ class App {
   let userHasAdjustedView = false;
 
   // Algunos navegadores rasterizan los fondos (SVG) al escalar el contenedor.
-  // Forzamos un repintado del background al terminar el zoom.
-  let bgRerasterToggle = 0;
+  // Forzamos un re-raster inequívoco alternando background-image a 'none'
+  // y restaurándolo en el siguiente frame.
+  let rerasterRaf = null;
   function rerasterizePanelBackgrounds() {
-    bgRerasterToggle ^= 1;
-    const delta = bgRerasterToggle ? '0.01px' : '0px';
-    const pos = `calc(50% + ${delta}) calc(50% + ${delta})`;
-    const p5 = document.getElementById('panel-5');
-    const p6 = document.getElementById('panel-6');
-    if (p5) p5.style.backgroundPosition = pos;
-    if (p6) p6.style.backgroundPosition = pos;
+    if (rerasterRaf) return;
+
+    const panels = [document.getElementById('panel-5'), document.getElementById('panel-6')].filter(Boolean);
+    if (panels.length === 0) return;
+
+    const restore = panels.map(el => ({
+      el,
+      bgImage: getComputedStyle(el).backgroundImage
+    }));
+
+    // Quitar el fondo en este frame.
+    restore.forEach(({ el }) => {
+      el.style.backgroundImage = 'none';
+    });
+
+    // Forzar reflow para que el navegador procese el cambio antes de restaurar.
+    // (leer offsetHeight basta).
+    // eslint-disable-next-line no-unused-expressions
+    panels[0].offsetHeight;
+
+    rerasterRaf = requestAnimationFrame(() => {
+      rerasterRaf = null;
+      restore.forEach(({ el, bgImage }) => {
+        if (bgImage && bgImage !== 'none') {
+          el.style.backgroundImage = bgImage;
+        } else {
+          el.style.backgroundImage = '';
+        }
+      });
+    });
   }
 
   let wheelZoomRerasterTimer = null;

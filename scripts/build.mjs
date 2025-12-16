@@ -135,10 +135,10 @@ async function buildCss() {
   const externalizePanelSvgs = {
     name: 'externalize-panel-svgs',
     setup(build) {
-      build.onResolve({ filter: /\.svg$/ }, args => {
+      build.onResolve({ filter: /\.(svg|png)$/ }, args => {
         // Solo para URLs dentro de CSS (url(...)).
         if (args.kind !== 'url-token') return;
-        // Mantenemos estables los SVG de paneles como assets estáticos.
+        // Mantenemos estables los assets de paneles (SVG/PNG) como estáticos.
         // copyStaticAssets() ya copia src/assets/panels -> docs/assets/panels.
         if (args.path.startsWith('../panels/')) {
           return { path: args.path, external: true };

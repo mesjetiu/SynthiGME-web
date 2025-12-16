@@ -616,11 +616,11 @@ small { color:#aaa; }
   transform: translate(-50%, 12px);
 }
 
-/* Evitar duplicar el SVG de fondo dentro del frame (menos overdraw al repintar). */
+/* IMPORTANTE: NO usar contain:paint — fuerza rasterización del SVG inline a bitmap
+   que luego se escala borroso. Sin contain, el SVG se re-renderiza vectorial. */
 #panel-5 .matrix-container,
 #panel-6 .matrix-container {
   background: transparent;
-  contain: paint;
 }
 
 /* Paneles 5/6 (matrices grandes): evitar scroll/arrastre nativo al tocar pines (móvil). */

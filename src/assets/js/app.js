@@ -685,7 +685,6 @@ class App {
             // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
             adjustOffsetsForZoom(zoomAnchorX, zoomAnchorY, newScale, { snap: false });
             didZoom = true;
-            needsSnapOnEnd = true;
           }
         }
       }
@@ -730,17 +729,10 @@ class App {
     }
 
     if (pointers.size === 0) {
-      if (needsSnapOnEnd) {
-        refreshMetrics();
-        const target = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
-        const outerW = metrics.outerWidth || outer.clientWidth || 0;
-        const outerH = metrics.outerHeight || outer.clientHeight || 0;
-        const fallbackAnchor = { x: outerW / 2, y: outerH / 2 };
-        const anchor = lastPinchZoomAnchor || fallbackAnchor;
-        adjustOffsetsForZoom(anchor.x, anchor.y, target, { snap: false });
-        needsSnapOnEnd = false;
-        lastPinchZoomAnchor = null;
-      }
+      // No aplicamos snap de escala al final del pinch: evita micro-zoom
+      // perceptible al soltar el último dedo.
+      needsSnapOnEnd = false;
+      lastPinchZoomAnchor = null;
       requestRender();
     }
   });
@@ -757,17 +749,8 @@ class App {
     }
 
     if (pointers.size === 0) {
-      if (needsSnapOnEnd) {
-        refreshMetrics();
-        const target = Math.min(maxScale, Math.max(minScale, snapScale(scale)));
-        const outerW = metrics.outerWidth || outer.clientWidth || 0;
-        const outerH = metrics.outerHeight || outer.clientHeight || 0;
-        const fallbackAnchor = { x: outerW / 2, y: outerH / 2 };
-        const anchor = lastPinchZoomAnchor || fallbackAnchor;
-        adjustOffsetsForZoom(anchor.x, anchor.y, target, { snap: false });
-        needsSnapOnEnd = false;
-        lastPinchZoomAnchor = null;
-      }
+      needsSnapOnEnd = false;
+      lastPinchZoomAnchor = null;
       requestRender();
     }
   });

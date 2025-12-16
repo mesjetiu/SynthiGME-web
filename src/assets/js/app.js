@@ -13,6 +13,47 @@ import { LargeMatrix } from './ui/largeMatrix.js';
 
 let orientationHintDismissed = false;
 
+const INLINE_SVG_TEXT_CACHE = new Map();
+
+function loadSvgTextOnce(url) {
+  if (INLINE_SVG_TEXT_CACHE.has(url)) return INLINE_SVG_TEXT_CACHE.get(url);
+  const promise = fetch(url, { cache: 'force-cache' })
+    .then(resp => (resp && resp.ok ? resp.text() : null))
+    .catch(() => null);
+  INLINE_SVG_TEXT_CACHE.set(url, promise);
+  return promise;
+}
+
+function injectInlinePanelSvgBackground(panelId, svgUrl) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  if (panel.querySelector(':scope > .panel-inline-bg')) return;
+
+  const host = document.createElement('div');
+  host.className = 'panel-inline-bg';
+  panel.insertBefore(host, panel.firstChild);
+
+  loadSvgTextOnce(svgUrl)
+    .then(text => {
+      if (!text) return;
+      const parsed = new DOMParser().parseFromString(text, 'image/svg+xml');
+      const svg = parsed && parsed.documentElement;
+      if (!svg || String(svg.nodeName).toLowerCase() !== 'svg') return;
+
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '100%');
+      svg.style.width = '100%';
+      svg.style.height = '100%';
+      svg.style.display = 'block';
+
+      const imported = document.importNode(svg, true);
+      host.replaceChildren(imported);
+      panel.classList.add('has-inline-bg');
+    })
+    .catch(() => {});
+}
+
 // Esta constante será sustituida por esbuild en el bundle de docs/.
 // En /src seguirá siendo el placeholder.
 // typeof __BUILD_VERSION__ es seguro aunque no exista.
@@ -79,6 +120,10 @@ class App {
     // Panel 6: gran matriz 66x63 sin rótulos
     this.panel6 = this.panelManager.createPanel({ id: 'panel-6' });
     this._labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
+
+    // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
+    injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
+    injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
@@ -329,28 +374,6 @@ class App {
   let offsetY = 0;
   let userHasAdjustedView = false;
 
-  // Algunos navegadores rasterizan los fondos (SVG) al escalar el contenedor.
-  // Forzamos un repintado del background al terminar el zoom.
-  let bgRerasterToggle = 0;
-  function rerasterizePanelBackgrounds() {
-    bgRerasterToggle ^= 1;
-    const delta = bgRerasterToggle ? '0.01px' : '0px';
-    const pos = `calc(50% + ${delta}) calc(50% + ${delta})`;
-    const p5 = document.getElementById('panel-5');
-    const p6 = document.getElementById('panel-6');
-    if (p5) p5.style.backgroundPosition = pos;
-    if (p6) p6.style.backgroundPosition = pos;
-  }
-
-  let wheelZoomRerasterTimer = null;
-  function scheduleRerasterAfterWheelZoom() {
-    if (wheelZoomRerasterTimer) clearTimeout(wheelZoomRerasterTimer);
-    wheelZoomRerasterTimer = setTimeout(() => {
-      wheelZoomRerasterTimer = null;
-      rerasterizePanelBackgrounds();
-    }, 140);
-  }
-
   // Reducir borrosidad: hacemos "snap" del scale global para que el tamaño
   // de celdas/pines caiga más cerca de píxeles enteros (sobre todo al alejar).
   const SNAP_UNIT_PX = 12; // coincide con el cell-size base usado en LargeMatrix
@@ -595,7 +618,6 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
-      scheduleRerasterAfterWheelZoom();
       return;
     }
 
@@ -756,7 +778,6 @@ class App {
       // perceptible al soltar el último dedo.
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
-      rerasterizePanelBackgrounds();
       requestRender();
     }
   });
@@ -775,7 +796,6 @@ class App {
     if (pointers.size === 0) {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
-      rerasterizePanelBackgrounds();
       requestRender();
     }
   });

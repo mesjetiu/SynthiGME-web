@@ -1,4 +1,4 @@
-const CACHE_VERSION = '0.0.1-64';
+const CACHE_VERSION = '0.0.1-65';
 const CACHE_NAME = `synthigme-cache-v${CACHE_VERSION}`;
 const CORE_ASSETS = [
   './',
@@ -6,6 +6,8 @@ const CORE_ASSETS = [
   './assets/css/main.css',
   './assets/js/app.js',
   './assets/icons/ui-sprite.svg',
+  './assets/panels/panel5_bg.svg',
+  './assets/panels/panel6_bg.svg',
   './manifest.webmanifest',
   './assets/pwa/icons/app-icon-192.png',
   './assets/pwa/icons/app-icon-512.png'

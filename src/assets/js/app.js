@@ -881,12 +881,6 @@ function setupMobileQuickActionsBar() {
     }
   });
 
-  document.addEventListener('pointerdown', ev => {
-    if (!expanded) return;
-    if (bar.contains(ev.target)) return;
-    setExpanded(false);
-  });
-
   document.addEventListener('fullscreenchange', applyPressedState);
   displayModeQueries.forEach(mq => mq.addEventListener('change', applyPressedState));
 

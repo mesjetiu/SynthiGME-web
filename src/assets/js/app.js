@@ -33,13 +33,14 @@ function injectInlinePanelSvgBackground(panelId, svgUrl) {
   host.className = 'panel-inline-bg';
   panel.insertBefore(host, panel.firstChild);
 
-  // Usar <img> en lugar de inline SVG: Chrome Android lo renderiza mejor bajo transform scale.
-  const img = document.createElement('img');
-  img.src = svgUrl;
-  img.style.cssText = 'width: 100%; height: 100%; display: block; object-fit: cover; object-position: center;';
-  img.alt = '';
-  img.setAttribute('aria-hidden', 'true');
-  host.appendChild(img);
+  // Usar <object> en lugar de <img>: aísla el contexto de render del SVG,
+  // permitiendo que Chrome lo re-renderice vectorialmente incluso bajo transform scale.
+  const obj = document.createElement('object');
+  obj.type = 'image/svg+xml';
+  obj.data = svgUrl;
+  obj.style.cssText = 'width: 100%; height: 100%; display: block;';
+  obj.setAttribute('aria-hidden', 'true');
+  host.appendChild(obj);
   panel.classList.add('has-inline-bg');
 }
 

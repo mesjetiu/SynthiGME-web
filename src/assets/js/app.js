@@ -10,6 +10,7 @@ import { createOutputRouterUI } from './ui/outputRouter.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
+import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 
 let orientationHintDismissed = false;
 
@@ -90,13 +91,11 @@ class App {
     this.panel2 = this.panelManager.createPanel({ id: 'panel-2' });
     this._labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
 
-    // Panel 3 y 4: placeholders por ahora
-    this._createPlaceholderPanel({
-      id: 'panel-3',
-      layout: { row: 1, col: 3 },
-      message: 'Placeholder temporal mientras se documenta el contenido del Panel 3.'
-    });
+    // Panel 3: SGME Oscillators (layout-only, sin audio por ahora)
+    this.panel3 = this.panelManager.createPanel({ id: 'panel-3' });
+    this._labelPanelSlot(this.panel3, null, { row: 1, col: 3 });
 
+    // Panel 4: placeholder pendiente
     this._createPlaceholderPanel({
       id: 'panel-4',
       layout: { row: 1, col: 4 },
@@ -114,6 +113,7 @@ class App {
     // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
+    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
@@ -137,6 +137,7 @@ class App {
     this._heightSyncScheduled = false;
     this.largeMatrixAudio = null;
     this.largeMatrixControl = null;
+    this._buildPanel3Layout();
     this._setupModules();
     this._buildLargeMatrices();
     this._setupUI();
@@ -269,6 +270,81 @@ class App {
       this.placeholderPanels[id] = panel;
     }
     return panel;
+  }
+
+  _getPanel3LayoutSpec() {
+    // Todos los números son ajustes fáciles para posteriores alineados a ojo.
+    const oscSize = { width: 340, height: 86 };
+    const padding = 10;
+    const gap = { x: 20, y: 12 };
+    const rowsPerColumn = 6; // 12 osciladores en 2 columnas
+    const topOffset = 10;
+    const knobGap = 8;
+    const switchOffset = { leftPercent: 36, topPx: 6 };
+    return {
+      oscSize,
+      padding,
+      gap,
+      rowsPerColumn,
+      topOffset,
+      knobGap,
+      switchOffset,
+      reservedHeight: oscSize.height
+    };
+  }
+
+  _buildPanel3Layout() {
+    if (!this.panel3) return;
+
+    const host = document.createElement('div');
+    host.id = 'panel3Layout';
+    host.className = 'panel3-layout';
+    this.panel3.appendElement(host);
+
+    const layout = this._getPanel3LayoutSpec();
+    const { oscSize, padding, gap, rowsPerColumn, topOffset } = layout;
+
+    const oscillatorSlots = [];
+    // Columna izquierda (1-6)
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 1, col: 0, row: i });
+    }
+    // Columna derecha (7-12)
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 7, col: 1, row: i });
+    }
+
+    const oscInstances = oscillatorSlots.map(slot => {
+      const osc = new SGME_Oscillator({
+        id: `sgme-osc-${slot.index}`,
+        title: `Oscillator ${slot.index}`,
+        size: oscSize,
+        knobGap: layout.knobGap,
+        switchOffset: layout.switchOffset
+      });
+      const el = osc.createElement();
+      const x = padding + slot.col * (oscSize.width + gap.x);
+      const y = topOffset + slot.row * (oscSize.height + gap.y);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      host.appendChild(el);
+      return el;
+    });
+
+    // Franja inferior reservada para otros 3 módulos (sin contenido todavía)
+    const reserved = document.createElement('div');
+    reserved.className = 'panel3-reserved-row';
+    reserved.textContent = 'Reserved strip for future modules';
+    const reservedTop = topOffset + rowsPerColumn * (oscSize.height + gap.y);
+    reserved.style.left = `${padding}px`;
+    reserved.style.right = `${padding}px`;
+    reserved.style.top = `${reservedTop}px`;
+    reserved.style.height = `${layout.reservedHeight}px`;
+    host.appendChild(reserved);
+
+    // Guardamos por si más adelante se necesita referenciar desde fuera
+    this.panel3OscillatorElements = oscInstances;
+    this.panel3ReservedRow = reserved;
   }
 
   _buildLargeMatrices() {

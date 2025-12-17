@@ -1,4 +1,5 @@
-// Layout-only UI scaffold for SGME Oscillator (no audio wiring yet)
+// UI scaffold for SGME Oscillator (solo interacción visual; sin audio por ahora)
+import { Knob } from './knob.js';
 const DEFAULT_KNOB_LABELS = [
   'Pulse level',
   'Pulse shape',
@@ -17,6 +18,9 @@ export class SGME_Oscillator {
     this.knobGap = options.knobGap || 8;
     this.switchOffset = options.switchOffset || { leftPercent: 36, topPx: 6 };
     this.knobLabels = options.knobLabels || DEFAULT_KNOB_LABELS;
+    this.knobs = [];
+    this.rangeState = 'hi';
+    this.knobRange = options.knobRange || { min: 0, max: 1, initial: 0.5, pixelsForFullRange: 160 };
   }
 
   createElement() {
@@ -52,11 +56,15 @@ export class SGME_Oscillator {
     range.innerHTML = `
       <div class="sgme-osc__switch-label">Range</div>
       <div class="sgme-osc__switch-body">
-        <span>HI</span>
-        <span class="sgme-osc__switch-toggle"></span>
-        <span>LO</span>
+        <span class="sgme-osc__switch-hi">HI</span>
+        <span class="sgme-osc__switch-toggle" aria-hidden="true"></span>
+        <span class="sgme-osc__switch-lo">LO</span>
       </div>
     `;
+    range.addEventListener('click', () => {
+      this.rangeState = this.rangeState === 'hi' ? 'lo' : 'hi';
+      this._renderRange(range);
+    });
     top.appendChild(range);
 
     const bottom = document.createElement('div');
@@ -73,11 +81,26 @@ export class SGME_Oscillator {
       knob.appendChild(inner);
       shell.appendChild(knob);
       knobsRow.appendChild(shell);
+
+      const knobInstance = new Knob(knob, {
+        min: this.knobRange.min,
+        max: this.knobRange.max,
+        initial: this.knobRange.initial,
+        pixelsForFullRange: this.knobRange.pixelsForFullRange
+      });
+      this.knobs.push(knobInstance);
     });
     bottom.appendChild(knobsRow);
 
     root.appendChild(top);
     root.appendChild(bottom);
+    this._renderRange(range);
     return root;
+  }
+
+  _renderRange(rangeEl) {
+    const isLo = this.rangeState === 'lo';
+    rangeEl.classList.toggle('is-lo', isLo);
+    rangeEl.setAttribute('data-state', isLo ? 'lo' : 'hi');
   }
 }

@@ -609,6 +609,10 @@ small { color:#aaa; }
   transition: opacity 140ms ease;
 }
 
+#viewportInner.is-low-zoom .panel {
+  transition-duration: 180ms;
+}
+
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn {
   background: #111;
   box-shadow: none;

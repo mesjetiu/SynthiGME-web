@@ -587,6 +587,7 @@ class App {
   }
 
   let lowZoomActive = false;
+  let willChangeDetachTimer = null;
 
   function render() {
     if (metricsDirty) {
@@ -602,8 +603,20 @@ class App {
     if (nextLowZoom !== lowZoomActive) {
       lowZoomActive = nextLowZoom;
       inner.classList.toggle(LOW_ZOOM_CLASS, lowZoomActive);
-      // Para vistas alejadas, habilitamos will-change; cerca lo quitamos para nitidez.
-      inner.style.willChange = lowZoomActive ? 'transform' : '';
+
+      // Gestionar will-change con desacople diferido para evitar el parón al cruzar umbral.
+      if (willChangeDetachTimer) {
+        clearTimeout(willChangeDetachTimer);
+        willChangeDetachTimer = null;
+      }
+      if (lowZoomActive) {
+        inner.style.willChange = 'transform';
+      } else {
+        willChangeDetachTimer = setTimeout(() => {
+          inner.style.willChange = '';
+          willChangeDetachTimer = null;
+        }, 220);
+      }
     }
   }
 

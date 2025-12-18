@@ -598,6 +598,24 @@ small { color:#aaa; }
   user-select: none;
 }
 
+#viewportInner.is-low-zoom .panel {
+  box-shadow: none;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+#viewportInner.is-low-zoom .panel-inline-bg {
+  opacity: 0.65;
+}
+
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn {
+  background: #111;
+  box-shadow: none;
+}
+
+#viewportInner.is-low-zoom .panel-build-version {
+  opacity: 0.15;
+}
+
 .panel {
   display: flex;
   flex-direction: column;

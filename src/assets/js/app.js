@@ -430,6 +430,8 @@ class App {
   let scale = 1;
   let minScale = 0.1; // permite alejar mucho
   let maxScale = 6.0;
+  const LOW_ZOOM_THRESHOLD = 0.55;
+  const LOW_ZOOM_CLASS = 'is-low-zoom';
   const wheelPanFactor = 0.35; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.92; // suaviza el gesto en trackpads
   const MIN_VISIBLE_STRIP_PX = 32; // franja mínima de contenido que debe seguir visible
@@ -442,10 +444,11 @@ class App {
 
   // Reducir borrosidad: hacemos "snap" del scale global para que el tamaño
   // de celdas/pines caiga más cerca de píxeles enteros (sobre todo al alejar).
-  const SNAP_UNIT_PX = 12; // coincide con el cell-size base usado en LargeMatrix
   function snapScale(value) {
+    // Snap adaptativo: al alejar usamos unidades mayores para evitar repaints innecesarios.
     const dpr = window.devicePixelRatio || 1;
-    const denom = SNAP_UNIT_PX * dpr;
+    const snapUnit = value < 0.6 ? 24 : 12;
+    const denom = snapUnit * dpr;
     if (!denom) return value;
     return Math.round(value * denom) / denom;
   }
@@ -469,6 +472,7 @@ class App {
     outerLeft: 0,
     outerTop: 0
   };
+  let metricsDirty = true;
 
   const isCoarsePointer = (() => {
     try {
@@ -511,6 +515,7 @@ class App {
     metrics.outerHeight = outer.clientHeight;
     metrics.outerLeft = rect.left;
     metrics.outerTop = rect.top;
+    metricsDirty = false;
   }
 
   let renderRaf = null;
@@ -581,8 +586,14 @@ class App {
   }
 
   function render() {
+    if (metricsDirty) {
+      refreshMetrics();
+    }
     clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+
+    const isLowZoom = scale < LOW_ZOOM_THRESHOLD;
+    inner.classList.toggle(LOW_ZOOM_CLASS, isLowZoom);
   }
 
   refreshMetrics();
@@ -675,7 +686,7 @@ class App {
 
   // Zoom con rueda (desktop), centrado en el cursor; pan con gesto normal de dos dedos
   outer.addEventListener('wheel', ev => {
-    refreshMetrics();
+    metricsDirty = true;
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
       const cx = ev.clientX - (metrics.outerLeft || 0);
@@ -753,7 +764,7 @@ class App {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: prev?.pointerType });
 
     if (pointers.size === 2) {
-      refreshMetrics();
+      metricsDirty = true;
       // Pinch-zoom + pan simultáneo con dos dedos
       ev.preventDefault();
       const arr = Array.from(pointers.values());

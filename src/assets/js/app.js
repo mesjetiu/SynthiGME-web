@@ -594,6 +594,10 @@ class App {
 
     const isLowZoom = scale < LOW_ZOOM_THRESHOLD;
     inner.classList.toggle(LOW_ZOOM_CLASS, isLowZoom);
+
+    // Para vistas muy alejadas, habilitamos will-change para que el compositor suavice pan/zoom.
+    // Al acercar, lo quitamos para mantener nitidez de SVG/texto.
+    inner.style.willChange = isLowZoom ? 'transform' : '';
   }
 
   refreshMetrics();

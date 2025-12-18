@@ -130,6 +130,7 @@ body {
   box-sizing: border-box;
   overflow-y: auto;
   position: relative;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
 }
 #panel-5,
 #panel-6 {
@@ -605,6 +606,7 @@ small { color:#aaa; }
 
 #viewportInner.is-low-zoom .panel-inline-bg {
   opacity: 0.65;
+  transition: opacity 140ms ease;
 }
 
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn {

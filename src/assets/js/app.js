@@ -430,7 +430,8 @@ class App {
   let scale = 1;
   let minScale = 0.1; // permite alejar mucho
   let maxScale = 6.0;
-  const LOW_ZOOM_THRESHOLD = 0.55;
+  const LOW_ZOOM_ENTER = 0.45;
+  const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
   const LOW_ZOOM_CLASS = 'is-low-zoom';
   const wheelPanFactor = 0.35; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.92; // suaviza el gesto en trackpads
@@ -585,6 +586,8 @@ class App {
     }
   }
 
+  let lowZoomActive = false;
+
   function render() {
     if (metricsDirty) {
       refreshMetrics();
@@ -592,12 +595,16 @@ class App {
     clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 
-    const isLowZoom = scale < LOW_ZOOM_THRESHOLD;
-    inner.classList.toggle(LOW_ZOOM_CLASS, isLowZoom);
-
-    // Para vistas muy alejadas, habilitamos will-change para que el compositor suavice pan/zoom.
-    // Al acercar, lo quitamos para mantener nitidez de SVG/texto.
-    inner.style.willChange = isLowZoom ? 'transform' : '';
+    // Histéresis: solo cambiamos de modo si cruzamos umbrales separados.
+    const nextLowZoom = lowZoomActive
+      ? scale < LOW_ZOOM_EXIT
+      : scale < LOW_ZOOM_ENTER;
+    if (nextLowZoom !== lowZoomActive) {
+      lowZoomActive = nextLowZoom;
+      inner.classList.toggle(LOW_ZOOM_CLASS, lowZoomActive);
+      // Para vistas alejadas, habilitamos will-change; cerca lo quitamos para nitidez.
+      inner.style.willChange = lowZoomActive ? 'transform' : '';
+    }
   }
 
   refreshMetrics();

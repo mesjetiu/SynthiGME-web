@@ -432,6 +432,9 @@ class App {
   let maxScale = 6.0;
   const LOW_ZOOM_ENTER = 0.45;
   const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
+  // Esperas antes de aplicar el cambio de modo tras la última actividad de zoom
+  const LOW_ZOOM_IDLE_WHEEL_MS = 2000; // rueda/trackpad
+  const LOW_ZOOM_IDLE_PINCH_MS = 1200; // pellizco táctil
   const LOW_ZOOM_CLASS = 'is-low-zoom';
   const wheelPanFactor = 0.35; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.92; // suaviza el gesto en trackpads
@@ -587,7 +590,39 @@ class App {
   }
 
   let lowZoomActive = false;
-  let willChangeDetachTimer = null;
+  let lowZoomIdleTimer = null;
+
+  function computeLowZoomState() {
+    return lowZoomActive
+      ? scale < LOW_ZOOM_EXIT
+      : scale < LOW_ZOOM_ENTER;
+  }
+
+  function applyLowZoomMode(nextLowZoom) {
+    if (nextLowZoom === lowZoomActive) return;
+    lowZoomActive = nextLowZoom;
+    inner.classList.toggle(LOW_ZOOM_CLASS, lowZoomActive);
+
+    // Sincronizamos will-change con la activación/salida según el retardo de inactividad
+    // (sin desfase adicional respecto al temporizador de idle).
+    if (lowZoomActive) {
+      inner.style.willChange = 'transform';
+    } else {
+      inner.style.willChange = '';
+    }
+  }
+
+  function scheduleLowZoomUpdate(kind) {
+    const delay = kind === 'pinch' ? LOW_ZOOM_IDLE_PINCH_MS : LOW_ZOOM_IDLE_WHEEL_MS;
+    if (lowZoomIdleTimer) {
+      clearTimeout(lowZoomIdleTimer);
+      lowZoomIdleTimer = null;
+    }
+    lowZoomIdleTimer = setTimeout(() => {
+      lowZoomIdleTimer = null;
+      applyLowZoomMode(computeLowZoomState());
+    }, delay);
+  }
 
   function render() {
     if (metricsDirty) {
@@ -595,29 +630,6 @@ class App {
     }
     clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-
-    // Histéresis: solo cambiamos de modo si cruzamos umbrales separados.
-    const nextLowZoom = lowZoomActive
-      ? scale < LOW_ZOOM_EXIT
-      : scale < LOW_ZOOM_ENTER;
-    if (nextLowZoom !== lowZoomActive) {
-      lowZoomActive = nextLowZoom;
-      inner.classList.toggle(LOW_ZOOM_CLASS, lowZoomActive);
-
-      // Gestionar will-change con desacople diferido para evitar el parón al cruzar umbral.
-      if (willChangeDetachTimer) {
-        clearTimeout(willChangeDetachTimer);
-        willChangeDetachTimer = null;
-      }
-      if (lowZoomActive) {
-        inner.style.willChange = 'transform';
-      } else {
-        willChangeDetachTimer = setTimeout(() => {
-          inner.style.willChange = '';
-          willChangeDetachTimer = null;
-        }, 220);
-      }
-    }
   }
 
   refreshMetrics();
@@ -719,6 +731,7 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
+      scheduleLowZoomUpdate('wheel');
       return;
     }
 
@@ -841,6 +854,9 @@ class App {
       if (didZoom || transformDirty) {
         requestRender();
         markUserAdjusted();
+        if (didZoom) {
+          scheduleLowZoomUpdate('pinch');
+        }
       }
 
       // Cuando hay dos dedos, desactivamos pan a un dedo
@@ -879,6 +895,7 @@ class App {
       // perceptible al soltar el último dedo.
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
+      scheduleLowZoomUpdate('pinch');
       requestRender();
     }
   });
@@ -897,6 +914,7 @@ class App {
     if (pointers.size === 0) {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
+      scheduleLowZoomUpdate('pinch');
       requestRender();
     }
   });

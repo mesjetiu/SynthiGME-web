@@ -817,6 +817,16 @@ small { color:#aaa; }
   width: 44px;
   height: 44px;
 }
+.sgme-osc__knob .knob-inner {
+  width: 78%;
+  height: 78%;
+}
+.sgme-osc__knob .knob-inner::after {
+  width: 3px;
+  height: 13px;
+  top: 5px;
+  border-radius: 2px;
+}
 
 .panel3-reserved-row {
   position: absolute;

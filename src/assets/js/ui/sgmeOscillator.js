@@ -20,7 +20,8 @@ export class SGME_Oscillator {
     this.knobLabels = options.knobLabels || DEFAULT_KNOB_LABELS;
     this.knobs = [];
     this.rangeState = 'hi';
-    this.knobRange = options.knobRange || { min: 0, max: 1, initial: 0.5, pixelsForFullRange: 160 };
+    // Igualamos sensibilidad y punto inicial al panel 1: rango 0..1, inicio 0.4 y 150 px para recorrer el rango.
+    this.knobRange = options.knobRange || { min: 0, max: 1, initial: 0.4, pixelsForFullRange: 150 };
   }
 
   createElement() {

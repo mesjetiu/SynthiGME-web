@@ -148,7 +148,6 @@ class App {
     window.addEventListener('resize', () => {
       this._schedulePanelSync();
       this._resizeLargeMatrices();
-      this._reflowPanel3Layout();
     });
   }
 

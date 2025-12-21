@@ -171,7 +171,7 @@ body {
   display: block;
 }
 
-#panel-3 > :not(.panel-inline-bg) {
+#panel-3 > :not(.panel-inline-bg):not(.panel-build-version) {
   position: relative;
   z-index: 1;
 }
@@ -192,10 +192,19 @@ body {
   display: block;
 }
 
-#panel-5 > :not(.panel-inline-bg),
-#panel-6 > :not(.panel-inline-bg) {
+#panel-5 > :not(.panel-inline-bg):not(.panel-build-version),
+#panel-6 > :not(.panel-inline-bg):not(.panel-build-version) {
   position: relative;
   z-index: 1;
+}
+
+#panel-3 > .panel-build-version,
+#panel-5 > .panel-build-version,
+#panel-6 > .panel-build-version {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  z-index: 2;
 }
 
 /* MODO AJUSTE: permite que el frame se salga del panel (no recortar pintura). */

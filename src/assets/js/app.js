@@ -145,6 +145,7 @@ class App {
     window.addEventListener('resize', () => {
       this._schedulePanelSync();
       this._resizeLargeMatrices();
+      this._reflowPanel3Layout();
     });
   }
 
@@ -275,7 +276,7 @@ class App {
   _getPanel3LayoutSpec() {
     // Todos los números son ajustes fáciles para posteriores alineados a ojo.
     const oscSize = { width: 340, height: 86 };
-    const padding = 10;
+    const padding = 6;
     const gap = { x: 20, y: 12 };
     const rowsPerColumn = 6; // 12 osciladores en 2 columnas
     const topOffset = 10;
@@ -302,7 +303,7 @@ class App {
     this.panel3.appendElement(host);
 
     const layout = this._getPanel3LayoutSpec();
-    const { oscSize, padding, gap, rowsPerColumn, topOffset } = layout;
+    const { oscSize, gap, rowsPerColumn } = layout;
 
     const oscillatorSlots = [];
     // Columna izquierda (1-6)
@@ -323,10 +324,6 @@ class App {
         switchOffset: layout.switchOffset
       });
       const el = osc.createElement();
-      const x = padding + slot.col * (oscSize.width + gap.x);
-      const y = topOffset + slot.row * (oscSize.height + gap.y);
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
       host.appendChild(el);
       return el;
     });
@@ -335,16 +332,50 @@ class App {
     const reserved = document.createElement('div');
     reserved.className = 'panel3-reserved-row';
     reserved.textContent = 'Reserved strip for future modules';
-    const reservedTop = topOffset + rowsPerColumn * (oscSize.height + gap.y);
-    reserved.style.left = `${padding}px`;
-    reserved.style.right = `${padding}px`;
-    reserved.style.top = `${reservedTop}px`;
-    reserved.style.height = `${layout.reservedHeight}px`;
     host.appendChild(reserved);
 
-    // Guardamos por si más adelante se necesita referenciar desde fuera
-    this.panel3OscillatorElements = oscInstances;
-    this.panel3ReservedRow = reserved;
+    // Guardamos referencias para relayout dinámico
+    this._panel3LayoutData = {
+      host,
+      layout,
+      oscillatorSlots,
+      oscElements: oscInstances,
+      reserved
+    };
+    this._reflowPanel3Layout();
+  }
+
+  _reflowPanel3Layout() {
+    const data = this._panel3LayoutData;
+    if (!data) return;
+
+    const { host, layout, oscillatorSlots, oscElements, reserved } = data;
+    if (!host || !host.isConnected) return;
+
+    const { oscSize, gap, topOffset, rowsPerColumn } = layout;
+    const style = getComputedStyle(host);
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+    const paddingRight = parseFloat(style.paddingRight) || 0;
+    const availableWidth = host.clientWidth;
+    const blockWidth = oscSize.width * 2 + gap.x;
+    const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2);
+
+    oscillatorSlots.forEach((slot, idx) => {
+      const el = oscElements[idx];
+      if (!el) return;
+      const x = baseLeft + slot.col * (oscSize.width + gap.x);
+      const y = topOffset + slot.row * (oscSize.height + gap.y);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    });
+
+    if (reserved) {
+      const reservedTop = topOffset + rowsPerColumn * (oscSize.height + gap.y);
+      reserved.style.left = `${paddingLeft}px`;
+      reserved.style.right = `${paddingRight}px`;
+      reserved.style.top = `${reservedTop}px`;
+      reserved.style.height = `${layout.reservedHeight}px`;
+    }
   }
 
   _buildLargeMatrices() {

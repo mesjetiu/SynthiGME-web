@@ -3,7 +3,7 @@
   <g fill="none" stroke="#dcd2c5" stroke-width="1.2" opacity="0.35">
     <rect x="14" y="14" width="732" height="732" rx="6" />
     <path d="M14 260h732M14 506h732" />
-    <path d="M382 14v732" />
+    <path d="M380 14v732" />
   </g>
   <text x="24" y="40" fill="#f5ede3" font-family="sans-serif" font-size="14">Panel 3 – SGME Oscillators (placeholder)</text>
 </svg>

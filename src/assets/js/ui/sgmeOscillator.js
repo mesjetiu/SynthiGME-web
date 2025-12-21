@@ -17,6 +17,11 @@ export class SGME_Oscillator {
     this.size = options.size || { width: 320, height: 90 };
     this.knobGap = options.knobGap || 8;
     this.switchOffset = options.switchOffset || { leftPercent: 36, topPx: 6 };
+    // Ajustes de knobs: tamaño, offset de fila y offsets individuales (px)
+    this.knobSize = options.knobSize || 42;
+    this.knobInnerPct = options.knobInnerPct || 78;
+    this.knobRowOffsetY = options.knobRowOffsetY || -6;
+    this.knobOffsets = options.knobOffsets || [0, 0, 0, 0, 0, 0, -10]; // array de px por knob. Ejemplo: [0, -2, 1, 0, 0, 0, 0]
     this.knobLabels = options.knobLabels || DEFAULT_KNOB_LABELS;
     this.knobs = [];
     this.rangeState = 'hi';
@@ -31,6 +36,9 @@ export class SGME_Oscillator {
     root.style.setProperty('--osc-width', `${this.size.width}px`);
     root.style.setProperty('--osc-height', `${this.size.height}px`);
     root.style.setProperty('--osc-knob-gap', `${this.knobGap}px`);
+    root.style.setProperty('--osc-knob-size', `${this.knobSize}px`);
+    root.style.setProperty('--osc-knob-inner-pct', `${this.knobInnerPct}%`);
+    root.style.setProperty('--osc-knob-row-offset-y', `${this.knobRowOffsetY}px`);
     root.style.setProperty('--switch-left-percent', `${this.switchOffset.leftPercent}%`);
     root.style.setProperty('--switch-top-px', `${this.switchOffset.topPx}px`);
     root.style.width = `${this.size.width}px`;
@@ -72,13 +80,21 @@ export class SGME_Oscillator {
     bottom.className = 'sgme-osc__bottom';
     const knobsRow = document.createElement('div');
     knobsRow.className = 'sgme-osc__knobs';
-    this.knobLabels.forEach(label => {
+    knobsRow.style.transform = `translateY(${this.knobRowOffsetY}px)`;
+    this.knobLabels.forEach((label, idx) => {
       const shell = document.createElement('div');
       shell.className = 'sgme-osc__knob-shell';
+      if (Number.isFinite(this.knobOffsets[idx])) {
+        shell.style.transform = `translateY(${this.knobOffsets[idx]}px)`;
+      }
       const knob = document.createElement('div');
       knob.className = 'knob sgme-osc__knob';
+      knob.style.width = `${this.knobSize}px`;
+      knob.style.height = `${this.knobSize}px`;
       const inner = document.createElement('div');
       inner.className = 'knob-inner';
+      inner.style.width = `${this.knobInnerPct}%`;
+      inner.style.height = `${this.knobInnerPct}%`;
       knob.appendChild(inner);
       shell.appendChild(knob);
       knobsRow.appendChild(shell);

@@ -275,7 +275,7 @@ class App {
 
   _getPanel3LayoutSpec() {
     // Todos los números son ajustes fáciles para posteriores alineados a ojo.
-    const oscSize = { width: 340, height: 86 };
+    const oscSize = { width: 370, height: 110 };
     const padding = 6;
     // gap.x controla el aire en la parte central (entre las dos columnas).
     // gap.y controla el aire vertical entre filas.
@@ -364,12 +364,13 @@ class App {
     const { host, layout, oscillatorSlots, oscElements, reserved } = data;
     if (!host || !host.isConnected) return;
 
-    const { oscSize, gap, airOuter = 0, airOuterY = 0, topOffset, rowsPerColumn } = layout;
+    const { oscSize, gap, airOuter = 0, airOuterY = -150, topOffset, rowsPerColumn } = layout;
     const style = getComputedStyle(host);
     const paddingLeft = parseFloat(style.paddingLeft) || 0;
     const paddingRight = parseFloat(style.paddingRight) || 0;
     const availableWidth = host.clientWidth;
-    const columnWidth = Math.max(oscSize.width, (availableWidth - gap.x - airOuter * 2) / 2);
+    // Respeta el ancho definido en oscSize.width; no lo reescales en función del panel.
+    const columnWidth = oscSize.width;
     const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
     const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
 
@@ -377,7 +378,8 @@ class App {
     const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
     const totalHeight = blockHeight + layout.reservedHeight + gap.y;
     const usableHeight = availableHeight - airOuterY * 2;
-    const baseTop = Math.max(0, (usableHeight - totalHeight) / 2) + airOuterY + topOffset;
+    // Permite desplazar con valores negativos en airOuterY sin ser clamped.
+    const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
 
     oscillatorSlots.forEach((slot, idx) => {
       const el = oscElements[idx];

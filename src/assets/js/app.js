@@ -330,7 +330,10 @@ class App {
         title: `Oscillator ${slot.index}`,
         size: oscSize,
         knobGap: layout.knobGap,
-        switchOffset: layout.switchOffset
+        switchOffset: layout.switchOffset,
+        knobSize: 40,
+        knobRowOffsetY: -15,
+        knobInnerPct: 76
       });
       const el = osc.createElement();
       host.appendChild(el);

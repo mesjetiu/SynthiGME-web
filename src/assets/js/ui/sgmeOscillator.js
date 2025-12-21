@@ -23,6 +23,7 @@ export class SGME_Oscillator {
     this.knobRowOffsetY = options.knobRowOffsetY || -6;
     this.knobOffsets = options.knobOffsets || [0, 0, 0, 0, 0, 0, 0]; // array de px por knob
     this.knobLabels = options.knobLabels || DEFAULT_KNOB_LABELS;
+    this.knobOptions = options.knobOptions || [];
     this.knobs = [];
     this.rangeState = 'hi';
     // Rango por defecto 0..1 y valor inicial 0 (overrideable por instancia).
@@ -99,12 +100,14 @@ export class SGME_Oscillator {
       shell.appendChild(knob);
       knobsRow.appendChild(shell);
 
-      const knobInstance = new Knob(knob, {
+      const baseOptions = {
         min: this.knobRange.min,
         max: this.knobRange.max,
         initial: this.knobRange.initial,
         pixelsForFullRange: this.knobRange.pixelsForFullRange
-      });
+      };
+      const perKnob = this.knobOptions[idx] || {};
+      const knobInstance = new Knob(knob, { ...baseOptions, ...perKnob });
       this.knobs.push(knobInstance);
     });
     bottom.appendChild(knobsRow);

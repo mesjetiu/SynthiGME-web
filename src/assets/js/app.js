@@ -83,6 +83,7 @@ class App {
     this.engine = new AudioEngine();
     this.panelManager = new PanelManager(document.getElementById('viewportInner'));
     this._panel3Audio = { nodes: [] };
+    this._panel3Routing = { connections: {}, rowMap: null, colMap: null };
     this.placeholderPanels = {};
     // Panel 1: panel principal de controles
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
@@ -141,6 +142,7 @@ class App {
     this._buildPanel3Layout();
     this._setupModules();
     this._buildLargeMatrices();
+    this._setupPanel5AudioRouting();
     this._setupUI();
     this._schedulePanelSync();
     window.addEventListener('resize', () => {
@@ -440,11 +442,6 @@ class App {
     gain.gain.value = 0;
     osc.connect(gain);
 
-    const destL = this.engine.masterL || ctx.destination;
-    const destR = this.engine.masterR || null;
-    if (destL) gain.connect(destL);
-    if (destR && destR !== destL) gain.connect(destR);
-
     const startTime = ctx.currentTime + 0.01;
     try { osc.start(startTime); } catch (error) {
       // ignore multiple starts
@@ -473,6 +470,82 @@ class App {
     const now = ctx.currentTime;
     node.osc.frequency.cancelScheduledValues(now);
     node.osc.frequency.setTargetAtTime(value, now, 0.03);
+  }
+
+  _getPanel5RowMap() {
+    const rowNumbers = [91, 93, 95, 97, 99, 101, 103, 105, 107];
+    const map = new Map();
+    rowNumbers.forEach((rowNumber, idx) => {
+      map.set(rowNumber, idx);
+    });
+    return map;
+  }
+
+  _getPanel5ColMap() {
+    const startCol = 36;
+    const buses = 8;
+    const map = new Map();
+    for (let i = 0; i < buses; i += 1) {
+      map.set(startCol + i, i);
+    }
+    return map;
+  }
+
+  _setupPanel5AudioRouting() {
+    this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null };
+    this._panel3Routing.connections = {};
+    this._panel3Routing.rowMap = this._getPanel5RowMap();
+    this._panel3Routing.colMap = this._getPanel5ColMap();
+    this._panel3Routing.hiddenCols = Array.from(this.largeMatrixAudio?.hiddenCols || []);
+
+    if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
+      this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
+        this._handlePanel5AudioToggle(rowIndex, colIndex, nextActive)
+      );
+    }
+  }
+
+  _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
+    const rowNumber = 67 + rowIndex;
+    const colNumber = this._getVisibleColNumber(colIndex);
+    const oscIndex = this._panel3Routing?.rowMap?.get(rowNumber);
+    const busIndex = this._panel3Routing?.colMap?.get(colNumber);
+    const key = `${rowIndex}:${colIndex}`;
+
+    // Si no mapea a nuestras fuentes/destinos, dejar que el UI siga sin conexiones de audio.
+    if (oscIndex == null || busIndex == null) return true;
+
+    if (activate) {
+      this.ensureAudio();
+      const ctx = this.engine.audioCtx;
+      const src = this._ensurePanel3Nodes(oscIndex);
+      const outNode = src?.gain;
+      const busNode = this.engine.getOutputBusNode(busIndex);
+      if (!ctx || !outNode || !busNode) return false;
+
+      const gain = ctx.createGain();
+      gain.gain.value = 1.0;
+      outNode.connect(gain);
+      gain.connect(busNode);
+      this._panel3Routing.connections[key] = gain;
+      return true;
+    }
+
+    const conn = this._panel3Routing.connections?.[key];
+    if (conn) {
+      try { conn.disconnect(); } catch (error) {}
+      delete this._panel3Routing.connections[key];
+    }
+    return true;
+  }
+
+  _getVisibleColNumber(colIndex) {
+    const hidden = this._panel3Routing?.hiddenCols || [];
+    let hiddenBefore = 0;
+    for (const h of hidden) {
+      if (h <= colIndex) hiddenBefore += 1;
+    }
+    return colIndex + 1 - hiddenBefore;
   }
 
   _buildLargeMatrices() {

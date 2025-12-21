@@ -1,5 +1,5 @@
 export class LargeMatrix {
-  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [] } = {}) {
+  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [], onToggle = null } = {}) {
     this.table = tableElement;
     this.rows = rows;
     this.cols = cols;
@@ -9,6 +9,7 @@ export class LargeMatrix {
     this._built = false;
     this._onTableClick = null;
     this.frame = this._normalizeFrame(frame);
+    this.onToggle = typeof onToggle === 'function' ? onToggle : null;
 
     if (this.table) {
       this.table.classList.add('matrix-large');
@@ -152,7 +153,12 @@ export class LargeMatrix {
       const btn = ev.target?.closest?.('button.pin-btn');
       if (!btn || !table.contains(btn)) return;
       if (btn.disabled || btn.classList.contains('is-hidden-pin')) return;
-      btn.classList.toggle('active');
+      const rowIndex = Number(btn.dataset.row);
+      const colIndex = Number(btn.dataset.col);
+      const nextActive = !btn.classList.contains('active');
+      const allow = this.onToggle ? this.onToggle(rowIndex, colIndex, nextActive, btn) !== false : true;
+      if (!allow) return;
+      btn.classList.toggle('active', nextActive);
     };
     table.addEventListener('click', this._onTableClick);
 
@@ -164,6 +170,8 @@ export class LargeMatrix {
         const td = document.createElement('td');
         const btn = document.createElement('button');
         btn.className = 'pin-btn';
+        btn.dataset.row = String(r);
+        btn.dataset.col = String(c);
         const isHidden = this.hiddenRows.has(r) || this.hiddenCols.has(c);
         if (isHidden) {
           btn.classList.add('is-hidden-pin');
@@ -224,5 +232,9 @@ export class LargeMatrix {
       table.style.transformOrigin = 'center center';
       table.style.transform = `scale(${scale})`;
     });
+  }
+
+  setToggleHandler(handler) {
+    this.onToggle = typeof handler === 'function' ? handler : null;
   }
 }

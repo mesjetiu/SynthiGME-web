@@ -82,6 +82,7 @@ class App {
   constructor() {
     this.engine = new AudioEngine();
     this.panelManager = new PanelManager(document.getElementById('viewportInner'));
+    this._panel3Audio = { nodes: [] };
     this.placeholderPanels = {};
     // Panel 1: panel principal de controles
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
@@ -324,7 +325,8 @@ class App {
       oscillatorSlots.push({ index: i + 7, col: 1, row: i });
     }
 
-    const oscInstances = oscillatorSlots.map(slot => {
+    const oscComponents = oscillatorSlots.map(slot => {
+      const knobOptions = this._getPanel3KnobOptions(slot.index - 1);
       const osc = new SGME_Oscillator({
         id: `sgme-osc-${slot.index}`,
         title: `Oscillator ${slot.index}`,
@@ -333,11 +335,12 @@ class App {
         switchOffset: layout.switchOffset,
         knobSize: 40,
         knobRowOffsetY: -15,
-        knobInnerPct: 76
+        knobInnerPct: 76,
+        knobOptions
       });
       const el = osc.createElement();
       host.appendChild(el);
-      return el;
+      return { osc, element: el, slot };
     });
 
     // Franja inferior reservada para otros 3 módulos (sin contenido todavía)
@@ -351,9 +354,10 @@ class App {
       host,
       layout,
       oscillatorSlots,
-      oscElements: oscInstances,
+      oscComponents,
       reserved
     };
+    this._panel3Audio.nodes = new Array(oscComponents.length).fill(null);
     this._reflowPanel3Layout();
   }
 
@@ -361,7 +365,7 @@ class App {
     const data = this._panel3LayoutData;
     if (!data) return;
 
-    const { host, layout, oscillatorSlots, oscElements, reserved } = data;
+    const { host, layout, oscillatorSlots, oscComponents, reserved } = data;
     if (!host || !host.isConnected) return;
 
     const { oscSize, gap, airOuter = 0, airOuterY = -150, topOffset, rowsPerColumn } = layout;
@@ -382,7 +386,7 @@ class App {
     const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
 
     oscillatorSlots.forEach((slot, idx) => {
-      const el = oscElements[idx];
+      const el = oscComponents[idx]?.element;
       if (!el) return;
       el.style.width = `${columnWidth}px`;
       const x = baseLeft + slot.col * (columnWidth + gap.x);
@@ -398,6 +402,77 @@ class App {
       reserved.style.top = `${reservedTop}px`;
       reserved.style.height = `${layout.reservedHeight}px`;
     }
+  }
+
+  _getPanel3KnobOptions(oscIndex) {
+    const knobOptions = [];
+    knobOptions[2] = {
+      min: 0,
+      max: 1,
+      initial: 0,
+      onChange: value => this._updatePanel3OscVolume(oscIndex, value)
+    };
+    knobOptions[6] = {
+      min: 10,
+      max: 10000,
+      initial: 10,
+      pixelsForFullRange: 900,
+      onChange: value => this._updatePanel3OscFreq(oscIndex, value)
+    };
+    return knobOptions;
+  }
+
+  _ensurePanel3Nodes(index) {
+    this.ensureAudio();
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return null;
+
+    this._panel3Audio = this._panel3Audio || { nodes: [] };
+    this._panel3Audio.nodes = this._panel3Audio.nodes || [];
+    let entry = this._panel3Audio.nodes[index];
+    if (entry && entry.osc && entry.gain) return entry;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 10;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain);
+
+    const destL = this.engine.masterL || ctx.destination;
+    const destR = this.engine.masterR || null;
+    if (destL) gain.connect(destL);
+    if (destR && destR !== destL) gain.connect(destR);
+
+    const startTime = ctx.currentTime + 0.01;
+    try { osc.start(startTime); } catch (error) {
+      // ignore multiple starts
+    }
+
+    entry = { osc, gain };
+    this._panel3Audio.nodes[index] = entry;
+    return entry;
+  }
+
+  _updatePanel3OscVolume(index, value) {
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanel3Nodes(index);
+    if (!node || !node.gain) return;
+    const now = ctx.currentTime;
+    node.gain.gain.cancelScheduledValues(now);
+    node.gain.gain.setTargetAtTime(value, now, 0.03);
+  }
+
+  _updatePanel3OscFreq(index, value) {
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanel3Nodes(index);
+    if (!node || !node.osc) return;
+    const now = ctx.currentTime;
+    node.osc.frequency.cancelScheduledValues(now);
+    node.osc.frequency.setTargetAtTime(value, now, 0.03);
   }
 
   _buildLargeMatrices() {

@@ -53,15 +53,29 @@ export class OutputFaderModule extends Module {
         }
       });
 
+      let rafId = null;
+      let pendingValue = null;
+
+      const flushValue = () => {
+        rafId = null;
+        if (pendingValue == null) return;
+        const numericValue = pendingValue;
+        pendingValue = null;
+        if (numericValue === lastCommittedValue) return;
+        lastCommittedValue = numericValue;
+        this.engine.setOutputLevel(i, numericValue, { ramp: 0.06 });
+        value.textContent = numericValue.toFixed(2);
+      };
+
       slider.addEventListener('input', () => {
         if (window.__synthNavGestureActive) {
           slider.value = String(lastCommittedValue);
           return;
         }
-        const numericValue = Number(slider.value);
-        lastCommittedValue = numericValue;
-        this.engine.setOutputLevel(i, numericValue);
-        value.textContent = numericValue.toFixed(2);
+        pendingValue = Number(slider.value);
+        if (!rafId) {
+          rafId = requestAnimationFrame(flushValue);
+        }
       });
 
       const value = document.createElement('div');

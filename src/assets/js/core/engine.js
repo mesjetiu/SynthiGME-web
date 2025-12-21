@@ -107,7 +107,7 @@ export class AudioEngine {
     gainR.setTargetAtTime(right, now, 0.03);
   }
 
-  setOutputLevel(busIndex, value) {
+  setOutputLevel(busIndex, value, { ramp = 0.03 } = {}) {
     if (busIndex < 0 || busIndex >= this.outputChannels) return;
     this.outputLevels[busIndex] = value;
     const ctx = this.audioCtx;
@@ -115,7 +115,7 @@ export class AudioEngine {
     if (ctx && bus) {
       const now = ctx.currentTime;
       bus.levelNode.gain.cancelScheduledValues(now);
-      bus.levelNode.gain.setTargetAtTime(value, now, 0.03);
+      bus.levelNode.gain.setTargetAtTime(value, now, ramp);
     }
     if (busIndex === 0) this.bus1Level = value;
     if (busIndex === 1) this.bus2Level = value;

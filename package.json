@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "count-lines": "./scripts/count-lines.sh",
     "optimize:panel-svg": "node scripts/tools/optimize-panel-svg.mjs",
     "preversion": "npm run build",
     "release:patch": "node scripts/release/pre.mjs && npm version patch --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",

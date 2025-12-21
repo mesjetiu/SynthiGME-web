@@ -277,7 +277,14 @@ class App {
     // Todos los números son ajustes fáciles para posteriores alineados a ojo.
     const oscSize = { width: 340, height: 86 };
     const padding = 6;
-    const gap = { x: 20, y: 12 };
+    // gap.x controla el aire en la parte central (entre las dos columnas).
+    // gap.y controla el aire vertical entre filas.
+    const gap = { x: 0, y: 0 };
+    // Aire simétrico a ambos lados del bloque de osciladores (px).
+    // Sube este valor para dejar margen entre columnas y bordes laterales del panel.
+    const airOuter = 0;
+    // Aire simétrico arriba/abajo (px) sobre el bloque completo (osciladores + franja reservada).
+    const airOuterY = 0;
     const rowsPerColumn = 6; // 12 osciladores en 2 columnas
     const topOffset = 10;
     const knobGap = 8;
@@ -286,6 +293,8 @@ class App {
       oscSize,
       padding,
       gap,
+      airOuter,
+      airOuterY,
       rowsPerColumn,
       topOffset,
       knobGap,
@@ -352,25 +361,33 @@ class App {
     const { host, layout, oscillatorSlots, oscElements, reserved } = data;
     if (!host || !host.isConnected) return;
 
-    const { oscSize, gap, topOffset, rowsPerColumn } = layout;
+    const { oscSize, gap, airOuter = 0, airOuterY = 0, topOffset, rowsPerColumn } = layout;
     const style = getComputedStyle(host);
     const paddingLeft = parseFloat(style.paddingLeft) || 0;
     const paddingRight = parseFloat(style.paddingRight) || 0;
     const availableWidth = host.clientWidth;
-    const blockWidth = oscSize.width * 2 + gap.x;
-    const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2);
+    const columnWidth = Math.max(oscSize.width, (availableWidth - gap.x - airOuter * 2) / 2);
+    const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
+    const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
+
+    const availableHeight = host.clientHeight;
+    const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
+    const totalHeight = blockHeight + layout.reservedHeight + gap.y;
+    const usableHeight = availableHeight - airOuterY * 2;
+    const baseTop = Math.max(0, (usableHeight - totalHeight) / 2) + airOuterY + topOffset;
 
     oscillatorSlots.forEach((slot, idx) => {
       const el = oscElements[idx];
       if (!el) return;
-      const x = baseLeft + slot.col * (oscSize.width + gap.x);
-      const y = topOffset + slot.row * (oscSize.height + gap.y);
+      el.style.width = `${columnWidth}px`;
+      const x = baseLeft + slot.col * (columnWidth + gap.x);
+      const y = baseTop + slot.row * (oscSize.height + gap.y);
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
     });
 
     if (reserved) {
-      const reservedTop = topOffset + rowsPerColumn * (oscSize.height + gap.y);
+      const reservedTop = baseTop + blockHeight + gap.y;
       reserved.style.left = `${paddingLeft}px`;
       reserved.style.right = `${paddingRight}px`;
       reserved.style.top = `${reservedTop}px`;

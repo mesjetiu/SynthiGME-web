@@ -1,8 +1,10 @@
 export class LargeMatrix {
-  constructor(tableElement, { rows = 63, cols = 67, frame = null } = {}) {
+  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [] } = {}) {
     this.table = tableElement;
     this.rows = rows;
     this.cols = cols;
+    this.hiddenRows = new Set(hiddenRows || []);
+    this.hiddenCols = new Set(hiddenCols || []);
     this._layoutRaf = null;
     this._built = false;
     this._onTableClick = null;
@@ -149,6 +151,7 @@ export class LargeMatrix {
     this._onTableClick = ev => {
       const btn = ev.target?.closest?.('button.pin-btn');
       if (!btn || !table.contains(btn)) return;
+      if (btn.disabled || btn.classList.contains('is-hidden-pin')) return;
       btn.classList.toggle('active');
     };
     table.addEventListener('click', this._onTableClick);
@@ -161,6 +164,13 @@ export class LargeMatrix {
         const td = document.createElement('td');
         const btn = document.createElement('button');
         btn.className = 'pin-btn';
+        const isHidden = this.hiddenRows.has(r) || this.hiddenCols.has(c);
+        if (isHidden) {
+          btn.classList.add('is-hidden-pin');
+          btn.disabled = true;
+          btn.tabIndex = -1;
+          btn.setAttribute('aria-hidden', 'true');
+        }
         td.appendChild(btn);
         tr.appendChild(td);
       }

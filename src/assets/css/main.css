@@ -508,6 +508,11 @@ table.matrix {
   box-shadow: none;
 }
 
+.matrix.matrix-large .pin-btn.is-hidden-pin {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .matrix.matrix-large .pin-btn.active {
   background: #ffb63b;
   border: none;

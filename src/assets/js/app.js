@@ -435,8 +435,28 @@ class App {
       this.panel6?.element?.classList.remove('matrix-adjust');
     }
 
-    this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, { rows: 63, cols: 67, frame: LARGE_MATRIX_FRAME });
-    this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, { rows: 63, cols: 67, frame: LARGE_MATRIX_FRAME });
+    const HIDDEN_COLS_PANEL5 = [33, 65, 66]; // 1-based: columna 34
+    // Numeración Synthi100: columnas 1-66, filas comienzan en 67.
+    // Filas 97, 98, 99 -> índices 30, 31, 32 (0-based). Fila 126 -> índice 59.
+    const HIDDEN_ROWS_PANEL5 = [30, 31, 32, 62];
+
+    // Panel 5 (audio) con columna 34 oculta
+    this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {
+      rows: 63,
+      cols: 67,
+      frame: LARGE_MATRIX_FRAME,
+      hiddenCols: HIDDEN_COLS_PANEL5,
+      hiddenRows: HIDDEN_ROWS_PANEL5
+    });
+
+    // Panel 6 (control) sin columnas ocultas por ahora, pero con la misma interfaz para reutilizar más adelante
+    this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, {
+      rows: 63,
+      cols: 67,
+      frame: LARGE_MATRIX_FRAME,
+      hiddenCols: [],
+      hiddenRows: []
+    });
 
     this.largeMatrixAudio.build();
     this.largeMatrixControl.build();

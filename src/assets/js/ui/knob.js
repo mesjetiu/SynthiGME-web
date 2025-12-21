@@ -1,15 +1,26 @@
 // Componente Knob reutilizable para parámetros continuos en la interfaz
 export class Knob {
-  constructor(rootEl, options) {
+  constructor(rootEl, options = {}) {
     this.rootEl = rootEl;
     this.innerEl = rootEl.querySelector('.knob-inner');
-    this.valueEl = options.valueElement || null;
-    this.min = options.min;
-    this.max = options.max;
-    this.value = options.initial;
-    this.onChange = options.onChange || null;
-    this.format = options.format || (v => v);
-    this.pixelsForFullRange = options.pixelsForFullRange || 150;
+
+    const {
+      valueElement = null,
+      min = 0,
+      max = 1,
+      initial = 0,
+      onChange = null,
+      format = (v => v),
+      pixelsForFullRange = 150
+    } = options;
+
+    this.valueEl = valueElement;
+    this.min = min;
+    this.max = max;
+    this.value = initial;
+    this.onChange = onChange;
+    this.format = format;
+    this.pixelsForFullRange = pixelsForFullRange;
 
     this.dragging = false;
     this.startY = 0;

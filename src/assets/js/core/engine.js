@@ -9,7 +9,7 @@ export class AudioEngine {
     this.masterBaseGain = 1.0;
 
     this.outputChannels = outputChannels;
-    this.outputLevels = Array.from({ length: this.outputChannels }, () => 1.0);
+    this.outputLevels = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputPans = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputBuses = [];
 
@@ -25,10 +25,10 @@ export class AudioEngine {
     this.masterR = null;
     this.merger = null;
 
-    this.bus1Level = this.outputLevels[0] || 1.0;
-    this.bus1Pan = this.outputPans[0] || 0.0;
-    this.bus2Level = this.outputLevels[1] || 1.0;
-    this.bus2Pan = this.outputPans[1] || 0.0;
+    this.bus1Level = this.outputLevels[0] ?? 0.0;
+    this.bus1Pan = this.outputPans[0] ?? 0.0;
+    this.bus2Level = this.outputLevels[1] ?? 0.0;
+    this.bus2Pan = this.outputPans[1] ?? 0.0;
   }
 
   start() {
@@ -122,7 +122,7 @@ export class AudioEngine {
   }
 
   getOutputLevel(busIndex) {
-    return this.outputLevels[busIndex] ?? 1.0;
+    return this.outputLevels[busIndex] ?? 0.0;
   }
 
   setOutputPan(busIndex, value) {

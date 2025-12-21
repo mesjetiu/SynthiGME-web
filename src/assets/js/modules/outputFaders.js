@@ -37,7 +37,7 @@ export class OutputFaderModule extends Module {
       slider.min = '0';
       slider.max = '1';
       slider.step = '0.01';
-      slider.value = String(this.engine.getOutputLevel(i) ?? 1);
+      slider.value = String(this.engine.getOutputLevel(i) ?? 0);
       slider.className = 'output-fader';
       slider.setAttribute('aria-label', `Nivel salida ${i + 1}`);
       slider.dataset.preventPan = 'true';

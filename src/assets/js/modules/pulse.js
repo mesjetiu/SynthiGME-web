@@ -8,7 +8,7 @@ export class PulseModule extends Module {
     this.baseFreq = baseFreq;
     this.osc = null;
     this.amp = null;
-    this.pw = 0.5;
+    this.pw = 0;
   }
 
   _createPulseWave(duty, harmonics = 32) {
@@ -33,9 +33,9 @@ export class PulseModule extends Module {
     const ctx = this.getAudioCtx();
     if (!ctx || this.osc) return;
     this.osc = ctx.createOscillator();
-    this.osc.frequency.value = this.baseFreq;
+    this.osc.frequency.value = 0;
     this.amp = ctx.createGain();
-    this.amp.gain.value = 0.4;
+    this.amp.gain.value = 0;
     this.osc.connect(this.amp);
     this._updatePulseWave(this.pw);
 
@@ -99,7 +99,7 @@ export class PulseModule extends Module {
     new Knob(freq.knob, {
       min: 0,
       max: 10000,
-      initial: this.baseFreq,
+      initial: 0,
       pixelsForFullRange: 800,
       valueElement: freq.val,
       format: v => v.toFixed(1) + ' Hz',
@@ -116,7 +116,7 @@ export class PulseModule extends Module {
     new Knob(level.knob, {
       min: 0,
       max: 1,
-      initial: 0.4,
+      initial: 0,
       valueElement: level.val,
       format: v => v.toFixed(2),
       onChange: value => {
@@ -130,9 +130,9 @@ export class PulseModule extends Module {
     });
 
     new Knob(pw.knob, {
-      min: 0.05,
-      max: 0.95,
-      initial: this.pw,
+      min: 0,
+      max: 1,
+      initial: 0,
       valueElement: pw.val,
       format: v => Math.round(v * 100) + '%',
       onChange: value => {

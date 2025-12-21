@@ -21,12 +21,12 @@ export class SGME_Oscillator {
     this.knobSize = options.knobSize || 42;
     this.knobInnerPct = options.knobInnerPct || 78;
     this.knobRowOffsetY = options.knobRowOffsetY || -6;
-    this.knobOffsets = options.knobOffsets || [0, 0, 0, 0, 0, 0, -10]; // array de px por knob. Ejemplo: [0, -2, 1, 0, 0, 0, 0]
+    this.knobOffsets = options.knobOffsets || [0, 0, 0, 0, 0, 0, 0]; // array de px por knob
     this.knobLabels = options.knobLabels || DEFAULT_KNOB_LABELS;
     this.knobs = [];
     this.rangeState = 'hi';
-    // Igualamos sensibilidad y punto inicial al panel 1: rango 0..1, inicio 0.4 y 150 px para recorrer el rango.
-    this.knobRange = options.knobRange || { min: 0, max: 1, initial: 0.4, pixelsForFullRange: 150 };
+    // Rango por defecto 0..1 y valor inicial 0 (overrideable por instancia).
+    this.knobRange = options.knobRange || { min: 0, max: 1, initial: 0, pixelsForFullRange: 150 };
   }
 
   createElement() {

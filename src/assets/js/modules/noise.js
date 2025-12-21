@@ -9,7 +9,7 @@ export class NoiseModule extends Module {
     this.source = null;
     this.filter = null;
     this.amp = null;
-    this.colour = 0.5;
+    this.colour = 0;
   }
 
   _createNoiseBuffer() {
@@ -119,7 +119,7 @@ export class NoiseModule extends Module {
     new Knob(colour.knob, {
       min: 0,
       max: 1,
-      initial: this.colour,
+      initial: 0,
       valueElement: colour.val,
       format: colourToLabel,
       pixelsForFullRange: 200,

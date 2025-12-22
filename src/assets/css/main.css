@@ -131,6 +131,10 @@ body {
   overflow-y: auto;
   position: relative;
   transition: box-shadow 120ms ease, border-color 120ms ease;
+  /* Optimizaciones de rendimiento: aisla el layout para evitar reflows en cascada */
+  contain: layout style;
+  /* Hint para suavidad en pan/zoom */
+  will-change: transform;
 }
 #panel-5,
 #panel-6 {
@@ -146,6 +150,8 @@ body {
   touch-action: none;
   /* NO usar contain: paint ni isolation: isolate aquí porque fuerzan rasterización
      del SVG inline a bitmap, causando blur en Android al escalar con transform. */
+  /* Contención de layout mejorada para pan/zoom fluido */
+  contain: layout style size;
 }
 
 #panel-3 {

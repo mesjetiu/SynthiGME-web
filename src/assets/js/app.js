@@ -359,6 +359,7 @@ class App {
       reserved
     };
     this._panel3Audio.nodes = new Array(oscComponents.length).fill(null);
+    this._panel3LayoutRaf = null;
     this._reflowPanel3Layout();
   }
 
@@ -366,43 +367,56 @@ class App {
     const data = this._panel3LayoutData;
     if (!data) return;
 
-    const { host, layout, oscillatorSlots, oscComponents, reserved } = data;
-    if (!host || !host.isConnected) return;
-
-    const { oscSize, gap, airOuter = 0, airOuterY = -150, topOffset, rowsPerColumn } = layout;
-    const style = getComputedStyle(host);
-    const paddingLeft = parseFloat(style.paddingLeft) || 0;
-    const paddingRight = parseFloat(style.paddingRight) || 0;
-    const availableWidth = host.clientWidth;
-    // Respeta el ancho definido en oscSize.width; no lo reescales en función del panel.
-    const columnWidth = oscSize.width;
-    const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
-    const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
-
-    const availableHeight = host.clientHeight;
-    const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
-    const totalHeight = blockHeight + layout.reservedHeight + gap.y;
-    const usableHeight = availableHeight - airOuterY * 2;
-    // Permite desplazar con valores negativos en airOuterY sin ser clamped.
-    const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
-
-    oscillatorSlots.forEach((slot, idx) => {
-      const el = oscComponents[idx]?.element;
-      if (!el) return;
-      el.style.width = `${columnWidth}px`;
-      const x = baseLeft + slot.col * (columnWidth + gap.x);
-      const y = baseTop + slot.row * (oscSize.height + gap.y);
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-    });
-
-    if (reserved) {
-      const reservedTop = baseTop + blockHeight + gap.y;
-      reserved.style.left = `${paddingLeft}px`;
-      reserved.style.right = `${paddingRight}px`;
-      reserved.style.top = `${reservedTop}px`;
-      reserved.style.height = `${layout.reservedHeight}px`;
+    // Cancelar RAF pendiente (debouncing automático como en largeMatrix)
+    if (this._panel3LayoutRaf) {
+      cancelAnimationFrame(this._panel3LayoutRaf);
     }
+
+    this._panel3LayoutRaf = requestAnimationFrame(() => {
+      this._panel3LayoutRaf = null;
+
+      const { host, layout, oscillatorSlots, oscComponents, reserved } = data;
+      if (!host || !host.isConnected) return;
+
+      const { oscSize, gap, airOuter = 0, airOuterY = -150, topOffset, rowsPerColumn } = layout;
+      
+      // Cachear padding - Panel 3 CSS tiene padding: 0 estático
+      const paddingLeft = 0;
+      const paddingRight = 0;
+      
+      // BATCH READS: leer todas las dimensiones primero para evitar layout thrashing
+      const availableWidth = host.clientWidth;
+      const availableHeight = host.clientHeight;
+      
+      // Cálculos de posicionamiento (no tocan el DOM)
+      const columnWidth = oscSize.width;
+      const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
+      const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
+      
+      const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
+      const totalHeight = blockHeight + layout.reservedHeight + gap.y;
+      const usableHeight = availableHeight - airOuterY * 2;
+      const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
+      
+      // BATCH WRITES: escribir todos los estilos después de leer
+      oscillatorSlots.forEach((slot, idx) => {
+        const el = oscComponents[idx]?.element;
+        if (!el) return;
+        el.style.width = `${columnWidth}px`;
+        const x = baseLeft + slot.col * (columnWidth + gap.x);
+        const y = baseTop + slot.row * (oscSize.height + gap.y);
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+      });
+      
+      if (reserved) {
+        const reservedTop = baseTop + blockHeight + gap.y;
+        reserved.style.left = `${paddingLeft}px`;
+        reserved.style.right = `${paddingRight}px`;
+        reserved.style.top = `${reservedTop}px`;
+        reserved.style.height = `${layout.reservedHeight}px`;
+      }
+    });
   }
 
   _getPanel3KnobOptions(oscIndex) {

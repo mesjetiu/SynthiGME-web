@@ -154,6 +154,8 @@ body {
   padding: 0;
   position: relative;
   overflow: hidden;
+  /* Aísla el layout y paint para mejorar rendimiento */
+  contain: layout style;
 }
 
 #panel-3 > .panel-inline-bg {
@@ -725,6 +727,8 @@ small { color:#aaa; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Hint al compositor para pan/zoom fluido */
+  will-change: transform;
 }
 
 .sgme-osc__top {

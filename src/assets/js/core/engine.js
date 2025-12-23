@@ -10,6 +10,8 @@ export class AudioEngine {
 
     this.outputChannels = outputChannels;
     this.outputLevels = Array.from({ length: this.outputChannels }, () => 0.0);
+    // Por defecto, el bus 1 debe estar abierto para que el bypass a Output 1 sea audible.
+    if (this.outputLevels.length > 0) this.outputLevels[0] = 1.0;
     this.outputPans = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputBuses = [];
 

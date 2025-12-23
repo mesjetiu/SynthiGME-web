@@ -133,6 +133,8 @@ body {
   transition: box-shadow 120ms ease, border-color 120ms ease;
   /* Optimizaciones de rendimiento: aisla el layout para evitar reflows en cascada */
   contain: layout style;
+  /* Permitir pinch-zoom fluido en todos los paneles */
+  touch-action: pan-x pan-y pinch-zoom;
   /* Hint para suavidad en pan/zoom */
   will-change: transform;
 }
@@ -147,7 +149,7 @@ body {
   /* Evitar scroll/bounce residual en tablets: la regla base .panel tiene overflow-y:auto */
   overflow: hidden;
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: pan-x pan-y pinch-zoom;
   /* NO usar contain: paint ni isolation: isolate aquí porque fuerzan rasterización
      del SVG inline a bitmap, causando blur en Android al escalar con transform. */
   /* Contención de layout mejorada para pan/zoom fluido */
@@ -434,7 +436,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  touch-action: none;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 .knob-inner {
   width: 78%;
@@ -581,7 +583,7 @@ table.matrix {
   border-radius: 50%;
   border: 2px solid #555;
   background: radial-gradient(circle at 30% 30%, #444, #111);
-  touch-action: none;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 .joystick-handle {
   position: absolute;
@@ -701,14 +703,14 @@ small { color:#aaa; }
 #panel-6:not(.matrix-adjust) .matrix-container {
   overflow: hidden;
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 #panel-5:not(.matrix-adjust) .matrix.matrix-large,
 #panel-6:not(.matrix-adjust) .matrix.matrix-large,
 #panel-5:not(.matrix-adjust) .matrix.matrix-large .pin-btn,
 #panel-6:not(.matrix-adjust) .matrix.matrix-large .pin-btn {
-  touch-action: none;
+  touch-action: pan-x pan-y pinch-zoom;
   -webkit-user-select: none;
   user-select: none;
 }

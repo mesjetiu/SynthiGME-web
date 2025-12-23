@@ -662,8 +662,15 @@ class App {
   const navLocks = window.__synthNavLocks;
 
   let scale = 1;
-  let minScale = 0.1; // permite alejar mucho
   let maxScale = 6.0;
+  const VIEWPORT_MARGIN = 0.95; // 95% del ancho disponible (margen de seguridad del 5%)
+  
+  // Función para calcular el zoom mínimo basado en el ancho actual del viewport
+  function getMinScale() {
+    if (!metrics.outerWidth || !metrics.contentWidth) return 0.1;
+    return (metrics.outerWidth * VIEWPORT_MARGIN) / metrics.contentWidth;
+  }
+  
   const LOW_ZOOM_ENTER = 0.45;
   const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
   // Esperas antes de aplicar el cambio de modo tras la última actividad de zoom
@@ -679,6 +686,7 @@ class App {
   let offsetX = 0;
   let offsetY = 0;
   let userHasAdjustedView = false;
+  let lastViewportWidth = 0;
 
   // Reducir borrosidad: hacemos "snap" del scale global para que el tamaño
   // de celdas/pines caiga más cerca de píxeles enteros (sobre todo al alejar).
@@ -867,6 +875,7 @@ class App {
   }
 
   refreshMetrics();
+  lastViewportWidth = metrics.outerWidth;
   render();
 
   function fitContentToViewport() {
@@ -878,11 +887,13 @@ class App {
     const outerWidth = metrics.outerWidth;
     const outerHeight = metrics.outerHeight;
     if (!outerWidth || !outerHeight) return;
-    const scaleX = outerWidth / contentWidth;
-    const scaleY = outerHeight / contentHeight;
-    const targetScale = Math.min(1, scaleX, scaleY);
+    
+    // Ajustar al ancho del viewport con margen de seguridad
+    const minScale = getMinScale();
+    const targetScale = minScale;
     const clampedScale = Math.min(maxScale, Math.max(minScale, targetScale));
     scale = Math.min(maxScale, Math.max(minScale, snapScale(clampedScale)));
+    
     const finalWidth = contentWidth * scale;
     const finalHeight = contentHeight * scale;
     const centeredOffsetX = (outerWidth - finalWidth) / 2;
@@ -947,6 +958,7 @@ class App {
   function adjustOffsetsForZoom(cx, cy, newScale, { snap = false } = {}) {
     const worldX = (cx - offsetX) / scale;
     const worldY = (cy - offsetY) / scale;
+    const minScale = getMinScale();
     const clamped = Math.min(maxScale, Math.max(minScale, newScale));
     scale = snap ? snapScale(clamped) : clamped;
     offsetX = cx - worldX * scale;
@@ -962,6 +974,7 @@ class App {
       const cx = ev.clientX - (metrics.outerLeft || 0);
       const cy = ev.clientY - (metrics.outerTop || 0);
       const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
+      const minScale = getMinScale();
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
@@ -1074,6 +1087,7 @@ class App {
         const zoomFactor = dist / lastDist;
         if (!navLocks.zoomLocked) {
           if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
+            const minScale = getMinScale();
             const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
             // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
             adjustOffsetsForZoom(zoomAnchorX, zoomAnchorY, newScale, { snap: false });
@@ -1153,8 +1167,21 @@ class App {
     }
   });
 
+  // Al redimensionar => recalcular métricas y ajustar zoom proporcionalmente
   window.addEventListener('resize', () => {
+    const oldWidth = lastViewportWidth;
     refreshMetrics();
+    const newWidth = metrics.outerWidth;
+    lastViewportWidth = newWidth;
+    
+    // Si cambió el ancho del viewport, ajustar el zoom proporcionalmente
+    if (oldWidth > 0 && newWidth > 0 && Math.abs(newWidth - oldWidth) > 10) {
+      const widthRatio = newWidth / oldWidth;
+      const newScale = scale * widthRatio;
+      const minScale = getMinScale();
+      scale = Math.min(maxScale, Math.max(minScale, snapScale(newScale)));
+    }
+    
     requestRender();
     if (userHasAdjustedView) return;
     fitContentToViewport();

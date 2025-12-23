@@ -135,8 +135,8 @@ body {
   contain: layout style;
   /* Permitir pinch-zoom fluido en todos los paneles */
   touch-action: pan-x pan-y pinch-zoom;
-  /* Hint para suavidad en pan/zoom */
-  will-change: transform;
+  /* Importante en móvil: NO forzar capas por panel (VRAM -> "lagunas"). */
+  will-change: auto;
 }
 #panel-5,
 #panel-6 {
@@ -484,6 +484,7 @@ h1 {
   overflow-x: auto;
   overflow-y: visible;
   padding-bottom: 0.4rem;
+  contain: content;
 }
 
 #panel-5 .matrix-container,
@@ -634,6 +635,8 @@ small { color:#aaa; }
   width: calc(var(--panel-width) * 4 + var(--panel-gap) * 3);
   min-height: 100%;
   transform-origin: 0 0;
+  /* La única capa que queremos mantener estable durante zoom/pan */
+  will-change: transform;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, var(--panel-width)));
   grid-auto-rows: auto;
@@ -780,8 +783,8 @@ small { color:#aaa; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Hint al compositor para pan/zoom fluido */
-  will-change: transform;
+  /* Evitar forzar capas en cada oscilador (móvil: VRAM). */
+  will-change: auto;
 }
 
 .sgme-osc__top {

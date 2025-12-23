@@ -15,6 +15,13 @@ const CANVAS_BG_IMAGE_CACHE = new Map();
 // Resolución fija en el canvas: N píxeles de bitmap por cada CSS px.
 // No depende del navegador: nosotros elegimos el factor.
 const CANVAS_BG_PX_PER_CSS_PX = 2;
+const CANVAS_BG_PANELS = ['panel-1', 'panel-2', 'panel-3', 'panel-4'];
+const CANVAS_BG_SVG_BY_PANEL = {
+  'panel-1': './assets/panels/panel3_bg.svg',
+  'panel-2': './assets/panels/panel3_bg.svg',
+  'panel-3': './assets/panels/panel3_bg.svg',
+  'panel-4': './assets/panels/panel3_bg.svg'
+};
 
 function ensureCanvasBgLayer() {
   const inner = document.getElementById('viewportInner');
@@ -40,6 +47,24 @@ function ensureCanvasBgLayer() {
   return { inner, layer, canvas };
 }
 
+function ensureCanvasForPanel(panelId) {
+  const env = ensureCanvasBgLayer();
+  if (!env) return null;
+  const { layer } = env;
+
+  const id = `canvasBg-${panelId}`;
+  let canvas = document.getElementById(id);
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = id;
+    canvas.dataset.panelId = panelId;
+    canvas.setAttribute('aria-hidden', 'true');
+    layer.appendChild(canvas);
+  }
+
+  return { ...env, canvas };
+}
+
 function loadImageOnce(url) {
   const key = `img::${url}`;
   if (CANVAS_BG_IMAGE_CACHE.has(key)) return CANVAS_BG_IMAGE_CACHE.get(key);
@@ -54,13 +79,16 @@ function loadImageOnce(url) {
   return promise;
 }
 
-async function renderCanvasBgPanel3() {
-  const env = ensureCanvasBgLayer();
+async function renderCanvasBgPanel(panelId) {
+  const env = ensureCanvasForPanel(panelId);
   if (!env) return;
   const { canvas } = env;
 
-  const panel = document.getElementById('panel-3');
+  const panel = document.getElementById(panelId);
   if (!panel) return;
+
+  const svgUrl = CANVAS_BG_SVG_BY_PANEL[panelId];
+  if (!svgUrl) return;
 
   // Canvas tamaño = tamaño del panel (en CSS px) * factor fijo.
   // Importante en móvil: evitar un canvas enorme (textura gigante) que puede dar gaps.
@@ -87,10 +115,16 @@ async function renderCanvasBgPanel3() {
   ctx.setTransform(CANVAS_BG_PX_PER_CSS_PX, 0, 0, CANVAS_BG_PX_PER_CSS_PX, 0, 0);
   ctx.clearRect(0, 0, cssW, cssH);
 
-  const img = await loadImageOnce('./assets/panels/panel3_bg.svg');
+  const img = await loadImageOnce(svgUrl);
   if (!img) return;
 
   ctx.drawImage(img, 0, 0, cssW, cssH);
+}
+
+function renderCanvasBgPanels() {
+  CANVAS_BG_PANELS.forEach(panelId => {
+    renderCanvasBgPanel(panelId);
+  });
 }
 
 function loadSvgTextOnce(url) {
@@ -121,11 +155,8 @@ function injectInlinePanelSvgBackground(panelId, svgUrl) {
   host.appendChild(obj);
   panel.classList.add('has-inline-bg');
 
-  // Paso 1 (canvas): en panel-3 ocultamos este fondo SVG para comparar
-  // el comportamiento del canvas vs el SVG en el resto.
-  if (panelId === 'panel-3') {
-    host.classList.add('is-canvas-hidden');
-  }
+  // Canvas: ocultar el SVG en los paneles que ya pintamos por canvas.
+  if (CANVAS_BG_PANELS.includes(panelId)) host.classList.add('is-canvas-hidden');
 }
 
 // Esta constante será sustituida por esbuild en el bundle de docs/.
@@ -202,9 +233,8 @@ class App {
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
         
-    // Paso 1 (canvas): pinta fondo del panel-3 en una única superficie.
-    // Nota: lo hacemos después de inyectar paneles y antes de la primera interacción.
-    renderCanvasBgPanel3();
+    // Canvas: pinta fondos de panel-1/2/3/4 para evitar lagunas en móvil.
+    renderCanvasBgPanels();
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
@@ -1178,7 +1208,7 @@ class App {
       this._syncPanelHeights();
 
       // Paso 1 (canvas): repintar cuando el layout ya está estable.
-      renderCanvasBgPanel3();
+      renderCanvasBgPanels();
     });
   }
 

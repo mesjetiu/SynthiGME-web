@@ -1313,6 +1313,7 @@ class App {
   function updateNavGestureFlagFromCapture() {
     const navActive = activeTouchIds.size >= 2;
     window.__synthNavGestureActive = navActive;
+    outer.classList.toggle('is-gesturing', navActive);
   }
 
   const metrics = {
@@ -1632,6 +1633,7 @@ class App {
     if (next !== navGestureActive) {
       navGestureActive = next;
       window.__synthNavGestureActive = navGestureActive;
+      outer.classList.toggle('is-gesturing', navGestureActive);
     }
   }
 

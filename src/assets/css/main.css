@@ -690,6 +690,18 @@ small { color:#aaa; }
   box-shadow: none;
 }
 
+/* Móvil: las matrices gigantes son el mayor coste de pintura bajo transform.
+   En low-zoom (overview) y durante pinch, evitamos su paint para reducir "lagunas".
+   Usamos visibility:hidden para conservar el layout (no cambia el tamaño del contenido). */
+@media (pointer: coarse) {
+  #viewportInner.is-low-zoom #panel-5 .matrix-container,
+  #viewportInner.is-low-zoom #panel-6 .matrix-container,
+  #viewportOuter.is-gesturing #panel-5 .matrix-container,
+  #viewportOuter.is-gesturing #panel-6 .matrix-container {
+    visibility: hidden;
+  }
+}
+
 #viewportInner.is-low-zoom .panel-build-version {
   opacity: 0.15;
 }

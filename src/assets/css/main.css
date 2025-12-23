@@ -156,7 +156,10 @@ body {
   contain: layout style size;
 }
 
-#panel-3 {
+#panel-1,
+#panel-2,
+#panel-3,
+#panel-4 {
   background-color: #7D7570;
   background-image: none;
   padding: 0;

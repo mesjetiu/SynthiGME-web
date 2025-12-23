@@ -851,6 +851,11 @@ class App {
       inner.style.willChange = 'transform';
     } else {
       inner.style.willChange = '';
+      // Forzar repintado para evitar artefactos de composición en móviles
+      requestAnimationFrame(() => {
+        void inner.offsetHeight;
+        inner.style.transform = inner.style.transform;
+      });
     }
   }
 
@@ -866,12 +871,32 @@ class App {
     }, delay);
   }
 
+  let lastRenderedScale = 1;
+  let forceRepaintTimer = null;
+
   function render() {
     if (metricsDirty) {
       refreshMetrics();
     }
     clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    
+    // Si el cambio de escala es significativo, forzar repintado
+    if (Math.abs(scale - lastRenderedScale) > 0.3) {
+      lastRenderedScale = scale;
+      // Forzar reflow inmediato
+      void inner.offsetHeight;
+    }
+  }
+  
+  function scheduleForceRepaint() {
+    if (forceRepaintTimer) clearTimeout(forceRepaintTimer);
+    forceRepaintTimer = setTimeout(() => {
+      forceRepaintTimer = null;
+      // Forzar repintado completo tras inactividad
+      void inner.offsetHeight;
+      inner.style.transform = inner.style.transform;
+    }, 150);
   }
 
   refreshMetrics();
@@ -979,6 +1004,7 @@ class App {
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
       scheduleLowZoomUpdate('wheel');
+      scheduleForceRepaint();
       return;
     }
 
@@ -991,6 +1017,7 @@ class App {
     offsetY -= moveY;
     requestRender();
     markUserAdjusted();
+    scheduleForceRepaint();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -1105,6 +1132,7 @@ class App {
         if (didZoom) {
           scheduleLowZoomUpdate('pinch');
         }
+        scheduleForceRepaint();
       }
 
       // Cuando hay dos dedos, desactivamos pan a un dedo
@@ -1123,6 +1151,7 @@ class App {
       offsetY += dy;
       requestRender();
       markUserAdjusted();
+      scheduleForceRepaint();
     }
   }, { passive: false });
 
@@ -1180,9 +1209,43 @@ class App {
       const newScale = scale * widthRatio;
       const minScale = getMinScale();
       scale = Math.min(maxScale, Math.max(minScale, snapScale(newScale)));
+      
+      // Forzar repintado completo al rotar - técnica agresiva
+      const hadWillChange = inner.style.willChange;
+      const hadTransform = inner.style.transform;
+      
+      // Resetear completamente las capas de composición
+      inner.style.willChange = '';
+      inner.style.transform = 'none';
+      void inner.offsetHeight;
+      
+      // Forzar repintado de cada panel individualmente
+      const panels = inner.querySelectorAll('.panel');
+      panels.forEach(panel => {
+        const oldTransform = panel.style.transform;
+        panel.style.transform = 'translateZ(0)';
+        void panel.offsetHeight;
+        panel.style.transform = oldTransform;
+      });
+      
+      // Aplicar el nuevo transform
+      requestRender();
+      
+      // Segundo pase de repintado después de un frame
+      requestAnimationFrame(() => {
+        if (hadWillChange) {
+          inner.style.willChange = hadWillChange;
+        }
+        void inner.offsetHeight;
+        // Tercer pase para asegurar
+        requestAnimationFrame(() => {
+          void inner.offsetHeight;
+        });
+      });
+    } else {
+      requestRender();
     }
     
-    requestRender();
     if (userHasAdjustedView) return;
     fitContentToViewport();
   });

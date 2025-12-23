@@ -10,6 +10,7 @@ let orientationHintDismissed = false;
 
 const INLINE_SVG_TEXT_CACHE = new Map();
 const CANVAS_BG_IMAGE_CACHE = new Map();
+const CANVAS_BG_IMAGE_READY = new Map();
 
 // --- Paso 1 (migración a canvas): fondo canvas fijo para 1 panel ---
 // Resolución fija en el canvas: N píxeles de bitmap por cada CSS px.
@@ -72,7 +73,17 @@ function loadImageOnce(url) {
   return promise;
 }
 
-async function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
+function preloadCanvasBgImages() {
+  for (const panelId of CANVAS_BG_PANELS) {
+    const url = CANVAS_BG_SVG_BY_PANEL[panelId];
+    if (!url) continue;
+    loadImageOnce(url).then(img => {
+      if (img) CANVAS_BG_IMAGE_READY.set(url, img);
+    });
+  }
+}
+
+function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
   if (!shouldUseCanvasBg()) return;
 
   const env = ensureCanvasBgLayer();
@@ -95,16 +106,29 @@ async function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
 
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
   if (!ctx) return;
+
+  // Si aún no están las imágenes, no limpiamos ni redibujamos para evitar
+  // frames "vacíos" que se perciben como lagunas.
+  for (const panelId of CANVAS_BG_PANELS) {
+    const url = CANVAS_BG_SVG_BY_PANEL[panelId];
+    if (!url) continue;
+    if (!CANVAS_BG_IMAGE_READY.get(url)) return;
+  }
+
   ctx.setTransform(CANVAS_BG_PX_PER_CSS_PX, 0, 0, CANVAS_BG_PX_PER_CSS_PX, 0, 0);
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, cssW, cssH);
+
+  // Snap de coordenadas a la rejilla del canvas para evitar seams por redondeos.
+  const snapUnit = 1 / CANVAS_BG_PX_PER_CSS_PX;
+  const snap = (v) => Math.round(v / snapUnit) * snapUnit;
 
   for (const panelId of CANVAS_BG_PANELS) {
     const panel = document.getElementById(panelId);
     if (!panel) continue;
     const svgUrl = CANVAS_BG_SVG_BY_PANEL[panelId];
     if (!svgUrl) continue;
-    const img = await loadImageOnce(svgUrl);
+    const img = CANVAS_BG_IMAGE_READY.get(svgUrl);
     if (!img) continue;
 
     const x = panel.offsetLeft || 0;
@@ -114,11 +138,18 @@ async function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
     if (w <= 0 || h <= 0) continue;
 
     // Convertir mundo (#viewportInner) -> pantalla (#viewportOuter)
-    const sx = offsetX + x * scale;
-    const sy = offsetY + y * scale;
-    const sw = w * scale;
-    const sh = h * scale;
-    ctx.drawImage(img, sx, sy, sw, sh);
+    let sx = offsetX + x * scale;
+    let sy = offsetY + y * scale;
+    let sw = w * scale;
+    let sh = h * scale;
+
+    sx = snap(sx);
+    sy = snap(sy);
+    sw = snap(sw);
+    sh = snap(sh);
+
+    // Bleed 1 CSS px para tapar micro-seams
+    ctx.drawImage(img, sx - 0.5, sy - 0.5, sw + 1, sh + 1);
   }
 }
 
@@ -236,6 +267,7 @@ class App {
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
         
     // Canvas: pinta fondos de panel-1/2/3/4 para evitar lagunas en móvil.
+    preloadCanvasBgImages();
     renderCanvasBgPanels();
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });

@@ -846,16 +846,10 @@ class App {
     inner.classList.toggle(LOW_ZOOM_CLASS, lowZoomActive);
 
     // Sincronizamos will-change con la activación/salida según el retardo de inactividad
-    // (sin desfase adicional respecto al temporizador de idle).
     if (lowZoomActive) {
       inner.style.willChange = 'transform';
     } else {
       inner.style.willChange = '';
-      // Forzar repintado para evitar artefactos de composición en móviles
-      requestAnimationFrame(() => {
-        void inner.offsetHeight;
-        inner.style.transform = inner.style.transform;
-      });
     }
   }
 
@@ -871,32 +865,12 @@ class App {
     }, delay);
   }
 
-  let lastRenderedScale = 1;
-  let forceRepaintTimer = null;
-
   function render() {
     if (metricsDirty) {
       refreshMetrics();
     }
     clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-    
-    // Si el cambio de escala es significativo, forzar repintado
-    if (Math.abs(scale - lastRenderedScale) > 0.3) {
-      lastRenderedScale = scale;
-      // Forzar reflow inmediato
-      void inner.offsetHeight;
-    }
-  }
-  
-  function scheduleForceRepaint() {
-    if (forceRepaintTimer) clearTimeout(forceRepaintTimer);
-    forceRepaintTimer = setTimeout(() => {
-      forceRepaintTimer = null;
-      // Forzar repintado completo tras inactividad
-      void inner.offsetHeight;
-      inner.style.transform = inner.style.transform;
-    }, 150);
   }
 
   refreshMetrics();
@@ -1004,7 +978,6 @@ class App {
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
       scheduleLowZoomUpdate('wheel');
-      scheduleForceRepaint();
       return;
     }
 
@@ -1017,7 +990,6 @@ class App {
     offsetY -= moveY;
     requestRender();
     markUserAdjusted();
-    scheduleForceRepaint();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -1132,7 +1104,6 @@ class App {
         if (didZoom) {
           scheduleLowZoomUpdate('pinch');
         }
-        scheduleForceRepaint();
       }
 
       // Cuando hay dos dedos, desactivamos pan a un dedo
@@ -1151,7 +1122,6 @@ class App {
       offsetY += dy;
       requestRender();
       markUserAdjusted();
-      scheduleForceRepaint();
     }
   }, { passive: false });
 
@@ -1199,52 +1169,36 @@ class App {
   // Al redimensionar => recalcular métricas y ajustar zoom proporcionalmente
   window.addEventListener('resize', () => {
     const oldWidth = lastViewportWidth;
+    
+    // Guardar métricas y estado actual ANTES de refrescar
+    const oldOuterWidth = metrics.outerWidth;
+    const oldOuterHeight = metrics.outerHeight;
+    const oldScale = scale;
+    const oldOffsetX = offsetX;
+    const oldOffsetY = offsetY;
+    
+    // Guardar el punto central del mundo ANTES de cambiar nada
+    const worldCenterX = oldOuterWidth > 0 ? (oldOuterWidth / 2 - oldOffsetX) / oldScale : 0;
+    const worldCenterY = oldOuterHeight > 0 ? (oldOuterHeight / 2 - oldOffsetY) / oldScale : 0;
+    
     refreshMetrics();
     const newWidth = metrics.outerWidth;
+    const newHeight = metrics.outerHeight;
     lastViewportWidth = newWidth;
     
     // Si cambió el ancho del viewport, ajustar el zoom proporcionalmente
     if (oldWidth > 0 && newWidth > 0 && Math.abs(newWidth - oldWidth) > 10) {
       const widthRatio = newWidth / oldWidth;
-      const newScale = scale * widthRatio;
+      const newScale = oldScale * widthRatio;
       const minScale = getMinScale();
       scale = Math.min(maxScale, Math.max(minScale, snapScale(newScale)));
       
-      // Forzar repintado completo al rotar - técnica agresiva
-      const hadWillChange = inner.style.willChange;
-      const hadTransform = inner.style.transform;
-      
-      // Resetear completamente las capas de composición
-      inner.style.willChange = '';
-      inner.style.transform = 'none';
-      void inner.offsetHeight;
-      
-      // Forzar repintado de cada panel individualmente
-      const panels = inner.querySelectorAll('.panel');
-      panels.forEach(panel => {
-        const oldTransform = panel.style.transform;
-        panel.style.transform = 'translateZ(0)';
-        void panel.offsetHeight;
-        panel.style.transform = oldTransform;
-      });
-      
-      // Aplicar el nuevo transform
-      requestRender();
-      
-      // Segundo pase de repintado después de un frame
-      requestAnimationFrame(() => {
-        if (hadWillChange) {
-          inner.style.willChange = hadWillChange;
-        }
-        void inner.offsetHeight;
-        // Tercer pase para asegurar
-        requestAnimationFrame(() => {
-          void inner.offsetHeight;
-        });
-      });
-    } else {
-      requestRender();
+      // Recalcular offsets para mantener el mismo punto central visible
+      offsetX = (newWidth / 2) - worldCenterX * scale;
+      offsetY = (newHeight / 2) - worldCenterY * scale;
     }
+    
+    requestRender();
     
     if (userHasAdjustedView) return;
     fitContentToViewport();

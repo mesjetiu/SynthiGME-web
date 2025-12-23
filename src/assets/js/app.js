@@ -10,6 +10,86 @@ let orientationHintDismissed = false;
 
 const INLINE_SVG_TEXT_CACHE = new Map();
 
+// --- Paso 1 (migración a canvas): fondo canvas fijo para 1 panel ---
+// Resolución fija en el canvas: N píxeles de bitmap por cada CSS px.
+// No depende del navegador: nosotros elegimos el factor.
+const CANVAS_BG_PX_PER_CSS_PX = 2;
+
+function ensureCanvasBgLayer() {
+  const inner = document.getElementById('viewportInner');
+  if (!inner) return null;
+
+  let layer = document.getElementById('canvasBgLayer');
+  let canvas = document.getElementById('canvasBg');
+
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'canvasBgLayer';
+    layer.setAttribute('aria-hidden', 'true');
+    inner.insertBefore(layer, inner.firstChild);
+  }
+
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'canvasBg';
+    canvas.setAttribute('aria-hidden', 'true');
+    layer.appendChild(canvas);
+  }
+
+  return { inner, layer, canvas };
+}
+
+function loadImageOnce(url) {
+  const key = `img::${url}`;
+  if (INLINE_SVG_TEXT_CACHE.has(key)) return INLINE_SVG_TEXT_CACHE.get(key);
+  const promise = new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+  INLINE_SVG_TEXT_CACHE.set(key, promise);
+  return promise;
+}
+
+async function renderCanvasBgPanel3() {
+  const env = ensureCanvasBgLayer();
+  if (!env) return;
+  const { inner, canvas } = env;
+
+  const panel = document.getElementById('panel-3');
+  if (!panel) return;
+
+  // Canvas tamaño = tamaño del contenido (en CSS px) * factor fijo.
+  // Usamos scrollWidth/scrollHeight para cubrir el área del grid.
+  const cssW = Math.max(inner.scrollWidth, inner.clientWidth, 1);
+  const cssH = Math.max(inner.scrollHeight, inner.clientHeight, 1);
+  const pxW = Math.max(1, Math.round(cssW * CANVAS_BG_PX_PER_CSS_PX));
+  const pxH = Math.max(1, Math.round(cssH * CANVAS_BG_PX_PER_CSS_PX));
+
+  if (canvas.width !== pxW) canvas.width = pxW;
+  if (canvas.height !== pxH) canvas.height = pxH;
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+
+  const ctx = canvas.getContext('2d', { alpha: true });
+  if (!ctx) return;
+  ctx.setTransform(CANVAS_BG_PX_PER_CSS_PX, 0, 0, CANVAS_BG_PX_PER_CSS_PX, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const img = await loadImageOnce('./assets/panels/panel3_bg.svg');
+  if (!img) return;
+
+  // Dibujar el fondo exactamente en el rect del panel (coord. de #viewportInner)
+  const x = panel.offsetLeft || 0;
+  const y = panel.offsetTop || 0;
+  const w = panel.offsetWidth || 0;
+  const h = panel.offsetHeight || 0;
+  if (w <= 0 || h <= 0) return;
+  ctx.drawImage(img, x, y, w, h);
+}
+
 function loadSvgTextOnce(url) {
   if (INLINE_SVG_TEXT_CACHE.has(url)) return INLINE_SVG_TEXT_CACHE.get(url);
   const promise = fetch(url, { cache: 'force-cache' })
@@ -37,6 +117,12 @@ function injectInlinePanelSvgBackground(panelId, svgUrl) {
   obj.setAttribute('aria-hidden', 'true');
   host.appendChild(obj);
   panel.classList.add('has-inline-bg');
+
+  // Paso 1 (canvas): en panel-3 ocultamos este fondo SVG para comparar
+  // el comportamiento del canvas vs el SVG en el resto.
+  if (panelId === 'panel-3') {
+    host.classList.add('is-canvas-hidden');
+  }
 }
 
 // Esta constante será sustituida por esbuild en el bundle de docs/.
@@ -112,7 +198,10 @@ class App {
     injectInlinePanelSvgBackground('panel-4', './assets/panels/panel3_bg.svg');
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
-
+        
+    // Paso 1 (canvas): pinta fondo del panel-3 en una única superficie.
+    // Nota: lo hacemos después de inyectar paneles y antes de la primera interacción.
+    renderCanvasBgPanel3();
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
@@ -1064,6 +1153,9 @@ class App {
       this._reflowPanel3Layout();
       this._reflowPanel4Layout();
       this._syncPanelHeights();
+
+      // Paso 1 (canvas): repintar cuando el layout ya está estable.
+      renderCanvasBgPanel3();
     });
   }
 

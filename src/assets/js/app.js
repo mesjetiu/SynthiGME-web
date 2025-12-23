@@ -110,10 +110,12 @@ async function renderCanvasBgPanel(panelId) {
   if (canvas.width !== pxW) canvas.width = pxW;
   if (canvas.height !== pxH) canvas.height = pxH;
 
-  const ctx = canvas.getContext('2d', { alpha: true });
+  const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) return;
   ctx.setTransform(CANVAS_BG_PX_PER_CSS_PX, 0, 0, CANVAS_BG_PX_PER_CSS_PX, 0, 0);
-  ctx.clearRect(0, 0, cssW, cssH);
+  const bg = getComputedStyle(panel).backgroundColor || '#7D7570';
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, cssW, cssH);
 
   const img = await loadImageOnce(svgUrl);
   if (!img) return;
@@ -1715,6 +1717,10 @@ class App {
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
       requestRender();
+
+      if (ev.pointerType === 'touch') {
+        requestAnimationFrame(() => renderCanvasBgPanels());
+      }
     }
   });
   outer.addEventListener('pointercancel', ev => {
@@ -1734,6 +1740,10 @@ class App {
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
       requestRender();
+
+      if (ev.pointerType === 'touch') {
+        requestAnimationFrame(() => renderCanvasBgPanels());
+      }
     }
   });
 

@@ -9,6 +9,7 @@ import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 let orientationHintDismissed = false;
 
 const INLINE_SVG_TEXT_CACHE = new Map();
+const CANVAS_BG_IMAGE_CACHE = new Map();
 
 // --- Paso 1 (migración a canvas): fondo canvas fijo para 1 panel ---
 // Resolución fija en el canvas: N píxeles de bitmap por cada CSS px.
@@ -41,7 +42,7 @@ function ensureCanvasBgLayer() {
 
 function loadImageOnce(url) {
   const key = `img::${url}`;
-  if (INLINE_SVG_TEXT_CACHE.has(key)) return INLINE_SVG_TEXT_CACHE.get(key);
+  if (CANVAS_BG_IMAGE_CACHE.has(key)) return CANVAS_BG_IMAGE_CACHE.get(key);
   const promise = new Promise((resolve) => {
     const img = new Image();
     img.decoding = 'async';
@@ -49,29 +50,37 @@ function loadImageOnce(url) {
     img.onerror = () => resolve(null);
     img.src = url;
   });
-  INLINE_SVG_TEXT_CACHE.set(key, promise);
+  CANVAS_BG_IMAGE_CACHE.set(key, promise);
   return promise;
 }
 
 async function renderCanvasBgPanel3() {
   const env = ensureCanvasBgLayer();
   if (!env) return;
-  const { inner, canvas } = env;
+  const { canvas } = env;
 
   const panel = document.getElementById('panel-3');
   if (!panel) return;
 
-  // Canvas tamaño = tamaño del contenido (en CSS px) * factor fijo.
-  // Usamos scrollWidth/scrollHeight para cubrir el área del grid.
-  const cssW = Math.max(inner.scrollWidth, inner.clientWidth, 1);
-  const cssH = Math.max(inner.scrollHeight, inner.clientHeight, 1);
+  // Canvas tamaño = tamaño del panel (en CSS px) * factor fijo.
+  // Importante en móvil: evitar un canvas enorme (textura gigante) que puede dar gaps.
+  const x = panel.offsetLeft || 0;
+  const y = panel.offsetTop || 0;
+  const cssW = panel.offsetWidth || 0;
+  const cssH = panel.offsetHeight || 0;
+  if (cssW <= 0 || cssH <= 0) return;
+
   const pxW = Math.max(1, Math.round(cssW * CANVAS_BG_PX_PER_CSS_PX));
   const pxH = Math.max(1, Math.round(cssH * CANVAS_BG_PX_PER_CSS_PX));
 
-  if (canvas.width !== pxW) canvas.width = pxW;
-  if (canvas.height !== pxH) canvas.height = pxH;
+  canvas.style.position = 'absolute';
+  canvas.style.left = `${x}px`;
+  canvas.style.top = `${y}px`;
   canvas.style.width = `${cssW}px`;
   canvas.style.height = `${cssH}px`;
+
+  if (canvas.width !== pxW) canvas.width = pxW;
+  if (canvas.height !== pxH) canvas.height = pxH;
 
   const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) return;
@@ -81,13 +90,7 @@ async function renderCanvasBgPanel3() {
   const img = await loadImageOnce('./assets/panels/panel3_bg.svg');
   if (!img) return;
 
-  // Dibujar el fondo exactamente en el rect del panel (coord. de #viewportInner)
-  const x = panel.offsetLeft || 0;
-  const y = panel.offsetTop || 0;
-  const w = panel.offsetWidth || 0;
-  const h = panel.offsetHeight || 0;
-  if (w <= 0 || h <= 0) return;
-  ctx.drawImage(img, x, y, w, h);
+  ctx.drawImage(img, 0, 0, cssW, cssH);
 }
 
 function loadSvgTextOnce(url) {
@@ -226,10 +229,30 @@ class App {
     this._setupPanel5AudioRouting();
     this._setupUI();
     this._schedulePanelSync();
-    window.addEventListener('resize', () => {
+
+    // En móvil/tablet, el pinch/zoom puede disparar eventos resize (visual viewport),
+    // y esto aquí es caro (reflow + resize matrices). Lo debounceamos y lo evitamos
+    // durante gestos multitáctiles activos.
+    let appResizeTimer = null;
+    const runAppResizeWork = () => {
       this._schedulePanelSync();
       this._resizeLargeMatrices();
-    });
+    };
+    window.addEventListener('resize', () => {
+      if (appResizeTimer) clearTimeout(appResizeTimer);
+      appResizeTimer = setTimeout(() => {
+        appResizeTimer = null;
+        if (window.__synthNavGestureActive) {
+          // Reintentar cuando termine el gesto.
+          appResizeTimer = setTimeout(() => {
+            appResizeTimer = null;
+            if (!window.__synthNavGestureActive) runAppResizeWork();
+          }, 180);
+          return;
+        }
+        runAppResizeWork();
+      }, 120);
+    }, { passive: true });
   }
 
   ensureAudio() { this.engine.start(); }
@@ -1685,7 +1708,10 @@ class App {
   });
 
   // Al redimensionar => recalcular métricas y ajustar zoom proporcionalmente
-  window.addEventListener('resize', () => {
+  // Nota: durante pinch/zoom táctil puede dispararse resize repetidamente.
+  // Lo debounceamos y evitamos trabajo mientras hay gesto multitáctil activo.
+  let navResizeTimer = null;
+  const handleNavResize = () => {
     const oldWidth = lastViewportWidth;
     
     // Guardar métricas y estado actual ANTES de refrescar
@@ -1714,13 +1740,34 @@ class App {
       // Recalcular offsets para mantener el mismo punto central visible
       offsetX = (newWidth / 2) - worldCenterX * scale;
       offsetY = (newHeight / 2) - worldCenterY * scale;
+
+      // Mantener el centro visible tras el resize
+      // (clamp/render se aplican abajo)
     }
-    
+
+    refreshMetrics();
+    clampOffsets();
     requestRender();
-    
+
+    // En primera carga/si el usuario no ajustó, seguimos haciendo fit.
     if (userHasAdjustedView) return;
     fitContentToViewport();
-  });
+  };
+
+  window.addEventListener('resize', () => {
+    if (navResizeTimer) clearTimeout(navResizeTimer);
+    navResizeTimer = setTimeout(() => {
+      navResizeTimer = null;
+      if (window.__synthNavGestureActive) {
+        navResizeTimer = setTimeout(() => {
+          navResizeTimer = null;
+          if (!window.__synthNavGestureActive) handleNavResize();
+        }, 180);
+        return;
+      }
+      handleNavResize();
+    }, 90);
+  }, { passive: true });
 })();
 
 function setupMobileQuickActionsBar() {

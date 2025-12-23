@@ -690,27 +690,31 @@ small { color:#aaa; }
   box-shadow: none;
 }
 
-/* Móvil: las matrices gigantes son el mayor coste de pintura bajo transform.
-   En low-zoom (overview) y durante pinch, evitamos su paint para reducir "lagunas".
-   Usamos visibility:hidden para conservar el layout (no cambia el tamaño del contenido). */
+/* Móvil: optimización SIN ocultar mandos.
+   Reducimos el coste de paint quitando sombras/transiciones caras (muchos nodos). */
 @media (pointer: coarse) {
-  #viewportInner.is-low-zoom #panel-5 .matrix-container,
-  #viewportInner.is-low-zoom #panel-6 .matrix-container,
-  #viewportOuter.is-gesturing #panel-5 .matrix-container,
-  #viewportOuter.is-gesturing #panel-6 .matrix-container {
-    visibility: hidden;
+  .panel {
+    box-shadow: none;
   }
 
-  /* Paneles 1-4: durante pinch/overview, ocultar controles (mucho DOM) */
-  #viewportInner.is-low-zoom #panel-1 .panel3-layout,
-  #viewportInner.is-low-zoom #panel-2 .panel3-layout,
-  #viewportInner.is-low-zoom #panel-3 .panel3-layout,
-  #viewportInner.is-low-zoom #panel-4 .panel3-layout,
-  #viewportOuter.is-gesturing #panel-1 .panel3-layout,
-  #viewportOuter.is-gesturing #panel-2 .panel3-layout,
-  #viewportOuter.is-gesturing #panel-3 .panel3-layout,
-  #viewportOuter.is-gesturing #panel-4 .panel3-layout {
-    visibility: hidden;
+  .pin-btn {
+    box-shadow: none;
+  }
+
+  .pin-btn.active {
+    box-shadow: none;
+  }
+
+  .knob,
+  .knob-inner,
+  .joystick-block,
+  .joystick-handle {
+    box-shadow: none;
+    transition: none;
+  }
+
+  .panel3-layout .sgme-osc {
+    box-shadow: none;
   }
 }
 

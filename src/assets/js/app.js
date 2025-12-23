@@ -389,7 +389,7 @@ class App {
     }
 
     const oscComponents = oscillatorSlots.map(slot => {
-      const knobOptions = this._getPanel3KnobOptions(slot.index - 1);
+      const knobOptions = this._getPanel1KnobOptions(slot.index - 1);
       const osc = new SGME_Oscillator({
         id: `panel1-osc-${slot.index}`,
         title: `Osc ${slot.index}`,

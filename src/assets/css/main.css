@@ -630,7 +630,7 @@ small { color:#aaa; }
 }
 #viewportInner {
   position: relative;
-  z-index: 0;
+  z-index: 1;
   width: calc(var(--panel-width) * 4 + var(--panel-gap) * 3);
   min-height: 100%;
   transform-origin: 0 0;
@@ -695,7 +695,7 @@ small { color:#aaa; }
   display: flex;
   flex-direction: column;
   user-select: none;
-  grid-row: var(--panel-row, auto);
+  background: #7D7570 !important;
   grid-column: var(--panel-col, auto);
 }
 

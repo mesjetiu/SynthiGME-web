@@ -23,9 +23,20 @@ const CANVAS_BG_SVG_BY_PANEL = {
   'panel-4': './assets/panels/panel3_bg.svg'
 };
 
+function shouldUseCanvasBg() {
+  // En móviles Android con GPUs/driver delicados, escalar bitmaps con transform
+  // puede dejar "lagunas" al hacer zoom-out. Para coarse pointer usamos canvas
+  // en coordenadas de pantalla (sin transform), redibujado por frame.
+  try {
+    return window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  } catch {
+    return false;
+  }
+}
+
 function ensureCanvasBgLayer() {
-  const inner = document.getElementById('viewportInner');
-  if (!inner) return null;
+  const outer = document.getElementById('viewportOuter');
+  if (!outer) return null;
 
   let layer = document.getElementById('canvasBgLayer');
   let canvas = document.getElementById('canvasBg');
@@ -34,7 +45,7 @@ function ensureCanvasBgLayer() {
     layer = document.createElement('div');
     layer.id = 'canvasBgLayer';
     layer.setAttribute('aria-hidden', 'true');
-    inner.insertBefore(layer, inner.firstChild);
+    outer.insertBefore(layer, outer.firstChild);
   }
 
   if (!canvas) {
@@ -44,25 +55,7 @@ function ensureCanvasBgLayer() {
     layer.appendChild(canvas);
   }
 
-  return { inner, layer, canvas };
-}
-
-function ensureCanvasForPanel(panelId) {
-  const env = ensureCanvasBgLayer();
-  if (!env) return null;
-  const { layer } = env;
-
-  const id = `canvasBg-${panelId}`;
-  let canvas = document.getElementById(id);
-  if (!canvas) {
-    canvas = document.createElement('canvas');
-    canvas.id = id;
-    canvas.dataset.panelId = panelId;
-    canvas.setAttribute('aria-hidden', 'true');
-    layer.appendChild(canvas);
-  }
-
-  return { ...env, canvas };
+  return { outer, layer, canvas };
 }
 
 function loadImageOnce(url) {
@@ -79,54 +72,59 @@ function loadImageOnce(url) {
   return promise;
 }
 
-async function renderCanvasBgPanel(panelId) {
-  const env = ensureCanvasForPanel(panelId);
+async function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
+  if (!shouldUseCanvasBg()) return;
+
+  const env = ensureCanvasBgLayer();
   if (!env) return;
-  const { canvas } = env;
+  const { outer, canvas } = env;
 
-  const panel = document.getElementById(panelId);
-  if (!panel) return;
-
-  const svgUrl = CANVAS_BG_SVG_BY_PANEL[panelId];
-  if (!svgUrl) return;
-
-  // Canvas tamaño = tamaño del panel (en CSS px) * factor fijo.
-  // Importante en móvil: evitar un canvas enorme (textura gigante) que puede dar gaps.
-  const x = panel.offsetLeft || 0;
-  const y = panel.offsetTop || 0;
-  const cssW = panel.offsetWidth || 0;
-  const cssH = panel.offsetHeight || 0;
-  if (cssW <= 0 || cssH <= 0) return;
-
+  const cssW = Math.max(outer.clientWidth, 1);
+  const cssH = Math.max(outer.clientHeight, 1);
   const pxW = Math.max(1, Math.round(cssW * CANVAS_BG_PX_PER_CSS_PX));
   const pxH = Math.max(1, Math.round(cssH * CANVAS_BG_PX_PER_CSS_PX));
 
   canvas.style.position = 'absolute';
-  canvas.style.left = `${x}px`;
-  canvas.style.top = `${y}px`;
+  canvas.style.left = '0px';
+  canvas.style.top = '0px';
   canvas.style.width = `${cssW}px`;
   canvas.style.height = `${cssH}px`;
 
   if (canvas.width !== pxW) canvas.width = pxW;
   if (canvas.height !== pxH) canvas.height = pxH;
 
-  const ctx = canvas.getContext('2d', { alpha: false });
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
   if (!ctx) return;
   ctx.setTransform(CANVAS_BG_PX_PER_CSS_PX, 0, 0, CANVAS_BG_PX_PER_CSS_PX, 0, 0);
-  const bg = getComputedStyle(panel).backgroundColor || '#7D7570';
-  ctx.fillStyle = bg;
+  ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, cssW, cssH);
 
-  const img = await loadImageOnce(svgUrl);
-  if (!img) return;
+  for (const panelId of CANVAS_BG_PANELS) {
+    const panel = document.getElementById(panelId);
+    if (!panel) continue;
+    const svgUrl = CANVAS_BG_SVG_BY_PANEL[panelId];
+    if (!svgUrl) continue;
+    const img = await loadImageOnce(svgUrl);
+    if (!img) continue;
 
-  ctx.drawImage(img, 0, 0, cssW, cssH);
+    const x = panel.offsetLeft || 0;
+    const y = panel.offsetTop || 0;
+    const w = panel.offsetWidth || 0;
+    const h = panel.offsetHeight || 0;
+    if (w <= 0 || h <= 0) continue;
+
+    // Convertir mundo (#viewportInner) -> pantalla (#viewportOuter)
+    const sx = offsetX + x * scale;
+    const sy = offsetY + y * scale;
+    const sw = w * scale;
+    const sh = h * scale;
+    ctx.drawImage(img, sx, sy, sw, sh);
+  }
 }
 
 function renderCanvasBgPanels() {
-  CANVAS_BG_PANELS.forEach(panelId => {
-    renderCanvasBgPanel(panelId);
-  });
+  const t = window.__synthViewTransform || { scale: 1, offsetX: 0, offsetY: 0 };
+  renderCanvasBgViewport(t.scale, t.offsetX, t.offsetY);
 }
 
 function loadSvgTextOnce(url) {
@@ -157,8 +155,10 @@ function injectInlinePanelSvgBackground(panelId, svgUrl) {
   host.appendChild(obj);
   panel.classList.add('has-inline-bg');
 
-  // Canvas: ocultar el SVG en los paneles que ya pintamos por canvas.
-  if (CANVAS_BG_PANELS.includes(panelId)) host.classList.add('is-canvas-hidden');
+  // Canvas: ocultar el SVG solo en coarse pointer (móvil/tablet táctil).
+  if (CANVAS_BG_PANELS.includes(panelId) && shouldUseCanvasBg()) {
+    host.classList.add('is-canvas-hidden');
+  }
 }
 
 // Esta constante será sustituida por esbuild en el bundle de docs/.
@@ -1444,6 +1444,11 @@ class App {
     }
     clampOffsets();
     inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+
+    // Fondo canvas (solo móvil/coarse pointer): dibujar en coordenadas de pantalla
+    // para evitar "lagunas" por bitmaps escalados con transform.
+    window.__synthViewTransform = { scale, offsetX, offsetY };
+    renderCanvasBgViewport(scale, offsetX, offsetY);
   }
 
   refreshMetrics();

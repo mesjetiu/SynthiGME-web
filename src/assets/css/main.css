@@ -166,7 +166,10 @@ body {
   contain: layout style;
 }
 
-#panel-3 > .panel-inline-bg {
+#panel-1 > .panel-inline-bg,
+#panel-2 > .panel-inline-bg,
+#panel-3 > .panel-inline-bg,
+#panel-4 > .panel-inline-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -174,14 +177,23 @@ body {
   overflow: hidden;
 }
 
+#panel-1 > .panel-inline-bg svg,
+#panel-1 > .panel-inline-bg object,
+#panel-2 > .panel-inline-bg svg,
+#panel-2 > .panel-inline-bg object,
 #panel-3 > .panel-inline-bg svg,
-#panel-3 > .panel-inline-bg object {
+#panel-3 > .panel-inline-bg object,
+#panel-4 > .panel-inline-bg svg,
+#panel-4 > .panel-inline-bg object {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-#panel-3 > :not(.panel-inline-bg):not(.panel-build-version) {
+#panel-1 > :not(.panel-inline-bg):not(.panel-build-version),
+#panel-2 > :not(.panel-inline-bg):not(.panel-build-version),
+#panel-3 > :not(.panel-inline-bg):not(.panel-build-version),
+#panel-4 > :not(.panel-inline-bg):not(.panel-build-version) {
   position: relative;
   z-index: 1;
 }
@@ -208,7 +220,10 @@ body {
   z-index: 1;
 }
 
+#panel-1 > .panel-build-version,
+#panel-2 > .panel-build-version,
 #panel-3 > .panel-build-version,
+#panel-4 > .panel-build-version,
 #panel-5 > .panel-build-version,
 #panel-6 > .panel-build-version {
   position: absolute;

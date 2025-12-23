@@ -1,12 +1,6 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { AudioEngine } from './core/engine.js';
-import { Matrix } from './core/matrix.js';
-import { OscillatorModule } from './modules/oscillator.js';
-import { PulseModule } from './modules/pulse.js';
-import { NoiseModule } from './modules/noise.js';
 import { JoystickModule } from './modules/joystick.js';
-import { OutputRouterModule } from './modules/outputRouter.js';
-import { createOutputRouterUI } from './ui/outputRouter.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
@@ -85,24 +79,23 @@ class App {
     this._panel3Audio = { nodes: [] };
     this._panel3Routing = { connections: {}, rowMap: null, colMap: null };
     this.placeholderPanels = {};
-    // Panel 1: panel principal de controles
+    
+    // Paneles 1, 2, 3, 4: todos son SGME Oscillators (12 osciladores cada uno)
+    // Panel 1 incluye joystick integrado en el área inferior
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
     this._labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
+    this._panel1Audio = { nodes: [] };
 
-    // Panel 2: matriz pequeña de ruteo (Matrix)
     this.panel2 = this.panelManager.createPanel({ id: 'panel-2' });
     this._labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
+    this._panel2Audio = { nodes: [] };
 
-    // Panel 3: SGME Oscillators (layout-only, sin audio por ahora)
     this.panel3 = this.panelManager.createPanel({ id: 'panel-3' });
     this._labelPanelSlot(this.panel3, null, { row: 1, col: 3 });
 
-    // Panel 4: placeholder pendiente
-    this._createPlaceholderPanel({
-      id: 'panel-4',
-      layout: { row: 1, col: 4 },
-      message: 'Espacio libre para los módulos del Panel 4 del Synthi original.'
-    });
+    this.panel4 = this.panelManager.createPanel({ id: 'panel-4' });
+    this._labelPanelSlot(this.panel4, null, { row: 1, col: 4 });
+    this._panel4Audio = { nodes: [] };
 
     // Panel 5: por ahora vacío (antiguo panel de matriz pequeña)
     this.panel5 = this.panelManager.createPanel({ id: 'panel-5' });
@@ -113,9 +106,12 @@ class App {
     this._labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
 
     // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
+    injectInlinePanelSvgBackground('panel-1', './assets/panels/panel3_bg.svg');
+    injectInlinePanelSvgBackground('panel-2', './assets/panels/panel3_bg.svg');
+    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
+    injectInlinePanelSvgBackground('panel-4', './assets/panels/panel3_bg.svg');
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
-    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
@@ -123,24 +119,20 @@ class App {
     this.muteBtn = document.createElement('button');
     this.muteBtn.id = 'muteBtn';
     this.muteBtn.textContent = '🔊 Audio ON';
-    this.panel1.addHeaderElement(this.muteBtn);
+    this.outputPanel.addHeaderElement(this.muteBtn);
 
-    this.oscRowEl = this.panel1.addSection({ id: 'oscRow', title: 'Oscillators 1–3', type: 'row' });
-    this.pulseRowEl = this.panel1.addSection({ id: 'pulseRow', title: 'Oscillator 3 / Pulse', type: 'row' });
-    this.noiseRowEl = this.panel1.addSection({ id: 'noiseRow', title: 'Noise Generator', type: 'row' });
-
-    // Matriz pequeña ahora vive en el Panel 2
-    this.matrixEl = this.panel2.addSection({ id: 'matrixTable', type: 'matrix' });
-
-    this.stickRowEl = this.panel1.addSection({ id: 'stickRow', title: 'Stick (Joystick)', type: 'row' });
-    this.routerRowEl = this.panel1.addSection({ id: 'routerRow', title: 'Output Router (buses → L/R)', type: 'row' });
     this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
-    this.matrix = null;
     this._heightSyncScheduled = false;
     this.largeMatrixAudio = null;
     this.largeMatrixControl = null;
+    
+    // Construir los 4 paneles de SGME Oscillators
+    this._buildPanel1Layout();
+    this._buildPanel2Layout();
     this._buildPanel3Layout();
-    this._setupModules();
+    this._buildPanel4Layout();
+    
+    this._setupOutputFaders();
     this._buildLargeMatrices();
     this._setupPanel5AudioRouting();
     this._setupUI();
@@ -153,84 +145,10 @@ class App {
 
   ensureAudio() { this.engine.start(); }
 
-  _setupModules() {
-    const osc1 = new OscillatorModule(this.engine, 'osc1', 110);
-    const osc2 = new OscillatorModule(this.engine, 'osc2', 220);
-    const osc3 = new PulseModule(this.engine, 'osc3', 330);
-    const noise = new NoiseModule(this.engine, 'noise');
-    const stick = new JoystickModule(this.engine, 'stick');
-    const router = new OutputRouterModule(this.engine, 'router');
+  _setupOutputFaders() {
     const outputFaders = new OutputFaderModule(this.engine, 'outputFaders');
-
-    this.engine.addModule(osc1);
-    this.engine.addModule(osc2);
-    this.engine.addModule(osc3);
-    this.engine.addModule(noise);
-    this.engine.addModule(stick);
-    this.engine.addModule(router);
     this.engine.addModule(outputFaders);
-
-    osc1.createPanel(this.oscRowEl);
-    osc2.createPanel(this.oscRowEl);
-    osc3.createPanel(this.pulseRowEl);
-    noise.createPanel(this.noiseRowEl);
-    stick.createPanel(this.stickRowEl);
-    createOutputRouterUI(this.engine, this.routerRowEl);
     outputFaders.createPanel(this.outputFadersRowEl);
-
-    const sourcePorts = [
-      { moduleId: 'osc1', portId: 'audioOut', label: 'Oscillator 1 I' },
-      { moduleId: 'osc1', portId: 'audioOut', label: 'Oscillator 1 II' },
-      { moduleId: 'osc2', portId: 'audioOut', label: 'Oscillator 2 I' },
-      { moduleId: 'osc2', portId: 'audioOut', label: 'Oscillator 2 II' },
-      { moduleId: 'osc3', portId: 'audioOut', label: 'Oscillator 3 I' },
-      { moduleId: 'osc3', portId: 'audioOut', label: 'Oscillator 3 II' },
-      { moduleId: 'noise',  portId: 'audioOut', label: 'Noise' },
-      { moduleId: null,  portId: null, label: 'Input Channel 1' },
-      { moduleId: null,  portId: null, label: 'Input Channel 2' },
-      { moduleId: null,  portId: null, label: 'Filter' },
-      { moduleId: null,  portId: null, label: 'Trapezoid' },
-      { moduleId: null,  portId: null, label: 'Envelope Signal' },
-      { moduleId: null,  portId: null, label: 'Ring Modulator' },
-      { moduleId: null,  portId: null, label: 'Reverberation' },
-      { moduleId: 'stick',  portId: 'xOut', label: 'Stick X' },
-      { moduleId: 'stick',  portId: 'yOut', label: 'Stick Y' }
-    ];
-
-    const outputDestinations = Array.from({ length: this.engine.outputChannels || 2 }, (_, idx) => ({
-      moduleId: null,
-      portId: null,
-      type: 'output',
-      busIndex: idx,
-      label: `Output Ch ${idx + 1}`
-    }));
-
-    const destPorts = [
-      // Signal inputs
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Meter' },
-      ...outputDestinations,
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Envelope A' },
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Envelope B' },
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Ring Mod A' },
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Ring Mod B' },
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Reverb' },
-      // Control inputs
-      { moduleId: 'osc1', portId: 'freqCV', type: 'freq',   label: 'Osc Freq 1' },
-      { moduleId: 'osc2', portId: 'freqCV', type: 'freq',   label: 'Osc Freq 2' },
-      { moduleId: 'osc3', portId: 'freqCV', type: 'freq',   label: 'Osc Freq 3' },
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Decay' },
-      { moduleId: null,   portId: null,     type: 'amp',    label: 'Reverb Mix' },
-      { moduleId: null,   portId: null,     type: 'freq',   label: 'Filter Freq' },
-      { moduleId: 'router', portId: 'bus1LevelCV', type: 'amp',    label: 'Output Ch Level 1' },
-      { moduleId: 'router', portId: 'bus2LevelCV', type: 'amp',    label: 'Output Ch Level 2' }
-    ];
-
-    this.matrix = new Matrix(this.engine, this.matrixEl, sourcePorts, destPorts, {
-      freqDepth: 80,
-      ampDepth: 0.5,
-      outputGain: 1.0
-    });
-    this.matrix.build();
   }
 
   _setupUI() {
@@ -275,6 +193,208 @@ class App {
     return panel;
   }
 
+  _buildPanel1Layout() {
+    if (!this.panel1) return;
+
+    const host = document.createElement('div');
+    host.id = 'panel1Layout';
+    host.className = 'panel3-layout';
+    this.panel1.appendElement(host);
+
+    const layout = this._getPanel3LayoutSpec();
+    const { oscSize, gap, rowsPerColumn } = layout;
+
+    const oscillatorSlots = [];
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 1, col: 0, row: i });
+    }
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 7, col: 1, row: i });
+    }
+
+    const oscComponents = oscillatorSlots.map(slot => {
+      const knobOptions = this._getPanel3KnobOptions(slot.index - 1);
+      const osc = new SGME_Oscillator({
+        id: `panel1-osc-${slot.index}`,
+        title: `Osc ${slot.index}`,
+        size: oscSize,
+        knobGap: layout.knobGap,
+        switchOffset: layout.switchOffset,
+        knobSize: 40,
+        knobRowOffsetY: -15,
+        knobInnerPct: 76,
+        knobOptions
+      });
+      const el = osc.createElement();
+      host.appendChild(el);
+      return { osc, element: el, slot };
+    });
+
+    const reserved = document.createElement('div');
+    reserved.className = 'panel3-reserved-row';
+    reserved.textContent = 'Reserved strip for future modules';
+    host.appendChild(reserved);
+
+    this._panel1LayoutData = {
+      host,
+      layout,
+      oscillatorSlots,
+      oscComponents,
+      reserved
+    };
+    this._panel1Audio.nodes = new Array(oscComponents.length).fill(null);
+    this._panel1LayoutRaf = null;
+    this._reflowPanel1Layout();
+  }
+
+  _reflowPanel1Layout() {
+    const data = this._panel1LayoutData;
+    if (!data) return;
+
+    if (this._panel1LayoutRaf) {
+      cancelAnimationFrame(this._panel1LayoutRaf);
+    }
+
+    this._panel1LayoutRaf = requestAnimationFrame(() => {
+      this._panel1LayoutRaf = null;
+
+      const { host, layout, oscillatorSlots, oscComponents, reserved } = data;
+      if (!host || !host.isConnected) return;
+
+      const { oscSize, gap, airOuter = 0, airOuterY = -150, topOffset, rowsPerColumn } = layout;
+      
+      const paddingLeft = 0;
+      const paddingRight = 0;
+      
+      const availableWidth = host.clientWidth;
+      const availableHeight = host.clientHeight;
+      
+      const columnWidth = oscSize.width;
+      const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
+      const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
+      
+      const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
+      const totalHeight = blockHeight + layout.reservedHeight + gap.y;
+      const usableHeight = availableHeight - airOuterY * 2;
+      const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
+      
+      oscComponents.forEach(({ element, slot }, idx) => {
+        const col = slot.col;
+        const row = slot.row;
+        const x = baseLeft + col * (columnWidth + gap.x);
+        const y = baseTop + row * (oscSize.height + gap.y);
+        element.style.transform = `translate(${x}px, ${y}px)`;
+      });
+
+      if (reserved) {
+        const reservedTop = baseTop + blockHeight + gap.y;
+        reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
+        reserved.style.width = `${columnWidth * 2 + gap.x}px`;
+      }
+    });
+  }
+
+  _buildPanel2Layout() {
+    if (!this.panel2) return;
+
+    const host = document.createElement('div');
+    host.id = 'panel2Layout';
+    host.className = 'panel3-layout';
+    this.panel2.appendElement(host);
+
+    const layout = this._getPanel3LayoutSpec();
+    const { oscSize, gap, rowsPerColumn } = layout;
+
+    const oscillatorSlots = [];
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 1, col: 0, row: i });
+    }
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 7, col: 1, row: i });
+    }
+
+    const oscComponents = oscillatorSlots.map(slot => {
+      const knobOptions = this._getPanel3KnobOptions(slot.index - 1);
+      const osc = new SGME_Oscillator({
+        id: `panel2-osc-${slot.index}`,
+        title: `Osc ${slot.index}`,
+        size: oscSize,
+        knobGap: layout.knobGap,
+        switchOffset: layout.switchOffset,
+        knobSize: 40,
+        knobRowOffsetY: -15,
+        knobInnerPct: 76,
+        knobOptions
+      });
+      const el = osc.createElement();
+      host.appendChild(el);
+      return { osc, element: el, slot };
+    });
+
+    const reserved = document.createElement('div');
+    reserved.className = 'panel3-reserved-row';
+    reserved.textContent = 'Reserved strip for future modules';
+    host.appendChild(reserved);
+
+    this._panel2LayoutData = {
+      host,
+      layout,
+      oscillatorSlots,
+      oscComponents,
+      reserved
+    };
+    this._panel2Audio.nodes = new Array(oscComponents.length).fill(null);
+    this._panel2LayoutRaf = null;
+    this._reflowPanel2Layout();
+  }
+
+  _reflowPanel2Layout() {
+    const data = this._panel2LayoutData;
+    if (!data) return;
+
+    if (this._panel2LayoutRaf) {
+      cancelAnimationFrame(this._panel2LayoutRaf);
+    }
+
+    this._panel2LayoutRaf = requestAnimationFrame(() => {
+      this._panel2LayoutRaf = null;
+
+      const { host, layout, oscillatorSlots, oscComponents, reserved } = data;
+      if (!host || !host.isConnected) return;
+
+      const { oscSize, gap, airOuter = 0, airOuterY = -150, topOffset, rowsPerColumn } = layout;
+      
+      const paddingLeft = 0;
+      const paddingRight = 0;
+      
+      const availableWidth = host.clientWidth;
+      const availableHeight = host.clientHeight;
+      
+      const columnWidth = oscSize.width;
+      const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
+      const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
+      
+      const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
+      const totalHeight = blockHeight + layout.reservedHeight + gap.y;
+      const usableHeight = availableHeight - airOuterY * 2;
+      const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
+      
+      oscComponents.forEach(({ element, slot }, idx) => {
+        const col = slot.col;
+        const row = slot.row;
+        const x = baseLeft + col * (columnWidth + gap.x);
+        const y = baseTop + row * (oscSize.height + gap.y);
+        element.style.transform = `translate(${x}px, ${y}px)`;
+      });
+
+      if (reserved) {
+        const reservedTop = baseTop + blockHeight + gap.y;
+        reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
+        reserved.style.width = `${columnWidth * 2 + gap.x}px`;
+      }
+    });
+  }
+
   _getPanel3LayoutSpec() {
     // Todos los números son ajustes fáciles para posteriores alineados a ojo.
     const oscSize = { width: 370, height: 110 };
@@ -303,6 +423,107 @@ class App {
       switchOffset,
       reservedHeight: oscSize.height
     };
+  }
+
+  _buildPanel4Layout() {
+    if (!this.panel4) return;
+
+    const host = document.createElement('div');
+    host.id = 'panel4Layout';
+    host.className = 'panel3-layout';
+    this.panel4.appendElement(host);
+
+    const layout = this._getPanel3LayoutSpec();
+    const { oscSize, gap, rowsPerColumn } = layout;
+
+    const oscillatorSlots = [];
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 1, col: 0, row: i });
+    }
+    for (let i = 0; i < rowsPerColumn; i += 1) {
+      oscillatorSlots.push({ index: i + 7, col: 1, row: i });
+    }
+
+    const oscComponents = oscillatorSlots.map(slot => {
+      const knobOptions = this._getPanel3KnobOptions(slot.index - 1);
+      const osc = new SGME_Oscillator({
+        id: `panel4-osc-${slot.index}`,
+        title: `Osc ${slot.index}`,
+        size: oscSize,
+        knobGap: layout.knobGap,
+        switchOffset: layout.switchOffset,
+        knobSize: 40,
+        knobRowOffsetY: -15,
+        knobInnerPct: 76,
+        knobOptions
+      });
+      const el = osc.createElement();
+      host.appendChild(el);
+      return { osc, element: el, slot };
+    });
+
+    const reserved = document.createElement('div');
+    reserved.className = 'panel3-reserved-row';
+    reserved.textContent = 'Reserved strip for future modules';
+    host.appendChild(reserved);
+
+    this._panel4LayoutData = {
+      host,
+      layout,
+      oscillatorSlots,
+      oscComponents,
+      reserved
+    };
+    this._panel4Audio.nodes = new Array(oscComponents.length).fill(null);
+    this._panel4LayoutRaf = null;
+    this._reflowPanel4Layout();
+  }
+
+  _reflowPanel4Layout() {
+    const data = this._panel4LayoutData;
+    if (!data) return;
+
+    if (this._panel4LayoutRaf) {
+      cancelAnimationFrame(this._panel4LayoutRaf);
+    }
+
+    this._panel4LayoutRaf = requestAnimationFrame(() => {
+      this._panel4LayoutRaf = null;
+
+      const { host, layout, oscillatorSlots, oscComponents, reserved } = data;
+      if (!host || !host.isConnected) return;
+
+      const { oscSize, gap, airOuter = 0, airOuterY = -150, topOffset, rowsPerColumn } = layout;
+      
+      const paddingLeft = 0;
+      const paddingRight = 0;
+      
+      const availableWidth = host.clientWidth;
+      const availableHeight = host.clientHeight;
+      
+      const columnWidth = oscSize.width;
+      const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
+      const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
+      
+      const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
+      const totalHeight = blockHeight + layout.reservedHeight + gap.y;
+      const usableHeight = availableHeight - airOuterY * 2;
+      const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
+      
+      oscComponents.forEach(({ element, slot }, idx) => {
+        const col = slot.col;
+        const row = slot.row;
+        const x = baseLeft + col * (columnWidth + gap.x);
+        const y = baseTop + row * (oscSize.height + gap.y);
+        element.style.transform = `translate(${x}px, ${y}px)`;
+      });
+
+      if (reserved) {
+        const reservedTop = baseTop + blockHeight + gap.y;
+        reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
+        reserved.style.width = `${columnWidth * 2 + gap.x}px`;
+      }
+    });
   }
 
   _buildPanel3Layout() {
@@ -637,6 +858,10 @@ class App {
     this._heightSyncScheduled = true;
     requestAnimationFrame(() => {
       this._heightSyncScheduled = false;
+      this._reflowPanel1Layout();
+      this._reflowPanel2Layout();
+      this._reflowPanel3Layout();
+      this._reflowPanel4Layout();
       this._syncPanelHeights();
     });
   }

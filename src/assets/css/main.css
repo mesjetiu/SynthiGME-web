@@ -700,6 +700,18 @@ small { color:#aaa; }
   #viewportOuter.is-gesturing #panel-6 .matrix-container {
     visibility: hidden;
   }
+
+  /* Paneles 1-4: durante pinch/overview, ocultar controles (mucho DOM) */
+  #viewportInner.is-low-zoom #panel-1 .panel3-layout,
+  #viewportInner.is-low-zoom #panel-2 .panel3-layout,
+  #viewportInner.is-low-zoom #panel-3 .panel3-layout,
+  #viewportInner.is-low-zoom #panel-4 .panel3-layout,
+  #viewportOuter.is-gesturing #panel-1 .panel3-layout,
+  #viewportOuter.is-gesturing #panel-2 .panel3-layout,
+  #viewportOuter.is-gesturing #panel-3 .panel3-layout,
+  #viewportOuter.is-gesturing #panel-4 .panel3-layout {
+    visibility: hidden;
+  }
 }
 
 #viewportInner.is-low-zoom .panel-build-version {

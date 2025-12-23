@@ -1476,7 +1476,16 @@ class App {
       refreshMetrics();
     }
     clampOffsets();
-    inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+
+    // En algunos móviles, el checkerboarding aparece con offsets subpíxel.
+    // Snapeamos el translate a la rejilla de píxel (DPR) para minimizar seams.
+    const dpr = window.devicePixelRatio || 1;
+    if (dpr > 0) {
+      offsetX = Math.round(offsetX * dpr) / dpr;
+      offsetY = Math.round(offsetY * dpr) / dpr;
+    }
+
+    inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
 
     // Fondo canvas (solo móvil/coarse pointer): dibujar en coordenadas de pantalla
     // para evitar "lagunas" por bitmaps escalados con transform.

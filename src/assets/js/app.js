@@ -875,6 +875,12 @@ class App {
       initial: 0,
       onChange: value => this._updatePanel3OscVolume(oscIndex, value)
     };
+    knobOptions[5] = {
+      min: 0,
+      max: 1,
+      initial: 0,
+      onChange: value => this._updatePanel3SawVolume(oscIndex, value)
+    };
     knobOptions[6] = {
       min: 10,
       max: 10000,
@@ -892,6 +898,12 @@ class App {
       max: 1,
       initial: 0,
       onChange: value => this._updatePanel1OscVolume(oscIndex, value)
+    };
+    knobOptions[5] = {
+      min: 0,
+      max: 1,
+      initial: 0,
+      onChange: value => this._updatePanel1SawVolume(oscIndex, value)
     };
     knobOptions[6] = {
       min: 10,
@@ -911,6 +923,12 @@ class App {
       initial: 0,
       onChange: value => this._updatePanel2OscVolume(oscIndex, value)
     };
+    knobOptions[5] = {
+      min: 0,
+      max: 1,
+      initial: 0,
+      onChange: value => this._updatePanel2SawVolume(oscIndex, value)
+    };
     knobOptions[6] = {
       min: 10,
       max: 10000,
@@ -928,6 +946,12 @@ class App {
       max: 1,
       initial: 0,
       onChange: value => this._updatePanel4OscVolume(oscIndex, value)
+    };
+    knobOptions[5] = {
+      min: 0,
+      max: 1,
+      initial: 0,
+      onChange: value => this._updatePanel4SawVolume(oscIndex, value)
     };
     knobOptions[6] = {
       min: 10,
@@ -947,7 +971,7 @@ class App {
     this._panel1Audio = this._panel1Audio || { nodes: [] };
     this._panel1Audio.nodes = this._panel1Audio.nodes || [];
     let entry = this._panel1Audio.nodes[index];
-    if (entry && entry.osc && entry.gain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -957,13 +981,27 @@ class App {
     gain.gain.value = 0;
     osc.connect(gain);
     
+    const sawOsc = ctx.createOscillator();
+    sawOsc.type = 'sawtooth';
+    sawOsc.frequency.value = 10;
+
+    const sawGain = ctx.createGain();
+    sawGain.gain.value = 0;
+    sawOsc.connect(sawGain);
+    
     const bus1 = this.engine.getOutputBusNode(0);
-    if (bus1) gain.connect(bus1);
+    if (bus1) {
+      gain.connect(bus1);
+      sawGain.connect(bus1);
+    }
 
     const startTime = ctx.currentTime + 0.01;
-    try { osc.start(startTime); } catch (error) {}
+    try { 
+      osc.start(startTime);
+      sawOsc.start(startTime);
+    } catch (error) {}
 
-    entry = { osc, gain };
+    entry = { osc, gain, sawOsc, sawGain };
     this._panel1Audio.nodes[index] = entry;
     return entry;
   }
@@ -978,6 +1016,16 @@ class App {
     node.gain.gain.setTargetAtTime(value, now, 0.03);
   }
 
+  _updatePanel1SawVolume(index, value) {
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanel1Nodes(index);
+    if (!node || !node.sawGain) return;
+    const now = ctx.currentTime;
+    node.sawGain.gain.cancelScheduledValues(now);
+    node.sawGain.gain.setTargetAtTime(value, now, 0.03);
+  }
+
   _updatePanel1OscFreq(index, value) {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
@@ -986,6 +1034,10 @@ class App {
     const now = ctx.currentTime;
     node.osc.frequency.cancelScheduledValues(now);
     node.osc.frequency.setTargetAtTime(value, now, 0.03);
+    if (node.sawOsc) {
+      node.sawOsc.frequency.cancelScheduledValues(now);
+      node.sawOsc.frequency.setTargetAtTime(value, now, 0.03);
+    }
   }
 
   _ensurePanel2Nodes(index) {
@@ -996,7 +1048,7 @@ class App {
     this._panel2Audio = this._panel2Audio || { nodes: [] };
     this._panel2Audio.nodes = this._panel2Audio.nodes || [];
     let entry = this._panel2Audio.nodes[index];
-    if (entry && entry.osc && entry.gain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -1006,13 +1058,27 @@ class App {
     gain.gain.value = 0;
     osc.connect(gain);
     
+    const sawOsc = ctx.createOscillator();
+    sawOsc.type = 'sawtooth';
+    sawOsc.frequency.value = 10;
+
+    const sawGain = ctx.createGain();
+    sawGain.gain.value = 0;
+    sawOsc.connect(sawGain);
+    
     const bus1 = this.engine.getOutputBusNode(0);
-    if (bus1) gain.connect(bus1);
+    if (bus1) {
+      gain.connect(bus1);
+      sawGain.connect(bus1);
+    }
 
     const startTime = ctx.currentTime + 0.01;
-    try { osc.start(startTime); } catch (error) {}
+    try { 
+      osc.start(startTime);
+      sawOsc.start(startTime);
+    } catch (error) {}
 
-    entry = { osc, gain };
+    entry = { osc, gain, sawOsc, sawGain };
     this._panel2Audio.nodes[index] = entry;
     return entry;
   }
@@ -1027,6 +1093,16 @@ class App {
     node.gain.gain.setTargetAtTime(value, now, 0.03);
   }
 
+  _updatePanel2SawVolume(index, value) {
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanel2Nodes(index);
+    if (!node || !node.sawGain) return;
+    const now = ctx.currentTime;
+    node.sawGain.gain.cancelScheduledValues(now);
+    node.sawGain.gain.setTargetAtTime(value, now, 0.03);
+  }
+
   _updatePanel2OscFreq(index, value) {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
@@ -1035,6 +1111,10 @@ class App {
     const now = ctx.currentTime;
     node.osc.frequency.cancelScheduledValues(now);
     node.osc.frequency.setTargetAtTime(value, now, 0.03);
+    if (node.sawOsc) {
+      node.sawOsc.frequency.cancelScheduledValues(now);
+      node.sawOsc.frequency.setTargetAtTime(value, now, 0.03);
+    }
   }
 
   _ensurePanel4Nodes(index) {
@@ -1045,7 +1125,7 @@ class App {
     this._panel4Audio = this._panel4Audio || { nodes: [] };
     this._panel4Audio.nodes = this._panel4Audio.nodes || [];
     let entry = this._panel4Audio.nodes[index];
-    if (entry && entry.osc && entry.gain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -1055,13 +1135,27 @@ class App {
     gain.gain.value = 0;
     osc.connect(gain);
     
+    const sawOsc = ctx.createOscillator();
+    sawOsc.type = 'sawtooth';
+    sawOsc.frequency.value = 10;
+
+    const sawGain = ctx.createGain();
+    sawGain.gain.value = 0;
+    sawOsc.connect(sawGain);
+    
     const bus1 = this.engine.getOutputBusNode(0);
-    if (bus1) gain.connect(bus1);
+    if (bus1) {
+      gain.connect(bus1);
+      sawGain.connect(bus1);
+    }
 
     const startTime = ctx.currentTime + 0.01;
-    try { osc.start(startTime); } catch (error) {}
+    try { 
+      osc.start(startTime);
+      sawOsc.start(startTime);
+    } catch (error) {}
 
-    entry = { osc, gain };
+    entry = { osc, gain, sawOsc, sawGain };
     this._panel4Audio.nodes[index] = entry;
     return entry;
   }
@@ -1076,6 +1170,16 @@ class App {
     node.gain.gain.setTargetAtTime(value, now, 0.03);
   }
 
+  _updatePanel4SawVolume(index, value) {
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanel4Nodes(index);
+    if (!node || !node.sawGain) return;
+    const now = ctx.currentTime;
+    node.sawGain.gain.cancelScheduledValues(now);
+    node.sawGain.gain.setTargetAtTime(value, now, 0.03);
+  }
+
   _updatePanel4OscFreq(index, value) {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
@@ -1084,6 +1188,10 @@ class App {
     const now = ctx.currentTime;
     node.osc.frequency.cancelScheduledValues(now);
     node.osc.frequency.setTargetAtTime(value, now, 0.03);
+    if (node.sawOsc) {
+      node.sawOsc.frequency.cancelScheduledValues(now);
+      node.sawOsc.frequency.setTargetAtTime(value, now, 0.03);
+    }
   }
 
   _ensurePanel3Nodes(index) {
@@ -1094,7 +1202,7 @@ class App {
     this._panel3Audio = this._panel3Audio || { nodes: [] };
     this._panel3Audio.nodes = this._panel3Audio.nodes || [];
     let entry = this._panel3Audio.nodes[index];
-    if (entry && entry.osc && entry.gain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -1104,12 +1212,23 @@ class App {
     gain.gain.value = 0;
     osc.connect(gain);
 
+    const sawOsc = ctx.createOscillator();
+    sawOsc.type = 'sawtooth';
+    sawOsc.frequency.value = 10;
+
+    const sawGain = ctx.createGain();
+    sawGain.gain.value = 0;
+    sawOsc.connect(sawGain);
+
     const startTime = ctx.currentTime + 0.01;
-    try { osc.start(startTime); } catch (error) {
+    try { 
+      osc.start(startTime);
+      sawOsc.start(startTime);
+    } catch (error) {
       // ignore multiple starts
     }
 
-    entry = { osc, gain };
+    entry = { osc, gain, sawOsc, sawGain };
     this._panel3Audio.nodes[index] = entry;
     return entry;
   }
@@ -1124,6 +1243,16 @@ class App {
     node.gain.gain.setTargetAtTime(value, now, 0.03);
   }
 
+  _updatePanel3SawVolume(index, value) {
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanel3Nodes(index);
+    if (!node || !node.sawGain) return;
+    const now = ctx.currentTime;
+    node.sawGain.gain.cancelScheduledValues(now);
+    node.sawGain.gain.setTargetAtTime(value, now, 0.03);
+  }
+
   _updatePanel3OscFreq(index, value) {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
@@ -1132,6 +1261,10 @@ class App {
     const now = ctx.currentTime;
     node.osc.frequency.cancelScheduledValues(now);
     node.osc.frequency.setTargetAtTime(value, now, 0.03);
+    if (node.sawOsc) {
+      node.sawOsc.frequency.cancelScheduledValues(now);
+      node.sawOsc.frequency.setTargetAtTime(value, now, 0.03);
+    }
   }
 
   _getPanel5RowMap() {
@@ -1189,6 +1322,16 @@ class App {
       gain.gain.value = 1.0;
       outNode.connect(gain);
       gain.connect(busNode);
+      
+      // Conectar también sawGain para osciladores 1-9
+      if (oscIndex < 9 && src.sawGain) {
+        const sawGain = ctx.createGain();
+        sawGain.gain.value = 1.0;
+        src.sawGain.connect(sawGain);
+        sawGain.connect(busNode);
+        this._panel3Routing.connections[key + ':saw'] = sawGain;
+      }
+      
       this._panel3Routing.connections[key] = gain;
       return true;
     }
@@ -1198,6 +1341,13 @@ class App {
       try { conn.disconnect(); } catch (error) {}
       delete this._panel3Routing.connections[key];
     }
+    
+    const sawConn = this._panel3Routing.connections?.[key + ':saw'];
+    if (sawConn) {
+      try { sawConn.disconnect(); } catch (error) {}
+      delete this._panel3Routing.connections[key + ':saw'];
+    }
+    
     return true;
   }
 

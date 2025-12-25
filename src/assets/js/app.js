@@ -1283,11 +1283,31 @@ class App {
   }
 
   _getPanel5RowMap() {
-    const rowNumbers = [91, 93, 95, 97, 99, 101, 103, 105, 107];
+    // Cada oscilador ocupa 2 filas. Por ahora usamos la fila "superior" de cada pareja.
+    // Importante: las filas ocultas (huecos del panel) NO cuentan.
+    const hiddenRows = this.largeMatrixAudio?.hiddenRows instanceof Set
+      ? this.largeMatrixAudio.hiddenRows
+      : new Set(this.largeMatrixAudio?.hiddenRows || []);
+
     const map = new Map();
-    rowNumbers.forEach((rowNumber, idx) => {
-      map.set(rowNumber, idx);
-    });
+    const totalRows = typeof this.largeMatrixAudio?.rows === 'number' ? this.largeMatrixAudio.rows : 63;
+
+    // Inicio del bloque de osciladores (fila Synthi 91 => rowIndex 24).
+    const startRowIndex = 91 - 67;
+
+    let enabledRowCount = 0;
+    let oscIdx = 0;
+    for (let rowIndex = startRowIndex; rowIndex < totalRows && oscIdx < 9; rowIndex += 1) {
+      if (hiddenRows.has(rowIndex)) continue;
+
+      // Fila inferior de cada oscilador = segunda fila de cada 2 filas válidas.
+      if (enabledRowCount % 2 === 1) {
+        map.set(rowIndex, oscIdx);
+        oscIdx += 1;
+      }
+      enabledRowCount += 1;
+    }
+
     return map;
   }
 
@@ -1307,8 +1327,9 @@ class App {
     this._panel3Routing.connections = {};
     this._panel3Routing.rowMap = this._getPanel5RowMap();
     this._panel3Routing.colMap = this._getPanel5ColMap();
-    // Todas las columnas deben permanecer clickables.
-    this._panel3Routing.hiddenCols = [];
+    // Pines no válidos (huecos del panel) se deshabilitan en la matriz.
+    // Nota: el routing usa índices físicos (rowIndex/colIndex), así que esto NO reindexa nada.
+    this._panel3Routing.hiddenCols = Array.from(this.largeMatrixAudio?.hiddenCols || []);
 
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
       this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
@@ -1318,10 +1339,9 @@ class App {
   }
 
   _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
-    const rowNumber = 67 + rowIndex;
     // El grid ya reporta el índice físico de columna (0-based). No reindexamos.
     const colNumber = colIndex + 1;
-    const oscIndex = this._panel3Routing?.rowMap?.get(rowNumber);
+    const oscIndex = this._panel3Routing?.rowMap?.get(rowIndex);
     const busIndex = this._panel3Routing?.colMap?.get(colNumber);
     const key = `${rowIndex}:${colIndex}`;
 
@@ -1392,10 +1412,15 @@ class App {
       this.panel6?.element?.classList.remove('matrix-adjust');
     }
 
-    const HIDDEN_COLS_PANEL5 = [];
+    // Pines que no existen en el hardware/arte (huecos): deshabilitados.
+    // 0-based indices.
+    const HIDDEN_COLS_PANEL5 = [33, 65, 66];
     // Numeración Synthi100: columnas 1-66, filas comienzan en 67.
     // Filas 97, 98, 99 -> índices 30, 31, 32 (0-based). Fila 126 -> índice 59.
-    const HIDDEN_ROWS_PANEL5 = [30, 31, 32, 62];
+    // Filas/pines no utilizables (huecos) del panel 5.
+    // 0-based indices.
+    // Nota: hay un hueco entre osc 3 y osc 4 (2 filas). La fila superior de osc 4 sigue contando.
+    const HIDDEN_ROWS_PANEL5 = [30, 31, 62];
 
     // Panel 5 (audio): todas las columnas clickables.
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {

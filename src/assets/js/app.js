@@ -241,11 +241,6 @@ function injectInlinePanelSvgBackground(panelId, svgUrl) {
   obj.setAttribute('aria-hidden', 'true');
   host.appendChild(obj);
   panel.classList.add('has-inline-bg');
-
-  // Canvas: ocultar el SVG solo en coarse pointer (móvil/tablet táctil).
-  if (CANVAS_BG_PANELS.includes(panelId) && shouldUseCanvasBg()) {
-    host.classList.add('is-canvas-hidden');
-  }
 }
 
 // Esta constante será sustituida por esbuild en el bundle de docs/.

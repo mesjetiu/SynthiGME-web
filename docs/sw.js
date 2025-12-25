@@ -1,4 +1,4 @@
-const CACHE_VERSION = '0.0.1-123';
+const CACHE_VERSION = '0.0.1-124';
 const CACHE_NAME = `synthigme-cache-v${CACHE_VERSION}`;
 const CORE_ASSETS = [
   './',
@@ -20,7 +20,10 @@ const CORE_ASSETS = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(CORE_ASSETS))
+      .then(cache => {
+        const requests = CORE_ASSETS.map(url => new Request(url, { cache: 'reload' }));
+        return cache.addAll(requests);
+      })
   );
 });
 

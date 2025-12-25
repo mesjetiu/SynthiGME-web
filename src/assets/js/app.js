@@ -2120,8 +2120,13 @@ function registerServiceWorker() {
     }
   };
 
-  navigator.serviceWorker.register('./sw.js')
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
     .then(registration => {
+      // Forzar check de actualización en cada carga
+      if (registration.update) {
+        registration.update().catch(() => {});
+      }
+
       if (registration.waiting) {
         promptUserToRefresh(registration.waiting);
       }

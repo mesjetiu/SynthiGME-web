@@ -20,7 +20,10 @@ const CORE_ASSETS = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(CORE_ASSETS))
+      .then(cache => {
+        const requests = CORE_ASSETS.map(url => new Request(url, { cache: 'reload' }));
+        return cache.addAll(requests);
+      })
   );
 });
 

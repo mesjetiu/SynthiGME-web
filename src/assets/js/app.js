@@ -1274,8 +1274,10 @@ class App {
   
   // Función para calcular el zoom mínimo basado en el ancho actual del viewport
   function getMinScale() {
-    if (!metrics.outerWidth || !metrics.contentWidth) return 0.1;
-    return (metrics.outerWidth * VIEWPORT_MARGIN) / metrics.contentWidth;
+    if (!metrics.outerWidth || !metrics.outerHeight || !metrics.contentWidth || !metrics.contentHeight) return 0.1;
+    const scaleX = (metrics.outerWidth * VIEWPORT_MARGIN) / metrics.contentWidth;
+    const scaleY = (metrics.outerHeight * VIEWPORT_MARGIN) / metrics.contentHeight;
+    return Math.min(scaleX, scaleY);
   }
   
   const LOW_ZOOM_ENTER = 0.45;

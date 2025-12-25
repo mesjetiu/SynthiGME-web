@@ -971,7 +971,7 @@ class App {
     this._panel1Audio = this._panel1Audio || { nodes: [] };
     this._panel1Audio.nodes = this._panel1Audio.nodes || [];
     let entry = this._panel1Audio.nodes[index];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.moduleOut) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -988,12 +988,15 @@ class App {
     const sawGain = ctx.createGain();
     sawGain.gain.value = 0;
     sawOsc.connect(sawGain);
+
+    // Salida única del módulo (suma sine + saw). Futuras ondas (tri/pulse) irán a otro canal.
+    const moduleOut = ctx.createGain();
+    moduleOut.gain.value = 1.0;
+    gain.connect(moduleOut);
+    sawGain.connect(moduleOut);
     
     const bus1 = this.engine.getOutputBusNode(0);
-    if (bus1) {
-      gain.connect(bus1);
-      sawGain.connect(bus1);
-    }
+    if (bus1) moduleOut.connect(bus1);
 
     const startTime = ctx.currentTime + 0.01;
     try { 
@@ -1001,7 +1004,7 @@ class App {
       sawOsc.start(startTime);
     } catch (error) {}
 
-    entry = { osc, gain, sawOsc, sawGain };
+    entry = { osc, gain, sawOsc, sawGain, moduleOut };
     this._panel1Audio.nodes[index] = entry;
     return entry;
   }
@@ -1048,7 +1051,7 @@ class App {
     this._panel2Audio = this._panel2Audio || { nodes: [] };
     this._panel2Audio.nodes = this._panel2Audio.nodes || [];
     let entry = this._panel2Audio.nodes[index];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.moduleOut) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -1065,12 +1068,15 @@ class App {
     const sawGain = ctx.createGain();
     sawGain.gain.value = 0;
     sawOsc.connect(sawGain);
+
+    // Salida única del módulo (suma sine + saw). Futuras ondas (tri/pulse) irán a otro canal.
+    const moduleOut = ctx.createGain();
+    moduleOut.gain.value = 1.0;
+    gain.connect(moduleOut);
+    sawGain.connect(moduleOut);
     
     const bus1 = this.engine.getOutputBusNode(0);
-    if (bus1) {
-      gain.connect(bus1);
-      sawGain.connect(bus1);
-    }
+    if (bus1) moduleOut.connect(bus1);
 
     const startTime = ctx.currentTime + 0.01;
     try { 
@@ -1078,7 +1084,7 @@ class App {
       sawOsc.start(startTime);
     } catch (error) {}
 
-    entry = { osc, gain, sawOsc, sawGain };
+    entry = { osc, gain, sawOsc, sawGain, moduleOut };
     this._panel2Audio.nodes[index] = entry;
     return entry;
   }
@@ -1125,7 +1131,7 @@ class App {
     this._panel4Audio = this._panel4Audio || { nodes: [] };
     this._panel4Audio.nodes = this._panel4Audio.nodes || [];
     let entry = this._panel4Audio.nodes[index];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.moduleOut) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -1142,12 +1148,15 @@ class App {
     const sawGain = ctx.createGain();
     sawGain.gain.value = 0;
     sawOsc.connect(sawGain);
+
+    // Salida única del módulo (suma sine + saw). Futuras ondas (tri/pulse) irán a otro canal.
+    const moduleOut = ctx.createGain();
+    moduleOut.gain.value = 1.0;
+    gain.connect(moduleOut);
+    sawGain.connect(moduleOut);
     
     const bus1 = this.engine.getOutputBusNode(0);
-    if (bus1) {
-      gain.connect(bus1);
-      sawGain.connect(bus1);
-    }
+    if (bus1) moduleOut.connect(bus1);
 
     const startTime = ctx.currentTime + 0.01;
     try { 
@@ -1155,7 +1164,7 @@ class App {
       sawOsc.start(startTime);
     } catch (error) {}
 
-    entry = { osc, gain, sawOsc, sawGain };
+    entry = { osc, gain, sawOsc, sawGain, moduleOut };
     this._panel4Audio.nodes[index] = entry;
     return entry;
   }
@@ -1202,7 +1211,7 @@ class App {
     this._panel3Audio = this._panel3Audio || { nodes: [] };
     this._panel3Audio.nodes = this._panel3Audio.nodes || [];
     let entry = this._panel3Audio.nodes[index];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain) return entry;
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.moduleOut) return entry;
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -1220,6 +1229,12 @@ class App {
     sawGain.gain.value = 0;
     sawOsc.connect(sawGain);
 
+    // Salida única del módulo (suma sine + saw). Futuras ondas (tri/pulse) irán a otro canal.
+    const moduleOut = ctx.createGain();
+    moduleOut.gain.value = 1.0;
+    gain.connect(moduleOut);
+    sawGain.connect(moduleOut);
+
     const startTime = ctx.currentTime + 0.01;
     try { 
       osc.start(startTime);
@@ -1228,7 +1243,7 @@ class App {
       // ignore multiple starts
     }
 
-    entry = { osc, gain, sawOsc, sawGain };
+    entry = { osc, gain, sawOsc, sawGain, moduleOut };
     this._panel3Audio.nodes[index] = entry;
     return entry;
   }
@@ -1277,7 +1292,8 @@ class App {
   }
 
   _getPanel5ColMap() {
-    const startCol = 36;
+    // Las 8 salidas (Out 1..8) empiezan en la columna ordinal 37.
+    const startCol = 37;
     const buses = 8;
     const map = new Map();
     for (let i = 0; i < buses; i += 1) {
@@ -1291,7 +1307,8 @@ class App {
     this._panel3Routing.connections = {};
     this._panel3Routing.rowMap = this._getPanel5RowMap();
     this._panel3Routing.colMap = this._getPanel5ColMap();
-    this._panel3Routing.hiddenCols = Array.from(this.largeMatrixAudio?.hiddenCols || []);
+    // Todas las columnas deben permanecer clickables.
+    this._panel3Routing.hiddenCols = [];
 
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
       this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
@@ -1302,7 +1319,8 @@ class App {
 
   _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
     const rowNumber = 67 + rowIndex;
-    const colNumber = this._getVisibleColNumber(colIndex);
+    // El grid ya reporta el índice físico de columna (0-based). No reindexamos.
+    const colNumber = colIndex + 1;
     const oscIndex = this._panel3Routing?.rowMap?.get(rowNumber);
     const busIndex = this._panel3Routing?.colMap?.get(colNumber);
     const key = `${rowIndex}:${colIndex}`;
@@ -1314,7 +1332,7 @@ class App {
       this.ensureAudio();
       const ctx = this.engine.audioCtx;
       const src = this._ensurePanel3Nodes(oscIndex);
-      const outNode = src?.gain;
+      const outNode = src?.moduleOut;
       const busNode = this.engine.getOutputBusNode(busIndex);
       if (!ctx || !outNode || !busNode) return false;
 
@@ -1322,16 +1340,6 @@ class App {
       gain.gain.value = 1.0;
       outNode.connect(gain);
       gain.connect(busNode);
-      
-      // Conectar también sawGain para osciladores 1-9
-      if (oscIndex < 9 && src.sawGain) {
-        const sawGain = ctx.createGain();
-        sawGain.gain.value = 1.0;
-        src.sawGain.connect(sawGain);
-        sawGain.connect(busNode);
-        this._panel3Routing.connections[key + ':saw'] = sawGain;
-      }
-      
       this._panel3Routing.connections[key] = gain;
       return true;
     }
@@ -1341,23 +1349,12 @@ class App {
       try { conn.disconnect(); } catch (error) {}
       delete this._panel3Routing.connections[key];
     }
-    
-    const sawConn = this._panel3Routing.connections?.[key + ':saw'];
-    if (sawConn) {
-      try { sawConn.disconnect(); } catch (error) {}
-      delete this._panel3Routing.connections[key + ':saw'];
-    }
-    
+
     return true;
   }
 
   _getVisibleColNumber(colIndex) {
-    const hidden = this._panel3Routing?.hiddenCols || [];
-    let hiddenBefore = 0;
-    for (const h of hidden) {
-      if (h <= colIndex) hiddenBefore += 1;
-    }
-    return colIndex + 1 - hiddenBefore;
+    return colIndex + 1;
   }
 
   _buildLargeMatrices() {
@@ -1395,12 +1392,12 @@ class App {
       this.panel6?.element?.classList.remove('matrix-adjust');
     }
 
-    const HIDDEN_COLS_PANEL5 = [33, 65, 66]; // 1-based: columna 34
+    const HIDDEN_COLS_PANEL5 = [];
     // Numeración Synthi100: columnas 1-66, filas comienzan en 67.
     // Filas 97, 98, 99 -> índices 30, 31, 32 (0-based). Fila 126 -> índice 59.
     const HIDDEN_ROWS_PANEL5 = [30, 31, 32, 62];
 
-    // Panel 5 (audio) con columna 34 oculta
+    // Panel 5 (audio): todas las columnas clickables.
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {
       rows: 63,
       cols: 67,

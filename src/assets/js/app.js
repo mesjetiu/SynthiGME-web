@@ -12,6 +12,9 @@ const INLINE_SVG_TEXT_CACHE = new Map();
 const CANVAS_BG_IMAGE_CACHE = new Map();
 const CANVAS_BG_IMAGE_READY = new Map();
 
+let CANVAS_BG_INLINE_FALLBACK = false;
+const CANVAS_BG_LOAD_TIMEOUT_MS = 1500;
+
 // --- Paso 1 (migración a canvas): fondo canvas fijo para 1 panel ---
 // Resolución fija en el canvas: N píxeles de bitmap por cada CSS px.
 // No depende del navegador: nosotros elegimos el factor.
@@ -74,17 +77,67 @@ function loadImageOnce(url) {
 }
 
 function preloadCanvasBgImages() {
+  if (!shouldUseCanvasBg()) return;
+
+  // Si en algún dispositivo el SVG no se puede rasterizar a Image() (canvas),
+  // hacemos fallback: mostramos el fondo inline (object) y no bloqueamos el render.
+  let timeoutId = setTimeout(() => {
+    timeoutId = null;
+    const urls = CANVAS_BG_PANELS
+      .map(panelId => CANVAS_BG_SVG_BY_PANEL[panelId])
+      .filter(Boolean);
+
+    const allSettled = urls.every(url => CANVAS_BG_IMAGE_READY.has(url));
+    if (allSettled) return;
+
+    CANVAS_BG_INLINE_FALLBACK = true;
+    for (const panelId of CANVAS_BG_PANELS) {
+      const panel = document.getElementById(panelId);
+      const host = panel?.querySelector?.(':scope > .panel-inline-bg');
+      host?.classList?.remove('is-canvas-hidden');
+    }
+  }, CANVAS_BG_LOAD_TIMEOUT_MS);
+
   for (const panelId of CANVAS_BG_PANELS) {
     const url = CANVAS_BG_SVG_BY_PANEL[panelId];
     if (!url) continue;
     loadImageOnce(url).then(img => {
-      if (img) CANVAS_BG_IMAGE_READY.set(url, img);
+      // Marcamos siempre como "resuelto" (aunque sea null), para no dejar
+      // el render bloqueado indefinidamente.
+      CANVAS_BG_IMAGE_READY.set(url, img || null);
+
+      if (!img) {
+        CANVAS_BG_INLINE_FALLBACK = true;
+        // Mostrar el inline background para el/los panel(es) que dependan de este SVG.
+        for (const pId of CANVAS_BG_PANELS) {
+          if (CANVAS_BG_SVG_BY_PANEL[pId] !== url) continue;
+          const panel = document.getElementById(pId);
+          const host = panel?.querySelector?.(':scope > .panel-inline-bg');
+          host?.classList?.remove('is-canvas-hidden');
+        }
+      }
+
+      // Si ya está todo resuelto antes del timeout, lo anulamos.
+      if (timeoutId) {
+        const urls = CANVAS_BG_PANELS
+          .map(pId => CANVAS_BG_SVG_BY_PANEL[pId])
+          .filter(Boolean);
+        const allSettled = urls.every(u => CANVAS_BG_IMAGE_READY.has(u));
+        if (allSettled) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      }
     });
   }
 }
 
 function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
   if (!shouldUseCanvasBg()) return true;
+
+  // Si el dispositivo no soporta bien SVG->canvas, dejamos que el inline background
+  // haga el trabajo (y no bloqueamos el render ni forzamos canvas).
+  if (CANVAS_BG_INLINE_FALLBACK) return true;
 
   const env = ensureCanvasBgLayer();
   if (!env) return false;
@@ -112,7 +165,8 @@ function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
   for (const panelId of CANVAS_BG_PANELS) {
     const url = CANVAS_BG_SVG_BY_PANEL[panelId];
     if (!url) continue;
-    if (!CANVAS_BG_IMAGE_READY.get(url)) return false;
+    // Esperar solo a que el load se resuelva; si fue null, ya habremos activado fallback.
+    if (!CANVAS_BG_IMAGE_READY.has(url)) return false;
   }
 
   ctx.setTransform(CANVAS_BG_PX_PER_CSS_PX, 0, 0, CANVAS_BG_PX_PER_CSS_PX, 0, 0);

@@ -84,10 +84,10 @@ function preloadCanvasBgImages() {
 }
 
 function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
-  if (!shouldUseCanvasBg()) return;
+  if (!shouldUseCanvasBg()) return true;
 
   const env = ensureCanvasBgLayer();
-  if (!env) return;
+  if (!env) return false;
   const { outer, canvas } = env;
 
   const cssW = Math.max(outer.clientWidth, 1);
@@ -104,15 +104,15 @@ function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
   if (canvas.width !== pxW) canvas.width = pxW;
   if (canvas.height !== pxH) canvas.height = pxH;
 
-  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-  if (!ctx) return;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) return false;
 
   // Si aún no están las imágenes, no limpiamos ni redibujamos para evitar
   // frames "vacíos" que se perciben como lagunas.
   for (const panelId of CANVAS_BG_PANELS) {
     const url = CANVAS_BG_SVG_BY_PANEL[panelId];
     if (!url) continue;
-    if (!CANVAS_BG_IMAGE_READY.get(url)) return;
+    if (!CANVAS_BG_IMAGE_READY.get(url)) return false;
   }
 
   ctx.setTransform(CANVAS_BG_PX_PER_CSS_PX, 0, 0, CANVAS_BG_PX_PER_CSS_PX, 0, 0);
@@ -151,6 +151,8 @@ function renderCanvasBgViewport(scale = 1, offsetX = 0, offsetY = 0) {
     // Bleed 1 CSS px para tapar micro-seams
     ctx.drawImage(img, sx - 0.5, sy - 0.5, sw + 1, sh + 1);
   }
+
+  return true;
 }
 
 function renderCanvasBgPanels() {
@@ -1485,12 +1487,16 @@ class App {
       offsetY = Math.round(offsetY * dpr) / dpr;
     }
 
-    inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
-
     // Fondo canvas (solo móvil/coarse pointer): dibujar en coordenadas de pantalla
     // para evitar "lagunas" por bitmaps escalados con transform.
-    window.__synthViewTransform = { scale, offsetX, offsetY };
-    renderCanvasBgViewport(scale, offsetX, offsetY);
+    // Importante: en modo canvas hacemos la actualización atómica. Si el canvas
+    // no llega a dibujar este frame (assets no listos), no movemos el DOM para
+    // evitar separación visual por capas.
+    const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
+    if (!shouldUseCanvasBg() || canvasOk) {
+      inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+      window.__synthViewTransform = { scale, offsetX, offsetY };
+    }
   }
 
   refreshMetrics();

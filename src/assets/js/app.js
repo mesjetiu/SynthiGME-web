@@ -5,6 +5,7 @@ import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
+import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 
 let orientationHintDismissed = false;
 
@@ -1282,44 +1283,81 @@ class App {
     }
   }
 
-  _getPanel5RowMap() {
-    // Cada oscilador ocupa 2 filas. Por ahora usamos la fila "superior" de cada pareja.
-    // Importante: las filas ocultas (huecos del panel) NO cuentan.
-    const hiddenRows = this.largeMatrixAudio?.hiddenRows instanceof Set
-      ? this.largeMatrixAudio.hiddenRows
-      : new Set(this.largeMatrixAudio?.hiddenRows || []);
+  _compilePanelBlueprintMappings(blueprint) {
+    const rowBase = blueprint?.grid?.coordSystem?.rowBase ?? 67;
+    const colBase = blueprint?.grid?.coordSystem?.colBase ?? 1;
 
-    const map = new Map();
-    const totalRows = typeof this.largeMatrixAudio?.rows === 'number' ? this.largeMatrixAudio.rows : 63;
+    const rows = blueprint?.grid?.rows ?? 63;
+    const cols = blueprint?.grid?.cols ?? 67;
 
-    // Inicio del bloque de osciladores (fila Synthi 91 => rowIndex 24).
-    const startRowIndex = 91 - 67;
+    const hiddenRows0 = Array.isArray(blueprint?.ui?.hiddenRows0)
+      ? blueprint.ui.hiddenRows0.filter(Number.isFinite)
+      : (blueprint?.ui?.hiddenRowsSynth || [])
+        .filter(Number.isFinite)
+        .map(r => r - rowBase)
+        .filter(r => r >= 0);
 
-    let enabledRowCount = 0;
-    let oscIdx = 0;
-    for (let rowIndex = startRowIndex; rowIndex < totalRows && oscIdx < 9; rowIndex += 1) {
-      if (hiddenRows.has(rowIndex)) continue;
+    const hiddenCols0 = Array.isArray(blueprint?.ui?.hiddenCols0)
+      ? blueprint.ui.hiddenCols0.filter(Number.isFinite)
+      : (blueprint?.ui?.hiddenColsSynth || [])
+        .filter(Number.isFinite)
+        .map(c => c - colBase)
+        .filter(c => c >= 0);
 
-      // Fila inferior de cada oscilador = segunda fila de cada 2 filas válidas.
-      if (enabledRowCount % 2 === 1) {
-        map.set(rowIndex, oscIdx);
-        oscIdx += 1;
-      }
-      enabledRowCount += 1;
+    const hiddenRowSet = new Set(hiddenRows0);
+    const hiddenColSet = new Set(hiddenCols0);
+
+    const visibleRowIndices = [];
+    for (let r = 0; r < rows; r += 1) {
+      if (hiddenRowSet.has(r)) continue;
+      visibleRowIndices.push(r);
     }
 
-    return map;
+    const synthRowToPhysicalRowIndex = (rowSynth) => {
+      const ordinal = rowSynth - rowBase;
+      if (!Number.isFinite(ordinal) || ordinal < 0) return null;
+      return visibleRowIndices[ordinal] ?? null;
+    };
+
+    const synthColToPhysicalColIndex = (colSynth) => {
+      // Columnas: mantenemos numeración física 1-based (incluye huecos),
+      // porque el usuario ya validó Out 1..8 empezando en col 37.
+      const colIndex = colSynth - colBase;
+      if (!Number.isFinite(colIndex) || colIndex < 0) return null;
+      return colIndex;
+    };
+
+    const rowMap = new Map();
+    for (const entry of blueprint?.sources || []) {
+      const rowSynth = entry?.rowSynth;
+      const oscIndex = entry?.source?.oscIndex;
+      if (!Number.isFinite(rowSynth) || !Number.isFinite(oscIndex)) continue;
+      const rowIndex = synthRowToPhysicalRowIndex(rowSynth);
+      if (rowIndex == null) continue;
+      rowMap.set(rowIndex, oscIndex);
+    }
+
+    const colMap = new Map();
+    for (const entry of blueprint?.destinations || []) {
+      const colSynth = entry?.colSynth;
+      const bus = entry?.dest?.bus;
+      if (!Number.isFinite(colSynth) || !Number.isFinite(bus)) continue;
+      const busIndex = bus - 1;
+      if (busIndex < 0) continue;
+      const colIndex = synthColToPhysicalColIndex(colSynth);
+      if (colIndex == null) continue;
+      colMap.set(colIndex, busIndex);
+    }
+
+    return { rowMap, colMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
+  }
+
+  _getPanel5RowMap() {
+    return this._compilePanelBlueprintMappings(panel5AudioBlueprint).rowMap;
   }
 
   _getPanel5ColMap() {
-    // Las 8 salidas (Out 1..8) empiezan en la columna ordinal 37.
-    const startCol = 37;
-    const buses = 8;
-    const map = new Map();
-    for (let i = 0; i < buses; i += 1) {
-      map.set(startCol + i, i);
-    }
-    return map;
+    return this._compilePanelBlueprintMappings(panel5AudioBlueprint).colMap;
   }
 
   _setupPanel5AudioRouting() {
@@ -1329,7 +1367,7 @@ class App {
     this._panel3Routing.colMap = this._getPanel5ColMap();
     // Pines no válidos (huecos del panel) se deshabilitan en la matriz.
     // Nota: el routing usa índices físicos (rowIndex/colIndex), así que esto NO reindexa nada.
-    this._panel3Routing.hiddenCols = Array.from(this.largeMatrixAudio?.hiddenCols || []);
+    this._panel3Routing.hiddenCols = this._compilePanelBlueprintMappings(panel5AudioBlueprint).hiddenCols;
 
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
       this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
@@ -1339,10 +1377,8 @@ class App {
   }
 
   _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
-    // El grid ya reporta el índice físico de columna (0-based). No reindexamos.
-    const colNumber = colIndex + 1;
     const oscIndex = this._panel3Routing?.rowMap?.get(rowIndex);
-    const busIndex = this._panel3Routing?.colMap?.get(colNumber);
+    const busIndex = this._panel3Routing?.colMap?.get(colIndex);
     const key = `${rowIndex}:${colIndex}`;
 
     // Si no mapea a nuestras fuentes/destinos, dejar que el UI siga sin conexiones de audio.
@@ -1382,20 +1418,10 @@ class App {
     this.panel5MatrixEl = this.panel5.addSection({ id: 'panel5Matrix', type: 'matrix' });
     this.panel6MatrixEl = this.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
 
-    // AJUSTE MANUAL (ensayo/error)
-    // Unidades: "pasos" ~= "pines" (fracciones permitidas: 0.1, 0.5, etc.)
-    // Convención de signo (idéntica en los 4 lados):
-    // - margen positivo  => comprime hacia dentro
-    // - margen negativo  => expande hacia fuera
-    const LARGE_MATRIX_TWEAK = {
-      moveSteps: { x: 5.1, y: 0 },
-      marginsSteps: { left: -7.47, right: -3, top: 4.7, bottom: 2.7 }
-    };
-
-    const LARGE_MATRIX_FRAME = {
+    const LARGE_MATRIX_FRAME = panel5AudioBlueprint?.ui?.frame || {
       squarePercent: 90,
-      translateSteps: LARGE_MATRIX_TWEAK.moveSteps,
-      marginsSteps: LARGE_MATRIX_TWEAK.marginsSteps,
+      translateSteps: { x: 5.1, y: 0 },
+      marginsSteps: { left: -7.47, right: -3, top: 4.7, bottom: 2.7 },
       // MODO AJUSTE: permite salirse del panel (útil para alinear a ojo)
       clip: true, // false para ajuste visual
       overflowPercent: { left: 25, top: 25, right: 200, bottom: 80 },
@@ -1412,15 +1438,8 @@ class App {
       this.panel6?.element?.classList.remove('matrix-adjust');
     }
 
-    // Pines que no existen en el hardware/arte (huecos): deshabilitados.
-    // 0-based indices.
-    const HIDDEN_COLS_PANEL5 = [33, 65, 66];
-    // Numeración Synthi100: columnas 1-66, filas comienzan en 67.
-    // Filas 97, 98, 99 -> índices 30, 31, 32 (0-based). Fila 126 -> índice 59.
-    // Filas/pines no utilizables (huecos) del panel 5.
-    // 0-based indices.
-    // Nota: hay un hueco entre osc 3 y osc 4 (2 filas). La fila superior de osc 4 sigue contando.
-    const HIDDEN_ROWS_PANEL5 = [30, 31, 62];
+    const { hiddenCols: HIDDEN_COLS_PANEL5, hiddenRows: HIDDEN_ROWS_PANEL5 } =
+      this._compilePanelBlueprintMappings(panel5AudioBlueprint);
 
     // Panel 5 (audio): todas las columnas clickables.
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {

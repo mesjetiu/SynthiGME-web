@@ -690,6 +690,10 @@ small { color:#aaa; }
   box-shadow: none;
 }
 
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active {
+  background: #ffb63b;
+}
+
 /* Móvil: optimización SIN ocultar mandos.
    Reducimos el coste de paint quitando sombras/transiciones caras (muchos nodos). */
 @media (pointer: coarse) {

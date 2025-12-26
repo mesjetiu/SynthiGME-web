@@ -1769,6 +1769,7 @@ class App {
   const LOW_ZOOM_ENTER = 0.45;
   const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
   const LOW_ZOOM_CLASS = 'is-low-zoom';
+  const LOW_ZOOM_EXIT_DELAY_MS = 500; // delay generoso para evitar salto al volver a hi-zoom
   const wheelPanFactor = 0.35; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.92; // suaviza el gesto en trackpads
   const MIN_VISIBLE_STRIP_PX = 32; // franja mínima de contenido que debe seguir visible
@@ -1939,8 +1940,36 @@ class App {
     inner.classList.toggle(LOW_ZOOM_CLASS, lowZoomActive);
   }
 
-  function updateLowZoomImmediate() {
-    applyLowZoomMode(computeLowZoomState());
+  function scheduleLowZoomUpdate() {
+    const nextLowZoom = computeLowZoomState();
+
+    // Si vuelve a low-zoom, aplicamos inmediato y cancelamos cualquier salida pendiente.
+    if (nextLowZoom) {
+      if (lowZoomIdleTimer) {
+        clearTimeout(lowZoomIdleTimer);
+        lowZoomIdleTimer = null;
+      }
+      applyLowZoomMode(true);
+      return;
+    }
+
+    // Si ya estamos fuera de low-zoom, no hay nada que hacer.
+    if (!lowZoomActive) return;
+
+    // Estamos en low-zoom y toca salir: retrasamos la salida para evitar salto.
+    if (lowZoomIdleTimer) {
+      clearTimeout(lowZoomIdleTimer);
+      lowZoomIdleTimer = null;
+    }
+
+    lowZoomIdleTimer = setTimeout(() => {
+      lowZoomIdleTimer = null;
+      // Revalidar por si hubo cambios durante el delay.
+      const stillWantsLowZoom = computeLowZoomState();
+      if (!stillWantsLowZoom) {
+        applyLowZoomMode(false);
+      }
+    }, LOW_ZOOM_EXIT_DELAY_MS);
   }
 
   function render() {
@@ -1970,7 +1999,8 @@ class App {
 
     // Móvil: aplicar is-low-zoom inmediatamente para evitar "etapa irresponsive"
     if (isCoarsePointer) {
-      updateLowZoomImmediate();
+      // Mantener entrada inmediata, pero con delay al salir de low-zoom.
+      scheduleLowZoomUpdate();
     }
   }
 
@@ -2079,7 +2109,7 @@ class App {
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
       if (!isCoarsePointer) {
-        updateLowZoomImmediate();
+        scheduleLowZoomUpdate();
       }
       return;
     }

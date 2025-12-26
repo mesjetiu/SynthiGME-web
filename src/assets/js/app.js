@@ -6,6 +6,7 @@ import { OutputFaderModule } from './modules/outputFaders.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
+import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
 
 let orientationHintDismissed = false;
 
@@ -1418,7 +1419,7 @@ class App {
     this.panel5MatrixEl = this.panel5.addSection({ id: 'panel5Matrix', type: 'matrix' });
     this.panel6MatrixEl = this.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
 
-    const LARGE_MATRIX_FRAME = panel5AudioBlueprint?.ui?.frame || {
+    const LARGE_MATRIX_FRAME_PANEL5 = panel5AudioBlueprint?.ui?.frame || {
       squarePercent: 90,
       translateSteps: { x: 5.1, y: 0 },
       marginsSteps: { left: -7.47, right: -3, top: 4.7, bottom: 2.7 },
@@ -1429,8 +1430,10 @@ class App {
       maxSizePercent: 300
     };
 
+    const LARGE_MATRIX_FRAME_PANEL6 = panel6ControlBlueprint?.ui?.frame || LARGE_MATRIX_FRAME_PANEL5;
+
     // Modo ajuste visual (evitar recortes por CSS durante el ajuste)
-    if (LARGE_MATRIX_FRAME.clip === false) {
+    if (LARGE_MATRIX_FRAME_PANEL5.clip === false) {
       this.panel5?.element?.classList.add('matrix-adjust');
       this.panel6?.element?.classList.add('matrix-adjust');
     } else {
@@ -1441,11 +1444,14 @@ class App {
     const { hiddenCols: HIDDEN_COLS_PANEL5, hiddenRows: HIDDEN_ROWS_PANEL5 } =
       this._compilePanelBlueprintMappings(panel5AudioBlueprint);
 
+    const { hiddenCols: HIDDEN_COLS_PANEL6, hiddenRows: HIDDEN_ROWS_PANEL6 } =
+      this._compilePanelBlueprintMappings(panel6ControlBlueprint);
+
     // Panel 5 (audio): todas las columnas clickables.
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {
       rows: 63,
       cols: 67,
-      frame: LARGE_MATRIX_FRAME,
+      frame: LARGE_MATRIX_FRAME_PANEL5,
       hiddenCols: HIDDEN_COLS_PANEL5,
       hiddenRows: HIDDEN_ROWS_PANEL5
     });
@@ -1454,9 +1460,9 @@ class App {
     this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, {
       rows: 63,
       cols: 67,
-      frame: LARGE_MATRIX_FRAME,
-      hiddenCols: [],
-      hiddenRows: []
+      frame: LARGE_MATRIX_FRAME_PANEL6,
+      hiddenCols: HIDDEN_COLS_PANEL6,
+      hiddenRows: HIDDEN_ROWS_PANEL6
     });
 
     this.largeMatrixAudio.build();

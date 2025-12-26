@@ -1768,9 +1768,6 @@ class App {
   
   const LOW_ZOOM_ENTER = 0.45;
   const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
-  // Esperas antes de aplicar el cambio de modo tras la última actividad de zoom
-  const LOW_ZOOM_IDLE_WHEEL_MS = 2000; // rueda/trackpad
-  const LOW_ZOOM_IDLE_PINCH_MS = 1200; // pellizco táctil
   const LOW_ZOOM_CLASS = 'is-low-zoom';
   const wheelPanFactor = 0.35; // ajuste fino para gestos de dos dedos
   const wheelPanSmoothing = 0.92; // suaviza el gesto en trackpads
@@ -1940,25 +1937,10 @@ class App {
     if (nextLowZoom === lowZoomActive) return;
     lowZoomActive = nextLowZoom;
     inner.classList.toggle(LOW_ZOOM_CLASS, lowZoomActive);
-
-    // Sincronizamos will-change con la activación/salida según el retardo de inactividad
-    if (lowZoomActive) {
-      inner.style.willChange = 'transform';
-    } else {
-      inner.style.willChange = '';
-    }
   }
 
-  function scheduleLowZoomUpdate(kind) {
-    const delay = kind === 'pinch' ? LOW_ZOOM_IDLE_PINCH_MS : LOW_ZOOM_IDLE_WHEEL_MS;
-    if (lowZoomIdleTimer) {
-      clearTimeout(lowZoomIdleTimer);
-      lowZoomIdleTimer = null;
-    }
-    lowZoomIdleTimer = setTimeout(() => {
-      lowZoomIdleTimer = null;
-      applyLowZoomMode(computeLowZoomState());
-    }, delay);
+  function updateLowZoomImmediate() {
+    applyLowZoomMode(computeLowZoomState());
   }
 
   function render() {
@@ -1984,6 +1966,11 @@ class App {
     if (!shouldUseCanvasBg() || canvasOk) {
       inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
       window.__synthViewTransform = { scale, offsetX, offsetY };
+    }
+
+    // Móvil: aplicar is-low-zoom inmediatamente para evitar "etapa irresponsive"
+    if (isCoarsePointer) {
+      updateLowZoomImmediate();
     }
   }
 
@@ -2091,7 +2078,9 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
-      scheduleLowZoomUpdate('wheel');
+      if (!isCoarsePointer) {
+        updateLowZoomImmediate();
+      }
       return;
     }
 
@@ -2216,9 +2205,6 @@ class App {
       if (didZoom || transformDirty) {
         requestRender();
         markUserAdjusted();
-        if (didZoom) {
-          scheduleLowZoomUpdate('pinch');
-        }
       }
 
       // Cuando hay dos dedos, desactivamos pan a un dedo

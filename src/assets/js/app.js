@@ -1764,27 +1764,38 @@ class App {
     return (isChromium || isSafari) && !isFirefox;
   })();
 
-  // Flag para saber si estamos en medio de un gesto de zoom (pinch o wheel).
-  // Mientras está activo, usamos transform:scale (fluido); al terminar, CSS zoom (nítido).
-  let isActivelyZooming = false;
-  let zoomIdleTimer = null;
-  const ZOOM_IDLE_DELAY_MS = 120; // tiempo sin zoom para considerar "terminado"
+  // Estrategia de render para Chromium/Safari:
+  // - Reposo: transform:scale (preparado para zoom fluido)
+  // - Durante zoom: transform:scale (sin cambio = sin delay)
+  // - Al terminar: brevemente CSS zoom (re-rasteriza), luego vuelve a transform:scale
+  let rasterizeTimer = null;
+  const RASTERIZE_DELAY_MS = 150;
 
-  function markZoomActive() {
-    isActivelyZooming = true;
-    if (zoomIdleTimer) {
-      clearTimeout(zoomIdleTimer);
-      zoomIdleTimer = null;
+  function cancelRasterize() {
+    if (rasterizeTimer) {
+      clearTimeout(rasterizeTimer);
+      rasterizeTimer = null;
     }
   }
 
-  function scheduleZoomIdle() {
-    if (zoomIdleTimer) clearTimeout(zoomIdleTimer);
-    zoomIdleTimer = setTimeout(() => {
-      zoomIdleTimer = null;
-      isActivelyZooming = false;
-      requestRender(); // re-render con CSS zoom para nitidez
-    }, ZOOM_IDLE_DELAY_MS);
+  function scheduleRasterize() {
+    if (!USE_CSS_ZOOM) return;
+    cancelRasterize();
+    rasterizeTimer = setTimeout(() => {
+      rasterizeTimer = null;
+      // Paso 1: Cambiar a CSS zoom para forzar re-rasterización
+      inner.style.zoom = scale;
+      inner.style.transform = `translate3d(${offsetX / scale}px, ${offsetY / scale}px, 0)`;
+      
+      // Paso 2: Esperar a que el navegador re-rasterice, luego volver a transform:scale
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Volver a transform:scale (preparado para el próximo zoom)
+          inner.style.zoom = '';
+          inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+        });
+      });
+    }, RASTERIZE_DELAY_MS);
   }
 
   let scale = 1;
@@ -2026,19 +2037,10 @@ class App {
     // evitar separación visual por capas.
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
-      // Estrategia de render híbrida para Chromium/Safari:
-      // - Durante zoom activo (pinch/wheel): transform:scale() (rápido, escala bitmap cacheado)
-      // - En reposo: CSS zoom (re-rasteriza SVG a resolución nativa, nítido)
-      
-      if (USE_CSS_ZOOM && !isActivelyZooming) {
-        // Chromium/Safari en reposo: usar CSS zoom para nitidez máxima.
-        inner.style.zoom = scale;
-        inner.style.transform = `translate3d(${offsetX / scale}px, ${offsetY / scale}px, 0)`;
-      } else {
-        // Firefox, o Chromium durante pinch: transform:scale() es más fluido.
-        inner.style.zoom = '';
-        inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
-      }
+      // Siempre usamos transform:scale (preparado para zoom sin delay).
+      // El re-rasterizado ocurre en scheduleRasterize() después del gesto.
+      inner.style.zoom = '';
+      inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
       window.__synthViewTransform = { scale, offsetX, offsetY };
     }
 
@@ -2146,7 +2148,7 @@ class App {
     metricsDirty = true;
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
-      markZoomActive(); // usar transform:scale durante zoom
+      cancelRasterize(); // cancelar re-rasterización pendiente
       const cx = ev.clientX - (metrics.outerLeft || 0);
       const cy = ev.clientY - (metrics.outerTop || 0);
       const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
@@ -2154,7 +2156,7 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
-      scheduleZoomIdle(); // transición a CSS zoom cuando termine
+      scheduleRasterize(); // re-rasterizar cuando termine
       if (!isCoarsePointer) {
         scheduleLowZoomUpdate();
       }
@@ -2204,11 +2206,10 @@ class App {
       window.__synthNavGestureActive = navGestureActive;
       outer.classList.toggle('is-gesturing', navGestureActive);
       
-      // Anticipar cambio de modo: al poner 2 dedos, cambiar a transform:scale
-      // ANTES de que empiece el movimiento, para evitar delay/salto.
+      // Anticipar cambio de modo: al poner 2 dedos, cancelar re-rasterización
+      // para que no interfiera con el gesto.
       if (navGestureActive && USE_CSS_ZOOM) {
-        markZoomActive();
-        requestRender(); // aplicar transform:scale inmediatamente
+        cancelRasterize();
       }
     }
   }
@@ -2286,7 +2287,7 @@ class App {
 
         if (!navLocks.zoomLocked) {
           if (Math.abs(clampedFactor - 1) > PINCH_SCALE_EPSILON) {
-            markZoomActive(); // usar transform:scale durante pinch
+            cancelRasterize(); // cancelar re-rasterización pendiente durante pinch
             const minScale = getMinScale();
             const newScale = Math.min(maxScale, Math.max(minScale, scale * clampedFactor));
             // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
@@ -2341,21 +2342,11 @@ class App {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
-      scheduleZoomIdle(); // transición a CSS zoom para nitidez
+      scheduleRasterize(); // re-rasterizar y volver a transform:scale
       requestRender();
 
       if (ev.pointerType === 'touch') {
         requestAnimationFrame(() => renderCanvasBgPanels());
-      }
-
-      // Forzar re-rasterización en Chromium al terminar pinch para máxima nitidez.
-      if (USE_CSS_ZOOM) {
-        requestAnimationFrame(() => {
-          inner.style.willChange = 'auto';
-          requestAnimationFrame(() => {
-            inner.style.willChange = 'transform';
-          });
-        });
       }
     }
   });

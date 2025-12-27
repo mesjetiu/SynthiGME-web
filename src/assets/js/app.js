@@ -2529,6 +2529,13 @@ class App {
     }
   });
 
+  // Prevenir menú contextual en móviles (long press)
+  // En el futuro se puede usar para mostrar menú propio
+  outer.addEventListener('contextmenu', ev => {
+    ev.preventDefault();
+    return false;
+  });
+
   // Al redimensionar => recalcular métricas y ajustar zoom proporcionalmente
   // Nota: durante pinch/zoom táctil puede dispararse resize repetidamente.
   // Lo debounceamos y evitamos trabajo mientras hay gesto multitáctil activo.

@@ -1764,6 +1764,29 @@ class App {
     return (isChromium || isSafari) && !isFirefox;
   })();
 
+  // Flag para saber si estamos en medio de un gesto de zoom (pinch o wheel).
+  // Mientras está activo, usamos transform:scale (fluido); al terminar, CSS zoom (nítido).
+  let isActivelyZooming = false;
+  let zoomIdleTimer = null;
+  const ZOOM_IDLE_DELAY_MS = 120; // tiempo sin zoom para considerar "terminado"
+
+  function markZoomActive() {
+    isActivelyZooming = true;
+    if (zoomIdleTimer) {
+      clearTimeout(zoomIdleTimer);
+      zoomIdleTimer = null;
+    }
+  }
+
+  function scheduleZoomIdle() {
+    if (zoomIdleTimer) clearTimeout(zoomIdleTimer);
+    zoomIdleTimer = setTimeout(() => {
+      zoomIdleTimer = null;
+      isActivelyZooming = false;
+      requestRender(); // re-render con CSS zoom para nitidez
+    }, ZOOM_IDLE_DELAY_MS);
+  }
+
   let scale = 1;
   let maxScale = 6.0;
   const VIEWPORT_MARGIN = 0.95; // 95% del ancho disponible (margen de seguridad del 5%)
@@ -2004,11 +2027,10 @@ class App {
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
       // Estrategia de render híbrida para Chromium/Safari:
-      // - Durante el gesto de pinch: transform:scale() (rápido, escala bitmap cacheado)
-      // - Al soltar: CSS zoom (re-rasteriza SVG a resolución nativa, nítido)
-      const isPinching = navGestureActive;
+      // - Durante zoom activo (pinch/wheel): transform:scale() (rápido, escala bitmap cacheado)
+      // - En reposo: CSS zoom (re-rasteriza SVG a resolución nativa, nítido)
       
-      if (USE_CSS_ZOOM && !isPinching) {
+      if (USE_CSS_ZOOM && !isActivelyZooming) {
         // Chromium/Safari en reposo: usar CSS zoom para nitidez máxima.
         inner.style.zoom = scale;
         inner.style.transform = `translate3d(${offsetX / scale}px, ${offsetY / scale}px, 0)`;
@@ -2124,6 +2146,7 @@ class App {
     metricsDirty = true;
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
+      markZoomActive(); // usar transform:scale durante zoom
       const cx = ev.clientX - (metrics.outerLeft || 0);
       const cy = ev.clientY - (metrics.outerTop || 0);
       const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
@@ -2131,6 +2154,7 @@ class App {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
       adjustOffsetsForZoom(cx, cy, newScale);
       markUserAdjusted();
+      scheduleZoomIdle(); // transición a CSS zoom cuando termine
       if (!isCoarsePointer) {
         scheduleLowZoomUpdate();
       }
@@ -2255,6 +2279,7 @@ class App {
 
         if (!navLocks.zoomLocked) {
           if (Math.abs(clampedFactor - 1) > PINCH_SCALE_EPSILON) {
+            markZoomActive(); // usar transform:scale durante pinch
             const minScale = getMinScale();
             const newScale = Math.min(maxScale, Math.max(minScale, scale * clampedFactor));
             // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
@@ -2309,6 +2334,7 @@ class App {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
+      scheduleZoomIdle(); // transición a CSS zoom para nitidez
       requestRender();
 
       if (ev.pointerType === 'touch') {

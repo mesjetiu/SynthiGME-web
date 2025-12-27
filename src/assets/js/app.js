@@ -2467,6 +2467,10 @@ class App {
   outer.addEventListener('pointerup', ev => {
     pointers.delete(ev.pointerId);
     recomputeNavGestureState();
+    
+    // Guardar si había navegación activa ANTES de limpiar los flags
+    const wasNavigating = isPanning || lastDist !== null;
+    
     if (pointers.size < 2) {
       lastDist = null;
       lastCentroid = null;
@@ -2482,7 +2486,10 @@ class App {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
-      scheduleRasterize(); // re-rasterizar y volver a transform:scale
+      // Solo re-rasterizar si hubo navegación real (pan/pinch), no al tocar controles
+      if (wasNavigating) {
+        scheduleRasterize();
+      }
       requestRender();
 
       if (ev.pointerType === 'touch') {

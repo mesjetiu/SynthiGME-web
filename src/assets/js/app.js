@@ -1754,20 +1754,11 @@ class App {
   window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
   const navLocks = window.__synthNavLocks;
 
-  // Detección de navegador: Chromium/Safari se benefician de CSS zoom (evita blur SVG),
-  // mientras que Firefox renderiza mejor con transform:scale().
-  const USE_CSS_ZOOM = (() => {
-    const ua = navigator.userAgent;
-    const isChromium = !!window.chrome || ua.includes('Chrome') || ua.includes('Edg');
-    const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
-    const isFirefox = ua.includes('Firefox');
-    return (isChromium || isSafari) && !isFirefox;
-  })();
-
-  // Estrategia de render para Chromium/Safari:
+  // Estrategia de render universal (todos los navegadores):
   // - Reposo: transform:scale (preparado para zoom fluido)
   // - Durante zoom: transform:scale (sin cambio = sin delay)
   // - Al terminar: brevemente CSS zoom (re-rasteriza), luego vuelve a transform:scale
+  // Esto unifica el comportamiento y prepara para posibles cambios en políticas de rasterizado.
   let rasterizeTimer = null;
   const RASTERIZE_DELAY_MS = 150;
 
@@ -1779,7 +1770,6 @@ class App {
   }
 
   function scheduleRasterize() {
-    if (!USE_CSS_ZOOM) return;
     cancelRasterize();
     rasterizeTimer = setTimeout(() => {
       rasterizeTimer = null;
@@ -2207,8 +2197,9 @@ class App {
       outer.classList.toggle('is-gesturing', navGestureActive);
       
       // Anticipar cambio de modo: al poner 2 dedos, cancelar re-rasterización
-      // para que no interfiera con el gesto.
-      if (navGestureActive && USE_CSS_ZOOM) {
+      // Cancelar re-rasterización pendiente al iniciar gesto de 2 dedos
+      // para que no interfiera con el zoom.
+      if (navGestureActive) {
         cancelRasterize();
       }
     }

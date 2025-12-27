@@ -16,6 +16,7 @@ body {
   color: #eee;
   overflow: hidden;
   user-select: none;
+  -webkit-touch-callout: none; /* Evita menú contextual en iOS Safari */
 }
 .fullscreen-toggle {
   position: fixed;

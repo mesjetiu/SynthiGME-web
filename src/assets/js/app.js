@@ -2463,6 +2463,67 @@ class App {
   }, { passive: true });
 })();
 
+/**
+ * Calcula el factor de escala óptimo para paneles de matriz (5 y 6),
+ * asegurando que el Synthi completo sea visible a zoom mínimo.
+ * El factor base (1.4) puede ajustarse aquí.
+ */
+function computeMatrixScaleFactor() {
+  const BASE_FACTOR = 1.4; // Factor deseado por defecto (ajustar a voluntad)
+  
+  // Obtener dimensiones del viewport y del contenido
+  const outer = document.getElementById('viewportOuter');
+  const inner = document.getElementById('viewportInner');
+  if (!outer || !inner) return BASE_FACTOR;
+  
+  const viewportWidth = outer.clientWidth;
+  const viewportHeight = outer.clientHeight;
+  const panelWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-width')) || 760;
+  const panelGap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-gap')) || 20;
+  
+  // Ancho total del Synthi: 4 paneles + 3 gaps
+  const baseWidth = panelWidth * 4 + panelGap * 3;
+  // Alto total: 2 filas de paneles + 1 gap
+  const baseHeight = panelWidth * 2 + panelGap;
+  
+  // Expansión adicional por el escalado de paneles 5 y 6:
+  // Panel 5 crece (factor-1)*panelWidth hacia la derecha
+  // Panel 6 crece (factor-1)*panelWidth hacia la izquierda
+  // El ancho total no aumenta porque crecen hacia el espacio vacío entre ellos
+  // Pero la altura aumenta: (factor-1)*panelWidth hacia abajo
+  const extraHeight = (BASE_FACTOR - 1) * panelWidth;
+  
+  const totalWidth = baseWidth;
+  const totalHeight = baseHeight + extraHeight;
+  
+  // Calcular qué factor permite ver todo a zoom mínimo (con margen del 95%)
+  const margin = 0.95;
+  const maxScaleX = (viewportWidth * margin) / totalWidth;
+  const maxScaleY = (viewportHeight * margin) / totalHeight;
+  const minZoomFit = Math.min(maxScaleX, maxScaleY);
+  
+  // Si a zoom mínimo el Synthi no cabe, reducir el factor de matriz
+  // Nota: esto es una aproximación; en la práctica 1.4 suele caber
+  let factor = BASE_FACTOR;
+  if (minZoomFit < 0.1) {
+    // Viewport muy pequeño: reducir factor para que quepa
+    const reduction = 0.1 / minZoomFit;
+    factor = Math.max(1, BASE_FACTOR / reduction);
+  }
+  
+  document.documentElement.style.setProperty('--matrix-scale-factor', factor.toFixed(3));
+  return factor;
+}
+
+// Ejecutar al cargar y en resize (con debounce)
+let matrixScaleTimer = null;
+function scheduleMatrixScaleUpdate() {
+  if (matrixScaleTimer) clearTimeout(matrixScaleTimer);
+  matrixScaleTimer = setTimeout(computeMatrixScaleFactor, 150);
+}
+
+window.addEventListener('resize', scheduleMatrixScaleUpdate, { passive: true });
+
 function setupMobileQuickActionsBar() {
   const isCoarse = (() => {
     try {
@@ -2642,6 +2703,7 @@ function setupMobileQuickActionsBar() {
 
 window.addEventListener('DOMContentLoaded', () => {
   ensureOrientationHint();
+  computeMatrixScaleFactor(); // Calcular escala de paneles de matriz
   window._synthApp = new App();
   if (window._synthApp && window._synthApp.ensureAudio) {
     window._synthApp.ensureAudio();

@@ -4,6 +4,8 @@
   font-family: sans-serif;
   --panel-width: 760px;
   --panel-gap: 1.25rem;
+  /* Factor de escala para paneles de matriz (5 y 6). Ajustable dinámicamente desde JS. */
+  --matrix-scale-factor: 1.4;
 }
 
 html,
@@ -163,6 +165,18 @@ body {
      del SVG inline a bitmap, causando blur en Android al escalar con transform. */
   /* Contención de layout mejorada para pan/zoom fluido */
   contain: layout style size;
+  /* Escalar panel para mejor visualización de la matriz */
+  transform: scale(var(--matrix-scale-factor, 1));
+}
+
+/* Panel 5: esquina superior izquierda fija (crece hacia derecha y abajo) */
+#panel-5 {
+  transform-origin: top left;
+}
+
+/* Panel 6: esquina superior derecha fija (crece hacia izquierda y abajo) */
+#panel-6 {
+  transform-origin: top right;
 }
 
 #panel-1,

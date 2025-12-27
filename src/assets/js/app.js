@@ -1763,6 +1763,8 @@ class App {
   if (typeof window.__synthSharpModeEnabled === 'undefined') {
     window.__synthSharpModeEnabled = true;
   }
+  // Flag para redibujado transitorio (se gestiona desde la quickbar)
+  // window.__synthSharpTransition = { active: bool, lastScale: number }
   let rasterizeTimer = null;
   const RASTERIZE_DELAY_MS = 150;
 
@@ -1774,7 +1776,29 @@ class App {
   }
 
   function scheduleRasterize() {
-    if (!window.__synthSharpModeEnabled) return;
+    // Si modo nitidez está activo, redibujar siempre
+    // Si está desactivado pero en transición (zoom out), redibujar hasta zoom mínimo
+    const minScale = getMinScale();
+    const isAtMinZoom = scale <= minScale + 0.01;
+    const transition = window.__synthSharpTransition;
+    
+    if (transition && transition.active) {
+      const isZoomingOut = transition.lastScale !== null && scale < transition.lastScale;
+      transition.lastScale = scale;
+      
+      if (isAtMinZoom) {
+        // Llegamos al zoom mínimo: un último redibujado y fin de transición
+        transition.active = false;
+        transition.lastScale = null;
+      } else if (!isZoomingOut) {
+        // Si está haciendo zoom in o no hay cambio, no redibujar
+        return;
+      }
+      // Si está haciendo zoom out, continuar redibujando
+    } else if (!window.__synthSharpModeEnabled) {
+      return;
+    }
+    
     cancelRasterize();
     rasterizeTimer = setTimeout(() => {
       rasterizeTimer = null;
@@ -1804,6 +1828,12 @@ class App {
     const scaleY = (metrics.outerHeight * VIEWPORT_MARGIN) / metrics.contentHeight;
     return Math.min(scaleX, scaleY);
   }
+
+  // Exponer estado de navegación para que la quickbar pueda acceder
+  window.__synthNavState = {
+    get scale() { return scale; },
+    getMinScale
+  };
   
   const LOW_ZOOM_ENTER = 0.45;
   const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
@@ -2441,7 +2471,6 @@ function setupMobileQuickActionsBar() {
       return false;
     }
   })();
-  if (!isCoarse) return;
 
   if (document.getElementById('mobileQuickbar')) return;
 
@@ -2499,7 +2528,7 @@ function setupMobileQuickActionsBar() {
   btnSharp.setAttribute('aria-pressed', String(Boolean(window.__synthSharpModeEnabled)));
   btnSharp.innerHTML = iconSvg('ti-diamond');
 
-  const displayModeQueries = ['(display-mode: standalone)', '(display-mode: fullscreen)']
+  const displayModeQueries = ['(display-mode: standalone)']
     .map(query => window.matchMedia ? window.matchMedia(query) : null)
     .filter(Boolean);
 
@@ -2512,6 +2541,7 @@ function setupMobileQuickActionsBar() {
   };
 
   const canFullscreen = !!(document.documentElement && document.documentElement.requestFullscreen);
+  // Solo ocultar en PWA standalone (no cuando está en fullscreen del navegador)
   const shouldHideFullscreen = () => !canFullscreen || isStandaloneDisplay();
 
   const applyPressedState = () => {
@@ -2524,6 +2554,12 @@ function setupMobileQuickActionsBar() {
     btnZoom.classList.toggle('is-active', Boolean(navLocks.zoomLocked));
     btnFs.classList.toggle('is-active', Boolean(document.fullscreenElement));
     btnSharp.classList.toggle('is-active', Boolean(window.__synthSharpModeEnabled));
+
+    // Ocultar botones de pan y zoom en desktop (solo tienen sentido en táctil)
+    btnPan.hidden = !isCoarse;
+    btnPan.disabled = !isCoarse;
+    btnZoom.hidden = !isCoarse;
+    btnZoom.disabled = !isCoarse;
 
     btnFs.hidden = shouldHideFullscreen();
     btnFs.disabled = btnFs.hidden;
@@ -2567,7 +2603,24 @@ function setupMobileQuickActionsBar() {
   });
 
   btnSharp.addEventListener('click', () => {
+    const wasEnabled = window.__synthSharpModeEnabled;
     window.__synthSharpModeEnabled = !window.__synthSharpModeEnabled;
+    
+    // Si se desactiva mientras no estamos en zoom mínimo, activar redibujado transitorio
+    if (wasEnabled && !window.__synthSharpModeEnabled) {
+      const navState = window.__synthNavState;
+      if (navState && typeof navState.scale === 'number' && typeof navState.getMinScale === 'function') {
+        const minScale = navState.getMinScale();
+        if (navState.scale > minScale + 0.01) {
+          // Estamos a zoom alto, activar transición
+          window.__synthSharpTransition = {
+            active: true,
+            lastScale: navState.scale
+          };
+        }
+      }
+    }
+    
     applyPressedState();
   });
 

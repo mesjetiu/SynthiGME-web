@@ -2220,7 +2220,8 @@ class App {
         // Estabilizar pinch con dedos muy juntos: cuando dist es pequeño,
         // cualquier ruido en píxeles produce un ratio enorme. Usamos un
         // denominador mínimo para suavizar ese caso sin afectar zoom normal.
-        const MIN_DIST_FOR_STABLE_RATIO = 60;
+        // 180px ≈ 1.5-2cm en pantallas típicas: por debajo, el zoom se estabiliza.
+        const MIN_DIST_FOR_STABLE_RATIO = 180;
         const effectiveLastDist = Math.max(lastDist, MIN_DIST_FOR_STABLE_RATIO);
         const effectiveDist = Math.max(dist, MIN_DIST_FOR_STABLE_RATIO);
         const zoomFactor = effectiveDist / effectiveLastDist;

@@ -2318,6 +2318,7 @@ class App {
   let panPointerId = null;
   let lastX = 0;
   let lastY = 0;
+  let didMove = false; // true si hubo movimiento real durante el gesto
 
   // Pinch-zoom con dos dedos (móvil/tablet), centrado en el punto medio
   const pointers = new Map();
@@ -2325,6 +2326,7 @@ class App {
   let lastCentroid = null;
   let needsSnapOnEnd = false;
   let lastPinchZoomAnchor = null;
+  let didPinchZoom = false; // true si hubo cambio de zoom real durante pinch
 
   // Flag global de "gesto de navegación" activo (dos o más toques táctiles)
   let activeTouchCount = 0;
@@ -2441,6 +2443,7 @@ class App {
       lastCentroid = { x: centroidClientX, y: centroidClientY };
 
       if (didZoom || transformDirty) {
+        if (didZoom) didPinchZoom = true;
         requestRender();
         markUserAdjusted();
       }
@@ -2457,10 +2460,13 @@ class App {
       const dy = ev.clientY - lastY;
       lastX = ev.clientX;
       lastY = ev.clientY;
-      offsetX += dx;
-      offsetY += dy;
-      requestRender();
-      markUserAdjusted();
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        didMove = true;
+        offsetX += dx;
+        offsetY += dy;
+        requestRender();
+        markUserAdjusted();
+      }
     }
   }, { passive: false });
 
@@ -2468,16 +2474,20 @@ class App {
     pointers.delete(ev.pointerId);
     recomputeNavGestureState();
     
-    // Guardar si había navegación activa ANTES de limpiar los flags
-    const wasNavigating = isPanning || lastDist !== null;
+    // Guardar si hubo navegación real ANTES de limpiar los flags
+    // Solo re-rasterizar si hubo cambio de zoom (no pan)
+    // El pan no requiere re-rasterizado porque la escala no cambia
+    const needsRasterize = didPinchZoom;
     
     if (pointers.size < 2) {
       lastDist = null;
       lastCentroid = null;
+      didPinchZoom = false;
     }
     if (panPointerId === ev.pointerId) {
       isPanning = false;
       panPointerId = null;
+      didMove = false;
     }
 
     if (pointers.size === 0) {
@@ -2486,8 +2496,8 @@ class App {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
-      // Solo re-rasterizar si hubo navegación real (pan/pinch), no al tocar controles
-      if (wasNavigating) {
+      // Solo re-rasterizar si hubo cambio de zoom, no para pan
+      if (needsRasterize) {
         scheduleRasterize();
       }
       requestRender();

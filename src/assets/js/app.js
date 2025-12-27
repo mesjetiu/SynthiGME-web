@@ -2541,8 +2541,9 @@ function setupMobileQuickActionsBar() {
   };
 
   const canFullscreen = !!(document.documentElement && document.documentElement.requestFullscreen);
-  // Solo ocultar en PWA standalone (no cuando está en fullscreen del navegador)
-  const shouldHideFullscreen = () => !canFullscreen || isStandaloneDisplay();
+  // Mantener visible también en modo PWA para poder probar el comportamiento.
+  // Solo ocultar si el navegador no soporta la Fullscreen API.
+  const shouldHideFullscreen = () => !canFullscreen;
 
   const applyPressedState = () => {
     btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));

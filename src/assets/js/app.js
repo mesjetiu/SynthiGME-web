@@ -2003,13 +2003,17 @@ class App {
     // evitar separación visual por capas.
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
-      if (USE_CSS_ZOOM) {
-        // Chromium/Safari: usar CSS zoom para que SVG se re-rasterice a resolución final.
-        // Los offsets deben dividirse por scale porque zoom afecta al sistema de coordenadas.
+      // Estrategia de render híbrida para Chromium/Safari:
+      // - Durante el gesto de pinch: transform:scale() (rápido, escala bitmap cacheado)
+      // - Al soltar: CSS zoom (re-rasteriza SVG a resolución nativa, nítido)
+      const isPinching = navGestureActive;
+      
+      if (USE_CSS_ZOOM && !isPinching) {
+        // Chromium/Safari en reposo: usar CSS zoom para nitidez máxima.
         inner.style.zoom = scale;
         inner.style.transform = `translate3d(${offsetX / scale}px, ${offsetY / scale}px, 0)`;
       } else {
-        // Firefox: transform:scale() funciona perfecto, re-renderiza vectorialmente.
+        // Firefox, o Chromium durante pinch: transform:scale() es más fluido.
         inner.style.zoom = '';
         inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
       }

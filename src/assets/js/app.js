@@ -2474,15 +2474,9 @@ class App {
     pointers.delete(ev.pointerId);
     recomputeNavGestureState();
     
-    // Guardar si hubo navegación real ANTES de limpiar los flags
-    // Solo re-rasterizar si hubo cambio de zoom (no pan)
-    // El pan no requiere re-rasterizado porque la escala no cambia
-    const needsRasterize = didPinchZoom;
-    
     if (pointers.size < 2) {
       lastDist = null;
       lastCentroid = null;
-      didPinchZoom = false;
     }
     if (panPointerId === ev.pointerId) {
       isPanning = false;
@@ -2491,6 +2485,10 @@ class App {
     }
 
     if (pointers.size === 0) {
+      // Guardar si hubo zoom ANTES de resetear el flag
+      const needsRasterize = didPinchZoom;
+      didPinchZoom = false;
+      
       // No aplicamos snap de escala al final del pinch: evita micro-zoom
       // perceptible al soltar el último dedo.
       needsSnapOnEnd = false;

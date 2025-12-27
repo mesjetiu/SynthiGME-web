@@ -1834,6 +1834,105 @@ class App {
     get scale() { return scale; },
     getMinScale
   };
+
+  // Estado de zoom a panel específico
+  let focusedPanelId = null;
+
+  /**
+   * Anima el zoom/pan hacia un panel específico o vuelve a vista general.
+   * @param {string|null} panelId - ID del panel a enfocar, o null para vista general
+   * @param {number} duration - Duración de la animación en ms (default 500)
+   */
+  function animateToPanel(panelId, duration = 500) {
+    // Forzar refresco de métricas (el viewport puede haber cambiado a fullscreen)
+    metricsDirty = true;
+    refreshMetrics();
+    
+    // Recalcular dimensiones del viewport actual
+    const currentOuterWidth = outer.clientWidth;
+    const currentOuterHeight = outer.clientHeight;
+    
+    const startScale = scale;
+    const startOffsetX = offsetX;
+    const startOffsetY = offsetY;
+    
+    let targetScale, targetOffsetX, targetOffsetY;
+    
+    if (panelId) {
+      // Zoom al panel específico
+      const panelEl = document.getElementById(panelId);
+      if (!panelEl) return;
+      
+      const panelRect = panelEl.getBoundingClientRect();
+      const innerRect = inner.getBoundingClientRect();
+      
+      // Posición del panel relativa al inner (en coordenadas sin escalar)
+      const panelLeft = (panelRect.left - innerRect.left) / scale;
+      const panelTop = (panelRect.top - innerRect.top) / scale;
+      const panelWidth = panelRect.width / scale;
+      const panelHeight = panelRect.height / scale;
+      
+      // Calcular escala para que el panel quepa con margen (usar dimensiones actuales)
+      const margin = 0.95;
+      const scaleX = (currentOuterWidth * margin) / panelWidth;
+      const scaleY = (currentOuterHeight * margin) / panelHeight;
+      targetScale = Math.min(scaleX, scaleY, maxScale);
+      
+      // Centrar el panel en el viewport (usar dimensiones actuales)
+      const scaledPanelWidth = panelWidth * targetScale;
+      const scaledPanelHeight = panelHeight * targetScale;
+      targetOffsetX = (currentOuterWidth - scaledPanelWidth) / 2 - panelLeft * targetScale;
+      targetOffsetY = (currentOuterHeight - scaledPanelHeight) / 2 - panelTop * targetScale;
+      
+      focusedPanelId = panelId;
+    } else {
+      // Volver a vista general (zoom mínimo, centrado)
+      targetScale = getMinScale();
+      const finalWidth = metrics.contentWidth * targetScale;
+      const finalHeight = metrics.contentHeight * targetScale;
+      targetOffsetX = (metrics.outerWidth - finalWidth) / 2;
+      targetOffsetY = (metrics.outerHeight - finalHeight) / 2;
+      
+      focusedPanelId = null;
+    }
+    
+    // Animación con easing
+    const startTime = performance.now();
+    
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+    
+    function animateStep(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeInOutCubic(progress);
+      
+      scale = startScale + (targetScale - startScale) * eased;
+      offsetX = startOffsetX + (targetOffsetX - startOffsetX) * eased;
+      offsetY = startOffsetY + (targetOffsetY - startOffsetY) * eased;
+      
+      render();
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateStep);
+      } else {
+        // Animación completa
+        scheduleLowZoomUpdate();
+        scheduleRasterize();
+        if (typeof updatePanelZoomButtons === 'function') {
+          updatePanelZoomButtons();
+        }
+      }
+    }
+    
+    cancelRasterize();
+    requestAnimationFrame(animateStep);
+  }
+  
+  // Exponer para uso externo
+  window.__synthAnimateToPanel = animateToPanel;
+  window.__synthGetFocusedPanel = () => focusedPanelId;
   
   const LOW_ZOOM_ENTER = 0.45;
   const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
@@ -2463,6 +2562,60 @@ class App {
   }, { passive: true });
 })();
 
+/**
+ * Añade botones de zoom a todos los paneles principales.
+ */
+function setupPanelZoomButtons() {
+  const PANEL_IDS = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'panel-6', 'panel-output'];
+  const ICON_SPRITE = './assets/icons/ui-sprite.svg';
+  
+  const iconSvg = symbolId => `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <use href="${ICON_SPRITE}#${symbolId}"></use>
+    </svg>
+  `;
+  
+  PANEL_IDS.forEach(panelId => {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'panel-zoom-btn';
+    btn.setAttribute('aria-label', 'Enfocar panel');
+    btn.setAttribute('data-panel-id', panelId);
+    btn.innerHTML = iconSvg('ti-focus-2');
+    
+    // Forzar posición con estilos inline para evitar conflictos CSS
+    btn.style.cssText = 'position:absolute; right:6px; bottom:6px; left:auto; top:auto;';
+    
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const animateFn = window.__synthAnimateToPanel;
+      const getFocused = window.__synthGetFocusedPanel;
+      if (!animateFn) return;
+      
+      if (getFocused && getFocused() === panelId) {
+        // Ya enfocado en este panel: volver a vista general
+        animateFn(null, 500);
+      } else {
+        // Enfocar este panel
+        animateFn(panelId, 500);
+      }
+    });
+    
+    panel.appendChild(btn);
+  });
+}
+
+function updatePanelZoomButtons() {
+  const focusedId = window.__synthGetFocusedPanel ? window.__synthGetFocusedPanel() : null;
+  document.querySelectorAll('.panel-zoom-btn').forEach(btn => {
+    const panelId = btn.getAttribute('data-panel-id');
+    btn.classList.toggle('is-zoomed', panelId === focusedId);
+  });
+}
+
 function setupMobileQuickActionsBar() {
   const isCoarse = (() => {
     try {
@@ -2649,6 +2802,7 @@ window.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   detectBuildVersion();
   setupMobileQuickActionsBar();
+  setupPanelZoomButtons();
 });
 
 function ensureOrientationHint() {

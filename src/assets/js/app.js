@@ -1848,9 +1848,11 @@ class App {
     metricsDirty = true;
     refreshMetrics();
     
-    // Recalcular dimensiones del viewport actual
-    const currentOuterWidth = outer.clientWidth;
-    const currentOuterHeight = outer.clientHeight;
+    // Usar visualViewport para obtener dimensiones reales del viewport visible
+    // (especialmente importante en móviles/tablets donde el teclado o barras pueden reducir el área)
+    const vv = window.visualViewport;
+    const currentOuterWidth = vv ? vv.width : outer.clientWidth;
+    const currentOuterHeight = vv ? vv.height : outer.clientHeight;
     
     const startScale = scale;
     const startOffsetX = offsetX;
@@ -1872,11 +1874,15 @@ class App {
       const panelWidth = panelRect.width / scale;
       const panelHeight = panelRect.height / scale;
       
-      // Calcular escala para que el panel quepa con margen (usar dimensiones actuales)
-      // Usamos un padding fijo en px para garantizar visibilidad en pantallas con menor eje Y
-      const SAFE_PADDING = 40; // px de margen mínimo visible alrededor
-      const availableW = Math.max(100, currentOuterWidth - SAFE_PADDING * 2);
-      const availableH = Math.max(100, currentOuterHeight - SAFE_PADDING * 2);
+      // Padding híbrido: base fija + porcentaje del eje menor
+      // Esto garantiza visibilidad en pantallas pequeñas y proporcionalidad en grandes
+      const MIN_PADDING = 24; // px mínimo de margen
+      const PADDING_RATIO = 0.03; // 3% del eje menor
+      const extraPadding = Math.min(currentOuterWidth, currentOuterHeight) * PADDING_RATIO;
+      const totalPadding = MIN_PADDING + extraPadding;
+      
+      const availableW = Math.max(100, currentOuterWidth - totalPadding * 2);
+      const availableH = Math.max(100, currentOuterHeight - totalPadding * 2);
       const scaleX = availableW / panelWidth;
       const scaleY = availableH / panelHeight;
       targetScale = Math.min(scaleX, scaleY, maxScale);

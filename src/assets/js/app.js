@@ -1754,6 +1754,16 @@ class App {
   window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
   const navLocks = window.__synthNavLocks;
 
+  // Detección de navegador: Chromium/Safari se benefician de CSS zoom (evita blur SVG),
+  // mientras que Firefox renderiza mejor con transform:scale().
+  const USE_CSS_ZOOM = (() => {
+    const ua = navigator.userAgent;
+    const isChromium = !!window.chrome || ua.includes('Chrome') || ua.includes('Edg');
+    const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
+    const isFirefox = ua.includes('Firefox');
+    return (isChromium || isSafari) && !isFirefox;
+  })();
+
   let scale = 1;
   let maxScale = 6.0;
   const VIEWPORT_MARGIN = 0.95; // 95% del ancho disponible (margen de seguridad del 5%)
@@ -1993,7 +2003,16 @@ class App {
     // evitar separación visual por capas.
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
-      inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+      if (USE_CSS_ZOOM) {
+        // Chromium/Safari: usar CSS zoom para que SVG se re-rasterice a resolución final.
+        // Los offsets deben dividirse por scale porque zoom afecta al sistema de coordenadas.
+        inner.style.zoom = scale;
+        inner.style.transform = `translate3d(${offsetX / scale}px, ${offsetY / scale}px, 0)`;
+      } else {
+        // Firefox: transform:scale() funciona perfecto, re-renderiza vectorialmente.
+        inner.style.zoom = '';
+        inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+      }
       window.__synthViewTransform = { scale, offsetX, offsetY };
     }
 
@@ -2290,6 +2309,16 @@ class App {
 
       if (ev.pointerType === 'touch') {
         requestAnimationFrame(() => renderCanvasBgPanels());
+      }
+
+      // Forzar re-rasterización en Chromium al terminar pinch para máxima nitidez.
+      if (USE_CSS_ZOOM) {
+        requestAnimationFrame(() => {
+          inner.style.willChange = 'auto';
+          requestAnimationFrame(() => {
+            inner.style.willChange = 'transform';
+          });
+        });
       }
     }
   });

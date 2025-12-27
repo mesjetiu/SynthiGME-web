@@ -1876,8 +1876,8 @@ class App {
       
       // Padding híbrido: base fija + porcentaje del eje menor
       // Esto garantiza visibilidad en pantallas pequeñas y proporcionalidad en grandes
-      const MIN_PADDING = 24; // px mínimo de margen
-      const PADDING_RATIO = 0.03; // 3% del eje menor
+      const MIN_PADDING = 8; // px mínimo de margen
+      const PADDING_RATIO = 0.01; // 2% del eje menor
       const extraPadding = Math.min(currentOuterWidth, currentOuterHeight) * PADDING_RATIO;
       const totalPadding = MIN_PADDING + extraPadding;
       

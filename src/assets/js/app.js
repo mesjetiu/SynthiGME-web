@@ -2217,11 +2217,22 @@ class App {
       }
 
       if (lastDist != null) {
-        const zoomFactor = dist / lastDist;
+        // Estabilizar pinch con dedos muy juntos: cuando dist es pequeño,
+        // cualquier ruido en píxeles produce un ratio enorme. Usamos un
+        // denominador mínimo para suavizar ese caso sin afectar zoom normal.
+        const MIN_DIST_FOR_STABLE_RATIO = 60;
+        const effectiveLastDist = Math.max(lastDist, MIN_DIST_FOR_STABLE_RATIO);
+        const effectiveDist = Math.max(dist, MIN_DIST_FOR_STABLE_RATIO);
+        const zoomFactor = effectiveDist / effectiveLastDist;
+
+        // Clamp: evita saltos extremos por un frame ruidoso (±12% max por evento).
+        const MAX_ZOOM_DELTA = 0.12;
+        const clampedFactor = Math.max(1 - MAX_ZOOM_DELTA, Math.min(1 + MAX_ZOOM_DELTA, zoomFactor));
+
         if (!navLocks.zoomLocked) {
-          if (Math.abs(zoomFactor - 1) > PINCH_SCALE_EPSILON) {
+          if (Math.abs(clampedFactor - 1) > PINCH_SCALE_EPSILON) {
             const minScale = getMinScale();
-            const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
+            const newScale = Math.min(maxScale, Math.max(minScale, scale * clampedFactor));
             // Importante: durante el pinch NO hacemos snap (si no, parece que no hace zoom).
             adjustOffsetsForZoom(zoomAnchorX, zoomAnchorY, newScale, { snap: false });
             didZoom = true;

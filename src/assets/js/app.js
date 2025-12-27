@@ -1759,6 +1759,10 @@ class App {
   // - Durante zoom: transform:scale (sin cambio = sin delay)
   // - Al terminar: brevemente CSS zoom (re-rasteriza), luego vuelve a transform:scale
   // Esto unifica el comportamiento y prepara para posibles cambios en políticas de rasterizado.
+  // El usuario puede desactivar el modo nitidez si prefiere más fluidez.
+  if (typeof window.__synthSharpModeEnabled === 'undefined') {
+    window.__synthSharpModeEnabled = true;
+  }
   let rasterizeTimer = null;
   const RASTERIZE_DELAY_MS = 150;
 
@@ -1770,6 +1774,7 @@ class App {
   }
 
   function scheduleRasterize() {
+    if (!window.__synthSharpModeEnabled) return;
     cancelRasterize();
     rasterizeTimer = setTimeout(() => {
       rasterizeTimer = null;
@@ -2487,6 +2492,13 @@ function setupMobileQuickActionsBar() {
   btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
   btnFs.innerHTML = iconSvg('ti-arrows-maximize');
 
+  const btnSharp = document.createElement('button');
+  btnSharp.type = 'button';
+  btnSharp.className = 'mobile-quickbar__btn';
+  btnSharp.setAttribute('aria-label', 'Modo nitidez');
+  btnSharp.setAttribute('aria-pressed', String(Boolean(window.__synthSharpModeEnabled)));
+  btnSharp.innerHTML = iconSvg('ti-diamond');
+
   const displayModeQueries = ['(display-mode: standalone)', '(display-mode: fullscreen)']
     .map(query => window.matchMedia ? window.matchMedia(query) : null)
     .filter(Boolean);
@@ -2506,10 +2518,12 @@ function setupMobileQuickActionsBar() {
     btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
     btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
     btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
+    btnSharp.setAttribute('aria-pressed', String(Boolean(window.__synthSharpModeEnabled)));
 
     btnPan.classList.toggle('is-active', Boolean(navLocks.panLocked));
     btnZoom.classList.toggle('is-active', Boolean(navLocks.zoomLocked));
     btnFs.classList.toggle('is-active', Boolean(document.fullscreenElement));
+    btnSharp.classList.toggle('is-active', Boolean(window.__synthSharpModeEnabled));
 
     btnFs.hidden = shouldHideFullscreen();
     btnFs.disabled = btnFs.hidden;
@@ -2552,11 +2566,17 @@ function setupMobileQuickActionsBar() {
     }
   });
 
+  btnSharp.addEventListener('click', () => {
+    window.__synthSharpModeEnabled = !window.__synthSharpModeEnabled;
+    applyPressedState();
+  });
+
   document.addEventListener('fullscreenchange', applyPressedState);
   displayModeQueries.forEach(mq => mq.addEventListener('change', applyPressedState));
 
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
+  group.appendChild(btnSharp);
   group.appendChild(btnFs);
 
   bar.appendChild(group);

@@ -2203,6 +2203,13 @@ class App {
       navGestureActive = next;
       window.__synthNavGestureActive = navGestureActive;
       outer.classList.toggle('is-gesturing', navGestureActive);
+      
+      // Anticipar cambio de modo: al poner 2 dedos, cambiar a transform:scale
+      // ANTES de que empiece el movimiento, para evitar delay/salto.
+      if (navGestureActive && USE_CSS_ZOOM) {
+        markZoomActive();
+        requestRender(); // aplicar transform:scale inmediatamente
+      }
     }
   }
 

@@ -1873,9 +1873,12 @@ class App {
       const panelHeight = panelRect.height / scale;
       
       // Calcular escala para que el panel quepa con margen (usar dimensiones actuales)
-      const margin = 0.95;
-      const scaleX = (currentOuterWidth * margin) / panelWidth;
-      const scaleY = (currentOuterHeight * margin) / panelHeight;
+      // Usamos un padding fijo en px para garantizar visibilidad en pantallas con menor eje Y
+      const SAFE_PADDING = 18; // px de margen mínimo visible alrededor
+      const availableW = Math.max(100, currentOuterWidth - SAFE_PADDING * 2);
+      const availableH = Math.max(100, currentOuterHeight - SAFE_PADDING * 2);
+      const scaleX = availableW / panelWidth;
+      const scaleY = availableH / panelHeight;
       targetScale = Math.min(scaleX, scaleY, maxScale);
       
       // Centrar el panel en el viewport (usar dimensiones actuales)

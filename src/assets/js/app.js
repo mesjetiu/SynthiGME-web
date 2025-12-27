@@ -1874,7 +1874,7 @@ class App {
       
       // Calcular escala para que el panel quepa con margen (usar dimensiones actuales)
       // Usamos un padding fijo en px para garantizar visibilidad en pantallas con menor eje Y
-      const SAFE_PADDING = 18; // px de margen mínimo visible alrededor
+      const SAFE_PADDING = 40; // px de margen mínimo visible alrededor
       const availableW = Math.max(100, currentOuterWidth - SAFE_PADDING * 2);
       const availableH = Math.max(100, currentOuterHeight - SAFE_PADDING * 2);
       const scaleX = availableW / panelWidth;
@@ -1936,7 +1936,13 @@ class App {
   // Exponer para uso externo
   window.__synthAnimateToPanel = animateToPanel;
   window.__synthGetFocusedPanel = () => focusedPanelId;
-  
+  window.__synthResetFocusedPanel = () => {
+    focusedPanelId = null;
+    if (typeof updatePanelZoomButtons === 'function') {
+      updatePanelZoomButtons();
+    }
+  };
+
   const LOW_ZOOM_ENTER = 0.45;
   const LOW_ZOOM_EXIT = 0.7; // histéresis amplia para evitar saltos
   const LOW_ZOOM_CLASS = 'is-low-zoom';
@@ -2546,6 +2552,11 @@ class App {
 
     // En primera carga/si el usuario no ajustó, seguimos haciendo fit.
     if (userHasAdjustedView) return;
+    
+    // Al hacer fit, resetear panel enfocado porque volvemos a vista general
+    if (window.__synthResetFocusedPanel) {
+      window.__synthResetFocusedPanel();
+    }
     fitContentToViewport();
   };
 

@@ -1466,9 +1466,9 @@ class App {
   /**
    * Anima el zoom/pan hacia un panel específico o vuelve a vista general.
    * @param {string|null} panelId - ID del panel a enfocar, o null para vista general
-   * @param {number} duration - Duración de la animación en ms (default 500)
+   * @param {number} duration - Duración de la animación en ms (default 1000)
    */
-  function animateToPanel(panelId, duration = 500) {
+  function animateToPanel(panelId, duration = 1000) {
     // Forzar refresco de métricas (el viewport puede haber cambiado a fullscreen)
     metricsDirty = true;
     refreshMetrics();
@@ -2286,10 +2286,10 @@ function setupPanelZoomButtons() {
       
       if (getFocused && getFocused() === panelId) {
         // Ya enfocado en este panel: volver a vista general
-        animateFn(null, 500);
+        animateFn(null);
       } else {
         // Enfocar este panel
-        animateFn(panelId, 500);
+        animateFn(panelId);
       }
     });
     
@@ -2348,9 +2348,9 @@ function setupPanelDoubleTapZoom() {
       if (!animateFn) return;
 
       if (getFocused && getFocused() === panelId) {
-        animateFn(null, 500); // Volver a vista general
+        animateFn(null); // Volver a vista general
       } else {
-        animateFn(panelId, 500); // Enfocar este panel
+        animateFn(panelId); // Enfocar este panel
       }
     }
 

@@ -2285,6 +2285,84 @@ function updatePanelZoomButtons() {
   });
 }
 
+/**
+ * Configura doble tap/click en paneles para alternar zoom.
+ * Solo actúa si el click es en espacio vacío del panel (no en controles).
+ */
+function setupPanelDoubleTapZoom() {
+  const PANEL_IDS = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'panel-6', 'panel-output'];
+  const DOUBLE_TAP_DELAY = 300; // ms máximo entre taps para considerarlo doble
+  
+  // Selectores de elementos interactivos que NO deben activar el zoom
+  // (controles específicos, no contenedores como .sgme-osc que sí deben responder en su fondo)
+  const INTERACTIVE_SELECTORS = [
+    'button', 'input', 'select', 'textarea', 'a',
+    '.knob', '.knob-cap', '.knob-pointer', '.knob-ring',
+    '.slider', '.switch', '.toggle', '.fader',
+    '.panel-zoom-btn', '.matrix-pin',
+    '[role="button"]', '[role="slider"]', '[draggable="true"]'
+  ].join(',');
+
+  PANEL_IDS.forEach(panelId => {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    let lastTapTime = 0;
+    let lastTapTarget = null;
+
+    /**
+     * Comprueba si el elemento o alguno de sus ancestros es interactivo.
+     */
+    function isInteractiveElement(el) {
+      if (!el || el === panel) return false;
+      if (el.matches && el.matches(INTERACTIVE_SELECTORS)) return true;
+      return isInteractiveElement(el.parentElement);
+    }
+
+    /**
+     * Maneja el toggle de zoom al panel.
+     */
+    function handleZoomToggle() {
+      const animateFn = window.__synthAnimateToPanel;
+      const getFocused = window.__synthGetFocusedPanel;
+      if (!animateFn) return;
+
+      if (getFocused && getFocused() === panelId) {
+        animateFn(null, 500); // Volver a vista general
+      } else {
+        animateFn(panelId, 500); // Enfocar este panel
+      }
+    }
+
+    // Doble click para desktop
+    panel.addEventListener('dblclick', (ev) => {
+      if (isInteractiveElement(ev.target)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      handleZoomToggle();
+    });
+
+    // Doble tap para móvil (touchend porque dblclick no es fiable en táctil)
+    panel.addEventListener('touchend', (ev) => {
+      if (isInteractiveElement(ev.target)) return;
+      
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapTime;
+      
+      // Solo cuenta como doble tap si es en el mismo panel y dentro del tiempo límite
+      if (timeSinceLastTap < DOUBLE_TAP_DELAY && lastTapTarget === panel) {
+        ev.preventDefault();
+        handleZoomToggle();
+        lastTapTime = 0; // Reset para evitar triple-tap
+        lastTapTarget = null;
+      } else {
+        lastTapTime = now;
+        lastTapTarget = panel;
+      }
+    }, { passive: false });
+  });
+}
+
 function setupMobileQuickActionsBar() {
   const isCoarse = (() => {
     try {
@@ -2472,6 +2550,7 @@ window.addEventListener('DOMContentLoaded', () => {
   detectBuildVersion();
   setupMobileQuickActionsBar();
   setupPanelZoomButtons();
+  setupPanelDoubleTapZoom();
 });
 
 function ensureOrientationHint() {

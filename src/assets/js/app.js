@@ -1688,10 +1688,12 @@ class App {
     const scaledWidth = contentWidth * scale;
     const scaledHeight = contentHeight * scale;
 
-    // En móvil/tablet táctil mantenemos el clamp permisivo (deja una franja visible).
-    // En desktop usamos clamp clásico (no permite mostrar fondo, salvo si el contenido
-    // es más pequeño que el viewport, en cuyo caso lo centramos).
-    const allowOverscroll = isCoarsePointer;
+    // Clamp permisivo: permite mover el canvas libremente dejando una franja visible.
+    // Ahora se usa tanto en móvil/tablet como en desktop para poder centrar paneles
+    // laterales en pantalla.
+    const allowOverscroll = true;
+    // Para volver al comportamiento restrictivo en desktop, descomentar:
+    // const allowOverscroll = isCoarsePointer;
 
     if (allowOverscroll) {
       const visibleStripX = Math.min(MIN_VISIBLE_STRIP_PX, scaledWidth, outerWidth);

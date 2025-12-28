@@ -2345,6 +2345,17 @@ function setupPanelDoubleTapZoom() {
     // Doble tap para móvil (touchend porque dblclick no es fiable en táctil)
     panel.addEventListener('touchend', (ev) => {
       if (isInteractiveElement(ev.target)) return;
+      // Ignorar si hay gesto de pinza/zoom activo (>=2 dedos) o multi-touch en este evento
+      if (window.__synthNavGestureActive) {
+        lastTapTime = 0;
+        lastTapTarget = null;
+        return;
+      }
+      if ((ev.touches && ev.touches.length > 0) || (ev.changedTouches && ev.changedTouches.length > 1)) {
+        lastTapTime = 0;
+        lastTapTarget = null;
+        return;
+      }
       
       const now = Date.now();
       const timeSinceLastTap = now - lastTapTime;

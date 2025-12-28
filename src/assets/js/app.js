@@ -1604,10 +1604,24 @@ class App {
   // Hacemos render de transformaciones como máximo 1 vez por frame.
 
   // Contador táctil en captura para activar __synthNavGestureActive
-  const activeTouchIds = new Set();
+  // Guardamos {pointerId -> isInteractive} para saber si está en un control
+  const activeTouchMap = new Map();
+
+  function isInteractiveTargetCapture(el) {
+    if (!el) return false;
+    const selector = '.knob, .knob-inner, .knob-cap, .pin-btn, .joystick-pad, .joystick-handle, .output-fader, .slider, .fader, .switch, .toggle, [data-prevent-pan="true"]';
+    return !!el.closest(selector);
+  }
 
   function updateNavGestureFlagFromCapture() {
-    const navActive = activeTouchIds.size >= 2;
+    // Solo activar navegación si hay >=2 toques Y al menos uno NO está en control interactivo
+    let totalTouches = 0;
+    let nonInteractiveTouches = 0;
+    activeTouchMap.forEach((isInteractive) => {
+      totalTouches++;
+      if (!isInteractive) nonInteractiveTouches++;
+    });
+    const navActive = totalTouches >= 2 && nonInteractiveTouches >= 1;
     window.__synthNavGestureActive = navActive;
     outer.classList.toggle('is-gesturing', navActive);
   }
@@ -1878,13 +1892,14 @@ class App {
   // de gesto de navegación se actualice antes de que lleguen a los widgets.
   outer.addEventListener('pointerdown', ev => {
     if (ev.pointerType !== 'touch') return;
-    activeTouchIds.add(ev.pointerId);
+    const isInteractive = isInteractiveTargetCapture(ev.target);
+    activeTouchMap.set(ev.pointerId, isInteractive);
     updateNavGestureFlagFromCapture();
   }, true);
 
   const handleTouchEndCapture = ev => {
     if (ev.pointerType !== 'touch') return;
-    activeTouchIds.delete(ev.pointerId);
+    activeTouchMap.delete(ev.pointerId);
     updateNavGestureFlagFromCapture();
   };
 

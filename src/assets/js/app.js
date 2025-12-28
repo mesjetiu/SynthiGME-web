@@ -1970,20 +1970,23 @@ class App {
   let lastPinchZoomAnchor = null;
   let didPinchZoom = false; // true si hubo cambio de zoom real durante pinch
 
-  // Flag global de "gesto de navegación" activo (dos o más toques táctiles)
+  // Flag global de "gesto de navegación" activo (dos o más toques táctiles en zona no-interactiva)
   let activeTouchCount = 0;
   let navGestureActive = false;
   window.__synthNavGestureActive = false;
 
   function recomputeNavGestureState() {
-    let count = 0;
+    let touchCount = 0;
+    let nonInteractiveCount = 0;
     pointers.forEach(p => {
       if (p && p.pointerType === 'touch') {
-        count += 1;
+        touchCount += 1;
+        if (!p.isInteractive) nonInteractiveCount++;
       }
     });
-    activeTouchCount = count;
-    const next = activeTouchCount >= 2;
+    activeTouchCount = touchCount;
+    // Solo activar navegación si hay >=2 toques Y al menos uno NO está en control
+    const next = touchCount >= 2 && nonInteractiveCount >= 1;
     if (next !== navGestureActive) {
       navGestureActive = next;
       window.__synthNavGestureActive = navGestureActive;
@@ -1999,7 +2002,8 @@ class App {
   }
 
   outer.addEventListener('pointerdown', ev => {
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: ev.pointerType });
+    const isInteractive = isInteractiveTarget(ev.target);
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: ev.pointerType, isInteractive });
     recomputeNavGestureState();
     const isMouseLike = ev.pointerType === 'mouse' || ev.pointerType === 'pen';
 
@@ -2017,9 +2021,10 @@ class App {
   outer.addEventListener('pointermove', ev => {
     if (!pointers.has(ev.pointerId)) return;
     const prev = pointers.get(ev.pointerId);
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: prev?.pointerType });
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: prev?.pointerType, isInteractive: prev?.isInteractive });
 
-    if (pointers.size === 2) {
+    // Solo hacer pinch-zoom si hay gesto de navegación activo (no todos los toques en controles)
+    if (pointers.size === 2 && navGestureActive) {
       metricsDirty = true;
       // Pinch-zoom + pan simultáneo con dos dedos
       ev.preventDefault();

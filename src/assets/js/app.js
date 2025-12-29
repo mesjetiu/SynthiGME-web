@@ -134,10 +134,15 @@ class App {
     if (!node || !state || !ctx) return;
     const now = ctx.currentTime;
 
-    if (node.osc && node.osc.frequency && Number.isFinite(state.freq)) {
+    // Sine oscillator - puede ser worklet o nativo
+    if (node.osc && Number.isFinite(state.freq)) {
       try {
-        node.osc.frequency.cancelScheduledValues(now);
-        node.osc.frequency.setValueAtTime(state.freq, now);
+        if (node._useWorklet && node.osc.setFrequency) {
+          node.osc.setFrequency(state.freq);
+        } else if (node.osc.frequency) {
+          node.osc.frequency.cancelScheduledValues(now);
+          node.osc.frequency.setValueAtTime(state.freq, now);
+        }
       } catch (error) {}
     }
     if (node.sawOsc && node.sawOsc.frequency && Number.isFinite(state.freq)) {
@@ -171,10 +176,15 @@ class App {
         node.triGain.gain.setValueAtTime(state.triLevel, now);
       } catch (error) {}
     }
-    if (node.pulseOsc && node.pulseOsc.frequency && Number.isFinite(state.freq)) {
+    // Pulse oscillator - puede ser worklet o nativo
+    if (node.pulseOsc && Number.isFinite(state.freq)) {
       try {
-        node.pulseOsc.frequency.cancelScheduledValues(now);
-        node.pulseOsc.frequency.setValueAtTime(state.freq, now);
+        if (node._useWorklet && node.pulseOsc.setFrequency) {
+          node.pulseOsc.setFrequency(state.freq);
+        } else if (node.pulseOsc.frequency) {
+          node.pulseOsc.frequency.cancelScheduledValues(now);
+          node.pulseOsc.frequency.setValueAtTime(state.freq, now);
+        }
       } catch (error) {}
     }
     if (node.pulseGain && node.pulseGain.gain && Number.isFinite(state.pulseLevel)) {
@@ -417,38 +427,68 @@ class App {
     }
 
     const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    const useWorklet = this.engine.workletReady;
 
-    const osc = ctx.createOscillator();
-    osc.setPeriodicWave(this._createAsymmetricSineWave(ctx, state.sineSymmetry));
-    osc.frequency.value = 10;
-
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    osc.connect(gain);
+    // SINE oscillator: usar worklet si disponible
+    let osc, gain;
+    if (useWorklet) {
+      osc = this.engine.createSynthOscillator({
+        waveform: 'sine',
+        frequency: state.freq || 10,
+        symmetry: state.sineSymmetry || 0.5,
+        gain: 1.0
+      });
+      gain = ctx.createGain();
+      gain.gain.value = state.oscLevel || 0;
+      osc.connect(gain);
+      // Marcar como worklet para saber cómo actualizar
+      osc._isWorklet = true;
+    } else {
+      osc = ctx.createOscillator();
+      osc.setPeriodicWave(this._createAsymmetricSineWave(ctx, state.sineSymmetry));
+      osc.frequency.value = state.freq || 10;
+      gain = ctx.createGain();
+      gain.gain.value = state.oscLevel || 0;
+      osc.connect(gain);
+    }
     
     const sawOsc = ctx.createOscillator();
     sawOsc.type = 'sawtooth';
-    sawOsc.frequency.value = 10;
+    sawOsc.frequency.value = state.freq || 10;
 
     const sawGain = ctx.createGain();
-    sawGain.gain.value = 0;
+    sawGain.gain.value = state.sawLevel || 0;
     sawOsc.connect(sawGain);
 
     const triOsc = ctx.createOscillator();
     triOsc.type = 'triangle';
-    triOsc.frequency.value = 10;
+    triOsc.frequency.value = state.freq || 10;
 
     const triGain = ctx.createGain();
-    triGain.gain.value = 0;
+    triGain.gain.value = state.triLevel || 0;
     triOsc.connect(triGain);
 
-    const pulseOsc = ctx.createOscillator();
-    pulseOsc.setPeriodicWave(this._createPulseWave(ctx, state.pulseWidth));
-    pulseOsc.frequency.value = 10;
-
-    const pulseGain = ctx.createGain();
-    pulseGain.gain.value = 0;
-    pulseOsc.connect(pulseGain);
+    // PULSE oscillator: usar worklet si disponible
+    let pulseOsc, pulseGain;
+    if (useWorklet) {
+      pulseOsc = this.engine.createSynthOscillator({
+        waveform: 'pulse',
+        frequency: state.freq || 10,
+        pulseWidth: state.pulseWidth || 0.5,
+        gain: 1.0
+      });
+      pulseGain = ctx.createGain();
+      pulseGain.gain.value = state.pulseLevel || 0;
+      pulseOsc.connect(pulseGain);
+      pulseOsc._isWorklet = true;
+    } else {
+      pulseOsc = ctx.createOscillator();
+      pulseOsc.setPeriodicWave(this._createPulseWave(ctx, state.pulseWidth));
+      pulseOsc.frequency.value = state.freq || 10;
+      pulseGain = ctx.createGain();
+      pulseGain.gain.value = state.pulseLevel || 0;
+      pulseOsc.connect(pulseGain);
+    }
 
     const sineSawOut = ctx.createGain();
     sineSawOut.gain.value = 1.0;
@@ -469,16 +509,23 @@ class App {
     const startTime = ctx.currentTime + 0.01;
     const now = ctx.currentTime;
     
-    if (Number.isFinite(state.freq)) {
+    // Solo configurar frecuencia en osciladores nativos (worklets ya tienen frecuencia)
+    if (!useWorklet && Number.isFinite(state.freq)) {
       try {
         osc.frequency.cancelScheduledValues(now);
         osc.frequency.setValueAtTime(state.freq, now);
+        pulseOsc.frequency.cancelScheduledValues(now);
+        pulseOsc.frequency.setValueAtTime(state.freq, now);
+      } catch (error) {}
+    }
+    
+    // Saw y Tri siempre son nativos
+    if (Number.isFinite(state.freq)) {
+      try {
         sawOsc.frequency.cancelScheduledValues(now);
         sawOsc.frequency.setValueAtTime(state.freq, now);
         triOsc.frequency.cancelScheduledValues(now);
         triOsc.frequency.setValueAtTime(state.freq, now);
-        pulseOsc.frequency.cancelScheduledValues(now);
-        pulseOsc.frequency.setValueAtTime(state.freq, now);
       } catch (error) {}
     }
     if (Number.isFinite(state.oscLevel)) {
@@ -505,14 +552,18 @@ class App {
         pulseGain.gain.setValueAtTime(state.pulseLevel, now);
       } catch (error) {}
     }
+    
+    // Iniciar osciladores nativos (worklets ya están corriendo)
     try { 
-      osc.start(startTime);
+      if (!useWorklet) {
+        osc.start(startTime);
+        pulseOsc.start(startTime);
+      }
       sawOsc.start(startTime);
       triOsc.start(startTime);
-      pulseOsc.start(startTime);
     } catch (error) {}
 
-    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, _freqInitialized: true };
+    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, _freqInitialized: true, _useWorklet: useWorklet };
     panelAudio.nodes[oscIndex] = entry;
     return entry;
   }
@@ -588,8 +639,14 @@ class App {
     if (!ctx) return;
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
     if (!node || !node.pulseOsc) return;
-    const wave = this._createPulseWave(ctx, duty);
-    node.pulseOsc.setPeriodicWave(wave);
+    
+    // Usar worklet si disponible (sin clicks), fallback a setPeriodicWave
+    if (node._useWorklet && node.pulseOsc.setPulseWidth) {
+      node.pulseOsc.setPulseWidth(duty);
+    } else {
+      const wave = this._createPulseWave(ctx, duty);
+      node.pulseOsc.setPeriodicWave(wave);
+    }
   }
 
   _updatePanelSineSymmetry(panelIndex, oscIndex, value) {
@@ -602,8 +659,14 @@ class App {
     if (!ctx) return;
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
     if (!node || !node.osc) return;
-    const wave = this._createAsymmetricSineWave(ctx, value);
-    node.osc.setPeriodicWave(wave);
+    
+    // Usar worklet si disponible (sin clicks), fallback a setPeriodicWave
+    if (node._useWorklet && node.osc.setSymmetry) {
+      node.osc.setSymmetry(value);
+    } else {
+      const wave = this._createAsymmetricSineWave(ctx, value);
+      node.osc.setPeriodicWave(wave);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -666,13 +729,21 @@ class App {
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
     if (!node || !node.osc) return;
     const now = ctx.currentTime;
-    node.osc.frequency.cancelScheduledValues(now);
-    if (!node._freqInitialized) {
-      node.osc.frequency.setValueAtTime(freq, now);
-      node._freqInitialized = true;
-    } else {
-      node.osc.frequency.setTargetAtTime(freq, now, 0.03);
+    
+    // Sine - worklet o nativo
+    if (node._useWorklet && node.osc.setFrequency) {
+      node.osc.setFrequency(freq);
+    } else if (node.osc.frequency) {
+      node.osc.frequency.cancelScheduledValues(now);
+      if (!node._freqInitialized) {
+        node.osc.frequency.setValueAtTime(freq, now);
+        node._freqInitialized = true;
+      } else {
+        node.osc.frequency.setTargetAtTime(freq, now, 0.03);
+      }
     }
+    
+    // Saw y Tri siempre nativos
     if (node.sawOsc) {
       node.sawOsc.frequency.cancelScheduledValues(now);
       node.sawOsc.frequency.setTargetAtTime(freq, now, 0.03);
@@ -681,9 +752,15 @@ class App {
       node.triOsc.frequency.cancelScheduledValues(now);
       node.triOsc.frequency.setTargetAtTime(freq, now, 0.03);
     }
+    
+    // Pulse - worklet o nativo
     if (node.pulseOsc) {
-      node.pulseOsc.frequency.cancelScheduledValues(now);
-      node.pulseOsc.frequency.setTargetAtTime(freq, now, 0.03);
+      if (node._useWorklet && node.pulseOsc.setFrequency) {
+        node.pulseOsc.setFrequency(freq);
+      } else if (node.pulseOsc.frequency) {
+        node.pulseOsc.frequency.cancelScheduledValues(now);
+        node.pulseOsc.frequency.setTargetAtTime(freq, now, 0.03);
+      }
     }
   }
 
@@ -1066,12 +1143,26 @@ window.addEventListener('DOMContentLoaded', () => {
   let analyser = null;
   let scopeData = null;
   let scopeAnimId = null;
+  let scopeConnected = false;
   
   function initScope(audioCtx) {
-    if (analyser) return;
+    if (analyser) return analyser;
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
     scopeData = new Uint8Array(analyser.frequencyBinCount);
+    return analyser;
+  }
+  
+  function connectScopeToOutput() {
+    // Conectar al bus1 (salida principal) para ver todo el audio
+    const app = window._synthApp;
+    if (!app || !app.engine || !app.engine.audioCtx || !app.engine.bus1) return;
+    if (scopeConnected) return;
+    
+    initScope(app.engine.audioCtx);
+    app.engine.bus1.connect(analyser);
+    scopeConnected = true;
+    scopeLabel.textContent = '📊 Out1 (Bus1)';
   }
   
   function connectScope(node) {
@@ -1082,6 +1173,11 @@ window.addEventListener('DOMContentLoaded', () => {
   
   function drawScope() {
     scopeAnimId = requestAnimationFrame(drawScope);
+    
+    // Intentar conectar al bus1 si aún no está conectado
+    if (!scopeConnected) {
+      connectScopeToOutput();
+    }
     
     if (!analyser || !scopeData) {
       // Dibujar línea central cuando no hay señal

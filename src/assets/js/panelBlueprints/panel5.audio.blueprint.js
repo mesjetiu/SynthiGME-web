@@ -85,6 +85,9 @@ export default {
 
   // Destinos (salidas del router): columna -> destino
   // Para Panel 5, columnas 37..44 corresponden a Out 1..8.
+  // Columnas 57 y 58 corresponden a las entradas del osciloscopio.
+  // Nota: La columna 34 está oculta (índice 33), así que las columnas Synth
+  // posteriores a 34 tienen un offset de +1 en el índice físico.
   destinations: [
     { colSynth: 37, dest: { kind: 'outputBus', bus: 1 } },
     { colSynth: 38, dest: { kind: 'outputBus', bus: 2 } },
@@ -93,6 +96,10 @@ export default {
     { colSynth: 41, dest: { kind: 'outputBus', bus: 5 } },
     { colSynth: 42, dest: { kind: 'outputBus', bus: 6 } },
     { colSynth: 43, dest: { kind: 'outputBus', bus: 7 } },
-    { colSynth: 44, dest: { kind: 'outputBus', bus: 8 } }
+    { colSynth: 44, dest: { kind: 'outputBus', bus: 8 } },
+    // Osciloscopio: Y 1 (vertical / forma de onda) y Y 1 [X] (horizontal / Lissajous)
+    // Columnas visuales 57 y 58 = índices físicos 57 y 58 (después de la oculta 33)
+    { colSynth: 58, dest: { kind: 'oscilloscope', channel: 'Y' } },
+    { colSynth: 59, dest: { kind: 'oscilloscope', channel: 'X' } }
   ]
 };

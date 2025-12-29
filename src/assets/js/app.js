@@ -376,7 +376,7 @@ class App {
     panelAudio.state = panelAudio.state || [];
     let state = panelAudio.state[index];
     if (!state) {
-      state = { freq: 10, oscLevel: 0, sawLevel: 0, triLevel: 0 };
+      state = { freq: 10, oscLevel: 0, sawLevel: 0, triLevel: 0, pulseLevel: 0, pulseWidth: 0.5 };
       panelAudio.state[index] = state;
     }
     return state;
@@ -421,6 +421,18 @@ class App {
       try {
         node.triGain.gain.cancelScheduledValues(now);
         node.triGain.gain.setValueAtTime(state.triLevel, now);
+      } catch (error) {}
+    }
+    if (node.pulseOsc && node.pulseOsc.frequency && Number.isFinite(state.freq)) {
+      try {
+        node.pulseOsc.frequency.cancelScheduledValues(now);
+        node.pulseOsc.frequency.setValueAtTime(state.freq, now);
+      } catch (error) {}
+    }
+    if (node.pulseGain && node.pulseGain.gain && Number.isFinite(state.pulseLevel)) {
+      try {
+        node.pulseGain.gain.cancelScheduledValues(now);
+        node.pulseGain.gain.setValueAtTime(state.pulseLevel, now);
       } catch (error) {}
     }
   }
@@ -927,6 +939,23 @@ class App {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
+   * Crea un PeriodicWave para onda de pulso con el duty cycle dado.
+   * @param {AudioContext} ctx - Contexto de audio
+   * @param {number} duty - Duty cycle (0.01 a 0.99)
+   * @param {number} harmonics - Número de armónicos (default 32)
+   * @returns {PeriodicWave}
+   */
+  _createPulseWave(ctx, duty, harmonics = 32) {
+    const d = Math.min(0.99, Math.max(0.01, duty));
+    const real = new Float32Array(harmonics + 1);
+    const imag = new Float32Array(harmonics + 1);
+    for (let n = 1; n <= harmonics; n++) {
+      imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d);
+    }
+    return ctx.createPeriodicWave(real, imag);
+  }
+
+  /**
    * Obtiene o crea el objeto de audio para un panel dado.
    * @param {number} panelIndex - Índice del panel (1-4)
    * @returns {Object} Objeto con nodes[] y state[]
@@ -957,7 +986,7 @@ class App {
     panelAudio.state = panelAudio.state || [];
     
     let entry = panelAudio.nodes[oscIndex];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.triOsc && entry.triGain && entry.sineSawOut && entry.triPulseOut) {
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.triOsc && entry.triGain && entry.pulseOsc && entry.pulseGain && entry.sineSawOut && entry.triPulseOut) {
       return entry;
     }
 
@@ -987,17 +1016,25 @@ class App {
     triGain.gain.value = 0;
     triOsc.connect(triGain);
 
+    const pulseOsc = ctx.createOscillator();
+    pulseOsc.setPeriodicWave(this._createPulseWave(ctx, state.pulseWidth));
+    pulseOsc.frequency.value = 10;
+
+    const pulseGain = ctx.createGain();
+    pulseGain.gain.value = 0;
+    pulseOsc.connect(pulseGain);
+
     // Salida 1: Sine + Saw (fila impar en panel5)
     const sineSawOut = ctx.createGain();
     sineSawOut.gain.value = 1.0;
     gain.connect(sineSawOut);
     sawGain.connect(sineSawOut);
 
-    // Salida 2: Triangle + Pulse (fila par en panel5, pulse pendiente)
+    // Salida 2: Triangle + Pulse (fila par en panel5)
     const triPulseOut = ctx.createGain();
     triPulseOut.gain.value = 1.0;
     triGain.connect(triPulseOut);
-    // pulseGain.connect(triPulseOut); // TODO: cuando se implemente pulse
+    pulseGain.connect(triPulseOut);
     
     // Mantener moduleOut como alias de sineSawOut para compatibilidad legacy
     const moduleOut = sineSawOut;
@@ -1019,6 +1056,8 @@ class App {
         sawOsc.frequency.setValueAtTime(state.freq, now);
         triOsc.frequency.cancelScheduledValues(now);
         triOsc.frequency.setValueAtTime(state.freq, now);
+        pulseOsc.frequency.cancelScheduledValues(now);
+        pulseOsc.frequency.setValueAtTime(state.freq, now);
       } catch (error) {}
     }
     if (Number.isFinite(state.oscLevel)) {
@@ -1039,13 +1078,20 @@ class App {
         triGain.gain.setValueAtTime(state.triLevel, now);
       } catch (error) {}
     }
+    if (Number.isFinite(state.pulseLevel)) {
+      try {
+        pulseGain.gain.cancelScheduledValues(now);
+        pulseGain.gain.setValueAtTime(state.pulseLevel, now);
+      } catch (error) {}
+    }
     try { 
       osc.start(startTime);
       sawOsc.start(startTime);
       triOsc.start(startTime);
+      pulseOsc.start(startTime);
     } catch (error) {}
 
-    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, sineSawOut, triPulseOut, moduleOut, _freqInitialized: true };
+    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, _freqInitialized: true };
     panelAudio.nodes[oscIndex] = entry;
     return entry;
   }
@@ -1105,6 +1151,45 @@ class App {
   }
 
   /**
+   * Actualiza el volumen del oscilador pulso para cualquier panel.
+   */
+  _updatePanelPulseVolume(panelIndex, oscIndex, value) {
+    const panelAudio = this._getPanelAudio(panelIndex);
+    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    state.pulseLevel = value;
+
+    this.ensureAudio();
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanelNodes(panelIndex, oscIndex);
+    if (!node || !node.pulseGain) return;
+    const now = ctx.currentTime;
+    node.pulseGain.gain.cancelScheduledValues(now);
+    node.pulseGain.gain.setTargetAtTime(value, now, 0.03);
+  }
+
+  /**
+   * Actualiza el ancho de pulso (pulse width) para cualquier panel.
+   * @param {number} value - Valor de 0 a 1 (se mapea a 0.01-0.99)
+   */
+  _updatePanelPulseWidth(panelIndex, oscIndex, value) {
+    const panelAudio = this._getPanelAudio(panelIndex);
+    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    // Mapear 0-1 a 0.01-0.99 para evitar extremos
+    const duty = 0.01 + value * 0.98;
+    state.pulseWidth = duty;
+
+    this.ensureAudio();
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanelNodes(panelIndex, oscIndex);
+    if (!node || !node.pulseOsc) return;
+    // Regenerar el PeriodicWave con el nuevo duty cycle
+    const wave = this._createPulseWave(ctx, duty);
+    node.pulseOsc.setPeriodicWave(wave);
+  }
+
+  /**
    * Mapeo cuadrático de frecuencia para mejor control en rangos bajos.
    * t² da más resolución en frecuencias bajas y menos en altas.
    */
@@ -1153,6 +1238,14 @@ class App {
         node.triOsc.frequency.setTargetAtTime(freq, now, 0.03);
       }
     }
+    if (node.pulseOsc) {
+      node.pulseOsc.frequency.cancelScheduledValues(now);
+      if (!node._freqInitialized) {
+        node.pulseOsc.frequency.setValueAtTime(freq, now);
+      } else {
+        node.pulseOsc.frequency.setTargetAtTime(freq, now, 0.03);
+      }
+    }
   }
 
   /**
@@ -1162,6 +1255,18 @@ class App {
    */
   _getPanelKnobOptions(panelIndex, oscIndex) {
     const knobOptions = [];
+    knobOptions[0] = {
+      min: 0,
+      max: 1,
+      initial: 0,
+      onChange: value => this._updatePanelPulseVolume(panelIndex, oscIndex, value)
+    };
+    knobOptions[1] = {
+      min: 0,
+      max: 1,
+      initial: 0.5,
+      onChange: value => this._updatePanelPulseWidth(panelIndex, oscIndex, value)
+    };
     knobOptions[2] = {
       min: 0,
       max: 1,
@@ -1216,6 +1321,16 @@ class App {
   _updatePanel2TriVolume(index, value) { this._updatePanelTriVolume(2, index, value); }
   _updatePanel3TriVolume(index, value) { this._updatePanelTriVolume(3, index, value); }
   _updatePanel4TriVolume(index, value) { this._updatePanelTriVolume(4, index, value); }
+
+  _updatePanel1PulseVolume(index, value) { this._updatePanelPulseVolume(1, index, value); }
+  _updatePanel2PulseVolume(index, value) { this._updatePanelPulseVolume(2, index, value); }
+  _updatePanel3PulseVolume(index, value) { this._updatePanelPulseVolume(3, index, value); }
+  _updatePanel4PulseVolume(index, value) { this._updatePanelPulseVolume(4, index, value); }
+
+  _updatePanel1PulseWidth(index, value) { this._updatePanelPulseWidth(1, index, value); }
+  _updatePanel2PulseWidth(index, value) { this._updatePanelPulseWidth(2, index, value); }
+  _updatePanel3PulseWidth(index, value) { this._updatePanelPulseWidth(3, index, value); }
+  _updatePanel4PulseWidth(index, value) { this._updatePanelPulseWidth(4, index, value); }
 
   _updatePanel1OscFreq(index, value) { this._updatePanelOscFreq(1, index, value); }
   _updatePanel2OscFreq(index, value) { this._updatePanelOscFreq(2, index, value); }

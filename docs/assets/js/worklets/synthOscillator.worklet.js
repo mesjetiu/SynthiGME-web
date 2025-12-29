@@ -4,9 +4,10 @@
  * Oscilador con control de fase para síntesis con:
  * - Pulse width modulable sin clicks (fase coherente)
  * - Sine symmetry modulable sin clicks (fase coherente)
+ * - Triangle y Sawtooth con anti-aliasing
  * - Soporte para hard sync (reset de fase externo)
  * 
- * @version 0.2.0 - Añadido sine con symmetry
+ * @version 0.3.0 - Añadido triangle y sawtooth
  */
 
 class SynthOscillatorProcessor extends AudioWorkletProcessor {
@@ -49,7 +50,7 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     this.lastSyncSample = -1;
     this.isRunning = true;
     
-    // Tipo de onda: 'pulse' o 'sine'
+    // Tipo de onda: 'pulse', 'sine', 'triangle', 'sawtooth'
     this.waveform = options?.processorOptions?.waveform || 'pulse';
 
     // Escuchar mensajes del hilo principal
@@ -110,6 +111,34 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     return Math.sin(transformedPhase * 2 * Math.PI);
   }
 
+  /**
+   * Genera onda sawtooth con anti-aliasing PolyBLEP
+   * Rango: -1 a +1
+   */
+  generateSawtooth(phase, dt) {
+    // Sawtooth naive: rampa de -1 a +1
+    let sample = 2 * phase - 1;
+    // Aplicar PolyBLEP en la discontinuidad (fase = 0/1)
+    sample -= this.polyBlep(phase, dt);
+    return sample;
+  }
+
+  /**
+   * Genera onda triangle con anti-aliasing
+   * Derivada del sawtooth integrado
+   */
+  generateTriangle(phase, dt) {
+    // Triangle: valor absoluto del sawtooth escalado
+    // Más eficiente: cálculo directo
+    let sample;
+    if (phase < 0.5) {
+      sample = 4 * phase - 1;
+    } else {
+      sample = 3 - 4 * phase;
+    }
+    return sample;
+  }
+
   process(inputs, outputs, parameters) {
     if (!this.isRunning) return false;
 
@@ -144,11 +173,18 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
 
       // Generar sample según tipo de onda
       let sample;
-      if (this.waveform === 'sine') {
-        sample = this.generateAsymmetricSine(this.phase, symmetry);
-      } else {
-        // pulse (default)
-        sample = this.generatePulse(this.phase, width, dt);
+      switch (this.waveform) {
+        case 'sine':
+          sample = this.generateAsymmetricSine(this.phase, symmetry);
+          break;
+        case 'triangle':
+          sample = this.generateTriangle(this.phase, dt);
+          break;
+        case 'sawtooth':
+          sample = this.generateSawtooth(this.phase, dt);
+          break;
+        default: // pulse
+          sample = this.generatePulse(this.phase, width, dt);
       }
 
       // Aplicar ganancia

@@ -376,7 +376,7 @@ class App {
     panelAudio.state = panelAudio.state || [];
     let state = panelAudio.state[index];
     if (!state) {
-      state = { freq: 10, oscLevel: 0, sawLevel: 0 };
+      state = { freq: 10, oscLevel: 0, sawLevel: 0, triLevel: 0 };
       panelAudio.state[index] = state;
     }
     return state;
@@ -409,6 +409,18 @@ class App {
       try {
         node.sawGain.gain.cancelScheduledValues(now);
         node.sawGain.gain.setValueAtTime(state.sawLevel, now);
+      } catch (error) {}
+    }
+    if (node.triOsc && node.triOsc.frequency && Number.isFinite(state.freq)) {
+      try {
+        node.triOsc.frequency.cancelScheduledValues(now);
+        node.triOsc.frequency.setValueAtTime(state.freq, now);
+      } catch (error) {}
+    }
+    if (node.triGain && node.triGain.gain && Number.isFinite(state.triLevel)) {
+      try {
+        node.triGain.gain.cancelScheduledValues(now);
+        node.triGain.gain.setValueAtTime(state.triLevel, now);
       } catch (error) {}
     }
   }
@@ -945,7 +957,7 @@ class App {
     panelAudio.state = panelAudio.state || [];
     
     let entry = panelAudio.nodes[oscIndex];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.moduleOut) {
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.triOsc && entry.triGain && entry.sineSawOut && entry.triPulseOut) {
       return entry;
     }
 
@@ -967,10 +979,28 @@ class App {
     sawGain.gain.value = 0;
     sawOsc.connect(sawGain);
 
-    const moduleOut = ctx.createGain();
-    moduleOut.gain.value = 1.0;
-    gain.connect(moduleOut);
-    sawGain.connect(moduleOut);
+    const triOsc = ctx.createOscillator();
+    triOsc.type = 'triangle';
+    triOsc.frequency.value = 10;
+
+    const triGain = ctx.createGain();
+    triGain.gain.value = 0;
+    triOsc.connect(triGain);
+
+    // Salida 1: Sine + Saw (fila impar en panel5)
+    const sineSawOut = ctx.createGain();
+    sineSawOut.gain.value = 1.0;
+    gain.connect(sineSawOut);
+    sawGain.connect(sineSawOut);
+
+    // Salida 2: Triangle + Pulse (fila par en panel5, pulse pendiente)
+    const triPulseOut = ctx.createGain();
+    triPulseOut.gain.value = 1.0;
+    triGain.connect(triPulseOut);
+    // pulseGain.connect(triPulseOut); // TODO: cuando se implemente pulse
+    
+    // Mantener moduleOut como alias de sineSawOut para compatibilidad legacy
+    const moduleOut = sineSawOut;
     
     const bus1 = this.engine.getOutputBusNode(0);
     if (bus1) moduleOut.connect(bus1);
@@ -984,6 +1014,8 @@ class App {
         osc.frequency.setValueAtTime(state.freq, now);
         sawOsc.frequency.cancelScheduledValues(now);
         sawOsc.frequency.setValueAtTime(state.freq, now);
+        triOsc.frequency.cancelScheduledValues(now);
+        triOsc.frequency.setValueAtTime(state.freq, now);
       } catch (error) {}
     }
     if (Number.isFinite(state.oscLevel)) {
@@ -998,12 +1030,19 @@ class App {
         sawGain.gain.setValueAtTime(state.sawLevel, now);
       } catch (error) {}
     }
+    if (Number.isFinite(state.triLevel)) {
+      try {
+        triGain.gain.cancelScheduledValues(now);
+        triGain.gain.setValueAtTime(state.triLevel, now);
+      } catch (error) {}
+    }
     try { 
       osc.start(startTime);
       sawOsc.start(startTime);
+      triOsc.start(startTime);
     } catch (error) {}
 
-    entry = { osc, gain, sawOsc, sawGain, moduleOut, _freqInitialized: true };
+    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, sineSawOut, triPulseOut, moduleOut, _freqInitialized: true };
     panelAudio.nodes[oscIndex] = entry;
     return entry;
   }
@@ -1042,6 +1081,24 @@ class App {
     const now = ctx.currentTime;
     node.sawGain.gain.cancelScheduledValues(now);
     node.sawGain.gain.setTargetAtTime(value, now, 0.03);
+  }
+
+  /**
+   * Actualiza el volumen del oscilador triángulo para cualquier panel.
+   */
+  _updatePanelTriVolume(panelIndex, oscIndex, value) {
+    const panelAudio = this._getPanelAudio(panelIndex);
+    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    state.triLevel = value;
+
+    this.ensureAudio();
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanelNodes(panelIndex, oscIndex);
+    if (!node || !node.triGain) return;
+    const now = ctx.currentTime;
+    node.triGain.gain.cancelScheduledValues(now);
+    node.triGain.gain.setTargetAtTime(value, now, 0.03);
   }
 
   /**
@@ -1085,6 +1142,14 @@ class App {
         node.sawOsc.frequency.setTargetAtTime(freq, now, 0.03);
       }
     }
+    if (node.triOsc) {
+      node.triOsc.frequency.cancelScheduledValues(now);
+      if (!node._freqInitialized) {
+        node.triOsc.frequency.setValueAtTime(freq, now);
+      } else {
+        node.triOsc.frequency.setTargetAtTime(freq, now, 0.03);
+      }
+    }
   }
 
   /**
@@ -1099,6 +1164,12 @@ class App {
       max: 1,
       initial: 0,
       onChange: value => this._updatePanelOscVolume(panelIndex, oscIndex, value)
+    };
+    knobOptions[4] = {
+      min: 0,
+      max: 1,
+      initial: 0,
+      onChange: value => this._updatePanelTriVolume(panelIndex, oscIndex, value)
     };
     knobOptions[5] = {
       min: 0,
@@ -1137,6 +1208,11 @@ class App {
   _updatePanel2SawVolume(index, value) { this._updatePanelSawVolume(2, index, value); }
   _updatePanel3SawVolume(index, value) { this._updatePanelSawVolume(3, index, value); }
   _updatePanel4SawVolume(index, value) { this._updatePanelSawVolume(4, index, value); }
+
+  _updatePanel1TriVolume(index, value) { this._updatePanelTriVolume(1, index, value); }
+  _updatePanel2TriVolume(index, value) { this._updatePanelTriVolume(2, index, value); }
+  _updatePanel3TriVolume(index, value) { this._updatePanelTriVolume(3, index, value); }
+  _updatePanel4TriVolume(index, value) { this._updatePanelTriVolume(4, index, value); }
 
   _updatePanel1OscFreq(index, value) { this._updatePanelOscFreq(1, index, value); }
   _updatePanel2OscFreq(index, value) { this._updatePanelOscFreq(2, index, value); }
@@ -1188,13 +1264,16 @@ class App {
     };
 
     const rowMap = new Map();
+    const channelMap = new Map();
     for (const entry of blueprint?.sources || []) {
       const rowSynth = entry?.rowSynth;
       const oscIndex = entry?.source?.oscIndex;
+      const channelId = entry?.source?.channelId || 'sineSaw';
       if (!Number.isFinite(rowSynth) || !Number.isFinite(oscIndex)) continue;
       const rowIndex = synthRowToPhysicalRowIndex(rowSynth);
       if (rowIndex == null) continue;
       rowMap.set(rowIndex, oscIndex);
+      channelMap.set(rowIndex, channelId);
     }
 
     const colMap = new Map();
@@ -1209,7 +1288,7 @@ class App {
       colMap.set(colIndex, busIndex);
     }
 
-    return { rowMap, colMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
+    return { rowMap, colMap, channelMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
   }
 
   _getPanel5RowMap() {
@@ -1221,13 +1300,15 @@ class App {
   }
 
   _setupPanel5AudioRouting() {
-    this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null };
+    this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null, channelMap: null };
     this._panel3Routing.connections = {};
-    this._panel3Routing.rowMap = this._getPanel5RowMap();
-    this._panel3Routing.colMap = this._getPanel5ColMap();
+    const mappings = this._compilePanelBlueprintMappings(panel5AudioBlueprint);
+    this._panel3Routing.rowMap = mappings.rowMap;
+    this._panel3Routing.colMap = mappings.colMap;
+    this._panel3Routing.channelMap = mappings.channelMap;
     // Pines no válidos (huecos del panel) se deshabilitan en la matriz.
     // Nota: el routing usa índices físicos (rowIndex/colIndex), así que esto NO reindexa nada.
-    this._panel3Routing.hiddenCols = this._compilePanelBlueprintMappings(panel5AudioBlueprint).hiddenCols;
+    this._panel3Routing.hiddenCols = mappings.hiddenCols;
 
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
       this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
@@ -1239,6 +1320,7 @@ class App {
   _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
     const oscIndex = this._panel3Routing?.rowMap?.get(rowIndex);
     const busIndex = this._panel3Routing?.colMap?.get(colIndex);
+    const channelId = this._panel3Routing?.channelMap?.get(rowIndex) || 'sineSaw';
     const key = `${rowIndex}:${colIndex}`;
 
     // Si no mapea a nuestras fuentes/destinos, dejar que el UI siga sin conexiones de audio.
@@ -1248,7 +1330,8 @@ class App {
       this.ensureAudio();
       const ctx = this.engine.audioCtx;
       const src = this._ensurePanel3Nodes(oscIndex);
-      const outNode = src?.moduleOut;
+      // Seleccionar nodo de salida según el canal: sineSaw o triPulse
+      const outNode = channelId === 'triPulse' ? src?.triPulseOut : src?.sineSawOut;
       const busNode = this.engine.getOutputBusNode(busIndex);
       if (!ctx || !outNode || !busNode) return false;
 

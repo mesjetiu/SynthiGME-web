@@ -10,8 +10,10 @@
 // - colSynth: número de columna en la serigrafía (1..67)
 //
 // Nota sobre osciladores:
-// - Por ahora cada oscilador aporta 1 canal interno (suma Sine+Saw) llamado "sum".
-// - Cada oscilador ocupa 2 filas físicas; por ahora usamos la fila inferior de cada pareja.
+// - Cada oscilador tiene 2 canales de salida:
+//   - sineSaw: suma de Sine + Sawtooth (fila impar)
+//   - triPulse: suma de Triangle + Pulse (fila par siguiente) - pulse pendiente de implementar
+// - Cada oscilador ocupa 2 filas físicas consecutivas.
 // - Entre osc 3 y osc 4 hay un hueco (filas ocultas) que NO cuenta.
 
 export default {
@@ -48,18 +50,37 @@ export default {
   },
 
   // Fuentes (entradas al router): fila -> salida de módulo
-  // Para Panel 5, por ahora son 9 osciladores (del panel 3) con canal "sum".
-  // rowSynth son las filas activas donde pinchas.
+  // Para Panel 5: 9 osciladores (del panel 3), cada uno con 2 canales.
+  // Filas impares: sineSaw (sine + sawtooth)
+  // Filas pares (siguiente): triPulse (triangle + pulse)
   sources: [
-    { rowSynth: 91, source: { kind: 'panel3Osc', oscIndex: 0, channelId: 'sum' } },
-    { rowSynth: 93, source: { kind: 'panel3Osc', oscIndex: 1, channelId: 'sum' } },
-    { rowSynth: 95, source: { kind: 'panel3Osc', oscIndex: 2, channelId: 'sum' } },
-    { rowSynth: 97, source: { kind: 'panel3Osc', oscIndex: 3, channelId: 'sum' } },
-    { rowSynth: 99, source: { kind: 'panel3Osc', oscIndex: 4, channelId: 'sum' } },
-    { rowSynth: 101, source: { kind: 'panel3Osc', oscIndex: 5, channelId: 'sum' } },
-    { rowSynth: 103, source: { kind: 'panel3Osc', oscIndex: 6, channelId: 'sum' } },
-    { rowSynth: 105, source: { kind: 'panel3Osc', oscIndex: 7, channelId: 'sum' } },
-    { rowSynth: 107, source: { kind: 'panel3Osc', oscIndex: 8, channelId: 'sum' } }
+    // Osc 1
+    { rowSynth: 91, source: { kind: 'panel3Osc', oscIndex: 0, channelId: 'sineSaw' } },
+    { rowSynth: 92, source: { kind: 'panel3Osc', oscIndex: 0, channelId: 'triPulse' } },
+    // Osc 2
+    { rowSynth: 93, source: { kind: 'panel3Osc', oscIndex: 1, channelId: 'sineSaw' } },
+    { rowSynth: 94, source: { kind: 'panel3Osc', oscIndex: 1, channelId: 'triPulse' } },
+    // Osc 3
+    { rowSynth: 95, source: { kind: 'panel3Osc', oscIndex: 2, channelId: 'sineSaw' } },
+    { rowSynth: 96, source: { kind: 'panel3Osc', oscIndex: 2, channelId: 'triPulse' } },
+    // Osc 4
+    { rowSynth: 97, source: { kind: 'panel3Osc', oscIndex: 3, channelId: 'sineSaw' } },
+    { rowSynth: 98, source: { kind: 'panel3Osc', oscIndex: 3, channelId: 'triPulse' } },
+    // Osc 5
+    { rowSynth: 99, source: { kind: 'panel3Osc', oscIndex: 4, channelId: 'sineSaw' } },
+    { rowSynth: 100, source: { kind: 'panel3Osc', oscIndex: 4, channelId: 'triPulse' } },
+    // Osc 6
+    { rowSynth: 101, source: { kind: 'panel3Osc', oscIndex: 5, channelId: 'sineSaw' } },
+    { rowSynth: 102, source: { kind: 'panel3Osc', oscIndex: 5, channelId: 'triPulse' } },
+    // Osc 7
+    { rowSynth: 103, source: { kind: 'panel3Osc', oscIndex: 6, channelId: 'sineSaw' } },
+    { rowSynth: 104, source: { kind: 'panel3Osc', oscIndex: 6, channelId: 'triPulse' } },
+    // Osc 8
+    { rowSynth: 105, source: { kind: 'panel3Osc', oscIndex: 7, channelId: 'sineSaw' } },
+    { rowSynth: 106, source: { kind: 'panel3Osc', oscIndex: 7, channelId: 'triPulse' } },
+    // Osc 9
+    { rowSynth: 107, source: { kind: 'panel3Osc', oscIndex: 8, channelId: 'sineSaw' } },
+    { rowSynth: 108, source: { kind: 'panel3Osc', oscIndex: 8, channelId: 'triPulse' } }
   ],
 
   // Destinos (salidas del router): columna -> destino

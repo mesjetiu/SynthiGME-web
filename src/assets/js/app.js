@@ -7,6 +7,7 @@ import { LargeMatrix } from './ui/largeMatrix.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
+import panel3OscConfig from './panelBlueprints/panel3.oscillators.config.js';
 
 let orientationHintDismissed = false;
 
@@ -1258,22 +1259,98 @@ class App {
     node.osc.setPeriodicWave(wave);
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // SISTEMA DE CONFIGURACIÓN DE OSCILADORES
+  // ─────────────────────────────────────────────────────────────────────────
+
   /**
-   * Mapeo cuadrático de frecuencia para mejor control en rangos bajos.
-   * t² da más resolución en frecuencias bajas y menos en altas.
+   * Obtiene la configuración completa para un oscilador específico del panel 3.
+   * Combina la configuración por defecto con la configuración individual.
+   * 
+   * @param {number} oscIndex - Índice del oscilador (0-11)
+   * @returns {Object} Configuración combinada (override > defaults)
    */
-  _mapFreqQuadratic(knobValue) {
-    const min = 10;
-    const max = 10000;
-    const t = (knobValue - min) / (max - min);
-    return t * t * (max - min) + min;
+  _getOscConfig(oscIndex) {
+    const defaults = panel3OscConfig.defaults || {};
+    const oscNumber = oscIndex + 1; // Convertir a numeración 1-12
+    const override = panel3OscConfig.oscillators?.[oscNumber] || {};
+    
+    // Merge profundo: los valores de override sobrescriben defaults
+    return this._deepMerge(defaults, override);
+  }
+
+  /**
+   * Merge profundo de dos objetos. El segundo sobrescribe al primero.
+   * @param {Object} target - Objeto base
+   * @param {Object} source - Objeto que sobrescribe
+   * @returns {Object} Objeto combinado
+   */
+  _deepMerge(target, source) {
+    const result = { ...target };
+    for (const key of Object.keys(source)) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this._deepMerge(target[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Aplica una curva de transformación a un valor de knob.
+   * Transforma el valor lineal del knob al valor real del parámetro.
+   * 
+   * @param {number} value - Valor lineal del knob (entre min y max del knob)
+   * @param {Object} knobConfig - Configuración del knob (min, max, curve, etc.)
+   * @returns {number} Valor transformado según la curva
+   */
+  _applyCurve(value, knobConfig) {
+    const { min, max, curve = 'linear', curveExponent = 2, curveK = 3 } = knobConfig;
+    
+    // Normalizar valor a rango 0-1
+    const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+    
+    let curved;
+    switch (curve) {
+      case 'quadratic':
+        // Curva cuadrática: y = x^n
+        // Más resolución en valores bajos, menos en altos
+        curved = Math.pow(t, curveExponent);
+        break;
+        
+      case 'exponential':
+        // Curva exponencial: y = (e^(k*x) - 1) / (e^k - 1)
+        // Útil para frecuencias estilo V/Oct
+        curved = (Math.exp(curveK * t) - 1) / (Math.exp(curveK) - 1);
+        break;
+        
+      case 'logarithmic':
+        // Curva logarítmica: y = log(x+1) / log(2)
+        // Útil para percepción de volumen
+        curved = Math.log(t + 1) / Math.log(2);
+        break;
+        
+      default: // 'linear'
+        curved = t;
+    }
+    
+    // Desnormalizar al rango real del parámetro
+    return curved * (max - min) + min;
   }
 
   /**
    * Actualiza la frecuencia del oscilador para cualquier panel.
    */
   _updatePanelOscFreq(panelIndex, oscIndex, value) {
-    const freq = this._mapFreqQuadratic(value);
+    // Obtener configuración del oscilador (solo panel 3 usa config individual)
+    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3OscConfig.defaults;
+    const freqConfig = config?.knobs?.frequency || { min: 1, max: 10000, curve: 'quadratic' };
+    const smoothing = config?.audio?.freqSmoothing ?? 0.03;
+    
+    // Aplicar curva de transformación
+    const freq = this._applyCurve(value, freqConfig);
+    
     const panelAudio = this._getPanelAudio(panelIndex);
     const state = this._getOrCreateOscState(panelAudio, oscIndex);
     state.freq = freq;
@@ -1319,55 +1396,83 @@ class App {
 
   /**
    * Genera las opciones de knobs para cualquier panel de osciladores.
+   * Para panel 3, usa la configuración de panel3.oscillators.config.js.
+   * Para otros paneles, usa los defaults.
+   * 
    * @param {number} panelIndex - Índice del panel (1-4)
    * @param {number} oscIndex - Índice del oscilador
    */
   _getPanelKnobOptions(panelIndex, oscIndex) {
+    // Obtener configuración del oscilador
+    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3OscConfig.defaults;
+    const knobsConfig = config?.knobs || {};
+    
     const knobOptions = [];
+    
+    // Knob 0: Pulse Level
+    const pulseLevelCfg = knobsConfig.pulseLevel || {};
     knobOptions[0] = {
-      min: 0,
-      max: 1,
-      initial: 0,
+      min: pulseLevelCfg.min ?? 0,
+      max: pulseLevelCfg.max ?? 1,
+      initial: pulseLevelCfg.initial ?? 0,
       onChange: value => this._updatePanelPulseVolume(panelIndex, oscIndex, value)
     };
+    
+    // Knob 1: Pulse Width
+    const pulseWidthCfg = knobsConfig.pulseWidth || {};
     knobOptions[1] = {
-      min: 0,
-      max: 1,
-      initial: 0.5,
+      min: pulseWidthCfg.min ?? 0,
+      max: pulseWidthCfg.max ?? 1,
+      initial: pulseWidthCfg.initial ?? 0.5,
       onChange: value => this._updatePanelPulseWidth(panelIndex, oscIndex, value)
     };
+    
+    // Knob 2: Sine Level
+    const sineLevelCfg = knobsConfig.sineLevel || {};
     knobOptions[2] = {
-      min: 0,
-      max: 1,
-      initial: 0,
+      min: sineLevelCfg.min ?? 0,
+      max: sineLevelCfg.max ?? 1,
+      initial: sineLevelCfg.initial ?? 0,
       onChange: value => this._updatePanelOscVolume(panelIndex, oscIndex, value)
     };
-    // Knob 3: Simetría del sine (0=vientres abajo, 0.5=sine puro, 1=vientres arriba)
+    
+    // Knob 3: Sine Symmetry (0=vientres abajo, 0.5=sine puro, 1=vientres arriba)
+    const sineSymmetryCfg = knobsConfig.sineSymmetry || {};
     knobOptions[3] = {
-      min: 0,
-      max: 1,
-      initial: 0.5,
+      min: sineSymmetryCfg.min ?? 0,
+      max: sineSymmetryCfg.max ?? 1,
+      initial: sineSymmetryCfg.initial ?? 0.5,
       onChange: value => this._updatePanelSineSymmetry(panelIndex, oscIndex, value)
     };
+    
+    // Knob 4: Triangle Level
+    const triangleLevelCfg = knobsConfig.triangleLevel || {};
     knobOptions[4] = {
-      min: 0,
-      max: 1,
-      initial: 0,
+      min: triangleLevelCfg.min ?? 0,
+      max: triangleLevelCfg.max ?? 1,
+      initial: triangleLevelCfg.initial ?? 0,
       onChange: value => this._updatePanelTriVolume(panelIndex, oscIndex, value)
     };
+    
+    // Knob 5: Sawtooth Level
+    const sawtoothLevelCfg = knobsConfig.sawtoothLevel || {};
     knobOptions[5] = {
-      min: 0,
-      max: 1,
-      initial: 0,
+      min: sawtoothLevelCfg.min ?? 0,
+      max: sawtoothLevelCfg.max ?? 1,
+      initial: sawtoothLevelCfg.initial ?? 0,
       onChange: value => this._updatePanelSawVolume(panelIndex, oscIndex, value)
     };
+    
+    // Knob 6: Frequency
+    const frequencyCfg = knobsConfig.frequency || {};
     knobOptions[6] = {
-      min: 10,
-      max: 10000,
-      initial: 10,
-      pixelsForFullRange: 900,
+      min: frequencyCfg.min ?? 1,
+      max: frequencyCfg.max ?? 10000,
+      initial: frequencyCfg.initial ?? 10,
+      pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelOscFreq(panelIndex, oscIndex, value)
     };
+    
     return knobOptions;
   }
 

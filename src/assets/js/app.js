@@ -1021,4 +1021,342 @@ window.addEventListener('DOMContentLoaded', () => {
   setupMobileQuickActionsBar();
   setupPanelZoomButtons();
   setupPanelDoubleTapZoom();
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TEST TEMPORAL: Botón para probar AudioWorklet (eliminar después)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // --- OSCILOSCOPIO ---
+  const scopeContainer = document.createElement('div');
+  scopeContainer.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    background: #111;
+    border: 2px solid #0f0;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  `;
+  
+  const scopeLabel = document.createElement('div');
+  scopeLabel.textContent = '📊 Osciloscopio';
+  scopeLabel.style.cssText = `
+    color: #0f0;
+    font-family: monospace;
+    font-size: 12px;
+    margin-bottom: 5px;
+    text-align: center;
+  `;
+  scopeContainer.appendChild(scopeLabel);
+  
+  const scopeCanvas = document.createElement('canvas');
+  scopeCanvas.width = 300;
+  scopeCanvas.height = 150;
+  scopeCanvas.style.cssText = `
+    display: block;
+    background: #000;
+    border-radius: 4px;
+  `;
+  scopeContainer.appendChild(scopeCanvas);
+  document.body.appendChild(scopeContainer);
+  
+  const scopeCtx = scopeCanvas.getContext('2d');
+  let analyser = null;
+  let scopeData = null;
+  let scopeAnimId = null;
+  
+  function initScope(audioCtx) {
+    if (analyser) return;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    scopeData = new Uint8Array(analyser.frequencyBinCount);
+  }
+  
+  function connectScope(node) {
+    if (analyser && node) {
+      node.connect(analyser);
+    }
+  }
+  
+  function drawScope() {
+    scopeAnimId = requestAnimationFrame(drawScope);
+    
+    if (!analyser || !scopeData) {
+      // Dibujar línea central cuando no hay señal
+      scopeCtx.fillStyle = '#000';
+      scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+      scopeCtx.strokeStyle = '#333';
+      scopeCtx.beginPath();
+      scopeCtx.moveTo(0, scopeCanvas.height / 2);
+      scopeCtx.lineTo(scopeCanvas.width, scopeCanvas.height / 2);
+      scopeCtx.stroke();
+      return;
+    }
+    
+    analyser.getByteTimeDomainData(scopeData);
+    
+    // Fondo
+    scopeCtx.fillStyle = '#000';
+    scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+    
+    // Grid
+    scopeCtx.strokeStyle = '#1a1a1a';
+    scopeCtx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = (scopeCanvas.height / 4) * i;
+      scopeCtx.beginPath();
+      scopeCtx.moveTo(0, y);
+      scopeCtx.lineTo(scopeCanvas.width, y);
+      scopeCtx.stroke();
+    }
+    
+    // Línea central
+    scopeCtx.strokeStyle = '#333';
+    scopeCtx.beginPath();
+    scopeCtx.moveTo(0, scopeCanvas.height / 2);
+    scopeCtx.lineTo(scopeCanvas.width, scopeCanvas.height / 2);
+    scopeCtx.stroke();
+    
+    // Forma de onda
+    scopeCtx.lineWidth = 2;
+    scopeCtx.strokeStyle = '#0f0';
+    scopeCtx.beginPath();
+    
+    const sliceWidth = scopeCanvas.width / scopeData.length;
+    let x = 0;
+    
+    for (let i = 0; i < scopeData.length; i++) {
+      const v = scopeData[i] / 128.0;
+      const y = (v * scopeCanvas.height) / 2;
+      
+      if (i === 0) {
+        scopeCtx.moveTo(x, y);
+      } else {
+        scopeCtx.lineTo(x, y);
+      }
+      x += sliceWidth;
+    }
+    
+    scopeCtx.stroke();
+  }
+  
+  // Iniciar animación del scope
+  drawScope();
+  // --- FIN OSCILOSCOPIO ---
+  
+  const testBtn = document.createElement('button');
+  testBtn.textContent = '🔊 Test Worklet';
+  testBtn.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99999;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  `;
+  document.body.appendChild(testBtn);
+
+  let testOsc = null;
+  let testState = 'stopped'; // stopped, playing, modulating
+
+  const statusDiv = document.createElement('div');
+  statusDiv.style.cssText = `
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    z-index: 99999;
+    padding: 10px 15px;
+    font-size: 14px;
+    font-family: monospace;
+    background: rgba(0,0,0,0.8);
+    color: #0f0;
+    border-radius: 6px;
+    display: none;
+    max-width: 280px;
+  `;
+  document.body.appendChild(statusDiv);
+
+  function showStatus(msg) {
+    statusDiv.textContent = msg;
+    statusDiv.style.display = 'block';
+    console.log('[TEST]', msg);
+    // También actualizar el texto del botón para feedback visual
+    if (msg.startsWith('❌')) {
+      testBtn.textContent = msg;
+    }
+  }
+
+  testBtn.addEventListener('click', async () => {
+    showStatus('🔄 Iniciando test...');
+    
+    const app = window._synthApp;
+    if (!app || !app.engine) {
+      showStatus('❌ App no disponible');
+      return;
+    }
+
+    // Asegurar audio iniciado
+    app.ensureAudio();
+    
+    // Pequeño delay para que AudioContext se inicie
+    await new Promise(r => setTimeout(r, 100));
+    
+    // Verificar contexto de audio
+    const ctx = app.engine.audioCtx;
+    if (!ctx) {
+      showStatus('❌ AudioContext no creado');
+      return;
+    }
+    
+    // Resumir contexto si está suspendido
+    if (ctx.state === 'suspended') {
+      showStatus('⏳ Resumiendo AudioContext...');
+      await ctx.resume();
+    }
+    
+    // Verificar bus1
+    if (!app.engine.bus1) {
+      showStatus('❌ Bus1 no disponible');
+      return;
+    }
+    
+    // Verificar nivel del bus
+    const busLevel = app.engine.getOutputLevel(0);
+    showStatus(`Bus1 nivel: ${busLevel}`);
+
+    if (testState === 'stopped') {
+      // Esperar a que worklet esté listo
+      showStatus('⏳ Cargando worklet...');
+      
+      try {
+        const ready = await app.engine.ensureWorkletReady();
+        showStatus(`Worklet ready: ${ready}`);
+        
+        if (!ready) {
+          showStatus('❌ Worklet no cargó');
+          return;
+        }
+      } catch (err) {
+        showStatus('❌ Error: ' + err.message);
+        return;
+      }
+
+      // Crear oscilador de prueba
+      showStatus('⏳ Creando oscilador...');
+      testOsc = app.engine.createSynthOscillator({
+        frequency: 220,
+        pulseWidth: 0.5,
+        gain: 0.5
+      });
+
+      if (!testOsc) {
+        showStatus('❌ Error creando oscilador');
+        return;
+      }
+
+      // Inicializar osciloscopio
+      initScope(app.engine.audioCtx);
+      connectScope(testOsc);
+
+      // Subir nivel del bus para asegurar que se oye
+      app.engine.setOutputLevel(0, 1.0);
+      
+      // Conectar al bus 1
+      testOsc.connect(app.engine.bus1);
+      testState = 'playing';
+      testBtn.textContent = '🎛️ Modular Width';
+      testBtn.style.background = 'linear-gradient(135deg, #4ecdc4, #44bd32)';
+      showStatus('✅ Pulse 220Hz ACTIVO - Clic para modular');
+
+    } else if (testState === 'playing') {
+      // Modular pulse width (debería ser SIN CLICKS)
+      showStatus('🔄 Modulando width: 0.1 → 0.9 → 0.5');
+      
+      testOsc.setPulseWidth(0.1);
+      setTimeout(() => testOsc.setPulseWidth(0.9), 500);
+      setTimeout(() => testOsc.setPulseWidth(0.5), 1000);
+      setTimeout(() => {
+        showStatus('✅ ¿Sin clicks? Clic para probar frecuencia');
+        testState = 'modulating';
+        testBtn.textContent = '🎵 Modular Freq';
+        testBtn.style.background = 'linear-gradient(135deg, #a55eea, #8854d0)';
+      }, 1500);
+
+    } else if (testState === 'modulating') {
+      // Modular frecuencia
+      showStatus('🔄 Modulando freq: 220 → 440 → 110 → 220');
+      
+      testOsc.setFrequency(440);
+      setTimeout(() => testOsc.setFrequency(110), 400);
+      setTimeout(() => testOsc.setFrequency(220), 800);
+      setTimeout(() => {
+        showStatus('✅ Ahora probar SINE con symmetry');
+        testBtn.textContent = '🌊 Test Sine';
+        testBtn.style.background = 'linear-gradient(135deg, #00b894, #00cec9)';
+        testState = 'freq';
+      }, 1200);
+
+    } else if (testState === 'freq') {
+      // Cambiar a sine y probar symmetry
+      if (testOsc) {
+        testOsc.stop();
+        testOsc.disconnect();
+      }
+      
+      // Crear nuevo oscilador tipo sine
+      testOsc = app.engine.createSynthOscillator({
+        waveform: 'sine',
+        frequency: 220,
+        symmetry: 0.5,
+        gain: 0.5
+      });
+      
+      // Conectar al osciloscopio
+      connectScope(testOsc);
+      
+      testOsc.connect(app.engine.bus1);
+      
+      showStatus('🌊 Sine 220Hz - Symmetry 0.5');
+      testBtn.textContent = '🎛️ Modular Symmetry';
+      testBtn.style.background = 'linear-gradient(135deg, #fd79a8, #e84393)';
+      testState = 'sine';
+
+    } else if (testState === 'sine') {
+      // Modular symmetry (debería ser SIN CLICKS)
+      showStatus('🔄 Modulando symmetry: 0.1 → 0.9 → 0.5');
+      
+      testOsc.setSymmetry(0.1);
+      setTimeout(() => testOsc.setSymmetry(0.9), 500);
+      setTimeout(() => testOsc.setSymmetry(0.5), 1000);
+      setTimeout(() => {
+        showStatus('✅ ¿Sine sin clicks? Clic para detener');
+        testBtn.textContent = '⏹️ Detener';
+        testBtn.style.background = 'linear-gradient(135deg, #eb4d4b, #c0392b)';
+        testState = 'sinemod';
+      }, 1500);
+
+    } else {
+      // Detener
+      if (testOsc) {
+        testOsc.stop();
+        testOsc.disconnect();
+        testOsc = null;
+      }
+      testState = 'stopped';
+      testBtn.textContent = '🔊 Test Worklet';
+      testBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+      showStatus('⏹️ Detenido. Clic para reiniciar.');
+      setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
+    }
+  });
+  // ═══════════════════════════════════════════════════════════════════════════
 });

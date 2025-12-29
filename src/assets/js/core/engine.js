@@ -7,6 +7,8 @@ export class AudioEngine {
     this.isRunning = false;
     this.muted = false;
     this.masterBaseGain = 1.0;
+    this.workletReady = false;
+    this._workletLoadPromise = null;
 
     this.outputChannels = outputChannels;
     this.outputLevels = Array.from({ length: this.outputChannels }, () => 0.0);
@@ -38,6 +40,9 @@ export class AudioEngine {
     }
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.audioCtx = ctx;
+
+    // Cargar AudioWorklet para osciladores con fase coherente
+    this._loadWorklet();
 
     this.masterL = ctx.createGain();
     this.masterR = ctx.createGain();
@@ -175,6 +180,137 @@ export class AudioEngine {
 
   toggleMute() {
     this.setMute(!this.muted);
+  }
+
+  /**
+   * Carga el AudioWorklet para osciladores con fase coherente.
+   * Se llama automáticamente en start(), pero puede llamarse antes si se necesita.
+   * @returns {Promise<void>}
+   */
+  async _loadWorklet() {
+    if (this._workletLoadPromise) return this._workletLoadPromise;
+    if (!this.audioCtx) return Promise.resolve();
+
+    this._workletLoadPromise = (async () => {
+      try {
+        // Ruta relativa desde el HTML (docs/ o src/)
+        const workletPath = './assets/js/worklets/synthOscillator.worklet.js';
+        await this.audioCtx.audioWorklet.addModule(workletPath);
+        this.workletReady = true;
+        console.log('[AudioEngine] SynthOscillator worklet loaded');
+      } catch (err) {
+        console.error('[AudioEngine] Failed to load worklet:', err);
+        this.workletReady = false;
+      }
+    })();
+
+    return this._workletLoadPromise;
+  }
+
+  /**
+   * Espera a que el worklet esté listo antes de crear nodos.
+   * @returns {Promise<boolean>} true si el worklet está disponible
+   */
+  async ensureWorkletReady() {
+    if (this.workletReady) return true;
+    
+    // Si no hay contexto de audio, iniciarlo primero
+    if (!this.audioCtx) {
+      this.start();
+    }
+    
+    // Si no hay promesa de carga, iniciar carga
+    if (!this._workletLoadPromise) {
+      this._loadWorklet();
+    }
+    
+    // Esperar a que termine la carga
+    if (this._workletLoadPromise) {
+      await this._workletLoadPromise;
+      return this.workletReady;
+    }
+    return false;
+  }
+
+  /**
+   * Crea un nodo SynthOscillator con fase coherente.
+   * @param {Object} options - Opciones iniciales
+   * @param {string} [options.waveform='pulse'] - Tipo de onda: 'pulse' o 'sine'
+   * @param {number} [options.frequency=440] - Frecuencia inicial
+   * @param {number} [options.pulseWidth=0.5] - Ancho de pulso inicial (0.01-0.99) para pulse
+   * @param {number} [options.symmetry=0.5] - Simetría inicial (0.01-0.99) para sine
+   * @param {number} [options.gain=1.0] - Ganancia inicial
+   * @returns {AudioWorkletNode|null} El nodo o null si worklet no disponible
+   */
+  createSynthOscillator(options = {}) {
+    if (!this.audioCtx || !this.workletReady) {
+      console.warn('[AudioEngine] Worklet not ready, cannot create SynthOscillator');
+      return null;
+    }
+
+    const { 
+      waveform = 'pulse',
+      frequency = 440, 
+      pulseWidth = 0.5, 
+      symmetry = 0.5,
+      gain = 1.0 
+    } = options;
+
+    const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
+      numberOfInputs: 1,  // Input para sync
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+      processorOptions: { waveform }
+    });
+
+    // Establecer valores iniciales
+    node.parameters.get('frequency').value = frequency;
+    node.parameters.get('pulseWidth').value = pulseWidth;
+    node.parameters.get('symmetry').value = symmetry;
+    node.parameters.get('gain').value = gain;
+
+    // Métodos de conveniencia
+    node.setFrequency = (value, ramp = 0.01) => {
+      const param = node.parameters.get('frequency');
+      const now = this.audioCtx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, ramp);
+    };
+
+    node.setPulseWidth = (value, ramp = 0.01) => {
+      const param = node.parameters.get('pulseWidth');
+      const now = this.audioCtx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+    };
+
+    node.setSymmetry = (value, ramp = 0.01) => {
+      const param = node.parameters.get('symmetry');
+      const now = this.audioCtx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+    };
+
+    node.setGain = (value, ramp = 0.01) => {
+      const param = node.parameters.get('gain');
+      const now = this.audioCtx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, ramp);
+    };
+
+    node.setWaveform = (wf) => {
+      node.port.postMessage({ type: 'setWaveform', waveform: wf });
+    };
+
+    node.resetPhase = () => {
+      node.port.postMessage({ type: 'resetPhase' });
+    };
+
+    node.stop = () => {
+      node.port.postMessage({ type: 'stop' });
+    };
+
+    return node;
   }
 }
 

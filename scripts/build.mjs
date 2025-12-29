@@ -157,6 +157,16 @@ async function buildCss() {
   });
 }
 
+async function copyWorklets() {
+  const workletsDir = path.join(srcDir, 'assets/js/worklets');
+  const destDir = path.join(docsDir, 'assets/js/worklets');
+  try {
+    await copyDirectory(workletsDir, destDir);
+  } catch {
+    // no worklets to copy
+  }
+}
+
 async function run() {
   // Compute cache version BEFORE cleaning docs/, so we can
   // inspect the previous docs/sw.js from the last build.
@@ -177,6 +187,9 @@ async function run() {
   console.log('Copying manifest and asset folders …');
   await copyManifest();
   await copyStaticAssets();
+
+  console.log('Copying AudioWorklet modules …');
+  await copyWorklets();
 
   console.log('Generating service worker …');
   await buildServiceWorker(cacheVersion);

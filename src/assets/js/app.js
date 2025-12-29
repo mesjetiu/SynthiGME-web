@@ -8,6 +8,8 @@ import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
 import panel3OscConfig from './panelBlueprints/panel3.oscillators.config.js';
+import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
+import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
 
 let orientationHintDismissed = false;
 
@@ -1603,6 +1605,107 @@ class App {
     return this._compilePanelBlueprintMappings(panel5AudioBlueprint).colMap;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // PANEL 5 CONFIG HELPERS - Cálculo de ganancias según jerarquía
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Convierte índice físico de fila a número Synthi (rowSynth).
+   * Usa rowBase del blueprint para el cálculo.
+   */
+  _physicalRowToSynthRow(rowIndex) {
+    const mappings = this._compilePanelBlueprintMappings(panel5AudioBlueprint);
+    return mappings.rowBase + rowIndex;
+  }
+
+  /**
+   * Convierte índice físico de columna a número Synthi (colSynth).
+   * Usa colBase del blueprint para el cálculo.
+   */
+  _physicalColToSynthCol(colIndex) {
+    const mappings = this._compilePanelBlueprintMappings(panel5AudioBlueprint);
+    return mappings.colBase + colIndex;
+  }
+
+  /**
+   * Obtiene la ganancia para un pin específico del Panel 5.
+   * Jerarquía: pinGain (sobrescribe) > rowGain × colGain × matrixGain
+   * 
+   * @param {number} rowIndex - Índice físico de fila (0-based)
+   * @param {number} colIndex - Índice físico de columna (0-based)
+   * @returns {number} Ganancia final para este pin
+   */
+  _getPanel5PinGain(rowIndex, colIndex) {
+    const cfg = panel5AudioConfig?.audio || {};
+    const matrixGain = cfg.matrixGain ?? 1.0;
+    const gainRange = cfg.gainRange || { min: 0, max: 2.0 };
+
+    // Convertir índices físicos a coordenadas Synthi
+    const rowSynth = this._physicalRowToSynthRow(rowIndex);
+    const colSynth = this._physicalColToSynthCol(colIndex);
+    const pinKey = `${rowSynth}:${colSynth}`;
+
+    // Verificar si hay ganancia de pin específica (sobrescribe todo)
+    const pinGains = panel5AudioConfig?.pinGains || {};
+    if (pinKey in pinGains) {
+      const pinGain = pinGains[pinKey];
+      const clampedPin = Math.max(gainRange.min, Math.min(gainRange.max, pinGain));
+      return clampedPin * matrixGain;
+    }
+
+    // Si no hay pin específico, calcular rowGain × colGain
+    const rowGains = panel5AudioConfig?.rowGains || {};
+    const colGains = panel5AudioConfig?.colGains || {};
+    const rowGain = rowGains[rowSynth] ?? 1.0;
+    const colGain = colGains[colSynth] ?? 1.0;
+
+    // Aplicar límites de rango
+    const clampedRow = Math.max(gainRange.min, Math.min(gainRange.max, rowGain));
+    const clampedCol = Math.max(gainRange.min, Math.min(gainRange.max, colGain));
+
+    return clampedRow * clampedCol * matrixGain;
+  }
+
+  /**
+   * Obtiene la ganancia para un pin específico del Panel 6 (control).
+   * Misma jerarquía que Panel 5.
+   * 
+   * @param {number} rowIndex - Índice físico de fila (0-based)
+   * @param {number} colIndex - Índice físico de columna (0-based)
+   * @returns {number} Ganancia final para este pin
+   */
+  _getPanel6PinGain(rowIndex, colIndex) {
+    const cfg = panel6ControlConfig?.control || {};
+    const matrixGain = cfg.matrixGain ?? 1.0;
+    const gainRange = cfg.gainRange || { min: 0, max: 2.0 };
+
+    // Para Panel 6, usar su propio blueprint para las bases
+    const mappings = this._compilePanelBlueprintMappings(panel6ControlBlueprint);
+    const rowSynth = mappings.rowBase + rowIndex;
+    const colSynth = mappings.colBase + colIndex;
+    const pinKey = `${rowSynth}:${colSynth}`;
+
+    // Verificar si hay ganancia de pin específica (sobrescribe todo)
+    const pinGains = panel6ControlConfig?.pinGains || {};
+    if (pinKey in pinGains) {
+      const pinGain = pinGains[pinKey];
+      const clampedPin = Math.max(gainRange.min, Math.min(gainRange.max, pinGain));
+      return clampedPin * matrixGain;
+    }
+
+    // Si no hay pin específico, calcular rowGain × colGain
+    const rowGains = panel6ControlConfig?.rowGains || {};
+    const colGains = panel6ControlConfig?.colGains || {};
+    const rowGain = rowGains[rowSynth] ?? 1.0;
+    const colGain = colGains[colSynth] ?? 1.0;
+
+    // Aplicar límites de rango
+    const clampedRow = Math.max(gainRange.min, Math.min(gainRange.max, rowGain));
+    const clampedCol = Math.max(gainRange.min, Math.min(gainRange.max, colGain));
+
+    return clampedRow * clampedCol * matrixGain;
+  }
+
   _setupPanel5AudioRouting() {
     this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null, channelMap: null };
     this._panel3Routing.connections = {};
@@ -1646,7 +1749,9 @@ class App {
       this._applyOscStateImmediate(src, state, ctx);
 
       const gain = ctx.createGain();
-      gain.gain.value = 1.0;
+      // Calcular ganancia según config: pinGain sobrescribe, o rowGain × colGain
+      const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex);
+      gain.gain.value = pinGainValue;
       outNode.connect(gain);
       gain.connect(busNode);
       this._panel3Routing.connections[key] = gain;

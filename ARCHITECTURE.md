@@ -1,45 +1,262 @@
-# Arquitectura de salidas lógicas
+# SynthiGME-web — Arquitectura del Proyecto
 
-## Objetivo
-Replicar el panel de 8 salidas del Synthi 100 dentro de SynthiGME-web. Cada salida es un bus lógico con control independiente de nivel (y, más adelante, paneo) que termina mezclándose en las salidas físicas disponibles (hoy estéreo, mañana potencialmente multicanal si el navegador lo permite).
+> Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
+> Última actualización: 29 de diciembre de 2025
 
-## Estado actual
-- `AudioEngine` (`src/assets/js/core/engine.js`) solo crea dos buses (`bus1`, `bus2`) con sus `GainNode` y mezcla final en L/R.
-- `OutputRouterModule` expone las ganancias de esos dos buses como entradas CV pero no encapsula lógica de paneo/ruteo.
-- El panel UI `createOutputRouterUI` únicamente controla nivel y paneo de los dos buses existentes.
+---
 
-Este esquema limita el patching a dos salidas físicas y obliga a que cualquier expansión futura toque el motor directamente.
+## 1. Visión General
 
-## Diseño propuesto
-1. **Buses lógicos configurables**
-   - Añadir `OUTPUT_CHANNELS` (por defecto 8) en `AudioEngine` para crear arreglos de `GainNode` por bus (`logicalBuses[]`).
-   - Cada bus tendrá: `inputGain`, `levelModGain` (para CV), y referencias a los controles de UI.
-   - API pública mínima:
-     - `connectSourceToOutput(busIndex, node)`.
-     - `setOutputLevel(busIndex, value)`.
-     - `getOutputLevel(busIndex)`.
+SynthiGME-web es una aplicación **vanilla JavaScript** (ES Modules) que reproduce la funcionalidad del Synthi 100 en el navegador. No utiliza frameworks de runtime — solo herramientas de build (esbuild, svgo).
 
-2. **Router maestro físico**
-   - Nuevo componente (puede ser clase interna o módulo `OutputRouter`) encargado de mapear los buses lógicos a las salidas físicas (`physicalOutputs[]`).
-   - Hoy el router mezcla todos los buses en 2 canales (L/R) respetando la ganancia de cada bus.
-   - Futuro: si `audioCtx.destination.maxChannelCount > 2`, crear más `GainNode`/`ChannelMerger` y permitir asignaciones dinámicas (`busAssignments`), sin reescribir los módulos.
+### Stack Tecnológico
+| Capa | Tecnología |
+|------|------------|
+| Audio | Web Audio API |
+| UI | DOM nativo + SVG |
+| Build | esbuild (bundler), svgo (optimización SVG) |
+| PWA | Service Worker + Web App Manifest |
 
-3. **Panel UI de 8 sliders**
-   - Módulo dedicado con 8 faders verticales (solo nivel) que usa la API pública anterior.
-   - Se ubica en un panel independiente mediante `PanelManager` para imitar la disposición del Synthi 100.
-   - No se crean valores CV propios aún; solo control manual.
+---
 
-4. **Integración con la matriz**
-   - En `Matrix` agregar destinos “Output 1…8” que conectan cada pin a `connectSourceToOutput`.
-   - Las conexiones existentes continúan funcionando (bus 1/2 se reasignan a los dos primeros índices).
+## 2. Estructura de Carpetas
 
-## Flujo de audio
-1. Cada módulo produce audio y lo expone como `AudioNode`.
-2. La matriz decide a qué buses lógicos se conecta un pin.
-3. El bus lógico suma señales, aplica nivel (slider) y pasa por el router maestro.
-4. El router mezcla/dirige el resultado hacia los canales físicos disponibles y finalmente al `AudioContext.destination`.
+```
+src/
+├── index.html              # Punto de entrada HTML
+├── manifest.webmanifest    # Configuración PWA
+├── sw.js                   # Service Worker
+└── assets/
+    ├── css/
+    │   └── main.css        # Estilos globales
+    ├── icons/              # Iconos Tabler
+    ├── panels/             # SVGs de paneles del sintetizador
+    ├── pwa/icons/          # Iconos para PWA
+    └── js/
+        ├── app.js          # Bootstrap y orquestación principal (~1000 líneas)
+        ├── core/           # Motor de audio y conexiones
+        ├── modules/        # Módulos de audio (osciladores, ruido, etc.)
+        ├── ui/             # Componentes de interfaz reutilizables
+        ├── navigation/     # Sistema de navegación del viewport
+        ├── utils/          # Utilidades (canvas, SW, versión)
+        └── panelBlueprints/# Configuración de matrices y paneles
+```
 
-## Consideraciones
-- El paneo por bus se añadirá más adelante; esta fase solo controla nivel para simplificar UI y lógica.
-- Documentar esta arquitectura fuera de `docs/` permite referenciarla en issues/PR sin mezclarla con la documentación pública.
-- Antes de implementar CV para los sliders, validar la estabilidad del pipeline de 8 buses y el impacto en rendimiento.
+---
+
+## 3. Módulos JavaScript
+
+### 3.1 Core (`src/assets/js/core/`)
+
+| Archivo | Propósito |
+|---------|-----------|
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, y clase base `Module` |
+| `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
+
+### 3.2 Modules (`src/assets/js/modules/`)
+
+Cada módulo representa un componente de audio del Synthi 100:
+
+| Archivo | Módulo | Descripción |
+|---------|--------|-------------|
+| `oscillator.js` | `OscillatorModule` | Oscilador básico con forma de onda configurable |
+| `pulse.js` | `PulseModule` | Oscilador de onda cuadrada/pulso con ancho variable |
+| `noise.js` | `NoiseModule` | Generador de ruido blanco/rosa |
+| `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
+| `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
+| `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
+
+**Patrón de módulo:**
+```javascript
+export class MiModulo extends Module {
+  constructor(engine, id) { super(engine, id, 'Nombre'); }
+  start() { /* crear nodos de audio */ }
+  stop() { /* limpiar recursos */ }
+  createUI(container) { /* generar controles */ }
+}
+```
+
+### 3.3 UI (`src/assets/js/ui/`)
+
+Componentes de interfaz reutilizables:
+
+| Archivo | Componente | Descripción |
+|---------|------------|-------------|
+| `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre |
+| `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle y visualización |
+| `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
+| `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
+| `outputRouter.js` | — | Helper para UI del router de salidas |
+| `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen) |
+
+### 3.4 Navigation (`src/assets/js/navigation/`)
+
+Sistema de navegación del viewport:
+
+| Archivo | Propósito |
+|---------|-----------|
+| `viewportNavigation.js` | Zoom/pan/pinch del viewport, animación a paneles, botones de enfoque |
+
+### 3.5 Utils (`src/assets/js/utils/`)
+
+Utilidades compartidas:
+
+| Archivo | Propósito |
+|---------|-----------|
+| `canvasBackground.js` | Renderizado de fondos SVG en canvas para móviles |
+| `serviceWorker.js` | Registro y actualización del Service Worker |
+| `buildVersion.js` | Detección e inyección de versión de build |
+
+### 3.6 Panel Blueprints (`src/assets/js/panelBlueprints/`)
+
+Configuración declarativa de matrices y calibración:
+
+| Archivo | Contenido |
+|---------|-----------|
+| `panel3.oscillators.config.js` | Calibración de rangos de frecuencia por oscilador |
+| `panel5.audio.blueprint.js` | Mapa de conexiones de la matriz de audio (filas/columnas) |
+| `panel5.audio.config.js` | Ganancias y atenuaciones para cada cruce de matriz |
+| `panel6.control.blueprint.js` | Mapa de conexiones de la matriz de control |
+| `panel6.control.config.js` | Ganancias para señales de control (CV) |
+
+---
+
+## 4. Flujo de Audio
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Módulos    │────▶│   Matriz    │────▶│   Buses     │
+│ (Osc, Noise)│     │  de Audio   │     │  Lógicos    │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                    ┌─────────────┐     ┌──────▼──────┐
+                    │   Audio     │◀────│   Router    │
+                    │  Context    │     │   Maestro   │
+                    │ destination │     │  (L/R mix)  │
+                    └─────────────┘     └─────────────┘
+```
+
+1. **Módulos** producen señales de audio y las exponen como `AudioNode`
+2. **Matriz de Audio** (Panel 5) determina qué módulos se conectan a qué buses
+3. **Buses Lógicos** (8) suman señales y aplican nivel (faders)
+4. **Router Maestro** mezcla los 8 buses en salida estéreo (L/R)
+5. **AudioContext.destination** emite el audio final
+
+---
+
+## 5. Sistema de Salidas
+
+### Arquitectura de 8 Buses Lógicos
+
+El Synthi 100 original tiene 8 salidas independientes. SynthiGME-web implementa:
+
+- **8 buses lógicos** con `GainNode` independiente cada uno
+- **Mezcla a 2 canales físicos** (L/R) — el navegador limita a estéreo
+- **Modulación CV** — `OutputRouterModule` expone los niveles como `AudioParam` para que otros módulos (LFO, envolvente) puedan modularlos
+
+### API de Buses
+
+```javascript
+// AudioEngine
+engine.logicalBuses[0..7]  // GainNodes de cada bus
+engine.setOutputLevel(busIndex, value)
+engine.connectSourceToOutput(busIndex, node)
+```
+
+### Futuro: Salida Multicanal
+Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a canales físicos adicionales sin modificar los módulos.
+
+---
+
+## 6. Sistema de Matrices
+
+### Matriz de Audio (Panel 5)
+- **63 filas** (fuentes: osciladores, filtros, etc.)
+- **67 columnas** (destinos: buses, entradas de módulos)
+- Cada pin conecta una fuente a un destino con ganancia configurable
+
+### Matriz de Control (Panel 6)
+- Rutea señales de control (CV) entre módulos
+- Permite modulaciones complejas (ej: LFO → frecuencia de oscilador)
+
+### Blueprint Schema
+```javascript
+{
+  schemaVersion: '1.0.0',
+  rows: [{ id: 'osc1', label: 'Osc 1', kind: 'audio' }, ...],
+  columns: [{ id: 'bus1', label: 'Out 1', kind: 'audio' }, ...],
+  getValue: (row, col) => 0.5  // ganancia por defecto
+}
+```
+
+---
+
+## 7. Build y Distribución
+
+### Scripts (`package.json`)
+
+| Script | Descripción |
+|--------|-------------|
+| `npm run build` | Genera bundle de producción en `docs/` |
+| `npm run dev` | Modo desarrollo con watch |
+| `npm run pre-release` | Incrementa versión y prepara changelog |
+| `npm run post-release` | Crea tag git y publica |
+
+### Proceso de Build (`scripts/build.mjs`)
+
+1. Limpia directorio de salida
+2. Copia assets estáticos (HTML, manifest, SW, iconos)
+3. Bundlea JS con esbuild (ES2020, minificado)
+4. Bundlea CSS con esbuild
+5. Inyecta versión desde `package.json` en el código
+6. Optimiza SVGs de paneles con svgo
+
+### Salida
+```
+docs/
+├── index.html
+├── manifest.webmanifest
+├── sw.js
+└── assets/
+    ├── css/main.css      # CSS minificado
+    ├── js/app.js         # Bundle JS único
+    ├── panels/           # SVGs optimizados
+    └── pwa/icons/
+```
+
+---
+
+## 8. PWA (Progressive Web App)
+
+- **Service Worker** (`sw.js`): Cache de assets para uso offline
+- **Web Manifest**: Permite instalación como app nativa
+- **Iconos**: Múltiples resoluciones para diferentes dispositivos
+
+---
+
+## 9. Patrones de Código
+
+### Módulos de Audio
+- Extienden clase base `Module` de `engine.js`
+- Implementan `start()`, `stop()`, `createUI()`
+- Registran `inputs` y `outputs` para la matriz
+
+### Configuración Declarativa
+- Blueprints separan datos de lógica
+- Configs contienen valores de calibración editables
+- Versionado de schemas para migraciones
+
+### UI Reactiva Manual
+- Eventos DOM nativos
+- Sin virtual DOM — manipulación directa
+- SVG para controles visuales (knobs, matrices)
+
+---
+
+## 10. Consideraciones Futuras
+
+- [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
+- [ ] **Presets**: Sistema de guardado/carga de patches
+- [ ] **MIDI**: Soporte para controladores externos
+- [ ] **Multicanal**: Ruteo a más de 2 salidas físicas si el navegador lo permite
+- [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam

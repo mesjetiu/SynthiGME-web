@@ -376,7 +376,7 @@ class App {
     panelAudio.state = panelAudio.state || [];
     let state = panelAudio.state[index];
     if (!state) {
-      state = { freq: 10, oscLevel: 0, sawLevel: 0, triLevel: 0, pulseLevel: 0, pulseWidth: 0.5 };
+      state = { freq: 10, oscLevel: 0, sawLevel: 0, triLevel: 0, pulseLevel: 0, pulseWidth: 0.5, sineSymmetry: 0.5 };
       panelAudio.state[index] = state;
     }
     return state;
@@ -956,6 +956,47 @@ class App {
   }
 
   /**
+   * Crea un PeriodicWave para onda senoidal con simetría variable.
+   * Simula el efecto de "rectificación variable" del Synthi 100.
+   * 
+   * La simetría controla la asimetría vertical de la onda:
+   * - symmetry = 0   → vientres abajo (semicírculos negativos, picos arriba)
+   * - symmetry = 0.5 → sine puro (onda senoidal perfecta)
+   * - symmetry = 1   → vientres arriba (semicírculos positivos, picos abajo)
+   * 
+   * Matemáticamente: añadimos armónicos pares (2, 4, 6...) que deforman
+   * la onda verticalmente. La amplitud y signo dependen de la simetría.
+   * 
+   * @param {AudioContext} ctx - Contexto de audio
+   * @param {number} symmetry - Valor de simetría (0 a 1, neutro en 0.5)
+   * @param {number} harmonics - Número de armónicos (default 16)
+   * @returns {PeriodicWave}
+   */
+  _createAsymmetricSineWave(ctx, symmetry, harmonics = 16) {
+    const real = new Float32Array(harmonics + 1);
+    const imag = new Float32Array(harmonics + 1);
+    
+    // Fundamental: sine puro (siempre presente)
+    imag[1] = 1.0;
+    
+    // Calcular cuánta asimetría aplicar (-1 a +1, donde 0 = sine puro)
+    // symmetry 0 → asymAmount -1 (vientres abajo)
+    // symmetry 0.5 → asymAmount 0 (sine puro)
+    // symmetry 1 → asymAmount +1 (vientres arriba)
+    const asymAmount = (symmetry - 0.5) * 2;
+    
+    // Añadir armónicos pares para crear asimetría vertical
+    // Los armónicos pares (2, 4, 6...) rompen la simetría de la onda
+    for (let n = 2; n <= harmonics; n += 2) {
+      // Amplitud decreciente con el número de armónico (1/n²)
+      // Multiplicado por asymAmount para controlar intensidad y dirección
+      imag[n] = asymAmount * (1.0 / (n * n));
+    }
+    
+    return ctx.createPeriodicWave(real, imag);
+  }
+
+  /**
    * Obtiene o crea el objeto de audio para un panel dado.
    * @param {number} panelIndex - Índice del panel (1-4)
    * @returns {Object} Objeto con nodes[] y state[]
@@ -992,8 +1033,11 @@ class App {
 
     const state = this._getOrCreateOscState(panelAudio, oscIndex);
 
+    // Oscilador senoidal con simetría variable (PeriodicWave)
+    // Usamos PeriodicWave en lugar de type='sine' para permitir
+    // modificar la simetría dinámicamente con setPeriodicWave()
     const osc = ctx.createOscillator();
-    osc.type = 'sine';
+    osc.setPeriodicWave(this._createAsymmetricSineWave(ctx, state.sineSymmetry));
     osc.frequency.value = 10;
 
     const gain = ctx.createGain();
@@ -1190,6 +1234,31 @@ class App {
   }
 
   /**
+   * Actualiza la simetría de la onda senoidal para cualquier panel.
+   * 
+   * Controla la asimetría vertical de la onda sine, simulando el
+   * efecto del knob "Sine Symmetry" del Synthi 100.
+   * 
+   * @param {number} panelIndex - Índice del panel (1-4)
+   * @param {number} oscIndex - Índice del oscilador
+   * @param {number} value - Valor de 0 a 1 (0.5 = sine puro)
+   */
+  _updatePanelSineSymmetry(panelIndex, oscIndex, value) {
+    const panelAudio = this._getPanelAudio(panelIndex);
+    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    state.sineSymmetry = value;
+
+    this.ensureAudio();
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanelNodes(panelIndex, oscIndex);
+    if (!node || !node.osc) return;
+    // Regenerar el PeriodicWave con la nueva simetría
+    const wave = this._createAsymmetricSineWave(ctx, value);
+    node.osc.setPeriodicWave(wave);
+  }
+
+  /**
    * Mapeo cuadrático de frecuencia para mejor control en rangos bajos.
    * t² da más resolución en frecuencias bajas y menos en altas.
    */
@@ -1273,6 +1342,13 @@ class App {
       initial: 0,
       onChange: value => this._updatePanelOscVolume(panelIndex, oscIndex, value)
     };
+    // Knob 3: Simetría del sine (0=vientres abajo, 0.5=sine puro, 1=vientres arriba)
+    knobOptions[3] = {
+      min: 0,
+      max: 1,
+      initial: 0.5,
+      onChange: value => this._updatePanelSineSymmetry(panelIndex, oscIndex, value)
+    };
     knobOptions[4] = {
       min: 0,
       max: 1,
@@ -1331,6 +1407,11 @@ class App {
   _updatePanel2PulseWidth(index, value) { this._updatePanelPulseWidth(2, index, value); }
   _updatePanel3PulseWidth(index, value) { this._updatePanelPulseWidth(3, index, value); }
   _updatePanel4PulseWidth(index, value) { this._updatePanelPulseWidth(4, index, value); }
+
+  _updatePanel1SineSymmetry(index, value) { this._updatePanelSineSymmetry(1, index, value); }
+  _updatePanel2SineSymmetry(index, value) { this._updatePanelSineSymmetry(2, index, value); }
+  _updatePanel3SineSymmetry(index, value) { this._updatePanelSineSymmetry(3, index, value); }
+  _updatePanel4SineSymmetry(index, value) { this._updatePanelSineSymmetry(4, index, value); }
 
   _updatePanel1OscFreq(index, value) { this._updatePanelOscFreq(1, index, value); }
   _updatePanel2OscFreq(index, value) { this._updatePanelOscFreq(2, index, value); }

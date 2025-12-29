@@ -892,18 +892,27 @@ class App {
     }
 
     const colMap = new Map();
+    const destMap = new Map();  // Mapa de columna a destino completo { kind, bus?, channel? }
     for (const entry of blueprint?.destinations || []) {
       const colSynth = entry?.colSynth;
-      const bus = entry?.dest?.bus;
-      if (!Number.isFinite(colSynth) || !Number.isFinite(bus)) continue;
-      const busIndex = bus - 1;
-      if (busIndex < 0) continue;
+      const dest = entry?.dest;
+      if (!Number.isFinite(colSynth) || !dest) continue;
       const colIndex = synthColToPhysicalColIndex(colSynth);
       if (colIndex == null) continue;
-      colMap.set(colIndex, busIndex);
+      
+      // Guardar destino completo para tipos especiales
+      destMap.set(colIndex, dest);
+      
+      // Para compatibilidad: seguir mapeando buses al colMap
+      if (dest.kind === 'outputBus' && Number.isFinite(dest.bus)) {
+        const busIndex = dest.bus - 1;
+        if (busIndex >= 0) {
+          colMap.set(colIndex, busIndex);
+        }
+      }
     }
 
-    return { rowMap, colMap, channelMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
+    return { rowMap, colMap, destMap, channelMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
   }
 
   _physicalRowToSynthRow(rowIndex) {
@@ -944,11 +953,12 @@ class App {
   }
 
   _setupPanel5AudioRouting() {
-    this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null, channelMap: null };
+    this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null, destMap: null, channelMap: null };
     this._panel3Routing.connections = {};
     const mappings = this._compilePanelBlueprintMappings(panel5AudioBlueprint);
     this._panel3Routing.rowMap = mappings.rowMap;
     this._panel3Routing.colMap = mappings.colMap;
+    this._panel3Routing.destMap = mappings.destMap;
     this._panel3Routing.channelMap = mappings.channelMap;
     this._panel3Routing.hiddenCols = mappings.hiddenCols;
 
@@ -961,19 +971,38 @@ class App {
 
   _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
     const oscIndex = this._panel3Routing?.rowMap?.get(rowIndex);
-    const busIndex = this._panel3Routing?.colMap?.get(colIndex);
+    const dest = this._panel3Routing?.destMap?.get(colIndex);
     const channelId = this._panel3Routing?.channelMap?.get(rowIndex) || 'sineSaw';
     const key = `${rowIndex}:${colIndex}`;
 
-    if (oscIndex == null || busIndex == null) return true;
+    if (oscIndex == null || !dest) return true;
 
     if (activate) {
       this.ensureAudio();
       const ctx = this.engine.audioCtx;
       const src = this._ensurePanel3Nodes(oscIndex);
       const outNode = channelId === 'triPulse' ? src?.triPulseOut : src?.sineSawOut;
-      const busNode = this.engine.getOutputBusNode(busIndex);
-      if (!ctx || !outNode || !busNode) return false;
+      if (!ctx || !outNode) return false;
+
+      // Determinar nodo de destino según tipo
+      let destNode = null;
+      if (dest.kind === 'outputBus') {
+        const busIndex = dest.bus - 1;
+        destNode = this.engine.getOutputBusNode(busIndex);
+      } else if (dest.kind === 'oscilloscope') {
+        // Conectar a la entrada correspondiente del osciloscopio
+        if (!this.oscilloscope) {
+          console.warn('[App] Oscilloscope module not ready yet');
+          return false;
+        }
+        destNode = dest.channel === 'X' ? this.oscilloscope.inputX : this.oscilloscope.inputY;
+        console.log(`[App] Connecting to oscilloscope ${dest.channel}`);
+      }
+      
+      if (!destNode) {
+        console.warn('[App] No destination node for', dest);
+        return false;
+      }
 
       const state = this._panel3Audio?.state?.[oscIndex];
       this._applyOscStateImmediate(src, state, ctx);
@@ -982,7 +1011,7 @@ class App {
       const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex);
       gain.gain.value = pinGainValue;
       outNode.connect(gain);
-      gain.connect(busNode);
+      gain.connect(destNode);
       this._panel3Routing.connections[key] = gain;
       return true;
     }
@@ -991,6 +1020,16 @@ class App {
     if (conn) {
       try { conn.disconnect(); } catch (error) {}
       delete this._panel3Routing.connections[key];
+      
+      // Si era una conexión al osciloscopio, verificar si quedan conexiones
+      if (dest?.kind === 'oscilloscope' && this.oscilloscope) {
+        // Contar conexiones restantes al osciloscopio
+        const scopeConnections = this.getScopeConnectionCount ? this.getScopeConnectionCount() : 0;
+        if (scopeConnections === 0) {
+          // Notificar al display que no hay señal
+          this.oscilloscope._notifyNoSignal?.();
+        }
+      }
     }
 
     return true;
@@ -1100,145 +1139,111 @@ window.addEventListener('DOMContentLoaded', () => {
   setupPanelDoubleTapZoom();
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // TEST TEMPORAL: Botón para probar AudioWorklet (eliminar después)
+  // Osciloscopio (módulo con modos Y-T y X-Y)
   // ═══════════════════════════════════════════════════════════════════════════
   
-  // --- OSCILOSCOPIO ---
-  const scopeContainer = document.createElement('div');
-  scopeContainer.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 99999;
-    background: #111;
-    border: 2px solid #0f0;
-    border-radius: 8px;
-    padding: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  `;
-  
-  const scopeLabel = document.createElement('div');
-  scopeLabel.textContent = '📊 Osciloscopio';
-  scopeLabel.style.cssText = `
-    color: #0f0;
-    font-family: monospace;
-    font-size: 12px;
-    margin-bottom: 5px;
-    text-align: center;
-  `;
-  scopeContainer.appendChild(scopeLabel);
-  
-  const scopeCanvas = document.createElement('canvas');
-  scopeCanvas.width = 300;
-  scopeCanvas.height = 150;
-  scopeCanvas.style.cssText = `
-    display: block;
-    background: #000;
-    border-radius: 4px;
-  `;
-  scopeContainer.appendChild(scopeCanvas);
-  document.body.appendChild(scopeContainer);
-  
-  const scopeCtx = scopeCanvas.getContext('2d');
-  let analyser = null;
-  let scopeData = null;
-  let scopeAnimId = null;
-  let scopeConnected = false;
-  
-  function initScope(audioCtx) {
-    if (analyser) return analyser;
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 2048;
-    scopeData = new Uint8Array(analyser.frequencyBinCount);
-    return analyser;
-  }
-  
-  function connectScopeToOutput() {
-    // Conectar al bus1 (salida principal) para ver todo el audio
-    const app = window._synthApp;
-    if (!app || !app.engine || !app.engine.audioCtx || !app.engine.bus1) return;
-    if (scopeConnected) return;
-    
-    initScope(app.engine.audioCtx);
-    app.engine.bus1.connect(analyser);
-    scopeConnected = true;
-    scopeLabel.textContent = '📊 Out1 (Bus1)';
-  }
-  
-  function connectScope(node) {
-    if (analyser && node) {
-      node.connect(analyser);
-    }
-  }
-  
-  function drawScope() {
-    scopeAnimId = requestAnimationFrame(drawScope);
-    
-    // Intentar conectar al bus1 si aún no está conectado
-    if (!scopeConnected) {
-      connectScopeToOutput();
-    }
-    
-    if (!analyser || !scopeData) {
-      // Dibujar línea central cuando no hay señal
-      scopeCtx.fillStyle = '#000';
-      scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
-      scopeCtx.strokeStyle = '#333';
-      scopeCtx.beginPath();
-      scopeCtx.moveTo(0, scopeCanvas.height / 2);
-      scopeCtx.lineTo(scopeCanvas.width, scopeCanvas.height / 2);
-      scopeCtx.stroke();
-      return;
-    }
-    
-    analyser.getByteTimeDomainData(scopeData);
-    
-    // Fondo
-    scopeCtx.fillStyle = '#000';
-    scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
-    
-    // Grid
-    scopeCtx.strokeStyle = '#1a1a1a';
-    scopeCtx.lineWidth = 1;
-    for (let i = 0; i < 5; i++) {
-      const y = (scopeCanvas.height / 4) * i;
-      scopeCtx.beginPath();
-      scopeCtx.moveTo(0, y);
-      scopeCtx.lineTo(scopeCanvas.width, y);
-      scopeCtx.stroke();
-    }
-    
-    // Línea central
-    scopeCtx.strokeStyle = '#333';
-    scopeCtx.beginPath();
-    scopeCtx.moveTo(0, scopeCanvas.height / 2);
-    scopeCtx.lineTo(scopeCanvas.width, scopeCanvas.height / 2);
-    scopeCtx.stroke();
-    
-    // Forma de onda
-    scopeCtx.lineWidth = 2;
-    scopeCtx.strokeStyle = '#0f0';
-    scopeCtx.beginPath();
-    
-    const sliceWidth = scopeCanvas.width / scopeData.length;
-    let x = 0;
-    
-    for (let i = 0; i < scopeData.length; i++) {
-      const v = scopeData[i] / 128.0;
-      const y = (v * scopeCanvas.height) / 2;
+  // Importar módulos de osciloscopio dinámicamente
+  import('./modules/oscilloscope.js').then(async ({ OscilloscopeModule }) => {
+    import('./ui/oscilloscopeDisplay.js').then(async ({ OscilloscopeDisplay }) => {
+      const app = window._synthApp;
+      if (!app || !app.engine) return;
       
-      if (i === 0) {
-        scopeCtx.moveTo(x, y);
-      } else {
-        scopeCtx.lineTo(x, y);
-      }
-      x += sliceWidth;
-    }
-    
-    scopeCtx.stroke();
-  }
-  
-  // Iniciar animación del scope
-  drawScope();
-  // --- FIN OSCILOSCOPIO ---
+      // Esperar a que el engine esté listo
+      await app.engine.ensureWorkletReady();
+      
+      // Crear módulo de osciloscopio
+      const scopeModule = new OscilloscopeModule(app.engine, 'oscilloscope');
+      app.engine.addModule(scopeModule);
+      await scopeModule.start();
+      
+      // Guardar referencia para acceso desde matriz
+      app.oscilloscope = scopeModule;
+      
+      // Exponer función para obtener número de conexiones activas al scope
+      app.getScopeConnectionCount = () => {
+        if (!app._panel3Routing?.connections) return 0;
+        let count = 0;
+        for (const key of Object.keys(app._panel3Routing.connections)) {
+          const [, colStr] = key.split(':');
+          const colIndex = parseInt(colStr, 10);
+          const dest = app._panel3Routing?.destMap?.get(colIndex);
+          if (dest?.kind === 'oscilloscope') count++;
+        }
+        return count;
+      };
+      
+      // Crear contenedor UI
+      const scopeContainer = document.createElement('div');
+      scopeContainer.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 99999;
+        background: #111;
+        border: 2px solid #0f0;
+        border-radius: 8px;
+        padding: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      `;
+      
+      // Label con botón de modo
+      const scopeHeader = document.createElement('div');
+      scopeHeader.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+      `;
+      
+      const scopeLabel = document.createElement('div');
+      scopeLabel.textContent = '📊 Scope Y-T';
+      scopeLabel.style.cssText = `
+        color: #0f0;
+        font-family: monospace;
+        font-size: 12px;
+      `;
+      
+      const modeBtn = document.createElement('button');
+      modeBtn.textContent = 'X-Y';
+      modeBtn.style.cssText = `
+        background: #222;
+        color: #0f0;
+        border: 1px solid #0f0;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 10px;
+        padding: 2px 6px;
+        cursor: pointer;
+      `;
+      
+      scopeHeader.appendChild(scopeLabel);
+      scopeHeader.appendChild(modeBtn);
+      scopeContainer.appendChild(scopeHeader);
+      
+      // Crear display
+      const display = new OscilloscopeDisplay({
+        container: scopeContainer,
+        width: 300,
+        height: 150,
+        mode: 'yt'
+      });
+      
+      document.body.appendChild(scopeContainer);
+      
+      // Conectar display al módulo
+      scopeModule.onData(data => display.draw(data));
+      
+      // Botón para cambiar modo
+      modeBtn.addEventListener('click', () => {
+        const newMode = display.toggleMode();
+        scopeLabel.textContent = newMode === 'xy' ? '📊 Scope X-Y' : '📊 Scope Y-T';
+        modeBtn.textContent = newMode === 'xy' ? 'Y-T' : 'X-Y';
+      });
+      
+      // Dibujar estado inicial
+      display.drawEmpty();
+      
+      console.log('[App] Oscilloscope module initialized');
+    });
+  });
 });

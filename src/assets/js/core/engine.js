@@ -183,7 +183,7 @@ export class AudioEngine {
   }
 
   /**
-   * Carga el AudioWorklet para osciladores con fase coherente.
+   * Carga los AudioWorklets del sistema.
    * Se llama automáticamente en start(), pero puede llamarse antes si se necesita.
    * @returns {Promise<void>}
    */
@@ -193,11 +193,18 @@ export class AudioEngine {
 
     this._workletLoadPromise = (async () => {
       try {
-        // Ruta relativa desde el HTML (docs/ o src/)
-        const workletPath = './assets/js/worklets/synthOscillator.worklet.js';
-        await this.audioCtx.audioWorklet.addModule(workletPath);
+        // Cargar todos los worklets necesarios
+        const worklets = [
+          './assets/js/worklets/synthOscillator.worklet.js',
+          './assets/js/worklets/scopeCapture.worklet.js'
+        ];
+        
+        await Promise.all(
+          worklets.map(path => this.audioCtx.audioWorklet.addModule(path))
+        );
+        
         this.workletReady = true;
-        console.log('[AudioEngine] SynthOscillator worklet loaded');
+        console.log('[AudioEngine] All worklets loaded:', worklets.length);
       } catch (err) {
         console.error('[AudioEngine] Failed to load worklet:', err);
         this.workletReady = false;

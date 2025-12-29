@@ -1001,9 +1001,12 @@ class App {
     
     // Mantener moduleOut como alias de sineSawOut para compatibilidad legacy
     const moduleOut = sineSawOut;
-    
-    const bus1 = this.engine.getOutputBusNode(0);
-    if (bus1) moduleOut.connect(bus1);
+    // Bypass a out1 solo para paneles 1, 2 y 4 (prueba de concepto).
+    // Panel 3 se rutea exclusivamente por panel 5 y 6.
+    if (panelIndex !== 3) {
+      const bus1 = this.engine.getOutputBusNode(0);
+      if (bus1) moduleOut.connect(bus1);
+    }
 
     const startTime = ctx.currentTime + 0.01;
     const now = ctx.currentTime;

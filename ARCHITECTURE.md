@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 29 de diciembre de 2025
+> Última actualización: 30 de diciembre de 2025
 
 ---
 
@@ -12,7 +12,7 @@ SynthiGME-web es una aplicación **vanilla JavaScript** (ES Modules) que reprodu
 ### Stack Tecnológico
 | Capa | Tecnología |
 |------|------------|
-| Audio | Web Audio API |
+| Audio | Web Audio API + AudioWorklet |
 | UI | DOM nativo + SVG |
 | Build | esbuild (bundler), svgo (optimización SVG) |
 | PWA | Service Worker + Web App Manifest |
@@ -33,12 +33,13 @@ src/
     ├── panels/             # SVGs de paneles del sintetizador
     ├── pwa/icons/          # Iconos para PWA
     └── js/
-        ├── app.js          # Bootstrap y orquestación principal (~1000 líneas)
+        ├── app.js          # Bootstrap y orquestación principal
         ├── core/           # Motor de audio y conexiones
         ├── modules/        # Módulos de audio (osciladores, ruido, etc.)
         ├── ui/             # Componentes de interfaz reutilizables
         ├── navigation/     # Sistema de navegación del viewport
         ├── utils/          # Utilidades (canvas, SW, versión)
+        ├── worklets/       # AudioWorklet processors (síntesis en hilo de audio)
         └── panelBlueprints/# Configuración de matrices y paneles
 ```
 
@@ -50,10 +51,18 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, y clase base `Module` |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module` |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 
-### 3.2 Modules (`src/assets/js/modules/`)
+### 3.2 Worklets (`src/assets/js/worklets/`)
+
+Procesadores de audio que corren en el hilo de audio para síntesis de alta precisión:
+
+| Archivo | Propósito |
+|---------|----------|
+| `synthOscillator.worklet.js` | Oscilador con fase coherente, 4 formas de onda (pulse, sine, triangle, sawtooth), anti-aliasing PolyBLEP, y entrada para hard sync |
+
+### 3.3 Modules (`src/assets/js/modules/`)
 
 Cada módulo representa un componente de audio del Synthi 100:
 
@@ -76,7 +85,7 @@ export class MiModulo extends Module {
 }
 ```
 
-### 3.3 UI (`src/assets/js/ui/`)
+### 3.4 UI (`src/assets/js/ui/`)
 
 Componentes de interfaz reutilizables:
 
@@ -89,7 +98,7 @@ Componentes de interfaz reutilizables:
 | `outputRouter.js` | — | Helper para UI del router de salidas |
 | `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen) |
 
-### 3.4 Navigation (`src/assets/js/navigation/`)
+### 3.5 Navigation (`src/assets/js/navigation/`)
 
 Sistema de navegación del viewport:
 
@@ -97,7 +106,7 @@ Sistema de navegación del viewport:
 |---------|-----------|
 | `viewportNavigation.js` | Zoom/pan/pinch del viewport, animación a paneles, botones de enfoque |
 
-### 3.5 Utils (`src/assets/js/utils/`)
+### 3.6 Utils (`src/assets/js/utils/`)
 
 Utilidades compartidas:
 
@@ -107,7 +116,7 @@ Utilidades compartidas:
 | `serviceWorker.js` | Registro y actualización del Service Worker |
 | `buildVersion.js` | Detección e inyección de versión de build |
 
-### 3.6 Panel Blueprints (`src/assets/js/panelBlueprints/`)
+### 3.7 Panel Blueprints (`src/assets/js/panelBlueprints/`)
 
 Configuración declarativa de matrices y calibración:
 
@@ -144,7 +153,92 @@ Configuración declarativa de matrices y calibración:
 
 ---
 
-## 5. Sistema de Salidas
+## 5. Sistema de AudioWorklets
+
+### Motivación
+
+Los `OscillatorNode` nativos de Web Audio tienen limitaciones:
+- `setPeriodicWave()` cambia la forma de onda instantáneamente → **clicks audibles**
+- No exponen la **fase** del oscilador → imposible implementar **hard sync**
+
+Para resolver esto, SynthiGME-web usa **AudioWorklet** para osciladores que requieren:
+- Modulación suave de parámetros (pulse width, sine symmetry)
+- Acceso a la fase interna (para sincronización futura)
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Hilo Principal (JS)                      │
+│  ┌─────────────────┐     ┌─────────────────┐               │
+│  │  AudioEngine    │────▶│ AudioWorkletNode │              │
+│  │ createSynthOsc()│     │  (proxy)         │              │
+│  └─────────────────┘     └────────┬─────────┘              │
+└───────────────────────────────────┼─────────────────────────┘
+                                    │ MessagePort
+┌───────────────────────────────────┼─────────────────────────┐
+│                    Hilo de Audio (Worklet)                  │
+│                          ┌────────▼─────────┐               │
+│                          │ SynthOscillator  │               │
+│                          │   Processor      │               │
+│                          │  - phase         │               │
+│                          │  - polyBLEP      │               │
+│                          │  - hard sync     │               │
+│                          └──────────────────┘               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### SynthOscillatorProcessor
+
+**Formas de onda disponibles:**
+- `pulse` — con parámetro `pulseWidth` (0.0–1.0)
+- `sine` — con parámetro `symmetry` (0.0–1.0) para simetría variable
+- `triangle` — onda triangular
+- `sawtooth` — diente de sierra
+
+**Características:**
+- **Fase coherente**: la fase se mantiene al cambiar parámetros
+- **Anti-aliasing PolyBLEP**: reduce aliasing en transiciones abruptas (pulse, saw)
+- **Hard sync**: entrada 0 reservada para señal de sincronización (zero-crossing detection)
+
+### API de Uso
+
+```javascript
+// Esperar a que el worklet esté listo
+await engine.ensureWorkletReady();
+
+// Crear oscilador
+const osc = engine.createSynthOscillator({
+  waveform: 'pulse',  // 'pulse' | 'sine' | 'triangle' | 'sawtooth'
+  frequency: 440,
+  pulseWidth: 0.5,    // solo para pulse
+  symmetry: 0.5,      // solo para sine
+  gain: 1.0
+});
+
+// Conectar
+osc.connect(destination);
+
+// Modular parámetros (sin clicks)
+osc.setFrequency(880);
+osc.setPulseWidth(0.3);
+osc.setSymmetry(0.7);
+osc.setWaveform('sawtooth');
+
+// Detener
+osc.stop();
+```
+
+### Fallback
+
+Si el navegador no soporta AudioWorklet o falla la carga:
+- `engine.workletReady` será `false`
+- Los paneles usan `OscillatorNode` nativo como fallback
+- La funcionalidad de hard sync no estará disponible
+
+---
+
+## 6. Sistema de Salidas
 
 ### Arquitectura de 8 Buses Lógicos
 
@@ -168,7 +262,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 6. Sistema de Matrices
+## 7. Sistema de Matrices
 
 ### Matriz de Audio (Panel 5)
 - **63 filas** (fuentes: osciladores, filtros, etc.)
@@ -191,7 +285,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 7. Build y Distribución
+## 8. Build y Distribución
 
 ### Scripts (`package.json`)
 
@@ -208,8 +302,9 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 2. Copia assets estáticos (HTML, manifest, SW, iconos)
 3. Bundlea JS con esbuild (ES2020, minificado)
 4. Bundlea CSS con esbuild
-5. Inyecta versión desde `package.json` en el código
-6. Optimiza SVGs de paneles con svgo
+5. **Copia AudioWorklets sin bundlear** (deben ser archivos separados)
+6. Inyecta versión desde `package.json` en el código
+7. Optimiza SVGs de paneles con svgo
 
 ### Salida
 ```
@@ -219,14 +314,17 @@ docs/
 ├── sw.js
 └── assets/
     ├── css/main.css      # CSS minificado
-    ├── js/app.js         # Bundle JS único
+    ├── js/
+    │   ├── app.js        # Bundle JS único
+    │   └── worklets/     # AudioWorklet modules (no bundleados)
+    │       └── synthOscillator.worklet.js
     ├── panels/           # SVGs optimizados
     └── pwa/icons/
 ```
 
 ---
 
-## 8. PWA (Progressive Web App)
+## 9. PWA (Progressive Web App)
 
 - **Service Worker** (`sw.js`): Cache de assets para uso offline
 - **Web Manifest**: Permite instalación como app nativa
@@ -234,7 +332,7 @@ docs/
 
 ---
 
-## 9. Patrones de Código
+## 10. Patrones de Código
 
 ### Módulos de Audio
 - Extienden clase base `Module` de `engine.js`
@@ -253,8 +351,9 @@ docs/
 
 ---
 
-## 10. Consideraciones Futuras
+## 11. Consideraciones Futuras
 
+- [ ] **Hard sync**: Conectar señal de sincronización a entrada del worklet (Panel 6)
 - [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
 - [ ] **Presets**: Sistema de guardado/carga de patches
 - [ ] **MIDI**: Soporte para controladores externos

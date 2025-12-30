@@ -306,12 +306,17 @@ class App {
       reservedRow = document.createElement('div');
       reservedRow.className = 'panel3-reserved-row panel3-modules-row';
       
+      // Leer configuración de módulos desde el blueprint
+      const modulesConfig = panel3OscConfig.modules || {};
+      const noise1Cfg = modulesConfig.noise1 || {};
+      const noise2Cfg = modulesConfig.noise2 || {};
+      const randomCVCfg = modulesConfig.randomCV || {};
+      
       // Noise Generator 1
       const noise1 = new NoiseGenerator({
-        id: 'panel3-noise-1',
-        title: 'Noise 1',
-        knobSize: 32,
-        knobOptions: {
+        id: noise1Cfg.id || 'panel3-noise-1',
+        title: noise1Cfg.title || 'Noise 1',
+        knobOptions: noise1Cfg.knobs || {
           colour: { min: 0, max: 1, initial: 0.5 },
           level: { min: 0, max: 1, initial: 0 }
         }
@@ -320,10 +325,9 @@ class App {
       
       // Noise Generator 2
       const noise2 = new NoiseGenerator({
-        id: 'panel3-noise-2',
-        title: 'Noise 2',
-        knobSize: 32,
-        knobOptions: {
+        id: noise2Cfg.id || 'panel3-noise-2',
+        title: noise2Cfg.title || 'Noise 2',
+        knobOptions: noise2Cfg.knobs || {
           colour: { min: 0, max: 1, initial: 0.5 },
           level: { min: 0, max: 1, initial: 0 }
         }
@@ -332,10 +336,9 @@ class App {
       
       // Random Control Voltage Generator
       const randomCV = new RandomVoltage({
-        id: 'panel3-random-cv',
-        title: 'Random Voltage',
-        knobSize: 32,
-        knobOptions: {
+        id: randomCVCfg.id || 'panel3-random-cv',
+        title: randomCVCfg.title || 'Random Voltage',
+        knobOptions: randomCVCfg.knobs || {
           mean: { min: -1, max: 1, initial: 0 },
           variance: { min: 0, max: 1, initial: 0.5 },
           voltage1: { min: 0, max: 1, initial: 0 },
@@ -390,7 +393,7 @@ class App {
     this[rafKey] = requestAnimationFrame(() => {
       this[rafKey] = null;
 
-      const { host, layout, oscillatorSlots, oscComponents, reserved } = data;
+      const { host, layout, oscillatorSlots, oscComponents, reserved, noiseModules } = data;
       if (!host || !host.isConnected) return;
 
       const { oscSize, gap, airOuter = 0, airOuterY = 0, topOffset, rowsPerColumn } = layout;
@@ -419,7 +422,31 @@ class App {
         const reservedTop = baseTop + blockHeight + gap.y;
         reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
         reserved.style.width = `${columnWidth * 2 + gap.x}px`;
-        reserved.style.height = `${layout.reservedHeight}px`;
+        
+        // Aplicar altura del layout del blueprint si es Panel 3
+        if (panelIndex === 3) {
+          const modulesLayout = panel3OscConfig.modules?.layout || {};
+          const rowHeight = modulesLayout.rowHeight || layout.reservedHeight;
+          reserved.style.height = `${rowHeight}px`;
+          
+          // Aplicar proporciones a los módulos
+          if (noiseModules) {
+            const proportions = modulesLayout.proportions || { noise1: 2/9, noise2: 2/9, randomCV: 5/9 };
+            const totalWidth = columnWidth * 2 + gap.x;
+            
+            if (noiseModules.noise1?.element) {
+              noiseModules.noise1.element.style.flex = `0 0 ${proportions.noise1 * 100}%`;
+            }
+            if (noiseModules.noise2?.element) {
+              noiseModules.noise2.element.style.flex = `0 0 ${proportions.noise2 * 100}%`;
+            }
+            if (noiseModules.randomCV?.element) {
+              noiseModules.randomCV.element.style.flex = `0 0 ${proportions.randomCV * 100}%`;
+            }
+          }
+        } else {
+          reserved.style.height = `${layout.reservedHeight}px`;
+        }
       }
     });
   }

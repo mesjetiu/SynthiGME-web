@@ -259,5 +259,114 @@ export default {
   oscillators: {
     // Por ahora todos los osciladores usan la configuración por defecto.
     // Añadir entradas aquí según sea necesario para calibrar el Synthi.
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MÓDULOS ADICIONALES DE PANEL 3
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Configuración de los módulos de ruido y voltaje aleatorio que aparecen
+  // en la fila inferior del Panel 3.
+  //
+  // ─────────────────────────────────────────────────────────────────────────
+
+  modules: {
+    
+    // Configuración de layout de la fila de módulos
+    layout: {
+      // Altura de la fila en píxeles (o 'auto')
+      rowHeight: 80,
+      // Proporción de cada módulo respecto al ancho total (debe sumar 1)
+      // noise1: 2/9, noise2: 2/9, randomCV: 5/9
+      proportions: {
+        noise1: 2 / 9,
+        noise2: 2 / 9,
+        randomCV: 5 / 9
+      }
+    },
+
+    // ·······································································
+    // NOISE GENERATOR 1
+    // ·······································································
+    noise1: {
+      id: 'panel3-noise-1',
+      title: 'Noise 1',
+      knobs: {
+        colour: {
+          min: 0,
+          max: 1,
+          initial: 0.5,
+          curve: 'linear'
+        },
+        level: {
+          min: 0,
+          max: 1,
+          initial: 0,
+          curve: 'linear'
+        }
+      }
+    },
+
+    // ·······································································
+    // NOISE GENERATOR 2
+    // ·······································································
+    noise2: {
+      id: 'panel3-noise-2',
+      title: 'Noise 2',
+      knobs: {
+        colour: {
+          min: 0,
+          max: 1,
+          initial: 0.5,
+          curve: 'linear'
+        },
+        level: {
+          min: 0,
+          max: 1,
+          initial: 0,
+          curve: 'linear'
+        }
+      }
+    },
+
+    // ·······································································
+    // RANDOM CONTROL VOLTAGE GENERATOR
+    // ·······································································
+    randomCV: {
+      id: 'panel3-random-cv',
+      title: 'Random Voltage',
+      knobs: {
+        mean: {
+          min: -1,
+          max: 1,
+          initial: 0,
+          curve: 'linear'
+        },
+        variance: {
+          min: 0,
+          max: 1,
+          initial: 0.5,
+          curve: 'linear'
+        },
+        voltage1: {
+          min: 0,
+          max: 1,
+          initial: 0,
+          curve: 'linear'
+        },
+        voltage2: {
+          min: 0,
+          max: 1,
+          initial: 0,
+          curve: 'linear'
+        },
+        key: {
+          min: 0,
+          max: 1,
+          initial: 0,
+          curve: 'linear'
+        }
+      }
+    }
   }
 };

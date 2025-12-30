@@ -68,14 +68,27 @@ export default {
     // ─────────────────────────────────────────────────────────────────────────
     
     knobs: {
+      // ───────────────────────────────────────────────────────────────────
       // Knob TIME: escala horizontal (cuántos samples se muestran)
-      // Valor 1.0 = muestra todo el buffer, 0.1 = muestra 10% (zoom in)
+      // ───────────────────────────────────────────────────────────────────
+      // Controla el "zoom temporal" del osciloscopio.
+      // - Valor 1.0 = muestra todo el buffer (vista completa)
+      // - Valor 0.01 = muestra solo 1% del buffer (zoom 100×)
+      //
+      // El rango 0.01-1.0 permite visualizar desde ondas muy graves (~1 Hz)
+      // hasta señales rápidas. Curva cuadrática para mayor control en la
+      // zona de graves (valores bajos = más resolución).
+      //
+      // pixelsForFullRange: 600 = knob 4× más lento que el default (150),
+      // equiparable al knob de frecuencia de osciladores para precisión.
+      // ───────────────────────────────────────────────────────────────────
       timeScale: {
-        min: 0.1,                // Mínimo 10% del buffer (máximo zoom)
-        max: 1.0,                // 100% del buffer (sin zoom)
-        initial: 1.0,            // Valor inicial: sin zoom
-        curve: 'linear',
-        pixelsForFullRange: 150
+        min: 0.01,               // 1% del buffer (zoom 100× para ondas graves)
+        max: 1.0,                // 100% del buffer (vista completa)
+        initial: 1.0,            // Sin zoom inicial
+        curve: 'quadratic',      // Curva cuadrática: más control en valores bajos
+        curveExponent: 2,        // Exponente x² (igual que knob freq de osc)
+        pixelsForFullRange: 600  // 4× más lento que default para precisión
       },
       
       // Knob AMP: escala vertical (ganancia de visualización)

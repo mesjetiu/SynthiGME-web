@@ -25,47 +25,30 @@ export function initViewportNavigation({ outer, inner } = {}) {
   const isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
   window.__synthIsFirefox = isFirefox;
 
-  // Estrategia de render:
-  // - Firefox: siempre transform:scale() simple (ya es nítido)
-  // - Otros navegadores:
-  //   - Diamante ON: Sistema original - rasterizar con swap-back
-  //   - Diamante OFF: Opción B - zoom base 2x fijo (sin rasterización)
-  if (typeof window.__synthSharpModeEnabled === 'undefined') {
-    window.__synthSharpModeEnabled = false; // Desactivado por defecto (Opción B)
-  }
-
-  // Opción B: Alta resolución base (cuando diamante está OFF)
-  const BASE_RESOLUTION_FACTOR = 2;
+  // Sistema de resolución base configurable (1x, 2x, 3x)
+  // - Firefox: siempre 1x (ya es nítido nativamente)
+  // - Otros: usuario elige factor, por defecto 1x
+  let currentResolutionFactor = isFirefox ? 1 : 1; // Por defecto 1x
+  window.__synthResolutionFactor = currentResolutionFactor;
   
-  // Modo de render: 'original' (diamante ON) o 'optionB' (diamante OFF) o 'firefox'
-  let currentRenderMode = isFirefox ? 'firefox' : (window.__synthSharpModeEnabled ? 'original' : 'optionB');
-  
-  // El modo inicial se aplicará en el primer render()
-  // para evitar imagen congelada antes de que el transform esté listo
-  
-  // Callback para cuando cambia el estado del diamante
-  window.__synthOnSharpModeChange = (enabled) => {
-    if (isFirefox) return;
+  // Callback para cambiar el factor de resolución
+  // Siempre resetea a zoom general antes de aplicar nuevo factor
+  window.__synthSetResolutionFactor = (factor) => {
+    if (isFirefox) return; // Firefox no necesita esto
+    if (factor === currentResolutionFactor) return;
     
-    if (!enabled) {
-      // Al desactivar: ir a zoom general, esperar, luego aplicar Opción B
-      const animateFn = window.__synthAnimateToPanel;
-      if (typeof animateFn === 'function') {
-        animateFn(null, 600);
-        setTimeout(() => {
-          currentRenderMode = 'optionB';
-          inner.style.zoom = BASE_RESOLUTION_FACTOR;
-          render();
-        }, 700);
-      } else {
-        currentRenderMode = 'optionB';
-        inner.style.zoom = BASE_RESOLUTION_FACTOR;
+    const animateFn = window.__synthAnimateToPanel;
+    if (typeof animateFn === 'function') {
+      // Ir a vista general primero
+      animateFn(null, 600);
+      setTimeout(() => {
+        currentResolutionFactor = factor;
+        window.__synthResolutionFactor = factor;
         render();
-      }
+      }, 700);
     } else {
-      // Al activar: volver al sistema original
-      currentRenderMode = 'original';
-      inner.style.zoom = '';
+      currentResolutionFactor = factor;
+      window.__synthResolutionFactor = factor;
       render();
     }
   };
@@ -81,10 +64,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
   }
 
   function scheduleRasterize() {
-    // Firefox u Opción B: no rasterizar
-    if (isFirefox || currentRenderMode === 'optionB') {
-      return;
-    }
+    // Con el nuevo sistema de resolución base, no necesitamos rasterización dinámica
+    // El factor de resolución ya proporciona la nitidez necesaria
+    return;
     
     const minScale = getMinScale();
     const isAtMinZoom = scale <= minScale + 0.01;
@@ -453,13 +435,13 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
-      if (currentRenderMode === 'optionB') {
-        // Opción B: zoom base fijo, compensar con scale
-        const visualScale = scale / BASE_RESOLUTION_FACTOR;
-        inner.style.zoom = BASE_RESOLUTION_FACTOR;
-        inner.style.transform = `translate3d(${offsetX / BASE_RESOLUTION_FACTOR}px, ${offsetY / BASE_RESOLUTION_FACTOR}px, 0) scale(${visualScale})`;
+      if (currentResolutionFactor > 1) {
+        // Resolución alta: zoom base fijo, compensar con scale
+        const visualScale = scale / currentResolutionFactor;
+        inner.style.zoom = currentResolutionFactor;
+        inner.style.transform = `translate3d(${offsetX / currentResolutionFactor}px, ${offsetY / currentResolutionFactor}px, 0) scale(${visualScale})`;
       } else {
-        // Sistema original o Firefox
+        // Resolución 1x o Firefox: transform:scale() simple
         inner.style.zoom = '';
         inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
       }

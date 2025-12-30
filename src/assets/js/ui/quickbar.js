@@ -62,12 +62,31 @@ export function setupMobileQuickActionsBar() {
   btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
   btnFs.innerHTML = iconSvg('ti-arrows-maximize');
 
-  const btnSharp = document.createElement('button');
-  btnSharp.type = 'button';
-  btnSharp.className = 'mobile-quickbar__btn';
-  btnSharp.setAttribute('aria-label', 'Modo nitidez');
-  btnSharp.setAttribute('aria-pressed', String(Boolean(window.__synthSharpModeEnabled)));
-  btnSharp.innerHTML = iconSvg('ti-diamond');
+  // Selector de resolución (1x, 2x, 3x)
+  const resolutionFactors = [1, 2, 3];
+  let currentResIndex = 0; // Por defecto 1x
+  
+  const btnResolution = document.createElement('button');
+  btnResolution.type = 'button';
+  btnResolution.className = 'mobile-quickbar__btn mobile-quickbar__btn--text';
+  btnResolution.setAttribute('aria-label', 'Resolución de renderizado');
+  btnResolution.textContent = '1×';
+  
+  // Toast para feedback visual
+  const showResolutionToast = (factor) => {
+    let toast = document.getElementById('resolutionToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'resolutionToast';
+      toast.className = 'resolution-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = `Resolución: ${factor}×`;
+    toast.classList.add('resolution-toast--visible');
+    setTimeout(() => {
+      toast.classList.remove('resolution-toast--visible');
+    }, 1500);
+  };
 
   const displayModeQueries = ['(display-mode: standalone)']
     .map(query => window.matchMedia ? window.matchMedia(query) : null)
@@ -88,22 +107,25 @@ export function setupMobileQuickActionsBar() {
     btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
     btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
     btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
-    btnSharp.setAttribute('aria-pressed', String(Boolean(window.__synthSharpModeEnabled)));
 
     btnPan.classList.toggle('is-active', Boolean(navLocks.panLocked));
     btnZoom.classList.toggle('is-active', Boolean(navLocks.zoomLocked));
     btnFs.classList.toggle('is-active', Boolean(document.fullscreenElement));
-    btnSharp.classList.toggle('is-active', Boolean(window.__synthSharpModeEnabled));
+    
+    // Actualizar texto del botón de resolución
+    const currentFactor = resolutionFactors[currentResIndex];
+    btnResolution.textContent = `${currentFactor}×`;
+    btnResolution.classList.toggle('is-active', currentFactor > 1);
 
     btnPan.hidden = !isCoarse;
     btnPan.disabled = !isCoarse;
     btnZoom.hidden = !isCoarse;
     btnZoom.disabled = !isCoarse;
 
-    // Ocultar diamante en Firefox (no necesita rasterización)
+    // Ocultar selector de resolución en Firefox (no lo necesita)
     const isFirefox = window.__synthIsFirefox ?? /Firefox\/\d+/.test(navigator.userAgent);
-    btnSharp.hidden = isFirefox;
-    btnSharp.disabled = isFirefox;
+    btnResolution.hidden = isFirefox;
+    btnResolution.disabled = isFirefox;
 
     btnFs.hidden = shouldHideFullscreen();
     btnFs.disabled = btnFs.hidden;
@@ -146,27 +168,18 @@ export function setupMobileQuickActionsBar() {
     }
   });
 
-  btnSharp.addEventListener('click', () => {
-    const wasEnabled = window.__synthSharpModeEnabled;
-    window.__synthSharpModeEnabled = !window.__synthSharpModeEnabled;
+  btnResolution.addEventListener('click', () => {
+    // Ciclar: 1x → 2x → 3x → 1x
+    currentResIndex = (currentResIndex + 1) % resolutionFactors.length;
+    const newFactor = resolutionFactors[currentResIndex];
     
-    // Notificar al sistema de navegación del cambio de modo
-    if (typeof window.__synthOnSharpModeChange === 'function') {
-      window.__synthOnSharpModeChange(window.__synthSharpModeEnabled);
+    // Notificar al sistema de navegación
+    if (typeof window.__synthSetResolutionFactor === 'function') {
+      window.__synthSetResolutionFactor(newFactor);
     }
     
-    if (wasEnabled && !window.__synthSharpModeEnabled) {
-      const navState = window.__synthNavState;
-      if (navState && typeof navState.scale === 'number' && typeof navState.getMinScale === 'function') {
-        const minScale = navState.getMinScale();
-        if (navState.scale > minScale + 0.01) {
-          window.__synthSharpTransition = {
-            active: true,
-            lastScale: navState.scale
-          };
-        }
-      }
-    }
+    // Mostrar toast con feedback
+    showResolutionToast(newFactor);
     
     applyPressedState();
   });
@@ -176,7 +189,7 @@ export function setupMobileQuickActionsBar() {
 
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
-  group.appendChild(btnSharp);
+  group.appendChild(btnResolution);
   group.appendChild(btnFs);
 
   bar.appendChild(group);

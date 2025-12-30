@@ -404,36 +404,26 @@ class App {
     const knobsConfig = config.oscilloscope.knobs;
     const knobsContainer = document.createElement('div');
     knobsContainer.className = 'oscilloscope-knobs';
-    knobsContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    `;
     mainContainer.appendChild(knobsContainer);
     
-    // Helper para crear un knob con label
+    // Helper para crear un knob con label (usa clases CSS estándar)
     const createLabeledKnob = (id, label, knobConfig, onChange) => {
-      const shell = document.createElement('div');
-      shell.className = 'oscilloscope-knob-shell';
-      shell.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 2px;';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'knob-wrapper';
       
       const knobEl = document.createElement('div');
-      knobEl.className = 'knob oscilloscope-knob';
-      knobEl.style.cssText = 'width: 36px; height: 36px;';
+      knobEl.className = 'knob knob--sm';
       
       const inner = document.createElement('div');
       inner.className = 'knob-inner';
-      inner.style.cssText = 'width: 78%; height: 78%;';
       knobEl.appendChild(inner);
       
       const labelEl = document.createElement('div');
-      labelEl.className = 'oscilloscope-knob-label';
+      labelEl.className = 'knob-label';
       labelEl.textContent = label;
-      labelEl.style.cssText = 'font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;';
       
-      shell.appendChild(knobEl);
-      shell.appendChild(labelEl);
+      wrapper.appendChild(knobEl);
+      wrapper.appendChild(labelEl);
       
       const knobInstance = new Knob(knobEl, {
         min: knobConfig.min,
@@ -443,20 +433,20 @@ class App {
         onChange
       });
       
-      return { shell, knobInstance };
+      return { wrapper, knobInstance };
     };
     
     // Knob TIME (escala horizontal)
     const timeKnob = createLabeledKnob('scope-time', 'TIME', knobsConfig.timeScale, (value) => {
       display.setTimeScale(value);
     });
-    knobsContainer.appendChild(timeKnob.shell);
+    knobsContainer.appendChild(timeKnob.wrapper);
     
     // Knob AMP (escala vertical)
     const ampKnob = createLabeledKnob('scope-amp', 'AMP', knobsConfig.ampScale, (value) => {
       display.setAmpScale(value);
     });
-    knobsContainer.appendChild(ampKnob.shell);
+    knobsContainer.appendChild(ampKnob.wrapper);
     
     // Crear toggle para modo Y-T / X-Y (Lissajous)
     const modeToggle = new Toggle({

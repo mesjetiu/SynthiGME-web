@@ -639,6 +639,32 @@ h1 {
   transform: translateX(-50%);
   box-shadow: 0 0 3px rgba(0,0,0,0.7);
 }
+
+/* Knob pequeño (42px) - usado en osciladores y osciloscopio */
+.knob--sm {
+  width: 42px;
+  height: 42px;
+}
+
+.knob--sm .knob-inner::after {
+  width: 3px;
+  height: 14px;
+  top: 5px;
+}
+
+/* Osciloscopio: layout de knobs */
+.oscilloscope-knobs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.oscilloscope-knobs .knob-wrapper {
+  min-width: auto;
+  flex: none;
+}
+
 .matrix-container {
   margin-top: 0.4rem;
   max-width: 100%;

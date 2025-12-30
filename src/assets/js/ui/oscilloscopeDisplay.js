@@ -208,11 +208,12 @@ export class OscilloscopeDisplay {
   }
 
   /**
-   * Dibuja el indicador de trigger.
+   * Dibuja el indicador de trigger con estado AUTO/TRIG.
    * @param {boolean} triggered - Si se detectó trigger
+   * @param {boolean} [isAuto=false] - Si está en modo auto-trigger
    * @private
    */
-  _drawTriggerIndicator(triggered) {
+  _drawTriggerIndicator(triggered, isAuto = false) {
     if (!this.showTriggerIndicator) return;
     
     const { ctx, width } = this;
@@ -220,10 +221,27 @@ export class OscilloscopeDisplay {
     const x = width - radius - 5;
     const y = radius + 5;
     
+    // LED de estado
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = triggered ? '#0f0' : '#600';
+    
+    if (isAuto) {
+      // Modo AUTO: amarillo/naranja
+      ctx.fillStyle = '#f90';
+    } else if (triggered) {
+      // Trigger válido: verde
+      ctx.fillStyle = '#0f0';
+    } else {
+      // Sin trigger: rojo oscuro
+      ctx.fillStyle = '#600';
+    }
     ctx.fill();
+    
+    // Etiqueta de texto
+    ctx.font = '8px monospace';
+    ctx.fillStyle = isAuto ? '#f90' : (triggered ? '#0f0' : '#600');
+    ctx.textAlign = 'right';
+    ctx.fillText(isAuto ? 'AUTO' : 'TRIG', x - radius - 3, y + 3);
   }
 
   /**
@@ -380,6 +398,7 @@ export class OscilloscopeDisplay {
    * @param {Float32Array} data.bufferY - Señal Y
    * @param {Float32Array} data.bufferX - Señal X
    * @param {boolean} data.triggered - Si se detectó trigger
+   * @param {boolean} [data.isAuto] - Si está en modo auto-trigger
    * @param {boolean} [data.noSignal] - Si no hay señal conectada
    */
   draw(data) {
@@ -409,6 +428,9 @@ export class OscilloscopeDisplay {
     } else {
       this._drawYT(data.bufferY, data.triggered, data.validLength);
     }
+    
+    // Dibujar indicador de trigger (TRIG/AUTO)
+    this._drawTriggerIndicator(data.triggered, data.isAuto);
   }
 
   /**

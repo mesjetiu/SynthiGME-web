@@ -75,9 +75,27 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     this.holdoffMax = this.bufferSize * 4;  // Max muestras sin trigger antes de forzar envío
     this.lastSampleY = 0;           // Para detección de cruce
     
-    // Histéresis: samples mínimos entre triggers para ignorar armónicos/ruido
-    // Se puede configurar via mensaje 'setTriggerHysteresis'
+    // Histéresis temporal: samples mínimos entre triggers
     this.triggerHysteresis = options?.processorOptions?.triggerHysteresis || 150;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // SCHMITT TRIGGER (histéresis de nivel)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Usa dos umbrales: la señal debe caer por debajo del umbral inferior
+    // para "armar" el trigger, y luego subir por encima del umbral superior
+    // para dispararlo. Esto evita disparos múltiples por ruido/oscilación.
+    // ─────────────────────────────────────────────────────────────────────────
+    this.schmittHysteresis = options?.processorOptions?.schmittHysteresis || 0.05;
+    this.triggerArmed = true;  // El trigger comienza armado
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUTO-TRIGGER
+    // ─────────────────────────────────────────────────────────────────────────
+    // Contador de frames sin trigger válido. Si supera un umbral, se activa
+    // modo "AUTO" que muestra el buffer sin alinear para evitar pantalla vacía.
+    // ─────────────────────────────────────────────────────────────────────────
+    this.framesWithoutTrigger = 0;
+    this.autoTriggerThreshold = 30;  // ~0.7 segundos a 43 fps
     
     // ─────────────────────────────────────────────────────────────────────────
     // ANCLAJE DE TRIGGER
@@ -126,6 +144,12 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
           // Número de samples a ignorar después de un trigger
           this.triggerHysteresis = Math.max(0, Math.floor(event.data.samples));
           break;
+        
+        case 'setSchmittHysteresis':
+          // Histéresis de nivel para Schmitt trigger (0.0 - 0.5)
+          this.schmittHysteresis = Math.max(0, Math.min(0.5, event.data.value));
+          this.triggerArmed = true;  // Resetear estado al cambiar
+          break;
           
         case 'stop':
           this.active = false;
@@ -135,15 +159,39 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Detecta trigger por cruce por cero con pendiente positiva.
+   * Detecta trigger usando algoritmo Schmitt (histéresis de nivel).
+   * 
+   * A diferencia del trigger simple que dispara en cualquier cruce del nivel,
+   * el Schmitt trigger requiere que la señal:
+   * 1. Caiga por debajo de (triggerLevel - schmittHysteresis) para "armarse"
+   * 2. Suba por encima de (triggerLevel + schmittHysteresis) para disparar
+   * 
+   * Esto crea una "banda muerta" alrededor del nivel de trigger que evita
+   * disparos falsos por ruido, oscilación o señales que cruzan lentamente.
    * 
    * @param {number} prevSample - Muestra anterior
    * @param {number} currSample - Muestra actual
-   * @returns {boolean} true si se detectó trigger
+   * @returns {boolean} true si se detectó trigger válido
    */
   detectTrigger(prevSample, currSample) {
-    // Rising edge: cruce de triggerLevel de abajo hacia arriba
-    return prevSample < this.triggerLevel && currSample >= this.triggerLevel;
+    const upperThreshold = this.triggerLevel + this.schmittHysteresis;
+    const lowerThreshold = this.triggerLevel - this.schmittHysteresis;
+    
+    // Si el trigger está armado, buscar cruce del umbral superior
+    if (this.triggerArmed) {
+      if (prevSample < upperThreshold && currSample >= upperThreshold) {
+        // Trigger disparado, desarmar hasta que la señal baje
+        this.triggerArmed = false;
+        return true;
+      }
+    } else {
+      // Trigger desarmado: esperar a que la señal baje del umbral inferior
+      if (currSample <= lowerThreshold) {
+        this.triggerArmed = true;
+      }
+    }
+    
+    return false;
   }
 
   /**
@@ -364,6 +412,18 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     if (this.samplesSinceLastSend >= this.minSamplesPerSend) {
       const { bufferY, bufferX, triggered, validLength } = this.extractAlignedBuffer();
       
+      // Gestionar auto-trigger: si no hay trigger válido por mucho tiempo,
+      // mostrar buffer de todas formas (modo AUTO)
+      let isAuto = false;
+      if (triggered) {
+        this.framesWithoutTrigger = 0;
+      } else {
+        this.framesWithoutTrigger++;
+        if (this.framesWithoutTrigger >= this.autoTriggerThreshold) {
+          isAuto = true;
+        }
+      }
+      
       // Enviar al hilo principal
       this.port.postMessage({
         type: 'scopeData',
@@ -371,7 +431,8 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
         bufferX,
         sampleRate,
         triggered,
-        validLength  // Longitud válida (ciclos completos)
+        validLength,  // Longitud válida (ciclos completos)
+        isAuto        // Indica si está en modo auto-trigger
       });
       
       this.samplesSinceLastSend = 0;

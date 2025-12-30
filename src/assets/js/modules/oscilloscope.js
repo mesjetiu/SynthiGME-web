@@ -57,6 +57,7 @@ export class OscilloscopeModule extends Module {
     this.triggerLevel = 0.0;
     this.bufferSize = 1024;
     this.triggerHysteresis = 150;  // Samples de holdoff entre triggers
+    this.schmittHysteresis = 0.05; // Histéresis de nivel para Schmitt trigger
   }
 
   /**
@@ -122,7 +123,8 @@ export class OscilloscopeModule extends Module {
       numberOfOutputs: 0,  // Solo captura, no emite audio
       processorOptions: {
         bufferSize: this.bufferSize,
-        triggerHysteresis: this.triggerHysteresis
+        triggerHysteresis: this.triggerHysteresis,
+        schmittHysteresis: this.schmittHysteresis
       }
     });
     
@@ -138,7 +140,8 @@ export class OscilloscopeModule extends Module {
           bufferX: event.data.bufferX,
           sampleRate: event.data.sampleRate,
           triggered: event.data.triggered,
-          validLength: event.data.validLength  // Longitud de ciclos completos
+          validLength: event.data.validLength,  // Longitud de ciclos completos
+          isAuto: event.data.isAuto             // Modo auto-trigger activo
         };
         
         // Notificar a los listeners
@@ -308,6 +311,22 @@ export class OscilloscopeModule extends Module {
       this.captureNode.port.postMessage({
         type: 'setTriggerHysteresis',
         samples: this.triggerHysteresis
+      });
+    }
+  }
+
+  /**
+   * Establece la histéresis de nivel del Schmitt trigger.
+   * Crea una "banda muerta" alrededor del nivel de trigger para evitar
+   * disparos múltiples cuando la señal oscila cerca del umbral.
+   * @param {number} value - Histéresis (0.0 - 0.5, típico 0.05)
+   */
+  setSchmittHysteresis(value) {
+    this.schmittHysteresis = Math.max(0, Math.min(0.5, value));
+    if (this.captureNode) {
+      this.captureNode.port.postMessage({
+        type: 'setSchmittHysteresis',
+        value: this.schmittHysteresis
       });
     }
   }

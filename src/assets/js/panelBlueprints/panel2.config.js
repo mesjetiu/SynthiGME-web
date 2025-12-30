@@ -82,7 +82,32 @@ export default {
       // Para frecuencias graves (1-10 Hz), el período es 4410-44100 samples,
       // así que 100-200 es seguro sin perder triggers reales.
       // ───────────────────────────────────────────────────────────────────
-      triggerHysteresis: 150     // Samples de holdoff entre triggers (default: 150)
+      triggerHysteresis: 150,    // Samples de holdoff entre triggers (default: 150)
+      
+      // ───────────────────────────────────────────────────────────────────
+      // SCHMITT TRIGGER (histéresis de nivel)
+      // ───────────────────────────────────────────────────────────────────
+      // A diferencia de triggerHysteresis (temporal), esto añade histéresis
+      // de NIVEL: dos umbrales diferentes para subida y bajada.
+      //
+      // Funcionamiento:
+      // 1. El trigger se "arma" cuando la señal cae por debajo de:
+      //    triggerLevel - schmittHysteresis
+      // 2. El trigger solo dispara cuando la señal sube por encima de:
+      //    triggerLevel + schmittHysteresis
+      //
+      // Esto evita disparos múltiples cuando la señal "rebota" cerca del
+      // nivel de trigger (oscilación, ruido, armónicos de alta frecuencia).
+      //
+      // Valores recomendados:
+      // - 0.02-0.05: señales limpias con buena amplitud
+      // - 0.05-0.10: señales con algo de ruido
+      // - 0.10-0.20: señales muy ruidosas
+      //
+      // Nota: Valores muy altos pueden hacer que señales de baja amplitud
+      // no disparen el trigger correctamente.
+      // ───────────────────────────────────────────────────────────────────
+      schmittHysteresis: 0.05    // 5% del rango (-1 a 1) = 0.1 de banda muerta total
     },
     
     // ─────────────────────────────────────────────────────────────────────────

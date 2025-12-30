@@ -340,6 +340,7 @@ class App {
     const audioConfig = config.oscilloscope.audio;
     scopeModule.setBufferSize(audioConfig.bufferSize);
     scopeModule.setTriggerHysteresis(audioConfig.triggerHysteresis);
+    scopeModule.setSchmittHysteresis(audioConfig.schmittHysteresis);
     
     this.engine.addModule(scopeModule);
     this.oscilloscope = scopeModule;

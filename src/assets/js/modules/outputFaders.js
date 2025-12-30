@@ -1,5 +1,6 @@
 // Panel de 8 faders verticales para controlar los buses lógicos de salida
 import { Module } from '../core/engine.js';
+import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 
 export class OutputFaderModule extends Module {
   constructor(engine, id = 'outputFaders') {
@@ -45,9 +46,7 @@ export class OutputFaderModule extends Module {
       let lastCommittedValue = Number(slider.value);
 
       slider.addEventListener('pointerdown', ev => {
-        if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
-          return;
-        }
+        if (shouldBlockInteraction(ev)) return;
         if (window._synthApp && window._synthApp.ensureAudio) {
           window._synthApp.ensureAudio();
         }
@@ -68,7 +67,7 @@ export class OutputFaderModule extends Module {
       };
 
       slider.addEventListener('input', () => {
-        if (window.__synthNavGestureActive) {
+        if (isNavGestureActive()) {
           slider.value = String(lastCommittedValue);
           return;
         }

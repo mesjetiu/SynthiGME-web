@@ -1,4 +1,6 @@
 // Componente Knob reutilizable para parámetros continuos en la interfaz
+import { shouldBlockInteraction } from '../utils/input.js';
+
 export class Knob {
   constructor(rootEl, options = {}) {
     this.rootEl = rootEl;
@@ -34,9 +36,7 @@ export class Knob {
 
   _attach() {
     this.rootEl.addEventListener('pointerdown', ev => {
-      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
-        return;
-      }
+      if (shouldBlockInteraction(ev)) return;
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
@@ -48,9 +48,7 @@ export class Knob {
 
     this.rootEl.addEventListener('pointermove', ev => {
       if (!this.dragging) return;
-      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
-        return;
-      }
+      if (shouldBlockInteraction(ev)) return;
       const dy = this.startY - ev.clientY;
       const sens = (this.max - this.min) / this.pixelsForFullRange;
       this.setValue(this.startValue + dy * sens);

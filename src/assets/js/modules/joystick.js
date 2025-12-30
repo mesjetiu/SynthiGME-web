@@ -1,5 +1,6 @@
 // Módulo JoystickModule: fuente de control XY con salidas de CV para la matriz
 import { Module, setParamSmooth } from '../core/engine.js';
+import { shouldBlockInteraction } from '../utils/input.js';
 
 export class JoystickModule extends Module {
   constructor(engine, id) {
@@ -103,9 +104,7 @@ export class JoystickModule extends Module {
     };
 
     pad.addEventListener('pointerdown', ev => {
-      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
-        return;
-      }
+      if (shouldBlockInteraction(ev)) return;
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
@@ -113,9 +112,7 @@ export class JoystickModule extends Module {
       processEvent(ev);
     });
     pad.addEventListener('pointermove', ev => {
-      if (ev.pointerType === 'touch' && window.__synthNavGestureActive) {
-        return;
-      }
+      if (shouldBlockInteraction(ev)) return;
       if (ev.buttons === 0) return;
       processEvent(ev);
     });

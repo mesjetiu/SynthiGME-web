@@ -24,6 +24,10 @@ import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
 import { OscilloscopeModule } from './modules/oscilloscope.js';
 import { OscilloscopeDisplay } from './ui/oscilloscopeDisplay.js';
 
+// UI Components reutilizables
+import { ModuleFrame } from './ui/moduleFrame.js';
+import { Toggle } from './ui/toggle.js';
+
 // Módulos extraídos
 import { 
   preloadCanvasBgImages, 
@@ -316,7 +320,7 @@ class App {
     `;
     this.panel2.appendElement(host);
     
-    // Crear sección del osciloscopio (panelillo)
+    // Crear sección del osciloscopio
     const scopeSection = document.createElement('div');
     scopeSection.className = 'panel2-oscilloscope-section';
     const sectionConfig = blueprint.layout.sections.oscilloscope;
@@ -325,32 +329,33 @@ class App {
       width: 100%;
       box-sizing: border-box;
       margin-bottom: ${sectionConfig.marginBottom || 0}px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     `;
     host.appendChild(scopeSection);
     
-    // Crear el panelillo (frame)
+    // Crear módulo de audio primero (necesitamos referencia para el toggle)
+    const scopeModule = new OscilloscopeModule(this.engine, 'oscilloscope');
+    this.engine.addModule(scopeModule);
+    this.oscilloscope = scopeModule;
+    
+    // Crear el frame usando ModuleFrame
     const frameConfig = blueprint.modules.oscilloscope.frame;
-    const frame = document.createElement('div');
-    frame.className = 'oscilloscope-frame';
-    frame.style.cssText = `
+    const moduleFrame = new ModuleFrame({
+      id: 'oscilloscope-module',
+      title: null, // Sin título por ahora
+      className: 'synth-module--oscilloscope'
+    });
+    
+    const frameElement = moduleFrame.createElement();
+    frameElement.style.cssText = `
       width: 100%;
       height: 100%;
-      box-sizing: border-box;
-      background: ${config.frame.backgroundColor};
-      border: ${config.frame.borderWidth}px solid ${config.frame.borderColor};
       border-radius: ${frameConfig.borderRadius}px;
       padding: ${frameConfig.padding.top}px ${frameConfig.padding.right}px 
                ${frameConfig.padding.bottom}px ${frameConfig.padding.left}px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     `;
-    scopeSection.appendChild(frame);
+    scopeSection.appendChild(frameElement);
     
-    // Crear contenedor del display (más pequeño que el frame, deja espacio para knobs)
+    // Crear contenedor del display
     const displayConfig = blueprint.modules.oscilloscope.display;
     const displayContainer = document.createElement('div');
     displayContainer.className = 'oscilloscope-display-container';
@@ -363,14 +368,7 @@ class App {
       overflow: hidden;
       margin: 0 auto;
     `;
-    frame.appendChild(displayContainer);
-    
-    // Crear módulo de audio
-    const scopeModule = new OscilloscopeModule(this.engine, 'oscilloscope');
-    this.engine.addModule(scopeModule);
-    
-    // Guardar referencia para acceso desde matriz (columnas 57-58)
-    this.oscilloscope = scopeModule;
+    moduleFrame.appendToContent(displayContainer);
     
     // Crear display
     const displayStyles = config.oscilloscope.display;
@@ -388,6 +386,20 @@ class App {
       showTriggerIndicator: displayStyles.showTriggerIndicator
     });
     
+    // Crear toggle para modo Y-T / X-Y (Lissajous)
+    const modeToggle = new Toggle({
+      id: 'scope-mode-toggle',
+      labelA: 'Y-T',
+      labelB: 'X-Y',
+      initial: config.oscilloscope.audio.mode === 'xy' ? 'b' : 'a',
+      onChange: (state) => {
+        const mode = state === 'a' ? 'yt' : 'xy';
+        display.setMode(mode);
+        if (scopeModule.setMode) scopeModule.setMode(mode);
+      }
+    });
+    moduleFrame.appendToControls(modeToggle.createElement());
+    
     // Conectar display al módulo
     scopeModule.onData(data => display.draw(data));
     
@@ -395,10 +407,11 @@ class App {
     this._panel2Data = {
       host,
       scopeSection,
-      frame,
+      moduleFrame,
       displayContainer,
       scopeModule,
-      display
+      display,
+      modeToggle
     };
     
     // Estado inicial

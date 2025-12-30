@@ -1149,3 +1149,145 @@ small { color:#aaa; }
   display: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SYNTH-MODULE — Clase base para todos los módulos (panelillos)
+   ═══════════════════════════════════════════════════════════════════════════
+   
+   Proporciona estilos comunes para:
+   - Osciladores (via .sgme-osc que hereda)
+   - Osciloscopio
+   - Noise Generators
+   - Futuros módulos
+   
+   Para modificar la transparencia de todos los panelillos a la vez,
+   editar --synth-module-bg y --synth-module-border.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --synth-module-bg: rgba(20, 20, 20, 0.2);
+  --synth-module-border: rgba(255, 255, 255, 0.18);
+  --synth-module-radius: 6px;
+  --synth-module-header-size: 11px;
+}
+
+.synth-module {
+  box-sizing: border-box;
+  background: var(--synth-module-bg);
+  border: 1px solid var(--synth-module-border);
+  border-radius: var(--synth-module-radius);
+  color: #f3f3f3;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.synth-module__header {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 6px 8px 4px;
+  font-size: var(--synth-module-header-size);
+}
+
+.synth-module__content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.synth-module__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 8px 8px;
+  flex-wrap: wrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SYNTH-TOGGLE — Switch de dos estados
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.synth-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 10px;
+  color: #aaa;
+}
+
+.synth-toggle__label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: color 0.15s ease;
+}
+
+.synth-toggle__label-a {
+  color: #0f0;
+}
+
+.synth-toggle.is-b .synth-toggle__label-a {
+  color: #666;
+}
+
+.synth-toggle__label-b {
+  color: #666;
+}
+
+.synth-toggle.is-b .synth-toggle__label-b {
+  color: #0f0;
+}
+
+.synth-toggle__track {
+  width: 28px;
+  height: 14px;
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 7px;
+  position: relative;
+  transition: border-color 0.15s ease;
+}
+
+.synth-toggle:hover .synth-toggle__track {
+  border-color: #0f0;
+}
+
+.synth-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  background: #0f0;
+  border-radius: 50%;
+  transition: left 0.15s ease;
+}
+
+.synth-toggle.is-b .synth-toggle__thumb {
+  left: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OSCILLOSCOPE MODULE — Estilos específicos del osciloscopio
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.synth-module--oscilloscope {
+  width: 100%;
+  height: 100%;
+}
+
+.synth-module--oscilloscope .synth-module__content {
+  padding: 10px;
+}
+
+.oscilloscope-display {
+  background: #0a0a0a;
+  border-radius: 4px;
+  overflow: hidden;
+}

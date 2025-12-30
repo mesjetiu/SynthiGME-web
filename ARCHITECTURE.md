@@ -40,7 +40,7 @@ src/
         ├── navigation/     # Sistema de navegación del viewport
         ├── utils/          # Utilidades (canvas, SW, versión)
         ├── worklets/       # AudioWorklet processors (síntesis en hilo de audio)
-        └── panelBlueprints/# Configuración de matrices y paneles
+        └── panelBlueprints/# Blueprints (estructura) y Configs (parámetros)
 ```
 
 ---
@@ -61,6 +61,8 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | Archivo | Propósito |
 |---------|----------|
 | `synthOscillator.worklet.js` | Oscilador con fase coherente, 4 formas de onda (pulse, sine, triangle, sawtooth), anti-aliasing PolyBLEP, y entrada para hard sync |
+| `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación |
+| `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio (modos Y-T y X-Y) |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -70,7 +72,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 |---------|--------|-------------|
 | `oscillator.js` | `OscillatorModule` | Oscilador básico con forma de onda configurable |
 | `pulse.js` | `PulseModule` | Oscilador de onda cuadrada/pulso con ancho variable |
-| `noise.js` | `NoiseModule` | Generador de ruido blanco/rosa |
+| `noise.js` | `NoiseModule` | Generador de ruido blanco/rosa con AudioWorklet (Voss-McCartney) |
 | `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
 | `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
@@ -118,15 +120,74 @@ Utilidades compartidas:
 
 ### 3.7 Panel Blueprints (`src/assets/js/panelBlueprints/`)
 
-Configuración declarativa de matrices y calibración:
+Configuración declarativa de estructura y parámetros de paneles. Sigue el patrón **Blueprint vs Config**:
 
-| Archivo | Contenido |
-|---------|-----------|
-| `panel3.oscillators.config.js` | Calibración de rangos de frecuencia por oscilador |
-| `panel5.audio.blueprint.js` | Mapa de conexiones de la matriz de audio (filas/columnas) |
-| `panel5.audio.config.js` | Ganancias y atenuaciones para cada cruce de matriz |
-| `panel6.control.blueprint.js` | Mapa de conexiones de la matriz de control |
-| `panel6.control.config.js` | Ganancias para señales de control (CV) |
+#### Patrón Blueprint vs Config
+
+Los paneles se configuran con **dos archivos separados** por responsabilidad:
+
+| Tipo | Extensión | Contenido | Cuándo modificar |
+|------|-----------|-----------|------------------|
+| **Blueprint** | `.blueprint.js` | Estructura visual, slots, layout, mapeo a matriz | Al cambiar posiciones o añadir/quitar módulos |
+| **Config** | `.config.js` | Parámetros de audio, rangos de knobs, calibración | Al ajustar sonido o respuesta de controles |
+
+**Ventajas de esta separación:**
+- Editar layout sin afectar comportamiento de audio
+- Calibrar parámetros sin romper estructura visual
+- Reutilizar blueprints con diferentes configuraciones
+- Versionado independiente de estructura y calibración
+
+#### Archivos
+
+| Archivo | Tipo | Contenido |
+|---------|------|-----------|
+| `panel3.oscillators.blueprint.js` | Blueprint | Layout de osciladores (grid 2×6), slots, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
+| `panel3.oscillators.config.js` | Config | Rangos de frecuencia, niveles, tiempos de suavizado, parámetros Voss-McCartney |
+| `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
+| `panel5.audio.config.js` | Config | Ganancias y atenuaciones para cada cruce de matriz |
+| `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
+| `panel6.control.config.js` | Config | Ganancias para señales de control (CV) |
+
+#### Ejemplo de Blueprint (estructura)
+```javascript
+// panel3.oscillators.blueprint.js
+export default {
+  schemaVersion: 1,
+  panelId: 'panel-3',
+  layout: {
+    oscillators: { columns: 2, rowsPerColumn: 6, oscSize: { width: 200, height: 90 } },
+    modulesRow: { height: 80, proportions: { noise1: 2/9, noise2: 2/9, randomCV: 5/9 } }
+  },
+  oscillatorSlots: [
+    { oscIndex: 0, col: 0, row: 0 },  // Osc 1
+    { oscIndex: 1, col: 1, row: 0 },  // Osc 2
+    // ...
+  ],
+  modules: {
+    noise1: { id: 'noise-1', type: 'noiseGenerator', matrixRow: 89 },
+    noise2: { id: 'noise-2', type: 'noiseGenerator', matrixRow: 90 }
+  },
+  matrixMapping: { noiseGenerators: { noise1: 89, noise2: 90 } }
+};
+```
+
+#### Ejemplo de Config (parámetros)
+```javascript
+// panel3.oscillators.config.js
+export default {
+  noiseDefaults: {
+    levelSmoothingTime: 0.03,  // 30ms (evita clicks)
+    colourSmoothingTime: 0.01,
+    vossOctaves: 8             // Octavas del algoritmo Voss-McCartney
+  },
+  noise1: {
+    knobs: {
+      colour: { min: 0, max: 1, initial: 0, label: 'Colour' },
+      level: { min: 0, max: 1, initial: 0, label: 'Level' }
+    }
+  }
+};
+```
 
 ---
 

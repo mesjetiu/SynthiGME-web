@@ -7,8 +7,13 @@ import { LargeMatrix } from './ui/largeMatrix.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
+
+// Blueprints (estructura visual y ruteo)
+import panel3OscBlueprint from './panelBlueprints/panel3.oscillators.blueprint.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
+
+// Configs (parámetros de audio)
 import panel3OscConfig from './panelBlueprints/panel3.oscillators.config.js';
 import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
 import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
@@ -234,16 +239,32 @@ class App {
   // CONSTRUCCIÓN UNIFICADA DE PANELES DE OSCILADORES
   // ─────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Devuelve la especificación de layout para paneles de osciladores.
+   * Lee estructura base del blueprint y parámetros del config.
+   * 
+   * @returns {Object} Especificación de layout combinada
+   */
   _getLayoutSpec() {
-    const oscSize = { width: 370, height: 110 };
+    // Leer estructura del blueprint (o usar defaults hardcoded como fallback)
+    const blueprintLayout = panel3OscBlueprint?.layout?.oscillators || {};
+    
+    // Dimensiones de oscilador (blueprint o fallback)
+    const oscSize = blueprintLayout.oscSize || { width: 370, height: 110 };
+    
+    // Layout params del blueprint
+    const gap = blueprintLayout.gap || { x: 0, y: 0 };
+    const airOuter = blueprintLayout.airOuter ?? 0;
+    const airOuterY = blueprintLayout.airOuterY ?? 0;
+    const rowsPerColumn = blueprintLayout.rowsPerColumn ?? 6;
+    const topOffset = blueprintLayout.topOffset ?? 10;
+    const reservedHeight = blueprintLayout.reservedHeight ?? oscSize.height;
+    
+    // Parámetros de UI del config (ajustes visuales)
     const padding = 6;
-    const gap = { x: 0, y: 0 };
-    const airOuter = 0;
-    const airOuterY = 0;
-    const rowsPerColumn = 6;
-    const topOffset = 10;
     const knobGap = 8;
     const switchOffset = { leftPercent: 36, topPx: 6 };
+    
     return {
       oscSize,
       padding,
@@ -254,12 +275,13 @@ class App {
       topOffset,
       knobGap,
       switchOffset,
-      reservedHeight: oscSize.height
+      reservedHeight
     };
   }
 
   /**
    * Construye el layout de osciladores para cualquier panel (1-4).
+   * Usa el blueprint para estructura y el config para parámetros.
    * Elimina la duplicación de _buildPanel1Layout, _buildPanel2Layout, etc.
    */
   _buildOscillatorPanel(panelIndex, panel, panelAudio) {
@@ -273,12 +295,27 @@ class App {
     const layout = this._getLayoutSpec();
     const { oscSize, gap, rowsPerColumn } = layout;
 
-    const oscillatorSlots = [];
-    for (let i = 0; i < rowsPerColumn; i += 1) {
-      oscillatorSlots.push({ index: i + 1, col: 0, row: i });
-    }
-    for (let i = 0; i < rowsPerColumn; i += 1) {
-      oscillatorSlots.push({ index: i + 7, col: 1, row: i });
+    // ─────────────────────────────────────────────────────────────────────────
+    // Slots de osciladores: leer del blueprint o generar por defecto
+    // El blueprint define posición visual (col, row) para cada oscIndex
+    // ─────────────────────────────────────────────────────────────────────────
+    let oscillatorSlots;
+    if (Array.isArray(panel3OscBlueprint?.oscillatorSlots)) {
+      // Usar slots del blueprint (oscIndex está 0-based, convertimos a index 1-based)
+      oscillatorSlots = panel3OscBlueprint.oscillatorSlots.map(slot => ({
+        index: slot.oscIndex + 1,   // UI usa 1-based
+        col: slot.col,
+        row: slot.row
+      }));
+    } else {
+      // Fallback: generar grid clásico
+      oscillatorSlots = [];
+      for (let i = 0; i < rowsPerColumn; i += 1) {
+        oscillatorSlots.push({ index: i + 1, col: 0, row: i });
+      }
+      for (let i = 0; i < rowsPerColumn; i += 1) {
+        oscillatorSlots.push({ index: i + 7, col: 1, row: i });
+      }
     }
 
     const oscComponents = oscillatorSlots.map(slot => {
@@ -467,15 +504,16 @@ class App {
         reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
         reserved.style.width = `${columnWidth * 2 + gap.x}px`;
         
-        // Aplicar altura del layout del blueprint si es Panel 3
+        // Aplicar altura y proporciones del blueprint si es Panel 3
         if (panelIndex === 3) {
-          const modulesLayout = panel3OscConfig.modules?.layout || {};
-          const rowHeight = modulesLayout.rowHeight || layout.reservedHeight;
+          // Leer del BLUEPRINT (estructura visual)
+          const blueprintModulesRow = panel3OscBlueprint?.layout?.modulesRow || {};
+          const rowHeight = blueprintModulesRow.height || layout.reservedHeight;
           reserved.style.height = `${rowHeight}px`;
           
-          // Aplicar proporciones a los módulos
+          // Aplicar proporciones a los módulos desde el blueprint
           if (noiseModules) {
-            const proportions = modulesLayout.proportions || { noise1: 2/9, noise2: 2/9, randomCV: 5/9 };
+            const proportions = blueprintModulesRow.proportions || { noise1: 2/9, noise2: 2/9, randomCV: 5/9 };
             const totalWidth = columnWidth * 2 + gap.x;
             
             if (noiseModules.noise1?.element) {
@@ -1105,20 +1143,6 @@ class App {
     this._panel3Routing.sourceMap = mappings.sourceMap;
     this._panel3Routing.hiddenCols = mappings.hiddenCols;
 
-    // DEBUG: mostrar mapeos de noise y outputs
-    console.log('[Panel5Routing] sourceMap entries:');
-    for (const [rowIndex, source] of mappings.sourceMap) {
-      if (source.kind === 'noiseGen') {
-        console.log(`  Row ${rowIndex} -> noiseGen index ${source.index}`);
-      }
-    }
-    console.log('[Panel5Routing] destMap (outputs):');
-    for (const [colIndex, dest] of mappings.destMap) {
-      if (dest.kind === 'outputBus') {
-        console.log(`  Col ${colIndex} -> outputBus ${dest.bus}`);
-      }
-    }
-
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
       this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
         this._handlePanel5AudioToggle(rowIndex, colIndex, nextActive)
@@ -1130,11 +1154,6 @@ class App {
     const source = this._panel3Routing?.sourceMap?.get(rowIndex);
     const dest = this._panel3Routing?.destMap?.get(colIndex);
     const key = `${rowIndex}:${colIndex}`;
-    
-    // DEBUG
-    console.log(`[Panel5Toggle] row=${rowIndex}, col=${colIndex}, activate=${activate}`);
-    console.log(`  source:`, source);
-    console.log(`  dest:`, dest);
 
     if (!source || !dest) return true;
 

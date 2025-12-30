@@ -475,7 +475,16 @@ class App {
     });
     moduleFrame.appendToControls(modeToggle.createElement());
     
-    // Conectar display al módulo
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONEXIÓN DISPLAY ↔ MÓDULO CON SINCRONIZACIÓN
+    // ─────────────────────────────────────────────────────────────────────────
+    // Iniciar el render loop sincronizado con requestAnimationFrame.
+    // Esto evita "tearing" y temblores al desvincular la tasa de datos del
+    // worklet (~43 Hz) de la tasa de refresco del monitor (60+ Hz).
+    // ─────────────────────────────────────────────────────────────────────────
+    display.startRenderLoop();
+    
+    // Conectar datos del módulo al display
     scopeModule.onData(data => display.draw(data));
     
     // Guardar referencias

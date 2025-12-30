@@ -109,6 +109,65 @@ export class OscilloscopeDisplay {
     this.lastTriggered = false;
     this.animationId = null;
     this.lastData = null;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // SINCRONIZACIÓN CON requestAnimationFrame
+    // ─────────────────────────────────────────────────────────────────────────
+    // El worklet envía datos a ~43 Hz, pero el monitor refresca a 60+ Hz.
+    // Para evitar "tearing" y temblores, solo dibujamos en el frame del navegador.
+    // ─────────────────────────────────────────────────────────────────────────
+    this._pendingData = null;      // Datos pendientes de dibujar
+    this._rafId = null;            // ID del requestAnimationFrame activo
+    this._isRunning = false;       // Si el loop de animación está activo
+  }
+
+  /**
+   * Inicia el loop de renderizado sincronizado con el monitor.
+   * Debe llamarse una vez después de crear el display.
+   */
+  startRenderLoop() {
+    if (this._isRunning) return;
+    this._isRunning = true;
+    this._renderFrame();
+  }
+
+  /**
+   * Detiene el loop de renderizado.
+   */
+  stopRenderLoop() {
+    this._isRunning = false;
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+  }
+
+  /**
+   * Frame de renderizado interno.
+   * Solo dibuja si hay datos nuevos pendientes.
+   * @private
+   */
+  _renderFrame() {
+    if (!this._isRunning) return;
+    
+    // Solo dibujar si hay datos nuevos
+    if (this._pendingData) {
+      this._drawInternal(this._pendingData);
+      this._pendingData = null;
+    }
+    
+    // Programar siguiente frame
+    this._rafId = requestAnimationFrame(() => this._renderFrame());
+  }
+
+  /**
+   * Actualiza los datos a dibujar (sin dibujar inmediatamente).
+   * El siguiente frame de animación dibujará estos datos.
+   * @param {Object} data - Datos del osciloscopio
+   */
+  updateData(data) {
+    this._pendingData = data;
+    this.lastData = data;
   }
 
   /**
@@ -394,6 +453,10 @@ export class OscilloscopeDisplay {
 
   /**
    * Dibuja un frame con los datos proporcionados.
+   * 
+   * NOTA: Si el render loop está activo (startRenderLoop), se recomienda usar
+   * updateData() en lugar de draw() para sincronizar con requestAnimationFrame.
+   * 
    * @param {Object} data - Datos de captura
    * @param {Float32Array} data.bufferY - Señal Y
    * @param {Float32Array} data.bufferX - Señal X
@@ -402,6 +465,22 @@ export class OscilloscopeDisplay {
    * @param {boolean} [data.noSignal] - Si no hay señal conectada
    */
   draw(data) {
+    // Si el render loop está activo, usar el sistema sincronizado
+    if (this._isRunning) {
+      this.updateData(data);
+      return;
+    }
+    
+    // Dibujo directo (cuando no hay render loop)
+    this._drawInternal(data);
+  }
+
+  /**
+   * Dibuja internamente un frame (lógica real de renderizado).
+   * @param {Object} data - Datos de captura
+   * @private
+   */
+  _drawInternal(data) {
     const { ctx, width, height, bgColor, showGrid } = this;
     
     // Si no hay señal, dibujar vacío

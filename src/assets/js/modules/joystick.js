@@ -32,14 +32,16 @@ export class JoystickModule extends Module {
     this._initAudioNodes();
     const ctx = this.getAudioCtx();
     const t = ctx.currentTime + 0.05;
-    try { this.xConst.start(t); } catch (error) {}
-    try { this.yConst.start(t); } catch (error) {}
+    // ConstantSource puede lanzar si ya fue iniciado
+    try { this.xConst.start(t); } catch { /* ya iniciado */ }
+    try { this.yConst.start(t); } catch { /* ya iniciado */ }
   }
 
   stop(time) {
     if (!this.xConst || !this.yConst) return;
-    try { this.xConst.stop(time); } catch (error) {}
-    try { this.yConst.stop(time); } catch (error) {}
+    // ConstantSource puede lanzar si ya fue detenido
+    try { this.xConst.stop(time); } catch { /* ya detenido */ }
+    try { this.yConst.stop(time); } catch { /* ya detenido */ }
   }
 
   setPosition(nx, ny) {
@@ -117,11 +119,13 @@ export class JoystickModule extends Module {
       processEvent(ev);
     });
     pad.addEventListener('pointerup', ev => {
-      try { pad.releasePointerCapture(ev.pointerId); } catch (error) {}
+      // Puede fallar si el capture ya fue liberado
+      try { pad.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
     });
     pad.addEventListener('pointerleave', ev => {
       if (ev.buttons === 0) return;
-      try { pad.releasePointerCapture(ev.pointerId); } catch (error) {}
+      // Puede fallar si el capture ya fue liberado
+      try { pad.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
     });
 
     updateHandle(0, 0);

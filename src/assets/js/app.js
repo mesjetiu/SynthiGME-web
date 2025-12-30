@@ -152,6 +152,10 @@ class App {
     if (!node || !state || !ctx) return;
     const now = ctx.currentTime;
 
+    // NOTA: Los try-catch en este método protegen contra estados inválidos
+    // de AudioParam (nodo no iniciado, contexto cerrado, etc.). Se ignoran
+    // porque el estado del oscilador se sincronizará en la siguiente operación.
+
     // Sine oscillator - puede ser worklet o nativo
     if (node.osc && Number.isFinite(state.freq)) {
       try {
@@ -161,38 +165,38 @@ class App {
           node.osc.frequency.cancelScheduledValues(now);
           node.osc.frequency.setValueAtTime(state.freq, now);
         }
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (node.sawOsc && node.sawOsc.frequency && Number.isFinite(state.freq)) {
       try {
         node.sawOsc.frequency.cancelScheduledValues(now);
         node.sawOsc.frequency.setValueAtTime(state.freq, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
 
     if (node.gain && node.gain.gain && Number.isFinite(state.oscLevel)) {
       try {
         node.gain.gain.cancelScheduledValues(now);
         node.gain.gain.setValueAtTime(state.oscLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (node.sawGain && node.sawGain.gain && Number.isFinite(state.sawLevel)) {
       try {
         node.sawGain.gain.cancelScheduledValues(now);
         node.sawGain.gain.setValueAtTime(state.sawLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (node.triOsc && node.triOsc.frequency && Number.isFinite(state.freq)) {
       try {
         node.triOsc.frequency.cancelScheduledValues(now);
         node.triOsc.frequency.setValueAtTime(state.freq, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (node.triGain && node.triGain.gain && Number.isFinite(state.triLevel)) {
       try {
         node.triGain.gain.cancelScheduledValues(now);
         node.triGain.gain.setValueAtTime(state.triLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     // Pulse oscillator - puede ser worklet o nativo
     if (node.pulseOsc && Number.isFinite(state.freq)) {
@@ -203,13 +207,13 @@ class App {
           node.pulseOsc.frequency.cancelScheduledValues(now);
           node.pulseOsc.frequency.setValueAtTime(state.freq, now);
         }
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (node.pulseGain && node.pulseGain.gain && Number.isFinite(state.pulseLevel)) {
       try {
         node.pulseGain.gain.cancelScheduledValues(now);
         node.pulseGain.gain.setValueAtTime(state.pulseLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
   }
 
@@ -901,6 +905,9 @@ class App {
     const startTime = ctx.currentTime + 0.01;
     const now = ctx.currentTime;
     
+    // NOTA: Los try-catch protegen contra estados inválidos de AudioParam.
+    // Son esperados y seguros de ignorar (el estado se sincronizará después).
+    
     // Solo configurar frecuencia en osciladores nativos (worklets ya tienen frecuencia)
     if (!useWorklet && Number.isFinite(state.freq)) {
       try {
@@ -908,7 +915,7 @@ class App {
         osc.frequency.setValueAtTime(state.freq, now);
         pulseOsc.frequency.cancelScheduledValues(now);
         pulseOsc.frequency.setValueAtTime(state.freq, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     
     // Saw y Tri siempre son nativos
@@ -918,34 +925,35 @@ class App {
         sawOsc.frequency.setValueAtTime(state.freq, now);
         triOsc.frequency.cancelScheduledValues(now);
         triOsc.frequency.setValueAtTime(state.freq, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (Number.isFinite(state.oscLevel)) {
       try {
         gain.gain.cancelScheduledValues(now);
         gain.gain.setValueAtTime(state.oscLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (Number.isFinite(state.sawLevel)) {
       try {
         sawGain.gain.cancelScheduledValues(now);
         sawGain.gain.setValueAtTime(state.sawLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (Number.isFinite(state.triLevel)) {
       try {
         triGain.gain.cancelScheduledValues(now);
         triGain.gain.setValueAtTime(state.triLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     if (Number.isFinite(state.pulseLevel)) {
       try {
         pulseGain.gain.cancelScheduledValues(now);
         pulseGain.gain.setValueAtTime(state.pulseLevel, now);
-      } catch (error) {}
+      } catch { /* AudioParam puede no estar listo */ }
     }
     
     // Iniciar osciladores nativos (worklets ya están corriendo)
+    // Puede lanzar si el oscilador ya fue iniciado
     try { 
       if (!useWorklet) {
         osc.start(startTime);
@@ -953,7 +961,7 @@ class App {
       }
       sawOsc.start(startTime);
       triOsc.start(startTime);
-    } catch (error) {}
+    } catch { /* oscilador ya iniciado */ }
 
     entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, _freqInitialized: true, _useWorklet: useWorklet };
     panelAudio.nodes[oscIndex] = entry;
@@ -1452,7 +1460,8 @@ class App {
 
     const conn = this._panel3Routing.connections?.[key];
     if (conn) {
-      try { conn.disconnect(); } catch (error) {}
+      // Ignorar error si el nodo ya fue desconectado
+      try { conn.disconnect(); } catch { /* nodo ya desconectado */ }
       delete this._panel3Routing.connections[key];
       
       // Si era una conexión al osciloscopio, verificar si quedan conexiones

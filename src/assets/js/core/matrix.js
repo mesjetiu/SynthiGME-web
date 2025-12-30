@@ -121,7 +121,8 @@ export class Matrix {
   removeConnection(r, c) {
     const conn = this.connections[r][c];
     if (!conn) return;
-    try { conn.disconnect(); } catch (error) {}
+    // Ignorar error si el nodo ya fue desconectado
+    try { conn.disconnect(); } catch { /* nodo ya desconectado */ }
     this.connections[r][c] = null;
   }
 }

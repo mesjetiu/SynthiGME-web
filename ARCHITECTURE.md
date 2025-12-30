@@ -62,7 +62,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 |---------|----------|
 | `synthOscillator.worklet.js` | Oscilador con fase coherente, 4 formas de onda (pulse, sine, triangle, sawtooth), anti-aliasing PolyBLEP, y entrada para hard sync |
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación |
-| `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio (modos Y-T y X-Y) |
+| `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -73,6 +73,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `oscillator.js` | `OscillatorModule` | Oscilador básico con forma de onda configurable |
 | `pulse.js` | `PulseModule` | Oscilador de onda cuadrada/pulso con ancho variable |
 | `noise.js` | `NoiseModule` | Generador de ruido blanco/rosa con AudioWorklet (Voss-McCartney) |
+| `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
 | `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
 | `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
@@ -93,12 +94,17 @@ Componentes de interfaz reutilizables:
 
 | Archivo | Componente | Descripción |
 |---------|------------|-------------|
-| `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre |
+| `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre, curvas de respuesta configurable |
+| `toggle.js` | `Toggle` | Interruptor de dos estados con etiquetas personalizables |
+| `moduleFrame.js` | `ModuleFrame` | Contenedor visual para módulos con título y controles |
+| `oscilloscopeDisplay.js` | `OscilloscopeDisplay` | Canvas para visualización de onda con efecto CRT, knobs TIME/AMP/LEVEL, render sincronizado con rAF |
+| `noiseGenerator.js` | — | UI para generadores de ruido (knobs colour/level) |
+| `randomVoltage.js` | — | UI para generador de voltaje aleatorio |
 | `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle y visualización |
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
-| `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen) |
+| `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen, selector de resolución) |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)
 
@@ -141,6 +147,8 @@ Los paneles se configuran con **dos archivos separados** por responsabilidad:
 
 | Archivo | Tipo | Contenido |
 |---------|------|-----------|
+| `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
+| `panel2.config.js` | Config | Parámetros de visualización (resolución CRT, glow, colores), audio (buffer, trigger, Schmitt) y knobs (TIME, AMP, LEVEL) |
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
 | `panel3.config.js` | Config | Rangos de frecuencia, niveles, tiempos de suavizado, parámetros Voss-McCartney |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
@@ -191,7 +199,67 @@ export default {
 
 ---
 
-## 4. Flujo de Audio
+## 4. Sistema de Osciloscopio
+
+El osciloscopio es uno de los módulos más complejos, implementando técnicas profesionales de estabilización visual.
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 AUDIO THREAD (Worklet)                      │
+│  scopeCapture.worklet.js                                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Ring Buffer (2× bufferSize)                         │    │
+│  │ ├── Schmitt Trigger (histéresis de nivel)           │    │
+│  │ ├── Histéresis temporal (holdoff entre triggers)    │    │
+│  │ ├── Detección de período (ciclos completos)         │    │
+│  │ └── Anclaje predictivo (estabilidad entre frames)   │    │
+│  └─────────────────────────────────────────────────────┘    │
+│           │ postMessage @ ~43 Hz                            │
+└───────────┼─────────────────────────────────────────────────┘
+            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    MAIN THREAD                              │
+│  ┌──────────────────┐     ┌─────────────────────────────┐   │
+│  │ OscilloscopeModule│────▶│ OscilloscopeDisplay        │   │
+│  │ oscilloscope.js   │     │ oscilloscopeDisplay.js     │   │
+│  │ - Gestión worklet │     │ - Canvas con efecto CRT    │   │
+│  │ - Callbacks datos │     │ - Render loop (rAF sync)   │   │
+│  │ - Setters config  │     │ - Knobs TIME/AMP/LEVEL     │   │
+│  └──────────────────┘     │ - Indicador TRIG/AUTO      │   │
+│                           └─────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Técnicas de Estabilización del Trigger
+
+| Técnica | Propósito | Configuración |
+|---------|-----------|---------------|
+| **Schmitt Trigger** | Evita disparos múltiples por oscilación cerca del umbral | `schmittHysteresis: 0.05` (5% del rango) |
+| **Histéresis temporal** | Ignora triggers por armónicos/ruido | `triggerHysteresis: 150` samples |
+| **Detección de período** | Muestra solo ciclos completos | Automático entre triggers |
+| **Anclaje predictivo** | Predice posición del siguiente trigger | Basado en período anterior |
+
+### Modos de Visualización
+
+- **Y-T**: Forma de onda tradicional (amplitud vs tiempo)
+- **X-Y (Lissajous)**: Canal X horizontal, canal Y vertical
+
+### Efecto CRT
+
+El display simula la apariencia de un osciloscopio analógico:
+- Resolución interna baja (400×300) para aspecto pixelado
+- Línea gruesa (3px) con puntas redondeadas
+- Glow (shadowBlur) para fosforescencia del fósforo
+
+### Sincronización con Monitor
+
+El render usa `requestAnimationFrame` para sincronizar el dibujo con el refresco del monitor (60+ Hz), evitando tearing aunque el worklet envíe datos a ~43 Hz.
+
+---
+
+## 5. Flujo de Audio
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -214,7 +282,7 @@ export default {
 
 ---
 
-## 5. Sistema de AudioWorklets
+## 6. Sistema de AudioWorklets
 
 ### Motivación
 
@@ -299,7 +367,7 @@ Si el navegador no soporta AudioWorklet o falla la carga:
 
 ---
 
-## 6. Sistema de Salidas
+## 7. Sistema de Salidas
 
 ### Arquitectura de 8 Buses Lógicos
 
@@ -323,7 +391,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 7. Sistema de Matrices
+## 8. Sistema de Matrices
 
 ### Matriz de Audio (Panel 5)
 - **63 filas** (fuentes: osciladores, filtros, etc.)
@@ -346,7 +414,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 8. Build y Distribución
+## 9. Build y Distribución
 
 ### Scripts (`package.json`)
 
@@ -385,7 +453,7 @@ docs/
 
 ---
 
-## 9. PWA (Progressive Web App)
+## 10. PWA (Progressive Web App)
 
 - **Service Worker** (`sw.js`): Cache de assets para uso offline
 - **Web Manifest**: Permite instalación como app nativa
@@ -393,7 +461,7 @@ docs/
 
 ---
 
-## 10. Patrones de Código
+## 11. Patrones de Código
 
 ### Módulos de Audio
 - Extienden clase base `Module` de `engine.js`
@@ -412,7 +480,7 @@ docs/
 
 ---
 
-## 11. Consideraciones Futuras
+## 12. Consideraciones Futuras
 
 - [ ] **Hard sync**: Conectar señal de sincronización a entrada del worklet (Panel 6)
 - [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
@@ -420,3 +488,5 @@ docs/
 - [ ] **MIDI**: Soporte para controladores externos
 - [ ] **Multicanal**: Ruteo a más de 2 salidas físicas si el navegador lo permite
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam
+- [ ] **Interpolación de frames**: Suavizado adicional entre frames del osciloscopio si es necesario
+- [ ] **Trigger externo**: Permitir sincronizar osciloscopio con señal externa (otro oscilador)

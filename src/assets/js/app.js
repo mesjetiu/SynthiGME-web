@@ -41,14 +41,13 @@ class App {
     this._panel3Routing = { connections: {}, rowMap: null, colMap: null };
     this.placeholderPanels = {};
     
-    // Paneles 1, 2, 3, 4: todos son SGME Oscillators (12 osciladores cada uno)
+    // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
     this._labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
     this._panel1Audio = { nodes: [] };
 
     this.panel2 = this.panelManager.createPanel({ id: 'panel-2' });
     this._labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
-    this._panel2Audio = { nodes: [] };
 
     this.panel3 = this.panelManager.createPanel({ id: 'panel-3' });
     this._labelPanelSlot(this.panel3, null, { row: 1, col: 3 });
@@ -90,9 +89,8 @@ class App {
     this.largeMatrixAudio = null;
     this.largeMatrixControl = null;
     
-    // Construir los 4 paneles de SGME Oscillators
+    // Construir paneles de SGME Oscillators (Panel 2 vacío)
     this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
-    this._buildOscillatorPanel(2, this.panel2, this._panel2Audio);
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
     this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
     

@@ -62,15 +62,38 @@ export function setupMobileQuickActionsBar() {
   btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
   btnFs.innerHTML = iconSvg('ti-arrows-maximize');
 
-  // Selector de resolución (1x, 2x, 3x)
+  // Selector de resolución (1x, 2x, 3x) como desplegable
   const resolutionFactors = [1, 2, 3];
   let currentResIndex = 0; // Por defecto 1x
+  
+  const resolutionContainer = document.createElement('div');
+  resolutionContainer.className = 'resolution-selector';
   
   const btnResolution = document.createElement('button');
   btnResolution.type = 'button';
   btnResolution.className = 'mobile-quickbar__btn mobile-quickbar__btn--text';
   btnResolution.setAttribute('aria-label', 'Resolución de renderizado');
+  btnResolution.setAttribute('aria-haspopup', 'true');
+  btnResolution.setAttribute('aria-expanded', 'false');
   btnResolution.textContent = '1×';
+  
+  const resolutionMenu = document.createElement('div');
+  resolutionMenu.className = 'resolution-menu';
+  resolutionMenu.setAttribute('role', 'menu');
+  
+  resolutionFactors.forEach((factor, index) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'resolution-menu__option' + (index === 0 ? ' resolution-menu__option--active' : '');
+    option.setAttribute('role', 'menuitem');
+    option.textContent = `${factor}×`;
+    option.dataset.factor = factor;
+    option.dataset.index = index;
+    resolutionMenu.appendChild(option);
+  });
+  
+  resolutionContainer.appendChild(btnResolution);
+  resolutionContainer.appendChild(resolutionMenu);
   
   // Toast para feedback visual
   const showResolutionToast = (factor) => {
@@ -124,8 +147,7 @@ export function setupMobileQuickActionsBar() {
 
     // Ocultar selector de resolución en Firefox (no lo necesita)
     const isFirefox = window.__synthIsFirefox ?? /Firefox\/\d+/.test(navigator.userAgent);
-    btnResolution.hidden = isFirefox;
-    btnResolution.disabled = isFirefox;
+    resolutionContainer.hidden = isFirefox;
 
     btnFs.hidden = shouldHideFullscreen();
     btnFs.disabled = btnFs.hidden;
@@ -168,20 +190,54 @@ export function setupMobileQuickActionsBar() {
     }
   });
 
-  btnResolution.addEventListener('click', () => {
-    // Ciclar: 1x → 2x → 3x → 1x
-    currentResIndex = (currentResIndex + 1) % resolutionFactors.length;
-    const newFactor = resolutionFactors[currentResIndex];
+  // Toggle del menú de resolución
+  const toggleResolutionMenu = (show) => {
+    const isOpen = show ?? !resolutionMenu.classList.contains('resolution-menu--open');
+    resolutionMenu.classList.toggle('resolution-menu--open', isOpen);
+    btnResolution.setAttribute('aria-expanded', String(isOpen));
+  };
+  
+  btnResolution.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleResolutionMenu();
+  });
+  
+  // Selección de opción del menú
+  resolutionMenu.addEventListener('click', (e) => {
+    const option = e.target.closest('.resolution-menu__option');
+    if (!option) return;
+    e.stopPropagation();
     
-    // Notificar al sistema de navegación
-    if (typeof window.__synthSetResolutionFactor === 'function') {
-      window.__synthSetResolutionFactor(newFactor);
+    const newIndex = parseInt(option.dataset.index, 10);
+    const newFactor = parseInt(option.dataset.factor, 10);
+    
+    if (newIndex !== currentResIndex) {
+      currentResIndex = newIndex;
+      
+      // Actualizar estado activo de las opciones
+      resolutionMenu.querySelectorAll('.resolution-menu__option').forEach((opt, i) => {
+        opt.classList.toggle('resolution-menu__option--active', i === newIndex);
+      });
+      
+      // Notificar al sistema de navegación
+      if (typeof window.__synthSetResolutionFactor === 'function') {
+        window.__synthSetResolutionFactor(newFactor);
+      }
+      
+      // Mostrar toast con feedback
+      showResolutionToast(newFactor);
+      
+      applyPressedState();
     }
     
-    // Mostrar toast con feedback
-    showResolutionToast(newFactor);
-    
-    applyPressedState();
+    toggleResolutionMenu(false);
+  });
+  
+  // Cerrar menú al hacer click fuera
+  document.addEventListener('click', (e) => {
+    if (!resolutionContainer.contains(e.target)) {
+      toggleResolutionMenu(false);
+    }
   });
 
   document.addEventListener('fullscreenchange', applyPressedState);
@@ -189,7 +245,7 @@ export function setupMobileQuickActionsBar() {
 
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
-  group.appendChild(btnResolution);
+  group.appendChild(resolutionContainer);
   group.appendChild(btnFs);
 
   bar.appendChild(group);

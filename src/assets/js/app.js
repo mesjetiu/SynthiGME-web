@@ -9,14 +9,20 @@ import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
 
 // Blueprints (estructura visual y ruteo)
+import panel2Blueprint from './panelBlueprints/panel2.blueprint.js';
 import panel3Blueprint from './panelBlueprints/panel3.blueprint.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
 
 // Configs (parámetros de audio)
+import panel2Config from './panelBlueprints/panel2.config.js';
 import panel3Config from './panelBlueprints/panel3.config.js';
 import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
 import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
+
+// Osciloscopio
+import { OscilloscopeModule } from './modules/oscilloscope.js';
+import { OscilloscopeDisplay } from './ui/oscilloscopeDisplay.js';
 
 // Módulos extraídos
 import { 
@@ -89,8 +95,9 @@ class App {
     this.largeMatrixAudio = null;
     this.largeMatrixControl = null;
     
-    // Construir paneles de SGME Oscillators (Panel 2 vacío)
+    // Construir paneles
     this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
+    this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
     this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
     
@@ -201,7 +208,11 @@ class App {
     }
   }
 
-  ensureAudio() { this.engine.start(); }
+  ensureAudio() {
+    this.engine.start();
+    // Iniciar osciloscopio cuando haya audio
+    this._ensurePanel2ScopeStarted();
+  }
 
   _setupOutputFaders() {
     const outputFaders = new OutputFaderModule(this.engine, 'outputFaders');
@@ -276,6 +287,152 @@ class App {
       reservedHeight
     };
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PANEL 2 - OSCILOSCOPIO
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  _buildPanel2() {
+    if (!this.panel2) return;
+
+    const blueprint = panel2Blueprint;
+    const config = panel2Config;
+    
+    // Crear contenedor principal
+    const host = document.createElement('div');
+    host.id = 'panel2Layout';
+    host.className = 'panel2-layout';
+    host.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      padding: ${blueprint.layout.padding.top}px ${blueprint.layout.padding.right}px 
+               ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
+      display: flex;
+      flex-direction: column;
+    `;
+    this.panel2.appendElement(host);
+    
+    // Crear sección del osciloscopio (panelillo)
+    const scopeSection = document.createElement('div');
+    scopeSection.className = 'panel2-oscilloscope-section';
+    const sectionConfig = blueprint.layout.sections.oscilloscope;
+    scopeSection.style.cssText = `
+      flex: 0 0 ${sectionConfig.heightRatio * 100}%;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: ${sectionConfig.marginBottom || 0}px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    host.appendChild(scopeSection);
+    
+    // Crear el panelillo (frame)
+    const frameConfig = blueprint.modules.oscilloscope.frame;
+    const frame = document.createElement('div');
+    frame.className = 'oscilloscope-frame';
+    frame.style.cssText = `
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      background: ${config.frame.backgroundColor};
+      border: ${config.frame.borderWidth}px solid ${config.frame.borderColor};
+      border-radius: ${frameConfig.borderRadius}px;
+      padding: ${frameConfig.padding.top}px ${frameConfig.padding.right}px 
+               ${frameConfig.padding.bottom}px ${frameConfig.padding.left}px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    scopeSection.appendChild(frame);
+    
+    // Crear contenedor del display (más pequeño que el frame, deja espacio para knobs)
+    const displayConfig = blueprint.modules.oscilloscope.display;
+    const displayContainer = document.createElement('div');
+    displayContainer.className = 'oscilloscope-display-container';
+    displayContainer.style.cssText = `
+      width: 70%;
+      max-width: 280px;
+      aspect-ratio: ${displayConfig.aspectRatio};
+      background: ${config.oscilloscope.display.bgColor};
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 0 auto;
+    `;
+    frame.appendChild(displayContainer);
+    
+    // Crear módulo de audio
+    const scopeModule = new OscilloscopeModule(this.engine, 'oscilloscope');
+    this.engine.addModule(scopeModule);
+    
+    // Guardar referencia para acceso desde matriz (columnas 57-58)
+    this.oscilloscope = scopeModule;
+    
+    // Crear display
+    const displayStyles = config.oscilloscope.display;
+    const display = new OscilloscopeDisplay({
+      container: displayContainer,
+      width: displayContainer.clientWidth || 300,
+      height: displayContainer.clientHeight || 225,
+      mode: config.oscilloscope.audio.mode,
+      lineColor: displayStyles.lineColor,
+      bgColor: displayStyles.bgColor,
+      gridColor: displayStyles.gridColor,
+      centerColor: displayStyles.centerColor,
+      lineWidth: displayStyles.lineWidth,
+      showGrid: displayStyles.showGrid,
+      showTriggerIndicator: displayStyles.showTriggerIndicator
+    });
+    
+    // Conectar display al módulo
+    scopeModule.onData(data => display.draw(data));
+    
+    // Guardar referencias
+    this._panel2Data = {
+      host,
+      scopeSection,
+      frame,
+      displayContainer,
+      scopeModule,
+      display
+    };
+    
+    // Estado inicial
+    this._panel2ScopeStarted = false;
+    
+    // Resize handler
+    const resizeDisplay = () => {
+      const w = displayContainer.clientWidth;
+      const h = displayContainer.clientHeight;
+      if (w > 0 && h > 0) {
+        display.resize(w, h);
+      }
+    };
+    
+    // Observar cambios de tamaño
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(resizeDisplay);
+      ro.observe(displayContainer);
+      this._panel2Data.resizeObserver = ro;
+    }
+    
+    // Estado inicial
+    display.drawEmpty();
+  }
+
+  async _ensurePanel2ScopeStarted() {
+    if (this._panel2ScopeStarted || !this._panel2Data?.scopeModule) return;
+    this._panel2ScopeStarted = true;
+    await this._panel2Data.scopeModule.start();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CONSTRUCCIÓN DE PANELES DE OSCILADORES
+  // ─────────────────────────────────────────────────────────────────────────────
 
   /**
    * Construye el layout de osciladores para cualquier panel (1-4).
@@ -1357,113 +1514,4 @@ window.addEventListener('DOMContentLoaded', () => {
   setupMobileQuickActionsBar();
   setupPanelZoomButtons();
   setupPanelDoubleTapZoom();
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Osciloscopio (módulo con modos Y-T y X-Y)
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  // Importar módulos de osciloscopio dinámicamente
-  import('./modules/oscilloscope.js').then(async ({ OscilloscopeModule }) => {
-    import('./ui/oscilloscopeDisplay.js').then(async ({ OscilloscopeDisplay }) => {
-      const app = window._synthApp;
-      if (!app || !app.engine) return;
-      
-      // Esperar a que el engine esté listo
-      await app.engine.ensureWorkletReady();
-      
-      // Crear módulo de osciloscopio
-      const scopeModule = new OscilloscopeModule(app.engine, 'oscilloscope');
-      app.engine.addModule(scopeModule);
-      await scopeModule.start();
-      
-      // Guardar referencia para acceso desde matriz
-      app.oscilloscope = scopeModule;
-      
-      // Exponer función para obtener número de conexiones activas al scope
-      app.getScopeConnectionCount = () => {
-        if (!app._panel3Routing?.connections) return 0;
-        let count = 0;
-        for (const key of Object.keys(app._panel3Routing.connections)) {
-          const [, colStr] = key.split(':');
-          const colIndex = parseInt(colStr, 10);
-          const dest = app._panel3Routing?.destMap?.get(colIndex);
-          if (dest?.kind === 'oscilloscope') count++;
-        }
-        return count;
-      };
-      
-      // Crear contenedor UI
-      const scopeContainer = document.createElement('div');
-      scopeContainer.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 99999;
-        background: #111;
-        border: 2px solid #0f0;
-        border-radius: 8px;
-        padding: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      `;
-      
-      // Label con botón de modo
-      const scopeHeader = document.createElement('div');
-      scopeHeader.style.cssText = `
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 5px;
-      `;
-      
-      const scopeLabel = document.createElement('div');
-      scopeLabel.textContent = '📊 Scope Y-T';
-      scopeLabel.style.cssText = `
-        color: #0f0;
-        font-family: monospace;
-        font-size: 12px;
-      `;
-      
-      const modeBtn = document.createElement('button');
-      modeBtn.textContent = 'X-Y';
-      modeBtn.style.cssText = `
-        background: #222;
-        color: #0f0;
-        border: 1px solid #0f0;
-        border-radius: 3px;
-        font-family: monospace;
-        font-size: 10px;
-        padding: 2px 6px;
-        cursor: pointer;
-      `;
-      
-      scopeHeader.appendChild(scopeLabel);
-      scopeHeader.appendChild(modeBtn);
-      scopeContainer.appendChild(scopeHeader);
-      
-      // Crear display
-      const display = new OscilloscopeDisplay({
-        container: scopeContainer,
-        width: 300,
-        height: 150,
-        mode: 'yt'
-      });
-      
-      document.body.appendChild(scopeContainer);
-      
-      // Conectar display al módulo
-      scopeModule.onData(data => display.draw(data));
-      
-      // Botón para cambiar modo
-      modeBtn.addEventListener('click', () => {
-        const newMode = display.toggleMode();
-        scopeLabel.textContent = newMode === 'xy' ? '📊 Scope X-Y' : '📊 Scope Y-T';
-        modeBtn.textContent = newMode === 'xy' ? 'Y-T' : 'X-Y';
-      });
-      
-      // Dibujar estado inicial
-      display.drawEmpty();
-      
-      console.log('[App] Oscilloscope module initialized');
-    });
-  });
 });

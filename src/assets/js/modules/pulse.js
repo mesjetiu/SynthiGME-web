@@ -1,6 +1,7 @@
 // Módulo PulseModule: oscilador de pulso con control de PW y nivel
 import { Module, setParamSmooth } from '../core/engine.js';
 import { Knob } from '../ui/knob.js';
+import { createPulseWave } from '../utils/waveforms.js';
 
 export class PulseModule extends Module {
   constructor(engine, id, baseFreq) {
@@ -11,20 +12,10 @@ export class PulseModule extends Module {
     this.pw = 0;
   }
 
-  _createPulseWave(duty, harmonics = 32) {
-    const ctx = this.getAudioCtx();
-    const d = Math.min(0.99, Math.max(0.01, duty));
-    const real = new Float32Array(harmonics + 1);
-    const imag = new Float32Array(harmonics + 1);
-    for (let n = 1; n <= harmonics; n++) {
-      imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d);
-    }
-    return ctx.createPeriodicWave(real, imag);
-  }
-
   _updatePulseWave(duty) {
     if (!this.osc) return;
-    const wave = this._createPulseWave(duty);
+    const ctx = this.getAudioCtx();
+    const wave = createPulseWave(ctx, duty);
     this.osc.setPeriodicWave(wave);
     this.pw = duty;
   }

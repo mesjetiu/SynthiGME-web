@@ -29,6 +29,9 @@ import { ModuleFrame } from './ui/moduleFrame.js';
 import { Toggle } from './ui/toggle.js';
 import { Knob } from './ui/knob.js';
 
+// Utilidades de audio
+import { createPulseWave, createAsymmetricSineWave } from './utils/waveforms.js';
+
 // Módulos extraídos
 import { 
   preloadCanvasBgImages, 
@@ -841,7 +844,7 @@ class App {
       osc._isWorklet = true;
     } else {
       osc = ctx.createOscillator();
-      osc.setPeriodicWave(this._createAsymmetricSineWave(ctx, state.sineSymmetry));
+      osc.setPeriodicWave(createAsymmetricSineWave(ctx, state.sineSymmetry));
       osc.frequency.value = state.freq || 10;
       gain = ctx.createGain();
       gain.gain.value = state.oscLevel || 0;
@@ -879,7 +882,7 @@ class App {
       pulseOsc._isWorklet = true;
     } else {
       pulseOsc = ctx.createOscillator();
-      pulseOsc.setPeriodicWave(this._createPulseWave(ctx, state.pulseWidth));
+      pulseOsc.setPeriodicWave(createPulseWave(ctx, state.pulseWidth));
       pulseOsc.frequency.value = state.freq || 10;
       pulseGain = ctx.createGain();
       pulseGain.gain.value = state.pulseLevel || 0;
@@ -1033,7 +1036,7 @@ class App {
     if (node._useWorklet && node.pulseOsc.setPulseWidth) {
       node.pulseOsc.setPulseWidth(duty);
     } else {
-      const wave = this._createPulseWave(ctx, duty);
+      const wave = createPulseWave(ctx, duty);
       node.pulseOsc.setPeriodicWave(wave);
     }
   }
@@ -1053,7 +1056,7 @@ class App {
     if (node._useWorklet && node.osc.setSymmetry) {
       node.osc.setSymmetry(value);
     } else {
-      const wave = this._createAsymmetricSineWave(ctx, value);
+      const wave = createAsymmetricSineWave(ctx, value);
       node.osc.setPeriodicWave(wave);
     }
   }

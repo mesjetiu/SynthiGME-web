@@ -1,4 +1,36 @@
 // Núcleo de audio: contexto WebAudio y clase base Module para el resto del sistema
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTES DE AUDIO
+// ─────────────────────────────────────────────────────────────────────────────
+// Valores centralizados para evitar "magic numbers" dispersos en el código.
+// ─────────────────────────────────────────────────────────────────────────────
+export const AUDIO_CONSTANTS = {
+  /** Tiempo de rampa por defecto para cambios de parámetros (30ms, evita clicks) */
+  DEFAULT_RAMP_TIME: 0.03,
+  /** Tiempo de rampa lento para faders y controles de volumen (60ms) */
+  SLOW_RAMP_TIME: 0.06,
+  /** Tiempo de rampa rápido para modulaciones (10ms) */
+  FAST_RAMP_TIME: 0.01
+};
+
+/**
+ * Helper para actualizar un AudioParam con rampa suave.
+ * Evita clicks cancelando valores programados y usando setTargetAtTime.
+ * 
+ * @param {AudioParam} param - El parámetro a actualizar
+ * @param {number} value - El nuevo valor objetivo
+ * @param {AudioContext} ctx - El contexto de audio (para obtener currentTime)
+ * @param {Object} [options] - Opciones de rampa
+ * @param {number} [options.ramp=0.03] - Tiempo de rampa en segundos
+ */
+export function setParamSmooth(param, value, ctx, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
+  if (!param || !ctx) return;
+  const now = ctx.currentTime;
+  param.cancelScheduledValues(now);
+  param.setTargetAtTime(value, now, ramp);
+}
+
 export class AudioEngine {
   constructor(options = {}) {
     const { outputChannels = 8 } = options;
@@ -100,27 +132,20 @@ export class AudioEngine {
     const bus = this.outputBuses[busIndex];
     if (!ctx || !bus) return;
     const pan = this.outputPans[busIndex] ?? 0;
-    const gainL = bus.panLeft.gain;
-    const gainR = bus.panRight.gain;
     const angle = (pan + 1) * 0.25 * Math.PI;
     const left = Math.cos(angle);
     const right = Math.sin(angle);
-    const now = ctx.currentTime;
-    gainL.cancelScheduledValues(now);
-    gainR.cancelScheduledValues(now);
-    gainL.setTargetAtTime(left, now, 0.03);
-    gainR.setTargetAtTime(right, now, 0.03);
+    setParamSmooth(bus.panLeft.gain, left, ctx);
+    setParamSmooth(bus.panRight.gain, right, ctx);
   }
 
-  setOutputLevel(busIndex, value, { ramp = 0.03 } = {}) {
+  setOutputLevel(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
     if (busIndex < 0 || busIndex >= this.outputChannels) return;
     this.outputLevels[busIndex] = value;
     const ctx = this.audioCtx;
     const bus = this.outputBuses[busIndex];
     if (ctx && bus) {
-      const now = ctx.currentTime;
-      bus.levelNode.gain.cancelScheduledValues(now);
-      bus.levelNode.gain.setTargetAtTime(value, now, ramp);
+      setParamSmooth(bus.levelNode.gain, value, ctx, { ramp });
     }
     if (busIndex === 0) this.bus1Level = value;
     if (busIndex === 1) this.bus2Level = value;
@@ -170,12 +195,9 @@ export class AudioEngine {
   setMute(flag) {
     this.muted = flag;
     if (!this.audioCtx || !this.masterL || !this.masterR) return;
-    const now = this.audioCtx.currentTime;
     const value = this.muted ? 0 : this.masterBaseGain;
-    this.masterL.gain.cancelScheduledValues(now);
-    this.masterR.gain.cancelScheduledValues(now);
-    this.masterL.gain.setTargetAtTime(value, now, 0.03);
-    this.masterR.gain.setTargetAtTime(value, now, 0.03);
+    setParamSmooth(this.masterL.gain, value, this.audioCtx);
+    setParamSmooth(this.masterR.gain, value, this.audioCtx);
   }
 
   toggleMute() {

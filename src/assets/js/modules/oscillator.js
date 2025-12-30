@@ -1,5 +1,5 @@
 // Módulo OscillatorModule: voces senoidales básicas con controles de frecuencia y nivel
-import { Module } from '../core/engine.js';
+import { Module, setParamSmooth } from '../core/engine.js';
 import { Knob } from '../ui/knob.js';
 
 export class OscillatorModule extends Module {
@@ -95,11 +95,8 @@ export class OscillatorModule extends Module {
       valueElement: freqValue,
       format: v => v.toFixed(1) + ' Hz',
       onChange: value => {
-        if (this.osc && this.osc.frequency) {
-          const ctx = this.getAudioCtx();
-          const now = ctx.currentTime;
-          this.osc.frequency.cancelScheduledValues(now);
-          this.osc.frequency.setTargetAtTime(value, now, 0.03);
+        if (this.osc?.frequency) {
+          setParamSmooth(this.osc.frequency, value, this.getAudioCtx());
         }
       }
     });
@@ -111,11 +108,8 @@ export class OscillatorModule extends Module {
       valueElement: volValue,
       format: v => v.toFixed(2),
       onChange: value => {
-        if (this.amp && this.amp.gain) {
-          const ctx = this.getAudioCtx();
-          const now = ctx.currentTime;
-          this.amp.gain.cancelScheduledValues(now);
-          this.amp.gain.setTargetAtTime(value, now, 0.03);
+        if (this.amp?.gain) {
+          setParamSmooth(this.amp.gain, value, this.getAudioCtx());
         }
       }
     });

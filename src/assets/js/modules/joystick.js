@@ -1,5 +1,5 @@
 // Módulo JoystickModule: fuente de control XY con salidas de CV para la matriz
-import { Module } from '../core/engine.js';
+import { Module, setParamSmooth } from '../core/engine.js';
 
 export class JoystickModule extends Module {
   constructor(engine, id) {
@@ -48,11 +48,8 @@ export class JoystickModule extends Module {
     const y = Math.max(-1, Math.min(1, ny));
     this.x = x;
     this.y = y;
-    const now = ctx.currentTime;
-    this.xConst.offset.cancelScheduledValues(now);
-    this.yConst.offset.cancelScheduledValues(now);
-    this.xConst.offset.setTargetAtTime(x, now, 0.03);
-    this.yConst.offset.setTargetAtTime(y, now, 0.03);
+    setParamSmooth(this.xConst.offset, x, ctx);
+    setParamSmooth(this.yConst.offset, y, ctx);
   }
 
   createPanel(container) {

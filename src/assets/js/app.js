@@ -1,5 +1,5 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
-import { AudioEngine } from './core/engine.js';
+import { AudioEngine, setParamSmooth, AUDIO_CONSTANTS } from './core/engine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 import { NoiseModule } from './modules/noise.js';
@@ -769,16 +769,6 @@ class App {
     });
   }
 
-  // Métodos legacy para compatibilidad
-  _buildPanel1Layout() { /* migrado a _buildOscillatorPanel */ }
-  _buildPanel2Layout() { /* migrado a _buildOscillatorPanel */ }
-  _buildPanel3Layout() { /* migrado a _buildOscillatorPanel */ }
-  _buildPanel4Layout() { /* migrado a _buildOscillatorPanel */ }
-  _reflowPanel1Layout() { this._reflowOscillatorPanel(1); }
-  _reflowPanel2Layout() { this._reflowOscillatorPanel(2); }
-  _reflowPanel3Layout() { this._reflowOscillatorPanel(3); }
-  _reflowPanel4Layout() { this._reflowOscillatorPanel(4); }
-
   // ─────────────────────────────────────────────────────────────────────────────
   // FUNCIONES DE AUDIO PARA OSCILADORES
   // ─────────────────────────────────────────────────────────────────────────────
@@ -970,64 +960,53 @@ class App {
     return entry;
   }
 
+  /**
+   * Actualiza el volumen de una voz específica del oscilador.
+   * @param {number} panelIndex - Índice del panel
+   * @param {number} oscIndex - Índice del oscilador
+   * @param {'osc'|'saw'|'tri'|'pulse'} voice - Tipo de voz
+   * @param {number} value - Nuevo nivel (0-1)
+   * @private
+   */
+  _updatePanelVoiceVolume(panelIndex, oscIndex, voice, value) {
+    const panelAudio = this._getPanelAudio(panelIndex);
+    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    
+    // Mapeo de voz a propiedad de estado y nodo de ganancia
+    const voiceMap = {
+      osc: { stateKey: 'oscLevel', gainNode: 'gain' },
+      saw: { stateKey: 'sawLevel', gainNode: 'sawGain' },
+      tri: { stateKey: 'triLevel', gainNode: 'triGain' },
+      pulse: { stateKey: 'pulseLevel', gainNode: 'pulseGain' }
+    };
+    
+    const mapping = voiceMap[voice];
+    if (!mapping) return;
+    
+    state[mapping.stateKey] = value;
+
+    this.ensureAudio();
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    const node = this._ensurePanelNodes(panelIndex, oscIndex);
+    const gainNode = node?.[mapping.gainNode];
+    if (!gainNode) return;
+    
+    setParamSmooth(gainNode.gain, value, ctx);
+  }
+
+  // Métodos de conveniencia para compatibilidad
   _updatePanelOscVolume(panelIndex, oscIndex, value) {
-    const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
-    state.oscLevel = value;
-
-    this.ensureAudio();
-    const ctx = this.engine.audioCtx;
-    if (!ctx) return;
-    const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    if (!node || !node.gain) return;
-    const now = ctx.currentTime;
-    node.gain.gain.cancelScheduledValues(now);
-    node.gain.gain.setTargetAtTime(value, now, 0.03);
+    this._updatePanelVoiceVolume(panelIndex, oscIndex, 'osc', value);
   }
-
   _updatePanelSawVolume(panelIndex, oscIndex, value) {
-    const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
-    state.sawLevel = value;
-
-    this.ensureAudio();
-    const ctx = this.engine.audioCtx;
-    if (!ctx) return;
-    const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    if (!node || !node.sawGain) return;
-    const now = ctx.currentTime;
-    node.sawGain.gain.cancelScheduledValues(now);
-    node.sawGain.gain.setTargetAtTime(value, now, 0.03);
+    this._updatePanelVoiceVolume(panelIndex, oscIndex, 'saw', value);
   }
-
   _updatePanelTriVolume(panelIndex, oscIndex, value) {
-    const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
-    state.triLevel = value;
-
-    this.ensureAudio();
-    const ctx = this.engine.audioCtx;
-    if (!ctx) return;
-    const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    if (!node || !node.triGain) return;
-    const now = ctx.currentTime;
-    node.triGain.gain.cancelScheduledValues(now);
-    node.triGain.gain.setTargetAtTime(value, now, 0.03);
+    this._updatePanelVoiceVolume(panelIndex, oscIndex, 'tri', value);
   }
-
   _updatePanelPulseVolume(panelIndex, oscIndex, value) {
-    const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
-    state.pulseLevel = value;
-
-    this.ensureAudio();
-    const ctx = this.engine.audioCtx;
-    if (!ctx) return;
-    const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    if (!node || !node.pulseGain) return;
-    const now = ctx.currentTime;
-    node.pulseGain.gain.cancelScheduledValues(now);
-    node.pulseGain.gain.setTargetAtTime(value, now, 0.03);
+    this._updatePanelVoiceVolume(panelIndex, oscIndex, 'pulse', value);
   }
 
   _updatePanelPulseWidth(panelIndex, oscIndex, value) {
@@ -1130,29 +1109,27 @@ class App {
     if (!ctx) return;
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
     if (!node || !node.osc) return;
-    const now = ctx.currentTime;
     
     // Sine - worklet o nativo
     if (node._useWorklet && node.osc.setFrequency) {
       node.osc.setFrequency(freq);
     } else if (node.osc.frequency) {
-      node.osc.frequency.cancelScheduledValues(now);
       if (!node._freqInitialized) {
+        // Primera inicialización: valor inmediato
+        const now = ctx.currentTime;
         node.osc.frequency.setValueAtTime(freq, now);
         node._freqInitialized = true;
       } else {
-        node.osc.frequency.setTargetAtTime(freq, now, 0.03);
+        setParamSmooth(node.osc.frequency, freq, ctx);
       }
     }
     
     // Saw y Tri siempre nativos
-    if (node.sawOsc) {
-      node.sawOsc.frequency.cancelScheduledValues(now);
-      node.sawOsc.frequency.setTargetAtTime(freq, now, 0.03);
+    if (node.sawOsc?.frequency) {
+      setParamSmooth(node.sawOsc.frequency, freq, ctx);
     }
-    if (node.triOsc) {
-      node.triOsc.frequency.cancelScheduledValues(now);
-      node.triOsc.frequency.setTargetAtTime(freq, now, 0.03);
+    if (node.triOsc?.frequency) {
+      setParamSmooth(node.triOsc.frequency, freq, ctx);
     }
     
     // Pulse - worklet o nativo
@@ -1160,8 +1137,7 @@ class App {
       if (node._useWorklet && node.pulseOsc.setFrequency) {
         node.pulseOsc.setFrequency(freq);
       } else if (node.pulseOsc.frequency) {
-        node.pulseOsc.frequency.cancelScheduledValues(now);
-        node.pulseOsc.frequency.setTargetAtTime(freq, now, 0.03);
+        setParamSmooth(node.pulseOsc.frequency, freq, ctx);
       }
     }
   }

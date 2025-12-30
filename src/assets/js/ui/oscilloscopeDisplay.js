@@ -41,8 +41,10 @@ export class OscilloscopeDisplay {
     const {
       container,
       canvas,
-      width = 300,
-      height = 200,
+      // Resolución interna fija (alta resolución)
+      internalWidth = 600,
+      internalHeight = 450,
+      useDevicePixelRatio = true,
       mode = 'yt',
       lineColor = '#0f0',
       bgColor = '#000',
@@ -53,15 +55,24 @@ export class OscilloscopeDisplay {
       showTriggerIndicator = true
     } = options;
     
+    // Calcular resolución real (con soporte Retina)
+    const dpr = useDevicePixelRatio ? (window.devicePixelRatio || 1) : 1;
+    const realWidth = Math.round(internalWidth * dpr);
+    const realHeight = Math.round(internalHeight * dpr);
+    
     // Crear o usar canvas existente
     if (canvas) {
       this.canvas = canvas;
     } else {
       this.canvas = document.createElement('canvas');
-      this.canvas.width = width;
-      this.canvas.height = height;
+      // Resolución interna alta
+      this.canvas.width = realWidth;
+      this.canvas.height = realHeight;
+      // Tamaño visual escalado con CSS (ocupa 100% del contenedor)
       this.canvas.style.cssText = `
         display: block;
+        width: 100%;
+        height: 100%;
         background: ${bgColor};
         border-radius: 4px;
       `;
@@ -74,6 +85,7 @@ export class OscilloscopeDisplay {
     this.ctx = this.canvas.getContext('2d');
     this.width = this.canvas.width;
     this.height = this.canvas.height;
+    this.dpr = dpr;
     
     // Configuración visual
     this.mode = mode;
@@ -330,21 +342,23 @@ export class OscilloscopeDisplay {
   }
 
   /**
-   * Redimensiona el canvas.
-   * @param {number} width
-   * @param {number} height
+   * Redibuja el display (útil si cambia el contenedor).
+   * La resolución interna se mantiene fija.
    */
-  resize(width, height) {
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.width = width;
-    this.height = height;
-    
+  refresh() {
     if (this.lastData) {
       this.draw(this.lastData);
     } else {
       this.drawEmpty();
     }
+  }
+
+  /**
+   * @deprecated La resolución ahora es fija. Usa refresh() si necesitas redibujar.
+   */
+  resize(width, height) {
+    // La resolución interna ya no cambia - el canvas se escala con CSS
+    this.refresh();
   }
 
   /**

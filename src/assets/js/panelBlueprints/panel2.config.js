@@ -15,6 +15,11 @@ export default {
   oscilloscope: {
     // Parámetros del display
     display: {
+      // Resolución interna fija (independiente del tamaño visual)
+      internalWidth: 600,
+      internalHeight: 450,
+      useDevicePixelRatio: true, // Multiplica por devicePixelRatio para pantallas Retina
+      
       lineColor: '#00ff00',      // Verde clásico de osciloscopio
       bgColor: '#0a0a0a',        // Fondo casi negro
       gridColor: '#1a3a1a',      // Cuadrícula verde oscuro

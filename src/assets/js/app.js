@@ -370,12 +370,13 @@ class App {
     `;
     moduleFrame.appendToContent(displayContainer);
     
-    // Crear display
+    // Crear display con resolución interna fija
     const displayStyles = config.oscilloscope.display;
     const display = new OscilloscopeDisplay({
       container: displayContainer,
-      width: displayContainer.clientWidth || 300,
-      height: displayContainer.clientHeight || 225,
+      internalWidth: displayStyles.internalWidth,
+      internalHeight: displayStyles.internalHeight,
+      useDevicePixelRatio: displayStyles.useDevicePixelRatio,
       mode: config.oscilloscope.audio.mode,
       lineColor: displayStyles.lineColor,
       bgColor: displayStyles.bgColor,
@@ -417,23 +418,7 @@ class App {
     // Estado inicial
     this._panel2ScopeStarted = false;
     
-    // Resize handler
-    const resizeDisplay = () => {
-      const w = displayContainer.clientWidth;
-      const h = displayContainer.clientHeight;
-      if (w > 0 && h > 0) {
-        display.resize(w, h);
-      }
-    };
-    
-    // Observar cambios de tamaño
-    if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(resizeDisplay);
-      ro.observe(displayContainer);
-      this._panel2Data.resizeObserver = ro;
-    }
-    
-    // Estado inicial
+    // Dibujar estado vacío inicial
     display.drawEmpty();
   }
 

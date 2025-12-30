@@ -101,10 +101,32 @@ export class OscilloscopeDisplay {
     this.showGrid = showGrid;
     this.showTriggerIndicator = showTriggerIndicator;
     
+    // Escalas de visualización (controladas por knobs)
+    this.timeScale = 1.0;        // 1.0 = todo el buffer, 0.1 = 10% (zoom)
+    this.ampScale = 1.0;         // 1.0 = normal, 2.0 = amplifica, 0.5 = reduce
+    
     // Estado
     this.lastTriggered = false;
     this.animationId = null;
     this.lastData = null;
+  }
+
+  /**
+   * Establece la escala de tiempo (horizontal).
+   * @param {number} scale - 0.1 a 1.0 (1.0 = todo el buffer)
+   */
+  setTimeScale(scale) {
+    this.timeScale = Math.max(0.1, Math.min(1.0, scale));
+    if (this.lastData) this.draw(this.lastData);
+  }
+
+  /**
+   * Establece la escala de amplitud (vertical).
+   * @param {number} scale - 0.25 a 4.0 (1.0 = normal)
+   */
+  setAmpScale(scale) {
+    this.ampScale = Math.max(0.25, Math.min(4.0, scale));
+    if (this.lastData) this.draw(this.lastData);
   }
 
   /**
@@ -208,12 +230,18 @@ export class OscilloscopeDisplay {
    * Dibuja en modo Y-T (forma de onda tradicional).
    * @param {Float32Array} bufferY - Datos de la señal Y
    * @param {boolean} triggered - Si se detectó trigger
+   * @param {number} [validLength] - Longitud válida (ciclos completos)
    * @private
    */
-  _drawYT(bufferY, triggered) {
-    const { ctx, width, height, lineColor, lineWidth, glowBlur, glowColor } = this;
+  _drawYT(bufferY, triggered, validLength) {
+    const { ctx, width, height, lineColor, lineWidth, glowBlur, glowColor, timeScale, ampScale } = this;
     
     if (!bufferY || bufferY.length === 0) return;
+    
+    // Usar validLength si está disponible, sino todo el buffer
+    const baseLength = validLength && validLength > 0 ? validLength : bufferY.length;
+    // Aplicar timeScale: cuántos samples mostrar
+    const effectiveLength = Math.floor(baseLength * timeScale);
     
     // Aplicar efecto glow CRT (fosforescencia)
     if (glowBlur > 0) {
@@ -227,14 +255,15 @@ export class OscilloscopeDisplay {
     ctx.lineJoin = 'round';     // Uniones redondeadas
     ctx.beginPath();
     
-    // Calcular cuántos samples por píxel (para evitar aliasing)
-    const samplesPerPixel = bufferY.length / width;
+    // Calcular cuántos samples por píxel (basado en longitud efectiva con timeScale)
+    const samplesPerPixel = effectiveLength / width;
     let firstPoint = true;
+    const centerY = height / 2;
     
     for (let px = 0; px < width; px++) {
       // Índices del rango de samples para este píxel
       const startIdx = Math.floor(px * samplesPerPixel);
-      const endIdx = Math.min(Math.ceil((px + 1) * samplesPerPixel), bufferY.length);
+      const endIdx = Math.min(Math.ceil((px + 1) * samplesPerPixel), effectiveLength);
       
       // Encontrar min y max del rango (técnica de osciloscopio real)
       let minV = bufferY[startIdx] ?? 0;
@@ -245,9 +274,14 @@ export class OscilloscopeDisplay {
         if (v > maxV) maxV = v;
       }
       
+      // Aplicar ampScale (escalar desde el centro)
+      const scaledMinV = minV * ampScale;
+      const scaledMaxV = maxV * ampScale;
+      
       // Mapear -1..1 a height..0 (invertido para que positivo vaya arriba)
-      const yMin = ((1 - maxV) / 2) * height;  // maxV va arriba (y menor)
-      const yMax = ((1 - minV) / 2) * height;  // minV va abajo (y mayor)
+      // Clamp para evitar dibujar fuera del canvas
+      const yMin = Math.max(0, Math.min(height, ((1 - scaledMaxV) / 2) * height));
+      const yMax = Math.max(0, Math.min(height, ((1 - scaledMinV) / 2) * height));
       
       if (firstPoint) {
         ctx.moveTo(px, yMin);
@@ -373,7 +407,7 @@ export class OscilloscopeDisplay {
     if (this.mode === 'xy') {
       this._drawXY(data.bufferX, data.bufferY);
     } else {
-      this._drawYT(data.bufferY, data.triggered);
+      this._drawYT(data.bufferY, data.triggered, data.validLength);
     }
   }
 

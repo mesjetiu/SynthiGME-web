@@ -27,6 +27,7 @@ import { OscilloscopeDisplay } from './ui/oscilloscopeDisplay.js';
 // UI Components reutilizables
 import { ModuleFrame } from './ui/moduleFrame.js';
 import { Toggle } from './ui/toggle.js';
+import { Knob } from './ui/knob.js';
 
 // Módulos extraídos
 import { 
@@ -355,20 +356,32 @@ class App {
     `;
     scopeSection.appendChild(frameElement);
     
-    // Crear contenedor del display
+    // Crear contenedor principal con layout horizontal (display + controles)
     const displayConfig = blueprint.modules.oscilloscope.display;
+    const mainContainer = document.createElement('div');
+    mainContainer.className = 'oscilloscope-main';
+    mainContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+    `;
+    moduleFrame.appendToContent(mainContainer);
+    
+    // Crear contenedor del display
     const displayContainer = document.createElement('div');
     displayContainer.className = 'oscilloscope-display-container';
     displayContainer.style.cssText = `
-      width: 70%;
-      max-width: 280px;
+      flex: 0 0 auto;
+      width: 60%;
+      max-width: 240px;
       aspect-ratio: ${displayConfig.aspectRatio};
       background: ${config.oscilloscope.display.bgColor};
       border-radius: 4px;
       overflow: hidden;
-      margin: 0 auto;
     `;
-    moduleFrame.appendToContent(displayContainer);
+    mainContainer.appendChild(displayContainer);
     
     // Crear display con resolución interna fija
     const displayStyles = config.oscilloscope.display;
@@ -386,6 +399,64 @@ class App {
       showGrid: displayStyles.showGrid,
       showTriggerIndicator: displayStyles.showTriggerIndicator
     });
+    
+    // Crear contenedor de knobs (a la derecha del display)
+    const knobsConfig = config.oscilloscope.knobs;
+    const knobsContainer = document.createElement('div');
+    knobsContainer.className = 'oscilloscope-knobs';
+    knobsContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    `;
+    mainContainer.appendChild(knobsContainer);
+    
+    // Helper para crear un knob con label
+    const createLabeledKnob = (id, label, knobConfig, onChange) => {
+      const shell = document.createElement('div');
+      shell.className = 'oscilloscope-knob-shell';
+      shell.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 2px;';
+      
+      const knobEl = document.createElement('div');
+      knobEl.className = 'knob oscilloscope-knob';
+      knobEl.style.cssText = 'width: 36px; height: 36px;';
+      
+      const inner = document.createElement('div');
+      inner.className = 'knob-inner';
+      inner.style.cssText = 'width: 78%; height: 78%;';
+      knobEl.appendChild(inner);
+      
+      const labelEl = document.createElement('div');
+      labelEl.className = 'oscilloscope-knob-label';
+      labelEl.textContent = label;
+      labelEl.style.cssText = 'font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;';
+      
+      shell.appendChild(knobEl);
+      shell.appendChild(labelEl);
+      
+      const knobInstance = new Knob(knobEl, {
+        min: knobConfig.min,
+        max: knobConfig.max,
+        initial: knobConfig.initial,
+        pixelsForFullRange: knobConfig.pixelsForFullRange,
+        onChange
+      });
+      
+      return { shell, knobInstance };
+    };
+    
+    // Knob TIME (escala horizontal)
+    const timeKnob = createLabeledKnob('scope-time', 'TIME', knobsConfig.timeScale, (value) => {
+      display.setTimeScale(value);
+    });
+    knobsContainer.appendChild(timeKnob.shell);
+    
+    // Knob AMP (escala vertical)
+    const ampKnob = createLabeledKnob('scope-amp', 'AMP', knobsConfig.ampScale, (value) => {
+      display.setAmpScale(value);
+    });
+    knobsContainer.appendChild(ampKnob.shell);
     
     // Crear toggle para modo Y-T / X-Y (Lissajous)
     const modeToggle = new Toggle({

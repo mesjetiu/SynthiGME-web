@@ -129,8 +129,9 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
 
   /**
    * Busca el punto de trigger en el ring buffer y extrae un buffer alineado.
+   * Muestra solo ciclos completos para evitar "baile" en el borde derecho.
    * 
-   * @returns {{ bufferY: Float32Array, bufferX: Float32Array, triggered: boolean }}
+   * @returns {{ bufferY: Float32Array, bufferX: Float32Array, triggered: boolean, validLength: number }}
    */
   extractAlignedBuffer() {
     const outY = new Float32Array(this.bufferSize);
@@ -143,12 +144,11 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
         outY[i] = this.ringY[idx];
         outX[i] = this.ringX[idx];
       }
-      return { bufferY: outY, bufferX: outX, triggered: false };
+      return { bufferY: outY, bufferX: outX, triggered: false, validLength: this.bufferSize };
     }
     
-    // Buscar trigger en la primera mitad del ring buffer
-    // (la segunda mitad son las muestras más recientes que necesitamos mostrar)
-    let triggerIndex = -1;
+    // Buscar TODOS los triggers en el ring buffer
+    const triggers = [];
     const searchStart = (this.writeIndex - this.ringSize + this.bufferSize) % this.ringSize;
     
     for (let i = 1; i < this.bufferSize; i++) {
@@ -156,24 +156,55 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
       const currIdx = (searchStart + i + this.ringSize) % this.ringSize;
       
       if (this.detectTrigger(this.ringY[prevIdx], this.ringY[currIdx])) {
-        triggerIndex = currIdx;
-        break;
+        triggers.push({ ringIdx: currIdx, offset: i });
       }
     }
     
-    const triggered = triggerIndex !== -1;
-    const startIdx = triggered 
-      ? triggerIndex 
-      : (this.writeIndex - this.bufferSize + this.ringSize) % this.ringSize;
-    
-    // Extraer buffer desde el punto de trigger (o desde el final si no hay trigger)
-    for (let i = 0; i < this.bufferSize; i++) {
-      const idx = (startIdx + i) % this.ringSize;
-      outY[i] = this.ringY[idx];
-      outX[i] = this.ringX[idx];
+    // Si no hay triggers, devolver buffer sin alinear
+    if (triggers.length === 0) {
+      for (let i = 0; i < this.bufferSize; i++) {
+        const idx = (this.writeIndex - this.bufferSize + i + this.ringSize) % this.ringSize;
+        outY[i] = this.ringY[idx];
+        outX[i] = this.ringX[idx];
+      }
+      return { bufferY: outY, bufferX: outX, triggered: false, validLength: this.bufferSize };
     }
     
-    return { bufferY: outY, bufferX: outX, triggered };
+    // Usar el primer trigger como inicio
+    const firstTrigger = triggers[0];
+    const startIdx = firstTrigger.ringIdx;
+    
+    // Buscar el último trigger que quepa en el buffer (para ciclos completos)
+    // Necesitamos buscar más allá del primer trigger
+    let lastTriggerOffset = 0;
+    const maxSearch = this.bufferSize - firstTrigger.offset;
+    
+    for (let i = 1; i < maxSearch; i++) {
+      const prevIdx = (startIdx + i - 1) % this.ringSize;
+      const currIdx = (startIdx + i) % this.ringSize;
+      
+      if (this.detectTrigger(this.ringY[prevIdx], this.ringY[currIdx])) {
+        lastTriggerOffset = i;
+      }
+    }
+    
+    // Determinar longitud válida: hasta el último trigger encontrado, o todo el buffer
+    const validLength = lastTriggerOffset > 0 ? lastTriggerOffset : this.bufferSize;
+    
+    // Extraer buffer desde el primer trigger
+    for (let i = 0; i < this.bufferSize; i++) {
+      const idx = (startIdx + i) % this.ringSize;
+      if (i < validLength) {
+        outY[i] = this.ringY[idx];
+        outX[i] = this.ringX[idx];
+      } else {
+        // Rellenar el resto con el último valor válido (evita saltos)
+        outY[i] = outY[validLength - 1];
+        outX[i] = outX[validLength - 1];
+      }
+    }
+    
+    return { bufferY: outY, bufferX: outX, triggered: true, validLength };
   }
 
   /**
@@ -208,7 +239,7 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     
     // Enviar datos cuando tengamos suficientes muestras
     if (this.samplesSinceLastSend >= this.minSamplesPerSend) {
-      const { bufferY, bufferX, triggered } = this.extractAlignedBuffer();
+      const { bufferY, bufferX, triggered, validLength } = this.extractAlignedBuffer();
       
       // Enviar al hilo principal
       this.port.postMessage({
@@ -216,7 +247,8 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
         bufferY,
         bufferX,
         sampleRate,
-        triggered
+        triggered,
+        validLength  // Longitud válida (ciclos completos)
       });
       
       this.samplesSinceLastSend = 0;

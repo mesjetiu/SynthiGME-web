@@ -135,7 +135,8 @@ export class OscilloscopeModule extends Module {
           bufferY: event.data.bufferY,
           bufferX: event.data.bufferX,
           sampleRate: event.data.sampleRate,
-          triggered: event.data.triggered
+          triggered: event.data.triggered,
+          validLength: event.data.validLength  // Longitud de ciclos completos
         };
         
         // Notificar a los listeners

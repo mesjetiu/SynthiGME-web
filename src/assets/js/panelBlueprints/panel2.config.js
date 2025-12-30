@@ -21,8 +21,8 @@ export default {
       // Valores altos (400-600px) dan aspecto digital/nítido.
       // El canvas se escala con CSS al tamaño del contenedor.
       // ─────────────────────────────────────────────────────────────────────
-      internalWidth: 200,
-      internalHeight: 150,
+      internalWidth: 400,
+      internalHeight: 300,
       useDevicePixelRatio: false, // false = mantiene pixelado, true = escala a Retina
       
       // ─────────────────────────────────────────────────────────────────────
@@ -57,10 +57,37 @@ export default {
     
     // Parámetros de audio
     audio: {
-      bufferSize: 2048,          // 512 | 1024 | 2048 | 4096 (más = más ciclos visibles)
+      bufferSize: 4096,          // 512 | 1024 | 2048 | 4096 (más = más ciclos visibles)
       triggerEnabled: true,
       triggerLevel: 0.0,         // -1.0 a 1.0
       mode: 'yt'                 // 'yt' | 'xy'
+    },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // KNOBS DE CONTROL
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    knobs: {
+      // Knob TIME: escala horizontal (cuántos samples se muestran)
+      // Valor 1.0 = muestra todo el buffer, 0.1 = muestra 10% (zoom in)
+      timeScale: {
+        min: 0.1,                // Mínimo 10% del buffer (máximo zoom)
+        max: 1.0,                // 100% del buffer (sin zoom)
+        initial: 1.0,            // Valor inicial: sin zoom
+        curve: 'linear',
+        pixelsForFullRange: 150
+      },
+      
+      // Knob AMP: escala vertical (ganancia de visualización)
+      // Valor 1.0 = escala normal, 0.5 = mitad, 4.0 = cuádruple
+      ampScale: {
+        min: 0.25,               // Mínimo 25% (reduce señales grandes)
+        max: 4.0,                // Máximo 400% (amplifica señales pequeñas)
+        initial: 1.0,            // Valor inicial: escala normal
+        curve: 'exponential',    // Exponencial para control intuitivo
+        curveK: 2,
+        pixelsForFullRange: 150
+      }
     }
   },
   

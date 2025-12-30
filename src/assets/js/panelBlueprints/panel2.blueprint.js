@@ -64,8 +64,21 @@ export default {
         fitWidth: true
       },
       
-      // Controles (futuro: knobs y toggles)
-      controls: []
+      // Controles del osciloscopio (a la derecha del display)
+      controls: [
+        {
+          id: 'timeScale',
+          type: 'knob',
+          label: 'TIME',         // Escala horizontal (tiempo/división)
+          position: 'right'
+        },
+        {
+          id: 'ampScale',
+          type: 'knob',
+          label: 'AMP',          // Escala vertical (amplitud)
+          position: 'right'
+        }
+      ]
     }
   },
   

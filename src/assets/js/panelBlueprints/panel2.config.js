@@ -122,6 +122,27 @@ export default {
         curve: 'exponential',    // Exponencial para control intuitivo
         curveK: 2,
         pixelsForFullRange: 150
+      },
+      
+      // ───────────────────────────────────────────────────────────────────
+      // Knob LEVEL: nivel de trigger para sincronización
+      // ───────────────────────────────────────────────────────────────────
+      // Ajusta el umbral de cruce para la detección del trigger.
+      // - Valor 0.0 = trigger en cruce por cero (default)
+      // - Valores positivos = trigger en la parte alta de la onda
+      // - Valores negativos = trigger en la parte baja de la onda
+      //
+      // Útil para:
+      // - Estabilizar ondas asimétricas
+      // - Sincronizar en un punto específico del ciclo
+      // - Capturar señales con DC offset
+      // ───────────────────────────────────────────────────────────────────
+      triggerLevel: {
+        min: -1.0,               // Mínimo: fondo de la onda
+        max: 1.0,                // Máximo: pico de la onda
+        initial: 0.0,            // Default: cruce por cero
+        curve: 'linear',         // Lineal para control directo
+        pixelsForFullRange: 200  // Un poco más lento para precisión
       }
     }
   },

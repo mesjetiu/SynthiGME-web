@@ -189,27 +189,66 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     const firstTrigger = triggers[0];
     const startIdx = firstTrigger.ringIdx;
     
-    // Buscar el último trigger que quepa en el buffer (para ciclos completos)
-    // Aplicamos la misma histéresis para consistencia con los triggers encontrados
-    let lastTriggerOffset = 0;
-    const maxSearch = this.bufferSize - firstTrigger.offset;
-    let lastFoundAt = 0; // Posición del último trigger encontrado
+    // ─────────────────────────────────────────────────────────────────────────
+    // CÁLCULO DEL PERÍODO REAL
+    // ─────────────────────────────────────────────────────────────────────────
+    // Si tenemos al menos 2 triggers, podemos calcular el período real de la señal.
+    // Esto nos permite mostrar un número EXACTO de ciclos completos, evitando
+    // el "baile" visual cuando el período no es múltiplo exacto del buffer.
+    // ─────────────────────────────────────────────────────────────────────────
     
-    for (let i = 1; i < maxSearch; i++) {
-      // Aplicar histéresis también aquí
-      if (i - lastFoundAt < this.triggerHysteresis) continue;
+    let validLength = this.bufferSize;
+    
+    if (triggers.length >= 2) {
+      // Calcular período como distancia entre primer y segundo trigger
+      const period = triggers[1].offset - triggers[0].offset;
       
-      const prevIdx = (startIdx + i - 1) % this.ringSize;
-      const currIdx = (startIdx + i) % this.ringSize;
+      if (period > 0) {
+        // Buscar cuántos ciclos completos caben desde el primer trigger
+        // hasta el final del buffer disponible
+        const availableLength = this.bufferSize - firstTrigger.offset;
+        const numCompleteCycles = Math.floor(availableLength / period);
+        
+        if (numCompleteCycles >= 1) {
+          // validLength = múltiplo exacto del período
+          validLength = numCompleteCycles * period;
+        }
+      }
+    } else {
+      // Solo 1 trigger: buscar el siguiente después del inicio del buffer extraído
+      // para determinar el período
+      const maxSearch = this.bufferSize;
+      let foundSecondTrigger = false;
+      let secondTriggerOffset = 0;
+      let lastFoundAt = 0;
       
-      if (this.detectTrigger(this.ringY[prevIdx], this.ringY[currIdx])) {
-        lastTriggerOffset = i;
-        lastFoundAt = i;
+      for (let i = 1; i < maxSearch; i++) {
+        if (i - lastFoundAt < this.triggerHysteresis) continue;
+        
+        const prevIdx = (startIdx + i - 1) % this.ringSize;
+        const currIdx = (startIdx + i) % this.ringSize;
+        
+        if (this.detectTrigger(this.ringY[prevIdx], this.ringY[currIdx])) {
+          if (!foundSecondTrigger) {
+            // Primer trigger después del inicio = fin del primer ciclo
+            secondTriggerOffset = i;
+            foundSecondTrigger = true;
+          }
+          // Seguir buscando para encontrar el último trigger que quepa
+          lastFoundAt = i;
+        }
+      }
+      
+      if (foundSecondTrigger && secondTriggerOffset > 0) {
+        // Tenemos el período, calcular ciclos completos
+        const period = secondTriggerOffset;
+        const numCompleteCycles = Math.floor(this.bufferSize / period);
+        
+        if (numCompleteCycles >= 1) {
+          validLength = numCompleteCycles * period;
+        }
       }
     }
-    
-    // Determinar longitud válida: hasta el último trigger encontrado, o todo el buffer
-    const validLength = lastTriggerOffset > 0 ? lastTriggerOffset : this.bufferSize;
     
     // Extraer buffer desde el primer trigger
     for (let i = 0; i < this.bufferSize; i++) {

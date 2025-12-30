@@ -454,6 +454,12 @@ class App {
     });
     knobsContainer.appendChild(ampKnob.wrapper);
     
+    // Knob LEVEL (nivel de trigger)
+    const levelKnob = createLabeledKnob('scope-level', 'LEVEL', knobsConfig.triggerLevel, (value) => {
+      scopeModule.setTriggerLevel(value);
+    });
+    knobsContainer.appendChild(levelKnob.wrapper);
+    
     // Crear toggle para modo Y-T / X-Y (Lissajous)
     const modeToggle = new Toggle({
       id: 'scope-mode-toggle',

@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 30 de diciembre de 2025
+> Última actualización: 31 de diciembre de 2025
 
 ---
 
@@ -51,7 +51,7 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module` |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Exporta también `AUDIO_CONSTANTS` (tiempos de rampa) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 
 ### 3.2 Worklets (`src/assets/js/worklets/`)
@@ -97,6 +97,7 @@ Componentes de interfaz reutilizables:
 | `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre, curvas de respuesta configurable |
 | `toggle.js` | `Toggle` | Interruptor de dos estados con etiquetas personalizables |
 | `moduleFrame.js` | `ModuleFrame` | Contenedor visual para módulos con título y controles |
+| `moduleUI.js` | `ModuleUI` | Clase base para módulos UI con knobs. Centraliza creación de controles, headers y gestión de valores |
 | `oscilloscopeDisplay.js` | `OscilloscopeDisplay` | Canvas para visualización de onda con efecto CRT, knobs TIME/AMP/LEVEL, render sincronizado con rAF |
 | `noiseGenerator.js` | — | UI para generadores de ruido (knobs colour/level) |
 | `randomVoltage.js` | — | UI para generador de voltaje aleatorio |
@@ -123,6 +124,9 @@ Utilidades compartidas:
 | `canvasBackground.js` | Renderizado de fondos SVG en canvas para móviles |
 | `serviceWorker.js` | Registro y actualización del Service Worker |
 | `buildVersion.js` | Detección e inyección de versión de build |
+| `input.js` | Guardas de interacción: `shouldBlockInteraction()` e `isNavGestureActive()` para evitar conflictos táctiles durante navegación |
+| `waveforms.js` | Síntesis de formas de onda: `createPulseWave()` y `createAsymmetricSineWave()` usando Fourier |
+| `objects.js` | Utilidades de objetos: `deepMerge()` para combinar configuraciones |
 
 ### 3.7 Panel Blueprints (`src/assets/js/panelBlueprints/`)
 

@@ -335,6 +335,12 @@ class App {
     
     // Crear módulo de audio primero (necesitamos referencia para el toggle)
     const scopeModule = new OscilloscopeModule(this.engine, 'oscilloscope');
+    
+    // Configurar parámetros de audio desde config ANTES de iniciar
+    const audioConfig = config.oscilloscope.audio;
+    scopeModule.setBufferSize(audioConfig.bufferSize);
+    scopeModule.setTriggerHysteresis(audioConfig.triggerHysteresis);
+    
     this.engine.addModule(scopeModule);
     this.oscilloscope = scopeModule;
     

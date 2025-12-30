@@ -55,12 +55,34 @@ export default {
       showTriggerIndicator: true // LED indicador de trigger (esquina superior derecha)
     },
     
-    // Parámetros de audio
+    // ─────────────────────────────────────────────────────────────────────
+    // PARÁMETROS DE AUDIO Y TRIGGER
+    // ─────────────────────────────────────────────────────────────────────
     audio: {
       bufferSize: 4096,          // 512 | 1024 | 2048 | 4096 (más = más ciclos visibles)
       triggerEnabled: true,
       triggerLevel: 0.0,         // -1.0 a 1.0
-      mode: 'yt'                 // 'yt' | 'xy'
+      mode: 'yt',                // 'yt' | 'xy'
+      
+      // ───────────────────────────────────────────────────────────────────
+      // HISTÉRESIS DEL TRIGGER
+      // ───────────────────────────────────────────────────────────────────
+      // Número mínimo de samples a ignorar después de detectar un trigger
+      // antes de aceptar otro. Evita triggers falsos por:
+      // - Armónicos de la señal (cruces adicionales por ciclo)
+      // - Ruido cerca del punto de cruce
+      // - Señales complejas con múltiples cruces
+      //
+      // Valores recomendados:
+      // - 50-100: señales limpias (seno, cuadrada)
+      // - 100-200: señales con armónicos (diente de sierra, PWM)
+      // - 200-400: señales ruidosas o complejas
+      //
+      // A 44.1kHz: 100 samples ≈ 2.3ms → ignora frecuencias > 440 Hz entre triggers
+      // Para frecuencias graves (1-10 Hz), el período es 4410-44100 samples,
+      // así que 100-200 es seguro sin perder triggers reales.
+      // ───────────────────────────────────────────────────────────────────
+      triggerHysteresis: 150     // Samples de holdoff entre triggers (default: 150)
     },
     
     // ─────────────────────────────────────────────────────────────────────────

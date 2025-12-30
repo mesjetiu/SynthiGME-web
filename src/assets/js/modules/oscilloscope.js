@@ -56,6 +56,7 @@ export class OscilloscopeModule extends Module {
     this.triggerEnabled = true;
     this.triggerLevel = 0.0;
     this.bufferSize = 1024;
+    this.triggerHysteresis = 150;  // Samples de holdoff entre triggers
   }
 
   /**
@@ -120,7 +121,8 @@ export class OscilloscopeModule extends Module {
       numberOfInputs: 2,
       numberOfOutputs: 0,  // Solo captura, no emite audio
       processorOptions: {
-        bufferSize: this.bufferSize
+        bufferSize: this.bufferSize,
+        triggerHysteresis: this.triggerHysteresis
       }
     });
     
@@ -292,6 +294,21 @@ export class OscilloscopeModule extends Module {
           size
         });
       }
+    }
+  }
+
+  /**
+   * Establece la histéresis del trigger (samples de holdoff entre triggers).
+   * Valores altos evitan triggers falsos por armónicos/ruido.
+   * @param {number} samples - Número de samples a ignorar después de un trigger
+   */
+  setTriggerHysteresis(samples) {
+    this.triggerHysteresis = Math.max(0, Math.floor(samples));
+    if (this.captureNode) {
+      this.captureNode.port.postMessage({
+        type: 'setTriggerHysteresis',
+        samples: this.triggerHysteresis
+      });
     }
   }
 

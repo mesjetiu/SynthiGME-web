@@ -75,6 +75,10 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     this.holdoffMax = this.bufferSize * 4;  // Max muestras sin trigger antes de forzar envío
     this.lastSampleY = 0;           // Para detección de cruce
     
+    // Histéresis: samples mínimos entre triggers para ignorar armónicos/ruido
+    // Se puede configurar via mensaje 'setTriggerHysteresis'
+    this.triggerHysteresis = options?.processorOptions?.triggerHysteresis || 150;
+    
     // Estado de captura
     this.samplesSinceLastSend = 0;
     this.minSamplesPerSend = this.bufferSize;  // Enviar cada bufferSize muestras
@@ -106,6 +110,11 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
             this.holdoffMax = newSize * 4;
             this.minSamplesPerSend = newSize;
           }
+          break;
+          
+        case 'setTriggerHysteresis':
+          // Número de samples a ignorar después de un trigger
+          this.triggerHysteresis = Math.max(0, Math.floor(event.data.samples));
           break;
           
         case 'stop':
@@ -147,16 +156,22 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
       return { bufferY: outY, bufferX: outX, triggered: false, validLength: this.bufferSize };
     }
     
-    // Buscar TODOS los triggers en el ring buffer
+    // Buscar triggers en el ring buffer CON HISTÉRESIS
+    // La histéresis evita detectar triggers falsos por armónicos o ruido
     const triggers = [];
     const searchStart = (this.writeIndex - this.ringSize + this.bufferSize) % this.ringSize;
+    let lastTriggerAt = -this.triggerHysteresis; // Permite detectar desde el inicio
     
     for (let i = 1; i < this.bufferSize; i++) {
+      // Solo buscar trigger si han pasado suficientes samples desde el último
+      if (i - lastTriggerAt < this.triggerHysteresis) continue;
+      
       const prevIdx = (searchStart + i - 1 + this.ringSize) % this.ringSize;
       const currIdx = (searchStart + i + this.ringSize) % this.ringSize;
       
       if (this.detectTrigger(this.ringY[prevIdx], this.ringY[currIdx])) {
         triggers.push({ ringIdx: currIdx, offset: i });
+        lastTriggerAt = i; // Iniciar período de histéresis
       }
     }
     
@@ -175,16 +190,21 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     const startIdx = firstTrigger.ringIdx;
     
     // Buscar el último trigger que quepa en el buffer (para ciclos completos)
-    // Necesitamos buscar más allá del primer trigger
+    // Aplicamos la misma histéresis para consistencia con los triggers encontrados
     let lastTriggerOffset = 0;
     const maxSearch = this.bufferSize - firstTrigger.offset;
+    let lastFoundAt = 0; // Posición del último trigger encontrado
     
     for (let i = 1; i < maxSearch; i++) {
+      // Aplicar histéresis también aquí
+      if (i - lastFoundAt < this.triggerHysteresis) continue;
+      
       const prevIdx = (startIdx + i - 1) % this.ringSize;
       const currIdx = (startIdx + i) % this.ringSize;
       
       if (this.detectTrigger(this.ringY[prevIdx], this.ringY[currIdx])) {
         lastTriggerOffset = i;
+        lastFoundAt = i;
       }
     }
     

@@ -4,6 +4,8 @@ import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
+import { NoiseGenerator } from './ui/noiseGenerator.js';
+import { RandomVoltage } from './ui/randomVoltage.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
 import panel3OscConfig from './panelBlueprints/panel3.oscillators.config.js';
@@ -296,10 +298,63 @@ class App {
       return { osc, element: el, slot };
     });
 
-    const reserved = document.createElement('div');
-    reserved.className = 'panel3-reserved-row';
-    reserved.textContent = 'Reserved strip for future modules';
-    host.appendChild(reserved);
+    // Fila de módulos de ruido y Random CV (solo para Panel 3)
+    let reservedRow = null;
+    let noiseModules = null;
+    
+    if (panelIndex === 3) {
+      reservedRow = document.createElement('div');
+      reservedRow.className = 'panel3-reserved-row panel3-modules-row';
+      
+      // Noise Generator 1
+      const noise1 = new NoiseGenerator({
+        id: 'panel3-noise-1',
+        title: 'Noise 1',
+        knobSize: 32,
+        knobOptions: {
+          colour: { min: 0, max: 1, initial: 0.5 },
+          level: { min: 0, max: 1, initial: 0 }
+        }
+      });
+      reservedRow.appendChild(noise1.createElement());
+      
+      // Noise Generator 2
+      const noise2 = new NoiseGenerator({
+        id: 'panel3-noise-2',
+        title: 'Noise 2',
+        knobSize: 32,
+        knobOptions: {
+          colour: { min: 0, max: 1, initial: 0.5 },
+          level: { min: 0, max: 1, initial: 0 }
+        }
+      });
+      reservedRow.appendChild(noise2.createElement());
+      
+      // Random Control Voltage Generator
+      const randomCV = new RandomVoltage({
+        id: 'panel3-random-cv',
+        title: 'Random Voltage',
+        knobSize: 32,
+        knobOptions: {
+          mean: { min: -1, max: 1, initial: 0 },
+          variance: { min: 0, max: 1, initial: 0.5 },
+          voltage1: { min: 0, max: 1, initial: 0 },
+          voltage2: { min: 0, max: 1, initial: 0 },
+          key: { min: 0, max: 1, initial: 0 }
+        }
+      });
+      reservedRow.appendChild(randomCV.createElement());
+      
+      host.appendChild(reservedRow);
+      
+      noiseModules = { noise1, noise2, randomCV };
+    } else {
+      // Otros paneles mantienen la fila reservada vacía
+      reservedRow = document.createElement('div');
+      reservedRow.className = 'panel3-reserved-row';
+      reservedRow.textContent = 'Reserved strip for future modules';
+      host.appendChild(reservedRow);
+    }
 
     // Guardar datos del layout
     const layoutDataKey = `_panel${panelIndex}LayoutData`;
@@ -310,7 +365,8 @@ class App {
       layout,
       oscillatorSlots,
       oscComponents,
-      reserved
+      reserved: reservedRow,
+      noiseModules
     };
     panelAudio.nodes = new Array(oscComponents.length).fill(null);
     this[rafKey] = null;
@@ -363,6 +419,7 @@ class App {
         const reservedTop = baseTop + blockHeight + gap.y;
         reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
         reserved.style.width = `${columnWidth * 2 + gap.x}px`;
+        reserved.style.height = `${layout.reservedHeight}px`;
       }
     });
   }

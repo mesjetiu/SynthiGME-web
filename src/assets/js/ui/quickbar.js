@@ -100,6 +100,11 @@ export function setupMobileQuickActionsBar() {
     btnZoom.hidden = !isCoarse;
     btnZoom.disabled = !isCoarse;
 
+    // Ocultar diamante en Firefox (no necesita rasterización)
+    const isFirefox = window.__synthIsFirefox ?? /Firefox\/\d+/.test(navigator.userAgent);
+    btnSharp.hidden = isFirefox;
+    btnSharp.disabled = isFirefox;
+
     btnFs.hidden = shouldHideFullscreen();
     btnFs.disabled = btnFs.hidden;
   };
@@ -144,6 +149,11 @@ export function setupMobileQuickActionsBar() {
   btnSharp.addEventListener('click', () => {
     const wasEnabled = window.__synthSharpModeEnabled;
     window.__synthSharpModeEnabled = !window.__synthSharpModeEnabled;
+    
+    // Notificar al sistema de navegación del cambio de modo
+    if (typeof window.__synthOnSharpModeChange === 'function') {
+      window.__synthOnSharpModeChange(window.__synthSharpModeEnabled);
+    }
     
     if (wasEnabled && !window.__synthSharpModeEnabled) {
       const navState = window.__synthNavState;

@@ -21,13 +21,56 @@ export function initViewportNavigation({ outer, inner } = {}) {
   window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
   const navLocks = window.__synthNavLocks;
 
-  // Estrategia de render universal (todos los navegadores):
-  // - Reposo: transform:scale (preparado para zoom fluido)
-  // - Durante zoom: transform:scale (sin cambio = sin delay)
-  // - Al terminar: brevemente CSS zoom (re-rasteriza), luego vuelve a transform:scale
+  // Detectar Firefox (siempre renderiza nítido, no necesita rasterización)
+  const isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
+  window.__synthIsFirefox = isFirefox;
+
+  // Estrategia de render:
+  // - Firefox: siempre transform:scale() simple (ya es nítido)
+  // - Otros navegadores:
+  //   - Diamante ON: Sistema original - rasterizar con swap-back
+  //   - Diamante OFF: Opción B - zoom base 2x fijo (sin rasterización)
   if (typeof window.__synthSharpModeEnabled === 'undefined') {
-    window.__synthSharpModeEnabled = true;
+    window.__synthSharpModeEnabled = false; // Desactivado por defecto (Opción B)
   }
+
+  // Opción B: Alta resolución base (cuando diamante está OFF)
+  const BASE_RESOLUTION_FACTOR = 2;
+  
+  // Modo de render: 'original' (diamante ON) o 'optionB' (diamante OFF) o 'firefox'
+  let currentRenderMode = isFirefox ? 'firefox' : (window.__synthSharpModeEnabled ? 'original' : 'optionB');
+  
+  // Aplicar modo inicial
+  if (currentRenderMode === 'optionB') {
+    inner.style.zoom = BASE_RESOLUTION_FACTOR;
+  }
+  
+  // Callback para cuando cambia el estado del diamante
+  window.__synthOnSharpModeChange = (enabled) => {
+    if (isFirefox) return;
+    
+    if (!enabled) {
+      // Al desactivar: ir a zoom general, esperar, luego aplicar Opción B
+      const animateFn = window.__synthAnimateToPanel;
+      if (typeof animateFn === 'function') {
+        animateFn(null, 600);
+        setTimeout(() => {
+          currentRenderMode = 'optionB';
+          inner.style.zoom = BASE_RESOLUTION_FACTOR;
+          render();
+        }, 700);
+      } else {
+        currentRenderMode = 'optionB';
+        inner.style.zoom = BASE_RESOLUTION_FACTOR;
+        render();
+      }
+    } else {
+      // Al activar: volver al sistema original
+      currentRenderMode = 'original';
+      inner.style.zoom = '';
+      render();
+    }
+  };
 
   let rasterizeTimer = null;
   const RASTERIZE_DELAY_MS = 150;
@@ -40,6 +83,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
   }
 
   function scheduleRasterize() {
+    // Firefox u Opción B: no rasterizar
+    if (isFirefox || currentRenderMode === 'optionB') {
+      return;
+    }
+    
     const minScale = getMinScale();
     const isAtMinZoom = scale <= minScale + 0.01;
     const transition = window.__synthSharpTransition;
@@ -407,8 +455,16 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
-      inner.style.zoom = '';
-      inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+      if (currentRenderMode === 'optionB') {
+        // Opción B: zoom base fijo, compensar con scale
+        const visualScale = scale / BASE_RESOLUTION_FACTOR;
+        inner.style.zoom = BASE_RESOLUTION_FACTOR;
+        inner.style.transform = `translate3d(${offsetX / BASE_RESOLUTION_FACTOR}px, ${offsetY / BASE_RESOLUTION_FACTOR}px, 0) scale(${visualScale})`;
+      } else {
+        // Sistema original o Firefox
+        inner.style.zoom = '';
+        inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+      }
       window.__synthViewTransform = { scale, offsetX, offsetY };
     }
 

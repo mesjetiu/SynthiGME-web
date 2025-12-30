@@ -64,7 +64,14 @@ export function setupMobileQuickActionsBar() {
 
   // Selector de resolución (1x, 2x, 3x, 4x) como desplegable
   const resolutionFactors = [1, 2, 3, 4];
-  let currentResIndex = 0; // Por defecto 1x
+  
+  // Recuperar resolución guardada de localStorage
+  const STORAGE_KEY = 'synthigme-resolution';
+  const savedFactor = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+  let currentResIndex = resolutionFactors.indexOf(savedFactor) !== -1 
+    ? resolutionFactors.indexOf(savedFactor) 
+    : 0; // Por defecto 1x
+  const initialFactor = resolutionFactors[currentResIndex];
   
   const resolutionContainer = document.createElement('div');
   resolutionContainer.className = 'resolution-selector';
@@ -75,7 +82,7 @@ export function setupMobileQuickActionsBar() {
   btnResolution.setAttribute('aria-label', 'Resolución de renderizado');
   btnResolution.setAttribute('aria-haspopup', 'true');
   btnResolution.setAttribute('aria-expanded', 'false');
-  btnResolution.textContent = '1×';
+  btnResolution.textContent = `${initialFactor}×`;
   
   const resolutionMenu = document.createElement('div');
   resolutionMenu.className = 'resolution-menu';
@@ -84,7 +91,7 @@ export function setupMobileQuickActionsBar() {
   resolutionFactors.forEach((factor, index) => {
     const option = document.createElement('button');
     option.type = 'button';
-    option.className = 'resolution-menu__option' + (index === 0 ? ' resolution-menu__option--active' : '');
+    option.className = 'resolution-menu__option' + (index === currentResIndex ? ' resolution-menu__option--active' : '');
     option.setAttribute('role', 'menuitem');
     option.textContent = `${factor}×`;
     option.dataset.factor = factor;
@@ -214,6 +221,9 @@ export function setupMobileQuickActionsBar() {
     if (newIndex !== currentResIndex) {
       currentResIndex = newIndex;
       
+      // Guardar en localStorage
+      localStorage.setItem(STORAGE_KEY, newFactor);
+      
       // Actualizar estado activo de las opciones
       resolutionMenu.querySelectorAll('.resolution-menu__option').forEach((opt, i) => {
         opt.classList.toggle('resolution-menu__option--active', i === newIndex);
@@ -251,6 +261,11 @@ export function setupMobileQuickActionsBar() {
   bar.appendChild(group);
   bar.appendChild(tab);
   document.body.appendChild(bar);
+
+  // Aplicar resolución guardada al iniciar
+  if (initialFactor > 1 && typeof window.__synthSetResolutionFactor === 'function') {
+    window.__synthSetResolutionFactor(initialFactor);
+  }
 
   applyPressedState();
 }

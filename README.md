@@ -5,6 +5,28 @@ SynthiGME-web es un port del sintetizador modular Synthi GME ("GME Modular Emula
 ## Acceso en línea
 La versión compilada está disponible en GitHub Pages: **https://mesjetiu.github.io/SynthiGME-web/**. Solo necesitas abrir ese enlace en un navegador moderno para experimentar el instrumento; no es necesario clonar ni compilar nada para usarlo.
 
+## Características actuales
+
+### Módulos implementados
+
+| Módulo | Descripción |
+|--------|-------------|
+| **12 Osciladores** | Formas de onda pulse, sine, triangle, sawtooth con anti-aliasing PolyBLEP. Rango 1 Hz–10 kHz. |
+| **2 Generadores de ruido** | Algoritmo Voss-McCartney para ruido rosa. Knob de color (blanco→rosa). |
+| **Osciloscopio** | Modos Y-T y X-Y (Lissajous). Trigger Schmitt con histéresis temporal y predictiva. |
+| **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con feedback visual. |
+| **8 Salidas de audio** | Faders individuales con enrutamiento a dispositivo de salida. |
+| **Joystick** | Control X-Y integrado en panel 2. |
+
+### Tecnología
+
+- **Web Audio API** con AudioWorklet para procesamiento en tiempo real
+- **Vanilla JavaScript ES Modules** — sin frameworks de runtime
+- **esbuild** para bundling y minificación
+- **PWA** con Service Worker para uso offline
+
+Para detalles de arquitectura, ver [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ### Versión PWA e instalación
 - Fija el sitio en tu dispositivo desde Chrome/Edge/Brave: menú → “Instalar Synthi GME Web”.
 - El `manifest.webmanifest` define los iconos (192/512 px) y el modo `standalone`, por lo que la app instalada oculta la UI del navegador.

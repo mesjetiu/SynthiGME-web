@@ -79,6 +79,16 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     // Se puede configurar via mensaje 'setTriggerHysteresis'
     this.triggerHysteresis = options?.processorOptions?.triggerHysteresis || 150;
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // ANCLAJE DE TRIGGER
+    // ─────────────────────────────────────────────────────────────────────────
+    // Guardamos la posición del último trigger válido para usarla como
+    // referencia en la siguiente búsqueda. Esto evita que la zona de búsqueda
+    // "salte" cuando writeIndex avanza, causando inestabilidad visual.
+    // ─────────────────────────────────────────────────────────────────────────
+    this.lastTriggerRingIdx = null;  // Posición en ring buffer del último trigger
+    this.lastPeriod = 0;             // Período detectado (samples entre triggers)
+    
     // Estado de captura
     this.samplesSinceLastSend = 0;
     this.minSamplesPerSend = this.bufferSize;  // Enviar cada bufferSize muestras
@@ -156,10 +166,31 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
       return { bufferY: outY, bufferX: outX, triggered: false, validLength: this.bufferSize };
     }
     
-    // Buscar triggers en el ring buffer CON HISTÉRESIS
-    // La histéresis evita detectar triggers falsos por armónicos o ruido
+    // ─────────────────────────────────────────────────────────────────────────
+    // BÚSQUEDA DE TRIGGERS CON ANCLAJE
+    // ─────────────────────────────────────────────────────────────────────────
+    // Si tenemos un trigger anterior y período conocido, buscamos el siguiente
+    // trigger cerca de donde esperamos que esté (anclaje predictivo).
+    // Esto evita saltos cuando la zona de búsqueda relativa a writeIndex cambia.
+    // ─────────────────────────────────────────────────────────────────────────
+    
     const triggers = [];
-    const searchStart = (this.writeIndex - this.ringSize + this.bufferSize) % this.ringSize;
+    let searchStart;
+    let expectedTriggerOffset = 0;
+    
+    // Determinar punto de inicio de búsqueda
+    if (this.lastTriggerRingIdx !== null && this.lastPeriod > 0) {
+      // Tenemos anclaje: buscar cerca del trigger esperado
+      // El siguiente trigger debería estar ~lastPeriod samples después del último
+      const samplesSinceLast = this.samplesSinceLastSend;
+      const expectedOffset = this.lastPeriod - (samplesSinceLast % this.lastPeriod);
+      searchStart = (this.writeIndex - this.bufferSize + this.ringSize) % this.ringSize;
+      expectedTriggerOffset = expectedOffset;
+    } else {
+      // Sin anclaje: búsqueda normal desde el inicio del buffer disponible
+      searchStart = (this.writeIndex - this.ringSize + this.bufferSize) % this.ringSize;
+    }
+    
     let lastTriggerAt = -this.triggerHysteresis; // Permite detectar desde el inicio
     
     for (let i = 1; i < this.bufferSize; i++) {
@@ -175,8 +206,10 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
       }
     }
     
-    // Si no hay triggers, devolver buffer sin alinear
+    // Si no hay triggers, devolver buffer sin alinear y resetear anclaje
     if (triggers.length === 0) {
+      this.lastTriggerRingIdx = null;
+      this.lastPeriod = 0;
       for (let i = 0; i < this.bufferSize; i++) {
         const idx = (this.writeIndex - this.bufferSize + i + this.ringSize) % this.ringSize;
         outY[i] = this.ringY[idx];
@@ -185,9 +218,32 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
       return { bufferY: outY, bufferX: outX, triggered: false, validLength: this.bufferSize };
     }
     
-    // Usar el primer trigger como inicio
-    const firstTrigger = triggers[0];
-    const startIdx = firstTrigger.ringIdx;
+    // ─────────────────────────────────────────────────────────────────────────
+    // SELECCIÓN DEL TRIGGER MÁS ESTABLE
+    // ─────────────────────────────────────────────────────────────────────────
+    // Si tenemos anclaje, preferir el trigger más cercano a la posición esperada.
+    // Esto reduce el "salto" cuando hay múltiples triggers en el buffer.
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    let selectedTrigger = triggers[0];
+    
+    if (this.lastPeriod > 0 && triggers.length > 1) {
+      // Buscar el trigger más cercano a la posición esperada
+      let minDistance = Math.abs(triggers[0].offset - expectedTriggerOffset);
+      
+      for (let i = 1; i < triggers.length; i++) {
+        const distance = Math.abs(triggers[i].offset - expectedTriggerOffset);
+        if (distance < minDistance) {
+          minDistance = distance;
+          selectedTrigger = triggers[i];
+        }
+      }
+    }
+    
+    const startIdx = selectedTrigger.ringIdx;
+    
+    // Actualizar anclaje para la próxima iteración
+    this.lastTriggerRingIdx = startIdx;
     
     // ─────────────────────────────────────────────────────────────────────────
     // CÁLCULO DEL PERÍODO REAL
@@ -198,21 +254,26 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     // ─────────────────────────────────────────────────────────────────────────
     
     let validLength = this.bufferSize;
+    let detectedPeriod = 0;
     
     if (triggers.length >= 2) {
-      // Calcular período como distancia entre primer y segundo trigger
-      const period = triggers[1].offset - triggers[0].offset;
+      // Calcular período como distancia entre triggers consecutivos
+      // Usamos los dos primeros triggers encontrados
+      detectedPeriod = triggers[1].offset - triggers[0].offset;
       
-      if (period > 0) {
-        // Buscar cuántos ciclos completos caben desde el primer trigger
+      if (detectedPeriod > 0) {
+        // Buscar cuántos ciclos completos caben desde el trigger seleccionado
         // hasta el final del buffer disponible
-        const availableLength = this.bufferSize - firstTrigger.offset;
-        const numCompleteCycles = Math.floor(availableLength / period);
+        const availableLength = this.bufferSize - selectedTrigger.offset;
+        const numCompleteCycles = Math.floor(availableLength / detectedPeriod);
         
         if (numCompleteCycles >= 1) {
           // validLength = múltiplo exacto del período
-          validLength = numCompleteCycles * period;
+          validLength = numCompleteCycles * detectedPeriod;
         }
+        
+        // Actualizar período para anclaje predictivo
+        this.lastPeriod = detectedPeriod;
       }
     } else {
       // Solo 1 trigger: buscar el siguiente después del inicio del buffer extraído
@@ -247,10 +308,13 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
         if (numCompleteCycles >= 1) {
           validLength = numCompleteCycles * period;
         }
+        
+        // Actualizar período para anclaje predictivo
+        this.lastPeriod = period;
       }
     }
     
-    // Extraer buffer desde el primer trigger
+    // Extraer buffer desde el trigger seleccionado
     for (let i = 0; i < this.bufferSize; i++) {
       const idx = (startIdx + i) % this.ringSize;
       if (i < validLength) {

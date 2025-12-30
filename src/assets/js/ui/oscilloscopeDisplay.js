@@ -33,8 +33,8 @@ export class OscilloscopeDisplay {
    * @param {string} [options.bgColor='#000'] - Color de fondo
    * @param {string} [options.gridColor='#1a1a1a'] - Color de la cuadrícula
    * @param {string} [options.centerColor='#333'] - Color de líneas centrales
-   * @param {number} [options.lineWidth=2] - Grosor de la línea de señal
-   * @param {boolean} [options.showGrid=true] - Mostrar cuadrícula
+   * @param {number} [options.lineWidth=2] - Grosor de la línea de señal * @param {number} [options.glowBlur=0] - Intensidad del blur para efecto glow CRT (0 = desactivado)
+ * @param {string} [options.glowColor=null] - Color del glow (null = usa lineColor)   * @param {boolean} [options.showGrid=true] - Mostrar cuadrícula
    * @param {boolean} [options.showTriggerIndicator=true] - Mostrar indicador de trigger
    */
   constructor(options = {}) {
@@ -51,6 +51,8 @@ export class OscilloscopeDisplay {
       gridColor = '#1a1a1a',
       centerColor = '#333',
       lineWidth = 2,
+      glowBlur = 0,              // Efecto glow CRT (0 = desactivado)
+      glowColor = null,          // Color del glow (null = usa lineColor)
       showGrid = true,
       showTriggerIndicator = true
     } = options;
@@ -94,6 +96,8 @@ export class OscilloscopeDisplay {
     this.gridColor = gridColor;
     this.centerColor = centerColor;
     this.lineWidth = lineWidth;
+    this.glowBlur = glowBlur;
+    this.glowColor = glowColor || lineColor;
     this.showGrid = showGrid;
     this.showTriggerIndicator = showTriggerIndicator;
     
@@ -207,33 +211,63 @@ export class OscilloscopeDisplay {
    * @private
    */
   _drawYT(bufferY, triggered) {
-    const { ctx, width, height, lineColor, lineWidth } = this;
+    const { ctx, width, height, lineColor, lineWidth, glowBlur, glowColor } = this;
     
     if (!bufferY || bufferY.length === 0) return;
     
+    // Aplicar efecto glow CRT (fosforescencia)
+    if (glowBlur > 0) {
+      ctx.shadowBlur = glowBlur;
+      ctx.shadowColor = glowColor;
+    }
+    
     ctx.lineWidth = lineWidth;
     ctx.strokeStyle = lineColor;
+    ctx.lineCap = 'round';      // Puntas redondeadas para aspecto suave
+    ctx.lineJoin = 'round';     // Uniones redondeadas
     ctx.beginPath();
     
-    const sliceWidth = width / bufferY.length;
-    let x = 0;
+    // Calcular cuántos samples por píxel (para evitar aliasing)
+    const samplesPerPixel = bufferY.length / width;
+    let firstPoint = true;
     
-    for (let i = 0; i < bufferY.length; i++) {
-      // bufferY es Float32Array con valores de -1 a 1
-      const v = bufferY[i];
-      // Mapear -1..1 a height..0 (invertido para que positivo vaya arriba)
-      const y = ((1 - v) / 2) * height;
+    for (let px = 0; px < width; px++) {
+      // Índices del rango de samples para este píxel
+      const startIdx = Math.floor(px * samplesPerPixel);
+      const endIdx = Math.min(Math.ceil((px + 1) * samplesPerPixel), bufferY.length);
       
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
+      // Encontrar min y max del rango (técnica de osciloscopio real)
+      let minV = bufferY[startIdx] ?? 0;
+      let maxV = minV;
+      for (let i = startIdx + 1; i < endIdx; i++) {
+        const v = bufferY[i];
+        if (v < minV) minV = v;
+        if (v > maxV) maxV = v;
       }
       
-      x += sliceWidth;
+      // Mapear -1..1 a height..0 (invertido para que positivo vaya arriba)
+      const yMin = ((1 - maxV) / 2) * height;  // maxV va arriba (y menor)
+      const yMax = ((1 - minV) / 2) * height;  // minV va abajo (y mayor)
+      
+      if (firstPoint) {
+        ctx.moveTo(px, yMin);
+        firstPoint = false;
+      } else {
+        ctx.lineTo(px, yMin);
+      }
+      // Si hay diferencia significativa, dibujar línea vertical
+      if (yMax - yMin > 1) {
+        ctx.lineTo(px, yMax);
+      }
     }
     
     ctx.stroke();
+    
+    // Resetear efecto glow para no afectar otros elementos
+    if (this.glowBlur > 0) {
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+    }
     
     this._drawTriggerIndicator(triggered);
   }
@@ -245,20 +279,46 @@ export class OscilloscopeDisplay {
    * @private
    */
   _drawXY(bufferX, bufferY) {
-    const { ctx, width, height, lineColor, lineWidth } = this;
+    const { ctx, width, height, lineColor, lineWidth, glowBlur, glowColor } = this;
     
     if (!bufferX || !bufferY || bufferX.length === 0) return;
     
     const len = Math.min(bufferX.length, bufferY.length);
     
+    // Aplicar efecto glow CRT (fosforescencia)
+    if (glowBlur > 0) {
+      ctx.shadowBlur = glowBlur;
+      ctx.shadowColor = glowColor;
+    }
+    
     ctx.lineWidth = lineWidth;
     ctx.strokeStyle = lineColor;
+    ctx.lineCap = 'round';      // Puntas redondeadas para aspecto suave
+    ctx.lineJoin = 'round';     // Uniones redondeadas
     ctx.beginPath();
     
-    for (let i = 0; i < len; i++) {
+    // Decimar samples para suavizar (usar ~width puntos)
+    const targetPoints = Math.min(len, width);
+    const step = len / targetPoints;
+    
+    for (let i = 0; i < targetPoints; i++) {
+      // Promediar un grupo de samples
+      const startIdx = Math.floor(i * step);
+      const endIdx = Math.floor((i + 1) * step);
+      
+      let sumX = 0, sumY = 0, count = 0;
+      for (let j = startIdx; j < endIdx && j < len; j++) {
+        sumX += bufferX[j];
+        sumY += bufferY[j];
+        count++;
+      }
+      
+      const avgX = count > 0 ? sumX / count : 0;
+      const avgY = count > 0 ? sumY / count : 0;
+      
       // Mapear -1..1 a 0..width y 0..height
-      const x = ((bufferX[i] + 1) / 2) * width;
-      const y = ((1 - bufferY[i]) / 2) * height;  // Invertido
+      const x = ((avgX + 1) / 2) * width;
+      const y = ((1 - avgY) / 2) * height;  // Invertido
       
       if (i === 0) {
         ctx.moveTo(x, y);
@@ -268,6 +328,12 @@ export class OscilloscopeDisplay {
     }
     
     ctx.stroke();
+    
+    // Resetear efecto glow para no afectar otros elementos
+    if (this.glowBlur > 0) {
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+    }
     
     // En modo X-Y, mostrar indicador si hay señal en X
     const hasXSignal = bufferX.some(v => Math.abs(v) > 0.01);

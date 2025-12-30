@@ -221,14 +221,14 @@ El osciloscopio es uno de los módulos más complejos, implementando técnicas p
             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    MAIN THREAD                              │
-│  ┌──────────────────┐     ┌─────────────────────────────┐   │
+│  ┌───────────────────┐     ┌────────────────────────────┐   │
 │  │ OscilloscopeModule│────▶│ OscilloscopeDisplay        │   │
 │  │ oscilloscope.js   │     │ oscilloscopeDisplay.js     │   │
 │  │ - Gestión worklet │     │ - Canvas con efecto CRT    │   │
 │  │ - Callbacks datos │     │ - Render loop (rAF sync)   │   │
 │  │ - Setters config  │     │ - Knobs TIME/AMP/LEVEL     │   │
-│  └──────────────────┘     │ - Indicador TRIG/AUTO      │   │
-│                           └─────────────────────────────┘   │
+│  └───────────────────┘     │ - Indicador TRIG/AUTO      │   │
+│                            └────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -299,7 +299,7 @@ Para resolver esto, SynthiGME-web usa **AudioWorklet** para osciladores que requ
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Hilo Principal (JS)                      │
-│  ┌─────────────────┐     ┌─────────────────┐                │
+│  ┌─────────────────┐     ┌──────────────────┐               │
 │  │  AudioEngine    │────▶│ AudioWorkletNode │               │
 │  │ createSynthOsc()│     │  (proxy)         │               │
 │  └─────────────────┘     └────────┬─────────┘               │

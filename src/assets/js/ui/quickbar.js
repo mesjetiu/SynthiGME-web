@@ -62,8 +62,8 @@ export function setupMobileQuickActionsBar() {
   btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
   btnFs.innerHTML = iconSvg('ti-arrows-maximize');
 
-  // Selector de resolución (1x, 2x, 3x) como desplegable
-  const resolutionFactors = [1, 2, 3];
+  // Selector de resolución (1x, 2x, 3x, 4x) como desplegable
+  const resolutionFactors = [1, 2, 3, 4];
   let currentResIndex = 0; // Por defecto 1x
   
   const resolutionContainer = document.createElement('div');

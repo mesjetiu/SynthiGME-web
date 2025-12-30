@@ -40,10 +40,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
   // Modo de render: 'original' (diamante ON) o 'optionB' (diamante OFF) o 'firefox'
   let currentRenderMode = isFirefox ? 'firefox' : (window.__synthSharpModeEnabled ? 'original' : 'optionB');
   
-  // Aplicar modo inicial
-  if (currentRenderMode === 'optionB') {
-    inner.style.zoom = BASE_RESOLUTION_FACTOR;
-  }
+  // El modo inicial se aplicará en el primer render()
+  // para evitar imagen congelada antes de que el transform esté listo
   
   // Callback para cuando cambia el estado del diamante
   window.__synthOnSharpModeChange = (enabled) => {

@@ -196,7 +196,8 @@ export class AudioEngine {
         // Cargar todos los worklets necesarios
         const worklets = [
           './assets/js/worklets/synthOscillator.worklet.js',
-          './assets/js/worklets/scopeCapture.worklet.js'
+          './assets/js/worklets/scopeCapture.worklet.js',
+          './assets/js/worklets/noiseGenerator.worklet.js'
         ];
         
         await Promise.all(

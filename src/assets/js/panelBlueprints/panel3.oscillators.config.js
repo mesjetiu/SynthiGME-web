@@ -269,15 +269,34 @@ export default {
   // en la fila inferior del Panel 3.
   //
   // ─────────────────────────────────────────────────────────────────────────
+  // NOISE GENERATOR - CONTEXTO HISTÓRICO
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // El Synthi 100 (1971) incluía dos generadores de ruido idénticos con:
+  // - Control de "Colour": transición continua entre ruido blanco y rosa
+  // - Control de "Level": ganancia de salida
+  // - Salida enrutable a la matriz de pines (filas 89-90)
+  //
+  // El ruido blanco tiene energía igual en todas las frecuencias (densidad
+  // espectral plana), mientras que el ruido rosa tiene energía igual por
+  // octava (-3dB/octava).
+  //
+  // Esta implementación usa el algoritmo Voss-McCartney para pink noise
+  // auténtico, en lugar de un simple filtro lowpass.
+  //
+  // ─────────────────────────────────────────────────────────────────────────
 
   modules: {
     
-    // Configuración de layout de la fila de módulos
+    // ·······································································
+    // CONFIGURACIÓN DE LAYOUT
+    // ·······································································
     layout: {
-      // Altura de la fila en píxeles (o 'auto')
+      // Altura de la fila en píxeles
       rowHeight: 80,
+      
       // Proporción de cada módulo respecto al ancho total (debe sumar 1)
-      // noise1: 2/9, noise2: 2/9, randomCV: 5/9
+      // 2 + 2 + 5 = 9 partes totales
       proportions: {
         noise1: 2 / 9,
         noise2: 2 / 9,
@@ -286,38 +305,85 @@ export default {
     },
 
     // ·······································································
+    // CONFIGURACIÓN DE AUDIO COMPARTIDA PARA NOISE GENERATORS
+    // ·······································································
+    //
+    // Estos parámetros afectan al comportamiento del AudioWorklet.
+    //
+    noiseDefaults: {
+      // Tiempo de suavizado para cambios de level (segundos)
+      // Previene clicks al cambiar bruscamente el volumen
+      levelSmoothingTime: 0.03,
+      
+      // Tiempo de suavizado para cambios de colour (segundos)
+      // Más bajo que level para respuesta más rápida
+      colourSmoothingTime: 0.01,
+      
+      // Número de octavas del algoritmo Voss-McCartney
+      // Más octavas = mejor aproximación a -3dB/octava, pero más CPU
+      // 8 es un buen balance para 44.1-48kHz
+      vossOctaves: 8
+    },
+
+    // ·······································································
     // NOISE GENERATOR 1
     // ·······································································
+    //
+    // Fila de matriz: 89 (Panel 5)
+    //
     noise1: {
       id: 'panel3-noise-1',
       title: 'Noise 1',
+      
+      // Fila en la matriz de audio (Panel 5)
+      matrixRow: 89,
+      
+      // Configuración de knobs de la UI
       knobs: {
+        // Colour: 0 = white noise, 1 = pink noise
         colour: {
           min: 0,
           max: 1,
-          initial: 0.5,
+          initial: 0,       // Empieza en white noise
           curve: 'linear'
         },
+        // Level: ganancia de salida
         level: {
           min: 0,
           max: 1,
-          initial: 0,
+          initial: 0,       // Empieza en silencio
           curve: 'linear'
         }
+      },
+      
+      // Configuración del módulo de audio (override de noiseDefaults)
+      audio: {
+        // initialColour: 0,           // Valor inicial de colour
+        // initialLevel: 0,            // Valor inicial de level
+        // levelSmoothingTime: 0.03,   // Override del default
+        // colourSmoothingTime: 0.01   // Override del default
       }
     },
 
     // ·······································································
     // NOISE GENERATOR 2
     // ·······································································
+    //
+    // Fila de matriz: 90 (Panel 5)
+    //
     noise2: {
       id: 'panel3-noise-2',
       title: 'Noise 2',
+      
+      // Fila en la matriz de audio (Panel 5)
+      matrixRow: 90,
+      
+      // Configuración de knobs de la UI
       knobs: {
         colour: {
           min: 0,
           max: 1,
-          initial: 0.5,
+          initial: 0,
           curve: 'linear'
         },
         level: {
@@ -326,15 +392,28 @@ export default {
           initial: 0,
           curve: 'linear'
         }
+      },
+      
+      audio: {
+        // Misma configuración que noise1 por defecto
       }
     },
 
     // ·······································································
     // RANDOM CONTROL VOLTAGE GENERATOR
     // ·······································································
+    //
+    // Nota: Este módulo aún no tiene implementación de audio.
+    // La UI está lista, pero la lógica de generación de CV aleatorio
+    // se implementará en una fase posterior.
+    //
     randomCV: {
       id: 'panel3-random-cv',
       title: 'Random Voltage',
+      
+      // TODO: Definir filas de matriz cuando se implemente
+      // matrixRow: { voltage1: ??, voltage2: ?? },
+      
       knobs: {
         mean: {
           min: -1,

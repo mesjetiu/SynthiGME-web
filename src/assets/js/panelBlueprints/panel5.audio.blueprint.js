@@ -50,10 +50,22 @@ export default {
   },
 
   // Fuentes (entradas al router): fila -> salida de módulo
-  // Para Panel 5: 9 osciladores (del panel 3), cada uno con 2 canales.
-  // Filas impares: sineSaw (sine + sawtooth)
-  // Filas pares (siguiente): triPulse (triangle + pulse)
+  // Para Panel 5: 
+  // - 2 generadores de ruido (filas 89-90)
+  // - 9 osciladores (del panel 3), cada uno con 2 canales (filas 91-108)
+  //
+  // Filas impares de osciladores: sineSaw (sine + sawtooth)
+  // Filas pares de osciladores: triPulse (triangle + pulse)
   sources: [
+    // ─────────────────────────────────────────────────────────────────────────
+    // NOISE GENERATORS (filas 89-90)
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 89, source: { kind: 'noiseGen', index: 0 } },
+    { rowSynth: 90, source: { kind: 'noiseGen', index: 1 } },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILLATORS (filas 91-108)
+    // ─────────────────────────────────────────────────────────────────────────
     // Osc 1
     { rowSynth: 91, source: { kind: 'panel3Osc', oscIndex: 0, channelId: 'sineSaw' } },
     { rowSynth: 92, source: { kind: 'panel3Osc', oscIndex: 0, channelId: 'triPulse' } },

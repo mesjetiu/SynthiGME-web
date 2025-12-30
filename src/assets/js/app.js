@@ -2,6 +2,7 @@
 import { AudioEngine } from './core/engine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
+import { NoiseModule } from './modules/noise.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
@@ -301,6 +302,7 @@ class App {
     // Fila de módulos de ruido y Random CV (solo para Panel 3)
     let reservedRow = null;
     let noiseModules = null;
+    let noiseAudioModules = null;
     
     if (panelIndex === 3) {
       reservedRow = document.createElement('div');
@@ -308,33 +310,74 @@ class App {
       
       // Leer configuración de módulos desde el blueprint
       const modulesConfig = panel3OscConfig.modules || {};
+      const noiseDefaults = modulesConfig.noiseDefaults || {};
       const noise1Cfg = modulesConfig.noise1 || {};
       const noise2Cfg = modulesConfig.noise2 || {};
       const randomCVCfg = modulesConfig.randomCV || {};
       
-      // Noise Generator 1
+      // ─────────────────────────────────────────────────────────────────────
+      // Crear módulos de audio para Noise Generators
+      // Los módulos se inicializan bajo demanda cuando el usuario interactúa
+      // con la matriz (después del user gesture que activa el AudioContext)
+      // ─────────────────────────────────────────────────────────────────────
+      const noise1Audio = new NoiseModule(this.engine, noise1Cfg.id || 'noise-1', {
+        initialColour: noise1Cfg.knobs?.colour?.initial ?? noiseDefaults.initialColour ?? 0,
+        initialLevel: noise1Cfg.knobs?.level?.initial ?? noiseDefaults.initialLevel ?? 0,
+        levelSmoothingTime: noise1Cfg.audio?.levelSmoothingTime ?? noiseDefaults.levelSmoothingTime ?? 0.03,
+        colourSmoothingTime: noise1Cfg.audio?.colourSmoothingTime ?? noiseDefaults.colourSmoothingTime ?? 0.01
+      });
+      
+      const noise2Audio = new NoiseModule(this.engine, noise2Cfg.id || 'noise-2', {
+        initialColour: noise2Cfg.knobs?.colour?.initial ?? noiseDefaults.initialColour ?? 0,
+        initialLevel: noise2Cfg.knobs?.level?.initial ?? noiseDefaults.initialLevel ?? 0,
+        levelSmoothingTime: noise2Cfg.audio?.levelSmoothingTime ?? noiseDefaults.levelSmoothingTime ?? 0.03,
+        colourSmoothingTime: noise2Cfg.audio?.colourSmoothingTime ?? noiseDefaults.colourSmoothingTime ?? 0.01
+      });
+      
+      // NO llamar start() aquí - se hace lazy en _handlePanel5AudioToggle
+      // cuando el usuario hace click en la matriz (después del user gesture)
+      
+      noiseAudioModules = { noise1: noise1Audio, noise2: noise2Audio };
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // Crear UI con callbacks vinculados a audio
+      // ─────────────────────────────────────────────────────────────────────
+      
+      // Noise Generator 1 UI
       const noise1 = new NoiseGenerator({
         id: noise1Cfg.id || 'panel3-noise-1',
         title: noise1Cfg.title || 'Noise 1',
-        knobOptions: noise1Cfg.knobs || {
-          colour: { min: 0, max: 1, initial: 0.5 },
-          level: { min: 0, max: 1, initial: 0 }
+        knobOptions: {
+          colour: {
+            ...noise1Cfg.knobs?.colour,
+            onChange: (value) => noise1Audio.setColour(value)
+          },
+          level: {
+            ...noise1Cfg.knobs?.level,
+            onChange: (value) => noise1Audio.setLevel(value)
+          }
         }
       });
       reservedRow.appendChild(noise1.createElement());
       
-      // Noise Generator 2
+      // Noise Generator 2 UI
       const noise2 = new NoiseGenerator({
         id: noise2Cfg.id || 'panel3-noise-2',
         title: noise2Cfg.title || 'Noise 2',
-        knobOptions: noise2Cfg.knobs || {
-          colour: { min: 0, max: 1, initial: 0.5 },
-          level: { min: 0, max: 1, initial: 0 }
+        knobOptions: {
+          colour: {
+            ...noise2Cfg.knobs?.colour,
+            onChange: (value) => noise2Audio.setColour(value)
+          },
+          level: {
+            ...noise2Cfg.knobs?.level,
+            onChange: (value) => noise2Audio.setLevel(value)
+          }
         }
       });
       reservedRow.appendChild(noise2.createElement());
       
-      // Random Control Voltage Generator
+      // Random Control Voltage Generator (solo UI, sin audio aún)
       const randomCV = new RandomVoltage({
         id: randomCVCfg.id || 'panel3-random-cv',
         title: randomCVCfg.title || 'Random Voltage',
@@ -369,7 +412,8 @@ class App {
       oscillatorSlots,
       oscComponents,
       reserved: reservedRow,
-      noiseModules
+      noiseModules,
+      noiseAudioModules
     };
     panelAudio.nodes = new Array(oscComponents.length).fill(null);
     this[rafKey] = null;
@@ -962,17 +1006,31 @@ class App {
       return colIndex;
     };
 
-    const rowMap = new Map();
-    const channelMap = new Map();
+    // Mapeo de filas a fuentes (osciladores y noise generators)
+    const rowMap = new Map();      // rowIndex -> oscIndex (para osciladores)
+    const channelMap = new Map();  // rowIndex -> channelId (sineSaw/triPulse)
+    const sourceMap = new Map();   // rowIndex -> { kind, index?, oscIndex?, channelId? }
+    
     for (const entry of blueprint?.sources || []) {
       const rowSynth = entry?.rowSynth;
-      const oscIndex = entry?.source?.oscIndex;
-      const channelId = entry?.source?.channelId || 'sineSaw';
-      if (!Number.isFinite(rowSynth) || !Number.isFinite(oscIndex)) continue;
+      const source = entry?.source;
+      if (!Number.isFinite(rowSynth) || !source) continue;
+      
       const rowIndex = synthRowToPhysicalRowIndex(rowSynth);
       if (rowIndex == null) continue;
-      rowMap.set(rowIndex, oscIndex);
-      channelMap.set(rowIndex, channelId);
+      
+      // Guardar fuente completa para routing genérico
+      sourceMap.set(rowIndex, source);
+      
+      // Mantener compatibilidad con osciladores
+      if (source.kind === 'panel3Osc') {
+        const oscIndex = source.oscIndex;
+        const channelId = source.channelId || 'sineSaw';
+        if (Number.isFinite(oscIndex)) {
+          rowMap.set(rowIndex, oscIndex);
+          channelMap.set(rowIndex, channelId);
+        }
+      }
     }
 
     const colMap = new Map();
@@ -996,7 +1054,7 @@ class App {
       }
     }
 
-    return { rowMap, colMap, destMap, channelMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
+    return { rowMap, colMap, destMap, channelMap, sourceMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
   }
 
   _physicalRowToSynthRow(rowIndex) {
@@ -1037,14 +1095,29 @@ class App {
   }
 
   _setupPanel5AudioRouting() {
-    this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null, destMap: null, channelMap: null };
+    this._panel3Routing = this._panel3Routing || { connections: {}, rowMap: null, colMap: null, destMap: null, channelMap: null, sourceMap: null };
     this._panel3Routing.connections = {};
     const mappings = this._compilePanelBlueprintMappings(panel5AudioBlueprint);
     this._panel3Routing.rowMap = mappings.rowMap;
     this._panel3Routing.colMap = mappings.colMap;
     this._panel3Routing.destMap = mappings.destMap;
     this._panel3Routing.channelMap = mappings.channelMap;
+    this._panel3Routing.sourceMap = mappings.sourceMap;
     this._panel3Routing.hiddenCols = mappings.hiddenCols;
+
+    // DEBUG: mostrar mapeos de noise y outputs
+    console.log('[Panel5Routing] sourceMap entries:');
+    for (const [rowIndex, source] of mappings.sourceMap) {
+      if (source.kind === 'noiseGen') {
+        console.log(`  Row ${rowIndex} -> noiseGen index ${source.index}`);
+      }
+    }
+    console.log('[Panel5Routing] destMap (outputs):');
+    for (const [colIndex, dest] of mappings.destMap) {
+      if (dest.kind === 'outputBus') {
+        console.log(`  Col ${colIndex} -> outputBus ${dest.bus}`);
+      }
+    }
 
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
       this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
@@ -1054,19 +1127,68 @@ class App {
   }
 
   _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
-    const oscIndex = this._panel3Routing?.rowMap?.get(rowIndex);
+    const source = this._panel3Routing?.sourceMap?.get(rowIndex);
     const dest = this._panel3Routing?.destMap?.get(colIndex);
-    const channelId = this._panel3Routing?.channelMap?.get(rowIndex) || 'sineSaw';
     const key = `${rowIndex}:${colIndex}`;
+    
+    // DEBUG
+    console.log(`[Panel5Toggle] row=${rowIndex}, col=${colIndex}, activate=${activate}`);
+    console.log(`  source:`, source);
+    console.log(`  dest:`, dest);
 
-    if (oscIndex == null || !dest) return true;
+    if (!source || !dest) return true;
 
     if (activate) {
       this.ensureAudio();
       const ctx = this.engine.audioCtx;
-      const src = this._ensurePanel3Nodes(oscIndex);
-      const outNode = channelId === 'triPulse' ? src?.triPulseOut : src?.sineSawOut;
-      if (!ctx || !outNode) return false;
+      if (!ctx) return false;
+
+      // Obtener nodo de salida según tipo de fuente
+      let outNode = null;
+      
+      if (source.kind === 'panel3Osc') {
+        // Fuente: Oscilador de Panel 3
+        const oscIndex = source.oscIndex;
+        const channelId = source.channelId || 'sineSaw';
+        const src = this._ensurePanel3Nodes(oscIndex);
+        outNode = channelId === 'triPulse' ? src?.triPulseOut : src?.sineSawOut;
+        
+        // Aplicar estado del oscilador
+        const state = this._panel3Audio?.state?.[oscIndex];
+        this._applyOscStateImmediate(src, state, ctx);
+        
+      } else if (source.kind === 'noiseGen') {
+        // Fuente: Noise Generator
+        const noiseIndex = source.index;
+        // Acceder a los datos de Panel 3 dinámicamente
+        const panel3Data = this['_panel3LayoutData'];
+        const noiseAudioModules = panel3Data?.noiseAudioModules;
+        
+        if (!noiseAudioModules) {
+          console.warn('[App] Noise audio modules not initialized');
+          return false;
+        }
+        
+        const noiseModule = noiseIndex === 0 ? noiseAudioModules.noise1 : noiseAudioModules.noise2;
+        
+        // Asegurar que el módulo esté iniciado (lazy init después de user gesture)
+        if (noiseModule && !noiseModule.isStarted) {
+          noiseModule.start();
+        }
+        
+        outNode = noiseModule?.getOutputNode?.();
+        
+        if (!outNode) {
+          console.warn('[App] NoiseModule output node not available, retrying init');
+          noiseModule?.start?.();
+          outNode = noiseModule?.getOutputNode?.();
+        }
+      }
+      
+      if (!outNode) {
+        console.warn('[App] No output node for source', source);
+        return false;
+      }
 
       // Determinar nodo de destino según tipo
       let destNode = null;
@@ -1087,9 +1209,6 @@ class App {
         console.warn('[App] No destination node for', dest);
         return false;
       }
-
-      const state = this._panel3Audio?.state?.[oscIndex];
-      this._applyOscStateImmediate(src, state, ctx);
 
       const gain = ctx.createGain();
       const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex);

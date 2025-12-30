@@ -31,6 +31,7 @@ import { Knob } from './ui/knob.js';
 
 // Utilidades de audio
 import { createPulseWave, createAsymmetricSineWave } from './utils/waveforms.js';
+import { deepMerge } from './utils/objects.js';
 
 // Módulos extraídos
 import { 
@@ -1069,19 +1070,7 @@ class App {
     const defaults = panel3Config.defaults || {};
     const oscNumber = oscIndex + 1;
     const override = panel3Config.oscillators?.[oscNumber] || {};
-    return this._deepMerge(defaults, override);
-  }
-
-  _deepMerge(target, source) {
-    const result = { ...target };
-    for (const key of Object.keys(source)) {
-      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        result[key] = this._deepMerge(target[key] || {}, source[key]);
-      } else {
-        result[key] = source[key];
-      }
-    }
-    return result;
+    return deepMerge(defaults, override);
   }
 
   _applyCurve(value, knobConfig) {

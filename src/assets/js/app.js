@@ -9,12 +9,12 @@ import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
 
 // Blueprints (estructura visual y ruteo)
-import panel3OscBlueprint from './panelBlueprints/panel3.oscillators.blueprint.js';
+import panel3Blueprint from './panelBlueprints/panel3.blueprint.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
 
 // Configs (parámetros de audio)
-import panel3OscConfig from './panelBlueprints/panel3.oscillators.config.js';
+import panel3Config from './panelBlueprints/panel3.config.js';
 import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
 import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
 
@@ -247,7 +247,7 @@ class App {
    */
   _getLayoutSpec() {
     // Leer estructura del blueprint (o usar defaults hardcoded como fallback)
-    const blueprintLayout = panel3OscBlueprint?.layout?.oscillators || {};
+    const blueprintLayout = panel3Blueprint?.layout?.oscillators || {};
     
     // Dimensiones de oscilador (blueprint o fallback)
     const oscSize = blueprintLayout.oscSize || { width: 370, height: 110 };
@@ -300,9 +300,9 @@ class App {
     // El blueprint define posición visual (col, row) para cada oscIndex
     // ─────────────────────────────────────────────────────────────────────────
     let oscillatorSlots;
-    if (Array.isArray(panel3OscBlueprint?.oscillatorSlots)) {
+    if (Array.isArray(panel3Blueprint?.oscillatorSlots)) {
       // Usar slots del blueprint (oscIndex está 0-based, convertimos a index 1-based)
-      oscillatorSlots = panel3OscBlueprint.oscillatorSlots.map(slot => ({
+      oscillatorSlots = panel3Blueprint.oscillatorSlots.map(slot => ({
         index: slot.oscIndex + 1,   // UI usa 1-based
         col: slot.col,
         row: slot.row
@@ -346,7 +346,7 @@ class App {
       reservedRow.className = 'panel3-reserved-row panel3-modules-row';
       
       // Leer configuración de módulos desde el blueprint
-      const modulesConfig = panel3OscConfig.modules || {};
+      const modulesConfig = panel3Config.modules || {};
       const noiseDefaults = modulesConfig.noiseDefaults || {};
       const noise1Cfg = modulesConfig.noise1 || {};
       const noise2Cfg = modulesConfig.noise2 || {};
@@ -507,7 +507,7 @@ class App {
         // Aplicar altura y proporciones del blueprint si es Panel 3
         if (panelIndex === 3) {
           // Leer del BLUEPRINT (estructura visual)
-          const blueprintModulesRow = panel3OscBlueprint?.layout?.modulesRow || {};
+          const blueprintModulesRow = panel3Blueprint?.layout?.modulesRow || {};
           const rowHeight = blueprintModulesRow.height || layout.reservedHeight;
           reserved.style.height = `${rowHeight}px`;
           
@@ -840,9 +840,9 @@ class App {
   // ─────────────────────────────────────────────────────────────────────────
 
   _getOscConfig(oscIndex) {
-    const defaults = panel3OscConfig.defaults || {};
+    const defaults = panel3Config.defaults || {};
     const oscNumber = oscIndex + 1;
-    const override = panel3OscConfig.oscillators?.[oscNumber] || {};
+    const override = panel3Config.oscillators?.[oscNumber] || {};
     return this._deepMerge(defaults, override);
   }
 
@@ -881,7 +881,7 @@ class App {
   }
 
   _updatePanelOscFreq(panelIndex, oscIndex, value) {
-    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3OscConfig.defaults;
+    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3Config.defaults;
     const freqConfig = config?.knobs?.frequency || { min: 1, max: 10000, curve: 'quadratic' };
     const freq = this._applyCurve(value, freqConfig);
     
@@ -931,7 +931,7 @@ class App {
   }
 
   _getPanelKnobOptions(panelIndex, oscIndex) {
-    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3OscConfig.defaults;
+    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3Config.defaults;
     const knobsConfig = config?.knobs || {};
     
     const knobOptions = [];

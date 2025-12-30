@@ -141,8 +141,8 @@ Los paneles se configuran con **dos archivos separados** por responsabilidad:
 
 | Archivo | Tipo | Contenido |
 |---------|------|-----------|
-| `panel3.oscillators.blueprint.js` | Blueprint | Layout de osciladores (grid 2×6), slots, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
-| `panel3.oscillators.config.js` | Config | Rangos de frecuencia, niveles, tiempos de suavizado, parámetros Voss-McCartney |
+| `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
+| `panel3.config.js` | Config | Rangos de frecuencia, niveles, tiempos de suavizado, parámetros Voss-McCartney |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
 | `panel5.audio.config.js` | Config | Ganancias y atenuaciones para cada cruce de matriz |
 | `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
@@ -150,7 +150,7 @@ Los paneles se configuran con **dos archivos separados** por responsabilidad:
 
 #### Ejemplo de Blueprint (estructura)
 ```javascript
-// panel3.oscillators.blueprint.js
+// panel3.blueprint.js
 export default {
   schemaVersion: 1,
   panelId: 'panel-3',
@@ -173,7 +173,7 @@ export default {
 
 #### Ejemplo de Config (parámetros)
 ```javascript
-// panel3.oscillators.config.js
+// panel3.config.js
 export default {
   noiseDefaults: {
     levelSmoothingTime: 0.03,  // 30ms (evita clicks)

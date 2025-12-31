@@ -45,6 +45,7 @@ import {
   setupPanelDoubleTapZoom 
 } from './navigation/viewportNavigation.js';
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
+import { AudioSettingsModal } from './ui/audioSettingsModal.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 
@@ -241,6 +242,38 @@ class App {
       this.engine.toggleMute();
       muteBtn.textContent = this.engine.muted ? '🔇 Mute ON' : '🔊 Audio ON';
       muteBtn.classList.toggle('off', this.engine.muted);
+    });
+    
+    // Modal de configuración de audio (ruteo salidas → sistema L/R)
+    this._setupAudioSettingsModal();
+  }
+
+  /**
+   * Configura el modal de ajustes de audio del sistema.
+   * Permite rutear las 8 salidas lógicas hacia L/R del sistema.
+   */
+  _setupAudioSettingsModal() {
+    this.audioSettingsModal = new AudioSettingsModal({
+      outputCount: this.engine.outputChannels,
+      inputCount: 8,
+      onRoutingChange: (busIndex, leftGain, rightGain) => {
+        this.engine.setOutputRouting(busIndex, leftGain, rightGain);
+      }
+    });
+    
+    // Aplicar ruteo por defecto al engine cuando inicie
+    const originalStart = this.engine.start.bind(this.engine);
+    this.engine.start = () => {
+      originalStart();
+      // Aplicar ruteo inicial después de start
+      this.audioSettingsModal.applyRoutingToEngine((busIndex, leftGain, rightGain) => {
+        this.engine.setOutputRouting(busIndex, leftGain, rightGain);
+      });
+    };
+    
+    // Escuchar evento del quickbar para abrir/cerrar modal
+    document.addEventListener('synth:toggleAudioSettings', () => {
+      this.audioSettingsModal.toggle();
     });
   }
 

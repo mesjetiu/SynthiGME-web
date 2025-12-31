@@ -1405,3 +1405,202 @@ small { color:#aaa; }
   border-radius: 4px;
   overflow: hidden;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUDIO SETTINGS MODAL — Configuración de ruteo de audio del sistema
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.audio-settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.audio-settings-overlay--visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.audio-settings-modal {
+  width: 90%;
+  max-width: 420px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  transform: translateY(20px);
+  transition: transform 0.25s ease;
+}
+
+.audio-settings-overlay--visible .audio-settings-modal {
+  transform: translateY(0);
+}
+
+.audio-settings-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.audio-settings-modal__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffe9a3;
+  letter-spacing: 0.02em;
+}
+
+.audio-settings-modal__close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.audio-settings-modal__close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.audio-settings-modal__content {
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+/* Secciones del modal */
+.audio-settings-section {
+  margin-bottom: 1.5rem;
+}
+
+.audio-settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.audio-settings-section--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.audio-settings-section__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ddd;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audio-settings-section__desc {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: #999;
+}
+
+/* Matriz de ruteo */
+.routing-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.routing-matrix--placeholder {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.routing-matrix__header {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.routing-matrix__corner {
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.routing-matrix__header-cell {
+  flex: 1;
+  min-width: 44px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffd54f;
+  padding: 4px 0;
+}
+
+.routing-matrix__row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.routing-matrix__row-label {
+  width: 60px;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #bbb;
+  padding-left: 4px;
+}
+
+.routing-matrix__toggle {
+  flex: 1;
+  min-width: 44px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(40, 40, 40, 0.6);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.routing-matrix__toggle:hover {
+  background: rgba(60, 60, 60, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.routing-matrix__toggle--active {
+  background: rgba(255, 180, 60, 0.65);
+  border-color: rgba(255, 200, 100, 0.7);
+  box-shadow: 0 0 8px rgba(255, 180, 60, 0.4);
+}
+
+.routing-matrix__toggle--active:hover {
+  background: rgba(255, 180, 60, 0.8);
+}
+
+.routing-matrix__toggle--disabled {
+  background: rgba(30, 30, 30, 0.4);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: not-allowed;
+}
+
+.routing-matrix__more {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #777;
+  padding: 8px 0 4px;
+}

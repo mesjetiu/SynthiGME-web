@@ -253,9 +253,23 @@ export function setupMobileQuickActionsBar() {
   document.addEventListener('fullscreenchange', applyPressedState);
   displayModeQueries.forEach(mq => mq.addEventListener('change', applyPressedState));
 
+  // Botón de configuración de audio
+  const btnAudioSettings = document.createElement('button');
+  btnAudioSettings.type = 'button';
+  btnAudioSettings.className = 'mobile-quickbar__btn';
+  btnAudioSettings.id = 'btnAudioSettings';
+  btnAudioSettings.setAttribute('aria-label', 'Configuración de audio');
+  btnAudioSettings.innerHTML = iconSvg('ti-volume');
+  
+  btnAudioSettings.addEventListener('click', () => {
+    // Emitir evento custom para que app.js lo maneje
+    document.dispatchEvent(new CustomEvent('synth:toggleAudioSettings'));
+  });
+
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
   group.appendChild(resolutionContainer);
+  group.appendChild(btnAudioSettings);
   group.appendChild(btnFs);
 
   bar.appendChild(group);

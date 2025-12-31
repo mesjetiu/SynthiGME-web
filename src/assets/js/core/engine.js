@@ -163,6 +163,41 @@ export class AudioEngine {
     if (busIndex === 1) this.bus2Pan = value;
   }
 
+  /**
+   * Establece el ruteo directo de una salida lógica a las salidas físicas L/R.
+   * Permite control aditivo: cada salida puede ir a L, R, ambos o ninguno.
+   * @param {number} busIndex - Índice de la salida (0-based)
+   * @param {number} leftGain - Ganancia hacia L (0.0 = off, 1.0 = full)
+   * @param {number} rightGain - Ganancia hacia R (0.0 = off, 1.0 = full)
+   */
+  setOutputRouting(busIndex, leftGain, rightGain) {
+    if (busIndex < 0 || busIndex >= this.outputChannels) return;
+    const ctx = this.audioCtx;
+    const bus = this.outputBuses[busIndex];
+    if (!ctx || !bus) {
+      // Guardar para aplicar después del start()
+      this._pendingRouting = this._pendingRouting || [];
+      this._pendingRouting[busIndex] = { leftGain, rightGain };
+      return;
+    }
+    setParamSmooth(bus.panLeft.gain, leftGain, ctx);
+    setParamSmooth(bus.panRight.gain, rightGain, ctx);
+  }
+
+  /**
+   * Obtiene el ruteo actual de una salida
+   * @param {number} busIndex
+   * @returns {{ left: number, right: number } | null}
+   */
+  getOutputRouting(busIndex) {
+    const bus = this.outputBuses[busIndex];
+    if (!bus) return null;
+    return {
+      left: bus.panLeft?.gain?.value ?? 0,
+      right: bus.panRight?.gain?.value ?? 0
+    };
+  }
+
   getOutputBusNode(busIndex) {
     return this.outputBuses[busIndex]?.input || null;
   }

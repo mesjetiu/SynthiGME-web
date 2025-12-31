@@ -258,6 +258,16 @@ class App {
       inputCount: 8,
       onRoutingChange: (busIndex, leftGain, rightGain) => {
         this.engine.setOutputRouting(busIndex, leftGain, rightGain);
+      },
+      onOutputDeviceChange: async (deviceId) => {
+        const success = await this.engine.setOutputDevice(deviceId);
+        if (success) {
+          console.log('[App] Output device changed to:', deviceId);
+        }
+      },
+      onInputDeviceChange: (deviceId) => {
+        // Reservado para futuro: captura de entrada de micrófono
+        console.log('[App] Input device selected:', deviceId);
       }
     });
     
@@ -270,6 +280,11 @@ class App {
       this.audioSettingsModal.applyRoutingToEngine((busIndex, leftGain, rightGain) => {
         this.engine.setOutputRouting(busIndex, leftGain, rightGain);
       });
+      // Aplicar dispositivo de salida guardado
+      const savedOutputDevice = this.audioSettingsModal.selectedOutputDevice;
+      if (savedOutputDevice && savedOutputDevice !== 'default') {
+        this.engine.setOutputDevice(savedOutputDevice);
+      }
     };
     
     // Escuchar evento del quickbar para abrir/cerrar modal

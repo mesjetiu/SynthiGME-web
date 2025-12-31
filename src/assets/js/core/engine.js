@@ -198,6 +198,31 @@ export class AudioEngine {
     };
   }
 
+  /**
+   * Cambia el dispositivo de salida de audio.
+   * Requiere que el navegador soporte setSinkId (Chrome/Edge).
+   * @param {string} deviceId - ID del dispositivo de salida
+   * @returns {Promise<boolean>} - true si se cambió correctamente
+   */
+  async setOutputDevice(deviceId) {
+    if (!this.audioCtx) return false;
+    
+    // setSinkId está en el AudioContext en algunos navegadores
+    if (typeof this.audioCtx.setSinkId === 'function') {
+      try {
+        await this.audioCtx.setSinkId(deviceId === 'default' ? '' : deviceId);
+        console.log('[AudioEngine] Output device changed to:', deviceId);
+        return true;
+      } catch (e) {
+        console.warn('[AudioEngine] Failed to change output device:', e);
+        return false;
+      }
+    }
+    
+    console.warn('[AudioEngine] setSinkId not supported in this browser');
+    return false;
+  }
+
   getOutputBusNode(busIndex) {
     return this.outputBuses[busIndex]?.input || null;
   }

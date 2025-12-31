@@ -2,6 +2,8 @@
 // Permite rutear las salidas lógicas del Synthi a las salidas físicas del sistema (L/R)
 
 const STORAGE_KEY = 'synthigme-audio-routing';
+const STORAGE_KEY_OUTPUT_DEVICE = 'synthigme-output-device';
+const STORAGE_KEY_INPUT_DEVICE = 'synthigme-input-device';
 
 /**
  * Clase que maneja la ventana modal de configuración de audio del sistema.
@@ -13,13 +15,27 @@ export class AudioSettingsModal {
    * @param {number} [options.outputCount=8] - Número de salidas lógicas del sintetizador
    * @param {number} [options.inputCount=8] - Número de entradas lógicas (reservado, no funcional aún)
    * @param {Function} [options.onRoutingChange] - Callback cuando cambia el ruteo: (busIndex, leftGain, rightGain) => void
+   * @param {Function} [options.onOutputDeviceChange] - Callback cuando cambia dispositivo de salida: (deviceId) => void
+   * @param {Function} [options.onInputDeviceChange] - Callback cuando cambia dispositivo de entrada: (deviceId) => void
    */
   constructor(options = {}) {
-    const { outputCount = 8, inputCount = 8, onRoutingChange } = options;
+    const { outputCount = 8, inputCount = 8, onRoutingChange, onOutputDeviceChange, onInputDeviceChange } = options;
     
     this.outputCount = outputCount;
     this.inputCount = inputCount;
     this.onRoutingChange = onRoutingChange;
+    this.onOutputDeviceChange = onOutputDeviceChange;
+    this.onInputDeviceChange = onInputDeviceChange;
+    
+    // Dispositivos seleccionados
+    this.selectedOutputDevice = localStorage.getItem(STORAGE_KEY_OUTPUT_DEVICE) || 'default';
+    this.selectedInputDevice = localStorage.getItem(STORAGE_KEY_INPUT_DEVICE) || 'default';
+    this.availableOutputDevices = [];
+    this.availableInputDevices = [];
+    
+    // Elementos de selectores
+    this.outputDeviceSelect = null;
+    this.inputDeviceSelect = null;
     
     // Estado de ruteo: cada salida tiene { left: boolean, right: boolean }
     // Intentar cargar desde localStorage, si no existe usar defaults
@@ -87,6 +103,106 @@ export class AudioSettingsModal {
     } catch (e) {
       console.warn('[AudioSettingsModal] Error saving routing to localStorage:', e);
     }
+  }
+
+  /**
+   * Enumera los dispositivos de audio disponibles
+   */
+  async _enumerateDevices() {
+    try {
+      // Intentar obtener permisos para ver nombres de dispositivos
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+      } catch {
+        // Si no hay permiso, continuar con IDs anónimos
+      }
+      
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      this.availableOutputDevices = devices.filter(d => d.kind === 'audiooutput');
+      this.availableInputDevices = devices.filter(d => d.kind === 'audioinput');
+      
+      this._updateDeviceSelects();
+    } catch (e) {
+      console.warn('[AudioSettingsModal] Error enumerating devices:', e);
+    }
+  }
+
+  /**
+   * Actualiza los selectores con los dispositivos disponibles
+   */
+  _updateDeviceSelects() {
+    if (this.outputDeviceSelect) {
+      this.outputDeviceSelect.innerHTML = '';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = 'default';
+      defaultOpt.textContent = 'Dispositivo por defecto';
+      this.outputDeviceSelect.appendChild(defaultOpt);
+      
+      this.availableOutputDevices.forEach(device => {
+        const opt = document.createElement('option');
+        opt.value = device.deviceId;
+        opt.textContent = device.label || `Salida ${device.deviceId.slice(0, 8)}...`;
+        if (device.deviceId === this.selectedOutputDevice) opt.selected = true;
+        this.outputDeviceSelect.appendChild(opt);
+      });
+    }
+    
+    if (this.inputDeviceSelect) {
+      this.inputDeviceSelect.innerHTML = '';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = 'default';
+      defaultOpt.textContent = 'Dispositivo por defecto';
+      this.inputDeviceSelect.appendChild(defaultOpt);
+      
+      this.availableInputDevices.forEach(device => {
+        const opt = document.createElement('option');
+        opt.value = device.deviceId;
+        opt.textContent = device.label || `Entrada ${device.deviceId.slice(0, 8)}...`;
+        if (device.deviceId === this.selectedInputDevice) opt.selected = true;
+        this.inputDeviceSelect.appendChild(opt);
+      });
+    }
+  }
+
+  /**
+   * Crea un selector de dispositivo
+   */
+  _createDeviceSelector(label, isOutput) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'audio-settings-device-selector';
+    
+    const labelEl = document.createElement('label');
+    labelEl.className = 'audio-settings-device-selector__label';
+    labelEl.textContent = label;
+    
+    const select = document.createElement('select');
+    select.className = 'audio-settings-device-selector__select';
+    
+    // Opción por defecto mientras se cargan
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = 'default';
+    defaultOpt.textContent = 'Cargando dispositivos...';
+    select.appendChild(defaultOpt);
+    
+    select.addEventListener('change', () => {
+      const deviceId = select.value;
+      if (isOutput) {
+        this.selectedOutputDevice = deviceId;
+        localStorage.setItem(STORAGE_KEY_OUTPUT_DEVICE, deviceId);
+        if (this.onOutputDeviceChange) this.onOutputDeviceChange(deviceId);
+      } else {
+        this.selectedInputDevice = deviceId;
+        localStorage.setItem(STORAGE_KEY_INPUT_DEVICE, deviceId);
+        if (this.onInputDeviceChange) this.onInputDeviceChange(deviceId);
+      }
+    });
+    
+    wrapper.appendChild(labelEl);
+    wrapper.appendChild(select);
+    
+    return { wrapper, select };
   }
 
   /**
@@ -164,6 +280,11 @@ export class AudioSettingsModal {
     sectionTitle.className = 'audio-settings-section__title';
     sectionTitle.textContent = 'Salidas → Sistema (L/R)';
     section.appendChild(sectionTitle);
+    
+    // Selector de dispositivo de salida
+    const { wrapper: outputDeviceWrapper, select: outputSelect } = this._createDeviceSelector('Dispositivo de salida:', true);
+    this.outputDeviceSelect = outputSelect;
+    section.appendChild(outputDeviceWrapper);
     
     const description = document.createElement('p');
     description.className = 'audio-settings-section__desc';
@@ -272,6 +393,11 @@ export class AudioSettingsModal {
     sectionTitle.textContent = 'Entradas ← Sistema (Mic/Line)';
     section.appendChild(sectionTitle);
     
+    // Selector de dispositivo de entrada
+    const { wrapper: inputDeviceWrapper, select: inputSelect } = this._createDeviceSelector('Dispositivo de entrada:', false);
+    this.inputDeviceSelect = inputSelect;
+    section.appendChild(inputDeviceWrapper);
+    
     const description = document.createElement('p');
     description.className = 'audio-settings-section__desc';
     description.textContent = 'Captura audio externo hacia las entradas del Synthi. (Próximamente)';
@@ -338,6 +464,9 @@ export class AudioSettingsModal {
     this.isOpen = true;
     this.overlay.classList.add('audio-settings-overlay--visible');
     this.overlay.setAttribute('aria-hidden', 'false');
+    
+    // Enumerar dispositivos cuando se abre el modal
+    this._enumerateDevices();
     
     // Focus en el modal para accesibilidad
     requestAnimationFrame(() => {

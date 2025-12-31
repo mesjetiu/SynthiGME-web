@@ -1649,3 +1649,32 @@ small { color:#aaa; }
   background: #333;
   color: #eee;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   INFORMACIÓN DE CANALES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.audio-settings-channel-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(100, 100, 100, 0.2);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.audio-settings-channel-info__label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.audio-settings-channel-info__value {
+  color: #ffd54f;
+  font-weight: 500;
+}
+
+/* Contenedor de la matriz (para reconstrucción dinámica) */
+.routing-matrix-container {
+  margin-top: 0.5rem;
+}

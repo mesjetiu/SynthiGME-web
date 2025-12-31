@@ -1,5 +1,6 @@
 // Modal de configuración de audio del sistema
-// Permite rutear las salidas lógicas del Synthi a las salidas físicas del sistema (L/R)
+// Permite rutear las salidas lógicas del Synthi a las salidas físicas del sistema
+// Soporta configuraciones multicanal (estéreo, 5.1, 7.1, etc.)
 
 const STORAGE_KEY = 'synthigme-audio-routing';
 const STORAGE_KEY_OUTPUT_DEVICE = 'synthigme-output-device';
@@ -7,22 +8,43 @@ const STORAGE_KEY_INPUT_DEVICE = 'synthigme-input-device';
 
 /**
  * Clase que maneja la ventana modal de configuración de audio del sistema.
- * Permite mapear N salidas lógicas a las salidas físicas L/R de forma aditiva.
+ * Permite mapear N salidas lógicas a N salidas físicas de forma aditiva.
+ * La matriz se reconstruye dinámicamente cuando cambia el número de canales.
  */
 export class AudioSettingsModal {
   /**
    * @param {Object} options
    * @param {number} [options.outputCount=8] - Número de salidas lógicas del sintetizador
    * @param {number} [options.inputCount=8] - Número de entradas lógicas (reservado, no funcional aún)
-   * @param {Function} [options.onRoutingChange] - Callback cuando cambia el ruteo: (busIndex, leftGain, rightGain) => void
-   * @param {Function} [options.onOutputDeviceChange] - Callback cuando cambia dispositivo de salida: (deviceId) => void
-   * @param {Function} [options.onInputDeviceChange] - Callback cuando cambia dispositivo de entrada: (deviceId) => void
+   * @param {number} [options.physicalChannels=2] - Número inicial de canales físicos
+   * @param {string[]} [options.channelLabels] - Etiquetas para los canales físicos
+   * @param {Function} [options.onRoutingChange] - Callback cuando cambia el ruteo
+   * @param {Function} [options.onOutputDeviceChange] - Callback cuando cambia dispositivo de salida
+   * @param {Function} [options.onInputDeviceChange] - Callback cuando cambia dispositivo de entrada
    */
   constructor(options = {}) {
-    const { outputCount = 8, inputCount = 8, onRoutingChange, onOutputDeviceChange, onInputDeviceChange } = options;
+    const { 
+      outputCount = 8, 
+      inputCount = 8, 
+      physicalChannels = 2,
+      channelLabels = ['L', 'R'],
+      onRoutingChange, 
+      onOutputDeviceChange, 
+      onInputDeviceChange 
+    } = options;
     
     this.outputCount = outputCount;
     this.inputCount = inputCount;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONFIGURACIÓN MULTICANAL
+    // ─────────────────────────────────────────────────────────────────────────
+    // physicalChannels: número de canales físicos del dispositivo actual
+    // channelLabels: etiquetas descriptivas para cada canal (L, R, C, LFE, etc.)
+    // ─────────────────────────────────────────────────────────────────────────
+    this.physicalChannels = physicalChannels;
+    this.channelLabels = channelLabels;
+    
     this.onRoutingChange = onRoutingChange;
     this.onOutputDeviceChange = onOutputDeviceChange;
     this.onInputDeviceChange = onInputDeviceChange;
@@ -37,8 +59,14 @@ export class AudioSettingsModal {
     this.outputDeviceSelect = null;
     this.inputDeviceSelect = null;
     
-    // Estado de ruteo: cada salida tiene { left: boolean, right: boolean }
-    // Intentar cargar desde localStorage, si no existe usar defaults
+    // Elemento para mostrar información de canales
+    this.channelInfoElement = null;
+    
+    // Contenedor de la matriz (para reconstrucción dinámica)
+    this.matrixContainer = null;
+    
+    // Estado de ruteo: cada salida tiene un array de booleanos por canal físico
+    // outputRouting[busIndex][channelIndex] = boolean
     const loadedRouting = this._loadRouting();
     this.outputRouting = loadedRouting || this._getDefaultRouting();
     
@@ -53,22 +81,29 @@ export class AudioSettingsModal {
     this.modal = null;
     this.isOpen = false;
     
+    // Array de botones toggle para actualización dinámica
+    this.outputToggleButtons = [];
+    
     this._create();
   }
 
   /**
-   * Devuelve el ruteo por defecto: out1 → L, out2 → R, resto apagado
+   * Devuelve el ruteo por defecto: out1 → canal 0, out2 → canal 1, resto apagado
    */
   _getDefaultRouting() {
-    return Array.from({ length: this.outputCount }, (_, i) => ({
-      left: i === 0,
-      right: i === 1
-    }));
+    return Array.from({ length: this.outputCount }, (_, busIdx) => 
+      Array.from({ length: this.physicalChannels }, (_, chIdx) => {
+        // Por defecto: bus 0 → canal 0, bus 1 → canal 1
+        return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+      })
+    );
   }
 
   /**
-   * Carga el ruteo desde localStorage
-   * @returns {Array<{left: boolean, right: boolean}>|null}
+   * Carga el ruteo desde localStorage.
+   * Soporta tanto el formato legacy {left, right} como el nuevo formato multicanal [bool, bool, ...]
+   * 
+   * @returns {boolean[][]|null} - Matriz de ruteo o null si no hay datos guardados
    */
   _loadRouting() {
     try {
@@ -78,14 +113,29 @@ export class AudioSettingsModal {
       const parsed = JSON.parse(saved);
       if (!Array.isArray(parsed)) return null;
       
-      // Validar y expandir/recortar al número de salidas actual
-      return Array.from({ length: this.outputCount }, (_, i) => {
-        const s = parsed[i];
-        if (s && typeof s.left === 'boolean' && typeof s.right === 'boolean') {
-          return { left: s.left, right: s.right };
+      // Detectar formato y convertir
+      return Array.from({ length: this.outputCount }, (_, busIdx) => {
+        const savedBus = parsed[busIdx];
+        
+        if (Array.isArray(savedBus)) {
+          // Formato multicanal: array de booleanos
+          // Expandir/recortar al número actual de canales físicos
+          return Array.from({ length: this.physicalChannels }, (_, chIdx) => {
+            return savedBus[chIdx] === true;
+          });
+        } else if (savedBus && typeof savedBus.left === 'boolean') {
+          // Formato legacy: {left, right} → convertir a array
+          return Array.from({ length: this.physicalChannels }, (_, chIdx) => {
+            if (chIdx === 0) return savedBus.left;
+            if (chIdx === 1) return savedBus.right;
+            return false; // Canales adicionales apagados
+          });
         }
-        // Si no hay datos guardados para este índice, usar default
-        return { left: i === 0, right: i === 1 };
+        
+        // Sin datos guardados para este bus, usar default
+        return Array.from({ length: this.physicalChannels }, (_, chIdx) => {
+          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+        });
       });
     } catch (e) {
       console.warn('[AudioSettingsModal] Error loading routing from localStorage:', e);
@@ -94,7 +144,7 @@ export class AudioSettingsModal {
   }
 
   /**
-   * Guarda el ruteo actual en localStorage
+   * Guarda el ruteo actual en localStorage (formato multicanal)
    */
   _saveRouting() {
     try {
@@ -103,6 +153,83 @@ export class AudioSettingsModal {
     } catch (e) {
       console.warn('[AudioSettingsModal] Error saving routing to localStorage:', e);
     }
+  }
+
+  /**
+   * Actualiza el número de canales físicos y reconstruye la matriz.
+   * Se llama cuando el engine detecta un cambio de dispositivo con diferente
+   * número de canales.
+   * 
+   * @param {number} channelCount - Nuevo número de canales físicos
+   * @param {string[]} [labels] - Etiquetas para los canales
+   */
+  updatePhysicalChannels(channelCount, labels) {
+    const oldCount = this.physicalChannels;
+    this.physicalChannels = channelCount;
+    this.channelLabels = labels || this._generateDefaultLabels(channelCount);
+    
+    console.log(`[AudioSettingsModal] Physical channels changed: ${oldCount} → ${channelCount}`);
+    
+    // Expandir/recortar la matriz de ruteo para el nuevo número de canales
+    this.outputRouting = this.outputRouting.map((busRouting, busIdx) => {
+      return Array.from({ length: channelCount }, (_, chIdx) => {
+        if (chIdx < busRouting.length) {
+          // Preservar valor existente
+          return busRouting[chIdx];
+        }
+        // Nuevos canales: apagados por defecto
+        return false;
+      });
+    });
+    
+    // Actualizar info de canales en la UI
+    this._updateChannelInfo();
+    
+    // Reconstruir la matriz visual
+    if (this.matrixContainer) {
+      this._rebuildMatrix();
+    }
+    
+    // Guardar el nuevo estado
+    this._saveRouting();
+  }
+
+  /**
+   * Genera etiquetas por defecto para los canales
+   */
+  _generateDefaultLabels(count) {
+    const labelSets = {
+      2: ['L', 'R'],
+      4: ['FL', 'FR', 'RL', 'RR'],
+      6: ['FL', 'FR', 'C', 'LFE', 'RL', 'RR'],
+      8: ['FL', 'FR', 'C', 'LFE', 'RL', 'RR', 'SL', 'SR']
+    };
+    return labelSets[count] || Array.from({ length: count }, (_, i) => `Ch${i + 1}`);
+  }
+
+  /**
+   * Actualiza el elemento de información de canales en la UI
+   */
+  _updateChannelInfo() {
+    if (!this.channelInfoElement) return;
+    
+    const configName = this._getConfigurationName(this.physicalChannels);
+    this.channelInfoElement.textContent = `${this.physicalChannels} canales (${configName})`;
+    this.channelInfoElement.title = `Etiquetas: ${this.channelLabels.join(', ')}`;
+  }
+
+  /**
+   * Obtiene el nombre de la configuración de canales
+   */
+  _getConfigurationName(count) {
+    const names = {
+      1: 'Mono',
+      2: 'Estéreo',
+      4: 'Cuadrafónico',
+      6: '5.1 Surround',
+      8: '7.1 Surround'
+    };
+    return names[count] || `${count} canales`;
   }
 
   /**
@@ -278,7 +405,7 @@ export class AudioSettingsModal {
     
     const sectionTitle = document.createElement('h3');
     sectionTitle.className = 'audio-settings-section__title';
-    sectionTitle.textContent = 'Salidas → Sistema (L/R)';
+    sectionTitle.textContent = 'Salidas → Sistema';
     section.appendChild(sectionTitle);
     
     // Selector de dispositivo de salida
@@ -286,16 +413,45 @@ export class AudioSettingsModal {
     this.outputDeviceSelect = outputSelect;
     section.appendChild(outputDeviceWrapper);
     
+    // Información de canales del dispositivo actual
+    const channelInfo = document.createElement('div');
+    channelInfo.className = 'audio-settings-channel-info';
+    this.channelInfoElement = document.createElement('span');
+    this.channelInfoElement.className = 'audio-settings-channel-info__value';
+    this._updateChannelInfo();
+    
+    const channelLabel = document.createElement('span');
+    channelLabel.className = 'audio-settings-channel-info__label';
+    channelLabel.textContent = 'Canales detectados: ';
+    
+    channelInfo.appendChild(channelLabel);
+    channelInfo.appendChild(this.channelInfoElement);
+    section.appendChild(channelInfo);
+    
     const description = document.createElement('p');
     description.className = 'audio-settings-section__desc';
     description.textContent = 'Rutea las salidas lógicas del Synthi a las salidas físicas del sistema.';
     section.appendChild(description);
     
+    // Contenedor de la matriz (permite reconstrucción dinámica)
+    this.matrixContainer = document.createElement('div');
+    this.matrixContainer.className = 'routing-matrix-container';
+    this._buildMatrix();
+    section.appendChild(this.matrixContainer);
+    
+    return section;
+  }
+
+  /**
+   * Construye la matriz de ruteo dentro del contenedor.
+   * Se puede llamar para reconstruir cuando cambia el número de canales.
+   */
+  _buildMatrix() {
     // Matriz de ruteo
     const matrix = document.createElement('div');
     matrix.className = 'routing-matrix';
     
-    // Header de la matriz
+    // Header de la matriz con etiquetas de canales
     const matrixHeader = document.createElement('div');
     matrixHeader.className = 'routing-matrix__header';
     
@@ -303,69 +459,101 @@ export class AudioSettingsModal {
     cornerCell.className = 'routing-matrix__corner';
     matrixHeader.appendChild(cornerCell);
     
-    ['L', 'R'].forEach(ch => {
+    // Añadir header para cada canal físico
+    this.channelLabels.forEach((label, chIdx) => {
       const headerCell = document.createElement('div');
       headerCell.className = 'routing-matrix__header-cell';
-      headerCell.textContent = ch;
+      headerCell.textContent = label;
+      headerCell.title = `Canal ${chIdx + 1}: ${label}`;
       matrixHeader.appendChild(headerCell);
     });
     
     matrix.appendChild(matrixHeader);
     
-    // Filas de la matriz (una por cada salida)
+    // Filas de la matriz (una por cada salida lógica)
     this.outputToggleButtons = [];
     
-    for (let i = 0; i < this.outputCount; i++) {
+    for (let busIdx = 0; busIdx < this.outputCount; busIdx++) {
       const row = document.createElement('div');
       row.className = 'routing-matrix__row';
       
       const rowLabel = document.createElement('div');
       rowLabel.className = 'routing-matrix__row-label';
-      rowLabel.textContent = `Out ${i + 1}`;
+      rowLabel.textContent = `Out ${busIdx + 1}`;
       row.appendChild(rowLabel);
       
-      const leftBtn = this._createToggleButton(i, 'left');
-      const rightBtn = this._createToggleButton(i, 'right');
+      // Array de botones para este bus
+      const busButtons = [];
       
-      row.appendChild(leftBtn);
-      row.appendChild(rightBtn);
+      // Un botón por cada canal físico
+      for (let chIdx = 0; chIdx < this.physicalChannels; chIdx++) {
+        const btn = this._createToggleButton(busIdx, chIdx);
+        row.appendChild(btn);
+        busButtons.push(btn);
+      }
       
-      this.outputToggleButtons.push({ left: leftBtn, right: rightBtn });
-      
+      this.outputToggleButtons.push(busButtons);
       matrix.appendChild(row);
     }
     
-    section.appendChild(matrix);
-    
-    return section;
+    // Reemplazar contenido del contenedor
+    this.matrixContainer.innerHTML = '';
+    this.matrixContainer.appendChild(matrix);
+  }
+
+  /**
+   * Reconstruye la matriz cuando cambia el número de canales.
+   * Preserva el estado de ruteo existente.
+   */
+  _rebuildMatrix() {
+    this._buildMatrix();
   }
 
   /**
    * Crea un botón toggle para la matriz de ruteo
+   * @param {number} busIndex - Índice del bus de salida
+   * @param {number} channelIndex - Índice del canal físico
    */
-  _createToggleButton(busIndex, channel) {
+  _createToggleButton(busIndex, channelIndex) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'routing-matrix__toggle';
-    btn.setAttribute('aria-pressed', String(this.outputRouting[busIndex][channel]));
-    btn.dataset.bus = busIndex;
-    btn.dataset.channel = channel;
     
-    if (this.outputRouting[busIndex][channel]) {
+    // Asegurar que el array de ruteo existe para este bus
+    if (!this.outputRouting[busIndex]) {
+      this.outputRouting[busIndex] = Array(this.physicalChannels).fill(false);
+    }
+    
+    const isActive = this.outputRouting[busIndex][channelIndex] === true;
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.dataset.bus = busIndex;
+    btn.dataset.channel = channelIndex;
+    btn.title = `Out ${busIndex + 1} → ${this.channelLabels[channelIndex] || `Ch${channelIndex + 1}`}`;
+    
+    if (isActive) {
       btn.classList.add('routing-matrix__toggle--active');
     }
     
-    btn.addEventListener('click', () => this._toggleRouting(busIndex, channel, btn));
+    btn.addEventListener('click', () => this._toggleRouting(busIndex, channelIndex, btn));
     
     return btn;
   }
 
   /**
-   * Alterna el estado de ruteo de una salida
+   * Alterna el estado de ruteo de una salida hacia un canal físico.
+   * @param {number} busIndex - Índice del bus de salida
+   * @param {number} channelIndex - Índice del canal físico
+   * @param {HTMLElement} btn - Botón que se pulsó
    */
-  _toggleRouting(busIndex, channel, btn) {
-    this.outputRouting[busIndex][channel] = !this.outputRouting[busIndex][channel];
-    const isActive = this.outputRouting[busIndex][channel];
+  _toggleRouting(busIndex, channelIndex, btn) {
+    // Asegurar que el array existe
+    if (!this.outputRouting[busIndex]) {
+      this.outputRouting[busIndex] = Array(this.physicalChannels).fill(false);
+    }
+    
+    // Alternar estado
+    this.outputRouting[busIndex][channelIndex] = !this.outputRouting[busIndex][channelIndex];
+    const isActive = this.outputRouting[busIndex][channelIndex];
     
     btn.classList.toggle('routing-matrix__toggle--active', isActive);
     btn.setAttribute('aria-pressed', String(isActive));
@@ -373,11 +561,11 @@ export class AudioSettingsModal {
     // Persistir cambio en localStorage
     this._saveRouting();
     
-    // Notificar cambio
+    // Notificar cambio con el array completo de ganancias para este bus
     if (this.onRoutingChange) {
-      const leftGain = this.outputRouting[busIndex].left ? 1.0 : 0.0;
-      const rightGain = this.outputRouting[busIndex].right ? 1.0 : 0.0;
-      this.onRoutingChange(busIndex, leftGain, rightGain);
+      // Convertir booleanos a ganancias (0.0 o 1.0)
+      const channelGains = this.outputRouting[busIndex].map(active => active ? 1.0 : 0.0);
+      this.onRoutingChange(busIndex, channelGains);
     }
   }
 
@@ -497,47 +685,113 @@ export class AudioSettingsModal {
   }
 
   /**
-   * Obtiene el estado de ruteo actual
-   * @returns {Array<{left: boolean, right: boolean}>}
+   * Obtiene el estado de ruteo actual como matriz multicanal
+   * @returns {boolean[][]} - Matriz [busIndex][channelIndex] = boolean
    */
   getRouting() {
-    return this.outputRouting.map(r => ({ ...r }));
+    return this.outputRouting.map(busRouting => [...busRouting]);
   }
 
   /**
-   * Establece el estado de ruteo
-   * @param {Array<{left: boolean, right: boolean}>} routing
+   * Obtiene el ruteo en formato legacy (para compatibilidad)
+   * @returns {Array<{left: boolean, right: boolean}>}
+   */
+  getRoutingLegacy() {
+    return this.outputRouting.map(busRouting => ({
+      left: busRouting[0] === true,
+      right: busRouting[1] === true
+    }));
+  }
+
+  /**
+   * Establece el estado de ruteo desde una matriz multicanal.
+   * Soporta tanto formato legacy {left, right} como nuevo formato [bool, bool, ...]
+   * 
+   * @param {Array<boolean[]|{left: boolean, right: boolean}>} routing
    */
   setRouting(routing) {
     if (!Array.isArray(routing)) return;
     
-    routing.forEach((r, i) => {
-      if (i >= this.outputCount) return;
-      this.outputRouting[i].left = Boolean(r.left);
-      this.outputRouting[i].right = Boolean(r.right);
+    routing.forEach((busData, busIdx) => {
+      if (busIdx >= this.outputCount) return;
+      
+      // Detectar formato
+      if (Array.isArray(busData)) {
+        // Formato multicanal
+        this.outputRouting[busIdx] = Array.from({ length: this.physicalChannels }, (_, chIdx) => {
+          return busData[chIdx] === true;
+        });
+      } else if (busData && typeof busData.left === 'boolean') {
+        // Formato legacy
+        this.outputRouting[busIdx] = Array.from({ length: this.physicalChannels }, (_, chIdx) => {
+          if (chIdx === 0) return busData.left;
+          if (chIdx === 1) return busData.right;
+          return false;
+        });
+      }
       
       // Actualizar UI
-      if (this.outputToggleButtons[i]) {
-        const { left, right } = this.outputToggleButtons[i];
-        left.classList.toggle('routing-matrix__toggle--active', this.outputRouting[i].left);
-        left.setAttribute('aria-pressed', String(this.outputRouting[i].left));
-        right.classList.toggle('routing-matrix__toggle--active', this.outputRouting[i].right);
-        right.setAttribute('aria-pressed', String(this.outputRouting[i].right));
+      const busButtons = this.outputToggleButtons[busIdx];
+      if (busButtons && Array.isArray(busButtons)) {
+        busButtons.forEach((btn, chIdx) => {
+          if (btn && this.outputRouting[busIdx]) {
+            const isActive = this.outputRouting[busIdx][chIdx] === true;
+            btn.classList.toggle('routing-matrix__toggle--active', isActive);
+            btn.setAttribute('aria-pressed', String(isActive));
+          }
+        });
       }
     });
   }
 
   /**
-   * Aplica el ruteo actual al engine
-   * @param {Function} applyFn - Función (busIndex, leftGain, rightGain) => void
+   * Aplica el ruteo actual al engine.
+   * 
+   * MODO MULTICANAL (nuevo):
+   *   applyFn(busIndex, channelGains[])
+   *   
+   * MODO LEGACY (si applyFn acepta 3 argumentos):
+   *   applyFn(busIndex, leftGain, rightGain)
+   * 
+   * @param {Function} applyFn - Función de aplicación
+   * @returns {{ warnings: string[] }} - Advertencias sobre canales ignorados
    */
   applyRoutingToEngine(applyFn) {
-    if (typeof applyFn !== 'function') return;
+    if (typeof applyFn !== 'function') return { warnings: [] };
     
-    for (let i = 0; i < this.outputCount; i++) {
-      const leftGain = this.outputRouting[i].left ? 1.0 : 0.0;
-      const rightGain = this.outputRouting[i].right ? 1.0 : 0.0;
-      applyFn(i, leftGain, rightGain);
+    const warnings = [];
+    
+    for (let busIdx = 0; busIdx < this.outputCount; busIdx++) {
+      // Convertir booleanos a ganancias
+      const channelGains = (this.outputRouting[busIdx] || []).map(active => active ? 1.0 : 0.0);
+      
+      // Intentar modo multicanal primero
+      const result = applyFn(busIdx, channelGains);
+      
+      // Si el engine devuelve info sobre canales ignorados, recolectarla
+      if (result && result.ignored && result.ignored.length > 0) {
+        warnings.push(
+          `Out ${busIdx + 1}: canales ${result.ignored.map(c => this.channelLabels[c] || `Ch${c + 1}`).join(', ')} ignorados`
+        );
+      }
     }
+    
+    // Mostrar advertencias si hay
+    if (warnings.length > 0) {
+      console.warn('[AudioSettingsModal] Routing warnings:', warnings);
+    }
+    
+    return { warnings };
+  }
+
+  /**
+   * Muestra una advertencia al usuario sobre canales ignorados
+   * @param {string[]} warnings - Lista de advertencias
+   */
+  showRoutingWarnings(warnings) {
+    if (!warnings || warnings.length === 0) return;
+    
+    // Por ahora solo log, se puede expandir a notificación visual
+    console.warn('[AudioSettingsModal] Advertencias de ruteo:', warnings.join('; '));
   }
 }

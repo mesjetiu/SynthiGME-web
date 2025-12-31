@@ -250,36 +250,82 @@ class App {
 
   /**
    * Configura el modal de ajustes de audio del sistema.
-   * Permite rutear las 8 salidas lógicas hacia L/R del sistema.
+   * Permite rutear las 8 salidas lógicas hacia N canales físicos del sistema.
+   * Soporta configuraciones multicanal (estéreo, 5.1, 7.1, etc.)
    */
   _setupAudioSettingsModal() {
+    // Obtener información de canales inicial del engine
+    const channelInfo = this.engine.getPhysicalChannelInfo?.() || { count: 2, labels: ['L', 'R'] };
+    
     this.audioSettingsModal = new AudioSettingsModal({
       outputCount: this.engine.outputChannels,
       inputCount: 8,
-      onRoutingChange: (busIndex, leftGain, rightGain) => {
-        this.engine.setOutputRouting(busIndex, leftGain, rightGain);
+      physicalChannels: channelInfo.count,
+      channelLabels: channelInfo.labels,
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLBACK DE RUTEO MULTICANAL
+      // ─────────────────────────────────────────────────────────────────────────
+      // Recibe: busIndex y array de ganancias por canal [ch0, ch1, ch2, ...]
+      // El engine ignora canales que no existan en el hardware actual y
+      // devuelve información sobre qué canales fueron aplicados/ignorados.
+      // ─────────────────────────────────────────────────────────────────────────
+      onRoutingChange: (busIndex, channelGains) => {
+        const result = this.engine.setOutputRouting(busIndex, channelGains);
+        // Si hay canales ignorados, el engine ya emite warning en consola
+        return result;
       },
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLBACK DE CAMBIO DE DISPOSITIVO DE SALIDA
+      // ─────────────────────────────────────────────────────────────────────────
+      // El engine detecta automáticamente el número de canales del nuevo
+      // dispositivo y notifica al modal para reconstruir la matriz.
+      // ─────────────────────────────────────────────────────────────────────────
       onOutputDeviceChange: async (deviceId) => {
-        const success = await this.engine.setOutputDevice(deviceId);
-        if (success) {
-          console.log('[App] Output device changed to:', deviceId);
+        const result = await this.engine.setOutputDevice(deviceId);
+        if (result.success) {
+          console.log(`[App] Output device changed. Channels: ${result.channels}`);
+          // La notificación de canales se hace a través del callback registrado abajo
         }
       },
+      
       onInputDeviceChange: (deviceId) => {
         // Reservado para futuro: captura de entrada de micrófono
         console.log('[App] Input device selected:', deviceId);
       }
     });
     
-    // Aplicar ruteo por defecto al engine cuando inicie
+    // ─────────────────────────────────────────────────────────────────────────
+    // REGISTRAR CALLBACK PARA CAMBIOS DE CANALES
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cuando el engine detecta un cambio en el número de canales (ej: el usuario
+    // cambia de auriculares estéreo a interfaz multicanal), notifica al modal
+    // para que reconstruya la matriz de ruteo dinámicamente.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (this.engine.onPhysicalChannelsChange) {
+      this.engine.onPhysicalChannelsChange((channelCount, labels) => {
+        console.log(`[App] Physical channels changed: ${channelCount}`, labels);
+        this.audioSettingsModal.updatePhysicalChannels(channelCount, labels);
+      });
+    }
+    
+    // Aplicar ruteo guardado al engine cuando inicie
     const originalStart = this.engine.start.bind(this.engine);
     this.engine.start = () => {
       originalStart();
+      
       // Aplicar ruteo inicial después de start
       console.log('[App] Applying saved audio routing to engine...');
-      this.audioSettingsModal.applyRoutingToEngine((busIndex, leftGain, rightGain) => {
-        this.engine.setOutputRouting(busIndex, leftGain, rightGain);
+      const result = this.audioSettingsModal.applyRoutingToEngine((busIndex, channelGains) => {
+        return this.engine.setOutputRouting(busIndex, channelGains);
       });
+      
+      // Mostrar advertencias si hay canales configurados que no existen
+      if (result.warnings && result.warnings.length > 0) {
+        console.warn('[App] Routing warnings:', result.warnings);
+      }
+      
       // Aplicar dispositivo de salida guardado
       const savedOutputDevice = this.audioSettingsModal.selectedOutputDevice;
       if (savedOutputDevice && savedOutputDevice !== 'default') {

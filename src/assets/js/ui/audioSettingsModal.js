@@ -23,7 +23,14 @@ export class AudioSettingsModal {
     
     // Estado de ruteo: cada salida tiene { left: boolean, right: boolean }
     // Intentar cargar desde localStorage, si no existe usar defaults
-    this.outputRouting = this._loadRouting() || this._getDefaultRouting();
+    const loadedRouting = this._loadRouting();
+    this.outputRouting = loadedRouting || this._getDefaultRouting();
+    
+    if (loadedRouting) {
+      console.log('[AudioSettingsModal] Routing loaded from localStorage:', this.outputRouting);
+    } else {
+      console.log('[AudioSettingsModal] Using default routing (no saved data)');
+    }
     
     // Elementos DOM
     this.overlay = null;
@@ -76,6 +83,7 @@ export class AudioSettingsModal {
   _saveRouting() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.outputRouting));
+      console.log('[AudioSettingsModal] Routing saved to localStorage');
     } catch (e) {
       console.warn('[AudioSettingsModal] Error saving routing to localStorage:', e);
     }

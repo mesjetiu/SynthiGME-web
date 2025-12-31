@@ -266,6 +266,7 @@ class App {
     this.engine.start = () => {
       originalStart();
       // Aplicar ruteo inicial después de start
+      console.log('[App] Applying saved audio routing to engine...');
       this.audioSettingsModal.applyRoutingToEngine((busIndex, leftGain, rightGain) => {
         this.engine.setOutputRouting(busIndex, leftGain, rightGain);
       });

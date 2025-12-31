@@ -51,7 +51,7 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Exporta también `AUDIO_CONSTANTS` (tiempos de rampa) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputRouting()` (ruteo directo L/R). Exporta también `AUDIO_CONSTANTS` (tiempos de rampa) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 
 ### 3.2 Worklets (`src/assets/js/worklets/`)
@@ -105,7 +105,8 @@ Componentes de interfaz reutilizables:
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
-| `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen, selector de resolución) |
+| `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz 8×2 para rutear salidas lógicas a L/R del sistema. Persistencia en localStorage |
+| `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen, resolución, configuración de audio) |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)
 

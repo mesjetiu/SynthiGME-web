@@ -1,6 +1,8 @@
 // Modal de configuración de audio del sistema
 // Permite rutear las salidas lógicas del Synthi a las salidas físicas del sistema (L/R)
 
+const STORAGE_KEY = 'synthigme-audio-routing';
+
 /**
  * Clase que maneja la ventana modal de configuración de audio del sistema.
  * Permite mapear N salidas lógicas a las salidas físicas L/R de forma aditiva.
@@ -20,11 +22,8 @@ export class AudioSettingsModal {
     this.onRoutingChange = onRoutingChange;
     
     // Estado de ruteo: cada salida tiene { left: boolean, right: boolean }
-    // Por defecto: out1 → L, out2 → R, resto apagado
-    this.outputRouting = Array.from({ length: this.outputCount }, (_, i) => ({
-      left: i === 0,   // Out 1 a L
-      right: i === 1   // Out 2 a R
-    }));
+    // Intentar cargar desde localStorage, si no existe usar defaults
+    this.outputRouting = this._loadRouting() || this._getDefaultRouting();
     
     // Elementos DOM
     this.overlay = null;
@@ -32,6 +31,54 @@ export class AudioSettingsModal {
     this.isOpen = false;
     
     this._create();
+  }
+
+  /**
+   * Devuelve el ruteo por defecto: out1 → L, out2 → R, resto apagado
+   */
+  _getDefaultRouting() {
+    return Array.from({ length: this.outputCount }, (_, i) => ({
+      left: i === 0,
+      right: i === 1
+    }));
+  }
+
+  /**
+   * Carga el ruteo desde localStorage
+   * @returns {Array<{left: boolean, right: boolean}>|null}
+   */
+  _loadRouting() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return null;
+      
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return null;
+      
+      // Validar y expandir/recortar al número de salidas actual
+      return Array.from({ length: this.outputCount }, (_, i) => {
+        const s = parsed[i];
+        if (s && typeof s.left === 'boolean' && typeof s.right === 'boolean') {
+          return { left: s.left, right: s.right };
+        }
+        // Si no hay datos guardados para este índice, usar default
+        return { left: i === 0, right: i === 1 };
+      });
+    } catch (e) {
+      console.warn('[AudioSettingsModal] Error loading routing from localStorage:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Guarda el ruteo actual en localStorage
+   */
+  _saveRouting() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.outputRouting));
+    } catch (e) {
+      console.warn('[AudioSettingsModal] Error saving routing to localStorage:', e);
+    }
   }
 
   /**
@@ -193,6 +240,9 @@ export class AudioSettingsModal {
     
     btn.classList.toggle('routing-matrix__toggle--active', isActive);
     btn.setAttribute('aria-pressed', String(isActive));
+    
+    // Persistir cambio en localStorage
+    this._saveRouting();
     
     // Notificar cambio
     if (this.onRoutingChange) {

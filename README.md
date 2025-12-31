@@ -19,6 +19,16 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Configuración de audio** | Ruteo de salidas lógicas (1-8) a salidas físicas L/R del sistema. Matriz 8×2 con persistencia. |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
+### Audio multicanal (Linux)
+
+En Linux con PipeWire es posible usar **múltiples salidas físicas** mediante sinks virtuales. El script incluido automatiza la configuración:
+
+```bash
+./scripts/setup-pipewire-multichannel.sh
+```
+
+Consulta la [guía completa de multicanal](docs/MULTICHANNEL.md) para configuración manual, uso con qpwgraph y solución de problemas.
+
 ### Tecnología
 
 - **Web Audio API** con AudioWorklet para procesamiento en tiempo real

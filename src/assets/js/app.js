@@ -254,6 +254,7 @@ class App {
    * Configura el modal de ajustes de audio del sistema.
    * Permite rutear las 8 salidas lógicas hacia N canales físicos del sistema.
    * Soporta configuraciones multicanal (estéreo, 5.1, 7.1, etc.)
+   * También permite rutear las entradas del sistema hacia los 8 Input Amplifiers.
    */
   _setupAudioSettingsModal() {
     // Obtener información de canales inicial del engine
@@ -261,12 +262,14 @@ class App {
     
     this.audioSettingsModal = new AudioSettingsModal({
       outputCount: this.engine.outputChannels,
-      inputCount: 8,
+      inputCount: 8,  // 8 Input Amplifiers del Synthi
       physicalChannels: channelInfo.count,
       channelLabels: channelInfo.labels,
+      physicalInputChannels: 2,  // Por defecto estéreo, se actualiza al detectar dispositivo
+      inputChannelLabels: ['L', 'R'],
       
       // ─────────────────────────────────────────────────────────────────────────
-      // CALLBACK DE RUTEO MULTICANAL
+      // CALLBACK DE RUTEO DE SALIDA MULTICANAL
       // ─────────────────────────────────────────────────────────────────────────
       // Recibe: busIndex y array de ganancias por canal [ch0, ch1, ch2, ...]
       // El engine ignora canales que no existan en el hardware actual y
@@ -276,6 +279,17 @@ class App {
         const result = this.engine.setOutputRouting(busIndex, channelGains);
         // Si hay canales ignorados, el engine ya emite warning en consola
         return result;
+      },
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLBACK DE RUTEO DE ENTRADA (Sistema → Input Amplifiers)
+      // ─────────────────────────────────────────────────────────────────────────
+      // Recibe: systemInputIndex y array de ganancias por Input Amplifier
+      // Actualiza los GainNodes que conectan cada entrada del sistema con
+      // los 8 canales de los Input Amplifiers.
+      // ─────────────────────────────────────────────────────────────────────────
+      onInputRoutingChange: (systemInputIndex, channelGains) => {
+        this._applyInputRouting(systemInputIndex, channelGains);
       },
       
       // ─────────────────────────────────────────────────────────────────────────
@@ -292,9 +306,15 @@ class App {
         }
       },
       
-      onInputDeviceChange: (deviceId) => {
-        // Reservado para futuro: captura de entrada de micrófono
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLBACK DE CAMBIO DE DISPOSITIVO DE ENTRADA
+      // ─────────────────────────────────────────────────────────────────────────
+      // Reconecta el audio del sistema con el nuevo dispositivo seleccionado.
+      // Detecta el número de canales de entrada y actualiza la matriz.
+      // ─────────────────────────────────────────────────────────────────────────
+      onInputDeviceChange: async (deviceId) => {
         console.log('[App] Input device selected:', deviceId);
+        await this._reconnectSystemAudioInput(deviceId);
       }
     });
     
@@ -660,12 +680,13 @@ class App {
   /**
    * Conecta las entradas de audio del sistema (micrófono/línea) a los Input Amplifiers.
    * Usa getUserMedia para obtener acceso al audio del sistema.
-   * Por defecto conecta estéreo (L→Ch1, R→Ch2), pero si hay más canales disponibles
-   * los distribuye entre los 8 canales de entrada.
+   * La matriz de ruteo de entrada controla qué entrada del sistema va a qué Input Amplifier.
+   * 
+   * @param {string} [deviceId] - ID del dispositivo de entrada (opcional)
    */
-  async _ensureSystemAudioInput() {
-    // Evitar reconectar si ya está conectado
-    if (this._systemAudioConnected) return;
+  async _ensureSystemAudioInput(deviceId = null) {
+    // Evitar reconectar si ya está conectado con el mismo dispositivo
+    if (this._systemAudioConnected && !deviceId) return;
     
     if (!this.inputAmplifiers?.isStarted) {
       console.warn('[App] Input amplifiers not ready for system audio');
@@ -676,14 +697,20 @@ class App {
     if (!ctx) return;
     
     try {
+      // Configurar constraints para getUserMedia
+      const audioConstraints = {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      };
+      
+      // Si se especifica un dispositivo, usarlo
+      if (deviceId && deviceId !== 'default') {
+        audioConstraints.deviceId = { exact: deviceId };
+      }
+      
       // Solicitar acceso al micrófono/entrada de línea
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        }
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       
       // Crear nodo fuente desde el stream
       const sourceNode = ctx.createMediaStreamSource(stream);
@@ -691,39 +718,113 @@ class App {
       
       console.log(`[App] System audio input: ${channelCount} channels`);
       
-      // Si es estéreo, usar splitter para distribuir L/R a canales 1 y 2
-      if (channelCount >= 2) {
-        const splitter = ctx.createChannelSplitter(channelCount);
-        sourceNode.connect(splitter);
+      // Crear splitter para separar los canales de entrada
+      const splitter = ctx.createChannelSplitter(Math.max(channelCount, 2));
+      sourceNode.connect(splitter);
+      
+      // Crear matriz de GainNodes: inputRoutingGains[sysInput][synthChannel]
+      // Esto permite controlar el ruteo de cada entrada del sistema a cada Input Amplifier
+      this._inputRoutingGains = [];
+      
+      for (let sysIdx = 0; sysIdx < channelCount; sysIdx++) {
+        const rowGains = [];
         
-        // Conectar cada canal del splitter a un Input Amplifier
-        const maxChannels = Math.min(channelCount, 8);
-        for (let i = 0; i < maxChannels; i++) {
-          const inputNode = this.inputAmplifiers.getInputNode(i);
+        for (let chIdx = 0; chIdx < 8; chIdx++) {
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = 0; // Empiezan en silencio, se aplica ruteo después
+          
+          // Conectar: splitter canal sysIdx → gainNode → Input Amplifier chIdx
+          splitter.connect(gainNode, sysIdx);
+          const inputNode = this.inputAmplifiers.getInputNode(chIdx);
           if (inputNode) {
-            splitter.connect(inputNode, i);
+            gainNode.connect(inputNode);
           }
+          
+          rowGains.push(gainNode);
         }
         
-        // Si hay menos canales que 8, los restantes quedan sin conectar (silencio)
-        console.log(`[App] Connected ${maxChannels} system audio channels to Input Amplifiers`);
-      } else {
-        // Mono: conectar directamente al canal 1
-        const inputNode = this.inputAmplifiers.getInputNode(0);
-        if (inputNode) {
-          sourceNode.connect(inputNode);
-        }
-        console.log('[App] Connected mono system audio to Input Amplifier Channel 1');
+        this._inputRoutingGains.push(rowGains);
       }
       
       this._systemAudioStream = stream;
       this._systemAudioSource = sourceNode;
+      this._systemAudioSplitter = splitter;
+      this._systemAudioChannelCount = channelCount;
       this._systemAudioConnected = true;
+      
+      // Actualizar el modal con el número de canales detectados
+      const labels = this._generateInputLabels(channelCount);
+      if (this.audioSettingsModal) {
+        this.audioSettingsModal.updatePhysicalInputChannels(channelCount, labels);
+        // Aplicar el ruteo guardado
+        this.audioSettingsModal.applyInputRoutingToEngine();
+      }
+      
+      console.log(`[App] Input routing matrix created: ${channelCount}×8`);
       
     } catch (err) {
       console.warn('[App] Could not access system audio input:', err.message);
       // No es crítico, los Input Amplifiers simplemente no tendrán entrada del sistema
     }
+  }
+
+  /**
+   * Reconecta el audio del sistema con un nuevo dispositivo de entrada.
+   * @param {string} deviceId - ID del dispositivo de entrada
+   */
+  async _reconnectSystemAudioInput(deviceId) {
+    // Desconectar el audio actual si existe
+    if (this._systemAudioStream) {
+      this._systemAudioStream.getTracks().forEach(t => t.stop());
+      this._systemAudioStream = null;
+    }
+    if (this._systemAudioSource) {
+      this._systemAudioSource.disconnect();
+      this._systemAudioSource = null;
+    }
+    if (this._inputRoutingGains) {
+      this._inputRoutingGains.forEach(row => row.forEach(g => g.disconnect()));
+      this._inputRoutingGains = null;
+    }
+    this._systemAudioConnected = false;
+    
+    // Reconectar con el nuevo dispositivo
+    await this._ensureSystemAudioInput(deviceId);
+  }
+
+  /**
+   * Aplica el ruteo de entrada para una entrada del sistema.
+   * Llamado por el callback onInputRoutingChange del modal.
+   * 
+   * @param {number} systemInputIndex - Índice de la entrada del sistema (0-based)
+   * @param {number[]} channelGains - Array de ganancias para cada Input Amplifier [0-1]
+   */
+  _applyInputRouting(systemInputIndex, channelGains) {
+    if (!this._inputRoutingGains || !this._inputRoutingGains[systemInputIndex]) {
+      // Audio del sistema aún no conectado, guardar para aplicar después
+      return;
+    }
+    
+    const ctx = this.engine.audioCtx;
+    const now = ctx?.currentTime ?? 0;
+    const smoothTime = 0.03; // 30ms de suavizado
+    
+    const rowGains = this._inputRoutingGains[systemInputIndex];
+    channelGains.forEach((gain, chIdx) => {
+      if (rowGains[chIdx]) {
+        rowGains[chIdx].gain.cancelScheduledValues(now);
+        rowGains[chIdx].gain.setTargetAtTime(gain, now, smoothTime);
+      }
+    });
+  }
+
+  /**
+   * Genera etiquetas para los canales de entrada
+   */
+  _generateInputLabels(count) {
+    if (count === 1) return ['Mono'];
+    if (count === 2) return ['L', 'R'];
+    return Array.from({ length: count }, (_, i) => `In ${i + 1}`);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

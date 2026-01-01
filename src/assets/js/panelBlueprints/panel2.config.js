@@ -173,6 +173,27 @@ export default {
   },
   
   // ─────────────────────────────────────────────────────────────────────────
+  // INPUT AMPLIFIER LEVEL (8 canales de entrada)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  inputAmplifiers: {
+    // Configuración de knobs de nivel
+    knobs: {
+      level: {
+        min: 0,
+        max: 1,
+        initial: 0,       // Empiezan en silencio
+        pixelsForFullRange: 150
+      }
+    },
+    
+    // Parámetros de audio
+    audio: {
+      levelSmoothingTime: 0.03   // Tiempo de suavizado para evitar clicks
+    }
+  },
+  
+  // ─────────────────────────────────────────────────────────────────────────
   // ESTILOS DEL PANELILLO
   // ─────────────────────────────────────────────────────────────────────────
   

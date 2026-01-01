@@ -73,6 +73,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `oscillator.js` | `OscillatorModule` | Oscilador básico con forma de onda configurable |
 | `pulse.js` | `PulseModule` | Oscilador de onda cuadrada/pulso con ancho variable |
 | `noise.js` | `NoiseModule` | Generador de ruido blanco/rosa con AudioWorklet (Voss-McCartney) |
+| `inputAmplifier.js` | `InputAmplifierModule` | 8 canales de entrada con control de ganancia individual |
 | `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
 | `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
 | `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
@@ -101,6 +102,7 @@ Componentes de interfaz reutilizables:
 | `oscilloscopeDisplay.js` | `OscilloscopeDisplay` | Canvas para visualización de onda con efecto CRT, knobs TIME/AMP/LEVEL, render sincronizado con rAF |
 | `noiseGenerator.js` | — | UI para generadores de ruido (knobs colour/level) |
 | `randomVoltage.js` | — | UI para generador de voltaje aleatorio |
+| `inputAmplifierUI.js` | `InputAmplifierUI` | UI para los 8 canales de entrada (8 knobs de nivel en fila horizontal) |
 | `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle y visualización |
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |

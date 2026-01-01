@@ -234,21 +234,28 @@ export class AudioSettingsModal {
 
   /**
    * Enumera los dispositivos de audio disponibles
+   * @param {boolean} requestPermission - Si true, solicita permisos para ver nombres
    */
-  async _enumerateDevices() {
+  async _enumerateDevices(requestPermission = false) {
     try {
-      // Intentar obtener permisos para ver nombres de dispositivos
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-      } catch {
-        // Si no hay permiso, continuar con IDs anónimos
+      // Solo pedir permisos si se solicita explícitamente
+      // Esto evita diálogos repetidos en móvil
+      if (requestPermission) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(t => t.stop());
+        } catch {
+          // Usuario denegó permisos, continuar con IDs anónimos
+        }
       }
       
       const devices = await navigator.mediaDevices.enumerateDevices();
       
       this.availableOutputDevices = devices.filter(d => d.kind === 'audiooutput');
       this.availableInputDevices = devices.filter(d => d.kind === 'audioinput');
+      
+      // Verificar si tenemos etiquetas (indica permisos previos)
+      this._hasMediaPermission = devices.some(d => d.label && d.label.length > 0);
       
       this._updateDeviceSelects();
     } catch (e) {
@@ -290,6 +297,22 @@ export class AudioSettingsModal {
         if (device.deviceId === this.selectedInputDevice) opt.selected = true;
         this.inputDeviceSelect.appendChild(opt);
       });
+    }
+    
+    // Mostrar/ocultar botón de permisos
+    this._updatePermissionButton();
+  }
+
+  /**
+   * Actualiza el botón de solicitar permisos
+   */
+  _updatePermissionButton() {
+    if (!this.permissionBtn) return;
+    
+    if (this._hasMediaPermission) {
+      this.permissionBtn.style.display = 'none';
+    } else {
+      this.permissionBtn.style.display = 'inline-block';
     }
   }
 
@@ -412,6 +435,17 @@ export class AudioSettingsModal {
     const { wrapper: outputDeviceWrapper, select: outputSelect } = this._createDeviceSelector('Dispositivo de salida:', true);
     this.outputDeviceSelect = outputSelect;
     section.appendChild(outputDeviceWrapper);
+    
+    // Botón para solicitar permisos (mostrar nombres de dispositivos)
+    this.permissionBtn = document.createElement('button');
+    this.permissionBtn.className = 'audio-settings-permission-btn';
+    this.permissionBtn.textContent = '🎤 Mostrar nombres de dispositivos';
+    this.permissionBtn.title = 'Solicitar permisos para ver los nombres reales de los dispositivos';
+    this.permissionBtn.style.display = 'none'; // Se mostrará si no hay permisos
+    this.permissionBtn.addEventListener('click', async () => {
+      await this._enumerateDevices(true);
+    });
+    section.appendChild(this.permissionBtn);
     
     // Información de canales del dispositivo actual
     const channelInfo = document.createElement('div');

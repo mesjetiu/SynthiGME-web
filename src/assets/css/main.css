@@ -1516,6 +1516,30 @@ small { color:#aaa; }
   color: #999;
 }
 
+/* Botón de permisos para mostrar nombres de dispositivos */
+.audio-settings-permission-btn {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: #ffd54f;
+  background: rgba(255, 213, 79, 0.1);
+  border: 1px solid rgba(255, 213, 79, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.audio-settings-permission-btn:hover {
+  background: rgba(255, 213, 79, 0.2);
+  border-color: rgba(255, 213, 79, 0.5);
+}
+
+.audio-settings-permission-btn:active {
+  background: rgba(255, 213, 79, 0.3);
+}
+
 /* Matriz de ruteo */
 .routing-matrix {
   display: flex;

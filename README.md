@@ -16,18 +16,8 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Osciloscopio** | Modos Y-T y X-Y (Lissajous). Trigger Schmitt con histéresis temporal y predictiva. |
 | **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con feedback visual. |
 | **8 Salidas de audio** | Faders individuales con enrutamiento a dispositivo de salida. |
-| **Configuración de audio** | Ruteo de salidas lógicas (1-8) a salidas físicas L/R del sistema. Matriz 8×2 con persistencia. |
+| **Configuración de audio** | Selección de dispositivo de salida y ruteo de buses lógicos (1-8) a L/R. Matriz 8×2 con persistencia. |
 | **Joystick** | Control X-Y integrado en panel 2. |
-
-### Audio multicanal (Linux)
-
-En Linux con PipeWire es posible usar **múltiples salidas físicas** mediante sinks virtuales. El script incluido automatiza la configuración:
-
-```bash
-./scripts/setup-pipewire-multichannel.sh
-```
-
-Consulta la [guía completa de multicanal](docs/MULTICHANNEL.md) para configuración manual, uso con qpwgraph y solución de problemas.
 
 ### Tecnología
 

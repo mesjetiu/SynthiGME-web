@@ -3,6 +3,7 @@
 // Soporta configuraciones multicanal (estéreo, 5.1, 7.1, etc.)
 
 const STORAGE_KEY = 'synthigme-audio-routing';
+const STORAGE_KEY_INPUT_ROUTING = 'synthigme-input-routing';
 const STORAGE_KEY_OUTPUT_DEVICE = 'synthigme-output-device';
 const STORAGE_KEY_INPUT_DEVICE = 'synthigme-input-device';
 
@@ -27,14 +28,17 @@ export class AudioSettingsModal {
       outputCount = 8, 
       inputCount = 8, 
       physicalChannels = 2,
+      physicalInputChannels = 2,
       channelLabels = ['L', 'R'],
-      onRoutingChange, 
+      inputChannelLabels = ['Mic/L', 'R'],
+      onRoutingChange,
+      onInputRoutingChange,
       onOutputDeviceChange, 
       onInputDeviceChange 
     } = options;
     
     this.outputCount = outputCount;
-    this.inputCount = inputCount;
+    this.inputCount = inputCount;  // 8 Input Amplifiers del Synthi
     
     // ─────────────────────────────────────────────────────────────────────────
     // CONFIGURACIÓN MULTICANAL
@@ -45,7 +49,12 @@ export class AudioSettingsModal {
     this.physicalChannels = physicalChannels;
     this.channelLabels = channelLabels;
     
+    // Canales de entrada del sistema (Mic/Line)
+    this.physicalInputChannels = physicalInputChannels;
+    this.inputChannelLabels = inputChannelLabels;
+    
     this.onRoutingChange = onRoutingChange;
+    this.onInputRoutingChange = onInputRoutingChange;
     this.onOutputDeviceChange = onOutputDeviceChange;
     this.onInputDeviceChange = onInputDeviceChange;
     
@@ -65,15 +74,26 @@ export class AudioSettingsModal {
     // Contenedor de la matriz (para reconstrucción dinámica)
     this.matrixContainer = null;
     
-    // Estado de ruteo: cada salida tiene un array de booleanos por canal físico
+    // Estado de ruteo de SALIDA: cada salida lógica tiene un array de booleanos por canal físico
     // outputRouting[busIndex][channelIndex] = boolean
     const loadedRouting = this._loadRouting();
     this.outputRouting = loadedRouting || this._getDefaultRouting();
     
     if (loadedRouting) {
-      console.log('[AudioSettingsModal] Routing loaded from localStorage:', this.outputRouting);
+      console.log('[AudioSettingsModal] Output routing loaded from localStorage:', this.outputRouting);
     } else {
-      console.log('[AudioSettingsModal] Using default routing (no saved data)');
+      console.log('[AudioSettingsModal] Using default output routing (no saved data)');
+    }
+    
+    // Estado de ruteo de ENTRADA: cada entrada del sistema tiene un array de booleanos por Input Amplifier
+    // inputRouting[systemInputIndex][synthChannelIndex] = boolean
+    const loadedInputRouting = this._loadInputRouting();
+    this.inputRouting = loadedInputRouting || this._getDefaultInputRouting();
+    
+    if (loadedInputRouting) {
+      console.log('[AudioSettingsModal] Input routing loaded from localStorage:', this.inputRouting);
+    } else {
+      console.log('[AudioSettingsModal] Using default input routing (no saved data)');
     }
     
     // Elementos DOM
@@ -83,6 +103,10 @@ export class AudioSettingsModal {
     
     // Array de botones toggle para actualización dinámica
     this.outputToggleButtons = [];
+    this.inputToggleButtons = [];
+    
+    // Contenedor de matriz de entrada
+    this.inputMatrixContainer = null;
     
     this._create();
   }
@@ -154,6 +178,119 @@ export class AudioSettingsModal {
       console.warn('[AudioSettingsModal] Error saving routing to localStorage:', e);
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RUTEO DE ENTRADA (Sistema → Input Amplifiers del Synthi)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Devuelve el ruteo de entrada por defecto: sysIn1 → Ch1, sysIn2 → Ch2
+   */
+  _getDefaultInputRouting() {
+    return Array.from({ length: this.physicalInputChannels }, (_, sysIdx) => 
+      Array.from({ length: this.inputCount }, (_, chIdx) => {
+        // Por defecto: entrada 0 → canal 0, entrada 1 → canal 1
+        return sysIdx === chIdx;
+      })
+    );
+  }
+
+  /**
+   * Carga el ruteo de entrada desde localStorage
+   * @returns {boolean[][]|null}
+   */
+  _loadInputRouting() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_INPUT_ROUTING);
+      if (!saved) return null;
+      
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return null;
+      
+      // Adaptar al número actual de entradas y canales
+      return Array.from({ length: this.physicalInputChannels }, (_, sysIdx) => {
+        const savedRow = parsed[sysIdx];
+        if (!Array.isArray(savedRow)) {
+          // Sin datos para esta entrada, usar default
+          return Array.from({ length: this.inputCount }, (_, chIdx) => sysIdx === chIdx);
+        }
+        return Array.from({ length: this.inputCount }, (_, chIdx) => {
+          return savedRow[chIdx] === true;
+        });
+      });
+    } catch (e) {
+      console.warn('[AudioSettingsModal] Error loading input routing:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Guarda el ruteo de entrada en localStorage
+   */
+  _saveInputRouting() {
+    try {
+      localStorage.setItem(STORAGE_KEY_INPUT_ROUTING, JSON.stringify(this.inputRouting));
+      console.log('[AudioSettingsModal] Input routing saved to localStorage');
+    } catch (e) {
+      console.warn('[AudioSettingsModal] Error saving input routing:', e);
+    }
+  }
+
+  /**
+   * Actualiza el número de canales de entrada físicos y reconstruye la matriz.
+   * @param {number} channelCount - Nuevo número de canales de entrada
+   * @param {string[]} [labels] - Etiquetas para los canales
+   */
+  updatePhysicalInputChannels(channelCount, labels) {
+    const oldCount = this.physicalInputChannels;
+    this.physicalInputChannels = channelCount;
+    this.inputChannelLabels = labels || this._generateDefaultInputLabels(channelCount);
+    
+    console.log(`[AudioSettingsModal] Physical input channels changed: ${oldCount} → ${channelCount}`);
+    
+    // Reconstruir la matriz de ruteo de entrada para el nuevo número de canales
+    this.inputRouting = Array.from({ length: channelCount }, (_, sysIdx) => {
+      if (sysIdx < this.inputRouting.length) {
+        // Preservar fila existente
+        return this.inputRouting[sysIdx];
+      }
+      // Nueva entrada: solo conectar a su canal correspondiente
+      return Array.from({ length: this.inputCount }, (_, chIdx) => sysIdx === chIdx);
+    });
+    
+    // Actualizar info de canales de entrada en la UI
+    this._updateInputChannelInfo();
+    
+    // Reconstruir la matriz visual de entrada
+    if (this.inputMatrixContainer) {
+      this._buildInputMatrix();
+    }
+    
+    // Guardar el nuevo estado
+    this._saveInputRouting();
+  }
+
+  /**
+   * Genera etiquetas por defecto para canales de entrada
+   */
+  _generateDefaultInputLabels(count) {
+    if (count === 1) return ['Mono'];
+    if (count === 2) return ['L', 'R'];
+    return Array.from({ length: count }, (_, i) => `In ${i + 1}`);
+  }
+
+  /**
+   * Actualiza la información de canales de entrada en la UI
+   */
+  _updateInputChannelInfo() {
+    if (!this.inputChannelInfoElement) return;
+    this.inputChannelInfoElement.textContent = this.physicalInputChannels === 1 ? 'Mono' : 
+      this.physicalInputChannels === 2 ? 'Estéreo' : `${this.physicalInputChannels} canales`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FIN RUTEO DE ENTRADA
+  // ═══════════════════════════════════════════════════════════════════════════
 
   /**
    * Actualiza el número de canales físicos y reconstruye la matriz.
@@ -304,15 +441,25 @@ export class AudioSettingsModal {
   }
 
   /**
-   * Actualiza el botón de solicitar permisos
+   * Actualiza los botones de solicitar permisos
    */
   _updatePermissionButton() {
-    if (!this.permissionBtn) return;
+    // Botón de permisos de salida
+    if (this.permissionBtn) {
+      if (this._hasMediaPermission) {
+        this.permissionBtn.style.display = 'none';
+      } else {
+        this.permissionBtn.style.display = 'inline-block';
+      }
+    }
     
-    if (this._hasMediaPermission) {
-      this.permissionBtn.style.display = 'none';
-    } else {
-      this.permissionBtn.style.display = 'inline-block';
+    // Botón de permisos de entrada
+    if (this.inputPermissionBtn) {
+      if (this._hasMediaPermission) {
+        this.inputPermissionBtn.style.display = 'none';
+      } else {
+        this.inputPermissionBtn.style.display = 'inline-block';
+      }
     }
   }
 
@@ -604,11 +751,11 @@ export class AudioSettingsModal {
   }
 
   /**
-   * Crea la sección de ruteo de entradas (deshabilitada por ahora)
+   * Crea la sección de ruteo de entradas (Sistema → Input Amplifiers del Synthi)
    */
   _createInputSection() {
     const section = document.createElement('div');
-    section.className = 'audio-settings-section audio-settings-section--disabled';
+    section.className = 'audio-settings-section';
     
     const sectionTitle = document.createElement('h3');
     sectionTitle.className = 'audio-settings-section__title';
@@ -620,15 +767,56 @@ export class AudioSettingsModal {
     this.inputDeviceSelect = inputSelect;
     section.appendChild(inputDeviceWrapper);
     
+    // Botón para solicitar permisos de entrada (micrófono)
+    this.inputPermissionBtn = document.createElement('button');
+    this.inputPermissionBtn.className = 'audio-settings-permission-btn';
+    this.inputPermissionBtn.textContent = '🎤 Permitir acceso al micrófono';
+    this.inputPermissionBtn.title = 'Solicitar permisos para capturar audio del sistema';
+    this.inputPermissionBtn.style.display = 'none';
+    this.inputPermissionBtn.addEventListener('click', async () => {
+      await this._enumerateDevices(true);
+    });
+    section.appendChild(this.inputPermissionBtn);
+    
+    // Información de canales de entrada detectados
+    const inputChannelInfo = document.createElement('div');
+    inputChannelInfo.className = 'audio-settings-channel-info';
+    this.inputChannelInfoElement = document.createElement('span');
+    this.inputChannelInfoElement.className = 'audio-settings-channel-info__value';
+    this._updateInputChannelInfo();
+    
+    const inputChannelLabel = document.createElement('span');
+    inputChannelLabel.className = 'audio-settings-channel-info__label';
+    inputChannelLabel.textContent = 'Canales detectados: ';
+    
+    inputChannelInfo.appendChild(inputChannelLabel);
+    inputChannelInfo.appendChild(this.inputChannelInfoElement);
+    section.appendChild(inputChannelInfo);
+    
     const description = document.createElement('p');
     description.className = 'audio-settings-section__desc';
-    description.textContent = 'Captura audio externo hacia las entradas del Synthi. (Próximamente)';
+    description.textContent = 'Rutea las entradas físicas del sistema hacia los Input Amplifiers del Synthi (Ch1-Ch8).';
     section.appendChild(description);
     
-    // Placeholder visual para futuras entradas
-    const placeholder = document.createElement('div');
-    placeholder.className = 'routing-matrix routing-matrix--placeholder';
+    // Contenedor de la matriz de entrada (permite reconstrucción dinámica)
+    this.inputMatrixContainer = document.createElement('div');
+    this.inputMatrixContainer.className = 'routing-matrix-container';
+    this._buildInputMatrix();
+    section.appendChild(this.inputMatrixContainer);
     
+    return section;
+  }
+
+  /**
+   * Construye la matriz de ruteo de entrada.
+   * Filas: entradas del sistema (Mic/Line L/R)
+   * Columnas: 8 Input Amplifiers del Synthi (Ch1-Ch8)
+   */
+  _buildInputMatrix() {
+    const matrix = document.createElement('div');
+    matrix.className = 'routing-matrix';
+    
+    // Header: Ch1, Ch2, ... Ch8 (Input Amplifiers del Synthi)
     const matrixHeader = document.createElement('div');
     matrixHeader.className = 'routing-matrix__header';
     
@@ -636,46 +824,138 @@ export class AudioSettingsModal {
     cornerCell.className = 'routing-matrix__corner';
     matrixHeader.appendChild(cornerCell);
     
-    ['Mic', 'Line L', 'Line R'].forEach(ch => {
+    for (let chIdx = 0; chIdx < this.inputCount; chIdx++) {
       const headerCell = document.createElement('div');
       headerCell.className = 'routing-matrix__header-cell';
-      headerCell.textContent = ch;
+      headerCell.textContent = `Ch${chIdx + 1}`;
+      headerCell.title = `Input Amplifier ${chIdx + 1}`;
       matrixHeader.appendChild(headerCell);
-    });
+    }
     
-    placeholder.appendChild(matrixHeader);
+    matrix.appendChild(matrixHeader);
     
-    // Filas de entradas (placeholder)
-    for (let i = 0; i < Math.min(this.inputCount, 4); i++) {
+    // Filas: una por cada entrada física del sistema
+    this.inputToggleButtons = [];
+    
+    for (let sysIdx = 0; sysIdx < this.physicalInputChannels; sysIdx++) {
       const row = document.createElement('div');
       row.className = 'routing-matrix__row';
       
       const rowLabel = document.createElement('div');
       rowLabel.className = 'routing-matrix__row-label';
-      rowLabel.textContent = `In ${i + 1}`;
+      rowLabel.textContent = this.inputChannelLabels[sysIdx] || `In ${sysIdx + 1}`;
       row.appendChild(rowLabel);
       
-      for (let j = 0; j < 3; j++) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'routing-matrix__toggle routing-matrix__toggle--disabled';
-        btn.disabled = true;
+      // Array de botones para esta entrada del sistema
+      const rowButtons = [];
+      
+      // Un botón por cada Input Amplifier del Synthi
+      for (let chIdx = 0; chIdx < this.inputCount; chIdx++) {
+        const btn = this._createInputToggleButton(sysIdx, chIdx);
         row.appendChild(btn);
+        rowButtons.push(btn);
       }
       
-      placeholder.appendChild(row);
+      this.inputToggleButtons.push(rowButtons);
+      matrix.appendChild(row);
     }
     
-    if (this.inputCount > 4) {
-      const moreLabel = document.createElement('div');
-      moreLabel.className = 'routing-matrix__more';
-      moreLabel.textContent = `+${this.inputCount - 4} más...`;
-      placeholder.appendChild(moreLabel);
+    // Reemplazar contenido del contenedor
+    this.inputMatrixContainer.innerHTML = '';
+    this.inputMatrixContainer.appendChild(matrix);
+  }
+
+  /**
+   * Crea un botón toggle para la matriz de ruteo de entrada
+   * @param {number} systemInputIndex - Índice de la entrada del sistema
+   * @param {number} synthChannelIndex - Índice del Input Amplifier del Synthi
+   */
+  _createInputToggleButton(systemInputIndex, synthChannelIndex) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'routing-matrix__toggle';
+    
+    // Asegurar que el array de ruteo existe
+    if (!this.inputRouting[systemInputIndex]) {
+      this.inputRouting[systemInputIndex] = Array(this.inputCount).fill(false);
     }
     
-    section.appendChild(placeholder);
+    const isActive = this.inputRouting[systemInputIndex][synthChannelIndex] === true;
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.dataset.sysInput = systemInputIndex;
+    btn.dataset.synthChannel = synthChannelIndex;
+    btn.title = `${this.inputChannelLabels[systemInputIndex] || `In ${systemInputIndex + 1}`} → Ch${synthChannelIndex + 1}`;
     
-    return section;
+    if (isActive) {
+      btn.classList.add('routing-matrix__toggle--active');
+    }
+    
+    btn.addEventListener('click', () => this._toggleInputRouting(systemInputIndex, synthChannelIndex, btn));
+    
+    return btn;
+  }
+
+  /**
+   * Alterna el estado de ruteo de una entrada del sistema hacia un Input Amplifier.
+   * @param {number} systemInputIndex - Índice de la entrada del sistema
+   * @param {number} synthChannelIndex - Índice del Input Amplifier del Synthi
+   * @param {HTMLElement} btn - Botón que se pulsó
+   */
+  _toggleInputRouting(systemInputIndex, synthChannelIndex, btn) {
+    // Asegurar que el array existe
+    if (!this.inputRouting[systemInputIndex]) {
+      this.inputRouting[systemInputIndex] = Array(this.inputCount).fill(false);
+    }
+    
+    // Alternar estado
+    this.inputRouting[systemInputIndex][synthChannelIndex] = !this.inputRouting[systemInputIndex][synthChannelIndex];
+    const isActive = this.inputRouting[systemInputIndex][synthChannelIndex];
+    
+    btn.classList.toggle('routing-matrix__toggle--active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+    
+    // Persistir cambio en localStorage
+    this._saveInputRouting();
+    
+    // Notificar cambio con el array completo de ganancias para esta entrada del sistema
+    if (this.onInputRoutingChange) {
+      // Convertir booleanos a ganancias (0.0 o 1.0)
+      const channelGains = this.inputRouting[systemInputIndex].map(active => active ? 1.0 : 0.0);
+      this.onInputRoutingChange(systemInputIndex, channelGains);
+    }
+  }
+
+  /**
+   * Obtiene el ruteo de entrada actual
+   * @returns {boolean[][]}
+   */
+  getInputRouting() {
+    return this.inputRouting;
+  }
+
+  /**
+   * Establece el ruteo de entrada
+   * @param {boolean[][]} routing
+   */
+  setInputRouting(routing) {
+    this.inputRouting = routing;
+    this._saveInputRouting();
+    if (this.inputMatrixContainer) {
+      this._buildInputMatrix();
+    }
+  }
+
+  /**
+   * Aplica todo el ruteo de entrada al engine (llamar al iniciar)
+   */
+  applyInputRoutingToEngine() {
+    if (!this.onInputRoutingChange) return;
+    
+    for (let sysIdx = 0; sysIdx < this.physicalInputChannels; sysIdx++) {
+      if (!this.inputRouting[sysIdx]) continue;
+      const channelGains = this.inputRouting[sysIdx].map(active => active ? 1.0 : 0.0);
+      this.onInputRoutingChange(sysIdx, channelGains);
+    }
   }
 
   /**

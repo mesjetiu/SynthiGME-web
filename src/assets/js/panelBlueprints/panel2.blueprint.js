@@ -121,8 +121,8 @@ export default {
       inputX: 58    // Columna para entrada X (Lissajous)
     },
     inputAmplifiers: {
-      // Filas 1-8 en la matriz del Synthi 100 original
-      firstRow: 1,
+      // Filas 67-74 en la numeración Synthi (primeras 8 filas de la matriz)
+      firstRow: 67,
       channels: 8
     }
   }

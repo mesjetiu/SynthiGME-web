@@ -1407,6 +1407,54 @@ small { color:#aaa; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   INPUT AMPLIFIER MODULE — 8 canales de entrada
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.synth-module--input-amplifier {
+  width: 100%;
+}
+
+.synth-module--input-amplifier .synth-module__content {
+  padding: 8px 12px;
+}
+
+/* Fila horizontal de 8 knobs */
+.input-amplifier__knobs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Cada canal (label + knob) */
+.input-amplifier__channel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Label "Channel N" */
+.input-amplifier__label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #888;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Knob específico del input amplifier */
+.input-amplifier__knob {
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    AUDIO SETTINGS MODAL — Configuración de ruteo de audio del sistema
    ═══════════════════════════════════════════════════════════════════════════ */
 

@@ -7,7 +7,7 @@
 //
 // Panel 2 contiene:
 // - Osciloscopio (mitad superior, con su panelillo)
-// - Espacio reservado para futuros módulos (mitad inferior)
+// - Input Amplifier Level (8 canales de entrada del Synthi 100)
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -31,8 +31,8 @@ export default {
         // Margen entre secciones
         marginBottom: 10
       },
-      reserved: {
-        // Resto del espacio
+      inputAmplifiers: {
+        // Resto del espacio para Input Amplifiers y futuros módulos
         heightRatio: 0.55
       }
     }
@@ -79,6 +79,35 @@ export default {
           position: 'right'
         }
       ]
+    },
+    
+    inputAmplifiers: {
+      id: 'input-amplifiers',
+      type: 'inputAmplifiers',
+      title: 'Input Amplifier Level',
+      section: 'inputAmplifiers',
+      
+      // Frame del módulo
+      frame: {
+        fullWidth: true,
+        border: true,
+        borderRadius: 6
+      },
+      
+      // 8 canales de entrada del Synthi 100 (Rows 1-8 en la matriz original)
+      channels: 8,
+      
+      // Controles: un knob de nivel por canal
+      controls: [
+        { id: 'level1', type: 'knob', label: 'Channel 1', channel: 0 },
+        { id: 'level2', type: 'knob', label: 'Channel 2', channel: 1 },
+        { id: 'level3', type: 'knob', label: 'Channel 3', channel: 2 },
+        { id: 'level4', type: 'knob', label: 'Channel 4', channel: 3 },
+        { id: 'level5', type: 'knob', label: 'Channel 5', channel: 4 },
+        { id: 'level6', type: 'knob', label: 'Channel 6', channel: 5 },
+        { id: 'level7', type: 'knob', label: 'Channel 7', channel: 6 },
+        { id: 'level8', type: 'knob', label: 'Channel 8', channel: 7 }
+      ]
     }
   },
   
@@ -90,6 +119,11 @@ export default {
     oscilloscope: {
       inputY: 57,   // Columna para entrada Y
       inputX: 58    // Columna para entrada X (Lissajous)
+    },
+    inputAmplifiers: {
+      // Filas 1-8 en la matriz del Synthi 100 original
+      firstRow: 1,
+      channels: 8
     }
   }
 };

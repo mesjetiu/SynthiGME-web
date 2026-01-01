@@ -3,10 +3,12 @@ import { AudioEngine, setParamSmooth, AUDIO_CONSTANTS } from './core/engine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 import { NoiseModule } from './modules/noise.js';
+import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
+import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
 
 // Blueprints (estructura visual y ruteo)
 import panel2Blueprint from './panelBlueprints/panel2.blueprint.js';
@@ -590,6 +592,44 @@ class App {
     // Conectar datos del módulo al display
     scopeModule.onData(data => display.draw(data));
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // INPUT AMPLIFIER LEVEL (8 canales de entrada)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    // Crear sección para Input Amplifiers
+    const inputAmpSection = document.createElement('div');
+    inputAmpSection.className = 'panel2-input-amp-section';
+    const inputAmpSectionConfig = blueprint.layout.sections.inputAmplifiers;
+    inputAmpSection.style.cssText = `
+      flex: 0 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+    `;
+    host.appendChild(inputAmpSection);
+    
+    // Crear módulo de audio
+    const inputAmpConfig = config.inputAmplifiers;
+    const inputAmpModule = new InputAmplifierModule(this.engine, 'input-amplifiers', {
+      channels: blueprint.modules.inputAmplifiers.channels,
+      initialLevel: inputAmpConfig.knobs.level.initial,
+      levelSmoothingTime: inputAmpConfig.audio.levelSmoothingTime
+    });
+    this.engine.addModule(inputAmpModule);
+    this.inputAmplifiers = inputAmpModule;
+    
+    // Crear UI
+    const inputAmpUI = new InputAmplifierUI({
+      id: blueprint.modules.inputAmplifiers.id,
+      title: blueprint.modules.inputAmplifiers.title,
+      channels: blueprint.modules.inputAmplifiers.channels,
+      knobConfig: inputAmpConfig.knobs.level,
+      onLevelChange: (channel, value) => {
+        inputAmpModule.setLevel(channel, value);
+      }
+    });
+    
+    inputAmpSection.appendChild(inputAmpUI.createElement());
+    
     // Guardar referencias
     this._panel2Data = {
       host,
@@ -598,7 +638,10 @@ class App {
       displayContainer,
       scopeModule,
       display,
-      modeToggle
+      modeToggle,
+      inputAmpSection,
+      inputAmpModule,
+      inputAmpUI
     };
     
     // Estado inicial

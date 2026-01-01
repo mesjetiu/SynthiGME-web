@@ -657,6 +657,75 @@ class App {
     await this._panel2Data.scopeModule.start();
   }
 
+  /**
+   * Conecta las entradas de audio del sistema (micrófono/línea) a los Input Amplifiers.
+   * Usa getUserMedia para obtener acceso al audio del sistema.
+   * Por defecto conecta estéreo (L→Ch1, R→Ch2), pero si hay más canales disponibles
+   * los distribuye entre los 8 canales de entrada.
+   */
+  async _ensureSystemAudioInput() {
+    // Evitar reconectar si ya está conectado
+    if (this._systemAudioConnected) return;
+    
+    if (!this.inputAmplifiers?.isStarted) {
+      console.warn('[App] Input amplifiers not ready for system audio');
+      return;
+    }
+    
+    const ctx = this.engine.audioCtx;
+    if (!ctx) return;
+    
+    try {
+      // Solicitar acceso al micrófono/entrada de línea
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
+      
+      // Crear nodo fuente desde el stream
+      const sourceNode = ctx.createMediaStreamSource(stream);
+      const channelCount = sourceNode.channelCount || 2;
+      
+      console.log(`[App] System audio input: ${channelCount} channels`);
+      
+      // Si es estéreo, usar splitter para distribuir L/R a canales 1 y 2
+      if (channelCount >= 2) {
+        const splitter = ctx.createChannelSplitter(channelCount);
+        sourceNode.connect(splitter);
+        
+        // Conectar cada canal del splitter a un Input Amplifier
+        const maxChannels = Math.min(channelCount, 8);
+        for (let i = 0; i < maxChannels; i++) {
+          const inputNode = this.inputAmplifiers.getInputNode(i);
+          if (inputNode) {
+            splitter.connect(inputNode, i);
+          }
+        }
+        
+        // Si hay menos canales que 8, los restantes quedan sin conectar (silencio)
+        console.log(`[App] Connected ${maxChannels} system audio channels to Input Amplifiers`);
+      } else {
+        // Mono: conectar directamente al canal 1
+        const inputNode = this.inputAmplifiers.getInputNode(0);
+        if (inputNode) {
+          sourceNode.connect(inputNode);
+        }
+        console.log('[App] Connected mono system audio to Input Amplifier Channel 1');
+      }
+      
+      this._systemAudioStream = stream;
+      this._systemAudioSource = sourceNode;
+      this._systemAudioConnected = true;
+      
+    } catch (err) {
+      console.warn('[App] Could not access system audio input:', err.message);
+      // No es crítico, los Input Amplifiers simplemente no tendrán entrada del sistema
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // CONSTRUCCIÓN DE PANELES DE OSCILADORES
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1500,7 +1569,7 @@ class App {
     }
   }
 
-  _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
+  async _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
     const source = this._panel3Routing?.sourceMap?.get(rowIndex);
     const dest = this._panel3Routing?.destMap?.get(colIndex);
     const key = `${rowIndex}:${colIndex}`;
@@ -1551,6 +1620,30 @@ class App {
           console.warn('[App] NoiseModule output node not available, retrying init');
           noiseModule?.start?.();
           outNode = noiseModule?.getOutputNode?.();
+        }
+        
+      } else if (source.kind === 'inputAmp') {
+        // Fuente: Input Amplifier (canales de entrada del sistema)
+        const channel = source.channel;
+        
+        if (!this.inputAmplifiers) {
+          console.warn('[App] Input amplifiers module not initialized');
+          return false;
+        }
+        
+        // Asegurar que el módulo esté iniciado
+        if (!this.inputAmplifiers.isStarted) {
+          await this.inputAmplifiers.start();
+        }
+        
+        // Asegurar que tengamos audio del sistema conectado
+        await this._ensureSystemAudioInput();
+        
+        outNode = this.inputAmplifiers.getOutputNode(channel);
+        
+        if (!outNode) {
+          console.warn('[App] InputAmplifier output node not available for channel', channel);
+          return false;
         }
       }
       

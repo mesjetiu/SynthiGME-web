@@ -51,12 +51,25 @@ export default {
 
   // Fuentes (entradas al router): fila -> salida de módulo
   // Para Panel 5: 
+  // - 8 amplificadores de entrada (filas 67-74)
   // - 2 generadores de ruido (filas 89-90)
   // - 9 osciladores (del panel 3), cada uno con 2 canales (filas 91-108)
   //
   // Filas impares de osciladores: sineSaw (sine + sawtooth)
   // Filas pares de osciladores: triPulse (triangle + pulse)
   sources: [
+    // ─────────────────────────────────────────────────────────────────────────
+    // INPUT AMPLIFIERS (filas 67-74) - 8 canales de entrada del Synthi 100
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 67, source: { kind: 'inputAmp', channel: 0 } },
+    { rowSynth: 68, source: { kind: 'inputAmp', channel: 1 } },
+    { rowSynth: 69, source: { kind: 'inputAmp', channel: 2 } },
+    { rowSynth: 70, source: { kind: 'inputAmp', channel: 3 } },
+    { rowSynth: 71, source: { kind: 'inputAmp', channel: 4 } },
+    { rowSynth: 72, source: { kind: 'inputAmp', channel: 5 } },
+    { rowSynth: 73, source: { kind: 'inputAmp', channel: 6 } },
+    { rowSynth: 74, source: { kind: 'inputAmp', channel: 7 } },
+    
     // ─────────────────────────────────────────────────────────────────────────
     // NOISE GENERATORS (filas 89-90)
     // ─────────────────────────────────────────────────────────────────────────

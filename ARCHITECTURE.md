@@ -105,7 +105,7 @@ Componentes de interfaz reutilizables:
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
-| `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz 8×2 para rutear salidas lógicas a L/R del sistema. Persistencia en localStorage |
+| `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: selector de dispositivo de salida/entrada, matriz 8×2 para rutear salidas lógicas a canales físicos, botón de permisos para mostrar nombres de dispositivos. Persistencia en localStorage |
 | `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen, resolución, configuración de audio) |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)

@@ -58,6 +58,18 @@ export function setupMobileQuickActionsBar() {
   btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
   btnZoom.innerHTML = iconSvg('ti-zoom-cancel');
 
+  // Botón de patches
+  const btnPatches = document.createElement('button');
+  btnPatches.type = 'button';
+  btnPatches.className = 'mobile-quickbar__btn';
+  btnPatches.id = 'btnPatches';
+  btnPatches.setAttribute('aria-label', t('quickbar.patches'));
+  btnPatches.innerHTML = iconSvg('ti-files');
+  
+  btnPatches.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('synth:togglePatches'));
+  });
+
   const btnFs = document.createElement('button');
   btnFs.type = 'button';
   btnFs.className = 'mobile-quickbar__btn';
@@ -181,6 +193,7 @@ export function setupMobileQuickActionsBar() {
 
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
+  group.appendChild(btnPatches);
   group.appendChild(btnAudioSettings);
   group.appendChild(btnFs);
   group.appendChild(btnSettings);

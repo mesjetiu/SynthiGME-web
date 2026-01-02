@@ -209,6 +209,10 @@ quickbar.settings:
   en: Settings
   es: Ajustes
 
+quickbar.patches:
+  en: Patches
+  es: Patches
+
 quickbar.audio:
   en: Audio settings
   es: Configuración de audio

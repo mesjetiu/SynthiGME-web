@@ -268,3 +268,115 @@ update.available:
 error.fullscreen:
   en: Could not toggle fullscreen.
   es: No se pudo alternar la pantalla completa.
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PATCHES / BROWSER DE ESTADOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+patches.title:
+  en: Patches
+  es: Patches
+
+patches.close:
+  en: Close patches
+  es: Cerrar patches
+
+patches.saveCurrent:
+  en: Save current
+  es: Guardar actual
+
+patches.search:
+  en: Search...
+  es: Buscar...
+
+patches.empty:
+  en: No patches saved yet
+  es: No hay patches guardados
+
+patches.load:
+  en: Load
+  es: Cargar
+
+patches.export:
+  en: Export
+  es: Exportar
+
+patches.import:
+  en: Import
+  es: Importar
+
+patches.delete:
+  en: Delete
+  es: Eliminar
+
+patches.rename:
+  en: Rename
+  es: Renombrar
+
+patches.confirmDelete:
+  en: Delete patch "{name}"?
+  es: ¿Eliminar patch "{name}"?
+
+patches.confirmLoad:
+  en: Load patch "{name}"? Unsaved changes will be lost.
+  es: ¿Cargar patch "{name}"? Los cambios no guardados se perderán.
+
+patches.saved:
+  en: Patch saved
+  es: Patch guardado
+
+patches.loaded:
+  en: Patch loaded
+  es: Patch cargado
+
+patches.deleted:
+  en: Patch deleted
+  es: Patch eliminado
+
+patches.exported:
+  en: Patch exported
+  es: Patch exportado
+
+patches.imported:
+  en: Patch imported
+  es: Patch importado
+
+patches.errorLoading:
+  en: Error loading patch
+  es: Error al cargar patch
+
+patches.errorSaving:
+  en: Error saving patch
+  es: Error al guardar patch
+
+patches.namePrompt:
+  en: Patch name
+  es: Nombre del patch
+
+patches.defaultName:
+  en: New patch
+  es: Nuevo patch
+
+patches.init:
+  en: Init (default)
+  es: Init (por defecto)
+
+patches.lastSession:
+  en: Restore last session?
+  es: ¿Restaurar última sesión?
+
+patches.lastSession.yes:
+  en: Restore
+  es: Restaurar
+
+patches.lastSession.no:
+  en: Start fresh
+  es: Empezar de nuevo
+
+patches.lastSession.remember:
+  en: Remember my choice
+  es: Recordar mi elección
+
+patches.versionWarning:
+  en: This patch was created with an older version
+  es: Este patch fue creado con una versión anterior

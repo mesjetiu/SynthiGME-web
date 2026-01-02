@@ -48,6 +48,8 @@ import {
 } from './navigation/viewportNavigation.js';
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
+import { SettingsModal } from './ui/settingsModal.js';
+import { initI18n } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 
@@ -358,6 +360,19 @@ class App {
     // Escuchar evento del quickbar para abrir/cerrar modal
     document.addEventListener('synth:toggleAudioSettings', () => {
       this.audioSettingsModal.toggle();
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // MODAL DE AJUSTES GENERALES (idioma, escala de renderizado)
+    // ─────────────────────────────────────────────────────────────────────────
+    this.settingsModal = new SettingsModal({
+      onResolutionChange: (factor) => {
+        console.log(`[App] Resolution changed: ${factor}×`);
+      }
+    });
+    
+    document.addEventListener('synth:toggleSettings', () => {
+      this.settingsModal.toggle();
     });
   }
 
@@ -1886,7 +1901,10 @@ class App {
 // INICIALIZACIÓN
 // ─────────────────────────────────────────────────────────────────────────────
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  // Inicializar sistema de internacionalización antes de crear la UI
+  await initI18n();
+  
   ensureOrientationHint();
   window._synthApp = new App();
   if (window._synthApp && window._synthApp.ensureAudio) {

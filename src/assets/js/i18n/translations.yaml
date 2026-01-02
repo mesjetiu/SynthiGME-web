@@ -1,0 +1,270 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ARCHIVO DE TRADUCCIONES - SynthiGME-web
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Este archivo es la FUENTE ÚNICA para todas las traducciones.
+# Los archivos locales/*.js se generan automáticamente con: npm run build:i18n
+#
+# Para añadir un nuevo idioma, simplemente añade la columna correspondiente
+# a cada clave (ej: fr: "Bonjour").
+#
+# Variables: usa {nombre} para placeholders (ej: "Escala: {factor}×")
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────────────
+# METADATOS DE IDIOMAS
+# Los nombres se muestran en su idioma nativo (no se traducen)
+# ───────────────────────────────────────────────────────────────────────────────
+_meta:
+  defaultLocale: es
+  languages:
+    en: English
+    es: Español
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODAL DE AJUSTES GENERALES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+settings.title:
+  en: Settings
+  es: Ajustes
+
+settings.close:
+  en: Close settings
+  es: Cerrar ajustes
+
+# Sección: Idioma
+settings.language:
+  en: Language
+  es: Idioma
+
+# Sección: Escala de renderizado
+settings.scale:
+  en: Rendering scale
+  es: Escala de renderizado
+
+settings.scale.description:
+  en: Higher scale = sharper image, but more resource usage.
+  es: Mayor escala = mayor nitidez, pero más consumo de recursos.
+
+# Sección: Actualizaciones
+settings.updates:
+  en: Updates
+  es: Actualizaciones
+
+settings.updates.version:
+  en: "Current version:"
+  es: "Versión actual:"
+
+settings.updates.check:
+  en: Check for updates
+  es: Buscar actualizaciones
+
+settings.updates.checking:
+  en: Checking...
+  es: Buscando...
+
+settings.updates.available:
+  en: New version available!
+  es: "¡Nueva versión disponible!"
+
+settings.updates.install:
+  en: Install update
+  es: Instalar actualización
+
+settings.updates.installing:
+  en: Installing...
+  es: Instalando...
+
+settings.updates.upToDate:
+  en: You are up to date ✓
+  es: Estás al día ✓
+
+settings.updates.error:
+  en: Error checking for updates
+  es: Error al buscar actualizaciones
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODAL DE AUDIO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+audio.title:
+  en: Audio Settings
+  es: Configuración de Audio
+
+audio.close:
+  en: Close settings
+  es: Cerrar configuración
+
+# Dispositivos
+audio.device.output:
+  en: "Output device:"
+  es: "Dispositivo de salida:"
+
+audio.device.input:
+  en: "Input device:"
+  es: "Dispositivo de entrada:"
+
+audio.device.default:
+  en: Default device
+  es: Dispositivo por defecto
+
+audio.device.loading:
+  en: Loading devices...
+  es: Cargando dispositivos...
+
+audio.device.system:
+  en: System
+  es: Sistema
+
+# Sección salidas
+audio.outputs.title:
+  en: Outputs → System
+  es: Salidas → Sistema
+
+audio.outputs.channels:
+  en: "Detected channels:"
+  es: "Canales detectados:"
+
+audio.outputs.description:
+  en: Route Synthi logical outputs to system physical outputs.
+  es: Rutea las salidas lógicas del Synthi a las salidas físicas del sistema.
+
+audio.outputs.more:
+  en: "+{count} more rows (scroll to see)"
+  es: "+{count} filas más (scroll para ver)"
+
+# Sección entradas
+audio.inputs.title:
+  en: System → Input Amplifiers
+  es: Sistema → Input Amplifiers
+
+audio.inputs.channels:
+  en: "Input channels:"
+  es: "Canales de entrada:"
+
+audio.inputs.description:
+  en: Route system physical inputs to Synthi Input Amplifiers.
+  es: Rutea las entradas físicas del sistema a los Input Amplifiers del Synthi.
+
+audio.inputs.enable:
+  en: Enable audio input
+  es: Habilitar entrada de audio
+
+audio.inputs.permission:
+  en: Requires microphone permission.
+  es: Requiere permiso de micrófono.
+
+audio.inputs.enabled:
+  en: ✓ Input enabled
+  es: ✓ Entrada habilitada
+
+# Nombres de canales
+audio.channel.mono:
+  en: Mono
+  es: Mono
+
+audio.channel.stereo:
+  en: Stereo
+  es: Estéreo
+
+audio.channel.quad:
+  en: Quadraphonic
+  es: Cuadrafónico
+
+audio.channel.surround:
+  en: 5.1 Surround
+  es: 5.1 Surround
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUICKBAR
+# ═══════════════════════════════════════════════════════════════════════════════
+
+quickbar.open:
+  en: Open quick actions
+  es: Abrir acciones rápidas
+
+quickbar.close:
+  en: Close quick actions
+  es: Cerrar acciones rápidas
+
+quickbar.pan.lock:
+  en: Lock panning
+  es: Bloquear paneo
+
+quickbar.pan.unlock:
+  en: Unlock panning
+  es: Desbloquear paneo
+
+quickbar.zoom.lock:
+  en: Lock zoom
+  es: Bloquear zoom
+
+quickbar.zoom.unlock:
+  en: Unlock zoom
+  es: Desbloquear zoom
+
+quickbar.settings:
+  en: Settings
+  es: Ajustes
+
+quickbar.audio:
+  en: Audio settings
+  es: Configuración de audio
+
+quickbar.fullscreen:
+  en: Fullscreen
+  es: Pantalla completa
+
+quickbar.fullscreen.exit:
+  en: Exit fullscreen
+  es: Salir de pantalla completa
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TOASTS Y MENSAJES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+toast.resolution:
+  en: "Scale: {factor}×"
+  es: "Escala: {factor}×"
+
+toast.pan.locked:
+  en: Panning locked
+  es: Paneo bloqueado
+
+toast.pan.unlocked:
+  en: Panning unlocked
+  es: Paneo desbloqueado
+
+toast.zoom.locked:
+  en: Zoom locked
+  es: Zoom bloqueado
+
+toast.zoom.unlocked:
+  en: Zoom unlocked
+  es: Zoom desbloqueado
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ORIENTACIÓN Y PANTALLA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+orientation.hint:
+  en: Rotate your device to landscape for a better experience
+  es: Gira el dispositivo en posición horizontal para una mejor experiencia
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ACTUALIZACIONES (SERVICE WORKER)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+update.available:
+  en: A new version is available. Do you want to reload now?
+  es: Hay una nueva versión disponible. ¿Quieres recargar ahora?
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ERRORES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+error.fullscreen:
+  en: Could not toggle fullscreen.
+  es: No se pudo alternar la pantalla completa.

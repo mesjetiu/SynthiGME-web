@@ -2,6 +2,8 @@
 // Permite rutear las salidas lógicas del Synthi a las salidas físicas del sistema
 // Soporta configuraciones multicanal (estéreo, 5.1, 7.1, etc.)
 
+import { t, onLocaleChange } from '../i18n/index.js';
+
 const STORAGE_KEY = 'synthigme-audio-routing';
 const STORAGE_KEY_INPUT_ROUTING = 'synthigme-input-routing';
 const STORAGE_KEY_OUTPUT_DEVICE = 'synthigme-output-device';
@@ -108,7 +110,13 @@ export class AudioSettingsModal {
     // Contenedor de matriz de entrada
     this.inputMatrixContainer = null;
     
+    // Referencias a elementos con texto traducible
+    this._textElements = {};
+    
     this._create();
+    
+    // Escuchar cambios de idioma para actualizar textos
+    this._unsubscribeLocale = onLocaleChange(() => this._updateTexts());
   }
 
   /**
@@ -284,8 +292,8 @@ export class AudioSettingsModal {
    */
   _updateInputChannelInfo() {
     if (!this.inputChannelInfoElement) return;
-    this.inputChannelInfoElement.textContent = this.physicalInputChannels === 1 ? 'Mono' : 
-      this.physicalInputChannels === 2 ? 'Estéreo' : `${this.physicalInputChannels} canales`;
+    this.inputChannelInfoElement.textContent = this.physicalInputChannels === 1 ? t('audio.channel.mono') : 
+      this.physicalInputChannels === 2 ? t('audio.channel.stereo') : `${this.physicalInputChannels}ch`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -351,8 +359,8 @@ export class AudioSettingsModal {
     if (!this.channelInfoElement) return;
     
     const configName = this._getConfigurationName(this.physicalChannels);
-    this.channelInfoElement.textContent = `${this.physicalChannels} canales (${configName})`;
-    this.channelInfoElement.title = `Etiquetas: ${this.channelLabels.join(', ')}`;
+    this.channelInfoElement.textContent = `${this.physicalChannels} (${configName})`;
+    this.channelInfoElement.title = `${this.channelLabels.join(', ')}`;
   }
 
   /**
@@ -360,13 +368,34 @@ export class AudioSettingsModal {
    */
   _getConfigurationName(count) {
     const names = {
-      1: 'Mono',
-      2: 'Estéreo',
-      4: 'Cuadrafónico',
-      6: '5.1 Surround',
-      8: '7.1 Surround'
+      1: t('audio.channel.mono'),
+      2: t('audio.channel.stereo'),
+      4: t('audio.channel.quad'),
+      6: t('audio.channel.surround')
     };
-    return names[count] || `${count} canales`;
+    return names[count] || `${count}ch`;
+  }
+  
+  /**
+   * Actualiza los textos del modal (para cambio de idioma en caliente)
+   */
+  _updateTexts() {
+    const els = this._textElements;
+    if (els.title) els.title.textContent = t('audio.title');
+    if (els.closeBtn) els.closeBtn.setAttribute('aria-label', t('audio.close'));
+    if (els.outputTitle) els.outputTitle.textContent = t('audio.outputs.title');
+    if (els.outputDeviceLabel) els.outputDeviceLabel.textContent = t('audio.device.output');
+    if (els.outputChannelLabel) els.outputChannelLabel.textContent = t('audio.outputs.channels') + ' ';
+    if (els.outputDesc) els.outputDesc.textContent = t('audio.outputs.description');
+    if (els.inputTitle) els.inputTitle.textContent = t('audio.inputs.title');
+    if (els.inputDeviceLabel) els.inputDeviceLabel.textContent = t('audio.device.input');
+    if (els.inputChannelLabel) els.inputChannelLabel.textContent = t('audio.inputs.channels') + ' ';
+    if (els.inputDesc) els.inputDesc.textContent = t('audio.inputs.description');
+    if (els.inputPermissionBtn) els.inputPermissionBtn.textContent = t('audio.inputs.enable');
+    
+    // Actualizar nombres de configuración de canales
+    this._updateChannelInfo();
+    this._updateInputChannelInfo();
   }
 
   /**
@@ -408,13 +437,13 @@ export class AudioSettingsModal {
       this.outputDeviceSelect.innerHTML = '';
       const defaultOpt = document.createElement('option');
       defaultOpt.value = 'default';
-      defaultOpt.textContent = 'Dispositivo por defecto';
+      defaultOpt.textContent = t('audio.device.default');
       this.outputDeviceSelect.appendChild(defaultOpt);
       
       this.availableOutputDevices.forEach(device => {
         const opt = document.createElement('option');
         opt.value = device.deviceId;
-        opt.textContent = device.label || `Salida ${device.deviceId.slice(0, 8)}...`;
+        opt.textContent = device.label || `${t('audio.device.system')} ${device.deviceId.slice(0, 8)}...`;
         if (device.deviceId === this.selectedOutputDevice) opt.selected = true;
         this.outputDeviceSelect.appendChild(opt);
       });
@@ -424,13 +453,13 @@ export class AudioSettingsModal {
       this.inputDeviceSelect.innerHTML = '';
       const defaultOpt = document.createElement('option');
       defaultOpt.value = 'default';
-      defaultOpt.textContent = 'Dispositivo por defecto';
+      defaultOpt.textContent = t('audio.device.default');
       this.inputDeviceSelect.appendChild(defaultOpt);
       
       this.availableInputDevices.forEach(device => {
         const opt = document.createElement('option');
         opt.value = device.deviceId;
-        opt.textContent = device.label || `Entrada ${device.deviceId.slice(0, 8)}...`;
+        opt.textContent = device.label || `${t('audio.device.system')} ${device.deviceId.slice(0, 8)}...`;
         if (device.deviceId === this.selectedInputDevice) opt.selected = true;
         this.inputDeviceSelect.appendChild(opt);
       });
@@ -480,7 +509,7 @@ export class AudioSettingsModal {
     // Opción por defecto mientras se cargan
     const defaultOpt = document.createElement('option');
     defaultOpt.value = 'default';
-    defaultOpt.textContent = 'Cargando dispositivos...';
+    defaultOpt.textContent = t('audio.device.loading');
     select.appendChild(defaultOpt);
     
     select.addEventListener('change', () => {
@@ -515,7 +544,7 @@ export class AudioSettingsModal {
     wrapper.appendChild(labelEl);
     wrapper.appendChild(select);
     
-    return { wrapper, select };
+    return { wrapper, select, label: labelEl };
   }
 
   /**
@@ -538,20 +567,20 @@ export class AudioSettingsModal {
     const header = document.createElement('div');
     header.className = 'audio-settings-modal__header';
     
-    const title = document.createElement('h2');
-    title.id = 'audioSettingsTitle';
-    title.className = 'audio-settings-modal__title';
-    title.textContent = 'Configuración de Audio';
+    this._textElements.title = document.createElement('h2');
+    this._textElements.title.id = 'audioSettingsTitle';
+    this._textElements.title.className = 'audio-settings-modal__title';
+    this._textElements.title.textContent = t('audio.title');
     
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'audio-settings-modal__close';
-    closeBtn.setAttribute('aria-label', 'Cerrar configuración');
-    closeBtn.innerHTML = '×';
-    closeBtn.addEventListener('click', () => this.close());
+    this._textElements.closeBtn = document.createElement('button');
+    this._textElements.closeBtn.type = 'button';
+    this._textElements.closeBtn.className = 'audio-settings-modal__close';
+    this._textElements.closeBtn.setAttribute('aria-label', t('audio.close'));
+    this._textElements.closeBtn.innerHTML = '×';
+    this._textElements.closeBtn.addEventListener('click', () => this.close());
     
-    header.appendChild(title);
-    header.appendChild(closeBtn);
+    header.appendChild(this._textElements.title);
+    header.appendChild(this._textElements.closeBtn);
     
     // Contenido
     const content = document.createElement('div');
@@ -589,21 +618,21 @@ export class AudioSettingsModal {
     const section = document.createElement('div');
     section.className = 'audio-settings-section';
     
-    const sectionTitle = document.createElement('h3');
-    sectionTitle.className = 'audio-settings-section__title';
-    sectionTitle.textContent = 'Salidas → Sistema';
-    section.appendChild(sectionTitle);
+    this._textElements.outputTitle = document.createElement('h3');
+    this._textElements.outputTitle.className = 'audio-settings-section__title';
+    this._textElements.outputTitle.textContent = t('audio.outputs.title');
+    section.appendChild(this._textElements.outputTitle);
     
     // Selector de dispositivo de salida
-    const { wrapper: outputDeviceWrapper, select: outputSelect } = this._createDeviceSelector('Dispositivo de salida:', true);
+    const { wrapper: outputDeviceWrapper, select: outputSelect, label: outputLabel } = this._createDeviceSelector(t('audio.device.output'), true);
     this.outputDeviceSelect = outputSelect;
+    this._textElements.outputDeviceLabel = outputLabel;
     section.appendChild(outputDeviceWrapper);
     
     // Botón para solicitar permisos (mostrar nombres de dispositivos)
     this.permissionBtn = document.createElement('button');
     this.permissionBtn.className = 'audio-settings-permission-btn';
-    this.permissionBtn.textContent = '🎤 Mostrar nombres de dispositivos';
-    this.permissionBtn.title = 'Solicitar permisos para ver los nombres reales de los dispositivos';
+    this.permissionBtn.textContent = '🎤 ' + t('audio.device.output');
     this.permissionBtn.style.display = 'none'; // Se mostrará si no hay permisos
     this.permissionBtn.addEventListener('click', async () => {
       await this._enumerateDevices(true);
@@ -617,18 +646,18 @@ export class AudioSettingsModal {
     this.channelInfoElement.className = 'audio-settings-channel-info__value';
     this._updateChannelInfo();
     
-    const channelLabel = document.createElement('span');
-    channelLabel.className = 'audio-settings-channel-info__label';
-    channelLabel.textContent = 'Canales detectados: ';
+    this._textElements.outputChannelLabel = document.createElement('span');
+    this._textElements.outputChannelLabel.className = 'audio-settings-channel-info__label';
+    this._textElements.outputChannelLabel.textContent = t('audio.outputs.channels') + ' ';
     
-    channelInfo.appendChild(channelLabel);
+    channelInfo.appendChild(this._textElements.outputChannelLabel);
     channelInfo.appendChild(this.channelInfoElement);
     section.appendChild(channelInfo);
     
-    const description = document.createElement('p');
-    description.className = 'audio-settings-section__desc';
-    description.textContent = 'Rutea las salidas lógicas del Synthi a las salidas físicas del sistema.';
-    section.appendChild(description);
+    this._textElements.outputDesc = document.createElement('p');
+    this._textElements.outputDesc.className = 'audio-settings-section__desc';
+    this._textElements.outputDesc.textContent = t('audio.outputs.description');
+    section.appendChild(this._textElements.outputDesc);
     
     // Contenedor de la matriz (permite reconstrucción dinámica)
     this.matrixContainer = document.createElement('div');
@@ -773,26 +802,27 @@ export class AudioSettingsModal {
     const section = document.createElement('div');
     section.className = 'audio-settings-section';
     
-    const sectionTitle = document.createElement('h3');
-    sectionTitle.className = 'audio-settings-section__title';
-    sectionTitle.textContent = 'Entradas ← Sistema (Mic/Line)';
-    section.appendChild(sectionTitle);
+    this._textElements.inputTitle = document.createElement('h3');
+    this._textElements.inputTitle.className = 'audio-settings-section__title';
+    this._textElements.inputTitle.textContent = t('audio.inputs.title');
+    section.appendChild(this._textElements.inputTitle);
     
     // Selector de dispositivo de entrada
-    const { wrapper: inputDeviceWrapper, select: inputSelect } = this._createDeviceSelector('Dispositivo de entrada:', false);
+    const { wrapper: inputDeviceWrapper, select: inputSelect, label: inputLabel } = this._createDeviceSelector(t('audio.device.input'), false);
     this.inputDeviceSelect = inputSelect;
+    this._textElements.inputDeviceLabel = inputLabel;
     section.appendChild(inputDeviceWrapper);
     
     // Botón para solicitar permisos de entrada (micrófono)
-    this.inputPermissionBtn = document.createElement('button');
-    this.inputPermissionBtn.className = 'audio-settings-permission-btn';
-    this.inputPermissionBtn.textContent = '🎤 Permitir acceso al micrófono';
-    this.inputPermissionBtn.title = 'Solicitar permisos para capturar audio del sistema';
-    this.inputPermissionBtn.style.display = 'none';
-    this.inputPermissionBtn.addEventListener('click', async () => {
+    this._textElements.inputPermissionBtn = document.createElement('button');
+    this._textElements.inputPermissionBtn.className = 'audio-settings-permission-btn';
+    this._textElements.inputPermissionBtn.textContent = t('audio.inputs.enable');
+    this._textElements.inputPermissionBtn.style.display = 'none';
+    this._textElements.inputPermissionBtn.addEventListener('click', async () => {
       await this._enumerateDevices(true);
     });
-    section.appendChild(this.inputPermissionBtn);
+    this.inputPermissionBtn = this._textElements.inputPermissionBtn;
+    section.appendChild(this._textElements.inputPermissionBtn);
     
     // Información de canales de entrada detectados
     const inputChannelInfo = document.createElement('div');
@@ -801,18 +831,18 @@ export class AudioSettingsModal {
     this.inputChannelInfoElement.className = 'audio-settings-channel-info__value';
     this._updateInputChannelInfo();
     
-    const inputChannelLabel = document.createElement('span');
-    inputChannelLabel.className = 'audio-settings-channel-info__label';
-    inputChannelLabel.textContent = 'Canales detectados: ';
+    this._textElements.inputChannelLabel = document.createElement('span');
+    this._textElements.inputChannelLabel.className = 'audio-settings-channel-info__label';
+    this._textElements.inputChannelLabel.textContent = t('audio.inputs.channels') + ' ';
     
-    inputChannelInfo.appendChild(inputChannelLabel);
+    inputChannelInfo.appendChild(this._textElements.inputChannelLabel);
     inputChannelInfo.appendChild(this.inputChannelInfoElement);
     section.appendChild(inputChannelInfo);
     
-    const description = document.createElement('p');
-    description.className = 'audio-settings-section__desc';
-    description.textContent = 'Rutea las entradas físicas del sistema hacia los Input Amplifiers del Synthi (Ch1-Ch8).';
-    section.appendChild(description);
+    this._textElements.inputDesc = document.createElement('p');
+    this._textElements.inputDesc.className = 'audio-settings-section__desc';
+    this._textElements.inputDesc.textContent = t('audio.inputs.description');
+    section.appendChild(this._textElements.inputDesc);
     
     // Contenedor de la matriz de entrada (permite reconstrucción dinámica)
     this.inputMatrixContainer = document.createElement('div');

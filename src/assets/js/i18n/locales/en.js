@@ -17,6 +17,17 @@ export default {
   'settings.scale': 'Rendering scale',
   'settings.scale.description': 'Higher scale = sharper image, but more resource usage.',
   
+  // Section: Updates
+  'settings.updates': 'Updates',
+  'settings.updates.version': 'Current version:',
+  'settings.updates.check': 'Check for updates',
+  'settings.updates.checking': 'Checking...',
+  'settings.updates.available': 'New version available!',
+  'settings.updates.install': 'Install update',
+  'settings.updates.installing': 'Installing...',
+  'settings.updates.upToDate': 'You are up to date ✓',
+  'settings.updates.error': 'Error checking for updates',
+  
   // ═══════════════════════════════════════════════════════════════════════════
   // AUDIO MODAL
   // ═══════════════════════════════════════════════════════════════════════════

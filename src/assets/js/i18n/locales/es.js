@@ -17,6 +17,17 @@ export default {
   'settings.scale': 'Escala de renderizado',
   'settings.scale.description': 'Mayor escala = mayor nitidez, pero más consumo de recursos.',
   
+  // Sección: Actualizaciones
+  'settings.updates': 'Actualizaciones',
+  'settings.updates.version': 'Versión actual:',
+  'settings.updates.check': 'Buscar actualizaciones',
+  'settings.updates.checking': 'Buscando...',
+  'settings.updates.available': '¡Nueva versión disponible!',
+  'settings.updates.install': 'Instalar actualización',
+  'settings.updates.installing': 'Instalando...',
+  'settings.updates.upToDate': 'Estás al día ✓',
+  'settings.updates.error': 'Error al buscar actualizaciones',
+  
   // ═══════════════════════════════════════════════════════════════════════════
   // MODAL DE AUDIO
   // ═══════════════════════════════════════════════════════════════════════════

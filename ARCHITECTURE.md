@@ -135,75 +135,113 @@ Utilidades compartidas:
 
 ### 3.7 Internacionalización (`src/assets/js/i18n/`)
 
-Sistema ligero de i18n con carga dinámica de locales:
+Sistema de i18n basado en YAML con generación automática de locales.
+
+#### Arquitectura
 
 | Archivo | Propósito |
 |---------|----------|
-| `index.js` | Core i18n: `t(key)` para traducir, `setLocale()`, `getLocale()`, `onLocaleChange()`, detección automática del idioma del navegador |
-| `locales/es.js` | Traducciones en español (idioma base) |
-| `locales/en.js` | Traducciones en inglés |
+| `translations.yaml` | **Fuente única** de todas las traducciones (editar aquí) |
+| `index.js` | Core i18n: `t(key)`, `setLocale()`, `getLocale()`, `onLocaleChange()` |
+| `locales/_meta.js` | Metadatos generados (idiomas soportados, por defecto) |
+| `locales/es.js` | Traducciones en español (auto-generado) |
+| `locales/en.js` | Traducciones en inglés (auto-generado) |
 
-**Uso básico:**
+> ⚠️ **Los archivos `locales/*.js` son auto-generados. NO editarlos manualmente.**
+> 
+> Editar siempre `translations.yaml` y ejecutar `npm run build:i18n`
+
+#### Flujo de trabajo
+
+```
+translations.yaml  ──[npm run build:i18n]──►  locales/*.js
+     (editar)                                  (generados)
+```
+
+#### Estructura del YAML
+
+```yaml
+# Metadatos de idiomas (nombres en su idioma nativo)
+_meta:
+  defaultLocale: es
+  languages:
+    en: English
+    es: Español
+    fr: Français  # ← añadir aquí nuevos idiomas
+
+# Traducciones: clave con un valor por idioma
+settings.title:
+  en: Settings
+  es: Ajustes
+
+# Variables usan {placeholder}
+toast.resolution:
+  en: "Scale: {factor}×"
+  es: "Escala: {factor}×"
+```
+
+#### Uso en código
+
 ```javascript
-import { t, setLocale } from './i18n/index.js';
+import { t, setLocale, onLocaleChange } from './i18n/index.js';
 
+// Traducir texto
 title.textContent = t('settings.title');  // "Ajustes" o "Settings"
-await setLocale('en');  // Cambia a inglés (notifica listeners)
+
+// Con interpolación
+toast.textContent = t('toast.resolution', { factor: 2 });  // "Escala: 2×"
+
+// Cambiar idioma (notifica listeners)
+await setLocale('en');
+
+// Suscribirse a cambios
+const unsub = onLocaleChange(lang => this._updateTexts());
 ```
 
-**Características:**
-- Cambio de idioma en caliente (modales se actualizan sin recargar)
-- Detección automática del idioma del navegador con fallback a español
-- Persistencia en localStorage (`synthigme-language`)
-- Interpolación de parámetros: `t('toast.resolution', { factor: 2 })` → "Escala: 2×"
+#### Añadir nuevos textos
 
-#### Añadir nuevos textos traducidos
-
-1. Añadir la clave en **ambos** archivos de locale:
-```javascript
-// locales/es.js
-'mi.nueva.clave': 'Texto en español',
-
-// locales/en.js
-'mi.nueva.clave': 'Text in English',
+1. Editar `translations.yaml`:
+```yaml
+mi.nueva.clave:
+  en: Text in English
+  es: Texto en español
 ```
 
-2. Usar en el código:
+2. Regenerar locales:
+```bash
+npm run build:i18n
+```
+
+3. Usar en código:
 ```javascript
-import { t } from '../i18n/index.js';
 elemento.textContent = t('mi.nueva.clave');
-```
-
-3. Para interpolación de variables:
-```javascript
-// Locale: 'mensaje.bienvenida': 'Hola {nombre}, tienes {count} mensajes'
-t('mensaje.bienvenida', { nombre: 'Carlos', count: 5 });
 ```
 
 #### Añadir un nuevo idioma
 
-1. Crear archivo `locales/XX.js` (ej: `fr.js` para francés):
-```javascript
-export default {
-  'settings.title': 'Paramètres',
-  // ... copiar todas las claves de es.js y traducir
-};
+1. Añadir el idioma en `_meta.languages`:
+```yaml
+_meta:
+  languages:
+    en: English
+    es: Español
+    fr: Français  # nuevo
 ```
 
-2. Registrar en `index.js`:
-```javascript
-const SUPPORTED_LOCALES = ['es', 'en', 'fr'];  // Añadir código
+2. Añadir traducciones a cada clave:
+```yaml
+settings.title:
+  en: Settings
+  es: Ajustes
+  fr: Paramètres  # nuevo
 ```
 
-3. Añadir nombre del idioma en **todos** los locales:
-```javascript
-// es.js
-'settings.language.fr': 'Français',
-// en.js
-'settings.language.fr': 'Français',
-// fr.js
-'settings.language.fr': 'Français',
+3. Regenerar:
+```bash
+npm run build:i18n
 ```
+
+El sistema detectará automáticamente el nuevo idioma y generará `locales/fr.js`.
 
 #### Convención de claves
 
@@ -222,7 +260,7 @@ Las claves siguen el patrón `componente.seccion.elemento`:
 Para hacer traducible un componente existente:
 
 1. Importar `t` y `onLocaleChange`
-2. Guardar referencias a elementos con texto en `this._textElements`
+2. Guardar referencias a elementos con texto
 3. Crear método `_updateTexts()` que actualice todos los textos
 4. Suscribirse a cambios: `onLocaleChange(() => this._updateTexts())`
 
@@ -230,13 +268,12 @@ Para hacer traducible un componente existente:
 import { t, onLocaleChange } from '../i18n/index.js';
 
 constructor() {
-  this._textElements = {};
   this._create();
   this._unsubscribeLocale = onLocaleChange(() => this._updateTexts());
 }
 
 _updateTexts() {
-  this._textElements.title.textContent = t('mi.titulo');
+  this.titleElement.textContent = t('mi.titulo');
 }
 ```
 

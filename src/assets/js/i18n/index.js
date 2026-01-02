@@ -3,11 +3,14 @@
  * 
  * Carga dinámica de locales, función t() para traducir,
  * y detección automática del idioma del navegador.
+ * 
+ * Los archivos de locale se generan desde translations.yaml
+ * con: npm run build:i18n
  */
 
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from './locales/_meta.js';
+
 const STORAGE_KEY = 'synthigme-language';
-const SUPPORTED_LOCALES = ['es', 'en'];
-const DEFAULT_LOCALE = 'es';
 
 /** Cache de traducciones cargadas */
 const locales = {};

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sistema de despliegue de paneles con zoom y paneo hasta centrado. Uso de doble click en panel o botón en esquina.
 - Mejoras en la nitidez de los elementos al hacer zoom en todos los navegadores.
 - Sistema de AudioWorklets para un mayor control de forma de onda y parámetros importantes como la fase.
+- Opciones de conexiones de entrada y salida con el sistema (micros, altavoces...)
 
 ## [0.0.1] - 2025-12-01
 ### Added

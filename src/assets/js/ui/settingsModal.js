@@ -13,6 +13,18 @@ import { t, getLocale, setLocale, getSupportedLocales, onLocaleChange } from '..
 import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } from '../utils/serviceWorker.js';
 
 const STORAGE_KEY_RESOLUTION = 'synthigme-resolution';
+const STORAGE_KEY_AUTOSAVE_INTERVAL = 'synthigme-autosave-interval';
+const STORAGE_KEY_SAVE_ON_EXIT = 'synthigme-save-on-exit';
+const STORAGE_KEY_RESTORE_ON_START = 'synthigme-restore-on-start';
+
+// Intervalos de autoguardado en ms (0 = desactivado)
+const AUTOSAVE_INTERVALS = {
+  'off': 0,
+  '30s': 30 * 1000,
+  '1m': 60 * 1000,
+  '5m': 5 * 60 * 1000,
+  '10m': 10 * 60 * 1000
+};
 
 /**
  * Modal de configuración general
@@ -21,11 +33,17 @@ export class SettingsModal {
   /**
    * @param {Object} options
    * @param {Function} [options.onResolutionChange] - Callback cuando cambia la escala
+   * @param {Function} [options.onAutoSaveIntervalChange] - Callback cuando cambia el intervalo de autoguardado
+   * @param {Function} [options.onSaveOnExitChange] - Callback cuando cambia la opción de guardar al salir
+   * @param {Function} [options.onRestoreOnStartChange] - Callback cuando cambia la opción de restaurar al inicio
    */
   constructor(options = {}) {
-    const { onResolutionChange } = options;
+    const { onResolutionChange, onAutoSaveIntervalChange, onSaveOnExitChange, onRestoreOnStartChange } = options;
     
     this.onResolutionChange = onResolutionChange;
+    this.onAutoSaveIntervalChange = onAutoSaveIntervalChange;
+    this.onSaveOnExitChange = onSaveOnExitChange;
+    this.onRestoreOnStartChange = onRestoreOnStartChange;
     
     // Escalas disponibles
     this.resolutionFactors = [1, 2, 3, 4];
@@ -33,6 +51,12 @@ export class SettingsModal {
     // Escala actual (cargar de localStorage)
     const savedFactor = parseInt(localStorage.getItem(STORAGE_KEY_RESOLUTION), 10);
     this.currentResolution = this.resolutionFactors.includes(savedFactor) ? savedFactor : 1;
+    
+    // Configuración de autoguardado
+    const savedInterval = localStorage.getItem(STORAGE_KEY_AUTOSAVE_INTERVAL);
+    this.autoSaveInterval = savedInterval && AUTOSAVE_INTERVALS.hasOwnProperty(savedInterval) ? savedInterval : 'off';
+    this.saveOnExit = localStorage.getItem(STORAGE_KEY_SAVE_ON_EXIT) === 'true';
+    this.restoreOnStart = localStorage.getItem(STORAGE_KEY_RESTORE_ON_START) === 'true';
     
     // Detectar Firefox (no necesita selector de resolución)
     this.isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
@@ -150,6 +174,9 @@ export class SettingsModal {
     if (!this.isFirefox) {
       body.appendChild(this._createResolutionSection());
     }
+    
+    // Sección: Autoguardado
+    body.appendChild(this._createAutoSaveSection());
     
     // Sección: Actualizaciones
     body.appendChild(this._createUpdatesSection());
@@ -310,6 +337,175 @@ export class SettingsModal {
   }
   
   /**
+   * Crea la sección de autoguardado
+   */
+  _createAutoSaveSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.autoSaveTitleElement = document.createElement('h3');
+    this.autoSaveTitleElement.className = 'settings-section__title';
+    this.autoSaveTitleElement.textContent = t('settings.autosave');
+    section.appendChild(this.autoSaveTitleElement);
+    
+    this.autoSaveDescElement = document.createElement('p');
+    this.autoSaveDescElement.className = 'settings-section__description';
+    this.autoSaveDescElement.textContent = t('settings.autosave.description');
+    section.appendChild(this.autoSaveDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Intervalo de autoguardado
+    // ─────────────────────────────────────────────────────────────────────
+    const intervalRow = document.createElement('div');
+    intervalRow.className = 'settings-row';
+    
+    this.intervalLabelElement = document.createElement('label');
+    this.intervalLabelElement.className = 'settings-row__label';
+    this.intervalLabelElement.textContent = t('settings.autosave.interval');
+    
+    const intervalSelectWrapper = document.createElement('div');
+    intervalSelectWrapper.className = 'settings-select-wrapper';
+    
+    this.intervalSelect = document.createElement('select');
+    this.intervalSelect.className = 'settings-select';
+    
+    const intervalOptions = ['off', '30s', '1m', '5m', '10m'];
+    intervalOptions.forEach(key => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = t(`settings.autosave.interval.${key}`);
+      option.selected = key === this.autoSaveInterval;
+      this.intervalSelect.appendChild(option);
+    });
+    
+    this.intervalSelect.addEventListener('change', () => {
+      this._setAutoSaveInterval(this.intervalSelect.value);
+    });
+    
+    intervalSelectWrapper.appendChild(this.intervalSelect);
+    intervalRow.appendChild(this.intervalLabelElement);
+    intervalRow.appendChild(intervalSelectWrapper);
+    section.appendChild(intervalRow);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Guardar al salir
+    // ─────────────────────────────────────────────────────────────────────
+    const exitRow = document.createElement('div');
+    exitRow.className = 'settings-row settings-row--checkbox';
+    
+    this.saveOnExitCheckbox = document.createElement('input');
+    this.saveOnExitCheckbox.type = 'checkbox';
+    this.saveOnExitCheckbox.id = 'saveOnExitCheckbox';
+    this.saveOnExitCheckbox.className = 'settings-checkbox';
+    this.saveOnExitCheckbox.checked = this.saveOnExit;
+    
+    this.saveOnExitLabelElement = document.createElement('label');
+    this.saveOnExitLabelElement.className = 'settings-checkbox-label';
+    this.saveOnExitLabelElement.htmlFor = 'saveOnExitCheckbox';
+    this.saveOnExitLabelElement.textContent = t('settings.autosave.onExit');
+    
+    this.saveOnExitCheckbox.addEventListener('change', () => {
+      this._setSaveOnExit(this.saveOnExitCheckbox.checked);
+    });
+    
+    exitRow.appendChild(this.saveOnExitCheckbox);
+    exitRow.appendChild(this.saveOnExitLabelElement);
+    section.appendChild(exitRow);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Restaurar al iniciar
+    // ─────────────────────────────────────────────────────────────────────
+    const restoreRow = document.createElement('div');
+    restoreRow.className = 'settings-row settings-row--checkbox';
+    
+    this.restoreOnStartCheckbox = document.createElement('input');
+    this.restoreOnStartCheckbox.type = 'checkbox';
+    this.restoreOnStartCheckbox.id = 'restoreOnStartCheckbox';
+    this.restoreOnStartCheckbox.className = 'settings-checkbox';
+    this.restoreOnStartCheckbox.checked = this.restoreOnStart;
+    
+    this.restoreOnStartLabelElement = document.createElement('label');
+    this.restoreOnStartLabelElement.className = 'settings-checkbox-label';
+    this.restoreOnStartLabelElement.htmlFor = 'restoreOnStartCheckbox';
+    this.restoreOnStartLabelElement.textContent = t('settings.autosave.restoreOnStart');
+    
+    this.restoreOnStartCheckbox.addEventListener('change', () => {
+      this._setRestoreOnStart(this.restoreOnStartCheckbox.checked);
+    });
+    
+    restoreRow.appendChild(this.restoreOnStartCheckbox);
+    restoreRow.appendChild(this.restoreOnStartLabelElement);
+    section.appendChild(restoreRow);
+    
+    return section;
+  }
+  
+  /**
+   * Cambia el intervalo de autoguardado
+   * @param {string} intervalKey
+   */
+  _setAutoSaveInterval(intervalKey) {
+    if (!AUTOSAVE_INTERVALS.hasOwnProperty(intervalKey)) return;
+    
+    this.autoSaveInterval = intervalKey;
+    localStorage.setItem(STORAGE_KEY_AUTOSAVE_INTERVAL, intervalKey);
+    
+    if (this.onAutoSaveIntervalChange) {
+      this.onAutoSaveIntervalChange(AUTOSAVE_INTERVALS[intervalKey], intervalKey);
+    }
+  }
+  
+  /**
+   * Cambia la opción de guardar al salir
+   * @param {boolean} enabled
+   */
+  _setSaveOnExit(enabled) {
+    this.saveOnExit = enabled;
+    localStorage.setItem(STORAGE_KEY_SAVE_ON_EXIT, String(enabled));
+    
+    if (this.onSaveOnExitChange) {
+      this.onSaveOnExitChange(enabled);
+    }
+  }
+  
+  /**
+   * Cambia la opción de restaurar al inicio
+   * @param {boolean} enabled
+   */
+  _setRestoreOnStart(enabled) {
+    this.restoreOnStart = enabled;
+    localStorage.setItem(STORAGE_KEY_RESTORE_ON_START, String(enabled));
+    
+    if (this.onRestoreOnStartChange) {
+      this.onRestoreOnStartChange(enabled);
+    }
+  }
+  
+  /**
+   * Obtiene el intervalo de autoguardado en ms
+   * @returns {number}
+   */
+  getAutoSaveIntervalMs() {
+    return AUTOSAVE_INTERVALS[this.autoSaveInterval] || 0;
+  }
+  
+  /**
+   * Indica si debe guardar al salir
+   * @returns {boolean}
+   */
+  getSaveOnExit() {
+    return this.saveOnExit;
+  }
+  
+  /**
+   * Indica si debe restaurar al inicio
+   * @returns {boolean}
+   */
+  getRestoreOnStart() {
+    return this.restoreOnStart;
+  }
+  
+  /**
    * Muestra el estado "actualización disponible"
    */
   _showUpdateAvailable() {
@@ -465,6 +661,34 @@ export class SettingsModal {
       options.forEach(opt => {
         opt.textContent = t(`settings.language.${opt.value}`);
       });
+    }
+    
+    // Actualizar sección de autoguardado
+    if (this.autoSaveTitleElement) {
+      this.autoSaveTitleElement.textContent = t('settings.autosave');
+    }
+    
+    if (this.autoSaveDescElement) {
+      this.autoSaveDescElement.textContent = t('settings.autosave.description');
+    }
+    
+    if (this.intervalLabelElement) {
+      this.intervalLabelElement.textContent = t('settings.autosave.interval');
+    }
+    
+    if (this.intervalSelect) {
+      const options = this.intervalSelect.querySelectorAll('option');
+      options.forEach(opt => {
+        opt.textContent = t(`settings.autosave.interval.${opt.value}`);
+      });
+    }
+    
+    if (this.saveOnExitLabelElement) {
+      this.saveOnExitLabelElement.textContent = t('settings.autosave.onExit');
+    }
+    
+    if (this.restoreOnStartLabelElement) {
+      this.restoreOnStartLabelElement.textContent = t('settings.autosave.restoreOnStart');
     }
     
     // Actualizar aria-label del botón cerrar

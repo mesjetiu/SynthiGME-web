@@ -2050,6 +2050,49 @@ small { color:#aaa; }
   color: #ef9a9a;
 }
 
+/* Filas de configuración */
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  gap: 16px;
+}
+
+.settings-row__label {
+  color: #bbb;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.settings-row .settings-select-wrapper {
+  flex: 1;
+  max-width: 200px;
+}
+
+/* Fila con checkbox */
+.settings-row--checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.settings-checkbox {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #ffd54f;
+  cursor: pointer;
+}
+
+.settings-checkbox-label {
+  color: #bbb;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    PATCH BROWSER MODAL
    ═══════════════════════════════════════════════════════════════════════════ */

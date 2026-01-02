@@ -85,6 +85,67 @@ settings.updates.error:
   en: Error checking for updates
   es: Error al buscar actualizaciones
 
+# AUTOGUARDADO
+settings.autosave:
+  en: Auto-save
+  es: Autoguardado
+
+settings.autosave.description:
+  en: Automatically save the current state periodically
+  es: Guardar automáticamente el estado actual periódicamente
+
+settings.autosave.interval:
+  en: Save interval
+  es: Intervalo de guardado
+
+settings.autosave.interval.off:
+  en: Disabled
+  es: Desactivado
+
+settings.autosave.interval.30s:
+  en: Every 30 seconds
+  es: Cada 30 segundos
+
+settings.autosave.interval.1m:
+  en: Every 1 minute
+  es: Cada 1 minuto
+
+settings.autosave.interval.5m:
+  en: Every 5 minutes
+  es: Cada 5 minutos
+
+settings.autosave.interval.10m:
+  en: Every 10 minutes
+  es: Cada 10 minutos
+
+settings.autosave.onExit:
+  en: Save on exit
+  es: Guardar al salir
+
+settings.autosave.onExit.description:
+  en: Save the current state when closing the app
+  es: Guardar el estado actual al cerrar la aplicación
+
+settings.autosave.restoreOnStart:
+  en: Restore on start
+  es: Restaurar al iniciar
+
+settings.autosave.restoreOnStart.description:
+  en: Restore the last saved state when opening the app
+  es: Restaurar el último estado guardado al abrir la aplicación
+
+toast.autosave:
+  en: State auto-saved
+  es: Estado guardado automáticamente
+
+toast.autosave.exit:
+  en: State saved before exit
+  es: Estado guardado antes de salir
+
+toast.restored:
+  en: Previous state restored
+  es: Estado anterior restaurado
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODAL DE AUDIO
 # ═══════════════════════════════════════════════════════════════════════════════

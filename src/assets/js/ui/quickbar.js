@@ -1,6 +1,9 @@
 // Módulo de barra de acciones rápidas para móvil
 // Controles de zoom, pan, pantalla completa y modo nitidez
 
+import { onUpdateAvailable, hasWaitingUpdate } from '../utils/serviceWorker.js';
+import { t } from '../i18n/index.js';
+
 /**
  * Configura la barra de acciones rápidas para dispositivos móviles.
  */
@@ -69,6 +72,22 @@ export function setupMobileQuickActionsBar() {
   btnSettings.id = 'btnGeneralSettings';
   btnSettings.setAttribute('aria-label', 'Ajustes');
   btnSettings.innerHTML = iconSvg('ti-settings');
+  
+  // Badge de actualización disponible
+  const updateBadge = document.createElement('span');
+  updateBadge.className = 'quickbar-update-badge';
+  updateBadge.hidden = true;
+  btnSettings.appendChild(updateBadge);
+  
+  // Mostrar badge si ya hay actualización pendiente
+  if (hasWaitingUpdate()) {
+    updateBadge.hidden = false;
+  }
+  
+  // Escuchar notificaciones de actualización disponible
+  onUpdateAvailable((available) => {
+    updateBadge.hidden = !available;
+  });
   
   btnSettings.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('synth:toggleSettings'));
@@ -191,7 +210,7 @@ export function ensureOrientationHint() {
     hint.className = 'orientation-hint';
     document.body.appendChild(hint);
   }
-  hint.textContent = 'Gira el dispositivo en posición horizontal para una mejor experiencia de uso del sintetizador';
+  hint.textContent = t('orientation.hint');
   requestAnimationFrame(() => {
     hint.classList.remove('hide');
     hint.classList.add('show');

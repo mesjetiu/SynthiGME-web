@@ -4,11 +4,13 @@
  * Permite configurar:
  * - Idioma de la interfaz
  * - Escala de renderizado (1×, 2×, 3×, 4×)
+ * - Buscar actualizaciones manualmente
  * 
  * Sigue el mismo patrón visual que AudioSettingsModal.
  */
 
 import { t, getLocale, setLocale, getSupportedLocales, onLocaleChange } from '../i18n/index.js';
+import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } from '../utils/serviceWorker.js';
 
 const STORAGE_KEY_RESOLUTION = 'synthigme-resolution';
 
@@ -149,6 +151,9 @@ export class SettingsModal {
       body.appendChild(this._createResolutionSection());
     }
     
+    // Sección: Actualizaciones
+    body.appendChild(this._createUpdatesSection());
+    
     // Ensamblar modal
     this.modal.appendChild(header);
     this.modal.appendChild(body);
@@ -255,6 +260,107 @@ export class SettingsModal {
   }
   
   /**
+   * Crea la sección de actualizaciones
+   */
+  _createUpdatesSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.updatesTitleElement = document.createElement('h3');
+    this.updatesTitleElement.className = 'settings-section__title';
+    this.updatesTitleElement.textContent = t('settings.updates');
+    
+    // Versión actual
+    const versionRow = document.createElement('div');
+    versionRow.className = 'settings-version-row';
+    
+    this.versionLabelElement = document.createElement('span');
+    this.versionLabelElement.className = 'settings-version-label';
+    this.versionLabelElement.textContent = t('settings.updates.version');
+    
+    const versionValue = document.createElement('span');
+    versionValue.className = 'settings-version-value';
+    versionValue.textContent = window.__synthBuildVersion || '-';
+    
+    versionRow.appendChild(this.versionLabelElement);
+    versionRow.appendChild(versionValue);
+    
+    // Botón de buscar actualizaciones
+    this.updateCheckBtn = document.createElement('button');
+    this.updateCheckBtn.type = 'button';
+    this.updateCheckBtn.className = 'settings-update-btn';
+    this.updateCheckBtn.textContent = t('settings.updates.check');
+    this.updateCheckBtn.addEventListener('click', () => this._handleCheckUpdate());
+    
+    // Estado
+    this.updateStatusElement = document.createElement('div');
+    this.updateStatusElement.className = 'settings-update-status';
+    
+    // Si ya hay una actualización pendiente, mostrar el botón de instalar
+    if (hasWaitingUpdate()) {
+      this._showUpdateAvailable();
+    }
+    
+    section.appendChild(this.updatesTitleElement);
+    section.appendChild(versionRow);
+    section.appendChild(this.updateCheckBtn);
+    section.appendChild(this.updateStatusElement);
+    
+    return section;
+  }
+  
+  /**
+   * Muestra el estado "actualización disponible"
+   */
+  _showUpdateAvailable() {
+    this.updateCheckBtn.textContent = t('settings.updates.install');
+    this.updateCheckBtn.classList.add('settings-update-btn--available');
+    this.updateStatusElement.textContent = t('settings.updates.available');
+    this.updateStatusElement.className = 'settings-update-status settings-update-status--available';
+    this._isUpdateAvailable = true;
+  }
+  
+  /**
+   * Maneja el clic en el botón de actualizaciones
+   */
+  async _handleCheckUpdate() {
+    // Si ya hay actualización disponible, instalar
+    if (this._isUpdateAvailable || hasWaitingUpdate()) {
+      this.updateCheckBtn.disabled = true;
+      this.updateCheckBtn.textContent = t('settings.updates.installing');
+      applyUpdate();
+      return;
+    }
+    
+    // Buscar actualizaciones
+    this.updateCheckBtn.disabled = true;
+    this.updateCheckBtn.textContent = t('settings.updates.checking');
+    this.updateStatusElement.textContent = '';
+    
+    try {
+      const result = await checkForUpdates();
+      
+      if (result.error) {
+        this.updateStatusElement.textContent = t('settings.updates.error');
+        this.updateStatusElement.className = 'settings-update-status settings-update-status--error';
+      } else if (result.found) {
+        this._showUpdateAvailable();
+      } else {
+        this.updateStatusElement.textContent = t('settings.updates.upToDate');
+        this.updateStatusElement.className = 'settings-update-status settings-update-status--ok';
+      }
+    } catch (err) {
+      this.updateStatusElement.textContent = t('settings.updates.error');
+      this.updateStatusElement.className = 'settings-update-status settings-update-status--error';
+    }
+    
+    this.updateCheckBtn.disabled = false;
+    if (!this._isUpdateAvailable) {
+      this.updateCheckBtn.textContent = t('settings.updates.check');
+    }
+  }
+  
+  /**
    * Cambia la escala de renderizado
    * @param {number} factor
    */
@@ -323,6 +429,34 @@ export class SettingsModal {
     
     if (this.resolutionDescElement) {
       this.resolutionDescElement.textContent = t('settings.scale.description');
+    }
+    
+    // Actualizar sección de actualizaciones
+    if (this.updatesTitleElement) {
+      this.updatesTitleElement.textContent = t('settings.updates');
+    }
+    
+    if (this.versionLabelElement) {
+      this.versionLabelElement.textContent = t('settings.updates.version');
+    }
+    
+    if (this.updateCheckBtn && !this.updateCheckBtn.disabled) {
+      if (this._isUpdateAvailable) {
+        this.updateCheckBtn.textContent = t('settings.updates.install');
+      } else {
+        this.updateCheckBtn.textContent = t('settings.updates.check');
+      }
+    }
+    
+    if (this.updateStatusElement) {
+      const statusClass = this.updateStatusElement.className;
+      if (statusClass.includes('--available')) {
+        this.updateStatusElement.textContent = t('settings.updates.available');
+      } else if (statusClass.includes('--ok')) {
+        this.updateStatusElement.textContent = t('settings.updates.upToDate');
+      } else if (statusClass.includes('--error')) {
+        this.updateStatusElement.textContent = t('settings.updates.error');
+      }
     }
     
     // Actualizar opciones de idioma

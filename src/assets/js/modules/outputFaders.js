@@ -5,10 +5,17 @@ import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 export class OutputFaderModule extends Module {
   constructor(engine, id = 'outputFaders') {
     super(engine, id, 'Output Faders');
+    /** @type {HTMLInputElement[]} */
+    this.sliders = [];
+    /** @type {HTMLElement[]} */
+    this.valueDisplays = [];
   }
 
   createPanel(container) {
     if (!container) return;
+    this.sliders = [];
+    this.valueDisplays = [];
+    
     const block = document.createElement('div');
     block.className = 'voice-block output-fader-panel';
 
@@ -42,6 +49,9 @@ export class OutputFaderModule extends Module {
       slider.className = 'output-fader';
       slider.setAttribute('aria-label', `Nivel salida ${i + 1}`);
       slider.dataset.preventPan = 'true';
+      
+      // Guardar referencia
+      this.sliders.push(slider);
 
       let lastCommittedValue = Number(slider.value);
 
@@ -80,6 +90,9 @@ export class OutputFaderModule extends Module {
       const value = document.createElement('div');
       value.className = 'output-fader-value';
       value.textContent = Number(slider.value).toFixed(2);
+      
+      // Guardar referencia al display
+      this.valueDisplays.push(value);
 
       shell.appendChild(slider);
       column.appendChild(shell);
@@ -89,5 +102,32 @@ export class OutputFaderModule extends Module {
 
     block.appendChild(sliderRow);
     container.appendChild(block);
+  }
+  
+  /**
+   * Serializa el estado del módulo para guardarlo en un patch.
+   * @returns {Object} Estado serializado
+   */
+  serialize() {
+    return {
+      levels: this.sliders.map(s => parseFloat(s.value))
+    };
+  }
+  
+  /**
+   * Restaura el estado del módulo desde un patch.
+   * @param {Object} data - Estado serializado
+   */
+  deserialize(data) {
+    if (!data || !Array.isArray(data.levels)) return;
+    data.levels.forEach((value, idx) => {
+      if (this.sliders[idx] && typeof value === 'number') {
+        this.sliders[idx].value = String(value);
+        if (this.valueDisplays[idx]) {
+          this.valueDisplays[idx].textContent = value.toFixed(2);
+        }
+        this.engine.setOutputLevel(idx, value, { ramp: 0.06 });
+      }
+    });
   }
 }

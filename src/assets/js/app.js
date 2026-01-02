@@ -49,6 +49,7 @@ import {
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
 import { SettingsModal } from './ui/settingsModal.js';
+import { PatchBrowser } from './ui/patchBrowser.js';
 import { initI18n } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -108,6 +109,13 @@ class App {
     this._heightSyncScheduled = false;
     this.largeMatrixAudio = null;
     this.largeMatrixControl = null;
+    
+    // Referencias a los UIs de módulos para serialización de patches
+    this._oscillatorUIs = {};
+    this._noiseUIs = {};
+    this._randomVoltageUIs = {};
+    this._inputAmplifierUIs = {};
+    this._outputFadersModule = null;
     
     // Construir paneles
     this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
@@ -236,6 +244,9 @@ class App {
     const outputFaders = new OutputFaderModule(this.engine, 'outputFaders');
     this.engine.addModule(outputFaders);
     outputFaders.createPanel(this.outputFadersRowEl);
+    
+    // Guardar referencia para serialización
+    this._outputFadersModule = outputFaders;
   }
 
   _setupUI() {
@@ -374,6 +385,168 @@ class App {
     document.addEventListener('synth:toggleSettings', () => {
       this.settingsModal.toggle();
     });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // PATCH BROWSER (guardar/cargar estados del sintetizador)
+    // ─────────────────────────────────────────────────────────────────────────
+    this._setupPatchBrowser();
+  }
+  
+  /**
+   * Configura el navegador de patches para guardar/cargar estados.
+   */
+  _setupPatchBrowser() {
+    this.patchBrowser = new PatchBrowser({
+      onLoad: async (patchData) => {
+        // Aplicar el patch cargado al sintetizador
+        await this._applyPatch(patchData);
+      },
+      onSave: async () => {
+        // Serializar el estado actual para guardarlo
+        return this._serializeCurrentState();
+      }
+    });
+    
+    document.addEventListener('synth:togglePatches', () => {
+      this.patchBrowser.toggle();
+    });
+  }
+  
+  /**
+   * Serializa el estado actual del sintetizador a un objeto de patch.
+   * @returns {Object} Objeto con el estado de todos los módulos
+   */
+  _serializeCurrentState() {
+    const state = {
+      modules: {}
+    };
+    
+    // Serializar osciladores
+    if (this._oscillatorUIs) {
+      state.modules.oscillators = {};
+      for (const [id, ui] of Object.entries(this._oscillatorUIs)) {
+        if (ui && typeof ui.serialize === 'function') {
+          state.modules.oscillators[id] = ui.serialize();
+        }
+      }
+    }
+    
+    // Serializar generadores de ruido
+    if (this._noiseUIs) {
+      state.modules.noise = {};
+      for (const [id, ui] of Object.entries(this._noiseUIs)) {
+        if (ui && typeof ui.serialize === 'function') {
+          state.modules.noise[id] = ui.serialize();
+        }
+      }
+    }
+    
+    // Serializar Random Voltage
+    if (this._randomVoltageUIs) {
+      state.modules.randomVoltage = {};
+      for (const [id, ui] of Object.entries(this._randomVoltageUIs)) {
+        if (ui && typeof ui.serialize === 'function') {
+          state.modules.randomVoltage[id] = ui.serialize();
+        }
+      }
+    }
+    
+    // Serializar Output Faders
+    if (this._outputFadersModule && typeof this._outputFadersModule.serialize === 'function') {
+      state.modules.outputFaders = this._outputFadersModule.serialize();
+    }
+    
+    // Serializar Input Amplifiers
+    if (this._inputAmplifierUIs) {
+      state.modules.inputAmplifiers = {};
+      for (const [id, ui] of Object.entries(this._inputAmplifierUIs)) {
+        if (ui && typeof ui.serialize === 'function') {
+          state.modules.inputAmplifiers[id] = ui.serialize();
+        }
+      }
+    }
+    
+    // Serializar matriz de conexiones de audio
+    if (this.largeMatrixAudio && typeof this.largeMatrixAudio.serialize === 'function') {
+      state.modules.matrixAudio = this.largeMatrixAudio.serialize();
+    }
+    
+    // Serializar matriz de conexiones de control
+    if (this.largeMatrixControl && typeof this.largeMatrixControl.serialize === 'function') {
+      state.modules.matrixControl = this.largeMatrixControl.serialize();
+    }
+    
+    return state;
+  }
+  
+  /**
+   * Aplica un patch cargado al sintetizador.
+   * @param {Object} patchData - Datos del patch a aplicar
+   */
+  async _applyPatch(patchData) {
+    if (!patchData || !patchData.modules) {
+      console.warn('[App] Invalid patch data');
+      return;
+    }
+    
+    const { modules } = patchData;
+    
+    // Restaurar osciladores
+    if (modules.oscillators && this._oscillatorUIs) {
+      for (const [id, data] of Object.entries(modules.oscillators)) {
+        const ui = this._oscillatorUIs[id];
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(data);
+        }
+      }
+    }
+    
+    // Restaurar generadores de ruido
+    if (modules.noise && this._noiseUIs) {
+      for (const [id, data] of Object.entries(modules.noise)) {
+        const ui = this._noiseUIs[id];
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(data);
+        }
+      }
+    }
+    
+    // Restaurar Random Voltage
+    if (modules.randomVoltage && this._randomVoltageUIs) {
+      for (const [id, data] of Object.entries(modules.randomVoltage)) {
+        const ui = this._randomVoltageUIs[id];
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(data);
+        }
+      }
+    }
+    
+    // Restaurar Output Faders
+    if (modules.outputFaders && this._outputFadersModule && typeof this._outputFadersModule.deserialize === 'function') {
+      this._outputFadersModule.deserialize(modules.outputFaders);
+    }
+    
+    // Restaurar Input Amplifiers
+    if (modules.inputAmplifiers && this._inputAmplifierUIs) {
+      for (const [id, data] of Object.entries(modules.inputAmplifiers)) {
+        const ui = this._inputAmplifierUIs[id];
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(data);
+        }
+      }
+    }
+    
+    // Restaurar matriz de conexiones de audio
+    if (modules.matrixAudio && this.largeMatrixAudio && typeof this.largeMatrixAudio.deserialize === 'function') {
+      this.largeMatrixAudio.deserialize(modules.matrixAudio);
+    }
+    
+    // Restaurar matriz de conexiones de control
+    if (modules.matrixControl && this.largeMatrixControl && typeof this.largeMatrixControl.deserialize === 'function') {
+      this.largeMatrixControl.deserialize(modules.matrixControl);
+    }
+    
+    console.log('[App] Patch applied successfully');
   }
 
   _labelPanelSlot(panel, label, layout = {}) {
@@ -653,8 +826,9 @@ class App {
     this.inputAmplifiers = inputAmpModule;
     
     // Crear UI
+    const inputAmpId = blueprint.modules.inputAmplifiers.id;
     const inputAmpUI = new InputAmplifierUI({
-      id: blueprint.modules.inputAmplifiers.id,
+      id: inputAmpId,
       title: blueprint.modules.inputAmplifiers.title,
       channels: blueprint.modules.inputAmplifiers.channels,
       knobConfig: inputAmpConfig.knobs.level,
@@ -664,6 +838,9 @@ class App {
     });
     
     inputAmpSection.appendChild(inputAmpUI.createElement());
+    
+    // Guardar referencia para serialización
+    this._inputAmplifierUIs[inputAmpId] = inputAmpUI;
     
     // Guardar referencias
     this._panel2Data = {
@@ -887,8 +1064,9 @@ class App {
 
     const oscComponents = oscillatorSlots.map(slot => {
       const knobOptions = this._getPanelKnobOptions(panelIndex, slot.index - 1);
+      const oscId = `panel${panelIndex}-osc-${slot.index}`;
       const osc = new SGME_Oscillator({
-        id: `panel${panelIndex}-osc-${slot.index}`,
+        id: oscId,
         title: `Osc ${slot.index}`,
         size: oscSize,
         knobGap: layout.knobGap,
@@ -900,6 +1078,10 @@ class App {
       });
       const el = osc.createElement();
       host.appendChild(el);
+      
+      // Guardar referencia para serialización
+      this._oscillatorUIs[oscId] = osc;
+      
       return { osc, element: el, slot };
     });
 
@@ -948,8 +1130,9 @@ class App {
       // ─────────────────────────────────────────────────────────────────────
       
       // Noise Generator 1 UI
+      const noise1Id = noise1Cfg.id || 'panel3-noise-1';
       const noise1 = new NoiseGenerator({
-        id: noise1Cfg.id || 'panel3-noise-1',
+        id: noise1Id,
         title: noise1Cfg.title || 'Noise 1',
         knobOptions: {
           colour: {
@@ -963,10 +1146,12 @@ class App {
         }
       });
       reservedRow.appendChild(noise1.createElement());
+      this._noiseUIs[noise1Id] = noise1;
       
       // Noise Generator 2 UI
+      const noise2Id = noise2Cfg.id || 'panel3-noise-2';
       const noise2 = new NoiseGenerator({
-        id: noise2Cfg.id || 'panel3-noise-2',
+        id: noise2Id,
         title: noise2Cfg.title || 'Noise 2',
         knobOptions: {
           colour: {
@@ -980,10 +1165,12 @@ class App {
         }
       });
       reservedRow.appendChild(noise2.createElement());
+      this._noiseUIs[noise2Id] = noise2;
       
       // Random Control Voltage Generator (solo UI, sin audio aún)
+      const randomCVId = randomCVCfg.id || 'panel3-random-cv';
       const randomCV = new RandomVoltage({
-        id: randomCVCfg.id || 'panel3-random-cv',
+        id: randomCVId,
         title: randomCVCfg.title || 'Random Voltage',
         knobOptions: randomCVCfg.knobs || {
           mean: { min: -1, max: 1, initial: 0 },
@@ -993,6 +1180,7 @@ class App {
           key: { min: 0, max: 1, initial: 0 }
         }
       });
+      this._randomVoltageUIs[randomCVId] = randomCV;
       reservedRow.appendChild(randomCV.createElement());
       
       host.appendChild(reservedRow);

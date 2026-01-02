@@ -237,4 +237,79 @@ export class LargeMatrix {
   setToggleHandler(handler) {
     this.onToggle = typeof handler === 'function' ? handler : null;
   }
+  
+  /**
+   * Serializa el estado de la matriz para guardarlo en un patch.
+   * Guarda solo las conexiones activas como array de [row, col].
+   * @returns {Object} Estado serializado
+   */
+  serialize() {
+    const connections = [];
+    if (!this.table || !this._built) return { connections };
+    
+    const buttons = this.table.querySelectorAll('button.pin-btn.active');
+    buttons.forEach(btn => {
+      const row = parseInt(btn.dataset.row, 10);
+      const col = parseInt(btn.dataset.col, 10);
+      if (!isNaN(row) && !isNaN(col)) {
+        connections.push([row, col]);
+      }
+    });
+    
+    return { connections };
+  }
+  
+  /**
+   * Restaura el estado de la matriz desde un patch.
+   * @param {Object} data - Estado serializado
+   */
+  deserialize(data) {
+    if (!data || !Array.isArray(data.connections)) return;
+    if (!this.table || !this._built) return;
+    
+    // Primero, desactivar todas las conexiones existentes
+    const activeButtons = this.table.querySelectorAll('button.pin-btn.active');
+    activeButtons.forEach(btn => {
+      const row = parseInt(btn.dataset.row, 10);
+      const col = parseInt(btn.dataset.col, 10);
+      // Notificar al handler si existe (para desconectar audio)
+      if (this.onToggle) {
+        this.onToggle(row, col, false, btn);
+      }
+      btn.classList.remove('active');
+    });
+    
+    // Luego, activar las conexiones del patch
+    data.connections.forEach(([row, col]) => {
+      const btn = this.table.querySelector(`button.pin-btn[data-row="${row}"][data-col="${col}"]`);
+      if (btn && !btn.disabled && !btn.classList.contains('is-hidden-pin')) {
+        // Notificar al handler (para conectar audio)
+        if (this.onToggle) {
+          const allow = this.onToggle(row, col, true, btn) !== false;
+          if (allow) {
+            btn.classList.add('active');
+          }
+        } else {
+          btn.classList.add('active');
+        }
+      }
+    });
+  }
+  
+  /**
+   * Limpia todas las conexiones de la matriz.
+   */
+  clearAll() {
+    if (!this.table || !this._built) return;
+    
+    const activeButtons = this.table.querySelectorAll('button.pin-btn.active');
+    activeButtons.forEach(btn => {
+      const row = parseInt(btn.dataset.row, 10);
+      const col = parseInt(btn.dataset.col, 10);
+      if (this.onToggle) {
+        this.onToggle(row, col, false, btn);
+      }
+      btn.classList.remove('active');
+    });
+  }
 }

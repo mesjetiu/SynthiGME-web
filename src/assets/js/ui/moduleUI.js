@@ -165,6 +165,31 @@ export class ModuleUI {
   getElement() {
     return this.element;
   }
+  
+  /**
+   * Serializa el estado del módulo para guardarlo en un patch.
+   * @returns {Object} Estado serializado
+   */
+  serialize() {
+    const data = {};
+    for (const key of Object.keys(this.knobs)) {
+      data[key] = this.knobs[key].getValue();
+    }
+    return data;
+  }
+  
+  /**
+   * Restaura el estado del módulo desde un patch.
+   * @param {Object} data - Estado serializado
+   */
+  deserialize(data) {
+    if (!data) return;
+    for (const key of Object.keys(data)) {
+      if (this.knobs[key] && typeof data[key] === 'number') {
+        this.knobs[key].setValue(data[key]);
+      }
+    }
+  }
 }
 
 export default ModuleUI;

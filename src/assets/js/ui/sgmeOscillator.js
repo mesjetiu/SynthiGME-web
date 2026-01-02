@@ -123,4 +123,37 @@ export class SGME_Oscillator {
     rangeEl.classList.toggle('is-lo', isLo);
     rangeEl.setAttribute('data-state', isLo ? 'lo' : 'hi');
   }
+  
+  /**
+   * Serializa el estado del oscilador para guardarlo en un patch.
+   * @returns {Object} Estado serializado
+   */
+  serialize() {
+    return {
+      knobs: this.knobs.map(k => k.getValue()),
+      rangeState: this.rangeState
+    };
+  }
+  
+  /**
+   * Restaura el estado del oscilador desde un patch.
+   * @param {Object} data - Estado serializado
+   */
+  deserialize(data) {
+    if (!data) return;
+    
+    if (Array.isArray(data.knobs)) {
+      data.knobs.forEach((value, idx) => {
+        if (this.knobs[idx] && typeof value === 'number') {
+          this.knobs[idx].setValue(value);
+        }
+      });
+    }
+    
+    if (data.rangeState === 'hi' || data.rangeState === 'lo') {
+      this.rangeState = data.rangeState;
+      const rangeEl = document.querySelector(`#${this.id} .sgme-osc__switch`);
+      if (rangeEl) this._renderRange(rangeEl);
+    }
+  }
 }

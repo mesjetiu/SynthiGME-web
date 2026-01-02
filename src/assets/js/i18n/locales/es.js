@@ -48,6 +48,7 @@ export default {
   "quickbar.zoom.lock": "Bloquear zoom",
   "quickbar.zoom.unlock": "Desbloquear zoom",
   "quickbar.settings": "Ajustes",
+  "quickbar.patches": "Patches",
   "quickbar.audio": "Configuración de audio",
   "quickbar.fullscreen": "Pantalla completa",
   "quickbar.fullscreen.exit": "Salir de pantalla completa",

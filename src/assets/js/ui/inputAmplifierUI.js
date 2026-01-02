@@ -155,4 +155,27 @@ export class InputAmplifierUI {
   getElement() {
     return this.element;
   }
+  
+  /**
+   * Serializa el estado del módulo para guardarlo en un patch.
+   * @returns {Object} Estado serializado
+   */
+  serialize() {
+    return {
+      levels: this.knobs.map(k => k.getValue())
+    };
+  }
+  
+  /**
+   * Restaura el estado del módulo desde un patch.
+   * @param {Object} data - Estado serializado
+   */
+  deserialize(data) {
+    if (!data || !Array.isArray(data.levels)) return;
+    data.levels.forEach((value, idx) => {
+      if (this.knobs[idx] && typeof value === 'number') {
+        this.knobs[idx].setValue(value);
+      }
+    });
+  }
 }

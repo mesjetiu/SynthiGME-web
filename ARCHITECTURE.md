@@ -38,6 +38,7 @@ src/
         ├── modules/        # Módulos de audio (osciladores, ruido, etc.)
         ├── ui/             # Componentes de interfaz reutilizables
         ├── navigation/     # Sistema de navegación del viewport
+        ├── i18n/           # Sistema de internacionalización
         ├── utils/          # Utilidades (canvas, SW, versión)
         ├── worklets/       # AudioWorklet processors (síntesis en hilo de audio)
         └── panelBlueprints/# Blueprints (estructura) y Configs (parámetros)
@@ -108,7 +109,8 @@ Componentes de interfaz reutilizables:
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
 | `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz de salida (8 buses → N canales físicos), matriz de entrada (N entradas sistema → 8 Input Amplifiers), selección de dispositivos, detección automática de canales, persistencia en localStorage |
-| `quickbar.js` | — | Barra de acciones rápidas para móvil (zoom, pan, fullscreen, resolución, configuración de audio) |
+| `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: selección de idioma (español/inglés), escala de renderizado (1×-4×), cambio de idioma en caliente, persistencia en localStorage |
+| `quickbar.js` | — | Barra de acciones rápidas para móvil (bloqueo zoom/pan, ajustes, configuración de audio, pantalla completa) |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)
 
@@ -131,7 +133,31 @@ Utilidades compartidas:
 | `waveforms.js` | Síntesis de formas de onda: `createPulseWave()` y `createAsymmetricSineWave()` usando Fourier |
 | `objects.js` | Utilidades de objetos: `deepMerge()` para combinar configuraciones |
 
-### 3.7 Panel Blueprints (`src/assets/js/panelBlueprints/`)
+### 3.7 Internacionalización (`src/assets/js/i18n/`)
+
+Sistema ligero de i18n con carga dinámica de locales:
+
+| Archivo | Propósito |
+|---------|----------|
+| `index.js` | Core i18n: `t(key)` para traducir, `setLocale()`, `getLocale()`, `onLocaleChange()`, detección automática del idioma del navegador |
+| `locales/es.js` | Traducciones en español (idioma base) |
+| `locales/en.js` | Traducciones en inglés |
+
+**Uso:**
+```javascript
+import { t, setLocale } from './i18n/index.js';
+
+title.textContent = t('settings.title');  // "Ajustes" o "Settings"
+await setLocale('en');  // Cambia a inglés (notifica listeners)
+```
+
+**Características:**
+- Cambio de idioma en caliente (modales se actualizan sin recargar)
+- Detección automática del idioma del navegador con fallback a español
+- Persistencia en localStorage (`synthigme-language`)
+- Interpolación de parámetros: `t('toast.resolution', { factor: 2 })` → "Escala: 2×"
+
+### 3.8 Panel Blueprints (`src/assets/js/panelBlueprints/`)
 
 Configuración declarativa de estructura y parámetros de paneles. Sigue el patrón **Blueprint vs Config**:
 

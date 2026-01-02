@@ -496,6 +496,22 @@ export class AudioSettingsModal {
       }
     });
     
+    // Workaround para bug de renderizado en Samsung: forzar repaint al abrir/cerrar dropdown
+    select.addEventListener('focus', () => {
+      if (this.modal) {
+        this.modal.style.transform = 'translateZ(0)';
+        requestAnimationFrame(() => {
+          this.modal.style.transform = '';
+        });
+      }
+    });
+    
+    select.addEventListener('blur', () => {
+      if (this.modal) {
+        void this.modal.offsetHeight; // Trigger reflow
+      }
+    });
+    
     wrapper.appendChild(labelEl);
     wrapper.appendChild(select);
     

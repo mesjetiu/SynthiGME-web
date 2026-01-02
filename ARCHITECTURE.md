@@ -143,7 +143,7 @@ Sistema ligero de i18n con carga dinámica de locales:
 | `locales/es.js` | Traducciones en español (idioma base) |
 | `locales/en.js` | Traducciones en inglés |
 
-**Uso:**
+**Uso básico:**
 ```javascript
 import { t, setLocale } from './i18n/index.js';
 
@@ -156,6 +156,89 @@ await setLocale('en');  // Cambia a inglés (notifica listeners)
 - Detección automática del idioma del navegador con fallback a español
 - Persistencia en localStorage (`synthigme-language`)
 - Interpolación de parámetros: `t('toast.resolution', { factor: 2 })` → "Escala: 2×"
+
+#### Añadir nuevos textos traducidos
+
+1. Añadir la clave en **ambos** archivos de locale:
+```javascript
+// locales/es.js
+'mi.nueva.clave': 'Texto en español',
+
+// locales/en.js
+'mi.nueva.clave': 'Text in English',
+```
+
+2. Usar en el código:
+```javascript
+import { t } from '../i18n/index.js';
+elemento.textContent = t('mi.nueva.clave');
+```
+
+3. Para interpolación de variables:
+```javascript
+// Locale: 'mensaje.bienvenida': 'Hola {nombre}, tienes {count} mensajes'
+t('mensaje.bienvenida', { nombre: 'Carlos', count: 5 });
+```
+
+#### Añadir un nuevo idioma
+
+1. Crear archivo `locales/XX.js` (ej: `fr.js` para francés):
+```javascript
+export default {
+  'settings.title': 'Paramètres',
+  // ... copiar todas las claves de es.js y traducir
+};
+```
+
+2. Registrar en `index.js`:
+```javascript
+const SUPPORTED_LOCALES = ['es', 'en', 'fr'];  // Añadir código
+```
+
+3. Añadir nombre del idioma en **todos** los locales:
+```javascript
+// es.js
+'settings.language.fr': 'Français',
+// en.js
+'settings.language.fr': 'Français',
+// fr.js
+'settings.language.fr': 'Français',
+```
+
+#### Convención de claves
+
+Las claves siguen el patrón `componente.seccion.elemento`:
+
+| Prefijo | Uso |
+|---------|-----|
+| `settings.*` | Modal de ajustes generales |
+| `audio.*` | Modal de configuración de audio |
+| `quickbar.*` | Barra de acciones rápidas |
+| `toast.*` | Mensajes toast temporales |
+| `error.*` | Mensajes de error |
+
+#### Actualizar componentes existentes para i18n
+
+Para hacer traducible un componente existente:
+
+1. Importar `t` y `onLocaleChange`
+2. Guardar referencias a elementos con texto en `this._textElements`
+3. Crear método `_updateTexts()` que actualice todos los textos
+4. Suscribirse a cambios: `onLocaleChange(() => this._updateTexts())`
+
+```javascript
+import { t, onLocaleChange } from '../i18n/index.js';
+
+constructor() {
+  this._textElements = {};
+  this._create();
+  this._unsubscribeLocale = onLocaleChange(() => this._updateTexts());
+}
+
+_updateTexts() {
+  this._textElements.title.textContent = t('mi.titulo');
+}
+```
 
 ### 3.8 Panel Blueprints (`src/assets/js/panelBlueprints/`)
 

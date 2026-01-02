@@ -17,6 +17,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con feedback visual. |
 | **8 Salidas de audio** | Faders individuales con enrutamiento a dispositivo de salida. |
 | **Configuración de audio** | Selección de dispositivo de salida y ruteo de buses lógicos (1-8) a L/R. Matriz 8×2 con persistencia. |
+| **Ajustes** | Selección de idioma (español/inglés), escala de renderizado (1×-4×). |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
 ### Tecnología

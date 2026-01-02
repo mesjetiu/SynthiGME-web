@@ -181,9 +181,9 @@ export function setupMobileQuickActionsBar() {
 
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
-  group.appendChild(btnSettings);
   group.appendChild(btnAudioSettings);
   group.appendChild(btnFs);
+  group.appendChild(btnSettings);
 
   bar.appendChild(group);
   bar.appendChild(tab);

@@ -374,13 +374,40 @@ class App {
     });
     
     // ─────────────────────────────────────────────────────────────────────────
-    // MODAL DE AJUSTES GENERALES (idioma, escala de renderizado)
+    // MODAL DE AJUSTES GENERALES (idioma, escala de renderizado, autoguardado)
     // ─────────────────────────────────────────────────────────────────────────
     this.settingsModal = new SettingsModal({
       onResolutionChange: (factor) => {
         console.log(`[App] Resolution changed: ${factor}×`);
+      },
+      onAutoSaveIntervalChange: (intervalMs, intervalKey) => {
+        this._configureAutoSave(intervalMs);
+        console.log(`[App] Autosave interval changed: ${intervalKey} (${intervalMs}ms)`);
+      },
+      onSaveOnExitChange: (enabled) => {
+        this._saveOnExit = enabled;
+        console.log(`[App] Save on exit: ${enabled}`);
+      },
+      onRestoreOnStartChange: (enabled) => {
+        console.log(`[App] Restore on start: ${enabled}`);
       }
     });
+    
+    // Configurar estado inicial de autoguardado
+    this._saveOnExit = this.settingsModal.getSaveOnExit();
+    this._configureAutoSave(this.settingsModal.getAutoSaveIntervalMs());
+    
+    // Guardar al cerrar la página si está habilitado
+    window.addEventListener('beforeunload', () => {
+      if (this._saveOnExit) {
+        this._saveStateOnExit();
+      }
+    });
+    
+    // Restaurar estado previo si está habilitado
+    if (this.settingsModal.getRestoreOnStart()) {
+      this._restoreLastState();
+    }
     
     document.addEventListener('synth:toggleSettings', () => {
       this.settingsModal.toggle();
@@ -390,6 +417,83 @@ class App {
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
     // ─────────────────────────────────────────────────────────────────────────
     this._setupPatchBrowser();
+  }
+  
+  /**
+   * Configura el autoguardado periódico.
+   * @param {number} intervalMs - Intervalo en milisegundos (0 = desactivado)
+   */
+  _configureAutoSave(intervalMs) {
+    // Limpiar timer anterior
+    if (this._autoSaveTimer) {
+      clearInterval(this._autoSaveTimer);
+      this._autoSaveTimer = null;
+    }
+    
+    if (intervalMs > 0) {
+      this._autoSaveTimer = setInterval(() => {
+        this._performAutoSave();
+      }, intervalMs);
+      console.log(`[App] Autosave configured: every ${intervalMs / 1000}s`);
+    } else {
+      console.log('[App] Autosave disabled');
+    }
+  }
+  
+  /**
+   * Realiza el autoguardado del estado actual.
+   */
+  async _performAutoSave() {
+    try {
+      const state = this._serializeCurrentState();
+      // Guardar en localStorage como "último estado"
+      localStorage.setItem('synthigme-last-state', JSON.stringify({
+        timestamp: Date.now(),
+        state
+      }));
+      console.log('[App] State auto-saved');
+    } catch (err) {
+      console.warn('[App] Autosave failed:', err);
+    }
+  }
+  
+  /**
+   * Guarda el estado al cerrar la aplicación.
+   */
+  _saveStateOnExit() {
+    try {
+      const state = this._serializeCurrentState();
+      localStorage.setItem('synthigme-last-state', JSON.stringify({
+        timestamp: Date.now(),
+        state,
+        savedOnExit: true
+      }));
+      console.log('[App] State saved on exit');
+    } catch (err) {
+      console.warn('[App] Save on exit failed:', err);
+    }
+  }
+  
+  /**
+   * Restaura el último estado guardado.
+   */
+  async _restoreLastState() {
+    try {
+      const stored = localStorage.getItem('synthigme-last-state');
+      if (!stored) return;
+      
+      const { state, timestamp } = JSON.parse(stored);
+      if (!state) return;
+      
+      // Esperar a que el audio esté listo antes de aplicar
+      // Usamos un pequeño delay para que la UI esté lista
+      setTimeout(async () => {
+        await this._applyPatch({ modules: state.modules || state });
+        console.log(`[App] Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
+      }, 500);
+    } catch (err) {
+      console.warn('[App] Restore last state failed:', err);
+    }
   }
   
   /**

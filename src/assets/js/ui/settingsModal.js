@@ -279,6 +279,30 @@ export class SettingsModal {
     if (typeof window.__synthSetResolutionFactor === 'function') {
       window.__synthSetResolutionFactor(factor);
     }
+    
+    // Mostrar toast de feedback
+    this._showToast(t('toast.resolution', { factor }));
+  }
+  
+  /**
+   * Muestra un toast temporal de feedback
+   * @param {string} message
+   */
+  _showToast(message) {
+    let toast = document.getElementById('settingsToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'settingsToast';
+      toast.className = 'resolution-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('resolution-toast--visible');
+    
+    clearTimeout(this._toastTimeout);
+    this._toastTimeout = setTimeout(() => {
+      toast.classList.remove('resolution-toast--visible');
+    }, 1500);
   }
   
   /**

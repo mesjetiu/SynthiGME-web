@@ -503,11 +503,14 @@ class App {
     this.patchBrowser = new PatchBrowser({
       onLoad: async (patchData) => {
         // Aplicar el patch cargado al sintetizador
+        console.log('[App] Loading patch:', patchData);
         await this._applyPatch(patchData);
       },
-      onSave: async () => {
+      onSave: () => {
         // Serializar el estado actual para guardarlo
-        return this._serializeCurrentState();
+        const state = this._serializeCurrentState();
+        console.log('[App] Serialized state:', state);
+        return state;
       }
     });
     
@@ -588,19 +591,27 @@ class App {
    * @param {Object} patchData - Datos del patch a aplicar
    */
   async _applyPatch(patchData) {
+    console.log('[App] _applyPatch called with:', patchData);
+    
     if (!patchData || !patchData.modules) {
-      console.warn('[App] Invalid patch data');
+      console.warn('[App] Invalid patch data - missing modules');
       return;
     }
     
     const { modules } = patchData;
+    console.log('[App] Modules to restore:', Object.keys(modules));
     
     // Restaurar osciladores
     if (modules.oscillators && this._oscillatorUIs) {
+      console.log('[App] Restoring oscillators:', Object.keys(modules.oscillators));
+      console.log('[App] Available oscillator UIs:', Object.keys(this._oscillatorUIs));
       for (const [id, data] of Object.entries(modules.oscillators)) {
         const ui = this._oscillatorUIs[id];
         if (ui && typeof ui.deserialize === 'function') {
+          console.log(`[App] Deserializing oscillator ${id}:`, data);
           ui.deserialize(data);
+        } else {
+          console.warn(`[App] Oscillator UI not found for ${id}`);
         }
       }
     }

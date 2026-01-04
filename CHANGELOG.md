@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- **Botón de mute global** siempre visible en la quickbar (panic button). Atajo de teclado: `M`.
+- Sistema completo de patches: guardar, cargar, exportar/importar estados del sintetizador.
+- Autoguardado configurable (intervalos: 30s, 1m, 5m, 10m) con restauración opcional al inicio.
 - Conversión de SynthiGME-web en PWA instalable con soporte offline, incluyendo manifest, service worker versionado y aviso de refresco para el usuario.
 - Añadidos iconos de Sylvia Molina Muro.
 - Se puede hacer arrastre (pan) con dos dedos al tiempo que zoom (dispositivos móviles).

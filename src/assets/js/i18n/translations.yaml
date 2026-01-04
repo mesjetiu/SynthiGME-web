@@ -267,16 +267,16 @@ quickbar.zoom.unlock:
   es: Desbloquear zoom
 
 quickbar.settings:
-  en: Settings
-  es: Ajustes
+  en: Settings (S)
+  es: Ajustes (S)
 
 quickbar.patches:
-  en: Patches
-  es: Patches
+  en: Patches (P)
+  es: Patches (P)
 
 quickbar.audio:
-  en: Audio settings
-  es: Configuración de audio
+  en: Audio settings (A)
+  es: Configuración de audio (A)
 
 quickbar.mute:
   en: "Mute audio (M)"
@@ -295,12 +295,12 @@ toast.unmute:
   es: Audio activo
 
 quickbar.fullscreen:
-  en: Fullscreen
-  es: Pantalla completa
+  en: Fullscreen (F)
+  es: Pantalla completa (F)
 
 quickbar.fullscreen.exit:
-  en: Exit fullscreen
-  es: Salir de pantalla completa
+  en: Exit fullscreen (Esc)
+  es: Salir de pantalla completa (Esc)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TOASTS Y MENSAJES

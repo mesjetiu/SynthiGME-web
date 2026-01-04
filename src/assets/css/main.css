@@ -142,6 +142,50 @@ body {
   pointer-events: none;
 }
 
+/* Tooltips para botones del quickbar */
+.mobile-quickbar__btn[data-tooltip],
+.mobile-quickbar__tab[data-tooltip] {
+  position: relative;
+}
+
+.mobile-quickbar__btn[data-tooltip]::after,
+.mobile-quickbar__tab[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 10000;
+}
+
+/* Tooltip del tab alineado a la derecha para no salirse de pantalla */
+.mobile-quickbar__tab[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* Solo mostrar en dispositivos con hover (ratón) */
+@media (hover: hover) and (pointer: fine) {
+  .mobile-quickbar__btn[data-tooltip]:hover::after,
+  .mobile-quickbar__tab[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
 /* Badge de actualización disponible */
 .quickbar-update-badge {
   position: absolute;

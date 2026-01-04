@@ -278,6 +278,22 @@ quickbar.audio:
   en: Audio settings
   es: Configuración de audio
 
+quickbar.mute:
+  en: "Mute audio (M)"
+  es: "Silenciar audio (M)"
+
+quickbar.unmute:
+  en: "Unmute audio (M)"
+  es: "Activar audio (M)"
+
+toast.mute:
+  en: Audio muted
+  es: Audio silenciado
+
+toast.unmute:
+  en: Audio active
+  es: Audio activo
+
 quickbar.fullscreen:
   en: Fullscreen
   es: Pantalla completa

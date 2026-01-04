@@ -20,6 +20,13 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Ajustes** | Selección de idioma (español/inglés), escala de renderizado (1×-4×). |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
+### Atajos de teclado
+
+| Tecla | Acción |
+|-------|--------|
+| `M` | Silenciar/activar audio (mute global) |
+| `Esc` | Cerrar modal activo (ajustes, patches, audio) |
+
 ### Tecnología
 
 - **Web Audio API** con AudioWorklet para procesamiento en tiempo real

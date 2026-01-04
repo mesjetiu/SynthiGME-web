@@ -34,6 +34,19 @@ export function setupMobileQuickActionsBar() {
   bar.className = 'mobile-quickbar mobile-quickbar--collapsed';
   bar.setAttribute('data-prevent-pan', 'true');
 
+  // Contenedor fijo para botones siempre visibles (mute + tab)
+  const fixedGroup = document.createElement('div');
+  fixedGroup.className = 'mobile-quickbar__fixed';
+
+  // Botón de MUTE global (siempre visible, panic button)
+  const btnMute = document.createElement('button');
+  btnMute.type = 'button';
+  btnMute.className = 'mobile-quickbar__btn mobile-quickbar__mute';
+  btnMute.id = 'btnGlobalMute';
+  btnMute.setAttribute('aria-label', t('quickbar.mute'));
+  btnMute.setAttribute('aria-pressed', 'false');
+  btnMute.innerHTML = iconSvg('ti-volume');
+
   const tab = document.createElement('button');
   tab.type = 'button';
   tab.className = 'mobile-quickbar__tab';
@@ -178,13 +191,43 @@ export function setupMobileQuickActionsBar() {
   document.addEventListener('fullscreenchange', applyPressedState);
   displayModeQueries.forEach(mq => mq.addEventListener('change', applyPressedState));
 
+  // Handler del botón de MUTE global
+  let isMuted = false;
+  
+  function updateMuteButton(muted) {
+    isMuted = muted;
+    btnMute.innerHTML = iconSvg(muted ? 'ti-volume-off' : 'ti-volume');
+    btnMute.setAttribute('aria-label', t(muted ? 'quickbar.unmute' : 'quickbar.mute'));
+    btnMute.setAttribute('aria-pressed', String(muted));
+    btnMute.classList.toggle('is-muted', muted);
+  }
+  
+  btnMute.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('synth:toggleMute'));
+  });
+  
+  // Escuchar cambios de estado de mute desde engine
+  document.addEventListener('synth:muteChanged', (e) => {
+    updateMuteButton(e.detail?.muted ?? false);
+  });
+  
+  // Atajo de teclado: M para mute
+  document.addEventListener('keydown', (e) => {
+    // Ignorar si está en un input/textarea
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      document.dispatchEvent(new CustomEvent('synth:toggleMute'));
+    }
+  });
+
   // Botón de configuración de audio
   const btnAudioSettings = document.createElement('button');
   btnAudioSettings.type = 'button';
   btnAudioSettings.className = 'mobile-quickbar__btn';
   btnAudioSettings.id = 'btnAudioSettings';
-  btnAudioSettings.setAttribute('aria-label', 'Configuración de audio');
-  btnAudioSettings.innerHTML = iconSvg('ti-volume');
+  btnAudioSettings.setAttribute('aria-label', t('quickbar.audio'));
+  btnAudioSettings.innerHTML = iconSvg('ti-settings-2');
   
   btnAudioSettings.addEventListener('click', () => {
     // Emitir evento custom para que app.js lo maneje
@@ -198,8 +241,12 @@ export function setupMobileQuickActionsBar() {
   group.appendChild(btnFs);
   group.appendChild(btnSettings);
 
+  // Grupo fijo: mute + tab (siempre visibles)
+  fixedGroup.appendChild(btnMute);
+  fixedGroup.appendChild(tab);
+
   bar.appendChild(group);
-  bar.appendChild(tab);
+  bar.appendChild(fixedGroup);
   document.body.appendChild(bar);
 
   applyPressedState();

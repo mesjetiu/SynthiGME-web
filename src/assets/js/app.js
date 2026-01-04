@@ -100,11 +100,6 @@ class App {
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
-    this.muteBtn = document.createElement('button');
-    this.muteBtn.id = 'muteBtn';
-    this.muteBtn.textContent = '🔊 Audio ON';
-    this.outputPanel.addHeaderElement(this.muteBtn);
-
     this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
     this._heightSyncScheduled = false;
     this.largeMatrixAudio = null;
@@ -250,13 +245,14 @@ class App {
   }
 
   _setupUI() {
-    const muteBtn = this.muteBtn;
-    if (!muteBtn) return;
-    muteBtn.addEventListener('click', () => {
+    // Handler para mute global desde quickbar
+    document.addEventListener('synth:toggleMute', () => {
       this.ensureAudio();
       this.engine.toggleMute();
-      muteBtn.textContent = this.engine.muted ? '🔇 Mute ON' : '🔊 Audio ON';
-      muteBtn.classList.toggle('off', this.engine.muted);
+      // Notificar a quickbar del nuevo estado
+      document.dispatchEvent(new CustomEvent('synth:muteChanged', {
+        detail: { muted: this.engine.muted }
+      }));
     });
     
     // Modal de configuración de audio (ruteo salidas → sistema L/R)

@@ -2,7 +2,17 @@
 // Controles de zoom, pan, pantalla completa y modo nitidez
 
 import { onUpdateAvailable, hasWaitingUpdate } from '../utils/serviceWorker.js';
-import { t } from '../i18n/index.js';
+import { t, onLocaleChange } from '../i18n/index.js';
+
+/**
+ * Helper para establecer aria-label y tooltip en un botón.
+ * @param {HTMLElement} btn - El botón
+ * @param {string} text - Texto traducido
+ */
+function setButtonTooltip(btn, text) {
+  btn.setAttribute('aria-label', text);
+  btn.setAttribute('data-tooltip', text);
+}
 
 /**
  * Configura la barra de acciones rápidas para dispositivos móviles.
@@ -43,14 +53,14 @@ export function setupMobileQuickActionsBar() {
   btnMute.type = 'button';
   btnMute.className = 'mobile-quickbar__btn mobile-quickbar__mute';
   btnMute.id = 'btnGlobalMute';
-  btnMute.setAttribute('aria-label', t('quickbar.mute'));
+  setButtonTooltip(btnMute, t('quickbar.mute'));
   btnMute.setAttribute('aria-pressed', 'false');
   btnMute.innerHTML = iconSvg('ti-volume');
 
   const tab = document.createElement('button');
   tab.type = 'button';
   tab.className = 'mobile-quickbar__tab';
-  tab.setAttribute('aria-label', 'Abrir acciones rápidas');
+  setButtonTooltip(tab, t('quickbar.open'));
   tab.setAttribute('aria-expanded', 'false');
   tab.innerHTML = iconSvg('ti-menu-2');
 
@@ -60,14 +70,14 @@ export function setupMobileQuickActionsBar() {
   const btnPan = document.createElement('button');
   btnPan.type = 'button';
   btnPan.className = 'mobile-quickbar__btn';
-  btnPan.setAttribute('aria-label', 'Bloquear paneo');
+  setButtonTooltip(btnPan, t(navLocks.panLocked ? 'quickbar.pan.unlock' : 'quickbar.pan.lock'));
   btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
   btnPan.innerHTML = iconSvg('ti-hand-stop');
 
   const btnZoom = document.createElement('button');
   btnZoom.type = 'button';
   btnZoom.className = 'mobile-quickbar__btn';
-  btnZoom.setAttribute('aria-label', 'Bloquear zoom');
+  setButtonTooltip(btnZoom, t(navLocks.zoomLocked ? 'quickbar.zoom.unlock' : 'quickbar.zoom.lock'));
   btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
   btnZoom.innerHTML = iconSvg('ti-zoom-cancel');
 
@@ -76,7 +86,7 @@ export function setupMobileQuickActionsBar() {
   btnPatches.type = 'button';
   btnPatches.className = 'mobile-quickbar__btn';
   btnPatches.id = 'btnPatches';
-  btnPatches.setAttribute('aria-label', t('quickbar.patches'));
+  setButtonTooltip(btnPatches, t('quickbar.patches'));
   btnPatches.innerHTML = iconSvg('ti-files');
   
   btnPatches.addEventListener('click', () => {
@@ -86,7 +96,7 @@ export function setupMobileQuickActionsBar() {
   const btnFs = document.createElement('button');
   btnFs.type = 'button';
   btnFs.className = 'mobile-quickbar__btn';
-  btnFs.setAttribute('aria-label', 'Pantalla completa');
+  setButtonTooltip(btnFs, t(document.fullscreenElement ? 'quickbar.fullscreen.exit' : 'quickbar.fullscreen'));
   btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
   btnFs.innerHTML = iconSvg('ti-arrows-maximize');
 
@@ -95,7 +105,7 @@ export function setupMobileQuickActionsBar() {
   btnSettings.type = 'button';
   btnSettings.className = 'mobile-quickbar__btn';
   btnSettings.id = 'btnGeneralSettings';
-  btnSettings.setAttribute('aria-label', 'Ajustes');
+  setButtonTooltip(btnSettings, t('quickbar.settings'));
   btnSettings.innerHTML = iconSvg('ti-settings');
   
   // Badge de actualización disponible
@@ -138,6 +148,11 @@ export function setupMobileQuickActionsBar() {
     btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
     btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
 
+    // Actualizar tooltips dinámicos
+    setButtonTooltip(btnPan, t(navLocks.panLocked ? 'quickbar.pan.unlock' : 'quickbar.pan.lock'));
+    setButtonTooltip(btnZoom, t(navLocks.zoomLocked ? 'quickbar.zoom.unlock' : 'quickbar.zoom.lock'));
+    setButtonTooltip(btnFs, t(document.fullscreenElement ? 'quickbar.fullscreen.exit' : 'quickbar.fullscreen'));
+
     btnPan.classList.toggle('is-active', Boolean(navLocks.panLocked));
     btnZoom.classList.toggle('is-active', Boolean(navLocks.zoomLocked));
     btnFs.classList.toggle('is-active', Boolean(document.fullscreenElement));
@@ -157,6 +172,7 @@ export function setupMobileQuickActionsBar() {
     bar.classList.toggle('mobile-quickbar--collapsed', !expanded);
     bar.classList.toggle('mobile-quickbar--expanded', expanded);
     tab.setAttribute('aria-expanded', String(expanded));
+    setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
   }
 
   tab.addEventListener('click', () => {
@@ -197,7 +213,7 @@ export function setupMobileQuickActionsBar() {
   function updateMuteButton(muted) {
     isMuted = muted;
     btnMute.innerHTML = iconSvg(muted ? 'ti-volume-off' : 'ti-volume');
-    btnMute.setAttribute('aria-label', t(muted ? 'quickbar.unmute' : 'quickbar.mute'));
+    setButtonTooltip(btnMute, t(muted ? 'quickbar.unmute' : 'quickbar.mute'));
     btnMute.setAttribute('aria-pressed', String(muted));
     btnMute.classList.toggle('is-muted', muted);
   }
@@ -226,7 +242,7 @@ export function setupMobileQuickActionsBar() {
   btnAudioSettings.type = 'button';
   btnAudioSettings.className = 'mobile-quickbar__btn';
   btnAudioSettings.id = 'btnAudioSettings';
-  btnAudioSettings.setAttribute('aria-label', t('quickbar.audio'));
+  setButtonTooltip(btnAudioSettings, t('quickbar.audio'));
   btnAudioSettings.innerHTML = iconSvg('ti-settings-2');
   
   btnAudioSettings.addEventListener('click', () => {
@@ -250,6 +266,16 @@ export function setupMobileQuickActionsBar() {
   document.body.appendChild(bar);
 
   applyPressedState();
+
+  // Actualizar tooltips cuando cambie el idioma
+  onLocaleChange(() => {
+    setButtonTooltip(btnMute, t(isMuted ? 'quickbar.unmute' : 'quickbar.mute'));
+    setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
+    setButtonTooltip(btnPatches, t('quickbar.patches'));
+    setButtonTooltip(btnAudioSettings, t('quickbar.audio'));
+    setButtonTooltip(btnSettings, t('quickbar.settings'));
+    applyPressedState(); // Actualiza pan, zoom, fullscreen
+  });
 }
 
 /**

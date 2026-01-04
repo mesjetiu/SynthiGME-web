@@ -352,7 +352,152 @@ export default {
 
 ---
 
-## 4. Sistema de Osciloscopio
+## 4. Sistema de Patches/Estados
+
+El sistema de patches permite guardar y restaurar el estado completo del sintetizador.
+
+### 4.1 Arquitectura
+
+```
+src/assets/js/state/
+├── index.js       # API pública (re-exporta todo)
+├── schema.js      # Estructura de patches, validación, IDs de módulos
+├── storage.js     # Persistencia: IndexedDB para patches, localStorage para sesión
+├── conversions.js # Conversiones knob ↔ valores físicos (curvas)
+└── migrations.js  # Migraciones entre versiones de formato
+```
+
+### 4.2 Almacenamiento
+
+| Tipo | Ubicación | Propósito |
+|------|-----------|-----------|
+| **Patches guardados** | IndexedDB `synthigme-patches` | Patches con nombre guardados manualmente por el usuario |
+| **Último estado** | localStorage `synthigme-last-state` | Autoguardado periódico y al cerrar, para recuperación |
+| **Configuración** | localStorage `synthigme-autosave-interval` | Intervalo de autoguardado seleccionado |
+
+### 4.3 Formato de Patch
+
+```javascript
+{
+  name: "Mi Patch",           // Nombre del patch
+  savedAt: "2026-01-04T...",  // Timestamp ISO
+  modules: {
+    oscillators: {
+      "panel1-osc-1": { knobs: [0.5, 0.3, ...], rangeState: "hi" },
+      "panel3-osc-1": { ... }
+    },
+    noise: {
+      "panel3-noise-1": { colour: 0.5, level: 0.7 }
+    },
+    randomVoltage: { ... },
+    outputFaders: { levels: [0, 0, 0, 0, 0, 0, 0, 0] },
+    inputAmplifiers: { levels: [0, 0, 0, 0, 0, 0, 0, 0] },
+    matrixAudio: { connections: [[row, col], ...] },
+    matrixControl: { connections: [[row, col], ...] }
+  }
+}
+```
+
+### 4.4 Autoguardado
+
+El sistema guarda automáticamente el estado para prevenir pérdida de trabajo:
+
+| Evento | Comportamiento |
+|--------|----------------|
+| **Intervalo periódico** | Guarda cada X segundos/minutos (configurable en Ajustes) |
+| **Cerrar página** | Guarda en `beforeunload` (incluye recarga, cierre de pestaña, etc.) |
+| **Al iniciar** | Pregunta al usuario si desea restaurar el último estado guardado |
+
+**Opciones de intervalo:** Desactivado, 30s, 1m, 5m, 10m
+
+> ⚠️ `beforeunload` se dispara en **cualquier** cierre o recarga (F5, Ctrl+R, cerrar pestaña, etc.)
+
+### 4.5 Serialización
+
+Cada módulo UI implementa `serialize()` y `deserialize()`:
+
+```javascript
+// En SGME_Oscillator, ModuleUI, LargeMatrix, etc.
+serialize() {
+  return {
+    knobs: this.knobs.map(k => k.getValue()),
+    rangeState: this.rangeState
+  };
+}
+
+deserialize(data) {
+  if (data.knobs) {
+    data.knobs.forEach((v, i) => this.knobs[i]?.setValue(v));
+  }
+}
+```
+
+### 4.6 Módulos con Serialización
+
+| Clase | Archivo | Qué serializa |
+|-------|---------|---------------|
+| `SGME_Oscillator` | `ui/sgmeOscillator.js` | 7 knobs + rangeState (hi/lo) |
+| `ModuleUI` (base) | `ui/moduleUI.js` | Todos los knobs por key |
+| `NoiseGenerator` | `ui/noiseGenerator.js` | colour, level (hereda de ModuleUI) |
+| `RandomVoltage` | `ui/randomVoltage.js` | mean, variance, voltage1, voltage2, key |
+| `InputAmplifierUI` | `ui/inputAmplifierUI.js` | 8 niveles de ganancia |
+| `OutputFaderModule` | `modules/outputFaders.js` | 8 niveles de salida |
+| `LargeMatrix` | `ui/largeMatrix.js` | Array de conexiones [row, col] |
+
+### 4.7 PatchBrowser UI
+
+Modal para gestionar patches (`ui/patchBrowser.js`):
+
+| Acción | Descripción |
+|--------|-------------|
+| **Guardar** | Serializa estado actual, pide nombre, guarda en IndexedDB |
+| **Cargar** | Selecciona patch, confirma, aplica `deserialize()` a todos los módulos |
+| **Eliminar** | Borra patch de IndexedDB |
+| **Renombrar** | Cambia nombre del patch |
+| **Exportar** | Descarga como archivo `.sgme.json` |
+| **Importar** | Carga archivo `.sgme.json` y lo guarda en IndexedDB |
+| **Buscar** | Filtra lista de patches por nombre |
+
+### 4.8 Flujo de Datos
+
+```
+┌─────────────┐     serialize()      ┌──────────────┐
+│  UI Modules │ ──────────────────► │ Patch Object │
+│  (knobs,    │                      │  { modules } │
+│   matrix)   │ ◄────────────────── │              │
+└─────────────┘    deserialize()     └──────────────┘
+                                           │
+                    ┌──────────────────────┼──────────────────────┐
+                    ▼                      ▼                      ▼
+             ┌─────────────┐       ┌──────────────┐      ┌───────────────┐
+             │  IndexedDB  │       │ localStorage │      │  .sgme.json   │
+             │  (patches)  │       │ (last-state) │      │  (export)     │
+             └─────────────┘       └──────────────┘      └───────────────┘
+```
+
+### 4.9 Uso en Código
+
+```javascript
+// Serializar estado actual
+const state = this._serializeCurrentState();  // { modules: {...} }
+
+// Guardar en IndexedDB
+import { savePatch } from './state/index.js';
+await savePatch({ name: 'Mi Patch', ...state });
+
+// Cargar y aplicar
+import { loadPatch } from './state/index.js';
+const patch = await loadPatch(patchId);
+await this._applyPatch(patch);
+
+// Listar patches
+import { listPatches } from './state/index.js';
+const patches = await listPatches();  // [{ id, name, savedAt }, ...]
+```
+
+---
+
+## 5. Sistema de Osciloscopio
 
 El osciloscopio es uno de los módulos más complejos, implementando técnicas profesionales de estabilización visual.
 
@@ -412,7 +557,7 @@ El render usa `requestAnimationFrame` para sincronizar el dibujo con el refresco
 
 ---
 
-## 5. Flujo de Audio
+## 6. Flujo de Audio
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -435,7 +580,7 @@ El render usa `requestAnimationFrame` para sincronizar el dibujo con el refresco
 
 ---
 
-## 6. Sistema de AudioWorklets
+## 7. Sistema de AudioWorklets
 
 ### Motivación
 
@@ -520,7 +665,7 @@ Si el navegador no soporta AudioWorklet o falla la carga:
 
 ---
 
-## 7. Sistema de Salidas
+## 8. Sistema de Salidas
 
 ### Arquitectura de 8 Buses Lógicos
 
@@ -544,7 +689,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 8. Sistema de Matrices
+## 9. Sistema de Matrices
 
 ### Matriz de Audio (Panel 5)
 - **63 filas** (fuentes: osciladores, filtros, etc.)
@@ -567,7 +712,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 9. Build y Distribución
+## 10. Build y Distribución
 
 ### Scripts (`package.json`)
 
@@ -606,7 +751,7 @@ docs/
 
 ---
 
-## 10. PWA (Progressive Web App)
+## 11. PWA (Progressive Web App)
 
 - **Service Worker** (`sw.js`): Cache de assets para uso offline
 - **Web Manifest**: Permite instalación como app nativa
@@ -614,7 +759,7 @@ docs/
 
 ---
 
-## 11. Patrones de Código
+## 12. Patrones de Código
 
 ### Módulos de Audio
 - Extienden clase base `Module` de `engine.js`
@@ -633,11 +778,11 @@ docs/
 
 ---
 
-## 12. Consideraciones Futuras
+## 13. Consideraciones Futuras
 
 - [ ] **Hard sync**: Conectar señal de sincronización a entrada del worklet (Panel 6)
 - [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
-- [ ] **Presets**: Sistema de guardado/carga de patches
+- [x] **Presets**: Sistema de guardado/carga de patches → Ver [Sección 4](#4-sistema-de-patchesestados)
 - [ ] **MIDI**: Soporte para controladores externos
 - [ ] **Multicanal**: Ruteo a más de 2 salidas físicas si el navegador lo permite
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam

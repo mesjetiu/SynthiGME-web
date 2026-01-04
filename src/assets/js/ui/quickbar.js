@@ -236,6 +236,19 @@ export function setupMobileQuickActionsBar() {
       document.dispatchEvent(new CustomEvent('synth:toggleMute'));
     }
   });
+  
+  // Atajo de teclado: Shift+I para reset (Init)
+  document.addEventListener('keydown', (e) => {
+    // Ignorar si está en un input/textarea
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 'i' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      const confirmed = confirm(t('settings.reset.confirm'));
+      if (confirmed) {
+        document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
+      }
+    }
+  });
 
   // Botón de configuración de audio
   const btnAudioSettings = document.createElement('button');
@@ -249,11 +262,27 @@ export function setupMobileQuickActionsBar() {
     // Emitir evento custom para que app.js lo maneje
     document.dispatchEvent(new CustomEvent('synth:toggleAudioSettings'));
   });
+  
+  // Botón de reset (Init)
+  const btnReset = document.createElement('button');
+  btnReset.type = 'button';
+  btnReset.className = 'mobile-quickbar__btn mobile-quickbar__btn--danger';
+  btnReset.id = 'btnReset';
+  setButtonTooltip(btnReset, t('quickbar.reset'));
+  btnReset.innerHTML = iconSvg('ti-refresh');
+  
+  btnReset.addEventListener('click', () => {
+    const confirmed = confirm(t('settings.reset.confirm'));
+    if (confirmed) {
+      document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
+    }
+  });
 
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
   group.appendChild(btnPatches);
   group.appendChild(btnAudioSettings);
+  group.appendChild(btnReset);
   group.appendChild(btnFs);
   group.appendChild(btnSettings);
 
@@ -273,6 +302,7 @@ export function setupMobileQuickActionsBar() {
     setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
     setButtonTooltip(btnPatches, t('quickbar.patches'));
     setButtonTooltip(btnAudioSettings, t('quickbar.audio'));
+    setButtonTooltip(btnReset, t('quickbar.reset'));
     setButtonTooltip(btnSettings, t('quickbar.settings'));
     applyPressedState(); // Actualiza pan, zoom, fullscreen
   });

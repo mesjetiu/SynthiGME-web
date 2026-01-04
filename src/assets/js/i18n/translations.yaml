@@ -302,6 +302,34 @@ quickbar.fullscreen.exit:
   en: Exit fullscreen (Esc)
   es: Salir de pantalla completa (Esc)
 
+quickbar.reset:
+  en: Reset synth (Shift+I)
+  es: Reiniciar synth (Shift+I)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESET DEL SINTETIZADOR
+# ═══════════════════════════════════════════════════════════════════════════════
+
+settings.reset:
+  en: Reset synthesizer
+  es: Reiniciar sintetizador
+
+settings.reset.description:
+  en: Reset all modules to their initial values. This action cannot be undone.
+  es: Reinicia todos los módulos a sus valores iniciales. Esta acción no se puede deshacer.
+
+settings.reset.button:
+  en: Reset to defaults
+  es: Reiniciar valores
+
+settings.reset.confirm:
+  en: Are you sure you want to reset all modules to their default values? This cannot be undone.
+  es: ¿Seguro que quieres reiniciar todos los módulos a sus valores por defecto? Esta acción no se puede deshacer.
+
+toast.reset:
+  en: Synthesizer reset to defaults
+  es: Sintetizador reiniciado
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # TOASTS Y MENSAJES
 # ═══════════════════════════════════════════════════════════════════════════════

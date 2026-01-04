@@ -258,3 +258,73 @@ export function validatePatch(patch) {
 export function getParamDescriptor(moduleType, paramName) {
   return PARAM_DESCRIPTORS[moduleType]?.[paramName] || null;
 }
+
+/**
+ * Crea un patch con todos los módulos en sus valores por defecto.
+ * Útil para resetear el sintetizador sin recargar la página.
+ * @param {string} [name='Init'] - Nombre del patch
+ * @returns {Object} Patch con estado inicial
+ */
+export function createDefaultPatch(name = 'Init') {
+  // Valores por defecto para osciladores:
+  // knobs: [pulseLevel, pulseWidth, sineLevel, sineSymmetry, triangleLevel, sawtoothLevel, frequency]
+  // Los valores 0..1 son normalizados, frequency 0 corresponde al mínimo del rango
+  const defaultOscillator = {
+    knobs: [0, 0.5, 0, 0.5, 0, 0, 0],
+    rangeState: 'hi'
+  };
+  
+  // Valores por defecto para noise: { colour: 0, level: 0 }
+  const defaultNoise = { colour: 0, level: 0 };
+  
+  // Valores por defecto para random voltage
+  const defaultRandomVoltage = { knobs: [0, 0.5] };
+  
+  // Valores por defecto para input amplifier
+  const defaultInputAmplifier = { level: 0 };
+  
+  // Valores por defecto para output faders (4 canales)
+  const defaultOutputFaders = {
+    channels: MODULE_IDS.outputFaders.map(() => ({
+      left: 0,
+      right: 0,
+      filter: 0.5,
+      pan: 0.5  // Centro (0.5 en el knob = 0 en el rango -1..1)
+    }))
+  };
+  
+  return {
+    formatVersion: FORMAT_VERSION,
+    appVersion: window.__synthBuildVersion || 'dev',
+    savedAt: new Date().toISOString(),
+    name,
+    
+    modules: {
+      oscillators: Object.fromEntries(
+        MODULE_IDS.oscillators.map(id => [id, { ...defaultOscillator }])
+      ),
+      noise: Object.fromEntries(
+        MODULE_IDS.noise.map(id => [id, { ...defaultNoise }])
+      ),
+      randomVoltage: Object.fromEntries(
+        MODULE_IDS.randomVoltage.map(id => [id, { ...defaultRandomVoltage }])
+      ),
+      inputAmplifiers: Object.fromEntries(
+        MODULE_IDS.inputAmplifiers.map(id => [id, { ...defaultInputAmplifier }])
+      ),
+      outputFaders: defaultOutputFaders,
+      matrixAudio: { connections: [] },
+      matrixControl: { connections: [] }
+    },
+    
+    matrix: {
+      audio: [],
+      control: []
+    },
+    
+    routing: {
+      outputs: {},
+      inputs: {}
+    }
+  };
+}

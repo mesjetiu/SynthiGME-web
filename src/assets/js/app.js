@@ -50,7 +50,7 @@ import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
 import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
-import { initI18n } from './i18n/index.js';
+import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 
@@ -409,6 +409,11 @@ class App {
       this.settingsModal.toggle();
     });
     
+    // Listener para resetear el sintetizador a valores por defecto
+    document.addEventListener('synth:resetToDefaults', async () => {
+      await this._resetToDefaults();
+    });
+    
     // ─────────────────────────────────────────────────────────────────────────
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
     // ─────────────────────────────────────────────────────────────────────────
@@ -658,6 +663,44 @@ class App {
     }
     
     console.log('[App] Patch applied successfully');
+  }
+  
+  /**
+   * Resetea todos los módulos a sus valores por defecto.
+   * Carga un patch "Init" generado programáticamente.
+   */
+  async _resetToDefaults() {
+    const { createDefaultPatch } = await import('./state/schema.js');
+    const defaultPatch = createDefaultPatch('Init');
+    
+    console.log('[App] Resetting to defaults...');
+    await this._applyPatch(defaultPatch);
+    
+    // Mostrar toast de confirmación
+    this._showToast(t('toast.reset'));
+    
+    console.log('[App] Reset to defaults complete');
+  }
+  
+  /**
+   * Muestra un toast temporal de feedback.
+   * @param {string} message - Mensaje a mostrar
+   */
+  _showToast(message) {
+    let toast = document.getElementById('appToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'appToast';
+      toast.className = 'resolution-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('resolution-toast--visible');
+    
+    clearTimeout(this._toastTimeout);
+    this._toastTimeout = setTimeout(() => {
+      toast.classList.remove('resolution-toast--visible');
+    }, 2000);
   }
 
   _labelPanelSlot(panel, label, layout = {}) {

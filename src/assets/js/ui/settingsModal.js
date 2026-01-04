@@ -181,6 +181,9 @@ export class SettingsModal {
     // Sección: Actualizaciones
     body.appendChild(this._createUpdatesSection());
     
+    // Sección: Resetear sintetizador
+    body.appendChild(this._createResetSection());
+    
     // Ensamblar modal
     this.modal.appendChild(header);
     this.modal.appendChild(body);
@@ -334,6 +337,45 @@ export class SettingsModal {
     section.appendChild(this.updateStatusElement);
     
     return section;
+  }
+  
+  /**
+   * Crea la sección de reseteo del sintetizador
+   */
+  _createResetSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section settings-section--danger';
+    
+    this.resetTitleElement = document.createElement('h3');
+    this.resetTitleElement.className = 'settings-section__title';
+    this.resetTitleElement.textContent = t('settings.reset');
+    
+    this.resetDescElement = document.createElement('p');
+    this.resetDescElement.className = 'settings-section__description';
+    this.resetDescElement.textContent = t('settings.reset.description');
+    
+    this.resetBtn = document.createElement('button');
+    this.resetBtn.type = 'button';
+    this.resetBtn.className = 'settings-reset-btn settings-reset-btn--danger';
+    this.resetBtn.textContent = t('settings.reset.button');
+    this.resetBtn.addEventListener('click', () => this._handleReset());
+    
+    section.appendChild(this.resetTitleElement);
+    section.appendChild(this.resetDescElement);
+    section.appendChild(this.resetBtn);
+    
+    return section;
+  }
+  
+  /**
+   * Maneja el reseteo del sintetizador
+   */
+  async _handleReset() {
+    const confirmed = confirm(t('settings.reset.confirm'));
+    if (!confirmed) return;
+    
+    document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
+    this.close();
   }
   
   /**
@@ -689,6 +731,19 @@ export class SettingsModal {
     
     if (this.restoreOnStartLabelElement) {
       this.restoreOnStartLabelElement.textContent = t('settings.autosave.restoreOnStart');
+    }
+    
+    // Actualizar sección de reset
+    if (this.resetTitleElement) {
+      this.resetTitleElement.textContent = t('settings.reset');
+    }
+    
+    if (this.resetDescElement) {
+      this.resetDescElement.textContent = t('settings.reset.description');
+    }
+    
+    if (this.resetBtn) {
+      this.resetBtn.textContent = t('settings.reset.button');
     }
     
     // Actualizar aria-label del botón cerrar

@@ -20,7 +20,7 @@ function applyBuildVersionToPanels(version) {
  * En producción usa la versión inyectada por esbuild.
  * En desarrollo intenta leer package.json.
  */
-export function detectBuildVersion() {
+export async function detectBuildVersion() {
   // Caso build (/docs): BUILD_VERSION ya viene inyectado por esbuild.
   if (BUILD_VERSION && BUILD_VERSION !== '__BUILD_VERSION__') {
     window.__synthBuildVersion = BUILD_VERSION;
@@ -29,13 +29,17 @@ export function detectBuildVersion() {
   }
 
   // Caso /src: usamos la version de package.json como referencia.
-  fetch('../package.json', { cache: 'no-store' })
-    .then(resp => (resp && resp.ok ? resp.json() : null))
-    .then(pkg => {
-      if (!pkg || !pkg.version) return;
-      const label = `${pkg.version}-src`;
-      window.__synthBuildVersion = label;
-      applyBuildVersionToPanels(label);
-    })
-    .catch(() => {});
+  try {
+    const resp = await fetch('../package.json', { cache: 'no-store' });
+    if (resp && resp.ok) {
+      const pkg = await resp.json();
+      if (pkg && pkg.version) {
+        const label = `${pkg.version}-src`;
+        window.__synthBuildVersion = label;
+        applyBuildVersionToPanels(label);
+      }
+    }
+  } catch {
+    // Silenciar errores
+  }
 }

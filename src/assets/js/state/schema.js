@@ -274,23 +274,23 @@ export function createDefaultPatch(name = 'Init') {
     rangeState: 'hi'
   };
   
-  // Valores por defecto para noise: { colour: 0, level: 0 }
+  // Valores por defecto para noise (ModuleUI): { colour: 0, level: 0 }
   const defaultNoise = { colour: 0, level: 0 };
   
-  // Valores por defecto para random voltage
-  const defaultRandomVoltage = { knobs: [0, 0.5] };
+  // Valores por defecto para random voltage (ModuleUI):
+  // { mean: 0.5, variance: 0.5, voltage1: 0, voltage2: 0, key: 0.5 }
+  const defaultRandomVoltage = { mean: 0.5, variance: 0.5, voltage1: 0, voltage2: 0, key: 0.5 };
   
-  // Valores por defecto para input amplifier
-  const defaultInputAmplifier = { level: 0 };
+  // Valores por defecto para input amplifiers: { levels: [8 valores a 0] }
+  // Se guarda con ID 'input-amplifiers' como clave
+  const defaultInputAmplifiers = {
+    levels: Array(8).fill(0)
+  };
   
-  // Valores por defecto para output faders (4 canales)
+  // Valores por defecto para output faders: { levels: [valores a 0] }
+  // Número de sliders = 8 (4 canales x 2: left y right)
   const defaultOutputFaders = {
-    channels: MODULE_IDS.outputFaders.map(() => ({
-      left: 0,
-      right: 0,
-      filter: 0.5,
-      pan: 0.5  // Centro (0.5 en el knob = 0 en el rango -1..1)
-    }))
+    levels: Array(8).fill(0)
   };
   
   return {
@@ -309,9 +309,10 @@ export function createDefaultPatch(name = 'Init') {
       randomVoltage: Object.fromEntries(
         MODULE_IDS.randomVoltage.map(id => [id, { ...defaultRandomVoltage }])
       ),
-      inputAmplifiers: Object.fromEntries(
-        MODULE_IDS.inputAmplifiers.map(id => [id, { ...defaultInputAmplifier }])
-      ),
+      // Input amplifiers: objeto con ID como clave
+      inputAmplifiers: {
+        'input-amplifiers': defaultInputAmplifiers
+      },
       outputFaders: defaultOutputFaders,
       matrixAudio: { connections: [] },
       matrixControl: { connections: [] }

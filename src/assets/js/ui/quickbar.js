@@ -241,7 +241,8 @@ export function setupMobileQuickActionsBar() {
   document.addEventListener('keydown', (e) => {
     // Ignorar si está en un input/textarea
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.toLowerCase() === 'i' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // Usar e.code para mayor compatibilidad entre layouts de teclado
+    if (e.code === 'KeyI' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
       const confirmed = confirm(t('settings.reset.confirm'));
       if (confirmed) {

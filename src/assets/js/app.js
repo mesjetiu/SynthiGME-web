@@ -249,10 +249,15 @@ class App {
     document.addEventListener('synth:toggleMute', () => {
       this.ensureAudio();
       this.engine.toggleMute();
+      const muted = this.engine.muted;
+      
       // Notificar a quickbar del nuevo estado
       document.dispatchEvent(new CustomEvent('synth:muteChanged', {
-        detail: { muted: this.engine.muted }
+        detail: { muted }
       }));
+      
+      // Mostrar toast de feedback
+      this._showToast(t(muted ? 'toast.mute' : 'toast.unmute'));
     });
     
     // Modal de configuración de audio (ruteo salidas → sistema L/R)

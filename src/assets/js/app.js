@@ -2204,6 +2204,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Inicializar sistema de internacionalización antes de crear la UI
   await initI18n();
   
+  // Detectar versión antes de crear la app (para que esté disponible en modales)
+  await detectBuildVersion();
+  
   ensureOrientationHint();
   window._synthApp = new App();
   if (window._synthApp && window._synthApp.ensureAudio) {
@@ -2213,9 +2216,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Inicializar navegación del viewport
   initViewportNavigation();
   
-  // Registrar service worker y detectar versión
+  // Registrar service worker
   registerServiceWorker();
-  detectBuildVersion();
   
   // Configurar UI móvil y zoom de paneles
   setupMobileQuickActionsBar();

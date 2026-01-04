@@ -410,7 +410,11 @@ export class PatchBrowser {
       // Obtener estado actual via callback
       let patch;
       if (this.onSave) {
-        patch = this.onSave(name.trim());
+        const state = await this.onSave();
+        patch = {
+          name: name.trim(),
+          ...state
+        };
       } else {
         patch = createEmptyPatch(name.trim());
       }

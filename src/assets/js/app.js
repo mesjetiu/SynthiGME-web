@@ -667,14 +667,67 @@ class App {
   
   /**
    * Resetea todos los módulos a sus valores por defecto.
-   * Carga un patch "Init" generado programáticamente.
+   * Itera directamente por los módulos existentes en lugar de usar un patch.
    */
   async _resetToDefaults() {
-    const { createDefaultPatch } = await import('./state/schema.js');
-    const defaultPatch = createDefaultPatch('Init');
-    
     console.log('[App] Resetting to defaults...');
-    await this._applyPatch(defaultPatch);
+    
+    // Valores por defecto para cada tipo de módulo
+    const defaultOscillator = { knobs: [0, 0.5, 0, 0.5, 0, 0, 0], rangeState: 'hi' };
+    const defaultNoise = { colour: 0, level: 0 };
+    const defaultRandomVoltage = { mean: 0.5, variance: 0.5, voltage1: 0, voltage2: 0, key: 0.5 };
+    const defaultInputAmplifiers = { levels: Array(8).fill(0) };
+    const defaultOutputFaders = { levels: Array(8).fill(0) };
+    
+    // Resetear osciladores
+    if (this._oscillatorUIs) {
+      for (const ui of Object.values(this._oscillatorUIs)) {
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(defaultOscillator);
+        }
+      }
+    }
+    
+    // Resetear generadores de ruido
+    if (this._noiseUIs) {
+      for (const ui of Object.values(this._noiseUIs)) {
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(defaultNoise);
+        }
+      }
+    }
+    
+    // Resetear Random Voltage
+    if (this._randomVoltageUIs) {
+      for (const ui of Object.values(this._randomVoltageUIs)) {
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(defaultRandomVoltage);
+        }
+      }
+    }
+    
+    // Resetear Input Amplifiers
+    if (this._inputAmplifierUIs) {
+      for (const ui of Object.values(this._inputAmplifierUIs)) {
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(defaultInputAmplifiers);
+        }
+      }
+    }
+    
+    // Resetear Output Faders
+    if (this._outputFadersModule && typeof this._outputFadersModule.deserialize === 'function') {
+      this._outputFadersModule.deserialize(defaultOutputFaders);
+    }
+    
+    // Limpiar matrices de conexiones
+    if (this.largeMatrixAudio && typeof this.largeMatrixAudio.deserialize === 'function') {
+      this.largeMatrixAudio.deserialize({ connections: [] });
+    }
+    
+    if (this.largeMatrixControl && typeof this.largeMatrixControl.deserialize === 'function') {
+      this.largeMatrixControl.deserialize({ connections: [] });
+    }
     
     // Mostrar toast de confirmación
     this._showToast(t('toast.reset'));

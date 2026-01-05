@@ -1043,6 +1043,97 @@ small { color:#aaa; }
   transform: translate(-50%, 12px);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   BLOQUEADOR DE PORTRAIT — Overlay fullscreen para orientación vertical
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.portrait-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.portrait-blocker--visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Deshabilitar backdrop-filter en dispositivos táctiles (fix Samsung) */
+@media (hover: none) and (pointer: coarse) {
+  .portrait-blocker {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.95);
+  }
+}
+
+.portrait-blocker__content {
+  position: relative;
+  text-align: center;
+  padding: 2rem;
+  max-width: 320px;
+}
+
+.portrait-blocker__icon {
+  color: #ffe9a3;
+  margin-bottom: 1.5rem;
+  animation: rotate-hint 2s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  75% { transform: rotate(15deg); }
+}
+
+.portrait-blocker__message {
+  margin: 0;
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  color: #eee;
+  line-height: 1.5;
+}
+
+.portrait-blocker__close {
+  position: absolute;
+  top: -1rem;
+  right: -1rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.portrait-blocker__close:hover,
+.portrait-blocker__close:focus-visible {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+/* Ocultar en landscape */
+@media (orientation: landscape) {
+  .portrait-blocker {
+    display: none !important;
+  }
+}
+
 /* IMPORTANTE: NO usar contain:paint — fuerza rasterización del SVG inline a bitmap
    que luego se escala borroso. Sin contain, el SVG se re-renderiza vectorial. */
 #panel-5 .matrix-container,

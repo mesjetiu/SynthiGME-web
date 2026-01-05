@@ -56,6 +56,40 @@ import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Bloqueador de orientación portrait
+// ─────────────────────────────────────────────────────────────────────────────
+let portraitBlockerDismissed = false;
+
+function initPortraitBlocker() {
+  const blocker = document.getElementById('portraitBlocker');
+  if (!blocker) return;
+  
+  const closeBtn = blocker.querySelector('.portrait-blocker__close');
+  
+  closeBtn?.addEventListener('click', () => {
+    portraitBlockerDismissed = true;
+    blocker.classList.remove('portrait-blocker--visible');
+    blocker.setAttribute('aria-hidden', 'true');
+  });
+  
+  // Escuchar cambios de orientación
+  const mq = window.matchMedia('(orientation: portrait)');
+  
+  const updateVisibility = () => {
+    if (mq.matches && !portraitBlockerDismissed) {
+      blocker.classList.add('portrait-blocker--visible');
+      blocker.setAttribute('aria-hidden', 'false');
+    } else {
+      blocker.classList.remove('portrait-blocker--visible');
+      blocker.setAttribute('aria-hidden', 'true');
+    }
+  };
+  
+  mq.addEventListener('change', updateVisibility);
+  updateVisibility();
+}
+
 class App {
   constructor() {
     this.engine = new AudioEngine();
@@ -2386,7 +2420,16 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Detectar versión antes de crear la app (para que esté disponible en modales)
   await detectBuildVersion();
   
-  ensureOrientationHint();
+  // ensureOrientationHint(); // Desactivado: reemplazado por bloqueador portrait permanente
+  initPortraitBlocker();
+  
+  // Intentar bloquear orientación a landscape (solo funciona en fullscreen/PWA)
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {
+      // Bloqueo de orientación no soportado o denegado
+    });
+  }
+  
   window._synthApp = new App();
   if (window._synthApp && window._synthApp.ensureAudio) {
     window._synthApp.ensureAudio();

@@ -119,6 +119,8 @@ export default {
   "toast.zoom.locked": "Zoom bloqueado",
   "toast.zoom.unlocked": "Zoom desbloqueado",
   "orientation.hint": "Gira el dispositivo en posición horizontal para una mejor experiencia",
+  "orientation.blocker": "Gira el dispositivo a modo horizontal",
+  "orientation.blocker.dismiss": "Cerrar",
   "update.available": "Hay una nueva versión disponible. ¿Quieres recargar ahora?",
   "error.fullscreen": "No se pudo alternar la pantalla completa.",
   "patches.title": "Patches",

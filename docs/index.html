@@ -10,6 +10,22 @@
   <link rel="stylesheet" href="./assets/css/main.css" />
 </head>
 <body>
+  <!-- Bloqueador de orientación portrait -->
+  <div class="portrait-blocker" id="portraitBlocker" aria-hidden="true">
+    <div class="portrait-blocker__content">
+      <svg class="portrait-blocker__icon" viewBox="0 0 24 24" width="64" height="64" aria-hidden="true">
+        <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"
+          d="M19.95 11a8 8 0 1 0-.5 4m.5 5v-5h-5"/>
+      </svg>
+      <p class="portrait-blocker__message" data-i18n="orientation.blocker">
+        Gira el dispositivo a modo horizontal
+      </p>
+      <button class="portrait-blocker__close" type="button" aria-label="Cerrar">
+        &times;
+      </button>
+    </div>
+  </div>
+
   <button id="fullscreenBtn" class="fullscreen-toggle" type="button">Pantalla completa</button>
   <div id="viewportOuter">
     <div id="viewportInner"></div>

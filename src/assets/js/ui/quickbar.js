@@ -261,6 +261,41 @@ export function setupMobileQuickActionsBar() {
     }
   });
 
+  // Atajo de teclado: P para Patches
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      document.dispatchEvent(new CustomEvent('synth:togglePatches'));
+    }
+  });
+
+  // Atajo de teclado: S para Settings
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      document.dispatchEvent(new CustomEvent('synth:toggleSettings'));
+    }
+  });
+
+  // Atajo de teclado: F para Fullscreen
+  document.addEventListener('keydown', async (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (error) {
+        console.error('No se pudo alternar la pantalla completa.', error);
+      }
+    }
+  });
+
   // Botón de grabación de audio
   const btnRecord = document.createElement('button');
   btnRecord.type = 'button';

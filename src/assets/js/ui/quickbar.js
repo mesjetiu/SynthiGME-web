@@ -3,6 +3,7 @@
 
 import { onUpdateAvailable, hasWaitingUpdate } from '../utils/serviceWorker.js';
 import { t, onLocaleChange } from '../i18n/index.js';
+import { keyboardShortcuts } from './keyboardShortcuts.js';
 
 /**
  * Helper para establecer aria-label y tooltip en un botón.
@@ -227,74 +228,8 @@ export function setupMobileQuickActionsBar() {
     updateMuteButton(e.detail?.muted ?? false);
   });
   
-  // Atajo de teclado: M para mute
-  document.addEventListener('keydown', (e) => {
-    // Ignorar si está en un input/textarea
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault();
-      document.dispatchEvent(new CustomEvent('synth:toggleMute'));
-    }
-  });
-  
-  // Atajo de teclado: Shift+I para reset (Init)
-  document.addEventListener('keydown', (e) => {
-    // Ignorar si está en un input/textarea
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    // Usar e.code para mayor compatibilidad entre layouts de teclado
-    if (e.code === 'KeyI' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault();
-      const confirmed = confirm(t('settings.reset.confirm'));
-      if (confirmed) {
-        document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
-      }
-    }
-  });
-  
-  // Atajo de teclado: R para grabar/parar grabación
-  document.addEventListener('keydown', (e) => {
-    // Ignorar si está en un input/textarea
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-      e.preventDefault();
-      document.dispatchEvent(new CustomEvent('synth:toggleRecording'));
-    }
-  });
-
-  // Atajo de teclado: P para Patches
-  document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-      e.preventDefault();
-      document.dispatchEvent(new CustomEvent('synth:togglePatches'));
-    }
-  });
-
-  // Atajo de teclado: S para Settings
-  document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-      e.preventDefault();
-      document.dispatchEvent(new CustomEvent('synth:toggleSettings'));
-    }
-  });
-
-  // Atajo de teclado: F para Fullscreen
-  document.addEventListener('keydown', async (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-      e.preventDefault();
-      try {
-        if (document.fullscreenElement) {
-          await document.exitFullscreen();
-        } else {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch (error) {
-        console.error('No se pudo alternar la pantalla completa.', error);
-      }
-    }
-  });
+  // Inicializar sistema de atajos de teclado personalizables
+  keyboardShortcuts.init();
 
   // Botón de grabación de audio
   const btnRecord = document.createElement('button');

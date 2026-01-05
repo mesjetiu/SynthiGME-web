@@ -4,6 +4,7 @@
  * Permite configurar:
  * - Idioma de la interfaz
  * - Escala de renderizado (1×, 2×, 3×, 4×)
+ * - Atajos de teclado
  * - Buscar actualizaciones manualmente
  * 
  * Sigue el mismo patrón visual que AudioSettingsModal.
@@ -11,6 +12,7 @@
 
 import { t, getLocale, setLocale, getSupportedLocales, onLocaleChange } from '../i18n/index.js';
 import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } from '../utils/serviceWorker.js';
+import { keyboardShortcuts } from './keyboardShortcuts.js';
 
 const STORAGE_KEY_RESOLUTION = 'synthigme-resolution';
 const STORAGE_KEY_AUTOSAVE_INTERVAL = 'synthigme-autosave-interval';
@@ -296,6 +298,9 @@ export class SettingsModal {
     
     // Autoguardado
     container.appendChild(this._createAutoSaveSection());
+    
+    // Atajos de teclado
+    container.appendChild(this._createShortcutsSection());
     
     return container;
   }
@@ -636,6 +641,270 @@ export class SettingsModal {
     section.appendChild(restoreRow);
     
     return section;
+  }
+  
+  /**
+   * Crea la sección de atajos de teclado personalizables
+   * @returns {HTMLElement}
+   */
+  _createShortcutsSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    // Título
+    this.shortcutsTitleElement = document.createElement('h3');
+    this.shortcutsTitleElement.className = 'settings-section__title';
+    this.shortcutsTitleElement.textContent = t('settings.shortcuts');
+    section.appendChild(this.shortcutsTitleElement);
+    
+    // Descripción
+    this.shortcutsDescElement = document.createElement('p');
+    this.shortcutsDescElement.className = 'settings-section__description';
+    this.shortcutsDescElement.textContent = t('settings.shortcuts.description');
+    section.appendChild(this.shortcutsDescElement);
+    
+    // Lista de atajos
+    const list = document.createElement('div');
+    list.className = 'settings-shortcuts-list';
+    
+    const actionIds = keyboardShortcuts.getActionIds();
+    this.shortcutInputs = {};
+    
+    actionIds.forEach(actionId => {
+      const row = this._createShortcutRow(actionId);
+      list.appendChild(row);
+    });
+    
+    section.appendChild(list);
+    
+    // Botón de restaurar valores por defecto
+    const resetRow = document.createElement('div');
+    resetRow.className = 'settings-row';
+    resetRow.style.marginTop = '12px';
+    
+    this.resetShortcutsButton = document.createElement('button');
+    this.resetShortcutsButton.className = 'settings-shortcuts-reset';
+    this.resetShortcutsButton.textContent = t('settings.shortcuts.resetDefaults');
+    this.resetShortcutsButton.addEventListener('click', () => {
+      keyboardShortcuts.resetToDefaults();
+      this._updateAllShortcutInputs();
+    });
+    
+    resetRow.appendChild(this.resetShortcutsButton);
+    section.appendChild(resetRow);
+    
+    return section;
+  }
+  
+  /**
+   * Crea una fila para un atajo de teclado
+   * @param {string} actionId
+   * @returns {HTMLElement}
+   */
+  _createShortcutRow(actionId) {
+    const row = document.createElement('div');
+    row.className = 'settings-shortcut-row';
+    
+    // Etiqueta del atajo
+    const label = document.createElement('span');
+    label.className = 'settings-shortcut-label';
+    label.textContent = t(`settings.shortcuts.${actionId}`);
+    label.dataset.i18n = `settings.shortcuts.${actionId}`;
+    
+    // Contenedor del input y botón
+    const inputWrapper = document.createElement('div');
+    inputWrapper.className = 'settings-shortcut-input-wrapper';
+    
+    // Input para capturar tecla
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'settings-shortcut-input';
+    input.readOnly = true;
+    input.dataset.actionId = actionId;
+    
+    const binding = keyboardShortcuts.get(actionId);
+    input.value = binding ? keyboardShortcuts.formatBinding(binding) : t('settings.shortcuts.none');
+    if (!binding) {
+      input.classList.add('empty');
+    }
+    
+    // Guardar referencia para actualizaciones
+    this.shortcutInputs[actionId] = input;
+    
+    // Estado de conflicto
+    const conflictSpan = document.createElement('span');
+    conflictSpan.className = 'settings-shortcut-conflict';
+    conflictSpan.style.display = 'none';
+    
+    // Click para capturar
+    input.addEventListener('click', () => {
+      this._startShortcutCapture(input, actionId, conflictSpan);
+    });
+    
+    // Botón para limpiar
+    const clearButton = document.createElement('button');
+    clearButton.type = 'button';
+    clearButton.className = 'settings-shortcut-clear';
+    clearButton.innerHTML = '×';
+    clearButton.title = 'Clear';
+    clearButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      keyboardShortcuts.clear(actionId);
+      input.value = t('settings.shortcuts.none');
+      input.classList.add('empty');
+      input.classList.remove('conflict');
+      conflictSpan.style.display = 'none';
+    });
+    
+    inputWrapper.appendChild(input);
+    inputWrapper.appendChild(clearButton);
+    
+    row.appendChild(label);
+    row.appendChild(inputWrapper);
+    row.appendChild(conflictSpan);
+    
+    return row;
+  }
+  
+  /**
+   * Inicia la captura de un nuevo atajo de teclado
+   * @param {HTMLInputElement} input
+   * @param {string} actionId
+   * @param {HTMLElement} conflictSpan
+   */
+  _startShortcutCapture(input, actionId, conflictSpan) {
+    // Cancelar cualquier captura anterior
+    if (this._activeShortcutCapture) {
+      this._cancelShortcutCapture();
+    }
+    
+    input.classList.add('recording');
+    input.value = t('settings.shortcuts.press');
+    conflictSpan.style.display = 'none';
+    
+    this._activeShortcutCapture = {
+      input,
+      actionId,
+      conflictSpan,
+      handler: (e) => {
+        // Ignorar solo modificadores solos
+        if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
+          return;
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const key = e.key.toUpperCase();
+        
+        // Verificar teclas reservadas
+        if (keyboardShortcuts.isReservedKey(key)) {
+          input.value = t('settings.shortcuts.reserved');
+          input.classList.add('conflict');
+          setTimeout(() => {
+            this._cancelShortcutCapture();
+            const binding = keyboardShortcuts.get(actionId);
+            input.value = binding ? keyboardShortcuts.formatBinding(binding) : t('settings.shortcuts.none');
+            input.classList.remove('conflict');
+            if (!binding) input.classList.add('empty');
+          }, 1500);
+          return;
+        }
+        
+        const newBinding = {
+          key,
+          shift: e.shiftKey,
+          ctrl: e.ctrlKey,
+          alt: e.altKey
+        };
+        
+        // Intentar establecer
+        const result = keyboardShortcuts.set(actionId, newBinding);
+        
+        if (result.conflict) {
+          // Hay conflicto
+          input.classList.add('conflict');
+          conflictSpan.textContent = t('settings.shortcuts.conflict').replace('{action}', t(`settings.shortcuts.${result.conflict}`));
+          conflictSpan.style.display = 'inline';
+          input.value = keyboardShortcuts.formatBinding(newBinding);
+          
+          // Revertir tras un momento
+          setTimeout(() => {
+            const binding = keyboardShortcuts.get(actionId);
+            input.value = binding ? keyboardShortcuts.formatBinding(binding) : t('settings.shortcuts.none');
+            input.classList.remove('conflict');
+            conflictSpan.style.display = 'none';
+            if (!binding) input.classList.add('empty');
+          }, 2000);
+        } else {
+          // Éxito
+          input.value = keyboardShortcuts.formatBinding(newBinding);
+          input.classList.remove('empty');
+        }
+        
+        this._endShortcutCapture();
+      }
+    };
+    
+    // Añadir listener global
+    document.addEventListener('keydown', this._activeShortcutCapture.handler, true);
+    
+    // Cancelar si se hace click fuera
+    this._activeShortcutCapture.blurHandler = () => {
+      this._cancelShortcutCapture();
+    };
+    input.addEventListener('blur', this._activeShortcutCapture.blurHandler);
+  }
+  
+  /**
+   * Termina la captura de atajo
+   */
+  _endShortcutCapture() {
+    if (!this._activeShortcutCapture) return;
+    
+    const { input, handler, blurHandler } = this._activeShortcutCapture;
+    input.classList.remove('recording');
+    document.removeEventListener('keydown', handler, true);
+    input.removeEventListener('blur', blurHandler);
+    this._activeShortcutCapture = null;
+  }
+  
+  /**
+   * Cancela la captura y restaura el valor anterior
+   */
+  _cancelShortcutCapture() {
+    if (!this._activeShortcutCapture) return;
+    
+    const { input, actionId } = this._activeShortcutCapture;
+    const binding = keyboardShortcuts.get(actionId);
+    input.value = binding ? keyboardShortcuts.formatBinding(binding) : t('settings.shortcuts.none');
+    if (!binding) input.classList.add('empty');
+    
+    this._endShortcutCapture();
+  }
+  
+  /**
+   * Actualiza todos los inputs de atajos con los valores actuales
+   */
+  _updateAllShortcutInputs() {
+    if (!this.shortcutInputs) return;
+    
+    for (const [actionId, input] of Object.entries(this.shortcutInputs)) {
+      const binding = keyboardShortcuts.get(actionId);
+      input.value = binding ? keyboardShortcuts.formatBinding(binding) : t('settings.shortcuts.none');
+      input.classList.remove('conflict');
+      if (binding) {
+        input.classList.remove('empty');
+      } else {
+        input.classList.add('empty');
+      }
+      
+      // También ocultar mensajes de conflicto
+      const conflictSpan = input.closest('.settings-shortcut-row')?.querySelector('.settings-shortcut-conflict');
+      if (conflictSpan) {
+        conflictSpan.style.display = 'none';
+      }
+    }
   }
   
   /**

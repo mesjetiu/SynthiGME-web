@@ -548,6 +548,25 @@ export class AudioSettingsModal {
   }
 
   /**
+   * Crea contenido embebible para usar en otro contenedor (sin overlay/header)
+   * @returns {HTMLElement}
+   */
+  createEmbeddableContent() {
+    const content = document.createElement('div');
+    content.className = 'audio-settings-content';
+
+    // Sección de salidas (OUTPUT ROUTING)
+    const outputSection = this._createOutputSection();
+    content.appendChild(outputSection);
+
+    // Sección de entradas (INPUT ROUTING)
+    const inputSection = this._createInputSection();
+    content.appendChild(inputSection);
+
+    return content;
+  }
+
+  /**
    * Crea la estructura DOM del modal
    */
   _create() {

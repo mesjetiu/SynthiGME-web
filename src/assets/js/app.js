@@ -376,55 +376,24 @@ class App {
       this.audioSettingsModal.toggle();
     });
     
-    // ─────────────────────────────────────────────────────────────────────────
-    // MODAL DE AJUSTES GENERALES (idioma, escala de renderizado, autoguardado)
-    // ─────────────────────────────────────────────────────────────────────────
-    this.settingsModal = new SettingsModal({
-      onResolutionChange: (factor) => {
-        console.log(`[App] Resolution changed: ${factor}×`);
-      },
-      onAutoSaveIntervalChange: (intervalMs, intervalKey) => {
-        this._configureAutoSave(intervalMs);
-        console.log(`[App] Autosave interval changed: ${intervalKey} (${intervalMs}ms)`);
-      },
-      onSaveOnExitChange: (enabled) => {
-        this._saveOnExit = enabled;
-        console.log(`[App] Save on exit: ${enabled}`);
-      },
-      onRestoreOnStartChange: (enabled) => {
-        console.log(`[App] Restore on start: ${enabled}`);
-      }
-    });
-    
-    // Configurar estado inicial de autoguardado
-    this._saveOnExit = this.settingsModal.getSaveOnExit();
-    this._configureAutoSave(this.settingsModal.getAutoSaveIntervalMs());
-    
-    // Guardar al cerrar la página si está habilitado
-    window.addEventListener('beforeunload', () => {
-      if (this._saveOnExit) {
-        this._saveStateOnExit();
-      }
-    });
-    
-    // Restaurar estado previo si está habilitado
-    if (this.settingsModal.getRestoreOnStart()) {
-      this._restoreLastState();
-    }
-    
-    document.addEventListener('synth:toggleSettings', () => {
-      this.settingsModal.toggle();
-    });
-    
     // Listener para resetear el sintetizador a valores por defecto
     document.addEventListener('synth:resetToDefaults', async () => {
       await this._resetToDefaults();
     });
     
     // ─────────────────────────────────────────────────────────────────────────
+    // MODAL DE AJUSTES GENERALES (idioma, escala de renderizado, autoguardado)
+    // Se crea después de _setupRecording para tener acceso a todos los modales
+    // ─────────────────────────────────────────────────────────────────────────
+    // (movido a después de _setupRecording)
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // GRABACIÓN DE AUDIO WAV
     // ─────────────────────────────────────────────────────────────────────────
     this._setupRecording();
+    
+    // Ahora crear el settingsModal con acceso a todos los modales
+    this._setupSettingsModal();
     
     // ─────────────────────────────────────────────────────────────────────────
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
@@ -794,6 +763,58 @@ class App {
     // Handler para abrir modal de configuración de grabación
     document.addEventListener('synth:toggleRecordingSettings', () => {
       this._recordingSettingsModal.toggle();
+    });
+  }
+  
+  /**
+   * Configura el modal de ajustes generales con pestañas.
+   * Se llama después de _setupRecording para tener acceso a todos los modales.
+   */
+  _setupSettingsModal() {
+    this.settingsModal = new SettingsModal({
+      onResolutionChange: (factor) => {
+        console.log(`[App] Resolution changed: ${factor}×`);
+      },
+      onAutoSaveIntervalChange: (intervalMs, intervalKey) => {
+        this._configureAutoSave(intervalMs);
+        console.log(`[App] Autosave interval changed: ${intervalKey} (${intervalMs}ms)`);
+      },
+      onSaveOnExitChange: (enabled) => {
+        this._saveOnExit = enabled;
+        console.log(`[App] Save on exit: ${enabled}`);
+      },
+      onRestoreOnStartChange: (enabled) => {
+        console.log(`[App] Restore on start: ${enabled}`);
+      },
+      // Referencias a modales para integración en pestañas
+      audioSettingsModal: this.audioSettingsModal,
+      recordingSettingsModal: this._recordingSettingsModal
+    });
+    
+    // Configurar estado inicial de autoguardado
+    this._saveOnExit = this.settingsModal.getSaveOnExit();
+    this._configureAutoSave(this.settingsModal.getAutoSaveIntervalMs());
+    
+    // Guardar al cerrar la página si está habilitado
+    window.addEventListener('beforeunload', () => {
+      if (this._saveOnExit) {
+        this._saveStateOnExit();
+      }
+    });
+    
+    // Restaurar estado previo si está habilitado
+    if (this.settingsModal.getRestoreOnStart()) {
+      this._restoreLastState();
+    }
+    
+    // Toggle settings modal
+    document.addEventListener('synth:toggleSettings', (e) => {
+      const tabId = e.detail?.tabId;
+      if (this.settingsModal.isOpen) {
+        this.settingsModal.close();
+      } else {
+        this.settingsModal.open(tabId);
+      }
     });
   }
   

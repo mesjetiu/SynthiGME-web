@@ -27,7 +27,8 @@ const AUTOSAVE_INTERVALS = {
 };
 
 /**
- * Modal de configuración general
+ * Modal de configuración general con pestañas
+ * Integra: General, Audio, Grabación, Avanzado
  */
 export class SettingsModal {
   /**
@@ -36,14 +37,30 @@ export class SettingsModal {
    * @param {Function} [options.onAutoSaveIntervalChange] - Callback cuando cambia el intervalo de autoguardado
    * @param {Function} [options.onSaveOnExitChange] - Callback cuando cambia la opción de guardar al salir
    * @param {Function} [options.onRestoreOnStartChange] - Callback cuando cambia la opción de restaurar al inicio
+   * @param {import('./audioSettingsModal.js').AudioSettingsModal} [options.audioSettingsModal] - Modal de audio
+   * @param {import('./recordingSettingsModal.js').RecordingSettingsModal} [options.recordingSettingsModal] - Modal de grabación
    */
   constructor(options = {}) {
-    const { onResolutionChange, onAutoSaveIntervalChange, onSaveOnExitChange, onRestoreOnStartChange } = options;
+    const { 
+      onResolutionChange, 
+      onAutoSaveIntervalChange, 
+      onSaveOnExitChange, 
+      onRestoreOnStartChange,
+      audioSettingsModal,
+      recordingSettingsModal
+    } = options;
     
     this.onResolutionChange = onResolutionChange;
     this.onAutoSaveIntervalChange = onAutoSaveIntervalChange;
     this.onSaveOnExitChange = onSaveOnExitChange;
     this.onRestoreOnStartChange = onRestoreOnStartChange;
+    
+    // Referencias a modales para integración
+    this.audioSettingsModal = audioSettingsModal;
+    this.recordingSettingsModal = recordingSettingsModal;
+    
+    // Pestaña activa
+    this.activeTab = 'general';
     
     // Escalas disponibles
     this.resolutionFactors = [1, 2, 3, 4];
@@ -86,10 +103,17 @@ export class SettingsModal {
   
   /**
    * Abre el modal
+   * @param {string} [tabId] - ID de pestaña a activar (general, audio, recording, advanced)
    */
-  open() {
+  open(tabId) {
     if (this.isOpen) return;
     this.isOpen = true;
+    
+    // Cambiar a pestaña específica si se indica
+    if (tabId && ['general', 'audio', 'recording', 'advanced'].includes(tabId)) {
+      this._switchTab(tabId);
+    }
+    
     this.overlay.classList.add('settings-overlay--visible');
     this.overlay.setAttribute('aria-hidden', 'false');
     
@@ -139,7 +163,7 @@ export class SettingsModal {
     
     // Contenedor modal
     this.modal = document.createElement('div');
-    this.modal.className = 'settings-modal';
+    this.modal.className = 'settings-modal settings-modal--tabbed';
     this.modal.setAttribute('role', 'dialog');
     this.modal.setAttribute('aria-labelledby', 'settingsTitle');
     this.modal.setAttribute('aria-modal', 'true');
@@ -163,32 +187,30 @@ export class SettingsModal {
     header.appendChild(this.titleElement);
     header.appendChild(closeBtn);
     
-    // Body
+    // Pestañas
+    const tabsContainer = this._createTabs();
+    
+    // Body con contenido de pestañas
     const body = document.createElement('div');
     body.className = 'settings-modal__body';
     
-    // Sección: Idioma
-    body.appendChild(this._createLanguageSection());
+    // Contenedores de cada pestaña
+    this.tabContents = {
+      general: this._createGeneralTabContent(),
+      audio: this._createAudioTabContent(),
+      recording: this._createRecordingTabContent(),
+      advanced: this._createAdvancedTabContent()
+    };
     
-    // Sección: Escala de renderizado (oculta en Firefox)
-    if (!this.isFirefox) {
-      body.appendChild(this._createResolutionSection());
-    }
+    // Agregar contenidos al body
+    Object.values(this.tabContents).forEach(content => body.appendChild(content));
     
-    // Sección: Autoguardado
-    body.appendChild(this._createAutoSaveSection());
-    
-    // Sección: Grabación de audio
-    body.appendChild(this._createRecordingSection());
-    
-    // Sección: Actualizaciones
-    body.appendChild(this._createUpdatesSection());
-    
-    // Sección: Resetear sintetizador
-    body.appendChild(this._createResetSection());
+    // Activar pestaña inicial
+    this._switchTab('general');
     
     // Ensamblar modal
     this.modal.appendChild(header);
+    this.modal.appendChild(tabsContainer);
     this.modal.appendChild(body);
     this.overlay.appendChild(this.modal);
     
@@ -204,6 +226,137 @@ export class SettingsModal {
     
     // Añadir al DOM
     document.body.appendChild(this.overlay);
+  }
+  
+  /**
+   * Crea las pestañas de navegación
+   */
+  _createTabs() {
+    const container = document.createElement('div');
+    container.className = 'settings-modal__tabs';
+    
+    const tabs = [
+      { id: 'general', label: t('settings.tab.general') },
+      { id: 'audio', label: t('settings.tab.audio') },
+      { id: 'recording', label: t('settings.tab.recording') },
+      { id: 'advanced', label: t('settings.tab.advanced') }
+    ];
+    
+    this.tabButtons = {};
+    
+    tabs.forEach(tab => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'settings-modal__tab';
+      btn.dataset.tab = tab.id;
+      btn.textContent = tab.label;
+      btn.addEventListener('click', () => this._switchTab(tab.id));
+      
+      this.tabButtons[tab.id] = btn;
+      container.appendChild(btn);
+    });
+    
+    return container;
+  }
+  
+  /**
+   * Cambia a una pestaña específica
+   */
+  _switchTab(tabId) {
+    this.activeTab = tabId;
+    
+    // Actualizar botones
+    Object.entries(this.tabButtons).forEach(([id, btn]) => {
+      btn.classList.toggle('settings-modal__tab--active', id === tabId);
+    });
+    
+    // Mostrar/ocultar contenidos
+    if (this.tabContents) {
+      Object.entries(this.tabContents).forEach(([id, content]) => {
+        content.classList.toggle('settings-tab-content--active', id === tabId);
+      });
+    }
+  }
+  
+  /**
+   * Crea el contenido de la pestaña General
+   */
+  _createGeneralTabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'general';
+    
+    // Idioma
+    container.appendChild(this._createLanguageSection());
+    
+    // Escala de renderizado (oculta en Firefox)
+    if (!this.isFirefox) {
+      container.appendChild(this._createResolutionSection());
+    }
+    
+    // Autoguardado
+    container.appendChild(this._createAutoSaveSection());
+    
+    return container;
+  }
+  
+  /**
+   * Crea el contenido de la pestaña Audio
+   */
+  _createAudioTabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'audio';
+    
+    if (this.audioSettingsModal) {
+      const content = this.audioSettingsModal.createEmbeddableContent();
+      container.appendChild(content);
+    } else {
+      const placeholder = document.createElement('p');
+      placeholder.className = 'settings-section__description';
+      placeholder.textContent = 'Audio settings not available';
+      container.appendChild(placeholder);
+    }
+    
+    return container;
+  }
+  
+  /**
+   * Crea el contenido de la pestaña Recording
+   */
+  _createRecordingTabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'recording';
+    
+    if (this.recordingSettingsModal) {
+      const content = this.recordingSettingsModal.createEmbeddableContent();
+      container.appendChild(content);
+    } else {
+      const placeholder = document.createElement('p');
+      placeholder.className = 'settings-section__description';
+      placeholder.textContent = 'Recording settings not available';
+      container.appendChild(placeholder);
+    }
+    
+    return container;
+  }
+  
+  /**
+   * Crea el contenido de la pestaña Advanced
+   */
+  _createAdvancedTabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'advanced';
+    
+    // Actualizaciones
+    container.appendChild(this._createUpdatesSection());
+    
+    // Reset
+    container.appendChild(this._createResetSection());
+    
+    return container;
   }
   
   /**
@@ -338,38 +491,6 @@ export class SettingsModal {
     section.appendChild(versionRow);
     section.appendChild(this.updateCheckBtn);
     section.appendChild(this.updateStatusElement);
-    
-    return section;
-  }
-  
-  /**
-   * Crea la sección de grabación de audio
-   */
-  _createRecordingSection() {
-    const section = document.createElement('div');
-    section.className = 'settings-section';
-    
-    this.recordingTitleElement = document.createElement('h3');
-    this.recordingTitleElement.className = 'settings-section__title';
-    this.recordingTitleElement.textContent = t('settings.recording');
-    
-    this.recordingDescElement = document.createElement('p');
-    this.recordingDescElement.className = 'settings-section__description';
-    this.recordingDescElement.textContent = t('settings.recording.description');
-    
-    // Botón para abrir modal de configuración de grabación
-    this.recordingSettingsBtn = document.createElement('button');
-    this.recordingSettingsBtn.type = 'button';
-    this.recordingSettingsBtn.className = 'settings-btn settings-btn--secondary';
-    this.recordingSettingsBtn.textContent = t('settings.recording.configure');
-    this.recordingSettingsBtn.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('synth:toggleRecordingSettings'));
-      this.close();
-    });
-    
-    section.appendChild(this.recordingTitleElement);
-    section.appendChild(this.recordingDescElement);
-    section.appendChild(this.recordingSettingsBtn);
     
     return section;
   }

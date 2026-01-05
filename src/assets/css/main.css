@@ -1941,6 +1941,51 @@ small { color:#aaa; }
   padding: 1.25rem;
 }
 
+/* Modal con pestañas */
+.settings-modal--tabbed {
+  max-width: 500px;
+}
+
+/* Pestañas de navegación */
+.settings-modal__tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(20, 20, 20, 0.5);
+}
+
+.settings-modal__tab {
+  flex: 1;
+  padding: 12px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #888;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.settings-modal__tab:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: #bbb;
+}
+
+.settings-modal__tab--active {
+  color: #ffd54f;
+  border-bottom-color: #ffd54f;
+  background: rgba(255, 213, 79, 0.05);
+}
+
+/* Contenido de pestañas */
+.settings-tab-content {
+  display: none;
+}
+
+.settings-tab-content--active {
+  display: block;
+}
+
 /* Secciones del modal de ajustes */
 .settings-section {
   margin-bottom: 1.5rem;

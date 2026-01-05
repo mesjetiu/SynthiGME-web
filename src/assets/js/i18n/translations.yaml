@@ -34,6 +34,23 @@ settings.close:
   en: Close settings
   es: Cerrar ajustes
 
+# Pestañas
+settings.tab.general:
+  en: General
+  es: General
+
+settings.tab.audio:
+  en: Audio
+  es: Audio
+
+settings.tab.recording:
+  en: Recording
+  es: Grabación
+
+settings.tab.advanced:
+  en: Advanced
+  es: Avanzado
+
 # Sección: Idioma
 settings.language:
   en: Language

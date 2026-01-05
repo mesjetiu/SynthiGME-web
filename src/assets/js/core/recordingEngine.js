@@ -402,11 +402,12 @@ export class RecordingEngine {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `synthigme-${timestamp}.wav`;
     
-    // Trigger download
-    this._downloadBlob(wavBlob, filename);
-    
+    // Notificar ANTES de descargar (en móviles el download puede interferir)
     if (this.onRecordingStop) this.onRecordingStop(filename);
     console.log(`[RecordingEngine] Recording saved: ${filename}`);
+    
+    // Trigger download (con pequeño delay para permitir que el toast se muestre)
+    setTimeout(() => this._downloadBlob(wavBlob, filename), 100);
   }
 
   /**

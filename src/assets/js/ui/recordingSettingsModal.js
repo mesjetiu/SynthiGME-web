@@ -42,6 +42,94 @@ export class RecordingSettingsModal {
   }
 
   /**
+   * Crea contenido embebible para usar en otro contenedor (sin overlay/header)
+   * @returns {HTMLElement}
+   */
+  createEmbeddableContent() {
+    const container = document.createElement('div');
+    container.className = 'recording-settings-content';
+
+    // Track count selector
+    const trackSection = this._createTrackCountSection();
+    container.appendChild(trackSection);
+
+    // Routing matrix section
+    const matrixSection = document.createElement('div');
+    matrixSection.className = 'recording-settings-section';
+
+    const matrixTitle = document.createElement('h3');
+    matrixTitle.className = 'recording-settings-section__title';
+    matrixTitle.textContent = t('recording.routing.title');
+
+    const matrixDesc = document.createElement('p');
+    matrixDesc.className = 'recording-settings-section__description';
+    matrixDesc.textContent = t('recording.routing.description');
+
+    // Contenedor de matriz para este contenido embebido
+    const matrixContainer = document.createElement('div');
+    matrixContainer.className = 'recording-settings-matrix-container';
+
+    matrixSection.appendChild(matrixTitle);
+    matrixSection.appendChild(matrixDesc);
+    matrixSection.appendChild(matrixContainer);
+    container.appendChild(matrixSection);
+
+    // Construir matriz en este contenedor
+    this._buildMatrixInContainer(matrixContainer);
+
+    return container;
+  }
+
+  /**
+   * Construye la matriz en un contenedor específico
+   * @param {HTMLElement} container
+   */
+  _buildMatrixInContainer(container) {
+    container.innerHTML = '';
+    const trackCount = this.recordingEngine.trackCount;
+
+    const matrix = document.createElement('div');
+    matrix.className = 'recording-routing-matrix';
+    matrix.style.setProperty('--track-count', trackCount);
+
+    // Header row
+    const headerRow = document.createElement('div');
+    headerRow.className = 'recording-routing-matrix__header';
+
+    const cornerCell = document.createElement('div');
+    cornerCell.className = 'recording-routing-matrix__corner';
+    headerRow.appendChild(cornerCell);
+
+    for (let track = 0; track < trackCount; track++) {
+      const headerCell = document.createElement('div');
+      headerCell.className = 'recording-routing-matrix__header-cell';
+      headerCell.textContent = `T${track + 1}`;
+      headerCell.title = `${t('recording.track')} ${track + 1}`;
+      headerRow.appendChild(headerCell);
+    }
+    matrix.appendChild(headerRow);
+
+    // Rows
+    for (let bus = 0; bus < this.outputCount; bus++) {
+      const row = document.createElement('div');
+      row.className = 'recording-routing-matrix__row';
+
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'recording-routing-matrix__row-label';
+      rowLabel.textContent = `Out ${bus + 1}`;
+      row.appendChild(rowLabel);
+
+      for (let track = 0; track < trackCount; track++) {
+        const btn = this._createToggleButton(bus, track);
+        row.appendChild(btn);
+      }
+      matrix.appendChild(row);
+    }
+
+    container.appendChild(matrix);
+  }
+
+  /**
    * Crea la estructura DOM del modal
    */
   _create() {

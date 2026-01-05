@@ -261,19 +261,6 @@ export function setupMobileQuickActionsBar() {
     }
   });
 
-  // Botón de configuración de audio
-  const btnAudioSettings = document.createElement('button');
-  btnAudioSettings.type = 'button';
-  btnAudioSettings.className = 'mobile-quickbar__btn';
-  btnAudioSettings.id = 'btnAudioSettings';
-  setButtonTooltip(btnAudioSettings, t('quickbar.audio'));
-  btnAudioSettings.innerHTML = iconSvg('ti-settings-2');
-  
-  btnAudioSettings.addEventListener('click', () => {
-    // Emitir evento custom para que app.js lo maneje
-    document.dispatchEvent(new CustomEvent('synth:toggleAudioSettings'));
-  });
-  
   // Botón de grabación de audio
   const btnRecord = document.createElement('button');
   btnRecord.type = 'button';
@@ -300,19 +287,7 @@ export function setupMobileQuickActionsBar() {
   document.addEventListener('synth:recordingChanged', (e) => {
     updateRecordButton(e.detail?.recording ?? false);
   });
-  
-  // Botón de configuración de grabación (abrir modal de ruteo)
-  const btnRecordSettings = document.createElement('button');
-  btnRecordSettings.type = 'button';
-  btnRecordSettings.className = 'mobile-quickbar__btn';
-  btnRecordSettings.id = 'btnRecordSettings';
-  setButtonTooltip(btnRecordSettings, t('quickbar.recordSettings'));
-  btnRecordSettings.innerHTML = iconSvg('ti-microphone');
-  
-  btnRecordSettings.addEventListener('click', () => {
-    document.dispatchEvent(new CustomEvent('synth:toggleRecordingSettings'));
-  });
-  
+
   // Botón de reset (Init)
   const btnReset = document.createElement('button');
   btnReset.type = 'button';
@@ -331,9 +306,7 @@ export function setupMobileQuickActionsBar() {
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
   group.appendChild(btnPatches);
-  group.appendChild(btnAudioSettings);
   group.appendChild(btnRecord);
-  group.appendChild(btnRecordSettings);
   group.appendChild(btnReset);
   group.appendChild(btnFs);
   group.appendChild(btnSettings);
@@ -353,9 +326,7 @@ export function setupMobileQuickActionsBar() {
     setButtonTooltip(btnMute, t(isMuted ? 'quickbar.unmute' : 'quickbar.mute'));
     setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
     setButtonTooltip(btnPatches, t('quickbar.patches'));
-    setButtonTooltip(btnAudioSettings, t('quickbar.audio'));
     setButtonTooltip(btnRecord, t(isRecording ? 'quickbar.stopRecording' : 'quickbar.record'));
-    setButtonTooltip(btnRecordSettings, t('quickbar.recordSettings'));
     setButtonTooltip(btnReset, t('quickbar.reset'));
     setButtonTooltip(btnSettings, t('quickbar.settings'));
     applyPressedState(); // Actualiza pan, zoom, fullscreen

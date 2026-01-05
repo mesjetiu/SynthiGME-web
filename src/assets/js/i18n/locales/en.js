@@ -119,6 +119,8 @@ export default {
   "toast.zoom.locked": "Zoom locked",
   "toast.zoom.unlocked": "Zoom unlocked",
   "orientation.hint": "Rotate your device to landscape for a better experience",
+  "orientation.blocker": "Please rotate your device to landscape mode",
+  "orientation.blocker.dismiss": "Dismiss",
   "update.available": "A new version is available. Do you want to reload now?",
   "error.fullscreen": "Could not toggle fullscreen.",
   "patches.title": "Patches",

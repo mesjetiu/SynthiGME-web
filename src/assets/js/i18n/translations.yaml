@@ -515,6 +515,14 @@ orientation.hint:
   en: Rotate your device to landscape for a better experience
   es: Gira el dispositivo en posición horizontal para una mejor experiencia
 
+orientation.blocker:
+  en: Please rotate your device to landscape mode
+  es: Gira el dispositivo a modo horizontal
+
+orientation.blocker.dismiss:
+  en: Dismiss
+  es: Cerrar
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ACTUALIZACIONES (SERVICE WORKER)
 # ═══════════════════════════════════════════════════════════════════════════════

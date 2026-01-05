@@ -151,6 +151,62 @@ settings.autosave.restoreOnStart.description:
   en: Restore the last saved state when opening the app
   es: Restaurar el último estado guardado al abrir la aplicación
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ATAJOS DE TECLADO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+settings.shortcuts:
+  en: Keyboard shortcuts
+  es: Atajos de teclado
+
+settings.shortcuts.description:
+  en: Click on a shortcut to change it. Press the new key combination.
+  es: Haz clic en un atajo para cambiarlo. Pulsa la nueva combinación de teclas.
+
+settings.shortcuts.mute:
+  en: Mute/Unmute
+  es: Silenciar/Activar
+
+settings.shortcuts.record:
+  en: Record/Stop
+  es: Grabar/Detener
+
+settings.shortcuts.patches:
+  en: Open patches
+  es: Abrir patches
+
+settings.shortcuts.settings:
+  en: Open settings
+  es: Abrir ajustes
+
+settings.shortcuts.fullscreen:
+  en: Toggle fullscreen
+  es: Pantalla completa
+
+settings.shortcuts.reset:
+  en: Reset synth
+  es: Reiniciar synth
+
+settings.shortcuts.press:
+  en: Press a key...
+  es: Pulsa una tecla...
+
+settings.shortcuts.none:
+  en: None
+  es: Ninguno
+
+settings.shortcuts.conflict:
+  en: "Already assigned to: {action}"
+  es: "Ya asignado a: {action}"
+
+settings.shortcuts.reserved:
+  en: This key is reserved
+  es: Esta tecla está reservada
+
+settings.shortcuts.resetDefaults:
+  en: Reset shortcuts
+  es: Restaurar atajos
+
 toast.autosave:
   en: State auto-saved
   es: Estado guardado automáticamente

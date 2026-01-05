@@ -108,4 +108,20 @@
     <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
     <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
   </symbol>
+
+  <!-- Recording icons -->
+  <symbol id="ti-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9" />
+  </symbol>
+
+  <symbol id="ti-player-stop" viewBox="0 0 24 24">
+    <rect x="5" y="5" width="14" height="14" rx="2" />
+  </symbol>
+
+  <symbol id="ti-microphone" viewBox="0 0 24 24">
+    <path d="M9 2m0 3a3 3 0 0 1 3 -3h0a3 3 0 0 1 3 3v5a3 3 0 0 1 -3 3h0a3 3 0 0 1 -3 -3z" />
+    <path d="M5 10a7 7 0 0 0 14 0" />
+    <path d="M8 21l8 0" />
+    <path d="M12 17l0 4" />
+  </symbol>
 </svg>

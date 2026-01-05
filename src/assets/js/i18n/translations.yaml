@@ -307,6 +307,86 @@ quickbar.reset:
   es: Reiniciar synth (Shift+I)
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# GRABACIÓN DE AUDIO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+quickbar.record:
+  en: Record audio (R)
+  es: Grabar audio (R)
+
+quickbar.stopRecording:
+  en: Stop recording (R)
+  es: Detener grabación (R)
+
+quickbar.recordSettings:
+  en: Recording settings
+  es: Configuración de grabación
+
+recording.title:
+  en: Recording Settings
+  es: Configuración de grabación
+
+recording.close:
+  en: Close recording settings
+  es: Cerrar configuración de grabación
+
+recording.tracks.label:
+  en: Number of tracks
+  es: Número de pistas
+
+recording.tracks.mono:
+  en: 1 (Mono)
+  es: 1 (Mono)
+
+recording.tracks.stereo:
+  en: 2 (Stereo)
+  es: 2 (Estéreo)
+
+recording.tracks.tracks:
+  en: tracks
+  es: pistas
+
+recording.track:
+  en: Track
+  es: Pista
+
+recording.routing.title:
+  en: Output routing
+  es: Ruteo de salidas
+
+recording.routing.description:
+  en: Select which outputs are recorded to each track
+  es: Selecciona qué salidas se graban en cada pista
+
+settings.recording:
+  en: Audio recording
+  es: Grabación de audio
+
+settings.recording.description:
+  en: Record audio output to WAV files (16-bit PCM)
+  es: Graba la salida de audio a archivos WAV (16-bit PCM)
+
+settings.recording.configure:
+  en: Configure recording
+  es: Configurar grabación
+
+toast.recordingStarted:
+  en: Recording started
+  es: Grabación iniciada
+
+toast.recordingSaved:
+  en: "Recording saved: {filename}"
+  es: "Grabación guardada: {filename}"
+
+toast.recordingEmpty:
+  en: No audio recorded
+  es: No se grabó audio
+
+toast.recordingError:
+  en: Recording error
+  es: Error al grabar
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # RESET DEL SINTETIZADOR
 # ═══════════════════════════════════════════════════════════════════════════════
 

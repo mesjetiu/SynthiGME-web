@@ -250,6 +250,16 @@ export function setupMobileQuickActionsBar() {
       }
     }
   });
+  
+  // Atajo de teclado: R para grabar/parar grabación
+  document.addEventListener('keydown', (e) => {
+    // Ignorar si está en un input/textarea
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      document.dispatchEvent(new CustomEvent('synth:toggleRecording'));
+    }
+  });
 
   // Botón de configuración de audio
   const btnAudioSettings = document.createElement('button');
@@ -262,6 +272,45 @@ export function setupMobileQuickActionsBar() {
   btnAudioSettings.addEventListener('click', () => {
     // Emitir evento custom para que app.js lo maneje
     document.dispatchEvent(new CustomEvent('synth:toggleAudioSettings'));
+  });
+  
+  // Botón de grabación de audio
+  const btnRecord = document.createElement('button');
+  btnRecord.type = 'button';
+  btnRecord.className = 'mobile-quickbar__btn';
+  btnRecord.id = 'btnRecord';
+  setButtonTooltip(btnRecord, t('quickbar.record'));
+  btnRecord.innerHTML = iconSvg('ti-circle');
+  
+  let isRecording = false;
+  
+  function updateRecordButton(recording) {
+    isRecording = recording;
+    btnRecord.innerHTML = iconSvg(recording ? 'ti-player-stop' : 'ti-circle');
+    setButtonTooltip(btnRecord, t(recording ? 'quickbar.stopRecording' : 'quickbar.record'));
+    btnRecord.setAttribute('aria-pressed', String(recording));
+    btnRecord.classList.toggle('is-recording', recording);
+  }
+  
+  btnRecord.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('synth:toggleRecording'));
+  });
+  
+  // Escuchar cambios de estado de grabación
+  document.addEventListener('synth:recordingChanged', (e) => {
+    updateRecordButton(e.detail?.recording ?? false);
+  });
+  
+  // Botón de configuración de grabación (abrir modal de ruteo)
+  const btnRecordSettings = document.createElement('button');
+  btnRecordSettings.type = 'button';
+  btnRecordSettings.className = 'mobile-quickbar__btn';
+  btnRecordSettings.id = 'btnRecordSettings';
+  setButtonTooltip(btnRecordSettings, t('quickbar.recordSettings'));
+  btnRecordSettings.innerHTML = iconSvg('ti-microphone');
+  
+  btnRecordSettings.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('synth:toggleRecordingSettings'));
   });
   
   // Botón de reset (Init)
@@ -283,6 +332,8 @@ export function setupMobileQuickActionsBar() {
   group.appendChild(btnZoom);
   group.appendChild(btnPatches);
   group.appendChild(btnAudioSettings);
+  group.appendChild(btnRecord);
+  group.appendChild(btnRecordSettings);
   group.appendChild(btnReset);
   group.appendChild(btnFs);
   group.appendChild(btnSettings);
@@ -303,6 +354,8 @@ export function setupMobileQuickActionsBar() {
     setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
     setButtonTooltip(btnPatches, t('quickbar.patches'));
     setButtonTooltip(btnAudioSettings, t('quickbar.audio'));
+    setButtonTooltip(btnRecord, t(isRecording ? 'quickbar.stopRecording' : 'quickbar.record'));
+    setButtonTooltip(btnRecordSettings, t('quickbar.recordSettings'));
     setButtonTooltip(btnReset, t('quickbar.reset'));
     setButtonTooltip(btnSettings, t('quickbar.settings'));
     applyPressedState(); // Actualiza pan, zoom, fullscreen

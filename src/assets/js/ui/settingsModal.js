@@ -178,6 +178,9 @@ export class SettingsModal {
     // Sección: Autoguardado
     body.appendChild(this._createAutoSaveSection());
     
+    // Sección: Grabación de audio
+    body.appendChild(this._createRecordingSection());
+    
     // Sección: Actualizaciones
     body.appendChild(this._createUpdatesSection());
     
@@ -335,6 +338,38 @@ export class SettingsModal {
     section.appendChild(versionRow);
     section.appendChild(this.updateCheckBtn);
     section.appendChild(this.updateStatusElement);
+    
+    return section;
+  }
+  
+  /**
+   * Crea la sección de grabación de audio
+   */
+  _createRecordingSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.recordingTitleElement = document.createElement('h3');
+    this.recordingTitleElement.className = 'settings-section__title';
+    this.recordingTitleElement.textContent = t('settings.recording');
+    
+    this.recordingDescElement = document.createElement('p');
+    this.recordingDescElement.className = 'settings-section__description';
+    this.recordingDescElement.textContent = t('settings.recording.description');
+    
+    // Botón para abrir modal de configuración de grabación
+    this.recordingSettingsBtn = document.createElement('button');
+    this.recordingSettingsBtn.type = 'button';
+    this.recordingSettingsBtn.className = 'settings-btn settings-btn--secondary';
+    this.recordingSettingsBtn.textContent = t('settings.recording.configure');
+    this.recordingSettingsBtn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('synth:toggleRecordingSettings'));
+      this.close();
+    });
+    
+    section.appendChild(this.recordingTitleElement);
+    section.appendChild(this.recordingDescElement);
+    section.appendChild(this.recordingSettingsBtn);
     
     return section;
   }
@@ -744,6 +779,19 @@ export class SettingsModal {
     
     if (this.resetBtn) {
       this.resetBtn.textContent = t('settings.reset.button');
+    }
+    
+    // Actualizar sección de grabación
+    if (this.recordingTitleElement) {
+      this.recordingTitleElement.textContent = t('settings.recording');
+    }
+    
+    if (this.recordingDescElement) {
+      this.recordingDescElement.textContent = t('settings.recording.description');
+    }
+    
+    if (this.recordingSettingsBtn) {
+      this.recordingSettingsBtn.textContent = t('settings.recording.configure');
     }
     
     // Actualizar aria-label del botón cerrar

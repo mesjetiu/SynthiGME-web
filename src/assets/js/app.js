@@ -1,5 +1,6 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { AudioEngine, setParamSmooth, AUDIO_CONSTANTS } from './core/engine.js';
+import { RecordingEngine } from './core/recordingEngine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
 import { NoiseModule } from './modules/noise.js';
@@ -48,6 +49,7 @@ import {
 } from './navigation/viewportNavigation.js';
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
+import { RecordingSettingsModal } from './ui/recordingSettingsModal.js';
 import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
 import { initI18n, t } from './i18n/index.js';
@@ -420,6 +422,11 @@ class App {
     });
     
     // ─────────────────────────────────────────────────────────────────────────
+    // GRABACIÓN DE AUDIO WAV
+    // ─────────────────────────────────────────────────────────────────────────
+    this._setupRecording();
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
     // ─────────────────────────────────────────────────────────────────────────
     this._setupPatchBrowser();
@@ -738,6 +745,56 @@ class App {
     this._showToast(t('toast.reset'));
     
     console.log('[App] Reset to defaults complete');
+  }
+  
+  /**
+   * Configura el sistema de grabación de audio WAV.
+   * Crea el RecordingEngine, el modal de configuración, y los event listeners.
+   */
+  _setupRecording() {
+    // Crear motor de grabación
+    this._recordingEngine = new RecordingEngine(this.engine);
+    
+    // Crear modal de configuración de grabación
+    this._recordingSettingsModal = new RecordingSettingsModal({
+      recordingEngine: this._recordingEngine,
+      outputCount: this.engine.outputChannels
+    });
+    
+    // Callbacks del motor de grabación
+    this._recordingEngine.onRecordingStart = () => {
+      document.dispatchEvent(new CustomEvent('synth:recordingChanged', {
+        detail: { recording: true }
+      }));
+      this._showToast(t('toast.recordingStarted'));
+    };
+    
+    this._recordingEngine.onRecordingStop = (filename) => {
+      document.dispatchEvent(new CustomEvent('synth:recordingChanged', {
+        detail: { recording: false }
+      }));
+      if (filename) {
+        this._showToast(t('toast.recordingSaved', { filename }));
+      } else {
+        this._showToast(t('toast.recordingEmpty'));
+      }
+    };
+    
+    // Handler para toggle de grabación
+    document.addEventListener('synth:toggleRecording', async () => {
+      this.ensureAudio();
+      try {
+        await this._recordingEngine.toggle();
+      } catch (e) {
+        console.error('[App] Recording error:', e);
+        this._showToast(t('toast.recordingError'));
+      }
+    });
+    
+    // Handler para abrir modal de configuración de grabación
+    document.addEventListener('synth:toggleRecordingSettings', () => {
+      this._recordingSettingsModal.toggle();
+    });
   }
   
   /**

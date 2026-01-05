@@ -15,6 +15,106 @@ function setButtonTooltip(btn, text) {
   btn.setAttribute('data-tooltip', text);
 }
 
+/** Tiempo mínimo de pulsación para mostrar tooltip (ms) */
+const LONG_PRESS_DURATION = 400;
+
+/** Referencia al tooltip activo para poder ocultarlo */
+let activeTooltipBtn = null;
+let longPressTimer = null;
+
+/**
+ * Oculta el tooltip activo.
+ */
+function hideActiveTooltip() {
+  if (activeTooltipBtn) {
+    activeTooltipBtn.classList.remove('tooltip-visible');
+    activeTooltipBtn = null;
+  }
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+/**
+ * Configura long-press para mostrar tooltip en un botón (solo táctil).
+ * @param {HTMLElement} btn - El botón a configurar
+ */
+function setupLongPressTooltip(btn) {
+  let startX = 0;
+  let startY = 0;
+  let tooltipShown = false;
+  
+  btn.addEventListener('touchstart', (e) => {
+    // Guardar posición inicial para detectar movimiento
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    tooltipShown = false;
+    
+    // Iniciar timer de long-press
+    longPressTimer = setTimeout(() => {
+      // Ocultar cualquier otro tooltip activo
+      hideActiveTooltip();
+      
+      // Mostrar tooltip de este botón
+      btn.classList.add('tooltip-visible');
+      activeTooltipBtn = btn;
+      tooltipShown = true;
+      
+      // Vibración háptica sutil si está disponible
+      if (navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+    }, LONG_PRESS_DURATION);
+  }, { passive: true });
+  
+  btn.addEventListener('touchmove', (e) => {
+    // Cancelar si el usuario mueve el dedo (umbral de 10px)
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - startX);
+    const dy = Math.abs(touch.clientY - startY);
+    if (dx > 10 || dy > 10) {
+      hideActiveTooltip();
+    }
+  }, { passive: true });
+  
+  btn.addEventListener('touchend', (e) => {
+    // Si se mostró el tooltip, prevenir el click
+    if (tooltipShown) {
+      e.preventDefault();
+      // Ocultar tooltip después de un tiempo
+      setTimeout(hideActiveTooltip, 1500);
+    } else {
+      // No fue long-press, cancelar timer
+      hideActiveTooltip();
+    }
+  });
+  
+  btn.addEventListener('touchcancel', () => {
+    hideActiveTooltip();
+  }, { passive: true });
+}
+
+/**
+ * Configura long-press tooltips para todos los botones del quickbar.
+ * @param {HTMLElement[]} buttons - Array de botones
+ */
+function setupAllLongPressTooltips(buttons) {
+  // Solo en dispositivos táctiles
+  const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (!isTouch) return;
+  
+  buttons.forEach(btn => setupLongPressTooltip(btn));
+  
+  // Ocultar tooltip al tocar fuera
+  document.addEventListener('touchstart', (e) => {
+    if (activeTooltipBtn && !activeTooltipBtn.contains(e.target)) {
+      hideActiveTooltip();
+    }
+  }, { passive: true });
+}
+
 /**
  * Configura la barra de acciones rápidas para dispositivos móviles.
  */
@@ -290,6 +390,12 @@ export function setupMobileQuickActionsBar() {
   document.body.appendChild(bar);
 
   applyPressedState();
+  
+  // Configurar long-press para tooltips en móvil
+  setupAllLongPressTooltips([
+    btnMute, tab, btnPan, btnZoom, btnPatches, 
+    btnRecord, btnReset, btnFs, btnSettings
+  ]);
 
   // Actualizar tooltips cuando cambie el idioma
   onLocaleChange(() => {

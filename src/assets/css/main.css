@@ -197,6 +197,13 @@ body {
   }
 }
 
+/* Tooltip visible por long-press en móvil */
+.mobile-quickbar__btn.tooltip-visible[data-tooltip]::after,
+.mobile-quickbar__tab.tooltip-visible[data-tooltip]::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* Badge de actualización disponible */
 .quickbar-update-badge {
   position: absolute;

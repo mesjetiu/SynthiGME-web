@@ -66,39 +66,6 @@ export function initViewportNavigation({ outer, inner } = {}) {
   function scheduleRasterize() {
     // Con el nuevo sistema de resolución base, no necesitamos rasterización dinámica
     // El factor de resolución ya proporciona la nitidez necesaria
-    return;
-    
-    const minScale = getMinScale();
-    const isAtMinZoom = scale <= minScale + 0.01;
-    const transition = window.__synthSharpTransition;
-    
-    if (transition && transition.active) {
-      const isZoomingOut = transition.lastScale !== null && scale < transition.lastScale;
-      transition.lastScale = scale;
-      
-      if (isAtMinZoom) {
-        transition.active = false;
-        transition.lastScale = null;
-      } else if (!isZoomingOut) {
-        return;
-      }
-    } else if (!window.__synthSharpModeEnabled) {
-      return;
-    }
-    
-    cancelRasterize();
-    rasterizeTimer = setTimeout(() => {
-      rasterizeTimer = null;
-      inner.style.zoom = scale;
-      inner.style.transform = `translate3d(${offsetX / scale}px, ${offsetY / scale}px, 0)`;
-      
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          inner.style.zoom = '';
-          inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
-        });
-      });
-    }, RASTERIZE_DELAY_MS);
   }
 
   let scale = 1;

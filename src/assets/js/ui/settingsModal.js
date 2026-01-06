@@ -13,11 +13,13 @@
 import { t, getLocale, setLocale, getSupportedLocales, onLocaleChange } from '../i18n/index.js';
 import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } from '../utils/serviceWorker.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
+import { ConfirmDialog } from './confirmDialog.js';
 
 const STORAGE_KEY_RESOLUTION = 'synthigme-resolution';
 const STORAGE_KEY_AUTOSAVE_INTERVAL = 'synthigme-autosave-interval';
 const STORAGE_KEY_SAVE_ON_EXIT = 'synthigme-save-on-exit';
 const STORAGE_KEY_RESTORE_ON_START = 'synthigme-restore-on-start';
+const STORAGE_KEY_ASK_BEFORE_RESTORE = 'synthigme-ask-before-restore';
 
 // Intervalos de autoguardado en ms (0 = desactivado)
 const AUTOSAVE_INTERVALS = {
@@ -76,6 +78,10 @@ export class SettingsModal {
     this.autoSaveInterval = savedInterval && AUTOSAVE_INTERVALS.hasOwnProperty(savedInterval) ? savedInterval : 'off';
     this.saveOnExit = localStorage.getItem(STORAGE_KEY_SAVE_ON_EXIT) === 'true';
     this.restoreOnStart = localStorage.getItem(STORAGE_KEY_RESTORE_ON_START) === 'true';
+    
+    // "Preguntar antes de restaurar" - por defecto true (preguntar)
+    const savedAskBeforeRestore = localStorage.getItem(STORAGE_KEY_ASK_BEFORE_RESTORE);
+    this.askBeforeRestore = savedAskBeforeRestore === null ? true : savedAskBeforeRestore === 'true';
     
     // Detectar Firefox (no necesita selector de resolución)
     this.isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
@@ -634,11 +640,41 @@ export class SettingsModal {
     
     this.restoreOnStartCheckbox.addEventListener('change', () => {
       this._setRestoreOnStart(this.restoreOnStartCheckbox.checked);
+      // Mostrar/ocultar opción de preguntar según si está activo "restaurar al iniciar"
+      this._updateAskBeforeRestoreVisibility();
     });
     
     restoreRow.appendChild(this.restoreOnStartCheckbox);
     restoreRow.appendChild(this.restoreOnStartLabelElement);
     section.appendChild(restoreRow);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Preguntar antes de restaurar (sub-opción de "Restaurar al iniciar")
+    // ─────────────────────────────────────────────────────────────────────
+    this.askBeforeRestoreRow = document.createElement('div');
+    this.askBeforeRestoreRow.className = 'settings-row settings-row--checkbox settings-row--indent';
+    
+    this.askBeforeRestoreCheckbox = document.createElement('input');
+    this.askBeforeRestoreCheckbox.type = 'checkbox';
+    this.askBeforeRestoreCheckbox.id = 'askBeforeRestoreCheckbox';
+    this.askBeforeRestoreCheckbox.className = 'settings-checkbox';
+    this.askBeforeRestoreCheckbox.checked = this.askBeforeRestore;
+    
+    this.askBeforeRestoreLabelElement = document.createElement('label');
+    this.askBeforeRestoreLabelElement.className = 'settings-checkbox-label';
+    this.askBeforeRestoreLabelElement.htmlFor = 'askBeforeRestoreCheckbox';
+    this.askBeforeRestoreLabelElement.textContent = t('settings.autosave.askBeforeRestore');
+    
+    this.askBeforeRestoreCheckbox.addEventListener('change', () => {
+      this._setAskBeforeRestore(this.askBeforeRestoreCheckbox.checked);
+    });
+    
+    this.askBeforeRestoreRow.appendChild(this.askBeforeRestoreCheckbox);
+    this.askBeforeRestoreRow.appendChild(this.askBeforeRestoreLabelElement);
+    section.appendChild(this.askBeforeRestoreRow);
+    
+    // Mostrar/ocultar según estado inicial
+    this._updateAskBeforeRestoreVisibility();
     
     return section;
   }
@@ -949,6 +985,52 @@ export class SettingsModal {
   }
   
   /**
+   * Cambia la opción de preguntar antes de restaurar
+   * @param {boolean} enabled
+   */
+  _setAskBeforeRestore(enabled) {
+    this.askBeforeRestore = enabled;
+    localStorage.setItem(STORAGE_KEY_ASK_BEFORE_RESTORE, String(enabled));
+    
+    // Limpiar elección recordada cuando se activa "preguntar"
+    if (enabled) {
+      ConfirmDialog.clearRememberedChoice('restore-last-session');
+    }
+  }
+  
+  /**
+   * Actualiza la visibilidad de la opción "preguntar antes de restaurar"
+   */
+  _updateAskBeforeRestoreVisibility() {
+    if (this.askBeforeRestoreRow) {
+      this.askBeforeRestoreRow.style.display = this.restoreOnStart ? 'flex' : 'none';
+    }
+  }
+  
+  /**
+   * Establece externamente si preguntar antes de restaurar.
+   * Útil cuando el usuario marca "no volver a preguntar" en el diálogo.
+   * @param {boolean} enabled
+   */
+  setAskBeforeRestore(enabled) {
+    this.askBeforeRestore = enabled;
+    localStorage.setItem(STORAGE_KEY_ASK_BEFORE_RESTORE, String(enabled));
+    
+    // Actualizar checkbox si existe
+    if (this.askBeforeRestoreCheckbox) {
+      this.askBeforeRestoreCheckbox.checked = enabled;
+    }
+  }
+  
+  /**
+   * Indica si debe preguntar antes de restaurar
+   * @returns {boolean}
+   */
+  getAskBeforeRestore() {
+    return this.askBeforeRestore;
+  }
+  
+  /**
    * Obtiene el intervalo de autoguardado en ms
    * @returns {number}
    */
@@ -1156,6 +1238,10 @@ export class SettingsModal {
     
     if (this.restoreOnStartLabelElement) {
       this.restoreOnStartLabelElement.textContent = t('settings.autosave.restoreOnStart');
+    }
+    
+    if (this.askBeforeRestoreLabelElement) {
+      this.askBeforeRestoreLabelElement.textContent = t('settings.autosave.askBeforeRestore');
     }
     
     // Actualizar sección de reset

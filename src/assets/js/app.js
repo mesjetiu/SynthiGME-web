@@ -2615,8 +2615,8 @@ function hideSplashScreen() {
   
   // Actualizar versión en el splash con la versión real detectada
   const versionEl = document.getElementById('splashVersion');
-  if (versionEl && window.synthBuildVersion) {
-    versionEl.textContent = window.synthBuildVersion;
+  if (versionEl && window.__synthBuildVersion) {
+    versionEl.textContent = window.__synthBuildVersion;
   }
   
   // Añadir clase que dispara la animación de fade-out (ver main.css)

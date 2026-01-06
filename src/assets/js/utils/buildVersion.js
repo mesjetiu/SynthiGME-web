@@ -5,10 +5,19 @@
 const BUILD_VERSION = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION__ : '__BUILD_VERSION__';
 
 /**
- * Aplica la versión a todos los elementos con clase panel-build-version.
+ * Aplica la versión a todos los lugares donde se muestra.
+ * Se llama inmediatamente al detectar la versión para que el splash
+ * muestre la versión correcta durante la carga.
  * @param {string} version - Versión a mostrar
  */
-function applyBuildVersionToPanels(version) {
+function applyBuildVersion(version) {
+  // Actualizar splash (visible durante la carga)
+  const splashVersion = document.getElementById('splashVersion');
+  if (splashVersion) {
+    splashVersion.textContent = version;
+  }
+  
+  // Actualizar paneles
   const els = document.querySelectorAll('.panel-build-version');
   els.forEach(el => {
     el.textContent = `Versión ${version}`;
@@ -24,7 +33,7 @@ export async function detectBuildVersion() {
   // Caso build (/docs): BUILD_VERSION ya viene inyectado por esbuild.
   if (BUILD_VERSION && BUILD_VERSION !== '__BUILD_VERSION__') {
     window.__synthBuildVersion = BUILD_VERSION;
-    applyBuildVersionToPanels(BUILD_VERSION);
+    applyBuildVersion(BUILD_VERSION);
     return;
   }
 
@@ -36,7 +45,7 @@ export async function detectBuildVersion() {
       if (pkg && pkg.version) {
         const label = `${pkg.version}-src`;
         window.__synthBuildVersion = label;
-        applyBuildVersionToPanels(label);
+        applyBuildVersion(label);
       }
     }
   } catch {

@@ -159,6 +159,8 @@ export class LargeMatrix {
       const allow = this.onToggle ? this.onToggle(rowIndex, colIndex, nextActive, btn) !== false : true;
       if (!allow) return;
       btn.classList.toggle('active', nextActive);
+      // Notificar que hay cambios sin guardar
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     table.addEventListener('click', this._onTableClick);
 

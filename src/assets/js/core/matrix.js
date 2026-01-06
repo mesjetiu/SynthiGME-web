@@ -78,6 +78,8 @@ export class Matrix {
       btn.classList.add('active');
       this.createConnection(r, c);
     }
+    // Notificar que hay cambios sin guardar
+    document.dispatchEvent(new CustomEvent('synth:userInteraction'));
   }
 
   createConnection(r, c) {

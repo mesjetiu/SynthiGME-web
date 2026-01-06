@@ -59,6 +59,8 @@ export class Toggle {
     if (this.onChange) {
       this.onChange(this.state, this.state === 'a' ? this.labelA : this.labelB);
     }
+    // Notificar que hay cambios sin guardar
+    document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     return this.state;
   }
 

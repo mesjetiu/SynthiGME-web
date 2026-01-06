@@ -100,6 +100,9 @@ class App {
     this._panel3Routing = { connections: {}, rowMap: null, colMap: null };
     this.placeholderPanels = {};
     
+    // Flag para detectar si hay cambios sin guardar
+    this._sessionDirty = false;
+    
     // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
     this._labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
@@ -417,6 +420,11 @@ class App {
       await this._resetToDefaults();
     });
     
+    // Listener para marcar sesión como "dirty" cuando el usuario interactúa
+    document.addEventListener('synth:userInteraction', () => {
+      this.markSessionDirty();
+    });
+    
     // ─────────────────────────────────────────────────────────────────────────
     // MODAL DE AJUSTES GENERALES (idioma, escala de renderizado, autoguardado)
     // Se crea después de _setupRecording para tener acceso a todos los modales
@@ -460,8 +468,14 @@ class App {
   
   /**
    * Realiza el autoguardado del estado actual.
+   * Solo guarda si la sesión tiene cambios pendientes.
    */
   async _performAutoSave() {
+    // Solo guardar si hay cambios pendientes
+    if (!this._sessionDirty) {
+      return;
+    }
+    
     try {
       const state = this._serializeCurrentState();
       // Guardar en localStorage como "último estado" (marcado como autoguardado)
@@ -478,8 +492,15 @@ class App {
   
   /**
    * Guarda el estado al cerrar la aplicación.
+   * Solo guarda si hay cambios pendientes (sesión marcada como "dirty").
    */
   _saveStateOnExit() {
+    // Solo guardar si la sesión tiene cambios
+    if (!this._sessionDirty) {
+      console.log('[App] No changes to save on exit');
+      return;
+    }
+    
     try {
       const state = this._serializeCurrentState();
       localStorage.setItem('synthigme-last-state', JSON.stringify({
@@ -495,22 +516,47 @@ class App {
   }
   
   /**
+   * Marca la sesión como "dirty" (con cambios pendientes).
+   * Se debe llamar cuando el usuario interactúa con cualquier control.
+   * Se ignora durante la aplicación de un patch (deserialización).
+   */
+  markSessionDirty() {
+    // Ignorar cambios durante aplicación de patches/reset
+    if (this._applyingPatch) return;
+    
+    if (!this._sessionDirty) {
+      this._sessionDirty = true;
+      console.log('[App] Session marked as dirty (has unsaved changes)');
+    }
+  }
+  
+  /**
+   * Marca la sesión como "clean" (sin cambios pendientes).
+   * Se llama cuando el usuario guarda, carga un patch, o hace reset.
+   */
+  markSessionClean() {
+    this._sessionDirty = false;
+    console.log('[App] Session marked as clean');
+  }
+  
+  /**
+   * Limpia el estado de autoguardado completamente.
+   * Se usa cuando el usuario empieza de nuevo, hace reset, o carga un patch.
+   */
+  clearLastState() {
+    localStorage.removeItem('synthigme-last-state');
+    this._sessionDirty = false;
+    console.log('[App] Last state cleared');
+  }
+  
+  /**
    * Limpia el flag de autoguardado cuando el usuario guarda un patch explícitamente.
    * Esto evita que se pregunte al reiniciar si ya guardó manualmente.
    */
   clearAutoSaveFlag() {
-    const stored = localStorage.getItem('synthigme-last-state');
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        // Marcar como guardado explícito (no preguntar al reiniciar)
-        data.isAutoSave = false;
-        localStorage.setItem('synthigme-last-state', JSON.stringify(data));
-        console.log('[App] Auto-save flag cleared (user saved patch explicitly)');
-      } catch (err) {
-        // Ignorar errores de parseo
-      }
-    }
+    localStorage.removeItem('synthigme-last-state');
+    this._sessionDirty = false;
+    console.log('[App] Auto-save cleared (user action)');
   }
   
   /**
@@ -600,6 +646,10 @@ class App {
     
     if (result.confirmed) {
       this._restoreLastState();
+    } else {
+      // El usuario eligió empezar de nuevo, limpiar el estado guardado
+      // para que no se pregunte de nuevo si no hace cambios
+      this.clearLastState();
     }
   }
   
@@ -709,6 +759,9 @@ class App {
       return;
     }
     
+    // Deshabilitar tracking de cambios durante la aplicación del patch
+    this._applyingPatch = true;
+    
     const { modules } = patchData;
     console.log('[App] Modules to restore:', Object.keys(modules));
     
@@ -772,6 +825,9 @@ class App {
       this.largeMatrixControl.deserialize(modules.matrixControl);
     }
     
+    // Rehabilitar tracking de cambios
+    this._applyingPatch = false;
+    
     console.log('[App] Patch applied successfully');
   }
   
@@ -781,6 +837,9 @@ class App {
    */
   async _resetToDefaults() {
     console.log('[App] Resetting to defaults...');
+    
+    // Deshabilitar tracking de cambios durante el reset
+    this._applyingPatch = true;
     
     // Valores por defecto para cada tipo de módulo
     const defaultOscillator = { knobs: [0, 0.5, 0, 0.5, 0, 0, 0], rangeState: 'hi' };
@@ -838,6 +897,12 @@ class App {
     if (this.largeMatrixControl && typeof this.largeMatrixControl.deserialize === 'function') {
       this.largeMatrixControl.deserialize({ connections: [] });
     }
+    
+    // Rehabilitar tracking de cambios
+    this._applyingPatch = false;
+    
+    // Limpiar estado guardado (no preguntar al reiniciar si no hay cambios)
+    this.clearLastState();
     
     // Mostrar toast de confirmación
     this._showToast(t('toast.reset'));

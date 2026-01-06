@@ -78,6 +78,8 @@ export class Knob {
     this.value = Math.min(this.max, Math.max(this.min, value));
     this._updateVisual();
     if (this.onChange) this.onChange(this.value);
+    // Notificar que hay cambios sin guardar
+    document.dispatchEvent(new CustomEvent('synth:userInteraction'));
   }
 
   getValue() {

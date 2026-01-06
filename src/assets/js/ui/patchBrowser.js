@@ -11,6 +11,7 @@
  */
 
 import { t, onLocaleChange } from '../i18n/index.js';
+import { ConfirmDialog } from './confirmDialog.js';
 import {
   listPatches,
   loadPatch,
@@ -439,8 +440,12 @@ export class PatchBrowser {
     if (!patch) return;
     
     // Confirmar
-    const confirmed = confirm(t('patches.confirmLoad', { name: patch.name }));
-    if (!confirmed) return;
+    const result = await ConfirmDialog.show({
+      title: t('patches.confirmLoad', { name: patch.name }),
+      confirmText: t('common.yes'),
+      cancelText: t('common.no')
+    });
+    if (!result.confirmed) return;
     
     try {
       const fullPatch = await loadPatch(this.selectedPatchId);
@@ -500,8 +505,12 @@ export class PatchBrowser {
     const patch = this.patches.find(p => p.id === this.selectedPatchId);
     if (!patch) return;
     
-    const confirmed = confirm(t('patches.confirmDelete', { name: patch.name }));
-    if (!confirmed) return;
+    const result = await ConfirmDialog.show({
+      title: t('patches.confirmDelete', { name: patch.name }),
+      confirmText: t('common.yes'),
+      cancelText: t('common.no')
+    });
+    if (!result.confirmed) return;
     
     try {
       await deletePatch(this.selectedPatchId);

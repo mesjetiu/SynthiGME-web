@@ -2413,7 +2413,57 @@ class App {
 // INICIALIZACIÓN
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * CONFIGURACIÓN DEL SPLASH SCREEN
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * SPLASH_MIN_DISPLAY_MS: Tiempo mínimo (en milisegundos) que el splash 
+ * permanece visible, incluso si la carga es más rápida.
+ * 
+ * Esto evita un "parpadeo" molesto en cargas muy rápidas y garantiza que
+ * el usuario vea la pantalla de bienvenida el tiempo suficiente para
+ * reconocer la marca.
+ * 
+ * VALORES RECOMENDADOS:
+ * - 800ms  → Carga rápida, mínimo reconocible
+ * - 1200ms → Balance entre velocidad y visibilidad (por defecto)
+ * - 1800ms → Más tiempo de exposición de marca
+ * - 2500ms → Experiencia pausada, ideal para primera carga
+ * 
+ * Para desactivar el tiempo mínimo, establecer en 0.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+const SPLASH_MIN_DISPLAY_MS = 2500;
+
+/**
+ * Oculta el splash screen con una transición suave.
+ * Actualiza la versión mostrada antes de ocultar.
+ */
+function hideSplashScreen() {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  
+  // Actualizar versión en el splash con la versión real detectada
+  const versionEl = document.getElementById('splashVersion');
+  if (versionEl && window.synthBuildVersion) {
+    versionEl.textContent = window.synthBuildVersion;
+  }
+  
+  // Añadir clase que dispara la animación de fade-out (ver main.css)
+  splash.classList.add('splash--hidden');
+  
+  // Eliminar del DOM después de la transición para liberar memoria
+  // El tiempo debe coincidir con la duración de la transición CSS (0.8s = 800ms)
+  setTimeout(() => {
+    splash.remove();
+  }, 800);
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
+  // ─── Marcar tiempo de inicio para calcular tiempo mínimo de splash ───
+  const splashStartTime = Date.now();
+  
   // Inicializar sistema de internacionalización antes de crear la UI
   await initI18n();
   
@@ -2445,4 +2495,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   setupMobileQuickActionsBar();
   setupPanelZoomButtons();
   setupPanelDoubleTapZoom();
+  
+  // ─── Ocultar splash screen después de la inicialización ───
+  // Garantiza un tiempo mínimo de visualización para evitar parpadeos
+  const elapsedTime = Date.now() - splashStartTime;
+  const remainingTime = Math.max(0, SPLASH_MIN_DISPLAY_MS - elapsedTime);
+  
+  if (remainingTime > 0) {
+    // Esperar el tiempo restante para cumplir el mínimo
+    setTimeout(hideSplashScreen, remainingTime);
+  } else {
+    // Ya pasó el tiempo mínimo, ocultar inmediatamente
+    hideSplashScreen();
+  }
 });

@@ -6,6 +6,154 @@
   --panel-gap: 1.25rem;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPLASH SCREEN DE BIENVENIDA
+   ═══════════════════════════════════════════════════════════════════════════
+   Pantalla de carga que cubre toda la interfaz mientras la app inicializa.
+   
+   JERARQUÍA Z-INDEX:
+   - Splash screen: 4000 (máxima prioridad, cubre todo)
+   - Portrait blocker: 3000
+   - Audio settings modal: 2000
+   - Quickbar: 1500
+   
+   ANIMACIONES:
+   - Icono: pulso suave (2.5s infinite)
+   - Puntos de carga: secuencia escalonada (1.4s infinite)
+   - Salida: fade-out 0.4s con scale sutil
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  /* Transición suave y progresiva para el fade-out */
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.8s ease, visibility 0.8s ease, transform 0.8s ease;
+  transform: scale(1);
+}
+
+/* Estado oculto del splash (añadido por JS cuando la app está lista) */
+.splash--hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.02); /* Sutil efecto de "alejarse" */
+  pointer-events: none;
+}
+
+/* Contenedor del contenido centrado */
+.splash__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* ─── Icono ─── */
+.splash__icon {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 1.5rem;
+}
+
+/* ─── Título principal ─── */
+.splash__title {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: #ffe9a3; /* Amarillo cálido característico del Synthi */
+  text-transform: uppercase;
+}
+
+/* ─── Versión ─── */
+.splash__version {
+  margin: 0 0 1.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: #888;
+}
+
+/* ─── Indicador de carga con puntos animados ─── */
+.splash__loader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 2rem;
+  color: #ccc;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+.splash__loader-text {
+  /* Texto "Cargando" */
+}
+
+.splash__loader-dots {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.splash__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ccc;
+  /* Animación escalonada de los puntos */
+  animation: splashDotBounce 1.4s ease-in-out infinite;
+}
+
+/* Escalonado: cada punto empieza con delay diferente */
+.splash__dot:nth-child(1) { animation-delay: 0s; }
+.splash__dot:nth-child(2) { animation-delay: 0.2s; }
+.splash__dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes splashDotBounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ─── Año ─── */
+.splash__year {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  color: #555;
+}
+
+/* ─── Responsive: ajustes para pantallas pequeñas ─── */
+@media (max-width: 480px) {
+  .splash__icon {
+    width: 72px;
+    height: 72px;
+  }
+  .splash__title {
+    font-size: 1.5rem;
+  }
+}
+
+/* ─── Desactivar backdrop-filter en dispositivos táctiles (Samsung fix) ─── */
+@media (hover: none) and (pointer: coarse) {
+  .splash {
+    /* Sin backdrop-filter en móviles para evitar problemas de rendimiento */
+  }
+}
+
 html,
 body {
   margin: 0;

@@ -10,6 +10,59 @@
   <link rel="stylesheet" href="./assets/css/main.css" />
 </head>
 <body>
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    SPLASH SCREEN DE BIENVENIDA
+    ═══════════════════════════════════════════════════════════════════════════
+    Pantalla de carga que se muestra mientras la aplicación inicializa.
+    Se oculta automáticamente cuando la app está lista.
+    
+    CONFIGURACIÓN (ver app.js → SPLASH_MIN_DISPLAY_MS):
+    - Tiempo mínimo de visualización: 1200ms por defecto
+    - Ajustable para evitar parpadeos en cargas rápidas
+    
+    ESTRUCTURA:
+    - Icono con animación de pulso suave
+    - Título "Synthi GME"
+    - Versión (inyectada dinámicamente desde window.synthBuildVersion)
+    - Indicador de carga animado
+    - Año actual
+    
+    z-index: 4000 (por encima de todo, incluyendo portrait-blocker)
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+  <div class="splash" id="splash" aria-label="Cargando Synthi GME">
+    <div class="splash__content">
+      <!-- Icono de la app con animación de pulso -->
+      <img 
+        class="splash__icon" 
+        src="./assets/pwa/icons/app-icon-192.png" 
+        alt="Synthi GME" 
+        width="96" 
+        height="96"
+      />
+      
+      <!-- Título de la aplicación -->
+      <h1 class="splash__title">Synthi GME</h1>
+      
+      <!-- Versión (se actualiza dinámicamente vía JS) -->
+      <p class="splash__version" id="splashVersion">v0.0.0</p>
+      
+      <!-- Indicador de carga animado -->
+      <div class="splash__loader">
+        <span class="splash__loader-text">Cargando</span>
+        <span class="splash__loader-dots">
+          <span class="splash__dot"></span>
+          <span class="splash__dot"></span>
+          <span class="splash__dot"></span>
+        </span>
+      </div>
+      
+      <!-- Año -->
+      <p class="splash__year">2026</p>
+    </div>
+  </div>
+
   <!-- Bloqueador de orientación portrait -->
   <div class="portrait-blocker" id="portraitBlocker" aria-hidden="true">
     <div class="portrait-blocker__content">

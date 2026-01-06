@@ -74,6 +74,8 @@ export class OutputFaderModule extends Module {
         lastCommittedValue = numericValue;
         this.engine.setOutputLevel(i, numericValue, { ramp: 0.06 });
         value.textContent = numericValue.toFixed(2);
+        // Notificar que hay cambios sin guardar
+        document.dispatchEvent(new CustomEvent('synth:userInteraction'));
       };
 
       slider.addEventListener('input', () => {

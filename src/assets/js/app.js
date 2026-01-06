@@ -103,6 +103,9 @@ class App {
     // Flag para detectar si hay cambios sin guardar
     this._sessionDirty = false;
     
+    // Flag para ignorar eventos de interacción durante aplicación de patches
+    this._applyingPatch = false;
+
     // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
     this._labelPanelSlot(this.panel1, null, { row: 1, col: 1 });

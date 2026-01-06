@@ -792,7 +792,7 @@ h1 {
   justify-content: center;
 }
 .output-fader {
-  writing-mode: vertical-rl;
+  writing-mode: vertical-lr;
   direction: rtl;
   width: 32px;
   height: 200px;

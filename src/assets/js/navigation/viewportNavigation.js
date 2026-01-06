@@ -877,6 +877,37 @@ export function setupPanelZoomButtons() {
   });
 }
 
+/**
+ * Crea badges con el número de shortcut en cada panel.
+ */
+export function setupPanelShortcutBadges() {
+  const PANEL_DATA = [
+    { id: 'panel-1', num: '1' },
+    { id: 'panel-2', num: '2' },
+    { id: 'panel-3', num: '3' },
+    { id: 'panel-4', num: '4' },
+    { id: 'panel-5', num: '5' },
+    { id: 'panel-6', num: '6' },
+    { id: 'panel-output', num: '7' }
+  ];
+
+  PANEL_DATA.forEach(({ id, num }) => {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+
+    // Evitar duplicados
+    if (panel.querySelector('.panel-shortcut-badge')) return;
+
+    const badge = document.createElement('span');
+    badge.className = 'panel-shortcut-badge';
+    badge.textContent = num;
+    badge.setAttribute('aria-hidden', 'true');
+    badge.setAttribute('title', `Shortcut: ${num}`);
+    
+    panel.appendChild(badge);
+  });
+}
+
 export function updatePanelZoomButtons() {
   const focusedId = window.__synthGetFocusedPanel ? window.__synthGetFocusedPanel() : null;
   document.querySelectorAll('.panel-zoom-btn').forEach(btn => {

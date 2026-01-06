@@ -187,6 +187,38 @@ settings.shortcuts.reset:
   en: Reset synth
   es: Reiniciar synth
 
+settings.shortcuts.panel1:
+  en: Panel 1
+  es: Panel 1
+
+settings.shortcuts.panel2:
+  en: Panel 2
+  es: Panel 2
+
+settings.shortcuts.panel3:
+  en: Panel 3
+  es: Panel 3
+
+settings.shortcuts.panel4:
+  en: Panel 4
+  es: Panel 4
+
+settings.shortcuts.panel5:
+  en: Panel 5
+  es: Panel 5
+
+settings.shortcuts.panel6:
+  en: Panel 6
+  es: Panel 6
+
+settings.shortcuts.panelOutput:
+  en: Output panel
+  es: Panel Output
+
+settings.shortcuts.overview:
+  en: Overview (all panels)
+  es: Vista general
+
 settings.shortcuts.press:
   en: Press a key...
   es: Pulsa una tecla...

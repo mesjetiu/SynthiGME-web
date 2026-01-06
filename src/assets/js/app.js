@@ -45,7 +45,8 @@ import {
 import { 
   initViewportNavigation, 
   setupPanelZoomButtons, 
-  setupPanelDoubleTapZoom 
+  setupPanelDoubleTapZoom,
+  setupPanelShortcutBadges
 } from './navigation/viewportNavigation.js';
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
@@ -2494,6 +2495,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Configurar UI móvil y zoom de paneles
   setupMobileQuickActionsBar();
   setupPanelZoomButtons();
+  setupPanelShortcutBadges();
   setupPanelDoubleTapZoom();
   
   // ─── Ocultar splash screen después de la inicialización ───

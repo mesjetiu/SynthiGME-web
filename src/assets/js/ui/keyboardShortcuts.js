@@ -8,7 +8,7 @@ import { t } from '../i18n/index.js';
 const STORAGE_KEY = 'synthigme-keyboard-shortcuts';
 
 // Teclas reservadas que no pueden asignarse
-const RESERVED_KEYS = ['Tab', 'Enter', 'Escape', ' ', 'Space'];
+const RESERVED_KEYS = ['Tab', 'Enter', ' ', 'Space'];
 
 // Atajos por defecto
 const DEFAULT_SHORTCUTS = {
@@ -17,7 +17,16 @@ const DEFAULT_SHORTCUTS = {
   patches: { key: 'p', shift: false, ctrl: false, alt: false },
   settings: { key: 's', shift: false, ctrl: false, alt: false },
   fullscreen: { key: 'f', shift: false, ctrl: false, alt: false },
-  reset: { key: 'i', shift: true, ctrl: false, alt: false }
+  reset: { key: 'i', shift: true, ctrl: false, alt: false },
+  // Navegación de paneles
+  panel1: { key: '1', shift: false, ctrl: false, alt: false },
+  panel2: { key: '2', shift: false, ctrl: false, alt: false },
+  panel3: { key: '3', shift: false, ctrl: false, alt: false },
+  panel4: { key: '4', shift: false, ctrl: false, alt: false },
+  panel5: { key: '5', shift: false, ctrl: false, alt: false },
+  panel6: { key: '6', shift: false, ctrl: false, alt: false },
+  panelOutput: { key: '7', shift: false, ctrl: false, alt: false },
+  overview: { key: '0', shift: false, ctrl: false, alt: false }
 };
 
 // Mapeo de acciones a eventos/handlers
@@ -42,7 +51,16 @@ const SHORTCUT_ACTIONS = {
     if (confirmed) {
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
     }
-  }
+  },
+  // Navegación de paneles
+  panel1: () => window.__synthAnimateToPanel?.('panel-1'),
+  panel2: () => window.__synthAnimateToPanel?.('panel-2'),
+  panel3: () => window.__synthAnimateToPanel?.('panel-3'),
+  panel4: () => window.__synthAnimateToPanel?.('panel-4'),
+  panel5: () => window.__synthAnimateToPanel?.('panel-5'),
+  panel6: () => window.__synthAnimateToPanel?.('panel-6'),
+  panelOutput: () => window.__synthAnimateToPanel?.('panel-output'),
+  overview: () => window.__synthAnimateToPanel?.(null)
 };
 
 /**
@@ -104,6 +122,20 @@ class KeyboardShortcutsManager {
     // Ignorar si está en un input/textarea/select
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    
+    // Escape tiene comportamiento especial: volver a vista general
+    // (el navegador ya maneja salir de fullscreen con Escape)
+    if (e.key === 'Escape') {
+      // Si estamos en fullscreen, el navegador lo maneja; no interferimos
+      if (document.fullscreenElement) return;
+      // Si hay un panel enfocado, volver a vista general
+      const getFocused = window.__synthGetFocusedPanel;
+      if (getFocused && getFocused()) {
+        e.preventDefault();
+        window.__synthAnimateToPanel?.(null);
+      }
+      return;
+    }
     
     // Ignorar teclas reservadas
     if (RESERVED_KEYS.includes(e.key)) return;

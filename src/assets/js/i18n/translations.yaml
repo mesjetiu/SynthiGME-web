@@ -148,8 +148,16 @@ settings.autosave.restoreOnStart:
   es: Restaurar al iniciar
 
 settings.autosave.restoreOnStart.description:
-  en: Restore the last saved state when opening the app
-  es: Restaurar el último estado guardado al abrir la aplicación
+  en: Ask to restore the last saved state when opening the app
+  es: Preguntar si restaurar el último estado al abrir la aplicación
+
+settings.autosave.askBeforeRestore:
+  en: Ask before restoring
+  es: Preguntar antes de restaurar
+
+settings.autosave.askBeforeRestore.description:
+  en: Show a confirmation dialog before restoring (can be changed from dialog)
+  es: Mostrar diálogo de confirmación antes de restaurar (se puede cambiar desde el diálogo)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ATAJOS DE TECLADO

@@ -8,7 +8,7 @@ import { t } from '../i18n/index.js';
 const STORAGE_KEY = 'synthigme-keyboard-shortcuts';
 
 // Teclas reservadas que no pueden asignarse
-const RESERVED_KEYS = ['Tab', 'Enter', ' ', 'Space'];
+const RESERVED_KEYS = ['Tab', 'Enter', 'Escape', ' ', 'Space'];
 
 // Atajos por defecto
 const DEFAULT_SHORTCUTS = {
@@ -106,6 +106,22 @@ class KeyboardShortcutsManager {
    */
   init() {
     document.addEventListener('keydown', this._boundHandler);
+    
+    // Mostrar badges de panel al pulsar Ctrl
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Control' && !e.repeat) {
+        document.body.classList.add('show-panel-shortcuts');
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Control') {
+        document.body.classList.remove('show-panel-shortcuts');
+      }
+    });
+    // Ocultar si se pierde el foco de la ventana
+    window.addEventListener('blur', () => {
+      document.body.classList.remove('show-panel-shortcuts');
+    });
   }
 
   /**
@@ -122,20 +138,6 @@ class KeyboardShortcutsManager {
     // Ignorar si está en un input/textarea/select
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    
-    // Escape tiene comportamiento especial: volver a vista general
-    // (el navegador ya maneja salir de fullscreen con Escape)
-    if (e.key === 'Escape') {
-      // Si estamos en fullscreen, el navegador lo maneja; no interferimos
-      if (document.fullscreenElement) return;
-      // Si hay un panel enfocado, volver a vista general
-      const getFocused = window.__synthGetFocusedPanel;
-      if (getFocused && getFocused()) {
-        e.preventDefault();
-        window.__synthAnimateToPanel?.(null);
-      }
-      return;
-    }
     
     // Ignorar teclas reservadas
     if (RESERVED_KEYS.includes(e.key)) return;

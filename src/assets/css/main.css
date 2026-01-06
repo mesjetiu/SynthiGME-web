@@ -547,10 +547,10 @@ body {
   display: block;
 }
 
-#panel-1 > :not(.panel-inline-bg):not(.panel-build-version),
-#panel-2 > :not(.panel-inline-bg):not(.panel-build-version),
-#panel-3 > :not(.panel-inline-bg):not(.panel-build-version),
-#panel-4 > :not(.panel-inline-bg):not(.panel-build-version) {
+#panel-1 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
+#panel-2 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
+#panel-3 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
+#panel-4 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn) {
   position: relative;
   z-index: 1;
 }
@@ -571,8 +571,8 @@ body {
   display: block;
 }
 
-#panel-5 > :not(.panel-inline-bg):not(.panel-build-version),
-#panel-6 > :not(.panel-inline-bg):not(.panel-build-version) {
+#panel-5 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
+#panel-6 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn) {
   position: relative;
   z-index: 1;
 }
@@ -657,6 +657,23 @@ body {
 .panel:focus-within .panel-shortcut-badge {
   opacity: 1;
   background: rgba(30,30,30,0.75);
+}
+
+/* Asegurar posicionamiento absoluto del badge en todos los paneles */
+#panel-1 > .panel-shortcut-badge,
+#panel-2 > .panel-shortcut-badge,
+#panel-3 > .panel-shortcut-badge,
+#panel-4 > .panel-shortcut-badge,
+#panel-5 > .panel-shortcut-badge,
+#panel-6 > .panel-shortcut-badge,
+#panel-output > .panel-shortcut-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  right: auto;
+  top: auto;
+  margin: 0;
+  flex: none;
 }
 
 .panel-zoom-btn svg {

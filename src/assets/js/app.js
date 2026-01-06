@@ -464,10 +464,11 @@ class App {
   async _performAutoSave() {
     try {
       const state = this._serializeCurrentState();
-      // Guardar en localStorage como "último estado"
+      // Guardar en localStorage como "último estado" (marcado como autoguardado)
       localStorage.setItem('synthigme-last-state', JSON.stringify({
         timestamp: Date.now(),
-        state
+        state,
+        isAutoSave: true  // Marca que fue guardado automáticamente
       }));
       console.log('[App] State auto-saved');
     } catch (err) {
@@ -484,11 +485,31 @@ class App {
       localStorage.setItem('synthigme-last-state', JSON.stringify({
         timestamp: Date.now(),
         state,
-        savedOnExit: true
+        savedOnExit: true,
+        isAutoSave: true  // También es autoguardado (no explícito por el usuario)
       }));
       console.log('[App] State saved on exit');
     } catch (err) {
       console.warn('[App] Save on exit failed:', err);
+    }
+  }
+  
+  /**
+   * Limpia el flag de autoguardado cuando el usuario guarda un patch explícitamente.
+   * Esto evita que se pregunte al reiniciar si ya guardó manualmente.
+   */
+  clearAutoSaveFlag() {
+    const stored = localStorage.getItem('synthigme-last-state');
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        // Marcar como guardado explícito (no preguntar al reiniciar)
+        data.isAutoSave = false;
+        localStorage.setItem('synthigme-last-state', JSON.stringify(data));
+        console.log('[App] Auto-save flag cleared (user saved patch explicitly)');
+      } catch (err) {
+        // Ignorar errores de parseo
+      }
     }
   }
   
@@ -516,17 +537,31 @@ class App {
   
   /**
    * Pregunta al usuario si quiere restaurar el último estado, si aplica.
-   * Si el usuario marcó "no volver a preguntar", usa la elección guardada.
+   * Solo pregunta si:
+   * 1. Hay estado guardado
+   * 2. Fue un autoguardado (no un guardado explícito del usuario)
+   * 3. El usuario no marcó "no volver a preguntar"
    */
   async _maybeRestoreLastState() {
     // Comprobar si hay estado guardado
     const stored = localStorage.getItem('synthigme-last-state');
     if (!stored) return;
     
+    let parsedData;
     try {
-      const { state } = JSON.parse(stored);
-      if (!state) return;
+      parsedData = JSON.parse(stored);
+      if (!parsedData.state) return;
     } catch {
+      return;
+    }
+    
+    // Solo preguntar si fue autoguardado (no guardado explícito por el usuario)
+    // Si isAutoSave no existe (datos antiguos), asumir que sí fue autoguardado
+    const isAutoSave = parsedData.isAutoSave !== false;
+    if (!isAutoSave) {
+      // El usuario guardó un patch explícitamente antes de cerrar,
+      // no preguntar, simplemente restaurar si está habilitado
+      this._restoreLastState();
       return;
     }
     
@@ -577,11 +612,15 @@ class App {
         // Aplicar el patch cargado al sintetizador
         console.log('[App] Loading patch:', patchData);
         await this._applyPatch(patchData);
+        // Limpiar flag de autoguardado (el usuario cargó un patch explícitamente)
+        this.clearAutoSaveFlag();
       },
       onSave: () => {
         // Serializar el estado actual para guardarlo
         const state = this._serializeCurrentState();
         console.log('[App] Serialized state:', state);
+        // Limpiar flag de autoguardado (el usuario guardó explícitamente)
+        this.clearAutoSaveFlag();
         return state;
       }
     });
@@ -892,10 +931,8 @@ class App {
       }
     });
     
-    // Restaurar estado previo si está habilitado
-    if (this.settingsModal.getRestoreOnStart()) {
-      this._maybeRestoreLastState();
-    }
+    // NOTA: La restauración del estado previo se hace DESPUÉS del splash,
+    // llamando a triggerRestoreLastState() desde el código de inicialización.
     
     // Toggle settings modal
     document.addEventListener('synth:toggleSettings', (e) => {
@@ -906,6 +943,16 @@ class App {
         this.settingsModal.open(tabId);
       }
     });
+  }
+  
+  /**
+   * Dispara la lógica de restauración del estado previo.
+   * Debe llamarse DESPUÉS de que el splash haya terminado.
+   */
+  triggerRestoreLastState() {
+    if (this.settingsModal.getRestoreOnStart()) {
+      this._maybeRestoreLastState();
+    }
   }
   
   /**
@@ -2495,6 +2542,7 @@ const SPLASH_MIN_DISPLAY_MS = 2500;
 /**
  * Oculta el splash screen con una transición suave.
  * Actualiza la versión mostrada antes de ocultar.
+ * Dispara la restauración del estado previo cuando termina.
  */
 function hideSplashScreen() {
   const splash = document.getElementById('splash');
@@ -2513,6 +2561,11 @@ function hideSplashScreen() {
   // El tiempo debe coincidir con la duración de la transición CSS (0.8s = 800ms)
   setTimeout(() => {
     splash.remove();
+    
+    // Disparar la pregunta de restaurar estado DESPUÉS de que el splash termine
+    if (window._synthApp && window._synthApp.triggerRestoreLastState) {
+      window._synthApp.triggerRestoreLastState();
+    }
   }, 800);
 }
 

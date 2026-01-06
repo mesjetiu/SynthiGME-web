@@ -796,7 +796,6 @@ h1 {
   direction: rtl;
   width: 32px;
   height: 200px;
-  -webkit-appearance: slider-vertical;
   appearance: none;
   background: transparent;
   cursor: pointer;

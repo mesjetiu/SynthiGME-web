@@ -6,6 +6,10 @@
 export default {
   "settings.language.en": "English",
   "settings.language.es": "Español",
+  "common.yes": "Yes",
+  "common.no": "No",
+  "common.cancel": "Cancel",
+  "common.ok": "OK",
   "settings.title": "Settings",
   "settings.close": "Close settings",
   "settings.tab.general": "General",

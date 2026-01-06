@@ -4,6 +4,7 @@
 import { onUpdateAvailable, hasWaitingUpdate } from '../utils/serviceWorker.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
+import { ConfirmDialog } from './confirmDialog.js';
 
 /**
  * Helper para establecer aria-label y tooltip en un botón.
@@ -366,9 +367,13 @@ export function setupMobileQuickActionsBar() {
   setButtonTooltip(btnReset, t('quickbar.reset'));
   btnReset.innerHTML = iconSvg('ti-refresh');
   
-  btnReset.addEventListener('click', () => {
-    const confirmed = confirm(t('settings.reset.confirm'));
-    if (confirmed) {
+  btnReset.addEventListener('click', async () => {
+    const result = await ConfirmDialog.show({
+      title: t('settings.reset.confirm'),
+      confirmText: t('common.yes'),
+      cancelText: t('common.no')
+    });
+    if (result.confirmed) {
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
     }
   });

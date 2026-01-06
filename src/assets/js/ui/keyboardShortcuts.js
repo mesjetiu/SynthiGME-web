@@ -4,6 +4,7 @@
  */
 
 import { t } from '../i18n/index.js';
+import { ConfirmDialog } from './confirmDialog.js';
 
 const STORAGE_KEY = 'synthigme-keyboard-shortcuts';
 
@@ -46,9 +47,13 @@ const SHORTCUT_ACTIONS = {
       console.error('No se pudo alternar la pantalla completa.', error);
     }
   },
-  reset: () => {
-    const confirmed = confirm(t('settings.reset.confirm'));
-    if (confirmed) {
+  reset: async () => {
+    const result = await ConfirmDialog.show({
+      title: t('settings.reset.confirm'),
+      confirmText: t('common.yes'),
+      cancelText: t('common.no')
+    });
+    if (result.confirmed) {
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
     }
   },

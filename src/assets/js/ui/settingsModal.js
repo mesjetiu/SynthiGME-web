@@ -538,8 +538,13 @@ export class SettingsModal {
    * Maneja el reseteo del sintetizador
    */
   async _handleReset() {
-    const confirmed = confirm(t('settings.reset.confirm'));
-    if (!confirmed) return;
+    const result = await ConfirmDialog.show({
+      title: t('settings.reset.confirm'),
+      confirmText: t('common.yes'),
+      cancelText: t('common.no')
+    });
+    
+    if (!result.confirmed) return;
     
     document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
     this.close();

@@ -2,6 +2,7 @@
 // Gestiona actualizaciones y prompts al usuario
 
 import { t } from '../i18n/index.js';
+import { ConfirmDialog } from '../ui/confirmDialog.js';
 
 /** Referencia al registro del SW */
 let swRegistration = null;
@@ -53,13 +54,17 @@ export function registerServiceWorker() {
     window.location.reload();
   });
 
-  const promptUserToRefresh = worker => {
+  const promptUserToRefresh = async (worker) => {
     if (!worker || !navigator.serviceWorker.controller) return;
     waitingWorker = worker;
     notifyUpdateAvailable();
     
-    const shouldUpdate = window.confirm(t('update.available'));
-    if (shouldUpdate) {
+    const result = await ConfirmDialog.show({
+      title: t('update.available'),
+      confirmText: t('common.yes'),
+      cancelText: t('common.no')
+    });
+    if (result.confirmed) {
       worker.postMessage({ type: 'SKIP_WAITING' });
     }
   };

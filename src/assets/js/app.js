@@ -53,6 +53,7 @@ import { AudioSettingsModal } from './ui/audioSettingsModal.js';
 import { RecordingSettingsModal } from './ui/recordingSettingsModal.js';
 import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
+import { ConfirmDialog } from './ui/confirmDialog.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -514,6 +515,60 @@ class App {
   }
   
   /**
+   * Pregunta al usuario si quiere restaurar el último estado, si aplica.
+   * Si el usuario marcó "no volver a preguntar", usa la elección guardada.
+   */
+  async _maybeRestoreLastState() {
+    // Comprobar si hay estado guardado
+    const stored = localStorage.getItem('synthigme-last-state');
+    if (!stored) return;
+    
+    try {
+      const { state } = JSON.parse(stored);
+      if (!state) return;
+    } catch {
+      return;
+    }
+    
+    // Comprobar si debe preguntar
+    const shouldAsk = this.settingsModal.getAskBeforeRestore();
+    
+    if (!shouldAsk) {
+      // Comprobar elección recordada del diálogo
+      const { skip, choice } = ConfirmDialog.getRememberedChoice('restore-last-session');
+      if (skip) {
+        if (choice) {
+          this._restoreLastState();
+        }
+        // Si choice es false, no restaurar
+        return;
+      }
+      // Si no hay elección recordada pero "preguntar" está desactivado,
+      // restaurar directamente (comportamiento legacy)
+      this._restoreLastState();
+      return;
+    }
+    
+    // Mostrar diálogo de confirmación
+    const result = await ConfirmDialog.show({
+      title: t('patches.lastSession'),
+      confirmText: t('patches.lastSession.yes'),
+      cancelText: t('patches.lastSession.no'),
+      rememberKey: 'restore-last-session',
+      rememberText: t('patches.lastSession.remember')
+    });
+    
+    // Si el usuario marcó "no volver a preguntar", actualizar ajustes
+    if (result.remember) {
+      this.settingsModal.setAskBeforeRestore(false);
+    }
+    
+    if (result.confirmed) {
+      this._restoreLastState();
+    }
+  }
+  
+  /**
    * Configura el navegador de patches para guardar/cargar estados.
    */
   _setupPatchBrowser() {
@@ -839,7 +894,7 @@ class App {
     
     // Restaurar estado previo si está habilitado
     if (this.settingsModal.getRestoreOnStart()) {
-      this._restoreLastState();
+      this._maybeRestoreLastState();
     }
     
     // Toggle settings modal

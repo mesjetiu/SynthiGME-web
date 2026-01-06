@@ -628,52 +628,31 @@ body {
   color: #ffe9a3;
 }
 
-/* Indicador de número de panel (shortcut badge) */
+/* Indicador de número de panel (shortcut badge) - overlay grande al pulsar Ctrl */
 .panel-shortcut-badge {
   position: absolute;
-  left: 6px;
-  bottom: 6px;
-  z-index: 10;
-  min-width: 24px;
-  height: 24px;
+  inset: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.2);
-  background: rgba(20,20,20,0.55);
-  color: rgba(255,255,255,0.65);
-  font-size: 13px;
-  font-weight: 600;
+  background: rgba(0,0,0,0.5);
+  color: rgba(255,255,255,0.85);
+  font-size: clamp(48px, 15vw, 120px);
+  font-weight: 700;
   font-family: system-ui, -apple-system, sans-serif;
-  opacity: 0.6;
-  transition: opacity 0.2s ease, background 0.2s ease;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
   pointer-events: none;
   user-select: none;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 
-.panel:hover .panel-shortcut-badge,
-.panel:focus-within .panel-shortcut-badge {
+/* Mostrar badges cuando Ctrl está pulsado */
+body.show-panel-shortcuts .panel-shortcut-badge {
   opacity: 1;
-  background: rgba(30,30,30,0.75);
-}
-
-/* Asegurar posicionamiento absoluto del badge en todos los paneles */
-#panel-1 > .panel-shortcut-badge,
-#panel-2 > .panel-shortcut-badge,
-#panel-3 > .panel-shortcut-badge,
-#panel-4 > .panel-shortcut-badge,
-#panel-5 > .panel-shortcut-badge,
-#panel-6 > .panel-shortcut-badge,
-#panel-output > .panel-shortcut-badge {
-  position: absolute;
-  left: 6px;
-  bottom: 6px;
-  right: auto;
-  top: auto;
-  margin: 0;
-  flex: none;
+  visibility: visible;
 }
 
 .panel-zoom-btn svg {

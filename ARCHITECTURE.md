@@ -38,8 +38,9 @@ src/
         ├── modules/        # Módulos de audio (osciladores, ruido, etc.)
         ├── ui/             # Componentes de interfaz reutilizables
         ├── navigation/     # Sistema de navegación del viewport
+        ├── state/          # Gestión de estado, patches, sesión
         ├── i18n/           # Sistema de internacionalización
-        ├── utils/          # Utilidades (canvas, SW, versión)
+        ├── utils/          # Utilidades (logging, audio, canvas, etc.)
         ├── worklets/       # AudioWorklet processors (síntesis en hilo de audio)
         └── panelBlueprints/# Blueprints (estructura) y Configs (parámetros)
 ```
@@ -61,6 +62,7 @@ src/
 | Archivo | Propósito |
 |---------|-----------|
 | `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputRouting()` (ruteo directo L/R). Exporta también `AUDIO_CONSTANTS` (tiempos de rampa) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
+| `blueprintMapper.js` | `compilePanelBlueprintMappings()` extrae filas/columnas ocultas de blueprints de paneles para configurar las matrices |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
 
@@ -109,6 +111,9 @@ Componentes de interfaz reutilizables:
 | `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre, curvas de respuesta configurable |
 | `knobFactory.js` | `createKnobElements()`, `createKnob()` | Factory para crear DOM de knobs. Evita duplicación del markup HTML |
 | `toggle.js` | `Toggle` | Interruptor de dos estados con etiquetas personalizables |
+| `toast.js` | `showToast()` | Notificaciones toast temporales con animación fade-out |
+| `layoutHelpers.js` | `labelPanelSlot()`, `getOscillatorLayoutSpec()` | Helpers de layout para configurar posición de paneles en la cuadrícula |
+| `portraitBlocker.js` | `initPortraitBlocker()` | Bloquea la app en modo portrait, muestra hint para rotar dispositivo |
 | `moduleFrame.js` | `ModuleFrame` | Contenedor visual para módulos con título y controles |
 | `moduleUI.js` | `ModuleUI` | Clase base para módulos UI con knobs. Centraliza creación de controles, headers y gestión de valores |
 | `oscilloscopeDisplay.js` | `OscilloscopeDisplay` | Canvas para visualización de onda con efecto CRT, knobs TIME/AMP/LEVEL, render sincronizado con rAF |
@@ -448,11 +453,40 @@ El sistema de patches permite guardar y restaurar el estado completo del sinteti
 
 ```
 src/assets/js/state/
-├── index.js       # API pública (re-exporta todo)
-├── schema.js      # Estructura de patches, validación, IDs de módulos
-├── storage.js     # Persistencia: IndexedDB para patches, localStorage para sesión
-├── conversions.js # Conversiones knob ↔ valores físicos (curvas)
-└── migrations.js  # Migraciones entre versiones de formato
+├── index.js          # API pública (re-exporta todo)
+├── schema.js         # Estructura de patches, validación, IDs de módulos
+├── storage.js        # Persistencia: IndexedDB para patches, localStorage para sesión
+├── conversions.js    # Conversiones knob ↔ valores físicos (curvas)
+├── migrations.js     # Migraciones entre versiones de formato
+└── sessionManager.js # Singleton que gestiona ciclo de sesión (autoguardado, dirty tracking, restauración)
+```
+
+### 4.1.1 SessionManager
+
+El `sessionManager` es un singleton que centraliza la gestión del ciclo de vida de la sesión:
+
+| Método | Propósito |
+|--------|-----------|
+| `setSerializeCallback(fn)` | Registra función que serializa el estado actual |
+| `setRestoreCallback(fn)` | Registra función que aplica un patch |
+| `markDirty()` | Marca que hay cambios sin guardar |
+| `configureAutoSave()` | Configura autoguardado periódico según preferencias |
+| `saveOnExit()` | Guarda estado en `beforeunload` |
+| `maybeRestoreLastState(options)` | Pregunta al usuario si quiere restaurar el último estado |
+
+**Uso:**
+```javascript
+import { sessionManager } from './state/sessionManager.js';
+
+// Configurar callbacks
+sessionManager.setSerializeCallback(() => this._serializeCurrentState());
+sessionManager.setRestoreCallback((patch) => this._applyPatch(patch));
+
+// Marcar cambios
+sessionManager.markDirty();
+
+// Restaurar si hay estado guardado
+await sessionManager.maybeRestoreLastState({ dialogOptions });
 ```
 
 ### 4.2 Almacenamiento

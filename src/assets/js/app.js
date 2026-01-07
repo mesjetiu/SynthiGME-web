@@ -61,6 +61,7 @@ import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { showToast } from './ui/toast.js';
+import { labelPanelSlot, getOscillatorLayoutSpec } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -79,26 +80,26 @@ class App {
 
     // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
-    this._labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
+    labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
     this._panel1Audio = { nodes: [] };
 
     this.panel2 = this.panelManager.createPanel({ id: 'panel-2' });
-    this._labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
+    labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
 
     this.panel3 = this.panelManager.createPanel({ id: 'panel-3' });
-    this._labelPanelSlot(this.panel3, null, { row: 1, col: 3 });
+    labelPanelSlot(this.panel3, null, { row: 1, col: 3 });
 
     this.panel4 = this.panelManager.createPanel({ id: 'panel-4' });
-    this._labelPanelSlot(this.panel4, null, { row: 1, col: 4 });
+    labelPanelSlot(this.panel4, null, { row: 1, col: 4 });
     this._panel4Audio = { nodes: [] };
 
     // Panel 5: matriz de audio
     this.panel5 = this.panelManager.createPanel({ id: 'panel-5' });
-    this._labelPanelSlot(this.panel5, null, { row: 2, col: 1 });
+    labelPanelSlot(this.panel5, null, { row: 2, col: 1 });
 
     // Panel 6: matriz de control
     this.panel6 = this.panelManager.createPanel({ id: 'panel-6' });
-    this._labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
+    labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
 
     // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
     injectInlinePanelSvgBackground('panel-1', './assets/panels/panel1_bg.svg');
@@ -113,7 +114,7 @@ class App {
     renderCanvasBgPanels();
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
-    this._labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
+    labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
     this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
     this._heightSyncScheduled = false;
@@ -797,63 +798,6 @@ class App {
     }
   }
 
-  _labelPanelSlot(panel, label, layout = {}) {
-    if (!panel || !panel.element) return;
-
-    if (layout.row) {
-      panel.element.style.setProperty('--panel-row', layout.row);
-      panel.element.dataset.panelRow = layout.row;
-    }
-    if (layout.col) {
-      panel.element.style.setProperty('--panel-col', layout.col);
-      panel.element.dataset.panelCol = layout.col;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // CONSTRUCCIÓN UNIFICADA DE PANELES DE OSCILADORES
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Devuelve la especificación de layout para paneles de osciladores.
-   * Lee estructura base del blueprint y parámetros del config.
-   * 
-   * @returns {Object} Especificación de layout combinada
-   */
-  _getLayoutSpec() {
-    // Leer estructura del blueprint (o usar defaults hardcoded como fallback)
-    const blueprintLayout = panel3Blueprint?.layout?.oscillators || {};
-    
-    // Dimensiones de oscilador (blueprint o fallback)
-    const oscSize = blueprintLayout.oscSize || { width: 370, height: 110 };
-    
-    // Layout params del blueprint
-    const gap = blueprintLayout.gap || { x: 0, y: 0 };
-    const airOuter = blueprintLayout.airOuter ?? 0;
-    const airOuterY = blueprintLayout.airOuterY ?? 0;
-    const rowsPerColumn = blueprintLayout.rowsPerColumn ?? 6;
-    const topOffset = blueprintLayout.topOffset ?? 10;
-    const reservedHeight = blueprintLayout.reservedHeight ?? oscSize.height;
-    
-    // Parámetros de UI del config (ajustes visuales)
-    const padding = 6;
-    const knobGap = 8;
-    const switchOffset = { leftPercent: 36, topPx: 6 };
-    
-    return {
-      oscSize,
-      padding,
-      gap,
-      airOuter,
-      airOuterY,
-      rowsPerColumn,
-      topOffset,
-      knobGap,
-      switchOffset,
-      reservedHeight
-    };
-  }
-
   // ─────────────────────────────────────────────────────────────────────────────
   // PANEL 2 - OSCILOSCOPIO
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1284,7 +1228,7 @@ class App {
     host.className = 'panel3-layout';
     panel.appendElement(host);
 
-    const layout = this._getLayoutSpec();
+    const layout = getOscillatorLayoutSpec();
     const { oscSize, gap, rowsPerColumn } = layout;
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -59,6 +59,7 @@ import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
+import { showToast } from './ui/toast.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -272,7 +273,7 @@ class App {
       }));
       
       // Mostrar toast de feedback
-      this._showToast(t(muted ? 'toast.mute' : 'toast.unmute'));
+      showToast(t(muted ? 'toast.mute' : 'toast.unmute'));
     });
     
     // Modal de configuración de audio (ruteo salidas → sistema L/R)
@@ -879,7 +880,7 @@ class App {
     this.clearLastState();
     
     // Mostrar toast de confirmación
-    this._showToast(t('toast.reset'));
+    showToast(t('toast.reset'));
     
     log.info(' Reset to defaults complete');
   }
@@ -903,7 +904,7 @@ class App {
       document.dispatchEvent(new CustomEvent('synth:recordingChanged', {
         detail: { recording: true }
       }));
-      this._showToast(t('toast.recordingStarted'));
+      showToast(t('toast.recordingStarted'));
     };
     
     this._recordingEngine.onRecordingStop = (filename) => {
@@ -911,9 +912,9 @@ class App {
         detail: { recording: false }
       }));
       if (filename) {
-        this._showToast(t('toast.recordingSaved', { filename }));
+        showToast(t('toast.recordingSaved', { filename }));
       } else {
-        this._showToast(t('toast.recordingEmpty'));
+        showToast(t('toast.recordingEmpty'));
       }
     };
     
@@ -924,7 +925,7 @@ class App {
         await this._recordingEngine.toggle();
       } catch (e) {
         log.error(' Recording error:', e);
-        this._showToast(t('toast.recordingError'));
+        showToast(t('toast.recordingError'));
       }
     });
     
@@ -992,27 +993,6 @@ class App {
     if (this.settingsModal.getRestoreOnStart()) {
       this._maybeRestoreLastState();
     }
-  }
-  
-  /**
-   * Muestra un toast temporal de feedback.
-   * @param {string} message - Mensaje a mostrar
-   */
-  _showToast(message) {
-    let toast = document.getElementById('appToast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'appToast';
-      toast.className = 'resolution-toast';
-      document.body.appendChild(toast);
-    }
-    toast.textContent = message;
-    toast.classList.add('resolution-toast--visible');
-    
-    clearTimeout(this._toastTimeout);
-    this._toastTimeout = setTimeout(() => {
-      toast.classList.remove('resolution-toast--visible');
-    }, 2000);
   }
 
   _labelPanelSlot(panel, label, layout = {}) {

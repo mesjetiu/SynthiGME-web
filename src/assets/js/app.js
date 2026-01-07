@@ -1,9 +1,9 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { AudioEngine, setParamSmooth } from './core/engine.js';
 import { compilePanelBlueprintMappings } from './core/blueprintMapper.js';
+import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
-import { STORAGE_KEYS } from './utils/constants.js';
 
 const log = createLogger('App');
 import { RecordingEngine } from './core/recordingEngine.js';
@@ -73,11 +73,8 @@ class App {
     this._panel3Routing = { connections: {}, rowMap: null, colMap: null };
     this.placeholderPanels = {};
     
-    // Flag para detectar si hay cambios sin guardar
-    this._sessionDirty = false;
-    
-    // Flag para ignorar eventos de interacción durante aplicación de patches
-    this._applyingPatch = false;
+    // Configurar sessionManager con callback de serialización
+    sessionManager.setSerializeCallback(() => this._serializeCurrentState());
 
     // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
@@ -398,7 +395,7 @@ class App {
     
     // Listener para marcar sesión como "dirty" cuando el usuario interactúa
     document.addEventListener('synth:userInteraction', () => {
-      this.markSessionDirty();
+      sessionManager.markDirty();
     });
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -420,141 +417,21 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     this._setupPatchBrowser();
   }
-  
-  /**
-   * Configura el autoguardado periódico.
-   * @param {number} intervalMs - Intervalo en milisegundos (0 = desactivado)
-   */
-  _configureAutoSave(intervalMs) {
-    // Limpiar timer anterior
-    if (this._autoSaveTimer) {
-      clearInterval(this._autoSaveTimer);
-      this._autoSaveTimer = null;
-    }
-    
-    if (intervalMs > 0) {
-      this._autoSaveTimer = setInterval(() => {
-        this._performAutoSave();
-      }, intervalMs);
-      log.info(` Autosave configured: every ${intervalMs / 1000}s`);
-    } else {
-      log.info(' Autosave disabled');
-    }
-  }
-  
-  /**
-   * Realiza el autoguardado del estado actual.
-   * Solo guarda si la sesión tiene cambios pendientes.
-   */
-  async _performAutoSave() {
-    // Solo guardar si hay cambios pendientes
-    if (!this._sessionDirty) {
-      return;
-    }
-    
-    try {
-      const state = this._serializeCurrentState();
-      // Guardar en localStorage como "último estado" (marcado como autoguardado)
-      localStorage.setItem(STORAGE_KEYS.LAST_STATE, JSON.stringify({
-        timestamp: Date.now(),
-        state,
-        isAutoSave: true  // Marca que fue guardado automáticamente
-      }));
-      log.info(' State auto-saved');
-    } catch (err) {
-      log.warn(' Autosave failed:', err);
-    }
-  }
-  
-  /**
-   * Guarda el estado al cerrar la aplicación.
-   * Solo guarda si hay cambios pendientes (sesión marcada como "dirty").
-   */
-  _saveStateOnExit() {
-    // Solo guardar si la sesión tiene cambios
-    if (!this._sessionDirty) {
-      log.info(' No changes to save on exit');
-      return;
-    }
-    
-    try {
-      const state = this._serializeCurrentState();
-      localStorage.setItem(STORAGE_KEYS.LAST_STATE, JSON.stringify({
-        timestamp: Date.now(),
-        state,
-        savedOnExit: true,
-        isAutoSave: true  // También es autoguardado (no explícito por el usuario)
-      }));
-      log.info(' State saved on exit');
-    } catch (err) {
-      log.warn(' Save on exit failed:', err);
-    }
-  }
-  
-  /**
-   * Marca la sesión como "dirty" (con cambios pendientes).
-   * Se debe llamar cuando el usuario interactúa con cualquier control.
-   * Se ignora durante la aplicación de un patch (deserialización).
-   */
-  markSessionDirty() {
-    // Ignorar cambios durante aplicación de patches/reset
-    if (this._applyingPatch) return;
-    
-    if (!this._sessionDirty) {
-      this._sessionDirty = true;
-      log.info(' Session marked as dirty (has unsaved changes)');
-    }
-  }
-  
-  /**
-   * Marca la sesión como "clean" (sin cambios pendientes).
-   * Se llama cuando el usuario guarda, carga un patch, o hace reset.
-   */
-  markSessionClean() {
-    this._sessionDirty = false;
-    log.info(' Session marked as clean');
-  }
-  
-  /**
-   * Limpia el estado de autoguardado completamente.
-   * Se usa cuando el usuario empieza de nuevo, hace reset, o carga un patch.
-   */
-  clearLastState() {
-    localStorage.removeItem(STORAGE_KEYS.LAST_STATE);
-    this._sessionDirty = false;
-    log.info(' Last state cleared');
-  }
-  
-  /**
-   * Limpia el flag de autoguardado cuando el usuario guarda un patch explícitamente.
-   * Esto evita que se pregunte al reiniciar si ya guardó manualmente.
-   */
-  clearAutoSaveFlag() {
-    localStorage.removeItem(STORAGE_KEYS.LAST_STATE);
-    this._sessionDirty = false;
-    log.info(' Auto-save cleared (user action)');
-  }
-  
+
   /**
    * Restaura el último estado guardado.
    */
   async _restoreLastState() {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.LAST_STATE);
-      if (!stored) return;
-      
-      const { state, timestamp } = JSON.parse(stored);
-      if (!state) return;
-      
-      // Esperar a que el audio esté listo antes de aplicar
-      // Usamos un pequeño delay para que la UI esté lista
-      setTimeout(async () => {
-        await this._applyPatch({ modules: state.modules || state });
-        log.info(` Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
-      }, 500);
-    } catch (err) {
-      log.warn(' Restore last state failed:', err);
-    }
+    const lastState = sessionManager.getLastState();
+    if (!lastState?.state) return;
+    
+    const { state, timestamp } = lastState;
+    
+    // Esperar a que el audio esté listo antes de aplicar
+    setTimeout(async () => {
+      await this._applyPatch({ modules: state.modules || state });
+      log.info(` Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
+    }, 500);
   }
   
   /**
@@ -566,16 +443,8 @@ class App {
    */
   async _maybeRestoreLastState() {
     // Comprobar si hay estado guardado
-    const stored = localStorage.getItem(STORAGE_KEYS.LAST_STATE);
-    if (!stored) return;
-    
-    let parsedData;
-    try {
-      parsedData = JSON.parse(stored);
-      if (!parsedData.state) return;
-    } catch {
-      return;
-    }
+    const parsedData = sessionManager.getLastState();
+    if (!parsedData?.state) return;
     
     // Solo preguntar si fue autoguardado (no guardado explícito por el usuario)
     // Si isAutoSave no existe (datos antiguos), asumir que sí fue autoguardado
@@ -625,7 +494,7 @@ class App {
     } else {
       // El usuario eligió empezar de nuevo, limpiar el estado guardado
       // para que no se pregunte de nuevo si no hace cambios
-      this.clearLastState();
+      sessionManager.clearLastState();
     }
   }
   
@@ -639,14 +508,14 @@ class App {
         log.info(' Loading patch:', patchData);
         await this._applyPatch(patchData);
         // Limpiar flag de autoguardado (el usuario cargó un patch explícitamente)
-        this.clearAutoSaveFlag();
+        sessionManager.clearLastState();
       },
       onSave: () => {
         // Serializar el estado actual para guardarlo
         const state = this._serializeCurrentState();
         log.info(' Serialized state:', state);
         // Limpiar flag de autoguardado (el usuario guardó explícitamente)
-        this.clearAutoSaveFlag();
+        sessionManager.clearLastState();
         return state;
       }
     });
@@ -736,7 +605,7 @@ class App {
     }
     
     // Deshabilitar tracking de cambios durante la aplicación del patch
-    this._applyingPatch = true;
+    sessionManager.applyingPatch(true);
     
     const { modules } = patchData;
     log.info(' Modules to restore:', Object.keys(modules));
@@ -802,7 +671,7 @@ class App {
     }
     
     // Rehabilitar tracking de cambios
-    this._applyingPatch = false;
+    sessionManager.applyingPatch(false);
     
     log.info(' Patch applied successfully');
   }
@@ -815,7 +684,7 @@ class App {
     log.info(' Resetting to defaults...');
     
     // Deshabilitar tracking de cambios durante el reset
-    this._applyingPatch = true;
+    sessionManager.applyingPatch(true);
     
     // Valores por defecto para cada tipo de módulo
     const defaultOscillator = { knobs: [0, 0.5, 0, 0.5, 0, 0, 0], rangeState: 'hi' };
@@ -875,10 +744,10 @@ class App {
     }
     
     // Rehabilitar tracking de cambios
-    this._applyingPatch = false;
+    sessionManager.applyingPatch(false);
     
     // Limpiar estado guardado (no preguntar al reiniciar si no hay cambios)
-    this.clearLastState();
+    sessionManager.clearLastState();
     
     // Mostrar toast de confirmación
     showToast(t('toast.reset'));
@@ -946,7 +815,7 @@ class App {
         log.info(` Resolution changed: ${factor}×`);
       },
       onAutoSaveIntervalChange: (intervalMs, intervalKey) => {
-        this._configureAutoSave(intervalMs);
+        sessionManager.configureAutoSave(intervalMs);
         log.info(` Autosave interval changed: ${intervalKey} (${intervalMs}ms)`);
       },
       onSaveOnExitChange: (enabled) => {
@@ -963,12 +832,12 @@ class App {
     
     // Configurar estado inicial de autoguardado
     this._saveOnExit = this.settingsModal.getSaveOnExit();
-    this._configureAutoSave(this.settingsModal.getAutoSaveIntervalMs());
+    sessionManager.configureAutoSave(this.settingsModal.getAutoSaveIntervalMs());
     
     // Guardar al cerrar la página si está habilitado
     window.addEventListener('beforeunload', () => {
       if (this._saveOnExit) {
-        this._saveStateOnExit();
+        sessionManager.saveOnExit();
       }
     });
     

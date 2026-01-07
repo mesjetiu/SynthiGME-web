@@ -1,3 +1,7 @@
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('RecordingEngine');
+
 /**
  * RecordingEngine - Audio recording system with multi-track WAV export.
  * 
@@ -67,7 +71,7 @@ export class RecordingEngine {
         const matrix = JSON.parse(stored);
         if (Array.isArray(matrix)) return matrix;
       } catch (e) {
-        console.warn('[RecordingEngine] Invalid routing matrix in storage');
+        log.warn(' Invalid routing matrix in storage');
       }
     }
     return this._createDefaultRoutingMatrix();
@@ -186,9 +190,9 @@ export class RecordingEngine {
       try {
         await ctx.audioWorklet.addModule('./assets/js/worklets/recordingCapture.worklet.js');
         this.workletReady = true;
-        console.log('[RecordingEngine] Worklet loaded');
+        log.info(' Worklet loaded');
       } catch (e) {
-        console.error('[RecordingEngine] Failed to load worklet:', e);
+        log.error(' Failed to load worklet:', e);
         throw e;
       }
     })();
@@ -268,7 +272,7 @@ export class RecordingEngine {
    */
   async _rebuildRoutingGraph() {
     if (this.isRecording) {
-      console.warn('[RecordingEngine] Cannot rebuild while recording');
+      log.warn(' Cannot rebuild while recording');
       return;
     }
     await this._buildRoutingGraph();
@@ -321,7 +325,7 @@ export class RecordingEngine {
     
     const ctx = this.engine.audioCtx;
     if (!ctx || ctx.state !== 'running') {
-      console.warn('[RecordingEngine] AudioContext not running');
+      log.warn(' AudioContext not running');
       return;
     }
     
@@ -339,7 +343,7 @@ export class RecordingEngine {
     this.workletNode.port.postMessage({ command: 'start' });
     
     if (this.onRecordingStart) this.onRecordingStart();
-    console.log('[RecordingEngine] Recording started');
+    log.info(' Recording started');
   }
 
   /**
@@ -359,7 +363,7 @@ export class RecordingEngine {
    * Finalize recording and trigger WAV download
    */
   _finalizeRecording() {
-    console.log('[RecordingEngine] Finalizing recording...');
+    log.info(' Finalizing recording...');
     
     // Concatenate buffers for each track
     const trackData = [];
@@ -390,7 +394,7 @@ export class RecordingEngine {
     this._trackBuffers = [];
     
     if (totalSamples === 0) {
-      console.warn('[RecordingEngine] No audio recorded');
+      log.warn(' No audio recorded');
       if (this.onRecordingStop) this.onRecordingStop(null);
       return;
     }
@@ -404,7 +408,7 @@ export class RecordingEngine {
     
     // Notificar ANTES de descargar (en móviles el download puede interferir)
     if (this.onRecordingStop) this.onRecordingStop(filename);
-    console.log(`[RecordingEngine] Recording saved: ${filename}`);
+    log.info(` Recording saved: ${filename}`);
     
     // Trigger download (con pequeño delay para permitir que el toast se muestre)
     setTimeout(() => this._downloadBlob(wavBlob, filename), 100);

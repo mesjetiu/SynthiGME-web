@@ -51,6 +51,9 @@
  */
 
 import { Module } from '../core/engine.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('NoiseModule');
 
 export class NoiseModule extends Module {
   
@@ -148,7 +151,7 @@ export class NoiseModule extends Module {
       });
       
     } catch (error) {
-      console.error(`[NoiseModule ${this.id}] Error inicializando nodos:`, error);
+      log.error(`${this.id}] Error inicializando nodos:`, error);
     }
   }
 
@@ -186,7 +189,7 @@ export class NoiseModule extends Module {
       this.isStarted = false;
       
     } catch (error) {
-      console.error(`[NoiseModule ${this.id}] Error deteniendo:`, error);
+      log.error(`${this.id}] Error deteniendo:`, error);
     }
   }
 

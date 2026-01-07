@@ -20,6 +20,9 @@
  */
 
 import { Module } from '../core/engine.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('OscilloscopeModule');
 
 export class OscilloscopeModule extends Module {
   /**
@@ -80,7 +83,7 @@ export class OscilloscopeModule extends Module {
     if (this.workletReady) {
       this._createCaptureNode();
     } else {
-      console.warn('[OscilloscopeModule] Worklet not available, using fallback');
+      log.warn(' Worklet not available, using fallback');
       this._createFallbackCapture();
     }
   }
@@ -100,9 +103,9 @@ export class OscilloscopeModule extends Module {
         const workletPath = './assets/js/worklets/scopeCapture.worklet.js';
         await ctx.audioWorklet.addModule(workletPath);
         this.workletReady = true;
-        console.log('[OscilloscopeModule] ScopeCapture worklet loaded');
+        log.info(' ScopeCapture worklet loaded');
       } catch (err) {
-        console.error('[OscilloscopeModule] Failed to load worklet:', err);
+        log.error(' Failed to load worklet:', err);
         this.workletReady = false;
       }
     })();

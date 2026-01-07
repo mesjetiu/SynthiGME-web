@@ -1,3 +1,7 @@
+import { createLogger } from './logger.js';
+
+const log = createLogger('CanvasBackground');
+
 // Módulo de fondo canvas para paneles
 // Optimizado para dispositivos móviles con pointer coarse
 
@@ -264,7 +268,7 @@ export async function injectInlinePanelSvgBackground(panelId, svgUrl, retries = 
         // Esperar antes de reintentar (100ms, 200ms, 300ms...)
         await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
       } else {
-        console.warn(`[SVG] Failed to load ${svgUrl} after ${retries} attempts:`, e);
+        log.warn(` Failed to load ${svgUrl} after ${retries} attempts:`, e);
       }
     }
   }

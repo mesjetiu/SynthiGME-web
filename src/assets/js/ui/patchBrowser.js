@@ -12,6 +12,9 @@
 
 import { t, onLocaleChange } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('PatchBrowser');
 import {
   listPatches,
   loadPatch,
@@ -124,7 +127,7 @@ export class PatchBrowser {
     try {
       this.patches = await listPatches({ sortBy: 'savedAt', descending: true });
     } catch (err) {
-      console.error('[PatchBrowser] Error loading patches:', err);
+      log.error(' Error loading patches:', err);
       this.patches = [];
     }
   }
@@ -425,7 +428,7 @@ export class PatchBrowser {
       this._render();
       this._showToast(t('patches.saved'));
     } catch (err) {
-      console.error('[PatchBrowser] Error saving:', err);
+      log.error(' Error saving:', err);
       this._showToast(t('patches.errorSaving'));
     }
   }
@@ -457,7 +460,7 @@ export class PatchBrowser {
       this._showToast(t('patches.loaded'));
       this.close();
     } catch (err) {
-      console.error('[PatchBrowser] Error loading:', err);
+      log.error(' Error loading:', err);
       this._showToast(t('patches.errorLoading'));
     }
   }
@@ -475,7 +478,7 @@ export class PatchBrowser {
         this._showToast(t('patches.exported'));
       }
     } catch (err) {
-      console.error('[PatchBrowser] Error exporting:', err);
+      log.error(' Error exporting:', err);
     }
   }
   
@@ -492,7 +495,7 @@ export class PatchBrowser {
       this._render();
       this._showToast(t('patches.imported'));
     } catch (err) {
-      console.error('[PatchBrowser] Error importing:', err);
+      log.error(' Error importing:', err);
     }
   }
   
@@ -520,7 +523,7 @@ export class PatchBrowser {
       this._updateActionButtons();
       this._showToast(t('patches.deleted'));
     } catch (err) {
-      console.error('[PatchBrowser] Error deleting:', err);
+      log.error(' Error deleting:', err);
     }
   }
   

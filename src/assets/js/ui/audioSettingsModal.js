@@ -3,6 +3,9 @@
 // Soporta configuraciones multicanal (estéreo, 5.1, 7.1, etc.)
 
 import { t, onLocaleChange } from '../i18n/index.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('AudioSettingsModal');
 
 const STORAGE_KEY = 'synthigme-audio-routing';
 const STORAGE_KEY_INPUT_ROUTING = 'synthigme-input-routing';
@@ -82,9 +85,9 @@ export class AudioSettingsModal {
     this.outputRouting = loadedRouting || this._getDefaultRouting();
     
     if (loadedRouting) {
-      console.log('[AudioSettingsModal] Output routing loaded from localStorage:', this.outputRouting);
+      log.info(' Output routing loaded from localStorage:', this.outputRouting);
     } else {
-      console.log('[AudioSettingsModal] Using default output routing (no saved data)');
+      log.info(' Using default output routing (no saved data)');
     }
     
     // Estado de ruteo de ENTRADA: cada entrada del sistema tiene un array de booleanos por Input Amplifier
@@ -93,9 +96,9 @@ export class AudioSettingsModal {
     this.inputRouting = loadedInputRouting || this._getDefaultInputRouting();
     
     if (loadedInputRouting) {
-      console.log('[AudioSettingsModal] Input routing loaded from localStorage:', this.inputRouting);
+      log.info(' Input routing loaded from localStorage:', this.inputRouting);
     } else {
-      console.log('[AudioSettingsModal] Using default input routing (no saved data)');
+      log.info(' Using default input routing (no saved data)');
     }
     
     // Elementos DOM
@@ -170,7 +173,7 @@ export class AudioSettingsModal {
         });
       });
     } catch (e) {
-      console.warn('[AudioSettingsModal] Error loading routing from localStorage:', e);
+      log.warn(' Error loading routing from localStorage:', e);
       return null;
     }
   }
@@ -181,9 +184,9 @@ export class AudioSettingsModal {
   _saveRouting() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.outputRouting));
-      console.log('[AudioSettingsModal] Routing saved to localStorage');
+      log.info(' Routing saved to localStorage');
     } catch (e) {
-      console.warn('[AudioSettingsModal] Error saving routing to localStorage:', e);
+      log.warn(' Error saving routing to localStorage:', e);
     }
   }
 
@@ -227,7 +230,7 @@ export class AudioSettingsModal {
         });
       });
     } catch (e) {
-      console.warn('[AudioSettingsModal] Error loading input routing:', e);
+      log.warn(' Error loading input routing:', e);
       return null;
     }
   }
@@ -238,9 +241,9 @@ export class AudioSettingsModal {
   _saveInputRouting() {
     try {
       localStorage.setItem(STORAGE_KEY_INPUT_ROUTING, JSON.stringify(this.inputRouting));
-      console.log('[AudioSettingsModal] Input routing saved to localStorage');
+      log.info(' Input routing saved to localStorage');
     } catch (e) {
-      console.warn('[AudioSettingsModal] Error saving input routing:', e);
+      log.warn(' Error saving input routing:', e);
     }
   }
 
@@ -254,7 +257,7 @@ export class AudioSettingsModal {
     this.physicalInputChannels = channelCount;
     this.inputChannelLabels = labels || this._generateDefaultInputLabels(channelCount);
     
-    console.log(`[AudioSettingsModal] Physical input channels changed: ${oldCount} → ${channelCount}`);
+    log.info(` Physical input channels changed: ${oldCount} → ${channelCount}`);
     
     // Reconstruir la matriz de ruteo de entrada para el nuevo número de canales
     this.inputRouting = Array.from({ length: channelCount }, (_, sysIdx) => {
@@ -313,7 +316,7 @@ export class AudioSettingsModal {
     this.physicalChannels = channelCount;
     this.channelLabels = labels || this._generateDefaultLabels(channelCount);
     
-    console.log(`[AudioSettingsModal] Physical channels changed: ${oldCount} → ${channelCount}`);
+    log.info(` Physical channels changed: ${oldCount} → ${channelCount}`);
     
     // Expandir/recortar la matriz de ruteo para el nuevo número de canales
     this.outputRouting = this.outputRouting.map((busRouting, busIdx) => {
@@ -425,7 +428,7 @@ export class AudioSettingsModal {
       
       this._updateDeviceSelects();
     } catch (e) {
-      console.warn('[AudioSettingsModal] Error enumerating devices:', e);
+      log.warn(' Error enumerating devices:', e);
       this._showDeviceError();
     }
   }
@@ -1194,7 +1197,7 @@ export class AudioSettingsModal {
     
     // Mostrar advertencias si hay
     if (warnings.length > 0) {
-      console.warn('[AudioSettingsModal] Routing warnings:', warnings);
+      log.warn(' Routing warnings:', warnings);
     }
     
     return { warnings };
@@ -1208,6 +1211,6 @@ export class AudioSettingsModal {
     if (!warnings || warnings.length === 0) return;
     
     // Por ahora solo log, se puede expandir a notificación visual
-    console.warn('[AudioSettingsModal] Advertencias de ruteo:', warnings.join('; '));
+    log.warn(' Advertencias de ruteo:', warnings.join('; '));
   }
 }

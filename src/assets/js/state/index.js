@@ -18,6 +18,9 @@
 // Re-exportar funciones de módulos internos
 export { FORMAT_VERSION, MODULE_IDS, createEmptyPatch, validatePatch } from './schema.js';
 export { knobToPhysical, physicalToKnob } from './conversions.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('State');
 export { migratePatch, needsMigration, getMigrationInfo } from './migrations.js';
 export {
   savePatch,
@@ -63,7 +66,7 @@ const autoSaveConfig = {
  */
 export function initStateSystem(engine) {
   engineRef = engine;
-  console.log('[State] System initialized');
+  log.info(' System initialized');
 }
 
 /**
@@ -83,7 +86,7 @@ export function serializeCurrentState(name = 'Untitled', options = {}) {
   }
   
   if (!engineRef) {
-    console.warn('[State] Engine not initialized, returning empty patch');
+    log.warn(' Engine not initialized, returning empty patch');
     return patch;
   }
   
@@ -253,7 +256,7 @@ function applyModuleState(moduleId, state) {
   const module = engineRef.getModule?.(moduleId);
   
   if (!module) {
-    console.warn(`[State] Module ${moduleId} not found`);
+    log.warn(` Module ${moduleId} not found`);
     return;
   }
   
@@ -261,7 +264,7 @@ function applyModuleState(moduleId, state) {
   if (typeof module.setState === 'function') {
     module.setState(state);
   } else {
-    console.warn(`[State] Module ${moduleId} does not support setState`);
+    log.warn(` Module ${moduleId} does not support setState`);
   }
 }
 
@@ -359,9 +362,9 @@ export function configureAutoSave(options) {
       const state = serializeCurrentState('__autosave__');
       saveLastState(state);
     }, intervalMs);
-    console.log(`[State] Auto-save enabled (every ${intervalMs / 1000}s)`);
+    log.info(` Auto-save enabled (every ${intervalMs / 1000}s)`);
   } else {
-    console.log('[State] Auto-save disabled');
+    log.info(' Auto-save disabled');
   }
 }
 

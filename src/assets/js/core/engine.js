@@ -1,4 +1,7 @@
 // Núcleo de audio: contexto WebAudio y clase base Module para el resto del sistema
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('AudioEngine');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES DE AUDIO
@@ -101,7 +104,7 @@ export class AudioEngine {
     const initialChannels = ctx.destination.maxChannelCount || 2;
     this.physicalChannels = initialChannels;
     this.physicalChannelLabels = this._generateChannelLabels(initialChannels);
-    console.log(`[AudioEngine] Initial physical channels: ${initialChannels}`);
+    log.info(`Initial physical channels: ${initialChannels}`);
 
     // Crear nodos master para cada canal físico
     this.masterGains = [];
@@ -300,8 +303,8 @@ export class AudioEngine {
     
     // Log de advertencia si hay canales ignorados
     if (ignored.length > 0) {
-      console.warn(
-        `[AudioEngine] setOutputRouting: Bus ${busIndex} → canales ${ignored.join(', ')} ` +
+      log.warn(
+        `setOutputRouting: Bus ${busIndex} → canales ${ignored.join(', ')} ` +
         `ignorados (dispositivo actual tiene ${this.physicalChannels} canales)`
       );
     }
@@ -394,20 +397,20 @@ export class AudioEngine {
     if (typeof this.audioCtx.setSinkId === 'function') {
       try {
         await this.audioCtx.setSinkId(deviceId === 'default' ? '' : deviceId);
-        console.log('[AudioEngine] Output device changed to:', deviceId);
+        log.info('Output device changed to:', deviceId);
         
         // Detectar canales disponibles en el nuevo dispositivo
         const detectedChannels = await this._detectPhysicalChannels();
-        console.log('[AudioEngine] Detected physical channels:', detectedChannels);
+        log.info('Detected physical channels:', detectedChannels);
         
         return { success: true, channels: detectedChannels };
       } catch (e) {
-        console.warn('[AudioEngine] Failed to change output device:', e);
+        log.warn('Failed to change output device:', e);
         return { success: false, channels: this.physicalChannels };
       }
     }
     
-    console.warn('[AudioEngine] setSinkId not supported in this browser');
+    log.warn('setSinkId not supported in this browser');
     return { success: false, channels: this.physicalChannels };
   }
 
@@ -437,7 +440,7 @@ export class AudioEngine {
     
     // Si cambió el número de canales, reconstruir la arquitectura de salida
     if (maxChannels !== oldChannels && this.isRunning) {
-      console.log(`[AudioEngine] Channel count changed: ${oldChannels} → ${maxChannels}`);
+      log.info(`Channel count changed: ${oldChannels} → ${maxChannels}`);
       this._rebuildOutputArchitecture(maxChannels);
       
       // Notificar a listeners externos (como AudioSettingsModal)
@@ -480,7 +483,7 @@ export class AudioEngine {
     const ctx = this.audioCtx;
     if (!ctx) return;
     
-    console.log(`[AudioEngine] Rebuilding output architecture for ${newChannelCount} channels`);
+    log.debug(`Rebuilding output architecture for ${newChannelCount} channels`);
     
     // Desconectar merger actual
     if (this.merger) {
@@ -660,9 +663,9 @@ export class AudioEngine {
         );
         
         this.workletReady = true;
-        console.log('[AudioEngine] All worklets loaded:', worklets.length);
+        log.info('All worklets loaded:', worklets.length);
       } catch (err) {
-        console.error('[AudioEngine] Failed to load worklet:', err);
+        log.error('Failed to load worklet:', err);
         this.workletReady = false;
       }
     })();
@@ -707,7 +710,7 @@ export class AudioEngine {
    */
   createSynthOscillator(options = {}) {
     if (!this.audioCtx || !this.workletReady) {
-      console.warn('[AudioEngine] Worklet not ready, cannot create SynthOscillator');
+      log.warn('Worklet not ready, cannot create SynthOscillator');
       return null;
     }
 

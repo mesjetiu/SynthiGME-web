@@ -126,7 +126,8 @@ async function buildJs(cacheVersion) {
     target: ['es2020'],
     outdir: path.join(docsDir, 'assets/js'),
     define: {
-      __BUILD_VERSION__: JSON.stringify(cacheVersion)
+      __BUILD_VERSION__: JSON.stringify(cacheVersion),
+      __LOG_LEVEL__: '1' // LogLevel.ERROR en producción
     }
   });
 }

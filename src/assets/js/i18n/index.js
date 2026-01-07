@@ -9,6 +9,9 @@
  */
 
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from './locales/_meta.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('i18n');
 
 const STORAGE_KEY = 'synthigme-language';
 
@@ -50,7 +53,7 @@ export async function initI18n() {
  */
 export async function loadLocale(lang) {
   if (!SUPPORTED_LOCALES.includes(lang)) {
-    console.warn(`[i18n] Idioma no soportado: ${lang}, usando ${DEFAULT_LOCALE}`);
+    log.warn(` Idioma no soportado: ${lang}, usando ${DEFAULT_LOCALE}`);
     lang = DEFAULT_LOCALE;
   }
   
@@ -59,7 +62,7 @@ export async function loadLocale(lang) {
       const module = await import(`./locales/${lang}.js`);
       locales[lang] = module.default;
     } catch (err) {
-      console.error(`[i18n] Error cargando locale ${lang}:`, err);
+      log.error(` Error cargando locale ${lang}:`, err);
       if (lang !== DEFAULT_LOCALE) {
         return loadLocale(DEFAULT_LOCALE);
       }
@@ -87,7 +90,7 @@ export async function setLocale(lang, persist = true) {
   
   // Notificar a los listeners
   changeListeners.forEach(fn => {
-    try { fn(lang); } catch (e) { console.error('[i18n] Error en listener:', e); }
+    try { fn(lang); } catch (e) { log.error(' Error en listener:', e); }
   });
 }
 
@@ -124,7 +127,7 @@ export function t(key, params = {}) {
   
   // Si no existe, devolver la clave
   if (value === undefined) {
-    console.warn(`[i18n] Clave no encontrada: ${key}`);
+    log.warn(` Clave no encontrada: ${key}`);
     return key;
   }
   

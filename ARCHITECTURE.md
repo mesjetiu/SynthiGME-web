@@ -157,12 +157,47 @@ Utilidades compartidas:
 
 | Archivo | Propósito |
 |---------|-----------|
+| `audio.js` | Utilidades de audio: `safeDisconnect()` para desconexión segura de nodos |
+| `logger.js` | Sistema de logging con niveles (ver sección de Logging) |
 | `canvasBackground.js` | Renderizado de fondos SVG en canvas para móviles |
 | `serviceWorker.js` | Registro y actualización del Service Worker |
 | `buildVersion.js` | Detección e inyección de versión de build |
 | `input.js` | Guardas de interacción: `shouldBlockInteraction()` e `isNavGestureActive()` para evitar conflictos táctiles durante navegación |
 | `waveforms.js` | Síntesis de formas de onda: `createPulseWave()` y `createAsymmetricSineWave()` usando Fourier |
 | `objects.js` | Utilidades de objetos: `deepMerge()` para combinar configuraciones |
+
+#### Sistema de Logging (`logger.js`)
+
+Sistema centralizado de logs con niveles configurables según entorno:
+
+| Nivel | Valor | Descripción |
+|-------|-------|-------------|
+| `NONE` | 0 | Sin logs (silencio total) |
+| `ERROR` | 1 | Solo errores críticos |
+| `WARN` | 2 | Errores y advertencias |
+| `INFO` | 3 | Información general (default en desarrollo) |
+| `DEBUG` | 4 | Todo, incluyendo debug detallado |
+
+**Configuración por entorno:**
+- **Desarrollo** (localhost, file://): Nivel INFO por defecto
+- **Producción** (build): Nivel ERROR (configurado en `scripts/build.mjs` vía `__LOG_LEVEL__`)
+
+**Uso:**
+```javascript
+import { createLogger } from './utils/logger.js';
+const log = createLogger('MiModulo');
+
+log.debug('Detalle interno');    // Solo visible con DEBUG
+log.info('Inicializado');        // Visible en desarrollo
+log.warn('Posible problema');    // Visible en WARN+
+log.error('Error crítico');      // Siempre visible (excepto NONE)
+```
+
+**Override en runtime (debugging en producción):**
+```javascript
+window.__LOG_LEVEL__ = 4;  // Activar DEBUG temporalmente
+// Recargar página para aplicar
+```
 
 ### 3.7 Internacionalización (`src/assets/js/i18n/`)
 

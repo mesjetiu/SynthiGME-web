@@ -5,6 +5,9 @@
 
 import { t } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('KeyboardShortcuts');
 
 const STORAGE_KEY = 'synthigme-keyboard-shortcuts';
 
@@ -44,7 +47,7 @@ const SHORTCUT_ACTIONS = {
         await document.documentElement.requestFullscreen();
       }
     } catch (error) {
-      console.error('No se pudo alternar la pantalla completa.', error);
+      log.error('No se pudo alternar pantalla completa:', error);
     }
   },
   reset: async () => {
@@ -90,7 +93,7 @@ class KeyboardShortcutsManager {
         return { ...DEFAULT_SHORTCUTS, ...parsed };
       }
     } catch (e) {
-      console.warn('[KeyboardShortcuts] Error loading:', e);
+      log.warn(' Error loading:', e);
     }
     return { ...DEFAULT_SHORTCUTS };
   }
@@ -102,7 +105,7 @@ class KeyboardShortcutsManager {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.shortcuts));
     } catch (e) {
-      console.warn('[KeyboardShortcuts] Error saving:', e);
+      log.warn(' Error saving:', e);
     }
   }
 

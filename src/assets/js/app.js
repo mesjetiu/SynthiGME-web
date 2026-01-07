@@ -1,6 +1,9 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { AudioEngine, setParamSmooth, AUDIO_CONSTANTS } from './core/engine.js';
 import { safeDisconnect } from './utils/audio.js';
+import { createLogger } from './utils/logger.js';
+
+const log = createLogger('App');
 import { RecordingEngine } from './core/recordingEngine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
@@ -360,7 +363,7 @@ class App {
       onOutputDeviceChange: async (deviceId) => {
         const result = await this.engine.setOutputDevice(deviceId);
         if (result.success) {
-          console.log(`[App] Output device changed. Channels: ${result.channels}`);
+          log.info(` Output device changed. Channels: ${result.channels}`);
           // La notificación de canales se hace a través del callback registrado abajo
         }
       },
@@ -372,7 +375,7 @@ class App {
       // Detecta el número de canales de entrada y actualiza la matriz.
       // ─────────────────────────────────────────────────────────────────────────
       onInputDeviceChange: async (deviceId) => {
-        console.log('[App] Input device selected:', deviceId);
+        log.info(' Input device selected:', deviceId);
         await this._reconnectSystemAudioInput(deviceId);
       }
     });
@@ -386,7 +389,7 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     if (this.engine.onPhysicalChannelsChange) {
       this.engine.onPhysicalChannelsChange((channelCount, labels) => {
-        console.log(`[App] Physical channels changed: ${channelCount}`, labels);
+        log.info(` Physical channels changed: ${channelCount}`, labels);
         this.audioSettingsModal.updatePhysicalChannels(channelCount, labels);
       });
     }
@@ -397,14 +400,14 @@ class App {
       originalStart();
       
       // Aplicar ruteo inicial después de start
-      console.log('[App] Applying saved audio routing to engine...');
+      log.info(' Applying saved audio routing to engine...');
       const result = this.audioSettingsModal.applyRoutingToEngine((busIndex, channelGains) => {
         return this.engine.setOutputRouting(busIndex, channelGains);
       });
       
       // Mostrar advertencias si hay canales configurados que no existen
       if (result.warnings && result.warnings.length > 0) {
-        console.warn('[App] Routing warnings:', result.warnings);
+        log.warn(' Routing warnings:', result.warnings);
       }
       
       // Aplicar dispositivo de salida guardado
@@ -464,9 +467,9 @@ class App {
       this._autoSaveTimer = setInterval(() => {
         this._performAutoSave();
       }, intervalMs);
-      console.log(`[App] Autosave configured: every ${intervalMs / 1000}s`);
+      log.info(` Autosave configured: every ${intervalMs / 1000}s`);
     } else {
-      console.log('[App] Autosave disabled');
+      log.info(' Autosave disabled');
     }
   }
   
@@ -488,9 +491,9 @@ class App {
         state,
         isAutoSave: true  // Marca que fue guardado automáticamente
       }));
-      console.log('[App] State auto-saved');
+      log.info(' State auto-saved');
     } catch (err) {
-      console.warn('[App] Autosave failed:', err);
+      log.warn(' Autosave failed:', err);
     }
   }
   
@@ -501,7 +504,7 @@ class App {
   _saveStateOnExit() {
     // Solo guardar si la sesión tiene cambios
     if (!this._sessionDirty) {
-      console.log('[App] No changes to save on exit');
+      log.info(' No changes to save on exit');
       return;
     }
     
@@ -513,9 +516,9 @@ class App {
         savedOnExit: true,
         isAutoSave: true  // También es autoguardado (no explícito por el usuario)
       }));
-      console.log('[App] State saved on exit');
+      log.info(' State saved on exit');
     } catch (err) {
-      console.warn('[App] Save on exit failed:', err);
+      log.warn(' Save on exit failed:', err);
     }
   }
   
@@ -530,7 +533,7 @@ class App {
     
     if (!this._sessionDirty) {
       this._sessionDirty = true;
-      console.log('[App] Session marked as dirty (has unsaved changes)');
+      log.info(' Session marked as dirty (has unsaved changes)');
     }
   }
   
@@ -540,7 +543,7 @@ class App {
    */
   markSessionClean() {
     this._sessionDirty = false;
-    console.log('[App] Session marked as clean');
+    log.info(' Session marked as clean');
   }
   
   /**
@@ -550,7 +553,7 @@ class App {
   clearLastState() {
     localStorage.removeItem('synthigme-last-state');
     this._sessionDirty = false;
-    console.log('[App] Last state cleared');
+    log.info(' Last state cleared');
   }
   
   /**
@@ -560,7 +563,7 @@ class App {
   clearAutoSaveFlag() {
     localStorage.removeItem('synthigme-last-state');
     this._sessionDirty = false;
-    console.log('[App] Auto-save cleared (user action)');
+    log.info(' Auto-save cleared (user action)');
   }
   
   /**
@@ -578,10 +581,10 @@ class App {
       // Usamos un pequeño delay para que la UI esté lista
       setTimeout(async () => {
         await this._applyPatch({ modules: state.modules || state });
-        console.log(`[App] Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
+        log.info(` Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
       }, 500);
     } catch (err) {
-      console.warn('[App] Restore last state failed:', err);
+      log.warn(' Restore last state failed:', err);
     }
   }
   
@@ -664,7 +667,7 @@ class App {
     this.patchBrowser = new PatchBrowser({
       onLoad: async (patchData) => {
         // Aplicar el patch cargado al sintetizador
-        console.log('[App] Loading patch:', patchData);
+        log.info(' Loading patch:', patchData);
         await this._applyPatch(patchData);
         // Limpiar flag de autoguardado (el usuario cargó un patch explícitamente)
         this.clearAutoSaveFlag();
@@ -672,7 +675,7 @@ class App {
       onSave: () => {
         // Serializar el estado actual para guardarlo
         const state = this._serializeCurrentState();
-        console.log('[App] Serialized state:', state);
+        log.info(' Serialized state:', state);
         // Limpiar flag de autoguardado (el usuario guardó explícitamente)
         this.clearAutoSaveFlag();
         return state;
@@ -756,10 +759,10 @@ class App {
    * @param {Object} patchData - Datos del patch a aplicar
    */
   async _applyPatch(patchData) {
-    console.log('[App] _applyPatch called with:', patchData);
+    log.info(' _applyPatch called with:', patchData);
     
     if (!patchData || !patchData.modules) {
-      console.warn('[App] Invalid patch data - missing modules');
+      log.warn(' Invalid patch data - missing modules');
       return;
     }
     
@@ -767,19 +770,19 @@ class App {
     this._applyingPatch = true;
     
     const { modules } = patchData;
-    console.log('[App] Modules to restore:', Object.keys(modules));
+    log.info(' Modules to restore:', Object.keys(modules));
     
     // Restaurar osciladores
     if (modules.oscillators && this._oscillatorUIs) {
-      console.log('[App] Restoring oscillators:', Object.keys(modules.oscillators));
-      console.log('[App] Available oscillator UIs:', Object.keys(this._oscillatorUIs));
+      log.info(' Restoring oscillators:', Object.keys(modules.oscillators));
+      log.info(' Available oscillator UIs:', Object.keys(this._oscillatorUIs));
       for (const [id, data] of Object.entries(modules.oscillators)) {
         const ui = this._oscillatorUIs[id];
         if (ui && typeof ui.deserialize === 'function') {
-          console.log(`[App] Deserializing oscillator ${id}:`, data);
+          log.info(` Deserializing oscillator ${id}:`, data);
           ui.deserialize(data);
         } else {
-          console.warn(`[App] Oscillator UI not found for ${id}`);
+          log.warn(` Oscillator UI not found for ${id}`);
         }
       }
     }
@@ -832,7 +835,7 @@ class App {
     // Rehabilitar tracking de cambios
     this._applyingPatch = false;
     
-    console.log('[App] Patch applied successfully');
+    log.info(' Patch applied successfully');
   }
   
   /**
@@ -840,7 +843,7 @@ class App {
    * Itera directamente por los módulos existentes en lugar de usar un patch.
    */
   async _resetToDefaults() {
-    console.log('[App] Resetting to defaults...');
+    log.info(' Resetting to defaults...');
     
     // Deshabilitar tracking de cambios durante el reset
     this._applyingPatch = true;
@@ -911,7 +914,7 @@ class App {
     // Mostrar toast de confirmación
     this._showToast(t('toast.reset'));
     
-    console.log('[App] Reset to defaults complete');
+    log.info(' Reset to defaults complete');
   }
   
   /**
@@ -953,7 +956,7 @@ class App {
       try {
         await this._recordingEngine.toggle();
       } catch (e) {
-        console.error('[App] Recording error:', e);
+        log.error(' Recording error:', e);
         this._showToast(t('toast.recordingError'));
       }
     });
@@ -971,18 +974,18 @@ class App {
   _setupSettingsModal() {
     this.settingsModal = new SettingsModal({
       onResolutionChange: (factor) => {
-        console.log(`[App] Resolution changed: ${factor}×`);
+        log.info(` Resolution changed: ${factor}×`);
       },
       onAutoSaveIntervalChange: (intervalMs, intervalKey) => {
         this._configureAutoSave(intervalMs);
-        console.log(`[App] Autosave interval changed: ${intervalKey} (${intervalMs}ms)`);
+        log.info(` Autosave interval changed: ${intervalKey} (${intervalMs}ms)`);
       },
       onSaveOnExitChange: (enabled) => {
         this._saveOnExit = enabled;
-        console.log(`[App] Save on exit: ${enabled}`);
+        log.info(` Save on exit: ${enabled}`);
       },
       onRestoreOnStartChange: (enabled) => {
-        console.log(`[App] Restore on start: ${enabled}`);
+        log.info(` Restore on start: ${enabled}`);
       },
       // Referencias a modales para integración en pestañas
       audioSettingsModal: this.audioSettingsModal,
@@ -1377,7 +1380,7 @@ class App {
     if (this._systemAudioConnected && !deviceId) return;
     
     if (!this.inputAmplifiers?.isStarted) {
-      console.warn('[App] Input amplifiers not ready for system audio');
+      log.warn(' Input amplifiers not ready for system audio');
       return;
     }
     
@@ -1404,7 +1407,7 @@ class App {
       const sourceNode = ctx.createMediaStreamSource(stream);
       const channelCount = sourceNode.channelCount || 2;
       
-      console.log(`[App] System audio input: ${channelCount} channels`);
+      log.info(` System audio input: ${channelCount} channels`);
       
       // Crear splitter para separar los canales de entrada
       const splitter = ctx.createChannelSplitter(Math.max(channelCount, 2));
@@ -1448,10 +1451,10 @@ class App {
         this.audioSettingsModal.applyInputRoutingToEngine();
       }
       
-      console.log(`[App] Input routing matrix created: ${channelCount}×8`);
+      log.info(` Input routing matrix created: ${channelCount}×8`);
       
     } catch (err) {
-      console.warn('[App] Could not access system audio input:', err.message);
+      log.warn(' Could not access system audio input:', err.message);
       // No es crítico, los Input Amplifiers simplemente no tendrán entrada del sistema
     }
   }
@@ -2403,7 +2406,7 @@ class App {
         const noiseAudioModules = panel3Data?.noiseAudioModules;
         
         if (!noiseAudioModules) {
-          console.warn('[App] Noise audio modules not initialized');
+          log.warn(' Noise audio modules not initialized');
           return false;
         }
         
@@ -2417,7 +2420,7 @@ class App {
         outNode = noiseModule?.getOutputNode?.();
         
         if (!outNode) {
-          console.warn('[App] NoiseModule output node not available, retrying init');
+          log.warn(' NoiseModule output node not available, retrying init');
           noiseModule?.start?.();
           outNode = noiseModule?.getOutputNode?.();
         }
@@ -2427,7 +2430,7 @@ class App {
         const channel = source.channel;
         
         if (!this.inputAmplifiers) {
-          console.warn('[App] Input amplifiers module not initialized');
+          log.warn(' Input amplifiers module not initialized');
           return false;
         }
         
@@ -2442,13 +2445,13 @@ class App {
         outNode = this.inputAmplifiers.getOutputNode(channel);
         
         if (!outNode) {
-          console.warn('[App] InputAmplifier output node not available for channel', channel);
+          log.warn(' InputAmplifier output node not available for channel', channel);
           return false;
         }
       }
       
       if (!outNode) {
-        console.warn('[App] No output node for source', source);
+        log.warn(' No output node for source', source);
         return false;
       }
 
@@ -2460,15 +2463,15 @@ class App {
       } else if (dest.kind === 'oscilloscope') {
         // Conectar a la entrada correspondiente del osciloscopio
         if (!this.oscilloscope) {
-          console.warn('[App] Oscilloscope module not ready yet');
+          log.warn(' Oscilloscope module not ready yet');
           return false;
         }
         destNode = dest.channel === 'X' ? this.oscilloscope.inputX : this.oscilloscope.inputY;
-        console.log(`[App] Connecting to oscilloscope ${dest.channel}`);
+        log.info(` Connecting to oscilloscope ${dest.channel}`);
       }
       
       if (!destNode) {
-        console.warn('[App] No destination node for', dest);
+        log.warn(' No destination node for', dest);
         return false;
       }
 

@@ -5,6 +5,9 @@ import { onUpdateAvailable, hasWaitingUpdate } from '../utils/serviceWorker.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Quickbar');
 
 /**
  * Helper para establecer aria-label y tooltip en un botón.
@@ -300,7 +303,7 @@ export function setupMobileQuickActionsBar() {
         await document.documentElement.requestFullscreen();
       }
     } catch (error) {
-      console.error('No se pudo alternar la pantalla completa.', error);
+      log.error('No se pudo alternar pantalla completa:', error);
     } finally {
       applyPressedState();
     }

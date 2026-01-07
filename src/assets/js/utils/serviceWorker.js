@@ -3,6 +3,9 @@
 
 import { t } from '../i18n/index.js';
 import { ConfirmDialog } from '../ui/confirmDialog.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('ServiceWorker');
 
 /** Referencia al registro del SW */
 let swRegistration = null;
@@ -38,7 +41,7 @@ export function onUpdateAvailable(callback) {
  */
 function notifyUpdateAvailable() {
   updateCallbacks.forEach(cb => {
-    try { cb(true); } catch (e) { console.error('[SW] Error en callback:', e); }
+    try { cb(true); } catch (e) { log.error(' Error en callback:', e); }
   });
 }
 
@@ -94,7 +97,7 @@ export function registerServiceWorker() {
       });
     })
     .catch(error => {
-      console.error('No se pudo registrar el service worker.', error);
+      log.error('No se pudo registrar el service worker:', error);
     });
 }
 
@@ -121,7 +124,7 @@ export async function checkForUpdates() {
     
     return { found: hasWaiting, waiting: hasWaiting };
   } catch (err) {
-    console.error('[SW] Error checking for updates:', err);
+    log.error(' Error checking for updates:', err);
     return { found: false, waiting: false, error: err.message };
   }
 }

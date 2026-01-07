@@ -1,3 +1,7 @@
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Storage');
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * STATE STORAGE - SynthiGME
@@ -28,7 +32,7 @@ async function openDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
     request.onerror = () => {
-      console.error('[Storage] Error opening IndexedDB:', request.error);
+      log.error(' Error opening IndexedDB:', request.error);
       reject(request.error);
     };
     
@@ -200,7 +204,7 @@ export function saveLastState(state) {
     };
     localStorage.setItem(LAST_STATE_KEY, JSON.stringify(data));
   } catch (err) {
-    console.error('[Storage] Error saving last state:', err);
+    log.error(' Error saving last state:', err);
   }
 }
 
@@ -213,7 +217,7 @@ export function loadLastState() {
     const data = localStorage.getItem(LAST_STATE_KEY);
     return data ? JSON.parse(data) : null;
   } catch (err) {
-    console.error('[Storage] Error loading last state:', err);
+    log.error(' Error loading last state:', err);
     return null;
   }
 }

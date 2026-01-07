@@ -10,6 +10,9 @@
  */
 
 import { FORMAT_VERSION } from './schema.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Migrations');
 
 /**
  * Mapa de funciones de migración.
@@ -43,7 +46,7 @@ export function migratePatch(patch) {
   for (let v = fromVersion; v < FORMAT_VERSION; v++) {
     const migrationFn = migrations[v];
     if (migrationFn) {
-      console.log(`[Migrations] Migrating patch from v${v} to v${v + 1}`);
+      log.info(` Migrating patch from v${v} to v${v + 1}`);
       currentPatch = migrationFn(currentPatch);
       migrated = true;
     } else {

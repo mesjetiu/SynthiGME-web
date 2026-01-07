@@ -1,3 +1,7 @@
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Conversions');
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * STATE CONVERSIONS - SynthiGME
@@ -48,7 +52,7 @@ export function knobToPhysical(knobValue, config) {
       return min + (Math.log(k + 1) / Math.log(2)) * range;
     
     default:
-      console.warn(`[Conversions] Unknown curve type: ${curve}, using linear`);
+      log.warn(` Unknown curve type: ${curve}, using linear`);
       return min + k * range;
   }
 }

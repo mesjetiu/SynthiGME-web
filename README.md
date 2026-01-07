@@ -121,3 +121,15 @@ Tras estos pasos, la carpeta `docs/` contiene la última versión estable y est�
 ### Notas de trabajo
 - Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages u otro servidor).
 - Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds. Tras construir, haz commit/push de `docs/` para que Pages publique la última versión.
+
+## Solución de problemas
+
+### Audio inestable o cambios de volumen en dispositivos móviles
+
+Si experimentas audio distorsionado, cambios de volumen inesperados o comportamiento errático del sintetizador en dispositivos móviles, desactiva el procesamiento de audio del sistema:
+
+- **Android (Samsung):** Ajustes → Sonidos y vibración → Calidad de sonido y efectos → Desactivar **Dolby Atmos**
+- **Android (otros):** Busca "efectos de audio", "Audio Espacial" o "ecualizador" en ajustes de sonido
+- **iOS:** Ajustes → Música → Desactivar **Audio Espacial**
+
+Estos efectos de postprocesado pueden interferir con la síntesis de audio en tiempo real generada por la aplicación.

@@ -1,5 +1,6 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { AudioEngine, setParamSmooth, AUDIO_CONSTANTS } from './core/engine.js';
+import { safeDisconnect } from './utils/audio.js';
 import { RecordingEngine } from './core/recordingEngine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputFaderModule } from './modules/outputFaders.js';
@@ -2482,8 +2483,7 @@ class App {
 
     const conn = this._panel3Routing.connections?.[key];
     if (conn) {
-      // Ignorar error si el nodo ya fue desconectado
-      try { conn.disconnect(); } catch { /* nodo ya desconectado */ }
+      safeDisconnect(conn);
       delete this._panel3Routing.connections[key];
       
       // Si era una conexión al osciloscopio, verificar si quedan conexiones

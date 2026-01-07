@@ -2601,11 +2601,12 @@ class App {
  * - 1200ms → Balance entre velocidad y visibilidad (por defecto)
  * - 1800ms → Más tiempo de exposición de marca
  * - 2500ms → Experiencia pausada, ideal para primera carga
+ * - 3200ms → Extra estabilidad en móvil/tablet
  * 
  * Para desactivar el tiempo mínimo, establecer en 0.
  * ═══════════════════════════════════════════════════════════════════════════
  */
-const SPLASH_MIN_DISPLAY_MS = 2500;
+const SPLASH_MIN_DISPLAY_MS = 3200;
 
 /**
  * Oculta el splash screen con una transición suave.
@@ -2623,6 +2624,12 @@ function hideSplashScreen() {
   // El tiempo debe coincidir con la duración de la transición CSS (0.8s = 800ms)
   setTimeout(() => {
     splash.remove();
+    
+    // Forzar recálculo del viewport a vista general para evitar zoom "congelado"
+    // Esto corrige un bug en móvil/tablet donde el viewport parece zoomeado hasta el primer toque
+    if (typeof window.__synthAnimateToPanel === 'function') {
+      window.__synthAnimateToPanel(null, 0);
+    }
     
     // Disparar la pregunta de restaurar estado DESPUÉS de que el splash termine
     if (window._synthApp && window._synthApp.triggerRestoreLastState) {

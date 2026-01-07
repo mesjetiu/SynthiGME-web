@@ -1,4 +1,6 @@
 // Administrador de la matriz de pines que conecta fuentes y destinos entre módulos
+import { safeDisconnect } from '../utils/audio.js';
+
 export class Matrix {
   constructor(engine, tableEl, sourcePorts, destPorts, options = {}) {
     this.engine = engine;
@@ -123,8 +125,7 @@ export class Matrix {
   removeConnection(r, c) {
     const conn = this.connections[r][c];
     if (!conn) return;
-    // Ignorar error si el nodo ya fue desconectado
-    try { conn.disconnect(); } catch { /* nodo ya desconectado */ }
+    safeDisconnect(conn);
     this.connections[r][c] = null;
   }
 }

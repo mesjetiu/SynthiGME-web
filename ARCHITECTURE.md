@@ -107,6 +107,7 @@ Componentes de interfaz reutilizables:
 | Archivo | Componente | Descripción |
 |---------|------------|-------------|
 | `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre, curvas de respuesta configurable |
+| `knobFactory.js` | `createKnobElements()`, `createKnob()` | Factory para crear DOM de knobs. Evita duplicación del markup HTML |
 | `toggle.js` | `Toggle` | Interruptor de dos estados con etiquetas personalizables |
 | `moduleFrame.js` | `ModuleFrame` | Contenedor visual para módulos con título y controles |
 | `moduleUI.js` | `ModuleUI` | Clase base para módulos UI con knobs. Centraliza creación de controles, headers y gestión de valores |

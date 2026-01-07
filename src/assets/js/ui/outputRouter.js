@@ -1,5 +1,5 @@
 // Helper de UI que dibuja los controles del router estéreo y enlaza con el motor
-import { Knob } from './knob.js';
+import { createKnob } from './knobFactory.js';
 
 export function createOutputRouterUI(engine, container) {
   const block = document.createElement('div');
@@ -12,45 +12,30 @@ export function createOutputRouterUI(engine, container) {
   const row = document.createElement('div');
   row.className = 'knob-row';
 
-  const makeKnob = (label, min, max, initial, format, onChange, pixelsForFullRange = 200) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'knob-wrapper';
-    const knob = document.createElement('div');
-    knob.className = 'knob';
-    const inner = document.createElement('div');
-    inner.className = 'knob-inner';
-    knob.appendChild(inner);
-    const lbl = document.createElement('div');
-    lbl.className = 'knob-label';
-    lbl.textContent = label;
-    const val = document.createElement('div');
-    val.className = 'knob-value';
-    wrap.appendChild(knob);
-    wrap.appendChild(lbl);
-    wrap.appendChild(val);
-    row.appendChild(wrap);
-
-    new Knob(knob, {
+  const addKnob = (label, min, max, initial, format, onChange, pixelsForFullRange = 200) => {
+    const { wrapper } = createKnob({
+      label,
       min,
       max,
       initial,
-      valueElement: val,
+      showValue: true,
       format,
       onChange,
       pixelsForFullRange
     });
+    row.appendChild(wrapper);
   };
 
-  makeKnob('Ch1 Level', 0, 1, engine.bus1Level,
+  addKnob('Ch1 Level', 0, 1, engine.bus1Level,
     v => v.toFixed(2),
     v => engine.setBusLevel(1, v));
-  makeKnob('Ch1 Pan', -1, 1, engine.bus1Pan,
+  addKnob('Ch1 Pan', -1, 1, engine.bus1Pan,
     v => (v < 0 ? 'L ' : 'R ') + Math.abs(v).toFixed(2),
     v => engine.setBusPan(1, v));
-  makeKnob('Ch2 Level', 0, 1, engine.bus2Level,
+  addKnob('Ch2 Level', 0, 1, engine.bus2Level,
     v => v.toFixed(2),
     v => engine.setBusLevel(2, v));
-  makeKnob('Ch2 Pan', -1, 1, engine.bus2Pan,
+  addKnob('Ch2 Pan', -1, 1, engine.bus2Pan,
     v => (v < 0 ? 'L ' : 'R ') + Math.abs(v).toFixed(2),
     v => engine.setBusPan(2, v));
 

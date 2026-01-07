@@ -12,6 +12,8 @@
 
 import { t, onLocaleChange } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
+import { InputDialog } from './inputDialog.js';
+import { showToast } from './toast.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('PatchBrowser');
@@ -224,6 +226,13 @@ export class PatchBrowser {
     this.exportBtn.disabled = true;
     this.exportBtn.addEventListener('click', () => this._handleExport());
     
+    this.renameBtn = document.createElement('button');
+    this.renameBtn.type = 'button';
+    this.renameBtn.className = 'patch-browser__action-btn';
+    this.renameBtn.textContent = t('patches.rename');
+    this.renameBtn.disabled = true;
+    this.renameBtn.addEventListener('click', () => this._handleRename());
+    
     this.deleteBtn = document.createElement('button');
     this.deleteBtn.type = 'button';
     this.deleteBtn.className = 'patch-browser__action-btn patch-browser__action-btn--danger';
@@ -233,6 +242,7 @@ export class PatchBrowser {
     
     actionsBar.appendChild(this.loadBtn);
     actionsBar.appendChild(this.exportBtn);
+    actionsBar.appendChild(this.renameBtn);
     actionsBar.appendChild(this.deleteBtn);
     
     // Ensamblar
@@ -332,10 +342,10 @@ export class PatchBrowser {
       this._selectPatch(patch.id);
     });
     
-    // Doble click para cargar
+    // Doble click para cargar directamente (sin confirmar, para performances)
     item.addEventListener('dblclick', () => {
       this._selectPatch(patch.id);
-      this._handleLoad();
+      this._handleLoadDirect();
     });
     
     return item;
@@ -357,6 +367,7 @@ export class PatchBrowser {
     const hasSelection = this.selectedPatchId !== null;
     this.loadBtn.disabled = !hasSelection;
     this.exportBtn.disabled = !hasSelection;
+    this.renameBtn.disabled = !hasSelection;
     this.deleteBtn.disabled = !hasSelection;
   }
   
@@ -407,8 +418,15 @@ export class PatchBrowser {
    * Guarda el estado actual como nuevo patch.
    */
   async _handleSave() {
-    const name = prompt(t('patches.namePrompt'), t('patches.defaultName'));
-    if (!name || !name.trim()) return;
+    const result = await InputDialog.show({
+      title: t('patches.namePrompt'),
+      placeholder: t('patches.defaultName'),
+      defaultValue: t('patches.defaultName'),
+      confirmText: t('patches.saveCurrent'),
+      cancelText: t('common.cancel')
+    });
+    if (!result.confirmed || !result.value) return;
+    const name = result.value;
     
     try {
       // Obtener estado actual via callback
@@ -434,7 +452,7 @@ export class PatchBrowser {
   }
   
   /**
-   * Carga el patch seleccionado.
+   * Carga el patch seleccionado (con confirmación).
    */
   async _handleLoad() {
     if (!this.selectedPatchId) return;
@@ -450,18 +468,40 @@ export class PatchBrowser {
     });
     if (!result.confirmed) return;
     
+    await this._loadPatchById(this.selectedPatchId, patch.name);
+  }
+  
+  /**
+   * Carga el patch seleccionado directamente (sin confirmación, para performances).
+   */
+  async _handleLoadDirect() {
+    if (!this.selectedPatchId) return;
+    
+    const patch = this.patches.find(p => p.id === this.selectedPatchId);
+    if (!patch) return;
+    
+    await this._loadPatchById(this.selectedPatchId, patch.name);
+  }
+  
+  /**
+   * Carga un patch por su ID.
+   * @param {number} id - ID del patch
+   * @param {string} name - Nombre del patch (para el toast)
+   */
+  async _loadPatchById(id, name) {
     try {
-      const fullPatch = await loadPatch(this.selectedPatchId);
+      const fullPatch = await loadPatch(id);
       
       if (this.onLoad) {
         this.onLoad(fullPatch);
       }
       
-      this._showToast(t('patches.loaded'));
       this.close();
+      // Toast global visible incluso después de cerrar el modal
+      showToast(t('patches.loadedName', { name }));
     } catch (err) {
       log.error(' Error loading:', err);
-      this._showToast(t('patches.errorLoading'));
+      showToast(t('patches.errorLoading'));
     }
   }
   
@@ -479,6 +519,36 @@ export class PatchBrowser {
       }
     } catch (err) {
       log.error(' Error exporting:', err);
+    }
+  }
+  
+  /**
+   * Renombra el patch seleccionado.
+   */
+  async _handleRename() {
+    if (!this.selectedPatchId) return;
+    
+    const patch = this.patches.find(p => p.id === this.selectedPatchId);
+    if (!patch) return;
+    
+    const result = await InputDialog.show({
+      title: t('patches.renamePrompt'),
+      placeholder: patch.name,
+      defaultValue: patch.name,
+      confirmText: t('patches.rename'),
+      cancelText: t('common.cancel')
+    });
+    
+    if (!result.confirmed || !result.value || result.value === patch.name) return;
+    
+    try {
+      await renamePatch(this.selectedPatchId, result.value);
+      await this._loadPatches();
+      this._render();
+      this._showToast(t('patches.renamed'));
+    } catch (err) {
+      log.error(' Error renaming:', err);
+      this._showToast(t('patches.errorRenaming'));
     }
   }
   
@@ -553,6 +623,10 @@ export class PatchBrowser {
     
     if (this.exportBtn) {
       this.exportBtn.textContent = t('patches.export');
+    }
+    
+    if (this.renameBtn) {
+      this.renameBtn.textContent = t('patches.rename');
     }
     
     if (this.deleteBtn) {

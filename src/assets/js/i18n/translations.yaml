@@ -720,9 +720,17 @@ patches.loaded:
   en: Patch loaded
   es: Patch cargado
 
+patches.loadedName:
+  en: '"{name}" loaded'
+  es: '"{name}" cargado'
+
 patches.deleted:
   en: Patch deleted
   es: Patch eliminado
+
+patches.renamed:
+  en: Patch renamed
+  es: Patch renombrado
 
 patches.exported:
   en: Patch exported
@@ -740,9 +748,17 @@ patches.errorSaving:
   en: Error saving patch
   es: Error al guardar patch
 
+patches.errorRenaming:
+  en: Error renaming patch
+  es: Error al renombrar patch
+
 patches.namePrompt:
   en: Patch name
   es: Nombre del patch
+
+patches.renamePrompt:
+  en: New name
+  es: Nuevo nombre
 
 patches.defaultName:
   en: New patch

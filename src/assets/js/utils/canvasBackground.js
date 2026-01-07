@@ -225,11 +225,14 @@ export function loadSvgTextOnce(url) {
 }
 
 /**
- * Inyecta un fondo SVG inline en un panel.
+ * Inyecta un fondo SVG inline en un panel usando fetch.
+ * Usa fetch() en lugar de <object> para pasar correctamente por el service worker.
+ * Incluye retry logic para mejorar fiabilidad offline.
  * @param {string} panelId - ID del panel
  * @param {string} svgUrl - URL del archivo SVG
+ * @param {number} [retries=3] - Número de reintentos en caso de fallo
  */
-export function injectInlinePanelSvgBackground(panelId, svgUrl) {
+export async function injectInlinePanelSvgBackground(panelId, svgUrl, retries = 3) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
   if (panel.querySelector(':scope > .panel-inline-bg')) return;
@@ -238,11 +241,33 @@ export function injectInlinePanelSvgBackground(panelId, svgUrl) {
   host.className = 'panel-inline-bg';
   panel.insertBefore(host, panel.firstChild);
 
-  const obj = document.createElement('object');
-  obj.type = 'image/svg+xml';
-  obj.data = svgUrl;
-  obj.style.cssText = 'width: 100%; height: 100%; display: block;';
-  obj.setAttribute('aria-hidden', 'true');
-  host.appendChild(obj);
-  panel.classList.add('has-inline-bg');
+  // Intentar cargar el SVG con reintentos
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await fetch(svgUrl, { cache: 'force-cache' });
+      if (response.ok) {
+        const svgText = await response.text();
+        host.innerHTML = svgText;
+        
+        // Configurar el SVG inyectado
+        const svg = host.querySelector('svg');
+        if (svg) {
+          svg.style.cssText = 'width: 100%; height: 100%; display: block;';
+          svg.setAttribute('aria-hidden', 'true');
+        }
+        
+        panel.classList.add('has-inline-bg');
+        return; // Éxito, salir
+      }
+    } catch (e) {
+      if (attempt < retries - 1) {
+        // Esperar antes de reintentar (100ms, 200ms, 300ms...)
+        await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
+      } else {
+        console.warn(`[SVG] Failed to load ${svgUrl} after ${retries} attempts:`, e);
+      }
+    }
+  }
+  
+  panel.classList.add('has-inline-bg'); // Marcar como procesado aunque falle
 }

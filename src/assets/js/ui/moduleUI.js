@@ -1,5 +1,6 @@
 /**
- * ModuleUI - Clase base para componentes UI de módulos del sintetizador
+ * ModuleUI - Clase base para componentes UI de módulos del sintetizador.
+ * Implementa el contrato Serializable para persistencia de estado.
  * 
  * Proporciona funcionalidad común para módulos que tienen:
  * - Un título/header
@@ -9,6 +10,9 @@
  * Las subclases solo necesitan definir:
  * - cssClass: string con el nombre de clase CSS base
  * - knobDefs: array de {key, label} para los knobs
+ * 
+ * @module ui/moduleUI
+ * @see state/schema.js para definición de KnobModuleState
  * 
  * @example
  * ```javascript
@@ -168,7 +172,7 @@ export class ModuleUI {
   
   /**
    * Serializa el estado del módulo para guardarlo en un patch.
-   * @returns {Object} Estado serializado
+   * @returns {import('../state/schema.js').KnobModuleState} Estado serializado (objeto clave-valor)
    */
   serialize() {
     const data = {};
@@ -180,7 +184,7 @@ export class ModuleUI {
   
   /**
    * Restaura el estado del módulo desde un patch.
-   * @param {Object} data - Estado serializado
+   * @param {Partial<import('../state/schema.js').KnobModuleState>} data - Estado serializado
    */
   deserialize(data) {
     if (!data) return;

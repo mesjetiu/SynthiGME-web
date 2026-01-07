@@ -1,4 +1,11 @@
-// Panel de 8 faders verticales para controlar los buses lógicos de salida
+/**
+ * Panel de 8 faders verticales para controlar los buses lógicos de salida.
+ * Implementa el contrato Serializable para persistencia de estado.
+ * 
+ * @module modules/outputFaders
+ * @see state/schema.js para definición de LevelsState
+ */
+
 import { Module } from '../core/engine.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 
@@ -108,7 +115,7 @@ export class OutputFaderModule extends Module {
   
   /**
    * Serializa el estado del módulo para guardarlo en un patch.
-   * @returns {Object} Estado serializado
+   * @returns {import('../state/schema.js').LevelsState} Estado serializado
    */
   serialize() {
     return {
@@ -118,7 +125,7 @@ export class OutputFaderModule extends Module {
   
   /**
    * Restaura el estado del módulo desde un patch.
-   * @param {Object} data - Estado serializado
+   * @param {Partial<import('../state/schema.js').LevelsState>} data - Estado serializado
    */
   deserialize(data) {
     if (!data || !Array.isArray(data.levels)) return;

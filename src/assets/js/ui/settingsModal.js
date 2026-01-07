@@ -284,6 +284,11 @@ export class SettingsModal {
         content.classList.toggle('settings-tab-content--active', id === tabId);
       });
     }
+    
+    // Refrescar dispositivos de audio al entrar en la pestaña Audio
+    if (tabId === 'audio' && this.audioSettingsModal) {
+      this.audioSettingsModal.refreshDevices();
+    }
   }
   
   /**

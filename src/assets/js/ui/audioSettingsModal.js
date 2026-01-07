@@ -426,7 +426,41 @@ export class AudioSettingsModal {
       this._updateDeviceSelects();
     } catch (e) {
       console.warn('[AudioSettingsModal] Error enumerating devices:', e);
+      this._showDeviceError();
     }
+  }
+
+  /**
+   * Muestra un mensaje de error en los selectores de dispositivos
+   */
+  _showDeviceError() {
+    const errorText = t('audio.device.error') || 'Error loading devices';
+    
+    if (this.outputDeviceSelect) {
+      this.outputDeviceSelect.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = 'default';
+      opt.textContent = errorText;
+      this.outputDeviceSelect.appendChild(opt);
+    }
+    
+    if (this.inputDeviceSelect) {
+      this.inputDeviceSelect.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = 'default';
+      opt.textContent = errorText;
+      this.inputDeviceSelect.appendChild(opt);
+    }
+  }
+
+  /**
+   * Método público para refrescar la lista de dispositivos.
+   * Útil para llamar desde contenido embebido o al cambiar de pestaña.
+   * @param {boolean} requestPermission - Si true, solicita permisos para ver nombres
+   * @returns {Promise<void>}
+   */
+  refreshDevices(requestPermission = false) {
+    return this._enumerateDevices(requestPermission);
   }
 
   /**
@@ -562,6 +596,9 @@ export class AudioSettingsModal {
     // Sección de entradas (INPUT ROUTING)
     const inputSection = this._createInputSection();
     content.appendChild(inputSection);
+
+    // Enumerar dispositivos de audio para contenido embebido
+    this.refreshDevices();
 
     return content;
   }

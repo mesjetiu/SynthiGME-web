@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 31 de diciembre de 2025
+> Última actualización: 7 de enero de 2026
 
 ---
 
@@ -44,6 +44,14 @@ src/
         └── panelBlueprints/# Blueprints (estructura) y Configs (parámetros)
 ```
 
+### 2.1 Créditos de Assets
+
+| Recurso | Autor/Fuente | Licencia |
+|---------|--------------|----------|
+| Iconos de interfaz (Tabler) | [tabler/tabler-icons](https://github.com/tabler/tabler-icons) | MIT (ver `assets/icons/LICENSE.tabler-icons.txt`) |
+| Iconos de paneles del sintetizador | Sylvia Molina Muro | — |
+| SVGs de paneles | Basados en el Synthi 100 original de EMS | — |
+
 ---
 
 ## 3. Módulos JavaScript
@@ -54,6 +62,7 @@ src/
 |---------|-----------|
 | `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputRouting()` (ruteo directo L/R). Exporta también `AUDIO_CONSTANTS` (tiempos de rampa) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
+| `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
 
 ### 3.2 Worklets (`src/assets/js/worklets/`)
 
@@ -64,6 +73,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `synthOscillator.worklet.js` | Oscilador con fase coherente, 4 formas de onda (pulse, sine, triangle, sawtooth), anti-aliasing PolyBLEP, y entrada para hard sync |
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período |
+| `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -110,6 +120,10 @@ Componentes de interfaz reutilizables:
 | `outputRouter.js` | — | Helper para UI del router de salidas |
 | `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz de salida (8 buses → N canales físicos), matriz de entrada (N entradas sistema → 8 Input Amplifiers), selección de dispositivos, detección automática de canales, persistencia en localStorage |
 | `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: selección de idioma (español/inglés), escala de renderizado (1×-4×), cambio de idioma en caliente, persistencia en localStorage |
+| `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-8), matriz de ruteo outputs→tracks, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
+| `confirmDialog.js` | `ConfirmDialog` | Modal de confirmación reutilizable (singleton): título, mensaje, botones personalizables, opción "no volver a preguntar" con persistencia localStorage. Métodos estáticos `show()`, `getRememberedChoice()`, `clearRememberedChoice()` |
+| `keyboardShortcuts.js` | `KeyboardShortcutsManager` | Gestor centralizado de atajos de teclado (singleton): acciones configurables (mute, record, patches, settings, fullscreen, reset, navegación paneles), persistencia en localStorage, teclas reservadas (Tab, Enter, Escape) |
+| `patchBrowser.js` | `PatchBrowser` | Modal para gestionar patches: guardar, cargar, eliminar, renombrar, exportar/importar archivos `.sgme.json`, búsqueda por nombre |
 | `quickbar.js` | — | Barra de acciones rápidas para móvil (bloqueo zoom/pan, ajustes, configuración de audio, pantalla completa) |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)
@@ -119,6 +133,23 @@ Sistema de navegación del viewport:
 | Archivo | Propósito |
 |---------|-----------|
 | `viewportNavigation.js` | Zoom/pan/pinch del viewport, animación a paneles, botones de enfoque |
+
+#### Gestos Táctiles Soportados
+
+| Gesto | Acción | Notas |
+|-------|--------|-------|
+| **Un dedo** | Pan (arrastrar) | Solo en zonas no interactivas |
+| **Dos dedos** | Pan + Zoom simultáneo | El centroide de los dos dedos controla el pan, la distancia controla el zoom |
+| **Pinch** | Zoom con ancla | El zoom se centra en el punto medio entre dedos |
+
+#### Sistema de Bloqueos (Móvil)
+
+La quickbar permite bloquear gestos para evitar navegación accidental:
+
+| Bloqueo | Efecto |
+|---------|--------|
+| `zoomLocked` | Ignora cambios de distancia en pinch |
+| `panLocked` | Ignora desplazamiento del centroide, ancla zoom en centro de viewport |
 
 ### 3.6 Utils (`src/assets/js/utils/`)
 
@@ -557,7 +588,197 @@ El render usa `requestAnimationFrame` para sincronizar el dibujo con el refresco
 
 ---
 
-## 6. Flujo de Audio
+## 6. Sistema de Grabación de Audio
+
+El sistema de grabación permite exportar audio multitrack a formato WAV, capturando directamente de los buses de salida.
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    MAIN THREAD                              │
+│  ┌───────────────────┐     ┌────────────────────────────┐   │
+│  │  RecordingEngine  │────▶│  RecordingSettingsModal    │   │
+│  │ recordingEngine.js│     │ recordingSettingsModal.js  │   │
+│  │ - Start/Stop      │     │ - Configurar tracks        │   │
+│  │ - Routing matrix  │     │ - Matriz outputs→tracks    │   │
+│  │ - WAV export      │     │ - UI de configuración      │   │
+│  └────────┬──────────┘     └────────────────────────────┘   │
+│           │ connect()                                        │
+│           ▼                                                  │
+│  ┌───────────────────────────────────────────────────┐      │
+│  │  AudioWorkletNode (recording-capture-processor)   │      │
+│  │  - Recibe N canales (buses ruteados)              │      │
+│  └────────┬──────────────────────────────────────────┘      │
+└───────────┼─────────────────────────────────────────────────┘
+            │ postMessage (Float32 samples)
+┌───────────┼─────────────────────────────────────────────────┐
+│           ▼           AUDIO THREAD (Worklet)                │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ RecordingCaptureProcessor                            │   │
+│  │ recordingCapture.worklet.js                          │   │
+│  │ - Copia bloques de 128 samples por canal             │   │
+│  │ - Envía al main thread para acumulación              │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Matriz de Ruteo
+
+El sistema usa una matriz configurable para determinar qué buses de salida van a qué pistas del archivo WAV:
+
+| Configuración | Descripción |
+|---------------|-------------|
+| **Número de pistas** | 1-8 tracks en el archivo WAV final |
+| **Matriz outputs→tracks** | Cada bus de salida puede rutearse a una o más pistas |
+| **Por defecto** | Bus 1→Track 1, Bus 2→Track 2, etc. (mapeo diagonal) |
+
+### Formato de Exportación
+
+- **Formato**: WAV (RIFF)
+- **Bits por sample**: 16-bit PCM
+- **Sample rate**: Igual que AudioContext (típicamente 44100 o 48000 Hz)
+- **Canales**: Configurable (1-8 tracks)
+
+### Flujo de Grabación
+
+```
+┌─────────────┐    ┌────────────────┐    ┌─────────────────┐
+│ Bus Outputs │───▶│ Routing Matrix │───▶│ Track Mixers    │
+│ (8 buses)   │    │ (gains 0/1)    │    │ (GainNodes)     │
+└─────────────┘    └────────────────┘    └───────┬─────────┘
+                                                  │
+                   ┌──────────────────────────────▼─────────┐
+                   │     RecordingCaptureProcessor          │
+                   │     (AudioWorklet)                     │
+                   └────────────────────┬───────────────────┘
+                                        │ Float32 chunks
+                                        ▼
+                   ┌────────────────────────────────────────┐
+                   │   Track Buffers (acumulación)          │
+                   │   Float32Array[] por track             │
+                   └────────────────────┬───────────────────┘
+                                        │ stop()
+                                        ▼
+                   ┌────────────────────────────────────────┐
+                   │   WAV Encoder (16-bit PCM)             │
+                   │   → Descarga archivo .wav              │
+                   └────────────────────────────────────────┘
+```
+
+### Persistencia
+
+| Dato | Almacenamiento | Clave localStorage |
+|------|----------------|---------------------|
+| Número de pistas | localStorage | `synthigme-recording-tracks` |
+| Matriz de ruteo | localStorage | `synthigme-recording-routing` |
+
+### API de Uso
+
+```javascript
+// Obtener RecordingEngine
+const recording = app.recordingEngine;
+
+// Configurar pistas y ruteo (vía RecordingSettingsModal)
+recording.trackCount = 4;
+recording.setRouting(busIndex, trackIndex, gain);
+
+// Iniciar/detener grabación
+await recording.start();
+const wavBlob = await recording.stop();  // Retorna Blob WAV
+
+// Descargar archivo
+const url = URL.createObjectURL(wavBlob);
+const a = document.createElement('a');
+a.href = url;
+a.download = `recording-${Date.now()}.wav`;
+a.click();
+```
+
+---
+
+## 7. Sistema de Atajos de Teclado
+
+Gestor centralizado de shortcuts con soporte para personalización y persistencia.
+
+### Arquitectura
+
+El sistema usa un singleton `KeyboardShortcutsManager` que:
+- Registra un único listener `keydown` global
+- Mapea combinaciones de teclas a acciones
+- Soporta modificadores (Shift, Ctrl, Alt)
+- Persiste configuración personalizada en localStorage
+
+### Atajos por Defecto
+
+| Acción | Tecla | Descripción |
+|--------|-------|-------------|
+| `mute` | `M` | Mute global / panic button — silencia toda la salida |
+| `record` | `R` | Iniciar/detener grabación de audio |
+| `patches` | `P` | Abrir/cerrar navegador de patches |
+| `settings` | `S` | Abrir/cerrar modal de ajustes |
+| `fullscreen` | `F` | Alternar pantalla completa |
+| `reset` | `Shift+I` | Reiniciar sintetizador a valores por defecto (con confirmación) |
+| `panel1` | `1` | Navegar al Panel 1 |
+| `panel2` | `2` | Navegar al Panel 2 |
+| `panel3` | `3` | Navegar al Panel 3 |
+| `panel4` | `4` | Navegar al Panel 4 |
+| `panel5` | `5` | Navegar al Panel 5 (Matriz Audio) |
+| `panel6` | `6` | Navegar al Panel 6 (Matriz Control) |
+| `panelOutput` | `7` | Navegar al Panel de Salida |
+| `overview` | `0` | Vista general (todos los paneles) |
+
+### Teclas Reservadas
+
+Las siguientes teclas no pueden asignarse a acciones:
+- `Tab` — Navegación del foco
+- `Enter` — Confirmación
+- `Escape` — Cancelación/cierre
+- `Space` — Interacción con controles
+
+### Eventos Disparados
+
+Las acciones emiten eventos personalizados en `document`:
+
+| Evento | Acción |
+|--------|--------|
+| `synth:toggleMute` | Mute global |
+| `synth:toggleRecording` | Grabación |
+| `synth:togglePatches` | Navegador patches |
+| `synth:toggleSettings` | Modal ajustes |
+| `synth:resetToDefaults` | Reinicio (tras confirmación) |
+
+### Persistencia
+
+| Dato | Clave localStorage |
+|------|---------------------|
+| Atajos personalizados | `synthigme-keyboard-shortcuts` |
+
+### API de Uso
+
+```javascript
+import keyboardShortcuts from './ui/keyboardShortcuts.js';
+
+// Habilitar/deshabilitar
+keyboardShortcuts.enable();
+keyboardShortcuts.disable();
+
+// Obtener atajo actual para una acción
+const shortcut = keyboardShortcuts.get('mute');  // { key: 'm', shift: false, ... }
+
+// Modificar atajo
+keyboardShortcuts.set('mute', { key: 'x', shift: true, ctrl: false, alt: false });
+
+// Resetear a defaults
+keyboardShortcuts.reset();
+
+// Suscribirse a cambios
+keyboardShortcuts.onChange(shortcuts => console.log(shortcuts));
+```
+
+---
+
+## 8. Flujo de Audio
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -580,7 +801,7 @@ El render usa `requestAnimationFrame` para sincronizar el dibujo con el refresco
 
 ---
 
-## 7. Sistema de AudioWorklets
+## 9. Sistema de AudioWorklets
 
 ### Motivación
 
@@ -665,7 +886,7 @@ Si el navegador no soporta AudioWorklet o falla la carga:
 
 ---
 
-## 8. Sistema de Salidas
+## 10. Sistema de Salidas
 
 ### Arquitectura de 8 Buses Lógicos
 
@@ -689,7 +910,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 9. Sistema de Matrices
+## 11. Sistema de Matrices
 
 ### Matriz de Audio (Panel 5)
 - **63 filas** (fuentes: osciladores, filtros, etc.)
@@ -712,7 +933,7 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ---
 
-## 10. Build y Distribución
+## 12. Build y Distribución
 
 ### Scripts (`package.json`)
 
@@ -751,7 +972,7 @@ docs/
 
 ---
 
-## 11. PWA (Progressive Web App)
+## 13. PWA (Progressive Web App)
 
 - **Service Worker** (`sw.js`): Cache de assets para uso offline
 - **Web Manifest**: Permite instalación como app nativa
@@ -759,7 +980,7 @@ docs/
 
 ---
 
-## 12. Patrones de Código
+## 14. Patrones de Código
 
 ### Módulos de Audio
 - Extienden clase base `Module` de `engine.js`
@@ -778,11 +999,13 @@ docs/
 
 ---
 
-## 13. Consideraciones Futuras
+## 15. Consideraciones Futuras
 
 - [ ] **Hard sync**: Conectar señal de sincronización a entrada del worklet (Panel 6)
 - [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
 - [x] **Presets**: Sistema de guardado/carga de patches → Ver [Sección 4](#4-sistema-de-patchesestados)
+- [x] **Grabación**: Sistema de grabación multitrack WAV → Ver [Sección 6](#6-sistema-de-grabación-de-audio)
+- [x] **Atajos de teclado**: Sistema de shortcuts personalizables → Ver [Sección 7](#7-sistema-de-atajos-de-teclado)
 - [ ] **MIDI**: Soporte para controladores externos
 - [ ] **Multicanal**: Ruteo a más de 2 salidas físicas si el navegador lo permite
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam

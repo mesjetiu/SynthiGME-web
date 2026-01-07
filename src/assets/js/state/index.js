@@ -145,9 +145,10 @@ function serializeModule(module) {
 
 /**
  * Serializa un oscilador.
+ * @see TODO.md - "Osciladores: exponer valores para serialización"
  */
 function serializeOscillator(osc) {
-  // TODO: Implementar cuando los osciladores expongan sus valores
+  // Pendiente: osciladores deben exponer currentValues
   return {
     frequency: osc.currentValues?.frequency ?? 10,
     pulseLevel: osc.currentValues?.pulseLevel ?? 0,
@@ -180,9 +181,10 @@ function serializeInputAmplifier(input) {
 
 /**
  * Serializa la matriz de conexiones.
+ * @see TODO.md - "Matriz: exponer estado para serialización"
  */
 function serializeMatrix(matrix) {
-  // TODO: Implementar cuando la matriz exponga su estado
+  // Pendiente: matriz debe exponer conexiones activas
   return {
     audio: [],
     control: []

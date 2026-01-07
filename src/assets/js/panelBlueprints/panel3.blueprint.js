@@ -139,11 +139,12 @@ export default {
       knobs: ['colour', 'level']
     },
     
+    // @see TODO.md - "Random Voltage: definir filas de matriz"
     randomCV: {
       id: 'random-cv',
       type: 'randomVoltage',
       title: 'Random Voltage',
-      // matrixRows: { voltage1: ??, voltage2: ?? }, // TODO: definir
+      // matrixRows pendiente: { voltage1: ??, voltage2: ?? }
       knobs: ['mean', 'variance', 'voltage1', 'voltage2', 'key']
     }
   },

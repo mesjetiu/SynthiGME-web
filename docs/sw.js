@@ -1,4 +1,4 @@
-const CACHE_VERSION = '0.0.1-552';
+const CACHE_VERSION = '0.0.1-553';
 const CACHE_NAME = `synthigme-cache-v${CACHE_VERSION}`;
 const CORE_ASSETS = [
   './',
@@ -21,8 +21,20 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        const requests = CORE_ASSETS.map(url => new Request(url, { cache: 'reload' }));
-        return cache.addAll(requests);
+        // Caching individual resiliente: si falla un archivo, los demás se cachean igual
+        return Promise.allSettled(
+          CORE_ASSETS.map(async url => {
+            try {
+              const request = new Request(url, { cache: 'reload' });
+              const response = await fetch(request);
+              if (response.ok) {
+                await cache.put(request, response);
+              }
+            } catch (e) {
+              console.warn(`[SW] Failed to cache: ${url}`, e);
+            }
+          })
+        );
       })
   );
 });
@@ -45,7 +57,7 @@ self.addEventListener('fetch', event => {
   }
 
   event.respondWith(
-    caches.match(request).then(response => {
+    caches.match(request, { ignoreVary: true }).then(response => {
       if (response) {
         return response;
       }

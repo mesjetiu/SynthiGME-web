@@ -15,8 +15,11 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **2 Generadores de ruido** | Algoritmo Voss-McCartney para ruido rosa. Knob de color (blanco→rosa). |
 | **Osciloscopio** | Modos Y-T y X-Y (Lissajous). Trigger Schmitt con histéresis temporal y predictiva. |
 | **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con feedback visual. |
+| **8 Entradas de audio** | Input Amplifiers con 8 canales y control de ganancia individual. |
 | **8 Salidas de audio** | Faders individuales con enrutamiento a dispositivo de salida. |
 | **Configuración de audio** | Selección de dispositivo de salida y ruteo de buses lógicos (1-8) a L/R. Matriz 8×2 con persistencia. |
+| **Sistema de patches** | Guardar, cargar, renombrar y eliminar patches. Exportar/importar archivos `.sgme.json`. Autoguardado configurable con recuperación de sesión. |
+| **Grabación de audio** | Exportación WAV multitrack (1-8 pistas). Matriz de ruteo outputs→tracks configurable. |
 | **Ajustes** | Selección de idioma (español/inglés), escala de renderizado (1×-4×). |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
@@ -25,7 +28,15 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | Tecla | Acción |
 |-------|--------|
 | `M` | Silenciar/activar audio (mute global) |
-| `Esc` | Cerrar modal activo (ajustes, patches, audio) |
+| `R` | Iniciar/detener grabación |
+| `P` | Abrir/cerrar navegador de patches |
+| `S` | Abrir/cerrar ajustes |
+| `F` | Alternar pantalla completa |
+| `Shift+I` | Reiniciar a valores por defecto |
+| `1`-`6` | Navegar a panel 1-6 |
+| `7` | Navegar a panel de salida |
+| `0` | Vista general (todos los paneles) |
+| `Esc` | Cerrar modal activo |
 
 ### Tecnología
 
@@ -91,8 +102,9 @@ El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 ## Licencia
 SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, modificar y redistribuir el código manteniendo la atribución correspondiente.
 
-### Iconos
+### Iconos y gráficos
 - La barra de acciones móviles usa iconos de [Tabler Icons](https://tabler-icons.io/) (MIT). Ver `src/assets/icons/ui-sprite.svg` y `src/assets/icons/LICENSE.tabler-icons.txt`.
+- Iconos de los paneles del sintetizador diseñados por **Sylvia Molina Muro**.
 
 ## Versionado y releases
 1. Mantén el número de versión únicamente en `package.json` siguiendo [Semantic Versioning](https://semver.org/lang/es/). Registra tus cambios recientes en `CHANGELOG.md` dentro de la sección `Unreleased`.

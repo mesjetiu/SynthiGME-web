@@ -2,6 +2,7 @@
 import { AudioEngine, setParamSmooth, AUDIO_CONSTANTS } from './core/engine.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
+import { STORAGE_KEYS } from './utils/constants.js';
 
 const log = createLogger('App');
 import { RecordingEngine } from './core/recordingEngine.js';
@@ -486,7 +487,7 @@ class App {
     try {
       const state = this._serializeCurrentState();
       // Guardar en localStorage como "último estado" (marcado como autoguardado)
-      localStorage.setItem('synthigme-last-state', JSON.stringify({
+      localStorage.setItem(STORAGE_KEYS.LAST_STATE, JSON.stringify({
         timestamp: Date.now(),
         state,
         isAutoSave: true  // Marca que fue guardado automáticamente
@@ -510,7 +511,7 @@ class App {
     
     try {
       const state = this._serializeCurrentState();
-      localStorage.setItem('synthigme-last-state', JSON.stringify({
+      localStorage.setItem(STORAGE_KEYS.LAST_STATE, JSON.stringify({
         timestamp: Date.now(),
         state,
         savedOnExit: true,
@@ -551,7 +552,7 @@ class App {
    * Se usa cuando el usuario empieza de nuevo, hace reset, o carga un patch.
    */
   clearLastState() {
-    localStorage.removeItem('synthigme-last-state');
+    localStorage.removeItem(STORAGE_KEYS.LAST_STATE);
     this._sessionDirty = false;
     log.info(' Last state cleared');
   }
@@ -561,7 +562,7 @@ class App {
    * Esto evita que se pregunte al reiniciar si ya guardó manualmente.
    */
   clearAutoSaveFlag() {
-    localStorage.removeItem('synthigme-last-state');
+    localStorage.removeItem(STORAGE_KEYS.LAST_STATE);
     this._sessionDirty = false;
     log.info(' Auto-save cleared (user action)');
   }
@@ -571,7 +572,7 @@ class App {
    */
   async _restoreLastState() {
     try {
-      const stored = localStorage.getItem('synthigme-last-state');
+      const stored = localStorage.getItem(STORAGE_KEYS.LAST_STATE);
       if (!stored) return;
       
       const { state, timestamp } = JSON.parse(stored);
@@ -597,7 +598,7 @@ class App {
    */
   async _maybeRestoreLastState() {
     // Comprobar si hay estado guardado
-    const stored = localStorage.getItem('synthigme-last-state');
+    const stored = localStorage.getItem(STORAGE_KEYS.LAST_STATE);
     if (!stored) return;
     
     let parsedData;

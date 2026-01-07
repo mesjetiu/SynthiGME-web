@@ -6,10 +6,9 @@
 import { t } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 const log = createLogger('KeyboardShortcuts');
-
-const STORAGE_KEY = 'synthigme-keyboard-shortcuts';
 
 // Teclas reservadas que no pueden asignarse
 const RESERVED_KEYS = ['Tab', 'Enter', 'Escape', ' ', 'Space'];
@@ -86,7 +85,7 @@ class KeyboardShortcutsManager {
    */
   _load() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEYS.KEYBOARD_SHORTCUTS);
       if (saved) {
         const parsed = JSON.parse(saved);
         // Merge con defaults por si hay nuevas acciones
@@ -103,7 +102,7 @@ class KeyboardShortcutsManager {
    */
   _save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.shortcuts));
+      localStorage.setItem(STORAGE_KEYS.KEYBOARD_SHORTCUTS, JSON.stringify(this.shortcuts));
     } catch (e) {
       log.warn(' Error saving:', e);
     }

@@ -4,6 +4,7 @@
  */
 
 import { t, onLocaleChange } from '../i18n/index.js';
+import { OUTPUT_CHANNELS, MAX_RECORDING_TRACKS } from '../utils/constants.js';
 
 /**
  * Modal para configurar la grabación de audio WAV.
@@ -13,10 +14,10 @@ export class RecordingSettingsModal {
   /**
    * @param {Object} options
    * @param {import('../core/recordingEngine.js').RecordingEngine} options.recordingEngine
-   * @param {number} [options.outputCount=8] - Número de salidas del sintetizador
+   * @param {number} [options.outputCount] - Número de salidas del sintetizador
    */
   constructor(options = {}) {
-    const { recordingEngine, outputCount = 8 } = options;
+    const { recordingEngine, outputCount = OUTPUT_CHANNELS } = options;
     
     this.recordingEngine = recordingEngine;
     this.outputCount = outputCount;
@@ -240,8 +241,8 @@ export class RecordingSettingsModal {
     this.trackCountSelect.className = 'recording-settings-select';
     this.trackCountSelect.id = 'recording-track-count';
     
-    // Options 1-8
-    for (let i = 1; i <= 8; i++) {
+    // Options 1-MAX_RECORDING_TRACKS
+    for (let i = 1; i <= MAX_RECORDING_TRACKS; i++) {
       const opt = document.createElement('option');
       opt.value = String(i);
       opt.textContent = i === 1 ? t('recording.tracks.mono') : 

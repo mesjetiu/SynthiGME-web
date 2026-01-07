@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { STORAGE_KEYS, MAX_RECORDING_TRACKS } from '../utils/constants.js';
 
 const log = createLogger('RecordingEngine');
 
@@ -8,9 +9,6 @@ const log = createLogger('RecordingEngine');
  * Uses an AudioWorklet to capture samples from configurable output buses
  * and exports to 16-bit PCM WAV format.
  */
-
-const STORAGE_KEY_TRACK_COUNT = 'synthigme-recording-tracks';
-const STORAGE_KEY_ROUTING = 'synthigme-recording-routing';
 
 export class RecordingEngine {
   /**
@@ -45,7 +43,7 @@ export class RecordingEngine {
    * Load track count from storage or return default
    */
   _loadTrackCount() {
-    const stored = localStorage.getItem(STORAGE_KEY_TRACK_COUNT);
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_TRACKS);
     if (stored) {
       const count = parseInt(stored, 10);
       if (count >= 1 && count <= 8) return count;
@@ -57,7 +55,7 @@ export class RecordingEngine {
    * Save track count to storage
    */
   _saveTrackCount(count) {
-    localStorage.setItem(STORAGE_KEY_TRACK_COUNT, String(count));
+    localStorage.setItem(STORAGE_KEYS.RECORDING_TRACKS, String(count));
   }
 
   /**
@@ -65,7 +63,7 @@ export class RecordingEngine {
    * Default: out1 → track1, out2 → track2, etc.
    */
   _loadRoutingMatrix() {
-    const stored = localStorage.getItem(STORAGE_KEY_ROUTING);
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_ROUTING);
     if (stored) {
       try {
         const matrix = JSON.parse(stored);
@@ -98,7 +96,7 @@ export class RecordingEngine {
    * Save routing matrix to storage
    */
   _saveRoutingMatrix() {
-    localStorage.setItem(STORAGE_KEY_ROUTING, JSON.stringify(this._routingMatrix));
+    localStorage.setItem(STORAGE_KEYS.RECORDING_ROUTING, JSON.stringify(this._routingMatrix));
   }
 
   /**

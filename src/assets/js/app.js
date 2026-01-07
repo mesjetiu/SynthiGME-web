@@ -58,43 +58,10 @@ import { RecordingSettingsModal } from './ui/recordingSettingsModal.js';
 import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
+import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bloqueador de orientación portrait
-// ─────────────────────────────────────────────────────────────────────────────
-let portraitBlockerDismissed = false;
-
-function initPortraitBlocker() {
-  const blocker = document.getElementById('portraitBlocker');
-  if (!blocker) return;
-  
-  const closeBtn = blocker.querySelector('.portrait-blocker__close');
-  
-  closeBtn?.addEventListener('click', () => {
-    portraitBlockerDismissed = true;
-    blocker.classList.remove('portrait-blocker--visible');
-    blocker.setAttribute('aria-hidden', 'true');
-  });
-  
-  // Escuchar cambios de orientación
-  const mq = window.matchMedia('(orientation: portrait)');
-  
-  const updateVisibility = () => {
-    if (mq.matches && !portraitBlockerDismissed) {
-      blocker.classList.add('portrait-blocker--visible');
-      blocker.setAttribute('aria-hidden', 'false');
-    } else {
-      blocker.classList.remove('portrait-blocker--visible');
-      blocker.setAttribute('aria-hidden', 'true');
-    }
-  };
-  
-  mq.addEventListener('change', updateVisibility);
-  updateVisibility();
-}
 
 class App {
   constructor() {

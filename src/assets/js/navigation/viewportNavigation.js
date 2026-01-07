@@ -424,6 +424,42 @@ export function initViewportNavigation({ outer, inner } = {}) {
   lastViewportWidth = metrics.outerWidth;
   render();
 
+  // ─── Estabilización de viewport en móvil/tablet ───
+  // En dispositivos móviles, el viewport puede cambiar varias veces durante la carga
+  // (barras de navegación que aparecen/desaparecen, teclado virtual, etc.)
+  // Escuchamos los primeros cambios de visualViewport para recalcular y estabilizar
+  if (window.visualViewport) {
+    let stabilizationCount = 0;
+    const MAX_STABILIZATION_CALLS = 5;
+    
+    const handleViewportStabilization = () => {
+      stabilizationCount++;
+      metricsDirty = true;
+      refreshMetrics();
+      
+      // Recalcular vista general
+      const minScale = getMinScale();
+      scale = Math.min(maxScale, Math.max(minScale, snapScale(minScale)));
+      const finalWidth = metrics.contentWidth * scale;
+      const finalHeight = metrics.contentHeight * scale;
+      offsetX = (metrics.outerWidth - finalWidth) / 2;
+      offsetY = (metrics.outerHeight - finalHeight) / 2;
+      requestRender();
+      
+      // Dejar de escuchar después de suficientes estabilizaciones
+      if (stabilizationCount >= MAX_STABILIZATION_CALLS) {
+        window.visualViewport.removeEventListener('resize', handleViewportStabilization);
+      }
+    };
+    
+    window.visualViewport.addEventListener('resize', handleViewportStabilization);
+    
+    // Auto-limpieza: dejar de escuchar después de 4 segundos aunque no haya llegado al máximo
+    setTimeout(() => {
+      window.visualViewport.removeEventListener('resize', handleViewportStabilization);
+    }, 4000);
+  }
+
   function fitContentToViewport() {
     if (!outer || !inner) return;
     refreshMetrics();

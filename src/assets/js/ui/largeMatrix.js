@@ -1,3 +1,10 @@
+/**
+ * Matriz de conexión grande (63×67) para audio y control.
+ * Implementa el contrato Serializable para persistencia de estado.
+ * 
+ * @module ui/largeMatrix
+ * @see state/schema.js para definición de MatrixState
+ */
 export class LargeMatrix {
   constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [], onToggle = null } = {}) {
     this.table = tableElement;
@@ -243,7 +250,7 @@ export class LargeMatrix {
   /**
    * Serializa el estado de la matriz para guardarlo en un patch.
    * Guarda solo las conexiones activas como array de [row, col].
-   * @returns {Object} Estado serializado
+   * @returns {import('../state/schema.js').MatrixState} Estado serializado
    */
   serialize() {
     const connections = [];
@@ -263,7 +270,7 @@ export class LargeMatrix {
   
   /**
    * Restaura el estado de la matriz desde un patch.
-   * @param {Object} data - Estado serializado
+   * @param {Partial<import('../state/schema.js').MatrixState>} data - Estado serializado
    */
   deserialize(data) {
     if (!data || !Array.isArray(data.connections)) return;

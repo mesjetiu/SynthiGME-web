@@ -5,6 +5,10 @@
  * 
  * Componente UI para los 8 canales de entrada del sintetizador.
  * Muestra 8 knobs de ganancia en una fila horizontal.
+ * Implementa el contrato Serializable para persistencia de estado.
+ * 
+ * @module ui/inputAmplifierUI
+ * @see state/schema.js para definición de LevelsState
  * 
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -158,7 +162,7 @@ export class InputAmplifierUI {
   
   /**
    * Serializa el estado del módulo para guardarlo en un patch.
-   * @returns {Object} Estado serializado
+   * @returns {import('../state/schema.js').LevelsState} Estado serializado
    */
   serialize() {
     return {
@@ -168,7 +172,7 @@ export class InputAmplifierUI {
   
   /**
    * Restaura el estado del módulo desde un patch.
-   * @param {Object} data - Estado serializado
+   * @param {Partial<import('../state/schema.js').LevelsState>} data - Estado serializado
    */
   deserialize(data) {
     if (!data || !Array.isArray(data.levels)) return;

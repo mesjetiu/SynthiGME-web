@@ -10,6 +10,78 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TIPOS SERIALIZABLES - Contratos para módulos con serialize/deserialize
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Contrato base para módulos serializables.
+ * Cualquier clase que implemente serialize/deserialize debe seguir este patrón.
+ * 
+ * @typedef {Object} Serializable
+ * @property {function(): SerializedState} serialize - Retorna el estado actual
+ * @property {function(SerializedState): void} deserialize - Restaura estado desde datos
+ */
+
+/**
+ * Estado base serializado. Todos los estados extienden de este.
+ * @typedef {Object} SerializedState
+ */
+
+/**
+ * Estado serializado de un oscilador SGME.
+ * Usa array de knobs por razones históricas (orden fijo de parámetros).
+ * 
+ * @typedef {Object} OscillatorState
+ * @property {number[]} knobs - Array de 7 valores [pulseLevel, pulseWidth, sineLevel, sineSymmetry, triangleLevel, sawtoothLevel, frequency]
+ * @property {'hi'|'lo'} rangeState - Rango de frecuencia activo
+ * 
+ * @example
+ * { knobs: [0, 0.5, 0, 0.5, 0, 0, 0], rangeState: 'hi' }
+ */
+
+/**
+ * Estado serializado de módulos basados en ModuleUI.
+ * Usa objeto con claves dinámicas según definición de knobs.
+ * Aplica a: NoiseGenerator, RandomVoltage, y futuros módulos.
+ * 
+ * @typedef {Object.<string, number>} KnobModuleState
+ * 
+ * @example
+ * // NoiseGenerator
+ * { colour: 0.5, level: 0.3 }
+ * 
+ * @example
+ * // RandomVoltage
+ * { mean: 0.5, variance: 0.5, voltage1: 0, voltage2: 0, key: 0.5 }
+ */
+
+/**
+ * Estado serializado de módulos con array de niveles.
+ * Aplica a: InputAmplifierUI, OutputFaderModule.
+ * 
+ * @typedef {Object} LevelsState
+ * @property {number[]} levels - Array de valores 0-1, uno por canal
+ * 
+ * @example
+ * { levels: [0, 0.5, 0.3, 0, 0, 0, 0, 0] }
+ */
+
+/**
+ * Estado serializado de matrices de conexión.
+ * Aplica a: LargeMatrix (audio y control).
+ * 
+ * @typedef {Object} MatrixState
+ * @property {Array<[number, number]>} connections - Array de pares [row, col]
+ * 
+ * @example
+ * { connections: [[0, 5], [3, 12], [7, 45]] }
+ */
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════════════════════════════════════════
+
 /**
  * Versión actual del formato de patches.
  * Incrementar cuando cambie la estructura del schema.
@@ -329,3 +401,109 @@ export function createDefaultPatch(name = 'Init') {
     }
   };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VALIDACIÓN DE DATOS SERIALIZADOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Valida datos serializados contra un esquema de propiedades.
+ * Útil para debugging y validación opcional en deserialize().
+ * 
+ * @param {Object} data - Datos a validar
+ * @param {Object} schema - Esquema de validación
+ * @param {string} schema[].type - Tipo esperado: 'number', 'string', 'array', 'enum'
+ * @param {boolean} [schema[].required=false] - Si la propiedad es obligatoria
+ * @param {[number, number]} [schema[].range] - Rango válido para números [min, max]
+ * @param {*[]} [schema[].values] - Valores válidos para enums
+ * @param {number} [schema[].length] - Longitud exacta para arrays
+ * @returns {{valid: boolean, errors: string[]}}
+ * 
+ * @example
+ * const schema = {
+ *   colour: { type: 'number', range: [0, 1] },
+ *   level: { type: 'number', range: [0, 1], required: true }
+ * };
+ * const result = validateSerializedData({ colour: 0.5 }, schema);
+ * // { valid: false, errors: ['Missing required key: level'] }
+ */
+export function validateSerializedData(data, schema) {
+  const errors = [];
+  
+  if (!data || typeof data !== 'object') {
+    return { valid: false, errors: ['Data is not an object'] };
+  }
+  
+  for (const [key, descriptor] of Object.entries(schema)) {
+    const value = data[key];
+    
+    // Verificar requerido
+    if (value === undefined) {
+      if (descriptor.required) {
+        errors.push(`Missing required key: ${key}`);
+      }
+      continue;
+    }
+    
+    // Validar tipo
+    switch (descriptor.type) {
+      case 'number':
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+          errors.push(`${key} must be a valid number`);
+        } else if (descriptor.range) {
+          const [min, max] = descriptor.range;
+          if (value < min || value > max) {
+            errors.push(`${key} (${value}) out of range [${min}, ${max}]`);
+          }
+        }
+        break;
+        
+      case 'string':
+        if (typeof value !== 'string') {
+          errors.push(`${key} must be a string`);
+        }
+        break;
+        
+      case 'array':
+        if (!Array.isArray(value)) {
+          errors.push(`${key} must be an array`);
+        } else if (descriptor.length !== undefined && value.length !== descriptor.length) {
+          errors.push(`${key} must have exactly ${descriptor.length} elements`);
+        }
+        break;
+        
+      case 'enum':
+        if (!descriptor.values?.includes(value)) {
+          errors.push(`${key} must be one of: ${descriptor.values?.join(', ')}`);
+        }
+        break;
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Esquemas predefinidos para validación de estados serializados.
+ * Uso opcional en métodos deserialize() para debugging.
+ */
+export const SERIALIZATION_SCHEMAS = {
+  /** Esquema para OscillatorState */
+  oscillator: {
+    knobs: { type: 'array', length: 7, required: true },
+    rangeState: { type: 'enum', values: ['hi', 'lo'], required: true }
+  },
+  
+  /** Esquema para LevelsState (InputAmplifier, OutputFader) */
+  levels: {
+    levels: { type: 'array', required: true }
+  },
+  
+  /** Esquema para MatrixState */
+  matrix: {
+    connections: { type: 'array', required: true }
+  }
+};

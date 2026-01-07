@@ -1,3 +1,11 @@
+/**
+ * UI del oscilador SGME.
+ * Implementa el contrato Serializable para persistencia de estado.
+ * 
+ * @module ui/sgmeOscillator
+ * @see state/schema.js para definición de OscillatorState
+ */
+
 // UI scaffold for SGME Oscillator (solo interacción visual; sin audio por ahora)
 import { Knob } from './knob.js';
 const DEFAULT_KNOB_LABELS = [
@@ -126,7 +134,7 @@ export class SGME_Oscillator {
   
   /**
    * Serializa el estado del oscilador para guardarlo en un patch.
-   * @returns {Object} Estado serializado
+   * @returns {import('../state/schema.js').OscillatorState} Estado serializado
    */
   serialize() {
     return {
@@ -137,7 +145,7 @@ export class SGME_Oscillator {
   
   /**
    * Restaura el estado del oscilador desde un patch.
-   * @param {Object} data - Estado serializado
+   * @param {Partial<import('../state/schema.js').OscillatorState>} data - Estado serializado
    */
   deserialize(data) {
     if (!data) return;

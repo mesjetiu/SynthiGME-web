@@ -536,10 +536,27 @@ El sistema guarda automáticamente el estado para prevenir pérdida de trabajo:
 
 ### 4.5 Serialización
 
-Cada módulo UI implementa `serialize()` y `deserialize()`:
+Cada módulo UI que guarda estado implementa el **contrato Serializable** definido en `state/schema.js`.
+
+#### Tipos de Estado Serializado
+
+| Tipo | Estructura | Usado por |
+|------|------------|-----------|
+| `OscillatorState` | `{ knobs: number[], rangeState: 'hi'|'lo' }` | SGME_Oscillator |
+| `KnobModuleState` | `{ [key]: number }` | ModuleUI, NoiseGenerator, RandomVoltage |
+| `LevelsState` | `{ levels: number[] }` | InputAmplifierUI, OutputFaderModule |
+| `MatrixState` | `{ connections: [row, col][] }` | LargeMatrix |
+
+#### Contrato Serializable
 
 ```javascript
-// En SGME_Oscillator, ModuleUI, LargeMatrix, etc.
+/**
+ * @typedef {Object} Serializable
+ * @property {function(): SerializedState} serialize - Retorna el estado actual
+ * @property {function(SerializedState): void} deserialize - Restaura estado
+ */
+
+// Ejemplo: SGME_Oscillator
 serialize() {
   return {
     knobs: this.knobs.map(k => k.getValue()),
@@ -548,23 +565,41 @@ serialize() {
 }
 
 deserialize(data) {
-  if (data.knobs) {
-    data.knobs.forEach((v, i) => this.knobs[i]?.setValue(v));
+  if (!data) return;
+  if (Array.isArray(data.knobs)) {
+    data.knobs.forEach((v, i) => {
+      if (this.knobs[i] && typeof v === 'number') {
+        this.knobs[i].setValue(v);
+      }
+    });
   }
+}
+```
+
+#### Validación (opcional)
+
+Para debugging, se puede usar `validateSerializedData()`:
+
+```javascript
+import { validateSerializedData, SERIALIZATION_SCHEMAS } from './state/schema.js';
+
+const result = validateSerializedData(data, SERIALIZATION_SCHEMAS.oscillator);
+if (!result.valid) {
+  console.warn('Invalid data:', result.errors);
 }
 ```
 
 ### 4.6 Módulos con Serialización
 
-| Clase | Archivo | Qué serializa |
-|-------|---------|---------------|
-| `SGME_Oscillator` | `ui/sgmeOscillator.js` | 7 knobs + rangeState (hi/lo) |
-| `ModuleUI` (base) | `ui/moduleUI.js` | Todos los knobs por key |
-| `NoiseGenerator` | `ui/noiseGenerator.js` | colour, level (hereda de ModuleUI) |
-| `RandomVoltage` | `ui/randomVoltage.js` | mean, variance, voltage1, voltage2, key |
-| `InputAmplifierUI` | `ui/inputAmplifierUI.js` | 8 niveles de ganancia |
-| `OutputFaderModule` | `modules/outputFaders.js` | 8 niveles de salida |
-| `LargeMatrix` | `ui/largeMatrix.js` | Array de conexiones [row, col] |
+| Clase | Archivo | Tipo de Estado | Estructura |
+|-------|---------|----------------|------------|
+| `SGME_Oscillator` | `ui/sgmeOscillator.js` | `OscillatorState` | `{ knobs: number[7], rangeState }` |
+| `ModuleUI` (base) | `ui/moduleUI.js` | `KnobModuleState` | `{ [key]: number }` |
+| `NoiseGenerator` | `ui/noiseGenerator.js` | `KnobModuleState` | `{ colour, level }` |
+| `RandomVoltage` | `ui/randomVoltage.js` | `KnobModuleState` | `{ mean, variance, voltage1, voltage2, key }` |
+| `InputAmplifierUI` | `ui/inputAmplifierUI.js` | `LevelsState` | `{ levels: number[8] }` |
+| `OutputFaderModule` | `modules/outputFaders.js` | `LevelsState` | `{ levels: number[8] }` |
+| `LargeMatrix` | `ui/largeMatrix.js` | `MatrixState` | `{ connections: [row, col][] }` |
 
 ### 4.7 PatchBrowser UI
 

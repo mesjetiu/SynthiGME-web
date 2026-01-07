@@ -36,6 +36,7 @@ import { OscilloscopeDisplay } from './ui/oscilloscopeDisplay.js';
 import { ModuleFrame } from './ui/moduleFrame.js';
 import { Toggle } from './ui/toggle.js';
 import { Knob } from './ui/knob.js';
+import { createKnob } from './ui/knobFactory.js';
 
 // Utilidades de audio
 import { createPulseWave, createAsymmetricSineWave } from './utils/waveforms.js';
@@ -918,51 +919,30 @@ class App {
     knobsContainer.className = 'oscilloscope-knobs';
     mainContainer.appendChild(knobsContainer);
     
-    // Helper para crear un knob con label (usa clases CSS estándar)
-    const createLabeledKnob = (id, label, knobConfig, onChange) => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'knob-wrapper';
-      
-      const knobEl = document.createElement('div');
-      knobEl.className = 'knob knob--sm';
-      
-      const inner = document.createElement('div');
-      inner.className = 'knob-inner';
-      knobEl.appendChild(inner);
-      
-      const labelEl = document.createElement('div');
-      labelEl.className = 'knob-label';
-      labelEl.textContent = label;
-      
-      wrapper.appendChild(knobEl);
-      wrapper.appendChild(labelEl);
-      
-      const knobInstance = new Knob(knobEl, {
-        min: knobConfig.min,
-        max: knobConfig.max,
-        initial: knobConfig.initial,
-        pixelsForFullRange: knobConfig.pixelsForFullRange,
-        onChange
-      });
-      
-      return { wrapper, knobInstance };
-    };
-    
     // Knob TIME (escala horizontal)
-    const timeKnob = createLabeledKnob('scope-time', 'TIME', knobsConfig.timeScale, (value) => {
-      display.setTimeScale(value);
+    const timeKnob = createKnob({
+      label: 'TIME',
+      size: 'sm',
+      ...knobsConfig.timeScale,
+      onChange: (value) => display.setTimeScale(value)
     });
     knobsContainer.appendChild(timeKnob.wrapper);
     
     // Knob AMP (escala vertical)
-    const ampKnob = createLabeledKnob('scope-amp', 'AMP', knobsConfig.ampScale, (value) => {
-      display.setAmpScale(value);
+    const ampKnob = createKnob({
+      label: 'AMP',
+      size: 'sm',
+      ...knobsConfig.ampScale,
+      onChange: (value) => display.setAmpScale(value)
     });
     knobsContainer.appendChild(ampKnob.wrapper);
     
     // Knob LEVEL (nivel de trigger)
-    const levelKnob = createLabeledKnob('scope-level', 'LEVEL', knobsConfig.triggerLevel, (value) => {
-      scopeModule.setTriggerLevel(value);
+    const levelKnob = createKnob({
+      label: 'LEVEL',
+      size: 'sm',
+      ...knobsConfig.triggerLevel,
+      onChange: (value) => scopeModule.setTriggerLevel(value)
     });
     knobsContainer.appendChild(levelKnob.wrapper);
     

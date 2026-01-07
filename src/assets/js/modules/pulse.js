@@ -1,6 +1,7 @@
 // Módulo PulseModule: oscilador de pulso con control de PW y nivel
 import { Module, setParamSmooth } from '../core/engine.js';
 import { Knob } from '../ui/knob.js';
+import { createKnobElements } from '../ui/knobFactory.js';
 import { createPulseWave } from '../utils/waveforms.js';
 
 export class PulseModule extends Module {
@@ -60,39 +61,25 @@ export class PulseModule extends Module {
     const row = document.createElement('div');
     row.className = 'knob-row';
 
-    const makeKnobElements = (label) => {
-      const wrap = document.createElement('div');
-      wrap.className = 'knob-wrapper';
-      const knob = document.createElement('div');
-      knob.className = 'knob';
-      const inner = document.createElement('div');
-      inner.className = 'knob-inner';
-      knob.appendChild(inner);
-      const lbl = document.createElement('div');
-      lbl.className = 'knob-label';
-      lbl.textContent = label;
-      const val = document.createElement('div');
-      val.className = 'knob-value';
-      wrap.appendChild(knob);
-      wrap.appendChild(lbl);
-      wrap.appendChild(val);
-      row.appendChild(wrap);
-      return { knob, val };
+    const addKnob = (label) => {
+      const { wrapper, knobEl, valueEl } = createKnobElements({ label, showValue: true });
+      row.appendChild(wrapper);
+      return { knobEl, valueEl };
     };
 
-    const freq = makeKnobElements('Freq');
-    const level = makeKnobElements('Level');
-    const pw = makeKnobElements('PW');
+    const freq = addKnob('Freq');
+    const level = addKnob('Level');
+    const pw = addKnob('PW');
 
     block.appendChild(row);
     container.appendChild(block);
 
-    new Knob(freq.knob, {
+    new Knob(freq.knobEl, {
       min: 0,
       max: 10000,
       initial: 0,
       pixelsForFullRange: 800,
-      valueElement: freq.val,
+      valueElement: freq.valueEl,
       format: v => v.toFixed(1) + ' Hz',
       onChange: value => {
         if (this.osc?.frequency) {
@@ -101,11 +88,11 @@ export class PulseModule extends Module {
       }
     });
 
-    new Knob(level.knob, {
+    new Knob(level.knobEl, {
       min: 0,
       max: 1,
       initial: 0,
-      valueElement: level.val,
+      valueElement: level.valueEl,
       format: v => v.toFixed(2),
       onChange: value => {
         if (this.amp?.gain) {
@@ -114,11 +101,11 @@ export class PulseModule extends Module {
       }
     });
 
-    new Knob(pw.knob, {
+    new Knob(pw.knobEl, {
       min: 0,
       max: 1,
       initial: 0,
-      valueElement: pw.val,
+      valueElement: pw.valueEl,
       format: v => Math.round(v * 100) + '%',
       onChange: value => {
         this.pw = value;

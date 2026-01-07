@@ -1,10 +1,19 @@
 # Pendiente / En progreso / Hecho
 
 ## Pendiente (marcados [X] en progreso]
-- [ ] AudioEngine
-  - [x] Implementar OutputRouter multicanal: mover la lógica de buses y paneo al módulo OutputRouter, exponer entradas maestras N en AudioEngine (OUTPUT_CHANNELS configurable, por defecto 8) y mapear los buses lógicos a canales físicos.
-  - [ ] Detectar soporte Web Audio y mostrar error/fallback si no está disponible. Implementar en src/assets/js/core/engine.js -> AudioEngine.start().
-  - [ ] Manejar estado "suspended" en iOS: reanudar audioCtx (audioCtx.resume()) tras interacción del usuario (App.ensureAudio / handlers que llaman engine.start()).
+
+### Código pendiente (desde comentarios en código)
+- [ ] **Osciladores: exponer valores para serialización** (`state/index.js:serializeOscillator`)
+  - Implementar `currentValues` en osciladores para que el sistema de patches pueda serializar su estado.
+- [ ] **Matriz: exponer estado para serialización** (`state/index.js:serializeMatrix`)
+  - Implementar método para obtener conexiones activas de la matriz de audio y control.
+- [ ] **Random Voltage: definir filas de matriz** (`panel3.config.js`, `panel3.blueprint.js`)
+  - Asignar filas de matriz (voltage1, voltage2) cuando se implemente la lógica de CV aleatorio.
+
+### AudioEngine
+- [x] Implementar OutputRouter multicanal: mover la lógica de buses y paneo al módulo OutputRouter, exponer entradas maestras N en AudioEngine (OUTPUT_CHANNELS configurable, por defecto 8) y mapear los buses lógicos a canales físicos.
+- [ ] Detectar soporte Web Audio y mostrar error/fallback si no está disponible. Implementar en src/assets/js/core/engine.js -> AudioEngine.start().
+- [ ] Manejar estado "suspended" en iOS: reanudar audioCtx (audioCtx.resume()) tras interacción del usuario (App.ensureAudio / handlers que llaman engine.start()).
 - [ ] Versionado, Documentación, Traducción
   - [ ] Documentado del código in situ.
   - [ ] Preparar para multidioma.

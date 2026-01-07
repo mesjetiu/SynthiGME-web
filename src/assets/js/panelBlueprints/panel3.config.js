@@ -407,12 +407,11 @@ export default {
     // La UI está lista, pero la lógica de generación de CV aleatorio
     // se implementará en una fase posterior.
     //
+    // @see TODO.md - "Random Voltage: definir filas de matriz"
     randomCV: {
       id: 'panel3-random-cv',
       title: 'Random Voltage',
-      
-      // TODO: Definir filas de matriz cuando se implemente
-      // matrixRow: { voltage1: ??, voltage2: ?? },
+      // matrixRow pendiente: { voltage1: ??, voltage2: ?? },
       
       knobs: {
         mean: {

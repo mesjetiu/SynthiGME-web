@@ -73,8 +73,9 @@ class App {
     this._panel3Routing = { connections: {}, rowMap: null, colMap: null };
     this.placeholderPanels = {};
     
-    // Configurar sessionManager con callback de serialización
+    // Configurar sessionManager con callbacks
     sessionManager.setSerializeCallback(() => this._serializeCurrentState());
+    sessionManager.setRestoreCallback((patch) => this._applyPatch(patch));
 
     // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
@@ -416,86 +417,6 @@ class App {
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
     // ─────────────────────────────────────────────────────────────────────────
     this._setupPatchBrowser();
-  }
-
-  /**
-   * Restaura el último estado guardado.
-   */
-  async _restoreLastState() {
-    const lastState = sessionManager.getLastState();
-    if (!lastState?.state) return;
-    
-    const { state, timestamp } = lastState;
-    
-    // Esperar a que el audio esté listo antes de aplicar
-    setTimeout(async () => {
-      await this._applyPatch({ modules: state.modules || state });
-      log.info(` Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
-    }, 500);
-  }
-  
-  /**
-   * Pregunta al usuario si quiere restaurar el último estado, si aplica.
-   * Solo pregunta si:
-   * 1. Hay estado guardado
-   * 2. Fue un autoguardado (no un guardado explícito del usuario)
-   * 3. El usuario no marcó "no volver a preguntar"
-   */
-  async _maybeRestoreLastState() {
-    // Comprobar si hay estado guardado
-    const parsedData = sessionManager.getLastState();
-    if (!parsedData?.state) return;
-    
-    // Solo preguntar si fue autoguardado (no guardado explícito por el usuario)
-    // Si isAutoSave no existe (datos antiguos), asumir que sí fue autoguardado
-    const isAutoSave = parsedData.isAutoSave !== false;
-    if (!isAutoSave) {
-      // El usuario guardó un patch explícitamente antes de cerrar,
-      // no preguntar, simplemente restaurar si está habilitado
-      this._restoreLastState();
-      return;
-    }
-    
-    // Comprobar si debe preguntar
-    const shouldAsk = this.settingsModal.getAskBeforeRestore();
-    
-    if (!shouldAsk) {
-      // Comprobar elección recordada del diálogo
-      const { skip, choice } = ConfirmDialog.getRememberedChoice('restore-last-session');
-      if (skip) {
-        if (choice) {
-          this._restoreLastState();
-        }
-        // Si choice es false, no restaurar
-        return;
-      }
-      // Si no hay elección recordada pero "preguntar" está desactivado,
-      // restaurar directamente (comportamiento legacy)
-      this._restoreLastState();
-      return;
-    }
-    
-    // Mostrar diálogo de confirmación
-    const result = await ConfirmDialog.show({
-      title: t('patches.lastSession'),
-      confirmText: t('patches.lastSession.yes'),
-      cancelText: t('patches.lastSession.no'),
-      rememberKey: 'restore-last-session',
-      rememberText: t('patches.lastSession.remember')
-    });
-    
-    // Si el usuario marcó "no volver a preguntar", actualizar ajustes
-    if (result.remember) {
-      this.settingsModal.setAskBeforeRestore(false);
-    }
-    
-    if (result.confirmed) {
-      this._restoreLastState();
-    } else {
-      // El usuario eligió empezar de nuevo, limpiar el estado guardado
-      // para que no se pregunte de nuevo si no hace cambios
-      sessionManager.clearLastState();
-    }
   }
   
   /**
@@ -861,7 +782,18 @@ class App {
    */
   triggerRestoreLastState() {
     if (this.settingsModal.getRestoreOnStart()) {
-      this._maybeRestoreLastState();
+      sessionManager.maybeRestoreLastState({
+        getAskBeforeRestore: () => this.settingsModal.getAskBeforeRestore(),
+        setAskBeforeRestore: (v) => this.settingsModal.setAskBeforeRestore(v),
+        getRememberedChoice: (key) => ConfirmDialog.getRememberedChoice(key),
+        showConfirmDialog: () => ConfirmDialog.show({
+          title: t('patches.lastSession'),
+          confirmText: t('patches.lastSession.yes'),
+          cancelText: t('patches.lastSession.no'),
+          rememberKey: 'restore-last-session',
+          rememberText: t('patches.lastSession.remember')
+        })
+      });
     }
   }
 

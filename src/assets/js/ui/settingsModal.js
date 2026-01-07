@@ -14,21 +14,7 @@ import { t, getLocale, setLocale, getSupportedLocales, onLocaleChange } from '..
 import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } from '../utils/serviceWorker.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
-
-const STORAGE_KEY_RESOLUTION = 'synthigme-resolution';
-const STORAGE_KEY_AUTOSAVE_INTERVAL = 'synthigme-autosave-interval';
-const STORAGE_KEY_SAVE_ON_EXIT = 'synthigme-save-on-exit';
-const STORAGE_KEY_RESTORE_ON_START = 'synthigme-restore-on-start';
-const STORAGE_KEY_ASK_BEFORE_RESTORE = 'synthigme-ask-before-restore';
-
-// Intervalos de autoguardado en ms (0 = desactivado)
-const AUTOSAVE_INTERVALS = {
-  'off': 0,
-  '30s': 30 * 1000,
-  '1m': 60 * 1000,
-  '5m': 5 * 60 * 1000,
-  '10m': 10 * 60 * 1000
-};
+import { STORAGE_KEYS, AUTOSAVE_INTERVALS } from '../utils/constants.js';
 
 /**
  * Modal de configuración general con pestañas
@@ -70,17 +56,17 @@ export class SettingsModal {
     this.resolutionFactors = [1, 2, 3, 4];
     
     // Escala actual (cargar de localStorage)
-    const savedFactor = parseInt(localStorage.getItem(STORAGE_KEY_RESOLUTION), 10);
+    const savedFactor = parseInt(localStorage.getItem(STORAGE_KEYS.RESOLUTION), 10);
     this.currentResolution = this.resolutionFactors.includes(savedFactor) ? savedFactor : 1;
     
     // Configuración de autoguardado
-    const savedInterval = localStorage.getItem(STORAGE_KEY_AUTOSAVE_INTERVAL);
+    const savedInterval = localStorage.getItem(STORAGE_KEYS.AUTOSAVE_INTERVAL);
     this.autoSaveInterval = savedInterval && AUTOSAVE_INTERVALS.hasOwnProperty(savedInterval) ? savedInterval : 'off';
-    this.saveOnExit = localStorage.getItem(STORAGE_KEY_SAVE_ON_EXIT) === 'true';
-    this.restoreOnStart = localStorage.getItem(STORAGE_KEY_RESTORE_ON_START) === 'true';
+    this.saveOnExit = localStorage.getItem(STORAGE_KEYS.SAVE_ON_EXIT) === 'true';
+    this.restoreOnStart = localStorage.getItem(STORAGE_KEYS.RESTORE_ON_START) === 'true';
     
     // "Preguntar antes de restaurar" - por defecto true (preguntar)
-    const savedAskBeforeRestore = localStorage.getItem(STORAGE_KEY_ASK_BEFORE_RESTORE);
+    const savedAskBeforeRestore = localStorage.getItem(STORAGE_KEYS.ASK_BEFORE_RESTORE);
     this.askBeforeRestore = savedAskBeforeRestore === null ? true : savedAskBeforeRestore === 'true';
     
     // Detectar Firefox (no necesita selector de resolución)
@@ -1170,7 +1156,7 @@ export class SettingsModal {
     if (!AUTOSAVE_INTERVALS.hasOwnProperty(intervalKey)) return;
     
     this.autoSaveInterval = intervalKey;
-    localStorage.setItem(STORAGE_KEY_AUTOSAVE_INTERVAL, intervalKey);
+    localStorage.setItem(STORAGE_KEYS.AUTOSAVE_INTERVAL, intervalKey);
     
     if (this.onAutoSaveIntervalChange) {
       this.onAutoSaveIntervalChange(AUTOSAVE_INTERVALS[intervalKey], intervalKey);
@@ -1183,7 +1169,7 @@ export class SettingsModal {
    */
   _setSaveOnExit(enabled) {
     this.saveOnExit = enabled;
-    localStorage.setItem(STORAGE_KEY_SAVE_ON_EXIT, String(enabled));
+    localStorage.setItem(STORAGE_KEYS.SAVE_ON_EXIT, String(enabled));
     
     if (this.onSaveOnExitChange) {
       this.onSaveOnExitChange(enabled);
@@ -1196,7 +1182,7 @@ export class SettingsModal {
    */
   _setRestoreOnStart(enabled) {
     this.restoreOnStart = enabled;
-    localStorage.setItem(STORAGE_KEY_RESTORE_ON_START, String(enabled));
+    localStorage.setItem(STORAGE_KEYS.RESTORE_ON_START, String(enabled));
     
     if (this.onRestoreOnStartChange) {
       this.onRestoreOnStartChange(enabled);
@@ -1209,7 +1195,7 @@ export class SettingsModal {
    */
   _setAskBeforeRestore(enabled) {
     this.askBeforeRestore = enabled;
-    localStorage.setItem(STORAGE_KEY_ASK_BEFORE_RESTORE, String(enabled));
+    localStorage.setItem(STORAGE_KEYS.ASK_BEFORE_RESTORE, String(enabled));
     
     // Limpiar elección recordada cuando se activa "preguntar"
     if (enabled) {
@@ -1233,7 +1219,7 @@ export class SettingsModal {
    */
   setAskBeforeRestore(enabled) {
     this.askBeforeRestore = enabled;
-    localStorage.setItem(STORAGE_KEY_ASK_BEFORE_RESTORE, String(enabled));
+    localStorage.setItem(STORAGE_KEYS.ASK_BEFORE_RESTORE, String(enabled));
     
     // Actualizar checkbox si existe
     if (this.askBeforeRestoreCheckbox) {
@@ -1332,7 +1318,7 @@ export class SettingsModal {
     if (factor === this.currentResolution) return;
     
     this.currentResolution = factor;
-    localStorage.setItem(STORAGE_KEY_RESOLUTION, factor);
+    localStorage.setItem(STORAGE_KEYS.RESOLUTION, factor);
     
     // Actualizar botones
     this.resolutionButtons.forEach(btn => {

@@ -159,6 +159,7 @@ Utilidades compartidas:
 | Archivo | Propósito |
 |---------|-----------|
 | `audio.js` | Utilidades de audio: `safeDisconnect()` para desconexión segura de nodos |
+| `constants.js` | Constantes globales centralizadas (ver sección Constantes) |
 | `logger.js` | Sistema de logging con niveles (ver sección de Logging) |
 | `canvasBackground.js` | Renderizado de fondos SVG en canvas para móviles |
 | `serviceWorker.js` | Registro y actualización del Service Worker |
@@ -166,6 +167,26 @@ Utilidades compartidas:
 | `input.js` | Guardas de interacción: `shouldBlockInteraction()` e `isNavGestureActive()` para evitar conflictos táctiles durante navegación |
 | `waveforms.js` | Síntesis de formas de onda: `createPulseWave()` y `createAsymmetricSineWave()` usando Fourier |
 | `objects.js` | Utilidades de objetos: `deepMerge()` para combinar configuraciones |
+
+#### Constantes globales (`constants.js`)
+
+Centraliza valores que se reutilizan en múltiples archivos:
+
+| Constante | Valor | Descripción |
+|-----------|-------|-------------|
+| `OUTPUT_CHANNELS` | 8 | Canales de salida del sintetizador |
+| `INPUT_CHANNELS` | 8 | Canales de entrada (input amplifiers) |
+| `MAX_RECORDING_TRACKS` | 8 | Pistas máximas de grabación WAV |
+| `STORAGE_KEYS` | objeto | Todas las claves de localStorage centralizadas |
+| `AUTOSAVE_INTERVALS` | objeto | Intervalos disponibles para autoguardado |
+
+**Uso:**
+```javascript
+import { STORAGE_KEYS, OUTPUT_CHANNELS } from './utils/constants.js';
+
+localStorage.getItem(STORAGE_KEYS.LAST_STATE);
+for (let i = 0; i < OUTPUT_CHANNELS; i++) { ... }
+```
 
 #### Sistema de Logging (`logger.js`)
 

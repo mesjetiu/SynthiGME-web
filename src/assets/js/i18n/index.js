@@ -10,10 +10,9 @@
 
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from './locales/_meta.js';
 import { createLogger } from '../utils/logger.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 const log = createLogger('i18n');
-
-const STORAGE_KEY = 'synthigme-language';
 
 /** Cache de traducciones cargadas */
 const locales = {};
@@ -38,7 +37,7 @@ function detectBrowserLocale() {
  * Carga el idioma guardado o detecta del navegador
  */
 export async function initI18n() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const saved = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
   const locale = saved && SUPPORTED_LOCALES.includes(saved) 
     ? saved 
     : detectBrowserLocale();
@@ -85,7 +84,7 @@ export async function setLocale(lang, persist = true) {
   await loadLocale(lang);
   
   if (persist) {
-    localStorage.setItem(STORAGE_KEY, lang);
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
   }
   
   // Notificar a los listeners

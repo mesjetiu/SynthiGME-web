@@ -4,13 +4,9 @@
 
 import { t, onLocaleChange } from '../i18n/index.js';
 import { createLogger } from '../utils/logger.js';
+import { STORAGE_KEYS, OUTPUT_CHANNELS, INPUT_CHANNELS, DEFAULT_PHYSICAL_CHANNELS } from '../utils/constants.js';
 
 const log = createLogger('AudioSettingsModal');
-
-const STORAGE_KEY = 'synthigme-audio-routing';
-const STORAGE_KEY_INPUT_ROUTING = 'synthigme-input-routing';
-const STORAGE_KEY_OUTPUT_DEVICE = 'synthigme-output-device';
-const STORAGE_KEY_INPUT_DEVICE = 'synthigme-input-device';
 
 /**
  * Clase que maneja la ventana modal de configuración de audio del sistema.
@@ -30,9 +26,9 @@ export class AudioSettingsModal {
    */
   constructor(options = {}) {
     const { 
-      outputCount = 8, 
-      inputCount = 8, 
-      physicalChannels = 2,
+      outputCount = OUTPUT_CHANNELS, 
+      inputCount = INPUT_CHANNELS, 
+      physicalChannels = DEFAULT_PHYSICAL_CHANNELS,
       physicalInputChannels = 2,
       channelLabels = ['L', 'R'],
       inputChannelLabels = ['Mic/L', 'R'],
@@ -64,8 +60,8 @@ export class AudioSettingsModal {
     this.onInputDeviceChange = onInputDeviceChange;
     
     // Dispositivos seleccionados
-    this.selectedOutputDevice = localStorage.getItem(STORAGE_KEY_OUTPUT_DEVICE) || 'default';
-    this.selectedInputDevice = localStorage.getItem(STORAGE_KEY_INPUT_DEVICE) || 'default';
+    this.selectedOutputDevice = localStorage.getItem(STORAGE_KEYS.OUTPUT_DEVICE) || 'default';
+    this.selectedInputDevice = localStorage.getItem(STORAGE_KEYS.INPUT_DEVICE) || 'default';
     this.availableOutputDevices = [];
     this.availableInputDevices = [];
     
@@ -142,7 +138,7 @@ export class AudioSettingsModal {
    */
   _loadRouting() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEYS.AUDIO_ROUTING);
       if (!saved) return null;
       
       const parsed = JSON.parse(saved);
@@ -183,7 +179,7 @@ export class AudioSettingsModal {
    */
   _saveRouting() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.outputRouting));
+      localStorage.setItem(STORAGE_KEYS.AUDIO_ROUTING, JSON.stringify(this.outputRouting));
       log.info(' Routing saved to localStorage');
     } catch (e) {
       log.warn(' Error saving routing to localStorage:', e);
@@ -212,7 +208,7 @@ export class AudioSettingsModal {
    */
   _loadInputRouting() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_INPUT_ROUTING);
+      const saved = localStorage.getItem(STORAGE_KEYS.INPUT_ROUTING);
       if (!saved) return null;
       
       const parsed = JSON.parse(saved);
@@ -240,7 +236,7 @@ export class AudioSettingsModal {
    */
   _saveInputRouting() {
     try {
-      localStorage.setItem(STORAGE_KEY_INPUT_ROUTING, JSON.stringify(this.inputRouting));
+      localStorage.setItem(STORAGE_KEYS.INPUT_ROUTING, JSON.stringify(this.inputRouting));
       log.info(' Input routing saved to localStorage');
     } catch (e) {
       log.warn(' Error saving input routing:', e);
@@ -553,11 +549,11 @@ export class AudioSettingsModal {
       const deviceId = select.value;
       if (isOutput) {
         this.selectedOutputDevice = deviceId;
-        localStorage.setItem(STORAGE_KEY_OUTPUT_DEVICE, deviceId);
+        localStorage.setItem(STORAGE_KEYS.OUTPUT_DEVICE, deviceId);
         if (this.onOutputDeviceChange) this.onOutputDeviceChange(deviceId);
       } else {
         this.selectedInputDevice = deviceId;
-        localStorage.setItem(STORAGE_KEY_INPUT_DEVICE, deviceId);
+        localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, deviceId);
         if (this.onInputDeviceChange) this.onInputDeviceChange(deviceId);
       }
     });

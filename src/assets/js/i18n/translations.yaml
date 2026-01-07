@@ -71,6 +71,63 @@ settings.tab.advanced:
   en: Advanced
   es: Avanzado
 
+settings.tab.about:
+  en: About
+  es: Acerca de
+
+# Sección: Acerca de
+settings.about.description:
+  en: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
+  es: Port web del sintetizador modular Synthi GME, inspirado en el EMS Synthi 100 del Gabinete de Música Electroacústica (GME) de Cuenca. Nacido como Trabajo Final del Máster en Arte Sonoro de la Universitat de Barcelona (2019/2020), esta versión web persigue el mismo objetivo pedagógico y experimental con distribución sin fricciones.
+
+settings.about.info:
+  en: Information
+  es: Información
+
+settings.about.version:
+  en: "Version:"
+  es: "Versión:"
+
+settings.about.author:
+  en: "Author:"
+  es: "Autor:"
+
+settings.about.license:
+  en: "License:"
+  es: "Licencia:"
+
+settings.about.links:
+  en: Links
+  es: Enlaces
+
+settings.about.repository:
+  en: GitHub repository
+  es: Repositorio en GitHub
+
+settings.about.issues:
+  en: Report a bug / Contact
+  es: Reportar un error / Contacto
+
+settings.about.originalProject:
+  en: Original project (SuperCollider)
+  es: Proyecto original (SuperCollider)
+
+settings.about.credits:
+  en: Credits
+  es: Créditos
+
+settings.about.credits.appIcons:
+  en: "App icons: "
+  es: "Iconos de la app: "
+
+settings.about.credits.uiIcons:
+  en: "UI icons: "
+  es: "Iconos de UI: "
+
+settings.about.credits.inspiration:
+  en: "Inspired by: "
+  es: "Inspirado en: "
+
 # Sección: Idioma
 settings.language:
   en: Language

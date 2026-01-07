@@ -118,7 +118,7 @@ export class SettingsModal {
     this.isOpen = true;
     
     // Cambiar a pestaña específica si se indica
-    if (tabId && ['general', 'audio', 'recording', 'advanced'].includes(tabId)) {
+    if (tabId && ['general', 'audio', 'recording', 'advanced', 'about'].includes(tabId)) {
       this._switchTab(tabId);
     }
     
@@ -207,7 +207,8 @@ export class SettingsModal {
       general: this._createGeneralTabContent(),
       audio: this._createAudioTabContent(),
       recording: this._createRecordingTabContent(),
-      advanced: this._createAdvancedTabContent()
+      advanced: this._createAdvancedTabContent(),
+      about: this._createAboutTabContent()
     };
     
     // Agregar contenidos al body
@@ -247,7 +248,8 @@ export class SettingsModal {
       { id: 'general', label: t('settings.tab.general') },
       { id: 'audio', label: t('settings.tab.audio') },
       { id: 'recording', label: t('settings.tab.recording') },
-      { id: 'advanced', label: t('settings.tab.advanced') }
+      { id: 'advanced', label: t('settings.tab.advanced') },
+      { id: 'about', label: t('settings.tab.about') }
     ];
     
     this.tabButtons = {};
@@ -373,6 +375,213 @@ export class SettingsModal {
     container.appendChild(this._createResetSection());
     
     return container;
+  }
+  
+  /**
+   * Crea el contenido de la pestaña Acerca de
+   */
+  _createAboutTabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'about';
+    
+    // Descripción del proyecto
+    container.appendChild(this._createAboutDescriptionSection());
+    
+    // Información del proyecto (versión, autor, licencia)
+    container.appendChild(this._createAboutInfoSection());
+    
+    // Enlaces
+    container.appendChild(this._createAboutLinksSection());
+    
+    // Créditos
+    container.appendChild(this._createAboutCreditsSection());
+    
+    return container;
+  }
+  
+  /**
+   * Crea la sección de descripción del proyecto
+   */
+  _createAboutDescriptionSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = 'SynthiGME-web';
+    
+    const desc = document.createElement('p');
+    desc.className = 'settings-section__description settings-about__description';
+    desc.textContent = t('settings.about.description');
+    this.aboutDescElement = desc;
+    
+    section.appendChild(title);
+    section.appendChild(desc);
+    
+    return section;
+  }
+  
+  /**
+   * Crea la sección de información del proyecto
+   */
+  _createAboutInfoSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.about.info');
+    this.aboutInfoTitleElement = title;
+    
+    const infoList = document.createElement('dl');
+    infoList.className = 'settings-about__info-list';
+    
+    // Versión
+    const versionDt = document.createElement('dt');
+    versionDt.textContent = t('settings.about.version');
+    this.aboutVersionLabelElement = versionDt;
+    const versionDd = document.createElement('dd');
+    versionDd.textContent = window.__synthBuildVersion || '0.0.1';
+    infoList.appendChild(versionDt);
+    infoList.appendChild(versionDd);
+    
+    // Autor
+    const authorDt = document.createElement('dt');
+    authorDt.textContent = t('settings.about.author');
+    this.aboutAuthorLabelElement = authorDt;
+    const authorDd = document.createElement('dd');
+    authorDd.textContent = 'Carlos Arturo Guerra Parra';
+    infoList.appendChild(authorDt);
+    infoList.appendChild(authorDd);
+    
+    // Licencia
+    const licenseDt = document.createElement('dt');
+    licenseDt.textContent = t('settings.about.license');
+    this.aboutLicenseLabelElement = licenseDt;
+    const licenseDd = document.createElement('dd');
+    licenseDd.textContent = 'MIT License';
+    infoList.appendChild(licenseDt);
+    infoList.appendChild(licenseDd);
+    
+    section.appendChild(title);
+    section.appendChild(infoList);
+    
+    return section;
+  }
+  
+  /**
+   * Crea la sección de enlaces
+   */
+  _createAboutLinksSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.about.links');
+    this.aboutLinksTitleElement = title;
+    
+    const linksList = document.createElement('ul');
+    linksList.className = 'settings-about__links-list';
+    
+    // Repositorio GitHub
+    const repoLi = document.createElement('li');
+    const repoLink = document.createElement('a');
+    repoLink.href = 'https://github.com/mesjetiu/SynthiGME-web';
+    repoLink.target = '_blank';
+    repoLink.rel = 'noopener noreferrer';
+    repoLink.textContent = t('settings.about.repository');
+    this.aboutRepoLinkElement = repoLink;
+    repoLi.appendChild(repoLink);
+    linksList.appendChild(repoLi);
+    
+    // Reportar problema / Contacto (GitHub Issues)
+    const issuesLi = document.createElement('li');
+    const issuesLink = document.createElement('a');
+    issuesLink.href = 'https://github.com/mesjetiu/SynthiGME-web/issues';
+    issuesLink.target = '_blank';
+    issuesLink.rel = 'noopener noreferrer';
+    issuesLink.textContent = t('settings.about.issues');
+    this.aboutIssuesLinkElement = issuesLink;
+    issuesLi.appendChild(issuesLink);
+    linksList.appendChild(issuesLi);
+    
+    // Proyecto original (SuperCollider)
+    const originalLi = document.createElement('li');
+    const originalLink = document.createElement('a');
+    originalLink.href = 'https://github.com/mesjetiu/SynthiGME';
+    originalLink.target = '_blank';
+    originalLink.rel = 'noopener noreferrer';
+    originalLink.textContent = t('settings.about.originalProject');
+    this.aboutOriginalLinkElement = originalLink;
+    originalLi.appendChild(originalLink);
+    linksList.appendChild(originalLi);
+    
+    section.appendChild(title);
+    section.appendChild(linksList);
+    
+    return section;
+  }
+  
+  /**
+   * Crea la sección de créditos
+   */
+  _createAboutCreditsSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.about.credits');
+    this.aboutCreditsTitleElement = title;
+    
+    const creditsList = document.createElement('ul');
+    creditsList.className = 'settings-about__credits-list';
+    
+    // Iconos de la app: Sylvia Molina Muro
+    const iconsLi = document.createElement('li');
+    const iconsLabel = document.createElement('span');
+    iconsLabel.className = 'settings-about__credit-label';
+    iconsLabel.textContent = t('settings.about.credits.appIcons');
+    this.aboutAppIconsLabelElement = iconsLabel;
+    const iconsValue = document.createElement('span');
+    iconsValue.textContent = 'Sylvia Molina Muro';
+    iconsLi.appendChild(iconsLabel);
+    iconsLi.appendChild(iconsValue);
+    creditsList.appendChild(iconsLi);
+    
+    // Iconos de UI: Tabler Icons
+    const tablerLi = document.createElement('li');
+    const tablerLabel = document.createElement('span');
+    tablerLabel.className = 'settings-about__credit-label';
+    tablerLabel.textContent = t('settings.about.credits.uiIcons');
+    this.aboutUiIconsLabelElement = tablerLabel;
+    const tablerLink = document.createElement('a');
+    tablerLink.href = 'https://tabler.io/icons';
+    tablerLink.target = '_blank';
+    tablerLink.rel = 'noopener noreferrer';
+    tablerLink.textContent = 'Tabler Icons (MIT)';
+    tablerLi.appendChild(tablerLabel);
+    tablerLi.appendChild(tablerLink);
+    creditsList.appendChild(tablerLi);
+    
+    // Inspiración: EMS Synthi 100
+    const inspirationLi = document.createElement('li');
+    const inspirationLabel = document.createElement('span');
+    inspirationLabel.className = 'settings-about__credit-label';
+    inspirationLabel.textContent = t('settings.about.credits.inspiration');
+    this.aboutInspirationLabelElement = inspirationLabel;
+    const inspirationValue = document.createElement('span');
+    inspirationValue.textContent = 'EMS Synthi 100 – GME de Cuenca';
+    inspirationLi.appendChild(inspirationLabel);
+    inspirationLi.appendChild(inspirationValue);
+    creditsList.appendChild(inspirationLi);
+    
+    section.appendChild(title);
+    section.appendChild(creditsList);
+    
+    return section;
   }
   
   /**
@@ -1284,6 +1493,56 @@ export class SettingsModal {
     const closeBtn = this.modal?.querySelector('.settings-modal__close');
     if (closeBtn) {
       closeBtn.setAttribute('aria-label', t('settings.close'));
+    }
+    
+    // Actualizar pestañas
+    if (this.tabButtons) {
+      if (this.tabButtons.general) this.tabButtons.general.textContent = t('settings.tab.general');
+      if (this.tabButtons.audio) this.tabButtons.audio.textContent = t('settings.tab.audio');
+      if (this.tabButtons.recording) this.tabButtons.recording.textContent = t('settings.tab.recording');
+      if (this.tabButtons.advanced) this.tabButtons.advanced.textContent = t('settings.tab.advanced');
+      if (this.tabButtons.about) this.tabButtons.about.textContent = t('settings.tab.about');
+    }
+    
+    // Actualizar sección "Acerca de"
+    if (this.aboutDescElement) {
+      this.aboutDescElement.textContent = t('settings.about.description');
+    }
+    if (this.aboutInfoTitleElement) {
+      this.aboutInfoTitleElement.textContent = t('settings.about.info');
+    }
+    if (this.aboutVersionLabelElement) {
+      this.aboutVersionLabelElement.textContent = t('settings.about.version');
+    }
+    if (this.aboutAuthorLabelElement) {
+      this.aboutAuthorLabelElement.textContent = t('settings.about.author');
+    }
+    if (this.aboutLicenseLabelElement) {
+      this.aboutLicenseLabelElement.textContent = t('settings.about.license');
+    }
+    if (this.aboutLinksTitleElement) {
+      this.aboutLinksTitleElement.textContent = t('settings.about.links');
+    }
+    if (this.aboutRepoLinkElement) {
+      this.aboutRepoLinkElement.textContent = t('settings.about.repository');
+    }
+    if (this.aboutIssuesLinkElement) {
+      this.aboutIssuesLinkElement.textContent = t('settings.about.issues');
+    }
+    if (this.aboutOriginalLinkElement) {
+      this.aboutOriginalLinkElement.textContent = t('settings.about.originalProject');
+    }
+    if (this.aboutCreditsTitleElement) {
+      this.aboutCreditsTitleElement.textContent = t('settings.about.credits');
+    }
+    if (this.aboutAppIconsLabelElement) {
+      this.aboutAppIconsLabelElement.textContent = t('settings.about.credits.appIcons');
+    }
+    if (this.aboutUiIconsLabelElement) {
+      this.aboutUiIconsLabelElement.textContent = t('settings.about.credits.uiIcons');
+    }
+    if (this.aboutInspirationLabelElement) {
+      this.aboutInspirationLabelElement.textContent = t('settings.about.credits.inspiration');
     }
   }
   

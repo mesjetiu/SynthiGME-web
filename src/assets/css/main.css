@@ -2429,6 +2429,88 @@ small { color:#aaa; }
   color: #ef9a9a;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PESTAÑA "ACERCA DE"
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Descripción del proyecto */
+.settings-about__description {
+  line-height: 1.6;
+  color: #aaa;
+}
+
+/* Lista de información (dl/dt/dd) */
+.settings-about__info-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+}
+
+.settings-about__info-list dt {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.settings-about__info-list dd {
+  margin: 0;
+  color: #ddd;
+  font-size: 0.85rem;
+}
+
+/* Lista de enlaces */
+.settings-about__links-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-about__links-list a {
+  color: #7eb8da;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.15s ease;
+}
+
+.settings-about__links-list a:hover {
+  color: #a8d4f0;
+  text-decoration: underline;
+}
+
+/* Lista de créditos */
+.settings-about__credits-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.settings-about__credits-list li {
+  font-size: 0.85rem;
+  color: #bbb;
+}
+
+.settings-about__credit-label {
+  color: #888;
+}
+
+.settings-about__credits-list a {
+  color: #7eb8da;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.settings-about__credits-list a:hover {
+  color: #a8d4f0;
+  text-decoration: underline;
+}
+
 /* Sección de peligro (reset) */
 .settings-section--danger {
   margin-top: 16px;

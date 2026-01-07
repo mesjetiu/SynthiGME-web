@@ -1,6 +1,7 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { AudioEngine, setParamSmooth } from './core/engine.js';
 import { compilePanelBlueprintMappings } from './core/blueprintMapper.js';
+import { getOrCreateOscState, applyOscStateImmediate } from './core/oscillatorState.js';
 import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
@@ -161,89 +162,6 @@ class App {
         runAppResizeWork();
       }, 120);
     }, { passive: true });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // ESTADO DE OSCILADORES
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  _getOrCreateOscState(panelAudio, index) {
-    panelAudio.state = panelAudio.state || [];
-    let state = panelAudio.state[index];
-    if (!state) {
-      state = { freq: 10, oscLevel: 0, sawLevel: 0, triLevel: 0, pulseLevel: 0, pulseWidth: 0.5, sineSymmetry: 0.5 };
-      panelAudio.state[index] = state;
-    }
-    return state;
-  }
-
-  _applyOscStateImmediate(node, state, ctx) {
-    if (!node || !state || !ctx) return;
-    const now = ctx.currentTime;
-
-    // NOTA: Los try-catch en este método protegen contra estados inválidos
-    // de AudioParam (nodo no iniciado, contexto cerrado, etc.). Se ignoran
-    // porque el estado del oscilador se sincronizará en la siguiente operación.
-
-    // Sine oscillator - puede ser worklet o nativo
-    if (node.osc && Number.isFinite(state.freq)) {
-      try {
-        if (node._useWorklet && node.osc.setFrequency) {
-          node.osc.setFrequency(state.freq);
-        } else if (node.osc.frequency) {
-          node.osc.frequency.cancelScheduledValues(now);
-          node.osc.frequency.setValueAtTime(state.freq, now);
-        }
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (node.sawOsc && node.sawOsc.frequency && Number.isFinite(state.freq)) {
-      try {
-        node.sawOsc.frequency.cancelScheduledValues(now);
-        node.sawOsc.frequency.setValueAtTime(state.freq, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-
-    if (node.gain && node.gain.gain && Number.isFinite(state.oscLevel)) {
-      try {
-        node.gain.gain.cancelScheduledValues(now);
-        node.gain.gain.setValueAtTime(state.oscLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (node.sawGain && node.sawGain.gain && Number.isFinite(state.sawLevel)) {
-      try {
-        node.sawGain.gain.cancelScheduledValues(now);
-        node.sawGain.gain.setValueAtTime(state.sawLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (node.triOsc && node.triOsc.frequency && Number.isFinite(state.freq)) {
-      try {
-        node.triOsc.frequency.cancelScheduledValues(now);
-        node.triOsc.frequency.setValueAtTime(state.freq, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (node.triGain && node.triGain.gain && Number.isFinite(state.triLevel)) {
-      try {
-        node.triGain.gain.cancelScheduledValues(now);
-        node.triGain.gain.setValueAtTime(state.triLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    // Pulse oscillator - puede ser worklet o nativo
-    if (node.pulseOsc && Number.isFinite(state.freq)) {
-      try {
-        if (node._useWorklet && node.pulseOsc.setFrequency) {
-          node.pulseOsc.setFrequency(state.freq);
-        } else if (node.pulseOsc.frequency) {
-          node.pulseOsc.frequency.cancelScheduledValues(now);
-          node.pulseOsc.frequency.setValueAtTime(state.freq, now);
-        }
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (node.pulseGain && node.pulseGain.gain && Number.isFinite(state.pulseLevel)) {
-      try {
-        node.pulseGain.gain.cancelScheduledValues(now);
-        node.pulseGain.gain.setValueAtTime(state.pulseLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
   }
 
   ensureAudio() {
@@ -1488,7 +1406,7 @@ class App {
       return entry;
     }
 
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    const state = getOrCreateOscState(panelAudio, oscIndex);
     const useWorklet = this.engine.workletReady;
 
     // SINE oscillator: usar worklet si disponible
@@ -1644,7 +1562,7 @@ class App {
    */
   _updatePanelVoiceVolume(panelIndex, oscIndex, voice, value) {
     const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    const state = getOrCreateOscState(panelAudio, oscIndex);
     
     // Mapeo de voz a propiedad de estado y nodo de ganancia
     const voiceMap = {
@@ -1685,7 +1603,7 @@ class App {
 
   _updatePanelPulseWidth(panelIndex, oscIndex, value) {
     const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    const state = getOrCreateOscState(panelAudio, oscIndex);
     const duty = 0.01 + value * 0.98;
     state.pulseWidth = duty;
 
@@ -1706,7 +1624,7 @@ class App {
 
   _updatePanelSineSymmetry(panelIndex, oscIndex, value) {
     const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    const state = getOrCreateOscState(panelAudio, oscIndex);
     state.sineSymmetry = value;
 
     this.ensureAudio();
@@ -1763,7 +1681,7 @@ class App {
     const freq = this._applyCurve(value, freqConfig);
     
     const panelAudio = this._getPanelAudio(panelIndex);
-    const state = this._getOrCreateOscState(panelAudio, oscIndex);
+    const state = getOrCreateOscState(panelAudio, oscIndex);
     state.freq = freq;
 
     this.ensureAudio();
@@ -1956,7 +1874,7 @@ class App {
         
         // Aplicar estado del oscilador
         const state = this._panel3Audio?.state?.[oscIndex];
-        this._applyOscStateImmediate(src, state, ctx);
+        applyOscStateImmediate(src, state, ctx);
         
       } else if (source.kind === 'noiseGen') {
         // Fuente: Noise Generator

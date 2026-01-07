@@ -178,6 +178,79 @@ class SessionManager {
   hasLastState() {
     return !!localStorage.getItem(STORAGE_KEYS.LAST_STATE);
   }
+
+  /**
+   * Configura el callback para aplicar un patch restaurado.
+   * @param {Function} callback - Función async que recibe el patch a aplicar
+   */
+  setRestoreCallback(callback) {
+    this._restoreCallback = callback;
+  }
+
+  /**
+   * Restaura el último estado guardado.
+   * Requiere que se haya configurado el callback con setRestoreCallback.
+   */
+  async restoreLastState() {
+    const lastState = this.getLastState();
+    if (!lastState?.state || !this._restoreCallback) return;
+    
+    const { state, timestamp } = lastState;
+    
+    // Delay para que la UI esté lista
+    setTimeout(async () => {
+      await this._restoreCallback({ modules: state.modules || state });
+      log.info(` Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
+    }, 500);
+  }
+
+  /**
+   * Pregunta al usuario si quiere restaurar el último estado.
+   * @param {Object} options - Opciones de configuración
+   * @param {Function} options.getAskBeforeRestore - Función que retorna si debe preguntar
+   * @param {Function} options.setAskBeforeRestore - Función para actualizar preferencia
+   * @param {Function} options.showConfirmDialog - Función para mostrar diálogo de confirmación
+   * @param {Function} options.getRememberedChoice - Función para obtener elección recordada
+   */
+  async maybeRestoreLastState(options) {
+    const { getAskBeforeRestore, setAskBeforeRestore, showConfirmDialog, getRememberedChoice } = options;
+    
+    const parsedData = this.getLastState();
+    if (!parsedData?.state) return;
+    
+    // Solo preguntar si fue autoguardado
+    const isAutoSave = parsedData.isAutoSave !== false;
+    if (!isAutoSave) {
+      this.restoreLastState();
+      return;
+    }
+    
+    const shouldAsk = getAskBeforeRestore();
+    
+    if (!shouldAsk) {
+      const { skip, choice } = getRememberedChoice('restore-last-session');
+      if (skip) {
+        if (choice) {
+          this.restoreLastState();
+        }
+        return;
+      }
+      this.restoreLastState();
+      return;
+    }
+    
+    const result = await showConfirmDialog();
+    
+    if (result.remember) {
+      setAskBeforeRestore(false);
+    }
+    
+    if (result.confirmed) {
+      this.restoreLastState();
+    } else {
+      this.clearLastState();
+    }
+  }
 }
 
 // Singleton

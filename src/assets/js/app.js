@@ -1,5 +1,5 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
-import { AudioEngine, setParamSmooth, AUDIO_CONSTANTS } from './core/engine.js';
+import { AudioEngine, setParamSmooth } from './core/engine.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
 import { STORAGE_KEYS } from './utils/constants.js';
@@ -26,7 +26,6 @@ import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.j
 import panel2Config from './panelBlueprints/panel2.config.js';
 import panel3Config from './panelBlueprints/panel3.config.js';
 import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
-import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
 
 // Osciloscopio
 import { OscilloscopeModule } from './modules/oscilloscope.js';
@@ -1791,27 +1790,6 @@ class App {
   // ─────────────────────────────────────────────────────────────────────────────
   // FUNCIONES DE AUDIO PARA OSCILADORES
   // ─────────────────────────────────────────────────────────────────────────────
-
-  _createPulseWave(ctx, duty, harmonics = 32) {
-    const d = Math.min(0.99, Math.max(0.01, duty));
-    const real = new Float32Array(harmonics + 1);
-    const imag = new Float32Array(harmonics + 1);
-    for (let n = 1; n <= harmonics; n++) {
-      imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d);
-    }
-    return ctx.createPeriodicWave(real, imag);
-  }
-
-  _createAsymmetricSineWave(ctx, symmetry, harmonics = 16) {
-    const real = new Float32Array(harmonics + 1);
-    const imag = new Float32Array(harmonics + 1);
-    imag[1] = 1.0;
-    const asymAmount = (symmetry - 0.5) * 2;
-    for (let n = 2; n <= harmonics; n += 2) {
-      imag[n] = asymAmount * (1.0 / (n * n));
-    }
-    return ctx.createPeriodicWave(real, imag);
-  }
 
   _getPanelAudio(panelIndex) {
     if (!this._panelAudios) {

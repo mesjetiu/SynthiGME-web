@@ -72,6 +72,7 @@ export default {
   "audio.device.input": "Dispositivo de entrada:",
   "audio.device.default": "Dispositivo por defecto",
   "audio.device.loading": "Cargando dispositivos...",
+  "audio.device.error": "Error al cargar dispositivos",
   "audio.device.system": "Sistema",
   "audio.outputs.title": "Salidas → Sistema",
   "audio.outputs.channels": "Canales detectados:",

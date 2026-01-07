@@ -308,6 +308,10 @@ audio.device.loading:
   en: Loading devices...
   es: Cargando dispositivos...
 
+audio.device.error:
+  en: Error loading devices
+  es: Error al cargar dispositivos
+
 audio.device.system:
   en: System
   es: Sistema

@@ -21,6 +21,8 @@ const DEFAULT_SHORTCUTS = {
   settings: { key: 's', shift: false, ctrl: false, alt: false },
   fullscreen: { key: 'f', shift: false, ctrl: false, alt: false },
   reset: { key: 'i', shift: true, ctrl: false, alt: false },
+  // Tecla modificadora para mostrar hints de navegación de paneles (Alt o Control)
+  showPanelHints: { key: 'Alt', shift: false, ctrl: false, alt: false },
   // Navegación de paneles
   panel1: { key: '1', shift: false, ctrl: false, alt: false },
   panel2: { key: '2', shift: false, ctrl: false, alt: false },
@@ -114,14 +116,17 @@ class KeyboardShortcutsManager {
   init() {
     document.addEventListener('keydown', this._boundHandler);
     
-    // Mostrar badges de panel al pulsar Ctrl
+    // Mostrar badges de panel al pulsar la tecla configurada (Alt o Ctrl)
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Control' && !e.repeat) {
+      const hintKey = this.shortcuts.showPanelHints?.key || 'Alt';
+      if (e.key === hintKey && !e.repeat) {
+        e.preventDefault(); // Evitar que Alt active el menú del navegador
         document.body.classList.add('show-panel-shortcuts');
       }
     });
     document.addEventListener('keyup', (e) => {
-      if (e.key === 'Control') {
+      const hintKey = this.shortcuts.showPanelHints?.key || 'Alt';
+      if (e.key === hintKey) {
         document.body.classList.remove('show-panel-shortcuts');
       }
     });

@@ -649,7 +649,7 @@ body {
   text-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 
-/* Mostrar badges cuando Ctrl está pulsado */
+/* Mostrar badges cuando Alt/Ctrl está pulsado (configurable en atajos) */
 body.show-panel-shortcuts .panel-shortcut-badge {
   opacity: 1;
   visibility: visible;

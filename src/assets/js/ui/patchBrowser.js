@@ -633,6 +633,12 @@ export class PatchBrowser {
       this.deleteBtn.textContent = t('patches.delete');
     }
     
+    // Close button aria-label
+    const closeBtn = this.modal?.querySelector('.patch-browser__close');
+    if (closeBtn) {
+      closeBtn.setAttribute('aria-label', t('patches.close'));
+    }
+    
     // Re-render si está abierto
     if (this.isOpen) {
       this._render();

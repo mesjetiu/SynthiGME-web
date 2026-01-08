@@ -1635,6 +1635,31 @@ export class SettingsModal {
     if (this.aboutInspirationLabelElement) {
       this.aboutInspirationLabelElement.textContent = t('settings.about.credits.inspiration');
     }
+    
+    // Shortcuts section
+    if (this.shortcutsTitleElement) {
+      this.shortcutsTitleElement.textContent = t('settings.shortcuts');
+    }
+    if (this.shortcutsDescElement) {
+      this.shortcutsDescElement.textContent = t('settings.shortcuts.description');
+    }
+    if (this.resetShortcutsButton) {
+      this.resetShortcutsButton.textContent = t('settings.shortcuts.resetDefaults');
+    }
+    // Update shortcut row labels and empty placeholders
+    if (this.shortcutInputs) {
+      const rows = this.modal?.querySelectorAll('.settings-shortcut-row');
+      rows?.forEach(row => {
+        const label = row.querySelector('.settings-shortcut-label');
+        if (label?.dataset.i18n) {
+          label.textContent = t(label.dataset.i18n);
+        }
+        const input = row.querySelector('.settings-shortcut-input');
+        if (input?.classList.contains('empty')) {
+          input.value = t('settings.shortcuts.none');
+        }
+      });
+    }
   }
   
   /**

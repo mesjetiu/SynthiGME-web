@@ -236,6 +236,19 @@ settings.autosave.askBeforeRestore.description:
   en: Show a confirmation dialog before restoring (can be changed from dialog)
   es: Mostrar diálogo de confirmación antes de restaurar (se puede cambiar desde el diálogo)
 
+# PANTALLA
+settings.wakelock:
+  en: Keep screen awake
+  es: Mantener pantalla encendida
+
+settings.wakelock.description:
+  en: Prevents the screen from turning off while the app is open
+  es: Evita que la pantalla se apague mientras la app está abierta
+
+settings.wakelock.unsupported:
+  en: Not supported in this browser
+  es: No soportado en este navegador
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ATAJOS DE TECLADO
 # ═══════════════════════════════════════════════════════════════════════════════

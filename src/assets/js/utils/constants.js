@@ -73,7 +73,10 @@ export const STORAGE_KEYS = {
   ASK_BEFORE_RESTORE: `${STORAGE_PREFIX}ask-before-restore`,
   
   // Atajos de teclado
-  KEYBOARD_SHORTCUTS: `${STORAGE_PREFIX}keyboard-shortcuts`
+  KEYBOARD_SHORTCUTS: `${STORAGE_PREFIX}keyboard-shortcuts`,
+  
+  // Pantalla
+  WAKE_LOCK_ENABLED: `${STORAGE_PREFIX}wake-lock-enabled`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

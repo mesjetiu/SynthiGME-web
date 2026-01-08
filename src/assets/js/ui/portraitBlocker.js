@@ -8,6 +8,8 @@
  * @module ui/portraitBlocker
  */
 
+import { t, onLocaleChange } from '../i18n/index.js';
+
 let dismissed = false;
 
 /**
@@ -20,6 +22,17 @@ export function initPortraitBlocker() {
   if (!blocker) return;
   
   const closeBtn = blocker.querySelector('.portrait-blocker__close');
+  const messageEl = blocker.querySelector('.portrait-blocker__message');
+  
+  // Función para actualizar los textos según el idioma actual
+  const updateTexts = () => {
+    if (messageEl) messageEl.textContent = t('orientation.blocker');
+    if (closeBtn) closeBtn.setAttribute('aria-label', t('orientation.blocker.dismiss'));
+  };
+  
+  // Aplicar traducciones iniciales y suscribirse a cambios de idioma
+  updateTexts();
+  onLocaleChange(updateTexts);
   
   closeBtn?.addEventListener('click', () => {
     dismissed = true;

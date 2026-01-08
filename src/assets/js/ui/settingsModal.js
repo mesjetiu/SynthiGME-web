@@ -15,6 +15,7 @@ import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } fro
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { STORAGE_KEYS, AUTOSAVE_INTERVALS } from '../utils/constants.js';
+import { WakeLockManager } from '../utils/wakeLock.js';
 
 /**
  * Modal de configuración general con pestañas
@@ -27,6 +28,7 @@ export class SettingsModal {
    * @param {Function} [options.onAutoSaveIntervalChange] - Callback cuando cambia el intervalo de autoguardado
    * @param {Function} [options.onSaveOnExitChange] - Callback cuando cambia la opción de guardar al salir
    * @param {Function} [options.onRestoreOnStartChange] - Callback cuando cambia la opción de restaurar al inicio
+   * @param {Function} [options.onWakeLockChange] - Callback cuando cambia la opción de mantener pantalla encendida
    * @param {import('./audioSettingsModal.js').AudioSettingsModal} [options.audioSettingsModal] - Modal de audio
    * @param {import('./recordingSettingsModal.js').RecordingSettingsModal} [options.recordingSettingsModal] - Modal de grabación
    */
@@ -36,6 +38,7 @@ export class SettingsModal {
       onAutoSaveIntervalChange, 
       onSaveOnExitChange, 
       onRestoreOnStartChange,
+      onWakeLockChange,
       audioSettingsModal,
       recordingSettingsModal
     } = options;
@@ -44,6 +47,7 @@ export class SettingsModal {
     this.onAutoSaveIntervalChange = onAutoSaveIntervalChange;
     this.onSaveOnExitChange = onSaveOnExitChange;
     this.onRestoreOnStartChange = onRestoreOnStartChange;
+    this.onWakeLockChange = onWakeLockChange;
     
     // Referencias a modales para integración
     this.audioSettingsModal = audioSettingsModal;
@@ -297,6 +301,9 @@ export class SettingsModal {
     
     // Autoguardado
     container.appendChild(this._createAutoSaveSection());
+    
+    // Pantalla (Wake Lock)
+    container.appendChild(this._createWakeLockSection());
     
     // Atajos de teclado
     container.appendChild(this._createShortcutsSection());
@@ -885,6 +892,88 @@ export class SettingsModal {
   }
   
   /**
+   * Crea la sección de Wake Lock (mantener pantalla encendida)
+   * @returns {HTMLElement}
+   */
+  _createWakeLockSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.wakeLockTitleElement = document.createElement('h3');
+    this.wakeLockTitleElement.className = 'settings-section__title';
+    this.wakeLockTitleElement.textContent = t('settings.wakelock');
+    section.appendChild(this.wakeLockTitleElement);
+    
+    this.wakeLockDescElement = document.createElement('p');
+    this.wakeLockDescElement.className = 'settings-section__description';
+    
+    const isSupported = WakeLockManager.isSupported();
+    this.wakeLockDescElement.textContent = isSupported 
+      ? t('settings.wakelock.description')
+      : t('settings.wakelock.unsupported');
+    section.appendChild(this.wakeLockDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para habilitar/deshabilitar wake lock
+    // ─────────────────────────────────────────────────────────────────────
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--checkbox';
+    
+    this.wakeLockCheckbox = document.createElement('input');
+    this.wakeLockCheckbox.type = 'checkbox';
+    this.wakeLockCheckbox.id = 'wakeLockCheckbox';
+    this.wakeLockCheckbox.className = 'settings-checkbox';
+    
+    // Cargar preferencia guardada (por defecto true)
+    const savedPref = localStorage.getItem(STORAGE_KEYS.WAKE_LOCK_ENABLED);
+    this.wakeLockEnabled = savedPref === null ? true : savedPref === 'true';
+    this.wakeLockCheckbox.checked = this.wakeLockEnabled;
+    
+    // Deshabilitar si no está soportado
+    if (!isSupported) {
+      this.wakeLockCheckbox.disabled = true;
+      row.classList.add('settings-row--disabled');
+    }
+    
+    this.wakeLockLabelElement = document.createElement('label');
+    this.wakeLockLabelElement.className = 'settings-checkbox-label';
+    this.wakeLockLabelElement.htmlFor = 'wakeLockCheckbox';
+    this.wakeLockLabelElement.textContent = t('settings.wakelock');
+    
+    this.wakeLockCheckbox.addEventListener('change', () => {
+      this._setWakeLockEnabled(this.wakeLockCheckbox.checked);
+    });
+    
+    row.appendChild(this.wakeLockCheckbox);
+    row.appendChild(this.wakeLockLabelElement);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si el wake lock está habilitado
+   * @param {boolean} enabled
+   */
+  _setWakeLockEnabled(enabled) {
+    this.wakeLockEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.WAKE_LOCK_ENABLED, String(enabled));
+    
+    // Notificar al callback si existe
+    if (this.onWakeLockChange) {
+      this.onWakeLockChange(enabled);
+    }
+  }
+  
+  /**
+   * Obtiene si el wake lock está habilitado
+   * @returns {boolean}
+   */
+  getWakeLockEnabled() {
+    return this.wakeLockEnabled;
+  }
+  
+  /**
    * Crea la sección de atajos de teclado personalizables
    * @returns {HTMLElement}
    */
@@ -1447,6 +1536,22 @@ export class SettingsModal {
     
     if (this.askBeforeRestoreLabelElement) {
       this.askBeforeRestoreLabelElement.textContent = t('settings.autosave.askBeforeRestore');
+    }
+    
+    // Actualizar sección de wake lock
+    if (this.wakeLockTitleElement) {
+      this.wakeLockTitleElement.textContent = t('settings.wakelock');
+    }
+    
+    if (this.wakeLockDescElement) {
+      const isSupported = WakeLockManager.isSupported();
+      this.wakeLockDescElement.textContent = isSupported 
+        ? t('settings.wakelock.description')
+        : t('settings.wakelock.unsupported');
+    }
+    
+    if (this.wakeLockLabelElement) {
+      this.wakeLockLabelElement.textContent = t('settings.wakelock');
     }
     
     // Actualizar sección de reset

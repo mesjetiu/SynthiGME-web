@@ -67,6 +67,8 @@ import { labelPanelSlot, getOscillatorLayoutSpec } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
+import { WakeLockManager } from './utils/wakeLock.js';
+import { STORAGE_KEYS } from './utils/constants.js';
 
 class App {
   constructor() {
@@ -651,6 +653,14 @@ class App {
    * Se llama después de _setupRecording para tener acceso a todos los modales.
    */
   _setupSettingsModal() {
+    // Inicializar WakeLockManager
+    this.wakeLockManager = new WakeLockManager({
+      storageKey: STORAGE_KEYS.WAKE_LOCK_ENABLED,
+      onStateChange: (isActive) => {
+        log.info(` Wake lock ${isActive ? 'acquired' : 'released'}`);
+      }
+    });
+    
     this.settingsModal = new SettingsModal({
       onResolutionChange: (factor) => {
         log.info(` Resolution changed: ${factor}×`);
@@ -665,6 +675,14 @@ class App {
       },
       onRestoreOnStartChange: (enabled) => {
         log.info(` Restore on start: ${enabled}`);
+      },
+      onWakeLockChange: (enabled) => {
+        if (enabled) {
+          this.wakeLockManager.enable();
+        } else {
+          this.wakeLockManager.disable();
+        }
+        log.info(` Wake lock ${enabled ? 'enabled' : 'disabled'}`);
       },
       // Referencias a modales para integración en pestañas
       audioSettingsModal: this.audioSettingsModal,

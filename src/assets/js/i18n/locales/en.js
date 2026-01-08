@@ -67,6 +67,7 @@ export default {
   "settings.shortcuts.settings": "Open settings",
   "settings.shortcuts.fullscreen": "Toggle fullscreen",
   "settings.shortcuts.reset": "Reset synth",
+  "settings.shortcuts.showPanelHints": "Show panel numbers (hold)",
   "settings.shortcuts.panel1": "Panel 1",
   "settings.shortcuts.panel2": "Panel 2",
   "settings.shortcuts.panel3": "Panel 3",

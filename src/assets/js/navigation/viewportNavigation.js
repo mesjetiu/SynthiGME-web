@@ -775,9 +775,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
   });
 
-  outer.addEventListener('contextmenu', ev => {
+  // Disable browser context menu globally (except for text input fields)
+  document.addEventListener('contextmenu', ev => {
+    const tag = ev.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target.isContentEditable) return;
     ev.preventDefault();
-    return false;
   });
 
   // Resize handler

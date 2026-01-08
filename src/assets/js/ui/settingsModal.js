@@ -1041,6 +1041,11 @@ export class SettingsModal {
     label.textContent = t(`settings.shortcuts.${actionId}`);
     label.dataset.i18n = `settings.shortcuts.${actionId}`;
     
+    // Caso especial: showPanelHints usa un selector en lugar de captura
+    if (actionId === 'showPanelHints') {
+      return this._createShowPanelHintsRow(row, label, actionId);
+    }
+    
     // Contenedor del input y botón
     const inputWrapper = document.createElement('div');
     inputWrapper.className = 'settings-shortcut-input-wrapper';
@@ -1092,6 +1097,58 @@ export class SettingsModal {
     row.appendChild(label);
     row.appendChild(inputWrapper);
     row.appendChild(conflictSpan);
+    
+    return row;
+  }
+
+  /**
+   * Crea una fila especial para showPanelHints con selector Alt/Ctrl
+   * @param {HTMLElement} row
+   * @param {HTMLElement} label
+   * @param {string} actionId
+   * @returns {HTMLElement}
+   */
+  _createShowPanelHintsRow(row, label, actionId) {
+    const inputWrapper = document.createElement('div');
+    inputWrapper.className = 'settings-shortcut-input-wrapper';
+    
+    // Selector para elegir Alt o Ctrl
+    const select = document.createElement('select');
+    select.className = 'settings-shortcut-input settings-shortcut-select';
+    select.dataset.actionId = actionId;
+    
+    const optionAlt = document.createElement('option');
+    optionAlt.value = 'Alt';
+    optionAlt.textContent = 'Alt';
+    
+    const optionCtrl = document.createElement('option');
+    optionCtrl.value = 'Control';
+    optionCtrl.textContent = 'Ctrl';
+    
+    select.appendChild(optionAlt);
+    select.appendChild(optionCtrl);
+    
+    // Establecer valor actual
+    const binding = keyboardShortcuts.get(actionId);
+    select.value = binding?.key || 'Alt';
+    
+    // Guardar referencia para actualizaciones
+    this.shortcutInputs[actionId] = select;
+    
+    // Listener de cambio
+    select.addEventListener('change', () => {
+      keyboardShortcuts.set(actionId, { 
+        key: select.value, 
+        shift: false, 
+        ctrl: false, 
+        alt: false 
+      });
+    });
+    
+    inputWrapper.appendChild(select);
+    
+    row.appendChild(label);
+    row.appendChild(inputWrapper);
     
     return row;
   }
@@ -1221,6 +1278,13 @@ export class SettingsModal {
     
     for (const [actionId, input] of Object.entries(this.shortcutInputs)) {
       const binding = keyboardShortcuts.get(actionId);
+      
+      // Caso especial: showPanelHints usa un selector
+      if (actionId === 'showPanelHints' && input.tagName === 'SELECT') {
+        input.value = binding?.key || 'Alt';
+        continue;
+      }
+      
       input.value = binding ? keyboardShortcuts.formatBinding(binding) : t('settings.shortcuts.none');
       input.classList.remove('conflict');
       if (binding) {

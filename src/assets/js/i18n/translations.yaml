@@ -285,6 +285,10 @@ settings.shortcuts.reset:
   en: Reset synth
   es: Reiniciar synth
 
+settings.shortcuts.showPanelHints:
+  en: Show panel numbers (hold)
+  es: Mostrar números de panel (mantener)
+
 settings.shortcuts.panel1:
   en: Panel 1
   es: Panel 1

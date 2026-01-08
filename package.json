@@ -1,6 +1,6 @@
 {
   "name": "synthigme-web",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Prototype EMS Synthi interface in WebAudio",
   "type": "module",
   "scripts": {

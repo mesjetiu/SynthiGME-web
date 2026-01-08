@@ -163,9 +163,20 @@ body {
   background: #000;
   color: #eee;
   overflow: hidden;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
   user-select: none;
-  -webkit-touch-callout: none; /* Evita menú contextual en iOS Safari */
+  -webkit-touch-callout: none; /* Evita menú contextual en iOS/Android */
 }
+
+/* Prevenir menú contextual en elementos interactivos (Android Chrome) */
+#viewportOuter,
+#viewportOuter * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}
+
 .fullscreen-toggle {
   position: fixed;
   top: 1rem;

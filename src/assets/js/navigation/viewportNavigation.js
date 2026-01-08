@@ -780,7 +780,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const tag = ev.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target.isContentEditable) return;
     ev.preventDefault();
-  });
+    ev.stopImmediatePropagation();
+  }, { capture: true });
+
+  // Fallback for Samsung/Android Chrome
+  outer.oncontextmenu = () => false;
 
   // Resize handler
   let navResizeTimer = null;

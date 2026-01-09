@@ -1006,6 +1006,12 @@ table.matrix {
   pointer-events: none;
 }
 
+.matrix.matrix-large .pin-btn.is-inactive-pin {
+  opacity: 0.2;
+  pointer-events: none;
+  cursor: default;
+}
+
 .matrix.matrix-large .pin-btn.active {
   background: #ffb63b;
   border: none;

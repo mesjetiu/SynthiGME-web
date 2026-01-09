@@ -76,6 +76,23 @@ settings.tab.about:
   en: About
   es: Acerca de
 
+settings.tab.display:
+  en: Display
+  es: Visualización
+
+# Sección: Visualización
+settings.display.inactivePins:
+  en: Inactive Pins
+  es: Pines inactivos
+
+settings.display.inactivePins.description:
+  en: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
+  es: Los pines de la matriz que no conectan ninguna fuente con ningún destino se consideran inactivos. Por defecto aparecen atenuados y no se pueden pulsar.
+
+settings.display.inactivePins.show:
+  en: Show inactive pins as active
+  es: Mostrar pines inactivos como activos
+
 # Sección: Acerca de
 settings.about.description:
   en: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.

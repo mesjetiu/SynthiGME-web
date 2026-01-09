@@ -2327,7 +2327,9 @@ class App {
       cols: 67,
       frame: LARGE_MATRIX_FRAME_PANEL5,
       hiddenCols: HIDDEN_COLS_PANEL5,
-      hiddenRows: HIDDEN_ROWS_PANEL5
+      hiddenRows: HIDDEN_ROWS_PANEL5,
+      sourceMap: panel5Maps.sourceMap,
+      destMap: panel5Maps.destMap
     });
 
     this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, {
@@ -2335,11 +2337,29 @@ class App {
       cols: 67,
       frame: LARGE_MATRIX_FRAME_PANEL6,
       hiddenCols: HIDDEN_COLS_PANEL6,
-      hiddenRows: HIDDEN_ROWS_PANEL6
+      hiddenRows: HIDDEN_ROWS_PANEL6,
+      sourceMap: panel6Maps.sourceMap,
+      destMap: panel6Maps.destMap
     });
 
     this.largeMatrixAudio.build();
     this.largeMatrixControl.build();
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // INACTIVE PINS VISIBILITY
+    // ─────────────────────────────────────────────────────────────────────────
+    // Apply initial preference for inactive pins (dim by default).
+    // Listen for changes to update in real-time.
+    //
+    const savedShowInactive = localStorage.getItem(STORAGE_KEYS.SHOW_INACTIVE_PINS) === 'true';
+    this.largeMatrixAudio.setShowInactivePins(savedShowInactive);
+    this.largeMatrixControl.setShowInactivePins(savedShowInactive);
+    
+    document.addEventListener('synth:showInactivePinsChange', (e) => {
+      const show = e.detail?.show ?? false;
+      this.largeMatrixAudio?.setShowInactivePins(show);
+      this.largeMatrixControl?.setShowInactivePins(show);
+    });
 
     // ─────────────────────────────────────────────────────────────────────────
     // MATRIX PIN TOOLTIPS

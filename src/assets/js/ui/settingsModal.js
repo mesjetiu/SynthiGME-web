@@ -198,6 +198,7 @@ export class SettingsModal {
     // Contenedores de cada pestaña
     this.tabContents = {
       general: this._createGeneralTabContent(),
+      display: this._createDisplayTabContent(),
       audio: this._createAudioTabContent(),
       recording: this._createRecordingTabContent(),
       advanced: this._createAdvancedTabContent(),
@@ -239,6 +240,7 @@ export class SettingsModal {
     
     const tabs = [
       { id: 'general', label: t('settings.tab.general') },
+      { id: 'display', label: t('settings.tab.display') },
       { id: 'audio', label: t('settings.tab.audio') },
       { id: 'recording', label: t('settings.tab.recording') },
       { id: 'advanced', label: t('settings.tab.advanced') },
@@ -297,11 +299,6 @@ export class SettingsModal {
     // Idioma
     container.appendChild(this._createLanguageSection());
     
-    // Escala de renderizado (oculta en Firefox)
-    if (!this.isFirefox) {
-      container.appendChild(this._createResolutionSection());
-    }
-    
     // Autoguardado
     container.appendChild(this._createAutoSaveSection());
     
@@ -310,6 +307,25 @@ export class SettingsModal {
     
     // Atajos de teclado
     container.appendChild(this._createShortcutsSection());
+    
+    return container;
+  }
+  
+  /**
+   * Crea el contenido de la pestaña Visualización
+   */
+  _createDisplayTabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'display';
+    
+    // Escala de renderizado (oculta en Firefox)
+    if (!this.isFirefox) {
+      container.appendChild(this._createResolutionSection());
+    }
+    
+    // Pines inactivos de la matriz
+    container.appendChild(this._createInactivePinsSection());
     
     return container;
   }
@@ -664,6 +680,78 @@ export class SettingsModal {
     section.appendChild(buttonsWrapper);
     
     return section;
+  }
+  
+  /**
+   * Crea la sección de visualización de pines inactivos
+   * @returns {HTMLElement}
+   */
+  _createInactivePinsSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.inactivePinsTitleElement = document.createElement('h3');
+    this.inactivePinsTitleElement.className = 'settings-section__title';
+    this.inactivePinsTitleElement.textContent = t('settings.display.inactivePins');
+    section.appendChild(this.inactivePinsTitleElement);
+    
+    this.inactivePinsDescElement = document.createElement('p');
+    this.inactivePinsDescElement.className = 'settings-section__description';
+    this.inactivePinsDescElement.textContent = t('settings.display.inactivePins.description');
+    section.appendChild(this.inactivePinsDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para mostrar/ocultar pines inactivos
+    // ─────────────────────────────────────────────────────────────────────
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--checkbox';
+    
+    this.inactivePinsCheckbox = document.createElement('input');
+    this.inactivePinsCheckbox.type = 'checkbox';
+    this.inactivePinsCheckbox.id = 'inactivePinsCheckbox';
+    this.inactivePinsCheckbox.className = 'settings-checkbox';
+    
+    // Cargar preferencia guardada (por defecto false = atenuados)
+    const savedPref = localStorage.getItem(STORAGE_KEYS.SHOW_INACTIVE_PINS);
+    this.showInactivePins = savedPref === 'true';
+    this.inactivePinsCheckbox.checked = this.showInactivePins;
+    
+    this.inactivePinsLabelElement = document.createElement('label');
+    this.inactivePinsLabelElement.className = 'settings-checkbox-label';
+    this.inactivePinsLabelElement.htmlFor = 'inactivePinsCheckbox';
+    this.inactivePinsLabelElement.textContent = t('settings.display.inactivePins.show');
+    
+    this.inactivePinsCheckbox.addEventListener('change', () => {
+      this._setShowInactivePins(this.inactivePinsCheckbox.checked);
+    });
+    
+    row.appendChild(this.inactivePinsCheckbox);
+    row.appendChild(this.inactivePinsLabelElement);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si se muestran los pines inactivos
+   * @param {boolean} show
+   */
+  _setShowInactivePins(show) {
+    this.showInactivePins = show;
+    localStorage.setItem(STORAGE_KEYS.SHOW_INACTIVE_PINS, String(show));
+    
+    // Notificar mediante evento para actualizar en caliente
+    document.dispatchEvent(new CustomEvent('synth:showInactivePinsChange', { 
+      detail: { show } 
+    }));
+  }
+  
+  /**
+   * Obtiene si se muestran los pines inactivos
+   * @returns {boolean}
+   */
+  getShowInactivePins() {
+    return this.showInactivePins;
   }
   
   /**

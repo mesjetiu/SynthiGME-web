@@ -215,6 +215,16 @@ export default {
     { colSynth: 39, dest: { kind: 'oscFreqCV', oscIndex: 8 } },  // Osc 9 Frequency
     { colSynth: 40, dest: { kind: 'oscFreqCV', oscIndex: 9 } },  // Osc 10 Frequency
     { colSynth: 41, dest: { kind: 'oscFreqCV', oscIndex: 10 } }, // Osc 11 Frequency
-    { colSynth: 42, dest: { kind: 'oscFreqCV', oscIndex: 11 } }  // Osc 12 Frequency
+    { colSynth: 42, dest: { kind: 'oscFreqCV', oscIndex: 11 } }, // Osc 12 Frequency
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILLOSCOPE (columnas 63-64) - Visualización de señales de control
+    // ─────────────────────────────────────────────────────────────────────────
+    // Permite visualizar señales CV en el osciloscopio compartido.
+    // Columna 63: entrada Y (vertical / forma de onda)
+    // Columna 64: entrada X (horizontal / modo Lissajous)
+    //
+    { colSynth: 63, dest: { kind: 'oscilloscope', channel: 'Y' } },
+    { colSynth: 64, dest: { kind: 'oscilloscope', channel: 'X' } }
   ]
 };

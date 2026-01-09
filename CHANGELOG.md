@@ -1,18 +1,32 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Todos los cambios notables de este proyecto se documentan en este archivo.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
+y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-### Added
+### Añadido
+- **Matriz de control (Panel 6) operativa**: modulación de frecuencia de osciladores desde la matriz.
+- **Sistema exponencial V/Oct** para modulación de frecuencia: 1V por octava, rangos ±5 octavas.
 - **Mantener pantalla encendida** (Screen Wake Lock API) con toggle en Ajustes → General, activado por defecto, deshabilitado automáticamente en navegadores sin soporte (iOS < 18.4).
+- **Diálogo de entrada de texto** (`InputDialog`) reemplazando `prompt()` nativo con soporte i18n.
+
+### Cambiado
+- SVGs de paneles 5 y 6 re-optimizados: reducción ~74% (221KB → 58KB, 233KB → 61KB).
+- Traducciones en caliente: cambiar idioma actualiza inmediatamente todos los textos sin recargar.
+- Paneles 1, 2, 3 y 4 sin fondo SVG temporalmente (en desarrollo).
+
+### Corregido
+- Mensaje del bloqueador de orientación ahora traducible.
+- Menú contextual del navegador deshabilitado para evitar interferencias.
+- Flujo de actualización mejorado: instalación bajo demanda de nuevas versiones.
+- Indicador de actualización pendiente visible en ajustes tras rechazar diálogo inicial.
 
 ## [0.1.0] - 2026-01-08
 
-### Added
+### Añadido
 - **Sistema de grabación de audio**: exportación WAV multitrack (1-8 pistas) con matriz de ruteo outputs→tracks configurable.
 - **Sistema completo de atajos de teclado**: `M` (mute), `R` (grabar), `P` (patches), `S` (ajustes), `F` (fullscreen), `Shift+I` (reset), `0-7` (navegación paneles). Personalizable con persistencia.
 - **Diálogo de confirmación reutilizable** (`ConfirmDialog`) con opción "no volver a preguntar".
@@ -27,17 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sistema de AudioWorklets para síntesis con fase coherente y anti-aliasing PolyBLEP.
 - Opciones de conexión entrada/salida con dispositivos del sistema (micros, altavoces).
 
-### Changed
+### Cambiado
 - Gestos táctiles mejorados: pan con dos dedos simultáneo a zoom.
 - Vista inicial ajustada para mostrar todo el sintetizador.
 - Sistema de despliegue de paneles con animación de zoom centrado (doble click o botón).
 - Mejoras de nitidez al hacer zoom en todos los navegadores.
 
-### Fixed
+### Corregido
 - Correcciones menores de estabilidad en navegación táctil.
 
 ## [0.0.1] - 2025-12-01
-### Added
+### Añadido
 - Prueba de concepto mínima (interfaz + sonido).
 - Primera publicación experimental de SynthiGME-web con interfaz Web Audio funcional y build automatizada hacia `docs/` (modo PWA).
 

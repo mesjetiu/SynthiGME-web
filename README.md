@@ -20,7 +20,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Configuración de audio** | Selección de dispositivo de salida y ruteo de buses lógicos (1-8) a L/R. Matriz 8×2 con persistencia. |
 | **Sistema de patches** | Guardar, cargar, renombrar y eliminar patches. Exportar/importar archivos `.sgme.json`. Autoguardado configurable con recuperación de sesión. |
 | **Grabación de audio** | Exportación WAV multitrack (1-8 pistas). Matriz de ruteo outputs→tracks configurable. |
-| **Ajustes** | Selección de idioma (español/inglés), escala de renderizado (1×-4×). |
+| **Ajustes** | Idioma, escala de renderizado (1×-4×), autoguardado configurable, mantener pantalla encendida (Wake Lock). |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
 ### Atajos de teclado
@@ -38,6 +38,17 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | `7` | Navegar a panel de salida |
 | `0` | Vista general (todos los paneles) |
 | `Esc` | Cerrar modal activo |
+
+### Ajustes de usuario
+
+Accede a los ajustes pulsando `S` o desde la quickbar (icono de engranaje).
+
+| Ajuste | Descripción |
+|--------|-------------|
+| **Idioma** | Español o inglés. Afecta a toda la interfaz. |
+| **Escala de renderizado** | 1× a 4×. Mayor escala = gráficos más nítidos pero mayor consumo de GPU. |
+| **Autoguardado** | Guarda automáticamente el estado cada 15s, 30s, 1m, 5m, o desactivado. |
+| **Mantener pantalla encendida** | Evita que la pantalla se apague durante sesiones de síntesis (Screen Wake Lock API). Activado por defecto en navegadores compatibles. |
 
 ### Tecnología
 

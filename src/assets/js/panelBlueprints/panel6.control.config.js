@@ -24,7 +24,7 @@
 // - Ganancias afectan profundidad de modulación
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// SISTEMA DE SEÑALES CV BIPOLAR
+// SISTEMA DE SEÑALES CV BIPOLAR Y MODULACIÓN V/Oct
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Las señales CV en Panel 6 son BIPOLARES (rango -1 a +1):
@@ -35,11 +35,18 @@
 // |    0.0   | Sin modulación (el parámetro mantiene su valor de knob)  |
 // |   -1.0   | Máxima modulación negativa (decremento máximo)           |
 //
-// Ejemplo con modulación de frecuencia (freqCVScale = 1000 Hz):
-// - Frecuencia base (knob): 440 Hz
-// - CV = +1.0 → frecuencia = 440 + 1000 = 1440 Hz
-// - CV =  0.0 → frecuencia = 440 + 0    = 440 Hz
-// - CV = -1.0 → frecuencia = 440 - 1000 = -560 Hz → clamped a mínimo
+// MODULACIÓN DE FRECUENCIA - SISTEMA V/Oct (Voltios por Octava):
+// ───────────────────────────────────────────────────────────────
+// La modulación de frecuencia usa el estándar de sintetizadores modulares:
+// modulación EXPONENCIAL por intervalos musicales, no lineal por Hz.
+//
+// Ejemplo con valores por defecto (cvScale=2, octavesPerUnit=0.5):
+// - Frecuencia base (knob): 440 Hz (La4)
+// - CV = +1.0 → +1 octava → 880 Hz (La5)
+// - CV =  0.0 → sin cambio → 440 Hz (La4)
+// - CV = -1.0 → -1 octava → 220 Hz (La3)
+//
+// Ver panel3.config.js para configurar cvScale y octavesPerUnit.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // JERARQUÍA DE GANANCIAS
@@ -89,7 +96,7 @@
 // |   42    |  Osc 12   | CV → frecuencia del oscilador 12                 |
 //
 // La profundidad de modulación se controla mediante:
-// 1. freqCVScale en panel3.config.js (Hz por unidad de CV, por oscilador)
+// 1. cvScale y octavesPerUnit en panel3.config.js (octavas por unidad de CV)
 // 2. colGains en este archivo (factor multiplicador por columna)
 // 3. pinGains en este archivo (sobrescritura específica por conexión)
 //

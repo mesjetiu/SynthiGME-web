@@ -182,42 +182,64 @@ export default {
     // ·······································································
     //
     // Estos parámetros controlan cómo las señales CV del Panel 6 modulan
-    // la frecuencia del oscilador. El sistema es BIPOLAR:
+    // la frecuencia del oscilador. El sistema usa el estándar de sintetizadores
+    // modulares: VOLTIOS POR OCTAVA (V/Oct), implementado de forma exponencial.
     //
-    // | Valor CV | Efecto en frecuencia                                     |
-    // |----------|----------------------------------------------------------|
-    // |   +1.0   | frecuencia_final = frecuencia_base + freqCVScale         |
-    // |    0.0   | frecuencia_final = frecuencia_base (sin modulación)      |
-    // |   -1.0   | frecuencia_final = frecuencia_base - freqCVScale         |
+    // SISTEMA EXPONENCIAL (V/Oct):
+    // ─────────────────────────────
+    // La modulación es EXPONENCIAL, no lineal. Esto significa que la misma
+    // cantidad de CV siempre produce el mismo intervalo musical, independiente-
+    // mente de la frecuencia base.
     //
-    // La señal CV se multiplica por freqCVScale y se suma a la frecuencia
-    // establecida por el knob:
+    // Fórmula: freq_final = freq_base × 2^(CV × cvScale × octavesPerUnit)
     //
-    //   freq_final = freq_knob + (CV × freqCVScale)
+    // Con los valores por defecto (cvScale=2, octavesPerUnit=0.5):
     //
-    // NOTA: La frecuencia final se limita (clamp) al rango válido del
-    // oscilador (típicamente 1 Hz - 10000 Hz) para evitar valores negativos
-    // o excesivos.
+    // | Valor CV | Cálculo                  | Intervalo      |
+    // |----------|--------------------------|----------------|
+    // |   +1.0   | 2^(1 × 2 × 0.5) = 2^1    | +1 octava      |
+    // |   +0.5   | 2^(0.5 × 2 × 0.5) = 2^0.5| +tritono       |
+    // |    0.0   | 2^0 = 1                  | sin cambio     |
+    // |   -0.5   | 2^(-0.5)                 | -tritono       |
+    // |   -1.0   | 2^(-1)                   | -1 octava      |
+    //
+    // IMPLEMENTACIÓN WEB AUDIO:
+    // ─────────────────────────
+    // Usamos el AudioParam `detune` de los osciladores (en cents).
+    // 1 octava = 1200 cents, así que la ganancia del nodo CV es:
+    //
+    //   ganancia = cvScale × octavesPerUnit × 1200
+    //
+    // Con valores por defecto: 2 × 0.5 × 1200 = 1200 cents (±1 octava)
     //
     freqCV: {
-      // Escala de modulación CV → Hz.
-      // Define cuántos Hz cambia la frecuencia cuando CV = ±1.
+      // Factor de escala aplicado a la señal CV de entrada.
+      // Convierte el rango -1..+1 a un rango más amplio.
       //
-      // | freqCVScale | Comportamiento                                     |
-      // |-------------|----------------------------------------------------|
-      // |   1000      | CV=+1 sube 1000 Hz, CV=-1 baja 1000 Hz             |
-      // |   100       | Modulación sutil (±100 Hz)                         |
-      // |   5000      | Modulación agresiva (±5000 Hz)                     |
+      // | cvScale | Rango CV efectivo |
+      // |---------|-------------------|
+      // |    1    | -1 a +1           |
+      // |    2    | -2 a +2 (default) |
+      // |    4    | -4 a +4           |
       //
-      // NOTA: Para modulación exponencial (estilo V/Oct), se implementará
-      // en el futuro un parámetro freqCVMode: 'linear' | 'exponential'.
-      freqCVScale: 1000,
+      cvScale: 2,
 
-      // Rango permitido de freqCVScale para validación.
-      // Evita configuraciones accidentales extremas.
-      scaleRange: {
-        min: 1,      // Mínimo 1 Hz por unidad de CV
-        max: 10000   // Máximo 10 kHz por unidad de CV
+      // Octavas de cambio por cada unidad de CV escalada.
+      // Define la "sensibilidad" de la modulación.
+      //
+      // | octavesPerUnit | Efecto con cvScale=2                     |
+      // |----------------|------------------------------------------|
+      // |      0.25      | ±0.5 octavas (rango total 1 octava)      |
+      // |      0.5       | ±1 octava (rango total 2 octavas) default|
+      // |      1.0       | ±2 octavas (rango total 4 octavas)       |
+      // |      2.0       | ±4 octavas (rango total 8 octavas)       |
+      //
+      octavesPerUnit: 0.5,
+
+      // Rango permitido para validación de parámetros.
+      ranges: {
+        cvScale: { min: 0.1, max: 10 },
+        octavesPerUnit: { min: 0.1, max: 4 }
       }
     }
 

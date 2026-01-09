@@ -7,6 +7,14 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **Tooltips en pines de matriz**: al pasar el ratón (desktop) o tocar (móvil) un pin, se muestra un tooltip con "Origen → Destino" (ej: "Input 1 → Out 1"). Labels localizables vía i18n.
+- **Efecto visual de pulso** en el pin activo mientras el tooltip es visible.
+- **Detección inteligente de gestos móviles**: los tooltips no se activan durante gestos de pinch/pan.
+
+### Cambiado
+- **Idioma de fallback i18n**: cambiado de español a inglés para que las traducciones faltantes muestren texto en inglés en lugar de claves entre corchetes.
+
 ## [0.2.0] - 2026-01-09
 
 ### Añadido

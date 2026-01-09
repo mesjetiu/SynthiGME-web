@@ -1045,6 +1045,22 @@ table.matrix {
   transform: translateY(0);
 }
 
+/* Pin pulse effect when tooltip is visible - helps locate the target pin */
+.matrix.matrix-large .pin-btn.is-tooltip-target {
+  animation: pin-tooltip-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pin-tooltip-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 182, 59, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 8px 3px rgba(255, 182, 59, 0.5);
+    transform: scale(1.3);
+  }
+}
+
 /* Arrow indicator - optional, can be removed if too complex for dynamic positioning */
 /* .matrix-tooltip::before {
   content: '';

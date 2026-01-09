@@ -1573,41 +1573,47 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     //
     // Este GainNode recibe señales CV del Panel 6 y las escala antes de
-    // sumarlas a los AudioParams de frecuencia de todos los osciladores.
+    // aplicarlas al parámetro `detune` de todos los osciladores.
     //
-    // El sistema es BIPOLAR:
-    // - CV = +1 → frecuencia sube según freqCVScale
-    // - CV =  0 → sin modulación
-    // - CV = -1 → frecuencia baja según freqCVScale
+    // SISTEMA V/Oct (Voltios por Octava) - EXPONENCIAL
+    // ─────────────────────────────────────────────
     //
-    // La señal CV se multiplica por freqCVScale (Hz/unidad) definido en
-    // panel3.config.js y se suma al valor base establecido por el knob.
+    // Usamos el AudioParam `detune` (en cents) en lugar de `frequency`.
+    // Esto proporciona modulación exponencial automática:
+    // - 1 octava = 1200 cents
+    // - Ganancia = cvScale × octavesPerUnit × 1200
+    //
+    // Con valores por defecto (cvScale=2, octavesPerUnit=0.5):
+    // - CV = +1 → +1200 cents = +1 octava (frecuencia ×2)
+    // - CV = -1 → -1200 cents = -1 octava (frecuencia ÷2)
     //
     // NOTA: Los AudioParams de OscillatorNode soportan a-rate modulation,
     // lo que permite FM de audio-rate para efectos de síntesis más complejos.
     //
     const config = this._getOscConfig(oscIndex);
-    const freqCVScale = config?.freqCV?.freqCVScale ?? panel3Config.defaults?.freqCV?.freqCVScale ?? 1000;
+    const cvScale = config?.freqCV?.cvScale ?? panel3Config.defaults?.freqCV?.cvScale ?? 2;
+    const octavesPerUnit = config?.freqCV?.octavesPerUnit ?? panel3Config.defaults?.freqCV?.octavesPerUnit ?? 0.5;
+    const centsGain = cvScale * octavesPerUnit * 1200;
     
     const freqCVInput = ctx.createGain();
-    freqCVInput.gain.value = freqCVScale;
+    freqCVInput.gain.value = centsGain;
     
-    // Conectar a todos los AudioParams de frecuencia
-    // Worklets exponen frequency como AudioParam, nativos como .frequency
+    // Conectar a los AudioParams `detune` (en cents) - modulación exponencial
+    // Worklets exponen detune como AudioParam, nativos como .detune
     if (useWorklet) {
-      // Worklets: frequency param está en .parameters
-      const sineFreq = osc.parameters?.get('frequency');
-      const pulseFreq = pulseOsc.parameters?.get('frequency');
-      if (sineFreq) freqCVInput.connect(sineFreq);
-      if (pulseFreq) freqCVInput.connect(pulseFreq);
+      // Worklets: detune param está en .parameters (si lo soportan)
+      const sineDetune = osc.parameters?.get('detune');
+      const pulseDetune = pulseOsc.parameters?.get('detune');
+      if (sineDetune) freqCVInput.connect(sineDetune);
+      if (pulseDetune) freqCVInput.connect(pulseDetune);
     } else {
-      // Nativos: .frequency es un AudioParam
-      if (osc.frequency) freqCVInput.connect(osc.frequency);
-      if (pulseOsc.frequency) freqCVInput.connect(pulseOsc.frequency);
+      // Nativos: .detune es un AudioParam
+      if (osc.detune) freqCVInput.connect(osc.detune);
+      if (pulseOsc.detune) freqCVInput.connect(pulseOsc.detune);
     }
     // Saw y Tri siempre son nativos
-    if (sawOsc.frequency) freqCVInput.connect(sawOsc.frequency);
-    if (triOsc.frequency) freqCVInput.connect(triOsc.frequency);
+    if (sawOsc.detune) freqCVInput.connect(sawOsc.detune);
+    if (triOsc.detune) freqCVInput.connect(triOsc.detune);
 
     entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, freqCVInput, _freqInitialized: true, _useWorklet: useWorklet };
     panelAudio.nodes[oscIndex] = entry;

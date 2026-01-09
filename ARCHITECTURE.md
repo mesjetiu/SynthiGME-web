@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 9 de enero de 2026
+> Última actualización: 9 de enero de 2026 (tooltips de matriz)
 
 ---
 
@@ -1107,12 +1107,24 @@ Muestra la ruta de señal "Source → Destination" para ayudar al usuario a ente
 | `oscilloscope` | `channel: 'X'|'Y'` | "Scope Y" |
 | `oscFreqCV` | `oscIndex: 0-11` | "Osc 1 Freq CV" |
 
+#### Feedback Visual
+
+Cuando el tooltip está visible, el pin objetivo muestra un **efecto de pulso** (animación CSS `pin-tooltip-pulse`) que lo resalta visualmente con un halo naranja y escala 1.3×.
+
 #### Auto-hide en Móvil
 
 El tooltip se oculta cuando:
-- Han pasado **2.5 segundos** sin interacción
+- Han pasado **5 segundos** sin interacción
 - El usuario toca **fuera del tooltip**
 - El usuario hace **doble tap** en el mismo pin (toggle)
+
+#### Detección de Gestos
+
+En móvil, el sistema distingue entre:
+- **Tap válido**: un solo dedo, duración < 300ms, movimiento < 10px → muestra tooltip
+- **Gesto de navegación**: pinch/pan con dos dedos → NO muestra tooltip
+
+Esto evita que aparezcan tooltips accidentalmente al hacer zoom o desplazarse por el panel.
 
 #### i18n
 
@@ -1120,12 +1132,12 @@ Los labels están en `translations.yaml` bajo el namespace `matrix.*`:
 ```yaml
 matrix.source.inputAmp:
   en: "Input {channel}"
-  es: "Entrada {channel}"
 
 matrix.tooltip.format:
   en: "{source} → {dest}"
-  es: "{source} → {dest}"
 ```
+
+> **Nota**: Actualmente solo hay traducciones en inglés. El sistema usa `defaultLocale: en` para que las claves sin traducción en otros idiomas usen el fallback en inglés automáticamente.
 
 ### Blueprint Schema
 ```javascript

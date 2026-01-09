@@ -70,6 +70,7 @@
 // | kind          | Descripción                               | Parámetros           |
 // |---------------|-------------------------------------------|----------------------|
 // | 'oscFreqCV'   | Entrada CV de frecuencia de oscilador     | oscIndex (0-11)      |
+// | 'outputLevelCV'| Control CV del nivel de salida           | busIndex (0-7)       |
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -177,20 +178,16 @@ export default {
   // DESTINOS DE MODULACIÓN (columnas → parámetros de módulos)
   // ─────────────────────────────────────────────────────────────────────────
   //
+  // Los números colSynth son los de la SERIGRAFÍA del Synthi 100.
+  // La numeración Synthi NO cuenta los huecos (columnas ocultas).
+  // El mapper convierte automáticamente: Synthi # → índice físico.
+  //
   // Cada columna de la matriz puede conectarse a un parámetro modulable.
   // La señal CV se suma al valor base establecido por el knob del módulo.
   //
-  // Estructura de cada entrada:
-  // - colSynth: número de columna según serigrafía del Synthi
-  // - dest: objeto que describe el parámetro destino
-  //   - kind: tipo de destino ('oscFreqCV', etc.)
-  //   - oscIndex: índice del oscilador (0-based)
-  //
-  // OSCILLATORS FREQUENCY CONTROL (columnas 30-33, 35-42)
   // ─────────────────────────────────────────────────────────────────────────
-  // Columnas 30-33 y 35-42 controlan la frecuencia de los osciladores 1-12.
-  // NOTA: La columna 34 está oculta (hueco físico en el panel).
-  // La señal CV modula la frecuencia en Hz (bipolar):
+  // OSCILLATORS FREQUENCY CONTROL (columnas 30-41)
+  // ─────────────────────────────────────────────────────────────────────────
   // - CV = +1 → frecuencia sube según freqCVScale (ej: +1000 Hz)
   // - CV =  0 → sin modulación (frecuencia = valor del knob)
   // - CV = -1 → frecuencia baja según freqCVScale (ej: -1000 Hz)
@@ -206,16 +203,34 @@ export default {
     { colSynth: 31, dest: { kind: 'oscFreqCV', oscIndex: 1 } },  // Osc 2 Frequency
     { colSynth: 32, dest: { kind: 'oscFreqCV', oscIndex: 2 } },  // Osc 3 Frequency
     { colSynth: 33, dest: { kind: 'oscFreqCV', oscIndex: 3 } },  // Osc 4 Frequency
-    // NOTA: colSynth 34 está oculta (hiddenCols0: [33]), pero las columnas
-    // de frecuencia no usan la 34, así que no hay conflicto.
-    { colSynth: 35, dest: { kind: 'oscFreqCV', oscIndex: 4 } },  // Osc 5 Frequency
-    { colSynth: 36, dest: { kind: 'oscFreqCV', oscIndex: 5 } },  // Osc 6 Frequency
-    { colSynth: 37, dest: { kind: 'oscFreqCV', oscIndex: 6 } },  // Osc 7 Frequency
-    { colSynth: 38, dest: { kind: 'oscFreqCV', oscIndex: 7 } },  // Osc 8 Frequency
-    { colSynth: 39, dest: { kind: 'oscFreqCV', oscIndex: 8 } },  // Osc 9 Frequency
-    { colSynth: 40, dest: { kind: 'oscFreqCV', oscIndex: 9 } },  // Osc 10 Frequency
-    { colSynth: 41, dest: { kind: 'oscFreqCV', oscIndex: 10 } }, // Osc 11 Frequency
-    { colSynth: 42, dest: { kind: 'oscFreqCV', oscIndex: 11 } }, // Osc 12 Frequency
+    { colSynth: 34, dest: { kind: 'oscFreqCV', oscIndex: 4 } },  // Osc 5 Frequency
+    { colSynth: 35, dest: { kind: 'oscFreqCV', oscIndex: 5 } },  // Osc 6 Frequency
+    { colSynth: 36, dest: { kind: 'oscFreqCV', oscIndex: 6 } },  // Osc 7 Frequency
+    { colSynth: 37, dest: { kind: 'oscFreqCV', oscIndex: 7 } },  // Osc 8 Frequency
+    { colSynth: 38, dest: { kind: 'oscFreqCV', oscIndex: 8 } },  // Osc 9 Frequency
+    { colSynth: 39, dest: { kind: 'oscFreqCV', oscIndex: 9 } },  // Osc 10 Frequency
+    { colSynth: 40, dest: { kind: 'oscFreqCV', oscIndex: 10 } }, // Osc 11 Frequency
+    { colSynth: 41, dest: { kind: 'oscFreqCV', oscIndex: 11 } }, // Osc 12 Frequency
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OUTPUT LEVEL CONTROL (columnas 46-53) - Control CV del nivel de salida
+    // ─────────────────────────────────────────────────────────────────────────
+    // Permiten modular el nivel (gain) de los 8 canales de salida mediante CV.
+    // Útil para: tremolo, ducking, mezcla dinámica, envelope following, etc.
+    //
+    // NOTA SOBRE COMPORTAMIENTO BIPOLAR:
+    // La señal CV es bipolar (-1 a +1) y se suma directamente al valor del fader.
+    // Esto significa que CV negativo puede invertir la fase o silenciar.
+    // TODO: Revisar si se necesita un offset/escala para comportamiento unipolar.
+    //
+    { colSynth: 46, dest: { kind: 'outputLevelCV', busIndex: 0 } }, // Out 1 Level
+    { colSynth: 47, dest: { kind: 'outputLevelCV', busIndex: 1 } }, // Out 2 Level
+    { colSynth: 48, dest: { kind: 'outputLevelCV', busIndex: 2 } }, // Out 3 Level
+    { colSynth: 49, dest: { kind: 'outputLevelCV', busIndex: 3 } }, // Out 4 Level
+    { colSynth: 50, dest: { kind: 'outputLevelCV', busIndex: 4 } }, // Out 5 Level
+    { colSynth: 51, dest: { kind: 'outputLevelCV', busIndex: 5 } }, // Out 6 Level
+    { colSynth: 52, dest: { kind: 'outputLevelCV', busIndex: 6 } }, // Out 7 Level
+    { colSynth: 53, dest: { kind: 'outputLevelCV', busIndex: 7 } }, // Out 8 Level
 
     // ─────────────────────────────────────────────────────────────────────────
     // OSCILLOSCOPE (columnas 63-64) - Visualización de señales de control

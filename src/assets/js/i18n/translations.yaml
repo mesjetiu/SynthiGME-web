@@ -876,6 +876,9 @@ matrix.dest.oscilloscope.X:
 matrix.dest.oscFreqCV:
   en: "Osc {osc} Freq CV"
 
+matrix.dest.outputLevelCV:
+  en: "Out {bus} Level CV"
+
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"

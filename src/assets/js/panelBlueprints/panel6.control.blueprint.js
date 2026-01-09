@@ -43,9 +43,12 @@ export default {
       maxSizePercent: 300
     },
 
-    // Pines que no existen / huecos del panel (si los hubiera).
-    hiddenCols0: [],
-    hiddenRows0: []
+    // Pines que no existen / huecos del panel.
+    // Índices físicos 0-based (columna 34 absoluta = índice 33).
+    // Las filas útiles en numeración Synthi van de 67 a 126.
+    hiddenCols0: [33],
+    // Filas 31, 32 y 33 absolutas (índices 30, 31, 32).
+    hiddenRows0: [30, 31, 32]
   },
 
   // Fuentes (entradas al router): fila -> salida de módulo

@@ -1012,6 +1012,51 @@ table.matrix {
   box-shadow: none;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * MATRIX PIN TOOLTIPS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Floating tooltip that shows "Source → Destination" info for matrix pins.
+ * Triggered by hover on desktop, tap on mobile.
+ * Positioned dynamically via JS to avoid viewport overflow.
+ */
+.matrix-tooltip {
+  position: fixed;
+  z-index: 10001;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  white-space: nowrap;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+}
+
+.matrix-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Arrow indicator - optional, can be removed if too complex for dynamic positioning */
+/* .matrix-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px 6px 0;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.92) transparent transparent transparent;
+} */
+
 /* En móvil, las sombras en miles de nodos cuestan mucho al repintar. */
 @media (pointer: coarse) {
   /* Ya no usamos bordes/sombras en pines grandes */

@@ -13,6 +13,7 @@ import { OutputFaderModule } from './modules/outputFaders.js';
 import { NoiseModule } from './modules/noise.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
+import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
@@ -2314,11 +2315,12 @@ class App {
       this.panel6?.element?.classList.remove('matrix-adjust');
     }
 
-    const { hiddenCols: HIDDEN_COLS_PANEL5, hiddenRows: HIDDEN_ROWS_PANEL5 } =
-      compilePanelBlueprintMappings(panel5AudioBlueprint);
+    // Compile blueprints to get routing maps for tooltips and hidden pins
+    const panel5Maps = compilePanelBlueprintMappings(panel5AudioBlueprint);
+    const panel6Maps = compilePanelBlueprintMappings(panel6ControlBlueprint);
 
-    const { hiddenCols: HIDDEN_COLS_PANEL6, hiddenRows: HIDDEN_ROWS_PANEL6 } =
-      compilePanelBlueprintMappings(panel6ControlBlueprint);
+    const { hiddenCols: HIDDEN_COLS_PANEL5, hiddenRows: HIDDEN_ROWS_PANEL5 } = panel5Maps;
+    const { hiddenCols: HIDDEN_COLS_PANEL6, hiddenRows: HIDDEN_ROWS_PANEL6 } = panel6Maps;
 
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {
       rows: 63,
@@ -2338,6 +2340,27 @@ class App {
 
     this.largeMatrixAudio.build();
     this.largeMatrixControl.build();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MATRIX PIN TOOLTIPS
+    // ─────────────────────────────────────────────────────────────────────────
+    // Attach tooltip system to both matrices.
+    // Tooltips show "Source → Destination" on hover (desktop) or tap (mobile).
+    // Uses sourceMap/destMap from compiled blueprints for label generation.
+    //
+    const tooltip = getSharedTooltip();
+    tooltip.attachToMatrix(this.panel5MatrixEl, {
+      sourceMap: panel5Maps.sourceMap,
+      destMap: panel5Maps.destMap,
+      rowBase: panel5Maps.rowBase,
+      colBase: panel5Maps.colBase
+    });
+    tooltip.attachToMatrix(this.panel6MatrixEl, {
+      sourceMap: panel6Maps.sourceMap,
+      destMap: panel6Maps.destMap,
+      rowBase: panel6Maps.rowBase,
+      colBase: panel6Maps.colBase
+    });
   }
 
   _resizeLargeMatrices() {

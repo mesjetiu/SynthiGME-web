@@ -8,7 +8,7 @@
     "build:i18n": "node scripts/build-i18n.mjs",
     "count-lines": "./scripts/count-lines.sh",
     "optimize:panel-svg": "node scripts/tools/optimize-panel-svg.mjs",
-    "preversion": "npm run build",
+    "version": "npm run build && git add -A",
     "release:patch": "node scripts/release/pre.mjs && npm version patch --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:minor": "node scripts/release/pre.mjs && npm version minor --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:major": "node scripts/release/pre.mjs && npm version major --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",

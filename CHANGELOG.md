@@ -7,6 +7,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-09
+
 ### Añadido
 - **Matriz de control (Panel 6) operativa**: modulación de frecuencia de osciladores desde la matriz.
 - **Sistema exponencial V/Oct** para modulación de frecuencia: 1V por octava, rangos ±5 octavas.
@@ -19,6 +21,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Paneles 1, 2, 3 y 4 sin fondo SVG temporalmente (en desarrollo).
 
 ### Corregido
+- Escala de renderizado guardada (1×-4×) ahora se aplica correctamente al iniciar la app.
 - Mensaje del bloqueador de orientación ahora traducible.
 - Menú contextual del navegador deshabilitado para evitar interferencias.
 - Flujo de actualización mejorado: instalación bajo demanda de nuevas versiones.

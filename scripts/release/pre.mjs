@@ -1,3 +1,18 @@
+/**
+ * pre.mjs - Preparación para release
+ * 
+ * Este script se ejecuta ANTES de `npm version`. Su propósito:
+ * 1. Verificar que solo CHANGELOG.md tenga cambios pendientes
+ * 2. Guardar temporalmente CHANGELOG.md en .release-cache/
+ * 3. Limpiar el árbol de trabajo para que npm version encuentre repo limpio
+ * 
+ * Flujo completo de release:
+ *   pre.mjs → npm version (actualiza package.json) → hook "version" (build) → commit → post.mjs
+ * 
+ * El hook "version" en package.json ejecuta el build DESPUÉS de actualizar
+ * package.json, garantizando que el build contenga la versión correcta.
+ */
+
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';

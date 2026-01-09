@@ -1,3 +1,16 @@
+/**
+ * post.mjs - Finalización de release
+ * 
+ * Este script se ejecuta DESPUÉS de `npm version`. Su propósito:
+ * 1. Restaurar CHANGELOG.md desde .release-cache/
+ * 2. Añadir CHANGELOG.md y docs/ al commit de release
+ * 3. Enmendar el commit para incluir estos archivos
+ * 4. Re-crear el tag para que apunte al commit enmendado
+ * 
+ * Flujo completo de release:
+ *   pre.mjs → npm version → hook "version" (build con versión correcta) → commit → post.mjs
+ */
+
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';

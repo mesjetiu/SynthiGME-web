@@ -6,12 +6,14 @@
  * @see state/schema.js para definición de MatrixState
  */
 export class LargeMatrix {
-  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [], onToggle = null } = {}) {
+  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [], sourceMap = null, destMap = null, onToggle = null } = {}) {
     this.table = tableElement;
     this.rows = rows;
     this.cols = cols;
     this.hiddenRows = new Set(hiddenRows || []);
     this.hiddenCols = new Set(hiddenCols || []);
+    this.sourceMap = sourceMap instanceof Map ? sourceMap : new Map();
+    this.destMap = destMap instanceof Map ? destMap : new Map();
     this._layoutRaf = null;
     this._built = false;
     this._onTableClick = null;
@@ -187,6 +189,14 @@ export class LargeMatrix {
           btn.disabled = true;
           btn.tabIndex = -1;
           btn.setAttribute('aria-hidden', 'true');
+        } else {
+          // Un pin es inactivo si no tiene source O no tiene dest
+          const isInactive = !this.sourceMap.has(r) || !this.destMap.has(c);
+          if (isInactive) {
+            btn.classList.add('is-inactive-pin');
+            btn.disabled = true;
+            btn.tabIndex = -1;
+          }
         }
         td.appendChild(btn);
         tr.appendChild(td);
@@ -319,6 +329,36 @@ export class LargeMatrix {
         this.onToggle(row, col, false, btn);
       }
       btn.classList.remove('active');
+    });
+  }
+  
+  /**
+   * Actualiza la visibilidad de pines inactivos.
+   * @param {boolean} showInactive - true = mostrar todos, false = atenuar inactivos
+   */
+  setShowInactivePins(showInactive) {
+    if (!this.table || !this._built) return;
+    
+    const buttons = this.table.querySelectorAll('button.pin-btn');
+    buttons.forEach(btn => {
+      // Ignorar pines ocultos (hiddenRows/hiddenCols)
+      if (btn.classList.contains('is-hidden-pin')) return;
+      
+      const r = parseInt(btn.dataset.row, 10);
+      const c = parseInt(btn.dataset.col, 10);
+      const isInactive = !this.sourceMap.has(r) || !this.destMap.has(c);
+      
+      if (isInactive) {
+        if (showInactive) {
+          btn.classList.remove('is-inactive-pin');
+          btn.disabled = false;
+          btn.tabIndex = 0;
+        } else {
+          btn.classList.add('is-inactive-pin');
+          btn.disabled = true;
+          btn.tabIndex = -1;
+        }
+      }
     });
   }
 }

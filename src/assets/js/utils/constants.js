@@ -76,7 +76,10 @@ export const STORAGE_KEYS = {
   KEYBOARD_SHORTCUTS: `${STORAGE_PREFIX}keyboard-shortcuts`,
   
   // Pantalla
-  WAKE_LOCK_ENABLED: `${STORAGE_PREFIX}wake-lock-enabled`
+  WAKE_LOCK_ENABLED: `${STORAGE_PREFIX}wake-lock-enabled`,
+  
+  // Visualización de matriz
+  SHOW_INACTIVE_PINS: `${STORAGE_PREFIX}show-inactive-pins`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -21,6 +21,13 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         automationRate: 'a-rate'
       },
       {
+        name: 'detune',
+        defaultValue: 0,
+        minValue: -12000,  // ±10 octavas
+        maxValue: 12000,
+        automationRate: 'a-rate'
+      },
+      {
         name: 'pulseWidth',
         defaultValue: 0.5,
         minValue: 0.01,
@@ -146,6 +153,7 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const syncInput = inputs[0]?.[0]; // Input 0 para señal de sync
     
     const freqParam = parameters.frequency;
+    const detuneParam = parameters.detune;
     const widthParam = parameters.pulseWidth;
     const symmetryParam = parameters.symmetry;
     const gainParam = parameters.gain;
@@ -154,7 +162,11 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
 
     for (let i = 0; i < numSamples; i++) {
       // Obtener valores de parámetros (a-rate o k-rate)
-      const freq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
+      const baseFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
+      const detuneCents = detuneParam.length > 1 ? detuneParam[i] : detuneParam[0];
+      
+      // Aplicar detune exponencial: freq = baseFreq × 2^(cents/1200)
+      const freq = baseFreq * Math.pow(2, detuneCents / 1200);
       const width = widthParam.length > 1 ? widthParam[i] : widthParam[0];
       const symmetry = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
       const gain = gainParam.length > 1 ? gainParam[i] : gainParam[0];

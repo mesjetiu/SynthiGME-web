@@ -1919,6 +1919,35 @@ class App {
     }
   }
 
+  /**
+   * Cuenta el número de conexiones activas al osciloscopio desde ambos paneles.
+   * Usado para determinar cuándo limpiar el display (cuando no hay conexiones).
+   * @returns {number} Número total de conexiones al osciloscopio
+   */
+  getScopeConnectionCount() {
+    let count = 0;
+    
+    // Contar conexiones del Panel 5 (audio) al osciloscopio
+    if (this._panel3Routing?.connections && this._panel3Routing?.destMap) {
+      for (const key of Object.keys(this._panel3Routing.connections)) {
+        const colIndex = parseInt(key.split(':')[1], 10);
+        const dest = this._panel3Routing.destMap.get(colIndex);
+        if (dest?.kind === 'oscilloscope') count++;
+      }
+    }
+    
+    // Contar conexiones del Panel 6 (control) al osciloscopio
+    if (this._panel6Routing?.connections && this._panel6Routing?.destMap) {
+      for (const key of Object.keys(this._panel6Routing.connections)) {
+        const colIndex = parseInt(key.split(':')[1], 10);
+        const dest = this._panel6Routing.destMap.get(colIndex);
+        if (dest?.kind === 'oscilloscope') count++;
+      }
+    }
+    
+    return count;
+  }
+
   async _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
     const source = this._panel3Routing?.sourceMap?.get(rowIndex);
     const dest = this._panel3Routing?.destMap?.get(colIndex);
@@ -2250,6 +2279,14 @@ class App {
           log.warn(' freqCVInput not available for osc', oscIndex);
           return false;
         }
+      } else if (dest.kind === 'oscilloscope') {
+        // Destino: Osciloscopio (visualización de señales CV)
+        if (!this.oscilloscope) {
+          log.warn(' Oscilloscope module not ready yet');
+          return false;
+        }
+        destNode = dest.channel === 'X' ? this.oscilloscope.inputX : this.oscilloscope.inputY;
+        log.info(` Panel 6: Connecting to oscilloscope ${dest.channel}`);
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud
@@ -2287,6 +2324,16 @@ class App {
       safeDisconnect(conn);
       delete this._panel6Routing.connections[key];
       log.info(` Panel 6: Disconnected ${key}`);
+      
+      // Si era una conexión al osciloscopio, verificar si quedan conexiones
+      if (dest?.kind === 'oscilloscope' && this.oscilloscope) {
+        // Contar conexiones restantes al osciloscopio (Panel 5 + Panel 6)
+        const scopeConnections = this.getScopeConnectionCount ? this.getScopeConnectionCount() : 0;
+        if (scopeConnections === 0) {
+          // Notificar al display que no hay señal
+          this.oscilloscope._notifyNoSignal?.();
+        }
+      }
     }
 
     return true;

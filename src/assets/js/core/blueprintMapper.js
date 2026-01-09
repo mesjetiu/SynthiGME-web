@@ -45,23 +45,42 @@ export function compilePanelBlueprintMappings(blueprint) {
       .filter(c => c >= 0);
 
   const hiddenRowSet = new Set(hiddenRows0);
+  const hiddenColSet = new Set(hiddenCols0);
 
+  // Construir array de índices físicos visibles para filas
   const visibleRowIndices = [];
   for (let r = 0; r < rows; r += 1) {
     if (hiddenRowSet.has(r)) continue;
     visibleRowIndices.push(r);
   }
 
+  // Construir array de índices físicos visibles para columnas
+  // Los huecos (hiddenCols) no existen en la numeración Synthi
+  const visibleColIndices = [];
+  for (let c = 0; c < cols; c += 1) {
+    if (hiddenColSet.has(c)) continue;
+    visibleColIndices.push(c);
+  }
+
+  /**
+   * Convierte número de fila Synthi a índice físico.
+   * La numeración Synthi NO incluye los huecos (filas ocultas).
+   */
   const synthRowToPhysicalRowIndex = (rowSynth) => {
     const ordinal = rowSynth - rowBase;
     if (!Number.isFinite(ordinal) || ordinal < 0) return null;
     return visibleRowIndices[ordinal] ?? null;
   };
 
+  /**
+   * Convierte número de columna Synthi a índice físico.
+   * La numeración Synthi NO incluye los huecos (columnas ocultas).
+   * Ejemplo: si hiddenCols0=[33], columna Synthi 34 → índice 34 (no 33).
+   */
   const synthColToPhysicalColIndex = (colSynth) => {
-    const colIndex = colSynth - colBase;
-    if (!Number.isFinite(colIndex) || colIndex < 0) return null;
-    return colIndex;
+    const ordinal = colSynth - colBase;
+    if (!Number.isFinite(ordinal) || ordinal < 0) return null;
+    return visibleColIndices[ordinal] ?? null;
   };
 
   // Mapeo de filas a fuentes (osciladores y noise generators)

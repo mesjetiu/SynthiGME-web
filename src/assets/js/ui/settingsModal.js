@@ -98,12 +98,8 @@ export class SettingsModal {
       }
     });
     
-    // Aplicar resolución guardada al iniciar (si no es Firefox y > 1)
-    if (!this.isFirefox && this.currentResolution > 1) {
-      if (typeof window.__synthSetResolutionFactor === 'function') {
-        window.__synthSetResolutionFactor(this.currentResolution);
-      }
-    }
+    // NOTA: La resolución guardada se aplica directamente en viewportNavigation.js
+    // al inicializar, leyendo de localStorage. No es necesario hacerlo aquí.
   }
   
   /**

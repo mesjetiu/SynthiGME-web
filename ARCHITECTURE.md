@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 9 de enero de 2026 (tooltips de matriz)
+> Última actualización: 10 de enero de 2026 (pines inactivos + pestaña Display)
 
 ---
 
@@ -123,13 +123,13 @@ Componentes de interfaz reutilizables:
 | `noiseGenerator.js` | — | UI para generadores de ruido (knobs colour/level) |
 | `randomVoltage.js` | — | UI para generador de voltaje aleatorio |
 | `inputAmplifierUI.js` | `InputAmplifierUI` | UI para los 8 canales de entrada (8 knobs de nivel en fila horizontal) |
-| `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle y visualización |
+| `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle, visualización, y soporte para pines inactivos (sin source/dest). Método `setShowInactivePins()` para actualización en caliente |
 | `matrixTooltip.js` | `MatrixTooltip`, `getLabelForSource()`, `getLabelForDest()` | Sistema de tooltips para pines de matriz: muestra "Source → Destination" en hover (desktop) o tap (móvil). Usa `sourceMap`/`destMap` de blueprints compilados |
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
 | `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz de salida (8 buses → N canales físicos), matriz de entrada (N entradas sistema → 8 Input Amplifiers), selección de dispositivos, detección automática de canales, persistencia en localStorage |
-| `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: selección de idioma (español/inglés), escala de renderizado (1×-4×), cambio de idioma en caliente, persistencia en localStorage |
+| `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: idioma, autoguardado, wake lock, atajos. Nueva pestaña "Visualización" con escala de renderizado y toggle de pines inactivos. Persistencia en localStorage |
 | `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-8), matriz de ruteo outputs→tracks, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
 | `confirmDialog.js` | `ConfirmDialog` | Modal de confirmación reutilizable (singleton): título, mensaje, botones personalizables, opción "no volver a preguntar" con persistencia localStorage. Métodos estáticos `show()`, `getRememberedChoice()`, `clearRememberedChoice()` |
 | `inputDialog.js` | `InputDialog` | Diálogo de entrada de texto personalizado (singleton): reemplaza `prompt()` nativo, título/placeholder/valor por defecto configurables, soporte i18n |

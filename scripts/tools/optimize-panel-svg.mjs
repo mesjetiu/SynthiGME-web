@@ -34,6 +34,14 @@ async function main() {
   svg = svg.replace(/<!--[\s\S]*?-->/g, "");
   svg = svg.replace(/<sodipodi:namedview[\s\S]*?<\/sodipodi:namedview>/g, "");
 
+  // Elimina imágenes embebidas (pueden causar renderizado pesado/duplicado)
+  const imageCountBefore = (svg.match(/<image[\s\S]*?(?:\/>|<\/image>)/g) || []).length;
+  svg = svg.replace(/<image[\s\S]*?(?:\/>|<\/image>)/g, "");
+  if (imageCountBefore) console.log("imágenes eliminadas:", imageCountBefore);
+
+  // Elimina stroke-width de elementos text y tspan (causan texto "gordo")
+  svg = svg.replace(/(<(?:text|tspan)[^>]*)\sstroke-width="[^"]*"/g, "$1");
+
   const styleMap = new Map();
   let classCounter = 0;
   let replaced = 0;

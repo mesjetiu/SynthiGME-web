@@ -820,3 +820,60 @@ patches.lastSession.remember:
 patches.versionWarning:
   en: This patch was created with an older version
   es: Este patch fue creado con una versión anterior
+# ═══════════════════════════════════════════════════════════════════════════════
+# MATRIX PIN TOOLTIPS
+# ═══════════════════════════════════════════════════════════════════════════════
+# Labels for sources (rows) and destinations (columns) in the routing matrices.
+# These appear in tooltips when hovering/tapping matrix pins.
+# Format: "{source} → {dest}" is assembled in code; here we define each label.
+
+# Sources (rows)
+matrix.source.inputAmp:
+  en: "Input {channel}"
+  es: "Entrada {channel}"
+
+matrix.source.outputBus:
+  en: "Out Bus {bus}"
+  es: "Bus salida {bus}"
+
+matrix.source.noiseGen:
+  en: "Noise {index}"
+  es: "Ruido {index}"
+
+matrix.source.panel3Osc.sineSaw:
+  en: "Osc {osc} (sin+saw)"
+  es: "Osc {osc} (sin+saw)"
+
+matrix.source.panel3Osc.triPulse:
+  en: "Osc {osc} (tri+pul)"
+  es: "Osc {osc} (tri+pul)"
+
+# Destinations (columns)
+matrix.dest.outputBus:
+  en: "Out {bus}"
+  es: "Salida {bus}"
+
+matrix.dest.oscilloscope.Y:
+  en: "Scope Y"
+  es: "Osciloscopio Y"
+
+matrix.dest.oscilloscope.X:
+  en: "Scope X"
+  es: "Osciloscopio X"
+
+matrix.dest.oscFreqCV:
+  en: "Osc {osc} Freq CV"
+  es: "Osc {osc} Freq CV"
+
+# Tooltip format (assembled from source + dest)
+matrix.tooltip.format:
+  en: "{source} → {dest}"
+  es: "{source} → {dest}"
+
+matrix.tooltip.unknownSource:
+  en: "Row {row}"
+  es: "Fila {row}"
+
+matrix.tooltip.unknownDest:
+  en: "Col {col}"
+  es: "Col {col}"

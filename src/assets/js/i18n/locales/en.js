@@ -190,5 +190,17 @@ export default {
   "patches.lastSession.yes": "Restore",
   "patches.lastSession.no": "Start fresh",
   "patches.lastSession.remember": "Remember my choice",
-  "patches.versionWarning": "This patch was created with an older version"
+  "patches.versionWarning": "This patch was created with an older version",
+  "matrix.source.inputAmp": "Input {channel}",
+  "matrix.source.outputBus": "Out Bus {bus}",
+  "matrix.source.noiseGen": "Noise {index}",
+  "matrix.source.panel3Osc.sineSaw": "Osc {osc} (sin+saw)",
+  "matrix.source.panel3Osc.triPulse": "Osc {osc} (tri+pul)",
+  "matrix.dest.outputBus": "Out {bus}",
+  "matrix.dest.oscilloscope.Y": "Scope Y",
+  "matrix.dest.oscilloscope.X": "Scope X",
+  "matrix.dest.oscFreqCV": "Osc {osc} Freq CV",
+  "matrix.tooltip.format": "{source} → {dest}",
+  "matrix.tooltip.unknownSource": "Row {row}",
+  "matrix.tooltip.unknownDest": "Col {col}"
 };

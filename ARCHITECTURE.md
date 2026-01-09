@@ -124,6 +124,7 @@ Componentes de interfaz reutilizables:
 | `randomVoltage.js` | — | UI para generador de voltaje aleatorio |
 | `inputAmplifierUI.js` | `InputAmplifierUI` | UI para los 8 canales de entrada (8 knobs de nivel en fila horizontal) |
 | `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle y visualización |
+| `matrixTooltip.js` | `MatrixTooltip`, `getLabelForSource()`, `getLabelForDest()` | Sistema de tooltips para pines de matriz: muestra "Source → Destination" en hover (desktop) o tap (móvil). Usa `sourceMap`/`destMap` de blueprints compilados |
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
@@ -1057,6 +1058,74 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
   - Rango: ±5 octavas desde la frecuencia base del oscilador
   - Parámetro `detune` en AudioWorklet para modulación suave
   - Fórmula: `freqFinal = freqBase × 2^(cvValue × 5)`
+
+### Tooltips de Pines de Matriz
+
+Sistema de tooltips informativos para los pines de las matrices grandes (Panel 5 y 6).
+Muestra la ruta de señal "Source → Destination" para ayudar al usuario a entender las conexiones.
+
+#### Comportamiento por Dispositivo
+
+| Dispositivo | Mostrar Tooltip | Toggle Pin |
+|-------------|-----------------|------------|
+| **Desktop** (hover: hover) | Mouse hover | Click |
+| **Móvil** (touch) | Tap simple | Doble tap |
+
+#### Arquitectura
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│ Blueprint       │     │ blueprintMapper  │     │ MatrixTooltip   │
+│ (sources/dests) │ ──► │ sourceMap/destMap│ ──► │ getLabelFor*()  │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+1. **Blueprints** (`panel5.audio.blueprint.js`, `panel6.control.blueprint.js`) definen:
+   - `sources[]`: filas → objetos `{ kind, channel?, oscIndex?, channelId? }`
+   - `destinations[]`: columnas → objetos `{ kind, bus?, channel?, oscIndex? }`
+
+2. **blueprintMapper** compila a Maps indexadas por índice físico:
+   - `sourceMap: Map<rowIndex, source>` 
+   - `destMap: Map<colIndex, dest>`
+
+3. **MatrixTooltip** usa `getLabelForSource()`/`getLabelForDest()` para generar labels localizados.
+
+#### Labels Soportados
+
+**Sources (filas):**
+| Kind | Parámetros | Ejemplo |
+|------|------------|---------|
+| `inputAmp` | `channel: 0-7` | "Input 1" |
+| `outputBus` | `bus: 1-8` | "Out Bus 1" |
+| `noiseGen` | `index: 0-1` | "Noise 1" |
+| `panel3Osc` | `oscIndex: 0-11`, `channelId: 'sineSaw'|'triPulse'` | "Osc 1 (sin+saw)" |
+
+**Destinations (columnas):**
+| Kind | Parámetros | Ejemplo |
+|------|------------|---------|
+| `outputBus` | `bus: 1-8` | "Out 1" |
+| `oscilloscope` | `channel: 'X'|'Y'` | "Scope Y" |
+| `oscFreqCV` | `oscIndex: 0-11` | "Osc 1 Freq CV" |
+
+#### Auto-hide en Móvil
+
+El tooltip se oculta cuando:
+- Han pasado **2.5 segundos** sin interacción
+- El usuario toca **fuera del tooltip**
+- El usuario hace **doble tap** en el mismo pin (toggle)
+
+#### i18n
+
+Los labels están en `translations.yaml` bajo el namespace `matrix.*`:
+```yaml
+matrix.source.inputAmp:
+  en: "Input {channel}"
+  es: "Entrada {channel}"
+
+matrix.tooltip.format:
+  en: "{source} → {dest}"
+  es: "{source} → {dest}"
+```
 
 ### Blueprint Schema
 ```javascript

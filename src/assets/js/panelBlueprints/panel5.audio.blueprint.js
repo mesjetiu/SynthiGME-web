@@ -108,6 +108,21 @@ export default {
     { rowSynth: 74, source: { kind: 'inputAmp', channel: 7 } },
     
     // ─────────────────────────────────────────────────────────────────────────
+    // OUTPUT BUSES (filas 75-82) - 8 salidas de audio del Synthi 100
+    // ─────────────────────────────────────────────────────────────────────────
+    // Señales de audio de los buses de salida (post-fader) que pueden usarse
+    // como fuentes para re-ruteo (feedback, procesamiento paralelo, etc.)
+    //
+    { rowSynth: 75, source: { kind: 'outputBus', bus: 1 } },
+    { rowSynth: 76, source: { kind: 'outputBus', bus: 2 } },
+    { rowSynth: 77, source: { kind: 'outputBus', bus: 3 } },
+    { rowSynth: 78, source: { kind: 'outputBus', bus: 4 } },
+    { rowSynth: 79, source: { kind: 'outputBus', bus: 5 } },
+    { rowSynth: 80, source: { kind: 'outputBus', bus: 6 } },
+    { rowSynth: 81, source: { kind: 'outputBus', bus: 7 } },
+    { rowSynth: 82, source: { kind: 'outputBus', bus: 8 } },
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // NOISE GENERATORS (filas 89-90)
     // ─────────────────────────────────────────────────────────────────────────
     { rowSynth: 89, source: { kind: 'noiseGen', index: 0 } },

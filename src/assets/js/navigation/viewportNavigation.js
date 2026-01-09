@@ -2,6 +2,7 @@
 // Extraído de app.js para mejor organización del código
 
 import { renderCanvasBgViewport, shouldUseCanvasBg, renderCanvasBgPanels } from '../utils/canvasBackground.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 /**
  * Inicializa el sistema de navegación del viewport.
@@ -25,10 +26,13 @@ export function initViewportNavigation({ outer, inner } = {}) {
   const isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
   window.__synthIsFirefox = isFirefox;
 
-  // Sistema de resolución base configurable (1x, 2x, 3x)
+  // Sistema de resolución base configurable (1x, 2x, 3x, 4x)
   // - Firefox: siempre 1x (ya es nítido nativamente)
-  // - Otros: usuario elige factor, por defecto 1x
-  let currentResolutionFactor = isFirefox ? 1 : 1; // Por defecto 1x
+  // - Otros: usuario elige factor, cargar de localStorage o default 1x
+  const validFactors = [1, 2, 3, 4];
+  const savedFactor = parseInt(localStorage.getItem(STORAGE_KEYS.RESOLUTION), 10);
+  const initialFactor = (!isFirefox && validFactors.includes(savedFactor)) ? savedFactor : 1;
+  let currentResolutionFactor = initialFactor;
   window.__synthResolutionFactor = currentResolutionFactor;
   
   // Callback para cambiar el factor de resolución

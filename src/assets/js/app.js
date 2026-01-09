@@ -2198,6 +2198,18 @@ class App {
           log.warn(' InputAmplifier output node not available for channel', channel);
           return false;
         }
+      } else if (source.kind === 'outputBus') {
+        // Fuente: Output Bus (señal post-fader como fuente de CV)
+        const busIndex = source.bus - 1; // bus 1-8 → index 0-7
+        
+        // Obtener el nodo levelNode del bus (señal post-fader)
+        const busData = this.engine.outputBuses?.[busIndex];
+        if (!busData?.levelNode) {
+          log.warn(' Output bus levelNode not available for bus', source.bus);
+          return false;
+        }
+        
+        outNode = busData.levelNode;
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
       // - 'envelope': generador de envolventes

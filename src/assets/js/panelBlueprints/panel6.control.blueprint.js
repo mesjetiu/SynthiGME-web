@@ -56,6 +56,7 @@
 // | kind          | Descripción                               | Parámetros           |
 // |---------------|-------------------------------------------|----------------------|
 // | 'inputAmp'    | Canal de entrada de audio del sistema     | channel (0-7)        |
+// | 'outputBus'   | Salida de bus de audio (post-fader)       | bus (1-8)            |
 // | 'panel3Osc'   | Salida de oscilador del Panel 3           | oscIndex, channelId  |
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,6 +142,22 @@ export default {
     { rowSynth: 72, source: { kind: 'inputAmp', channel: 5 } },
     { rowSynth: 73, source: { kind: 'inputAmp', channel: 6 } },
     { rowSynth: 74, source: { kind: 'inputAmp', channel: 7 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OUTPUT BUSES (filas 75-82) - 8 salidas de audio del Synthi 100
+    // ─────────────────────────────────────────────────────────────────────────
+    // Señales de audio de los buses de salida (post-fader) que pueden usarse
+    // como fuentes de modulación CV. Útil para: feedback controlado,
+    // auto-modulación, modulación cruzada entre canales, etc.
+    //
+    { rowSynth: 75, source: { kind: 'outputBus', bus: 1 } },
+    { rowSynth: 76, source: { kind: 'outputBus', bus: 2 } },
+    { rowSynth: 77, source: { kind: 'outputBus', bus: 3 } },
+    { rowSynth: 78, source: { kind: 'outputBus', bus: 4 } },
+    { rowSynth: 79, source: { kind: 'outputBus', bus: 5 } },
+    { rowSynth: 80, source: { kind: 'outputBus', bus: 6 } },
+    { rowSynth: 81, source: { kind: 'outputBus', bus: 7 } },
+    { rowSynth: 82, source: { kind: 'outputBus', bus: 8 } },
 
     // ─────────────────────────────────────────────────────────────────────────
     // OSCILLATORS 10-12 (filas 83-88)

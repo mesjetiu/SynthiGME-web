@@ -1,6 +1,56 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+/**
+ * Acorta colores hexadecimales de 6 dígitos a 3 cuando es posible.
+ * #000000 → #000, #ffffff → #fff, #aabbcc → #abc
+ */
+function shortenColor(color) {
+  const match = color.match(/^#([0-9a-fA-F]{6})$/);
+  if (match) {
+    const hex = match[1].toLowerCase();
+    if (hex[0] === hex[1] && hex[2] === hex[3] && hex[4] === hex[5]) {
+      return `#${hex[0]}${hex[2]}${hex[4]}`;
+    }
+  }
+  return color;
+}
+
+/**
+ * Propiedades CSS que no afectan al renderizado o son redundantes.
+ */
+const REMOVE_PROPERTIES = new Set([
+  '-inkscape-font-specification',
+  'font-feature-settings',
+  'font-variant-caps',
+  'font-variant-east-asian',
+  'font-variant-ligatures',
+  'font-variant-numeric',
+  'font-variant-position',
+  'inline-size',
+  'white-space',
+  'writing-mode',
+  'text-orientation',
+  'dominant-baseline',
+  'baseline-shift',
+]);
+
+/**
+ * Propiedades con sus valores por defecto (se eliminan si coinciden).
+ */
+const DEFAULT_VALUES = {
+  'fill-opacity': '1',
+  'stroke-opacity': '1',
+  'opacity': '1',
+  'stroke-miterlimit': '4',
+  'stroke-dasharray': 'none',
+  'stroke-dashoffset': '0',
+  'stroke-linecap': 'butt',
+  'stroke-linejoin': 'miter',
+  'fill-rule': 'nonzero',
+  'clip-rule': 'nonzero',
+};
+
 function normalizeStyle(style) {
   return style
     .split(";")
@@ -9,7 +59,21 @@ function normalizeStyle(style) {
     .map(pair => {
       const i = pair.indexOf(":");
       if (i === -1) return null;
-      return [pair.slice(0, i).trim(), pair.slice(i + 1).trim()];
+      const key = pair.slice(0, i).trim();
+      let value = pair.slice(i + 1).trim();
+      
+      // Eliminar propiedades innecesarias
+      if (REMOVE_PROPERTIES.has(key)) return null;
+      
+      // Eliminar valores por defecto
+      if (DEFAULT_VALUES[key] === value) return null;
+      
+      // Acortar colores
+      if (key === 'fill' || key === 'stroke' || key === 'stop-color' || key === 'color') {
+        value = shortenColor(value);
+      }
+      
+      return [key, value];
     })
     .filter(Boolean)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -54,6 +118,19 @@ async function main() {
   svg = svg.replace(/<metadata[\s\S]*?<\/metadata>/g, "");
   svg = svg.replace(/<!--[\s\S]*?-->/g, "");
   svg = svg.replace(/<sodipodi:namedview[\s\S]*?<\/sodipodi:namedview>/g, "");
+
+  // Elimina elementos de Inkscape/Sodipodi innecesarios
+  svg = svg.replace(/<inkscape:[^>]*\/>/g, "");
+  svg = svg.replace(/<inkscape:[^>]*>[\s\S]*?<\/inkscape:[^>]*>/g, "");
+  
+  // Elimina atributos de namespaces Inkscape/Sodipodi
+  svg = svg.replace(/\s(?:inkscape|sodipodi):[a-z-]+="[^"]*"/gi, "");
+  
+  // Elimina atributos id vacíos o autogenerados de Inkscape (path1234, rect5678, etc.)
+  svg = svg.replace(/\sid="(?:path|rect|circle|ellipse|line|polyline|polygon|g|use|defs|clipPath|mask)\d+"/g, "");
+  
+  // Elimina atributos xml:space
+  svg = svg.replace(/\sxml:space="[^"]*"/g, "");
 
   // Elimina imágenes embebidas (pueden causar renderizado pesado/duplicado)
   const imageCountBefore = (svg.match(/<image[\s\S]*?(?:\/>|<\/image>)/g) || []).length;
@@ -101,6 +178,23 @@ async function main() {
       .join("");
     svg = svg.replace(/<svg\b([^>]*)>/, `<svg$1><style>${css}</style>`);
   }
+
+  // Limpia atributos redundantes en el elemento <svg>
+  svg = svg.replace(/<svg\b([^>]*)>/, (match, attrs) => {
+    // Elimina xmlns redundantes de Inkscape/Sodipodi
+    attrs = attrs.replace(/\sxmlns:(?:inkscape|sodipodi|dc|cc|rdf)="[^"]*"/g, "");
+    // Elimina version si es 1.1 (implícito)
+    attrs = attrs.replace(/\sversion="1\.1"/g, "");
+    return `<svg${attrs}>`;
+  });
+
+  // Elimina grupos vacíos <g></g> o <g/>
+  svg = svg.replace(/<g[^>]*><\/g>/g, "");
+  svg = svg.replace(/<g[^>]*\/>/g, "");
+  
+  // Elimina defs vacíos
+  svg = svg.replace(/<defs[^>]*><\/defs>/g, "");
+  svg = svg.replace(/<defs[^>]*\/>/g, "");
 
   // Minifica whitespace entre tags
   svg = svg.replace(/>\s+</g, "><").trim();

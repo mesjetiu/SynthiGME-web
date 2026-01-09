@@ -2287,6 +2287,22 @@ class App {
         }
         destNode = dest.channel === 'X' ? this.oscilloscope.inputX : this.oscilloscope.inputY;
         log.info(` Panel 6: Connecting to oscilloscope ${dest.channel}`);
+      } else if (dest.kind === 'outputLevelCV') {
+        // Destino: Control de nivel de canal de salida
+        // La señal CV modula el gain del levelNode (bipolar: -1 a +1).
+        // NOTA: Comportamiento bipolar puede causar inversión de fase con CV < 0.
+        // TODO: Revisar si se necesita offset/escala para comportamiento unipolar.
+        const busIndex = dest.busIndex;
+        const busData = this.engine.outputBuses?.[busIndex];
+        
+        if (!busData?.levelNode) {
+          log.warn(' Output bus levelNode not available for level CV, bus', busIndex);
+          return false;
+        }
+        
+        // El destino es el AudioParam gain del levelNode
+        destNode = busData.levelNode.gain;
+        log.info(` Panel 6: Connecting CV to output level bus ${busIndex + 1}`);
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud

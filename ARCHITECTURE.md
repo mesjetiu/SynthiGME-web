@@ -1090,6 +1090,44 @@ Muestra la ruta de señal "Source → Destination" para ayudar al usuario a ente
 
 3. **MatrixTooltip** usa `getLabelForSource()`/`getLabelForDest()` para generar labels localizados.
 
+#### Sistema de Numeración Synthi → Índice Físico
+
+> **REGLA DE ORO**: En los blueprints, usar SIEMPRE los números de la serigrafía del Synthi 100.
+> El mapper convierte automáticamente. NUNCA compensar manualmente los huecos.
+
+Los blueprints usan **numeración Synthi** (la que aparece en la serigrafía del panel).
+Los **huecos** (pines que no existen físicamente) **NO tienen número** en el Synthi.
+
+```
+Ejemplo: Panel 6 tiene hiddenCols0: [33] (hueco en índice físico 33)
+
+  Índice físico: 0   1   2  ...  32   33    34   35  ...  63   64   65
+                 |   |   |       |    |     |    |        |    |    |
+  Visible:       ✓   ✓   ✓       ✓   [gap]  ✓    ✓        ✓    ✓    ✓
+                                      ↑
+  Synthi #:      1   2   3  ...  33  ---    34   35  ...  63   64   65
+                                 (no tiene número)
+
+  La conversión:
+  - Synthi 33 → índice 32 ✓
+  - Synthi 34 → índice 34 ✓ (salta el 33)
+  - Synthi 63 → índice 64 ✓ (hay 1 hueco antes)
+  - Synthi 64 → índice 65 ✓
+```
+
+**Cómo funciona `blueprintMapper.js`:**
+1. Lee `hiddenCols0` / `hiddenRows0` (índices físicos de huecos)
+2. Construye `visibleColIndices` / `visibleRowIndices` (solo posiciones visibles)
+3. `synthColToPhysicalColIndex(colSynth)` devuelve `visibleColIndices[colSynth - colBase]`
+
+**Ejemplo práctico:**
+```javascript
+// Panel 6: osciloscopio en columnas Synthi 63-64
+{ colSynth: 63, dest: { kind: 'oscilloscope', channel: 'Y' } },
+{ colSynth: 64, dest: { kind: 'oscilloscope', channel: 'X' } }
+// El mapper convierte 63→64 y 64→65 automáticamente
+```
+
 #### Labels Soportados
 
 **Sources (filas):**

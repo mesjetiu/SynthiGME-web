@@ -5,6 +5,30 @@
  * para conectar fuentes de audio (osciladores, ruido) con destinos
  * (buses de salida, osciloscopio).
  * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SISTEMA DE NUMERACIÓN SYNTHI → ÍNDICE FÍSICO
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * Los blueprints usan NUMERACIÓN SYNTHI (serigrafía del panel).
+ * Los HUECOS (pines que no existen) NO tienen número en la serigrafía.
+ * 
+ * Ejemplo con hiddenCols0: [33] (hueco en índice físico 33):
+ * 
+ *   Índice físico: 0   1   2  ...  32   33    34   35  ...  63   64
+ *   Synthi #:      1   2   3  ...  33  [gap]  34   35  ...  63   64
+ *                                       ↑
+ *                               (no tiene número)
+ * 
+ * La conversión:
+ *   - Synthi 33 → índice 32
+ *   - Synthi 34 → índice 34 (salta el 33)
+ *   - Synthi 63 → índice 64
+ * 
+ * REGLA: En los blueprints, usar SIEMPRE los números de la serigrafía.
+ *        NUNCA compensar manualmente los huecos.
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
  * @module core/blueprintMapper
  */
 
@@ -45,26 +69,20 @@ export function compilePanelBlueprintMappings(blueprint) {
       .filter(c => c >= 0);
 
   const hiddenRowSet = new Set(hiddenRows0);
-  const hiddenColSet = new Set(hiddenCols0);
 
-  // Construir array de índices físicos visibles para filas
+  // Array de índices físicos visibles para filas
+  // La numeración Synthi de filas NO cuenta los huecos
   const visibleRowIndices = [];
   for (let r = 0; r < rows; r += 1) {
     if (hiddenRowSet.has(r)) continue;
     visibleRowIndices.push(r);
   }
 
-  // Construir array de índices físicos visibles para columnas
-  // Los huecos (hiddenCols) no existen en la numeración Synthi
-  const visibleColIndices = [];
-  for (let c = 0; c < cols; c += 1) {
-    if (hiddenColSet.has(c)) continue;
-    visibleColIndices.push(c);
-  }
-
   /**
    * Convierte número de fila Synthi a índice físico.
-   * La numeración Synthi NO incluye los huecos (filas ocultas).
+   * La numeración Synthi de FILAS NO incluye los huecos.
+   * @param {number} rowSynth - Número de fila según serigrafía Synthi
+   * @returns {number|null} Índice físico 0-based, o null si inválido
    */
   const synthRowToPhysicalRowIndex = (rowSynth) => {
     const ordinal = rowSynth - rowBase;
@@ -72,10 +90,20 @@ export function compilePanelBlueprintMappings(blueprint) {
     return visibleRowIndices[ordinal] ?? null;
   };
 
+  // Array de índices físicos visibles para columnas
+  // La numeración Synthi de COLUMNAS tampoco cuenta los huecos
+  const hiddenColSet = new Set(hiddenCols0);
+  const visibleColIndices = [];
+  for (let c = 0; c < cols; c += 1) {
+    if (hiddenColSet.has(c)) continue;
+    visibleColIndices.push(c);
+  }
+
   /**
    * Convierte número de columna Synthi a índice físico.
-   * La numeración Synthi NO incluye los huecos (columnas ocultas).
-   * Ejemplo: si hiddenCols0=[33], columna Synthi 34 → índice 34 (no 33).
+   * La numeración Synthi NO incluye los huecos.
+   * @param {number} colSynth - Número de columna según serigrafía Synthi
+   * @returns {number|null} Índice físico 0-based, o null si inválido
    */
   const synthColToPhysicalColIndex = (colSynth) => {
     const ordinal = colSynth - colBase;

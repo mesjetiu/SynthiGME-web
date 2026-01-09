@@ -163,9 +163,17 @@ settings.updates.available:
   en: New version available!
   es: "¡Nueva versión disponible!"
 
+settings.updates.pendingInstall:
+  en: A new version is ready to install
+  es: Hay una nueva versión lista para instalar
+
 settings.updates.install:
   en: Install update
   es: Instalar actualización
+
+settings.updates.installAndReload:
+  en: Install and reload
+  es: Instalar y recargar
 
 settings.updates.installing:
   en: Installing...
@@ -666,8 +674,16 @@ orientation.blocker.dismiss:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 update.available:
-  en: A new version is available. Do you want to reload now?
-  es: Hay una nueva versión disponible. ¿Quieres recargar ahora?
+  en: A new version is available. Do you want to install and reload now?
+  es: Hay una nueva versión disponible. ¿Quieres instalarla y recargar ahora?
+
+update.installNow:
+  en: Install now
+  es: Instalar ahora
+
+update.later:
+  en: Later
+  es: Más tarde
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ERRORES

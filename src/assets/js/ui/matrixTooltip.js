@@ -144,10 +144,14 @@ export class MatrixTooltip {
    * @param {Object} options
    * @param {number} [options.autoHideDelay=2500] - Auto-hide delay in ms (mobile only)
    * @param {number} [options.doubleTapThreshold=300] - Max ms between taps for double-tap
+   * @param {number} [options.tapMaxDuration=300] - Max duration in ms for a touch to be considered a tap
+   * @param {number} [options.tapMaxDistance=10] - Max movement in px for a touch to be considered a tap
    */
-  constructor({ autoHideDelay = 2500, doubleTapThreshold = 300 } = {}) {
+  constructor({ autoHideDelay = 2500, doubleTapThreshold = 300, tapMaxDuration = 300, tapMaxDistance = 10 } = {}) {
     this.autoHideDelay = autoHideDelay;
     this.doubleTapThreshold = doubleTapThreshold;
+    this.tapMaxDuration = tapMaxDuration;
+    this.tapMaxDistance = tapMaxDistance;
     
     // State
     this._element = null;
@@ -156,10 +160,17 @@ export class MatrixTooltip {
     this._lastTapTarget = null;
     this._isVisible = false;
     
+    // Touch tracking state for distinguishing taps from gestures (pinch/pan)
+    this._touchStartTime = 0;
+    this._touchStartPos = null;
+    this._touchStartTarget = null;
+    this._wasSingleFinger = false;
+    
     // Bound handlers (for cleanup)
     this._onMouseEnter = this._handleMouseEnter.bind(this);
     this._onMouseLeave = this._handleMouseLeave.bind(this);
     this._onTouchStart = this._handleTouchStart.bind(this);
+    this._onTouchEnd = this._handleTouchEnd.bind(this);
     this._onDocumentTap = this._handleDocumentTap.bind(this);
     
     // Attached matrices tracking
@@ -204,8 +215,10 @@ export class MatrixTooltip {
       table.addEventListener('mouseout', this._onMouseLeave);
     }
     
-    // Mobile: touch events (use touchstart to intercept before click)
+    // Mobile: use touchstart + touchend to detect real taps (not pinch/pan)
+    // touchstart records initial state, touchend validates it was a real tap
     table.addEventListener('touchstart', this._onTouchStart, { passive: true });
+    table.addEventListener('touchend', this._onTouchEnd, { passive: false });
   }
   
   /**
@@ -219,6 +232,7 @@ export class MatrixTooltip {
     table.removeEventListener('mouseover', this._onMouseEnter);
     table.removeEventListener('mouseout', this._onMouseLeave);
     table.removeEventListener('touchstart', this._onTouchStart);
+    table.removeEventListener('touchend', this._onTouchEnd);
   }
   
   /**
@@ -392,15 +406,63 @@ export class MatrixTooltip {
   }
   
   /**
-   * Mobile: touchstart - detect single/double tap
-   * 
-   * Single tap: show tooltip (prevent default click toggle)
-   * Double tap: allow normal click to toggle pin
+   * Mobile: touchstart - record initial touch state.
+   * We only record here; actual tooltip logic happens in touchend to filter out gestures.
+   * This prevents tooltips from appearing during pinch-zoom or pan gestures.
    */
   _handleTouchStart(ev) {
-    const btn = ev.target?.closest?.('button.pin-btn');
-    if (!btn || btn.classList.contains('is-hidden-pin') || btn.disabled) return;
+    // If multi-touch (pinch/pan), invalidate any pending tap
+    if (ev.touches.length > 1) {
+      this._wasSingleFinger = false;
+      this._touchStartTarget = null;
+      return;
+    }
     
+    const btn = ev.target?.closest?.('button.pin-btn');
+    if (!btn || btn.classList.contains('is-hidden-pin') || btn.disabled) {
+      this._touchStartTarget = null;
+      return;
+    }
+    
+    // Record touch start state for validation in touchend
+    this._wasSingleFinger = true;
+    this._touchStartTime = Date.now();
+    this._touchStartPos = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+    this._touchStartTarget = btn;
+  }
+  
+  /**
+   * Mobile: touchend - validate tap and show tooltip or allow toggle.
+   * Only triggers if: single finger, short duration, minimal movement.
+   * This filters out pinch-zoom and pan gestures.
+   */
+  _handleTouchEnd(ev) {
+    const btn = this._touchStartTarget;
+    
+    // Must have started on a valid pin with single finger
+    if (!btn || !this._wasSingleFinger) {
+      this._resetTouchState();
+      return;
+    }
+    
+    // Check duration - reject long presses (those might be drags)
+    const duration = Date.now() - this._touchStartTime;
+    if (duration > this.tapMaxDuration) {
+      this._resetTouchState();
+      return;
+    }
+    
+    // Check movement - reject if finger moved too much (pan gesture)
+    if (ev.changedTouches.length > 0) {
+      const endPos = { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+      const distance = Math.hypot(endPos.x - this._touchStartPos.x, endPos.y - this._touchStartPos.y);
+      if (distance > this.tapMaxDistance) {
+        this._resetTouchState();
+        return;
+      }
+    }
+    
+    // Valid tap detected - now handle single vs double tap
     const now = Date.now();
     const isDoubleTap = (
       this._lastTapTarget === btn && 
@@ -411,27 +473,23 @@ export class MatrixTooltip {
     this._lastTapTarget = btn;
     
     if (isDoubleTap) {
-      // Double tap: hide tooltip and let the click event proceed normally
+      // Double tap: hide tooltip and let the click proceed to toggle pin
       this.hide();
-      this._lastTapTime = 0; // Reset to prevent triple-tap issues
+      this._lastTapTime = 0;
       this._lastTapTarget = null;
+      this._resetTouchState();
       return;
     }
     
-    // Single tap: show tooltip
-    // We need to prevent the click from toggling the pin
-    // Use a one-time click capture listener
-    const preventClick = (clickEv) => {
-      clickEv.stopPropagation();
-      clickEv.preventDefault();
-    };
+    // Single tap: show tooltip and prevent click from toggling
+    ev.preventDefault();
     
-    btn.addEventListener('click', preventClick, { once: true, capture: true });
-    
-    // Show tooltip
     const table = btn.closest('table');
     const maps = this._getMapsForTable(table);
-    if (!maps) return;
+    if (!maps) {
+      this._resetTouchState();
+      return;
+    }
     
     const row = parseInt(btn.dataset.row, 10);
     const col = parseInt(btn.dataset.col, 10);
@@ -440,6 +498,18 @@ export class MatrixTooltip {
     if (text) {
       this.show(btn, text);
     }
+    
+    this._resetTouchState();
+  }
+  
+  /**
+   * Resets touch tracking state after a touch sequence completes.
+   */
+  _resetTouchState() {
+    this._touchStartTime = 0;
+    this._touchStartPos = null;
+    this._touchStartTarget = null;
+    this._wasSingleFinger = false;
   }
   
   /**

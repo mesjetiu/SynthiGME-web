@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 
 function normalizeStyle(style) {
   return style
@@ -16,13 +17,33 @@ function normalizeStyle(style) {
     .join(";");
 }
 
+/**
+ * Extrae prefijo único del nombre de archivo de salida.
+ * panel2_bg.svg → "p2", panel5_bg.svg → "p5"
+ */
+function getPanelPrefix(outputPath) {
+  const basename = path.basename(outputPath, '.svg');
+  const match = basename.match(/panel(\d+)/i);
+  if (match) return `p${match[1]}`;
+  // Fallback: hash corto
+  let hash = 0;
+  for (const char of basename) {
+    hash = ((hash << 5) - hash) + char.charCodeAt(0);
+    hash |= 0;
+  }
+  return `s${Math.abs(hash).toString(36).slice(0, 4)}`;
+}
+
 async function main() {
   const input = process.argv[2];
   const output = process.argv[3] || "panel.dedupe.svg";
   if (!input) {
-    console.error("Uso: node dedupe-styles.mjs input.svg [output.svg]");
+    console.error("Uso: node optimize-panel-svg.mjs input.svg [output.svg]");
     process.exit(1);
   }
+
+  const prefix = getPanelPrefix(output);
+  console.log("Prefijo de clases:", prefix);
 
   let svg = await fs.readFile(input, "utf8");
 
@@ -54,7 +75,7 @@ async function main() {
 
       let cls = styleMap.get(norm);
       if (!cls) {
-        cls = `c${++classCounter}`;
+        cls = `${prefix}c${++classCounter}`;
         styleMap.set(norm, cls);
       }
 

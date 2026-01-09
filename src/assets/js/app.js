@@ -28,6 +28,7 @@ import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.j
 import panel2Config from './panelBlueprints/panel2.config.js';
 import panel3Config from './panelBlueprints/panel3.config.js';
 import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
+import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
 
 // Osciloscopio
 import { OscilloscopeModule } from './modules/oscilloscope.js';
@@ -142,6 +143,7 @@ class App {
     this._setupOutputFaders();
     this._buildLargeMatrices();
     this._setupPanel5AudioRouting();
+    this._setupPanel6ControlRouting();
     this._setupUI();
     this._schedulePanelSync();
 
@@ -1421,7 +1423,7 @@ class App {
     panelAudio.state = panelAudio.state || [];
     
     let entry = panelAudio.nodes[oscIndex];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.triOsc && entry.triGain && entry.pulseOsc && entry.pulseGain && entry.sineSawOut && entry.triPulseOut) {
+    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.triOsc && entry.triGain && entry.pulseOsc && entry.pulseGain && entry.sineSawOut && entry.triPulseOut && entry.freqCVInput) {
       return entry;
     }
 
@@ -1566,7 +1568,48 @@ class App {
       triOsc.start(startTime);
     } catch { /* oscilador ya iniciado */ }
 
-    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, _freqInitialized: true, _useWorklet: useWorklet };
+    // ─────────────────────────────────────────────────────────────────────────
+    // NODO DE ENTRADA CV PARA MODULACIÓN DE FRECUENCIA (Panel 6)
+    // ─────────────────────────────────────────────────────────────────────────
+    //
+    // Este GainNode recibe señales CV del Panel 6 y las escala antes de
+    // sumarlas a los AudioParams de frecuencia de todos los osciladores.
+    //
+    // El sistema es BIPOLAR:
+    // - CV = +1 → frecuencia sube según freqCVScale
+    // - CV =  0 → sin modulación
+    // - CV = -1 → frecuencia baja según freqCVScale
+    //
+    // La señal CV se multiplica por freqCVScale (Hz/unidad) definido en
+    // panel3.config.js y se suma al valor base establecido por el knob.
+    //
+    // NOTA: Los AudioParams de OscillatorNode soportan a-rate modulation,
+    // lo que permite FM de audio-rate para efectos de síntesis más complejos.
+    //
+    const config = this._getOscConfig(oscIndex);
+    const freqCVScale = config?.freqCV?.freqCVScale ?? panel3Config.defaults?.freqCV?.freqCVScale ?? 1000;
+    
+    const freqCVInput = ctx.createGain();
+    freqCVInput.gain.value = freqCVScale;
+    
+    // Conectar a todos los AudioParams de frecuencia
+    // Worklets exponen frequency como AudioParam, nativos como .frequency
+    if (useWorklet) {
+      // Worklets: frequency param está en .parameters
+      const sineFreq = osc.parameters?.get('frequency');
+      const pulseFreq = pulseOsc.parameters?.get('frequency');
+      if (sineFreq) freqCVInput.connect(sineFreq);
+      if (pulseFreq) freqCVInput.connect(pulseFreq);
+    } else {
+      // Nativos: .frequency es un AudioParam
+      if (osc.frequency) freqCVInput.connect(osc.frequency);
+      if (pulseOsc.frequency) freqCVInput.connect(pulseOsc.frequency);
+    }
+    // Saw y Tri siempre son nativos
+    if (sawOsc.frequency) freqCVInput.connect(sawOsc.frequency);
+    if (triOsc.frequency) freqCVInput.connect(triOsc.frequency);
+
+    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, freqCVInput, _freqInitialized: true, _useWorklet: useWorklet };
     panelAudio.nodes[oscIndex] = entry;
     return entry;
   }
@@ -1995,6 +2038,201 @@ class App {
           this.oscilloscope._notifyNoSignal?.();
         }
       }
+    }
+
+    return true;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PANEL 6 - CONTROL MATRIX ROUTING
+  // ─────────────────────────────────────────────────────────────────────────────
+  //
+  // Panel 6 es la matriz de control del Synthi 100. A diferencia del Panel 5
+  // (audio), aquí se rutean señales de control (CV) hacia parámetros de módulos.
+  //
+  // SISTEMA BIPOLAR:
+  // - Las señales CV van de -1 a +1
+  // - CV = +1 → máxima modulación positiva
+  // - CV =  0 → sin modulación (el parámetro mantiene su valor de knob)
+  // - CV = -1 → máxima modulación negativa
+  //
+  // IMPLEMENTACIÓN ACTUAL:
+  // - Sources (filas 83-88): Osciladores 10-12 (2 filas por oscilador)
+  // - Destinations (columnas 30-42): Entradas CV de frecuencia (Osc 1-12)
+  //
+  // CONEXIONES:
+  // Las conexiones se almacenan en this._panel6Routing.connections como
+  // { "rowIndex:colIndex": GainNode } para facilitar desconexión.
+  //
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Configura el sistema de ruteo de control del Panel 6.
+   * Compila el blueprint y registra el handler de toggle para la matriz.
+   * @private
+   */
+  _setupPanel6ControlRouting() {
+    this._panel6Routing = this._panel6Routing || { connections: {}, rowMap: null, colMap: null, destMap: null, channelMap: null, sourceMap: null };
+    this._panel6Routing.connections = {};
+    const mappings = compilePanelBlueprintMappings(panel6ControlBlueprint);
+    this._panel6Routing.rowMap = mappings.rowMap;
+    this._panel6Routing.colMap = mappings.colMap;
+    this._panel6Routing.destMap = mappings.destMap;
+    this._panel6Routing.channelMap = mappings.channelMap;
+    this._panel6Routing.sourceMap = mappings.sourceMap;
+    this._panel6Routing.hiddenCols = mappings.hiddenCols;
+
+    if (this.largeMatrixControl && this.largeMatrixControl.setToggleHandler) {
+      this.largeMatrixControl.setToggleHandler((rowIndex, colIndex, nextActive) =>
+        this._handlePanel6ControlToggle(rowIndex, colIndex, nextActive)
+      );
+    }
+  }
+
+  /**
+   * Calcula la ganancia efectiva para un pin específico del Panel 6.
+   * 
+   * Jerarquía de ganancias (igual que Panel 5):
+   * 1. Si existe pinGain específico → lo usa (sobrescribe row×col)
+   * 2. Si no → rowGain × colGain
+   * 3. Resultado × matrixGain global
+   * 
+   * @param {number} rowIndex - Índice de fila (0-based)
+   * @param {number} colIndex - Índice de columna (0-based)
+   * @returns {number} Ganancia efectiva para el pin
+   * @private
+   */
+  _getPanel6PinGain(rowIndex, colIndex) {
+    const config = panel6ControlConfig || {};
+    const controlSection = config.control || {};
+    const matrixGain = controlSection.matrixGain ?? 1.0;
+    const rowGains = config.rowGains || {};
+    const colGains = config.colGains || {};
+    const pinGains = config.pinGains || {};
+
+    // Convertir índices físicos a numeración Synthi para buscar en configs
+    const rowSynth = rowIndex + (panel6ControlBlueprint?.grid?.coordSystem?.rowBase || 67);
+    const colSynth = colIndex + (panel6ControlBlueprint?.grid?.coordSystem?.colBase || 1);
+    const pinKey = `${rowSynth}:${colSynth}`;
+
+    // Si hay ganancia específica de pin, sobrescribe row×col
+    if (pinKey in pinGains) {
+      return pinGains[pinKey] * matrixGain;
+    }
+
+    // Ganancia de fila × ganancia de columna
+    const rowGain = rowGains[rowSynth] ?? 1.0;
+    const colGain = colGains[colSynth] ?? 1.0;
+    
+    return rowGain * colGain * matrixGain;
+  }
+
+  /**
+   * Maneja la activación/desactivación de un pin en la matriz de control (Panel 6).
+   * 
+   * FLUJO DE CONEXIÓN:
+   * 1. Obtener nodo de salida de la fuente (oscilador, LFO, etc.)
+   * 2. Obtener nodo de entrada del destino (freqCVInput del oscilador destino)
+   * 3. Crear GainNode intermedio para control de profundidad
+   * 4. Conectar: source → gainNode → destino
+   * 
+   * @param {number} rowIndex - Índice de fila (0-based)
+   * @param {number} colIndex - Índice de columna (0-based)
+   * @param {boolean} activate - true para conectar, false para desconectar
+   * @returns {boolean} true si la operación fue exitosa
+   * @private
+   */
+  async _handlePanel6ControlToggle(rowIndex, colIndex, activate) {
+    const source = this._panel6Routing?.sourceMap?.get(rowIndex);
+    const dest = this._panel6Routing?.destMap?.get(colIndex);
+    const key = `${rowIndex}:${colIndex}`;
+
+    if (!source || !dest) return true;
+
+    if (activate) {
+      this.ensureAudio();
+      const ctx = this.engine.audioCtx;
+      if (!ctx) return false;
+
+      // ─────────────────────────────────────────────────────────────────────
+      // OBTENER NODO DE SALIDA DE LA FUENTE
+      // ─────────────────────────────────────────────────────────────────────
+      let outNode = null;
+      
+      if (source.kind === 'panel3Osc') {
+        // Fuente: Oscilador de Panel 3 (usado como LFO/CV source)
+        const oscIndex = source.oscIndex;
+        const channelId = source.channelId || 'sineSaw';
+        const src = this._ensurePanel3Nodes(oscIndex);
+        outNode = channelId === 'triPulse' ? src?.triPulseOut : src?.sineSawOut;
+        
+        // Aplicar estado del oscilador
+        const state = this._panel3Audio?.state?.[oscIndex];
+        applyOscStateImmediate(src, state, ctx);
+      }
+      // Aquí se añadirán más tipos de fuentes en el futuro:
+      // - 'envelope': generador de envolventes
+      // - 'lfo': LFO dedicado
+      // - 'sequencer': secuenciador de voltaje
+      // - 'randomVoltage': generador de voltaje aleatorio
+      
+      if (!outNode) {
+        log.warn(' No output node for control source', source);
+        return false;
+      }
+
+      // ─────────────────────────────────────────────────────────────────────
+      // OBTENER NODO DE ENTRADA DEL DESTINO
+      // ─────────────────────────────────────────────────────────────────────
+      let destNode = null;
+      
+      if (dest.kind === 'oscFreqCV') {
+        // Destino: Entrada CV de frecuencia del oscilador
+        const oscIndex = dest.oscIndex;
+        const oscNodes = this._ensurePanel3Nodes(oscIndex);
+        destNode = oscNodes?.freqCVInput;
+        
+        if (!destNode) {
+          log.warn(' freqCVInput not available for osc', oscIndex);
+          return false;
+        }
+      }
+      // Aquí se añadirán más tipos de destinos en el futuro:
+      // - 'oscAmpCV': modulación de amplitud
+      // - 'filterCutoffCV': modulación de frecuencia de corte
+      // - 'filterResonanceCV': modulación de resonancia
+      // - 'panCV': modulación de panorama
+      
+      if (!destNode) {
+        log.warn(' No destination node for control dest', dest);
+        return false;
+      }
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CREAR CONEXIÓN CON GAINNODE INTERMEDIO
+      // ─────────────────────────────────────────────────────────────────────
+      // El GainNode permite controlar la "profundidad" de modulación
+      // mediante las ganancias definidas en panel6.control.config.js
+      //
+      const gain = ctx.createGain();
+      const pinGainValue = this._getPanel6PinGain(rowIndex, colIndex);
+      gain.gain.value = pinGainValue;
+      outNode.connect(gain);
+      gain.connect(destNode);
+      this._panel6Routing.connections[key] = gain;
+      
+      log.info(` Panel 6: Connected ${source.kind}[${source.oscIndex}] → ${dest.kind}[${dest.oscIndex}] (gain: ${pinGainValue})`);
+      return true;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DESCONEXIÓN
+    // ─────────────────────────────────────────────────────────────────────────
+    const conn = this._panel6Routing.connections?.[key];
+    if (conn) {
+      safeDisconnect(conn);
+      delete this._panel6Routing.connections[key];
+      log.info(` Panel 6: Disconnected ${key}`);
     }
 
     return true;

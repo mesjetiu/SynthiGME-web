@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 7 de enero de 2026
+> Última actualización: 9 de enero de 2026
 
 ---
 
@@ -63,10 +63,11 @@ src/
 |---------|-----------|
 | `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputRouting()` (ruteo directo L/R). Exporta también `AUDIO_CONSTANTS` (tiempos de rampa) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
 | `blueprintMapper.js` | `compilePanelBlueprintMappings()` extrae filas/columnas ocultas de blueprints de paneles para configurar las matrices |
+| `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
+| `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
+| `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
 
 > **Nota sobre dispositivos móviles:** El procesamiento de audio del sistema (Dolby Atmos, Audio Espacial, ecualizadores) puede interferir con la síntesis en tiempo real, causando cambios de volumen inesperados o distorsión. Ver sección "Solución de problemas" en README.md.
-| `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
-| `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
 
 ### 3.2 Worklets (`src/assets/js/worklets/`)
 
@@ -74,7 +75,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 
 | Archivo | Propósito |
 |---------|----------|
-| `synthOscillator.worklet.js` | Oscilador con fase coherente, 4 formas de onda (pulse, sine, triangle, sawtooth), anti-aliasing PolyBLEP, y entrada para hard sync |
+| `synthOscillator.worklet.js` | Oscilador con fase coherente, 4 formas de onda (pulse, sine, triangle, sawtooth), anti-aliasing PolyBLEP, entrada para hard sync, y parámetro `detune` para modulación V/Oct |
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
@@ -130,6 +131,7 @@ Componentes de interfaz reutilizables:
 | `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: selección de idioma (español/inglés), escala de renderizado (1×-4×), cambio de idioma en caliente, persistencia en localStorage |
 | `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-8), matriz de ruteo outputs→tracks, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
 | `confirmDialog.js` | `ConfirmDialog` | Modal de confirmación reutilizable (singleton): título, mensaje, botones personalizables, opción "no volver a preguntar" con persistencia localStorage. Métodos estáticos `show()`, `getRememberedChoice()`, `clearRememberedChoice()` |
+| `inputDialog.js` | `InputDialog` | Diálogo de entrada de texto personalizado (singleton): reemplaza `prompt()` nativo, título/placeholder/valor por defecto configurables, soporte i18n |
 | `keyboardShortcuts.js` | `KeyboardShortcutsManager` | Gestor centralizado de atajos de teclado (singleton): acciones configurables (mute, record, patches, settings, fullscreen, reset, navegación paneles), persistencia en localStorage, teclas reservadas (Tab, Enter, Escape) |
 | `patchBrowser.js` | `PatchBrowser` | Modal para gestionar patches: guardar, cargar, eliminar, renombrar, exportar/importar archivos `.sgme.json`, búsqueda por nombre |
 | `quickbar.js` | — | Barra de acciones rápidas para móvil (bloqueo zoom/pan, ajustes, configuración de audio, pantalla completa) |
@@ -174,6 +176,7 @@ Utilidades compartidas:
 | `input.js` | Guardas de interacción: `shouldBlockInteraction()` e `isNavGestureActive()` para evitar conflictos táctiles durante navegación |
 | `waveforms.js` | Síntesis de formas de onda: `createPulseWave()` y `createAsymmetricSineWave()` usando Fourier |
 | `objects.js` | Utilidades de objetos: `deepMerge()` para combinar configuraciones |
+| `wakeLock.js` | `WakeLockManager` para mantener pantalla encendida (Screen Wake Lock API) |
 
 #### Constantes globales (`constants.js`)
 
@@ -184,8 +187,9 @@ Centraliza valores que se reutilizan en múltiples archivos:
 | `OUTPUT_CHANNELS` | 8 | Canales de salida del sintetizador |
 | `INPUT_CHANNELS` | 8 | Canales de entrada (input amplifiers) |
 | `MAX_RECORDING_TRACKS` | 8 | Pistas máximas de grabación WAV |
-| `STORAGE_KEYS` | objeto | Todas las claves de localStorage centralizadas |
-| `AUTOSAVE_INTERVALS` | objeto | Intervalos disponibles para autoguardado |
+| `STORAGE_KEYS` | objeto | Claves de localStorage (idioma, audio, grabación, sesión, ajustes, wake lock) |
+| `AUTOSAVE_INTERVALS` | objeto | Intervalos de autoguardado: `15s`, `30s`, `1m`, `5m`, `off` |
+| `DEFAULT_AUTOSAVE_INTERVAL` | `'30s'` | Intervalo de autoguardado por defecto |
 
 **Uso:**
 ```javascript
@@ -1048,6 +1052,11 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 ### Matriz de Control (Panel 6)
 - Rutea señales de control (CV) entre módulos
 - Permite modulaciones complejas (ej: LFO → frecuencia de oscilador)
+- **Sistema V/Oct** para modulación de frecuencia de osciladores:
+  - Escala exponencial: 1 voltio = 1 octava
+  - Rango: ±5 octavas desde la frecuencia base del oscilador
+  - Parámetro `detune` en AudioWorklet para modulación suave
+  - Fórmula: `freqFinal = freqBase × 2^(cvValue × 5)`
 
 ### Blueprint Schema
 ```javascript

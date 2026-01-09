@@ -145,6 +145,12 @@ async function main() {
   const beforeSize = Buffer.byteLength(svg, "utf8");
   const styleCountBefore = (svg.match(/\sstyle="/g) || []).length;
 
+  // Elimina declaración XML (no necesaria para SVG inline o standalone)
+  svg = svg.replace(/<\?xml[^?]*\?>\s*/g, "");
+  
+  // Elimina DOCTYPE si existe
+  svg = svg.replace(/<!DOCTYPE[^>]*>\s*/gi, "");
+
   // Quita metadata/comments/namedview (no afecta render)
   svg = svg.replace(/<metadata[\s\S]*?<\/metadata>/g, "");
   svg = svg.replace(/<!--[\s\S]*?-->/g, "");
@@ -219,10 +225,12 @@ async function main() {
 
   // Limpia atributos redundantes en el elemento <svg>
   svg = svg.replace(/<svg\b([^>]*)>/, (match, attrs) => {
-    // Elimina xmlns redundantes de Inkscape/Sodipodi
-    attrs = attrs.replace(/\sxmlns:(?:inkscape|sodipodi|dc|cc|rdf)="[^"]*"/g, "");
+    // Elimina xmlns redundantes de Inkscape/Sodipodi y otros
+    attrs = attrs.replace(/\sxmlns:(?:inkscape|sodipodi|dc|cc|rdf|xlink|svg)="[^"]*"/g, "");
     // Elimina version si es 1.1 (implícito)
     attrs = attrs.replace(/\sversion="1\.1"/g, "");
+    // Elimina atributos width/height con unidades mm (se usa viewBox)
+    attrs = attrs.replace(/\s(?:width|height)="\d+mm"/g, "");
     return `<svg${attrs}>`;
   });
 
@@ -234,8 +242,19 @@ async function main() {
   svg = svg.replace(/<defs[^>]*><\/defs>/g, "");
   svg = svg.replace(/<defs[^>]*\/>/g, "");
 
-  // Minifica whitespace entre tags
-  svg = svg.replace(/>\s+</g, "><").trim();
+  // Minificación completa de whitespace
+  // 1. Colapsar múltiples espacios/saltos a un solo espacio
+  svg = svg.replace(/\s+/g, " ");
+  // 2. Eliminar espacio antes de cierre de tag
+  svg = svg.replace(/\s*\/>/g, "/>");
+  svg = svg.replace(/\s*>/g, ">");
+  // 3. Eliminar espacio después de apertura de tag
+  svg = svg.replace(/<\s+/g, "<");
+  // 4. Eliminar espacio entre tags
+  svg = svg.replace(/>\s+</g, "><");
+  // 5. Limpiar espacios alrededor de = en atributos
+  svg = svg.replace(/\s*=\s*/g, "=");
+  svg = svg.trim();
 
   const afterSize = Buffer.byteLength(svg, "utf8");
   const styleCountAfter = (svg.match(/\sstyle="/g) || []).length;

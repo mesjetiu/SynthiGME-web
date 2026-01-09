@@ -1413,12 +1413,12 @@ export class SettingsModal {
   }
   
   /**
-   * Muestra el estado "actualización disponible"
+   * Muestra el estado "actualización disponible" (pendiente de instalar)
    */
   _showUpdateAvailable() {
-    this.updateCheckBtn.textContent = t('settings.updates.install');
+    this.updateCheckBtn.textContent = t('settings.updates.installAndReload');
     this.updateCheckBtn.classList.add('settings-update-btn--available');
-    this.updateStatusElement.textContent = t('settings.updates.available');
+    this.updateStatusElement.textContent = t('settings.updates.pendingInstall');
     this.updateStatusElement.className = 'settings-update-status settings-update-status--available';
     this._isUpdateAvailable = true;
   }
@@ -1427,7 +1427,7 @@ export class SettingsModal {
    * Maneja el clic en el botón de actualizaciones
    */
   async _handleCheckUpdate() {
-    // Si ya hay actualización disponible, instalar
+    // Si ya hay actualización disponible, instalar y recargar
     if (this._isUpdateAvailable || hasWaitingUpdate()) {
       this.updateCheckBtn.disabled = true;
       this.updateCheckBtn.textContent = t('settings.updates.installing');
@@ -1439,6 +1439,7 @@ export class SettingsModal {
     this.updateCheckBtn.disabled = true;
     this.updateCheckBtn.textContent = t('settings.updates.checking');
     this.updateStatusElement.textContent = '';
+    this.updateStatusElement.className = 'settings-update-status';
     
     try {
       const result = await checkForUpdates();

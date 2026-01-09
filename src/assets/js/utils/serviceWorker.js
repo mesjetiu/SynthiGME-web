@@ -64,12 +64,13 @@ export function registerServiceWorker() {
     
     const result = await ConfirmDialog.show({
       title: t('update.available'),
-      confirmText: t('common.yes'),
-      cancelText: t('common.no')
+      confirmText: t('update.installNow'),
+      cancelText: t('update.later')
     });
     if (result.confirmed) {
       worker.postMessage({ type: 'SKIP_WAITING' });
     }
+    // Si dice no, el worker queda en espera y el puntito en ajustes indica que hay actualización
   };
 
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
@@ -82,7 +83,6 @@ export function registerServiceWorker() {
 
       if (registration.waiting) {
         waitingWorker = registration.waiting;
-        notifyUpdateAvailable();
         promptUserToRefresh(registration.waiting);
       }
 

@@ -1745,10 +1745,22 @@ export class SettingsModal {
     // Actualizar pestañas
     if (this.tabButtons) {
       if (this.tabButtons.general) this.tabButtons.general.textContent = t('settings.tab.general');
+      if (this.tabButtons.display) this.tabButtons.display.textContent = t('settings.tab.display');
       if (this.tabButtons.audio) this.tabButtons.audio.textContent = t('settings.tab.audio');
       if (this.tabButtons.recording) this.tabButtons.recording.textContent = t('settings.tab.recording');
       if (this.tabButtons.advanced) this.tabButtons.advanced.textContent = t('settings.tab.advanced');
       if (this.tabButtons.about) this.tabButtons.about.textContent = t('settings.tab.about');
+    }
+    
+    // Actualizar sección de pines inactivos
+    if (this.inactivePinsTitleElement) {
+      this.inactivePinsTitleElement.textContent = t('settings.display.inactivePins');
+    }
+    if (this.inactivePinsDescElement) {
+      this.inactivePinsDescElement.textContent = t('settings.display.inactivePins.description');
+    }
+    if (this.inactivePinsLabelElement) {
+      this.inactivePinsLabelElement.textContent = t('settings.display.inactivePins.show');
     }
     
     // Actualizar sección "Acerca de"

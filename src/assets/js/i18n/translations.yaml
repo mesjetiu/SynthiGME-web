@@ -15,9 +15,10 @@
 # ───────────────────────────────────────────────────────────────────────────────
 # METADATOS DE IDIOMAS
 # Los nombres se muestran en su idioma nativo (no se traducen)
+# defaultLocale: idioma de fallback cuando falta una traducción
 # ───────────────────────────────────────────────────────────────────────────────
 _meta:
-  defaultLocale: es
+  defaultLocale: en
   languages:
     en: English
     es: Español

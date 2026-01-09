@@ -24,6 +24,24 @@
 // - Ganancias afectan profundidad de modulación
 //
 // ─────────────────────────────────────────────────────────────────────────────
+// SISTEMA DE SEÑALES CV BIPOLAR
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Las señales CV en Panel 6 son BIPOLARES (rango -1 a +1):
+//
+// | Valor CV | Efecto en el parámetro destino                           |
+// |----------|----------------------------------------------------------|
+// |   +1.0   | Máxima modulación positiva (incremento máximo)           |
+// |    0.0   | Sin modulación (el parámetro mantiene su valor de knob)  |
+// |   -1.0   | Máxima modulación negativa (decremento máximo)           |
+//
+// Ejemplo con modulación de frecuencia (freqCVScale = 1000 Hz):
+// - Frecuencia base (knob): 440 Hz
+// - CV = +1.0 → frecuencia = 440 + 1000 = 1440 Hz
+// - CV =  0.0 → frecuencia = 440 + 0    = 440 Hz
+// - CV = -1.0 → frecuencia = 440 - 1000 = -560 Hz → clamped a mínimo
+//
+// ─────────────────────────────────────────────────────────────────────────────
 // JERARQUÍA DE GANANCIAS
 // ─────────────────────────────────────────────────────────────────────────────
 //
@@ -46,6 +64,34 @@
 //
 // Las filas y columnas específicas dependen del layout del Panel 6.
 // Consultar el blueprint (panel6.control.blueprint.js) para el mapeo exacto.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// COLUMNAS DE MODULACIÓN DE FRECUENCIA (OSCILLATORS FREQUENCY CONTROL)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Las columnas 30-33 y 35-42 (numeración Synthi) corresponden a las entradas de
+// modulación de frecuencia de los 12 osciladores del Panel 3.
+// NOTA: La columna 34 está oculta (hueco físico en el panel).
+//
+// | Columna | Oscilador | Descripción                                      |
+// |---------|-----------|--------------------------------------------------|
+// |   30    |  Osc 1    | CV → frecuencia del oscilador 1                  |
+// |   31    |  Osc 2    | CV → frecuencia del oscilador 2                  |
+// |   32    |  Osc 3    | CV → frecuencia del oscilador 3                  |
+// |   33    |  Osc 4    | CV → frecuencia del oscilador 4                  |
+// |   35    |  Osc 5    | CV → frecuencia del oscilador 5 (34 está oculta) |
+// |   36    |  Osc 6    | CV → frecuencia del oscilador 6                  |
+// |   37    |  Osc 7    | CV → frecuencia del oscilador 7                  |
+// |   38    |  Osc 8    | CV → frecuencia del oscilador 8                  |
+// |   39    |  Osc 9    | CV → frecuencia del oscilador 9                  |
+// |   40    |  Osc 10   | CV → frecuencia del oscilador 10                 |
+// |   41    |  Osc 11   | CV → frecuencia del oscilador 11                 |
+// |   42    |  Osc 12   | CV → frecuencia del oscilador 12                 |
+//
+// La profundidad de modulación se controla mediante:
+// 1. freqCVScale en panel3.config.js (Hz por unidad de CV, por oscilador)
+// 2. colGains en este archivo (factor multiplicador por columna)
+// 3. pinGains en este archivo (sobrescritura específica por conexión)
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // PARÁMETROS FUTUROS (reservados)

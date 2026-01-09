@@ -1,20 +1,57 @@
-// Panel 5 (Audio) blueprint
+// ═════════════════════════════════════════════════════════════════════════════
+// PANEL 5 (AUDIO) BLUEPRINT
+// ═════════════════════════════════════════════════════════════════════════════
 //
 // Este archivo pretende ser:
-// - Humano-legible (numeración Synth: filas/columnas 1..N)
+// - Humano-legible (numeración Synthi: filas/columnas según serigrafía)
 // - Editable sin tocar lógica de ruteo
-// - Fuente única de verdad para: frame UI, pines ocultos (huecos), entradas (sources) y salidas (destinations)
+// - Fuente única de verdad para: frame UI, pines ocultos (huecos),
+//   entradas (sources) y salidas (destinations)
 //
-// Convención de coordenadas:
+// ─────────────────────────────────────────────────────────────────────────────
+// SISTEMA DE NUMERACIÓN DE LA MATRIZ SYNTHI 100
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// El Synthi 100 original tiene matrices de pines muy grandes (60+ filas/columnas).
+// Para facilitar la orientación visual del usuario, la matriz física incluye
+// HUECOS (espacios vacíos sin pines) que actúan como separadores visuales.
+//
+// IMPORTANTE: Los huecos NO tienen pines físicos ni números en la serigrafía.
+// La numeración Synthi SALTA estos espacios porque simplemente no existen.
+//
+// Ejemplo visual (simplificado):
+//
+//   Matriz física:        Numeración Synthi:
+//   ┌─┬─┬─┐ ┌─┬─┬─┐        1  2  3  4  5  6
+//   │●│●│●│ │●│●│●│        (los huecos no
+//   └─┴─┴─┘ └─┴─┴─┘         cuentan)
+//      hueco
+//
+// En este archivo:
+// - rowSynth/colSynth: usan la numeración de la serigrafía (sin contar huecos)
+// - hiddenRows0/hiddenCols0: índices físicos 0-based de los huecos
+//
+// Los huecos se definen en índices físicos (0-based) porque es lo que usa
+// internamente LargeMatrix para deshabilitar botones en la UI.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// CONVENCIÓN DE COORDENADAS
+// ─────────────────────────────────────────────────────────────────────────────
+//
 // - rowSynth: número de fila en la serigrafía Synthi (comienza en 67 para la gran matriz)
 // - colSynth: número de columna en la serigrafía (1..67)
 //
-// Nota sobre osciladores:
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTA SOBRE OSCILADORES
+// ─────────────────────────────────────────────────────────────────────────────
+//
 // - Cada oscilador tiene 2 canales de salida:
 //   - sineSaw: suma de Sine + Sawtooth (fila impar)
-//   - triPulse: suma de Triangle + Pulse (fila par siguiente) - pulse pendiente de implementar
+//   - triPulse: suma de Triangle + Pulse (fila par siguiente)
 // - Cada oscilador ocupa 2 filas físicas consecutivas.
-// - Entre osc 3 y osc 4 hay un hueco (filas ocultas) que NO cuenta.
+// - Entre grupos de osciladores hay huecos (filas ocultas) que NO cuentan.
+//
+// ═════════════════════════════════════════════════════════════════════════════
 
 export default {
   schemaVersion: 1,

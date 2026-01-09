@@ -175,6 +175,50 @@ export default {
       // Evita glissandos al cambiar frecuencia.
       // Rango recomendado: 0.01-0.1
       freqSmoothing: 0.03
+    },
+
+    // ·······································································
+    // MODULACIÓN DE FRECUENCIA POR CV (desde Panel 6)
+    // ·······································································
+    //
+    // Estos parámetros controlan cómo las señales CV del Panel 6 modulan
+    // la frecuencia del oscilador. El sistema es BIPOLAR:
+    //
+    // | Valor CV | Efecto en frecuencia                                     |
+    // |----------|----------------------------------------------------------|
+    // |   +1.0   | frecuencia_final = frecuencia_base + freqCVScale         |
+    // |    0.0   | frecuencia_final = frecuencia_base (sin modulación)      |
+    // |   -1.0   | frecuencia_final = frecuencia_base - freqCVScale         |
+    //
+    // La señal CV se multiplica por freqCVScale y se suma a la frecuencia
+    // establecida por el knob:
+    //
+    //   freq_final = freq_knob + (CV × freqCVScale)
+    //
+    // NOTA: La frecuencia final se limita (clamp) al rango válido del
+    // oscilador (típicamente 1 Hz - 10000 Hz) para evitar valores negativos
+    // o excesivos.
+    //
+    freqCV: {
+      // Escala de modulación CV → Hz.
+      // Define cuántos Hz cambia la frecuencia cuando CV = ±1.
+      //
+      // | freqCVScale | Comportamiento                                     |
+      // |-------------|----------------------------------------------------|
+      // |   1000      | CV=+1 sube 1000 Hz, CV=-1 baja 1000 Hz             |
+      // |   100       | Modulación sutil (±100 Hz)                         |
+      // |   5000      | Modulación agresiva (±5000 Hz)                     |
+      //
+      // NOTA: Para modulación exponencial (estilo V/Oct), se implementará
+      // en el futuro un parámetro freqCVMode: 'linear' | 'exponential'.
+      freqCVScale: 1000,
+
+      // Rango permitido de freqCVScale para validación.
+      // Evita configuraciones accidentales extremas.
+      scaleRange: {
+        min: 1,      // Mínimo 1 Hz por unidad de CV
+        max: 10000   // Máximo 10 kHz por unidad de CV
+      }
     }
 
     // ·······································································

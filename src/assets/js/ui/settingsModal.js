@@ -91,6 +91,13 @@ export class SettingsModal {
     // Escuchar cambios de idioma para actualizar textos
     this._unsubscribeLocale = onLocaleChange(() => this._updateTexts());
     
+    // Escuchar cuando hay actualización disponible para actualizar el UI
+    this._unsubscribeUpdate = onUpdateAvailable((available) => {
+      if (available && this.updateCheckBtn) {
+        this._showUpdateAvailable();
+      }
+    });
+    
     // Aplicar resolución guardada al iniciar (si no es Firefox y > 1)
     if (!this.isFirefox && this.currentResolution > 1) {
       if (typeof window.__synthSetResolutionFactor === 'function') {

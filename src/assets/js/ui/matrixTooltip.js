@@ -142,12 +142,12 @@ export function getLabelForDest(dest) {
 export class MatrixTooltip {
   /**
    * @param {Object} options
-   * @param {number} [options.autoHideDelay=2500] - Auto-hide delay in ms (mobile only)
+   * @param {number} [options.autoHideDelay=5000] - Auto-hide delay in ms (mobile only)
    * @param {number} [options.doubleTapThreshold=300] - Max ms between taps for double-tap
    * @param {number} [options.tapMaxDuration=300] - Max duration in ms for a touch to be considered a tap
    * @param {number} [options.tapMaxDistance=10] - Max movement in px for a touch to be considered a tap
    */
-  constructor({ autoHideDelay = 2500, doubleTapThreshold = 300, tapMaxDuration = 300, tapMaxDistance = 10 } = {}) {
+  constructor({ autoHideDelay = 5000, doubleTapThreshold = 300, tapMaxDuration = 300, tapMaxDistance = 10 } = {}) {
     this.autoHideDelay = autoHideDelay;
     this.doubleTapThreshold = doubleTapThreshold;
     this.tapMaxDuration = tapMaxDuration;
@@ -159,6 +159,7 @@ export class MatrixTooltip {
     this._lastTapTime = 0;
     this._lastTapTarget = null;
     this._isVisible = false;
+    this._currentPinBtn = null; // Track current pin for pulse effect
     
     // Touch tracking state for distinguishing taps from gestures (pinch/pan)
     this._touchStartTime = 0;
@@ -244,6 +245,15 @@ export class MatrixTooltip {
   show(pinBtn, text) {
     if (!pinBtn || !text) return;
     
+    // Remove pulse from previous pin if different
+    if (this._currentPinBtn && this._currentPinBtn !== pinBtn) {
+      this._currentPinBtn.classList.remove('is-tooltip-target');
+    }
+    
+    // Add pulse effect to current pin
+    this._currentPinBtn = pinBtn;
+    pinBtn.classList.add('is-tooltip-target');
+    
     const tooltip = this.element;
     tooltip.textContent = text;
     tooltip.setAttribute('aria-hidden', 'false');
@@ -303,6 +313,12 @@ export class MatrixTooltip {
    */
   hide() {
     if (!this._element) return;
+    
+    // Remove pulse effect from pin
+    if (this._currentPinBtn) {
+      this._currentPinBtn.classList.remove('is-tooltip-target');
+      this._currentPinBtn = null;
+    }
     
     this._element.classList.remove('is-visible');
     this._element.setAttribute('aria-hidden', 'true');

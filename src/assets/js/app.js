@@ -2175,6 +2175,29 @@ class App {
         // Aplicar estado del oscilador
         const state = this._panel3Audio?.state?.[oscIndex];
         applyOscStateImmediate(src, state, ctx);
+      } else if (source.kind === 'inputAmp') {
+        // Fuente: Input Amplifier (canales de entrada como fuente de CV)
+        const channel = source.channel;
+        
+        if (!this.inputAmplifiers) {
+          log.warn(' Input amplifiers module not initialized');
+          return false;
+        }
+        
+        // Asegurar que el módulo esté iniciado
+        if (!this.inputAmplifiers.isStarted) {
+          await this.inputAmplifiers.start();
+        }
+        
+        // Asegurar que tengamos audio del sistema conectado
+        await this._ensureSystemAudioInput();
+        
+        outNode = this.inputAmplifiers.getOutputNode(channel);
+        
+        if (!outNode) {
+          log.warn(' InputAmplifier output node not available for channel', channel);
+          return false;
+        }
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
       // - 'envelope': generador de envolventes

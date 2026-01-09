@@ -55,6 +55,7 @@
 // Tipos de fuentes disponibles:
 // | kind          | Descripción                               | Parámetros           |
 // |---------------|-------------------------------------------|----------------------|
+// | 'inputAmp'    | Canal de entrada de audio del sistema     | channel (0-7)        |
 // | 'panel3Osc'   | Salida de oscilador del Panel 3           | oscIndex, channelId  |
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -126,6 +127,21 @@ export default {
   // - Fila par:   triPulse (suma de Triangle + Pulse)
   //
   sources: [
+    // ─────────────────────────────────────────────────────────────────────────
+    // INPUT AMPLIFIERS (filas 67-74) - 8 canales de entrada del Synthi 100
+    // ─────────────────────────────────────────────────────────────────────────
+    // Señales de audio externas que pueden usarse como fuentes de modulación CV.
+    // Útil para: control por audio externo, modulación por micrófono, etc.
+    //
+    { rowSynth: 67, source: { kind: 'inputAmp', channel: 0 } },
+    { rowSynth: 68, source: { kind: 'inputAmp', channel: 1 } },
+    { rowSynth: 69, source: { kind: 'inputAmp', channel: 2 } },
+    { rowSynth: 70, source: { kind: 'inputAmp', channel: 3 } },
+    { rowSynth: 71, source: { kind: 'inputAmp', channel: 4 } },
+    { rowSynth: 72, source: { kind: 'inputAmp', channel: 5 } },
+    { rowSynth: 73, source: { kind: 'inputAmp', channel: 6 } },
+    { rowSynth: 74, source: { kind: 'inputAmp', channel: 7 } },
+
     // ─────────────────────────────────────────────────────────────────────────
     // OSCILLATORS 10-12 (filas 83-88)
     // ─────────────────────────────────────────────────────────────────────────

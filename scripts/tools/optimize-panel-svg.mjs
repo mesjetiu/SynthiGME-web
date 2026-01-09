@@ -17,6 +17,32 @@ function shortenColor(color) {
 }
 
 /**
+ * Redondea números con muchos decimales a máximo 2 decimales.
+ * Elimina ceros finales y punto decimal innecesario.
+ * 24.440888 → 24.44, 0.26499999 → 0.26, 195.00 → 195
+ */
+function roundNumber(numStr) {
+  const num = parseFloat(numStr);
+  if (isNaN(num)) return numStr;
+  const rounded = Math.round(num * 100) / 100;
+  return String(rounded).replace(/\.0+$/, '').replace(/(\.[1-9])0+$/, '$1');
+}
+
+/**
+ * Optimiza el atributo 'd' de paths SVG.
+ * Reduce precisión de coordenadas y compacta sintaxis.
+ */
+function optimizePathData(d) {
+  return d
+    .replace(/,/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/-?\d+\.\d+/g, match => roundNumber(match))
+    .replace(/\s+(-)/g, '$1')
+    .replace(/([MLHVCSQTAZ])\s+/gi, '$1')
+    .trim();
+}
+
+/**
  * Propiedades CSS que no afectan al renderizado o son redundantes.
  */
 const REMOVE_PROPERTIES = new Set([
@@ -73,6 +99,11 @@ function normalizeStyle(style) {
         value = shortenColor(value);
       }
       
+      // Redondear valores numéricos (stroke-width, font-size, etc.)
+      if (/^-?\d+\.\d+/.test(value)) {
+        value = value.replace(/-?\d+\.\d+/g, m => roundNumber(m));
+      }
+      
       return [key, value];
     })
     .filter(Boolean)
@@ -126,11 +157,18 @@ async function main() {
   // Elimina atributos de namespaces Inkscape/Sodipodi
   svg = svg.replace(/\s(?:inkscape|sodipodi):[a-z-]+="[^"]*"/gi, "");
   
-  // Elimina atributos id vacíos o autogenerados de Inkscape (path1234, rect5678, etc.)
-  svg = svg.replace(/\sid="(?:path|rect|circle|ellipse|line|polyline|polygon|g|use|defs|clipPath|mask)\d+"/g, "");
+  // Elimina TODOS los atributos id (no son necesarios para renderizado)
+  svg = svg.replace(/\sid="[^"]*"/g, "");
   
   // Elimina atributos xml:space
   svg = svg.replace(/\sxml:space="[^"]*"/g, "");
+  
+  // Optimiza paths: redondea coordenadas y compacta sintaxis
+  svg = svg.replace(/\sd="([^"]*)"/g, (m, d) => ` d="${optimizePathData(d)}"`);
+  
+  // Optimiza atributos numéricos (x, y, width, height, etc.)
+  svg = svg.replace(/\s(x|y|x1|y1|x2|y2|cx|cy|r|rx|ry|width|height|dx|dy)="([^"]*)"/g,
+    (m, attr, val) => ` ${attr}="${roundNumber(val)}"`);
 
   // Elimina imágenes embebidas (pueden causar renderizado pesado/duplicado)
   const imageCountBefore = (svg.match(/<image[\s\S]*?(?:\/>|<\/image>)/g) || []).length;

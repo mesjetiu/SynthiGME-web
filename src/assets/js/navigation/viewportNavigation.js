@@ -507,10 +507,17 @@ export function initViewportNavigation({ outer, inner } = {}) {
     // Calcular las dimensiones objetivo
     let targetWidth, targetHeight;
     if (entering) {
-      // Usar screen.width/height para fullscreen
-      // En landscape, usamos las dimensiones de pantalla
-      targetWidth = screen.width;
-      targetHeight = screen.height;
+      // Usar screen.availWidth/availHeight para fullscreen (excluye barras del sistema)
+      // Fallback a screen.width/height si no disponible
+      // En iOS Safari, usar window.screen con orientation
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+      if (isLandscape) {
+        targetWidth = Math.max(screen.availWidth || screen.width, screen.availHeight || screen.height);
+        targetHeight = Math.min(screen.availWidth || screen.width, screen.availHeight || screen.height);
+      } else {
+        targetWidth = Math.min(screen.availWidth || screen.width, screen.availHeight || screen.height);
+        targetHeight = Math.max(screen.availWidth || screen.width, screen.availHeight || screen.height);
+      }
     } else {
       // Al salir, las dimensiones actuales del viewport son las correctas
       // (el navegador aún no ha cambiado)
@@ -539,9 +546,16 @@ export function initViewportNavigation({ outer, inner } = {}) {
     offsetX = newOffsetX;
     offsetY = newOffsetY;
     
-    // Renderizar con las nuevas dimensiones
-    // Esto posiciona el contenido correctamente ANTES de la transición del navegador
-    render();
+    // Forzar actualización del transform directamente (sin pasar por render que puede bloquear por canvas)
+    if (currentResolutionFactor > 1) {
+      const visualScale = scale / currentResolutionFactor;
+      inner.style.zoom = currentResolutionFactor;
+      inner.style.transform = `translate3d(${offsetX / currentResolutionFactor}px, ${offsetY / currentResolutionFactor}px, 0) scale(${visualScale})`;
+    } else {
+      inner.style.zoom = '';
+      inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+    }
+    window.__synthViewTransform = { scale, offsetX, offsetY };
   }
   
   // Exponer globalmente para que quickbar pueda llamarla
@@ -919,19 +933,30 @@ export function initViewportNavigation({ outer, inner } = {}) {
       navResizeTimer = null;
     }
     
-    // Immediate metrics refresh and render
+    // Refrescar y renderizar inmediatamente
     metricsDirty = true;
     refreshMetrics();
+    fitContentToViewport();
+    render();
     
-    // Force immediate re-render
+    // Renderizar de nuevo en el próximo frame para capturar cambios del navegador
     requestAnimationFrame(() => {
-      handleNavResize();
+      metricsDirty = true;
+      refreshMetrics();
+      fitContentToViewport();
       render();
       
-      // Clear transition flag after browser animation completes
-      setTimeout(() => {
-        window.__synthFullscreenTransition = false;
-      }, 500);
+      // Y otro render después de un pequeño delay para asegurar estabilidad
+      requestAnimationFrame(() => {
+        metricsDirty = true;
+        handleNavResize();
+        render();
+        
+        // Limpiar flag de transición
+        setTimeout(() => {
+          window.__synthFullscreenTransition = false;
+        }, 300);
+      });
     });
   });
 }

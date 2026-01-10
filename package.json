@@ -4,6 +4,7 @@
   "description": "Prototype EMS Synthi interface in WebAudio",
   "type": "module",
   "scripts": {
+    "test": "node --test 'tests/**/*.test.js'",
     "build": "npm run build:i18n && node scripts/build.mjs",
     "build:i18n": "node scripts/build-i18n.mjs",
     "count-lines": "./scripts/count-lines.sh",

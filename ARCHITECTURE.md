@@ -1267,3 +1267,37 @@ docs/
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam
 - [ ] **Interpolación de frames**: Suavizado adicional entre frames del osciloscopio si es necesario
 - [ ] **Trigger externo**: Permitir sincronizar osciloscopio con señal externa (otro oscilador)
+
+---
+
+## 16. Tests
+
+El proyecto utiliza el runner nativo de Node.js (`node --test`) para tests de regresión sin dependencias adicionales.
+
+### Estructura
+```
+tests/
+└── blueprintMapper.test.js   # Regresiones del sistema de mapeo Synthi → índice físico
+```
+
+### Ejecutar
+```bash
+npm test
+```
+
+### Cobertura actual
+Los tests verifican invariantes críticos del sistema de matrices:
+
+| Test | Panel | Verificación |
+|------|-------|--------------|
+| Generación de mapas | 5, 6 | `destMap` y `sourceMap` son `Map` válidos |
+| Huecos en columnas | 5, 6 | Ninguna clave de `destMap` cae en `hiddenCols0` |
+| Huecos en filas | 5, 6 | Ninguna clave de `sourceMap` cae en `hiddenRows0` |
+| Osciloscopio Y/X | 5 | Columnas físicas 57/58 |
+| Osciloscopio Y/X | 6 | Columnas físicas 63/64 |
+| Output buses 1–8 | 5 | Columnas físicas 36–43 |
+
+### Añadir nuevos tests
+1. Crea un archivo `tests/<modulo>.test.js`
+2. Usa `describe` / `it` de `node:test` y `assert` de `node:assert/strict`
+3. Ejecuta `npm test` para validar

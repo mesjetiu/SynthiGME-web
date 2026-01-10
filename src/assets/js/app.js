@@ -155,6 +155,11 @@ class App {
       this._resizeLargeMatrices();
     };
     window.addEventListener('resize', () => {
+      // Bypass debounce during fullscreen transition
+      if (window.__synthFullscreenTransition) {
+        runAppResizeWork();
+        return;
+      }
       if (appResizeTimer) clearTimeout(appResizeTimer);
       appResizeTimer = setTimeout(() => {
         appResizeTimer = null;

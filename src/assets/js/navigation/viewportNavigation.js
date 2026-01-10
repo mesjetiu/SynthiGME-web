@@ -437,6 +437,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const MAX_STABILIZATION_CALLS = 5;
     
     const handleViewportStabilization = () => {
+      // Skip stabilization during fullscreen transition (handled separately)
+      if (window.__synthFullscreenTransition || document.fullscreenElement) return;
+      
       stabilizationCount++;
       metricsDirty = true;
       refreshMetrics();
@@ -832,6 +835,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
   };
 
   window.addEventListener('resize', () => {
+    // Bypass debounce during fullscreen transition
+    if (window.__synthFullscreenTransition) {
+      handleNavResize();
+      return;
+    }
     if (navResizeTimer) clearTimeout(navResizeTimer);
     navResizeTimer = setTimeout(() => {
       navResizeTimer = null;
@@ -845,6 +853,33 @@ export function initViewportNavigation({ outer, inner } = {}) {
       handleNavResize();
     }, 90);
   }, { passive: true });
+
+  // ─── Fullscreen transition handling ───
+  // Handle fullscreen changes immediately without debounce to prevent blank screen
+  document.addEventListener('fullscreenchange', () => {
+    window.__synthFullscreenTransition = true;
+    
+    // Clear any pending debounced resize
+    if (navResizeTimer) {
+      clearTimeout(navResizeTimer);
+      navResizeTimer = null;
+    }
+    
+    // Immediate metrics refresh and render
+    metricsDirty = true;
+    refreshMetrics();
+    
+    // Force immediate re-render
+    requestAnimationFrame(() => {
+      handleNavResize();
+      render();
+      
+      // Clear transition flag after browser animation completes
+      setTimeout(() => {
+        window.__synthFullscreenTransition = false;
+      }, 500);
+    });
+  });
 }
 
 /**

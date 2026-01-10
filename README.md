@@ -111,6 +111,19 @@ Este comando ejecuta `node scripts/build.mjs`, que realiza los siguientes pasos:
 
 El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 
+### Ejecutar los tests
+El proyecto incluye tests de regresión para el sistema de mapeo de matrices (blueprintMapper). Ejecuta:
+
+```bash
+npm test
+```
+
+Este comando usa el runner nativo de Node.js (`node --test`) y ejecuta todos los archivos `*.test.js` en la carpeta `tests/`. Los tests verifican:
+
+- Conversión correcta de numeración Synthi → índice físico
+- Los huecos (columnas/filas ocultas) nunca aparecen como claves en los mapas
+- Posiciones específicas de destinos críticos (osciloscopio, buses de salida)
+
 ## Licencia
 SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, modificar y redistribuir el código manteniendo la atribución correspondiente.
 

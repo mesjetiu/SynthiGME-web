@@ -493,6 +493,60 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
   requestAnimationFrame(() => fitContentToViewport());
 
+  /**
+   * Pre-calcula y aplica las dimensiones de fullscreen ANTES de que el navegador
+   * haga la transición. Esto evita el lapsus de pantalla en blanco porque el
+   * contenido ya está posicionado/escalado correctamente para el tamaño de pantalla.
+   * @param {boolean} entering - true si estamos entrando a fullscreen, false si salimos
+   */
+  function prepareForFullscreen(entering) {
+    if (!outer || !inner) return;
+    
+    window.__synthFullscreenTransition = true;
+    
+    // Calcular las dimensiones objetivo
+    let targetWidth, targetHeight;
+    if (entering) {
+      // Usar screen.width/height para fullscreen
+      // En landscape, usamos las dimensiones de pantalla
+      targetWidth = screen.width;
+      targetHeight = screen.height;
+    } else {
+      // Al salir, las dimensiones actuales del viewport son las correctas
+      // (el navegador aún no ha cambiado)
+      targetWidth = outer.clientWidth;
+      targetHeight = outer.clientHeight;
+    }
+    
+    // Calcular escala mínima para las nuevas dimensiones
+    const contentWidth = metrics.contentWidth;
+    const contentHeight = metrics.contentHeight;
+    if (!contentWidth || !contentHeight || !targetWidth || !targetHeight) return;
+    
+    const scaleX = (targetWidth * VIEWPORT_MARGIN) / contentWidth;
+    const scaleY = (targetHeight * VIEWPORT_MARGIN) / contentHeight;
+    const newMinScale = Math.min(scaleX, scaleY);
+    const newScale = Math.min(maxScale, Math.max(newMinScale, snapScale(newMinScale)));
+    
+    // Calcular offsets para centrar
+    const finalWidth = contentWidth * newScale;
+    const finalHeight = contentHeight * newScale;
+    const newOffsetX = (targetWidth - finalWidth) / 2;
+    const newOffsetY = (targetHeight - finalHeight) / 2;
+    
+    // Aplicar inmediatamente
+    scale = newScale;
+    offsetX = newOffsetX;
+    offsetY = newOffsetY;
+    
+    // Renderizar con las nuevas dimensiones
+    // Esto posiciona el contenido correctamente ANTES de la transición del navegador
+    render();
+  }
+  
+  // Exponer globalmente para que quickbar pueda llamarla
+  window.__synthPrepareForFullscreen = prepareForFullscreen;
+
   function setClampDisabled(value) {
     if (clampDisabled === value) return;
     clampDisabled = value;

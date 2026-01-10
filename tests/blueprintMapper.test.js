@@ -55,6 +55,41 @@ describe('compilePanelBlueprintMappings – Panel 6', () => {
     assert.equal(dest.channel, 'X');
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Tests de FILAS (sources)
+  // El sourceMap usa índices secuenciales 0-based (orden de aparición)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Input Amps: índices 0–7
+  it('inputAmp canal 0 debe estar en índice 0', () => {
+    const source = result.sourceMap.get(0);
+    assert.ok(source, 'No hay source en índice 0');
+    assert.equal(source.kind, 'inputAmp');
+    assert.equal(source.channel, 0);
+  });
+
+  it('inputAmp canal 7 debe estar en índice 7', () => {
+    const source = result.sourceMap.get(7);
+    assert.ok(source, 'No hay source en índice 7');
+    assert.equal(source.kind, 'inputAmp');
+    assert.equal(source.channel, 7);
+  });
+
+  // Output buses como sources: índices 8–15
+  it('outputBus 1 (source) debe estar en índice 8', () => {
+    const source = result.sourceMap.get(8);
+    assert.ok(source, 'No hay source en índice 8');
+    assert.equal(source.kind, 'outputBus');
+    assert.equal(source.bus, 1);
+  });
+
+  it('outputBus 8 (source) debe estar en índice 15', () => {
+    const source = result.sourceMap.get(15);
+    assert.ok(source, 'No hay source en índice 15');
+    assert.equal(source.kind, 'outputBus');
+    assert.equal(source.bus, 8);
+  });
+
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -118,6 +153,56 @@ describe('compilePanelBlueprintMappings – Panel 5', () => {
     assert.ok(dest, 'No hay destino en columna 58');
     assert.equal(dest.kind, 'oscilloscope');
     assert.equal(dest.channel, 'X');
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Tests de FILAS (sources)
+  // El sourceMap usa índices secuenciales 0-based (orden de aparición)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Input Amps: índices 0–7
+  it('inputAmp canal 0 debe estar en índice 0', () => {
+    const source = result.sourceMap.get(0);
+    assert.ok(source, 'No hay source en índice 0');
+    assert.equal(source.kind, 'inputAmp');
+    assert.equal(source.channel, 0);
+  });
+
+  it('inputAmp canal 7 debe estar en índice 7', () => {
+    const source = result.sourceMap.get(7);
+    assert.ok(source, 'No hay source en índice 7');
+    assert.equal(source.kind, 'inputAmp');
+    assert.equal(source.channel, 7);
+  });
+
+  // Output buses como sources: índices 8–15
+  it('outputBus 1 (source) debe estar en índice 8', () => {
+    const source = result.sourceMap.get(8);
+    assert.ok(source, 'No hay source en índice 8');
+    assert.equal(source.kind, 'outputBus');
+    assert.equal(source.bus, 1);
+  });
+
+  it('outputBus 8 (source) debe estar en índice 15', () => {
+    const source = result.sourceMap.get(15);
+    assert.ok(source, 'No hay source en índice 15');
+    assert.equal(source.kind, 'outputBus');
+    assert.equal(source.bus, 8);
+  });
+
+  // Generadores de ruido: índices 22–23
+  it('noiseGen 0 debe estar en índice 22', () => {
+    const source = result.sourceMap.get(22);
+    assert.ok(source, 'No hay source en índice 22');
+    assert.equal(source.kind, 'noiseGen');
+    assert.equal(source.index, 0);
+  });
+
+  it('noiseGen 1 debe estar en índice 23', () => {
+    const source = result.sourceMap.get(23);
+    assert.ok(source, 'No hay source en índice 23');
+    assert.equal(source.kind, 'noiseGen');
+    assert.equal(source.index, 1);
   });
 
 });

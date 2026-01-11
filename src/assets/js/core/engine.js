@@ -1,5 +1,7 @@
 // Núcleo de audio: contexto WebAudio y clase base Module para el resto del sistema
 import { createLogger } from '../utils/logger.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
+import { showToast } from '../ui/toast.js';
 
 const log = createLogger('AudioEngine');
 
@@ -14,7 +16,12 @@ export const AUDIO_CONSTANTS = {
   /** Tiempo de rampa lento para faders y controles de volumen (60ms) */
   SLOW_RAMP_TIME: 0.06,
   /** Tiempo de rampa rápido para modulaciones (10ms) */
-  FAST_RAMP_TIME: 0.01
+  FAST_RAMP_TIME: 0.01,
+  /** 
+   * Umbral para activar el bypass de filtros.
+   * Si |filterValue| < este umbral, los filtros se desconectan.
+   */
+  FILTER_BYPASS_THRESHOLD: 0.02
 };
 
 /**
@@ -62,6 +69,22 @@ export class AudioEngine {
     // Estado de mute por canal (false = activo, true = muteado)
     this.outputMutes = Array.from({ length: this.outputChannels }, () => false);
     this.outputBuses = [];
+    
+    // ───────────────────────────────────────────────────────────────────────────
+    // FILTER BYPASS: Optimización para reducir carga de CPU
+    // ───────────────────────────────────────────────────────────────────────────
+    // Cuando el filtro está en posición neutral (|value| < threshold), los nodos
+    // BiquadFilter se desconectan completamente del grafo de audio, ahorrando CPU.
+    // ───────────────────────────────────────────────────────────────────────────
+    const hasLocalStorage = typeof localStorage !== 'undefined';
+    const savedFilterBypass = hasLocalStorage ? localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_ENABLED) : null;
+    this._filterBypassEnabled = savedFilterBypass === null ? true : savedFilterBypass === 'true';
+    this._filterBypassDebug = hasLocalStorage ? localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_DEBUG) === 'true' : false;
+    // Estado de bypass por bus (true = filtros bypaseados, false = filtros activos)
+    this._filterBypassState = Array.from({ length: this.outputChannels }, () => true);
+    // Acumulador de cambios para toast consolidado
+    this._filterBypassPendingChanges = null;
+    this._filterBypassToastTimeout = null;
     
     // ───────────────────────────────────────────────────────────────────────────
     // STEREO BUSES: Mezclas estéreo con panning
@@ -174,6 +197,11 @@ export class AudioEngine {
       // Implementación: LP y HP siempre conectados en serie.
       // Cuando un filtro está en "bypass", su frecuencia se pone en el extremo
       // donde no afecta la señal (LP=20kHz, HP=20Hz).
+      // 
+      // OPTIMIZACIÓN (Filter Bypass):
+      // Cuando el filtro está en posición neutral (|value| < threshold),
+      // los nodos BiquadFilter se desconectan completamente del grafo.
+      // Esto ahorra CPU ya que los filtros no procesan muestras.
       // ─────────────────────────────────────────────────────────────────────
       
       // Lowpass: activo cuando value < 0 (corta agudos)
@@ -195,14 +223,35 @@ export class AudioEngine {
       const muteNode = ctx.createGain();
       muteNode.gain.value = this.outputMutes[i] ? 0 : 1;
       
-      // Cadena: busInput → filterLP → filterHP → levelNode → muteNode
-      busInput.connect(filterLP);
+      // ─────────────────────────────────────────────────────────────────────
+      // FILTER BYPASS: Conexión inicial
+      // ─────────────────────────────────────────────────────────────────────
+      // Si el valor inicial del filtro es neutral y el bypass está habilitado,
+      // conectamos directamente busInput → levelNode (sin filtros).
+      // Si no, conectamos la cadena completa con filtros.
+      // ─────────────────────────────────────────────────────────────────────
+      const filterValue = this.outputFilters[i];
+      const isNeutral = Math.abs(filterValue) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
+      const shouldBypass = this._filterBypassEnabled && isNeutral;
+      
+      // Mantener los filtros pre-conectados entre sí (facilita reconexión)
       filterLP.connect(filterHP);
-      filterHP.connect(levelNode);
+      
+      if (shouldBypass) {
+        // Bypass: input → levelNode directamente
+        busInput.connect(levelNode);
+        this._filterBypassState[i] = true;
+      } else {
+        // Cadena completa: busInput → filterLP → filterHP → levelNode
+        busInput.connect(filterLP);
+        filterHP.connect(levelNode);
+        this._filterBypassState[i] = false;
+      }
+      
       levelNode.connect(muteNode);
       
       // Aplicar valor inicial del filtro
-      this._applyFilterValue(i, this.outputFilters[i], filterLP, filterHP);
+      this._applyFilterValue(i, filterValue, filterLP, filterHP);
 
       // Crear nodos de ganancia para cada canal físico (ruteo multicanal)
       const channelGains = [];
@@ -473,8 +522,174 @@ export class AudioEngine {
    */
   setOutputFilter(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
     if (busIndex < 0 || busIndex >= this.outputChannels) return;
-    this.outputFilters[busIndex] = Math.max(-1, Math.min(1, value));
-    this._applyFilterValue(busIndex, this.outputFilters[busIndex], null, null, ramp);
+    
+    const clampedValue = Math.max(-1, Math.min(1, value));
+    this.outputFilters[busIndex] = clampedValue;
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // FILTER BYPASS: Optimización de CPU
+    // ─────────────────────────────────────────────────────────────────────
+    if (this._filterBypassEnabled) {
+      this._updateFilterBypass(busIndex, clampedValue);
+    }
+    
+    // Solo aplicar valores de frecuencia si los filtros están conectados
+    if (!this._filterBypassState[busIndex]) {
+      this._applyFilterValue(busIndex, clampedValue, null, null, ramp);
+    }
+  }
+  
+  /**
+   * Actualiza el estado de bypass del filtro para un bus específico.
+   * Conecta/desconecta los nodos BiquadFilter según sea necesario.
+   * 
+   * @param {number} busIndex - Índice del bus
+   * @param {number} value - Valor actual del filtro
+   * @private
+   */
+  _updateFilterBypass(busIndex, value) {
+    const bus = this.outputBuses[busIndex];
+    if (!bus) return;
+    
+    const isNeutral = Math.abs(value) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
+    const currentlyBypassed = this._filterBypassState[busIndex];
+    
+    if (isNeutral && !currentlyBypassed) {
+      // Activar bypass: desconectar filtros, conectar directo
+      try {
+        bus.input.disconnect(bus.filterLP);
+        bus.filterHP.disconnect(bus.levelNode);
+        bus.input.connect(bus.levelNode);
+        this._filterBypassState[busIndex] = true;
+        
+        if (this._filterBypassDebug) {
+          this._logFilterBypassChange(busIndex, true);
+        }
+      } catch {
+        // Ignorar errores si ya está en el estado correcto
+      }
+    } else if (!isNeutral && currentlyBypassed) {
+      // Desactivar bypass: reconectar filtros
+      try {
+        bus.input.disconnect(bus.levelNode);
+        bus.input.connect(bus.filterLP);
+        bus.filterHP.connect(bus.levelNode);
+        this._filterBypassState[busIndex] = false;
+        
+        if (this._filterBypassDebug) {
+          this._logFilterBypassChange(busIndex, false);
+        }
+      } catch {
+        // Ignorar errores si ya está en el estado correcto
+      }
+    }
+  }
+  
+  /**
+   * Log de cambio de estado del filter bypass.
+   * Acumula cambios y muestra un toast consolidado después de un breve delay.
+   * @param {number} busIndex - Índice del bus
+   * @param {boolean} bypassed - true si ahora está bypaseado
+   * @private
+   */
+  _logFilterBypassChange(busIndex, bypassed) {
+    const state = bypassed ? 'BYPASS' : 'ACTIVE';
+    log.info(`[FilterBypass] Out ${busIndex + 1}: ${state}`);
+    
+    // Acumular cambios para toast consolidado
+    if (!this._filterBypassPendingChanges) {
+      this._filterBypassPendingChanges = { bypassed: [], active: [] };
+    }
+    
+    const outName = `Out ${busIndex + 1}`;
+    if (bypassed) {
+      this._filterBypassPendingChanges.bypassed.push(outName);
+    } else {
+      this._filterBypassPendingChanges.active.push(outName);
+    }
+    
+    // Debounce: mostrar toast después de 100ms de inactividad
+    if (this._filterBypassToastTimeout) {
+      clearTimeout(this._filterBypassToastTimeout);
+    }
+    this._filterBypassToastTimeout = setTimeout(() => {
+      this._showFilterBypassToast();
+    }, 100);
+  }
+  
+  /**
+   * Muestra un toast consolidado con los cambios de filter bypass.
+   * @private
+   */
+  _showFilterBypassToast() {
+    if (!this._filterBypassPendingChanges) return;
+    
+    const { bypassed, active } = this._filterBypassPendingChanges;
+    if (bypassed.length === 0 && active.length === 0) return;
+    
+    const parts = [];
+    if (active.length > 0) {
+      parts.push(`🔊 Filter: ${active.join(', ')}`);
+    }
+    if (bypassed.length > 0) {
+      parts.push(`⚡ Bypass: ${bypassed.join(', ')}`);
+    }
+    
+    showToast(parts.join(' | '), 2000);
+    this._filterBypassPendingChanges = null;
+    this._filterBypassToastTimeout = null;
+  }
+  
+  /**
+   * Habilita o deshabilita el sistema de filter bypass.
+   * @param {boolean} enabled - true para habilitar
+   */
+  setFilterBypassEnabled(enabled) {
+    this._filterBypassEnabled = enabled;
+    
+    if (enabled) {
+      // Al habilitar, revisar todos los buses y aplicar bypass donde corresponda
+      for (let i = 0; i < this.outputChannels; i++) {
+        this._updateFilterBypass(i, this.outputFilters[i]);
+      }
+    } else {
+      // Al deshabilitar, reconectar todos los filtros
+      for (let i = 0; i < this.outputChannels; i++) {
+        if (this._filterBypassState[i]) {
+          // Forzar reconexión de filtros
+          const bus = this.outputBuses[i];
+          if (bus) {
+            try {
+              bus.input.disconnect(bus.levelNode);
+              bus.input.connect(bus.filterLP);
+              bus.filterHP.connect(bus.levelNode);
+              this._filterBypassState[i] = false;
+              // Aplicar valores actuales de frecuencia
+              this._applyFilterValue(i, this.outputFilters[i]);
+            } catch {
+              // Ignorar errores
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * Habilita o deshabilita los logs de debug del filter bypass.
+   * @param {boolean} enabled - true para habilitar logs
+   */
+  setFilterBypassDebug(enabled) {
+    this._filterBypassDebug = enabled;
+  }
+  
+  /**
+   * Obtiene el estado actual del filter bypass para un bus.
+   * @param {number} busIndex - Índice del bus
+   * @returns {boolean} true si está bypaseado
+   */
+  isFilterBypassed(busIndex) {
+    return this._filterBypassState[busIndex] ?? false;
   }
 
   /**

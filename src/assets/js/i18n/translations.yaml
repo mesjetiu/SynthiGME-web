@@ -644,24 +644,60 @@ settings.reset.confirm:
   es: ¿Seguro que quieres reiniciar todos los módulos a sus valores por defecto? Esta acción no se puede deshacer.
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SISTEMA DE DORMANCY (OPTIMIZACIÓN DE RENDIMIENTO)
+# OPTIMIZACIONES DE RENDIMIENTO
 # ═══════════════════════════════════════════════════════════════════════════════
 
+settings.optimizations:
+  en: Performance Optimizations
+  es: Optimizaciones de rendimiento
+
+settings.optimizations.description:
+  en: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
+  es: Estas opciones reducen la carga de CPU desactivando el procesamiento de audio cuando no es necesario. Especialmente útiles en dispositivos móviles.
+
+settings.optimizations.debugGlobal:
+  en: Show debug toasts for all optimizations
+  es: Mostrar toasts de debug para todas las optimizaciones
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dormancy (silencia módulos sin conexiones)
+# ─────────────────────────────────────────────────────────────────────────────
+
 settings.dormancy:
-  en: Performance optimization
-  es: Optimización de rendimiento
+  en: Module Dormancy
+  es: Dormancy de módulos
 
 settings.dormancy.description:
-  en: Automatically mutes modules that are not connected in the matrix, reducing CPU load. Especially useful on mobile devices.
-  es: Silencia automáticamente los módulos que no están conectados en la matriz, reduciendo la carga de CPU. Especialmente útil en dispositivos móviles.
+  en: Automatically mutes modules that are not connected in the matrix.
+  es: Silencia automáticamente los módulos que no están conectados en la matriz.
 
 settings.dormancy.enabled:
   en: Enable dormancy system
   es: Activar sistema de dormancy
 
 settings.dormancy.debug:
-  en: Show toasts on state changes (debug)
-  es: Mostrar toasts en cambios de estado (debug)
+  en: Debug dormancy only
+  es: Debug solo dormancy
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Filter Bypass (desconecta filtros en posición neutral)
+# ─────────────────────────────────────────────────────────────────────────────
+
+settings.filterBypass:
+  en: Filter Bypass
+  es: Bypass de filtros
+
+settings.filterBypass.description:
+  en: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
+  es: Desconecta físicamente los filtros LP/HP cuando están en posición neutral, reduciendo carga de CPU.
+
+settings.filterBypass.enabled:
+  en: Enable filter bypass
+  es: Activar bypass de filtros
+
+settings.filterBypass.debug:
+  en: Debug filter bypass only
+  es: Debug solo bypass de filtros
 
 toast.reset:
   en: Synthesizer reset to defaults

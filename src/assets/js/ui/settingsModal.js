@@ -73,10 +73,22 @@ export class SettingsModal {
     const savedAskBeforeRestore = localStorage.getItem(STORAGE_KEYS.ASK_BEFORE_RESTORE);
     this.askBeforeRestore = savedAskBeforeRestore === null ? true : savedAskBeforeRestore === 'true';
     
-    // Dormancy system (optimización de rendimiento)
+    // ─────────────────────────────────────────────────────────────────────
+    // Optimizaciones de rendimiento
+    // ─────────────────────────────────────────────────────────────────────
+    
+    // Debug global de optimizaciones
+    this.optimizationsDebug = localStorage.getItem(STORAGE_KEYS.OPTIMIZATIONS_DEBUG) === 'true';
+    
+    // Dormancy system
     const savedDormancyEnabled = localStorage.getItem(STORAGE_KEYS.DORMANCY_ENABLED);
     this.dormancyEnabled = savedDormancyEnabled === null ? true : savedDormancyEnabled === 'true';
     this.dormancyDebug = localStorage.getItem(STORAGE_KEYS.DORMANCY_DEBUG) === 'true';
+    
+    // Filter bypass
+    const savedFilterBypassEnabled = localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_ENABLED);
+    this.filterBypassEnabled = savedFilterBypassEnabled === null ? true : savedFilterBypassEnabled === 'true';
+    this.filterBypassDebug = localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_DEBUG) === 'true';
     
     // Detectar Firefox (no necesita selector de resolución)
     this.isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
@@ -385,8 +397,8 @@ export class SettingsModal {
     container.className = 'settings-tab-content';
     container.dataset.tab = 'advanced';
     
-    // Optimización de rendimiento (Dormancy)
-    container.appendChild(this._createDormancySection());
+    // Optimizaciones de rendimiento (agrupa dormancy + filter bypass + futuras)
+    container.appendChild(this._createOptimizationsSection());
     
     // Actualizaciones
     container.appendChild(this._createUpdatesSection());
@@ -763,26 +775,86 @@ export class SettingsModal {
   }
   
   /**
-   * Crea la sección de optimización de rendimiento (Dormancy System)
+   * Crea la sección de optimizaciones de rendimiento.
+   * Agrupa todas las optimizaciones: dormancy, filter bypass, etc.
    * @returns {HTMLElement}
    */
-  _createDormancySection() {
+  _createOptimizationsSection() {
     const section = document.createElement('div');
     section.className = 'settings-section';
     
-    this.dormancyTitleElement = document.createElement('h3');
-    this.dormancyTitleElement.className = 'settings-section__title';
+    // ─────────────────────────────────────────────────────────────────────
+    // Título y descripción de la sección principal
+    // ─────────────────────────────────────────────────────────────────────
+    this.optimizationsTitleElement = document.createElement('h3');
+    this.optimizationsTitleElement.className = 'settings-section__title';
+    this.optimizationsTitleElement.textContent = t('settings.optimizations');
+    section.appendChild(this.optimizationsTitleElement);
+    
+    this.optimizationsDescElement = document.createElement('p');
+    this.optimizationsDescElement.className = 'settings-section__description';
+    this.optimizationsDescElement.textContent = t('settings.optimizations.description');
+    section.appendChild(this.optimizationsDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox global de debug (afecta a todas las optimizaciones)
+    // ─────────────────────────────────────────────────────────────────────
+    const debugGlobalRow = document.createElement('div');
+    debugGlobalRow.className = 'settings-row settings-row--checkbox';
+    
+    this.optimizationsDebugCheckbox = document.createElement('input');
+    this.optimizationsDebugCheckbox.type = 'checkbox';
+    this.optimizationsDebugCheckbox.id = 'optimizationsDebugCheckbox';
+    this.optimizationsDebugCheckbox.className = 'settings-checkbox';
+    this.optimizationsDebugCheckbox.checked = this.optimizationsDebug;
+    
+    this.optimizationsDebugLabelElement = document.createElement('label');
+    this.optimizationsDebugLabelElement.className = 'settings-checkbox-label';
+    this.optimizationsDebugLabelElement.htmlFor = 'optimizationsDebugCheckbox';
+    this.optimizationsDebugLabelElement.textContent = t('settings.optimizations.debugGlobal');
+    
+    this.optimizationsDebugCheckbox.addEventListener('change', () => {
+      this._setOptimizationsDebug(this.optimizationsDebugCheckbox.checked);
+    });
+    
+    debugGlobalRow.appendChild(this.optimizationsDebugCheckbox);
+    debugGlobalRow.appendChild(this.optimizationsDebugLabelElement);
+    section.appendChild(debugGlobalRow);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Subsección: Dormancy
+    // ─────────────────────────────────────────────────────────────────────
+    section.appendChild(this._createDormancySubsection());
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Subsección: Filter Bypass
+    // ─────────────────────────────────────────────────────────────────────
+    section.appendChild(this._createFilterBypassSubsection());
+    
+    return section;
+  }
+  
+  /**
+   * Crea la subsección de dormancy dentro de optimizaciones.
+   * @returns {HTMLElement}
+   */
+  _createDormancySubsection() {
+    const subsection = document.createElement('div');
+    subsection.className = 'settings-subsection';
+    
+    // Título de subsección
+    this.dormancyTitleElement = document.createElement('h4');
+    this.dormancyTitleElement.className = 'settings-subsection__title';
     this.dormancyTitleElement.textContent = t('settings.dormancy');
-    section.appendChild(this.dormancyTitleElement);
+    subsection.appendChild(this.dormancyTitleElement);
     
+    // Descripción
     this.dormancyDescElement = document.createElement('p');
-    this.dormancyDescElement.className = 'settings-section__description';
+    this.dormancyDescElement.className = 'settings-subsection__description';
     this.dormancyDescElement.textContent = t('settings.dormancy.description');
-    section.appendChild(this.dormancyDescElement);
+    subsection.appendChild(this.dormancyDescElement);
     
-    // ─────────────────────────────────────────────────────────────────────
-    // Checkbox para habilitar/deshabilitar dormancy
-    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: enabled
     const enabledRow = document.createElement('div');
     enabledRow.className = 'settings-row settings-row--checkbox';
     
@@ -803,11 +875,9 @@ export class SettingsModal {
     
     enabledRow.appendChild(this.dormancyEnabledCheckbox);
     enabledRow.appendChild(this.dormancyEnabledLabelElement);
-    section.appendChild(enabledRow);
+    subsection.appendChild(enabledRow);
     
-    // ─────────────────────────────────────────────────────────────────────
-    // Checkbox para mostrar indicadores de debug
-    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: debug individual (indentado)
     const debugRow = document.createElement('div');
     debugRow.className = 'settings-row settings-row--checkbox settings-row--indent';
     
@@ -828,9 +898,92 @@ export class SettingsModal {
     
     debugRow.appendChild(this.dormancyDebugCheckbox);
     debugRow.appendChild(this.dormancyDebugLabelElement);
-    section.appendChild(debugRow);
+    subsection.appendChild(debugRow);
     
-    return section;
+    return subsection;
+  }
+  
+  /**
+   * Crea la subsección de filter bypass dentro de optimizaciones.
+   * @returns {HTMLElement}
+   */
+  _createFilterBypassSubsection() {
+    const subsection = document.createElement('div');
+    subsection.className = 'settings-subsection';
+    
+    // Título de subsección
+    this.filterBypassTitleElement = document.createElement('h4');
+    this.filterBypassTitleElement.className = 'settings-subsection__title';
+    this.filterBypassTitleElement.textContent = t('settings.filterBypass');
+    subsection.appendChild(this.filterBypassTitleElement);
+    
+    // Descripción
+    this.filterBypassDescElement = document.createElement('p');
+    this.filterBypassDescElement.className = 'settings-subsection__description';
+    this.filterBypassDescElement.textContent = t('settings.filterBypass.description');
+    subsection.appendChild(this.filterBypassDescElement);
+    
+    // Checkbox: enabled
+    const enabledRow = document.createElement('div');
+    enabledRow.className = 'settings-row settings-row--checkbox';
+    
+    this.filterBypassEnabledCheckbox = document.createElement('input');
+    this.filterBypassEnabledCheckbox.type = 'checkbox';
+    this.filterBypassEnabledCheckbox.id = 'filterBypassEnabledCheckbox';
+    this.filterBypassEnabledCheckbox.className = 'settings-checkbox';
+    this.filterBypassEnabledCheckbox.checked = this.filterBypassEnabled;
+    
+    this.filterBypassEnabledLabelElement = document.createElement('label');
+    this.filterBypassEnabledLabelElement.className = 'settings-checkbox-label';
+    this.filterBypassEnabledLabelElement.htmlFor = 'filterBypassEnabledCheckbox';
+    this.filterBypassEnabledLabelElement.textContent = t('settings.filterBypass.enabled');
+    
+    this.filterBypassEnabledCheckbox.addEventListener('change', () => {
+      this._setFilterBypassEnabled(this.filterBypassEnabledCheckbox.checked);
+    });
+    
+    enabledRow.appendChild(this.filterBypassEnabledCheckbox);
+    enabledRow.appendChild(this.filterBypassEnabledLabelElement);
+    subsection.appendChild(enabledRow);
+    
+    // Checkbox: debug individual (indentado)
+    const debugRow = document.createElement('div');
+    debugRow.className = 'settings-row settings-row--checkbox settings-row--indent';
+    
+    this.filterBypassDebugCheckbox = document.createElement('input');
+    this.filterBypassDebugCheckbox.type = 'checkbox';
+    this.filterBypassDebugCheckbox.id = 'filterBypassDebugCheckbox';
+    this.filterBypassDebugCheckbox.className = 'settings-checkbox';
+    this.filterBypassDebugCheckbox.checked = this.filterBypassDebug;
+    
+    this.filterBypassDebugLabelElement = document.createElement('label');
+    this.filterBypassDebugLabelElement.className = 'settings-checkbox-label';
+    this.filterBypassDebugLabelElement.htmlFor = 'filterBypassDebugCheckbox';
+    this.filterBypassDebugLabelElement.textContent = t('settings.filterBypass.debug');
+    
+    this.filterBypassDebugCheckbox.addEventListener('change', () => {
+      this._setFilterBypassDebug(this.filterBypassDebugCheckbox.checked);
+    });
+    
+    debugRow.appendChild(this.filterBypassDebugCheckbox);
+    debugRow.appendChild(this.filterBypassDebugLabelElement);
+    subsection.appendChild(debugRow);
+    
+    return subsection;
+  }
+  
+  /**
+   * Establece el debug global de optimizaciones
+   * @param {boolean} enabled
+   */
+  _setOptimizationsDebug(enabled) {
+    this.optimizationsDebug = enabled;
+    localStorage.setItem(STORAGE_KEYS.OPTIMIZATIONS_DEBUG, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:optimizationsDebugChange', { 
+      detail: { enabled } 
+    }));
   }
   
   /**
@@ -857,6 +1010,34 @@ export class SettingsModal {
     
     // Notificar mediante evento
     document.dispatchEvent(new CustomEvent('synth:dormancyDebugChange', { 
+      detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Establece si el bypass de filtros está habilitado
+   * @param {boolean} enabled
+   */
+  _setFilterBypassEnabled(enabled) {
+    this.filterBypassEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.FILTER_BYPASS_ENABLED, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:filterBypassEnabledChange', { 
+      detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Establece si se muestran los indicadores de debug de filter bypass
+   * @param {boolean} enabled
+   */
+  _setFilterBypassDebug(enabled) {
+    this.filterBypassDebug = enabled;
+    localStorage.setItem(STORAGE_KEYS.FILTER_BYPASS_DEBUG, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:filterBypassDebugChange', { 
       detail: { enabled } 
     }));
   }
@@ -1934,6 +2115,47 @@ export class SettingsModal {
           input.value = t('settings.shortcuts.none');
         }
       });
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Actualizar sección de optimizaciones
+    // ─────────────────────────────────────────────────────────────────────
+    if (this.optimizationsTitleElement) {
+      this.optimizationsTitleElement.textContent = t('settings.optimizations');
+    }
+    if (this.optimizationsDescElement) {
+      this.optimizationsDescElement.textContent = t('settings.optimizations.description');
+    }
+    if (this.optimizationsDebugLabelElement) {
+      this.optimizationsDebugLabelElement.textContent = t('settings.optimizations.debugGlobal');
+    }
+    
+    // Subsección: Dormancy
+    if (this.dormancyTitleElement) {
+      this.dormancyTitleElement.textContent = t('settings.dormancy');
+    }
+    if (this.dormancyDescElement) {
+      this.dormancyDescElement.textContent = t('settings.dormancy.description');
+    }
+    if (this.dormancyEnabledLabelElement) {
+      this.dormancyEnabledLabelElement.textContent = t('settings.dormancy.enabled');
+    }
+    if (this.dormancyDebugLabelElement) {
+      this.dormancyDebugLabelElement.textContent = t('settings.dormancy.debug');
+    }
+    
+    // Subsección: Filter Bypass
+    if (this.filterBypassTitleElement) {
+      this.filterBypassTitleElement.textContent = t('settings.filterBypass');
+    }
+    if (this.filterBypassDescElement) {
+      this.filterBypassDescElement.textContent = t('settings.filterBypass.description');
+    }
+    if (this.filterBypassEnabledLabelElement) {
+      this.filterBypassEnabledLabelElement.textContent = t('settings.filterBypass.enabled');
+    }
+    if (this.filterBypassDebugLabelElement) {
+      this.filterBypassDebugLabelElement.textContent = t('settings.filterBypass.debug');
     }
   }
   

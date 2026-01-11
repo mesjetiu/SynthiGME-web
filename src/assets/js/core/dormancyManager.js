@@ -106,6 +106,20 @@ export class DormancyManager {
   }
   
   /**
+   * Aplica indicadores visuales de debug mostrando el estado actual.
+   * @private
+   */
+  _applyDebugIndicators() {
+    if (!this._enabled) return;
+    
+    // Si debug está activo, mostrar un resumen del estado actual
+    if (this._debugIndicators) {
+      // Recalcular estados y mostrar toast con el estado actual
+      this.updateAllStates();
+    }
+  }
+  
+  /**
    * @returns {boolean} Si los indicadores de debug están activos
    */
   hasDebugIndicators() {

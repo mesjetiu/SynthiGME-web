@@ -2399,6 +2399,38 @@ small { color:#aaa; }
   color: #888;
 }
 
+/* Subsecciones (para optimizaciones agrupadas) */
+.settings-subsection {
+  margin: 1rem 0 1rem 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid rgba(255, 213, 79, 0.3);
+}
+
+.settings-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.settings-subsection__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ccc;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.settings-subsection__description {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: #777;
+}
+
+/* Fila indentada (para checkboxes hijos) */
+.settings-row--indent {
+  margin-left: 1.5rem;
+  opacity: 0.85;
+}
+
 /* Selector de idioma */
 .settings-select-wrapper {
   position: relative;

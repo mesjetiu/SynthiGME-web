@@ -82,9 +82,21 @@ export const STORAGE_KEYS = {
   // Visualización de matriz
   SHOW_INACTIVE_PINS: `${STORAGE_PREFIX}show-inactive-pins`,
   
+  // ─────────────────────────────────────────────────────────────────────────
   // Optimización de rendimiento
+  // Cada optimización tiene un toggle enabled + un toggle debug opcional
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Debug global de optimizaciones (toasts para todas las optimizaciones) */
+  OPTIMIZATIONS_DEBUG: `${STORAGE_PREFIX}optimizations-debug`,
+  
+  /** Dormancy: silencia módulos sin conexiones activas */
   DORMANCY_ENABLED: `${STORAGE_PREFIX}dormancy-enabled`,
-  DORMANCY_DEBUG: `${STORAGE_PREFIX}dormancy-debug`
+  DORMANCY_DEBUG: `${STORAGE_PREFIX}dormancy-debug`,
+  
+  /** Filter Bypass: desconecta físicamente filtros LP/HP en posición neutral */
+  FILTER_BYPASS_ENABLED: `${STORAGE_PREFIX}filter-bypass-enabled`,
+  FILTER_BYPASS_DEBUG: `${STORAGE_PREFIX}filter-bypass-debug`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -380,6 +380,11 @@ class App {
     this._setupDormancyManager();
     
     // ─────────────────────────────────────────────────────────────────────────
+    // FILTER BYPASS (optimización de filtros en posición neutral)
+    // ─────────────────────────────────────────────────────────────────────────
+    this._setupFilterBypass();
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
     // ─────────────────────────────────────────────────────────────────────────
     this._setupPatchBrowser();
@@ -777,6 +782,35 @@ class App {
     document.addEventListener('synth:dormancyDebugChange', (e) => {
       this.dormancyManager.setDebugIndicators(e.detail.enabled);
       log.info(` Dormancy debug indicators ${e.detail.enabled ? 'enabled' : 'disabled'}`);
+    });
+  }
+  
+  /**
+   * Configura los listeners para el Filter Bypass optimization.
+   * Desconecta filtros cuando están en posición neutral para ahorrar CPU.
+   */
+  _setupFilterBypass() {
+    // Escuchar cambios desde Settings
+    document.addEventListener('synth:filterBypassEnabledChange', (e) => {
+      this.engine.setFilterBypassEnabled(e.detail.enabled);
+      log.info(`⚡ Filter bypass ${e.detail.enabled ? 'enabled' : 'disabled'}`);
+    });
+    
+    document.addEventListener('synth:filterBypassDebugChange', (e) => {
+      this.engine.setFilterBypassDebug(e.detail.enabled);
+      log.info(`🔧 Filter bypass debug ${e.detail.enabled ? 'enabled' : 'disabled'}`);
+    });
+    
+    // Escuchar cambio global de debug de optimizaciones
+    document.addEventListener('synth:optimizationsDebugChange', (e) => {
+      // El debug global afecta a ambos sistemas
+      if (e.detail.enabled) {
+        // Al activar global, habilitar ambos debugs individuales
+        this.dormancyManager.setDebugIndicators(true);
+        this.engine.setFilterBypassDebug(true);
+        log.info('🔧 Global optimizations debug enabled');
+      }
+      // Nota: desactivar global no desactiva individuales, sólo los checkboxes individuales lo hacen
     });
   }
   

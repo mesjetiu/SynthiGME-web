@@ -921,6 +921,144 @@ describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.filterBypass - optimización de CPU
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.filterBypass (optimización de CPU)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  function setupEngine() {
+    mockCtx = createMockAudioContext({ maxChannelCount: 2 });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('_filterBypassEnabled es true por defecto', () => {
+    setupEngine();
+    assert.equal(engine._filterBypassEnabled, true);
+  });
+
+  it('_filterBypassState inicializa con todos los buses en bypass', () => {
+    setupEngine();
+    engine._filterBypassState.forEach(state => {
+      assert.equal(state, true);
+    });
+  });
+
+  it('setFilterBypassEnabled(false) reconecta todos los filtros', () => {
+    setupEngine();
+    
+    // Inicialmente todos en bypass
+    assert.equal(engine._filterBypassState[0], true);
+    
+    engine.setFilterBypassEnabled(false);
+    
+    // Ahora todos deben estar con filtros activos
+    engine._filterBypassState.forEach(state => {
+      assert.equal(state, false);
+    });
+  });
+
+  it('setFilterBypassEnabled(true) aplica bypass a filtros neutrales', () => {
+    setupEngine();
+    engine.setFilterBypassEnabled(false);
+    
+    // Todos tienen valor 0 (neutral), al habilitar bypass deben activarse
+    engine.setFilterBypassEnabled(true);
+    
+    engine._filterBypassState.forEach(state => {
+      assert.equal(state, true);
+    });
+  });
+
+  it('isFilterBypassed() retorna el estado correcto', () => {
+    setupEngine();
+    
+    assert.equal(engine.isFilterBypassed(0), true);
+    
+    engine.setOutputFilter(0, 0.5);
+    assert.equal(engine.isFilterBypassed(0), false);
+    
+    engine.setOutputFilter(0, 0);
+    assert.equal(engine.isFilterBypassed(0), true);
+  });
+
+  it('setOutputFilter con valor no-neutral desactiva bypass', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, 0.5);
+    
+    assert.equal(engine._filterBypassState[0], false);
+  });
+
+  it('setOutputFilter con valor neutral activa bypass', () => {
+    setupEngine();
+    
+    // Primero aplicar valor no-neutral
+    engine.setOutputFilter(0, 0.5);
+    assert.equal(engine._filterBypassState[0], false);
+    
+    // Luego volver a neutral
+    engine.setOutputFilter(0, 0);
+    assert.equal(engine._filterBypassState[0], true);
+  });
+
+  it('valores pequeños (|v| < 0.02) activan bypass', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, 0.5);
+    assert.equal(engine._filterBypassState[0], false);
+    
+    // Valor pequeño positivo
+    engine.setOutputFilter(0, 0.01);
+    assert.equal(engine._filterBypassState[0], true);
+    
+    engine.setOutputFilter(0, 0.5);
+    
+    // Valor pequeño negativo
+    engine.setOutputFilter(0, -0.01);
+    assert.equal(engine._filterBypassState[0], true);
+  });
+
+  it('valores >= 0.02 no activan bypass', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, 0.02);
+    assert.equal(engine._filterBypassState[0], false);
+    
+    engine.setOutputFilter(0, -0.02);
+    assert.equal(engine._filterBypassState[0], false);
+  });
+
+  it('setFilterBypassDebug actualiza el flag', () => {
+    setupEngine();
+    
+    assert.equal(engine._filterBypassDebug, false);
+    
+    engine.setFilterBypassDebug(true);
+    assert.equal(engine._filterBypassDebug, true);
+    
+    engine.setFilterBypassDebug(false);
+    assert.equal(engine._filterBypassDebug, false);
+  });
+
+  it('bypass deshabilitado no cambia el estado al cambiar filtro', () => {
+    setupEngine();
+    engine.setFilterBypassEnabled(false);
+    
+    // Con bypass deshabilitado, el estado siempre debe ser false
+    engine.setOutputFilter(0, 0);
+    assert.equal(engine._filterBypassState[0], false);
+    
+    engine.setOutputFilter(0, 0.5);
+    assert.equal(engine._filterBypassState[0], false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // AudioEngine.setMute (global) - con nodos mock
 // ═══════════════════════════════════════════════════════════════════════════
 

@@ -61,7 +61,7 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → 2 físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputRouting()` (ruteo directo L/R). Exporta también `AUDIO_CONSTANTS` (tiempos de rampa) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta los filtros LP/HP cuando están en posición neutral (|v|<0.02) para ahorrar CPU. Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
 | `blueprintMapper.js` | `compilePanelBlueprintMappings()` extrae filas/columnas ocultas de blueprints de paneles para configurar las matrices |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
@@ -933,6 +933,66 @@ keyboardShortcuts.onChange(shortcuts => console.log(shortcuts));
 3. **Buses Lógicos** (8) suman señales y aplican nivel (faders)
 4. **Router Maestro** mezcla los 8 buses en salida estéreo (L/R)
 5. **AudioContext.destination** emite el audio final
+
+---
+
+## 8.1 Optimizaciones de Rendimiento
+
+El sistema incluye varias optimizaciones para reducir carga de CPU, especialmente importantes en dispositivos móviles:
+
+### Dormancy (Silenciamiento Automático)
+
+El `DormancyManager` detecta módulos de audio sin conexiones activas en las matrices y los silencia automáticamente.
+
+```
+┌──────────────────┐                   ┌──────────────────┐
+│   Matriz Audio   │───┐    ┌─────────▶│    Output Bus    │
+│   (conexiones)   │   │    │  activo  │  (procesando)    │
+└──────────────────┘   │    │          └──────────────────┘
+                       │    │
+                       ▼    │
+               ┌───────────────────┐
+               │  DormancyManager  │
+               │  (analiza matriz) │
+               └───────────────────┘
+                       │    │
+                       │    │          ┌──────────────────┐
+                       │    └─────────▶│   Output Bus     │
+                       │       dormant │  (silenciado)    │
+                       │               └──────────────────┘
+                       ▼
+               ┌───────────────────┐
+               │  Oscilador sin    │──▶ silenciado
+               │   conexiones      │
+               └───────────────────┘
+```
+
+**Comportamiento:**
+- Analiza matrices de audio y control en cada cambio
+- Módulos sin conexiones entrantes → marcados como dormant
+- Output buses sin conexiones desde módulos → marcados como dormant
+- Osciladores aplican gain=0, Output buses aplican mute
+
+**Configuración:** Ajustes → Avanzado → Optimizaciones → Dormancy
+
+### Filter Bypass (Desconexión de Filtros)
+
+Cada output bus tiene filtros LP/HP en serie. Cuando el filtro está en posición neutral (|valor| < 0.02), los nodos `BiquadFilterNode` se desconectan del grafo de audio.
+
+```
+FILTROS ACTIVOS (valor ≠ 0):
+busInput → filterLP → filterHP → levelNode → ...
+
+BYPASS (valor ≈ 0):
+busInput ─────────────────────▶ levelNode → ...
+           (filtros desconectados)
+```
+
+**Beneficio:** Los BiquadFilter desconectados no consumen CPU.
+
+**Umbral:** `AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD = 0.02`
+
+**Configuración:** Ajustes → Avanzado → Optimizaciones → Filter Bypass
 
 ---
 

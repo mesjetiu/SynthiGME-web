@@ -3744,6 +3744,15 @@ small { color:#aaa; }
   justify-content: center;
   cursor: pointer;
   touch-action: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.output-channel__knob:active,
+.output-channel__knob:focus,
+.output-channel__knob:focus-visible {
+  outline: none;
+  background: radial-gradient(circle at 30% 30%, #555, #222);
 }
 
 .output-channel__knob-inner {

@@ -7,6 +7,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-11
+
 ### Añadido
 - **Stereo buses (Pan 1-4 y Pan 5-8)**: dos buses estéreo con control de panning que mezclan los 8 canales de salida en dos grupos de 4. Conectados a la matriz de audio (filas 75-82) y control.
 - **Filtro bipolar LP/HP** en cada canal de salida: control único que actúa como low-pass (giro izquierda), bypass (centro) o high-pass (giro derecha).

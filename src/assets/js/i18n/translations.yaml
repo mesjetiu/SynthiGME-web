@@ -712,12 +712,24 @@ settings.latencyMode.description:
   es: Ajusta el tamaño del buffer de audio. Usa "Reproducción" en móvil para estabilidad, "Interactivo" en escritorio para baja latencia.
 
 settings.latencyMode.interactive:
-  en: Interactive (low latency)
-  es: Interactivo (baja latencia)
+  en: Interactive (~10ms)
+  es: Interactivo (~10ms)
+
+settings.latencyMode.balanced:
+  en: Balanced (~25ms)
+  es: Equilibrado (~25ms)
 
 settings.latencyMode.playback:
-  en: Playback (stable)
-  es: Reproducción (estable)
+  en: Playback (~50ms)
+  es: Reproducción (~50ms)
+
+settings.latencyMode.safe:
+  en: Safe (100ms)
+  es: Seguro (100ms)
+
+settings.latencyMode.maximum:
+  en: Maximum (200ms)
+  es: Máximo (200ms)
 
 settings.latencyMode.restart:
   en: Restart audio engine to apply changes?

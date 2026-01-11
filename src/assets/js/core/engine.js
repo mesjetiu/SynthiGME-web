@@ -154,10 +154,14 @@ export class AudioEngine {
     if (options.audioContext) {
       ctx = options.audioContext;
     } else {
-      const latencyHint = options.latencyHint || 'interactive';
+      let latencyHint = options.latencyHint || 'interactive';
+      // Convertir valores numéricos de string a número
+      if (!isNaN(parseFloat(latencyHint))) {
+        latencyHint = parseFloat(latencyHint);
+      }
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       ctx = new AudioContextClass({ latencyHint });
-      log.info(`AudioContext created with latencyHint: "${latencyHint}", baseLatency: ${ctx.baseLatency?.toFixed(3) || 'N/A'}s`);
+      log.info(`AudioContext created with latencyHint: ${typeof latencyHint === 'number' ? latencyHint + 's' : '"' + latencyHint + '"'}, baseLatency: ${ctx.baseLatency?.toFixed(3) || 'N/A'}s`);
     }
     this.audioCtx = ctx;
 

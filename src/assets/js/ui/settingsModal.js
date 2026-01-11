@@ -1014,17 +1014,21 @@ export class SettingsModal {
     this.latencyModeSelect.className = 'settings-select';
     this.latencyModeSelect.id = 'latencyModeSelect';
     
-    // Opción: interactive (baja latencia)
-    const optInteractive = document.createElement('option');
-    optInteractive.value = 'interactive';
-    optInteractive.textContent = t('settings.latencyMode.interactive');
-    this.latencyModeSelect.appendChild(optInteractive);
+    // Opciones de latencia (de menor a mayor)
+    const latencyOptions = [
+      { value: 'interactive', label: 'settings.latencyMode.interactive' },
+      { value: 'balanced', label: 'settings.latencyMode.balanced' },
+      { value: 'playback', label: 'settings.latencyMode.playback' },
+      { value: '0.1', label: 'settings.latencyMode.safe' },
+      { value: '0.2', label: 'settings.latencyMode.maximum' }
+    ];
     
-    // Opción: playback (estable)
-    const optPlayback = document.createElement('option');
-    optPlayback.value = 'playback';
-    optPlayback.textContent = t('settings.latencyMode.playback');
-    this.latencyModeSelect.appendChild(optPlayback);
+    latencyOptions.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = t(opt.label);
+      this.latencyModeSelect.appendChild(option);
+    });
     
     // Establecer valor actual
     this.latencyModeSelect.value = this.latencyMode;
@@ -2262,13 +2266,17 @@ export class SettingsModal {
       this.latencyModeDescElement.textContent = t('settings.latencyMode.description');
     }
     if (this.latencyModeSelect) {
+      const labelMap = {
+        'interactive': 'settings.latencyMode.interactive',
+        'balanced': 'settings.latencyMode.balanced',
+        'playback': 'settings.latencyMode.playback',
+        '0.1': 'settings.latencyMode.safe',
+        '0.2': 'settings.latencyMode.maximum'
+      };
       const options = this.latencyModeSelect.querySelectorAll('option');
       options.forEach(opt => {
-        if (opt.value === 'interactive') {
-          opt.textContent = t('settings.latencyMode.interactive');
-        } else if (opt.value === 'playback') {
-          opt.textContent = t('settings.latencyMode.playback');
-        }
+        const label = labelMap[opt.value];
+        if (label) opt.textContent = t(label);
       });
     }
   }

@@ -73,6 +73,11 @@ export class SettingsModal {
     const savedAskBeforeRestore = localStorage.getItem(STORAGE_KEYS.ASK_BEFORE_RESTORE);
     this.askBeforeRestore = savedAskBeforeRestore === null ? true : savedAskBeforeRestore === 'true';
     
+    // Dormancy system (optimización de rendimiento)
+    const savedDormancyEnabled = localStorage.getItem(STORAGE_KEYS.DORMANCY_ENABLED);
+    this.dormancyEnabled = savedDormancyEnabled === null ? true : savedDormancyEnabled === 'true';
+    this.dormancyDebug = localStorage.getItem(STORAGE_KEYS.DORMANCY_DEBUG) === 'true';
+    
     // Detectar Firefox (no necesita selector de resolución)
     this.isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
     
@@ -379,6 +384,9 @@ export class SettingsModal {
     const container = document.createElement('div');
     container.className = 'settings-tab-content';
     container.dataset.tab = 'advanced';
+    
+    // Optimización de rendimiento (Dormancy)
+    container.appendChild(this._createDormancySection());
     
     // Actualizaciones
     container.appendChild(this._createUpdatesSection());
@@ -752,6 +760,105 @@ export class SettingsModal {
    */
   getShowInactivePins() {
     return this.showInactivePins;
+  }
+  
+  /**
+   * Crea la sección de optimización de rendimiento (Dormancy System)
+   * @returns {HTMLElement}
+   */
+  _createDormancySection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.dormancyTitleElement = document.createElement('h3');
+    this.dormancyTitleElement.className = 'settings-section__title';
+    this.dormancyTitleElement.textContent = t('settings.dormancy');
+    section.appendChild(this.dormancyTitleElement);
+    
+    this.dormancyDescElement = document.createElement('p');
+    this.dormancyDescElement.className = 'settings-section__description';
+    this.dormancyDescElement.textContent = t('settings.dormancy.description');
+    section.appendChild(this.dormancyDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para habilitar/deshabilitar dormancy
+    // ─────────────────────────────────────────────────────────────────────
+    const enabledRow = document.createElement('div');
+    enabledRow.className = 'settings-row settings-row--checkbox';
+    
+    this.dormancyEnabledCheckbox = document.createElement('input');
+    this.dormancyEnabledCheckbox.type = 'checkbox';
+    this.dormancyEnabledCheckbox.id = 'dormancyEnabledCheckbox';
+    this.dormancyEnabledCheckbox.className = 'settings-checkbox';
+    this.dormancyEnabledCheckbox.checked = this.dormancyEnabled;
+    
+    this.dormancyEnabledLabelElement = document.createElement('label');
+    this.dormancyEnabledLabelElement.className = 'settings-checkbox-label';
+    this.dormancyEnabledLabelElement.htmlFor = 'dormancyEnabledCheckbox';
+    this.dormancyEnabledLabelElement.textContent = t('settings.dormancy.enabled');
+    
+    this.dormancyEnabledCheckbox.addEventListener('change', () => {
+      this._setDormancyEnabled(this.dormancyEnabledCheckbox.checked);
+    });
+    
+    enabledRow.appendChild(this.dormancyEnabledCheckbox);
+    enabledRow.appendChild(this.dormancyEnabledLabelElement);
+    section.appendChild(enabledRow);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para mostrar indicadores de debug
+    // ─────────────────────────────────────────────────────────────────────
+    const debugRow = document.createElement('div');
+    debugRow.className = 'settings-row settings-row--checkbox settings-row--indent';
+    
+    this.dormancyDebugCheckbox = document.createElement('input');
+    this.dormancyDebugCheckbox.type = 'checkbox';
+    this.dormancyDebugCheckbox.id = 'dormancyDebugCheckbox';
+    this.dormancyDebugCheckbox.className = 'settings-checkbox';
+    this.dormancyDebugCheckbox.checked = this.dormancyDebug;
+    
+    this.dormancyDebugLabelElement = document.createElement('label');
+    this.dormancyDebugLabelElement.className = 'settings-checkbox-label';
+    this.dormancyDebugLabelElement.htmlFor = 'dormancyDebugCheckbox';
+    this.dormancyDebugLabelElement.textContent = t('settings.dormancy.debug');
+    
+    this.dormancyDebugCheckbox.addEventListener('change', () => {
+      this._setDormancyDebug(this.dormancyDebugCheckbox.checked);
+    });
+    
+    debugRow.appendChild(this.dormancyDebugCheckbox);
+    debugRow.appendChild(this.dormancyDebugLabelElement);
+    section.appendChild(debugRow);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si el sistema de dormancy está habilitado
+   * @param {boolean} enabled
+   */
+  _setDormancyEnabled(enabled) {
+    this.dormancyEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.DORMANCY_ENABLED, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:dormancyEnabledChange', { 
+      detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Establece si se muestran los indicadores de debug de dormancy
+   * @param {boolean} enabled
+   */
+  _setDormancyDebug(enabled) {
+    this.dormancyDebug = enabled;
+    localStorage.setItem(STORAGE_KEYS.DORMANCY_DEBUG, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:dormancyDebugChange', { 
+      detail: { enabled } 
+    }));
   }
   
   /**

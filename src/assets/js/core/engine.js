@@ -217,7 +217,8 @@ export class AudioEngine {
       }
 
       // Mantener panLeft/panRight para compatibilidad legacy (apuntan a canales 0 y 1)
-      this.outputBuses.push({
+      const busIndex = i;
+      const bus = {
         input: busInput,
         filterLP,   // Filtro lowpass (activo con valores negativos)
         filterHP,   // Filtro highpass (activo con valores positivos)
@@ -228,8 +229,26 @@ export class AudioEngine {
         channelGains, // Array completo de ganancias por canal
         // Nodos de pan para stereo buses (se crean en _createStereoBuses)
         stereoPanL: null,
-        stereoPanR: null
-      });
+        stereoPanR: null,
+        // Estado dormant - para silenciar buses sin conexiones entrantes
+        _isDormant: false,
+        _savedMuteValue: 1,
+        /**
+         * Activa/desactiva el modo dormant del bus.
+         * @param {boolean} dormant - true para silenciar, false para restaurar
+         */
+        setDormant: (dormant) => {
+          if (bus._isDormant === dormant) return;
+          bus._isDormant = dormant;
+          if (dormant) {
+            bus._savedMuteValue = bus.muteNode.gain.value;
+            bus.muteNode.gain.setValueAtTime(0, ctx.currentTime);
+          } else {
+            bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, ctx.currentTime);
+          }
+        }
+      };
+      this.outputBuses.push(bus);
     }
     
     // Crear stereo buses (Pan 1-4, Pan 5-8)
@@ -1173,9 +1192,47 @@ export class Module {
     this.name = name;
     this.inputs = [];
     this.outputs = [];
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // DORMANCY SYSTEM
+    // ─────────────────────────────────────────────────────────────────────────
+    // Módulos en estado "dormant" están desactivados para ahorrar CPU cuando
+    // no tienen conexiones relevantes en la matriz.
+    // ─────────────────────────────────────────────────────────────────────────
+    this._isDormant = false;
   }
 
   getAudioCtx() {
     return this.engine.audioCtx;
+  }
+  
+  /**
+   * Indica si el módulo está en estado dormant (desactivado).
+   * @returns {boolean}
+   */
+  get isDormant() {
+    return this._isDormant;
+  }
+  
+  /**
+   * Activa o desactiva el modo dormant del módulo.
+   * Las subclases deben sobrescribir _onDormancyChange() para implementar
+   * la lógica específica de desconexión/reconexión.
+   * 
+   * @param {boolean} dormant - true para desactivar, false para activar
+   */
+  setDormant(dormant) {
+    if (this._isDormant === dormant) return;
+    this._isDormant = dormant;
+    this._onDormancyChange(dormant);
+  }
+  
+  /**
+   * Hook para que las subclases implementen la lógica de dormancy.
+   * @param {boolean} dormant - true si entrando en dormancy, false si saliendo
+   * @protected
+   */
+  _onDormancyChange(dormant) {
+    // Override en subclases
   }
 }

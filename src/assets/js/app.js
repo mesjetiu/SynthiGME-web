@@ -2,6 +2,7 @@
 import { AudioEngine, setParamSmooth } from './core/engine.js';
 import { compilePanelBlueprintMappings } from './core/blueprintMapper.js';
 import { getOrCreateOscState, applyOscStateImmediate } from './core/oscillatorState.js';
+import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
@@ -372,6 +373,11 @@ class App {
     
     // Ahora crear el settingsModal con acceso a todos los modales
     this._setupSettingsModal();
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // DORMANCY MANAGER (optimización de rendimiento)
+    // ─────────────────────────────────────────────────────────────────────────
+    this._setupDormancyManager();
     
     // ─────────────────────────────────────────────────────────────────────────
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
@@ -752,6 +758,25 @@ class App {
       } else {
         this.settingsModal.open(tabId);
       }
+    });
+  }
+  
+  /**
+   * Configura el DormancyManager para optimización de rendimiento.
+   * Desactiva automáticamente módulos sin conexiones en la matriz.
+   */
+  _setupDormancyManager() {
+    this.dormancyManager = new DormancyManager(this);
+    
+    // Escuchar cambios desde Settings
+    document.addEventListener('synth:dormancyEnabledChange', (e) => {
+      this.dormancyManager.setEnabled(e.detail.enabled);
+      log.info(` Dormancy system ${e.detail.enabled ? 'enabled' : 'disabled'}`);
+    });
+    
+    document.addEventListener('synth:dormancyDebugChange', (e) => {
+      this.dormancyManager.setDebugIndicators(e.detail.enabled);
+      log.info(` Dormancy debug indicators ${e.detail.enabled ? 'enabled' : 'disabled'}`);
     });
   }
   
@@ -1226,6 +1251,12 @@ class App {
         knobOptions
       });
       const el = osc.createElement();
+      
+      // Añadir data-attribute para dormancy debug (solo Panel 3 usa índices 0-8)
+      if (panelIndex === 3) {
+        el.dataset.oscIndex = String(slot.index - 1);
+      }
+      
       host.appendChild(el);
       
       // Guardar referencia para serialización
@@ -1654,7 +1685,71 @@ class App {
     if (triOsc.detune) freqCVInput.connect(triOsc.detune);
 
     entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, freqCVInput, _freqInitialized: true, _useWorklet: useWorklet };
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // DORMANCY SYSTEM
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cuando el oscilador no tiene salida conectada a la matriz, se pone en
+    // estado "dormant": las ganancias internas se silencian para ahorrar CPU.
+    // Al reconectar, se restauran los valores del estado.
+    // ─────────────────────────────────────────────────────────────────────────
+    entry._isDormant = false;
+    entry.setDormant = (dormant) => {
+      if (entry._isDormant === dormant) return;
+      entry._isDormant = dormant;
+      
+      const rampTime = 0.01; // 10ms para evitar clicks
+      const now = ctx.currentTime;
+      
+      if (dormant) {
+        // DORMANT: Silenciar todas las ganancias internas
+        try {
+          if (entry.gain?.gain) {
+            entry.gain.gain.cancelScheduledValues(now);
+            entry.gain.gain.setTargetAtTime(0, now, rampTime);
+          }
+          if (entry.sawGain?.gain) {
+            entry.sawGain.gain.cancelScheduledValues(now);
+            entry.sawGain.gain.setTargetAtTime(0, now, rampTime);
+          }
+          if (entry.triGain?.gain) {
+            entry.triGain.gain.cancelScheduledValues(now);
+            entry.triGain.gain.setTargetAtTime(0, now, rampTime);
+          }
+          if (entry.pulseGain?.gain) {
+            entry.pulseGain.gain.cancelScheduledValues(now);
+            entry.pulseGain.gain.setTargetAtTime(0, now, rampTime);
+          }
+        } catch { /* Ignorar errores de AudioParam */ }
+      } else {
+        // ACTIVE: Restaurar ganancias desde el estado
+        const oscState = panelAudio.state?.[oscIndex];
+        if (oscState) {
+          try {
+            if (entry.gain?.gain && Number.isFinite(oscState.oscLevel)) {
+              entry.gain.gain.cancelScheduledValues(now);
+              entry.gain.gain.setTargetAtTime(oscState.oscLevel, now, rampTime);
+            }
+            if (entry.sawGain?.gain && Number.isFinite(oscState.sawLevel)) {
+              entry.sawGain.gain.cancelScheduledValues(now);
+              entry.sawGain.gain.setTargetAtTime(oscState.sawLevel, now, rampTime);
+            }
+            if (entry.triGain?.gain && Number.isFinite(oscState.triLevel)) {
+              entry.triGain.gain.cancelScheduledValues(now);
+              entry.triGain.gain.setTargetAtTime(oscState.triLevel, now, rampTime);
+            }
+            if (entry.pulseGain?.gain && Number.isFinite(oscState.pulseLevel)) {
+              entry.pulseGain.gain.cancelScheduledValues(now);
+              entry.pulseGain.gain.setTargetAtTime(oscState.pulseLevel, now, rampTime);
+            }
+          } catch { /* Ignorar errores de AudioParam */ }
+        }
+      }
+    };
+    
     panelAudio.nodes[oscIndex] = entry;
+    panelAudio.sources = panelAudio.sources || [];
+    panelAudio.sources[oscIndex] = entry;
     return entry;
   }
 
@@ -2106,6 +2201,10 @@ class App {
       outNode.connect(gain);
       gain.connect(destNode);
       this._panel3Routing.connections[key] = gain;
+      
+      // Notificar al DormancyManager del cambio de conexiones
+      this.dormancyManager?.onConnectionChange();
+      
       return true;
     }
 
@@ -2125,6 +2224,9 @@ class App {
       }
     }
 
+    // Notificar al DormancyManager del cambio de conexiones
+    this.dormancyManager?.onConnectionChange();
+    
     return true;
   }
 
@@ -2366,6 +2468,10 @@ class App {
       this._panel6Routing.connections[key] = gain;
       
       log.info(` Panel 6: Connected ${source.kind}[${source.oscIndex}] → ${dest.kind}[${dest.oscIndex}] (gain: ${pinGainValue})`);
+      
+      // Notificar al DormancyManager del cambio de conexiones
+      this.dormancyManager?.onConnectionChange();
+      
       return true;
     }
 
@@ -2389,6 +2495,9 @@ class App {
       }
     }
 
+    // Notificar al DormancyManager del cambio de conexiones
+    this.dormancyManager?.onConnectionChange();
+    
     return true;
   }
 

@@ -643,6 +643,26 @@ settings.reset.confirm:
   en: Are you sure you want to reset all modules to their default values? This cannot be undone.
   es: ¿Seguro que quieres reiniciar todos los módulos a sus valores por defecto? Esta acción no se puede deshacer.
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# SISTEMA DE DORMANCY (OPTIMIZACIÓN DE RENDIMIENTO)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+settings.dormancy:
+  en: Performance optimization
+  es: Optimización de rendimiento
+
+settings.dormancy.description:
+  en: Automatically mutes modules that are not connected in the matrix, reducing CPU load. Especially useful on mobile devices.
+  es: Silencia automáticamente los módulos que no están conectados en la matriz, reduciendo la carga de CPU. Especialmente útil en dispositivos móviles.
+
+settings.dormancy.enabled:
+  en: Enable dormancy system
+  es: Activar sistema de dormancy
+
+settings.dormancy.debug:
+  en: Show toasts on state changes (debug)
+  es: Mostrar toasts en cambios de estado (debug)
+
 toast.reset:
   en: Synthesizer reset to defaults
   es: Sintetizador reiniciado

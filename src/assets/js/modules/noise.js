@@ -280,5 +280,37 @@ export class NoiseModule extends Module {
   getLevelParam() {
     return this.levelNode?.gain ?? null;
   }
+  
+  /**
+   * Maneja el cambio de estado dormant.
+   * Cuando está dormant, el worklet sigue corriendo pero la salida está silenciada.
+   * @param {boolean} dormant - true si entrando en dormancy, false si saliendo
+   * @protected
+   */
+  _onDormancyChange(dormant) {
+    if (!this.levelNode) return;
+    
+    const ctx = this.getAudioCtx();
+    if (!ctx) return;
+    
+    const rampTime = 0.01; // 10ms para evitar clicks
+    const now = ctx.currentTime;
+    
+    if (dormant) {
+      // Guardar nivel actual y silenciar
+      this._preDormantLevel = this.values.level;
+      try {
+        this.levelNode.gain.cancelScheduledValues(now);
+        this.levelNode.gain.setTargetAtTime(0, now, rampTime);
+      } catch { /* Ignorar errores de AudioParam */ }
+    } else {
+      // Restaurar nivel previo
+      const targetLevel = this._preDormantLevel ?? this.values.level;
+      try {
+        this.levelNode.gain.cancelScheduledValues(now);
+        this.levelNode.gain.setTargetAtTime(targetLevel, now, rampTime);
+      } catch { /* Ignorar errores de AudioParam */ }
+    }
+  }
 }
 

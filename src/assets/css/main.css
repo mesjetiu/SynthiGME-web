@@ -3920,3 +3920,56 @@ small { color:#aaa; }
   padding: 10px;
   box-sizing: border-box;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DORMANCY DEBUG INDICATORS
+   Indicadores visuales para debugging del sistema de dormancy.
+   Los módulos en estado dormant muestran un borde y overlay atenuado.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.dormant-debug {
+  position: relative;
+}
+
+.dormant-debug::after {
+  content: '💤';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 12px;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Efecto visual de atenuación */
+.dormant-debug::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px dashed rgba(255, 200, 100, 0.5);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Ajuste para módulos específicos */
+.module-frame.dormant-debug::after {
+  top: 8px;
+  right: 8px;
+}
+
+/* Output channels con dormancy */
+.output-channel.dormant-debug {
+  opacity: 0.5;
+}
+
+.output-channel.dormant-debug::after {
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+}

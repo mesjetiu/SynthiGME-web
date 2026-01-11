@@ -80,7 +80,11 @@ export const STORAGE_KEYS = {
   WAKE_LOCK_ENABLED: `${STORAGE_PREFIX}wake-lock-enabled`,
   
   // Visualización de matriz
-  SHOW_INACTIVE_PINS: `${STORAGE_PREFIX}show-inactive-pins`
+  SHOW_INACTIVE_PINS: `${STORAGE_PREFIX}show-inactive-pins`,
+  
+  // Optimización de rendimiento
+  DORMANCY_ENABLED: `${STORAGE_PREFIX}dormancy-enabled`,
+  DORMANCY_DEBUG: `${STORAGE_PREFIX}dormancy-debug`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -35,7 +35,8 @@ export class AudioSettingsModal {
       onRoutingChange,
       onInputRoutingChange,
       onOutputDeviceChange, 
-      onInputDeviceChange 
+      onInputDeviceChange,
+      onStereoBusRoutingChange  // Callback para cambios en routing de stereo buses
     } = options;
     
     this.outputCount = outputCount;
@@ -58,6 +59,15 @@ export class AudioSettingsModal {
     this.onInputRoutingChange = onInputRoutingChange;
     this.onOutputDeviceChange = onOutputDeviceChange;
     this.onInputDeviceChange = onInputDeviceChange;
+    this.onStereoBusRoutingChange = onStereoBusRoutingChange;
+    
+    // Stereo bus routing: Pan 1-4 (A) y Pan 5-8 (B) a canales físicos
+    // Por defecto ambos van a L/R (canales 0,1)
+    const loadedStereoBusRouting = this._loadStereoBusRouting();
+    this.stereoBusRouting = loadedStereoBusRouting || {
+      A: [0, 1],  // Pan 1-4 → L, R
+      B: [0, 1]   // Pan 5-8 → L, R
+    };
     
     // Dispositivos seleccionados
     this.selectedOutputDevice = localStorage.getItem(STORAGE_KEYS.OUTPUT_DEVICE) || 'default';
@@ -184,6 +194,190 @@ export class AudioSettingsModal {
     } catch (e) {
       log.warn(' Error saving routing to localStorage:', e);
     }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // STEREO BUSES: Pan 1-4 (A) y Pan 5-8 (B)
+  // ═════════════════════════════════════════════════════════════════════════════
+  // Dos buses estéreo que mezclan canales con panning:
+  //   - Pan 1-4 (A): Mezcla Out 1-4 con sus pans respectivos
+  //   - Pan 5-8 (B): Mezcla Out 5-8 con sus pans respectivos
+  // Cada uno se puede rutear a cualquier par de canales físicos.
+  // ═════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Carga el routing de stereo buses desde localStorage.
+   * @returns {Object|null}
+   */
+  _loadStereoBusRouting() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.STEREO_BUS_ROUTING);
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed && Array.isArray(parsed.A) && Array.isArray(parsed.B)) {
+        return parsed;
+      }
+      return null;
+    } catch (e) {
+      log.warn(' Error loading stereo bus routing:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Guarda el routing de stereo buses en localStorage.
+   */
+  _saveStereoBusRouting() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.STEREO_BUS_ROUTING, JSON.stringify(this.stereoBusRouting));
+      log.info(' Stereo bus routing saved');
+    } catch (e) {
+      log.warn(' Error saving stereo bus routing:', e);
+    }
+  }
+
+  /**
+   * Crea la sección de configuración de stereo buses.
+   * @returns {HTMLElement}
+   */
+  _createStereoBusSection() {
+    const section = document.createElement('div');
+    section.className = 'audio-settings-stereo-buses';
+    
+    const title = document.createElement('h4');
+    title.className = 'audio-settings-stereo-buses__title';
+    title.textContent = t('audio.stereoBuses.title') || 'Stereo Mix Outputs';
+    this._textElements.stereoBusTitle = title;
+    section.appendChild(title);
+    
+    const desc = document.createElement('p');
+    desc.className = 'audio-settings-stereo-buses__desc';
+    desc.textContent = t('audio.stereoBuses.description') || 'Route panned stereo mixes to physical outputs.';
+    this._textElements.stereoBusDesc = desc;
+    section.appendChild(desc);
+    
+    // Contenedor para los stereo buses
+    this.stereoBusContainer = document.createElement('div');
+    this.stereoBusContainer.className = 'stereo-bus-container';
+    this._buildStereoBusRows();
+    section.appendChild(this.stereoBusContainer);
+    
+    return section;
+  }
+
+  /**
+   * Construye las filas de configuración de stereo buses.
+   */
+  _buildStereoBusRows() {
+    if (!this.stereoBusContainer) return;
+    this.stereoBusContainer.innerHTML = '';
+    
+    // Stereo Bus A: Pan 1-4
+    const rowA = this._createStereoBusRow('A', 'Pan 1-4');
+    this.stereoBusContainer.appendChild(rowA);
+    
+    // Stereo Bus B: Pan 5-8
+    const rowB = this._createStereoBusRow('B', 'Pan 5-8');
+    this.stereoBusContainer.appendChild(rowB);
+  }
+
+  /**
+   * Crea una fila de configuración para un stereo bus.
+   * @param {string} busId - 'A' o 'B'
+   * @param {string} label - Etiqueta del bus
+   * @returns {HTMLElement}
+   */
+  _createStereoBusRow(busId, label) {
+    const row = document.createElement('div');
+    row.className = 'stereo-bus-row';
+    row.dataset.bus = busId;
+    
+    const labelEl = document.createElement('span');
+    labelEl.className = 'stereo-bus-row__label';
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+    
+    const routing = this.stereoBusRouting[busId] || [0, 1];
+    
+    // Selector L
+    const selectWrapL = document.createElement('div');
+    selectWrapL.className = 'stereo-bus-row__select-wrap';
+    const labelL = document.createElement('label');
+    labelL.textContent = 'L:';
+    const selectL = this._createChannelSelectForStereoBus(busId, 'L', routing[0]);
+    selectWrapL.appendChild(labelL);
+    selectWrapL.appendChild(selectL);
+    row.appendChild(selectWrapL);
+    
+    // Selector R
+    const selectWrapR = document.createElement('div');
+    selectWrapR.className = 'stereo-bus-row__select-wrap';
+    const labelR = document.createElement('label');
+    labelR.textContent = 'R:';
+    const selectR = this._createChannelSelectForStereoBus(busId, 'R', routing[1]);
+    selectWrapR.appendChild(labelR);
+    selectWrapR.appendChild(selectR);
+    row.appendChild(selectWrapR);
+    
+    return row;
+  }
+
+  /**
+   * Crea un selector de canal físico para stereo bus.
+   * @param {string} busId - 'A' o 'B'
+   * @param {string} side - 'L' o 'R'
+   * @param {number} currentValue - Canal actualmente seleccionado
+   * @returns {HTMLSelectElement}
+   */
+  _createChannelSelectForStereoBus(busId, side, currentValue) {
+    const select = document.createElement('select');
+    select.className = 'stereo-bus-select';
+    select.dataset.bus = busId;
+    select.dataset.side = side;
+    
+    // Opciones para cada canal físico
+    for (let ch = 0; ch < this.physicalChannels; ch++) {
+      const option = document.createElement('option');
+      option.value = String(ch);
+      option.textContent = this.channelLabels[ch] || `Ch ${ch + 1}`;
+      if (ch === currentValue) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    }
+    
+    select.addEventListener('change', () => {
+      const newValue = parseInt(select.value, 10);
+      const sideIndex = side === 'L' ? 0 : 1;
+      this.stereoBusRouting[busId][sideIndex] = newValue;
+      this._saveStereoBusRouting();
+      
+      // Notificar al engine
+      if (this.onStereoBusRoutingChange) {
+        this.onStereoBusRoutingChange(
+          busId, 
+          this.stereoBusRouting[busId][0], 
+          this.stereoBusRouting[busId][1]
+        );
+      }
+    });
+    
+    return select;
+  }
+
+  /**
+   * Aplica el routing de stereo buses al engine.
+   * Debe llamarse al iniciar para sincronizar estado.
+   * @param {Function} setStereoBusRouting - Función del engine para aplicar routing
+   */
+  applyStereoBusRoutingToEngine(setStereoBusRouting) {
+    if (!setStereoBusRouting) return;
+    
+    for (const busId of ['A', 'B']) {
+      const routing = this.stereoBusRouting[busId] || [0, 1];
+      setStereoBusRouting(busId, routing[0], routing[1]);
+    }
+    log.info(' Stereo bus routing applied to engine:', this.stereoBusRouting);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -719,6 +913,10 @@ export class AudioSettingsModal {
     this.matrixContainer.className = 'routing-matrix-container';
     this._buildMatrix();
     section.appendChild(this.matrixContainer);
+    
+    // Sección de Stereo Buses (Pan 1-4, Pan 5-8)
+    const stereoBusSection = this._createStereoBusSection();
+    section.appendChild(stereoBusSection);
     
     return section;
   }

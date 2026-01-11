@@ -22,6 +22,15 @@ export class RecordingSettingsModal {
     this.recordingEngine = recordingEngine;
     this.outputCount = outputCount;
     
+    // Fuentes de grabación: 8 individuales + 4 stereo buses (Pan 1-4 L/R, Pan 5-8 L/R)
+    this.stereoSourceLabels = [
+      'Pan 1-4 L',
+      'Pan 1-4 R',
+      'Pan 5-8 L',
+      'Pan 5-8 R'
+    ];
+    this.totalSources = this.outputCount + this.stereoSourceLabels.length; // 12
+    
     // Elementos DOM
     this.overlay = null;
     this.modal = null;
@@ -110,7 +119,7 @@ export class RecordingSettingsModal {
     }
     matrix.appendChild(headerRow);
 
-    // Rows
+    // Rows: 8 individual outputs
     for (let bus = 0; bus < this.outputCount; bus++) {
       const row = document.createElement('div');
       row.className = 'recording-routing-matrix__row';
@@ -122,6 +131,24 @@ export class RecordingSettingsModal {
 
       for (let track = 0; track < trackCount; track++) {
         const btn = this._createToggleButton(bus, track);
+        row.appendChild(btn);
+      }
+      matrix.appendChild(row);
+    }
+    
+    // Rows: 4 stereo bus outputs (Pan 1-4 L/R, Pan 5-8 L/R)
+    for (let i = 0; i < this.stereoSourceLabels.length; i++) {
+      const sourceIndex = this.outputCount + i; // 8, 9, 10, 11
+      const row = document.createElement('div');
+      row.className = 'recording-routing-matrix__row recording-routing-matrix__row--stereo';
+
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'recording-routing-matrix__row-label';
+      rowLabel.textContent = this.stereoSourceLabels[i];
+      row.appendChild(rowLabel);
+
+      for (let track = 0; track < trackCount; track++) {
+        const btn = this._createToggleButton(sourceIndex, track);
         row.appendChild(btn);
       }
       matrix.appendChild(row);
@@ -300,7 +327,7 @@ export class RecordingSettingsModal {
     
     matrix.appendChild(headerRow);
     
-    // Rows: one per output bus
+    // Rows: one per output bus (8 individual)
     for (let bus = 0; bus < this.outputCount; bus++) {
       const row = document.createElement('div');
       row.className = 'recording-routing-matrix__row';
@@ -314,6 +341,25 @@ export class RecordingSettingsModal {
       // Toggle buttons for each track
       for (let track = 0; track < trackCount; track++) {
         const btn = this._createToggleButton(bus, track);
+        row.appendChild(btn);
+      }
+      
+      matrix.appendChild(row);
+    }
+    
+    // Rows: stereo bus outputs (4 channels: Pan 1-4 L/R, Pan 5-8 L/R)
+    for (let i = 0; i < this.stereoSourceLabels.length; i++) {
+      const sourceIndex = this.outputCount + i; // 8, 9, 10, 11
+      const row = document.createElement('div');
+      row.className = 'recording-routing-matrix__row recording-routing-matrix__row--stereo';
+      
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'recording-routing-matrix__row-label';
+      rowLabel.textContent = this.stereoSourceLabels[i];
+      row.appendChild(rowLabel);
+      
+      for (let track = 0; track < trackCount; track++) {
+        const btn = this._createToggleButton(sourceIndex, track);
         row.appendChild(btn);
       }
       

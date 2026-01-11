@@ -2219,6 +2219,86 @@ small { color:#aaa; }
   margin-top: 0.5rem;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   STEREO BUSES SECTION (Pan 1-4, Pan 5-8)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.audio-settings-stereo-buses {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.audio-settings-stereo-buses__title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ffd54f;
+  margin: 0 0 0.5rem 0;
+}
+
+.audio-settings-stereo-buses__desc {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 0.75rem 0;
+}
+
+.stereo-bus-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stereo-bus-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(80, 80, 80, 0.2);
+  border-radius: 4px;
+}
+
+.stereo-bus-row__label {
+  min-width: 60px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #eee;
+}
+
+.stereo-bus-row__select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stereo-bus-row__select-wrap label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.stereo-bus-select {
+  padding: 4px 24px 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(40, 40, 40, 0.8);
+  color: #eee;
+  font-size: 0.8rem;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+}
+
+.stereo-bus-select:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.stereo-bus-select:focus {
+  border-color: #ffd54f;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    SETTINGS MODAL — Ajustes generales (idioma, escala de renderizado)
    ═══════════════════════════════════════════════════════════════════════════ */

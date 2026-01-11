@@ -320,6 +320,12 @@ class App {
         log.warn(' Routing warnings:', result.warnings);
       }
       
+      // Aplicar routing de stereo buses
+      log.info(' Applying stereo bus routing to engine...');
+      this.audioSettingsModal.applyStereoBusRoutingToEngine((busId, leftCh, rightCh) => {
+        this.engine.setStereoBusRouting(busId, leftCh, rightCh);
+      });
+      
       // Aplicar dispositivo de salida guardado
       const savedOutputDevice = this.audioSettingsModal.selectedOutputDevice;
       if (savedOutputDevice && savedOutputDevice !== 'default') {

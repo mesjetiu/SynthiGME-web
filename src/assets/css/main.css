@@ -3561,23 +3561,25 @@ small { color:#aaa; }
   border-radius: 8px;
   padding: 6px;
   min-width: fit-content;
+  /* Grid layout para columnas adaptativas */
+  --column-min-width: 22px;
+  --column-max-width: 40px;
 }
 
 .recording-routing-matrix__header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px repeat(var(--track-count, 12), minmax(var(--column-min-width), var(--column-max-width)));
   gap: 2px;
   padding-bottom: 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .recording-routing-matrix__corner {
-  width: 44px;
-  flex-shrink: 0;
+  /* Grid maneja el ancho automáticamente */
 }
 
 .recording-routing-matrix__header-cell {
-  width: 22px;
-  flex-shrink: 0;
+  /* Grid maneja el ancho automáticamente */
   text-align: center;
   font-size: 0.6rem;
   font-weight: 600;
@@ -3586,14 +3588,14 @@ small { color:#aaa; }
 }
 
 .recording-routing-matrix__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px repeat(var(--track-count, 12), minmax(var(--column-min-width), var(--column-max-width)));
   gap: 2px;
   align-items: center;
 }
 
 .recording-routing-matrix__row-label {
-  width: 44px;
-  flex-shrink: 0;
+  /* Grid maneja el ancho automáticamente */
   font-size: 0.55rem;
   color: #bbb;
   padding-left: 2px;
@@ -3603,9 +3605,10 @@ small { color:#aaa; }
 }
 
 .recording-routing-matrix__toggle {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 22px;
+  min-height: 22px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 3px;
   background: rgba(40, 40, 40, 0.6);

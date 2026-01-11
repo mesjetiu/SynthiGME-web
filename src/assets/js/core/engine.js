@@ -59,6 +59,8 @@ export class AudioEngine {
     this.outputPans = Array.from({ length: this.outputChannels }, () => 0.0);
     // Filtro bipolar: -1 = lowpass máximo, 0 = sin filtro, +1 = highpass máximo
     this.outputFilters = Array.from({ length: this.outputChannels }, () => 0.0);
+    // Estado de mute por canal (false = activo, true = muteado)
+    this.outputMutes = Array.from({ length: this.outputChannels }, () => false);
     this.outputBuses = [];
     
     // ───────────────────────────────────────────────────────────────────────────
@@ -284,7 +286,10 @@ export class AudioEngine {
     const ctx = this.audioCtx;
     const bus = this.outputBuses[busIndex];
     if (ctx && bus) {
-      setParamSmooth(bus.levelNode.gain, value, ctx, { ramp });
+      // Solo aplicar si no está muteado
+      if (!this.outputMutes[busIndex]) {
+        setParamSmooth(bus.levelNode.gain, value, ctx, { ramp });
+      }
     }
     if (busIndex === 0) this.bus1Level = value;
     if (busIndex === 1) this.bus2Level = value;
@@ -292,6 +297,36 @@ export class AudioEngine {
 
   getOutputLevel(busIndex) {
     return this.outputLevels[busIndex] ?? 0.0;
+  }
+
+  /**
+   * Mutea o desmutea un canal de salida.
+   * 
+   * @param {number} busIndex - Índice del bus (0-7)
+   * @param {boolean} muted - true para mutear, false para activar
+   * @param {Object} [options] - Opciones
+   * @param {number} [options.ramp] - Tiempo de transición en segundos
+   */
+  setOutputMute(busIndex, muted, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
+    if (busIndex < 0 || busIndex >= this.outputChannels) return;
+    this.outputMutes[busIndex] = muted;
+    
+    const ctx = this.audioCtx;
+    const bus = this.outputBuses[busIndex];
+    if (!ctx || !bus) return;
+    
+    // Si está muteado, poner gain a 0; si no, restaurar el nivel guardado
+    const targetGain = muted ? 0 : this.outputLevels[busIndex];
+    setParamSmooth(bus.levelNode.gain, targetGain, ctx, { ramp });
+  }
+
+  /**
+   * Obtiene el estado de mute de un canal.
+   * @param {number} busIndex - Índice del bus (0-7)
+   * @returns {boolean} true si está muteado
+   */
+  getOutputMute(busIndex) {
+    return this.outputMutes[busIndex] ?? false;
   }
 
   // ───────────────────────────────────────────────────────────────────────────

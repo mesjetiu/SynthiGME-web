@@ -280,12 +280,14 @@ export class OutputChannel extends Module {
     indicator.className = 'output-channel__switch-indicator';
     switchEl.appendChild(indicator);
     
-    // Por ahora solo toggle visual
+    // Toggle power/mute del canal
     switchEl.addEventListener('click', () => {
       this.values.power = !this.values.power;
       switchEl.classList.toggle('is-on', this.values.power);
       switchEl.setAttribute('aria-pressed', String(this.values.power));
-      // TODO: Implementar mute de canal cuando tenga funcionalidad
+      // Mutear/desmutear el canal (power=true → muted=false)
+      this.engine.setOutputMute(this.channelIndex, !this.values.power);
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     });
     
     this.powerSwitch = switchEl;

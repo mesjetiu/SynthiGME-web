@@ -6,6 +6,9 @@
  * - GainNode
  * - BiquadFilterNode
  * - ChannelMergerNode
+ * - OscillatorNode
+ * - AnalyserNode
+ * - AudioWorkletNode
  * - AudioContext completo
  * 
  * Los mocks incluyen contadores de llamadas para verificar interacciones.
@@ -133,6 +136,140 @@ export function createMockChannelMerger(numberOfInputs = 6) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// OSCILLATOR NODE MOCK
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Crea un mock de OscillatorNode.
+ * @returns {Object} Mock de OscillatorNode
+ */
+export function createMockOscillatorNode() {
+  return {
+    type: 'sine',
+    frequency: createMockAudioParam(440),
+    detune: createMockAudioParam(0),
+    _calls: {
+      connect: 0,
+      disconnect: 0,
+      start: 0,
+      stop: 0
+    },
+    connect(destination, outputIndex, inputIndex) {
+      this._calls.connect++;
+      return destination;
+    },
+    disconnect(destination) {
+      this._calls.disconnect++;
+    },
+    start(when = 0) {
+      this._calls.start++;
+    },
+    stop(when = 0) {
+      this._calls.stop++;
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ANALYSER NODE MOCK
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Crea un mock de AnalyserNode.
+ * @returns {Object} Mock de AnalyserNode
+ */
+export function createMockAnalyserNode() {
+  return {
+    fftSize: 2048,
+    frequencyBinCount: 1024,
+    minDecibels: -100,
+    maxDecibels: -30,
+    smoothingTimeConstant: 0.8,
+    _calls: {
+      connect: 0,
+      disconnect: 0,
+      getFloatTimeDomainData: 0,
+      getByteTimeDomainData: 0,
+      getFloatFrequencyData: 0,
+      getByteFrequencyData: 0
+    },
+    connect(destination, outputIndex, inputIndex) {
+      this._calls.connect++;
+      return destination;
+    },
+    disconnect(destination) {
+      this._calls.disconnect++;
+    },
+    getFloatTimeDomainData(array) {
+      this._calls.getFloatTimeDomainData++;
+      if (array) array.fill(0);
+    },
+    getByteTimeDomainData(array) {
+      this._calls.getByteTimeDomainData++;
+      if (array) array.fill(128);
+    },
+    getFloatFrequencyData(array) {
+      this._calls.getFloatFrequencyData++;
+      if (array) array.fill(-100);
+    },
+    getByteFrequencyData(array) {
+      this._calls.getByteFrequencyData++;
+      if (array) array.fill(0);
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUDIO WORKLET NODE MOCK
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Crea un mock de AudioWorkletNode.
+ * @param {string} name - Nombre del worklet
+ * @param {Object} options - Opciones del worklet
+ * @returns {Object} Mock de AudioWorkletNode
+ */
+export function createMockAudioWorkletNode(name, options = {}) {
+  const parameterDescriptors = options.parameterDescriptors || [];
+  const parameters = new Map();
+  
+  // Crear AudioParams según los descriptores
+  parameterDescriptors.forEach(desc => {
+    parameters.set(desc.name, createMockAudioParam(desc.defaultValue ?? 0));
+  });
+  
+  return {
+    _name: name,
+    _options: options,
+    parameters,
+    port: {
+      _messages: [],
+      onmessage: null,
+      postMessage(msg) {
+        this._messages.push(msg);
+        // Simular respuesta si hay handler
+        if (this.onmessage && msg.type === 'init') {
+          setTimeout(() => {
+            this.onmessage({ data: { type: 'ready' } });
+          }, 0);
+        }
+      }
+    },
+    _calls: {
+      connect: 0,
+      disconnect: 0
+    },
+    connect(destination, outputIndex, inputIndex) {
+      this._calls.connect++;
+      return destination;
+    },
+    disconnect(destination) {
+      this._calls.disconnect++;
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // AUDIO CONTEXT MOCK
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -158,7 +295,10 @@ export function createMockAudioContext(options = {}) {
     _createdNodes: {
       gain: [],
       biquadFilter: [],
-      channelMerger: []
+      channelMerger: [],
+      oscillator: [],
+      analyser: [],
+      audioWorklet: []
     },
     createGain() {
       const node = createMockGainNode();
@@ -173,6 +313,16 @@ export function createMockAudioContext(options = {}) {
     createChannelMerger(numberOfInputs = 6) {
       const node = createMockChannelMerger(numberOfInputs);
       this._createdNodes.channelMerger.push(node);
+      return node;
+    },
+    createOscillator() {
+      const node = createMockOscillatorNode();
+      this._createdNodes.oscillator.push(node);
+      return node;
+    },
+    createAnalyser() {
+      const node = createMockAnalyserNode();
+      this._createdNodes.analyser.push(node);
       return node;
     },
     resume() {

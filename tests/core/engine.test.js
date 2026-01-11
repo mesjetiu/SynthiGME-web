@@ -710,3 +710,484 @@ describe('AudioEngine.setOutputRouting (con AudioContext mock)', () => {
     assert.deepEqual(result.ignored, [2, 3]);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.setOutputLevel - con nodos mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.setOutputLevel (con AudioContext mock)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  function setupEngine() {
+    mockCtx = createMockAudioContext({ maxChannelCount: 2 });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('aplica nivel a levelNode.gain', () => {
+    setupEngine();
+    
+    engine.setOutputLevel(0, 0.75);
+    
+    const levelNode = engine.outputBuses[0].levelNode;
+    assert.equal(levelNode.gain.value, 0.75);
+  });
+
+  it('actualiza el array outputLevels', () => {
+    setupEngine();
+    
+    engine.setOutputLevel(2, 0.5);
+    
+    assert.equal(engine.outputLevels[2], 0.5);
+  });
+
+  it('usa setTargetAtTime para transición suave', () => {
+    setupEngine();
+    
+    const levelNode = engine.outputBuses[0].levelNode;
+    const initialCalls = levelNode.gain._calls.setTargetAtTime;
+    
+    engine.setOutputLevel(0, 0.8);
+    
+    assert.ok(levelNode.gain._calls.setTargetAtTime > initialCalls);
+  });
+
+  it('acepta opciones de ramp personalizadas', () => {
+    setupEngine();
+    
+    // No debe lanzar error con opciones
+    engine.setOutputLevel(0, 0.6, { ramp: 0.1 });
+    
+    assert.equal(engine.outputBuses[0].levelNode.gain.value, 0.6);
+  });
+
+  it('diferentes buses son independientes', () => {
+    setupEngine();
+    
+    engine.setOutputLevel(0, 0.9);
+    engine.setOutputLevel(3, 0.4);
+    
+    assert.equal(engine.outputLevels[0], 0.9);
+    assert.equal(engine.outputLevels[1], 0.0); // sin cambiar
+    assert.equal(engine.outputLevels[3], 0.4);
+  });
+
+  it('ignora índices fuera de rango', () => {
+    setupEngine();
+    
+    // No debe lanzar error
+    engine.setOutputLevel(100, 0.5);
+    engine.setOutputLevel(-1, 0.5);
+  });
+
+  it('no aplica nivel si el canal está muteado', () => {
+    setupEngine();
+    
+    // Primero mutear el canal
+    engine.setOutputMute(0, true);
+    
+    // El levelNode mantiene el valor anterior (no cambia mientras está muteado)
+    const levelNode = engine.outputBuses[0].levelNode;
+    const initialValue = levelNode.gain.value;
+    const initialCalls = levelNode.gain._calls.setTargetAtTime;
+    
+    engine.setOutputLevel(0, 0.75);
+    
+    // El estado se guarda pero no se aplica al nodo
+    assert.equal(engine.outputLevels[0], 0.75);
+    // El nodo no recibe nueva llamada setTargetAtTime
+    assert.equal(levelNode.gain._calls.setTargetAtTime, initialCalls);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.setOutputFilter - con nodos mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  function setupEngine() {
+    mockCtx = createMockAudioContext({ maxChannelCount: 2 });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('value=-1 → LP=200Hz (lowpass máximo)', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, -1);
+    
+    const filterLP = engine.outputBuses[0].filterLP;
+    // 200Hz para lowpass máximo
+    assert.ok(Math.abs(filterLP.frequency.value - 200) < 1);
+  });
+
+  it('value=0 → LP=20000Hz, HP=20Hz (bypass)', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, 0);
+    
+    const filterLP = engine.outputBuses[0].filterLP;
+    const filterHP = engine.outputBuses[0].filterHP;
+    
+    // Bypass: LP en 20kHz, HP en 20Hz
+    assert.ok(Math.abs(filterLP.frequency.value - 20000) < 1);
+    assert.ok(Math.abs(filterHP.frequency.value - 20) < 1);
+  });
+
+  it('value=+1 → HP=5000Hz (highpass máximo)', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, 1);
+    
+    const filterHP = engine.outputBuses[0].filterHP;
+    // 5000Hz para highpass máximo
+    assert.ok(Math.abs(filterHP.frequency.value - 5000) < 1);
+  });
+
+  it('valores negativos activan LP, mantienen HP bypass', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, -0.5);
+    
+    const filterLP = engine.outputBuses[0].filterLP;
+    const filterHP = engine.outputBuses[0].filterHP;
+    
+    // LP activo (frecuencia intermedia entre 200 y 20000)
+    assert.ok(filterLP.frequency.value < 20000);
+    assert.ok(filterLP.frequency.value > 200);
+    // HP en bypass (20Hz)
+    assert.ok(Math.abs(filterHP.frequency.value - 20) < 1);
+  });
+
+  it('valores positivos activan HP, mantienen LP bypass', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, 0.5);
+    
+    const filterLP = engine.outputBuses[0].filterLP;
+    const filterHP = engine.outputBuses[0].filterHP;
+    
+    // LP en bypass (20kHz)
+    assert.ok(Math.abs(filterLP.frequency.value - 20000) < 1);
+    // HP activo (frecuencia intermedia entre 20 y 5000)
+    assert.ok(filterHP.frequency.value > 20);
+    assert.ok(filterHP.frequency.value < 5000);
+  });
+
+  it('actualiza el array outputFilters', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(2, -0.7);
+    
+    assert.equal(engine.outputFilters[2], -0.7);
+  });
+
+  it('clampea valores fuera de rango [-1, 1]', () => {
+    setupEngine();
+    
+    engine.setOutputFilter(0, -5);
+    assert.equal(engine.outputFilters[0], -1);
+    
+    engine.setOutputFilter(0, 10);
+    assert.equal(engine.outputFilters[0], 1);
+  });
+
+  it('usa setTargetAtTime para transición suave', () => {
+    setupEngine();
+    
+    const filterLP = engine.outputBuses[0].filterLP;
+    const initialCalls = filterLP.frequency._calls.setTargetAtTime;
+    
+    engine.setOutputFilter(0, -0.5);
+    
+    assert.ok(filterLP.frequency._calls.setTargetAtTime > initialCalls);
+  });
+
+  it('ignora índices fuera de rango', () => {
+    setupEngine();
+    
+    // No debe lanzar error
+    engine.setOutputFilter(100, 0.5);
+    engine.setOutputFilter(-1, 0.5);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.setMute (global) - con nodos mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.setMute global (con AudioContext mock)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  function setupEngine(maxChannels = 2) {
+    mockCtx = createMockAudioContext({ maxChannelCount: maxChannels });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('muted=true pone todos los masterGains a 0', () => {
+    setupEngine(2);
+    
+    engine.setMute(true);
+    
+    assert.equal(engine.muted, true);
+    engine.masterGains.forEach(gain => {
+      assert.equal(gain.gain.value, 0);
+    });
+  });
+
+  it('muted=false restaura masterGains a masterBaseGain', () => {
+    setupEngine(2);
+    
+    // Primero mutear
+    engine.setMute(true);
+    assert.equal(engine.masterGains[0].gain.value, 0);
+    
+    // Luego desmutear
+    engine.setMute(false);
+    engine.masterGains.forEach(gain => {
+      assert.equal(gain.gain.value, engine.masterBaseGain);
+    });
+  });
+
+  it('funciona con múltiples canales físicos', () => {
+    setupEngine(8);
+    
+    engine.setMute(true);
+    
+    // Todos los 8 masterGains deben estar en 0
+    assert.equal(engine.masterGains.length, 8);
+    engine.masterGains.forEach(gain => {
+      assert.equal(gain.gain.value, 0);
+    });
+  });
+
+  it('usa setTargetAtTime para transición suave', () => {
+    setupEngine(2);
+    
+    const masterGain = engine.masterGains[0];
+    const initialCalls = masterGain.gain._calls.setTargetAtTime;
+    
+    engine.setMute(true);
+    
+    assert.ok(masterGain.gain._calls.setTargetAtTime > initialCalls);
+  });
+
+  it('toggleMute alterna el estado', () => {
+    setupEngine(2);
+    
+    assert.equal(engine.muted, false);
+    
+    engine.toggleMute();
+    assert.equal(engine.muted, true);
+    
+    engine.toggleMute();
+    assert.equal(engine.muted, false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.setStereoBusRouting - con nodos mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.setStereoBusRouting (con AudioContext mock)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  function setupEngine(maxChannels = 2) {
+    mockCtx = createMockAudioContext({ maxChannelCount: maxChannels });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('actualiza stereoBusRouting con nuevos canales', () => {
+    setupEngine(4);
+    
+    engine.setStereoBusRouting('A', 2, 3);
+    
+    assert.deepEqual(engine.stereoBusRouting.A, [2, 3]);
+  });
+
+  it('desconecta nodos antes de reconectar', () => {
+    setupEngine(4);
+    
+    const stereoBus = engine.stereoBuses.A;
+    const initialDisconnectsL = stereoBus.outputL._calls.disconnect;
+    const initialDisconnectsR = stereoBus.outputR._calls.disconnect;
+    
+    engine.setStereoBusRouting('A', 2, 3);
+    
+    assert.ok(stereoBus.outputL._calls.disconnect > initialDisconnectsL);
+    assert.ok(stereoBus.outputR._calls.disconnect > initialDisconnectsR);
+  });
+
+  it('reconecta a nuevos masterGains', () => {
+    setupEngine(4);
+    
+    const stereoBus = engine.stereoBuses.A;
+    const initialConnectsL = stereoBus.outputL._calls.connect;
+    const initialConnectsR = stereoBus.outputR._calls.connect;
+    
+    engine.setStereoBusRouting('A', 2, 3);
+    
+    assert.ok(stereoBus.outputL._calls.connect > initialConnectsL);
+    assert.ok(stereoBus.outputR._calls.connect > initialConnectsR);
+  });
+
+  it('canal -1 desconecta sin reconectar (deshabilita)', () => {
+    setupEngine(4);
+    
+    const stereoBus = engine.stereoBuses.A;
+    const initialConnects = stereoBus.outputL._calls.connect;
+    
+    // Desconectar L, mantener R en canal 1
+    engine.setStereoBusRouting('A', -1, 1);
+    
+    // L no debería reconectarse (el canal es -1)
+    // Solo R debería conectarse
+    assert.deepEqual(engine.stereoBusRouting.A, [-1, 1]);
+  });
+
+  it('ambos canales -1 deshabilita el stereo bus', () => {
+    setupEngine(4);
+    
+    engine.setStereoBusRouting('B', -1, -1);
+    
+    assert.deepEqual(engine.stereoBusRouting.B, [-1, -1]);
+  });
+
+  it('bus A y B son independientes', () => {
+    setupEngine(4);
+    
+    engine.setStereoBusRouting('A', 0, 1);
+    engine.setStereoBusRouting('B', 2, 3);
+    
+    assert.deepEqual(engine.stereoBusRouting.A, [0, 1]);
+    assert.deepEqual(engine.stereoBusRouting.B, [2, 3]);
+  });
+
+  it('ignora busId inválido', () => {
+    setupEngine(2);
+    
+    // No debe lanzar error
+    engine.setStereoBusRouting('C', 0, 1);
+    engine.setStereoBusRouting('', 0, 1);
+  });
+
+  it('getStereoBusRouting devuelve el routing actual', () => {
+    setupEngine(4);
+    
+    engine.setStereoBusRouting('A', 2, 3);
+    
+    const routing = engine.getStereoBusRouting('A');
+    assert.deepEqual(routing, [2, 3]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.updateOutputPan (stereo bus panning) - con nodos mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.updateOutputPan / setOutputPan (con AudioContext mock)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  function setupEngine() {
+    mockCtx = createMockAudioContext({ maxChannelCount: 2 });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('pan=0 (centro) → ambos lados ≈ 0.707', () => {
+    setupEngine();
+    
+    engine.setOutputPan(0, 0);
+    
+    const bus = engine.outputBuses[0];
+    const expected = Math.cos(0.25 * Math.PI); // ≈ 0.707
+    
+    assert.ok(Math.abs(bus.stereoPanL.gain.value - expected) < 0.01);
+    assert.ok(Math.abs(bus.stereoPanR.gain.value - expected) < 0.01);
+  });
+
+  it('pan=-1 (full izquierda) → L=1, R=0', () => {
+    setupEngine();
+    
+    engine.setOutputPan(0, -1);
+    
+    const bus = engine.outputBuses[0];
+    // pan=-1 → angle=0 → cos(0)=1, sin(0)=0
+    assert.ok(Math.abs(bus.stereoPanL.gain.value - 1) < 0.01);
+    assert.ok(Math.abs(bus.stereoPanR.gain.value - 0) < 0.01);
+  });
+
+  it('pan=+1 (full derecha) → L=0, R=1', () => {
+    setupEngine();
+    
+    engine.setOutputPan(0, 1);
+    
+    const bus = engine.outputBuses[0];
+    // pan=+1 → angle=π/2 → cos(π/2)=0, sin(π/2)=1
+    assert.ok(Math.abs(bus.stereoPanL.gain.value - 0) < 0.01);
+    assert.ok(Math.abs(bus.stereoPanR.gain.value - 1) < 0.01);
+  });
+
+  it('actualiza el array outputPans', () => {
+    setupEngine();
+    
+    engine.setOutputPan(3, 0.5);
+    
+    assert.equal(engine.outputPans[3], 0.5);
+  });
+
+  it('usa setTargetAtTime para transición suave', () => {
+    setupEngine();
+    
+    const bus = engine.outputBuses[0];
+    const initialCalls = bus.stereoPanL.gain._calls.setTargetAtTime;
+    
+    engine.setOutputPan(0, 0.5);
+    
+    assert.ok(bus.stereoPanL.gain._calls.setTargetAtTime > initialCalls);
+  });
+
+  it('equal-power: L² + R² ≈ 1 para cualquier pan', () => {
+    setupEngine();
+    
+    const testPans = [-1, -0.5, 0, 0.5, 1];
+    
+    testPans.forEach(pan => {
+      engine.setOutputPan(0, pan);
+      
+      const bus = engine.outputBuses[0];
+      const L = bus.stereoPanL.gain.value;
+      const R = bus.stereoPanR.gain.value;
+      const power = L * L + R * R;
+      
+      assert.ok(Math.abs(power - 1) < 0.01, `Pan ${pan}: power = ${power}`);
+    });
+  });
+
+  it('ignora índices fuera de rango', () => {
+    setupEngine();
+    
+    // No debe lanzar error
+    engine.setOutputPan(100, 0.5);
+    engine.setOutputPan(-1, 0.5);
+  });
+});

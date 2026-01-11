@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 10 de enero de 2026 (pines inactivos + pestaña Display)
+> Última actualización: 11 de enero de 2026 (stereo buses, filtros, output channels)
 
 ---
 
@@ -92,6 +92,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `inputAmplifier.js` | `InputAmplifierModule` | 8 canales de entrada con control de ganancia individual |
 | `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
 | `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
+| `outputChannel.js` | `OutputChannel` | Canal de salida individual con filtro bipolar LP/HP, pan, nivel, y switch on/off. 8 instancias forman el panel de salida |
 | `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
 
@@ -130,7 +131,7 @@ Componentes de interfaz reutilizables:
 | `outputRouter.js` | — | Helper para UI del router de salidas |
 | `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz de salida (8 buses → N canales físicos), matriz de entrada (N entradas sistema → 8 Input Amplifiers), selección de dispositivos, detección automática de canales, persistencia en localStorage |
 | `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: idioma, autoguardado, wake lock, atajos. Nueva pestaña "Visualización" con escala de renderizado y toggle de pines inactivos. Persistencia en localStorage |
-| `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-8), matriz de ruteo outputs→tracks, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
+| `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-12), matriz de ruteo outputs→tracks adaptativa, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
 | `confirmDialog.js` | `ConfirmDialog` | Modal de confirmación reutilizable (singleton): título, mensaje, botones personalizables, opción "no volver a preguntar" con persistencia localStorage. Métodos estáticos `show()`, `getRememberedChoice()`, `clearRememberedChoice()` |
 | `inputDialog.js` | `InputDialog` | Diálogo de entrada de texto personalizado (singleton): reemplaza `prompt()` nativo, título/placeholder/valor por defecto configurables, soporte i18n |
 | `keyboardShortcuts.js` | `KeyboardShortcutsManager` | Gestor centralizado de atajos de teclado (singleton): acciones configurables (mute, record, patches, settings, fullscreen, reset, navegación paneles), persistencia en localStorage, teclas reservadas (Tab, Enter, Escape) |
@@ -1277,7 +1278,33 @@ El proyecto utiliza el runner nativo de Node.js (`node --test`) para tests de re
 ### Estructura
 ```
 tests/
-└── blueprintMapper.test.js   # Regresiones del sistema de mapeo Synthi → índice físico
+├── blueprintMapper.test.js      # Regresiones del sistema de mapeo Synthi → índice físico
+├── mocks/
+│   └── audioContext.mock.js     # Mock de AudioContext y AudioWorklet para tests unitarios
+├── core/
+│   ├── engine.test.js           # Tests de AudioEngine con mocks
+│   ├── oscillatorState.test.js  # Tests de estado de osciladores
+│   └── recordingEngine.test.js  # Tests de grabación multitrack
+├── modules/
+│   ├── joystick.test.js         # Tests del módulo joystick
+│   ├── noise.test.js            # Tests del generador de ruido
+│   ├── oscillator.test.js       # Tests del oscilador
+│   ├── oscilloscope.test.js     # Tests del osciloscopio
+│   ├── outputChannel.test.js    # Tests del canal de salida
+│   └── pulse.test.js            # Tests del oscilador pulse
+├── panelBlueprints/
+│   ├── configs.test.js          # Tests de consistencia de blueprints
+│   └── panel2-3.config.test.js  # Tests específicos de paneles 2 y 3
+├── state/
+│   ├── conversions.test.js      # Tests de conversiones knob ↔ valores
+│   ├── migrations.test.js       # Tests de migraciones de formato
+│   └── schema.test.js           # Tests de esquema de patches
+├── i18n/
+│   └── locales.test.js          # Tests de paridad de traducciones
+└── utils/
+    ├── constants.test.js        # Tests de constantes globales
+    ├── logger.test.js           # Tests del sistema de logging
+    └── objects.test.js          # Tests de utilidades de objetos
 ```
 
 ### Ejecutar
@@ -1285,19 +1312,39 @@ tests/
 npm test
 ```
 
-### Cobertura actual
-Los tests verifican invariantes críticos del sistema de matrices:
+### Cobertura actual (~355 casos)
 
-| Test | Panel | Verificación |
-|------|-------|--------------|
-| Generación de mapas | 5, 6 | `destMap` y `sourceMap` son `Map` válidos |
-| Huecos en columnas | 5, 6 | Ninguna clave de `destMap` cae en `hiddenCols0` |
-| Huecos en filas | 5, 6 | Ninguna clave de `sourceMap` cae en `hiddenRows0` |
-| Osciloscopio Y/X | 5 | Columnas físicas 57/58 |
-| Osciloscopio Y/X | 6 | Columnas físicas 63/64 |
-| Output buses 1–8 | 5 | Columnas físicas 36–43 |
+| Área | Tests | Verificaciones principales |
+|------|-------|---------------------------|
+| `blueprintMapper` | Regresiones de matrices | Mapeo Synthi→físico, huecos, posiciones críticas |
+| `core/engine` | AudioEngine con mocks | Inicialización, niveles, panning, routing, CV |
+| `core/oscillatorState` | Estado de osciladores | `getOrCreateOscState()`, valores por defecto |
+| `core/recordingEngine` | Grabación multitrack | Configuración 1-12 pistas, matriz de ruteo |
+| `modules/*` | Módulos de síntesis | Inicialización con mocks de AudioContext |
+| `panelBlueprints` | Blueprints y configs | Consistencia, proporciones, parámetros válidos |
+| `state/*` | Sistema de patches | Conversiones, migraciones, validación de esquema |
+| `i18n/locales` | Internacionalización | Paridad en/es, claves esenciales, metadatos |
+| `utils/*` | Utilidades | Constantes, logging por niveles, `deepMerge()` |
+
+### Mock de AudioContext
+
+El archivo `tests/mocks/audioContext.mock.js` proporciona un mock completo de:
+- `AudioContext` con métodos de creación de nodos
+- `AudioWorkletNode` con `AudioParam` simulados
+- `GainNode`, `StereoPannerNode`, `BiquadFilterNode`, etc.
+- Sistema de conexión/desconexión entre nodos
+
+**Uso en tests:**
+```javascript
+import { createMockAudioContext } from '../mocks/audioContext.mock.js';
+
+const mockCtx = createMockAudioContext();
+const engine = new AudioEngine();
+await engine.init(mockCtx);
+```
 
 ### Añadir nuevos tests
-1. Crea un archivo `tests/<modulo>.test.js`
+1. Crea un archivo `tests/<categoria>/<modulo>.test.js`
 2. Usa `describe` / `it` de `node:test` y `assert` de `node:assert/strict`
-3. Ejecuta `npm test` para validar
+3. Para tests de audio, importa y usa el mock de AudioContext
+4. Ejecuta `npm test` para validar

@@ -44,6 +44,9 @@ export class RecordingSettingsModal {
     // Contenedor de la matriz (para reconstrucción)
     this.matrixContainer = null;
     
+    // Contenedor de matriz embebido (para contenido integrado en pestañas)
+    this.embeddedMatrixContainer = null;
+    
     // Referencias a elementos con texto traducible
     this._textElements = {};
     
@@ -80,6 +83,9 @@ export class RecordingSettingsModal {
     // Contenedor de matriz para este contenido embebido
     const matrixContainer = document.createElement('div');
     matrixContainer.className = 'recording-settings-matrix-container';
+    
+    // Guardar referencia al contenedor embebido
+    this.embeddedMatrixContainer = matrixContainer;
 
     matrixSection.appendChild(matrixTitle);
     matrixSection.appendChild(matrixDesc);
@@ -284,7 +290,14 @@ export class RecordingSettingsModal {
     this.trackCountSelect.addEventListener('change', () => {
       const newCount = parseInt(this.trackCountSelect.value, 10);
       this.recordingEngine.trackCount = newCount;
-      this._rebuildMatrix();
+      
+      // Reconstruir matrices (modal y/o embedded)
+      if (this.matrixContainer) {
+        this._rebuildMatrix();
+      }
+      if (this.embeddedMatrixContainer) {
+        this._buildMatrixInContainer(this.embeddedMatrixContainer);
+      }
     });
     
     selectWrapper.appendChild(this.trackCountSelect);

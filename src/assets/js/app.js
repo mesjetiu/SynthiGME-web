@@ -287,6 +287,17 @@ class App {
       onInputDeviceChange: async (deviceId) => {
         log.info(' Input device selected:', deviceId);
         await this._reconnectSystemAudioInput(deviceId);
+      },
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLBACK DE RUTEO DE STEREO BUSES (Pan 1-4 L/R, Pan 5-8 L/R)
+      // ─────────────────────────────────────────────────────────────────────────
+      // Recibe: busId ('A' o 'B'), leftChannel, rightChannel
+      // Permite rutear los stereo buses a diferentes canales físicos.
+      // Valor -1 significa desconectado.
+      // ─────────────────────────────────────────────────────────────────────────
+      onStereoBusRoutingChange: (busId, leftChannel, rightChannel) => {
+        this.engine.setStereoBusRouting(busId, leftChannel, rightChannel);
       }
     });
     

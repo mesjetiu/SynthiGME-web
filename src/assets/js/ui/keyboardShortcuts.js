@@ -153,9 +153,11 @@ class KeyboardShortcutsManager {
    * Maneja eventos keydown
    */
   _handleKeyDown(e) {
-    // Ignorar si está en un input/textarea/select
+    // Ignorar si está en un input/textarea/select (excepto sliders)
     const tag = e.target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const inputType = e.target.type?.toLowerCase();
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (tag === 'INPUT' && inputType !== 'range') return;
     
     // Ignorar teclas reservadas
     if (RESERVED_KEYS.includes(e.key)) return;
@@ -164,6 +166,10 @@ class KeyboardShortcutsManager {
     for (const [actionId, binding] of Object.entries(this.shortcuts)) {
       if (this._matchesBinding(e, binding)) {
         e.preventDefault();
+        // Quitar focus visual de sliders/pines antes de ejecutar el shortcut
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+          document.activeElement.blur();
+        }
         const action = SHORTCUT_ACTIONS[actionId];
         if (action) action();
         return;

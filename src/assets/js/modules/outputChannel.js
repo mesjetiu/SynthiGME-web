@@ -134,21 +134,18 @@ export class OutputChannel extends Module {
     
     this.filterKnobEl = knob;
     
-    // Instanciar Knob interactivo después de añadir al DOM
-    // Usamos setTimeout para asegurar que el elemento esté en el DOM
-    setTimeout(() => {
-      this.filterKnobUI = new Knob(knob, {
-        min: -1,          // Lowpass máximo
-        max: 1,           // Highpass máximo
-        initial: this.values.filter, // 0 = sin filtro (centro)
-        pixelsForFullRange: 120,
-        onChange: (value) => {
-          this.values.filter = value;
-          this.engine.setOutputFilter(this.channelIndex, value);
-          document.dispatchEvent(new CustomEvent('synth:userInteraction'));
-        }
-      });
-    }, 0);
+    // Instanciar Knob interactivo (síncrono para captura correcta de eventos táctiles)
+    this.filterKnobUI = new Knob(knob, {
+      min: -1,          // Lowpass máximo
+      max: 1,           // Highpass máximo
+      initial: this.values.filter, // 0 = sin filtro (centro)
+      pixelsForFullRange: 120,
+      onChange: (value) => {
+        this.values.filter = value;
+        this.engine.setOutputFilter(this.channelIndex, value);
+        document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+      }
+    });
     
     return wrap;
   }
@@ -188,20 +185,18 @@ export class OutputChannel extends Module {
     
     this.panKnobEl = knob;
     
-    // Instanciar Knob interactivo después de añadir al DOM
-    setTimeout(() => {
-      this.panKnobUI = new Knob(knob, {
-        min: -1,          // Full izquierda
-        max: 1,           // Full derecha
-        initial: this.values.pan, // 0 = centro
-        pixelsForFullRange: 120,
-        onChange: (value) => {
-          this.values.pan = value;
-          this.engine.setOutputPan(this.channelIndex, value);
-          document.dispatchEvent(new CustomEvent('synth:userInteraction'));
-        }
-      });
-    }, 0);
+    // Instanciar Knob interactivo (síncrono para captura correcta de eventos táctiles)
+    this.panKnobUI = new Knob(knob, {
+      min: -1,          // Full izquierda
+      max: 1,           // Full derecha
+      initial: this.values.pan, // 0 = centro
+      pixelsForFullRange: 120,
+      onChange: (value) => {
+        this.values.pan = value;
+        this.engine.setOutputPan(this.channelIndex, value);
+        document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+      }
+    });
     
     return wrap;
   }

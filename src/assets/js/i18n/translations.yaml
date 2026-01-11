@@ -699,6 +699,42 @@ settings.filterBypass.debug:
   en: Debug filter bypass only
   es: Debug solo bypass de filtros
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Latency Mode (modo de latencia para rendimiento)
+# ─────────────────────────────────────────────────────────────────────────────
+
+settings.latencyMode:
+  en: Latency Mode
+  es: Modo de latencia
+
+settings.latencyMode.description:
+  en: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
+  es: Ajusta el tamaño del buffer de audio. Usa "Reproducción" en móvil para estabilidad, "Interactivo" en escritorio para baja latencia.
+
+settings.latencyMode.interactive:
+  en: Interactive (low latency)
+  es: Interactivo (baja latencia)
+
+settings.latencyMode.playback:
+  en: Playback (stable)
+  es: Reproducción (estable)
+
+settings.latencyMode.restart:
+  en: Restart audio engine to apply changes?
+  es: ¿Reiniciar motor de audio para aplicar cambios?
+
+settings.latencyMode.restart.title:
+  en: Latency Mode Changed
+  es: Modo de latencia cambiado
+
+settings.latencyMode.restart.confirm:
+  en: Restart Now
+  es: Reiniciar ahora
+
+settings.latencyMode.restart.cancel:
+  en: Later
+  es: Más tarde
+
 toast.reset:
   en: Synthesizer reset to defaults
   es: Sintetizador reiniciado

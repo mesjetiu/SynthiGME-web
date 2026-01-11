@@ -71,7 +71,7 @@ import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
-import { STORAGE_KEYS } from './utils/constants.js';
+import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 
 class App {
   constructor() {
@@ -189,7 +189,12 @@ class App {
   }
 
   ensureAudio() {
-    this.engine.start();
+    // Obtener latencyHint guardado o usar default según dispositivo
+    const savedMode = localStorage.getItem(STORAGE_KEYS.LATENCY_MODE);
+    const defaultMode = isMobileDevice() ? 'playback' : 'interactive';
+    const latencyHint = savedMode || defaultMode;
+    
+    this.engine.start({ latencyHint });
     // Iniciar osciloscopio cuando haya audio
     this._ensurePanel2ScopeStarted();
   }
@@ -812,6 +817,35 @@ class App {
       }
       // Nota: desactivar global no desactiva individuales, sólo los checkboxes individuales lo hacen
     });
+    
+    // Escuchar solicitud de reinicio de audio (cambio de latencyHint)
+    document.addEventListener('synth:restartAudio', async (e) => {
+      const { latencyHint } = e.detail;
+      log.info(`🔄 Restarting audio engine with latencyHint: "${latencyHint}"`);
+      await this._restartAudioEngine(latencyHint);
+    });
+  }
+  
+  /**
+   * Reinicia el motor de audio con un nuevo latencyHint.
+   * Cierra el AudioContext actual y crea uno nuevo.
+   * @param {string} latencyHint - 'interactive' o 'playback'
+   */
+  async _restartAudioEngine(latencyHint) {
+    // Cerrar el contexto actual
+    await this.engine.closeAudioContext();
+    
+    // Reiniciar con el nuevo latencyHint
+    this.engine.start({ latencyHint });
+    
+    // Reconectar módulos que necesitan el contexto de audio
+    // Los módulos se reconectarán automáticamente cuando se usen
+    log.info(`✅ Audio engine restarted with latencyHint: "${latencyHint}"`);
+    
+    // Notificar para que otros sistemas se actualicen
+    document.dispatchEvent(new CustomEvent('synth:audioRestarted', { 
+      detail: { latencyHint } 
+    }));
   }
   
   /**

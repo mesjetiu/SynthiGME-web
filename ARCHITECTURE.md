@@ -994,6 +994,23 @@ busInput ─────────────────────▶ leve
 
 **Configuración:** Ajustes → Avanzado → Optimizaciones → Filter Bypass
 
+### Modo de Latencia (latencyHint)
+
+El `AudioContext` se crea con un `latencyHint` que determina el tamaño del buffer:
+
+| Modo | latencyHint | Buffer típico | Uso recomendado |
+|------|-------------|---------------|-----------------|
+| Interactivo | `'interactive'` | ~10ms | Desktop, baja latencia |
+| Reproducción | `'playback'` | ~50-100ms | Móviles, estabilidad |
+
+**Comportamiento por defecto:**
+- **Móviles** (detectado via userAgent): `'playback'` para evitar dropouts
+- **Desktop**: `'interactive'` para respuesta inmediata
+
+**Cambio en caliente:** Requiere reiniciar el motor de audio (diálogo de confirmación).
+
+**Configuración:** Ajustes → Avanzado → Optimizaciones → Modo de latencia
+
 ---
 
 ## 9. Sistema de AudioWorklets

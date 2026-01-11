@@ -96,7 +96,10 @@ export const STORAGE_KEYS = {
   
   /** Filter Bypass: desconecta físicamente filtros LP/HP en posición neutral */
   FILTER_BYPASS_ENABLED: `${STORAGE_PREFIX}filter-bypass-enabled`,
-  FILTER_BYPASS_DEBUG: `${STORAGE_PREFIX}filter-bypass-debug`
+  FILTER_BYPASS_DEBUG: `${STORAGE_PREFIX}filter-bypass-debug`,
+  
+  /** Latency Mode: 'playback' para móviles (estable), 'interactive' para desktop (baja latencia) */
+  LATENCY_MODE: `${STORAGE_PREFIX}latency-mode`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,3 +117,18 @@ export const AUTOSAVE_INTERVALS = {
 
 /** Intervalo de autosave por defecto */
 export const DEFAULT_AUTOSAVE_INTERVAL = '30s';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DETECCIÓN DE DISPOSITIVO
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Detecta si el dispositivo es móvil basándose en user agent y touch.
+ * @returns {boolean}
+ */
+export function isMobileDevice() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+         ('ontouchstart' in window && navigator.maxTouchPoints > 1);
+}

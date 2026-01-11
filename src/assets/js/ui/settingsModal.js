@@ -14,7 +14,7 @@ import { t, getLocale, setLocale, getSupportedLocales, onLocaleChange } from '..
 import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } from '../utils/serviceWorker.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
-import { STORAGE_KEYS, AUTOSAVE_INTERVALS } from '../utils/constants.js';
+import { STORAGE_KEYS, AUTOSAVE_INTERVALS, isMobileDevice } from '../utils/constants.js';
 import { WakeLockManager } from '../utils/wakeLock.js';
 
 /**
@@ -89,6 +89,12 @@ export class SettingsModal {
     const savedFilterBypassEnabled = localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_ENABLED);
     this.filterBypassEnabled = savedFilterBypassEnabled === null ? true : savedFilterBypassEnabled === 'true';
     this.filterBypassDebug = localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_DEBUG) === 'true';
+    
+    // Latency mode: 'playback' (estable) o 'interactive' (baja latencia)
+    // Por defecto: móviles usan 'playback', desktop usa 'interactive'
+    const savedLatencyMode = localStorage.getItem(STORAGE_KEYS.LATENCY_MODE);
+    const defaultLatencyMode = isMobileDevice() ? 'playback' : 'interactive';
+    this.latencyMode = savedLatencyMode || defaultLatencyMode;
     
     // Detectar Firefox (no necesita selector de resolución)
     this.isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
@@ -831,6 +837,11 @@ export class SettingsModal {
     // ─────────────────────────────────────────────────────────────────────
     section.appendChild(this._createFilterBypassSubsection());
     
+    // ─────────────────────────────────────────────────────────────────────
+    // Subsección: Latency Mode
+    // ─────────────────────────────────────────────────────────────────────
+    section.appendChild(this._createLatencyModeSubsection());
+    
     return section;
   }
   
@@ -970,6 +981,91 @@ export class SettingsModal {
     subsection.appendChild(debugRow);
     
     return subsection;
+  }
+  
+  /**
+   * Crea la subsección de latency mode dentro de optimizaciones.
+   * @returns {HTMLElement}
+   */
+  _createLatencyModeSubsection() {
+    const subsection = document.createElement('div');
+    subsection.className = 'settings-subsection';
+    
+    // Título de subsección
+    this.latencyModeTitleElement = document.createElement('h4');
+    this.latencyModeTitleElement.className = 'settings-subsection__title';
+    this.latencyModeTitleElement.textContent = t('settings.latencyMode');
+    subsection.appendChild(this.latencyModeTitleElement);
+    
+    // Descripción
+    this.latencyModeDescElement = document.createElement('p');
+    this.latencyModeDescElement.className = 'settings-subsection__description';
+    this.latencyModeDescElement.textContent = t('settings.latencyMode.description');
+    subsection.appendChild(this.latencyModeDescElement);
+    
+    // Selector de modo
+    const selectRow = document.createElement('div');
+    selectRow.className = 'settings-row';
+    
+    const selectWrapper = document.createElement('div');
+    selectWrapper.className = 'settings-select-wrapper';
+    
+    this.latencyModeSelect = document.createElement('select');
+    this.latencyModeSelect.className = 'settings-select';
+    this.latencyModeSelect.id = 'latencyModeSelect';
+    
+    // Opción: interactive (baja latencia)
+    const optInteractive = document.createElement('option');
+    optInteractive.value = 'interactive';
+    optInteractive.textContent = t('settings.latencyMode.interactive');
+    this.latencyModeSelect.appendChild(optInteractive);
+    
+    // Opción: playback (estable)
+    const optPlayback = document.createElement('option');
+    optPlayback.value = 'playback';
+    optPlayback.textContent = t('settings.latencyMode.playback');
+    this.latencyModeSelect.appendChild(optPlayback);
+    
+    // Establecer valor actual
+    this.latencyModeSelect.value = this.latencyMode;
+    
+    this.latencyModeSelect.addEventListener('change', () => {
+      this._setLatencyMode(this.latencyModeSelect.value);
+    });
+    
+    selectWrapper.appendChild(this.latencyModeSelect);
+    selectRow.appendChild(selectWrapper);
+    subsection.appendChild(selectRow);
+    
+    return subsection;
+  }
+  
+  /**
+   * Establece el modo de latencia.
+   * Muestra diálogo para reiniciar el audio si cambia en caliente.
+   * @param {string} mode - 'interactive' o 'playback'
+   */
+  async _setLatencyMode(mode) {
+    const oldMode = this.latencyMode;
+    if (mode === oldMode) return;
+    
+    this.latencyMode = mode;
+    localStorage.setItem(STORAGE_KEYS.LATENCY_MODE, mode);
+    
+    // Mostrar diálogo de confirmación para reiniciar audio
+    const confirmed = await ConfirmDialog.show({
+      title: t('settings.latencyMode.restart.title'),
+      message: t('settings.latencyMode.restart'),
+      confirmText: t('settings.latencyMode.restart.confirm'),
+      cancelText: t('settings.latencyMode.restart.cancel')
+    });
+    
+    if (confirmed) {
+      // Notificar para reiniciar el motor de audio
+      document.dispatchEvent(new CustomEvent('synth:restartAudio', { 
+        detail: { latencyHint: mode } 
+      }));
+    }
   }
   
   /**
@@ -2156,6 +2252,24 @@ export class SettingsModal {
     }
     if (this.filterBypassDebugLabelElement) {
       this.filterBypassDebugLabelElement.textContent = t('settings.filterBypass.debug');
+    }
+    
+    // Subsección: Latency Mode
+    if (this.latencyModeTitleElement) {
+      this.latencyModeTitleElement.textContent = t('settings.latencyMode');
+    }
+    if (this.latencyModeDescElement) {
+      this.latencyModeDescElement.textContent = t('settings.latencyMode.description');
+    }
+    if (this.latencyModeSelect) {
+      const options = this.latencyModeSelect.querySelectorAll('option');
+      options.forEach(opt => {
+        if (opt.value === 'interactive') {
+          opt.textContent = t('settings.latencyMode.interactive');
+        } else if (opt.value === 'playback') {
+          opt.textContent = t('settings.latencyMode.playback');
+        }
+      });
     }
   }
   

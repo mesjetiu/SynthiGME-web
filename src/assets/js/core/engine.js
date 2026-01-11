@@ -141,14 +141,24 @@ export class AudioEngine {
    * Inicia el motor de audio.
    * @param {Object} [options] - Opciones de inicio
    * @param {AudioContext} [options.audioContext] - AudioContext externo (para tests)
+   * @param {string} [options.latencyHint='interactive'] - Hint de latencia: 'interactive', 'balanced', 'playback'
    */
   start(options = {}) {
     if (this.audioCtx) {
       if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
       return;
     }
+    
     // Permitir inyección de AudioContext para testing
-    const ctx = options.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+    let ctx;
+    if (options.audioContext) {
+      ctx = options.audioContext;
+    } else {
+      const latencyHint = options.latencyHint || 'interactive';
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      ctx = new AudioContextClass({ latencyHint });
+      log.info(`AudioContext created with latencyHint: "${latencyHint}", baseLatency: ${ctx.baseLatency?.toFixed(3) || 'N/A'}s`);
+    }
     this.audioCtx = ctx;
 
     // Cargar AudioWorklet para osciladores con fase coherente
@@ -1397,6 +1407,40 @@ export class AudioEngine {
     };
 
     return node;
+  }
+  
+  /**
+   * Cierra el AudioContext actual. 
+   * Usado antes de reiniciar con diferente latencyHint.
+   * @returns {Promise<void>}
+   */
+  async closeAudioContext() {
+    if (this.audioCtx) {
+      try {
+        await this.audioCtx.close();
+        log.info('AudioContext closed');
+      } catch (e) {
+        log.warn('Error closing AudioContext:', e);
+      }
+      this.audioCtx = null;
+      this.workletReady = false;
+      this._workletLoadPromise = null;
+      // Limpiar buses de salida (se recrearán al reiniciar)
+      this.outputBuses = [];
+      this.masterGains = [];
+    }
+  }
+  
+  /**
+   * @returns {string} El latencyHint actual del AudioContext
+   */
+  getLatencyInfo() {
+    const ctx = this.audioCtx;
+    if (!ctx) return { baseLatency: null, outputLatency: null };
+    return {
+      baseLatency: ctx.baseLatency ?? null,
+      outputLatency: ctx.outputLatency ?? null
+    };
   }
 }
 

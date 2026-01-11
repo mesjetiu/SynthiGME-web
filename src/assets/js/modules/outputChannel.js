@@ -199,7 +199,7 @@ export class OutputChannel extends Module {
         min: -1,          // Lowpass máximo
         max: 1,           // Highpass máximo
         initial: this.values.filter, // 0 = sin filtro (centro)
-        pixelsForFullRange: 120,
+        pixelsForFullRange: 180,  // Aumentado para knobs pequeños (36px vs 60px normales)
         onChange: (value) => {
           this.values.filter = value;
           this.engine.setOutputFilter(this.channelIndex, value);
@@ -214,7 +214,7 @@ export class OutputChannel extends Module {
         min: -1,          // Full izquierda
         max: 1,           // Full derecha
         initial: this.values.pan, // 0 = centro
-        pixelsForFullRange: 120,
+        pixelsForFullRange: 180,  // Aumentado para knobs pequeños (36px vs 60px normales)
         onChange: (value) => {
           this.values.pan = value;
           this.engine.setOutputPan(this.channelIndex, value);

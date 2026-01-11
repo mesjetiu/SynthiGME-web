@@ -200,6 +200,37 @@ class App {
   }
 
   _setupOutputFaders() {
+    // DEBUG: Botón de bypass para diagnóstico de audio en móvil
+    const bypassBtn = document.createElement('button');
+    bypassBtn.type = 'button';
+    bypassBtn.textContent = 'CH BYPASS: OFF';
+    bypassBtn.className = 'channel-bypass-debug-btn';
+    bypassBtn.style.cssText = `
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: bold;
+      border-radius: 4px;
+      border: 2px solid #f80;
+      background: #222;
+      color: #f80;
+      cursor: pointer;
+    `;
+    let bypassed = false;
+    bypassBtn.addEventListener('click', () => {
+      bypassed = !bypassed;
+      this.engine.setChannelBypassDebug(bypassed);
+      bypassBtn.textContent = `CH BYPASS: ${bypassed ? 'ON' : 'OFF'}`;
+      bypassBtn.style.background = bypassed ? '#f80' : '#222';
+      bypassBtn.style.color = bypassed ? '#000' : '#f80';
+    });
+    this.outputChannelsSection.style.position = 'relative';
+    this.outputChannelsSection.appendChild(bypassBtn);
+    
     // Crear panel con 8 output channels individuales
     this._outputChannelsPanel = new OutputChannelsPanel(this.engine, 8);
     this._outputChannelsPanel.createPanel(this.outputChannelsSection);

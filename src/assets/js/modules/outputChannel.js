@@ -294,15 +294,15 @@ export class OutputChannel extends Module {
 }
 
 /**
- * Contenedor para los 7 output channels del Panel 7.
+ * Contenedor para los 8 output channels del Panel 7.
  * Gestiona la creación y serialización de todos los canales.
  */
 export class OutputChannelsPanel {
   /**
    * @param {Object} engine - AudioEngine instance
-   * @param {number} [channelCount=7] - Número de canales a crear
+   * @param {number} [channelCount=8] - Número de canales a crear
    */
-  constructor(engine, channelCount = 7) {
+  constructor(engine, channelCount = 8) {
     this.engine = engine;
     this.channelCount = channelCount;
     this.channels = [];

@@ -194,8 +194,8 @@ class App {
   }
 
   _setupOutputFaders() {
-    // Crear panel con 7 output channels individuales
-    this._outputChannelsPanel = new OutputChannelsPanel(this.engine, 7);
+    // Crear panel con 8 output channels individuales
+    this._outputChannelsPanel = new OutputChannelsPanel(this.engine, 8);
     this._outputChannelsPanel.createPanel(this.outputChannelsSection);
     
     // Mantener referencia como _outputFadersModule para compatibilidad con serialización
@@ -557,7 +557,7 @@ class App {
     const defaultInputAmplifiers = { levels: Array(8).fill(0) };
     // Formato compatible: usar channels con level para el nuevo OutputChannelsPanel
     const defaultOutputChannels = { 
-      channels: Array(7).fill(null).map(() => ({ level: 0, filter: 0.5, pan: 0.5, power: true }))
+      channels: Array(8).fill(null).map(() => ({ level: 0, filter: 0.5, pan: 0.5, power: true }))
     };
     
     // Resetear osciladores

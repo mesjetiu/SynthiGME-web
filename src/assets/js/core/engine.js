@@ -185,10 +185,15 @@ export class AudioEngine {
       const levelNode = ctx.createGain();
       levelNode.gain.value = this.outputLevels[i];
       
-      // Cadena: busInput → filterLP → filterHP → levelNode
+      // Nodo de mute separado - permite silenciar sin interferir con CV de matriz
+      const muteNode = ctx.createGain();
+      muteNode.gain.value = this.outputMutes[i] ? 0 : 1;
+      
+      // Cadena: busInput → filterLP → filterHP → levelNode → muteNode
       busInput.connect(filterLP);
       filterLP.connect(filterHP);
       filterHP.connect(levelNode);
+      levelNode.connect(muteNode);
       
       // Aplicar valor inicial del filtro
       this._applyFilterValue(i, this.outputFilters[i], filterLP, filterHP);
@@ -200,7 +205,7 @@ export class AudioEngine {
         // Usar valor de la matriz de ruteo
         const routingValue = this._outputRoutingMatrix[i]?.[ch] ?? 0;
         gainNode.gain.value = routingValue;
-        levelNode.connect(gainNode);
+        muteNode.connect(gainNode);
         gainNode.connect(this.masterGains[ch]);
         channelGains.push(gainNode);
       }
@@ -210,7 +215,8 @@ export class AudioEngine {
         input: busInput,
         filterLP,   // Filtro lowpass (activo con valores negativos)
         filterHP,   // Filtro highpass (activo con valores positivos)
-        levelNode,
+        levelNode,  // Nivel (para modulación CV de matriz)
+        muteNode,   // Mute (para on/off del canal)
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
         channelGains, // Array completo de ganancias por canal
@@ -311,11 +317,12 @@ export class AudioEngine {
     
     const ctx = this.audioCtx;
     const bus = this.outputBuses[busIndex];
-    if (!ctx || !bus) return;
+    if (!ctx || !bus?.muteNode) return;
     
-    // Si está muteado, poner gain a 0; si no, restaurar el nivel guardado
-    const targetGain = muted ? 0 : this.outputLevels[busIndex];
-    setParamSmooth(bus.levelNode.gain, targetGain, ctx, { ramp });
+    // Usar muteNode separado: 0 = silenciado, 1 = activo
+    // Esto permite que el CV de la matriz module levelNode sin afectar el mute
+    const targetGain = muted ? 0 : 1;
+    setParamSmooth(bus.muteNode.gain, targetGain, ctx, { ramp });
   }
 
   /**
@@ -507,9 +514,9 @@ export class AudioEngine {
       bus.stereoPanL = ctx.createGain();
       bus.stereoPanR = ctx.createGain();
       
-      // Conectar desde levelNode a los nodos de pan
-      bus.levelNode.connect(bus.stereoPanL);
-      bus.levelNode.connect(bus.stereoPanR);
+      // Conectar desde muteNode a los nodos de pan (después de mute, no de level)
+      bus.muteNode.connect(bus.stereoPanL);
+      bus.muteNode.connect(bus.stereoPanR);
       
       // Conectar nodos de pan a los sumadores del stereo bus
       bus.stereoPanL.connect(stereoBus.sumL);

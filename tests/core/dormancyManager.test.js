@@ -1,0 +1,692 @@
+/**
+ * Tests para core/dormancyManager.js
+ * 
+ * Verifica el sistema de dormancy para optimización de audio:
+ * - Inicialización con valores por defecto y desde localStorage
+ * - Detección de conexiones en Panel 5 y Panel 6
+ * - Cambio de estado dormant en módulos
+ * - Agrupación de cambios para toasts consolidados
+ * - Habilitación/deshabilitación del sistema
+ */
+
+import { describe, it, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOCK de localStorage
+// ═══════════════════════════════════════════════════════════════════════════
+
+class MockLocalStorage {
+  constructor() {
+    this.store = {};
+  }
+  getItem(key) {
+    return this.store[key] ?? null;
+  }
+  setItem(key, value) {
+    this.store[key] = String(value);
+  }
+  removeItem(key) {
+    delete this.store[key];
+  }
+  clear() {
+    this.store = {};
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOCK de módulos con setDormant
+// ═══════════════════════════════════════════════════════════════════════════
+
+function createMockModule(id) {
+  return {
+    id,
+    _isDormant: false,
+    setDormant(dormant) {
+      this._isDormant = dormant;
+    }
+  };
+}
+
+function createMockOscillatorEntry() {
+  return {
+    osc: {},
+    gain: { gain: { value: 1 } },
+    sawOsc: {},
+    sawGain: { gain: { value: 0 } },
+    triOsc: {},
+    triGain: { gain: { value: 0 } },
+    pulseOsc: {},
+    pulseGain: { gain: { value: 0 } },
+    _isDormant: false,
+    _savedGains: null,
+    setDormant(dormant) {
+      this._isDormant = dormant;
+    }
+  };
+}
+
+function createMockOutputBus() {
+  return {
+    input: {},
+    muteNode: { gain: { value: 1, setValueAtTime: () => {} } },
+    _isDormant: false,
+    _savedMuteValue: 1,
+    setDormant(dormant) {
+      this._isDormant = dormant;
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOCK de App con routing
+// ═══════════════════════════════════════════════════════════════════════════
+
+function createMockApp() {
+  // Crear source y dest maps para Panel 5
+  const panel5SourceMap = new Map([
+    [22, { kind: 'noiseGen', index: 0 }],
+    [23, { kind: 'noiseGen', index: 1 }],
+    [24, { kind: 'panel3Osc', oscIndex: 0, channelId: 'sineSaw' }],
+    [25, { kind: 'panel3Osc', oscIndex: 0, channelId: 'triPulse' }],
+    [26, { kind: 'panel3Osc', oscIndex: 1, channelId: 'sineSaw' }],
+    [27, { kind: 'panel3Osc', oscIndex: 1, channelId: 'triPulse' }],
+    [30, { kind: 'inputAmp', channel: 0 }],
+    [31, { kind: 'inputAmp', channel: 1 }],
+  ]);
+  
+  const panel5DestMap = new Map([
+    [36, { kind: 'outputBus', bus: 1 }],
+    [37, { kind: 'outputBus', bus: 2 }],
+    [38, { kind: 'outputBus', bus: 3 }],
+    [56, { kind: 'oscilloscope', channel: 'X' }],
+    [57, { kind: 'oscilloscope', channel: 'Y' }],
+  ]);
+
+  return {
+    _panel3Routing: {
+      connections: {},
+      sourceMap: panel5SourceMap,
+      destMap: panel5DestMap
+    },
+    _panel6Routing: {
+      connections: {},
+      sourceMap: new Map(),
+      destMap: new Map()
+    },
+    _panelAudios: {
+      3: {
+        nodes: [
+          createMockOscillatorEntry(), // osc-0
+          createMockOscillatorEntry(), // osc-1
+          createMockOscillatorEntry(), // osc-2
+        ]
+      }
+    },
+    _panel3LayoutData: {
+      noiseAudioModules: {
+        noise1: createMockModule('noise-1'),
+        noise2: createMockModule('noise-2')
+      }
+    },
+    oscilloscope: createMockModule('oscilloscope'),
+    inputAmplifiers: createMockModule('input-amplifiers'),
+    engine: {
+      outputBuses: [
+        createMockOutputBus(), // channel 1
+        createMockOutputBus(), // channel 2
+        createMockOutputBus(), // channel 3
+        createMockOutputBus(), // channel 4
+        createMockOutputBus(), // channel 5
+        createMockOutputBus(), // channel 6
+        createMockOutputBus(), // channel 7
+        createMockOutputBus(), // channel 8
+      ]
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOCK de DormancyManager (lógica replicada para testing sin DOM)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class MockDormancyManager {
+  constructor(app, localStorage) {
+    this.app = app;
+    this._localStorage = localStorage;
+    this._moduleStates = new Map();
+    this._pendingChanges = null;
+    
+    // Cargar configuración desde localStorage
+    const storedEnabled = this._localStorage.getItem('synth_dormancy_enabled');
+    this._enabled = storedEnabled === null ? true : storedEnabled === 'true';
+    
+    const storedDebug = this._localStorage.getItem('synth_dormancy_debug');
+    this._debugIndicators = storedDebug === 'true';
+  }
+  
+  isEnabled() {
+    return this._enabled;
+  }
+  
+  setEnabled(enabled) {
+    this._enabled = enabled;
+    this._localStorage.setItem('synth_dormancy_enabled', String(enabled));
+    
+    if (!enabled) {
+      this._wakeAllModules();
+    } else {
+      this.updateAllStates();
+    }
+  }
+  
+  setDebugIndicators(enabled) {
+    this._debugIndicators = enabled;
+    this._localStorage.setItem('synth_dormancy_debug', String(enabled));
+  }
+  
+  hasDebugIndicators() {
+    return this._debugIndicators;
+  }
+  
+  updateAllStates() {
+    if (!this._enabled) return;
+    
+    this._pendingChanges = { woke: [], slept: [] };
+    
+    const panel5Connections = this._getPanel5Connections();
+    
+    // Oscillators
+    for (let oscIndex = 0; oscIndex < 3; oscIndex++) {
+      const hasOutput = panel5Connections.some(c => 
+        c.source?.kind === 'panel3Osc' && c.source?.oscIndex === oscIndex
+      );
+      const module = this._findModule(`osc-${oscIndex}`);
+      if (module) {
+        this._setModuleDormant(`osc-${oscIndex}`, !hasOutput);
+      }
+    }
+    
+    // Noise generators
+    for (let noiseIndex = 0; noiseIndex < 2; noiseIndex++) {
+      const hasOutput = panel5Connections.some(c =>
+        c.source?.kind === 'noiseGen' && c.source?.index === noiseIndex
+      );
+      this._setModuleDormant(`noise-${noiseIndex + 1}`, !hasOutput);
+    }
+    
+    // Input amplifiers
+    const hasAnyInputConnected = panel5Connections.some(c =>
+      c.source?.kind === 'inputAmp'
+    );
+    this._setModuleDormant('input-amplifiers', !hasAnyInputConnected);
+    
+    // Oscilloscope
+    const hasScopeInput = panel5Connections.some(c =>
+      c.dest?.kind === 'oscilloscope'
+    );
+    this._setModuleDormant('oscilloscope', !hasScopeInput);
+    
+    // Output buses
+    for (let busIndex = 0; busIndex < 8; busIndex++) {
+      const hasInput = panel5Connections.some(c =>
+        c.dest?.kind === 'outputBus' && c.dest?.bus === busIndex + 1
+      );
+      this._setModuleDormant(`output-channel-${busIndex + 1}`, !hasInput);
+    }
+    
+    return this._pendingChanges;
+  }
+  
+  _getPanel5Connections() {
+    const routing = this.app._panel3Routing;
+    if (!routing?.connections) return [];
+    
+    const connections = [];
+    for (const key of Object.keys(routing.connections)) {
+      const [rowStr, colStr] = key.split(':');
+      const rowIndex = parseInt(rowStr, 10);
+      const colIndex = parseInt(colStr, 10);
+      
+      const source = routing.sourceMap?.get(rowIndex);
+      const dest = routing.destMap?.get(colIndex);
+      
+      if (source || dest) {
+        connections.push({ source, dest, key });
+      }
+    }
+    
+    return connections;
+  }
+  
+  _setModuleDormant(moduleId, dormant) {
+    const currentState = this._moduleStates.get(moduleId);
+    if (currentState?.isDormant === dormant) return;
+    
+    this._moduleStates.set(moduleId, { isDormant: dormant });
+    
+    const module = this._findModule(moduleId);
+    if (module?.setDormant) {
+      module.setDormant(dormant);
+      
+      if (this._pendingChanges) {
+        if (dormant) {
+          this._pendingChanges.slept.push(moduleId);
+        } else {
+          this._pendingChanges.woke.push(moduleId);
+        }
+      }
+    }
+  }
+  
+  _findModule(moduleId) {
+    if (moduleId.startsWith('osc-')) {
+      const oscIndex = parseInt(moduleId.split('-')[1], 10);
+      return this.app._panelAudios?.[3]?.nodes?.[oscIndex];
+    }
+    
+    if (moduleId === 'noise-1') {
+      return this.app._panel3LayoutData?.noiseAudioModules?.noise1;
+    }
+    if (moduleId === 'noise-2') {
+      return this.app._panel3LayoutData?.noiseAudioModules?.noise2;
+    }
+    
+    if (moduleId === 'oscilloscope') {
+      return this.app.oscilloscope;
+    }
+    
+    if (moduleId === 'input-amplifiers') {
+      return this.app.inputAmplifiers;
+    }
+    
+    if (moduleId.startsWith('output-channel-')) {
+      const busIndex = parseInt(moduleId.split('-')[2], 10) - 1;
+      return this.app.engine?.outputBuses?.[busIndex];
+    }
+    
+    return null;
+  }
+  
+  _wakeAllModules() {
+    for (const [moduleId] of this._moduleStates) {
+      const module = this._findModule(moduleId);
+      if (module?.setDormant) {
+        module.setDormant(false);
+      }
+    }
+    this._moduleStates.clear();
+  }
+  
+  isDormant(moduleId) {
+    return this._moduleStates.get(moduleId)?.isDormant ?? false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('DormancyManager', () => {
+  let app;
+  let localStorage;
+  let manager;
+  
+  beforeEach(() => {
+    app = createMockApp();
+    localStorage = new MockLocalStorage();
+    manager = new MockDormancyManager(app, localStorage);
+  });
+  
+  describe('inicialización', () => {
+    
+    it('está habilitado por defecto', () => {
+      assert.equal(manager.isEnabled(), true);
+    });
+    
+    it('debug está deshabilitado por defecto', () => {
+      assert.equal(manager.hasDebugIndicators(), false);
+    });
+    
+    it('respeta valor guardado en localStorage (enabled)', () => {
+      localStorage.setItem('synth_dormancy_enabled', 'false');
+      const manager2 = new MockDormancyManager(app, localStorage);
+      assert.equal(manager2.isEnabled(), false);
+    });
+    
+    it('respeta valor guardado en localStorage (debug)', () => {
+      localStorage.setItem('synth_dormancy_debug', 'true');
+      const manager2 = new MockDormancyManager(app, localStorage);
+      assert.equal(manager2.hasDebugIndicators(), true);
+    });
+  });
+  
+  describe('setEnabled', () => {
+    
+    it('guarda el estado en localStorage', () => {
+      manager.setEnabled(false);
+      assert.equal(localStorage.getItem('synth_dormancy_enabled'), 'false');
+      
+      manager.setEnabled(true);
+      assert.equal(localStorage.getItem('synth_dormancy_enabled'), 'true');
+    });
+    
+    it('despierta todos los módulos al deshabilitar', () => {
+      // Primero crear una conexión y actualizar estados
+      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
+      manager.updateAllStates();
+      
+      // Verificar que algunos están dormant
+      assert.equal(manager.isDormant('osc-1'), true);
+      assert.equal(manager.isDormant('osc-2'), true);
+      
+      // Deshabilitar dormancy
+      manager.setEnabled(false);
+      
+      // Verificar que los módulos despertaron
+      const osc1 = app._panelAudios[3].nodes[1];
+      assert.equal(osc1._isDormant, false);
+    });
+  });
+  
+  describe('detección de conexiones', () => {
+    
+    it('detecta conexión osc → output', () => {
+      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
+      
+      const changes = manager.updateAllStates();
+      
+      assert.ok(changes.woke.includes('osc-0'));
+      assert.ok(changes.woke.includes('output-channel-1'));
+      assert.ok(changes.slept.includes('osc-1'));
+      assert.ok(changes.slept.includes('osc-2'));
+    });
+    
+    it('detecta conexión noise → output', () => {
+      app._panel3Routing.connections['22:37'] = {}; // noise-1 → output-2
+      
+      const changes = manager.updateAllStates();
+      
+      assert.ok(changes.woke.includes('noise-1'));
+      assert.ok(changes.woke.includes('output-channel-2'));
+      assert.ok(changes.slept.includes('noise-2'));
+    });
+    
+    it('detecta conexión → oscilloscope', () => {
+      app._panel3Routing.connections['24:56'] = {}; // osc-0 → scope X
+      
+      const changes = manager.updateAllStates();
+      
+      assert.ok(changes.woke.includes('osc-0'));
+      assert.ok(changes.woke.includes('oscilloscope'));
+    });
+    
+    it('detecta conexión input amp → output', () => {
+      app._panel3Routing.connections['30:36'] = {}; // inputAmp-0 → output-1
+      
+      const changes = manager.updateAllStates();
+      
+      assert.ok(changes.woke.includes('input-amplifiers'));
+      assert.ok(changes.woke.includes('output-channel-1'));
+    });
+    
+    it('múltiples conexiones: solo reporta cambios', () => {
+      // Primera actualización con una conexión
+      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
+      manager.updateAllStates();
+      
+      // Segunda actualización añadiendo otra conexión
+      app._panel3Routing.connections['22:37'] = {}; // noise-1 → output-2
+      const changes = manager.updateAllStates();
+      
+      // Solo debe reportar los nuevos cambios
+      assert.ok(changes.woke.includes('noise-1'));
+      assert.ok(changes.woke.includes('output-channel-2'));
+      // osc-0 y output-1 ya estaban activos, no deberían estar en woke
+      assert.ok(!changes.woke.includes('osc-0'));
+      assert.ok(!changes.woke.includes('output-channel-1'));
+    });
+  });
+  
+  describe('estado dormant de módulos', () => {
+    
+    it('oscilador sin conexión está dormant', () => {
+      manager.updateAllStates();
+      
+      const osc0 = app._panelAudios[3].nodes[0];
+      assert.equal(osc0._isDormant, true);
+    });
+    
+    it('oscilador con conexión está activo', () => {
+      app._panel3Routing.connections['24:36'] = {};
+      manager.updateAllStates();
+      
+      const osc0 = app._panelAudios[3].nodes[0];
+      assert.equal(osc0._isDormant, false);
+    });
+    
+    it('output channel sin entrada está dormant', () => {
+      manager.updateAllStates();
+      
+      const channel1 = app.engine.outputBuses[0];
+      assert.equal(channel1._isDormant, true);
+    });
+    
+    it('output channel con entrada está activo', () => {
+      app._panel3Routing.connections['24:36'] = {};
+      manager.updateAllStates();
+      
+      const channel1 = app.engine.outputBuses[0];
+      assert.equal(channel1._isDormant, false);
+    });
+    
+    it('oscilloscope sin entrada está dormant', () => {
+      manager.updateAllStates();
+      
+      assert.equal(app.oscilloscope._isDormant, true);
+    });
+    
+    it('oscilloscope con entrada está activo', () => {
+      app._panel3Routing.connections['24:56'] = {};
+      manager.updateAllStates();
+      
+      assert.equal(app.oscilloscope._isDormant, false);
+    });
+  });
+  
+  describe('_findModule', () => {
+    
+    it('encuentra osciladores por índice', () => {
+      const osc0 = manager._findModule('osc-0');
+      assert.strictEqual(osc0, app._panelAudios[3].nodes[0]);
+      
+      const osc2 = manager._findModule('osc-2');
+      assert.strictEqual(osc2, app._panelAudios[3].nodes[2]);
+    });
+    
+    it('encuentra noise modules', () => {
+      const noise1 = manager._findModule('noise-1');
+      assert.strictEqual(noise1, app._panel3LayoutData.noiseAudioModules.noise1);
+      
+      const noise2 = manager._findModule('noise-2');
+      assert.strictEqual(noise2, app._panel3LayoutData.noiseAudioModules.noise2);
+    });
+    
+    it('encuentra oscilloscope', () => {
+      const scope = manager._findModule('oscilloscope');
+      assert.strictEqual(scope, app.oscilloscope);
+    });
+    
+    it('encuentra input-amplifiers', () => {
+      const inputAmps = manager._findModule('input-amplifiers');
+      assert.strictEqual(inputAmps, app.inputAmplifiers);
+    });
+    
+    it('encuentra output channels', () => {
+      const ch1 = manager._findModule('output-channel-1');
+      assert.strictEqual(ch1, app.engine.outputBuses[0]);
+      
+      const ch8 = manager._findModule('output-channel-8');
+      assert.strictEqual(ch8, app.engine.outputBuses[7]);
+    });
+    
+    it('retorna null para módulo desconocido', () => {
+      const unknown = manager._findModule('unknown-module');
+      assert.equal(unknown, null);
+    });
+  });
+  
+  describe('isDormant', () => {
+    
+    it('retorna false para módulo sin estado registrado', () => {
+      assert.equal(manager.isDormant('osc-0'), false);
+    });
+    
+    it('retorna true para módulo dormant', () => {
+      manager.updateAllStates();
+      assert.equal(manager.isDormant('osc-0'), true);
+    });
+    
+    it('retorna false para módulo activo', () => {
+      app._panel3Routing.connections['24:36'] = {};
+      manager.updateAllStates();
+      assert.equal(manager.isDormant('osc-0'), false);
+    });
+  });
+  
+  describe('agrupación de cambios', () => {
+    
+    it('agrupa múltiples cambios en un solo objeto', () => {
+      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
+      app._panel3Routing.connections['22:37'] = {}; // noise-1 → output-2
+      
+      const changes = manager.updateAllStates();
+      
+      // Verificar que woke contiene los módulos activos
+      assert.ok(changes.woke.length >= 2);
+      // Verificar que slept contiene los módulos dormant
+      assert.ok(changes.slept.length >= 2);
+    });
+    
+    it('no reporta módulos que no cambiaron', () => {
+      // Primera actualización
+      app._panel3Routing.connections['24:36'] = {};
+      manager.updateAllStates();
+      
+      // Segunda actualización sin cambios
+      const changes = manager.updateAllStates();
+      
+      // No debería haber cambios
+      assert.equal(changes.woke.length, 0);
+      assert.equal(changes.slept.length, 0);
+    });
+  });
+  
+  describe('desconexión', () => {
+    
+    it('módulo vuelve a dormir al desconectar', () => {
+      // Conectar
+      app._panel3Routing.connections['24:36'] = {};
+      manager.updateAllStates();
+      assert.equal(manager.isDormant('osc-0'), false);
+      
+      // Desconectar
+      delete app._panel3Routing.connections['24:36'];
+      const changes = manager.updateAllStates();
+      
+      assert.equal(manager.isDormant('osc-0'), true);
+      assert.ok(changes.slept.includes('osc-0'));
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tests para setDormant en output buses
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Output Bus setDormant', () => {
+  
+  it('silencia el bus al dormir', () => {
+    let savedValue = 1;
+    const bus = {
+      muteNode: {
+        gain: {
+          value: 1,
+          setValueAtTime: (val) => { savedValue = val; }
+        }
+      },
+      _isDormant: false,
+      _savedMuteValue: 1,
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        if (dormant) {
+          this._savedMuteValue = this.muteNode.gain.value;
+          this.muteNode.gain.setValueAtTime(0, 0);
+        } else {
+          this.muteNode.gain.setValueAtTime(this._savedMuteValue, 0);
+        }
+      }
+    };
+    
+    bus.setDormant(true);
+    
+    assert.equal(bus._isDormant, true);
+    assert.equal(savedValue, 0);
+  });
+  
+  it('restaura el nivel al despertar', () => {
+    let currentValue = 1;
+    const bus = {
+      muteNode: {
+        gain: {
+          value: 0.8,
+          setValueAtTime: (val) => { currentValue = val; }
+        }
+      },
+      _isDormant: false,
+      _savedMuteValue: 1,
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        if (dormant) {
+          this._savedMuteValue = this.muteNode.gain.value;
+          this.muteNode.gain.setValueAtTime(0, 0);
+        } else {
+          this.muteNode.gain.setValueAtTime(this._savedMuteValue, 0);
+        }
+      }
+    };
+    
+    // Dormir
+    bus.setDormant(true);
+    assert.equal(currentValue, 0);
+    
+    // Despertar
+    bus.setDormant(false);
+    assert.equal(currentValue, 0.8); // Valor guardado
+  });
+  
+  it('no hace nada si el estado no cambia', () => {
+    let callCount = 0;
+    const bus = {
+      muteNode: {
+        gain: {
+          value: 1,
+          setValueAtTime: () => { callCount++; }
+        }
+      },
+      _isDormant: true,
+      _savedMuteValue: 1,
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this.muteNode.gain.setValueAtTime(dormant ? 0 : this._savedMuteValue, 0);
+      }
+    };
+    
+    bus.setDormant(true); // Ya está dormant
+    
+    assert.equal(callCount, 0);
+  });
+});

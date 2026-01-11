@@ -262,10 +262,8 @@ export class AudioEngine {
     
     this._outputRoutingMatrix = [];
     for (let bus = 0; bus < this.outputChannels; bus++) {
+      // Por defecto: todo a 0 (el audio fluye por stereo buses, no por routing directo)
       const channelGains = Array(channelCount).fill(0);
-      // Default: bus 0 → L, bus 1 → R
-      if (bus === 0 && channelCount > 0) channelGains[0] = 1;
-      if (bus === 1 && channelCount > 1) channelGains[1] = 1;
       this._outputRoutingMatrix.push(channelGains);
     }
   }
@@ -489,12 +487,12 @@ export class AudioEngine {
       stereoBus.sumL.connect(stereoBus.outputL);
       stereoBus.sumR.connect(stereoBus.outputR);
       
-      // Conectar salidas a canales físicos según routing
+      // Conectar salidas a canales físicos según routing (-1 = deshabilitado)
       const routing = this.stereoBusRouting[busId];
-      if (this.masterGains[routing[0]]) {
+      if (routing[0] >= 0 && this.masterGains[routing[0]]) {
         stereoBus.outputL.connect(this.masterGains[routing[0]]);
       }
-      if (this.masterGains[routing[1]]) {
+      if (routing[1] >= 0 && this.masterGains[routing[1]]) {
         stereoBus.outputR.connect(this.masterGains[routing[1]]);
       }
     }
@@ -561,14 +559,14 @@ export class AudioEngine {
     stereoBus.outputL?.disconnect();
     stereoBus.outputR?.disconnect();
     
-    // Actualizar routing
+    // Actualizar routing (-1 significa deshabilitado)
     this.stereoBusRouting[busId] = [leftChannel, rightChannel];
     
-    // Reconectar a nuevos canales
-    if (this.masterGains[leftChannel]) {
+    // Reconectar a nuevos canales (solo si >= 0)
+    if (leftChannel >= 0 && this.masterGains[leftChannel]) {
       stereoBus.outputL.connect(this.masterGains[leftChannel]);
     }
-    if (this.masterGains[rightChannel]) {
+    if (rightChannel >= 0 && this.masterGains[rightChannel]) {
       stereoBus.outputR.connect(this.masterGains[rightChannel]);
     }
   }

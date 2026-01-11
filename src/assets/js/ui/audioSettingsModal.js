@@ -912,7 +912,7 @@ export class AudioSettingsModal {
 
   /**
    * Alterna el estado de ruteo de un stereo bus hacia un canal físico.
-   * Solo un canal puede estar activo por lado (L o R).
+   * Solo un canal puede estar activo por lado (L o R), o ninguno (-1).
    * @param {number} stereoBusIndex - Índice del stereo bus (0-3)
    * @param {number} channelIndex - Índice del canal físico
    * @param {HTMLElement} btn - Botón que se pulsó
@@ -921,15 +921,19 @@ export class AudioSettingsModal {
     const busId = stereoBusIndex < 2 ? 'A' : 'B';
     const sideIndex = stereoBusIndex % 2 === 0 ? 0 : 1;
     
-    // Actualizar routing (solo un canal por lado)
-    this.stereoBusRouting[busId][sideIndex] = channelIndex;
+    // Si el canal ya está seleccionado, desactivar (-1)
+    const currentChannel = this.stereoBusRouting[busId][sideIndex];
+    const newChannel = currentChannel === channelIndex ? -1 : channelIndex;
+    
+    // Actualizar routing (solo un canal por lado, -1 = desactivado)
+    this.stereoBusRouting[busId][sideIndex] = newChannel;
     this._saveStereoBusRouting();
     
-    // Actualizar UI: desactivar otros botones del mismo stereo bus, activar el seleccionado
+    // Actualizar UI: desactivar todos los botones si -1, o activar solo el seleccionado
     const rowIndex = stereoBusIndex;
     if (this.outputToggleButtons[rowIndex]) {
       this.outputToggleButtons[rowIndex].forEach((b, chIdx) => {
-        const isNowActive = chIdx === channelIndex;
+        const isNowActive = newChannel >= 0 && chIdx === newChannel;
         b.classList.toggle('routing-matrix__toggle--active', isNowActive);
         b.setAttribute('aria-pressed', String(isNowActive));
       });

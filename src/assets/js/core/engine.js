@@ -61,6 +61,32 @@ export class AudioEngine {
     this.outputFilters = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputBuses = [];
     
+    // ───────────────────────────────────────────────────────────────────────────
+    // STEREO BUSES: Mezclas estéreo con panning
+    // ───────────────────────────────────────────────────────────────────────────
+    // Dos buses estéreo que mezclan los 8 canales con panning:
+    //   - Pan 1-4 (stereoBusA): Mezcla Out 1-4 con sus pans respectivos
+    //   - Pan 5-8 (stereoBusB): Mezcla Out 5-8 con sus pans respectivos
+    // 
+    // Arquitectura por bus estéreo:
+    //   Out N levelNode → panGainL → stereoBus.sumL → outputL → masterGain[X]
+    //   Out N levelNode → panGainR → stereoBus.sumR → outputR → masterGain[Y]
+    // 
+    // Por defecto ambos buses van a salida física 0,1 (L/R), sumándose.
+    // Total de canales disponibles para grabación: 12
+    //   - 8 individuales (Out 1-8)
+    //   - 4 estéreo (Pan 1-4 L/R, Pan 5-8 L/R)
+    // ───────────────────────────────────────────────────────────────────────────
+    this.stereoBuses = {
+      A: { sumL: null, sumR: null, outputL: null, outputR: null, channels: [0, 1, 2, 3] },
+      B: { sumL: null, sumR: null, outputL: null, outputR: null, channels: [4, 5, 6, 7] }
+    };
+    // Routing de stereo buses: a qué canales físicos van (por defecto ambos a 0,1)
+    this.stereoBusRouting = {
+      A: [0, 1],  // Pan 1-4 → L, R
+      B: [0, 1]   // Pan 5-8 → L, R (se suman)
+    };
+    
     // Matriz de ruteo multicanal: [busIndex] = array de ganancias por canal físico
     // Se inicializa en _initOutputRouting() con el número real de canales
     this._outputRoutingMatrix = null;
@@ -185,9 +211,15 @@ export class AudioEngine {
         levelNode,
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
-        channelGains // Array completo de ganancias por canal
+        channelGains, // Array completo de ganancias por canal
+        // Nodos de pan para stereo buses (se crean en _createStereoBuses)
+        stereoPanL: null,
+        stereoPanR: null
       });
     }
+    
+    // Crear stereo buses (Pan 1-4, Pan 5-8)
+    this._createStereoBuses(ctx, initialChannels);
 
     // Referencias legacy para compatibilidad
     this.bus1 = this.outputBuses[0]?.input || null;
@@ -246,6 +278,9 @@ export class AudioEngine {
     const right = Math.sin(angle);
     setParamSmooth(bus.panLeft.gain, left, ctx);
     setParamSmooth(bus.panRight.gain, right, ctx);
+    
+    // Actualizar también el panning en stereo buses
+    this._updateStereoBusPanning(busIndex);
   }
 
   setOutputLevel(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
@@ -389,6 +424,151 @@ export class AudioEngine {
    */
   getOutputFilter(busIndex) {
     return this.outputFilters[busIndex] ?? 0.0;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // STEREO BUSES: Pan 1-4 y Pan 5-8
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Crea los stereo buses (Pan 1-4 y Pan 5-8).
+   * Cada stereo bus mezcla 4 canales con sus respectivos pans.
+   * 
+   * @param {AudioContext} ctx - Contexto de audio
+   * @param {number} channelCount - Número de canales físicos
+   * @private
+   */
+  _createStereoBuses(ctx, channelCount) {
+    // Crear nodos sumadores para cada stereo bus
+    for (const busId of ['A', 'B']) {
+      const stereoBus = this.stereoBuses[busId];
+      
+      // Sumadores L/R (mezclan las contribuciones de cada canal)
+      stereoBus.sumL = ctx.createGain();
+      stereoBus.sumL.gain.value = 1.0;
+      stereoBus.sumR = ctx.createGain();
+      stereoBus.sumR.gain.value = 1.0;
+      
+      // Salidas L/R (para routing a canales físicos)
+      stereoBus.outputL = ctx.createGain();
+      stereoBus.outputL.gain.value = 1.0;
+      stereoBus.outputR = ctx.createGain();
+      stereoBus.outputR.gain.value = 1.0;
+      
+      // Conectar sumadores a salidas
+      stereoBus.sumL.connect(stereoBus.outputL);
+      stereoBus.sumR.connect(stereoBus.outputR);
+      
+      // Conectar salidas a canales físicos según routing
+      const routing = this.stereoBusRouting[busId];
+      if (this.masterGains[routing[0]]) {
+        stereoBus.outputL.connect(this.masterGains[routing[0]]);
+      }
+      if (this.masterGains[routing[1]]) {
+        stereoBus.outputR.connect(this.masterGains[routing[1]]);
+      }
+    }
+    
+    // Crear nodos de pan para cada outputBus y conectar al stereo bus correspondiente
+    for (let i = 0; i < this.outputChannels; i++) {
+      const bus = this.outputBuses[i];
+      const stereoBusId = i < 4 ? 'A' : 'B';
+      const stereoBus = this.stereoBuses[stereoBusId];
+      
+      // Crear nodos de pan L/R para este canal
+      bus.stereoPanL = ctx.createGain();
+      bus.stereoPanR = ctx.createGain();
+      
+      // Conectar desde levelNode a los nodos de pan
+      bus.levelNode.connect(bus.stereoPanL);
+      bus.levelNode.connect(bus.stereoPanR);
+      
+      // Conectar nodos de pan a los sumadores del stereo bus
+      bus.stereoPanL.connect(stereoBus.sumL);
+      bus.stereoPanR.connect(stereoBus.sumR);
+      
+      // Aplicar pan inicial (ley de igual potencia)
+      const pan = this.outputPans[i] ?? 0;
+      const angle = (pan + 1) * 0.25 * Math.PI;
+      bus.stereoPanL.gain.value = Math.cos(angle);
+      bus.stereoPanR.gain.value = Math.sin(angle);
+    }
+  }
+
+  /**
+   * Actualiza el panning de un canal en su stereo bus correspondiente.
+   * 
+   * @param {number} busIndex - Índice del bus (0-7)
+   * @private
+   */
+  _updateStereoBusPanning(busIndex) {
+    const ctx = this.audioCtx;
+    const bus = this.outputBuses[busIndex];
+    if (!ctx || !bus?.stereoPanL || !bus?.stereoPanR) return;
+    
+    const pan = this.outputPans[busIndex] ?? 0;
+    // Ley de igual potencia (equal-power panning)
+    const angle = (pan + 1) * 0.25 * Math.PI;
+    const left = Math.cos(angle);
+    const right = Math.sin(angle);
+    
+    setParamSmooth(bus.stereoPanL.gain, left, ctx);
+    setParamSmooth(bus.stereoPanR.gain, right, ctx);
+  }
+
+  /**
+   * Configura el routing de un stereo bus a canales físicos.
+   * 
+   * @param {string} busId - 'A' (Pan 1-4) o 'B' (Pan 5-8)
+   * @param {number} leftChannel - Canal físico para L (0-based)
+   * @param {number} rightChannel - Canal físico para R (0-based)
+   */
+  setStereoBusRouting(busId, leftChannel, rightChannel) {
+    const stereoBus = this.stereoBuses[busId];
+    if (!stereoBus) return;
+    
+    // Desconectar de canales anteriores
+    stereoBus.outputL?.disconnect();
+    stereoBus.outputR?.disconnect();
+    
+    // Actualizar routing
+    this.stereoBusRouting[busId] = [leftChannel, rightChannel];
+    
+    // Reconectar a nuevos canales
+    if (this.masterGains[leftChannel]) {
+      stereoBus.outputL.connect(this.masterGains[leftChannel]);
+    }
+    if (this.masterGains[rightChannel]) {
+      stereoBus.outputR.connect(this.masterGains[rightChannel]);
+    }
+  }
+
+  /**
+   * Obtiene el routing actual de un stereo bus.
+   * 
+   * @param {string} busId - 'A' o 'B'
+   * @returns {number[]} Array [leftChannel, rightChannel]
+   */
+  getStereoBusRouting(busId) {
+    return this.stereoBusRouting[busId] ?? [0, 1];
+  }
+
+  /**
+   * Obtiene los nodos de salida de los stereo buses para grabación.
+   * Retorna 12 canales: 8 individuales + 4 estéreo.
+   * 
+   * @returns {Object} Objeto con nodos de audio para grabación
+   */
+  getRecordingNodes() {
+    return {
+      // 8 canales individuales (post-filter, post-level)
+      individual: this.outputBuses.map(bus => bus.levelNode),
+      // 4 canales estéreo (2 por cada stereo bus)
+      stereo: {
+        A: { L: this.stereoBuses.A?.outputL, R: this.stereoBuses.A?.outputR },
+        B: { L: this.stereoBuses.B?.outputL, R: this.stereoBuses.B?.outputR }
+      }
+    };
   }
 
   setOutputPan(busIndex, value) {

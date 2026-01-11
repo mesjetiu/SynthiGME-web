@@ -36,16 +36,17 @@ export class OutputChannel extends Module {
     this.frame = null;
     this.slider = null;
     this.valueDisplay = null;
-    this.filterKnobEl = null;   // Elemento DOM del knob
-    this.filterKnobUI = null;   // Instancia de clase Knob
-    this.panKnob = null;
+    this.filterKnobEl = null;   // Elemento DOM del knob filter
+    this.filterKnobUI = null;   // Instancia de clase Knob para filter
+    this.panKnobEl = null;      // Elemento DOM del knob pan
+    this.panKnobUI = null;      // Instancia de clase Knob para pan
     this.powerSwitch = null;
     
     // Estado
     this.values = {
       level: engine.getOutputLevel(channelIndex) ?? 0,
       filter: engine.getOutputFilter ? (engine.getOutputFilter(channelIndex) ?? 0.0) : 0.0, // -1 a +1, 0 = sin filtro
-      pan: 0.5,     // Solo visual por ahora
+      pan: engine.outputPans?.[channelIndex] ?? 0.0, // -1 = izquierda, 0 = centro, +1 = derecha
       power: true   // Solo visual por ahora
     };
   }
@@ -85,9 +86,8 @@ export class OutputChannel extends Module {
     const filterWrap = this._createFilterKnob();
     wrapper.appendChild(filterWrap);
     
-    // 2. Pan Knob
-    const panWrap = this._createKnob('pan', 'Pan', this.values.pan);
-    this.panKnob = panWrap.querySelector('.output-channel__knob');
+    // 2. Pan Knob - funcional
+    const panWrap = this._createPanKnob();
     wrapper.appendChild(panWrap);
     
     // 3. Switch On/Off
@@ -145,6 +145,59 @@ export class OutputChannel extends Module {
         onChange: (value) => {
           this.values.filter = value;
           this.engine.setOutputFilter(this.channelIndex, value);
+          document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+        }
+      });
+    }, 0);
+    
+    return wrap;
+  }
+  
+  /**
+   * Crea el knob de Pan (funcional, control bipolar L/R).
+   * 
+   * Rango bipolar -1 a +1:
+   *   -1: Full izquierda
+   *    0: Centro
+   *   +1: Full derecha
+   * 
+   * Afecta tanto al routing legacy como a los stereo buses (Pan 1-4, Pan 5-8).
+   * 
+   * @returns {HTMLElement}
+   */
+  _createPanKnob() {
+    const wrap = document.createElement('div');
+    wrap.className = 'output-channel__knob-wrap';
+    wrap.dataset.knob = 'pan';
+    
+    // Estructura compatible con clase Knob: .knob > .knob-inner
+    const knob = document.createElement('div');
+    knob.className = 'output-channel__knob knob';
+    knob.dataset.preventPan = 'true';
+    
+    const knobInner = document.createElement('div');
+    knobInner.className = 'output-channel__knob-inner knob-inner';
+    knob.appendChild(knobInner);
+    
+    const labelEl = document.createElement('div');
+    labelEl.className = 'output-channel__knob-label';
+    labelEl.textContent = 'Pan';
+    
+    wrap.appendChild(knob);
+    wrap.appendChild(labelEl);
+    
+    this.panKnobEl = knob;
+    
+    // Instanciar Knob interactivo después de añadir al DOM
+    setTimeout(() => {
+      this.panKnobUI = new Knob(knob, {
+        min: -1,          // Full izquierda
+        max: 1,           // Full derecha
+        initial: this.values.pan, // 0 = centro
+        pixelsForFullRange: 120,
+        onChange: (value) => {
+          this.values.pan = value;
+          this.engine.setOutputPan(this.channelIndex, value);
           document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
       });
@@ -336,7 +389,10 @@ export class OutputChannel extends Module {
     
     if (typeof data.pan === 'number') {
       this.values.pan = data.pan;
-      // TODO: Actualizar visual del knob
+      this.engine.setOutputPan(this.channelIndex, data.pan);
+      if (this.panKnobUI) {
+        this.panKnobUI.setValue(data.pan);
+      }
     }
     
     if (typeof data.power === 'boolean') {

@@ -181,3 +181,442 @@ describe('RecordingEngine - Conversión de índices', () => {
     assert.strictEqual(getOutputChannel(11), 7);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS CON AUDIO CONTEXT MOCK
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { 
+  createMockAudioContext,
+  createMockGainNode,
+  createMockAudioWorkletNode
+} from '../mocks/audioContext.mock.js';
+
+const MAX_RECORDING_TRACKS = 8;
+
+/**
+ * Mock del RecordingEngine con AudioContext inyectable
+ */
+class MockRecordingEngine {
+  constructor(audioEngine) {
+    this.engine = audioEngine;
+    this.isRecording = false;
+    this.workletNode = null;
+    this.workletReady = false;
+    
+    this._trackBuffers = [];
+    this._sampleRate = 44100;
+    
+    this._stereoSourceCount = 4;
+    this._individualOutputCount = audioEngine?.outputChannels || 8;
+    this._totalSourceCount = this._stereoSourceCount + this._individualOutputCount;
+    
+    this._trackCount = 2;
+    this._routingMatrix = this._createDefaultMatrix();
+    
+    this._trackMixers = [];
+    this._outputGains = [];
+    
+    this.onRecordingStart = null;
+    this.onRecordingStop = null;
+  }
+
+  _createDefaultMatrix() {
+    const matrix = [];
+    for (let i = 0; i < this._stereoSourceCount; i++) {
+      const trackGains = Array(this._trackCount).fill(0);
+      const targetTrack = i % 2;
+      if (targetTrack < this._trackCount) {
+        trackGains[targetTrack] = 1;
+      }
+      matrix.push(trackGains);
+    }
+    for (let bus = 0; bus < this._individualOutputCount; bus++) {
+      matrix.push(Array(this._trackCount).fill(0));
+    }
+    return matrix;
+  }
+
+  get trackCount() {
+    return this._trackCount;
+  }
+
+  set trackCount(count) {
+    const newCount = Math.max(1, Math.min(MAX_RECORDING_TRACKS, count));
+    if (newCount === this._trackCount) return;
+    
+    this._trackCount = newCount;
+    
+    for (let source = 0; source < this._totalSourceCount; source++) {
+      if (!this._routingMatrix[source]) {
+        this._routingMatrix[source] = Array(newCount).fill(0);
+        if (source < this._stereoSourceCount) {
+          const targetTrack = source % 2;
+          if (targetTrack < newCount) {
+            this._routingMatrix[source][targetTrack] = 1;
+          }
+        }
+      } else {
+        while (this._routingMatrix[source].length < newCount) {
+          this._routingMatrix[source].push(0);
+        }
+        this._routingMatrix[source] = this._routingMatrix[source].slice(0, newCount);
+      }
+    }
+    
+    if (this.workletReady) {
+      this._rebuildRoutingGraph();
+    }
+  }
+
+  get routingMatrix() {
+    return this._routingMatrix;
+  }
+
+  setRouting(sourceIndex, trackIndex, value) {
+    if (sourceIndex < 0 || sourceIndex >= this._totalSourceCount) return;
+    if (!this._routingMatrix[sourceIndex]) return;
+    if (trackIndex < 0 || trackIndex >= this._trackCount) return;
+    
+    const gain = value ? 1 : 0;
+    this._routingMatrix[sourceIndex][trackIndex] = gain;
+    
+    if (this._outputGains[sourceIndex]?.[trackIndex]) {
+      const ctx = this.engine?.audioCtx;
+      if (ctx) {
+        this._outputGains[sourceIndex][trackIndex].gain.setTargetAtTime(
+          gain, ctx.currentTime, 0.01
+        );
+      }
+    }
+  }
+
+  getRouting(sourceIndex, trackIndex) {
+    return this._routingMatrix[sourceIndex]?.[trackIndex] ?? 0;
+  }
+
+  async ensureWorkletReady() {
+    if (this.workletReady) return;
+    
+    const ctx = this.engine?.audioCtx;
+    if (!ctx) throw new Error('AudioContext not available');
+    
+    await ctx.audioWorklet.addModule('recordingCapture.worklet.js');
+    this.workletReady = true;
+  }
+
+  async _buildRoutingGraph() {
+    const ctx = this.engine?.audioCtx;
+    if (!ctx) return;
+    
+    await this.ensureWorkletReady();
+    this._sampleRate = ctx.sampleRate;
+    
+    const merger = ctx.createChannelMerger(this._trackCount);
+    
+    this._trackMixers = [];
+    for (let track = 0; track < this._trackCount; track++) {
+      const mixer = ctx.createGain();
+      mixer.gain.value = 1.0;
+      mixer.connect(merger, 0, track);
+      this._trackMixers.push(mixer);
+    }
+    
+    this._outputGains = [];
+    for (let source = 0; source < this._totalSourceCount; source++) {
+      this._outputGains[source] = [];
+      for (let track = 0; track < this._trackCount; track++) {
+        const gain = ctx.createGain();
+        const routingValue = this._routingMatrix[source]?.[track] ?? 0;
+        gain.gain.value = routingValue;
+        gain.connect(this._trackMixers[track]);
+        this._outputGains[source][track] = gain;
+      }
+    }
+    
+    this.workletNode = createMockAudioWorkletNode('recording-capture-processor', {
+      numberOfInputs: 1,
+      numberOfOutputs: 0,
+      channelCount: this._trackCount
+    });
+    
+    merger.connect(this.workletNode);
+  }
+
+  _rebuildRoutingGraph() {
+    this._trackMixers = [];
+    this._outputGains = [];
+  }
+
+  _cleanupRoutingGraph() {
+    this._trackMixers.forEach(m => m?.disconnect?.());
+    this._outputGains.flat().forEach(g => g?.disconnect?.());
+    this.workletNode?.disconnect?.();
+    
+    this._trackMixers = [];
+    this._outputGains = [];
+    this.workletNode = null;
+  }
+
+  async startRecording() {
+    if (this.isRecording) return;
+    
+    await this._buildRoutingGraph();
+    this._trackBuffers = Array(this._trackCount).fill(null).map(() => []);
+    this.isRecording = true;
+    
+    if (this.onRecordingStart) {
+      this.onRecordingStart();
+    }
+  }
+
+  stopRecording() {
+    if (!this.isRecording) return null;
+    
+    this.isRecording = false;
+    const buffers = this._trackBuffers;
+    this._trackBuffers = [];
+    
+    this._cleanupRoutingGraph();
+    
+    if (this.onRecordingStop) {
+      this.onRecordingStop(buffers);
+    }
+    
+    return buffers;
+  }
+}
+
+describe('RecordingEngine (con AudioContext mock)', () => {
+  
+  let mockCtx;
+  let mockEngine;
+  let recorder;
+  
+  beforeEach(() => {
+    mockCtx = createMockAudioContext();
+    mockEngine = {
+      audioCtx: mockCtx,
+      outputChannels: 8,
+      outputBuses: Array(8).fill(null).map(() => ({
+        levelNode: createMockGainNode()
+      })),
+      stereoBuses: {
+        A: { outputL: createMockGainNode(), outputR: createMockGainNode() },
+        B: { outputL: createMockGainNode(), outputR: createMockGainNode() }
+      }
+    };
+    recorder = new MockRecordingEngine(mockEngine);
+  });
+
+  describe('inicialización con mock', () => {
+    
+    it('track count inicial es 2 (stereo)', () => {
+      assert.strictEqual(recorder.trackCount, 2);
+    });
+
+    it('no está grabando inicialmente', () => {
+      assert.strictEqual(recorder.isRecording, false);
+    });
+
+    it('worklet no está listo inicialmente', () => {
+      assert.strictEqual(recorder.workletReady, false);
+    });
+
+    it('total de sources es 12 (4 stereo + 8 individual)', () => {
+      assert.strictEqual(recorder._totalSourceCount, 12);
+    });
+  });
+
+  describe('setRouting con mock', () => {
+    
+    it('activa routing de individual output a track', () => {
+      recorder.setRouting(4, 0, 1);
+      
+      assert.strictEqual(recorder.getRouting(4, 0), 1);
+    });
+
+    it('desactiva routing existente', () => {
+      recorder.setRouting(0, 0, 0);
+      
+      assert.strictEqual(recorder.getRouting(0, 0), 0);
+    });
+
+    it('ignora sourceIndex fuera de rango', () => {
+      const before = recorder.routingMatrix.map(r => [...r]);
+      recorder.setRouting(99, 0, 1);
+      
+      assert.deepStrictEqual(recorder.routingMatrix, before);
+    });
+
+    it('convierte valores truthy a 1', () => {
+      recorder.setRouting(5, 0, 'yes');
+      assert.strictEqual(recorder.getRouting(5, 0), 1);
+    });
+
+    it('convierte valores falsy a 0', () => {
+      recorder.setRouting(0, 0, null);
+      assert.strictEqual(recorder.getRouting(0, 0), 0);
+    });
+  });
+
+  describe('trackCount con mock', () => {
+    
+    it('puede aumentar track count', () => {
+      recorder.trackCount = 4;
+      
+      assert.strictEqual(recorder.trackCount, 4);
+    });
+
+    it('se limita a 1 como mínimo', () => {
+      recorder.trackCount = 0;
+      
+      assert.strictEqual(recorder.trackCount, 1);
+    });
+
+    it('se limita a MAX_RECORDING_TRACKS como máximo', () => {
+      recorder.trackCount = 100;
+      
+      assert.strictEqual(recorder.trackCount, MAX_RECORDING_TRACKS);
+    });
+
+    it('ajusta routing matrix al aumentar tracks', () => {
+      recorder.trackCount = 4;
+      
+      for (const row of recorder.routingMatrix) {
+        assert.strictEqual(row.length, 4);
+      }
+    });
+  });
+
+  describe('startRecording / stopRecording con mock', () => {
+    
+    it('startRecording cambia isRecording a true', async () => {
+      await recorder.startRecording();
+      
+      assert.strictEqual(recorder.isRecording, true);
+    });
+
+    it('startRecording marca worklet como ready', async () => {
+      await recorder.startRecording();
+      
+      assert.strictEqual(recorder.workletReady, true);
+    });
+
+    it('startRecording crea track buffers', async () => {
+      await recorder.startRecording();
+      
+      assert.strictEqual(recorder._trackBuffers.length, recorder.trackCount);
+    });
+
+    it('stopRecording cambia isRecording a false', async () => {
+      await recorder.startRecording();
+      recorder.stopRecording();
+      
+      assert.strictEqual(recorder.isRecording, false);
+    });
+
+    it('stopRecording retorna los buffers', async () => {
+      await recorder.startRecording();
+      const buffers = recorder.stopRecording();
+      
+      assert.ok(Array.isArray(buffers));
+      assert.strictEqual(buffers.length, 2);
+    });
+
+    it('stopRecording limpia el routing graph', async () => {
+      await recorder.startRecording();
+      recorder.stopRecording();
+      
+      assert.strictEqual(recorder._trackMixers.length, 0);
+      assert.strictEqual(recorder._outputGains.length, 0);
+    });
+
+    it('stopRecording sin grabar retorna null', () => {
+      const result = recorder.stopRecording();
+      
+      assert.strictEqual(result, null);
+    });
+  });
+
+  describe('callbacks con mock', () => {
+    
+    it('onRecordingStart es llamado al iniciar', async () => {
+      let called = false;
+      recorder.onRecordingStart = () => { called = true; };
+      
+      await recorder.startRecording();
+      
+      assert.strictEqual(called, true);
+    });
+
+    it('onRecordingStop es llamado al detener', async () => {
+      let called = false;
+      recorder.onRecordingStop = () => { called = true; };
+      
+      await recorder.startRecording();
+      recorder.stopRecording();
+      
+      assert.strictEqual(called, true);
+    });
+  });
+
+  describe('_buildRoutingGraph con mock', () => {
+    
+    it('crea track mixers para cada track', async () => {
+      await recorder._buildRoutingGraph();
+      
+      assert.strictEqual(recorder._trackMixers.length, recorder.trackCount);
+    });
+
+    it('crea gain nodes para todas las conexiones', async () => {
+      await recorder._buildRoutingGraph();
+      
+      let gainCount = 0;
+      for (const sourceGains of recorder._outputGains) {
+        gainCount += sourceGains?.length || 0;
+      }
+      
+      assert.strictEqual(gainCount, 12 * recorder.trackCount);
+    });
+
+    it('crea worklet node', async () => {
+      await recorder._buildRoutingGraph();
+      
+      assert.notStrictEqual(recorder.workletNode, null);
+    });
+  });
+
+  describe('ensureWorkletReady con mock', () => {
+    
+    it('carga el módulo worklet', async () => {
+      await recorder.ensureWorkletReady();
+      
+      assert.ok(mockCtx._workletModules.length > 0);
+    });
+
+    it('marca workletReady = true', async () => {
+      await recorder.ensureWorkletReady();
+      
+      assert.strictEqual(recorder.workletReady, true);
+    });
+
+    it('no recarga si ya está listo', async () => {
+      await recorder.ensureWorkletReady();
+      const moduleCount = mockCtx._workletModules.length;
+      
+      await recorder.ensureWorkletReady();
+      
+      assert.strictEqual(mockCtx._workletModules.length, moduleCount);
+    });
+
+    it('falla sin audioContext', async () => {
+      recorder.engine = null;
+      
+      await assert.rejects(
+        async () => recorder.ensureWorkletReady(),
+        /AudioContext not available/
+      );
+    });
+  });
+});

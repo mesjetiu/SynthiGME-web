@@ -270,6 +270,39 @@ export function createMockAudioWorkletNode(name, options = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CONSTANT SOURCE NODE MOCK
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Crea un mock de ConstantSourceNode.
+ * @returns {Object} Mock de ConstantSourceNode
+ */
+export function createMockConstantSourceNode() {
+  return {
+    offset: createMockAudioParam(1),
+    _calls: {
+      connect: 0,
+      disconnect: 0,
+      start: 0,
+      stop: 0
+    },
+    connect(destination, outputIndex, inputIndex) {
+      this._calls.connect++;
+      return destination;
+    },
+    disconnect(destination) {
+      this._calls.disconnect++;
+    },
+    start(when = 0) {
+      this._calls.start++;
+    },
+    stop(when = 0) {
+      this._calls.stop++;
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // AUDIO CONTEXT MOCK
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -298,7 +331,8 @@ export function createMockAudioContext(options = {}) {
       channelMerger: [],
       oscillator: [],
       analyser: [],
-      audioWorklet: []
+      audioWorklet: [],
+      constantSource: []
     },
     createGain() {
       const node = createMockGainNode();
@@ -325,6 +359,11 @@ export function createMockAudioContext(options = {}) {
       this._createdNodes.analyser.push(node);
       return node;
     },
+    createConstantSource() {
+      const node = createMockConstantSourceNode();
+      this._createdNodes.constantSource.push(node);
+      return node;
+    },
     resume() {
       this.state = 'running';
       return Promise.resolve();
@@ -337,9 +376,11 @@ export function createMockAudioContext(options = {}) {
       this.state = 'closed';
       return Promise.resolve();
     },
-    // AudioWorklet mock (retorna Promise.resolve para evitar errores)
+    // AudioWorklet mock con tracking de módulos cargados
+    _workletModules: [],
     audioWorklet: {
       addModule(moduleURL) {
+        ctx._workletModules.push(moduleURL);
         return Promise.resolve();
       }
     }

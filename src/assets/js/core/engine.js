@@ -555,19 +555,20 @@ export class AudioEngine {
 
   /**
    * Obtiene los nodos de salida de los stereo buses para grabación.
-   * Retorna 12 canales: 8 individuales + 4 estéreo.
+   * Retorna 12 canales: 4 estéreo PRIMERO + 8 individuales.
+   * ORDEN: stereo (0-3), individual (4-11)
    * 
    * @returns {Object} Objeto con nodos de audio para grabación
    */
   getRecordingNodes() {
     return {
-      // 8 canales individuales (post-filter, post-level)
-      individual: this.outputBuses.map(bus => bus.levelNode),
-      // 4 canales estéreo (2 por cada stereo bus)
+      // 4 canales estéreo PRIMERO (2 por cada stereo bus)
       stereo: {
         A: { L: this.stereoBuses.A?.outputL, R: this.stereoBuses.A?.outputR },
         B: { L: this.stereoBuses.B?.outputL, R: this.stereoBuses.B?.outputR }
-      }
+      },
+      // 8 canales individuales (post-filter, post-level)
+      individual: this.outputBuses.map(bus => bus.levelNode)
     };
   }
 

@@ -61,6 +61,11 @@ export class AudioSettingsModal {
     this.onInputDeviceChange = onInputDeviceChange;
     this.onStereoBusRoutingChange = onStereoBusRoutingChange;
     
+    // Stereo bus labels y conteo - van PRIMERO en la matriz
+    this.stereoBusLabels = ['Pan1-4L', 'Pan1-4R', 'Pan5-8L', 'Pan5-8R'];
+    this.stereoBusCount = this.stereoBusLabels.length; // 4
+    this.totalOutputSources = this.stereoBusCount + this.outputCount; // 12
+    
     // Stereo bus routing: Pan 1-4 (A) y Pan 5-8 (B) a canales físicos
     // Por defecto ambos van a L/R (canales 0,1)
     const loadedStereoBusRouting = this._loadStereoBusRouting();
@@ -234,135 +239,6 @@ export class AudioSettingsModal {
     } catch (e) {
       log.warn(' Error saving stereo bus routing:', e);
     }
-  }
-
-  /**
-   * Crea la sección de configuración de stereo buses.
-   * @returns {HTMLElement}
-   */
-  _createStereoBusSection() {
-    const section = document.createElement('div');
-    section.className = 'audio-settings-stereo-buses';
-    
-    const title = document.createElement('h4');
-    title.className = 'audio-settings-stereo-buses__title';
-    title.textContent = t('audio.stereoBuses.title') || 'Stereo Mix Outputs';
-    this._textElements.stereoBusTitle = title;
-    section.appendChild(title);
-    
-    const desc = document.createElement('p');
-    desc.className = 'audio-settings-stereo-buses__desc';
-    desc.textContent = t('audio.stereoBuses.description') || 'Route panned stereo mixes to physical outputs.';
-    this._textElements.stereoBusDesc = desc;
-    section.appendChild(desc);
-    
-    // Contenedor para los stereo buses
-    this.stereoBusContainer = document.createElement('div');
-    this.stereoBusContainer.className = 'stereo-bus-container';
-    this._buildStereoBusRows();
-    section.appendChild(this.stereoBusContainer);
-    
-    return section;
-  }
-
-  /**
-   * Construye las filas de configuración de stereo buses.
-   */
-  _buildStereoBusRows() {
-    if (!this.stereoBusContainer) return;
-    this.stereoBusContainer.innerHTML = '';
-    
-    // Stereo Bus A: Pan 1-4
-    const rowA = this._createStereoBusRow('A', 'Pan 1-4');
-    this.stereoBusContainer.appendChild(rowA);
-    
-    // Stereo Bus B: Pan 5-8
-    const rowB = this._createStereoBusRow('B', 'Pan 5-8');
-    this.stereoBusContainer.appendChild(rowB);
-  }
-
-  /**
-   * Crea una fila de configuración para un stereo bus.
-   * @param {string} busId - 'A' o 'B'
-   * @param {string} label - Etiqueta del bus
-   * @returns {HTMLElement}
-   */
-  _createStereoBusRow(busId, label) {
-    const row = document.createElement('div');
-    row.className = 'stereo-bus-row';
-    row.dataset.bus = busId;
-    
-    const labelEl = document.createElement('span');
-    labelEl.className = 'stereo-bus-row__label';
-    labelEl.textContent = label;
-    row.appendChild(labelEl);
-    
-    const routing = this.stereoBusRouting[busId] || [0, 1];
-    
-    // Selector L
-    const selectWrapL = document.createElement('div');
-    selectWrapL.className = 'stereo-bus-row__select-wrap';
-    const labelL = document.createElement('label');
-    labelL.textContent = 'L:';
-    const selectL = this._createChannelSelectForStereoBus(busId, 'L', routing[0]);
-    selectWrapL.appendChild(labelL);
-    selectWrapL.appendChild(selectL);
-    row.appendChild(selectWrapL);
-    
-    // Selector R
-    const selectWrapR = document.createElement('div');
-    selectWrapR.className = 'stereo-bus-row__select-wrap';
-    const labelR = document.createElement('label');
-    labelR.textContent = 'R:';
-    const selectR = this._createChannelSelectForStereoBus(busId, 'R', routing[1]);
-    selectWrapR.appendChild(labelR);
-    selectWrapR.appendChild(selectR);
-    row.appendChild(selectWrapR);
-    
-    return row;
-  }
-
-  /**
-   * Crea un selector de canal físico para stereo bus.
-   * @param {string} busId - 'A' o 'B'
-   * @param {string} side - 'L' o 'R'
-   * @param {number} currentValue - Canal actualmente seleccionado
-   * @returns {HTMLSelectElement}
-   */
-  _createChannelSelectForStereoBus(busId, side, currentValue) {
-    const select = document.createElement('select');
-    select.className = 'stereo-bus-select';
-    select.dataset.bus = busId;
-    select.dataset.side = side;
-    
-    // Opciones para cada canal físico
-    for (let ch = 0; ch < this.physicalChannels; ch++) {
-      const option = document.createElement('option');
-      option.value = String(ch);
-      option.textContent = this.channelLabels[ch] || `Ch ${ch + 1}`;
-      if (ch === currentValue) {
-        option.selected = true;
-      }
-      select.appendChild(option);
-    }
-    
-    select.addEventListener('change', () => {
-      const newValue = parseInt(select.value, 10);
-      const sideIndex = side === 'L' ? 0 : 1;
-      this.stereoBusRouting[busId][sideIndex] = newValue;
-      this._saveStereoBusRouting();
-      
-      // Notificar al engine
-      if (this.onStereoBusRoutingChange) {
-        this.onStereoBusRoutingChange(
-          busId, 
-          this.stereoBusRouting[busId][0], 
-          this.stereoBusRouting[busId][1]
-        );
-      }
-    });
-    
-    return select;
   }
 
   /**
@@ -914,15 +790,12 @@ export class AudioSettingsModal {
     this._buildMatrix();
     section.appendChild(this.matrixContainer);
     
-    // Sección de Stereo Buses (Pan 1-4, Pan 5-8)
-    const stereoBusSection = this._createStereoBusSection();
-    section.appendChild(stereoBusSection);
-    
     return section;
   }
 
   /**
    * Construye la matriz de ruteo dentro del contenedor.
+   * ORDEN: stereo buses primero (Pan 1-4 L/R, Pan 5-8 L/R), luego Out 1-8.
    * Se puede llamar para reconstruir cuando cambia el número de canales.
    */
   _buildMatrix() {
@@ -949,9 +822,34 @@ export class AudioSettingsModal {
     
     matrix.appendChild(matrixHeader);
     
-    // Filas de la matriz (una por cada salida lógica)
+    // Filas de la matriz - stereo buses PRIMERO
     this.outputToggleButtons = [];
     
+    // 4 stereo bus rows (Pan 1-4 L/R, Pan 5-8 L/R)
+    for (let i = 0; i < this.stereoBusCount; i++) {
+      const row = document.createElement('div');
+      row.className = 'routing-matrix__row routing-matrix__row--stereo';
+      
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'routing-matrix__row-label';
+      rowLabel.textContent = this.stereoBusLabels[i];
+      row.appendChild(rowLabel);
+      
+      // Array de botones para este stereo bus
+      const busButtons = [];
+      
+      // Un botón por cada canal físico
+      for (let chIdx = 0; chIdx < this.physicalChannels; chIdx++) {
+        const btn = this._createStereoBusToggleButton(i, chIdx);
+        row.appendChild(btn);
+        busButtons.push(btn);
+      }
+      
+      this.outputToggleButtons.push(busButtons);
+      matrix.appendChild(row);
+    }
+    
+    // 8 output rows (Out 1-8)
     for (let busIdx = 0; busIdx < this.outputCount; busIdx++) {
       const row = document.createElement('div');
       row.className = 'routing-matrix__row';
@@ -978,6 +876,73 @@ export class AudioSettingsModal {
     // Reemplazar contenido del contenedor
     this.matrixContainer.innerHTML = '';
     this.matrixContainer.appendChild(matrix);
+  }
+
+  /**
+   * Crea un botón toggle para stereo bus en la matriz de ruteo.
+   * @param {number} stereoBusIndex - Índice del stereo bus (0-3)
+   * @param {number} channelIndex - Índice del canal físico
+   */
+  _createStereoBusToggleButton(stereoBusIndex, channelIndex) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'routing-matrix__toggle routing-matrix__toggle--stereo';
+    
+    // Determinar bus (A o B) y lado (L o R)
+    const busId = stereoBusIndex < 2 ? 'A' : 'B';
+    const side = stereoBusIndex % 2 === 0 ? 'L' : 'R';
+    const sideIndex = side === 'L' ? 0 : 1;
+    
+    // Verificar si está activo
+    const isActive = this.stereoBusRouting[busId]?.[sideIndex] === channelIndex;
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.dataset.stereoBus = busId;
+    btn.dataset.side = side;
+    btn.dataset.channel = channelIndex;
+    btn.title = `${this.stereoBusLabels[stereoBusIndex]} → ${this.channelLabels[channelIndex] || `Ch${channelIndex + 1}`}`;
+    
+    if (isActive) {
+      btn.classList.add('routing-matrix__toggle--active');
+    }
+    
+    btn.addEventListener('click', () => this._toggleStereoBusRouting(stereoBusIndex, channelIndex, btn));
+    
+    return btn;
+  }
+
+  /**
+   * Alterna el estado de ruteo de un stereo bus hacia un canal físico.
+   * Solo un canal puede estar activo por lado (L o R).
+   * @param {number} stereoBusIndex - Índice del stereo bus (0-3)
+   * @param {number} channelIndex - Índice del canal físico
+   * @param {HTMLElement} btn - Botón que se pulsó
+   */
+  _toggleStereoBusRouting(stereoBusIndex, channelIndex, btn) {
+    const busId = stereoBusIndex < 2 ? 'A' : 'B';
+    const sideIndex = stereoBusIndex % 2 === 0 ? 0 : 1;
+    
+    // Actualizar routing (solo un canal por lado)
+    this.stereoBusRouting[busId][sideIndex] = channelIndex;
+    this._saveStereoBusRouting();
+    
+    // Actualizar UI: desactivar otros botones del mismo stereo bus, activar el seleccionado
+    const rowIndex = stereoBusIndex;
+    if (this.outputToggleButtons[rowIndex]) {
+      this.outputToggleButtons[rowIndex].forEach((b, chIdx) => {
+        const isNowActive = chIdx === channelIndex;
+        b.classList.toggle('routing-matrix__toggle--active', isNowActive);
+        b.setAttribute('aria-pressed', String(isNowActive));
+      });
+    }
+    
+    // Notificar al engine
+    if (this.onStereoBusRoutingChange) {
+      this.onStereoBusRoutingChange(
+        busId,
+        this.stereoBusRouting[busId][0],
+        this.stereoBusRouting[busId][1]
+      );
+    }
   }
 
   /**

@@ -25,10 +25,11 @@ export class RecordingEngine {
     this._trackBuffers = [];
     this._sampleRate = 44100;
     
-    // Número de fuentes: 8 individuales + 4 stereo (Pan 1-4 L/R, Pan 5-8 L/R) = 12
-    this._individualOutputCount = audioEngine?.outputChannels || 8;
+    // Número de fuentes: 4 stereo (Pan 1-4 L/R, Pan 5-8 L/R) + 8 individuales = 12
+    // ORDEN: stereo primero (0-3), luego individuales (4-11)
     this._stereoSourceCount = 4; // Pan 1-4 L, Pan 1-4 R, Pan 5-8 L, Pan 5-8 R
-    this._totalSourceCount = this._individualOutputCount + this._stereoSourceCount;
+    this._individualOutputCount = audioEngine?.outputChannels || 8;
+    this._totalSourceCount = this._stereoSourceCount + this._individualOutputCount;
     
     // Recording configuration
     this._trackCount = this._loadTrackCount();
@@ -83,28 +84,26 @@ export class RecordingEngine {
 
   /**
    * Create default routing matrix.
-   * Default: stereo buses (Pan 1-4 L/R, Pan 5-8 L/R) go to track 1-2,
-   * individual outputs are off by default.
+   * ORDEN: stereo buses primero (0-3), luego individual outputs (4-11).
+   * Default: stereo buses L→track0, R→track1. Individual outputs off.
    */
   _createDefaultRoutingMatrix() {
     const matrix = [];
     
-    // 8 individual outputs (default: all off)
-    for (let bus = 0; bus < this._individualOutputCount; bus++) {
-      matrix.push(Array(this._trackCount).fill(0));
-    }
-    
-    // 4 stereo sources: Pan 1-4 L, Pan 1-4 R, Pan 5-8 L, Pan 5-8 R
-    // Default: Pan 1-4 L → track 0, Pan 1-4 R → track 1
-    //          Pan 5-8 L → track 0, Pan 5-8 R → track 1
+    // 4 stereo sources PRIMERO: Pan 1-4 L, Pan 1-4 R, Pan 5-8 L, Pan 5-8 R
+    // Default: L channels (0, 2) → track 0, R channels (1, 3) → track 1
     for (let i = 0; i < this._stereoSourceCount; i++) {
       const trackGains = Array(this._trackCount).fill(0);
-      // L channels (0, 2) go to track 0, R channels (1, 3) go to track 1
       const targetTrack = i % 2; // 0, 1, 0, 1
       if (targetTrack < this._trackCount) {
         trackGains[targetTrack] = 1;
       }
       matrix.push(trackGains);
+    }
+    
+    // 8 individual outputs DESPUÉS (default: all off)
+    for (let bus = 0; bus < this._individualOutputCount; bus++) {
+      matrix.push(Array(this._trackCount).fill(0));
     }
     
     return matrix;
@@ -138,9 +137,9 @@ export class RecordingEngine {
     for (let source = 0; source < this._totalSourceCount; source++) {
       if (!this._routingMatrix[source]) {
         this._routingMatrix[source] = Array(newCount).fill(0);
-        // Default for stereo buses: L→track0, R→track1
-        if (source >= this._individualOutputCount) {
-          const targetTrack = (source - this._individualOutputCount) % 2;
+        // Default for stereo buses (indices 0-3): L→track0, R→track1
+        if (source < this._stereoSourceCount) {
+          const targetTrack = source % 2; // 0, 1, 0, 1
           if (targetTrack < newCount) {
             this._routingMatrix[source][targetTrack] = 1;
           }
@@ -248,44 +247,45 @@ export class RecordingEngine {
     }
     
     // Create gain nodes for each output → track connection
+    // ORDEN: stereo buses primero (0-3), luego individual outputs (4-11)
     this._outputGains = [];
     
-    // 8 individual outputs
-    for (let bus = 0; bus < this._individualOutputCount; bus++) {
-      this._outputGains[bus] = [];
-      const busNode = this.engine.outputBuses[bus]?.levelNode;
-      if (!busNode) continue;
-      
-      for (let track = 0; track < this._trackCount; track++) {
-        const gain = ctx.createGain();
-        const routingValue = this._routingMatrix[bus]?.[track] ?? 0;
-        gain.gain.value = routingValue;
-        busNode.connect(gain);
-        gain.connect(this._trackMixers[track]);
-        this._outputGains[bus][track] = gain;
-      }
-    }
-    
-    // 4 stereo bus sources: Pan 1-4 L/R, Pan 5-8 L/R
+    // 4 stereo bus sources PRIMERO: Pan 1-4 L/R, Pan 5-8 L/R (índices 0-3)
     const stereoSources = [
-      this.engine.stereoBuses?.A?.outputL,  // index 8
-      this.engine.stereoBuses?.A?.outputR,  // index 9
-      this.engine.stereoBuses?.B?.outputL,  // index 10
-      this.engine.stereoBuses?.B?.outputR   // index 11
+      this.engine.stereoBuses?.A?.outputL,  // index 0
+      this.engine.stereoBuses?.A?.outputR,  // index 1
+      this.engine.stereoBuses?.B?.outputL,  // index 2
+      this.engine.stereoBuses?.B?.outputR   // index 3
     ];
     
     for (let i = 0; i < stereoSources.length; i++) {
-      const sourceIndex = this._individualOutputCount + i; // 8, 9, 10, 11
       const sourceNode = stereoSources[i];
-      this._outputGains[sourceIndex] = [];
+      this._outputGains[i] = [];
       
       if (!sourceNode) continue;
       
       for (let track = 0; track < this._trackCount; track++) {
         const gain = ctx.createGain();
-        const routingValue = this._routingMatrix[sourceIndex]?.[track] ?? 0;
+        const routingValue = this._routingMatrix[i]?.[track] ?? 0;
         gain.gain.value = routingValue;
         sourceNode.connect(gain);
+        gain.connect(this._trackMixers[track]);
+        this._outputGains[i][track] = gain;
+      }
+    }
+    
+    // 8 individual outputs DESPUÉS (índices 4-11)
+    for (let bus = 0; bus < this._individualOutputCount; bus++) {
+      const sourceIndex = this._stereoSourceCount + bus; // 4, 5, 6, 7, 8, 9, 10, 11
+      this._outputGains[sourceIndex] = [];
+      const busNode = this.engine.outputBuses[bus]?.levelNode;
+      if (!busNode) continue;
+      
+      for (let track = 0; track < this._trackCount; track++) {
+        const gain = ctx.createGain();
+        const routingValue = this._routingMatrix[sourceIndex]?.[track] ?? 0;
+        gain.gain.value = routingValue;
+        busNode.connect(gain);
         gain.connect(this._trackMixers[track]);
         this._outputGains[sourceIndex][track] = gain;
       }

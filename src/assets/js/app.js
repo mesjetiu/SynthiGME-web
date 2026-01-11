@@ -2774,6 +2774,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     window._synthApp.ensureAudio();
   }
   
+  // DEBUG: Exponer channelBypass a consola para diagnóstico
+  // Usar: window.channelBypass(true) o window.channelBypass(false)
+  window.channelBypass = (enabled) => {
+    const app = window._synthApp;
+    if (app && app.engine) {
+      app.engine.setChannelBypassDebug(enabled);
+    } else {
+      console.warn('Engine no disponible');
+    }
+  };
+  
   // Inicializar navegación del viewport
   initViewportNavigation();
   

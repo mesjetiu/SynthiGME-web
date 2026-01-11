@@ -21,7 +21,8 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Configuración de audio** | Selección de dispositivo de salida y ruteo de buses lógicos (1-8) a L/R. Matriz 8×2 con persistencia. |
 | **Sistema de patches** | Guardar, cargar, renombrar y eliminar patches. Exportar/importar archivos `.sgme.json`. Autoguardado configurable con recuperación de sesión. |
 | **Grabación de audio** | Exportación WAV multitrack (1-12 pistas). Matriz de ruteo outputs→tracks adaptativa. |
-| **Ajustes** | Idioma, escalado (1×-4×), autoguardado, wake lock. Pestaña Visualización para pines y escala. |
+| **Ajustes** | Idioma, escalado (1×-4×), autoguardado, wake lock, dormancy. Pestaña Visualización para pines y escala. |
+| **Dormancy** | Sistema de optimización que silencia automáticamente módulos sin conexiones activas. Reduce carga de CPU en móviles. |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
 ### Atajos de teclado

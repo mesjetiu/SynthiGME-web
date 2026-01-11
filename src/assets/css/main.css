@@ -3639,3 +3639,236 @@ small { color:#aaa; }
   border-color: rgba(255, 255, 255, 0.25);
   color: #ddd;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OUTPUT CHANNEL MODULE — Módulos individuales de canal de salida (Panel 7)
+   ═══════════════════════════════════════════════════════════════════════════
+   
+   Cada canal tiene:
+   - Knob Filter (arriba)
+   - Knob Pan
+   - Switch On/Off
+   - Slider Level (abajo)
+   
+   Usa .synth-module como base visual.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Contenedor row para los 7 canales */
+.output-channels-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+/* Cada módulo de canal */
+.output-channel-module {
+  flex: 1 1 0;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+.output-channel-module .synth-module__header {
+  font-size: 10px;
+  padding: 4px 6px 3px;
+}
+
+.output-channel-module .synth-module__content {
+  padding: 6px 4px;
+}
+
+/* Contenido interno del canal (vertical) */
+.output-channel__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* ─── Knobs ─── */
+.output-channel__knob-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.output-channel__knob {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #555, #222);
+  box-shadow: 0 0 5px rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.output-channel__knob-inner {
+  width: 75%;
+  height: 75%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.6);
+  position: relative;
+}
+
+/* Indicador del knob */
+.output-channel__knob-inner::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 10px;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd54f;
+  border-radius: 2px;
+}
+
+.output-channel__knob-label {
+  font-size: 8px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ─── Switch On/Off ─── */
+.output-channel__switch-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.output-channel__switch {
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.output-channel__switch:hover {
+  border-color: #666;
+}
+
+.output-channel__switch.is-on {
+  background: #1a3a1a;
+  border-color: #0a0;
+}
+
+.output-channel__switch-indicator {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #444;
+  transition: left 0.15s ease, background 0.15s ease;
+}
+
+.output-channel__switch.is-on .output-channel__switch-indicator {
+  left: 15px;
+  background: #0f0;
+  box-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
+}
+
+/* ─── Slider Level ─── */
+.output-channel__slider-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.output-channel__slider-shell {
+  height: 120px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.output-channel__slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 24px;
+  height: 100px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.output-channel__slider::-webkit-slider-runnable-track {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #3a2a08;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 3px), #ffe082 calc(50% - 2px), #a37516 calc(50% + 2px), transparent calc(50% + 3px));
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.5);
+}
+
+.output-channel__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 10px;
+  border-radius: 5px;
+  background: #222;
+  border: 1px solid #ffd54f;
+  box-shadow: 0 0 4px rgba(0,0,0,0.7);
+  margin: 0 auto;
+}
+
+.output-channel__slider::-moz-range-track {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #3a2a08;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 3px), #ffe082 calc(50% - 2px), #a37516 calc(50% + 2px), transparent calc(50% + 3px));
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.5);
+}
+
+.output-channel__slider::-moz-range-thumb {
+  width: 22px;
+  height: 10px;
+  border-radius: 5px;
+  background: #222;
+  border: 1px solid #ffd54f;
+  box-shadow: 0 0 4px rgba(0,0,0,0.7);
+  margin: 0 auto;
+}
+
+.output-channel__value {
+  margin-top: 4px;
+  font-size: 9px;
+  color: #bbb;
+}
+
+/* ─── Panel 7 Layout ─── */
+#panel-output .output-channels-section {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  box-sizing: border-box;
+}

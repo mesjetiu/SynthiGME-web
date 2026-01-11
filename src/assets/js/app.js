@@ -9,7 +9,7 @@ import { createLogger } from './utils/logger.js';
 const log = createLogger('App');
 import { RecordingEngine } from './core/recordingEngine.js';
 import { PanelManager } from './ui/panelManager.js';
-import { OutputFaderModule } from './modules/outputFaders.js';
+import { OutputChannelsPanel } from './modules/outputChannel.js';
 import { NoiseModule } from './modules/noise.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
@@ -123,7 +123,12 @@ class App {
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
-    this.outputFadersRowEl = this.outputPanel.addSection({ id: 'outputFadersRow', title: 'Salidas lógicas Synthi (1–8)', type: 'row' });
+    // Sección para output channels - posicionada en la mitad inferior del panel
+    this.outputChannelsSection = this.outputPanel.addSection({ 
+      id: 'outputChannelsSection', 
+      type: 'custom',
+      className: 'output-channels-section'
+    });
     this._heightSyncScheduled = false;
     this.largeMatrixAudio = null;
     this.largeMatrixControl = null;
@@ -189,12 +194,12 @@ class App {
   }
 
   _setupOutputFaders() {
-    const outputFaders = new OutputFaderModule(this.engine, 'outputFaders');
-    this.engine.addModule(outputFaders);
-    outputFaders.createPanel(this.outputFadersRowEl);
+    // Crear panel con 7 output channels individuales
+    this._outputChannelsPanel = new OutputChannelsPanel(this.engine, 7);
+    this._outputChannelsPanel.createPanel(this.outputChannelsSection);
     
-    // Guardar referencia para serialización
-    this._outputFadersModule = outputFaders;
+    // Mantener referencia como _outputFadersModule para compatibilidad con serialización
+    this._outputFadersModule = this._outputChannelsPanel;
   }
 
   _setupUI() {
@@ -550,7 +555,10 @@ class App {
     const defaultNoise = { colour: 0, level: 0 };
     const defaultRandomVoltage = { mean: 0.5, variance: 0.5, voltage1: 0, voltage2: 0, key: 0.5 };
     const defaultInputAmplifiers = { levels: Array(8).fill(0) };
-    const defaultOutputFaders = { levels: Array(8).fill(0) };
+    // Formato compatible: usar channels con level para el nuevo OutputChannelsPanel
+    const defaultOutputChannels = { 
+      channels: Array(7).fill(null).map(() => ({ level: 0, filter: 0.5, pan: 0.5, power: true }))
+    };
     
     // Resetear osciladores
     if (this._oscillatorUIs) {
@@ -588,9 +596,9 @@ class App {
       }
     }
     
-    // Resetear Output Faders
+    // Resetear Output Faders / Output Channels
     if (this._outputFadersModule && typeof this._outputFadersModule.deserialize === 'function') {
-      this._outputFadersModule.deserialize(defaultOutputFaders);
+      this._outputFadersModule.deserialize(defaultOutputChannels);
     }
     
     // Limpiar matrices de conexiones

@@ -3743,7 +3743,7 @@ small { color:#aaa; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  touch-action: pan-x pan-y pinch-zoom;
+  touch-action: none;
 }
 
 .output-channel__knob-inner {
@@ -3753,6 +3753,7 @@ small { color:#aaa; }
   background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
   box-shadow: inset 0 0 3px rgba(0,0,0,0.6);
   position: relative;
+  touch-action: none;
 }
 
 /* Indicador del knob */

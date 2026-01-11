@@ -187,7 +187,7 @@ Centraliza valores que se reutilizan en múltiples archivos:
 |-----------|-------|-------------|
 | `OUTPUT_CHANNELS` | 8 | Canales de salida del sintetizador |
 | `INPUT_CHANNELS` | 8 | Canales de entrada (input amplifiers) |
-| `MAX_RECORDING_TRACKS` | 8 | Pistas máximas de grabación WAV |
+| `MAX_RECORDING_TRACKS` | 12 | Pistas máximas de grabación WAV |
 | `STORAGE_KEYS` | objeto | Claves de localStorage (idioma, audio, grabación, sesión, ajustes, wake lock) |
 | `AUTOSAVE_INTERVALS` | objeto | Intervalos de autoguardado: `15s`, `30s`, `1m`, `5m`, `off` |
 | `DEFAULT_AUTOSAVE_INTERVAL` | `'30s'` | Intervalo de autoguardado por defecto |

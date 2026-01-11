@@ -16,7 +16,7 @@ export const OUTPUT_CHANNELS = 8;
 export const INPUT_CHANNELS = 8;
 
 /** Número máximo de pistas de grabación */
-export const MAX_RECORDING_TRACKS = 8;
+export const MAX_RECORDING_TRACKS = 12;
 
 /** Número de canales físicos por defecto (estéreo) */
 export const DEFAULT_PHYSICAL_CHANNELS = 2;

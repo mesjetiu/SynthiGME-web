@@ -35,8 +35,8 @@ describe('Configuración del sintetizador', () => {
     assert.strictEqual(INPUT_CHANNELS, 8);
   });
 
-  it('MAX_RECORDING_TRACKS es 8', () => {
-    assert.strictEqual(MAX_RECORDING_TRACKS, 8);
+  it('MAX_RECORDING_TRACKS es 12', () => {
+    assert.strictEqual(MAX_RECORDING_TRACKS, 12);
   });
 
   it('DEFAULT_PHYSICAL_CHANNELS es 2 (estéreo)', () => {

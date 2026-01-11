@@ -114,12 +114,18 @@ export class AudioEngine {
     this.bus2Pan = this.outputPans[1] ?? 0.0;
   }
 
-  start() {
+  /**
+   * Inicia el motor de audio.
+   * @param {Object} [options] - Opciones de inicio
+   * @param {AudioContext} [options.audioContext] - AudioContext externo (para tests)
+   */
+  start(options = {}) {
     if (this.audioCtx) {
       if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
       return;
     }
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Permitir inyección de AudioContext para testing
+    const ctx = options.audioContext || new (window.AudioContext || window.webkitAudioContext)();
     this.audioCtx = ctx;
 
     // Cargar AudioWorklet para osciladores con fase coherente

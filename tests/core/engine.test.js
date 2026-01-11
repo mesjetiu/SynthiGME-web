@@ -434,3 +434,279 @@ describe('Output Level y Mute - separación conceptual', () => {
     assert.equal(getEffectiveLevel(state, 0), 0.75);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS CON AUDIOCONTEXT MOCK
+// ═══════════════════════════════════════════════════════════════════════════
+// Estos tests usan mocks de AudioContext para verificar interacciones reales
+// con la Web Audio API (llamadas a setTargetAtTime, connect, disconnect, etc.)
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { setParamSmooth, AudioEngine } from '../../src/assets/js/core/engine.js';
+import { 
+  createMockAudioContext, 
+  createMockAudioParam,
+  createMockGainNode,
+  resetNodeCalls 
+} from '../mocks/audioContext.mock.js';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// setParamSmooth - con AudioParam mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('setParamSmooth (con AudioContext mock)', () => {
+  
+  it('llama a cancelScheduledValues antes de setTargetAtTime', () => {
+    const ctx = createMockAudioContext();
+    const param = createMockAudioParam(0);
+    
+    setParamSmooth(param, 0.5, ctx);
+    
+    assert.equal(param._calls.cancelScheduledValues, 1);
+    assert.equal(param._calls.setTargetAtTime, 1);
+  });
+
+  it('actualiza el valor del parámetro', () => {
+    const ctx = createMockAudioContext();
+    const param = createMockAudioParam(0);
+    
+    setParamSmooth(param, 0.75, ctx);
+    
+    assert.equal(param.value, 0.75);
+  });
+
+  it('usa DEFAULT_RAMP_TIME por defecto', () => {
+    const ctx = createMockAudioContext();
+    const param = createMockAudioParam(1);
+    
+    // Verificamos que funciona sin opciones
+    setParamSmooth(param, 0.5, ctx);
+    
+    assert.equal(param.value, 0.5);
+    assert.equal(param._calls.setTargetAtTime, 1);
+  });
+
+  it('acepta ramp personalizado en options', () => {
+    const ctx = createMockAudioContext();
+    const param = createMockAudioParam(0);
+    
+    // El ramp se pasa a setTargetAtTime internamente
+    // Verificamos que la función no falla con opciones
+    setParamSmooth(param, 1.0, ctx, { ramp: 0.1 });
+    
+    assert.equal(param.value, 1.0);
+  });
+
+  it('no hace nada si param es null', () => {
+    const ctx = createMockAudioContext();
+    
+    // No debe lanzar error
+    setParamSmooth(null, 0.5, ctx);
+  });
+
+  it('no hace nada si ctx es null', () => {
+    const param = createMockAudioParam(0);
+    
+    // No debe lanzar error
+    setParamSmooth(param, 0.5, null);
+    
+    // El valor no debe cambiar
+    assert.equal(param.value, 0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.setOutputMute - con nodos mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.setOutputMute (con AudioContext mock)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  // Crear engine con mock antes de cada test
+  function setupEngine() {
+    mockCtx = createMockAudioContext({ maxChannelCount: 2 });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('mute=true pone muteNode.gain a 0', () => {
+    setupEngine();
+    
+    engine.setOutputMute(0, true);
+    
+    // Verificar que el mute se aplicó al estado
+    assert.equal(engine.outputMutes[0], true);
+    
+    // El muteNode debería tener gain 0 (tras el ramp)
+    const muteNode = engine.outputBuses[0].muteNode;
+    assert.equal(muteNode.gain.value, 0);
+  });
+
+  it('mute=false pone muteNode.gain a 1', () => {
+    setupEngine();
+    
+    // Primero mutear
+    engine.setOutputMute(0, true);
+    assert.equal(engine.outputBuses[0].muteNode.gain.value, 0);
+    
+    // Luego desmutear
+    engine.setOutputMute(0, false);
+    assert.equal(engine.outputMutes[0], false);
+    assert.equal(engine.outputBuses[0].muteNode.gain.value, 1);
+  });
+
+  it('usa setTargetAtTime para cambio suave', () => {
+    setupEngine();
+    
+    const muteNode = engine.outputBuses[0].muteNode;
+    const initialCalls = muteNode.gain._calls.setTargetAtTime;
+    
+    engine.setOutputMute(0, true);
+    
+    // Debe haber llamado a setTargetAtTime al menos una vez
+    assert.ok(muteNode.gain._calls.setTargetAtTime > initialCalls);
+  });
+
+  it('canales diferentes son independientes', () => {
+    setupEngine();
+    
+    engine.setOutputMute(0, true);
+    engine.setOutputMute(3, true);
+    
+    assert.equal(engine.outputMutes[0], true);
+    assert.equal(engine.outputMutes[1], false);
+    assert.equal(engine.outputMutes[2], false);
+    assert.equal(engine.outputMutes[3], true);
+  });
+
+  it('ignora índices fuera de rango', () => {
+    setupEngine();
+    
+    // No debe lanzar error
+    engine.setOutputMute(100, true);
+    engine.setOutputMute(-1, true);
+    
+    // El estado no debe cambiar para índices válidos
+    assert.equal(engine.outputMutes[0], false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.setOutputRouting - con nodos mock
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.setOutputRouting (con AudioContext mock)', () => {
+  
+  let engine;
+  let mockCtx;
+  
+  function setupEngine(maxChannels = 2) {
+    mockCtx = createMockAudioContext({ maxChannelCount: maxChannels });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('aplica ganancia de routing a channelGains (modo legacy)', () => {
+    setupEngine(2);
+    
+    // Modo legacy: setOutputRouting(busIndex, leftGain, rightGain)
+    // Rutear bus 0 con left=1.0, right=0
+    engine.setOutputRouting(0, 1.0, 0);
+    
+    // El channelGain[0] (left) del bus 0 debe tener ganancia 1.0
+    const channelGainL = engine.outputBuses[0].channelGains[0];
+    const channelGainR = engine.outputBuses[0].channelGains[1];
+    assert.equal(channelGainL.gain.value, 1.0);
+    assert.equal(channelGainR.gain.value, 0);
+  });
+
+  it('ganancia 0 desconecta efectivamente el canal', () => {
+    setupEngine(2);
+    
+    // Primero conectar con left=1, right=1
+    engine.setOutputRouting(0, 1.0, 1.0);
+    assert.equal(engine.outputBuses[0].channelGains[0].gain.value, 1.0);
+    assert.equal(engine.outputBuses[0].channelGains[1].gain.value, 1.0);
+    
+    // Luego desconectar con ganancia 0
+    engine.setOutputRouting(0, 0.0, 0.0);
+    assert.equal(engine.outputBuses[0].channelGains[0].gain.value, 0.0);
+    assert.equal(engine.outputBuses[0].channelGains[1].gain.value, 0.0);
+  });
+
+  it('valores intermedios de ganancia (0.5)', () => {
+    setupEngine(2);
+    
+    engine.setOutputRouting(0, 0.5, 0.5);
+    
+    assert.equal(engine.outputBuses[0].channelGains[0].gain.value, 0.5);
+    assert.equal(engine.outputBuses[0].channelGains[1].gain.value, 0.5);
+  });
+
+  it('actualiza la matriz _outputRoutingMatrix', () => {
+    setupEngine(2);
+    
+    engine.setOutputRouting(2, 0.3, 0.8);
+    
+    // La matriz debe reflejar el cambio
+    assert.equal(engine._outputRoutingMatrix[2][0], 0.3);
+    assert.equal(engine._outputRoutingMatrix[2][1], 0.8);
+  });
+
+  it('diferentes buses son independientes', () => {
+    setupEngine(2);
+    
+    engine.setOutputRouting(0, 1.0, 0.0);  // bus 0: full left
+    engine.setOutputRouting(1, 0.0, 0.7);  // bus 1: partial right
+    
+    assert.equal(engine.outputBuses[0].channelGains[0].gain.value, 1.0);
+    assert.equal(engine.outputBuses[0].channelGains[1].gain.value, 0.0);
+    assert.equal(engine.outputBuses[1].channelGains[0].gain.value, 0.0);
+    assert.equal(engine.outputBuses[1].channelGains[1].gain.value, 0.7);
+  });
+
+  it('usa setTargetAtTime para cambio suave', () => {
+    setupEngine(2);
+    
+    const channelGain = engine.outputBuses[0].channelGains[0];
+    const initialCalls = channelGain.gain._calls.setTargetAtTime;
+    
+    engine.setOutputRouting(0, 1.0, 0.0);
+    
+    // Debe usar setTargetAtTime (via setParamSmooth)
+    assert.ok(channelGain.gain._calls.setTargetAtTime > initialCalls);
+  });
+
+  it('modo multicanal con array de ganancias', () => {
+    setupEngine(2);
+    
+    // Modo multicanal: array de ganancias [left, right]
+    engine.setOutputRouting(0, [0.8, 0.6]);
+    
+    assert.equal(engine.outputBuses[0].channelGains[0].gain.value, 0.8);
+    assert.equal(engine.outputBuses[0].channelGains[1].gain.value, 0.6);
+  });
+
+  it('ignora busIndex fuera de rango', () => {
+    setupEngine(2);
+    
+    // No debe lanzar error
+    engine.setOutputRouting(100, 1.0, 1.0);
+    engine.setOutputRouting(-1, 1.0, 1.0);
+  });
+
+  it('devuelve info de canales aplicados e ignorados', () => {
+    setupEngine(2);
+    
+    // Solo 2 canales físicos, intentamos rutear a 4
+    const result = engine.setOutputRouting(0, [1.0, 0.5, 0.3, 0.2]);
+    
+    // Los primeros 2 se aplican, los otros 2 se ignoran
+    assert.deepEqual(result.applied, [0, 1]);
+    assert.deepEqual(result.ignored, [2, 3]);
+  });
+});

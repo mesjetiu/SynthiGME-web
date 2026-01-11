@@ -57,7 +57,8 @@ export class AudioEngine {
     this.physicalChannelLabels = ['L', 'R']; // Etiquetas de canales físicos
     this.outputLevels = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputPans = Array.from({ length: this.outputChannels }, () => 0.0);
-    this.outputFilters = Array.from({ length: this.outputChannels }, () => 1.0); // 0=cerrado, 1=abierto
+    // Filtro bipolar: -1 = lowpass máximo, 0 = sin filtro, +1 = highpass máximo
+    this.outputFilters = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputBuses = [];
     
     // Matriz de ruteo multicanal: [busIndex] = array de ganancias por canal físico
@@ -128,19 +129,41 @@ export class AudioEngine {
       const busInput = ctx.createGain();
       busInput.gain.value = 1.0;
       
-      // Filtro low-pass por canal (Butterworth Q=0.707, sin resonancia)
-      const filterNode = ctx.createBiquadFilter();
-      filterNode.type = 'lowpass';
-      filterNode.Q.value = 0.707;
-      // Mapear outputFilters[i] (0-1) a frecuencia (20Hz-20kHz, logarítmico)
-      filterNode.frequency.value = this._filterValueToFreq(this.outputFilters[i]);
+      // ─────────────────────────────────────────────────────────────────────
+      // FILTRO BIPOLAR: Lowpass + Highpass en serie
+      // ─────────────────────────────────────────────────────────────────────
+      // Control bipolar: -1 a +1 donde:
+      //   -1: Lowpass activo (corta agudos), Highpass bypass
+      //    0: Ambos bypass (sin filtrado)
+      //   +1: Highpass activo (corta graves), Lowpass bypass
+      // 
+      // Implementación: LP y HP siempre conectados en serie.
+      // Cuando un filtro está en "bypass", su frecuencia se pone en el extremo
+      // donde no afecta la señal (LP=20kHz, HP=20Hz).
+      // ─────────────────────────────────────────────────────────────────────
+      
+      // Lowpass: activo cuando value < 0 (corta agudos)
+      const filterLP = ctx.createBiquadFilter();
+      filterLP.type = 'lowpass';
+      filterLP.Q.value = 0.707; // Butterworth (respuesta plana, sin resonancia)
+      filterLP.frequency.value = 20000; // Bypass inicial (20kHz = deja pasar todo)
+      
+      // Highpass: activo cuando value > 0 (corta graves)
+      const filterHP = ctx.createBiquadFilter();
+      filterHP.type = 'highpass';
+      filterHP.Q.value = 0.707; // Butterworth
+      filterHP.frequency.value = 20; // Bypass inicial (20Hz = deja pasar todo)
       
       const levelNode = ctx.createGain();
       levelNode.gain.value = this.outputLevels[i];
       
-      // Cadena: busInput → filterNode → levelNode
-      busInput.connect(filterNode);
-      filterNode.connect(levelNode);
+      // Cadena: busInput → filterLP → filterHP → levelNode
+      busInput.connect(filterLP);
+      filterLP.connect(filterHP);
+      filterHP.connect(levelNode);
+      
+      // Aplicar valor inicial del filtro
+      this._applyFilterValue(i, this.outputFilters[i], filterLP, filterHP);
 
       // Crear nodos de ganancia para cada canal físico (ruteo multicanal)
       const channelGains = [];
@@ -157,7 +180,8 @@ export class AudioEngine {
       // Mantener panLeft/panRight para compatibilidad legacy (apuntan a canales 0 y 1)
       this.outputBuses.push({
         input: busInput,
-        filterNode,
+        filterLP,   // Filtro lowpass (activo con valores negativos)
+        filterHP,   // Filtro highpass (activo con valores positivos)
         levelNode,
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
@@ -240,45 +264,131 @@ export class AudioEngine {
     return this.outputLevels[busIndex] ?? 0.0;
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // FILTRO BIPOLAR: Control de frecuencia Lowpass/Highpass
+  // ───────────────────────────────────────────────────────────────────────────
+  // 
+  // ARQUITECTURA:
+  //   Dos filtros BiquadFilter en serie: Lowpass → Highpass
+  //   Ambos con Q=0.707 (Butterworth, respuesta plana sin resonancia)
+  // 
+  // CONTROL BIPOLAR (rango -1 a +1):
+  //   value = -1: LP corta en ~200Hz (solo graves), HP bypass (20Hz)
+  //   value =  0: LP bypass (20kHz), HP bypass (20Hz) → señal limpia
+  //   value = +1: LP bypass (20kHz), HP corta en ~5kHz (solo agudos)
+  // 
+  // MAPEO DE FRECUENCIAS (escala logarítmica):
+  //   La percepción humana de frecuencias es logarítmica, no lineal.
+  //   Por eso usamos: freq = 10^(log10(min) + t * (log10(max) - log10(min)))
+  //   donde t es el valor normalizado 0-1.
+  // 
+  //   Lowpass (valores negativos, -1 a 0):
+  //     -1 → 200 Hz (corta casi todo)
+  //      0 → 20000 Hz (bypass, deja pasar todo)
+  // 
+  //   Highpass (valores positivos, 0 a +1):
+  //      0 → 20 Hz (bypass, deja pasar todo)
+  //     +1 → 5000 Hz (corta graves y medios)
+  // 
+  // NOTA: Los rangos de frecuencia son asimétricos intencionalmente.
+  // El oído es más sensible a cambios en graves que en agudos.
+  // ───────────────────────────────────────────────────────────────────────────
+
   /**
-   * Convierte valor normalizado (0-1) a frecuencia de corte (Hz).
-   * Escala logarítmica: 0 = 20Hz (cerrado), 1 = 20kHz (abierto).
-   * @param {number} value - Valor normalizado (0-1)
-   * @returns {number} Frecuencia en Hz
+   * Calcula frecuencia de corte del Lowpass según valor bipolar.
+   * Solo activo para valores negativos (-1 a 0).
+   * 
+   * @param {number} value - Valor bipolar (-1 a +1)
+   * @returns {number} Frecuencia en Hz (200 a 20000)
    */
-  _filterValueToFreq(value) {
-    const minFreq = 20;
+  _getLowpassFreq(value) {
+    // value < 0: LP activo, mapear -1→200Hz, 0→20000Hz
+    // value >= 0: LP bypass (20000Hz)
+    if (value >= 0) return 20000;
+    
+    const t = 1 + value; // -1→0, 0→1
+    const minFreq = 200;
     const maxFreq = 20000;
     const minLog = Math.log10(minFreq);
     const maxLog = Math.log10(maxFreq);
-    return Math.pow(10, minLog + value * (maxLog - minLog));
+    return Math.pow(10, minLog + t * (maxLog - minLog));
   }
 
   /**
-   * Establece el filtro de una salida lógica.
+   * Calcula frecuencia de corte del Highpass según valor bipolar.
+   * Solo activo para valores positivos (0 a +1).
+   * 
+   * @param {number} value - Valor bipolar (-1 a +1)
+   * @returns {number} Frecuencia en Hz (20 a 5000)
+   */
+  _getHighpassFreq(value) {
+    // value > 0: HP activo, mapear 0→20Hz, +1→5000Hz
+    // value <= 0: HP bypass (20Hz)
+    if (value <= 0) return 20;
+    
+    const t = value; // 0→0, 1→1
+    const minFreq = 20;
+    const maxFreq = 5000;
+    const minLog = Math.log10(minFreq);
+    const maxLog = Math.log10(maxFreq);
+    return Math.pow(10, minLog + t * (maxLog - minLog));
+  }
+
+  /**
+   * Aplica el valor del filtro a los nodos LP y HP.
+   * Usado internamente durante inicialización y cambios.
+   * 
+   * @param {number} busIndex - Índice del bus
+   * @param {number} value - Valor bipolar (-1 a +1)
+   * @param {BiquadFilterNode} [filterLP] - Nodo LP (opcional, se obtiene del bus)
+   * @param {BiquadFilterNode} [filterHP] - Nodo HP (opcional, se obtiene del bus)
+   * @param {number} [ramp] - Tiempo de rampa en segundos
+   */
+  _applyFilterValue(busIndex, value, filterLP, filterHP, ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME) {
+    const bus = this.outputBuses[busIndex];
+    const lp = filterLP || bus?.filterLP;
+    const hp = filterHP || bus?.filterHP;
+    const ctx = this.audioCtx;
+    
+    if (!lp || !hp) return;
+    
+    const lpFreq = this._getLowpassFreq(value);
+    const hpFreq = this._getHighpassFreq(value);
+    
+    if (ctx) {
+      setParamSmooth(lp.frequency, lpFreq, ctx, { ramp });
+      setParamSmooth(hp.frequency, hpFreq, ctx, { ramp });
+    } else {
+      // Sin contexto, aplicar directamente (inicialización)
+      lp.frequency.value = lpFreq;
+      hp.frequency.value = hpFreq;
+    }
+  }
+
+  /**
+   * Establece el filtro bipolar de una salida lógica.
+   * 
    * @param {number} busIndex - Índice del bus (0-based)
-   * @param {number} value - Valor normalizado (0 = cerrado 20Hz, 1 = abierto 20kHz)
+   * @param {number} value - Valor bipolar:
+   *   -1 = Lowpass máximo (solo graves, ~200Hz)
+   *    0 = Sin filtrado (señal limpia)
+   *   +1 = Highpass máximo (solo agudos, ~5kHz)
    * @param {Object} [options] - Opciones
    * @param {number} [options.ramp=0.03] - Tiempo de rampa en segundos
    */
   setOutputFilter(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
     if (busIndex < 0 || busIndex >= this.outputChannels) return;
-    this.outputFilters[busIndex] = Math.max(0, Math.min(1, value));
-    const ctx = this.audioCtx;
-    const bus = this.outputBuses[busIndex];
-    if (ctx && bus?.filterNode) {
-      const freq = this._filterValueToFreq(this.outputFilters[busIndex]);
-      setParamSmooth(bus.filterNode.frequency, freq, ctx, { ramp });
-    }
+    this.outputFilters[busIndex] = Math.max(-1, Math.min(1, value));
+    this._applyFilterValue(busIndex, this.outputFilters[busIndex], null, null, ramp);
   }
 
   /**
    * Obtiene el valor actual del filtro de una salida.
    * @param {number} busIndex - Índice del bus (0-based)
-   * @returns {number} Valor normalizado (0-1)
+   * @returns {number} Valor bipolar (-1 a +1), 0 = sin filtro
    */
   getOutputFilter(busIndex) {
-    return this.outputFilters[busIndex] ?? 1.0;
+    return this.outputFilters[busIndex] ?? 0.0;
   }
 
   setOutputPan(busIndex, value) {

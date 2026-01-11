@@ -44,7 +44,7 @@ export class OutputChannel extends Module {
     // Estado
     this.values = {
       level: engine.getOutputLevel(channelIndex) ?? 0,
-      filter: engine.getOutputFilter ? (engine.getOutputFilter(channelIndex) ?? 1.0) : 1.0,
+      filter: engine.getOutputFilter ? (engine.getOutputFilter(channelIndex) ?? 0.0) : 0.0, // -1 a +1, 0 = sin filtro
       pan: 0.5,     // Solo visual por ahora
       power: true   // Solo visual por ahora
     };
@@ -102,7 +102,13 @@ export class OutputChannel extends Module {
   }
   
   /**
-   * Crea el knob de Filter (funcional, controla filtro low-pass).
+   * Crea el knob de Filter (funcional, control bipolar LP/HP).
+   * 
+   * Rango bipolar -1 a +1:
+   *   -1: Lowpass activo (solo graves)
+   *    0: Sin filtrado (centro)
+   *   +1: Highpass activo (solo agudos)
+   * 
    * @returns {HTMLElement}
    */
   _createFilterKnob() {
@@ -132,9 +138,9 @@ export class OutputChannel extends Module {
     // Usamos setTimeout para asegurar que el elemento esté en el DOM
     setTimeout(() => {
       this.filterKnobUI = new Knob(knob, {
-        min: 0,
-        max: 1,
-        initial: this.values.filter,
+        min: -1,          // Lowpass máximo
+        max: 1,           // Highpass máximo
+        initial: this.values.filter, // 0 = sin filtro (centro)
         pixelsForFullRange: 120,
         onChange: (value) => {
           this.values.filter = value;

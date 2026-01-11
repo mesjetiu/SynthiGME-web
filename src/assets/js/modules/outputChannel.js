@@ -14,6 +14,7 @@
 
 import { Module } from '../core/engine.js';
 import { ModuleFrame } from '../ui/moduleFrame.js';
+import { Knob } from '../ui/knob.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 
 export class OutputChannel extends Module {
@@ -35,14 +36,15 @@ export class OutputChannel extends Module {
     this.frame = null;
     this.slider = null;
     this.valueDisplay = null;
-    this.filterKnob = null;
+    this.filterKnobEl = null;   // Elemento DOM del knob
+    this.filterKnobUI = null;   // Instancia de clase Knob
     this.panKnob = null;
     this.powerSwitch = null;
     
     // Estado
     this.values = {
       level: engine.getOutputLevel(channelIndex) ?? 0,
-      filter: 0.5,  // Solo visual por ahora
+      filter: engine.getOutputFilter ? (engine.getOutputFilter(channelIndex) ?? 1.0) : 1.0,
       pan: 0.5,     // Solo visual por ahora
       power: true   // Solo visual por ahora
     };
@@ -79,9 +81,8 @@ export class OutputChannel extends Module {
     const wrapper = document.createElement('div');
     wrapper.className = 'output-channel__content';
     
-    // 1. Filter Knob (arriba)
-    const filterWrap = this._createKnob('filter', 'Filter', this.values.filter);
-    this.filterKnob = filterWrap.querySelector('.output-channel__knob');
+    // 1. Filter Knob (arriba) - funcional
+    const filterWrap = this._createFilterKnob();
     wrapper.appendChild(filterWrap);
     
     // 2. Pan Knob
@@ -98,6 +99,52 @@ export class OutputChannel extends Module {
     wrapper.appendChild(sliderWrap);
     
     return wrapper;
+  }
+  
+  /**
+   * Crea el knob de Filter (funcional, controla filtro low-pass).
+   * @returns {HTMLElement}
+   */
+  _createFilterKnob() {
+    const wrap = document.createElement('div');
+    wrap.className = 'output-channel__knob-wrap';
+    wrap.dataset.knob = 'filter';
+    
+    // Estructura compatible con clase Knob: .knob > .knob-inner
+    const knob = document.createElement('div');
+    knob.className = 'output-channel__knob knob';
+    knob.dataset.preventPan = 'true';
+    
+    const knobInner = document.createElement('div');
+    knobInner.className = 'output-channel__knob-inner knob-inner';
+    knob.appendChild(knobInner);
+    
+    const labelEl = document.createElement('div');
+    labelEl.className = 'output-channel__knob-label';
+    labelEl.textContent = 'Filter';
+    
+    wrap.appendChild(knob);
+    wrap.appendChild(labelEl);
+    
+    this.filterKnobEl = knob;
+    
+    // Instanciar Knob interactivo después de añadir al DOM
+    // Usamos setTimeout para asegurar que el elemento esté en el DOM
+    setTimeout(() => {
+      this.filterKnobUI = new Knob(knob, {
+        min: 0,
+        max: 1,
+        initial: this.values.filter,
+        pixelsForFullRange: 120,
+        onChange: (value) => {
+          this.values.filter = value;
+          this.engine.setOutputFilter(this.channelIndex, value);
+          document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+        }
+      });
+    }, 0);
+    
+    return wrap;
   }
   
   /**
@@ -272,10 +319,13 @@ export class OutputChannel extends Module {
       this.engine.setOutputLevel(this.channelIndex, data.level, { ramp: 0.06 });
     }
     
-    // Los siguientes solo actualizan el visual (sin funcionalidad aún)
+    // Filtro: actualizar valor y visual del knob
     if (typeof data.filter === 'number') {
       this.values.filter = data.filter;
-      // TODO: Actualizar visual del knob
+      this.engine.setOutputFilter(this.channelIndex, data.filter);
+      if (this.filterKnobUI) {
+        this.filterKnobUI.setValue(data.filter);
+      }
     }
     
     if (typeof data.pan === 'number') {

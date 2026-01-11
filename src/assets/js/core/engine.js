@@ -57,6 +57,7 @@ export class AudioEngine {
     this.physicalChannelLabels = ['L', 'R']; // Etiquetas de canales físicos
     this.outputLevels = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputPans = Array.from({ length: this.outputChannels }, () => 0.0);
+    this.outputFilters = Array.from({ length: this.outputChannels }, () => 1.0); // 0=cerrado, 1=abierto
     this.outputBuses = [];
     
     // Matriz de ruteo multicanal: [busIndex] = array de ganancias por canal físico
@@ -126,9 +127,20 @@ export class AudioEngine {
     for (let i = 0; i < this.outputChannels; i += 1) {
       const busInput = ctx.createGain();
       busInput.gain.value = 1.0;
+      
+      // Filtro low-pass por canal (Butterworth Q=0.707, sin resonancia)
+      const filterNode = ctx.createBiquadFilter();
+      filterNode.type = 'lowpass';
+      filterNode.Q.value = 0.707;
+      // Mapear outputFilters[i] (0-1) a frecuencia (20Hz-20kHz, logarítmico)
+      filterNode.frequency.value = this._filterValueToFreq(this.outputFilters[i]);
+      
       const levelNode = ctx.createGain();
       levelNode.gain.value = this.outputLevels[i];
-      busInput.connect(levelNode);
+      
+      // Cadena: busInput → filterNode → levelNode
+      busInput.connect(filterNode);
+      filterNode.connect(levelNode);
 
       // Crear nodos de ganancia para cada canal físico (ruteo multicanal)
       const channelGains = [];
@@ -145,6 +157,7 @@ export class AudioEngine {
       // Mantener panLeft/panRight para compatibilidad legacy (apuntan a canales 0 y 1)
       this.outputBuses.push({
         input: busInput,
+        filterNode,
         levelNode,
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
@@ -225,6 +238,47 @@ export class AudioEngine {
 
   getOutputLevel(busIndex) {
     return this.outputLevels[busIndex] ?? 0.0;
+  }
+
+  /**
+   * Convierte valor normalizado (0-1) a frecuencia de corte (Hz).
+   * Escala logarítmica: 0 = 20Hz (cerrado), 1 = 20kHz (abierto).
+   * @param {number} value - Valor normalizado (0-1)
+   * @returns {number} Frecuencia en Hz
+   */
+  _filterValueToFreq(value) {
+    const minFreq = 20;
+    const maxFreq = 20000;
+    const minLog = Math.log10(minFreq);
+    const maxLog = Math.log10(maxFreq);
+    return Math.pow(10, minLog + value * (maxLog - minLog));
+  }
+
+  /**
+   * Establece el filtro de una salida lógica.
+   * @param {number} busIndex - Índice del bus (0-based)
+   * @param {number} value - Valor normalizado (0 = cerrado 20Hz, 1 = abierto 20kHz)
+   * @param {Object} [options] - Opciones
+   * @param {number} [options.ramp=0.03] - Tiempo de rampa en segundos
+   */
+  setOutputFilter(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
+    if (busIndex < 0 || busIndex >= this.outputChannels) return;
+    this.outputFilters[busIndex] = Math.max(0, Math.min(1, value));
+    const ctx = this.audioCtx;
+    const bus = this.outputBuses[busIndex];
+    if (ctx && bus?.filterNode) {
+      const freq = this._filterValueToFreq(this.outputFilters[busIndex]);
+      setParamSmooth(bus.filterNode.frequency, freq, ctx, { ramp });
+    }
+  }
+
+  /**
+   * Obtiene el valor actual del filtro de una salida.
+   * @param {number} busIndex - Índice del bus (0-based)
+   * @returns {number} Valor normalizado (0-1)
+   */
+  getOutputFilter(busIndex) {
+    return this.outputFilters[busIndex] ?? 1.0;
   }
 
   setOutputPan(busIndex, value) {

@@ -298,8 +298,16 @@ export function setupMobileQuickActionsBar() {
     if (btnFs.disabled) return;
     try {
       if (document.fullscreenElement) {
+        // Pre-calcular dimensiones para salida de fullscreen
+        if (typeof window.__synthPrepareForFullscreen === 'function') {
+          window.__synthPrepareForFullscreen(false);
+        }
         await document.exitFullscreen();
       } else {
+        // Pre-calcular dimensiones para entrada a fullscreen
+        if (typeof window.__synthPrepareForFullscreen === 'function') {
+          window.__synthPrepareForFullscreen(true);
+        }
         await document.documentElement.requestFullscreen();
       }
     } catch (error) {

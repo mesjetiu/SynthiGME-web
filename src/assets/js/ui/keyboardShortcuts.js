@@ -43,8 +43,14 @@ const SHORTCUT_ACTIONS = {
   fullscreen: async () => {
     try {
       if (document.fullscreenElement) {
+        if (typeof window.__synthPrepareForFullscreen === 'function') {
+          window.__synthPrepareForFullscreen(false);
+        }
         await document.exitFullscreen();
       } else {
+        if (typeof window.__synthPrepareForFullscreen === 'function') {
+          window.__synthPrepareForFullscreen(true);
+        }
         await document.documentElement.requestFullscreen();
       }
     } catch (error) {

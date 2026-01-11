@@ -437,6 +437,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const MAX_STABILIZATION_CALLS = 5;
     
     const handleViewportStabilization = () => {
+      // Skip stabilization during fullscreen transition (handled separately)
+      if (window.__synthFullscreenTransition || document.fullscreenElement) return;
+      
       stabilizationCount++;
       metricsDirty = true;
       refreshMetrics();
@@ -489,6 +492,74 @@ export function initViewportNavigation({ outer, inner } = {}) {
   }
 
   requestAnimationFrame(() => fitContentToViewport());
+
+  /**
+   * Pre-calcula y aplica las dimensiones de fullscreen ANTES de que el navegador
+   * haga la transición. Esto evita el lapsus de pantalla en blanco porque el
+   * contenido ya está posicionado/escalado correctamente para el tamaño de pantalla.
+   * @param {boolean} entering - true si estamos entrando a fullscreen, false si salimos
+   */
+  function prepareForFullscreen(entering) {
+    if (!outer || !inner) return;
+    
+    window.__synthFullscreenTransition = true;
+    
+    // Calcular las dimensiones objetivo
+    let targetWidth, targetHeight;
+    if (entering) {
+      // Usar screen.availWidth/availHeight para fullscreen (excluye barras del sistema)
+      // Fallback a screen.width/height si no disponible
+      // En iOS Safari, usar window.screen con orientation
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+      if (isLandscape) {
+        targetWidth = Math.max(screen.availWidth || screen.width, screen.availHeight || screen.height);
+        targetHeight = Math.min(screen.availWidth || screen.width, screen.availHeight || screen.height);
+      } else {
+        targetWidth = Math.min(screen.availWidth || screen.width, screen.availHeight || screen.height);
+        targetHeight = Math.max(screen.availWidth || screen.width, screen.availHeight || screen.height);
+      }
+    } else {
+      // Al salir, las dimensiones actuales del viewport son las correctas
+      // (el navegador aún no ha cambiado)
+      targetWidth = outer.clientWidth;
+      targetHeight = outer.clientHeight;
+    }
+    
+    // Calcular escala mínima para las nuevas dimensiones
+    const contentWidth = metrics.contentWidth;
+    const contentHeight = metrics.contentHeight;
+    if (!contentWidth || !contentHeight || !targetWidth || !targetHeight) return;
+    
+    const scaleX = (targetWidth * VIEWPORT_MARGIN) / contentWidth;
+    const scaleY = (targetHeight * VIEWPORT_MARGIN) / contentHeight;
+    const newMinScale = Math.min(scaleX, scaleY);
+    const newScale = Math.min(maxScale, Math.max(newMinScale, snapScale(newMinScale)));
+    
+    // Calcular offsets para centrar
+    const finalWidth = contentWidth * newScale;
+    const finalHeight = contentHeight * newScale;
+    const newOffsetX = (targetWidth - finalWidth) / 2;
+    const newOffsetY = (targetHeight - finalHeight) / 2;
+    
+    // Aplicar inmediatamente
+    scale = newScale;
+    offsetX = newOffsetX;
+    offsetY = newOffsetY;
+    
+    // Forzar actualización del transform directamente (sin pasar por render que puede bloquear por canvas)
+    if (currentResolutionFactor > 1) {
+      const visualScale = scale / currentResolutionFactor;
+      inner.style.zoom = currentResolutionFactor;
+      inner.style.transform = `translate3d(${offsetX / currentResolutionFactor}px, ${offsetY / currentResolutionFactor}px, 0) scale(${visualScale})`;
+    } else {
+      inner.style.zoom = '';
+      inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+    }
+    window.__synthViewTransform = { scale, offsetX, offsetY };
+  }
+  
+  // Exponer globalmente para que quickbar pueda llamarla
+  window.__synthPrepareForFullscreen = prepareForFullscreen;
 
   function setClampDisabled(value) {
     if (clampDisabled === value) return;
@@ -832,6 +903,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
   };
 
   window.addEventListener('resize', () => {
+    // Bypass debounce during fullscreen transition
+    if (window.__synthFullscreenTransition) {
+      handleNavResize();
+      return;
+    }
     if (navResizeTimer) clearTimeout(navResizeTimer);
     navResizeTimer = setTimeout(() => {
       navResizeTimer = null;
@@ -845,6 +921,60 @@ export function initViewportNavigation({ outer, inner } = {}) {
       handleNavResize();
     }, 90);
   }, { passive: true });
+
+  // ─── Fullscreen transition handling ───
+  // Handle fullscreen changes immediately without debounce to prevent blank screen
+  document.addEventListener('fullscreenchange', () => {
+    window.__synthFullscreenTransition = true;
+    
+    // Clear any pending debounced resize
+    if (navResizeTimer) {
+      clearTimeout(navResizeTimer);
+      navResizeTimer = null;
+    }
+    
+    // Refrescar y renderizar inmediatamente
+    metricsDirty = true;
+    refreshMetrics();
+    fitContentToViewport();
+    render();
+    renderCanvasBgPanels();
+    
+    // Renderizar de nuevo en el próximo frame para capturar cambios del navegador
+    requestAnimationFrame(() => {
+      metricsDirty = true;
+      refreshMetrics();
+      fitContentToViewport();
+      render();
+      renderCanvasBgPanels();
+      
+      // Y otro render después de un pequeño delay para asegurar estabilidad
+      requestAnimationFrame(() => {
+        metricsDirty = true;
+        handleNavResize();
+        render();
+        renderCanvasBgPanels();
+        
+        // Disparar evento para que la app redibuje todos los componentes
+        document.dispatchEvent(new CustomEvent('synth:fullscreenComplete'));
+        
+        // Limpiar flag de transición
+        setTimeout(() => {
+          window.__synthFullscreenTransition = false;
+          
+          // Redibujado final de seguridad después de que el navegador termine
+          metricsDirty = true;
+          refreshMetrics();
+          handleNavResize();
+          render();
+          renderCanvasBgPanels();
+          
+          // Disparar evento de nuevo para asegurar redibujado completo
+          document.dispatchEvent(new CustomEvent('synth:fullscreenComplete'));
+        }, 400);
+      });
+    });
+  });
 }
 
 /**

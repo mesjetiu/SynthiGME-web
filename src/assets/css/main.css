@@ -177,6 +177,27 @@ body {
   -webkit-user-select: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   FULLSCREEN STYLES
+   ═══════════════════════════════════════════════════════════════════════════
+   Estilos para minimizar el "flash" negro durante la transición a fullscreen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:fullscreen,
+::backdrop {
+  background: #000;
+}
+
+/* Durante la transición a fullscreen, asegurar que el contenido permanezca visible */
+html:fullscreen,
+html:-webkit-full-screen {
+  background: #000;
+}
+
+html:fullscreen #viewportOuter,
+html:-webkit-full-screen #viewportOuter {
+  background: #000;
+}
+
 .fullscreen-toggle {
   position: fixed;
   top: 1rem;

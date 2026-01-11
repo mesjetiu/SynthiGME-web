@@ -155,6 +155,11 @@ class App {
       this._resizeLargeMatrices();
     };
     window.addEventListener('resize', () => {
+      // Bypass debounce during fullscreen transition
+      if (window.__synthFullscreenTransition) {
+        runAppResizeWork();
+        return;
+      }
       if (appResizeTimer) clearTimeout(appResizeTimer);
       appResizeTimer = setTimeout(() => {
         appResizeTimer = null;
@@ -168,6 +173,13 @@ class App {
         runAppResizeWork();
       }, 120);
     }, { passive: true });
+
+    // Listener para redibujado completo después de fullscreen
+    // Asegura que matrices y paneles se redibujen correctamente
+    document.addEventListener('synth:fullscreenComplete', () => {
+      this._schedulePanelSync();
+      this._resizeLargeMatrices();
+    });
   }
 
   ensureAudio() {

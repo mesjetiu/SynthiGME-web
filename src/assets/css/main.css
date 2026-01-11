@@ -3550,34 +3550,36 @@ small { color:#aaa; }
 /* Matriz de ruteo de grabación */
 .recording-settings-matrix-container {
   margin-top: 8px;
+  overflow-x: auto;
 }
 
 .recording-routing-matrix {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px;
+  min-width: fit-content;
 }
 
 .recording-routing-matrix__header {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   padding-bottom: 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .recording-routing-matrix__corner {
-  width: 50px;
+  width: 44px;
   flex-shrink: 0;
 }
 
 .recording-routing-matrix__header-cell {
-  flex: 1;
-  min-width: 24px;
+  width: 22px;
+  flex-shrink: 0;
   text-align: center;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 600;
   color: #ef9a9a;
   padding: 2px 0;
@@ -3590,9 +3592,9 @@ small { color:#aaa; }
 }
 
 .recording-routing-matrix__row-label {
-  width: 50px;
+  width: 44px;
   flex-shrink: 0;
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   color: #bbb;
   padding-left: 2px;
   white-space: nowrap;
@@ -3601,11 +3603,11 @@ small { color:#aaa; }
 }
 
 .recording-routing-matrix__toggle {
-  flex: 1;
-  min-width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  border-radius: 3px;
   background: rgba(40, 40, 40, 0.6);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;

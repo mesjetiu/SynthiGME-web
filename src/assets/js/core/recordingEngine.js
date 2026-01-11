@@ -53,7 +53,7 @@ export class RecordingEngine {
     const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_TRACKS);
     if (stored) {
       const count = parseInt(stored, 10);
-      if (count >= 1 && count <= 8) return count;
+      if (count >= 1 && count <= MAX_RECORDING_TRACKS) return count;
     }
     return 2; // Default: stereo
   }
@@ -127,7 +127,7 @@ export class RecordingEngine {
    * Set track count and update routing matrix
    */
   set trackCount(count) {
-    const newCount = Math.max(1, Math.min(8, count));
+    const newCount = Math.max(1, Math.min(MAX_RECORDING_TRACKS, count));
     if (newCount === this._trackCount) return;
     
     this._trackCount = newCount;

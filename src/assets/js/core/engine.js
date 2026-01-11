@@ -272,14 +272,9 @@ export class AudioEngine {
     const ctx = this.audioCtx;
     const bus = this.outputBuses[busIndex];
     if (!ctx || !bus) return;
-    const pan = this.outputPans[busIndex] ?? 0;
-    const angle = (pan + 1) * 0.25 * Math.PI;
-    const left = Math.cos(angle);
-    const right = Math.sin(angle);
-    setParamSmooth(bus.panLeft.gain, left, ctx);
-    setParamSmooth(bus.panRight.gain, right, ctx);
     
-    // Actualizar también el panning en stereo buses
+    // Actualizar panning en stereo buses (Pan 1-4, Pan 5-8)
+    // Nota: No modificar panLeft/panRight (channelGains) - esos contienen valores de routing
     this._updateStereoBusPanning(busIndex);
   }
 

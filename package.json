@@ -32,6 +32,8 @@
   "homepage": "https://github.com/mesjetiu/SynthiGME-web#readme",
   "devDependencies": {
     "esbuild": "^0.27.2",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^27.0.1",
     "svgo": "^4.0.0"
   }
 }

@@ -1552,6 +1552,17 @@ export class AudioEngine {
    */
   async closeAudioContext() {
     if (this.audioCtx) {
+      // Detener todos los módulos primero para que liberen recursos
+      for (const m of this.modules) {
+        if (m.stop) {
+          try {
+            m.stop();
+          } catch (e) {
+            log.warn('Error stopping module:', e);
+          }
+        }
+      }
+      
       try {
         await this.audioCtx.close();
         log.info('AudioContext closed');
@@ -1561,6 +1572,7 @@ export class AudioEngine {
       this.audioCtx = null;
       this.workletReady = false;
       this._workletLoadPromise = null;
+      this.isRunning = false;
       // Limpiar buses de salida (se recrearán al reiniciar)
       this.outputBuses = [];
       this.masterGains = [];

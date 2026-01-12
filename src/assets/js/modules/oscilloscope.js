@@ -364,6 +364,10 @@ export class OscilloscopeModule extends Module {
       this.inputX = null;
     }
     
+    // Resetear estado del worklet para que se recargue en el nuevo contexto
+    this.workletReady = false;
+    this._workletLoadPromise = null;
+    
     this._onDataCallbacks = [];
   }
 }

@@ -2002,6 +2002,7 @@ class App {
       min: pulseLevelCfg.min ?? 0,
       max: pulseLevelCfg.max ?? 1,
       initial: pulseLevelCfg.initial ?? 0,
+      pixelsForFullRange: pulseLevelCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelPulseVolume(panelIndex, oscIndex, value)
     };
     
@@ -2010,6 +2011,7 @@ class App {
       min: pulseWidthCfg.min ?? 0,
       max: pulseWidthCfg.max ?? 1,
       initial: pulseWidthCfg.initial ?? 0.5,
+      pixelsForFullRange: pulseWidthCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelPulseWidth(panelIndex, oscIndex, value)
     };
     
@@ -2018,6 +2020,7 @@ class App {
       min: sineLevelCfg.min ?? 0,
       max: sineLevelCfg.max ?? 1,
       initial: sineLevelCfg.initial ?? 0,
+      pixelsForFullRange: sineLevelCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelOscVolume(panelIndex, oscIndex, value)
     };
     
@@ -2026,6 +2029,7 @@ class App {
       min: sineSymmetryCfg.min ?? 0,
       max: sineSymmetryCfg.max ?? 1,
       initial: sineSymmetryCfg.initial ?? 0.5,
+      pixelsForFullRange: sineSymmetryCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelSineSymmetry(panelIndex, oscIndex, value)
     };
     
@@ -2034,6 +2038,7 @@ class App {
       min: triangleLevelCfg.min ?? 0,
       max: triangleLevelCfg.max ?? 1,
       initial: triangleLevelCfg.initial ?? 0,
+      pixelsForFullRange: triangleLevelCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelTriVolume(panelIndex, oscIndex, value)
     };
     
@@ -2042,6 +2047,7 @@ class App {
       min: sawtoothLevelCfg.min ?? 0,
       max: sawtoothLevelCfg.max ?? 1,
       initial: sawtoothLevelCfg.initial ?? 0,
+      pixelsForFullRange: sawtoothLevelCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelSawVolume(panelIndex, oscIndex, value)
     };
     
@@ -2050,7 +2056,7 @@ class App {
       min: frequencyCfg.min ?? 1,
       max: frequencyCfg.max ?? 10000,
       initial: frequencyCfg.initial ?? 10,
-      pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 900,
+      pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 1500,
       onChange: value => this._updatePanelOscFreq(panelIndex, oscIndex, value)
     };
     

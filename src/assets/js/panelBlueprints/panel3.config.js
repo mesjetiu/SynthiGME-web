@@ -85,8 +85,8 @@ export default {
         min: 0,                    // Ganancia mínima (silencio)
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
-        curve: 'linear'            // Curva lineal para control de ganancia
-        // pixelsForFullRange: 300 // Opcional: píxeles para recorrer el rango
+        curve: 'linear',           // Curva lineal para control de ganancia
+        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
       },
 
       // Knob 1: Pulse Width
@@ -96,7 +96,8 @@ export default {
         min: 0.01,                 // Mínimo (evitar 0 que causa silencio)
         max: 0.99,                 // Máximo (evitar 1 que causa silencio)
         initial: 0.5,              // Onda cuadrada (50% duty cycle)
-        curve: 'linear'            // Curva lineal
+        curve: 'linear',           // Curva lineal
+        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
       },
 
       // Knob 2: Sine Level
@@ -105,7 +106,8 @@ export default {
         min: 0,                    // Ganancia mínima (silencio)
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
-        curve: 'linear'            // Curva lineal para control de ganancia
+        curve: 'linear',           // Curva lineal para control de ganancia
+        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
       },
 
       // Knob 3: Sine Symmetry
@@ -118,7 +120,8 @@ export default {
         min: 0,                    // Máxima asimetría hacia abajo
         max: 1,                    // Máxima asimetría hacia arriba
         initial: 0.5,              // Sine puro (sin asimetría)
-        curve: 'linear'            // Curva lineal
+        curve: 'linear',           // Curva lineal
+        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
       },
 
       // Knob 4: Triangle Level
@@ -127,7 +130,8 @@ export default {
         min: 0,                    // Ganancia mínima (silencio)
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
-        curve: 'linear'            // Curva lineal para control de ganancia
+        curve: 'linear',           // Curva lineal para control de ganancia
+        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
       },
 
       // Knob 5: Sawtooth Level
@@ -136,7 +140,8 @@ export default {
         min: 0,                    // Ganancia mínima (silencio)
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
-        curve: 'linear'            // Curva lineal para control de ganancia
+        curve: 'linear',           // Curva lineal para control de ganancia
+        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
       },
 
       // Knob 6: Frequency
@@ -411,14 +416,16 @@ export default {
           min: 0,
           max: 1,
           initial: 0,       // Empieza en white noise
-          curve: 'linear'
+          curve: 'linear',
+          pixelsForFullRange: 450  // Alta resolución (3× default)
         },
         // Level: ganancia de salida
         level: {
           min: 0,
           max: 1,
           initial: 0,       // Empieza en silencio
-          curve: 'linear'
+          curve: 'linear',
+          pixelsForFullRange: 450  // Alta resolución (3× default)
         }
       },
       
@@ -450,13 +457,15 @@ export default {
           min: 0,
           max: 1,
           initial: 0,
-          curve: 'linear'
+          curve: 'linear',
+          pixelsForFullRange: 450  // Alta resolución (3× default)
         },
         level: {
           min: 0,
           max: 1,
           initial: 0,
-          curve: 'linear'
+          curve: 'linear',
+          pixelsForFullRange: 450  // Alta resolución (3× default)
         }
       },
       

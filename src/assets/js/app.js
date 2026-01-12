@@ -222,6 +222,10 @@ class App {
     // Handler para mute global desde quickbar
     document.addEventListener('synth:toggleMute', () => {
       this.ensureAudio();
+      // Resumir AudioContext (estamos en un gesto del usuario)
+      if (this.engine.audioCtx && this.engine.audioCtx.state === 'suspended') {
+        this.engine.audioCtx.resume();
+      }
       this.engine.toggleMute();
       const muted = this.engine.muted;
       
@@ -373,6 +377,10 @@ class App {
     // Listener para marcar sesión como "dirty" cuando el usuario interactúa
     document.addEventListener('synth:userInteraction', () => {
       sessionManager.markDirty();
+      // Resumir AudioContext si está suspendido (requiere gesto del usuario)
+      if (this.engine.audioCtx && this.engine.audioCtx.state === 'suspended') {
+        this.engine.audioCtx.resume();
+      }
     });
     
     // ─────────────────────────────────────────────────────────────────────────

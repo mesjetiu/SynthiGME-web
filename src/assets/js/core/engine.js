@@ -149,7 +149,9 @@ export class AudioEngine {
    */
   start(options = {}) {
     if (this.audioCtx) {
-      if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+      // Si ya existe el contexto, no intentar resume automático.
+      // El resume se hará cuando haya un gesto del usuario.
+      // Esto evita el warning "AudioContext was not allowed to start"
       return;
     }
     

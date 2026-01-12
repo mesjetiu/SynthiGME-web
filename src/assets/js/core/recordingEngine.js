@@ -360,9 +360,20 @@ export class RecordingEngine {
     if (this.isRecording) return;
     
     const ctx = this.engine.audioCtx;
-    if (!ctx || ctx.state !== 'running') {
-      log.warn(' AudioContext not running');
+    if (!ctx) {
+      log.warn(' No AudioContext available');
       return;
+    }
+    
+    // Wait for AudioContext to be running
+    if (ctx.state !== 'running') {
+      log.info(' Waiting for AudioContext to start...');
+      try {
+        await ctx.resume();
+      } catch (e) {
+        log.error(' Could not resume AudioContext:', e);
+        return;
+      }
     }
     
     // Build/rebuild routing graph (creates mixers and merger, but NOT worklet)

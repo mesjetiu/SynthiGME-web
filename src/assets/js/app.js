@@ -852,6 +852,9 @@ class App {
     // Reiniciar con el nuevo latencyHint
     this.engine.start({ latencyHint });
     
+    // Esperar a que los worklets se carguen antes de continuar
+    await this.engine.ensureWorkletReady();
+    
     // Reconectar módulos que necesitan el contexto de audio
     // Los módulos se reconectarán automáticamente cuando se usen
     log.info(`✅ Audio engine restarted with latencyHint: "${latencyHint}"`);

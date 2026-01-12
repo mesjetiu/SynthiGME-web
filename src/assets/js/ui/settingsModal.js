@@ -218,18 +218,24 @@ export class SettingsModal {
     const body = document.createElement('div');
     body.className = 'settings-modal__body';
     
-    // Contenedores de cada pestaña
-    this.tabContents = {
-      general: this._createGeneralTabContent(),
-      display: this._createDisplayTabContent(),
-      audio: this._createAudioTabContent(),
-      recording: this._createRecordingTabContent(),
-      advanced: this._createAdvancedTabContent(),
-      about: this._createAboutTabContent()
+    // Contenedores de cada pestaña (lazy loading para performance)
+    this.tabContents = {};
+    this.tabContentCreated = {
+      general: false,
+      display: false,
+      audio: false,
+      recording: false,
+      advanced: false,
+      about: false
     };
     
-    // Agregar contenidos al body
-    Object.values(this.tabContents).forEach(content => body.appendChild(content));
+    // Crear solo la pestaña General al inicio
+    this.tabContents.general = this._createGeneralTabContent();
+    this.tabContentCreated.general = true;
+    body.appendChild(this.tabContents.general);
+    
+    // Contenedor del body para lazy loading
+    this.bodyElement = body;
     
     // Activar pestaña inicial
     this._switchTab('general');
@@ -292,6 +298,33 @@ export class SettingsModal {
    */
   _switchTab(tabId) {
     this.activeTab = tabId;
+    
+    // Lazy load: crear pestaña si no existe
+    if (!this.tabContentCreated[tabId]) {
+      let content;
+      switch (tabId) {
+        case 'display':
+          content = this._createDisplayTabContent();
+          break;
+        case 'audio':
+          content = this._createAudioTabContent();
+          break;
+        case 'recording':
+          content = this._createRecordingTabContent();
+          break;
+        case 'advanced':
+          content = this._createAdvancedTabContent();
+          break;
+        case 'about':
+          content = this._createAboutTabContent();
+          break;
+        default:
+          return; // general ya está creada
+      }
+      this.tabContents[tabId] = content;
+      this.tabContentCreated[tabId] = true;
+      this.bodyElement.appendChild(content);
+    }
     
     // Actualizar botones
     Object.entries(this.tabButtons).forEach(([id, btn]) => {

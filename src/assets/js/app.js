@@ -405,9 +405,7 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // GRABACIÓN DE AUDIO WAV
     // ─────────────────────────────────────────────────────────────────────────
-    // TEMPORAL: comentado para diagnóstico de audio ronco
-    // this._setupRecording();
-    log.warn('[App] Recording system DISABLED for debugging audio issues');
+    this._setupRecording();
     
     // Ahora crear el settingsModal con acceso a todos los modales
     this._setupSettingsModal();

@@ -39,6 +39,7 @@ export class RecordingEngine {
     
     // Mixer nodes for routing outputs to tracks
     this._trackMixers = [];
+    this._trackMerger = null; // Merger for routing to worklet
     this._outputGains = []; // [busIndex][trackIndex]
     
     // Callbacks
@@ -291,26 +292,8 @@ export class RecordingEngine {
       }
     }
     
-    // Create worklet node
-    this.workletNode = new AudioWorkletNode(ctx, 'recording-capture-processor', {
-      numberOfInputs: 1,
-      numberOfOutputs: 0,
-      channelCount: this._trackCount,
-      processorOptions: {
-        channelCount: this._trackCount
-      }
-    });
-    
-    merger.connect(this.workletNode);
-    
-    // Handle messages from worklet
-    this.workletNode.port.onmessage = (event) => {
-      if (event.data.type === 'samples' && this.isRecording) {
-        this._handleSamples(event.data.channels);
-      } else if (event.data.type === 'stopped') {
-        this._finalizeRecording();
-      }
-    };
+    // Store merger for later connection to worklet (when recording starts)
+    this._trackMerger = merger;
   }
 
   /**
@@ -344,9 +327,16 @@ export class RecordingEngine {
     }
     this._trackMixers = [];
     
+    // Disconnect merger
+    if (this._trackMerger) {
+      this._trackMerger.disconnect();
+      this._trackMerger = null;
+    }
+    
     // Disconnect worklet
     if (this.workletNode) {
       this.workletNode.disconnect();
+      this.workletNode.port.onmessage = null;
       this.workletNode = null;
     }
   }
@@ -375,8 +365,32 @@ export class RecordingEngine {
       return;
     }
     
-    // Build/rebuild routing graph
+    // Build/rebuild routing graph (creates mixers and merger, but NOT worklet)
     await this._buildRoutingGraph();
+    
+    // NOW create and connect the worklet (only when actually recording)
+    await this.ensureWorkletReady();
+    
+    this.workletNode = new AudioWorkletNode(ctx, 'recording-capture-processor', {
+      numberOfInputs: 1,
+      numberOfOutputs: 0,
+      channelCount: this._trackCount,
+      processorOptions: {
+        channelCount: this._trackCount
+      }
+    });
+    
+    // Connect merger to worklet
+    this._trackMerger.connect(this.workletNode);
+    
+    // Handle messages from worklet
+    this.workletNode.port.onmessage = (event) => {
+      if (event.data.type === 'samples' && this.isRecording) {
+        this._handleSamples(event.data.channels);
+      } else if (event.data.type === 'stopped') {
+        this._finalizeRecording();
+      }
+    };
     
     // Clear buffers
     this._trackBuffers = [];
@@ -410,6 +424,13 @@ export class RecordingEngine {
    */
   _finalizeRecording() {
     log.info(' Finalizing recording...');
+    
+    // Disconnect and destroy worklet (to free resources)
+    if (this.workletNode) {
+      this.workletNode.disconnect();
+      this.workletNode.port.onmessage = null;
+      this.workletNode = null;
+    }
     
     // Concatenate buffers for each track
     const trackData = [];

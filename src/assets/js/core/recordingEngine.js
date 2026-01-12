@@ -357,7 +357,11 @@ export class RecordingEngine {
    * Start recording
    */
   async startRecording() {
-    if (this.isRecording) return;
+    log.info(' startRecording() called, isRecording:', this.isRecording);
+    if (this.isRecording) {
+      log.warn(' Already recording, ignoring');
+      return;
+    }
     
     const ctx = this.engine.audioCtx;
     if (!ctx) {
@@ -376,6 +380,7 @@ export class RecordingEngine {
       }
     }
     
+    log.info(' Building routing graph...');
     // Build/rebuild routing graph (creates mixers and merger, but NOT worklet)
     await this._buildRoutingGraph();
     
@@ -399,7 +404,10 @@ export class RecordingEngine {
       if (event.data.type === 'samples' && this.isRecording) {
         this._handleSamples(event.data.channels);
       } else if (event.data.type === 'stopped') {
+        log.info(' Worklet confirmed stop, finalizing...');
         this._finalizeRecording();
+      } else {
+        log.warn(' Unknown worklet message:', event.data);
       }
     };
     
@@ -411,21 +419,29 @@ export class RecordingEngine {
     
     // Start recording
     this.isRecording = true;
+    log.info(' Sending start command to worklet...');
     this.workletNode.port.postMessage({ command: 'start' });
     
     if (this.onRecordingStart) this.onRecordingStart();
-    log.info(' Recording started');
+    log.info(' Recording started successfully');
   }
 
   /**
    * Stop recording and export WAV
    */
   stopRecording() {
-    if (!this.isRecording) return;
+    log.info(' stopRecording() called, isRecording:', this.isRecording);
+    if (!this.isRecording) {
+      log.warn(' Not recording, ignoring');
+      return;
+    }
     
     this.isRecording = false;
+    log.info(' Sending stop command to worklet...');
     if (this.workletNode) {
       this.workletNode.port.postMessage({ command: 'stop' });
+    } else {
+      log.error(' No worklet node to stop!');
     }
     // _finalizeRecording will be called when worklet confirms stop
   }

@@ -711,52 +711,6 @@ export class AudioEngine {
   }
   
   /**
-   * DEBUG: Activa/desactiva bypass total de la cadena de channel.
-   * Cuando está activo, bus.input conecta directo a masterGains[0] y [1],
-   * saltando filtros, level, mute, pan y stereo buses.
-   * 
-   * SOLO PARA DIAGNÓSTICO - no usar en producción.
-   * 
-   * @param {boolean} enabled - true para activar bypass total
-   */
-  setChannelBypassDebug(enabled) {
-    if (this._channelBypassDebug === enabled) return;
-    this._channelBypassDebug = enabled;
-    
-    const ctx = this.audioCtx;
-    if (!ctx) return;
-    
-    for (let i = 0; i < this.outputBuses.length; i++) {
-      const bus = this.outputBuses[i];
-      if (!bus) continue;
-      
-      if (enabled) {
-        // BYPASS: Desconectar todo y conectar directo a masters
-        try {
-          bus.input.disconnect();
-          // Conectar directo a L y R con ganancia fija
-          if (this.masterGains[0]) bus.input.connect(this.masterGains[0]);
-          if (this.masterGains[1]) bus.input.connect(this.masterGains[1]);
-        } catch { /* ignore */ }
-      } else {
-        // RESTAURAR: Reconectar cadena normal
-        try {
-          bus.input.disconnect();
-          // Reconectar según estado de filter bypass
-          if (this._filterBypassState[i]) {
-            bus.input.connect(bus.levelNode);
-          } else {
-            bus.input.connect(bus.filterLP);
-          }
-        } catch { /* ignore */ }
-      }
-    }
-    
-    log.info(`[ChannelBypass] ${enabled ? 'ACTIVADO - cadena completa bypaseada' : 'DESACTIVADO - cadena normal'}`);
-    showToast(enabled ? 'Channel Bypass: ON (diagnóstico)' : 'Channel Bypass: OFF', 2000);
-  }
-
-  /**
    * Obtiene el valor actual del filtro de una salida.
    * @param {number} busIndex - Índice del bus (0-based)
    * @returns {number} Valor bipolar (-1 a +1), 0 = sin filtro

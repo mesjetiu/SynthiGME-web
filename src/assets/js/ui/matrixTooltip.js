@@ -2,7 +2,7 @@
  * Matrix Pin Tooltip System
  * 
  * Provides informative tooltips for matrix pins showing source → destination labels.
- * Supports both desktop (hover) and mobile (tap to show, double-tap to toggle) interactions.
+ * Supports both desktop (hover) and mobile (tap to show, tap again to toggle) interactions.
  * 
  * @module ui/matrixTooltip
  * 
@@ -22,8 +22,8 @@
  * 
  * 3. Event Integration:
  *    - Desktop: mouseenter/mouseleave on pins
- *    - Mobile: single tap shows tooltip, double tap toggles pin
- *    - Auto-hide: 2.5s timeout OR tap outside
+ *    - Mobile: first tap shows tooltip + pulse, second tap (while visible) toggles pin
+ *    - Auto-hide: 5s timeout OR tap outside
  * 
  * ─────────────────────────────────────────────────────────────────────────────
  * USAGE
@@ -135,8 +135,9 @@ export function getLabelForDest(dest) {
  * hovered/tapped pin. Handles viewport boundary detection to avoid clipping.
  * 
  * Mobile behavior:
- * - Single tap: show tooltip (does NOT toggle pin)
- * - Double tap: toggle pin (normal behavior)
+ * - First tap: show tooltip + pulse effect (prevents pin toggle)
+ * - Second tap on same pin while tooltip visible: toggle pin (hides tooltip)
+ * - Tap on different pin: show new tooltip (prevents pin toggle)
  * - Tap outside or timeout: hide tooltip
  * 
  * Desktop behavior:
@@ -147,21 +148,17 @@ export class MatrixTooltip {
   /**
    * @param {Object} options
    * @param {number} [options.autoHideDelay=5000] - Auto-hide delay in ms (mobile only)
-   * @param {number} [options.doubleTapThreshold=300] - Max ms between taps for double-tap
    * @param {number} [options.tapMaxDuration=300] - Max duration in ms for a touch to be considered a tap
    * @param {number} [options.tapMaxDistance=10] - Max movement in px for a touch to be considered a tap
    */
-  constructor({ autoHideDelay = 5000, doubleTapThreshold = 300, tapMaxDuration = 300, tapMaxDistance = 10 } = {}) {
+  constructor({ autoHideDelay = 5000, tapMaxDuration = 300, tapMaxDistance = 10 } = {}) {
     this.autoHideDelay = autoHideDelay;
-    this.doubleTapThreshold = doubleTapThreshold;
     this.tapMaxDuration = tapMaxDuration;
     this.tapMaxDistance = tapMaxDistance;
     
     // State
     this._element = null;
     this._hideTimeout = null;
-    this._lastTapTime = 0;
-    this._lastTapTarget = null;
     this._isVisible = false;
     this._currentPinBtn = null; // Track current pin for pulse effect
     
@@ -455,6 +452,11 @@ export class MatrixTooltip {
    * Mobile: touchend - validate tap and show tooltip or allow toggle.
    * Only triggers if: single finger, short duration, minimal movement.
    * This filters out pinch-zoom and pan gestures.
+   * 
+   * Behavior:
+   * - First tap on pin: show tooltip + pulse effect (prevents toggle)
+   * - Second tap on SAME pin while tooltip visible: allow toggle (hides tooltip)
+   * - Tap on DIFFERENT pin: show new tooltip (prevents toggle)
    */
   _handleTouchEnd(ev) {
     const btn = this._touchStartTarget;
@@ -482,26 +484,18 @@ export class MatrixTooltip {
       }
     }
     
-    // Valid tap detected - now handle single vs double tap
-    const now = Date.now();
-    const isDoubleTap = (
-      this._lastTapTarget === btn && 
-      (now - this._lastTapTime) < this.doubleTapThreshold
-    );
+    // Valid tap detected - check if tooltip is already visible on this pin
+    const isTooltipVisibleOnThisPin = this._isVisible && this._currentPinBtn === btn;
     
-    this._lastTapTime = now;
-    this._lastTapTarget = btn;
-    
-    if (isDoubleTap) {
-      // Double tap: hide tooltip and let the click proceed to toggle pin
+    if (isTooltipVisibleOnThisPin) {
+      // Second tap on same pin while tooltip visible: hide tooltip and allow toggle
       this.hide();
-      this._lastTapTime = 0;
-      this._lastTapTarget = null;
       this._resetTouchState();
+      // Don't preventDefault - let the click proceed to toggle the pin
       return;
     }
     
-    // Single tap: show tooltip and prevent click from toggling
+    // First tap or different pin: show tooltip and prevent toggle
     ev.preventDefault();
     
     const table = btn.closest('table');

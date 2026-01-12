@@ -168,12 +168,17 @@ export class MatrixTooltip {
     this._touchStartTarget = null;
     this._wasSingleFinger = false;
     
+    // Click blocking state (prevents synthetic click after showing tooltip)
+    this._blockNextClick = false;
+    this._clickBlockTimeout = null;
+    
     // Bound handlers (for cleanup)
     this._onMouseEnter = this._handleMouseEnter.bind(this);
     this._onMouseLeave = this._handleMouseLeave.bind(this);
     this._onTouchStart = this._handleTouchStart.bind(this);
     this._onTouchEnd = this._handleTouchEnd.bind(this);
     this._onDocumentTap = this._handleDocumentTap.bind(this);
+    this._onMatrixClick = this._handleMatrixClick.bind(this);
     
     // Attached matrices tracking
     this._attachedMatrices = new Map(); // table -> { sourceMap, destMap, rowBase, colBase }
@@ -221,6 +226,10 @@ export class MatrixTooltip {
     // touchstart records initial state, touchend validates it was a real tap
     table.addEventListener('touchstart', this._onTouchStart, { passive: true });
     table.addEventListener('touchend', this._onTouchEnd, { passive: false });
+    
+    // Intercept clicks to block synthetic clicks after showing tooltip
+    // Must be in capture phase to run before largeMatrix's click handler
+    table.addEventListener('click', this._onMatrixClick, { capture: true });
   }
   
   /**
@@ -235,6 +244,7 @@ export class MatrixTooltip {
     table.removeEventListener('mouseout', this._onMouseLeave);
     table.removeEventListener('touchstart', this._onTouchStart);
     table.removeEventListener('touchend', this._onTouchEnd);
+    table.removeEventListener('click', this._onMatrixClick, { capture: true });
   }
   
   /**
@@ -498,6 +508,13 @@ export class MatrixTooltip {
     // First tap or different pin: show tooltip and prevent toggle
     ev.preventDefault();
     
+    // Block the synthetic click event that will follow this touchend
+    this._blockNextClick = true;
+    if (this._clickBlockTimeout) clearTimeout(this._clickBlockTimeout);
+    this._clickBlockTimeout = setTimeout(() => {
+      this._blockNextClick = false;
+    }, 500); // 500ms should be more than enough for synthetic click
+    
     const table = btn.closest('table');
     const maps = this._getMapsForTable(table);
     if (!maps) {
@@ -546,6 +563,26 @@ export class MatrixTooltip {
     const isOnPin = target?.closest?.('button.pin-btn');
     if (!isOnPin) {
       this.hide();
+    }
+  }
+  
+  /**
+   * Intercepts click events on matrix to block synthetic clicks after showing tooltip.
+   * Must run in capture phase before largeMatrix's click handler.
+   */
+  _handleMatrixClick(ev) {
+    if (this._blockNextClick) {
+      const btn = ev.target?.closest?.('button.pin-btn');
+      if (btn) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        this._blockNextClick = false;
+        if (this._clickBlockTimeout) {
+          clearTimeout(this._clickBlockTimeout);
+          this._clickBlockTimeout = null;
+        }
+      }
     }
   }
 }

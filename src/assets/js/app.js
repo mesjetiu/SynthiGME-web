@@ -590,7 +590,7 @@ class App {
     const defaultInputAmplifiers = { levels: Array(8).fill(0) };
     // Formato compatible: usar channels con level para el nuevo OutputChannelsPanel
     const defaultOutputChannels = { 
-      channels: Array(8).fill(null).map(() => ({ level: 0, filter: 0.5, pan: 0.5, power: true }))
+      channels: Array(8).fill(null).map(() => ({ level: 0, filter: 0, pan: 0, power: true }))
     };
     
     // Resetear osciladores

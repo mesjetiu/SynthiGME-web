@@ -2,12 +2,13 @@
  * OutputChannel - Módulo individual de canal de salida
  * 
  * Cada instancia representa un canal de salida con:
- * - Knob Filter (visual, sin funcionalidad por ahora)
- * - Knob Pan (visual, sin funcionalidad por ahora)
- * - Switch On/Off (visual, sin funcionalidad por ahora)
- * - Slider Level (funcional, controla engine.setOutputLevel)
+ * - Knob Filter (control bipolar LP/HP)
+ * - Knob Pan (control bipolar L/R)
+ * - Switch On/Off (mute/unmute)
+ * - Slider Level (control de nivel de salida)
  * 
  * Usa ModuleFrame para el panel visual estilo Panel 2/3.
+ * Configuración desde panel7.config.js.
  * 
  * @module modules/outputChannel
  */
@@ -16,6 +17,13 @@ import { Module } from '../core/engine.js';
 import { ModuleFrame } from '../ui/moduleFrame.js';
 import { Knob } from '../ui/knob.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
+import panel7Config from '../panelBlueprints/panel7.config.js';
+
+// Extraer configuración del panel7.config.js
+const channelConfig = panel7Config.outputChannels || {};
+const knobsConfig = channelConfig.knobs || {};
+const fadersConfig = channelConfig.faders || {};
+const switchesConfig = channelConfig.switches || {};
 
 export class OutputChannel extends Module {
   /**
@@ -42,12 +50,17 @@ export class OutputChannel extends Module {
     this.panKnobUI = null;      // Instancia de clase Knob para pan
     this.powerSwitch = null;
     
-    // Estado
+    // Estado - usar valores iniciales desde config
+    const filterCfg = knobsConfig.filter || {};
+    const panCfg = knobsConfig.pan || {};
+    const levelCfg = fadersConfig.level || {};
+    const powerCfg = switchesConfig.power || {};
+    
     this.values = {
-      level: engine.getOutputLevel(channelIndex) ?? 0,
-      filter: engine.getOutputFilter ? (engine.getOutputFilter(channelIndex) ?? 0.0) : 0.0, // -1 a +1, 0 = sin filtro
-      pan: engine.outputPans?.[channelIndex] ?? 0.0, // -1 = izquierda, 0 = centro, +1 = derecha
-      power: true   // Solo visual por ahora
+      level: engine.getOutputLevel(channelIndex) ?? (levelCfg.initial ?? 0),
+      filter: engine.getOutputFilter ? (engine.getOutputFilter(channelIndex) ?? (filterCfg.initial ?? 0)) : (filterCfg.initial ?? 0),
+      pan: engine.outputPans?.[channelIndex] ?? (panCfg.initial ?? 0),
+      power: powerCfg.initial ?? true
     };
   }
   
@@ -193,13 +206,16 @@ export class OutputChannel extends Module {
    * @private
    */
   _initKnobs() {
+    const filterCfg = knobsConfig.filter || {};
+    const panCfg = knobsConfig.pan || {};
+    
     // Inicializar Filter Knob
     if (this.filterKnobEl && !this.filterKnobUI) {
       this.filterKnobUI = new Knob(this.filterKnobEl, {
-        min: -1,          // Lowpass máximo
-        max: 1,           // Highpass máximo
-        initial: this.values.filter, // 0 = sin filtro (centro)
-        pixelsForFullRange: 900,  // Alta resolución (6× para mayor precisión)
+        min: filterCfg.min ?? -1,
+        max: filterCfg.max ?? 1,
+        initial: this.values.filter,
+        pixelsForFullRange: filterCfg.pixelsForFullRange ?? 900,
         onChange: (value) => {
           this.values.filter = value;
           this.engine.setOutputFilter(this.channelIndex, value);
@@ -211,10 +227,10 @@ export class OutputChannel extends Module {
     // Inicializar Pan Knob
     if (this.panKnobEl && !this.panKnobUI) {
       this.panKnobUI = new Knob(this.panKnobEl, {
-        min: -1,          // Full izquierda
-        max: 1,           // Full derecha
-        initial: this.values.pan, // 0 = centro
-        pixelsForFullRange: 900,  // Alta resolución (6× para mayor precisión)
+        min: panCfg.min ?? -1,
+        max: panCfg.max ?? 1,
+        initial: this.values.pan,
+        pixelsForFullRange: panCfg.pixelsForFullRange ?? 900,
         onChange: (value) => {
           this.values.pan = value;
           this.engine.setOutputPan(this.channelIndex, value);
@@ -301,6 +317,8 @@ export class OutputChannel extends Module {
    * @returns {HTMLElement}
    */
   _createSlider() {
+    const levelCfg = fadersConfig.level || {};
+    
     const wrap = document.createElement('div');
     wrap.className = 'output-channel__slider-wrap';
     
@@ -309,9 +327,9 @@ export class OutputChannel extends Module {
     
     const slider = document.createElement('input');
     slider.type = 'range';
-    slider.min = '0';
-    slider.max = '1';
-    slider.step = '0.001';
+    slider.min = String(levelCfg.min ?? 0);
+    slider.max = String(levelCfg.max ?? 1);
+    slider.step = String(levelCfg.step ?? 0.001);
     slider.value = String(this.values.level);
     slider.className = 'output-channel__slider';
     slider.setAttribute('aria-label', `Level ${this.channelIndex + 1}`);
@@ -428,15 +446,17 @@ export class OutputChannel extends Module {
 /**
  * Contenedor para los 8 output channels del Panel 7.
  * Gestiona la creación y serialización de todos los canales.
+ * Usa configuración de panel7.config.js.
  */
 export class OutputChannelsPanel {
   /**
    * @param {Object} engine - AudioEngine instance
-   * @param {number} [channelCount=8] - Número de canales a crear
+   * @param {number} [channelCount] - Número de canales (default desde config)
    */
-  constructor(engine, channelCount = 8) {
+  constructor(engine, channelCount) {
     this.engine = engine;
-    this.channelCount = channelCount;
+    // Usar el count del config si no se especifica
+    this.channelCount = channelCount ?? channelConfig.count ?? 8;
     this.channels = [];
   }
   

@@ -179,6 +179,7 @@ export class MatrixTooltip {
     this._onTouchEnd = this._handleTouchEnd.bind(this);
     this._onDocumentTap = this._handleDocumentTap.bind(this);
     this._onMatrixClick = this._handleMatrixClick.bind(this);
+    this._onMatrixDblClick = this._handleMatrixDblClick.bind(this);
     
     // Attached matrices tracking
     this._attachedMatrices = new Map(); // table -> { sourceMap, destMap, rowBase, colBase }
@@ -230,6 +231,9 @@ export class MatrixTooltip {
     // Intercept clicks to block synthetic clicks after showing tooltip
     // Must be in capture phase to run before largeMatrix's click handler
     table.addEventListener('click', this._onMatrixClick, { capture: true });
+    
+    // Intercept dblclick to treat it as a single click (prevents interference with rapid taps)
+    table.addEventListener('dblclick', this._onMatrixDblClick, { capture: true });
   }
   
   /**
@@ -245,6 +249,7 @@ export class MatrixTooltip {
     table.removeEventListener('touchstart', this._onTouchStart);
     table.removeEventListener('touchend', this._onTouchEnd);
     table.removeEventListener('click', this._onMatrixClick, { capture: true });
+    table.removeEventListener('dblclick', this._onMatrixDblClick, { capture: true });
   }
   
   /**
@@ -498,10 +503,14 @@ export class MatrixTooltip {
     const isTooltipVisibleOnThisPin = this._isVisible && this._currentPinBtn === btn;
     
     if (isTooltipVisibleOnThisPin) {
-      // Second tap on same pin while tooltip visible: hide tooltip and allow toggle
-      this.hide();
+      // Second tap on same pin while tooltip visible: allow toggle but keep tooltip open
+      // Restart the auto-hide timer to give user more time
+      this._clearHideTimeout();
+      this._hideTimeout = setTimeout(() => this.hide(), this.autoHideDelay);
+      
       this._resetTouchState();
       // Don't preventDefault - let the click proceed to toggle the pin
+      // Tooltip stays visible with pulse effect
       return;
     }
     
@@ -583,6 +592,23 @@ export class MatrixTooltip {
           this._clickBlockTimeout = null;
         }
       }
+    }
+  }
+  
+  /**
+   * Intercepts dblclick events to treat them as single clicks.
+   * Prevents interference when user taps rapidly.
+   */
+  _handleMatrixDblClick(ev) {
+    const btn = ev.target?.closest?.('button.pin-btn');
+    if (btn) {
+      // Prevent default dblclick behavior
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      
+      // Trigger a single click instead
+      btn.click();
     }
   }
 }

@@ -11,7 +11,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 
 | Módulo | Descripción |
 |--------|-------------|
-| **12 Osciladores** | Formas de onda pulse, sine, triangle, sawtooth con anti-aliasing PolyBLEP. Rango 1 Hz–10 kHz. |
+| **12 Osciladores** | Formas de onda pulse, sine, triangle, sawtooth con anti-aliasing PolyBLEP. Fase maestra unificada: todas las ondas derivan de una única fase (sawtooth), garantizando coherencia perfecta. Rango 1 Hz–10 kHz. Preparado para hard sync. |
 | **2 Generadores de ruido** | Algoritmo Voss-McCartney para ruido rosa. Knob de color (blanco→rosa). |
 | **Osciloscopio** | Modos Y-T y X-Y (Lissajous). Trigger Schmitt con histéresis temporal y predictiva. |
 | **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con tooltips, pines inactivos configurables. |
@@ -21,7 +21,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Configuración de audio** | Selección de dispositivo de salida y ruteo de buses lógicos (1-8) a L/R. Matriz 8×2 con persistencia. |
 | **Sistema de patches** | Guardar, cargar, renombrar y eliminar patches. Exportar/importar archivos `.sgme.json`. Autoguardado configurable con recuperación de sesión. |
 | **Grabación de audio** | Exportación WAV multitrack (1-12 pistas). Matriz de ruteo outputs→tracks adaptativa. |
-| **Ajustes** | Idioma, escalado (1×-4×), autoguardado, wake lock, dormancy. Pestaña Visualización para pines y escala. |
+| **Ajustes** | Idioma, escalado (1×-4×), autoguardado, wake lock, dormancy, modo de latencia. Pestaña Visualización para pines y escala. |
 | **Dormancy** | Sistema de optimización que silencia automáticamente módulos sin conexiones activas. Reduce carga de CPU en móviles. |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
@@ -114,7 +114,7 @@ Este comando ejecuta `node scripts/build.mjs`, que realiza los siguientes pasos:
 El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 
 ### Ejecutar los tests
-El proyecto incluye tests de regresión para el sistema de mapeo de matrices (blueprintMapper). Ejecuta:
+El proyecto incluye una suite extensa de tests (725+ casos). Ejecuta:
 
 ```bash
 npm test
@@ -122,9 +122,13 @@ npm test
 
 Este comando usa el runner nativo de Node.js (`node --test`) y ejecuta todos los archivos `*.test.js` en la carpeta `tests/`. Los tests verifican:
 
-- Conversión correcta de numeración Synthi → índice físico
-- Los huecos (columnas/filas ocultas) nunca aparecen como claves en los mapas
-- Posiciones específicas de destinos críticos (osciloscopio, buses de salida)
+- Mapeo de matrices Synthi → índice físico
+- Motor de audio (AudioEngine) con mocks
+- Sistema de dormancy y optimizaciones
+- Módulos de síntesis (osciladores, ruido, osciloscopio)
+- Sistema de patches (migraciones, validación, esquema)
+- Internacionalización (paridad de traducciones)
+- Utilidades (logging, constantes, deepMerge)
 
 ## Licencia
 SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, modificar y redistribuir el código manteniendo la atribución correspondiente.

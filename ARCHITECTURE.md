@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 11 de enero de 2026 (stereo buses, filtros, output channels)
+> Última actualización: 12 de enero de 2026 (fase maestra unificada, multi-oscillator)
 
 ---
 
@@ -76,7 +76,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 
 | Archivo | Propósito |
 |---------|----------|
-| `synthOscillator.worklet.js` | Oscilador con fase coherente, 4 formas de onda (pulse, sine, triangle, sawtooth), anti-aliasing PolyBLEP, entrada para hard sync, y parámetro `detune` para modulación V/Oct |
+| `synthOscillator.worklet.js` | Oscilador multi-waveform con **fase maestra unificada**. Modo `single` (1 forma de onda, 1 salida) o modo `multi` (4 formas de onda, 2 salidas). Todas las ondas derivan de una única fase (rampa 0→1 = sawtooth), garantizando coherencia perfecta. Anti-aliasing PolyBLEP, entrada para hard sync, parámetro `detune` para V/Oct, AudioParams individuales para niveles de cada onda |
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
@@ -1020,19 +1020,48 @@ El `AudioContext` se crea con un `latencyHint` que determina el tamaño del buff
 Los `OscillatorNode` nativos de Web Audio tienen limitaciones:
 - `setPeriodicWave()` cambia la forma de onda instantáneamente → **clicks audibles**
 - No exponen la **fase** del oscilador → imposible implementar **hard sync**
+- Cada oscilador tiene fase independiente → **imposible sincronizar múltiples formas de onda**
 
-Para resolver esto, SynthiGME-web usa **AudioWorklet** para osciladores que requieren:
-- Modulación suave de parámetros (pulse width, sine symmetry)
-- Acceso a la fase interna (para sincronización futura)
+Para resolver esto, SynthiGME-web usa **AudioWorklet** con una **fase maestra unificada**:
+- Una única variable `phase` (rampa 0→1) controla todas las formas de onda
+- El **sawtooth ES la fase** escalada: `saw = 2 * phase - 1`
+- Las demás ondas derivan matemáticamente de la fase maestra
+- Modulación suave de parámetros (pulse width, sine symmetry) sin clicks
+- Acceso a la fase interna para hard sync entre osciladores
 
-### Arquitectura
+### Arquitectura de Fase Maestra
+
+```
+          FASE MAESTRA (rampa 0→1)
+                   │
+    ┌──────────────┼──────────────┬──────────────┐
+    ▼              ▼              ▼              ▼
+ SAWTOOTH       SINE          TRIANGLE        PULSE
+2*phase-1   sin(φ(phase))   |2*phase-1|    phase<w?1:-1
+    │              │              │              │
+    ▼              ▼              ▼              ▼
+ ×sawLevel    ×sineLevel     ×triLevel     ×pulseLevel
+    │              │              │              │
+    └──────┬───────┘              └──────┬───────┘
+           ▼                             ▼
+      OUTPUT 0                      OUTPUT 1
+     (sine+saw)                   (tri+pulse)
+```
+
+**Ventajas de esta arquitectura:**
+- **Coherencia perfecta**: todas las ondas están en fase al cambiar frecuencia
+- **Eficiencia**: ~70% menos nodos de audio (1 worklet vs 4 nodos separados)
+- **Hard sync trivial**: resetear `phase = 0` sincroniza todas las ondas simultáneamente
+- **Cache locality**: todos los cálculos usan la misma variable `phase`
+
+### Diagrama de Componentes
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Hilo Principal (JS)                      │
 │  ┌─────────────────┐     ┌──────────────────┐               │
 │  │  AudioEngine    │────▶│ AudioWorkletNode │               │
-│  │ createSynthOsc()│     │  (proxy)         │               │
+│  │createMultiOsc() │     │  (2 outputs)     │               │
 │  └─────────────────┘     └────────┬─────────┘               │
 └───────────────────────────────────┼─────────────────────────┘
                                     │ MessagePort
@@ -1041,25 +1070,41 @@ Para resolver esto, SynthiGME-web usa **AudioWorklet** para osciladores que requ
 │                          ┌────────▼─────────┐               │
 │                          │ SynthOscillator  │               │
 │                          │   Processor      │               │
-│                          │  - phase         │               │
+│                          │  - phase (0→1)   │               │
 │                          │  - polyBLEP      │               │
-│                          │  - hard sync     │               │
+│                          │  - hard sync in  │               │
+│                          │  - 4 waveforms   │               │
+│                          │  - 4 level params│               │
 │                          └──────────────────┘               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### SynthOscillatorProcessor
 
+**Modos de operación:**
+- `single` — Una forma de onda, 1 salida (compatibilidad legacy)
+- `multi` — 4 formas de onda, 2 salidas (Panel 3)
+
 **Formas de onda disponibles:**
-- `pulse` — con parámetro `pulseWidth` (0.0–1.0)
-- `sine` — con parámetro `symmetry` (0.0–1.0) para simetría variable
+- `pulse` — con parámetro `pulseWidth` (0.01–0.99)
+- `sine` — con parámetro `symmetry` (0.01–0.99) para simetría variable
 - `triangle` — onda triangular
-- `sawtooth` — diente de sierra
+- `sawtooth` — diente de sierra (= fase maestra escalada)
+
+**AudioParams (modo multi):**
+- `frequency` — Frecuencia base en Hz
+- `detune` — Desafinación en cents (para V/Oct)
+- `pulseWidth` — Ancho de pulso (0.01–0.99)
+- `symmetry` — Simetría del sine (0.01–0.99)
+- `sineLevel` — Nivel del sine (0–1)
+- `sawLevel` — Nivel del sawtooth (0–1)
+- `triLevel` — Nivel del triangle (0–1)
+- `pulseLevel` — Nivel del pulse (0–1)
 
 **Características:**
 - **Fase coherente**: la fase se mantiene al cambiar parámetros
 - **Anti-aliasing PolyBLEP**: reduce aliasing en transiciones abruptas (pulse, saw)
-- **Hard sync**: entrada 0 reservada para señal de sincronización (zero-crossing detection)
+- **Hard sync**: entrada 0 para señal de sincronización (flanco positivo resetea fase)
 
 ### API de Uso
 
@@ -1067,7 +1112,9 @@ Para resolver esto, SynthiGME-web usa **AudioWorklet** para osciladores que requ
 // Esperar a que el worklet esté listo
 await engine.ensureWorkletReady();
 
-// Crear oscilador
+// ═══════════════════════════════════════════════════════════
+// MODO SINGLE (legacy, una forma de onda)
+// ═══════════════════════════════════════════════════════════
 const osc = engine.createSynthOscillator({
   waveform: 'pulse',  // 'pulse' | 'sine' | 'triangle' | 'sawtooth'
   frequency: 440,
@@ -1076,25 +1123,63 @@ const osc = engine.createSynthOscillator({
   gain: 1.0
 });
 
-// Conectar
 osc.connect(destination);
-
-// Modular parámetros (sin clicks)
 osc.setFrequency(880);
 osc.setPulseWidth(0.3);
-osc.setSymmetry(0.7);
-osc.setWaveform('sawtooth');
+
+// ═══════════════════════════════════════════════════════════
+// MODO MULTI (4 formas de onda, fase maestra)
+// ═══════════════════════════════════════════════════════════
+const multiOsc = engine.createMultiOscillator({
+  frequency: 440,
+  pulseWidth: 0.5,
+  symmetry: 0.5,
+  sineLevel: 0.5,     // mezcla de ondas
+  sawLevel: 0.3,
+  triLevel: 0,
+  pulseLevel: 0.2
+});
+
+// 2 salidas: output 0 = sine+saw, output 1 = tri+pulse
+multiOsc.connect(sineSawDestination, 0);
+multiOsc.connect(triPulseDestination, 1);
+
+// Métodos de control
+multiOsc.setFrequency(880);
+multiOsc.setSineLevel(1.0);
+multiOsc.setSawLevel(0);
+multiOsc.setPulseWidth(0.3);
+
+// ═══════════════════════════════════════════════════════════
+// HARD SYNC (conectar oscilador maestro)
+// ═══════════════════════════════════════════════════════════
+const master = engine.createMultiOscillator({ frequency: 100, sawLevel: 1 });
+const slave = engine.createMultiOscillator({ frequency: 300, sawLevel: 1 });
+
+// La fase del slave se resetea en cada ciclo del master
+slave.connectSync(master);  // output 0 del master → input 0 del slave
 
 // Detener
-osc.stop();
+multiOsc.stop();
 ```
+
+### Comparativa de Eficiencia
+
+| Aspecto | Antes (4 nodos) | Ahora (1 worklet multi) |
+|---------|-----------------|-------------------------|
+| Nodos AudioContext | 10 por oscilador | 3 por oscilador |
+| GainNodes intermedios | 4 | 0 |
+| Context switches | Alto | Bajo |
+| Coherencia de fase | ❌ Imposible | ✅ Perfecta |
+| Hard sync | ❌ No disponible | ✅ Preparado |
+| Overhead | Alto | Bajo |
 
 ### Fallback
 
 Si el navegador no soporta AudioWorklet o falla la carga:
 - `engine.workletReady` será `false`
-- Los paneles usan `OscillatorNode` nativo como fallback
-- La funcionalidad de hard sync no estará disponible
+- El Panel 3 no funcionará (requiere worklet)
+- Los osciladores del Panel 2 (básicos) usan `OscillatorNode` nativo como fallback
 
 ---
 
@@ -1336,7 +1421,7 @@ docs/
 
 ## 15. Consideraciones Futuras
 
-- [ ] **Hard sync**: Conectar señal de sincronización a entrada del worklet (Panel 6)
+- [x] **Hard sync**: Entrada de sincronización implementada en worklet. Pendiente: UI en Panel 3/6 para configurar conexiones de sync
 - [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
 - [x] **Presets**: Sistema de guardado/carga de patches → Ver [Sección 4](#4-sistema-de-patchesestados)
 - [x] **Grabación**: Sistema de grabación multitrack WAV → Ver [Sección 6](#6-sistema-de-grabación-de-audio)
@@ -1390,7 +1475,7 @@ tests/
 npm test
 ```
 
-### Cobertura actual (~355 casos)
+### Cobertura actual (~725 casos)
 
 | Área | Tests | Verificaciones principales |
 |------|-------|---------------------------|
@@ -1398,6 +1483,7 @@ npm test
 | `core/engine` | AudioEngine con mocks | Inicialización, niveles, panning, routing, CV |
 | `core/oscillatorState` | Estado de osciladores | `getOrCreateOscState()`, valores por defecto |
 | `core/recordingEngine` | Grabación multitrack | Configuración 1-12 pistas, matriz de ruteo |
+| `core/dormancyManager` | Sistema de dormancy | Detección de conexiones, estados dormant/active |
 | `modules/*` | Módulos de síntesis | Inicialización con mocks de AudioContext |
 | `panelBlueprints` | Blueprints y configs | Consistencia, proporciones, parámetros válidos |
 | `state/*` | Sistema de patches | Conversiones, migraciones, validación de esquema |

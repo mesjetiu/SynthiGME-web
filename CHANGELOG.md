@@ -8,10 +8,21 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Fase maestra unificada en osciladores**: todas las formas de onda (sine, saw, tri, pulse) ahora derivan de una única fase maestra en el worklet. Garantiza coherencia perfecta entre formas de onda al cambiar frecuencia. La fase maestra es el sawtooth (rampa 0→1), del cual se derivan las demás ondas.
+- **Multi-waveform oscillator**: nuevo modo `multi` en el worklet que genera las 4 formas de onda simultáneamente con 2 salidas (sine+saw, tri+pulse). Reduce ~70% los nodos de audio por oscilador.
+- **AudioParams de nivel por forma de onda**: `sineLevel`, `sawLevel`, `triLevel`, `pulseLevel` permiten control sample-accurate del volumen de cada forma de onda directamente en el worklet.
+- **Preparación para hard sync**: entrada de sincronización lista en el worklet. La fase se resetea en cada flanco positivo de la señal de sync. Método `connectSync()` disponible para conectar osciladores.
 - **Sistema de dormancy**: optimización de rendimiento que silencia automáticamente módulos de audio sin conexiones activas en la matriz. Reduce carga de CPU especialmente en dispositivos móviles. Configurable en Ajustes → Avanzado → Optimizaciones.
 - **Filter bypass**: optimización que desconecta los filtros LP/HP cuando están en posición neutral (|valor| < 0.02), reduciendo carga de CPU. Habilitado por defecto. Configurable en Ajustes → Avanzado → Optimizaciones.
 - **Modo de latencia**: permite elegir entre "Interactivo" (baja latencia, ideal para desktop) y "Reproducción" (buffers grandes, estable en móviles). Por defecto: móviles usan Reproducción, desktop usa Interactivo. Cambiar requiere reiniciar el motor de audio.
 - **Sección Optimizaciones** en Ajustes: nueva sección extensible en la pestaña Avanzado que agrupa todas las optimizaciones de rendimiento con controles de debug individuales y globales.
+
+### Cambiado
+- **Arquitectura de osciladores del Panel 3**: cada oscilador ahora usa un único worklet multi-waveform en lugar de 4 nodos separados (2 worklets + 2 OscillatorNode nativos). Reduce overhead de scheduling del AudioGraph.
+- **Panel 3 requiere worklet**: eliminado fallback a OscillatorNode nativo. Los navegadores sin soporte de AudioWorklet no podrán usar el Panel 3.
+
+### Mejorado
+- **Rendimiento de osciladores**: ~70% menos nodos de audio por oscilador, menos context switches, mejor cache locality al calcular todas las ondas desde la misma fase.
 
 ## [0.3.0] - 2026-01-11
 

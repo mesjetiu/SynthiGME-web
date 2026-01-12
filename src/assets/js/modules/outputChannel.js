@@ -311,7 +311,7 @@ export class OutputChannel extends Module {
     slider.type = 'range';
     slider.min = '0';
     slider.max = '1';
-    slider.step = '0.01';
+    slider.step = '0.001';
     slider.value = String(this.values.level);
     slider.className = 'output-channel__slider';
     slider.setAttribute('aria-label', `Level ${this.channelIndex + 1}`);
@@ -322,7 +322,7 @@ export class OutputChannel extends Module {
     // Value display
     const valueDisplay = document.createElement('div');
     valueDisplay.className = 'output-channel__value';
-    valueDisplay.textContent = this.values.level.toFixed(2);
+    valueDisplay.textContent = this.values.level.toFixed(3);
     this.valueDisplay = valueDisplay;
     
     let lastCommittedValue = this.values.level;
@@ -338,7 +338,7 @@ export class OutputChannel extends Module {
       lastCommittedValue = numericValue;
       this.values.level = numericValue;
       this.engine.setOutputLevel(this.channelIndex, numericValue, { ramp: 0.06 });
-      valueDisplay.textContent = numericValue.toFixed(2);
+      valueDisplay.textContent = numericValue.toFixed(3);
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     

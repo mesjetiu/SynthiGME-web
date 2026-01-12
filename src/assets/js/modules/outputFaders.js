@@ -51,7 +51,7 @@ export class OutputFaderModule extends Module {
       slider.type = 'range';
       slider.min = '0';
       slider.max = '1';
-      slider.step = '0.01';
+      slider.step = '0.001';
       slider.value = String(this.engine.getOutputLevel(i) ?? 0);
       slider.className = 'output-fader';
       slider.setAttribute('aria-label', `Nivel salida ${i + 1}`);
@@ -80,7 +80,7 @@ export class OutputFaderModule extends Module {
         if (numericValue === lastCommittedValue) return;
         lastCommittedValue = numericValue;
         this.engine.setOutputLevel(i, numericValue, { ramp: 0.06 });
-        value.textContent = numericValue.toFixed(2);
+        value.textContent = numericValue.toFixed(3);
         // Notificar que hay cambios sin guardar
         document.dispatchEvent(new CustomEvent('synth:userInteraction'));
       };
@@ -98,7 +98,7 @@ export class OutputFaderModule extends Module {
 
       const value = document.createElement('div');
       value.className = 'output-fader-value';
-      value.textContent = Number(slider.value).toFixed(2);
+      value.textContent = Number(slider.value).toFixed(3);
       
       // Guardar referencia al display
       this.valueDisplays.push(value);

@@ -24,6 +24,12 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ### Mejorado
 - **Rendimiento de osciladores**: ~70% menos nodos de audio por oscilador, menos context switches, mejor cache locality al calcular todas las ondas desde la misma fase.
 
+### Corregido
+- **Carga de worklets en tablets/móviles**: corregida race condition donde los osciladores intentaban crearse antes de que el worklet terminara de cargar. Ahora `ensureAudio()` espera a `ensureWorkletReady()`.
+- **Cambio de latencia en caliente**: corregido error "AudioWorklet does not have valid AudioWorkletGlobalScope" al cambiar el modo de latencia. `closeAudioContext()` ahora llama `stop()` en todos los módulos y resetea el estado del worklet.
+- **Patches no se aplicaban en móviles**: corregido problema donde los patches guardados no tenían efecto en dispositivos móviles debido a que el worklet no estaba listo. Añadido sistema de reintentos automáticos.
+- **Warning "AudioContext was not allowed to start"**: eliminado el resume automático del AudioContext. El audio se reanuda ahora con gestos del usuario (mover knobs, botón mute) en lugar de al cargar la página.
+
 ## [0.3.0] - 2026-01-11
 
 ### Añadido

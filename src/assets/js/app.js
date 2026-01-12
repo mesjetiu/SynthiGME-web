@@ -188,15 +188,25 @@ class App {
     });
   }
 
-  ensureAudio() {
+  /**
+   * Asegura que el motor de audio esté iniciado y el worklet cargado.
+   * @returns {Promise<boolean>} true si el worklet está listo
+   */
+  async ensureAudio() {
     // Obtener latencyHint guardado o usar default según dispositivo
     const savedMode = localStorage.getItem(STORAGE_KEYS.LATENCY_MODE);
     const defaultMode = isMobileDevice() ? 'playback' : 'interactive';
     const latencyHint = savedMode || defaultMode;
     
     this.engine.start({ latencyHint });
+    
+    // Esperar a que el worklet esté listo (crucial para móviles)
+    await this.engine.ensureWorkletReady();
+    
     // Iniciar osciloscopio cuando haya audio
     this._ensurePanel2ScopeStarted();
+    
+    return this.engine.workletReady;
   }
 
   _setupOutputFaders() {
@@ -500,6 +510,10 @@ class App {
       log.warn(' Invalid patch data - missing modules');
       return;
     }
+    
+    // Asegurar que el worklet esté listo antes de aplicar el patch
+    // Esto es crucial para móviles donde la carga puede tardar más
+    await this.ensureAudio();
     
     // Deshabilitar tracking de cambios durante la aplicación del patch
     sessionManager.applyingPatch(true);
@@ -851,8 +865,13 @@ class App {
   /**
    * Dispara la lógica de restauración del estado previo.
    * Debe llamarse DESPUÉS de que el splash haya terminado.
+   * Espera a que el worklet esté listo antes de restaurar.
    */
-  triggerRestoreLastState() {
+  async triggerRestoreLastState() {
+    // Esperar a que el worklet esté listo antes de restaurar el patch
+    // Esto es crucial para móviles donde la carga puede tardar más
+    await this.ensureAudio();
+    
     if (this.settingsModal.getRestoreOnStart()) {
       sessionManager.maybeRestoreLastState({
         getAskBeforeRestore: () => this.settingsModal.getAskBeforeRestore(),
@@ -1540,6 +1559,51 @@ class App {
   // FUNCIONES DE AUDIO PARA OSCILADORES
   // ─────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Programa un reintento de creación de oscilador cuando el worklet esté listo.
+   * En móviles, el worklet puede tardar más en cargar.
+   */
+  _scheduleWorkletRetry(panelIndex, oscIndex) {
+    // Evitar múltiples reintentos para el mismo oscilador
+    const key = `${panelIndex}-${oscIndex}`;
+    if (!this._pendingWorkletRetries) {
+      this._pendingWorkletRetries = new Set();
+    }
+    
+    if (this._pendingWorkletRetries.has(key)) return;
+    this._pendingWorkletRetries.add(key);
+    
+    // Esperar a que el worklet esté listo y reintentar
+    this.engine.ensureWorkletReady().then(ready => {
+      this._pendingWorkletRetries.delete(key);
+      
+      if (ready) {
+        log.info(`Worklet ready - retrying oscillator ${oscIndex} on panel ${panelIndex}`);
+        // Forzar recreación del nodo
+        const panelAudio = this._getPanelAudio(panelIndex);
+        if (panelAudio.nodes[oscIndex]) {
+          panelAudio.nodes[oscIndex] = null;
+        }
+        // Reintentar creación
+        const node = this._ensurePanelNodes(panelIndex, oscIndex);
+        
+        // Reaplicar el estado desde la UI si existe
+        if (node && this._oscillatorUIs) {
+          const oscId = `osc${panelIndex === 3 ? oscIndex + 1 : (panelIndex === 1 ? oscIndex + 7 : oscIndex + 10)}`;
+          const ui = this._oscillatorUIs[oscId];
+          if (ui && typeof ui.serialize === 'function') {
+            // Re-emitir los valores actuales para actualizar los nodos de audio
+            const data = ui.serialize();
+            ui.deserialize(data);
+          }
+        }
+      }
+    }).catch(err => {
+      log.error(`Failed to retry oscillator ${oscIndex}:`, err);
+      this._pendingWorkletRetries.delete(key);
+    });
+  }
+
   _getPanelAudio(panelIndex) {
     if (!this._panelAudios) {
       this._panelAudios = {};
@@ -1551,7 +1615,13 @@ class App {
   }
 
   _ensurePanelNodes(panelIndex, oscIndex) {
-    this.ensureAudio();
+    // Iniciar audio de forma síncrona pero no esperar al worklet
+    // Si el worklet no está listo, registramos para reintentar después
+    this.engine.start({ 
+      latencyHint: localStorage.getItem(STORAGE_KEYS.LATENCY_MODE) || 
+                   (isMobileDevice() ? 'playback' : 'interactive')
+    });
+    
     const ctx = this.engine.audioCtx;
     if (!ctx) return null;
 
@@ -1577,8 +1647,9 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     
     if (!useWorklet) {
-      // Fallback: sin worklet no podemos crear el oscilador multi
-      console.warn('MultiOscillator requires worklet support');
+      // Worklet no está listo aún - programar reintento cuando lo esté
+      log.warn(`MultiOscillator requires worklet support - scheduling retry for osc ${oscIndex}`);
+      this._scheduleWorkletRetry(panelIndex, oscIndex);
       return null;
     }
 

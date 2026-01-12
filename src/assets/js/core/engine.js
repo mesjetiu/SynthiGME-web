@@ -1418,6 +1418,134 @@ export class AudioEngine {
   }
   
   /**
+   * Crea un oscilador multi-waveform con fase maestra unificada.
+   * 
+   * Todas las formas de onda (sine, saw, tri, pulse) se generan desde
+   * una única fase maestra (rampa 0→1), garantizando coherencia perfecta.
+   * 
+   * SALIDAS:
+   * - Output 0: sine + sawtooth
+   * - Output 1: triangle + pulse
+   * 
+   * HARD SYNC:
+   * Conectar una señal al input 0 para resetear la fase en cada
+   * flanco positivo (zero-crossing ascendente).
+   * 
+   * @param {Object} options - Opciones iniciales
+   * @param {number} [options.frequency=10] - Frecuencia inicial
+   * @param {number} [options.pulseWidth=0.5] - Ancho de pulso (0.01-0.99)
+   * @param {number} [options.symmetry=0.5] - Simetría sine (0.01-0.99)
+   * @param {number} [options.sineLevel=0] - Nivel sine (0-1)
+   * @param {number} [options.sawLevel=0] - Nivel sawtooth (0-1)
+   * @param {number} [options.triLevel=0] - Nivel triangle (0-1)
+   * @param {number} [options.pulseLevel=0] - Nivel pulse (0-1)
+   * @returns {AudioWorkletNode|null} El nodo o null si worklet no disponible
+   */
+  createMultiOscillator(options = {}) {
+    if (!this.audioCtx || !this.workletReady) {
+      log.warn('Worklet not ready, cannot create MultiOscillator');
+      return null;
+    }
+
+    const {
+      frequency = 10,
+      pulseWidth = 0.5,
+      symmetry = 0.5,
+      sineLevel = 0,
+      sawLevel = 0,
+      triLevel = 0,
+      pulseLevel = 0
+    } = options;
+
+    const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
+      numberOfInputs: 1,  // Input 0: sync signal
+      numberOfOutputs: 2, // Output 0: sine+saw, Output 1: tri+pulse
+      outputChannelCount: [1, 1],
+      processorOptions: { mode: 'multi' }
+    });
+
+    // Establecer valores iniciales
+    node.parameters.get('frequency').value = frequency;
+    node.parameters.get('pulseWidth').value = pulseWidth;
+    node.parameters.get('symmetry').value = symmetry;
+    node.parameters.get('sineLevel').value = sineLevel;
+    node.parameters.get('sawLevel').value = sawLevel;
+    node.parameters.get('triLevel').value = triLevel;
+    node.parameters.get('pulseLevel').value = pulseLevel;
+
+    const ctx = this.audioCtx;
+
+    // Métodos de conveniencia con rampa suave
+    node.setFrequency = (value, ramp = 0.01) => {
+      const param = node.parameters.get('frequency');
+      const now = ctx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, ramp);
+    };
+
+    node.setPulseWidth = (value, ramp = 0.01) => {
+      const param = node.parameters.get('pulseWidth');
+      const now = ctx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+    };
+
+    node.setSymmetry = (value, ramp = 0.01) => {
+      const param = node.parameters.get('symmetry');
+      const now = ctx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+    };
+
+    node.setSineLevel = (value, ramp = 0.01) => {
+      const param = node.parameters.get('sineLevel');
+      const now = ctx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, ramp);
+    };
+
+    node.setSawLevel = (value, ramp = 0.01) => {
+      const param = node.parameters.get('sawLevel');
+      const now = ctx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, ramp);
+    };
+
+    node.setTriLevel = (value, ramp = 0.01) => {
+      const param = node.parameters.get('triLevel');
+      const now = ctx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, ramp);
+    };
+
+    node.setPulseLevel = (value, ramp = 0.01) => {
+      const param = node.parameters.get('pulseLevel');
+      const now = ctx.currentTime;
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, ramp);
+    };
+
+    node.resetPhase = () => {
+      node.port.postMessage({ type: 'resetPhase' });
+    };
+
+    node.stop = () => {
+      node.port.postMessage({ type: 'stop' });
+    };
+
+    /**
+     * Conecta una señal de sync para hard sync.
+     * La fase se resetea en cada flanco positivo de la señal.
+     * @param {AudioNode} syncSource - Nodo fuente de sync (típicamente otro oscilador)
+     */
+    node.connectSync = (syncSource) => {
+      syncSource.connect(node, 0, 0);
+    };
+
+    return node;
+  }
+
+  /**
    * Cierra el AudioContext actual. 
    * Usado antes de reiniciar con diferente latencyHint.
    * @returns {Promise<void>}

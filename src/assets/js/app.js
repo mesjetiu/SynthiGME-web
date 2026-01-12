@@ -1560,83 +1560,49 @@ class App {
     panelAudio.state = panelAudio.state || [];
     
     let entry = panelAudio.nodes[oscIndex];
-    if (entry && entry.osc && entry.gain && entry.sawOsc && entry.sawGain && entry.triOsc && entry.triGain && entry.pulseOsc && entry.pulseGain && entry.sineSawOut && entry.triPulseOut && entry.freqCVInput) {
+    // Verificar si ya existe con el nuevo formato (multiOsc)
+    if (entry && entry.multiOsc && entry.sineSawOut && entry.triPulseOut && entry.freqCVInput) {
       return entry;
     }
 
     const state = getOrCreateOscState(panelAudio, oscIndex);
     const useWorklet = this.engine.workletReady;
 
-    // SINE oscillator: usar worklet si disponible
-    let osc, gain;
-    if (useWorklet) {
-      osc = this.engine.createSynthOscillator({
-        waveform: 'sine',
-        frequency: state.freq || 10,
-        symmetry: state.sineSymmetry || 0.5,
-        gain: 1.0
-      });
-      gain = ctx.createGain();
-      gain.gain.value = state.oscLevel || 0;
-      osc.connect(gain);
-      // Marcar como worklet para saber cómo actualizar
-      osc._isWorklet = true;
-    } else {
-      osc = ctx.createOscillator();
-      osc.setPeriodicWave(createAsymmetricSineWave(ctx, state.sineSymmetry));
-      osc.frequency.value = state.freq || 10;
-      gain = ctx.createGain();
-      gain.gain.value = state.oscLevel || 0;
-      osc.connect(gain);
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILADOR MULTI-WAVEFORM CON FASE MAESTRA UNIFICADA
+    // ─────────────────────────────────────────────────────────────────────────
+    // Todas las formas de onda (sine, saw, tri, pulse) se generan desde una
+    // única fase maestra en el worklet. Esto garantiza coherencia perfecta
+    // entre formas de onda y facilita el hard sync.
+    // ─────────────────────────────────────────────────────────────────────────
     
-    const sawOsc = ctx.createOscillator();
-    sawOsc.type = 'sawtooth';
-    sawOsc.frequency.value = state.freq || 10;
-
-    const sawGain = ctx.createGain();
-    sawGain.gain.value = state.sawLevel || 0;
-    sawOsc.connect(sawGain);
-
-    const triOsc = ctx.createOscillator();
-    triOsc.type = 'triangle';
-    triOsc.frequency.value = state.freq || 10;
-
-    const triGain = ctx.createGain();
-    triGain.gain.value = state.triLevel || 0;
-    triOsc.connect(triGain);
-
-    // PULSE oscillator: usar worklet si disponible
-    let pulseOsc, pulseGain;
-    if (useWorklet) {
-      pulseOsc = this.engine.createSynthOscillator({
-        waveform: 'pulse',
-        frequency: state.freq || 10,
-        pulseWidth: state.pulseWidth || 0.5,
-        gain: 1.0
-      });
-      pulseGain = ctx.createGain();
-      pulseGain.gain.value = state.pulseLevel || 0;
-      pulseOsc.connect(pulseGain);
-      pulseOsc._isWorklet = true;
-    } else {
-      pulseOsc = ctx.createOscillator();
-      pulseOsc.setPeriodicWave(createPulseWave(ctx, state.pulseWidth));
-      pulseOsc.frequency.value = state.freq || 10;
-      pulseGain = ctx.createGain();
-      pulseGain.gain.value = state.pulseLevel || 0;
-      pulseOsc.connect(pulseGain);
+    if (!useWorklet) {
+      // Fallback: sin worklet no podemos crear el oscilador multi
+      console.warn('MultiOscillator requires worklet support');
+      return null;
     }
 
+    const multiOsc = this.engine.createMultiOscillator({
+      frequency: state.freq || 10,
+      pulseWidth: state.pulseWidth || 0.5,
+      symmetry: state.sineSymmetry || 0.5,
+      sineLevel: state.oscLevel || 0,
+      sawLevel: state.sawLevel || 0,
+      triLevel: state.triLevel || 0,
+      pulseLevel: state.pulseLevel || 0
+    });
+
+    if (!multiOsc) return null;
+
+    // Output 0: sine + saw
     const sineSawOut = ctx.createGain();
     sineSawOut.gain.value = 1.0;
-    gain.connect(sineSawOut);
-    sawGain.connect(sineSawOut);
+    multiOsc.connect(sineSawOut, 0);
 
+    // Output 1: tri + pulse
     const triPulseOut = ctx.createGain();
     triPulseOut.gain.value = 1.0;
-    triGain.connect(triPulseOut);
-    pulseGain.connect(triPulseOut);
+    multiOsc.connect(triPulseOut, 1);
     
     const moduleOut = sineSawOut;
     if (panelIndex !== 3) {
@@ -1644,89 +1610,9 @@ class App {
       if (bus1) moduleOut.connect(bus1);
     }
 
-    const startTime = ctx.currentTime + 0.01;
-    const now = ctx.currentTime;
-    
-    // NOTA: Los try-catch protegen contra estados inválidos de AudioParam.
-    // Son esperados y seguros de ignorar (el estado se sincronizará después).
-    
-    // Solo configurar frecuencia en osciladores nativos (worklets ya tienen frecuencia)
-    if (!useWorklet && Number.isFinite(state.freq)) {
-      try {
-        osc.frequency.cancelScheduledValues(now);
-        osc.frequency.setValueAtTime(state.freq, now);
-        pulseOsc.frequency.cancelScheduledValues(now);
-        pulseOsc.frequency.setValueAtTime(state.freq, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    
-    // Saw y Tri siempre son nativos
-    if (Number.isFinite(state.freq)) {
-      try {
-        sawOsc.frequency.cancelScheduledValues(now);
-        sawOsc.frequency.setValueAtTime(state.freq, now);
-        triOsc.frequency.cancelScheduledValues(now);
-        triOsc.frequency.setValueAtTime(state.freq, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (Number.isFinite(state.oscLevel)) {
-      try {
-        gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(state.oscLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (Number.isFinite(state.sawLevel)) {
-      try {
-        sawGain.gain.cancelScheduledValues(now);
-        sawGain.gain.setValueAtTime(state.sawLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (Number.isFinite(state.triLevel)) {
-      try {
-        triGain.gain.cancelScheduledValues(now);
-        triGain.gain.setValueAtTime(state.triLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    if (Number.isFinite(state.pulseLevel)) {
-      try {
-        pulseGain.gain.cancelScheduledValues(now);
-        pulseGain.gain.setValueAtTime(state.pulseLevel, now);
-      } catch { /* AudioParam puede no estar listo */ }
-    }
-    
-    // Iniciar osciladores nativos (worklets ya están corriendo)
-    // Puede lanzar si el oscilador ya fue iniciado
-    try { 
-      if (!useWorklet) {
-        osc.start(startTime);
-        pulseOsc.start(startTime);
-      }
-      sawOsc.start(startTime);
-      triOsc.start(startTime);
-    } catch { /* oscilador ya iniciado */ }
-
     // ─────────────────────────────────────────────────────────────────────────
     // NODO DE ENTRADA CV PARA MODULACIÓN DE FRECUENCIA (Panel 6)
     // ─────────────────────────────────────────────────────────────────────────
-    //
-    // Este GainNode recibe señales CV del Panel 6 y las escala antes de
-    // aplicarlas al parámetro `detune` de todos los osciladores.
-    //
-    // SISTEMA V/Oct (Voltios por Octava) - EXPONENCIAL
-    // ─────────────────────────────────────────────
-    //
-    // Usamos el AudioParam `detune` (en cents) en lugar de `frequency`.
-    // Esto proporciona modulación exponencial automática:
-    // - 1 octava = 1200 cents
-    // - Ganancia = cvScale × octavesPerUnit × 1200
-    //
-    // Con valores por defecto (cvScale=2, octavesPerUnit=0.5):
-    // - CV = +1 → +1200 cents = +1 octava (frecuencia ×2)
-    // - CV = -1 → -1200 cents = -1 octava (frecuencia ÷2)
-    //
-    // NOTA: Los AudioParams de OscillatorNode soportan a-rate modulation,
-    // lo que permite FM de audio-rate para efectos de síntesis más complejos.
-    //
     const config = this._getOscConfig(oscIndex);
     const cvScale = config?.freqCV?.cvScale ?? panel3Config.defaults?.freqCV?.cvScale ?? 2;
     const octavesPerUnit = config?.freqCV?.octavesPerUnit ?? panel3Config.defaults?.freqCV?.octavesPerUnit ?? 0.5;
@@ -1735,82 +1621,63 @@ class App {
     const freqCVInput = ctx.createGain();
     freqCVInput.gain.value = centsGain;
     
-    // Conectar a los AudioParams `detune` (en cents) - modulación exponencial
-    // Worklets exponen detune como AudioParam, nativos como .detune
-    if (useWorklet) {
-      // Worklets: detune param está en .parameters (si lo soportan)
-      const sineDetune = osc.parameters?.get('detune');
-      const pulseDetune = pulseOsc.parameters?.get('detune');
-      if (sineDetune) freqCVInput.connect(sineDetune);
-      if (pulseDetune) freqCVInput.connect(pulseDetune);
-    } else {
-      // Nativos: .detune es un AudioParam
-      if (osc.detune) freqCVInput.connect(osc.detune);
-      if (pulseOsc.detune) freqCVInput.connect(pulseOsc.detune);
-    }
-    // Saw y Tri siempre son nativos
-    if (sawOsc.detune) freqCVInput.connect(sawOsc.detune);
-    if (triOsc.detune) freqCVInput.connect(triOsc.detune);
+    // Conectar CV al detune del worklet (modulación exponencial)
+    const detuneParam = multiOsc.parameters?.get('detune');
+    if (detuneParam) freqCVInput.connect(detuneParam);
 
-    entry = { osc, gain, sawOsc, sawGain, triOsc, triGain, pulseOsc, pulseGain, sineSawOut, triPulseOut, moduleOut, freqCVInput, _freqInitialized: true, _useWorklet: useWorklet };
+    // Crear referencias de compatibilidad para código existente
+    entry = {
+      // Nuevo: oscilador unificado
+      multiOsc,
+      sineSawOut,
+      triPulseOut,
+      moduleOut,
+      freqCVInput,
+      _freqInitialized: true,
+      _useWorklet: true,
+      _isMultiOsc: true,
+      
+      // Compatibilidad: aliases para código que espera la estructura antigua
+      // Los GainNodes individuales ya no existen; los niveles se controlan
+      // directamente en el worklet via AudioParams
+      osc: multiOsc,
+      gain: null,
+      sawOsc: null,
+      sawGain: null,
+      triOsc: null,
+      triGain: null,
+      pulseOsc: null,
+      pulseGain: null
+    };
     
     // ─────────────────────────────────────────────────────────────────────────
     // DORMANCY SYSTEM
-    // ─────────────────────────────────────────────────────────────────────────
-    // Cuando el oscilador no tiene salida conectada a la matriz, se pone en
-    // estado "dormant": las ganancias internas se silencian para ahorrar CPU.
-    // Al reconectar, se restauran los valores del estado.
     // ─────────────────────────────────────────────────────────────────────────
     entry._isDormant = false;
     entry.setDormant = (dormant) => {
       if (entry._isDormant === dormant) return;
       entry._isDormant = dormant;
       
-      const rampTime = 0.01; // 10ms para evitar clicks
-      const now = ctx.currentTime;
+      const rampTime = 0.01;
       
       if (dormant) {
-        // DORMANT: Silenciar todas las ganancias internas
+        // DORMANT: Silenciar todos los niveles en el worklet
         try {
-          if (entry.gain?.gain) {
-            entry.gain.gain.cancelScheduledValues(now);
-            entry.gain.gain.setTargetAtTime(0, now, rampTime);
-          }
-          if (entry.sawGain?.gain) {
-            entry.sawGain.gain.cancelScheduledValues(now);
-            entry.sawGain.gain.setTargetAtTime(0, now, rampTime);
-          }
-          if (entry.triGain?.gain) {
-            entry.triGain.gain.cancelScheduledValues(now);
-            entry.triGain.gain.setTargetAtTime(0, now, rampTime);
-          }
-          if (entry.pulseGain?.gain) {
-            entry.pulseGain.gain.cancelScheduledValues(now);
-            entry.pulseGain.gain.setTargetAtTime(0, now, rampTime);
-          }
-        } catch { /* Ignorar errores de AudioParam */ }
+          multiOsc.setSineLevel(0, rampTime);
+          multiOsc.setSawLevel(0, rampTime);
+          multiOsc.setTriLevel(0, rampTime);
+          multiOsc.setPulseLevel(0, rampTime);
+        } catch { /* Ignorar errores */ }
       } else {
-        // ACTIVE: Restaurar ganancias desde el estado
+        // ACTIVE: Restaurar niveles desde el estado
         const oscState = panelAudio.state?.[oscIndex];
         if (oscState) {
           try {
-            if (entry.gain?.gain && Number.isFinite(oscState.oscLevel)) {
-              entry.gain.gain.cancelScheduledValues(now);
-              entry.gain.gain.setTargetAtTime(oscState.oscLevel, now, rampTime);
-            }
-            if (entry.sawGain?.gain && Number.isFinite(oscState.sawLevel)) {
-              entry.sawGain.gain.cancelScheduledValues(now);
-              entry.sawGain.gain.setTargetAtTime(oscState.sawLevel, now, rampTime);
-            }
-            if (entry.triGain?.gain && Number.isFinite(oscState.triLevel)) {
-              entry.triGain.gain.cancelScheduledValues(now);
-              entry.triGain.gain.setTargetAtTime(oscState.triLevel, now, rampTime);
-            }
-            if (entry.pulseGain?.gain && Number.isFinite(oscState.pulseLevel)) {
-              entry.pulseGain.gain.cancelScheduledValues(now);
-              entry.pulseGain.gain.setTargetAtTime(oscState.pulseLevel, now, rampTime);
-            }
-          } catch { /* Ignorar errores de AudioParam */ }
+            if (Number.isFinite(oscState.oscLevel)) multiOsc.setSineLevel(oscState.oscLevel, rampTime);
+            if (Number.isFinite(oscState.sawLevel)) multiOsc.setSawLevel(oscState.sawLevel, rampTime);
+            if (Number.isFinite(oscState.triLevel)) multiOsc.setTriLevel(oscState.triLevel, rampTime);
+            if (Number.isFinite(oscState.pulseLevel)) multiOsc.setPulseLevel(oscState.pulseLevel, rampTime);
+          } catch { /* Ignorar errores */ }
         }
       }
     };
@@ -1833,12 +1700,12 @@ class App {
     const panelAudio = this._getPanelAudio(panelIndex);
     const state = getOrCreateOscState(panelAudio, oscIndex);
     
-    // Mapeo de voz a propiedad de estado y nodo de ganancia
+    // Mapeo de voz a propiedad de estado y método del worklet
     const voiceMap = {
-      osc: { stateKey: 'oscLevel', gainNode: 'gain' },
-      saw: { stateKey: 'sawLevel', gainNode: 'sawGain' },
-      tri: { stateKey: 'triLevel', gainNode: 'triGain' },
-      pulse: { stateKey: 'pulseLevel', gainNode: 'pulseGain' }
+      osc: { stateKey: 'oscLevel', setMethod: 'setSineLevel' },
+      saw: { stateKey: 'sawLevel', setMethod: 'setSawLevel' },
+      tri: { stateKey: 'triLevel', setMethod: 'setTriLevel' },
+      pulse: { stateKey: 'pulseLevel', setMethod: 'setPulseLevel' }
     };
     
     const mapping = voiceMap[voice];
@@ -1850,10 +1717,12 @@ class App {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    const gainNode = node?.[mapping.gainNode];
-    if (!gainNode) return;
+    if (!node || !node.multiOsc) return;
     
-    setParamSmooth(gainNode.gain, value, ctx);
+    // Usar el método del worklet multiOsc
+    if (node.multiOsc[mapping.setMethod]) {
+      node.multiOsc[mapping.setMethod](value);
+    }
   }
 
   // Métodos de conveniencia para compatibilidad
@@ -1880,14 +1749,11 @@ class App {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    if (!node || !node.pulseOsc) return;
+    if (!node || !node.multiOsc) return;
     
-    // Usar worklet si disponible (sin clicks), fallback a setPeriodicWave
-    if (node._useWorklet && node.pulseOsc.setPulseWidth) {
-      node.pulseOsc.setPulseWidth(duty);
-    } else {
-      const wave = createPulseWave(ctx, duty);
-      node.pulseOsc.setPeriodicWave(wave);
+    // Usar el método del worklet multiOsc
+    if (node.multiOsc.setPulseWidth) {
+      node.multiOsc.setPulseWidth(duty);
     }
   }
 
@@ -1900,14 +1766,11 @@ class App {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    if (!node || !node.osc) return;
+    if (!node || !node.multiOsc) return;
     
-    // Usar worklet si disponible (sin clicks), fallback a setPeriodicWave
-    if (node._useWorklet && node.osc.setSymmetry) {
-      node.osc.setSymmetry(value);
-    } else {
-      const wave = createAsymmetricSineWave(ctx, value);
-      node.osc.setPeriodicWave(wave);
+    // Usar el método del worklet multiOsc
+    if (node.multiOsc.setSymmetry) {
+      node.multiOsc.setSymmetry(value);
     }
   }
 
@@ -1957,37 +1820,11 @@ class App {
     const ctx = this.engine.audioCtx;
     if (!ctx) return;
     const node = this._ensurePanelNodes(panelIndex, oscIndex);
-    if (!node || !node.osc) return;
+    if (!node || !node.multiOsc) return;
     
-    // Sine - worklet o nativo
-    if (node._useWorklet && node.osc.setFrequency) {
-      node.osc.setFrequency(freq);
-    } else if (node.osc.frequency) {
-      if (!node._freqInitialized) {
-        // Primera inicialización: valor inmediato
-        const now = ctx.currentTime;
-        node.osc.frequency.setValueAtTime(freq, now);
-        node._freqInitialized = true;
-      } else {
-        setParamSmooth(node.osc.frequency, freq, ctx);
-      }
-    }
-    
-    // Saw y Tri siempre nativos
-    if (node.sawOsc?.frequency) {
-      setParamSmooth(node.sawOsc.frequency, freq, ctx);
-    }
-    if (node.triOsc?.frequency) {
-      setParamSmooth(node.triOsc.frequency, freq, ctx);
-    }
-    
-    // Pulse - worklet o nativo
-    if (node.pulseOsc) {
-      if (node._useWorklet && node.pulseOsc.setFrequency) {
-        node.pulseOsc.setFrequency(freq);
-      } else if (node.pulseOsc.frequency) {
-        setParamSmooth(node.pulseOsc.frequency, freq, ctx);
-      }
+    // Actualizar frecuencia en el worklet multiOsc (única fase maestra)
+    if (node.multiOsc.setFrequency) {
+      node.multiOsc.setFrequency(freq);
     }
   }
 

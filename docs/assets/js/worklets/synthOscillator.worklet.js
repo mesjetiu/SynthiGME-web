@@ -1,13 +1,18 @@
 /**
  * SynthOscillator AudioWorklet Processor
  * 
- * Oscilador con control de fase para síntesis con:
- * - Pulse width modulable sin clicks (fase coherente)
- * - Sine symmetry modulable sin clicks (fase coherente)
- * - Triangle y Sawtooth con anti-aliasing
- * - Soporte para hard sync (reset de fase externo)
+ * Oscilador multi-waveform con fase maestra unificada:
+ * - 4 formas de onda (sine, sawtooth, triangle, pulse) generadas desde una única fase
+ * - La fase maestra es la rampa del sawtooth (0→1), garantizando coherencia
+ * - Pulse width y sine symmetry modulables sin clicks
+ * - Anti-aliasing PolyBLEP en todas las discontinuidades
+ * - Soporte para hard sync (reset de fase desde señal externa)
  * 
- * @version 0.3.0 - Añadido triangle y sawtooth
+ * MODOS DE OPERACIÓN:
+ * - 'single': Una forma de onda, 1 salida (compatibilidad legacy)
+ * - 'multi': 4 formas de onda, 2 salidas (sine+saw, tri+pulse)
+ * 
+ * @version 0.4.0 - Fase maestra unificada + preparación hard sync
  */
 
 class SynthOscillatorProcessor extends AudioWorkletProcessor {
@@ -47,17 +52,50 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         minValue: 0,
         maxValue: 1,
         automationRate: 'a-rate'
+      },
+      // Niveles individuales para modo multi
+      {
+        name: 'sineLevel',
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 1,
+        automationRate: 'a-rate'
+      },
+      {
+        name: 'sawLevel',
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 1,
+        automationRate: 'a-rate'
+      },
+      {
+        name: 'triLevel',
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 1,
+        automationRate: 'a-rate'
+      },
+      {
+        name: 'pulseLevel',
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 1,
+        automationRate: 'a-rate'
       }
     ];
   }
 
   constructor(options) {
     super();
+    // Fase maestra: rampa 0→1 (= sawtooth normalizado)
     this.phase = 0;
     this.lastSyncSample = -1;
     this.isRunning = true;
     
-    // Tipo de onda: 'pulse', 'sine', 'triangle', 'sawtooth'
+    // Modo: 'single' (1 waveform, 1 output) o 'multi' (4 waveforms, 2 outputs)
+    this.mode = options?.processorOptions?.mode || 'single';
+    
+    // Tipo de onda para modo single: 'pulse', 'sine', 'triangle', 'sawtooth'
     this.waveform = options?.processorOptions?.waveform || 'pulse';
 
     // Escuchar mensajes del hilo principal
@@ -68,6 +106,8 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         this.phase = 0;
       } else if (event.data.type === 'setWaveform') {
         this.waveform = event.data.waveform;
+      } else if (event.data.type === 'setMode') {
+        this.mode = event.data.mode;
       }
     };
   }
@@ -146,11 +186,12 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     return sample;
   }
 
-  process(inputs, outputs, parameters) {
-    if (!this.isRunning) return false;
-
+  /**
+   * Procesa modo single: una forma de onda, una salida
+   */
+  processSingle(outputs, inputs, parameters, numSamples) {
     const output = outputs[0];
-    const syncInput = inputs[0]?.[0]; // Input 0 para señal de sync
+    const syncInput = inputs[0]?.[0];
     
     const freqParam = parameters.frequency;
     const detuneParam = parameters.detune;
@@ -158,32 +199,25 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const symmetryParam = parameters.symmetry;
     const gainParam = parameters.gain;
 
-    const numSamples = output[0]?.length || 128;
-
     for (let i = 0; i < numSamples; i++) {
-      // Obtener valores de parámetros (a-rate o k-rate)
       const baseFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
       const detuneCents = detuneParam.length > 1 ? detuneParam[i] : detuneParam[0];
-      
-      // Aplicar detune exponencial: freq = baseFreq × 2^(cents/1200)
       const freq = baseFreq * Math.pow(2, detuneCents / 1200);
       const width = widthParam.length > 1 ? widthParam[i] : widthParam[0];
       const symmetry = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
       const gain = gainParam.length > 1 ? gainParam[i] : gainParam[0];
 
-      // Hard sync: detectar flanco positivo en señal de entrada
+      // Hard sync
       if (syncInput && syncInput.length > i) {
         const syncSample = syncInput[i];
         if (syncSample > 0 && this.lastSyncSample <= 0) {
-          this.phase = 0; // Reset instantáneo de fase
+          this.phase = 0;
         }
         this.lastSyncSample = syncSample;
       }
 
-      // Calcular delta de fase
       const dt = freq / sampleRate;
 
-      // Generar sample según tipo de onda
       let sample;
       switch (this.waveform) {
         case 'sine':
@@ -195,23 +229,103 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         case 'sawtooth':
           sample = this.generateSawtooth(this.phase, dt);
           break;
-        default: // pulse
+        default:
           sample = this.generatePulse(this.phase, width, dt);
       }
 
-      // Aplicar ganancia
       sample *= gain;
 
-      // Escribir a todos los canales de salida
       for (let channel = 0; channel < output.length; channel++) {
         output[channel][i] = sample;
       }
 
-      // Avanzar fase (siempre continua, nunca salta)
       this.phase += dt;
-      if (this.phase >= 1) {
-        this.phase -= 1;
+      if (this.phase >= 1) this.phase -= 1;
+    }
+  }
+
+  /**
+   * Procesa modo multi: 4 formas de onda desde fase maestra, 2 salidas
+   * - Output 0: sine + sawtooth (mezcla en main thread)
+   * - Output 1: triangle + pulse (mezcla en main thread)
+   * 
+   * ARQUITECTURA DE FASE MAESTRA:
+   * La fase (0→1) es una rampa lineal = sawtooth normalizado.
+   * Todas las formas de onda derivan de esta fase:
+   * - Sawtooth: 2*phase - 1 (la fase misma, escalada)
+   * - Sine: sin(transformPhase(phase) * 2π)
+   * - Triangle: |2*phase - 1| escalado
+   * - Pulse: phase < width ? 1 : -1
+   * 
+   * Esto garantiza coherencia perfecta entre formas de onda.
+   */
+  processMulti(outputs, inputs, parameters, numSamples) {
+    const output0 = outputs[0]; // sine + saw
+    const output1 = outputs[1]; // tri + pulse
+    const syncInput = inputs[0]?.[0];
+    
+    const freqParam = parameters.frequency;
+    const detuneParam = parameters.detune;
+    const widthParam = parameters.pulseWidth;
+    const symmetryParam = parameters.symmetry;
+    const sineLevelParam = parameters.sineLevel;
+    const sawLevelParam = parameters.sawLevel;
+    const triLevelParam = parameters.triLevel;
+    const pulseLevelParam = parameters.pulseLevel;
+
+    for (let i = 0; i < numSamples; i++) {
+      const baseFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
+      const detuneCents = detuneParam.length > 1 ? detuneParam[i] : detuneParam[0];
+      const freq = baseFreq * Math.pow(2, detuneCents / 1200);
+      const width = widthParam.length > 1 ? widthParam[i] : widthParam[0];
+      const symmetry = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
+      const sineLevel = sineLevelParam.length > 1 ? sineLevelParam[i] : sineLevelParam[0];
+      const sawLevel = sawLevelParam.length > 1 ? sawLevelParam[i] : sawLevelParam[0];
+      const triLevel = triLevelParam.length > 1 ? triLevelParam[i] : triLevelParam[0];
+      const pulseLevel = pulseLevelParam.length > 1 ? pulseLevelParam[i] : pulseLevelParam[0];
+
+      // Hard sync: flanco positivo resetea fase
+      if (syncInput && syncInput.length > i) {
+        const syncSample = syncInput[i];
+        if (syncSample > 0 && this.lastSyncSample <= 0) {
+          this.phase = 0;
+        }
+        this.lastSyncSample = syncSample;
       }
+
+      const dt = freq / sampleRate;
+
+      // Generar las 4 formas de onda desde la fase maestra
+      const sine = this.generateAsymmetricSine(this.phase, symmetry) * sineLevel;
+      const saw = this.generateSawtooth(this.phase, dt) * sawLevel;
+      const tri = this.generateTriangle(this.phase, dt) * triLevel;
+      const pulse = this.generatePulse(this.phase, width, dt) * pulseLevel;
+
+      // Output 0: sine + saw
+      if (output0 && output0[0]) {
+        output0[0][i] = sine + saw;
+      }
+      
+      // Output 1: tri + pulse
+      if (output1 && output1[0]) {
+        output1[0][i] = tri + pulse;
+      }
+
+      // Avanzar fase maestra
+      this.phase += dt;
+      if (this.phase >= 1) this.phase -= 1;
+    }
+  }
+
+  process(inputs, outputs, parameters) {
+    if (!this.isRunning) return false;
+
+    const numSamples = outputs[0]?.[0]?.length || 128;
+
+    if (this.mode === 'multi') {
+      this.processMulti(outputs, inputs, parameters, numSamples);
+    } else {
+      this.processSingle(outputs, inputs, parameters, numSamples);
     }
 
     return true;

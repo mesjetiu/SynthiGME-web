@@ -183,7 +183,7 @@ export default {
         min: 0,
         max: 1,
         initial: 0,       // Empiezan en silencio
-        pixelsForFullRange: 450  // Alta resolución (3× para mayor precisión)
+        pixelsForFullRange: 900  // Alta resolución (6× para mayor precisión)
       }
     },
     

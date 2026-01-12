@@ -86,7 +86,7 @@ export default {
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
         curve: 'linear',           // Curva lineal para control de ganancia
-        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
+        pixelsForFullRange: 900    // Alta resolución (6× default para mayor precisión)
       },
 
       // Knob 1: Pulse Width
@@ -97,7 +97,7 @@ export default {
         max: 0.99,                 // Máximo (evitar 1 que causa silencio)
         initial: 0.5,              // Onda cuadrada (50% duty cycle)
         curve: 'linear',           // Curva lineal
-        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
+        pixelsForFullRange: 900    // Alta resolución (6× default para mayor precisión)
       },
 
       // Knob 2: Sine Level
@@ -107,7 +107,7 @@ export default {
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
         curve: 'linear',           // Curva lineal para control de ganancia
-        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
+        pixelsForFullRange: 900    // Alta resolución (6× default para mayor precisión)
       },
 
       // Knob 3: Sine Symmetry
@@ -121,7 +121,7 @@ export default {
         max: 1,                    // Máxima asimetría hacia arriba
         initial: 0.5,              // Sine puro (sin asimetría)
         curve: 'linear',           // Curva lineal
-        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
+        pixelsForFullRange: 900    // Alta resolución (6× default para mayor precisión)
       },
 
       // Knob 4: Triangle Level
@@ -131,7 +131,7 @@ export default {
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
         curve: 'linear',           // Curva lineal para control de ganancia
-        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
+        pixelsForFullRange: 900    // Alta resolución (6× default para mayor precisión)
       },
 
       // Knob 5: Sawtooth Level
@@ -141,7 +141,7 @@ export default {
         max: 1,                    // Ganancia máxima
         initial: 0,                // Valor inicial (silencio)
         curve: 'linear',           // Curva lineal para control de ganancia
-        pixelsForFullRange: 450    // Alta resolución (3× default para mayor precisión)
+        pixelsForFullRange: 900    // Alta resolución (6× default para mayor precisión)
       },
 
       // Knob 6: Frequency
@@ -153,7 +153,7 @@ export default {
         initial: 10,               // Frecuencia inicial (10 Hz)
         curve: 'quadratic',        // Curva cuadrática (más control en graves)
         curveExponent: 2,          // Exponente de la curva (x^2)
-        pixelsForFullRange: 900    // Más recorrido para control preciso
+        pixelsForFullRange: 1500   // Máximo recorrido para control muy preciso
       }
     },
 
@@ -417,7 +417,7 @@ export default {
           max: 1,
           initial: 0,       // Empieza en white noise
           curve: 'linear',
-          pixelsForFullRange: 450  // Alta resolución (3× default)
+          pixelsForFullRange: 900  // Alta resolución (6× default)
         },
         // Level: ganancia de salida
         level: {
@@ -425,7 +425,7 @@ export default {
           max: 1,
           initial: 0,       // Empieza en silencio
           curve: 'linear',
-          pixelsForFullRange: 450  // Alta resolución (3× default)
+          pixelsForFullRange: 900  // Alta resolución (6× default)
         }
       },
       
@@ -458,14 +458,14 @@ export default {
           max: 1,
           initial: 0,
           curve: 'linear',
-          pixelsForFullRange: 450  // Alta resolución (3× default)
+          pixelsForFullRange: 900  // Alta resolución (6× default)
         },
         level: {
           min: 0,
           max: 1,
           initial: 0,
           curve: 'linear',
-          pixelsForFullRange: 450  // Alta resolución (3× default)
+          pixelsForFullRange: 900  // Alta resolución (6× default)
         }
       },
       

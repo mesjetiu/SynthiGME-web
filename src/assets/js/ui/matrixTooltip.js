@@ -508,6 +508,13 @@ export class MatrixTooltip {
       this._clearHideTimeout();
       this._hideTimeout = setTimeout(() => this.hide(), this.autoHideDelay);
       
+      // IMPORTANT: Clear any pending click block to ensure this click goes through
+      this._blockNextClick = false;
+      if (this._clickBlockTimeout) {
+        clearTimeout(this._clickBlockTimeout);
+        this._clickBlockTimeout = null;
+      }
+      
       this._resetTouchState();
       // Don't preventDefault - let the click proceed to toggle the pin
       // Tooltip stays visible with pulse effect

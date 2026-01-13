@@ -3742,7 +3742,7 @@ small { color:#aaa; }
   justify-content: center;
   align-items: stretch;
   width: 100%;
-  padding: 8px;
+  padding: 8px 8px 24px;
   box-sizing: border-box;
 }
 
@@ -3759,7 +3759,7 @@ small { color:#aaa; }
 }
 
 .output-channel-module .synth-module__content {
-  padding: 6px 4px;
+  padding: 6px 4px 16px;
 }
 
 /* Contenido interno del canal (vertical) */
@@ -3840,7 +3840,7 @@ small { color:#aaa; }
 }
 
 .output-channel__slider-shell {
-  height: 120px;
+  height: 240px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -3851,7 +3851,7 @@ small { color:#aaa; }
   writing-mode: vertical-lr;
   direction: rtl;
   width: 24px;
-  height: 100px;
+  height: 220px;
   appearance: none;
   background: transparent;
   cursor: pointer;
@@ -3904,22 +3904,27 @@ small { color:#aaa; }
 }
 
 .output-channel__value {
+  display: none; /* Oculto temporalmente */
   margin-top: 4px;
   font-size: 9px;
   color: #bbb;
 }
 
 /* ─── Panel 7 Layout ─── */
-#panel-output .output-channels-section {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 50%;
+#panel-output {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: flex-end;
   padding: 10px;
+  overflow: hidden;
+}
+
+#panel-output .output-channels-section {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 10px;
   box-sizing: border-box;
 }
 

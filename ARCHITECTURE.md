@@ -1011,6 +1011,8 @@ El `AudioContext` se crea con un `latencyHint` que determina el tamaño del buff
 
 **Configuración:** Ajustes → Avanzado → Optimizaciones → Modo de latencia
 
+**Nota sobre navegadores móviles:** Firefox para Android utiliza el motor de audio cubeb, que maneja mejor la prioridad del thread de audio en dispositivos móviles. Chrome Android puede presentar crepitaciones incluso con buffers altos debido a cómo gestiona la prioridad del audio. Si experimentas problemas de audio en Chrome Android, se recomienda usar Firefox.
+
 ---
 
 ## 9. Sistema de AudioWorklets

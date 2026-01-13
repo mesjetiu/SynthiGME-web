@@ -164,3 +164,9 @@ Si experimentas audio distorsionado, cambios de volumen inesperados o comportami
 - **iOS:** Ajustes → Música → Desactivar **Audio Espacial**
 
 Estos efectos de postprocesado pueden interferir con la síntesis de audio en tiempo real generada por la aplicación.
+
+### Crepitaciones o dropouts en Chrome Android
+
+Si experimentas crepitaciones, cortes de audio o inestabilidad en Chrome Android, prueba **Firefox para Android**. Firefox utiliza un motor de audio diferente (cubeb) que maneja mejor la prioridad del thread de audio en dispositivos móviles.
+
+También puedes aumentar el buffer de audio en **Ajustes → Avanzado → Modo de latencia** seleccionando "Seguro (100ms)" o "Máximo (200ms)".

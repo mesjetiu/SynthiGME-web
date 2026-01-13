@@ -1079,30 +1079,18 @@ export class SettingsModal {
   
   /**
    * Establece el modo de latencia.
-   * Muestra diálogo para reiniciar el audio si cambia en caliente.
-   * @param {string} mode - 'interactive' o 'playback'
+   * Muestra mensaje informando que el cambio se aplicará al reiniciar.
+   * @param {string} mode - 'interactive', 'balanced', 'playback', etc.
    */
-  async _setLatencyMode(mode) {
+  _setLatencyMode(mode) {
     const oldMode = this.latencyMode;
     if (mode === oldMode) return;
     
     this.latencyMode = mode;
     localStorage.setItem(STORAGE_KEYS.LATENCY_MODE, mode);
     
-    // Mostrar diálogo de confirmación para reiniciar audio
-    const confirmed = await ConfirmDialog.show({
-      title: t('settings.latencyMode.restart.title'),
-      message: t('settings.latencyMode.restart'),
-      confirmText: t('settings.latencyMode.restart.confirm'),
-      cancelText: t('settings.latencyMode.restart.cancel')
-    });
-    
-    if (confirmed) {
-      // Notificar para reiniciar el motor de audio
-      document.dispatchEvent(new CustomEvent('synth:restartAudio', { 
-        detail: { latencyHint: mode } 
-      }));
-    }
+    // Mostrar toast informativo - el cambio se aplicará al reiniciar la app
+    showToast(t('settings.latencyMode.restartRequired'), 3000);
   }
   
   /**

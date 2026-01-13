@@ -839,56 +839,6 @@ class App {
       }
       // Nota: desactivar global no desactiva individuales, sólo los checkboxes individuales lo hacen
     });
-    
-    // Escuchar solicitud de reinicio de audio (cambio de latencyHint)
-    document.addEventListener('synth:restartAudio', async (e) => {
-      const { latencyHint } = e.detail;
-      log.info(`🔄 Restarting audio engine with latencyHint: "${latencyHint}"`);
-      await this._restartAudioEngine(latencyHint);
-    });
-  }
-  
-  /**
-   * Reinicia el motor de audio con un nuevo latencyHint.
-   * Cierra el AudioContext actual y crea uno nuevo.
-   * @param {string} latencyHint - 'interactive' o 'playback'
-   */
-  async _restartAudioEngine(latencyHint) {
-    // Cerrar el contexto actual
-    await this.engine.closeAudioContext();
-    
-    // Limpiar referencias a nodos de audio del contexto anterior
-    if (this._panelAudios) {
-      for (const panelIndex of Object.keys(this._panelAudios)) {
-        this._panelAudios[panelIndex].nodes = [];
-      }
-    }
-    
-    // Limpiar conexiones de las matrices (los GainNodes ya no son válidos)
-    if (this._panel3Routing?.connections) {
-      this._panel3Routing.connections = {};
-    }
-    if (this._panel6Routing?.connections) {
-      this._panel6Routing.connections = {};
-    }
-    
-    // Reiniciar con el nuevo latencyHint
-    this.engine.start({ latencyHint });
-    
-    // Esperar a que los worklets se carguen antes de continuar
-    await this.engine.ensureWorkletReady();
-    
-    // Reiniciar módulos que necesitan el nuevo contexto
-    if (this.oscilloscope) {
-      this.oscilloscope.start();
-    }
-    
-    log.info(`✅ Audio engine restarted with latencyHint: "${latencyHint}", workletReady: ${this.engine.workletReady}`);
-    
-    // Notificar para que otros sistemas se actualicen
-    document.dispatchEvent(new CustomEvent('synth:audioRestarted', { 
-      detail: { latencyHint } 
-    }));
   }
   
   /**

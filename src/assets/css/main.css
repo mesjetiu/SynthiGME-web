@@ -3738,11 +3738,11 @@ small { color:#aaa; }
 .output-channels-row {
   display: flex;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: var(--oc-channel-gap, 8px);
   justify-content: center;
   align-items: stretch;
   width: 100%;
-  padding: 8px 8px 24px;
+  padding: var(--oc-row-padding, 8px 8px 24px);
   box-sizing: border-box;
 }
 
@@ -3759,7 +3759,7 @@ small { color:#aaa; }
 }
 
 .output-channel-module .synth-module__content {
-  padding: 6px 4px 16px;
+  padding: var(--oc-content-padding, 6px 4px 16px);
 }
 
 /* Contenido interno del canal (vertical) */
@@ -3840,7 +3840,7 @@ small { color:#aaa; }
 }
 
 .output-channel__slider-shell {
-  height: 240px;
+  height: var(--oc-slider-shell-height, 240px);
   width: 100%;
   display: flex;
   align-items: center;
@@ -3850,8 +3850,8 @@ small { color:#aaa; }
 .output-channel__slider {
   writing-mode: vertical-lr;
   direction: rtl;
-  width: 24px;
-  height: 220px;
+  width: var(--oc-slider-width, 24px);
+  height: var(--oc-slider-height, 220px);
   appearance: none;
   background: transparent;
   cursor: pointer;
@@ -3911,6 +3911,7 @@ small { color:#aaa; }
 }
 
 /* ─── Panel 7 Layout ─── */
+/* Los valores de layout se aplican desde panel7.blueprint.js */
 #panel-output {
   display: flex;
   flex-direction: column;
@@ -3924,8 +3925,8 @@ small { color:#aaa; }
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  margin-bottom: 10px;
   box-sizing: border-box;
+  /* marginBottom y padding se aplican desde JS usando el blueprint */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

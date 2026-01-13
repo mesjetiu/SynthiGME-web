@@ -25,12 +25,14 @@ import panel2Blueprint from './panelBlueprints/panel2.blueprint.js';
 import panel3Blueprint from './panelBlueprints/panel3.blueprint.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
+import panel7Blueprint from './panelBlueprints/panel7.blueprint.js';
 
 // Configs (parámetros de audio)
 import panel2Config from './panelBlueprints/panel2.config.js';
 import panel3Config from './panelBlueprints/panel3.config.js';
 import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
 import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
+import panel7Config from './panelBlueprints/panel7.config.js';
 
 // Osciloscopio
 import { OscilloscopeModule } from './modules/oscilloscope.js';
@@ -210,8 +212,40 @@ class App {
   }
 
   _setupOutputFaders() {
+    const blueprint = panel7Blueprint;
+    const layoutSection = blueprint.layout.sections.outputChannels;
+    const layoutRow = blueprint.layout.channelsRow || {};
+    const layoutSlider = blueprint.layout.slider || {};
+    const layoutChannel = blueprint.layout.channel || {};
+    
+    // Aplicar estilos del blueprint al contenedor de la sección
+    if (this.outputChannelsSection) {
+      const marginBottom = layoutSection.marginBottom ?? 10;
+      this.outputChannelsSection.style.marginBottom = `${marginBottom}px`;
+      
+      // Padding de la fila y dimensiones del slider/channel vía CSS custom properties
+      const rowPadding = layoutRow.padding || { top: 8, right: 8, bottom: 24, left: 8 };
+      
+      // CSS custom properties para slider y channel (heredadas por los hijos)
+      const sliderHeight = layoutSlider.height ?? 220;
+      const sliderShellHeight = layoutSlider.shellHeight ?? 240;
+      const sliderWidth = layoutSlider.width ?? 24;
+      const channelGap = layoutRow.gap ?? 8;
+      const contentPadding = layoutChannel.contentPadding || { top: 6, right: 4, bottom: 16, left: 4 };
+      
+      this.outputChannelsSection.style.setProperty('--oc-slider-height', `${sliderHeight}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${sliderShellHeight}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-width', `${sliderWidth}px`);
+      this.outputChannelsSection.style.setProperty('--oc-channel-gap', `${channelGap}px`);
+      this.outputChannelsSection.style.setProperty('--oc-row-padding', 
+        `${rowPadding.top}px ${rowPadding.right}px ${rowPadding.bottom}px ${rowPadding.left}px`);
+      this.outputChannelsSection.style.setProperty('--oc-content-padding', 
+        `${contentPadding.top}px ${contentPadding.right}px ${contentPadding.bottom}px ${contentPadding.left}px`);
+    }
+    
     // Crear panel con 8 output channels individuales
-    this._outputChannelsPanel = new OutputChannelsPanel(this.engine, 8);
+    const channelCount = blueprint.modules.outputChannels.channelCount;
+    this._outputChannelsPanel = new OutputChannelsPanel(this.engine, channelCount);
     this._outputChannelsPanel.createPanel(this.outputChannelsSection);
     
     // Mantener referencia como _outputFadersModule para compatibilidad con serialización

@@ -110,7 +110,37 @@ describe('Panel 7 Blueprint', () => {
     
     it('debe tener sección outputChannels', () => {
       assert.ok(panel7Blueprint.layout.sections.outputChannels);
-      assert.equal(panel7Blueprint.layout.sections.outputChannels.heightRatio, 1.0);
+    });
+    
+    it('sección outputChannels debe tener marginBottom', () => {
+      assert.equal(panel7Blueprint.layout.sections.outputChannels.marginBottom, 10);
+    });
+    
+    it('sección outputChannels debe tener heightRatio', () => {
+      assert.equal(panel7Blueprint.layout.sections.outputChannels.heightRatio, 0.60);
+    });
+    
+    it('debe tener configuración de channelsRow', () => {
+      const row = panel7Blueprint.layout.channelsRow;
+      assert.ok(row);
+      assert.equal(row.gap, 8);
+      assert.ok(row.padding);
+      assert.equal(row.padding.bottom, 24);
+    });
+    
+    it('debe tener configuración de slider', () => {
+      const slider = panel7Blueprint.layout.slider;
+      assert.ok(slider);
+      assert.equal(slider.height, 220);
+      assert.equal(slider.shellHeight, 240);
+      assert.equal(slider.width, 24);
+    });
+    
+    it('debe tener configuración de channel', () => {
+      const channel = panel7Blueprint.layout.channel;
+      assert.ok(channel);
+      assert.equal(channel.minWidth, 80);
+      assert.equal(channel.maxWidth, 120);
     });
   });
   

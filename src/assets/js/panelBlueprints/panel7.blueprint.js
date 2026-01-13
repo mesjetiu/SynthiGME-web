@@ -25,9 +25,35 @@ export default {
     // El panel contiene una única sección con los 8 output channels
     sections: {
       outputChannels: {
-        // Ocupa todo el alto del panel
-        heightRatio: 1.0
+        // Posicionamiento: alineado abajo con margen
+        position: 'bottom',
+        marginBottom: 10,
+        
+        // Los canales ocupan aproximadamente el 60% del alto del panel
+        heightRatio: 0.60
       }
+    },
+    
+    // Configuración de la fila de canales
+    channelsRow: {
+      gap: 8,
+      padding: { top: 8, right: 8, bottom: 24, left: 8 }
+    },
+    
+    // Configuración de cada canal individual
+    channel: {
+      minWidth: 80,
+      maxWidth: 120,
+      headerFontSize: 10,
+      contentPadding: { top: 6, right: 4, bottom: 16, left: 4 },
+      controlsGap: 8
+    },
+    
+    // Configuración del slider de nivel
+    slider: {
+      shellHeight: 240,
+      height: 220,
+      width: 24
     }
   },
   

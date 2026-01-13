@@ -16,6 +16,7 @@
 import { Module } from '../core/engine.js';
 import { ModuleFrame } from '../ui/moduleFrame.js';
 import { Knob } from '../ui/knob.js';
+import { createKnobElements } from '../ui/knobFactory.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import panel7Config from '../panelBlueprints/panel7.config.js';
 
@@ -131,30 +132,19 @@ export class OutputChannel extends Module {
    * @returns {HTMLElement}
    */
   _createFilterKnob() {
-    const wrap = document.createElement('div');
-    wrap.className = 'output-channel__knob-wrap';
-    wrap.dataset.knob = 'filter';
+    const { wrapper, knobEl } = createKnobElements({
+      label: 'Filter',
+      size: 'sm',
+      className: 'output-channel__knob-wrap'
+    });
     
-    // Estructura compatible con clase Knob: .knob > .knob-inner
-    const knob = document.createElement('div');
-    knob.className = 'output-channel__knob knob';
-    knob.dataset.preventPan = 'true';
-    
-    const knobInner = document.createElement('div');
-    knobInner.className = 'output-channel__knob-inner knob-inner';
-    knob.appendChild(knobInner);
-    
-    const labelEl = document.createElement('div');
-    labelEl.className = 'output-channel__knob-label';
-    labelEl.textContent = 'Filter';
-    
-    wrap.appendChild(knob);
-    wrap.appendChild(labelEl);
+    wrapper.dataset.knob = 'filter';
+    knobEl.dataset.preventPan = 'true';
     
     // Guardar referencia para inicialización posterior
-    this.filterKnobEl = knob;
+    this.filterKnobEl = knobEl;
     
-    return wrap;
+    return wrapper;
   }
   
   /**
@@ -170,30 +160,19 @@ export class OutputChannel extends Module {
    * @returns {HTMLElement}
    */
   _createPanKnob() {
-    const wrap = document.createElement('div');
-    wrap.className = 'output-channel__knob-wrap';
-    wrap.dataset.knob = 'pan';
+    const { wrapper, knobEl } = createKnobElements({
+      label: 'Pan',
+      size: 'sm',
+      className: 'output-channel__knob-wrap'
+    });
     
-    // Estructura compatible con clase Knob: .knob > .knob-inner
-    const knob = document.createElement('div');
-    knob.className = 'output-channel__knob knob';
-    knob.dataset.preventPan = 'true';
-    
-    const knobInner = document.createElement('div');
-    knobInner.className = 'output-channel__knob-inner knob-inner';
-    knob.appendChild(knobInner);
-    
-    const labelEl = document.createElement('div');
-    labelEl.className = 'output-channel__knob-label';
-    labelEl.textContent = 'Pan';
-    
-    wrap.appendChild(knob);
-    wrap.appendChild(labelEl);
+    wrapper.dataset.knob = 'pan';
+    knobEl.dataset.preventPan = 'true';
     
     // Guardar referencia para inicialización posterior
-    this.panKnobEl = knob;
+    this.panKnobEl = knobEl;
     
-    return wrap;
+    return wrapper;
   }
   
   /**
@@ -238,42 +217,6 @@ export class OutputChannel extends Module {
         }
       });
     }
-  }
-  
-  /**
-   * Crea un knob visual (sin funcionalidad por ahora).
-   * @param {string} name - Nombre del knob
-   * @param {string} label - Etiqueta visible
-   * @param {number} initialValue - Valor inicial (0-1)
-   * @returns {HTMLElement}
-   */
-  _createKnob(name, label, initialValue) {
-    const wrap = document.createElement('div');
-    wrap.className = 'output-channel__knob-wrap';
-    wrap.dataset.knob = name;
-    
-    const knob = document.createElement('div');
-    knob.className = 'output-channel__knob';
-    knob.dataset.value = initialValue;
-    
-    // Visual del knob (círculo con indicador)
-    const knobInner = document.createElement('div');
-    knobInner.className = 'output-channel__knob-inner';
-    
-    // Calcular rotación: 0 = -135deg, 1 = 135deg
-    const rotation = -135 + (initialValue * 270);
-    knobInner.style.transform = `rotate(${rotation}deg)`;
-    
-    knob.appendChild(knobInner);
-    
-    const labelEl = document.createElement('div');
-    labelEl.className = 'output-channel__knob-label';
-    labelEl.textContent = label;
-    
-    wrap.appendChild(knob);
-    wrap.appendChild(labelEl);
-    
-    return wrap;
   }
   
   /**

@@ -950,6 +950,18 @@ h1 {
   top: 5px;
 }
 
+/* Knob extra pequeño (36px) - usado en output channels */
+.knob--xs {
+  width: 36px;
+  height: 36px;
+}
+
+.knob--xs .knob-inner::after {
+  width: 3px;
+  height: 10px;
+  top: 4px;
+}
+
 /* Osciloscopio: layout de knobs */
 .oscilloscope-knobs {
   display: flex;
@@ -3756,63 +3768,19 @@ small { color:#aaa; }
 }
 
 /* ─── Knobs ─── */
-.output-channel__knob-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* Los knobs de output channels usan las clases genéricas .knob y .knob--sm */
+.output-channel__knob-wrap.knob-wrapper {
+  flex: none;
+  min-width: auto;
   gap: 2px;
 }
 
-.output-channel__knob {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #555, #222);
-  box-shadow: 0 0 5px rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  touch-action: none;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.output-channel__knob:active,
-.output-channel__knob:focus,
-.output-channel__knob:focus-visible {
-  outline: none;
-  background: radial-gradient(circle at 30% 30%, #555, #222);
-}
-
-.output-channel__knob-inner {
-  width: 75%;
-  height: 75%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
-  box-shadow: inset 0 0 3px rgba(0,0,0,0.6);
-  position: relative;
-  touch-action: none;
-}
-
-/* Indicador del knob */
-.output-channel__knob-inner::after {
-  content: '';
-  position: absolute;
-  width: 3px;
-  height: 10px;
-  top: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ffd54f;
-  border-radius: 2px;
-}
-
-.output-channel__knob-label {
+.output-channel__knob-wrap .knob-label {
   font-size: 8px;
   color: #aaa;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  margin-top: 0;
 }
 
 /* ─── Switch On/Off ─── */

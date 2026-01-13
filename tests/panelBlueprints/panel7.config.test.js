@@ -125,14 +125,14 @@ describe('Panel 7 Blueprint', () => {
       assert.ok(row);
       assert.equal(row.gap, 8);
       assert.ok(row.padding);
-      assert.equal(row.padding.bottom, 24);
+      assert.equal(row.padding.bottom, 12);
     });
     
     it('debe tener configuración de slider', () => {
       const slider = panel7Blueprint.layout.slider;
       assert.ok(slider);
-      assert.equal(slider.height, 220);
-      assert.equal(slider.shellHeight, 240);
+      assert.equal(slider.height, 250);
+      assert.equal(slider.shellHeight, 270);
       assert.equal(slider.width, 24);
     });
     

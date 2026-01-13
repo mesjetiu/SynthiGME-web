@@ -37,7 +37,7 @@ export default {
     // Configuración de la fila de canales
     channelsRow: {
       gap: 8,
-      padding: { top: 8, right: 8, bottom: 24, left: 8 }
+      padding: { top: 8, right: 8, bottom: 12, left: 8 }
     },
     
     // Configuración de cada canal individual
@@ -45,14 +45,14 @@ export default {
       minWidth: 80,
       maxWidth: 120,
       headerFontSize: 10,
-      contentPadding: { top: 6, right: 4, bottom: 16, left: 4 },
+      contentPadding: { top: 6, right: 4, bottom: 8, left: 4 },
       controlsGap: 8
     },
     
     // Configuración del slider de nivel
     slider: {
-      shellHeight: 240,
-      height: 220,
+      shellHeight: 270,
+      height: 250,
       width: 24
     }
   },

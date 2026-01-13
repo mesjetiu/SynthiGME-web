@@ -16,6 +16,7 @@ import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { STORAGE_KEYS, AUTOSAVE_INTERVALS, isMobileDevice } from '../utils/constants.js';
 import { WakeLockManager } from '../utils/wakeLock.js';
+import { showToast } from './toast.js';
 
 /**
  * Modal de configuración general con pestañas

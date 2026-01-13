@@ -91,6 +91,7 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     this.phase = 0;
     this.lastSyncSample = -1;
     this.isRunning = true;
+    this._syncDebugCounter = 0; // Debug: contador para logs
     
     // Modo: 'single' (1 waveform, 1 output) o 'multi' (4 waveforms, 2 outputs)
     this.mode = options?.processorOptions?.mode || 'single';
@@ -263,6 +264,16 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const output0 = outputs[0]; // sine + saw
     const output1 = outputs[1]; // tri + pulse
     const syncInput = inputs[0]?.[0];
+    
+    // Debug: verificar que llega señal de sync (solo cada ~1 segundo)
+    if (syncInput && syncInput.length > 0) {
+      this._syncDebugCounter = (this._syncDebugCounter || 0) + 1;
+      if (this._syncDebugCounter % 375 === 1) { // ~1 vez por segundo a 48kHz
+        const maxVal = Math.max(...syncInput.slice(0, 32));
+        const minVal = Math.min(...syncInput.slice(0, 32));
+        console.log(`[SynthOsc] Sync input received: min=${minVal.toFixed(3)}, max=${maxVal.toFixed(3)}, len=${syncInput.length}`);
+      }
+    }
     
     const freqParam = parameters.frequency;
     const detuneParam = parameters.detune;

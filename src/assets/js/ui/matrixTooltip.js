@@ -115,6 +115,11 @@ export function getLabelForDest(dest) {
       // oscIndex is 0-indexed, display as 1-indexed
       return t('matrix.dest.oscFreqCV', { osc: (dest.oscIndex ?? 0) + 1 });
     
+    case 'oscSync':
+      // Hard sync input - resets oscillator phase on positive edge
+      // oscIndex is 0-indexed, display as 1-indexed
+      return t('matrix.dest.oscSync', { osc: (dest.oscIndex ?? 0) + 1 });
+    
     case 'outputLevelCV':
       // busIndex is 0-indexed, display as 1-indexed
       return t('matrix.dest.outputLevelCV', { bus: (dest.busIndex ?? 0) + 1 });

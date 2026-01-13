@@ -168,7 +168,34 @@ export default {
   // Los huecos (hiddenCols0) tienen número pero están deshabilitados en la UI.
   //
   destinations: [
+    // ─────────────────────────────────────────────────────────────────────────
+    // HARD SYNC INPUTS (columnas 24-35 → Osc 1-12 sync input)
+    // ─────────────────────────────────────────────────────────────────────────
+    // La señal conectada resetea la fase del oscilador en cada flanco positivo.
+    // Esto permite sincronizar osciladores para crear timbres armónicos complejos.
+    //
+    // Conexión directa: la señal de audio pasa al input 0 del AudioWorkletNode
+    // del oscilador. El worklet detecta flancos positivos y resetea this.phase = 0.
+    // No se necesita GainNode intermedio porque no hay control de "sensibilidad".
+    // Si en el futuro se quisiera añadir control de threshold, bastaría con
+    // interponer un GainNode antes del input del worklet.
+    //
+    { colSynth: 24, dest: { kind: 'oscSync', oscIndex: 0 } },
+    { colSynth: 25, dest: { kind: 'oscSync', oscIndex: 1 } },
+    { colSynth: 26, dest: { kind: 'oscSync', oscIndex: 2 } },
+    { colSynth: 27, dest: { kind: 'oscSync', oscIndex: 3 } },
+    { colSynth: 28, dest: { kind: 'oscSync', oscIndex: 4 } },
+    { colSynth: 29, dest: { kind: 'oscSync', oscIndex: 5 } },
+    { colSynth: 30, dest: { kind: 'oscSync', oscIndex: 6 } },
+    { colSynth: 31, dest: { kind: 'oscSync', oscIndex: 7 } },
+    { colSynth: 32, dest: { kind: 'oscSync', oscIndex: 8 } },
+    { colSynth: 33, dest: { kind: 'oscSync', oscIndex: 9 } },
+    { colSynth: 34, dest: { kind: 'oscSync', oscIndex: 10 } },
+    { colSynth: 35, dest: { kind: 'oscSync', oscIndex: 11 } },
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // OUTPUT BUSES (columnas 36-43 → Out 1-8)
+    // ─────────────────────────────────────────────────────────────────────────
     { colSynth: 36, dest: { kind: 'outputBus', bus: 1 } },
     { colSynth: 37, dest: { kind: 'outputBus', bus: 2 } },
     { colSynth: 38, dest: { kind: 'outputBus', bus: 3 } },
@@ -178,7 +205,9 @@ export default {
     { colSynth: 42, dest: { kind: 'outputBus', bus: 7 } },
     { colSynth: 43, dest: { kind: 'outputBus', bus: 8 } },
 
+    // ─────────────────────────────────────────────────────────────────────────
     // OSCILLOSCOPE (columnas 57-58)
+    // ─────────────────────────────────────────────────────────────────────────
     // Y = vertical (forma de onda), X = horizontal (modo Lissajous)
     { colSynth: 57, dest: { kind: 'oscilloscope', channel: 'Y' } },
     { colSynth: 58, dest: { kind: 'oscilloscope', channel: 'X' } }

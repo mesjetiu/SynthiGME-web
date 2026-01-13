@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Hard sync en matriz de audio (Panel 5)**: columnas 24-35 exponen las entradas de sincronización de los 12 osciladores. Al conectar una señal de audio, esta resetea la fase del oscilador destino en cada flanco positivo, permitiendo crear timbres armónicos complejos característicos de la síntesis analógica clásica.
 - **Fase maestra unificada en osciladores**: todas las formas de onda (sine, saw, tri, pulse) ahora derivan de una única fase maestra en el worklet. Garantiza coherencia perfecta entre formas de onda al cambiar frecuencia. La fase maestra es el sawtooth (rampa 0→1), del cual se derivan las demás ondas.
 - **Multi-waveform oscillator**: nuevo modo `multi` en el worklet que genera las 4 formas de onda simultáneamente con 2 salidas (sine+saw, tri+pulse). Reduce ~70% los nodos de audio por oscilador.
 - **AudioParams de nivel por forma de onda**: `sineLevel`, `sawLevel`, `triLevel`, `pulseLevel` permiten control sample-accurate del volumen de cada forma de onda directamente en el worklet.

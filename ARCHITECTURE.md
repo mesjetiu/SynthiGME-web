@@ -1213,8 +1213,17 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 
 ### Matriz de Audio (Panel 5)
 - **63 filas** (fuentes: osciladores, filtros, etc.)
-- **67 columnas** (destinos: buses, entradas de módulos)
+- **67 columnas** (destinos: buses, entradas de módulos, hard sync)
 - Cada pin conecta una fuente a un destino con ganancia configurable
+
+**Destinos disponibles:**
+| Columnas Synthi | Destino | Descripción |
+|-----------------|---------|-------------|
+| 24-35 | Hard Sync Osc 1-12 | Entrada de sincronización para cada oscilador. La señal resetea la fase del oscilador destino en cada flanco positivo. |
+| 36-43 | Output Bus 1-8 | Buses de salida de audio |
+| 57-58 | Osciloscopio Y/X | Entradas del osciloscopio (Y-T o Lissajous) |
+
+**Hard Sync:** Permite sincronizar la fase de un oscilador "slave" con la frecuencia de un oscilador "master". El worklet detecta flancos positivos y resetea `this.phase = 0`. Esto crea timbres armónicos complejos característicos de la síntesis analógica clásica.
 
 ### Matriz de Control (Panel 6)
 - Rutea señales de control (CV) entre módulos
@@ -1423,7 +1432,7 @@ docs/
 
 ## 15. Consideraciones Futuras
 
-- [x] **Hard sync**: Entrada de sincronización implementada en worklet. Pendiente: UI en Panel 3/6 para configurar conexiones de sync
+- [x] **Hard sync**: Entrada de sincronización implementada en worklet y expuesta en matriz de audio (Panel 5, columnas 24-35). Conexión directa sin GainNode intermedio.
 - [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
 - [x] **Presets**: Sistema de guardado/carga de patches → Ver [Sección 4](#4-sistema-de-patchesestados)
 - [x] **Grabación**: Sistema de grabación multitrack WAV → Ver [Sección 6](#6-sistema-de-grabación-de-audio)

@@ -1366,6 +1366,8 @@ export class AudioEngine {
       numberOfInputs: 1,  // Input para sync
       numberOfOutputs: 1,
       outputChannelCount: [1],
+      channelCount: 1,             // Importante para que el input reciba señal mono
+      channelCountMode: 'explicit', // No cambiar automáticamente el channel count
       processorOptions: { waveform }
     });
 
@@ -1463,6 +1465,8 @@ export class AudioEngine {
       numberOfInputs: 1,  // Input 0: sync signal
       numberOfOutputs: 2, // Output 0: sine+saw, Output 1: tri+pulse
       outputChannelCount: [1, 1],
+      channelCount: 1,             // Importante para que el input reciba señal mono
+      channelCountMode: 'explicit', // No cambiar automáticamente el channel count
       processorOptions: { mode: 'multi' }
     });
 

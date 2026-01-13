@@ -968,6 +968,10 @@ matrix.dest.oscilloscope.X:
 matrix.dest.oscFreqCV:
   en: "Osc {osc} Freq CV"
 
+matrix.dest.oscSync:
+  en: "Osc {osc} Sync"
+  es: "Osc {osc} Sync"
+
 matrix.dest.outputLevelCV:
   en: "Out {bus} Level CV"
 

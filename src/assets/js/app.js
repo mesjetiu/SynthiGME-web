@@ -2149,6 +2149,36 @@ class App {
         }
         destNode = dest.channel === 'X' ? this.oscilloscope.inputX : this.oscilloscope.inputY;
         log.info(` Connecting to oscilloscope ${dest.channel}`);
+      } else if (dest.kind === 'oscSync') {
+        // ─────────────────────────────────────────────────────────────────────
+        // HARD SYNC INPUT
+        // ─────────────────────────────────────────────────────────────────────
+        // La señal de audio conectada resetea la fase del oscilador destino
+        // cada vez que cruza por cero en dirección positiva (flanco ascendente).
+        // Esto permite crear timbres armónicos complejos al sincronizar la fase
+        // de un oscilador "slave" con la frecuencia de un oscilador "master".
+        //
+        // El worklet (synthOscillator.worklet.js) detecta el flanco positivo
+        // y resetea this.phase = 0. Ver processFunctions.processWithSync().
+        //
+        // NOTA: Conexión directa sin GainNode intermedio. La señal pasa tal cual
+        // al input 0 del AudioWorkletNode. Si en el futuro se quisiera añadir
+        // control de "sensibilidad" o threshold, bastaría con interponer un
+        // GainNode con atenuación aquí.
+        //
+        const oscIndex = dest.oscIndex;
+        const oscNodes = this._ensurePanel3Nodes(oscIndex);
+        
+        // El destino es el AudioWorkletNode directamente (input 0 = sync)
+        // multiOsc es el AudioWorkletNode creado por engine.createMultiOscillator()
+        destNode = oscNodes?.multiOsc;
+        
+        if (!destNode) {
+          log.warn(' multiOsc not available for hard sync, osc', oscIndex);
+          return false;
+        }
+        
+        log.info(` Hard sync → Osc ${oscIndex + 1}`);
       }
       
       if (!destNode) {
@@ -2160,7 +2190,15 @@ class App {
       const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex);
       gain.gain.value = pinGainValue;
       outNode.connect(gain);
-      gain.connect(destNode);
+      
+      // Para hard sync, conectar explícitamente al input 0 del AudioWorkletNode
+      // connect(dest, outputIndex, inputIndex) - el tercer parámetro es crucial
+      if (dest.kind === 'oscSync') {
+        gain.connect(destNode, 0, 0); // output 0 del gain → input 0 del worklet
+      } else {
+        gain.connect(destNode);
+      }
+      
       this._panel3Routing.connections[key] = gain;
       
       // Notificar al DormancyManager del cambio de conexiones

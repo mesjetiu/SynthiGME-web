@@ -205,4 +205,80 @@ describe('compilePanelBlueprintMappings – Panel 5', () => {
     assert.equal(source.index, 1);
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // HARD SYNC: columnas Synthi 24–35 → Osc 1–12 sync inputs
+  // ─────────────────────────────────────────────────────────────────────────
+  // La señal conectada a estas columnas resetea la fase del oscilador destino
+  // en cada flanco positivo (hard sync clásico de síntesis analógica).
+  //
+  // Mapeo (colBase=1):
+  //   colSynth 24 → ordinal 23 → col física 23 → oscIndex 0 (Osc 1)
+  //   colSynth 33 → ordinal 32 → col física 32 → oscIndex 9 (Osc 10)
+  //   colSynth 34 → ordinal 33 → pero hay hueco en 33, salta a 34 → oscIndex 10 (Osc 11)
+  //   colSynth 35 → ordinal 34 → col física 35 → oscIndex 11 (Osc 12)
+  //
+  // IMPORTANTE: La columna física 33 está en hiddenCols0 (es un hueco visual).
+
+  it('oscSync para Osc 1 debe estar en columna física 23 (Synthi 24)', () => {
+    const dest = result.destMap.get(23);
+    assert.ok(dest, 'No hay destino en columna 23 (Osc 1 Sync)');
+    assert.equal(dest.kind, 'oscSync');
+    assert.equal(dest.oscIndex, 0);
+  });
+
+  it('oscSync para Osc 6 debe estar en columna física 28 (Synthi 29)', () => {
+    const dest = result.destMap.get(28);
+    assert.ok(dest, 'No hay destino en columna 28 (Osc 6 Sync)');
+    assert.equal(dest.kind, 'oscSync');
+    assert.equal(dest.oscIndex, 5);
+  });
+
+  it('oscSync para Osc 10 debe estar en columna física 32 (Synthi 33)', () => {
+    // Columna Synthi 33 está ANTES del hueco físico 33
+    const dest = result.destMap.get(32);
+    assert.ok(dest, 'No hay destino en columna 32 (Osc 10 Sync)');
+    assert.equal(dest.kind, 'oscSync');
+    assert.equal(dest.oscIndex, 9);
+  });
+
+  it('oscSync para Osc 11 salta a columna física 34 (Synthi 34, hueco en 33)', () => {
+    // El hueco está en índice físico 33, así que Synthi 34 → físico 34
+    const dest = result.destMap.get(34);
+    assert.ok(dest, 'No hay destino en columna 34 (Osc 11 Sync)');
+    assert.equal(dest.kind, 'oscSync');
+    assert.equal(dest.oscIndex, 10);
+  });
+
+  it('oscSync para Osc 12 debe estar en columna física 35 (Synthi 35)', () => {
+    const dest = result.destMap.get(35);
+    assert.ok(dest, 'No hay destino en columna 35 (Osc 12 Sync)');
+    assert.equal(dest.kind, 'oscSync');
+    assert.equal(dest.oscIndex, 11);
+  });
+
+  it('debe haber 12 destinos oscSync (uno por oscilador)', () => {
+    let syncCount = 0;
+    for (const [, dest] of result.destMap) {
+      if (dest.kind === 'oscSync') {
+        syncCount++;
+      }
+    }
+    assert.equal(syncCount, 12, 'Debe haber exactamente 12 destinos oscSync');
+  });
+
+  it('los oscIndex de oscSync deben ser consecutivos 0–11', () => {
+    const syncIndices = [];
+    for (const [, dest] of result.destMap) {
+      if (dest.kind === 'oscSync') {
+        syncIndices.push(dest.oscIndex);
+      }
+    }
+    syncIndices.sort((a, b) => a - b);
+    assert.deepEqual(
+      syncIndices,
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      'Los oscIndex deben cubrir 0–11'
+    );
+  });
+
 });

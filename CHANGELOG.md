@@ -14,7 +14,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Preparación para hard sync**: entrada de sincronización lista en el worklet. La fase se resetea en cada flanco positivo de la señal de sync. Método `connectSync()` disponible para conectar osciladores.
 - **Sistema de dormancy**: optimización de rendimiento que silencia automáticamente módulos de audio sin conexiones activas en la matriz. Reduce carga de CPU especialmente en dispositivos móviles. Configurable en Ajustes → Avanzado → Optimizaciones.
 - **Filter bypass**: optimización que desconecta los filtros LP/HP cuando están en posición neutral (|valor| < 0.02), reduciendo carga de CPU. Habilitado por defecto. Configurable en Ajustes → Avanzado → Optimizaciones.
-- **Modo de latencia**: permite elegir entre "Interactivo" (baja latencia, ideal para desktop) y "Reproducción" (buffers grandes, estable en móviles). Por defecto: móviles usan Reproducción, desktop usa Interactivo. Cambiar requiere reiniciar el motor de audio.
+- **Modo de latencia**: permite elegir entre "Interactivo" (baja latencia, ideal para desktop) y "Reproducción" (buffers grandes, estable en móviles). Por defecto: móviles usan Reproducción, desktop usa Interactivo. Cambiar requiere reiniciar la aplicación.
 - **Sección Optimizaciones** en Ajustes: nueva sección extensible en la pestaña Avanzado que agrupa todas las optimizaciones de rendimiento con controles de debug individuales y globales.
 
 ### Cambiado

@@ -1007,7 +1007,7 @@ El `AudioContext` se crea con un `latencyHint` que determina el tamaño del buff
 - **Móviles** (detectado via userAgent): `'playback'` para evitar dropouts
 - **Desktop**: `'interactive'` para respuesta inmediata
 
-**Cambio en caliente:** Requiere reiniciar el motor de audio (diálogo de confirmación).
+**Cambio de latencia:** Requiere reiniciar la aplicación para aplicar los cambios.
 
 **Configuración:** Ajustes → Avanzado → Optimizaciones → Modo de latencia
 

@@ -114,9 +114,48 @@ export class DormancyManager {
     
     // Si debug está activo, mostrar un resumen del estado actual
     if (this._debugIndicators) {
-      // Recalcular estados y mostrar toast con el estado actual
-      this.updateAllStates();
+      // Mostrar estado actual sin esperar a cambios
+      this._showCurrentStateToast();
     }
+  }
+  
+  /**
+   * Muestra un toast con el estado actual de todos los módulos.
+   * Útil para debug inicial.
+   * @private
+   */
+  _showCurrentStateToast() {
+    const panel5Connections = this._getPanel5Connections();
+    
+    // Contar conexiones de osciladores
+    const connectedOscs = new Set();
+    panel5Connections.forEach(c => {
+      if (c.source?.kind === 'panel3Osc') {
+        connectedOscs.add(c.source.oscIndex);
+      }
+    });
+    
+    // Verificar oscilador activo (al menos uno conectado a salida)
+    const hasScopeInput = panel5Connections.some(c => c.dest?.kind === 'oscilloscope');
+    const hasNoiseOutput = panel5Connections.some(c => c.source?.kind === 'noiseGen');
+    const hasInputAmp = panel5Connections.some(c => c.source?.kind === 'inputAmp');
+    
+    // Contar salidas conectadas
+    const connectedOutputs = new Set();
+    panel5Connections.forEach(c => {
+      if (c.dest?.kind === 'outputBus') {
+        connectedOutputs.add(c.dest.bus);
+      }
+    });
+    
+    const parts = [];
+    parts.push(`🔌 OSCs: ${connectedOscs.size}/9`);
+    parts.push(`🔊 Outputs: ${connectedOutputs.size}/8`);
+    if (hasScopeInput) parts.push('📺 Scope');
+    if (hasNoiseOutput) parts.push('🔉 Noise');
+    if (hasInputAmp) parts.push('🎤 Input');
+    
+    showToast(`Dormancy: ${parts.join(' | ')}`, 3000);
   }
   
   /**

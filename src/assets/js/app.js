@@ -857,15 +857,33 @@ class App {
     // Cerrar el contexto actual
     await this.engine.closeAudioContext();
     
+    // Limpiar referencias a nodos de audio del contexto anterior
+    if (this._panelAudios) {
+      for (const panelIndex of Object.keys(this._panelAudios)) {
+        this._panelAudios[panelIndex].nodes = [];
+      }
+    }
+    
+    // Limpiar conexiones de las matrices (los GainNodes ya no son válidos)
+    if (this._panel3Routing?.connections) {
+      this._panel3Routing.connections = {};
+    }
+    if (this._panel6Routing?.connections) {
+      this._panel6Routing.connections = {};
+    }
+    
     // Reiniciar con el nuevo latencyHint
     this.engine.start({ latencyHint });
     
     // Esperar a que los worklets se carguen antes de continuar
     await this.engine.ensureWorkletReady();
     
-    // Reconectar módulos que necesitan el contexto de audio
-    // Los módulos se reconectarán automáticamente cuando se usen
-    log.info(`✅ Audio engine restarted with latencyHint: "${latencyHint}"`);
+    // Reiniciar módulos que necesitan el nuevo contexto
+    if (this.oscilloscope) {
+      this.oscilloscope.start();
+    }
+    
+    log.info(`✅ Audio engine restarted with latencyHint: "${latencyHint}", workletReady: ${this.engine.workletReady}`);
     
     // Notificar para que otros sistemas se actualicen
     document.dispatchEvent(new CustomEvent('synth:audioRestarted', { 

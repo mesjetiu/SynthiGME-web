@@ -834,6 +834,9 @@ h1 {
   box-sizing: border-box;
   margin: 0 auto;
   padding: 0;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 .output-fader::-webkit-slider-runnable-track {
   width: 100%;
@@ -3855,6 +3858,9 @@ small { color:#aaa; }
   box-sizing: border-box;
   margin: 0 auto;
   padding: 0;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
 .output-channel__slider::-webkit-slider-runnable-track {

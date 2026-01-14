@@ -139,23 +139,42 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
 
   /**
    * Genera onda sine con simetría variable (Estilo Synthi 100)
-   * HYBRID APPROACH:
-   * - En Symmetry 0.5: Matemáticamente Seno Puro (Math.cos).
-   * - En Extremos: Waveshaper Tanh sobre Triángulo (carácter analógico/sucio).
-   * - Transición suave (Crossfade) basada en la distancia al centro.
+   * 
+   * HYBRID APPROACH (Implementado Enero 2026):
+   * Basado en análisis de diagramas de circuito del Synthi 100 y manual del GME Cuenca.
+   * 
+   * 1. Centro (Symmetry 0.5): 
+   *    Generación digital pura (Math.cos). Garantiza ausencia total de armónicos.
+   * 
+   * 2. Extremos (Symmetry -> 0 o 1):
+   *    Emulación analógica mediante Waveshaper (Tanh) aplicado a un núcleo triangular.
+   *    Produce la característica deformación de "Vientre Redondo / Punta Aguda" 
+   *    con saturación suave y cruce por cero lineal.
+   * 
+   * 3. Transición:
+   *    Crossfade suave basado en la distancia al centro.
+   * 
+   * @param {number} phase - Fase actual (0 a 1)
+   * @param {number} symmetry - Valor de simetría (0 a 1)
+   * @param {number|null} precomputedTri - Optimización: triángulo estándar (-1 a 1) pre-calculado.
    */
-  generateAsymmetricSine(phase, symmetry) {
-    // === 1. Componente ANAÓGICA (Triángulo + Tanh) ===
+  generateAsymmetricSine(phase, symmetry, precomputedTri = null) {
+    // === 1. Componente ANALÓGICA (Triángulo + Tanh) ===
     
-    // Alineación de fase: Peak (+1) al inicio (fase 0)
-    const triPhase = (phase + 0.5) % 1;
-    
-    // Triángulo base (-1 a 1)
     let tri;
-    if (triPhase < 0.5) {
-      tri = 4 * triPhase - 1;
+    
+    // Optimización: Si ya tenemos el triángulo estándar (que empieza en -1),
+    // el triángulo para el seno (que empieza en +1) es simplemente su inverso.
+    if (precomputedTri !== null) {
+      tri = -precomputedTri;
     } else {
-      tri = 3 - 4 * triPhase;
+      // Cálculo manual si no se provee (ej. modo single)
+      const triPhase = (phase + 0.5) % 1;
+      if (triPhase < 0.5) {
+        tri = 4 * triPhase - 1;
+      } else {
+        tri = 3 - 4 * triPhase;
+      }
     }
     
     // Offset para asimetría
@@ -332,10 +351,13 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
 
       const dt = freq / sampleRate;
 
-      // Generar las 4 formas de onda desde la fase maestra
-      const sine = this.generateAsymmetricSine(this.phase, symmetry) * sineLevel;
+      // Generar formas de onda
+      // Optimización: Reutilizamos el cálculo de triángulo para el seno
+      const rawTri = this.generateTriangle(this.phase, dt);
+      
+      const sine = this.generateAsymmetricSine(this.phase, symmetry, rawTri) * sineLevel;
       const saw = this.generateSawtooth(this.phase, dt) * sawLevel;
-      const tri = this.generateTriangle(this.phase, dt) * triLevel;
+      const tri = rawTri * triLevel;
       const pulse = this.generatePulse(this.phase, width, dt) * pulseLevel;
 
       // Output 0: sine + saw

@@ -11,7 +11,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 
 | Módulo | Descripción |
 |--------|-------------|
-| **12 Osciladores** | Formas de onda pulse, sine, triangle, sawtooth con anti-aliasing PolyBLEP. Fase maestra unificada: todas las ondas derivan de una única fase (sawtooth), garantizando coherencia perfecta. Rango 1 Hz–10 kHz. **Hard sync** disponible en matriz de audio (columnas 24-35). |
+| **12 Osciladores** | Formas de onda pulse, sine, triangle, sawtooth con anti-aliasing PolyBLEP. **Nuevo**: Modelado híbrido de "Sine Shape" (Symmetry) basado en circuito original (Waveshaper Tanh) para carácter analógico fiel. Rango 1 Hz–10 kHz. **Hard sync** disponible. |
 | **2 Generadores de ruido** | Algoritmo Voss-McCartney para ruido rosa. Knob de color (blanco→rosa). |
 | **Osciloscopio** | Modos Y-T y X-Y (Lissajous). Trigger Schmitt con histéresis temporal y predictiva. |
 | **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con tooltips, pines inactivos configurables. |

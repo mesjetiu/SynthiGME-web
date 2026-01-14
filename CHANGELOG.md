@@ -25,6 +25,10 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Knobs de Output Channels unificados**: ahora usan `createKnobElements()` de `knobFactory.js` y las clases genéricas `.knob`/`.knob--sm`, igual que osciladores e input amplifiers. Permite compartir código común entre módulos.
 
 ### Mejorado
+- **Calidad de sonido del Oscilador Senoidal**: Nuevo algoritmo híbrido para el control "Shape/Symmetry".
+    - Centro (0.5): Sinusoide matemáticamente pura (sin armónicos), superando al hardware original en pureza.
+    - Extremos: Emulación de circuito analógico (Waveshaper Tanh) con saturación suave y cruce por cero lineal, eliminando los "kinks" de versiones anteriores.
+    - Dirección del control invertida para coincidir con el manual original (0 = Vientre arriba).
 - **Rendimiento de osciladores**: ~70% menos nodos de audio por oscilador, menos context switches, mejor cache locality al calcular todas las ondas desde la misma fase.
 
 ### Corregido

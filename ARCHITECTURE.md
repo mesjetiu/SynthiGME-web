@@ -1120,6 +1120,26 @@ Para resolver esto, SynthiGME-web usa **AudioWorklet** con una **fase maestra un
 - **Anti-aliasing PolyBLEP**: reduce aliasing en transiciones abruptas (pulse, saw)
 - **Hard sync**: entrada 0 para señal de sincronización (flanco positivo resetea fase)
 
+### Algoritmo de Seno Asimétrico Híbrido (Sine Shape)
+
+Para emular el comportamiento único del control "Shape" del Synthi 100, se ha implementado un algoritmo híbrido que combina precisión matemática con modelado analógico.
+
+**Problemática:**
+El circuito original del Synthi 100 (ver diagrama de VCO) utiliza técnicas de conformación de onda analógicas que generan una forma de onda con una estética particular: picos redondeados ("vientres") y valles agudos (o viceversa), manteniendo un cruce por cero lineal. Las aproximaciones matemáticas simples (warping de fase) generaban discontinuidades (kinks) en la derivada, resultando en armónicos indeseados y una forma visualmente incorrecta.
+
+**Solución Implementada:**
+Un enfoque híbrido que mezcla dos generadores según el control de simetría:
+
+1.  **Centro (Symmetry = 0.5):** Generación digital pura mediante `Math.cos()`. Esto garantiza una sinusoide perfecta sin distorsión armónica, superando incluso al hardware original en pureza.
+2.  **Extremos (Symmetry → 0 o 1):** Un modelo de **Waveshaper (Conformador)** basado en `Math.tanh()` aplicado a una onda triangular con offset.
+    *   Este modelo simula la saturación de transistores/OTA del circuito original.
+    *   Coeficiente de saturación calibrado a $k=1.55$ tras análisis auditivo y visual.
+    *   Produce la característica forma de "Vientre Redondo vs Punta Aguda" sin romper la continuidad de la onda.
+
+**Fuentes:**
+- *Gabinete de Música Electroacústica de Cuenca*: Manual de usuario (para la dirección del control: Izquierda = Vientres Arriba).
+- *Circuit Diagrams*: Análisis del VCO para deducir el uso de conformadores de onda sobre núcleo triangular en lugar de distorsión de fase.
+
 ### API de Uso
 
 ```javascript

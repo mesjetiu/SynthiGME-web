@@ -139,10 +139,20 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
 
   /**
    * Genera onda sine con simetría variable (Estilo Synthi 100)
-   * HYBRID APPROACH:
-   * - En Symmetry 0.5: Matemáticamente Seno Puro (Math.cos).
-   * - En Extremos: Waveshaper Tanh sobre Triángulo (carácter analógico/sucio).
-   * - Transición suave (Crossfade) basada en la distancia al centro.
+   * 
+   * HYBRID APPROACH (Implementado Enero 2026):
+   * Basado en análisis de diagramas de circuito del Synthi 100 y manual del GME Cuenca.
+   * 
+   * 1. Centro (Symmetry 0.5): 
+   *    Generación digital pura (Math.cos). Garantiza ausencia total de armónicos.
+   * 
+   * 2. Extremos (Symmetry -> 0 o 1):
+   *    Emulación analógica mediante Waveshaper (Tanh) aplicado a un núcleo triangular.
+   *    Produce la característica deformación de "Vientre Redondo / Punta Aguda" 
+   *    con saturación suave y cruce por cero lineal.
+   * 
+   * 3. Transición:
+   *    Crossfade suave basado en la distancia al centro.
    */
   generateAsymmetricSine(phase, symmetry) {
     // === 1. Componente ANAÓGICA (Triángulo + Tanh) ===

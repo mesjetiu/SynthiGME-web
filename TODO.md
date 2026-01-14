@@ -9,6 +9,10 @@
 
 - Mejorar algunos aspectos probando.
 
+## UI:
+
+- Crear menú contextual de cada mando, de cada módulo... para reiniciar, para poner un valor concreto...
+
 ## Otros:
 
 - Al reiniciar patch, permanece el dibujo en el osciloscopio.

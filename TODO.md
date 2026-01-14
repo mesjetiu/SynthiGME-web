@@ -4,9 +4,7 @@
 
 - Modificar simetry de seno para que sea más suave (hay cambios de curva)
 
-- Invertir transformación de la simetría 
-
-(Visto en manual de usuario de Synthi 100 de Cuenca)
+- Invertir transformación de la simetría: izquierda vientres arriba (Visto en manual de usuario de Synthi 100 de Cuenca)
 
 - Chequear simetría de pulso de p. 22.
 

@@ -28,7 +28,8 @@ export default {
       // ─────────────────────────────────────────────────────────────────────
       // COLORES
       // ─────────────────────────────────────────────────────────────────────
-      lineColor: '#00ff00',      // Verde clásico de osciloscopio CRT
+      lineColor: '#00ff00',      // Beam 1 (Y) - Verde clásico de osciloscopio CRT
+      lineColor2: '#00ff00',     // Beam 2 (X en modo Y-T) - Verde (como el Synthi 100 original)
       bgColor: '#0a0a0a',        // Fondo casi negro (simula tubo apagado)
       gridColor: '#1a3a1a',      // Cuadrícula verde muy oscuro
       centerColor: '#2a5a2a',    // Líneas centrales (ejes)
@@ -42,11 +43,12 @@ export default {
       // EFECTO GLOW (fosforescencia CRT)
       // Simula el halo luminoso de los tubos de rayos catódicos.
       // glowBlur: intensidad del blur en píxeles (0 = desactivado, 5-15 = sutil, 20+ = intenso)
-      // glowColor: color del halo (null = usa lineColor)
+      // glowColor/glowColor2: color del halo para cada beam (null = usa lineColor/lineColor2)
       // NOTA: Puede afectar rendimiento en dispositivos de gama baja.
       // ─────────────────────────────────────────────────────────────────────
       glowBlur: 8,
-      glowColor: '#00ff00',
+      glowColor: '#00ff00',      // Glow del Beam 1
+      glowColor2: '#00ff00',     // Glow del Beam 2
       
       // ─────────────────────────────────────────────────────────────────────
       // ELEMENTOS DE UI

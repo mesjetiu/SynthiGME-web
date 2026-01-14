@@ -707,8 +707,20 @@ El osciloscopio es uno de los módulos más complejos, implementando técnicas p
 
 ### Modos de Visualización
 
-- **Y-T**: Forma de onda tradicional (amplitud vs tiempo)
-- **X-Y (Lissajous)**: Canal X horizontal, canal Y vertical
+- **Y-T (Dual Beam)**: Forma de onda tradicional (amplitud vs tiempo) con **dos líneas en posiciones fijas**
+  - Las líneas se posicionan en los tercios del display, dividiéndolo en 3 partes iguales:
+    ```
+    ┌─────────────────────────┐
+    │      (espacio 1/3)      │
+    ├─────── BEAM 1 ──────────┤  ← a 1/3 del alto
+    │      (espacio 1/3)      │
+    ├─────── BEAM 2 ──────────┤  ← a 2/3 del alto
+    │      (espacio 1/3)      │
+    └─────────────────────────┘
+    ```
+  - El Beam 2 solo se dibuja si hay señal significativa conectada a las columnas X
+  - Ambos beams usan verde por defecto (como el original), pero los colores son configurables (`lineColor`, `lineColor2`, `glowColor`, `glowColor2`)
+- **X-Y (Lissajous)**: Canal X horizontal, canal Y vertical (un solo trazo centrado)
 
 ### Efecto CRT
 

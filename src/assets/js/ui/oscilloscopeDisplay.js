@@ -3,14 +3,19 @@
  * 
  * Renderiza señales de audio en un canvas con dos modos:
  * - Y-T: Eje X = tiempo, Eje Y = amplitud (forma de onda tradicional)
- * - X-Y: Eje X = señal X, Eje Y = señal Y (figuras de Lissajous)
+ *        Soporta DUAL BEAM: muestra dos señales simultáneas (bufferY y bufferX)
+ *        como líneas independientes, simulando el comportamiento del Synthi 100
+ *        original que tenía dos haces para las columnas de Panel 5 y Panel 6.
+ * - X-Y: Eje X = señal X, Eje Y = señal Y (figuras de Lissajous, un solo trazo)
  * 
  * @example
  * ```javascript
  * const display = new OscilloscopeDisplay({
  *   container: document.getElementById('scope-container'),
  *   width: 300,
- *   height: 200
+ *   height: 200,
+ *   lineColor: '#00ff00',   // Beam 1 (Y)
+ *   lineColor2: '#00ff00',  // Beam 2 (X en modo Y-T)
  * });
  * 
  * // Conectar a un OscilloscopeModule
@@ -29,12 +34,16 @@ export class OscilloscopeDisplay {
    * @param {number} [options.width=300] - Ancho del canvas
    * @param {number} [options.height=200] - Alto del canvas
    * @param {string} [options.mode='yt'] - Modo inicial: 'yt' o 'xy'
-   * @param {string} [options.lineColor='#0f0'] - Color de la línea de señal
+   * @param {string} [options.lineColor='#0f0'] - Color de la línea del Beam 1 (señal Y)
+   * @param {string} [options.lineColor2='#0f0'] - Color de la línea del Beam 2 (señal X en modo Y-T)
    * @param {string} [options.bgColor='#000'] - Color de fondo
    * @param {string} [options.gridColor='#1a1a1a'] - Color de la cuadrícula
    * @param {string} [options.centerColor='#333'] - Color de líneas centrales
-   * @param {number} [options.lineWidth=2] - Grosor de la línea de señal * @param {number} [options.glowBlur=0] - Intensidad del blur para efecto glow CRT (0 = desactivado)
- * @param {string} [options.glowColor=null] - Color del glow (null = usa lineColor)   * @param {boolean} [options.showGrid=true] - Mostrar cuadrícula
+   * @param {number} [options.lineWidth=2] - Grosor de la línea de señal
+   * @param {number} [options.glowBlur=0] - Intensidad del blur para efecto glow CRT (0 = desactivado)
+   * @param {string} [options.glowColor=null] - Color del glow del Beam 1 (null = usa lineColor)
+   * @param {string} [options.glowColor2=null] - Color del glow del Beam 2 (null = usa lineColor2)
+   * @param {boolean} [options.showGrid=true] - Mostrar cuadrícula
    * @param {boolean} [options.showTriggerIndicator=true] - Mostrar indicador de trigger
    */
   constructor(options = {}) {
@@ -46,13 +55,22 @@ export class OscilloscopeDisplay {
       internalHeight = 450,
       useDevicePixelRatio = true,
       mode = 'yt',
-      lineColor = '#0f0',
+      // ─────────────────────────────────────────────────────────────────────
+      // DUAL BEAM: Colores para las dos líneas del osciloscopio
+      // En modo Y-T se muestran dos trazos simultáneos (como el Synthi 100 original):
+      //   - Beam 1: señal Y (columnas Panel 5 audio, ej. col 57)
+      //   - Beam 2: señal X (columnas Panel 6 control, ej. col 63)
+      // En modo X-Y (Lissajous) solo se usa lineColor (una figura paramétrica).
+      // ─────────────────────────────────────────────────────────────────────
+      lineColor = '#0f0',        // Beam 1 (Y) - verde por defecto
+      lineColor2 = '#0f0',       // Beam 2 (X en modo Y-T) - verde por defecto (como el original)
       bgColor = '#000',
       gridColor = '#1a1a1a',
       centerColor = '#333',
       lineWidth = 2,
       glowBlur = 0,              // Efecto glow CRT (0 = desactivado)
-      glowColor = null,          // Color del glow (null = usa lineColor)
+      glowColor = null,          // Color del glow Beam 1 (null = usa lineColor)
+      glowColor2 = null,         // Color del glow Beam 2 (null = usa lineColor2)
       showGrid = true,
       showTriggerIndicator = true
     } = options;
@@ -92,12 +110,14 @@ export class OscilloscopeDisplay {
     // Configuración visual
     this.mode = mode;
     this.lineColor = lineColor;
+    this.lineColor2 = lineColor2;          // Beam 2 (dual beam en modo Y-T)
     this.bgColor = bgColor;
     this.gridColor = gridColor;
     this.centerColor = centerColor;
     this.lineWidth = lineWidth;
     this.glowBlur = glowBlur;
     this.glowColor = glowColor || lineColor;
+    this.glowColor2 = glowColor2 || lineColor2;  // Glow del Beam 2
     this.showGrid = showGrid;
     this.showTriggerIndicator = showTriggerIndicator;
     
@@ -304,21 +324,89 @@ export class OscilloscopeDisplay {
   }
 
   /**
-   * Dibuja en modo Y-T (forma de onda tradicional).
-   * @param {Float32Array} bufferY - Datos de la señal Y
+   * Dibuja en modo Y-T (forma de onda tradicional) con soporte DUAL BEAM.
+   * 
+   * En el Synthi 100 original, el osciloscopio tenía dos haces (beams) que
+   * permitían visualizar dos señales simultáneamente:
+   * - Beam 1: señal de las columnas del Panel 5 (audio, ej. col 57)
+   * - Beam 2: señal de las columnas del Panel 6 (control, ej. col 63)
+   * 
+   * Esta implementación replica ese comportamiento posicionando cada beam
+   * en los tercios del display, dividiéndolo en 3 partes iguales:
+   * 
+   *   ┌─────────────────────────┐
+   *   │      (espacio 1/3)      │
+   *   ├─────── BEAM 1 ──────────┤  ← a 1/3 del alto (height/3)
+   *   │      (espacio 1/3)      │
+   *   ├─────── BEAM 2 ──────────┤  ← a 2/3 del alto (2*height/3)
+   *   │      (espacio 1/3)      │
+   *   └─────────────────────────┘
+   * 
+   * @param {Float32Array} bufferY - Datos de la señal Y (Beam 1)
+   * @param {Float32Array} bufferX - Datos de la señal X (Beam 2, en modo Y-T)
    * @param {boolean} triggered - Si se detectó trigger
    * @param {number} [validLength] - Longitud válida (ciclos completos)
    * @private
    */
-  _drawYT(bufferY, triggered, validLength) {
-    const { ctx, width, height, lineColor, lineWidth, glowBlur, glowColor, timeScale, ampScale } = this;
-    
-    if (!bufferY || bufferY.length === 0) return;
+  _drawYT(bufferY, bufferX, triggered, validLength) {
+    const { ctx, width, height, lineWidth, glowBlur, timeScale, ampScale } = this;
     
     // Usar validLength si está disponible, sino todo el buffer
-    const baseLength = validLength && validLength > 0 ? validLength : bufferY.length;
+    const baseLength = validLength && validLength > 0 ? validLength : (bufferY?.length || 0);
     // Aplicar timeScale: cuántos samples mostrar
     const effectiveLength = Math.floor(baseLength * timeScale);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // DUAL BEAM: Cada beam se posiciona en un tercio del display
+    // - Beam 1: centerY = height/3 (línea divisoria superior)
+    // - Beam 2: centerY = 2*height/3 (línea divisoria inferior)
+    // Esto divide el display en 3 espacios iguales con los beams como divisores
+    // ─────────────────────────────────────────────────────────────────────────
+    const thirdHeight = height / 3;
+    
+    // Altura disponible para la oscilación de cada beam (1/3 del total)
+    const beamHeight = thirdHeight;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // BEAM 1: Señal Y (columnas Panel 5 - audio) - en 1/3 del alto
+    // ─────────────────────────────────────────────────────────────────────────
+    if (bufferY && bufferY.length > 0) {
+      const beam1CenterY = thirdHeight;  // Línea a 1/3 del alto
+      this._drawSingleBeam(bufferY, effectiveLength, this.lineColor, this.glowColor, beam1CenterY, beamHeight);
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // BEAM 2: Señal X como segunda forma de onda (columnas Panel 6 - control)
+    // En 2/3 del alto - Solo se dibuja si hay señal significativa
+    // ─────────────────────────────────────────────────────────────────────────
+    if (bufferX && bufferX.length > 0) {
+      // Detectar si hay señal real en bufferX (no solo silencio)
+      const hasSignal = bufferX.some(v => Math.abs(v) > 0.001);
+      if (hasSignal) {
+        const beam2CenterY = 2 * thirdHeight;  // Línea a 2/3 del alto
+        this._drawSingleBeam(bufferX, effectiveLength, this.lineColor2, this.glowColor2, beam2CenterY, beamHeight);
+      }
+    }
+    
+    this._drawTriggerIndicator(triggered);
+  }
+
+  /**
+   * Dibuja un único beam (trazo de forma de onda) en modo Y-T.
+   * Método auxiliar utilizado por _drawYT para renderizar cada beam.
+   * 
+   * @param {Float32Array} buffer - Datos de la señal a dibujar
+   * @param {number} effectiveLength - Número de samples a mostrar (con timeScale aplicado)
+   * @param {string} color - Color de la línea
+   * @param {string} glowColor - Color del efecto glow
+   * @param {number} centerY - Posición Y central del beam en píxeles
+   * @param {number} beamHeight - Altura disponible para la oscilación del beam
+   * @private
+   */
+  _drawSingleBeam(buffer, effectiveLength, color, glowColor, centerY, beamHeight) {
+    const { ctx, width, lineWidth, glowBlur, ampScale } = this;
+    
+    if (!buffer || buffer.length === 0 || effectiveLength <= 0) return;
     
     // Aplicar efecto glow CRT (fosforescencia)
     if (glowBlur > 0) {
@@ -327,7 +415,7 @@ export class OscilloscopeDisplay {
     }
     
     ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = lineColor;
+    ctx.strokeStyle = color;
     ctx.lineCap = 'round';      // Puntas redondeadas para aspecto suave
     ctx.lineJoin = 'round';     // Uniones redondeadas
     ctx.beginPath();
@@ -335,7 +423,9 @@ export class OscilloscopeDisplay {
     // Calcular cuántos samples por píxel (basado en longitud efectiva con timeScale)
     const samplesPerPixel = effectiveLength / width;
     let firstPoint = true;
-    const centerY = height / 2;
+    
+    // Mitad de la altura del beam (para mapear -1..1)
+    const halfBeamHeight = beamHeight / 2;
     
     for (let px = 0; px < width; px++) {
       // Índices del rango de samples para este píxel
@@ -343,10 +433,10 @@ export class OscilloscopeDisplay {
       const endIdx = Math.min(Math.ceil((px + 1) * samplesPerPixel), effectiveLength);
       
       // Encontrar min y max del rango (técnica de osciloscopio real)
-      let minV = bufferY[startIdx] ?? 0;
+      let minV = buffer[startIdx] ?? 0;
       let maxV = minV;
       for (let i = startIdx + 1; i < endIdx; i++) {
-        const v = bufferY[i];
+        const v = buffer[i];
         if (v < minV) minV = v;
         if (v > maxV) maxV = v;
       }
@@ -355,10 +445,10 @@ export class OscilloscopeDisplay {
       const scaledMinV = minV * ampScale;
       const scaledMaxV = maxV * ampScale;
       
-      // Mapear -1..1 a height..0 (invertido para que positivo vaya arriba)
-      // Clamp para evitar dibujar fuera del canvas
-      const yMin = Math.max(0, Math.min(height, ((1 - scaledMaxV) / 2) * height));
-      const yMax = Math.max(0, Math.min(height, ((1 - scaledMinV) / 2) * height));
+      // Mapear -1..1 a la sección del beam (invertido para que positivo vaya arriba)
+      // centerY es el punto central, halfBeamHeight es la amplitud máxima
+      const yMin = centerY - scaledMaxV * halfBeamHeight;
+      const yMax = centerY - scaledMinV * halfBeamHeight;
       
       if (firstPoint) {
         ctx.moveTo(px, yMin);
@@ -375,12 +465,10 @@ export class OscilloscopeDisplay {
     ctx.stroke();
     
     // Resetear efecto glow para no afectar otros elementos
-    if (this.glowBlur > 0) {
+    if (glowBlur > 0) {
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
     }
-    
-    this._drawTriggerIndicator(triggered);
   }
 
   /**
@@ -503,9 +591,11 @@ export class OscilloscopeDisplay {
     
     // Dibujar señal según modo
     if (this.mode === 'xy') {
+      // Modo X-Y (Lissajous): una sola figura paramétrica
       this._drawXY(data.bufferX, data.bufferY);
     } else {
-      this._drawYT(data.bufferY, data.triggered, data.validLength);
+      // Modo Y-T (dual beam): bufferY = Beam 1, bufferX = Beam 2
+      this._drawYT(data.bufferY, data.bufferX, data.triggered, data.validLength);
     }
     
     // Dibujar indicador de trigger (TRIG/AUTO)

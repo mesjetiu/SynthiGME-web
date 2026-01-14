@@ -138,24 +138,61 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Genera onda sine con simetría variable (asimétrica)
-   * symmetry = 0.5 es sine normal
-   * < 0.5 comprime la mitad positiva, > 0.5 comprime la negativa
+   * Genera onda sine con simetría variable (Estilo Synthi 100)
+   * HYBRID APPROACH:
+   * - En Symmetry 0.5: Matemáticamente Seno Puro (Math.cos).
+   * - En Extremos: Waveshaper Tanh sobre Triángulo (carácter analógico/sucio).
+   * - Transición suave (Crossfade) basada en la distancia al centro.
    */
   generateAsymmetricSine(phase, symmetry) {
-    // Transformar fase según simetría
-    let transformedPhase;
+    // === 1. Componente ANAÓGICA (Triángulo + Tanh) ===
     
-    if (phase < symmetry) {
-      // Primera mitad del ciclo (subida)
-      transformedPhase = (phase / symmetry) * 0.5;
+    // Alineación de fase: Peak (+1) al inicio (fase 0)
+    const triPhase = (phase + 0.5) % 1;
+    
+    // Triángulo base (-1 a 1)
+    let tri;
+    if (triPhase < 0.5) {
+      tri = 4 * triPhase - 1;
     } else {
-      // Segunda mitad del ciclo (bajada)
-      transformedPhase = 0.5 + ((phase - symmetry) / (1 - symmetry)) * 0.5;
+      tri = 3 - 4 * triPhase;
     }
     
-    // Generar sine con fase transformada
-    return Math.sin(transformedPhase * 2 * Math.PI);
+    // Offset para asimetría
+    const maxOffset = 0.85;
+    const offset = (0.5 - symmetry) * 2.0 * maxOffset;
+    
+    // Waveshaping (Tanh)
+    // Usamos k=1.55 basado en ajuste visual "poco más de 1/4 de recorrido"
+    // k = 1.0 + (0.275 * 2.0) ≈ 1.55
+    const k = 1.55;
+    const analogRaw = Math.tanh(k * (tri + offset));
+    
+    // Corrección DC y Normalización
+    const maxVal = Math.tanh(k * (1 + offset));
+    const minVal = Math.tanh(k * (-1 + offset));
+    const scale = 2.0 / (maxVal - minVal);
+    const dcCorrection = (maxVal + minVal) * 0.5;
+    
+    const analogSine = (analogRaw - dcCorrection) * scale;
+
+    // === 2. Componente DIGITAL (Seno Puro) ===
+    // Solo se calcula si estamos cerca del centro para eficiencia, 
+    // pero siempre necesitamos alinearla: Math.cos(2PI*phase) empieza en 1 (Peak)
+    const pureSine = Math.cos(phase * 2 * Math.PI);
+
+    // === 3. MEZCLA (Crossfade) ===
+    // Distancia al centro normalizada (0.0 en centro, 1.0 en extremos)
+    const dist = Math.abs(symmetry - 0.5) * 2.0;
+    
+    // Curva de mezcla:
+    // Queremos que el seno puro domine en el centro y desaparezca rápido
+    // para dejar paso al carácter analógico.
+    // Usamos una potencia para que la "zona pura" sea estrecha pero suave.
+    const analogMix = Math.pow(dist, 0.5); // Raíz cuadrada hace que el carácter entre rápido
+    
+    // Interpolación lineal entre Puro y Analógico
+    return pureSine * (1 - analogMix) + analogSine * analogMix;
   }
 
   /**

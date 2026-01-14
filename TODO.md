@@ -1,36 +1,38 @@
-# Pendiente / En progreso / Hecho
+## Oscilador:
 
-## Pendiente (marcados [X] en progreso]
+- Hacer coincidir inicio de fase de rampa con vientre positivo de seno (hacerlo coseno?)
 
-### Código pendiente (desde comentarios en código)
-- [ ] **Osciladores: exponer valores para serialización** (`state/index.js:serializeOscillator`)
-  - Implementar `currentValues` en osciladores para que el sistema de patches pueda serializar su estado.
-- [ ] **Matriz: exponer estado para serialización** (`state/index.js:serializeMatrix`)
-  - Implementar método para obtener conexiones activas de la matriz de audio y control.
-- [ ] **Random Voltage: definir filas de matriz** (`panel3.config.js`, `panel3.blueprint.js`)
-  - Asignar filas de matriz (voltage1, voltage2) cuando se implemente la lógica de CV aleatorio.
+- Modificar simetry de seno para que sea más suave (hay cambios de curva)
 
-### AudioEngine
-- [x] Implementar OutputRouter multicanal: mover la lógica de buses y paneo al módulo OutputRouter, exponer entradas maestras N en AudioEngine (OUTPUT_CHANNELS configurable, por defecto 8) y mapear los buses lógicos a canales físicos.
-- [ ] Detectar soporte Web Audio y mostrar error/fallback si no está disponible. Implementar en src/assets/js/core/engine.js -> AudioEngine.start().
-- [ ] Manejar estado "suspended" en iOS: reanudar audioCtx (audioCtx.resume()) tras interacción del usuario (App.ensureAudio / handlers que llaman engine.start()).
-- [ ] Versionado, Documentación, Traducción
-  - [ ] Documentado del código in situ.
-  - [ ] Preparar para multidioma.
-  - [ ] Documento con créditos.
-- [ ] Usabilidad, gestos, apariencia 
-  - [ ] Sonido empieza al interactuar con la matriz no con las perillas (se oye rampa al activar pin si se ha tocado freq de un oscilador)
-  - [ ] Aligerar visual con gráficos vectoriales svg.
-  - [ ] Añadir inercia en movimiento de arrastre. ya aparece en fullscreen por defecto.
-- [ ] crear tests
+- Invertir transformación de la simetría 
+
+(Visto en manual de usuario de Synthi 100 de Cuenca)
+
+- Chequear simetría de pulso de p. 22.
 
 
-## Hecho
-- Elegir y documentar la licencia del proyecto (archivo LICENSE y mención en README.md).
-- Definir y documentar la estrategia de versionado y publicación (relación rama main ↔ compilación en /docs).
-- Crear PWA (manifest, service worker, build/documentación actualizados).
-- Quitar botón de "Pantalla completa" cuando se ejecuta como PWA en dispositivo móvil.
-- Añadir icono de Sylvia (nuevo set de iconos/base PWA)
-- Hacer arrastre con dos dedos
-- Comenzar con zoom out mayor para ver El synthi en su conjunto.
-- Hacer canvas más grande. Existe límite de arrastre a alto zoom.
+## Osciloscopio:
+
+- Hacer doble Beam, de ambas entradas.
+
+- Mejorar algunos aspectos probando.
+
+## Otros:
+
+- Al reiniciar patch, permanece el dibujo en el osciloscopio.
+
+- Asegurarse de que los patchs están guardando todo (panel 2, 3, 5, 6 y 7, que son los operativos ahora).
+
+- Algunos knobs se iluminan (touch) en channels y en osciloscopio, y en osciladores... Lo veo en Edge en móvil.
+
+- Patches: poder sobrescribir un patch
+
+- Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
+
+- Implementar una forma de ver los valores reales o valores de Synthi.
+
+- Decidir voltages de cada módulo. Las salidas serán siempre voltages. Ver resistencias de los pines.
+
+- Hay 2 entradas de micro tras input amplifiers 
+
+- Actualizar árbol de carpetas en architecture.md

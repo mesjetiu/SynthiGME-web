@@ -1,5 +1,7 @@
 ## Oscilador:
 
+- Deshabilitar los osciladores de otros paneles.
+
 - Hacer coincidir inicio de fase de rampa con vientre positivo de seno (hacerlo coseno?)
 
 - Chequear simetría de pulso de p. 22.

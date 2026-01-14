@@ -11,8 +11,6 @@
 
 ## Osciloscopio:
 
-- Hacer doble Beam, de ambas entradas.
-
 - Mejorar algunos aspectos probando.
 
 ## Otros:

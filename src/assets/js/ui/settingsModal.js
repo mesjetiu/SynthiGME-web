@@ -57,12 +57,15 @@ export class SettingsModal {
     // Pestaña activa
     this.activeTab = 'general';
     
-    // Escalas disponibles
-    this.resolutionFactors = [1, 2, 3, 4];
+    // Escalas disponibles (máximo 3x para evitar problemas de GPU en móviles)
+    this.resolutionFactors = [1, 2, 3];
     
-    // Escala actual (cargar de localStorage)
+    // Escala actual: solo cargar de localStorage si "recordar" está activo
+    const rememberResolution = localStorage.getItem(STORAGE_KEYS.REMEMBER_RESOLUTION) === 'true';
     const savedFactor = parseInt(localStorage.getItem(STORAGE_KEYS.RESOLUTION), 10);
-    this.currentResolution = this.resolutionFactors.includes(savedFactor) ? savedFactor : 1;
+    // Si no recordar, siempre empezar en 1x (seguro)
+    this.currentResolution = (rememberResolution && this.resolutionFactors.includes(savedFactor)) ? savedFactor : 1;
+    this.rememberResolution = rememberResolution;
     
     // Configuración de autoguardado
     const savedInterval = localStorage.getItem(STORAGE_KEYS.AUTOSAVE_INTERVAL);
@@ -107,7 +110,7 @@ export class SettingsModal {
     
     // Selectores
     this.languageSelect = null;
-    this.resolutionButtons = [];
+    this.resolutionSelect = null;
     
     // Crear modal
     this._create();
@@ -699,6 +702,7 @@ export class SettingsModal {
   
   /**
    * Crea la sección de escala de renderizado
+   * Usa dropdown + checkbox "recordar" en lugar de botones
    */
   _createResolutionSection() {
     const section = document.createElement('div');
@@ -712,32 +716,68 @@ export class SettingsModal {
     this.resolutionDescElement.className = 'settings-section__description';
     this.resolutionDescElement.textContent = t('settings.scale.description');
     
-    // Botones de escala
-    const buttonsWrapper = document.createElement('div');
-    buttonsWrapper.className = 'settings-scale-buttons';
+    // Fila con dropdown de escala
+    const scaleRow = document.createElement('div');
+    scaleRow.className = 'settings-row settings-row--select';
     
-    this.resolutionButtons = [];
+    this.resolutionSelectLabelElement = document.createElement('label');
+    this.resolutionSelectLabelElement.className = 'settings-row__label';
+    this.resolutionSelectLabelElement.textContent = t('settings.scale.current');
+    this.resolutionSelectLabelElement.setAttribute('for', 'resolutionSelect');
+    
+    this.resolutionSelect = document.createElement('select');
+    this.resolutionSelect.id = 'resolutionSelect';
+    this.resolutionSelect.className = 'settings-select';
     
     this.resolutionFactors.forEach(factor => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'settings-scale-btn';
-      btn.textContent = `${factor}×`;
-      btn.dataset.factor = factor;
-      
+      const option = document.createElement('option');
+      option.value = factor;
+      option.textContent = `${factor}×`;
       if (factor === this.currentResolution) {
-        btn.classList.add('settings-scale-btn--active');
+        option.selected = true;
       }
-      
-      btn.addEventListener('click', () => this._setResolution(factor));
-      
-      buttonsWrapper.appendChild(btn);
-      this.resolutionButtons.push(btn);
+      this.resolutionSelect.appendChild(option);
     });
+    
+    this.resolutionSelect.addEventListener('change', () => {
+      const factor = parseInt(this.resolutionSelect.value, 10);
+      this._setResolution(factor);
+    });
+    
+    scaleRow.appendChild(this.resolutionSelectLabelElement);
+    scaleRow.appendChild(this.resolutionSelect);
+    
+    // Checkbox "Recordar para próximos reinicios"
+    const rememberRow = document.createElement('div');
+    rememberRow.className = 'settings-row settings-row--checkbox';
+    
+    this.rememberResolutionCheckbox = document.createElement('input');
+    this.rememberResolutionCheckbox.type = 'checkbox';
+    this.rememberResolutionCheckbox.id = 'rememberResolutionCheckbox';
+    this.rememberResolutionCheckbox.className = 'settings-checkbox';
+    this.rememberResolutionCheckbox.checked = this.rememberResolution;
+    
+    this.rememberResolutionLabelElement = document.createElement('label');
+    this.rememberResolutionLabelElement.className = 'settings-checkbox-label';
+    this.rememberResolutionLabelElement.setAttribute('for', 'rememberResolutionCheckbox');
+    this.rememberResolutionLabelElement.textContent = t('settings.scale.remember');
+    
+    this.rememberResolutionCheckbox.addEventListener('change', () => {
+      this.rememberResolution = this.rememberResolutionCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.REMEMBER_RESOLUTION, String(this.rememberResolution));
+      // Si se activa "recordar", guardar la escala actual
+      if (this.rememberResolution) {
+        localStorage.setItem(STORAGE_KEYS.RESOLUTION, String(this.currentResolution));
+      }
+    });
+    
+    rememberRow.appendChild(this.rememberResolutionCheckbox);
+    rememberRow.appendChild(this.rememberResolutionLabelElement);
     
     section.appendChild(this.resolutionTitleElement);
     section.appendChild(this.resolutionDescElement);
-    section.appendChild(buttonsWrapper);
+    section.appendChild(scaleRow);
+    section.appendChild(rememberRow);
     
     return section;
   }
@@ -1973,13 +2013,16 @@ export class SettingsModal {
     if (factor === this.currentResolution) return;
     
     this.currentResolution = factor;
-    localStorage.setItem(STORAGE_KEYS.RESOLUTION, factor);
     
-    // Actualizar botones
-    this.resolutionButtons.forEach(btn => {
-      const btnFactor = parseInt(btn.dataset.factor, 10);
-      btn.classList.toggle('settings-scale-btn--active', btnFactor === factor);
-    });
+    // Guardar en localStorage si "recordar" está activo
+    if (this.rememberResolution) {
+      localStorage.setItem(STORAGE_KEYS.RESOLUTION, factor);
+    }
+    
+    // Actualizar dropdown si existe
+    if (this.resolutionSelect) {
+      this.resolutionSelect.value = String(factor);
+    }
     
     // Notificar
     if (this.onResolutionChange) {

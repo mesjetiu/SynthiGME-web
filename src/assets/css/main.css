@@ -315,6 +315,17 @@ html:-webkit-full-screen #viewportOuter {
   color: #ffcdd2;
 }
 
+/* Botón de emergencia para resetear resolución */
+.mobile-quickbar__emergency {
+  color: #ffb74d;
+}
+
+.mobile-quickbar__emergency:hover {
+  background: rgba(255, 180, 60, 0.35);
+  border-color: rgba(255, 180, 60, 0.5);
+  color: #ffe0a0;
+}
+
 /* Grupo fijo (mute + tab) siempre visible */
 .mobile-quickbar__fixed {
   display: flex;

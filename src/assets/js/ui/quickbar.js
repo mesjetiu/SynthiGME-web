@@ -5,6 +5,8 @@ import { onUpdateAvailable, hasWaitingUpdate } from '../utils/serviceWorker.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
+import { showToast } from './toast.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Quickbar');
@@ -149,9 +151,27 @@ export function setupMobileQuickActionsBar() {
   bar.className = 'mobile-quickbar mobile-quickbar--collapsed';
   bar.setAttribute('data-prevent-pan', 'true');
 
-  // Contenedor fijo para botones siempre visibles (mute + tab)
+  // Contenedor fijo para botones siempre visibles (mute + emergency + tab)
   const fixedGroup = document.createElement('div');
   fixedGroup.className = 'mobile-quickbar__fixed';
+
+  // Botón de EMERGENCIA - reset resolución a 1x (siempre visible)
+  // Solo visible si la resolución actual NO es 1x
+  const btnEmergency = document.createElement('button');
+  btnEmergency.type = 'button';
+  btnEmergency.className = 'mobile-quickbar__btn mobile-quickbar__emergency';
+  btnEmergency.id = 'btnEmergencyRes';
+  setButtonTooltip(btnEmergency, t('quickbar.emergency'));
+  btnEmergency.innerHTML = iconSvg('ti-eye');
+  btnEmergency.hidden = (window.__synthResolutionFactor || 1) === 1;
+  
+  btnEmergency.addEventListener('click', () => {
+    // Forzar resolución a 1x y recargar
+    localStorage.setItem(STORAGE_KEYS.RESOLUTION, '1');
+    localStorage.setItem(STORAGE_KEYS.REMEMBER_RESOLUTION, 'false');
+    showToast(t('quickbar.emergency.applied'), 1500);
+    setTimeout(() => window.location.reload(), 800);
+  });
 
   // Botón de MUTE global (siempre visible, panic button)
   const btnMute = document.createElement('button');
@@ -397,7 +417,8 @@ export function setupMobileQuickActionsBar() {
   group.appendChild(btnFs);
   group.appendChild(btnSettings);
 
-  // Grupo fijo: mute + tab (siempre visibles)
+  // Grupo fijo: emergency + mute + tab (siempre visibles)
+  fixedGroup.appendChild(btnEmergency);
   fixedGroup.appendChild(btnMute);
   fixedGroup.appendChild(tab);
 
@@ -409,12 +430,13 @@ export function setupMobileQuickActionsBar() {
   
   // Configurar long-press para tooltips en móvil
   setupAllLongPressTooltips([
-    btnMute, tab, btnPan, btnZoom, btnPatches, 
+    btnEmergency, btnMute, tab, btnPan, btnZoom, btnPatches, 
     btnRecord, btnReset, btnFs, btnSettings
   ]);
 
   // Actualizar tooltips cuando cambie el idioma
   onLocaleChange(() => {
+    setButtonTooltip(btnEmergency, t('quickbar.emergency'));
     setButtonTooltip(btnMute, t(isMuted ? 'quickbar.unmute' : 'quickbar.mute'));
     setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
     setButtonTooltip(btnPatches, t('quickbar.patches'));

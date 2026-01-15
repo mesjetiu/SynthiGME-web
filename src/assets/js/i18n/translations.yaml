@@ -157,8 +157,16 @@ settings.scale:
   es: Escala de renderizado
 
 settings.scale.description:
-  en: Higher scale = sharper image, but more resource usage.
-  es: Mayor escala = mayor nitidez, pero más consumo de recursos.
+  en: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
+  es: Mayor escala = mayor nitidez, pero más consumo de recursos. Se resetea a 1× al reiniciar salvo que actives "Recordar".
+
+settings.scale.current:
+  en: "Current scale:"
+  es: "Escala actual:"
+
+settings.scale.remember:
+  en: Remember on restart
+  es: Recordar al reiniciar
 
 # Sección: Actualizaciones
 settings.updates:
@@ -514,6 +522,14 @@ quickbar.patches:
 quickbar.audio:
   en: Audio settings (A)
   es: Configuración de audio (A)
+
+quickbar.emergency:
+  en: Reset scale to 1× (emergency)
+  es: Resetear escala a 1× (emergencia)
+
+quickbar.emergency.applied:
+  en: Scale reset to 1×
+  es: Escala reseteada a 1×
 
 quickbar.mute:
   en: "Mute audio (M)"

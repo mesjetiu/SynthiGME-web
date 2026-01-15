@@ -68,6 +68,7 @@ export const STORAGE_KEYS = {
   
   // Ajustes generales
   RESOLUTION: `${STORAGE_PREFIX}resolution`,
+  REMEMBER_RESOLUTION: `${STORAGE_PREFIX}remember-resolution`,
   AUTOSAVE_INTERVAL: `${STORAGE_PREFIX}autosave-interval`,
   SAVE_ON_EXIT: `${STORAGE_PREFIX}save-on-exit`,
   RESTORE_ON_START: `${STORAGE_PREFIX}restore-on-start`,

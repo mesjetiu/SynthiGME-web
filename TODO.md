@@ -17,6 +17,10 @@
 
 - Crear menú contextual de cada mando, de cada módulo... para reiniciar, para poner un valor concreto...
 
+## Sistema Dormancy:
+
+- Detallar condiciones particulares más concretas para cada módulo para entrar y salir del estado "dormant". Hasta ahora solo se mira la matriz de conexiones.
+
 ## Otros:
 
 - Al reiniciar patch, permanece el dibujo en el osciloscopio.

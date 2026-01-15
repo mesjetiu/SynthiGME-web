@@ -7,6 +7,31 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   CONTROLES INTERACTIVOS - ESTILOS TÁCTILES GLOBALES
+   ═══════════════════════════════════════════════════════════════════════════
+   Desactiva el highlight azul/gris que aplican los navegadores móviles
+   al tocar elementos interactivos. Aplica a todos los controles del synth.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.knob,
+.knob-inner,
+.knob-cap,
+.pin-btn,
+.joystick-pad,
+.joystick-handle,
+.toggle,
+.switch,
+.slider,
+.fader,
+.output-fader,
+.output-channel__slider,
+.matrix-cell,
+.sgme-osc__knob,
+.noise-generator__knob,
+.random-voltage__knob {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    SPLASH SCREEN DE BIENVENIDA
    ═══════════════════════════════════════════════════════════════════════════
    Pantalla de carga que cubre toda la interfaz mientras la app inicializa.

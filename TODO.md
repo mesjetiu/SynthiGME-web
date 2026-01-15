@@ -9,6 +9,8 @@
 
 ## Osciloscopio:
 
+- Poner los beam en lugar de en los tercios, en los cuartos, para tener dos mitades y espacio suficiente para cada beam.
+
 - Mejorar algunos aspectos probando.
 
 ## UI:

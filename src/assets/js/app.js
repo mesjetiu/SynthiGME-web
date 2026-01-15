@@ -1746,6 +1746,14 @@ class App {
       if (entry._isDormant === dormant) return;
       entry._isDormant = dormant;
       
+      // Enviar mensaje al worklet para early exit real (ahorra CPU)
+      try {
+        multiOsc.port.postMessage({ type: 'setDormant', dormant });
+        console.log(`[Dormancy] Oscillator ${oscIndex} on panel ${panelIndex}: ${dormant ? 'DORMANT' : 'ACTIVE'}`);
+      } catch (e) {
+        console.warn('[Dormancy] Failed to send message to worklet:', e);
+      }
+      
       const rampTime = 0.01;
       
       if (dormant) {

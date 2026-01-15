@@ -92,6 +92,9 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     this.lastSyncSample = -1;
     this.isRunning = true;
     
+    // Dormancy: cuando true, el worklet no procesa (early exit)
+    this.dormant = false;
+    
     // Modo: 'single' (1 waveform, 1 output) o 'multi' (4 waveforms, 2 outputs)
     this.mode = options?.processorOptions?.mode || 'single';
     
@@ -108,6 +111,10 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         this.waveform = event.data.waveform;
       } else if (event.data.type === 'setMode') {
         this.mode = event.data.mode;
+      } else if (event.data.type === 'setDormant') {
+        this.dormant = event.data.dormant;
+        // Log en consola del worklet (visible en DevTools > Sources > Threads)
+        console.log(`[Worklet] Oscillator dormant: ${this.dormant}`);
       }
     };
   }
@@ -394,6 +401,20 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     if (!this.isRunning) return false;
 
     const numSamples = outputs[0]?.[0]?.length || 128;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DORMANCY: Early exit - no procesar formas de onda, solo silencio
+    // La fase se mantiene para preservar coherencia al despertar
+    // ─────────────────────────────────────────────────────────────────────────
+    if (this.dormant) {
+      // Llenar outputs con ceros (silencio)
+      for (const output of outputs) {
+        for (const channel of output) {
+          channel.fill(0);
+        }
+      }
+      return true; // Mantener el nodo activo pero sin procesar
+    }
 
     if (this.mode === 'multi') {
       this.processMulti(outputs, inputs, parameters, numSamples);

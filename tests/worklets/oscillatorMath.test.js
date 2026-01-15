@@ -134,5 +134,29 @@ describe('SynthOscillatorProcessor DSP Logic', () => {
        assert.ok(Number.isFinite(res));
     });
 
+    it('Optimization: Precomputed triangle should yield same result', () => {
+      // Logic check: generateAsymmetricSine uses internal tri logic if arg3 is missing.
+      // If arg3 (precomputedTri) is provided as -internalTri, result should match.
+      // But wait, the worklet passes `rawTri` (standard triangle) and the func does `tri = -precomputedTri`.
+      // So we must simulate what processMulti does: pass the standard triangle.
+      
+      const phase = 0.1;
+      const symmetry = 0.2; // Use asymmetric to engage analog part
+      
+      // 1. Calc Standard Triangle (simulating generateTriangle)
+      let stdTri;
+      if (phase < 0.5) stdTri = 4 * phase - 1;
+      else stdTri = 3 - 4 * phase;
+      
+      // 2. Call with optimization
+      const optimized = processor.generateAsymmetricSine(phase, symmetry, stdTri);
+      
+      // 3. Call without optimization
+      const manual = processor.generateAsymmetricSine(phase, symmetry);
+      
+      assert.ok(Math.abs(optimized - manual) < 1e-15, 
+        `Optimization mismatch! Optimized: ${optimized}, Manual: ${manual}`);
+    });
+
   });
 });

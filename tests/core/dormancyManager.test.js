@@ -777,3 +777,566 @@ describe('Oscillator setDormant - mensaje al worklet', () => {
     assert.equal(messages.length, 0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tests para NoiseModule dormancy (envío mensaje al worklet + silenciar level)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('NoiseModule dormancy', () => {
+  
+  it('envía mensaje setDormant al worklet al entrar en dormancy', () => {
+    const messages = [];
+    const mockWorklet = {
+      port: {
+        postMessage(msg) { messages.push(msg); }
+      }
+    };
+    
+    // Simular un NoiseModule con worklet y levelNode
+    const noiseModule = {
+      workletNode: mockWorklet,
+      levelNode: {
+        gain: {
+          value: 0.8,
+          cancelScheduledValues: () => {},
+          setTargetAtTime: () => {}
+        }
+      },
+      values: { level: 0.8 },
+      _isDormant: false,
+      _preDormantLevel: null,
+      getAudioCtx() { return { currentTime: 0 }; },
+      _onDormancyChange(dormant) {
+        if (this.workletNode) {
+          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
+        }
+        if (!this.levelNode) return;
+        const ctx = this.getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        if (dormant) {
+          this._preDormantLevel = this.values.level;
+          this.levelNode.gain.cancelScheduledValues(now);
+          this.levelNode.gain.setTargetAtTime(0, now, 0.01);
+        } else {
+          const targetLevel = this._preDormantLevel ?? this.values.level;
+          this.levelNode.gain.cancelScheduledValues(now);
+          this.levelNode.gain.setTargetAtTime(targetLevel, now, 0.01);
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    noiseModule.setDormant(true);
+    
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0], { type: 'setDormant', dormant: true });
+  });
+  
+  it('guarda el nivel previo y silencia al entrar en dormancy', () => {
+    let currentGain = 0.8;
+    let cancelCalled = false;
+    
+    const noiseModule = {
+      workletNode: { port: { postMessage() {} } },
+      levelNode: {
+        gain: {
+          value: 0.8,
+          cancelScheduledValues: () => { cancelCalled = true; },
+          setTargetAtTime: (val) => { currentGain = val; }
+        }
+      },
+      values: { level: 0.8 },
+      _isDormant: false,
+      _preDormantLevel: null,
+      getAudioCtx() { return { currentTime: 0 }; },
+      _onDormancyChange(dormant) {
+        if (this.workletNode) {
+          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
+        }
+        if (!this.levelNode) return;
+        const ctx = this.getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        if (dormant) {
+          this._preDormantLevel = this.values.level;
+          this.levelNode.gain.cancelScheduledValues(now);
+          this.levelNode.gain.setTargetAtTime(0, now, 0.01);
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    noiseModule.setDormant(true);
+    
+    assert.equal(noiseModule._preDormantLevel, 0.8);
+    assert.equal(currentGain, 0);
+    assert.equal(cancelCalled, true);
+  });
+  
+  it('restaura el nivel previo al salir de dormancy', () => {
+    let currentGain = 0;
+    
+    const noiseModule = {
+      workletNode: { port: { postMessage() {} } },
+      levelNode: {
+        gain: {
+          value: 0,
+          cancelScheduledValues: () => {},
+          setTargetAtTime: (val) => { currentGain = val; }
+        }
+      },
+      values: { level: 0.8 },
+      _isDormant: true,
+      _preDormantLevel: 0.7,
+      getAudioCtx() { return { currentTime: 0 }; },
+      _onDormancyChange(dormant) {
+        if (this.workletNode) {
+          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
+        }
+        if (!this.levelNode) return;
+        const ctx = this.getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        if (!dormant) {
+          const targetLevel = this._preDormantLevel ?? this.values.level;
+          this.levelNode.gain.cancelScheduledValues(now);
+          this.levelNode.gain.setTargetAtTime(targetLevel, now, 0.01);
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    noiseModule.setDormant(false);
+    
+    assert.equal(currentGain, 0.7); // Restaura el nivel guardado
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tests para InputAmplifier dormancy (silenciar todos los GainNodes)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('InputAmplifier dormancy', () => {
+  
+  it('guarda niveles y silencia todos los canales al entrar en dormancy', () => {
+    const gains = [];
+    const gainNodes = [];
+    
+    // Crear 8 GainNodes mock
+    for (let i = 0; i < 8; i++) {
+      gains.push(0.5 + i * 0.05); // 0.5, 0.55, 0.6...
+      gainNodes.push({
+        gain: {
+          value: 0.5 + i * 0.05,
+          cancelScheduledValues: () => {},
+          setTargetAtTime: function(val) { this.value = val; }
+        }
+      });
+    }
+    
+    const inputAmp = {
+      gainNodes,
+      levels: [...gains],
+      _isDormant: false,
+      _preDormantLevels: null,
+      getAudioCtx() { return { currentTime: 0 }; },
+      _onDormancyChange(dormant) {
+        const ctx = this.getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        if (dormant) {
+          this._preDormantLevels = [...this.levels];
+          for (const gain of this.gainNodes) {
+            if (gain) {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setTargetAtTime(0, now, 0.01);
+            }
+          }
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    inputAmp.setDormant(true);
+    
+    // Verifica que se guardaron los niveles
+    assert.deepEqual(inputAmp._preDormantLevels, gains);
+    
+    // Verifica que todos están silenciados
+    for (const node of gainNodes) {
+      assert.equal(node.gain.value, 0);
+    }
+  });
+  
+  it('restaura los niveles al salir de dormancy', () => {
+    const originalLevels = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.3, 0.4];
+    const gainNodes = [];
+    
+    for (let i = 0; i < 8; i++) {
+      gainNodes.push({
+        gain: {
+          value: 0,
+          cancelScheduledValues: () => {},
+          setTargetAtTime: function(val) { this.value = val; }
+        }
+      });
+    }
+    
+    const inputAmp = {
+      gainNodes,
+      levels: originalLevels,
+      _isDormant: true,
+      _preDormantLevels: [...originalLevels],
+      getAudioCtx() { return { currentTime: 0 }; },
+      _onDormancyChange(dormant) {
+        const ctx = this.getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        if (!dormant) {
+          const savedLevels = this._preDormantLevels || this.levels;
+          for (let i = 0; i < this.gainNodes.length; i++) {
+            const gain = this.gainNodes[i];
+            if (gain) {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setTargetAtTime(savedLevels[i] || 0, now, 0.01);
+            }
+          }
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    inputAmp.setDormant(false);
+    
+    // Verifica que se restauraron los niveles
+    for (let i = 0; i < 8; i++) {
+      assert.equal(gainNodes[i].gain.value, originalLevels[i]);
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tests para Oscilloscope dormancy (envío mensaje al worklet)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Oscilloscope dormancy', () => {
+  
+  it('envía mensaje setDormant al captureNode al entrar en dormancy', () => {
+    const messages = [];
+    
+    const oscilloscope = {
+      captureNode: {
+        port: {
+          postMessage(msg) { messages.push(msg); }
+        }
+      },
+      _isDormant: false,
+      _onDormancyChange(dormant) {
+        if (this.captureNode) {
+          this.captureNode.port.postMessage({ type: 'setDormant', dormant });
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    oscilloscope.setDormant(true);
+    
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0], { type: 'setDormant', dormant: true });
+  });
+  
+  it('envía mensaje setDormant al captureNode al salir de dormancy', () => {
+    const messages = [];
+    
+    const oscilloscope = {
+      captureNode: {
+        port: {
+          postMessage(msg) { messages.push(msg); }
+        }
+      },
+      _isDormant: true,
+      _onDormancyChange(dormant) {
+        if (this.captureNode) {
+          this.captureNode.port.postMessage({ type: 'setDormant', dormant });
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    oscilloscope.setDormant(false);
+    
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0], { type: 'setDormant', dormant: false });
+  });
+  
+  it('no falla si captureNode es null', () => {
+    const oscilloscope = {
+      captureNode: null,
+      _isDormant: false,
+      _onDormancyChange(dormant) {
+        if (this.captureNode) {
+          this.captureNode.port.postMessage({ type: 'setDormant', dormant });
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    // No debe lanzar excepción
+    assert.doesNotThrow(() => {
+      oscilloscope.setDormant(true);
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tests para Output Bus dormancy (desconexión del grafo)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Output Bus dormancy with graph disconnection', () => {
+  
+  it('desconecta busInput de filterLP cuando no hay bypass al entrar en dormancy', () => {
+    let disconnectedFrom = null;
+    
+    const bus = {
+      input: {
+        disconnect(node) { disconnectedFrom = node; },
+        connect() {}
+      },
+      filterLP: { name: 'filterLP' },
+      levelNode: { name: 'levelNode' },
+      muteNode: { gain: { value: 1, setValueAtTime() {} } },
+      _isDormant: false,
+      _savedMuteValue: 1
+    };
+    
+    const engine = {
+      _filterBypassState: [false] // No bypass activo
+    };
+    
+    function setDormant(dormant) {
+      if (bus._isDormant === dormant) return;
+      bus._isDormant = dormant;
+      
+      const isBypassed = engine._filterBypassState?.[0] ?? false;
+      
+      if (dormant) {
+        bus._savedMuteValue = bus.muteNode.gain.value;
+        if (isBypassed) {
+          bus.input.disconnect(bus.levelNode);
+        } else {
+          bus.input.disconnect(bus.filterLP);
+        }
+      }
+    }
+    
+    setDormant(true);
+    
+    assert.equal(bus._isDormant, true);
+    assert.strictEqual(disconnectedFrom, bus.filterLP);
+  });
+  
+  it('desconecta busInput de levelNode cuando hay bypass activo', () => {
+    let disconnectedFrom = null;
+    
+    const bus = {
+      input: {
+        disconnect(node) { disconnectedFrom = node; },
+        connect() {}
+      },
+      filterLP: { name: 'filterLP' },
+      levelNode: { name: 'levelNode' },
+      muteNode: { gain: { value: 1, setValueAtTime() {} } },
+      _isDormant: false,
+      _savedMuteValue: 1
+    };
+    
+    const engine = {
+      _filterBypassState: [true] // Bypass activo
+    };
+    
+    function setDormant(dormant) {
+      if (bus._isDormant === dormant) return;
+      bus._isDormant = dormant;
+      
+      const isBypassed = engine._filterBypassState?.[0] ?? false;
+      
+      if (dormant) {
+        bus._savedMuteValue = bus.muteNode.gain.value;
+        if (isBypassed) {
+          bus.input.disconnect(bus.levelNode);
+        } else {
+          bus.input.disconnect(bus.filterLP);
+        }
+      }
+    }
+    
+    setDormant(true);
+    
+    assert.equal(bus._isDormant, true);
+    assert.strictEqual(disconnectedFrom, bus.levelNode);
+  });
+  
+  it('reconecta busInput a filterLP cuando sale de dormancy sin bypass', () => {
+    let connectedTo = null;
+    let muteRestored = false;
+    
+    const bus = {
+      input: {
+        disconnect() {},
+        connect(node) { connectedTo = node; }
+      },
+      filterLP: { name: 'filterLP' },
+      levelNode: { name: 'levelNode' },
+      muteNode: { 
+        gain: { 
+          value: 0, 
+          setValueAtTime(val) { muteRestored = val === 0.9; }
+        } 
+      },
+      _isDormant: true,
+      _savedMuteValue: 0.9
+    };
+    
+    const engine = {
+      _filterBypassState: [false],
+      audioCtx: { currentTime: 0 }
+    };
+    
+    function setDormant(dormant) {
+      if (bus._isDormant === dormant) return;
+      bus._isDormant = dormant;
+      
+      const isBypassed = engine._filterBypassState?.[0] ?? false;
+      
+      if (!dormant) {
+        if (isBypassed) {
+          bus.input.connect(bus.levelNode);
+        } else {
+          bus.input.connect(bus.filterLP);
+        }
+        bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, engine.audioCtx.currentTime);
+      }
+    }
+    
+    setDormant(false);
+    
+    assert.equal(bus._isDormant, false);
+    assert.strictEqual(connectedTo, bus.filterLP);
+    assert.equal(muteRestored, true);
+  });
+  
+  it('reconecta busInput a levelNode cuando sale de dormancy con bypass activo', () => {
+    let connectedTo = null;
+    
+    const bus = {
+      input: {
+        disconnect() {},
+        connect(node) { connectedTo = node; }
+      },
+      filterLP: { name: 'filterLP' },
+      levelNode: { name: 'levelNode' },
+      muteNode: { gain: { value: 0, setValueAtTime() {} } },
+      _isDormant: true,
+      _savedMuteValue: 1
+    };
+    
+    const engine = {
+      _filterBypassState: [true], // Bypass activo
+      audioCtx: { currentTime: 0 }
+    };
+    
+    function setDormant(dormant) {
+      if (bus._isDormant === dormant) return;
+      bus._isDormant = dormant;
+      
+      const isBypassed = engine._filterBypassState?.[0] ?? false;
+      
+      if (!dormant) {
+        if (isBypassed) {
+          bus.input.connect(bus.levelNode);
+        } else {
+          bus.input.connect(bus.filterLP);
+        }
+        bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, engine.audioCtx.currentTime);
+      }
+    }
+    
+    setDormant(false);
+    
+    assert.equal(bus._isDormant, false);
+    assert.strictEqual(connectedTo, bus.levelNode);
+  });
+  
+  it('no cambia estado si ya está en el mismo estado', () => {
+    let disconnectCalled = false;
+    
+    const bus = {
+      input: {
+        disconnect() { disconnectCalled = true; },
+        connect() {}
+      },
+      filterLP: {},
+      levelNode: {},
+      muteNode: { gain: { value: 1, setValueAtTime() {} } },
+      _isDormant: true,
+      _savedMuteValue: 1
+    };
+    
+    const engine = {
+      _filterBypassState: [false]
+    };
+    
+    function setDormant(dormant) {
+      if (bus._isDormant === dormant) return;
+      bus._isDormant = dormant;
+      
+      const isBypassed = engine._filterBypassState?.[0] ?? false;
+      
+      if (dormant) {
+        bus._savedMuteValue = bus.muteNode.gain.value;
+        if (isBypassed) {
+          bus.input.disconnect(bus.levelNode);
+        } else {
+          bus.input.disconnect(bus.filterLP);
+        }
+      }
+    }
+    
+    setDormant(true); // Ya está dormant
+    
+    assert.equal(disconnectCalled, false);
+  });
+});

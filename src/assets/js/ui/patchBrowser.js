@@ -512,13 +512,19 @@ export class PatchBrowser {
     if (!this.selectedPatchId) return;
     
     try {
+      log.info(' Exporting patch ID:', this.selectedPatchId);
       const patch = await loadPatch(this.selectedPatchId);
+      log.info(' Loaded patch:', patch ? patch.name : 'null');
       if (patch) {
         exportPatchToFile(patch);
         this._showToast(t('patches.exported'));
+      } else {
+        log.warn(' Patch not found in IndexedDB');
+        this._showToast(t('patches.errorExporting'));
       }
     } catch (err) {
       log.error(' Error exporting:', err);
+      this._showToast(t('patches.errorExporting'));
     }
   }
   

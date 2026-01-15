@@ -256,10 +256,16 @@ export function exportPatchToFile(patch, filename) {
   const link = document.createElement('a');
   link.href = url;
   link.download = `${safeName}.sgme.json`;
+  link.style.display = 'none';
   document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  
+  // Usar setTimeout para asegurar que el DOM procese el link
+  // antes de hacer click (evita problemas con modales abiertos)
+  setTimeout(() => {
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 0);
 }
 
 /**

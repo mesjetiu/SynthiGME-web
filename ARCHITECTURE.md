@@ -1045,30 +1045,49 @@ Para resolver esto, SynthiGME-web usa **AudioWorklet** con una **fase maestra un
 
 ### Arquitectura de Fase Maestra
 
+Para garantizar la coherencia de fase entre todas las formas de onda (crucial para la síntesis aditiva y AM/FM), se utiliza un sistema de **Fase Maestra Unificada**.
+
+**Estándar de Fase (Calibración CEM3340/Synthi)**:
+La fase `0.0` se define como el punto de **Reset** o **Ataque**. Todas las formas de onda se alinean a este punto de referencia.
+
+| Onda | Comportamiento en Fase 0.0 | Fórmula/Lógica | Notas de Alineación |
+|------|----------------------------|----------------|---------------------|
+| **Sine** | **Pico Positivo (+1.0)** | `cos(2πp)` | Se comporta como un Coseno. Alineado con el pico del Triángulo. |
+| **Triangle** | **Pico Positivo (+1.0)** | `p<0.5 ? 1-4p : 4p-3` | Invertido respecto a la rampa estándar para coincidir con el Sine. |
+| **Pulse** | **Centro del estado ALTO** | `(p+0.25)%1 < w` | Desplazado 90° (+0.25) para que el pulso esté "centrado" en el pico del Sine. |
+| **Sawtooth** | **Inicio (-1.0)** | `2*p - 1` | Rampa ascendente estándar (única divergencia de pico, es un reset). |
+
 ```
           FASE MAESTRA (rampa 0→1)
                    │
     ┌──────────────┼──────────────┬──────────────┐
     ▼              ▼              ▼              ▼
  SAWTOOTH       SINE          TRIANGLE        PULSE
-2*phase-1   sin(φ(phase))   |2*phase-1|    phase<w?1:-1
+(Reset -1)    (Peak +1)      (Peak +1)     (Center High)
     │              │              │              │
-    ▼              ▼              ▼              ▼
- ×sawLevel    ×sineLevel     ×triLevel     ×pulseLevel
+ [PolyBLEP]   [Hybrid Algo]       │        [PolyBLEP]
     │              │              │              │
     └──────┬───────┘              └──────┬───────┘
            ▼                             ▼
       OUTPUT 0                      OUTPUT 1
-     (sine+saw)                   (tri+pulse)
 ```
 
-**Ventajas de esta arquitectura:**
-- **Coherencia perfecta**: todas las ondas están en fase al cambiar frecuencia
-- **Eficiencia**: ~70% menos nodos de audio (1 worklet vs 4 nodos separados)
-- **Hard sync trivial**: resetear `phase = 0` sincroniza todas las ondas simultáneamente
-- **Cache locality**: todos los cálculos usan la misma variable `phase`
+### Técnicas de Anti-Aliasing
 
-### Diagrama de Componentes
+El procesador implementa mitigación de aliasing para las formas de onda con alto contenido armónico:
+
+1.  **PolyBLEP (Polynomial Band-Limited Step):**
+    *   Se aplica a la **Sawtooth** en el punto de reset (fase 0→1).
+    *   Se aplica a la **Pulse** en ambos flancos (subida y bajada).
+    *   Suaviza la discontinuidad teórica infinita usando un polinomio de segundo orden cuando la transición cae dentro de un sample de distancia (`dt`).
+
+2.  **Continuidad Geométrica:**
+    *   **Sine (Híbrido):** Al usar `Math.tanh` y `Math.cos`, la señal es C-infinitamente diferenciable, naturalmente libre de aliasing duro.
+    *   **Triangle:** Al ser una integral del pulso, sus armónicos decaen cuadráticamente ($1/n^2$). No requiere PolyBLEP agresivo en rangos de frecuencia media/baja.
+
+### SynthOscillatorProcessor
+
+**Modos de operación:**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

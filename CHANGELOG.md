@@ -7,6 +7,13 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Mejoras
+- **Algoritmo de Seno Híbrido**: Nueva implementación de la forma de onda sinusoidal que combina precisión digital en el centro con un modelado analógico (Tanh Waveshaper) en los extremos. Elimina los "kinks" previos y reproduce fielmente la estética "Vientre Redondo / Punta Aguda" del hardware original.
+- **Alineación de Fase Global**: Recalibración de todas las formas de onda para referenciarse al Pico del Seno (Fase 0 = +1.0).
+    - **Triángulo**: Invertido para coincidir fase 0 con pico positivo.
+    - **Pulso**: Desplazado +90° para estar centrado respecto al pico del seno.
+    - **Sawtooth**: Mantiene su rampa estándar de reset.
+
 ### Añadido
 - **Hard sync en matriz de audio (Panel 5)**: columnas 24-35 exponen las entradas de sincronización de los 12 osciladores. Al conectar una señal de audio, esta resetea la fase del oscilador destino en cada flanco positivo, permitiendo crear timbres armónicos complejos característicos de la síntesis analógica clásica.
 - **Fase maestra unificada en osciladores**: todas las formas de onda (sine, saw, tri, pulse) ahora derivan de una única fase maestra en el worklet. Garantiza coherencia perfecta entre formas de onda al cambiar frecuencia. La fase maestra es el sawtooth (rampa 0→1), del cual se derivan las demás ondas.

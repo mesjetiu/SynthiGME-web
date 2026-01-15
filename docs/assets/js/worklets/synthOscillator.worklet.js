@@ -163,17 +163,19 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     
     let tri;
     
-    // Optimización: Si ya tenemos el triángulo estándar (que empieza en -1),
-    // el triángulo para el seno (que empieza en +1) es simplemente su inverso.
+    // Optimización: Si ya tenemos el triángulo alineado (Standard: Phase 0 = Peak +1),
+    // lo usamos directamente. Ya NO necesitamos invertirlo.
     if (precomputedTri !== null) {
-      tri = -precomputedTri;
+      tri = precomputedTri;
     } else {
       // Cálculo manual si no se provee (ej. modo single)
-      const triPhase = (phase + 0.5) % 1;
+      // Debe coincidir con el generateTriangle actualizado:
+      // Phase 0 -> +1 (Peak), Phase 0.5 -> -1 (Valley)
+      const triPhase = phase % 1; // Ya no necesitamos offset +0.5
       if (triPhase < 0.5) {
-        tri = 4 * triPhase - 1;
+        tri = 1 - 4 * triPhase;
       } else {
-        tri = 3 - 4 * triPhase;
+        tri = 4 * triPhase - 3;
       }
     }
     
@@ -229,15 +231,23 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
   /**
    * Genera onda triangle con anti-aliasing
    * Derivada del sawtooth integrado
+   * ALINEACIÓN DE FASE:
+   * Phase 0 -> +1 (Peak)
+   * Phase 0.5 -> -1 (Valley)
+   * Esto la alinea con el pico positivo del Sine y el reinicio del Sawtooth.
    */
   generateTriangle(phase, dt) {
-    // Triangle: valor absoluto del sawtooth escalado
-    // Más eficiente: cálculo directo
     let sample;
     if (phase < 0.5) {
-      sample = 4 * phase - 1;
+      // Downward slope: 1 -> -1 (Phase 0 to 0.5)
+      // Original (-1->1): 4*p - 1
+      // Inverted (1->-1): 1 - 4*p
+      sample = 1 - 4 * phase;
     } else {
-      sample = 3 - 4 * phase;
+      // Upward slope: -1 -> 1 (Phase 0.5 to 1.0)
+      // Original (1->-1): 3 - 4*p
+      // Inverted (-1->1): 4*p - 3
+      sample = 4 * phase - 3;
     }
     return sample;
   }
@@ -358,7 +368,11 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
       const sine = this.generateAsymmetricSine(this.phase, symmetry, rawTri) * sineLevel;
       const saw = this.generateSawtooth(this.phase, dt) * sawLevel;
       const tri = rawTri * triLevel;
-      const pulse = this.generatePulse(this.phase, width, dt) * pulseLevel;
+      // 3. Pulse: Shift Phase by +0.25 (90 degrees)
+      // ALINEACIÓN: Centra el estado HIGH del pulso alrededor del ciclo positivo del Seno.
+      // Así, Phase 0 (Sine Peak) = Centro del Pulse HIGH.
+      const pulsePhase = (this.phase + 0.25) % 1; 
+      const pulse = this.generatePulse(pulsePhase, width, dt) * pulseLevel;
 
       // Output 0: sine + saw
       if (output0 && output0[0]) {

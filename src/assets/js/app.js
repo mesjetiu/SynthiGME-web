@@ -144,6 +144,7 @@ class App {
     this._outputFadersModule = null;
     
     // Construir paneles
+    // Panel 1 y 4: Solo visual, sin audio (módulos dummy a reemplazar)
     this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
     this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
@@ -1628,6 +1629,9 @@ class App {
   }
 
   _ensurePanelNodes(panelIndex, oscIndex) {
+    // Panel 1 y 4: Solo visual, sin nodos de audio (módulos dummy)
+    if (panelIndex === 1 || panelIndex === 4) return null;
+    
     // Iniciar audio de forma síncrona pero no esperar al worklet
     // Si el worklet no está listo, registramos para reintentar después
     this.engine.start({ 

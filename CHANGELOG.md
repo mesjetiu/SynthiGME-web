@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Mejoras
+- **Dormancy con early exit real**: El sistema de dormancy ahora envía un mensaje `setDormant` al AudioWorklet, que hace un early exit en `process()` llenando los buffers con ceros sin calcular formas de onda. Ahorra ~95% de CPU del worklet cuando el módulo está inactivo (antes solo silenciaba niveles pero seguía procesando). La fase se mantiene para coherencia al despertar.
 - **Algoritmo de Seno Híbrido**: Nueva implementación de la forma de onda sinusoidal que combina precisión digital en el centro con un modelado analógico (Tanh Waveshaper) en los extremos. Elimina los "kinks" previos y reproduce fielmente la estética "Vientre Redondo / Punta Aguda" del hardware original.
 - **Alineación de Fase Global**: Recalibración de todas las formas de onda para referenciarse al Pico del Seno (Fase 0 = +1.0).
     - **Triángulo**: Invertido para coincidir fase 0 con pico positivo.
@@ -27,6 +28,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Modificador CSS `.knob--xs`**: nuevo tamaño extra pequeño (36px) para knobs, disponible para uso futuro.
 
 ### Cambiado
+- **Panel 1 y Panel 4 son solo visuales**: Los osciladores de estos paneles son módulos dummy que serán reemplazados por otros módulos en el futuro. Se mantiene la UI visual (knobs, controles) para testing de fluidez pero no se crean AudioWorkletNodes ni GainNodes, ahorrando recursos.
 - **Arquitectura de osciladores del Panel 3**: cada oscilador ahora usa un único worklet multi-waveform en lugar de 4 nodos separados (2 worklets + 2 OscillatorNode nativos). Reduce overhead de scheduling del AudioGraph.
 - **Panel 3 requiere worklet**: eliminado fallback a OscillatorNode nativo. Los navegadores sin soporte de AudioWorklet no podrán usar el Panel 3.
 - **Knobs de Output Channels unificados**: ahora usan `createKnobElements()` de `knobFactory.js` y las clases genéricas `.knob`/`.knob--sm`, igual que osciladores e input amplifiers. Permite compartir código común entre módulos.

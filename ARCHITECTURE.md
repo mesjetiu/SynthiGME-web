@@ -66,7 +66,7 @@ src/
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
 | `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
-| `dormancyManager.js` | `DormancyManager` orquesta el sistema de dormancy para optimización de rendimiento. Detecta módulos sin conexiones activas en las matrices y los silencia automáticamente. Reduce carga de CPU al evitar procesamiento de audio innecesario. Configurable con opción de debug (toasts) |
+| `dormancyManager.js` | `DormancyManager` orquesta el sistema de dormancy para optimización de rendimiento. Detecta módulos sin conexiones activas en las matrices y **suspende su procesamiento DSP** (no solo los silencia). Para osciladores, envía mensaje `setDormant` al worklet que hace early exit en `process()`. Ahorra ~95% CPU por oscilador inactivo. Configurable con opción de debug (toasts) |
 
 > **Nota sobre dispositivos móviles:** El procesamiento de audio del sistema (Dolby Atmos, Audio Espacial, ecualizadores) puede interferir con la síntesis en tiempo real, causando cambios de volumen inesperados o distorsión. Ver sección "Solución de problemas" en README.md.
 
@@ -76,7 +76,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 
 | Archivo | Propósito |
 |---------|----------|
-| `synthOscillator.worklet.js` | Oscilador multi-waveform con **fase maestra unificada**. Modo `single` (1 forma de onda, 1 salida) o modo `multi` (4 formas de onda, 2 salidas). Todas las ondas derivan de una única fase (rampa 0→1 = sawtooth), garantizando coherencia perfecta. Anti-aliasing PolyBLEP, entrada para hard sync, parámetro `detune` para V/Oct, AudioParams individuales para niveles de cada onda |
+| `synthOscillator.worklet.js` | Oscilador multi-waveform con **fase maestra unificada**. Modo `single` (1 forma de onda, 1 salida) o modo `multi` (4 formas de onda, 2 salidas). Todas las ondas derivan de una única fase (rampa 0→1 = sawtooth), garantizando coherencia perfecta. Anti-aliasing PolyBLEP, entrada para hard sync, parámetro `detune` para V/Oct, AudioParams individuales para niveles de cada onda. **Dormancy**: soporta mensaje `setDormant` para early exit en `process()`, ahorrando ~95% CPU cuando está inactivo |
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
@@ -952,9 +952,9 @@ keyboardShortcuts.onChange(shortcuts => console.log(shortcuts));
 
 El sistema incluye varias optimizaciones para reducir carga de CPU, especialmente importantes en dispositivos móviles:
 
-### Dormancy (Silenciamiento Automático)
+### Dormancy (Suspensión de Procesamiento)
 
-El `DormancyManager` detecta módulos de audio sin conexiones activas en las matrices y los silencia automáticamente.
+El `DormancyManager` detecta módulos de audio sin conexiones activas en las matrices y **suspende su procesamiento DSP**, no solo los silencia.
 
 ```
 ┌──────────────────┐                   ┌──────────────────┐
@@ -974,16 +974,29 @@ El `DormancyManager` detecta módulos de audio sin conexiones activas en las mat
                        │               └──────────────────┘
                        ▼
                ┌───────────────────┐
-               │  Oscilador sin    │──▶ silenciado
-               │   conexiones      │
+               │  Oscilador sin    │──▶ SUSPENDIDO
+               │   conexiones      │    (early exit)
                └───────────────────┘
 ```
 
 **Comportamiento:**
 - Analiza matrices de audio y control en cada cambio
-- Módulos sin conexiones entrantes → marcados como dormant
-- Output buses sin conexiones desde módulos → marcados como dormant
-- Osciladores aplican gain=0, Output buses aplican mute
+- Módulos sin conexiones → marcados como dormant
+- **Osciladores dormant**: se envía mensaje `setDormant` al worklet → `process()` hace early exit (llena buffers con ceros sin calcular ondas). Ahorra ~95% CPU del worklet.
+- **Output buses dormant**: aplican mute (gain=0)
+- La fase del oscilador se mantiene durante dormancy para coherencia al despertar
+
+**Flujo de mensajes:**
+```
+DormancyManager.setDormant(true)
+       │
+       ▼
+app.js: entry.setDormant(dormant)
+       │
+       ├──▶ multiOsc.port.postMessage({ type: 'setDormant', dormant: true })
+       │
+       └──▶ Worklet: this.dormant = true → process() hace early exit
+```
 
 **Configuración:** Ajustes → Avanzado → Optimizaciones → Dormancy
 

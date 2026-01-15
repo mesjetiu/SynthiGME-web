@@ -34,3 +34,7 @@
 - Hay 2 entradas de micro tras input amplifiers 
 
 - Actualizar árbol de carpetas en architecture.md
+
+## Problemas:
+
+- En algunos navegadores, si pongo 3x, no carga todo (hay lagunas) y después es imposible abrir ajustes, que aparece vacío!!, y como se guarda en store, al reiniciar sigue igual y no puedo revertir la resolución.

@@ -57,8 +57,9 @@ export class SettingsModal {
     // Pestaña activa
     this.activeTab = 'general';
     
-    // Escalas disponibles (máximo 3x para evitar problemas de GPU en móviles)
-    this.resolutionFactors = [1, 2, 3];
+    // Escalas disponibles: 1x-2x en móviles, hasta 3x en desktop
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    this.resolutionFactors = isMobile ? [1, 2] : [1, 2, 3];
     
     // Escala actual: solo cargar de localStorage si "recordar" está activo
     const rememberResolution = localStorage.getItem(STORAGE_KEYS.REMEMBER_RESOLUTION) === 'true';

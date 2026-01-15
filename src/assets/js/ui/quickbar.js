@@ -156,14 +156,13 @@ export function setupMobileQuickActionsBar() {
   fixedGroup.className = 'mobile-quickbar__fixed';
 
   // Botón de EMERGENCIA - reset resolución a 1x (siempre visible)
-  // Solo visible si la resolución actual NO es 1x
+  // Útil cuando la pantalla no renderiza correctamente por escala alta
   const btnEmergency = document.createElement('button');
   btnEmergency.type = 'button';
   btnEmergency.className = 'mobile-quickbar__btn mobile-quickbar__emergency';
   btnEmergency.id = 'btnEmergencyRes';
   setButtonTooltip(btnEmergency, t('quickbar.emergency'));
   btnEmergency.innerHTML = iconSvg('ti-eye');
-  btnEmergency.hidden = (window.__synthResolutionFactor || 1) === 1;
   
   btnEmergency.addEventListener('click', () => {
     // Forzar resolución a 1x y recargar

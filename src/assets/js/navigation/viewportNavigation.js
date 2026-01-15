@@ -26,11 +26,13 @@ export function initViewportNavigation({ outer, inner } = {}) {
   const isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
   window.__synthIsFirefox = isFirefox;
 
-  // Sistema de resolución base configurable (1x, 2x, 3x)
+  // Sistema de resolución base configurable (1x, 2x, 3x en desktop)
   // - Firefox: siempre 1x (ya es nítido nativamente)
-  // - Otros: usuario elige factor, solo si "recordar" está activo
+  // - Móviles: máximo 2x para evitar problemas de GPU
+  // - Desktop: hasta 3x
   // - Por defecto: 1x (seguro para todos los dispositivos)
-  const validFactors = [1, 2, 3];
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const validFactors = isMobile ? [1, 2] : [1, 2, 3];
   const rememberResolution = localStorage.getItem(STORAGE_KEYS.REMEMBER_RESOLUTION) === 'true';
   const savedFactor = parseInt(localStorage.getItem(STORAGE_KEYS.RESOLUTION), 10);
   // Solo usar factor guardado si "recordar" está activo, si no siempre 1x

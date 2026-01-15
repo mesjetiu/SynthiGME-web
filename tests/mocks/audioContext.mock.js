@@ -415,12 +415,17 @@ export function resetNodeCalls(node) {
  * @returns {Object} Mock de window
  */
 export function createMockWindow(ctxOptions = {}) {
+  const MockAudioContext = function() {
+    return createMockAudioContext(ctxOptions);
+  };
+
+  const MockAudioWorkletNode = function(context, name, options) {
+    return createMockAudioWorkletNode(name, options);
+  };
+
   return {
-    AudioContext: function() {
-      return createMockAudioContext(ctxOptions);
-    },
-    webkitAudioContext: function() {
-      return createMockAudioContext(ctxOptions);
-    }
+    AudioContext: MockAudioContext,
+    webkitAudioContext: MockAudioContext,
+    AudioWorkletNode: MockAudioWorkletNode
   };
 }

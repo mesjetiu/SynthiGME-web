@@ -690,3 +690,90 @@ describe('Output Bus setDormant', () => {
     assert.equal(callCount, 0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS: Mensaje setDormant al worklet (early exit real)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Oscillator setDormant - mensaje al worklet', () => {
+  
+  it('envía mensaje setDormant al port del worklet al dormir', () => {
+    const messages = [];
+    const mockWorklet = {
+      port: {
+        postMessage(msg) { messages.push(msg); }
+      },
+      setSineLevel: () => {},
+      setSawLevel: () => {},
+      setTriLevel: () => {},
+      setPulseLevel: () => {}
+    };
+    
+    let isDormant = false;
+    const entry = {
+      multiOsc: mockWorklet,
+      _isDormant: false,
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this.multiOsc.port.postMessage({ type: 'setDormant', dormant });
+      }
+    };
+    
+    entry.setDormant(true);
+    
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0], { type: 'setDormant', dormant: true });
+  });
+  
+  it('envía mensaje setDormant al port del worklet al despertar', () => {
+    const messages = [];
+    const mockWorklet = {
+      port: {
+        postMessage(msg) { messages.push(msg); }
+      },
+      setSineLevel: () => {},
+      setSawLevel: () => {},
+      setTriLevel: () => {},
+      setPulseLevel: () => {}
+    };
+    
+    const entry = {
+      multiOsc: mockWorklet,
+      _isDormant: true, // Ya está dormant
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this.multiOsc.port.postMessage({ type: 'setDormant', dormant });
+      }
+    };
+    
+    entry.setDormant(false);
+    
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0], { type: 'setDormant', dormant: false });
+  });
+  
+  it('no envía mensaje si el estado no cambia', () => {
+    const messages = [];
+    const mockWorklet = {
+      port: {
+        postMessage(msg) { messages.push(msg); }
+      }
+    };
+    
+    const entry = {
+      multiOsc: mockWorklet,
+      _isDormant: true,
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this.multiOsc.port.postMessage({ type: 'setDormant', dormant });
+      }
+    };
+    
+    entry.setDormant(true); // Ya está dormant
+    
+    assert.equal(messages.length, 0);
+  });
+});

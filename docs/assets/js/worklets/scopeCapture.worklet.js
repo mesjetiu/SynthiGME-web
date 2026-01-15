@@ -114,6 +114,9 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
     // Estado activo
     this.active = true;
     
+    // Dormancy: cuando true, el worklet hace early exit sin procesar
+    this.dormant = false;
+    
     // Manejar mensajes del hilo principal
     this.port.onmessage = (event) => {
       const { type } = event.data;
@@ -149,6 +152,11 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
           // Histéresis de nivel para Schmitt trigger (0.0 - 0.5)
           this.schmittHysteresis = Math.max(0, Math.min(0.5, event.data.value));
           this.triggerArmed = true;  // Resetear estado al cambiar
+          break;
+          
+        case 'setDormant':
+          this.dormant = event.data.dormant;
+          console.log(`[Worklet] ScopeCapture dormant: ${this.dormant}`);
           break;
           
         case 'stop':
@@ -387,6 +395,13 @@ class ScopeCaptureProcessor extends AudioWorkletProcessor {
    */
   process(inputs, outputs) {
     if (!this.active) return false;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // DORMANCY: Early exit - no procesar ni enviar datos
+    // ─────────────────────────────────────────────────────────────────────────
+    if (this.dormant) {
+      return true; // Mantener activo pero sin procesar
+    }
     
     // Input 0 = Canal Y (vertical / forma de onda)
     // Input 1 = Canal X (horizontal / para modo X-Y)

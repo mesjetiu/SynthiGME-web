@@ -121,10 +121,19 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
      */
     this.isRunning = true;
     
+    /**
+     * Flag de dormancy: cuando true, el worklet hace early exit sin procesar.
+     * @type {boolean}
+     */
+    this.dormant = false;
+    
     // Escuchar mensajes del hilo principal
     this.port.onmessage = (event) => {
       if (event.data.type === 'stop') {
         this.isRunning = false;
+      } else if (event.data.type === 'setDormant') {
+        this.dormant = event.data.dormant;
+        console.log(`[Worklet] NoiseGenerator dormant: ${this.dormant}`);
       }
     };
   }
@@ -209,6 +218,16 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
 
     const output = outputs[0];
     if (!output || output.length === 0) {
+      return true;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DORMANCY: Early exit - no generar ruido, solo silencio
+    // ─────────────────────────────────────────────────────────────────────────
+    if (this.dormant) {
+      for (let ch = 0; ch < output.length; ch++) {
+        output[ch].fill(0);
+      }
       return true;
     }
 

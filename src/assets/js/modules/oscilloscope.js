@@ -370,6 +370,23 @@ export class OscilloscopeModule extends Module {
     
     this._onDataCallbacks = [];
   }
+
+  /**
+   * Maneja el cambio de estado dormant.
+   * Envía mensaje al worklet para pausar captura y ahorra CPU.
+   * @param {boolean} dormant - true si entrando en dormancy, false si saliendo
+   * @protected
+   */
+  _onDormancyChange(dormant) {
+    if (this.captureNode) {
+      try {
+        this.captureNode.port.postMessage({ type: 'setDormant', dormant });
+        console.log(`[Dormancy] Oscilloscope: ${dormant ? 'DORMANT' : 'ACTIVE'}`);
+      } catch (e) {
+        // Ignorar errores si el worklet no está listo
+      }
+    }
+  }
 }
 
 export default OscilloscopeModule;

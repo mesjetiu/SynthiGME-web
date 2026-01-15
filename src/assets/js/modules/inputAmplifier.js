@@ -183,4 +183,45 @@ export class InputAmplifierModule extends Module {
   getAllOutputNodes() {
     return [...this.gainNodes];
   }
+
+  /**
+   * Maneja el cambio de estado dormant.
+   * Cuando dormant, silencia todos los canales para evitar procesamiento innecesario.
+   * @param {boolean} dormant - true si entrando en dormancy, false si saliendo
+   * @protected
+   */
+  _onDormancyChange(dormant) {
+    const ctx = this.getAudioCtx();
+    if (!ctx) return;
+    
+    const rampTime = 0.01;
+    const now = ctx.currentTime;
+    
+    if (dormant) {
+      // Guardar niveles y silenciar todos los canales
+      this._preDormantLevels = [...this.levels];
+      for (const gain of this.gainNodes) {
+        if (gain) {
+          try {
+            gain.gain.cancelScheduledValues(now);
+            gain.gain.setTargetAtTime(0, now, rampTime);
+          } catch { /* Ignorar */ }
+        }
+      }
+      console.log(`[Dormancy] InputAmplifiers: DORMANT`);
+    } else {
+      // Restaurar niveles previos
+      const savedLevels = this._preDormantLevels || this.levels;
+      for (let i = 0; i < this.gainNodes.length; i++) {
+        const gain = this.gainNodes[i];
+        if (gain) {
+          try {
+            gain.gain.cancelScheduledValues(now);
+            gain.gain.setTargetAtTime(savedLevels[i] || 0, now, rampTime);
+          } catch { /* Ignorar */ }
+        }
+      }
+      console.log(`[Dormancy] InputAmplifiers: ACTIVE`);
+    }
+  }
 }

@@ -299,21 +299,47 @@ export class AudioEngine {
         // Nodos de pan para stereo buses (se crean en _createStereoBuses)
         stereoPanL: null,
         stereoPanR: null,
-        // Estado dormant - para silenciar buses sin conexiones entrantes
+        // Estado dormant - para desconectar buses sin conexiones entrantes
         _isDormant: false,
         _savedMuteValue: 1,
         /**
          * Activa/desactiva el modo dormant del bus.
-         * @param {boolean} dormant - true para silenciar, false para restaurar
+         * Cuando dormant, desconecta busInput del grafo para que los filtros
+         * no procesen audio. Ahorra CPU al evitar procesamiento innecesario.
+         * @param {boolean} dormant - true para desconectar, false para reconectar
          */
         setDormant: (dormant) => {
           if (bus._isDormant === dormant) return;
           bus._isDormant = dormant;
+          
+          const engine = this;
+          const isBypassed = engine._filterBypassState?.[busIndex] ?? false;
+          
           if (dormant) {
+            // DORMANT: Desconectar busInput del grafo
             bus._savedMuteValue = bus.muteNode.gain.value;
-            bus.muteNode.gain.setValueAtTime(0, ctx.currentTime);
+            try {
+              if (isBypassed) {
+                // Bypass activo: input está conectado a levelNode
+                bus.input.disconnect(bus.levelNode);
+              } else {
+                // Filtros activos: input está conectado a filterLP
+                bus.input.disconnect(bus.filterLP);
+              }
+              console.log(`[Dormancy] Output Bus ${busIndex + 1}: DORMANT (disconnected)`);
+            } catch { /* Ya desconectado */ }
           } else {
-            bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, ctx.currentTime);
+            // ACTIVE: Reconectar busInput según estado de bypass
+            try {
+              if (isBypassed) {
+                bus.input.connect(bus.levelNode);
+              } else {
+                bus.input.connect(bus.filterLP);
+              }
+              // Restaurar mute al valor guardado
+              bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, ctx.currentTime);
+              console.log(`[Dormancy] Output Bus ${busIndex + 1}: ACTIVE (reconnected)`);
+            } catch { /* Error de conexión */ }
           }
         }
       };

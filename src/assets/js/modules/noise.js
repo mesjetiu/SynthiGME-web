@@ -283,11 +283,21 @@ export class NoiseModule extends Module {
   
   /**
    * Maneja el cambio de estado dormant.
-   * Cuando está dormant, el worklet sigue corriendo pero la salida está silenciada.
+   * Envía mensaje al worklet para early exit y silencia la salida.
    * @param {boolean} dormant - true si entrando en dormancy, false si saliendo
    * @protected
    */
   _onDormancyChange(dormant) {
+    // Enviar mensaje al worklet para early exit (ahorra CPU)
+    if (this.workletNode) {
+      try {
+        this.workletNode.port.postMessage({ type: 'setDormant', dormant });
+        console.log(`[Dormancy] Noise ${this.id}: ${dormant ? 'DORMANT' : 'ACTIVE'}`);
+      } catch (e) {
+        // Ignorar errores si el worklet no está listo
+      }
+    }
+    
     if (!this.levelNode) return;
     
     const ctx = this.getAudioCtx();

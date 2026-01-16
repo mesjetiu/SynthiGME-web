@@ -9,8 +9,6 @@
 
 ## Osciloscopio:
 
-- Poner los beam en lugar de en los tercios, en los cuartos, para tener dos mitades y espacio suficiente para cada beam.
-
 - Mejorar algunos aspectos probando.
 
 ## UI:
@@ -23,15 +21,9 @@
 
 ## Otros:
 
-- Al reiniciar patch, permanece el dibujo en el osciloscopio.
-
 - Asegurarse de que los patchs están guardando todo (panel 2, 3, 5, 6 y 7, que son los operativos ahora).
 
-- Algunos knobs se iluminan (touch) en channels y en osciloscopio, y en osciladores... Lo veo en Edge en móvil.
-
 - Patches: poder sobrescribir un patch
-
-- Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
 
 - Implementar una forma de ver los valores reales o valores de Synthi.
 
@@ -43,4 +35,6 @@
 
 ## Problemas:
 
-- Import patch no hace nada. Se elige archivo y nada. (probado en PWA en móvil Android)
+- Al reiniciar patch, permanece el dibujo en el osciloscopio.
+
+- Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.

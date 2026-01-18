@@ -15,6 +15,10 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - **Soft clipping**: Saturación suave con `tanh()` según límites por módulo (8V filtros, 2V reverb, etc.).
   - **Tolerancia reproducible**: Error de resistencia basado en seed para patches consistentes.
   - **Deriva térmica**: Configuración para osciladores CEM 3340 (±0.1%).
+- **Métodos de voltaje en clase Module**: La clase base `Module` en `core/engine.js` ahora incluye:
+  - `applyInputClipping(digitalValue)`: Satura entradas digitales según límite del módulo.
+  - `applyVoltageClipping(voltage)`: Satura voltajes directamente.
+  - `setInputVoltageLimit(v)` / `setSoftClipEnabled(bool)`: Configuración por módulo.
 
 ### Mejoras
 - **Dormancy con early exit real en todos los módulos**: El sistema de dormancy ahora suspende realmente el procesamiento DSP (no solo silencia):

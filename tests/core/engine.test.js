@@ -1329,3 +1329,135 @@ describe('AudioEngine.updateOutputPan / setOutputPan (con AudioContext mock)', (
     engine.setOutputPan(-1, 0.5);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Module - VOLTAGE SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { Module } from '../../src/assets/js/core/engine.js';
+import {
+  DEFAULT_INPUT_VOLTAGE_LIMIT,
+  VOLTAGE_DEFAULTS,
+  digitalToVoltage
+} from '../../src/assets/js/utils/voltageConstants.js';
+
+describe('Module - Voltage System', () => {
+  
+  // Mock engine simple
+  const mockEngine = { audioCtx: null };
+  
+  it('inicializa con límite de voltaje por defecto (8V)', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    assert.equal(mod._inputVoltageLimit, DEFAULT_INPUT_VOLTAGE_LIMIT);
+    assert.equal(mod._inputVoltageLimit, 8.0);
+  });
+  
+  it('inicializa con soft clip habilitado por defecto', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    assert.equal(mod._softClipEnabled, VOLTAGE_DEFAULTS.softClipEnabled);
+    assert.equal(mod._softClipEnabled, true);
+  });
+  
+  it('setInputVoltageLimit() cambia el límite', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    mod.setInputVoltageLimit(12.0);
+    assert.equal(mod._inputVoltageLimit, 12.0);
+  });
+  
+  it('setSoftClipEnabled() activa/desactiva el clipping', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    
+    mod.setSoftClipEnabled(false);
+    assert.equal(mod._softClipEnabled, false);
+    
+    mod.setSoftClipEnabled(true);
+    assert.equal(mod._softClipEnabled, true);
+  });
+});
+
+describe('Module - applyInputClipping()', () => {
+  
+  const mockEngine = { audioCtx: null };
+  
+  it('no modifica valores pequeños significativamente', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    
+    // 0.5 digital = 2V, bien por debajo del límite de 8V
+    const result = mod.applyInputClipping(0.5);
+    // Debería estar cerca de 0.5 (algo de saturación por tanh)
+    assert.ok(Math.abs(result - 0.5) < 0.2);
+  });
+  
+  it('satura valores grandes', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    
+    // 3.0 digital = 12V, supera el límite de 8V
+    const result = mod.applyInputClipping(3.0);
+    // Debe ser menor que 3.0 por saturación
+    assert.ok(result < 3.0);
+    assert.ok(result > 0);
+  });
+  
+  it('respeta soft clip deshabilitado', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    mod.setSoftClipEnabled(false);
+    
+    // Con clip deshabilitado, devuelve el valor original
+    const result = mod.applyInputClipping(5.0);
+    assert.equal(result, 5.0);
+  });
+  
+  it('respeta límite de voltaje personalizado', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    
+    // Con límite bajo (4V), saturará más
+    mod.setInputVoltageLimit(4.0);
+    const resultLow = mod.applyInputClipping(2.0);
+    
+    // Con límite alto (16V), saturará menos
+    mod.setInputVoltageLimit(16.0);
+    const resultHigh = mod.applyInputClipping(2.0);
+    
+    // resultHigh debería estar más cerca del original
+    assert.ok(Math.abs(resultHigh - 2.0) < Math.abs(resultLow - 2.0));
+  });
+  
+  it('funciona simétricamente con valores negativos', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    
+    const positive = mod.applyInputClipping(2.0);
+    const negative = mod.applyInputClipping(-2.0);
+    
+    assert.ok(Math.abs(Math.abs(positive) - Math.abs(negative)) < 0.001);
+  });
+});
+
+describe('Module - applyVoltageClipping()', () => {
+  
+  const mockEngine = { audioCtx: null };
+  
+  it('trabaja directamente en voltios', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    
+    // 4V está dentro del límite de 8V
+    const result = mod.applyVoltageClipping(4.0);
+    assert.ok(result > 0);
+    assert.ok(result < 8.0);
+  });
+  
+  it('satura voltajes que exceden el límite', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    
+    // 12V supera el límite de 8V
+    const result = mod.applyVoltageClipping(12.0);
+    assert.ok(result < 12.0, 'Debe saturar');
+  });
+  
+  it('respeta soft clip deshabilitado', () => {
+    const mod = new Module(mockEngine, 'test', 'Test Module');
+    mod.setSoftClipEnabled(false);
+    
+    const result = mod.applyVoltageClipping(15.0);
+    assert.equal(result, 15.0);
+  });
+});

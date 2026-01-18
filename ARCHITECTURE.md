@@ -558,7 +558,30 @@ applySoftClip(10.0, 8.0);  // → ~7.6V (saturado suavemente)
 applySoftClip(4.0, 8.0);   // → ~4.0V (sin cambio notable)
 ```
 
-### 3.8.7 Tolerancia de Resistencias
+### 3.8.7 Clase Module (core/engine.js)
+
+La clase base `Module` incluye métodos para aplicar soft clipping a las entradas. Todos los módulos heredan estos métodos:
+
+| Propiedad/Método | Descripción |
+|------------------|-------------|
+| `_inputVoltageLimit` | Límite de entrada en voltios (8V por defecto) |
+| `_softClipEnabled` | Activa/desactiva saturación (true por defecto) |
+| `setInputVoltageLimit(v)` | Configura límite de voltaje personalizado |
+| `setSoftClipEnabled(bool)` | Activa/desactiva soft clipping |
+| `applyInputClipping(digital)` | Aplica clip a valor digital (convierte ↔ voltaje) |
+| `applyVoltageClipping(volts)` | Aplica clip a valor en voltios directamente |
+
+```javascript
+class OscillatorModule extends Module {
+  processInput(cvValue) {
+    // Aplicar saturación antes de usar el CV
+    const clippedCV = this.applyInputClipping(cvValue);
+    this.setFrequencyCV(clippedCV);
+  }
+}
+```
+
+### 3.8.8 Tolerancia de Resistencias
 
 La función `applyResistanceTolerance()` genera un error reproducible basado en un seed (ID de conexión), permitiendo que los patches suenen igual al recargarlos:
 

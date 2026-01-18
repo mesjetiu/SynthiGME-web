@@ -2,6 +2,13 @@
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { showToast } from '../ui/toast.js';
+import {
+  applySoftClip,
+  digitalToVoltage,
+  voltageToDigital,
+  DEFAULT_INPUT_VOLTAGE_LIMIT,
+  VOLTAGE_DEFAULTS
+} from '../utils/voltageConstants.js';
 
 const log = createLogger('AudioEngine');
 
@@ -1683,10 +1690,74 @@ export class Module {
     // no tienen conexiones relevantes en la matriz.
     // ─────────────────────────────────────────────────────────────────────────
     this._isDormant = false;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // VOLTAGE SYSTEM (Cuenca/Datanomics 1982)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Sistema de emulación de voltajes analógicos. Cada módulo puede definir
+    // su propio límite de entrada para soft clipping.
+    // ─────────────────────────────────────────────────────────────────────────
+    this._inputVoltageLimit = DEFAULT_INPUT_VOLTAGE_LIMIT; // 8V por defecto
+    this._softClipEnabled = VOLTAGE_DEFAULTS.softClipEnabled;
   }
 
   getAudioCtx() {
     return this.engine.audioCtx;
+  }
+  
+  // ───────────────────────────────────────────────────────────────────────────
+  // VOLTAGE SYSTEM METHODS
+  // ───────────────────────────────────────────────────────────────────────────
+  
+  /**
+   * Configura el límite de voltaje de entrada para este módulo.
+   * Señales que excedan este límite serán saturadas suavemente (soft clip).
+   * @param {number} limitVolts - Límite en voltios (típicamente 8V para Synthi 100)
+   */
+  setInputVoltageLimit(limitVolts) {
+    this._inputVoltageLimit = limitVolts;
+  }
+  
+  /**
+   * Activa o desactiva el soft clipping para este módulo.
+   * @param {boolean} enabled
+   */
+  setSoftClipEnabled(enabled) {
+    this._softClipEnabled = enabled;
+  }
+  
+  /**
+   * Aplica soft clipping a un valor digital de entrada.
+   * Convierte a voltaje, aplica saturación, y devuelve a digital.
+   * 
+   * @param {number} digitalValue - Valor en rango digital (-1 a 1 típicamente)
+   * @param {number} [softness=1.0] - Factor de suavidad (menor = más abrupto)
+   * @returns {number} Valor digital saturado
+   */
+  applyInputClipping(digitalValue, softness = 1.0) {
+    if (!this._softClipEnabled) {
+      return digitalValue;
+    }
+    
+    // Convertir a voltaje, aplicar clip, convertir de vuelta
+    const voltage = digitalToVoltage(digitalValue);
+    const clippedVoltage = applySoftClip(voltage, this._inputVoltageLimit, softness);
+    return voltageToDigital(clippedVoltage);
+  }
+  
+  /**
+   * Aplica soft clipping directamente a un valor en voltios.
+   * Útil cuando ya se trabaja en dominio de voltaje.
+   * 
+   * @param {number} voltage - Valor en voltios
+   * @param {number} [softness=1.0] - Factor de suavidad
+   * @returns {number} Voltaje saturado
+   */
+  applyVoltageClipping(voltage, softness = 1.0) {
+    if (!this._softClipEnabled) {
+      return voltage;
+    }
+    return applySoftClip(voltage, this._inputVoltageLimit, softness);
   }
   
   /**

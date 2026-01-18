@@ -130,117 +130,55 @@ export const DEFAULT_PIN_TYPE = 'GREY';
 // =============================================================================
 
 /**
- * Resistencias de realimentación estándar.
+ * Resistencia de realimentación estándar (Rf).
  * Rf determina la ganancia en los nodos de suma de tierra virtual.
  * Con Rf = 100k y pin blanco (100k), la ganancia es unitaria (1:1).
  *
- * @constant {Object}
+ * Valores específicos por módulo se definen en sus respectivos configs:
+ * - Osciladores: panel3.config.js (100k seno/sierra, 300k pulso/triángulo)
+ * - VCA dual: cuando se implemente
+ *
+ * @constant {number}
  */
-export const FEEDBACK_RESISTANCES = {
-  /** Rf estándar para la mayoría de entradas de audio y control */
-  STANDARD: 100000,     // 100k Ω
-
-  /** Rf para compensar amplitud de pulso/triángulo en osciladores (×3) */
-  OSCILLATOR_PULSE_TRIANGLE: 300000,  // 300k Ω
-
-  /** Rf del VCA dual (CEM 3330) */
-  VCA_DUAL: 51000       // 51k Ω
-};
+export const STANDARD_FEEDBACK_RESISTANCE = 100000;  // 100k Ω
 
 // =============================================================================
 // LÍMITES DE VOLTAJE DE ENTRADA (Soft Clipping)
 // =============================================================================
 
 /**
- * Límites de voltaje de entrada por tipo de módulo.
- * Superar estos límites causa saturación (soft clipping).
- * Valores en voltios pico a pico (V p-p).
+ * Límite de voltaje de entrada por defecto.
+ * Superar este límite causa saturación (soft clipping).
  *
- * @constant {Object}
+ * Límites específicos por módulo se definen en sus respectivos configs:
+ * - Osciladores: panel3.config.js
+ * - Filtros, Ring Mod, Reverb: cuando se implementen
+ *
+ * Referencia de límites del hardware (para futura implementación):
+ * - Input Amplifier: 20V (±10V DC)
+ * - Ring Modulator: 8V p-p
+ * - VCF / Octave Filter: 8V p-p
+ * - Reverb: 2V p-p
+ * - Envelope VCA: 3V p-p
+ *
+ * @constant {number}
  */
-export const INPUT_VOLTAGE_LIMITS = {
-  /** Amplificadores de entrada: ±10V DC */
-  INPUT_AMPLIFIER: 20.0,
-
-  /** Moduladores de anillo: 8V p-p para resultado óptimo */
-  RING_MODULATOR: 8.0,
-
-  /** Banco de filtros de octava */
-  OCTAVE_FILTER_BANK: 8.0,
-
-  /** Filtros VCF generales */
-  VCF: 8.0,
-
-  /** Unidades de reverberación: 2V p-p máximo */
-  REVERB: 2.0,
-
-  /** VCA de envolvente: 3V p-p recomendado */
-  ENVELOPE_VCA: 3.0,
-
-  /** Valor por defecto para módulos no especificados */
-  DEFAULT: 8.0
-};
+export const DEFAULT_INPUT_VOLTAGE_LIMIT = 8.0;  // 8V p-p
 
 // =============================================================================
-// NIVELES DE SALIDA DE OSCILADORES
+// NIVELES DE SALIDA POR DEFECTO
 // =============================================================================
 
 /**
- * Niveles de voltaje de salida por forma de onda.
- * Basado en mediciones del manual técnico Datanomics y Belgrado.
+ * Nivel de salida por defecto para módulos sin configuración específica.
+ * Los niveles específicos de cada módulo se definen en sus respectivos
+ * archivos de configuración (ej: panel3.config.js para osciladores).
  *
- * Nota: En el circuito real, pulso y triángulo tienen Rf=300k (×3)
- * para compensar su menor amplitud nativa. Aquí definimos los
- * niveles finales después de esa compensación.
- *
- * @constant {Object}
+ * @constant {number}
  */
-export const OSCILLATOR_OUTPUT_LEVELS = {
-  /**
-   * Osciladores 1-12: Niveles a amplitud total.
-   * Seno y sierra usan Rf=100k, pulso y triángulo usan Rf=300k.
-   */
-  OSCILLATOR_1_12: {
-    SINE: 8.0,          // 8V p-p (amplitud total de referencia)
-    SAWTOOTH: 8.0,      // 8V p-p
-    PULSE: 8.0,         // 8V p-p (después de compensación ×3)
-    TRIANGLE: 8.0,      // 8V p-p (después de compensación ×3)
-    CUSP: 0.5           // 0.5V p-p (deformación extrema de seno)
-  },
+export const DEFAULT_OUTPUT_LEVEL = 8.0;  // 8V p-p (amplitud total)
 
-  /**
-   * Valores históricos del manual de Belgrado (referencia).
-   * Útiles si se quiere emular comportamiento de versiones anteriores.
-   */
-  LEGACY_BELGRADO: {
-    SINE: 4.0,          // 4V p-p
-    SAWTOOTH: 5.0,      // 5V p-p
-    SAWTOOTH_HI: 7.4,   // 7.4V p-p (Osc 7-9)
-    PULSE: 3.2,         // 3.2V p-p
-    NOISE: 3.0          // 3V p-p
-  }
-};
 
-// =============================================================================
-// DERIVA TÉRMICA
-// =============================================================================
-
-/**
- * Configuración de deriva térmica para osciladores CEM 3340.
- * La deriva es la inestabilidad natural de frecuencia durante una sesión.
- *
- * @constant {Object}
- */
-export const THERMAL_DRIFT = {
-  /** Desviación máxima de frecuencia (±0.1%) */
-  MAX_DEVIATION: 0.001,
-
-  /** Período de oscilación de la deriva en segundos (muy lento) */
-  PERIOD_SECONDS: 120,
-
-  /** Habilitado por defecto */
-  ENABLED_DEFAULT: true
-};
 
 // =============================================================================
 // FUNCIONES DE CONVERSIÓN

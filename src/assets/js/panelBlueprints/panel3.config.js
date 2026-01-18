@@ -322,7 +322,7 @@ export default {
       // |  1.0  | Máxima deformación                                       |
       //
       maxOffset: 0.85
-    }
+    },
 
     // ·······································································
     // PARÁMETROS ADICIONALES (reservados para futuras expansiones)
@@ -345,6 +345,92 @@ export default {
     //   maxGainPerWaveform: 1,   // Ganancia máxima por forma de onda
     //   maxTotalGain: 2          // Ganancia total máxima (suma de todas)
     // }
+
+    // ·······································································
+    // EMULACIÓN DE VOLTAJES (Synthi 100 Cuenca/Datanomics 1982)
+    // ·······································································
+    //
+    // Estos parámetros emulan el comportamiento eléctrico real del Synthi 100.
+    // Referencias: Manual Técnico Datanomics 1982 (D100-02 C1), Manual Belgrado.
+    //
+    // El circuito del VCO utiliza el chip CEM 3340 con amplificadores de suma
+    // en la etapa de salida. Las ondas se mezclan antes de ir a la matriz
+    // mediante I/C 6 (seno/sierra) e I/C 7 (pulso/triángulo).
+    //
+    voltage: {
+      // ─────────────────────────────────────────────────────────────────────
+      // NIVELES DE SALIDA POR FORMA DE ONDA (V p-p a amplitud total)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Según el manual Datanomics, todas las ondas alcanzan 8V p-p a
+      // "amplitud total" después de la compensación interna.
+      //
+      // El circuito aplica internamente:
+      // - Seno/Sierra: Rf = 100k (ganancia unitaria)
+      // - Pulso/Triángulo: Rf = 300k (ganancia ×3 para compensar amplitud nativa menor)
+      //
+      outputLevels: {
+        sine: 8.0,        // 8V p-p (referencia de amplitud total)
+        sawtooth: 8.0,    // 8V p-p
+        pulse: 8.0,       // 8V p-p (después de compensación ×3)
+        triangle: 8.0,    // 8V p-p (después de compensación ×3)
+        cusp: 0.5         // 0.5V p-p (deformación extrema del seno, ratio 8:1)
+      },
+
+      // ─────────────────────────────────────────────────────────────────────
+      // RESISTENCIAS DE REALIMENTACIÓN INTERNAS (Rf)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Según esquema D100-02 C1:
+      // - R28 (seno/sierra, I/C 6): 100k Ω
+      // - R32 (pulso/triángulo, I/C 7): 300k Ω
+      //
+      feedbackResistance: {
+        sineSawtooth: 100000,     // 100k Ω (R28)
+        pulseTriangle: 300000     // 300k Ω (R32) - compensa amplitud nativa
+      },
+
+      // ─────────────────────────────────────────────────────────────────────
+      // LÍMITE DE ENTRADA DE CV (Soft Clipping)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Las entradas de control del oscilador son nodos de suma de tierra
+      // virtual con Rf = 100k. La saturación comienza alrededor de 8V.
+      //
+      inputLimit: 8.0,  // V p-p
+
+      // ─────────────────────────────────────────────────────────────────────
+      // DERIVA TÉRMICA (Thermal Drift)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Los osciladores CEM 3340 de la versión Cuenca son estables, pero
+      // presentan una deriva natural de ±0.1% durante una sesión de trabajo.
+      // Esto añade un carácter orgánico sutil a los intervalos.
+      //
+      // La deriva se implementa como una oscilación muy lenta (período ~2min)
+      // que modifica ligeramente la frecuencia de cada oscilador.
+      //
+      thermalDrift: {
+        maxDeviation: 0.001,    // ±0.1% de la frecuencia
+        periodSeconds: 120,     // Período de 2 minutos (muy lento)
+        enabledByDefault: true  // Habilitado por defecto (configurable en ajustes)
+      },
+
+      // ─────────────────────────────────────────────────────────────────────
+      // VALORES HISTÓRICOS (Manual de Belgrado - Paul Pignon)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Referencia para emular versiones anteriores del Synthi 100.
+      // Estos valores corresponden a la versión de Radio Belgrado.
+      //
+      legacyBelgrado: {
+        sine: 4.0,        // 4V p-p
+        sawtooth: 5.0,    // 5V p-p
+        sawtoothHi: 7.4,  // 7.4V p-p (Osc 7-9 en versión antigua)
+        pulse: 3.2,       // 3.2V p-p
+        noise: 3.0        // 3V p-p (referencia para noiseGenerator)
+      }
+    }
   },
 
   // ─────────────────────────────────────────────────────────────────────────

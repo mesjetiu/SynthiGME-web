@@ -454,20 +454,29 @@ export default {
 
 ---
 
-## 3.8 Sistema de Emulación de Voltajes (`utils/voltageConstants.js`)
+## 3.8 Sistema de Emulación de Voltajes
 
 > **Nuevo en v1.x** — Emulación del modelo eléctrico del Synthi 100 versión Cuenca/Datanomics (1982).
 
-El Synthi 100 utiliza un sistema de **suma por tierra virtual** (virtual-earth summing) donde las señales se mezclan como corrientes a través de resistencias. Este módulo implementa las constantes y funciones necesarias para emular este comportamiento.
+El Synthi 100 utiliza un sistema de **suma por tierra virtual** (virtual-earth summing) donde las señales se mezclan como corrientes a través de resistencias.
 
-### 3.8.1 Conversión Digital ↔ Voltaje
+### 3.8.1 Organización del Código
+
+El sistema de voltajes se divide en dos capas:
+
+| Ubicación | Contenido |
+|-----------|-----------|
+| **`utils/voltageConstants.js`** | Constantes globales (conversión digital↔voltaje, resistencias de pin, Rf estándar) y funciones de cálculo |
+| **Configs de panel** (ej: `panel3.config.js`) | Constantes específicas de cada módulo (niveles de salida, Rf internos, deriva térmica, límites) |
+
+### 3.8.2 Constantes Globales (`voltageConstants.js`)
 
 | Constante | Valor | Descripción |
 |-----------|-------|-------------|
 | `DIGITAL_TO_VOLTAGE` | 4.0 | 1.0 digital = 4V (rango ±1 = ±4V = 8V p-p) |
 | `MAX_VOLTAGE_PP` | 8.0 | Voltaje pico a pico máximo (amplitud total) |
 | `VOLTS_PER_OCTAVE` | 1.0 | Estándar de control: 1V/Oct |
-| `KEYBOARD_MAX_VOLTAGE` | 5.0 | Voltaje máximo del teclado (C5) |
+| `STANDARD_FEEDBACK_RESISTANCE` | 100000 | Rf estándar (100kΩ) |
 
 ```javascript
 import { digitalToVoltage, voltageToDigital } from './utils/voltageConstants.js';
@@ -476,7 +485,7 @@ digitalToVoltage(1.0);   // → 4.0V
 voltageToDigital(-4.0);  // → -1.0
 ```
 
-### 3.8.2 Resistencias de Pin (Matriz)
+### 3.8.3 Resistencias de Pin (Matriz)
 
 Los pines de la matriz contienen resistencias que determinan la ganancia de mezcla:
 
@@ -490,7 +499,7 @@ Los pines de la matriz contienen resistencias que determinan la ganancia de mezc
 
 Por defecto se usa pin **gris** para máxima reproducibilidad.
 
-### 3.8.3 Fórmula de Tierra Virtual
+### 3.8.4 Fórmula de Tierra Virtual
 
 La mezcla de señales sigue la fórmula:
 
@@ -513,17 +522,34 @@ calculateVirtualEarthSum(
 );  // → 8V (suma lineal sin pérdida)
 ```
 
-### 3.8.4 Soft Clipping (Saturación)
+### 3.8.5 Configuración de Osciladores (`panel3.config.js`)
+
+Los parámetros específicos de voltaje de los osciladores se definen en `defaults.voltage`:
+
+```javascript
+voltage: {
+  outputLevels: {
+    sine: 8.0,        // 8V p-p
+    sawtooth: 8.0,    // 8V p-p
+    pulse: 8.0,       // 8V p-p (después de compensación ×3)
+    triangle: 8.0,    // 8V p-p (después de compensación ×3)
+    cusp: 0.5         // 0.5V p-p (deformación extrema)
+  },
+  feedbackResistance: {
+    sineSawtooth: 100000,   // 100k Ω (R28)
+    pulseTriangle: 300000   // 300k Ω (R32)
+  },
+  inputLimit: 8.0,          // Soft clipping a 8V p-p
+  thermalDrift: {
+    maxDeviation: 0.001,    // ±0.1%
+    periodSeconds: 120      // 2 minutos
+  }
+}
+```
+
+### 3.8.6 Soft Clipping (Saturación)
 
 Cuando el voltaje de entrada supera el límite de un módulo, se aplica saturación suave con `tanh()`:
-
-| Módulo | Límite |
-|--------|--------|
-| Ring Modulator | 8V p-p |
-| VCF / Octave Filter | 8V p-p |
-| Reverb | 2V p-p |
-| Envelope VCA | 3V p-p |
-| Input Amplifier | 20V (±10V DC) |
 
 ```javascript
 import { applySoftClip } from './utils/voltageConstants.js';
@@ -532,11 +558,7 @@ applySoftClip(10.0, 8.0);  // → ~7.6V (saturado suavemente)
 applySoftClip(4.0, 8.0);   // → ~4.0V (sin cambio notable)
 ```
 
-### 3.8.5 Deriva Térmica
-
-Los osciladores CEM 3340 presentan una deriva natural de ±0.1% durante una sesión. Esta característica es configurable en ajustes.
-
-### 3.8.6 Tolerancia de Resistencias
+### 3.8.7 Tolerancia de Resistencias
 
 La función `applyResistanceTolerance()` genera un error reproducible basado en un seed (ID de conexión), permitiendo que los patches suenen igual al recargarlos:
 

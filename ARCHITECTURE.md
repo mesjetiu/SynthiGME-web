@@ -634,17 +634,7 @@ Las funciones `_getPanel5PinGain()` y `_getPanel6PinGain()` usan `calculateMatri
 
 La configuración de tipos de pin por coordenada se puede definir en los archivos de configuración (`panel5AudioConfig.pinTypes`, `panel6ControlConfig.pinTypes`). Si no se especifica, se usa pin gris por defecto.
 
-```javascript
-class OscillatorModule extends Module {
-  processInput(cvValue) {
-    // Aplicar saturación antes de usar el CV
-    const clippedCV = this.applyInputClipping(cvValue);
-    this.setFrequencyCV(clippedCV);
-  }
-}
-```
-
-### 3.8.8 Tolerancia de Resistencias
+### 3.8.9 Tolerancia de Resistencias
 
 La función `applyResistanceTolerance()` genera un error reproducible basado en un seed (ID de conexión), permitiendo que los patches suenen igual al recargarlos:
 
@@ -655,6 +645,32 @@ const { value, tolerance } = PIN_RESISTANCES.GREY;
 const actualResistance = applyResistanceTolerance(value, tolerance, connectionId);
 // → 100000 * (1 ± 0.005) basado en seed
 ```
+
+### 3.8.10 Configuración en Settings
+
+Los parámetros de emulación de voltajes se pueden ajustar en **Ajustes → Avanzado → Emulación de Voltajes**:
+
+| Opción | Clave localStorage | Por defecto | Descripción |
+|--------|-------------------|-------------|-------------|
+| **Saturación suave** | `sgme-voltage-soft-clip-enabled` | ✓ | Aplica `tanh()` cuando las señales superan los límites de entrada |
+| **Tolerancia de pines** | `sgme-voltage-pin-tolerance-enabled` | ✓ | Variación realista según tipo de pin (gris ±0.5%, blanco ±10%) |
+| **Deriva térmica** | `sgme-voltage-thermal-drift-enabled` | ✓ | Simula drift lento de osciladores CEM 3340 (±0.1%) |
+
+Los valores se leen dinámicamente desde `localStorage` a través de `VOLTAGE_DEFAULTS`:
+
+```javascript
+import { VOLTAGE_DEFAULTS } from './utils/voltageConstants.js';
+
+// Lee el valor actual desde localStorage (o default si no existe)
+if (VOLTAGE_DEFAULTS.softClipEnabled) {
+  // Aplicar saturación...
+}
+```
+
+Los eventos de cambio se emiten cuando el usuario modifica las opciones:
+- `synth:voltageSoftClipChange`
+- `synth:voltagePinToleranceChange`
+- `synth:voltageThermalDriftChange`
 
 ---
 

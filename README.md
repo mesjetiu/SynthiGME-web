@@ -14,15 +14,16 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **12 Osciladores** | Formas de onda pulse, sine, triangle, sawtooth con anti-aliasing PolyBLEP. **Nuevo**: Modelado híbrido de "Sine Shape" (Symmetry) basado en circuito original (Waveshaper Tanh) para carácter analógico fiel. Rango 1 Hz–10 kHz. **Hard sync** disponible. |
 | **2 Generadores de ruido** | Algoritmo Voss-McCartney para ruido rosa. Knob de color (blanco→rosa). |
 | **Osciloscopio** | Modos Y-T y X-Y (Lissajous). Trigger Schmitt con histéresis temporal y predictiva. |
-| **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con tooltips, pines inactivos configurables. |
+| **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con tooltips, pines inactivos configurables. **Nuevo**: Ganancia de pines según modelo de tierra virtual. |
 | **8 Entradas de audio** | Input Amplifiers con 8 canales y control de ganancia individual. |
 | **8 Salidas de audio** | Canales individuales con filtro bipolar (LP/HP), pan, nivel, y switch on/off. |
 | **Stereo buses** | Dos buses estéreo (Pan 1-4 y Pan 5-8) que agrupan 4 canales cada uno con control de panning. |
 | **Configuración de audio** | Selección de dispositivo de salida y ruteo de buses lógicos (1-8) a L/R. Matriz 8×2 con persistencia. |
 | **Sistema de patches** | Guardar, cargar, renombrar y eliminar patches. Exportar/importar archivos `.sgme.json`. Autoguardado configurable con recuperación de sesión. |
 | **Grabación de audio** | Exportación WAV multitrack (1-12 pistas). Matriz de ruteo outputs→tracks adaptativa. |
-| **Ajustes** | Idioma, escalado (1×-4×), autoguardado, wake lock, dormancy, modo de latencia. Pestaña Visualización para pines y escala. |
+| **Ajustes** | Idioma, escalado (1×-4×), autoguardado, wake lock, dormancy, modo de latencia, **emulación de voltajes**. Pestaña Visualización para pines y escala. |
 | **Dormancy** | Sistema de optimización que silencia automáticamente módulos sin conexiones activas. Reduce carga de CPU en móviles. |
+| **Emulación de voltajes** | Emula el modelo eléctrico del Synthi 100 Cuenca/Datanomics (1982): soft clipping con tanh(), tolerancia de pines, deriva térmica. |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
 ### Atajos de teclado

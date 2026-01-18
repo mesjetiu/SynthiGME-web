@@ -101,6 +101,22 @@ export class SettingsModal {
     const defaultLatencyMode = isMobileDevice() ? 'playback' : 'interactive';
     this.latencyMode = savedLatencyMode || defaultLatencyMode;
     
+    // ─────────────────────────────────────────────────────────────────────
+    // Emulación de voltajes (Synthi 100 Cuenca/Datanomics 1982)
+    // ─────────────────────────────────────────────────────────────────────
+    
+    // Soft clipping: activado por defecto
+    const savedSoftClip = localStorage.getItem(STORAGE_KEYS.VOLTAGE_SOFT_CLIP_ENABLED);
+    this.voltageSoftClipEnabled = savedSoftClip === null ? true : savedSoftClip === 'true';
+    
+    // Pin tolerance: activado por defecto
+    const savedPinTolerance = localStorage.getItem(STORAGE_KEYS.VOLTAGE_PIN_TOLERANCE_ENABLED);
+    this.voltagePinToleranceEnabled = savedPinTolerance === null ? true : savedPinTolerance === 'true';
+    
+    // Thermal drift: activado por defecto
+    const savedThermalDrift = localStorage.getItem(STORAGE_KEYS.VOLTAGE_THERMAL_DRIFT_ENABLED);
+    this.voltageThermalDriftEnabled = savedThermalDrift === null ? true : savedThermalDrift === 'true';
+
     // Detectar Firefox (no necesita selector de resolución)
     this.isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
     
@@ -443,6 +459,9 @@ export class SettingsModal {
     
     // Optimizaciones de rendimiento (agrupa dormancy + filter bypass + futuras)
     container.appendChild(this._createOptimizationsSection());
+    
+    // Emulación de voltajes (Synthi 100 Cuenca/Datanomics 1982)
+    container.appendChild(this._createVoltageEmulationSection());
     
     // Actualizaciones
     container.appendChild(this._createUpdatesSection());
@@ -1205,6 +1224,172 @@ export class SettingsModal {
     }));
   }
   
+  // ─────────────────────────────────────────────────────────────────────────
+  // EMULACIÓN DE VOLTAJES
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /**
+   * Crea la sección de emulación de voltajes.
+   * Permite configurar soft clipping, tolerancia de pines y deriva térmica.
+   * @returns {HTMLElement}
+   */
+  _createVoltageEmulationSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    // Título
+    this.voltageEmulationTitleElement = document.createElement('h3');
+    this.voltageEmulationTitleElement.className = 'settings-section__title';
+    this.voltageEmulationTitleElement.textContent = t('settings.voltageEmulation');
+    section.appendChild(this.voltageEmulationTitleElement);
+    
+    // Descripción
+    this.voltageEmulationDescElement = document.createElement('p');
+    this.voltageEmulationDescElement.className = 'settings-section__description';
+    this.voltageEmulationDescElement.textContent = t('settings.voltageEmulation.description');
+    section.appendChild(this.voltageEmulationDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: Soft Clipping
+    // ─────────────────────────────────────────────────────────────────────
+    const softClipRow = document.createElement('div');
+    softClipRow.className = 'settings-row settings-row--checkbox';
+    
+    this.voltageSoftClipCheckbox = document.createElement('input');
+    this.voltageSoftClipCheckbox.type = 'checkbox';
+    this.voltageSoftClipCheckbox.id = 'voltageSoftClipCheckbox';
+    this.voltageSoftClipCheckbox.className = 'settings-checkbox';
+    this.voltageSoftClipCheckbox.checked = this.voltageSoftClipEnabled;
+    
+    this.voltageSoftClipLabelElement = document.createElement('label');
+    this.voltageSoftClipLabelElement.className = 'settings-checkbox-label';
+    this.voltageSoftClipLabelElement.htmlFor = 'voltageSoftClipCheckbox';
+    this.voltageSoftClipLabelElement.textContent = t('settings.voltageEmulation.softClip');
+    
+    this.voltageSoftClipCheckbox.addEventListener('change', () => {
+      this._setVoltageSoftClipEnabled(this.voltageSoftClipCheckbox.checked);
+    });
+    
+    softClipRow.appendChild(this.voltageSoftClipCheckbox);
+    softClipRow.appendChild(this.voltageSoftClipLabelElement);
+    section.appendChild(softClipRow);
+    
+    // Descripción de soft clip (indentada)
+    const softClipDesc = document.createElement('p');
+    softClipDesc.className = 'settings-row--indent settings-checkbox-description';
+    softClipDesc.textContent = t('settings.voltageEmulation.softClip.description');
+    this.voltageSoftClipDescElement = softClipDesc;
+    section.appendChild(softClipDesc);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: Pin Tolerance
+    // ─────────────────────────────────────────────────────────────────────
+    const pinToleranceRow = document.createElement('div');
+    pinToleranceRow.className = 'settings-row settings-row--checkbox';
+    
+    this.voltagePinToleranceCheckbox = document.createElement('input');
+    this.voltagePinToleranceCheckbox.type = 'checkbox';
+    this.voltagePinToleranceCheckbox.id = 'voltagePinToleranceCheckbox';
+    this.voltagePinToleranceCheckbox.className = 'settings-checkbox';
+    this.voltagePinToleranceCheckbox.checked = this.voltagePinToleranceEnabled;
+    
+    this.voltagePinToleranceLabelElement = document.createElement('label');
+    this.voltagePinToleranceLabelElement.className = 'settings-checkbox-label';
+    this.voltagePinToleranceLabelElement.htmlFor = 'voltagePinToleranceCheckbox';
+    this.voltagePinToleranceLabelElement.textContent = t('settings.voltageEmulation.pinTolerance');
+    
+    this.voltagePinToleranceCheckbox.addEventListener('change', () => {
+      this._setVoltagePinToleranceEnabled(this.voltagePinToleranceCheckbox.checked);
+    });
+    
+    pinToleranceRow.appendChild(this.voltagePinToleranceCheckbox);
+    pinToleranceRow.appendChild(this.voltagePinToleranceLabelElement);
+    section.appendChild(pinToleranceRow);
+    
+    // Descripción de pin tolerance (indentada)
+    const pinToleranceDesc = document.createElement('p');
+    pinToleranceDesc.className = 'settings-row--indent settings-checkbox-description';
+    pinToleranceDesc.textContent = t('settings.voltageEmulation.pinTolerance.description');
+    this.voltagePinToleranceDescElement = pinToleranceDesc;
+    section.appendChild(pinToleranceDesc);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: Thermal Drift
+    // ─────────────────────────────────────────────────────────────────────
+    const thermalDriftRow = document.createElement('div');
+    thermalDriftRow.className = 'settings-row settings-row--checkbox';
+    
+    this.voltageThermalDriftCheckbox = document.createElement('input');
+    this.voltageThermalDriftCheckbox.type = 'checkbox';
+    this.voltageThermalDriftCheckbox.id = 'voltageThermalDriftCheckbox';
+    this.voltageThermalDriftCheckbox.className = 'settings-checkbox';
+    this.voltageThermalDriftCheckbox.checked = this.voltageThermalDriftEnabled;
+    
+    this.voltageThermalDriftLabelElement = document.createElement('label');
+    this.voltageThermalDriftLabelElement.className = 'settings-checkbox-label';
+    this.voltageThermalDriftLabelElement.htmlFor = 'voltageThermalDriftCheckbox';
+    this.voltageThermalDriftLabelElement.textContent = t('settings.voltageEmulation.thermalDrift');
+    
+    this.voltageThermalDriftCheckbox.addEventListener('change', () => {
+      this._setVoltageThermalDriftEnabled(this.voltageThermalDriftCheckbox.checked);
+    });
+    
+    thermalDriftRow.appendChild(this.voltageThermalDriftCheckbox);
+    thermalDriftRow.appendChild(this.voltageThermalDriftLabelElement);
+    section.appendChild(thermalDriftRow);
+    
+    // Descripción de thermal drift (indentada)
+    const thermalDriftDesc = document.createElement('p');
+    thermalDriftDesc.className = 'settings-row--indent settings-checkbox-description';
+    thermalDriftDesc.textContent = t('settings.voltageEmulation.thermalDrift.description');
+    this.voltageThermalDriftDescElement = thermalDriftDesc;
+    section.appendChild(thermalDriftDesc);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si el soft clipping de voltajes está habilitado
+   * @param {boolean} enabled
+   */
+  _setVoltageSoftClipEnabled(enabled) {
+    this.voltageSoftClipEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.VOLTAGE_SOFT_CLIP_ENABLED, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:voltageSoftClipChange', { 
+      detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Establece si la tolerancia de pines está habilitada
+   * @param {boolean} enabled
+   */
+  _setVoltagePinToleranceEnabled(enabled) {
+    this.voltagePinToleranceEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.VOLTAGE_PIN_TOLERANCE_ENABLED, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:voltagePinToleranceChange', { 
+      detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Establece si la deriva térmica está habilitada
+   * @param {boolean} enabled
+   */
+  _setVoltageThermalDriftEnabled(enabled) {
+    this.voltageThermalDriftEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.VOLTAGE_THERMAL_DRIFT_ENABLED, String(enabled));
+    
+    // Notificar mediante evento
+    document.dispatchEvent(new CustomEvent('synth:voltageThermalDriftChange', { 
+      detail: { enabled } 
+    }));
+  }
+
   /**
    * Crea la sección de actualizaciones
    */

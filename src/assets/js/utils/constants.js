@@ -100,7 +100,20 @@ export const STORAGE_KEYS = {
   FILTER_BYPASS_DEBUG: `${STORAGE_PREFIX}filter-bypass-debug`,
   
   /** Latency Mode: 'playback' para móviles (estable), 'interactive' para desktop (baja latencia) */
-  LATENCY_MODE: `${STORAGE_PREFIX}latency-mode`
+  LATENCY_MODE: `${STORAGE_PREFIX}latency-mode`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Emulación de voltajes (Synthi 100 Cuenca/Datanomics 1982)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Soft clipping: saturación suave con tanh() cuando se exceden límites de entrada */
+  VOLTAGE_SOFT_CLIP_ENABLED: `${STORAGE_PREFIX}voltage-soft-clip-enabled`,
+  
+  /** Pin tolerance: aplicar variación de ±0.5%/±10% según tipo de pin */
+  VOLTAGE_PIN_TOLERANCE_ENABLED: `${STORAGE_PREFIX}voltage-pin-tolerance-enabled`,
+  
+  /** Thermal drift: deriva térmica lenta en osciladores (±0.1%) */
+  VOLTAGE_THERMAL_DRIFT_ENABLED: `${STORAGE_PREFIX}voltage-thermal-drift-enabled`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

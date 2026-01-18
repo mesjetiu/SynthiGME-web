@@ -329,8 +329,23 @@ export function calculateVirtualEarthSum(sources, rf, inputLimit = null) {
 // =============================================================================
 
 /**
+ * Lee un valor de emulación de voltajes desde localStorage.
+ * Retorna el valor por defecto si no está configurado.
+ * 
+ * @param {string} key - Clave de localStorage (sin prefijo)
+ * @param {boolean} defaultValue - Valor por defecto
+ * @returns {boolean}
+ * @private
+ */
+function _readVoltageSetting(key, defaultValue) {
+  if (typeof localStorage === 'undefined') return defaultValue;
+  const stored = localStorage.getItem(`synthigme-${key}`);
+  return stored === null ? defaultValue : stored === 'true';
+}
+
+/**
  * Configuración por defecto para el sistema de voltajes.
- * Usada para inicializar settings y estado.
+ * Los valores se leen desde Settings (localStorage) si están disponibles.
  *
  * @constant {Object}
  */
@@ -338,14 +353,20 @@ export const VOLTAGE_DEFAULTS = {
   /** Tipo de pin por defecto para nuevas conexiones */
   defaultPinType: DEFAULT_PIN_TYPE,
 
-  /** Aplicar error de tolerancia en pines */
-  applyPinTolerance: true,
+  /** Aplicar error de tolerancia en pines (lee de Settings) */
+  get applyPinTolerance() {
+    return _readVoltageSetting('voltage-pin-tolerance-enabled', true);
+  },
 
-  /** Aplicar deriva térmica en osciladores */
-  applyThermalDrift: true,
+  /** Aplicar deriva térmica en osciladores (lee de Settings) */
+  get applyThermalDrift() {
+    return _readVoltageSetting('voltage-thermal-drift-enabled', true);
+  },
 
-  /** Soft clipping habilitado */
-  softClipEnabled: true
+  /** Soft clipping habilitado (lee de Settings) */
+  get softClipEnabled() {
+    return _readVoltageSetting('voltage-soft-clip-enabled', true);
+  }
 };
 
 // =============================================================================

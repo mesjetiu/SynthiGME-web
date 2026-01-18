@@ -21,6 +21,11 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - `setInputVoltageLimit(v)` / `setSoftClipEnabled(bool)`: Configuración por módulo.
 - **Soft clipping en entrada CV de osciladores**: Las señales CV que modulan la frecuencia de osciladores ahora pasan por un `WaveShaperNode` con curva tanh que satura suavemente las señales excesivas. Usa `createSoftClipCurve()` de `voltageConstants.js`.
 - **Ganancia de pines con fórmula de tierra virtual**: Nueva función `calculateMatrixPinGain()` que calcula la ganancia de cada pin de matriz según el tipo de pin (gris/blanco/rojo/verde), la Rf del destino y la tolerancia opcional. Las funciones `_getPanel5PinGain()` y `_getPanel6PinGain()` ahora usan este cálculo.
+- **Sección de Emulación de Voltajes en Ajustes**: Nueva sección en Ajustes → Avanzado que permite controlar:
+  - **Saturación suave (soft clip)**: Activar/desactivar el límite de voltaje con tanh().
+  - **Tolerancia de pines**: Activar/desactivar variación realista de resistencias (±0.5% gris, ±10% blanco).
+  - **Deriva térmica**: Activar/desactivar simulación de drift de osciladores.
+  - Todas las opciones están **activadas por defecto** y sus valores se leen dinámicamente desde localStorage.
 
 ### Mejoras
 - **Dormancy con early exit real en todos los módulos**: El sistema de dormancy ahora suspende realmente el procesamiento DSP (no solo silencia):

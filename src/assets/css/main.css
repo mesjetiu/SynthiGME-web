@@ -2477,6 +2477,14 @@ small { color:#aaa; }
   color: #777;
 }
 
+/* Descripción de checkbox (texto explicativo debajo de una opción) */
+.settings-checkbox-description {
+  margin: 0.1rem 0 0.75rem;
+  font-size: 0.7rem;
+  color: #666;
+  line-height: 1.3;
+}
+
 /* Fila indentada (para checkboxes hijos) */
 .settings-row--indent {
   margin-left: 1.5rem;

@@ -1486,8 +1486,11 @@ export class AudioEngine {
       sawLevel = 0,
       triLevel = 0,
       pulseLevel = 0,
+      // Parámetros de calibración del algoritmo híbrido de seno (panel3.config.js)
       sineShapeAttenuation = 1.0,
-      sinePurity = 0.7
+      sinePurity = 0.7,
+      saturationK = 1.55,
+      maxOffset = 0.85
     } = options;
 
     const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
@@ -1496,7 +1499,13 @@ export class AudioEngine {
       outputChannelCount: [1, 1],
       channelCount: 1,             // Importante para que el input reciba señal mono
       channelCountMode: 'explicit', // No cambiar automáticamente el channel count
-      processorOptions: { mode: 'multi', sineShapeAttenuation, sinePurity }
+      processorOptions: { 
+        mode: 'multi', 
+        sineShapeAttenuation, 
+        sinePurity,
+        saturationK,
+        maxOffset
+      }
     });
 
     // Establecer valores iniciales
@@ -1591,6 +1600,22 @@ export class AudioEngine {
      */
     node.setSinePurity = (value) => {
       node.port.postMessage({ type: 'setSinePurity', value });
+    };
+
+    /**
+     * Cambia el coeficiente de saturación tanh en runtime.
+     * @param {number} value - Factor k (1.0=suave, 1.55=default, 2.0=pronunciado)
+     */
+    node.setSaturationK = (value) => {
+      node.port.postMessage({ type: 'setSaturationK', value });
+    };
+
+    /**
+     * Cambia el offset máximo de asimetría en runtime.
+     * @param {number} value - Offset máximo (0.5=moderado, 0.85=default, 1.0=máximo)
+     */
+    node.setMaxOffset = (value) => {
+      node.port.postMessage({ type: 'setMaxOffset', value });
     };
 
     return node;

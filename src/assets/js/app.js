@@ -1670,6 +1670,12 @@ class App {
       return null;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Obtener configuración de sineShape del panel3.config.js
+    // ─────────────────────────────────────────────────────────────────────────
+    const oscConfig = this._getOscConfig(oscIndex);
+    const sineShape = oscConfig?.sineShape ?? panel3Config.defaults?.sineShape ?? {};
+
     const multiOsc = this.engine.createMultiOscillator({
       frequency: state.freq || 10,
       pulseWidth: state.pulseWidth || 0.5,
@@ -1677,7 +1683,12 @@ class App {
       sineLevel: state.oscLevel || 0,
       sawLevel: state.sawLevel || 0,
       triLevel: state.triLevel || 0,
-      pulseLevel: state.pulseLevel || 0
+      pulseLevel: state.pulseLevel || 0,
+      // Parámetros de calibración del algoritmo híbrido de seno
+      sineShapeAttenuation: sineShape.attenuation ?? 1.0,
+      sinePurity: sineShape.purity ?? 0.7,
+      saturationK: sineShape.saturationK ?? 1.55,
+      maxOffset: sineShape.maxOffset ?? 0.85
     });
 
     if (!multiOsc) return null;
@@ -1701,9 +1712,9 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // NODO DE ENTRADA CV PARA MODULACIÓN DE FRECUENCIA (Panel 6)
     // ─────────────────────────────────────────────────────────────────────────
-    const config = this._getOscConfig(oscIndex);
-    const cvScale = config?.freqCV?.cvScale ?? panel3Config.defaults?.freqCV?.cvScale ?? 2;
-    const octavesPerUnit = config?.freqCV?.octavesPerUnit ?? panel3Config.defaults?.freqCV?.octavesPerUnit ?? 0.5;
+    // Nota: oscConfig ya fue obtenido arriba para sineShape
+    const cvScale = oscConfig?.freqCV?.cvScale ?? panel3Config.defaults?.freqCV?.cvScale ?? 2;
+    const octavesPerUnit = oscConfig?.freqCV?.octavesPerUnit ?? panel3Config.defaults?.freqCV?.octavesPerUnit ?? 0.5;
     const centsGain = cvScale * octavesPerUnit * 1200;
     
     const freqCVInput = ctx.createGain();

@@ -116,6 +116,16 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     // Valores intermedios permiten mantener algo de "coloración" analógica.
     // Por defecto 0.7 para conservar algo del carácter electrónico.
     this.sinePurity = options?.processorOptions?.sinePurity ?? 0.7;
+    
+    // Coeficiente de saturación k para tanh waveshaper:
+    // Controla la "dureza" de la saturación.
+    // 1.0 = saturación muy suave, 1.55 = default calibrado, 2.0 = más pronunciada
+    this.saturationK = options?.processorOptions?.saturationK ?? 1.55;
+    
+    // Offset máximo de asimetría:
+    // Define cuánto offset DC se aplica a la triangular antes del tanh.
+    // 0.5 = deformación moderada, 0.85 = default, 1.0 = máxima
+    this.maxOffset = options?.processorOptions?.maxOffset ?? 0.85;
 
     // Escuchar mensajes del hilo principal
     this.port.onmessage = (event) => {
@@ -135,6 +145,10 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         this.sineShapeAttenuation = event.data.value;
       } else if (event.data.type === 'setSinePurity') {
         this.sinePurity = event.data.value;
+      } else if (event.data.type === 'setSaturationK') {
+        this.saturationK = event.data.value;
+      } else if (event.data.type === 'setMaxOffset') {
+        this.maxOffset = event.data.value;
       }
     };
   }
@@ -206,14 +220,12 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
       }
     }
     
-    // Offset para asimetría
-    const maxOffset = 0.85;
-    const offset = (0.5 - symmetry) * 2.0 * maxOffset;
+    // Offset para asimetría (configurable via panel3.config.js)
+    const offset = (0.5 - symmetry) * 2.0 * this.maxOffset;
     
-    // Waveshaping (Tanh)
-    // Usamos k=1.55 basado en ajuste visual "poco más de 1/4 de recorrido"
-    // k = 1.0 + (0.275 * 2.0) ≈ 1.55
-    const k = 1.55;
+    // Waveshaping (Tanh) - k configurable via panel3.config.js
+    // Default k=1.55 basado en ajuste visual "poco más de 1/4 de recorrido"
+    const k = this.saturationK;
     const analogRaw = Math.tanh(k * (tri + offset));
     
     // Corrección DC y Normalización

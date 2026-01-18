@@ -246,6 +246,82 @@ export default {
         cvScale: { min: 0.1, max: 10 },
         octavesPerUnit: { min: 0.1, max: 4 }
       }
+    },
+
+    // ·······································································
+    // CALIBRACIÓN DEL CONFORMADOR DE SENO (Sine Shape)
+    // ·······································································
+    //
+    // El Synthi 100 utiliza un circuito de waveshaping basado en tanh para
+    // deformar la onda senoidal según el control "Shape". Estos parámetros
+    // permiten afinar el comportamiento del modelado digital para que se
+    // aproxime al hardware original.
+    //
+    // El algoritmo híbrido mezcla:
+    // - Componente DIGITAL: Math.cos() puro (sin armónicos)
+    // - Componente ANALÓGICA: tanh(k * triangular + offset)
+    //
+    // La mezcla varía según la posición del control de simetría.
+    //
+    sineShape: {
+      // ─────────────────────────────────────────────────────────────────────
+      // ATENUACIÓN DE AMPLITUD (sineShapeAttenuation)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // El circuito original del Synthi 100 no compensa la pérdida de amplitud
+      // inherente al waveshaping. Según el manual:
+      // - Centro (seno puro): 4V p-p
+      // - Extremos (cuspoide): 0.5V p-p → ratio 8:1
+      //
+      // | Valor | Comportamiento                                           |
+      // |-------|----------------------------------------------------------|
+      // |  0.0  | Sin atenuación (amplitud constante, moderno)             |
+      // |  0.5  | Atenuación parcial (compromiso)                          |
+      // |  1.0  | Atenuación completa según hardware (8:1 en extremos)     |
+      //
+      attenuation: 1.0,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // PUREZA DEL SENO EN EL CENTRO (sinePurity)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Controla cuánto seno digital puro se mezcla en el centro (Symmetry=0.5).
+      //
+      // | Valor | Comportamiento                                           |
+      // |-------|----------------------------------------------------------|
+      // |  0.0  | 100% analógico incluso en centro - máximo vintage        |
+      // |  0.7  | 70% puro + 30% analógico - DEFAULT (carácter sutil)      |
+      // |  1.0  | 100% digital puro en centro - sin armónicos, "limpio"    |
+      //
+      purity: 0.7,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // COEFICIENTE DE SATURACIÓN (k)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Controla la "dureza" de la saturación tanh.
+      //
+      // | Valor | Comportamiento                                           |
+      // |-------|----------------------------------------------------------|
+      // |  1.0  | Saturación muy suave                                     |
+      // |  1.55 | DEFAULT - Calibrado al 1/4 de recorrido del control      |
+      // |  2.0  | Saturación más pronunciada                               |
+      //
+      saturationK: 1.55,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // OFFSET MÁXIMO DE ASIMETRÍA
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Define cuánto offset DC se aplica a la triangular antes del tanh.
+      //
+      // | Valor | Comportamiento                                           |
+      // |-------|----------------------------------------------------------|
+      // |  0.5  | Deformación moderada                                     |
+      // |  0.85 | DEFAULT - Buena deformación sin saturar completamente    |
+      // |  1.0  | Máxima deformación                                       |
+      //
+      maxOffset: 0.85
     }
 
     // ·······································································
@@ -321,6 +397,18 @@ export default {
   //   5: {
   //     tuning: {
   //       detuneCents: -3        // Ligeramente desafinado (carácter analógico)
+  //     }
+  //   }
+  // }
+  //
+  // Para calibrar el sineShape de un oscilador específico
+  // (útil si un oscilador tiene componentes con tolerancias diferentes):
+  //
+  // oscillators: {
+  //   7: {
+  //     sineShape: {
+  //       attenuation: 0.8,      // Atenuación más suave para este oscilador
+  //       purity: 0.5            // Más carácter analógico en el centro
   //     }
   //   }
   // }

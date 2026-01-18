@@ -20,6 +20,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - `applyVoltageClipping(voltage)`: Satura voltajes directamente.
   - `setInputVoltageLimit(v)` / `setSoftClipEnabled(bool)`: Configuración por módulo.
 - **Soft clipping en entrada CV de osciladores**: Las señales CV que modulan la frecuencia de osciladores ahora pasan por un `WaveShaperNode` con curva tanh que satura suavemente las señales excesivas. Usa `createSoftClipCurve()` de `voltageConstants.js`.
+- **Ganancia de pines con fórmula de tierra virtual**: Nueva función `calculateMatrixPinGain()` que calcula la ganancia de cada pin de matriz según el tipo de pin (gris/blanco/rojo/verde), la Rf del destino y la tolerancia opcional. Las funciones `_getPanel5PinGain()` y `_getPanel6PinGain()` ahora usan este cálculo.
 
 ### Mejoras
 - **Dormancy con early exit real en todos los módulos**: El sistema de dormancy ahora suspende realmente el procesamiento DSP (no solo silencia):

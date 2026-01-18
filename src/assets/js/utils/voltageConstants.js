@@ -353,6 +353,51 @@ export const VOLTAGE_DEFAULTS = {
 // =============================================================================
 
 /**
+ * Calcula la ganancia completa de un pin de matriz.
+ * Combina tipo de pin, tolerancia opcional y Rf del destino.
+ * 
+ * Esta función implementa la fórmula de tierra virtual:
+ *   Ganancia = Rf / R_pin
+ * 
+ * Con opción de aplicar tolerancia del componente para realismo analógico.
+ * 
+ * @param {string} pinType - Tipo de pin ('GREY', 'WHITE', 'RED', 'GREEN')
+ * @param {number} [rf=100000] - Resistencia de realimentación del destino (Ω)
+ * @param {Object} [options] - Opciones adicionales
+ * @param {boolean} [options.applyTolerance=false] - Aplicar tolerancia del componente
+ * @param {number} [options.seed=0] - Seed para reproducibilidad de la tolerancia
+ * @returns {number} Factor de ganancia para el GainNode de la conexión
+ * 
+ * @example
+ * // Pin gris estándar (100k) a módulo con Rf=100k → ganancia 1.0
+ * calculateMatrixPinGain('GREY')  // → 1.0
+ * 
+ * // Pin rojo (2.7k) a módulo con Rf=100k → ganancia ~37
+ * calculateMatrixPinGain('RED')  // → 37.037
+ * 
+ * // Pin blanco con tolerancia
+ * calculateMatrixPinGain('WHITE', 100000, { applyTolerance: true, seed: 42 })
+ */
+export function calculateMatrixPinGain(pinType, rf = STANDARD_FEEDBACK_RESISTANCE, options = {}) {
+  const { applyTolerance = false, seed = 0 } = options;
+  
+  const pinConfig = PIN_RESISTANCES[pinType] || PIN_RESISTANCES.GREY;
+  
+  if (pinConfig.dangerous) {
+    console.warn(`Pin tipo ${pinType} marcado como peligroso - no usar`);
+    return 1.0; // Fallback seguro
+  }
+  
+  let resistance = pinConfig.value;
+  
+  if (applyTolerance && pinConfig.tolerance > 0) {
+    resistance = applyResistanceTolerance(resistance, pinConfig.tolerance, seed);
+  }
+  
+  return calculatePinGain(rf, resistance);
+}
+
+/**
  * Crea una curva de saturación tanh para WaveShaperNode.
  * 
  * Emula el comportamiento de soft clipping de los amplificadores operacionales

@@ -30,6 +30,7 @@ import {
   digitalToVoltage,
   voltageToDigital,
   calculatePinGain,
+  calculateMatrixPinGain,
   applyResistanceTolerance,
   applySoftClip,
   calculateVirtualEarthSum,
@@ -170,6 +171,90 @@ describe('voltageConstants - calculatePinGain()', () => {
   it('devuelve Infinity con pin de 0Ω (cortocircuito)', () => {
     const gain = calculatePinGain(100000, 0);
     assert.equal(gain, Infinity);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ganancia de Pin de Matriz (high-level)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('voltageConstants - calculateMatrixPinGain()', () => {
+  
+  it('calcula ganancia unitaria con pin gris y Rf estándar', () => {
+    const gain = calculateMatrixPinGain('GREY');
+    assert.equal(gain, 1.0);
+  });
+  
+  it('calcula ganancia unitaria con pin blanco y Rf estándar', () => {
+    const gain = calculateMatrixPinGain('WHITE');
+    assert.equal(gain, 1.0);
+  });
+  
+  it('calcula ganancia ~37× con pin rojo', () => {
+    const gain = calculateMatrixPinGain('RED');
+    assert.ok(Math.abs(gain - 37.037) < 0.01);
+  });
+  
+  it('calcula ganancia ~1.47× con pin verde', () => {
+    const gain = calculateMatrixPinGain('GREEN');
+    assert.ok(Math.abs(gain - 1.47) < 0.01);
+  });
+  
+  it('usa Rf personalizada cuando se especifica', () => {
+    // Pin blanco (100k) con Rf = 200k → ganancia 2.0
+    const gain = calculateMatrixPinGain('WHITE', 200000);
+    assert.equal(gain, 2.0);
+  });
+  
+  it('aplica tolerancia reproducible con mismo seed', () => {
+    const gain1 = calculateMatrixPinGain('WHITE', 100000, { applyTolerance: true, seed: 42 });
+    const gain2 = calculateMatrixPinGain('WHITE', 100000, { applyTolerance: true, seed: 42 });
+    assert.equal(gain1, gain2);
+  });
+  
+  it('produce ganancias diferentes con seeds diferentes', () => {
+    const gain1 = calculateMatrixPinGain('WHITE', 100000, { applyTolerance: true, seed: 42 });
+    const gain2 = calculateMatrixPinGain('WHITE', 100000, { applyTolerance: true, seed: 43 });
+    assert.notEqual(gain1, gain2);
+  });
+  
+  it('pin gris tiene menor variación que pin blanco con tolerancia', () => {
+    // GREY: ±0.5%, WHITE: ±10%
+    // Con 100 seeds, la desviación de GREY debe ser ~20× menor que WHITE
+    let greyMin = Infinity, greyMax = -Infinity;
+    let whiteMin = Infinity, whiteMax = -Infinity;
+    
+    for (let seed = 0; seed < 100; seed++) {
+      const grey = calculateMatrixPinGain('GREY', 100000, { applyTolerance: true, seed });
+      const white = calculateMatrixPinGain('WHITE', 100000, { applyTolerance: true, seed });
+      greyMin = Math.min(greyMin, grey);
+      greyMax = Math.max(greyMax, grey);
+      whiteMin = Math.min(whiteMin, white);
+      whiteMax = Math.max(whiteMax, white);
+    }
+    
+    const greyRange = greyMax - greyMin;
+    const whiteRange = whiteMax - whiteMin;
+    
+    // La variación de white debe ser al menos 5× mayor que grey
+    assert.ok(whiteRange > greyRange * 5, 
+      `White range (${whiteRange.toFixed(4)}) debería ser >5× grey range (${greyRange.toFixed(4)})`);
+  });
+  
+  it('devuelve fallback seguro para pin ORANGE (peligroso)', () => {
+    const gain = calculateMatrixPinGain('ORANGE');
+    assert.equal(gain, 1.0);
+  });
+  
+  it('devuelve ganancia de GREY para tipo de pin desconocido', () => {
+    const gain = calculateMatrixPinGain('UNKNOWN');
+    assert.equal(gain, 1.0);
+  });
+  
+  it('sin tolerancia, gris y blanco dan mismo resultado', () => {
+    const grey = calculateMatrixPinGain('GREY', 100000, { applyTolerance: false });
+    const white = calculateMatrixPinGain('WHITE', 100000, { applyTolerance: false });
+    assert.equal(grey, white);
   });
 });
 

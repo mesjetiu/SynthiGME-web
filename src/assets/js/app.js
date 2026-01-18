@@ -6,7 +6,7 @@ import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
-import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve } from './utils/voltageConstants.js';
+import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE } from './utils/voltageConstants.js';
 
 const log = createLogger('App');
 import { RecordingEngine } from './core/recordingEngine.js';
@@ -2052,7 +2052,19 @@ class App {
     return mappings.colBase + colIndex;
   }
 
-  _getPanel5PinGain(rowIndex, colIndex) {
+  /**
+   * Calcula la ganancia de un pin de matriz del Panel 5 (Audio).
+   * 
+   * Usa la fórmula de tierra virtual: Ganancia = Rf / R_pin
+   * donde Rf es la resistencia de realimentación del destino y R_pin
+   * es la resistencia del pin de conexión.
+   * 
+   * @param {number} rowIndex - Índice de fila física (fuente)
+   * @param {number} colIndex - Índice de columna física (destino)
+   * @param {Object} [destInfo] - Información del destino (opcional, para obtener Rf)
+   * @returns {number} Factor de ganancia para el GainNode
+   */
+  _getPanel5PinGain(rowIndex, colIndex, destInfo = null) {
     const cfg = panel5AudioConfig?.audio || {};
     const matrixGain = cfg.matrixGain ?? 1.0;
     const gainRange = cfg.gainRange || { min: 0, max: 2.0 };
@@ -2061,6 +2073,7 @@ class App {
     const colSynth = this._physicalColToSynthCol(colIndex);
     const pinKey = `${rowSynth}:${colSynth}`;
 
+    // Prioridad 1: Ganancia explícita por pin (override manual)
     const pinGains = panel5AudioConfig?.pinGains || {};
     if (pinKey in pinGains) {
       const pinGain = pinGains[pinKey];
@@ -2068,6 +2081,27 @@ class App {
       return clampedPin * matrixGain;
     }
 
+    // Prioridad 2: Calcular según modelo de virtual-earth summing
+    // Determinar tipo de pin (por defecto GREY para precisión)
+    const pinTypes = panel5AudioConfig?.pinTypes || {};
+    const pinType = pinTypes[pinKey] || VOLTAGE_DEFAULTS.defaultPinType || 'GREY';
+    
+    // Obtener Rf del destino (por defecto 100k estándar)
+    let rf = STANDARD_FEEDBACK_RESISTANCE;
+    if (destInfo?.rf) {
+      rf = destInfo.rf;
+    }
+    
+    // Determinar si aplicar tolerancia basado en settings
+    const applyTolerance = VOLTAGE_DEFAULTS.applyPinTolerance ?? false;
+    
+    // Calcular seed único para reproducibilidad de tolerancia
+    const seed = rowSynth * 1000 + colSynth;
+    
+    // Calcular ganancia base según fórmula de virtual-earth
+    const pinGain = calculateMatrixPinGain(pinType, rf, { applyTolerance, seed });
+    
+    // Aplicar ganancias adicionales por fila/columna si existen
     const rowGains = panel5AudioConfig?.rowGains || {};
     const colGains = panel5AudioConfig?.colGains || {};
     const rowGain = rowGains[rowSynth] ?? 1.0;
@@ -2076,7 +2110,11 @@ class App {
     const clampedRow = Math.max(gainRange.min, Math.min(gainRange.max, rowGain));
     const clampedCol = Math.max(gainRange.min, Math.min(gainRange.max, colGain));
 
-    return clampedRow * clampedCol * matrixGain;
+    // Combinar todas las ganancias
+    const totalGain = pinGain * clampedRow * clampedCol * matrixGain;
+    
+    // Clamp final para evitar valores extremos
+    return Math.max(gainRange.min, Math.min(gainRange.max * 40, totalGain)); // Permitir hasta 40x para pines rojos
   }
 
   _setupPanel5AudioRouting() {
@@ -2361,22 +2399,23 @@ class App {
   }
 
   /**
-   * Calcula la ganancia efectiva para un pin específico del Panel 6.
+   * Calcula la ganancia de un pin de matriz del Panel 6 (Control).
    * 
-   * Jerarquía de ganancias (igual que Panel 5):
-   * 1. Si existe pinGain específico → lo usa (sobrescribe row×col)
-   * 2. Si no → rowGain × colGain
-   * 3. Resultado × matrixGain global
+   * Usa la fórmula de tierra virtual: Ganancia = Rf / R_pin
+   * Las señales de CV (Control Voltage) típicamente usan pines grises
+   * de alta precisión (±0.5% tolerancia) para mantener afinación.
    * 
-   * @param {number} rowIndex - Índice de fila (0-based)
-   * @param {number} colIndex - Índice de columna (0-based)
-   * @returns {number} Ganancia efectiva para el pin
+   * @param {number} rowIndex - Índice de fila física (fuente)
+   * @param {number} colIndex - Índice de columna física (destino)
+   * @param {Object} [destInfo] - Información del destino (opcional, para obtener Rf)
+   * @returns {number} Factor de ganancia para el GainNode
    * @private
    */
-  _getPanel6PinGain(rowIndex, colIndex) {
+  _getPanel6PinGain(rowIndex, colIndex, destInfo = null) {
     const config = panel6ControlConfig || {};
     const controlSection = config.control || {};
     const matrixGain = controlSection.matrixGain ?? 1.0;
+    const gainRange = controlSection.gainRange || { min: 0, max: 2.0 };
     const rowGains = config.rowGains || {};
     const colGains = config.colGains || {};
     const pinGains = config.pinGains || {};
@@ -2386,16 +2425,37 @@ class App {
     const colSynth = colIndex + (panel6ControlBlueprint?.grid?.coordSystem?.colBase || 1);
     const pinKey = `${rowSynth}:${colSynth}`;
 
-    // Si hay ganancia específica de pin, sobrescribe row×col
+    // Prioridad 1: Ganancia explícita de pin (override manual)
     if (pinKey in pinGains) {
       return pinGains[pinKey] * matrixGain;
     }
 
-    // Ganancia de fila × ganancia de columna
+    // Prioridad 2: Calcular según modelo de virtual-earth summing
+    // Panel 6 es control voltage - siempre pines GREY para precisión
+    const pinTypes = config.pinTypes || {};
+    const pinType = pinTypes[pinKey] || 'GREY'; // CV siempre usa grey para afinación
+    
+    // Obtener Rf del destino (por defecto 100k estándar)
+    let rf = STANDARD_FEEDBACK_RESISTANCE;
+    if (destInfo?.rf) {
+      rf = destInfo.rf;
+    }
+    
+    // Para CV, la tolerancia se aplica según settings pero con mayor cuidado
+    const applyTolerance = VOLTAGE_DEFAULTS.applyPinTolerance ?? false;
+    
+    // Seed único para reproducibilidad
+    const seed = rowSynth * 1000 + colSynth;
+    
+    // Calcular ganancia base según fórmula de virtual-earth
+    const pinGain = calculateMatrixPinGain(pinType, rf, { applyTolerance, seed });
+    
+    // Aplicar ganancias adicionales por fila/columna si existen
     const rowGain = rowGains[rowSynth] ?? 1.0;
     const colGain = colGains[colSynth] ?? 1.0;
     
-    return rowGain * colGain * matrixGain;
+    // Combinar todas las ganancias
+    return pinGain * rowGain * colGain * matrixGain;
   }
 
   /**

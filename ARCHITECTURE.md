@@ -599,6 +599,39 @@ La clase base `Module` incluye métodos para aplicar soft clipping a las entrada
 | `applyInputClipping(digital)` | Aplica clip a valor digital (convierte ↔ voltaje) |
 | `applyVoltageClipping(volts)` | Aplica clip a valor en voltios directamente |
 
+### 3.8.8 Ganancia de Pines de Matriz
+
+La función `calculateMatrixPinGain()` combina tipo de pin, resistencia de realimentación y tolerancia para calcular la ganancia de cada conexión:
+
+```javascript
+import { calculateMatrixPinGain } from './utils/voltageConstants.js';
+
+// Pin gris (100k) con Rf estándar (100k) → ganancia 1.0
+calculateMatrixPinGain('GREY');           // → 1.0
+
+// Pin rojo (2.7k) → ganancia ~37× (conexión fuerte)
+calculateMatrixPinGain('RED');            // → 37.037
+
+// Pin blanco con tolerancia aplicada
+calculateMatrixPinGain('WHITE', 100000, { 
+  applyTolerance: true, 
+  seed: 42  // Reproducible
+});                                        // → ~0.9 a ~1.1
+```
+
+#### Uso en la Matriz (app.js)
+
+Las funciones `_getPanel5PinGain()` y `_getPanel6PinGain()` usan `calculateMatrixPinGain()` para aplicar el modelo de tierra virtual a cada conexión:
+
+```javascript
+// Jerarquía de ganancia:
+// 1. pinGains[key] específico (override manual)
+// 2. calculateMatrixPinGain(tipo, rf, { tolerancia, seed })
+// 3. × rowGains × colGains × matrixGain
+```
+
+La configuración de tipos de pin por coordenada se puede definir en los archivos de configuración (`panel5AudioConfig.pinTypes`, `panel6ControlConfig.pinTypes`). Si no se especifica, se usa pin gris por defecto.
+
 ```javascript
 class OscillatorModule extends Module {
   processInput(cvValue) {

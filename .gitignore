@@ -2,6 +2,9 @@
 /local/
 node_modules/
 
+# Estudio técnico-histórico (repositorio separado)
+synthiGME-implementation-study/
+
 # Logs
 npm-debug.log*
 yarn-error.log*

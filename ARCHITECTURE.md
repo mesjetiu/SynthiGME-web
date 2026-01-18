@@ -558,6 +558,34 @@ applySoftClip(10.0, 8.0);  // → ~7.6V (saturado suavemente)
 applySoftClip(4.0, 8.0);   // → ~4.0V (sin cambio notable)
 ```
 
+#### Curva para WaveShaperNode
+
+Para aplicar soft clipping en tiempo real a señales de audio o CV, se usa `createSoftClipCurve()` con un `WaveShaperNode`:
+
+```javascript
+import { createSoftClipCurve, VOLTAGE_DEFAULTS } from './utils/voltageConstants.js';
+
+// Crear curva de saturación para límite de ±2 unidades digitales (8V)
+const curve = createSoftClipCurve(256, 2.0, 1.0);
+
+// Aplicar a un WaveShaperNode
+const waveshaper = audioCtx.createWaveShaper();
+waveshaper.curve = curve;
+waveshaper.oversample = 'none';  // CV no necesita oversampling
+```
+
+#### Uso en Osciladores
+
+Los osciladores aplican soft clipping a la entrada de CV de frecuencia usando un `WaveShaperNode` entre `freqCVInput` y el parámetro `detune`:
+
+```
+[Señal CV] → [freqCVInput] → [cvSoftClip] → [detune del worklet]
+                  ↓                ↓
+            escala a cents    satura con tanh
+```
+
+El límite se lee de `panel3.config.js` → `voltage.inputLimit` (8V = 2.0 digital).
+
 ### 3.8.7 Clase Module (core/engine.js)
 
 La clase base `Module` incluye métodos para aplicar soft clipping a las entradas. Todos los módulos heredan estos métodos:

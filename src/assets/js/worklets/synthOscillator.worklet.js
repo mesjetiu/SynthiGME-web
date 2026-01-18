@@ -100,6 +100,14 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     
     // Tipo de onda para modo single: 'pulse', 'sine', 'triangle', 'sawtooth'
     this.waveform = options?.processorOptions?.waveform || 'pulse';
+    
+    // Atenuación histórica del Sine Shape:
+    // Factor de reducción de amplitud en extremos del control Shape.
+    // Según manual Synthi 100: seno = 4V p-p, cuspoide = 0.5V p-p → ratio 8:1
+    // 0.0 = sin atenuación (amplitud constante)
+    // 1.0 = atenuación completa según hardware (8:1 en extremos)
+    // Por defecto 1.0 para emular comportamiento histórico.
+    this.sineShapeAttenuation = options?.processorOptions?.sineShapeAttenuation ?? 1.0;
 
     // Escuchar mensajes del hilo principal
     this.port.onmessage = (event) => {
@@ -115,6 +123,8 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         this.dormant = event.data.dormant;
         // Log en consola del worklet (visible en DevTools > Sources > Threads)
         console.log(`[Worklet] Oscillator dormant: ${this.dormant}`);
+      } else if (event.data.type === 'setSineShapeAttenuation') {
+        this.sineShapeAttenuation = event.data.value;
       }
     };
   }
@@ -220,7 +230,21 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const analogMix = Math.pow(dist, 0.5); // Raíz cuadrada hace que el carácter entre rápido
     
     // Interpolación lineal entre Puro y Analógico
-    return pureSine * (1 - analogMix) + analogSine * analogMix;
+    const mixedSine = pureSine * (1 - analogMix) + analogSine * analogMix;
+    
+    // === 4. ATENUACIÓN HISTÓRICA ===
+    // Emula la reducción de amplitud del hardware original.
+    // Manual Synthi 100: seno 4V p-p → cuspoide 0.5V p-p (ratio 8:1)
+    // Curva cuadrática: suave en centro, pronunciada en extremos.
+    // dist=0 → attenuation=1.0, dist=1 → attenuation=0.125
+    if (this.sineShapeAttenuation > 0) {
+      const minAmp = 0.125; // 1/8 = 0.5V/4V del manual
+      // Interpolación: 1.0 - dist² * (1 - minAmp) * attenuationFactor
+      const attenuation = 1.0 - (dist * dist) * (1.0 - minAmp) * this.sineShapeAttenuation;
+      return mixedSine * attenuation;
+    }
+    
+    return mixedSine;
   }
 
   /**

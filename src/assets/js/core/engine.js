@@ -1469,6 +1469,7 @@ export class AudioEngine {
    * @param {number} [options.sawLevel=0] - Nivel sawtooth (0-1)
    * @param {number} [options.triLevel=0] - Nivel triangle (0-1)
    * @param {number} [options.pulseLevel=0] - Nivel pulse (0-1)
+   * @param {number} [options.sineShapeAttenuation=1.0] - Atenuación histórica del Shape (0=off, 1=8:1 ratio)
    * @returns {AudioWorkletNode|null} El nodo o null si worklet no disponible
    */
   createMultiOscillator(options = {}) {
@@ -1484,7 +1485,8 @@ export class AudioEngine {
       sineLevel = 0,
       sawLevel = 0,
       triLevel = 0,
-      pulseLevel = 0
+      pulseLevel = 0,
+      sineShapeAttenuation = 1.0
     } = options;
 
     const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
@@ -1493,7 +1495,7 @@ export class AudioEngine {
       outputChannelCount: [1, 1],
       channelCount: 1,             // Importante para que el input reciba señal mono
       channelCountMode: 'explicit', // No cambiar automáticamente el channel count
-      processorOptions: { mode: 'multi' }
+      processorOptions: { mode: 'multi', sineShapeAttenuation }
     });
 
     // Establecer valores iniciales
@@ -1572,6 +1574,14 @@ export class AudioEngine {
      */
     node.connectSync = (syncSource) => {
       syncSource.connect(node, 0, 0);
+    };
+
+    /**
+     * Cambia la atenuación histórica del Sine Shape en runtime.
+     * @param {number} value - Factor de atenuación (0=off, 1=8:1 histórico)
+     */
+    node.setSineShapeAttenuation = (value) => {
+      node.port.postMessage({ type: 'setSineShapeAttenuation', value });
     };
 
     return node;

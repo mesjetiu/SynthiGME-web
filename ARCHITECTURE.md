@@ -1180,6 +1180,17 @@ Un enfoque híbrido que mezcla dos generadores según el control de simetría:
     *   Coeficiente de saturación calibrado a $k=1.55$ tras análisis auditivo y visual.
     *   Produce la característica forma de "Vientre Redondo vs Punta Aguda" sin romper la continuidad de la onda.
 
+**Atenuación Histórica de Amplitud:**
+Según el manual del Synthi 100, la amplitud de la forma de onda Sine cambia con el control Shape:
+- Centro (seno puro): 4V p-p
+- Extremos (cuspoide): 0.5V p-p → ratio **8:1**
+
+Este comportamiento se emula mediante el parámetro `sineShapeAttenuation` (configurable via `processorOptions` o `setSineShapeAttenuation()`):
+- `0.0` = Sin atenuación (amplitud constante, comportamiento "moderno")
+- `1.0` = Atenuación completa según hardware (8:1 en extremos, **por defecto**)
+
+La curva de atenuación es cuadrática: $A = 1 - d^2 \cdot (1 - 0.125) \cdot factor$, donde $d$ es la distancia al centro normalizada.
+
 **Fuentes:**
 - *Gabinete de Música Electroacústica de Cuenca*: Manual de usuario (para la dirección del control: Izquierda = Vientres Arriba).
 - *Circuit Diagrams*: Análisis del VCO para deducir el uso de conformadores de onda sobre núcleo triangular en lugar de distorsión de fase.
@@ -1215,8 +1226,13 @@ const multiOsc = engine.createMultiOscillator({
   sineLevel: 0.5,     // mezcla de ondas
   sawLevel: 0.3,
   triLevel: 0,
-  pulseLevel: 0.2
+  pulseLevel: 0.2,
+  sineShapeAttenuation: 1.0  // Atenuación histórica (0=off, 1=8:1)
 });
+
+// Cambiar atenuación en runtime
+multiOsc.setSineShapeAttenuation(0.5); // 50% de atenuación
+
 
 // 2 salidas: output 0 = sine+saw, output 1 = tri+pulse
 multiOsc.connect(sineSawDestination, 0);

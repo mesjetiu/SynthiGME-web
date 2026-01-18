@@ -7,6 +7,15 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **Sistema de emulación de voltajes del Synthi 100**: Nuevo módulo `voltageConstants.js` que implementa el modelo eléctrico de la versión Cuenca/Datanomics (1982):
+  - **Conversión digital ↔ voltaje**: Factor 1.0 digital = 4V (8V p-p total), estándar 1V/Oct.
+  - **Resistencias de pin**: Blanco (100kΩ ±10%), Gris (100kΩ ±0.5%), Rojo (2.7kΩ), Verde (68kΩ).
+  - **Fórmula de tierra virtual**: `V_dest = Σ(V_fuente / R_pin) × Rf` para mezcla de corrientes.
+  - **Soft clipping**: Saturación suave con `tanh()` según límites por módulo (8V filtros, 2V reverb, etc.).
+  - **Tolerancia reproducible**: Error de resistencia basado en seed para patches consistentes.
+  - **Deriva térmica**: Configuración para osciladores CEM 3340 (±0.1%).
+
 ### Mejoras
 - **Dormancy con early exit real en todos los módulos**: El sistema de dormancy ahora suspende realmente el procesamiento DSP (no solo silencia):
   - **Osciladores**: mensaje `setDormant` al worklet → early exit en `process()`. Ahorra ~95% CPU.

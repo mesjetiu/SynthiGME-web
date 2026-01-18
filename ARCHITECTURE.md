@@ -454,6 +454,102 @@ export default {
 
 ---
 
+## 3.8 Sistema de Emulación de Voltajes (`utils/voltageConstants.js`)
+
+> **Nuevo en v1.x** — Emulación del modelo eléctrico del Synthi 100 versión Cuenca/Datanomics (1982).
+
+El Synthi 100 utiliza un sistema de **suma por tierra virtual** (virtual-earth summing) donde las señales se mezclan como corrientes a través de resistencias. Este módulo implementa las constantes y funciones necesarias para emular este comportamiento.
+
+### 3.8.1 Conversión Digital ↔ Voltaje
+
+| Constante | Valor | Descripción |
+|-----------|-------|-------------|
+| `DIGITAL_TO_VOLTAGE` | 4.0 | 1.0 digital = 4V (rango ±1 = ±4V = 8V p-p) |
+| `MAX_VOLTAGE_PP` | 8.0 | Voltaje pico a pico máximo (amplitud total) |
+| `VOLTS_PER_OCTAVE` | 1.0 | Estándar de control: 1V/Oct |
+| `KEYBOARD_MAX_VOLTAGE` | 5.0 | Voltaje máximo del teclado (C5) |
+
+```javascript
+import { digitalToVoltage, voltageToDigital } from './utils/voltageConstants.js';
+
+digitalToVoltage(1.0);   // → 4.0V
+voltageToDigital(-4.0);  // → -1.0
+```
+
+### 3.8.2 Resistencias de Pin (Matriz)
+
+Los pines de la matriz contienen resistencias que determinan la ganancia de mezcla:
+
+| Color | Resistencia | Tolerancia | Uso |
+|-------|-------------|------------|-----|
+| **Blanco** | 100kΩ | ±10% | Audio general |
+| **Gris** | 100kΩ | ±0.5% | CV de precisión (intervalos musicales) |
+| **Rojo** | 2.7kΩ | ±5% | Osciloscopio (señal fuerte) |
+| **Verde** | 68kΩ | ±10% | Mezcla atenuada |
+| **Naranja** | 0Ω | — | ⚠️ NO USAR (cortocircuito) |
+
+Por defecto se usa pin **gris** para máxima reproducibilidad.
+
+### 3.8.3 Fórmula de Tierra Virtual
+
+La mezcla de señales sigue la fórmula:
+
+```
+V_destino = Σ(V_fuente / R_pin) × Rf
+```
+
+Donde:
+- `V_fuente`: Voltaje de salida del módulo fuente
+- `R_pin`: Resistencia del pin usado en la conexión
+- `Rf`: Resistencia de realimentación del módulo destino (típicamente 100kΩ)
+
+```javascript
+import { calculateVirtualEarthSum } from './utils/voltageConstants.js';
+
+// Dos osciladores (4V) con pines blancos (100k) → módulo con Rf=100k
+calculateVirtualEarthSum(
+  [{ voltage: 4, resistance: 100000 }, { voltage: 4, resistance: 100000 }],
+  100000
+);  // → 8V (suma lineal sin pérdida)
+```
+
+### 3.8.4 Soft Clipping (Saturación)
+
+Cuando el voltaje de entrada supera el límite de un módulo, se aplica saturación suave con `tanh()`:
+
+| Módulo | Límite |
+|--------|--------|
+| Ring Modulator | 8V p-p |
+| VCF / Octave Filter | 8V p-p |
+| Reverb | 2V p-p |
+| Envelope VCA | 3V p-p |
+| Input Amplifier | 20V (±10V DC) |
+
+```javascript
+import { applySoftClip } from './utils/voltageConstants.js';
+
+applySoftClip(10.0, 8.0);  // → ~7.6V (saturado suavemente)
+applySoftClip(4.0, 8.0);   // → ~4.0V (sin cambio notable)
+```
+
+### 3.8.5 Deriva Térmica
+
+Los osciladores CEM 3340 presentan una deriva natural de ±0.1% durante una sesión. Esta característica es configurable en ajustes.
+
+### 3.8.6 Tolerancia de Resistencias
+
+La función `applyResistanceTolerance()` genera un error reproducible basado en un seed (ID de conexión), permitiendo que los patches suenen igual al recargarlos:
+
+```javascript
+import { applyResistanceTolerance, PIN_RESISTANCES } from './utils/voltageConstants.js';
+
+const { value, tolerance } = PIN_RESISTANCES.GREY;
+const actualResistance = applyResistanceTolerance(value, tolerance, connectionId);
+// → 100000 * (1 ± 0.005) basado en seed
+```
+
+---
+
 ## 4. Sistema de Patches/Estados
 
 El sistema de patches permite guardar y restaurar el estado completo del sintetizador.

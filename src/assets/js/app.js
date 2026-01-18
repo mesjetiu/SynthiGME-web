@@ -6,6 +6,7 @@ import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
+import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve } from './utils/voltageConstants.js';
 
 const log = createLogger('App');
 import { RecordingEngine } from './core/recordingEngine.js';
@@ -1720,9 +1721,35 @@ class App {
     const freqCVInput = ctx.createGain();
     freqCVInput.gain.value = centsGain;
     
-    // Conectar CV al detune del worklet (modulación exponencial)
-    const detuneParam = multiOsc.parameters?.get('detune');
-    if (detuneParam) freqCVInput.connect(detuneParam);
+    // ─────────────────────────────────────────────────────────────────────────
+    // SOFT CLIPPING DE CV (Emulación de voltaje Cuenca/Datanomics)
+    // ─────────────────────────────────────────────────────────────────────────
+    // El Synthi 100 satura suavemente las señales CV que superan el límite
+    // de entrada del módulo. Usamos WaveShaperNode con curva tanh.
+    // ─────────────────────────────────────────────────────────────────────────
+    const voltageConfig = oscConfig?.voltage ?? panel3Config.defaults?.voltage ?? {};
+    const inputLimit = voltageConfig.inputLimit ?? 8.0;
+    // Normalizar: inputLimit está en voltios, la señal CV está en rango ~±1
+    // Convertimos el límite de voltios a unidades digitales
+    const normalizedLimit = inputLimit / 4.0; // 8V → 2.0 digital
+    
+    let cvSoftClip = null;
+    if (VOLTAGE_DEFAULTS.softClipEnabled) {
+      cvSoftClip = ctx.createWaveShaper();
+      cvSoftClip.curve = createSoftClipCurve(256, normalizedLimit, 1.0);
+      cvSoftClip.oversample = 'none'; // CV no necesita oversampling
+      
+      // Cadena: freqCVInput → cvSoftClip → detune
+      const detuneParam = multiOsc.parameters?.get('detune');
+      if (detuneParam) {
+        freqCVInput.connect(cvSoftClip);
+        cvSoftClip.connect(detuneParam);
+      }
+    } else {
+      // Sin soft clip: conexión directa
+      const detuneParam = multiOsc.parameters?.get('detune');
+      if (detuneParam) freqCVInput.connect(detuneParam);
+    }
 
     // Crear referencias de compatibilidad para código existente
     entry = {
@@ -1732,6 +1759,7 @@ class App {
       triPulseOut,
       moduleOut,
       freqCVInput,
+      cvSoftClip,  // Referencia al WaveShaperNode para debug/ajustes
       _freqInitialized: true,
       _useWorklet: true,
       _isMultiOsc: true,

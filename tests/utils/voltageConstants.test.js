@@ -33,6 +33,7 @@ import {
   applyResistanceTolerance,
   applySoftClip,
   calculateVirtualEarthSum,
+  createSoftClipCurve,
   
   // Defaults
   VOLTAGE_DEFAULTS
@@ -363,5 +364,72 @@ describe('VOLTAGE_DEFAULTS - Configuración por defecto', () => {
   
   it('tiene soft clipping activado por defecto', () => {
     assert.equal(VOLTAGE_DEFAULTS.softClipEnabled, true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createSoftClipCurve - Curva para WaveShaperNode
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('voltageConstants - createSoftClipCurve()', () => {
+  
+  it('devuelve Float32Array con el número de muestras especificado', () => {
+    const curve = createSoftClipCurve(256);
+    assert.ok(curve instanceof Float32Array);
+    assert.equal(curve.length, 256);
+  });
+  
+  it('genera curva simétrica (punto medio = 0)', () => {
+    const curve = createSoftClipCurve(256);
+    // El punto medio (índice 128) debe ser ~0
+    assert.ok(Math.abs(curve[128]) < 0.01);
+  });
+  
+  it('genera curva antisimétrica (f(-x) = -f(x))', () => {
+    const curve = createSoftClipCurve(256);
+    // Comparar puntos simétricos alrededor del centro
+    for (let i = 1; i < 128; i++) {
+      const left = curve[128 - i];
+      const right = curve[128 + i];
+      assert.ok(Math.abs(left + right) < 0.01, `Índices ${128-i} y ${128+i} no son antisimétricos`);
+    }
+  });
+  
+  it('satura hacia inputLimit con valores extremos', () => {
+    const inputLimit = 2.0;
+    const curve = createSoftClipCurve(256, inputLimit);
+    
+    // El valor máximo debe estar cerca pero por debajo del inputLimit
+    const maxValue = curve[255];
+    const minValue = curve[0];
+    
+    assert.ok(maxValue > 0 && maxValue <= inputLimit);
+    assert.ok(minValue < 0 && minValue >= -inputLimit);
+  });
+  
+  it('con inputLimit=1, los extremos se acercan a ±1', () => {
+    const curve = createSoftClipCurve(256, 1.0);
+    
+    // tanh(1) ≈ 0.76, así que con inputLimit=1 el máximo será ~0.76
+    assert.ok(Math.abs(curve[255]) > 0.5);
+    assert.ok(Math.abs(curve[255]) < 1.0);
+  });
+  
+  it('softness afecta la pendiente de saturación', () => {
+    const curveSoft = createSoftClipCurve(256, 1.0, 0.5);  // Más agresivo
+    const curveNormal = createSoftClipCurve(256, 1.0, 1.0);
+    
+    // Con menor softness, el valor en un punto intermedio será mayor
+    // (satura más rápido hacia el límite)
+    const midPoint = 192; // ~0.5 en el rango de entrada
+    assert.ok(Math.abs(curveSoft[midPoint]) >= Math.abs(curveNormal[midPoint]) * 0.9);
+  });
+  
+  it('es válida para uso en WaveShaperNode (sin NaN ni Infinity)', () => {
+    const curve = createSoftClipCurve(512, 2.0, 0.5);
+    
+    for (let i = 0; i < curve.length; i++) {
+      assert.ok(Number.isFinite(curve[i]), `Índice ${i} tiene valor no finito: ${curve[i]}`);
+    }
   });
 });

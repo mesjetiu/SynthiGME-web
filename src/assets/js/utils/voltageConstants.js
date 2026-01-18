@@ -347,3 +347,43 @@ export const VOLTAGE_DEFAULTS = {
   /** Soft clipping habilitado */
   softClipEnabled: true
 };
+
+// =============================================================================
+// UTILIDADES PARA WEB AUDIO
+// =============================================================================
+
+/**
+ * Crea una curva de saturación tanh para WaveShaperNode.
+ * 
+ * Emula el comportamiento de soft clipping de los amplificadores operacionales
+ * del Synthi 100 cuando la señal supera los límites de entrada.
+ * 
+ * La curva mapea entrada [-1, +1] a salida saturada, donde valores cercanos
+ * a ±inputLimit se comprimen suavemente hacia el límite.
+ * 
+ * @param {number} [samples=256] - Número de muestras de la curva (potencia de 2 recomendado)
+ * @param {number} [inputLimit=1.0] - Límite de entrada normalizado
+ *        (1.0 = señal ±1 se satura a ±1, 2.0 = señal ±2 se satura a ±2)
+ * @param {number} [softness=1.0] - Factor de suavidad (menor = más agresivo)
+ * @returns {Float32Array} Curva de saturación para WaveShaperNode.curve
+ * 
+ * @example
+ * // Crear curva para limitar CV a ±2 unidades digitales (8V)
+ * const curve = createSoftClipCurve(256, 2.0, 1.0);
+ * waveShaperNode.curve = curve;
+ */
+export function createSoftClipCurve(samples = 256, inputLimit = 1.0, softness = 1.0) {
+  const curve = new Float32Array(samples);
+  const halfSamples = samples / 2;
+  
+  for (let i = 0; i < samples; i++) {
+    // Mapear índice a rango -1 a +1
+    const x = (i - halfSamples) / halfSamples;
+    
+    // Normalizar por límite de entrada y aplicar tanh
+    const normalized = x / (inputLimit * softness);
+    curve[i] = Math.tanh(normalized) * inputLimit;
+  }
+  
+  return curve;
+}

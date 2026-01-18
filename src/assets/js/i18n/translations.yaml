@@ -751,6 +751,39 @@ settings.latencyMode.restartRequired:
   en: Latency mode saved. Restart the app to apply changes.
   es: Modo de latencia guardado. Reinicia la app para aplicar los cambios.
 
+# EMULACIÓN DE VOLTAJES
+settings.voltageEmulation:
+  en: Voltage Emulation
+  es: Emulación de voltajes
+
+settings.voltageEmulation.description:
+  en: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
+  es: Emula el comportamiento eléctrico del Synthi 100 versión Cuenca/Datanomics (1982). Estas opciones afectan la precisión analógica de las señales.
+
+settings.voltageEmulation.softClip:
+  en: Soft Clipping
+  es: Saturación suave (soft clip)
+
+settings.voltageEmulation.softClip.description:
+  en: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
+  es: Satura suavemente con tanh() las señales que superan los límites de entrada de cada módulo (8V p-p típico).
+
+settings.voltageEmulation.pinTolerance:
+  en: Pin Tolerance
+  es: Tolerancia de pines
+
+settings.voltageEmulation.pinTolerance.description:
+  en: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
+  es: Aplica variación realista según el tipo de pin: gris ±0.5%, blanco ±10%. Cada conexión tiene su propia tolerancia reproducible.
+
+settings.voltageEmulation.thermalDrift:
+  en: Thermal Drift
+  es: Deriva térmica
+
+settings.voltageEmulation.thermalDrift.description:
+  en: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
+  es: Simula la deriva lenta (±0.1%) de los osciladores CEM 3340 por cambios de temperatura.
+
 toast.reset:
   en: Synthesizer reset to defaults
   es: Sintetizador reiniciado

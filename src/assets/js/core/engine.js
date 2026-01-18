@@ -1486,7 +1486,8 @@ export class AudioEngine {
       sawLevel = 0,
       triLevel = 0,
       pulseLevel = 0,
-      sineShapeAttenuation = 1.0
+      sineShapeAttenuation = 1.0,
+      sinePurity = 0.7
     } = options;
 
     const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
@@ -1495,7 +1496,7 @@ export class AudioEngine {
       outputChannelCount: [1, 1],
       channelCount: 1,             // Importante para que el input reciba señal mono
       channelCountMode: 'explicit', // No cambiar automáticamente el channel count
-      processorOptions: { mode: 'multi', sineShapeAttenuation }
+      processorOptions: { mode: 'multi', sineShapeAttenuation, sinePurity }
     });
 
     // Establecer valores iniciales
@@ -1582,6 +1583,14 @@ export class AudioEngine {
      */
     node.setSineShapeAttenuation = (value) => {
       node.port.postMessage({ type: 'setSineShapeAttenuation', value });
+    };
+
+    /**
+     * Cambia la pureza del seno en el centro en runtime.
+     * @param {number} value - Factor de pureza (0=100% analógico, 1=100% digital puro)
+     */
+    node.setSinePurity = (value) => {
+      node.port.postMessage({ type: 'setSinePurity', value });
     };
 
     return node;

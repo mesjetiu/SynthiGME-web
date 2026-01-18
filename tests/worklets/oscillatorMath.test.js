@@ -33,14 +33,20 @@ await import('../../src/assets/js/worklets/synthOscillator.worklet.js');
 describe('SynthOscillatorProcessor DSP Logic', () => {
   let processor;
   let processorNoAttenuation;
+  let processorPureSine;
 
   before(() => {
     // Processor con atenuación histórica desactivada para tests de forma de onda pura
+    // y sinePurity=1 para tests que requieren seno puro en el centro
     processorNoAttenuation = new SynthOscillatorProcessor({
-      processorOptions: { sineShapeAttenuation: 0 }
+      processorOptions: { sineShapeAttenuation: 0, sinePurity: 1.0 }
     });
-    // Processor con atenuación histórica (por defecto = 1.0)
+    // Processor con atenuación histórica (por defecto = 1.0) y sinePurity por defecto (0.7)
     processor = new SynthOscillatorProcessor();
+    // Processor con sinePurity=1 para verificar seno puro perfecto en centro
+    processorPureSine = new SynthOscillatorProcessor({
+      processorOptions: { sineShapeAttenuation: 0, sinePurity: 1.0 }
+    });
   });
 
   describe('generateAsymmetricSine (New Hybrid Algo)', () => {
@@ -50,15 +56,15 @@ describe('SynthOscillatorProcessor DSP Logic', () => {
     // So crossing 0 happens at 0.25 and 0.75.
     // Cos(0.25 * 2PI) = Cos(PI/2) = 0. Correct.
     
-    it('Symmetry 0.5 (Center) should be Pure Sine (Cosine phase)', () => {
+    it('Symmetry 0.5 (Center) should be Pure Sine with sinePurity=1', () => {
       const symmetry = 0.5;
       const numPoints = 100;
       let maxError = 0;
 
       for (let i = 0; i < numPoints; i++) {
         const phase = i / numPoints;
-        // Usar processor sin atenuación para test de forma pura
-        const result = processorNoAttenuation.generateAsymmetricSine(phase, symmetry);
+        // Usar processorPureSine que tiene sinePurity=1
+        const result = processorPureSine.generateAsymmetricSine(phase, symmetry);
         
         // Expected: Peak at 0. Math.cos matches our alignment (0 -> 1, 0.25 -> 0, 0.5 -> -1)
         const expected = Math.cos(phase * 2 * Math.PI);
@@ -176,9 +182,9 @@ describe('SynthOscillatorProcessor DSP Logic', () => {
     });
     
     it('Historical Attenuation: Configurable via processorOptions', () => {
-      // Crear processor con atenuación parcial (50%)
+      // Crear processor con atenuación parcial (50%) y sinePurity=1
       const halfAttenuation = new SynthOscillatorProcessor({
-        processorOptions: { sineShapeAttenuation: 0.5 }
+        processorOptions: { sineShapeAttenuation: 0.5, sinePurity: 1.0 }
       });
       
       const peakExtreme = halfAttenuation.generateAsymmetricSine(0, 0.01);
@@ -187,6 +193,66 @@ describe('SynthOscillatorProcessor DSP Logic', () => {
       // Fórmula: 1.0 - (1 * 1) * (1 - 0.125) * 0.5 = 1 - 0.4375 = 0.5625
       assert.ok(peakExtreme > 0.5, `Half attenuation extreme should be ~0.56, got ${peakExtreme}`);
       assert.ok(peakExtreme < 0.7, `Half attenuation extreme should be ~0.56, got ${peakExtreme}`);
+    });
+    
+    it('Sine Purity: sinePurity=0 should use 100% analog component even at center', () => {
+      // Con sinePurity=0, incluso en el centro (sym=0.5) se usa la componente analógica
+      const pureAnalog = new SynthOscillatorProcessor({
+        processorOptions: { sineShapeAttenuation: 0, sinePurity: 0 }
+      });
+      
+      // En el centro con sinePurity=0, debería haber algo de diferencia con seno puro
+      // porque usa 100% el componente tanh (aunque con offset=0 es bastante similar)
+      const phase = 0.1;
+      const result = pureAnalog.generateAsymmetricSine(phase, 0.5);
+      const pureCos = Math.cos(phase * 2 * Math.PI);
+      
+      // La diferencia existe pero es pequeña porque tanh(k*tri) con offset=0 
+      // aproxima bastante bien al seno. Lo importante es que NO sea idéntico.
+      // Con k=1.55, la diferencia debería ser detectable.
+      assert.ok(Math.abs(result - pureCos) > 0.001, 
+        `sinePurity=0 should differ from pure sine. Result: ${result}, Pure: ${pureCos}`);
+    });
+    
+    it('Sine Purity: Default (0.7) should mix analog character at center', () => {
+      // El processor por defecto tiene sinePurity=0.7
+      // En el centro, 70% puro + 30% analógico
+      const defaultProcessor = new SynthOscillatorProcessor({
+        processorOptions: { sineShapeAttenuation: 0 }  // sinePurity default = 0.7
+      });
+      
+      const phase = 0.1;
+      const result = defaultProcessor.generateAsymmetricSine(phase, 0.5);
+      const pureCos = Math.cos(phase * 2 * Math.PI);
+      
+      // Con sinePurity=0.7, hay algo de mezcla analógica
+      // La diferencia debería ser menor que con sinePurity=0 pero > 0
+      assert.ok(Math.abs(result - pureCos) > 0.0001, 
+        `Default sinePurity should have some analog mix`);
+    });
+    
+    it('Sine Purity: Configurable via processorOptions', () => {
+      // Verificar que diferentes valores de sinePurity producen resultados diferentes
+      const purity100 = new SynthOscillatorProcessor({
+        processorOptions: { sineShapeAttenuation: 0, sinePurity: 1.0 }
+      });
+      const purity50 = new SynthOscillatorProcessor({
+        processorOptions: { sineShapeAttenuation: 0, sinePurity: 0.5 }
+      });
+      const purity0 = new SynthOscillatorProcessor({
+        processorOptions: { sineShapeAttenuation: 0, sinePurity: 0 }
+      });
+      
+      const phase = 0.15;
+      const sym = 0.5;
+      
+      const r100 = purity100.generateAsymmetricSine(phase, sym);
+      const r50 = purity50.generateAsymmetricSine(phase, sym);
+      const r0 = purity0.generateAsymmetricSine(phase, sym);
+      
+      // Los tres deben ser diferentes
+      assert.ok(Math.abs(r100 - r50) > 0.0001, 'purity 1.0 vs 0.5 should differ');
+      assert.ok(Math.abs(r50 - r0) > 0.0001, 'purity 0.5 vs 0 should differ');
     });
 
   });

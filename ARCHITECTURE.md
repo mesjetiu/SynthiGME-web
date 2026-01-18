@@ -1180,16 +1180,25 @@ Un enfoque híbrido que mezcla dos generadores según el control de simetría:
     *   Coeficiente de saturación calibrado a $k=1.55$ tras análisis auditivo y visual.
     *   Produce la característica forma de "Vientre Redondo vs Punta Aguda" sin romper la continuidad de la onda.
 
-**Atenuación Histórica de Amplitud:**
+**Parámetros de Calibración:**
+
+| Parámetro | Rango | Default | Descripción |
+|-----------|-------|---------|-------------|
+| `sineShapeAttenuation` | 0.0–1.0 | 1.0 | Atenuación de amplitud en extremos (0=off, 1=8:1 histórico) |
+| `sinePurity` | 0.0–1.0 | 0.7 | Mezcla de seno puro en el centro (0=100% analógico, 1=100% digital) |
+
+**Atenuación Histórica de Amplitud (`sineShapeAttenuation`):**
 Según el manual del Synthi 100, la amplitud de la forma de onda Sine cambia con el control Shape:
 - Centro (seno puro): 4V p-p
 - Extremos (cuspoide): 0.5V p-p → ratio **8:1**
 
-Este comportamiento se emula mediante el parámetro `sineShapeAttenuation` (configurable via `processorOptions` o `setSineShapeAttenuation()`):
-- `0.0` = Sin atenuación (amplitud constante, comportamiento "moderno")
-- `1.0` = Atenuación completa según hardware (8:1 en extremos, **por defecto**)
-
 La curva de atenuación es cuadrática: $A = 1 - d^2 \cdot (1 - 0.125) \cdot factor$, donde $d$ es la distancia al centro normalizada.
+
+**Pureza del Seno (`sinePurity`):**
+Controla cuánto seno digital puro se mezcla en el centro del control de simetría:
+- `1.0` = Seno puro matemático en el centro (sin armónicos, comportamiento "ideal")
+- `0.7` = **Por defecto**. Conserva 30% de la componente analógica incluso en el centro, manteniendo algo del "color" o armónicos propios de los circuitos electrónicos reales.
+- `0.0` = 100% componente analógica (tanh waveshaper) en toda la gama, máximo carácter vintage.
 
 **Fuentes:**
 - *Gabinete de Música Electroacústica de Cuenca*: Manual de usuario (para la dirección del control: Izquierda = Vientres Arriba).
@@ -1227,11 +1236,13 @@ const multiOsc = engine.createMultiOscillator({
   sawLevel: 0.3,
   triLevel: 0,
   pulseLevel: 0.2,
-  sineShapeAttenuation: 1.0  // Atenuación histórica (0=off, 1=8:1)
+  sineShapeAttenuation: 1.0,  // Atenuación histórica (0=off, 1=8:1)
+  sinePurity: 0.7             // Pureza del seno (0=vintage, 1=digital puro)
 });
 
-// Cambiar atenuación en runtime
+// Cambiar parámetros de calibración en runtime
 multiOsc.setSineShapeAttenuation(0.5); // 50% de atenuación
+multiOsc.setSinePurity(0.8);           // 80% seno puro en centro
 
 
 // 2 salidas: output 0 = sine+saw, output 1 = tri+pulse

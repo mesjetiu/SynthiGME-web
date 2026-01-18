@@ -20,6 +20,9 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
     - **Triángulo**: Invertido para coincidir fase 0 con pico positivo.
     - **Pulso**: Desplazado +90° para estar centrado respecto al pico del seno.
     - **Sawtooth**: Mantiene su rampa estándar de reset.
+- **Calibración del Sine Shape**: Nuevos parámetros para ajustar el comportamiento del conformador de seno:
+    - `sineShapeAttenuation`: Emula la reducción de amplitud 8:1 del hardware (seno 4V p-p → cuspoide 0.5V p-p).
+    - `sinePurity`: Controla cuánto seno digital puro se mezcla en el centro (0=100% analógico, 1=100% digital). Por defecto 0.7 para conservar el "color" del circuito electrónico.
 
 ### Añadido
 - **Hard sync en matriz de audio (Panel 5)**: columnas 24-35 exponen las entradas de sincronización de los 12 osciladores. Al conectar una señal de audio, esta resetea la fase del oscilador destino en cada flanco positivo, permitiendo crear timbres armónicos complejos característicos de la síntesis analógica clásica.

@@ -108,6 +108,14 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     // 1.0 = atenuación completa según hardware (8:1 en extremos)
     // Por defecto 1.0 para emular comportamiento histórico.
     this.sineShapeAttenuation = options?.processorOptions?.sineShapeAttenuation ?? 1.0;
+    
+    // Pureza del seno en el centro (Symmetry = 0.5):
+    // Controla cuánto seno digital puro se mezcla en el centro.
+    // 1.0 = seno puro perfecto en el centro (sin armónicos)
+    // 0.0 = 100% componente analógica incluso en el centro (conserva carácter del circuito)
+    // Valores intermedios permiten mantener algo de "coloración" analógica.
+    // Por defecto 0.7 para conservar algo del carácter electrónico.
+    this.sinePurity = options?.processorOptions?.sinePurity ?? 0.7;
 
     // Escuchar mensajes del hilo principal
     this.port.onmessage = (event) => {
@@ -125,6 +133,8 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         console.log(`[Worklet] Oscillator dormant: ${this.dormant}`);
       } else if (event.data.type === 'setSineShapeAttenuation') {
         this.sineShapeAttenuation = event.data.value;
+      } else if (event.data.type === 'setSinePurity') {
+        this.sinePurity = event.data.value;
       }
     };
   }
@@ -229,8 +239,14 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     // Usamos una potencia para que la "zona pura" sea estrecha pero suave.
     const analogMix = Math.pow(dist, 0.5); // Raíz cuadrada hace que el carácter entre rápido
     
-    // Interpolación lineal entre Puro y Analógico
-    const mixedSine = pureSine * (1 - analogMix) + analogSine * analogMix;
+    // Aplicar sinePurity: limita cuánto seno puro se usa en el centro.
+    // Si sinePurity=1, en el centro (dist=0) se usa 100% seno puro.
+    // Si sinePurity=0.7, en el centro se usa 70% puro + 30% analógico.
+    const pureMix = (1 - analogMix) * this.sinePurity;
+    const analogFinal = 1 - pureMix; // El resto es analógico
+    
+    // Interpolación: pureMix de digital + analogFinal de analógico
+    const mixedSine = pureSine * pureMix + analogSine * analogFinal;
     
     // === 4. ATENUACIÓN HISTÓRICA ===
     // Emula la reducción de amplitud del hardware original.

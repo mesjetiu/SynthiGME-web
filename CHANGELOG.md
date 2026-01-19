@@ -8,6 +8,14 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Selección de color de pines en la matriz**: Sistema completo para elegir el tipo de pin al hacer conexiones:
+  - **Menú contextual**: Click derecho (desktop) o pulsación larga (móvil) en cualquier pin abre un menú con los 4 tipos de pin disponibles.
+  - **Colores por contexto**: Audio (WHITE por defecto), Control CV (GREEN), Osciloscopio (RED). El sistema recuerda el último color usado por contexto.
+  - **Activación inmediata**: Seleccionar un color en un pin inactivo lo activa directamente con ese color.
+  - **Tick visual**: El menú muestra ✓ junto al color actual (pin activo) o el próximo a usar (pin inactivo).
+  - **Pines más grandes**: Los pines activos tienen 50% más tamaño (`scale(1.5)`) para mejor visibilidad.
+  - **Colores CSS centralizados**: Variables `--pin-color-white`, `--pin-color-grey`, `--pin-color-green`, `--pin-color-red` en `:root`.
+  - **Serialización de colores**: Los patches guardan el color de cada pin como tercer elemento opcional `[row, col, pinType]`.
 - **Sistema de emulación de voltajes del Synthi 100**: Nuevo módulo `voltageConstants.js` que implementa el modelo eléctrico de la versión Cuenca/Datanomics (1982):
   - **Conversión digital ↔ voltaje**: Factor 1.0 digital = 4V (8V p-p total), estándar 1V/Oct.
   - **Resistencias de pin**: Blanco (100kΩ ±10%), Gris (100kΩ ±0.5%), Rojo (2.7kΩ), Verde (68kΩ).

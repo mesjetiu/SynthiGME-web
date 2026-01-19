@@ -125,7 +125,8 @@ Componentes de interfaz reutilizables:
 | `noiseGenerator.js` | — | UI para generadores de ruido (knobs colour/level) |
 | `randomVoltage.js` | — | UI para generador de voltaje aleatorio |
 | `inputAmplifierUI.js` | `InputAmplifierUI` | UI para los 8 canales de entrada (8 knobs de nivel en fila horizontal) |
-| `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle, visualización, y soporte para pines inactivos (sin source/dest). Método `setShowInactivePins()` para actualización en caliente |
+| `largeMatrix.js` | `LargeMatrix` | Matriz de pines 63×67 con toggle, colores de pin, y soporte para pines inactivos. **Sistema de colores**: click derecho/long press abre menú de selección, colores por contexto (audio/control/oscilloscope), serialización `[row, col, pinType]`. Callbacks `getPinContext`, `onPinColorChange` |
+| `pinColorMenu.js` | `PinColorMenu` | Menú contextual singleton para selección de color de pin. Gestiona memoria de último color por contexto, colores CSS desde variables `:root`, integración con `PIN_RESISTANCES` |
 | `matrixTooltip.js` | `MatrixTooltip`, `getLabelForSource()`, `getLabelForDest()` | Sistema de tooltips para pines de matriz: muestra "Source → Destination" en hover (desktop) o tap (móvil). Usa `sourceMap`/`destMap` de blueprints compilados |
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
@@ -774,7 +775,7 @@ Cada módulo UI que guarda estado implementa el **contrato Serializable** defini
 | `OscillatorState` | `{ knobs: number[], rangeState: 'hi'|'lo' }` | SGME_Oscillator |
 | `KnobModuleState` | `{ [key]: number }` | ModuleUI, NoiseGenerator, RandomVoltage |
 | `LevelsState` | `{ levels: number[] }` | InputAmplifierUI, OutputFaderModule |
-| `MatrixState` | `{ connections: [row, col][] }` | LargeMatrix |
+| `MatrixState` | `{ connections: Array<[row, col] | [row, col, pinType]> }` | LargeMatrix (pinType opcional: 'WHITE', 'GREY', 'GREEN', 'RED') |
 
 #### Contrato Serializable
 

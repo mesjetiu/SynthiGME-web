@@ -14,7 +14,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **12 Osciladores** | Formas de onda pulse, sine, triangle, sawtooth con anti-aliasing PolyBLEP. **Nuevo**: Modelado híbrido de "Sine Shape" (Symmetry) basado en circuito original (Waveshaper Tanh) para carácter analógico fiel. Rango 1 Hz–10 kHz. **Hard sync** disponible. |
 | **2 Generadores de ruido** | Algoritmo Voss-McCartney para ruido rosa. Knob de color (blanco→rosa). |
 | **Osciloscopio** | Modos Y-T y X-Y (Lissajous). Trigger Schmitt con histéresis temporal y predictiva. |
-| **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con tooltips, pines inactivos configurables. **Nuevo**: Ganancia de pines según modelo de tierra virtual. |
+| **Matrices de conexión** | Audio (panel 5) y control (panel 6). Conexiones persistentes con tooltips, pines inactivos configurables. **Nuevo**: Selección de color de pin (click derecho / pulsación larga) con 4 tipos: blanco (100kΩ), gris (100kΩ precisión), verde (68kΩ atenuado), rojo (2.7kΩ osciloscopio). Ganancia calculada según modelo de tierra virtual. |
 | **8 Entradas de audio** | Input Amplifiers con 8 canales y control de ganancia individual. |
 | **8 Salidas de audio** | Canales individuales con filtro bipolar (LP/HP), pan, nivel, y switch on/off. |
 | **Stereo buses** | Dos buses estéreo (Pan 1-4 y Pan 5-8) que agrupan 4 canales cada uno con control de panning. |

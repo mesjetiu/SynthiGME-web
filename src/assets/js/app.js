@@ -2747,10 +2747,11 @@ class App {
     this.largeMatrixAudio.onPinColorChange = (row, col, newColor, btn) => {
       const key = `${row}:${col}`;
       const conn = this._panel3Routing?.connections?.[key];
-      if (conn?.gain?.gain) {
+      // conn es el GainNode directamente, conn.gain es el AudioParam
+      if (conn?.gain) {
         const dest = this._panel3Routing?.destMap?.get(col);
         const newGain = this._getPanel5PinGain(row, col, dest, newColor);
-        conn.gain.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
+        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
         log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
       }
     };
@@ -2758,10 +2759,11 @@ class App {
     this.largeMatrixControl.onPinColorChange = (row, col, newColor, btn) => {
       const key = `${row}:${col}`;
       const conn = this._panel6Routing?.connections?.[key];
-      if (conn?.gain?.gain) {
+      // conn es el GainNode directamente, conn.gain es el AudioParam
+      if (conn?.gain) {
         const dest = this._panel6Routing?.destMap?.get(col);
         const newGain = this._getPanel6PinGain(row, col, dest, newColor);
-        conn.gain.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
+        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
         log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
       }
     };

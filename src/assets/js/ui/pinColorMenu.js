@@ -2,6 +2,11 @@
  * Menú contextual para seleccionar el color de un pin en la matriz.
  * Se muestra con click derecho (desktop) o pulsación larga (touch).
  * 
+ * Contextos de color:
+ * - 'audio': Panel 5, conexiones de audio (default: WHITE)
+ * - 'control': Panel 6, conexiones de control CV (default: GREEN)
+ * - 'oscilloscope': Conexiones al osciloscopio en ambos paneles (default: RED)
+ * 
  * @module ui/pinColorMenu
  */
 
@@ -15,13 +20,27 @@ import { PIN_RESISTANCES } from '../utils/voltageConstants.js';
 const SELECTABLE_COLORS = ['WHITE', 'GREY', 'GREEN', 'RED'];
 
 /**
+ * Lee un color CSS desde las variables :root.
+ * @param {string} varName - Nombre de la variable (ej: '--pin-color-white')
+ * @param {string} fallback - Valor por defecto si no existe
+ * @returns {string} Color en formato hex
+ */
+function getCSSColor(varName, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return value || fallback;
+}
+
+/**
  * Colores CSS para cada tipo de pin.
+ * Lee los valores desde las variables CSS definidas en :root.
+ * Usa fallbacks hardcoded para SSR/tests.
  */
 const PIN_CSS_COLORS = {
-  WHITE: '#ffffff',
-  GREY: '#888888',
-  GREEN: '#4CAF50',
-  RED: '#f44336'
+  get WHITE() { return getCSSColor('--pin-color-white', '#ffffff'); },
+  get GREY() { return getCSSColor('--pin-color-grey', '#888888'); },
+  get GREEN() { return getCSSColor('--pin-color-green', '#4CAF50'); },
+  get RED() { return getCSSColor('--pin-color-red', '#f44336'); }
 };
 
 /**

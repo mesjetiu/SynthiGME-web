@@ -4,6 +4,13 @@
   font-family: sans-serif;
   --panel-width: 760px;
   --panel-gap: 1.25rem;
+  
+  /* Colores de pines de matriz (basados en resistencias del Synthi 100) */
+  --pin-color-white: #ffffff;    /* 100kΩ standard */
+  --pin-color-grey: #888888;     /* 100kΩ precision */
+  --pin-color-green: #4CAF50;    /* 68kΩ attenuated */
+  --pin-color-red: #f44336;      /* 2.7kΩ oscilloscope */
+  --pin-color-active: #ffb63b;   /* Fallback amarillo (legacy) */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1086,7 +1093,7 @@ table.matrix {
 }
 
 .matrix.matrix-large .pin-btn.active {
-  background: #ffb63b;
+  background: var(--pin-color-active);
   border: none;
   box-shadow: none;
   /* Pines activos más grandes para mejor visibilidad */
@@ -1099,20 +1106,20 @@ table.matrix {
  * Each pin type has a specific color based on its resistance/function.
  */
 .matrix.matrix-large .pin-btn.active.pin-white {
-  background: #ffffff;
+  background: var(--pin-color-white);
   box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 
 .matrix.matrix-large .pin-btn.active.pin-grey {
-  background: #888888;
+  background: var(--pin-color-grey);
 }
 
 .matrix.matrix-large .pin-btn.active.pin-green {
-  background: #4CAF50;
+  background: var(--pin-color-green);
 }
 
 .matrix.matrix-large .pin-btn.active.pin-red {
-  background: #f44336;
+  background: var(--pin-color-red);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1184,7 +1191,7 @@ table.matrix {
 .pin-color-menu__tick {
   width: 14px;
   font-size: 12px;
-  color: #FFB63B;
+  color: var(--pin-color-active);
   opacity: 0;
   flex-shrink: 0;
 }
@@ -1415,23 +1422,23 @@ small { color:#aaa; }
 }
 
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active {
-  background: #ffb63b;
+  background: var(--pin-color-active);
 }
 
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-white {
-  background: #ffffff;
+  background: var(--pin-color-white);
 }
 
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-grey {
-  background: #888888;
+  background: var(--pin-color-grey);
 }
 
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-green {
-  background: #4CAF50;
+  background: var(--pin-color-green);
 }
 
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-red {
-  background: #f44336;
+  background: var(--pin-color-red);
 }
 
 /* Móvil: optimización SIN ocultar mandos.

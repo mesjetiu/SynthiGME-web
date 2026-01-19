@@ -25,6 +25,18 @@ const PIN_CSS_COLORS = {
 };
 
 /**
+ * Colores por defecto según contexto.
+ * - audio: Panel 5 conexiones de audio
+ * - control: Panel 6 conexiones de control CV
+ * - oscilloscope: Conexiones al osciloscopio (ambos paneles)
+ */
+const DEFAULT_COLORS = {
+  'audio': 'WHITE',
+  'control': 'GREEN',
+  'oscilloscope': 'RED'
+};
+
+/**
  * Formatea la resistencia para mostrar al usuario.
  * @param {number} ohms - Resistencia en ohmios
  * @returns {string} Resistencia formateada (ej: "100kΩ", "2.7kΩ")
@@ -47,11 +59,14 @@ export class PinColorMenu {
     this._isVisible = false;
     this._currentCallback = null;
     this._currentPinBtn = null;
+    this._currentContext = null;
+    this._currentIsActive = false;
     
-    // Último color seleccionado por panel (para recordar preferencia)
-    this._lastSelectedByPanel = {
-      'panel-5': null,  // Audio matrix
-      'panel-6': null   // Control matrix
+    // Último color seleccionado por contexto (para recordar preferencia)
+    this._lastSelectedByContext = {
+      'audio': null,        // Panel 5 audio
+      'control': null,      // Panel 6 control
+      'oscilloscope': null  // Oscilloscope (ambos paneles)
     };
     
     this._onDocumentClick = this._handleDocumentClick.bind(this);
@@ -89,16 +104,7 @@ export class PinColorMenu {
     const optionsList = document.createElement('div');
     optionsList.className = 'pin-color-menu__options';
     
-    // Opción "Por defecto"
-    const defaultOption = this._createOption('DEFAULT', t('pinColor.default'), null);
-    optionsList.appendChild(defaultOption);
-    
-    // Separador
-    const separator = document.createElement('div');
-    separator.className = 'pin-color-menu__separator';
-    optionsList.appendChild(separator);
-    
-    // Opciones de colores
+    // Opciones de colores (sin DEFAULT - ahora mostramos tick en el próximo)
     for (const color of SELECTABLE_COLORS) {
       const pinInfo = PIN_RESISTANCES[color];
       const label = t(`pinColor.${color.toLowerCase()}`);
@@ -122,19 +128,17 @@ export class PinColorMenu {
     option.dataset.color = colorKey;
     option.setAttribute('role', 'menuitem');
     
+    // Tick (checkmark) para indicar selección - visible solo con .is-selected
+    const tick = document.createElement('span');
+    tick.className = 'pin-color-menu__tick';
+    tick.textContent = '✓';
+    option.appendChild(tick);
+    
     // Indicador de color (círculo)
-    if (colorKey !== 'DEFAULT') {
-      const indicator = document.createElement('span');
-      indicator.className = 'pin-color-menu__indicator';
-      indicator.style.backgroundColor = PIN_CSS_COLORS[colorKey] || '#888';
-      option.appendChild(indicator);
-    } else {
-      // Icono de "auto" para opción por defecto
-      const autoIcon = document.createElement('span');
-      autoIcon.className = 'pin-color-menu__auto-icon';
-      autoIcon.textContent = '⟳';
-      option.appendChild(autoIcon);
-    }
+    const indicator = document.createElement('span');
+    indicator.className = 'pin-color-menu__indicator';
+    indicator.style.backgroundColor = PIN_CSS_COLORS[colorKey] || '#888';
+    option.appendChild(indicator);
     
     // Texto
     const text = document.createElement('span');
@@ -165,21 +169,27 @@ export class PinColorMenu {
    * @param {number} y - Coordenada Y
    * @param {HTMLElement} pinBtn - Botón del pin que se está editando
    * @param {Object} options - Opciones
-   * @param {string} options.panelId - ID del panel ('panel-5' o 'panel-6')
-   * @param {string} options.currentColor - Color actual del pin
+   * @param {string} options.context - Contexto: 'audio', 'control', 'oscilloscope'
+   * @param {string|null} options.currentColor - Color actual del pin (si está activo)
+   * @param {boolean} options.isActive - Si el pin está actualmente activo
    * @param {Function} options.onSelect - Callback al seleccionar color
    */
-  show(x, y, pinBtn, { panelId, currentColor, onSelect }) {
+  show(x, y, pinBtn, { context, currentColor, isActive, onSelect }) {
     const menu = this.element;
     
     this._currentPinBtn = pinBtn;
     this._currentCallback = onSelect;
-    this._currentPanelId = panelId;
+    this._currentContext = context;
+    this._currentIsActive = isActive;
     
-    // Marcar opción actual
+    // Determinar qué color marcar con tick:
+    // - Si el pin está activo: su color actual
+    // - Si no está activo: el próximo color que se usará (último usado o default)
+    const colorToMark = isActive && currentColor ? currentColor : this.getNextColor(context);
+    
+    // Marcar opción con tick
     menu.querySelectorAll('.pin-color-menu__option').forEach(opt => {
-      const isSelected = opt.dataset.color === currentColor || 
-                        (currentColor === null && opt.dataset.color === 'DEFAULT');
+      const isSelected = opt.dataset.color === colorToMark;
       opt.classList.toggle('is-selected', isSelected);
     });
     
@@ -231,6 +241,8 @@ export class PinColorMenu {
     this._isVisible = false;
     this._currentCallback = null;
     this._currentPinBtn = null;
+    this._currentContext = null;
+    this._currentIsActive = false;
     
     document.removeEventListener('click', this._onDocumentClick, { capture: true });
     document.removeEventListener('keydown', this._onKeydown);
@@ -241,27 +253,33 @@ export class PinColorMenu {
    * @private
    */
   _selectColor(colorKey) {
-    if (this._currentCallback) {
-      // DEFAULT significa usar el color por defecto del panel
-      const selectedColor = colorKey === 'DEFAULT' ? null : colorKey;
+    if (this._currentCallback && this._currentContext) {
+      // Recordar selección para este contexto
+      this._lastSelectedByContext[this._currentContext] = colorKey;
       
-      // Recordar selección para este panel (excepto DEFAULT)
-      if (selectedColor && this._currentPanelId) {
-        this._lastSelectedByPanel[this._currentPanelId] = selectedColor;
-      }
-      
-      this._currentCallback(selectedColor);
+      // Notificar con el color seleccionado y si activar el pin
+      this._currentCallback(colorKey, !this._currentIsActive);
     }
     this.hide();
   }
 
   /**
-   * Obtiene el último color seleccionado para un panel.
-   * @param {string} panelId - ID del panel
-   * @returns {string|null} Color o null si no hay selección previa
+   * Obtiene el próximo color que se usará para un contexto.
+   * Es el último seleccionado o el default del contexto.
+   * @param {string} context - Contexto: 'audio', 'control', 'oscilloscope'
+   * @returns {string} Color a usar
    */
-  getLastSelectedColor(panelId) {
-    return this._lastSelectedByPanel[panelId] || null;
+  getNextColor(context) {
+    return this._lastSelectedByContext[context] || DEFAULT_COLORS[context] || 'WHITE';
+  }
+
+  /**
+   * Obtiene el color por defecto de un contexto.
+   * @param {string} context - Contexto
+   * @returns {string} Color por defecto
+   */
+  getDefaultColor(context) {
+    return DEFAULT_COLORS[context] || 'WHITE';
   }
 
   /**
@@ -317,6 +335,6 @@ export function getPinColorMenu() {
 }
 
 /**
- * Colores CSS exportados para uso en otros módulos.
+ * Colores CSS y constantes exportadas para uso en otros módulos.
  */
-export { PIN_CSS_COLORS, SELECTABLE_COLORS };
+export { PIN_CSS_COLORS, SELECTABLE_COLORS, DEFAULT_COLORS };

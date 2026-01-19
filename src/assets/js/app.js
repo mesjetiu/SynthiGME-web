@@ -2721,6 +2721,24 @@ class App {
     this.largeMatrixControl.build();
     
     // ─────────────────────────────────────────────────────────────────────────
+    // PIN CONTEXT DETECTION
+    // ─────────────────────────────────────────────────────────────────────────
+    // Determina el contexto de un pin para usar el color correcto.
+    // Contextos: 'audio', 'control', 'oscilloscope'
+    //
+    this.largeMatrixAudio.getPinContext = (row, col) => {
+      const dest = panel5Maps.destMap.get(col);
+      if (dest?.kind === 'oscilloscope') return 'oscilloscope';
+      return 'audio';
+    };
+    
+    this.largeMatrixControl.getPinContext = (row, col) => {
+      const dest = panel6Maps.destMap.get(col);
+      if (dest?.kind === 'oscilloscope') return 'oscilloscope';
+      return 'control';
+    };
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // PIN COLOR CHANGE CALLBACK
     // ─────────────────────────────────────────────────────────────────────────
     // Cuando el usuario cambia el color de un pin activo, actualizar la ganancia
@@ -2732,7 +2750,7 @@ class App {
       if (conn && conn.gain) {
         const dest = this._panel3Routing?.destMap?.get(col);
         const newGain = this._getPanel5PinGain(row, col, dest, newColor);
-        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
+        conn.gain.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
         log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
       }
     };
@@ -2743,7 +2761,7 @@ class App {
       if (conn && conn.gain) {
         const dest = this._panel6Routing?.destMap?.get(col);
         const newGain = this._getPanel6PinGain(row, col, dest, newColor);
-        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
+        conn.gain.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
         log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
       }
     };

@@ -241,7 +241,6 @@ export default {
   "matrix.tooltip.unknownSource": "Row {row}",
   "matrix.tooltip.unknownDest": "Col {col}",
   "pinColor.title": "Pin Type",
-  "pinColor.default": "Default",
   "pinColor.white": "White (standard)",
   "pinColor.grey": "Grey (precision)",
   "pinColor.green": "Green (attenuated)",

@@ -1043,10 +1043,6 @@ pinColor.title:
   en: Pin Type
   es: Tipo de pin
 
-pinColor.default:
-  en: Default
-  es: Por defecto
-
 pinColor.white:
   en: White (standard)
   es: Blanco (estándar)

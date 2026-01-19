@@ -41,6 +41,10 @@ export class LargeMatrix {
     
     // Callback cuando cambia el color de un pin
     this.onPinColorChange = null;
+    
+    // Función para determinar el contexto de un pin (audio, control, oscilloscope)
+    // Se configura desde app.js para detectar conexiones al osciloscopio
+    this.getPinContext = null;
 
     if (this.table) {
       this.table.classList.add('matrix-large');
@@ -198,7 +202,16 @@ export class LargeMatrix {
       const nextActive = !btn.classList.contains('active');
       
       // Obtener color a usar para esta conexión
-      const pinColor = this._getEffectivePinColor(rowIndex, colIndex);
+      // Si activamos, usar el próximo color del menú para el contexto
+      let pinColor;
+      if (nextActive) {
+        const context = this._getPinContext(rowIndex, colIndex);
+        pinColor = getPinColorMenu().getNextColor(context);
+        // Guardar el color seleccionado
+        this._pinColors.set(`${rowIndex}:${colIndex}`, pinColor);
+      } else {
+        pinColor = this._getEffectivePinColor(rowIndex, colIndex);
+      }
       
       const allow = this.onToggle ? this.onToggle(rowIndex, colIndex, nextActive, btn, pinColor) !== false : true;
       if (!allow) return;
@@ -326,16 +339,66 @@ export class LargeMatrix {
     const rowIndex = Number(btn.dataset.row);
     const colIndex = Number(btn.dataset.col);
     const key = `${rowIndex}:${colIndex}`;
-    const currentColor = this._pinColors.get(key) || null;
+    const isActive = btn.classList.contains('active');
+    const currentColor = isActive ? this._getEffectivePinColor(rowIndex, colIndex) : null;
+    const context = this._getPinContext(rowIndex, colIndex);
     
     const menu = getPinColorMenu();
     menu.show(x, y, btn, {
-      panelId: this.panelId,
+      context: context,
       currentColor: currentColor,
-      onSelect: (selectedColor) => {
-        this._setPinColor(rowIndex, colIndex, selectedColor, btn);
+      isActive: isActive,
+      onSelect: (selectedColor, shouldActivate) => {
+        this._handleColorSelection(rowIndex, colIndex, selectedColor, shouldActivate, btn);
       }
     });
+  }
+  
+  /**
+   * Determina el contexto de un pin.
+   * @private
+   */
+  _getPinContext(row, col) {
+    // Si hay función externa para determinar contexto, usarla
+    if (this.getPinContext) {
+      return this.getPinContext(row, col);
+    }
+    // Fallback basado en panelId
+    if (this.panelId === 'panel-5') return 'audio';
+    if (this.panelId === 'panel-6') return 'control';
+    return 'audio';
+  }
+  
+  /**
+   * Maneja la selección de color desde el menú.
+   * @private
+   */
+  _handleColorSelection(row, col, selectedColor, shouldActivate, btn) {
+    const key = `${row}:${col}`;
+    const wasActive = btn.classList.contains('active');
+    
+    // Guardar el color seleccionado
+    this._pinColors.set(key, selectedColor);
+    
+    if (wasActive) {
+      // Pin ya activo: solo cambiar color
+      this._applyPinColorClass(btn, selectedColor);
+      
+      // Notificar cambio de color (para actualizar ganancia)
+      if (this.onPinColorChange) {
+        this.onPinColorChange(row, col, selectedColor, btn);
+      }
+      
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+    } else if (shouldActivate) {
+      // Pin inactivo: activarlo con el color seleccionado
+      const allow = this.onToggle ? this.onToggle(row, col, true, btn, selectedColor) !== false : true;
+      if (allow) {
+        btn.classList.add('active');
+        this._applyPinColorClass(btn, selectedColor);
+        document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+      }
+    }
   }
   
   /**

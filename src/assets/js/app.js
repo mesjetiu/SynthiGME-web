@@ -2747,7 +2747,7 @@ class App {
     this.largeMatrixAudio.onPinColorChange = (row, col, newColor, btn) => {
       const key = `${row}:${col}`;
       const conn = this._panel3Routing?.connections?.[key];
-      if (conn && conn.gain) {
+      if (conn?.gain?.gain) {
         const dest = this._panel3Routing?.destMap?.get(col);
         const newGain = this._getPanel5PinGain(row, col, dest, newColor);
         conn.gain.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
@@ -2758,7 +2758,7 @@ class App {
     this.largeMatrixControl.onPinColorChange = (row, col, newColor, btn) => {
       const key = `${row}:${col}`;
       const conn = this._panel6Routing?.connections?.[key];
-      if (conn && conn.gain) {
+      if (conn?.gain?.gain) {
         const dest = this._panel6Routing?.destMap?.get(col);
         const newGain = this._getPanel6PinGain(row, col, dest, newColor);
         conn.gain.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);

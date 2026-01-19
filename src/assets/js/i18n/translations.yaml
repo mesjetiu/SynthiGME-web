@@ -1034,3 +1034,31 @@ matrix.tooltip.unknownSource:
 matrix.tooltip.unknownDest:
   en: "Col {col}"
   es: "Col {col}"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PIN COLOR MENU
+# ═══════════════════════════════════════════════════════════════════════════════
+
+pinColor.title:
+  en: Pin Type
+  es: Tipo de pin
+
+pinColor.default:
+  en: Default
+  es: Por defecto
+
+pinColor.white:
+  en: White (standard)
+  es: Blanco (estándar)
+
+pinColor.grey:
+  en: Grey (precision)
+  es: Gris (precisión)
+
+pinColor.green:
+  en: Green (attenuated)
+  es: Verde (atenuado)
+
+pinColor.red:
+  en: Red (scope)
+  es: Rojo (osciloscopio)

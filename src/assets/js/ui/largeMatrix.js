@@ -5,8 +5,14 @@
  * @module ui/largeMatrix
  * @see state/schema.js para definición de MatrixState
  */
+
+import { getPinColorMenu, PIN_CSS_COLORS } from './pinColorMenu.js';
+
+/** Tiempo en ms para detectar pulsación larga (touch) */
+const LONG_PRESS_DURATION = 500;
+
 export class LargeMatrix {
-  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [], sourceMap = null, destMap = null, onToggle = null } = {}) {
+  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [], sourceMap = null, destMap = null, onToggle = null, panelId = null, defaultPinColor = null, getDefaultPinColor = null } = {}) {
     this.table = tableElement;
     this.rows = rows;
     this.cols = cols;
@@ -17,8 +23,24 @@ export class LargeMatrix {
     this._layoutRaf = null;
     this._built = false;
     this._onTableClick = null;
+    this._onContextMenu = null;
+    this._onTouchStart = null;
+    this._onTouchEnd = null;
+    this._longPressTimer = null;
+    this._longPressTarget = null;
     this.frame = this._normalizeFrame(frame);
     this.onToggle = typeof onToggle === 'function' ? onToggle : null;
+    
+    // Configuración de colores de pines
+    this.panelId = panelId;
+    this.defaultPinColor = defaultPinColor;  // Color por defecto estático
+    this.getDefaultPinColor = getDefaultPinColor;  // Función para color dinámico (ej: osciloscopio)
+    
+    // Mapa de colores de pines: "row:col" -> pinType (o null para default)
+    this._pinColors = new Map();
+    
+    // Callback cuando cambia el color de un pin
+    this.onPinColorChange = null;
 
     if (this.table) {
       this.table.classList.add('matrix-large');
@@ -162,16 +184,88 @@ export class LargeMatrix {
       const btn = ev.target?.closest?.('button.pin-btn');
       if (!btn || !table.contains(btn)) return;
       if (btn.disabled || btn.classList.contains('is-hidden-pin')) return;
+      
+      // Si hay longpress activo, cancelar click
+      if (this._longPressTriggered) {
+        this._longPressTriggered = false;
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
+      
       const rowIndex = Number(btn.dataset.row);
       const colIndex = Number(btn.dataset.col);
       const nextActive = !btn.classList.contains('active');
-      const allow = this.onToggle ? this.onToggle(rowIndex, colIndex, nextActive, btn) !== false : true;
+      
+      // Obtener color a usar para esta conexión
+      const pinColor = this._getEffectivePinColor(rowIndex, colIndex);
+      
+      const allow = this.onToggle ? this.onToggle(rowIndex, colIndex, nextActive, btn, pinColor) !== false : true;
       if (!allow) return;
       btn.classList.toggle('active', nextActive);
+      
+      // Aplicar clase de color si se activa
+      if (nextActive) {
+        this._applyPinColorClass(btn, pinColor);
+      } else {
+        this._removePinColorClasses(btn);
+        // Limpiar color guardado al desactivar
+        this._pinColors.delete(`${rowIndex}:${colIndex}`);
+      }
+      
       // Notificar que hay cambios sin guardar
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     table.addEventListener('click', this._onTableClick);
+    
+    // Contextmenu (click derecho) para selección de color
+    this._onContextMenu = ev => {
+      const btn = ev.target?.closest?.('button.pin-btn');
+      if (!btn || !table.contains(btn)) return;
+      if (btn.disabled || btn.classList.contains('is-hidden-pin')) return;
+      
+      ev.preventDefault();
+      ev.stopPropagation();
+      
+      this._showColorMenu(btn, ev.clientX, ev.clientY);
+    };
+    table.addEventListener('contextmenu', this._onContextMenu);
+    
+    // Long press para táctil
+    this._onTouchStart = ev => {
+      if (ev.touches.length !== 1) return;
+      
+      const btn = ev.target?.closest?.('button.pin-btn');
+      if (!btn || !table.contains(btn)) return;
+      if (btn.disabled || btn.classList.contains('is-hidden-pin')) return;
+      
+      this._longPressTarget = btn;
+      this._longPressStartPos = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+      this._longPressTriggered = false;
+      
+      this._longPressTimer = setTimeout(() => {
+        this._longPressTriggered = true;
+        const touch = ev.touches[0] || this._longPressStartPos;
+        this._showColorMenu(btn, touch.clientX || this._longPressStartPos.x, touch.clientY || this._longPressStartPos.y);
+      }, LONG_PRESS_DURATION);
+    };
+    table.addEventListener('touchstart', this._onTouchStart, { passive: true });
+    
+    this._onTouchEnd = ev => {
+      this._cancelLongPress();
+    };
+    table.addEventListener('touchend', this._onTouchEnd);
+    table.addEventListener('touchcancel', this._onTouchEnd);
+    table.addEventListener('touchmove', ev => {
+      // Cancelar si se mueve demasiado
+      if (this._longPressStartPos && ev.touches.length === 1) {
+        const dx = ev.touches[0].clientX - this._longPressStartPos.x;
+        const dy = ev.touches[0].clientY - this._longPressStartPos.y;
+        if (Math.hypot(dx, dy) > 10) {
+          this._cancelLongPress();
+        }
+      }
+    }, { passive: true });
 
     const tbody = document.createElement('tbody');
 
@@ -209,6 +303,116 @@ export class LargeMatrix {
     this._built = true;
 
     this.resizeToFit();
+  }
+  
+  /**
+   * Cancela el timer de longpress.
+   * @private
+   */
+  _cancelLongPress() {
+    if (this._longPressTimer) {
+      clearTimeout(this._longPressTimer);
+      this._longPressTimer = null;
+    }
+    this._longPressTarget = null;
+    this._longPressStartPos = null;
+  }
+  
+  /**
+   * Muestra el menú de colores para un pin.
+   * @private
+   */
+  _showColorMenu(btn, x, y) {
+    const rowIndex = Number(btn.dataset.row);
+    const colIndex = Number(btn.dataset.col);
+    const key = `${rowIndex}:${colIndex}`;
+    const currentColor = this._pinColors.get(key) || null;
+    
+    const menu = getPinColorMenu();
+    menu.show(x, y, btn, {
+      panelId: this.panelId,
+      currentColor: currentColor,
+      onSelect: (selectedColor) => {
+        this._setPinColor(rowIndex, colIndex, selectedColor, btn);
+      }
+    });
+  }
+  
+  /**
+   * Establece el color de un pin.
+   * @private
+   */
+  _setPinColor(row, col, color, btn) {
+    const key = `${row}:${col}`;
+    const isActive = btn?.classList.contains('active');
+    
+    if (color === null) {
+      this._pinColors.delete(key);
+    } else {
+      this._pinColors.set(key, color);
+    }
+    
+    // Si el pin está activo, actualizar la clase visual y reconectar con nuevo color
+    if (isActive && btn) {
+      const effectiveColor = this._getEffectivePinColor(row, col);
+      this._applyPinColorClass(btn, effectiveColor);
+      
+      // Notificar cambio de color (para reconectar audio si es necesario)
+      if (this.onPinColorChange) {
+        this.onPinColorChange(row, col, effectiveColor, btn);
+      }
+      
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+    }
+  }
+  
+  /**
+   * Obtiene el color efectivo para un pin (considerando default dinámico).
+   * @private
+   */
+  _getEffectivePinColor(row, col) {
+    const key = `${row}:${col}`;
+    const storedColor = this._pinColors.get(key);
+    
+    if (storedColor) return storedColor;
+    
+    // Usar función dinámica si existe (para osciloscopio)
+    if (this.getDefaultPinColor) {
+      const dynamicDefault = this.getDefaultPinColor(row, col);
+      if (dynamicDefault) return dynamicDefault;
+    }
+    
+    // Usar default estático del panel
+    return this.defaultPinColor || 'WHITE';
+  }
+  
+  /**
+   * Aplica la clase CSS de color a un pin.
+   * @private
+   */
+  _applyPinColorClass(btn, color) {
+    this._removePinColorClasses(btn);
+    if (color) {
+      btn.classList.add(`pin-${color.toLowerCase()}`);
+    }
+  }
+  
+  /**
+   * Elimina todas las clases de color de un pin.
+   * @private
+   */
+  _removePinColorClasses(btn) {
+    btn.classList.remove('pin-white', 'pin-grey', 'pin-green', 'pin-red');
+  }
+  
+  /**
+   * Obtiene el color actual de un pin.
+   * @param {number} row
+   * @param {number} col
+   * @returns {string|null}
+   */
+  getPinColor(row, col) {
+    return this._pinColors.get(`${row}:${col}`) || null;
   }
 
   resizeToFit() {
@@ -271,7 +475,13 @@ export class LargeMatrix {
       const row = parseInt(btn.dataset.row, 10);
       const col = parseInt(btn.dataset.col, 10);
       if (!isNaN(row) && !isNaN(col)) {
-        connections.push([row, col]);
+        const pinColor = this._pinColors.get(`${row}:${col}`);
+        // Formato: [row, col] o [row, col, pinType] si hay color específico
+        if (pinColor) {
+          connections.push([row, col, pinColor]);
+        } else {
+          connections.push([row, col]);
+        }
       }
     });
     
@@ -286,6 +496,9 @@ export class LargeMatrix {
     if (!data || !Array.isArray(data.connections)) return;
     if (!this.table || !this._built) return;
     
+    // Limpiar colores previos
+    this._pinColors.clear();
+    
     // Primero, desactivar todas las conexiones existentes
     const activeButtons = this.table.querySelectorAll('button.pin-btn.active');
     activeButtons.forEach(btn => {
@@ -296,20 +509,35 @@ export class LargeMatrix {
         this.onToggle(row, col, false, btn);
       }
       btn.classList.remove('active');
+      this._removePinColorClasses(btn);
     });
     
     // Luego, activar las conexiones del patch
-    data.connections.forEach(([row, col]) => {
+    data.connections.forEach((conn) => {
+      // Soporta formato antiguo [row, col] y nuevo [row, col, pinType]
+      const row = conn[0];
+      const col = conn[1];
+      const pinType = conn[2] || null;  // Tercer elemento opcional
+      
       const btn = this.table.querySelector(`button.pin-btn[data-row="${row}"][data-col="${col}"]`);
       if (btn && !btn.disabled && !btn.classList.contains('is-hidden-pin')) {
+        // Guardar color si se especificó
+        if (pinType) {
+          this._pinColors.set(`${row}:${col}`, pinType);
+        }
+        
+        const effectiveColor = this._getEffectivePinColor(row, col);
+        
         // Notificar al handler (para conectar audio)
         if (this.onToggle) {
-          const allow = this.onToggle(row, col, true, btn) !== false;
+          const allow = this.onToggle(row, col, true, btn, effectiveColor) !== false;
           if (allow) {
             btn.classList.add('active');
+            this._applyPinColorClass(btn, effectiveColor);
           }
         } else {
           btn.classList.add('active');
+          this._applyPinColorClass(btn, effectiveColor);
         }
       }
     });
@@ -321,6 +549,9 @@ export class LargeMatrix {
   clearAll() {
     if (!this.table || !this._built) return;
     
+    // Limpiar colores
+    this._pinColors.clear();
+    
     const activeButtons = this.table.querySelectorAll('button.pin-btn.active');
     activeButtons.forEach(btn => {
       const row = parseInt(btn.dataset.row, 10);
@@ -329,6 +560,7 @@ export class LargeMatrix {
         this.onToggle(row, col, false, btn);
       }
       btn.classList.remove('active');
+      this._removePinColorClasses(btn);
     });
   }
   

@@ -239,5 +239,11 @@ export default {
   "matrix.dest.outputLevelCV": "Out {bus} Level CV",
   "matrix.tooltip.format": "{source} → {dest}",
   "matrix.tooltip.unknownSource": "Row {row}",
-  "matrix.tooltip.unknownDest": "Col {col}"
+  "matrix.tooltip.unknownDest": "Col {col}",
+  "pinColor.title": "Tipo de pin",
+  "pinColor.default": "Por defecto",
+  "pinColor.white": "Blanco (estándar)",
+  "pinColor.grey": "Gris (precisión)",
+  "pinColor.green": "Verde (atenuado)",
+  "pinColor.red": "Rojo (osciloscopio)"
 };

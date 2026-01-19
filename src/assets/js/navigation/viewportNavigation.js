@@ -855,10 +855,12 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
   });
 
-  // Disable browser context menu globally (except for text input fields)
+  // Disable browser context menu globally (except for text input fields and matrix pins)
   document.addEventListener('contextmenu', ev => {
     const tag = ev.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target.isContentEditable) return;
+    // Allow contextmenu on matrix pin buttons (for color selection)
+    if (ev.target.closest?.('button.pin-btn')) return;
     ev.preventDefault();
     ev.stopImmediatePropagation();
   }, { capture: true });

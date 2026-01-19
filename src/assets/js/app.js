@@ -2062,9 +2062,10 @@ class App {
    * @param {number} rowIndex - Índice de fila física (fuente)
    * @param {number} colIndex - Índice de columna física (destino)
    * @param {Object} [destInfo] - Información del destino (opcional, para obtener Rf)
+   * @param {string} [userPinType] - Tipo de pin seleccionado por el usuario (WHITE, GREY, GREEN, RED)
    * @returns {number} Factor de ganancia para el GainNode
    */
-  _getPanel5PinGain(rowIndex, colIndex, destInfo = null) {
+  _getPanel5PinGain(rowIndex, colIndex, destInfo = null, userPinType = null) {
     const cfg = panel5AudioConfig?.audio || {};
     const matrixGain = cfg.matrixGain ?? 1.0;
     const gainRange = cfg.gainRange || { min: 0, max: 2.0 };
@@ -2073,7 +2074,7 @@ class App {
     const colSynth = this._physicalColToSynthCol(colIndex);
     const pinKey = `${rowSynth}:${colSynth}`;
 
-    // Prioridad 1: Ganancia explícita por pin (override manual)
+    // Prioridad 1: Ganancia explícita por pin (override manual en config)
     const pinGains = panel5AudioConfig?.pinGains || {};
     if (pinKey in pinGains) {
       const pinGain = pinGains[pinKey];
@@ -2082,9 +2083,9 @@ class App {
     }
 
     // Prioridad 2: Calcular según modelo de virtual-earth summing
-    // Determinar tipo de pin (por defecto GREY para precisión)
+    // Usar tipo de pin del usuario si se proporciona, sino fallback a config o default
     const pinTypes = panel5AudioConfig?.pinTypes || {};
-    const pinType = pinTypes[pinKey] || VOLTAGE_DEFAULTS.defaultPinType || 'GREY';
+    const pinType = userPinType || pinTypes[pinKey] || VOLTAGE_DEFAULTS.defaultPinType || 'WHITE';
     
     // Obtener Rf del destino (por defecto 100k estándar)
     let rf = STANDARD_FEEDBACK_RESISTANCE;
@@ -2129,8 +2130,8 @@ class App {
     this._panel3Routing.hiddenCols = mappings.hiddenCols;
 
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
-      this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive) =>
-        this._handlePanel5AudioToggle(rowIndex, colIndex, nextActive)
+      this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive, btn, pinColor) =>
+        this._handlePanel5AudioToggle(rowIndex, colIndex, nextActive, pinColor)
       );
     }
   }
@@ -2164,7 +2165,7 @@ class App {
     return count;
   }
 
-  async _handlePanel5AudioToggle(rowIndex, colIndex, activate) {
+  async _handlePanel5AudioToggle(rowIndex, colIndex, activate, pinColor = null) {
     const source = this._panel3Routing?.sourceMap?.get(rowIndex);
     const dest = this._panel3Routing?.destMap?.get(colIndex);
     const key = `${rowIndex}:${colIndex}`;
@@ -2310,7 +2311,7 @@ class App {
       }
 
       const gain = ctx.createGain();
-      const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex);
+      const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex, dest, pinColor);
       gain.gain.value = pinGainValue;
       outNode.connect(gain);
       
@@ -2392,8 +2393,8 @@ class App {
     this._panel6Routing.hiddenCols = mappings.hiddenCols;
 
     if (this.largeMatrixControl && this.largeMatrixControl.setToggleHandler) {
-      this.largeMatrixControl.setToggleHandler((rowIndex, colIndex, nextActive) =>
-        this._handlePanel6ControlToggle(rowIndex, colIndex, nextActive)
+      this.largeMatrixControl.setToggleHandler((rowIndex, colIndex, nextActive, btn, pinColor) =>
+        this._handlePanel6ControlToggle(rowIndex, colIndex, nextActive, pinColor)
       );
     }
   }
@@ -2402,16 +2403,17 @@ class App {
    * Calcula la ganancia de un pin de matriz del Panel 6 (Control).
    * 
    * Usa la fórmula de tierra virtual: Ganancia = Rf / R_pin
-   * Las señales de CV (Control Voltage) típicamente usan pines grises
-   * de alta precisión (±0.5% tolerancia) para mantener afinación.
+   * Las señales de CV (Control Voltage) típicamente usan pines verdes
+   * (68kΩ) para atenuación estándar de señales de control.
    * 
    * @param {number} rowIndex - Índice de fila física (fuente)
    * @param {number} colIndex - Índice de columna física (destino)
    * @param {Object} [destInfo] - Información del destino (opcional, para obtener Rf)
+   * @param {string} [userPinType] - Tipo de pin seleccionado por el usuario (WHITE, GREY, GREEN, RED)
    * @returns {number} Factor de ganancia para el GainNode
    * @private
    */
-  _getPanel6PinGain(rowIndex, colIndex, destInfo = null) {
+  _getPanel6PinGain(rowIndex, colIndex, destInfo = null, userPinType = null) {
     const config = panel6ControlConfig || {};
     const controlSection = config.control || {};
     const matrixGain = controlSection.matrixGain ?? 1.0;
@@ -2425,15 +2427,15 @@ class App {
     const colSynth = colIndex + (panel6ControlBlueprint?.grid?.coordSystem?.colBase || 1);
     const pinKey = `${rowSynth}:${colSynth}`;
 
-    // Prioridad 1: Ganancia explícita de pin (override manual)
+    // Prioridad 1: Ganancia explícita de pin (override manual en config)
     if (pinKey in pinGains) {
       return pinGains[pinKey] * matrixGain;
     }
 
     // Prioridad 2: Calcular según modelo de virtual-earth summing
-    // Panel 6 es control voltage - siempre pines GREY para precisión
+    // Usar tipo de pin del usuario si se proporciona, sino fallback a config o default
     const pinTypes = config.pinTypes || {};
-    const pinType = pinTypes[pinKey] || 'GREY'; // CV siempre usa grey para afinación
+    const pinType = userPinType || pinTypes[pinKey] || 'GREEN'; // Control: verde por defecto
     
     // Obtener Rf del destino (por defecto 100k estándar)
     let rf = STANDARD_FEEDBACK_RESISTANCE;
@@ -2470,10 +2472,11 @@ class App {
    * @param {number} rowIndex - Índice de fila (0-based)
    * @param {number} colIndex - Índice de columna (0-based)
    * @param {boolean} activate - true para conectar, false para desconectar
+   * @param {string} [pinColor] - Color del pin seleccionado (WHITE, GREY, GREEN, RED)
    * @returns {boolean} true si la operación fue exitosa
    * @private
    */
-  async _handlePanel6ControlToggle(rowIndex, colIndex, activate) {
+  async _handlePanel6ControlToggle(rowIndex, colIndex, activate, pinColor = null) {
     const source = this._panel6Routing?.sourceMap?.get(rowIndex);
     const dest = this._panel6Routing?.destMap?.get(colIndex);
     const key = `${rowIndex}:${colIndex}`;
@@ -2605,7 +2608,7 @@ class App {
       // mediante las ganancias definidas en panel6.control.config.js
       //
       const gain = ctx.createGain();
-      const pinGainValue = this._getPanel6PinGain(rowIndex, colIndex);
+      const pinGainValue = this._getPanel6PinGain(rowIndex, colIndex, dest, pinColor);
       gain.gain.value = pinGainValue;
       outNode.connect(gain);
       gain.connect(destNode);
@@ -2675,6 +2678,19 @@ class App {
     const { hiddenCols: HIDDEN_COLS_PANEL5, hiddenRows: HIDDEN_ROWS_PANEL5 } = panel5Maps;
     const { hiddenCols: HIDDEN_COLS_PANEL6, hiddenRows: HIDDEN_ROWS_PANEL6 } = panel6Maps;
 
+    // Función para determinar color por defecto dinámico (osciloscopio = RED)
+    const getPanel5DefaultColor = (row, col) => {
+      const dest = panel5Maps.destMap.get(col);
+      if (dest?.kind === 'oscilloscope') return 'RED';
+      return null;  // Usa el default del panel (WHITE)
+    };
+    
+    const getPanel6DefaultColor = (row, col) => {
+      const dest = panel6Maps.destMap.get(col);
+      if (dest?.kind === 'oscilloscope') return 'RED';
+      return null;  // Usa el default del panel (GREEN)
+    };
+
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {
       rows: 63,
       cols: 67,
@@ -2682,7 +2698,10 @@ class App {
       hiddenCols: HIDDEN_COLS_PANEL5,
       hiddenRows: HIDDEN_ROWS_PANEL5,
       sourceMap: panel5Maps.sourceMap,
-      destMap: panel5Maps.destMap
+      destMap: panel5Maps.destMap,
+      panelId: 'panel-5',
+      defaultPinColor: 'WHITE',  // Audio: pin blanco por defecto
+      getDefaultPinColor: getPanel5DefaultColor
     });
 
     this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, {
@@ -2692,11 +2711,42 @@ class App {
       hiddenCols: HIDDEN_COLS_PANEL6,
       hiddenRows: HIDDEN_ROWS_PANEL6,
       sourceMap: panel6Maps.sourceMap,
-      destMap: panel6Maps.destMap
+      destMap: panel6Maps.destMap,
+      panelId: 'panel-6',
+      defaultPinColor: 'GREEN',  // Control: pin verde por defecto
+      getDefaultPinColor: getPanel6DefaultColor
     });
 
     this.largeMatrixAudio.build();
     this.largeMatrixControl.build();
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // PIN COLOR CHANGE CALLBACK
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cuando el usuario cambia el color de un pin activo, actualizar la ganancia
+    // del GainNode existente sin reconectar (para evitar glitches de audio).
+    //
+    this.largeMatrixAudio.onPinColorChange = (row, col, newColor, btn) => {
+      const key = `${row}:${col}`;
+      const conn = this._panel3Routing?.connections?.[key];
+      if (conn && conn.gain) {
+        const dest = this._panel3Routing?.destMap?.get(col);
+        const newGain = this._getPanel5PinGain(row, col, dest, newColor);
+        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
+        log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
+      }
+    };
+    
+    this.largeMatrixControl.onPinColorChange = (row, col, newColor, btn) => {
+      const key = `${row}:${col}`;
+      const conn = this._panel6Routing?.connections?.[key];
+      if (conn && conn.gain) {
+        const dest = this._panel6Routing?.destMap?.get(col);
+        const newGain = this._getPanel6PinGain(row, col, dest, newColor);
+        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
+        log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
+      }
+    };
     
     // ─────────────────────────────────────────────────────────────────────────
     // INACTIVE PINS VISIBILITY

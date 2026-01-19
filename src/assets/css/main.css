@@ -1418,6 +1418,22 @@ small { color:#aaa; }
   background: #ffb63b;
 }
 
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-white {
+  background: #ffffff;
+}
+
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-grey {
+  background: #888888;
+}
+
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-green {
+  background: #4CAF50;
+}
+
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-red {
+  background: #f44336;
+}
+
 /* Móvil: optimización SIN ocultar mandos.
    Reducimos el coste de paint quitando sombras/transiciones caras (muchos nodos). */
 @media (pointer: coarse) {

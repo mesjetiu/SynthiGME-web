@@ -853,6 +853,10 @@ pip.zoomOut:
   en: Zoom out
   es: Alejar
 
+pip.placeholderHint:
+  en: Click to restore
+  es: Click para restaurar
+
 # Títulos de paneles para PiP
 panel.oscillators1:
   en: Oscillators 1-3

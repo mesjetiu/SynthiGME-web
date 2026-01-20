@@ -270,6 +270,25 @@ export function openPip(panelId) {
   const siblings = Array.from(originalParent.children);
   const originalIndex = siblings.indexOf(panelEl);
   
+  // Crear placeholder que ocupa el lugar del panel en el grid
+  const placeholder = document.createElement('div');
+  placeholder.className = 'pip-placeholder';
+  placeholder.id = `pip-placeholder-${panelId}`;
+  placeholder.innerHTML = `
+    <div class="pip-placeholder__content">
+      <span class="pip-placeholder__title">${getPanelTitle(panelId)}</span>
+      <span class="pip-placeholder__hint">${t('pip.placeholderHint', 'Click para restaurar')}</span>
+    </div>
+  `;
+  
+  // Insertar placeholder donde estaba el panel
+  panelEl.parentElement.insertBefore(placeholder, panelEl);
+  
+  // Click en placeholder cierra el PiP
+  placeholder.addEventListener('click', () => {
+    closePip(panelId);
+  });
+  
   // Crear contenedor PiP
   const pipContainer = document.createElement('div');
   pipContainer.className = 'pip-container';
@@ -369,6 +388,12 @@ export function closePip(panelId) {
   // Resetear escala del panel
   panelEl.style.transform = '';
   panelEl.classList.remove('panel--pipped');
+  
+  // Eliminar placeholder
+  const placeholder = document.getElementById(`pip-placeholder-${panelId}`);
+  if (placeholder) {
+    placeholder.remove();
+  }
   
   // Devolver panel a su posición correcta en el grid
   const { originalParent, pipContainer } = state;

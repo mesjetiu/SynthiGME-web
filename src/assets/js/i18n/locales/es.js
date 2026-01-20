@@ -197,6 +197,7 @@ export default {
   "pip.close": "Cerrar",
   "pip.zoomIn": "Acercar",
   "pip.zoomOut": "Alejar",
+  "pip.placeholderHint": "Click para restaurar",
   "panel.oscillators1": "Osciladores 1-3",
   "panel.oscilloscope": "Osciloscopio",
   "panel.oscillators2": "Osciladores 4-6",

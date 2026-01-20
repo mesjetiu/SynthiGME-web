@@ -3,6 +3,7 @@
 
 import { createLogger } from '../utils/logger.js';
 import { t, onLocaleChange } from '../i18n/index.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 const log = createLogger('PipManager');
 
@@ -163,12 +164,17 @@ export function openPip(panelId) {
   const content = document.createElement('div');
   content.className = 'pip-content';
   
-  // Viewport interno para el panel
+  // Viewport interno para el panel (este hace scroll)
   const viewport = document.createElement('div');
   viewport.className = 'pip-viewport';
   
-  // Mover el panel al PiP
-  viewport.appendChild(panelEl);
+  // Contenedor interno que mantiene el tamaño escalado del panel
+  const viewportInner = document.createElement('div');
+  viewportInner.className = 'pip-viewport-inner';
+  
+  // Mover el panel al contenedor interno
+  viewportInner.appendChild(panelEl);
+  viewport.appendChild(viewportInner);
   content.appendChild(viewport);
   pipContainer.appendChild(header);
   pipContainer.appendChild(content);
@@ -212,6 +218,9 @@ export function openPip(panelId) {
   
   log.info(`Panel ${panelId} extraído a PiP`);
   
+  // Guardar estado
+  savePipState();
+  
   // Emitir evento
   window.dispatchEvent(new CustomEvent('pip:open', { detail: { panelId } }));
 }
@@ -253,6 +262,9 @@ export function closePip(panelId) {
   activePips.delete(panelId);
   
   log.info(`Panel ${panelId} devuelto a viewport`);
+  
+  // Guardar estado
+  savePipState();
   
   // Emitir evento
   window.dispatchEvent(new CustomEvent('pip:close', { detail: { panelId } }));
@@ -341,6 +353,19 @@ function setupPipEvents(pipContainer, panelId) {
       }
     }
   }, { passive: false });
+  
+  // Guardar estado cuando el usuario hace scroll dentro del viewport
+  const viewport = pipContainer.querySelector('.pip-viewport');
+  if (viewport) {
+    let scrollSaveTimeout = null;
+    viewport.addEventListener('scroll', () => {
+      // Debounce para no guardar en cada pixel de scroll
+      if (scrollSaveTimeout) clearTimeout(scrollSaveTimeout);
+      scrollSaveTimeout = setTimeout(() => {
+        savePipState();
+      }, 300);
+    }, { passive: true });
+  }
 }
 
 /**
@@ -381,10 +406,13 @@ function handlePointerMove(e) {
  * Finaliza drag/resize.
  */
 function handlePointerUp() {
+  let stateChanged = false;
+  
   if (draggingPip) {
     const state = activePips.get(draggingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--dragging');
+      stateChanged = true;
     }
     draggingPip = null;
   }
@@ -393,8 +421,14 @@ function handlePointerUp() {
     const state = activePips.get(resizingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--resizing');
+      stateChanged = true;
     }
     resizingPip = null;
+  }
+  
+  // Guardar estado después de drag/resize
+  if (stateChanged) {
+    savePipState();
   }
 }
 
@@ -414,16 +448,35 @@ function bringToFront(panelId) {
  * Actualiza la escala del panel dentro del PiP.
  * @param {string} panelId - ID del panel
  * @param {number} newScale - Nueva escala
+ * @param {boolean} [persist=true] - Si se debe guardar el estado
  */
-function updatePipScale(panelId, newScale) {
+function updatePipScale(panelId, newScale, persist = true) {
   const state = activePips.get(panelId);
   if (!state) return;
   
   state.scale = newScale;
   const panelEl = document.getElementById(panelId);
-  if (panelEl) {
-    panelEl.style.transform = `scale(${newScale})`;
-    panelEl.style.transformOrigin = '0 0';
+  if (!panelEl) return;
+  
+  // Obtener tamaño real del panel (760x760 normalmente)
+  const panelWidth = panelEl.offsetWidth || 760;
+  const panelHeight = panelEl.offsetHeight || 760;
+  
+  // Aplicar escala al panel
+  panelEl.style.transform = `scale(${newScale})`;
+  panelEl.style.transformOrigin = '0 0';
+  
+  // Actualizar tamaño del contenedor interno para que el scroll funcione
+  // El contenedor interno debe tener el tamaño escalado del panel
+  const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
+  if (viewportInner) {
+    viewportInner.style.width = `${panelWidth * newScale}px`;
+    viewportInner.style.height = `${panelHeight * newScale}px`;
+  }
+  
+  // Guardar estado después de cambiar zoom
+  if (persist) {
+    savePipState();
   }
 }
 
@@ -461,4 +514,152 @@ export function isPipped(panelId) {
  */
 export function getActivePips() {
   return Array.from(activePips.keys());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERSISTENCIA DE ESTADO
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Serializa el estado actual de todos los PiPs para guardarlo.
+ * @returns {Array} Array de objetos con el estado de cada PiP
+ */
+export function serializePipState() {
+  const states = [];
+  for (const [panelId, state] of activePips) {
+    // Obtener scroll del viewport interno
+    const viewport = state.pipContainer.querySelector('.pip-viewport');
+    const scrollX = viewport ? viewport.scrollLeft : 0;
+    const scrollY = viewport ? viewport.scrollTop : 0;
+    
+    states.push({
+      panelId,
+      x: state.x,
+      y: state.y,
+      width: state.width,
+      height: state.height,
+      scale: state.scale,
+      scrollX,
+      scrollY,
+      zIndex: parseInt(state.pipContainer.style.zIndex) || PIP_Z_INDEX_BASE
+    });
+  }
+  return states;
+}
+
+/**
+ * Guarda el estado de los PiPs en localStorage.
+ */
+export function savePipState() {
+  // Verificar si está habilitado recordar PiPs
+  const remember = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
+  if (remember === 'false') return;
+  
+  const state = serializePipState();
+  try {
+    localStorage.setItem(STORAGE_KEYS.PIP_STATE, JSON.stringify(state));
+    log.debug('Estado PiP guardado:', state.length, 'paneles');
+  } catch (e) {
+    log.warn('No se pudo guardar estado PiP:', e);
+  }
+}
+
+/**
+ * Restaura el estado de los PiPs desde localStorage.
+ * Debe llamarse después de que los paneles estén en el DOM.
+ */
+export function restorePipState() {
+  // Verificar si está habilitado recordar PiPs
+  const remember = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
+  if (remember === 'false') return;
+  
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.PIP_STATE);
+    if (!saved) return;
+    
+    const states = JSON.parse(saved);
+    if (!Array.isArray(states) || states.length === 0) return;
+    
+    log.info('Restaurando', states.length, 'paneles PiP');
+    
+    // Restaurar cada PiP con su configuración guardada
+    for (const savedState of states) {
+      const { panelId, x, y, width, height, scale, zIndex } = savedState;
+      
+      // Verificar que el panel existe
+      const panelEl = document.getElementById(panelId);
+      if (!panelEl) {
+        log.warn('Panel no encontrado para restaurar:', panelId);
+        continue;
+      }
+      
+      // Abrir el PiP
+      openPip(panelId);
+      
+      // Aplicar configuración guardada
+      const state = activePips.get(panelId);
+      if (state) {
+        // Ajustar posición (asegurar que esté dentro de la ventana)
+        const maxX = window.innerWidth - width;
+        const maxY = window.innerHeight - 40;
+        state.x = Math.max(0, Math.min(maxX, x));
+        state.y = Math.max(0, Math.min(maxY, y));
+        state.width = Math.max(MIN_PIP_SIZE, Math.min(MAX_PIP_SIZE, width));
+        state.height = Math.max(MIN_PIP_SIZE, Math.min(MAX_PIP_SIZE, height));
+        state.scale = Math.max(0.2, Math.min(1.5, scale));
+        
+        // Aplicar al DOM
+        state.pipContainer.style.left = `${state.x}px`;
+        state.pipContainer.style.top = `${state.y}px`;
+        state.pipContainer.style.width = `${state.width}px`;
+        state.pipContainer.style.height = `${state.height}px`;
+        state.pipContainer.style.zIndex = zIndex || PIP_Z_INDEX_BASE;
+        
+        // No persistir durante restauración (evitar loop)
+        updatePipScale(panelId, state.scale, false);
+        
+        // Restaurar posición del scroll interno
+        if (savedState.scrollX !== undefined || savedState.scrollY !== undefined) {
+          const viewport = state.pipContainer.querySelector('.pip-viewport');
+          if (viewport) {
+            // Usar setTimeout para asegurar que el layout esté calculado
+            setTimeout(() => {
+              viewport.scrollLeft = savedState.scrollX || 0;
+              viewport.scrollTop = savedState.scrollY || 0;
+            }, 50);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    log.warn('Error restaurando estado PiP:', e);
+  }
+}
+
+/**
+ * Limpia el estado guardado de PiPs.
+ */
+export function clearPipState() {
+  localStorage.removeItem(STORAGE_KEYS.PIP_STATE);
+}
+
+/**
+ * Verifica si está habilitado recordar PiPs entre sesiones.
+ * @returns {boolean}
+ */
+export function isRememberPipsEnabled() {
+  const saved = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
+  // Por defecto true (habilitado)
+  return saved !== 'false';
+}
+
+/**
+ * Establece si se deben recordar los PiPs entre sesiones.
+ * @param {boolean} enabled
+ */
+export function setRememberPips(enabled) {
+  localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(enabled));
+  if (!enabled) {
+    clearPipState();
+  }
 }

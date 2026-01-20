@@ -93,6 +93,19 @@ settings.display.inactivePins.show:
   en: Show inactive pins as active
   es: Mostrar pines inactivos como activos
 
+# Sección: Paneles flotantes (PiP)
+settings.display.pip:
+  en: Floating Panels (PiP)
+  es: Paneles flotantes (PiP)
+
+settings.display.pip.description:
+  en: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
+  es: Los paneles flotantes permiten extraer cualquier panel y verlo de forma independiente mientras navegas por el sintetizador. Usa el icono del pin en cada panel para extraerlo.
+
+settings.display.pip.remember:
+  en: Remember floating panels between sessions
+  es: Recordar paneles flotantes entre sesiones
+
 # Sección: Acerca de
 settings.about.description:
   en: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.

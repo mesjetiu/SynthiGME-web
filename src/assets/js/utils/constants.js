@@ -83,6 +83,10 @@ export const STORAGE_KEYS = {
   // Visualización de matriz
   SHOW_INACTIVE_PINS: `${STORAGE_PREFIX}show-inactive-pins`,
   
+  // Picture-in-Picture (paneles flotantes)
+  PIP_STATE: `${STORAGE_PREFIX}pip-state`,
+  PIP_REMEMBER: `${STORAGE_PREFIX}pip-remember`,
+  
   // ─────────────────────────────────────────────────────────────────────────
   // Optimización de rendimiento
   // Cada optimización tiene un toggle enabled + un toggle debug opcional

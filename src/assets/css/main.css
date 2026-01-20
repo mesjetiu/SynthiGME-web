@@ -4291,8 +4291,16 @@ small { color:#aaa; }
   height: 100%;
 }
 
+/* Contenedor interno para mantener el tamaño original del panel y permitir scroll */
+.pip-viewport-inner {
+  /* El tamaño se establece dinámicamente desde JS según la escala */
+  position: relative;
+  transform-origin: 0 0;
+}
+
 /* El panel dentro del PiP */
-.pip-viewport > .panel {
+.pip-viewport > .panel,
+.pip-viewport-inner > .panel {
   position: relative;
   margin: 0;
   box-shadow: none;

@@ -404,6 +404,9 @@ export class SettingsModal {
     // Pines inactivos de la matriz
     container.appendChild(this._createInactivePinsSection());
     
+    // Paneles flotantes (PiP)
+    container.appendChild(this._createPipSection());
+    
     return container;
   }
   
@@ -872,6 +875,70 @@ export class SettingsModal {
    */
   getShowInactivePins() {
     return this.showInactivePins;
+  }
+  
+  /**
+   * Crea la sección de paneles flotantes (PiP)
+   * @returns {HTMLElement}
+   */
+  _createPipSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.pipTitleElement = document.createElement('h3');
+    this.pipTitleElement.className = 'settings-section__title';
+    this.pipTitleElement.textContent = t('settings.display.pip');
+    section.appendChild(this.pipTitleElement);
+    
+    this.pipDescElement = document.createElement('p');
+    this.pipDescElement.className = 'settings-section__description';
+    this.pipDescElement.textContent = t('settings.display.pip.description');
+    section.appendChild(this.pipDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para recordar paneles PiP entre sesiones
+    // ─────────────────────────────────────────────────────────────────────
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--checkbox';
+    
+    this.pipRememberCheckbox = document.createElement('input');
+    this.pipRememberCheckbox.type = 'checkbox';
+    this.pipRememberCheckbox.id = 'pipRememberCheckbox';
+    this.pipRememberCheckbox.className = 'settings-checkbox';
+    
+    // Cargar preferencia guardada (por defecto true = recordar)
+    const savedPref = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
+    this.rememberPips = savedPref !== 'false'; // true por defecto
+    this.pipRememberCheckbox.checked = this.rememberPips;
+    
+    this.pipRememberLabelElement = document.createElement('label');
+    this.pipRememberLabelElement.className = 'settings-checkbox-label';
+    this.pipRememberLabelElement.htmlFor = 'pipRememberCheckbox';
+    this.pipRememberLabelElement.textContent = t('settings.display.pip.remember');
+    
+    this.pipRememberCheckbox.addEventListener('change', () => {
+      this._setRememberPips(this.pipRememberCheckbox.checked);
+    });
+    
+    row.appendChild(this.pipRememberCheckbox);
+    row.appendChild(this.pipRememberLabelElement);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si se recuerdan los paneles PiP entre sesiones
+   * @param {boolean} remember
+   */
+  _setRememberPips(remember) {
+    this.rememberPips = remember;
+    localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(remember));
+    
+    // Si se desactiva, limpiar estado guardado
+    if (!remember) {
+      localStorage.removeItem(STORAGE_KEYS.PIP_STATE);
+    }
   }
   
   /**
@@ -2400,6 +2467,17 @@ export class SettingsModal {
     }
     if (this.inactivePinsLabelElement) {
       this.inactivePinsLabelElement.textContent = t('settings.display.inactivePins.show');
+    }
+    
+    // Actualizar sección de paneles flotantes (PiP)
+    if (this.pipTitleElement) {
+      this.pipTitleElement.textContent = t('settings.display.pip');
+    }
+    if (this.pipDescElement) {
+      this.pipDescElement.textContent = t('settings.display.pip.description');
+    }
+    if (this.pipRememberLabelElement) {
+      this.pipRememberLabelElement.textContent = t('settings.display.pip.remember');
     }
     
     // Actualizar sección "Acerca de"

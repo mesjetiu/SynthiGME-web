@@ -124,4 +124,10 @@
     <path d="M8 21l8 0" />
     <path d="M12 17l0 4" />
   </symbol>
+
+  <!-- PiP (Picture-in-Picture) / floating panel -->
+  <symbol id="ti-picture-in-picture" viewBox="0 0 24 24">
+    <path d="M11 19h-6a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4" />
+    <rect x="14" y="14" width="7" height="5" rx="1" />
+  </symbol>
 </svg>

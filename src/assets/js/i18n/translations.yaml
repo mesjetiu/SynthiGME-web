@@ -532,6 +532,10 @@ quickbar.patches:
   en: Patches (P)
   es: Patches (P)
 
+quickbar.pip:
+  en: Floating Panels
+  es: Paneles flotantes
+
 quickbar.audio:
   en: Audio settings (A)
   es: Configuración de audio (A)

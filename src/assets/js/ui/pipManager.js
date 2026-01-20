@@ -43,6 +43,32 @@ let dragOffset = { x: 0, y: 0 };
 let resizingPip = null;
 let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
 
+/** Posiciones aproximadas de cada panel en el layout del Synthi (relativas a la ventana) */
+const PANEL_POSITIONS = {
+  'panel-1': { col: 0, row: 0 },
+  'panel-2': { col: 1, row: 0 },
+  'panel-3': { col: 2, row: 0 },
+  'panel-4': { col: 3, row: 0 },
+  'panel-5': { col: 0, row: 1 },
+  'panel-6': { col: 2, row: 1 },
+  'panel-output': { col: 3, row: 1 },
+  'panel-7': { col: 3, row: 1 } // alias
+};
+
+/** Lista de todos los paneles disponibles */
+export const ALL_PANELS = [
+  { id: 'panel-1', name: () => t('panel.oscillators1', 'Osciladores 1-3') },
+  { id: 'panel-2', name: () => t('panel.oscilloscope', 'Osciloscopio') },
+  { id: 'panel-3', name: () => t('panel.oscillators2', 'Osciladores 4-6') },
+  { id: 'panel-4', name: () => t('panel.oscillators3', 'Osciladores 7-9') },
+  { id: 'panel-5', name: () => t('panel.audioMatrix', 'Matriz Audio') },
+  { id: 'panel-6', name: () => t('panel.controlMatrix', 'Matriz Control') },
+  { id: 'panel-output', name: () => t('panel.output', 'Salida') }
+];
+
+/** Menú contextual activo */
+let activeContextMenu = null;
+
 /**
  * Inicializa el sistema PiP creando el layer contenedor.
  */
@@ -72,40 +98,119 @@ export function initPipManager() {
     }
   });
   
+  // Configurar menú contextual en paneles
+  setupPanelContextMenus();
+  
   log.info('PipManager inicializado');
 }
 
 /**
- * Añade el botón de detach a un panel.
- * @param {HTMLElement} panelEl - Elemento del panel
+ * Configura el menú contextual en todos los paneles.
  */
-export function addDetachButton(panelEl) {
-  if (!panelEl || panelEl.querySelector('.pip-detach-btn')) return;
+function setupPanelContextMenus() {
+  document.querySelectorAll('.panel').forEach(panelEl => {
+    panelEl.addEventListener('contextmenu', (e) => {
+      // Solo mostrar si el panel no está ya en PiP
+      if (activePips.has(panelEl.id)) return;
+      
+      e.preventDefault();
+      showPanelContextMenu(panelEl.id, e.clientX, e.clientY);
+    });
+  });
+}
+
+/**
+ * Muestra el menú contextual para un panel.
+ * @param {string} panelId - ID del panel
+ * @param {number} x - Posición X
+ * @param {number} y - Posición Y
+ */
+function showPanelContextMenu(panelId, x, y) {
+  hideContextMenu();
   
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'pip-detach-btn';
-  btn.setAttribute('aria-label', t('pip.detach', 'Extraer panel'));
-  btn.innerHTML = `
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+  const menu = document.createElement('div');
+  menu.className = 'pip-context-menu';
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  
+  const detachItem = document.createElement('button');
+  detachItem.className = 'pip-context-menu__item';
+  detachItem.innerHTML = `
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
       <path d="M9 3v18"/>
       <path d="M14 9l3 3-3 3"/>
     </svg>
+    <span>${t('pip.detach', 'Separar panel')}</span>
   `;
-  
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    togglePip(panelEl.id);
+  detachItem.addEventListener('click', () => {
+    hideContextMenu();
+    openPip(panelId);
   });
   
-  // Tooltip en hover
-  btn.addEventListener('mouseenter', () => {
-    const isPipped = activePips.has(panelEl.id);
-    btn.setAttribute('aria-label', isPipped ? t('pip.attach', 'Devolver panel') : t('pip.detach', 'Extraer panel'));
+  menu.appendChild(detachItem);
+  document.body.appendChild(menu);
+  activeContextMenu = menu;
+  
+  // Ajustar posición si se sale de la pantalla
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+      menu.style.left = `${x - rect.width}px`;
+    }
+    if (rect.bottom > window.innerHeight) {
+      menu.style.top = `${y - rect.height}px`;
+    }
   });
   
-  panelEl.appendChild(btn);
+  // Cerrar al hacer click fuera
+  setTimeout(() => {
+    document.addEventListener('click', hideContextMenu, { once: true });
+    document.addEventListener('contextmenu', hideContextMenu, { once: true });
+  }, 10);
+}
+
+/**
+ * Oculta el menú contextual activo.
+ */
+function hideContextMenu() {
+  if (activeContextMenu) {
+    activeContextMenu.remove();
+    activeContextMenu = null;
+  }
+}
+
+/**
+ * Calcula la posición inicial de un PiP basada en su posición en el grid del Synthi.
+ * @param {string} panelId - ID del panel
+ * @returns {{x: number, y: number}} Posición inicial
+ */
+function getInitialPipPosition(panelId) {
+  const pos = PANEL_POSITIONS[panelId] || { col: 0, row: 0 };
+  const cols = 4;
+  const rows = 2;
+  
+  // Calcular posición proporcional en la ventana
+  // Dejamos margen para la quickbar (derecha) y bordes
+  const marginTop = 60;
+  const marginRight = 80;
+  const marginBottom = 40;
+  const marginLeft = 20;
+  
+  const availableWidth = window.innerWidth - marginLeft - marginRight;
+  const availableHeight = window.innerHeight - marginTop - marginBottom;
+  
+  const cellWidth = availableWidth / cols;
+  const cellHeight = availableHeight / rows;
+  
+  // Centro de la celda menos la mitad del tamaño del PiP
+  const x = marginLeft + (pos.col * cellWidth) + (cellWidth - DEFAULT_PIP_WIDTH) / 2;
+  const y = marginTop + (pos.row * cellHeight) + (cellHeight - DEFAULT_PIP_HEIGHT) / 2;
+  
+  return {
+    x: Math.max(marginLeft, Math.min(x, window.innerWidth - DEFAULT_PIP_WIDTH - marginRight)),
+    y: Math.max(marginTop, Math.min(y, window.innerHeight - DEFAULT_PIP_HEIGHT - marginBottom))
+  };
 }
 
 /**
@@ -118,6 +223,14 @@ export function togglePip(panelId) {
   } else {
     openPip(panelId);
   }
+}
+
+/**
+ * Obtiene los IDs de los paneles actualmente en modo PiP.
+ * @returns {string[]} Array de IDs de paneles abiertos como PiP
+ */
+export function getOpenPips() {
+  return Array.from(activePips.keys());
 }
 
 /**
@@ -138,13 +251,11 @@ export function openPip(panelId) {
   pipContainer.dataset.panelId = panelId;
   pipContainer.style.zIndex = PIP_Z_INDEX_BASE + activePips.size;
   
-  // Posición inicial: esquina superior derecha con offset según cantidad de PIPs
-  const offsetMultiplier = activePips.size;
-  const initialX = window.innerWidth - DEFAULT_PIP_WIDTH - 20 - (offsetMultiplier * 30);
-  const initialY = 20 + (offsetMultiplier * 30);
+  // Posición inicial basada en la posición del panel en el grid del Synthi
+  const initialPos = getInitialPipPosition(panelId);
   
-  pipContainer.style.left = `${Math.max(20, initialX)}px`;
-  pipContainer.style.top = `${initialY}px`;
+  pipContainer.style.left = `${initialPos.x}px`;
+  pipContainer.style.top = `${initialPos.y}px`;
   pipContainer.style.width = `${DEFAULT_PIP_WIDTH}px`;
   pipContainer.style.height = `${DEFAULT_PIP_HEIGHT}px`;
   
@@ -192,8 +303,8 @@ export function openPip(panelId) {
     originalParent,
     originalIndex,
     pipContainer,
-    x: parseInt(pipContainer.style.left),
-    y: parseInt(pipContainer.style.top),
+    x: initialPos.x,
+    y: initialPos.y,
     width: DEFAULT_PIP_WIDTH,
     height: DEFAULT_PIP_HEIGHT,
     scale: 0.4 // El panel de 760px se escala para caber
@@ -206,12 +317,6 @@ export function openPip(panelId) {
   
   // Event listeners del PiP
   setupPipEvents(pipContainer, panelId);
-  
-  // Actualizar icono del botón detach
-  const detachBtn = panelEl.querySelector('.pip-detach-btn');
-  if (detachBtn) {
-    detachBtn.classList.add('pip-detach-btn--active');
-  }
   
   // Marcar panel como pipped para CSS
   panelEl.classList.add('panel--pipped');
@@ -252,12 +357,6 @@ export function closePip(panelId) {
   
   // Eliminar contenedor PiP
   pipContainer.remove();
-  
-  // Actualizar icono del botón detach
-  const detachBtn = panelEl.querySelector('.pip-detach-btn');
-  if (detachBtn) {
-    detachBtn.classList.remove('pip-detach-btn--active');
-  }
   
   activePips.delete(panelId);
   

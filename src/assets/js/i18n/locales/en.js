@@ -125,6 +125,7 @@ export default {
   "quickbar.zoom.unlock": "Unlock zoom",
   "quickbar.settings": "Settings (S)",
   "quickbar.patches": "Patches (P)",
+  "quickbar.pip": "Floating Panels",
   "quickbar.audio": "Audio settings (A)",
   "quickbar.emergency": "Reset scale to 1× (emergency)",
   "quickbar.emergency.applied": "Scale reset to 1×",

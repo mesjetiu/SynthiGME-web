@@ -125,6 +125,7 @@ export default {
   "quickbar.zoom.unlock": "Desbloquear zoom",
   "quickbar.settings": "Ajustes (S)",
   "quickbar.patches": "Patches (P)",
+  "quickbar.pip": "Paneles flotantes",
   "quickbar.audio": "Configuración de audio (A)",
   "quickbar.emergency": "Resetear escala a 1× (emergencia)",
   "quickbar.emergency.applied": "Escala reseteada a 1×",

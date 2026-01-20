@@ -6,6 +6,7 @@ import { t, onLocaleChange } from '../i18n/index.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
+import { togglePip, ALL_PANELS, getOpenPips } from './pipManager.js';
 
 const log = createLogger('Quickbar');
 
@@ -197,6 +198,79 @@ export function setupMobileQuickActionsBar() {
   btnPatches.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('synth:togglePatches'));
   });
+
+  // Botón de PiP (paneles flotantes) con menú desplegable
+  const btnPipContainer = document.createElement('div');
+  btnPipContainer.className = 'mobile-quickbar__pip-container';
+  
+  const btnPip = document.createElement('button');
+  btnPip.type = 'button';
+  btnPip.className = 'mobile-quickbar__btn';
+  btnPip.id = 'btnPip';
+  setButtonTooltip(btnPip, t('quickbar.pip', 'Paneles flotantes'));
+  btnPip.innerHTML = iconSvg('ti-picture-in-picture');
+  
+  // Menú desplegable de paneles
+  const pipMenu = document.createElement('div');
+  pipMenu.className = 'pip-menu';
+  pipMenu.hidden = true;
+  
+  // Crear items del menú para cada panel
+  ALL_PANELS.forEach(({ id, name }) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'pip-menu__item';
+    item.dataset.panelId = id;
+    item.textContent = name();
+    
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePip(id);
+      updatePipMenuState();
+    });
+    
+    pipMenu.appendChild(item);
+  });
+  
+  function updatePipMenuState() {
+    const openPips = getOpenPips();
+    pipMenu.querySelectorAll('.pip-menu__item').forEach(item => {
+      const isOpen = openPips.includes(item.dataset.panelId);
+      item.classList.toggle('is-active', isOpen);
+      item.setAttribute('aria-pressed', String(isOpen));
+    });
+    // Actualizar estado del botón principal
+    btnPip.classList.toggle('has-active-pips', openPips.length > 0);
+  }
+  
+  let pipMenuOpen = false;
+  function togglePipMenu(show) {
+    pipMenuOpen = typeof show === 'boolean' ? show : !pipMenuOpen;
+    pipMenu.hidden = !pipMenuOpen;
+    btnPip.setAttribute('aria-expanded', String(pipMenuOpen));
+    if (pipMenuOpen) {
+      updatePipMenuState();
+    }
+  }
+  
+  btnPip.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePipMenu();
+  });
+  
+  // Cerrar menú al hacer click fuera
+  document.addEventListener('click', (e) => {
+    if (pipMenuOpen && !btnPipContainer.contains(e.target)) {
+      togglePipMenu(false);
+    }
+  });
+  
+  // Escuchar eventos de apertura/cierre de PiPs para actualizar estado
+  window.addEventListener('pip:open', updatePipMenuState);
+  window.addEventListener('pip:close', updatePipMenuState);
+  
+  btnPipContainer.appendChild(btnPip);
+  btnPipContainer.appendChild(pipMenu);
 
   const btnFs = document.createElement('button');
   btnFs.type = 'button';
@@ -392,6 +466,7 @@ export function setupMobileQuickActionsBar() {
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
   group.appendChild(btnPatches);
+  group.appendChild(btnPipContainer);
   group.appendChild(btnRecord);
   group.appendChild(btnReset);
   group.appendChild(btnFs);
@@ -409,7 +484,7 @@ export function setupMobileQuickActionsBar() {
   
   // Configurar long-press para tooltips en móvil
   setupAllLongPressTooltips([
-    btnMute, tab, btnPan, btnZoom, btnPatches, 
+    btnMute, tab, btnPan, btnZoom, btnPatches, btnPip,
     btnRecord, btnReset, btnFs, btnSettings
   ]);
 
@@ -418,10 +493,17 @@ export function setupMobileQuickActionsBar() {
     setButtonTooltip(btnMute, t(isMuted ? 'quickbar.unmute' : 'quickbar.mute'));
     setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
     setButtonTooltip(btnPatches, t('quickbar.patches'));
+    setButtonTooltip(btnPip, t('quickbar.pip', 'Paneles flotantes'));
     setButtonTooltip(btnRecord, t(isRecording ? 'quickbar.stopRecording' : 'quickbar.record'));
     setButtonTooltip(btnReset, t('quickbar.reset'));
     setButtonTooltip(btnSettings, t('quickbar.settings'));
     applyPressedState(); // Actualiza pan, zoom, fullscreen
+    // Actualizar textos del menú de PiP
+    pipMenu.querySelectorAll('.pip-menu__item').forEach((item, index) => {
+      if (ALL_PANELS[index]) {
+        item.textContent = ALL_PANELS[index].name();
+      }
+    });
   });
 }
 

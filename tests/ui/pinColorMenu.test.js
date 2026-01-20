@@ -48,7 +48,7 @@ describe('Constantes de PinColorMenu', () => {
     });
 
     it('define color por defecto para control (Panel 6)', () => {
-      assert.equal(DEFAULT_COLORS['control'], 'GREEN');
+      assert.equal(DEFAULT_COLORS['control'], 'GREY');
     });
 
     it('define color por defecto para oscilloscope', () => {
@@ -137,7 +137,7 @@ describe('PinColorMenu', () => {
     });
 
     it('devuelve default de control si no hay selección previa', () => {
-      assert.equal(menu.getNextColor('control'), 'GREEN');
+      assert.equal(menu.getNextColor('control'), 'GREY');
     });
 
     it('devuelve default de oscilloscope si no hay selección previa', () => {
@@ -177,8 +177,8 @@ describe('PinColorMenu', () => {
       assert.equal(menu.getDefaultColor('audio'), 'WHITE');
     });
 
-    it('devuelve GREEN para control', () => {
-      assert.equal(menu.getDefaultColor('control'), 'GREEN');
+    it('devuelve GREY para control', () => {
+      assert.equal(menu.getDefaultColor('control'), 'GREY');
     });
 
     it('devuelve RED para oscilloscope', () => {

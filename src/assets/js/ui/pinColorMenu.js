@@ -46,12 +46,12 @@ const PIN_CSS_COLORS = {
 /**
  * Colores por defecto según contexto.
  * - audio: Panel 5 conexiones de audio
- * - control: Panel 6 conexiones de control CV
+ * - control: Panel 6 conexiones de control CV (precisión para afinación)
  * - oscilloscope: Conexiones al osciloscopio (ambos paneles)
  */
 const DEFAULT_COLORS = {
   'audio': 'WHITE',
-  'control': 'GREEN',
+  'control': 'GREY',
   'oscilloscope': 'RED'
 };
 

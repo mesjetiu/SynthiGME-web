@@ -52,3 +52,5 @@
 - Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
 
 - No sé conceden permisos de micro en Chrome android (móvil)
+
+- No abrir menús contextuales cuando se pinza con dos dedos en tactil

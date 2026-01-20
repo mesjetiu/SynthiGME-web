@@ -389,36 +389,37 @@ export function closePip(panelId) {
   panelEl.style.transform = '';
   panelEl.classList.remove('panel--pipped');
   
-  // Eliminar placeholder
+  // El placeholder está en la posición correcta - reemplazarlo por el panel
   const placeholder = document.getElementById(`pip-placeholder-${panelId}`);
-  if (placeholder) {
+  if (placeholder && placeholder.parentElement) {
+    placeholder.parentElement.insertBefore(panelEl, placeholder);
     placeholder.remove();
-  }
-  
-  // Devolver panel a su posición correcta en el grid
-  const { originalParent, pipContainer } = state;
-  
-  // Encontrar la posición correcta basada en el orden fijo de IDs
-  const currentPanels = Array.from(originalParent.children).filter(el => el.classList.contains('panel'));
-  const targetIndex = PANEL_ORDER.indexOf(panelId);
-  
-  // Buscar el primer panel que debería estar DESPUÉS de este
-  let insertBefore = null;
-  for (const existing of currentPanels) {
-    const existingIndex = PANEL_ORDER.indexOf(existing.id);
-    if (existingIndex > targetIndex) {
-      insertBefore = existing;
-      break;
+  } else {
+    // Fallback: calcular posición si no hay placeholder
+    const { originalParent } = state;
+    const currentElements = Array.from(originalParent.children);
+    const targetIndex = PANEL_ORDER.indexOf(panelId);
+    
+    let insertBefore = null;
+    for (const existing of currentElements) {
+      // Considerar tanto paneles como placeholders
+      const existingId = existing.id.replace('pip-placeholder-', '');
+      const existingIndex = PANEL_ORDER.indexOf(existingId);
+      if (existingIndex > targetIndex) {
+        insertBefore = existing;
+        break;
+      }
+    }
+    
+    if (insertBefore) {
+      originalParent.insertBefore(panelEl, insertBefore);
+    } else {
+      originalParent.appendChild(panelEl);
     }
   }
   
-  if (insertBefore) {
-    originalParent.insertBefore(panelEl, insertBefore);
-  } else {
-    originalParent.appendChild(panelEl);
-  }
-  
   // Eliminar contenedor PiP
+  const { pipContainer } = state;
   pipContainer.remove();
   
   activePips.delete(panelId);

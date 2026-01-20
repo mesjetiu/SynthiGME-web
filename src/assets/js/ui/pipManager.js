@@ -55,6 +55,9 @@ const PANEL_POSITIONS = {
   'panel-7': { col: 3, row: 1 } // alias
 };
 
+/** Orden correcto de paneles en el grid (para restaurar posición al cerrar PiP) */
+const PANEL_ORDER = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'panel-6', 'panel-output'];
+
 /** Lista de todos los paneles disponibles */
 export const ALL_PANELS = [
   { id: 'panel-1', name: () => t('panel.oscillators1', 'Osciladores 1-3') },
@@ -367,14 +370,27 @@ export function closePip(panelId) {
   panelEl.style.transform = '';
   panelEl.classList.remove('panel--pipped');
   
-  // Devolver panel a su posición original
-  const { originalParent, originalIndex, pipContainer } = state;
-  const siblings = Array.from(originalParent.children);
+  // Devolver panel a su posición correcta en el grid
+  const { originalParent, pipContainer } = state;
   
-  if (originalIndex >= siblings.length) {
-    originalParent.appendChild(panelEl);
+  // Encontrar la posición correcta basada en el orden fijo de IDs
+  const currentPanels = Array.from(originalParent.children).filter(el => el.classList.contains('panel'));
+  const targetIndex = PANEL_ORDER.indexOf(panelId);
+  
+  // Buscar el primer panel que debería estar DESPUÉS de este
+  let insertBefore = null;
+  for (const existing of currentPanels) {
+    const existingIndex = PANEL_ORDER.indexOf(existing.id);
+    if (existingIndex > targetIndex) {
+      insertBefore = existing;
+      break;
+    }
+  }
+  
+  if (insertBefore) {
+    originalParent.insertBefore(panelEl, insertBefore);
   } else {
-    originalParent.insertBefore(panelEl, siblings[originalIndex]);
+    originalParent.appendChild(panelEl);
   }
   
   // Eliminar contenedor PiP

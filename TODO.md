@@ -67,7 +67,7 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 
 - No se conceden permisos de micro en Chrome android (móvil)
 
-- En móvil no importa patches (en desktop sí, probado)
+- En móvil no importa patches (en desktop sí, probado) - testear antes
 
 - Quitar del menú contextual de los paneles "extraer todos", porque ya están en el menú de la barra.
 

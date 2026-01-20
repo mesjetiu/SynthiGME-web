@@ -260,8 +260,15 @@ export default {
   "matrix.tooltip.unknownSource": "Row {row}",
   "matrix.tooltip.unknownDest": "Col {col}",
   "pinColor.title": "Tipo de pin",
+  "pinColor.recommended": "Recomendado",
+  "pinColor.standard": "Estándar",
+  "pinColor.special": "Especiales",
   "pinColor.white": "Blanco (estándar)",
   "pinColor.grey": "Gris (precisión)",
   "pinColor.green": "Verde (atenuado)",
-  "pinColor.red": "Rojo (osciloscopio)"
+  "pinColor.red": "Rojo (osciloscopio)",
+  "pinColor.blue": "Azul (ganancia)",
+  "pinColor.yellow": "Amarillo (media)",
+  "pinColor.cyan": "Cian (suave)",
+  "pinColor.purple": "Morado (sutil)"
 };

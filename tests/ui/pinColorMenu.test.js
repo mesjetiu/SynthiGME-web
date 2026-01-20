@@ -24,21 +24,32 @@ import {
 
 describe('Constantes de PinColorMenu', () => {
   describe('SELECTABLE_COLORS', () => {
-    it('contiene los 4 colores seleccionables', () => {
-      assert.equal(SELECTABLE_COLORS.length, 4);
+    it('contiene los 8 colores seleccionables', () => {
+      assert.equal(SELECTABLE_COLORS.length, 8);
+      // Estándar (Cuenca/Datanomics 1982)
       assert.ok(SELECTABLE_COLORS.includes('WHITE'), 'Debería incluir WHITE');
       assert.ok(SELECTABLE_COLORS.includes('GREY'), 'Debería incluir GREY');
       assert.ok(SELECTABLE_COLORS.includes('GREEN'), 'Debería incluir GREEN');
       assert.ok(SELECTABLE_COLORS.includes('RED'), 'Debería incluir RED');
+      // Especiales (manual técnico)
+      assert.ok(SELECTABLE_COLORS.includes('BLUE'), 'Debería incluir BLUE');
+      assert.ok(SELECTABLE_COLORS.includes('YELLOW'), 'Debería incluir YELLOW');
+      assert.ok(SELECTABLE_COLORS.includes('CYAN'), 'Debería incluir CYAN');
+      assert.ok(SELECTABLE_COLORS.includes('PURPLE'), 'Debería incluir PURPLE');
     });
 
     it('NO incluye ORANGE (color peligroso)', () => {
       assert.ok(!SELECTABLE_COLORS.includes('ORANGE'), 'ORANGE no debería ser seleccionable');
     });
 
-    it('mantiene orden consistente', () => {
-      // El orden determina el orden visual en el menú
-      assert.deepEqual(SELECTABLE_COLORS, ['WHITE', 'GREY', 'GREEN', 'RED']);
+    it('mantiene orden consistente (estándar + especiales)', () => {
+      // Orden: STANDARD_PINS (de mayor a menor ganancia) + SPECIAL_PINS (de mayor a menor ganancia)
+      assert.deepEqual(SELECTABLE_COLORS, [
+        // Estándar: RED(×37), GREEN(×1.5), WHITE(×1), GREY(×1)
+        'RED', 'GREEN', 'WHITE', 'GREY',
+        // Especiales: BLUE(×10), YELLOW(×4.5), CYAN(×0.4), PURPLE(×0.1)
+        'BLUE', 'YELLOW', 'CYAN', 'PURPLE'
+      ]);
     });
   });
 
@@ -85,13 +96,36 @@ describe('Constantes de PinColorMenu', () => {
       assert.ok(color.length > 0, 'No debería estar vacío');
     });
 
+    it('proporciona colores para BLUE', () => {
+      const color = PIN_CSS_COLORS.BLUE;
+      assert.ok(typeof color === 'string', 'Debería ser string');
+      assert.ok(color.length > 0, 'No debería estar vacío');
+    });
+
+    it('proporciona colores para YELLOW', () => {
+      const color = PIN_CSS_COLORS.YELLOW;
+      assert.ok(typeof color === 'string', 'Debería ser string');
+      assert.ok(color.length > 0, 'No debería estar vacío');
+    });
+
+    it('proporciona colores para CYAN', () => {
+      const color = PIN_CSS_COLORS.CYAN;
+      assert.ok(typeof color === 'string', 'Debería ser string');
+      assert.ok(color.length > 0, 'No debería estar vacío');
+    });
+
+    it('proporciona colores para PURPLE', () => {
+      const color = PIN_CSS_COLORS.PURPLE;
+      assert.ok(typeof color === 'string', 'Debería ser string');
+      assert.ok(color.length > 0, 'No debería estar vacío');
+    });
+
     it('usa fallbacks cuando no hay DOM (tests/SSR)', () => {
-      // En entorno de test sin DOM real, debería devolver fallbacks
-      // Los fallbacks son: #ffffff, #888888, #4CAF50, #f44336
-      assert.ok(PIN_CSS_COLORS.WHITE.startsWith('#'), 'WHITE debería ser hex');
-      assert.ok(PIN_CSS_COLORS.GREY.startsWith('#'), 'GREY debería ser hex');
-      assert.ok(PIN_CSS_COLORS.GREEN.startsWith('#'), 'GREEN debería ser hex');
-      assert.ok(PIN_CSS_COLORS.RED.startsWith('#'), 'RED debería ser hex');
+      // En entorno de test sin DOM real, debería devolver fallbacks hex
+      const colors = ['WHITE', 'GREY', 'GREEN', 'RED', 'BLUE', 'YELLOW', 'CYAN', 'PURPLE'];
+      for (const colorKey of colors) {
+        assert.ok(PIN_CSS_COLORS[colorKey].startsWith('#'), `${colorKey} debería ser hex`);
+      }
     });
   });
 });
@@ -280,6 +314,7 @@ describe('Integración con PIN_RESISTANCES', () => {
     }
   });
 
+  // Pines estándar (Cuenca/Datanomics 1982)
   it('WHITE tiene 100kΩ', async () => {
     const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
     assert.equal(PIN_RESISTANCES.WHITE.value, 100000);
@@ -298,5 +333,48 @@ describe('Integración con PIN_RESISTANCES', () => {
   it('RED tiene 2.7kΩ', async () => {
     const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
     assert.equal(PIN_RESISTANCES.RED.value, 2700);
+  });
+
+  // Pines especiales (manual técnico)
+  it('BLUE tiene 10kΩ', async () => {
+    const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
+    assert.equal(PIN_RESISTANCES.BLUE.value, 10000);
+  });
+
+  it('YELLOW tiene 22kΩ', async () => {
+    const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
+    assert.equal(PIN_RESISTANCES.YELLOW.value, 22000);
+  });
+
+  it('CYAN tiene 250kΩ', async () => {
+    const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
+    assert.equal(PIN_RESISTANCES.CYAN.value, 250000);
+  });
+
+  it('PURPLE tiene 1MΩ', async () => {
+    const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
+    assert.equal(PIN_RESISTANCES.PURPLE.value, 1000000);
+  });
+
+  // Categorías
+  it('pines estándar tienen category: standard', async () => {
+    const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
+    const standardPins = ['WHITE', 'GREY', 'GREEN', 'RED'];
+    for (const pin of standardPins) {
+      assert.equal(PIN_RESISTANCES[pin].category, 'standard', `${pin} debería ser standard`);
+    }
+  });
+
+  it('pines especiales tienen category: special', async () => {
+    const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
+    const specialPins = ['BLUE', 'YELLOW', 'CYAN', 'PURPLE'];
+    for (const pin of specialPins) {
+      assert.equal(PIN_RESISTANCES[pin].category, 'special', `${pin} debería ser special`);
+    }
+  });
+
+  it('ORANGE tiene category: forbidden', async () => {
+    const { PIN_RESISTANCES } = await import('../../src/assets/js/utils/voltageConstants.js');
+    assert.equal(PIN_RESISTANCES.ORANGE.category, 'forbidden');
   });
 });

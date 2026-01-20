@@ -2,22 +2,58 @@
  * Menú contextual para seleccionar el color de un pin en la matriz.
  * Se muestra con click derecho (desktop) o pulsación larga (touch).
  * 
+ * El menú está organizado en secciones:
+ * - RECOMENDADO: El pin por defecto para el contexto actual
+ * - ESTÁNDAR: Pines oficiales del Synthi 100 Cuenca 1982
+ * - ESPECIALES: Pines de mezcla personalizada (manual técnico)
+ * 
  * Contextos de color:
  * - 'audio': Panel 5, conexiones de audio (default: WHITE)
- * - 'control': Panel 6, conexiones de control CV (default: GREEN)
+ * - 'control': Panel 6, conexiones de control CV (default: GREY)
  * - 'oscilloscope': Conexiones al osciloscopio en ambos paneles (default: RED)
  * 
  * @module ui/pinColorMenu
  */
 
 import { t } from '../i18n/index.js';
-import { PIN_RESISTANCES } from '../utils/voltageConstants.js';
+import { PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE } from '../utils/voltageConstants.js';
+
+// =============================================================================
+// CONFIGURACIÓN DE PINES
+// =============================================================================
 
 /**
- * Colores disponibles para selección (ORANGE excluido por ser peligroso).
- * El orden determina cómo aparecen en el menú.
+ * Pines estándar del Synthi 100 Cuenca/Datanomics 1982.
+ * Orden: de mayor a menor ganancia.
  */
-const SELECTABLE_COLORS = ['WHITE', 'GREY', 'GREEN', 'RED'];
+const STANDARD_PINS = ['RED', 'GREEN', 'WHITE', 'GREY'];
+
+/**
+ * Pines especiales para mezclas personalizadas (manual técnico).
+ * Orden: de mayor a menor ganancia.
+ */
+const SPECIAL_PINS = ['BLUE', 'YELLOW', 'CYAN', 'PURPLE'];
+
+/**
+ * Todos los colores seleccionables (excluye ORANGE por ser peligroso).
+ */
+const SELECTABLE_COLORS = [...STANDARD_PINS, ...SPECIAL_PINS];
+
+/**
+ * Colores por defecto según contexto.
+ * - audio: Panel 5 conexiones de audio
+ * - control: Panel 6 conexiones de control CV (precisión para afinación)
+ * - oscilloscope: Conexiones al osciloscopio (ambos paneles)
+ */
+const DEFAULT_COLORS = {
+  'audio': 'WHITE',
+  'control': 'GREY',
+  'oscilloscope': 'RED'
+};
+
+// =============================================================================
+// UTILIDADES CSS
+// =============================================================================
 
 /**
  * Lee un color CSS desde las variables :root.
@@ -37,36 +73,74 @@ function getCSSColor(varName, fallback) {
  * Usa fallbacks hardcoded para SSR/tests.
  */
 const PIN_CSS_COLORS = {
+  // Estándar
   get WHITE() { return getCSSColor('--pin-color-white', '#ffffff'); },
   get GREY() { return getCSSColor('--pin-color-grey', '#888888'); },
   get GREEN() { return getCSSColor('--pin-color-green', '#4CAF50'); },
-  get RED() { return getCSSColor('--pin-color-red', '#f44336'); }
+  get RED() { return getCSSColor('--pin-color-red', '#f44336'); },
+  // Especiales
+  get BLUE() { return getCSSColor('--pin-color-blue', '#2196F3'); },
+  get YELLOW() { return getCSSColor('--pin-color-yellow', '#FFEB3B'); },
+  get CYAN() { return getCSSColor('--pin-color-cyan', '#00BCD4'); },
+  get PURPLE() { return getCSSColor('--pin-color-purple', '#9C27B0'); }
 };
 
-/**
- * Colores por defecto según contexto.
- * - audio: Panel 5 conexiones de audio
- * - control: Panel 6 conexiones de control CV (precisión para afinación)
- * - oscilloscope: Conexiones al osciloscopio (ambos paneles)
- */
-const DEFAULT_COLORS = {
-  'audio': 'WHITE',
-  'control': 'GREY',
-  'oscilloscope': 'RED'
-};
+// =============================================================================
+// UTILIDADES DE FORMATO
+// =============================================================================
 
 /**
  * Formatea la resistencia para mostrar al usuario.
  * @param {number} ohms - Resistencia en ohmios
- * @returns {string} Resistencia formateada (ej: "100kΩ", "2.7kΩ")
+ * @returns {string} Resistencia formateada (ej: "100kΩ", "2.7kΩ", "1MΩ")
  */
 function formatResistance(ohms) {
+  if (ohms >= 1000000) {
+    const m = ohms / 1000000;
+    return Number.isInteger(m) ? `${m}MΩ` : `${m.toFixed(1)}MΩ`;
+  }
   if (ohms >= 1000) {
     const k = ohms / 1000;
     return Number.isInteger(k) ? `${k}kΩ` : `${k.toFixed(1)}kΩ`;
   }
   return `${ohms}Ω`;
 }
+
+/**
+ * Calcula y formatea la ganancia de un pin.
+ * Ganancia = Rf / Rpin (fórmula de tierra virtual)
+ * @param {number} pinResistance - Resistencia del pin en ohmios
+ * @param {number} [rf=100000] - Resistencia de realimentación
+ * @returns {string} Ganancia formateada (ej: "×1", "×37", "×0.1")
+ */
+function formatGain(pinResistance, rf = STANDARD_FEEDBACK_RESISTANCE) {
+  if (pinResistance === 0) return '×∞';
+  const gain = rf / pinResistance;
+  if (gain >= 10) {
+    return `×${Math.round(gain)}`;
+  } else if (gain >= 1) {
+    return gain === Math.round(gain) ? `×${gain}` : `×${gain.toFixed(1)}`;
+  } else {
+    return `×${gain.toFixed(1)}`;
+  }
+}
+
+/**
+ * Genera el sublabel completo para un pin (resistencia + ganancia).
+ * @param {string} colorKey - Clave del color (WHITE, GREY, etc.)
+ * @returns {string} Sublabel formateado (ej: "100kΩ · ×1")
+ */
+function getPinSublabel(colorKey) {
+  const pinInfo = PIN_RESISTANCES[colorKey];
+  if (!pinInfo) return '';
+  const resistance = formatResistance(pinInfo.value);
+  const gain = formatGain(pinInfo.value);
+  return `${resistance} · ${gain}`;
+}
+
+// =============================================================================
+// CLASE PinColorMenu
+// =============================================================================
 
 /**
  * Clase que gestiona el menú contextual de colores de pines.
@@ -104,7 +178,7 @@ export class PinColorMenu {
   }
 
   /**
-   * Crea el elemento DOM del menú.
+   * Crea el elemento DOM del menú con secciones.
    * @private
    */
   _createMenuElement() {
@@ -119,21 +193,54 @@ export class PinColorMenu {
     title.textContent = t('pinColor.title');
     menu.appendChild(title);
     
-    // Opciones de color
+    // Contenedor de secciones
+    const sections = document.createElement('div');
+    sections.className = 'pin-color-menu__sections';
+    
+    // Sección: Recomendado (se actualiza dinámicamente al mostrar)
+    const recommendedSection = this._createSection('pinColor.recommended', [], 'recommended');
+    sections.appendChild(recommendedSection);
+    
+    // Sección: Estándar
+    const standardSection = this._createSection('pinColor.standard', STANDARD_PINS, 'standard');
+    sections.appendChild(standardSection);
+    
+    // Sección: Especiales
+    const specialSection = this._createSection('pinColor.special', SPECIAL_PINS, 'special');
+    sections.appendChild(specialSection);
+    
+    menu.appendChild(sections);
+    return menu;
+  }
+
+  /**
+   * Crea una sección del menú con su cabecera y opciones.
+   * @private
+   */
+  _createSection(titleKey, colorKeys, sectionId) {
+    const section = document.createElement('div');
+    section.className = 'pin-color-menu__section';
+    section.dataset.section = sectionId;
+    
+    // Cabecera de sección
+    const header = document.createElement('div');
+    header.className = 'pin-color-menu__section-header';
+    header.textContent = t(titleKey);
+    section.appendChild(header);
+    
+    // Opciones
     const optionsList = document.createElement('div');
     optionsList.className = 'pin-color-menu__options';
     
-    // Opciones de colores (sin DEFAULT - ahora mostramos tick en el próximo)
-    for (const color of SELECTABLE_COLORS) {
-      const pinInfo = PIN_RESISTANCES[color];
+    for (const color of colorKeys) {
       const label = t(`pinColor.${color.toLowerCase()}`);
-      const sublabel = formatResistance(pinInfo.value);
+      const sublabel = getPinSublabel(color);
       const option = this._createOption(color, label, sublabel);
       optionsList.appendChild(option);
     }
     
-    menu.appendChild(optionsList);
-    return menu;
+    section.appendChild(optionsList);
+    return section;
   }
 
   /**
@@ -159,19 +266,25 @@ export class PinColorMenu {
     indicator.style.backgroundColor = PIN_CSS_COLORS[colorKey] || '#888';
     option.appendChild(indicator);
     
-    // Texto
-    const text = document.createElement('span');
-    text.className = 'pin-color-menu__label';
-    text.textContent = label;
-    option.appendChild(text);
+    // Contenedor de texto
+    const textContainer = document.createElement('span');
+    textContainer.className = 'pin-color-menu__text';
     
-    // Sublabel (resistencia)
+    // Label principal
+    const labelEl = document.createElement('span');
+    labelEl.className = 'pin-color-menu__label';
+    labelEl.textContent = label;
+    textContainer.appendChild(labelEl);
+    
+    // Sublabel (resistencia + ganancia)
     if (sublabel) {
       const sub = document.createElement('span');
       sub.className = 'pin-color-menu__sublabel';
       sub.textContent = sublabel;
-      option.appendChild(sub);
+      textContainer.appendChild(sub);
     }
+    
+    option.appendChild(textContainer);
     
     option.addEventListener('click', (e) => {
       e.preventDefault();
@@ -180,6 +293,30 @@ export class PinColorMenu {
     });
     
     return option;
+  }
+
+  /**
+   * Actualiza la sección "Recomendado" según el contexto actual.
+   * @private
+   */
+  _updateRecommendedSection(context) {
+    const menu = this.element;
+    const recommendedSection = menu.querySelector('[data-section="recommended"]');
+    if (!recommendedSection) return;
+    
+    const optionsList = recommendedSection.querySelector('.pin-color-menu__options');
+    if (!optionsList) return;
+    
+    // Limpiar opciones anteriores
+    optionsList.innerHTML = '';
+    
+    // Añadir el pin recomendado para este contexto
+    const recommendedColor = DEFAULT_COLORS[context] || 'WHITE';
+    const label = t(`pinColor.${recommendedColor.toLowerCase()}`);
+    const sublabel = getPinSublabel(recommendedColor);
+    const option = this._createOption(recommendedColor, label, sublabel);
+    option.classList.add('is-recommended');
+    optionsList.appendChild(option);
   }
 
   /**
@@ -200,6 +337,9 @@ export class PinColorMenu {
     this._currentCallback = onSelect;
     this._currentContext = context;
     this._currentIsActive = isActive;
+    
+    // Actualizar sección "Recomendado" según contexto
+    this._updateRecommendedSection(context);
     
     // Determinar qué color marcar con tick:
     // - Si el pin está activo: su color actual
@@ -339,7 +479,10 @@ export class PinColorMenu {
   }
 }
 
-// Singleton
+// =============================================================================
+// SINGLETON Y EXPORTS
+// =============================================================================
+
 let menuInstance = null;
 
 /**
@@ -356,4 +499,13 @@ export function getPinColorMenu() {
 /**
  * Colores CSS y constantes exportadas para uso en otros módulos.
  */
-export { PIN_CSS_COLORS, SELECTABLE_COLORS, DEFAULT_COLORS };
+export { 
+  PIN_CSS_COLORS, 
+  SELECTABLE_COLORS, 
+  STANDARD_PINS,
+  SPECIAL_PINS,
+  DEFAULT_COLORS,
+  formatResistance,
+  formatGain,
+  getPinSublabel
+};

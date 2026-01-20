@@ -6,10 +6,17 @@
   --panel-gap: 1.25rem;
   
   /* Colores de pines de matriz (basados en resistencias del Synthi 100) */
-  --pin-color-white: #ffffff;    /* 100kΩ standard */
-  --pin-color-grey: #888888;     /* 100kΩ precision */
-  --pin-color-green: #4CAF50;    /* 68kΩ attenuated */
-  --pin-color-red: #f44336;      /* 2.7kΩ oscilloscope */
+  /* Estándar - Pines oficiales Cuenca/Datanomics 1982 */
+  --pin-color-white: #ffffff;    /* 100kΩ standard   ×1   */
+  --pin-color-grey: #888888;     /* 100kΩ precision  ×1   */
+  --pin-color-green: #4CAF50;    /* 68kΩ attenuated  ×1.5 */
+  --pin-color-red: #f44336;      /* 2.7kΩ oscilloscope ×37 */
+  /* Especiales - Pines de mezcla personalizada (manual técnico) */
+  --pin-color-blue: #2196F3;     /* 10kΩ  ×10  */
+  --pin-color-yellow: #FFEB3B;   /* 22kΩ  ×4.5 */
+  --pin-color-cyan: #00BCD4;     /* 250kΩ ×0.4 */
+  --pin-color-purple: #9C27B0;   /* 1MΩ   ×0.1 */
+  /* Legado */
   --pin-color-active: #ffb63b;   /* Fallback amarillo (legacy) */
 }
 
@@ -1123,6 +1130,24 @@ table.matrix {
   background: var(--pin-color-red);
 }
 
+/* Pines especiales (manual técnico) */
+.matrix.matrix-large .pin-btn.active.pin-blue {
+  background: var(--pin-color-blue);
+}
+
+.matrix.matrix-large .pin-btn.active.pin-yellow {
+  background: var(--pin-color-yellow);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.matrix.matrix-large .pin-btn.active.pin-cyan {
+  background: var(--pin-color-cyan);
+}
+
+.matrix.matrix-large .pin-btn.active.pin-purple {
+  background: var(--pin-color-purple);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * PIN COLOR MENU
  * ─────────────────────────────────────────────────────────────────────────────
@@ -1217,6 +1242,53 @@ table.matrix {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
   font-family: monospace;
+}
+
+/* Text container for label + sublabel stacked vertically */
+.pin-color-menu__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+/* Section headers */
+.pin-color-menu__sections {
+  display: flex;
+  flex-direction: column;
+}
+
+.pin-color-menu__section {
+  padding: 0;
+}
+
+.pin-color-menu__section:not(:last-child) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+
+.pin-color-menu__section-header {
+  padding: 6px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pin-color-menu__options {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Recommended section highlight */
+.pin-color-menu__section[data-section="recommended"] {
+  background: rgba(255, 182, 59, 0.05);
+}
+
+.pin-color-menu__section[data-section="recommended"] .pin-color-menu__section-header {
+  color: rgba(255, 182, 59, 0.7);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1440,6 +1512,23 @@ small { color:#aaa; }
 
 #viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-red {
   background: var(--pin-color-red);
+}
+
+/* Pines especiales (low-zoom) */
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-blue {
+  background: var(--pin-color-blue);
+}
+
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-yellow {
+  background: var(--pin-color-yellow);
+}
+
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-cyan {
+  background: var(--pin-color-cyan);
+}
+
+#viewportInner.is-low-zoom .matrix.matrix-large .pin-btn.active.pin-purple {
+  background: var(--pin-color-purple);
 }
 
 /* Móvil: optimización SIN ocultar mandos.

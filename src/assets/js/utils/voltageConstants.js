@@ -62,58 +62,136 @@ export const KEYBOARD_MAX_VOLTAGE = 5.0;
  * Configuración de los diferentes tipos de pines de la matriz.
  * Cada pin contiene una resistencia que determina cuánta corriente
  * aporta a los nodos de suma de tierra virtual.
+ * 
+ * Basado en manuales Datanomics 1982 y Paul Pignon (Belgrado).
+ * 
+ * Categorías:
+ * - ESTÁNDAR (Cuenca 1982): WHITE, GREY, GREEN, RED
+ * - ESPECIALES (mezcla personalizada): BLUE, YELLOW, CYAN, PURPLE
+ * - PROHIBIDO: ORANGE (cortocircuito - daña el equipo)
  *
  * @constant {Object}
  */
 export const PIN_RESISTANCES = {
+  // ─────────────────────────────────────────────────────────────────────────
+  // PINES ESTÁNDAR (Cuenca/Datanomics 1982)
+  // ─────────────────────────────────────────────────────────────────────────
+
   /**
    * Pin blanco (estándar): 100kΩ con tolerancia ±10%.
-   * Uso: Parches de audio generales.
+   * Uso: Parches de audio generales en matriz de señal.
+   * Ganancia: 1× (unitaria con Rf=100k)
    */
   WHITE: {
     value: 100000,      // 100k Ω
     tolerance: 0.10,    // ±10%
-    description: 'Standard audio patching'
+    description: 'Standard audio patching',
+    category: 'standard'
   },
 
   /**
    * Pin gris (precisión): 100kΩ con tolerancia ±0.5%.
    * Uso: Control de voltaje donde se requiere precisión (acordes, intervalos).
+   * Ganancia: 1× (unitaria con Rf=100k)
    */
   GREY: {
     value: 100000,      // 100k Ω
     tolerance: 0.005,   // ±0.5%
-    description: 'Precision CV patching (tuned intervals)'
+    description: 'Precision CV patching (tuned intervals)',
+    category: 'standard'
   },
 
   /**
-   * Pin rojo (baja impedancia): 2.7kΩ.
-   * Uso: Conexiones al osciloscopio para señal más nítida.
-   */
-  RED: {
-    value: 2700,        // 2.7k Ω (2k7)
-    tolerance: 0.05,    // ±5%
-    description: 'Oscilloscope connections (strong signal)'
-  },
-
-  /**
-   * Pin verde (alta impedancia): 68kΩ o más.
-   * Uso: Mezclas donde se requiere señal más débil.
+   * Pin verde (alta impedancia): 68kΩ.
+   * Uso: Mezclas donde se requiere señal atenuada.
+   * Ganancia: ~1.47× (100k/68k)
    */
   GREEN: {
     value: 68000,       // 68k Ω
     tolerance: 0.10,    // ±10%
-    description: 'Attenuated mixing'
+    description: 'Attenuated mixing',
+    category: 'standard'
   },
 
   /**
+   * Pin rojo (baja impedancia): 2.7kΩ.
+   * Uso: Conexiones al osciloscopio para señal fuerte y nítida.
+   * Ganancia: ~37× (100k/2.7k)
+   */
+  RED: {
+    value: 2700,        // 2.7k Ω (2k7)
+    tolerance: 0.10,    // ±10%
+    description: 'Oscilloscope connections (strong signal)',
+    category: 'standard'
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PINES ESPECIALES (Mezcla personalizada - Manual técnico)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Pin azul (legacy Belgrado): 10kΩ.
+   * Uso: Alta ganancia, referencia histórica del manual de Paul Pignon.
+   * Ganancia: 10× (100k/10k)
+   */
+  BLUE: {
+    value: 10000,       // 10k Ω
+    tolerance: 0.10,    // ±10%
+    description: 'High gain (Belgrado legacy)',
+    category: 'special'
+  },
+
+  /**
+   * Pin amarillo (jumper): 22kΩ.
+   * Uso: Conexiones entre matrices, boost de señal.
+   * Ganancia: ~4.5× (100k/22k)
+   */
+  YELLOW: {
+    value: 22000,       // 22k Ω
+    tolerance: 0.10,    // ±10%
+    description: 'Jumper connections / signal boost',
+    category: 'special'
+  },
+
+  /**
+   * Pin cian (muy atenuado): 250kΩ.
+   * Uso: Señales muy atenuadas para mezclas sutiles.
+   * Ganancia: 0.4× (100k/250k)
+   */
+  CYAN: {
+    value: 250000,      // 250k Ω
+    tolerance: 0.10,    // ±10%
+    description: 'Very attenuated mixing',
+    category: 'special'
+  },
+
+  /**
+   * Pin púrpura (influencia mínima): 1MΩ.
+   * Uso: Cuando solo se requiere influencia mínima de la fuente.
+   * Ganancia: 0.1× (100k/1M)
+   */
+  PURPLE: {
+    value: 1000000,     // 1M Ω (1 Megaohmio)
+    tolerance: 0.10,    // ±10%
+    description: 'Minimal influence mixing',
+    category: 'special'
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PIN PROHIBIDO
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
    * Pin naranja (cortocircuito): 0Ω.
-   * ⚠️ NO USAR en la versión moderna - puede dañar nodos de tierra virtual.
+   * ⚠️ NO USAR en la versión Cuenca/Datanomics 1982.
+   * Conectar 0Ω al nodo de suma de tierra virtual causa distorsión severa
+   * y posibles daños físicos permanentes a los circuitos de entrada.
    */
   ORANGE: {
     value: 0,           // 0 Ω (cortocircuito)
     tolerance: 0,
     description: 'Short circuit - DO NOT USE in Cuenca version',
+    category: 'forbidden',
     dangerous: true
   }
 };

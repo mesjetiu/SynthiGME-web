@@ -1125,6 +1125,20 @@ pinColor.title:
   en: Pin Type
   es: Tipo de pin
 
+# Section headers
+pinColor.recommended:
+  en: Recommended
+  es: Recomendado
+
+pinColor.standard:
+  en: Standard
+  es: Estándar
+
+pinColor.special:
+  en: Special
+  es: Especiales
+
+# Standard pins (Cuenca/Datanomics 1982)
 pinColor.white:
   en: White (standard)
   es: Blanco (estándar)
@@ -1140,3 +1154,20 @@ pinColor.green:
 pinColor.red:
   en: Red (scope)
   es: Rojo (osciloscopio)
+
+# Special pins (custom mixing - technical manual)
+pinColor.blue:
+  en: Blue (boost)
+  es: Azul (ganancia)
+
+pinColor.yellow:
+  en: Yellow (mid-gain)
+  es: Amarillo (media)
+
+pinColor.cyan:
+  en: Cyan (soft)
+  es: Cian (suave)
+
+pinColor.purple:
+  en: Purple (subtle)
+  es: Morado (sutil)

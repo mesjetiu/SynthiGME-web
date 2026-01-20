@@ -24,6 +24,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Ajustes** | Idioma, escalado (1×-4×), autoguardado, wake lock, dormancy, modo de latencia, **emulación de voltajes**. Pestaña Visualización para pines y escala. |
 | **Dormancy** | Sistema de optimización que silencia automáticamente módulos sin conexiones activas. Reduce carga de CPU en móviles. |
 | **Emulación de voltajes** | Emula el modelo eléctrico del Synthi 100 Cuenca/Datanomics (1982): soft clipping con tanh(), tolerancia de pines, deriva térmica. |
+| **Paneles flotantes (PiP)** | Extrae paneles a ventanas independientes flotantes. Útil para trabajar con múltiples paneles simultáneamente sin navegar. Menú en quickbar y click derecho. Estado persistente. |
 | **Joystick** | Control X-Y integrado en panel 2. |
 
 ### Atajos de teclado
@@ -40,7 +41,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | `1`-`6` | Navegar a panel 1-6 |
 | `7` | Navegar a panel de salida |
 | `0` | Vista general (todos los paneles) |
-| `Esc` | Cerrar modal activo |
+| `Esc` | Cerrar modal activo / Devolver panel flotante |
 
 ### Ajustes de usuario
 

@@ -8,6 +8,14 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Paneles flotantes (Picture-in-Picture)**: Sistema completo para extraer paneles del layout principal y trabajar con ellos en ventanas independientes:
+  - **Extracción de paneles**: Click derecho en panel → "Extraer panel" o desde el menú PiP de la quickbar.
+  - **Ventanas flotantes**: Cada panel extraído se muestra en una ventana flotante redimensionable y arrastrable con controles propios de zoom, scroll y cierre.
+  - **Menú en quickbar**: Selector de paneles con opciones individuales (Panel 1-7) y acciones globales "Extraer todos" / "Devolver todos".
+  - **Menú contextual**: Click derecho en cualquier panel para extraerlo directamente.
+  - **Placeholder visual**: Los paneles extraídos dejan un placeholder en el grid principal para mantener el layout.
+  - **Persistencia**: El estado de los paneles flotantes (posición, tamaño, scroll interno) se guarda en localStorage.
+  - **Nombres simples**: Los paneles se muestran como "Panel 1" a "Panel 7" en los menús.
 - **Selección de color de pines en la matriz**: Sistema completo para elegir el tipo de pin al hacer conexiones:
   - **Menú contextual**: Click derecho (desktop) o pulsación larga (móvil) en cualquier pin abre un menú con los 4 tipos de pin disponibles.
   - **Colores por contexto**: Audio (WHITE por defecto), Control CV (GREEN), Osciloscopio (RED). El sistema recuerda el último color usado por contexto.

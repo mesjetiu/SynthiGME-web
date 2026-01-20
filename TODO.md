@@ -9,6 +9,8 @@
 
 ## Osciloscopio:
 
+- bajar nivel para adaptarse al la resistencia del pin rojo.
+
 - Mejorar algunos aspectos probando.
 
 ## UI:
@@ -18,6 +20,12 @@
 ## Sistema Dormancy:
 
 - Detallar condiciones particulares más concretas para cada módulo para entrar y salir del estado "dormant". Hasta ahora solo se mira la matriz de conexiones.
+
+## Pines y resistencias:
+
+- Precisar y corregir las descripciones de cada pin. 
+
+- Investigar en manuales otros posibles pines.
 
 ## Otros:
 

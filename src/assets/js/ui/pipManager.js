@@ -60,13 +60,13 @@ const PANEL_ORDER = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'pan
 
 /** Lista de todos los paneles disponibles */
 export const ALL_PANELS = [
-  { id: 'panel-1', name: () => t('panel.oscillators1', 'Osciladores 1-3') },
-  { id: 'panel-2', name: () => t('panel.oscilloscope', 'Osciloscopio') },
-  { id: 'panel-3', name: () => t('panel.oscillators2', 'Osciladores 4-6') },
-  { id: 'panel-4', name: () => t('panel.oscillators3', 'Osciladores 7-9') },
-  { id: 'panel-5', name: () => t('panel.audioMatrix', 'Matriz Audio') },
-  { id: 'panel-6', name: () => t('panel.controlMatrix', 'Matriz Control') },
-  { id: 'panel-output', name: () => t('panel.output', 'Salida') }
+  { id: 'panel-1', name: () => 'Panel 1' },
+  { id: 'panel-2', name: () => 'Panel 2' },
+  { id: 'panel-3', name: () => 'Panel 3' },
+  { id: 'panel-4', name: () => 'Panel 4' },
+  { id: 'panel-5', name: () => 'Panel 5' },
+  { id: 'panel-6', name: () => 'Panel 6' },
+  { id: 'panel-output', name: () => 'Panel 7' }
 ];
 
 /** Menú contextual activo */
@@ -657,14 +657,14 @@ function updatePipScale(panelId, newScale, persist = true) {
  */
 function getPanelTitle(panelId) {
   const titles = {
-    'panel-1': t('panel.oscillators1', 'Osciladores 1-3'),
-    'panel-2': t('panel.oscilloscope', 'Osciloscopio'),
-    'panel-3': t('panel.oscillators2', 'Osciladores 4-6'),
-    'panel-4': t('panel.oscillators3', 'Osciladores 7-9'),
-    'panel-5': t('panel.audioMatrix', 'Matriz Audio'),
-    'panel-6': t('panel.controlMatrix', 'Matriz Control'),
-    'panel-7': t('panel.output', 'Salida'),
-    'panel-output': t('panel.output', 'Salida')
+    'panel-1': 'Panel 1',
+    'panel-2': 'Panel 2',
+    'panel-3': 'Panel 3',
+    'panel-4': 'Panel 4',
+    'panel-5': 'Panel 5',
+    'panel-6': 'Panel 6',
+    'panel-7': 'Panel 7',
+    'panel-output': 'Panel 7'
   };
   return titles[panelId] || panelId;
 }

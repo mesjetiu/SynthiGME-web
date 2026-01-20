@@ -54,15 +54,12 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 
 - Implementar una forma de ver los valores reales o valores de Synthi.
 
-- Decidir voltages de cada módulo. Las salidas serán siempre voltages. Ver resistencias de los pines.
-
 - Hay 2 entradas de micro tras input amplifiers 
 
 - Actualizar árbol de carpetas en architecture.md
 
 ## Traducciones:
 
-- Revisar que las traducciones de todo estén hechas, y que se puedan cambiar en caliente (vistas algunas mal en ajustes).
 
 ## Problemas:
 
@@ -73,3 +70,7 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 - No se conceden permisos de micro en Chrome android (móvil)
 
 - En móvil no importa patches (en desktop sí, probado)
+
+- Quitar del menú contextual de los paneles "extraer todos", porque ya están en el menú de la barra.
+
+- los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.

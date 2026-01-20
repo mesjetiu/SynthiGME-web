@@ -4450,7 +4450,7 @@ small { color:#aaa; }
 
 .pip-menu {
   position: absolute;
-  bottom: calc(100% + 8px);
+  top: calc(100% + 8px);
   right: 0;
   min-width: 160px;
   background: #1a1a1a;
@@ -4464,13 +4464,13 @@ small { color:#aaa; }
 
 .pip-menu.is-open {
   display: block;
-  animation: pip-menu-slide-up 150ms ease-out;
+  animation: pip-menu-slide-down 150ms ease-out;
 }
 
-@keyframes pip-menu-slide-up {
+@keyframes pip-menu-slide-down {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;

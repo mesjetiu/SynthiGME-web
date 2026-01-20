@@ -166,10 +166,29 @@ function showPanelContextMenu(panelId, x, y) {
     }
   });
   
-  // Cerrar al hacer click fuera
+  // Cerrar al hacer click fuera (sin consumir eventos para permitir abrir otro menú)
+  const closeHandler = (e) => {
+    if (activeContextMenu && activeContextMenu.contains(e.target)) return;
+    hideContextMenu();
+    document.removeEventListener('click', closeHandler);
+    document.removeEventListener('contextmenu', closeOnContextMenu);
+  };
+  
+  const closeOnContextMenu = (e) => {
+    // Si el click derecho es en un panel, dejar que se abra el nuevo menú
+    if (e.target.closest?.('.panel')) {
+      document.removeEventListener('click', closeHandler);
+      document.removeEventListener('contextmenu', closeOnContextMenu);
+      return;
+    }
+    hideContextMenu();
+    document.removeEventListener('click', closeHandler);
+    document.removeEventListener('contextmenu', closeOnContextMenu);
+  };
+  
   setTimeout(() => {
-    document.addEventListener('click', hideContextMenu, { once: true });
-    document.addEventListener('contextmenu', hideContextMenu, { once: true });
+    document.addEventListener('click', closeHandler);
+    document.addEventListener('contextmenu', closeOnContextMenu);
   }, 10);
 }
 

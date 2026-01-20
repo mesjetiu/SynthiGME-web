@@ -192,9 +192,24 @@ Centraliza valores que se reutilizan en múltiples archivos:
 | `OUTPUT_CHANNELS` | 8 | Canales de salida del sintetizador |
 | `INPUT_CHANNELS` | 8 | Canales de entrada (input amplifiers) |
 | `MAX_RECORDING_TRACKS` | 12 | Pistas máximas de grabación WAV |
-| `STORAGE_KEYS` | objeto | Claves de localStorage (idioma, audio, grabación, sesión, ajustes, wake lock, **PIP_STATE**, **PIP_REMEMBER**) |
+| `STORAGE_KEYS` | objeto | Claves de localStorage agrupadas por categoría (ver tabla abajo) |
 | `AUTOSAVE_INTERVALS` | objeto | Intervalos de autoguardado: `15s`, `30s`, `1m`, `5m`, `off` |
 | `DEFAULT_AUTOSAVE_INTERVAL` | `'30s'` | Intervalo de autoguardado por defecto |
+| `isMobileDevice()` | función | Detecta dispositivo móvil via user agent y touch |
+
+**Claves de `STORAGE_KEYS` por categoría:**
+
+| Categoría | Claves |
+|-----------|--------|
+| Idioma | `LANGUAGE` |
+| Audio | `AUDIO_ROUTING`, `INPUT_ROUTING`, `STEREO_BUS_ROUTING`, `OUTPUT_DEVICE`, `INPUT_DEVICE`, `MIC_PERMISSION_DENIED` |
+| Grabación | `RECORDING_TRACKS`, `RECORDING_ROUTING` |
+| Sesión | `LAST_STATE`, `SAVE_ON_EXIT`, `RESTORE_ON_START`, `ASK_BEFORE_RESTORE` |
+| Ajustes | `RESOLUTION`, `REMEMBER_RESOLUTION`, `AUTOSAVE_INTERVAL`, `KEYBOARD_SHORTCUTS` |
+| Pantalla | `WAKE_LOCK_ENABLED`, `SHOW_INACTIVE_PINS` |
+| PiP | `PIP_STATE`, `PIP_REMEMBER` |
+| Optimizaciones | `OPTIMIZATIONS_DEBUG`, `DORMANCY_ENABLED`, `DORMANCY_DEBUG`, `FILTER_BYPASS_ENABLED`, `FILTER_BYPASS_DEBUG`, `LATENCY_MODE` |
+| Emulación voltajes | `VOLTAGE_SOFT_CLIP_ENABLED`, `VOLTAGE_PIN_TOLERANCE_ENABLED`, `VOLTAGE_THERMAL_DRIFT_ENABLED` |
 
 **Uso:**
 ```javascript
@@ -385,6 +400,20 @@ _updateTexts() {
 
 Parámetros de audio y calibración organizados por tipo de módulo:
 
+```
+src/assets/js/configs/
+├── index.js              # Índice centralizado (importación agrupada)
+└── modules/
+    ├── oscillator.config.js
+    ├── noise.config.js
+    ├── randomVoltage.config.js
+    ├── inputAmplifier.config.js
+    ├── outputChannel.config.js
+    ├── oscilloscope.config.js
+    ├── audioMatrix.config.js
+    └── controlMatrix.config.js
+```
+
 | Archivo | Módulo | Contenido |
 |---------|--------|-----------|
 | `oscillator.config.js` | Osciladores | Rangos de frecuencia, niveles de salida, deriva térmica, parámetros de voltaje |
@@ -430,8 +459,9 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
 | `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
+| `panel7.blueprint.js` | Blueprint | Layout del Panel 7: 8 Output Channels (Filter, Pan, Switch, Level Fader por canal) |
 
-> **Nota**: Los archivos de configuración (`.config.js`) se han movido a `configs/modules/`. Ver sección 3.7.1.
+> **Nota**: Los archivos de configuración (`.config.js`) están en `configs/modules/`. Ver sección 3.7.1.
 
 #### Ejemplo de Blueprint (estructura)
 ```javascript
@@ -1827,13 +1857,16 @@ tests/
 ├── core/
 │   ├── engine.test.js           # Tests de AudioEngine con mocks
 │   ├── oscillatorState.test.js  # Tests de estado de osciladores
-│   └── recordingEngine.test.js  # Tests de grabación multitrack
+│   ├── recordingEngine.test.js  # Tests de grabación multitrack
+│   └── dormancyManager.test.js  # Tests del sistema de dormancy
 ├── modules/
 │   ├── joystick.test.js         # Tests del módulo joystick
 │   ├── noise.test.js            # Tests del generador de ruido
 │   ├── oscillator.test.js       # Tests del oscilador
 │   ├── oscilloscope.test.js     # Tests del osciloscopio
 │   ├── outputChannel.test.js    # Tests del canal de salida
+│   ├── outputFaders.test.js     # Tests del módulo de faders
+│   ├── outputRouter.test.js     # Tests del router de salidas
 │   └── pulse.test.js            # Tests del oscilador pulse
 ├── configs/
 │   ├── matrix.config.test.js        # Tests de configs de matrices (audio/control)
@@ -1841,14 +1874,26 @@ tests/
 │   └── outputChannel.config.test.js # Tests de config de canales de salida
 ├── state/
 │   ├── conversions.test.js      # Tests de conversiones knob ↔ valores
+│   ├── index.test.js            # Tests del índice de estado
 │   ├── migrations.test.js       # Tests de migraciones de formato
-│   └── schema.test.js           # Tests de esquema de patches
+│   ├── schema.test.js           # Tests de esquema de patches
+│   └── storage.test.js          # Tests de persistencia IndexedDB/localStorage
 ├── i18n/
 │   └── locales.test.js          # Tests de paridad de traducciones
+├── ui/
+│   ├── largeMatrix.test.js      # Tests de la matriz grande
+│   ├── matrixTooltip.test.js    # Tests del sistema de tooltips
+│   ├── oscilloscopeDisplay.test.js  # Tests del display del osciloscopio
+│   ├── pinColorMenu.test.js     # Tests del menú de colores de pin
+│   └── pipManager.test.js       # Tests del sistema PiP
+├── worklets/
+│   └── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
+├── panelBlueprints/             # Tests de blueprints de paneles
 └── utils/
     ├── constants.test.js        # Tests de constantes globales
     ├── logger.test.js           # Tests del sistema de logging
-    └── objects.test.js          # Tests de utilidades de objetos
+    ├── objects.test.js          # Tests de utilidades de objetos
+    └── voltageConstants.test.js # Tests del sistema de voltajes
 ```
 
 ### Ejecutar
@@ -1856,7 +1901,7 @@ tests/
 npm test
 ```
 
-### Cobertura actual (~725 casos)
+### Cobertura actual (~947 casos)
 
 | Área | Tests | Verificaciones principales |
 |------|-------|---------------------------|
@@ -1867,9 +1912,11 @@ npm test
 | `core/dormancyManager` | Sistema de dormancy | Detección de conexiones, estados dormant/active |
 | `modules/*` | Módulos de síntesis | Inicialización con mocks de AudioContext |
 | `panelBlueprints` | Blueprints y configs | Consistencia, proporciones, parámetros válidos |
-| `state/*` | Sistema de patches | Conversiones, migraciones, validación de esquema |
+| `state/*` | Sistema de patches | Conversiones, migraciones, validación de esquema, persistencia |
 | `i18n/locales` | Internacionalización | Paridad en/es, claves esenciales, metadatos |
-| `utils/*` | Utilidades | Constantes, logging por niveles, `deepMerge()` |
+| `ui/*` | Componentes de interfaz | Matriz grande, tooltips, PiP, menú de colores |
+| `worklets/*` | Procesadores DSP | Matemáticas de oscilador, formas de onda, PolyBLEP |
+| `utils/*` | Utilidades | Constantes, logging por niveles, `deepMerge()`, voltajes |
 
 ### Mock de AudioContext
 

@@ -56,8 +56,6 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 
 - Hay 2 entradas de micro tras input amplifiers 
 
-- Actualizar árbol de carpetas en architecture.md
-
 ## Traducciones:
 
 

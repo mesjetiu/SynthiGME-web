@@ -74,6 +74,4 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 
 - No se conceden permisos de micro en Chrome android (móvil)
 
-- No abrir menús contextuales cuando se pinza con dos dedos en táctil
-
 - En móvil no importa patches (en desktop sí, probado)

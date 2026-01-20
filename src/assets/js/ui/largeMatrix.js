@@ -26,6 +26,7 @@ export class LargeMatrix {
     this._onContextMenu = null;
     this._onTouchStart = null;
     this._onTouchEnd = null;
+    this._onTouchStartSecondFinger = null;  // Para cancelar long press en pinch
     this._longPressTimer = null;
     this._longPressTarget = null;
     this.frame = this._normalizeFrame(frame);
@@ -269,8 +270,22 @@ export class LargeMatrix {
     };
     table.addEventListener('touchend', this._onTouchEnd);
     table.addEventListener('touchcancel', this._onTouchEnd);
+    
+    // Cancelar long press si se detecta un segundo dedo (pinch/zoom)
+    this._onTouchStartSecondFinger = ev => {
+      if (ev.touches.length > 1 && this._longPressTimer) {
+        this._cancelLongPress();
+      }
+    };
+    // Usar capture para detectar antes que otros handlers
+    document.addEventListener('touchstart', this._onTouchStartSecondFinger, { passive: true, capture: true });
+    
     table.addEventListener('touchmove', ev => {
-      // Cancelar si se mueve demasiado
+      // Cancelar si hay más de un dedo (pinch) o si se mueve demasiado
+      if (ev.touches.length > 1) {
+        this._cancelLongPress();
+        return;
+      }
       if (this._longPressStartPos && ev.touches.length === 1) {
         const dx = ev.touches[0].clientX - this._longPressStartPos.x;
         const dy = ev.touches[0].clientY - this._longPressStartPos.y;

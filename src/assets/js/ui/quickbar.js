@@ -6,7 +6,7 @@ import { t, onLocaleChange } from '../i18n/index.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
-import { togglePip, ALL_PANELS, getOpenPips } from './pipManager.js';
+import { togglePip, ALL_PANELS, getOpenPips, openAllPips, closeAllPips } from './pipManager.js';
 
 const log = createLogger('Quickbar');
 
@@ -232,15 +232,57 @@ export function setupMobileQuickActionsBar() {
     pipMenu.appendChild(item);
   });
   
+  // Separador
+  const pipMenuSeparator = document.createElement('div');
+  pipMenuSeparator.className = 'pip-menu__separator';
+  pipMenu.appendChild(pipMenuSeparator);
+  
+  // Botón "Extraer todos"
+  const detachAllBtn = document.createElement('button');
+  detachAllBtn.type = 'button';
+  detachAllBtn.className = 'pip-menu__item pip-menu__item--action';
+  detachAllBtn.textContent = t('pip.detachAll', 'Extraer todos');
+  detachAllBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAllPips();
+    updatePipMenuState();
+  });
+  pipMenu.appendChild(detachAllBtn);
+  
+  // Botón "Devolver todos"
+  const attachAllBtn = document.createElement('button');
+  attachAllBtn.type = 'button';
+  attachAllBtn.className = 'pip-menu__item pip-menu__item--action';
+  attachAllBtn.textContent = t('pip.attachAll', 'Devolver todos');
+  attachAllBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllPips();
+    updatePipMenuState();
+  });
+  pipMenu.appendChild(attachAllBtn);
+  
   function updatePipMenuState() {
     const openPips = getOpenPips();
-    pipMenu.querySelectorAll('.pip-menu__item').forEach(item => {
+    const totalPanels = ALL_PANELS.length;
+    
+    pipMenu.querySelectorAll('.pip-menu__item[data-panel-id]').forEach(item => {
       const isOpen = openPips.includes(item.dataset.panelId);
       item.classList.toggle('is-active', isOpen);
       item.setAttribute('aria-pressed', String(isOpen));
     });
+    
     // Actualizar estado del botón principal
     btnPip.classList.toggle('has-active-pips', openPips.length > 0);
+    
+    // Deshabilitar "Extraer todos" si todos ya están extraídos
+    const allExtracted = openPips.length >= totalPanels;
+    detachAllBtn.disabled = allExtracted;
+    detachAllBtn.classList.toggle('is-disabled', allExtracted);
+    
+    // Deshabilitar "Devolver todos" si ninguno está extraído
+    const noneExtracted = openPips.length === 0;
+    attachAllBtn.disabled = noneExtracted;
+    attachAllBtn.classList.toggle('is-disabled', noneExtracted);
   }
   
   let pipMenuOpen = false;

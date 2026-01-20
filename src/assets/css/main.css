@@ -4564,6 +4564,30 @@ small { color:#aaa; }
   margin-left: 8px;
 }
 
+/* Separador en el menú PiP */
+.pip-menu__separator {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 6px 8px;
+}
+
+/* Botones de acción global (Extraer todos, Devolver todos) */
+.pip-menu__item--action {
+  color: #aaa;
+  font-size: 12px;
+}
+
+.pip-menu__item--action:hover:not(.is-disabled) {
+  color: #fff;
+}
+
+/* Estado deshabilitado */
+.pip-menu__item.is-disabled {
+  color: #555;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Indicador visual en el botón cuando hay PIPs abiertos */
 .mobile-quickbar__btn.has-active-pips {
   color: #ffb63b;

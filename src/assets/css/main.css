@@ -2252,6 +2252,63 @@ small { color:#aaa; }
   background: rgba(255, 213, 79, 0.3);
 }
 
+/* Banner de permiso de micrófono denegado */
+.audio-settings-permission-denied {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  background: rgba(244, 67, 54, 0.15);
+  border: 1px solid rgba(244, 67, 54, 0.4);
+  border-radius: 8px;
+  color: #ffab91;
+}
+
+.permission-denied-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.permission-denied-text {
+  flex: 1;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.permission-denied-text strong {
+  display: block;
+  color: #ff8a65;
+  margin-bottom: 0.25rem;
+}
+
+.permission-denied-text p {
+  margin: 0;
+  color: #bcaaa4;
+}
+
+.permission-denied-retry {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(244, 67, 54, 0.3);
+  border: 1px solid rgba(244, 67, 54, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.permission-denied-retry:hover {
+  background: rgba(244, 67, 54, 0.5);
+  border-color: rgba(244, 67, 54, 0.7);
+}
+
+.permission-denied-retry:active {
+  background: rgba(244, 67, 54, 0.6);
+}
+
 /* Matriz de ruteo */
 .routing-matrix {
   display: flex;

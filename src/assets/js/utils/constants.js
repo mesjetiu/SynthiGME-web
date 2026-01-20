@@ -58,6 +58,7 @@ export const STORAGE_KEYS = {
   STEREO_BUS_ROUTING: `${STORAGE_PREFIX}stereo-bus-routing`,
   OUTPUT_DEVICE: `${STORAGE_PREFIX}output-device`,
   INPUT_DEVICE: `${STORAGE_PREFIX}input-device`,
+  MIC_PERMISSION_DENIED: `${STORAGE_PREFIX}mic-permission-denied`,
   
   // Grabación
   RECORDING_TRACKS: `${STORAGE_PREFIX}recording-tracks`,

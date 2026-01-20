@@ -1157,6 +1157,12 @@ class App {
     // Evitar reconectar si ya está conectado con el mismo dispositivo
     if (this._systemAudioConnected && !deviceId) return;
     
+    // Verificar si el permiso fue denegado previamente (evita bucle en Chrome móvil)
+    if (this.audioSettingsModal?.isMicrophonePermissionDenied?.()) {
+      log.info(' Microphone permission previously denied, skipping getUserMedia');
+      return;
+    }
+    
     if (!this.inputAmplifiers?.isStarted) {
       log.warn(' Input amplifiers not ready for system audio');
       return;
@@ -1180,6 +1186,11 @@ class App {
       
       // Solicitar acceso al micrófono/entrada de línea
       const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      
+      // Permiso concedido - limpiar flag si existía
+      if (this.audioSettingsModal?.clearMicrophonePermissionDenied) {
+        this.audioSettingsModal.clearMicrophonePermissionDenied();
+      }
       
       // Crear nodo fuente desde el stream
       const sourceNode = ctx.createMediaStreamSource(stream);
@@ -1233,6 +1244,12 @@ class App {
       
     } catch (err) {
       log.warn(' Could not access system audio input:', err.message);
+      
+      // Marcar permiso como denegado para evitar bucle en Chrome móvil
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        localStorage.setItem(STORAGE_KEYS.MIC_PERMISSION_DENIED, 'true');
+        log.info(' Microphone permission denied, flag saved to prevent retry loop');
+      }
       // No es crítico, los Input Amplifiers simplemente no tendrán entrada del sistema
     }
   }

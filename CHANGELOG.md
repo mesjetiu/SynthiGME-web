@@ -7,6 +7,16 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Cambiado
+- **Reorganización de archivos de configuración**: Los archivos `.config.js` se han movido de `panelBlueprints/` a `configs/modules/` con nombres semánticos por tipo de módulo:
+  - `panel2.config.js` → `oscilloscope.config.js`, `inputAmplifier.config.js`
+  - `panel3.config.js` → `oscillator.config.js`, `noise.config.js`, `randomVoltage.config.js`
+  - `panel5.audio.config.js` → `audioMatrix.config.js`
+  - `panel6.control.config.js` → `controlMatrix.config.js`
+  - `panel7.config.js` → `outputChannel.config.js`
+  - Nuevo `configs/index.js` centraliza todas las exportaciones
+  - Los blueprints permanecen en `panelBlueprints/` para la estructura visual
+
 ### Añadido
 - **Sistema expandido de 8 tipos de pin en la matriz**: Basado en documentación Datanomics 1982 y manual de Belgrado:
   - **Pines estándar** (Cuenca 1982): WHITE (100kΩ, ×1), GREY (100kΩ ±0.5%, ×1), GREEN (68kΩ, ×1.5), RED (2.7kΩ, ×37)

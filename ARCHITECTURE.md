@@ -381,13 +381,35 @@ _updateTexts() {
 }
 ```
 
+### 3.7.1 Configuración de Módulos (`src/assets/js/configs/`)
+
+Parámetros de audio y calibración organizados por tipo de módulo:
+
+| Archivo | Módulo | Contenido |
+|---------|--------|-----------|
+| `oscillator.config.js` | Osciladores | Rangos de frecuencia, niveles de salida, deriva térmica, parámetros de voltaje |
+| `noise.config.js` | Generadores de ruido | Tiempos de suavizado, parámetros Voss-McCartney |
+| `randomVoltage.config.js` | Random Voltage | Rangos de frecuencia, slew rate |
+| `oscilloscope.config.js` | Osciloscopio | Resolución CRT, glow, colores, buffer, trigger Schmitt |
+| `inputAmplifier.config.js` | Amplificadores de entrada | Ganancias, atenuaciones, límites |
+| `outputChannel.config.js` | Canales de salida | Rangos de filtros, niveles, pan |
+| `audioMatrix.config.js` | Matriz de audio (Panel 5) | Ganancias por cruce, tipos de pin |
+| `controlMatrix.config.js` | Matriz de control (Panel 6) | Ganancias CV, tipos de pin |
+
+**Importación centralizada:**
+```javascript
+import { oscillatorConfig, noiseConfig } from './configs/index.js';
+```
+
+---
+
 ### 3.8 Panel Blueprints (`src/assets/js/panelBlueprints/`)
 
-Configuración declarativa de estructura y parámetros de paneles. Sigue el patrón **Blueprint vs Config**:
+Configuración declarativa de **estructura visual** de paneles (slots, layout, mapeo a matriz).
 
 #### Patrón Blueprint vs Config
 
-Los paneles se configuran con **dos archivos separados** por responsabilidad:
+Los paneles se configuran con **archivos separados** por responsabilidad:
 
 | Tipo | Extensión | Contenido | Cuándo modificar |
 |------|-----------|-----------|------------------|
@@ -405,13 +427,11 @@ Los paneles se configuran con **dos archivos separados** por responsabilidad:
 | Archivo | Tipo | Contenido |
 |---------|------|-----------|
 | `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
-| `panel2.config.js` | Config | Parámetros de visualización (resolución CRT, glow, colores), audio (buffer, trigger, Schmitt) y knobs (TIME, AMP, LEVEL) |
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
-| `panel3.config.js` | Config | Rangos de frecuencia, niveles, tiempos de suavizado, parámetros Voss-McCartney |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
-| `panel5.audio.config.js` | Config | Ganancias y atenuaciones para cada cruce de matriz |
 | `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
-| `panel6.control.config.js` | Config | Ganancias para señales de control (CV) |
+
+> **Nota**: Los archivos de configuración (`.config.js`) se han movido a `configs/modules/`. Ver sección 3.7.1.
 
 #### Ejemplo de Blueprint (estructura)
 ```javascript
@@ -438,7 +458,7 @@ export default {
 
 #### Ejemplo de Config (parámetros)
 ```javascript
-// panel3.config.js
+// configs/modules/noise.config.js
 export default {
   noiseDefaults: {
     levelSmoothingTime: 0.03,  // 30ms (evita clicks)
@@ -469,7 +489,7 @@ El sistema de voltajes se divide en dos capas:
 | Ubicación | Contenido |
 |-----------|-----------|
 | **`utils/voltageConstants.js`** | Constantes globales (conversión digital↔voltaje, resistencias de pin, Rf estándar) y funciones de cálculo |
-| **Configs de panel** (ej: `panel3.config.js`) | Constantes específicas de cada módulo (niveles de salida, Rf internos, deriva térmica, límites) |
+| **Configs de módulo** (ej: `configs/modules/oscillator.config.js`) | Constantes específicas de cada módulo (niveles de salida, Rf internos, deriva térmica, límites) |
 
 ### 3.8.2 Constantes Globales (`voltageConstants.js`)
 
@@ -550,7 +570,7 @@ calculateVirtualEarthSum(
 );  // → 8V (suma lineal sin pérdida)
 ```
 
-### 3.8.5 Configuración de Osciladores (`panel3.config.js`)
+### 3.8.5 Configuración de Osciladores (`configs/modules/oscillator.config.js`)
 
 Los parámetros específicos de voltaje de los osciladores se definen en `defaults.voltage`:
 
@@ -612,7 +632,7 @@ Los osciladores aplican soft clipping a la entrada de CV de frecuencia usando un
             escala a cents    satura con tanh
 ```
 
-El límite se lee de `panel3.config.js` → `voltage.inputLimit` (8V = 2.0 digital).
+El límite se lee de `configs/modules/oscillator.config.js` → `voltage.inputLimit` (8V = 2.0 digital).
 
 ### 3.8.7 Clase Module (core/engine.js)
 
@@ -658,7 +678,7 @@ Las funciones `_getPanel5PinGain()` y `_getPanel6PinGain()` usan `calculateMatri
 // 3. × rowGains × colGains × matrixGain
 ```
 
-La configuración de tipos de pin por coordenada se puede definir en los archivos de configuración (`panel5AudioConfig.pinTypes`, `panel6ControlConfig.pinTypes`). Si no se especifica, se usa pin gris por defecto.
+La configuración de tipos de pin por coordenada se puede definir en los archivos de configuración (`audioMatrixConfig.pinTypes`, `controlMatrixConfig.pinTypes`). Si no se especifica, se usa pin gris por defecto.
 
 ### 3.8.9 Tolerancia de Resistencias
 
@@ -1815,9 +1835,10 @@ tests/
 │   ├── oscilloscope.test.js     # Tests del osciloscopio
 │   ├── outputChannel.test.js    # Tests del canal de salida
 │   └── pulse.test.js            # Tests del oscilador pulse
-├── panelBlueprints/
-│   ├── configs.test.js          # Tests de consistencia de blueprints
-│   └── panel2-3.config.test.js  # Tests específicos de paneles 2 y 3
+├── configs/
+│   ├── matrix.config.test.js        # Tests de configs de matrices (audio/control)
+│   ├── oscillator.config.test.js    # Tests de config de osciladores
+│   └── outputChannel.config.test.js # Tests de config de canales de salida
 ├── state/
 │   ├── conversions.test.js      # Tests de conversiones knob ↔ valores
 │   ├── migrations.test.js       # Tests de migraciones de formato

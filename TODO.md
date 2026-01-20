@@ -9,8 +9,6 @@
 
 ## Osciloscopio:
 
-- bajar nivel para adaptarse al la resistencia del pin rojo.
-
 - Mejorar algunos aspectos probando.
 
 ## UI:

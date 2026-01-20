@@ -952,6 +952,10 @@ class App {
     scopeModule.setBufferSize(audioConfig.bufferSize);
     scopeModule.setTriggerHysteresis(audioConfig.triggerHysteresis);
     scopeModule.setSchmittHysteresis(audioConfig.schmittHysteresis);
+    // Sensibilidad de entrada: compensar ganancia del pin rojo (×37)
+    if (audioConfig.inputSensitivity) {
+      scopeModule.setInputSensitivity(audioConfig.inputSensitivity);
+    }
     
     this.engine.addModule(scopeModule);
     this.oscilloscope = scopeModule;

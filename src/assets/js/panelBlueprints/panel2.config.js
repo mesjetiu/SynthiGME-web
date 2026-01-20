@@ -67,6 +67,20 @@ export default {
       mode: 'yt',                // 'yt' | 'xy'
       
       // ───────────────────────────────────────────────────────────────────
+      // SENSIBILIDAD DE ENTRADA (compensación de ganancia de pin)
+      // ───────────────────────────────────────────────────────────────────
+      // El pin rojo (2.7kΩ) tiene ganancia ×37 respecto al estándar.
+      // Para que las señales se muestren correctamente en el osciloscopio,
+      // la ganancia de entrada se reduce proporcionalmente.
+      //
+      // inputSensitivity = 1 / ganancia_pin_rojo = 1 / 37 ≈ 0.027
+      //
+      // Así, una señal de amplitud 1.0 a través del pin rojo (×37) llega
+      // como 37.0 y se muestra como 37.0 × 0.027 ≈ 1.0 en el osciloscopio.
+      // ───────────────────────────────────────────────────────────────────
+      inputSensitivity: 0.027,   // 1/37 para compensar ganancia pin rojo
+      
+      // ───────────────────────────────────────────────────────────────────
       // HISTÉRESIS DEL TRIGGER
       // ───────────────────────────────────────────────────────────────────
       // Número mínimo de samples a ignorar después de detectar un trigger

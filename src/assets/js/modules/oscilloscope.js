@@ -61,6 +61,7 @@ export class OscilloscopeModule extends Module {
     this.bufferSize = 1024;
     this.triggerHysteresis = 150;  // Samples de holdoff entre triggers
     this.schmittHysteresis = 0.05; // Histéresis de nivel para Schmitt trigger
+    this.inputSensitivity = 1.0;   // Sensibilidad de entrada (1/37 para pin rojo)
   }
 
   /**
@@ -70,12 +71,12 @@ export class OscilloscopeModule extends Module {
     const ctx = this.getAudioCtx();
     if (!ctx) return;
     
-    // Crear nodos de entrada
+    // Crear nodos de entrada con sensibilidad configurada
     this.inputY = ctx.createGain();
-    this.inputY.gain.value = 1.0;
+    this.inputY.gain.value = this.inputSensitivity;
     
     this.inputX = ctx.createGain();
-    this.inputX.gain.value = 1.0;
+    this.inputX.gain.value = this.inputSensitivity;
     
     // Cargar y crear worklet
     await this._loadWorklet();
@@ -332,6 +333,23 @@ export class OscilloscopeModule extends Module {
         value: this.schmittHysteresis
       });
     }
+  }
+
+  /**
+   * Establece la sensibilidad de entrada (atenuación de señal).
+   * Usado para compensar la ganancia del pin rojo (×37).
+   * @param {number} sensitivity - Factor de escala (ej: 1/37 ≈ 0.027)
+   */
+  setInputSensitivity(sensitivity) {
+    this.inputSensitivity = Math.max(0.001, Math.min(1.0, sensitivity));
+    // Aplicar si los nodos ya existen (post-start)
+    if (this.inputY) {
+      this.inputY.gain.value = this.inputSensitivity;
+    }
+    if (this.inputX) {
+      this.inputX.gain.value = this.inputSensitivity;
+    }
+    log.debug(`Input sensitivity set to ${this.inputSensitivity}`);
   }
 
   /**

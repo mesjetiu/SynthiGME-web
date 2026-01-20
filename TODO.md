@@ -21,11 +21,32 @@
 
 - Detallar condiciones particulares más concretas para cada módulo para entrar y salir del estado "dormant". Hasta ahora solo se mira la matriz de conexiones.
 
-## Pines y resistencias:
+## Pines de Matriz:
 
-- Precisar y corregir las descripciones de cada pin. Incluir valor calculado de ganancia 
+Actualmente implementados 8 tipos de pin basados en resistencias del manual técnico:
 
-- Investigar en manuales otros posibles pines.
+### Pines Estándar (Cuenca/Datanomics 1982)
+| Color | Resistencia | Ganancia | Uso |
+|-------|-------------|----------|-----|
+| WHITE | 100kΩ ±10% | ×1 | Audio estándar (Panel 5) |
+| GREY | 100kΩ ±0.5% | ×1 | Control CV precisión (Panel 6) |
+| GREEN | 68kΩ ±10% | ×1.5 | Atenuado |
+| RED | 2.7kΩ ±10% | ×37 | Osciloscopio |
+
+### Pines Especiales (Manual técnico - mezcla personalizada)
+| Color | Resistencia | Ganancia | Uso |
+|-------|-------------|----------|-----|
+| BLUE | 10kΩ ±10% | ×10 | Boost de señal |
+| YELLOW | 22kΩ ±10% | ×4.5 | Ganancia media |
+| CYAN | 250kΩ ±10% | ×0.4 | Señal suave |
+| PURPLE | 1MΩ ±10% | ×0.1 | Mezcla sutil |
+
+### Pin Peligroso (NO IMPLEMENTADO)
+- ORANGE: 0Ω (cortocircuito) - Ganancia infinita, puede dañar componentes
+
+### Futuros (Experimentales - ver manual Belgrado p.2)
+- Pines con diodos: comportamiento no lineal (rectificación)
+- Pines con capacitores: filtrado pasa-altos/pasa-bajos en conexiones
 
 ## Otros:
 
@@ -51,6 +72,8 @@
 
 - Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
 
-- No sé conceden permisos de micro en Chrome android (móvil)
+- No se conceden permisos de micro en Chrome android (móvil)
 
-- No abrir menús contextuales cuando se pinza con dos dedos en tactil
+- No abrir menús contextuales cuando se pinza con dos dedos en táctil
+
+- En móvil no importa patches (en desktop sí, probado)

@@ -8,6 +8,13 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Sistema expandido de 8 tipos de pin en la matriz**: Basado en documentación Datanomics 1982 y manual de Belgrado:
+  - **Pines estándar** (Cuenca 1982): WHITE (100kΩ, ×1), GREY (100kΩ ±0.5%, ×1), GREEN (68kΩ, ×1.5), RED (2.7kΩ, ×37)
+  - **Pines especiales** (manual técnico): BLUE (10kΩ, ×10), YELLOW (22kΩ, ×4.5), CYAN (250kΩ, ×0.4), PURPLE (1MΩ, ×0.1)
+  - **Menú organizado en secciones**: "Recomendado" (según contexto), "Estándar", "Especiales"
+  - **Información de ganancia**: El menú muestra resistencia y ganancia (ej: "100kΩ · ×1")
+  - **Categorías en código**: Cada pin tiene `category: 'standard' | 'special' | 'forbidden'`
+  - **ORANGE no implementado**: Pin de 0Ω excluido por riesgo de cortocircuito
 - **Paneles flotantes (Picture-in-Picture)**: Sistema completo para extraer paneles del layout principal y trabajar con ellos en ventanas independientes:
   - **Extracción de paneles**: Click derecho en panel → "Extraer panel" o desde el menú PiP de la quickbar.
   - **Ventanas flotantes**: Cada panel extraído se muestra en una ventana flotante redimensionable y arrastrable con controles propios de zoom, scroll y cierre.
@@ -17,17 +24,17 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - **Persistencia**: El estado de los paneles flotantes (posición, tamaño, scroll interno) se guarda en localStorage.
   - **Nombres simples**: Los paneles se muestran como "Panel 1" a "Panel 7" en los menús.
 - **Selección de color de pines en la matriz**: Sistema completo para elegir el tipo de pin al hacer conexiones:
-  - **Menú contextual**: Click derecho (desktop) o pulsación larga (móvil) en cualquier pin abre un menú con los 4 tipos de pin disponibles.
-  - **Colores por contexto**: Audio (WHITE por defecto), Control CV (GREEN), Osciloscopio (RED). El sistema recuerda el último color usado por contexto.
+  - **Menú contextual**: Click derecho (desktop) o pulsación larga (móvil) en cualquier pin abre menú con 8 tipos de pin.
+  - **Colores por contexto**: Audio (WHITE), Control CV (GREY para precisión), Osciloscopio (RED). El sistema recuerda el último color usado.
   - **Activación inmediata**: Seleccionar un color en un pin inactivo lo activa directamente con ese color.
   - **Tick visual**: El menú muestra ✓ junto al color actual (pin activo) o el próximo a usar (pin inactivo).
   - **Pines más grandes**: Los pines activos tienen 50% más tamaño (`scale(1.5)`) para mejor visibilidad.
-  - **Colores CSS centralizados**: Variables `--pin-color-white`, `--pin-color-grey`, `--pin-color-green`, `--pin-color-red` en `:root`.
+  - **Colores CSS centralizados**: Variables `--pin-color-*` para los 8 colores en `:root`.
   - **Serialización de colores**: Los patches guardan el color de cada pin como tercer elemento opcional `[row, col, pinType]`.
 - **Sistema de emulación de voltajes del Synthi 100**: Nuevo módulo `voltageConstants.js` que implementa el modelo eléctrico de la versión Cuenca/Datanomics (1982):
   - **Conversión digital ↔ voltaje**: Factor 1.0 digital = 4V (8V p-p total), estándar 1V/Oct.
-  - **Resistencias de pin**: Blanco (100kΩ ±10%), Gris (100kΩ ±0.5%), Rojo (2.7kΩ), Verde (68kΩ).
-  - **Fórmula de tierra virtual**: `V_dest = Σ(V_fuente / R_pin) × Rf` para mezcla de corrientes.
+  - **Resistencias de pin**: 8 tipos con resistencias de 2.7kΩ a 1MΩ y ganancias de ×0.1 a ×37.
+  - **Fórmula de tierra virtual**: `Ganancia = Rf / R_pin` (Rf = 100kΩ típico).
   - **Soft clipping**: Saturación suave con `tanh()` según límites por módulo (8V filtros, 2V reverb, etc.).
   - **Tolerancia reproducible**: Error de resistencia basado en seed para patches consistentes.
   - **Deriva térmica**: Configuración para osciladores CEM 3340 (±0.1%).
@@ -36,12 +43,17 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - `applyVoltageClipping(voltage)`: Satura voltajes directamente.
   - `setInputVoltageLimit(v)` / `setSoftClipEnabled(bool)`: Configuración por módulo.
 - **Soft clipping en entrada CV de osciladores**: Las señales CV que modulan la frecuencia de osciladores ahora pasan por un `WaveShaperNode` con curva tanh que satura suavemente las señales excesivas. Usa `createSoftClipCurve()` de `voltageConstants.js`.
-- **Ganancia de pines con fórmula de tierra virtual**: Nueva función `calculateMatrixPinGain()` que calcula la ganancia de cada pin de matriz según el tipo de pin (gris/blanco/rojo/verde), la Rf del destino y la tolerancia opcional. Las funciones `_getPanel5PinGain()` y `_getPanel6PinGain()` ahora usan este cálculo.
+- **Ganancia de pines con fórmula de tierra virtual**: Nueva función `calculateMatrixPinGain()` que calcula la ganancia de cada pin de matriz según el tipo de pin, la Rf del destino y la tolerancia opcional.
 - **Sección de Emulación de Voltajes en Ajustes**: Nueva sección en Ajustes → Avanzado que permite controlar:
   - **Saturación suave (soft clip)**: Activar/desactivar el límite de voltaje con tanh().
-  - **Tolerancia de pines**: Activar/desactivar variación realista de resistencias (±0.5% gris, ±10% blanco).
+  - **Tolerancia de pines**: Activar/desactivar variación realista de resistencias (±0.5% gris, ±10% resto).
   - **Deriva térmica**: Activar/desactivar simulación de drift de osciladores.
   - Todas las opciones están **activadas por defecto** y sus valores se leen dinámicamente desde localStorage.
+
+### Corregido
+- **Sensibilidad del osciloscopio**: Ajustada para compensar la ganancia ×37 del pin rojo (`inputSensitivity: 0.027`).
+- **Menú contextual con pinch**: El long press para abrir el menú de pines ahora se cancela correctamente al pinzar con dos dedos.
+- **Color por defecto en control CV**: Cambiado de GREEN a GREY para mayor precisión (±0.5% vs ±10%).
 
 ### Mejoras
 - **Dormancy con early exit real en todos los módulos**: El sistema de dormancy ahora suspende realmente el procesamiento DSP (no solo silencia):

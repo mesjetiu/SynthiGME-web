@@ -489,19 +489,43 @@ voltageToDigital(-4.0);  // → -1.0
 
 ### 3.8.3 Resistencias de Pin (Matriz)
 
-Los pines de la matriz contienen resistencias que determinan la ganancia de mezcla:
+Los pines de la matriz contienen resistencias que determinan la ganancia de mezcla según la fórmula de tierra virtual: `Ganancia = Rf / R_pin` (donde Rf = 100kΩ típico).
 
-| Color | Resistencia | Tolerancia | Ganancia | Uso |
-|-------|-------------|------------|----------|-----|
-| **Blanco** | 100kΩ | ±10% | 1.0× | Audio general |
-| **Gris** | 100kΩ | ±0.5% | 1.0× | CV de precisión (intervalos musicales) |
-| **Rojo** | 2.7kΩ | ±5% | 37× | Osciloscopio (señal fuerte) |
-| **Verde** | 68kΩ | ±10% | 1.47× | Mezcla atenuada |
-| **Naranja** | 0Ω | — | ∞ | ⚠️ NO USAR (ver nota) |
+#### Pines Estándar (Cuenca/Datanomics 1982)
 
-Por defecto se usa pin **gris** para máxima reproducibilidad.
+| Color | Resistencia | Tolerancia | Ganancia | Uso típico |
+|-------|-------------|------------|----------|------------|
+| **Blanco** | 100kΩ | ±10% | ×1 | Audio general (Panel 5) |
+| **Gris** | 100kΩ | ±0.5% | ×1 | CV de precisión (Panel 6) |
+| **Verde** | 68kΩ | ±10% | ×1.5 | Mezcla ligeramente amplificada |
+| **Rojo** | 2.7kΩ | ±10% | ×37 | Osciloscopio (señal fuerte y nítida) |
 
-> **Nota sobre el pin naranja:** Con resistencia 0Ω, la fórmula Rf/Rpin da ganancia infinita. En el hardware real, esto cortocircuita el nodo de suma de tierra virtual, destruyendo el amplificador operacional. Existía en versiones antiguas del Synthi para conexiones directas (bypass), pero en la versión Cuenca/Datanomics 1982 su uso está desaconsejado. En la emulación, `calculateMatrixPinGain('ORANGE')` devuelve un fallback seguro de 1.0× con warning.
+#### Pines Especiales (Manual técnico - mezcla personalizada)
+
+Documentados en manuales técnicos para aplicaciones de mezcla avanzada:
+
+| Color | Resistencia | Tolerancia | Ganancia | Uso típico |
+|-------|-------------|------------|----------|------------|
+| **Azul** | 10kΩ | ±10% | ×10 | Boost de señal débil |
+| **Amarillo** | 22kΩ | ±10% | ×4.5 | Ganancia media |
+| **Cian** | 250kΩ | ±10% | ×0.4 | Señal suave/atenuada |
+| **Morado** | 1MΩ | ±10% | ×0.1 | Mezcla sutil (10%) |
+
+#### Pin Prohibido
+
+| Color | Resistencia | Ganancia | Estado |
+|-------|-------------|----------|--------|
+| **Naranja** | 0Ω | ∞ | ⚠️ **NO IMPLEMENTADO** |
+
+> **Nota sobre el pin naranja:** Con resistencia 0Ω, la fórmula Rf/Rpin da ganancia infinita. En el hardware real, esto cortocircuita el nodo de suma de tierra virtual, destruyendo el amplificador operacional. Existía en versiones antiguas del Synthi para conexiones directas (bypass), pero en la versión Cuenca/Datanomics 1982 su uso está prohibido. En la emulación, está excluido del selector.
+
+#### Colores por Defecto según Contexto
+
+| Contexto | Color | Razón |
+|----------|-------|-------|
+| Panel 5 (audio) | Blanco | Ganancia unitaria para mezcla limpia |
+| Panel 6 (control) | Gris | Precisión ±0.5% para afinación |
+| Osciloscopio | Rojo | Alta ganancia (×37) para visualización clara |
 
 ### 3.8.4 Fórmula de Tierra Virtual
 

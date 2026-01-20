@@ -18,13 +18,12 @@ import { ModuleFrame } from '../ui/moduleFrame.js';
 import { Knob } from '../ui/knob.js';
 import { createKnobElements } from '../ui/knobFactory.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
-import panel7Config from '../panelBlueprints/panel7.config.js';
+import { outputChannelConfig } from '../configs/index.js';
 
-// Extraer configuración del panel7.config.js
-const channelConfig = panel7Config.outputChannels || {};
-const knobsConfig = channelConfig.knobs || {};
-const fadersConfig = channelConfig.faders || {};
-const switchesConfig = channelConfig.switches || {};
+// Extraer configuración del outputChannel.config.js
+const knobsConfig = outputChannelConfig.knobs || {};
+const fadersConfig = outputChannelConfig.faders || {};
+const switchesConfig = outputChannelConfig.switches || {};
 
 export class OutputChannel extends Module {
   /**

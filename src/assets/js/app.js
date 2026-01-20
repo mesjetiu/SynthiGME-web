@@ -28,12 +28,16 @@ import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
 import panel7Blueprint from './panelBlueprints/panel7.blueprint.js';
 
-// Configs (parámetros de audio)
-import panel2Config from './panelBlueprints/panel2.config.js';
-import panel3Config from './panelBlueprints/panel3.config.js';
-import panel5AudioConfig from './panelBlueprints/panel5.audio.config.js';
-import panel6ControlConfig from './panelBlueprints/panel6.control.config.js';
-import panel7Config from './panelBlueprints/panel7.config.js';
+// Configs de módulos (parámetros de audio)
+import {
+  oscillatorConfig,
+  noiseConfig,
+  oscilloscopeConfig,
+  inputAmplifierConfig,
+  outputChannelConfig,
+  audioMatrixConfig,
+  controlMatrixConfig
+} from './configs/index.js';
 
 // Osciloscopio
 import { OscilloscopeModule } from './modules/oscilloscope.js';
@@ -912,7 +916,7 @@ class App {
     if (!this.panel2) return;
 
     const blueprint = panel2Blueprint;
-    const config = panel2Config;
+    // Config de osciloscopio (oscilloscopeConfig) se usa internamente en OscilloscopeDisplay
     
     // Crear contenedor principal
     const host = document.createElement('div');
@@ -948,7 +952,7 @@ class App {
     const scopeModule = new OscilloscopeModule(this.engine, 'oscilloscope');
     
     // Configurar parámetros de audio desde config ANTES de iniciar
-    const audioConfig = config.oscilloscope.audio;
+    const audioConfig = oscilloscopeConfig.audio;
     scopeModule.setBufferSize(audioConfig.bufferSize);
     scopeModule.setTriggerHysteresis(audioConfig.triggerHysteresis);
     scopeModule.setSchmittHysteresis(audioConfig.schmittHysteresis);
@@ -999,20 +1003,20 @@ class App {
       width: 60%;
       max-width: 240px;
       aspect-ratio: ${displayConfig.aspectRatio};
-      background: ${config.oscilloscope.display.bgColor};
+      background: ${oscilloscopeConfig.display.bgColor};
       border-radius: 4px;
       overflow: hidden;
     `;
     mainContainer.appendChild(displayContainer);
     
     // Crear display con resolución interna fija
-    const displayStyles = config.oscilloscope.display;
+    const displayStyles = oscilloscopeConfig.display;
     const display = new OscilloscopeDisplay({
       container: displayContainer,
       internalWidth: displayStyles.internalWidth,
       internalHeight: displayStyles.internalHeight,
       useDevicePixelRatio: displayStyles.useDevicePixelRatio,
-      mode: config.oscilloscope.audio.mode,
+      mode: oscilloscopeConfig.audio.mode,
       lineColor: displayStyles.lineColor,
       bgColor: displayStyles.bgColor,
       gridColor: displayStyles.gridColor,
@@ -1023,7 +1027,7 @@ class App {
     });
     
     // Crear contenedor de knobs (a la derecha del display)
-    const knobsConfig = config.oscilloscope.knobs;
+    const knobsConfig = oscilloscopeConfig.knobs;
     const knobsContainer = document.createElement('div');
     knobsContainer.className = 'oscilloscope-knobs';
     mainContainer.appendChild(knobsContainer);
@@ -1060,7 +1064,7 @@ class App {
       id: 'scope-mode-toggle',
       labelA: 'Y-T',
       labelB: 'X-Y',
-      initial: config.oscilloscope.audio.mode === 'xy' ? 'b' : 'a',
+      initial: oscilloscopeConfig.audio.mode === 'xy' ? 'b' : 'a',
       onChange: (state) => {
         const mode = state === 'a' ? 'yt' : 'xy';
         display.setMode(mode);
@@ -1097,11 +1101,10 @@ class App {
     host.appendChild(inputAmpSection);
     
     // Crear módulo de audio
-    const inputAmpConfig = config.inputAmplifiers;
     const inputAmpModule = new InputAmplifierModule(this.engine, 'input-amplifiers', {
       channels: blueprint.modules.inputAmplifiers.channels,
-      initialLevel: inputAmpConfig.knobs.level.initial,
-      levelSmoothingTime: inputAmpConfig.audio.levelSmoothingTime
+      initialLevel: inputAmplifierConfig.knobs.level.initial,
+      levelSmoothingTime: inputAmplifierConfig.audio.levelSmoothingTime
     });
     this.engine.addModule(inputAmpModule);
     this.inputAmplifiers = inputAmpModule;
@@ -1112,7 +1115,7 @@ class App {
       id: inputAmpId,
       title: blueprint.modules.inputAmplifiers.title,
       channels: blueprint.modules.inputAmplifiers.channels,
-      knobConfig: inputAmpConfig.knobs.level,
+      knobConfig: inputAmplifierConfig.knobs.level,
       onLevelChange: (channel, value) => {
         inputAmpModule.setLevel(channel, value);
       }
@@ -1398,12 +1401,11 @@ class App {
       reservedRow = document.createElement('div');
       reservedRow.className = 'panel3-reserved-row panel3-modules-row';
       
-      // Leer configuración de módulos desde el blueprint
-      const modulesConfig = panel3Config.modules || {};
-      const noiseDefaults = modulesConfig.noiseDefaults || {};
-      const noise1Cfg = modulesConfig.noise1 || {};
-      const noise2Cfg = modulesConfig.noise2 || {};
-      const randomCVCfg = modulesConfig.randomCV || {};
+      // Leer configuración de módulos desde los configs de módulos
+      const noiseDefaults = noiseConfig.defaults || {};
+      const noise1Cfg = noiseConfig.noise1 || {};
+      const noise2Cfg = noiseConfig.noise2 || {};
+      const randomCVCfg = {}; // Random CV config se lee de randomVoltageConfig si es necesario
       
       // ─────────────────────────────────────────────────────────────────────
       // Crear módulos de audio para Noise Generators
@@ -1694,10 +1696,10 @@ class App {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Obtener configuración de sineShape del panel3.config.js
+    // Obtener configuración de sineShape del oscillator.config.js
     // ─────────────────────────────────────────────────────────────────────────
     const oscConfig = this._getOscConfig(oscIndex);
-    const sineShape = oscConfig?.sineShape ?? panel3Config.defaults?.sineShape ?? {};
+    const sineShape = oscConfig?.sineShape ?? oscillatorConfig.defaults?.sineShape ?? {};
 
     const multiOsc = this.engine.createMultiOscillator({
       frequency: state.freq || 10,
@@ -1736,8 +1738,8 @@ class App {
     // NODO DE ENTRADA CV PARA MODULACIÓN DE FRECUENCIA (Panel 6)
     // ─────────────────────────────────────────────────────────────────────────
     // Nota: oscConfig ya fue obtenido arriba para sineShape
-    const cvScale = oscConfig?.freqCV?.cvScale ?? panel3Config.defaults?.freqCV?.cvScale ?? 2;
-    const octavesPerUnit = oscConfig?.freqCV?.octavesPerUnit ?? panel3Config.defaults?.freqCV?.octavesPerUnit ?? 0.5;
+    const cvScale = oscConfig?.freqCV?.cvScale ?? oscillatorConfig.defaults?.freqCV?.cvScale ?? 2;
+    const octavesPerUnit = oscConfig?.freqCV?.octavesPerUnit ?? oscillatorConfig.defaults?.freqCV?.octavesPerUnit ?? 0.5;
     const centsGain = cvScale * octavesPerUnit * 1200;
     
     const freqCVInput = ctx.createGain();
@@ -1749,7 +1751,7 @@ class App {
     // El Synthi 100 satura suavemente las señales CV que superan el límite
     // de entrada del módulo. Usamos WaveShaperNode con curva tanh.
     // ─────────────────────────────────────────────────────────────────────────
-    const voltageConfig = oscConfig?.voltage ?? panel3Config.defaults?.voltage ?? {};
+    const voltageConfig = oscConfig?.voltage ?? oscillatorConfig.defaults?.voltage ?? {};
     const inputLimit = voltageConfig.inputLimit ?? 8.0;
     // Normalizar: inputLimit está en voltios, la señal CV está en rango ~±1
     // Convertimos el límite de voltios a unidades digitales
@@ -1936,9 +1938,9 @@ class App {
   // ─────────────────────────────────────────────────────────────────────────
 
   _getOscConfig(oscIndex) {
-    const defaults = panel3Config.defaults || {};
+    const defaults = oscillatorConfig.defaults || {};
     const oscNumber = oscIndex + 1;
-    const override = panel3Config.oscillators?.[oscNumber] || {};
+    const override = oscillatorConfig.oscillators?.[oscNumber] || {};
     return deepMerge(defaults, override);
   }
 
@@ -1965,7 +1967,7 @@ class App {
   }
 
   _updatePanelOscFreq(panelIndex, oscIndex, value) {
-    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3Config.defaults;
+    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
     const freqConfig = config?.knobs?.frequency || { min: 1, max: 10000, curve: 'quadratic' };
     const freq = this._applyCurve(value, freqConfig);
     
@@ -1986,7 +1988,7 @@ class App {
   }
 
   _getPanelKnobOptions(panelIndex, oscIndex) {
-    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : panel3Config.defaults;
+    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
     const knobsConfig = config?.knobs || {};
     
     const knobOptions = [];
@@ -2088,7 +2090,7 @@ class App {
    * @returns {number} Factor de ganancia para el GainNode
    */
   _getPanel5PinGain(rowIndex, colIndex, destInfo = null, userPinType = null) {
-    const cfg = panel5AudioConfig?.audio || {};
+    const cfg = audioMatrixConfig?.audio || {};
     const matrixGain = cfg.matrixGain ?? 1.0;
     const gainRange = cfg.gainRange || { min: 0, max: 2.0 };
 
@@ -2097,7 +2099,7 @@ class App {
     const pinKey = `${rowSynth}:${colSynth}`;
 
     // Prioridad 1: Ganancia explícita por pin (override manual en config)
-    const pinGains = panel5AudioConfig?.pinGains || {};
+    const pinGains = audioMatrixConfig?.pinGains || {};
     if (pinKey in pinGains) {
       const pinGain = pinGains[pinKey];
       const clampedPin = Math.max(gainRange.min, Math.min(gainRange.max, pinGain));
@@ -2106,7 +2108,7 @@ class App {
 
     // Prioridad 2: Calcular según modelo de virtual-earth summing
     // Usar tipo de pin del usuario si se proporciona, sino fallback a config o default
-    const pinTypes = panel5AudioConfig?.pinTypes || {};
+    const pinTypes = audioMatrixConfig?.pinTypes || {};
     const pinType = userPinType || pinTypes[pinKey] || VOLTAGE_DEFAULTS.defaultPinType || 'WHITE';
     
     // Obtener Rf del destino (por defecto 100k estándar)
@@ -2125,8 +2127,8 @@ class App {
     const pinGain = calculateMatrixPinGain(pinType, rf, { applyTolerance, seed });
     
     // Aplicar ganancias adicionales por fila/columna si existen
-    const rowGains = panel5AudioConfig?.rowGains || {};
-    const colGains = panel5AudioConfig?.colGains || {};
+    const rowGains = audioMatrixConfig?.rowGains || {};
+    const colGains = audioMatrixConfig?.colGains || {};
     const rowGain = rowGains[rowSynth] ?? 1.0;
     const colGain = colGains[colSynth] ?? 1.0;
 
@@ -2436,7 +2438,7 @@ class App {
    * @private
    */
   _getPanel6PinGain(rowIndex, colIndex, destInfo = null, userPinType = null) {
-    const config = panel6ControlConfig || {};
+    const config = controlMatrixConfig || {};
     const controlSection = config.control || {};
     const matrixGain = controlSection.matrixGain ?? 1.0;
     const gainRange = controlSection.gainRange || { min: 0, max: 2.0 };

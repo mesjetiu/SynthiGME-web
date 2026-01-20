@@ -41,7 +41,7 @@ import {
 } from '../../src/assets/js/utils/voltageConstants.js';
 
 // Importar config de osciladores para verificar integración
-import panel3Config from '../../src/assets/js/panelBlueprints/panel3.config.js';
+import { oscillatorConfig } from '../../src/assets/js/configs/index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constantes Globales
@@ -387,17 +387,17 @@ describe('voltageConstants - calculateVirtualEarthSum()', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// panel3.config.js - Configuración de Voltaje de Osciladores
+// oscillator.config.js - Configuración de Voltaje de Osciladores
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('panel3.config.js - Configuración de Voltaje', () => {
+describe('oscillator.config.js - Configuración de Voltaje', () => {
   
   it('tiene sección voltage en defaults', () => {
-    assert.ok(panel3Config.defaults.voltage !== undefined);
+    assert.ok(oscillatorConfig.defaults.voltage !== undefined);
   });
   
   it('define niveles de salida por forma de onda', () => {
-    const { outputLevels } = panel3Config.defaults.voltage;
+    const { outputLevels } = oscillatorConfig.defaults.voltage;
     assert.equal(outputLevels.sine, 8.0);
     assert.equal(outputLevels.sawtooth, 8.0);
     assert.equal(outputLevels.pulse, 8.0);
@@ -406,24 +406,24 @@ describe('panel3.config.js - Configuración de Voltaje', () => {
   });
   
   it('define resistencias de realimentación internas', () => {
-    const { feedbackResistance } = panel3Config.defaults.voltage;
+    const { feedbackResistance } = oscillatorConfig.defaults.voltage;
     assert.equal(feedbackResistance.sineSawtooth, 100000);
     assert.equal(feedbackResistance.pulseTriangle, 300000);
   });
   
   it('define límite de entrada para soft clipping', () => {
-    assert.equal(panel3Config.defaults.voltage.inputLimit, 8.0);
+    assert.equal(oscillatorConfig.defaults.voltage.inputLimit, 8.0);
   });
   
   it('define parámetros de deriva térmica', () => {
-    const { thermalDrift } = panel3Config.defaults.voltage;
+    const { thermalDrift } = oscillatorConfig.defaults.voltage;
     assert.equal(thermalDrift.maxDeviation, 0.001);
     assert.equal(thermalDrift.periodSeconds, 120);
     assert.equal(thermalDrift.enabledByDefault, true);
   });
   
   it('incluye valores históricos de Belgrado', () => {
-    const { legacyBelgrado } = panel3Config.defaults.voltage;
+    const { legacyBelgrado } = oscillatorConfig.defaults.voltage;
     assert.equal(legacyBelgrado.sine, 4.0);
     assert.equal(legacyBelgrado.noise, 3.0);
   });

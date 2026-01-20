@@ -479,6 +479,19 @@ audio.inputs.enabled:
   en: ✓ Input enabled
   es: ✓ Entrada habilitada
 
+# Permisos de micrófono denegados
+audio.permission.denied.title:
+  en: Microphone access denied
+  es: Acceso al micrófono denegado
+
+audio.permission.denied.message:
+  en: Enable microphone in browser or system settings to use audio inputs.
+  es: Habilita el micrófono desde los ajustes del navegador o del sistema para usar entradas de audio.
+
+audio.permission.retry:
+  en: Retry
+  es: Reintentar
+
 # Nombres de canales
 audio.channel.mono:
   en: Mono

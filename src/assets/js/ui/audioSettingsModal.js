@@ -486,29 +486,22 @@ export class AudioSettingsModal {
           return;
         }
         
-        // Usar Permissions API si está disponible para verificar estado
-        if (navigator.permissions) {
-          try {
-            const result = await navigator.permissions.query({ name: 'microphone' });
-            if (result.state === 'denied') {
-              log.info(' Microphone permission denied via Permissions API');
-              localStorage.setItem(STORAGE_KEYS.MIC_PERMISSION_DENIED, 'true');
-              this._showPermissionDeniedMessage();
-              return;
-            }
-          } catch {
-            // Permissions API no soporta 'microphone' en algunos navegadores
-          }
-        }
+        // NOTA: No usamos Permissions API para verificar estado porque en algunos
+        // dispositivos Android (ej: Oppo/Xiaomi con Chrome) devuelve 'denied'
+        // incorrectamente incluso cuando el usuario acaba de conceder permiso.
+        // En su lugar, intentamos getUserMedia directamente.
         
         try {
+          log.info(' Requesting microphone permission via getUserMedia...');
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           stream.getTracks().forEach(t => t.stop());
           // Permiso concedido, limpiar flag
           localStorage.removeItem(STORAGE_KEYS.MIC_PERMISSION_DENIED);
           this._hidePermissionDeniedMessage();
+          log.info(' Microphone permission granted');
         } catch (err) {
           // Guardar que el permiso fue denegado para evitar bucle
+          log.warn(' getUserMedia error:', err.name, err.message);
           if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             log.warn(' Microphone permission denied by user');
             localStorage.setItem(STORAGE_KEYS.MIC_PERMISSION_DENIED, 'true');
@@ -588,10 +581,32 @@ export class AudioSettingsModal {
     
     const retryBtn = banner.querySelector('.permission-denied-retry');
     retryBtn.addEventListener('click', async () => {
-      // Limpiar flag y reintentar
+      // Limpiar TODOS los flags relacionados ANTES de reintentar
       localStorage.removeItem(STORAGE_KEYS.MIC_PERMISSION_DENIED);
       this._hidePermissionDeniedMessage();
-      await this._enumerateDevices(true, true);
+      
+      // Dar feedback visual
+      retryBtn.textContent = '...';
+      retryBtn.disabled = true;
+      
+      // Pequeño delay para asegurar que el sistema procese el cambio de permisos
+      await new Promise(r => setTimeout(r, 300));
+      
+      // Intentar directamente getUserMedia (ignorando Permissions API que puede tener cache)
+      try {
+        log.info(' Retrying microphone permission request...');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Si llegamos aquí, el permiso fue concedido
+        stream.getTracks().forEach(track => track.stop());
+        log.info(' Microphone permission granted on retry!');
+        // Ahora sí enumerar dispositivos para actualizar la lista
+        await this._enumerateDevices(false);
+      } catch (err) {
+        log.warn(' Microphone permission still denied:', err.name, err.message);
+        // Volver a marcar como denegado
+        localStorage.setItem(STORAGE_KEYS.MIC_PERMISSION_DENIED, 'true');
+        this._showPermissionDeniedMessage();
+      }
     });
     
     this._permissionDeniedBanner = banner;

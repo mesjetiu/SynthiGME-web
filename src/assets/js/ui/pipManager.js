@@ -108,7 +108,10 @@ export function initPipManager() {
  * Configura el menú contextual en todos los paneles.
  */
 function setupPanelContextMenus() {
-  document.querySelectorAll('.panel').forEach(panelEl => {
+  const panels = document.querySelectorAll('.panel');
+  log.info(`Configurando menú contextual en ${panels.length} paneles`);
+  
+  panels.forEach(panelEl => {
     panelEl.addEventListener('contextmenu', (e) => {
       // Solo mostrar si el panel no está ya en PiP
       if (activePips.has(panelEl.id)) return;

@@ -213,7 +213,7 @@ export function setupMobileQuickActionsBar() {
   // Menú desplegable de paneles
   const pipMenu = document.createElement('div');
   pipMenu.className = 'pip-menu';
-  pipMenu.hidden = true;
+  // Inicialmente oculto (sin clase is-open)
   
   // Crear items del menú para cada panel
   ALL_PANELS.forEach(({ id, name }) => {
@@ -246,7 +246,7 @@ export function setupMobileQuickActionsBar() {
   let pipMenuOpen = false;
   function togglePipMenu(show) {
     pipMenuOpen = typeof show === 'boolean' ? show : !pipMenuOpen;
-    pipMenu.hidden = !pipMenuOpen;
+    pipMenu.classList.toggle('is-open', pipMenuOpen);
     btnPip.setAttribute('aria-expanded', String(pipMenuOpen));
     if (pipMenuOpen) {
       updatePipMenuState();

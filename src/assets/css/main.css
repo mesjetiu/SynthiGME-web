@@ -291,6 +291,7 @@ html:-webkit-full-screen #viewportOuter {
   border: 1px solid rgba(255,255,255,0.18);
   background: rgba(30,30,30,0.55);
   box-shadow: 0 0 8px rgba(0,0,0,0.4);
+  overflow: visible;
 }
 
 .mobile-quickbar__btn,
@@ -4457,8 +4458,13 @@ small { color:#aaa; }
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   padding: 4px 0;
+  z-index: 9999;
+  display: none;
+}
+
+.pip-menu.is-open {
+  display: block;
   animation: pip-menu-slide-up 150ms ease-out;
-  z-index: 1500;
 }
 
 @keyframes pip-menu-slide-up {

@@ -837,9 +837,17 @@ pip.detach:
   en: Detach panel
   es: Extraer panel
 
+pip.detachAll:
+  en: Detach all
+  es: Extraer todos
+
 pip.attach:
   en: Return panel
   es: Devolver panel
+
+pip.attachAll:
+  en: Return all
+  es: Devolver todos
 
 pip.close:
   en: Close

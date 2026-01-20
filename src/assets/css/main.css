@@ -4492,6 +4492,12 @@ small { color:#aaa; }
   flex-shrink: 0;
 }
 
+.pip-context-menu__separator {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 4px 8px;
+}
+
 /* ─── Menú de PiP en quickbar ─── */
 .mobile-quickbar__pip-container {
   position: relative;

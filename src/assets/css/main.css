@@ -4401,6 +4401,8 @@ small { color:#aaa; }
   justify-content: center;
   cursor: pointer;
   transition: border-color 150ms ease, background-color 150ms ease;
+  /* Usar la misma columna de grid que el panel original */
+  grid-column: var(--panel-col, auto);
 }
 
 .pip-placeholder:hover {

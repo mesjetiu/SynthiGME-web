@@ -274,6 +274,13 @@ export function openPip(panelId) {
   const placeholder = document.createElement('div');
   placeholder.className = 'pip-placeholder';
   placeholder.id = `pip-placeholder-${panelId}`;
+  
+  // Copiar la posición de grid del panel original
+  const panelCol = panelEl.style.getPropertyValue('--panel-col');
+  const panelRow = panelEl.style.getPropertyValue('--panel-row');
+  if (panelCol) placeholder.style.setProperty('--panel-col', panelCol);
+  if (panelRow) placeholder.style.setProperty('--panel-row', panelRow);
+  
   placeholder.innerHTML = `
     <div class="pip-placeholder__content">
       <span class="pip-placeholder__title">${getPanelTitle(panelId)}</span>

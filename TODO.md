@@ -33,6 +33,10 @@
 
 - Actualizar árbol de carpetas en architecture.md
 
+## Traducciones:
+
+- Revisar que las traducciones de todo estén hechas, y que se puedan cambiar en caliente (vistas algunas mal en ajustes).
+
 ## Problemas:
 
 - Al reiniciar patch, permanece el dibujo en el osciloscopio.

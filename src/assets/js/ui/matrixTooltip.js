@@ -38,6 +38,7 @@
  */
 
 import { t } from '../i18n/index.js';
+import { getPinSublabel } from './pinColorMenu.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LABEL GENERATION
@@ -261,10 +262,10 @@ export class MatrixTooltip {
    * Shows the tooltip near a pin button.
    * 
    * @param {HTMLButtonElement} pinBtn - The pin button element
-   * @param {string} text - Tooltip text to display
+   * @param {{text: string, pinInfo: string|null}|string} content - Tooltip content (object with text and pinInfo, or legacy string)
    */
-  show(pinBtn, text) {
-    if (!pinBtn || !text) return;
+  show(pinBtn, content) {
+    if (!pinBtn || !content) return;
     
     // Remove pulse from previous pin if different
     if (this._currentPinBtn && this._currentPinBtn !== pinBtn) {
@@ -276,7 +277,19 @@ export class MatrixTooltip {
     pinBtn.classList.add('is-tooltip-target');
     
     const tooltip = this.element;
-    tooltip.textContent = text;
+    
+    // Handle both new object format and legacy string format
+    if (typeof content === 'string') {
+      tooltip.textContent = content;
+    } else {
+      const { text, pinInfo } = content;
+      if (pinInfo) {
+        tooltip.innerHTML = `<div class="matrix-tooltip__route">${this._escapeHtml(text)}</div><div class="matrix-tooltip__pin-info">${this._escapeHtml(pinInfo)}</div>`;
+      } else {
+        tooltip.textContent = text;
+      }
+    }
+    
     tooltip.setAttribute('aria-hidden', 'false');
     
     // Position calculation
@@ -377,9 +390,10 @@ export class MatrixTooltip {
    * @param {number} row - 0-based row index
    * @param {number} col - 0-based column index
    * @param {Object} maps - { sourceMap, destMap, rowBase, colBase }
-   * @returns {string|null} Tooltip text or null if no info available
+   * @param {HTMLButtonElement} [pinBtn] - Optional pin button to check if active and get color
+   * @returns {{text: string, pinInfo: string|null}|null} Tooltip data or null if no info available
    */
-  _getTooltipText(row, col, maps) {
+  _getTooltipText(row, col, maps, pinBtn = null) {
     const { sourceMap, destMap, rowBase, colBase } = maps;
     
     const source = sourceMap?.get(row);
@@ -396,7 +410,45 @@ export class MatrixTooltip {
       ? getLabelForDest(dest) 
       : t('matrix.tooltip.unknownDest', { col: col + colBase });
     
-    return t('matrix.tooltip.format', { source: sourceLabel, dest: destLabel });
+    const text = t('matrix.tooltip.format', { source: sourceLabel, dest: destLabel });
+    
+    // If pin is active, get pin info (resistance + gain)
+    let pinInfo = null;
+    if (pinBtn && pinBtn.classList.contains('active')) {
+      const pinColor = this._getPinColorFromButton(pinBtn);
+      if (pinColor) {
+        pinInfo = getPinSublabel(pinColor);
+      }
+    }
+    
+    return { text, pinInfo };
+  }
+  
+  /**
+   * Extracts the pin color from a pin button's class list.
+   * @param {HTMLButtonElement} pinBtn - The pin button element
+   * @returns {string|null} Pin color (uppercase) or null
+   */
+  _getPinColorFromButton(pinBtn) {
+    const pinColorClasses = ['pin-white', 'pin-grey', 'pin-green', 'pin-red', 'pin-blue', 'pin-yellow', 'pin-cyan', 'pin-purple'];
+    for (const cls of pinColorClasses) {
+      if (pinBtn.classList.contains(cls)) {
+        return cls.replace('pin-', '').toUpperCase();
+      }
+    }
+    // Default to WHITE if active but no specific class
+    return 'WHITE';
+  }
+  
+  /**
+   * Escapes HTML special characters to prevent XSS.
+   * @param {string} text - Raw text to escape
+   * @returns {string} Escaped HTML
+   */
+  _escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
   
   /**
@@ -426,9 +478,9 @@ export class MatrixTooltip {
     const row = parseInt(btn.dataset.row, 10);
     const col = parseInt(btn.dataset.col, 10);
     
-    const text = this._getTooltipText(row, col, maps);
-    if (text) {
-      this.show(btn, text);
+    const content = this._getTooltipText(row, col, maps, btn);
+    if (content) {
+      this.show(btn, content);
     }
   }
   
@@ -546,9 +598,9 @@ export class MatrixTooltip {
     const row = parseInt(btn.dataset.row, 10);
     const col = parseInt(btn.dataset.col, 10);
     
-    const text = this._getTooltipText(row, col, maps);
-    if (text) {
-      this.show(btn, text);
+    const content = this._getTooltipText(row, col, maps, btn);
+    if (content) {
+      this.show(btn, content);
     }
     
     this._resetTouchState();

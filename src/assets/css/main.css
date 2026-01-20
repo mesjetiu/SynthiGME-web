@@ -1324,6 +1324,23 @@ table.matrix {
   transform: translateY(0);
 }
 
+/* Route info line (Source → Destination) */
+.matrix-tooltip__route {
+  white-space: nowrap;
+}
+
+/* Pin info line (resistance and gain) - shown only for active pins */
+.matrix-tooltip__pin-info {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', monospace;
+  white-space: nowrap;
+}
+
 /* Pin pulse effect when tooltip is visible - helps locate the target pin */
 .matrix.matrix-large .pin-btn.is-tooltip-target {
   animation: pin-tooltip-pulse 0.8s ease-in-out infinite;

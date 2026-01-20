@@ -813,6 +813,59 @@ toast.zoom.unlocked:
   es: Zoom desbloqueado
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PICTURE-IN-PICTURE (PiP) - PANELES FLOTANTES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+pip.detach:
+  en: Detach panel
+  es: Extraer panel
+
+pip.attach:
+  en: Return panel
+  es: Devolver panel
+
+pip.close:
+  en: Close
+  es: Cerrar
+
+pip.zoomIn:
+  en: Zoom in
+  es: Acercar
+
+pip.zoomOut:
+  en: Zoom out
+  es: Alejar
+
+# Títulos de paneles para PiP
+panel.oscillators1:
+  en: Oscillators 1-3
+  es: Osciladores 1-3
+
+panel.oscilloscope:
+  en: Oscilloscope
+  es: Osciloscopio
+
+panel.oscillators2:
+  en: Oscillators 4-6
+  es: Osciladores 4-6
+
+panel.oscillators3:
+  en: Oscillators 7-9
+  es: Osciladores 7-9
+
+panel.audioMatrix:
+  en: Audio Matrix
+  es: Matriz Audio
+
+panel.controlMatrix:
+  en: Control Matrix
+  es: Matriz Control
+
+panel.output:
+  en: Output
+  es: Salida
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ORIENTACIÓN Y PANTALLA
 # ═══════════════════════════════════════════════════════════════════════════════
 

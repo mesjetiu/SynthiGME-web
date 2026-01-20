@@ -68,6 +68,7 @@ import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
+import { initPipManager, addDetachButton } from './ui/pipManager.js';
 import { showToast } from './ui/toast.js';
 import { labelPanelSlot, getOscillatorLayoutSpec } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
@@ -2933,6 +2934,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   
   // Inicializar navegación del viewport
   initViewportNavigation();
+  
+  // Inicializar sistema PiP (paneles flotantes)
+  initPipManager();
+  
+  // Añadir botón de detach a cada panel
+  document.querySelectorAll('.panel').forEach(panel => {
+    addDetachButton(panel);
+  });
   
   // Registrar service worker
   registerServiceWorker();

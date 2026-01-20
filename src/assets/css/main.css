@@ -4168,3 +4168,219 @@ small { color:#aaa; }
   right: 2px;
   font-size: 10px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PICTURE-IN-PICTURE (PiP) SYSTEM
+   Sistema de paneles flotantes para extraer paneles del viewport principal.
+   Permite ver múltiples paneles simultáneamente con zoom independiente.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Capa contenedora de todos los PiPs */
+.pip-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1200;
+}
+
+/* Contenedor individual de PiP */
+.pip-container {
+  position: absolute;
+  pointer-events: auto;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 150ms ease;
+}
+
+.pip-container:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.pip-container--dragging {
+  cursor: grabbing;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+  opacity: 0.95;
+}
+
+.pip-container--resizing {
+  cursor: se-resize;
+}
+
+/* Barra de título del PiP */
+.pip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: linear-gradient(180deg, #333 0%, #222 100%);
+  border-bottom: 1px solid #444;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.pip-header:active {
+  cursor: grabbing;
+}
+
+.pip-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+/* Controles del PiP */
+.pip-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pip-controls button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #aaa;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.pip-controls button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.pip-close:hover {
+  background: rgba(244, 67, 54, 0.3) !important;
+  color: #f44336 !important;
+}
+
+/* Contenido del PiP */
+.pip-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: #111;
+}
+
+/* Viewport interno para el panel */
+.pip-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+}
+
+/* El panel dentro del PiP */
+.pip-viewport > .panel {
+  position: relative;
+  margin: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Handle de resize */
+.pip-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.2) 50%);
+  border-radius: 0 0 8px 0;
+}
+
+.pip-resize-handle:hover {
+  background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.4) 50%);
+}
+
+/* Botón de detach en cada panel */
+.pip-detach-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ccc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 200ms ease, background-color 150ms ease, transform 150ms ease;
+  backdrop-filter: blur(4px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.panel:hover .pip-detach-btn,
+.panel:focus-within .pip-detach-btn,
+.pip-detach-btn:focus {
+  opacity: 1;
+}
+
+/* Siempre visible en touch devices */
+@media (hover: none) {
+  .pip-detach-btn {
+    opacity: 0.7;
+  }
+}
+
+.pip-detach-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.pip-detach-btn:active {
+  transform: scale(0.95);
+}
+
+/* Icono rotado cuando está en modo PiP */
+.pip-detach-btn--active {
+  background: rgba(255, 182, 59, 0.3);
+  color: #ffb63b;
+}
+
+.pip-detach-btn--active svg {
+  transform: rotate(180deg);
+}
+
+.pip-detach-btn--active:hover {
+  background: rgba(255, 182, 59, 0.5);
+}
+
+/* Panel marcado como extraído (placeholder visual) */
+.panel--pipped {
+  /* El panel mantiene su tamaño pero está dentro del PiP */
+}
+
+/* Ocultar botón de detach cuando el panel está en PiP (ya tiene el X de cerrar) */
+.pip-viewport .pip-detach-btn {
+  display: none;
+}

@@ -23,7 +23,7 @@
 
 ## Pines y resistencias:
 
-- Precisar y corregir las descripciones de cada pin. 
+- Precisar y corregir las descripciones de cada pin. Incluir valor calculado de ganancia 
 
 - Investigar en manuales otros posibles pines.
 

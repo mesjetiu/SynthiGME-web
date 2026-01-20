@@ -42,3 +42,5 @@
 - Al reiniciar patch, permanece el dibujo en el osciloscopio.
 
 - Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
+
+- No sé conceden permisos de micro en Chrome android (móvil)

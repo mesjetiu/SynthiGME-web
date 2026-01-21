@@ -72,3 +72,5 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 - Quitar del menú contextual de los paneles "extraer todos", porque ya están en el menú de la barra.
 
 - los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.
+
+- el menú contextual del panel no ha de salir si se hace en un knob u otro mando. En este caso aún no ha de salir nada (eventualmente tendrá su propio menú contextual)

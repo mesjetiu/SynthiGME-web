@@ -2111,7 +2111,8 @@ class App {
       min: frequencyCfg.min ?? 0,
       max: frequencyCfg.max ?? 10,
       initial: frequencyCfg.initial ?? 5,
-      pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 1500,
+      pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 10000,
+      scaleDecimals: frequencyCfg.scaleDecimals ?? 3,
       onChange: value => this._updatePanelOscFreq(panelIndex, oscIndex, value)
     };
     

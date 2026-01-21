@@ -207,7 +207,8 @@ export default {
         max: 10,                   // Posición máxima del dial
         initial: 5,                // Posición inicial (261 Hz en HI)
         curve: 'synthi100',        // Marca para usar dialToFrequency (no curva estándar)
-        pixelsForFullRange: 1500   // Máximo recorrido para control muy preciso
+        pixelsForFullRange: 10000, // 10000 px = 0.001 unidades por píxel (milésimas de dial)
+        scaleDecimals: 3           // Mostrar 3 decimales en tooltip (ej: 5.123)
       }
     },
 

@@ -1411,11 +1411,11 @@ export class AudioEngine {
     node.parameters.get('gain').value = gain;
 
     // Métodos de conveniencia
-    node.setFrequency = (value, ramp = 0.01) => {
+    node.setFrequency = (value) => {
       const param = node.parameters.get('frequency');
       const now = this.audioCtx.currentTime;
       param.cancelScheduledValues(now);
-      param.setTargetAtTime(value, now, ramp);
+      param.setValueAtTime(value, now);
     };
 
     node.setPulseWidth = (value, ramp = 0.01) => {
@@ -1526,12 +1526,12 @@ export class AudioEngine {
 
     const ctx = this.audioCtx;
 
-    // Métodos de conveniencia con rampa suave
-    node.setFrequency = (value, ramp = 0.01) => {
+    // Métodos de conveniencia (frecuencia sin rampa para evitar glissando)
+    node.setFrequency = (value) => {
       const param = node.parameters.get('frequency');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);
-      param.setTargetAtTime(value, now, ramp);
+      param.setValueAtTime(value, now);
     };
 
     node.setPulseWidth = (value, ramp = 0.01) => {

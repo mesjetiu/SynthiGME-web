@@ -2079,7 +2079,8 @@ class App {
       max: pulseWidthCfg.max ?? 1,
       initial: pulseWidthCfg.initial ?? 0.5,
       pixelsForFullRange: pulseWidthCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelPulseWidth(panelIndex, oscIndex, value)
+      onChange: value => this._updatePanelPulseWidth(panelIndex, oscIndex, value),
+      getTooltipInfo: (value) => `Duty: ${Math.round(value * 100)}%`
     };
     
     const sineLevelCfg = knobsConfig.sineLevel || {};
@@ -2099,7 +2100,11 @@ class App {
       max: sineSymmetryCfg.max ?? 1,
       initial: sineSymmetryCfg.initial ?? 0.5,
       pixelsForFullRange: sineSymmetryCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelSineSymmetry(panelIndex, oscIndex, value)
+      onChange: value => this._updatePanelSineSymmetry(panelIndex, oscIndex, value),
+      getTooltipInfo: (value) => {
+        const offset = Math.round((value - 0.5) * 200);
+        return offset === 0 ? 'Puro' : `Offset: ${offset > 0 ? '+' : ''}${offset}%`;
+      }
     };
     
     const triangleLevelCfg = knobsConfig.triangleLevel || {};

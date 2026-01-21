@@ -2052,16 +2052,25 @@ class App {
   _getPanelKnobOptions(panelIndex, oscIndex) {
     const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
     const knobsConfig = config?.knobs || {};
+    const voltageConfig = config?.voltage?.outputLevels || {};
     
     const knobOptions = [];
     
+    // Helper para crear tooltips de levels
+    const getLevelTooltipInfo = (maxVpp) => (value, scaleValue) => {
+      const vpp = (value * maxVpp).toFixed(2);
+      return `${vpp} Vp-p · ${value.toFixed(2)}`;
+    };
+    
     const pulseLevelCfg = knobsConfig.pulseLevel || {};
+    const pulseVpp = voltageConfig.pulse ?? 8.0;
     knobOptions[0] = {
       min: pulseLevelCfg.min ?? 0,
       max: pulseLevelCfg.max ?? 1,
       initial: pulseLevelCfg.initial ?? 0,
       pixelsForFullRange: pulseLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelPulseVolume(panelIndex, oscIndex, value)
+      onChange: value => this._updatePanelPulseVolume(panelIndex, oscIndex, value),
+      getTooltipInfo: getLevelTooltipInfo(pulseVpp)
     };
     
     const pulseWidthCfg = knobsConfig.pulseWidth || {};
@@ -2074,12 +2083,14 @@ class App {
     };
     
     const sineLevelCfg = knobsConfig.sineLevel || {};
+    const sineVpp = voltageConfig.sine ?? 8.0;
     knobOptions[2] = {
       min: sineLevelCfg.min ?? 0,
       max: sineLevelCfg.max ?? 1,
       initial: sineLevelCfg.initial ?? 0,
       pixelsForFullRange: sineLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelOscVolume(panelIndex, oscIndex, value)
+      onChange: value => this._updatePanelOscVolume(panelIndex, oscIndex, value),
+      getTooltipInfo: getLevelTooltipInfo(sineVpp)
     };
     
     const sineSymmetryCfg = knobsConfig.sineSymmetry || {};
@@ -2092,21 +2103,25 @@ class App {
     };
     
     const triangleLevelCfg = knobsConfig.triangleLevel || {};
+    const triangleVpp = voltageConfig.triangle ?? 8.0;
     knobOptions[4] = {
       min: triangleLevelCfg.min ?? 0,
       max: triangleLevelCfg.max ?? 1,
       initial: triangleLevelCfg.initial ?? 0,
       pixelsForFullRange: triangleLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelTriVolume(panelIndex, oscIndex, value)
+      onChange: value => this._updatePanelTriVolume(panelIndex, oscIndex, value),
+      getTooltipInfo: getLevelTooltipInfo(triangleVpp)
     };
     
     const sawtoothLevelCfg = knobsConfig.sawtoothLevel || {};
+    const sawtoothVpp = voltageConfig.sawtooth ?? 8.0;
     knobOptions[5] = {
       min: sawtoothLevelCfg.min ?? 0,
       max: sawtoothLevelCfg.max ?? 1,
       initial: sawtoothLevelCfg.initial ?? 0,
       pixelsForFullRange: sawtoothLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelSawVolume(panelIndex, oscIndex, value)
+      onChange: value => this._updatePanelSawVolume(panelIndex, oscIndex, value),
+      getTooltipInfo: getLevelTooltipInfo(sawtoothVpp)
     };
     
     const frequencyCfg = knobsConfig.frequency || {};

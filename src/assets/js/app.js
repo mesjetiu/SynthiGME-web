@@ -1996,10 +1996,9 @@ class App {
     const oscUI = this._oscillatorUIs?.[oscId];
     const isRangeLow = rangeLow !== undefined ? rangeLow : (oscUI?.rangeState === 'lo');
     
-    // Convertir posición del dial a frecuencia usando el modelo Synthi 100
-    // El valor del knob (0-1) se escala a posición de dial (0-10)
-    const freqConfig = config?.knobs?.frequency || { min: 0, max: 10 };
-    const dialValue = freqConfig.min + dialPosition * (freqConfig.max - freqConfig.min);
+    // El valor que viene del knob ya es la posición del dial (0-10)
+    // No necesita conversión adicional ya que el knob está configurado con min:0, max:10
+    const dialValue = dialPosition;
     
     const freq = dialToFrequency(dialValue, {
       rangeLow: isRangeLow,
@@ -2109,9 +2108,9 @@ class App {
     
     const frequencyCfg = knobsConfig.frequency || {};
     knobOptions[6] = {
-      min: frequencyCfg.min ?? 1,
-      max: frequencyCfg.max ?? 10000,
-      initial: frequencyCfg.initial ?? 10,
+      min: frequencyCfg.min ?? 0,
+      max: frequencyCfg.max ?? 10,
+      initial: frequencyCfg.initial ?? 5,
       pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 1500,
       onChange: value => this._updatePanelOscFreq(panelIndex, oscIndex, value)
     };

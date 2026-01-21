@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 20 de enero de 2026 (paneles flotantes PiP)
+> Última actualización: 24 de enero de 2025 (modelo de frecuencia Synthi 100 CEM 3340)
 
 ---
 
@@ -624,6 +624,57 @@ voltage: {
 }
 ```
 
+#### Modelo de Frecuencia (CEM 3340 - Synthi 100 Datanomics 1982)
+
+El modelo de frecuencia de los osciladores reproduce el comportamiento del VCO CEM 3340 documentado en el manual Datanomics 1982:
+
+**Fórmula de conversión dial→frecuencia:**
+
+$$f = f_{ref} \times 2^{\frac{dial - 5}{k} + V_{total}}$$
+
+Donde:
+- $f_{ref} = 261$ Hz (C4 MIDI, referencia de afinación)
+- $k = 0.95$ unidades de dial por octava
+- $V_{total}$ = suma de todas las entradas CV (en voltios, 1V/Oct)
+
+```javascript
+import { dialToFrequency } from './state/conversions.js';
+
+// Posición dial 5, sin CV, modo HI → 261 Hz (C4)
+dialToFrequency(5, 0, 'HI');  // → 261
+
+// Dial al máximo (10), sin CV, modo HI → ~14.817 Hz
+dialToFrequency(10, 0, 'HI'); // → ~14817
+
+// Dial 5, con +1V de CV externo → 522 Hz (una octava arriba)
+dialToFrequency(5, 1, 'HI');  // → 522
+
+// Modo LO divide por 10
+dialToFrequency(5, 0, 'LO');  // → 26.1
+```
+
+**Configuración de tracking** (`defaults.tracking`):
+
+```javascript
+tracking: {
+  alpha: 0.01,           // Coeficiente de distorsión cuadrática
+  linearHalfRange: 2.5   // Zona lineal ±2.5V
+}
+```
+
+Fuera de la zona lineal (|V| > 2.5V), se aplica distorsión de tracking cuadrática:
+
+$$V_{eff} = V + \alpha \times sign(V) \times (|V| - 2.5)^2$$
+
+**Rangos de frecuencia físicos:**
+
+| Modo | Mínimo | Máximo |
+|------|--------|--------|
+| HI   | 5 Hz   | 20.000 Hz |
+| LO   | 0.5 Hz | 2.000 Hz  |
+
+Estos límites emulan las restricciones del hardware original (condensadores C9/C10).
+
 ### 3.8.6 Soft Clipping (Saturación)
 
 Cuando el voltaje de entrada supera el límite de un módulo, se aplica saturación suave con `tanh()`:
@@ -760,7 +811,7 @@ src/assets/js/state/
 ├── index.js          # API pública (re-exporta todo)
 ├── schema.js         # Estructura de patches, validación, IDs de módulos
 ├── storage.js        # Persistencia: IndexedDB para patches, localStorage para sesión
-├── conversions.js    # Conversiones knob ↔ valores físicos (curvas)
+├── conversions.js    # Conversiones knob ↔ valores físicos (curvas, dial→frecuencia Synthi 100)
 ├── migrations.js     # Migraciones entre versiones de formato
 └── sessionManager.js # Singleton que gestiona ciclo de sesión (autoguardado, dirty tracking, restauración)
 ```

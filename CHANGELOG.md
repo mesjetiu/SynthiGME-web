@@ -58,6 +58,15 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - **Saturación suave (soft clip)**: Activar/desactivar el límite de voltaje con tanh().
   - **Tolerancia de pines**: Activar/desactivar variación realista de resistencias (±0.5% gris, ±10% resto).
   - **Deriva térmica**: Activar/desactivar simulación de drift de osciladores.
+- **Modelo de frecuencia realista del Synthi 100 (CEM 3340)**: Implementación basada en documentación Datanomics 1982:
+  - **Escala exponencial 1V/Octava**: El dial (0-10) controla la frecuencia con factor 0.95 unidades por octava.
+  - **Frecuencia de referencia**: 261 Hz (C4) en posición dial 5, estándar de afinación MIDI.
+  - **Conversión dial→frecuencia**: `f = 261 × 2^((dial - 5) / 0.95 + CV_total)`.
+  - **Switch HI/LO**: El modo LO divide la frecuencia por 10 (condensador C10 10nF vs C9 1nF).
+  - **Rangos físicos**: HI (5–20.000 Hz), LO (0.5–2.000 Hz), con clamping a límites.
+  - **Distorsión de tracking**: Fuera de la zona lineal (±2.5V), tracking cuadrático con α=0.01 configurable.
+  - **Nuevas funciones en conversions.js**: `dialToFrequency()`, `frequencyToDial()`, `applyTrackingDistortion()`, `generateFrequencyTable()`.
+  - **Constantes en voltageConstants.js**: `OSC_REFERENCE_FREQ`, `DIAL_UNITS_PER_OCTAVE`, `TRACKING_LINEAR_HALF_RANGE`, `OSC_FREQUENCY_RANGES`, `LO_RANGE_DIVISOR`.
   - Todas las opciones están **activadas por defecto** y sus valores se leen dinámicamente desde localStorage.
 
 ### Corregido

@@ -407,6 +407,9 @@ export class SettingsModal {
     // Paneles flotantes (PiP)
     container.appendChild(this._createPipSection());
     
+    // Información de parámetros (tooltips)
+    container.appendChild(this._createParamInfoSection());
+    
     return container;
   }
   
@@ -939,6 +942,87 @@ export class SettingsModal {
     if (!remember) {
       localStorage.removeItem(STORAGE_KEYS.PIP_STATE);
     }
+  }
+
+  /**
+   * Crea la sección de información de parámetros (tooltips)
+   * @returns {HTMLElement}
+   */
+  _createParamInfoSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.paramInfoTitleElement = document.createElement('h3');
+    this.paramInfoTitleElement.className = 'settings-section__title';
+    this.paramInfoTitleElement.textContent = t('settings.display.paramInfo');
+    section.appendChild(this.paramInfoTitleElement);
+    
+    this.paramInfoDescElement = document.createElement('p');
+    this.paramInfoDescElement.className = 'settings-section__description';
+    this.paramInfoDescElement.textContent = t('settings.display.paramInfo.description');
+    section.appendChild(this.paramInfoDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para mostrar valores de voltaje
+    // ─────────────────────────────────────────────────────────────────────
+    const voltageRow = document.createElement('div');
+    voltageRow.className = 'settings-row settings-row--checkbox';
+    
+    this.tooltipVoltageCheckbox = document.createElement('input');
+    this.tooltipVoltageCheckbox.type = 'checkbox';
+    this.tooltipVoltageCheckbox.id = 'tooltipVoltageCheckbox';
+    this.tooltipVoltageCheckbox.className = 'settings-checkbox';
+    
+    // Cargar preferencia guardada (por defecto true)
+    const savedVoltage = localStorage.getItem(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE);
+    this.showTooltipVoltage = savedVoltage !== 'false';
+    this.tooltipVoltageCheckbox.checked = this.showTooltipVoltage;
+    
+    this.tooltipVoltageLabelElement = document.createElement('label');
+    this.tooltipVoltageLabelElement.className = 'settings-checkbox-label';
+    this.tooltipVoltageLabelElement.htmlFor = 'tooltipVoltageCheckbox';
+    this.tooltipVoltageLabelElement.textContent = t('settings.display.paramInfo.voltage');
+    
+    this.tooltipVoltageCheckbox.addEventListener('change', () => {
+      this.showTooltipVoltage = this.tooltipVoltageCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, String(this.showTooltipVoltage));
+    });
+    
+    voltageRow.appendChild(this.tooltipVoltageCheckbox);
+    voltageRow.appendChild(this.tooltipVoltageLabelElement);
+    section.appendChild(voltageRow);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para mostrar valores de audio
+    // ─────────────────────────────────────────────────────────────────────
+    const audioRow = document.createElement('div');
+    audioRow.className = 'settings-row settings-row--checkbox';
+    
+    this.tooltipAudioCheckbox = document.createElement('input');
+    this.tooltipAudioCheckbox.type = 'checkbox';
+    this.tooltipAudioCheckbox.id = 'tooltipAudioCheckbox';
+    this.tooltipAudioCheckbox.className = 'settings-checkbox';
+    
+    // Cargar preferencia guardada (por defecto true)
+    const savedAudio = localStorage.getItem(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES);
+    this.showTooltipAudio = savedAudio !== 'false';
+    this.tooltipAudioCheckbox.checked = this.showTooltipAudio;
+    
+    this.tooltipAudioLabelElement = document.createElement('label');
+    this.tooltipAudioLabelElement.className = 'settings-checkbox-label';
+    this.tooltipAudioLabelElement.htmlFor = 'tooltipAudioCheckbox';
+    this.tooltipAudioLabelElement.textContent = t('settings.display.paramInfo.audio');
+    
+    this.tooltipAudioCheckbox.addEventListener('change', () => {
+      this.showTooltipAudio = this.tooltipAudioCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, String(this.showTooltipAudio));
+    });
+    
+    audioRow.appendChild(this.tooltipAudioCheckbox);
+    audioRow.appendChild(this.tooltipAudioLabelElement);
+    section.appendChild(audioRow);
+    
+    return section;
   }
   
   /**
@@ -2478,6 +2562,20 @@ export class SettingsModal {
     }
     if (this.pipRememberLabelElement) {
       this.pipRememberLabelElement.textContent = t('settings.display.pip.remember');
+    }
+    
+    // Actualizar sección de información de parámetros
+    if (this.paramInfoTitleElement) {
+      this.paramInfoTitleElement.textContent = t('settings.display.paramInfo');
+    }
+    if (this.paramInfoDescElement) {
+      this.paramInfoDescElement.textContent = t('settings.display.paramInfo.description');
+    }
+    if (this.tooltipVoltageLabelElement) {
+      this.tooltipVoltageLabelElement.textContent = t('settings.display.paramInfo.voltage');
+    }
+    if (this.tooltipAudioLabelElement) {
+      this.tooltipAudioLabelElement.textContent = t('settings.display.paramInfo.audio');
     }
     
     // Actualizar sección "Acerca de"

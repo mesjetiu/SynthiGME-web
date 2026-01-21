@@ -2056,10 +2056,22 @@ class App {
     
     const knobOptions = [];
     
+    // Helpers para verificar preferencias de tooltips (se leen en cada llamada)
+    const showVoltage = () => localStorage.getItem(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE) !== 'false';
+    const showAudio = () => localStorage.getItem(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES) !== 'false';
+    
     // Helper para crear tooltips de levels
+    // Muestra: Vp-p (voltaje) y Gan (ganancia normalizada)
     const getLevelTooltipInfo = (maxVpp) => (value, scaleValue) => {
-      const vpp = (value * maxVpp).toFixed(2);
-      return `${vpp} Vp-p · ${value.toFixed(2)}`;
+      const parts = [];
+      if (showVoltage()) {
+        const vpp = (value * maxVpp).toFixed(2);
+        parts.push(`${vpp} Vp-p`);
+      }
+      if (showAudio()) {
+        parts.push(`Gan: ${value.toFixed(2)}`);
+      }
+      return parts.length > 0 ? parts.join(' · ') : null;
     };
     
     const pulseLevelCfg = knobsConfig.pulseLevel || {};
@@ -2080,7 +2092,7 @@ class App {
       initial: pulseWidthCfg.initial ?? 0.5,
       pixelsForFullRange: pulseWidthCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelPulseWidth(panelIndex, oscIndex, value),
-      getTooltipInfo: (value) => `Duty: ${Math.round(value * 100)}%`
+      getTooltipInfo: (value) => showAudio() ? `Duty: ${Math.round(value * 100)}%` : null
     };
     
     const sineLevelCfg = knobsConfig.sineLevel || {};
@@ -2102,6 +2114,7 @@ class App {
       pixelsForFullRange: sineSymmetryCfg.pixelsForFullRange ?? 900,
       onChange: value => this._updatePanelSineSymmetry(panelIndex, oscIndex, value),
       getTooltipInfo: (value) => {
+        if (!showAudio()) return null;
         const offset = Math.round((value - 0.5) * 200);
         return offset === 0 ? 'Puro' : `Offset: ${offset > 0 ? '+' : ''}${offset}%`;
       }
@@ -2135,42 +2148,45 @@ class App {
     // Función para generar info del tooltip de frecuencia
     // Muestra: voltaje del dial y frecuencia real calculada
     const getFreqTooltipInfo = (value, scaleValue) => {
-      // El valor del knob es la posición del dial (0-10)
-      // Calcular el voltaje interno (1V/Oct desde referencia 5)
-      const dialVoltage = 5 + (value - 5) / 0.95;  // 0.95 unidades de dial = 1 octava
+      const parts = [];
       
-      // Obtener el estado actual del switch HI/LO
-      const oscId = `panel${panelIndex}-osc-${oscIndex + 1}`;
-      const oscUI = this._oscillatorUIs?.[oscId];
-      const isRangeLow = oscUI?.rangeState === 'lo';
+      // Voltaje del dial (si está habilitado)
+      if (showVoltage()) {
+        const dialVoltage = 5 + (value - 5) / 0.95;
+        parts.push(dialVoltage.toFixed(3) + ' V');
+      }
       
-      // Calcular frecuencia real
-      const freq = dialToFrequency(value, {
-        rangeLow: isRangeLow,
-        trackingConfig: {
-          alpha: trackingConfig.alpha ?? 0.01,
-          linearHalfRange: trackingConfig.linearHalfRange ?? 2.5
+      // Frecuencia real (si está habilitado)
+      if (showAudio()) {
+        const oscId = `panel${panelIndex}-osc-${oscIndex + 1}`;
+        const oscUI = this._oscillatorUIs?.[oscId];
+        const isRangeLow = oscUI?.rangeState === 'lo';
+        
+        const freq = dialToFrequency(value, {
+          rangeLow: isRangeLow,
+          trackingConfig: {
+            alpha: trackingConfig.alpha ?? 0.01,
+            linearHalfRange: trackingConfig.linearHalfRange ?? 2.5
+          }
+        });
+        
+        let freqStr;
+        if (freq >= 1000) {
+          freqStr = (freq / 1000).toFixed(2) + ' kHz';
+        } else {
+          freqStr = freq.toFixed(2) + ' Hz';
         }
-      });
-      
-      // Formatear frecuencia con precisión de 2 decimales
-      let freqStr;
-      if (freq >= 1000) {
-        freqStr = (freq / 1000).toFixed(2) + ' kHz';
-      } else {
-        freqStr = freq.toFixed(2) + ' Hz';
+        
+        // Detectar CV conectado
+        const hasFreqCV = this._hasOscillatorFreqCV(oscIndex);
+        if (hasFreqCV) {
+          freqStr += ' + CV';
+        }
+        
+        parts.push(freqStr);
       }
       
-      // Detectar si hay CV conectado a la frecuencia de este oscilador
-      const hasFreqCV = this._hasOscillatorFreqCV(oscIndex);
-      if (hasFreqCV) {
-        freqStr += ' + CV';
-      }
-      
-      // Formatear voltaje con 3 decimales (igual que scaleDecimals del knob)
-      const voltStr = dialVoltage.toFixed(3) + ' V';
-      
-      return `${voltStr} · ${freqStr}`;
+      return parts.length > 0 ? parts.join(' · ') : null;
     };
     
     knobOptions[6] = {

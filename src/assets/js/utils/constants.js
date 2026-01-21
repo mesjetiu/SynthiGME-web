@@ -118,7 +118,17 @@ export const STORAGE_KEYS = {
   VOLTAGE_PIN_TOLERANCE_ENABLED: `${STORAGE_PREFIX}voltage-pin-tolerance-enabled`,
   
   /** Thermal drift: deriva térmica lenta en osciladores (±0.1%) */
-  VOLTAGE_THERMAL_DRIFT_ENABLED: `${STORAGE_PREFIX}voltage-thermal-drift-enabled`
+  VOLTAGE_THERMAL_DRIFT_ENABLED: `${STORAGE_PREFIX}voltage-thermal-drift-enabled`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Tooltips de parámetros (knobs)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Mostrar valores de voltaje en tooltips de knobs */
+  TOOLTIP_SHOW_VOLTAGE: `${STORAGE_PREFIX}tooltip-show-voltage`,
+  
+  /** Mostrar valores de audio (frecuencia, ganancia) en tooltips de knobs */
+  TOOLTIP_SHOW_AUDIO_VALUES: `${STORAGE_PREFIX}tooltip-show-audio-values`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

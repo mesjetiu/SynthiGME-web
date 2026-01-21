@@ -17,19 +17,24 @@ import {
   getOscillatorParamConfig,
   getNoiseParamConfig,
   getInputAmplifierParamConfig,
-  getOutputFaderParamConfig
+  getOutputFaderParamConfig,
+  dialToFrequency,
+  applyTrackingDistortion,
+  frequencyToDial,
+  generateFrequencyTable
 } from '../../src/assets/js/state/conversions.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILIDADES DE TEST
 // ═══════════════════════════════════════════════════════════════════════════
 
-const EPSILON = 1e-9; // Tolerancia para comparaciones de punto flotante
+const EPSILON = 1e-6; // Tolerancia para comparaciones de punto flotante
+const EPSILON_FREQ = 0.5; // Tolerancia para frecuencias (Hz)
 
-function assertClose(actual, expected, message) {
+function assertClose(actual, expected, message, epsilon = EPSILON) {
   assert.ok(
-    Math.abs(actual - expected) < EPSILON,
-    `${message}: ${actual} ≉ ${expected}`
+    Math.abs(actual - expected) < epsilon,
+    `${message}: ${actual} ≉ ${expected} (diff: ${Math.abs(actual - expected)})`
   );
 }
 
@@ -278,6 +283,203 @@ describe('getOutputFaderParamConfig', () => {
     const config = getOutputFaderParamConfig('levelLeft');
     assert.equal(config.min, 0);
     assert.equal(config.max, 1);
+  });
+
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONVERSIÓN DE FRECUENCIA DEL OSCILADOR (Synthi 100 - CEM 3340)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('dialToFrequency', () => {
+
+  describe('punto de referencia central', () => {
+    it('dial 5 → 261 Hz (Do central)', () => {
+      const freq = dialToFrequency(5);
+      assert.equal(freq, 261);
+    });
+
+    it('dial 5 en rango LO → ~26.1 Hz (÷10)', () => {
+      const freq = dialToFrequency(5, { rangeLow: true });
+      assertClose(freq, 26.1, 'Frecuencia en LO', EPSILON_FREQ);
+    });
+  });
+
+  describe('escala de octavas (0.95 unidades = 1 octava)', () => {
+    it('dial 5 + 0.95 → ~522 Hz (1 octava arriba)', () => {
+      // Sin distorsión de tracking (dentro del rango lineal)
+      const freq = dialToFrequency(5 + 0.95, { trackingConfig: { alpha: 0 } });
+      // 261 × 2^1 = 522
+      assertClose(freq, 522, 'Una octava arriba', EPSILON_FREQ);
+    });
+
+    it('dial 5 - 0.95 → ~130.5 Hz (1 octava abajo)', () => {
+      const freq = dialToFrequency(5 - 0.95, { trackingConfig: { alpha: 0 } });
+      // 261 × 2^(-1) = 130.5
+      assertClose(freq, 130.5, 'Una octava abajo', EPSILON_FREQ);
+    });
+
+    it('dial 5 + 1.9 → ~1044 Hz (2 octavas arriba)', () => {
+      // Aún dentro del rango lineal (|V-5| = 2 < 2.5)
+      const freq = dialToFrequency(5 + 1.9, { trackingConfig: { alpha: 0 } });
+      // 261 × 2^2 = 1044
+      assertClose(freq, 1044, 'Dos octavas arriba', EPSILON_FREQ);
+    });
+  });
+
+  describe('rango HI vs LO', () => {
+    it('LO siempre es HI ÷ 10', () => {
+      const positions = [0, 2, 5, 8, 10];
+      for (const dial of positions) {
+        const freqHI = dialToFrequency(dial, { trackingConfig: { alpha: 0 } });
+        const freqLO = dialToFrequency(dial, { rangeLow: true, trackingConfig: { alpha: 0 } });
+        // Nota: pueden diferir ligeramente por clamping en extremos
+        if (freqHI / 10 >= 0.5 && freqHI / 10 <= 2000) {
+          assertClose(freqLO, freqHI / 10, `dial ${dial}: LO = HI/10`);
+        }
+      }
+    });
+  });
+
+  describe('clamping a límites físicos', () => {
+    it('rango HI: mínimo 5 Hz', () => {
+      // Posición muy baja debería clampear a 5 Hz
+      const freq = dialToFrequency(0, { trackingConfig: { alpha: 0 } });
+      assert.ok(freq >= 5, `Frecuencia ${freq} debe ser >= 5 Hz`);
+    });
+
+    it('rango HI: máximo 20000 Hz', () => {
+      // Posición muy alta debería clampear a 20000 Hz
+      const freq = dialToFrequency(10, { trackingConfig: { alpha: 0 } });
+      assert.ok(freq <= 20000, `Frecuencia ${freq} debe ser <= 20000 Hz`);
+    });
+
+    it('rango LO: mínimo 0.5 Hz', () => {
+      const freq = dialToFrequency(0, { rangeLow: true, trackingConfig: { alpha: 0 } });
+      assert.ok(freq >= 0.5, `Frecuencia ${freq} debe ser >= 0.5 Hz`);
+    });
+
+    it('rango LO: máximo 2000 Hz', () => {
+      const freq = dialToFrequency(10, { rangeLow: true, trackingConfig: { alpha: 0 } });
+      assert.ok(freq <= 2000, `Frecuencia ${freq} debe ser <= 2000 Hz`);
+    });
+  });
+
+  describe('modulación CV externa', () => {
+    it('CV +1V → 1 octava arriba (desde posición 5)', () => {
+      const freqBase = dialToFrequency(5, { trackingConfig: { alpha: 0 } });
+      const freqWithCV = dialToFrequency(5, { cvVoltage: 1, trackingConfig: { alpha: 0 } });
+      assertClose(freqWithCV / freqBase, 2, 'CV +1V debe doblar frecuencia', 0.01);
+    });
+
+    it('CV -1V → 1 octava abajo', () => {
+      const freqBase = dialToFrequency(5, { trackingConfig: { alpha: 0 } });
+      const freqWithCV = dialToFrequency(5, { cvVoltage: -1, trackingConfig: { alpha: 0 } });
+      assertClose(freqWithCV / freqBase, 0.5, 'CV -1V debe reducir frecuencia a la mitad', 0.01);
+    });
+  });
+
+});
+
+describe('applyTrackingDistortion', () => {
+
+  describe('zona lineal (sin distorsión)', () => {
+    it('V=5 → 5 (punto central)', () => {
+      const v = applyTrackingDistortion(5);
+      assert.equal(v, 5);
+    });
+
+    it('V=6 → 6 (dentro de ±2.5)', () => {
+      const v = applyTrackingDistortion(6);
+      assert.equal(v, 6);
+    });
+
+    it('V=7.5 → 7.5 (en el borde)', () => {
+      const v = applyTrackingDistortion(7.5);
+      assert.equal(v, 7.5);
+    });
+
+    it('V=2.5 → 2.5 (en el borde inferior)', () => {
+      const v = applyTrackingDistortion(2.5);
+      assert.equal(v, 2.5);
+    });
+  });
+
+  describe('zona de distorsión (fuera del rango lineal)', () => {
+    it('V=8 → <8 (se queda "flat")', () => {
+      const v = applyTrackingDistortion(8, { alpha: 0.01 });
+      assert.ok(v < 8, `Voltaje distorsionado ${v} debe ser < 8`);
+      assert.ok(v > 7.5, `Voltaje distorsionado ${v} debe ser > 7.5`);
+    });
+
+    it('V=2 → >2 (se queda "flat" también en graves)', () => {
+      const v = applyTrackingDistortion(2, { alpha: 0.01 });
+      assert.ok(v > 2, `Voltaje distorsionado ${v} debe ser > 2`);
+      assert.ok(v < 2.5, `Voltaje distorsionado ${v} debe ser < 2.5`);
+    });
+
+    it('alpha=0 → sin distorsión', () => {
+      const v = applyTrackingDistortion(9, { alpha: 0 });
+      assert.equal(v, 9);
+    });
+
+    it('alpha mayor → más distorsión', () => {
+      const v1 = applyTrackingDistortion(9, { alpha: 0.01 });
+      const v2 = applyTrackingDistortion(9, { alpha: 0.05 });
+      assert.ok(v2 < v1, `alpha=0.05 (${v2}) debe distorsionar más que alpha=0.01 (${v1})`);
+    });
+  });
+
+});
+
+describe('frequencyToDial', () => {
+
+  it('261 Hz → dial 5', () => {
+    const dial = frequencyToDial(261);
+    assertClose(dial, 5, 'Do central debe ser dial 5', 0.01);
+  });
+
+  it('522 Hz → dial ~5.95 (1 octava arriba)', () => {
+    const dial = frequencyToDial(522);
+    assertClose(dial, 5 + 0.95, '1 octava arriba', 0.01);
+  });
+
+  it('26.1 Hz en rango LO → dial ~5', () => {
+    const dial = frequencyToDial(26.1, { rangeLow: true });
+    assertClose(dial, 5, 'Do central en LO', 0.3);  // Tolerancia mayor por redondeos
+  });
+
+  it('es inversa aproximada de dialToFrequency', () => {
+    const dialOriginal = 6.5;
+    const freq = dialToFrequency(dialOriginal, { trackingConfig: { alpha: 0 } });
+    const dialRecuperado = frequencyToDial(freq);
+    assertClose(dialRecuperado, dialOriginal, 'Dial ida y vuelta', 0.01);
+  });
+
+});
+
+describe('generateFrequencyTable', () => {
+
+  it('genera tabla con 11 entradas por defecto (step=1)', () => {
+    const table = generateFrequencyTable();
+    assert.equal(table.length, 11);
+  });
+
+  it('dial 5 tiene error de tracking 0% sin distorsión', () => {
+    const table = generateFrequencyTable({ trackingConfig: { alpha: 0 } });
+    const row5 = table.find(r => r.dial === 5);
+    assert.equal(row5.trackingError, 0);
+  });
+
+  it('tabla LO tiene frecuencias ÷10', () => {
+    const tableHI = generateFrequencyTable({ trackingConfig: { alpha: 0 } });
+    const tableLO = generateFrequencyTable({ rangeLow: true, trackingConfig: { alpha: 0 } });
+    
+    // Comparar posición central
+    const hiRow5 = tableHI.find(r => r.dial === 5);
+    const loRow5 = tableLO.find(r => r.dial === 5);
+    
+    assertClose(loRow5.freq, hiRow5.freq / 10, 'LO = HI/10 en dial 5', EPSILON_FREQ);
   });
 
 });

@@ -7,6 +7,7 @@ import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
 import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE } from './utils/voltageConstants.js';
+import { dialToFrequency } from './state/conversions.js';
 
 const log = createLogger('App');
 import { RecordingEngine } from './core/recordingEngine.js';
@@ -1364,7 +1365,8 @@ class App {
     }
 
     const oscComponents = oscillatorSlots.map(slot => {
-      const knobOptions = this._getPanelKnobOptions(panelIndex, slot.index - 1);
+      const oscIndex = slot.index - 1;  // Convertir de 1-based a 0-based
+      const knobOptions = this._getPanelKnobOptions(panelIndex, oscIndex);
       const oscId = `panel${panelIndex}-osc-${slot.index}`;
       const osc = new SGME_Oscillator({
         id: oscId,
@@ -1375,7 +1377,9 @@ class App {
         knobSize: 40,
         knobRowOffsetY: -15,
         knobInnerPct: 76,
-        knobOptions
+        knobOptions,
+        // Callback para recalcular frecuencia cuando cambia el switch HI/LO
+        onRangeChange: (rangeState) => this._onOscRangeChange(panelIndex, oscIndex, rangeState)
       });
       const el = osc.createElement();
       
@@ -1966,10 +1970,44 @@ class App {
     return curved * (max - min) + min;
   }
 
-  _updatePanelOscFreq(panelIndex, oscIndex, value) {
+  /**
+   * Actualiza la frecuencia de un oscilador usando el modelo Synthi 100.
+   * 
+   * Implementa la conversión dial → frecuencia según el VCO CEM 3340 (1982):
+   * - Escala exponencial 1V/Octava
+   * - Factor 0.95 unidades de dial por octava
+   * - Punto de referencia: posición 5 = 261 Hz (Do central)
+   * - Distorsión de tracking fuera del rango lineal (±2.5V)
+   * - Switch HI/LO divide la frecuencia por 10
+   * 
+   * @param {number} panelIndex - Índice del panel (3 para osciladores principales)
+   * @param {number} oscIndex - Índice del oscilador (0-based)
+   * @param {number} dialPosition - Posición del dial (0-10)
+   * @param {boolean} [rangeLow] - Si se especifica, usa este valor. Si no, lee del UI.
+   * @private
+   */
+  _updatePanelOscFreq(panelIndex, oscIndex, dialPosition, rangeLow = undefined) {
+    // Obtener configuración del oscilador
     const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
-    const freqConfig = config?.knobs?.frequency || { min: 1, max: 10000, curve: 'quadratic' };
-    const freq = this._applyCurve(value, freqConfig);
+    const trackingConfig = config?.tracking || {};
+    
+    // Leer el estado del switch HI/LO desde el componente UI
+    const oscId = `panel${panelIndex}-osc-${oscIndex + 1}`;
+    const oscUI = this._oscillatorUIs?.[oscId];
+    const isRangeLow = rangeLow !== undefined ? rangeLow : (oscUI?.rangeState === 'lo');
+    
+    // Convertir posición del dial a frecuencia usando el modelo Synthi 100
+    // El valor del knob (0-1) se escala a posición de dial (0-10)
+    const freqConfig = config?.knobs?.frequency || { min: 0, max: 10 };
+    const dialValue = freqConfig.min + dialPosition * (freqConfig.max - freqConfig.min);
+    
+    const freq = dialToFrequency(dialValue, {
+      rangeLow: isRangeLow,
+      trackingConfig: {
+        alpha: trackingConfig.alpha ?? 0.01,
+        linearHalfRange: trackingConfig.linearHalfRange ?? 2.5
+      }
+    });
     
     const panelAudio = this._getPanelAudio(panelIndex);
     const state = getOrCreateOscState(panelAudio, oscIndex);
@@ -1985,6 +2023,28 @@ class App {
     if (node.multiOsc.setFrequency) {
       node.multiOsc.setFrequency(freq);
     }
+  }
+  
+  /**
+   * Callback cuando cambia el switch HI/LO de un oscilador.
+   * Recalcula la frecuencia con el nuevo rango.
+   * 
+   * @param {number} panelIndex - Índice del panel
+   * @param {number} oscIndex - Índice del oscilador (0-based)
+   * @param {'hi'|'lo'} rangeState - Nuevo estado del switch
+   * @private
+   */
+  _onOscRangeChange(panelIndex, oscIndex, rangeState) {
+    // Obtener el valor actual del knob de frecuencia
+    const oscId = `panel${panelIndex}-osc-${oscIndex + 1}`;
+    const oscUI = this._oscillatorUIs?.[oscId];
+    if (!oscUI || !oscUI.knobs[6]) return;
+    
+    const currentDialPosition = oscUI.knobs[6].getValue();
+    const isRangeLow = rangeState === 'lo';
+    
+    // Recalcular frecuencia con el nuevo rango
+    this._updatePanelOscFreq(panelIndex, oscIndex, currentDialPosition, isRangeLow);
   }
 
   _getPanelKnobOptions(panelIndex, oscIndex) {

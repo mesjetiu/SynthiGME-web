@@ -45,6 +45,8 @@ export class SGME_Oscillator {
     this.knobOptions = options.knobOptions || [];
     this.knobs = [];
     this.rangeState = 'hi';
+    // Callback cuando cambia el switch HI/LO (usado para recalcular frecuencia)
+    this.onRangeChange = options.onRangeChange || null;
     // Rango por defecto 0..1 y valor inicial 0 (overrideable por instancia).
     this.knobRange = options.knobRange || { min: 0, max: 1, initial: 0, pixelsForFullRange: 150 };
   }
@@ -93,6 +95,10 @@ export class SGME_Oscillator {
     range.addEventListener('click', () => {
       this.rangeState = this.rangeState === 'hi' ? 'lo' : 'hi';
       this._renderRange(range);
+      // Notificar cambio de rango para recalcular frecuencia
+      if (typeof this.onRangeChange === 'function') {
+        this.onRangeChange(this.rangeState);
+      }
     });
     top.appendChild(range);
 

@@ -55,6 +55,85 @@ export const VOLTS_PER_OCTAVE = 1.0;
 export const KEYBOARD_MAX_VOLTAGE = 5.0;
 
 // =============================================================================
+// CONSTANTES DE FRECUENCIA DEL OSCILADOR (Synthi 100 versión 1982 - CEM 3340)
+// =============================================================================
+//
+// Basado en el Manual Técnico Datanomics 1982 y análisis del circuito D100-02 C1.
+//
+// El sistema de frecuencia del Synthi 100 utiliza una escala exponencial 1V/Octava
+// con un punto de referencia central de 261 Hz (Do central, C4) en la posición 5
+// del dial. La escala del dial está calibrada a 0.95 unidades por octava, lo que
+// permite cubrir aproximadamente 10.5 octavas en el rango completo (0-10).
+//
+// Características clave:
+// - Zona lineal de 4-5 octavas centradas en el punto 5 (tracking preciso)
+// - Distorsión de tracking no lineal fuera de la zona lineal (tracking error)
+// - Switch HI/LO que divide la frecuencia por 10 (conmutación de capacitor)
+// - Límites físicos absolutos del circuito
+//
+// =============================================================================
+
+/**
+ * Frecuencia de referencia en el punto central del dial (posición 5).
+ * Corresponde al Do central (C4) según la calibración estándar del manual técnico.
+ * @constant {number}
+ */
+export const OSC_REFERENCE_FREQ = 261;  // Hz (C4)
+
+/**
+ * Voltaje de referencia correspondiente al punto central del dial.
+ * El sistema considera que la posición 5 del dial equivale a 5V internos.
+ * @constant {number}
+ */
+export const OSC_REFERENCE_VOLTAGE = 5;  // V
+
+/**
+ * Unidades de dial por octava.
+ * El Synthi 100 NO asigna exactamente 1 octava por unidad de dial.
+ * Un cambio de 0.95 unidades en el dial produce un cambio de 1 octava.
+ * Esto permite cubrir ~10.5 octavas en el rango 0-10 del dial.
+ * 
+ * Relación matemática: V_interno = posición_dial / DIAL_UNITS_PER_OCTAVE
+ * @constant {number}
+ */
+export const DIAL_UNITS_PER_OCTAVE = 0.95;
+
+/**
+ * Rango de la zona lineal (tracking preciso) medido desde el centro.
+ * El circuito garantiza linealidad 1V/Octava dentro de ±2.5V del centro (V=5).
+ * Fuera de este rango, la constante de sensibilidad k deja de ser constante,
+ * produciendo distorsión de tracking (el oscilador se queda "flat" en agudos).
+ * @constant {number}
+ */
+export const TRACKING_LINEAR_HALF_RANGE = 2.5;  // ±2.5V desde el centro
+
+/**
+ * Rangos de frecuencia físicos del oscilador según el switch HI/LO.
+ * Estos son límites absolutos del circuito, no de la escala del dial.
+ * El chip CEM 3340 puede ser forzado hasta estos límites con CV externos.
+ * 
+ * @constant {Object}
+ * @property {Object} HI - Rango de audio (capacitor C9 = 1nF)
+ * @property {number} HI.min - Frecuencia mínima en Hz (límite inferior físico)
+ * @property {number} HI.max - Frecuencia máxima en Hz (límite superior físico)
+ * @property {Object} LO - Rango sub-audio/control (capacitor C10 = 10nF)
+ * @property {number} LO.min - Frecuencia mínima en Hz
+ * @property {number} LO.max - Frecuencia máxima en Hz
+ */
+export const OSC_FREQUENCY_RANGES = {
+  HI: { min: 5, max: 20000 },      // Rango de audio
+  LO: { min: 0.5, max: 2000 }      // Rango sub-audio/control (÷10)
+};
+
+/**
+ * Factor de división para el rango LO.
+ * El switch HI/LO conmuta entre capacitores C9 (1nF) y C10 (10nF).
+ * Al ser C10 10 veces mayor, la frecuencia en LO es exactamente 1/10 de HI.
+ * @constant {number}
+ */
+export const LO_RANGE_DIVISOR = 10;
+
+// =============================================================================
 // RESISTENCIAS DE PIN (Interconexión de Matriz)
 // =============================================================================
 

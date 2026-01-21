@@ -114,12 +114,14 @@ describe('Oscillator Config', () => {
 
     it('tiene configuración de frequency', () => {
       assert.ok(typeof knobs.frequency === 'object');
-      assert.ok(knobs.frequency.min > 0, 'frequency min debe ser > 0');
+      // El nuevo modelo Synthi 100 usa dial 0-10, por lo que min puede ser 0
+      assert.ok(typeof knobs.frequency.min === 'number', 'frequency debe tener min');
       assert.ok(knobs.frequency.max > knobs.frequency.min);
     });
 
     it('todas las curvas son válidas', () => {
-      const validCurves = ['linear', 'quadratic', 'exponential', 'logarithmic'];
+      // El nuevo modelo añade 'synthi100' como curva especial para frecuencia
+      const validCurves = ['linear', 'quadratic', 'exponential', 'logarithmic', 'synthi100'];
       
       for (const [param, config] of Object.entries(knobs)) {
         if (config.curve) {
@@ -190,23 +192,24 @@ describe('Knobs de oscilador - valores esperados', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rango de frecuencia
+// Rango de frecuencia (modelo Synthi 100 - dial 0-10)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Rango de frecuencia de osciladores', () => {
   const { frequency } = oscillatorConfig.defaults.knobs;
 
-  it('min es sub-audio (< 20 Hz para LFO)', () => {
-    assert.ok(frequency.min < 20);
+  it('usa el modelo Synthi 100 (dial 0-10)', () => {
+    // El nuevo modelo usa posiciones de dial (0-10) en lugar de Hz directamente
+    assert.strictEqual(frequency.min, 0, 'dial min debe ser 0');
+    assert.strictEqual(frequency.max, 10, 'dial max debe ser 10');
   });
 
-  it('max cubre rango audible alto', () => {
-    assert.ok(frequency.max >= 1000);
+  it('dial initial es posición central (5)', () => {
+    // Posición 5 = 261 Hz (Do central) en el modelo Synthi 100
+    assert.strictEqual(frequency.initial, 5);
   });
 
-  it('initial es valor razonable para pruebas', () => {
-    // Típicamente un valor bajo para no ser molesto al cargar
-    assert.ok(frequency.initial >= frequency.min);
-    assert.ok(frequency.initial <= frequency.max);
+  it('usa curva synthi100 para conversión a Hz', () => {
+    assert.strictEqual(frequency.curve, 'synthi100');
   });
 });

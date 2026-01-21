@@ -17,17 +17,54 @@
 // Solo se definen en oscillators[n] los campos que difieren del default.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// TIPOS DE CURVA DISPONIBLES
+// MODELO DE FRECUENCIA (Synthi 100 versión 1982 - CEM 3340)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// El sistema de frecuencia implementa el modelo del VCO del Synthi 100 según
+// el manual técnico Datanomics 1982 y el circuito D100-02 C1:
+//
+// 1. ESCALA DEL DIAL:
+//    - El dial va de 0 a 10 (números arbitrarios)
+//    - 0.95 unidades de dial = 1 octava (factor DIAL_UNITS_PER_OCTAVE)
+//    - El dial cubre ~10.5 octavas en total
+//
+// 2. PUNTO DE REFERENCIA:
+//    - Posición 5 = 261 Hz (Do central, C4)
+//    - Calibrado según el Manual Técnico (VR3)
+//
+// 3. FÓRMULA DE FRECUENCIA:
+//    V_dial = dialPosition / 0.95
+//    V_total = V_dial + V_cv  (suma de voltajes)
+//    V_distorsionado = applyTracking(V_total)
+//    f = 261 × 2^(V_distorsionado - 5)
+//
+// 4. DISTORSIÓN DE TRACKING:
+//    - Zona lineal: ±2.5V desde el centro (4-5 octavas de precisión 1V/Oct)
+//    - Fuera de la zona: el oscilador se queda "flat" (más grave que lo ideal)
+//    - Coeficiente α configurable (tracking.alpha)
+//
+// 5. SWITCH HI/LO:
+//    - HI: capacitor C9 (1nF) → rango de audio
+//    - LO: capacitor C10 (10nF) → frecuencia ÷10 (rango sub-audio/control)
+//
+// 6. LÍMITES FÍSICOS:
+//    - HI: 5 Hz - 20,000 Hz
+//    - LO: 0.5 Hz - 2,000 Hz
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// TIPOS DE CURVA DISPONIBLES (para otros parámetros)
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Las curvas controlan cómo el valor del knob (posición física) se mapea al
-// valor del parámetro (frecuencia, ganancia, etc.).
+// valor del parámetro (ganancia, pulse width, etc.). 
+// 
+// NOTA: La frecuencia usa el modelo Synthi 100 (dialToFrequency), no estas curvas.
 //
 // | Curva         | Fórmula                      | Uso típico                    |
 // |---------------|------------------------------|-------------------------------|
 // | 'linear'      | y = x                        | Ganancia, pulse width, simetría|
-// | 'quadratic'   | y = x^n (n configurable)     | Frecuencia (más control graves)|
-// | 'exponential' | y = (e^(k*x) - 1) / (e^k - 1)| Frecuencia estilo V/Oct       |
+// | 'quadratic'   | y = x^n (n configurable)     | Parámetros con más control bajo|
+// | 'exponential' | y = (e^(k*x) - 1) / (e^k - 1)| Parámetros estilo V/Oct       |
 // | 'logarithmic' | y = log(x+1) / log(2)        | Percepción de volumen         |
 //
 // Para curvas 'quadratic' y 'exponential', el parámetro 'curveExponent' o
@@ -61,7 +98,7 @@
 // | 3      | sineSymmetry  | Simetría del sine (0=abajo, 0.5=puro, 1=arriba)  |
 // | 4      | triangleLevel | Nivel de ganancia de la onda triangular (0-1)    |
 // | 5      | sawtoothLevel | Nivel de ganancia de la onda diente de sierra    |
-// | 6      | frequency     | Frecuencia del oscilador en Hz                   |
+// | 6      | frequency     | Posición del dial de frecuencia (0-10)           |
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -145,14 +182,31 @@ export default {
       },
 
       // Knob 6: Frequency
-      // Controla la frecuencia del oscilador en Hz.
-      // Usa curva cuadrática para mejor resolución en frecuencias bajas.
+      // Controla la posición del dial de frecuencia del oscilador (0-10).
+      // 
+      // IMPORTANTE: Este knob NO usa las curvas estándar (linear, quadratic, etc.).
+      // En su lugar, el valor se interpreta como posición de dial y se convierte
+      // a frecuencia usando el modelo Synthi 100 (dialToFrequency en conversions.js).
+      //
+      // La conversión dial → frecuencia sigue la fórmula del VCO CEM 3340:
+      // - 0.95 unidades de dial = 1 octava (1V/Oct internamente)
+      // - Posición 5 = 261 Hz (Do central, C4)
+      // - Distorsión de tracking fuera de la zona lineal (±2.5V del centro)
+      // - Switch HI/LO divide la frecuencia por 10
+      //
+      // | Posición | Rango HI (Audio) | Rango LO (Sub-audio) |
+      // |----------|------------------|----------------------|
+      // |    0     | ~10 Hz           | ~1 Hz                |
+      // |    2     | ~29 Hz           | ~2.9 Hz              |
+      // |    5     | 261 Hz           | 26.1 Hz              |
+      // |    8     | ~2,320 Hz        | ~232 Hz              |
+      // |   10     | ~12,000 Hz       | ~1,200 Hz            |
+      //
       frequency: {
-        min: 1,                    // Frecuencia mínima (1 Hz, casi LFO)
-        max: 10000,                // Frecuencia máxima (10 kHz)
-        initial: 10,               // Frecuencia inicial (10 Hz)
-        curve: 'quadratic',        // Curva cuadrática (más control en graves)
-        curveExponent: 2,          // Exponente de la curva (x^2)
+        min: 0,                    // Posición mínima del dial
+        max: 10,                   // Posición máxima del dial
+        initial: 5,                // Posición inicial (261 Hz en HI)
+        curve: 'synthi100',        // Marca para usar dialToFrequency (no curva estándar)
         pixelsForFullRange: 1500   // Máximo recorrido para control muy preciso
       }
     },
@@ -180,6 +234,68 @@ export default {
       // Evita glissandos al cambiar frecuencia.
       // Rango recomendado: 0.01-0.1
       freqSmoothing: 0.03
+    },
+
+    // ·······································································
+    // DISTORSIÓN DE TRACKING (Tracking Error del VCO)
+    // ·······································································
+    //
+    // El circuito VCO CEM 3340 del Synthi 100 tiene una zona de tracking lineal
+    // (precisión 1V/Octava) limitada a ~4-5 octavas centradas en el punto de
+    // referencia. Fuera de esta zona, la constante de sensibilidad k deja de
+    // ser constante, causando que el oscilador se quede "flat" (más grave de
+    // lo que correspondería matemáticamente).
+    //
+    // Este comportamiento se modela con una función de distorsión cuadrática
+    // que actúa solo fuera del rango lineal:
+    //
+    // V_distorsionado = V_ref + (V - V_ref) × (1 - α × (|V - V_ref| - linearHalfRange)²)
+    //
+    // Donde:
+    // - V_ref = 5 (voltaje de referencia central)
+    // - linearHalfRange = 2.5 (zona lineal de ±2.5V)
+    // - α = coeficiente de distorsión (ajustable)
+    //
+    tracking: {
+      // ─────────────────────────────────────────────────────────────────────
+      // COEFICIENTE DE DISTORSIÓN (alpha)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Controla la intensidad de la distorsión fuera del rango lineal.
+      // Valores mayores = más distorsión (oscilador más "flat" en extremos).
+      //
+      // | alpha | Comportamiento                                             |
+      // |-------|------------------------------------------------------------| 
+      // |  0.0  | Sin distorsión (tracking ideal 1V/Oct en todo el rango)    |
+      // | 0.005 | Distorsión muy sutil (apenas perceptible)                  |
+      // | 0.01  | DEFAULT - Emula el comportamiento típico del CEM 3340      |
+      // | 0.02  | Distorsión pronunciada (unidad con más desgaste)           |
+      // | 0.05  | Distorsión severa (para efectos especiales)                |
+      //
+      // Ajusta este valor para emular diferentes estados de calibración
+      // o desgaste de los componentes del VCO.
+      //
+      alpha: 0.01,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // RANGO LINEAL (linearHalfRange)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Mitad del rango de voltaje donde el tracking es preciso (1V/Oct).
+      // El rango total lineal es ±linearHalfRange desde el centro (V=5).
+      //
+      // El manual técnico especifica:
+      // - 4 octavas con ajuste básico (trimmer VR1)
+      // - 5 octavas con ajuste fino (trimmer VR2)
+      //
+      // | linearHalfRange | Octavas lineales | Notas                         |
+      // |-----------------|------------------|-------------------------------|
+      // |      2.0        | 4 octavas        | Ajuste básico del manual      |
+      // |      2.5        | 5 octavas        | DEFAULT - Ajuste fino del manual |
+      // |      3.0        | 6 octavas        | Calibración excepcional       |
+      // |      5.0        | 10 octavas       | Sin zona de distorsión (ideal)|
+      //
+      linearHalfRange: 2.5
     },
 
     // ·······································································

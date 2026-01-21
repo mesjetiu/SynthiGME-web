@@ -2133,16 +2133,16 @@ class App {
         }
       });
       
-      // Formatear frecuencia legible
+      // Formatear frecuencia con alta precisión (coherente con scaleDecimals: 3)
       let freqStr;
       if (freq >= 1000) {
-        freqStr = (freq / 1000).toFixed(2) + ' kHz';
+        freqStr = (freq / 1000).toFixed(4) + ' kHz';
       } else if (freq >= 100) {
-        freqStr = freq.toFixed(1) + ' Hz';
-      } else if (freq >= 10) {
-        freqStr = freq.toFixed(2) + ' Hz';
-      } else {
         freqStr = freq.toFixed(3) + ' Hz';
+      } else if (freq >= 10) {
+        freqStr = freq.toFixed(4) + ' Hz';
+      } else {
+        freqStr = freq.toFixed(5) + ' Hz';
       }
       
       // Detectar si hay CV conectado a la frecuencia de este oscilador
@@ -2151,8 +2151,8 @@ class App {
         freqStr += ' + CV';
       }
       
-      // Formatear voltaje
-      const voltStr = dialVoltage.toFixed(2) + ' V';
+      // Formatear voltaje con alta precisión (4 decimales)
+      const voltStr = dialVoltage.toFixed(4) + ' V';
       
       return `${voltStr} · ${freqStr}`;
     };

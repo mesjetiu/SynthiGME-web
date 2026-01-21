@@ -87,7 +87,6 @@ Cada módulo representa un componente de audio del Synthi 100:
 
 | Archivo | Módulo | Descripción |
 |---------|--------|-------------|
-| `oscillator.js` | `OscillatorModule` | Oscilador básico con forma de onda configurable |
 | `pulse.js` | `PulseModule` | Oscilador de onda cuadrada/pulso con ancho variable |
 | `noise.js` | `NoiseModule` | Generador de ruido blanco/rosa con AudioWorklet (Voss-McCartney) |
 | `inputAmplifier.js` | `InputAmplifierModule` | 8 canales de entrada con control de ganancia individual |

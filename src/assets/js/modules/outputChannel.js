@@ -131,10 +131,11 @@ export class OutputChannel extends Module {
    * @returns {HTMLElement}
    */
   _createFilterKnob() {
-    const { wrapper, knobEl } = createKnobElements({
+    const { wrapper, knobEl, valueEl } = createKnobElements({
       label: 'Filter',
       size: 'sm',
-      className: 'output-channel__knob-wrap'
+      className: 'output-channel__knob-wrap',
+      showValue: true
     });
     
     wrapper.dataset.knob = 'filter';
@@ -142,6 +143,7 @@ export class OutputChannel extends Module {
     
     // Guardar referencia para inicialización posterior
     this.filterKnobEl = knobEl;
+    this.filterValueEl = valueEl;
     
     return wrapper;
   }
@@ -159,10 +161,11 @@ export class OutputChannel extends Module {
    * @returns {HTMLElement}
    */
   _createPanKnob() {
-    const { wrapper, knobEl } = createKnobElements({
+    const { wrapper, knobEl, valueEl } = createKnobElements({
       label: 'Pan',
       size: 'sm',
-      className: 'output-channel__knob-wrap'
+      className: 'output-channel__knob-wrap',
+      showValue: true
     });
     
     wrapper.dataset.knob = 'pan';
@@ -170,6 +173,7 @@ export class OutputChannel extends Module {
     
     // Guardar referencia para inicialización posterior
     this.panKnobEl = knobEl;
+    this.panValueEl = valueEl;
     
     return wrapper;
   }
@@ -194,6 +198,11 @@ export class OutputChannel extends Module {
         max: filterCfg.max ?? 1,
         initial: this.values.filter,
         pixelsForFullRange: filterCfg.pixelsForFullRange ?? 900,
+        // Escala Synthi 100: -5 a +5 para controles bipolares
+        scaleMin: -5,
+        scaleMax: 5,
+        scaleDecimals: 1,
+        valueElement: this.filterValueEl,
         onChange: (value) => {
           this.values.filter = value;
           this.engine.setOutputFilter(this.channelIndex, value);
@@ -209,6 +218,11 @@ export class OutputChannel extends Module {
         max: panCfg.max ?? 1,
         initial: this.values.pan,
         pixelsForFullRange: panCfg.pixelsForFullRange ?? 900,
+        // Escala Synthi 100: -5 a +5 para controles bipolares
+        scaleMin: -5,
+        scaleMax: 5,
+        scaleDecimals: 1,
+        valueElement: this.panValueEl,
         onChange: (value) => {
           this.values.pan = value;
           this.engine.setOutputPan(this.channelIndex, value);

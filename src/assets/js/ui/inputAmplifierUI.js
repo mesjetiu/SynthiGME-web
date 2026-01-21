@@ -112,12 +112,21 @@ export class InputAmplifierUI {
     knobEl.appendChild(inner);
     wrapper.appendChild(knobEl);
     
-    // Crear instancia del Knob
+    // Valor debajo del knob
+    const valueEl = document.createElement('div');
+    valueEl.className = 'knob-value input-amplifier__value';
+    wrapper.appendChild(valueEl);
+    
+    // Crear instancia del Knob con escala Synthi 100 (0-10)
     const knobInstance = new Knob(knobEl, {
       min: this.knobConfig.min,
       max: this.knobConfig.max,
       initial: this.knobConfig.initial,
       pixelsForFullRange: this.knobConfig.pixelsForFullRange,
+      scaleMin: 0,
+      scaleMax: 10,
+      scaleDecimals: 1,
+      valueElement: valueEl,
       onChange: (value) => {
         if (this.onLevelChange) {
           this.onLevelChange(channel, value);

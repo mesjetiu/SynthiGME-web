@@ -12,32 +12,31 @@ export function createOutputRouterUI(engine, container) {
   const row = document.createElement('div');
   row.className = 'knob-row';
 
-  const addKnob = (label, min, max, initial, format, onChange, pixelsForFullRange = 200) => {
+  const addKnob = (label, min, max, initial, onChange, scaleMin = 0, scaleMax = 10, pixelsForFullRange = 200) => {
     const { wrapper } = createKnob({
       label,
       min,
       max,
       initial,
       showValue: true,
-      format,
       onChange,
-      pixelsForFullRange
+      pixelsForFullRange,
+      scaleMin,
+      scaleMax,
+      scaleDecimals: 1
     });
     row.appendChild(wrapper);
   };
 
+  // Level: escala 0-10, Pan: escala -5 a +5
   addKnob('Ch1 Level', 0, 1, engine.bus1Level,
-    v => v.toFixed(2),
-    v => engine.setBusLevel(1, v));
+    v => engine.setBusLevel(1, v), 0, 10);
   addKnob('Ch1 Pan', -1, 1, engine.bus1Pan,
-    v => (v < 0 ? 'L ' : 'R ') + Math.abs(v).toFixed(2),
-    v => engine.setBusPan(1, v));
+    v => engine.setBusPan(1, v), -5, 5);
   addKnob('Ch2 Level', 0, 1, engine.bus2Level,
-    v => v.toFixed(2),
-    v => engine.setBusLevel(2, v));
+    v => engine.setBusLevel(2, v), 0, 10);
   addKnob('Ch2 Pan', -1, 1, engine.bus2Pan,
-    v => (v < 0 ? 'L ' : 'R ') + Math.abs(v).toFixed(2),
-    v => engine.setBusPan(2, v));
+    v => engine.setBusPan(2, v), -5, 5);
 
   block.appendChild(row);
   container.appendChild(block);

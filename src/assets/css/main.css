@@ -957,7 +957,31 @@ h1 {
   font-size: 0.75rem;
   color: #aaa;
   margin-top: 0.1rem;
+  min-width: 2.5em;
+  text-align: center;
 }
+
+/* Tooltip del knob (aparece al hover/drag) */
+.knob-tooltip {
+  position: fixed;
+  z-index: 10002;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #ffeb3b;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.knob-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .knob {
   width: 60px;
   height: 60px;
@@ -1861,8 +1885,18 @@ small { color:#aaa; }
 
 .sgme-osc__knob-shell {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2px;
+}
+
+/* Valor debajo de cada knob del oscilador */
+.sgme-osc__knob-value {
+  font-size: 9px;
+  color: #aaa;
+  min-width: 2em;
+  text-align: center;
 }
 
 .sgme-osc__knob {

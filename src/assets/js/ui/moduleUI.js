@@ -121,13 +121,12 @@ export class ModuleUI {
     knobContainer.appendChild(knobInner);
     shell.appendChild(knobContainer);
 
-    // Valor (oculto por CSS, pero existe para compatibilidad)
+    // Valor debajo del knob (visible, muestra escala 0-10)
     const valueEl = document.createElement('div');
-    valueEl.className = `${this.cssClass}__knob-value`;
-    valueEl.textContent = '0';
+    valueEl.className = `knob-value ${this.cssClass}__knob-value`;
     shell.appendChild(valueEl);
 
-    // Crear instancia de Knob
+    // Crear instancia de Knob con escala Synthi 100
     const opts = this.knobOptions[key] || {};
     const knob = new Knob(knobContainer, {
       valueElement: valueEl,
@@ -135,8 +134,11 @@ export class ModuleUI {
       max: opts.max ?? 1,
       initial: opts.initial ?? 0,
       onChange: opts.onChange || (() => {}),
-      format: (v) => v.toFixed(2),
-      pixelsForFullRange: opts.pixelsForFullRange ?? 150
+      pixelsForFullRange: opts.pixelsForFullRange ?? 150,
+      // Escala de display estilo Synthi 100
+      scaleMin: opts.scaleMin ?? 0,
+      scaleMax: opts.scaleMax ?? 10,
+      scaleDecimals: opts.scaleDecimals ?? 1
     });
 
     this.knobs[key] = knob;

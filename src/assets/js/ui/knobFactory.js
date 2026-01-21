@@ -83,13 +83,16 @@ export function createKnobElements(options = {}) {
  * @param {string} [options.label] - Texto del label
  * @param {string} [options.size=''] - Tamaño: '' (normal), 'sm', 'lg'
  * @param {string} [options.className=''] - Clases CSS adicionales
- * @param {boolean} [options.showValue=false] - Mostrar elemento de valor
- * @param {number} [options.min=0] - Valor mínimo
- * @param {number} [options.max=1] - Valor máximo
+ * @param {boolean} [options.showValue=true] - Mostrar elemento de valor (default: true)
+ * @param {number} [options.min=0] - Valor mínimo interno
+ * @param {number} [options.max=1] - Valor máximo interno
  * @param {number} [options.initial=0] - Valor inicial
  * @param {number} [options.pixelsForFullRange=150] - Píxeles para rango completo
+ * @param {number} [options.scaleMin=0] - Valor mínimo de la escala de display (estilo Synthi 100)
+ * @param {number} [options.scaleMax=10] - Valor máximo de la escala de display (estilo Synthi 100)
+ * @param {number} [options.scaleDecimals=1] - Decimales a mostrar en la escala
  * @param {Function} [options.onChange] - Callback al cambiar valor
- * @param {Function} [options.format] - Función para formatear el valor mostrado
+ * @param {Function} [options.format] - Función para formatear el valor mostrado (deprecated, usar scale*)
  * @returns {Object} { wrapper, knobEl, knobInstance, valueEl?, labelEl? }
  * 
  * @example
@@ -98,8 +101,8 @@ export function createKnobElements(options = {}) {
  *   min: 0,
  *   max: 1,
  *   initial: 0.5,
- *   showValue: true,
- *   format: v => v.toFixed(2),
+ *   scaleMin: 0,
+ *   scaleMax: 10,
  *   onChange: v => setVolume(v)
  * });
  * container.appendChild(wrapper);
@@ -109,11 +112,14 @@ export function createKnob(options = {}) {
     label,
     size,
     className,
-    showValue = false,
+    showValue = true, // Por defecto mostrar valor
     min = 0,
     max = 1,
     initial = 0,
     pixelsForFullRange = 150,
+    scaleMin = 0,
+    scaleMax = 10,
+    scaleDecimals = 1,
     onChange,
     format
   } = options;
@@ -126,7 +132,10 @@ export function createKnob(options = {}) {
     min,
     max,
     initial,
-    pixelsForFullRange
+    pixelsForFullRange,
+    scaleMin,
+    scaleMax,
+    scaleDecimals
   };
 
   if (onChange) knobOptions.onChange = onChange;

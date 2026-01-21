@@ -93,7 +93,9 @@ export class OscillatorModule extends Module {
       initial: 0,
       pixelsForFullRange: 800,
       valueElement: freqValue,
-      format: v => v.toFixed(1) + ' Hz',
+      scaleMin: 0,
+      scaleMax: 10,
+      scaleDecimals: 1,
       onChange: value => {
         if (this.osc?.frequency) {
           setParamSmooth(this.osc.frequency, value, this.getAudioCtx());
@@ -106,7 +108,9 @@ export class OscillatorModule extends Module {
       max: 1,
       initial: 0,
       valueElement: volValue,
-      format: v => v.toFixed(2),
+      scaleMin: 0,
+      scaleMax: 10,
+      scaleDecimals: 1,
       onChange: value => {
         if (this.amp?.gain) {
           setParamSmooth(this.amp.gain, value, this.getAudioCtx());

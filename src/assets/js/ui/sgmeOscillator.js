@@ -18,6 +18,17 @@ const DEFAULT_KNOB_LABELS = [
   'Frequency'
 ];
 
+// Escalas de display estilo Synthi 100: índices 1 (shape) y 3 (symmetry) son bipolares (-5 a +5)
+const DEFAULT_KNOB_SCALES = [
+  { min: 0, max: 10 },  // 0: Pulse level
+  { min: -5, max: 5 },  // 1: Pulse shape (bipolar)
+  { min: 0, max: 10 },  // 2: Sine level
+  { min: -5, max: 5 },  // 3: Sine symmetry (bipolar)
+  { min: 0, max: 10 },  // 4: Triangle level
+  { min: 0, max: 10 },  // 5: Sawtooth level
+  { min: 0, max: 10 }   // 6: Frequency
+];
+
 export class SGME_Oscillator {
   constructor(options = {}) {
     this.id = options.id || `sgme-osc-${Date.now()}`;
@@ -106,13 +117,26 @@ export class SGME_Oscillator {
       inner.style.height = `${this.knobInnerPct}%`;
       knob.appendChild(inner);
       shell.appendChild(knob);
+      
+      // Elemento de valor debajo del knob
+      const valueEl = document.createElement('div');
+      valueEl.className = 'knob-value sgme-osc__knob-value';
+      shell.appendChild(valueEl);
+      
       knobsRow.appendChild(shell);
 
+      // Escala de display (estilo Synthi 100)
+      const scale = DEFAULT_KNOB_SCALES[idx] || { min: 0, max: 10 };
+      
       const baseOptions = {
         min: this.knobRange.min,
         max: this.knobRange.max,
         initial: this.knobRange.initial,
-        pixelsForFullRange: this.knobRange.pixelsForFullRange
+        pixelsForFullRange: this.knobRange.pixelsForFullRange,
+        scaleMin: scale.min,
+        scaleMax: scale.max,
+        scaleDecimals: 1,
+        valueElement: valueEl
       };
       const perKnob = this.knobOptions[idx] || {};
       const knobInstance = new Knob(knob, { ...baseOptions, ...perKnob });

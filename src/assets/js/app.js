@@ -2145,6 +2145,12 @@ class App {
         freqStr = freq.toFixed(3) + ' Hz';
       }
       
+      // Detectar si hay CV conectado a la frecuencia de este oscilador
+      const hasFreqCV = this._hasOscillatorFreqCV(oscIndex);
+      if (hasFreqCV) {
+        freqStr += ' + CV';
+      }
+      
       // Formatear voltaje
       const voltStr = dialVoltage.toFixed(2) + ' V';
       
@@ -2504,6 +2510,36 @@ class App {
   // { "rowIndex:colIndex": GainNode } para facilitar desconexión.
   //
   // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Comprueba si hay CV conectado a la frecuencia de un oscilador.
+   * 
+   * Recorre las conexiones activas del Panel 6 buscando destinos de tipo
+   * 'oscFreqCV' que coincidan con el índice de oscilador especificado.
+   * 
+   * @param {number} oscIndex - Índice del oscilador (0-11)
+   * @returns {boolean} true si hay al menos una conexión CV activa
+   * @private
+   */
+  _hasOscillatorFreqCV(oscIndex) {
+    const routing = this._panel6Routing;
+    if (!routing?.connections || !routing?.destMap) {
+      return false;
+    }
+    
+    // Recorrer las conexiones activas
+    for (const key of Object.keys(routing.connections)) {
+      const colIndex = parseInt(key.split(':')[1], 10);
+      const dest = routing.destMap.get(colIndex);
+      
+      // Comprobar si el destino es CV de frecuencia para este oscilador
+      if (dest?.kind === 'oscFreqCV' && dest?.oscIndex === oscIndex) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
 
   /**
    * Configura el sistema de ruteo de control del Panel 6.

@@ -39,6 +39,10 @@ export class Knob {
     
     // Tooltip element
     this.tooltip = null;
+    
+    // RAF para actualizaciones visuales fluidas
+    this._rafId = null;
+    this._pendingValue = null;
 
     this.minAngle = -135;
     this.maxAngle = 135;
@@ -162,13 +166,39 @@ export class Knob {
       if (shouldBlockInteraction(ev)) return;
       const dy = this.startY - ev.clientY;
       const sens = (this.max - this.min) / this.pixelsForFullRange;
-      this.setValue(this.startValue + dy * sens);
-      this._updateTooltip();
+      const newValue = Math.min(this.max, Math.max(this.min, this.startValue + dy * sens));
+      
+      // Programar actualización visual con RAF para fluidez
+      this._pendingValue = newValue;
+      if (!this._rafId) {
+        this._rafId = requestAnimationFrame(() => {
+          this._rafId = null;
+          if (this._pendingValue !== null) {
+            this.value = this._pendingValue;
+            this._pendingValue = null;
+            this._updateVisualFast();
+            this._updateTooltip();
+            if (this.onChange) this.onChange(this.value);
+          }
+        });
+      }
     });
 
     const end = ev => {
       if (!this.dragging) return;
       this.dragging = false;
+      
+      // Aplicar valor final si hay pendiente
+      if (this._pendingValue !== null) {
+        this.value = this._pendingValue;
+        this._pendingValue = null;
+        this._updateVisualFast();
+        if (this.onChange) this.onChange(this.value);
+      }
+      
+      // Notificar interacción al soltar (no durante drag)
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+      
       try { this.rootEl.releasePointerCapture(ev.pointerId); } catch (error) {
         // ignore release errors
       }
@@ -179,20 +209,29 @@ export class Knob {
     this.rootEl.addEventListener('pointercancel', end);
   }
 
-  _updateVisual() {
+  /**
+   * Actualización visual rápida (solo rotación y texto)
+   * Sin disparar eventos, para uso durante drag
+   */
+  _updateVisualFast() {
     const t = (this.value - this.min) / (this.max - this.min);
     const angle = this.minAngle + t * (this.maxAngle - this.minAngle);
     this.innerEl.style.transform = `rotate(${angle}deg)`;
-    // Mostrar valor en escala (0-10 o -5 a +5)
     if (this.valueEl) this.valueEl.textContent = this._formatScaleValue();
+  }
+
+  _updateVisual() {
+    this._updateVisualFast();
   }
 
   setValue(value) {
     this.value = Math.min(this.max, Math.max(this.min, value));
     this._updateVisual();
     if (this.onChange) this.onChange(this.value);
-    // Notificar que hay cambios sin guardar
-    document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+    // Notificar solo si no estamos arrastrando (evita spam de eventos)
+    if (!this.dragging) {
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+    }
   }
 
   getValue() {

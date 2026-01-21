@@ -121,7 +121,8 @@ export function createKnob(options = {}) {
     scaleMax = 10,
     scaleDecimals = 1,
     onChange,
-    format
+    format,
+    getTooltipInfo
   } = options;
 
   // Crear elementos DOM
@@ -140,6 +141,7 @@ export function createKnob(options = {}) {
 
   if (onChange) knobOptions.onChange = onChange;
   if (format) knobOptions.format = format;
+  if (getTooltipInfo) knobOptions.getTooltipInfo = getTooltipInfo;
   if (elements.valueEl) knobOptions.valueElement = elements.valueEl;
 
   // Crear instancia

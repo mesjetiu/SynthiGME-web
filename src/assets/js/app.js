@@ -2110,13 +2110,55 @@ class App {
     };
     
     const frequencyCfg = knobsConfig.frequency || {};
+    const trackingConfig = config?.tracking || {};
+    
+    // Función para generar info del tooltip de frecuencia
+    // Muestra: voltaje del dial y frecuencia real calculada
+    const getFreqTooltipInfo = (value, scaleValue) => {
+      // El valor del knob es la posición del dial (0-10)
+      // Calcular el voltaje interno (1V/Oct desde referencia 5)
+      const dialVoltage = 5 + (value - 5) / 0.95;  // 0.95 unidades de dial = 1 octava
+      
+      // Obtener el estado actual del switch HI/LO
+      const oscId = `panel${panelIndex}-osc-${oscIndex + 1}`;
+      const oscUI = this._oscillatorUIs?.[oscId];
+      const isRangeLow = oscUI?.rangeState === 'lo';
+      
+      // Calcular frecuencia real
+      const freq = dialToFrequency(value, {
+        rangeLow: isRangeLow,
+        trackingConfig: {
+          alpha: trackingConfig.alpha ?? 0.01,
+          linearHalfRange: trackingConfig.linearHalfRange ?? 2.5
+        }
+      });
+      
+      // Formatear frecuencia legible
+      let freqStr;
+      if (freq >= 1000) {
+        freqStr = (freq / 1000).toFixed(2) + ' kHz';
+      } else if (freq >= 100) {
+        freqStr = freq.toFixed(1) + ' Hz';
+      } else if (freq >= 10) {
+        freqStr = freq.toFixed(2) + ' Hz';
+      } else {
+        freqStr = freq.toFixed(3) + ' Hz';
+      }
+      
+      // Formatear voltaje
+      const voltStr = dialVoltage.toFixed(2) + ' V';
+      
+      return `${voltStr} · ${freqStr}`;
+    };
+    
     knobOptions[6] = {
       min: frequencyCfg.min ?? 0,
       max: frequencyCfg.max ?? 10,
       initial: frequencyCfg.initial ?? 5,
       pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 10000,
       scaleDecimals: frequencyCfg.scaleDecimals ?? 3,
-      onChange: value => this._updatePanelOscFreq(panelIndex, oscIndex, value)
+      onChange: value => this._updatePanelOscFreq(panelIndex, oscIndex, value),
+      getTooltipInfo: getFreqTooltipInfo
     };
     
     return knobOptions;

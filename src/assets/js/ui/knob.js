@@ -17,7 +17,10 @@ export class Knob {
       // Escala de display (estilo Synthi 100)
       scaleMin = 0,
       scaleMax = 10,
-      scaleDecimals = 1
+      scaleDecimals = 1,
+      // Función opcional para generar info adicional del tooltip
+      // Recibe (value, scaleValue) y retorna string o null
+      getTooltipInfo = null
     } = options;
 
     this.valueEl = valueElement;
@@ -32,6 +35,9 @@ export class Knob {
     this.scaleMin = scaleMin;
     this.scaleMax = scaleMax;
     this.scaleDecimals = scaleDecimals;
+    
+    // Función para info adicional en tooltip
+    this.getTooltipInfo = getTooltipInfo;
 
     this.dragging = false;
     this.startY = 0;
@@ -68,6 +74,26 @@ export class Knob {
   }
   
   /**
+   * Genera el contenido HTML del tooltip
+   * @returns {string}
+   */
+  _generateTooltipContent() {
+    const scaleValue = this._getScaleValue();
+    const mainText = scaleValue.toFixed(this.scaleDecimals);
+    
+    // Si hay función de info adicional, usarla
+    if (this.getTooltipInfo) {
+      const extraInfo = this.getTooltipInfo(this.value, scaleValue);
+      if (extraInfo) {
+        return `<div class="knob-tooltip__main">${mainText}</div>` +
+               `<div class="knob-tooltip__info">${extraInfo}</div>`;
+      }
+    }
+    
+    return mainText;
+  }
+  
+  /**
    * Crea y muestra el tooltip
    */
   _showTooltip() {
@@ -75,7 +101,7 @@ export class Knob {
     
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'knob-tooltip';
-    this.tooltip.textContent = this._formatScaleValue();
+    this.tooltip.innerHTML = this._generateTooltipContent();
     document.body.appendChild(this.tooltip);
     this._positionTooltip();
     
@@ -114,7 +140,9 @@ export class Knob {
    */
   _updateTooltip() {
     if (this.tooltip) {
-      this.tooltip.textContent = this._formatScaleValue();
+      this.tooltip.innerHTML = this._generateTooltipContent();
+      // Reposicionar por si cambió el tamaño
+      this._positionTooltip();
     }
   }
   

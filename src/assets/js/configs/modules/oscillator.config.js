@@ -226,15 +226,12 @@ export default {
       // Rango recomendado: 8-32
       sineHarmonics: 16,
 
-      // Tiempo de suavizado para cambios de ganancia (en segundos).
-      // Evita clics al cambiar niveles abruptamente.
-      // Rango recomendado: 0.01-0.1
-      gainSmoothing: 0.03,
-
-      // Tiempo de suavizado para cambios de frecuencia (en segundos).
-      // Evita glissandos al cambiar frecuencia.
-      // Rango recomendado: 0.01-0.1
-      freqSmoothing: 0.03
+      // Tiempo de suavizado para cambios de parámetros del oscilador (en segundos).
+      // Usado para: pulseWidth, symmetry, sineLevel, sawLevel, triLevel, pulseLevel.
+      // Evita clics al cambiar valores abruptamente.
+      // NOTA: La frecuencia NO usa rampa (cambio instantáneo, sin glissando).
+      // Rango recomendado: 0.005-0.05
+      smoothingTime: 0.01
     },
 
     // ·······································································

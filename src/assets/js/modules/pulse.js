@@ -3,6 +3,7 @@ import { Module, setParamSmooth } from '../core/engine.js';
 import { Knob } from '../ui/knob.js';
 import { createKnobElements } from '../ui/knobFactory.js';
 import { createPulseWave } from '../utils/waveforms.js';
+import { oscillatorConfig } from '../configs/index.js';
 
 export class PulseModule extends Module {
   constructor(engine, id, baseFreq) {
@@ -11,12 +12,14 @@ export class PulseModule extends Module {
     this.osc = null;
     this.amp = null;
     this.pw = 0;
+    // Leer harmonics desde config
+    this._pulseHarmonics = oscillatorConfig.defaults?.audio?.pulseHarmonics ?? 32;
   }
 
   _updatePulseWave(duty) {
     if (!this.osc) return;
     const ctx = this.getAudioCtx();
-    const wave = createPulseWave(ctx, duty);
+    const wave = createPulseWave(ctx, duty, this._pulseHarmonics);
     this.osc.setPeriodicWave(wave);
     this.pw = duty;
   }

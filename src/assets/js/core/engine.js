@@ -1493,11 +1493,13 @@ export class AudioEngine {
       sawLevel = 0,
       triLevel = 0,
       pulseLevel = 0,
-      // Parámetros de calibración del algoritmo híbrido de seno (panel3.config.js)
+      // Parámetros de calibración del algoritmo híbrido de seno (oscillator.config.js)
       sineShapeAttenuation = 1.0,
       sinePurity = 0.7,
       saturationK = 1.55,
-      maxOffset = 0.85
+      maxOffset = 0.85,
+      // Tiempo de suavizado para cambios de parámetros (oscillator.config.js)
+      smoothingTime = AUDIO_CONSTANTS.FAST_RAMP_TIME
     } = options;
 
     const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
@@ -1534,42 +1536,42 @@ export class AudioEngine {
       param.setValueAtTime(value, now);
     };
 
-    node.setPulseWidth = (value, ramp = 0.01) => {
+    node.setPulseWidth = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('pulseWidth');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);
       param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
     };
 
-    node.setSymmetry = (value, ramp = 0.01) => {
+    node.setSymmetry = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('symmetry');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);
       param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
     };
 
-    node.setSineLevel = (value, ramp = 0.01) => {
+    node.setSineLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('sineLevel');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);
       param.setTargetAtTime(value, now, ramp);
     };
 
-    node.setSawLevel = (value, ramp = 0.01) => {
+    node.setSawLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('sawLevel');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);
       param.setTargetAtTime(value, now, ramp);
     };
 
-    node.setTriLevel = (value, ramp = 0.01) => {
+    node.setTriLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('triLevel');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);
       param.setTargetAtTime(value, now, ramp);
     };
 
-    node.setPulseLevel = (value, ramp = 0.01) => {
+    node.setPulseLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('pulseLevel');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);

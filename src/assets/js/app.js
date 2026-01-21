@@ -1704,6 +1704,7 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     const oscConfig = this._getOscConfig(oscIndex);
     const sineShape = oscConfig?.sineShape ?? oscillatorConfig.defaults?.sineShape ?? {};
+    const audioConfig = oscConfig?.audio ?? oscillatorConfig.defaults?.audio ?? {};
 
     const multiOsc = this.engine.createMultiOscillator({
       frequency: state.freq || 10,
@@ -1717,7 +1718,9 @@ class App {
       sineShapeAttenuation: sineShape.attenuation ?? 1.0,
       sinePurity: sineShape.purity ?? 0.7,
       saturationK: sineShape.saturationK ?? 1.55,
-      maxOffset: sineShape.maxOffset ?? 0.85
+      maxOffset: sineShape.maxOffset ?? 0.85,
+      // Tiempo de suavizado para cambios de parámetros
+      smoothingTime: audioConfig.smoothingTime ?? 0.01
     });
 
     if (!multiOsc) return null;

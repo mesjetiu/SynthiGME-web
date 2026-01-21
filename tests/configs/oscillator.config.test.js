@@ -213,3 +213,41 @@ describe('Rango de frecuencia de osciladores', () => {
     assert.strictEqual(frequency.curve, 'synthi100');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parámetros de audio del oscilador
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Parámetros de audio del oscilador', () => {
+  const { audio } = oscillatorConfig.defaults;
+
+  it('tiene sección audio definida', () => {
+    assert.ok(typeof audio === 'object');
+  });
+
+  it('tiene pulseHarmonics (número de armónicos para onda de pulso)', () => {
+    assert.ok(typeof audio.pulseHarmonics === 'number');
+    assert.ok(audio.pulseHarmonics >= 16, 'pulseHarmonics debe ser >= 16');
+    assert.ok(audio.pulseHarmonics <= 64, 'pulseHarmonics debe ser <= 64');
+  });
+
+  it('tiene sineHarmonics (número de armónicos para seno asimétrico)', () => {
+    assert.ok(typeof audio.sineHarmonics === 'number');
+    assert.ok(audio.sineHarmonics >= 8, 'sineHarmonics debe ser >= 8');
+    assert.ok(audio.sineHarmonics <= 32, 'sineHarmonics debe ser <= 32');
+  });
+
+  it('tiene smoothingTime (tiempo de suavizado para parámetros)', () => {
+    assert.ok(typeof audio.smoothingTime === 'number');
+    assert.ok(audio.smoothingTime >= 0.005, 'smoothingTime debe ser >= 5ms');
+    assert.ok(audio.smoothingTime <= 0.1, 'smoothingTime debe ser <= 100ms');
+  });
+
+  it('NO tiene freqSmoothing (la frecuencia cambia instantáneamente)', () => {
+    assert.ok(!('freqSmoothing' in audio), 'freqSmoothing fue eliminado');
+  });
+
+  it('NO tiene gainSmoothing (reemplazado por smoothingTime)', () => {
+    assert.ok(!('gainSmoothing' in audio), 'gainSmoothing fue reemplazado por smoothingTime');
+  });
+});

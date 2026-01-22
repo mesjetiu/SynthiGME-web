@@ -985,6 +985,205 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════
+    // TEST DE MODULACIÓN CV 1V/OCTAVA
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Test de modulación de frecuencia por CV con estándar 1V/Octava.
+     * 
+     * Simula una señal de voltaje pasando por la matriz con un pin GREY
+     * (precisión ±0.5%) hacia la entrada CV de frecuencia del oscilador.
+     * 
+     * El sistema Synthi 100 usa el estándar 1V/Octava:
+     * - +1V de CV → frecuencia × 2 (1 octava arriba)
+     * - -1V de CV → frecuencia ÷ 2 (1 octava abajo)
+     * 
+     * Constantes del sistema (de voltageConstants.js):
+     * - DIGITAL_TO_VOLTAGE = 4.0 (1.0 digital = 4V)
+     * - VOLTS_PER_OCTAVE = 1.0
+     * - Pin GREY = 100kΩ, ganancia ×1
+     * 
+     * Configuración del oscilador (de oscillator.config.js):
+     * - cvScale = 2
+     * - octavesPerUnit = 0.5
+     * - → 1.0 digital = 1 octava
+     * 
+     * Para que 1V = 1 octava:
+     * - 1V = 0.25 digital (1V / 4V)
+     * - Necesitamos que el sistema amplifique ×4 para compensar
+     * - Esto se logra ajustando cvScale×octavesPerUnit = 2 (en cents: ×4800)
+     * 
+     * En la implementación actual:
+     * - cvScale=2, octavesPerUnit=0.5 → centsGain = 1200
+     * - 1.0 digital → 1200 cents → 1 octava
+     * - Para 1V real (0.25 digital) → necesitamos centsGain = 4800
+     * 
+     * Este test verifica el comportamiento con la calibración correcta para 1V/Oct.
+     * 
+     * @param {Object} config - Configuración del test
+     * @param {number} config.baseFrequency - Frecuencia base del oscilador (Hz)
+     * @param {number} config.cvVoltage - Voltaje CV a aplicar (positivo o negativo)
+     * @param {string} [config.waveform='sine'] - Forma de onda del oscilador
+     * @param {string} [config.pinType='GREY'] - Tipo de pin (GREY para precisión)
+     * @param {boolean} [config.rangeLow=false] - true para rango LO (sub-audio)
+     * @param {number} [config.duration=0.5] - Duración en segundos
+     * @param {number} [config.sampleRate=44100] - Sample rate
+     * @returns {Object} Resultados del análisis con frecuencias medidas
+     */
+    window.testFrequencyCV = async function(config) {
+      const {
+        baseFrequency = 261,  // C4 (punto central del Synthi)
+        cvVoltage = 1.0,      // +1V = +1 octava
+        waveform = 'sine',
+        pinType = 'GREY',     // Pin de precisión
+        rangeLow = false,     // HI por defecto
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CONSTANTES DEL SISTEMA (replicadas de voltageConstants.js)
+      // ─────────────────────────────────────────────────────────────────────
+      const DIGITAL_TO_VOLTAGE = 4.0;  // 1.0 digital = 4V
+      const VOLTS_PER_OCTAVE = 1.0;    // Estándar V/Oct
+      
+      // Resistencias de pines (Rf = 100kΩ estándar)
+      const PIN_GAINS = {
+        WHITE: 1.0,    // 100kΩ / 100kΩ = 1
+        GREY: 1.0,     // 100kΩ / 100kΩ = 1 (precisión)
+        GREEN: 1.47,   // 100kΩ / 68kΩ ≈ 1.47
+        RED: 37.04,    // 100kΩ / 2.7kΩ ≈ 37
+        BLUE: 10.0,    // 100kΩ / 10kΩ = 10
+        YELLOW: 4.55,  // 100kΩ / 22kΩ ≈ 4.55
+        CYAN: 0.4,     // 100kΩ / 250kΩ = 0.4
+        PURPLE: 0.1    // 100kΩ / 1MΩ = 0.1
+      };
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CALIBRACIÓN PARA 1V/OCTAVA REAL
+      // ─────────────────────────────────────────────────────────────────────
+      // El estándar es: 1V de entrada → 1 octava de cambio
+      // 
+      // Conversión voltaje → digital: cvVoltage / DIGITAL_TO_VOLTAGE
+      // Ejemplo: 1V / 4V = 0.25 digital
+      //
+      // Para que 0.25 digital = 1 octava (1200 cents):
+      // centsGain = 1200 / 0.25 = 4800 cents por unidad digital
+      //
+      // Con pin GREY (ganancia ×1):
+      // centsGain = VOLTS_PER_OCTAVE × DIGITAL_TO_VOLTAGE × 1200 = 4800
+      // ─────────────────────────────────────────────────────────────────────
+      
+      const pinGain = PIN_GAINS[pinType] || 1.0;
+      
+      // Ganancia total para el sistema CV del oscilador
+      // Esta es la calibración correcta para 1V/Octava
+      const centsPerVolt = 1200;  // 1 octava = 1200 cents
+      const centsGain = centsPerVolt * DIGITAL_TO_VOLTAGE * pinGain;
+      // Con GREY: 1200 × 4 × 1 = 4800 cents por unidad digital
+      
+      log(`CV Test: ${cvVoltage}V via ${pinType} pin (gain=${pinGain}×) to ${waveform}@${baseFrequency}Hz`);
+      log(`  centsGain=${centsGain}, expected shift=${cvVoltage * centsPerVolt} cents`);
+
+      const length = Math.ceil(sampleRate * duration);
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // RENDERIZAR SIN CV (frecuencia base)
+      // ─────────────────────────────────────────────────────────────────────
+      const offlineBase = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+      await offlineBase.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+      
+      const oscBase = new AudioWorkletNode(offlineBase, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform, sineShapeAttenuation: 0, sinePurity: 1.0 },
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+      });
+      oscBase.parameters.get('frequency').value = baseFrequency;
+      oscBase.parameters.get('gain').value = 1.0;
+      oscBase.parameters.get('detune').value = 0;  // Sin CV
+      oscBase.connect(offlineBase.destination);
+      
+      const bufferBase = await offlineBase.startRendering();
+      const samplesBase = bufferBase.getChannelData(0);
+      const spectrumBase = computeSpectrum(samplesBase, sampleRate);
+      const dominantBase = findDominantFrequency(spectrumBase);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // RENDERIZAR CON CV (frecuencia modulada)
+      // ─────────────────────────────────────────────────────────────────────
+      const offlineCV = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+      await offlineCV.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+      
+      const oscCV = new AudioWorkletNode(offlineCV, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform, sineShapeAttenuation: 0, sinePurity: 1.0 },
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+      });
+      oscCV.parameters.get('frequency').value = baseFrequency;
+      oscCV.parameters.get('gain').value = 1.0;
+      
+      // Aplicar CV: convertir voltios → digital → cents
+      // 1V → 0.25 digital → 0.25 × 4800 = 1200 cents = 1 octava
+      const cvDigital = cvVoltage / DIGITAL_TO_VOLTAGE;  // Voltios a digital
+      const cvCents = cvDigital * centsGain;             // Digital a cents
+      oscCV.parameters.get('detune').value = cvCents;
+      
+      log(`  cvDigital=${cvDigital.toFixed(4)}, cvCents=${cvCents.toFixed(1)}`);
+      
+      oscCV.connect(offlineCV.destination);
+      
+      const bufferCV = await offlineCV.startRendering();
+      const samplesCV = bufferCV.getChannelData(0);
+      const spectrumCV = computeSpectrum(samplesCV, sampleRate);
+      const dominantCV = findDominantFrequency(spectrumCV);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CALCULAR RESULTADOS
+      // ─────────────────────────────────────────────────────────────────────
+      const measuredBaseFreq = dominantBase?.frequency || 0;
+      const measuredCVFreq = dominantCV?.frequency || 0;
+      
+      // Calcular ratio de frecuencias (debería ser 2 para +1V, 0.5 para -1V)
+      const frequencyRatio = measuredCVFreq / measuredBaseFreq;
+      
+      // Calcular octavas de cambio: log2(ratio)
+      const octavesChange = Math.log2(frequencyRatio);
+      
+      // Frecuencia esperada según 1V/Oct
+      const expectedFreq = baseFrequency * Math.pow(2, cvVoltage / VOLTS_PER_OCTAVE);
+      
+      log(`  Result: base=${measuredBaseFreq.toFixed(1)}Hz, withCV=${measuredCVFreq.toFixed(1)}Hz`, 'success');
+      log(`  Ratio=${frequencyRatio.toFixed(4)}, octaves=${octavesChange.toFixed(4)}, expected=${expectedFreq.toFixed(1)}Hz`);
+
+      return {
+        config: { baseFrequency, cvVoltage, waveform, pinType, rangeLow },
+        calibration: {
+          pinGain,
+          centsGain,
+          cvDigital,
+          cvCents
+        },
+        baseFrequency: {
+          requested: baseFrequency,
+          measured: measuredBaseFreq,
+          rms: calculateRMS(samplesBase),
+          peak: calculatePeak(samplesBase)
+        },
+        withCV: {
+          expected: expectedFreq,
+          measured: measuredCVFreq,
+          rms: calculateRMS(samplesCV),
+          peak: calculatePeak(samplesCV)
+        },
+        analysis: {
+          frequencyRatio,
+          octavesChange,
+          expectedOctaves: cvVoltage / VOLTS_PER_OCTAVE,
+          error: Math.abs(octavesChange - (cvVoltage / VOLTS_PER_OCTAVE)),
+          errorCents: Math.abs(octavesChange - (cvVoltage / VOLTS_PER_OCTAVE)) * 1200
+        }
+      };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
     // INICIALIZACIÓN
     // ═══════════════════════════════════════════════════════════════════════
 

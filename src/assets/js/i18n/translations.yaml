@@ -112,12 +112,12 @@ settings.display.paramInfo:
   es: Información de parámetros
 
 settings.display.paramInfo.description:
-  en: Show extended information in knob tooltips. These values would not be visible on the original Synthi hardware.
-  es: Mostrar información extendida en los tooltips de los knobs. Estos valores no serían visibles en el Synthi original.
+  en: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
+  es: Mostrar información técnica extendida en los tooltips de controles. Estos valores no serían visibles en el Synthi original.
 
 settings.display.paramInfo.voltage:
-  en: Show voltage values (V, Vp-p)
-  es: Mostrar valores de voltaje (V, Vp-p)
+  en: Show electrical values (V, Vp-p, Ω)
+  es: Mostrar valores eléctricos (V, Vp-p, Ω)
 
 settings.display.paramInfo.audio:
   en: Show audio values (frequency, gain)

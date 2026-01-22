@@ -580,10 +580,15 @@ function setupPipEvents(pipContainer, panelId) {
     }
   }, { passive: false });
   
-  // Pinch zoom táctil dentro del PiP
+  // Pinch zoom táctil dentro del PiP (centrado en el punto de pellizco)
   const content = pipContainer.querySelector('.pip-content');
+  const viewport = pipContainer.querySelector('.pip-viewport');
   let pinchStartDist = 0;
   let pinchStartScale = 0;
+  let pinchCenterX = 0;
+  let pinchCenterY = 0;
+  let pinchStartScrollX = 0;
+  let pinchStartScrollY = 0;
   
   content.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
@@ -593,6 +598,13 @@ function setupPipEvents(pipContainer, panelId) {
       pinchStartDist = Math.hypot(dx, dy);
       const state = activePips.get(panelId);
       pinchStartScale = state ? state.scale : 0.4;
+      
+      // Calcular centro del pinch relativo al viewport
+      const rect = viewport.getBoundingClientRect();
+      pinchCenterX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left + viewport.scrollLeft;
+      pinchCenterY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top + viewport.scrollTop;
+      pinchStartScrollX = viewport.scrollLeft;
+      pinchStartScrollY = viewport.scrollTop;
     }
   }, { passive: false });
   
@@ -605,7 +617,17 @@ function setupPipEvents(pipContainer, panelId) {
       const currentDist = Math.hypot(dx, dy);
       const scaleFactor = currentDist / pinchStartDist;
       const newScale = Math.max(0.2, Math.min(1.5, pinchStartScale * scaleFactor));
+      
+      // Actualizar escala
       updatePipScale(panelId, newScale);
+      
+      // Ajustar scroll para mantener el centro del pinch fijo
+      // El punto que estaba bajo el centro del pinch debe seguir ahí
+      const scaleRatio = newScale / pinchStartScale;
+      const newScrollX = pinchCenterX * scaleRatio - (pinchCenterX - pinchStartScrollX);
+      const newScrollY = pinchCenterY * scaleRatio - (pinchCenterY - pinchStartScrollY);
+      viewport.scrollLeft = newScrollX;
+      viewport.scrollTop = newScrollY;
     }
   }, { passive: false });
   
@@ -616,7 +638,6 @@ function setupPipEvents(pipContainer, panelId) {
   }, { passive: true });
   
   // Guardar estado cuando el usuario hace scroll dentro del viewport
-  const viewport = pipContainer.querySelector('.pip-viewport');
   if (viewport) {
     let scrollSaveTimeout = null;
     viewport.addEventListener('scroll', () => {
@@ -660,22 +681,7 @@ function handlePointerMove(e) {
     state.height = newH;
     state.pipContainer.style.width = `${newW}px`;
     state.pipContainer.style.height = `${newH}px`;
-    
-    // Calcular nueva escala para que el panel llene la ventana (zoom-to-fit)
-    const panelEl = document.getElementById(resizingPip);
-    if (panelEl) {
-      const panelWidth = panelEl.offsetWidth || 760;
-      const panelHeight = panelEl.offsetHeight || 760;
-      // Altura del contenido = altura ventana - altura header (~32px)
-      const contentHeight = newH - 32;
-      const contentWidth = newW;
-      // Escala para que quepa completo manteniendo aspecto
-      const scaleX = contentWidth / panelWidth;
-      const scaleY = contentHeight / panelHeight;
-      const newScale = Math.max(0.2, Math.min(1.5, Math.min(scaleX, scaleY)));
-      // Actualizar escala sin persistir (se guarda al soltar)
-      updatePipScale(resizingPip, newScale, false);
-    }
+    // No cambiamos la escala: el usuario mantiene su zoom/paneo elegido
   }
 }
 

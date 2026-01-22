@@ -1,4 +1,4 @@
-const CACHE_VERSION = '0.3.0-121';
+const CACHE_VERSION = '0.3.0-122';
 const CACHE_NAME = `synthigme-cache-v${CACHE_VERSION}`;
 const CORE_ASSETS = [
   './',

@@ -32,8 +32,12 @@ const PIP_Z_INDEX_BASE = 1200;
 /** Dimensiones por defecto del PiP */
 const DEFAULT_PIP_WIDTH = 320;
 const DEFAULT_PIP_HEIGHT = 320;
-const MIN_PIP_SIZE = 200;
-const MAX_PIP_SIZE = 800;
+const MIN_PIP_SIZE = 150;
+// MAX_PIP_SIZE es dinámico: se calcula según el tamaño de la ventana
+
+/** Límites de zoom */
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 3.0;
 
 /** Panel actualmente siendo arrastrado */
 let draggingPip = null;
@@ -512,14 +516,14 @@ function setupPipEvents(pipContainer, panelId) {
   zoomInBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
     if (state) {
-      updatePipScale(panelId, Math.min(state.scale + 0.1, 1.5));
+      updatePipScale(panelId, Math.min(state.scale + 0.1, MAX_SCALE));
     }
   });
   
   zoomOutBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
     if (state) {
-      updatePipScale(panelId, Math.max(state.scale - 0.1, 0.2));
+      updatePipScale(panelId, Math.max(state.scale - 0.1, MIN_SCALE));
     }
   });
   
@@ -599,7 +603,7 @@ function setupPipEvents(pipContainer, panelId) {
       const state = activePips.get(panelId);
       if (state) {
         const delta = e.deltaY > 0 ? -0.05 : 0.05;
-        updatePipScale(panelId, Math.max(0.2, Math.min(1.5, state.scale + delta)));
+        updatePipScale(panelId, Math.max(MIN_SCALE, Math.min(MAX_SCALE, state.scale + delta)));
       }
     }
   }, { passive: false });
@@ -653,7 +657,7 @@ function setupPipEvents(pipContainer, panelId) {
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
       const scaleFactor = currentDist / pinchStartDist;
-      const newScale = Math.max(0.2, Math.min(1.5, pinchStartScale * scaleFactor));
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, pinchStartScale * scaleFactor));
       
       // Actualizar escala
       updatePipScale(panelId, newScale);
@@ -722,10 +726,14 @@ function handlePointerMove(e) {
     const state = activePips.get(resizingPip);
     if (!state) return;
     
+    // Límites dinámicos basados en la pantalla
+    const maxW = window.innerWidth - state.x;
+    const maxH = window.innerHeight - state.y;
+    
     const dx = e.clientX - resizeStart.x;
     const dy = e.clientY - resizeStart.y;
-    const newW = Math.max(MIN_PIP_SIZE, Math.min(MAX_PIP_SIZE, resizeStart.w + dx));
-    const newH = Math.max(MIN_PIP_SIZE, Math.min(MAX_PIP_SIZE, resizeStart.h + dy));
+    const newW = Math.max(MIN_PIP_SIZE, Math.min(maxW, resizeStart.w + dx));
+    const newH = Math.max(MIN_PIP_SIZE, Math.min(maxH, resizeStart.h + dy));
     
     // Calcular factor de escala basado en el cambio de tamaño
     // Usamos el promedio de ambos ejes para zoom uniforme
@@ -735,7 +743,7 @@ function handlePointerMove(e) {
     
     // Nueva escala proporcional al cambio de tamaño
     const baseScale = resizeStart.scale || state.scale;
-    const newScale = Math.max(0.2, Math.min(1.5, baseScale * scaleFactor));
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, baseScale * scaleFactor));
     
     state.width = newW;
     state.height = newH;
@@ -995,11 +1003,13 @@ export function restorePipState() {
         // Ajustar posición (asegurar que esté dentro de la ventana)
         const maxX = window.innerWidth - width;
         const maxY = window.innerHeight - 40;
+        const maxW = window.innerWidth - Math.max(0, x);
+        const maxH = window.innerHeight - Math.max(0, y);
         state.x = Math.max(0, Math.min(maxX, x));
         state.y = Math.max(0, Math.min(maxY, y));
-        state.width = Math.max(MIN_PIP_SIZE, Math.min(MAX_PIP_SIZE, width));
-        state.height = Math.max(MIN_PIP_SIZE, Math.min(MAX_PIP_SIZE, height));
-        state.scale = Math.max(0.2, Math.min(1.5, scale));
+        state.width = Math.max(MIN_PIP_SIZE, Math.min(maxW, width));
+        state.height = Math.max(MIN_PIP_SIZE, Math.min(maxH, height));
+        state.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
         
         // Aplicar al DOM
         state.pipContainer.style.left = `${state.x}px`;

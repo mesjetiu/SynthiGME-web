@@ -57,6 +57,8 @@ export class Knob {
     // Indicador visual de modificadores (Ctrl/Shift)
     this.modBadge = null;
     this.modifierState = 'none';
+    this._modBadgeHideTimer = null;
+    this.modBadgeNeutralDuration = 1000; // ms que se muestra el estado 1x
     
     // RAF para actualizaciones visuales fluidas
     this._rafId = null;
@@ -207,15 +209,41 @@ export class Knob {
     const badge = document.createElement('div');
     badge.className = 'knob-mod-badge';
     badge.textContent = '1x';
-    this.rootEl.appendChild(badge);
+    document.body.appendChild(badge);
     this.modBadge = badge;
+  }
+
+  _positionModifierBadge() {
+    if (!this.modBadge) return;
+    const rect = this.rootEl.getBoundingClientRect();
+    const left = rect.right - 8;
+    const top = rect.top + rect.height / 2;
+    this.modBadge.style.left = `${left}px`;
+    this.modBadge.style.top = `${top}px`;
   }
 
   _setModifierVisual(state) {
     this._ensureModifierBadge();
-    if (this.modifierState === state) return;
+    const prevState = this.modifierState;
+    
+    // Si el estado no cambió, solo reposicionar
+    if (this.modifierState === state) {
+      this._positionModifierBadge();
+      return;
+    }
+    
     this.modifierState = state;
-    this.modBadge.classList.remove('is-fast', 'is-slow', 'is-active');
+    this._positionModifierBadge();
+    
+    // Limpiar timer previo de 1x
+    if (this._modBadgeHideTimer) {
+      clearTimeout(this._modBadgeHideTimer);
+      this._modBadgeHideTimer = null;
+    }
+    
+    // Quitar clases de color previas
+    this.modBadge.classList.remove('is-fast', 'is-slow');
+    
     if (state === 'fast') {
       this.modBadge.textContent = '10x';
       this.modBadge.classList.add('is-fast', 'is-active');
@@ -223,7 +251,19 @@ export class Knob {
       this.modBadge.textContent = '0.1x';
       this.modBadge.classList.add('is-slow', 'is-active');
     } else {
-      this.modBadge.textContent = '1x';
+      // Solo mostrar 1x si venimos de un estado rápido/lento
+      if (prevState === 'fast' || prevState === 'slow') {
+        this.modBadge.textContent = '1x';
+        this.modBadge.classList.add('is-active');
+        this._modBadgeHideTimer = setTimeout(() => {
+          if (this.modifierState === 'none') {
+            this.modBadge.classList.remove('is-active');
+          }
+          this._modBadgeHideTimer = null;
+        }, this.modBadgeNeutralDuration);
+      } else {
+        this.modBadge.classList.remove('is-active');
+      }
     }
   }
 
@@ -306,6 +346,7 @@ export class Knob {
       this._showTooltip();
       // Resetear indicador de modificador al inicio del drag
       this._setModifierVisual('none');
+      this._positionModifierBadge();
       
       // En táctil, limpiar el timer de autoHide durante drag
       if (isTouch && this._tooltipAutoHideTimer) {
@@ -399,6 +440,10 @@ export class Knob {
     const angle = this.minAngle + t * (this.maxAngle - this.minAngle);
     this.innerEl.style.transform = `rotate(${angle}deg)`;
     if (this.valueEl) this.valueEl.textContent = this._formatScaleValue();
+    // Reposicionar badge si está visible para seguir el knob
+    if (this.modBadge && this.modBadge.classList.contains('is-active')) {
+      this._positionModifierBadge();
+    }
   }
 
   _updateVisual() {

@@ -76,6 +76,7 @@ export default {
   "settings.wakelock.unsupported": "Not supported in this browser",
   "settings.shortcuts": "Keyboard shortcuts",
   "settings.shortcuts.description": "Click on a shortcut to change it. Press the new key combination.",
+  "settings.shortcuts.knobModifiers": "Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.",
   "settings.shortcuts.mute": "Mute/Unmute",
   "settings.shortcuts.record": "Record/Stop",
   "settings.shortcuts.patches": "Open patches",

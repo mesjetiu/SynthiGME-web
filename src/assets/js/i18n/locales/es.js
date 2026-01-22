@@ -76,6 +76,7 @@ export default {
   "settings.wakelock.unsupported": "No soportado en este navegador",
   "settings.shortcuts": "Atajos de teclado",
   "settings.shortcuts.description": "Haz clic en un atajo para cambiarlo. Pulsa la nueva combinación de teclas.",
+  "settings.shortcuts.knobModifiers": "Knobs: mantén Ctrl/Cmd para mover 10× más rápido y Shift para 10× más preciso.",
   "settings.shortcuts.mute": "Silenciar/Activar",
   "settings.shortcuts.record": "Grabar/Detener",
   "settings.shortcuts.patches": "Abrir patches",

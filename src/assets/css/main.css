@@ -1002,10 +1002,10 @@ h1 {
 }
 
 .knob-mod-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  padding: 2px 6px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding: 3px 8px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.85);
   color: #ffeb3b;
@@ -1014,14 +1014,15 @@ h1 {
   letter-spacing: 0.01em;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transform: translate(0, -50%);
+  transition: opacity 0.12s ease, transform 0.12s ease, background 0.12s ease;
   pointer-events: none;
+  z-index: 10020;
 }
 
 .knob-mod-badge.is-active {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(0, -50%);
 }
 
 .knob-mod-badge.is-fast {

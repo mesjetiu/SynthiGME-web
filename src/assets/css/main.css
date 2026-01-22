@@ -1066,6 +1066,52 @@ h1 {
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * KNOB MODIFIER BADGE (10x / 1x / 0.1x)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Shows drag speed modifier when using Ctrl (10x fast) or Shift (0.1x slow).
+ * Appears to the right of the knob during drag.
+ */
+.knob-mod-badge {
+  position: fixed;
+  z-index: 10002;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', monospace;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-4px);
+  transition: opacity 0.12s ease, visibility 0.12s ease, transform 0.12s ease;
+  /* Default neutral style */
+  background: rgba(80, 80, 80, 0.95);
+  color: #ccc;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.knob-mod-badge.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+/* Fast mode (Ctrl/Cmd): 10x - green accent */
+.knob-mod-badge.is-fast {
+  background: rgba(76, 175, 80, 0.95);
+  color: #fff;
+  border-color: rgba(76, 175, 80, 0.6);
+}
+
+/* Slow mode (Shift): 0.1x - orange accent */
+.knob-mod-badge.is-slow {
+  background: rgba(255, 152, 0, 0.95);
+  color: #fff;
+  border-color: rgba(255, 152, 0, 0.6);
+}
+
 /* Osciloscopio: layout de knobs */
 .oscilloscope-knobs {
   display: flex;

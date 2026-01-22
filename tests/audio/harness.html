@@ -613,6 +613,377 @@
       };
     };
 
+    /**
+     * Test de Hard Sync: un oscilador "slave" sincronizado por un "master".
+     * 
+     * El hard sync resetea la fase del slave cada vez que el master cruza
+     * por cero en dirección positiva. Esto produce:
+     * - La frecuencia fundamental del output sigue al master
+     * - El timbre es rico en armónicos (más que el slave solo)
+     * - Diferentes ratios master/slave producen diferentes timbres
+     * 
+     * @param {Object} config - Configuración del test
+     * @param {number} config.masterFrequency - Frecuencia del oscilador master (Hz)
+     * @param {number} config.slaveFrequency - Frecuencia del oscilador slave (Hz)
+     * @param {string} [config.masterWaveform='sine'] - Forma de onda del master
+     * @param {string} [config.slaveWaveform='sawtooth'] - Forma de onda del slave
+     * @param {number} [config.duration=0.5] - Duración en segundos
+     * @param {number} [config.sampleRate=44100] - Sample rate
+     * @returns {Object} Resultados del análisis
+     */
+    window.testHardSync = async function(config) {
+      const {
+        masterFrequency = 220,
+        slaveFrequency = 440,
+        masterWaveform = 'sine',
+        slaveWaveform = 'sawtooth',
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`Hard Sync test: master ${masterWaveform}@${masterFrequency}Hz → slave ${slaveWaveform}@${slaveFrequency}Hz`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      // Registrar el worklet
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      // Crear oscilador MASTER (proporciona la señal de sync)
+      const master = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'single',
+          waveform: masterWaveform,
+          sineShapeAttenuation: 0,
+          sinePurity: 1.0
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      master.parameters.get('frequency').value = masterFrequency;
+      master.parameters.get('gain').value = 1.0;
+
+      // Crear oscilador SLAVE (recibe sync en input 0)
+      // NOTA: channelCountMode: 'explicit' + channelCount: 1 asegura que el input
+      // tenga exactamente 1 canal incluso cuando el AudioWorklet lo procesa.
+      const slave = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'single',
+          waveform: slaveWaveform,
+          sineShapeAttenuation: 0,
+          sinePurity: 1.0
+        },
+        numberOfInputs: 1,  // Input 0 = sync input
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+        channelCount: 1,
+        channelCountMode: 'explicit'
+      });
+      slave.parameters.get('frequency').value = slaveFrequency;
+      slave.parameters.get('gain').value = 1.0;
+
+      // Conectar: master → slave input 0 (sync)
+      // El slave detecta flancos positivos del master y resetea su fase
+      // IMPORTANTE: Usar connect(dest, outputIndex, inputIndex) para especificar
+      // explícitamente que conectamos al input 0 del worklet.
+      master.connect(slave, 0, 0);
+
+      // Solo el slave va a la salida
+      slave.connect(offline.destination);
+
+      // Renderizar
+      const startTime = performance.now();
+      const buffer = await offline.startRendering();
+      const renderTime = performance.now() - startTime;
+
+      const samples = buffer.getChannelData(0);
+
+      // Análisis
+      const spectrum = computeSpectrum(samples, sampleRate);
+      const dominant = findDominantFrequency(spectrum);
+      
+      // Encontrar armónicos del master (la frecuencia fundamental debe ser del master)
+      const masterHarmonics = findHarmonics(spectrum, masterFrequency, 10);
+      
+      // Encontrar armónicos del slave (para comparar)
+      const slaveHarmonics = findHarmonics(spectrum, slaveFrequency, 5);
+
+      // Contar armónicos significativos (> -40dB)
+      const significantHarmonics = spectrum.filter(b => b.db > -40 && b.frequency > 50);
+
+      // Calcular riqueza armónica (cuántos armónicos significativos hay)
+      const harmonicRichness = significantHarmonics.length;
+
+      // Calcular la energía en la frecuencia del master vs slave
+      const masterBin = spectrum.find(b => Math.abs(b.frequency - masterFrequency) < 20);
+      const slaveBin = spectrum.find(b => Math.abs(b.frequency - slaveFrequency) < 20);
+
+      const rms = calculateRMS(samples);
+      const peak = calculatePeak(samples);
+
+      log(`Hard Sync render: ${renderTime.toFixed(1)}ms, dominant: ${dominant?.frequency.toFixed(1)}Hz`, 'success');
+
+      return {
+        config: { masterFrequency, slaveFrequency, masterWaveform, slaveWaveform, duration },
+        renderTime,
+        dominant: dominant ? {
+          frequency: dominant.frequency,
+          magnitude: dominant.magnitude,
+          db: dominant.db
+        } : null,
+        masterHarmonics: masterHarmonics.map(h => ({
+          harmonic: h.harmonic,
+          expected: h.expected,
+          found: h.found ? { frequency: h.found.frequency, magnitude: h.found.magnitude, db: h.found.db } : null
+        })),
+        slaveHarmonics: slaveHarmonics.map(h => ({
+          harmonic: h.harmonic,
+          expected: h.expected,
+          found: h.found ? { frequency: h.found.frequency, magnitude: h.found.magnitude, db: h.found.db } : null
+        })),
+        masterEnergy: masterBin ? masterBin.magnitude : 0,
+        slaveEnergy: slaveBin ? slaveBin.magnitude : 0,
+        harmonicRichness,
+        significantFreqs: significantHarmonics.slice(0, 20).map(f => ({
+          frequency: f.frequency,
+          db: f.db
+        })),
+        rms,
+        peak,
+        samplePreview: Array.from(samples.slice(0, 256))
+      };
+    };
+
+    /**
+     * Diagnóstico de Hard Sync: verifica que el input está llegando al worklet.
+     * Renderiza master solo y captura cruces por cero.
+     */
+    window.diagnoseSyncInput = async function(config) {
+      const {
+        masterFrequency = 220,
+        slaveFrequency = 440,
+        duration = 0.1,
+        sampleRate = 44100
+      } = config;
+
+      log(`Diagnosing sync input: master=${masterFrequency}Hz, slave=${slaveFrequency}Hz`);
+
+      const length = Math.ceil(sampleRate * duration);
+      
+      // Renderizar solo el master para ver su forma de onda
+      const offlineMaster = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offlineMaster.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const masterAlone = new AudioWorkletNode(offlineMaster, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'sine' },
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      masterAlone.parameters.get('frequency').value = masterFrequency;
+      masterAlone.parameters.get('gain').value = 1.0;
+      masterAlone.connect(offlineMaster.destination);
+
+      const masterBuffer = await offlineMaster.startRendering();
+      const masterSamples = masterBuffer.getChannelData(0);
+
+      // Contar cruces por cero (flancos positivos)
+      let positiveCrossings = 0;
+      for (let i = 1; i < masterSamples.length; i++) {
+        if (masterSamples[i] > 0 && masterSamples[i-1] <= 0) {
+          positiveCrossings++;
+        }
+      }
+      const expectedCrossings = Math.round(masterFrequency * duration);
+
+      // Ahora renderizar master + slave para ver si hay diferencia
+      const offlineSync = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offlineSync.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const master = new AudioWorkletNode(offlineSync, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'sine' },
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      master.parameters.get('frequency').value = masterFrequency;
+      master.parameters.get('gain').value = 1.0;
+
+      const slave = new AudioWorkletNode(offlineSync, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'sawtooth' },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+        channelCount: 1,
+        channelCountMode: 'explicit'
+      });
+      slave.parameters.get('frequency').value = slaveFrequency;
+      slave.parameters.get('gain').value = 1.0;
+
+      master.connect(slave, 0, 0);
+      slave.connect(offlineSync.destination);
+
+      const syncBuffer = await offlineSync.startRendering();
+      const syncSamples = syncBuffer.getChannelData(0);
+
+      // Renderizar slave sin sync para comparar
+      const offlineNoSync = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offlineNoSync.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const slaveAlone = new AudioWorkletNode(offlineNoSync, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'sawtooth' },
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      slaveAlone.parameters.get('frequency').value = slaveFrequency;
+      slaveAlone.parameters.get('gain').value = 1.0;
+      slaveAlone.connect(offlineNoSync.destination);
+
+      const noSyncBuffer = await offlineNoSync.startRendering();
+      const noSyncSamples = noSyncBuffer.getChannelData(0);
+
+      // Comparar si hay diferencia entre sync y no-sync
+      let diffSum = 0;
+      for (let i = 0; i < syncSamples.length; i++) {
+        diffSum += Math.abs(syncSamples[i] - noSyncSamples[i]);
+      }
+      const avgDiff = diffSum / syncSamples.length;
+
+      log(`Diagnosis: masterCrossings=${positiveCrossings}/${expectedCrossings}, avgDiff=${avgDiff.toFixed(6)}`, avgDiff > 0.01 ? 'success' : 'error');
+
+      return {
+        masterFrequency,
+        slaveFrequency,
+        duration,
+        positiveCrossings,
+        expectedCrossings,
+        crossingsMatch: Math.abs(positiveCrossings - expectedCrossings) <= 1,
+        avgDiffWithWithoutSync: avgDiff,
+        syncHasEffect: avgDiff > 0.01,
+        masterSamples: Array.from(masterSamples.slice(0, 512)),
+        syncSamples: Array.from(syncSamples.slice(0, 512)),
+        noSyncSamples: Array.from(noSyncSamples.slice(0, 512))
+      };
+    };
+
+    /**
+     * Test comparativo: mismo oscilador con y sin hard sync.
+     * Útil para verificar que el sync realmente modifica el timbre.
+     */
+    window.testHardSyncComparison = async function(config) {
+      const {
+        masterFrequency = 220,
+        slaveFrequency = 440,
+        slaveWaveform = 'sawtooth',
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`Hard Sync comparison: slave ${slaveWaveform}@${slaveFrequency}Hz with/without sync@${masterFrequency}Hz`);
+
+      const length = Math.ceil(sampleRate * duration);
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // SIN SYNC: Solo el slave
+      // ═══════════════════════════════════════════════════════════════════════
+      const offlineNoSync = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offlineNoSync.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const slaveOnly = new AudioWorkletNode(offlineNoSync, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: slaveWaveform }
+      });
+      slaveOnly.parameters.get('frequency').value = slaveFrequency;
+      slaveOnly.parameters.get('gain').value = 1.0;
+      slaveOnly.connect(offlineNoSync.destination);
+
+      const bufferNoSync = await offlineNoSync.startRendering();
+      const samplesNoSync = bufferNoSync.getChannelData(0);
+      const spectrumNoSync = computeSpectrum(samplesNoSync, sampleRate);
+      const dominantNoSync = findDominantFrequency(spectrumNoSync);
+      const harmonicsNoSync = spectrumNoSync.filter(b => b.db > -40 && b.frequency > 50).length;
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // CON SYNC: Master + Slave sincronizado
+      // ═══════════════════════════════════════════════════════════════════════
+      const offlineSync = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offlineSync.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const master = new AudioWorkletNode(offlineSync, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'sine', sinePurity: 1.0 }
+      });
+      master.parameters.get('frequency').value = masterFrequency;
+      master.parameters.get('gain').value = 1.0;
+
+      const slaveSync = new AudioWorkletNode(offlineSync, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: slaveWaveform },
+        numberOfInputs: 1,
+        channelCount: 1,
+        channelCountMode: 'explicit'
+      });
+      slaveSync.parameters.get('frequency').value = slaveFrequency;
+      slaveSync.parameters.get('gain').value = 1.0;
+
+      master.connect(slaveSync, 0, 0);  // Sync connection: output 0 → input 0
+      slaveSync.connect(offlineSync.destination);
+
+      const bufferSync = await offlineSync.startRendering();
+      const samplesSync = bufferSync.getChannelData(0);
+      const spectrumSync = computeSpectrum(samplesSync, sampleRate);
+      const dominantSync = findDominantFrequency(spectrumSync);
+      const harmonicsSync = spectrumSync.filter(b => b.db > -40 && b.frequency > 50).length;
+
+      log(`Comparison: noSync=${dominantNoSync?.frequency.toFixed(1)}Hz (${harmonicsNoSync} harmonics), sync=${dominantSync?.frequency.toFixed(1)}Hz (${harmonicsSync} harmonics)`, 'success');
+
+      return {
+        config: { masterFrequency, slaveFrequency, slaveWaveform, duration },
+        noSync: {
+          dominantFrequency: dominantNoSync?.frequency || 0,
+          harmonicCount: harmonicsNoSync,
+          rms: calculateRMS(samplesNoSync),
+          peak: calculatePeak(samplesNoSync)
+        },
+        withSync: {
+          dominantFrequency: dominantSync?.frequency || 0,
+          harmonicCount: harmonicsSync,
+          rms: calculateRMS(samplesSync),
+          peak: calculatePeak(samplesSync)
+        },
+        // Cambios esperados con sync:
+        // 1. La frecuencia fundamental cambia de slaveFreq a masterFreq
+        // 2. Generalmente más armónicos (timbre más rico)
+        frequencyShift: (dominantSync?.frequency || 0) - (dominantNoSync?.frequency || 0),
+        harmonicIncrease: harmonicsSync - harmonicsNoSync
+      };
+    };
+
     // ═══════════════════════════════════════════════════════════════════════
     // INICIALIZACIÓN
     // ═══════════════════════════════════════════════════════════════════════

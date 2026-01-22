@@ -9,7 +9,7 @@
     "test:audio:ui": "npx playwright test --config=tests/audio/playwright.config.js --ui",
     "test:audio:headed": "npx playwright test --config=tests/audio/playwright.config.js --headed",
     "test:audio:debug": "npx playwright test --config=tests/audio/playwright.config.js --debug",
-    "test:all": "npm run test && npm run test:audio",
+    "test:all": "node scripts/test-all.mjs",
     "pretest:require": "node scripts/run-tests.mjs --require-pass",
     "build": "node scripts/run-tests.mjs --require-pass && npm run build:i18n && node scripts/build.mjs",
     "build:skip-tests": "npm run build:i18n && node scripts/build.mjs",

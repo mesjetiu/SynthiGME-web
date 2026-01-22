@@ -1861,6 +1861,7 @@ small { color:#aaa; }
 
 .sgme-osc__knob-shell {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }

@@ -162,25 +162,6 @@ function showPanelContextMenu(panelId, x, y) {
   });
   menu.appendChild(detachItem);
   
-  // Opción: Devolver todos (solo si hay PiPs abiertos)
-  if (activePips.size > 0) {
-    const attachAllItem = document.createElement('button');
-    attachAllItem.className = 'pip-context-menu__item';
-    attachAllItem.innerHTML = `
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <path d="M3 9h18"/>
-        <path d="M9 9v12"/>
-      </svg>
-      <span>${t('pip.attachAll', 'Devolver todos')}</span>
-    `;
-    attachAllItem.addEventListener('click', () => {
-      hideContextMenu();
-      closeAllPips();
-    });
-    menu.appendChild(attachAllItem);
-  }
-  
   document.body.appendChild(menu);
   activeContextMenu = menu;
   

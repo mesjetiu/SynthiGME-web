@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SynthiGME Audio Test Harness</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { color: #00d9ff; }
+    .status { 
+      padding: 0.5rem 1rem; 
+      border-radius: 4px; 
+      margin: 0.5rem 0;
+    }
+    .ready { background: #0f5132; }
+    .loading { background: #664d03; }
+    .error { background: #842029; }
+    #log {
+      background: #0d0d0d;
+      padding: 1rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .log-entry { margin: 0.25rem 0; }
+    .log-entry.info { color: #6c757d; }
+    .log-entry.success { color: #198754; }
+    .log-entry.error { color: #dc3545; }
+  </style>
+</head>
+<body>
+  <h1>🎛️ SynthiGME Audio Test Harness</h1>
+  
+  <div id="status" class="status loading">Cargando worklets...</div>
+  
+  <div id="log"></div>
+
+  <script type="module">
+    /**
+     * Audio Test Harness
+     * 
+     * Este archivo se carga en Playwright y expone funciones globales
+     * para ejecutar tests de audio con Web Audio API real.
+     * 
+     * Los tests llaman a estas funciones via page.evaluate().
+     */
+
+    const log = (msg, type = 'info') => {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toISOString().slice(11, 23)}] ${msg}`;
+      document.getElementById('log').appendChild(entry);
+      console.log(`[AudioHarness] ${msg}`);
+    };
+
+    const setStatus = (msg, type) => {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = `status ${type}`;
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // HELPERS DE ANÁLISIS ESPECTRAL
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Calcula el espectro de magnitud usando DFT simple (más lento pero confiable).
+     * Solo calcula los bins necesarios para el análisis.
+     */
+    function computeSpectrum(samples, sampleRate) {
+      const N = samples.length;
+      const spectrum = [];
+      
+      // Solo calcular hasta Nyquist y con resolución razonable
+      const maxBins = Math.min(N / 2, 2048);
+      const binStep = Math.max(1, Math.floor(N / 2 / maxBins));
+      
+      for (let k = 1; k < maxBins; k++) {
+        const binIndex = k * binStep;
+        let re = 0;
+        let im = 0;
+        
+        // DFT para este bin específico
+        for (let n = 0; n < N; n++) {
+          const angle = -2 * Math.PI * binIndex * n / N;
+          re += samples[n] * Math.cos(angle);
+          im += samples[n] * Math.sin(angle);
+        }
+        
+        const magnitude = Math.sqrt(re * re + im * im) / N;
+        const db = 20 * Math.log10(magnitude + 1e-10);
+        const frequency = binIndex * sampleRate / N;
+        
+        spectrum.push({
+          bin: binIndex,
+          frequency,
+          magnitude,
+          db
+        });
+      }
+      
+      return spectrum;
+    }
+
+    /**
+     * Versión rápida: usa zero-crossing para estimar frecuencia
+     * y picos para análisis básico de armónicos.
+     */
+    function analyzeSignalFast(samples, sampleRate) {
+      // Estimar frecuencia por zero crossings
+      let crossings = 0;
+      for (let i = 1; i < samples.length; i++) {
+        if ((samples[i - 1] < 0 && samples[i] >= 0)) {
+          crossings++;
+        }
+      }
+      const duration = samples.length / sampleRate;
+      const estimatedFreq = crossings / duration;
+      
+      // Calcular RMS y peak
+      let sum = 0;
+      let peak = 0;
+      for (let i = 0; i < samples.length; i++) {
+        sum += samples[i] * samples[i];
+        if (Math.abs(samples[i]) > peak) peak = Math.abs(samples[i]);
+      }
+      const rms = Math.sqrt(sum / samples.length);
+      
+      return {
+        estimatedFreq,
+        rms,
+        peak
+      };
+    }
+
+    /**
+     * Encuentra la frecuencia dominante en el espectro.
+     */
+    function findDominantFrequency(spectrum, minDb = -80) {
+      let maxMag = 0;
+      let dominant = null;
+      
+      // Ignorar DC (bin 0) y frecuencias muy bajas
+      for (let i = 1; i < spectrum.length; i++) {
+        const bin = spectrum[i];
+        if (bin.magnitude > maxMag && bin.frequency > 10) {
+          maxMag = bin.magnitude;
+          dominant = bin;
+        }
+      }
+      
+      return dominant;
+    }
+
+    /**
+     * Encuentra armónicos de una frecuencia fundamental.
+     */
+    function findHarmonics(spectrum, fundamental, count = 5, tolerance = 5) {
+      const harmonics = [];
+      
+      for (let n = 1; n <= count; n++) {
+        const targetFreq = fundamental * n;
+        let best = null;
+        let bestDiff = Infinity;
+        
+        for (const bin of spectrum) {
+          const diff = Math.abs(bin.frequency - targetFreq);
+          if (diff < tolerance && diff < bestDiff) {
+            bestDiff = diff;
+            best = bin;
+          }
+        }
+        
+        harmonics.push({
+          harmonic: n,
+          expected: targetFreq,
+          found: best
+        });
+      }
+      
+      return harmonics;
+    }
+
+    /**
+     * Calcula la Distorsión Armónica Total (THD).
+     */
+    function measureTHD(spectrum, fundamental, numHarmonics = 5) {
+      const harmonics = findHarmonics(spectrum, fundamental, numHarmonics + 1);
+      
+      const fundamentalMag = harmonics[0]?.found?.magnitude || 0;
+      if (fundamentalMag === 0) return null;
+      
+      let harmonicPower = 0;
+      for (let i = 1; i < harmonics.length; i++) {
+        const mag = harmonics[i]?.found?.magnitude || 0;
+        harmonicPower += mag * mag;
+      }
+      
+      return Math.sqrt(harmonicPower) / fundamentalMag * 100; // Porcentaje
+    }
+
+    /**
+     * Calcula RMS de una señal.
+     */
+    function calculateRMS(samples) {
+      let sum = 0;
+      for (let i = 0; i < samples.length; i++) {
+        sum += samples[i] * samples[i];
+      }
+      return Math.sqrt(sum / samples.length);
+    }
+
+    /**
+     * Calcula el pico de una señal.
+     */
+    function calculatePeak(samples) {
+      let max = 0;
+      for (let i = 0; i < samples.length; i++) {
+        const abs = Math.abs(samples[i]);
+        if (abs > max) max = abs;
+      }
+      return max;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // FUNCIONES DE TEST EXPUESTAS GLOBALMENTE
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Renderiza audio de un oscilador con OfflineAudioContext.
+     * 
+     * @param {Object} config - Configuración del test
+     * @param {string} config.waveform - Tipo de onda: 'sine'|'sawtooth'|'triangle'|'pulse'
+     * @param {number} config.frequency - Frecuencia en Hz
+     * @param {number} config.duration - Duración en segundos
+     * @param {number} [config.pulseWidth=0.5] - Ancho de pulso (0.01-0.99)
+     * @param {number} [config.symmetry=0.5] - Simetría del sine (0-1)
+     * @param {number} [config.sampleRate=44100] - Sample rate
+     * @returns {Object} Resultados del análisis
+     */
+    window.testSynthOscillator = async function(config) {
+      const {
+        waveform = 'sine',
+        frequency = 440,
+        duration = 0.5,
+        pulseWidth = 0.5,
+        symmetry = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`Rendering ${waveform} @ ${frequency}Hz, duration=${duration}s`);
+
+      // Crear OfflineAudioContext
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      // Registrar el worklet
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+      log('Worklet registrado');
+
+      // Crear nodo de oscilador
+      const oscillator = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'single',
+          waveform,
+          sineShapeAttenuation: 0,  // Sin atenuación para tests de forma pura
+          sinePurity: 1.0            // Seno puro en centro
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+
+      // Configurar parámetros
+      oscillator.parameters.get('frequency').value = frequency;
+      oscillator.parameters.get('pulseWidth').value = pulseWidth;
+      oscillator.parameters.get('symmetry').value = symmetry;
+      oscillator.parameters.get('gain').value = 1.0;
+
+      // Conectar a destino
+      oscillator.connect(offline.destination);
+
+      // Renderizar
+      log('Iniciando render...');
+      const startTime = performance.now();
+      const buffer = await offline.startRendering();
+      const renderTime = performance.now() - startTime;
+      log(`Render completado en ${renderTime.toFixed(1)}ms`, 'success');
+
+      // Obtener samples
+      const samples = buffer.getChannelData(0);
+      
+      // Análisis
+      const spectrum = computeSpectrum(samples, sampleRate);
+      const dominant = findDominantFrequency(spectrum);
+      const harmonics = findHarmonics(spectrum, frequency, 10);
+      const thd = measureTHD(spectrum, frequency, 5);
+      const rms = calculateRMS(samples);
+      const peak = calculatePeak(samples);
+
+      // Verificar forma de onda (primeros N samples para análisis de fase)
+      const phaseAnalysis = {
+        startValue: samples[0],
+        quarterCycle: samples[Math.floor(sampleRate / frequency / 4)],
+        halfCycle: samples[Math.floor(sampleRate / frequency / 2)],
+        threeQuarterCycle: samples[Math.floor(sampleRate / frequency * 0.75)]
+      };
+
+      return {
+        config,
+        renderTime,
+        sampleCount: samples.length,
+        dominant: dominant ? {
+          frequency: dominant.frequency,
+          magnitude: dominant.magnitude,
+          db: dominant.db
+        } : null,
+        harmonics: harmonics.map(h => ({
+          harmonic: h.harmonic,
+          expected: h.expected,
+          found: h.found ? {
+            frequency: h.found.frequency,
+            magnitude: h.found.magnitude,
+            db: h.found.db
+          } : null
+        })),
+        thd,
+        rms,
+        peak,
+        phaseAnalysis,
+        // Incluir algunos samples para verificación visual
+        samplePreview: Array.from(samples.slice(0, 256))
+      };
+    };
+
+    /**
+     * Renderiza audio con múltiples formas de onda simultáneas (modo multi).
+     */
+    window.testSynthOscillatorMulti = async function(config) {
+      const {
+        frequency = 440,
+        duration = 0.5,
+        sineLevel = 1,
+        sawLevel = 0,
+        triLevel = 0,
+        pulseLevel = 0,
+        pulseWidth = 0.5,
+        symmetry = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`Rendering multi-waveform @ ${frequency}Hz`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 2,  // 2 canales: sine+saw, tri+pulse
+        length,
+        sampleRate
+      });
+
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const oscillator = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'multi',
+          sineShapeAttenuation: 0,
+          sinePurity: 1.0
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 2,
+        outputChannelCount: [1, 1]
+      });
+
+      // Configurar parámetros
+      oscillator.parameters.get('frequency').value = frequency;
+      oscillator.parameters.get('pulseWidth').value = pulseWidth;
+      oscillator.parameters.get('symmetry').value = symmetry;
+      oscillator.parameters.get('sineLevel').value = sineLevel;
+      oscillator.parameters.get('sawLevel').value = sawLevel;
+      oscillator.parameters.get('triLevel').value = triLevel;
+      oscillator.parameters.get('pulseLevel').value = pulseLevel;
+
+      // Crear merger para capturar ambos canales
+      const merger = offline.createChannelMerger(2);
+      oscillator.connect(merger, 0, 0);  // sine+saw → canal 0
+      oscillator.connect(merger, 1, 1);  // tri+pulse → canal 1
+      merger.connect(offline.destination);
+
+      const buffer = await offline.startRendering();
+      
+      const channel0 = buffer.getChannelData(0);  // sine + saw
+      const channel1 = buffer.getChannelData(1);  // tri + pulse
+
+      return {
+        config,
+        channel0: {
+          rms: calculateRMS(channel0),
+          peak: calculatePeak(channel0),
+          spectrum: computeSpectrum(channel0, sampleRate).slice(0, 100),
+          samplePreview: Array.from(channel0.slice(0, 256))
+        },
+        channel1: {
+          rms: calculateRMS(channel1),
+          peak: calculatePeak(channel1),
+          spectrum: computeSpectrum(channel1, sampleRate).slice(0, 100),
+          samplePreview: Array.from(channel1.slice(0, 256))
+        }
+      };
+    };
+
+    /**
+     * Renderiza audio a través de una cadena de nodos (simula matriz).
+     * Útil para tests de routing y ganancias.
+     */
+    window.testSignalRouting = async function(config) {
+      const {
+        sourceFrequency = 440,
+        sourceWaveform = 'sine',
+        gains = [1.0],  // Array de ganancias a aplicar en cadena
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`Routing test: ${sourceWaveform}@${sourceFrequency}Hz through ${gains.length} gain stages`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      // Crear oscilador fuente
+      const osc = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: sourceWaveform }
+      });
+      osc.parameters.get('frequency').value = sourceFrequency;
+      osc.parameters.get('gain').value = 1.0;
+
+      // Crear cadena de ganancias (simulando pines de matriz)
+      let lastNode = osc;
+      const gainNodes = [];
+      
+      for (const gainValue of gains) {
+        const gainNode = offline.createGain();
+        gainNode.gain.value = gainValue;
+        lastNode.connect(gainNode);
+        lastNode = gainNode;
+        gainNodes.push({ requestedGain: gainValue, actualGain: gainNode.gain.value });
+      }
+
+      lastNode.connect(offline.destination);
+
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // Calcular ganancia total esperada vs real
+      const expectedTotalGain = gains.reduce((a, b) => a * b, 1.0);
+      const actualPeak = calculatePeak(samples);
+
+      return {
+        config,
+        gainNodes,
+        expectedTotalGain,
+        actualPeak,
+        rms: calculateRMS(samples),
+        spectrum: computeSpectrum(samples, sampleRate).slice(0, 200)  // Más bins para mejor resolución
+      };
+    };
+
+    /**
+     * Test de latencia: mide el tiempo desde trigger hasta primer sample no-cero.
+     */
+    window.testLatency = async function(config) {
+      const {
+        frequency = 1000,
+        sampleRate = 44100,
+        duration = 0.1
+      } = config;
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const osc = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'pulse' }
+      });
+      osc.parameters.get('frequency').value = frequency;
+      osc.parameters.get('gain').value = 1.0;
+      osc.connect(offline.destination);
+
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // Encontrar primer sample con señal significativa
+      let firstNonZeroIndex = -1;
+      const threshold = 0.001;
+      for (let i = 0; i < samples.length; i++) {
+        if (Math.abs(samples[i]) > threshold) {
+          firstNonZeroIndex = i;
+          break;
+        }
+      }
+
+      const latencySamples = firstNonZeroIndex;
+      const latencyMs = latencySamples >= 0 ? (latencySamples / sampleRate * 1000) : null;
+
+      return {
+        latencySamples,
+        latencyMs,
+        firstSamples: Array.from(samples.slice(0, 20))
+      };
+    };
+
+    /**
+     * Test de anti-aliasing: verifica que no hay frecuencias espurias sobre Nyquist.
+     */
+    window.testAntiAliasing = async function(config) {
+      const {
+        frequency = 10000,  // Alta frecuencia para provocar aliasing
+        waveform = 'sawtooth',
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`Anti-aliasing test: ${waveform} @ ${frequency}Hz`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const osc = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform }
+      });
+      osc.parameters.get('frequency').value = frequency;
+      osc.parameters.get('gain').value = 1.0;
+      osc.connect(offline.destination);
+
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+      const spectrum = computeSpectrum(samples, sampleRate);
+
+      // Encontrar frecuencias significativas (> -40dB)
+      const significantFreqs = spectrum.filter(bin => bin.db > -40);
+      
+      // Calcular qué armónicos deberían existir vs cuáles están aliasados
+      const nyquist = sampleRate / 2;
+      const expectedHarmonics = [];
+      const aliasedHarmonics = [];
+      
+      for (let n = 1; n <= 20; n++) {
+        const harmonicFreq = frequency * n;
+        if (harmonicFreq < nyquist) {
+          expectedHarmonics.push({ n, frequency: harmonicFreq });
+        } else {
+          // Frecuencia aliasada = |freq - N * sampleRate|
+          const aliasedFreq = Math.abs(harmonicFreq - Math.round(harmonicFreq / sampleRate) * sampleRate);
+          aliasedHarmonics.push({ n, original: harmonicFreq, aliased: aliasedFreq });
+        }
+      }
+
+      // Verificar que no hay energía significativa en frecuencias aliasadas
+      const aliasingDetected = [];
+      for (const alias of aliasedHarmonics) {
+        const found = spectrum.find(bin => 
+          Math.abs(bin.frequency - alias.aliased) < 20 && bin.db > -50
+        );
+        if (found) {
+          aliasingDetected.push({
+            ...alias,
+            detectedMagnitude: found.magnitude,
+            detectedDb: found.db
+          });
+        }
+      }
+
+      return {
+        config,
+        nyquist,
+        expectedHarmonics: expectedHarmonics.length,
+        aliasedHarmonics: aliasedHarmonics.length,
+        aliasingDetected,
+        hasAliasing: aliasingDetected.length > 0,
+        significantFreqs: significantFreqs.slice(0, 20).map(f => ({
+          frequency: f.frequency,
+          db: f.db
+        }))
+      };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // INICIALIZACIÓN
+    // ═══════════════════════════════════════════════════════════════════════
+
+    async function init() {
+      try {
+        log('Verificando soporte Web Audio...');
+        
+        if (!window.AudioContext && !window.webkitAudioContext) {
+          throw new Error('Web Audio API no soportada');
+        }
+        
+        if (!window.OfflineAudioContext) {
+          throw new Error('OfflineAudioContext no soportado');
+        }
+        
+        // Test rápido de AudioWorklet
+        const testCtx = new OfflineAudioContext(1, 1024, 44100);
+        if (!testCtx.audioWorklet) {
+          throw new Error('AudioWorklet no soportado');
+        }
+        
+        log('Web Audio API disponible', 'success');
+        log('OfflineAudioContext disponible', 'success');
+        log('AudioWorklet disponible', 'success');
+        
+        setStatus('✅ Harness listo para tests de audio', 'ready');
+        
+        // Marcar como listo para Playwright
+        window.__AUDIO_HARNESS_READY__ = true;
+        
+      } catch (error) {
+        log(`Error: ${error.message}`, 'error');
+        setStatus(`❌ Error: ${error.message}`, 'error');
+        window.__AUDIO_HARNESS_READY__ = false;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

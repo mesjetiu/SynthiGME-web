@@ -5,6 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "node --test 'tests/**/*.test.js'",
+    "test:audio": "npx playwright test --config=tests/audio/playwright.config.js",
+    "test:audio:ui": "npx playwright test --config=tests/audio/playwright.config.js --ui",
+    "test:audio:headed": "npx playwright test --config=tests/audio/playwright.config.js --headed",
+    "test:audio:debug": "npx playwright test --config=tests/audio/playwright.config.js --debug",
+    "test:all": "npm run test && npm run test:audio",
     "pretest:require": "node scripts/run-tests.mjs --require-pass",
     "build": "node scripts/run-tests.mjs --require-pass && npm run build:i18n && node scripts/build.mjs",
     "build:skip-tests": "npm run build:i18n && node scripts/build.mjs",
@@ -33,9 +38,12 @@
   },
   "homepage": "https://github.com/mesjetiu/SynthiGME-web#readme",
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "esbuild": "^0.27.2",
     "fake-indexeddb": "^6.2.5",
+    "http-server": "^14.1.1",
     "jsdom": "^27.0.1",
+    "playwright": "^1.57.0",
     "svgo": "^4.0.0"
   }
 }

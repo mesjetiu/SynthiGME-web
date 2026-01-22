@@ -30,9 +30,9 @@ const requirePass = process.argv.includes('--require-pass');
  */
 function runTests() {
   return new Promise((resolve) => {
-    console.log('\n🧪 Ejecutando tests...\n');
+    console.log('\n🧪 Ejecutando tests (unitarios + audio)...\n');
     
-    const testProcess = spawn('npm', ['test'], {
+    const testProcess = spawn('npm', ['run', 'test:all'], {
       cwd: projectRoot,
       stdio: 'inherit',
       shell: true

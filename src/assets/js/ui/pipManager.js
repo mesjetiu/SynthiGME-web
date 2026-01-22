@@ -538,16 +538,22 @@ function setupPipEvents(pipContainer, panelId) {
     // El padding es igual al tamaño del viewport
     const scrollX = viewport ? viewport.scrollLeft : 0;
     const scrollY = viewport ? viewport.scrollTop : 0;
-    // Centro de la vista en coordenadas del panel (sin padding)
-    const viewCenterOnPanelX = scrollX + viewportW / 2 - viewportW; // restar padding
-    const viewCenterOnPanelY = scrollY + viewportH / 2 - viewportH;
+    // El padding es igual al tamaño del viewport
+    const paddingX = viewportW;
+    const paddingY = viewportH;
+    // Centro de la vista en coordenadas del viewport-inner: scrollX + viewportW/2
+    // Eso corresponde al punto del panel escalado: (scrollX + viewportW/2) - paddingX
+    // En coordenadas del panel ORIGINAL (sin escalar): ((scrollX + viewportW/2) - paddingX) / scale
+    const viewCenterOnPanelX = (scrollX + viewportW / 2 - paddingX) / state.scale;
+    const viewCenterOnPanelY = (scrollY + viewportH / 2 - paddingY) / state.scale;
     resizeStart = {
       x: e.clientX,
       y: e.clientY,
       w: state.width,
       h: state.height,
       scale: state.scale,
-      viewCenterX: viewCenterOnPanelX, // Punto del panel en el centro de la vista
+      // Punto del panel ORIGINAL que está en el centro de la vista
+      viewCenterX: viewCenterOnPanelX,
       viewCenterY: viewCenterOnPanelY
     };
     pipContainer.classList.add('pip-container--resizing');
@@ -740,16 +746,15 @@ function handlePointerMove(e) {
       const newViewportW = viewport.clientWidth;
       const newViewportH = viewport.clientHeight;
       // El padding ahora es igual al nuevo tamaño del viewport
-      const newPadding = newViewportW;
-      // El punto que estaba en el centro, con la nueva escala
-      const scaleRatio = newScale / resizeStart.scale;
-      const newCenterX = resizeStart.viewCenterX * scaleRatio;
-      const newCenterY = resizeStart.viewCenterY * scaleRatio;
-      // Calcular scroll para que ese punto esté en el centro de la vista
-      // scrollX + viewportW/2 - padding = newCenterX
-      // scrollX = newCenterX + padding - viewportW/2
-      const newScrollX = newCenterX + newPadding - newViewportW / 2;
-      const newScrollY = newCenterY + newPadding - newViewportH / 2;
+      const newPaddingX = newViewportW;
+      const newPaddingY = newViewportH;
+      // El punto del panel original (viewCenterX/Y) ahora está en posición escalada:
+      // posición en viewport-inner = newPadding + viewCenterX * newScale
+      // Queremos que esa posición esté en el centro del viewport:
+      // newScrollX + newViewportW/2 = newPadding + viewCenterX * newScale
+      // newScrollX = newPadding + viewCenterX * newScale - newViewportW/2
+      const newScrollX = newPaddingX + resizeStart.viewCenterX * newScale - newViewportW / 2;
+      const newScrollY = newPaddingY + resizeStart.viewCenterY * newScale - newViewportH / 2;
       viewport.scrollLeft = Math.max(0, newScrollX);
       viewport.scrollTop = Math.max(0, newScrollY);
     }

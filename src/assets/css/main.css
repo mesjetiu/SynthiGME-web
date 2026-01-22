@@ -2228,6 +2228,7 @@ small { color:#aaa; }
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.25s ease, visibility 0.25s ease;
+  zoom: 1 !important; /* Aislado de la resolución del canvas principal */
 }
 
 .audio-settings-overlay--visible {
@@ -2612,6 +2613,7 @@ small { color:#aaa; }
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.25s ease, visibility 0.25s ease;
+  zoom: 1 !important; /* Aislado de la resolución del canvas principal */
 }
 
 .settings-overlay--visible {

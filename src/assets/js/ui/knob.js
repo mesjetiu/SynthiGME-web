@@ -1,6 +1,9 @@
 // Componente Knob reutilizable para parámetros continuos en la interfaz
 import { shouldBlockInteraction } from '../utils/input.js';
 
+// Detectar si el dispositivo es táctil (tablet/móvil)
+const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
 export class Knob {
   constructor(rootEl, options = {}) {
     this.rootEl = rootEl;
@@ -20,7 +23,9 @@ export class Knob {
       scaleDecimals = 1,
       // Función opcional para generar info adicional del tooltip
       // Recibe (value, scaleValue) y retorna string o null
-      getTooltipInfo = null
+      getTooltipInfo = null,
+      // Tiempo de auto-ocultado del tooltip en móvil (ms)
+      tooltipAutoHideDelay = 3000
     } = options;
 
     this.valueEl = valueElement;
@@ -38,6 +43,10 @@ export class Knob {
     
     // Función para info adicional en tooltip
     this.getTooltipInfo = getTooltipInfo;
+    
+    // Configuración de tooltip táctil
+    this.tooltipAutoHideDelay = tooltipAutoHideDelay;
+    this._tooltipAutoHideTimer = null;
 
     this.dragging = false;
     this.startY = 0;
@@ -152,6 +161,12 @@ export class Knob {
   _hideTooltip() {
     if (!this.tooltip) return;
     
+    // Limpiar timer de auto-ocultado
+    if (this._tooltipAutoHideTimer) {
+      clearTimeout(this._tooltipAutoHideTimer);
+      this._tooltipAutoHideTimer = null;
+    }
+    
     const tooltip = this.tooltip;
     tooltip.classList.remove('is-visible');
     
@@ -164,19 +179,81 @@ export class Knob {
     
     this.tooltip = null;
   }
-
-  _attach() {
-    // Mostrar tooltip al pasar el ratón
-    this.rootEl.addEventListener('pointerenter', () => {
-      this._showTooltip();
-    });
+  
+  /**
+   * Muestra el tooltip con auto-ocultado para dispositivos táctiles
+   */
+  _showTooltipWithAutoHide() {
+    this._showTooltip();
     
-    this.rootEl.addEventListener('pointerleave', () => {
+    // Limpiar timer previo si existe
+    if (this._tooltipAutoHideTimer) {
+      clearTimeout(this._tooltipAutoHideTimer);
+    }
+    
+    // Configurar auto-ocultado
+    this._tooltipAutoHideTimer = setTimeout(() => {
       if (!this.dragging) {
         this._hideTooltip();
       }
-    });
+    }, this.tooltipAutoHideDelay);
+  }
+
+  _attach() {
+    const isTouch = isTouchDevice();
     
+    // ─────────────────────────────────────────────────────────────────────
+    // DESKTOP: hover para mostrar tooltip
+    // ─────────────────────────────────────────────────────────────────────
+    if (!isTouch) {
+      this.rootEl.addEventListener('pointerenter', () => {
+        this._showTooltip();
+      });
+      
+      this.rootEl.addEventListener('pointerleave', () => {
+        if (!this.dragging) {
+          this._hideTooltip();
+        }
+      });
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // TÁCTIL: tap para mostrar tooltip con auto-hide
+    // ─────────────────────────────────────────────────────────────────────
+    if (isTouch) {
+      // Detectar tap simple (sin drag)
+      let tapStartTime = 0;
+      let tapStartY = 0;
+      let wasTap = false;
+      
+      this.rootEl.addEventListener('touchstart', (ev) => {
+        tapStartTime = Date.now();
+        tapStartY = ev.touches[0]?.clientY ?? 0;
+        wasTap = true;
+      }, { passive: true });
+      
+      this.rootEl.addEventListener('touchmove', (ev) => {
+        // Si se movió más de 10px, no es un tap
+        const currentY = ev.touches[0]?.clientY ?? 0;
+        if (Math.abs(currentY - tapStartY) > 10) {
+          wasTap = false;
+        }
+      }, { passive: true });
+      
+      this.rootEl.addEventListener('touchend', () => {
+        const tapDuration = Date.now() - tapStartTime;
+        // Si fue un tap corto (< 200ms) y no hubo drag significativo
+        if (wasTap && tapDuration < 200 && !this.dragging) {
+          // Mostrar tooltip con autoHide
+          this._showTooltipWithAutoHide();
+        }
+        wasTap = false;
+      }, { passive: true });
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // DRAG (común para ambos)
+    // ─────────────────────────────────────────────────────────────────────
     this.rootEl.addEventListener('pointerdown', ev => {
       if (shouldBlockInteraction(ev)) return;
       if (window._synthApp && window._synthApp.ensureAudio) {
@@ -186,7 +263,15 @@ export class Knob {
       this.startY = ev.clientY;
       this.startValue = this.value;
       this.rootEl.setPointerCapture(ev.pointerId);
+      
+      // Mostrar tooltip durante drag
       this._showTooltip();
+      
+      // En táctil, limpiar el timer de autoHide durante drag
+      if (isTouch && this._tooltipAutoHideTimer) {
+        clearTimeout(this._tooltipAutoHideTimer);
+        this._tooltipAutoHideTimer = null;
+      }
     });
 
     this.rootEl.addEventListener('pointermove', ev => {
@@ -230,7 +315,19 @@ export class Knob {
       try { this.rootEl.releasePointerCapture(ev.pointerId); } catch (error) {
         // ignore release errors
       }
-      this._hideTooltip();
+      
+      // En desktop ocultar inmediatamente, en táctil usar autoHide
+      if (isTouch) {
+        // Reiniciar el timer de autoHide después del drag
+        if (this._tooltipAutoHideTimer) {
+          clearTimeout(this._tooltipAutoHideTimer);
+        }
+        this._tooltipAutoHideTimer = setTimeout(() => {
+          this._hideTooltip();
+        }, this.tooltipAutoHideDelay);
+      } else {
+        this._hideTooltip();
+      }
     };
 
     this.rootEl.addEventListener('pointerup', end);

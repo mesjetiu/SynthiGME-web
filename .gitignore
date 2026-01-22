@@ -37,3 +37,4 @@ out/
 *.tsbuildinfo
 .eslintcache
 *.tgz
+test-results/

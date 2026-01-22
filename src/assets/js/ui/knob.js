@@ -54,6 +54,9 @@ export class Knob {
     
     // Tooltip element
     this.tooltip = null;
+    // Indicador visual de modificadores (Ctrl/Shift)
+    this.modBadge = null;
+    this.modifierState = 'none';
     
     // RAF para actualizaciones visuales fluidas
     this._rafId = null;
@@ -199,8 +202,35 @@ export class Knob {
     }, this.tooltipAutoHideDelay);
   }
 
+  _ensureModifierBadge() {
+    if (this.modBadge) return;
+    const badge = document.createElement('div');
+    badge.className = 'knob-mod-badge';
+    badge.textContent = '1x';
+    this.rootEl.appendChild(badge);
+    this.modBadge = badge;
+  }
+
+  _setModifierVisual(state) {
+    this._ensureModifierBadge();
+    if (this.modifierState === state) return;
+    this.modifierState = state;
+    this.modBadge.classList.remove('is-fast', 'is-slow', 'is-active');
+    if (state === 'fast') {
+      this.modBadge.textContent = '10x';
+      this.modBadge.classList.add('is-fast', 'is-active');
+    } else if (state === 'slow') {
+      this.modBadge.textContent = '0.1x';
+      this.modBadge.classList.add('is-slow', 'is-active');
+    } else {
+      this.modBadge.textContent = '1x';
+    }
+  }
+
   _attach() {
     const isTouch = isTouchDevice();
+    this._ensureModifierBadge();
+    this._setModifierVisual('none');
     
     // ─────────────────────────────────────────────────────────────────────
     // Prevenir menú contextual (por ahora no tiene opciones específicas)
@@ -274,6 +304,8 @@ export class Knob {
       
       // Mostrar tooltip durante drag
       this._showTooltip();
+      // Resetear indicador de modificador al inicio del drag
+      this._setModifierVisual('none');
       
       // En táctil, limpiar el timer de autoHide durante drag
       if (isTouch && this._tooltipAutoHideTimer) {
@@ -286,7 +318,22 @@ export class Knob {
       if (!this.dragging) return;
       if (shouldBlockInteraction(ev)) return;
       const dy = this.startY - ev.clientY;
-      const sens = (this.max - this.min) / this.pixelsForFullRange;
+      
+      // Modificadores de teclado para ajustar sensibilidad:
+      // Ctrl/Cmd: 10x más rápido (divide pixelsForFullRange por 10)
+      // Shift: 10x más lento (multiplica pixelsForFullRange por 10)
+      let effectivePixelsForFullRange = this.pixelsForFullRange;
+      let modifierState = 'none';
+      if (ev.ctrlKey || ev.metaKey) {
+        effectivePixelsForFullRange = this.pixelsForFullRange / 10;
+        modifierState = 'fast';
+      } else if (ev.shiftKey) {
+        effectivePixelsForFullRange = this.pixelsForFullRange * 10;
+        modifierState = 'slow';
+      }
+      this._setModifierVisual(modifierState);
+      
+      const sens = (this.max - this.min) / effectivePixelsForFullRange;
       const newValue = Math.min(this.max, Math.max(this.min, this.startValue + dy * sens));
       
       // Programar actualización visual con RAF para fluidez
@@ -308,6 +355,7 @@ export class Knob {
     const end = ev => {
       if (!this.dragging) return;
       this.dragging = false;
+      this._setModifierVisual('none');
       
       // Aplicar valor final si hay pendiente
       if (this._pendingValue !== null) {

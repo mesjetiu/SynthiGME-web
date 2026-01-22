@@ -1001,6 +1001,39 @@ h1 {
   white-space: nowrap;
 }
 
+.knob-mod-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #ffeb3b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+
+.knob-mod-badge.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.knob-mod-badge.is-fast {
+  background: #ffb300;
+  color: #1a1a1a;
+}
+
+.knob-mod-badge.is-slow {
+  background: #26c6da;
+  color: #0d1b1e;
+}
+
 .knob {
   width: 60px;
   height: 60px;
@@ -1012,6 +1045,7 @@ h1 {
   justify-content: center;
   touch-action: none;
   cursor: pointer;
+  position: relative;
 }
 .knob-inner {
   width: 78%;

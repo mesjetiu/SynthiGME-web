@@ -18,6 +18,16 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - Los blueprints permanecen en `panelBlueprints/` para la estructura visual
 
 ### Añadido
+- **Tooltips informativos en knobs de osciladores**: Los controles de frecuencia, niveles, pulse width y sine symmetry muestran tooltips con valores en tiempo real:
+  - **Frecuencia**: Muestra Hz con precisión de 3 decimales y rango completo (0.5-20000 Hz). Indica '+ CV' cuando hay modulación activa.
+  - **Niveles (Sine/Saw/Tri/Pulse)**: Muestra voltaje (0-10V) basado en emulación del Synthi 100.
+  - **Pulse Width y Sine Symmetry**: Muestra porcentaje (0-100%).
+  - **Configuración**: Toggle en Ajustes → Visualización para mostrar/ocultar información de parámetros.
+  - **Táctil**: Tooltips con tap + auto-hide (3 segundos) para mejor experiencia en móvil.
+- **Tooltips en pines de matriz con información técnica**: Al pasar el ratón o tocar un pin, además del origen/destino, ahora se muestra:
+  - Resistencia del pin (ej: "100kΩ", "2.7kΩ", etc.)
+  - Factor de ganancia (ej: "×1", "×37", "×0.1", etc.)
+  - Información localizable vía i18n para todos los idiomas.
 - **Sistema expandido de 8 tipos de pin en la matriz**: Basado en documentación Datanomics 1982 y manual de Belgrado:
   - **Pines estándar** (Cuenca 1982): WHITE (100kΩ, ×1), GREY (100kΩ ±0.5%, ×1), GREEN (68kΩ, ×1.5), RED (2.7kΩ, ×37)
   - **Pines especiales** (manual técnico): BLUE (10kΩ, ×10), YELLOW (22kΩ, ×4.5), CYAN (250kΩ, ×0.4), PURPLE (1MΩ, ×0.1)
@@ -73,8 +83,18 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Sensibilidad del osciloscopio**: Ajustada para compensar la ganancia ×37 del pin rojo (`inputSensitivity: 0.027`).
 - **Menú contextual con pinch**: El long press para abrir el menú de pines ahora se cancela correctamente al pinzar con dos dedos.
 - **Color por defecto en control CV**: Cambiado de GREEN a GREY para mayor precisión (±0.5% vs ±10%).
+- **Tooltips de pines durante zoom/pan**: Los tooltips de matriz ahora se ocultan automáticamente al hacer zoom o pan, evitando que queden flotando en posiciones incorrectas.
+- **Menú contextual de paneles**: Eliminada la opción "Extraer todos" del menú contextual individual de paneles (ya disponible en menú de quickbar).
+- **Menú contextual en knobs**: Desactivado el menú contextual de panel al hacer click derecho sobre knobs u otros mandos, evitando interferencias.
+- **Permisos de micrófono en Chrome Android**: Corregido bucle infinito al solicitar permisos. Mejoradas traducciones y sistema de reintentos para mayor fiabilidad.
+- **Conversión dial→frecuencia**: Corregida implementación del modelo CEM 3340 para precisión exacta con la especificación Synthi 100.
+- **Glissando en osciladores**: Eliminado portamento no deseado. Aumentada resolución de frecuencia para transiciones instantáneas.
+- **Precisión de tooltips de frecuencia**: Ajustada precisión decimal para mostrar valores exactos sin redondeos excesivos.
 
 ### Mejoras
+- **Fluidez de knobs optimizada**: Implementado `requestAnimationFrame` para renderizado suave y sin stuttering durante interacciones con knobs, mejorando especialmente la experiencia en tablets y móviles.
+- **Escala Synthi 100 en knobs**: Los knobs de frecuencia ahora usan escala logarítmica (0-10) fiel al hardware original, con visor de valor en tiempo real.
+- **Centralización de parámetros de audio**: Parámetros de osciladores (frecuencia, niveles, etc.) ahora centralizados en `oscillator.config.js` para mejor mantenibilidad.
 - **Dormancy con early exit real en todos los módulos**: El sistema de dormancy ahora suspende realmente el procesamiento DSP (no solo silencia):
   - **Osciladores**: mensaje `setDormant` al worklet → early exit en `process()`. Ahorra ~95% CPU.
   - **NoiseModule**: mensaje al worklet + silencia levelNode. El generador Voss-McCartney no procesa.

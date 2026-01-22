@@ -198,6 +198,43 @@ settings.scale.remember:
   en: Remember on restart
   es: Recordar al reiniciar
 
+# Escala por panel
+settings.scale.perPanel:
+  en: Resolution per panel
+  es: Resolución por panel
+
+settings.scale.perPanel.description:
+  en: Override global resolution for specific panels. Useful for panels with detailed text (5 and 6).
+  es: Establecer resolución diferente para paneles específicos. Útil para paneles con texto detallado (5 y 6).
+
+settings.scale.perPanel.global:
+  en: Global
+  es: Global
+
+settings.scale.panel.1:
+  en: "Panel 1 (Sequencer):"
+  es: "Panel 1 (Secuenciador):"
+
+settings.scale.panel.2:
+  en: "Panel 2 (Patch select):"
+  es: "Panel 2 (Selector patches):"
+
+settings.scale.panel.3:
+  en: "Panel 3 (Oscillators):"
+  es: "Panel 3 (Osciladores):"
+
+settings.scale.panel.4:
+  en: "Panel 4 (Filters/Effects):"
+  es: "Panel 4 (Filtros/Efectos):"
+
+settings.scale.panel.5:
+  en: "Panel 5 (Matrix 60×60):"
+  es: "Panel 5 (Matriz 60×60):"
+
+settings.scale.panel.6:
+  en: "Panel 6 (Matrix 16×60):"
+  es: "Panel 6 (Matriz 16×60):"
+
 # Sección: Actualizaciones
 settings.updates:
   en: Updates
@@ -846,6 +883,14 @@ toast.reset:
 toast.resolution:
   en: "Scale: {factor}×"
   es: "Escala: {factor}×"
+
+toast.resolution.mobileWarning:
+  en: "Scale: {factor}× ⚠️ May cause performance issues"
+  es: "Escala: {factor}× ⚠️ Puede causar problemas de rendimiento"
+
+toast.resolution.panelMobileWarning:
+  en: "Panel {panel}: {factor}× ⚠️ May cause issues"
+  es: "Panel {panel}: {factor}× ⚠️ Puede causar problemas"
 
 toast.pan.locked:
   en: Panning locked

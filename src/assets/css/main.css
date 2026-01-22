@@ -2771,6 +2771,70 @@ small { color:#aaa; }
   margin-bottom: 0;
 }
 
+/* Subsección colapsable */
+.settings-subsection--collapsible {
+  margin: 1rem 0 0;
+  padding: 0;
+  border-left: none;
+}
+
+.settings-subsection__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0;
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.settings-subsection__header:hover {
+  color: #ffd54f;
+}
+
+.settings-subsection__arrow {
+  font-size: 0.65rem;
+  transition: transform 0.2s ease;
+}
+
+.settings-subsection__content {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+
+.settings-subsection--expanded .settings-subsection__content {
+  max-height: 500px;
+  opacity: 1;
+  padding-top: 0.5rem;
+}
+
+/* Fila de resolución por panel */
+.settings-row--panel-resolution {
+  padding: 0.25rem 0;
+}
+
+.settings-row--panel-resolution .settings-row__label {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.settings-row--panel-resolution.settings-row--highlighted .settings-row__label {
+  color: #ffd54f;
+}
+
+.settings-select--small {
+  width: auto;
+  min-width: 80px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
 .settings-subsection__title {
   margin: 0 0 0.35rem;
   font-size: 0.8rem;

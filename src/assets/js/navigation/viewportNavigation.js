@@ -28,17 +28,20 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
   // Sistema de resolución base configurable (1x, 2x, 3x en desktop)
   // - Firefox: siempre 1x (ya es nítido nativamente)
-  // - Móviles: máximo 2x para evitar problemas de GPU
-  // - Desktop: hasta 3x
+  // - Escalas disponibles: 1x, 1.5x, 2x, 2.5x, 3x
   // - Por defecto: 1x (seguro para todos los dispositivos)
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const validFactors = isMobile ? [1, 2] : [1, 2, 3];
+  const validFactors = [1, 1.5, 2, 2.5, 3];
   const rememberResolution = localStorage.getItem(STORAGE_KEYS.REMEMBER_RESOLUTION) === 'true';
-  const savedFactor = parseInt(localStorage.getItem(STORAGE_KEYS.RESOLUTION), 10);
+  const savedFactor = parseFloat(localStorage.getItem(STORAGE_KEYS.RESOLUTION));
   // Solo usar factor guardado si "recordar" está activo, si no siempre 1x
   const initialFactor = (!isFirefox && rememberResolution && validFactors.includes(savedFactor)) ? savedFactor : 1;
   let currentResolutionFactor = initialFactor;
   window.__synthResolutionFactor = currentResolutionFactor;
+  
+  // Resoluciones por panel (objeto {panelId: factor})
+  const savedPanelResolutions = localStorage.getItem(STORAGE_KEYS.PANEL_RESOLUTIONS);
+  let panelResolutions = savedPanelResolutions ? JSON.parse(savedPanelResolutions) : {};
+  window.__synthPanelResolutions = panelResolutions;
   
   // Callback para cambiar el factor de resolución
   // Siempre resetea a zoom general antes de aplicar nuevo factor
@@ -53,14 +56,79 @@ export function initViewportNavigation({ outer, inner } = {}) {
       setTimeout(() => {
         currentResolutionFactor = factor;
         window.__synthResolutionFactor = factor;
+        applyPanelResolutions();
         render();
       }, 700);
     } else {
       currentResolutionFactor = factor;
       window.__synthResolutionFactor = factor;
+      applyPanelResolutions();
       render();
     }
   };
+  
+  // Callback para cambiar resoluciones por panel
+  window.__synthSetPanelResolutions = (resolutions) => {
+    if (isFirefox) return;
+    panelResolutions = resolutions || {};
+    window.__synthPanelResolutions = panelResolutions;
+    applyPanelResolutions();
+  };
+  
+  /**
+   * Aplica resoluciones específicas a cada panel
+   * Cada panel con override recibe zoom individual + transform inverso para compensar
+   * Nota: El zoom CSS aumenta la resolución de rasterización del contenido SVG
+   * mientras que scale() compensa para mantener el tamaño visual correcto.
+   */
+  function applyPanelResolutions() {
+    const globalFactor = currentResolutionFactor;
+    
+    // Resetear todos los paneles primero
+    for (let i = 1; i <= 6; i++) {
+      const panel = document.getElementById(`panel-${i}`);
+      if (panel) {
+        panel.style.zoom = '';
+        panel.style.transform = '';
+        panel.style.transformOrigin = '';
+      }
+    }
+    
+    // Aplicar overrides por panel
+    Object.entries(panelResolutions).forEach(([panelId, factor]) => {
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+      
+      // Si el factor es igual al global, no necesita override
+      if (factor === globalFactor) return;
+      
+      // Calcular zoom efectivo considerando el zoom global del viewport
+      // El viewport ya aplica `zoom: globalFactor` a #viewportInner
+      // Queremos que este panel específico tenga factor `factor` en lugar de `globalFactor`
+      
+      if (globalFactor > 1) {
+        // Ya hay zoom global aplicado al viewport
+        // Zoom relativo: factor_deseado / global
+        const relativeZoom = factor / globalFactor;
+        panel.style.zoom = relativeZoom;
+        // Compensar para mantener tamaño visual: scale inverso al zoom
+        panel.style.transform = `scale(${1 / relativeZoom})`;
+        panel.style.transformOrigin = '0 0';
+      } else {
+        // No hay zoom global (1x), aplicar directamente
+        if (factor > 1) {
+          panel.style.zoom = factor;
+          panel.style.transform = `scale(${1 / factor})`;
+          panel.style.transformOrigin = '0 0';
+        }
+      }
+    });
+  }
+  
+  // Aplicar resoluciones por panel al inicio
+  if (!isFirefox) {
+    applyPanelResolutions();
+  }
 
   let rasterizeTimer = null;
   const RASTERIZE_DELAY_MS = 150;

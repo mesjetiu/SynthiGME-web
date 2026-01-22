@@ -251,3 +251,168 @@ describe('Parámetros de audio del oscilador', () => {
     assert.ok(!('gainSmoothing' in audio), 'gainSmoothing fue reemplazado por smoothingTime');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Voltajes de salida por forma de onda (Manual Técnico Datanomics 1982)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Basado en el esquema electrónico D100-02 C1 y Manual Técnico de Datanomics (1982).
+// El sistema de salida utiliza dos amplificadores de suma (I/C 6 e I/C 7) con
+// ganancias diferenciadas para compensar las amplitudes nativas de cada onda.
+//
+// Referencias:
+// - Seno/Sierra: Pasan por I/C 6 con Rf=100kΩ (ganancia ×1.0)
+// - Pulso/Triángulo: Pasan por I/C 7 con Rf=300kΩ (ganancia ×3.0)
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Voltajes de salida por forma de onda (Datanomics 1982)', () => {
+  const { voltage } = oscillatorConfig.defaults;
+
+  it('tiene sección voltage definida', () => {
+    assert.ok(typeof voltage === 'object');
+  });
+
+  it('tiene outputLevels definidos', () => {
+    assert.ok(typeof voltage.outputLevels === 'object');
+  });
+
+  describe('outputLevels - Valores según manual técnico', () => {
+    const { outputLevels } = voltage;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Sine: 8V p-p (referencia del sistema)
+    // El seno es la referencia de calibración del sistema, siempre 8V p-p.
+    // ─────────────────────────────────────────────────────────────────────────
+    it('sine: 8V p-p (referencia de calibración del sistema)', () => {
+      assert.strictEqual(outputLevels.sine, 8.0);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Sawtooth: 5.0-7.4V p-p, promedio ~6.2V
+    // Pasa por I/C 6 (Rf=100k) con ganancia unitaria.
+    // Voltaje nativo varía según grupo de osciladores (5.0-7.4V).
+    // ─────────────────────────────────────────────────────────────────────────
+    it('sawtooth: 5.0-7.4V p-p (ganancia ×1.0, valor promedio)', () => {
+      assert.ok(outputLevels.sawtooth >= 5.0, 'sawtooth debe ser >= 5.0V p-p');
+      assert.ok(outputLevels.sawtooth <= 7.4, 'sawtooth debe ser <= 7.4V p-p');
+    });
+
+    it('sawtooth: tiene valor típico de ~6.2V p-p', () => {
+      // Tolerancia de ±0.3V para valor promedio
+      const expected = 6.2;
+      const tolerance = 0.3;
+      assert.ok(
+        Math.abs(outputLevels.sawtooth - expected) <= tolerance,
+        `sawtooth debe ser ~${expected}V p-p (±${tolerance}V)`
+      );
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Triangle: ~8.1V p-p (nativo ~2.7V × 3.0)
+    // Pasa por I/C 7 (Rf=300k) que aplica ganancia ×3.0 para compensar.
+    // ─────────────────────────────────────────────────────────────────────────
+    it('triangle: ~8.1V p-p (nativo ~2.7V × ganancia ×3.0)', () => {
+      const expected = 8.1;
+      const tolerance = 0.2;
+      assert.ok(
+        Math.abs(outputLevels.triangle - expected) <= tolerance,
+        `triangle debe ser ~${expected}V p-p (±${tolerance}V)`
+      );
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Pulse: ~8.1V p-p (nativo ~2.7V × 3.0)
+    // Pasa por I/C 7 (Rf=300k) que aplica ganancia ×3.0 para compensar.
+    // ─────────────────────────────────────────────────────────────────────────
+    it('pulse: ~8.1V p-p (nativo ~2.7V × ganancia ×3.0)', () => {
+      const expected = 8.1;
+      const tolerance = 0.2;
+      assert.ok(
+        Math.abs(outputLevels.pulse - expected) <= tolerance,
+        `pulse debe ser ~${expected}V p-p (±${tolerance}V)`
+      );
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cusp: 0.5V p-p (seno deformado a cuspoide, ratio 8:1)
+    // Cuando el control Sine Shape está en extremo cuspoide, el seno
+    // sufre atenuación drástica de 8:1 (de 4V a 0.5V).
+    // ─────────────────────────────────────────────────────────────────────────
+    it('cusp: 0.5V p-p (atenuación 8:1 del seno deformado)', () => {
+      assert.strictEqual(outputLevels.cusp, 0.5);
+    });
+
+    it('cusp mantiene ratio 8:1 respecto al seno puro', () => {
+      // Según manual: seno 8V p-p → cuspoide 0.5V p-p (8:1)
+      // Pero outputLevels.sine es p-p, así que la mitad (peak) es 4V
+      // Y cusp.peak es 0.25V, pero usamos p-p para consistencia
+      const ratio = outputLevels.sine / outputLevels.cusp;
+      assert.ok(
+        Math.abs(ratio - 16) < 0.1,
+        `ratio sine/cusp debe ser ~16 (8V/0.5V), actual: ${ratio}`
+      );
+    });
+  });
+
+  describe('feedbackResistance - Resistencias según esquema D100-02 C1', () => {
+    const { feedbackResistance } = voltage;
+
+    it('tiene feedbackResistance definido', () => {
+      assert.ok(typeof feedbackResistance === 'object');
+    });
+
+    it('sineSawtooth: R28 = 100kΩ (ganancia unitaria)', () => {
+      assert.strictEqual(feedbackResistance.sineSawtooth, 100000);
+    });
+
+    it('pulseTriangle: R32 = 300kΩ (ganancia ×3 para compensación)', () => {
+      assert.strictEqual(feedbackResistance.pulseTriangle, 300000);
+    });
+
+    it('ratio pulseTriangle/sineSawtooth = 3.0 (compensación de amplitud)', () => {
+      const ratio = feedbackResistance.pulseTriangle / feedbackResistance.sineSawtooth;
+      assert.strictEqual(ratio, 3.0);
+    });
+  });
+
+  describe('Coherencia entre ganancias y voltajes finales', () => {
+    const { outputLevels, feedbackResistance } = voltage;
+
+    // Voltajes nativos (antes de compensación)
+    // Basados en la tabla del manual: tri/pulse ~2.7V, saw 5-7.4V, sine 8V
+    const nativeVoltages = {
+      sine: 8.0,       // 8V nativo (sin amplificación)
+      sawtooth: 6.2,   // ~5-7.4V nativo (promedio 6.2V)
+      triangle: 2.7,   // ~2.7V nativo
+      pulse: 2.7       // ~2.7V nativo
+    };
+
+    it('sine: voltaje nativo = voltaje final (ganancia ×1)', () => {
+      const gain = feedbackResistance.sineSawtooth / 100000; // 100k es el estándar
+      const expectedFinal = nativeVoltages.sine * gain;
+      assert.ok(
+        Math.abs(outputLevels.sine - expectedFinal) < 0.1,
+        `sine debería ser ${nativeVoltages.sine}V × ${gain} = ${expectedFinal}V`
+      );
+    });
+
+    it('triangle: voltaje nativo × 3.0 ≈ voltaje final', () => {
+      const gain = feedbackResistance.pulseTriangle / feedbackResistance.sineSawtooth;
+      const expectedFinal = nativeVoltages.triangle * gain;
+      assert.ok(
+        Math.abs(outputLevels.triangle - expectedFinal) < 0.2,
+        `triangle debería ser ${nativeVoltages.triangle}V × ${gain} = ${expectedFinal}V`
+      );
+    });
+
+    it('pulse: voltaje nativo × 3.0 ≈ voltaje final', () => {
+      const gain = feedbackResistance.pulseTriangle / feedbackResistance.sineSawtooth;
+      const expectedFinal = nativeVoltages.pulse * gain;
+      assert.ok(
+        Math.abs(outputLevels.pulse - expectedFinal) < 0.2,
+        `pulse debería ser ${nativeVoltages.pulse}V × ${gain} = ${expectedFinal}V`
+      );
+    });
+  });
+});

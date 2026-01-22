@@ -8,6 +8,12 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Cambiado
+- **Voltajes de salida de osciladores calibrados según Manual Técnico Datanomics 1982**: Los niveles de salida de cada forma de onda ahora reflejan los valores reales del circuito D100-02 C1:
+  - **Seno (Sine)**: 8V p-p (referencia de calibración del sistema, sin cambios)
+  - **Sierra (Sawtooth)**: 6.2V p-p (rango 5-7.4V, ganancia ×1.0 por I/C 6)
+  - **Triángulo (Triangle)**: 8.1V p-p (nativo ~2.7V × ganancia ×3.0 por I/C 7)
+  - **Pulso (Pulse)**: 8.1V p-p (nativo ~2.7V × ganancia ×3.0 por I/C 7)
+  - Los tooltips de nivel ahora muestran estos valores correctos en tiempo real.
 - **Reorganización de archivos de configuración**: Los archivos `.config.js` se han movido de `panelBlueprints/` a `configs/modules/` con nombres semánticos por tipo de módulo:
   - `panel2.config.js` → `oscilloscope.config.js`, `inputAmplifier.config.js`
   - `panel3.config.js` → `oscillator.config.js`, `noise.config.js`, `randomVoltage.config.js`

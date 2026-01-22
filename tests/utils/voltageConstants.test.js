@@ -389,6 +389,13 @@ describe('voltageConstants - calculateVirtualEarthSum()', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // oscillator.config.js - Configuración de Voltaje de Osciladores
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// Basado en el esquema electrónico D100-02 C1 y Manual Técnico de Datanomics (1982).
+// Los valores finales en la matriz dependen de la ganancia del amplificador de suma:
+// - I/C 6 (Rf=100k): Seno + Sierra → ganancia ×1.0
+// - I/C 7 (Rf=300k): Pulso + Triángulo → ganancia ×3.0
+//
+// ─────────────────────────────────────────────────────────────────────────────
 
 describe('oscillator.config.js - Configuración de Voltaje', () => {
   
@@ -396,12 +403,20 @@ describe('oscillator.config.js - Configuración de Voltaje', () => {
     assert.ok(oscillatorConfig.defaults.voltage !== undefined);
   });
   
-  it('define niveles de salida por forma de onda', () => {
+  it('define niveles de salida por forma de onda según manual técnico', () => {
     const { outputLevels } = oscillatorConfig.defaults.voltage;
+    // Sine: 8V p-p (referencia de calibración del sistema)
     assert.equal(outputLevels.sine, 8.0);
-    assert.equal(outputLevels.sawtooth, 8.0);
-    assert.equal(outputLevels.pulse, 8.0);
-    assert.equal(outputLevels.triangle, 8.0);
+    // Sawtooth: 5-7.4V p-p (promedio ~6.2V, ganancia ×1.0)
+    assert.ok(outputLevels.sawtooth >= 5.0 && outputLevels.sawtooth <= 7.4, 
+      `sawtooth debe estar en rango 5.0-7.4V, actual: ${outputLevels.sawtooth}`);
+    // Pulse: ~8.1V p-p (nativo ~2.7V × ganancia ×3.0)
+    assert.ok(Math.abs(outputLevels.pulse - 8.1) < 0.2,
+      `pulse debe ser ~8.1V, actual: ${outputLevels.pulse}`);
+    // Triangle: ~8.1V p-p (nativo ~2.7V × ganancia ×3.0)
+    assert.ok(Math.abs(outputLevels.triangle - 8.1) < 0.2,
+      `triangle debe ser ~8.1V, actual: ${outputLevels.triangle}`);
+    // Cusp: 0.5V p-p (atenuación 8:1 del seno deformado)
     assert.equal(outputLevels.cusp, 0.5);
   });
   

@@ -603,18 +603,32 @@ calculateVirtualEarthSum(
 
 Los parámetros específicos de voltaje de los osciladores se definen en `defaults.voltage`:
 
+#### Voltajes de Salida por Forma de Onda (Manual Técnico Datanomics 1982)
+
+Basado en el esquema electrónico **D100-02 C1** y el **Manual Técnico de Datanomics (1982)**, el circuito de salida de los osciladores utiliza dos amplificadores de suma con ganancias diferenciadas para compensar las amplitudes nativas de cada forma de onda:
+
+| Forma de onda | Voltaje nativo | Amplificador | Ganancia | Voltaje final |
+|---------------|----------------|--------------|----------|---------------|
+| **Seno** | 8V p-p | I/C 6 (R28 = 100kΩ) | ×1.0 | **8.0V p-p** |
+| **Sierra** | 5.0-7.4V p-p | I/C 6 (R28 = 100kΩ) | ×1.0 | **6.2V p-p** (promedio) |
+| **Triángulo** | ~2.7V p-p | I/C 7 (R32 = 300kΩ) | ×3.0 | **8.1V p-p** |
+| **Pulso** | ~2.7V p-p | I/C 7 (R32 = 300kΩ) | ×3.0 | **8.1V p-p** |
+| **Cuspoide** | 0.5V p-p | — | — | **0.5V p-p** |
+
+> **Nota sobre Cuspoide:** Cuando el control "Sine Shape" (Symmetry) está en posición extrema, el seno sufre una atenuación drástica de 8:1, pasando de 8V p-p a 0.5V p-p. Esta es una característica documentada del hardware original (N.B. 1 del manual).
+
 ```javascript
 voltage: {
   outputLevels: {
-    sine: 8.0,        // 8V p-p
-    sawtooth: 8.0,    // 8V p-p
-    pulse: 8.0,       // 8V p-p (después de compensación ×3)
-    triangle: 8.0,    // 8V p-p (después de compensación ×3)
-    cusp: 0.5         // 0.5V p-p (deformación extrema)
+    sine: 8.0,        // 8V p-p (referencia de calibración del sistema)
+    sawtooth: 6.2,    // 5.0-7.4V p-p (promedio, ganancia ×1.0)
+    pulse: 8.1,       // ~2.7V p-p nativo × 3.0 = 8.1V p-p
+    triangle: 8.1,    // ~2.7V p-p nativo × 3.0 = 8.1V p-p
+    cusp: 0.5         // 0.5V p-p (seno deformado a cuspoide, ratio 8:1)
   },
   feedbackResistance: {
-    sineSawtooth: 100000,   // 100k Ω (R28)
-    pulseTriangle: 300000   // 300k Ω (R32)
+    sineSawtooth: 100000,   // 100k Ω (R28) - ganancia ×1.0
+    pulseTriangle: 300000   // 300k Ω (R32) - ganancia ×3.0 para compensación
   },
   inputLimit: 8.0,          // Soft clipping a 8V p-p
   thermalDrift: {

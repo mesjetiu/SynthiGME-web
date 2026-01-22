@@ -454,19 +454,36 @@ export default {
       // NIVELES DE SALIDA POR FORMA DE ONDA (V p-p a amplitud total)
       // ─────────────────────────────────────────────────────────────────────
       //
-      // Según el manual Datanomics, todas las ondas alcanzan 8V p-p a
-      // "amplitud total" después de la compensación interna.
+      // Basado en el esquema electrónico D100-02 C1 y Manual Técnico Datanomics (1982).
+      // 
+      // El estándar de salida del sistema es 8V p-p (±4V) para "amplitud total".
+      // Sin embargo, cada forma de onda tiene un voltaje real diferente tras pasar
+      // por los amplificadores de suma con ganancias diferenciadas:
       //
-      // El circuito aplica internamente:
-      // - Seno/Sierra: Rf = 100k (ganancia unitaria)
-      // - Pulso/Triángulo: Rf = 300k (ganancia ×3 para compensar amplitud nativa menor)
+      // CIRCUITO DE SALIDA:
+      // - I/C 6 (R28 = 100kΩ): Seno + Sierra → ganancia ×1.0 (unitaria)
+      // - I/C 7 (R32 = 300kΩ): Pulso + Triángulo → ganancia ×3.0 (compensación)
+      //
+      // VOLTAJES REALES EN MATRIZ (después de compensación):
+      //
+      // | Forma de onda | Voltaje nativo | Ganancia | Voltaje final |
+      // |---------------|----------------|----------|---------------|
+      // | Seno          | 8V p-p         | ×1.0     | 8.0V p-p      |
+      // | Sierra        | 5-7.4V p-p     | ×1.0     | 6.2V p-p (*)  |
+      // | Triángulo     | ~2.7V p-p      | ×3.0     | ~8.1V p-p     |
+      // | Pulso         | ~2.7V p-p      | ×3.0     | ~8.1V p-p     |
+      //
+      // (*) Sierra: Rango 5.0-7.4V p-p según grupo de osciladores. Se usa 6.2V promedio.
+      //
+      // NOTA: El seno tiene atenuación variable según "Sine Shape" (ver sineShape.attenuation).
+      // En forma de cuspoide extrema cae a 0.5V p-p (ratio 8:1).
       //
       outputLevels: {
-        sine: 8.0,        // 8V p-p (referencia de amplitud total)
-        sawtooth: 8.0,    // 8V p-p
-        pulse: 8.0,       // 8V p-p (después de compensación ×3)
-        triangle: 8.0,    // 8V p-p (después de compensación ×3)
-        cusp: 0.5         // 0.5V p-p (deformación extrema del seno, ratio 8:1)
+        sine: 8.0,        // 8V p-p (referencia de calibración del sistema)
+        sawtooth: 6.2,    // 5.0-7.4V p-p (promedio 6.2V, ganancia ×1.0)
+        triangle: 8.1,    // ~2.7V p-p nativo × 3.0 = 8.1V p-p
+        pulse: 8.1,       // ~2.7V p-p nativo × 3.0 = 8.1V p-p
+        cusp: 0.5         // 0.5V p-p (seno deformado a cuspoide, ratio 8:1)
       },
 
       // ─────────────────────────────────────────────────────────────────────

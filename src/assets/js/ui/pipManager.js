@@ -546,12 +546,24 @@ function setupPipEvents(pipContainer, panelId) {
     resizePointerId = e.pointerId;
     resizeHandle.setPointerCapture(e.pointerId);
     const state = activePips.get(panelId);
+    const viewport = pipContainer.querySelector('.pip-viewport');
+    const viewportW = viewport ? viewport.clientWidth : state.width;
+    const viewportH = viewport ? viewport.clientHeight : state.height - 32;
+    // Calcular qué punto del panel está en el centro de la vista
+    // El padding es igual al tamaño del viewport
+    const scrollX = viewport ? viewport.scrollLeft : 0;
+    const scrollY = viewport ? viewport.scrollTop : 0;
+    // Centro de la vista en coordenadas del panel (sin padding)
+    const viewCenterOnPanelX = scrollX + viewportW / 2 - viewportW; // restar padding
+    const viewCenterOnPanelY = scrollY + viewportH / 2 - viewportH;
     resizeStart = {
       x: e.clientX,
       y: e.clientY,
       w: state.width,
       h: state.height,
-      scale: state.scale // Guardar escala inicial
+      scale: state.scale,
+      viewCenterX: viewCenterOnPanelX, // Punto del panel en el centro de la vista
+      viewCenterY: viewCenterOnPanelY
     };
     pipContainer.classList.add('pip-container--resizing');
     bringToFront(panelId);
@@ -732,6 +744,26 @@ function handlePointerMove(e) {
     
     // Actualizar escala proporcionalmente (sin persistir, se guarda al soltar)
     updatePipScale(resizingPip, newScale, false);
+    
+    // Ajustar scroll para mantener el mismo punto del panel en el centro de la vista
+    const viewport = state.pipContainer.querySelector('.pip-viewport');
+    if (viewport && resizeStart.viewCenterX !== undefined) {
+      const newViewportW = viewport.clientWidth;
+      const newViewportH = viewport.clientHeight;
+      // El padding ahora es igual al nuevo tamaño del viewport
+      const newPadding = newViewportW;
+      // El punto que estaba en el centro, con la nueva escala
+      const scaleRatio = newScale / resizeStart.scale;
+      const newCenterX = resizeStart.viewCenterX * scaleRatio;
+      const newCenterY = resizeStart.viewCenterY * scaleRatio;
+      // Calcular scroll para que ese punto esté en el centro de la vista
+      // scrollX + viewportW/2 - padding = newCenterX
+      // scrollX = newCenterX + padding - viewportW/2
+      const newScrollX = newCenterX + newPadding - newViewportW / 2;
+      const newScrollY = newCenterY + newPadding - newViewportH / 2;
+      viewport.scrollLeft = Math.max(0, newScrollX);
+      viewport.scrollTop = Math.max(0, newScrollY);
+    }
   }
 }
 

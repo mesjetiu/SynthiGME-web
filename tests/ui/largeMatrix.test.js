@@ -442,10 +442,16 @@ describe('LargeMatrix clases de color', () => {
 
       matrix._removePinColorClasses(mockBtn);
 
+      // Colores estándar
       assert.ok(removed.includes('pin-white'));
       assert.ok(removed.includes('pin-grey'));
       assert.ok(removed.includes('pin-green'));
       assert.ok(removed.includes('pin-red'));
+      // Colores especiales
+      assert.ok(removed.includes('pin-blue'));
+      assert.ok(removed.includes('pin-yellow'));
+      assert.ok(removed.includes('pin-cyan'));
+      assert.ok(removed.includes('pin-purple'));
     });
   });
 

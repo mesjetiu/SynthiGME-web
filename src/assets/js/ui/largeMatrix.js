@@ -480,7 +480,7 @@ export class LargeMatrix {
    * @private
    */
   _removePinColorClasses(btn) {
-    btn.classList.remove('pin-white', 'pin-grey', 'pin-green', 'pin-red');
+    btn.classList.remove('pin-white', 'pin-grey', 'pin-green', 'pin-red', 'pin-blue', 'pin-yellow', 'pin-cyan', 'pin-purple');
   }
   
   /**

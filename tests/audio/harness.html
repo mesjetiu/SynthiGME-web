@@ -614,6 +614,277 @@
     };
 
     /**
+     * Test de Niveles de Voltaje de Salida por Forma de Onda
+     * 
+     * Verifica que las amplitudes relativas entre formas de onda cumplen
+     * los ratios especificados en el Manual Técnico Datanomics (1982):
+     * 
+     * | Forma      | Voltaje   | Ratio vs Seno |
+     * |------------|-----------|---------------|
+     * | Seno       | 8.0V p-p  | 1.000         |
+     * | Sierra     | 6.2V p-p  | 0.775         |
+     * | Triángulo  | 8.1V p-p  | 1.0125        |
+     * | Pulso      | 8.1V p-p  | 1.0125        |
+     * | Cuspoide   | 0.5V p-p  | 0.0625 (1/16) |
+     * 
+     * NOTA: Cuspoide = Seno con symmetry=0 o symmetry=1 y sineShapeAttenuation=1
+     * 
+     * @param {Object} config - Configuración del test
+     * @param {number} [config.frequency=440] - Frecuencia de test (Hz)
+     * @param {number} [config.duration=0.5] - Duración de render (s)
+     * @param {number} [config.sampleRate=44100] - Sample rate
+     * @param {boolean} [config.testCusp=false] - Si debe testear cuspoide
+     * @returns {Object} Amplitudes y ratios medidos
+     */
+    window.testWaveformAmplitudes = async function(config) {
+      const {
+        frequency = 440,
+        duration = 0.5,
+        sampleRate = 44100,
+        testCusp = false
+      } = config;
+
+      log(`Testing waveform amplitudes @ ${frequency}Hz, testCusp=${testCusp}`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const waveforms = ['sine', 'sawtooth', 'triangle', 'pulse'];
+      const results = {};
+
+      // Medir amplitud de cada forma de onda básica
+      for (const waveform of waveforms) {
+        const offline = new OfflineAudioContext({
+          numberOfChannels: 1,
+          length,
+          sampleRate
+        });
+
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+        const oscillator = new AudioWorkletNode(offline, 'synth-oscillator', {
+          processorOptions: {
+            mode: 'single',
+            waveform,
+            sineShapeAttenuation: 0,  // Sin atenuación de forma
+            sinePurity: 1.0            // Seno puro
+          },
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1]
+        });
+
+        oscillator.parameters.get('frequency').value = frequency;
+        oscillator.parameters.get('pulseWidth').value = 0.5;  // Duty 50% para pulse
+        oscillator.parameters.get('symmetry').value = 0.5;    // Centro para sine
+        oscillator.parameters.get('gain').value = 1.0;
+
+        oscillator.connect(offline.destination);
+
+        const buffer = await offline.startRendering();
+        const samples = buffer.getChannelData(0);
+
+        results[waveform] = {
+          peak: calculatePeak(samples),
+          rms: calculateRMS(samples)
+        };
+
+        log(`  ${waveform}: peak=${results[waveform].peak.toFixed(4)}, rms=${results[waveform].rms.toFixed(4)}`);
+      }
+
+      // Testear cuspoide si se solicita (seno con symmetry extrema y atenuación)
+      if (testCusp) {
+        // Cuspoide = seno con symmetry=0 (o 1) y sineShapeAttenuation=1
+        const offlineCusp = new OfflineAudioContext({
+          numberOfChannels: 1,
+          length,
+          sampleRate
+        });
+
+        await offlineCusp.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+        const cuspOscillator = new AudioWorkletNode(offlineCusp, 'synth-oscillator', {
+          processorOptions: {
+            mode: 'single',
+            waveform: 'sine',
+            sineShapeAttenuation: 1.0,  // Atenuación completa activada
+            sinePurity: 1.0
+          },
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1]
+        });
+
+        cuspOscillator.parameters.get('frequency').value = frequency;
+        cuspOscillator.parameters.get('symmetry').value = 0;  // Extremo = cuspoide
+        cuspOscillator.parameters.get('gain').value = 1.0;
+
+        cuspOscillator.connect(offlineCusp.destination);
+
+        const cuspBuffer = await offlineCusp.startRendering();
+        const cuspSamples = cuspBuffer.getChannelData(0);
+
+        results.cusp = {
+          peak: calculatePeak(cuspSamples),
+          rms: calculateRMS(cuspSamples)
+        };
+
+        log(`  cusp: peak=${results.cusp.peak.toFixed(4)}, rms=${results.cusp.rms.toFixed(4)}`);
+      }
+
+      // Calcular ratios respecto al seno
+      const sinePeak = results.sine.peak;
+      const ratios = {};
+
+      for (const [waveform, data] of Object.entries(results)) {
+        ratios[waveform] = {
+          vsReference: data.peak / sinePeak,  // Ratio vs seno
+          peakToRms: data.peak / data.rms     // Crest factor
+        };
+      }
+
+      // Voltajes esperados según Datanomics 1982 (normalizados a seno=1.0)
+      const expectedRatios = {
+        sine: 8.0 / 8.0,       // 1.0000
+        sawtooth: 6.2 / 8.0,   // 0.7750
+        triangle: 8.1 / 8.0,   // 1.0125
+        pulse: 8.1 / 8.0,      // 1.0125
+        cusp: 0.5 / 8.0        // 0.0625 (1/16)
+      };
+
+      return {
+        config,
+        measurements: results,
+        ratios,
+        expectedRatios,
+        sinePeak,  // Para referencia
+        // Diferencias para validación
+        differences: Object.fromEntries(
+          Object.entries(ratios).map(([waveform, data]) => [
+            waveform,
+            {
+              measured: data.vsReference,
+              expected: expectedRatios[waveform],
+              error: data.vsReference - expectedRatios[waveform],
+              errorPercent: ((data.vsReference - expectedRatios[waveform]) / expectedRatios[waveform] * 100)
+            }
+          ])
+        )
+      };
+    };
+
+    /**
+     * Test específico de atenuación cuspoide vs seno puro
+     * 
+     * Verifica el ratio de atenuación 8:1 documentado en el manual:
+     * - Seno puro (symmetry=0.5): amplitud completa
+     * - Cuspoide (symmetry=0 o 1): amplitud reducida a 1/8
+     * 
+     * @param {Object} config - Configuración
+     * @returns {Object} Comparación seno vs cuspoide
+     */
+    window.testCuspAttenuation = async function(config) {
+      const {
+        frequency = 440,
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`Testing cusp attenuation @ ${frequency}Hz`);
+
+      const length = Math.ceil(sampleRate * duration);
+
+      // === SENO PURO (symmetry=0.5, sin atenuación) ===
+      const offlinePure = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offlinePure.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const pureSine = new AudioWorkletNode(offlinePure, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'single',
+          waveform: 'sine',
+          sineShapeAttenuation: 1.0,  // Atenuación activa (pero no aplica en centro)
+          sinePurity: 1.0
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+
+      pureSine.parameters.get('frequency').value = frequency;
+      pureSine.parameters.get('symmetry').value = 0.5;  // Centro = seno puro
+      pureSine.parameters.get('gain').value = 1.0;
+      pureSine.connect(offlinePure.destination);
+
+      const pureBuf = await offlinePure.startRendering();
+      const pureSamples = pureBuf.getChannelData(0);
+
+      // === CUSPOIDE (symmetry=0, con atenuación) ===
+      const offlineCusp = new OfflineAudioContext({
+        numberOfChannels: 1,
+        length,
+        sampleRate
+      });
+
+      await offlineCusp.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const cuspSine = new AudioWorkletNode(offlineCusp, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'single',
+          waveform: 'sine',
+          sineShapeAttenuation: 1.0,  // Atenuación completa
+          sinePurity: 1.0
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+
+      cuspSine.parameters.get('frequency').value = frequency;
+      cuspSine.parameters.get('symmetry').value = 0;  // Extremo = cuspoide máxima
+      cuspSine.parameters.get('gain').value = 1.0;
+      cuspSine.connect(offlineCusp.destination);
+
+      const cuspBuf = await offlineCusp.startRendering();
+      const cuspSamples = cuspBuf.getChannelData(0);
+
+      // Calcular métricas
+      const purePeak = calculatePeak(pureSamples);
+      const cuspPeak = calculatePeak(cuspSamples);
+      const pureRms = calculateRMS(pureSamples);
+      const cuspRms = calculateRMS(cuspSamples);
+
+      // Ratio medido vs esperado (8:1 = 0.125)
+      const measuredRatio = cuspPeak / purePeak;
+      const expectedRatio = 0.125;  // 1/8 = 0.5V / 4V según manual
+
+      log(`  Pure sine: peak=${purePeak.toFixed(4)}, rms=${pureRms.toFixed(4)}`);
+      log(`  Cusp form: peak=${cuspPeak.toFixed(4)}, rms=${cuspRms.toFixed(4)}`);
+      log(`  Ratio cusp/pure: ${measuredRatio.toFixed(4)} (expected: ${expectedRatio})`);
+
+      return {
+        config,
+        pureSine: {
+          peak: purePeak,
+          rms: pureRms
+        },
+        cuspForm: {
+          peak: cuspPeak,
+          rms: cuspRms
+        },
+        attenuation: {
+          measuredRatio,
+          expectedRatio,
+          inverseRatio: 1 / measuredRatio,  // Debería ser ~8
+          error: measuredRatio - expectedRatio,
+          errorPercent: (measuredRatio - expectedRatio) / expectedRatio * 100
+        }
+      };
+    };
+
+    /**
      * Test de Hard Sync: un oscilador "slave" sincronizado por un "master".
      * 
      * El hard sync resetea la fase del slave cada vez que el master cruza

@@ -203,6 +203,14 @@ export class Knob {
     const isTouch = isTouchDevice();
     
     // ─────────────────────────────────────────────────────────────────────
+    // Prevenir menú contextual (por ahora no tiene opciones específicas)
+    // ─────────────────────────────────────────────────────────────────────
+    this.rootEl.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────
     // DESKTOP: hover para mostrar tooltip
     // ─────────────────────────────────────────────────────────────────────
     if (!isTouch) {

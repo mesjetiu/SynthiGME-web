@@ -156,29 +156,6 @@ function showPanelContextMenu(panelId, x, y) {
   });
   menu.appendChild(detachItem);
   
-  // Separador
-  const separator1 = document.createElement('div');
-  separator1.className = 'pip-context-menu__separator';
-  menu.appendChild(separator1);
-  
-  // Opción: Separar todos
-  const detachAllItem = document.createElement('button');
-  detachAllItem.className = 'pip-context-menu__item';
-  detachAllItem.innerHTML = `
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="2" y="2" width="9" height="9" rx="1"/>
-      <rect x="13" y="2" width="9" height="9" rx="1"/>
-      <rect x="2" y="13" width="9" height="9" rx="1"/>
-      <rect x="13" y="13" width="9" height="9" rx="1"/>
-    </svg>
-    <span>${t('pip.detachAll', 'Separar todos')}</span>
-  `;
-  detachAllItem.addEventListener('click', () => {
-    hideContextMenu();
-    openAllPips();
-  });
-  menu.appendChild(detachAllItem);
-  
   // Opción: Devolver todos (solo si hay PiPs abiertos)
   if (activePips.size > 0) {
     const attachAllItem = document.createElement('button');

@@ -1870,6 +1870,12 @@ export class SettingsModal {
     this.shortcutsDescElement.className = 'settings-section__description';
     this.shortcutsDescElement.textContent = t('settings.shortcuts.description');
     section.appendChild(this.shortcutsDescElement);
+
+    // Nota fija sobre modificadores de knobs
+    const knobsNote = document.createElement('p');
+    knobsNote.className = 'settings-section__description settings-section__note';
+    knobsNote.textContent = t('settings.shortcuts.knobModifiers');
+    section.appendChild(knobsNote);
     
     // Lista de atajos
     const list = document.createElement('div');

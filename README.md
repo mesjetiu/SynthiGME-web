@@ -38,6 +38,8 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | `F` | Alternar pantalla completa |
 | `Shift+I` | Reiniciar a valores por defecto |
 | `Alt` (mantener) | Mostrar números de panel para navegación rápida |
+| `Ctrl`/`Cmd` (mantener, knobs) | Knobs: mover 10× más rápido |
+| `Shift` (mantener, knobs) | Knobs: mover 10× más preciso |
 | `1`-`6` | Navegar a panel 1-6 |
 | `7` | Navegar a panel de salida |
 | `0` | Vista general (todos los paneles) |

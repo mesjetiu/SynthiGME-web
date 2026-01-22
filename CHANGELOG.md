@@ -18,6 +18,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - Los blueprints permanecen en `panelBlueprints/` para la estructura visual
 
 ### Añadido
+- **Modificadores fijos para knobs**: Documentación en Ajustes → Atajos y badge visual que indica Ctrl/Cmd (10× más rápido) y Shift (10× más preciso) al arrastrar cualquier knob.
 - **Tooltips informativos en knobs de osciladores**: Los controles de frecuencia, niveles, pulse width y sine symmetry muestran tooltips con valores en tiempo real:
   - **Frecuencia**: Muestra Hz con precisión de 3 decimales y rango completo (0.5-20000 Hz). Indica '+ CV' cuando hay modulación activa.
   - **Niveles (Sine/Saw/Tri/Pulse)**: Muestra voltaje (0-10V) basado en emulación del Synthi 100.

@@ -112,7 +112,7 @@ Componentes de interfaz reutilizables:
 
 | Archivo | Componente | Descripción |
 |---------|------------|-------------|
-| `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre, curvas de respuesta configurable |
+| `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre, curvas de respuesta configurable; soporte de modificadores (Ctrl/Cmd 10× más rápido, Shift 10× más preciso) |
 | `knobFactory.js` | `createKnobElements()`, `createKnob()` | Factory para crear DOM de knobs. Evita duplicación del markup HTML |
 | `toggle.js` | `Toggle` | Interruptor de dos estados con etiquetas personalizables |
 | `toast.js` | `showToast()` | Notificaciones toast temporales con animación fade-out |

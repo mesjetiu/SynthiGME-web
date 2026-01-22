@@ -325,6 +325,10 @@ settings.shortcuts.description:
   en: Click on a shortcut to change it. Press the new key combination.
   es: Haz clic en un atajo para cambiarlo. Pulsa la nueva combinación de teclas.
 
+settings.shortcuts.knobModifiers:
+  en: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
+  es: Knobs: mantén Ctrl/Cmd para mover 10× más rápido y Shift para 10× más preciso.
+
 settings.shortcuts.mute:
   en: Mute/Unmute
   es: Silenciar/Activar

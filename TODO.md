@@ -1,15 +1,8 @@
 ## Oscilador:
 
-- Deshabilitar los osciladores de otros paneles.
-
-- Hacer coincidir inicio de fase de rampa con vientre positivo de seno (hacerlo coseno?)
-
-- Chequear simetría de pulso de p. 22.
-
 
 ## Osciloscopio:
 
-- Mejorar algunos aspectos probando.
 
 ## UI:
 
@@ -21,26 +14,6 @@
 
 ## Pines de Matriz:
 
-Actualmente implementados 8 tipos de pin basados en resistencias del manual técnico:
-
-### Pines Estándar (Cuenca/Datanomics 1982)
-| Color | Resistencia | Ganancia | Uso |
-|-------|-------------|----------|-----|
-| WHITE | 100kΩ ±10% | ×1 | Audio estándar (Panel 5) |
-| GREY | 100kΩ ±0.5% | ×1 | Control CV precisión (Panel 6) |
-| GREEN | 68kΩ ±10% | ×1.5 | Atenuado |
-| RED | 2.7kΩ ±10% | ×37 | Osciloscopio |
-
-### Pines Especiales (Manual técnico - mezcla personalizada)
-| Color | Resistencia | Ganancia | Uso |
-|-------|-------------|----------|-----|
-| BLUE | 10kΩ ±10% | ×10 | Boost de señal |
-| YELLOW | 22kΩ ±10% | ×4.5 | Ganancia media |
-| CYAN | 250kΩ ±10% | ×0.4 | Señal suave |
-| PURPLE | 1MΩ ±10% | ×0.1 | Mezcla sutil |
-
-### Pin Peligroso (NO IMPLEMENTADO)
-- ORANGE: 0Ω (cortocircuito) - Ganancia infinita, puede dañar componentes
 
 ### Futuros (Experimentales - ver manual Belgrado p.2)
 - Pines con diodos: comportamiento no lineal (rectificación)
@@ -51,8 +24,6 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 - Asegurarse de que los patchs están guardando todo (panel 2, 3, 5, 6 y 7, que son los operativos ahora).
 
 - Patches: poder sobrescribir un patch
-
-- Implementar una forma de ver los valores reales o valores de Synthi.
 
 - Hay 2 entradas de micro tras input amplifiers 
 
@@ -69,8 +40,4 @@ Actualmente implementados 8 tipos de pin basados en resistencias del manual téc
 
 - En móvil no importa patches (en desktop sí, probado) - testear antes
 
-- Quitar del menú contextual de los paneles "extraer todos", porque ya están en el menú de la barra.
-
 - los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.
-
-- el menú contextual del panel no ha de salir si se hace en un knob u otro mando. En este caso aún no ha de salir nada (eventualmente tendrá su propio menú contextual)

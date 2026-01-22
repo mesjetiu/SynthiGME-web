@@ -41,3 +41,8 @@
 - En móvil no importa patches (en desktop sí, probado) - testear antes
 
 - los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.
+
+
+## README
+
+- Añadir referencia a Fuzzy Gab, quien apoya este proyecto y lo difunde.

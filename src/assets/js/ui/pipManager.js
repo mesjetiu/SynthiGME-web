@@ -38,10 +38,12 @@ const MAX_PIP_SIZE = 800;
 /** Panel actualmente siendo arrastrado */
 let draggingPip = null;
 let dragOffset = { x: 0, y: 0 };
+let dragPointerId = null;
 
 /** Panel actualmente siendo redimensionado */
 let resizingPip = null;
 let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
+let resizePointerId = null;
 
 /** Posiciones aproximadas de cada panel en el layout del Synthi (relativas a la ventana) */
 const PANEL_POSITIONS = {
@@ -514,7 +516,10 @@ function setupPipEvents(pipContainer, panelId) {
   header.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
     e.preventDefault();
+    e.stopPropagation();
     draggingPip = panelId;
+    dragPointerId = e.pointerId;
+    header.setPointerCapture(e.pointerId);
     const rect = pipContainer.getBoundingClientRect();
     dragOffset.x = e.clientX - rect.left;
     dragOffset.y = e.clientY - rect.top;
@@ -527,6 +532,8 @@ function setupPipEvents(pipContainer, panelId) {
     e.preventDefault();
     e.stopPropagation();
     resizingPip = panelId;
+    resizePointerId = e.pointerId;
+    resizeHandle.setPointerCapture(e.pointerId);
     const state = activePips.get(panelId);
     resizeStart = {
       x: e.clientX,
@@ -538,10 +545,28 @@ function setupPipEvents(pipContainer, panelId) {
     bringToFront(panelId);
   });
   
-  // Click para traer al frente
-  pipContainer.addEventListener('pointerdown', () => {
+  // Click para traer al frente + bloquear propagación al viewport subyacente
+  pipContainer.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
     bringToFront(panelId);
   });
+  
+  // Bloquear doble tap/click para que no haga zoom en el panel de debajo
+  pipContainer.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  
+  // Bloquear touchend doble tap
+  let lastTapTime = 0;
+  pipContainer.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTapTime < 300) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    lastTapTime = now;
+  }, { passive: false });
   
   // Scroll con rueda para zoom
   pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {
@@ -605,26 +630,39 @@ function handlePointerMove(e) {
 
 /**
  * Finaliza drag/resize.
+ * @param {PointerEvent} e
  */
-function handlePointerUp() {
+function handlePointerUp(e) {
   let stateChanged = false;
   
   if (draggingPip) {
     const state = activePips.get(draggingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--dragging');
+      // Liberar pointer capture
+      const header = state.pipContainer.querySelector('.pip-header');
+      if (header && dragPointerId !== null) {
+        try { header.releasePointerCapture(dragPointerId); } catch (_) { /* ignore */ }
+      }
       stateChanged = true;
     }
     draggingPip = null;
+    dragPointerId = null;
   }
   
   if (resizingPip) {
     const state = activePips.get(resizingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--resizing');
+      // Liberar pointer capture
+      const resizeHandle = state.pipContainer.querySelector('.pip-resize-handle');
+      if (resizeHandle && resizePointerId !== null) {
+        try { resizeHandle.releasePointerCapture(resizePointerId); } catch (_) { /* ignore */ }
+      }
       stateChanged = true;
     }
     resizingPip = null;
+    resizePointerId = null;
   }
   
   // Guardar estado después de drag/resize

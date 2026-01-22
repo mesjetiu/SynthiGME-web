@@ -118,21 +118,42 @@ Este comando ejecuta `node scripts/build.mjs`, que realiza los siguientes pasos:
 El resultado está listo para publicarse directamente desde la carpeta `docs/`.
 
 ### Ejecutar los tests
-El proyecto incluye una suite extensa de tests (725+ casos). Ejecuta:
+
+El proyecto incluye:
+- Tests unitarios con el runner nativo de Node.js
+- Tests de audio reales en navegador (Playwright + Web Audio)
+
+Ejecuta los distintos tipos de tests según necesites:
 
 ```bash
+# Tests unitarios (Node.js)
 npm test
+
+# Tests de audio (Playwright, Web Audio real)
+npm run test:audio
+
+# Ejecutar toda la batería (unitarios + audio) con resumen final
+npm run test:all
 ```
 
-Este comando usa el runner nativo de Node.js (`node --test`) y ejecuta todos los archivos `*.test.js` en la carpeta `tests/`. Los tests verifican:
+Detalles por tipo de test:
+- Unitarios (Node.js): ejecuta `node --test` sobre `tests/**/**.test.js` (excluye los de audio). Cubre, entre otros:
+	- Mapeo de matrices Synthi → índice físico
+	- Motor de audio (AudioEngine) con mocks
+	- Sistema de dormancy y optimizaciones
+	- Módulos de síntesis (osciladores, ruido, osciloscopio)
+	- Sistema de patches (migraciones, validación, esquema)
+	- Internacionalización (paridad de traducciones)
+	- Utilidades (logging, constantes, deepMerge)
+- Audio reales (Playwright): corre en Chromium headless con Web Audio API real, verificando DSP (hard sync, anti‑aliasing, barridos de frecuencia, modo multi‑waveform, routing de matriz). El servidor HTTP se inicia automáticamente vía configuración de Playwright, no necesitas pasos previos. Reporte HTML disponible con:
 
-- Mapeo de matrices Synthi → índice físico
-- Motor de audio (AudioEngine) con mocks
-- Sistema de dormancy y optimizaciones
-- Módulos de síntesis (osciladores, ruido, osciloscopio)
-- Sistema de patches (migraciones, validación, esquema)
-- Internacionalización (paridad de traducciones)
-- Utilidades (logging, constantes, deepMerge)
+```bash
+npx playwright show-report test-results/audio-report
+```
+
+- Todo (resumen estructurado): `npm run test:all` ejecuta unitarios y audio y muestra un informe final con estado por suite, tiempos y totales agregados.
+
+Consulta la guía avanzada en [tests/audio/README.md](tests/audio/README.md) para opciones `--ui`, `--headed`, filtros y helpers de análisis espectral.
 
 ## Licencia
 SynthiGME-web se distribuye bajo la licencia [MIT](LICENSE). Puedes reutilizar, modificar y redistribuir el código manteniendo la atribución correspondiente.

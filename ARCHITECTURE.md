@@ -1896,7 +1896,9 @@ docs/
 
 ## 16. Tests
 
-El proyecto utiliza el runner nativo de Node.js (`node --test`) para tests de regresión sin dependencias adicionales.
+El proyecto utiliza dos suites complementarias:
+- Runner nativo de Node.js (`node --test`) para regresión rápida y amplia en entorno simulado (mocks)
+- Playwright para tests de audio reales en navegador (Chromium headless) con Web Audio API y AudioWorklets
 
 ### Estructura
 ```
@@ -1948,8 +1950,36 @@ tests/
 
 ### Ejecutar
 ```bash
+# Unitarios (Node.js)
 npm test
+
+# Audio real (Playwright)
+npm run test:audio
+
+# Todo con resumen estructurado (unitarios + audio)
+npm run test:all
 ```
+
+### Tests de Audio Real (Playwright)
+
+Los tests de audio se ejecutan en navegador (Chromium headless) con Web Audio real y `OfflineAudioContext`, validando el comportamiento DSP y de ruteo:
+
+- Ubicación: `tests/audio/`
+  - `worklets/`: verificación de `synthOscillator.worklet.js` (anti‑aliasing PolyBLEP, hard sync, multi‑waveform, timing/latencia)
+  - `matrix/`: routing de pines y ganancias (valores típicos, linealidad, preservación de señal)
+  - `integration/`: recorridos end‑to‑end básicos
+  - `harness.html`: página que carga worklets y expone helpers al entorno de test
+- Runner: Playwright lanza un servidor HTTP local automáticamente (configurado en `tests/audio/playwright.config.js`), por lo que no se requieren pasos previos.
+- Reporte: se genera un informe HTML en `test-results/audio-report`. Para abrirlo:
+
+```bash
+npx playwright show-report test-results/audio-report
+```
+
+Opciones útiles:
+- `npm run test:audio:ui` abre el UI de Playwright para depurar
+- `npm run test:audio:headed` ejecuta con navegador visible
+- `npm run test:audio:debug` activa modo debug del runner
 
 ### Cobertura actual (~947 casos)
 

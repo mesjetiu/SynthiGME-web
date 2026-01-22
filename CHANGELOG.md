@@ -18,6 +18,11 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - Los blueprints permanecen en `panelBlueprints/` para la estructura visual
 
 ### Añadido
+- **Suite de tests de audio real (Playwright)**: batería de pruebas que ejecuta Web Audio API y AudioWorklets en Chromium headless para validar DSP (hard sync, anti‑aliasing PolyBLEP, barridos de frecuencia, timing/latencia) y ruteo de matriz. Comandos:
+  - `npm run test:audio` para ejecutar la suite
+  - `npm run test:audio:ui` para depuración con UI
+  - Reporte HTML en `test-results/audio-report` (abrir con `npx playwright show-report test-results/audio-report`)
+- **Comando combinado `test:all` con resumen estructurado**: ejecuta tests unitarios (Node.js) y de audio (Playwright) y muestra un informe final con estado por suite, tiempos y totales. Integrado en el flujo de build para fallar si hay tests en rojo.
 - **Modificadores fijos para knobs**: Documentación en Ajustes → Atajos y badge visual que indica Ctrl/Cmd (10× más rápido) y Shift (10× más preciso) al arrastrar cualquier knob.
 - **Tooltips informativos en knobs de osciladores**: Los controles de frecuencia, niveles, pulse width y sine symmetry muestran tooltips con valores en tiempo real:
   - **Frecuencia**: Muestra Hz con precisión de 3 decimales y rango completo (0.5-20000 Hz). Indica '+ CV' cuando hay modulación activa.

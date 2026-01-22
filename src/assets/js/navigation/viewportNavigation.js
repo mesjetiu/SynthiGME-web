@@ -38,11 +38,6 @@ export function initViewportNavigation({ outer, inner } = {}) {
   let currentResolutionFactor = initialFactor;
   window.__synthResolutionFactor = currentResolutionFactor;
   
-  // Resoluciones por panel (objeto {panelId: factor})
-  const savedPanelResolutions = localStorage.getItem(STORAGE_KEYS.PANEL_RESOLUTIONS);
-  let panelResolutions = savedPanelResolutions ? JSON.parse(savedPanelResolutions) : {};
-  window.__synthPanelResolutions = panelResolutions;
-  
   // Callback para cambiar el factor de resolución
   // Siempre resetea a zoom general antes de aplicar nuevo factor
   window.__synthSetResolutionFactor = (factor) => {
@@ -56,79 +51,14 @@ export function initViewportNavigation({ outer, inner } = {}) {
       setTimeout(() => {
         currentResolutionFactor = factor;
         window.__synthResolutionFactor = factor;
-        applyPanelResolutions();
         render();
       }, 700);
     } else {
       currentResolutionFactor = factor;
       window.__synthResolutionFactor = factor;
-      applyPanelResolutions();
       render();
     }
   };
-  
-  // Callback para cambiar resoluciones por panel
-  window.__synthSetPanelResolutions = (resolutions) => {
-    if (isFirefox) return;
-    panelResolutions = resolutions || {};
-    window.__synthPanelResolutions = panelResolutions;
-    applyPanelResolutions();
-  };
-  
-  /**
-   * Aplica resoluciones específicas a cada panel
-   * Cada panel con override recibe zoom individual + transform inverso para compensar
-   * Nota: El zoom CSS aumenta la resolución de rasterización del contenido SVG
-   * mientras que scale() compensa para mantener el tamaño visual correcto.
-   */
-  function applyPanelResolutions() {
-    const globalFactor = currentResolutionFactor;
-    
-    // Resetear todos los paneles primero
-    for (let i = 1; i <= 6; i++) {
-      const panel = document.getElementById(`panel-${i}`);
-      if (panel) {
-        panel.style.zoom = '';
-        panel.style.transform = '';
-        panel.style.transformOrigin = '';
-      }
-    }
-    
-    // Aplicar overrides por panel
-    Object.entries(panelResolutions).forEach(([panelId, factor]) => {
-      const panel = document.getElementById(panelId);
-      if (!panel) return;
-      
-      // Si el factor es igual al global, no necesita override
-      if (factor === globalFactor) return;
-      
-      // Calcular zoom efectivo considerando el zoom global del viewport
-      // El viewport ya aplica `zoom: globalFactor` a #viewportInner
-      // Queremos que este panel específico tenga factor `factor` en lugar de `globalFactor`
-      
-      if (globalFactor > 1) {
-        // Ya hay zoom global aplicado al viewport
-        // Zoom relativo: factor_deseado / global
-        const relativeZoom = factor / globalFactor;
-        panel.style.zoom = relativeZoom;
-        // Compensar para mantener tamaño visual: scale inverso al zoom
-        panel.style.transform = `scale(${1 / relativeZoom})`;
-        panel.style.transformOrigin = '0 0';
-      } else {
-        // No hay zoom global (1x), aplicar directamente
-        if (factor > 1) {
-          panel.style.zoom = factor;
-          panel.style.transform = `scale(${1 / factor})`;
-          panel.style.transformOrigin = '0 0';
-        }
-      }
-    });
-  }
-  
-  // Aplicar resoluciones por panel al inicio
-  if (!isFirefox) {
-    applyPanelResolutions();
-  }
 
   let rasterizeTimer = null;
   const RASTERIZE_DELAY_MS = 150;

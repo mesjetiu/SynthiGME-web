@@ -39,6 +39,7 @@
 
 import { t } from '../i18n/index.js';
 import { getPinSublabel } from './pinColorMenu.js';
+import { registerTooltipHideCallback } from './tooltipManager.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LABEL GENERATION
@@ -178,9 +179,6 @@ export class MatrixTooltip {
     this._blockNextClick = false;
     this._clickBlockTimeout = null;
     
-    // Track if tooltip was shown via touch (for auto-hide behavior)
-    this._shownViaTouch = false;
-    
     // Bound handlers (for cleanup)
     this._onMouseEnter = this._handleMouseEnter.bind(this);
     this._onMouseLeave = this._handleMouseLeave.bind(this);
@@ -189,12 +187,14 @@ export class MatrixTooltip {
     this._onDocumentTap = this._handleDocumentTap.bind(this);
     this._onMatrixClick = this._handleMatrixClick.bind(this);
     this._onMatrixDblClick = this._handleMatrixDblClick.bind(this);
-    this._onTouchMove = this._handleTouchMove.bind(this);
-    this._onMultiTouch = this._handleMultiTouch.bind(this);
-    this._onWheel = this._handleWheel.bind(this);
     
     // Attached matrices tracking
     this._attachedMatrices = new Map(); // table -> { sourceMap, destMap, rowBase, colBase }
+    
+    // Registrar callback de ocultación para eventos globales (zoom/pan, tap fuera)
+    this._unregisterTooltipHide = registerTooltipHideCallback(() => {
+      this.hide();
+    });
   }
   
   /**
@@ -340,19 +340,12 @@ export class MatrixTooltip {
     tooltip.classList.add('is-visible');
     this._isVisible = true;
     
-    // Set up auto-hide timeout (for touch/mobile only)
+    // Set up auto-hide timeout (for mobile)
     this._clearHideTimeout();
-    if (this._shownViaTouch) {
-      this._hideTimeout = setTimeout(() => this.hide(), this.autoHideDelay);
-      // Listen for taps outside to hide
-      document.addEventListener('touchstart', this._onDocumentTap, { passive: true, once: true });
-      // Listen for pan/zoom gestures to hide tooltip
-      document.addEventListener('touchmove', this._onTouchMove, { passive: true });
-      document.addEventListener('touchstart', this._onMultiTouch, { passive: true });
-    } else {
-      // Desktop: hide on wheel/scroll (trackpad two-finger scroll moves the view but not the pointer)
-      document.addEventListener('wheel', this._onWheel, { passive: true, once: true });
-    }
+    this._hideTimeout = setTimeout(() => this.hide(), this.autoHideDelay);
+    
+    // Listen for taps outside to hide
+    document.addEventListener('touchstart', this._onDocumentTap, { passive: true, once: true });
   }
   
   /**
@@ -370,13 +363,7 @@ export class MatrixTooltip {
     this._element.classList.remove('is-visible');
     this._element.setAttribute('aria-hidden', 'true');
     this._isVisible = false;
-    this._shownViaTouch = false;
     this._clearHideTimeout();
-    
-    // Remove gesture listeners
-    document.removeEventListener('touchmove', this._onTouchMove);
-    document.removeEventListener('touchstart', this._onMultiTouch);
-    document.removeEventListener('wheel', this._onWheel);
   }
   
   /**
@@ -386,6 +373,12 @@ export class MatrixTooltip {
     this.hide();
     this._attachedMatrices.forEach((_, table) => this.detachFromMatrix(table));
     this._attachedMatrices.clear();
+    
+    // Desregistrar callback de ocultación global
+    if (this._unregisterTooltipHide) {
+      this._unregisterTooltipHide();
+      this._unregisterTooltipHide = null;
+    }
     
     if (this._element && this._element.parentNode) {
       this._element.parentNode.removeChild(this._element);
@@ -497,7 +490,6 @@ export class MatrixTooltip {
     const row = parseInt(btn.dataset.row, 10);
     const col = parseInt(btn.dataset.col, 10);
     
-    this._shownViaTouch = false; // Desktop hover - no auto-hide
     const content = this._getTooltipText(row, col, maps, btn);
     if (content) {
       this.show(btn, content);
@@ -618,7 +610,6 @@ export class MatrixTooltip {
     const row = parseInt(btn.dataset.row, 10);
     const col = parseInt(btn.dataset.col, 10);
     
-    this._shownViaTouch = true; // Mark as touch-triggered for auto-hide
     const content = this._getTooltipText(row, col, maps, btn);
     if (content) {
       this.show(btn, content);
@@ -695,41 +686,6 @@ export class MatrixTooltip {
       // Trigger a single click instead
       btn.click();
     }
-  }
-  
-  /**
-   * Handles touchmove events to detect pan gestures and hide tooltip.
-   * If user starts panning while tooltip is visible, hide it.
-   */
-  _handleTouchMove(ev) {
-    if (!this._isVisible || !this._shownViaTouch) return;
-    
-    // Any significant movement while tooltip is visible = hide it
-    // This handles pan gestures
-    this.hide();
-  }
-  
-  /**
-   * Handles multi-touch (pinch/zoom) gestures.
-   * If user starts a pinch gesture while tooltip is visible, hide it.
-   */
-  _handleMultiTouch(ev) {
-    if (!this._isVisible || !this._shownViaTouch) return;
-    
-    // Multi-touch = pinch/zoom gesture = hide tooltip
-    if (ev.touches.length > 1) {
-      this.hide();
-    }
-  }
-  
-  /**
-   * Handles wheel events (trackpad scroll/zoom on desktop).
-   * When user scrolls with trackpad, the pointer stays still but the view moves,
-   * so we need to hide the tooltip manually.
-   */
-  _handleWheel(ev) {
-    if (!this._isVisible) return;
-    this.hide();
   }
 }
 

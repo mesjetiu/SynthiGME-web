@@ -957,84 +957,7 @@ h1 {
   font-size: 0.75rem;
   color: #aaa;
   margin-top: 0.1rem;
-  min-width: 2.5em;
-  text-align: center;
 }
-
-/* Tooltip del knob (aparece al hover/drag) */
-.knob-tooltip {
-  position: fixed;
-  z-index: 10002;
-  padding: 4px 10px;
-  background: rgba(0, 0, 0, 0.92);
-  color: #ffeb3b;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 4px;
-  pointer-events: none;
-  white-space: nowrap;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-.knob-tooltip.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Valor principal del tooltip (escala 0-10 o -5/+5) */
-.knob-tooltip__main {
-  white-space: nowrap;
-}
-
-/* Info adicional (voltios, frecuencia, etc.) - estilo similar a matrix-tooltip__pin-info */
-.knob-tooltip__info {
-  margin-top: 2px;
-  padding-top: 3px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  font-size: 11px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', monospace;
-  white-space: nowrap;
-}
-
-.knob-mod-badge {
-  position: fixed;
-  top: 0;
-  left: 0;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.85);
-  color: #ffeb3b;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  transform: translate(0, -50%);
-  transition: opacity 0.12s ease, transform 0.12s ease, background 0.12s ease;
-  pointer-events: none;
-  z-index: 10020;
-}
-
-.knob-mod-badge.is-active {
-  opacity: 1;
-  transform: translate(0, -50%);
-}
-
-.knob-mod-badge.is-fast {
-  background: #ffb300;
-  color: #1a1a1a;
-}
-
-.knob-mod-badge.is-slow {
-  background: #26c6da;
-  color: #0d1b1e;
-}
-
 .knob {
   width: 60px;
   height: 60px;
@@ -1046,7 +969,6 @@ h1 {
   justify-content: center;
   touch-action: none;
   cursor: pointer;
-  position: relative;
 }
 .knob-inner {
   width: 78%;
@@ -1939,18 +1861,8 @@ small { color:#aaa; }
 
 .sgme-osc__knob-shell {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-}
-
-/* Valor debajo de cada knob del oscilador */
-.sgme-osc__knob-value {
-  font-size: 9px;
-  color: #aaa;
-  min-width: 2em;
-  text-align: center;
 }
 
 .sgme-osc__knob {

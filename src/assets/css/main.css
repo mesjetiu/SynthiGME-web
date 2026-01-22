@@ -1017,6 +1017,55 @@ h1 {
   top: 4px;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * KNOB TOOLTIPS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Floating tooltip that shows value and extra info for knobs.
+ * Triggered by hover on desktop, tap on mobile.
+ */
+.knob-tooltip {
+  position: fixed;
+  z-index: 10001;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', monospace;
+  white-space: nowrap;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+}
+
+.knob-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Main value display (scale value like 0.0 - 10.0) */
+.knob-tooltip__main {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffeb3b;
+}
+
+/* Extra info line (voltage, frequency, etc.) */
+.knob-tooltip__info {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 /* Osciloscopio: layout de knobs */
 .oscilloscope-knobs {
   display: flex;

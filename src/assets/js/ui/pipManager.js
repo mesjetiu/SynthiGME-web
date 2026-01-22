@@ -580,6 +580,41 @@ function setupPipEvents(pipContainer, panelId) {
     }
   }, { passive: false });
   
+  // Pinch zoom táctil dentro del PiP
+  const content = pipContainer.querySelector('.pip-content');
+  let pinchStartDist = 0;
+  let pinchStartScale = 0;
+  
+  content.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDist = Math.hypot(dx, dy);
+      const state = activePips.get(panelId);
+      pinchStartScale = state ? state.scale : 0.4;
+    }
+  }, { passive: false });
+  
+  content.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && pinchStartDist > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const currentDist = Math.hypot(dx, dy);
+      const scaleFactor = currentDist / pinchStartDist;
+      const newScale = Math.max(0.2, Math.min(1.5, pinchStartScale * scaleFactor));
+      updatePipScale(panelId, newScale);
+    }
+  }, { passive: false });
+  
+  content.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      pinchStartDist = 0;
+    }
+  }, { passive: true });
+  
   // Guardar estado cuando el usuario hace scroll dentro del viewport
   const viewport = pipContainer.querySelector('.pip-viewport');
   if (viewport) {
@@ -625,6 +660,22 @@ function handlePointerMove(e) {
     state.height = newH;
     state.pipContainer.style.width = `${newW}px`;
     state.pipContainer.style.height = `${newH}px`;
+    
+    // Calcular nueva escala para que el panel llene la ventana (zoom-to-fit)
+    const panelEl = document.getElementById(resizingPip);
+    if (panelEl) {
+      const panelWidth = panelEl.offsetWidth || 760;
+      const panelHeight = panelEl.offsetHeight || 760;
+      // Altura del contenido = altura ventana - altura header (~32px)
+      const contentHeight = newH - 32;
+      const contentWidth = newW;
+      // Escala para que quepa completo manteniendo aspecto
+      const scaleX = contentWidth / panelWidth;
+      const scaleY = contentHeight / panelHeight;
+      const newScale = Math.max(0.2, Math.min(1.5, Math.min(scaleX, scaleY)));
+      // Actualizar escala sin persistir (se guarda al soltar)
+      updatePipScale(resizingPip, newScale, false);
+    }
   }
 }
 

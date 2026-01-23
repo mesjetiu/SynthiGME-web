@@ -85,6 +85,22 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - **Cadena de audio**: `source → BiquadFilter (pin RC) → GainNode (Rf/Rpin) → destination`.
   - **Tests de validación**: 41 nuevos tests (31 funcionales + 10 de estrés) verifican cálculos de cutoff, factory de filtros y rendimiento.
   - **Referencia técnica**: Manual Datanomics 1982 - "con pines de 100kΩ se produce integración de transitorios rápidos".
+- **Inercia térmica de osciladores (Thermal Slew)**: Emulación del efecto térmico del VCO CEM 3340 que produce un "portamento involuntario" asimétrico en respuesta a cambios bruscos de CV:
+  - **Nuevo AudioWorklet**: `cvThermalSlew.worklet.js` implementa filtro one-pole asimétrico.
+  - **Comportamiento físico**: Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva).
+  - **Umbral de activación**: Solo afecta señales CV > 2V (0.5 digital), evitando slew en modulaciones sutiles.
+  - **Cadena CV**: `freqCVInput → cvThermalSlew → cvSoftClip → detune` (se inserta antes del soft clip existente).
+  - **Configuración**: `oscillator.config.js` → `thermalSlew.riseTimeConstant`, `fallTimeConstant`, `threshold`, `enabled`.
+  - **Referencia técnica**: NotebookLM (Datanomics 1982) - "La masa térmica del VCO CEM 3340 produce inercia en la respuesta a cambios de CV".
+- **Saturación híbrida de raíles ±12V (Hybrid Clipping)**: Emulación de los límites de alimentación del Synthi 100 con saturación progresiva en tres zonas:
+  - **Zona lineal** (< 9V): Sin modificación, pass-through completo.
+  - **Zona de compresión** (9V - 11.5V): Saturación suave con tanh, comprime gradualmente.
+  - **Hard clip** (≥ 12V): Límite absoluto (brick wall), protege contra sobrecarga.
+  - **Nueva función**: `createHybridClipCurve()` genera curva para WaveShaperNode con parámetros configurables.
+  - **Aplicación**: Se inserta un WaveShaperNode en cada bus de salida de la matriz (`busInput → hybridClipShaper → filterLP`).
+  - **Oversample 2×**: Evita aliasing en las transiciones de saturación.
+  - **Configuración**: `audioMatrix.config.js` → `hybridClipping.linearThreshold`, `softThreshold`, `hardLimit`, `softness`, `enabled`.
+  - **Referencia técnica**: NotebookLM (Datanomics 1982) - "Los raíles de alimentación de ±12V producen saturación progresiva".
 - **Sección de Emulación de Voltajes en Ajustes**: Nueva sección en Ajustes → Avanzado que permite controlar:
   - **Saturación suave (soft clip)**: Activar/desactivar el límite de voltaje con tanh().
   - **Tolerancia de pines**: Activar/desactivar variación realista de resistencias (±0.5% gris, ±10% resto).

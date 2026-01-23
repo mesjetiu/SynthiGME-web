@@ -7,8 +7,10 @@ import {
   digitalToVoltage,
   voltageToDigital,
   DEFAULT_INPUT_VOLTAGE_LIMIT,
-  VOLTAGE_DEFAULTS
+  VOLTAGE_DEFAULTS,
+  createHybridClipCurve
 } from '../utils/voltageConstants.js';
+import { audioMatrixConfig } from '../configs/index.js';
 
 const log = createLogger('AudioEngine');
 
@@ -214,6 +216,27 @@ export class AudioEngine {
       busInput.gain.value = 1.0;
       
       // ─────────────────────────────────────────────────────────────────────
+      // SATURACIÓN HÍBRIDA: Emulación de raíles ±12V del Synthi 100
+      // ─────────────────────────────────────────────────────────────────────
+      // El Synthi 100 tiene raíles de alimentación de ±12V que saturan
+      // progresivamente las señales que se acercan al límite.
+      // Tres zonas: lineal → compresión suave (tanh) → hard clip
+      // ─────────────────────────────────────────────────────────────────────
+      let hybridClipShaper = null;
+      const { hybridClipping } = audioMatrixConfig;
+      if (hybridClipping.enabled) {
+        hybridClipShaper = ctx.createWaveShaper();
+        hybridClipShaper.curve = createHybridClipCurve(
+          hybridClipping.linearThreshold,
+          hybridClipping.softThreshold,
+          hybridClipping.hardLimit,
+          hybridClipping.softness,
+          hybridClipping.samples
+        );
+        hybridClipShaper.oversample = '2x'; // Evitar aliasing en transiciones
+      }
+      
+      // ─────────────────────────────────────────────────────────────────────
       // FILTRO BIPOLAR: Lowpass + Highpass en serie
       // ─────────────────────────────────────────────────────────────────────
       // Control bipolar: -1 a +1 donde:
@@ -256,6 +279,12 @@ export class AudioEngine {
       // Si el valor inicial del filtro es neutral y el bypass está habilitado,
       // conectamos directamente busInput → levelNode (sin filtros).
       // Si no, conectamos la cadena completa con filtros.
+      // 
+      // CADENA DE SEÑAL COMPLETA:
+      // busInput → [hybridClipShaper] → filterLP → filterHP → levelNode → muteNode
+      // 
+      // El hybridClipShaper es opcional y se inserta solo si hybridClipping
+      // está habilitado en la configuración.
       // ─────────────────────────────────────────────────────────────────────
       const filterValue = this.outputFilters[i];
       const isNeutral = Math.abs(filterValue) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
@@ -264,15 +293,30 @@ export class AudioEngine {
       // Mantener los filtros pre-conectados entre sí (facilita reconexión)
       filterLP.connect(filterHP);
       
-      if (shouldBypass) {
-        // Bypass: input → levelNode directamente
-        busInput.connect(levelNode);
-        this._filterBypassState[i] = true;
+      // Determinar el nodo que recibe la señal de busInput
+      // Si hay hybridClipShaper, pasa por él primero
+      if (hybridClipShaper) {
+        busInput.connect(hybridClipShaper);
+        if (shouldBypass) {
+          // Bypass de filtros: clipper → levelNode directamente
+          hybridClipShaper.connect(levelNode);
+        } else {
+          // Cadena completa: clipper → filterLP → filterHP → levelNode
+          hybridClipShaper.connect(filterLP);
+          filterHP.connect(levelNode);
+        }
+        this._filterBypassState[i] = shouldBypass;
       } else {
-        // Cadena completa: busInput → filterLP → filterHP → levelNode
-        busInput.connect(filterLP);
-        filterHP.connect(levelNode);
-        this._filterBypassState[i] = false;
+        if (shouldBypass) {
+          // Bypass: input → levelNode directamente
+          busInput.connect(levelNode);
+          this._filterBypassState[i] = true;
+        } else {
+          // Cadena completa: busInput → filterLP → filterHP → levelNode
+          busInput.connect(filterLP);
+          filterHP.connect(levelNode);
+          this._filterBypassState[i] = false;
+        }
       }
       
       levelNode.connect(muteNode);
@@ -296,6 +340,7 @@ export class AudioEngine {
       const busIndex = i;
       const bus = {
         input: busInput,
+        hybridClipShaper, // Saturación híbrida (emulación raíles ±12V, puede ser null)
         filterLP,   // Filtro lowpass (activo con valores negativos)
         filterHP,   // Filtro highpass (activo con valores positivos)
         levelNode,  // Nivel (para modulación CV de matriz)
@@ -321,24 +366,31 @@ export class AudioEngine {
           
           const engine = this;
           const isBypassed = engine._filterBypassState?.[busIndex] ?? false;
+          const hasClipper = !!bus.hybridClipShaper;
           
           if (dormant) {
             // DORMANT: Desconectar busInput del grafo
             bus._savedMuteValue = bus.muteNode.gain.value;
             try {
-              if (isBypassed) {
-                // Bypass activo: input está conectado a levelNode
+              if (hasClipper) {
+                // Cadena con clipper: input → clipper → ...
+                bus.input.disconnect(bus.hybridClipShaper);
+              } else if (isBypassed) {
+                // Bypass activo (sin clipper): input → levelNode
                 bus.input.disconnect(bus.levelNode);
               } else {
-                // Filtros activos: input está conectado a filterLP
+                // Filtros activos (sin clipper): input → filterLP
                 bus.input.disconnect(bus.filterLP);
               }
               console.log(`[Dormancy] Output Bus ${busIndex + 1}: DORMANT (disconnected)`);
             } catch { /* Ya desconectado */ }
           } else {
-            // ACTIVE: Reconectar busInput según estado de bypass
+            // ACTIVE: Reconectar busInput según estado de bypass y clipper
             try {
-              if (isBypassed) {
+              if (hasClipper) {
+                // Cadena con clipper: reconectar input → clipper
+                bus.input.connect(bus.hybridClipShaper);
+              } else if (isBypassed) {
                 bus.input.connect(bus.levelNode);
               } else {
                 bus.input.connect(bus.filterLP);
@@ -606,13 +658,18 @@ export class AudioEngine {
     
     const isNeutral = Math.abs(value) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
     const currentlyBypassed = this._filterBypassState[busIndex];
+    const hasClipper = !!bus.hybridClipShaper;
+    
+    // Determinar el nodo fuente (el que conecta a filtros o levelNode)
+    // Con clipper: fuente = clipper, Sin clipper: fuente = input
+    const sourceNode = hasClipper ? bus.hybridClipShaper : bus.input;
     
     if (isNeutral && !currentlyBypassed) {
       // Activar bypass: desconectar filtros, conectar directo
       try {
-        bus.input.disconnect(bus.filterLP);
+        sourceNode.disconnect(bus.filterLP);
         bus.filterHP.disconnect(bus.levelNode);
-        bus.input.connect(bus.levelNode);
+        sourceNode.connect(bus.levelNode);
         this._filterBypassState[busIndex] = true;
         
         if (this._filterBypassDebug) {
@@ -624,8 +681,8 @@ export class AudioEngine {
     } else if (!isNeutral && currentlyBypassed) {
       // Desactivar bypass: reconectar filtros
       try {
-        bus.input.disconnect(bus.levelNode);
-        bus.input.connect(bus.filterLP);
+        sourceNode.disconnect(bus.levelNode);
+        sourceNode.connect(bus.filterLP);
         bus.filterHP.connect(bus.levelNode);
         this._filterBypassState[busIndex] = false;
         
@@ -1328,7 +1385,8 @@ export class AudioEngine {
         const worklets = [
           './assets/js/worklets/synthOscillator.worklet.js',
           './assets/js/worklets/scopeCapture.worklet.js',
-          './assets/js/worklets/noiseGenerator.worklet.js'
+          './assets/js/worklets/noiseGenerator.worklet.js',
+          './assets/js/worklets/cvThermalSlew.worklet.js'
         ];
         
         await Promise.all(

@@ -6,7 +6,7 @@ import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
-import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
+import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve, createHybridClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
 import { dialToFrequency } from './state/conversions.js';
 
 const log = createLogger('App');
@@ -1758,6 +1758,46 @@ class App {
     freqCVInput.gain.value = centsGain;
     
     // ─────────────────────────────────────────────────────────────────────────
+    // THERMAL SLEW DE CV (Inercia térmica del transistor)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Según Manual Técnico Datanomics 1982:
+    // "Si se realiza un salto grande de frecuencia (>2 kHz), se produce un
+    // ligero efecto de portamento debido al calentamiento de un transistor."
+    //
+    // El efecto es bidireccional y asimétrico: calentamiento (subida) es más
+    // rápido que enfriamiento (bajada).
+    //
+    // Cadena CV con thermal slew:
+    //   freqCVInput → cvThermalSlew → cvSoftClip → detune
+    // ─────────────────────────────────────────────────────────────────────────
+    const thermalSlewConfig = oscConfig?.thermalSlew ?? oscillatorConfig.defaults?.thermalSlew ?? {};
+    let cvThermalSlew = null;
+    
+    if (thermalSlewConfig.enabled !== false && this.engine.workletReady) {
+      try {
+        cvThermalSlew = new AudioWorkletNode(ctx, 'cv-thermal-slew', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          processorOptions: {
+            riseTimeConstant: thermalSlewConfig.riseTimeConstant ?? 0.15,
+            fallTimeConstant: thermalSlewConfig.fallTimeConstant ?? 0.5
+          }
+        });
+        
+        // Configurar umbral de activación
+        const thresholdParam = cvThermalSlew.parameters?.get('threshold');
+        if (thresholdParam) {
+          thresholdParam.value = thermalSlewConfig.threshold ?? 0.5;
+        }
+        
+        log.info(` Panel ${panelIndex} Osc ${oscIndex}: CV Thermal Slew enabled`);
+      } catch (err) {
+        log.warn(` Failed to create CVThermalSlew for osc ${oscIndex}:`, err);
+        cvThermalSlew = null;
+      }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // SOFT CLIPPING DE CV (Emulación de voltaje Cuenca/Datanomics)
     // ─────────────────────────────────────────────────────────────────────────
     // El Synthi 100 satura suavemente las señales CV que superan el límite
@@ -1774,17 +1814,32 @@ class App {
       cvSoftClip = ctx.createWaveShaper();
       cvSoftClip.curve = createSoftClipCurve(256, normalizedLimit, 1.0);
       cvSoftClip.oversample = 'none'; // CV no necesita oversampling
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONSTRUIR CADENA DE CV COMPLETA
+    // ─────────────────────────────────────────────────────────────────────────
+    // Orden: freqCVInput → [cvThermalSlew] → [cvSoftClip] → detune
+    // Los nodos opcionales se omiten si no están habilitados/disponibles.
+    // ─────────────────────────────────────────────────────────────────────────
+    const detuneParam = multiOsc.parameters?.get('detune');
+    if (detuneParam) {
+      let lastNode = freqCVInput;
       
-      // Cadena: freqCVInput → cvSoftClip → detune
-      const detuneParam = multiOsc.parameters?.get('detune');
-      if (detuneParam) {
-        freqCVInput.connect(cvSoftClip);
-        cvSoftClip.connect(detuneParam);
+      // Conectar thermal slew si está disponible
+      if (cvThermalSlew) {
+        lastNode.connect(cvThermalSlew);
+        lastNode = cvThermalSlew;
       }
-    } else {
-      // Sin soft clip: conexión directa
-      const detuneParam = multiOsc.parameters?.get('detune');
-      if (detuneParam) freqCVInput.connect(detuneParam);
+      
+      // Conectar soft clip si está habilitado
+      if (cvSoftClip) {
+        lastNode.connect(cvSoftClip);
+        lastNode = cvSoftClip;
+      }
+      
+      // Conectar al parámetro detune del oscilador
+      lastNode.connect(detuneParam);
     }
 
     // Crear referencias de compatibilidad para código existente
@@ -1795,6 +1850,7 @@ class App {
       triPulseOut,
       moduleOut,
       freqCVInput,
+      cvThermalSlew,  // Referencia al AudioWorkletNode para debug/ajustes
       cvSoftClip,  // Referencia al WaveShaperNode para debug/ajustes
       _freqInitialized: true,
       _useWorklet: true,

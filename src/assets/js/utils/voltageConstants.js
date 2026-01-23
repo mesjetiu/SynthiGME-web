@@ -672,16 +672,46 @@ export function createHybridClipCurve(
       y = x;
       
     } else if (absX < hardLimit) {
+      // ─────────────────────────────────────────────────────────────────────
       // ZONA SOFT: Saturación suave con tanh hacia el límite duro
+      // ─────────────────────────────────────────────────────────────────────
+      // Mapeamos el exceso sobre linearThreshold y aplicamos tanh para 
+      // comprimir gradualmente hacia hardLimit.
+      //
+      // Fórmula: output = linearThreshold + softZoneWidth * tanh(normalized * softness)
+      //
+      // Donde: softZoneWidth = hardLimit - linearThreshold
+      //        normalized = (input - linearThreshold) / softZoneWidth
+      //
+      // Propiedades:
+      // - tanh(0) = 0, así que en linearThreshold: output = linearThreshold
+      // - tanh(∞) = 1, así que en hardLimit: output → hardLimit (asintóticamente)
+      // - output SIEMPRE < input para input > linearThreshold (compresión)
+      //
+      // softness controla la "agresividad" del tanh:
+      // - softness BAJO: curva más lineal, compresión gradual
+      // - softness ALTO: curva satura rápido, se acerca a hardLimit más rápido
+      // ─────────────────────────────────────────────────────────────────────
       const excess = absX - linearThreshold;
-      const normalizedExcess = (excess / softZoneWidth) * softness;
-      let compressedExcess = Math.tanh(normalizedExcess) * softZoneWidth;
-      // Clamp: nunca superar el input (compresión real)
-      if (compressedExcess > excess) compressedExcess = excess;
-      // Suavizar la transición en los primeros 2 pasos para continuidad
-      if (excess < softZoneWidth * 0.02) {
+      
+      // Normalizar el exceso al rango [0, 1]
+      const normalizedExcess = excess / softZoneWidth;
+      
+      // Aplicar tanh con softness como multiplicador
+      // tanh(softness * x) con softness > 1 satura más rápido
+      const compressedNormalized = Math.tanh(softness * normalizedExcess);
+      
+      // El exceso comprimido SIEMPRE es <= exceso original
+      // porque tanh(x) <= x para x > 0 cuando softness <= 1
+      // Para softness > 1, puede ser mayor, así que aplicamos min()
+      let compressedExcess = compressedNormalized * softZoneWidth;
+      compressedExcess = Math.min(compressedExcess, excess);  // Garantizar compresión
+      
+      // Suavizar la transición en los primeros 5% de la zona soft para continuidad
+      const interpFrac = 0.05;
+      if (normalizedExcess < interpFrac) {
         // Interpolación lineal entre zona lineal y soft
-        const alpha = excess / (softZoneWidth * 0.02);
+        const alpha = normalizedExcess / interpFrac;
         const ySoft = linearThreshold + compressedExcess;
         const yLinear = absX;
         y = sign * (yLinear * (1 - alpha) + ySoft * alpha);
@@ -700,14 +730,12 @@ export function createHybridClipCurve(
     curve[i] = y;
   }
   
-  softness = 2.0
+  return curve;
 }
 
 // =============================================================================
 // SUAVIZADO DE FORMAS DE ONDA (Waveform Smoothing)
 // =============================================================================
-  // Limitar softness a un máximo razonable para evitar que la curva deje de comprimir
-  const clampedSoftness = Math.max(0.1, Math.min(softness, 2.5));
 //
 // El sistema de suavizado emula dos características eléctricas del Synthi 100:
 //
@@ -729,24 +757,18 @@ export function createHybridClipCurve(
 /**
  * Capacitancia parásita estimada del bus de la matriz.
  * 
-    } else if (absX < hardLimit) {
-      // ZONA SOFT: Saturación suave con tanh hacia el límite duro
-      const excess = absX - linearThreshold;
-      const normalizedExcess = (excess / softZoneWidth) * clampedSoftness;
-      let compressedExcess = Math.tanh(normalizedExcess) * softZoneWidth;
-      // Clamp: nunca superar el input (compresión real)
-      if (compressedExcess > excess) compressedExcess = excess;
-      // Suavizar la transición en los primeros 5% de la zona soft para continuidad
-      const interpFrac = 0.05; // 5% de la zona soft
-      if (excess < softZoneWidth * interpFrac) {
-        // Interpolación lineal entre zona lineal y soft
-        const alpha = excess / (softZoneWidth * interpFrac);
-        const ySoft = linearThreshold + compressedExcess;
-        const yLinear = absX;
-        y = sign * (yLinear * (1 - alpha) + ySoft * alpha);
-      } else {
-        y = sign * (linearThreshold + compressedExcess);
-      }
+ * Esta capacitancia, combinada con la resistencia de cada pin,
+ * forma un filtro RC natural que suaviza los transitorios rápidos.
+ * Valor estimado según análisis del PCB del Synthi 100.
+ * 
+ * @constant {number} Faradios (100pF = 100e-12)
+ */
+export const MATRIX_BUS_CAPACITANCE = 100e-12;  // 100 pF
+
+/**
+ * Frecuencia de corte del slew inherente del módulo oscilador.
+ * 
+ * Representa el límite de slew rate de los amplificadores CA3140
  * independiente del tipo de pin usado.
  * 
  * Con fc ≈ 20 kHz, el rise time 10%-90% es aproximadamente:

@@ -270,6 +270,33 @@ export function createMockAudioWorkletNode(name, options = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// WAVE SHAPER NODE MOCK
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Crea un mock de WaveShaperNode.
+ * Emula el nodo de conformación de onda para saturación/distorsión.
+ * @returns {Object} Mock de WaveShaperNode
+ */
+export function createMockWaveShaperNode() {
+  return {
+    curve: null,
+    oversample: 'none',
+    _calls: {
+      connect: 0,
+      disconnect: 0
+    },
+    connect(destination, outputIndex, inputIndex) {
+      this._calls.connect++;
+      return destination;
+    },
+    disconnect(destination) {
+      this._calls.disconnect++;
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CONSTANT SOURCE NODE MOCK
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -332,7 +359,8 @@ export function createMockAudioContext(options = {}) {
       oscillator: [],
       analyser: [],
       audioWorklet: [],
-      constantSource: []
+      constantSource: [],
+      waveShaper: []
     },
     createGain() {
       const node = createMockGainNode();
@@ -362,6 +390,11 @@ export function createMockAudioContext(options = {}) {
     createConstantSource() {
       const node = createMockConstantSourceNode();
       this._createdNodes.constantSource.push(node);
+      return node;
+    },
+    createWaveShaper() {
+      const node = createMockWaveShaperNode();
+      this._createdNodes.waveShaper.push(node);
       return node;
     },
     resume() {

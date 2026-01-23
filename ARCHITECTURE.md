@@ -61,7 +61,7 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta los filtros LP/HP cuando están en posición neutral (|v|<0.02) para ahorrar CPU. Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta los filtros LP/HP cuando están en posición neutral (|v|<0.02) para ahorrar CPU. Cadena de bus: `busInput → [hybridClipShaper] → filterLP → filterHP → levelNode → muteNode`. Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
 | `blueprintMapper.js` | `compilePanelBlueprintMappings()` extrae filas/columnas ocultas de blueprints de paneles para configurar las matrices |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
@@ -80,6 +80,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación. **Dormancy**: soporta mensaje `setDormant` para early exit en `process()` |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período. **Dormancy**: soporta mensaje `setDormant` para pausar captura |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
+| `cvThermalSlew.worklet.js` | Filtro one-pole asimétrico para emular inercia térmica del VCO CEM 3340. Calentamiento rápido (150ms τ), enfriamiento lento (500ms τ). Se inserta en la cadena CV de frecuencia de osciladores |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -718,13 +719,16 @@ waveshaper.oversample = 'none';  // CV no necesita oversampling
 
 #### Uso en Osciladores
 
-Los osciladores aplican soft clipping a la entrada de CV de frecuencia usando un `WaveShaperNode` entre `freqCVInput` y el parámetro `detune`:
+Los osciladores aplican soft clipping y thermal slew a la entrada de CV de frecuencia usando una cadena de nodos entre `freqCVInput` y el parámetro `detune`:
 
 ```
-[Señal CV] → [freqCVInput] → [cvSoftClip] → [detune del worklet]
-                  ↓                ↓
-            escala a cents    satura con tanh
+[Señal CV] → [freqCVInput] → [cvThermalSlew] → [cvSoftClip] → [detune del worklet]
+                  ↓                 ↓                ↓
+            escala a cents   inercia térmica   satura con tanh
 ```
+
+- **cvThermalSlew**: AudioWorklet que emula la inercia térmica del VCO CEM 3340 (ver sección 3.8.12)
+- **cvSoftClip**: WaveShaperNode con curva tanh para saturación suave
 
 El límite se lee de `configs/modules/oscillator.config.js` → `voltage.inputLimit` (8V = 2.0 digital).
 
@@ -905,6 +909,128 @@ El módulo `tests/audio/spectralAnalysis.js` incluye funciones para verificar el
 | `compareSpectraAttenuation(before, after)` | Compara atenuación por banda |
 | `calculateRCCutoffFrequency(R, C)` | Calcula fc teórica |
 | `PIN_CUTOFF_FREQUENCIES` | Constantes pre-calculadas por tipo de pin |
+
+### 3.8.12 Thermal Slew (Inercia Térmica de Osciladores)
+
+> **Referencia:** NotebookLM (Datanomics 1982) — "La masa térmica del VCO CEM 3340 produce inercia en la respuesta a cambios de CV"
+
+Cuando se aplica un cambio brusco de CV a la frecuencia de un oscilador, el hardware real no responde instantáneamente. Los componentes térmicos del VCO CEM 3340 crean un efecto de "portamento involuntario" que es **asimétrico**: el calentamiento (respuesta a CV creciente) es más rápido que el enfriamiento (respuesta a CV decreciente).
+
+#### Comportamiento físico
+
+| Dirección | Proceso | Velocidad |
+|-----------|---------|-----------|
+| **Subida** (heating) | El transistor de exponenciación se calienta activamente | Rápido (~150ms τ) |
+| **Bajada** (cooling) | Disipación pasiva al ambiente | Lento (~500ms τ) |
+
+#### Implementación
+
+El efecto se implementa con el AudioWorklet `CVThermalSlewProcessor` (`worklets/cvThermalSlew.worklet.js`):
+
+```
+[CV de matriz] → [freqCVInput] → [cvThermalSlew] → [cvSoftClip] → [detune]
+```
+
+**Algoritmo:** Filtro one-pole asimétrico que selecciona la constante de tiempo según la dirección del cambio:
+
+$$y[n] = y[n-1] + \alpha_d \cdot (x[n] - y[n-1])$$
+
+Donde:
+- $\alpha_{rise} = 1 - e^{-1 / (f_s \cdot \tau_{rise})}$ cuando $x[n] > y[n-1]$
+- $\alpha_{fall} = 1 - e^{-1 / (f_s \cdot \tau_{fall})}$ cuando $x[n] < y[n-1]$
+
+**Umbral de activación:** El efecto solo se aplica cuando la señal CV supera un umbral mínimo (0.5 unidades digitales = 2V). Esto evita aplicar slew a modulaciones sutiles donde no habría efecto térmico perceptible.
+
+#### Configuración (`oscillator.config.js`)
+
+```javascript
+thermalSlew: {
+  riseTimeConstant: 0.15,   // 150ms (calentamiento, proceso activo)
+  fallTimeConstant: 0.5,    // 500ms (enfriamiento, proceso pasivo)
+  threshold: 0.5,           // Umbral de activación (0.5 digital = 2V)
+  enabled: true
+}
+```
+
+#### AudioWorklet Parameters
+
+| Parámetro | Tipo | Rango | Descripción |
+|-----------|------|-------|-------------|
+| `riseRate` | a-rate | 0.0001-0.1 | Coeficiente de slew para subida |
+| `fallRate` | a-rate | 0.0001-0.1 | Coeficiente de slew para bajada |
+| `threshold` | a-rate | 0-1 | Umbral de activación |
+
+### 3.8.13 Hybrid Clipping (Saturación de Raíles ±12V)
+
+> **Referencia:** NotebookLM (Datanomics 1982) — "Los raíles de alimentación de ±12V producen saturación progresiva"
+
+El Synthi 100 tiene raíles de alimentación de **±12V** que limitan todas las señales del sistema. A diferencia de un hard clip instantáneo, la saturación ocurre en tres zonas progresivas que emulan el comportamiento de los amplificadores operacionales al acercarse a sus límites de alimentación.
+
+#### Tres zonas de saturación
+
+| Zona | Rango (digital) | Rango (voltios) | Comportamiento |
+|------|-----------------|-----------------|----------------|
+| **Lineal** | |x| < 2.25 | < 9V | Sin modificación (pass-through) |
+| **Compresión** | 2.25 ≤ |x| < 2.875 | 9V - 11.5V | Compresión suave con tanh |
+| **Hard clip** | |x| ≥ 3.0 | ≥ 12V | Límite absoluto (brick wall) |
+
+#### Curva de saturación
+
+La función `createHybridClipCurve()` genera una curva para `WaveShaperNode`:
+
+```javascript
+import { createHybridClipCurve } from './utils/voltageConstants.js';
+
+const curve = createHybridClipCurve(
+  2.25,   // linearThreshold: inicio de compresión (9V/4)
+  2.875,  // softThreshold: inicio de hard clip (11.5V/4)
+  3.0,    // hardLimit: límite absoluto (12V/4)
+  2.0,    // softness: agresividad del tanh (1.0-2.5)
+  257     // samples: número de muestras (impar para simetría)
+);
+```
+
+**Fórmula de la zona de compresión:**
+
+$$y = linearThreshold + softRange \cdot \tanh\left(softness \cdot \frac{x - linearThreshold}{softRange}\right)$$
+
+Donde `softRange = softThreshold - linearThreshold`.
+
+#### Aplicación en la Matriz
+
+El `hybridClipShaper` se inserta en cada bus de salida de la matriz, justo después de `busInput`:
+
+```
+[Señales mezcladas] → [busInput] → [hybridClipShaper] → [filterLP] → [filterHP] → [levelNode]
+```
+
+**Características:**
+- **Oversample 2×** para evitar aliasing en las transiciones de saturación
+- **Afecta tanto audio como CV** (toda la matriz pasa por los buses)
+- **Bypass cuando está deshabilitado** (no crea el nodo)
+
+#### Configuración (`audioMatrix.config.js`)
+
+```javascript
+hybridClipping: {
+  linearThreshold: 2.25,  // 9V / 4 (digital)
+  softThreshold: 2.875,   // 11.5V / 4 (digital)
+  hardLimit: 3.0,         // 12V / 4 (digital)
+  softness: 2.0,          // Agresividad del tanh
+  samples: 257,           // Muestras de la curva (impar)
+  enabled: true
+}
+```
+
+#### Tests (`voltageConstants.test.js`)
+
+| Test | Verificación |
+|------|--------------|
+| `preserva señal en zona lineal` | |output| ≈ |input| cuando |x| < linearThreshold |
+| `comprime en zona intermedia` | |output| < |input| cuando linearThreshold ≤ |x| < softThreshold |
+| `hard clip en límite` | |output| ≤ hardLimit para cualquier entrada |
+| `curva simétrica` | curve[i] = -curve[n-1-i] para todo i |
+| `continuidad en transiciones` | Sin saltos bruscos entre zonas |
 
 ---
 

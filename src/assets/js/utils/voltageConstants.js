@@ -611,9 +611,103 @@ export function createSoftClipCurve(samples = 256, inputLimit = 1.0, softness = 
   return curve;
 }
 
+/**
+ * Crea una curva de saturación híbrida para WaveShaperNode.
+ * 
+ * Emula el comportamiento de los raíles de alimentación ±12V del Synthi 100
+ * (Datanomics/Cuenca 1982) con tres zonas de operación:
+ * 
+ * 1. ZONA LINEAL (≤ linearThreshold): Ganancia 1:1, sin distorsión
+ * 2. ZONA SOFT (linearThreshold < x < softThreshold): Saturación tanh
+ *    "la señal debe alterar su forma ligeramente" (Manual Datanomics)
+ * 3. ZONA HARD (≥ hardLimit): Clipping duro en los raíles de alimentación
+ *    "y luego recortar" (Manual Datanomics)
+ * 
+ * @param {number} [samples=1024] - Número de muestras (potencia de 2 recomendado)
+ * @param {number} [linearThreshold=2.25] - Umbral lineal en unidades digitales (9V / 4)
+ * @param {number} [softThreshold=2.875] - Umbral soft en unidades digitales (11.5V / 4)
+ * @param {number} [hardLimit=3.0] - Límite duro en unidades digitales (12V / 4)
+ * @param {number} [softness=2.0] - Factor de suavidad de la zona soft
+ * @returns {Float32Array} Curva para WaveShaperNode.curve
+ * 
+ * @example
+ * // Usar valores por defecto del Synthi 100
+ * const curve = createHybridClipCurve(1024);
+ * waveShaperNode.curve = curve;
+ * 
+ * @example
+ * // Valores personalizados
+ * const curve = createHybridClipCurve(1024, 2.25, 2.875, 3.0, 2.0);
+ */
+export function createHybridClipCurve(
+  samples = 1024,
+  linearThreshold = 2.25,   // 9V / 4 = 2.25 digital
+  softThreshold = 2.875,    // 11.5V / 4 = 2.875 digital
+  hardLimit = 3.0,          // 12V / 4 = 3.0 digital
+  softness = 2.0
+) {
+  const curve = new Float32Array(samples);
+  
+  // Ancho de la zona soft (input y output)
+  const softZoneWidth = hardLimit - linearThreshold;
+  
+  for (let i = 0; i < samples; i++) {
+    // WaveShaperNode: índice 0 → entrada -1, índice samples-1 → entrada +1
+    // Mapeamos el índice al rango [-hardLimit, +hardLimit]
+    // Usamos la fórmula estándar: x = (2i/(N-1) - 1) * hardLimit
+    // Esto garantiza: i=0 → x=-hardLimit, i=N-1 → x=+hardLimit, i=(N-1)/2 → x≈0
+    const t = i / (samples - 1);  // 0 a 1
+    const normalizedIndex = 2 * t - 1;  // -1 a +1
+    const x = normalizedIndex * hardLimit;
+    
+    const absX = Math.abs(x);
+    const sign = x >= 0 ? 1 : -1;
+    
+    let y;
+    
+    if (absX <= linearThreshold) {
+      // ─────────────────────────────────────────────────────────────────────
+      // ZONA LINEAL: Ganancia 1:1, sin distorsión
+      // ─────────────────────────────────────────────────────────────────────
+      y = x;
+      
+    } else if (absX < hardLimit) {
+      // ZONA SOFT: Saturación suave con tanh hacia el límite duro
+      const excess = absX - linearThreshold;
+      const normalizedExcess = (excess / softZoneWidth) * softness;
+      let compressedExcess = Math.tanh(normalizedExcess) * softZoneWidth;
+      // Clamp: nunca superar el input (compresión real)
+      if (compressedExcess > excess) compressedExcess = excess;
+      // Suavizar la transición en los primeros 2 pasos para continuidad
+      if (excess < softZoneWidth * 0.02) {
+        // Interpolación lineal entre zona lineal y soft
+        const alpha = excess / (softZoneWidth * 0.02);
+        const ySoft = linearThreshold + compressedExcess;
+        const yLinear = absX;
+        y = sign * (yLinear * (1 - alpha) + ySoft * alpha);
+      } else {
+        y = sign * (linearThreshold + compressedExcess);
+      }
+      
+    } else {
+      // ─────────────────────────────────────────────────────────────────────
+      // ZONA HARD: Clipping duro en los raíles (±12V = ±3.0 digital)
+      // "y luego recortar" (Manual Datanomics)
+      // ─────────────────────────────────────────────────────────────────────
+      y = sign * hardLimit;
+    }
+    
+    curve[i] = y;
+  }
+  
+  softness = 2.0
+}
+
 // =============================================================================
 // SUAVIZADO DE FORMAS DE ONDA (Waveform Smoothing)
 // =============================================================================
+  // Limitar softness a un máximo razonable para evitar que la curva deje de comprimir
+  const clampedSoftness = Math.max(0.1, Math.min(softness, 2.5));
 //
 // El sistema de suavizado emula dos características eléctricas del Synthi 100:
 //
@@ -635,23 +729,24 @@ export function createSoftClipCurve(samples = 256, inputLimit = 1.0, softness = 
 /**
  * Capacitancia parásita estimada del bus de la matriz.
  * 
- * Valor derivado del comportamiento descrito en el manual técnico:
- * - Pin WHITE (100kΩ) produce integración visible
- * - Pin RED (2.7kΩ) es transparente para el osciloscopio
- * 
- * Con C = 100pF:
- * - fc(WHITE) = 1/(2π×100k×100pF) ≈ 15.9 kHz (suavizado audible)
- * - fc(RED) = 1/(2π×2.7k×100pF) ≈ 589 kHz (muy por encima del audio)
- * 
- * @constant {number} Faradios
- */
-export const MATRIX_BUS_CAPACITANCE = 100e-12;  // 100 pF
-
-/**
- * Frecuencia de corte inherente del módulo oscilador.
- * 
- * Determinada por el slew rate del CA3140 y circuitos de salida.
- * Este es el límite superior de velocidad de transición del hardware,
+    } else if (absX < hardLimit) {
+      // ZONA SOFT: Saturación suave con tanh hacia el límite duro
+      const excess = absX - linearThreshold;
+      const normalizedExcess = (excess / softZoneWidth) * clampedSoftness;
+      let compressedExcess = Math.tanh(normalizedExcess) * softZoneWidth;
+      // Clamp: nunca superar el input (compresión real)
+      if (compressedExcess > excess) compressedExcess = excess;
+      // Suavizar la transición en los primeros 5% de la zona soft para continuidad
+      const interpFrac = 0.05; // 5% de la zona soft
+      if (excess < softZoneWidth * interpFrac) {
+        // Interpolación lineal entre zona lineal y soft
+        const alpha = excess / (softZoneWidth * interpFrac);
+        const ySoft = linearThreshold + compressedExcess;
+        const yLinear = absX;
+        y = sign * (yLinear * (1 - alpha) + ySoft * alpha);
+      } else {
+        y = sign * (linearThreshold + compressedExcess);
+      }
  * independiente del tipo de pin usado.
  * 
  * Con fc ≈ 20 kHz, el rise time 10%-90% es aproximadamente:

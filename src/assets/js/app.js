@@ -2526,11 +2526,8 @@ class App {
 
     const conn = this._panel3Routing.connections?.[key];
     if (conn) {
-      // Desconectar ambos nodos (filtro y ganancia)
-      if (conn.filter) safeDisconnect(conn.filter);
-      if (conn.gain) safeDisconnect(conn.gain);
-      // Compatibilidad con conexiones legacy (solo GainNode)
-      if (!conn.filter && !conn.gain) safeDisconnect(conn);
+      safeDisconnect(conn.filter);
+      safeDisconnect(conn.gain);
       delete this._panel3Routing.connections[key];
       
       // Si era una conexión al osciloscopio, verificar si quedan conexiones
@@ -2874,11 +2871,8 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     const conn = this._panel6Routing.connections?.[key];
     if (conn) {
-      // Desconectar ambos nodos (filtro y ganancia)
-      if (conn.filter) safeDisconnect(conn.filter);
-      if (conn.gain) safeDisconnect(conn.gain);
-      // Compatibilidad con conexiones legacy (solo GainNode)
-      if (!conn.filter && !conn.gain) safeDisconnect(conn);
+      safeDisconnect(conn.filter);
+      safeDisconnect(conn.gain);
       delete this._panel6Routing.connections[key];
       log.info(` Panel 6: Disconnected ${key}`);
       
@@ -3004,20 +2998,14 @@ class App {
         const dest = this._panel3Routing?.destMap?.get(col);
         const currentTime = this.engine.audioCtx.currentTime;
         
-        // Actualizar filtro RC (nueva estructura con {filter, gain})
-        if (conn.filter) {
-          updatePinFilter(conn.filter, newColor, currentTime);
-          conn.pinColor = newColor;
-        }
+        // Actualizar filtro RC
+        updatePinFilter(conn.filter, newColor, currentTime);
+        conn.pinColor = newColor;
         
         // Actualizar ganancia
-        // conn.gain puede ser el AudioParam (nueva estructura) o el GainNode legacy
-        const gainParam = conn.gain?.gain || conn.gain;
-        if (gainParam?.setValueAtTime) {
-          const newGain = this._getPanel5PinGain(row, col, dest, newColor);
-          gainParam.setValueAtTime(newGain, currentTime);
-          log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0) || 'N/A'} Hz)`);
-        }
+        const newGain = this._getPanel5PinGain(row, col, dest, newColor);
+        conn.gain.gain.setValueAtTime(newGain, currentTime);
+        log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0)} Hz)`);
       }
     };
     
@@ -3029,20 +3017,14 @@ class App {
         const dest = this._panel6Routing?.destMap?.get(col);
         const currentTime = this.engine.audioCtx.currentTime;
         
-        // Actualizar filtro RC (nueva estructura con {filter, gain})
-        if (conn.filter) {
-          updatePinFilter(conn.filter, newColor, currentTime);
-          conn.pinColor = newColor;
-        }
+        // Actualizar filtro RC
+        updatePinFilter(conn.filter, newColor, currentTime);
+        conn.pinColor = newColor;
         
         // Actualizar ganancia
-        // conn.gain puede ser el GainNode (nueva estructura) o legacy
-        const gainParam = conn.gain?.gain || conn.gain;
-        if (gainParam?.setValueAtTime) {
-          const newGain = this._getPanel6PinGain(row, col, dest, newColor);
-          gainParam.setValueAtTime(newGain, currentTime);
-          log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0) || 'N/A'} Hz)`);
-        }
+        const newGain = this._getPanel6PinGain(row, col, dest, newColor);
+        conn.gain.gain.setValueAtTime(newGain, currentTime);
+        log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0)} Hz)`);
       }
     };
     

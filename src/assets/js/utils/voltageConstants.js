@@ -610,3 +610,164 @@ export function createSoftClipCurve(samples = 256, inputLimit = 1.0, softness = 
   
   return curve;
 }
+
+// =============================================================================
+// SUAVIZADO DE FORMAS DE ONDA (Waveform Smoothing)
+// =============================================================================
+//
+// El sistema de suavizado emula dos características eléctricas del Synthi 100:
+//
+// 1. SLEW INHERENTE DEL MÓDULO
+//    Los amplificadores operacionales (CA3140) tienen un slew rate finito que
+//    impide transiciones de voltaje instantáneas. Esto afecta principalmente
+//    a los edges de pulse y el reset de sawtooth.
+//    Referencia: Manual Datanomics 1982 - "la verticalidad está limitada por
+//    el slew rate de los CA3140"
+//
+// 2. INTEGRACIÓN POR RESISTENCIA DE PIN
+//    La resistencia del pin combinada con la capacitancia parásita del bus
+//    de la matriz (~100pF) crea un filtro RC natural que suaviza transitorios.
+//    Referencia: Manual Datanomics 1982 - "con pines de 100k se produce
+//    integración de transitorios rápidos"
+//
+// =============================================================================
+
+/**
+ * Capacitancia parásita estimada del bus de la matriz.
+ * 
+ * Valor derivado del comportamiento descrito en el manual técnico:
+ * - Pin WHITE (100kΩ) produce integración visible
+ * - Pin RED (2.7kΩ) es transparente para el osciloscopio
+ * 
+ * Con C = 100pF:
+ * - fc(WHITE) = 1/(2π×100k×100pF) ≈ 15.9 kHz (suavizado audible)
+ * - fc(RED) = 1/(2π×2.7k×100pF) ≈ 589 kHz (muy por encima del audio)
+ * 
+ * @constant {number} Faradios
+ */
+export const MATRIX_BUS_CAPACITANCE = 100e-12;  // 100 pF
+
+/**
+ * Frecuencia de corte inherente del módulo oscilador.
+ * 
+ * Determinada por el slew rate del CA3140 y circuitos de salida.
+ * Este es el límite superior de velocidad de transición del hardware,
+ * independiente del tipo de pin usado.
+ * 
+ * Con fc ≈ 20 kHz, el rise time 10%-90% es aproximadamente:
+ * t_rise ≈ 2.2 / (2π × fc) ≈ 17.5 µs
+ * 
+ * @constant {number} Hz
+ */
+export const MODULE_INHERENT_CUTOFF = 20000;  // ~20 kHz
+
+/**
+ * Slew rate máximo del módulo Slew Limiter (control voluntario).
+ * 
+ * Este valor es para referencia - el slew limiter del sintetizador
+ * es un módulo separado, no el suavizado inherente del oscilador.
+ * 
+ * Referencia: Manual Datanomics 1982 - "1 V/ms en ajuste rápido"
+ * 
+ * @constant {number} V/ms
+ */
+export const MAX_SLEW_RATE_V_PER_MS = 1.0;
+
+/**
+ * Calcula la frecuencia de corte RC de un pin dado.
+ * 
+ * Fórmula: fc = 1 / (2π × R × C)
+ * 
+ * Esta frecuencia determina el punto donde el filtro RC natural
+ * comienza a atenuar los armónicos de la señal.
+ * 
+ * @param {number} resistance - Resistencia del pin en ohmios
+ * @param {number} [capacitance=MATRIX_BUS_CAPACITANCE] - Capacitancia del bus en faradios
+ * @returns {number} Frecuencia de corte en Hz
+ * 
+ * @example
+ * // Pin WHITE (100kΩ) → ~15.9 kHz
+ * computePinCutoff(100000)  // → 15915.49...
+ * 
+ * // Pin RED (2.7kΩ) → ~589 kHz (bypass efectivo)
+ * computePinCutoff(2700)    // → 589463.05...
+ */
+export function computePinCutoff(resistance, capacitance = MATRIX_BUS_CAPACITANCE) {
+  if (resistance <= 0) {
+    console.warn('Resistencia ≤ 0 no válida para cálculo de cutoff');
+    return Infinity;  // Bypass
+  }
+  return 1 / (2 * Math.PI * resistance * capacitance);
+}
+
+/**
+ * Calcula la frecuencia de corte combinada (módulo + pin).
+ * 
+ * El suavizado total es el efecto combinado del slew inherente del módulo
+ * y el filtro RC del pin. Usamos el mínimo de ambas frecuencias como
+ * aproximación conservadora (el filtro más restrictivo domina).
+ * 
+ * @param {number} moduleCutoff - Frecuencia de corte del módulo en Hz
+ * @param {number} pinCutoff - Frecuencia de corte del pin en Hz
+ * @returns {number} Frecuencia de corte combinada en Hz
+ * 
+ * @example
+ * // Módulo (20 kHz) + Pin WHITE (15.9 kHz) → 15.9 kHz (pin domina)
+ * computeCombinedCutoff(20000, 15915)  // → 15915
+ * 
+ * // Módulo (20 kHz) + Pin RED (589 kHz) → 20 kHz (módulo domina)
+ * computeCombinedCutoff(20000, 589000)  // → 20000
+ */
+export function computeCombinedCutoff(moduleCutoff, pinCutoff) {
+  return Math.min(moduleCutoff, pinCutoff);
+}
+
+/**
+ * Calcula el coeficiente alpha de un filtro one-pole lowpass.
+ * 
+ * El filtro one-pole es: y[n] = α × x[n] + (1 - α) × y[n-1]
+ * 
+ * Donde α = 1 - e^(-2π × fc / fs)
+ * 
+ * Propiedades del coeficiente:
+ * - α = 1: bypass total (salida = entrada)
+ * - α = 0: DC puro (sample & hold)
+ * - α cercano a 1: suavizado leve
+ * - α cercano a 0: suavizado fuerte
+ * 
+ * @param {number} cutoffHz - Frecuencia de corte en Hz
+ * @param {number} sampleRate - Frecuencia de muestreo en Hz
+ * @returns {number} Coeficiente alpha (0-1)
+ * 
+ * @example
+ * // Filtro a 20 kHz con 44.1 kHz sample rate
+ * computeOnePoleAlpha(20000, 44100)  // → ~0.94 (suavizado leve)
+ * 
+ * // Filtro a 1 kHz (suavizado fuerte)
+ * computeOnePoleAlpha(1000, 44100)   // → ~0.13
+ */
+export function computeOnePoleAlpha(cutoffHz, sampleRate) {
+  if (cutoffHz >= sampleRate / 2) return 1.0;  // Bypass (Nyquist o superior)
+  if (cutoffHz <= 0) return 0;  // DC only
+  return 1 - Math.exp(-2 * Math.PI * cutoffHz / sampleRate);
+}
+
+/**
+ * Frecuencias de corte pre-calculadas para cada tipo de pin.
+ * 
+ * Estas constantes permiten evitar cálculos repetidos cuando se conoce
+ * el tipo de pin. Basadas en MATRIX_BUS_CAPACITANCE = 100pF.
+ * 
+ * @constant {Object.<string, number>}
+ */
+export const PIN_CUTOFF_FREQUENCIES = {
+  WHITE:  computePinCutoff(PIN_RESISTANCES.WHITE.value),   // ~15.9 kHz
+  GREY:   computePinCutoff(PIN_RESISTANCES.GREY.value),    // ~15.9 kHz
+  GREEN:  computePinCutoff(PIN_RESISTANCES.GREEN.value),   // ~23.4 kHz
+  RED:    computePinCutoff(PIN_RESISTANCES.RED.value),     // ~589 kHz (bypass)
+  BLUE:   computePinCutoff(PIN_RESISTANCES.BLUE.value),    // ~159 kHz
+  YELLOW: computePinCutoff(PIN_RESISTANCES.YELLOW.value),  // ~72 kHz
+  CYAN:   computePinCutoff(PIN_RESISTANCES.CYAN.value),    // ~6.4 kHz
+  PURPLE: computePinCutoff(PIN_RESISTANCES.PURPLE.value),  // ~1.6 kHz
+  // ORANGE no incluido (resistencia 0, no tiene sentido calcular cutoff)
+};

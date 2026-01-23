@@ -6,7 +6,7 @@ import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
-import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE } from './utils/voltageConstants.js';
+import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
 import { dialToFrequency } from './state/conversions.js';
 
 const log = createLogger('App');
@@ -2477,10 +2477,30 @@ class App {
         return false;
       }
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // CADENA DE AUDIO CON FILTRO RC
+      // ─────────────────────────────────────────────────────────────────────────
+      // Emula el filtro RC natural formado por:
+      // - Resistencia del pin (WHITE=100k, RED=2.7k, etc.)
+      // - Capacitancia parásita del bus de la matriz (~100pF)
+      //
+      // La cadena es: source → pinFilter → gain → destination
+      //
+      // Referencia: Manual Datanomics 1982 - "con pines de 100k se produce
+      // integración de transitorios rápidos"
+      // ─────────────────────────────────────────────────────────────────────────
+      
+      // Crear filtro RC del pin (BiquadFilter lowpass)
+      const pinFilter = createPinFilter(ctx, pinColor || 'GREY');
+      
+      // Crear nodo de ganancia
       const gain = ctx.createGain();
       const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex, dest, pinColor);
       gain.gain.value = pinGainValue;
-      outNode.connect(gain);
+      
+      // Conectar cadena: source → pinFilter → gain → dest
+      outNode.connect(pinFilter);
+      pinFilter.connect(gain);
       
       // Para hard sync, conectar explícitamente al input 0 del AudioWorkletNode
       // connect(dest, outputIndex, inputIndex) - el tercer parámetro es crucial
@@ -2490,7 +2510,13 @@ class App {
         gain.connect(destNode);
       }
       
-      this._panel3Routing.connections[key] = gain;
+      // Guardar referencia a la conexión completa (filtro + gain)
+      // para poder desconectar y actualizar ambos
+      this._panel3Routing.connections[key] = { 
+        filter: pinFilter, 
+        gain: gain,
+        pinColor: pinColor || 'GREY'
+      };
       
       // Notificar al DormancyManager del cambio de conexiones
       this.dormancyManager?.onConnectionChange();
@@ -2500,7 +2526,11 @@ class App {
 
     const conn = this._panel3Routing.connections?.[key];
     if (conn) {
-      safeDisconnect(conn);
+      // Desconectar ambos nodos (filtro y ganancia)
+      if (conn.filter) safeDisconnect(conn.filter);
+      if (conn.gain) safeDisconnect(conn.gain);
+      // Compatibilidad con conexiones legacy (solo GainNode)
+      if (!conn.filter && !conn.gain) safeDisconnect(conn);
       delete this._panel3Routing.connections[key];
       
       // Si era una conexión al osciloscopio, verificar si quedan conexiones
@@ -2799,19 +2829,39 @@ class App {
       }
 
       // ─────────────────────────────────────────────────────────────────────
-      // CREAR CONEXIÓN CON GAINNODE INTERMEDIO
+      // CREAR CONEXIÓN CON FILTRO RC + GAINNODE
       // ─────────────────────────────────────────────────────────────────────
+      // El filtro RC emula la integración por resistencia de pin.
       // El GainNode permite controlar la "profundidad" de modulación
       // mediante las ganancias definidas en panel6.control.config.js
       //
+      // Cadena: source → pinFilter → gain → destination
+      //
+      // Referencia: Manual Datanomics 1982 - "con pines de 100k se produce
+      // integración de transitorios rápidos"
+      // ─────────────────────────────────────────────────────────────────────
+      
+      // Crear filtro RC del pin
+      const pinFilter = createPinFilter(ctx, pinColor || 'GREY');
+      
+      // Crear nodo de ganancia
       const gain = ctx.createGain();
       const pinGainValue = this._getPanel6PinGain(rowIndex, colIndex, dest, pinColor);
       gain.gain.value = pinGainValue;
-      outNode.connect(gain);
-      gain.connect(destNode);
-      this._panel6Routing.connections[key] = gain;
       
-      log.info(` Panel 6: Connected ${source.kind}[${source.oscIndex}] → ${dest.kind}[${dest.oscIndex}] (gain: ${pinGainValue})`);
+      // Conectar cadena: source → pinFilter → gain → dest
+      outNode.connect(pinFilter);
+      pinFilter.connect(gain);
+      gain.connect(destNode);
+      
+      // Guardar referencia completa (filtro + gain + pinColor)
+      this._panel6Routing.connections[key] = {
+        filter: pinFilter,
+        gain: gain,
+        pinColor: pinColor || 'GREY'
+      };
+      
+      log.info(` Panel 6: Connected ${source.kind}[${source.oscIndex ?? source.channel ?? ''}] → ${dest.kind}[${dest.oscIndex ?? dest.busIndex ?? ''}] (gain: ${pinGainValue}, fc: ${PIN_CUTOFF_FREQUENCIES[pinColor || 'GREY']?.toFixed(0)} Hz)`);
       
       // Notificar al DormancyManager del cambio de conexiones
       this.dormancyManager?.onConnectionChange();
@@ -2824,7 +2874,11 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     const conn = this._panel6Routing.connections?.[key];
     if (conn) {
-      safeDisconnect(conn);
+      // Desconectar ambos nodos (filtro y ganancia)
+      if (conn.filter) safeDisconnect(conn.filter);
+      if (conn.gain) safeDisconnect(conn.gain);
+      // Compatibilidad con conexiones legacy (solo GainNode)
+      if (!conn.filter && !conn.gain) safeDisconnect(conn);
       delete this._panel6Routing.connections[key];
       log.info(` Panel 6: Disconnected ${key}`);
       
@@ -2938,30 +2992,57 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // PIN COLOR CHANGE CALLBACK
     // ─────────────────────────────────────────────────────────────────────────
-    // Cuando el usuario cambia el color de un pin activo, actualizar la ganancia
-    // del GainNode existente sin reconectar (para evitar glitches de audio).
+    // Cuando el usuario cambia el color de un pin activo, actualizar:
+    // 1. La frecuencia de corte del filtro RC (emula cambio de resistencia)
+    // 2. La ganancia (fórmula de tierra virtual Rf/Rpin)
     //
     this.largeMatrixAudio.onPinColorChange = (row, col, newColor, btn) => {
       const key = `${row}:${col}`;
       const conn = this._panel3Routing?.connections?.[key];
-      // conn es el GainNode directamente, conn.gain es el AudioParam
-      if (conn?.gain) {
+      
+      if (conn) {
         const dest = this._panel3Routing?.destMap?.get(col);
-        const newGain = this._getPanel5PinGain(row, col, dest, newColor);
-        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
-        log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
+        const currentTime = this.engine.audioCtx.currentTime;
+        
+        // Actualizar filtro RC (nueva estructura con {filter, gain})
+        if (conn.filter) {
+          updatePinFilter(conn.filter, newColor, currentTime);
+          conn.pinColor = newColor;
+        }
+        
+        // Actualizar ganancia
+        // conn.gain puede ser el AudioParam (nueva estructura) o el GainNode legacy
+        const gainParam = conn.gain?.gain || conn.gain;
+        if (gainParam?.setValueAtTime) {
+          const newGain = this._getPanel5PinGain(row, col, dest, newColor);
+          gainParam.setValueAtTime(newGain, currentTime);
+          log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0) || 'N/A'} Hz)`);
+        }
       }
     };
     
     this.largeMatrixControl.onPinColorChange = (row, col, newColor, btn) => {
       const key = `${row}:${col}`;
       const conn = this._panel6Routing?.connections?.[key];
-      // conn es el GainNode directamente, conn.gain es el AudioParam
-      if (conn?.gain) {
+      
+      if (conn) {
         const dest = this._panel6Routing?.destMap?.get(col);
-        const newGain = this._getPanel6PinGain(row, col, dest, newColor);
-        conn.gain.setValueAtTime(newGain, this.engine.audioCtx.currentTime);
-        log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)})`);
+        const currentTime = this.engine.audioCtx.currentTime;
+        
+        // Actualizar filtro RC (nueva estructura con {filter, gain})
+        if (conn.filter) {
+          updatePinFilter(conn.filter, newColor, currentTime);
+          conn.pinColor = newColor;
+        }
+        
+        // Actualizar ganancia
+        // conn.gain puede ser el GainNode (nueva estructura) o legacy
+        const gainParam = conn.gain?.gain || conn.gain;
+        if (gainParam?.setValueAtTime) {
+          const newGain = this._getPanel6PinGain(row, col, dest, newColor);
+          gainParam.setValueAtTime(newGain, currentTime);
+          log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0) || 'N/A'} Hz)`);
+        }
       }
     };
     

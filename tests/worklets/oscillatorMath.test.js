@@ -257,3 +257,137 @@ describe('SynthOscillatorProcessor DSP Logic', () => {
 
   });
 });
+
+// =============================================================================
+// TESTS DEL SISTEMA DE SLEW INHERENTE DEL MÓDULO
+// =============================================================================
+//
+// Verifican que el filtro one-pole se aplica correctamente a pulse y sawtooth
+// para emular el slew rate finito del CA3140 del Synthi 100.
+//
+// Referencia: Manual Datanomics 1982 - "la verticalidad está limitada por el
+// slew rate de los CA3140"
+// =============================================================================
+
+describe('Module Slew (Waveform Smoothing)', () => {
+  
+  describe('_computeOnePoleAlpha()', () => {
+    let processor;
+    
+    before(() => {
+      processor = new SynthOscillatorProcessor();
+    });
+    
+    it('Alpha debe ser ~1 para frecuencia de corte muy alta (bypass)', () => {
+      const alpha = processor._computeOnePoleAlpha(100000, 44100);
+      assert.ok(alpha > 0.99, `Alpha para fc=100kHz debe ser ~1, got ${alpha}`);
+    });
+    
+    it('Alpha debe ser menor para frecuencia de corte baja', () => {
+      const alphaHigh = processor._computeOnePoleAlpha(20000, 44100);
+      const alphaLow = processor._computeOnePoleAlpha(1000, 44100);
+      assert.ok(alphaLow < alphaHigh, 
+        `Alpha bajo (${alphaLow}) debe ser menor que alpha alto (${alphaHigh})`);
+    });
+    
+    it('Alpha = 1 si cutoff >= Nyquist', () => {
+      const alpha = processor._computeOnePoleAlpha(44100, 44100);
+      assert.equal(alpha, 1.0);
+    });
+    
+    it('Alpha = 0 si cutoff <= 0', () => {
+      assert.equal(processor._computeOnePoleAlpha(0, 44100), 0);
+      assert.equal(processor._computeOnePoleAlpha(-100, 44100), 0);
+    });
+  });
+  
+  describe('_applyOnePoleFilter()', () => {
+    let processor;
+    
+    before(() => {
+      processor = new SynthOscillatorProcessor();
+    });
+    
+    it('Alpha=1 debe ser bypass (salida = entrada)', () => {
+      const result = processor._applyOnePoleFilter(0.75, 0.5, 1.0);
+      assert.equal(result, 0.75);
+    });
+    
+    it('Alpha=0 debe mantener valor anterior', () => {
+      const result = processor._applyOnePoleFilter(1.0, 0.5, 0);
+      assert.equal(result, 0.5);
+    });
+    
+    it('Alpha intermedio debe interpolar', () => {
+      const result = processor._applyOnePoleFilter(1.0, 0, 0.5);
+      // y = 0.5 * 1.0 + 0.5 * 0 = 0.5
+      assert.equal(result, 0.5);
+    });
+  });
+  
+  describe('Configuración del slew', () => {
+    
+    it('moduleSlewEnabled debe ser true por defecto', () => {
+      const processor = new SynthOscillatorProcessor();
+      assert.equal(processor.moduleSlewEnabled, true);
+    });
+    
+    it('moduleSlewCutoff debe ser 20000 Hz por defecto', () => {
+      const processor = new SynthOscillatorProcessor();
+      assert.equal(processor.moduleSlewCutoff, 20000);
+    });
+    
+    it('Debe poder desactivar slew via processorOptions', () => {
+      const processor = new SynthOscillatorProcessor({
+        processorOptions: { moduleSlewEnabled: false }
+      });
+      assert.equal(processor.moduleSlewEnabled, false);
+    });
+    
+    it('Debe poder cambiar cutoff via processorOptions', () => {
+      const processor = new SynthOscillatorProcessor({
+        processorOptions: { moduleSlewCutoff: 10000 }
+      });
+      assert.equal(processor.moduleSlewCutoff, 10000);
+    });
+    
+    it('Debe actualizar alpha cuando se cambia cutoff via mensaje', () => {
+      const processor = new SynthOscillatorProcessor();
+      const alphaOriginal = processor.slewAlpha;
+      
+      // Simular mensaje del hilo principal
+      processor.port.onmessage({ data: { type: 'setModuleSlewCutoff', value: 5000 } });
+      
+      assert.equal(processor.moduleSlewCutoff, 5000);
+      assert.ok(processor.slewAlpha < alphaOriginal, 
+        'Alpha debe reducirse con cutoff más bajo');
+    });
+    
+    it('Debe poder habilitar/deshabilitar via mensaje', () => {
+      const processor = new SynthOscillatorProcessor();
+      assert.equal(processor.moduleSlewEnabled, true);
+      
+      processor.port.onmessage({ data: { type: 'setModuleSlewEnabled', enabled: false } });
+      assert.equal(processor.moduleSlewEnabled, false);
+      
+      processor.port.onmessage({ data: { type: 'setModuleSlewEnabled', enabled: true } });
+      assert.equal(processor.moduleSlewEnabled, true);
+    });
+  });
+  
+  describe('Estado del filtro', () => {
+    
+    it('Debe inicializar prevPulseSample y prevSawSample a 0', () => {
+      const processor = new SynthOscillatorProcessor();
+      assert.equal(processor.prevPulseSample, 0);
+      assert.equal(processor.prevSawSample, 0);
+    });
+    
+    it('slewAlpha debe calcularse al construir', () => {
+      const processor = new SynthOscillatorProcessor();
+      // Con 20kHz y 44100 sampleRate, alpha ≈ 0.94
+      assert.ok(processor.slewAlpha > 0.9 && processor.slewAlpha < 1.0,
+        `slewAlpha debe estar entre 0.9 y 1.0, got ${processor.slewAlpha}`);
+    });
+  });
+});

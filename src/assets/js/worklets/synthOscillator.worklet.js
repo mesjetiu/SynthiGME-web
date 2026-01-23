@@ -7,12 +7,21 @@
  * - Pulse width y sine symmetry modulables sin clicks
  * - Anti-aliasing PolyBLEP en todas las discontinuidades
  * - Soporte para hard sync (reset de fase desde señal externa)
+ * - Suavizado de transiciones (slew inherente del módulo)
  * 
  * MODOS DE OPERACIÓN:
  * - 'single': Una forma de onda, 1 salida (compatibilidad legacy)
  * - 'multi': 4 formas de onda, 2 salidas (sine+saw, tri+pulse)
  * 
- * @version 0.4.0 - Fase maestra unificada + preparación hard sync
+ * SUAVIZADO DE FORMAS DE ONDA (Synthi 100 - Datanomics 1982):
+ * Los amplificadores operacionales (CA3140) tienen un slew rate finito que impide
+ * transiciones de voltaje instantáneas. Esto se emula con un filtro one-pole
+ * aplicado a las formas de onda con discontinuidades (pulse, sawtooth).
+ * 
+ * Referencia: Manual Datanomics 1982 - "la verticalidad de la onda cuadrada
+ * está limitada por el slew rate de los CA3140"
+ * 
+ * @version 0.5.0 - Fase maestra unificada + slew inherente del módulo
  */
 
 class SynthOscillatorProcessor extends AudioWorkletProcessor {
@@ -98,6 +107,34 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     // Modo: 'single' (1 waveform, 1 output) o 'multi' (4 waveforms, 2 outputs)
     this.mode = options?.processorOptions?.mode || 'single';
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // SLEW INHERENTE DEL MÓDULO (Suavizado de formas de onda)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Emula el slew rate finito del CA3140 que impide transiciones instantáneas.
+    // Se aplica a pulse y sawtooth (formas con discontinuidades).
+    // 
+    // Frecuencia de corte por defecto: 20 kHz (límite del op-amp CA3140)
+    // 
+    // El filtro one-pole es: y[n] = α × x[n] + (1 - α) × y[n-1]
+    // Donde α = 1 - e^(-2π × fc / fs)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    // Frecuencia de corte inherente del módulo (Hz)
+    // Configurable via processorOptions.moduleSlewCutoff
+    this.moduleSlewCutoff = options?.processorOptions?.moduleSlewCutoff ?? 20000;
+    
+    // Coeficiente alpha del filtro one-pole (se recalcula en process si cambia sampleRate)
+    this.slewAlpha = this._computeOnePoleAlpha(this.moduleSlewCutoff, sampleRate);
+    
+    // Estado del filtro para cada forma de onda que necesita suavizado
+    // (pulse y sawtooth tienen discontinuidades; sine y triangle son inherentemente suaves)
+    this.prevPulseSample = 0;
+    this.prevSawSample = 0;
+    
+    // Flag para habilitar/deshabilitar el suavizado (para A/B testing)
+    this.moduleSlewEnabled = options?.processorOptions?.moduleSlewEnabled ?? true;
+    this.mode = options?.processorOptions?.mode || 'single';
+    
     // Tipo de onda para modo single: 'pulse', 'sine', 'triangle', 'sawtooth'
     this.waveform = options?.processorOptions?.waveform || 'pulse';
     
@@ -149,8 +186,48 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
         this.saturationK = event.data.value;
       } else if (event.data.type === 'setMaxOffset') {
         this.maxOffset = event.data.value;
+      } else if (event.data.type === 'setModuleSlewCutoff') {
+        // Actualizar frecuencia de corte del slew inherente
+        this.moduleSlewCutoff = event.data.value;
+        this.slewAlpha = this._computeOnePoleAlpha(this.moduleSlewCutoff, sampleRate);
+      } else if (event.data.type === 'setModuleSlewEnabled') {
+        // Habilitar/deshabilitar suavizado (para A/B testing)
+        this.moduleSlewEnabled = event.data.enabled;
       }
     };
+  }
+
+  /**
+   * Calcula el coeficiente alpha de un filtro one-pole lowpass.
+   * 
+   * α = 1 - e^(-2π × fc / fs)
+   * 
+   * @param {number} cutoffHz - Frecuencia de corte en Hz
+   * @param {number} sr - Sample rate en Hz
+   * @returns {number} Coeficiente alpha (0-1)
+   * @private
+   */
+  _computeOnePoleAlpha(cutoffHz, sr) {
+    if (cutoffHz >= sr / 2) return 1.0;  // Bypass
+    if (cutoffHz <= 0) return 0;
+    return 1 - Math.exp(-2 * Math.PI * cutoffHz / sr);
+  }
+
+  /**
+   * Aplica filtro one-pole para suavizar transiciones bruscas.
+   * 
+   * y[n] = α × x[n] + (1 - α) × y[n-1]
+   * 
+   * Este filtro emula el slew rate finito del CA3140 del Synthi 100.
+   * 
+   * @param {number} sample - Valor actual
+   * @param {number} prevSample - Valor anterior filtrado
+   * @param {number} alpha - Coeficiente del filtro (0-1)
+   * @returns {number} Valor filtrado
+   * @private
+   */
+  _applyOnePoleFilter(sample, prevSample, alpha) {
+    return alpha * sample + (1 - alpha) * prevSample;
   }
 
   /**
@@ -353,9 +430,19 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
           break;
         case 'sawtooth':
           sample = this.generateSawtooth(this.phase, dt);
+          // Aplicar slew inherente del módulo (suaviza el reset de la sierra)
+          if (this.moduleSlewEnabled) {
+            sample = this._applyOnePoleFilter(sample, this.prevSawSample, this.slewAlpha);
+            this.prevSawSample = sample;
+          }
           break;
-        default:
+        default:  // pulse
           sample = this.generatePulse(this.phase, width, dt);
+          // Aplicar slew inherente del módulo (suaviza los edges del pulso)
+          if (this.moduleSlewEnabled) {
+            sample = this._applyOnePoleFilter(sample, this.prevPulseSample, this.slewAlpha);
+            this.prevPulseSample = sample;
+          }
       }
 
       sample *= gain;
@@ -424,14 +511,30 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
       // Optimización: Reutilizamos el cálculo de triángulo para el seno
       const rawTri = this.generateTriangle(this.phase, dt);
       
+      // Sine: no necesita slew (ya es inherentemente suave)
       const sine = this.generateAsymmetricSine(this.phase, symmetry, rawTri) * sineLevel;
-      const saw = this.generateSawtooth(this.phase, dt) * sawLevel;
+      
+      // Sawtooth: aplicar slew inherente del módulo (suaviza el reset)
+      let sawRaw = this.generateSawtooth(this.phase, dt);
+      if (this.moduleSlewEnabled) {
+        sawRaw = this._applyOnePoleFilter(sawRaw, this.prevSawSample, this.slewAlpha);
+        this.prevSawSample = sawRaw;
+      }
+      const saw = sawRaw * sawLevel;
+      
+      // Triangle: no necesita slew (no tiene discontinuidades)
       const tri = rawTri * triLevel;
-      // 3. Pulse: Shift Phase by +0.25 (90 degrees)
-      // ALINEACIÓN: Centra el estado HIGH del pulso alrededor del ciclo positivo del Seno.
-      // Así, Phase 0 (Sine Peak) = Centro del Pulse HIGH.
-      const pulsePhase = (this.phase + 0.25) % 1; 
-      const pulse = this.generatePulse(pulsePhase, width, dt) * pulseLevel;
+      
+      // Pulse: aplicar slew inherente del módulo (suaviza los edges)
+      // ALINEACIÓN: Shift Phase by +0.25 (90 degrees)
+      // Centra el estado HIGH del pulso alrededor del ciclo positivo del Seno.
+      const pulsePhase = (this.phase + 0.25) % 1;
+      let pulseRaw = this.generatePulse(pulsePhase, width, dt);
+      if (this.moduleSlewEnabled) {
+        pulseRaw = this._applyOnePoleFilter(pulseRaw, this.prevPulseSample, this.slewAlpha);
+        this.prevPulseSample = pulseRaw;
+      }
+      const pulse = pulseRaw * pulseLevel;
 
       // Output 0: sine + saw
       if (output0 && output0[0]) {

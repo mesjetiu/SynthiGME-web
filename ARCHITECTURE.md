@@ -856,13 +856,37 @@ Para el pin WHITE, el pin domina (15.9 kHz < 20 kHz). Para el pin RED, el módul
 
 #### Implementación
 
-El filtrado se implementa como un filtro one-pole lowpass post-worklet:
+El suavizado se implementa en dos niveles:
+
+**1. Slew inherente del módulo (worklet)**
+
+Filtro one-pole dentro del AudioWorklet aplicado a pulse y sawtooth:
 
 $$y[n] = \alpha \cdot x[n] + (1 - \alpha) \cdot y[n-1]$$
 
 Donde $\alpha = 1 - e^{-2\pi \cdot f_c / f_s}$
 
-Los filtros siguen el patrón de dormancia: solo se activan cuando hay una conexión de matriz que usa ese tipo de pin.
+**2. Filtrado RC por pin (matriz)**
+
+Cada conexión de matriz incluye un `BiquadFilterNode` (tipo lowpass) en serie:
+
+```
+source → BiquadFilter (pin RC) → GainNode (Rf/Rpin) → destination
+```
+
+- El filtro usa Q=0.5 para aproximar respuesta de primer orden
+- La frecuencia de corte se configura según `PIN_CUTOFF_FREQUENCIES[pinType]`
+- Al cambiar el color del pin, se actualiza la frecuencia con `setValueAtTime()`
+
+**API de filtrado (voltageConstants.js):**
+
+```javascript
+// Crear filtro para nueva conexión
+const pinFilter = createPinFilter(audioCtx, 'WHITE');
+
+// Actualizar filtro existente (cambio de pin en tiempo real)
+updatePinFilter(pinFilter, 'CYAN', audioCtx.currentTime);
+```
 
 #### Tests y helpers de análisis
 

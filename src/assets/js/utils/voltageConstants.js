@@ -771,3 +771,72 @@ export const PIN_CUTOFF_FREQUENCIES = {
   PURPLE: computePinCutoff(PIN_RESISTANCES.PURPLE.value),  // ~1.6 kHz
   // ORANGE no incluido (resistencia 0, no tiene sentido calcular cutoff)
 };
+
+/**
+ * Crea un BiquadFilterNode configurado para emular el filtro RC del pin.
+ * 
+ * Emula el comportamiento del circuito RC formado por la resistencia del pin
+ * y la capacitancia parásita del bus de la matriz (~100pF).
+ * 
+ * El filtro usa tipo 'lowpass' con Q bajo (0.5) para aproximar la respuesta
+ * de un filtro RC pasivo de primer orden (pendiente de -6dB/octava, aunque
+ * BiquadFilter tiene -12dB/octava, el Q bajo suaviza la transición).
+ * 
+ * NOTAS DE IMPLEMENTACIÓN:
+ * - BiquadFilter es más eficiente que IIRFilter para este caso simple
+ * - Q=0.5 evita resonancia y suaviza la curva de respuesta
+ * - Para pines con fc > Nyquist (RED, BLUE, YELLOW), el filtro es transparente
+ * 
+ * @param {AudioContext} audioContext - Contexto de audio para crear el nodo
+ * @param {string} [pinType='WHITE'] - Tipo de pin (WHITE, GREY, GREEN, RED, etc.)
+ * @returns {BiquadFilterNode} Nodo de filtro configurado
+ * 
+ * @example
+ * // Crear filtro para pin blanco (100kΩ → fc ≈ 15.9kHz)
+ * const filter = createPinFilter(audioCtx, 'WHITE');
+ * source.connect(filter).connect(destination);
+ * 
+ * // Cambiar tipo de pin dinámicamente
+ * filter.frequency.value = PIN_CUTOFF_FREQUENCIES.CYAN;  // 6.4kHz
+ */
+export function createPinFilter(audioContext, pinType = 'WHITE') {
+  const filter = audioContext.createBiquadFilter();
+  filter.type = 'lowpass';
+  
+  // Q bajo para aproximar respuesta de primer orden
+  // Q=0.5 da una curva sin resonancia, más cercana a RC pasivo
+  filter.Q.value = 0.5;
+  
+  // Obtener frecuencia de corte del pin, con fallback a WHITE
+  const cutoff = PIN_CUTOFF_FREQUENCIES[pinType] ?? PIN_CUTOFF_FREQUENCIES.WHITE;
+  
+  // Limitar a Nyquist/2 para evitar inestabilidad
+  // (aunque para RED será ~589kHz que se clampea a Nyquist internamente)
+  filter.frequency.value = cutoff;
+  
+  return filter;
+}
+
+/**
+ * Actualiza la frecuencia de corte de un filtro de pin existente.
+ * 
+ * Útil cuando el usuario cambia el color del pin en tiempo real.
+ * Usa setValueAtTime para evitar glitches de audio.
+ * 
+ * @param {BiquadFilterNode} filter - Filtro a actualizar
+ * @param {string} pinType - Nuevo tipo de pin
+ * @param {number} [time] - Tiempo de AudioContext para el cambio (default: currentTime)
+ * 
+ * @example
+ * // Cambiar pin de WHITE a CYAN en tiempo real
+ * updatePinFilter(filter, 'CYAN', audioCtx.currentTime);
+ */
+export function updatePinFilter(filter, pinType, time = null) {
+  const cutoff = PIN_CUTOFF_FREQUENCIES[pinType] ?? PIN_CUTOFF_FREQUENCIES.WHITE;
+  
+  if (time !== null) {
+    filter.frequency.setValueAtTime(cutoff, time);
+  } else {
+    filter.frequency.value = cutoff;
+  }
+}

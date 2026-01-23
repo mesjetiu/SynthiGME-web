@@ -2199,7 +2199,13 @@ npm run test:all
 Los tests de audio se ejecutan en navegador (Chromium headless) con Web Audio real y `OfflineAudioContext`, validando el comportamiento DSP y de ruteo:
 
 - Ubicación: `tests/audio/`
-  - `worklets/`: verificación de `synthOscillator.worklet.js` (anti‑aliasing PolyBLEP, hard sync, multi‑waveform, timing/latencia)
+  - `worklets/`: verificación de worklets de audio:
+    - `synthOscillator.audio.test.js`: anti‑aliasing PolyBLEP, hard sync, multi‑waveform
+    - `frequencyCV.audio.test.js`: modulación CV 1V/octava
+    - `hardSync.audio.test.js`: hard sync entre osciladores
+    - `waveformAmplitude.audio.test.js`: amplitudes de formas de onda
+    - `cvThermalSlew.audio.test.js`: **slew térmico asimétrico (τ subida=150ms, τ bajada=500ms)**
+    - `hybridClip.audio.test.js`: **saturación híbrida de raíles ±12V (lineal→soft→hard)**
   - `matrix/`: routing de pines y ganancias (valores típicos, linealidad, preservación de señal)
   - `integration/`: recorridos end‑to‑end básicos
   - `harness.html`: página que carga worklets y expone helpers al entorno de test
@@ -2215,7 +2221,7 @@ Opciones útiles:
 - `npm run test:audio:headed` ejecuta con navegador visible
 - `npm run test:audio:debug` activa modo debug del runner
 
-### Cobertura actual (~947 casos)
+### Cobertura actual (~1157 casos)
 
 | Área | Tests | Verificaciones principales |
 |------|-------|---------------------------|
@@ -2228,6 +2234,7 @@ Opciones útiles:
 | `panelBlueprints` | Blueprints y configs | Consistencia, proporciones, parámetros válidos |
 | `state/*` | Sistema de patches | Conversiones, migraciones, validación de esquema, persistencia |
 | `i18n/locales` | Internacionalización | Paridad en/es, claves esenciales, metadatos |
+| **`audio/worklets/*`** | **24 tests Playwright** | **Thermal slew, hybrid clipping, CV, sync, waveforms** |
 | `ui/*` | Componentes de interfaz | Matriz grande, tooltips, PiP, menú de colores |
 | `worklets/*` | Procesadores DSP | Matemáticas de oscilador, formas de onda, PolyBLEP |
 | `utils/*` | Utilidades | Constantes, logging por niveles, `deepMerge()`, voltajes |

@@ -1455,6 +1455,439 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════
+    // TEST: CV THERMAL SLEW
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Testea el efecto de slew térmico en señales CV.
+     * 
+     * Emula la inercia térmica del transistor en VCOs del Synthi 100:
+     * - Calentamiento rápido (subida): τ ≈ 150ms
+     * - Enfriamiento lento (bajada): τ ≈ 500ms
+     * 
+     * @param {Object} config - Configuración del test
+     * @param {number} config.cvStep - Magnitud del salto CV (en unidades digitales)
+     * @param {string} config.direction - 'up' o 'down'
+     * @param {number} [config.threshold=0.5] - Umbral de activación
+     * @param {number} [config.riseTimeConstant=0.15] - Constante de tiempo subida (s)
+     * @param {number} [config.fallTimeConstant=0.5] - Constante de tiempo bajada (s)
+     * @param {number} [config.duration=1.0] - Duración del test en segundos
+     * @param {number} [config.sampleRate=44100] - Sample rate
+     * @returns {Object} Resultados del análisis de slew
+     */
+    window.testThermalSlew = async function(config) {
+      const {
+        cvStep = 2.0,
+        direction = 'up',
+        threshold = 0.5,
+        riseTimeConstant = 0.15,
+        fallTimeConstant = 0.5,
+        duration = 1.0,
+        sampleRate = 44100
+      } = config;
+
+      const length = Math.ceil(sampleRate * duration);
+      const stepSample = Math.floor(sampleRate * 0.1);  // Salto a los 100ms
+
+      log(`Thermal Slew Test: step=${cvStep}, direction=${direction}, threshold=${threshold}`);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CREAR CONTEXTO Y CARGAR WORKLET
+      // ─────────────────────────────────────────────────────────────────────
+      const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/cvThermalSlew.worklet.js');
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CREAR FUENTE CV CON SALTO INSTANTÁNEO
+      // ─────────────────────────────────────────────────────────────────────
+      const cvSource = offline.createConstantSource();
+      if (direction === 'up') {
+        cvSource.offset.setValueAtTime(0, 0);
+        cvSource.offset.setValueAtTime(cvStep, stepSample / sampleRate);
+      } else {
+        cvSource.offset.setValueAtTime(cvStep, 0);
+        cvSource.offset.setValueAtTime(0, stepSample / sampleRate);
+      }
+      cvSource.start();
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CREAR PROCESADOR THERMAL SLEW
+      // ─────────────────────────────────────────────────────────────────────
+      const thermalSlew = new AudioWorkletNode(offline, 'cv-thermal-slew', {
+        processorOptions: {
+          riseTimeConstant,
+          fallTimeConstant
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      thermalSlew.parameters.get('threshold').value = threshold;
+      thermalSlew.parameters.get('enabled').value = 1;
+
+      // Conectar: source → thermal slew → destination
+      cvSource.connect(thermalSlew);
+      thermalSlew.connect(offline.destination);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // RENDERIZAR Y ANALIZAR
+      // ─────────────────────────────────────────────────────────────────────
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // Encontrar tiempo de respuesta: tiempo para alcanzar 63% del target
+      const startIdx = stepSample;
+      const targetValue = direction === 'up' ? cvStep : 0;
+      const startValue = direction === 'up' ? 0 : cvStep;
+      const deltaNeeded = Math.abs(targetValue - startValue) * 0.632;  // 63.2% (1 - e^-1)
+      
+      let settlingIdx = length - 1;
+      for (let i = startIdx; i < samples.length; i++) {
+        const progress = Math.abs(samples[i] - startValue);
+        if (progress >= deltaNeeded) {
+          settlingIdx = i;
+          break;
+        }
+      }
+      const settlingTime = (settlingIdx - startIdx) / sampleRate;
+
+      // Medir valor final
+      const finalValue = samples[samples.length - 1];
+      
+      // Medir si el slew se activó (valor intermedio entre start y target durante transición)
+      const midIdx = startIdx + Math.floor((settlingIdx - startIdx) / 2);
+      const midValue = samples[midIdx];
+      const midExpected = startValue + (targetValue - startValue) * 0.5;
+      const slewActive = Math.abs(midValue - targetValue) > 0.01;
+
+      // Calcular asimetría (ratio de tiempos de respuesta)
+      // Para esto necesitamos medir ambas direcciones si es posible
+      const expectedTimeConstant = direction === 'up' ? riseTimeConstant : fallTimeConstant;
+
+      log(`  Settling time: ${(settlingTime * 1000).toFixed(1)}ms (expected ~${(expectedTimeConstant * 1000).toFixed(0)}ms)`);
+      log(`  Final value: ${finalValue.toFixed(4)} (target: ${targetValue})`);
+
+      return {
+        config: {
+          cvStep,
+          direction,
+          threshold,
+          riseTimeConstant,
+          fallTimeConstant
+        },
+        analysis: {
+          settlingTime,
+          settlingTimeMs: settlingTime * 1000,
+          expectedTimeConstantMs: expectedTimeConstant * 1000,
+          timeConstantRatio: settlingTime / expectedTimeConstant,
+          slewActive,
+          finalValue,
+          targetValue,
+          finalError: Math.abs(finalValue - targetValue)
+        },
+        samples: {
+          beforeStep: samples[startIdx - 10],
+          atStep: samples[startIdx + 1],
+          midSlew: midValue,
+          final: finalValue
+        }
+      };
+    };
+
+    /**
+     * Test de bypass del thermal slew.
+     */
+    window.testThermalSlewBypass = async function(config) {
+      const {
+        cvStep = 2.0,
+        duration = 0.2,
+        sampleRate = 44100
+      } = config;
+
+      const length = Math.ceil(sampleRate * duration);
+      const stepSample = Math.floor(sampleRate * 0.05);
+
+      const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/cvThermalSlew.worklet.js');
+
+      const cvSource = offline.createConstantSource();
+      cvSource.offset.setValueAtTime(0, 0);
+      cvSource.offset.setValueAtTime(cvStep, stepSample / sampleRate);
+      cvSource.start();
+
+      const thermalSlew = new AudioWorkletNode(offline, 'cv-thermal-slew', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      thermalSlew.parameters.get('enabled').value = 0;  // BYPASS
+
+      cvSource.connect(thermalSlew);
+      thermalSlew.connect(offline.destination);
+
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // En bypass, el salto debe ser instantáneo
+      const valueBeforeStep = samples[stepSample - 1];
+      const valueAfterStep = samples[stepSample + 10];
+
+      return {
+        bypass: true,
+        valueBeforeStep,
+        valueAfterStep,
+        expectedBeforeStep: 0,
+        expectedAfterStep: cvStep,
+        instantaneous: Math.abs(valueAfterStep - cvStep) < 0.01
+      };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TEST: HYBRID CLIPPING
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Genera la curva de clipping híbrido (replica de voltageConstants.js).
+     * Tres zonas: lineal → soft (tanh) → hard clip
+     */
+    function createHybridClipCurve(
+      samples = 1024,
+      linearThreshold = 2.25,
+      softThreshold = 2.875,
+      hardLimit = 3.0,
+      softness = 2.0
+    ) {
+      const curve = new Float32Array(samples);
+      const softZoneWidth = hardLimit - linearThreshold;
+      
+      for (let i = 0; i < samples; i++) {
+        const t = i / (samples - 1);
+        const normalizedIndex = 2 * t - 1;
+        const x = normalizedIndex * hardLimit;
+        
+        const absX = Math.abs(x);
+        const sign = x >= 0 ? 1 : -1;
+        
+        let y;
+        
+        if (absX <= linearThreshold) {
+          y = x;
+        } else if (absX < hardLimit) {
+          const excess = absX - linearThreshold;
+          const normalizedExcess = excess / softZoneWidth;
+          const compressedNormalized = Math.tanh(softness * normalizedExcess);
+          let compressedExcess = compressedNormalized * softZoneWidth;
+          compressedExcess = Math.min(compressedExcess, excess);
+          
+          const interpFrac = 0.05;
+          if (normalizedExcess < interpFrac) {
+            const alpha = normalizedExcess / interpFrac;
+            const ySoft = linearThreshold + compressedExcess;
+            const yLinear = absX;
+            y = sign * (yLinear * (1 - alpha) + ySoft * alpha);
+          } else {
+            y = sign * (linearThreshold + compressedExcess);
+          }
+        } else {
+          y = sign * hardLimit;
+        }
+        
+        curve[i] = y;
+      }
+      
+      return curve;
+    }
+
+    /**
+     * Testea el comportamiento del clipping híbrido con señales de audio.
+     * 
+     * Verifica las tres zonas de la curva de saturación:
+     * - Zona lineal: |V| < 9V (2.25 digital) → THD muy bajo
+     * - Zona soft: 9V < |V| < 11.5V → THD moderado (tanh suave)
+     * - Zona hard: |V| > 12V (3.0 digital) → THD alto (clipping duro)
+     * 
+     * NOTA: El WaveShaperNode opera en rango [-1, +1], así que normalizamos
+     * la entrada dividiéndola por hardLimit y luego multiplicamos la salida.
+     * 
+     * @param {Object} config - Configuración del test
+     * @param {number} config.amplitude - Amplitud de entrada (en unidades digitales)
+     * @param {number} [config.frequency=440] - Frecuencia del tono de prueba
+     * @param {number} [config.linearThreshold=2.25] - Umbral zona lineal
+     * @param {number} [config.softThreshold=2.875] - Umbral zona soft
+     * @param {number} [config.hardLimit=3.0] - Límite duro (raíles ±12V)
+     * @param {number} [config.duration=0.5] - Duración en segundos
+     * @param {number} [config.sampleRate=44100] - Sample rate
+     * @returns {Object} Análisis de THD y forma de onda
+     */
+    window.testHybridClipping = async function(config) {
+      const {
+        amplitude = 1.0,
+        frequency = 440,
+        linearThreshold = 2.25,
+        softThreshold = 2.875,
+        hardLimit = 3.0,
+        softness = 2.0,
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      const length = Math.ceil(sampleRate * duration);
+
+      log(`Hybrid Clip Test: amplitude=${amplitude}, freq=${frequency}Hz`);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CREAR CONTEXTO Y WAVESHAPER
+      // ─────────────────────────────────────────────────────────────────────
+      const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+
+      // Crear oscilador limpio
+      const osc = offline.createOscillator();
+      osc.frequency.value = frequency;
+      osc.type = 'sine';
+
+      // El WaveShaperNode opera en [-1, +1]
+      // Nuestra curva está definida para entrada/salida en [-hardLimit, +hardLimit]
+      // Así que normalizamos: entrada_ws = entrada_real / hardLimit
+      //                       salida_real = salida_ws * hardLimit
+      
+      // Pre-gain: escala la amplitud al rango de entrada del WaveShaper
+      // Si amplitude=3.0 y hardLimit=3.0, preGain=1.0 (entrada llega a ±1)
+      // Si amplitude=1.0 y hardLimit=3.0, preGain=0.333 (entrada llega a ±0.333)
+      const preGain = offline.createGain();
+      preGain.gain.value = amplitude / hardLimit;
+
+      // Crear WaveShaper con curva híbrida
+      // La curva mapea [-1,+1] → curva normalizada
+      const shaper = offline.createWaveShaper();
+      shaper.curve = createHybridClipCurve(1024, linearThreshold, softThreshold, hardLimit, softness);
+      shaper.oversample = '2x';
+
+      // Post-gain: NO lo aplicamos para la medición
+      // Queremos medir el output del shaper directamente para comparar con hardLimit
+      
+      // Conectar cadena directa (sin post-gain para medición correcta)
+      osc.connect(preGain);
+      preGain.connect(shaper);
+      shaper.connect(offline.destination);
+      osc.start();
+
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // ANÁLISIS: THD y características
+      // ─────────────────────────────────────────────────────────────────────
+      const spectrum = computeSpectrum(samples, sampleRate);
+      const dominant = findDominantFrequency(spectrum);
+      const thd = measureTHD(spectrum, frequency, 10);
+
+      // Medir pico de salida (del WaveShaper, ya en escala hardLimit)
+      const outputPeak = calculatePeak(samples);
+      const inputPeak = amplitude;
+
+      // Determinar zona de operación basada en la amplitud de entrada
+      let zone;
+      if (amplitude <= linearThreshold) {
+        zone = 'linear';
+      } else if (amplitude <= hardLimit) {
+        zone = 'soft';
+      } else {
+        zone = 'hard';
+      }
+
+      // Calcular compresión (ratio entrada/salida en pico)
+      const compressionRatio = outputPeak > 0 ? inputPeak / outputPeak : 1;
+      
+      // Determinar si está clippeando (output cerca del hardLimit)
+      const isClipping = outputPeak >= hardLimit * 0.95;
+
+      log(`  Zone: ${zone}, THD: ${thd?.toFixed(2)}%, Peak out: ${outputPeak.toFixed(3)}`);
+
+      return {
+        config: {
+          amplitude,
+          frequency,
+          linearThreshold,
+          softThreshold,
+          hardLimit,
+          softness
+        },
+        analysis: {
+          zone,
+          thd,
+          thdPercent: thd,
+          dominantFrequency: dominant?.frequency || 0,
+          inputPeak,
+          outputPeak,
+          compressionRatio,
+          isCompressing: compressionRatio > 1.05,
+          isClipping
+        }
+      };
+    };
+
+    /**
+     * Test de simetría del clipping híbrido.
+     * Verifica que la distorsión es igual para señales positivas y negativas.
+     */
+    window.testHybridClipSymmetry = async function(config) {
+      const {
+        amplitude = 2.5,
+        hardLimit = 3.0,
+        duration = 0.1,
+        sampleRate = 44100
+      } = config;
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+
+      // Crear rampa lineal de -1 a +1 (normalizada)
+      const bufferSource = offline.createBufferSource();
+      const rampBuffer = offline.createBuffer(1, length, sampleRate);
+      const rampData = rampBuffer.getChannelData(0);
+      
+      // La rampa va de -amplitude/hardLimit a +amplitude/hardLimit
+      // para que la entrada al WaveShaper esté correctamente escalada
+      const normalizedAmplitude = amplitude / hardLimit;
+      for (let i = 0; i < length; i++) {
+        rampData[i] = ((i / (length - 1)) * 2 - 1) * normalizedAmplitude;
+      }
+      bufferSource.buffer = rampBuffer;
+
+      const shaper = offline.createWaveShaper();
+      shaper.curve = createHybridClipCurve(1024);
+      shaper.oversample = '2x';
+
+      // Conectar directamente (sin gains)
+      bufferSource.connect(shaper);
+      shaper.connect(offline.destination);
+      bufferSource.start();
+
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // Comparar valores positivos vs negativos (deberían ser simétricos)
+      const midIdx = Math.floor(length / 2);
+      let maxAsymmetry = 0;
+      for (let i = 0; i < midIdx; i++) {
+        const negVal = samples[i];
+        const posVal = samples[length - 1 - i];
+        const asymmetry = Math.abs(Math.abs(negVal) - Math.abs(posVal));
+        if (asymmetry > maxAsymmetry) maxAsymmetry = asymmetry;
+      }
+
+      return {
+        amplitude,
+        maxAsymmetry,
+        isSymmetric: maxAsymmetry < 0.05,  // Tolerancia más amplia
+        samples: {
+          negPeak: Math.min(...samples),
+          posPeak: Math.max(...samples)
+        }
+      };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
     // INICIALIZACIÓN
     // ═══════════════════════════════════════════════════════════════════════
 

@@ -98,6 +98,11 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - **Hard clip** (≥ 12V): Límite absoluto (brick wall), protege contra sobrecarga.
   - **Nueva función**: `createHybridClipCurve()` genera curva para WaveShaperNode con parámetros configurables.
   - **Aplicación**: Se inserta un WaveShaperNode en cada bus de salida de la matriz (`busInput → hybridClipShaper → filterLP`).
+- **Tests de audio para Thermal Slew y Hybrid Clipping (Playwright)**: Suite de 24 tests que validan el comportamiento real de los nuevos efectos DSP:
+  - **CVThermalSlew** (10 tests): Asimetría calentamiento/enfriamiento, umbral de activación, bypass, convergencia, bidireccionalidad.
+  - **HybridClip** (14 tests): Zonas lineal/soft/hard, THD progresivo, simetría bipolar, transiciones, frecuencias variadas.
+  - **Harness extendido**: `testThermalSlew()`, `testThermalSlewBypass()`, `testHybridClipping()`, `testHybridClipSymmetry()`.
+  - **Ejecutar**: `npx playwright test tests/audio/worklets/cvThermalSlew.audio.test.js tests/audio/worklets/hybridClip.audio.test.js --config=tests/audio/playwright.config.js`.
   - **Oversample 2×**: Evita aliasing en las transiciones de saturación.
   - **Configuración**: `audioMatrix.config.js` → `hybridClipping.linearThreshold`, `softThreshold`, `hardLimit`, `softness`, `enabled`.
   - **Referencia técnica**: NotebookLM (Datanomics 1982) - "Los raíles de alimentación de ±12V producen saturación progresiva".

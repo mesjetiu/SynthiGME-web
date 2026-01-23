@@ -43,6 +43,10 @@
 - los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.
 
 
-## README
+## Documentación 
 
-- Añadir referencia a Fuzzy Gab, quien apoya este proyecto y lo difunde.
+- Añadir a README.md referencia a Fuzzy Gab, quien apoya este proyecto y lo difunde.
+
+- Revisar todo el documento ARCHITECTURE.md: errores, omisiones, desactualizaciones... Ha de servir de base a un eventual estudio escrito.
+
+- Repensar README.md. 

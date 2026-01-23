@@ -530,3 +530,307 @@ export function generateReference(type, frequency, duration, sampleRate, options
   
   return samples;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ANÁLISIS TEMPORAL DE TRANSITORIOS
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Funciones para analizar el suavizado de formas de onda, basadas en las
+// características eléctricas del Synthi 100 (Datanomics 1982).
+//
+// Referencias:
+// - El slew rate del CA3140 (op-amp del oscilador) limita pendientes verticales
+// - La impedancia de los pines de matriz (100kΩ, 2.7kΩ, etc.) crea integración RC
+// - Manual técnico: "con pines de 100k se produce integración de transitorios"
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Mide el tiempo de subida (rise time) de una transición en la señal.
+ * 
+ * El rise time se define como el tiempo que tarda la señal en pasar del 10%
+ * al 90% de la amplitud total de la transición. En el hardware del Synthi 100,
+ * este tiempo nunca es cero debido al slew rate finito de los op-amps.
+ * 
+ * Referencia Synthi 100:
+ * - El módulo Slew Limiter tiene un máximo de 1 V/ms (Manual Datanomics)
+ * - Los transitorios del oscilador están limitados por el CA3140
+ * 
+ * @param {Float32Array|number[]} samples - Buffer de audio
+ * @param {number} sampleRate - Frecuencia de muestreo en Hz
+ * @param {Object} [options] - Opciones de análisis
+ * @param {number} [options.lowThreshold=0.1] - Umbral inferior (10% por defecto)
+ * @param {number} [options.highThreshold=0.9] - Umbral superior (90% por defecto)
+ * @param {boolean} [options.findFirst=true] - true: primera transición, false: promedio
+ * @returns {{riseTime: number, riseTimeSamples: number, transitionsFound: number, avgRiseTime: number}}
+ */
+export function measureRiseTime(samples, sampleRate, options = {}) {
+  const {
+    lowThreshold = 0.1,
+    highThreshold = 0.9,
+    findFirst = true
+  } = options;
+  
+  // Encontrar amplitud mínima y máxima para normalizar
+  let minVal = Infinity;
+  let maxVal = -Infinity;
+  for (let i = 0; i < samples.length; i++) {
+    if (samples[i] < minVal) minVal = samples[i];
+    if (samples[i] > maxVal) maxVal = samples[i];
+  }
+  
+  const range = maxVal - minVal;
+  if (range < 0.001) {
+    return { riseTime: 0, riseTimeSamples: 0, transitionsFound: 0, avgRiseTime: 0 };
+  }
+  
+  // Calcular niveles absolutos basados en el rango completo
+  const lowLevel = minVal + range * lowThreshold;
+  const highLevel = minVal + range * highThreshold;
+  
+  const transitions = [];
+  
+  // Buscar transiciones ascendentes (flanco de subida)
+  // Para cada punto que cruza el umbral bajo hacia arriba, buscar
+  // el primer punto que cruza el umbral alto
+  for (let i = 1; i < samples.length; i++) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    
+    // Detectar cruce ascendente del umbral bajo
+    // También cuenta si el sample anterior estaba por debajo y el actual ya pasó ambos umbrales
+    // (transición instantánea en onda cuadrada)
+    if (prev <= lowLevel && curr > lowLevel) {
+      const riseStartIndex = i;
+      
+      // Si ya pasó el umbral alto en el mismo sample (transición instantánea)
+      if (curr >= highLevel) {
+        transitions.push(1);  // Rise time = 1 sample (instantáneo)
+        if (findFirst) break;
+        continue;
+      }
+      
+      // Buscar el cruce del umbral alto
+      for (let j = i + 1; j < samples.length; j++) {
+        const prevJ = samples[j - 1];
+        const currJ = samples[j];
+        
+        // Si baja por debajo del umbral bajo, abortamos esta transición
+        if (currJ <= lowLevel) break;
+        
+        // Cruce ascendente del umbral alto
+        if (prevJ < highLevel && currJ >= highLevel) {
+          const riseTimeSamples = j - riseStartIndex + 1;
+          transitions.push(riseTimeSamples);
+          if (findFirst) break;
+          break;
+        }
+      }
+      
+      if (findFirst && transitions.length > 0) break;
+    }
+  }
+  
+  if (transitions.length === 0) {
+    return { riseTime: 0, riseTimeSamples: 0, transitionsFound: 0, avgRiseTime: 0 };
+  }
+  
+  const firstRiseSamples = transitions[0];
+  const avgRiseSamples = transitions.reduce((a, b) => a + b, 0) / transitions.length;
+  
+  return {
+    riseTime: firstRiseSamples / sampleRate,
+    riseTimeSamples: firstRiseSamples,
+    transitionsFound: transitions.length,
+    avgRiseTime: avgRiseSamples / sampleRate
+  };
+}
+
+/**
+ * Mide el tiempo de bajada (fall time) de una transición en la señal.
+ * Complementario a measureRiseTime para análisis simétrico.
+ * 
+ * @param {Float32Array|number[]} samples - Buffer de audio
+ * @param {number} sampleRate - Frecuencia de muestreo en Hz
+ * @param {Object} [options] - Opciones (mismas que measureRiseTime)
+ * @returns {{fallTime: number, fallTimeSamples: number, transitionsFound: number, avgFallTime: number}}
+ */
+export function measureFallTime(samples, sampleRate, options = {}) {
+  const {
+    lowThreshold = 0.1,
+    highThreshold = 0.9,
+    findFirst = true
+  } = options;
+  
+  let minVal = Infinity;
+  let maxVal = -Infinity;
+  for (let i = 0; i < samples.length; i++) {
+    if (samples[i] < minVal) minVal = samples[i];
+    if (samples[i] > maxVal) maxVal = samples[i];
+  }
+  
+  const range = maxVal - minVal;
+  if (range < 0.001) {
+    return { fallTime: 0, fallTimeSamples: 0, transitionsFound: 0, avgFallTime: 0 };
+  }
+  
+  const lowLevel = minVal + range * lowThreshold;
+  const highLevel = minVal + range * highThreshold;
+  
+  const transitions = [];
+  let fallStartIndex = -1;
+  
+  for (let i = 1; i < samples.length; i++) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    
+    // Detectar cruce descendente sobre highLevel (inicio de bajada)
+    if (curr <= highLevel && prev > highLevel && fallStartIndex === -1) {
+      fallStartIndex = i;
+    }
+    // Detectar cruce descendente sobre lowLevel (fin de bajada)
+    else if (fallStartIndex !== -1 && curr <= lowLevel && prev > lowLevel) {
+      const fallTimeSamples = i - fallStartIndex;
+      transitions.push(fallTimeSamples);
+      fallStartIndex = -1;
+      
+      if (findFirst) break;
+    }
+    // Reset si sube por encima del umbral alto
+    else if (curr > highLevel) {
+      fallStartIndex = -1;
+    }
+  }
+  
+  if (transitions.length === 0) {
+    return { fallTime: 0, fallTimeSamples: 0, transitionsFound: 0, avgFallTime: 0 };
+  }
+  
+  const firstFallSamples = transitions[0];
+  const avgFallSamples = transitions.reduce((a, b) => a + b, 0) / transitions.length;
+  
+  return {
+    fallTime: firstFallSamples / sampleRate,
+    fallTimeSamples: firstFallSamples,
+    transitionsFound: transitions.length,
+    avgFallTime: avgFallSamples / sampleRate
+  };
+}
+
+/**
+ * Calcula la energía espectral en una banda de frecuencias alta.
+ * 
+ * Útil para cuantificar el contenido armónico de alta frecuencia que
+ * debería ser atenuado por el suavizado de formas de onda. En el Synthi 100,
+ * la capacitancia parásita de la matriz (~100pF) combinada con la resistencia
+ * de los pines crea un filtro RC natural que atenúa estos armónicos.
+ * 
+ * Referencia Synthi 100:
+ * - Pin blanco (100kΩ): fc ≈ 15.9 kHz (atenúa armónicos de audio alto)
+ * - Pin rojo (2.7kΩ): fc ≈ 589 kHz (transparente en rango audible)
+ * 
+ * @param {Array} spectrum - Espectro calculado por computeSpectrum()
+ * @param {number} cutoffHz - Frecuencia de corte inferior de la banda
+ * @param {Object} [options] - Opciones adicionales
+ * @param {number} [options.upperLimitHz=Infinity] - Límite superior de la banda
+ * @returns {{energy: number, energyDb: number, binCount: number, avgMagnitude: number}}
+ */
+export function measureHighFrequencyEnergy(spectrum, cutoffHz, options = {}) {
+  const { upperLimitHz = Infinity } = options;
+  
+  let energy = 0;
+  let binCount = 0;
+  let magnitudeSum = 0;
+  
+  for (const bin of spectrum) {
+    if (bin.frequency >= cutoffHz && bin.frequency <= upperLimitHz) {
+      energy += bin.magnitude * bin.magnitude;
+      magnitudeSum += bin.magnitude;
+      binCount++;
+    }
+  }
+  
+  const avgMagnitude = binCount > 0 ? magnitudeSum / binCount : 0;
+  const energyDb = 10 * Math.log10(energy + 1e-10);
+  
+  return {
+    energy,
+    energyDb,
+    binCount,
+    avgMagnitude
+  };
+}
+
+/**
+ * Compara espectros antes y después de filtrado para verificar atenuación.
+ * 
+ * Calcula la diferencia en dB por banda de frecuencia, útil para verificar
+ * que el suavizado de forma de onda está atenuando correctamente los
+ * armónicos de alta frecuencia sin afectar las frecuencias bajas.
+ * 
+ * @param {Array} spectrumBefore - Espectro sin filtrar
+ * @param {Array} spectrumAfter - Espectro después de filtrado
+ * @param {Object} [options] - Opciones de análisis
+ * @param {number[]} [options.bandEdges=[100, 1000, 5000, 10000, 15000]] - Límites de bandas en Hz
+ * @returns {Array<{bandStart: number, bandEnd: number, attenuationDb: number}>}
+ */
+export function compareSpectraAttenuation(spectrumBefore, spectrumAfter, options = {}) {
+  const { bandEdges = [100, 1000, 5000, 10000, 15000, 20000] } = options;
+  
+  const bands = [];
+  
+  for (let i = 0; i < bandEdges.length - 1; i++) {
+    const bandStart = bandEdges[i];
+    const bandEnd = bandEdges[i + 1];
+    
+    const energyBefore = measureHighFrequencyEnergy(spectrumBefore, bandStart, { upperLimitHz: bandEnd });
+    const energyAfter = measureHighFrequencyEnergy(spectrumAfter, bandStart, { upperLimitHz: bandEnd });
+    
+    // Atenuación positiva = energía reducida
+    const attenuationDb = energyBefore.energyDb - energyAfter.energyDb;
+    
+    bands.push({
+      bandStart,
+      bandEnd,
+      attenuationDb,
+      energyBefore: energyBefore.energyDb,
+      energyAfter: energyAfter.energyDb
+    });
+  }
+  
+  return bands;
+}
+
+/**
+ * Calcula la frecuencia de corte RC teórica para un pin dado.
+ * 
+ * Fórmula: fc = 1 / (2π × R × C)
+ * 
+ * Basado en el modelo de la matriz del Synthi 100 donde cada pin
+ * forma un filtro RC con la capacitancia parásita del bus.
+ * 
+ * @param {number} resistance - Resistencia del pin en ohmios
+ * @param {number} [capacitance=100e-12] - Capacitancia del bus en faradios (100pF por defecto)
+ * @returns {number} Frecuencia de corte en Hz
+ */
+export function calculateRCCutoffFrequency(resistance, capacitance = 100e-12) {
+  return 1 / (2 * Math.PI * resistance * capacitance);
+}
+
+/**
+ * Constantes de frecuencia de corte pre-calculadas para los pines estándar.
+ * Basado en capacitancia de bus estimada de 100pF.
+ * 
+ * Referencia Synthi 100 (Manual Datanomics 1982):
+ * - El manual advierte que pines de 100kΩ producen "integración" visible
+ * - El pin rojo de 2.7kΩ se usa para osciloscopio sin integración
+ */
+export const PIN_CUTOFF_FREQUENCIES = {
+  WHITE: calculateRCCutoffFrequency(100000),     // ~15.9 kHz
+  GREY: calculateRCCutoffFrequency(100000),      // ~15.9 kHz
+  GREEN: calculateRCCutoffFrequency(68000),      // ~23.4 kHz
+  RED: calculateRCCutoffFrequency(2700),         // ~589 kHz (bypass)
+  BLUE: calculateRCCutoffFrequency(10000),       // ~159 kHz
+  YELLOW: calculateRCCutoffFrequency(22000),     // ~72 kHz
+  CYAN: calculateRCCutoffFrequency(250000),      // ~6.4 kHz
+  PURPLE: calculateRCCutoffFrequency(1000000)    // ~1.6 kHz
+};

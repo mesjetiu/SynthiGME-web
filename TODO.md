@@ -1,4 +1,6 @@
-## Oscilador:
+## Oscilador/matriz:
+
+- Implementar, testar y bien documentar todas las distorsiones y limites por voltajes, impedancias, etc. Servirá de base de la arquitectura global del synthi y de próximos módulos.
 
 
 ## Osciloscopio:

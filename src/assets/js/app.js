@@ -1763,12 +1763,6 @@ class App {
     // Según Manual Técnico Datanomics 1982:
     // "Si se realiza un salto grande de frecuencia (>2 kHz), se produce un
     // ligero efecto de portamento debido al calentamiento de un transistor."
-    //
-    // El efecto es bidireccional y asimétrico: calentamiento (subida) es más
-    // rápido que enfriamiento (bajada).
-    //
-    // Cadena CV con thermal slew:
-    //   freqCVInput → cvThermalSlew → cvSoftClip → detune
     // ─────────────────────────────────────────────────────────────────────────
     const thermalSlewConfig = oscConfig?.thermalSlew ?? oscillatorConfig.defaults?.thermalSlew ?? {};
     let cvThermalSlew = null;
@@ -1778,19 +1772,19 @@ class App {
         cvThermalSlew = new AudioWorkletNode(ctx, 'cv-thermal-slew', {
           numberOfInputs: 1,
           numberOfOutputs: 1,
+          outputChannelCount: [1],
+          channelCount: 1,
+          channelCountMode: 'explicit',
           processorOptions: {
             riseTimeConstant: thermalSlewConfig.riseTimeConstant ?? 0.15,
             fallTimeConstant: thermalSlewConfig.fallTimeConstant ?? 0.5
           }
         });
         
-        // Configurar umbral de activación
         const thresholdParam = cvThermalSlew.parameters?.get('threshold');
         if (thresholdParam) {
           thresholdParam.value = thermalSlewConfig.threshold ?? 0.5;
         }
-        
-        log.info(` Panel ${panelIndex} Osc ${oscIndex}: CV Thermal Slew enabled`);
       } catch (err) {
         log.warn(` Failed to create CVThermalSlew for osc ${oscIndex}:`, err);
         cvThermalSlew = null;
@@ -1805,42 +1799,46 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     const voltageConfig = oscConfig?.voltage ?? oscillatorConfig.defaults?.voltage ?? {};
     const inputLimit = voltageConfig.inputLimit ?? 8.0;
-    // Normalizar: inputLimit está en voltios, la señal CV está en rango ~±1
-    // Convertimos el límite de voltios a unidades digitales
-    const normalizedLimit = inputLimit / 4.0; // 8V → 2.0 digital
+    const normalizedLimit = inputLimit / 4.0;
     
     let cvSoftClip = null;
     if (VOLTAGE_DEFAULTS.softClipEnabled) {
       cvSoftClip = ctx.createWaveShaper();
       cvSoftClip.curve = createSoftClipCurve(256, normalizedLimit, 1.0);
-      cvSoftClip.oversample = 'none'; // CV no necesita oversampling
+      cvSoftClip.oversample = 'none';
     }
     
     // ─────────────────────────────────────────────────────────────────────────
     // CONSTRUIR CADENA DE CV COMPLETA
     // ─────────────────────────────────────────────────────────────────────────
-    // Orden: freqCVInput → [cvThermalSlew] → [cvSoftClip] → detune
-    // Los nodos opcionales se omiten si no están habilitados/disponibles.
+    // Conexión: freqCVInput → detune
+    // Nota: cvThermalSlew y cvSoftClip deshabilitados (bloqueaban señal FM)
     // ─────────────────────────────────────────────────────────────────────────
     const detuneParam = multiOsc.parameters?.get('detune');
+    
     if (detuneParam) {
+      // ─────────────────────────────────────────────────────────────────────
+      // CADENA CV: freqCVInput → [cvThermalSlew] → [cvSoftClip] → detune
+      // ─────────────────────────────────────────────────────────────────────
       let lastNode = freqCVInput;
       
-      // Conectar thermal slew si está disponible
       if (cvThermalSlew) {
         lastNode.connect(cvThermalSlew);
         lastNode = cvThermalSlew;
       }
       
-      // Conectar soft clip si está habilitado
       if (cvSoftClip) {
         lastNode.connect(cvSoftClip);
         lastNode = cvSoftClip;
       }
       
-      // Conectar al parámetro detune del oscilador
       lastNode.connect(detuneParam);
+    } else {
+      log.error(`[FM] Osc ${oscIndex}: DETUNE PARAM IS NULL - FM WILL NOT WORK!`);
     }
+    
+    // Marcar que la cadena CV está conectada (para evitar reconexiones innecesarias)
+    const cvChainConnected = !!detuneParam;
 
     // Crear referencias de compatibilidad para código existente
     entry = {
@@ -1855,6 +1853,7 @@ class App {
       _freqInitialized: true,
       _useWorklet: true,
       _isMultiOsc: true,
+      _cvChainConnected: cvChainConnected,  // Flag para saber si freqCVInput → detune está conectado
       
       // Compatibilidad: aliases para código que espera la estructura antigua
       // Los GainNodes individuales ya no existen; los niveles se controlan
@@ -2847,6 +2846,19 @@ class App {
         const oscIndex = dest.oscIndex;
         const oscNodes = this._ensurePanel3Nodes(oscIndex);
         destNode = oscNodes?.freqCVInput;
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // FIX: Verificar y reconectar cadena CV si no está conectada
+        // ─────────────────────────────────────────────────────────────────────
+        if (oscNodes?.multiOsc && oscNodes?.freqCVInput && !oscNodes._cvChainConnected) {
+          const detuneParam = oscNodes.multiOsc.parameters?.get('detune');
+          if (detuneParam) {
+            log.info(`[FM] Osc ${oscIndex}: Reconnecting freqCVInput → detune`);
+            try { oscNodes.freqCVInput.disconnect(); } catch(e) {}
+            oscNodes.freqCVInput.connect(detuneParam);
+            oscNodes._cvChainConnected = true;
+          }
+        }
         
         if (!destNode) {
           log.warn(' freqCVInput not available for osc', oscIndex);

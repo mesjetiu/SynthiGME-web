@@ -812,6 +812,71 @@ Los eventos de cambio se emiten cuando el usuario modifica las opciones:
 - `synth:voltagePinToleranceChange`
 - `synth:voltageThermalDriftChange`
 
+### 3.8.11 Suavizado de Formas de Onda (Waveform Smoothing)
+
+El sistema de suavizado emula dos características eléctricas del Synthi 100 real que impiden transiciones verticales instantáneas:
+
+1. **Slew inherente del módulo**: Los amplificadores operacionales (CA3140) tienen un slew rate finito
+2. **Integración por resistencia de pin**: La resistencia del pin + capacitancia parásita del bus (~100pF) crean un filtro RC natural
+
+#### Referencias técnicas (Manual Datanomics 1982)
+
+> "La verticalidad de la onda cuadrada está limitada por el slew rate de los CA3140"
+>
+> "Con pines de 100kΩ se produce integración o redondeo de los transitorios rápidos. Por ello se usa el pin rojo de 2.7kΩ para el osciloscopio"
+>
+> "El módulo Slew Limiter tiene un ajuste rápido de 1 V/ms"
+
+#### Frecuencias de corte por tipo de pin
+
+La frecuencia de corte se calcula como: $f_c = \frac{1}{2\pi \cdot R_{pin} \cdot C_{bus}}$
+
+Donde $C_{bus} \approx 100pF$ (capacitancia parásita estimada de la matriz).
+
+| Pin | Resistencia | Frecuencia de corte | Efecto audible |
+|-----|-------------|---------------------|----------------|
+| **WHITE** | 100kΩ | ~15.9 kHz | Suavizado notable en alta frecuencia |
+| **GREY** | 100kΩ | ~15.9 kHz | Igual que blanco |
+| **GREEN** | 68kΩ | ~23.4 kHz | Suavizado leve |
+| **RED** | 2.7kΩ | ~589 kHz | Prácticamente transparente (bypass) |
+| **BLUE** | 10kΩ | ~159 kHz | Casi transparente |
+| **YELLOW** | 22kΩ | ~72 kHz | Transparente en rango audible |
+| **CYAN** | 250kΩ | ~6.4 kHz | Suavizado fuerte (filtra brillo) |
+| **PURPLE** | 1MΩ | ~1.6 kHz | Suavizado muy fuerte |
+
+#### Frecuencia de corte combinada
+
+El suavizado total combina el slew del módulo (~20 kHz) con el filtrado del pin. Se usa el mínimo de ambas frecuencias:
+
+```javascript
+const combinedCutoff = Math.min(MODULE_INHERENT_CUTOFF, pinCutoffFrequency);
+```
+
+Para el pin WHITE, el pin domina (15.9 kHz < 20 kHz). Para el pin RED, el módulo domina (20 kHz < 589 kHz).
+
+#### Implementación
+
+El filtrado se implementa como un filtro one-pole lowpass post-worklet:
+
+$$y[n] = \alpha \cdot x[n] + (1 - \alpha) \cdot y[n-1]$$
+
+Donde $\alpha = 1 - e^{-2\pi \cdot f_c / f_s}$
+
+Los filtros siguen el patrón de dormancia: solo se activan cuando hay una conexión de matriz que usa ese tipo de pin.
+
+#### Tests y helpers de análisis
+
+El módulo `tests/audio/spectralAnalysis.js` incluye funciones para verificar el suavizado:
+
+| Función | Propósito |
+|---------|-----------|
+| `measureRiseTime(samples, sampleRate)` | Mide el tiempo de subida 10%-90% de transiciones |
+| `measureFallTime(samples, sampleRate)` | Mide el tiempo de bajada |
+| `measureHighFrequencyEnergy(spectrum, cutoffHz)` | Cuantifica energía en banda alta |
+| `compareSpectraAttenuation(before, after)` | Compara atenuación por banda |
+| `calculateRCCutoffFrequency(R, C)` | Calcula fc teórica |
+| `PIN_CUTOFF_FREQUENCIES` | Constantes pre-calculadas por tipo de pin |
+
 ---
 
 ## 4. Sistema de Patches/Estados

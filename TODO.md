@@ -2,6 +2,25 @@
 
 - Implementar, testar y bien documentar todas las distorsiones y limites por voltajes, impedancias, etc. Servirá de base de la arquitectura global del synthi y de próximos módulos.
 
+### Intermodulación entre osciladores (futuro)
+
+Según el Manual Técnico Datanomics 1982, al combinar múltiples formas de onda del 
+mismo oscilador (por ejemplo, seno + sierra), se produce un efecto de intermodulación
+debido a la saturación en los amplificadores de suma (I/C 6 e I/C 7).
+
+**Comportamiento esperado:**
+- La suma de formas de onda no es perfectamente lineal
+- Aparecen componentes armónicos adicionales (distorsión por intermodulación)
+- El efecto es más pronunciado cuando la suma se acerca a los raíles (±12V)
+
+**Implementación propuesta:**
+- Aplicar saturación (tanh o similar) DESPUÉS de sumar las formas de onda
+- Usar los parámetros de `hybridClipping` de audioMatrix.config.js
+- Calibrar contra el hardware real si es posible
+
+**Prioridad:** Baja - el efecto es sutil y solo audible con amplitudes altas.
+**Dependencias:** Requiere que `hybridClipping` esté integrado en el grafo de audio.
+
 
 ## Osciloscopio:
 

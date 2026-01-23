@@ -235,6 +235,58 @@ export default {
     },
 
     // ·······································································
+    // SUAVIZADO INHERENTE DEL MÓDULO (Module Slew)
+    // ·······································································
+    //
+    // Emula el slew rate finito del op-amp CA3140 en la salida de los VCO.
+    // Los circuitos analógicos no pueden producir transiciones instantáneas;
+    // el CA3140 tiene un slew rate típico de ~9 V/µs que limita la pendiente
+    // de las formas de onda en alta frecuencia.
+    //
+    // Este suavizado se aplica SOLO a las formas con discontinuidades teóricas:
+    // - Pulse (flancos verticales)
+    // - Sawtooth (retroceso vertical)
+    //
+    // Sine y Triangle son inherentemente suaves y no necesitan este filtro.
+    //
+    // IMPLEMENTACIÓN:
+    // Se usa un filtro one-pole (RC digital) en el AudioWorklet:
+    //   y[n] = α × x[n] + (1 - α) × y[n-1]
+    //   donde α = 1 - e^(-2π × fc / fs)
+    //
+    // REFERENCIA:
+    // - CA3140 datasheet: Slew Rate = 9 V/µs típico
+    // - Calculado como fc ≈ slew_rate / (2π × Vpp) ≈ 20 kHz para 8V p-p
+    //
+    moduleSlew: {
+      // ─────────────────────────────────────────────────────────────────────
+      // FRECUENCIA DE CORTE (cutoffHz)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Frecuencia de corte del filtro one-pole que emula el slew rate.
+      // Valores más bajos = más suavizado, bordes más redondeados.
+      //
+      // | cutoffHz | Comportamiento                                          |
+      // |----------|--------------------------------------------------------|
+      // |   5000   | Muy suave, pérdida notable de agudos                    |
+      // |  10000   | Suavizado pronunciado, carácter "cálido"                |
+      // |  20000   | DEFAULT - Emula CA3140 a 8V p-p                         |
+      // |  40000   | Suavizado sutil, conserva más armónicos                 |
+      // |  48000   | Mínimo efecto (cercano a Nyquist/2)                     |
+      //
+      cutoffHz: 20000,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // HABILITACIÓN (enabled)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Permite desactivar el suavizado para A/B testing o debugging.
+      // En producción siempre debe estar true para emulación fiel.
+      //
+      enabled: true
+    },
+
+    // ·······································································
     // DISTORSIÓN DE TRACKING (Tracking Error del VCO)
     // ·······································································
     //

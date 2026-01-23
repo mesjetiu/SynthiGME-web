@@ -262,9 +262,23 @@ describe('Pin Filter Factory (createPinFilter)', () => {
     assert.equal(filterRed.frequency.value, PIN_CUTOFF_FREQUENCIES.RED);
   });
   
-  it('Debe usar Q=0.5 para emular respuesta de primer orden', () => {
+  it('Debe usar Q=0.5 por defecto para emular respuesta de primer orden', () => {
     const filter = createPinFilter(mockAudioContext, 'WHITE');
     assert.equal(filter.Q.value, 0.5);
+  });
+
+  it('Debe aceptar filterQ como tercer parámetro (desde audioMatrix.config.js)', () => {
+    // Q por defecto
+    const filterDefault = createPinFilter(mockAudioContext, 'WHITE');
+    assert.equal(filterDefault.Q.value, 0.5, 'Q por defecto debe ser 0.5');
+
+    // Q custom bajo (más parecido a RC pasivo)
+    const filterLowQ = createPinFilter(mockAudioContext, 'WHITE', 0.25);
+    assert.equal(filterLowQ.Q.value, 0.25, 'Q custom 0.25 debe aplicarse');
+
+    // Q Butterworth
+    const filterButterworth = createPinFilter(mockAudioContext, 'WHITE', 0.707);
+    assert.equal(filterButterworth.Q.value, 0.707, 'Q Butterworth debe aplicarse');
   });
   
   it('Pin RED debe configurar frecuencia muy alta (bypass efectivo)', () => {
@@ -272,6 +286,7 @@ describe('Pin Filter Factory (createPinFilter)', () => {
     // RED ~589kHz, muy por encima del rango audible
     assert.ok(filter.frequency.value > 500000, 
       `RED filter should have very high cutoff, got ${filter.frequency.value}`);
+  });
   });
   
   it('Debe manejar pinType desconocido con fallback a WHITE', () => {

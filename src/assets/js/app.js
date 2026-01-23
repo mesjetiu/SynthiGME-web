@@ -1705,6 +1705,8 @@ class App {
     const oscConfig = this._getOscConfig(oscIndex);
     const sineShape = oscConfig?.sineShape ?? oscillatorConfig.defaults?.sineShape ?? {};
     const audioConfig = oscConfig?.audio ?? oscillatorConfig.defaults?.audio ?? {};
+    // Suavizado inherente del módulo (emula slew rate del CA3140)
+    const moduleSlew = oscConfig?.moduleSlew ?? oscillatorConfig.defaults?.moduleSlew ?? {};
 
     const multiOsc = this.engine.createMultiOscillator({
       frequency: state.freq || 10,
@@ -1720,7 +1722,10 @@ class App {
       saturationK: sineShape.saturationK ?? 1.55,
       maxOffset: sineShape.maxOffset ?? 0.85,
       // Tiempo de suavizado para cambios de parámetros
-      smoothingTime: audioConfig.smoothingTime ?? 0.01
+      smoothingTime: audioConfig.smoothingTime ?? 0.01,
+      // Suavizado inherente del módulo (oscillator.config.js moduleSlew)
+      moduleSlewCutoff: moduleSlew.cutoffHz ?? 20000,
+      moduleSlewEnabled: moduleSlew.enabled ?? true
     });
 
     if (!multiOsc) return null;
@@ -2491,7 +2496,9 @@ class App {
       // ─────────────────────────────────────────────────────────────────────────
       
       // Crear filtro RC del pin (BiquadFilter lowpass)
-      const pinFilter = createPinFilter(ctx, pinColor || 'GREY');
+      // El Q se lee de audioMatrixConfig.pinFiltering.filterQ
+      const pinFilterQ = audioMatrixConfig?.pinFiltering?.filterQ ?? 0.5;
+      const pinFilter = createPinFilter(ctx, pinColor || 'GREY', pinFilterQ);
       
       // Crear nodo de ganancia
       const gain = ctx.createGain();
@@ -2839,7 +2846,9 @@ class App {
       // ─────────────────────────────────────────────────────────────────────
       
       // Crear filtro RC del pin
-      const pinFilter = createPinFilter(ctx, pinColor || 'GREY');
+      // El Q se lee de audioMatrixConfig.pinFiltering.filterQ
+      const pinFilterQ = audioMatrixConfig?.pinFiltering?.filterQ ?? 0.5;
+      const pinFilter = createPinFilter(ctx, pinColor || 'GREY', pinFilterQ);
       
       // Crear nodo de ganancia
       const gain = ctx.createGain();

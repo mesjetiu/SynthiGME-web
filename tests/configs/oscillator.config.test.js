@@ -253,6 +253,52 @@ describe('Parámetros de audio del oscilador', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Suavizado inherente del módulo (oscillatorConfig.defaults.moduleSlew)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Emula el slew rate finito del op-amp CA3140 en la salida de los VCO.
+// Se aplica a pulse y sawtooth (formas con discontinuidades).
+// Ver oscillator.config.js para documentación completa.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Suavizado inherente del módulo (moduleSlew)', () => {
+  const { moduleSlew } = oscillatorConfig.defaults;
+
+  it('tiene sección moduleSlew definida', () => {
+    assert.ok(typeof moduleSlew === 'object',
+      'oscillatorConfig.defaults debe tener sección moduleSlew');
+  });
+
+  describe('moduleSlew.cutoffHz', () => {
+    it('está definido como número', () => {
+      assert.ok(typeof moduleSlew.cutoffHz === 'number');
+    });
+
+    it('valor por defecto es 20000 Hz (límite del CA3140)', () => {
+      // Basado en slew rate del CA3140: ~9 V/µs → fc ≈ 20kHz para 8V p-p
+      assert.strictEqual(moduleSlew.cutoffHz, 20000);
+    });
+
+    it('está en rango audible alto (5kHz - 48kHz)', () => {
+      const fc = moduleSlew.cutoffHz;
+      assert.ok(fc >= 5000, 'cutoffHz debe ser >= 5kHz');
+      assert.ok(fc <= 48000, 'cutoffHz debe ser <= 48kHz (Nyquist típico)');
+    });
+  });
+
+  describe('moduleSlew.enabled', () => {
+    it('está definido como booleano', () => {
+      assert.ok(typeof moduleSlew.enabled === 'boolean');
+    });
+
+    it('valor por defecto es true (emulación fiel habilitada)', () => {
+      // En producción siempre habilitado para emulación fiel del hardware
+      assert.strictEqual(moduleSlew.enabled, true);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Voltajes de salida por forma de onda (Manual Técnico Datanomics 1982)
 // ─────────────────────────────────────────────────────────────────────────────
 //

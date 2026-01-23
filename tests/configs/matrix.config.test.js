@@ -149,3 +149,53 @@ describe('Valores razonables', () => {
     assert.ok(audioMatrixConfig.audio.maxSumGain >= audioMatrixConfig.audio.matrixGain);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filtrado RC de Pines (audioMatrixConfig.pinFiltering)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Emula el comportamiento RC del bus de la matriz cuando se insertan pines.
+// Ver audioMatrix.config.js para documentación completa.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Audio Matrix Config - Pin RC Filtering', () => {
+  
+  it('tiene sección pinFiltering definida', () => {
+    assert.ok(typeof audioMatrixConfig.pinFiltering === 'object',
+      'audioMatrixConfig debe tener sección pinFiltering');
+  });
+
+  describe('pinFiltering.busCapacitance', () => {
+    it('está definido como número', () => {
+      assert.ok(typeof audioMatrixConfig.pinFiltering.busCapacitance === 'number');
+    });
+
+    it('valor por defecto es 100pF (100e-12)', () => {
+      // Según Manual Datanomics 1982: capacitancia típica del bus ~100pF
+      assert.strictEqual(audioMatrixConfig.pinFiltering.busCapacitance, 100e-12);
+    });
+
+    it('está en rango físicamente razonable (10pF - 1nF)', () => {
+      const C = audioMatrixConfig.pinFiltering.busCapacitance;
+      assert.ok(C >= 10e-12, 'busCapacitance debe ser >= 10pF');
+      assert.ok(C <= 1e-9, 'busCapacitance debe ser <= 1nF');
+    });
+  });
+
+  describe('pinFiltering.filterQ', () => {
+    it('está definido como número', () => {
+      assert.ok(typeof audioMatrixConfig.pinFiltering.filterQ === 'number');
+    });
+
+    it('valor por defecto es 0.5 (aproxima RC pasivo)', () => {
+      // Q=0.5 da curva sin resonancia, cercana a filtro RC de primer orden
+      assert.strictEqual(audioMatrixConfig.pinFiltering.filterQ, 0.5);
+    });
+
+    it('está en rango válido para BiquadFilter (0.001 - 1.0)', () => {
+      const Q = audioMatrixConfig.pinFiltering.filterQ;
+      assert.ok(Q > 0, 'filterQ debe ser > 0');
+      assert.ok(Q <= 1.0, 'filterQ debe ser <= 1.0 (sin resonancia excesiva)');
+    });
+  });
+});

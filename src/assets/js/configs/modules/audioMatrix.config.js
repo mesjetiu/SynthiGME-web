@@ -187,5 +187,74 @@ export default {
     // Ejemplo:
     // "91:37": 0.8,   // Osc1 sine+saw → Out1
     // "92:38": 1.2,   // Osc1 tri+pulse → Out2
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FILTRADO RC DE PINES (Pin RC Filtering)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Emula el comportamiento RC del bus de la matriz cuando se insertan pines.
+  // Según el Manual Técnico Datanomics 1982:
+  //
+  //   "Con pines de 100kΩ (blancos) se produce integración de transitorios
+  //    rápidos debido a la capacitancia del bus (~100pF)."
+  //
+  // Cada tipo de pin tiene una resistencia diferente, creando un filtro
+  // pasabajos RC con el bus:
+  //
+  //   fc = 1 / (2π × Rpin × Cbus)
+  //
+  // donde Cbus ≈ 100 pF (capacitancia típica del bus de la matriz).
+  //
+  // FRECUENCIAS DE CORTE POR TIPO DE PIN:
+  // ───────────────────────────────────────────────────────────────────────
+  // | Pin Color | Resistencia | fc con 100pF | Efecto                     |
+  // |-----------|-------------|--------------|----------------------------|
+  // | WHITE     | 100 kΩ      | 15.9 kHz     | Suavizado audible          |
+  // | GREY      | 100 kΩ      | 15.9 kHz     | Igual que WHITE            |
+  // | GREEN     | 68 kΩ       | 23.4 kHz     | Suavizado leve             |
+  // | RED       | 2.7 kΩ      | 589 kHz      | Transparente (bypass)      |
+  // | CYAN      | 250 kΩ      | 6.4 kHz      | Filtro notable             |
+  // | PURPLE    | 1 MΩ        | 1.6 kHz      | Filtro pronunciado         |
+  //
+  // IMPLEMENTACIÓN:
+  // Se usa un BiquadFilterNode tipo lowpass con Q bajo para aproximar
+  // la respuesta de un filtro RC pasivo de primer orden.
+  //
+  // NOTA: Los pines RED/BLUE/YELLOW tienen fc > Nyquist, por lo que
+  // el filtro es efectivamente transparente (candidatos a bypass).
+  //
+  pinFiltering: {
+    // ─────────────────────────────────────────────────────────────────────
+    // CAPACITANCIA DEL BUS (busCapacitance)
+    // ─────────────────────────────────────────────────────────────────────
+    //
+    // Capacitancia equivalente del bus de la matriz en Faradios.
+    // Afecta las frecuencias de corte de todos los tipos de pin.
+    //
+    // | busCapacitance | Efecto                                           |
+    // |----------------|--------------------------------------------------|
+    // |    50e-12      | Bus corto/limpio: menos filtrado                 |
+    // |   100e-12      | DEFAULT - Valor típico según manual              |
+    // |   200e-12      | Bus largo/sucio: más filtrado                    |
+    //
+    busCapacitance: 100e-12,
+
+    // ─────────────────────────────────────────────────────────────────────
+    // FACTOR Q DEL FILTRO (filterQ)
+    // ─────────────────────────────────────────────────────────────────────
+    //
+    // Factor de calidad del BiquadFilter usado para emular el RC.
+    // BiquadFilter es de segundo orden (-12dB/oct), pero con Q bajo
+    // la curva se aproxima más a un RC pasivo (-6dB/oct).
+    //
+    // | filterQ | Comportamiento                                         |
+    // |---------|--------------------------------------------------------|
+    // |   0.25  | Muy suave, respuesta más parecida a RC pasivo          |
+    // |   0.5   | DEFAULT - Buen balance entre precisión y estabilidad   |
+    // |   0.707 | Butterworth, respuesta más plana pero menos "analógica"|
+    // |   1.0   | Ligera resonancia en fc (no recomendado)               |
+    //
+    filterQ: 0.5
   }
 };

@@ -784,28 +784,33 @@ export const PIN_CUTOFF_FREQUENCIES = {
  * 
  * NOTAS DE IMPLEMENTACIÓN:
  * - BiquadFilter es más eficiente que IIRFilter para este caso simple
- * - Q=0.5 evita resonancia y suaviza la curva de respuesta
+ * - Q bajo evita resonancia y suaviza la curva de respuesta
  * - Para pines con fc > Nyquist (RED, BLUE, YELLOW), el filtro es transparente
  * 
  * @param {AudioContext} audioContext - Contexto de audio para crear el nodo
  * @param {string} [pinType='WHITE'] - Tipo de pin (WHITE, GREY, GREEN, RED, etc.)
+ * @param {number} [filterQ=0.5] - Factor Q del filtro (desde audioMatrix.config.js pinFiltering.filterQ)
  * @returns {BiquadFilterNode} Nodo de filtro configurado
  * 
  * @example
- * // Crear filtro para pin blanco (100kΩ → fc ≈ 15.9kHz)
+ * // Crear filtro para pin blanco con Q por defecto (0.5)
  * const filter = createPinFilter(audioCtx, 'WHITE');
  * source.connect(filter).connect(destination);
+ * 
+ * // Crear filtro con Q customizado desde config
+ * const filter = createPinFilter(audioCtx, 'WHITE', audioMatrixConfig.pinFiltering.filterQ);
  * 
  * // Cambiar tipo de pin dinámicamente
  * filter.frequency.value = PIN_CUTOFF_FREQUENCIES.CYAN;  // 6.4kHz
  */
-export function createPinFilter(audioContext, pinType = 'WHITE') {
+export function createPinFilter(audioContext, pinType = 'WHITE', filterQ = 0.5) {
   const filter = audioContext.createBiquadFilter();
   filter.type = 'lowpass';
   
-  // Q bajo para aproximar respuesta de primer orden
+  // Q configurable para aproximar respuesta de primer orden
   // Q=0.5 da una curva sin resonancia, más cercana a RC pasivo
-  filter.Q.value = 0.5;
+  // Valores válidos: 0.25 (muy suave) a 1.0 (ligera resonancia)
+  filter.Q.value = filterQ;
   
   // Obtener frecuencia de corte del pin, con fallback a WHITE
   const cutoff = PIN_CUTOFF_FREQUENCIES[pinType] ?? PIN_CUTOFF_FREQUENCIES.WHITE;

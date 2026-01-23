@@ -1499,7 +1499,12 @@ export class AudioEngine {
       saturationK = 1.55,
       maxOffset = 0.85,
       // Tiempo de suavizado para cambios de parámetros (oscillator.config.js)
-      smoothingTime = AUDIO_CONSTANTS.FAST_RAMP_TIME
+      smoothingTime = AUDIO_CONSTANTS.FAST_RAMP_TIME,
+      // Suavizado inherente del módulo - emula slew rate del CA3140 (oscillator.config.js)
+      // Frecuencia de corte del filtro one-pole que suaviza pulse y sawtooth
+      moduleSlewCutoff = 20000,
+      // Flag para habilitar/deshabilitar el suavizado (para A/B testing)
+      moduleSlewEnabled = true
     } = options;
 
     const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
@@ -1513,7 +1518,10 @@ export class AudioEngine {
         sineShapeAttenuation, 
         sinePurity,
         saturationK,
-        maxOffset
+        maxOffset,
+        // Suavizado inherente del módulo (emula slew rate del CA3140)
+        moduleSlewCutoff,
+        moduleSlewEnabled
       }
     });
 

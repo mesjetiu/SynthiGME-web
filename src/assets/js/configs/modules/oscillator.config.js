@@ -591,6 +591,91 @@ export default {
         pulse: 3.2,       // 3.2V p-p
         noise: 3.0        // 3V p-p (referencia para noiseGenerator)
       }
+    },
+
+    // ·······································································
+    // SLEW TÉRMICO (Thermal Slew) - Inercia térmica del transistor
+    // ·······································································
+    //
+    // Según el Manual Técnico Datanomics 1982:
+    // "Si se realiza un salto grande de frecuencia (por ejemplo, superior a
+    // 2 kHz), se produce un ligero efecto de portamento. Esto ocurre porque
+    // un cambio brusco en el voltaje de control positivo provoca un ligero
+    // calentamiento de un transistor dentro del circuito del oscilador. El
+    // transistor tarda unos pocos segundos en alcanzar el equilibrio térmico."
+    //
+    // CARACTERÍSTICAS:
+    // - Bidireccional: afecta tanto subidas como bajadas de frecuencia
+    // - Asimétrico: calentamiento (subida) es más rápido que enfriamiento (bajada)
+    // - Umbral: solo se activa para saltos grandes de CV (equivalentes a >2kHz)
+    //
+    // IMPLEMENTACIÓN:
+    // Filtro one-pole asimétrico en el AudioWorklet cvThermalSlew.worklet.js:
+    //   y[n] = y[n-1] + rate × (x[n] - y[n-1])
+    //   donde rate = riseRate si subiendo, fallRate si bajando
+    //
+    thermalSlew: {
+      // ─────────────────────────────────────────────────────────────────────
+      // CONSTANTE DE TIEMPO DE SUBIDA (calentamiento)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Tiempo para alcanzar ~63% del target cuando el CV sube.
+      // El calentamiento es un proceso activo (transistor disipando potencia),
+      // por lo que es más rápido que el enfriamiento.
+      //
+      // | riseTimeConstant | Comportamiento                                 |
+      // |------------------|------------------------------------------------|
+      // |     0.05         | Muy rápido (casi imperceptible)                |
+      // |     0.15         | DEFAULT - Portamento sutil audible (~150ms)    |
+      // |     0.30         | Portamento pronunciado                         |
+      // |     0.50         | Efecto muy evidente (glissando lento)          |
+      //
+      riseTimeConstant: 0.15,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CONSTANTE DE TIEMPO DE BAJADA (enfriamiento)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Tiempo para alcanzar ~63% del target cuando el CV baja.
+      // El enfriamiento es un proceso pasivo (disipación térmica al ambiente),
+      // por lo que es más lento que el calentamiento (~3-5× más lento).
+      //
+      // | fallTimeConstant | Comportamiento                                 |
+      // |------------------|------------------------------------------------|
+      // |     0.20         | Enfriamiento relativamente rápido              |
+      // |     0.50         | DEFAULT - Emula comportamiento real (~500ms)   |
+      // |     1.00         | Enfriamiento muy lento (1 segundo)             |
+      // |     2.00         | Extremo: "pocos segundos" del manual           |
+      //
+      fallTimeConstant: 0.5,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // UMBRAL DE ACTIVACIÓN
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Delta mínimo de CV (en unidades digitales) para activar el slew.
+      // Valores menores al umbral pasan instantáneamente (sin portamento).
+      //
+      // El manual menciona "saltos grandes (>2 kHz)". En el sistema V/Oct:
+      // - 2 kHz desde 250 Hz = ~3 octavas
+      // - 2 kHz desde 1 kHz = ~1 octava
+      //
+      // | threshold | Comportamiento                                        |
+      // |-----------|-------------------------------------------------------|
+      // |    0.0    | Cualquier cambio activa slew (muy dramático)          |
+      // |    0.5    | DEFAULT - Cambios de ~0.5 octavas activan slew        |
+      // |    1.0    | Solo cambios de ≥1 octava activan slew                |
+      // |    1.5    | Solo cambios grandes activan slew (más fiel al manual)|
+      //
+      threshold: 0.5,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // HABILITACIÓN
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Permite desactivar el efecto para A/B testing o preferencia personal.
+      //
+      enabled: true
     }
   },
 

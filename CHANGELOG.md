@@ -76,6 +76,15 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - `setInputVoltageLimit(v)` / `setSoftClipEnabled(bool)`: Configuración por módulo.
 - **Soft clipping en entrada CV de osciladores**: Las señales CV que modulan la frecuencia de osciladores ahora pasan por un `WaveShaperNode` con curva tanh que satura suavemente las señales excesivas. Usa `createSoftClipCurve()` de `voltageConstants.js`.
 - **Ganancia de pines con fórmula de tierra virtual**: Nueva función `calculateMatrixPinGain()` que calcula la ganancia de cada pin de matriz según el tipo de pin, la Rf del destino y la tolerancia opcional.
+- **Sistema de suavizado de formas de onda (Waveform Smoothing)**: Emulación de dos características eléctricas del Synthi 100 que impiden transiciones verticales instantáneas:
+  - **Slew inherente del módulo**: Filtro one-pole (~20kHz) dentro del AudioWorklet aplicado a pulse y sawtooth, emulando el slew rate finito de los amplificadores CA3140.
+  - **Filtrado RC por pin de matriz**: Cada conexión de matriz incluye un `BiquadFilterNode` (lowpass, Q=0.5) que emula el filtro RC natural formado por resistencia del pin + capacitancia parásita del bus (~100pF).
+  - **Frecuencias de corte por pin**: WHITE/GREY ~15.9kHz (suavizado audible), GREEN ~23.4kHz, RED ~589kHz (bypass), CYAN ~6.4kHz (filtrado fuerte), PURPLE ~1.6kHz (filtrado extremo).
+  - **Actualización dinámica**: Al cambiar color de pin activo, el filtro se actualiza en tiempo real con `setValueAtTime()`.
+  - **Nuevas funciones**: `createPinFilter()`, `updatePinFilter()`, `computePinCutoff()`, constante `PIN_CUTOFF_FREQUENCIES`.
+  - **Cadena de audio**: `source → BiquadFilter (pin RC) → GainNode (Rf/Rpin) → destination`.
+  - **Tests de validación**: 41 nuevos tests (31 funcionales + 10 de estrés) verifican cálculos de cutoff, factory de filtros y rendimiento.
+  - **Referencia técnica**: Manual Datanomics 1982 - "con pines de 100kΩ se produce integración de transitorios rápidos".
 - **Sección de Emulación de Voltajes en Ajustes**: Nueva sección en Ajustes → Avanzado que permite controlar:
   - **Saturación suave (soft clip)**: Activar/desactivar el límite de voltaje con tanh().
   - **Tolerancia de pines**: Activar/desactivar variación realista de resistencias (±0.5% gris, ±10% resto).

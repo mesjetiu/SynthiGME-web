@@ -94,6 +94,10 @@ class CVThermalSlewProcessor extends AudioWorkletProcessor {
     // Target al que nos dirigimos (para slew suave)
     this.targetValue = 0;
     
+    // DEBUG: Contador de frames para throttle de logs
+    this._debugFrameCount = 0;
+    this._debugLogInterval = 4000; // Log cada ~4000 frames (~85ms a 48kHz)
+    
     // Configuración inicial desde processorOptions
     const opts = options?.processorOptions || {};
     
@@ -134,6 +138,15 @@ class CVThermalSlewProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, parameters) {
     const input = inputs[0];
     const output = outputs[0];
+    
+    // DEBUG: Log periódico del estado
+    this._debugFrameCount++;
+    if (this._debugFrameCount >= this._debugLogInterval) {
+      this._debugFrameCount = 0;
+      const hasInput = input && input[0] && input[0].length > 0;
+      const inputSample = hasInput ? input[0][0] : 'N/A';
+      console.log(`[cvThermalSlew] hasInput=${hasInput}, sample=${inputSample}, currentValue=${this.currentValue}`);
+    }
     
     // Si no hay entrada, pasar silencio
     if (!input || !input[0] || input[0].length === 0) {

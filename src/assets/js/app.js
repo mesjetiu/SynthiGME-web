@@ -1678,6 +1678,58 @@ class App {
     let entry = panelAudio.nodes[oscIndex];
     // Verificar si ya existe con el nuevo formato (multiOsc)
     if (entry && entry.multiOsc && entry.sineSawOut && entry.triPulseOut && entry.freqCVInput) {
+      // ─────────────────────────────────────────────────────────────────────
+      // VERIFICAR CADENA CV: Si cvThermalSlew debería existir pero no existe,
+      // intentar crearla ahora que el worklet puede estar listo
+      // ─────────────────────────────────────────────────────────────────────
+      if (!entry.cvThermalSlew && this.engine.workletReady) {
+        const oscConfig = this._getOscConfig(oscIndex);
+        const thermalSlewConfig = oscConfig?.thermalSlew ?? oscillatorConfig.defaults?.thermalSlew ?? {};
+        
+        if (thermalSlewConfig.enabled !== false) {
+          log.info(`[FM] Osc ${oscIndex}: cvThermalSlew missing, creating now...`);
+          try {
+            const cvThermalSlew = new AudioWorkletNode(ctx, 'cv-thermal-slew', {
+              numberOfInputs: 1,
+              numberOfOutputs: 1,
+              outputChannelCount: [1],
+              channelCount: 1,
+              channelCountMode: 'explicit',
+              processorOptions: {
+                riseTimeConstant: thermalSlewConfig.riseTimeConstant ?? 0.15,
+                fallTimeConstant: thermalSlewConfig.fallTimeConstant ?? 0.5
+              }
+            });
+            
+            const thresholdParam = cvThermalSlew.parameters?.get('threshold');
+            if (thresholdParam) {
+              thresholdParam.value = thermalSlewConfig.threshold ?? 0.5;
+            }
+            
+            // Reconectar cadena: freqCVInput → cvThermalSlew → [cvSoftClip] → detune
+            const detuneParam = entry.multiOsc.parameters?.get('detune');
+            if (detuneParam) {
+              // Desconectar freqCVInput del destino actual
+              try { entry.freqCVInput.disconnect(); } catch(e) {}
+              
+              // Conectar nueva cadena
+              entry.freqCVInput.connect(cvThermalSlew);
+              
+              let lastNode = cvThermalSlew;
+              if (entry.cvSoftClip) {
+                lastNode.connect(entry.cvSoftClip);
+                lastNode = entry.cvSoftClip;
+              }
+              lastNode.connect(detuneParam);
+              
+              entry.cvThermalSlew = cvThermalSlew;
+              log.info(`[FM] Osc ${oscIndex}: cvThermalSlew CREATED and chain reconnected ✓`);
+            }
+          } catch (err) {
+            log.warn(`[FM] Failed to create cvThermalSlew for osc ${oscIndex}:`, err);
+          }
+        }
+      }
       return entry;
     }
 
@@ -1767,6 +1819,8 @@ class App {
     const thermalSlewConfig = oscConfig?.thermalSlew ?? oscillatorConfig.defaults?.thermalSlew ?? {};
     let cvThermalSlew = null;
     
+    log.info(`[FM] Osc ${oscIndex}: thermalSlew.enabled=${thermalSlewConfig.enabled}, workletReady=${this.engine.workletReady}`);
+    
     if (thermalSlewConfig.enabled !== false && this.engine.workletReady) {
       try {
         cvThermalSlew = new AudioWorkletNode(ctx, 'cv-thermal-slew', {
@@ -1785,10 +1839,13 @@ class App {
         if (thresholdParam) {
           thresholdParam.value = thermalSlewConfig.threshold ?? 0.5;
         }
+        log.info(`[FM] Osc ${oscIndex}: cvThermalSlew CREATED ✓`);
       } catch (err) {
         log.warn(` Failed to create CVThermalSlew for osc ${oscIndex}:`, err);
         cvThermalSlew = null;
       }
+    } else {
+      log.info(`[FM] Osc ${oscIndex}: cvThermalSlew SKIPPED (disabled or worklet not ready)`);
     }
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -1811,33 +1868,33 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // CONSTRUIR CADENA DE CV COMPLETA
     // ─────────────────────────────────────────────────────────────────────────
-    // Conexión: freqCVInput → detune
-    // Nota: cvThermalSlew y cvSoftClip deshabilitados (bloqueaban señal FM)
+    // Cadena: freqCVInput → [cvThermalSlew] → [cvSoftClip] → detune
     // ─────────────────────────────────────────────────────────────────────────
     const detuneParam = multiOsc.parameters?.get('detune');
     
     if (detuneParam) {
-      // ─────────────────────────────────────────────────────────────────────
-      // CADENA CV: freqCVInput → [cvThermalSlew] → [cvSoftClip] → detune
-      // ─────────────────────────────────────────────────────────────────────
       let lastNode = freqCVInput;
       
       if (cvThermalSlew) {
+        log.info(`[FM] Osc ${oscIndex}: Connecting freqCVInput → cvThermalSlew`);
         lastNode.connect(cvThermalSlew);
         lastNode = cvThermalSlew;
       }
       
       if (cvSoftClip) {
+        log.info(`[FM] Osc ${oscIndex}: Connecting ${cvThermalSlew ? 'cvThermalSlew' : 'freqCVInput'} → cvSoftClip`);
         lastNode.connect(cvSoftClip);
         lastNode = cvSoftClip;
       }
       
+      log.info(`[FM] Osc ${oscIndex}: Connecting ${cvSoftClip ? 'cvSoftClip' : (cvThermalSlew ? 'cvThermalSlew' : 'freqCVInput')} → detune`);
       lastNode.connect(detuneParam);
+      log.info(`[FM] Osc ${oscIndex}: CV chain complete ✓`);
     } else {
       log.error(`[FM] Osc ${oscIndex}: DETUNE PARAM IS NULL - FM WILL NOT WORK!`);
     }
     
-    // Marcar que la cadena CV está conectada (para evitar reconexiones innecesarias)
+    // Marcar que la cadena CV está conectada
     const cvChainConnected = !!detuneParam;
 
     // Crear referencias de compatibilidad para código existente

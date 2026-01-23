@@ -888,6 +888,11 @@ const pinFilter = createPinFilter(audioCtx, 'WHITE');
 updatePinFilter(pinFilter, 'CYAN', audioCtx.currentTime);
 ```
 
+> **Optimización pendiente:** Para pines con frecuencia de corte muy superior a Nyquist
+> (RED, BLUE, YELLOW), el BiquadFilter es efectivamente transparente pero consume CPU.
+> Una optimización futura podría omitir el filtro cuando `fc > sampleRate/2`.
+> Ver `TODO.md` → "Bypass de filtro RC para pines de alta frecuencia".
+
 #### Tests y helpers de análisis
 
 El módulo `tests/audio/spectralAnalysis.js` incluye funciones para verificar el suavizado:

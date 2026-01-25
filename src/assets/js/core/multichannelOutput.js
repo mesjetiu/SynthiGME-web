@@ -41,7 +41,7 @@ class MultichannelOutputManager {
     this.config = {
       channels: 8,
       sampleRate: 48000,
-      bufferSize: 2048,
+      bufferSize: 256,  // Buffer pequeño para baja latencia
       deviceName: 'SynthiGME'
     };
     
@@ -130,21 +130,24 @@ class MultichannelOutputManager {
       this.merger = audioCtx.createChannelMerger(this.config.channels);
       
       // Conectar cada bus de salida al merger
-      // Usamos el nodo justo antes del pan/routing para capturar la señal "limpia"
+      // IMPORTANTE: Capturamos DESPUÉS del muteNode para respetar el nivel/mute del canal
+      // La cadena es: input → [filters] → levelNode → muteNode → (captura aquí)
       for (let i = 0; i < Math.min(outputBuses.length, this.config.channels); i++) {
         const bus = outputBuses[i];
-        if (bus && bus.input) {
+        // Usar muteNode (después de levelNode) para capturar señal con nivel aplicado
+        const capturePoint = bus?.muteNode || bus?.levelNode || bus?.input;
+        if (capturePoint) {
           // Crear un splitter para tomar una copia de la señal
           const splitter = audioCtx.createGain();
           splitter.gain.value = 1.0;
           
-          // El bus.input ya está conectado a la cadena normal
-          // Conectamos también al splitter para la captura
-          bus.input.connect(splitter);
+          // Conectar desde el punto de captura (después del control de nivel)
+          capturePoint.connect(splitter);
           splitter.connect(this.merger, 0, i);
           
           // Guardar referencia para desconectar después
           bus._multichannelSplitter = splitter;
+          bus._multichannelCapturePoint = capturePoint;
         }
       }
       
@@ -250,6 +253,7 @@ class MultichannelOutputManager {
           bus._multichannelSplitter.disconnect();
         } catch { /* Ignorar */ }
         delete bus._multichannelSplitter;
+        delete bus._multichannelCapturePoint;
       }
     }
     
@@ -291,30 +295,35 @@ class MultichannelOutputManager {
   
   /**
    * Envía samples al backend nativo via IPC.
+   * Fire-and-forget para mínima latencia.
    * @private
    */
-  async _sendSamplesToNative(samples, sampleCount, channelCount) {
+  _sendSamplesToNative(samples, sampleCount, channelCount) {
     if (!this.isRunning) return;
     
-    try {
-      const result = await window.electronAudio.write(samples);
-      
-      if (result.written) {
-        this.stats.samplesWritten += sampleCount;
-        this.stats.buffersWritten++;
-      } else {
+    // Fire-and-forget: no esperamos respuesta para minimizar latencia
+    window.electronAudio.write(samples)
+      .then(result => {
+        if (result.written) {
+          this.stats.samplesWritten += sampleCount;
+          this.stats.buffersWritten++;
+        } else if (result.dropped) {
+          // Backpressure activo - el backend descartó estos samples
+          this.stats.droppedBuffers = (this.stats.droppedBuffers || 0) + 1;
+          // No es un error, es comportamiento esperado bajo carga
+        } else {
+          this.stats.errors++;
+        }
+      })
+      .catch(error => {
         this.stats.errors++;
-        log.warn('[MultichannelOutput] Buffer no escrito');
-      }
-    } catch (error) {
-      this.stats.errors++;
-      this.stats.lastError = error.message;
-      
-      // No logueamos cada error para evitar spam
-      if (this.stats.errors === 1 || this.stats.errors % 100 === 0) {
-        log.error(`[MultichannelOutput] Error escribiendo (${this.stats.errors} total):`, error);
-      }
-    }
+        this.stats.lastError = error.message;
+        
+        // No logueamos cada error para evitar spam
+        if (this.stats.errors === 1 || this.stats.errors % 100 === 0) {
+          log.error(`[MultichannelOutput] Error escribiendo (${this.stats.errors} total):`, error);
+        }
+      });
   }
   
   /**

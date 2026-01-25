@@ -24,6 +24,17 @@ class MultichannelBridge {
         this.platform = os.platform();
         this.writeQueue = [];
         this.isWriting = false;
+        
+        // Estadísticas para debug de latencia
+        this.stats = {
+            bufferFullCount: 0,
+            droppedSamples: 0,
+            writtenBuffers: 0,
+            lastDropWarning: 0
+        };
+        
+        // Flag para saber si podemos escribir (backpressure)
+        this.canWrite = true;
     }
 
     /**
@@ -147,7 +158,7 @@ class MultichannelBridge {
                 '--channel-map', channelMap,
                 '--rate', String(this.config.sampleRate),
                 '--format', 'f32',
-                '--latency', '256',        // Latencia baja
+                '--latency', '256',        // 256 samples @ 48kHz = ~5.3ms
                 '-P', `media.name=${this.config.deviceName}`,
                 '-P', `node.name=${this.config.deviceName}`,
                 '-P', 'media.category=Playback',
@@ -157,9 +168,24 @@ class MultichannelBridge {
 
             console.log('[MultichannelBridge] Iniciando pw-cat:', args.join(' '));
 
+            // Spawn con stdin pipe que tiene highWaterMark bajo para evitar acumulación
             this.process = spawn('pw-cat', args, {
                 stdio: ['pipe', 'inherit', 'pipe']
             });
+            
+            // Configuración CRÍTICA para baja latencia:
+            // - Reducir highWaterMark del stdin para que el backpressure actúe rápido
+            // - Esto evita que Node.js acumule megas de audio en memoria
+            if (this.process.stdin) {
+                // El highWaterMark por defecto es 64KB, lo reducimos a 4KB (~1.3ms @ 8ch/48kHz)
+                // Esto fuerza backpressure mucho antes
+                this.process.stdin._writableState.highWaterMark = 4096;
+                
+                // Escuchar evento 'drain' para saber cuándo podemos escribir de nuevo
+                this.process.stdin.on('drain', () => {
+                    this.canWrite = true;
+                });
+            }
 
             this.process.on('error', (err) => {
                 console.error('[MultichannelBridge] Error:', err.message);
@@ -185,6 +211,7 @@ class MultichannelBridge {
             setTimeout(() => {
                 if (this.process && !this.process.killed) {
                     this.isOpen = true;
+                    this.canWrite = true;
                     console.log(`[MultichannelBridge] Stream abierto: ${this.config.channels}ch @ ${this.config.sampleRate}Hz`);
                     resolve({ success: true });
                 } else {
@@ -214,52 +241,115 @@ class MultichannelBridge {
     }
 
     /**
-     * Escribe samples de audio al stream
-     * @param {Float32Array} samples Samples interleaved [ch0,ch1,...,chN,ch0,ch1,...]
-     * @returns {Promise<{written: boolean}>}
+     * Escribe samples de audio al stream.
+     * IMPORTANTE: Respeta backpressure para evitar acumulación de latencia.
+     * Si el buffer está lleno, DESCARTA los samples (preferimos glitches a latencia).
+     * @param {Float32Array|ArrayBuffer} samples Samples interleaved
+     * @returns {Promise<{written: boolean, dropped: boolean}>}
      */
     async write(samples) {
         if (!this.isOpen || !this.process || !this.process.stdin.writable) {
-            return { written: false };
+            return { written: false, dropped: false };
         }
 
-        return new Promise((resolve) => {
-            // Convertir Float32Array a Buffer
-            const buffer = Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength);
-            
-            const canWrite = this.process.stdin.write(buffer, (err) => {
-                if (err) {
-                    console.error('[MultichannelBridge] Error escribiendo:', err.message);
-                    resolve({ written: false });
-                } else {
-                    resolve({ written: true });
-                }
-            });
-
-            // Si el buffer interno está lleno, esperar al drain
-            if (!canWrite) {
-                this.process.stdin.once('drain', () => {
-                    resolve({ written: true });
-                });
+        // Si el buffer de stdin está lleno, descartar este paquete
+        // Esto es CRÍTICO para evitar acumulación de latencia
+        if (!this.canWrite) {
+            this.stats.droppedSamples++;
+            const now = Date.now();
+            // Log cada 5 segundos máximo para no spammear
+            if (now - this.stats.lastDropWarning > 5000) {
+                console.warn(`[MultichannelBridge] Descartando samples por backpressure (total: ${this.stats.droppedSamples})`);
+                this.stats.lastDropWarning = now;
             }
-        });
+            return { written: false, dropped: true };
+        }
+
+        try {
+            // Convertir a Buffer si es necesario
+            let buffer;
+            if (samples instanceof ArrayBuffer) {
+                buffer = Buffer.from(samples);
+            } else if (samples.buffer) {
+                buffer = Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength);
+            } else {
+                buffer = Buffer.from(samples);
+            }
+            
+            // Escribir al stdin - el retorno indica si hay backpressure
+            const canContinue = this.process.stdin.write(buffer);
+            
+            this.stats.writtenBuffers++;
+            
+            if (!canContinue) {
+                // El buffer de stdin está lleno, marcar para no escribir más
+                // hasta que se dispare el evento 'drain'
+                this.canWrite = false;
+                this.stats.bufferFullCount++;
+            }
+            
+            return { written: true, dropped: false };
+        } catch (err) {
+            console.error('[MultichannelBridge] Error escribiendo:', err.message);
+            return { written: false, dropped: false };
+        }
     }
 
     /**
      * Escribe samples de forma síncrona (para uso desde worklet)
+     * Respeta backpressure igual que write() async.
      * @param {Buffer} buffer Buffer de audio
-     * @returns {boolean}
+     * @returns {{written: boolean, dropped: boolean}}
      */
     writeSync(buffer) {
         if (!this.isOpen || !this.process || !this.process.stdin.writable) {
-            return false;
+            return { written: false, dropped: false };
+        }
+        
+        // Si hay backpressure, descartar
+        if (!this.canWrite) {
+            this.stats.droppedSamples++;
+            return { written: false, dropped: true };
         }
         
         try {
-            return this.process.stdin.write(buffer);
+            const canContinue = this.process.stdin.write(buffer);
+            this.stats.writtenBuffers++;
+            
+            if (!canContinue) {
+                this.canWrite = false;
+                this.stats.bufferFullCount++;
+            }
+            
+            return { written: true, dropped: false };
         } catch (e) {
-            return false;
+            return { written: false, dropped: false };
         }
+    }
+    
+    /**
+     * Obtiene estadísticas de rendimiento para diagnóstico
+     * @returns {Object}
+     */
+    getStats() {
+        return {
+            ...this.stats,
+            isOpen: this.isOpen,
+            canWrite: this.canWrite,
+            bufferPressure: !this.canWrite
+        };
+    }
+    
+    /**
+     * Resetea las estadísticas
+     */
+    resetStats() {
+        this.stats = {
+            bufferFullCount: 0,
+            droppedSamples: 0,
+            writtenBuffers: 0,
+            lastDropWarning: 0
+        };
     }
 
     /**
@@ -268,6 +358,7 @@ class MultichannelBridge {
     async closeStream() {
         if (this.process) {
             console.log('[MultichannelBridge] Cerrando stream...');
+            console.log('[MultichannelBridge] Stats finales:', this.getStats());
             
             try {
                 this.process.stdin.end();
@@ -280,7 +371,9 @@ class MultichannelBridge {
         }
         
         this.isOpen = false;
+        this.canWrite = true;
         this.config = null;
+        this.resetStats();
     }
 
     /**
@@ -295,7 +388,8 @@ class MultichannelBridge {
             channels: this.config.channels,
             sampleRate: this.config.sampleRate,
             deviceName: this.config.deviceName,
-            backend: this.platform === 'linux' ? 'pipewire' : 'unknown'
+            backend: this.platform === 'linux' ? 'pipewire' : 'unknown',
+            stats: this.getStats()
         };
     }
 }

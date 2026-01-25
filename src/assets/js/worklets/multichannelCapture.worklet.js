@@ -24,9 +24,9 @@ class MultichannelCaptureProcessor extends AudioWorkletProcessor {
     // Estado de captura
     this.isCapturing = false;
     
-    // Buffer de acumulación para enviar en bloques más grandes
-    // Reduce overhead de mensajes IPC
-    this.bufferSize = options.processorOptions?.bufferSize || 2048;
+    // Buffer de acumulación - balance entre latencia y overhead IPC
+    // 256 samples @ 48kHz = ~5.3ms de latencia
+    this.bufferSize = options.processorOptions?.bufferSize || 256;
     this.accumulatedSamples = 0;
     this.sampleBuffer = new Float32Array(this.bufferSize * this.channelCount);
     

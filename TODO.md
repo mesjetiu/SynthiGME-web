@@ -1,6 +1,13 @@
+
+## Default:
+
+- Salidas planeadas estéreo únicamente. Actualmente están estás y también salidas 1 y 2, lo cual es una redundancia innecesaria.
+
 ## Oscilador/matriz:
 
 - Implementar, testar y bien documentar todas las distorsiones y limites por voltajes, impedancias, etc. Servirá de base de la arquitectura global del synthi y de próximos módulos.
+
+- Oscilador: Condiciones de entrar en dormant independientes para cada forma de onda.
 
 ### Intermodulación entre osciladores (futuro)
 

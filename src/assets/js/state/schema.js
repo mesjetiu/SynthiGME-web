@@ -4,8 +4,19 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * 
  * Define la estructura y validación de los patches/estados guardados.
- * Los valores se almacenan en unidades físicas (Hz, ms, ratios 0-1) para
- * ser independientes de la calibración de los knobs.
+ * 
+ * ARQUITECTURA v2 (FORMAT_VERSION = 2)
+ * ─────────────────────────────────────
+ * Los patches almacenan VALORES DE UI (posiciones de knobs 0-1, estados de
+ * switches, conexiones de matriz). NO almacenan valores de audio (Hz, ms).
+ * 
+ * Beneficios:
+ * - Patches más simples y compactos
+ * - Cambiar fórmulas de conversión no rompe patches
+ * - Menor complejidad en serialización/deserialización
+ * 
+ * PARAM_DESCRIPTORS se mantiene solo como DOCUMENTACIÓN de rangos físicos
+ * para displays, tooltips y validación - NO se usa en la persistencia.
  * 
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -84,9 +95,14 @@
 
 /**
  * Versión actual del formato de patches.
- * Incrementar cuando cambie la estructura del schema.
+ * 
+ * HISTORIAL:
+ * - v1: Formato original (valores de audio). OBSOLETO.
+ * - v2: Valores de UI (knob positions 0-1, switch states). ACTUAL.
+ * 
+ * Los patches v1 no son compatibles y no se migran.
  */
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;
 
 /**
  * IDs fijos de módulos del sintetizador.
@@ -116,7 +132,14 @@ export const MODULE_IDS = {
 
 /**
  * Descriptores de parámetros para cada tipo de módulo.
- * Define unidades, rangos y funciones de conversión knob↔físico.
+ * 
+ * NOTA: Estos descriptores son solo para DOCUMENTACIÓN y displays.
+ * NO se usan en la serialización de patches (que guardan valores UI 0-1).
+ * 
+ * Útiles para:
+ * - Mostrar valores físicos en tooltips (e.g., "440 Hz")
+ * - Validación de rangos
+ * - Documentación de la API
  */
 export const PARAM_DESCRIPTORS = {
   

@@ -8,6 +8,11 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Cambiado
+- **Sistema de patches simplificado (v2)**: Los patches ahora guardan exclusivamente valores de UI (posiciones de knobs 0-1, estados de switches, coordenadas de matriz). Eliminado código obsoleto que intentaba guardar valores de audio (Hz, ms). Beneficios:
+  - Patches más compactos y legibles
+  - Cambiar fórmulas de conversión (curvas, rangos) no rompe patches existentes
+  - Código de serialización reducido ~400 líneas
+  - `FORMAT_VERSION` incrementado a 2 (patches v1 no compatibles, etapa de desarrollo)
 - **Voltajes de salida de osciladores calibrados según Manual Técnico Datanomics 1982**: Los niveles de salida de cada forma de onda ahora reflejan los valores reales del circuito D100-02 C1:
   - **Seno (Sine)**: 8V p-p (referencia de calibración del sistema, sin cambios)
   - **Sierra (Sawtooth)**: 6.2V p-p (rango 5-7.4V, ganancia ×1.0 por I/C 6)

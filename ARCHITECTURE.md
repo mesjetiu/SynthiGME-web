@@ -1038,17 +1038,38 @@ hybridClipping: {
 
 El sistema de patches permite guardar y restaurar el estado completo del sintetizador.
 
-### 4.1 Arquitectura
+### 4.1 Arquitectura (v2)
+
+El sistema de patches v2 almacena **valores de UI** (posiciones de knobs 0-1, estados de switches, conexiones de matriz). NO almacena valores de audio (Hz, ms).
+
+```
+SERIALIZACIÓN                           FORMATO DE PATCH
+─────────────                           ────────────────
+app.js                                  modules.oscillators['panel3-osc-1']
+├── _serializeCurrentState()              └── knobs: [0, 0.5, 0.3, ...]  ← valores 0-1
+│   └── ui.serialize() por módulo         └── rangeState: 'hi'
+└── _applyPatch()                       modules.noise['panel3-noise-1']
+    └── ui.deserialize() por módulo       └── colour: 0.3, level: 0.7   ← valores 0-1
+                                        modules.matrixAudio.connections
+                                          └── [[row, col, color?], ...]
+```
+
+**Beneficios:**
+- Patches más simples y compactos
+- Cambiar fórmulas de conversión (e.g., curva de frecuencia) no rompe patches
+- Menor complejidad en serialización/deserialización
 
 ```
 src/assets/js/state/
-├── index.js          # API pública (re-exporta todo)
-├── schema.js         # Estructura de patches, validación, IDs de módulos
+├── index.js          # Re-exports de storage, schema, migrations
+├── schema.js         # Estructura de patches, validación, FORMAT_VERSION
 ├── storage.js        # Persistencia: IndexedDB para patches, localStorage para sesión
-├── conversions.js    # Conversiones knob ↔ valores físicos (curvas, dial→frecuencia Synthi 100)
+├── conversions.js    # Conversiones para displays (NO para patches)
 ├── migrations.js     # Migraciones entre versiones de formato
-└── sessionManager.js # Singleton que gestiona ciclo de sesión (autoguardado, dirty tracking, restauración)
+└── sessionManager.js # Singleton que gestiona ciclo de sesión
 ```
+
+> **Nota:** `conversions.js` contiene `dialToFrequency()`, `knobToPhysical()`, etc. Estas funciones se usan para **displays y tooltips**, no para la persistencia de patches.
 
 ### 4.1.1 SessionManager
 
@@ -1086,27 +1107,43 @@ await sessionManager.maybeRestoreLastState({ dialogOptions });
 | **Último estado** | localStorage `synthigme-last-state` | Autoguardado periódico y al cerrar, para recuperación |
 | **Configuración** | localStorage `synthigme-autosave-interval` | Intervalo de autoguardado seleccionado |
 
-### 4.3 Formato de Patch
+### 4.3 Formato de Patch (v2)
+
+Los patches guardan **valores de UI (0-1)**, no valores de audio.
 
 ```javascript
 {
-  name: "Mi Patch",           // Nombre del patch
-  savedAt: "2026-01-04T...",  // Timestamp ISO
+  formatVersion: 2,           // ← v2 = valores UI
+  appVersion: "0.3.0-140",
+  name: "Mi Patch",
+  savedAt: "2026-01-25T...",
   modules: {
     oscillators: {
-      "panel1-osc-1": { knobs: [0.5, 0.3, ...], rangeState: "hi" },
-      "panel3-osc-1": { ... }
+      // Array de 7 valores de knob (0-1): [pulseLevel, pulseWidth, sineLevel, sineSymmetry, triLevel, sawLevel, freq]
+      "panel3-osc-1": { knobs: [0, 0.5, 0, 0.5, 0, 0, 0.5], rangeState: "hi" }
     },
     noise: {
+      // Objeto clave-valor con valores de knob (0-1)
       "panel3-noise-1": { colour: 0.5, level: 0.7 }
     },
     randomVoltage: { ... },
-    outputFaders: { levels: [0, 0, 0, 0, 0, 0, 0, 0] },
-    inputAmplifiers: { levels: [0, 0, 0, 0, 0, 0, 0, 0] },
-    matrixAudio: { connections: [[row, col], ...] },
-    matrixControl: { connections: [[row, col], ...] }
+    outputFaders: { 
+      channels: [
+        { level: 0.5, filter: 0, pan: 0, power: true },
+        ...
+      ]
+    },
+    inputAmplifiers: { 
+      "input-amplifiers": { levels: [0, 0.5, 0.3, 0, 0, 0, 0, 0] }
+    },
+    // Conexiones: [row, col] o [row, col, pinType]
+    matrixAudio: { connections: [[67, 36], [89, 36, "GREEN"]] },
+    matrixControl: { connections: [[83, 30]] }
   }
 }
+```
+
+> **Nota sobre conversiones:** Los valores `knobs[6]` (frecuencia) se guardan como posición de dial (0-10), no como Hz. La conversión a Hz se hace en tiempo real con `dialToFrequency()` cuando el knob cambia.
 ```
 
 ### 4.4 Autoguardado

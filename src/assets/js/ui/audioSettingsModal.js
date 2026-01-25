@@ -36,7 +36,8 @@ export class AudioSettingsModal {
       onInputRoutingChange,
       onOutputDeviceChange, 
       onInputDeviceChange,
-      onStereoBusRoutingChange  // Callback para cambios en routing de stereo buses
+      onStereoBusRoutingChange,  // Callback para cambios en routing de stereo buses
+      onMultichannelToggle       // Callback para activar/desactivar multicanal nativo
     } = options;
     
     this.outputCount = outputCount;
@@ -60,6 +61,15 @@ export class AudioSettingsModal {
     this.onOutputDeviceChange = onOutputDeviceChange;
     this.onInputDeviceChange = onInputDeviceChange;
     this.onStereoBusRoutingChange = onStereoBusRoutingChange;
+    this.onMultichannelToggle = onMultichannelToggle;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // MULTICANAL NATIVO (solo Electron)
+    // ─────────────────────────────────────────────────────────────────────────
+    this.multichannelAvailable = false;  // Se actualiza desde el engine
+    this.multichannelEnabled = false;    // Estado actual
+    this.multichannelToggleBtn = null;   // Botón de activación
+    this.multichannelStatusEl = null;    // Elemento de estado
     
     // Stereo bus labels y conteo - van PRIMERO en la matriz
     this.stereoBusLabels = ['Pan1-4L', 'Pan1-4R', 'Pan5-8L', 'Pan5-8R'];
@@ -771,6 +781,11 @@ export class AudioSettingsModal {
     const content = document.createElement('div');
     content.className = 'audio-settings-content';
 
+    // Sección de multicanal nativo (solo visible en Electron)
+    // Creamos una copia de la sección para el contenido embebido
+    const multichannelSection = this._createMultichannelSectionEmbedded();
+    content.appendChild(multichannelSection);
+
     // Sección de salidas (OUTPUT ROUTING)
     const outputSection = this._createOutputSection();
     content.appendChild(outputSection);
@@ -783,6 +798,87 @@ export class AudioSettingsModal {
     this.refreshDevices();
 
     return content;
+  }
+
+  /**
+   * Crea una sección de multicanal para el contenido embebido.
+   * Reutiliza los mismos controles que el modal principal.
+   */
+  _createMultichannelSectionEmbedded() {
+    const section = document.createElement('div');
+    section.className = 'audio-settings-section audio-settings-section--multichannel';
+    section.style.display = this.multichannelAvailable ? 'block' : 'none';
+    
+    // Guardar referencia para poder actualizar visibilidad
+    this.multichannelSectionEmbedded = section;
+    
+    // Título
+    const title = document.createElement('h3');
+    title.className = 'audio-settings-section__title';
+    title.textContent = t('audio.multichannel.title') || 'Salida Multicanal Nativa';
+    section.appendChild(title);
+    
+    // Descripción
+    const desc = document.createElement('p');
+    desc.className = 'audio-settings-section__desc';
+    desc.textContent = t('audio.multichannel.description') || 
+      'Activa la salida directa de 8 canales independientes via PipeWire (Linux) o WASAPI (Windows).';
+    section.appendChild(desc);
+    
+    // Contenedor de control
+    const controlRow = document.createElement('div');
+    controlRow.className = 'audio-settings-multichannel__control';
+    controlRow.style.display = 'flex';
+    controlRow.style.alignItems = 'center';
+    controlRow.style.gap = '12px';
+    controlRow.style.marginTop = '8px';
+    
+    // Botón toggle - reutiliza el existente o crea uno nuevo sincronizado
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'audio-settings-multichannel__toggle';
+    toggleBtn.textContent = this.multichannelEnabled ? 
+      (t('audio.multichannel.disable') || 'Desactivar') : 
+      (t('audio.multichannel.enable') || 'Activar 8 canales');
+    if (this.multichannelEnabled) {
+      toggleBtn.classList.add('audio-settings-multichannel__toggle--active');
+    }
+    toggleBtn.addEventListener('click', () => this._toggleMultichannel());
+    controlRow.appendChild(toggleBtn);
+    
+    // Guardar referencia para sincronizar estado
+    this.multichannelToggleBtnEmbedded = toggleBtn;
+    
+    // Estado
+    const statusEl = document.createElement('span');
+    statusEl.className = 'audio-settings-multichannel__status';
+    statusEl.textContent = this.multichannelEnabled ? 
+      (t('audio.multichannel.active') || '✓ Activo (8 canales)') :
+      (t('audio.multichannel.inactive') || 'Inactivo');
+    if (this.multichannelEnabled) {
+      statusEl.style.color = '#4caf50';
+    }
+    controlRow.appendChild(statusEl);
+    
+    // Guardar referencia
+    this.multichannelStatusElEmbedded = statusEl;
+    
+    section.appendChild(controlRow);
+    
+    // Info de backend
+    const backendEl = document.createElement('div');
+    backendEl.className = 'audio-settings-multichannel__backend';
+    backendEl.style.fontSize = '0.85em';
+    backendEl.style.opacity = '0.7';
+    backendEl.style.marginTop = '8px';
+    if (this._multichannelBackendName) {
+      backendEl.textContent = `Backend: ${this._multichannelBackendName}`;
+    }
+    section.appendChild(backendEl);
+    
+    this.multichannelBackendElEmbedded = backendEl;
+    
+    return section;
   }
 
   /**
@@ -824,6 +920,10 @@ export class AudioSettingsModal {
     const content = document.createElement('div');
     content.className = 'audio-settings-modal__content';
     
+    // Sección de multicanal nativo (solo visible en Electron)
+    const multichannelSection = this._createMultichannelSection();
+    content.appendChild(multichannelSection);
+    
     // Sección de salidas (OUTPUT ROUTING)
     const outputSection = this._createOutputSection();
     content.appendChild(outputSection);
@@ -847,6 +947,193 @@ export class AudioSettingsModal {
     
     // Añadir al DOM (oculto)
     document.body.appendChild(this.overlay);
+  }
+
+  /**
+   * Crea la sección de multicanal nativo (solo Electron con PipeWire/WASAPI)
+   */
+  _createMultichannelSection() {
+    const section = document.createElement('div');
+    section.className = 'audio-settings-section audio-settings-section--multichannel';
+    section.style.display = 'none';  // Oculto por defecto, se muestra si está disponible
+    this.multichannelSection = section;
+    
+    // Título
+    this._textElements.multichannelTitle = document.createElement('h3');
+    this._textElements.multichannelTitle.className = 'audio-settings-section__title';
+    this._textElements.multichannelTitle.textContent = t('audio.multichannel.title') || 'Salida Multicanal Nativa';
+    section.appendChild(this._textElements.multichannelTitle);
+    
+    // Descripción
+    this._textElements.multichannelDesc = document.createElement('p');
+    this._textElements.multichannelDesc.className = 'audio-settings-section__desc';
+    this._textElements.multichannelDesc.textContent = t('audio.multichannel.description') || 
+      'Activa la salida directa de 8 canales independientes via PipeWire (Linux) o WASAPI (Windows). ' +
+      'Esto bypasea la limitación de 2 canales de Chromium.';
+    section.appendChild(this._textElements.multichannelDesc);
+    
+    // Contenedor de control
+    const controlRow = document.createElement('div');
+    controlRow.className = 'audio-settings-multichannel__control';
+    controlRow.style.display = 'flex';
+    controlRow.style.alignItems = 'center';
+    controlRow.style.gap = '12px';
+    controlRow.style.marginTop = '8px';
+    
+    // Botón toggle
+    this.multichannelToggleBtn = document.createElement('button');
+    this.multichannelToggleBtn.type = 'button';
+    this.multichannelToggleBtn.className = 'audio-settings-multichannel__toggle';
+    this.multichannelToggleBtn.textContent = t('audio.multichannel.enable') || 'Activar 8 canales';
+    this.multichannelToggleBtn.addEventListener('click', () => this._toggleMultichannel());
+    controlRow.appendChild(this.multichannelToggleBtn);
+    
+    // Estado
+    this.multichannelStatusEl = document.createElement('span');
+    this.multichannelStatusEl.className = 'audio-settings-multichannel__status';
+    this.multichannelStatusEl.textContent = t('audio.multichannel.inactive') || 'Inactivo';
+    controlRow.appendChild(this.multichannelStatusEl);
+    
+    section.appendChild(controlRow);
+    
+    // Info de backend
+    this.multichannelBackendEl = document.createElement('div');
+    this.multichannelBackendEl.className = 'audio-settings-multichannel__backend';
+    this.multichannelBackendEl.style.fontSize = '0.85em';
+    this.multichannelBackendEl.style.opacity = '0.7';
+    this.multichannelBackendEl.style.marginTop = '8px';
+    section.appendChild(this.multichannelBackendEl);
+    
+    return section;
+  }
+  
+  /**
+   * Maneja el toggle de multicanal nativo
+   */
+  async _toggleMultichannel() {
+    if (!this.multichannelAvailable) return;
+    
+    const newState = !this.multichannelEnabled;
+    
+    // Deshabilitar botón mientras se procesa
+    this.multichannelToggleBtn.disabled = true;
+    this.multichannelStatusEl.textContent = newState ? 
+      (t('audio.multichannel.activating') || 'Activando...') :
+      (t('audio.multichannel.deactivating') || 'Desactivando...');
+    
+    try {
+      if (this.onMultichannelToggle) {
+        const success = await this.onMultichannelToggle(newState);
+        if (success) {
+          this.multichannelEnabled = newState;
+          
+          // Actualizar canales físicos según estado
+          if (newState) {
+            // Activado: 8 canales independientes
+            this.updatePhysicalChannels(8, ['Out1', 'Out2', 'Out3', 'Out4', 'Out5', 'Out6', 'Out7', 'Out8']);
+          } else {
+            // Desactivado: volver a estéreo
+            this.updatePhysicalChannels(2, ['L', 'R']);
+          }
+          
+          this._updateMultichannelUI();
+        }
+      }
+    } catch (error) {
+      log.error('[Multichannel] Error toggling:', error);
+    } finally {
+      this.multichannelToggleBtn.disabled = false;
+      this._updateMultichannelUI();
+    }
+  }
+  
+  /**
+   * Actualiza la UI de multicanal según el estado actual
+   */
+  _updateMultichannelUI() {
+    if (!this.multichannelToggleBtn || !this.multichannelStatusEl) return;
+    
+    if (this.multichannelEnabled) {
+      this.multichannelToggleBtn.textContent = t('audio.multichannel.disable') || 'Desactivar';
+      this.multichannelToggleBtn.classList.add('audio-settings-multichannel__toggle--active');
+      this.multichannelStatusEl.textContent = t('audio.multichannel.active') || '✓ Activo (8 canales)';
+      this.multichannelStatusEl.style.color = '#4caf50';
+    } else {
+      this.multichannelToggleBtn.textContent = t('audio.multichannel.enable') || 'Activar 8 canales';
+      this.multichannelToggleBtn.classList.remove('audio-settings-multichannel__toggle--active');
+      this.multichannelStatusEl.textContent = t('audio.multichannel.inactive') || 'Inactivo';
+      this.multichannelStatusEl.style.color = '';
+    }
+    
+    // También actualizar versión embebida si existe
+    if (this.multichannelToggleBtnEmbedded) {
+      if (this.multichannelEnabled) {
+        this.multichannelToggleBtnEmbedded.textContent = t('audio.multichannel.disable') || 'Desactivar';
+        this.multichannelToggleBtnEmbedded.classList.add('audio-settings-multichannel__toggle--active');
+        this.multichannelStatusElEmbedded.textContent = t('audio.multichannel.active') || '✓ Activo (8 canales)';
+        this.multichannelStatusElEmbedded.style.color = '#4caf50';
+      } else {
+        this.multichannelToggleBtnEmbedded.textContent = t('audio.multichannel.enable') || 'Activar 8 canales';
+        this.multichannelToggleBtnEmbedded.classList.remove('audio-settings-multichannel__toggle--active');
+        this.multichannelStatusElEmbedded.textContent = t('audio.multichannel.inactive') || 'Inactivo';
+        this.multichannelStatusElEmbedded.style.color = '';
+      }
+    }
+  }
+  
+  /**
+   * Establece la disponibilidad de multicanal nativo.
+   * Llamado desde el engine cuando detecta si está disponible.
+   * 
+   * @param {boolean} available - Si multicanal está disponible
+   * @param {string} [backend] - Nombre del backend (pipewire, wasapi, etc.)
+   */
+  setMultichannelAvailable(available, backend = '') {
+    this.multichannelAvailable = available;
+    this._multichannelBackendName = backend;
+    
+    // Actualizar visibilidad del modal
+    if (this.multichannelSection) {
+      this.multichannelSection.style.display = available ? 'block' : 'none';
+    }
+    
+    // Actualizar visibilidad del embebido
+    if (this.multichannelSectionEmbedded) {
+      this.multichannelSectionEmbedded.style.display = available ? 'block' : 'none';
+    }
+    
+    // Actualizar backend info en modal
+    if (this.multichannelBackendEl && backend) {
+      this.multichannelBackendEl.textContent = `Backend: ${backend}`;
+    }
+    
+    // Actualizar backend info en embebido
+    if (this.multichannelBackendElEmbedded && backend) {
+      this.multichannelBackendElEmbedded.textContent = `Backend: ${backend}`;
+    }
+    
+    log.info(`[Multichannel] Available: ${available}, backend: ${backend}`);
+  }
+  
+  /**
+   * Establece el estado de multicanal (desde el engine).
+   * Actualiza UI y canales físicos automáticamente.
+   * 
+   * @param {boolean} enabled - Si multicanal está activo
+   */
+  setMultichannelEnabled(enabled) {
+    if (this.multichannelEnabled === enabled) return;
+    
+    this.multichannelEnabled = enabled;
+    
+    // Actualizar canales físicos según estado
+    if (enabled) {
+      this.updatePhysicalChannels(8, ['Out1', 'Out2', 'Out3', 'Out4', 'Out5', 'Out6', 'Out7', 'Out8']);
+    } else {
+      this.updatePhysicalChannels(2, ['L', 'R']);
+    }
+    
+    this._updateMultichannelUI();
   }
 
   /**

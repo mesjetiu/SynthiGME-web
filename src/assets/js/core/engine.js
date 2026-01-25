@@ -458,6 +458,20 @@ export class AudioEngine {
   }
   
   /**
+   * Registra un callback para cuando cambie la disponibilidad de multicanal.
+   * Si multicanal ya fue detectado como disponible, llama inmediatamente.
+   * @param {Function} callback - Función a llamar con (available, backend)
+   */
+  onMultichannelAvailableChange(callback) {
+    this._onMultichannelAvailableChange = callback;
+    
+    // Si ya detectamos que está disponible, notificar inmediatamente
+    if (this.multichannelAvailable && this._multichannelBackend) {
+      callback(true, this._multichannelBackend);
+    }
+  }
+  
+  /**
    * Inicializa la salida multicanal nativa si está disponible.
    * Solo funciona en Electron con PipeWire (Linux) o WASAPI (Windows).
    * @private
@@ -483,6 +497,18 @@ export class AudioEngine {
         // No iniciamos automáticamente - el usuario decide cuándo activar multicanal
         // Esto evita crear un stream de PipeWire si el usuario no lo necesita
         log.info('[Multichannel] Sistema listo. Usar enableMultichannel() para activar.');
+        
+        // Determinar backend
+        this._multichannelBackend = typeof window !== 'undefined' && window.electronAPI?.platform === 'linux' 
+          ? 'PipeWire' 
+          : window.electronAPI?.platform === 'win32' 
+            ? 'WASAPI' 
+            : 'Native';
+        
+        // Notificar al UI que multicanal está disponible
+        if (this._onMultichannelAvailableChange) {
+          this._onMultichannelAvailableChange(true, this._multichannelBackend);
+        }
       }
     } catch (error) {
       log.error('[Multichannel] Error inicializando:', error);

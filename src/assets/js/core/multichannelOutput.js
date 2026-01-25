@@ -18,7 +18,9 @@
  * Documentación: MULTICANAL-ELECTRON.md
  */
 
-import { log } from '../utils/logger.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('MultichannelOutput');
 
 /**
  * @typedef {Object} MultichannelConfig

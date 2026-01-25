@@ -2512,6 +2512,55 @@ small { color:#aaa; }
   background: rgba(244, 67, 54, 0.6);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * MULTICANAL NATIVO (solo Electron)
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+.audio-settings-section--multichannel {
+  background: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.25);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.audio-settings-multichannel__toggle {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.audio-settings-multichannel__toggle:hover:not(:disabled) {
+  background: rgba(76, 175, 80, 0.25);
+  border-color: rgba(76, 175, 80, 0.6);
+}
+
+.audio-settings-multichannel__toggle:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.audio-settings-multichannel__toggle--active {
+  color: #fff;
+  background: rgba(76, 175, 80, 0.5);
+  border-color: rgba(76, 175, 80, 0.8);
+}
+
+.audio-settings-multichannel__toggle--active:hover:not(:disabled) {
+  background: rgba(76, 175, 80, 0.6);
+}
+
+.audio-settings-multichannel__status {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 /* Matriz de ruteo */
 .routing-matrix {
   display: flex;

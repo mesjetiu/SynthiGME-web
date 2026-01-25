@@ -360,6 +360,21 @@ class App {
       // ─────────────────────────────────────────────────────────────────────────
       onStereoBusRoutingChange: (busId, leftChannel, rightChannel) => {
         this.engine.setStereoBusRouting(busId, leftChannel, rightChannel);
+      },
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLBACK DE MULTICANAL NATIVO (solo Electron)
+      // ─────────────────────────────────────────────────────────────────────────
+      // Activa/desactiva salida de 8 canales independientes via PipeWire/WASAPI.
+      // Bypasea la limitación de 2 canales de Chromium.
+      // ─────────────────────────────────────────────────────────────────────────
+      onMultichannelToggle: async (enable) => {
+        if (enable) {
+          return await this.engine.enableMultichannel();
+        } else {
+          await this.engine.disableMultichannel();
+          return true;
+        }
       }
     });
     
@@ -405,6 +420,26 @@ class App {
         this.engine.setOutputDevice(savedOutputDevice);
       }
     };
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // MULTICANAL NATIVO (solo Electron)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Registrar callback para cuando el engine detecte que multicanal está disponible.
+    // Esto ocurre de forma asíncrona después de engine.start().
+    // ─────────────────────────────────────────────────────────────────────────
+    if (this.engine.onMultichannelAvailableChange) {
+      this.engine.onMultichannelAvailableChange((available, backend) => {
+        if (available) {
+          log.info(' Native multichannel available! Backend:', backend);
+          this.audioSettingsModal.setMultichannelAvailable(true, backend);
+          
+          // Sincronizar estado si ya estaba activo en el engine
+          if (this.engine.multichannelEnabled) {
+            this.audioSettingsModal.setMultichannelEnabled(true);
+          }
+        }
+      });
+    }
     
     // Escuchar evento del quickbar para abrir/cerrar modal
     document.addEventListener('synth:toggleAudioSettings', () => {

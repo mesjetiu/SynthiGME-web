@@ -630,7 +630,7 @@ export default {
       // |     0.30         | Portamento pronunciado                         |
       // |     0.50         | Efecto muy evidente (glissando lento)          |
       //
-      riseTimeConstant: 0.15,
+      riseTimeConstant: 0.005, //0.15,
 
       // ─────────────────────────────────────────────────────────────────────
       // CONSTANTE DE TIEMPO DE BAJADA (enfriamiento)
@@ -647,7 +647,7 @@ export default {
       // |     1.00         | Enfriamiento muy lento (1 segundo)             |
       // |     2.00         | Extremo: "pocos segundos" del manual           |
       //
-      fallTimeConstant: 0.5,
+      fallTimeConstant: 0.02, //0.5,
 
       // ─────────────────────────────────────────────────────────────────────
       // UMBRAL DE ACTIVACIÓN

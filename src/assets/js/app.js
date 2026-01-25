@@ -1906,10 +1906,19 @@ class App {
     const detuneParam = multiOsc.parameters?.get('detune');
     
     if (detuneParam) {
-      // BYPASS: Conexión directa para pruebas
-      log.info(`[FM] Osc ${oscIndex}: BYPASS MODE - freqCVInput → detune (direct)`);
-      freqCVInput.connect(detuneParam);
-      log.info(`[FM] Osc ${oscIndex}: CV chain complete (bypass) ✓`);
+      // TEST: Solo cvThermalSlew (sin cvSoftClip)
+      log.info(`[FM] Osc ${oscIndex}: TEST MODE - freqCVInput → cvThermalSlew → detune`);
+      
+      if (cvThermalSlew) {
+        freqCVInput.connect(cvThermalSlew);
+        cvThermalSlew.connect(detuneParam);
+        log.info(`[FM] Osc ${oscIndex}: cvThermalSlew connected ✓`);
+      } else {
+        // Fallback si no hay cvThermalSlew
+        freqCVInput.connect(detuneParam);
+        log.info(`[FM] Osc ${oscIndex}: Direct connection (no cvThermalSlew)`);
+      }
+      log.info(`[FM] Osc ${oscIndex}: CV chain complete ✓`);
       
       /* CADENA COMPLETA COMENTADA PARA PRUEBAS:
       let lastNode = freqCVInput;

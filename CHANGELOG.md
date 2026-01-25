@@ -8,6 +8,12 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Salida multicanal en Electron (Linux)**: Soporte para 8 canales de audio independientes usando PipeWire nativo (`pw-cat`).
+  - Supera la limitación de 2 canales de Web Audio API/Chromium
+  - Cada canal visible y ruteable en qpwgraph/pavucontrol
+  - Documentación: [MULTICANAL-ELECTRON.md](MULTICANAL-ELECTRON.md)
+  - Windows (WASAPI) y macOS (CoreAudio) planificados
+  - PWA/Web permanece en estéreo (limitación del navegador)
 - **Aplicación de escritorio con Electron**: SynthiGME ahora puede empaquetarse como aplicación nativa para Linux, Windows y macOS.
   - **Scripts de build**: `npm run electron:dev` (desarrollo), `npm run electron:build:linux` (AppImage + .deb), `npm run electron:build:win` (NSIS + portable), `npm run electron:build:all` (Linux + Windows)
   - **Scripts combinados**: `npm run build:all` genera docs/ + instaladores con tests, `npm run build:all:skip-tests` sin tests

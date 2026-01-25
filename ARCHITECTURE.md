@@ -1962,8 +1962,31 @@ engine.setOutputLevel(busIndex, value)
 engine.connectSourceToOutput(busIndex, node)
 ```
 
-### Futuro: Salida Multicanal
-Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a canales físicos adicionales sin modificar los módulos.
+### Salida Multicanal (Electron)
+
+> **Estado**: Validado con prueba de concepto. En desarrollo.
+> **Documentación completa**: [MULTICANAL-ELECTRON.md](MULTICANAL-ELECTRON.md)
+
+**Limitación Web Audio API**: Chromium limita `destination.maxChannelCount` a 2 canales independientemente del hardware.
+
+**Solución**: En Electron, usar herramientas nativas del sistema operativo:
+- **Linux**: `pw-cat` (PipeWire) — Validado, 8 canales funcionando
+- **Windows**: naudiodon + WASAPI — Planificado
+- **macOS**: naudiodon + CoreAudio — Planificado
+
+**PWA/Web**: Permanece limitado a estéreo (2 canales).
+
+```
+┌─────────────────────────────────────────────────┐
+│  ELECTRON RENDERER (Web Audio API)              │
+│  └── AudioWorklet captura 8 buses               │
+│      └── SharedArrayBuffer (ring buffer)        │
+├─────────────────────────────────────────────────┤
+│  ELECTRON MAIN (Node.js)                        │
+│  └── MultichannelBridge (pw-cat / naudiodon)    │
+│      └── Stream nativo de 8 canales             │
+└─────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -2314,7 +2337,7 @@ Para builds firmados de macOS, usar CI/CD con GitHub Actions (ver README.md).
 - [x] **Grabación**: Sistema de grabación multitrack WAV → Ver [Sección 6](#6-sistema-de-grabación-de-audio)
 - [x] **Atajos de teclado**: Sistema de shortcuts personalizables → Ver [Sección 7](#7-sistema-de-atajos-de-teclado)
 - [ ] **MIDI**: Soporte para controladores externos
-- [ ] **Multicanal**: Ruteo a más de 2 salidas físicas si el navegador lo permite
+- [ ] **Multicanal Electron**: Ruteo a 8 salidas físicas vía PortAudio/PipeWire (ver [MULTICANAL-ELECTRON.md](MULTICANAL-ELECTRON.md))
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam
 - [ ] **Interpolación de frames**: Suavizado adicional entre frames del osciloscopio si es necesario
 - [ ] **Trigger externo**: Permitir sincronizar osciloscopio con señal externa (otro oscilador)

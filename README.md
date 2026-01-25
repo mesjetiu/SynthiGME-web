@@ -62,8 +62,22 @@ Accede a los ajustes pulsando `S` o desde la quickbar (icono de engranaje).
 - **Vanilla JavaScript ES Modules** — sin frameworks de runtime
 - **esbuild** para bundling y minificación
 - **PWA** con Service Worker para uso offline
+- **Electron** para versión de escritorio con funcionalidades avanzadas
 
 Para detalles de arquitectura, ver [ARCHITECTURE.md](ARCHITECTURE.md).
+
+### Salida multicanal (Electron)
+
+La versión Electron soporta salida de audio multicanal (hasta 8 canales independientes), superando la limitación de 2 canales de Web Audio API en navegadores.
+
+| Plataforma | Canales | Estado |
+|------------|---------|--------|
+| Electron Linux | 8 | ✅ Validado (PipeWire) |
+| Electron Windows | 8 | 🔄 Planificado (WASAPI) |
+| Electron macOS | 8 | 🔄 Planificado (CoreAudio) |
+| PWA / Web | 2 | Limitación de Chromium |
+
+Para detalles técnicos, ver [MULTICANAL-ELECTRON.md](MULTICANAL-ELECTRON.md).
 
 ### Versión PWA e instalación
 - Fija el sitio en tu dispositivo desde Chrome/Edge/Brave: menú → “Instalar Synthi GME Web”.

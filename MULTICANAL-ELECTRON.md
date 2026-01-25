@@ -262,6 +262,7 @@ PipeWire (quantum típico: 256-1024 samples)
 ## Referencias
 
 - [Experimentos validados](experiments/portaudio-multichannel/)
+- [Arquitectura del proyecto](ARCHITECTURE.md)
 - [PipeWire documentation](https://docs.pipewire.org/)
 - [naudiodon (Node.js PortAudio)](https://github.com/Streampunk/naudiodon)
 - [Web Audio API limitations](https://developer.chrome.com/blog/audio-output-devices/)

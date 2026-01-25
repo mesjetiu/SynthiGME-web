@@ -1888,6 +1888,372 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════
+    // TESTS DE INTEGRACIÓN: AUDIOWORKLET → AUDIOPARAM
+    // ═══════════════════════════════════════════════════════════════════════
+    // 
+    // Estos tests verifican que la señal de un AudioWorklet llega correctamente
+    // a un AudioParam, detectando el bug donde condicionales en el worklet
+    // bloquean la propagación de señal.
+    //
+    // BUG HISTÓRICO (Enero 2026):
+    // - AudioWorklets con if/else, ternarios, Math.max/min en process()
+    //   producían señal correcta hacia nodos de audio normales
+    //   pero BLOQUEABAN la señal hacia AudioParams
+    // - Solo aritmética pura funcionaba hacia AudioParams
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Test crítico: Verifica que un AudioWorklet puede modular un AudioParam.
+     * 
+     * Este es el test más importante para detectar el bug de condicionales.
+     * Conecta: cvSource → AudioWorklet → GainNode.gain → destination
+     * 
+     * Si el worklet tiene condicionales problemáticos, la señal no llegará
+     * al gain y el output será silencio.
+     */
+    window.testWorkletToAudioParam = async function(config) {
+      const {
+        workletPath = '/src/assets/js/worklets/cvSoftClip.worklet.js',
+        workletName = 'cv-soft-clip',
+        processorOptions = {},
+        cvValue = 0.5,           // Valor CV de entrada
+        duration = 0.2,
+        sampleRate = 44100
+      } = config;
+
+      log(`Worklet→AudioParam Test: ${workletName} with CV=${cvValue}`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+
+      // Cargar el worklet
+      await offline.audioWorklet.addModule(workletPath);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Crear cadena: CV constante → Worklet → GainNode.gain → OscillatorNode
+      // ─────────────────────────────────────────────────────────────────────
+      
+      // 1. Fuente CV constante
+      const cvSource = offline.createConstantSource();
+      cvSource.offset.value = cvValue;
+      
+      // 2. AudioWorklet bajo test
+      const worklet = new AudioWorkletNode(offline, workletName, {
+        processorOptions,
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+
+      // 3. GainNode cuya ganancia será modulada por el worklet
+      const modulatedGain = offline.createGain();
+      modulatedGain.gain.value = 0;  // Base 0, el worklet debe aportar la ganancia
+
+      // 4. Señal de prueba (sine constante a 1.0 de amplitud)
+      const testOsc = offline.createOscillator();
+      testOsc.frequency.value = 440;
+      testOsc.type = 'sine';
+
+      // Conectar: cvSource → worklet → gain.gain (AudioParam!)
+      cvSource.connect(worklet);
+      worklet.connect(modulatedGain.gain);  // ← CONEXIÓN CRÍTICA A AudioParam
+
+      // Conectar: testOsc → modulatedGain → destination
+      testOsc.connect(modulatedGain);
+      modulatedGain.connect(offline.destination);
+
+      cvSource.start();
+      testOsc.start();
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Renderizar y analizar
+      // ─────────────────────────────────────────────────────────────────────
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // Calcular RMS y peak del output
+      let sumSq = 0;
+      let peak = 0;
+      for (let i = 0; i < samples.length; i++) {
+        sumSq += samples[i] * samples[i];
+        const abs = Math.abs(samples[i]);
+        if (abs > peak) peak = abs;
+      }
+      const rms = Math.sqrt(sumSq / samples.length);
+
+      // El output debería tener señal si el worklet pasó la señal al gain
+      // Si el worklet bloqueó la señal, gain.gain = 0 y output es silencio
+      const hasSignal = rms > 0.001;
+      const signalLevel = peak;
+
+      // Calcular qué porcentaje del CV llegó al gain
+      // Si cvValue = 0.5 y el worklet es transparente, gain ≈ 0.5
+      // y el output del sine (peak 1.0) * 0.5 ≈ 0.5
+      const expectedPeak = Math.abs(cvValue);  // Aproximado, asumiendo worklet ~transparente
+      const cvPassthrough = signalLevel > 0 ? signalLevel / expectedPeak : 0;
+
+      log(`  Output RMS: ${rms.toFixed(4)}, Peak: ${peak.toFixed(4)}`);
+      log(`  Signal detected: ${hasSignal ? 'YES ✓' : 'NO ✗'}`);
+      log(`  CV passthrough: ${(cvPassthrough * 100).toFixed(1)}%`);
+
+      return {
+        config: { workletName, cvValue },
+        result: {
+          hasSignal,
+          rms,
+          peak,
+          cvPassthrough,
+          // El test PASA si hay señal significativa
+          passed: hasSignal && rms > 0.01
+        }
+      };
+    };
+
+    /**
+     * Test de cadena CV completa para FM.
+     * 
+     * Emula la cadena real de modulación de frecuencia:
+     * cvSource → cvThermalSlew → cvSoftClip → centsGain → oscillator.detune
+     * 
+     * Verifica que todos los eslabones pasan señal correctamente.
+     */
+    window.testCompleteFMChain = async function(config) {
+      const {
+        baseFrequency = 440,
+        cvVoltage = 1.0,           // Voltios de CV
+        duration = 0.5,
+        sampleRate = 44100,
+        includeThermalSlew = true,
+        includeSoftClip = true
+      } = config;
+
+      const DIGITAL_TO_VOLTAGE = 4.0;
+      const centsGain = 4800;  // 1V/octava calibrado
+      const cvDigital = cvVoltage / DIGITAL_TO_VOLTAGE;  // 1V → 0.25 digital
+      const expectedCents = cvDigital * centsGain;       // 0.25 × 4800 = 1200 cents
+      const expectedFreq = baseFrequency * Math.pow(2, cvVoltage);  // +1V = +1 octava
+
+      log(`Complete FM Chain Test: ${cvVoltage}V → ${expectedCents} cents`);
+      log(`  Expected: ${baseFrequency}Hz → ${expectedFreq.toFixed(1)}Hz`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+
+      // Cargar worklets necesarios
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+      if (includeThermalSlew) {
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/cvThermalSlew.worklet.js');
+      }
+      if (includeSoftClip) {
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/cvSoftClip.worklet.js');
+      }
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Construir cadena CV
+      // ─────────────────────────────────────────────────────────────────────
+      
+      // 1. Fuente CV
+      const cvSource = offline.createConstantSource();
+      cvSource.offset.value = cvDigital;
+
+      // 2. Nodo de entrada a la cadena (para medir)
+      const cvChainInput = offline.createGain();
+      cvChainInput.gain.value = 1.0;
+
+      // 3. Thermal Slew (opcional)
+      let cvThermalSlew = null;
+      if (includeThermalSlew) {
+        cvThermalSlew = new AudioWorkletNode(offline, 'cv-thermal-slew', {
+          processorOptions: { riseTimeConstant: 0.001, fallTimeConstant: 0.001 },  // Rápido para test
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        cvThermalSlew.parameters.get('enabled').value = 1;
+        cvThermalSlew.parameters.get('threshold').value = 10;  // Alto para que no se active
+      }
+
+      // 4. Soft Clip (opcional)
+      let cvSoftClip = null;
+      if (includeSoftClip) {
+        cvSoftClip = new AudioWorkletNode(offline, 'cv-soft-clip', {
+          processorOptions: { coefficient: 0.0001 },  // Muy suave
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+      }
+
+      // 5. Ganancia de cents (multiplica por 4800)
+      const freqCVInput = offline.createGain();
+      freqCVInput.gain.value = centsGain;
+
+      // 6. Oscilador de prueba
+      const osc = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'sine', sinePurity: 1.0 },
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+      });
+      osc.parameters.get('frequency').value = baseFrequency;
+      osc.parameters.get('gain').value = 1.0;
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Conectar cadena
+      // ─────────────────────────────────────────────────────────────────────
+      cvSource.connect(cvChainInput);
+
+      let lastNode = cvChainInput;
+      if (cvThermalSlew) {
+        lastNode.connect(cvThermalSlew);
+        lastNode = cvThermalSlew;
+      }
+      if (cvSoftClip) {
+        lastNode.connect(cvSoftClip);
+        lastNode = cvSoftClip;
+      }
+      lastNode.connect(freqCVInput);
+      
+      // CONEXIÓN CRÍTICA: freqCVInput → detune AudioParam
+      freqCVInput.connect(osc.parameters.get('detune'));
+
+      osc.connect(offline.destination);
+
+      cvSource.start();
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Renderizar y medir frecuencia
+      // ─────────────────────────────────────────────────────────────────────
+      const buffer = await offline.startRendering();
+      const samples = buffer.getChannelData(0);
+
+      // Medir frecuencia dominante
+      const spectrum = computeSpectrum(samples, sampleRate);
+      const dominant = findDominantFrequency(spectrum);
+      const measuredFreq = dominant?.frequency || 0;
+
+      // Calcular error
+      const freqError = Math.abs(measuredFreq - expectedFreq);
+      const freqErrorCents = 1200 * Math.log2(measuredFreq / expectedFreq);
+      const withinTolerance = Math.abs(freqErrorCents) < 50;  // ±50 cents
+
+      log(`  Measured: ${measuredFreq.toFixed(1)}Hz`);
+      log(`  Error: ${freqErrorCents.toFixed(1)} cents`);
+      log(`  Status: ${withinTolerance ? 'PASS ✓' : 'FAIL ✗'}`);
+
+      return {
+        config: { baseFrequency, cvVoltage, includeThermalSlew, includeSoftClip },
+        expected: { frequency: expectedFreq, cents: expectedCents },
+        measured: { frequency: measuredFreq },
+        analysis: {
+          freqError,
+          freqErrorCents,
+          withinTolerance,
+          passed: withinTolerance && measuredFreq > 0
+        }
+      };
+    };
+
+    /**
+     * Test A/B: Compara cadena con y sin worklet para detectar bloqueo de señal.
+     * 
+     * Si el worklet tiene código problemático, la versión CON worklet
+     * tendrá señal significativamente menor que SIN worklet.
+     */
+    window.testWorkletSignalPassthrough = async function(config) {
+      const {
+        workletPath = '/src/assets/js/worklets/cvSoftClip.worklet.js',
+        workletName = 'cv-soft-clip',
+        processorOptions = {},
+        cvValue = 0.5,
+        duration = 0.2,
+        sampleRate = 44100
+      } = config;
+
+      log(`Signal Passthrough Test: ${workletName}`);
+
+      const length = Math.ceil(sampleRate * duration);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Test A: SIN worklet (baseline)
+      // ─────────────────────────────────────────────────────────────────────
+      const offlineA = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+
+      const cvSourceA = offlineA.createConstantSource();
+      cvSourceA.offset.value = cvValue;
+
+      const gainA = offlineA.createGain();
+      gainA.gain.value = 0;
+
+      const oscA = offlineA.createOscillator();
+      oscA.frequency.value = 440;
+
+      // Directo: cvSource → gain.gain
+      cvSourceA.connect(gainA.gain);
+      oscA.connect(gainA);
+      gainA.connect(offlineA.destination);
+
+      cvSourceA.start();
+      oscA.start();
+
+      const bufferA = await offlineA.startRendering();
+      const samplesA = bufferA.getChannelData(0);
+      const peakA = Math.max(...samplesA.map(Math.abs));
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Test B: CON worklet
+      // ─────────────────────────────────────────────────────────────────────
+      const offlineB = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+      await offlineB.audioWorklet.addModule(workletPath);
+
+      const cvSourceB = offlineB.createConstantSource();
+      cvSourceB.offset.value = cvValue;
+
+      const worklet = new AudioWorkletNode(offlineB, workletName, {
+        processorOptions,
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+      });
+
+      const gainB = offlineB.createGain();
+      gainB.gain.value = 0;
+
+      const oscB = offlineB.createOscillator();
+      oscB.frequency.value = 440;
+
+      // Con worklet: cvSource → worklet → gain.gain
+      cvSourceB.connect(worklet);
+      worklet.connect(gainB.gain);
+      oscB.connect(gainB);
+      gainB.connect(offlineB.destination);
+
+      cvSourceB.start();
+      oscB.start();
+
+      const bufferB = await offlineB.startRendering();
+      const samplesB = bufferB.getChannelData(0);
+      const peakB = Math.max(...samplesB.map(Math.abs));
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Comparar resultados
+      // ─────────────────────────────────────────────────────────────────────
+      const ratio = peakA > 0 ? peakB / peakA : 0;
+      const signalBlocked = ratio < 0.5;  // Si el worklet bloquea >50% de señal
+      const workletTransparent = ratio > 0.9;  // Si pasa >90% de señal
+
+      log(`  Without worklet: peak=${peakA.toFixed(4)}`);
+      log(`  With worklet: peak=${peakB.toFixed(4)}`);
+      log(`  Signal ratio: ${(ratio * 100).toFixed(1)}%`);
+      log(`  Status: ${signalBlocked ? 'BLOCKED ✗' : 'PASS ✓'}`);
+
+      return {
+        config: { workletName, cvValue },
+        withoutWorklet: { peak: peakA },
+        withWorklet: { peak: peakB },
+        analysis: {
+          signalRatio: ratio,
+          signalBlocked,
+          workletTransparent,
+          // El test FALLA si el worklet bloquea la señal
+          passed: !signalBlocked && peakB > 0.01
+        }
+      };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
     // INICIALIZACIÓN
     // ═══════════════════════════════════════════════════════════════════════
 

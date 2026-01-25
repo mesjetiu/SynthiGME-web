@@ -1,12 +1,14 @@
 {
   "name": "portaudio-multichannel-test",
   "version": "1.0.0",
-  "description": "Prueba de concepto: salida multicanal con speaker/sox",
+  "description": "Prueba de concepto: salida multicanal con PortAudio/naudiodon",
   "type": "module",
   "scripts": {
     "list": "node list-devices.mjs",
     "test": "node multichannel-test.mjs",
-    "test-sox": "node sox-multichannel.mjs"
+    "device": "node synthigme-device.mjs",
+    "device:4ch": "node synthigme-device.mjs --channels=4",
+    "device:8ch": "node synthigme-device.mjs --channels=8"
   },
   "dependencies": {
     "naudiodon": "^2.3.0"

@@ -1873,12 +1873,12 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // SOFT CLIPPING DE CV (AudioWorklet - emulación Datanomics/Cuenca)
     // ─────────────────────────────────────────────────────────────────────────
-    const voltageConfig = oscConfig?.voltage ?? oscillatorConfig.defaults?.voltage ?? {};
-    const inputLimit = voltageConfig.inputLimit ?? 8.0;
-    const normalizedLimit = inputLimit / 4.0; // Normalizar a rango digital
+    const softClipConfig = oscConfig?.softClip ?? oscillatorConfig.defaults?.softClip ?? {};
+    const softClipCoefficient = softClipConfig.coefficient ?? 0.0001;
+    const softClipEnabled = softClipConfig.enabled !== false;
     
     let cvSoftClip = null;
-    if (VOLTAGE_DEFAULTS.softClipEnabled && this.engine.workletReady) {
+    if (softClipEnabled && VOLTAGE_DEFAULTS.softClipEnabled && this.engine.workletReady) {
       try {
         cvSoftClip = new AudioWorkletNode(ctx, 'cv-soft-clip', {
           numberOfInputs: 1,
@@ -1887,11 +1887,10 @@ class App {
           channelCount: 1,
           channelCountMode: 'explicit',
           processorOptions: {
-            limit: normalizedLimit,
-            softness: 1.0
+            coefficient: softClipCoefficient
           }
         });
-        log.info(`[FM] Osc ${oscIndex}: cvSoftClip CREATED (limit=${normalizedLimit})`);
+        log.info(`[FM] Osc ${oscIndex}: cvSoftClip CREATED (coefficient=${softClipCoefficient})`);
       } catch (err) {
         log.warn(`[FM] Osc ${oscIndex}: Failed to create cvSoftClip:`, err);
         cvSoftClip = null;

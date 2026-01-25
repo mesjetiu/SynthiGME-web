@@ -676,6 +676,64 @@ export default {
       // Permite desactivar el efecto para A/B testing o preferencia personal.
       //
       enabled: true
+    },
+
+    // ·······································································
+    // SOFT CLIPPING DE CV (Saturación de entrada)
+    // ·······································································
+    //
+    // Emula la saturación suave de los amplificadores operacionales del
+    // Synthi 100 cuando la señal CV supera los límites de entrada.
+    //
+    // COMPORTAMIENTO ANALÓGICO:
+    // Los opamps saturan gradualmente cerca de los raíles de alimentación
+    // (±12V en el Synthi 100). Esto limita los cambios extremos de frecuencia
+    // y añade un carácter "orgánico" a las modulaciones fuertes.
+    //
+    // IMPLEMENTACIÓN:
+    // Fórmula polinómica: y = x - coefficient × x³
+    // - Para valores pequeños: salida ≈ entrada (zona lineal)
+    // - Para valores grandes: la resta del término cúbico limita el crecimiento
+    //
+    // NOTA: Debido a limitaciones de Web Audio API, no podemos usar
+    // condicionales en el AudioWorklet. La fórmula polinómica es una
+    // aproximación que funciona con aritmética pura.
+    //
+    softClip: {
+      // ─────────────────────────────────────────────────────────────────────
+      // COEFICIENTE DE SATURACIÓN (término cúbico)
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Controla cuánto se "comprime" la señal en valores altos.
+      // La fórmula es: y = x - coefficient × x³
+      //
+      // Para una señal de entrada x (en unidades digitales, típicamente ±1 a ±2):
+      //   - coefficient = 0.0001: saturación muy suave, casi imperceptible
+      //   - coefficient = 0.001:  saturación moderada
+      //   - coefficient = 0.01:   saturación fuerte
+      //   - coefficient = 0.1:    saturación extrema (distorsión audible)
+      //
+      // EJEMPLOS con coefficient = 0.0001:
+      //   x = 1.0  → y = 1.0 - 0.0001 = 0.9999 (prácticamente lineal)
+      //   x = 5.0  → y = 5.0 - 0.0125 = 4.9875 (ligera compresión)
+      //   x = 10.0 → y = 10.0 - 0.1 = 9.9 (compresión notable)
+      //   x = 20.0 → y = 20.0 - 0.8 = 19.2 (compresión significativa)
+      //
+      // EJEMPLOS con coefficient = 0.001:
+      //   x = 1.0  → y = 1.0 - 0.001 = 0.999
+      //   x = 5.0  → y = 5.0 - 0.125 = 4.875
+      //   x = 10.0 → y = 10.0 - 1.0 = 9.0
+      //
+      coefficient: 0.0001,
+
+      // ─────────────────────────────────────────────────────────────────────
+      // HABILITACIÓN
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Permite desactivar el efecto para A/B testing o preferencia personal.
+      // Cuando está deshabilitado, la señal pasa sin modificar.
+      //
+      enabled: true
     }
   },
 

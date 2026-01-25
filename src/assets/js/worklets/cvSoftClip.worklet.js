@@ -59,6 +59,8 @@ class CVSoftClipProcessor extends AudioWorkletProcessor {
     const opts = options?.processorOptions || {};
     this.defaultLimit = opts.limit ?? 2.0;
     this.defaultSoftness = opts.softness ?? 1.0;
+    // Coeficiente de saturación polinómica (x - coefficient × x³)
+    this.coefficient = opts.coefficient ?? 0.0001;
   }
 
   process(inputs, outputs, parameters) {
@@ -72,12 +74,14 @@ class CVSoftClipProcessor extends AudioWorkletProcessor {
     
     const inputChannel = input[0];
     const outputChannel = output[0];
+    const coef = this.coefficient;
     
     for (let i = 0; i < inputChannel.length; i++) {
       const x = inputChannel[i];
-      // Coeficiente muy pequeño: solo afecta a valores > 20
-      // a = 0.0001 → para x=10: 10-0.1=9.9, para x=20: 20-0.8=19.2
-      outputChannel[i] = x - x * x * x * 0.0001;
+      // Saturación polinómica: y = x - coefficient × x³
+      // Para valores pequeños: casi lineal
+      // Para valores grandes: compresión gradual
+      outputChannel[i] = x - x * x * x * coef;
     }
     
     return true;

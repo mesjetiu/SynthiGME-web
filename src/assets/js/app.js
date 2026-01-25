@@ -1905,19 +1905,47 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     const detuneParam = multiOsc.parameters?.get('detune');
     
+    // Nodo de entrada para la cadena CV (declarado fuera del if para poder referenciarlo en entry)
+    let cvChainInput = null;
+    
     if (detuneParam) {
-      // TEST: Solo cvThermalSlew (sin cvSoftClip)
-      log.info(`[FM] Osc ${oscIndex}: TEST MODE - freqCVInput → cvThermalSlew → detune`);
+      // CADENA CV COMPLETA (orden corregido):
+      // source → cvChainInput → cvThermalSlew → cvSoftClip → freqCVInput(×4800) → detune
+      //
+      // El thermal slew y soft clip operan sobre la señal CV en unidades digitales (±1 a ±2),
+      // ANTES de la conversión a cents. Esto es correcto porque:
+      // - El thermal slew emula la inercia térmica del transistor (opera en voltios)
+      // - El soft clip emula la saturación del opamp (opera en voltios)
+      // - La conversión a cents es solo para el parámetro detune de Web Audio
+      //
+      // freqCVInput es el punto de entrada desde la matriz, pero ahora lo usamos
+      // como nodo de ganancia al final de la cadena.
+      
+      // Crear nodo de entrada para la cadena CV (antes de thermal/softclip)
+      cvChainInput = ctx.createGain();
+      cvChainInput.gain.value = 1.0; // Ganancia unitaria, solo punto de conexión
+      
+      let lastNode = cvChainInput;
       
       if (cvThermalSlew) {
-        freqCVInput.connect(cvThermalSlew);
-        cvThermalSlew.connect(detuneParam);
-        log.info(`[FM] Osc ${oscIndex}: cvThermalSlew connected ✓`);
-      } else {
-        // Fallback si no hay cvThermalSlew
-        freqCVInput.connect(detuneParam);
-        log.info(`[FM] Osc ${oscIndex}: Direct connection (no cvThermalSlew)`);
+        log.info(`[FM] Osc ${oscIndex}: Connecting cvChainInput → cvThermalSlew`);
+        lastNode.connect(cvThermalSlew);
+        lastNode = cvThermalSlew;
       }
+      
+      if (cvSoftClip) {
+        log.info(`[FM] Osc ${oscIndex}: Connecting → cvSoftClip`);
+        lastNode.connect(cvSoftClip);
+        lastNode = cvSoftClip;
+      }
+      
+      // freqCVInput aplica la ganancia de conversión a cents (×4800)
+      log.info(`[FM] Osc ${oscIndex}: Connecting → freqCVInput (×${centsGain} cents)`);
+      lastNode.connect(freqCVInput);
+      
+      // Finalmente conectar al parámetro detune
+      log.info(`[FM] Osc ${oscIndex}: Connecting → detune`);
+      freqCVInput.connect(detuneParam);
       log.info(`[FM] Osc ${oscIndex}: CV chain complete ✓`);
       
       /* CADENA COMPLETA COMENTADA PARA PRUEBAS:
@@ -1954,8 +1982,9 @@ class App {
       triPulseOut,
       moduleOut,
       freqCVInput,
+      _cvChainInput: cvChainInput, // Entrada de la cadena CV (antes de thermal/softclip)
       cvThermalSlew,  // Referencia al AudioWorkletNode para debug/ajustes
-      cvSoftClip,  // Referencia al WaveShaperNode para debug/ajustes
+      cvSoftClip,  // Referencia al AudioWorkletNode para debug/ajustes
       _freqInitialized: true,
       _useWorklet: true,
       _isMultiOsc: true,
@@ -2951,7 +2980,10 @@ class App {
         // Destino: Entrada CV de frecuencia del oscilador
         const oscIndex = dest.oscIndex;
         const oscNodes = this._ensurePanel3Nodes(oscIndex);
-        destNode = oscNodes?.freqCVInput;
+        
+        // Usar _cvChainInput si existe (entrada antes de thermal/softclip),
+        // sino fallback a freqCVInput para compatibilidad
+        destNode = oscNodes?._cvChainInput || oscNodes?.freqCVInput;
         
         // ─────────────────────────────────────────────────────────────────────
         // FIX: Verificar y reconectar cadena CV si no está conectada

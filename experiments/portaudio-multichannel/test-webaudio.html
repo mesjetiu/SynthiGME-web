@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Multicanal Web Audio API</title>
+    <style>
+        body { 
+            font-family: system-ui, sans-serif; 
+            max-width: 800px; 
+            margin: 2rem auto; 
+            padding: 1rem;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #4ecdc4; }
+        .result { 
+            background: #16213e; 
+            padding: 1rem; 
+            border-radius: 8px; 
+            margin: 1rem 0;
+            font-family: monospace;
+        }
+        .success { border-left: 4px solid #4ecdc4; }
+        .fail { border-left: 4px solid #ff6b6b; }
+        .warning { border-left: 4px solid #feca57; }
+        button {
+            background: #4ecdc4;
+            color: #1a1a2e;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+        button:hover { background: #26a69a; }
+        #log { white-space: pre-wrap; }
+        .channel-test {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .channel-btn {
+            background: #16213e;
+            color: #eee;
+            padding: 0.5rem;
+            border: 1px solid #4ecdc4;
+        }
+        .channel-btn.active {
+            background: #4ecdc4;
+            color: #1a1a2e;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔊 Test Multicanal - Web Audio API</h1>
+    
+    <p>Esta prueba verifica si el navegador permite más de 2 canales de salida.</p>
+    
+    <div id="initial-result" class="result warning">
+        Haz clic en "Iniciar Test" para comenzar.
+    </div>
+
+    <button onclick="runTest()">Iniciar Test</button>
+    <button onclick="playTestTone()" id="playBtn" disabled>Reproducir Tono</button>
+    
+    <h2>Configuración detectada</h2>
+    <div id="config" class="result"></div>
+    
+    <h2>Test por canal</h2>
+    <p>Si hay más de 2 canales disponibles, puedes probar cada uno:</p>
+    <div id="channel-buttons" class="channel-test"></div>
+    
+    <h2>Log</h2>
+    <div id="log" class="result"></div>
+
+    <script>
+        let audioCtx = null;
+        let splitter = null;
+        const log = (msg) => {
+            document.getElementById('log').textContent += msg + '\n';
+            console.log(msg);
+        };
+
+        async function runTest() {
+            const resultDiv = document.getElementById('initial-result');
+            const configDiv = document.getElementById('config');
+            
+            log('=== Iniciando test ===');
+            
+            try {
+                // Crear AudioContext
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 48000,
+                    latencyHint: 'interactive'
+                });
+                
+                log(`AudioContext creado. Estado: ${audioCtx.state}`);
+                log(`Sample rate: ${audioCtx.sampleRate}`);
+                
+                // Información del destination
+                const dest = audioCtx.destination;
+                log(`\n--- Destination Info ---`);
+                log(`maxChannelCount: ${dest.maxChannelCount}`);
+                log(`channelCount actual: ${dest.channelCount}`);
+                log(`channelCountMode: ${dest.channelCountMode}`);
+                log(`channelInterpretation: ${dest.channelInterpretation}`);
+                
+                // Intentar aumentar canales
+                const maxCh = dest.maxChannelCount;
+                log(`\n--- Intentando configurar ${maxCh} canales ---`);
+                
+                try {
+                    dest.channelCount = maxCh;
+                    dest.channelCountMode = 'explicit';
+                    log(`✓ channelCount configurado a: ${dest.channelCount}`);
+                } catch (e) {
+                    log(`✗ Error al configurar canales: ${e.message}`);
+                }
+                
+                // Resultado
+                configDiv.innerHTML = `
+                    <strong>maxChannelCount:</strong> ${maxCh}<br>
+                    <strong>channelCount efectivo:</strong> ${dest.channelCount}<br>
+                    <strong>sampleRate:</strong> ${audioCtx.sampleRate} Hz
+                `;
+                
+                if (maxCh > 2) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✓ <strong>MULTICANAL DISPONIBLE</strong><br>
+                        El dispositivo reporta ${maxCh} canales máximos.`;
+                    log(`\n=== RESULTADO: ÉXITO - ${maxCh} canales disponibles ===`);
+                    createChannelButtons(dest.channelCount);
+                } else {
+                    resultDiv.className = 'result fail';
+                    resultDiv.innerHTML = `✗ <strong>SOLO ESTÉREO</strong><br>
+                        El dispositivo solo reporta ${maxCh} canales.<br>
+                        <small>Chromium limita destination a 2 canales independientemente del hardware.</small>`;
+                    log(`\n=== RESULTADO: FALLO - Solo ${maxCh} canales (limitación Chromium) ===`);
+                    createChannelButtons(2);
+                }
+                
+                document.getElementById('playBtn').disabled = false;
+                
+            } catch (e) {
+                resultDiv.className = 'result fail';
+                resultDiv.textContent = `Error: ${e.message}`;
+                log(`Error: ${e.message}`);
+            }
+        }
+
+        function createChannelButtons(numChannels) {
+            const container = document.getElementById('channel-buttons');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < Math.max(numChannels, 8); i++) {
+                const btn = document.createElement('button');
+                btn.className = 'channel-btn';
+                btn.textContent = `Canal ${i}`;
+                btn.disabled = i >= numChannels;
+                btn.onclick = () => playChannelTone(i, numChannels);
+                if (i >= numChannels) {
+                    btn.style.opacity = '0.3';
+                    btn.title = 'No disponible';
+                }
+                container.appendChild(btn);
+            }
+        }
+
+        function playTestTone() {
+            if (!audioCtx) return;
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.frequency.value = 440;
+            gain.gain.value = 0.3;
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+            
+            log('Reproduciendo tono 440Hz en todos los canales...');
+        }
+
+        function playChannelTone(channel, totalChannels) {
+            if (!audioCtx) return;
+            
+            const freq = 220 * (channel + 1); // Frecuencia diferente por canal
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            // Crear un merger para dirigir a un canal específico
+            const merger = audioCtx.createChannelMerger(totalChannels);
+            
+            osc.frequency.value = freq;
+            gain.gain.value = 0.3;
+            
+            osc.connect(gain);
+            gain.connect(merger, 0, channel);
+            merger.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+            
+            log(`Reproduciendo ${freq}Hz en canal ${channel}...`);
+            
+            // Feedback visual
+            const btns = document.querySelectorAll('.channel-btn');
+            btns[channel]?.classList.add('active');
+            setTimeout(() => btns[channel]?.classList.remove('active'), 500);
+        }
+    </script>
+</body>
+</html>

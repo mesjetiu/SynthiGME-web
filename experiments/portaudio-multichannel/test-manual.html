@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Manual de Audio</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #4ecdc4; }
+        h2 { color: #feca57; margin-top: 2rem; }
+        
+        .section {
+            background: #16213e;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        button {
+            background: #4ecdc4;
+            color: #1a1a2e;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0.25rem;
+        }
+        button:hover { background: #26a69a; }
+        button:disabled { background: #555; cursor: not-allowed; }
+        button.stop { background: #ff6b6b; }
+        button.stop:hover { background: #ee5a5a; }
+        
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .channel-btn {
+            padding: 1rem;
+            text-align: center;
+        }
+        .channel-btn.playing {
+            background: #ff6b6b;
+            animation: pulse 0.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        select, input {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: 1px solid #4ecdc4;
+            background: #0f0f23;
+            color: #eee;
+            margin: 0.25rem;
+        }
+        
+        label {
+            display: inline-block;
+            min-width: 100px;
+            margin: 0.5rem 0;
+        }
+        
+        #log {
+            background: #0a0a15;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+        }
+        .status.ok { background: #2d5a27; }
+        .status.error { background: #5a2727; }
+        .status.warning { background: #5a4a27; }
+        
+        .freq-display {
+            font-size: 1.5rem;
+            color: #4ecdc4;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔊 Test Manual de Audio - Web Audio API</h1>
+    
+    <div class="section">
+        <h2>1. Inicializar Audio</h2>
+        <p>Primero hay que crear el AudioContext (requiere interacción del usuario).</p>
+        <button onclick="initAudio()">Inicializar AudioContext</button>
+        <button onclick="resumeAudio()">Resumir (si suspendido)</button>
+        <div id="audio-status" class="status warning">No inicializado</div>
+    </div>
+
+    <div class="section">
+        <h2>2. Información del Sistema</h2>
+        <div id="system-info">Haz clic en "Inicializar" primero</div>
+    </div>
+
+    <div class="section">
+        <h2>3. Test Simple - Un Tono</h2>
+        <p>Prueba básica: reproduce un tono para verificar que el audio funciona.</p>
+        <label>Frecuencia:</label>
+        <input type="number" id="simple-freq" value="440" min="100" max="2000"> Hz
+        <br>
+        <label>Duración:</label>
+        <input type="number" id="simple-duration" value="1" min="0.1" max="5" step="0.1"> segundos
+        <br><br>
+        <button onclick="playSimpleTone()">▶ Reproducir Tono</button>
+        <button onclick="stopAll()" class="stop">⏹ Parar Todo</button>
+    </div>
+
+    <div class="section">
+        <h2>4. Test por Canal</h2>
+        <p>Intenta reproducir en canales específicos. En Web Audio, solo funcionarán 0 y 1 (estéreo).</p>
+        <label>Canales a probar:</label>
+        <select id="num-channels">
+            <option value="2">2 (Estéreo)</option>
+            <option value="4">4</option>
+            <option value="6">6</option>
+            <option value="8">8</option>
+        </select>
+        <button onclick="createChannelButtons()">Crear Botones</button>
+        
+        <div id="channel-buttons" class="channel-grid"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. Test Todos los Canales</h2>
+        <p>Reproduce un tono diferente en cada canal simultáneamente.</p>
+        <button onclick="playAllChannels()">▶ Todos los Canales</button>
+        <button onclick="stopAll()" class="stop">⏹ Parar</button>
+    </div>
+
+    <div class="section">
+        <h2>6. Log</h2>
+        <button onclick="clearLog()">Limpiar Log</button>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let audioCtx = null;
+        let activeOscillators = [];
+        
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.textContent = `[${time}] ${msg}\n` + logDiv.textContent;
+            console.log(msg);
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+        
+        function updateStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = 'status ' + type;
+        }
+        
+        function initAudio() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 48000,
+                    latencyHint: 'interactive'
+                });
+                
+                log('AudioContext creado');
+                log(`  Estado: ${audioCtx.state}`);
+                log(`  Sample rate: ${audioCtx.sampleRate}`);
+                log(`  Base latency: ${(audioCtx.baseLatency * 1000).toFixed(1)} ms`);
+                
+                updateStatus('audio-status', `Estado: ${audioCtx.state} | Sample rate: ${audioCtx.sampleRate}`, 'ok');
+                
+                showSystemInfo();
+                
+                if (audioCtx.state === 'suspended') {
+                    log('⚠ AudioContext suspendido. Haz clic en "Resumir"');
+                    updateStatus('audio-status', 'Suspendido - haz clic en Resumir', 'warning');
+                }
+                
+            } catch (e) {
+                log('ERROR: ' + e.message);
+                updateStatus('audio-status', 'Error: ' + e.message, 'error');
+            }
+        }
+        
+        function resumeAudio() {
+            if (!audioCtx) {
+                log('Primero inicializa el AudioContext');
+                return;
+            }
+            audioCtx.resume().then(() => {
+                log('AudioContext resumido. Estado: ' + audioCtx.state);
+                updateStatus('audio-status', `Estado: ${audioCtx.state} | Listo para reproducir`, 'ok');
+            });
+        }
+        
+        function showSystemInfo() {
+            if (!audioCtx) return;
+            
+            const dest = audioCtx.destination;
+            const info = `
+                <strong>AudioContext:</strong><br>
+                - Estado: ${audioCtx.state}<br>
+                - Sample rate: ${audioCtx.sampleRate} Hz<br>
+                - Base latency: ${(audioCtx.baseLatency * 1000).toFixed(1)} ms<br><br>
+                
+                <strong>Destination (salida):</strong><br>
+                - maxChannelCount: <span class="freq-display">${dest.maxChannelCount}</span><br>
+                - channelCount: ${dest.channelCount}<br>
+                - channelCountMode: ${dest.channelCountMode}<br>
+                - channelInterpretation: ${dest.channelInterpretation}<br><br>
+                
+                <strong>Conclusión:</strong><br>
+                ${dest.maxChannelCount > 2 
+                    ? '✅ El navegador reporta más de 2 canales disponibles' 
+                    : '❌ Limitado a 2 canales (limitación de Chromium)'}
+            `;
+            document.getElementById('system-info').innerHTML = info;
+            
+            log(`maxChannelCount = ${dest.maxChannelCount}`);
+        }
+        
+        function playSimpleTone() {
+            if (!audioCtx) {
+                log('Primero inicializa el AudioContext');
+                return;
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            const freq = parseFloat(document.getElementById('simple-freq').value);
+            const duration = parseFloat(document.getElementById('simple-duration').value);
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.value = 0.3;
+            
+            // Envelope para evitar clicks
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.01);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime + duration - 0.01);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+            
+            activeOscillators.push(osc);
+            osc.onended = () => {
+                activeOscillators = activeOscillators.filter(o => o !== osc);
+            };
+            
+            log(`▶ Reproduciendo ${freq} Hz por ${duration}s`);
+        }
+        
+        function createChannelButtons() {
+            const numChannels = parseInt(document.getElementById('num-channels').value);
+            const container = document.getElementById('channel-buttons');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < numChannels; i++) {
+                const freq = 220 * (i + 1);
+                const btn = document.createElement('button');
+                btn.className = 'channel-btn';
+                btn.id = `ch-btn-${i}`;
+                btn.innerHTML = `Canal ${i}<br><span class="freq-display">${freq} Hz</span>`;
+                btn.onclick = () => playChannelTone(i, numChannels, freq);
+                container.appendChild(btn);
+            }
+            
+            log(`Creados ${numChannels} botones de canal`);
+        }
+        
+        function playChannelTone(channel, totalChannels, freq) {
+            if (!audioCtx) {
+                log('Primero inicializa el AudioContext');
+                return;
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            const duration = 1;
+            
+            try {
+                // Intentar configurar más canales
+                const dest = audioCtx.destination;
+                const maxCh = Math.min(totalChannels, dest.maxChannelCount);
+                dest.channelCount = maxCh;
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const merger = audioCtx.createChannelMerger(maxCh);
+                
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.value = 0.3;
+                
+                // Envelope
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.01);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime + duration - 0.01);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+                
+                osc.connect(gain);
+                
+                // Conectar solo al canal específico
+                const targetChannel = Math.min(channel, maxCh - 1);
+                gain.connect(merger, 0, targetChannel);
+                merger.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+                
+                // Visual feedback
+                const btn = document.getElementById(`ch-btn-${channel}`);
+                if (btn) {
+                    btn.classList.add('playing');
+                    setTimeout(() => btn.classList.remove('playing'), duration * 1000);
+                }
+                
+                activeOscillators.push(osc);
+                osc.onended = () => {
+                    activeOscillators = activeOscillators.filter(o => o !== osc);
+                };
+                
+                log(`▶ Canal ${channel} → ${freq} Hz (ruteado a canal ${targetChannel} de ${maxCh})`);
+                
+            } catch (e) {
+                log(`ERROR en canal ${channel}: ${e.message}`);
+            }
+        }
+        
+        function playAllChannels() {
+            if (!audioCtx) {
+                log('Primero inicializa el AudioContext');
+                return;
+            }
+            
+            const numChannels = parseInt(document.getElementById('num-channels').value);
+            log(`Reproduciendo ${numChannels} canales simultáneamente...`);
+            
+            for (let i = 0; i < numChannels; i++) {
+                const freq = 220 * (i + 1);
+                setTimeout(() => playChannelTone(i, numChannels, freq), i * 100);
+            }
+        }
+        
+        function stopAll() {
+            activeOscillators.forEach(osc => {
+                try { osc.stop(); } catch(e) {}
+            });
+            activeOscillators = [];
+            log('⏹ Todos los osciladores detenidos');
+        }
+        
+        // Inicializar botones de canal por defecto
+        window.onload = () => {
+            createChannelButtons();
+            log('Página cargada. Haz clic en "Inicializar AudioContext" para empezar.');
+        };
+    </script>
+</body>
+</html>

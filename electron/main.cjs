@@ -17,8 +17,13 @@ app.setName('SynthiGME');
 // ─────────────────────────────────────────────────────────────────────────────
 // Flags de Chromium para audio
 // ─────────────────────────────────────────────────────────────────────────────
-// Estos flags mejoran el comportamiento del audio y hacen que el nombre
-// de la app aparezca correctamente en PipeWire/PulseAudio.
+// AudioServiceOutOfProcess deshabilitado hace que el audio se procese dentro
+// del proceso de la app, mostrando "SynthiGME" en PipeWire/PulseAudio en lugar
+// de "Chromium".
+//
+// NOTA SOBRE MULTICANAL: Chromium limita destination.maxChannelCount a 2
+// canales independientemente del hardware. Para salida multicanal (>2ch)
+// se necesitaría un addon nativo (PortAudio) o usar JACK directamente.
 // ─────────────────────────────────────────────────────────────────────────────
 app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
 

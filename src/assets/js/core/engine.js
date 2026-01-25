@@ -188,6 +188,8 @@ export class AudioEngine {
     // ─────────────────────────────────────────────────────────────────────────
     // Detectar canales físicos disponibles en el dispositivo por defecto.
     // Por defecto asumimos estéreo (2 canales) hasta que se detecte el hardware.
+    // NOTA: Chromium limita destination.maxChannelCount a 2 en la mayoría de
+    // configuraciones, incluso si el hardware soporta más canales.
     // ─────────────────────────────────────────────────────────────────────────
     const initialChannels = ctx.destination.maxChannelCount || 2;
     this.physicalChannels = initialChannels;

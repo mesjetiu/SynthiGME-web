@@ -45,7 +45,7 @@
   "homepage": "https://github.com/mesjetiu/SynthiGME-web#readme",
   "build": {
     "appId": "com.synthigme.app",
-    "productName": "Synthi GME",
+    "productName": "SynthiGME",
     "directories": {
       "output": "dist-electron"
     },

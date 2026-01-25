@@ -11,6 +11,17 @@ const path = require('path');
 const { createServer } = require('http');
 const { readFileSync, existsSync, statSync } = require('fs');
 
+// Establecer nombre de la aplicación (visible en PipeWire/PulseAudio)
+app.setName('SynthiGME');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Flags de Chromium para audio
+// ─────────────────────────────────────────────────────────────────────────────
+// Estos flags mejoran el comportamiento del audio y hacen que el nombre
+// de la app aparezca correctamente en PipeWire/PulseAudio.
+// ─────────────────────────────────────────────────────────────────────────────
+app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
+
 // Mantener referencia global para evitar garbage collection
 let mainWindow = null;
 let server = null;

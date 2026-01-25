@@ -3,6 +3,7 @@
   "version": "0.3.0",
   "description": "Prototype EMS Synthi interface in WebAudio",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "test": "node --test 'tests/{configs,core,i18n,integration,mocks,modules,panelBlueprints,state,ui,utils,worklets}/**/*.test.js'",
     "test:audio": "npx playwright test --config=tests/audio/playwright.config.js",
@@ -20,7 +21,12 @@
     "release:patch": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version patch --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:minor": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version minor --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:major": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version major --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
-    "postversion": "printf '\nRecuerda ejecutar git push origin main && git push origin --tags\n'"
+    "postversion": "printf '\nRecuerda ejecutar git push origin main && git push origin --tags\n'",
+    "electron:dev": "electron .",
+    "electron:build": "electron-builder",
+    "electron:build:linux": "electron-builder --linux",
+    "electron:build:win": "electron-builder --win",
+    "electron:build:all": "electron-builder --linux --win"
   },
   "repository": {
     "type": "git",
@@ -37,8 +43,39 @@
     "url": "https://github.com/mesjetiu/SynthiGME-web/issues"
   },
   "homepage": "https://github.com/mesjetiu/SynthiGME-web#readme",
+  "build": {
+    "appId": "com.synthigme.app",
+    "productName": "Synthi GME",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "docs/**/*",
+      "electron/**/*"
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Audio",
+      "icon": "docs/assets/pwa/icons"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "docs/assets/pwa/icons/icon-512x512.png"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.music",
+      "icon": "docs/assets/pwa/icons/icon-512x512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.4.0",
     "esbuild": "^0.27.2",
     "fake-indexeddb": "^6.2.5",
     "http-server": "^14.1.1",

@@ -1,0 +1,17 @@
+{
+  "name": "portaudio-multichannel-test",
+  "version": "1.0.0",
+  "description": "Prueba de concepto: salida multicanal con speaker/sox",
+  "type": "module",
+  "scripts": {
+    "list": "node list-devices.mjs",
+    "test": "node multichannel-test.mjs",
+    "test-sox": "node sox-multichannel.mjs"
+  },
+  "dependencies": {
+    "naudiodon": "^2.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

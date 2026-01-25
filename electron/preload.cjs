@@ -5,26 +5,72 @@
  * Permite exponer APIs nativas de forma segura al contexto del renderer
  * usando contextBridge.
  * 
- * Por ahora está vacío. Futuras funcionalidades:
- * - Acceso a sistema de archivos para guardar/cargar patches
- * - Integración con MIDI nativo
- * - Acceso a información del sistema
+ * APIs expuestas:
+ * - electronAPI: Información básica (isElectron, platform)
+ * - electronAudio: Salida multicanal nativa (Linux/Windows/macOS)
+ * 
+ * Documentación: MULTICANAL-ELECTRON.md
  */
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Exponer APIs seguras al renderer
-// contextBridge.exposeInMainWorld('electronAPI', {
-//   // Ejemplo: guardar archivo
-//   saveFile: (data, filename) => ipcRenderer.invoke('save-file', data, filename),
-//   // Ejemplo: cargar archivo
-//   loadFile: () => ipcRenderer.invoke('load-file'),
-//   // Ejemplo: obtener versión de la app
-//   getVersion: () => ipcRenderer.invoke('get-version')
-// });
-
-// Indicador para que la app web sepa que está en Electron
+// Indicador básico de que está en Electron
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   platform: process.platform
+});
+
+/**
+ * API de Audio Multicanal Nativo
+ * 
+ * Expone la funcionalidad del MultichannelBridge al renderer.
+ * Permite salida de audio >2 canales usando herramientas nativas
+ * del sistema operativo.
+ * 
+ * Uso desde el renderer:
+ *   const { available } = await window.electronAudio.isMultichannelAvailable();
+ *   if (available) {
+ *     await window.electronAudio.openStream({ channels: 8, sampleRate: 48000 });
+ *     await window.electronAudio.write(interleavedSamples);
+ *   }
+ */
+contextBridge.exposeInMainWorld('electronAudio', {
+  /**
+   * Verifica si el sistema soporta salida multicanal
+   * @returns {Promise<{available: boolean, reason?: string, backend?: string}>}
+   */
+  isMultichannelAvailable: () => ipcRenderer.invoke('audio:check-availability'),
+  
+  /**
+   * Abre un stream de audio multicanal
+   * @param {Object} config - Configuración del stream
+   * @param {number} config.channels - Número de canales (1-64)
+   * @param {number} config.sampleRate - Sample rate (44100, 48000, etc.)
+   * @param {string} [config.deviceName] - Nombre visible en el sistema
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  openStream: (config) => ipcRenderer.invoke('audio:open-stream', config),
+  
+  /**
+   * Escribe samples de audio al stream
+   * @param {Float32Array} samples - Samples interleaved
+   * @returns {Promise<{written: boolean}>}
+   */
+  write: (samples) => {
+    // Convertir Float32Array a ArrayBuffer para transferencia IPC
+    const buffer = samples.buffer.slice(samples.byteOffset, samples.byteOffset + samples.byteLength);
+    return ipcRenderer.invoke('audio:write', buffer);
+  },
+  
+  /**
+   * Cierra el stream de audio
+   * @returns {Promise<void>}
+   */
+  closeStream: () => ipcRenderer.invoke('audio:close-stream'),
+  
+  /**
+   * Obtiene información del stream actual
+   * @returns {Promise<{channels: number, sampleRate: number, deviceName: string, backend: string} | null>}
+   */
+  getStreamInfo: () => ipcRenderer.invoke('audio:get-stream-info')
 });

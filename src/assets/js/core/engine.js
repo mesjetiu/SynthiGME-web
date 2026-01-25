@@ -11,6 +11,7 @@ import {
   createHybridClipCurve
 } from '../utils/voltageConstants.js';
 import { audioMatrixConfig } from '../configs/index.js';
+import { multichannelOutput } from './multichannelOutput.js';
 
 const log = createLogger('AudioEngine');
 
@@ -131,6 +132,16 @@ export class AudioEngine {
     
     // Callbacks para notificar cambios de configuración de canales
     this._onPhysicalChannelsChange = null;
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // MULTICANAL NATIVO (Electron)
+    // ───────────────────────────────────────────────────────────────────────────
+    // En Electron, podemos usar salida multicanal nativa (>2 canales) via
+    // PipeWire (Linux) o WASAPI (Windows), bypasseando las limitaciones de
+    // Chromium. Ver: MULTICANAL-ELECTRON.md
+    // ───────────────────────────────────────────────────────────────────────────
+    this.multichannelEnabled = false;  // true si multicanal nativo está activo
+    this.multichannelAvailable = false; // true si multicanal está disponible
 
     this.bus1 = null;
     this.bus2 = null;
@@ -436,6 +447,98 @@ export class AudioEngine {
       this.updateOutputPan(i);
     }
     this.isRunning = true;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // INICIALIZACIÓN MULTICANAL NATIVO (Electron)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Intentar inicializar salida multicanal nativa si estamos en Electron.
+    // Esto es asíncrono pero no bloqueamos el inicio del engine.
+    // ─────────────────────────────────────────────────────────────────────────
+    this._initMultichannel();
+  }
+  
+  /**
+   * Inicializa la salida multicanal nativa si está disponible.
+   * Solo funciona en Electron con PipeWire (Linux) o WASAPI (Windows).
+   * @private
+   */
+  async _initMultichannel() {
+    try {
+      this.multichannelAvailable = await multichannelOutput.isAvailable();
+      
+      if (!this.multichannelAvailable) {
+        log.debug('[Multichannel] Salida multicanal nativa no disponible');
+        return;
+      }
+      
+      log.info('[Multichannel] Salida multicanal nativa disponible, inicializando...');
+      
+      const initialized = await multichannelOutput.initialize(
+        this.audioCtx,
+        this.outputBuses,
+        { channels: this.outputChannels }
+      );
+      
+      if (initialized) {
+        // No iniciamos automáticamente - el usuario decide cuándo activar multicanal
+        // Esto evita crear un stream de PipeWire si el usuario no lo necesita
+        log.info('[Multichannel] Sistema listo. Usar enableMultichannel() para activar.');
+      }
+    } catch (error) {
+      log.error('[Multichannel] Error inicializando:', error);
+      this.multichannelAvailable = false;
+    }
+  }
+  
+  /**
+   * Activa la salida multicanal nativa.
+   * Los 8 buses de salida se enviarán directamente al sistema de audio nativo
+   * (PipeWire/WASAPI), sin pasar por el mixer estéreo de Chromium.
+   * 
+   * @returns {Promise<boolean>} true si se activó correctamente
+   */
+  async enableMultichannel() {
+    if (!this.multichannelAvailable) {
+      log.warn('[Multichannel] No disponible en este sistema');
+      return false;
+    }
+    
+    if (this.multichannelEnabled) {
+      log.debug('[Multichannel] Ya está activo');
+      return true;
+    }
+    
+    const success = await multichannelOutput.start();
+    if (success) {
+      this.multichannelEnabled = true;
+      log.info('[Multichannel] ¡Salida multicanal activada!');
+      showToast('Salida multicanal activada (8 canales)', 'success');
+    }
+    return success;
+  }
+  
+  /**
+   * Desactiva la salida multicanal nativa.
+   * El audio volverá a mezclarse en estéreo por Chromium.
+   * 
+   * @returns {Promise<void>}
+   */
+  async disableMultichannel() {
+    if (!this.multichannelEnabled) return;
+    
+    await multichannelOutput.stop();
+    this.multichannelEnabled = false;
+    log.info('[Multichannel] Salida multicanal desactivada');
+    showToast('Salida multicanal desactivada', 'info');
+  }
+  
+  /**
+   * Obtiene estadísticas de la salida multicanal.
+   * @returns {Object|null}
+   */
+  getMultichannelStats() {
+    if (!this.multichannelAvailable) return null;
+    return multichannelOutput.getStats();
   }
 
   /**
@@ -1717,6 +1820,16 @@ export class AudioEngine {
         }
       }
       
+      // Detener salida multicanal nativa si está activa
+      if (this.multichannelEnabled) {
+        try {
+          await multichannelOutput.dispose();
+          this.multichannelEnabled = false;
+        } catch (e) {
+          log.warn('Error disposing multichannel output:', e);
+        }
+      }
+      
       try {
         await this.audioCtx.close();
         log.info('AudioContext closed');
@@ -1727,6 +1840,7 @@ export class AudioEngine {
       this.workletReady = false;
       this._workletLoadPromise = null;
       this.isRunning = false;
+      this.multichannelAvailable = false;
       // Limpiar buses de salida (se recrearán al reiniciar)
       this.outputBuses = [];
       this.masterGains = [];

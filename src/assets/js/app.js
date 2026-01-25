@@ -1849,26 +1849,37 @@ class App {
     }
     
     // ─────────────────────────────────────────────────────────────────────────
-    // SOFT CLIPPING DE CV (Emulación de voltaje Cuenca/Datanomics)
-    // ─────────────────────────────────────────────────────────────────────────
-    // El Synthi 100 satura suavemente las señales CV que superan el límite
-    // de entrada del módulo. Usamos WaveShaperNode con curva tanh.
+    // SOFT CLIPPING DE CV (AudioWorklet - emulación Datanomics/Cuenca)
     // ─────────────────────────────────────────────────────────────────────────
     const voltageConfig = oscConfig?.voltage ?? oscillatorConfig.defaults?.voltage ?? {};
     const inputLimit = voltageConfig.inputLimit ?? 8.0;
-    const normalizedLimit = inputLimit / 4.0;
+    const normalizedLimit = inputLimit / 4.0; // Normalizar a rango digital
     
     let cvSoftClip = null;
-    if (VOLTAGE_DEFAULTS.softClipEnabled) {
-      cvSoftClip = ctx.createWaveShaper();
-      cvSoftClip.curve = createSoftClipCurve(256, normalizedLimit, 1.0);
-      cvSoftClip.oversample = 'none';
+    if (VOLTAGE_DEFAULTS.softClipEnabled && this.engine.workletReady) {
+      try {
+        cvSoftClip = new AudioWorkletNode(ctx, 'cv-soft-clip', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          processorOptions: {
+            limit: normalizedLimit,
+            softness: 1.0
+          }
+        });
+        log.info(`[FM] Osc ${oscIndex}: cvSoftClip CREATED (limit=${normalizedLimit})`);
+      } catch (err) {
+        log.warn(`[FM] Osc ${oscIndex}: Failed to create cvSoftClip:`, err);
+        cvSoftClip = null;
+      }
     }
     
     // ─────────────────────────────────────────────────────────────────────────
     // CONSTRUIR CADENA DE CV COMPLETA
     // ─────────────────────────────────────────────────────────────────────────
-    // Cadena: freqCVInput → [cvThermalSlew] → [cvSoftClip] → detune
+    // CADENA CV: freqCVInput → [cvThermalSlew] → [cvSoftClip] → detune
     // ─────────────────────────────────────────────────────────────────────────
     const detuneParam = multiOsc.parameters?.get('detune');
     
@@ -1882,12 +1893,12 @@ class App {
       }
       
       if (cvSoftClip) {
-        log.info(`[FM] Osc ${oscIndex}: Connecting ${cvThermalSlew ? 'cvThermalSlew' : 'freqCVInput'} → cvSoftClip`);
+        log.info(`[FM] Osc ${oscIndex}: Connecting → cvSoftClip`);
         lastNode.connect(cvSoftClip);
         lastNode = cvSoftClip;
       }
       
-      log.info(`[FM] Osc ${oscIndex}: Connecting ${cvSoftClip ? 'cvSoftClip' : (cvThermalSlew ? 'cvThermalSlew' : 'freqCVInput')} → detune`);
+      log.info(`[FM] Osc ${oscIndex}: Connecting → detune`);
       lastNode.connect(detuneParam);
       log.info(`[FM] Osc ${oscIndex}: CV chain complete ✓`);
     } else {

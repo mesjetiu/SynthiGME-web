@@ -139,19 +139,10 @@ class CVThermalSlewProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     const output = outputs[0];
     
-    // DEBUG: Log periódico del estado
-    this._debugFrameCount++;
-    if (this._debugFrameCount >= this._debugLogInterval) {
-      this._debugFrameCount = 0;
-      const hasInput = input && input[0] && input[0].length > 0;
-      const inputSample = hasInput ? input[0][0] : 'N/A';
-      console.log(`[cvThermalSlew] hasInput=${hasInput}, sample=${inputSample}, currentValue=${this.currentValue}`);
-    }
-    
     // Si no hay entrada, pasar silencio
     if (!input || !input[0] || input[0].length === 0) {
-      for (let channel = 0; channel < output.length; channel++) {
-        output[channel].fill(0);
+      if (output && output[0]) {
+        output[0].fill(0);
       }
       return true;
     }
@@ -162,16 +153,13 @@ class CVThermalSlewProcessor extends AudioWorkletProcessor {
     
     // Si está deshabilitado, bypass directo
     if (!enabled) {
-      for (let channel = 0; channel < output.length; channel++) {
-        if (input[channel]) {
-          output[channel].set(input[channel]);
-        }
+      if (input[0] && output[0]) {
+        output[0].set(input[0]);
       }
       return true;
     }
     
     // Usar siempre los rates computados internamente (basados en timeConstants)
-    // Los AudioParams de rate son para override en tiempo real si es necesario
     const riseRate = this.computedRiseRate;
     const fallRate = this.computedFallRate;
     

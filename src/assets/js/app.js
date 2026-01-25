@@ -1801,10 +1801,32 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // NODO DE ENTRADA CV PARA MODULACIÓN DE FRECUENCIA (Panel 6)
     // ─────────────────────────────────────────────────────────────────────────
-    // Nota: oscConfig ya fue obtenido arriba para sineShape
-    const cvScale = oscConfig?.freqCV?.cvScale ?? oscillatorConfig.defaults?.freqCV?.cvScale ?? 2;
-    const octavesPerUnit = oscConfig?.freqCV?.octavesPerUnit ?? oscillatorConfig.defaults?.freqCV?.octavesPerUnit ?? 0.5;
-    const centsGain = cvScale * octavesPerUnit * 1200;
+    // Implementa el estándar 1V/octava del Synthi 100.
+    //
+    // CONVERSIÓN:
+    // - Digital ±1 = ±4V (DIGITAL_TO_VOLTAGE = 4.0)
+    // - 1V real debe producir 1200 cents (1 octava)
+    // - Por tanto: centsGain = 1200 / DIGITAL_TO_VOLTAGE = 1200 / 4 = 300 cents por unidad digital
+    //   Así, 1V = 0.25 digital × 300 = 75... NO, hay que repensar.
+    //
+    // CORRECCIÓN: Para 1V/octava:
+    // - 1V entrada → 1200 cents de cambio
+    // - 1V en digital = 1/4 = 0.25
+    // - Para que 0.25 digital → 1200 cents: gain = 1200 / 0.25 = 4800 cents
+    //
+    // Con cvScale=2, octavesPerUnit=0.5: gain = 2 * 0.5 * 1200 = 1200 (±1 digital = ±1 oct)
+    // Esto significa ±4V = ±1 oct, es decir 0.25V/oct - INCORRECTO
+    //
+    // Para 1V/oct real: 1V = 0.25 digital debe dar 1200 cents
+    // gain = 1200 / 0.25 = 4800 cents por unidad digital
+    // ─────────────────────────────────────────────────────────────────────────
+    const DIGITAL_TO_VOLTAGE = 4.0; // Coincide con voltageConstants.js
+    const CENTS_PER_OCTAVE = 1200;
+    // 1V/octava: 1V real = 1200 cents, 1V digital = 1/4, así que:
+    const centsPerVolt = CENTS_PER_OCTAVE; // 1200 cents/V (estándar 1V/oct)
+    const centsPerDigital = centsPerVolt / DIGITAL_TO_VOLTAGE; // 300 cents por 0.25 digital... NO
+    // Recalculo: si 1V = 1200 cents, y 1 digital = 4V, entonces 1 digital = 4800 cents
+    const centsGain = CENTS_PER_OCTAVE * DIGITAL_TO_VOLTAGE; // 1200 * 4 = 4800 cents por unidad digital
     
     const freqCVInput = ctx.createGain();
     freqCVInput.gain.value = centsGain;
@@ -1884,6 +1906,12 @@ class App {
     const detuneParam = multiOsc.parameters?.get('detune');
     
     if (detuneParam) {
+      // BYPASS: Conexión directa para pruebas
+      log.info(`[FM] Osc ${oscIndex}: BYPASS MODE - freqCVInput → detune (direct)`);
+      freqCVInput.connect(detuneParam);
+      log.info(`[FM] Osc ${oscIndex}: CV chain complete (bypass) ✓`);
+      
+      /* CADENA COMPLETA COMENTADA PARA PRUEBAS:
       let lastNode = freqCVInput;
       
       if (cvThermalSlew) {
@@ -1901,6 +1929,7 @@ class App {
       log.info(`[FM] Osc ${oscIndex}: Connecting → detune`);
       lastNode.connect(detuneParam);
       log.info(`[FM] Osc ${oscIndex}: CV chain complete ✓`);
+      */
     } else {
       log.error(`[FM] Osc ${oscIndex}: DETUNE PARAM IS NULL - FM WILL NOT WORK!`);
     }
@@ -2789,7 +2818,7 @@ class App {
     // Prioridad 2: Calcular según modelo de virtual-earth summing
     // Usar tipo de pin del usuario si se proporciona, sino fallback a config o default
     const pinTypes = config.pinTypes || {};
-    const pinType = userPinType || pinTypes[pinKey] || 'GREEN'; // Control: verde por defecto
+    const pinType = userPinType || pinTypes[pinKey] || 'GREY'; // Control: gris por defecto (100k, ganancia 1:1)
     
     // Obtener Rf del destino (por defecto 100k estándar)
     let rf = STANDARD_FEEDBACK_RESISTANCE;

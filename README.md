@@ -178,6 +178,124 @@ Tras estos pasos, la carpeta `docs/` contiene la última versión estable y est�
 - Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages u otro servidor).
 - Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds. Tras construir, haz commit/push de `docs/` para que Pages publique la última versión.
 
+## Aplicación de escritorio (Electron)
+
+Además de la versión web y PWA, puedes empaquetar Synthi GME como aplicación de escritorio nativa usando Electron. Esto garantiza máxima compatibilidad con Web Audio API y AudioWorklet en todas las plataformas.
+
+### Desarrollo local
+
+Para probar la versión de escritorio sin generar instaladores:
+
+```bash
+# 1. Asegúrate de tener el build web actualizado
+npm run build
+
+# 2. Ejecuta la app en modo desarrollo
+npm run electron:dev
+```
+
+### Generar instaladores
+
+Desde Linux puedes compilar para Linux y Windows. macOS requiere un sistema macOS real para firma de código (ver sección CI/CD).
+
+```bash
+# Solo Linux (AppImage + .deb)
+npm run electron:build:linux
+
+# Solo Windows (installer NSIS + portable)
+npm run electron:build:win
+
+# Linux + Windows simultáneo
+npm run electron:build:all
+```
+
+Los instaladores se generan en la carpeta `dist-electron/`.
+
+| Plataforma | Formatos generados |
+|------------|-------------------|
+| Linux | `.AppImage`, `.deb` |
+| Windows | `.exe` (NSIS installer), `.exe` (portable) |
+| macOS | `.dmg` (requiere macOS o CI/CD) |
+
+### Estructura de archivos Electron
+
+```
+electron/
+├── main.js      # Proceso principal: crea ventana, menú, configuración
+└── preload.js   # Script de preload para APIs nativas futuras
+```
+
+### Scripts disponibles
+
+| Script | Descripción |
+|--------|-------------|
+| `npm run electron:dev` | Ejecuta la app en modo desarrollo |
+| `npm run electron:build` | Genera instaladores para la plataforma actual |
+| `npm run electron:build:linux` | Genera instaladores Linux |
+| `npm run electron:build:win` | Genera instaladores Windows |
+| `npm run electron:build:all` | Genera instaladores Linux + Windows |
+
+### CI/CD con GitHub Actions (futuro)
+
+Para compilar automáticamente en las tres plataformas desde GitHub, crea el archivo `.github/workflows/electron-build.yml`:
+
+```yaml
+name: Build Electron Apps
+
+on:
+  push:
+    tags:
+      - 'v*'  # Ejecuta en cada tag de versión
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build web app
+        run: npm run build:skip-tests
+      
+      - name: Build Electron app
+        run: npm run electron:build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-${{ matrix.os }}
+          path: dist-electron/*
+```
+
+Este workflow:
+1. Se ejecuta automáticamente cuando creas un tag `vX.Y.Z`
+2. Compila en paralelo en Linux, Windows y macOS
+3. Sube los instaladores como artefactos del workflow
+
+Para publicar releases automáticamente, añade `electron-builder --publish always` y configura el token de GitHub.
+
+### Notas técnicas
+
+- **Compatibilidad de audio**: Electron usa Chromium, garantizando comportamiento idéntico al navegador Chrome
+- **Service Worker**: Funciona en Electron pero es menos necesario (la app ya es local)
+- **Firma de código**: Sin firma, Windows/macOS mostrarán advertencias de "app no verificada". Para distribución pública, considera obtener certificados de firma
+- **Auto-updates**: electron-updater permite actualizaciones automáticas desde GitHub Releases (configuración adicional requerida)
+
 ## Solución de problemas
 
 ### Audio inestable o cambios de volumen en dispositivos móviles

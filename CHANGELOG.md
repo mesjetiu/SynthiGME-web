@@ -7,6 +7,32 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Arreglado
+- **Bug crítico: condicionales en AudioWorklet bloquean señal a AudioParams**: Identificado y resuelto problema donde cualquier condicional (if, ternario, Math.max/min) en AudioWorklet bloqueaba completamente la propagación de señal cuando se conectaba a un `AudioParam`. Afectaba a `cvThermalSlew` y `cvSoftClip` al modular `oscillator.detune`. 
+  - **Síntoma**: FM modulation no funcionaba a pesar de que los tests de audio existentes pasaban (porque probaban conexión a nodos de audio, no a AudioParams).
+  - **Raíz del problema**: Los tests existentes conectaban `worklet → destination` (nodo de audio, funciona siempre), pero el código real usa `worklet → oscillator.detune` (AudioParam, falla con condicionales). Descubierto durante revisión exhaustiva de cobertura de tests.
+  - **Solución**: Reemplazar condicionales con operaciones aritméticas puras en ambos worklets (`Math.abs()` para detectar dirección de cambio en thermal slew, polinomio `x - x³·k` para soft clip).
+  - **Tests agregados**: 14 nuevos tests de integración (`cvChain.audio.test.js`) que específicamente prueban la conexión crítica AudioWorklet → AudioParam, incluyendo:
+    - `cvSoftClip debe pasar señal a AudioParam` (detección específica del bug)
+    - `cvThermalSlew debe pasar señal a AudioParam`
+    - `testWorkletSignalPassthrough()` (A/B test con/sin worklet)
+    - `testCompleteFMChain()` (cadena FM real con verificación 1V/octave)
+    - Comparación de ratio de señal y detección de bloqueo >50%
+  - **Referencia**: Limitación Web Audio API descubierta durante debugging de FM modulation en enero 2026.
+- **Calibración 1V/octave corregida**: El factor de conversión de CV digital a cents (para modular `detune`) se corrigió de 1200 a 4800. Ahora +1V de CV produce exactamente 1 octava arriba (f×2), alineado con estándar EMS/ARP 1V/Oct.
+- **Orden de cadena CV de osciladores corregido**: La cadena de procesamiento de CV de frecuencia se reorganizó para que el thermal slew preceda al soft clip (previamente se aplicaban en orden inverso):
+  - **Orden correcto**: `freqCVInput → cvThermalSlew (inercia térmica) → cvSoftClip (saturación) → detune (conversión a cents centsGain=4800)`
+  - **Impacto**: La saturación suave ahora recibe señal térmicamente suavizada, reduciendo artefactos de clipping. El soft clip solo satura después de que la inercia haya atenuado picos.
+
+### Añadido
+- **Tests de integración para cadena CV → AudioParam** (`tests/audio/integration/cvChain.audio.test.js`): Cobertura específica del bug de condicionales en AudioWorklet. 14 tests que verifican:
+  - Propagación de señal desde AudioWorklet a AudioParam (sin bloqueo)
+  - Comparación A/B: señal con worklet vs sin worklet (ratio esperado >0.5)
+  - Cadena FM completa: 1V CV → 1 octava arriba verificado
+  - CV negativo, rangos extremos (±2V, ±4V), límites del sistema
+  - Aislamiento: pruebas individuales de cvThermalSlew y cvSoftClip
+  - **Garantía futura**: Si alguien reintroduce condicionales en los worklets, estos tests fallarán inmediatamente
+
 ### Cambiado
 - **Sistema de patches simplificado (v2)**: Los patches ahora guardan exclusivamente valores de UI (posiciones de knobs 0-1, estados de switches, coordenadas de matriz). Eliminado código obsoleto que intentaba guardar valores de audio (Hz, ms). Beneficios:
   - Patches más compactos y legibles
@@ -79,7 +105,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - `applyInputClipping(digitalValue)`: Satura entradas digitales según límite del módulo.
   - `applyVoltageClipping(voltage)`: Satura voltajes directamente.
   - `setInputVoltageLimit(v)` / `setSoftClipEnabled(bool)`: Configuración por módulo.
-- **Soft clipping en entrada CV de osciladores**: Las señales CV que modulan la frecuencia de osciladores ahora pasan por un `WaveShaperNode` con curva tanh que satura suavemente las señales excesivas. Usa `createSoftClipCurve()` de `voltageConstants.js`.
+- **Soft clipping en entrada CV de osciladores (cvSoftClip.worklet.js)**: AudioWorklet que satura suavemente las señales CV de frecuencia antes de la conversión a cents. Usa **polinomio puro** `y = x - x³·k` (sin condicionales) para mantener la propagación a AudioParam. El coeficiente `k` es configurable en `oscillator.config.js` para ajustar la severidad de saturación. Valor por defecto: 0.333 (saturación moderada). Rango recomendado: 0.0001 (casi desactivado) a 1.0 (saturación fuerte).
 - **Ganancia de pines con fórmula de tierra virtual**: Nueva función `calculateMatrixPinGain()` que calcula la ganancia de cada pin de matriz según el tipo de pin, la Rf del destino y la tolerancia opcional.
 - **Sistema de suavizado de formas de onda (Waveform Smoothing)**: Emulación de dos características eléctricas del Synthi 100 que impiden transiciones verticales instantáneas:
   - **Slew inherente del módulo**: Filtro one-pole (~20kHz) dentro del AudioWorklet aplicado a pulse y sawtooth, emulando el slew rate finito de los amplificadores CA3140.
@@ -91,12 +117,13 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - **Tests de validación**: 41 nuevos tests (31 funcionales + 10 de estrés) verifican cálculos de cutoff, factory de filtros y rendimiento.
   - **Referencia técnica**: Manual Datanomics 1982 - "con pines de 100kΩ se produce integración de transitorios rápidos".
 - **Inercia térmica de osciladores (Thermal Slew)**: Emulación del efecto térmico del VCO CEM 3340 que produce un "portamento involuntario" asimétrico en respuesta a cambios bruscos de CV:
-  - **Nuevo AudioWorklet**: `cvThermalSlew.worklet.js` implementa filtro one-pole asimétrico.
+  - **Nuevo AudioWorklet**: `cvThermalSlew.worklet.js` implementa filtro one-pole asimétrico usando **operaciones aritméticas puras** (sin condicionales que bloqueen AudioParams).
   - **Comportamiento físico**: Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva).
   - **Umbral de activación**: Solo afecta señales CV > 2V (0.5 digital), evitando slew en modulaciones sutiles.
-  - **Cadena CV**: `freqCVInput → cvThermalSlew → cvSoftClip → detune` (se inserta antes del soft clip existente).
+  - **Cadena CV corregida**: `freqCVInput → cvThermalSlew (inercia) → cvSoftClip (saturación) → detune (centsGain=4800)`. IMPORTANTE: thermal slew PRECEDE al soft clip para suavizar picos antes de saturación.
+  - **Detección de dirección**: Usa `Math.abs()` en lugar de condicionales para detectar si CV sube/baja sin bloquear AudioParam.
   - **Configuración**: `oscillator.config.js` → `thermalSlew.riseTimeConstant`, `fallTimeConstant`, `threshold`, `enabled`.
-  - **Referencia técnica**: NotebookLM (Datanomics 1982) - "La masa térmica del VCO CEM 3340 produce inercia en la respuesta a cambios de CV".
+  - **Referencia técnica**: Datanomics 1982 - "La masa térmica del VCO CEM 3340 produce inercia en la respuesta a cambios de CV".
 - **Saturación híbrida de raíles ±12V (Hybrid Clipping)**: Emulación de los límites de alimentación del Synthi 100 con saturación progresiva en tres zonas:
   - **Zona lineal** (< 9V): Sin modificación, pass-through completo.
   - **Zona de compresión** (9V - 11.5V): Saturación suave con tanh, comprime gradualmente.

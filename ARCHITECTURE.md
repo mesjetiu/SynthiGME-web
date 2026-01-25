@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 24 de enero de 2025 (modelo de frecuencia Synthi 100 CEM 3340)
+> Última actualización: 25 de enero de 2026 (FM modulation working, CV chain corrected)
 
 ---
 
@@ -80,7 +80,8 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación. **Dormancy**: soporta mensaje `setDormant` para early exit en `process()` |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período. **Dormancy**: soporta mensaje `setDormant` para pausar captura |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
-| `cvThermalSlew.worklet.js` | Filtro one-pole asimétrico para emular inercia térmica del VCO CEM 3340. Calentamiento rápido (150ms τ), enfriamiento lento (500ms τ). Se inserta en la cadena CV de frecuencia de osciladores |
+| `cvThermalSlew.worklet.js` | Filtro one-pole asimétrico para emular inercia térmica del VCO CEM 3340. Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva). **CRÍTICO**: Implementación con **operaciones aritméticas puras** (`Math.abs()` para detectar dirección) — NO usa condicionales que bloquearían la propagación de señal a AudioParams. Se inserta en cadena CV: `freqCVInput → cvThermalSlew → cvSoftClip → detune`. Configurable en `oscillator.config.js` |
+| `cvSoftClip.worklet.js` | Saturación polinómica suave para limitar CV de frecuencia. Usa fórmula pura `y = x - x³·k` (sin condicionales) donde k es coeficiente configurable (rango 0.0001–1.0, por defecto 0.333). Se aplica después del thermal slew para recibir señal pre-suavizada. **Configuración**: coeficiente en `oscillator.config.js` → `softClip.coefficient`. **Limitación superada**: Web Audio API requiere aritmética pura en AudioWorklet para propagación a AudioParam |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -717,20 +718,57 @@ waveshaper.curve = curve;
 waveshaper.oversample = 'none';  // CV no necesita oversampling
 ```
 
-#### Uso en Osciladores
+#### Cadena CV de Osciladores (Corrección Enero 2026)
 
-Los osciladores aplican soft clipping y thermal slew a la entrada de CV de frecuencia usando una cadena de nodos entre `freqCVInput` y el parámetro `detune`:
+Los osciladores aplican suavizado térmico y saturación a la entrada de CV de frecuencia en una **cadena correctamente ordenada**:
 
 ```
-[Señal CV] → [freqCVInput] → [cvThermalSlew] → [cvSoftClip] → [detune del worklet]
-                  ↓                 ↓                ↓
-            escala a cents   inercia térmica   satura con tanh
+[Señal CV] → [freqCVInput] → [cvThermalSlew] → [cvSoftClip] → [centsGain=4800] → [detune del worklet]
+                  ↓                  ↓                ↓                 ↓
+            GainNode         AudioWorklet    AudioWorklet         conversión
+                          (inercia 150/500ms) (polinomio puro)     1V → 1 octava
 ```
 
-- **cvThermalSlew**: AudioWorklet que emula la inercia térmica del VCO CEM 3340 (ver sección 3.8.12)
-- **cvSoftClip**: WaveShaperNode con curva tanh para saturación suave
+**Orden y propósito:**
+1. **cvThermalSlew**: AudioWorklet que implementa filtro one-pole asimétrico. Emula masa térmica del CEM 3340:
+   - Calentamiento (subida CV): τ = 150ms (rápido, proceso activo)
+   - Enfriamiento (bajada CV): τ = 500ms (lento, disipación pasiva)
+   - Umbral: solo activa con |ΔCV| > 2V (0.5 digital)
+   - **Implementación crítica**: Usa `Math.abs()` para detectar dirección de cambio — **SIN condicionales** que bloquearían AudioParam
+   
+2. **cvSoftClip**: AudioWorklet que satura suavemente con polinomio puro:
+   - Fórmula: `y = x - x³·k` donde k = coeficiente configurable
+   - Rango recomendado: 0.0001 (casi desactivado) a 1.0 (saturación fuerte)
+   - Por defecto en testing: 0.333 (saturación moderada)
+   - **Implementación crítica**: Aritmética pura — **SIN condicionales**
+   - Recibe CV pre-suavizado del thermal slew, lo que reduce artefactos de clipping
+   
+3. **centsGain = 4800**: Factor de conversión que convierte voltaje de CV a cents (modificación del parámetro `detune`)
+   - Calibración 1V/octava: +1V CV → +1200 cents (una octava arriba)
+   - Conversión: `detune_cents = CV_voltage × 4800 / DIGITAL_TO_VOLTAGE` (donde DIGITAL_TO_VOLTAGE = 4.0)
+   - Resultado: +1V CV produce f×2 (una octava)
 
-El límite se lee de `configs/modules/oscillator.config.js` → `voltage.inputLimit` (8V = 2.0 digital).
+**Limitación superada (enero 2026):**
+- Bug identificado: Cualquier condicional (if, ternario, Math.max/min) en AudioWorklet bloqueaba completamente la propagación de señal hacia AudioParams
+- Síntoma: FM modulation no funcionaba a pesar de que tests existentes pasaban (porque probaban conexión a nodos de audio, no a AudioParams)
+- Solución: Reemplazar todos los condicionales con operaciones aritméticas puras
+- Tests agregados: 14 nuevos tests de integración (`cvChain.audio.test.js`) que prueban específicamente la conexión crítica AudioWorklet → AudioParam
+
+**Configuración:**
+- Archivo: `src/assets/js/configs/modules/oscillator.config.js`
+- Parámetros:
+  ```javascript
+  thermalSlew: {
+    enabled: true,
+    riseTimeConstant: 0.15,    // 150ms
+    fallTimeConstant: 0.5,     // 500ms
+    threshold: 0.5             // Activación con CV > ±0.5 digital
+  },
+  softClip: {
+    enabled: true,
+    coefficient: 0.333         // Saturación polinómica: y = x - x³·k
+  }
+  ```
 
 ### 3.8.7 Clase Module (core/engine.js)
 
@@ -2243,9 +2281,21 @@ Los tests de audio se ejecutan en navegador (Chromium headless) con Web Audio re
     - `waveformAmplitude.audio.test.js`: amplitudes de formas de onda
     - `cvThermalSlew.audio.test.js`: **slew térmico asimétrico (τ subida=150ms, τ bajada=500ms)**
     - `hybridClip.audio.test.js`: **saturación híbrida de raíles ±12V (lineal→soft→hard)**
+  - `integration/`: 
+    - `oscillatorToOutput.audio.test.js`: recorridos end‑to‑end básicos
+    - `cvChain.audio.test.js`: **NUEVO (enero 2026)** — 14 tests que detectan el bug de AudioWorklet → AudioParam:
+      - `cvSoftClip debe pasar señal a AudioParam` — Detección específica de condicionales bloqueando AudioParam
+      - `cvThermalSlew debe pasar señal a AudioParam` — Verificación de aritmética pura sin condicionales
+      - `testWorkletSignalPassthrough()` — A/B test: señal con/sin worklet (ratio esperado >0.5)
+      - `+1V CV → +1 octava (cadena completa)` — Verificación de 1V/octave calibrado (centsGain=4800)
+      - Pruebas de rango: ±1V, ±2V, ±4V (límites del sistema)
+      - Aislamiento: thermal slew solo y soft clip solo
+      - **Garantía futura**: Si alguien reintroduce condicionales en los worklets, estos tests fallarán inmediatamente
   - `matrix/`: routing de pines y ganancias (valores típicos, linealidad, preservación de señal)
-  - `integration/`: recorridos end‑to‑end básicos
-  - `harness.html`: página que carga worklets y expone helpers al entorno de test
+  - `harness.html`: página que carga worklets y expone helpers al entorno de test. Funciones nuevas:
+    - `testWorkletToAudioParam()` — Verifica propagación desde worklet a AudioParam
+    - `testWorkletSignalPassthrough()` — Compara A/B con/sin worklet
+    - `testCompleteFMChain()` — Replica cadena FM real de oscilador
 - Runner: Playwright lanza un servidor HTTP local automáticamente (configurado en `tests/audio/playwright.config.js`), por lo que no se requieren pasos previos.
 - Reporte: se genera un informe HTML en `test-results/audio-report`. Para abrirlo:
 

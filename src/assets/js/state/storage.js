@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { FORMAT_VERSION } from './schema.js';
 
 const log = createLogger('Storage');
 
@@ -79,6 +80,8 @@ export async function savePatch(patch, existingId = null) {
     
     const patchData = {
       ...patch,
+      formatVersion: patch.formatVersion ?? FORMAT_VERSION,
+      appVersion: patch.appVersion || window.__synthBuildVersion || 'dev',
       savedAt: new Date().toISOString()
     };
     

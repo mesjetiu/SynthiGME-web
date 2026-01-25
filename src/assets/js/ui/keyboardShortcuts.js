@@ -13,6 +13,28 @@ const log = createLogger('KeyboardShortcuts');
 // Teclas reservadas que no pueden asignarse
 const RESERVED_KEYS = ['Tab', 'Enter', 'Escape', ' ', 'Space'];
 
+/**
+ * Comprueba si el usuario está escribiendo en un campo de texto
+ * @param {KeyboardEvent} e - Evento de teclado
+ * @returns {boolean} true si el foco está en un elemento de entrada de texto
+ */
+function isUserTyping(e) {
+  const target = e.target;
+  const tag = target.tagName;
+  const inputType = target.type?.toLowerCase();
+  
+  // Ignorar si está en textarea o select
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  
+  // Ignorar si está en input (excepto sliders/range)
+  if (tag === 'INPUT' && inputType !== 'range') return true;
+  
+  // Ignorar si está en un elemento contenteditable
+  if (target.isContentEditable) return true;
+  
+  return false;
+}
+
 // Atajos por defecto
 const DEFAULT_SHORTCUTS = {
   mute: { key: 'm', shift: false, ctrl: false, alt: false },
@@ -124,6 +146,9 @@ class KeyboardShortcutsManager {
     
     // Mostrar badges de panel al pulsar la tecla configurada (Alt o Ctrl)
     document.addEventListener('keydown', (e) => {
+      // Ignorar si el usuario está escribiendo
+      if (isUserTyping(e)) return;
+      
       const hintKey = this.shortcuts.showPanelHints?.key || 'Alt';
       if (e.key === hintKey && !e.repeat) {
         e.preventDefault(); // Evitar que Alt active el menú del navegador
@@ -153,11 +178,8 @@ class KeyboardShortcutsManager {
    * Maneja eventos keydown
    */
   _handleKeyDown(e) {
-    // Ignorar si está en un input/textarea/select (excepto sliders)
-    const tag = e.target.tagName;
-    const inputType = e.target.type?.toLowerCase();
-    if (tag === 'TEXTAREA' || tag === 'SELECT') return;
-    if (tag === 'INPUT' && inputType !== 'range') return;
+    // Ignorar si el usuario está escribiendo en un campo de texto
+    if (isUserTyping(e)) return;
     
     // Ignorar teclas reservadas
     if (RESERVED_KEYS.includes(e.key)) return;

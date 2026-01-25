@@ -2169,6 +2169,124 @@ docs/
 
 ---
 
+## 13.1 Aplicación de Escritorio (Electron)
+
+SynthiGME-web puede empaquetarse como aplicación nativa de escritorio usando **Electron**, garantizando compatibilidad total con Web Audio API y AudioWorklet en todas las plataformas.
+
+### Arquitectura
+
+```
+electron/
+├── main.cjs      # Proceso principal (CommonJS por compatibilidad con "type": "module")
+└── preload.cjs   # Script de preload para APIs nativas (preparado para futuro)
+```
+
+### Proceso Principal (`electron/main.cjs`)
+
+El proceso principal implementa:
+
+| Componente | Descripción |
+|------------|-------------|
+| **Servidor HTTP local** | Sirve `docs/` desde `http://127.0.0.1:<puerto-aleatorio>`. Resuelve problemas con el protocolo `file://` en algunas configuraciones de Linux |
+| **BrowserWindow** | Ventana 1280×720 (mínimo 1024×600) con `nodeIntegration: false` y `contextIsolation: true` |
+| **Menú nativo** | Archivo (recargar, salir), Ver (pantalla completa, zoom, DevTools), Ayuda (acerca de) |
+| **Autoplay de audio** | `autoplayPolicy: 'no-user-gesture-required'` para síntesis sin interacción |
+
+### Por qué servidor HTTP en lugar de `file://`
+
+El protocolo `file://` puede causar `ERR_FAILED` en ciertas configuraciones de Linux debido a:
+- Políticas de seguridad del sandbox de Chromium
+- Restricciones CORS para recursos locales
+- Incompatibilidades con módulos ES (`type="module"`)
+
+El servidor HTTP integrado:
+- Escucha solo en `127.0.0.1` (no accesible desde red)
+- Usa puerto aleatorio (evita conflictos)
+- Tipos MIME correctos para `.js`, `.css`, `.svg`, `.webmanifest`
+- Overhead despreciable (~0.1ms por request)
+
+### Script de Preload (`electron/preload.cjs`)
+
+Actualmente expone información básica al renderer:
+```javascript
+contextBridge.exposeInMainWorld('electronAPI', {
+  isElectron: true,
+  platform: process.platform  // 'linux', 'win32', 'darwin'
+});
+```
+
+Preparado para futuras APIs:
+- `saveFile(data, filename)` — Guardar patches al sistema de archivos
+- `loadFile()` — Cargar patches desde diálogo nativo
+- `getMidiDevices()` — Acceso a MIDI nativo (si se implementa)
+
+### Scripts de npm
+
+| Script | Comando | Descripción |
+|--------|---------|-------------|
+| `electron:dev` | `electron .` | Ejecuta en modo desarrollo |
+| `electron:build` | `electron-builder` | Genera instaladores (plataforma actual) |
+| `electron:build:linux` | `electron-builder --linux` | AppImage + .deb |
+| `electron:build:win` | `electron-builder --win` | Instalador NSIS + portable |
+| `electron:build:all` | `electron-builder --linux --win` | Linux + Windows |
+
+### Configuración de electron-builder (`package.json` → `build`)
+
+```json
+{
+  "appId": "com.synthigme.app",
+  "productName": "Synthi GME",
+  "directories": { "output": "dist-electron" },
+  "files": ["docs/**/*", "electron/**/*"],
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "category": "Audio",
+    "icon": "docs/assets/pwa/icons"
+  },
+  "win": {
+    "target": ["nsis", "portable"],
+    "icon": "docs/assets/pwa/icons/icon-512x512.png"
+  },
+  "mac": {
+    "target": ["dmg"],
+    "category": "public.app-category.music"
+  }
+}
+```
+
+### Compilación multiplataforma
+
+| Desde | Linux | Windows | macOS |
+|-------|-------|---------|-------|
+| **Linux** | ✅ Nativo | ✅ Con Wine (automático) | ⚠️ Sin firma |
+| **Windows** | ❌ | ✅ Nativo | ❌ |
+| **macOS** | ❌ | ❌ | ✅ Nativo + firma |
+
+Para builds firmados de macOS, usar CI/CD con GitHub Actions (ver README.md).
+
+### Diferencias con versión web
+
+| Aspecto | Web/PWA | Electron |
+|---------|---------|----------|
+| Distribución | URL, sin instalación | Instalador nativo |
+| Tamaño | ~2MB (cacheado) | ~150-200MB |
+| Actualizaciones | Automáticas (SW) | Manual o electron-updater |
+| Acceso a archivos | API limitada | Completo (futuro) |
+| MIDI | Web MIDI API | Nativo (futuro) |
+| Audio | Depende del navegador | Chromium fijo |
+
+### Flujo de desarrollo
+
+```
+1. Editar código en src/
+2. npm run build          # Genera docs/
+3. npm run electron:dev   # Prueba en Electron
+4. (iterar 1-3)
+5. npm run electron:build:all  # Genera instaladores
+```
+
+---
+
 ## 14. Patrones de Código
 
 ### Módulos de Audio

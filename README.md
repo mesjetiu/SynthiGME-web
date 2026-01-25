@@ -221,8 +221,8 @@ Los instaladores se generan en la carpeta `dist-electron/`.
 
 ```
 electron/
-├── main.js      # Proceso principal: crea ventana, menú, configuración
-└── preload.js   # Script de preload para APIs nativas futuras
+├── main.cjs      # Proceso principal: servidor HTTP, ventana, menú
+└── preload.cjs   # Script de preload para APIs nativas futuras
 ```
 
 ### Scripts disponibles
@@ -231,9 +231,11 @@ electron/
 |--------|-------------|
 | `npm run electron:dev` | Ejecuta la app en modo desarrollo |
 | `npm run electron:build` | Genera instaladores para la plataforma actual |
-| `npm run electron:build:linux` | Genera instaladores Linux |
-| `npm run electron:build:win` | Genera instaladores Windows |
+| `npm run electron:build:linux` | Genera instaladores Linux (AppImage + .deb) |
+| `npm run electron:build:win` | Genera instaladores Windows (NSIS + portable) |
 | `npm run electron:build:all` | Genera instaladores Linux + Windows |
+| `npm run build:all` | Build web + instaladores Electron (con tests) |
+| `npm run build:all:skip-tests` | Build web + instaladores Electron (sin tests) |
 
 ### CI/CD con GitHub Actions (futuro)
 
@@ -292,6 +294,8 @@ Para publicar releases automáticamente, añade `electron-builder --publish alwa
 ### Notas técnicas
 
 - **Compatibilidad de audio**: Electron usa Chromium, garantizando comportamiento idéntico al navegador Chrome
+- **Nombre en mezcladores**: La app aparece como "SynthiGME" en PipeWire/PulseAudio (Linux) gracias al flag `AudioServiceOutOfProcess` deshabilitado
+- **Limitación multicanal**: Chromium limita `destination.maxChannelCount` a 2 canales independientemente del hardware. Para salida multicanal (>2ch) se requeriría addon nativo (PortAudio) — planificado para futuro
 - **Service Worker**: Funciona en Electron pero es menos necesario (la app ya es local)
 - **Firma de código**: Sin firma, Windows/macOS mostrarán advertencias de "app no verificada". Para distribución pública, considera obtener certificados de firma
 - **Auto-updates**: electron-updater permite actualizaciones automáticas desde GitHub Releases (configuración adicional requerida)

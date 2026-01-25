@@ -7,6 +7,16 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **Aplicación de escritorio con Electron**: SynthiGME ahora puede empaquetarse como aplicación nativa para Linux, Windows y macOS.
+  - **Scripts de build**: `npm run electron:dev` (desarrollo), `npm run electron:build:linux` (AppImage + .deb), `npm run electron:build:win` (NSIS + portable), `npm run electron:build:all` (Linux + Windows)
+  - **Scripts combinados**: `npm run build:all` genera docs/ + instaladores con tests, `npm run build:all:skip-tests` sin tests
+  - **Servidor HTTP integrado**: Resuelve problemas con protocolo `file://` en Linux (ERR_FAILED)
+  - **Nombre en PipeWire/PulseAudio**: La app aparece como "SynthiGME" en los mezcladores de audio del sistema (flag `AudioServiceOutOfProcess` deshabilitado)
+  - **Menú nativo**: Recargar, pantalla completa, zoom, DevTools, Acerca de
+  - **Configuración electron-builder**: AppImage/deb (Linux), NSIS/portable (Windows), dmg (macOS)
+  - **Limitación conocida**: Chromium limita la salida de audio a 2 canales independientemente del hardware. Para multicanal (>2ch) se requeriría addon nativo (PortAudio) — planificado para futuro.
+
 ### Arreglado
 - **Bug crítico: condicionales en AudioWorklet bloquean señal a AudioParams**: Identificado y resuelto problema donde cualquier condicional (if, ternario, Math.max/min) en AudioWorklet bloqueaba completamente la propagación de señal cuando se conectaba a un `AudioParam`. Afectaba a `cvThermalSlew` y `cvSoftClip` al modular `oscillator.detune`. 
   - **Síntoma**: FM modulation no funcionaba a pesar de que los tests de audio existentes pasaban (porque probaban conexión a nodos de audio, no a AudioParams).

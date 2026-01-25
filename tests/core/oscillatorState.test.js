@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_OSC_STATE,
-  getOrCreateOscState
+  getOrCreateOscState,
+  createInitialOscState
 } from '../../src/assets/js/core/oscillatorState.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -32,9 +33,10 @@ describe('DEFAULT_OSC_STATE', () => {
     }
   });
 
-  it('freq tiene valor inicial razonable (> 0)', () => {
+  it('freq tiene valor inicial de 261 Hz (dial=5, C4)', () => {
     assert.ok(typeof DEFAULT_OSC_STATE.freq === 'number');
-    assert.ok(DEFAULT_OSC_STATE.freq > 0);
+    // 261 Hz corresponde a dial=5 en rango HI (Do central, C4)
+    assert.strictEqual(DEFAULT_OSC_STATE.freq, 261);
   });
 
   it('todos los niveles de onda están en 0 por defecto', () => {
@@ -59,6 +61,71 @@ describe('DEFAULT_OSC_STATE', () => {
         `${key} debería ser number, es ${typeof value}`
       );
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createInitialOscState
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('createInitialOscState', () => {
+  it('crea estado con valores derivados de la config por defecto', () => {
+    const state = createInitialOscState();
+    
+    assert.ok('freq' in state);
+    assert.ok('oscLevel' in state);
+    assert.ok('sawLevel' in state);
+    assert.ok('triLevel' in state);
+    assert.ok('pulseLevel' in state);
+    assert.ok('pulseWidth' in state);
+    assert.ok('sineSymmetry' in state);
+  });
+
+  it('freq corresponde a dial=5 en rango HI (~261 Hz)', () => {
+    const state = createInitialOscState();
+    // Tolerancia del 5% para variaciones de tracking
+    assert.ok(state.freq > 240 && state.freq < 280, `freq=${state.freq} debería ser ~261`);
+  });
+
+  it('freq es ~10x menor en rango LO', () => {
+    const stateHI = createInitialOscState(null, false);
+    const stateLO = createInitialOscState(null, true);
+    
+    // En rango LO, la frecuencia es 1/10 del rango HI
+    const ratio = stateHI.freq / stateLO.freq;
+    assert.ok(ratio > 9 && ratio < 11, `ratio=${ratio} debería ser ~10`);
+  });
+
+  it('respeta valores iniciales de config personalizada', () => {
+    const customConfig = {
+      pulseLevel: { initial: 0.7 },
+      pulseWidth: { initial: 0.3 },
+      sineLevel: { initial: 0.5 },
+      sineSymmetry: { initial: 0.8 },
+      triangleLevel: { initial: 0.2 },
+      sawtoothLevel: { initial: 0.4 },
+      frequency: { initial: 7 }  // dial=7 debería dar ~1000 Hz
+    };
+    
+    const state = createInitialOscState(customConfig);
+    
+    assert.strictEqual(state.pulseLevel, 0.7);
+    assert.strictEqual(state.pulseWidth, 0.3);
+    assert.strictEqual(state.oscLevel, 0.5);
+    assert.strictEqual(state.sineSymmetry, 0.8);
+    assert.strictEqual(state.triLevel, 0.2);
+    assert.strictEqual(state.sawLevel, 0.4);
+    // dial=7 debería dar frecuencia mayor que dial=5
+    assert.ok(state.freq > 500, `freq=${state.freq} debería ser >500 Hz para dial=7`);
+  });
+
+  it('cada llamada crea objeto independiente', () => {
+    const state1 = createInitialOscState();
+    const state2 = createInitialOscState();
+    
+    state1.freq = 9999;
+    
+    assert.notStrictEqual(state2.freq, 9999);
   });
 });
 

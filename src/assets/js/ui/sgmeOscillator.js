@@ -175,23 +175,31 @@ export class SGME_Oscillator {
   
   /**
    * Restaura el estado del oscilador desde un patch.
+   * 
+   * IMPORTANTE: El rangeState se aplica ANTES de los knobs para que
+   * el callback onChange del knob de frecuencia use el rango correcto
+   * al calcular la frecuencia en Hz.
+   * 
    * @param {Partial<import('../state/schema.js').OscillatorState>} data - Estado serializado
    */
   deserialize(data) {
     if (!data) return;
     
+    // 1. Aplicar rangeState PRIMERO (antes de los knobs)
+    // El knob de frecuencia necesita el rango correcto para calcular Hz
+    if (data.rangeState === 'hi' || data.rangeState === 'lo') {
+      this.rangeState = data.rangeState;
+      const rangeEl = document.querySelector(`#${this.id} .sgme-osc__switch`);
+      if (rangeEl) this._renderRange(rangeEl);
+    }
+    
+    // 2. Aplicar valores de knobs (sus onChange usarán el rangeState correcto)
     if (Array.isArray(data.knobs)) {
       data.knobs.forEach((value, idx) => {
         if (this.knobs[idx] && typeof value === 'number') {
           this.knobs[idx].setValue(value);
         }
       });
-    }
-    
-    if (data.rangeState === 'hi' || data.rangeState === 'lo') {
-      this.rangeState = data.rangeState;
-      const rangeEl = document.querySelector(`#${this.id} .sgme-osc__switch`);
-      if (rangeEl) this._renderRange(rangeEl);
     }
   }
 }

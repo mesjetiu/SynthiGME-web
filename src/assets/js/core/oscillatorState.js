@@ -7,6 +7,9 @@
  * @module core/oscillatorState
  */
 
+import { dialToFrequency } from '../state/conversions.js';
+import { oscillatorConfig } from '../configs/index.js';
+
 /**
  * Estado de un oscilador individual.
  * @typedef {Object} OscillatorNodeState
@@ -20,10 +23,49 @@
  */
 
 /**
+ * Genera el estado inicial de un oscilador desde la configuración.
+ * Deriva todos los valores de oscillator.config.js para evitar hardcodear.
+ * 
+ * @param {Object} [knobsConfig] - Configuración de knobs (defaults: oscillatorConfig.defaults.knobs)
+ * @param {boolean} [rangeLow=false] - Si el oscilador está en rango LO
+ * @returns {OscillatorNodeState} Estado inicial del oscilador
+ */
+export function createInitialOscState(knobsConfig = null, rangeLow = false) {
+  const knobs = knobsConfig || oscillatorConfig?.defaults?.knobs || {};
+  
+  // Obtener valores iniciales de la config (con fallbacks seguros)
+  const pulseLevel = knobs.pulseLevel?.initial ?? 0;
+  const pulseWidth = knobs.pulseWidth?.initial ?? 0.5;
+  const sineLevel = knobs.sineLevel?.initial ?? 0;
+  const sineSymmetry = knobs.sineSymmetry?.initial ?? 0.5;
+  const triangleLevel = knobs.triangleLevel?.initial ?? 0;
+  const sawtoothLevel = knobs.sawtoothLevel?.initial ?? 0;
+  const frequencyDial = knobs.frequency?.initial ?? 5;
+  
+  // Convertir posición del dial a frecuencia real en Hz
+  const freq = dialToFrequency(frequencyDial, { rangeLow });
+  
+  return {
+    freq,
+    oscLevel: sineLevel,
+    sawLevel: sawtoothLevel,
+    triLevel: triangleLevel,
+    pulseLevel,
+    pulseWidth,
+    sineSymmetry
+  };
+}
+
+/**
  * Valores por defecto para el estado de un oscilador.
+ * NOTA: Para nuevos osciladores, usar createInitialOscState() que deriva
+ * los valores desde la configuración. Este objeto se mantiene como fallback
+ * para compatibilidad con código existente.
  */
 export const DEFAULT_OSC_STATE = {
-  freq: 10,
+  // Frecuencia correspondiente a dial=5 en rango HI (~261 Hz)
+  // Calculado con dialToFrequency(5) - valor de referencia C4
+  freq: 261,
   oscLevel: 0,
   sawLevel: 0,
   triLevel: 0,
@@ -37,13 +79,17 @@ export const DEFAULT_OSC_STATE = {
  * 
  * @param {Object} panelAudio - Objeto de audio del panel
  * @param {number} index - Índice del oscilador
+ * @param {Object} [options] - Opciones de inicialización
+ * @param {Object} [options.knobsConfig] - Config de knobs para valores iniciales
+ * @param {boolean} [options.rangeLow=false] - Si el oscilador está en rango LO
  * @returns {OscillatorNodeState} Estado del oscilador
  */
-export function getOrCreateOscState(panelAudio, index) {
+export function getOrCreateOscState(panelAudio, index, options = {}) {
   panelAudio.state = panelAudio.state || [];
   let state = panelAudio.state[index];
   if (!state) {
-    state = { ...DEFAULT_OSC_STATE };
+    // Crear estado inicial desde configuración
+    state = createInitialOscState(options.knobsConfig, options.rangeLow);
     panelAudio.state[index] = state;
   }
   return state;

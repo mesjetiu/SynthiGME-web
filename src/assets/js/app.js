@@ -1393,7 +1393,19 @@ class App {
       // Guardar referencia para serialización
       this._oscillatorUIs[oscId] = osc;
       
-      return { osc, element: el, slot };
+      return { osc, element: el, slot, oscIndex };
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // SINCRONIZAR ESTADO DE AUDIO CON VALORES INICIALES DE UI
+    // ─────────────────────────────────────────────────────────────────────
+    // Los knobs se inicializan con valores de la config (ej: freq dial=5).
+    // Debemos sincronizar el estado de audio para que coincida con la UI.
+    // NO creamos nodos de audio aquí (eso se hace lazy en la matriz).
+    // Solo actualizamos el estado interno que se usará cuando se creen los nodos.
+    // ─────────────────────────────────────────────────────────────────────
+    oscComponents.forEach(({ osc, oscIndex }) => {
+      this._syncOscillatorStateFromUI(panelIndex, oscIndex, osc);
     });
 
     // Fila de módulos de ruido y Random CV (solo para Panel 3)
@@ -2046,6 +2058,66 @@ class App {
     panelAudio.sources = panelAudio.sources || [];
     panelAudio.sources[oscIndex] = entry;
     return entry;
+  }
+
+  /**
+   * Sincroniza el estado de audio de un oscilador con los valores actuales de su UI.
+   * 
+   * Este método lee los valores de los knobs de la UI y actualiza el estado interno
+   * de audio para que coincida. NO crea nodos de audio (eso se hace lazy cuando
+   * el usuario activa un pin de la matriz).
+   * 
+   * Se usa durante la inicialización para asegurar que el estado de audio
+   * coincida con los valores iniciales configurados en los knobs.
+   * 
+   * @param {number} panelIndex - Índice del panel
+   * @param {number} oscIndex - Índice del oscilador (0-based)
+   * @param {SGME_Oscillator} [oscUI] - Referencia al UI del oscilador (opcional, se busca si no se pasa)
+   * @private
+   */
+  _syncOscillatorStateFromUI(panelIndex, oscIndex, oscUI = null) {
+    // Obtener UI si no se pasó
+    if (!oscUI) {
+      const oscId = `panel${panelIndex}-osc-${oscIndex + 1}`;
+      oscUI = this._oscillatorUIs?.[oscId];
+    }
+    
+    if (!oscUI || !oscUI.knobs) return;
+    
+    const panelAudio = this._getPanelAudio(panelIndex);
+    
+    // Obtener configuración del oscilador para la conversión de frecuencia
+    const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
+    const knobsConfig = config?.knobs || {};
+    const trackingConfig = config?.tracking || {};
+    
+    // Crear estado inicial desde la UI actual
+    const isRangeLow = oscUI.rangeState === 'lo';
+    const state = getOrCreateOscState(panelAudio, oscIndex, {
+      knobsConfig,
+      rangeLow: isRangeLow
+    });
+    
+    // Leer valores actuales de los knobs y actualizar estado
+    // Orden de knobs: [pulseLevel, pulseWidth, sineLevel, sineSymmetry, triangleLevel, sawtoothLevel, frequency]
+    const knobValues = oscUI.knobs.map(k => k.getValue());
+    
+    state.pulseLevel = knobValues[0] ?? 0;
+    state.pulseWidth = 0.01 + (knobValues[1] ?? 0.5) * 0.98; // Convertir a duty cycle
+    state.oscLevel = knobValues[2] ?? 0;
+    state.sineSymmetry = knobValues[3] ?? 0.5;
+    state.triLevel = knobValues[4] ?? 0;
+    state.sawLevel = knobValues[5] ?? 0;
+    
+    // Convertir posición del dial a frecuencia real
+    const dialPosition = knobValues[6] ?? 5;
+    state.freq = dialToFrequency(dialPosition, {
+      rangeLow: isRangeLow,
+      trackingConfig: {
+        alpha: trackingConfig.alpha ?? 0.01,
+        linearHalfRange: trackingConfig.linearHalfRange ?? 2.5
+      }
+    });
   }
 
   /**

@@ -158,7 +158,7 @@ class MultichannelBridge {
                 '--channel-map', channelMap,
                 '--rate', String(this.config.sampleRate),
                 '--format', 'f32',
-                '--latency', '256',        // 256 samples @ 48kHz = ~5.3ms
+                '--latency', '1024',       // 1024 samples @ 48kHz = ~21ms (robusto contra clicks)
                 '-P', `media.name=${this.config.deviceName}`,
                 '-P', `node.name=${this.config.deviceName}`,
                 '-P', 'media.category=Playback',
@@ -173,13 +173,13 @@ class MultichannelBridge {
                 stdio: ['pipe', 'inherit', 'pipe']
             });
             
-            // Configuración CRÍTICA para baja latencia:
-            // - Ajustar highWaterMark del stdin para buen balance entre latencia y flujo
-            // - 32KB = ~5ms de audio a 8ch/48kHz, suficiente para absorber jitter
+            // Configuración para flujo estable sin clicks:
+            // - highWaterMark de 64KB = ~42ms de buffer a 8ch/48kHz
+            // - Esto permite absorber jitter del IPC y scheduling del sistema
             if (this.process.stdin) {
-                // 32KB es un buen balance: evita acumulación excesiva pero permite flujo estable
-                // Muy bajo (4KB) causa cortes, muy alto (64KB default) acumula latencia
-                this.process.stdin._writableState.highWaterMark = 32768;
+                // 64KB proporciona suficiente buffer para evitar underruns
+                // La latencia total será ~21ms (pw-cat) + headroom del buffer
+                this.process.stdin._writableState.highWaterMark = 65536;
                 
                 // Escuchar evento 'drain' para saber cuándo podemos escribir de nuevo
                 this.process.stdin.on('drain', () => {
@@ -242,8 +242,8 @@ class MultichannelBridge {
 
     /**
      * Escribe samples de audio al stream.
-     * IMPORTANTE: Respeta backpressure para evitar acumulación de latencia.
-     * Si el buffer está lleno, DESCARTA los samples (preferimos glitches a latencia).
+     * NO descartamos samples para evitar clicks - preferimos algo de latencia.
+     * El backpressure natural de Node.js/pw-cat controla el flujo.
      * @param {Float32Array|ArrayBuffer} samples Samples interleaved
      * @returns {Promise<{written: boolean, dropped: boolean}>}
      */
@@ -252,18 +252,8 @@ class MultichannelBridge {
             return { written: false, dropped: false };
         }
 
-        // Si el buffer de stdin está lleno, descartar este paquete
-        // Esto es CRÍTICO para evitar acumulación de latencia
-        if (!this.canWrite) {
-            this.stats.droppedSamples++;
-            const now = Date.now();
-            // Log cada 5 segundos máximo para no spammear
-            if (now - this.stats.lastDropWarning > 5000) {
-                console.warn(`[MultichannelBridge] Descartando samples por backpressure (total: ${this.stats.droppedSamples})`);
-                this.stats.lastDropWarning = now;
-            }
-            return { written: false, dropped: true };
-        }
+        // NO descartamos samples - mejor algo de latencia que clicks
+        // El backpressure natural evitará que el buffer crezca indefinidamente
 
         try {
             // Convertir a Buffer si es necesario

@@ -77,10 +77,20 @@ function startServer(docsPath) {
       }
     });
     
-    server.listen(0, '127.0.0.1', () => {
-      const port = server.address().port;
-      console.log(`Local server running on http://127.0.0.1:${port}`);
-      resolve(port);
+    // Puerto fijo para que localStorage e IndexedDB persistan entre sesiones
+    // (el origen http://127.0.0.1:PORT determina el almacenamiento)
+    const FIXED_PORT = 49371; // Puerto en rango dinámico/privado (49152-65535)
+    
+    server.listen(FIXED_PORT, '127.0.0.1', () => {
+      console.log(`Local server running on http://127.0.0.1:${FIXED_PORT}`);
+      resolve(FIXED_PORT);
+    });
+    
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`Puerto ${FIXED_PORT} en uso. ¿Hay otra instancia ejecutándose?`);
+        app.quit();
+      }
     });
   });
 }

@@ -25,10 +25,10 @@
     "release:major": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version major --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "postversion": "printf '\nRecuerda ejecutar git push origin main && git push origin --tags\n'",
     "electron:dev": "electron .",
-    "electron:build": "electron-builder",
-    "electron:build:linux": "electron-builder --linux",
-    "electron:build:win": "electron-builder --win",
-    "electron:build:all": "electron-builder --linux --win"
+    "electron:build": "electron-builder && node scripts/release/generate-requirements.mjs",
+    "electron:build:linux": "electron-builder --linux && node scripts/release/generate-requirements.mjs",
+    "electron:build:win": "electron-builder --win && node scripts/release/generate-requirements.mjs",
+    "electron:build:all": "electron-builder --linux --win && node scripts/release/generate-requirements.mjs"
   },
   "repository": {
     "type": "git",
@@ -59,22 +59,26 @@
       "electron/**/*"
     ],
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": ["AppImage"],
       "category": "Audio",
-      "icon": "resources/icons/icon.png"
+      "icon": "resources/icons/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "win": {
       "target": ["nsis", "portable"],
-      "icon": "resources/icons/icon.ico"
+      "icon": "resources/icons/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "mac": {
       "target": ["dmg"],
       "category": "public.app-category.music",
-      "icon": "resources/icons/icon.png"
+      "icon": "resources/icons/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     }
   },
   "devDependencies": {

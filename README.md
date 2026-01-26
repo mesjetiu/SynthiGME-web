@@ -178,13 +178,67 @@ Tras estos pasos, la carpeta `docs/` contiene la última versión estable y est�
 - Realiza siempre los cambios en `src/` y vuelve a ejecutar `npm run build` cuando necesites un paquete actualizado (por ejemplo antes de subir a GitHub Pages u otro servidor).
 - Evita modificar manualmente el contenido de `docs/` para prevenir inconsistencias entre builds. Tras construir, haz commit/push de `docs/` para que Pages publique la última versión.
 
+## Scripts de Build
+
+El proyecto ofrece múltiples opciones de compilación según el destino:
+
+### Build Web (GitHub Pages / servidor)
+
+| Comando | Descripción | Tests |
+|---------|-------------|-------|
+| `npm run build` | Genera `/docs` para web | ✅ Ejecuta tests primero |
+| `npm run build:skip-tests` | Genera `/docs` para web | ❌ Sin tests |
+
+### Build Electron (aplicación de escritorio)
+
+| Comando | Plataforma | Resultado |
+|---------|------------|----------|
+| `npm run electron:dev` | Local | Ejecuta sin empaquetar (desarrollo) |
+| `npm run electron:build` | Actual | Instalador para tu SO |
+| `npm run electron:build:linux` | Linux | `SynthiGME-X.X.X-x86_64.AppImage` |
+| `npm run electron:build:win` | Windows | `SynthiGME-X.X.X-x64.exe` + instalador |
+| `npm run electron:build:all` | Linux + Win | Ambos (cross-compile) |
+
+### Build Completo (Web + Electron)
+
+| Comando | Descripción | Tests |
+|---------|-------------|-------|
+| `npm run build:all` | `/docs` + instaladores Linux/Win | ✅ Ejecuta tests |
+| `npm run build:all:skip-tests` | `/docs` + instaladores Linux/Win | ❌ Sin tests |
+
+### Tests
+
+| Comando | Qué ejecuta |
+|---------|-------------|
+| `npm test` | Tests unitarios (Node.js) |
+| `npm run test:audio` | Tests de audio (Playwright, headless) |
+| `npm run test:audio:headed` | Tests de audio (con ventana visible) |
+| `npm run test:audio:ui` | Tests de audio (interfaz Playwright) |
+| `npm run test:audio:debug` | Tests de audio (modo debug) |
+| `npm run test:all` | Todos los tests |
+
+### Releases
+
+| Comando | Incrementa versión |
+|---------|-------------------|
+| `npm run release:patch` | `0.3.0` → `0.3.1` |
+| `npm run release:minor` | `0.3.0` → `0.4.0` |
+| `npm run release:major` | `0.3.0` → `1.0.0` |
+
+### Carpetas de salida
+
+| Carpeta | Contenido |
+|---------|----------|
+| `docs/` | Build web (GitHub Pages) |
+| `dist-electron/` | Instaladores + `REQUIREMENTS.md` |
+
+---
+
 ## Aplicación de escritorio (Electron)
 
 Además de la versión web y PWA, puedes empaquetar Synthi GME como aplicación de escritorio nativa usando Electron. Esto garantiza máxima compatibilidad con Web Audio API y AudioWorklet en todas las plataformas.
 
 ### Desarrollo local
-
-Para probar la versión de escritorio sin generar instaladores:
 
 ```bash
 # 1. Asegúrate de tener el build web actualizado
@@ -196,10 +250,10 @@ npm run electron:dev
 
 ### Generar instaladores
 
-Desde Linux puedes compilar para Linux y Windows. macOS requiere un sistema macOS real para firma de código (ver sección CI/CD).
+Desde Linux puedes compilar para Linux y Windows. macOS requiere un sistema macOS real para firma de código.
 
 ```bash
-# Solo Linux (AppImage + .deb)
+# Solo Linux (AppImage)
 npm run electron:build:linux
 
 # Solo Windows (installer NSIS + portable)
@@ -209,33 +263,22 @@ npm run electron:build:win
 npm run electron:build:all
 ```
 
-Los instaladores se generan en la carpeta `dist-electron/`.
+Los instaladores se generan en `dist-electron/` con nombres estándar:
+- `SynthiGME-0.3.0-x86_64.AppImage` (Linux)
+- `SynthiGME-0.3.0-x64.exe` (Windows portable)
+- `SynthiGME-Setup-0.3.0-x64.exe` (Windows instalador)
 
-| Plataforma | Formatos generados |
-|------------|-------------------|
-| Linux | `.AppImage`, `.deb` |
-| Windows | `.exe` (NSIS installer), `.exe` (portable) |
-| macOS | `.dmg` (requiere macOS o CI/CD) |
+Junto a los binarios se genera `REQUIREMENTS.md` con los requisitos mínimos del sistema.
 
 ### Estructura de archivos Electron
 
 ```
 electron/
-├── main.cjs      # Proceso principal: servidor HTTP, ventana, menú
+├── main.cjs      # Proceso principal: servidor HTTP (puerto 49371), ventana, menú
 └── preload.cjs   # Script de preload para APIs nativas futuras
+resources/
+└── icons/        # Iconos de la aplicación (PNG 256×256, ICO multi-resolución)
 ```
-
-### Scripts disponibles
-
-| Script | Descripción |
-|--------|-------------|
-| `npm run electron:dev` | Ejecuta la app en modo desarrollo |
-| `npm run electron:build` | Genera instaladores para la plataforma actual |
-| `npm run electron:build:linux` | Genera instaladores Linux (AppImage + .deb) |
-| `npm run electron:build:win` | Genera instaladores Windows (NSIS + portable) |
-| `npm run electron:build:all` | Genera instaladores Linux + Windows |
-| `npm run build:all` | Build web + instaladores Electron (con tests) |
-| `npm run build:all:skip-tests` | Build web + instaladores Electron (sin tests) |
 
 ### CI/CD con GitHub Actions (futuro)
 

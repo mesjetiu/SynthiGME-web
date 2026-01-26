@@ -2187,10 +2187,11 @@ El proceso principal implementa:
 
 | Componente | Descripción |
 |------------|-------------|
-| **Servidor HTTP local** | Sirve `docs/` desde `http://127.0.0.1:<puerto-aleatorio>`. Resuelve problemas con el protocolo `file://` en algunas configuraciones de Linux |
+| **Servidor HTTP local** | Sirve `docs/` desde `http://127.0.0.1:49371` (puerto fijo para persistencia de datos) |
 | **BrowserWindow** | Ventana 1280×720 (mínimo 1024×600) con `nodeIntegration: false` y `contextIsolation: true` |
 | **Menú nativo** | Archivo (recargar, salir), Ver (pantalla completa, zoom, DevTools), Ayuda (acerca de) |
 | **Autoplay de audio** | `autoplayPolicy: 'no-user-gesture-required'` para síntesis sin interacción |
+| **Nombre en audio** | `app.setName('SynthiGME')` + flag `AudioServiceOutOfProcess` deshabilitado para mostrar nombre correcto en PipeWire/PulseAudio |
 
 ### Por qué servidor HTTP en lugar de `file://`
 
@@ -2201,9 +2202,10 @@ El protocolo `file://` puede causar `ERR_FAILED` en ciertas configuraciones de L
 
 El servidor HTTP integrado:
 - Escucha solo en `127.0.0.1` (no accesible desde red)
-- Usa puerto aleatorio (evita conflictos)
+- **Puerto fijo 49371** (rango dinámico/privado 49152-65535) para que localStorage e IndexedDB persistan entre sesiones
 - Tipos MIME correctos para `.js`, `.css`, `.svg`, `.webmanifest`
 - Overhead despreciable (~0.1ms por request)
+- Manejo de error `EADDRINUSE` si hay otra instancia ejecutándose
 
 ### Script de Preload (`electron/preload.cjs`)
 
@@ -2225,31 +2227,50 @@ Preparado para futuras APIs:
 | Script | Comando | Descripción |
 |--------|---------|-------------|
 | `electron:dev` | `electron .` | Ejecuta en modo desarrollo |
-| `electron:build` | `electron-builder` | Genera instaladores (plataforma actual) |
-| `electron:build:linux` | `electron-builder --linux` | AppImage + .deb |
+| `electron:build` | `electron-builder && generate-requirements` | Genera instaladores + informe de requisitos |
+| `electron:build:linux` | `electron-builder --linux` | AppImage (ej: `SynthiGME-0.3.0-x86_64.AppImage`) |
 | `electron:build:win` | `electron-builder --win` | Instalador NSIS + portable |
 | `electron:build:all` | `electron-builder --linux --win` | Linux + Windows |
+| `build:all` | `build + electron:build:all` | Build web + instaladores (con tests) |
+| `build:all:skip-tests` | `build:skip-tests + electron:build:all` | Build web + instaladores (sin tests) |
+
+### Informe de requisitos
+
+Tras cada compilación se genera `dist-electron/REQUIREMENTS.md` con:
+- Sistemas operativos soportados (Linux Ubuntu 18.04+, Windows 10+, macOS 12+)
+- Requisitos de hardware (RAM, CPU, disco)
+- Tamaño de cada binario generado
+- Instrucciones de instalación por plataforma
+
+El script `scripts/release/generate-requirements.mjs` también genera `requirements.json` para consumo programático.
 
 ### Configuración de electron-builder (`package.json` → `build`)
 
 ```json
 {
   "appId": "com.synthigme.app",
-  "productName": "Synthi GME",
+  "productName": "SynthiGME",
   "directories": { "output": "dist-electron" },
   "files": ["docs/**/*", "electron/**/*"],
   "linux": {
-    "target": ["AppImage", "deb"],
+    "target": ["AppImage"],
     "category": "Audio",
-    "icon": "docs/assets/pwa/icons"
+    "icon": "resources/icons/icon.png",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "win": {
     "target": ["nsis", "portable"],
-    "icon": "docs/assets/pwa/icons/icon-512x512.png"
+    "icon": "resources/icons/icon.ico",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "mac": {
     "target": ["dmg"],
-    "category": "public.app-category.music"
+    "category": "public.app-category.music",
+    "icon": "resources/icons/icon.png",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  },
+  "nsis": {
+    "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
   }
 }
 ```

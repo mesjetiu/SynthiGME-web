@@ -74,6 +74,29 @@ Para detalles de arquitectura, ver [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Relación con SynthiGME (SuperCollider)
 El repositorio original en SuperCollider, [SynthiGME](https://github.com/mesjetiu/SynthiGME), contiene la implementación completa como Quark, documentación histórica detallada y material audiovisual del instrumento. SynthiGME-web reutiliza esa investigación y traslada los paneles a la web para facilitar su difusión; cualquier mejora conceptual debería mantenerse alineada con la referencia original.
 
+## Requisitos del Sistema
+
+### Versión Web (navegador)
+
+| Requisito | Mínimo | Recomendado |
+|-----------|--------|-------------|
+| **Navegador** | Chrome 66+, Firefox 76+, Edge 79+, Safari 14.1+ | Última versión estable |
+| **RAM** | 512 MB libres | 2 GB libres |
+| **CPU** | Dual-core | Quad-core |
+| **Audio** | Cualquier dispositivo de salida | Interfaz de audio con <10ms latencia |
+
+### Versión Electron (escritorio)
+
+| Requisito | Linux | Windows | macOS |
+|-----------|-------|---------|-------|
+| **SO mínimo** | Ubuntu 18.04+ / Fedora 32+ / Debian 10+ | Windows 10+ | macOS 12 (Monterey)+ |
+| **Arquitectura** | x64, arm64 | x64, ia32, arm64 | x64, arm64 (Apple Silicon) |
+| **RAM** | 512 MB | 512 MB | 512 MB |
+| **Disco** | ~120 MB | ~120 MB | ~120 MB |
+| **Audio** | ALSA / PulseAudio / PipeWire | WASAPI | CoreAudio |
+
+> **Nota:** Electron incluye Chromium, por lo que no depende del navegador instalado.
+
 ## Flujo de compilación
 Esta sección solo es necesaria si vas a mantener el proyecto o desplegarlo fuera de GitHub Pages. El flujo técnico genera un bundle estático en `docs/`, que también sirve para alimentar Pages (rama `main` + carpeta `/docs`).
 

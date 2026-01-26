@@ -174,12 +174,12 @@ class MultichannelBridge {
             });
             
             // Configuración CRÍTICA para baja latencia:
-            // - Reducir highWaterMark del stdin para que el backpressure actúe rápido
-            // - Esto evita que Node.js acumule megas de audio en memoria
+            // - Ajustar highWaterMark del stdin para buen balance entre latencia y flujo
+            // - 32KB = ~5ms de audio a 8ch/48kHz, suficiente para absorber jitter
             if (this.process.stdin) {
-                // El highWaterMark por defecto es 64KB, lo reducimos a 4KB (~1.3ms @ 8ch/48kHz)
-                // Esto fuerza backpressure mucho antes
-                this.process.stdin._writableState.highWaterMark = 4096;
+                // 32KB es un buen balance: evita acumulación excesiva pero permite flujo estable
+                // Muy bajo (4KB) causa cortes, muy alto (64KB default) acumula latencia
+                this.process.stdin._writableState.highWaterMark = 32768;
                 
                 // Escuchar evento 'drain' para saber cuándo podemos escribir de nuevo
                 this.process.stdin.on('drain', () => {

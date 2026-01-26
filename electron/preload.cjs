@@ -53,13 +53,15 @@ contextBridge.exposeInMainWorld('electronAudio', {
   
   /**
    * Escribe samples de audio al stream
+   * IMPORTANTE: Usamos 'send' en lugar de 'invoke' para fire-and-forget verdadero.
+   * Esto elimina el round-trip IPC que causaba latencia masiva.
    * @param {Float32Array} samples - Samples interleaved
-   * @returns {Promise<{written: boolean}>}
    */
   write: (samples) => {
     // Convertir Float32Array a ArrayBuffer para transferencia IPC
     const buffer = samples.buffer.slice(samples.byteOffset, samples.byteOffset + samples.byteLength);
-    return ipcRenderer.invoke('audio:write', buffer);
+    // Fire-and-forget: no esperamos respuesta
+    ipcRenderer.send('audio:write', buffer);
   },
   
   /**

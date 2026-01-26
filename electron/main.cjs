@@ -284,12 +284,15 @@ ipcMain.handle('audio:open-stream', async (event, config) => {
 
 /**
  * Escribe samples de audio al stream
+ * IMPORTANTE: Usamos 'on' en lugar de 'handle' para fire-and-forget verdadero.
+ * Esto elimina el round-trip IPC que causaba latencia masiva (30+ segundos).
  * @param {ArrayBuffer} buffer - Buffer de samples interleaved
  */
-ipcMain.handle('audio:write', async (event, buffer) => {
+ipcMain.on('audio:write', (event, buffer) => {
   // Convertir ArrayBuffer de vuelta a Float32Array
   const samples = new Float32Array(buffer);
-  return multichannelBridge.write(samples);
+  multichannelBridge.write(samples);
+  // NO enviamos respuesta - fire-and-forget
 });
 
 /**

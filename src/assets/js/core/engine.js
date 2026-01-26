@@ -537,6 +537,10 @@ export class AudioEngine {
     const success = await multichannelOutput.start();
     if (success) {
       this.multichannelEnabled = true;
+      // Silenciar la salida estéreo de Chromium para evitar duplicados
+      // con diferente latencia. El estéreo se mantiene conectado para
+      // que el AudioContext no se suspenda.
+      this._setStereoMuted(true);
       log.info('[Multichannel] ¡Salida multicanal activada!');
       showToast('Salida multicanal activada (8 canales)', 'success');
     }
@@ -554,8 +558,48 @@ export class AudioEngine {
     
     await multichannelOutput.stop();
     this.multichannelEnabled = false;
+    // Restaurar la salida estéreo de Chromium
+    this._setStereoMuted(false);
     log.info('[Multichannel] Salida multicanal desactivada');
     showToast('Salida multicanal desactivada', 'info');
+  }
+  
+  /**
+   * Silencia o restaura la salida estéreo de Chromium.
+   * Se usa cuando el multicanal está activo para evitar duplicados con
+   * diferente latencia. El estéreo se mantiene conectado para que el
+   * AudioContext no se suspenda.
+   * 
+   * @param {boolean} muted - true para silenciar, false para restaurar
+   * @private
+   */
+  _setStereoMuted(muted) {
+    if (!this.merger) return;
+    
+    // El merger conecta los masterGains al destination
+    // Lo desconectamos/reconectamos para silenciar/restaurar
+    if (muted) {
+      // Crear un nodo silencioso que mantiene el destination activo
+      // pero no emite audio audible
+      if (!this._stereoSilencer) {
+        this._stereoSilencer = this.audioCtx.createGain();
+        this._stereoSilencer.gain.value = 0;
+      }
+      try {
+        this.merger.disconnect(this.audioCtx.destination);
+      } catch { /* ya desconectado */ }
+      this._stereoSilencer.connect(this.audioCtx.destination);
+      log.debug('[Engine] Estéreo silenciado (multicanal activo)');
+    } else {
+      // Restaurar conexión normal
+      if (this._stereoSilencer) {
+        try {
+          this._stereoSilencer.disconnect();
+        } catch { /* ya desconectado */ }
+      }
+      this.merger.connect(this.audioCtx.destination);
+      log.debug('[Engine] Estéreo restaurado');
+    }
   }
   
   /**

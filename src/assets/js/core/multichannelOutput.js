@@ -36,6 +36,7 @@ class MultichannelOutputManager {
     this.captureNode = null;
     this.outputBuses = [];
     this.merger = null;
+    this.keepAliveNode = null;  // Nodo para mantener el worklet activo
     this.isInitialized = false;
     this.isRunning = false;
     this.config = {
@@ -154,12 +155,12 @@ class MultichannelOutputManager {
       // Conectar merger al nodo de captura
       this.merger.connect(this.captureNode);
       
-      // El output del captureNode va a un destino vacío para mantener el grafo activo
-      // (el audio real va por el path normal hacia destination)
-      const silentDest = audioCtx.createGain();
-      silentDest.gain.value = 0;
-      this.captureNode.connect(silentDest);
-      silentDest.connect(audioCtx.destination);
+      // ConstantSourceNode para mantener el worklet activo
+      // (el silenciamiento del estéreo lo gestiona el engine)
+      this.keepAliveNode = audioCtx.createConstantSource();
+      this.keepAliveNode.offset.value = 0;
+      this.keepAliveNode.connect(this.captureNode);
+      this.keepAliveNode.start();
       
       this.isInitialized = true;
       log.info(`[MultichannelOutput] Inicializado: ${this.config.channels}ch @ ${this.config.sampleRate}Hz`);
@@ -268,6 +269,15 @@ class MultichannelOutputManager {
       this.captureNode = null;
     }
     
+    // Detener y desconectar el nodo keep-alive
+    if (this.keepAliveNode) {
+      try {
+        this.keepAliveNode.stop();
+        this.keepAliveNode.disconnect();
+      } catch { /* Ignorar */ }
+      this.keepAliveNode = null;
+    }
+    
     this.audioCtx = null;
     this.outputBuses = [];
     this.isInitialized = false;
@@ -295,35 +305,19 @@ class MultichannelOutputManager {
   
   /**
    * Envía samples al backend nativo via IPC.
-   * Fire-and-forget para mínima latencia.
+   * Fire-and-forget para mínima latencia (usa ipcRenderer.send, no invoke).
    * @private
    */
   _sendSamplesToNative(samples, sampleCount, channelCount) {
     if (!this.isRunning) return;
     
     // Fire-and-forget: no esperamos respuesta para minimizar latencia
-    window.electronAudio.write(samples)
-      .then(result => {
-        if (result.written) {
-          this.stats.samplesWritten += sampleCount;
-          this.stats.buffersWritten++;
-        } else if (result.dropped) {
-          // Backpressure activo - el backend descartó estos samples
-          this.stats.droppedBuffers = (this.stats.droppedBuffers || 0) + 1;
-          // No es un error, es comportamiento esperado bajo carga
-        } else {
-          this.stats.errors++;
-        }
-      })
-      .catch(error => {
-        this.stats.errors++;
-        this.stats.lastError = error.message;
-        
-        // No logueamos cada error para evitar spam
-        if (this.stats.errors === 1 || this.stats.errors % 100 === 0) {
-          log.error(`[MultichannelOutput] Error escribiendo (${this.stats.errors} total):`, error);
-        }
-      });
+    // Usamos ipcRenderer.send que no tiene round-trip
+    window.electronAudio.write(samples);
+    
+    // Actualizar stats localmente (no tenemos confirmación del backend)
+    this.stats.samplesWritten += sampleCount;
+    this.stats.buffersWritten++;
   }
   
   /**

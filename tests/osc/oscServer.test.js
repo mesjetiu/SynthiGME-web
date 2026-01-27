@@ -1,0 +1,226 @@
+/**
+ * Tests para el servidor OSC
+ * 
+ * Verifica la codificación/decodificación de mensajes OSC
+ * y la comunicación UDP básica.
+ * 
+ * @module tests/osc/oscServer.test
+ */
+
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert';
+import { createRequire } from 'module';
+
+// Cargar módulo CommonJS desde ESM
+const require = createRequire(import.meta.url);
+const { OSCServer, DEFAULT_CONFIG } = require('../../electron/oscServer.cjs');
+
+describe('OSCServer', () => {
+  
+  describe('Configuración', () => {
+    it('debe usar configuración por defecto', () => {
+      const server = new OSCServer();
+      assert.strictEqual(server.config.port, 57121);
+      assert.strictEqual(server.config.multicastGroup, '239.255.0.1');
+      assert.strictEqual(server.config.prefix, '/SynthiGME/');
+    });
+    
+    it('debe permitir configuración personalizada', () => {
+      const server = new OSCServer({ port: 9000, prefix: '/Test/' });
+      assert.strictEqual(server.config.port, 9000);
+      assert.strictEqual(server.config.prefix, '/Test/');
+      // Valores no especificados mantienen default
+      assert.strictEqual(server.config.multicastGroup, '239.255.0.1');
+    });
+  });
+
+  describe('Codificación OSC', () => {
+    let server;
+    
+    before(() => {
+      server = new OSCServer();
+    });
+
+    it('debe codificar strings con padding a 4 bytes', () => {
+      // "hi" = 2 bytes + 1 null = 3, padding a 4
+      const buf1 = server._encodeString('hi');
+      assert.strictEqual(buf1.length, 4);
+      assert.strictEqual(buf1[0], 'h'.charCodeAt(0));
+      assert.strictEqual(buf1[1], 'i'.charCodeAt(0));
+      assert.strictEqual(buf1[2], 0); // null terminator
+      assert.strictEqual(buf1[3], 0); // padding
+      
+      // "test" = 4 bytes + 1 null = 5, padding a 8
+      const buf2 = server._encodeString('test');
+      assert.strictEqual(buf2.length, 8);
+    });
+
+    it('debe codificar float32 en big-endian', () => {
+      const buf = server._encodeFloat32(440.0);
+      assert.strictEqual(buf.length, 4);
+      // 440.0 en IEEE 754 big-endian
+      assert.strictEqual(buf.readFloatBE(0), 440.0);
+    });
+
+    it('debe codificar int32 en big-endian', () => {
+      const buf = server._encodeInt32(12345);
+      assert.strictEqual(buf.length, 4);
+      assert.strictEqual(buf.readInt32BE(0), 12345);
+    });
+
+    it('debe construir mensaje OSC completo', () => {
+      const buf = server._buildOSCMessage('/test/addr', [1.5, 42]);
+      assert.ok(Buffer.isBuffer(buf));
+      assert.ok(buf.length > 0);
+      
+      // Verificar que se puede parsear
+      const parsed = server._parseOSCMessage(buf);
+      assert.strictEqual(parsed.address, '/test/addr');
+      assert.strictEqual(parsed.args.length, 2);
+      assert.ok(Math.abs(parsed.args[0] - 1.5) < 0.0001);
+      assert.strictEqual(parsed.args[1], 42);
+    });
+  });
+
+  describe('Decodificación OSC', () => {
+    let server;
+    
+    before(() => {
+      server = new OSCServer();
+    });
+
+    it('debe decodificar strings con padding', () => {
+      const original = 'hello';
+      const encoded = server._encodeString(original);
+      const { value, newOffset } = server._decodeString(encoded, 0);
+      assert.strictEqual(value, original);
+      assert.strictEqual(newOffset, 8); // "hello" + null = 6, padded to 8
+    });
+
+    it('debe decodificar mensaje OSC de SuperCollider', () => {
+      // Mensaje OSC típico: /SynthiGME/osc/1/frequency ,f 5.0
+      const msg = server._buildOSCMessage('/SynthiGME/osc/1/frequency', [5.0]);
+      const parsed = server._parseOSCMessage(msg);
+      
+      assert.strictEqual(parsed.address, '/SynthiGME/osc/1/frequency');
+      assert.strictEqual(parsed.args.length, 1);
+      assert.ok(Math.abs(parsed.args[0] - 5.0) < 0.0001);
+    });
+
+    it('debe manejar múltiples argumentos', () => {
+      const msg = server._buildOSCMessage('/test', [1.0, 2, 'hello']);
+      const parsed = server._parseOSCMessage(msg);
+      
+      assert.strictEqual(parsed.address, '/test');
+      assert.strictEqual(parsed.args.length, 3);
+      assert.ok(Math.abs(parsed.args[0] - 1.0) < 0.0001);
+      assert.strictEqual(parsed.args[1], 2);
+      assert.strictEqual(parsed.args[2], 'hello');
+    });
+
+    it('debe rechazar mensajes sin "/" inicial', () => {
+      // Crear buffer con dirección inválida manualmente
+      const invalidBuf = Buffer.from('invalid\0');
+      const parsed = server._parseOSCMessage(invalidBuf);
+      assert.strictEqual(parsed, null);
+    });
+  });
+
+  describe('Ciclo de vida del servidor', () => {
+    let server;
+    
+    // Usar puerto diferente para evitar conflictos
+    before(() => {
+      server = new OSCServer({ port: 57199 });
+    });
+    
+    after(async () => {
+      if (server.running) {
+        await server.stop();
+      }
+    });
+
+    it('debe reportar estado inicial correcto', () => {
+      const status = server.getStatus();
+      assert.strictEqual(status.running, false);
+      assert.strictEqual(status.port, 57199);
+    });
+
+    it('debe iniciar y reportar running=true', async () => {
+      await server.start();
+      assert.strictEqual(server.running, true);
+      
+      const status = server.getStatus();
+      assert.strictEqual(status.running, true);
+    });
+
+    it('debe ignorar múltiples llamadas a start()', async () => {
+      // Ya está corriendo, no debe fallar
+      await server.start();
+      assert.strictEqual(server.running, true);
+    });
+
+    it('debe detenerse correctamente', async () => {
+      await server.stop();
+      assert.strictEqual(server.running, false);
+    });
+
+    it('debe ignorar múltiples llamadas a stop()', async () => {
+      await server.stop();
+      assert.strictEqual(server.running, false);
+    });
+  });
+
+  describe('Envío y recepción (loopback)', () => {
+    let server;
+    
+    before(async () => {
+      server = new OSCServer({ port: 57198 });
+      await server.start();
+    });
+    
+    after(async () => {
+      server.onMessage = null; // Limpiar callback
+      await server.stop();
+    });
+
+    it('debe rechazar envío cuando servidor no está corriendo', async () => {
+      const stoppedServer = new OSCServer({ port: 57197 });
+      const result = stoppedServer.send('/test', [1.0]);
+      assert.strictEqual(result, false);
+    });
+
+    it('debe recibir mensaje via loopback multicast', async () => {
+      // Dirección única para este test
+      const testAddress = '/SynthiGME/test/loopback/' + Date.now();
+      
+      const received = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout esperando mensaje OSC'));
+        }, 2000);
+        
+        server.onMessage = (address, args, rinfo) => {
+          // Solo procesar nuestro mensaje específico
+          if (address === testAddress) {
+            clearTimeout(timeout);
+            resolve({ address, args, rinfo });
+          }
+        };
+        
+        // Pequeño delay para asegurar que el callback está registrado
+        setTimeout(() => {
+          server.send(testAddress, [42.5]);
+        }, 50);
+      });
+      
+      assert.strictEqual(received.address, testAddress);
+      assert.ok(Math.abs(received.args[0] - 42.5) < 0.0001);
+    });
+
+    it('debe enviar mensaje sin error', () => {
+      server.onMessage = null; // Limpiar callback del test anterior
+      const result = server.send('/SynthiGME/osc/1/frequency', [5.5]);
+      assert.strictEqual(result, true);
+    });
+  });
+});

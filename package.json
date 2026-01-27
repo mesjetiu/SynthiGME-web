@@ -81,6 +81,9 @@
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     }
   },
+  "dependencies": {
+    "osc": "^2.4.5"
+  },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "electron": "^40.0.0",

@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('oscAPI', {
   stop: () => ipcRenderer.invoke('osc:stop'),
   
   /**
-   * Envía un mensaje OSC al grupo multicast
+   * Envía un mensaje OSC al grupo multicast (y a targets unicast registrados)
    * @param {string} address - Dirección OSC (ej: '/SynthiGME/osc/1/frequency')
    * @param {Array} args - Argumentos del mensaje
    * @returns {Promise<boolean>} true si se envió correctamente
@@ -66,7 +66,30 @@ contextBridge.exposeInMainWorld('oscAPI', {
     ipcRenderer.on('osc:message', handler);
     // Retornar función para cancelar suscripción
     return () => ipcRenderer.removeListener('osc:message', handler);
-  }
+  },
+  
+  /**
+   * Añade un target unicast para envío directo
+   * Útil para enviar a SuperCollider (que no soporta multicast)
+   * @param {string} host - Dirección IP (ej: '127.0.0.1')
+   * @param {number} port - Puerto (ej: 57120 para SC)
+   * @returns {Promise<{success: boolean, targets: Array}>}
+   */
+  addTarget: (host, port) => ipcRenderer.invoke('osc:addTarget', host, port),
+  
+  /**
+   * Elimina un target unicast
+   * @param {string} host 
+   * @param {number} port 
+   * @returns {Promise<{success: boolean, targets: Array}>}
+   */
+  removeTarget: (host, port) => ipcRenderer.invoke('osc:removeTarget', host, port),
+  
+  /**
+   * Obtiene la lista de targets unicast registrados
+   * @returns {Promise<Array<{host: string, port: number}>>}
+   */
+  getTargets: () => ipcRenderer.invoke('osc:getTargets')
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -334,6 +334,32 @@ ipcMain.handle('osc:status', () => {
   return { running: false };
 });
 
+// Añadir target unicast (para enviar a SuperCollider u otras apps)
+ipcMain.handle('osc:addTarget', (event, host, port) => {
+  if (oscServer) {
+    oscServer.addUnicastTarget(host, port);
+    return { success: true, targets: oscServer.getUnicastTargets() };
+  }
+  return { success: false, error: 'Servidor no inicializado' };
+});
+
+// Eliminar target unicast
+ipcMain.handle('osc:removeTarget', (event, host, port) => {
+  if (oscServer) {
+    oscServer.removeUnicastTarget(host, port);
+    return { success: true, targets: oscServer.getUnicastTargets() };
+  }
+  return { success: false, error: 'Servidor no inicializado' };
+});
+
+// Obtener targets unicast
+ipcMain.handle('osc:getTargets', () => {
+  if (oscServer) {
+    return oscServer.getUnicastTargets();
+  }
+  return [];
+});
+
 // Cuando Electron esté listo, crear ventana
 app.whenReady().then(() => {
   createWindow();

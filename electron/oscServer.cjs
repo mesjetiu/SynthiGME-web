@@ -52,6 +52,13 @@ class OSCServer {
     this.running = false;
     
     /**
+     * Lista de targets unicast adicionales (además del multicast)
+     * Útil para enviar a aplicaciones que no soportan multicast (ej: SuperCollider)
+     * @type {Array<{host: string, port: number}>}
+     */
+    this.unicastTargets = [];
+    
+    /**
      * Callback invocado cuando se recibe un mensaje OSC
      * @type {Function|null}
      * @param {string} address - Dirección OSC (ej: '/SynthiGME/osc/1/frequency')
@@ -194,11 +201,63 @@ class OSCServer {
           }
         }
       );
+      
+      // También enviar a targets unicast registrados (ej: SuperCollider)
+      for (const target of this.unicastTargets) {
+        this.socket.send(
+          buffer,
+          0,
+          buffer.length,
+          target.port,
+          target.host,
+          (err) => {
+            if (err) {
+              console.error(`[OSC] Unicast send error to ${target.host}:${target.port}:`, err.message);
+            }
+          }
+        );
+      }
+      
       return true;
     } catch (err) {
       console.error('[OSC] Build message error:', err.message);
       return false;
     }
+  }
+
+  /**
+   * Añade un target unicast para envío directo (además del multicast)
+   * Útil para comunicarse con aplicaciones que no soportan multicast (ej: SuperCollider)
+   * @param {string} host - Dirección IP del target
+   * @param {number} port - Puerto del target
+   */
+  addUnicastTarget(host, port) {
+    // Evitar duplicados
+    const exists = this.unicastTargets.some(t => t.host === host && t.port === port);
+    if (!exists) {
+      this.unicastTargets.push({ host, port });
+      console.log(`[OSC] Añadido target unicast: ${host}:${port}`);
+    }
+  }
+
+  /**
+   * Elimina un target unicast
+   * @param {string} host 
+   * @param {number} port 
+   */
+  removeUnicastTarget(host, port) {
+    this.unicastTargets = this.unicastTargets.filter(
+      t => !(t.host === host && t.port === port)
+    );
+    console.log(`[OSC] Eliminado target unicast: ${host}:${port}`);
+  }
+
+  /**
+   * Obtiene la lista de targets unicast
+   * @returns {Array<{host: string, port: number}>}
+   */
+  getUnicastTargets() {
+    return [...this.unicastTargets];
   }
 
   /**

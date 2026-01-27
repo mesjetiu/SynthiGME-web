@@ -6,10 +6,11 @@
  * de Web Audio API y AudioWorklet.
  */
 
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
 const { createServer } = require('http');
 const { readFileSync, existsSync, statSync } = require('fs');
+const { OSCServer } = require('./oscServer.cjs');
 
 // Establecer nombre de la aplicación (visible en PipeWire/PulseAudio)
 app.setName('SynthiGME');
@@ -30,6 +31,7 @@ app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
 // Mantener referencia global para evitar garbage collection
 let mainWindow = null;
 let server = null;
+let oscServer = null;
 
 // Tipos MIME para archivos estáticos
 const mimeTypes = {
@@ -118,6 +120,8 @@ async function createWindow() {
       nodeIntegration: false,
       // Seguridad: aislar contexto del renderer
       contextIsolation: true,
+      // Preload script para exponer APIs seguras (OSC, etc.)
+      preload: path.join(__dirname, 'preload.cjs'),
       // Permitir autoplay de audio (necesario para síntesis)
       autoplayPolicy: 'no-user-gesture-required'
     }
@@ -262,9 +266,80 @@ function setupMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Configuración OSC
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Inicializa el servidor OSC para comunicación peer-to-peer
+ * @see /OSC.md - Documentación del protocolo
+ */
+function initOSCServer() {
+  oscServer = new OSCServer();
+  
+  // Callback cuando se recibe un mensaje OSC de la red
+  oscServer.onMessage = (address, args, rinfo) => {
+    // Reenviar mensaje al renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('osc:message', { address, args, from: rinfo.address });
+    }
+  };
+  
+  oscServer.onError = (err) => {
+    console.error('[OSC] Error:', err.message);
+  };
+  
+  oscServer.onReady = () => {
+    console.log('[OSC] Servidor listo para comunicación peer-to-peer');
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Handlers IPC para OSC (comunicación main <-> renderer)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iniciar servidor OSC
+ipcMain.handle('osc:start', async () => {
+  if (!oscServer) initOSCServer();
+  try {
+    await oscServer.start();
+    return { success: true, status: oscServer.getStatus() };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// Detener servidor OSC
+ipcMain.handle('osc:stop', async () => {
+  if (oscServer) {
+    await oscServer.stop();
+    return { success: true };
+  }
+  return { success: false, error: 'Servidor no inicializado' };
+});
+
+// Enviar mensaje OSC
+ipcMain.handle('osc:send', (event, address, args) => {
+  if (oscServer && oscServer.running) {
+    return oscServer.send(address, args);
+  }
+  return false;
+});
+
+// Obtener estado del servidor OSC
+ipcMain.handle('osc:status', () => {
+  if (oscServer) {
+    return oscServer.getStatus();
+  }
+  return { running: false };
+});
+
 // Cuando Electron esté listo, crear ventana
 app.whenReady().then(() => {
   createWindow();
+  
+  // Inicializar servidor OSC (no iniciado hasta que el usuario lo active)
+  initOSCServer();
 
   // En macOS, recrear ventana si se hace clic en el dock
   app.on('activate', () => {
@@ -278,6 +353,16 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// Limpiar recursos al salir
+app.on('will-quit', async () => {
+  if (oscServer && oscServer.running) {
+    await oscServer.stop();
+  }
+  if (server) {
+    server.close();
   }
 });
 

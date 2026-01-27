@@ -5,7 +5,7 @@
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
-    "test": "node --test 'tests/{configs,core,i18n,integration,mocks,modules,panelBlueprints,state,ui,utils,worklets}/**/*.test.js'",
+    "test": "node --test 'tests/{configs,core,i18n,integration,mocks,modules,osc,panelBlueprints,state,ui,utils,worklets}/**/*.test.js'",
     "test:audio": "npx playwright test --config=tests/audio/playwright.config.js",
     "test:audio:ui": "npx playwright test --config=tests/audio/playwright.config.js --ui",
     "test:audio:headed": "npx playwright test --config=tests/audio/playwright.config.js --headed",

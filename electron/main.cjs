@@ -111,10 +111,21 @@ function startServer(docsPath) {
  * Crea la ventana principal de la aplicación
  */
 async function createWindow() {
-  // Limpiar caché HTTP de Chromium al iniciar
+  // Limpiar TODAS las cachés de Chromium al iniciar
   // Esto asegura que siempre se cargue la versión actual del paquete
   const { session } = require('electron');
-  await session.defaultSession.clearCache();
+  const ses = session.defaultSession;
+  
+  // Limpiar caché HTTP
+  await ses.clearCache();
+  
+  // Limpiar caché de código (V8 bytecode cache)
+  await ses.clearCodeCaches({});
+  
+  // Limpiar datos de almacenamiento excepto localStorage/IndexedDB (preferencias de usuario)
+  await ses.clearStorageData({
+    storages: ['serviceworkers', 'cachestorage', 'shadercache', 'websql']
+  });
   
   // Iniciar servidor local
   const docsPath = path.join(__dirname, '../docs');

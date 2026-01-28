@@ -393,12 +393,15 @@ export class Knob {
       const sens = (this.max - this.min) / effectivePixelsForFullRange;
       const newValue = Math.min(this.max, Math.max(this.min, this.startValue + dy * sens));
       
+      // Solo actualizar si el valor realmente cambia
+      if (newValue === this.value) return;
+      
       // Programar actualización visual con RAF para fluidez
       this._pendingValue = newValue;
       if (!this._rafId) {
         this._rafId = requestAnimationFrame(() => {
           this._rafId = null;
-          if (this._pendingValue !== null) {
+          if (this._pendingValue !== null && this._pendingValue !== this.value) {
             this.value = this._pendingValue;
             this._pendingValue = null;
             this._updateVisualFast();
@@ -467,7 +470,10 @@ export class Knob {
   }
 
   setValue(value) {
-    this.value = Math.min(this.max, Math.max(this.min, value));
+    const newValue = Math.min(this.max, Math.max(this.min, value));
+    if (newValue === this.value) return; // No cambió
+    
+    this.value = newValue;
     this._updateVisual();
     if (this.onChange) this.onChange(this.value);
     // Notificar solo si no estamos arrastrando (evita spam de eventos)

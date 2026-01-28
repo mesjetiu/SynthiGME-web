@@ -128,7 +128,26 @@ export const STORAGE_KEYS = {
   TOOLTIP_SHOW_VOLTAGE: `${STORAGE_PREFIX}tooltip-show-voltage`,
   
   /** Mostrar valores de audio (frecuencia, ganancia) en tooltips de knobs */
-  TOOLTIP_SHOW_AUDIO_VALUES: `${STORAGE_PREFIX}tooltip-show-audio-values`
+  TOOLTIP_SHOW_AUDIO_VALUES: `${STORAGE_PREFIX}tooltip-show-audio-values`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // OSC (Open Sound Control) - Comunicación peer-to-peer
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** OSC habilitado */
+  OSC_ENABLED: `${STORAGE_PREFIX}osc-enabled`,
+  
+  /** Modo OSC: 'peer' (bidireccional), 'master' (solo envía), 'slave' (solo recibe) */
+  OSC_MODE: `${STORAGE_PREFIX}osc-mode`,
+  
+  /** Prefijo de direcciones OSC (por defecto /SynthiGME/) */
+  OSC_PREFIX: `${STORAGE_PREFIX}osc-prefix`,
+  
+  /** Lista de targets unicast en formato JSON */
+  OSC_UNICAST_TARGETS: `${STORAGE_PREFIX}osc-unicast-targets`,
+  
+  /** Mostrar ventana de log OSC */
+  OSC_LOG_VISIBLE: `${STORAGE_PREFIX}osc-log-visible`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

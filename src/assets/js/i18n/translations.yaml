@@ -72,6 +72,10 @@ settings.tab.advanced:
   en: Advanced
   es: Avanzado
 
+settings.tab.osc:
+  en: OSC
+  es: OSC
+
 settings.tab.about:
   en: About
   es: Acerca de
@@ -122,6 +126,95 @@ settings.display.paramInfo.voltage:
 settings.display.paramInfo.audio:
   en: Show audio values (frequency, gain)
   es: Mostrar valores de audio (frecuencia, ganancia)
+
+# Sección: OSC (Open Sound Control)
+settings.osc.title:
+  en: OSC Communication
+  es: Comunicación OSC
+
+settings.osc.description:
+  en: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
+  es: OSC (Open Sound Control) permite sincronizar múltiples instancias de SynthiGME en tiempo real a través de la red local. Cuando se mueve un control en una instancia, todas las instancias conectadas reflejan el cambio.
+
+settings.osc.enable:
+  en: Enable OSC
+  es: Activar OSC
+
+settings.osc.electronOnly:
+  en: OSC is only available in the desktop application (Electron).
+  es: OSC solo está disponible en la aplicación de escritorio (Electron).
+
+settings.osc.mode:
+  en: Communication Mode
+  es: Modo de comunicación
+
+settings.osc.mode.peer:
+  en: Peer-to-peer (send and receive)
+  es: Peer-to-peer (enviar y recibir)
+
+settings.osc.mode.master:
+  en: Master (send only)
+  es: Master (solo enviar)
+
+settings.osc.mode.slave:
+  en: Slave (receive only)
+  es: Esclavo (solo recibir)
+
+settings.osc.prefix:
+  en: Address Prefix
+  es: Prefijo de direcciones
+
+settings.osc.prefix.description:
+  en: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
+  es: Todos los mensajes OSC usan este prefijo. Solo las instancias con el mismo prefijo se sincronizarán.
+
+settings.osc.targets:
+  en: Unicast Targets
+  es: Destinos unicast
+
+settings.osc.targets.description:
+  en: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
+  es: Añade direcciones IP específicas para aplicaciones que no soportan multicast (como SuperCollider).
+
+settings.osc.targets.add:
+  en: Add target
+  es: Añadir destino
+
+settings.osc.targets.ip:
+  en: IP Address
+  es: Dirección IP
+
+settings.osc.targets.port:
+  en: Port
+  es: Puerto
+
+settings.osc.targets.remove:
+  en: Remove
+  es: Eliminar
+
+settings.osc.log:
+  en: Message Log
+  es: Registro de mensajes
+
+settings.osc.log.show:
+  en: Show floating log window
+  es: Mostrar ventana de log flotante
+
+settings.osc.status:
+  en: Status
+  es: Estado
+
+settings.osc.status.stopped:
+  en: Stopped
+  es: Detenido
+
+settings.osc.status.running:
+  en: Running
+  es: En ejecución
+
+settings.osc.status.error:
+  en: Error
+  es: Error
 
 # Sección: Acerca de
 settings.about.description:

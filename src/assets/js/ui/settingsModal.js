@@ -296,6 +296,7 @@ export class SettingsModal {
       { id: 'audio', label: t('settings.tab.audio') },
       { id: 'recording', label: t('settings.tab.recording') },
       { id: 'advanced', label: t('settings.tab.advanced') },
+      { id: 'osc', label: t('settings.tab.osc') },
       { id: 'about', label: t('settings.tab.about') }
     ];
     
@@ -337,6 +338,9 @@ export class SettingsModal {
           break;
         case 'advanced':
           content = this._createAdvancedTabContent();
+          break;
+        case 'osc':
+          content = this._createOSCTabContent();
           break;
         case 'about':
           content = this._createAboutTabContent();
@@ -479,6 +483,494 @@ export class SettingsModal {
     
     return container;
   }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PESTAÑA: OSC
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  /**
+   * Crea el contenido de la pestaña OSC
+   */
+  _createOSCTabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'osc';
+    
+    // Descripción de OSC
+    container.appendChild(this._createOSCDescriptionSection());
+    
+    // Habilitar OSC
+    container.appendChild(this._createOSCEnableSection());
+    
+    // Modo de comunicación
+    container.appendChild(this._createOSCModeSection());
+    
+    // Prefijo de direcciones
+    container.appendChild(this._createOSCPrefixSection());
+    
+    // Targets unicast
+    container.appendChild(this._createOSCTargetsSection());
+    
+    // Log flotante
+    container.appendChild(this._createOSCLogSection());
+    
+    return container;
+  }
+  
+  /**
+   * Sección: Descripción de OSC
+   */
+  _createOSCDescriptionSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.osc.title');
+    section.appendChild(title);
+    
+    const description = document.createElement('p');
+    description.className = 'settings-section__description';
+    description.textContent = t('settings.osc.description');
+    section.appendChild(description);
+    
+    // Estado actual
+    const statusRow = document.createElement('div');
+    statusRow.className = 'settings-row';
+    
+    const statusLabel = document.createElement('span');
+    statusLabel.className = 'settings-row__label';
+    statusLabel.textContent = t('settings.osc.status');
+    statusRow.appendChild(statusLabel);
+    
+    const statusValue = document.createElement('span');
+    statusValue.className = 'settings-row__value osc-status';
+    statusValue.id = 'osc-status-indicator';
+    this._updateOSCStatusIndicator(statusValue);
+    statusRow.appendChild(statusValue);
+    
+    section.appendChild(statusRow);
+    
+    return section;
+  }
+  
+  /**
+   * Actualiza el indicador de estado OSC
+   */
+  async _updateOSCStatusIndicator(element) {
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    
+    if (!isElectron) {
+      element.textContent = t('settings.osc.electronOnly');
+      element.classList.add('osc-status--disabled');
+      return;
+    }
+    
+    try {
+      const status = await window.oscAPI.getStatus();
+      if (status.running) {
+        element.textContent = t('settings.osc.status.running');
+        element.classList.remove('osc-status--stopped', 'osc-status--error', 'osc-status--disabled');
+        element.classList.add('osc-status--running');
+      } else {
+        element.textContent = t('settings.osc.status.stopped');
+        element.classList.remove('osc-status--running', 'osc-status--error', 'osc-status--disabled');
+        element.classList.add('osc-status--stopped');
+      }
+    } catch (error) {
+      element.textContent = t('settings.osc.status.error');
+      element.classList.remove('osc-status--running', 'osc-status--stopped', 'osc-status--disabled');
+      element.classList.add('osc-status--error');
+    }
+  }
+  
+  /**
+   * Sección: Habilitar OSC
+   */
+  _createOSCEnableSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    const enabled = localStorage.getItem(STORAGE_KEYS.OSC_ENABLED) === 'true';
+    
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    
+    const label = document.createElement('label');
+    label.className = 'settings-row__label';
+    label.htmlFor = 'osc-enable-checkbox';
+    label.textContent = t('settings.osc.enable');
+    row.appendChild(label);
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'osc-enable-checkbox';
+    checkbox.className = 'settings-checkbox';
+    checkbox.checked = enabled;
+    checkbox.disabled = !isElectron;
+    
+    checkbox.addEventListener('change', async () => {
+      localStorage.setItem(STORAGE_KEYS.OSC_ENABLED, checkbox.checked);
+      
+      if (checkbox.checked) {
+        await this._startOSC();
+      } else {
+        await this._stopOSC();
+      }
+      
+      // Actualizar indicador de estado
+      const statusEl = document.getElementById('osc-status-indicator');
+      if (statusEl) {
+        this._updateOSCStatusIndicator(statusEl);
+      }
+    });
+    
+    row.appendChild(checkbox);
+    section.appendChild(row);
+    
+    if (!isElectron) {
+      const warning = document.createElement('p');
+      warning.className = 'settings-section__warning';
+      warning.textContent = t('settings.osc.electronOnly');
+      section.appendChild(warning);
+    }
+    
+    return section;
+  }
+  
+  /**
+   * Sección: Modo de comunicación OSC
+   */
+  _createOSCModeSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.osc.mode');
+    section.appendChild(title);
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    const currentMode = localStorage.getItem(STORAGE_KEYS.OSC_MODE) || 'peer';
+    
+    const modes = [
+      { value: 'peer', label: t('settings.osc.mode.peer') },
+      { value: 'master', label: t('settings.osc.mode.master') },
+      { value: 'slave', label: t('settings.osc.mode.slave') }
+    ];
+    
+    modes.forEach(mode => {
+      const row = document.createElement('div');
+      row.className = 'settings-row';
+      
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'osc-mode';
+      radio.id = `osc-mode-${mode.value}`;
+      radio.value = mode.value;
+      radio.checked = currentMode === mode.value;
+      radio.disabled = !isElectron;
+      
+      radio.addEventListener('change', () => {
+        localStorage.setItem(STORAGE_KEYS.OSC_MODE, mode.value);
+        // Notificar al bridge si existe
+        if (window.oscBridge) {
+          window.oscBridge.setMode(mode.value);
+        }
+      });
+      
+      const label = document.createElement('label');
+      label.htmlFor = radio.id;
+      label.textContent = mode.label;
+      
+      row.appendChild(radio);
+      row.appendChild(label);
+      section.appendChild(row);
+    });
+    
+    return section;
+  }
+  
+  /**
+   * Sección: Prefijo de direcciones OSC
+   */
+  _createOSCPrefixSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.osc.prefix');
+    section.appendChild(title);
+    
+    const description = document.createElement('p');
+    description.className = 'settings-section__description';
+    description.textContent = t('settings.osc.prefix.description');
+    section.appendChild(description);
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    const currentPrefix = localStorage.getItem(STORAGE_KEYS.OSC_PREFIX) || '/SynthiGME/';
+    
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'osc-prefix-input';
+    input.className = 'settings-input';
+    input.value = currentPrefix;
+    input.placeholder = '/SynthiGME/';
+    input.disabled = !isElectron;
+    
+    input.addEventListener('change', () => {
+      let prefix = input.value.trim();
+      // Asegurar que empiece y termine con /
+      if (!prefix.startsWith('/')) prefix = '/' + prefix;
+      if (!prefix.endsWith('/')) prefix = prefix + '/';
+      input.value = prefix;
+      localStorage.setItem(STORAGE_KEYS.OSC_PREFIX, prefix);
+      
+      // Notificar al bridge si existe
+      if (window.oscBridge) {
+        window.oscBridge.setPrefix(prefix);
+      }
+    });
+    
+    row.appendChild(input);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
+   * Sección: Targets unicast
+   */
+  _createOSCTargetsSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.osc.targets');
+    section.appendChild(title);
+    
+    const description = document.createElement('p');
+    description.className = 'settings-section__description';
+    description.textContent = t('settings.osc.targets.description');
+    section.appendChild(description);
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    
+    // Lista de targets
+    const targetsList = document.createElement('div');
+    targetsList.className = 'osc-targets-list';
+    targetsList.id = 'osc-targets-list';
+    section.appendChild(targetsList);
+    
+    // Cargar targets existentes
+    this._loadOSCTargets(targetsList);
+    
+    // Formulario para añadir nuevo target
+    const addForm = document.createElement('div');
+    addForm.className = 'osc-targets-add';
+    
+    const ipInput = document.createElement('input');
+    ipInput.type = 'text';
+    ipInput.className = 'settings-input osc-targets-add__ip';
+    ipInput.placeholder = t('settings.osc.targets.ip');
+    ipInput.disabled = !isElectron;
+    
+    const portInput = document.createElement('input');
+    portInput.type = 'number';
+    portInput.className = 'settings-input osc-targets-add__port';
+    portInput.placeholder = t('settings.osc.targets.port');
+    portInput.value = '57120';
+    portInput.min = '1';
+    portInput.max = '65535';
+    portInput.disabled = !isElectron;
+    
+    const addButton = document.createElement('button');
+    addButton.type = 'button';
+    addButton.className = 'settings-button';
+    addButton.textContent = t('settings.osc.targets.add');
+    addButton.disabled = !isElectron;
+    
+    addButton.addEventListener('click', async () => {
+      const ip = ipInput.value.trim();
+      const port = parseInt(portInput.value, 10);
+      
+      if (ip && port > 0 && port <= 65535) {
+        await this._addOSCTarget(ip, port);
+        ipInput.value = '';
+        this._loadOSCTargets(targetsList);
+      }
+    });
+    
+    addForm.appendChild(ipInput);
+    addForm.appendChild(portInput);
+    addForm.appendChild(addButton);
+    section.appendChild(addForm);
+    
+    return section;
+  }
+  
+  /**
+   * Carga los targets OSC desde localStorage y la API
+   */
+  async _loadOSCTargets(container) {
+    container.innerHTML = '';
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    if (!isElectron) return;
+    
+    try {
+      const targets = await window.oscAPI.getTargets();
+      
+      targets.forEach(target => {
+        const row = document.createElement('div');
+        row.className = 'osc-target-row';
+        
+        const address = document.createElement('span');
+        address.className = 'osc-target-row__address';
+        address.textContent = `${target.ip}:${target.port}`;
+        row.appendChild(address);
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'settings-button settings-button--danger';
+        removeBtn.textContent = t('settings.osc.targets.remove');
+        removeBtn.addEventListener('click', async () => {
+          await this._removeOSCTarget(target.ip, target.port);
+          this._loadOSCTargets(container);
+        });
+        row.appendChild(removeBtn);
+        
+        container.appendChild(row);
+      });
+    } catch (error) {
+      console.error('Error loading OSC targets:', error);
+    }
+  }
+  
+  /**
+   * Añade un target unicast OSC
+   */
+  async _addOSCTarget(ip, port) {
+    if (typeof window.oscAPI === 'undefined') return;
+    
+    try {
+      await window.oscAPI.addTarget(ip, port);
+      
+      // Guardar en localStorage para persistencia
+      const targets = JSON.parse(localStorage.getItem(STORAGE_KEYS.OSC_UNICAST_TARGETS) || '[]');
+      if (!targets.some(t => t.ip === ip && t.port === port)) {
+        targets.push({ ip, port });
+        localStorage.setItem(STORAGE_KEYS.OSC_UNICAST_TARGETS, JSON.stringify(targets));
+      }
+    } catch (error) {
+      console.error('Error adding OSC target:', error);
+    }
+  }
+  
+  /**
+   * Elimina un target unicast OSC
+   */
+  async _removeOSCTarget(ip, port) {
+    if (typeof window.oscAPI === 'undefined') return;
+    
+    try {
+      await window.oscAPI.removeTarget(ip, port);
+      
+      // Actualizar localStorage
+      const targets = JSON.parse(localStorage.getItem(STORAGE_KEYS.OSC_UNICAST_TARGETS) || '[]');
+      const filtered = targets.filter(t => !(t.ip === ip && t.port === port));
+      localStorage.setItem(STORAGE_KEYS.OSC_UNICAST_TARGETS, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error removing OSC target:', error);
+    }
+  }
+  
+  /**
+   * Sección: Log flotante de OSC
+   */
+  _createOSCLogSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.osc.log');
+    section.appendChild(title);
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    const showLog = localStorage.getItem(STORAGE_KEYS.OSC_LOG_VISIBLE) === 'true';
+    
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    
+    const label = document.createElement('label');
+    label.className = 'settings-row__label';
+    label.htmlFor = 'osc-log-checkbox';
+    label.textContent = t('settings.osc.log.show');
+    row.appendChild(label);
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'osc-log-checkbox';
+    checkbox.className = 'settings-checkbox';
+    checkbox.checked = showLog;
+    checkbox.disabled = !isElectron;
+    
+    checkbox.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEYS.OSC_LOG_VISIBLE, checkbox.checked);
+      // Emitir evento para que el log window responda
+      window.dispatchEvent(new CustomEvent('osc:log-visibility', { 
+        detail: { visible: checkbox.checked } 
+      }));
+    });
+    
+    row.appendChild(checkbox);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
+   * Inicia el servidor OSC
+   */
+  async _startOSC() {
+    if (typeof window.oscAPI === 'undefined') return;
+    
+    try {
+      await window.oscAPI.start();
+      
+      // Restaurar targets guardados
+      const targets = JSON.parse(localStorage.getItem(STORAGE_KEYS.OSC_UNICAST_TARGETS) || '[]');
+      for (const target of targets) {
+        await window.oscAPI.addTarget(target.ip, target.port);
+      }
+    } catch (error) {
+      console.error('Error starting OSC:', error);
+    }
+  }
+  
+  /**
+   * Detiene el servidor OSC
+   */
+  async _stopOSC() {
+    if (typeof window.oscAPI === 'undefined') return;
+    
+    try {
+      await window.oscAPI.stop();
+    } catch (error) {
+      console.error('Error stopping OSC:', error);
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PESTAÑA: ACERCA DE
+  // ═══════════════════════════════════════════════════════════════════════════
   
   /**
    * Crea el contenido de la pestaña Acerca de

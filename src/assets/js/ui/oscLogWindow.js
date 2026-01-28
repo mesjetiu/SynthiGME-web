@@ -175,12 +175,8 @@ export class OSCLogWindow {
       }
     });
     
-    // Escuchar mensajes OSC si la API está disponible
-    if (typeof window.oscAPI !== 'undefined') {
-      window.oscAPI.onMessage(this._boundOnMessage);
-    }
-    
-    // También escuchar evento genérico para bridge
+    // Escuchar solo eventos del bridge OSC (maneja tanto envío como recepción)
+    // No usar window.oscAPI.onMessage directamente para evitar duplicados
     window.addEventListener('osc:message', (e) => {
       if (e.detail) {
         this._onMessage(e.detail);
@@ -237,36 +233,25 @@ export class OSCLogWindow {
     const row = document.createElement('div');
     row.className = `osc-log-window__entry osc-log-window__entry--${entry.direction}`;
     
-    const time = document.createElement('span');
-    time.className = 'osc-log-window__time';
-    time.textContent = entry.time.toLocaleTimeString('es-ES', { 
+    // Formato simple: timestamp direccion address args
+    const timeStr = entry.time.toLocaleTimeString('es-ES', { 
       hour: '2-digit', 
       minute: '2-digit', 
       second: '2-digit',
       fractionalSecondDigits: 2
     });
     
-    const direction = document.createElement('span');
-    direction.className = 'osc-log-window__direction';
-    direction.textContent = entry.direction === 'in' ? '←' : '→';
+    const dirStr = entry.direction === 'in' ? '←' : '→';
     
-    const address = document.createElement('span');
-    address.className = 'osc-log-window__address';
-    address.textContent = entry.address;
-    
-    const args = document.createElement('span');
-    args.className = 'osc-log-window__args';
-    args.textContent = entry.args?.map(a => {
+    const argsStr = entry.args?.map(a => {
       if (typeof a === 'number') {
         return Number.isInteger(a) ? a : a.toFixed(4);
       }
       return JSON.stringify(a);
-    }).join(', ') || '';
+    }).join(' ') || '';
     
-    row.appendChild(time);
-    row.appendChild(direction);
-    row.appendChild(address);
-    row.appendChild(args);
+    // Mostrar todo en una línea
+    row.textContent = `${timeStr} ${dirStr} ${entry.address || '(no addr)'} ${argsStr}`;
     
     this.logContainer.appendChild(row);
     

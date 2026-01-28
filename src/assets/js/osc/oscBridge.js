@@ -198,6 +198,13 @@ class OSCBridge {
       console.log('[OSCBridge] Enviando:', fullAddress, args);
     }
 
+    // Emitir evento para el log de OSC (dirección de salida)
+    this._emit('osc:message', { 
+      address: fullAddress, 
+      args, 
+      direction: 'out' 
+    });
+
     return window.oscAPI.send(fullAddress, args);
   }
 
@@ -314,7 +321,7 @@ class OSCBridge {
       }
 
       // Emitir evento genérico
-      this._emit('osc:message', { address, args, from });
+      this._emit('osc:message', { address, args, from, direction: 'in' });
     });
   }
 
@@ -358,7 +365,7 @@ class OSCBridge {
    * @private
    */
   _emit(eventName, detail = null) {
-    document.dispatchEvent(new CustomEvent(eventName, { detail }));
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
   }
 }
 

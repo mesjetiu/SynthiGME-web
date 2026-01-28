@@ -122,8 +122,9 @@ Esto instala `esbuild`, la herramienta utilizada para empaquetar y minificar los
 
 ### Estructura de carpetas
 - `src/`: código fuente editable. Incluye `index.html`, `assets/css/main.css` y `assets/js/` con todos los módulos.
-- `scripts/`: tareas auxiliares. Actualmente contiene `build.mjs`, que orquesta la compilación.
-- `docs/`: salida generada automáticamente por el comando de build. Esta carpeta es la que puede publicar GitHub Pages (rama `main` + carpeta `/docs`). No edites su contenido a mano; se regenera cada vez.
+- `scripts/`: tareas auxiliares. Contiene `build.mjs` (compilación web) y `electron-build.mjs` (wrapper para Electron).
+- `docs/`: salida generada para **GitHub Pages** (PWA web). No edites su contenido a mano; se regenera con `npm run build`.
+- `dist-app/`: salida generada para **Electron**. No edites su contenido; se regenera automáticamente con cada `npm run electron:build`.
 
 ### Ejecutar el build
 Lanza el proceso de empaquetado con:
@@ -209,25 +210,30 @@ El proyecto ofrece múltiples opciones de compilación según el destino:
 
 | Comando | Descripción | Tests |
 |---------|-------------|-------|
-| `npm run build` | Genera `/docs` para web | ✅ Ejecuta tests primero |
-| `npm run build:skip-tests` | Genera `/docs` para web | ❌ Sin tests |
+| `npm run build` | Genera `docs/` para web (PWA) | ✅ Ejecuta tests primero |
+| `npm run build:skip-tests` | Genera `docs/` para web (PWA) | ❌ Sin tests |
 
 ### Build Electron (aplicación de escritorio)
 
+Electron usa su propia carpeta de build (`dist-app/`), separada de `docs/`. Cada comando de build genera automáticamente el código de la app antes de empaquetar.
+
 | Comando | Plataforma | Resultado |
 |---------|------------|----------|
-| `npm run electron:dev` | Local | Ejecuta sin empaquetar (desarrollo) |
-| `npm run electron:build` | Actual | Instalador para tu SO |
-| `npm run electron:build:linux` | Linux | `SynthiGME-X.X.X-x86_64.AppImage` |
-| `npm run electron:build:win` | Windows | `SynthiGME-X.X.X-x64.exe` + instalador |
+| `npm run electron:dev` | Local | Ejecuta sin empaquetar (usa `dist-app/`) |
+| `npm run electron:build` | Actual | Genera `dist-app/` + instalador para tu SO |
+| `npm run electron:build:linux` | Linux | `SynthiGME-X.X.X-YYYYMMDD.HHmmss-x86_64.AppImage` |
+| `npm run electron:build:win` | Windows | `SynthiGME-X.X.X-YYYYMMDD.HHmmss-x64.exe` + instalador |
 | `npm run electron:build:all` | Linux + Win | Ambos (cross-compile) |
+
+> **Nota**: Los nombres de archivo incluyen fecha/hora del build (ej: `0.3.0-20260128.143052`).
 
 ### Build Completo (Web + Electron)
 
 | Comando | Descripción | Tests |
 |---------|-------------|-------|
-| `npm run build:all` | `/docs` + instaladores Linux/Win | ✅ Ejecuta tests |
-| `npm run build:all:skip-tests` | `/docs` + instaladores Linux/Win | ❌ Sin tests |
+| `npm run build:all` | Instaladores Electron Linux/Win | ✅ Ejecuta tests primero |
+
+> **Nota**: `build:all` ejecuta tests y luego compila Electron. El build de Electron genera su propio `dist-app/` internamente.
 
 ### Tests
 
@@ -250,10 +256,11 @@ El proyecto ofrece múltiples opciones de compilación según el destino:
 
 ### Carpetas de salida
 
-| Carpeta | Contenido |
-|---------|----------|
-| `docs/` | Build web (GitHub Pages) |
-| `dist-electron/` | Instaladores + `REQUIREMENTS.md` |
+| Carpeta | Contenido | Generado por |
+|---------|----------|-------------|
+| `docs/` | Build web (GitHub Pages/PWA) | `npm run build` |
+| `dist-app/` | Build para Electron (interno) | `npm run electron:build*` |
+| `dist-electron/` | Instaladores + `REQUIREMENTS.md` | `npm run electron:build*` |
 
 ---
 
@@ -264,10 +271,8 @@ Además de la versión web y PWA, puedes empaquetar Synthi GME como aplicación 
 ### Desarrollo local
 
 ```bash
-# 1. Asegúrate de tener el build web actualizado
-npm run build
-
-# 2. Ejecuta la app en modo desarrollo
+# Ejecuta la app en modo desarrollo
+# (genera dist-app/ automáticamente si no existe)
 npm run electron:dev
 ```
 
@@ -286,10 +291,10 @@ npm run electron:build:win
 npm run electron:build:all
 ```
 
-Los instaladores se generan en `dist-electron/` con nombres estándar:
-- `SynthiGME-0.3.0-x86_64.AppImage` (Linux)
-- `SynthiGME-0.3.0-x64.exe` (Windows portable)
-- `SynthiGME-Setup-0.3.0-x64.exe` (Windows instalador)
+Los instaladores se generan en `dist-electron/` con nombres que incluyen fecha/hora del build:
+- `SynthiGME-0.3.0-20260128.143052-x86_64.AppImage` (Linux)
+- `SynthiGME-0.3.0-20260128.143052-x64.exe` (Windows portable)
+- `SynthiGME-Setup-0.3.0-20260128.143052-x64.exe` (Windows instalador)
 
 Junto a los binarios se genera `REQUIREMENTS.md` con los requisitos mínimos del sistema.
 

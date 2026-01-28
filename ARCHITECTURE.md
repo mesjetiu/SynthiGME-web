@@ -2128,36 +2128,42 @@ matrix.tooltip.format:
 
 | Script | Descripción |
 |--------|-------------|
-| `npm run build` | Genera bundle de producción en `docs/` |
-| `npm run dev` | Modo desarrollo con watch |
-| `npm run pre-release` | Incrementa versión y prepara changelog |
-| `npm run post-release` | Crea tag git y publica |
+| `npm run build` | Genera bundle de producción en `docs/` (con tests) |
+| `npm run build:skip-tests` | Genera bundle en `docs/` (sin tests) |
+| `npm run electron:build` | Genera `dist-app/` + instaladores Electron |
+| `npm run build:all` | Tests + instaladores Electron (Linux/Win) |
 
 ### Proceso de Build (`scripts/build.mjs`)
+
+El script acepta `--outdir=<path>` para cambiar la carpeta de salida (por defecto `docs/`).
 
 1. Limpia directorio de salida
 2. Copia assets estáticos (HTML, manifest, SW, iconos)
 3. Bundlea JS con esbuild (ES2020, minificado)
 4. Bundlea CSS con esbuild
 5. **Copia AudioWorklets sin bundlear** (deben ser archivos separados)
-6. Inyecta versión desde `package.json` en el código
-7. Optimiza SVGs de paneles con svgo
+6. Inyecta versión con timestamp (`X.Y.Z-YYYYMMDD.HHmmss`) en el código
+7. Genera `build-info.json` con metadatos del build
 
 ### Salida
+
+**Web (GitHub Pages):** `docs/`
 ```
 docs/
 ├── index.html
 ├── manifest.webmanifest
-├── sw.js
+├── sw.js                 # CACHE_VERSION con timestamp
+├── build-info.json       # Metadatos del build
 └── assets/
     ├── css/main.css      # CSS minificado
     ├── js/
     │   ├── app.js        # Bundle JS único
     │   └── worklets/     # AudioWorklet modules (no bundleados)
-    │       └── synthOscillator.worklet.js
     ├── panels/           # SVGs optimizados
     └── pwa/icons/
 ```
+
+**Electron:** `dist-app/` (misma estructura, generado por `electron:build`)
 
 ---
 
@@ -2187,7 +2193,7 @@ El proceso principal implementa:
 
 | Componente | Descripción |
 |------------|-------------|
-| **Servidor HTTP local** | Sirve `docs/` desde `http://127.0.0.1:49371` (puerto fijo para persistencia de datos) |
+| **Servidor HTTP local** | Sirve `dist-app/` desde `http://127.0.0.1:49371` (puerto fijo para persistencia de datos) |
 | **BrowserWindow** | Ventana 1280×720 (mínimo 1024×600) con `nodeIntegration: false` y `contextIsolation: true` |
 | **Menú nativo** | Archivo (recargar, salir), Ver (pantalla completa, zoom, DevTools), Ayuda (acerca de) |
 | **Autoplay de audio** | `autoplayPolicy: 'no-user-gesture-required'` para síntesis sin interacción |
@@ -2226,13 +2232,14 @@ Preparado para futuras APIs:
 
 | Script | Comando | Descripción |
 |--------|---------|-------------|
-| `electron:dev` | `electron .` | Ejecuta en modo desarrollo |
-| `electron:build` | `electron-builder && generate-requirements` | Genera instaladores + informe de requisitos |
-| `electron:build:linux` | `electron-builder --linux` | AppImage (ej: `SynthiGME-0.3.0-x86_64.AppImage`) |
-| `electron:build:win` | `electron-builder --win` | Instalador NSIS + portable |
-| `electron:build:all` | `electron-builder --linux --win` | Linux + Windows |
-| `build:all` | `build + electron:build:all` | Build web + instaladores (con tests) |
-| `build:all:skip-tests` | `build:skip-tests + electron:build:all` | Build web + instaladores (sin tests) |
+| `electron:dev` | `electron .` | Ejecuta en modo desarrollo (usa `dist-app/`) |
+| `electron:build` | `node scripts/electron-build.mjs` | Build fresh + instaladores |
+| `electron:build:linux` | `electron-build.mjs --linux` | AppImage (ej: `SynthiGME-0.3.0-20260128.143052-x86_64.AppImage`) |
+| `electron:build:win` | `electron-build.mjs --win` | Instalador NSIS + portable |
+| `electron:build:all` | `electron-build.mjs --linux --win` | Linux + Windows |
+| `build:all` | Tests + `electron:build:all` | Build completo con tests |
+
+> **Nota**: Los nombres de archivo incluyen fecha/hora del build en lugar de contador secuencial.
 
 ### Informe de requisitos
 
@@ -2251,29 +2258,31 @@ El script `scripts/release/generate-requirements.mjs` también genera `requireme
   "appId": "com.synthigme.app",
   "productName": "SynthiGME",
   "directories": { "output": "dist-electron" },
-  "files": ["docs/**/*", "electron/**/*"],
+  "files": ["dist-app/**/*", "electron/**/*"],
   "linux": {
     "target": ["AppImage"],
     "category": "Audio",
     "icon": "resources/icons/icon.png",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${env.BUILD_VERSION}-${arch}.${ext}"
   },
   "win": {
     "target": ["nsis", "portable"],
     "icon": "resources/icons/icon.ico",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${env.BUILD_VERSION}-${arch}.${ext}"
   },
   "mac": {
     "target": ["dmg"],
     "category": "public.app-category.music",
     "icon": "resources/icons/icon.png",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${env.BUILD_VERSION}-${arch}.${ext}"
   },
   "nsis": {
-    "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-Setup-${env.BUILD_VERSION}-${arch}.${ext}"
   }
 }
 ```
+
+> **Nota**: `${env.BUILD_VERSION}` es inyectado por `electron-build.mjs` con formato `X.Y.Z-YYYYMMDD.HHmmss`.
 
 ### Compilación multiplataforma
 
@@ -2298,12 +2307,19 @@ Para builds firmados de macOS, usar CI/CD con GitHub Actions (ver README.md).
 
 ### Flujo de desarrollo
 
-```
+```bash
+# Desarrollo web (PWA)
 1. Editar código en src/
-2. npm run build          # Genera docs/
-3. npm run electron:dev   # Prueba en Electron
-4. (iterar 1-3)
-5. npm run electron:build:all  # Genera instaladores
+2. npm run build:skip-tests  # Genera docs/
+3. Servir docs/ con http-server o similar
+
+# Desarrollo Electron
+1. Editar código en src/
+2. npm run electron:dev       # Genera dist-app/ y ejecuta
+3. (iterar 1-2)
+
+# Generar instaladores
+npm run electron:build:all    # Build fresh + instaladores Linux/Win
 ```
 
 ---

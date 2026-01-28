@@ -3185,6 +3185,200 @@ small { color:#aaa; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   VENTANA FLOTANTE DE LOG OSC
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.osc-log-window {
+  position: fixed;
+  right: 80px;
+  bottom: 20px;
+  width: 420px;
+  max-width: calc(100vw - 100px);
+  height: 300px;
+  max-height: calc(100vh - 40px);
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  z-index: 3500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.8rem;
+  overflow: hidden;
+  resize: both;
+}
+
+.osc-log-window.is-dragging {
+  user-select: none;
+  opacity: 0.9;
+}
+
+.osc-log-window__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(40, 40, 40, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: move;
+}
+
+.osc-log-window__title {
+  font-weight: 600;
+  color: #ffd54f;
+  font-size: 0.85rem;
+}
+
+.osc-log-window__controls {
+  display: flex;
+  gap: 4px;
+}
+
+.osc-log-window__btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.osc-log-window__btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ddd;
+}
+
+.osc-log-window__btn.is-active {
+  background: rgba(255, 213, 79, 0.2);
+  color: #ffd54f;
+}
+
+.osc-log-window__btn--close {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.osc-log-window__btn--close:hover {
+  background: rgba(244, 67, 54, 0.3);
+  color: #ef9a9a;
+}
+
+.osc-log-window__filters {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(30, 30, 30, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.osc-log-window__filter {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: transparent;
+  color: #888;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.osc-log-window__filter:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #aaa;
+}
+
+.osc-log-window__filter.is-active {
+  background: rgba(255, 213, 79, 0.15);
+  border-color: rgba(255, 213, 79, 0.4);
+  color: #ffd54f;
+}
+
+.osc-log-window__log {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.osc-log-window__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #555;
+  font-style: italic;
+}
+
+.osc-log-window__entry {
+  display: flex;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.osc-log-window__entry:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.osc-log-window__entry--in {
+  border-left: 2px solid #4caf50;
+}
+
+.osc-log-window__entry--out {
+  border-left: 2px solid #2196f3;
+}
+
+.osc-log-window__time {
+  color: #666;
+  flex-shrink: 0;
+  width: 80px;
+}
+
+.osc-log-window__direction {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.osc-log-window__entry--in .osc-log-window__direction {
+  color: #4caf50;
+}
+
+.osc-log-window__entry--out .osc-log-window__direction {
+  color: #2196f3;
+}
+
+.osc-log-window__address {
+  color: #ffd54f;
+  flex-shrink: 0;
+  min-width: 120px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.osc-log-window__args {
+  color: #aaa;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    PESTAÑA "ACERCA DE"
    ═══════════════════════════════════════════════════════════════════════════════ */
 
@@ -4287,6 +4481,19 @@ small { color:#aaa; }
 @keyframes recording-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 60, 60, 0.6); }
   50% { box-shadow: 0 0 12px 3px rgba(255, 60, 60, 0.8); }
+}
+
+/* Botón OSC activo en quickbar */
+.mobile-quickbar__btn.is-osc-active {
+  background: rgba(30, 140, 180, 0.9);
+  border-color: rgba(100, 200, 255, 0.5);
+  color: #def0ff;
+  animation: osc-pulse 2s ease-in-out infinite;
+}
+
+@keyframes osc-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(60, 180, 255, 0.4); }
+  50% { box-shadow: 0 0 8px 2px rgba(60, 180, 255, 0.6); }
 }
 
 /* Botón secundario en settings modal */

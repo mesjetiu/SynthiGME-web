@@ -81,6 +81,8 @@ import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
+import { initOSCLogWindow } from './ui/oscLogWindow.js';
+import { oscBridge } from './osc/oscBridge.js';
 
 class App {
   constructor() {
@@ -833,6 +835,42 @@ class App {
         this.settingsModal.open(tabId);
       }
     });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSC LOG WINDOW Y TOGGLE
+    // ─────────────────────────────────────────────────────────────────────────
+    // Inicializar ventana de log OSC (se muestra si estaba visible antes)
+    initOSCLogWindow();
+    
+    // Toggle OSC desde quickbar
+    document.addEventListener('osc:toggle', async () => {
+      const isEnabled = localStorage.getItem(STORAGE_KEYS.OSC_ENABLED) === 'true';
+      const newState = !isEnabled;
+      
+      localStorage.setItem(STORAGE_KEYS.OSC_ENABLED, newState);
+      
+      if (newState) {
+        await oscBridge.start();
+      } else {
+        await oscBridge.stop();
+      }
+      
+      // Notificar al quickbar y al settings modal del nuevo estado
+      document.dispatchEvent(new CustomEvent('osc:statusChanged', { 
+        detail: { enabled: newState } 
+      }));
+      
+      // Toast de feedback
+      showToast(t(newState ? 'quickbar.oscOn' : 'quickbar.oscOff'));
+    });
+    
+    // Sincronizar estado inicial de OSC con quickbar
+    if (oscBridge.isAvailable()) {
+      const oscEnabled = localStorage.getItem(STORAGE_KEYS.OSC_ENABLED) === 'true';
+      document.dispatchEvent(new CustomEvent('osc:statusChanged', { 
+        detail: { enabled: oscEnabled } 
+      }));
+    }
   }
   
   /**

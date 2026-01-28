@@ -624,6 +624,21 @@ export class SettingsModal {
       if (statusEl) {
         this._updateOSCStatusIndicator(statusEl);
       }
+      
+      // Notificar al quickbar del cambio
+      document.dispatchEvent(new CustomEvent('osc:statusChanged', { 
+        detail: { enabled: checkbox.checked } 
+      }));
+    });
+    
+    // Escuchar cambios desde quickbar para sincronizar
+    document.addEventListener('osc:statusChanged', (e) => {
+      checkbox.checked = e.detail?.enabled ?? false;
+      // Actualizar indicador de estado
+      const statusEl = document.getElementById('osc-status-indicator');
+      if (statusEl) {
+        this._updateOSCStatusIndicator(statusEl);
+      }
     });
     
     row.appendChild(checkbox);

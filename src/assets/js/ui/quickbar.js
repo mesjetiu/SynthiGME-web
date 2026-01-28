@@ -7,6 +7,7 @@ import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
 import { togglePip, ALL_PANELS, getOpenPips, openAllPips, closeAllPips } from './pipManager.js';
+import { oscBridge } from '../osc/oscBridge.js';
 
 const log = createLogger('Quickbar');
 
@@ -505,12 +506,44 @@ export function setupMobileQuickActionsBar() {
     }
   });
 
+  // Botón OSC (solo visible si OSC está disponible)
+  const btnOsc = document.createElement('button');
+  btnOsc.type = 'button';
+  btnOsc.className = 'mobile-quickbar__btn';
+  btnOsc.id = 'btnOsc';
+  let oscEnabled = false;
+  
+  function updateOscButton(enabled) {
+    oscEnabled = enabled;
+    btnOsc.innerHTML = iconSvg(enabled ? 'ti-broadcast' : 'ti-broadcast-off');
+    setButtonTooltip(btnOsc, t(enabled ? 'quickbar.oscOn' : 'quickbar.oscOff'));
+    btnOsc.setAttribute('aria-pressed', String(enabled));
+    btnOsc.classList.toggle('is-osc-active', enabled);
+  }
+  
+  updateOscButton(false);
+  
+  // Ocultar si OSC no está disponible
+  if (!oscBridge.isAvailable()) {
+    btnOsc.style.display = 'none';
+  }
+  
+  btnOsc.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('osc:toggle'));
+  });
+  
+  // Escuchar cambios de estado OSC
+  document.addEventListener('osc:statusChanged', (e) => {
+    updateOscButton(e.detail?.enabled ?? false);
+  });
+
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
   group.appendChild(btnPatches);
   group.appendChild(btnPipContainer);
   group.appendChild(btnRecord);
   group.appendChild(btnReset);
+  group.appendChild(btnOsc);
   group.appendChild(btnFs);
   group.appendChild(btnSettings);
 
@@ -527,7 +560,7 @@ export function setupMobileQuickActionsBar() {
   // Configurar long-press para tooltips en móvil
   setupAllLongPressTooltips([
     btnMute, tab, btnPan, btnZoom, btnPatches, btnPip,
-    btnRecord, btnReset, btnFs, btnSettings
+    btnRecord, btnReset, btnOsc, btnFs, btnSettings
   ]);
 
   // Actualizar tooltips cuando cambie el idioma
@@ -538,6 +571,7 @@ export function setupMobileQuickActionsBar() {
     setButtonTooltip(btnPip, t('quickbar.pip', 'Paneles flotantes'));
     setButtonTooltip(btnRecord, t(isRecording ? 'quickbar.stopRecording' : 'quickbar.record'));
     setButtonTooltip(btnReset, t('quickbar.reset'));
+    setButtonTooltip(btnOsc, t(oscEnabled ? 'quickbar.oscOn' : 'quickbar.oscOff'));
     setButtonTooltip(btnSettings, t('quickbar.settings'));
     applyPressedState(); // Actualiza pan, zoom, fullscreen
     // Actualizar textos del menú de PiP

@@ -216,6 +216,47 @@ settings.osc.status.error:
   en: Error
   es: Error
 
+# Ventana de log OSC
+osc.log.title:
+  en: OSC Log
+  es: Log OSC
+
+osc.log.filter.all:
+  en: All
+  es: Todos
+
+osc.log.filter.in:
+  en: In
+  es: Entrada
+
+osc.log.filter.out:
+  en: Out
+  es: Salida
+
+osc.log.pause:
+  en: Pause
+  es: Pausar
+
+osc.log.resume:
+  en: Resume
+  es: Continuar
+
+osc.log.clear:
+  en: Clear
+  es: Limpiar
+
+osc.log.close:
+  en: Close
+  es: Cerrar
+
+osc.log.noMessages:
+  en: No messages yet...
+  es: Sin mensajes todavía...
+
+osc.log.messageCount:
+  en: "{count} messages"
+  es: "{count} mensajes"
+
 # Sección: Acerca de
 settings.about.description:
   en: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
@@ -702,6 +743,14 @@ quickbar.fullscreen.exit:
 quickbar.reset:
   en: Reset synth (Shift+I)
   es: Reiniciar synth (Shift+I)
+
+quickbar.oscOn:
+  en: OSC enabled - Click to disable
+  es: OSC habilitado - Click para deshabilitar
+
+quickbar.oscOff:
+  en: OSC disabled - Click to enable
+  es: OSC deshabilitado - Click para habilitar
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # GRABACIÓN DE AUDIO

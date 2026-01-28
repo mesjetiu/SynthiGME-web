@@ -188,9 +188,11 @@ async function run() {
   console.log('Generating service worker …');
   await buildServiceWorker(cacheVersion);
 
-  // Guardar información del build
-  const buildInfo = { version, cacheVersion, timestamp: new Date().toISOString() };
-  await fs.writeFile(path.join(outDir, 'build-info.json'), JSON.stringify(buildInfo, null, 2), 'utf8');
+  // Guardar build-info.json solo para Electron (dist-app), no para web (docs)
+  if (outDirName !== 'docs') {
+    const buildInfo = { version, cacheVersion, timestamp: new Date().toISOString() };
+    await fs.writeFile(path.join(outDir, 'build-info.json'), JSON.stringify(buildInfo, null, 2), 'utf8');
+  }
 
   console.log(`Build finished. Output in ${outDirName}/. BUILD_VERSION=${cacheVersion}`);
 }

@@ -8,321 +8,85 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
-- **Soporte OSC (Open Sound Control)** para comunicación peer-to-peer:
-  - **Servidor OSC integrado**: Servidor OSC en el proceso principal de Electron para comunicación con aplicaciones externas (SuperCollider, Max/MSP, etc.)
-  - **Capa de abstracción OSC**: API frontend (`oscManager.js`) para enviar/recibir mensajes OSC desde la UI web
-  - **Soporte unicast**: Envío de mensajes OSC a direcciones IP específicas para integración con SuperCollider y otros clientes
-  - **Ventana flotante de log OSC**: Monitor en tiempo real de mensajes OSC enviados/recibidos con interfaz arrastrable
-  - **Botón en quickbar**: Control de activación/desactivación del servidor OSC y acceso directo al log
-  - **Pestaña OSC en Ajustes**: Configuración completa de puerto, IP remota, y estado del servidor
-  - **Iconos personalizados**: Iconos SVG para broadcast y player integrados en el sprite
-  - **Estado por defecto**: OSC desactivado al inicio para evitar conflictos de red
-- **Aplicación de escritorio con Electron**: SynthiGME ahora puede empaquetarse como aplicación nativa para Linux, Windows y macOS.
-  - **Scripts de build**: `npm run electron:dev` (desarrollo), `npm run electron:build:linux` (AppImage), `npm run electron:build:win` (NSIS + portable), `npm run electron:build:all` (Linux + Windows)
-  - **Scripts combinados**: `npm run build:all` genera docs/ + instaladores con tests, `npm run build:all:skip-tests` sin tests
-  - **Servidor HTTP integrado**: Puerto fijo 49371 para persistencia de localStorage e IndexedDB entre sesiones
-  - **Nombre en PipeWire/PulseAudio**: La app aparece como "SynthiGME" en los mezcladores de audio del sistema (flag `AudioServiceOutOfProcess` deshabilitado)
-  - **Menú nativo**: Recargar, pantalla completa, zoom, DevTools, Acerca de
-  - **Iconos personalizados**: `resources/icons/` con PNG (256×256) e ICO (multi-resolución 16-256px)
-  - **Nombres de artifact estándar**: Siguen convención `ProductName-Version-Arch.ext` (ej: `SynthiGME-0.3.0-x86_64.AppImage`)
-  - **Informe de requisitos**: Se genera automáticamente `REQUIREMENTS.md` con requisitos del sistema junto a cada compilación
-  - **Limitación conocida**: Chromium limita la salida de audio a 2 canales independientemente del hardware. Para multicanal (>2ch) se requeriría addon nativo (PortAudio) — planificado para futuro.
-- **Sistema de build mejorado**:
-  - **Builds separados**: Comandos independientes para web (`npm run build`) y Electron (`npm run electron:build:*`)
-  - **Build automático**: Los comandos de Electron ejecutan automáticamente `npm run build` si `docs/` no existe
-  - **Versión con timestamp**: Sistema de versionado de builds basado en fecha/hora ISO 8601 en lugar de contador secuencial
-  - **Build fresh**: Los builds de Electron siempre regeneran la aplicación web antes de empaquetar
+- **Soporte OSC (Open Sound Control)**: Servidor integrado en Electron para comunicación con SuperCollider, Max/MSP, etc. Incluye ventana de log en tiempo real, configuración en Ajustes y desactivado por defecto.
+- **Aplicación de escritorio con Electron**: Empaquetado nativo para Linux (AppImage) y Windows (NSIS + portable). Menú nativo, iconos personalizados, persistencia completa de datos y nombre "SynthiGME" en mezcladores del sistema.
+- **Emulación completa del sistema de voltajes Synthi 100**: 8 tipos de pines de matriz con resistencias y ganancias reales según documentación Datanomics 1982. Menú contextual para seleccionar tipo de pin y tooltips con información técnica.
+- **Emulación DSP del hardware Synthi 100**: Inercia térmica (Thermal Slew), saturación híbrida de raíles ±12V, filtrado RC por pin de matriz, soft clipping en CV y modelo de frecuencia CEM 3340 con escala 1V/Oct.
+- **Paneles flotantes (Picture-in-Picture)**: Extraer cualquier panel a ventana independiente redimensionable con persistencia de estado.
+- **Sistema de tests de audio (Playwright)**: Suite completa que valida DSP en Chromium headless. Comando `test:all` ejecuta tests unitarios + audio con resumen estructurado.
+- **Hard sync en matriz**: Columnas 24-35 exponen entradas de sincronización de los 12 osciladores para timbres armónicos complejos.
+- **Sistema de dormancy**: Suspensión automática de procesamiento DSP en módulos sin conexiones activas (~95% ahorro CPU).
+- **Tooltips informativos**: En knobs (Hz, V, %, con CV activo) y pines de matriz (origen→destino, resistencia, ganancia).
+
+### Cambiado
+- **Sistema de patches v2**: Formato simplificado que guarda solo valores de UI (0-1). Más compacto, legible y resiliente a cambios de fórmulas.
+- **Arquitectura de osciladores multi-waveform**: Único worklet genera 4 formas de onda simultáneas (~70% menos nodos de audio). Fase maestra unificada.
+- **Algoritmo de seno híbrido**: Combina precisión digital con modelado analógico para eliminar "kinks" y reproducir estética del hardware.
+- **Voltajes de salida calibrados**: Niveles según Manual Técnico Datanomics 1982 (Sine 8V p-p, Saw 6.2V, Tri/Pulse 8.1V).
 
 ### Arreglado
-- **Cachés en Electron limpios automáticamente**: Al iniciar, Electron limpia agresivamente el code cache y desactiva Service Workers para evitar cargar versiones anteriores de la aplicación tras un rebuild
-- **Caché HTTP deshabilitado**: Flag `--disable-http-cache` añadido para prevenir que Chromium cachee recursos obsoletos
-- **Service Worker desactivado en Electron**: El SW se desactiva automáticamente en modo Electron para evitar conflictos con actualizaciones
-- **Ventana de log OSC**: Corregida la visibilidad y z-index del log OSC para evitar interferencias con otros elementos de la UI
-- **Bug crítico: condicionales en AudioWorklet bloquean señal a AudioParams**: Identificado y resuelto problema donde cualquier condicional (if, ternario, Math.max/min) en AudioWorklet bloqueaba completamente la propagación de señal cuando se conectaba a un `AudioParam`. Afectaba a `cvThermalSlew` y `cvSoftClip` al modular `oscillator.detune`. 
-  - **Síntoma**: FM modulation no funcionaba a pesar de que los tests de audio existentes pasaban (porque probaban conexión a nodos de audio, no a AudioParams).
-  - **Raíz del problema**: Los tests existentes conectaban `worklet → destination` (nodo de audio, funciona siempre), pero el código real usa `worklet → oscillator.detune` (AudioParam, falla con condicionales). Descubierto durante revisión exhaustiva de cobertura de tests.
-  - **Solución**: Reemplazar condicionales con operaciones aritméticas puras en ambos worklets (`Math.abs()` para detectar dirección de cambio en thermal slew, polinomio `x - x³·k` para soft clip).
-  - **Tests agregados**: 14 nuevos tests de integración (`cvChain.audio.test.js`) que específicamente prueban la conexión crítica AudioWorklet → AudioParam, incluyendo:
-    - `cvSoftClip debe pasar señal a AudioParam` (detección específica del bug)
-    - `cvThermalSlew debe pasar señal a AudioParam`
-    - `testWorkletSignalPassthrough()` (A/B test con/sin worklet)
-    - `testCompleteFMChain()` (cadena FM real con verificación 1V/octave)
-    - Comparación de ratio de señal y detección de bloqueo >50%
-  - **Referencia**: Limitación Web Audio API descubierta durante debugging de FM modulation en enero 2026.
-- **Calibración 1V/octave corregida**: El factor de conversión de CV digital a cents (para modular `detune`) se corrigió de 1200 a 4800. Ahora +1V de CV produce exactamente 1 octava arriba (f×2), alineado con estándar EMS/ARP 1V/Oct.
-- **Orden de cadena CV de osciladores corregido**: La cadena de procesamiento de CV de frecuencia se reorganizó para que el thermal slew preceda al soft clip (previamente se aplicaban en orden inverso):
-  - **Orden correcto**: `freqCVInput → cvThermalSlew (inercia térmica) → cvSoftClip (saturación) → detune (conversión a cents centsGain=4800)`
-  - **Impacto**: La saturación suave ahora recibe señal térmicamente suavizada, reduciendo artefactos de clipping. El soft clip solo satura después de que la inercia haya atenuado picos.
-
-### Añadido
-- **Tests de integración para cadena CV → AudioParam** (`tests/audio/integration/cvChain.audio.test.js`): Cobertura específica del bug de condicionales en AudioWorklet. 14 tests que verifican:
-  - Propagación de señal desde AudioWorklet a AudioParam (sin bloqueo)
-  - Comparación A/B: señal con worklet vs sin worklet (ratio esperado >0.5)
-  - Cadena FM completa: 1V CV → 1 octava arriba verificado
-  - CV negativo, rangos extremos (±2V, ±4V), límites del sistema
-  - Aislamiento: pruebas individuales de cvThermalSlew y cvSoftClip
-  - **Garantía futura**: Si alguien reintroduce condicionales en los worklets, estos tests fallarán inmediatamente
-
-### Cambiado
-- **Sistema de patches simplificado (v2)**: Los patches ahora guardan exclusivamente valores de UI (posiciones de knobs 0-1, estados de switches, coordenadas de matriz). Eliminado código obsoleto que intentaba guardar valores de audio (Hz, ms). Beneficios:
-  - Patches más compactos y legibles
-  - Cambiar fórmulas de conversión (curvas, rangos) no rompe patches existentes
-  - Código de serialización reducido ~400 líneas
-  - `FORMAT_VERSION` incrementado a 2 (patches v1 no compatibles, etapa de desarrollo)
-- **Voltajes de salida de osciladores calibrados según Manual Técnico Datanomics 1982**: Los niveles de salida de cada forma de onda ahora reflejan los valores reales del circuito D100-02 C1:
-  - **Seno (Sine)**: 8V p-p (referencia de calibración del sistema, sin cambios)
-  - **Sierra (Sawtooth)**: 6.2V p-p (rango 5-7.4V, ganancia ×1.0 por I/C 6)
-  - **Triángulo (Triangle)**: 8.1V p-p (nativo ~2.7V × ganancia ×3.0 por I/C 7)
-  - **Pulso (Pulse)**: 8.1V p-p (nativo ~2.7V × ganancia ×3.0 por I/C 7)
-  - Los tooltips de nivel ahora muestran estos valores correctos en tiempo real.
-- **Reorganización de archivos de configuración**: Los archivos `.config.js` se han movido de `panelBlueprints/` a `configs/modules/` con nombres semánticos por tipo de módulo:
-  - `panel2.config.js` → `oscilloscope.config.js`, `inputAmplifier.config.js`
-  - `panel3.config.js` → `oscillator.config.js`, `noise.config.js`, `randomVoltage.config.js`
-  - `panel5.audio.config.js` → `audioMatrix.config.js`
-  - `panel6.control.config.js` → `controlMatrix.config.js`
-  - `panel7.config.js` → `outputChannel.config.js`
-  - Nuevo `configs/index.js` centraliza todas las exportaciones
-  - Los blueprints permanecen en `panelBlueprints/` para la estructura visual
-
-### Añadido
-- **Suite de tests de audio real (Playwright)**: batería de pruebas que ejecuta Web Audio API y AudioWorklets en Chromium headless para validar DSP (hard sync, anti‑aliasing PolyBLEP, barridos de frecuencia, timing/latencia) y ruteo de matriz. Comandos:
-  - `npm run test:audio` para ejecutar la suite
-  - `npm run test:audio:ui` para depuración con UI
-  - Reporte HTML en `test-results/audio-report` (abrir con `npx playwright show-report test-results/audio-report`)
-- **Comando combinado `test:all` con resumen estructurado**: ejecuta tests unitarios (Node.js) y de audio (Playwright) y muestra un informe final con estado por suite, tiempos y totales. Integrado en el flujo de build para fallar si hay tests en rojo.
-- **Modificadores fijos para knobs**: Documentación en Ajustes → Atajos y badge visual que indica Ctrl/Cmd (10× más rápido) y Shift (10× más preciso) al arrastrar cualquier knob.
-- **Tooltips informativos en knobs de osciladores**: Los controles de frecuencia, niveles, pulse width y sine symmetry muestran tooltips con valores en tiempo real:
-  - **Frecuencia**: Muestra Hz con precisión de 3 decimales y rango completo (0.5-20000 Hz). Indica '+ CV' cuando hay modulación activa.
-  - **Niveles (Sine/Saw/Tri/Pulse)**: Muestra voltaje (0-10V) basado en emulación del Synthi 100.
-  - **Pulse Width y Sine Symmetry**: Muestra porcentaje (0-100%).
-  - **Configuración**: Toggle en Ajustes → Visualización para mostrar/ocultar información de parámetros.
-  - **Táctil**: Tooltips con tap + auto-hide (3 segundos) para mejor experiencia en móvil.
-- **Tooltips en pines de matriz con información técnica**: Al pasar el ratón o tocar un pin, además del origen/destino, ahora se muestra:
-  - Resistencia del pin (ej: "100kΩ", "2.7kΩ", etc.)
-  - Factor de ganancia (ej: "×1", "×37", "×0.1", etc.)
-  - Información localizable vía i18n para todos los idiomas.
-- **Sistema expandido de 8 tipos de pin en la matriz**: Basado en documentación Datanomics 1982 y manual de Belgrado:
-  - **Pines estándar** (Cuenca 1982): WHITE (100kΩ, ×1), GREY (100kΩ ±0.5%, ×1), GREEN (68kΩ, ×1.5), RED (2.7kΩ, ×37)
-  - **Pines especiales** (manual técnico): BLUE (10kΩ, ×10), YELLOW (22kΩ, ×4.5), CYAN (250kΩ, ×0.4), PURPLE (1MΩ, ×0.1)
-  - **Menú organizado en secciones**: "Recomendado" (según contexto), "Estándar", "Especiales"
-  - **Información de ganancia**: El menú muestra resistencia y ganancia (ej: "100kΩ · ×1")
-  - **Categorías en código**: Cada pin tiene `category: 'standard' | 'special' | 'forbidden'`
-  - **ORANGE no implementado**: Pin de 0Ω excluido por riesgo de cortocircuito
-- **Paneles flotantes (Picture-in-Picture)**: Sistema completo para extraer paneles del layout principal y trabajar con ellos en ventanas independientes:
-  - **Extracción de paneles**: Click derecho en panel → "Extraer panel" o desde el menú PiP de la quickbar.
-  - **Ventanas flotantes**: Cada panel extraído se muestra en una ventana flotante redimensionable y arrastrable con controles propios de zoom, scroll y cierre.
-  - **Menú en quickbar**: Selector de paneles con opciones individuales (Panel 1-7) y acciones globales "Extraer todos" / "Devolver todos".
-  - **Menú contextual**: Click derecho en cualquier panel para extraerlo directamente.
-  - **Placeholder visual**: Los paneles extraídos dejan un placeholder en el grid principal para mantener el layout.
-  - **Persistencia**: El estado de los paneles flotantes (posición, tamaño, scroll interno) se guarda en localStorage.
-  - **Nombres simples**: Los paneles se muestran como "Panel 1" a "Panel 7" en los menús.
-- **Selección de color de pines en la matriz**: Sistema completo para elegir el tipo de pin al hacer conexiones:
-  - **Menú contextual**: Click derecho (desktop) o pulsación larga (móvil) en cualquier pin abre menú con 8 tipos de pin.
-  - **Colores por contexto**: Audio (WHITE), Control CV (GREY para precisión), Osciloscopio (RED). El sistema recuerda el último color usado.
-  - **Activación inmediata**: Seleccionar un color en un pin inactivo lo activa directamente con ese color.
-  - **Tick visual**: El menú muestra ✓ junto al color actual (pin activo) o el próximo a usar (pin inactivo).
-  - **Pines más grandes**: Los pines activos tienen 50% más tamaño (`scale(1.5)`) para mejor visibilidad.
-  - **Colores CSS centralizados**: Variables `--pin-color-*` para los 8 colores en `:root`.
-  - **Serialización de colores**: Los patches guardan el color de cada pin como tercer elemento opcional `[row, col, pinType]`.
-- **Sistema de emulación de voltajes del Synthi 100**: Nuevo módulo `voltageConstants.js` que implementa el modelo eléctrico de la versión Cuenca/Datanomics (1982):
-  - **Conversión digital ↔ voltaje**: Factor 1.0 digital = 4V (8V p-p total), estándar 1V/Oct.
-  - **Resistencias de pin**: 8 tipos con resistencias de 2.7kΩ a 1MΩ y ganancias de ×0.1 a ×37.
-  - **Fórmula de tierra virtual**: `Ganancia = Rf / R_pin` (Rf = 100kΩ típico).
-  - **Soft clipping**: Saturación suave con `tanh()` según límites por módulo (8V filtros, 2V reverb, etc.).
-  - **Tolerancia reproducible**: Error de resistencia basado en seed para patches consistentes.
-  - **Deriva térmica**: Configuración para osciladores CEM 3340 (±0.1%).
-- **Métodos de voltaje en clase Module**: La clase base `Module` en `core/engine.js` ahora incluye:
-  - `applyInputClipping(digitalValue)`: Satura entradas digitales según límite del módulo.
-  - `applyVoltageClipping(voltage)`: Satura voltajes directamente.
-  - `setInputVoltageLimit(v)` / `setSoftClipEnabled(bool)`: Configuración por módulo.
-- **Soft clipping en entrada CV de osciladores (cvSoftClip.worklet.js)**: AudioWorklet que satura suavemente las señales CV de frecuencia antes de la conversión a cents. Usa **polinomio puro** `y = x - x³·k` (sin condicionales) para mantener la propagación a AudioParam. El coeficiente `k` es configurable en `oscillator.config.js` para ajustar la severidad de saturación. Valor por defecto: 0.333 (saturación moderada). Rango recomendado: 0.0001 (casi desactivado) a 1.0 (saturación fuerte).
-- **Ganancia de pines con fórmula de tierra virtual**: Nueva función `calculateMatrixPinGain()` que calcula la ganancia de cada pin de matriz según el tipo de pin, la Rf del destino y la tolerancia opcional.
-- **Sistema de suavizado de formas de onda (Waveform Smoothing)**: Emulación de dos características eléctricas del Synthi 100 que impiden transiciones verticales instantáneas:
-  - **Slew inherente del módulo**: Filtro one-pole (~20kHz) dentro del AudioWorklet aplicado a pulse y sawtooth, emulando el slew rate finito de los amplificadores CA3140.
-  - **Filtrado RC por pin de matriz**: Cada conexión de matriz incluye un `BiquadFilterNode` (lowpass, Q=0.5) que emula el filtro RC natural formado por resistencia del pin + capacitancia parásita del bus (~100pF).
-  - **Frecuencias de corte por pin**: WHITE/GREY ~15.9kHz (suavizado audible), GREEN ~23.4kHz, RED ~589kHz (bypass), CYAN ~6.4kHz (filtrado fuerte), PURPLE ~1.6kHz (filtrado extremo).
-  - **Actualización dinámica**: Al cambiar color de pin activo, el filtro se actualiza en tiempo real con `setValueAtTime()`.
-  - **Nuevas funciones**: `createPinFilter()`, `updatePinFilter()`, `computePinCutoff()`, constante `PIN_CUTOFF_FREQUENCIES`.
-  - **Cadena de audio**: `source → BiquadFilter (pin RC) → GainNode (Rf/Rpin) → destination`.
-  - **Tests de validación**: 41 nuevos tests (31 funcionales + 10 de estrés) verifican cálculos de cutoff, factory de filtros y rendimiento.
-  - **Referencia técnica**: Manual Datanomics 1982 - "con pines de 100kΩ se produce integración de transitorios rápidos".
-- **Inercia térmica de osciladores (Thermal Slew)**: Emulación del efecto térmico del VCO CEM 3340 que produce un "portamento involuntario" asimétrico en respuesta a cambios bruscos de CV:
-  - **Nuevo AudioWorklet**: `cvThermalSlew.worklet.js` implementa filtro one-pole asimétrico usando **operaciones aritméticas puras** (sin condicionales que bloqueen AudioParams).
-  - **Comportamiento físico**: Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva).
-  - **Umbral de activación**: Solo afecta señales CV > 2V (0.5 digital), evitando slew en modulaciones sutiles.
-  - **Cadena CV corregida**: `freqCVInput → cvThermalSlew (inercia) → cvSoftClip (saturación) → detune (centsGain=4800)`. IMPORTANTE: thermal slew PRECEDE al soft clip para suavizar picos antes de saturación.
-  - **Detección de dirección**: Usa `Math.abs()` en lugar de condicionales para detectar si CV sube/baja sin bloquear AudioParam.
-  - **Configuración**: `oscillator.config.js` → `thermalSlew.riseTimeConstant`, `fallTimeConstant`, `threshold`, `enabled`.
-  - **Referencia técnica**: Datanomics 1982 - "La masa térmica del VCO CEM 3340 produce inercia en la respuesta a cambios de CV".
-- **Saturación híbrida de raíles ±12V (Hybrid Clipping)**: Emulación de los límites de alimentación del Synthi 100 con saturación progresiva en tres zonas:
-  - **Zona lineal** (< 9V): Sin modificación, pass-through completo.
-  - **Zona de compresión** (9V - 11.5V): Saturación suave con tanh, comprime gradualmente.
-  - **Hard clip** (≥ 12V): Límite absoluto (brick wall), protege contra sobrecarga.
-  - **Nueva función**: `createHybridClipCurve()` genera curva para WaveShaperNode con parámetros configurables.
-  - **Aplicación**: Se inserta un WaveShaperNode en cada bus de salida de la matriz (`busInput → hybridClipShaper → filterLP`).
-- **Tests de audio para Thermal Slew y Hybrid Clipping (Playwright)**: Suite de 24 tests que validan el comportamiento real de los nuevos efectos DSP:
-  - **CVThermalSlew** (10 tests): Asimetría calentamiento/enfriamiento, umbral de activación, bypass, convergencia, bidireccionalidad.
-  - **HybridClip** (14 tests): Zonas lineal/soft/hard, THD progresivo, simetría bipolar, transiciones, frecuencias variadas.
-  - **Harness extendido**: `testThermalSlew()`, `testThermalSlewBypass()`, `testHybridClipping()`, `testHybridClipSymmetry()`.
-  - **Ejecutar**: `npx playwright test tests/audio/worklets/cvThermalSlew.audio.test.js tests/audio/worklets/hybridClip.audio.test.js --config=tests/audio/playwright.config.js`.
-  - **Oversample 2×**: Evita aliasing en las transiciones de saturación.
-  - **Configuración**: `audioMatrix.config.js` → `hybridClipping.linearThreshold`, `softThreshold`, `hardLimit`, `softness`, `enabled`.
-  - **Referencia técnica**: NotebookLM (Datanomics 1982) - "Los raíles de alimentación de ±12V producen saturación progresiva".
-- **Sección de Emulación de Voltajes en Ajustes**: Nueva sección en Ajustes → Avanzado que permite controlar:
-  - **Saturación suave (soft clip)**: Activar/desactivar el límite de voltaje con tanh().
-  - **Tolerancia de pines**: Activar/desactivar variación realista de resistencias (±0.5% gris, ±10% resto).
-  - **Deriva térmica**: Activar/desactivar simulación de drift de osciladores.
-- **Modelo de frecuencia realista del Synthi 100 (CEM 3340)**: Implementación basada en documentación Datanomics 1982:
-  - **Escala exponencial 1V/Octava**: El dial (0-10) controla la frecuencia con factor 0.95 unidades por octava.
-  - **Frecuencia de referencia**: 261 Hz (C4) en posición dial 5, estándar de afinación MIDI.
-  - **Conversión dial→frecuencia**: `f = 261 × 2^((dial - 5) / 0.95 + CV_total)`.
-  - **Switch HI/LO**: El modo LO divide la frecuencia por 10 (condensador C10 10nF vs C9 1nF).
-  - **Rangos físicos**: HI (5–20.000 Hz), LO (0.5–2.000 Hz), con clamping a límites.
-  - **Distorsión de tracking**: Fuera de la zona lineal (±2.5V), tracking cuadrático con α=0.01 configurable.
-  - **Nuevas funciones en conversions.js**: `dialToFrequency()`, `frequencyToDial()`, `applyTrackingDistortion()`, `generateFrequencyTable()`.
-  - **Constantes en voltageConstants.js**: `OSC_REFERENCE_FREQ`, `DIAL_UNITS_PER_OCTAVE`, `TRACKING_LINEAR_HALF_RANGE`, `OSC_FREQUENCY_RANGES`, `LO_RANGE_DIVISOR`.
-  - Todas las opciones están **activadas por defecto** y sus valores se leen dinámicamente desde localStorage.
-
-### Corregido
-- **Sensibilidad del osciloscopio**: Ajustada para compensar la ganancia ×37 del pin rojo (`inputSensitivity: 0.027`).
-- **Menú contextual con pinch**: El long press para abrir el menú de pines ahora se cancela correctamente al pinzar con dos dedos.
-- **Color por defecto en control CV**: Cambiado de GREEN a GREY para mayor precisión (±0.5% vs ±10%).
-- **Tooltips de pines durante zoom/pan**: Los tooltips de matriz ahora se ocultan automáticamente al hacer zoom o pan, evitando que queden flotando en posiciones incorrectas.
-- **Menú contextual de paneles**: Eliminada la opción "Extraer todos" del menú contextual individual de paneles (ya disponible en menú de quickbar).
-- **Menú contextual en knobs**: Desactivado el menú contextual de panel al hacer click derecho sobre knobs u otros mandos, evitando interferencias.
-- **Permisos de micrófono en Chrome Android**: Corregido bucle infinito al solicitar permisos. Mejoradas traducciones y sistema de reintentos para mayor fiabilidad.
-- **Conversión dial→frecuencia**: Corregida implementación del modelo CEM 3340 para precisión exacta con la especificación Synthi 100.
-- **Glissando en osciladores**: Eliminado portamento no deseado. Aumentada resolución de frecuencia para transiciones instantáneas.
-- **Precisión de tooltips de frecuencia**: Ajustada precisión decimal para mostrar valores exactos sin redondeos excesivos.
-
-### Mejoras
-- **Fluidez de knobs optimizada**: Implementado `requestAnimationFrame` para renderizado suave y sin stuttering durante interacciones con knobs, mejorando especialmente la experiencia en tablets y móviles.
-- **Escala Synthi 100 en knobs**: Los knobs de frecuencia ahora usan escala logarítmica (0-10) fiel al hardware original, con visor de valor en tiempo real.
-- **Centralización de parámetros de audio**: Parámetros de osciladores (frecuencia, niveles, etc.) ahora centralizados en `oscillator.config.js` para mejor mantenibilidad.
-- **Dormancy con early exit real en todos los módulos**: El sistema de dormancy ahora suspende realmente el procesamiento DSP (no solo silencia):
-  - **Osciladores**: mensaje `setDormant` al worklet → early exit en `process()`. Ahorra ~95% CPU.
-  - **NoiseModule**: mensaje al worklet + silencia levelNode. El generador Voss-McCartney no procesa.
-  - **Output Bus**: desconecta `busInput` del grafo (de filterLP o levelNode según bypass). Los filtros LP/HP no procesan audio.
-  - **InputAmplifier**: silencia los 8 GainNodes. Restaura niveles al despertar.
-  - **Oscilloscope**: mensaje al worklet scopeCapture → pausa captura y trigger.
-  - La fase de osciladores se mantiene para coherencia al despertar.
-- **Algoritmo de Seno Híbrido**: Nueva implementación de la forma de onda sinusoidal que combina precisión digital en el centro con un modelado analógico (Tanh Waveshaper) en los extremos. Elimina los "kinks" previos y reproduce fielmente la estética "Vientre Redondo / Punta Aguda" del hardware original.
-- **Alineación de Fase Global**: Recalibración de todas las formas de onda para referenciarse al Pico del Seno (Fase 0 = +1.0).
-    - **Triángulo**: Invertido para coincidir fase 0 con pico positivo.
-    - **Pulso**: Desplazado +90° para estar centrado respecto al pico del seno.
-    - **Sawtooth**: Mantiene su rampa estándar de reset.
-- **Calibración del Sine Shape**: Nuevos parámetros para ajustar el comportamiento del conformador de seno:
-    - `sineShapeAttenuation`: Emula la reducción de amplitud 8:1 del hardware (seno 4V p-p → cuspoide 0.5V p-p).
-    - `sinePurity`: Controla cuánto seno digital puro se mezcla en el centro (0=100% analógico, 1=100% digital). Por defecto 0.7 para conservar el "color" del circuito electrónico.
-
-### Añadido
-- **Hard sync en matriz de audio (Panel 5)**: columnas 24-35 exponen las entradas de sincronización de los 12 osciladores. Al conectar una señal de audio, esta resetea la fase del oscilador destino en cada flanco positivo, permitiendo crear timbres armónicos complejos característicos de la síntesis analógica clásica.
-- **Fase maestra unificada en osciladores**: todas las formas de onda (sine, saw, tri, pulse) ahora derivan de una única fase maestra en el worklet. Garantiza coherencia perfecta entre formas de onda al cambiar frecuencia. La fase maestra es el sawtooth (rampa 0→1), del cual se derivan las demás ondas.
-- **Multi-waveform oscillator**: nuevo modo `multi` en el worklet que genera las 4 formas de onda simultáneamente con 2 salidas (sine+saw, tri+pulse). Reduce ~70% los nodos de audio por oscilador.
-- **AudioParams de nivel por forma de onda**: `sineLevel`, `sawLevel`, `triLevel`, `pulseLevel` permiten control sample-accurate del volumen de cada forma de onda directamente en el worklet.
-- **Preparación para hard sync**: entrada de sincronización lista en el worklet. La fase se resetea en cada flanco positivo de la señal de sync. Método `connectSync()` disponible para conectar osciladores.
-- **Sistema de dormancy**: optimización de rendimiento que silencia automáticamente módulos de audio sin conexiones activas en la matriz. Reduce carga de CPU especialmente en dispositivos móviles. Configurable en Ajustes → Avanzado → Optimizaciones.
-- **Filter bypass**: optimización que desconecta los filtros LP/HP cuando están en posición neutral (|valor| < 0.02), reduciendo carga de CPU. Habilitado por defecto. Configurable en Ajustes → Avanzado → Optimizaciones.
-- **Modo de latencia**: permite elegir entre "Interactivo" (baja latencia, ideal para desktop) y "Reproducción" (buffers grandes, estable en móviles). Por defecto: móviles usan Reproducción, desktop usa Interactivo. Cambiar requiere reiniciar la aplicación.
-- **Sección Optimizaciones** en Ajustes: nueva sección extensible en la pestaña Avanzado que agrupa todas las optimizaciones de rendimiento con controles de debug individuales y globales.
-- **Modificador CSS `.knob--xs`**: nuevo tamaño extra pequeño (36px) para knobs, disponible para uso futuro.
-
-### Cambiado
-- **Panel 1 y Panel 4 son solo visuales**: Los osciladores de estos paneles son módulos dummy que serán reemplazados por otros módulos en el futuro. Se mantiene la UI visual (knobs, controles) para testing de fluidez pero no se crean AudioWorkletNodes ni GainNodes, ahorrando recursos.
-- **Arquitectura de osciladores del Panel 3**: cada oscilador ahora usa un único worklet multi-waveform en lugar de 4 nodos separados (2 worklets + 2 OscillatorNode nativos). Reduce overhead de scheduling del AudioGraph.
-- **Panel 3 requiere worklet**: eliminado fallback a OscillatorNode nativo. Los navegadores sin soporte de AudioWorklet no podrán usar el Panel 3.
-- **Knobs de Output Channels unificados**: ahora usan `createKnobElements()` de `knobFactory.js` y las clases genéricas `.knob`/`.knob--sm`, igual que osciladores e input amplifiers. Permite compartir código común entre módulos.
-
-### Mejorado
-- **Indicador de velocidad de knobs**: Se superpone con z-index alto, queda pegado al knob y muestra 1× solo tras soltar Ctrl/Shift durante ~1s, sin parpadeos al alternar estados.
-- **Calidad de sonido del Oscilador Senoidal**: Nuevo algoritmo híbrido para el control "Shape/Symmetry".
-    - Centro (0.5): Sinusoide matemáticamente pura (sin armónicos), superando al hardware original en pureza.
-    - Extremos: Emulación de circuito analógico (Waveshaper Tanh) con saturación suave y cruce por cero lineal, eliminando los "kinks" de versiones anteriores.
-    - Dirección del control invertida para coincidir con el manual original (0 = Vientre arriba).
-- **Rendimiento de osciladores**: ~70% menos nodos de audio por oscilador, menos context switches, mejor cache locality al calcular todas las ondas desde la misma fase.
-
-### Corregido
-- **Carga de worklets en tablets/móviles**: corregida race condition donde los osciladores intentaban crearse antes de que el worklet terminara de cargar. Ahora `ensureAudio()` espera a `ensureWorkletReady()`.
-- **Cambio de latencia en caliente**: corregido error "AudioWorklet does not have valid AudioWorkletGlobalScope" al cambiar el modo de latencia. `closeAudioContext()` ahora llama `stop()` en todos los módulos y resetea el estado del worklet.
-- **Patches no se aplicaban en móviles**: corregido problema donde los patches guardados no tenían efecto en dispositivos móviles debido a que el worklet no estaba listo. Añadido sistema de reintentos automáticos.
-- **Warning "AudioContext was not allowed to start"**: eliminado el resume automático del AudioContext. El audio se reanuda ahora con gestos del usuario (mover knobs, botón mute) en lugar de al cargar la página.
+- **Bug crítico AudioWorklet→AudioParam**: Condicionales en worklets bloqueaban señal. Reemplazados por operaciones aritméticas puras. 14 tests añadidos.
+- **Calibración 1V/octave**: Factor CV→cents corregido (1200→4800). +1V = 1 octava arriba (f×2).
+- **Cachés en Electron**: Limpieza automática de code cache, HTTP cache y Service Worker deshabilitado para evitar versiones anteriores.
+- **Carga de worklets en móviles**: Race condition corregida con sistema de reintentos para aplicación de patches.
 
 ## [0.3.0] - 2026-01-11
 
 ### Añadido
-- **Stereo buses (Pan 1-4 y Pan 5-8)**: dos buses estéreo con control de panning que mezclan los 8 canales de salida en dos grupos de 4. Conectados a la matriz de audio (filas 75-82) y control.
-- **Filtro bipolar LP/HP** en cada canal de salida: control único que actúa como low-pass (giro izquierda), bypass (centro) o high-pass (giro derecha).
-- **Botón On/Off** en cada canal de salida para silenciar individualmente sin afectar el nivel.
+- **Stereo buses (Pan 1-4 y Pan 5-8)**: Dos buses estéreo con control de panning que mezclan los 8 canales de salida en dos grupos de 4.
+- **Filtro bipolar LP/HP** en cada canal de salida: Control único que actúa como low-pass (izquierda), bypass (centro) o high-pass (derecha).
+- **Botón On/Off** en cada canal de salida para silenciar individualmente.
 - **8 Input Amplifiers como fuentes CV** en matriz de control (filas 67-74).
 - **8 Output Buses como fuentes** en matriz de audio (filas 75-82) y control.
 - **Osciloscopio en matriz de control** (columnas 64-65) para visualizar señales de modulación.
-- **Pistas de grabación aumentadas a 12**: configuración de grabación WAV ahora permite hasta 12 pistas (antes 8).
-- **Matriz de grabación adaptativa**: las columnas se ajustan automáticamente al número de pistas configurado.
-- **Tooltips en pines de matriz**: al pasar el ratón (desktop) o tocar (móvil) un pin, se muestra un tooltip con "Origen → Destino" (ej: "Input 1 → Out 1"). Labels localizables vía i18n.
-- **Efecto visual de pulso** en el pin activo mientras el tooltip es visible.
-- **Detección inteligente de gestos móviles**: los tooltips no se activan durante gestos de pinch/pan.
-- **Visualización de pines inactivos**: los pines sin source O sin destination aparecen atenuados (20% opacidad) y deshabilitados por defecto. Preferencia configurable con actualización en caliente.
-- **Nueva pestaña "Visualización"** en Ajustes: agrupa escala de renderizado (movida desde General) y toggle de pines inactivos.
-- **Infraestructura de tests mejorada**: mocks de AudioContext para tests unitarios de módulos de síntesis. Suite de tests expandida a 355+ casos.
+- **Pistas de grabación aumentadas a 12**: Configuración de grabación WAV ahora permite hasta 12 pistas.
+- **Tooltips en pines de matriz**: Desktop (hover) y móvil (toque) muestran "Origen → Destino". Labels localizables vía i18n.
+- **Visualización de pines inactivos**: Pines sin source o destination aparecen atenuados (20% opacidad). Configurable en Ajustes → Visualización.
+- **Infraestructura de tests mejorada**: Mocks de AudioContext para tests unitarios. Suite expandida a 355+ casos.
 
 ### Cambiado
-- **Idioma de fallback i18n**: cambiado de español a inglés para que las traducciones faltantes muestren texto en inglés en lugar de claves entre corchetes.
-- **Reorganización de Ajustes**: escala de renderizado movida de General a la nueva pestaña Visualización.
-- **Mute separado de CV**: el nodo de mute ahora es independiente del nodo de CV para evitar que modulaciones CV bypaseen el silenciamiento.
+- **Idioma de fallback i18n**: Cambiado de español a inglés para traducciones faltantes.
+- **Mute separado de CV**: Nodo de mute independiente del nodo de CV para evitar bypass involuntario.
 
 ### Corregido
-- **Pan modificaba volumen**: corregido bug donde ajustar el pan alteraba involuntariamente el nivel de salida.
-- **Atajos de teclado con sliders/pines enfocados**: ahora funcionan correctamente cuando un control tiene foco.
+- **Pan modificaba volumen**: Corregido bug donde ajustar el pan alteraba el nivel de salida.
+- **Atajos de teclado con controles enfocados**: Ahora funcionan correctamente cuando un control tiene foco.
 
 ## [0.2.0] - 2026-01-09
 
 ### Añadido
-- **Matriz de control (Panel 6) operativa**: modulación de frecuencia de osciladores desde la matriz.
+- **Matriz de control (Panel 6) operativa**: Modulación de frecuencia de osciladores desde la matriz.
 - **Sistema exponencial V/Oct** para modulación de frecuencia: 1V por octava, rangos ±5 octavas.
-- **Mantener pantalla encendida** (Screen Wake Lock API) con toggle en Ajustes → General, activado por defecto, deshabilitado automáticamente en navegadores sin soporte (iOS < 18.4).
+- **Mantener pantalla encendida** (Screen Wake Lock API) con toggle en Ajustes → General, activado por defecto.
 - **Diálogo de entrada de texto** (`InputDialog`) reemplazando `prompt()` nativo con soporte i18n.
 
 ### Cambiado
-- SVGs de paneles 5 y 6 re-optimizados: reducción ~74% (221KB → 58KB, 233KB → 61KB).
-- Traducciones en caliente: cambiar idioma actualiza inmediatamente todos los textos sin recargar.
-- Paneles 1, 2, 3 y 4 sin fondo SVG temporalmente (en desarrollo).
+- SVGs de paneles 5 y 6 re-optimizados: Reducción ~74% (221KB → 58KB, 233KB → 61KB).
+- Traducciones en caliente: Cambiar idioma actualiza inmediatamente sin recargar.
 
 ### Corregido
-- Escala de renderizado guardada (1×-4×) ahora se aplica correctamente al iniciar la app.
-- Mensaje del bloqueador de orientación ahora traducible.
-- Menú contextual del navegador deshabilitado para evitar interferencias.
-- Flujo de actualización mejorado: instalación bajo demanda de nuevas versiones.
-- Indicador de actualización pendiente visible en ajustes tras rechazar diálogo inicial.
+- Escala de renderizado (1×-4×) ahora se aplica correctamente al iniciar.
+- Flujo de actualización mejorado: Instalación bajo demanda de nuevas versiones.
 
 ## [0.1.0] - 2026-01-08
 
 ### Añadido
-- **Sistema de grabación de audio**: exportación WAV multitrack (1-8 pistas) con matriz de ruteo outputs→tracks configurable.
-- **Sistema completo de atajos de teclado**: `M` (mute), `R` (grabar), `P` (patches), `S` (ajustes), `F` (fullscreen), `Shift+I` (reset), `0-7` (navegación paneles). Personalizable con persistencia.
+- **Sistema de grabación de audio**: Exportación WAV multitrack (1-8 pistas) con matriz de ruteo configurable.
+- **Sistema completo de atajos de teclado**: `M` (mute), `R` (grabar), `P` (patches), `S` (ajustes), `F` (fullscreen), `Shift+I` (reset), `0-7` (navegación). Personalizable con persistencia.
 - **Diálogo de confirmación reutilizable** (`ConfirmDialog`) con opción "no volver a preguntar".
-- **Botón de mute global** siempre visible en la quickbar (panic button).
-- **Sistema completo de patches**: guardar, cargar, renombrar, eliminar, exportar/importar archivos `.sgme.json`.
-- **Autoguardado configurable** (intervalos: desactivado, 30s, 1m, 5m, 10m) con restauración opcional al inicio.
-- **8 Input Amplifiers**: canales de entrada con control de ganancia individual.
+- **Sistema completo de patches**: Guardar, cargar, renombrar, eliminar, exportar/importar `.sgme.json`.
+- **Autoguardado configurable** (desactivado, 30s, 1m, 5m, 10m) con restauración opcional al inicio.
+- **8 Input Amplifiers**: Canales de entrada con control de ganancia individual.
 - **PWA instalable** con soporte offline, manifest, service worker versionado y aviso de actualización.
-- Iconos de paneles diseñados por Sylvia Molina Muro.
 - Panel con 8 salidas (output channels) con volumen y enlace a ambos canales stereo.
 - Matriz grande de pines 63×67, optimizada para zoom y paneo.
 - Sistema de AudioWorklets para síntesis con fase coherente y anti-aliasing PolyBLEP.
-- Opciones de conexión entrada/salida con dispositivos del sistema (micros, altavoces).
 
 ### Cambiado
-- Gestos táctiles mejorados: pan con dos dedos simultáneo a zoom.
+- Gestos táctiles mejorados: Pan con dos dedos simultáneo a zoom.
 - Vista inicial ajustada para mostrar todo el sintetizador.
-- Sistema de despliegue de paneles con animación de zoom centrado (doble click o botón).
-- Mejoras de nitidez al hacer zoom en todos los navegadores.
-
-### Corregido
-- Correcciones menores de estabilidad en navegación táctil.
 
 ## [0.0.1] - 2025-12-01
 ### Añadido
 - Prueba de concepto mínima (interfaz + sonido).
-- Primera publicación experimental de SynthiGME-web con interfaz Web Audio funcional y build automatizada hacia `docs/` (modo PWA).
-
-
+- Primera publicación experimental con interfaz Web Audio funcional y build automatizada hacia `docs/` (modo PWA).

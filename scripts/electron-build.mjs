@@ -1,14 +1,15 @@
 /**
  * Wrapper para electron-builder que incluye el build timestamp en el nombre del artifact
  * 
- * Lee la versión de build desde docs/sw.js y la pasa como variable de entorno
- * para que electron-builder la use en artifactName.
- * 
- * Si docs/ no existe o no tiene sw.js, ejecuta primero el build de docs.
+ * Siempre ejecuta un build fresh de la aplicación antes de compilar Electron.
+ * Esto garantiza que:
+ * - El código empaquetado está actualizado
+ * - El timestamp del build es del momento de compilar
+ * - No depende de builds previos de docs/
  */
 
 import { execSync } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -17,17 +18,6 @@ const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
 const swPath = join(projectRoot, 'docs', 'sw.js');
-
-// Verificar que docs/ está construido, si no, construirlo
-function ensureDocsBuild() {
-  if (!existsSync(swPath)) {
-    console.log('docs/sw.js no encontrado. Ejecutando build de docs primero...\n');
-    execSync('npm run build:skip-tests', {
-      cwd: projectRoot,
-      stdio: 'inherit'
-    });
-  }
-}
 
 // Leer CACHE_VERSION desde docs/sw.js
 function getBuildVersion() {
@@ -49,8 +39,13 @@ function getBuildVersion() {
 // Obtener argumentos para electron-builder (--linux, --win, etc.)
 const args = process.argv.slice(2).join(' ');
 
-// Asegurar que docs/ está construido
-ensureDocsBuild();
+// Siempre hacer build fresh antes de compilar Electron
+console.log('Ejecutando build de la aplicación...\n');
+execSync('npm run build:skip-tests', {
+  cwd: projectRoot,
+  stdio: 'inherit'
+});
+console.log('');
 
 const buildVersion = getBuildVersion();
 console.log(`Build version: ${buildVersion}`);

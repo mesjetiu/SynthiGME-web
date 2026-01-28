@@ -8,6 +8,15 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Soporte OSC (Open Sound Control)** para comunicación peer-to-peer:
+  - **Servidor OSC integrado**: Servidor OSC en el proceso principal de Electron para comunicación con aplicaciones externas (SuperCollider, Max/MSP, etc.)
+  - **Capa de abstracción OSC**: API frontend (`oscManager.js`) para enviar/recibir mensajes OSC desde la UI web
+  - **Soporte unicast**: Envío de mensajes OSC a direcciones IP específicas para integración con SuperCollider y otros clientes
+  - **Ventana flotante de log OSC**: Monitor en tiempo real de mensajes OSC enviados/recibidos con interfaz arrastrable
+  - **Botón en quickbar**: Control de activación/desactivación del servidor OSC y acceso directo al log
+  - **Pestaña OSC en Ajustes**: Configuración completa de puerto, IP remota, y estado del servidor
+  - **Iconos personalizados**: Iconos SVG para broadcast y player integrados en el sprite
+  - **Estado por defecto**: OSC desactivado al inicio para evitar conflictos de red
 - **Aplicación de escritorio con Electron**: SynthiGME ahora puede empaquetarse como aplicación nativa para Linux, Windows y macOS.
   - **Scripts de build**: `npm run electron:dev` (desarrollo), `npm run electron:build:linux` (AppImage), `npm run electron:build:win` (NSIS + portable), `npm run electron:build:all` (Linux + Windows)
   - **Scripts combinados**: `npm run build:all` genera docs/ + instaladores con tests, `npm run build:all:skip-tests` sin tests
@@ -18,8 +27,17 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   - **Nombres de artifact estándar**: Siguen convención `ProductName-Version-Arch.ext` (ej: `SynthiGME-0.3.0-x86_64.AppImage`)
   - **Informe de requisitos**: Se genera automáticamente `REQUIREMENTS.md` con requisitos del sistema junto a cada compilación
   - **Limitación conocida**: Chromium limita la salida de audio a 2 canales independientemente del hardware. Para multicanal (>2ch) se requeriría addon nativo (PortAudio) — planificado para futuro.
+- **Sistema de build mejorado**:
+  - **Builds separados**: Comandos independientes para web (`npm run build`) y Electron (`npm run electron:build:*`)
+  - **Build automático**: Los comandos de Electron ejecutan automáticamente `npm run build` si `docs/` no existe
+  - **Versión con timestamp**: Sistema de versionado de builds basado en fecha/hora ISO 8601 en lugar de contador secuencial
+  - **Build fresh**: Los builds de Electron siempre regeneran la aplicación web antes de empaquetar
 
 ### Arreglado
+- **Cachés en Electron limpios automáticamente**: Al iniciar, Electron limpia agresivamente el code cache y desactiva Service Workers para evitar cargar versiones anteriores de la aplicación tras un rebuild
+- **Caché HTTP deshabilitado**: Flag `--disable-http-cache` añadido para prevenir que Chromium cachee recursos obsoletos
+- **Service Worker desactivado en Electron**: El SW se desactiva automáticamente en modo Electron para evitar conflictos con actualizaciones
+- **Ventana de log OSC**: Corregida la visibilidad y z-index del log OSC para evitar interferencias con otros elementos de la UI
 - **Bug crítico: condicionales en AudioWorklet bloquean señal a AudioParams**: Identificado y resuelto problema donde cualquier condicional (if, ternario, Math.max/min) en AudioWorklet bloqueaba completamente la propagación de señal cuando se conectaba a un `AudioParam`. Afectaba a `cvThermalSlew` y `cvSoftClip` al modular `oscillator.detune`. 
   - **Síntoma**: FM modulation no funcionaba a pesar de que los tests de audio existentes pasaban (porque probaban conexión a nodos de audio, no a AudioParams).
   - **Raíz del problema**: Los tests existentes conectaban `worklet → destination` (nodo de audio, funciona siempre), pero el código real usa `worklet → oscillator.detune` (AudioParam, falla con condicionales). Descubierto durante revisión exhaustiva de cobertura de tests.

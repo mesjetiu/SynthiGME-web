@@ -513,6 +513,10 @@ export function setupMobileQuickActionsBar() {
   btnOsc.id = 'btnOsc';
   let oscEnabled = false;
   
+  // Debug: verificar disponibilidad de OSC
+  console.log('[Quickbar] oscBridge.isAvailable():', oscBridge.isAvailable());
+  console.log('[Quickbar] window.oscAPI:', typeof window.oscAPI);
+  
   function updateOscButton(enabled) {
     oscEnabled = enabled;
     btnOsc.innerHTML = iconSvg(enabled ? 'ti-broadcast' : 'ti-broadcast-off');

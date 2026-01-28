@@ -941,6 +941,7 @@ export class SettingsModal {
     checkbox.addEventListener('change', () => {
       localStorage.setItem(STORAGE_KEYS.OSC_LOG_VISIBLE, checkbox.checked);
       // Emitir evento para que el log window responda
+      // La ventana solo se mostrará si OSC está activo (controlado en oscLogWindow)
       window.dispatchEvent(new CustomEvent('osc:log-visibility', { 
         detail: { visible: checkbox.checked } 
       }));

@@ -51,11 +51,8 @@ export class OSCLogWindow {
     this._createDOM();
     this._setupListeners();
     
-    // Restaurar visibilidad desde localStorage
-    const savedVisible = localStorage.getItem(STORAGE_KEYS.OSC_LOG_VISIBLE) === 'true';
-    if (savedVisible) {
-      this.show();
-    }
+    // NO restaurar visibilidad automáticamente al inicio
+    // La ventana solo se muestra cuando OSC se enciende y la opción está marcada
   }
   
   /**
@@ -161,7 +158,8 @@ export class OSCLogWindow {
       if (e.detail.visible) {
         this.show();
       } else {
-        this.hide();
+        // No actualizar checkbox si es por apagar OSC (preservar preferencia)
+        this.hide(e.detail.updateCheckbox !== false);
       }
     });
     
@@ -347,17 +345,18 @@ export class OSCLogWindow {
   
   /**
    * Oculta la ventana
+   * @param {boolean} [updateCheckbox=true] - Si actualizar el checkbox de settings
    */
-  hide() {
-    if (!this.isVisible) return;
-    
+  hide(updateCheckbox = true) {
     this.isVisible = false;
     this.element.hidden = true;
-    localStorage.setItem(STORAGE_KEYS.OSC_LOG_VISIBLE, 'false');
     
-    // Sincronizar checkbox en settings si está abierto
-    const checkbox = document.getElementById('osc-log-checkbox');
-    if (checkbox) checkbox.checked = false;
+    // Sincronizar checkbox en settings si está abierto (excepto cuando OSC se apaga)
+    if (updateCheckbox) {
+      localStorage.setItem(STORAGE_KEYS.OSC_LOG_VISIBLE, 'false');
+      const checkbox = document.getElementById('osc-log-checkbox');
+      if (checkbox) checkbox.checked = false;
+    }
     
     log.info('Log window hidden');
   }

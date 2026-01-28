@@ -844,15 +844,27 @@ class App {
     
     // Toggle OSC desde quickbar
     document.addEventListener('osc:toggle', async () => {
-      const isEnabled = localStorage.getItem(STORAGE_KEYS.OSC_ENABLED) === 'true';
+      // Usar variable interna, OSC siempre empieza apagado
+      const isEnabled = this._oscEnabled || false;
       const newState = !isEnabled;
       
-      localStorage.setItem(STORAGE_KEYS.OSC_ENABLED, newState);
+      this._oscEnabled = newState;
       
       if (newState) {
         await oscBridge.start();
+        // Mostrar ventana de log si estaba marcada la opción
+        const showLog = localStorage.getItem(STORAGE_KEYS.OSC_LOG_VISIBLE) === 'true';
+        if (showLog) {
+          window.dispatchEvent(new CustomEvent('osc:log-visibility', { 
+            detail: { visible: true } 
+          }));
+        }
       } else {
         await oscBridge.stop();
+        // Ocultar ventana de log al apagar OSC (sin cambiar preferencia del usuario)
+        window.dispatchEvent(new CustomEvent('osc:log-visibility', { 
+          detail: { visible: false, updateCheckbox: false } 
+        }));
       }
       
       // Notificar al quickbar y al settings modal del nuevo estado
@@ -864,11 +876,11 @@ class App {
       showToast(t(newState ? 'quickbar.oscOn' : 'quickbar.oscOff'));
     });
     
-    // Sincronizar estado inicial de OSC con quickbar
+    // OSC siempre empieza apagado (no leer de localStorage)
+    this._oscEnabled = false;
     if (oscBridge.isAvailable()) {
-      const oscEnabled = localStorage.getItem(STORAGE_KEYS.OSC_ENABLED) === 'true';
       document.dispatchEvent(new CustomEvent('osc:statusChanged', { 
-        detail: { enabled: oscEnabled } 
+        detail: { enabled: false } 
       }));
     }
   }

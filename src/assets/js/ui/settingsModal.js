@@ -592,7 +592,8 @@ export class SettingsModal {
     section.className = 'settings-section';
     
     const isElectron = typeof window.oscAPI !== 'undefined';
-    const enabled = localStorage.getItem(STORAGE_KEYS.OSC_ENABLED) === 'true';
+    // OSC siempre empieza apagado, no leer de localStorage
+    const enabled = false;
     
     const row = document.createElement('div');
     row.className = 'settings-row';

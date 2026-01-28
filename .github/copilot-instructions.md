@@ -73,3 +73,30 @@ feat(oscillator): añadir soporte para hard sync entre osciladores
 - `docs/` → Solo para GitHub Pages (PWA web)
 - `dist-app/` → Solo para Electron (no se sube a git)
 - `dist-electron/` → Instaladores generados (no se sube a git)
+
+## CHANGELOG
+
+Cada cambio debe registrarse en `CHANGELOG.md` de forma clara y escueta. El changelog es crítico para el versionado.
+
+### Reglas para actualizar CHANGELOG
+
+1. **Revisar antes de añadir**: Siempre revisar la sección `Unreleased` para detectar cambios similares
+   - Si ya existe una entrada relacionada, **unificar y actualizar** en lugar de duplicar
+   - No debe haber múltiples líneas sobre la misma característica en Unreleased
+
+2. **Estructura**: Mantener el formato semver (Added, Changed, Fixed, Deprecated, Removed, Security)
+   - Agrupar cambios por tipo dentro de Unreleased
+   - Usar puntos escuetos pero informativos
+
+3. **Ejemplo de buena entrada**:
+   ```
+   - OSC: Prefijo almacenado sin barras para UI más clara, se formatean automáticamente en mensajes
+   ```
+   NO hacer:
+   ```
+   - OSC: Cambiar formato de prefijo
+   - OSC: Prefijo sin barras en UI
+   - OSC: Barras añadidas automáticamente
+   ```
+
+4. **Cuándo unificar**: Si hay cambios secuenciales de la misma característica, fusionarlos en una entrada que describe el estado final

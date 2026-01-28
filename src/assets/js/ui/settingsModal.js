@@ -726,7 +726,7 @@ export class SettingsModal {
     section.appendChild(description);
     
     const isElectron = typeof window.oscAPI !== 'undefined';
-    const currentPrefix = localStorage.getItem(STORAGE_KEYS.OSC_PREFIX) || '/SynthiGME/';
+    const currentPrefix = localStorage.getItem(STORAGE_KEYS.OSC_PREFIX) || 'SynthiGME';
     
     const row = document.createElement('div');
     row.className = 'settings-row';
@@ -736,7 +736,7 @@ export class SettingsModal {
     input.id = 'osc-prefix-input';
     input.className = 'settings-input';
     input.value = currentPrefix;
-    input.placeholder = '/SynthiGME/';
+    input.placeholder = 'SynthiGME';
     input.disabled = !isElectron;
     
     input.addEventListener('change', () => {

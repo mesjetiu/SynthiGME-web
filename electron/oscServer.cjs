@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
   /** Grupo multicast IPv4 para descubrimiento automático */
   multicastGroup: '239.255.0.1',
   /** Prefijo de direcciones OSC */
-  prefix: '/SynthiGME/',
+  prefix: 'SynthiGME',
   /** Dirección de binding (todas las interfaces) */
   bindAddress: '0.0.0.0'
 };

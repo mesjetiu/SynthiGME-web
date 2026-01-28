@@ -83,6 +83,7 @@ import { WakeLockManager } from './utils/wakeLock.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
+import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
 
 class App {
   constructor() {
@@ -165,6 +166,9 @@ class App {
     this._setupPanel6ControlRouting();
     this._setupUI();
     this._schedulePanelSync();
+    
+    // Inicializar sincronización OSC para osciladores (Panel 3)
+    oscillatorOSCSync.init(this);
 
     // Resize handler con debounce
     let appResizeTimer = null;
@@ -2363,6 +2367,11 @@ class App {
     
     // Recalcular frecuencia con el nuevo rango
     this._updatePanelOscFreq(panelIndex, oscIndex, currentDialPosition, isRangeLow);
+    
+    // Enviar cambio de rango via OSC (solo Panel 3)
+    if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+      oscillatorOSCSync.sendRangeChange(oscIndex, rangeState);
+    }
   }
 
   _getPanelKnobOptions(panelIndex, oscIndex) {
@@ -2397,7 +2406,12 @@ class App {
       max: pulseLevelCfg.max ?? 1,
       initial: pulseLevelCfg.initial ?? 0,
       pixelsForFullRange: pulseLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelPulseVolume(panelIndex, oscIndex, value),
+      onChange: value => {
+        this._updatePanelPulseVolume(panelIndex, oscIndex, value);
+        if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+          oscillatorOSCSync.sendKnobChange(oscIndex, 0, value);
+        }
+      },
       getTooltipInfo: getLevelTooltipInfo(pulseVpp)
     };
     
@@ -2407,7 +2421,12 @@ class App {
       max: pulseWidthCfg.max ?? 1,
       initial: pulseWidthCfg.initial ?? 0.5,
       pixelsForFullRange: pulseWidthCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelPulseWidth(panelIndex, oscIndex, value),
+      onChange: value => {
+        this._updatePanelPulseWidth(panelIndex, oscIndex, value);
+        if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+          oscillatorOSCSync.sendKnobChange(oscIndex, 1, value);
+        }
+      },
       getTooltipInfo: (value) => showAudio() ? `Duty: ${Math.round(value * 100)}%` : null
     };
     
@@ -2418,7 +2437,12 @@ class App {
       max: sineLevelCfg.max ?? 1,
       initial: sineLevelCfg.initial ?? 0,
       pixelsForFullRange: sineLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelOscVolume(panelIndex, oscIndex, value),
+      onChange: value => {
+        this._updatePanelOscVolume(panelIndex, oscIndex, value);
+        if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+          oscillatorOSCSync.sendKnobChange(oscIndex, 2, value);
+        }
+      },
       getTooltipInfo: getLevelTooltipInfo(sineVpp)
     };
     
@@ -2428,7 +2452,12 @@ class App {
       max: sineSymmetryCfg.max ?? 1,
       initial: sineSymmetryCfg.initial ?? 0.5,
       pixelsForFullRange: sineSymmetryCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelSineSymmetry(panelIndex, oscIndex, value),
+      onChange: value => {
+        this._updatePanelSineSymmetry(panelIndex, oscIndex, value);
+        if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+          oscillatorOSCSync.sendKnobChange(oscIndex, 3, value);
+        }
+      },
       getTooltipInfo: (value) => {
         if (!showAudio()) return null;
         const offset = Math.round((value - 0.5) * 200);
@@ -2443,7 +2472,12 @@ class App {
       max: triangleLevelCfg.max ?? 1,
       initial: triangleLevelCfg.initial ?? 0,
       pixelsForFullRange: triangleLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelTriVolume(panelIndex, oscIndex, value),
+      onChange: value => {
+        this._updatePanelTriVolume(panelIndex, oscIndex, value);
+        if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+          oscillatorOSCSync.sendKnobChange(oscIndex, 4, value);
+        }
+      },
       getTooltipInfo: getLevelTooltipInfo(triangleVpp)
     };
     
@@ -2454,7 +2488,12 @@ class App {
       max: sawtoothLevelCfg.max ?? 1,
       initial: sawtoothLevelCfg.initial ?? 0,
       pixelsForFullRange: sawtoothLevelCfg.pixelsForFullRange ?? 900,
-      onChange: value => this._updatePanelSawVolume(panelIndex, oscIndex, value),
+      onChange: value => {
+        this._updatePanelSawVolume(panelIndex, oscIndex, value);
+        if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+          oscillatorOSCSync.sendKnobChange(oscIndex, 5, value);
+        }
+      },
       getTooltipInfo: getLevelTooltipInfo(sawtoothVpp)
     };
     
@@ -2511,7 +2550,12 @@ class App {
       initial: frequencyCfg.initial ?? 5,
       pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 10000,
       scaleDecimals: frequencyCfg.scaleDecimals ?? 3,
-      onChange: value => this._updatePanelOscFreq(panelIndex, oscIndex, value),
+      onChange: value => {
+        this._updatePanelOscFreq(panelIndex, oscIndex, value);
+        if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
+          oscillatorOSCSync.sendKnobChange(oscIndex, 6, value);
+        }
+      },
       getTooltipInfo: getFreqTooltipInfo
     };
     

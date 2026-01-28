@@ -343,6 +343,120 @@ onOscMessage(address, value) {
 
 ---
 
+## Integración con SuperCollider
+
+### Configuración en SynthiGME
+
+1. Abrir **Ajustes → OSC**
+2. Activar **OSC habilitado**
+3. En la sección SuperCollider:
+   - **Enviar a SuperCollider**: Activa el envío de mensajes a SC (127.0.0.1:57120)
+   - **Recibir desde SuperCollider**: Permite que SC controle SynthiGME
+
+### Código para SuperCollider
+
+#### Recibir mensajes de SynthiGME
+
+```supercollider
+// Monitor simple de mensajes OSC
+(
+thisProcess.removeOSCRecvFunc(~synthiGMEfunc);
+
+~synthiGMEfunc = { |msg, time, addr|
+    var path = msg[0].asString;
+    if(path.contains("SynthiGME")) {
+        "% → % %".format(time.round(0.01), msg[0], msg[1..]).postln;
+    };
+};
+
+thisProcess.addOSCRecvFunc(~synthiGMEfunc);
+"═══ SynthiGME Monitor activo (puerto %) ═══".format(NetAddr.langPort).postln;
+)
+
+// Para detener:
+// thisProcess.removeOSCRecvFunc(~synthiGMEfunc);
+```
+
+#### Monitor detallado
+
+```supercollider
+(
+thisProcess.removeOSCRecvFunc(~synthiGMEfunc);
+
+~synthiGMEfunc = { |msg, time, addr|
+    var path = msg[0].asString;
+    if(path.contains("SynthiGME")) {
+        var parts = path.split($/);
+        var module = parts[2] ? "?";
+        var param = parts[3] ? "?";
+        var value = msg[1];
+        
+        "% | %-12s %-15s = %".format(
+            time.round(0.01),
+            module,
+            param,
+            value.round(0.001)
+        ).postln;
+    };
+};
+
+thisProcess.addOSCRecvFunc(~synthiGMEfunc);
+"═══════════════════════════════════════════════".postln;
+"  SynthiGME OSC Monitor activo".postln;
+"  Puerto: %".format(NetAddr.langPort).postln;
+"═══════════════════════════════════════════════".postln;
+)
+```
+
+#### Enviar mensajes a SynthiGME
+
+SynthiGME escucha en el grupo multicast `239.255.0.1:57121`:
+
+```supercollider
+// Crear NetAddr para multicast
+~synthi = NetAddr("239.255.0.1", 57121);
+
+// Ejemplos de control de osciladores
+~synthi.sendMsg('/SynthiGME/osc1/frequency', 5.0);
+~synthi.sendMsg('/SynthiGME/osc1/sinelevel', 7.5);
+~synthi.sendMsg('/SynthiGME/osc1/range', "hi");
+
+// Controlar filtro
+~synthi.sendMsg('/SynthiGME/filter1/frequency', 3.0);
+~synthi.sendMsg('/SynthiGME/filter1/response', 8.0);
+
+// Controlar reverb
+~synthi.sendMsg('/SynthiGME/reverb/mix', 4.0);
+~synthi.sendMsg('/SynthiGME/reverb/level', 6.0);
+```
+
+#### Automatización desde SC
+
+```supercollider
+// Ejemplo: LFO controlando frecuencia del oscilador 1
+(
+~synthi = NetAddr("239.255.0.1", 57121);
+
+fork {
+    var freq = 0;
+    loop {
+        freq = (sin(thisThread.seconds * 0.5) + 1) * 5; // 0-10
+        ~synthi.sendMsg('/SynthiGME/osc1/frequency', freq);
+        0.05.wait;
+    };
+};
+)
+```
+
+### Notas técnicas
+
+- **Puerto SC por defecto**: 57120 (sclang recibe aquí)
+- **Puerto SynthiGME**: 57121 (grupo multicast)
+- Los valores OSC usan escala real (0-10, -5 a 5), no normalizada (0-1)
+- SC debe enviar al grupo multicast para que SynthiGME reciba
+
+---
+
 ## Testing con SuperCollider
 
 Para verificar que la implementación funciona, usar este código en SuperCollider:

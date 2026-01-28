@@ -22,13 +22,14 @@ describe('OSCServer', () => {
       const server = new OSCServer();
       assert.strictEqual(server.config.port, 57121);
       assert.strictEqual(server.config.multicastGroup, '239.255.0.1');
-      assert.strictEqual(server.config.prefix, '/SynthiGME/');
+      // El prefijo se almacena sin barras, se formatean al enviar
+      assert.strictEqual(server.config.prefix, 'SynthiGME');
     });
     
     it('debe permitir configuración personalizada', () => {
-      const server = new OSCServer({ port: 9000, prefix: '/Test/' });
+      const server = new OSCServer({ port: 9000, prefix: 'Test' });
       assert.strictEqual(server.config.port, 9000);
-      assert.strictEqual(server.config.prefix, '/Test/');
+      assert.strictEqual(server.config.prefix, 'Test');
       // Valores no especificados mantienen default
       assert.strictEqual(server.config.multicastGroup, '239.255.0.1');
     });

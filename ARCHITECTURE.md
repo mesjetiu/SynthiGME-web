@@ -42,6 +42,7 @@ src/
         ├── i18n/           # Sistema de internacionalización
         ├── utils/          # Utilidades (logging, audio, canvas, etc.)
         ├── worklets/       # AudioWorklet processors (síntesis en hilo de audio)
+        ├── osc/            # Comunicación OSC (Open Sound Control)
         └── panelBlueprints/# Blueprints (estructura) y Configs (parámetros)
 ```
 
@@ -2304,6 +2305,119 @@ Para builds firmados de macOS, usar CI/CD con GitHub Actions (ver README.md).
 | Acceso a archivos | API limitada | Completo (futuro) |
 | MIDI | Web MIDI API | Nativo (futuro) |
 | Audio | Depende del navegador | Chromium fijo |
+| **OSC** | No disponible | UDP multicast + SuperCollider |
+
+---
+
+## 13.2 Comunicación OSC (Electron)
+
+SynthiGME incluye soporte para **OSC (Open Sound Control)**, permitiendo comunicación peer-to-peer entre múltiples instancias y con aplicaciones externas como SuperCollider.
+
+> **Nota:** OSC solo está disponible en la versión Electron. La PWA requeriría un bridge WebSocket externo.
+
+### Arquitectura OSC
+
+```
+electron/
+├── oscServer.cjs     # Servidor UDP multicast (dgram)
+└── preload.cjs       # Expone oscAPI al renderer
+
+src/assets/js/osc/
+├── index.js              # Exports del módulo
+├── oscBridge.js          # Singleton que abstrae envío/recepción
+├── oscAddressMap.js      # Mapeo direcciones ↔ controles, conversión valores
+└── oscOscillatorSync.js  # Sincronización de 12 osciladores via OSC
+```
+
+### Protocolo
+
+| Parámetro | Valor |
+|-----------|-------|
+| Transporte | UDP multicast |
+| Puerto | 57121 (compatible SuperCollider) |
+| Grupo multicast | 239.255.0.1 |
+| Prefijo | `/SynthiGME/` (configurable) |
+
+### Flujo de datos
+
+```
+┌─────────────────┐                           ┌─────────────────┐
+│  Renderer       │◄── IPC (oscAPI) ──────────│  Main Process   │
+│  (oscBridge.js) │                           │  (oscServer.cjs)│
+└────────┬────────┘                           └────────┬────────┘
+         │                                             │
+         │ send('osc/1/freq', 5.0)                    │
+         └─────────────────────────────────────────────┤
+                                                       │ UDP Multicast
+                                              ┌────────▼────────┐
+                                              │ Red local       │
+                                              │ (239.255.0.1)   │
+                                              └────────┬────────┘
+                                                       │
+                        ┌──────────────────────────────┼──────────────────────────────┐
+                        ▼                              ▼                              ▼
+               ┌─────────────────┐            ┌─────────────────┐            ┌─────────────────┐
+               │  Otra instancia │            │  SuperCollider  │            │  Max/MSP, etc.  │
+               │  SynthiGME      │            │  (57120)        │            │                 │
+               └─────────────────┘            └─────────────────┘            └─────────────────┘
+```
+
+### Módulos sincronizados
+
+| Módulo | Parámetros | Estado |
+|--------|------------|--------|
+| **Osciladores (12)** | frequency, pulselevel, pulseshape, sinelevel, sinesymmetry, trianglelevel, sawtoothlevel, range | ✅ Implementado |
+| Filtros | — | ⏳ Planificado |
+| Noise | — | ⏳ Planificado |
+| Envelopes | — | ⏳ Planificado |
+| Matrices | — | ⏳ Planificado |
+
+### Configuración en UI
+
+Pestaña **Ajustes → OSC**:
+
+| Opción | Descripción |
+|--------|-------------|
+| Activar OSC | Inicia/detiene el servidor UDP |
+| Prefijo | Prefijo de direcciones (ej: `SynthiGME`) |
+| Modo | Peer (bidireccional), Master (solo envía), Slave (solo recibe) |
+| SuperCollider | Checkboxes para enviar/recibir de SC (127.0.0.1:57120) |
+| Targets unicast | Lista de IPs adicionales para apps sin multicast |
+| Log flotante | Ventana de debug con mensajes en tiempo real |
+
+### Integración SuperCollider
+
+Ver [OSC.md](OSC.md) para:
+- Código SC listo para copiar/pegar
+- Ejemplos de monitor y control desde SC
+- Notas sobre puertos y escalas de valores
+
+### Mecanismo anti-loop
+
+Para evitar bucles infinitos cuando se recibe un mensaje OSC:
+
+```javascript
+// oscOscillatorSync.js
+_handleIncomingKnob(oscIndex, param, value) {
+  if (this._ignoreOSCUpdates) return;  // Flag activo
+  
+  this._ignoreOSCUpdates = true;
+  try {
+    // Aplicar cambio a UI y audio
+    oscUI.knobs[knobIndex].setValue(uiValue);
+  } finally {
+    setTimeout(() => this._ignoreOSCUpdates = false, 10);
+  }
+}
+```
+
+### Conversión de valores
+
+| Tipo UI | Rango UI | Rango OSC | Ejemplo |
+|---------|----------|-----------|---------|
+| Level | 0–1 | 0–10 | sinelevel: 0.5 → 5.0 |
+| Bipolar | 0–1 | -5–5 | sinesymmetry: 0.5 → 0.0 |
+| Range | 'hi'/'lo' | 'hi'/'lo' | Sin conversión |
 
 ### Flujo de desarrollo
 

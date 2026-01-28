@@ -26,6 +26,7 @@ La versión compilada está disponible en GitHub Pages: **https://mesjetiu.githu
 | **Emulación de voltajes** | Emula el modelo eléctrico del Synthi 100 Cuenca/Datanomics (1982): soft clipping con tanh(), tolerancia de pines, deriva térmica. |
 | **Paneles flotantes (PiP)** | Extrae paneles a ventanas independientes flotantes. Útil para trabajar con múltiples paneles simultáneamente sin navegar. Menú en quickbar y click derecho. Estado persistente. |
 | **Joystick** | Control X-Y integrado en panel 2. |
+| **OSC (Electron)** | Comunicación OSC peer-to-peer entre instancias. Sincronización de osciladores en tiempo real. Integración con SuperCollider. Ver [OSC.md](OSC.md). |
 
 ### Atajos de teclado
 

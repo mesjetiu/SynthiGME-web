@@ -18,7 +18,7 @@ El protocolo OSC permite la comunicación entre múltiples instancias de SynthiG
 ```
 ┌─────────────────┐     UDP Multicast      ┌─────────────────┐
 │  Electron A     │◄─────────────────────► │  Electron B     │
-│  ┌───────────┐  │     239.255.0.1:57121  │  ┌───────────┐  │
+│  ┌───────────┐  │     224.0.1.1:57121    │  ┌───────────┐  │
 │  │ Renderer  │  │                        │  │ Renderer  │  │
 │  │ (UI/Audio)│  │                        │  │ (UI/Audio)│  │
 │  └─────┬─────┘  │                        │  └─────┬─────┘  │
@@ -65,7 +65,7 @@ El protocolo OSC permite la comunicación entre múltiples instancias de SynthiG
 | Parámetro | Valor por defecto | Descripción |
 |-----------|-------------------|-------------|
 | `port` | `57121` | Puerto UDP para OSC |
-| `multicastGroup` | `239.255.0.1` | Grupo multicast IPv4 |
+| `multicastGroup` | `224.0.1.1` | Grupo multicast IPv4 (RFC 2365 administratively scoped) |
 | `prefix` | `/SynthiGME/` | Prefijo de direcciones OSC |
 
 ### Opciones de usuario
@@ -410,11 +410,11 @@ thisProcess.addOSCRecvFunc(~synthiGMEfunc);
 
 #### Enviar mensajes a SynthiGME
 
-SynthiGME escucha en el grupo multicast `239.255.0.1:57121`:
+SynthiGME escucha en el grupo multicast `224.0.1.1:57121`:
 
 ```supercollider
 // Crear NetAddr para multicast
-~synthi = NetAddr("239.255.0.1", 57121);
+~synthi = NetAddr("224.0.1.1", 57121);
 
 // Ejemplos de control de osciladores
 ~synthi.sendMsg('/SynthiGME/osc1/frequency', 5.0);
@@ -435,7 +435,7 @@ SynthiGME escucha en el grupo multicast `239.255.0.1:57121`:
 ```supercollider
 // Ejemplo: LFO controlando frecuencia del oscilador 1
 (
-~synthi = NetAddr("239.255.0.1", 57121);
+~synthi = NetAddr("224.0.1.1", 57121);
 
 fork {
     var freq = 0;
@@ -468,7 +468,7 @@ OSCdef(\synthiTest, { |msg, time, addr|
 }, '/SynthiGME/osc/1/frequency');
 
 // Enviar mensaje de prueba a SynthiGME-web
-n = NetAddr("239.255.0.1", 57121);
+n = NetAddr("224.0.1.1", 57121);
 n.sendMsg('/SynthiGME/osc/1/frequency', 5.0);
 ```
 

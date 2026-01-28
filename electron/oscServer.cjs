@@ -18,8 +18,8 @@ const dgram = require('dgram');
 const DEFAULT_CONFIG = {
   /** Puerto UDP para OSC (compatible con SuperCollider) */
   port: 57121,
-  /** Grupo multicast IPv4 para descubrimiento automático */
-  multicastGroup: '239.255.0.1',
+  /** Grupo multicast IPv4 - 224.0.1.1 es estándar administratively scoped */
+  multicastGroup: '224.0.1.1',
   /** Prefijo de direcciones OSC */
   prefix: 'SynthiGME',
   /** Dirección de binding (todas las interfaces) */
@@ -43,7 +43,7 @@ class OSCServer {
    * Crea una nueva instancia del servidor OSC
    * @param {Object} config - Configuración opcional
    * @param {number} [config.port=57121] - Puerto UDP
-   * @param {string} [config.multicastGroup='239.255.0.1'] - Grupo multicast
+   * @param {string} [config.multicastGroup='224.0.1.1'] - Grupo multicast (RFC 2365: administratively scoped)
    * @param {string} [config.prefix='/SynthiGME/'] - Prefijo de direcciones
    */
   constructor(config = {}) {

@@ -2335,7 +2335,7 @@ src/assets/js/osc/
 |-----------|-------|
 | Transporte | UDP multicast |
 | Puerto | 57121 (compatible SuperCollider) |
-| Grupo multicast | 239.255.0.1 |
+| Grupo multicast | 224.0.1.1 (RFC 2365 administratively scoped) |
 | Prefijo | `/SynthiGME/` (configurable) |
 
 ### Flujo de datos
@@ -2351,7 +2351,7 @@ src/assets/js/osc/
                                                        │ UDP Multicast
                                               ┌────────▼────────┐
                                               │ Red local       │
-                                              │ (239.255.0.1)   │
+                                              │ (224.0.1.1)     │
                                               └────────┬────────┘
                                                        │
                         ┌──────────────────────────────┼──────────────────────────────┐

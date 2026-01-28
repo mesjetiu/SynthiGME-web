@@ -21,7 +21,7 @@ describe('OSCServer', () => {
     it('debe usar configuración por defecto', () => {
       const server = new OSCServer();
       assert.strictEqual(server.config.port, 57121);
-      assert.strictEqual(server.config.multicastGroup, '239.255.0.1');
+      assert.strictEqual(server.config.multicastGroup, '224.0.1.1');
       // El prefijo se almacena sin barras, se formatean al enviar
       assert.strictEqual(server.config.prefix, 'SynthiGME');
     });
@@ -31,7 +31,7 @@ describe('OSCServer', () => {
       assert.strictEqual(server.config.port, 9000);
       assert.strictEqual(server.config.prefix, 'Test');
       // Valores no especificados mantienen default
-      assert.strictEqual(server.config.multicastGroup, '239.255.0.1');
+      assert.strictEqual(server.config.multicastGroup, '224.0.1.1');
     });
   });
 

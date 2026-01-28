@@ -85,32 +85,13 @@ async function computeCacheVersion() {
   const pkgRaw = await fs.readFile(packageJsonPath, 'utf8');
   const { version = '0.0.0' } = JSON.parse(pkgRaw);
 
-  const swDest = path.join(docsDir, 'sw.js');
-  let previous = null;
-  try {
-    const prevContent = await fs.readFile(swDest, 'utf8');
-    const match = prevContent.match(/const\s+CACHE_VERSION\s*=\s*'([^']+)';/);
-    if (match) {
-      previous = match[1];
-    }
-  } catch {
-    // No previous docs/sw.js (first build or cleaned repo)
-  }
-
-  let cacheVersion;
-  if (!previous) {
-    // First time for this version: start at -0
-    cacheVersion = `${version}-0`;
-  } else {
-    const [prevBase, prevSuffixRaw] = previous.split('-');
-    if (prevBase === version) {
-      const prevSuffixNum = Number.isFinite(Number(prevSuffixRaw)) ? Number(prevSuffixRaw) : 0;
-      cacheVersion = `${version}-${prevSuffixNum + 1}`;
-    } else {
-      // Package version changed → reset suffix
-      cacheVersion = `${version}-0`;
-    }
-  }
+  // Usar fecha y hora como sufijo en lugar de contador consecutivo
+  // Formato: YYYYMMDD.HHmmss (ej: 20260128.143052)
+  const now = new Date();
+  const pad = (n, len = 2) => String(n).padStart(len, '0');
+  const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  
+  const cacheVersion = `${version}-${timestamp}`;
 
   return { version, cacheVersion };
 }
@@ -194,6 +175,10 @@ async function run() {
 
   console.log('Generating service worker …');
   await buildServiceWorker(cacheVersion);
+
+  // Guardar información del build para que Electron pueda usarla
+  const buildInfo = { version, cacheVersion, timestamp: new Date().toISOString() };
+  await fs.writeFile(path.join(docsDir, 'build-info.json'), JSON.stringify(buildInfo, null, 2), 'utf8');
 
   console.log(`Build finished. Output available in docs/. CACHE_VERSION=${cacheVersion}`);
 }

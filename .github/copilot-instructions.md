@@ -41,3 +41,35 @@ La documentación del proyecto va en la **raíz**:
 - Vanilla JavaScript (sin frameworks de runtime)
 - Web Audio API + AudioWorklet para síntesis
 - JSDoc para documentación inline
+
+## Commits
+
+Cuando el usuario pida hacer commits:
+
+### Idioma y formato
+- **Siempre en español**
+- Mensaje principal breve pero descriptivo
+- Cuerpo del mensaje con explicación exhaustiva de lo hecho
+- Usar formato convencional: `tipo(ámbito): descripción`
+  - Tipos: `feat`, `fix`, `refactor`, `docs`, `build`, `test`, `chore`
+
+### División de commits
+- Si se han hecho **múltiples cambios independientes**, dividir en varios commits
+- Cada commit debe ser atómico: un cambio lógico por commit
+- Solo hacer un único commit si realmente es un solo cambio
+
+### Ejemplo de buen commit
+```
+feat(oscillator): añadir soporte para hard sync entre osciladores
+
+- Implementada entrada de sincronización en synthOscillator.worklet.js
+- El flanco positivo del master resetea la fase del slave
+- Expuesto en matriz de audio (Panel 5, columnas 24-35)
+- Conexión directa sin GainNode intermedio para mínima latencia
+- Añadidos tests de audio para verificar el comportamiento
+```
+
+### Carpetas de build
+- `docs/` → Solo para GitHub Pages (PWA web)
+- `dist-app/` → Solo para Electron (no se sube a git)
+- `dist-electron/` → Instaladores generados (no se sube a git)

@@ -20,8 +20,8 @@
  * @constant {Object}
  */
 const DEFAULT_CONFIG = {
-  /** Prefijo para direcciones OSC */
-  prefix: '/SynthiGME/',
+  /** Prefijo para direcciones OSC (sin barras, se añaden automáticamente) */
+  prefix: 'SynthiGME',
   /** Habilitar envío de mensajes */
   sendEnabled: true,
   /** Habilitar recepción de mensajes */
@@ -134,6 +134,18 @@ class OSCBridge {
   }
 
   /**
+   * Obtiene el prefijo formateado con barras para construir direcciones OSC
+   * El usuario configura 'SynthiGME' pero las direcciones usan '/SynthiGME/'
+   * @returns {string}
+   */
+  getFormattedPrefix() {
+    const raw = this.config.prefix || 'SynthiGME';
+    // Asegurar formato /prefix/
+    const clean = raw.replace(/^\/+|\/+$/g, ''); // Quitar barras existentes
+    return `/${clean}/`;
+  }
+
+  /**
    * Obtiene el estado actual de la conexión
    * @returns {Promise<Object>}
    */
@@ -169,8 +181,9 @@ class OSCBridge {
 
     // Construir dirección completa
     let fullAddress = address;
-    if (!options.skipPrefix && !address.startsWith(this.config.prefix)) {
-      fullAddress = this.config.prefix + address;
+    const prefix = this.getFormattedPrefix();
+    if (!options.skipPrefix && !address.startsWith(prefix)) {
+      fullAddress = prefix + address;
     }
 
     // Normalizar valor a array
@@ -213,7 +226,7 @@ class OSCBridge {
     // Añadir prefijo si no está presente
     let fullAddress = address;
     if (!address.startsWith('/')) {
-      fullAddress = this.config.prefix + address;
+      fullAddress = this.getFormattedPrefix() + address;
     }
 
     if (!this._listeners.has(fullAddress)) {

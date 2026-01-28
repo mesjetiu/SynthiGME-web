@@ -17,8 +17,9 @@ Los archivos fuente están en `src/` y se copian/procesan a `docs/` durante el b
 ### Ubicación de Documentación
 
 La documentación del proyecto va en la **raíz**:
-- `README.md` - Documentación principal
-- `ARCHITECTURE.md` - Arquitectura del proyecto
+- `README.md` - Documentación para usuario final (no técnico)
+- `DEVELOPMENT.md` - Guía para desarrolladores (build, tests, scripts)
+- `ARCHITECTURE.md` - Arquitectura interna del proyecto
 - `CHANGELOG.md` - Historial de cambios
 - `OSC.md` - Documentación del protocolo OSC
 - `TODO.md` - Tareas pendientes

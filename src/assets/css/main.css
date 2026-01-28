@@ -3209,6 +3209,11 @@ small { color:#aaa; }
   resize: both;
 }
 
+/* IMPORTANTE: El atributo hidden no funciona con display:flex, hay que usar display:none explícitamente */
+.osc-log-window[hidden] {
+  display: none;
+}
+
 .osc-log-window.is-dragging {
   user-select: none;
   opacity: 0.9;

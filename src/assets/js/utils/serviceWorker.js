@@ -47,8 +47,15 @@ function notifyUpdateAvailable() {
 
 /**
  * Registra el Service Worker y gestiona actualizaciones.
+ * No se registra en entorno Electron (no necesita PWA).
  */
 export function registerServiceWorker() {
+  // En Electron no usar Service Worker - no es PWA
+  if (typeof window.oscAPI !== 'undefined') {
+    log.info('Entorno Electron detectado, saltando registro de Service Worker');
+    return;
+  }
+  
   if (!('serviceWorker' in navigator)) return;
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {

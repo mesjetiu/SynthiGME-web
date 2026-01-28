@@ -3202,7 +3202,7 @@ small { color:#aaa; }
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  z-index: 3500;
+  z-index: 1900; /* Por debajo de modales (2000) */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 0.8rem;
   overflow: hidden;

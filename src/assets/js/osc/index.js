@@ -35,5 +35,12 @@ export {
   MODULE_PARAMETERS
 } from './oscAddressMap.js';
 
+// Sincronización de osciladores
+export {
+  oscillatorOSCSync,
+  KNOB_INDEX_TO_OSC_KEY,
+  OSC_KEY_TO_KNOB_INDEX
+} from './oscOscillatorSync.js';
+
 // Re-exportar oscBridge como default para uso simplificado
 export { default } from './oscBridge.js';

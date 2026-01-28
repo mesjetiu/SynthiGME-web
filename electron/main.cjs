@@ -71,7 +71,14 @@ function startServer(docsPath) {
       
       try {
         const content = readFileSync(filePath);
-        res.writeHead(200, { 'Content-Type': mimeType });
+        // Headers para deshabilitar caché de Chromium
+        // Esto asegura que siempre se carguen los archivos del paquete actual
+        res.writeHead(200, { 
+          'Content-Type': mimeType,
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        });
         res.end(content);
       } catch (err) {
         res.writeHead(500);
@@ -104,6 +111,11 @@ function startServer(docsPath) {
  * Crea la ventana principal de la aplicación
  */
 async function createWindow() {
+  // Limpiar caché HTTP de Chromium al iniciar
+  // Esto asegura que siempre se cargue la versión actual del paquete
+  const { session } = require('electron');
+  await session.defaultSession.clearCache();
+  
   // Iniciar servidor local
   const docsPath = path.join(__dirname, '../docs');
   const port = await startServer(docsPath);

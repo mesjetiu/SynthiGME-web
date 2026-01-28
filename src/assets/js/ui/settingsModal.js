@@ -502,6 +502,9 @@ export class SettingsModal {
     // Habilitar OSC
     container.appendChild(this._createOSCEnableSection());
     
+    // SuperCollider
+    container.appendChild(this._createOSCSuperColliderSection());
+    
     // Modo de comunicación
     container.appendChild(this._createOSCModeSection());
     
@@ -651,6 +654,101 @@ export class SettingsModal {
       warning.textContent = t('settings.osc.electronOnly');
       section.appendChild(warning);
     }
+    
+    return section;
+  }
+  
+  /**
+   * Sección: SuperCollider
+   */
+  _createOSCSuperColliderSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.osc.supercollider');
+    section.appendChild(title);
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    const sendEnabled = localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND) === 'true';
+    const receiveEnabled = localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_RECEIVE) === 'true';
+    
+    // === Enviar a SC ===
+    const sendRow = document.createElement('div');
+    sendRow.className = 'settings-row';
+    
+    const sendLabel = document.createElement('label');
+    sendLabel.className = 'settings-row__label';
+    sendLabel.htmlFor = 'osc-sc-send-checkbox';
+    sendLabel.textContent = t('settings.osc.supercollider.send');
+    sendRow.appendChild(sendLabel);
+    
+    const sendCheckbox = document.createElement('input');
+    sendCheckbox.type = 'checkbox';
+    sendCheckbox.id = 'osc-sc-send-checkbox';
+    sendCheckbox.className = 'settings-checkbox';
+    sendCheckbox.checked = sendEnabled;
+    sendCheckbox.disabled = !isElectron;
+    
+    sendCheckbox.addEventListener('change', async () => {
+      const enabled = sendCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND, enabled);
+      
+      const SC_HOST = '127.0.0.1';
+      const SC_PORT = 57120;
+      
+      if (enabled) {
+        await this._addOSCTarget(SC_HOST, SC_PORT);
+      } else {
+        await this._removeOSCTarget(SC_HOST, SC_PORT);
+      }
+      
+      // Refrescar lista de targets si está visible
+      const targetsList = document.getElementById('osc-targets-list');
+      if (targetsList) {
+        this._loadOSCTargets(targetsList);
+      }
+    });
+    
+    sendRow.appendChild(sendCheckbox);
+    section.appendChild(sendRow);
+    
+    const sendDesc = document.createElement('p');
+    sendDesc.className = 'settings-section__description';
+    sendDesc.textContent = t('settings.osc.supercollider.send.description');
+    section.appendChild(sendDesc);
+    
+    // === Recibir de SC ===
+    const receiveRow = document.createElement('div');
+    receiveRow.className = 'settings-row';
+    
+    const receiveLabel = document.createElement('label');
+    receiveLabel.className = 'settings-row__label';
+    receiveLabel.htmlFor = 'osc-sc-receive-checkbox';
+    receiveLabel.textContent = t('settings.osc.supercollider.receive');
+    receiveRow.appendChild(receiveLabel);
+    
+    const receiveCheckbox = document.createElement('input');
+    receiveCheckbox.type = 'checkbox';
+    receiveCheckbox.id = 'osc-sc-receive-checkbox';
+    receiveCheckbox.className = 'settings-checkbox';
+    receiveCheckbox.checked = receiveEnabled;
+    receiveCheckbox.disabled = !isElectron;
+    
+    receiveCheckbox.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_RECEIVE, receiveCheckbox.checked);
+      // La recepción ya funciona vía multicast, solo guardamos la preferencia
+      // para futura configuración (ej: filtrar mensajes de SC)
+    });
+    
+    receiveRow.appendChild(receiveCheckbox);
+    section.appendChild(receiveRow);
+    
+    const receiveDesc = document.createElement('p');
+    receiveDesc.className = 'settings-section__description';
+    receiveDesc.textContent = t('settings.osc.supercollider.receive.description');
+    section.appendChild(receiveDesc);
     
     return section;
   }
@@ -966,6 +1064,12 @@ export class SettingsModal {
       const targets = JSON.parse(localStorage.getItem(STORAGE_KEYS.OSC_UNICAST_TARGETS) || '[]');
       for (const target of targets) {
         await window.oscAPI.addTarget(target.ip, target.port);
+      }
+      
+      // Restaurar SuperCollider si estaba activo
+      const scSendEnabled = localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND) === 'true';
+      if (scSendEnabled) {
+        await window.oscAPI.addTarget('127.0.0.1', 57120);
       }
     } catch (error) {
       console.error('Error starting OSC:', error);

@@ -168,6 +168,26 @@ settings.osc.prefix.description:
   en: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
   es: Todos los mensajes OSC usan este prefijo. Solo las instancias con el mismo prefijo se sincronizarán.
 
+settings.osc.supercollider:
+  en: SuperCollider
+  es: SuperCollider
+
+settings.osc.supercollider.send:
+  en: Send to SuperCollider
+  es: Enviar a SuperCollider
+
+settings.osc.supercollider.send.description:
+  en: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
+  es: Envía mensajes OSC a SuperCollider en localhost (127.0.0.1:57120).
+
+settings.osc.supercollider.receive:
+  en: Receive from SuperCollider
+  es: Recibir desde SuperCollider
+
+settings.osc.supercollider.receive.description:
+  en: Receives OSC messages from SuperCollider to control SynthiGME.
+  es: Recibe mensajes OSC desde SuperCollider para controlar SynthiGME.
+
 settings.osc.targets:
   en: Unicast Targets
   es: Destinos unicast

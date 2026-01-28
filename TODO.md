@@ -88,6 +88,7 @@ podría ser significativo en dispositivos móviles.
 
 - los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.
 
+- Invongruencia en estado inicial en reiniciar (0) y inicio de app en freq (5).
 
 ## Documentación 
 

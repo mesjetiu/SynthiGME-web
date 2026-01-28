@@ -35,6 +35,7 @@ out/
 
 # Electron build outputs
 dist-electron/
+dist-app/
 
 # TypeScript / tooling artifacts
 *.tsbuildinfo

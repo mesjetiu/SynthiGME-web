@@ -54,7 +54,7 @@
       "output": "dist-electron"
     },
     "files": [
-      "docs/**/*",
+      "dist-app/**/*",
       "electron/**/*"
     ],
     "linux": {

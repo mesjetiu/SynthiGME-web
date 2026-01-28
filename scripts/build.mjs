@@ -7,17 +7,30 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const srcDir = path.join(projectRoot, 'src');
-const docsDir = path.join(projectRoot, 'docs');
 const packageJsonPath = path.join(projectRoot, 'package.json');
 const bundledAssetDirs = new Set(['js', 'css']);
+
+// Carpeta destino configurable via argumento --outdir=<path>
+// Por defecto: docs/ (para GitHub Pages)
+function getOutputDir() {
+  const args = process.argv.slice(2);
+  const outdirArg = args.find(arg => arg.startsWith('--outdir='));
+  if (outdirArg) {
+    const dir = outdirArg.split('=')[1];
+    return path.isAbsolute(dir) ? dir : path.join(projectRoot, dir);
+  }
+  return path.join(projectRoot, 'docs');
+}
+
+const outDir = getOutputDir();
 
 async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
-async function cleanDocs() {
-  await fs.rm(docsDir, { recursive: true, force: true });
-  await ensureDir(docsDir);
+async function cleanOutDir() {
+  await fs.rm(outDir, { recursive: true, force: true });
+  await ensureDir(outDir);
 }
 
 async function copyFile(src, dest) {
@@ -26,11 +39,11 @@ async function copyFile(src, dest) {
 }
 
 async function copyHtml() {
-  await copyFile(path.join(srcDir, 'index.html'), path.join(docsDir, 'index.html'));
+  await copyFile(path.join(srcDir, 'index.html'), path.join(outDir, 'index.html'));
 }
 
 async function copyManifest() {
-  await copyFile(path.join(srcDir, 'manifest.webmanifest'), path.join(docsDir, 'manifest.webmanifest'));
+  await copyFile(path.join(srcDir, 'manifest.webmanifest'), path.join(outDir, 'manifest.webmanifest'));
 }
 
 async function copyDirectory(src, dest) {
@@ -56,7 +69,7 @@ async function copyStaticAssets() {
         return;
       }
       const srcPath = path.join(assetsDir, entry.name);
-      const destPath = path.join(docsDir, 'assets', entry.name);
+      const destPath = path.join(outDir, 'assets', entry.name);
       if (entry.isDirectory()) {
         await copyDirectory(srcPath, destPath);
       } else if (entry.isFile()) {
@@ -73,7 +86,7 @@ async function buildServiceWorker(version) {
   try {
     const swContent = await fs.readFile(swSrc, 'utf8');
     const replaced = swContent.replace(/__BUILD_VERSION__/g, version);
-    const swDest = path.join(docsDir, 'sw.js');
+    const swDest = path.join(outDir, 'sw.js');
     await ensureDir(path.dirname(swDest));
     await fs.writeFile(swDest, replaced, 'utf8');
   } catch {
@@ -105,7 +118,7 @@ async function buildJs(cacheVersion) {
     platform: 'browser',
     format: 'esm',
     target: ['es2020'],
-    outdir: path.join(docsDir, 'assets/js'),
+    outdir: path.join(outDir, 'assets/js'),
     define: {
       __BUILD_VERSION__: JSON.stringify(cacheVersion),
       __LOG_LEVEL__: '1' // LogLevel.ERROR en producción
@@ -134,14 +147,14 @@ async function buildCss() {
     bundle: true,
     minify: true,
     sourcemap: false,
-    outdir: path.join(docsDir, 'assets/css'),
+    outdir: path.join(outDir, 'assets/css'),
     plugins: [externalizePanelSvgs]
   });
 }
 
 async function copyWorklets() {
   const workletsDir = path.join(srcDir, 'assets/js/worklets');
-  const destDir = path.join(docsDir, 'assets/js/worklets');
+  const destDir = path.join(outDir, 'assets/js/worklets');
   try {
     await copyDirectory(workletsDir, destDir);
   } catch {
@@ -150,12 +163,11 @@ async function copyWorklets() {
 }
 
 async function run() {
-  // Compute cache version BEFORE cleaning docs/, so we can
-  // inspect the previous docs/sw.js from the last build.
   const { version, cacheVersion } = await computeCacheVersion();
+  const outDirName = path.relative(projectRoot, outDir);
 
-  console.log('Cleaning docs/ …');
-  await cleanDocs();
+  console.log(`Cleaning ${outDirName}/ …`);
+  await cleanOutDir();
 
   console.log('Building JS bundle …');
   await buildJs(cacheVersion);
@@ -176,11 +188,11 @@ async function run() {
   console.log('Generating service worker …');
   await buildServiceWorker(cacheVersion);
 
-  // Guardar información del build para que Electron pueda usarla
+  // Guardar información del build
   const buildInfo = { version, cacheVersion, timestamp: new Date().toISOString() };
-  await fs.writeFile(path.join(docsDir, 'build-info.json'), JSON.stringify(buildInfo, null, 2), 'utf8');
+  await fs.writeFile(path.join(outDir, 'build-info.json'), JSON.stringify(buildInfo, null, 2), 'utf8');
 
-  console.log(`Build finished. Output available in docs/. CACHE_VERSION=${cacheVersion}`);
+  console.log(`Build finished. Output in ${outDirName}/. BUILD_VERSION=${cacheVersion}`);
 }
 
 run().catch(err => {

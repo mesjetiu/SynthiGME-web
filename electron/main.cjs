@@ -2,7 +2,7 @@
  * Electron Main Process
  * 
  * Punto de entrada para la aplicación de escritorio Synthi GME.
- * Carga la aplicación web desde docs/index.html con máxima compatibilidad
+ * Carga la aplicación web desde dist-app/index.html con máxima compatibilidad
  * de Web Audio API y AudioWorklet.
  */
 
@@ -128,8 +128,8 @@ async function createWindow() {
   });
   
   // Iniciar servidor local
-  const docsPath = path.join(__dirname, '../docs');
-  const port = await startServer(docsPath);
+  const appPath = path.join(__dirname, '../dist-app');
+  const port = await startServer(appPath);
   
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -137,7 +137,7 @@ async function createWindow() {
     minWidth: 1024,
     minHeight: 600,
     title: 'Synthi GME',
-    icon: path.join(__dirname, '../docs/assets/pwa/icons/icon-512x512.png'),
+    icon: path.join(__dirname, '../dist-app/assets/pwa/icons/icon-512x512.png'),
     webPreferences: {
       // Seguridad: deshabilitar integración con Node.js en el renderer
       nodeIntegration: false,

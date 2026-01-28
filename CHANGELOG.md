@@ -9,6 +9,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 - **Soporte OSC (Open Sound Control)**: Servidor integrado en Electron para comunicación con SuperCollider, Max/MSP, etc. Incluye ventana de log en tiempo real, configuración en Ajustes y desactivado por defecto.
+- **Sincronización OSC de osciladores**: Los 12 osciladores del Panel 3 envían/reciben mensajes OSC para todos sus parámetros (frequency, levels, shapes) y switch HI/LO. Permite control remoto peer-to-peer.
 - **Aplicación de escritorio con Electron**: Empaquetado nativo para Linux (AppImage) y Windows (NSIS + portable). Menú nativo, iconos personalizados, persistencia completa de datos y nombre "SynthiGME" en mezcladores del sistema.
 - **Emulación completa del sistema de voltajes Synthi 100**: 8 tipos de pines de matriz con resistencias y ganancias reales según documentación Datanomics 1982. Menú contextual para seleccionar tipo de pin y tooltips con información técnica.
 - **Emulación DSP del hardware Synthi 100**: Inercia térmica (Thermal Slew), saturación híbrida de raíles ±12V, filtrado RC por pin de matriz, soft clipping en CV y modelo de frecuencia CEM 3340 con escala 1V/Oct.

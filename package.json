@@ -12,22 +12,27 @@
     "test:audio:debug": "npx playwright test --config=tests/audio/playwright.config.js --debug",
     "test:all": "node scripts/test-all.mjs",
     "pretest:require": "node scripts/run-tests.mjs --require-pass",
-    "build": "node scripts/run-tests.mjs --require-pass && npm run build:i18n && node scripts/build.mjs",
-    "build:skip-tests": "npm run build:i18n && node scripts/build.mjs",
-    "build:all": "node scripts/run-tests.mjs --require-pass && npm run electron:build:all",
+    
+    "dev": "npm run build:i18n && electron .",
+    "dev:web": "npm run build:i18n && node scripts/build.mjs && echo 'Abre docs/index.html en navegador'",
+    
     "build:i18n": "node scripts/build-i18n.mjs",
+    "build:web": "npm run build:i18n && node scripts/build.mjs",
+    "build:web:test": "node scripts/run-tests.mjs --require-pass && npm run build:web",
+    "build:electron": "npm run build:web && node scripts/electron-build.mjs",
+    "build:electron:linux": "npm run build:web && node scripts/electron-build.mjs --linux",
+    "build:electron:win": "npm run build:web && node scripts/electron-build.mjs --win",
+    "build:electron:all": "npm run build:web && node scripts/electron-build.mjs --linux --win",
+    "build:electron:test": "node scripts/run-tests.mjs --require-pass && npm run build:electron",
+    "build:all": "node scripts/run-tests.mjs --require-pass && npm run build:electron:all",
+    
     "count-lines": "./scripts/count-lines.sh",
     "optimize:panel-svg": "node scripts/tools/optimize-panel-svg.mjs",
-    "version": "npm run build:skip-tests && git add -A",
+    "version": "npm run build:web && git add -A",
     "release:patch": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version patch --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:minor": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version minor --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:major": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version major --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
-    "postversion": "printf '\nRecuerda ejecutar git push origin main && git push origin --tags\n'",
-    "electron:dev": "npm run build:i18n && electron .",
-    "electron:build": "node scripts/electron-build.mjs",
-    "electron:build:linux": "node scripts/electron-build.mjs --linux",
-    "electron:build:win": "node scripts/electron-build.mjs --win",
-    "electron:build:all": "node scripts/electron-build.mjs --linux --win"
+    "postversion": "printf '\nRecuerda ejecutar git push origin main && git push origin --tags\n'"
   },
   "repository": {
     "type": "git",

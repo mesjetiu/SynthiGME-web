@@ -32,11 +32,28 @@ Esto instala `esbuild` (bundler/minificador) y las dependencias de desarrollo (e
 
 ## Flujo de trabajo
 
+### Desarrollo diario
+
+Para desarrollo iterativo, usa los comandos rápidos (sin tests):
+
+```bash
+# Desarrollo Electron (OSC, IPC, audio nativo)
+npm run dev
+
+# Desarrollo PWA web
+npm run dev:web
+```
+
 ### Compilación Web (PWA)
 
-Para generar la versión web en `docs/`:
+Genera la versión web en `docs/` para GitHub Pages:
+
 ```bash
-npm run build
+# Sin tests (desarrollo)
+npm run build:web
+
+# Con tests (antes de commit)
+npm run build:web:test
 ```
 
 Pasos que realiza este script (`scripts/build.mjs`):
@@ -49,22 +66,18 @@ Pasos que realiza este script (`scripts/build.mjs`):
 
 Electron utiliza su propia carpeta de salida `dist-app/` y genera instaladores en `dist-electron/`.
 
-**Modo desarrollo:**
-```bash
-npm run electron:dev
-```
-Ejecuta la aplicación de escritorio en caliente sin generar instaladores.
-
-**Generar instaladores:**
 ```bash
 # Linux (AppImage)
-npm run electron:build:linux
+npm run build:electron:linux
 
 # Windows (exe portable + instalador)
-npm run electron:build:win
+npm run build:electron:win
 
 # Ambos (Linux + Windows)
-npm run electron:build:all
+npm run build:electron:all
+
+# Build completo con tests
+npm run build:all
 ```
 Los artefactos se generan en `dist-electron/` con fecha y hora en el nombre.
 
@@ -100,14 +113,33 @@ npm run test:all
 
 Referencia rápida de comandos en `package.json`:
 
+### Desarrollo (rápidos, sin tests)
+
 | Comando | Descripción |
 |---------|-------------|
-| `npm run build` | Genera la web PWA en `docs/` (con tests). |
-| `npm run build:skip-tests` | Genera la web sin pasar tests. |
-| `npm run electron:dev` | Lanza entorno de desarrollo Electron. |
-| `npm run electron:build` | Genera instalador para el SO actual. |
-| `npm run release:patch` | 0.0.x -> Incrementa versión patch. |
-| `npm run release:minor` | 0.x.0 -> Incrementa versión minor. |
+| `npm run dev` | Lanza Electron en modo desarrollo |
+| `npm run dev:web` | Compila PWA y muestra instrucciones |
+| `npm run build:i18n` | Solo compila traducciones (YAML → JS) |
+
+### Build (generar artefactos)
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm run build:web` | PWA en `docs/` (sin tests) |
+| `npm run build:web:test` | PWA en `docs/` (con tests) |
+| `npm run build:electron` | Instalador SO actual (sin tests) |
+| `npm run build:electron:linux` | AppImage Linux |
+| `npm run build:electron:win` | Instalador Windows |
+| `npm run build:electron:all` | Linux + Windows |
+| `npm run build:all` | Todo + tests (para releases) |
+
+### Releases
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm run release:patch` | 0.0.x → Incrementa versión patch |
+| `npm run release:minor` | 0.x.0 → Incrementa versión minor |
+| `npm run release:major` | x.0.0 → Incrementa versión major |
 
 ## Versionado y Releases
 

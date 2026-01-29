@@ -71,28 +71,43 @@ feat(oscillator): añadir soporte para hard sync entre osciladores
 ```
 
 ### Carpetas de build
-- `docs/` → Solo para GitHub Pages (PWA web)
-- `dist-app/` → Solo para Electron (no se sube a git)
+- `docs/` → PWA web para GitHub Pages
+- `dist-app/` → App web compilada para Electron (no se sube a git)
 - `dist-electron/` → Instaladores generados (no se sube a git)
 
 ## Comandos de Build
 
-⚠️ **IMPORTANTE**: No usar `npm run build` para probar cambios - ejecuta todos los tests y tarda mucho.
+### Estructura de comandos
 
-### Comandos según el contexto:
+Los comandos siguen una nomenclatura consistente:
+- `dev` / `dev:web` → Desarrollo rápido (sin instaladores)
+- `build:web` → PWA web (genera docs/)
+- `build:electron` → App Electron (genera dist-electron/)
+- Sufijo `:test` → Incluye ejecución de tests
+- Sin sufijo → Sin tests (más rápido para desarrollo)
+
+### Comandos de desarrollo (uso diario):
 
 | Situación | Comando |
 |-----------|---------|
-| **Probar cambios web (PWA)** | `npm run build:skip-tests` |
-| **Probar cambios Electron** (OSC, IPC, etc.) | `npm run electron:dev` |
+| **Probar Electron** (OSC, IPC, etc.) | `npm run dev` |
+| **Probar PWA web** | `npm run dev:web` |
 | **Solo compilar traducciones** | `npm run build:i18n` |
-| **Build final con tests** | `npm run build` (solo antes de commit/release) |
-| **Build Electron Linux** | `npm run electron:build:linux` |
-| **Build Electron Windows** | `npm run electron:build:win` |
+
+### Comandos de build (generar artefactos):
+
+| Situación | Comando |
+|-----------|---------|
+| **Build PWA web** (sin tests) | `npm run build:web` |
+| **Build PWA web** (con tests) | `npm run build:web:test` |
+| **Build Electron** (sin tests) | `npm run build:electron` |
+| **Build Electron Linux** | `npm run build:electron:linux` |
+| **Build Electron Windows** | `npm run build:electron:win` |
+| **Build todo + tests** | `npm run build:all` |
 
 ### Regla general:
-- Para desarrollo iterativo: usar comandos con `:skip-tests` o `:dev`
-- Para validación final: usar comandos completos con tests
+- **Desarrollo iterativo**: usar `dev` o `build:*` sin sufijo `:test`
+- **Antes de commit/release**: usar comandos con `:test` o `build:all`
 
 ## CHANGELOG
 

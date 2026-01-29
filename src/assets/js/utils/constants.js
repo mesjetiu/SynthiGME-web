@@ -146,8 +146,14 @@ export const STORAGE_KEYS = {
   /** Lista de targets unicast en formato JSON */
   OSC_UNICAST_TARGETS: `${STORAGE_PREFIX}osc-unicast-targets`,
   
-  /** Enviar OSC a SuperCollider (127.0.0.1:57120) */
+  /** Enviar OSC a SuperCollider */
   OSC_SUPERCOLLIDER_SEND: `${STORAGE_PREFIX}osc-supercollider-send`,
+  
+  /** Puerto de SuperCollider (default: 57120) */
+  OSC_SUPERCOLLIDER_PORT: `${STORAGE_PREFIX}osc-supercollider-port`,
+  
+  /** Puerto de escucha OSC (default: 57121) */
+  OSC_PORT: `${STORAGE_PREFIX}osc-port`,
   
   /** Recibir OSC desde SuperCollider */
   OSC_SUPERCOLLIDER_RECEIVE: `${STORAGE_PREFIX}osc-supercollider-receive`,

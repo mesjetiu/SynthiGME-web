@@ -295,10 +295,12 @@ function setupMenu() {
 
 /**
  * Inicializa el servidor OSC para comunicación peer-to-peer
+ * @param {Object} [config] - Configuración opcional
+ * @param {number} [config.port] - Puerto UDP (default: 57121)
  * @see /OSC.md - Documentación del protocolo
  */
-function initOSCServer() {
-  oscServer = new OSCServer();
+function initOSCServer(config = {}) {
+  oscServer = new OSCServer(config);
   
   // Callback cuando se recibe un mensaje OSC de la red
   oscServer.onMessage = (address, args, rinfo) => {
@@ -313,7 +315,7 @@ function initOSCServer() {
   };
   
   oscServer.onReady = () => {
-    console.log('[OSC] Servidor listo para comunicación peer-to-peer');
+    console.log('[OSC] Servidor listo en puerto', oscServer.config.port);
   };
 }
 
@@ -322,8 +324,14 @@ function initOSCServer() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Iniciar servidor OSC
-ipcMain.handle('osc:start', async () => {
-  if (!oscServer) initOSCServer();
+ipcMain.handle('osc:start', async (event, config = {}) => {
+  // Si hay servidor activo con puerto diferente, detenerlo
+  if (oscServer && oscServer.running && config.port && oscServer.config.port !== config.port) {
+    await oscServer.stop();
+    oscServer = null;
+  }
+  
+  if (!oscServer) initOSCServer(config);
   try {
     await oscServer.start();
     return { success: true, status: oscServer.getStatus() };

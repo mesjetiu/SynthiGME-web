@@ -76,13 +76,20 @@ class OSCBridge {
 
     // Aplicar configuración
     this.config = { ...this.config, ...config };
+    
+    // Leer puerto de localStorage si no se especifica
+    // Usar clave con prefijo del proyecto (synthigme_osc-port)
+    const savedPort = localStorage.getItem('synthigme_osc-port');
+    const port = config.port || (savedPort ? parseInt(savedPort, 10) : 57121);
 
     try {
-      const result = await window.oscAPI.start();
+      const result = await window.oscAPI.start(port ? { port } : undefined);
       
       if (result.success) {
         this.connected = true;
         this._setupMessageHandler();
+        
+        console.log('[OSCBridge] Conectado correctamente en puerto', result.status?.port || 57121);
         
         if (this.config.verbose) {
           console.log('[OSCBridge] Conectado:', result.status);
@@ -176,6 +183,7 @@ class OSCBridge {
    */
   send(address, value, options = {}) {
     if (!this.connected || !this.config.sendEnabled) {
+      console.log('[OSCBridge] send blocked - connected:', this.connected, 'sendEnabled:', this.config.sendEnabled);
       return false;
     }
 

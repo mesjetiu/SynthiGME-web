@@ -846,16 +846,39 @@ class App {
     // Inicializar ventana de log OSC (se muestra si estaba visible antes)
     initOSCLogWindow();
     
-    // Toggle OSC desde quickbar
+    // Toggle OSC desde quickbar o settings
     document.addEventListener('osc:toggle', async () => {
       // Usar variable interna, OSC siempre empieza apagado
       const isEnabled = this._oscEnabled || false;
       const newState = !isEnabled;
       
-      this._oscEnabled = newState;
-      
       if (newState) {
-        await oscBridge.start();
+        // Intentar conectar
+        const success = await oscBridge.start();
+        if (!success) {
+          // Si falla, no cambiar estado y mostrar error
+          showToast(t('quickbar.oscError', 'Error al activar OSC'));
+          return;
+        }
+        this._oscEnabled = true;
+        
+        // Restaurar targets unicast guardados
+        try {
+          const targets = JSON.parse(localStorage.getItem(STORAGE_KEYS.OSC_UNICAST_TARGETS) || '[]');
+          for (const target of targets) {
+            await window.oscAPI.addTarget(target.ip, target.port);
+          }
+          
+          // Restaurar SuperCollider si estaba activo
+          const scSendEnabled = localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND) === 'true';
+          if (scSendEnabled) {
+            const scPort = parseInt(localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_PORT) || '57120', 10);
+            await window.oscAPI.addTarget('127.0.0.1', scPort);
+          }
+        } catch (err) {
+          console.warn('[App] Error restaurando targets OSC:', err);
+        }
+        
         // Mostrar ventana de log si estaba marcada la opción
         const showLog = localStorage.getItem(STORAGE_KEYS.OSC_LOG_VISIBLE) === 'true';
         if (showLog) {
@@ -865,6 +888,8 @@ class App {
         }
       } else {
         await oscBridge.stop();
+        this._oscEnabled = false;
+        
         // Ocultar ventana de log al apagar OSC (sin cambiar preferencia del usuario)
         window.dispatchEvent(new CustomEvent('osc:log-visibility', { 
           detail: { visible: false, updateCheckbox: false } 
@@ -873,11 +898,11 @@ class App {
       
       // Notificar al quickbar y al settings modal del nuevo estado
       document.dispatchEvent(new CustomEvent('osc:statusChanged', { 
-        detail: { enabled: newState } 
+        detail: { enabled: this._oscEnabled } 
       }));
       
       // Toast de feedback
-      showToast(t(newState ? 'quickbar.oscOn' : 'quickbar.oscOff'));
+      showToast(t(this._oscEnabled ? 'quickbar.oscOn' : 'quickbar.oscOff'));
     });
     
     // OSC siempre empieza apagado (no leer de localStorage)
@@ -887,6 +912,11 @@ class App {
         detail: { enabled: false } 
       }));
     }
+    
+    // Escuchar cambios de estado OSC desde settings para mantener sincronizado
+    document.addEventListener('osc:statusChanged', (e) => {
+      this._oscEnabled = e.detail?.enabled ?? false;
+    });
   }
   
   /**

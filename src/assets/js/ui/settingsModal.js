@@ -505,6 +505,9 @@ export class SettingsModal {
     // SuperCollider
     container.appendChild(this._createOSCSuperColliderSection());
     
+    // Puerto de escucha
+    container.appendChild(this._createOSCPortSection());
+    
     // Modo de comunicación
     container.appendChild(this._createOSCModeSection());
     
@@ -595,8 +598,6 @@ export class SettingsModal {
     section.className = 'settings-section';
     
     const isElectron = typeof window.oscAPI !== 'undefined';
-    // OSC siempre empieza apagado, no leer de localStorage
-    const enabled = false;
     
     const row = document.createElement('div');
     row.className = 'settings-row';
@@ -611,28 +612,18 @@ export class SettingsModal {
     checkbox.type = 'checkbox';
     checkbox.id = 'osc-enable-checkbox';
     checkbox.className = 'settings-checkbox';
-    checkbox.checked = enabled;
     checkbox.disabled = !isElectron;
     
+    // Obtener estado real de OSC al crear (asíncrono)
+    if (isElectron && window.oscAPI.getStatus) {
+      window.oscAPI.getStatus().then(status => {
+        checkbox.checked = status?.running ?? false;
+      });
+    }
+    
     checkbox.addEventListener('change', async () => {
-      localStorage.setItem(STORAGE_KEYS.OSC_ENABLED, checkbox.checked);
-      
-      if (checkbox.checked) {
-        await this._startOSC();
-      } else {
-        await this._stopOSC();
-      }
-      
-      // Actualizar indicador de estado
-      const statusEl = document.getElementById('osc-status-indicator');
-      if (statusEl) {
-        this._updateOSCStatusIndicator(statusEl);
-      }
-      
-      // Notificar al quickbar del cambio
-      document.dispatchEvent(new CustomEvent('osc:statusChanged', { 
-        detail: { enabled: checkbox.checked } 
-      }));
+      // Usar el mismo mecanismo centralizado que el quickbar
+      document.dispatchEvent(new CustomEvent('osc:toggle'));
     });
     
     // Escuchar cambios desde quickbar para sincronizar
@@ -696,7 +687,7 @@ export class SettingsModal {
       localStorage.setItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND, enabled);
       
       const SC_HOST = '127.0.0.1';
-      const SC_PORT = 57120;
+      const SC_PORT = parseInt(localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_PORT) || '57120', 10);
       
       if (enabled) {
         await this._addOSCTarget(SC_HOST, SC_PORT);
@@ -713,6 +704,54 @@ export class SettingsModal {
     
     sendRow.appendChild(sendCheckbox);
     section.appendChild(sendRow);
+    
+    // Campo para puerto de SC
+    const portRow = document.createElement('div');
+    portRow.className = 'settings-row';
+    portRow.style.marginLeft = '20px';
+    portRow.style.marginTop = '8px';
+    
+    const portLabel = document.createElement('label');
+    portLabel.className = 'settings-row__label';
+    portLabel.htmlFor = 'osc-sc-port-input';
+    portLabel.textContent = t('settings.osc.supercollider.port', 'Puerto SC');
+    portLabel.style.minWidth = '80px';
+    portRow.appendChild(portLabel);
+    
+    const scPort = localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_PORT) || '57120';
+    const portInput = document.createElement('input');
+    portInput.type = 'number';
+    portInput.id = 'osc-sc-port-input';
+    portInput.className = 'settings-input';
+    portInput.value = scPort;
+    portInput.min = '1024';
+    portInput.max = '65535';
+    portInput.style.width = '80px';
+    portInput.disabled = !isElectron;
+    
+    portInput.addEventListener('change', async () => {
+      const port = parseInt(portInput.value, 10);
+      if (port >= 1024 && port <= 65535) {
+        const oldPort = parseInt(localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_PORT) || '57120', 10);
+        localStorage.setItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_PORT, port.toString());
+        
+        // Si está activo el envío a SC, actualizar target
+        if (sendCheckbox.checked) {
+          await this._removeOSCTarget('127.0.0.1', oldPort);
+          await this._addOSCTarget('127.0.0.1', port);
+          
+          const targetsList = document.getElementById('osc-targets-list');
+          if (targetsList) {
+            this._loadOSCTargets(targetsList);
+          }
+        }
+      } else {
+        portInput.value = scPort;
+      }
+    });
+    
+    portRow.appendChild(portInput);
+    section.appendChild(portRow);
     
     const sendDesc = document.createElement('p');
     sendDesc.className = 'settings-section__description';
@@ -754,6 +793,63 @@ export class SettingsModal {
   }
   
   /**
+   * Sección: Puerto de escucha OSC
+   */
+  _createOSCPortSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.osc.port', 'Puerto de escucha');
+    section.appendChild(title);
+    
+    const description = document.createElement('p');
+    description.className = 'settings-section__description';
+    description.textContent = t('settings.osc.port.description', 'Puerto UDP donde SynthiGME recibe mensajes OSC. Cambiar si otro programa (ej: SuperCollider) usa el puerto por defecto.');
+    section.appendChild(description);
+    
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    const currentPort = localStorage.getItem(STORAGE_KEYS.OSC_PORT) || '57121';
+    
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.id = 'osc-port-input';
+    input.className = 'settings-input';
+    input.value = currentPort;
+    input.min = '1024';
+    input.max = '65535';
+    input.placeholder = '57121';
+    input.disabled = !isElectron;
+    input.style.width = '100px';
+    
+    input.addEventListener('change', () => {
+      const port = parseInt(input.value, 10);
+      if (port >= 1024 && port <= 65535) {
+        localStorage.setItem(STORAGE_KEYS.OSC_PORT, port.toString());
+      } else {
+        input.value = currentPort;
+      }
+    });
+    
+    const label = document.createElement('span');
+    label.className = 'settings-label';
+    label.textContent = t('settings.osc.port.note', '(Requiere reiniciar OSC)');
+    label.style.marginLeft = '10px';
+    label.style.opacity = '0.7';
+    label.style.fontSize = '0.9em';
+    
+    row.appendChild(input);
+    row.appendChild(label);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
    * Sección: Modo de comunicación OSC
    */
   _createOSCModeSection() {
@@ -788,10 +884,6 @@ export class SettingsModal {
       
       radio.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.OSC_MODE, mode.value);
-        // Notificar al bridge si existe
-        if (window.oscBridge) {
-          window.oscBridge.setMode(mode.value);
-        }
       });
       
       const label = document.createElement('label');
@@ -844,11 +936,6 @@ export class SettingsModal {
       if (!prefix.endsWith('/')) prefix = prefix + '/';
       input.value = prefix;
       localStorage.setItem(STORAGE_KEYS.OSC_PREFIX, prefix);
-      
-      // Notificar al bridge si existe
-      if (window.oscBridge) {
-        window.oscBridge.setPrefix(prefix);
-      }
     });
     
     row.appendChild(input);
@@ -1049,44 +1136,6 @@ export class SettingsModal {
     section.appendChild(row);
     
     return section;
-  }
-  
-  /**
-   * Inicia el servidor OSC
-   */
-  async _startOSC() {
-    if (typeof window.oscAPI === 'undefined') return;
-    
-    try {
-      await window.oscAPI.start();
-      
-      // Restaurar targets guardados
-      const targets = JSON.parse(localStorage.getItem(STORAGE_KEYS.OSC_UNICAST_TARGETS) || '[]');
-      for (const target of targets) {
-        await window.oscAPI.addTarget(target.ip, target.port);
-      }
-      
-      // Restaurar SuperCollider si estaba activo
-      const scSendEnabled = localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND) === 'true';
-      if (scSendEnabled) {
-        await window.oscAPI.addTarget('127.0.0.1', 57120);
-      }
-    } catch (error) {
-      console.error('Error starting OSC:', error);
-    }
-  }
-  
-  /**
-   * Detiene el servidor OSC
-   */
-  async _stopOSC() {
-    if (typeof window.oscAPI === 'undefined') return;
-    
-    try {
-      await window.oscAPI.stop();
-    } catch (error) {
-      console.error('Error stopping OSC:', error);
-    }
   }
   
   // ═══════════════════════════════════════════════════════════════════════════

@@ -8,7 +8,6 @@
 import { t } from '../i18n/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
-import oscBridge from '../osc/oscBridge.js';
 
 const log = createLogger('OSCLogWindow');
 
@@ -155,20 +154,12 @@ export class OSCLogWindow {
    */
   _setupListeners() {
     // Escuchar eventos de visibilidad
-    window.addEventListener('osc:log-visibility', async (e) => {
+    window.addEventListener('osc:log-visibility', (e) => {
       if (e.detail.visible) {
-        // Solo mostrar si OSC está realmente activo
-        try {
-          const status = await oscBridge.getStatus();
-          if (status?.running) {
-            this.show();
-          } else {
-            log.info('Log window not shown: OSC is not running');
-          }
-        } catch {
-          // Si no podemos verificar, no mostrar
-          log.info('Log window not shown: could not verify OSC status');
-        }
+        // Mostrar directamente - el evento solo se dispara cuando OSC está activo
+        // La verificación de estado ya se hizo en app.js antes de disparar este evento
+        this.show();
+        log.info('Log window visibility requested: showing');
       } else {
         // No actualizar checkbox si es por apagar OSC (preservar preferencia)
         this.hide(e.detail.updateCheckbox !== false);

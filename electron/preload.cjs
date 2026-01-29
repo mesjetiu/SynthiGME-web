@@ -30,9 +30,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 contextBridge.exposeInMainWorld('oscAPI', {
   /**
    * Inicia el servidor OSC
+   * @param {Object} [config] - Configuración opcional
+   * @param {number} [config.port] - Puerto UDP (default: 57121)
    * @returns {Promise<{success: boolean, status?: Object, error?: string}>}
    */
-  start: () => ipcRenderer.invoke('osc:start'),
+  start: (config) => ipcRenderer.invoke('osc:start', config),
   
   /**
    * Detiene el servidor OSC

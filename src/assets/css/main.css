@@ -2787,40 +2787,181 @@ small { color:#aaa; }
   padding: 1.25rem;
 }
 
-/* Modal con pestañas */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MODAL CON PESTAÑAS - LAYOUT DE DOS COLUMNAS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 .settings-modal--tabbed {
-  max-width: 500px;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* Pestañas de navegación */
+/* Layout principal: sidebar + contenido */
+.settings-modal__layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar de navegación (pestañas verticales) */
 .settings-modal__tabs {
   display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(20, 20, 20, 0.5);
+  flex-direction: column;
+  width: 200px;
+  min-width: 200px;
+  background: rgba(15, 15, 15, 0.98);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.75rem 0;
+  overflow-y: auto;
 }
 
+/* Pestaña individual */
 .settings-modal__tab {
-  flex: 1;
-  padding: 12px 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  margin: 2px 8px;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
   background: transparent;
-  color: #888;
-  font-size: 0.8rem;
+  color: #999;
+  font-size: 0.9rem;
   font-weight: 500;
+  text-align: left;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .settings-modal__tab:hover {
-  background: rgba(255, 255, 255, 0.03);
-  color: #bbb;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ccc;
 }
 
 .settings-modal__tab--active {
+  background: rgba(255, 213, 79, 0.1);
+  border-left-color: #ffd54f;
   color: #ffd54f;
-  border-bottom-color: #ffd54f;
-  background: rgba(255, 213, 79, 0.05);
+}
+
+.settings-modal__tab--active:hover {
+  background: rgba(255, 213, 79, 0.15);
+}
+
+/* Icono de la pestaña */
+.settings-modal__tab-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.settings-modal__tab--active .settings-modal__tab-icon {
+  opacity: 1;
+}
+
+/* Texto de la pestaña */
+.settings-modal__tab-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Contenedor del contenido (lado derecho) */
+.settings-modal__content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: rgba(28, 28, 28, 0.98);
+}
+
+/* Header del contenido */
+.settings-modal__content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(35, 35, 35, 0.5);
+}
+
+.settings-modal__content-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ffe9a3;
+}
+
+/* Body del contenido con scroll */
+.settings-modal--tabbed .settings-modal__body {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE: Layout horizontal para pantallas pequeñas
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .settings-modal--tabbed {
+    max-width: 95%;
+    max-height: 95vh;
+  }
+  
+  .settings-modal__layout {
+    flex-direction: column;
+  }
+  
+  .settings-modal__tabs {
+    flex-direction: row;
+    width: 100%;
+    min-width: unset;
+    padding: 0;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .settings-modal__tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .settings-modal__tab {
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 16px;
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  
+  .settings-modal__tab--active {
+    border-bottom-color: #ffd54f;
+    border-left-color: transparent;
+  }
+  
+  .settings-modal__tab-icon {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .settings-modal__content-header {
+    display: none;
+  }
 }
 
 /* Contenido de pestañas */

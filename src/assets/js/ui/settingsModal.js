@@ -215,7 +215,7 @@ export class SettingsModal {
     this.modal.setAttribute('aria-labelledby', 'settingsTitle');
     this.modal.setAttribute('aria-modal', 'true');
     
-    // Header
+    // Header principal (solo título y botón cerrar)
     const header = document.createElement('div');
     header.className = 'settings-modal__header';
     
@@ -234,8 +234,25 @@ export class SettingsModal {
     header.appendChild(this.titleElement);
     header.appendChild(closeBtn);
     
-    // Pestañas
+    // Layout principal: sidebar + contenido
+    const layout = document.createElement('div');
+    layout.className = 'settings-modal__layout';
+    
+    // Sidebar con pestañas
     const tabsContainer = this._createTabs();
+    
+    // Área de contenido (derecha)
+    const contentArea = document.createElement('div');
+    contentArea.className = 'settings-modal__content-area';
+    
+    // Header del contenido (muestra el nombre de la pestaña activa)
+    const contentHeader = document.createElement('div');
+    contentHeader.className = 'settings-modal__content-header';
+    
+    this.contentTitleElement = document.createElement('h3');
+    this.contentTitleElement.className = 'settings-modal__content-title';
+    this.contentTitleElement.textContent = t('settings.tab.general');
+    contentHeader.appendChild(this.contentTitleElement);
     
     // Body con contenido de pestañas
     const body = document.createElement('div');
@@ -263,10 +280,17 @@ export class SettingsModal {
     // Activar pestaña inicial
     this._switchTab('general');
     
+    // Ensamblar área de contenido
+    contentArea.appendChild(contentHeader);
+    contentArea.appendChild(body);
+    
+    // Ensamblar layout
+    layout.appendChild(tabsContainer);
+    layout.appendChild(contentArea);
+    
     // Ensamblar modal
     this.modal.appendChild(header);
-    this.modal.appendChild(tabsContainer);
-    this.modal.appendChild(body);
+    this.modal.appendChild(layout);
     this.overlay.appendChild(this.modal);
     
     // Cerrar al hacer clic fuera del modal
@@ -284,11 +308,58 @@ export class SettingsModal {
   }
   
   /**
+   * Iconos SVG para las pestañas
+   */
+  _getTabIcon(tabId) {
+    const icons = {
+      general: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>`,
+      display: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/>
+        <line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>`,
+      audio: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>`,
+      recording: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+      </svg>`,
+      advanced: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14"/>
+        <line x1="4" y1="10" x2="4" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12" y2="3"/>
+        <line x1="20" y1="21" x2="20" y2="16"/>
+        <line x1="20" y1="12" x2="20" y2="3"/>
+        <line x1="1" y1="14" x2="7" y2="14"/>
+        <line x1="9" y1="8" x2="15" y2="8"/>
+        <line x1="17" y1="16" x2="23" y2="16"/>
+      </svg>`,
+      osc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+      </svg>`,
+      about: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>`
+    };
+    return icons[tabId] || '';
+  }
+  
+  /**
    * Crea las pestañas de navegación
    */
   _createTabs() {
     const container = document.createElement('div');
     container.className = 'settings-modal__tabs';
+    container.setAttribute('role', 'tablist');
     
     const tabs = [
       { id: 'general', label: t('settings.tab.general') },
@@ -301,16 +372,32 @@ export class SettingsModal {
     ];
     
     this.tabButtons = {};
+    this.tabLabels = {};
     
     tabs.forEach(tab => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'settings-modal__tab';
       btn.dataset.tab = tab.id;
-      btn.textContent = tab.label;
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', 'false');
+      
+      // Icono
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'settings-modal__tab-icon';
+      iconSpan.innerHTML = this._getTabIcon(tab.id);
+      
+      // Label
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'settings-modal__tab-label';
+      labelSpan.textContent = tab.label;
+      
+      btn.appendChild(iconSpan);
+      btn.appendChild(labelSpan);
       btn.addEventListener('click', () => this._switchTab(tab.id));
       
       this.tabButtons[tab.id] = btn;
+      this.tabLabels[tab.id] = tab.label;
       container.appendChild(btn);
     });
     
@@ -353,10 +440,17 @@ export class SettingsModal {
       this.bodyElement.appendChild(content);
     }
     
-    // Actualizar botones
+    // Actualizar botones y aria
     Object.entries(this.tabButtons).forEach(([id, btn]) => {
-      btn.classList.toggle('settings-modal__tab--active', id === tabId);
+      const isActive = id === tabId;
+      btn.classList.toggle('settings-modal__tab--active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
+    
+    // Actualizar título del contenido
+    if (this.contentTitleElement && this.tabLabels[tabId]) {
+      this.contentTitleElement.textContent = this.tabLabels[tabId];
+    }
     
     // Mostrar/ocultar contenidos
     if (this.tabContents) {

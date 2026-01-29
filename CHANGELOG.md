@@ -7,30 +7,32 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-30
+
 ### Añadido
-- **Soporte OSC (Open Sound Control)**: Servidor integrado en Electron para comunicación con SuperCollider, Max/MSP, etc. Incluye ventana de log en tiempo real, configuración en Ajustes y desactivado por defecto.
-- **Sincronización OSC de osciladores**: Los 12 osciladores del Panel 3 envían/reciben mensajes OSC para todos sus parámetros (frequency, levels, shapes) y switch HI/LO. Permite control remoto peer-to-peer.
-- **Integración SuperCollider en ajustes**: Checkboxes dedicados para "Enviar a SC" y "Recibir de SC" en la sección OSC. Documentación con código SC listo para copiar/pegar en OSC.md.
-- **Aplicación de escritorio con Electron**: Empaquetado nativo para Linux (AppImage) y Windows (NSIS + portable). Menú nativo, iconos personalizados, persistencia completa de datos y nombre "SynthiGME" en mezcladores del sistema.
-- **Emulación completa del sistema de voltajes Synthi 100**: 8 tipos de pines de matriz con resistencias y ganancias reales según documentación Datanomics 1982. Menú contextual para seleccionar tipo de pin y tooltips con información técnica.
-- **Emulación DSP del hardware Synthi 100**: Inercia térmica (Thermal Slew), saturación híbrida de raíles ±12V, filtrado RC por pin de matriz, soft clipping en CV y modelo de frecuencia CEM 3340 con escala 1V/Oct.
-- **Paneles flotantes (Picture-in-Picture)**: Extraer cualquier panel a ventana independiente redimensionable con persistencia de estado.
-- **Sistema de tests de audio (Playwright)**: Suite completa que valida DSP en Chromium headless. Comando `test:all` ejecuta tests unitarios + audio con resumen estructurado.
-- **Hard sync en matriz**: Columnas 24-35 exponen entradas de sincronización de los 12 osciladores para timbres armónicos complejos.
-- **Sistema de dormancy**: Suspensión automática de procesamiento DSP en módulos sin conexiones activas (~95% ahorro CPU).
-- **Tooltips informativos**: En knobs (Hz, V, %, con CV activo) y pines de matriz (origen→destino, resistencia, ganancia).
+- **Soporte OSC (Open Sound Control)**: Servidor integrado en Electron para comunicación con SuperCollider, Max/MSP, etc. Ventana de log en tiempo real, configuración en Ajustes.
+- **Sincronización OSC de osciladores**: Los 12 osciladores envían/reciben mensajes OSC (frequency, levels, shapes, switch HI/LO). Control remoto peer-to-peer.
+- **Aplicación de escritorio Electron**: Empaquetado para Linux (AppImage) y Windows (NSIS + portable). Menú nativo, iconos, persistencia y nombre "SynthiGME" en mezcladores.
+- **Emulación de voltajes Synthi 100**: 8 tipos de pines con resistencias y ganancias según Datanomics 1982. Menú contextual para tipo de pin y tooltips técnicos.
+- **Emulación DSP analógica**: Thermal Slew, saturación ±12V, filtrado RC por pin, soft clipping CV y modelo CEM 3340 (1V/Oct).
+- **Paneles flotantes (PiP)**: Extraer paneles a ventanas independientes con persistencia de estado.
+- **Tests de audio (Playwright)**: Suite DSP en Chromium headless. Comando `test:all` con resumen estructurado.
+- **Hard sync en matriz**: Columnas 24-35 exponen sincronización de los 12 osciladores.
+- **Sistema de dormancy**: Suspensión automática DSP en módulos inactivos (~95% ahorro CPU).
+- **Tooltips informativos**: Knobs (Hz, V, %, CV) y pines de matriz (ruta, resistencia, ganancia).
 
 ### Cambiado
-- **Sistema de patches v2**: Formato simplificado que guarda solo valores de UI (0-1). Más compacto, legible y resiliente a cambios de fórmulas.
-- **Arquitectura de osciladores multi-waveform**: Único worklet genera 4 formas de onda simultáneas (~70% menos nodos de audio). Fase maestra unificada.
-- **Algoritmo de seno híbrido**: Combina precisión digital con modelado analógico para eliminar "kinks" y reproducir estética del hardware.
-- **Voltajes de salida calibrados**: Niveles según Manual Técnico Datanomics 1982 (Sine 8V p-p, Saw 6.2V, Tri/Pulse 8.1V).
+- **Patches v2**: Formato simplificado con valores UI (0-1). Más compacto y resiliente.
+- **Osciladores multi-waveform**: Único worklet genera 4 formas de onda (~70% menos nodos). Fase unificada.
+- **Seno híbrido**: Precisión digital + modelado analógico, sin "kinks".
+- **Voltajes calibrados**: Según Manual Datanomics 1982 (Sine 8V, Saw 6.2V, Tri/Pulse 8.1V).
+- **Modal de ajustes rediseñado**: Layout de dos columnas con sidebar, iconos SVG y responsive.
 
 ### Arreglado
-- **Bug crítico AudioWorklet→AudioParam**: Condicionales en worklets bloqueaban señal. Reemplazados por operaciones aritméticas puras. 14 tests añadidos.
-- **Calibración 1V/octave**: Factor CV→cents corregido (1200→4800). +1V = 1 octava arriba (f×2).
-- **Cachés en Electron**: Limpieza automática de code cache, HTTP cache y Service Worker deshabilitado para evitar versiones anteriores.
-- **Carga de worklets en móviles**: Race condition corregida con sistema de reintentos para aplicación de patches.
+- **AudioWorklet→AudioParam**: Condicionales bloqueaban señal. Operaciones aritméticas puras.
+- **Calibración 1V/Oct**: Factor corregido (1200→4800). +1V = ×2 frecuencia.
+- **Cachés Electron**: Limpieza automática de code/HTTP cache. Service Worker deshabilitado.
+- **Carga worklets móvil**: Race condition corregida con reintentos.
 
 ## [0.3.0] - 2026-01-11
 

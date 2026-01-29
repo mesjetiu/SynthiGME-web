@@ -94,6 +94,9 @@ Los comandos siguen una nomenclatura consistente:
 | **Probar PWA web** | `npm run dev:web` |
 | **Solo compilar traducciones** | `npm run build:i18n` |
 
+> **Nota**: `build:i18n` se ejecuta automáticamente en todos los builds (es rápido).
+> Solo usarlo manualmente si modificas traducciones y quieres verificar sin hacer build completo.
+
 ### Comandos de build (generar artefactos):
 
 | Situación | Comando |

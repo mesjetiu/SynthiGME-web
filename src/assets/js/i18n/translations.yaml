@@ -188,6 +188,22 @@ settings.osc.supercollider.receive.description:
   en: Receives OSC messages from SuperCollider to control SynthiGME.
   es: Recibe mensajes OSC desde SuperCollider para controlar SynthiGME.
 
+settings.osc.supercollider.port:
+  en: SC Port
+  es: Puerto SC
+
+settings.osc.port:
+  en: Listen port
+  es: Puerto de escucha
+
+settings.osc.port.description:
+  en: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
+  es: Puerto UDP donde SynthiGME recibe mensajes OSC. Cambiar si otro programa (ej. SuperCollider) usa el puerto por defecto.
+
+settings.osc.port.note:
+  en: (Requires OSC restart)
+  es: (Requiere reiniciar OSC)
+
 settings.osc.targets:
   en: Unicast Targets
   es: Destinos unicast
@@ -771,6 +787,10 @@ quickbar.oscOn:
 quickbar.oscOff:
   en: OSC disabled - Click to enable
   es: OSC deshabilitado - Click para habilitar
+
+quickbar.oscError:
+  en: Failed to enable OSC
+  es: Error al activar OSC
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # GRABACIÓN DE AUDIO

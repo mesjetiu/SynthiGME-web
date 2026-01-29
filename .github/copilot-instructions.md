@@ -75,6 +75,25 @@ feat(oscillator): añadir soporte para hard sync entre osciladores
 - `dist-app/` → Solo para Electron (no se sube a git)
 - `dist-electron/` → Instaladores generados (no se sube a git)
 
+## Comandos de Build
+
+⚠️ **IMPORTANTE**: No usar `npm run build` para probar cambios - ejecuta todos los tests y tarda mucho.
+
+### Comandos según el contexto:
+
+| Situación | Comando |
+|-----------|---------|
+| **Probar cambios web (PWA)** | `npm run build:skip-tests` |
+| **Probar cambios Electron** (OSC, IPC, etc.) | `npm run electron:dev` |
+| **Solo compilar traducciones** | `npm run build:i18n` |
+| **Build final con tests** | `npm run build` (solo antes de commit/release) |
+| **Build Electron Linux** | `npm run electron:build:linux` |
+| **Build Electron Windows** | `npm run electron:build:win` |
+
+### Regla general:
+- Para desarrollo iterativo: usar comandos con `:skip-tests` o `:dev`
+- Para validación final: usar comandos completos con tests
+
 ## CHANGELOG
 
 Cada cambio debe registrarse en `CHANGELOG.md` de forma clara y escueta. El changelog es crítico para el versionado.

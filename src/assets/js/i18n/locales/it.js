@@ -6,7 +6,7 @@
 export default {
   "settings.language.en": "English",
   "settings.language.es": "Español",
-  "settings.language.fr": "Français",
+  "settings.language.fr": "\"Français\"",
   "settings.language.de": "Deutsch",
   "settings.language.it": "Italiano",
   "settings.language.pt": "Português",

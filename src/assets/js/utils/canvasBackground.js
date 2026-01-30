@@ -16,10 +16,10 @@ const CANVAS_BG_LOAD_TIMEOUT_MS = 1500;
 const CANVAS_BG_PX_PER_CSS_PX = 2;
 const CANVAS_BG_PANELS = ['panel-1', 'panel-2', 'panel-3', 'panel-4'];
 const CANVAS_BG_SVG_BY_PANEL = {
-  // SVG ocultos temporalmente: paneles 1, 2, 3 y 4 (dejar URLs comentadas para revertir rápido).
+  // SVG ocultos temporalmente: paneles 1, 2 y 4 (dejar URLs comentadas para revertir rápido).
   // 'panel-1': './assets/panels/panel1_bg.svg',
   // 'panel-2': './assets/panels/panel2_bg.svg',
-  //'panel-3': './assets/panels/panel3_bg.svg',
+  'panel-3': './assets/panels/panel3_bg.svg',
   // 'panel-4': './assets/panels/panel4_bg.svg'
 };
 

@@ -156,6 +156,22 @@ El proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
    - Crea un commit y un tag `vX.Y.Z`.
 4. Haz push: `git push origin main && git push origin --tags`.
 
+## Herramientas de desarrollo
+
+### Optimización de SVG de paneles
+
+Los archivos fuente de diseño (Inkscape) están en `design/panels/`. Para generar los SVG optimizados que usa la app:
+
+```bash
+npm run optimize:panel-svg -- design/panels/Panel3/panel3_source.svg src/assets/panels/panel3_bg.svg
+```
+
+El script (`scripts/tools/optimize-panel-svg.mjs`) realiza:
+- Eliminación de metadatos de Inkscape y atributos innecesarios
+- Compactación de colores (`#ffffff` → `#fff`)
+- Reducción de precisión en coordenadas
+- Deduplicación de estilos CSS
+
 ## Estructura del Proyecto
 
 Para detalles sobre la arquitectura interna, módulos y flujo de audio, consulta **[ARCHITECTURE.md](ARCHITECTURE.md)**.
@@ -163,5 +179,6 @@ Para detalles sobre la arquitectura interna, módulos y flujo de audio, consulta
 La estructura básica de código fuente en `src/`:
 - `src/assets/js/`: Código fuente JS modular.
 - `src/assets/css/`: Estilos.
-- `src/assets/panels/`: Definiciones SVG de los paneles.
+- `src/assets/panels/`: SVG de paneles optimizados (producción).
+- `design/panels/`: SVG de paneles fuente (Inkscape).
 - `scripts/`: Scripts de mantenimiento y build (Node.js).

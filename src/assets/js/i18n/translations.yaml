@@ -25,7 +25,7 @@ _meta:
     fr: "Français"
     de: "Deutsch"
     it: "Italiano"
-    pt: Português
+    pt: "Português"
     cs: Čeština
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -38,7 +38,7 @@ common.yes:
   fr: "Oui"
   de: "Ja"
   it: "Sì"
-  pt: "Yes"
+  pt: "Sim"
   cs: "Yes"
 
 common.no:
@@ -47,7 +47,7 @@ common.no:
   fr: "Non"
   de: "Nein"
   it: "No"
-  pt: "No"
+  pt: "Não"
   cs: "No"
 
 common.cancel:
@@ -56,7 +56,7 @@ common.cancel:
   fr: "Annuler"
   de: "Abbrechen"
   it: "Annulla"
-  pt: "Cancel"
+  pt: "Cancelar"
   cs: "Cancel"
 
 common.ok:
@@ -78,7 +78,7 @@ settings.title:
   fr: "Paramètres"
   de: "Einstellungen"
   it: "Impostazioni"
-  pt: Settings
+  pt: "Configurações"
   cs: Settings
 
 settings.close:
@@ -87,7 +87,7 @@ settings.close:
   fr: "Fermer les paramètres"
   de: "Einstellungen schließen"
   it: "Chiudi impostazioni"
-  pt: Close settings
+  pt: "Fechar configurações"
   cs: Close settings
 
 # Pestañas
@@ -97,7 +97,7 @@ settings.tab.general:
   fr: "Général"
   de: "Allgemein"
   it: "Generale"
-  pt: General
+  pt: "Geral"
   cs: General
 
 settings.tab.audio:
@@ -106,7 +106,7 @@ settings.tab.audio:
   fr: "Audio"
   de: "Audio"
   it: "Audio"
-  pt: Audio
+  pt: "Áudio"
   cs: Audio
 
 settings.tab.recording:
@@ -115,7 +115,7 @@ settings.tab.recording:
   fr: "Enregistrement"
   de: "Aufnahme"
   it: "Registrazione"
-  pt: Recording
+  pt: "Gravação"
   cs: Recording
 
 settings.tab.advanced:
@@ -124,7 +124,7 @@ settings.tab.advanced:
   fr: "Avancé"
   de: "Erweitert"
   it: "Avanzate"
-  pt: Advanced
+  pt: "Avançado"
   cs: Advanced
 
 settings.tab.osc:
@@ -133,7 +133,7 @@ settings.tab.osc:
   fr: "OSC"
   de: "OSC"
   it: "OSC"
-  pt: OSC
+  pt: "OSC"
   cs: OSC
 
 settings.tab.about:
@@ -142,7 +142,7 @@ settings.tab.about:
   fr: "À propos"
   de: "Über"
   it: "Informazioni"
-  pt: About
+  pt: "Sobre"
   cs: About
 
 settings.tab.display:
@@ -151,7 +151,7 @@ settings.tab.display:
   fr: "Affichage"
   de: "Anzeige"
   it: "Visualizzazione"
-  pt: Display
+  pt: "Exibição"
   cs: Display
 
 # Sección: Visualización
@@ -161,7 +161,7 @@ settings.display.inactivePins:
   fr: "Broches inactives"
   de: "Inaktive Pins"
   it: "Pin inattivi"
-  pt: Inactive Pins
+  pt: "Pinos inativos"
   cs: Inactive Pins
 
 settings.display.inactivePins.description:
@@ -170,7 +170,7 @@ settings.display.inactivePins.description:
   fr: "Les broches de matrice qui ne connectent aucune source à aucune destination sont considérées comme inactives. Par défaut, elles apparaissent atténuées et ne peuvent pas être cliquées."
   de: "Matrix-Pins, die keine Quelle mit einem Ziel verbinden, gelten als inaktiv. Standardmäßig werden sie gedimmt und können nicht angeklickt werden."
   it: "I pin della matrice che non collegano alcuna sorgente con alcuna destinazione sono considerati inattivi. Per impostazione predefinita, appaiono attenuati e non possono essere cliccati."
-  pt: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
+  pt: "Os pinos da matriz que não conectam nenhuma fonte com nenhum destino são considerados inativos. Por padrão, aparecem atenuados e não podem ser clicados."
   cs: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
 
 settings.display.inactivePins.show:
@@ -179,7 +179,7 @@ settings.display.inactivePins.show:
   fr: "Afficher les broches inactives comme actives"
   de: "Inaktive Pins als aktiv anzeigen"
   it: "Mostra pin inattivi come attivi"
-  pt: Show inactive pins as active
+  pt: "Mostrar pinos inativos como ativos"
   cs: Show inactive pins as active
 
 # Sección: Paneles flotantes (PiP)
@@ -189,7 +189,7 @@ settings.display.pip:
   fr: "Panneaux flottants (PiP)"
   de: "Schwebende Bedienfelder (PiP)"
   it: "Pannelli Mobili (PiP)"
-  pt: Floating Panels (PiP)
+  pt: "Painéis Flutuantes (PiP)"
   cs: Floating Panels (PiP)
 
 settings.display.pip.description:
@@ -198,7 +198,7 @@ settings.display.pip.description:
   fr: "Les panneaux flottants vous permettent de détacher n'importe quel panneau et de le visualiser indépendamment en naviguant dans le synthétiseur. Utilisez l'icône de broche sur chaque panneau pour le détacher."
   de: "Mit schwebenden Bedienfeldern können Sie jedes Bedienfeld trennen und unabhängig anzeigen, während Sie durch den Synthesizer navigieren. Verwenden Sie das Pin-Symbol auf jedem Bedienfeld, um es zu trennen."
   it: "I pannelli mobili ti permettono di staccare qualsiasi pannello e visualizzarlo indipendentemente mentre navighi il sintetizzatore. Usa l'icona del pin su ogni pannello per staccarlo."
-  pt: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
+  pt: "Painéis flutuantes permitem que você desanexe qualquer painel e o visualize independentemente enquanto navega pelo sintetizador. Use o ícone de pino em cada painel para desanexá-lo."
   cs: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
 
 settings.display.pip.remember:
@@ -207,7 +207,7 @@ settings.display.pip.remember:
   fr: "Mémoriser les panneaux flottants entre les sessions"
   de: "Schwebende Bedienfelder zwischen Sitzungen speichern"
   it: "Ricorda i pannelli mobili tra le sessioni"
-  pt: Remember floating panels between sessions
+  pt: "Lembrar painéis flutuantes entre sessões"
   cs: Remember floating panels between sessions
 
 # Sección: Información de parámetros (tooltips)
@@ -217,7 +217,7 @@ settings.display.paramInfo:
   fr: "Informations sur les paramètres"
   de: "Parameterinformationen"
   it: "Informazioni sui parametri"
-  pt: Parameter Information
+  pt: "Informações de parâmetros"
   cs: Parameter Information
 
 settings.display.paramInfo.description:
@@ -226,7 +226,7 @@ settings.display.paramInfo.description:
   fr: "Afficher les informations techniques étendues dans les info-bulles de contrôle. Ces valeurs ne seraient pas visibles sur le matériel Synthi original."
   de: "Erweiterte technische Informationen in Steuerelement-Tooltips anzeigen. Diese Werte wären auf der ursprünglichen Synthi-Hardware nicht sichtbar."
   it: "Mostra informazioni tecniche estese nei suggerimenti dei controlli. Questi valori non sarebbero visibili nell'hardware Synthi originale."
-  pt: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
+  pt: "Mostrar informações técnicas estendidas em dicas de ferramentas de controle. Esses valores não seriam visíveis no hardware Synthi original."
   cs: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
 
 settings.display.paramInfo.voltage:
@@ -235,7 +235,7 @@ settings.display.paramInfo.voltage:
   fr: "Afficher les valeurs électriques (V, Vp-p, Ω)"
   de: "Elektrische Werte anzeigen (V, Vp-p, Ω)"
   it: "Mostra valori elettrici (V, Vp-p, Ω)"
-  pt: Show electrical values (V, Vp-p, Ω)
+  pt: "Mostrar valores elétricos (V, Vp-p, Ω)"
   cs: Show electrical values (V, Vp-p, Ω)
 
 settings.display.paramInfo.audio:
@@ -244,7 +244,7 @@ settings.display.paramInfo.audio:
   fr: "Afficher les valeurs audio (fréquence, gain)"
   de: "Audiowerte anzeigen (Frequenz, Verstärkung)"
   it: "Mostra valori audio (frequenza, guadagno)"
-  pt: Show audio values (frequency, gain)
+  pt: "Mostrar valores de áudio (frequência, ganho)"
   cs: Show audio values (frequency, gain)
 
 # Sección: OSC (Open Sound Control)
@@ -254,7 +254,7 @@ settings.osc.title:
   fr: "Communication OSC"
   de: "OSC-Kommunikation"
   it: "Comunicazione OSC"
-  pt: OSC Communication
+  pt: "Comunicação OSC"
   cs: OSC Communication
 
 settings.osc.description:
@@ -263,7 +263,7 @@ settings.osc.description:
   fr: "OSC (Open Sound Control) permet à plusieurs instances de SynthiGME de se synchroniser en temps réel sur le réseau local. Quand un contrôle est déplacé sur une instance, toutes les instances connectées reflètent le changement."
   de: "OSC (Open Sound Control) ermöglicht die Synchronisierung mehrerer SynthiGME-Instanzen in Echtzeit über das lokale Netzwerk. Wenn ein Regler auf einer Instanz bewegt wird, spiegeln alle verbundenen Instanzen die Änderung wider."
   it: "OSC (Open Sound Control) consente a più istanze di SynthiGME di sincronizzarsi in tempo reale sulla rete locale. Quando un controllo viene spostato su un'istanza, tutte le istanze connesse riflettono il cambiamento."
-  pt: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
+  pt: "OSC (Open Sound Control) permite que várias instâncias do SynthiGME se sincronizem em tempo real através da rede local. Quando um controle é movido em uma instância, todas as instâncias conectadas refletem a mudança."
   cs: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
 
 settings.osc.enable:
@@ -272,7 +272,7 @@ settings.osc.enable:
   fr: "Activer OSC"
   de: "OSC aktivieren"
   it: "Abilita OSC"
-  pt: Enable OSC
+  pt: "Ativar OSC"
   cs: Enable OSC
 
 settings.osc.electronOnly:
@@ -281,7 +281,7 @@ settings.osc.electronOnly:
   fr: "OSC est uniquement disponible dans l'application de bureau (Electron)."
   de: "OSC ist nur in der Desktop-Anwendung (Electron) verfügbar."
   it: "OSC è disponibile solo nell'applicazione desktop (Electron)."
-  pt: OSC is only available in the desktop application (Electron).
+  pt: "OSC está disponível apenas no aplicativo de desktop (Electron)."
   cs: OSC is only available in the desktop application (Electron).
 
 settings.osc.mode:
@@ -290,7 +290,7 @@ settings.osc.mode:
   fr: "Mode de communication"
   de: "Kommunikationsmodus"
   it: "Modalità di comunicazione"
-  pt: Communication Mode
+  pt: "Modo de comunicação"
   cs: Communication Mode
 
 settings.osc.mode.peer:
@@ -299,7 +299,7 @@ settings.osc.mode.peer:
   fr: "Pair-à-pair (envoyer et recevoir)"
   de: "Peer-to-Peer (Senden und Empfangen)"
   it: "Peer-to-peer (invia e ricevi)"
-  pt: Peer-to-peer (send and receive)
+  pt: "Peer-to-peer (enviar e receber)"
   cs: Peer-to-peer (send and receive)
 
 settings.osc.mode.master:
@@ -308,7 +308,7 @@ settings.osc.mode.master:
   fr: "Maître (envoi uniquement)"
   de: "Master (nur Senden)"
   it: "Master (solo invio)"
-  pt: Master (send only)
+  pt: "Mestre (apenas envio)"
   cs: Master (send only)
 
 settings.osc.mode.slave:
@@ -317,7 +317,7 @@ settings.osc.mode.slave:
   fr: "Esclave (réception uniquement)"
   de: "Slave (nur Empfangen)"
   it: "Slave (solo ricezione)"
-  pt: Slave (receive only)
+  pt: "Escravo (apenas recepção)"
   cs: Slave (receive only)
 
 settings.osc.prefix:
@@ -326,7 +326,7 @@ settings.osc.prefix:
   fr: "Préfixe d'adresse"
   de: "Adressprefix"
   it: "Prefisso indirizzo"
-  pt: Address Prefix
+  pt: "Prefixo de endereço"
   cs: Address Prefix
 
 settings.osc.prefix.description:
@@ -335,7 +335,7 @@ settings.osc.prefix.description:
   fr: "Tous les messages OSC utilisent ce préfixe. Seules les instances avec le même préfixe se synchroniseront."
   de: "Alle OSC-Meldungen verwenden dieses Präfix. Nur Instanzen mit demselben Präfix werden synchronisiert."
   it: "Tutti i messaggi OSC utilizzano questo prefisso. Solo le istanze con lo stesso prefisso si sincronizzeranno."
-  pt: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
+  pt: "Todas as mensagens OSC usam este prefixo. Apenas instâncias com o mesmo prefixo serão sincronizadas."
   cs: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
 
 settings.osc.supercollider:
@@ -344,7 +344,7 @@ settings.osc.supercollider:
   fr: "SuperCollider"
   de: "SuperCollider"
   it: "SuperCollider"
-  pt: SuperCollider
+  pt: "SuperCollider"
   cs: SuperCollider
 
 settings.osc.supercollider.send:
@@ -353,7 +353,7 @@ settings.osc.supercollider.send:
   fr: "Envoyer à SuperCollider"
   de: "An SuperCollider senden"
   it: "Invia a SuperCollider"
-  pt: Send to SuperCollider
+  pt: "Enviar para SuperCollider"
   cs: Send to SuperCollider
 
 settings.osc.supercollider.send.description:
@@ -362,7 +362,7 @@ settings.osc.supercollider.send.description:
   fr: "Envoie des messages OSC à SuperCollider sur localhost (127.0.0.1:57120)."
   de: "Sendet OSC-Nachrichten an SuperCollider auf localhost (127.0.0.1:57120)."
   it: "Invia messaggi OSC a SuperCollider su localhost (127.0.0.1:57120)."
-  pt: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
+  pt: "Envia mensagens OSC para SuperCollider em localhost (127.0.0.1:57120)."
   cs: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
 
 settings.osc.supercollider.receive:
@@ -371,7 +371,7 @@ settings.osc.supercollider.receive:
   fr: "Recevoir depuis SuperCollider"
   de: "Von SuperCollider empfangen"
   it: "Ricevi da SuperCollider"
-  pt: Receive from SuperCollider
+  pt: "Receber de SuperCollider"
   cs: Receive from SuperCollider
 
 settings.osc.supercollider.receive.description:
@@ -380,7 +380,7 @@ settings.osc.supercollider.receive.description:
   fr: "Reçoit les messages OSC de SuperCollider pour contrôler SynthiGME."
   de: "Empfängt OSC-Nachrichten von SuperCollider, um SynthiGME zu steuern."
   it: "Riceve messaggi OSC da SuperCollider per controllare SynthiGME."
-  pt: Receives OSC messages from SuperCollider to control SynthiGME.
+  pt: "Recebe mensagens OSC do SuperCollider para controlar o SynthiGME."
   cs: Receives OSC messages from SuperCollider to control SynthiGME.
 
 settings.osc.supercollider.port:
@@ -389,7 +389,7 @@ settings.osc.supercollider.port:
   fr: "Port SC"
   de: "SC-Port"
   it: "Porta SC"
-  pt: SC Port
+  pt: "Porta SC"
   cs: SC Port
 
 settings.osc.port:
@@ -398,7 +398,7 @@ settings.osc.port:
   fr: "Port d'écoute"
   de: "Lauschport"
   it: "Porta in ascolto"
-  pt: Listen port
+  pt: "Porta de escuta"
   cs: Listen port
 
 settings.osc.port.description:
@@ -407,7 +407,7 @@ settings.osc.port.description:
   fr: "Port UDP où SynthiGME reçoit les messages OSC. Changez si un autre programme (par ex. SuperCollider) utilise le port par défaut."
   de: "UDP-Port, auf dem SynthiGME OSC-Meldungen empfängt. Ändern Sie, wenn ein anderes Programm (z. B. SuperCollider) den Standardport verwendet."
   it: "Porta UDP dove SynthiGME riceve i messaggi OSC. Cambia se un altro programma (ad es. SuperCollider) utilizza la porta predefinita."
-  pt: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
+  pt: "Porta UDP onde SynthiGME recebe mensagens OSC. Altere se outro programa (por exemplo, SuperCollider) usar a porta padrão."
   cs: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
 
 settings.osc.port.note:
@@ -416,7 +416,7 @@ settings.osc.port.note:
   fr: "(Nécessite un redémarrage OSC)"
   de: "(Erfordert Neustart von OSC)"
   it: "(Richiede riavvio OSC)"
-  pt: (Requires OSC restart)
+  pt: "(Requer reinicialização de OSC)"
   cs: (Requires OSC restart)
 
 settings.osc.targets:
@@ -425,7 +425,7 @@ settings.osc.targets:
   fr: "Cibles unicast"
   de: "Unicast-Ziele"
   it: "Destinazioni Unicast"
-  pt: Unicast Targets
+  pt: "Destinos Unicast"
   cs: Unicast Targets
 
 settings.osc.targets.description:
@@ -434,7 +434,7 @@ settings.osc.targets.description:
   fr: "Ajoutez des adresses IP spécifiques pour les applications qui ne supportent pas le multicast (comme SuperCollider)."
   de: "Fügen Sie spezifische IP-Adressen für Anwendungen hinzu, die Multicast nicht unterstützen (wie SuperCollider)."
   it: "Aggiungi indirizzi IP specifici per le applicazioni che non supportano il multicast (come SuperCollider)."
-  pt: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
+  pt: "Adicione endereços IP específicos para aplicativos que não suportam multicast (como SuperCollider)."
   cs: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
 
 settings.osc.targets.add:
@@ -443,7 +443,7 @@ settings.osc.targets.add:
   fr: "Ajouter une cible"
   de: "Ziel hinzufügen"
   it: "Aggiungi destinazione"
-  pt: Add target
+  pt: "Adicionar destino"
   cs: Add target
 
 settings.osc.targets.ip:
@@ -452,7 +452,7 @@ settings.osc.targets.ip:
   fr: "Adresse IP"
   de: "IP-Adresse"
   it: "Indirizzo IP"
-  pt: IP Address
+  pt: "Endereço IP"
   cs: IP Address
 
 settings.osc.targets.port:
@@ -461,7 +461,7 @@ settings.osc.targets.port:
   fr: "Port"
   de: "Port"
   it: "Porta"
-  pt: Port
+  pt: "Porta"
   cs: Port
 
 settings.osc.targets.remove:
@@ -470,7 +470,7 @@ settings.osc.targets.remove:
   fr: "Supprimer"
   de: "Entfernen"
   it: "Rimuovi"
-  pt: Remove
+  pt: "Remover"
   cs: Remove
 
 settings.osc.log:
@@ -479,7 +479,7 @@ settings.osc.log:
   fr: "Journal des messages"
   de: "Nachrichtenprotokoll"
   it: "Registro messaggi"
-  pt: Message Log
+  pt: "Log de mensagens"
   cs: Message Log
 
 settings.osc.log.show:
@@ -488,7 +488,7 @@ settings.osc.log.show:
   fr: "Afficher la fenêtre de journal flottant"
   de: "Schwebendes Protokollfenster anzeigen"
   it: "Mostra finestra di registro mobile"
-  pt: Show floating log window
+  pt: "Mostrar janela de log flutuante"
   cs: Show floating log window
 
 settings.osc.status:
@@ -497,7 +497,7 @@ settings.osc.status:
   fr: "État"
   de: "Status"
   it: "Stato"
-  pt: Status
+  pt: "Status"
   cs: Status
 
 settings.osc.status.stopped:
@@ -506,7 +506,7 @@ settings.osc.status.stopped:
   fr: "Arrêté"
   de: "Gestoppt"
   it: "Fermato"
-  pt: Stopped
+  pt: "Parado"
   cs: Stopped
 
 settings.osc.status.running:
@@ -515,7 +515,7 @@ settings.osc.status.running:
   fr: "En cours d'exécution"
   de: "Wird ausgeführt"
   it: "In esecuzione"
-  pt: Running
+  pt: "Em execução"
   cs: Running
 
 settings.osc.status.error:
@@ -524,7 +524,7 @@ settings.osc.status.error:
   fr: "Erreur"
   de: "Fehler"
   it: "Errore"
-  pt: Error
+  pt: "Erro"
   cs: Error
 
 # Ventana de log OSC
@@ -534,7 +534,7 @@ osc.log.title:
   fr: "Journal OSC"
   de: "OSC-Protokoll"
   it: "Registro OSC"
-  pt: OSC Log
+  pt: "Log de OSC"
   cs: OSC Log
 
 osc.log.filter.all:
@@ -543,7 +543,7 @@ osc.log.filter.all:
   fr: "Tous"
   de: "Alle"
   it: "Tutto"
-  pt: All
+  pt: "Tudo"
   cs: All
 
 osc.log.filter.in:
@@ -552,7 +552,7 @@ osc.log.filter.in:
   fr: "Entrée"
   de: "Eingang"
   it: "Ingresso"
-  pt: In
+  pt: "Entrada"
   cs: In
 
 osc.log.filter.out:
@@ -561,7 +561,7 @@ osc.log.filter.out:
   fr: "Sortie"
   de: "Ausgang"
   it: "Uscita"
-  pt: Out
+  pt: "Saída"
   cs: Out
 
 osc.log.pause:
@@ -570,7 +570,7 @@ osc.log.pause:
   fr: "Pause"
   de: "Pause"
   it: "Pausa"
-  pt: Pause
+  pt: "Pausa"
   cs: Pause
 
 osc.log.resume:
@@ -579,7 +579,7 @@ osc.log.resume:
   fr: "Reprendre"
   de: "Fortsetzen"
   it: "Riprendi"
-  pt: Resume
+  pt: "Retomar"
   cs: Resume
 
 osc.log.clear:
@@ -588,7 +588,7 @@ osc.log.clear:
   fr: "Effacer"
   de: "Löschen"
   it: "Cancella"
-  pt: Clear
+  pt: "Limpar"
   cs: Clear
 
 osc.log.close:
@@ -597,7 +597,7 @@ osc.log.close:
   fr: "Fermer"
   de: "Schließen"
   it: "Chiudi"
-  pt: Close
+  pt: "Fechar"
   cs: Close
 
 osc.log.noMessages:
@@ -606,7 +606,7 @@ osc.log.noMessages:
   fr: "Pas de messages pour l'instant..."
   de: "Noch keine Nachrichten..."
   it: "Nessun messaggio ancora..."
-  pt: No messages yet...
+  pt: "Nenhuma mensagem ainda..."
   cs: No messages yet...
 
 osc.log.messageCount:
@@ -615,7 +615,7 @@ osc.log.messageCount:
   fr: "{count} messages"
   de: "{count} Nachrichten"
   it: "{count} messaggi"
-  pt: "{count} messages"
+  pt: "{count} mensagens"
   cs: "{count} messages"
 
 # Sección: Acerca de
@@ -625,7 +625,7 @@ settings.about.description:
   fr: "Port web du synthétiseur modulaire Synthi GME, inspiré par l'EMS Synthi 100 du Gabinete de Música Electroacústica (GME) à Cuenca. Né comme projet final de Master en Art Sonore à l'Universitat de Barcelona (2019/2020), cette version web poursuit le même objectif pédagogique et expérimental avec une distribution sans friction."
   de: "Webport des modularen Synthesizers Synthi GME, inspiriert vom EMS Synthi 100 des Gabinete de Música Electroacústica (GME) in Cuenca. Als Abschlussprojekt des Masters in Sound Art an der Universitat de Barcelona (2019/2020) entwickelt, verfolgt diese Webversion das gleiche pädagogische und experimentelle Ziel mit reibungsloser Verbreitung."
   it: "Versione web del sintetizzatore modulare Synthi GME, ispirato all'EMS Synthi 100 del Gabinete de Música Electroacústica (GME) a Cuenca. Nato come Progetto Finale del Master in Sound Art all'Universitat de Barcelona (2019/2020), questa versione web persegue lo stesso obiettivo pedagogico e sperimentale con distribuzione senza attriti."
-  pt: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
+  pt: "Versão web do sintetizador modular Synthi GME, inspirado no EMS Synthi 100 do Gabinete de Música Electroacústica (GME) em Cuenca. Nascido como um Projeto Final de Mestrado em Sound Art na Universitat de Barcelona (2019/2020), esta versão web persegue o mesmo objetivo pedagógico e experimental com distribuição sem fricção."
   cs: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
 
 settings.about.info:
@@ -634,7 +634,7 @@ settings.about.info:
   fr: "Informations"
   de: "Informationen"
   it: "Informazioni"
-  pt: Information
+  pt: "Informações"
   cs: Information
 
 settings.about.version:
@@ -643,7 +643,7 @@ settings.about.version:
   fr: "Version :"
   de: "Version:"
   it: "Versione:"
-  pt: "Version:"
+  pt: "Versão:"
   cs: "Version:"
 
 settings.about.author:
@@ -652,7 +652,7 @@ settings.about.author:
   fr: "Auteur :"
   de: "Autor:"
   it: "Autore:"
-  pt: "Author:"
+  pt: "Autor:"
   cs: "Author:"
 
 settings.about.license:
@@ -661,7 +661,7 @@ settings.about.license:
   fr: "Licence :"
   de: "Lizenz:"
   it: "Licenza:"
-  pt: "License:"
+  pt: "Licença:"
   cs: "License:"
 
 settings.about.links:
@@ -670,7 +670,7 @@ settings.about.links:
   fr: "Liens"
   de: "Links"
   it: "Link"
-  pt: Links
+  pt: "Links"
   cs: Links
 
 settings.about.repository:
@@ -679,7 +679,7 @@ settings.about.repository:
   fr: "Dépôt GitHub"
   de: "GitHub-Repository"
   it: "Repository GitHub"
-  pt: GitHub repository
+  pt: "Repositório GitHub"
   cs: GitHub repository
 
 settings.about.issues:
@@ -688,7 +688,7 @@ settings.about.issues:
   fr: "Signaler un bug / Contacter"
   de: "Bug melden / Kontakt"
   it: "Segnala un bug / Contatti"
-  pt: Report a bug / Contact
+  pt: "Relatar um bug / Contato"
   cs: Report a bug / Contact
 
 settings.about.originalProject:
@@ -697,7 +697,7 @@ settings.about.originalProject:
   fr: "Projet original (SuperCollider)"
   de: "Originalprojekt (SuperCollider)"
   it: "Progetto originale (SuperCollider)"
-  pt: Original project (SuperCollider)
+  pt: "Projeto original (SuperCollider)"
   cs: Original project (SuperCollider)
 
 settings.about.credits:
@@ -706,7 +706,7 @@ settings.about.credits:
   fr: "Crédits"
   de: "Danksagungen"
   it: "Crediti"
-  pt: Credits
+  pt: "Créditos"
   cs: Credits
 
 settings.about.credits.appIcons:
@@ -715,7 +715,7 @@ settings.about.credits.appIcons:
   fr: "Icônes d'application : "
   de: "App-Symbole: "
   it: "Icone app: "
-  pt: "App icons: "
+  pt: "Ícones do app: "
   cs: "App icons: "
 
 settings.about.credits.uiIcons:
@@ -724,7 +724,7 @@ settings.about.credits.uiIcons:
   fr: "Icônes d'interface : "
   de: "UI-Symbole: "
   it: "Icone UI: "
-  pt: "UI icons: "
+  pt: "Ícones da UI: "
   cs: "UI icons: "
 
 settings.about.credits.inspiration:
@@ -733,7 +733,7 @@ settings.about.credits.inspiration:
   fr: "Inspiré par : "
   de: "Inspiriert von: "
   it: "Ispirato da: "
-  pt: "Inspired by: "
+  pt: "Inspirado por: "
   cs: "Inspired by: "
 
 # Sección: Idioma
@@ -743,7 +743,7 @@ settings.language:
   fr: "Langue"
   de: "Sprache"
   it: "Lingua"
-  pt: Language
+  pt: "Idioma"
   cs: Language
 
 # Sección: Escala de renderizado
@@ -753,7 +753,7 @@ settings.scale:
   fr: "Échelle de rendu"
   de: "Rendering-Skalierung"
   it: "Scala di rendering"
-  pt: Rendering scale
+  pt: "Escala de renderização"
   cs: Rendering scale
 
 settings.scale.description:
@@ -762,7 +762,7 @@ settings.scale.description:
   fr: "Échelle plus élevée = image plus nette, mais utilisation plus importante des ressources. Se réinitialise à 1× au redémarrage sauf si "Mémoriser" est activé."
   de: "Höhere Skalierung = schärferes Bild, aber mehr Ressourcennutzung. Setzt sich beim Neustart auf 1× zurück, es sei denn, "Merken" ist aktiviert."
   it: "Scala più alta = immagine più nitida, ma più utilizzo di risorse. Si ripristina a 1× al riavvio a meno che "Ricorda" non sia abilitato."
-  pt: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
+  pt: "Escala mais alta = imagem mais nítida, mas mais uso de recursos. Redefine para 1× ao reiniciar, a menos que "Lembrar" esteja ativado."
   cs: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
 
 settings.scale.current:
@@ -771,7 +771,7 @@ settings.scale.current:
   fr: "Échelle actuelle :"
   de: "Aktuelle Skalierung:"
   it: "Scala attuale:"
-  pt: "Current scale:"
+  pt: "Escala atual:"
   cs: "Current scale:"
 
 settings.scale.remember:
@@ -780,7 +780,7 @@ settings.scale.remember:
   fr: "Mémoriser au redémarrage"
   de: "Beim Neustart merken"
   it: "Ricorda al riavvio"
-  pt: Remember on restart
+  pt: "Lembrar ao reiniciar"
   cs: Remember on restart
 
 # Sección: Actualizaciones
@@ -790,7 +790,7 @@ settings.updates:
   fr: "Mises à jour"
   de: "Aktualisierungen"
   it: "Aggiornamenti"
-  pt: Updates
+  pt: "Atualizações"
   cs: Updates
 
 settings.updates.version:
@@ -799,7 +799,7 @@ settings.updates.version:
   fr: "Version actuelle :"
   de: "Aktuelle Version:"
   it: "Versione attuale:"
-  pt: "Current version:"
+  pt: "Versão atual:"
   cs: "Current version:"
 
 settings.updates.check:
@@ -808,7 +808,7 @@ settings.updates.check:
   fr: "Vérifier les mises à jour"
   de: "Auf Aktualisierungen prüfen"
   it: "Controlla aggiornamenti"
-  pt: Check for updates
+  pt: "Verificar atualizações"
   cs: Check for updates
 
 settings.updates.checking:
@@ -817,7 +817,7 @@ settings.updates.checking:
   fr: "Vérification..."
   de: "Wird überprüft..."
   it: "Controllo in corso..."
-  pt: Checking...
+  pt: "Verificando..."
   cs: Checking...
 
 settings.updates.available:
@@ -826,7 +826,7 @@ settings.updates.available:
   fr: "Nouvelle version disponible !"
   de: "Neue Version verfügbar!"
   it: "Nuova versione disponibile!"
-  pt: New version available!
+  pt: "Nova versão disponível!"
   cs: New version available!
 
 settings.updates.pendingInstall:
@@ -835,7 +835,7 @@ settings.updates.pendingInstall:
   fr: "Une nouvelle version est prête à être installée"
   de: "Eine neue Version kann installiert werden"
   it: "Una nuova versione è pronta per l'installazione"
-  pt: A new version is ready to install
+  pt: "Uma nova versão está pronta para ser instalada"
   cs: A new version is ready to install
 
 settings.updates.install:
@@ -844,7 +844,7 @@ settings.updates.install:
   fr: "Installer la mise à jour"
   de: "Aktualisierung installieren"
   it: "Installa aggiornamento"
-  pt: Install update
+  pt: "Instalar atualização"
   cs: Install update
 
 settings.updates.installAndReload:
@@ -853,7 +853,7 @@ settings.updates.installAndReload:
   fr: "Installer et recharger"
   de: "Installieren und erneut laden"
   it: "Installa e ricarica"
-  pt: Install and reload
+  pt: "Instalar e recarregar"
   cs: Install and reload
 
 settings.updates.installing:
@@ -862,7 +862,7 @@ settings.updates.installing:
   fr: "Installation..."
   de: "Wird installiert..."
   it: "Installazione in corso..."
-  pt: Installing...
+  pt: "Instalando..."
   cs: Installing...
 
 settings.updates.upToDate:
@@ -871,7 +871,7 @@ settings.updates.upToDate:
   fr: "Vous êtes à jour ✓"
   de: "Du bist auf dem neuesten Stand ✓"
   it: "Sei aggiornato ✓"
-  pt: You are up to date ✓
+  pt: "Você está atualizado ✓"
   cs: You are up to date ✓
 
 settings.updates.error:
@@ -880,7 +880,7 @@ settings.updates.error:
   fr: "Erreur lors de la vérification des mises à jour"
   de: "Fehler beim Überprüfen auf Aktualisierungen"
   it: "Errore durante il controllo degli aggiornamenti"
-  pt: Error checking for updates
+  pt: "Erro ao verificar atualizações"
   cs: Error checking for updates
 
 # AUTOGUARDADO
@@ -890,7 +890,7 @@ settings.autosave:
   fr: "Sauvegarde automatique"
   de: "Automatisches Speichern"
   it: "Salvataggio automatico"
-  pt: Auto-save
+  pt: "Salvamento automático"
   cs: Auto-save
 
 settings.autosave.description:
@@ -899,7 +899,7 @@ settings.autosave.description:
   fr: "Enregistrer automatiquement l'état actuel périodiquement"
   de: "Aktuellen Status regelmäßig automatisch speichern"
   it: "Salva automaticamente lo stato attuale periodicamente"
-  pt: Automatically save the current state periodically
+  pt: "Salvar automaticamente o estado atual periodicamente"
   cs: Automatically save the current state periodically
 
 settings.autosave.interval:
@@ -908,7 +908,7 @@ settings.autosave.interval:
   fr: "Intervalle de sauvegarde"
   de: "Speicherintervall"
   it: "Intervallo di salvataggio"
-  pt: Save interval
+  pt: "Intervalo de salvamento"
   cs: Save interval
 
 settings.autosave.interval.off:
@@ -917,7 +917,7 @@ settings.autosave.interval.off:
   fr: "Désactivé"
   de: "Deaktiviert"
   it: "Disabilitato"
-  pt: Disabled
+  pt: "Desabilitado"
   cs: Disabled
 
 settings.autosave.interval.30s:
@@ -926,7 +926,7 @@ settings.autosave.interval.30s:
   fr: "Tous les 30 secondes"
   de: "Alle 30 Sekunden"
   it: "Ogni 30 secondi"
-  pt: Every 30 seconds
+  pt: "A cada 30 segundos"
   cs: Every 30 seconds
 
 settings.autosave.interval.1m:
@@ -935,7 +935,7 @@ settings.autosave.interval.1m:
   fr: "Chaque 1 minute"
   de: "Jede 1 Minute"
   it: "Ogni 1 minuto"
-  pt: Every 1 minute
+  pt: "A cada 1 minuto"
   cs: Every 1 minute
 
 settings.autosave.interval.5m:
@@ -944,7 +944,7 @@ settings.autosave.interval.5m:
   fr: "Tous les 5 minutes"
   de: "Alle 5 Minuten"
   it: "Ogni 5 minuti"
-  pt: Every 5 minutes
+  pt: "A cada 5 minutos"
   cs: Every 5 minutes
 
 settings.autosave.interval.10m:
@@ -953,7 +953,7 @@ settings.autosave.interval.10m:
   fr: "Tous les 10 minutes"
   de: "Alle 10 Minuten"
   it: "Ogni 10 minuti"
-  pt: Every 10 minutes
+  pt: "A cada 10 minutos"
   cs: Every 10 minutes
 
 settings.autosave.onExit:
@@ -962,7 +962,7 @@ settings.autosave.onExit:
   fr: "Enregistrer à la fermeture"
   de: "Beim Beenden speichern"
   it: "Salva all'uscita"
-  pt: Save on exit
+  pt: "Salvar ao sair"
   cs: Save on exit
 
 settings.autosave.onExit.description:
@@ -971,7 +971,7 @@ settings.autosave.onExit.description:
   fr: "Enregistrer l'état actuel lors de la fermeture de l'application"
   de: "Aktuellen Status beim Schließen der App speichern"
   it: "Salva lo stato attuale quando si chiude l'app"
-  pt: Save the current state when closing the app
+  pt: "Salvar o estado atual ao fechar o aplicativo"
   cs: Save the current state when closing the app
 
 settings.autosave.restoreOnStart:
@@ -980,7 +980,7 @@ settings.autosave.restoreOnStart:
   fr: "Restaurer au démarrage"
   de: "Bei Start wiederherstellen"
   it: "Ripristina all'avvio"
-  pt: Restore on start
+  pt: "Restaurar ao iniciar"
   cs: Restore on start
 
 settings.autosave.restoreOnStart.description:
@@ -989,7 +989,7 @@ settings.autosave.restoreOnStart.description:
   fr: "Demander de restaurer le dernier état enregistré à l'ouverture de l'application"
   de: "Beim Öffnen der App zum Wiederherstellen des letzten gespeicherten Status auffordern"
   it: "Chiedi di ripristinare l'ultimo stato salvato quando si apre l'app"
-  pt: Ask to restore the last saved state when opening the app
+  pt: "Solicitar para restaurar o último estado salvo ao abrir o aplicativo"
   cs: Ask to restore the last saved state when opening the app
 
 settings.autosave.askBeforeRestore:
@@ -998,7 +998,7 @@ settings.autosave.askBeforeRestore:
   fr: "Demander avant de restaurer"
   de: "Vor dem Wiederherstellen fragen"
   it: "Chiedi prima di ripristinare"
-  pt: Ask before restoring
+  pt: "Perguntar antes de restaurar"
   cs: Ask before restoring
 
 settings.autosave.askBeforeRestore.description:
@@ -1007,7 +1007,7 @@ settings.autosave.askBeforeRestore.description:
   fr: "Afficher un dialogue de confirmation avant de restaurer (peut être modifié à partir du dialogue)"
   de: "Bestätigungsdialog vor dem Wiederherstellen anzeigen (kann im Dialog geändert werden)"
   it: "Mostra una finestra di dialogo di conferma prima di ripristinare (può essere modificata dalla finestra di dialogo)"
-  pt: Show a confirmation dialog before restoring (can be changed from dialog)
+  pt: "Mostrar uma caixa de diálogo de confirmação antes de restaurar (pode ser alterada na caixa de diálogo)"
   cs: Show a confirmation dialog before restoring (can be changed from dialog)
 
 # PANTALLA
@@ -1017,7 +1017,7 @@ settings.wakelock:
   fr: "Garder l'écran allumé"
   de: "Bildschirm aktiv halten"
   it: "Mantieni lo schermo attivo"
-  pt: Keep screen awake
+  pt: "Manter a tela acordada"
   cs: Keep screen awake
 
 settings.wakelock.description:
@@ -1026,7 +1026,7 @@ settings.wakelock.description:
   fr: "Empêche l'écran de s'éteindre pendant que l'application est ouverte"
   de: "Verhindert, dass sich der Bildschirm ausschaltet, während die App offen ist"
   it: "Impedisce lo spegnimento dello schermo mentre l'app è aperta"
-  pt: Prevents the screen from turning off while the app is open
+  pt: "Evita que a tela se desligue enquanto o aplicativo está aberto"
   cs: Prevents the screen from turning off while the app is open
 
 settings.wakelock.unsupported:
@@ -1035,7 +1035,7 @@ settings.wakelock.unsupported:
   fr: "Non supporté dans ce navigateur"
   de: "In diesem Browser nicht unterstützt"
   it: "Non supportato in questo browser"
-  pt: Not supported in this browser
+  pt: "Não suportado neste navegador"
   cs: Not supported in this browser
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1048,7 +1048,7 @@ settings.shortcuts:
   fr: "Raccourcis clavier"
   de: "Tastatakürzel"
   it: "Scorciatoie da tastiera"
-  pt: Keyboard shortcuts
+  pt: "Atalhos de teclado"
   cs: Keyboard shortcuts
 
 settings.shortcuts.description:
@@ -1057,7 +1057,7 @@ settings.shortcuts.description:
   fr: "Cliquez sur un raccourci pour le modifier. Appuyez sur la nouvelle combinaison de touches."
   de: "Klicken Sie auf einen Tastaturkurzbefehl, um ihn zu ändern. Drücken Sie die neue Tastenkombination."
   it: "Fai clic su una scorciatoia per modificarla. Premi la nuova combinazione di tasti."
-  pt: Click on a shortcut to change it. Press the new key combination.
+  pt: "Clique em um atalho para alterá-lo. Pressione a nova combinação de teclas."
   cs: Click on a shortcut to change it. Press the new key combination.
 
 settings.shortcuts.knobModifiers:
@@ -1066,7 +1066,7 @@ settings.shortcuts.knobModifiers:
   fr: "Boutons : maintenez Ctrl/Cmd pour un mouvement 10× plus rapide, Shift pour un contrôle 10× plus fin."
   de: "Knöpfe: Halten Sie Strg/Befehl für 10x schnellere Bewegung, Umschalt für 10x feinere Kontrolle."
   it: "Manopole: tieni premuto Ctrl/Cmd per movimento 10x più veloce, Maiusc per controllo 10x più fine."
-  pt: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
+  pt: "Botões: mantenha Ctrl/Cmd pressionado para movimento 10x mais rápido, Shift para controle 10x mais fino."
   cs: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
 
 settings.shortcuts.mute:
@@ -1075,7 +1075,7 @@ settings.shortcuts.mute:
   fr: "Sourdine/Activer"
   de: "Stummschalten/Aktivieren"
   it: "Silenzioso/Non silenzioso"
-  pt: Mute/Unmute
+  pt: "Mutar/Desmutar"
   cs: Mute/Unmute
 
 settings.shortcuts.record:
@@ -1084,7 +1084,7 @@ settings.shortcuts.record:
   fr: "Enregistrer/Arrêter"
   de: "Aufnahme/Stopp"
   it: "Registra/Ferma"
-  pt: Record/Stop
+  pt: "Gravar/Parar"
   cs: Record/Stop
 
 settings.shortcuts.patches:
@@ -1093,7 +1093,7 @@ settings.shortcuts.patches:
   fr: "Ouvrir les patches"
   de: "Patches öffnen"
   it: "Apri patch"
-  pt: Open patches
+  pt: "Abrir patches"
   cs: Open patches
 
 settings.shortcuts.settings:
@@ -1102,7 +1102,7 @@ settings.shortcuts.settings:
   fr: "Ouvrir les paramètres"
   de: "Einstellungen öffnen"
   it: "Apri impostazioni"
-  pt: Open settings
+  pt: "Abrir configurações"
   cs: Open settings
 
 settings.shortcuts.fullscreen:
@@ -1111,7 +1111,7 @@ settings.shortcuts.fullscreen:
   fr: "Basculer en plein écran"
   de: "Vollbild umschalten"
   it: "Attiva/disattiva schermo intero"
-  pt: Toggle fullscreen
+  pt: "Alternar tela cheia"
   cs: Toggle fullscreen
 
 settings.shortcuts.reset:
@@ -1120,7 +1120,7 @@ settings.shortcuts.reset:
   fr: "Réinitialiser le synth"
   de: "Synth zurücksetzen"
   it: "Ripristina sintetizzatore"
-  pt: Reset synth
+  pt: "Redefinir sintetizador"
   cs: Reset synth
 
 settings.shortcuts.showPanelHints:
@@ -1129,7 +1129,7 @@ settings.shortcuts.showPanelHints:
   fr: "Afficher les numéros de panneau (maintenir)"
   de: "Panelnummern anzeigen (halten)"
   it: "Mostra numeri pannello (tieni premuto)"
-  pt: Show panel numbers (hold)
+  pt: "Mostrar números de painéis (manter pressionado)"
   cs: Show panel numbers (hold)
 
 settings.shortcuts.panel1:
@@ -1138,7 +1138,7 @@ settings.shortcuts.panel1:
   fr: "Panneau 1"
   de: "Bedienfeld 1"
   it: "Pannello 1"
-  pt: Panel 1
+  pt: "Painel 1"
   cs: Panel 1
 
 settings.shortcuts.panel2:
@@ -1147,7 +1147,7 @@ settings.shortcuts.panel2:
   fr: "Panneau 2"
   de: "Bedienfeld 2"
   it: "Pannello 2"
-  pt: Panel 2
+  pt: "Painel 2"
   cs: Panel 2
 
 settings.shortcuts.panel3:
@@ -1156,7 +1156,7 @@ settings.shortcuts.panel3:
   fr: "Panneau 3"
   de: "Bedienfeld 3"
   it: "Pannello 3"
-  pt: Panel 3
+  pt: "Painel 3"
   cs: Panel 3
 
 settings.shortcuts.panel4:
@@ -1165,7 +1165,7 @@ settings.shortcuts.panel4:
   fr: "Panneau 4"
   de: "Bedienfeld 4"
   it: "Pannello 4"
-  pt: Panel 4
+  pt: "Painel 4"
   cs: Panel 4
 
 settings.shortcuts.panel5:
@@ -1174,7 +1174,7 @@ settings.shortcuts.panel5:
   fr: "Panneau 5"
   de: "Bedienfeld 5"
   it: "Pannello 5"
-  pt: Panel 5
+  pt: "Painel 5"
   cs: Panel 5
 
 settings.shortcuts.panel6:
@@ -1183,7 +1183,7 @@ settings.shortcuts.panel6:
   fr: "Panneau 6"
   de: "Bedienfeld 6"
   it: "Pannello 6"
-  pt: Panel 6
+  pt: "Painel 6"
   cs: Panel 6
 
 settings.shortcuts.panelOutput:
@@ -1192,7 +1192,7 @@ settings.shortcuts.panelOutput:
   fr: "Panneau de sortie"
   de: "Ausgabe-Bedienfeld"
   it: "Pannello di uscita"
-  pt: Output panel
+  pt: "Painel de saída"
   cs: Output panel
 
 settings.shortcuts.overview:
@@ -1201,7 +1201,7 @@ settings.shortcuts.overview:
   fr: "Aperçu (tous les panneaux)"
   de: "Übersicht (alle Bedienfelder)"
   it: "Panoramica (tutti i pannelli)"
-  pt: Overview (all panels)
+  pt: "Visão geral (todos os painéis)"
   cs: Overview (all panels)
 
 settings.shortcuts.press:
@@ -1210,7 +1210,7 @@ settings.shortcuts.press:
   fr: "Appuyez sur une touche..."
   de: "Drücken Sie eine Taste..."
   it: "Premi un tasto..."
-  pt: Press a key...
+  pt: "Pressione uma tecla..."
   cs: Press a key...
 
 settings.shortcuts.none:
@@ -1219,7 +1219,7 @@ settings.shortcuts.none:
   fr: "Aucun"
   de: "Keine"
   it: "Nessuno"
-  pt: None
+  pt: "Nenhum"
   cs: None
 
 settings.shortcuts.conflict:
@@ -1228,7 +1228,7 @@ settings.shortcuts.conflict:
   fr: "Déjà assigné à : {action}"
   de: "Bereits zugewiesen zu: {action}"
   it: "Già assegnato a: {action}"
-  pt: "Already assigned to: {action}"
+  pt: "Já atribuído a: {action}"
   cs: "Already assigned to: {action}"
 
 settings.shortcuts.reserved:
@@ -1237,7 +1237,7 @@ settings.shortcuts.reserved:
   fr: "Cette clé est réservée"
   de: "Diese Taste ist reserviert"
   it: "Questo tasto è riservato"
-  pt: This key is reserved
+  pt: "Esta tecla está reservada"
   cs: This key is reserved
 
 settings.shortcuts.resetDefaults:
@@ -1246,7 +1246,7 @@ settings.shortcuts.resetDefaults:
   fr: "Réinitialiser les raccourcis"
   de: "Tastatakürzel zurücksetzen"
   it: "Ripristina scorciatoie"
-  pt: Reset shortcuts
+  pt: "Redefinir atalhos"
   cs: Reset shortcuts
 
 toast.autosave:
@@ -1255,7 +1255,7 @@ toast.autosave:
   fr: "État sauvegardé automatiquement"
   de: "Status automatisch gespeichert"
   it: "Stato salvato automaticamente"
-  pt: State auto-saved
+  pt: "Estado salvo automaticamente"
   cs: State auto-saved
 
 toast.autosave.exit:
@@ -1264,7 +1264,7 @@ toast.autosave.exit:
   fr: "État enregistré avant la fermeture"
   de: "Status vor dem Beenden gespeichert"
   it: "Stato salvato prima dell'uscita"
-  pt: State saved before exit
+  pt: "Estado salvo antes de sair"
   cs: State saved before exit
 
 toast.restored:
@@ -1273,7 +1273,7 @@ toast.restored:
   fr: "État précédent restauré"
   de: "Vorheriger Status wiederhergestellt"
   it: "Stato precedente ripristinato"
-  pt: Previous state restored
+  pt: "Estado anterior restaurado"
   cs: Previous state restored
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1286,7 +1286,7 @@ audio.title:
   fr: "Paramètres audio"
   de: "Audioeinstellungen"
   it: "Impostazioni audio"
-  pt: Audio Settings
+  pt: "Configurações de áudio"
   cs: Audio Settings
 
 audio.close:
@@ -1295,7 +1295,7 @@ audio.close:
   fr: "Fermer les paramètres"
   de: "Einstellungen schließen"
   it: "Chiudi impostazioni"
-  pt: Close settings
+  pt: "Fechar configurações"
   cs: Close settings
 
 # Dispositivos
@@ -1305,7 +1305,7 @@ audio.device.output:
   fr: "Appareil de sortie :"
   de: "Ausgabegerät:"
   it: "Dispositivo di uscita:"
-  pt: "Output device:"
+  pt: "Dispositivo de saída:"
   cs: "Output device:"
 
 audio.device.input:
@@ -1314,7 +1314,7 @@ audio.device.input:
   fr: "Appareil d'entrée :"
   de: "Eingabegerät:"
   it: "Dispositivo di ingresso:"
-  pt: "Input device:"
+  pt: "Dispositivo de entrada:"
   cs: "Input device:"
 
 audio.device.default:
@@ -1323,7 +1323,7 @@ audio.device.default:
   fr: "Appareil par défaut"
   de: "Standardgerät"
   it: "Dispositivo predefinito"
-  pt: Default device
+  pt: "Dispositivo padrão"
   cs: Default device
 
 audio.device.loading:
@@ -1332,7 +1332,7 @@ audio.device.loading:
   fr: "Chargement des appareils..."
   de: "Geräte werden geladen..."
   it: "Caricamento dispositivi..."
-  pt: Loading devices...
+  pt: "Carregando dispositivos..."
   cs: Loading devices...
 
 audio.device.error:
@@ -1341,7 +1341,7 @@ audio.device.error:
   fr: "Erreur au chargement des appareils"
   de: "Fehler beim Laden der Geräte"
   it: "Errore durante il caricamento dei dispositivi"
-  pt: Error loading devices
+  pt: "Erro ao carregar dispositivos"
   cs: Error loading devices
 
 audio.device.system:
@@ -1350,7 +1350,7 @@ audio.device.system:
   fr: "Système"
   de: "System"
   it: "Sistema"
-  pt: System
+  pt: "Sistema"
   cs: System
 
 # Sección salidas
@@ -1360,7 +1360,7 @@ audio.outputs.title:
   fr: "Sorties → Système"
   de: "Ausgänge → System"
   it: "Uscite → Sistema"
-  pt: Outputs → System
+  pt: "Saídas → Sistema"
   cs: Outputs → System
 
 audio.outputs.channels:
@@ -1369,7 +1369,7 @@ audio.outputs.channels:
   fr: "Canaux détectés :"
   de: "Erkannte Kanäle:"
   it: "Canali rilevati:"
-  pt: "Detected channels:"
+  pt: "Canais detectados:"
   cs: "Detected channels:"
 
 audio.outputs.description:
@@ -1378,7 +1378,7 @@ audio.outputs.description:
   fr: "Routez les sorties logiques du Synthi vers les sorties physiques du système."
   de: "Leiten Sie die logischen Ausgänge des Synthi zu den physischen Ausgängen des Systems."
   it: "Instrada le uscite logiche di Synthi alle uscite fisiche del sistema."
-  pt: Route Synthi logical outputs to system physical outputs.
+  pt: "Rotear as saídas lógicas do Synthi para as saídas físicas do sistema."
   cs: Route Synthi logical outputs to system physical outputs.
 
 audio.outputs.more:
@@ -1387,7 +1387,7 @@ audio.outputs.more:
   fr: "+{count} autres lignes (scroll pour voir)"
   de: "+{count} weitere Reihen (zum Sehen scrollen)"
   it: "+{count} altre righe (scorri per vedere)"
-  pt: "+{count} more rows (scroll to see)"
+  pt: "+{count} mais linhas (rolar para ver)"
   cs: "+{count} more rows (scroll to see)"
 
 # Sección entradas
@@ -1397,7 +1397,7 @@ audio.inputs.title:
   fr: "Système → Amplificateurs d'entrée"
   de: "System → Eingangsverstärker"
   it: "Sistema → Amplificatori di ingresso"
-  pt: System → Input Amplifiers
+  pt: "Sistema → Amplificadores de entrada"
   cs: System → Input Amplifiers
 
 audio.inputs.channels:
@@ -1406,7 +1406,7 @@ audio.inputs.channels:
   fr: "Canaux d'entrée :"
   de: "Eingangskanäle:"
   it: "Canali di ingresso:"
-  pt: "Input channels:"
+  pt: "Canais de entrada:"
   cs: "Input channels:"
 
 audio.inputs.description:
@@ -1415,7 +1415,7 @@ audio.inputs.description:
   fr: "Routez les entrées physiques du système vers les amplificateurs d'entrée du Synthi."
   de: "Leiten Sie die physischen Eingänge des Systems zu den Eingangsverstärkern des Synthi weiter."
   it: "Instrada gli ingressi fisici del sistema agli amplificatori di ingresso di Synthi."
-  pt: Route system physical inputs to Synthi Input Amplifiers.
+  pt: "Rotear as entradas físicas do sistema para os amplificadores de entrada do Synthi."
   cs: Route system physical inputs to Synthi Input Amplifiers.
 
 audio.inputs.enable:
@@ -1424,7 +1424,7 @@ audio.inputs.enable:
   fr: "Activer l'entrée audio"
   de: "Audioeingabe aktivieren"
   it: "Abilita ingresso audio"
-  pt: Enable audio input
+  pt: "Ativar entrada de áudio"
   cs: Enable audio input
 
 audio.inputs.permission:
@@ -1433,7 +1433,7 @@ audio.inputs.permission:
   fr: "Nécessite la permission du microphone."
   de: "Erfordert Mikrofonerlaubnis."
   it: "Richiede l'autorizzazione del microfono."
-  pt: Requires microphone permission.
+  pt: "Requer permissão de microfone."
   cs: Requires microphone permission.
 
 audio.inputs.enabled:
@@ -1442,7 +1442,7 @@ audio.inputs.enabled:
   fr: "✓ Entrée activée"
   de: "✓ Eingabe aktiviert"
   it: "✓ Ingresso abilitato"
-  pt: ✓ Input enabled
+  pt: "✓ Entrada ativada"
   cs: ✓ Input enabled
 
 # Permisos de micrófono denegados
@@ -1452,7 +1452,7 @@ audio.permission.denied.title:
   fr: "Accès au microphone refusé"
   de: "Mikrofonzugriff verweigert"
   it: "Accesso al microfono negato"
-  pt: Microphone access denied
+  pt: "Acesso ao microfone negado"
   cs: Microphone access denied
 
 audio.permission.denied.message:
@@ -1461,7 +1461,7 @@ audio.permission.denied.message:
   fr: "Activez le microphone dans les paramètres du navigateur ou du système pour utiliser les entrées audio."
   de: "Aktivieren Sie das Mikrofon in den Browser- oder Systemeinstellungen, um Audioeingaben zu verwenden."
   it: "Abilita il microfono nelle impostazioni del browser o del sistema per utilizzare gli ingressi audio."
-  pt: Enable microphone in browser or system settings to use audio inputs.
+  pt: "Ative o microfone nas configurações do navegador ou do sistema para usar entradas de áudio."
   cs: Enable microphone in browser or system settings to use audio inputs.
 
 audio.permission.retry:
@@ -1470,7 +1470,7 @@ audio.permission.retry:
   fr: "Réessayer"
   de: "Erneut versuchen"
   it: "Riprova"
-  pt: Retry
+  pt: "Tentar novamente"
   cs: Retry
 
 # Nombres de canales
@@ -1480,7 +1480,7 @@ audio.channel.mono:
   fr: "Mono"
   de: "Mono"
   it: "Mono"
-  pt: Mono
+  pt: "Mono"
   cs: Mono
 
 audio.channel.stereo:
@@ -1489,7 +1489,7 @@ audio.channel.stereo:
   fr: "Stéréo"
   de: "Stereo"
   it: "Stereo"
-  pt: Stereo
+  pt: "Estéreo"
   cs: Stereo
 
 audio.channel.quad:
@@ -1498,7 +1498,7 @@ audio.channel.quad:
   fr: "Quadraphonique"
   de: "Quadrafon"
   it: "Quadrafonico"
-  pt: Quadraphonic
+  pt: "Quadrafônico"
   cs: Quadraphonic
 
 audio.channel.surround:
@@ -1507,7 +1507,7 @@ audio.channel.surround:
   fr: "5.1 Surround"
   de: "5.1 Surround"
   it: "5.1 Surround"
-  pt: 5.1 Surround
+  pt: "5.1 Surround"
   cs: 5.1 Surround
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1520,7 +1520,7 @@ quickbar.open:
   fr: "Ouvrir les actions rapides"
   de: "Schnellaktionen öffnen"
   it: "Apri azioni rapide"
-  pt: Open quick actions
+  pt: "Abrir ações rápidas"
   cs: Open quick actions
 
 quickbar.close:
@@ -1529,7 +1529,7 @@ quickbar.close:
   fr: "Fermer les actions rapides"
   de: "Schnellaktionen schließen"
   it: "Chiudi azioni rapide"
-  pt: Close quick actions
+  pt: "Fechar ações rápidas"
   cs: Close quick actions
 
 quickbar.pan.lock:
@@ -1538,7 +1538,7 @@ quickbar.pan.lock:
   fr: "Verrouiller le panoramique"
   de: "Schwenk sperren"
   it: "Blocca panoramica"
-  pt: Lock panning
+  pt: "Bloquear panorâmica"
   cs: Lock panning
 
 quickbar.pan.unlock:
@@ -1547,7 +1547,7 @@ quickbar.pan.unlock:
   fr: "Déverrouiller le panoramique"
   de: "Schwenk entsperren"
   it: "Sblocca panoramica"
-  pt: Unlock panning
+  pt: "Desbloquear panorâmica"
   cs: Unlock panning
 
 quickbar.zoom.lock:
@@ -1556,7 +1556,7 @@ quickbar.zoom.lock:
   fr: "Verrouiller le zoom"
   de: "Zoom sperren"
   it: "Blocca zoom"
-  pt: Lock zoom
+  pt: "Bloquear zoom"
   cs: Lock zoom
 
 quickbar.zoom.unlock:
@@ -1565,7 +1565,7 @@ quickbar.zoom.unlock:
   fr: "Déverrouiller le zoom"
   de: "Zoom entsperren"
   it: "Sblocca zoom"
-  pt: Unlock zoom
+  pt: "Desbloquear zoom"
   cs: Unlock zoom
 
 quickbar.settings:
@@ -1574,7 +1574,7 @@ quickbar.settings:
   fr: "Paramètres (S)"
   de: "Einstellungen (S)"
   it: "Impostazioni (S)"
-  pt: Settings (S)
+  pt: "Configurações (S)"
   cs: Settings (S)
 
 quickbar.patches:
@@ -1583,7 +1583,7 @@ quickbar.patches:
   fr: "Patches (P)"
   de: "Patches (P)"
   it: "Patch (P)"
-  pt: Patches (P)
+  pt: "Patches (P)"
   cs: Patches (P)
 
 quickbar.pip:
@@ -1592,7 +1592,7 @@ quickbar.pip:
   fr: "Panneaux flottants"
   de: "Schwebende Bedienfelder"
   it: "Pannelli mobili"
-  pt: Floating Panels
+  pt: "Painéis flutuantes"
   cs: Floating Panels
 
 quickbar.audio:
@@ -1601,7 +1601,7 @@ quickbar.audio:
   fr: "Paramètres audio (A)"
   de: "Audioeinstellungen (A)"
   it: "Impostazioni audio (A)"
-  pt: Audio settings (A)
+  pt: "Configurações de áudio (A)"
   cs: Audio settings (A)
 
 quickbar.emergency:
@@ -1610,7 +1610,7 @@ quickbar.emergency:
   fr: "Réinitialiser l'échelle à 1× (urgence)"
   de: "Skalierung auf 1× zurücksetzen (Notfall)"
   it: "Ripristina scala a 1× (emergenza)"
-  pt: Reset scale to 1× (emergency)
+  pt: "Redefinir escala para 1× (emergência)"
   cs: Reset scale to 1× (emergency)
 
 quickbar.emergency.applied:
@@ -1619,7 +1619,7 @@ quickbar.emergency.applied:
   fr: "Échelle réinitialisée à 1×"
   de: "Skalierung auf 1× zurückgesetzt"
   it: "Scala ripristinata a 1×"
-  pt: Scale reset to 1×
+  pt: "Escala redefinida para 1×"
   cs: Scale reset to 1×
 
 quickbar.mute:
@@ -1628,7 +1628,7 @@ quickbar.mute:
   fr: "Sourdine audio (M)"
   de: "Audio stummschalten (M)"
   it: "Silenzia audio (M)"
-  pt: "Mute audio (M)"
+  pt: "Mutar áudio (M)"
   cs: "Mute audio (M)"
 
 quickbar.unmute:
@@ -1637,7 +1637,7 @@ quickbar.unmute:
   fr: "Activer l'audio (M)"
   de: "Audio aktivieren (M)"
   it: "Attiva audio (M)"
-  pt: "Unmute audio (M)"
+  pt: "Desmutar áudio (M)"
   cs: "Unmute audio (M)"
 
 toast.mute:
@@ -1646,7 +1646,7 @@ toast.mute:
   fr: "Audio en sourdine"
   de: "Audio stummgeschaltet"
   it: "Audio silenziato"
-  pt: Audio muted
+  pt: "Áudio mudo"
   cs: Audio muted
 
 toast.unmute:
@@ -1655,7 +1655,7 @@ toast.unmute:
   fr: "Audio actif"
   de: "Audio aktiv"
   it: "Audio attivo"
-  pt: Audio active
+  pt: "Áudio ativo"
   cs: Audio active
 
 quickbar.fullscreen:
@@ -1664,7 +1664,7 @@ quickbar.fullscreen:
   fr: "Plein écran (F)"
   de: "Vollbild (F)"
   it: "Schermo intero (F)"
-  pt: Fullscreen (F)
+  pt: "Tela cheia (F)"
   cs: Fullscreen (F)
 
 quickbar.fullscreen.exit:
@@ -1673,7 +1673,7 @@ quickbar.fullscreen.exit:
   fr: "Quitter le plein écran (Esc)"
   de: "Vollbild beenden (Esc)"
   it: "Esci da schermo intero (Esc)"
-  pt: Exit fullscreen (Esc)
+  pt: "Sair de tela cheia (Esc)"
   cs: Exit fullscreen (Esc)
 
 quickbar.reset:
@@ -1682,7 +1682,7 @@ quickbar.reset:
   fr: "Réinitialiser le synth (Shift+I)"
   de: "Synth zurücksetzen (Shift+I)"
   it: "Ripristina synth (Maiusc+I)"
-  pt: Reset synth (Shift+I)
+  pt: "Redefinir sintetizador (Shift+I)"
   cs: Reset synth (Shift+I)
 
 quickbar.oscOn:
@@ -1691,7 +1691,7 @@ quickbar.oscOn:
   fr: "OSC activé - Cliquez pour désactiver"
   de: "OSC aktiviert - Klicken zum Deaktivieren"
   it: "OSC abilitato - Fai clic per disabilitare"
-  pt: OSC enabled - Click to disable
+  pt: "OSC ativado - Clique para desativar"
   cs: OSC enabled - Click to disable
 
 quickbar.oscOff:
@@ -1700,7 +1700,7 @@ quickbar.oscOff:
   fr: "OSC désactivé - Cliquez pour activer"
   de: "OSC deaktiviert - Klicken zum Aktivieren"
   it: "OSC disabilitato - Fai clic per abilitare"
-  pt: OSC disabled - Click to enable
+  pt: "OSC desativado - Clique para ativar"
   cs: OSC disabled - Click to enable
 
 quickbar.oscError:
@@ -1709,7 +1709,7 @@ quickbar.oscError:
   fr: "Échec de l'activation d'OSC"
   de: "OSC konnte nicht aktiviert werden"
   it: "Impossibile abilitare OSC"
-  pt: Failed to enable OSC
+  pt: "Falha ao ativar OSC"
   cs: Failed to enable OSC
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1722,7 +1722,7 @@ quickbar.record:
   fr: "Enregistrer l'audio (R)"
   de: "Audio aufnehmen (R)"
   it: "Registra audio (R)"
-  pt: Record audio (R)
+  pt: "Gravar áudio (R)"
   cs: Record audio (R)
 
 quickbar.stopRecording:
@@ -1731,7 +1731,7 @@ quickbar.stopRecording:
   fr: "Arrêter l'enregistrement (R)"
   de: "Aufnahme stoppen (R)"
   it: "Ferma registrazione (R)"
-  pt: Stop recording (R)
+  pt: "Parar gravação (R)"
   cs: Stop recording (R)
 
 quickbar.recordSettings:
@@ -1740,7 +1740,7 @@ quickbar.recordSettings:
   fr: "Paramètres d'enregistrement"
   de: "Aufnahmeeinstellungen"
   it: "Impostazioni registrazione"
-  pt: Recording settings
+  pt: "Configurações de gravação"
   cs: Recording settings
 
 recording.title:
@@ -1749,7 +1749,7 @@ recording.title:
   fr: "Paramètres d'enregistrement"
   de: "Aufnahmeeinstellungen"
   it: "Impostazioni di registrazione"
-  pt: Recording Settings
+  pt: "Configurações de gravação"
   cs: Recording Settings
 
 recording.close:
@@ -1758,7 +1758,7 @@ recording.close:
   fr: "Close recording settings"
   de: "Close recording settings"
   it: "Close recording settings"
-  pt: Close recording settings
+  pt: "Close recording settings"
   cs: Close recording settings
 
 recording.tracks.label:
@@ -1767,7 +1767,7 @@ recording.tracks.label:
   fr: "Nombre de pistes"
   de: "Anzahl der Spuren"
   it: "Numero di tracce"
-  pt: Number of tracks
+  pt: "Número de faixas"
   cs: Number of tracks
 
 recording.tracks.mono:
@@ -1776,7 +1776,7 @@ recording.tracks.mono:
   fr: "1 (Mono)"
   de: "1 (Mono)"
   it: "1 (Mono)"
-  pt: 1 (Mono)
+  pt: "1 (Mono)"
   cs: 1 (Mono)
 
 recording.tracks.stereo:
@@ -1785,7 +1785,7 @@ recording.tracks.stereo:
   fr: "2 (Stéréo)"
   de: "2 (Stereo)"
   it: "2 (Stereo)"
-  pt: 2 (Stereo)
+  pt: "2 (Estéreo)"
   cs: 2 (Stereo)
 
 recording.tracks.tracks:
@@ -1794,7 +1794,7 @@ recording.tracks.tracks:
   fr: "pistes"
   de: "Spuren"
   it: "tracce"
-  pt: tracks
+  pt: "faixas"
   cs: tracks
 
 recording.track:
@@ -1803,7 +1803,7 @@ recording.track:
   fr: "Piste"
   de: "Spur"
   it: "Traccia"
-  pt: Track
+  pt: "Faixa"
   cs: Track
 
 recording.routing.title:
@@ -1812,7 +1812,7 @@ recording.routing.title:
   fr: "Routage des sorties"
   de: "Ausgangsrouting"
   it: "Instradamento di uscita"
-  pt: Output routing
+  pt: "Roteamento de saída"
   cs: Output routing
 
 recording.routing.description:
@@ -1821,7 +1821,7 @@ recording.routing.description:
   fr: "Sélectionnez les sorties enregistrées sur chaque piste"
   de: "Wählen Sie, welche Ausgänge auf jeder Spur aufgezeichnet werden"
   it: "Seleziona quali uscite vengono registrate su ogni traccia"
-  pt: Select which outputs are recorded to each track
+  pt: "Selecione quais saídas são gravadas em cada faixa"
   cs: Select which outputs are recorded to each track
 
 settings.recording:
@@ -1830,7 +1830,7 @@ settings.recording:
   fr: "Enregistrement audio"
   de: "Audioaufnahme"
   it: "Registrazione audio"
-  pt: Audio recording
+  pt: "Gravação de áudio"
   cs: Audio recording
 
 settings.recording.description:
@@ -1839,7 +1839,7 @@ settings.recording.description:
   fr: "Enregistrez la sortie audio sur des fichiers WAV (16-bit PCM)"
   de: "Audioausgang in WAV-Dateien aufnehmen (16-Bit PCM)"
   it: "Registra uscita audio in file WAV (PCM a 16 bit)"
-  pt: Record audio output to WAV files (16-bit PCM)
+  pt: "Gravar saída de áudio em arquivos WAV (PCM de 16 bits)"
   cs: Record audio output to WAV files (16-bit PCM)
 
 settings.recording.configure:
@@ -1848,7 +1848,7 @@ settings.recording.configure:
   fr: "Configurer l'enregistrement"
   de: "Aufnahme konfigurieren"
   it: "Configura registrazione"
-  pt: Configure recording
+  pt: "Configurar gravação"
   cs: Configure recording
 
 toast.recordingStarted:
@@ -1857,7 +1857,7 @@ toast.recordingStarted:
   fr: "Enregistrement commencé"
   de: "Aufnahme gestartet"
   it: "Registrazione iniziata"
-  pt: Recording started
+  pt: "Gravação iniciada"
   cs: Recording started
 
 toast.recordingSaved:
@@ -1866,7 +1866,7 @@ toast.recordingSaved:
   fr: "Enregistrement enregistré : {filename}"
   de: "Aufnahme gespeichert: {filename}"
   it: "Registrazione salvata: {filename}"
-  pt: "Recording saved: {filename}"
+  pt: "Gravação salva: {filename}"
   cs: "Recording saved: {filename}"
 
 toast.recordingEmpty:
@@ -1875,7 +1875,7 @@ toast.recordingEmpty:
   fr: "Aucun audio enregistré"
   de: "Kein Audio aufgezeichnet"
   it: "Nessun audio registrato"
-  pt: No audio recorded
+  pt: "Nenhum áudio gravado"
   cs: No audio recorded
 
 toast.recordingError:
@@ -1884,7 +1884,7 @@ toast.recordingError:
   fr: "Erreur d'enregistrement"
   de: "Aufnahmefehler"
   it: "Errore di registrazione"
-  pt: Recording error
+  pt: "Erro de gravação"
   cs: Recording error
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1897,7 +1897,7 @@ settings.reset:
   fr: "Réinitialiser le synthétiseur"
   de: "Synthesizer zurücksetzen"
   it: "Ripristina sintetizzatore"
-  pt: Reset synthesizer
+  pt: "Redefinir sintetizador"
   cs: Reset synthesizer
 
 settings.reset.description:
@@ -1906,7 +1906,7 @@ settings.reset.description:
   fr: "Réinitialisez tous les modules à leurs valeurs initiales. Cette action ne peut pas être annulée."
   de: "Setzen Sie alle Module auf ihre Anfangswerte zurück. Diese Aktion kann nicht rückgängig gemacht werden."
   it: "Ripristina tutti i moduli ai loro valori iniziali. Questa azione non può essere annullata."
-  pt: Reset all modules to their initial values. This action cannot be undone.
+  pt: "Redefinir todos os módulos para seus valores iniciais. Esta ação não pode ser desfeita."
   cs: Reset all modules to their initial values. This action cannot be undone.
 
 settings.reset.button:
@@ -1915,7 +1915,7 @@ settings.reset.button:
   fr: "Réinitialiser aux valeurs par défaut"
   de: "Auf Standard zurücksetzen"
   it: "Ripristina predefiniti"
-  pt: Reset to defaults
+  pt: "Redefinir para padrões"
   cs: Reset to defaults
 
 settings.reset.confirm:
@@ -1924,7 +1924,7 @@ settings.reset.confirm:
   fr: "Êtes-vous sûr de vouloir réinitialiser tous les modules à leurs valeurs par défaut ? Cela ne peut pas être annulé."
   de: "Möchten Sie wirklich alle Module auf ihre Standardwerte zurücksetzen? Dies kann nicht rückgängig gemacht werden."
   it: "Sei sicuro di voler ripristinare tutti i moduli ai loro valori predefiniti? Ciò non può essere annullato."
-  pt: Are you sure you want to reset all modules to their default values? This cannot be undone.
+  pt: "Tem certeza de que deseja redefinir todos os módulos para seus valores padrão? Isto não pode ser desfeito."
   cs: Are you sure you want to reset all modules to their default values? This cannot be undone.
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1937,7 +1937,7 @@ settings.optimizations:
   fr: "Optimisations de performance"
   de: "Leistungsoptimierungen"
   it: "Ottimizzazioni delle prestazioni"
-  pt: Performance Optimizations
+  pt: "Otimizações de desempenho"
   cs: Performance Optimizations
 
 settings.optimizations.description:
@@ -1946,7 +1946,7 @@ settings.optimizations.description:
   fr: "Ces options réduisent la charge du processeur en désactivant le traitement audio quand il n'est pas nécessaire. Particulièrement utile sur les appareils mobiles."
   de: "Diese Optionen reduzieren die CPU-Last, indem sie die Audioverarbeitung deaktivieren, wenn sie nicht benötigt wird. Besonders nützlich auf Mobilgeräten."
   it: "Queste opzioni riducono il carico della CPU disabilitando l'elaborazione audio quando non necessaria. Particolarmente utile su dispositivi mobili."
-  pt: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
+  pt: "Essas opções reduzem a carga da CPU desabilitando o processamento de áudio quando não necessário. Especialmente útil em dispositivos móveis."
   cs: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
 
 settings.optimizations.debugGlobal:
@@ -1955,7 +1955,7 @@ settings.optimizations.debugGlobal:
   fr: "Afficher les toasts de debug pour toutes les optimisations"
   de: "Debug-Toasts für alle Optimierungen anzeigen"
   it: "Mostra toast di debug per tutte le ottimizzazioni"
-  pt: Show debug toasts for all optimizations
+  pt: "Mostrar toasts de depuração para todas as otimizações"
   cs: Show debug toasts for all optimizations
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1968,7 +1968,7 @@ settings.dormancy:
   fr: "Dormance des modules"
   de: "Moduldormanz"
   it: "Dormienza del modulo"
-  pt: Module Dormancy
+  pt: "Dormência do módulo"
   cs: Module Dormancy
 
 settings.dormancy.description:
@@ -1977,7 +1977,7 @@ settings.dormancy.description:
   fr: "Désactive automatiquement les modules qui ne sont pas connectés dans la matrice."
   de: "Stummschaltet Module automatisch, die in der Matrix nicht verbunden sind."
   it: "Silenzia automaticamente i moduli che non sono collegati nella matrice."
-  pt: Automatically mutes modules that are not connected in the matrix.
+  pt: "Silencia automaticamente módulos que não estão conectados na matriz."
   cs: Automatically mutes modules that are not connected in the matrix.
 
 settings.dormancy.enabled:
@@ -1986,7 +1986,7 @@ settings.dormancy.enabled:
   fr: "Activer le système de dormance"
   de: "Dormancy-System aktivieren"
   it: "Abilita sistema di dormienza"
-  pt: Enable dormancy system
+  pt: "Ativar sistema de dormência"
   cs: Enable dormancy system
 
 settings.dormancy.debug:
@@ -1995,7 +1995,7 @@ settings.dormancy.debug:
   fr: "Debug uniquement la dormance"
   de: "Nur Dormancy debuggen"
   it: "Esegui solo il debug della dormienza"
-  pt: Debug dormancy only
+  pt: "Apenas depurar dormência"
   cs: Debug dormancy only
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2008,7 +2008,7 @@ settings.filterBypass:
   fr: "Contournement des filtres"
   de: "Filter-Bypass"
   it: "Bypass filtro"
-  pt: Filter Bypass
+  pt: "Bypass de filtro"
   cs: Filter Bypass
 
 settings.filterBypass.description:
@@ -2017,7 +2017,7 @@ settings.filterBypass.description:
   fr: "Déconnecte physiquement les filtres LP/HP en position neutre, réduisant la charge du processeur."
   de: "Trennt LP/HP-Filter physisch in Neutralposition auf und reduziert die CPU-Last."
   it: "Disconnette fisicamente i filtri LP/HP quando in posizione neutra, riducendo il carico della CPU."
-  pt: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
+  pt: "Desconecta fisicamente os filtros LP/HP quando em posição neutra, reduzindo a carga da CPU."
   cs: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
 
 settings.filterBypass.enabled:
@@ -2026,7 +2026,7 @@ settings.filterBypass.enabled:
   fr: "Activer le contournement des filtres"
   de: "Filter-Bypass aktivieren"
   it: "Abilita bypass filtro"
-  pt: Enable filter bypass
+  pt: "Ativar bypass de filtro"
   cs: Enable filter bypass
 
 settings.filterBypass.debug:
@@ -2035,7 +2035,7 @@ settings.filterBypass.debug:
   fr: "Debug uniquement le contournement des filtres"
   de: "Nur Filter-Bypass debuggen"
   it: "Esegui solo il debug del bypass filtro"
-  pt: Debug filter bypass only
+  pt: "Apenas depurar bypass de filtro"
   cs: Debug filter bypass only
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2048,7 +2048,7 @@ settings.latencyMode:
   fr: "Mode de latence"
   de: "Latenzmodus"
   it: "Modalità latenza"
-  pt: Latency Mode
+  pt: "Modo de latência"
   cs: Latency Mode
 
 settings.latencyMode.description:
@@ -2057,7 +2057,7 @@ settings.latencyMode.description:
   fr: "Ajuste la taille du tampon audio. Utilisez "Lecture" sur mobile pour la stabilité, "Interactif" sur bureau pour une faible latence."
   de: "Passt die Audiopuffergröße an. Verwenden Sie "Wiedergabe" auf Mobilgeräten für Stabilität und "Interaktiv" auf dem Desktop für niedrige Latenz."
   it: "Regola la dimensione del buffer audio. Usa "Riproduzione" su dispositivi mobili per stabilità, "Interattivo" su desktop per bassa latenza."
-  pt: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
+  pt: "Ajusta o tamanho do buffer de áudio. Use "Reprodução" em dispositivos móveis para estabilidade, "Interativo" no desktop para baixa latência."
   cs: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
 
 settings.latencyMode.interactive:
@@ -2066,7 +2066,7 @@ settings.latencyMode.interactive:
   fr: "Interactif (~10ms)"
   de: "Interaktiv (~10 ms)"
   it: "Interattivo (~10 ms)"
-  pt: Interactive (~10ms)
+  pt: "Interativo (~10 ms)"
   cs: Interactive (~10ms)
 
 settings.latencyMode.balanced:
@@ -2075,7 +2075,7 @@ settings.latencyMode.balanced:
   fr: "Équilibré (~25ms)"
   de: "Ausgewogen (~25 ms)"
   it: "Bilanciato (~25 ms)"
-  pt: Balanced (~25ms)
+  pt: "Equilibrado (~25 ms)"
   cs: Balanced (~25ms)
 
 settings.latencyMode.playback:
@@ -2084,7 +2084,7 @@ settings.latencyMode.playback:
   fr: "Lecture (~50ms)"
   de: "Wiedergabe (~50 ms)"
   it: "Riproduzione (~50 ms)"
-  pt: Playback (~50ms)
+  pt: "Reprodução (~50 ms)"
   cs: Playback (~50ms)
 
 settings.latencyMode.safe:
@@ -2093,7 +2093,7 @@ settings.latencyMode.safe:
   fr: "Sûr (100ms)"
   de: "Sicher (100 ms)"
   it: "Sicuro (100 ms)"
-  pt: Safe (100ms)
+  pt: "Seguro (100 ms)"
   cs: Safe (100ms)
 
 settings.latencyMode.maximum:
@@ -2102,7 +2102,7 @@ settings.latencyMode.maximum:
   fr: "Maximum (200ms)"
   de: "Maximum (200 ms)"
   it: "Massimo (200 ms)"
-  pt: Maximum (200ms)
+  pt: "Máximo (200 ms)"
   cs: Maximum (200ms)
 
 settings.latencyMode.restartRequired:
@@ -2111,7 +2111,7 @@ settings.latencyMode.restartRequired:
   fr: "Mode de latence enregistré. Redémarrez l'application pour appliquer les modifications."
   de: "Latenzmodus gespeichert. Starten Sie die App neu, um Änderungen anzuwenden."
   it: "Modalità latenza salvata. Riavvia l'app per applicare i cambiamenti."
-  pt: Latency mode saved. Restart the app to apply changes.
+  pt: "Modo de latência salvo. Reinicie o aplicativo para aplicar as alterações."
   cs: Latency mode saved. Restart the app to apply changes.
 
 # EMULACIÓN DE VOLTAJES
@@ -2121,7 +2121,7 @@ settings.voltageEmulation:
   fr: "Émulation de tension"
   de: "Spannungssimulation"
   it: "Emulazione tensione"
-  pt: Voltage Emulation
+  pt: "Emulação de tensão"
   cs: Voltage Emulation
 
 settings.voltageEmulation.description:
@@ -2130,7 +2130,7 @@ settings.voltageEmulation.description:
   fr: "Émule le comportement électrique de la version Synthi 100 Cuenca/Datanomics (1982). Ces options affectent la précision analogique des signaux."
   de: "Emuliert das elektrische Verhalten der Synthi 100 Cuenca/Datanomics (1982)-Version. Diese Optionen beeinflussen die analoge Genauigkeit von Signalen."
   it: "Emula il comportamento elettrico della versione Synthi 100 Cuenca/Datanomics (1982). Queste opzioni influenzano l'accuratezza analogica dei segnali."
-  pt: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
+  pt: "Emula o comportamento elétrico da versão Synthi 100 Cuenca/Datanomics (1982). Essas opções afetam a precisão analógica dos sinais."
   cs: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
 
 settings.voltageEmulation.softClip:
@@ -2139,7 +2139,7 @@ settings.voltageEmulation.softClip:
   fr: "Écrêtage doux"
   de: "Sanftes Clipping"
   it: "Soft Clipping"
-  pt: Soft Clipping
+  pt: "Clipping suave"
   cs: Soft Clipping
 
 settings.voltageEmulation.softClip.description:
@@ -2148,7 +2148,7 @@ settings.voltageEmulation.softClip.description:
   fr: "Sature doucement avec tanh() les signaux qui dépassent les limites d'entrée de chaque module (8V p-p typique)."
   de: "Sättigt sanft mit tanh() Signale, die die Eingangsgrenzen jedes Moduls überschreiten (typischerweise 8V p-p)."
   it: "Satura dolcemente con tanh() i segnali che superano i limiti di ingresso di ogni modulo (tipicamente 8V p-p)."
-  pt: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
+  pt: "Satura suavemente com tanh() sinais que excedem os limites de entrada de cada módulo (tipicamente 8V p-p)."
   cs: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
 
 settings.voltageEmulation.pinTolerance:
@@ -2157,7 +2157,7 @@ settings.voltageEmulation.pinTolerance:
   fr: "Tolérance des broches"
   de: "Pin-Toleranz"
   it: "Tolleranza pin"
-  pt: Pin Tolerance
+  pt: "Tolerância de pino"
   cs: Pin Tolerance
 
 settings.voltageEmulation.pinTolerance.description:
@@ -2166,7 +2166,7 @@ settings.voltageEmulation.pinTolerance.description:
   fr: "Applique une variation réaliste par type de broche : gris ±0,5%, blanc ±10%. Chaque connexion a sa propre tolérance reproductible."
   de: "Wendet realistische Variation nach Pin-Typ an: grau ±0,5%, weiß ±10%. Jede Verbindung hat ihre eigene reproduzierbare Toleranz."
   it: "Applica variazione realistica per tipo di pin: grigio ±0,5%, bianco ±10%. Ogni connessione ha la propria tolleranza riproducibile."
-  pt: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
+  pt: "Aplica variação realista por tipo de pino: cinza ±0,5%, branco ±10%. Cada conexão tem sua própria tolerância reprodutível."
   cs: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
 
 settings.voltageEmulation.thermalDrift:
@@ -2175,7 +2175,7 @@ settings.voltageEmulation.thermalDrift:
   fr: "Dérive thermique"
   de: "Thermische Drift"
   it: "Deriva termica"
-  pt: Thermal Drift
+  pt: "Deriva térmica"
   cs: Thermal Drift
 
 settings.voltageEmulation.thermalDrift.description:
@@ -2184,7 +2184,7 @@ settings.voltageEmulation.thermalDrift.description:
   fr: "Simule la dérive lente (±0,1%) des oscillateurs CEM 3340 en raison des changements de température."
   de: "Simuliert langsame Drift (±0,1%) von CEM 3340-Oszillatoren aufgrund von Temperaturänderungen."
   it: "Simula la deriva lenta (±0,1%) degli oscillatori CEM 3340 a causa dei cambiamenti di temperatura."
-  pt: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
+  pt: "Simula a deriva lenta (±0,1%) dos osciladores CEM 3340 devido a mudanças de temperatura."
   cs: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
 
 toast.reset:
@@ -2193,7 +2193,7 @@ toast.reset:
   fr: "Synthétiseur réinitialisé aux valeurs par défaut"
   de: "Synthesizer auf Standard zurückgesetzt"
   it: "Sintetizzatore ripristinato ai predefiniti"
-  pt: Synthesizer reset to defaults
+  pt: "Sintetizador redefinido para padrões"
   cs: Synthesizer reset to defaults
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2206,7 +2206,7 @@ toast.resolution:
   fr: "Échelle : {factor}×"
   de: "Skalierung: {factor}×"
   it: "Scala: {factor}×"
-  pt: "Scale: {factor}×"
+  pt: "Escala: {factor}×"
   cs: "Scale: {factor}×"
 
 toast.resolution.mobileWarning:
@@ -2215,7 +2215,7 @@ toast.resolution.mobileWarning:
   fr: "Échelle : {factor}× ⚠️ Peut causer des problèmes de performance"
   de: "Skalierung: {factor}× ⚠️ Kann Leistungsprobleme verursachen"
   it: "Scala: {factor}× ⚠️ Potrebbe causare problemi di prestazioni"
-  pt: "Scale: {factor}× ⚠️ May cause performance issues"
+  pt: "Escala: {factor}× ⚠️ Pode causar problemas de desempenho"
   cs: "Scale: {factor}× ⚠️ May cause performance issues"
 
 toast.pan.locked:
@@ -2224,7 +2224,7 @@ toast.pan.locked:
   fr: "Panoramique verrouillé"
   de: "Schwenk gesperrt"
   it: "Panoramica bloccata"
-  pt: Panning locked
+  pt: "Panorâmica bloqueada"
   cs: Panning locked
 
 toast.pan.unlocked:
@@ -2233,7 +2233,7 @@ toast.pan.unlocked:
   fr: "Panoramique déverrouillé"
   de: "Schwenk entsperrt"
   it: "Panoramica sbloccata"
-  pt: Panning unlocked
+  pt: "Panorâmica desbloqueada"
   cs: Panning unlocked
 
 toast.zoom.locked:
@@ -2242,7 +2242,7 @@ toast.zoom.locked:
   fr: "Zoom verrouillé"
   de: "Zoom gesperrt"
   it: "Zoom bloccato"
-  pt: Zoom locked
+  pt: "Zoom bloqueado"
   cs: Zoom locked
 
 toast.zoom.unlocked:
@@ -2251,7 +2251,7 @@ toast.zoom.unlocked:
   fr: "Zoom déverrouillé"
   de: "Zoom entsperrt"
   it: "Zoom sbloccato"
-  pt: Zoom unlocked
+  pt: "Zoom desbloqueado"
   cs: Zoom unlocked
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2264,7 +2264,7 @@ pip.detach:
   fr: "Détacher le panneau"
   de: "Bedienfeld trennen"
   it: "Stacca pannello"
-  pt: Detach panel
+  pt: "Desanexar painel"
   cs: Detach panel
 
 pip.detachAll:
@@ -2273,7 +2273,7 @@ pip.detachAll:
   fr: "Détacher tout"
   de: "Alle trennen"
   it: "Stacca tutto"
-  pt: Detach all
+  pt: "Desanexar tudo"
   cs: Detach all
 
 pip.attach:
@@ -2282,7 +2282,7 @@ pip.attach:
   fr: "Retourner le panneau"
   de: "Bedienfeld zurückgeben"
   it: "Restituisci pannello"
-  pt: Return panel
+  pt: "Retornar painel"
   cs: Return panel
 
 pip.attachAll:
@@ -2291,7 +2291,7 @@ pip.attachAll:
   fr: "Retourner tout"
   de: "Alle zurückgeben"
   it: "Restituisci tutto"
-  pt: Return all
+  pt: "Retornar tudo"
   cs: Return all
 
 pip.close:
@@ -2300,7 +2300,7 @@ pip.close:
   fr: "Fermer"
   de: "Schließen"
   it: "Chiudi"
-  pt: Close
+  pt: "Fechar"
   cs: Close
 
 pip.zoomIn:
@@ -2309,7 +2309,7 @@ pip.zoomIn:
   fr: "Zoomer"
   de: "Vergrößern"
   it: "Ingrandisci"
-  pt: Zoom in
+  pt: "Ampliar"
   cs: Zoom in
 
 pip.zoomOut:
@@ -2318,7 +2318,7 @@ pip.zoomOut:
   fr: "Dézoomer"
   de: "Verkleinern"
   it: "Rimpicciolisci"
-  pt: Zoom out
+  pt: "Reduzir"
   cs: Zoom out
 
 pip.placeholderHint:
@@ -2327,7 +2327,7 @@ pip.placeholderHint:
   fr: "Cliquez pour restaurer"
   de: "Klicken zum Wiederherstellen"
   it: "Fai clic per ripristinare"
-  pt: Click to restore
+  pt: "Clique para restaurar"
   cs: Click to restore
 
 # Títulos de paneles para PiP
@@ -2337,7 +2337,7 @@ panel.oscillators1:
   fr: "Oscillateurs 1-3"
   de: "Oszillatoren 1-3"
   it: "Oscillatori 1-3"
-  pt: Oscillators 1-3
+  pt: "Osciladores 1-3"
   cs: Oscillators 1-3
 
 panel.oscilloscope:
@@ -2346,7 +2346,7 @@ panel.oscilloscope:
   fr: "Oscilloscope"
   de: "Oszilloskop"
   it: "Oscilloscopio"
-  pt: Oscilloscope
+  pt: "Osciloscópio"
   cs: Oscilloscope
 
 panel.oscillators2:
@@ -2355,7 +2355,7 @@ panel.oscillators2:
   fr: "Oscillateurs 4-6"
   de: "Oszillatoren 4-6"
   it: "Oscillatori 4-6"
-  pt: Oscillators 4-6
+  pt: "Osciladores 4-6"
   cs: Oscillators 4-6
 
 panel.oscillators3:
@@ -2364,7 +2364,7 @@ panel.oscillators3:
   fr: "Oscillateurs 7-9"
   de: "Oszillatoren 7-9"
   it: "Oscillatori 7-9"
-  pt: Oscillators 7-9
+  pt: "Osciladores 7-9"
   cs: Oscillators 7-9
 
 panel.audioMatrix:
@@ -2373,7 +2373,7 @@ panel.audioMatrix:
   fr: "Matrice Audio"
   de: "Audio-Matrix"
   it: "Matrice audio"
-  pt: Audio Matrix
+  pt: "Matriz de áudio"
   cs: Audio Matrix
 
 panel.controlMatrix:
@@ -2382,7 +2382,7 @@ panel.controlMatrix:
   fr: "Matrice Contrôle"
   de: "Steuer-Matrix"
   it: "Matrice di controllo"
-  pt: Control Matrix
+  pt: "Matriz de controle"
   cs: Control Matrix
 
 panel.output:
@@ -2391,7 +2391,7 @@ panel.output:
   fr: "Sortie"
   de: "Ausgabe"
   it: "Uscita"
-  pt: Output
+  pt: "Saída"
   cs: Output
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2404,7 +2404,7 @@ orientation.hint:
   fr: "Tournez votre appareil en mode paysage pour une meilleure expérience"
   de: "Drehen Sie Ihr Gerät für eine bessere Erfahrung in die Querformatausrichtung"
   it: "Ruota il dispositivo in orizzontale per un'esperienza migliore"
-  pt: Rotate your device to landscape for a better experience
+  pt: "Gire seu dispositivo para paisagem para uma melhor experiência"
   cs: Rotate your device to landscape for a better experience
 
 orientation.blocker:
@@ -2413,7 +2413,7 @@ orientation.blocker:
   fr: "Veuillez tourner votre appareil en mode paysage"
   de: "Bitte drehen Sie Ihr Gerät in den Querformatmodus"
   it: "Ruota il dispositivo in modalità orizzontale"
-  pt: Please rotate your device to landscape mode
+  pt: "Gire seu dispositivo para o modo paisagem"
   cs: Please rotate your device to landscape mode
 
 orientation.blocker.dismiss:
@@ -2422,7 +2422,7 @@ orientation.blocker.dismiss:
   fr: "Fermer"
   de: "Verwerfen"
   it: "Ignora"
-  pt: Dismiss
+  pt: "Descartar"
   cs: Dismiss
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2435,7 +2435,7 @@ update.available:
   fr: "Une nouvelle version est disponible. Voulez-vous l'installer et recharger maintenant ?"
   de: "Eine neue Version ist verfügbar. Möchten Sie diese jetzt installieren und neu laden?"
   it: "Una nuova versione è disponibile. Vuoi installarla e ricaricare ora?"
-  pt: A new version is available. Do you want to install and reload now?
+  pt: "Uma nova versão está disponível. Você gostaria de instalar e recarregar agora?"
   cs: A new version is available. Do you want to install and reload now?
 
 update.installNow:
@@ -2444,7 +2444,7 @@ update.installNow:
   fr: "Installer maintenant"
   de: "Jetzt installieren"
   it: "Installa ora"
-  pt: Install now
+  pt: "Instalar agora"
   cs: Install now
 
 update.later:
@@ -2453,7 +2453,7 @@ update.later:
   fr: "Plus tard"
   de: "Später"
   it: "Più tardi"
-  pt: Later
+  pt: "Mais tarde"
   cs: Later
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2466,7 +2466,7 @@ error.fullscreen:
   fr: "Impossible de basculer le plein écran."
   de: "Vollbild konnte nicht umgeschaltet werden."
   it: "Impossibile attivare/disattivare la modalità schermo intero."
-  pt: Could not toggle fullscreen.
+  pt: "Não foi possível alternar a tela cheia."
   cs: Could not toggle fullscreen.
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2479,7 +2479,7 @@ patches.title:
   fr: "Patches"
   de: "Patches"
   it: "Patch"
-  pt: Patches
+  pt: "Patches"
   cs: Patches
 
 patches.close:
@@ -2488,7 +2488,7 @@ patches.close:
   fr: "Fermer les patches"
   de: "Patches schließen"
   it: "Chiudi patch"
-  pt: Close patches
+  pt: "Fechar patches"
   cs: Close patches
 
 patches.saveCurrent:
@@ -2497,7 +2497,7 @@ patches.saveCurrent:
   fr: "Enregistrer la version actuelle"
   de: "Aktuelle Version speichern"
   it: "Salva corrente"
-  pt: Save current
+  pt: "Salvar atual"
   cs: Save current
 
 patches.search:
@@ -2506,7 +2506,7 @@ patches.search:
   fr: "Chercher..."
   de: "Suchen..."
   it: "Cerca..."
-  pt: Search...
+  pt: "Pesquisar..."
   cs: Search...
 
 patches.empty:
@@ -2515,7 +2515,7 @@ patches.empty:
   fr: "Aucun patch enregistré pour l'instant"
   de: "Noch keine Patches gespeichert"
   it: "Nessuna patch salvata ancora"
-  pt: No patches saved yet
+  pt: "Nenhum patch salvo ainda"
   cs: No patches saved yet
 
 patches.load:
@@ -2524,7 +2524,7 @@ patches.load:
   fr: "Charger"
   de: "Laden"
   it: "Carica"
-  pt: Load
+  pt: "Carregar"
   cs: Load
 
 patches.export:
@@ -2533,7 +2533,7 @@ patches.export:
   fr: "Exporter"
   de: "Exportieren"
   it: "Esporta"
-  pt: Export
+  pt: "Exportar"
   cs: Export
 
 patches.import:
@@ -2542,7 +2542,7 @@ patches.import:
   fr: "Importer"
   de: "Importieren"
   it: "Importa"
-  pt: Import
+  pt: "Importar"
   cs: Import
 
 patches.delete:
@@ -2551,7 +2551,7 @@ patches.delete:
   fr: "Supprimer"
   de: "Löschen"
   it: "Elimina"
-  pt: Delete
+  pt: "Deletar"
   cs: Delete
 
 patches.rename:
@@ -2560,7 +2560,7 @@ patches.rename:
   fr: "Renommer"
   de: "Umbenennen"
   it: "Rinomina"
-  pt: Rename
+  pt: "Renomear"
   cs: Rename
 
 patches.confirmDelete:
@@ -2569,7 +2569,7 @@ patches.confirmDelete:
   fr: "Supprimer le patch "{name}" ?"
   de: "Patch "{name}" löschen?"
   it: "Elimina patch "{name}"?"
-  pt: Delete patch "{name}"?
+  pt: "Deletar patch "{name}"?"
   cs: Delete patch "{name}"?
 
 patches.confirmLoad:
@@ -2578,7 +2578,7 @@ patches.confirmLoad:
   fr: "Charger le patch "{name}" ? Les modifications non enregistrées seront perdues."
   de: "Patch "{name}" laden? Nicht gespeicherte Änderungen gehen verloren."
   it: "Carica patch "{name}"? Le modifiche non salvate andranno perse."
-  pt: Load patch "{name}"? Unsaved changes will be lost.
+  pt: "Carregar patch "{name}"? As alterações não salvas serão perdidas."
   cs: Load patch "{name}"? Unsaved changes will be lost.
 
 patches.saved:
@@ -2587,7 +2587,7 @@ patches.saved:
   fr: "Patch enregistré"
   de: "Patch gespeichert"
   it: "Patch salvata"
-  pt: Patch saved
+  pt: "Patch salvo"
   cs: Patch saved
 
 patches.loaded:
@@ -2596,7 +2596,7 @@ patches.loaded:
   fr: "Patch chargé"
   de: "Patch geladen"
   it: "Patch caricata"
-  pt: Patch loaded
+  pt: "Patch carregado"
   cs: Patch loaded
 
 patches.loadedName:
@@ -2605,7 +2605,7 @@ patches.loadedName:
   fr: ""{name}" chargé"
   de: ""{name}" geladen"
   it: ""{name}" caricata"
-  pt: '"{name}" loaded'
+  pt: ""{name}" carregado"
   cs: '"{name}" loaded'
 
 patches.deleted:
@@ -2614,7 +2614,7 @@ patches.deleted:
   fr: "Patch supprimé"
   de: "Patch gelöscht"
   it: "Patch eliminata"
-  pt: Patch deleted
+  pt: "Patch deletado"
   cs: Patch deleted
 
 patches.renamed:
@@ -2623,7 +2623,7 @@ patches.renamed:
   fr: "Patch renommé"
   de: "Patch umbenannt"
   it: "Patch rinominata"
-  pt: Patch renamed
+  pt: "Patch renomeado"
   cs: Patch renamed
 
 patches.exported:
@@ -2632,7 +2632,7 @@ patches.exported:
   fr: "Patch exporté"
   de: "Patch exportiert"
   it: "Patch esportata"
-  pt: Patch exported
+  pt: "Patch exportado"
   cs: Patch exported
 
 patches.imported:
@@ -2641,7 +2641,7 @@ patches.imported:
   fr: "Patch importé"
   de: "Patch importiert"
   it: "Patch importata"
-  pt: Patch imported
+  pt: "Patch importado"
   cs: Patch imported
 
 patches.errorLoading:
@@ -2650,7 +2650,7 @@ patches.errorLoading:
   fr: "Erreur au chargement du patch"
   de: "Fehler beim Laden des Patches"
   it: "Errore durante il caricamento della patch"
-  pt: Error loading patch
+  pt: "Erro ao carregar patch"
   cs: Error loading patch
 
 patches.errorSaving:
@@ -2659,7 +2659,7 @@ patches.errorSaving:
   fr: "Erreur à l'enregistrement du patch"
   de: "Fehler beim Speichern des Patches"
   it: "Errore durante il salvataggio della patch"
-  pt: Error saving patch
+  pt: "Erro ao salvar patch"
   cs: Error saving patch
 
 patches.errorRenaming:
@@ -2668,7 +2668,7 @@ patches.errorRenaming:
   fr: "Erreur au renommage du patch"
   de: "Fehler beim Umbenennen des Patches"
   it: "Errore durante la ridenominazione della patch"
-  pt: Error renaming patch
+  pt: "Erro ao renomear patch"
   cs: Error renaming patch
 
 patches.namePrompt:
@@ -2677,7 +2677,7 @@ patches.namePrompt:
   fr: "Nom du patch"
   de: "Patch-Name"
   it: "Nome patch"
-  pt: Patch name
+  pt: "Nome do patch"
   cs: Patch name
 
 patches.renamePrompt:
@@ -2686,7 +2686,7 @@ patches.renamePrompt:
   fr: "Nouveau nom"
   de: "Neuer Name"
   it: "Nuovo nome"
-  pt: New name
+  pt: "Novo nome"
   cs: New name
 
 patches.defaultName:
@@ -2695,7 +2695,7 @@ patches.defaultName:
   fr: "Nouveau patch"
   de: "Neuer Patch"
   it: "Nuova patch"
-  pt: New patch
+  pt: "Novo patch"
   cs: New patch
 
 patches.init:
@@ -2704,7 +2704,7 @@ patches.init:
   fr: "Init (par défaut)"
   de: "Init (Standard)"
   it: "Init (predefinito)"
-  pt: Init (default)
+  pt: "Init (padrão)"
   cs: Init (default)
 
 patches.lastSession:
@@ -2713,7 +2713,7 @@ patches.lastSession:
   fr: "Restaurer la dernière session ?"
   de: "Letzte Sitzung wiederherstellen?"
   it: "Ripristina l'ultima sessione?"
-  pt: Restore last session?
+  pt: "Restaurar última sessão?"
   cs: Restore last session?
 
 patches.lastSession.yes:
@@ -2722,7 +2722,7 @@ patches.lastSession.yes:
   fr: "Restaurer"
   de: "Wiederherstellen"
   it: "Ripristina"
-  pt: Restore
+  pt: "Restaurar"
   cs: Restore
 
 patches.lastSession.no:
@@ -2731,7 +2731,7 @@ patches.lastSession.no:
   fr: "Commencer à nouveau"
   de: "Von vorne beginnen"
   it: "Ricomincia da capo"
-  pt: Start fresh
+  pt: "Começar do zero"
   cs: Start fresh
 
 patches.lastSession.remember:
@@ -2740,7 +2740,7 @@ patches.lastSession.remember:
   fr: "Retenir mon choix"
   de: "Meine Wahl merken"
   it: "Ricorda la mia scelta"
-  pt: Remember my choice
+  pt: "Lembrar minha escolha"
   cs: Remember my choice
 
 patches.versionWarning:
@@ -2749,7 +2749,7 @@ patches.versionWarning:
   fr: "Ce patch a été créé avec une version antérieure"
   de: "Dieser Patch wurde mit einer älteren Version erstellt"
   it: "Questa patch è stata creata con una versione precedente"
-  pt: This patch was created with an older version
+  pt: "Este patch foi criado com uma versão anterior"
   cs: This patch was created with an older version
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2766,7 +2766,7 @@ matrix.source.inputAmp:
   fr: "Entrée {channel}"
   de: "Eingabe {channel}"
   it: "Ingresso {channel}"
-  pt: "Input {channel}"
+  pt: "Entrada {channel}"
   cs: "Input {channel}"
 
 matrix.source.outputBus:
@@ -2774,7 +2774,7 @@ matrix.source.outputBus:
   fr: "Bus de sortie {bus}"
   de: "Ausgangsbus {bus}"
   it: "Bus di uscita {bus}"
-  pt: "Out Bus {bus}"
+  pt: "Barramento de saída {bus}"
   cs: "Out Bus {bus}"
 
 matrix.source.noiseGen:
@@ -2782,7 +2782,7 @@ matrix.source.noiseGen:
   fr: "Bruit {index}"
   de: "Rauschen {index}"
   it: "Rumore {index}"
-  pt: "Noise {index}"
+  pt: "Ruído {index}"
   cs: "Noise {index}"
 
 matrix.source.panel3Osc.sineSaw:
@@ -2807,7 +2807,7 @@ matrix.dest.outputBus:
   fr: "Out {bus}"
   de: "Aus {bus}"
   it: "Uscita {bus}"
-  pt: "Out {bus}"
+  pt: "Saída {bus}"
   cs: "Out {bus}"
 
 matrix.dest.oscilloscope.Y:
@@ -2848,7 +2848,7 @@ matrix.dest.outputLevelCV:
   fr: "Out {bus} Level CV"
   de: "Aus {bus} Level CV"
   it: "Uscita {bus} Level CV"
-  pt: "Out {bus} Level CV"
+  pt: "Saída {bus} Level CV"
   cs: "Out {bus} Level CV"
 
 # Tooltip format (assembled from source + dest)
@@ -2865,7 +2865,7 @@ matrix.tooltip.unknownSource:
   fr: "Ligne {row}"
   de: "Zeile {row}"
   it: "Riga {row}"
-  pt: "Row {row}"
+  pt: "Linha {row}"
   cs: "Row {row}"
 
 matrix.tooltip.unknownDest:
@@ -2874,7 +2874,7 @@ matrix.tooltip.unknownDest:
   fr: "Col {col}"
   de: "Spalte {col}"
   it: "Colonna {col}"
-  pt: "Col {col}"
+  pt: "Coluna {col}"
   cs: "Col {col}"
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2887,7 +2887,7 @@ pinColor.title:
   fr: "Type de broche"
   de: "Pin-Typ"
   it: "Tipo di pin"
-  pt: Pin Type
+  pt: "Tipo de pino"
   cs: Pin Type
 
 # Section headers
@@ -2897,7 +2897,7 @@ pinColor.recommended:
   fr: "Recommandé"
   de: "Empfohlen"
   it: "Consigliato"
-  pt: Recommended
+  pt: "Recomendado"
   cs: Recommended
 
 pinColor.standard:
@@ -2906,7 +2906,7 @@ pinColor.standard:
   fr: "Norme"
   de: "Standard"
   it: "Standard"
-  pt: Standard
+  pt: "Padrão"
   cs: Standard
 
 pinColor.special:
@@ -2915,7 +2915,7 @@ pinColor.special:
   fr: "Spécial"
   de: "Besonderheit"
   it: "Speciale"
-  pt: Special
+  pt: "Especial"
   cs: Special
 
 # Standard pins (Cuenca/Datanomics 1982)
@@ -2925,7 +2925,7 @@ pinColor.white:
   fr: "Blanc (standard)"
   de: "Weiß (Standard)"
   it: "Bianco (standard)"
-  pt: White (standard)
+  pt: "Branco (padrão)"
   cs: White (standard)
 
 pinColor.grey:
@@ -2934,7 +2934,7 @@ pinColor.grey:
   fr: "Gris (précision)"
   de: "Grau (Präzision)"
   it: "Grigio (precisione)"
-  pt: Grey (precision)
+  pt: "Cinza (precisão)"
   cs: Grey (precision)
 
 pinColor.green:
@@ -2943,7 +2943,7 @@ pinColor.green:
   fr: "Vert (atténué)"
   de: "Grün (gedämpft)"
   it: "Verde (attenuato)"
-  pt: Green (attenuated)
+  pt: "Verde (atenuado)"
   cs: Green (attenuated)
 
 pinColor.red:
@@ -2952,7 +2952,7 @@ pinColor.red:
   fr: "Rouge (oscilloscope)"
   de: "Rot (Umfang)"
   it: "Rosso (ambito)"
-  pt: Red (scope)
+  pt: "Vermelho (escopo)"
   cs: Red (scope)
 
 # Special pins (custom mixing - technical manual)
@@ -2962,7 +2962,7 @@ pinColor.blue:
   fr: "Bleu (amplification)"
   de: "Blau (Verstärkung)"
   it: "Blu (spinta)"
-  pt: Blue (boost)
+  pt: "Azul (reforço)"
   cs: Blue (boost)
 
 pinColor.yellow:
@@ -2971,7 +2971,7 @@ pinColor.yellow:
   fr: "Jaune (gain moyen)"
   de: "Gelb (Mittelgewinn)"
   it: "Giallo (guadagno medio)"
-  pt: Yellow (mid-gain)
+  pt: "Amarelo (ganho médio)"
   cs: Yellow (mid-gain)
 
 pinColor.cyan:
@@ -2980,7 +2980,7 @@ pinColor.cyan:
   fr: "Cyan (doux)"
   de: "Cyan (weich)"
   it: "Ciano (morbido)"
-  pt: Cyan (soft)
+  pt: "Ciano (suave)"
   cs: Cyan (soft)
 
 pinColor.purple:
@@ -2988,6 +2988,6 @@ pinColor.purple:
   es: Morado (sutil)  fr: Purple (subtle)
   de: "Violett (subtil)"
   it: "Viola (sottile)"
-  pt: Purple (subtle)
+  pt: "Roxo (sutil)"
   cs: Purple (subtle)
   fr: "Violet (subtil)"

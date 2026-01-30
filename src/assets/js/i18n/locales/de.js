@@ -8,7 +8,7 @@ export default {
   "settings.language.es": "Español",
   "settings.language.fr": "\"Français\"",
   "settings.language.de": "\"Deutsch\"",
-  "settings.language.it": "Italiano",
+  "settings.language.it": "\"Italiano\"",
   "settings.language.pt": "Português",
   "settings.language.cs": "Čeština",
   "common.yes": "Ja",

@@ -10,7 +10,7 @@ export const LANGUAGE_NAMES = {
   "es": "Español",
   "fr": "\"Français\"",
   "de": "\"Deutsch\"",
-  "it": "Italiano",
+  "it": "\"Italiano\"",
   "pt": "Português",
   "cs": "Čeština"
 };

@@ -10,7 +10,7 @@ export default {
   "settings.language.de": "\"Deutsch\"",
   "settings.language.it": "\"Italiano\"",
   "settings.language.pt": "\"Português\"",
-  "settings.language.cs": "Čeština",
+  "settings.language.cs": "\"Čeština\"",
   "common.yes": "Sí",
   "common.no": "No",
   "common.cancel": "Cancelar",

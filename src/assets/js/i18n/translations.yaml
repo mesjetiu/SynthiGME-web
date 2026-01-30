@@ -22,6 +22,11 @@ _meta:
   languages:
     en: English
     es: Español
+    fr: Français
+    de: Deutsch
+    it: Italiano
+    pt: Português
+    cs: Čeština
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TEXTOS COMUNES (botones genéricos, acciones repetidas)
@@ -30,18 +35,38 @@ _meta:
 common.yes:
   en: "Yes"
   es: "Sí"
+  fr: "Yes"
+  de: "Yes"
+  it: "Yes"
+  pt: "Yes"
+  cs: "Yes"
 
 common.no:
   en: "No"
   es: "No"
+  fr: "No"
+  de: "No"
+  it: "No"
+  pt: "No"
+  cs: "No"
 
 common.cancel:
   en: "Cancel"
   es: "Cancelar"
+  fr: "Cancel"
+  de: "Cancel"
+  it: "Cancel"
+  pt: "Cancel"
+  cs: "Cancel"
 
 common.ok:
   en: "OK"
   es: "Aceptar"
+  fr: "OK"
+  de: "OK"
+  it: "OK"
+  pt: "OK"
+  cs: "OK"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODAL DE AJUSTES GENERALES
@@ -50,438 +75,968 @@ common.ok:
 settings.title:
   en: Settings
   es: Ajustes
+  fr: Settings
+  de: Settings
+  it: Settings
+  pt: Settings
+  cs: Settings
 
 settings.close:
   en: Close settings
   es: Cerrar ajustes
+  fr: Close settings
+  de: Close settings
+  it: Close settings
+  pt: Close settings
+  cs: Close settings
 
 # Pestañas
 settings.tab.general:
   en: General
   es: General
+  fr: General
+  de: General
+  it: General
+  pt: General
+  cs: General
 
 settings.tab.audio:
   en: Audio
   es: Audio
+  fr: Audio
+  de: Audio
+  it: Audio
+  pt: Audio
+  cs: Audio
 
 settings.tab.recording:
   en: Recording
   es: Grabación
+  fr: Recording
+  de: Recording
+  it: Recording
+  pt: Recording
+  cs: Recording
 
 settings.tab.advanced:
   en: Advanced
   es: Avanzado
+  fr: Advanced
+  de: Advanced
+  it: Advanced
+  pt: Advanced
+  cs: Advanced
 
 settings.tab.osc:
   en: OSC
   es: OSC
+  fr: OSC
+  de: OSC
+  it: OSC
+  pt: OSC
+  cs: OSC
 
 settings.tab.about:
   en: About
   es: Acerca de
+  fr: About
+  de: About
+  it: About
+  pt: About
+  cs: About
 
 settings.tab.display:
   en: Display
   es: Visualización
+  fr: Display
+  de: Display
+  it: Display
+  pt: Display
+  cs: Display
 
 # Sección: Visualización
 settings.display.inactivePins:
   en: Inactive Pins
   es: Pines inactivos
+  fr: Inactive Pins
+  de: Inactive Pins
+  it: Inactive Pins
+  pt: Inactive Pins
+  cs: Inactive Pins
 
 settings.display.inactivePins.description:
   en: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
   es: Los pines de la matriz que no conectan ninguna fuente con ningún destino se consideran inactivos. Por defecto aparecen atenuados y no se pueden pulsar.
+  fr: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
+  de: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
+  it: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
+  pt: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
+  cs: Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.
 
 settings.display.inactivePins.show:
   en: Show inactive pins as active
   es: Mostrar pines inactivos como activos
+  fr: Show inactive pins as active
+  de: Show inactive pins as active
+  it: Show inactive pins as active
+  pt: Show inactive pins as active
+  cs: Show inactive pins as active
 
 # Sección: Paneles flotantes (PiP)
 settings.display.pip:
   en: Floating Panels (PiP)
   es: Paneles flotantes (PiP)
+  fr: Floating Panels (PiP)
+  de: Floating Panels (PiP)
+  it: Floating Panels (PiP)
+  pt: Floating Panels (PiP)
+  cs: Floating Panels (PiP)
 
 settings.display.pip.description:
   en: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
   es: Los paneles flotantes permiten extraer cualquier panel y verlo de forma independiente mientras navegas por el sintetizador. Usa el icono del pin en cada panel para extraerlo.
+  fr: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
+  de: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
+  it: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
+  pt: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
+  cs: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
 
 settings.display.pip.remember:
   en: Remember floating panels between sessions
   es: Recordar paneles flotantes entre sesiones
+  fr: Remember floating panels between sessions
+  de: Remember floating panels between sessions
+  it: Remember floating panels between sessions
+  pt: Remember floating panels between sessions
+  cs: Remember floating panels between sessions
 
 # Sección: Información de parámetros (tooltips)
 settings.display.paramInfo:
   en: Parameter Information
   es: Información de parámetros
+  fr: Parameter Information
+  de: Parameter Information
+  it: Parameter Information
+  pt: Parameter Information
+  cs: Parameter Information
 
 settings.display.paramInfo.description:
   en: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
   es: Mostrar información técnica extendida en los tooltips de controles. Estos valores no serían visibles en el Synthi original.
+  fr: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
+  de: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
+  it: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
+  pt: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
+  cs: Show extended technical information in control tooltips. These values would not be visible on the original Synthi hardware.
 
 settings.display.paramInfo.voltage:
   en: Show electrical values (V, Vp-p, Ω)
   es: Mostrar valores eléctricos (V, Vp-p, Ω)
+  fr: Show electrical values (V, Vp-p, Ω)
+  de: Show electrical values (V, Vp-p, Ω)
+  it: Show electrical values (V, Vp-p, Ω)
+  pt: Show electrical values (V, Vp-p, Ω)
+  cs: Show electrical values (V, Vp-p, Ω)
 
 settings.display.paramInfo.audio:
   en: Show audio values (frequency, gain)
   es: Mostrar valores de audio (frecuencia, ganancia)
+  fr: Show audio values (frequency, gain)
+  de: Show audio values (frequency, gain)
+  it: Show audio values (frequency, gain)
+  pt: Show audio values (frequency, gain)
+  cs: Show audio values (frequency, gain)
 
 # Sección: OSC (Open Sound Control)
 settings.osc.title:
   en: OSC Communication
   es: Comunicación OSC
+  fr: OSC Communication
+  de: OSC Communication
+  it: OSC Communication
+  pt: OSC Communication
+  cs: OSC Communication
 
 settings.osc.description:
   en: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
   es: OSC (Open Sound Control) permite sincronizar múltiples instancias de SynthiGME en tiempo real a través de la red local. Cuando se mueve un control en una instancia, todas las instancias conectadas reflejan el cambio.
+  fr: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
+  de: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
+  it: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
+  pt: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
+  cs: OSC (Open Sound Control) allows multiple SynthiGME instances to synchronize in real-time over the local network. When a control is moved on one instance, all connected instances reflect the change.
 
 settings.osc.enable:
   en: Enable OSC
   es: Activar OSC
+  fr: Enable OSC
+  de: Enable OSC
+  it: Enable OSC
+  pt: Enable OSC
+  cs: Enable OSC
 
 settings.osc.electronOnly:
   en: OSC is only available in the desktop application (Electron).
   es: OSC solo está disponible en la aplicación de escritorio (Electron).
+  fr: OSC is only available in the desktop application (Electron).
+  de: OSC is only available in the desktop application (Electron).
+  it: OSC is only available in the desktop application (Electron).
+  pt: OSC is only available in the desktop application (Electron).
+  cs: OSC is only available in the desktop application (Electron).
 
 settings.osc.mode:
   en: Communication Mode
   es: Modo de comunicación
+  fr: Communication Mode
+  de: Communication Mode
+  it: Communication Mode
+  pt: Communication Mode
+  cs: Communication Mode
 
 settings.osc.mode.peer:
   en: Peer-to-peer (send and receive)
   es: Peer-to-peer (enviar y recibir)
+  fr: Peer-to-peer (send and receive)
+  de: Peer-to-peer (send and receive)
+  it: Peer-to-peer (send and receive)
+  pt: Peer-to-peer (send and receive)
+  cs: Peer-to-peer (send and receive)
 
 settings.osc.mode.master:
   en: Master (send only)
   es: Master (solo enviar)
+  fr: Master (send only)
+  de: Master (send only)
+  it: Master (send only)
+  pt: Master (send only)
+  cs: Master (send only)
 
 settings.osc.mode.slave:
   en: Slave (receive only)
   es: Esclavo (solo recibir)
+  fr: Slave (receive only)
+  de: Slave (receive only)
+  it: Slave (receive only)
+  pt: Slave (receive only)
+  cs: Slave (receive only)
 
 settings.osc.prefix:
   en: Address Prefix
   es: Prefijo de direcciones
+  fr: Address Prefix
+  de: Address Prefix
+  it: Address Prefix
+  pt: Address Prefix
+  cs: Address Prefix
 
 settings.osc.prefix.description:
   en: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
   es: Todos los mensajes OSC usan este prefijo. Solo las instancias con el mismo prefijo se sincronizarán.
+  fr: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
+  de: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
+  it: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
+  pt: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
+  cs: All OSC messages use this prefix. Only instances with the same prefix will synchronize.
 
 settings.osc.supercollider:
   en: SuperCollider
   es: SuperCollider
+  fr: SuperCollider
+  de: SuperCollider
+  it: SuperCollider
+  pt: SuperCollider
+  cs: SuperCollider
 
 settings.osc.supercollider.send:
   en: Send to SuperCollider
   es: Enviar a SuperCollider
+  fr: Send to SuperCollider
+  de: Send to SuperCollider
+  it: Send to SuperCollider
+  pt: Send to SuperCollider
+  cs: Send to SuperCollider
 
 settings.osc.supercollider.send.description:
   en: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
   es: Envía mensajes OSC a SuperCollider en localhost (127.0.0.1:57120).
+  fr: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
+  de: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
+  it: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
+  pt: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
+  cs: Sends OSC messages to SuperCollider on localhost (127.0.0.1:57120).
 
 settings.osc.supercollider.receive:
   en: Receive from SuperCollider
   es: Recibir desde SuperCollider
+  fr: Receive from SuperCollider
+  de: Receive from SuperCollider
+  it: Receive from SuperCollider
+  pt: Receive from SuperCollider
+  cs: Receive from SuperCollider
 
 settings.osc.supercollider.receive.description:
   en: Receives OSC messages from SuperCollider to control SynthiGME.
   es: Recibe mensajes OSC desde SuperCollider para controlar SynthiGME.
+  fr: Receives OSC messages from SuperCollider to control SynthiGME.
+  de: Receives OSC messages from SuperCollider to control SynthiGME.
+  it: Receives OSC messages from SuperCollider to control SynthiGME.
+  pt: Receives OSC messages from SuperCollider to control SynthiGME.
+  cs: Receives OSC messages from SuperCollider to control SynthiGME.
 
 settings.osc.supercollider.port:
   en: SC Port
   es: Puerto SC
+  fr: SC Port
+  de: SC Port
+  it: SC Port
+  pt: SC Port
+  cs: SC Port
 
 settings.osc.port:
   en: Listen port
   es: Puerto de escucha
+  fr: Listen port
+  de: Listen port
+  it: Listen port
+  pt: Listen port
+  cs: Listen port
 
 settings.osc.port.description:
   en: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
   es: Puerto UDP donde SynthiGME recibe mensajes OSC. Cambiar si otro programa (ej. SuperCollider) usa el puerto por defecto.
+  fr: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
+  de: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
+  it: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
+  pt: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
+  cs: UDP port where SynthiGME receives OSC messages. Change if another program (e.g. SuperCollider) uses the default port.
 
 settings.osc.port.note:
   en: (Requires OSC restart)
   es: (Requiere reiniciar OSC)
+  fr: (Requires OSC restart)
+  de: (Requires OSC restart)
+  it: (Requires OSC restart)
+  pt: (Requires OSC restart)
+  cs: (Requires OSC restart)
 
 settings.osc.targets:
   en: Unicast Targets
   es: Destinos unicast
+  fr: Unicast Targets
+  de: Unicast Targets
+  it: Unicast Targets
+  pt: Unicast Targets
+  cs: Unicast Targets
 
 settings.osc.targets.description:
   en: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
   es: Añade direcciones IP específicas para aplicaciones que no soportan multicast (como SuperCollider).
+  fr: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
+  de: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
+  it: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
+  pt: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
+  cs: Add specific IP addresses for applications that don't support multicast (like SuperCollider).
 
 settings.osc.targets.add:
   en: Add target
   es: Añadir destino
+  fr: Add target
+  de: Add target
+  it: Add target
+  pt: Add target
+  cs: Add target
 
 settings.osc.targets.ip:
   en: IP Address
   es: Dirección IP
+  fr: IP Address
+  de: IP Address
+  it: IP Address
+  pt: IP Address
+  cs: IP Address
 
 settings.osc.targets.port:
   en: Port
   es: Puerto
+  fr: Port
+  de: Port
+  it: Port
+  pt: Port
+  cs: Port
 
 settings.osc.targets.remove:
   en: Remove
   es: Eliminar
+  fr: Remove
+  de: Remove
+  it: Remove
+  pt: Remove
+  cs: Remove
 
 settings.osc.log:
   en: Message Log
   es: Registro de mensajes
+  fr: Message Log
+  de: Message Log
+  it: Message Log
+  pt: Message Log
+  cs: Message Log
 
 settings.osc.log.show:
   en: Show floating log window
   es: Mostrar ventana de log flotante
+  fr: Show floating log window
+  de: Show floating log window
+  it: Show floating log window
+  pt: Show floating log window
+  cs: Show floating log window
 
 settings.osc.status:
   en: Status
   es: Estado
+  fr: Status
+  de: Status
+  it: Status
+  pt: Status
+  cs: Status
 
 settings.osc.status.stopped:
   en: Stopped
   es: Detenido
+  fr: Stopped
+  de: Stopped
+  it: Stopped
+  pt: Stopped
+  cs: Stopped
 
 settings.osc.status.running:
   en: Running
   es: En ejecución
+  fr: Running
+  de: Running
+  it: Running
+  pt: Running
+  cs: Running
 
 settings.osc.status.error:
   en: Error
   es: Error
+  fr: Error
+  de: Error
+  it: Error
+  pt: Error
+  cs: Error
 
 # Ventana de log OSC
 osc.log.title:
   en: OSC Log
   es: Log OSC
+  fr: OSC Log
+  de: OSC Log
+  it: OSC Log
+  pt: OSC Log
+  cs: OSC Log
 
 osc.log.filter.all:
   en: All
   es: Todos
+  fr: All
+  de: All
+  it: All
+  pt: All
+  cs: All
 
 osc.log.filter.in:
   en: In
   es: Entrada
+  fr: In
+  de: In
+  it: In
+  pt: In
+  cs: In
 
 osc.log.filter.out:
   en: Out
   es: Salida
+  fr: Out
+  de: Out
+  it: Out
+  pt: Out
+  cs: Out
 
 osc.log.pause:
   en: Pause
   es: Pausar
+  fr: Pause
+  de: Pause
+  it: Pause
+  pt: Pause
+  cs: Pause
 
 osc.log.resume:
   en: Resume
   es: Continuar
+  fr: Resume
+  de: Resume
+  it: Resume
+  pt: Resume
+  cs: Resume
 
 osc.log.clear:
   en: Clear
   es: Limpiar
+  fr: Clear
+  de: Clear
+  it: Clear
+  pt: Clear
+  cs: Clear
 
 osc.log.close:
   en: Close
   es: Cerrar
+  fr: Close
+  de: Close
+  it: Close
+  pt: Close
+  cs: Close
 
 osc.log.noMessages:
   en: No messages yet...
   es: Sin mensajes todavía...
+  fr: No messages yet...
+  de: No messages yet...
+  it: No messages yet...
+  pt: No messages yet...
+  cs: No messages yet...
 
 osc.log.messageCount:
   en: "{count} messages"
   es: "{count} mensajes"
+  fr: "{count} messages"
+  de: "{count} messages"
+  it: "{count} messages"
+  pt: "{count} messages"
+  cs: "{count} messages"
 
 # Sección: Acerca de
 settings.about.description:
   en: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
   es: Port web del sintetizador modular Synthi GME, inspirado en el EMS Synthi 100 del Gabinete de Música Electroacústica (GME) de Cuenca. Nacido como Trabajo Final del Máster en Arte Sonoro de la Universitat de Barcelona (2019/2020), esta versión web persigue el mismo objetivo pedagógico y experimental con distribución sin fricciones.
+  fr: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
+  de: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
+  it: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
+  pt: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
+  cs: Web port of the Synthi GME modular synthesizer, inspired by the EMS Synthi 100 from the Gabinete de Música Electroacústica (GME) in Cuenca. Born as a Final Master's Project in Sound Art at the Universitat de Barcelona (2019/2020), this web version pursues the same pedagogical and experimental goal with frictionless distribution.
 
 settings.about.info:
   en: Information
   es: Información
+  fr: Information
+  de: Information
+  it: Information
+  pt: Information
+  cs: Information
 
 settings.about.version:
   en: "Version:"
   es: "Versión:"
+  fr: "Version:"
+  de: "Version:"
+  it: "Version:"
+  pt: "Version:"
+  cs: "Version:"
 
 settings.about.author:
   en: "Author:"
   es: "Autor:"
+  fr: "Author:"
+  de: "Author:"
+  it: "Author:"
+  pt: "Author:"
+  cs: "Author:"
 
 settings.about.license:
   en: "License:"
   es: "Licencia:"
+  fr: "License:"
+  de: "License:"
+  it: "License:"
+  pt: "License:"
+  cs: "License:"
 
 settings.about.links:
   en: Links
   es: Enlaces
+  fr: Links
+  de: Links
+  it: Links
+  pt: Links
+  cs: Links
 
 settings.about.repository:
   en: GitHub repository
   es: Repositorio en GitHub
+  fr: GitHub repository
+  de: GitHub repository
+  it: GitHub repository
+  pt: GitHub repository
+  cs: GitHub repository
 
 settings.about.issues:
   en: Report a bug / Contact
   es: Reportar un error / Contacto
+  fr: Report a bug / Contact
+  de: Report a bug / Contact
+  it: Report a bug / Contact
+  pt: Report a bug / Contact
+  cs: Report a bug / Contact
 
 settings.about.originalProject:
   en: Original project (SuperCollider)
   es: Proyecto original (SuperCollider)
+  fr: Original project (SuperCollider)
+  de: Original project (SuperCollider)
+  it: Original project (SuperCollider)
+  pt: Original project (SuperCollider)
+  cs: Original project (SuperCollider)
 
 settings.about.credits:
   en: Credits
   es: Créditos
+  fr: Credits
+  de: Credits
+  it: Credits
+  pt: Credits
+  cs: Credits
 
 settings.about.credits.appIcons:
   en: "App icons: "
   es: "Iconos de la app: "
+  fr: "App icons: "
+  de: "App icons: "
+  it: "App icons: "
+  pt: "App icons: "
+  cs: "App icons: "
 
 settings.about.credits.uiIcons:
   en: "UI icons: "
   es: "Iconos de UI: "
+  fr: "UI icons: "
+  de: "UI icons: "
+  it: "UI icons: "
+  pt: "UI icons: "
+  cs: "UI icons: "
 
 settings.about.credits.inspiration:
   en: "Inspired by: "
   es: "Inspirado en: "
+  fr: "Inspired by: "
+  de: "Inspired by: "
+  it: "Inspired by: "
+  pt: "Inspired by: "
+  cs: "Inspired by: "
 
 # Sección: Idioma
 settings.language:
   en: Language
   es: Idioma
+  fr: Language
+  de: Language
+  it: Language
+  pt: Language
+  cs: Language
 
 # Sección: Escala de renderizado
 settings.scale:
   en: Rendering scale
   es: Escala de renderizado
+  fr: Rendering scale
+  de: Rendering scale
+  it: Rendering scale
+  pt: Rendering scale
+  cs: Rendering scale
 
 settings.scale.description:
   en: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
   es: Mayor escala = mayor nitidez, pero más consumo de recursos. Se resetea a 1× al reiniciar salvo que actives "Recordar".
+  fr: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
+  de: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
+  it: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
+  pt: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
+  cs: Higher scale = sharper image, but more resource usage. Resets to 1× on restart unless "Remember" is enabled.
 
 settings.scale.current:
   en: "Current scale:"
   es: "Escala actual:"
+  fr: "Current scale:"
+  de: "Current scale:"
+  it: "Current scale:"
+  pt: "Current scale:"
+  cs: "Current scale:"
 
 settings.scale.remember:
   en: Remember on restart
   es: Recordar al reiniciar
+  fr: Remember on restart
+  de: Remember on restart
+  it: Remember on restart
+  pt: Remember on restart
+  cs: Remember on restart
 
 # Sección: Actualizaciones
 settings.updates:
   en: Updates
   es: Actualizaciones
+  fr: Updates
+  de: Updates
+  it: Updates
+  pt: Updates
+  cs: Updates
 
 settings.updates.version:
   en: "Current version:"
   es: "Versión actual:"
+  fr: "Current version:"
+  de: "Current version:"
+  it: "Current version:"
+  pt: "Current version:"
+  cs: "Current version:"
 
 settings.updates.check:
   en: Check for updates
   es: Buscar actualizaciones
+  fr: Check for updates
+  de: Check for updates
+  it: Check for updates
+  pt: Check for updates
+  cs: Check for updates
 
 settings.updates.checking:
   en: Checking...
   es: Buscando...
+  fr: Checking...
+  de: Checking...
+  it: Checking...
+  pt: Checking...
+  cs: Checking...
 
 settings.updates.available:
   en: New version available!
   es: "¡Nueva versión disponible!"
+  fr: New version available!
+  de: New version available!
+  it: New version available!
+  pt: New version available!
+  cs: New version available!
 
 settings.updates.pendingInstall:
   en: A new version is ready to install
   es: Hay una nueva versión lista para instalar
+  fr: A new version is ready to install
+  de: A new version is ready to install
+  it: A new version is ready to install
+  pt: A new version is ready to install
+  cs: A new version is ready to install
 
 settings.updates.install:
   en: Install update
   es: Instalar actualización
+  fr: Install update
+  de: Install update
+  it: Install update
+  pt: Install update
+  cs: Install update
 
 settings.updates.installAndReload:
   en: Install and reload
   es: Instalar y recargar
+  fr: Install and reload
+  de: Install and reload
+  it: Install and reload
+  pt: Install and reload
+  cs: Install and reload
 
 settings.updates.installing:
   en: Installing...
   es: Instalando...
+  fr: Installing...
+  de: Installing...
+  it: Installing...
+  pt: Installing...
+  cs: Installing...
 
 settings.updates.upToDate:
   en: You are up to date ✓
   es: Estás al día ✓
+  fr: You are up to date ✓
+  de: You are up to date ✓
+  it: You are up to date ✓
+  pt: You are up to date ✓
+  cs: You are up to date ✓
 
 settings.updates.error:
   en: Error checking for updates
   es: Error al buscar actualizaciones
+  fr: Error checking for updates
+  de: Error checking for updates
+  it: Error checking for updates
+  pt: Error checking for updates
+  cs: Error checking for updates
 
 # AUTOGUARDADO
 settings.autosave:
   en: Auto-save
   es: Autoguardado
+  fr: Auto-save
+  de: Auto-save
+  it: Auto-save
+  pt: Auto-save
+  cs: Auto-save
 
 settings.autosave.description:
   en: Automatically save the current state periodically
   es: Guardar automáticamente el estado actual periódicamente
+  fr: Automatically save the current state periodically
+  de: Automatically save the current state periodically
+  it: Automatically save the current state periodically
+  pt: Automatically save the current state periodically
+  cs: Automatically save the current state periodically
 
 settings.autosave.interval:
   en: Save interval
   es: Intervalo de guardado
+  fr: Save interval
+  de: Save interval
+  it: Save interval
+  pt: Save interval
+  cs: Save interval
 
 settings.autosave.interval.off:
   en: Disabled
   es: Desactivado
+  fr: Disabled
+  de: Disabled
+  it: Disabled
+  pt: Disabled
+  cs: Disabled
 
 settings.autosave.interval.30s:
   en: Every 30 seconds
   es: Cada 30 segundos
+  fr: Every 30 seconds
+  de: Every 30 seconds
+  it: Every 30 seconds
+  pt: Every 30 seconds
+  cs: Every 30 seconds
 
 settings.autosave.interval.1m:
   en: Every 1 minute
   es: Cada 1 minuto
+  fr: Every 1 minute
+  de: Every 1 minute
+  it: Every 1 minute
+  pt: Every 1 minute
+  cs: Every 1 minute
 
 settings.autosave.interval.5m:
   en: Every 5 minutes
   es: Cada 5 minutos
+  fr: Every 5 minutes
+  de: Every 5 minutes
+  it: Every 5 minutes
+  pt: Every 5 minutes
+  cs: Every 5 minutes
 
 settings.autosave.interval.10m:
   en: Every 10 minutes
   es: Cada 10 minutos
+  fr: Every 10 minutes
+  de: Every 10 minutes
+  it: Every 10 minutes
+  pt: Every 10 minutes
+  cs: Every 10 minutes
 
 settings.autosave.onExit:
   en: Save on exit
   es: Guardar al salir
+  fr: Save on exit
+  de: Save on exit
+  it: Save on exit
+  pt: Save on exit
+  cs: Save on exit
 
 settings.autosave.onExit.description:
   en: Save the current state when closing the app
   es: Guardar el estado actual al cerrar la aplicación
+  fr: Save the current state when closing the app
+  de: Save the current state when closing the app
+  it: Save the current state when closing the app
+  pt: Save the current state when closing the app
+  cs: Save the current state when closing the app
 
 settings.autosave.restoreOnStart:
   en: Restore on start
   es: Restaurar al iniciar
+  fr: Restore on start
+  de: Restore on start
+  it: Restore on start
+  pt: Restore on start
+  cs: Restore on start
 
 settings.autosave.restoreOnStart.description:
   en: Ask to restore the last saved state when opening the app
   es: Preguntar si restaurar el último estado al abrir la aplicación
+  fr: Ask to restore the last saved state when opening the app
+  de: Ask to restore the last saved state when opening the app
+  it: Ask to restore the last saved state when opening the app
+  pt: Ask to restore the last saved state when opening the app
+  cs: Ask to restore the last saved state when opening the app
 
 settings.autosave.askBeforeRestore:
   en: Ask before restoring
   es: Preguntar antes de restaurar
+  fr: Ask before restoring
+  de: Ask before restoring
+  it: Ask before restoring
+  pt: Ask before restoring
+  cs: Ask before restoring
 
 settings.autosave.askBeforeRestore.description:
   en: Show a confirmation dialog before restoring (can be changed from dialog)
   es: Mostrar diálogo de confirmación antes de restaurar (se puede cambiar desde el diálogo)
+  fr: Show a confirmation dialog before restoring (can be changed from dialog)
+  de: Show a confirmation dialog before restoring (can be changed from dialog)
+  it: Show a confirmation dialog before restoring (can be changed from dialog)
+  pt: Show a confirmation dialog before restoring (can be changed from dialog)
+  cs: Show a confirmation dialog before restoring (can be changed from dialog)
 
 # PANTALLA
 settings.wakelock:
   en: Keep screen awake
   es: Mantener pantalla encendida
+  fr: Keep screen awake
+  de: Keep screen awake
+  it: Keep screen awake
+  pt: Keep screen awake
+  cs: Keep screen awake
 
 settings.wakelock.description:
   en: Prevents the screen from turning off while the app is open
   es: Evita que la pantalla se apague mientras la app está abierta
+  fr: Prevents the screen from turning off while the app is open
+  de: Prevents the screen from turning off while the app is open
+  it: Prevents the screen from turning off while the app is open
+  pt: Prevents the screen from turning off while the app is open
+  cs: Prevents the screen from turning off while the app is open
 
 settings.wakelock.unsupported:
   en: Not supported in this browser
   es: No soportado en este navegador
+  fr: Not supported in this browser
+  de: Not supported in this browser
+  it: Not supported in this browser
+  pt: Not supported in this browser
+  cs: Not supported in this browser
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ATAJOS DE TECLADO
@@ -490,106 +1045,236 @@ settings.wakelock.unsupported:
 settings.shortcuts:
   en: Keyboard shortcuts
   es: Atajos de teclado
+  fr: Keyboard shortcuts
+  de: Keyboard shortcuts
+  it: Keyboard shortcuts
+  pt: Keyboard shortcuts
+  cs: Keyboard shortcuts
 
 settings.shortcuts.description:
   en: Click on a shortcut to change it. Press the new key combination.
   es: Haz clic en un atajo para cambiarlo. Pulsa la nueva combinación de teclas.
+  fr: Click on a shortcut to change it. Press the new key combination.
+  de: Click on a shortcut to change it. Press the new key combination.
+  it: Click on a shortcut to change it. Press the new key combination.
+  pt: Click on a shortcut to change it. Press the new key combination.
+  cs: Click on a shortcut to change it. Press the new key combination.
 
 settings.shortcuts.knobModifiers:
   en: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
   es: Knobs: mantén Ctrl/Cmd para mover 10× más rápido y Shift para 10× más preciso.
+  fr: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
+  de: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
+  it: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
+  pt: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
+  cs: Knobs: hold Ctrl/Cmd for 10× faster movement, Shift for 10× finer control.
 
 settings.shortcuts.mute:
   en: Mute/Unmute
   es: Silenciar/Activar
+  fr: Mute/Unmute
+  de: Mute/Unmute
+  it: Mute/Unmute
+  pt: Mute/Unmute
+  cs: Mute/Unmute
 
 settings.shortcuts.record:
   en: Record/Stop
   es: Grabar/Detener
+  fr: Record/Stop
+  de: Record/Stop
+  it: Record/Stop
+  pt: Record/Stop
+  cs: Record/Stop
 
 settings.shortcuts.patches:
   en: Open patches
   es: Abrir patches
+  fr: Open patches
+  de: Open patches
+  it: Open patches
+  pt: Open patches
+  cs: Open patches
 
 settings.shortcuts.settings:
   en: Open settings
   es: Abrir ajustes
+  fr: Open settings
+  de: Open settings
+  it: Open settings
+  pt: Open settings
+  cs: Open settings
 
 settings.shortcuts.fullscreen:
   en: Toggle fullscreen
   es: Pantalla completa
+  fr: Toggle fullscreen
+  de: Toggle fullscreen
+  it: Toggle fullscreen
+  pt: Toggle fullscreen
+  cs: Toggle fullscreen
 
 settings.shortcuts.reset:
   en: Reset synth
   es: Reiniciar synth
+  fr: Reset synth
+  de: Reset synth
+  it: Reset synth
+  pt: Reset synth
+  cs: Reset synth
 
 settings.shortcuts.showPanelHints:
   en: Show panel numbers (hold)
   es: Mostrar números de panel (mantener)
+  fr: Show panel numbers (hold)
+  de: Show panel numbers (hold)
+  it: Show panel numbers (hold)
+  pt: Show panel numbers (hold)
+  cs: Show panel numbers (hold)
 
 settings.shortcuts.panel1:
   en: Panel 1
   es: Panel 1
+  fr: Panel 1
+  de: Panel 1
+  it: Panel 1
+  pt: Panel 1
+  cs: Panel 1
 
 settings.shortcuts.panel2:
   en: Panel 2
   es: Panel 2
+  fr: Panel 2
+  de: Panel 2
+  it: Panel 2
+  pt: Panel 2
+  cs: Panel 2
 
 settings.shortcuts.panel3:
   en: Panel 3
   es: Panel 3
+  fr: Panel 3
+  de: Panel 3
+  it: Panel 3
+  pt: Panel 3
+  cs: Panel 3
 
 settings.shortcuts.panel4:
   en: Panel 4
   es: Panel 4
+  fr: Panel 4
+  de: Panel 4
+  it: Panel 4
+  pt: Panel 4
+  cs: Panel 4
 
 settings.shortcuts.panel5:
   en: Panel 5
   es: Panel 5
+  fr: Panel 5
+  de: Panel 5
+  it: Panel 5
+  pt: Panel 5
+  cs: Panel 5
 
 settings.shortcuts.panel6:
   en: Panel 6
   es: Panel 6
+  fr: Panel 6
+  de: Panel 6
+  it: Panel 6
+  pt: Panel 6
+  cs: Panel 6
 
 settings.shortcuts.panelOutput:
   en: Output panel
   es: Panel Output
+  fr: Output panel
+  de: Output panel
+  it: Output panel
+  pt: Output panel
+  cs: Output panel
 
 settings.shortcuts.overview:
   en: Overview (all panels)
   es: Vista general
+  fr: Overview (all panels)
+  de: Overview (all panels)
+  it: Overview (all panels)
+  pt: Overview (all panels)
+  cs: Overview (all panels)
 
 settings.shortcuts.press:
   en: Press a key...
   es: Pulsa una tecla...
+  fr: Press a key...
+  de: Press a key...
+  it: Press a key...
+  pt: Press a key...
+  cs: Press a key...
 
 settings.shortcuts.none:
   en: None
   es: Ninguno
+  fr: None
+  de: None
+  it: None
+  pt: None
+  cs: None
 
 settings.shortcuts.conflict:
   en: "Already assigned to: {action}"
   es: "Ya asignado a: {action}"
+  fr: "Already assigned to: {action}"
+  de: "Already assigned to: {action}"
+  it: "Already assigned to: {action}"
+  pt: "Already assigned to: {action}"
+  cs: "Already assigned to: {action}"
 
 settings.shortcuts.reserved:
   en: This key is reserved
   es: Esta tecla está reservada
+  fr: This key is reserved
+  de: This key is reserved
+  it: This key is reserved
+  pt: This key is reserved
+  cs: This key is reserved
 
 settings.shortcuts.resetDefaults:
   en: Reset shortcuts
   es: Restaurar atajos
+  fr: Reset shortcuts
+  de: Reset shortcuts
+  it: Reset shortcuts
+  pt: Reset shortcuts
+  cs: Reset shortcuts
 
 toast.autosave:
   en: State auto-saved
   es: Estado guardado automáticamente
+  fr: State auto-saved
+  de: State auto-saved
+  it: State auto-saved
+  pt: State auto-saved
+  cs: State auto-saved
 
 toast.autosave.exit:
   en: State saved before exit
   es: Estado guardado antes de salir
+  fr: State saved before exit
+  de: State saved before exit
+  it: State saved before exit
+  pt: State saved before exit
+  cs: State saved before exit
 
 toast.restored:
   en: Previous state restored
   es: Estado anterior restaurado
+  fr: Previous state restored
+  de: Previous state restored
+  it: Previous state restored
+  pt: Previous state restored
+  cs: Previous state restored
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODAL DE AUDIO
@@ -598,107 +1283,232 @@ toast.restored:
 audio.title:
   en: Audio Settings
   es: Configuración de Audio
+  fr: Audio Settings
+  de: Audio Settings
+  it: Audio Settings
+  pt: Audio Settings
+  cs: Audio Settings
 
 audio.close:
   en: Close settings
   es: Cerrar configuración
+  fr: Close settings
+  de: Close settings
+  it: Close settings
+  pt: Close settings
+  cs: Close settings
 
 # Dispositivos
 audio.device.output:
   en: "Output device:"
   es: "Dispositivo de salida:"
+  fr: "Output device:"
+  de: "Output device:"
+  it: "Output device:"
+  pt: "Output device:"
+  cs: "Output device:"
 
 audio.device.input:
   en: "Input device:"
   es: "Dispositivo de entrada:"
+  fr: "Input device:"
+  de: "Input device:"
+  it: "Input device:"
+  pt: "Input device:"
+  cs: "Input device:"
 
 audio.device.default:
   en: Default device
   es: Dispositivo por defecto
+  fr: Default device
+  de: Default device
+  it: Default device
+  pt: Default device
+  cs: Default device
 
 audio.device.loading:
   en: Loading devices...
   es: Cargando dispositivos...
+  fr: Loading devices...
+  de: Loading devices...
+  it: Loading devices...
+  pt: Loading devices...
+  cs: Loading devices...
 
 audio.device.error:
   en: Error loading devices
   es: Error al cargar dispositivos
+  fr: Error loading devices
+  de: Error loading devices
+  it: Error loading devices
+  pt: Error loading devices
+  cs: Error loading devices
 
 audio.device.system:
   en: System
   es: Sistema
+  fr: System
+  de: System
+  it: System
+  pt: System
+  cs: System
 
 # Sección salidas
 audio.outputs.title:
   en: Outputs → System
   es: Salidas → Sistema
+  fr: Outputs → System
+  de: Outputs → System
+  it: Outputs → System
+  pt: Outputs → System
+  cs: Outputs → System
 
 audio.outputs.channels:
   en: "Detected channels:"
   es: "Canales detectados:"
+  fr: "Detected channels:"
+  de: "Detected channels:"
+  it: "Detected channels:"
+  pt: "Detected channels:"
+  cs: "Detected channels:"
 
 audio.outputs.description:
   en: Route Synthi logical outputs to system physical outputs.
   es: Rutea las salidas lógicas del Synthi a las salidas físicas del sistema.
+  fr: Route Synthi logical outputs to system physical outputs.
+  de: Route Synthi logical outputs to system physical outputs.
+  it: Route Synthi logical outputs to system physical outputs.
+  pt: Route Synthi logical outputs to system physical outputs.
+  cs: Route Synthi logical outputs to system physical outputs.
 
 audio.outputs.more:
   en: "+{count} more rows (scroll to see)"
   es: "+{count} filas más (scroll para ver)"
+  fr: "+{count} more rows (scroll to see)"
+  de: "+{count} more rows (scroll to see)"
+  it: "+{count} more rows (scroll to see)"
+  pt: "+{count} more rows (scroll to see)"
+  cs: "+{count} more rows (scroll to see)"
 
 # Sección entradas
 audio.inputs.title:
   en: System → Input Amplifiers
   es: Sistema → Input Amplifiers
+  fr: System → Input Amplifiers
+  de: System → Input Amplifiers
+  it: System → Input Amplifiers
+  pt: System → Input Amplifiers
+  cs: System → Input Amplifiers
 
 audio.inputs.channels:
   en: "Input channels:"
   es: "Canales de entrada:"
+  fr: "Input channels:"
+  de: "Input channels:"
+  it: "Input channels:"
+  pt: "Input channels:"
+  cs: "Input channels:"
 
 audio.inputs.description:
   en: Route system physical inputs to Synthi Input Amplifiers.
   es: Rutea las entradas físicas del sistema a los Input Amplifiers del Synthi.
+  fr: Route system physical inputs to Synthi Input Amplifiers.
+  de: Route system physical inputs to Synthi Input Amplifiers.
+  it: Route system physical inputs to Synthi Input Amplifiers.
+  pt: Route system physical inputs to Synthi Input Amplifiers.
+  cs: Route system physical inputs to Synthi Input Amplifiers.
 
 audio.inputs.enable:
   en: Enable audio input
   es: Habilitar entrada de audio
+  fr: Enable audio input
+  de: Enable audio input
+  it: Enable audio input
+  pt: Enable audio input
+  cs: Enable audio input
 
 audio.inputs.permission:
   en: Requires microphone permission.
   es: Requiere permiso de micrófono.
+  fr: Requires microphone permission.
+  de: Requires microphone permission.
+  it: Requires microphone permission.
+  pt: Requires microphone permission.
+  cs: Requires microphone permission.
 
 audio.inputs.enabled:
   en: ✓ Input enabled
   es: ✓ Entrada habilitada
+  fr: ✓ Input enabled
+  de: ✓ Input enabled
+  it: ✓ Input enabled
+  pt: ✓ Input enabled
+  cs: ✓ Input enabled
 
 # Permisos de micrófono denegados
 audio.permission.denied.title:
   en: Microphone access denied
   es: Acceso al micrófono denegado
+  fr: Microphone access denied
+  de: Microphone access denied
+  it: Microphone access denied
+  pt: Microphone access denied
+  cs: Microphone access denied
 
 audio.permission.denied.message:
   en: Enable microphone in browser or system settings to use audio inputs.
   es: Habilita el micrófono desde los ajustes del navegador o del sistema para usar entradas de audio.
+  fr: Enable microphone in browser or system settings to use audio inputs.
+  de: Enable microphone in browser or system settings to use audio inputs.
+  it: Enable microphone in browser or system settings to use audio inputs.
+  pt: Enable microphone in browser or system settings to use audio inputs.
+  cs: Enable microphone in browser or system settings to use audio inputs.
 
 audio.permission.retry:
   en: Retry
   es: Reintentar
+  fr: Retry
+  de: Retry
+  it: Retry
+  pt: Retry
+  cs: Retry
 
 # Nombres de canales
 audio.channel.mono:
   en: Mono
   es: Mono
+  fr: Mono
+  de: Mono
+  it: Mono
+  pt: Mono
+  cs: Mono
 
 audio.channel.stereo:
   en: Stereo
   es: Estéreo
+  fr: Stereo
+  de: Stereo
+  it: Stereo
+  pt: Stereo
+  cs: Stereo
 
 audio.channel.quad:
   en: Quadraphonic
   es: Cuadrafónico
+  fr: Quadraphonic
+  de: Quadraphonic
+  it: Quadraphonic
+  pt: Quadraphonic
+  cs: Quadraphonic
 
 audio.channel.surround:
   en: 5.1 Surround
   es: 5.1 Surround
+  fr: 5.1 Surround
+  de: 5.1 Surround
+  it: 5.1 Surround
+  pt: 5.1 Surround
+  cs: 5.1 Surround
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # QUICKBAR
@@ -707,90 +1517,200 @@ audio.channel.surround:
 quickbar.open:
   en: Open quick actions
   es: Abrir acciones rápidas
+  fr: Open quick actions
+  de: Open quick actions
+  it: Open quick actions
+  pt: Open quick actions
+  cs: Open quick actions
 
 quickbar.close:
   en: Close quick actions
   es: Cerrar acciones rápidas
+  fr: Close quick actions
+  de: Close quick actions
+  it: Close quick actions
+  pt: Close quick actions
+  cs: Close quick actions
 
 quickbar.pan.lock:
   en: Lock panning
   es: Bloquear paneo
+  fr: Lock panning
+  de: Lock panning
+  it: Lock panning
+  pt: Lock panning
+  cs: Lock panning
 
 quickbar.pan.unlock:
   en: Unlock panning
   es: Desbloquear paneo
+  fr: Unlock panning
+  de: Unlock panning
+  it: Unlock panning
+  pt: Unlock panning
+  cs: Unlock panning
 
 quickbar.zoom.lock:
   en: Lock zoom
   es: Bloquear zoom
+  fr: Lock zoom
+  de: Lock zoom
+  it: Lock zoom
+  pt: Lock zoom
+  cs: Lock zoom
 
 quickbar.zoom.unlock:
   en: Unlock zoom
   es: Desbloquear zoom
+  fr: Unlock zoom
+  de: Unlock zoom
+  it: Unlock zoom
+  pt: Unlock zoom
+  cs: Unlock zoom
 
 quickbar.settings:
   en: Settings (S)
   es: Ajustes (S)
+  fr: Settings (S)
+  de: Settings (S)
+  it: Settings (S)
+  pt: Settings (S)
+  cs: Settings (S)
 
 quickbar.patches:
   en: Patches (P)
   es: Patches (P)
+  fr: Patches (P)
+  de: Patches (P)
+  it: Patches (P)
+  pt: Patches (P)
+  cs: Patches (P)
 
 quickbar.pip:
   en: Floating Panels
   es: Paneles flotantes
+  fr: Floating Panels
+  de: Floating Panels
+  it: Floating Panels
+  pt: Floating Panels
+  cs: Floating Panels
 
 quickbar.audio:
   en: Audio settings (A)
   es: Configuración de audio (A)
+  fr: Audio settings (A)
+  de: Audio settings (A)
+  it: Audio settings (A)
+  pt: Audio settings (A)
+  cs: Audio settings (A)
 
 quickbar.emergency:
   en: Reset scale to 1× (emergency)
   es: Resetear escala a 1× (emergencia)
+  fr: Reset scale to 1× (emergency)
+  de: Reset scale to 1× (emergency)
+  it: Reset scale to 1× (emergency)
+  pt: Reset scale to 1× (emergency)
+  cs: Reset scale to 1× (emergency)
 
 quickbar.emergency.applied:
   en: Scale reset to 1×
   es: Escala reseteada a 1×
+  fr: Scale reset to 1×
+  de: Scale reset to 1×
+  it: Scale reset to 1×
+  pt: Scale reset to 1×
+  cs: Scale reset to 1×
 
 quickbar.mute:
   en: "Mute audio (M)"
   es: "Silenciar audio (M)"
+  fr: "Mute audio (M)"
+  de: "Mute audio (M)"
+  it: "Mute audio (M)"
+  pt: "Mute audio (M)"
+  cs: "Mute audio (M)"
 
 quickbar.unmute:
   en: "Unmute audio (M)"
   es: "Activar audio (M)"
+  fr: "Unmute audio (M)"
+  de: "Unmute audio (M)"
+  it: "Unmute audio (M)"
+  pt: "Unmute audio (M)"
+  cs: "Unmute audio (M)"
 
 toast.mute:
   en: Audio muted
   es: Audio silenciado
+  fr: Audio muted
+  de: Audio muted
+  it: Audio muted
+  pt: Audio muted
+  cs: Audio muted
 
 toast.unmute:
   en: Audio active
   es: Audio activo
+  fr: Audio active
+  de: Audio active
+  it: Audio active
+  pt: Audio active
+  cs: Audio active
 
 quickbar.fullscreen:
   en: Fullscreen (F)
   es: Pantalla completa (F)
+  fr: Fullscreen (F)
+  de: Fullscreen (F)
+  it: Fullscreen (F)
+  pt: Fullscreen (F)
+  cs: Fullscreen (F)
 
 quickbar.fullscreen.exit:
   en: Exit fullscreen (Esc)
   es: Salir de pantalla completa (Esc)
+  fr: Exit fullscreen (Esc)
+  de: Exit fullscreen (Esc)
+  it: Exit fullscreen (Esc)
+  pt: Exit fullscreen (Esc)
+  cs: Exit fullscreen (Esc)
 
 quickbar.reset:
   en: Reset synth (Shift+I)
   es: Reiniciar synth (Shift+I)
+  fr: Reset synth (Shift+I)
+  de: Reset synth (Shift+I)
+  it: Reset synth (Shift+I)
+  pt: Reset synth (Shift+I)
+  cs: Reset synth (Shift+I)
 
 quickbar.oscOn:
   en: OSC enabled - Click to disable
   es: OSC habilitado - Click para deshabilitar
+  fr: OSC enabled - Click to disable
+  de: OSC enabled - Click to disable
+  it: OSC enabled - Click to disable
+  pt: OSC enabled - Click to disable
+  cs: OSC enabled - Click to disable
 
 quickbar.oscOff:
   en: OSC disabled - Click to enable
   es: OSC deshabilitado - Click para habilitar
+  fr: OSC disabled - Click to enable
+  de: OSC disabled - Click to enable
+  it: OSC disabled - Click to enable
+  pt: OSC disabled - Click to enable
+  cs: OSC disabled - Click to enable
 
 quickbar.oscError:
   en: Failed to enable OSC
   es: Error al activar OSC
+  fr: Failed to enable OSC
+  de: Failed to enable OSC
+  it: Failed to enable OSC
+  pt: Failed to enable OSC
+  cs: Failed to enable OSC
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # GRABACIÓN DE AUDIO
@@ -799,78 +1719,173 @@ quickbar.oscError:
 quickbar.record:
   en: Record audio (R)
   es: Grabar audio (R)
+  fr: Record audio (R)
+  de: Record audio (R)
+  it: Record audio (R)
+  pt: Record audio (R)
+  cs: Record audio (R)
 
 quickbar.stopRecording:
   en: Stop recording (R)
   es: Detener grabación (R)
+  fr: Stop recording (R)
+  de: Stop recording (R)
+  it: Stop recording (R)
+  pt: Stop recording (R)
+  cs: Stop recording (R)
 
 quickbar.recordSettings:
   en: Recording settings
   es: Configuración de grabación
+  fr: Recording settings
+  de: Recording settings
+  it: Recording settings
+  pt: Recording settings
+  cs: Recording settings
 
 recording.title:
   en: Recording Settings
   es: Configuración de grabación
+  fr: Recording Settings
+  de: Recording Settings
+  it: Recording Settings
+  pt: Recording Settings
+  cs: Recording Settings
 
 recording.close:
   en: Close recording settings
   es: Cerrar configuración de grabación
+  fr: Close recording settings
+  de: Close recording settings
+  it: Close recording settings
+  pt: Close recording settings
+  cs: Close recording settings
 
 recording.tracks.label:
   en: Number of tracks
   es: Número de pistas
+  fr: Number of tracks
+  de: Number of tracks
+  it: Number of tracks
+  pt: Number of tracks
+  cs: Number of tracks
 
 recording.tracks.mono:
   en: 1 (Mono)
   es: 1 (Mono)
+  fr: 1 (Mono)
+  de: 1 (Mono)
+  it: 1 (Mono)
+  pt: 1 (Mono)
+  cs: 1 (Mono)
 
 recording.tracks.stereo:
   en: 2 (Stereo)
   es: 2 (Estéreo)
+  fr: 2 (Stereo)
+  de: 2 (Stereo)
+  it: 2 (Stereo)
+  pt: 2 (Stereo)
+  cs: 2 (Stereo)
 
 recording.tracks.tracks:
   en: tracks
   es: pistas
+  fr: tracks
+  de: tracks
+  it: tracks
+  pt: tracks
+  cs: tracks
 
 recording.track:
   en: Track
   es: Pista
+  fr: Track
+  de: Track
+  it: Track
+  pt: Track
+  cs: Track
 
 recording.routing.title:
   en: Output routing
   es: Ruteo de salidas
+  fr: Output routing
+  de: Output routing
+  it: Output routing
+  pt: Output routing
+  cs: Output routing
 
 recording.routing.description:
   en: Select which outputs are recorded to each track
   es: Selecciona qué salidas se graban en cada pista
+  fr: Select which outputs are recorded to each track
+  de: Select which outputs are recorded to each track
+  it: Select which outputs are recorded to each track
+  pt: Select which outputs are recorded to each track
+  cs: Select which outputs are recorded to each track
 
 settings.recording:
   en: Audio recording
   es: Grabación de audio
+  fr: Audio recording
+  de: Audio recording
+  it: Audio recording
+  pt: Audio recording
+  cs: Audio recording
 
 settings.recording.description:
   en: Record audio output to WAV files (16-bit PCM)
   es: Graba la salida de audio a archivos WAV (16-bit PCM)
+  fr: Record audio output to WAV files (16-bit PCM)
+  de: Record audio output to WAV files (16-bit PCM)
+  it: Record audio output to WAV files (16-bit PCM)
+  pt: Record audio output to WAV files (16-bit PCM)
+  cs: Record audio output to WAV files (16-bit PCM)
 
 settings.recording.configure:
   en: Configure recording
   es: Configurar grabación
+  fr: Configure recording
+  de: Configure recording
+  it: Configure recording
+  pt: Configure recording
+  cs: Configure recording
 
 toast.recordingStarted:
   en: Recording started
   es: Grabación iniciada
+  fr: Recording started
+  de: Recording started
+  it: Recording started
+  pt: Recording started
+  cs: Recording started
 
 toast.recordingSaved:
   en: "Recording saved: {filename}"
   es: "Grabación guardada: {filename}"
+  fr: "Recording saved: {filename}"
+  de: "Recording saved: {filename}"
+  it: "Recording saved: {filename}"
+  pt: "Recording saved: {filename}"
+  cs: "Recording saved: {filename}"
 
 toast.recordingEmpty:
   en: No audio recorded
   es: No se grabó audio
+  fr: No audio recorded
+  de: No audio recorded
+  it: No audio recorded
+  pt: No audio recorded
+  cs: No audio recorded
 
 toast.recordingError:
   en: Recording error
   es: Error al grabar
+  fr: Recording error
+  de: Recording error
+  it: Recording error
+  pt: Recording error
+  cs: Recording error
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # RESET DEL SINTETIZADOR
@@ -879,18 +1894,38 @@ toast.recordingError:
 settings.reset:
   en: Reset synthesizer
   es: Reiniciar sintetizador
+  fr: Reset synthesizer
+  de: Reset synthesizer
+  it: Reset synthesizer
+  pt: Reset synthesizer
+  cs: Reset synthesizer
 
 settings.reset.description:
   en: Reset all modules to their initial values. This action cannot be undone.
   es: Reinicia todos los módulos a sus valores iniciales. Esta acción no se puede deshacer.
+  fr: Reset all modules to their initial values. This action cannot be undone.
+  de: Reset all modules to their initial values. This action cannot be undone.
+  it: Reset all modules to their initial values. This action cannot be undone.
+  pt: Reset all modules to their initial values. This action cannot be undone.
+  cs: Reset all modules to their initial values. This action cannot be undone.
 
 settings.reset.button:
   en: Reset to defaults
   es: Reiniciar valores
+  fr: Reset to defaults
+  de: Reset to defaults
+  it: Reset to defaults
+  pt: Reset to defaults
+  cs: Reset to defaults
 
 settings.reset.confirm:
   en: Are you sure you want to reset all modules to their default values? This cannot be undone.
   es: ¿Seguro que quieres reiniciar todos los módulos a sus valores por defecto? Esta acción no se puede deshacer.
+  fr: Are you sure you want to reset all modules to their default values? This cannot be undone.
+  de: Are you sure you want to reset all modules to their default values? This cannot be undone.
+  it: Are you sure you want to reset all modules to their default values? This cannot be undone.
+  pt: Are you sure you want to reset all modules to their default values? This cannot be undone.
+  cs: Are you sure you want to reset all modules to their default values? This cannot be undone.
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OPTIMIZACIONES DE RENDIMIENTO
@@ -899,14 +1934,29 @@ settings.reset.confirm:
 settings.optimizations:
   en: Performance Optimizations
   es: Optimizaciones de rendimiento
+  fr: Performance Optimizations
+  de: Performance Optimizations
+  it: Performance Optimizations
+  pt: Performance Optimizations
+  cs: Performance Optimizations
 
 settings.optimizations.description:
   en: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
   es: Estas opciones reducen la carga de CPU desactivando el procesamiento de audio cuando no es necesario. Especialmente útiles en dispositivos móviles.
+  fr: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
+  de: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
+  it: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
+  pt: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
+  cs: These options reduce CPU load by disabling audio processing when not needed. Especially useful on mobile devices.
 
 settings.optimizations.debugGlobal:
   en: Show debug toasts for all optimizations
   es: Mostrar toasts de debug para todas las optimizaciones
+  fr: Show debug toasts for all optimizations
+  de: Show debug toasts for all optimizations
+  it: Show debug toasts for all optimizations
+  pt: Show debug toasts for all optimizations
+  cs: Show debug toasts for all optimizations
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dormancy (silencia módulos sin conexiones)
@@ -915,18 +1965,38 @@ settings.optimizations.debugGlobal:
 settings.dormancy:
   en: Module Dormancy
   es: Dormancy de módulos
+  fr: Module Dormancy
+  de: Module Dormancy
+  it: Module Dormancy
+  pt: Module Dormancy
+  cs: Module Dormancy
 
 settings.dormancy.description:
   en: Automatically mutes modules that are not connected in the matrix.
   es: Silencia automáticamente los módulos que no están conectados en la matriz.
+  fr: Automatically mutes modules that are not connected in the matrix.
+  de: Automatically mutes modules that are not connected in the matrix.
+  it: Automatically mutes modules that are not connected in the matrix.
+  pt: Automatically mutes modules that are not connected in the matrix.
+  cs: Automatically mutes modules that are not connected in the matrix.
 
 settings.dormancy.enabled:
   en: Enable dormancy system
   es: Activar sistema de dormancy
+  fr: Enable dormancy system
+  de: Enable dormancy system
+  it: Enable dormancy system
+  pt: Enable dormancy system
+  cs: Enable dormancy system
 
 settings.dormancy.debug:
   en: Debug dormancy only
   es: Debug solo dormancy
+  fr: Debug dormancy only
+  de: Debug dormancy only
+  it: Debug dormancy only
+  pt: Debug dormancy only
+  cs: Debug dormancy only
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Filter Bypass (desconecta filtros en posición neutral)
@@ -935,18 +2005,38 @@ settings.dormancy.debug:
 settings.filterBypass:
   en: Filter Bypass
   es: Bypass de filtros
+  fr: Filter Bypass
+  de: Filter Bypass
+  it: Filter Bypass
+  pt: Filter Bypass
+  cs: Filter Bypass
 
 settings.filterBypass.description:
   en: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
   es: Desconecta físicamente los filtros LP/HP cuando están en posición neutral, reduciendo carga de CPU.
+  fr: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
+  de: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
+  it: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
+  pt: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
+  cs: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
 
 settings.filterBypass.enabled:
   en: Enable filter bypass
   es: Activar bypass de filtros
+  fr: Enable filter bypass
+  de: Enable filter bypass
+  it: Enable filter bypass
+  pt: Enable filter bypass
+  cs: Enable filter bypass
 
 settings.filterBypass.debug:
   en: Debug filter bypass only
   es: Debug solo bypass de filtros
+  fr: Debug filter bypass only
+  de: Debug filter bypass only
+  it: Debug filter bypass only
+  pt: Debug filter bypass only
+  cs: Debug filter bypass only
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Latency Mode (modo de latencia para rendimiento)
@@ -955,71 +2045,156 @@ settings.filterBypass.debug:
 settings.latencyMode:
   en: Latency Mode
   es: Modo de latencia
+  fr: Latency Mode
+  de: Latency Mode
+  it: Latency Mode
+  pt: Latency Mode
+  cs: Latency Mode
 
 settings.latencyMode.description:
   en: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
   es: Ajusta el tamaño del buffer de audio. Usa "Reproducción" en móvil para estabilidad, "Interactivo" en escritorio para baja latencia.
+  fr: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
+  de: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
+  it: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
+  pt: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
+  cs: Adjusts audio buffer size. Use "Playback" on mobile for stability, "Interactive" on desktop for low latency.
 
 settings.latencyMode.interactive:
   en: Interactive (~10ms)
   es: Interactivo (~10ms)
+  fr: Interactive (~10ms)
+  de: Interactive (~10ms)
+  it: Interactive (~10ms)
+  pt: Interactive (~10ms)
+  cs: Interactive (~10ms)
 
 settings.latencyMode.balanced:
   en: Balanced (~25ms)
   es: Equilibrado (~25ms)
+  fr: Balanced (~25ms)
+  de: Balanced (~25ms)
+  it: Balanced (~25ms)
+  pt: Balanced (~25ms)
+  cs: Balanced (~25ms)
 
 settings.latencyMode.playback:
   en: Playback (~50ms)
   es: Reproducción (~50ms)
+  fr: Playback (~50ms)
+  de: Playback (~50ms)
+  it: Playback (~50ms)
+  pt: Playback (~50ms)
+  cs: Playback (~50ms)
 
 settings.latencyMode.safe:
   en: Safe (100ms)
   es: Seguro (100ms)
+  fr: Safe (100ms)
+  de: Safe (100ms)
+  it: Safe (100ms)
+  pt: Safe (100ms)
+  cs: Safe (100ms)
 
 settings.latencyMode.maximum:
   en: Maximum (200ms)
   es: Máximo (200ms)
+  fr: Maximum (200ms)
+  de: Maximum (200ms)
+  it: Maximum (200ms)
+  pt: Maximum (200ms)
+  cs: Maximum (200ms)
 
 settings.latencyMode.restartRequired:
   en: Latency mode saved. Restart the app to apply changes.
   es: Modo de latencia guardado. Reinicia la app para aplicar los cambios.
+  fr: Latency mode saved. Restart the app to apply changes.
+  de: Latency mode saved. Restart the app to apply changes.
+  it: Latency mode saved. Restart the app to apply changes.
+  pt: Latency mode saved. Restart the app to apply changes.
+  cs: Latency mode saved. Restart the app to apply changes.
 
 # EMULACIÓN DE VOLTAJES
 settings.voltageEmulation:
   en: Voltage Emulation
   es: Emulación de voltajes
+  fr: Voltage Emulation
+  de: Voltage Emulation
+  it: Voltage Emulation
+  pt: Voltage Emulation
+  cs: Voltage Emulation
 
 settings.voltageEmulation.description:
   en: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
   es: Emula el comportamiento eléctrico del Synthi 100 versión Cuenca/Datanomics (1982). Estas opciones afectan la precisión analógica de las señales.
+  fr: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
+  de: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
+  it: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
+  pt: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
+  cs: Emulates the electrical behavior of the Synthi 100 Cuenca/Datanomics (1982) version. These options affect the analog accuracy of signals.
 
 settings.voltageEmulation.softClip:
   en: Soft Clipping
   es: Saturación suave (soft clip)
+  fr: Soft Clipping
+  de: Soft Clipping
+  it: Soft Clipping
+  pt: Soft Clipping
+  cs: Soft Clipping
 
 settings.voltageEmulation.softClip.description:
   en: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
   es: Satura suavemente con tanh() las señales que superan los límites de entrada de cada módulo (8V p-p típico).
+  fr: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
+  de: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
+  it: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
+  pt: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
+  cs: Softly saturates with tanh() signals that exceed input limits of each module (typically 8V p-p).
 
 settings.voltageEmulation.pinTolerance:
   en: Pin Tolerance
   es: Tolerancia de pines
+  fr: Pin Tolerance
+  de: Pin Tolerance
+  it: Pin Tolerance
+  pt: Pin Tolerance
+  cs: Pin Tolerance
 
 settings.voltageEmulation.pinTolerance.description:
   en: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
   es: Aplica variación realista según el tipo de pin: gris ±0.5%, blanco ±10%. Cada conexión tiene su propia tolerancia reproducible.
+  fr: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
+  de: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
+  it: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
+  pt: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
+  cs: Applies realistic variation by pin type: grey ±0.5%, white ±10%. Each connection has its own reproducible tolerance.
 
 settings.voltageEmulation.thermalDrift:
   en: Thermal Drift
   es: Deriva térmica
+  fr: Thermal Drift
+  de: Thermal Drift
+  it: Thermal Drift
+  pt: Thermal Drift
+  cs: Thermal Drift
 
 settings.voltageEmulation.thermalDrift.description:
   en: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
   es: Simula la deriva lenta (±0.1%) de los osciladores CEM 3340 por cambios de temperatura.
+  fr: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
+  de: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
+  it: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
+  pt: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
+  cs: Simulates slow drift (±0.1%) of CEM 3340 oscillators due to temperature changes.
 
 toast.reset:
   en: Synthesizer reset to defaults
   es: Sintetizador reiniciado
+  fr: Synthesizer reset to defaults
+  de: Synthesizer reset to defaults
+  it: Synthesizer reset to defaults
+  pt: Synthesizer reset to defaults
+  cs: Synthesizer reset to defaults
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TOASTS Y MENSAJES
@@ -1028,26 +2203,56 @@ toast.reset:
 toast.resolution:
   en: "Scale: {factor}×"
   es: "Escala: {factor}×"
+  fr: "Scale: {factor}×"
+  de: "Scale: {factor}×"
+  it: "Scale: {factor}×"
+  pt: "Scale: {factor}×"
+  cs: "Scale: {factor}×"
 
 toast.resolution.mobileWarning:
   en: "Scale: {factor}× ⚠️ May cause performance issues"
   es: "Escala: {factor}× ⚠️ Puede causar problemas de rendimiento"
+  fr: "Scale: {factor}× ⚠️ May cause performance issues"
+  de: "Scale: {factor}× ⚠️ May cause performance issues"
+  it: "Scale: {factor}× ⚠️ May cause performance issues"
+  pt: "Scale: {factor}× ⚠️ May cause performance issues"
+  cs: "Scale: {factor}× ⚠️ May cause performance issues"
 
 toast.pan.locked:
   en: Panning locked
   es: Paneo bloqueado
+  fr: Panning locked
+  de: Panning locked
+  it: Panning locked
+  pt: Panning locked
+  cs: Panning locked
 
 toast.pan.unlocked:
   en: Panning unlocked
   es: Paneo desbloqueado
+  fr: Panning unlocked
+  de: Panning unlocked
+  it: Panning unlocked
+  pt: Panning unlocked
+  cs: Panning unlocked
 
 toast.zoom.locked:
   en: Zoom locked
   es: Zoom bloqueado
+  fr: Zoom locked
+  de: Zoom locked
+  it: Zoom locked
+  pt: Zoom locked
+  cs: Zoom locked
 
 toast.zoom.unlocked:
   en: Zoom unlocked
   es: Zoom desbloqueado
+  fr: Zoom unlocked
+  de: Zoom unlocked
+  it: Zoom unlocked
+  pt: Zoom unlocked
+  cs: Zoom unlocked
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PICTURE-IN-PICTURE (PiP) - PANELES FLOTANTES
@@ -1056,63 +2261,138 @@ toast.zoom.unlocked:
 pip.detach:
   en: Detach panel
   es: Extraer panel
+  fr: Detach panel
+  de: Detach panel
+  it: Detach panel
+  pt: Detach panel
+  cs: Detach panel
 
 pip.detachAll:
   en: Detach all
   es: Extraer todos
+  fr: Detach all
+  de: Detach all
+  it: Detach all
+  pt: Detach all
+  cs: Detach all
 
 pip.attach:
   en: Return panel
   es: Devolver panel
+  fr: Return panel
+  de: Return panel
+  it: Return panel
+  pt: Return panel
+  cs: Return panel
 
 pip.attachAll:
   en: Return all
   es: Devolver todos
+  fr: Return all
+  de: Return all
+  it: Return all
+  pt: Return all
+  cs: Return all
 
 pip.close:
   en: Close
   es: Cerrar
+  fr: Close
+  de: Close
+  it: Close
+  pt: Close
+  cs: Close
 
 pip.zoomIn:
   en: Zoom in
   es: Acercar
+  fr: Zoom in
+  de: Zoom in
+  it: Zoom in
+  pt: Zoom in
+  cs: Zoom in
 
 pip.zoomOut:
   en: Zoom out
   es: Alejar
+  fr: Zoom out
+  de: Zoom out
+  it: Zoom out
+  pt: Zoom out
+  cs: Zoom out
 
 pip.placeholderHint:
   en: Click to restore
   es: Click para restaurar
+  fr: Click to restore
+  de: Click to restore
+  it: Click to restore
+  pt: Click to restore
+  cs: Click to restore
 
 # Títulos de paneles para PiP
 panel.oscillators1:
   en: Oscillators 1-3
   es: Osciladores 1-3
+  fr: Oscillators 1-3
+  de: Oscillators 1-3
+  it: Oscillators 1-3
+  pt: Oscillators 1-3
+  cs: Oscillators 1-3
 
 panel.oscilloscope:
   en: Oscilloscope
   es: Osciloscopio
+  fr: Oscilloscope
+  de: Oscilloscope
+  it: Oscilloscope
+  pt: Oscilloscope
+  cs: Oscilloscope
 
 panel.oscillators2:
   en: Oscillators 4-6
   es: Osciladores 4-6
+  fr: Oscillators 4-6
+  de: Oscillators 4-6
+  it: Oscillators 4-6
+  pt: Oscillators 4-6
+  cs: Oscillators 4-6
 
 panel.oscillators3:
   en: Oscillators 7-9
   es: Osciladores 7-9
+  fr: Oscillators 7-9
+  de: Oscillators 7-9
+  it: Oscillators 7-9
+  pt: Oscillators 7-9
+  cs: Oscillators 7-9
 
 panel.audioMatrix:
   en: Audio Matrix
   es: Matriz Audio
+  fr: Audio Matrix
+  de: Audio Matrix
+  it: Audio Matrix
+  pt: Audio Matrix
+  cs: Audio Matrix
 
 panel.controlMatrix:
   en: Control Matrix
   es: Matriz Control
+  fr: Control Matrix
+  de: Control Matrix
+  it: Control Matrix
+  pt: Control Matrix
+  cs: Control Matrix
 
 panel.output:
   en: Output
   es: Salida
+  fr: Output
+  de: Output
+  it: Output
+  pt: Output
+  cs: Output
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ORIENTACIÓN Y PANTALLA
@@ -1121,14 +2401,29 @@ panel.output:
 orientation.hint:
   en: Rotate your device to landscape for a better experience
   es: Gira el dispositivo en posición horizontal para una mejor experiencia
+  fr: Rotate your device to landscape for a better experience
+  de: Rotate your device to landscape for a better experience
+  it: Rotate your device to landscape for a better experience
+  pt: Rotate your device to landscape for a better experience
+  cs: Rotate your device to landscape for a better experience
 
 orientation.blocker:
   en: Please rotate your device to landscape mode
   es: Gira el dispositivo a modo horizontal
+  fr: Please rotate your device to landscape mode
+  de: Please rotate your device to landscape mode
+  it: Please rotate your device to landscape mode
+  pt: Please rotate your device to landscape mode
+  cs: Please rotate your device to landscape mode
 
 orientation.blocker.dismiss:
   en: Dismiss
   es: Cerrar
+  fr: Dismiss
+  de: Dismiss
+  it: Dismiss
+  pt: Dismiss
+  cs: Dismiss
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ACTUALIZACIONES (SERVICE WORKER)
@@ -1137,14 +2432,29 @@ orientation.blocker.dismiss:
 update.available:
   en: A new version is available. Do you want to install and reload now?
   es: Hay una nueva versión disponible. ¿Quieres instalarla y recargar ahora?
+  fr: A new version is available. Do you want to install and reload now?
+  de: A new version is available. Do you want to install and reload now?
+  it: A new version is available. Do you want to install and reload now?
+  pt: A new version is available. Do you want to install and reload now?
+  cs: A new version is available. Do you want to install and reload now?
 
 update.installNow:
   en: Install now
   es: Instalar ahora
+  fr: Install now
+  de: Install now
+  it: Install now
+  pt: Install now
+  cs: Install now
 
 update.later:
   en: Later
   es: Más tarde
+  fr: Later
+  de: Later
+  it: Later
+  pt: Later
+  cs: Later
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ERRORES
@@ -1153,6 +2463,11 @@ update.later:
 error.fullscreen:
   en: Could not toggle fullscreen.
   es: No se pudo alternar la pantalla completa.
+  fr: Could not toggle fullscreen.
+  de: Could not toggle fullscreen.
+  it: Could not toggle fullscreen.
+  pt: Could not toggle fullscreen.
+  cs: Could not toggle fullscreen.
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PATCHES / BROWSER DE ESTADOS
@@ -1161,126 +2476,281 @@ error.fullscreen:
 patches.title:
   en: Patches
   es: Patches
+  fr: Patches
+  de: Patches
+  it: Patches
+  pt: Patches
+  cs: Patches
 
 patches.close:
   en: Close patches
   es: Cerrar patches
+  fr: Close patches
+  de: Close patches
+  it: Close patches
+  pt: Close patches
+  cs: Close patches
 
 patches.saveCurrent:
   en: Save current
   es: Guardar actual
+  fr: Save current
+  de: Save current
+  it: Save current
+  pt: Save current
+  cs: Save current
 
 patches.search:
   en: Search...
   es: Buscar...
+  fr: Search...
+  de: Search...
+  it: Search...
+  pt: Search...
+  cs: Search...
 
 patches.empty:
   en: No patches saved yet
   es: No hay patches guardados
+  fr: No patches saved yet
+  de: No patches saved yet
+  it: No patches saved yet
+  pt: No patches saved yet
+  cs: No patches saved yet
 
 patches.load:
   en: Load
   es: Cargar
+  fr: Load
+  de: Load
+  it: Load
+  pt: Load
+  cs: Load
 
 patches.export:
   en: Export
   es: Exportar
+  fr: Export
+  de: Export
+  it: Export
+  pt: Export
+  cs: Export
 
 patches.import:
   en: Import
   es: Importar
+  fr: Import
+  de: Import
+  it: Import
+  pt: Import
+  cs: Import
 
 patches.delete:
   en: Delete
   es: Eliminar
+  fr: Delete
+  de: Delete
+  it: Delete
+  pt: Delete
+  cs: Delete
 
 patches.rename:
   en: Rename
   es: Renombrar
+  fr: Rename
+  de: Rename
+  it: Rename
+  pt: Rename
+  cs: Rename
 
 patches.confirmDelete:
   en: Delete patch "{name}"?
   es: ¿Eliminar patch "{name}"?
+  fr: Delete patch "{name}"?
+  de: Delete patch "{name}"?
+  it: Delete patch "{name}"?
+  pt: Delete patch "{name}"?
+  cs: Delete patch "{name}"?
 
 patches.confirmLoad:
   en: Load patch "{name}"? Unsaved changes will be lost.
   es: ¿Cargar patch "{name}"? Los cambios no guardados se perderán.
+  fr: Load patch "{name}"? Unsaved changes will be lost.
+  de: Load patch "{name}"? Unsaved changes will be lost.
+  it: Load patch "{name}"? Unsaved changes will be lost.
+  pt: Load patch "{name}"? Unsaved changes will be lost.
+  cs: Load patch "{name}"? Unsaved changes will be lost.
 
 patches.saved:
   en: Patch saved
   es: Patch guardado
+  fr: Patch saved
+  de: Patch saved
+  it: Patch saved
+  pt: Patch saved
+  cs: Patch saved
 
 patches.loaded:
   en: Patch loaded
   es: Patch cargado
+  fr: Patch loaded
+  de: Patch loaded
+  it: Patch loaded
+  pt: Patch loaded
+  cs: Patch loaded
 
 patches.loadedName:
   en: '"{name}" loaded'
   es: '"{name}" cargado'
+  fr: '"{name}" loaded'
+  de: '"{name}" loaded'
+  it: '"{name}" loaded'
+  pt: '"{name}" loaded'
+  cs: '"{name}" loaded'
 
 patches.deleted:
   en: Patch deleted
   es: Patch eliminado
+  fr: Patch deleted
+  de: Patch deleted
+  it: Patch deleted
+  pt: Patch deleted
+  cs: Patch deleted
 
 patches.renamed:
   en: Patch renamed
   es: Patch renombrado
+  fr: Patch renamed
+  de: Patch renamed
+  it: Patch renamed
+  pt: Patch renamed
+  cs: Patch renamed
 
 patches.exported:
   en: Patch exported
   es: Patch exportado
+  fr: Patch exported
+  de: Patch exported
+  it: Patch exported
+  pt: Patch exported
+  cs: Patch exported
 
 patches.imported:
   en: Patch imported
   es: Patch importado
+  fr: Patch imported
+  de: Patch imported
+  it: Patch imported
+  pt: Patch imported
+  cs: Patch imported
 
 patches.errorLoading:
   en: Error loading patch
   es: Error al cargar patch
+  fr: Error loading patch
+  de: Error loading patch
+  it: Error loading patch
+  pt: Error loading patch
+  cs: Error loading patch
 
 patches.errorSaving:
   en: Error saving patch
   es: Error al guardar patch
+  fr: Error saving patch
+  de: Error saving patch
+  it: Error saving patch
+  pt: Error saving patch
+  cs: Error saving patch
 
 patches.errorRenaming:
   en: Error renaming patch
   es: Error al renombrar patch
+  fr: Error renaming patch
+  de: Error renaming patch
+  it: Error renaming patch
+  pt: Error renaming patch
+  cs: Error renaming patch
 
 patches.namePrompt:
   en: Patch name
   es: Nombre del patch
+  fr: Patch name
+  de: Patch name
+  it: Patch name
+  pt: Patch name
+  cs: Patch name
 
 patches.renamePrompt:
   en: New name
   es: Nuevo nombre
+  fr: New name
+  de: New name
+  it: New name
+  pt: New name
+  cs: New name
 
 patches.defaultName:
   en: New patch
   es: Nuevo patch
+  fr: New patch
+  de: New patch
+  it: New patch
+  pt: New patch
+  cs: New patch
 
 patches.init:
   en: Init (default)
   es: Init (por defecto)
+  fr: Init (default)
+  de: Init (default)
+  it: Init (default)
+  pt: Init (default)
+  cs: Init (default)
 
 patches.lastSession:
   en: Restore last session?
   es: ¿Restaurar última sesión?
+  fr: Restore last session?
+  de: Restore last session?
+  it: Restore last session?
+  pt: Restore last session?
+  cs: Restore last session?
 
 patches.lastSession.yes:
   en: Restore
   es: Restaurar
+  fr: Restore
+  de: Restore
+  it: Restore
+  pt: Restore
+  cs: Restore
 
 patches.lastSession.no:
   en: Start fresh
   es: Empezar de nuevo
+  fr: Start fresh
+  de: Start fresh
+  it: Start fresh
+  pt: Start fresh
+  cs: Start fresh
 
 patches.lastSession.remember:
   en: Remember my choice
   es: Recordar mi elección
+  fr: Remember my choice
+  de: Remember my choice
+  it: Remember my choice
+  pt: Remember my choice
+  cs: Remember my choice
 
 patches.versionWarning:
   en: This patch was created with an older version
   es: Este patch fue creado con una versión anterior
+  fr: This patch was created with an older version
+  de: This patch was created with an older version
+  it: This patch was created with an older version
+  pt: This patch was created with an older version
+  cs: This patch was created with an older version
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MATRIX PIN TOOLTIPS
@@ -1293,49 +2763,119 @@ patches.versionWarning:
 # Sources (rows)
 matrix.source.inputAmp:
   en: "Input {channel}"
+  fr: "Input {channel}"
+  de: "Input {channel}"
+  it: "Input {channel}"
+  pt: "Input {channel}"
+  cs: "Input {channel}"
 
 matrix.source.outputBus:
   en: "Out Bus {bus}"
+  fr: "Out Bus {bus}"
+  de: "Out Bus {bus}"
+  it: "Out Bus {bus}"
+  pt: "Out Bus {bus}"
+  cs: "Out Bus {bus}"
 
 matrix.source.noiseGen:
   en: "Noise {index}"
+  fr: "Noise {index}"
+  de: "Noise {index}"
+  it: "Noise {index}"
+  pt: "Noise {index}"
+  cs: "Noise {index}"
 
 matrix.source.panel3Osc.sineSaw:
   en: "Osc {osc} (sin+saw)"
+  fr: "Osc {osc} (sin+saw)"
+  de: "Osc {osc} (sin+saw)"
+  it: "Osc {osc} (sin+saw)"
+  pt: "Osc {osc} (sin+saw)"
+  cs: "Osc {osc} (sin+saw)"
 
 matrix.source.panel3Osc.triPulse:
   en: "Osc {osc} (tri+pul)"
+  fr: "Osc {osc} (tri+pul)"
+  de: "Osc {osc} (tri+pul)"
+  it: "Osc {osc} (tri+pul)"
+  pt: "Osc {osc} (tri+pul)"
+  cs: "Osc {osc} (tri+pul)"
 
 # Destinations (columns)
 matrix.dest.outputBus:
   en: "Out {bus}"
+  fr: "Out {bus}"
+  de: "Out {bus}"
+  it: "Out {bus}"
+  pt: "Out {bus}"
+  cs: "Out {bus}"
 
 matrix.dest.oscilloscope.Y:
   en: "Scope Y"
+  fr: "Scope Y"
+  de: "Scope Y"
+  it: "Scope Y"
+  pt: "Scope Y"
+  cs: "Scope Y"
 
 matrix.dest.oscilloscope.X:
   en: "Scope X"
+  fr: "Scope X"
+  de: "Scope X"
+  it: "Scope X"
+  pt: "Scope X"
+  cs: "Scope X"
 
 matrix.dest.oscFreqCV:
   en: "Osc {osc} Freq CV"
+  fr: "Osc {osc} Freq CV"
+  de: "Osc {osc} Freq CV"
+  it: "Osc {osc} Freq CV"
+  pt: "Osc {osc} Freq CV"
+  cs: "Osc {osc} Freq CV"
 
 matrix.dest.oscSync:
   en: "Osc {osc} Sync"
   es: "Osc {osc} Sync"
+  fr: "Osc {osc} Sync"
+  de: "Osc {osc} Sync"
+  it: "Osc {osc} Sync"
+  pt: "Osc {osc} Sync"
+  cs: "Osc {osc} Sync"
 
 matrix.dest.outputLevelCV:
   en: "Out {bus} Level CV"
+  fr: "Out {bus} Level CV"
+  de: "Out {bus} Level CV"
+  it: "Out {bus} Level CV"
+  pt: "Out {bus} Level CV"
+  cs: "Out {bus} Level CV"
 
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"
+  fr: "{source} → {dest}"
+  de: "{source} → {dest}"
+  it: "{source} → {dest}"
+  pt: "{source} → {dest}"
+  cs: "{source} → {dest}"
 
 matrix.tooltip.unknownSource:
   en: "Row {row}"
+  fr: "Row {row}"
+  de: "Row {row}"
+  it: "Row {row}"
+  pt: "Row {row}"
+  cs: "Row {row}"
 
 matrix.tooltip.unknownDest:
   en: "Col {col}"
   es: "Col {col}"
+  fr: "Col {col}"
+  de: "Col {col}"
+  it: "Col {col}"
+  pt: "Col {col}"
+  cs: "Col {col}"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PIN COLOR MENU
@@ -1344,50 +2884,110 @@ matrix.tooltip.unknownDest:
 pinColor.title:
   en: Pin Type
   es: Tipo de pin
+  fr: Pin Type
+  de: Pin Type
+  it: Pin Type
+  pt: Pin Type
+  cs: Pin Type
 
 # Section headers
 pinColor.recommended:
   en: Recommended
   es: Recomendado
+  fr: Recommended
+  de: Recommended
+  it: Recommended
+  pt: Recommended
+  cs: Recommended
 
 pinColor.standard:
   en: Standard
   es: Estándar
+  fr: Standard
+  de: Standard
+  it: Standard
+  pt: Standard
+  cs: Standard
 
 pinColor.special:
   en: Special
   es: Especiales
+  fr: Special
+  de: Special
+  it: Special
+  pt: Special
+  cs: Special
 
 # Standard pins (Cuenca/Datanomics 1982)
 pinColor.white:
   en: White (standard)
   es: Blanco (estándar)
+  fr: White (standard)
+  de: White (standard)
+  it: White (standard)
+  pt: White (standard)
+  cs: White (standard)
 
 pinColor.grey:
   en: Grey (precision)
   es: Gris (precisión)
+  fr: Grey (precision)
+  de: Grey (precision)
+  it: Grey (precision)
+  pt: Grey (precision)
+  cs: Grey (precision)
 
 pinColor.green:
   en: Green (attenuated)
   es: Verde (atenuado)
+  fr: Green (attenuated)
+  de: Green (attenuated)
+  it: Green (attenuated)
+  pt: Green (attenuated)
+  cs: Green (attenuated)
 
 pinColor.red:
   en: Red (scope)
   es: Rojo (osciloscopio)
+  fr: Red (scope)
+  de: Red (scope)
+  it: Red (scope)
+  pt: Red (scope)
+  cs: Red (scope)
 
 # Special pins (custom mixing - technical manual)
 pinColor.blue:
   en: Blue (boost)
   es: Azul (ganancia)
+  fr: Blue (boost)
+  de: Blue (boost)
+  it: Blue (boost)
+  pt: Blue (boost)
+  cs: Blue (boost)
 
 pinColor.yellow:
   en: Yellow (mid-gain)
   es: Amarillo (media)
+  fr: Yellow (mid-gain)
+  de: Yellow (mid-gain)
+  it: Yellow (mid-gain)
+  pt: Yellow (mid-gain)
+  cs: Yellow (mid-gain)
 
 pinColor.cyan:
   en: Cyan (soft)
   es: Cian (suave)
+  fr: Cyan (soft)
+  de: Cyan (soft)
+  it: Cyan (soft)
+  pt: Cyan (soft)
+  cs: Cyan (soft)
 
 pinColor.purple:
   en: Purple (subtle)
-  es: Morado (sutil)
+  es: Morado (sutil)  fr: Purple (subtle)
+  de: Purple (subtle)
+  it: Purple (subtle)
+  pt: Purple (subtle)
+  cs: Purple (subtle)
+  fr: Purple (subtle)

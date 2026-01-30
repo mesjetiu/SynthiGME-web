@@ -68,7 +68,14 @@ Usar el teclado hace la experiencia mucho más fluida:
 ### Ajustes
 
 Pulsa el icono de engranaje (o la tecla `S`) para configurar:
-- **Idioma**: Español / Inglés.
+- **Idioma**: Cambia el idioma de la interfaz. Actualmente soportamos:
+  - 🇪🇸 Español
+  - 🇬🇧 English
+  - 🇫🇷 Français
+  - 🇩🇪 Deutsch
+  - 🇮🇹 Italiano
+  - 🇵🇹 Português
+  - 🇨🇿 Čeština
 - **Escalado**: Aumenta el tamaño de la interfaz (1x - 4x).
 - **Emulación de voltajes**: Activa el comportamiento "analógico" (imprecisión de componentes, deriva térmica) para un sonido más auténtico.
 

@@ -6,6 +6,11 @@
 export default {
   "settings.language.en": "English",
   "settings.language.es": "Español",
+  "settings.language.fr": "Français",
+  "settings.language.de": "Deutsch",
+  "settings.language.it": "Italiano",
+  "settings.language.pt": "Português",
+  "settings.language.cs": "Čeština",
   "common.yes": "Sí",
   "common.no": "No",
   "common.cancel": "Cancelar",
@@ -324,5 +329,5 @@ export default {
   "pinColor.blue": "Azul (ganancia)",
   "pinColor.yellow": "Amarillo (media)",
   "pinColor.cyan": "Cian (suave)",
-  "pinColor.purple": "Morado (sutil)"
+  "pinColor.purple": "Morado (sutil)  fr: Purple (subtle)"
 };

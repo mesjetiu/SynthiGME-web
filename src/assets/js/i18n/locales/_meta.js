@@ -3,9 +3,14 @@
 // Run: npm run build:i18n
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const SUPPORTED_LOCALES = ["en","es"];
+export const SUPPORTED_LOCALES = ["en","es","fr","de","it","pt","cs"];
 export const DEFAULT_LOCALE = "en";
 export const LANGUAGE_NAMES = {
   "en": "English",
-  "es": "Español"
+  "es": "Español",
+  "fr": "Français",
+  "de": "Deutsch",
+  "it": "Italiano",
+  "pt": "Português",
+  "cs": "Čeština"
 };

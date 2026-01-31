@@ -99,6 +99,31 @@ export default {
     // Tiempo de suavizado para cambios de filtro
     filterSmoothingTime: 0.03,
     
+    // ─────────────────────────────────────────────────────────────────────
+    // RAMPAS PARA CONTROLES MANUALES (knobs/faders)
+    // ─────────────────────────────────────────────────────────────────────
+    //
+    // Tiempos de rampa aplicados cuando el usuario manipula los controles
+    // directamente. Evita saltos audibles ("zipper noise").
+    //
+    // Usa setTargetAtTime de Web Audio API con τ = rampTime/3 para alcanzar
+    // ~95% del valor objetivo en el tiempo especificado.
+    //
+    // IMPORTANTE: Estas rampas NO se aplican a:
+    // - Control de voltaje (CV) desde la matriz → instantáneo
+    // - Automatización programática → usa sus propios tiempos
+    //
+    ramps: {
+      // Rampa para el fader de nivel
+      level: 0.06,
+      
+      // Rampa para el knob de filtro
+      filter: 0.2,
+      
+      // Rampa para el knob de pan
+      pan: 0.2
+    },
+    
     // ───────────────────────────────────────────────────────────────────
     // CONFIGURACIÓN DEL FILTRO
     // ───────────────────────────────────────────────────────────────────

@@ -229,9 +229,32 @@ export default {
       // Tiempo de suavizado para cambios de parámetros del oscilador (en segundos).
       // Usado para: pulseWidth, symmetry, sineLevel, sawLevel, triLevel, pulseLevel.
       // Evita clics al cambiar valores abruptamente.
-      // NOTA: La frecuencia NO usa rampa (cambio instantáneo, sin glissando).
       // Rango recomendado: 0.005-0.05
-      smoothingTime: 0.01
+      smoothingTime: 0.01,
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // RAMPA DE FRECUENCIA PARA KNOB MANUAL
+      // ─────────────────────────────────────────────────────────────────────
+      //
+      // Tiempo de rampa (en segundos) aplicado a cambios de frecuencia desde
+      // el knob manual. Evita saltos audibles ("zipper noise") al girar el knob.
+      //
+      // Usa setTargetAtTime de Web Audio API con τ = frequencyRampTime/3 para
+      // alcanzar ~95% del valor objetivo en el tiempo especificado.
+      //
+      // IMPORTANTE: Esta rampa NO se aplica a:
+      // - Control de voltaje (CV) desde la matriz → instantáneo para modulación precisa
+      // - Mensajes OSC externos → instantáneo para sincronización remota
+      //
+      // | Valor    | Comportamiento                                           |
+      // |----------|----------------------------------------------------------|
+      // |   0      | Cambio instantáneo (sin rampa)                           |
+      // |   0.05   | Rampa muy rápida (~50ms), apenas perceptible             |
+      // |   0.1    | Rampa rápida (~100ms), suave pero responsivo             |
+      // |   0.2    | DEFAULT - Rampa moderada (~200ms), buen balance          |
+      // |   0.5    | Rampa lenta (~500ms), efecto "glide" notable             |
+      //
+      frequencyRampTime: 0.2
     },
 
     // ·······································································

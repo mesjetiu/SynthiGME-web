@@ -2647,9 +2647,13 @@ class App {
    * @param {number} oscIndex - Índice del oscilador (0-based)
    * @param {number} dialPosition - Posición del dial (0-10)
    * @param {boolean} [rangeLow] - Si se especifica, usa este valor. Si no, lee del UI.
+   * @param {Object} [options] - Opciones adicionales
+   * @param {number} [options.ramp=0] - Tiempo de rampa en segundos (0 = instantáneo)
    * @private
    */
-  _updatePanelOscFreq(panelIndex, oscIndex, dialPosition, rangeLow = undefined) {
+  _updatePanelOscFreq(panelIndex, oscIndex, dialPosition, rangeLow = undefined, options = {}) {
+    const { ramp = 0 } = options;
+    
     // Obtener configuración del oscilador
     const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
     const trackingConfig = config?.tracking || {};
@@ -2682,8 +2686,9 @@ class App {
     if (!node || !node.multiOsc) return;
     
     // Actualizar frecuencia en el worklet multiOsc (única fase maestra)
+    // ramp > 0: rampa suave para knob manual; ramp = 0: instantáneo para CV
     if (node.multiOsc.setFrequency) {
-      node.multiOsc.setFrequency(freq);
+      node.multiOsc.setFrequency(freq, ramp);
     }
   }
   
@@ -2718,6 +2723,7 @@ class App {
     const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
     const knobsConfig = config?.knobs || {};
     const voltageConfig = config?.voltage?.outputLevels || {};
+    const audioConfig = config?.audio || {};
     
     const knobOptions = [];
     
@@ -2891,7 +2897,9 @@ class App {
       pixelsForFullRange: frequencyCfg.pixelsForFullRange ?? 10000,
       scaleDecimals: frequencyCfg.scaleDecimals ?? 3,
       onChange: value => {
-        this._updatePanelOscFreq(panelIndex, oscIndex, value);
+        // Rampa desde config para suavizar cambios manuales del knob (evita saltos audibles)
+        const ramp = audioConfig.frequencyRampTime ?? 0.2;
+        this._updatePanelOscFreq(panelIndex, oscIndex, value, undefined, { ramp });
         if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
           oscillatorOSCSync.sendKnobChange(oscIndex, 6, value);
         }

@@ -455,14 +455,14 @@ export class AudioEngine {
     }
   }
 
-  updateOutputPan(busIndex) {
+  updateOutputPan(busIndex, ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME) {
     const ctx = this.audioCtx;
     const bus = this.outputBuses[busIndex];
     if (!ctx || !bus) return;
     
     // Actualizar panning en stereo buses (Pan 1-4, Pan 5-8)
     // Nota: No modificar panLeft/panRight (channelGains) - esos contienen valores de routing
-    this._updateStereoBusPanning(busIndex);
+    this._updateStereoBusPanning(busIndex, ramp);
   }
 
   setOutputLevel(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
@@ -888,7 +888,7 @@ export class AudioEngine {
    * @param {number} busIndex - Índice del bus (0-7)
    * @private
    */
-  _updateStereoBusPanning(busIndex) {
+  _updateStereoBusPanning(busIndex, ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME) {
     const ctx = this.audioCtx;
     const bus = this.outputBuses[busIndex];
     if (!ctx || !bus?.stereoPanL || !bus?.stereoPanR) return;
@@ -899,8 +899,8 @@ export class AudioEngine {
     const left = Math.cos(angle);
     const right = Math.sin(angle);
     
-    setParamSmooth(bus.stereoPanL.gain, left, ctx);
-    setParamSmooth(bus.stereoPanR.gain, right, ctx);
+    setParamSmooth(bus.stereoPanL.gain, left, ctx, { ramp });
+    setParamSmooth(bus.stereoPanR.gain, right, ctx, { ramp });
   }
 
   /**
@@ -959,10 +959,10 @@ export class AudioEngine {
     };
   }
 
-  setOutputPan(busIndex, value) {
+  setOutputPan(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
     if (busIndex < 0 || busIndex >= this.outputChannels) return;
     this.outputPans[busIndex] = value;
-    this.updateOutputPan(busIndex);
+    this._updateStereoBusPanning(busIndex, ramp);
     if (busIndex === 0) this.bus1Pan = value;
     if (busIndex === 1) this.bus2Pan = value;
   }
@@ -1524,11 +1524,17 @@ export class AudioEngine {
     node.parameters.get('gain').value = gain;
 
     // Métodos de conveniencia
-    node.setFrequency = (value) => {
+    // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → rampa suave (knob manual)
+    node.setFrequency = (value, ramp = 0) => {
       const param = node.parameters.get('frequency');
       const now = this.audioCtx.currentTime;
       param.cancelScheduledValues(now);
-      param.setValueAtTime(value, now);
+      if (ramp > 0) {
+        // Rampa exponencial para frecuencia (más natural musicalmente)
+        param.setTargetAtTime(value, now, ramp / 3); // τ = ramp/3 para alcanzar ~95% en 'ramp' segundos
+      } else {
+        param.setValueAtTime(value, now);
+      }
     };
 
     node.setPulseWidth = (value, ramp = 0.01) => {
@@ -1649,12 +1655,18 @@ export class AudioEngine {
 
     const ctx = this.audioCtx;
 
-    // Métodos de conveniencia (frecuencia sin rampa para evitar glissando)
-    node.setFrequency = (value) => {
+    // Métodos de conveniencia
+    // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → rampa suave (knob manual)
+    node.setFrequency = (value, ramp = 0) => {
       const param = node.parameters.get('frequency');
       const now = ctx.currentTime;
       param.cancelScheduledValues(now);
-      param.setValueAtTime(value, now);
+      if (ramp > 0) {
+        // Rampa exponencial para frecuencia (más natural musicalmente)
+        param.setTargetAtTime(value, now, ramp / 3); // τ = ramp/3 para alcanzar ~95% en 'ramp' segundos
+      } else {
+        param.setValueAtTime(value, now);
+      }
     };
 
     node.setPulseWidth = (value, ramp = smoothingTime) => {

@@ -24,6 +24,8 @@ import { outputChannelConfig } from '../configs/index.js';
 const knobsConfig = outputChannelConfig.knobs || {};
 const fadersConfig = outputChannelConfig.faders || {};
 const switchesConfig = outputChannelConfig.switches || {};
+const audioConfig = outputChannelConfig.audio || {};
+const rampsConfig = audioConfig.ramps || {};
 
 export class OutputChannel extends Module {
   /**
@@ -205,7 +207,9 @@ export class OutputChannel extends Module {
         valueElement: this.filterValueEl,
         onChange: (value) => {
           this.values.filter = value;
-          this.engine.setOutputFilter(this.channelIndex, value);
+          // Rampa desde config para suavizar cambios manuales
+          const ramp = rampsConfig.filter ?? 0.2;
+          this.engine.setOutputFilter(this.channelIndex, value, { ramp });
           document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
       });
@@ -225,7 +229,9 @@ export class OutputChannel extends Module {
         valueElement: this.panValueEl,
         onChange: (value) => {
           this.values.pan = value;
-          this.engine.setOutputPan(this.channelIndex, value);
+          // Rampa desde config para suavizar cambios manuales
+          const ramp = rampsConfig.pan ?? 0.2;
+          this.engine.setOutputPan(this.channelIndex, value, { ramp });
           document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
       });
@@ -311,7 +317,9 @@ export class OutputChannel extends Module {
       if (numericValue === lastCommittedValue) return;
       lastCommittedValue = numericValue;
       this.values.level = numericValue;
-      this.engine.setOutputLevel(this.channelIndex, numericValue, { ramp: 0.06 });
+      // Rampa desde config para suavizar cambios manuales
+      const ramp = rampsConfig.level ?? 0.06;
+      this.engine.setOutputLevel(this.channelIndex, numericValue, { ramp });
       valueDisplay.textContent = numericValue.toFixed(3);
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };

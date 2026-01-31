@@ -1398,13 +1398,13 @@ class App {
   // ═══════════════════════════════════════════════════════════════════════════
   // MULTICANAL NATIVO (8 canales via PipeWire) - SOLO ELECTRON + LINUX
   // ═══════════════════════════════════════════════════════════════════════════
-  // Usa naudiodon/PortAudio en el proceso main de Electron para salida de
-  // 8 canales independientes, ruteables a hardware via qpwgraph.
+  // Usa PipeWire nativo para salida de 8 canales independientes.
+  // Comunicación lock-free via SharedArrayBuffer cuando está disponible.
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
    * Activa la salida multicanal nativa de 8 canales.
-   * Crea un ScriptProcessorNode para capturar el audio y enviarlo al bridge.
+   * Usa SharedArrayBuffer para comunicación lock-free con AudioWorklet.
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async _activateMultichannelOutput() {
@@ -1412,106 +1412,188 @@ class App {
       return { success: false, error: 'multichannelAPI no disponible' };
     }
     
-    // Primero forzar 8 canales en el engine, indicando que no conecte al destination
-    // porque nosotros vamos a conectar al ScriptProcessor
+    // Primero forzar 8 canales en el engine
     const channelLabels = ['1', '2', '3', '4', '5', '6', '7', '8'];
-    this.engine.forcePhysicalChannels(8, channelLabels, true); // skipDestinationConnect = true
+    this.engine.forcePhysicalChannels(8, channelLabels, true);
     
-    // Abrir el stream multicanal en el main process
+    // Abrir el stream multicanal
     const sampleRate = this.engine.audioCtx?.sampleRate || 48000;
     const result = await window.multichannelAPI.open({ sampleRate, channels: 8 });
     
     if (!result.success) {
-      // Revertir a estado normal si falla
       this.engine.forcePhysicalChannels(2, ['L', 'R'], false);
       return { success: false, error: result.error };
     }
     
-    log.info(' Multichannel stream opened:', result.info);
+    log.info('🎛️ Multichannel stream opened:', result.info);
     
-    // Crear ScriptProcessorNode para capturar audio (deprecated pero funcional)
-    // TODO: Migrar a AudioWorklet cuando sea necesario
     const ctx = this.engine.audioCtx;
-    const bufferSize = 512; // ~10.7ms @ 48kHz - baja latencia
-    const inputChannels = 8;  // Recibimos 8 canales del merger
-    const outputChannels = 2; // Necesitamos salida para que el callback se ejecute
+    
+    // Crear SharedArrayBuffer en el renderer si está disponible
+    // Layout: [writeIndex(4), readIndex(4), audioData(frames * 8ch * 4bytes)]
+    const SHARED_BUFFER_FRAMES = 8192;  // ~170ms @ 48kHz
+    const channels = 8;
+    let sharedBuffer = null;
+    
+    // DEBUG: Verificar disponibilidad de SharedArrayBuffer
+    console.warn('[SAB Debug] typeof SharedArrayBuffer:', typeof SharedArrayBuffer);
+    console.warn('[SAB Debug] crossOriginIsolated:', window.crossOriginIsolated);
+    
+    if (typeof SharedArrayBuffer !== 'undefined') {
+      console.warn('[SAB Debug] SharedArrayBuffer disponible, intentando crear...');
+      try {
+        const byteLength = 8 + (SHARED_BUFFER_FRAMES * channels * 4);
+        sharedBuffer = new SharedArrayBuffer(byteLength);
+        console.warn('[SAB Debug] SharedArrayBuffer creado:', byteLength, 'bytes');
+        
+        // Inicializar índices a 0
+        const control = new Int32Array(sharedBuffer, 0, 2);
+        control[0] = 0;  // writeIndex (worklet escribe)
+        control[1] = 0;  // readIndex (C++ escribe)
+        
+        // Adjuntar al native stream via preload
+        console.warn('[SAB Debug] Llamando attachSharedBuffer...');
+        const attached = window.multichannelAPI.attachSharedBuffer(sharedBuffer, SHARED_BUFFER_FRAMES);
+        console.warn('[SAB Debug] attachSharedBuffer resultado:', attached);
+        if (attached) {
+          this._sharedAudioBuffer = sharedBuffer;
+          this._sharedBufferFrames = SHARED_BUFFER_FRAMES;
+          log.info('🎛️ SharedArrayBuffer creado y adjuntado:', SHARED_BUFFER_FRAMES, 'frames - LOCK-FREE MODE!');
+        } else {
+          log.warn('🎛️ No se pudo adjuntar SharedArrayBuffer, usando fallback');
+          sharedBuffer = null;
+        }
+      } catch (e) {
+        log.warn('🎛️ Error creando SharedArrayBuffer:', e.message);
+        sharedBuffer = null;
+      }
+    } else {
+      log.warn('🎛️ SharedArrayBuffer no disponible (requiere COOP/COEP headers)');
+    }
+    
+    // Cargar el AudioWorklet
+    try {
+      await ctx.audioWorklet.addModule('./assets/js/worklets/multichannelCapture.worklet.js');
+      log.info('🎛️ MultichannelCapture worklet loaded');
+    } catch (e) {
+      log.error('🎛️ Failed to load worklet:', e);
+      return this._activateMultichannelOutputFallback();
+    }
+    
+    // Crear el AudioWorkletNode
+    const chunkSize = 2048; // Fallback chunk size
+    this._multichannelWorklet = new AudioWorkletNode(ctx, 'multichannel-capture', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      channelCount: 8,
+      channelCountMode: 'explicit',
+      channelInterpretation: 'discrete',
+      processorOptions: {
+        channels: 8,
+        chunkSize: chunkSize
+      }
+    });
+    
+    this._mcWorkletChunks = 0;
+    
+    // Configurar comunicación con el worklet
+    this._multichannelWorklet.port.onmessage = (event) => {
+      const { type } = event.data;
+      
+      if (type === 'ready') {
+        // Worklet listo - enviar SharedArrayBuffer si tenemos uno
+        if (this._sharedAudioBuffer) {
+          this._multichannelWorklet.port.postMessage({
+            type: 'init',
+            sharedBuffer: this._sharedAudioBuffer,
+            bufferFrames: this._sharedBufferFrames
+          });
+          log.info('🎛️ SharedArrayBuffer enviado al worklet');
+        }
+      } else if (type === 'initialized') {
+        log.info('🎛️ Worklet inicializado con SharedArrayBuffer - LOCK-FREE activo!');
+      } else if (type === 'audioData') {
+        // Fallback: recibir datos via MessagePort
+        const { buffer, frames } = event.data;
+        const audioData = new Float32Array(buffer);
+        window.multichannelAPI.write(audioData);
+        
+        this._mcWorkletChunks++;
+        if (this._mcWorkletChunks % 200 === 1) {
+          log.info(`🎛️ [Fallback] Chunk #${this._mcWorkletChunks}, ${frames} frames`);
+        }
+      }
+    };
+    
+    // Crear GainNode silenciador
+    this._multichannelSilencer = ctx.createGain();
+    this._multichannelSilencer.gain.value = 0;
+    
+    this._multichannelActive = true;
+    
+    try {
+      this.engine.merger.disconnect();
+      log.info('🎛️ Merger disconnected');
+    } catch (e) {
+      log.warn('🎛️ Merger disconnect failed:', e.message);
+    }
+    
+    // Conectar: merger → worklet → silencer → destination
+    this.engine.merger.connect(this._multichannelWorklet);
+    this._multichannelWorklet.connect(this._multichannelSilencer);
+    this._multichannelSilencer.connect(ctx.destination);
+    
+    const mode = this._sharedAudioBuffer ? 'LOCK-FREE (SharedArrayBuffer)' : 'FALLBACK (MessagePort)';
+    log.info(`🎛️ Multichannel active - ${mode}`);
+    
+    return { success: true };
+  }
+  
+  /**
+   * Fallback a ScriptProcessor si AudioWorklet no está disponible.
+   * @private
+   */
+  async _activateMultichannelOutputFallback() {
+    log.warn('🎛️ Using ScriptProcessor fallback (may have UI-related audio glitches)');
+    
+    const ctx = this.engine.audioCtx;
+    const bufferSize = 512;
+    const inputChannels = 8;
+    const outputChannels = 2;
     
     this._multichannelProcessor = ctx.createScriptProcessor(bufferSize, inputChannels, outputChannels);
-    
-    // Crear GainNode silenciador para conectar al destination sin emitir sonido
-    // Esto es necesario para que el callback onaudioprocess se ejecute
     this._multichannelSilencer = ctx.createGain();
-    this._multichannelSilencer.gain.value = 0; // Silencio total
+    this._multichannelSilencer.gain.value = 0;
     
     this._multichannelProcessor.onaudioprocess = (event) => {
-      // Obtener datos de los 8 canales de entrada
       const inputBuffer = event.inputBuffer;
       const outputBuffer = event.outputBuffer;
       const frameCount = inputBuffer.length;
       const channelCount = inputBuffer.numberOfChannels;
       
-      // IMPORTANTE: Escribir CEROS explícitos en la salida para que
-      // el destination de Electron no sume nada al sink multicanal
+      // Silencio en salida
       for (let ch = 0; ch < outputBuffer.numberOfChannels; ch++) {
         const out = outputBuffer.getChannelData(ch);
-        for (let i = 0; i < out.length; i++) {
-          out[i] = 0;
-        }
+        for (let i = 0; i < out.length; i++) out[i] = 0;
       }
       
-      // Debug: verificar RMS de TODOS los canales para diagnosticar mapeo
-      this._mcProcessCount = (this._mcProcessCount || 0) + 1;
-      if (this._mcProcessCount % 200 === 1) {
-        const rmsValues = [];
-        for (let ch = 0; ch < channelCount; ch++) {
-          const data = inputBuffer.getChannelData(ch);
-          let rms = 0;
-          for (let i = 0; i < data.length; i++) rms += data[i] * data[i];
-          rms = Math.sqrt(rms / data.length);
-          rmsValues.push(rms.toFixed(4));
-        }
-        console.warn(`🔊 [MC] #${this._mcProcessCount} RMS por canal: [${rmsValues.join(', ')}]`);
-      }
-      
-      // Crear buffer interleaved Float32
+      // Interleave y enviar
       const interleavedBuffer = new Float32Array(frameCount * channelCount);
-      
       for (let frame = 0; frame < frameCount; frame++) {
         for (let ch = 0; ch < channelCount; ch++) {
-          const channelData = inputBuffer.getChannelData(ch);
-          interleavedBuffer[frame * channelCount + ch] = channelData[frame];
+          interleavedBuffer[frame * channelCount + ch] = inputBuffer.getChannelData(ch)[frame];
         }
       }
-      
-      // Enviar al proceso main (async, fire-and-forget)
       window.multichannelAPI.write(interleavedBuffer.buffer);
     };
     
-    // Desconectar el merger del destination y conectarlo al processor
     this._multichannelActive = true;
     
-    // Reconectar: merger → processor → silencer → destination
-    // Primero desconectamos TODO del merger para empezar limpio
-    try {
-      this.engine.merger.disconnect();
-      log.info(' Merger disconnected from all destinations');
-    } catch (e) {
-      log.warn(' Merger disconnect failed:', e.message);
-    }
+    try { this.engine.merger.disconnect(); } catch (e) {}
     
-    // Ahora conectamos la cadena: merger → processor → silencer → destination
     this.engine.merger.connect(this._multichannelProcessor);
-    log.info(' Merger connected to processor');
-    
     this._multichannelProcessor.connect(this._multichannelSilencer);
     this._multichannelSilencer.connect(ctx.destination);
-    log.info(' Processor chain connected to destination (silenced)');
-    
-    // NOTA: El AudioContext de Chromium necesita que el output de Electron esté
-    // conectado a algo en qpwgraph para no suspenderse. Conectar a cualquier sink.
-    
-    // El audio real va por el bridge nativo, el destination recibe silencio
-    log.info(' Multichannel audio processor connected');
     
     return { success: true };
   }
@@ -1522,45 +1604,47 @@ class App {
   async _deactivateMultichannelOutput() {
     if (!this._multichannelActive) return;
     
-    log.info(' Deactivating multichannel output...');
+    log.info('🎛️ Deactivating multichannel output...');
     
     // Cerrar el stream nativo
     if (window.multichannelAPI) {
       await window.multichannelAPI.close();
     }
     
-    // Reconectar el merger al destination original
     const ctx = this.engine.audioCtx;
-    if (this.engine.merger && ctx) {
+    
+    // Desconectar worklet o processor
+    if (this._multichannelWorklet) {
+      try {
+        this.engine.merger.disconnect(this._multichannelWorklet);
+        this._multichannelWorklet.disconnect();
+        this._multichannelWorklet.port.close();
+      } catch (e) {}
+      this._multichannelWorklet = null;
+    }
+    
+    if (this._multichannelProcessor) {
       try {
         this.engine.merger.disconnect(this._multichannelProcessor);
-      } catch (e) {
-        // Ya desconectado
-      }
-      try {
-        this._multichannelProcessor?.disconnect();
-      } catch (e) {
-        // Ya desconectado
-      }
-      try {
-        this._multichannelSilencer?.disconnect();
-      } catch (e) {
-        // Ya desconectado
-      }
-      // Restaurar conexión normal al destination
+        this._multichannelProcessor.disconnect();
+        this._multichannelProcessor.onaudioprocess = null;
+      } catch (e) {}
+      this._multichannelProcessor = null;
+    }
+    
+    if (this._multichannelSilencer) {
+      try { this._multichannelSilencer.disconnect(); } catch (e) {}
+      this._multichannelSilencer = null;
+    }
+    
+    // Restaurar conexión normal al destination
+    if (this.engine.merger && ctx) {
       this.engine._skipDestinationConnect = false;
       this.engine.merger.connect(ctx.destination);
     }
     
-    // Limpiar processor y silencer
-    if (this._multichannelProcessor) {
-      this._multichannelProcessor.onaudioprocess = null;
-      this._multichannelProcessor = null;
-    }
-    this._multichannelSilencer = null;
-    
     this._multichannelActive = false;
-    log.info(' Multichannel output deactivated, normal audio restored');
+    log.info('🎛️ Multichannel output deactivated, normal audio restored');
   }
 
   /**

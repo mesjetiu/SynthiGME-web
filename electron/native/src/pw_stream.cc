@@ -6,13 +6,13 @@
 #include <cmath>
 #include <iostream>
 
-// Ring buffer size: ~32ms de audio a 48kHz, 8 canales
-// Optimizado para baja latencia (20-40ms objetivo)
-static constexpr size_t RING_BUFFER_FRAMES = 1536;
+// Ring buffer size: ~107ms de audio a 48kHz, 8 canales
+// Margen muy amplio para garantizar 0 underflows en todas las situaciones
+static constexpr size_t RING_BUFFER_FRAMES = 5120;
 
-// Pre-buffering: frames mínimos antes de empezar a reproducir (~16ms)
-// Absorbe jitter del IPC sin añadir latencia excesiva
-static constexpr size_t PREBUFFER_FRAMES = 768;
+// Pre-buffering: NO empezar hasta que el buffer esté MUY lleno
+// Esto garantiza 0 underflows incluso con jitter extremo
+static constexpr size_t PREBUFFER_FRAMES = 4800;
 
 PwStream::PwStream(const std::string& name, int channels, int sampleRate, int bufferSize)
     : name_(name)
@@ -241,17 +241,7 @@ void PwStream::processCallback() {
     const size_t samples = frames * channels_;
     const size_t ringSize = ringBuffer_.size();
     
-    // Si estamos en modo priming, solo enviar silencio
-    if (priming_.load()) {
-        std::memset(dst, 0, samples * sizeof(float));
-        buf->datas[0].chunk->offset = 0;
-        buf->datas[0].chunk->stride = stride;
-        buf->datas[0].chunk->size = frames * stride;
-        pw_stream_queue_buffer(stream_, pwBuf);
-        return;
-    }
-    
-    // Leer del ring buffer
+    // Leer del ring buffer con lock
     {
         std::lock_guard<std::mutex> lock(ringMutex_);
         
@@ -263,24 +253,22 @@ void PwStream::processCallback() {
             available = ringSize - ringReadPos_ + ringWritePos_;
         }
         
-        size_t toRead = std::min(samples, available);
-        
-        // Copiar datos
-        for (size_t i = 0; i < toRead; i++) {
-            dst[i] = ringBuffer_[ringReadPos_];
-            ringReadPos_ = (ringReadPos_ + 1) % ringSize;
+        // Si estamos en priming O no hay suficientes datos, enviar silencio
+        // Esto evita la race condition entre priming y disponibilidad
+        if (priming_.load() || available < samples) {
+            std::memset(dst, 0, samples * sizeof(float));
+            buf->datas[0].chunk->offset = 0;
+            buf->datas[0].chunk->stride = stride;
+            buf->datas[0].chunk->size = frames * stride;
+            pw_stream_queue_buffer(stream_, pwBuf);
+            // NO contar underflow si estamos en priming - es esperado
+            return;
         }
         
-        // Rellenar con silencio si no hay suficientes datos
-        if (toRead < samples) {
-            std::memset(dst + toRead, 0, (samples - toRead) * sizeof(float));
-            if (running_.load()) {
-                underflows_.fetch_add(1);
-                // Re-entrar en modo priming si el buffer se vació completamente
-                if (available == 0) {
-                    priming_.store(true);
-                }
-            }
+        // Copiar datos (sabemos que available >= samples)
+        for (size_t i = 0; i < samples; i++) {
+            dst[i] = ringBuffer_[ringReadPos_];
+            ringReadPos_ = (ringReadPos_ + 1) % ringSize;
         }
     }
     

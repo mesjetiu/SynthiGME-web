@@ -1,47 +1,69 @@
 /**
- * MultichannelBridge - Salida de audio multicanal nativa
+ * MultichannelBridge - Salida de audio multicanal con naudiodon/PortAudio
  * 
  * Este módulo gestiona la salida de audio multicanal (>2 canales) usando
- * herramientas nativas del sistema operativo, ya que Web Audio API está
- * limitada a estéreo en Chromium.
+ * naudiodon (bindings de PortAudio para Node.js).
  * 
- * Backends soportados:
- * - Linux: pw-cat (PipeWire) - IMPLEMENTADO
- * - Windows: naudiodon (WASAPI) - PLANIFICADO
- * - macOS: naudiodon (CoreAudio) - PLANIFICADO
+ * Backends:
+ * - Linux: ALSA via PipeWire (crea sink PulseAudio de N canales)
+ * - Windows: WASAPI via PortAudio (planificado)
+ * - macOS: CoreAudio via PortAudio (planificado)
+ * 
+ * En Linux/PipeWire: Se crea automáticamente un sink PulseAudio de N canales.
+ * El audio fluye: naudiodon → ALSA pulse → SynthiGME sink → qpwgraph routing
+ * Las salidas SynthiGME:monitor_* se pueden rutear a cualquier destino.
  * 
  * Documentación: MULTICANAL-ELECTRON.md
  */
 
-const { spawn, execSync } = require('child_process');
 const os = require('os');
+const { execSync } = require('child_process');
+
+// naudiodon se carga dinámicamente
+let portAudio = null;
+let naudiodonAvailable = false;
+
+try {
+    portAudio = require('naudiodon');
+    naudiodonAvailable = true;
+    console.log('[MultichannelBridge] ✅ naudiodon cargado');
+} catch (e) {
+    console.warn('[MultichannelBridge] naudiodon no disponible:', e.message);
+}
+
+// ID del módulo PulseAudio creado (para eliminarlo al cerrar)
+let pulseModuleId = null;
 
 class MultichannelBridge {
     constructor() {
-        this.process = null;
+        this.audioStream = null;
         this.isOpen = false;
         this.config = null;
         this.platform = os.platform();
-        this.writeQueue = [];
-        this.isWriting = false;
+        this.sinkName = null;
         
-        // Estadísticas para debug de latencia
+        // Estadísticas
         this.stats = {
-            bufferFullCount: 0,
-            droppedSamples: 0,
-            writtenBuffers: 0,
-            lastDropWarning: 0
+            bytesWritten: 0,
+            buffersReceived: 0,
+            underruns: 0,
+            errors: 0
         };
         
-        // Flag para saber si podemos escribir (backpressure)
         this.canWrite = true;
     }
 
     /**
      * Verifica si el sistema soporta salida multicanal
-     * @returns {{available: boolean, reason?: string, backend?: string}}
      */
     checkAvailability() {
+        if (!naudiodonAvailable) {
+            return {
+                available: false,
+                reason: 'naudiodon no está instalado. Ejecuta: npm install naudiodon'
+            };
+        }
+        
         if (this.platform === 'linux') {
             return this._checkLinuxAvailability();
         } else if (this.platform === 'win32') {
@@ -56,69 +78,118 @@ class MultichannelBridge {
         };
     }
 
-    /**
-     * Verifica disponibilidad en Linux (PipeWire)
-     */
     _checkLinuxAvailability() {
         try {
-            // Verificar que pw-cat está instalado
-            execSync('which pw-cat', { stdio: 'ignore' });
+            // Verificar que pactl está disponible (para crear sink)
+            execSync('which pactl', { stdio: 'ignore' });
             
             // Verificar que PipeWire está corriendo
             execSync('pw-cli info 0', { stdio: 'ignore' });
             
             return {
                 available: true,
-                backend: 'pipewire',
-                maxChannels: 64 // PipeWire soporta hasta 64 canales
+                backend: 'alsa-pulse',
+                maxChannels: 32
             };
         } catch (e) {
-            // Intentar con pactl (PulseAudio/PipeWire-pulse)
+            return {
+                available: false,
+                reason: 'PipeWire no detectado. Necesario para salida multicanal.'
+            };
+        }
+    }
+
+    _checkWindowsAvailability() {
+        return {
+            available: false,
+            reason: 'Windows multicanal pendiente de implementar'
+        };
+    }
+
+    _checkMacOSAvailability() {
+        return {
+            available: false,
+            reason: 'macOS multicanal pendiente de implementar'
+        };
+    }
+
+    /**
+     * Crea un sink PulseAudio virtual de N canales (Linux/PipeWire)
+     */
+    _createPulseSink(channels, sinkName) {
+        if (this.platform !== 'linux') return Promise.resolve(true);
+        
+        const channelMaps = {
+            2: 'front-left,front-right',
+            4: 'front-left,front-right,rear-left,rear-right',
+            6: 'front-left,front-right,rear-left,rear-right,front-center,lfe',
+            8: 'front-left,front-right,rear-left,rear-right,front-center,lfe,side-left,side-right'
+        };
+        
+        const channelMap = channelMaps[channels] || channelMaps[8];
+        
+        return new Promise((resolve) => {
             try {
-                execSync('which pactl', { stdio: 'ignore' });
-                return {
-                    available: false,
-                    reason: 'PipeWire no detectado. Instala pipewire y pipewire-audio-client-libraries para soporte multicanal.',
-                    suggestion: 'sudo pacman -S pipewire pipewire-audio-client-libraries'
-                };
-            } catch {
-                return {
-                    available: false,
-                    reason: 'No se encontró pw-cat ni pactl. Sistema de audio no compatible.'
-                };
+                // Verificar si ya existe
+                const existing = execSync(`pactl list short sinks 2>/dev/null | grep "${sinkName}" || true`, { encoding: 'utf8' });
+                if (existing.includes(sinkName)) {
+                    console.log(`[MultichannelBridge] Sink ${sinkName} ya existe`);
+                    this.sinkName = sinkName;
+                    resolve(true);
+                    return;
+                }
+                
+                // Crear sink con nombre descriptivo para qpwgraph
+                const cmd = `pactl load-module module-null-sink sink_name=${sinkName} sink_properties='device.description="SynthiGME Matrix Outputs"' rate=48000 channels=${channels} channel_map=${channelMap}`;
+                const result = execSync(cmd, { encoding: 'utf8' }).trim();
+                pulseModuleId = parseInt(result, 10);
+                
+                console.log(`[MultichannelBridge] ✅ Sink ${sinkName} creado (module ID: ${pulseModuleId})`);
+                this.sinkName = sinkName;
+                
+                // Pequeña espera para que el sink esté listo
+                setTimeout(() => resolve(true), 200);
+            } catch (e) {
+                console.error(`[MultichannelBridge] Error creando sink:`, e.message);
+                resolve(false);
             }
+        });
+    }
+    
+    /**
+     * Elimina el sink PulseAudio creado
+     */
+    _removePulseSink() {
+        if (this.platform !== 'linux' || !pulseModuleId) return;
+        
+        try {
+            execSync(`pactl unload-module ${pulseModuleId} 2>/dev/null || true`);
+            console.log(`[MultichannelBridge] Sink eliminado (module ID: ${pulseModuleId})`);
+            pulseModuleId = null;
+            this.sinkName = null;
+        } catch (e) {
+            // Ignorar
         }
     }
 
     /**
-     * Verifica disponibilidad en Windows (WASAPI via naudiodon)
+     * Encuentra el dispositivo ALSA 'pulse' para escribir al sink
      */
-    _checkWindowsAvailability() {
-        // TODO: Implementar verificación de naudiodon
-        return {
-            available: false,
-            reason: 'Windows multicanal aún no implementado (planificado: naudiodon + WASAPI)'
-        };
-    }
-
-    /**
-     * Verifica disponibilidad en macOS (CoreAudio via naudiodon)
-     */
-    _checkMacOSAvailability() {
-        // TODO: Implementar verificación de naudiodon
-        return {
-            available: false,
-            reason: 'macOS multicanal aún no implementado (planificado: naudiodon + CoreAudio)'
-        };
+    _findAlsaPulseDevice() {
+        const devices = portAudio.getDevices();
+        
+        // Buscar el dispositivo ALSA 'pulse'
+        const pulseDevice = devices.find(d => 
+            d.name === 'pulse' && 
+            d.hostAPIName === 'ALSA' &&
+            d.maxOutputChannels >= 8
+        );
+        
+        return pulseDevice;
     }
 
     /**
      * Abre un stream de audio multicanal
-     * @param {Object} config Configuración del stream
-     * @param {number} config.channels Número de canales (1-64)
-     * @param {number} config.sampleRate Sample rate (44100, 48000, etc.)
-     * @param {string} [config.deviceName] Nombre visible en el sistema
-     * @returns {Promise<{success: boolean, error?: string}>}
      */
     async openStream(config) {
         if (this.isOpen) {
@@ -133,132 +204,94 @@ class MultichannelBridge {
         this.config = {
             channels: config.channels || 8,
             sampleRate: config.sampleRate || 48000,
+            bufferSize: config.bufferSize || 1024,
             deviceName: config.deviceName || 'SynthiGME'
         };
 
         if (this.platform === 'linux') {
-            return this._openLinuxStream();
+            return this._openAlsaPulseStream();
         }
 
         return { success: false, error: 'Plataforma no implementada' };
     }
 
     /**
-     * Abre stream en Linux usando pw-cat
+     * Abre stream usando naudiodon via ALSA pulse → PipeWire sink
      */
-    _openLinuxStream() {
-        return new Promise((resolve) => {
-            const channelMap = this._getChannelMap(this.config.channels);
+    async _openAlsaPulseStream() {
+        try {
+            // Crear sink PulseAudio de N canales
+            const sinkName = `SynthiGME`;
+            console.log(`[MultichannelBridge] Creando sink ${sinkName} con ${this.config.channels} canales...`);
             
-            const args = [
-                '--playback',              // Modo reproducción
-                '--raw',                   // Datos raw (no archivo)
-                '--target', '0',           // No auto-connect (usuario rutea manualmente)
-                '--channels', String(this.config.channels),
-                '--channel-map', channelMap,
-                '--rate', String(this.config.sampleRate),
-                '--format', 'f32',
-                '--latency', '1024',       // 1024 samples @ 48kHz = ~21ms (robusto contra clicks)
-                '-P', `media.name=${this.config.deviceName}`,
-                '-P', `node.name=${this.config.deviceName}`,
-                '-P', 'media.category=Playback',
-                '-P', 'media.role=Music',
-                '-'  // Leer de stdin
-            ];
-
-            console.log('[MultichannelBridge] Iniciando pw-cat:', args.join(' '));
-
-            // Spawn con stdin pipe que tiene highWaterMark bajo para evitar acumulación
-            this.process = spawn('pw-cat', args, {
-                stdio: ['pipe', 'inherit', 'pipe']
-            });
-            
-            // Configuración para flujo estable sin clicks:
-            // - highWaterMark de 64KB = ~42ms de buffer a 8ch/48kHz
-            // - Esto permite absorber jitter del IPC y scheduling del sistema
-            if (this.process.stdin) {
-                // 64KB proporciona suficiente buffer para evitar underruns
-                // La latencia total será ~21ms (pw-cat) + headroom del buffer
-                this.process.stdin._writableState.highWaterMark = 65536;
-                
-                // Escuchar evento 'drain' para saber cuándo podemos escribir de nuevo
-                this.process.stdin.on('drain', () => {
-                    this.canWrite = true;
-                });
+            const sinkCreated = await this._createPulseSink(this.config.channels, sinkName);
+            if (!sinkCreated) {
+                return { success: false, error: 'No se pudo crear sink PulseAudio' };
             }
-
-            this.process.on('error', (err) => {
-                console.error('[MultichannelBridge] Error:', err.message);
-                this.isOpen = false;
-                resolve({ success: false, error: err.message });
-            });
-
-            this.process.stderr.on('data', (data) => {
-                const msg = data.toString();
-                // Ignorar warnings de ALSA que no son errores reales
-                if (!msg.includes('ALSA lib')) {
-                    console.error('[MultichannelBridge] stderr:', msg);
+            
+            // Configurar PULSE_SINK para que el audio vaya al sink correcto
+            process.env.PULSE_SINK = sinkName;
+            
+            // Buscar dispositivo ALSA pulse
+            const device = this._findAlsaPulseDevice();
+            if (!device) {
+                return { success: false, error: 'No se encontró dispositivo ALSA pulse' };
+            }
+            
+            console.log(`[MultichannelBridge] Usando: ${device.name} (ID:${device.id}) - ${device.maxOutputChannels}ch via ALSA`);
+            
+            // Crear stream de salida PortAudio
+            this.audioStream = new portAudio.AudioIO({
+                outOptions: {
+                    channelCount: this.config.channels,
+                    sampleFormat: portAudio.SampleFormatFloat32,
+                    sampleRate: this.config.sampleRate,
+                    deviceId: device.id,
+                    closeOnError: false
                 }
             });
-
-            this.process.on('close', (code) => {
-                console.log(`[MultichannelBridge] pw-cat terminó con código ${code}`);
-                this.isOpen = false;
-                this.process = null;
-            });
-
-            // Esperar un momento para verificar que arrancó bien
-            setTimeout(() => {
-                if (this.process && !this.process.killed) {
-                    this.isOpen = true;
-                    this.canWrite = true;
-                    console.log(`[MultichannelBridge] Stream abierto: ${this.config.channels}ch @ ${this.config.sampleRate}Hz`);
-                    resolve({ success: true });
-                } else {
-                    resolve({ success: false, error: 'pw-cat terminó inesperadamente' });
+            
+            this.audioStream.start();
+            
+            this.isOpen = true;
+            this.canWrite = true;
+            
+            console.log(`[MultichannelBridge] ✅ Stream abierto: ${this.config.channels}ch @ ${this.config.sampleRate}Hz`);
+            console.log(`[MultichannelBridge] En qpwgraph: Las salidas ${sinkName}:monitor_* se pueden rutear a hardware`);
+            
+            return {
+                success: true,
+                info: {
+                    device: device.name,
+                    deviceId: device.id,
+                    channels: this.config.channels,
+                    sampleRate: this.config.sampleRate,
+                    hostApi: 'ALSA-PulseAudio',
+                    sink: sinkName,
+                    routingInfo: `Rutea ${sinkName}:monitor_FL,FR,RL,RR,FC,LFE,SL,SR a tu hardware en qpwgraph`
                 }
-            }, 100);
-        });
+            };
+                
+        } catch (e) {
+            console.error('[MultichannelBridge] Error abriendo stream:', e.message);
+            return { success: false, error: e.message };
+        }
     }
 
     /**
-     * Genera el channel map para pw-cat según número de canales
-     */
-    _getChannelMap(channels) {
-        // Mapeo estándar para hasta 8 canales (surround 7.1)
-        const standardMap = ['FL', 'FR', 'RL', 'RR', 'FC', 'LFE', 'SL', 'SR'];
-        
-        if (channels <= 8) {
-            return standardMap.slice(0, channels).join(',');
-        }
-        
-        // Para más de 8 canales, usar AUX
-        const map = [...standardMap];
-        for (let i = 8; i < channels; i++) {
-            map.push(`AUX${i - 7}`);
-        }
-        return map.join(',');
-    }
-
-    /**
-     * Escribe samples de audio al stream.
-     * NO descartamos samples para evitar clicks - preferimos algo de latencia.
-     * El backpressure natural de Node.js/pw-cat controla el flujo.
-     * @param {Float32Array|ArrayBuffer} samples Samples interleaved
-     * @returns {Promise<{written: boolean, dropped: boolean}>}
+     * Escribe samples de audio al stream
      */
     async write(samples) {
-        if (!this.isOpen || !this.process || !this.process.stdin.writable) {
+        if (!this.isOpen || !this.audioStream) {
             return { written: false, dropped: false };
         }
 
-        // NO descartamos samples - mejor algo de latencia que clicks
-        // El backpressure natural evitará que el buffer crezca indefinidamente
-
         try {
-            // Convertir a Buffer si es necesario
             let buffer;
-            if (samples instanceof ArrayBuffer) {
+            
+            if (samples instanceof Buffer) {
+                buffer = samples;
+            } else if (samples instanceof ArrayBuffer) {
                 buffer = Buffer.from(samples);
             } else if (samples.buffer) {
                 buffer = Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength);
@@ -266,125 +299,82 @@ class MultichannelBridge {
                 buffer = Buffer.from(samples);
             }
             
-            // Escribir al stdin - el retorno indica si hay backpressure
-            const canContinue = this.process.stdin.write(buffer);
+            this.stats.bytesWritten += buffer.length;
+            this.stats.buffersReceived++;
             
-            this.stats.writtenBuffers++;
-            
-            if (!canContinue) {
-                // El buffer de stdin está lleno, marcar para no escribir más
-                // hasta que se dispare el evento 'drain'
-                this.canWrite = false;
-                this.stats.bufferFullCount++;
-            }
+            this.audioStream.write(buffer);
             
             return { written: true, dropped: false };
+            
         } catch (err) {
-            console.error('[MultichannelBridge] Error escribiendo:', err.message);
+            this.stats.errors++;
             return { written: false, dropped: false };
         }
     }
 
-    /**
-     * Escribe samples de forma síncrona (para uso desde worklet)
-     * Respeta backpressure igual que write() async.
-     * @param {Buffer} buffer Buffer de audio
-     * @returns {{written: boolean, dropped: boolean}}
-     */
     writeSync(buffer) {
-        if (!this.isOpen || !this.process || !this.process.stdin.writable) {
+        if (!this.isOpen || !this.audioStream) {
             return { written: false, dropped: false };
         }
         
-        // Si hay backpressure, descartar
-        if (!this.canWrite) {
-            this.stats.droppedSamples++;
-            return { written: false, dropped: true };
-        }
-        
         try {
-            const canContinue = this.process.stdin.write(buffer);
-            this.stats.writtenBuffers++;
-            
-            if (!canContinue) {
-                this.canWrite = false;
-                this.stats.bufferFullCount++;
-            }
-            
+            this.stats.bytesWritten += buffer.length;
+            this.stats.buffersReceived++;
+            this.audioStream.write(buffer);
             return { written: true, dropped: false };
         } catch (e) {
+            this.stats.errors++;
             return { written: false, dropped: false };
         }
     }
     
-    /**
-     * Obtiene estadísticas de rendimiento para diagnóstico
-     * @returns {Object}
-     */
     getStats() {
         return {
             ...this.stats,
             isOpen: this.isOpen,
-            canWrite: this.canWrite,
-            bufferPressure: !this.canWrite
+            canWrite: this.canWrite
         };
     }
     
-    /**
-     * Resetea las estadísticas
-     */
     resetStats() {
         this.stats = {
-            bufferFullCount: 0,
-            droppedSamples: 0,
-            writtenBuffers: 0,
-            lastDropWarning: 0
+            bytesWritten: 0,
+            buffersReceived: 0,
+            underruns: 0,
+            errors: 0
         };
     }
 
-    /**
-     * Cierra el stream de audio
-     */
     async closeStream() {
-        if (this.process) {
-            console.log('[MultichannelBridge] Cerrando stream...');
-            console.log('[MultichannelBridge] Stats finales:', this.getStats());
-            
-            try {
-                this.process.stdin.end();
-                this.process.kill('SIGTERM');
-            } catch (e) {
-                // Ignorar errores al cerrar
-            }
-            
-            this.process = null;
-        }
-        
+        console.log('[MultichannelBridge] Cerrando stream...');
         this.isOpen = false;
+        
+        try {
+            if (this.audioStream) {
+                this.audioStream.quit();
+                this.audioStream = null;
+            }
+            this._removePulseSink();
+        } catch (e) {}
+        
         this.canWrite = true;
         this.config = null;
         this.resetStats();
     }
 
-    /**
-     * Obtiene información del stream actual
-     */
     getStreamInfo() {
-        if (!this.isOpen) {
-            return null;
-        }
+        if (!this.isOpen) return null;
         
         return {
             channels: this.config.channels,
             sampleRate: this.config.sampleRate,
             deviceName: this.config.deviceName,
-            backend: this.platform === 'linux' ? 'pipewire' : 'unknown',
+            backend: 'jack',
             stats: this.getStats()
         };
     }
 }
 
-// Singleton para uso global
 const bridge = new MultichannelBridge();
 
 module.exports = {

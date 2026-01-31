@@ -110,7 +110,9 @@ describe('STORAGE_KEYS', () => {
       'AUDIO_ROUTING',
       'INPUT_DEVICE',
       'OUTPUT_DEVICE',
-      'LAST_STATE'
+      'LAST_STATE',
+      'LATENCY_MODE',
+      'AUDIO_LATENCY'
     ];
     for (const key of requiredKeys) {
       assert.ok(key in STORAGE_KEYS, `Falta clave requerida: ${key}`);

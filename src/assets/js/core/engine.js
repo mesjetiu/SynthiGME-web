@@ -1114,6 +1114,36 @@ export class AudioEngine {
   }
 
   /**
+   * Fuerza la arquitectura de salida a N canales.
+   * Útil para multicanal nativo (Electron) donde no podemos detectar canales
+   * via destination.maxChannelCount pero necesitamos 8 canales lógicos.
+   * 
+   * @param {number} channelCount - Número de canales a forzar
+   * @param {string[]} [labels] - Etiquetas opcionales para los canales
+   * @returns {{ success: boolean, channels: number }}
+   */
+  forcePhysicalChannels(channelCount, labels = null) {
+    if (!this.audioCtx) return { success: false, channels: 2 };
+    
+    const oldChannels = this.physicalChannels;
+    this.physicalChannels = channelCount;
+    this.physicalChannelLabels = labels || this._generateChannelLabels(channelCount);
+    
+    // Reconstruir arquitectura si el engine está corriendo
+    if (this.isRunning && channelCount !== oldChannels) {
+      log.info(`Forcing physical channels: ${oldChannels} → ${channelCount}`);
+      this._rebuildOutputArchitecture(channelCount);
+      
+      // Notificar a listeners externos
+      if (this._onPhysicalChannelsChange) {
+        this._onPhysicalChannelsChange(channelCount, this.physicalChannelLabels);
+      }
+    }
+    
+    return { success: true, channels: channelCount };
+  }
+
+  /**
    * Cambia el dispositivo de salida de audio.
    * Requiere que el navegador soporte setSinkId (Chrome/Edge).
    * Tras el cambio, detecta el número de canales disponibles y reconfigura

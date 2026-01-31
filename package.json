@@ -60,7 +60,14 @@
     },
     "files": [
       "dist-app/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "node_modules/naudiodon/**/*",
+      "node_modules/bindings/**/*",
+      "node_modules/file-uri-to-path/**/*"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/naudiodon/**/*"
     ],
     "linux": {
       "target": ["AppImage"],
@@ -87,6 +94,9 @@
   },
   "dependencies": {
     "osc": "^2.4.5"
+  },
+  "optionalDependencies": {
+    "naudiodon": "^2.3.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",

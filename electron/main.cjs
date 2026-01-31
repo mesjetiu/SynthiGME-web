@@ -391,6 +391,39 @@ ipcMain.handle('osc:getTargets', () => {
   return [];
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Handlers IPC para Audio Multicanal (8 salidas independientes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const { multichannelAudio } = require('./multichannelAudio.cjs');
+
+// Verificar disponibilidad de audio multicanal
+ipcMain.handle('multichannel:check', () => {
+  return multichannelAudio.checkAvailability();
+});
+
+// Abrir stream de 8 canales
+ipcMain.handle('multichannel:open', async (event, config) => {
+  return await multichannelAudio.open(config);
+});
+
+// Escribir audio al stream
+ipcMain.handle('multichannel:write', (event, buffer) => {
+  // El buffer viene como ArrayBuffer desde el renderer
+  return multichannelAudio.write(Buffer.from(buffer));
+});
+
+// Cerrar stream
+ipcMain.handle('multichannel:close', async () => {
+  await multichannelAudio.close();
+  return { success: true };
+});
+
+// Obtener info del stream
+ipcMain.handle('multichannel:info', () => {
+  return multichannelAudio.getInfo();
+});
+
 // Cuando Electron esté listo, crear ventana
 app.whenReady().then(() => {
   createWindow();

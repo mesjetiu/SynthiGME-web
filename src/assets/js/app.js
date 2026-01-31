@@ -337,8 +337,26 @@ class App {
       // ─────────────────────────────────────────────────────────────────────────
       // El engine detecta automáticamente el número de canales del nuevo
       // dispositivo y notifica al modal para reconstruir la matriz.
+      // Si es multicanal nativo (Electron), activa el bridge de 8 canales.
       // ─────────────────────────────────────────────────────────────────────────
       onOutputDeviceChange: async (deviceId) => {
+        // Caso especial: multicanal nativo (solo Electron + Linux)
+        if (deviceId === 'multichannel-8ch') {
+          const result = await this._activateMultichannelOutput();
+          if (result.success) {
+            log.info(' Multichannel output activated (8ch)');
+            // Forzar 8 canales en el modal
+            this.audioSettingsModal.updatePhysicalChannels(8, 
+              ['1', '2', '3', '4', '5', '6', '7', '8']);
+          } else {
+            log.error(' Failed to activate multichannel:', result.error);
+          }
+          return;
+        }
+        
+        // Desactivar multicanal si estaba activo
+        await this._deactivateMultichannelOutput();
+        
         const result = await this.engine.setOutputDevice(deviceId);
         if (result.success) {
           log.info(` Output device changed. Channels: ${result.channels}`);
@@ -1344,6 +1362,135 @@ class App {
       }
       // No es crítico, los Input Amplifiers simplemente no tendrán entrada del sistema
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MULTICANAL NATIVO (8 canales via PipeWire) - SOLO ELECTRON + LINUX
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Usa naudiodon/PortAudio en el proceso main de Electron para salida de
+  // 8 canales independientes, ruteables a hardware via qpwgraph.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Activa la salida multicanal nativa de 8 canales.
+   * Crea un ScriptProcessorNode para capturar el audio y enviarlo al bridge.
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async _activateMultichannelOutput() {
+    if (!window.multichannelAPI) {
+      return { success: false, error: 'multichannelAPI no disponible' };
+    }
+    
+    // Primero forzar 8 canales en el engine para tener 8 canales de audio
+    const channelLabels = ['1', '2', '3', '4', '5', '6', '7', '8'];
+    this.engine.forcePhysicalChannels(8, channelLabels);
+    
+    // Abrir el stream multicanal en el main process
+    const sampleRate = this.engine.audioCtx?.sampleRate || 48000;
+    const result = await window.multichannelAPI.open({ sampleRate, channels: 8 });
+    
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+    
+    log.info(' Multichannel stream opened:', result.info);
+    
+    // Crear ScriptProcessorNode para capturar audio (deprecated pero funcional)
+    // TODO: Migrar a AudioWorklet cuando sea necesario
+    const ctx = this.engine.audioCtx;
+    const bufferSize = 4096; // ~85ms @ 48kHz, balance entre latencia y estabilidad
+    const inputChannels = 8;  // Recibimos 8 canales del merger
+    const outputChannels = 2; // Necesitamos salida para que el callback se ejecute
+    
+    this._multichannelProcessor = ctx.createScriptProcessor(bufferSize, inputChannels, outputChannels);
+    
+    // Crear GainNode silenciador para conectar al destination sin emitir sonido
+    // Esto es necesario para que el callback onaudioprocess se ejecute
+    this._multichannelSilencer = ctx.createGain();
+    this._multichannelSilencer.gain.value = 0; // Silencio total
+    
+    this._multichannelProcessor.onaudioprocess = (event) => {
+      // Obtener datos de los 8 canales de entrada
+      const inputBuffer = event.inputBuffer;
+      const frameCount = inputBuffer.length;
+      const channelCount = inputBuffer.numberOfChannels;
+      
+      // Crear buffer interleaved Float32
+      const interleavedBuffer = new Float32Array(frameCount * channelCount);
+      
+      for (let frame = 0; frame < frameCount; frame++) {
+        for (let ch = 0; ch < channelCount; ch++) {
+          const channelData = inputBuffer.getChannelData(ch);
+          interleavedBuffer[frame * channelCount + ch] = channelData[frame];
+        }
+      }
+      
+      // Enviar al proceso main (async, fire-and-forget)
+      window.multichannelAPI.write(interleavedBuffer.buffer);
+    };
+    
+    // Desconectar el merger del destination y conectarlo al processor
+    this._multichannelActive = true;
+    
+    // Reconectar: merger → processor → silencer → destination
+    try {
+      this.engine.merger.disconnect(ctx.destination);
+    } catch (e) {
+      // Ya estaba desconectado
+    }
+    this.engine.merger.connect(this._multichannelProcessor);
+    this._multichannelProcessor.connect(this._multichannelSilencer);
+    this._multichannelSilencer.connect(ctx.destination);
+    
+    // El audio real va por el bridge nativo, el destination recibe silencio
+    log.info(' Multichannel audio processor connected');
+    
+    return { success: true };
+  }
+
+  /**
+   * Desactiva la salida multicanal y restaura la salida normal.
+   */
+  async _deactivateMultichannelOutput() {
+    if (!this._multichannelActive) return;
+    
+    log.info(' Deactivating multichannel output...');
+    
+    // Cerrar el stream nativo
+    if (window.multichannelAPI) {
+      await window.multichannelAPI.close();
+    }
+    
+    // Reconectar el merger al destination original
+    const ctx = this.engine.audioCtx;
+    if (this.engine.merger && ctx) {
+      try {
+        this.engine.merger.disconnect(this._multichannelProcessor);
+      } catch (e) {
+        // Ya desconectado
+      }
+      try {
+        this._multichannelProcessor?.disconnect();
+      } catch (e) {
+        // Ya desconectado
+      }
+      try {
+        this._multichannelSilencer?.disconnect();
+      } catch (e) {
+        // Ya desconectado
+      }
+      this.engine.merger.connect(ctx.destination);
+    }
+    
+    // Limpiar processor y silencer
+    if (this._multichannelProcessor) {
+      this._multichannelProcessor.onaudioprocess = null;
+      this._multichannelProcessor = null;
+    }
+    this._multichannelSilencer = null;
+    
+    this._multichannelActive = false;
+    log.info(' Multichannel output deactivated, normal audio restored');
   }
 
   /**

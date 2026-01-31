@@ -101,3 +101,41 @@ contextBridge.exposeInMainWorld('oscAPI', {
 //   saveFile: (data, filename) => ipcRenderer.invoke('save-file', data, filename),
 //   loadFile: () => ipcRenderer.invoke('load-file'),
 // });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API de Audio Multicanal (8 canales via PortAudio/PipeWire)
+// ─────────────────────────────────────────────────────────────────────────────
+contextBridge.exposeInMainWorld('multichannelAPI', {
+  /**
+   * Verifica si el sistema soporta salida multicanal
+   * @returns {Promise<{ available: boolean, reason?: string }>}
+   */
+  checkAvailability: () => ipcRenderer.invoke('multichannel:check'),
+  
+  /**
+   * Abre el stream de audio de 8 canales
+   * @param {Object} [config]
+   * @param {number} [config.sampleRate=48000]
+   * @returns {Promise<{ success: boolean, error?: string, info?: Object }>}
+   */
+  open: (config) => ipcRenderer.invoke('multichannel:open', config),
+  
+  /**
+   * Escribe audio al stream (Float32 interleaved)
+   * @param {ArrayBuffer} buffer - Audio data
+   * @returns {Promise<{ written: boolean }>}
+   */
+  write: (buffer) => ipcRenderer.invoke('multichannel:write', buffer),
+  
+  /**
+   * Cierra el stream de audio
+   * @returns {Promise<void>}
+   */
+  close: () => ipcRenderer.invoke('multichannel:close'),
+  
+  /**
+   * Obtiene información del stream actual
+   * @returns {Promise<Object|null>}
+   */
+  getInfo: () => ipcRenderer.invoke('multichannel:info')
+});

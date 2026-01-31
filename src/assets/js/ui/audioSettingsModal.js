@@ -516,6 +516,9 @@ export class AudioSettingsModal {
       this.availableOutputDevices = devices.filter(d => d.kind === 'audiooutput');
       this.availableInputDevices = devices.filter(d => d.kind === 'audioinput');
       
+      // En Electron + Linux: verificar si el multicanal nativo está disponible
+      await this._checkMultichannelAvailability();
+      
       // Verificar si tenemos etiquetas (indica permisos previos)
       this._hasMediaPermission = devices.some(d => d.label && d.label.length > 0);
       
@@ -524,6 +527,56 @@ export class AudioSettingsModal {
       log.warn(' Error enumerating devices:', e);
       this._showDeviceError();
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MULTICANAL NATIVO (8 canales via PipeWire/PulseAudio) - SOLO ELECTRON
+  // ═══════════════════════════════════════════════════════════════════════════
+  // En Electron + Linux podemos usar naudiodon para salida multicanal nativa.
+  // Esto crea 8 puertos de salida independientes ruteables en qpwgraph.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Verifica si el audio multicanal nativo está disponible.
+   * Solo funciona en Electron + Linux con PipeWire.
+   * Si está disponible, añade una opción virtual al selector de dispositivos.
+   */
+  async _checkMultichannelAvailability() {
+    // Resetear estado
+    this.multichannelAvailable = false;
+    
+    // Solo en Electron
+    if (!window.multichannelAPI) {
+      return;
+    }
+    
+    try {
+      const result = await window.multichannelAPI.checkAvailability();
+      this.multichannelAvailable = result.available;
+      
+      if (result.available) {
+        log.info(' 8-channel native audio available (Electron/PipeWire)');
+        // Añadir dispositivo virtual al inicio de la lista
+        this.availableOutputDevices.unshift({
+          deviceId: 'multichannel-8ch',
+          kind: 'audiooutput',
+          label: 'SynthiGME 8ch (PipeWire)',
+          groupId: 'multichannel'
+        });
+      } else {
+        log.info(' Multichannel not available:', result.reason);
+      }
+    } catch (e) {
+      log.warn(' Error checking multichannel availability:', e);
+    }
+  }
+
+  /**
+   * Verifica si el dispositivo seleccionado es el multicanal nativo.
+   * @returns {boolean}
+   */
+  isMultichannelDevice() {
+    return this.selectedOutputDevice === 'multichannel-8ch';
   }
 
   /**

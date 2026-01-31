@@ -15,6 +15,7 @@
 #include <napi.h>
 #include "pw_stream.h"
 #include <memory>
+#include <iostream>
 
 class PipeWireAudio : public Napi::ObjectWrap<PipeWireAudio> {
 public:
@@ -30,7 +31,14 @@ private:
     Napi::Value GetChannels(const Napi::CallbackInfo& info);
     Napi::Value GetSampleRate(const Napi::CallbackInfo& info);
     Napi::Value GetUnderflows(const Napi::CallbackInfo& info);
+    Napi::Value GetOverflows(const Napi::CallbackInfo& info);
+    Napi::Value GetSilentUnderflows(const Napi::CallbackInfo& info);
     Napi::Value GetBufferedFrames(const Napi::CallbackInfo& info);
+    
+    // SharedArrayBuffer methods
+    Napi::Value AttachSharedBuffer(const Napi::CallbackInfo& info);
+    Napi::Value DetachSharedBuffer(const Napi::CallbackInfo& info);
+    Napi::Value HasSharedBuffer(const Napi::CallbackInfo& info);
     
     std::unique_ptr<PwStream> stream_;
 };
@@ -40,10 +48,15 @@ Napi::Object PipeWireAudio::Init(Napi::Env env, Napi::Object exports) {
         InstanceMethod<&PipeWireAudio::Start>("start"),
         InstanceMethod<&PipeWireAudio::Stop>("stop"),
         InstanceMethod<&PipeWireAudio::Write>("write"),
+        InstanceMethod<&PipeWireAudio::AttachSharedBuffer>("attachSharedBuffer"),
+        InstanceMethod<&PipeWireAudio::DetachSharedBuffer>("detachSharedBuffer"),
         InstanceAccessor<&PipeWireAudio::IsRunning>("isRunning"),
+        InstanceAccessor<&PipeWireAudio::HasSharedBuffer>("hasSharedBuffer"),
         InstanceAccessor<&PipeWireAudio::GetChannels>("channels"),
         InstanceAccessor<&PipeWireAudio::GetSampleRate>("sampleRate"),
         InstanceAccessor<&PipeWireAudio::GetUnderflows>("underflows"),
+        InstanceAccessor<&PipeWireAudio::GetOverflows>("overflows"),
+        InstanceAccessor<&PipeWireAudio::GetSilentUnderflows>("silentUnderflows"),
         InstanceAccessor<&PipeWireAudio::GetBufferedFrames>("bufferedFrames"),
     });
     
@@ -170,10 +183,105 @@ Napi::Value PipeWireAudio::GetUnderflows(const Napi::CallbackInfo& info) {
     return Napi::Number::New(env, static_cast<double>(underflows));
 }
 
+Napi::Value PipeWireAudio::GetOverflows(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    size_t overflows = stream_ ? stream_->getOverflows() : 0;
+    return Napi::Number::New(env, static_cast<double>(overflows));
+}
+
+Napi::Value PipeWireAudio::GetSilentUnderflows(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    size_t silentUnderflows = stream_ ? stream_->getSilentUnderflows() : 0;
+    return Napi::Number::New(env, static_cast<double>(silentUnderflows));
+}
+
 Napi::Value PipeWireAudio::GetBufferedFrames(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     size_t frames = stream_ ? stream_->getBufferedFrames() : 0;
     return Napi::Number::New(env, static_cast<double>(frames));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SharedArrayBuffer methods
+// ═══════════════════════════════════════════════════════════════════════════
+
+Napi::Value PipeWireAudio::AttachSharedBuffer(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!stream_) {
+        Napi::Error::New(env, "Stream not initialized").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected arguments: typedArray (wrapping SAB), bufferFrames")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    void* data = nullptr;
+    size_t byteLength = 0;
+    
+    // Estrategia: recibir un TypedArray (Int32Array) que envuelve el SharedArrayBuffer
+    // Esto funciona porque TypedArray.buffer devuelve el SharedArrayBuffer subyacente
+    if (info[0].IsTypedArray()) {
+        Napi::TypedArray typedArray = info[0].As<Napi::TypedArray>();
+        Napi::ArrayBuffer arrayBuffer = typedArray.ArrayBuffer();
+        data = arrayBuffer.Data();
+        byteLength = arrayBuffer.ByteLength();
+        std::cout << "[PwAudio] Got data from TypedArray, byteLength=" << byteLength << std::endl;
+    } else if (info[0].IsArrayBuffer()) {
+        Napi::ArrayBuffer arrayBuffer = info[0].As<Napi::ArrayBuffer>();
+        data = arrayBuffer.Data();
+        byteLength = arrayBuffer.ByteLength();
+        std::cout << "[PwAudio] Got data from ArrayBuffer, byteLength=" << byteLength << std::endl;
+    } else {
+        // Último intento: raw napi
+        napi_value val = info[0];
+        bool isArrayBuffer = false;
+        napi_is_arraybuffer(env, val, &isArrayBuffer);
+        
+        if (isArrayBuffer) {
+            napi_get_arraybuffer_info(env, val, &data, &byteLength);
+            std::cout << "[PwAudio] Got data from raw napi, byteLength=" << byteLength << std::endl;
+        } else {
+            std::cerr << "[PwAudio] Invalid argument type" << std::endl;
+            Napi::TypeError::New(env, "First argument must be a TypedArray or ArrayBuffer")
+                .ThrowAsJavaScriptException();
+            return env.Null();
+        }
+    }
+    
+    if (!data || byteLength == 0) {
+        std::cerr << "[PwAudio] No data or zero length" << std::endl;
+        return Napi::Boolean::New(env, false);
+    }
+    
+    size_t bufferFrames = info[1].As<Napi::Number>().Uint32Value();
+    
+    std::cout << "[PwAudio] AttachSharedBuffer: data=" << data 
+              << ", byteLength=" << byteLength 
+              << ", frames=" << bufferFrames << std::endl;
+    
+    bool success = stream_->attachSharedBuffer(data, byteLength, bufferFrames);
+    
+    return Napi::Boolean::New(env, success);
+}
+
+Napi::Value PipeWireAudio::DetachSharedBuffer(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (stream_) {
+        stream_->detachSharedBuffer();
+    }
+    
+    return env.Undefined();
+}
+
+Napi::Value PipeWireAudio::HasSharedBuffer(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    bool has = stream_ ? stream_->hasSharedBuffer() : false;
+    return Napi::Boolean::New(env, has);
 }
 
 // Inicialización del módulo

@@ -6,13 +6,12 @@
 #include <cmath>
 #include <iostream>
 
-// Ring buffer size: ~107ms de audio a 48kHz, 8 canales
-// Margen muy amplio para garantizar 0 underflows en todas las situaciones
-static constexpr size_t RING_BUFFER_FRAMES = 5120;
+// Ring buffer size: ~85ms @ 48kHz
+// Necesario para absorber variabilidad del IPC entre renderer y main
+static constexpr size_t RING_BUFFER_FRAMES = 4096;
 
-// Pre-buffering: NO empezar hasta que el buffer esté MUY lleno
-// Esto garantiza 0 underflows incluso con jitter extremo
-static constexpr size_t PREBUFFER_FRAMES = 4800;
+// Pre-buffering: ~42ms - la mitad del buffer
+static constexpr size_t PREBUFFER_FRAMES = 2048;
 
 PwStream::PwStream(const std::string& name, int channels, int sampleRate, int bufferSize)
     : name_(name)
@@ -176,6 +175,11 @@ size_t PwStream::write(const float* data, size_t frames) {
     size_t toWrite = std::min(samples, available);
     size_t framesWritten = toWrite / channels_;
     
+    // Contar overflow si no caben todos los datos
+    if (toWrite < samples) {
+        overflows_.fetch_add(1);
+    }
+    
     // Copiar datos al ring buffer
     for (size_t i = 0; i < toWrite; i++) {
         ringBuffer_[ringWritePos_] = data[i];
@@ -239,9 +243,48 @@ void PwStream::processCallback() {
                       maxFrames;
     
     const size_t samples = frames * channels_;
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // Modo SharedArrayBuffer: lectura lock-free directa
+    // ═══════════════════════════════════════════════════════════════════════
+    if (sharedBuffer_) {
+        // Primero transferir del SharedArrayBuffer al ring buffer interno
+        // para mantener el mecanismo de pre-buffering
+        float tempBuf[2048 * 8]; // max 2048 frames * 8 channels
+        size_t transferred = readFromSharedBuffer(tempBuf, 2048);
+        
+        if (transferred > 0) {
+            // Escribir al ring buffer interno
+            std::lock_guard<std::mutex> lock(ringMutex_);
+            const size_t ringSize = ringBuffer_.size();
+            const size_t samplesToWrite = transferred * channels_;
+            
+            for (size_t i = 0; i < samplesToWrite; i++) {
+                ringBuffer_[ringWritePos_] = tempBuf[i];
+                ringWritePos_ = (ringWritePos_ + 1) % ringSize;
+            }
+            
+            // Actualizar bufferedFrames y salir de priming si corresponde
+            size_t buffered;
+            if (ringWritePos_ >= ringReadPos_) {
+                buffered = (ringWritePos_ - ringReadPos_) / channels_;
+            } else {
+                buffered = (ringSize - ringReadPos_ + ringWritePos_) / channels_;
+            }
+            bufferedFrames_.store(buffered);
+            
+            if (priming_.load() && buffered >= PREBUFFER_FRAMES) {
+                priming_.store(false);
+                std::cout << "[PwStream] SharedArrayBuffer: pre-buffer lleno" << std::endl;
+            }
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // Leer del ring buffer interno (común para ambos modos)
+    // ═══════════════════════════════════════════════════════════════════════
     const size_t ringSize = ringBuffer_.size();
     
-    // Leer del ring buffer con lock
     {
         std::lock_guard<std::mutex> lock(ringMutex_);
         
@@ -254,18 +297,20 @@ void PwStream::processCallback() {
         }
         
         // Si estamos en priming O no hay suficientes datos, enviar silencio
-        // Esto evita la race condition entre priming y disponibilidad
         if (priming_.load() || available < samples) {
             std::memset(dst, 0, samples * sizeof(float));
             buf->datas[0].chunk->offset = 0;
             buf->datas[0].chunk->stride = stride;
             buf->datas[0].chunk->size = frames * stride;
             pw_stream_queue_buffer(stream_, pwBuf);
-            // NO contar underflow si estamos en priming - es esperado
+            // Contar silent underflow si NO estamos en priming
+            if (!priming_.load() && available < samples) {
+                silentUnderflows_.fetch_add(1);
+            }
             return;
         }
         
-        // Copiar datos (sabemos que available >= samples)
+        // Copiar datos
         for (size_t i = 0; i < samples; i++) {
             dst[i] = ringBuffer_[ringReadPos_];
             ringReadPos_ = (ringReadPos_ + 1) % ringSize;
@@ -277,4 +322,98 @@ void PwStream::processCallback() {
     buf->datas[0].chunk->size = frames * stride;
     
     pw_stream_queue_buffer(stream_, pwBuf);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SharedArrayBuffer support - lectura lock-free desde memoria compartida
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool PwStream::attachSharedBuffer(void* buffer, size_t bufferSize, size_t bufferFrames) {
+    if (!buffer || bufferSize == 0 || bufferFrames == 0) {
+        std::cerr << "[PwStream] Invalid SharedArrayBuffer parameters" << std::endl;
+        return false;
+    }
+    
+    // Layout esperado:
+    // [0-3]: writeIndex (int32_t, atomic)
+    // [4-7]: readIndex (int32_t, atomic)
+    // [8+]:  audioData (float32 interleaved)
+    size_t minSize = 8 + (bufferFrames * channels_ * sizeof(float));
+    if (bufferSize < minSize) {
+        std::cerr << "[PwStream] SharedArrayBuffer too small: " << bufferSize 
+                  << " < " << minSize << std::endl;
+        return false;
+    }
+    
+    sharedBuffer_ = buffer;
+    sharedBufferSize_ = bufferSize;
+    sharedBufferFrames_ = bufferFrames;
+    
+    // Mapear punteros a las regiones del buffer
+    int32_t* controlArea = static_cast<int32_t*>(buffer);
+    sharedWriteIndex_ = reinterpret_cast<std::atomic<int32_t>*>(&controlArea[0]);
+    sharedReadIndex_ = reinterpret_cast<std::atomic<int32_t>*>(&controlArea[1]);
+    
+    // Audio data empieza en offset 8 (después de los 2 int32)
+    uint8_t* bytePtr = static_cast<uint8_t*>(buffer);
+    sharedAudioData_ = reinterpret_cast<float*>(bytePtr + 8);
+    
+    // Inicializar readIndex a 0
+    sharedReadIndex_->store(0, std::memory_order_release);
+    
+    std::cout << "[PwStream] SharedArrayBuffer attached: " << bufferFrames 
+              << " frames, " << channels_ << " channels" << std::endl;
+    
+    return true;
+}
+
+void PwStream::detachSharedBuffer() {
+    sharedBuffer_ = nullptr;
+    sharedBufferSize_ = 0;
+    sharedBufferFrames_ = 0;
+    sharedWriteIndex_ = nullptr;
+    sharedReadIndex_ = nullptr;
+    sharedAudioData_ = nullptr;
+    
+    std::cout << "[PwStream] SharedArrayBuffer detached" << std::endl;
+}
+
+size_t PwStream::readFromSharedBuffer(float* dest, size_t maxFrames) {
+    if (!sharedBuffer_ || !sharedWriteIndex_ || !sharedReadIndex_ || !sharedAudioData_) {
+        return 0;
+    }
+    
+    // Leer índices atómicamente
+    int32_t writeIdx = sharedWriteIndex_->load(std::memory_order_acquire);
+    int32_t readIdx = sharedReadIndex_->load(std::memory_order_relaxed);
+    
+    // Calcular frames disponibles
+    int32_t available;
+    if (writeIdx >= readIdx) {
+        available = writeIdx - readIdx;
+    } else {
+        available = sharedBufferFrames_ - readIdx + writeIdx;
+    }
+    
+    if (available <= 0) {
+        return 0;
+    }
+    
+    // Limitar a lo solicitado
+    size_t toRead = std::min(static_cast<size_t>(available), maxFrames);
+    
+    // Copiar datos (interleaved)
+    int32_t pos = readIdx;
+    for (size_t frame = 0; frame < toRead; frame++) {
+        size_t baseIndex = pos * channels_;
+        for (int ch = 0; ch < channels_; ch++) {
+            dest[frame * channels_ + ch] = sharedAudioData_[baseIndex + ch];
+        }
+        pos = (pos + 1) % sharedBufferFrames_;
+    }
+    
+    // Actualizar readIndex atómicamente
+    sharedReadIndex_->store(pos, std::memory_order_release);
+    
+    return toRead;
 }

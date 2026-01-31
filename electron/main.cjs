@@ -28,6 +28,9 @@ app.setName('SynthiGME');
 // ─────────────────────────────────────────────────────────────────────────────
 app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
 
+// Habilitar SharedArrayBuffer para comunicación lock-free entre AudioWorklet y native
+app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer');
+
 // Mantener referencia global para evitar garbage collection
 let mainWindow = null;
 let server = null;
@@ -73,11 +76,14 @@ function startServer(docsPath) {
         const content = readFileSync(filePath);
         // Headers para deshabilitar caché de Chromium
         // Esto asegura que siempre se carguen los archivos del paquete actual
+        // COOP/COEP headers habilitan SharedArrayBuffer para comunicación lock-free
         res.writeHead(200, { 
           'Content-Type': mimeType,
           'Cache-Control': 'no-store, no-cache, must-revalidate',
           'Pragma': 'no-cache',
-          'Expires': '0'
+          'Expires': '0',
+          'Cross-Origin-Opener-Policy': 'same-origin',
+          'Cross-Origin-Embedder-Policy': 'require-corp'
         });
         res.end(content);
       } catch (err) {
@@ -141,8 +147,13 @@ async function createWindow() {
     webPreferences: {
       // Seguridad: deshabilitar integración con Node.js en el renderer
       nodeIntegration: false,
-      // Seguridad: aislar contexto del renderer
-      contextIsolation: true,
+      // NOTA: contextIsolation deshabilitado para permitir SharedArrayBuffer
+      // entre renderer y preload (necesario para audio lock-free sin clicks)
+      // Seguro porque: cargamos desde localhost, nodeIntegration=false
+      contextIsolation: false,
+      // Deshabilitar sandbox para permitir módulos Node.js en preload
+      // Necesario para cargar addon nativo de PipeWire
+      sandbox: false,
       // Preload script para exponer APIs seguras (OSC, etc.)
       preload: path.join(__dirname, 'preload.cjs'),
       // Permitir autoplay de audio (necesario para síntesis)

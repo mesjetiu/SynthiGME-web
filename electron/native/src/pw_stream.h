@@ -65,6 +65,7 @@ private:
     std::mutex ringMutex_;
     
     std::atomic<bool> running_{false};
+    std::atomic<bool> priming_{true};  // Pre-buffering: no reproduce hasta llenar
     std::atomic<size_t> underflows_{0};
     std::atomic<size_t> bufferedFrames_{0};  // Para métricas de latencia
     

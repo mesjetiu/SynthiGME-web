@@ -6,10 +6,13 @@
 #include <cmath>
 #include <iostream>
 
-// Ring buffer size: ~170ms de audio a 48kHz, 8 canales
-// Debe ser mayor que el buffer del ScriptProcessor (2048 frames = 42ms)
-// para absorber jitter del IPC sin underflows
-static constexpr size_t RING_BUFFER_FRAMES = 8192;
+// Ring buffer size: ~32ms de audio a 48kHz, 8 canales
+// Optimizado para baja latencia (20-40ms objetivo)
+static constexpr size_t RING_BUFFER_FRAMES = 1536;
+
+// Pre-buffering: frames mínimos antes de empezar a reproducir (~16ms)
+// Absorbe jitter del IPC sin añadir latencia excesiva
+static constexpr size_t PREBUFFER_FRAMES = 768;
 
 PwStream::PwStream(const std::string& name, int channels, int sampleRate, int bufferSize)
     : name_(name)
@@ -115,10 +118,12 @@ bool PwStream::start() {
     
     // Iniciar loop
     running_.store(true);
+    priming_.store(true);  // Empezar en modo pre-buffering
     pw_thread_loop_start(loop_);
     
     std::cout << "[PwStream] Started: " << name_ 
-              << " (" << channels_ << "ch @ " << sampleRate_ << "Hz)" << std::endl;
+              << " (" << channels_ << "ch @ " << sampleRate_ << "Hz, prebuffer: "
+              << PREBUFFER_FRAMES << " frames)" << std::endl;
     
     return true;
 }
@@ -186,6 +191,12 @@ size_t PwStream::write(const float* data, size_t frames) {
     }
     bufferedFrames_.store(buffered);
     
+    // Salir de priming cuando hay suficiente buffer
+    if (priming_.load() && buffered >= PREBUFFER_FRAMES) {
+        priming_.store(false);
+        std::cout << "[PwStream] Pre-buffer lleno, iniciando reproducción" << std::endl;
+    }
+    
     return framesWritten;
 }
 
@@ -230,6 +241,16 @@ void PwStream::processCallback() {
     const size_t samples = frames * channels_;
     const size_t ringSize = ringBuffer_.size();
     
+    // Si estamos en modo priming, solo enviar silencio
+    if (priming_.load()) {
+        std::memset(dst, 0, samples * sizeof(float));
+        buf->datas[0].chunk->offset = 0;
+        buf->datas[0].chunk->stride = stride;
+        buf->datas[0].chunk->size = frames * stride;
+        pw_stream_queue_buffer(stream_, pwBuf);
+        return;
+    }
+    
     // Leer del ring buffer
     {
         std::lock_guard<std::mutex> lock(ringMutex_);
@@ -255,6 +276,10 @@ void PwStream::processCallback() {
             std::memset(dst + toRead, 0, (samples - toRead) * sizeof(float));
             if (running_.load()) {
                 underflows_.fetch_add(1);
+                // Re-entrar en modo priming si el buffer se vació completamente
+                if (available == 0) {
+                    priming_.store(true);
+                }
             }
         }
     }

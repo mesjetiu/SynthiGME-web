@@ -162,6 +162,16 @@ async function copyWorklets() {
   }
 }
 
+async function copyWorkers() {
+  const workersDir = path.join(srcDir, 'assets/js/workers');
+  const destDir = path.join(outDir, 'assets/js/workers');
+  try {
+    await copyDirectory(workersDir, destDir);
+  } catch {
+    // no workers to copy
+  }
+}
+
 async function run() {
   const { version, cacheVersion } = await computeCacheVersion();
   const outDirName = path.relative(projectRoot, outDir);
@@ -184,6 +194,9 @@ async function run() {
 
   console.log('Copying AudioWorklet modules …');
   await copyWorklets();
+
+  console.log('Copying Web Workers …');
+  await copyWorkers();
 
   console.log('Generating service worker …');
   await buildServiceWorker(cacheVersion);

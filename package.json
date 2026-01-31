@@ -65,9 +65,16 @@
       "node_modules/bindings/**/*",
       "node_modules/file-uri-to-path/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "electron/native/build/Release/pipewire_audio.node",
+        "to": "native/pipewire_audio.node"
+      }
+    ],
     "asar": true,
     "asarUnpack": [
-      "node_modules/naudiodon/**/*"
+      "node_modules/naudiodon/**/*",
+      "electron/native/**/*"
     ],
     "linux": {
       "target": ["AppImage"],

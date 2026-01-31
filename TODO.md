@@ -1,8 +1,4 @@
 
-## Default:
-
-- Salidas planeadas estéreo únicamente. Actualmente están estás y también salidas 1 y 2, lo cual es una redundancia innecesaria.
-
 ## Oscilador/matriz:
 
 - Implementar, testar y bien documentar todas las distorsiones y limites por voltajes, impedancias, etc. Servirá de base de la arquitectura global del synthi y de próximos módulos.
@@ -94,8 +90,4 @@ podría ser significativo en dispositivos móviles.
 
 - Añadir a README.md referencia a Fuzzy Gab, quien apoya este proyecto y lo difunde.
 
-- Extraer los SVG del HTML principal (reducir tamaño de index y facilitar carga/optimización).
-
 - Revisar todo el documento ARCHITECTURE.md: errores, omisiones, desactualizaciones... Ha de servir de base a un eventual estudio escrito.
-
-- Repensar README.md. 

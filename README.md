@@ -108,7 +108,6 @@ Este es un proyecto Open Source. Si quieres ver el código, compilarlo tú mismo
 Este proyecto se distribuye bajo licencia **[MIT](LICENSE)**.
 
 - **Autoría y Desarrollo**: Carlos Arturo Guerra Parra.
-- **Diseño de Paneles**: Sylvia Molina Muro.
-- **Tutoría Original**: José Manuel Berenguer Alarcón (Máster Arte Sonoro UB).
+- **Diseño de iconos**: Sylvia Molina Muro.
 
 Basado en la investigación y el proyecto original en SuperCollider: [SynthiGME](https://github.com/mesjetiu/SynthiGME).

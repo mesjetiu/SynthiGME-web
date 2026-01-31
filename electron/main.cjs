@@ -407,10 +407,17 @@ ipcMain.handle('multichannel:open', async (event, config) => {
   return await multichannelAudio.open(config);
 });
 
-// Escribir audio al stream
-ipcMain.handle('multichannel:write', (event, buffer) => {
+// Escribir audio al stream (fire-and-forget, sin respuesta para no bloquear)
+let writeCount = 0;
+ipcMain.on('multichannel:write', (event, buffer) => {
   // El buffer viene como ArrayBuffer desde el renderer
-  return multichannelAudio.write(Buffer.from(buffer));
+  const nodeBuffer = Buffer.from(buffer);
+  writeCount++;
+  if (writeCount % 100 === 1) {
+    console.log(`[Multichannel] write #${writeCount}, buffer size: ${nodeBuffer.length} bytes`);
+  }
+  multichannelAudio.write(nodeBuffer);
+  // No responder - fire and forget
 });
 
 // Cerrar stream
@@ -448,6 +455,11 @@ app.on('window-all-closed', () => {
 
 // Limpiar recursos al salir
 app.on('will-quit', async () => {
+  // Cerrar multicanal (elimina el sink de PulseAudio)
+  if (multichannelAudio) {
+    await multichannelAudio.close();
+  }
+  
   if (oscServer && oscServer.running) {
     await oscServer.stop();
   }

@@ -1381,15 +1381,18 @@ class App {
       return { success: false, error: 'multichannelAPI no disponible' };
     }
     
-    // Primero forzar 8 canales en el engine para tener 8 canales de audio
+    // Primero forzar 8 canales en el engine, indicando que no conecte al destination
+    // porque nosotros vamos a conectar al ScriptProcessor
     const channelLabels = ['1', '2', '3', '4', '5', '6', '7', '8'];
-    this.engine.forcePhysicalChannels(8, channelLabels);
+    this.engine.forcePhysicalChannels(8, channelLabels, true); // skipDestinationConnect = true
     
     // Abrir el stream multicanal en el main process
     const sampleRate = this.engine.audioCtx?.sampleRate || 48000;
     const result = await window.multichannelAPI.open({ sampleRate, channels: 8 });
     
     if (!result.success) {
+      // Revertir a estado normal si falla
+      this.engine.forcePhysicalChannels(2, ['L', 'R'], false);
       return { success: false, error: result.error };
     }
     
@@ -1398,7 +1401,7 @@ class App {
     // Crear ScriptProcessorNode para capturar audio (deprecated pero funcional)
     // TODO: Migrar a AudioWorklet cuando sea necesario
     const ctx = this.engine.audioCtx;
-    const bufferSize = 4096; // ~85ms @ 48kHz, balance entre latencia y estabilidad
+    const bufferSize = 8192; // ~170ms @ 48kHz - mayor buffer reduce clicks
     const inputChannels = 8;  // Recibimos 8 canales del merger
     const outputChannels = 2; // Necesitamos salida para que el callback se ejecute
     
@@ -1412,8 +1415,32 @@ class App {
     this._multichannelProcessor.onaudioprocess = (event) => {
       // Obtener datos de los 8 canales de entrada
       const inputBuffer = event.inputBuffer;
+      const outputBuffer = event.outputBuffer;
       const frameCount = inputBuffer.length;
       const channelCount = inputBuffer.numberOfChannels;
+      
+      // IMPORTANTE: Escribir CEROS explícitos en la salida para que
+      // el destination de Electron no sume nada al sink multicanal
+      for (let ch = 0; ch < outputBuffer.numberOfChannels; ch++) {
+        const out = outputBuffer.getChannelData(ch);
+        for (let i = 0; i < out.length; i++) {
+          out[i] = 0;
+        }
+      }
+      
+      // Debug: verificar RMS de TODOS los canales para diagnosticar mapeo
+      this._mcProcessCount = (this._mcProcessCount || 0) + 1;
+      if (this._mcProcessCount % 200 === 1) {
+        const rmsValues = [];
+        for (let ch = 0; ch < channelCount; ch++) {
+          const data = inputBuffer.getChannelData(ch);
+          let rms = 0;
+          for (let i = 0; i < data.length; i++) rms += data[i] * data[i];
+          rms = Math.sqrt(rms / data.length);
+          rmsValues.push(rms.toFixed(4));
+        }
+        console.warn(`🔊 [MC] #${this._mcProcessCount} RMS por canal: [${rmsValues.join(', ')}]`);
+      }
       
       // Crear buffer interleaved Float32
       const interleavedBuffer = new Float32Array(frameCount * channelCount);
@@ -1433,14 +1460,24 @@ class App {
     this._multichannelActive = true;
     
     // Reconectar: merger → processor → silencer → destination
+    // Primero desconectamos TODO del merger para empezar limpio
     try {
-      this.engine.merger.disconnect(ctx.destination);
+      this.engine.merger.disconnect();
+      log.info(' Merger disconnected from all destinations');
     } catch (e) {
-      // Ya estaba desconectado
+      log.warn(' Merger disconnect failed:', e.message);
     }
+    
+    // Ahora conectamos la cadena: merger → processor → silencer → destination
     this.engine.merger.connect(this._multichannelProcessor);
+    log.info(' Merger connected to processor');
+    
     this._multichannelProcessor.connect(this._multichannelSilencer);
     this._multichannelSilencer.connect(ctx.destination);
+    log.info(' Processor chain connected to destination (silenced)');
+    
+    // NOTA: El AudioContext de Chromium necesita que el output de Electron esté
+    // conectado a algo en qpwgraph para no suspenderse. Conectar a cualquier sink.
     
     // El audio real va por el bridge nativo, el destination recibe silencio
     log.info(' Multichannel audio processor connected');
@@ -1479,6 +1516,8 @@ class App {
       } catch (e) {
         // Ya desconectado
       }
+      // Restaurar conexión normal al destination
+      this.engine._skipDestinationConnect = false;
       this.engine.merger.connect(ctx.destination);
     }
     

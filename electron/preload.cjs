@@ -125,7 +125,7 @@ contextBridge.exposeInMainWorld('multichannelAPI', {
    * @param {ArrayBuffer} buffer - Audio data
    * @returns {Promise<{ written: boolean }>}
    */
-  write: (buffer) => ipcRenderer.invoke('multichannel:write', buffer),
+write: (buffer) => ipcRenderer.send('multichannel:write', buffer),
   
   /**
    * Cierra el stream de audio

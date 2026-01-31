@@ -1120,18 +1120,36 @@ export class AudioEngine {
    * 
    * @param {number} channelCount - Número de canales a forzar
    * @param {string[]} [labels] - Etiquetas opcionales para los canales
+   * @param {boolean} [skipDestinationConnect=false] - Si true, no conecta al destination
    * @returns {{ success: boolean, channels: number }}
    */
-  forcePhysicalChannels(channelCount, labels = null) {
+  forcePhysicalChannels(channelCount, labels = null, skipDestinationConnect = false) {
     if (!this.audioCtx) return { success: false, channels: 2 };
     
     const oldChannels = this.physicalChannels;
     this.physicalChannels = channelCount;
     this.physicalChannelLabels = labels || this._generateChannelLabels(channelCount);
     
+    // Guardar flag para _rebuildOutputArchitecture
+    this._skipDestinationConnect = skipDestinationConnect;
+    
+    // Para multicanal nativo, configurar ruteo 1:1 (bus N → canal N)
+    // Esto asegura que cada bus vaya a su canal correspondiente
+    if (skipDestinationConnect) {
+      this._outputRoutingMatrix = [];
+      for (let bus = 0; bus < this.outputChannels; bus++) {
+        this._outputRoutingMatrix[bus] = Array(channelCount).fill(0);
+        // Cada bus va a su canal correspondiente (1:1)
+        if (bus < channelCount) {
+          this._outputRoutingMatrix[bus][bus] = 1;
+        }
+      }
+      log.info(`Configured 1:1 routing for ${channelCount} channels`);
+    }
+    
     // Reconstruir arquitectura si el engine está corriendo
     if (this.isRunning && channelCount !== oldChannels) {
-      log.info(`Forcing physical channels: ${oldChannels} → ${channelCount}`);
+      log.info(`Forcing physical channels: ${oldChannels} → ${channelCount}${skipDestinationConnect ? ' (skip destination)' : ''}`);
       this._rebuildOutputArchitecture(channelCount);
       
       // Notificar a listeners externos
@@ -1275,8 +1293,12 @@ export class AudioEngine {
       gain.connect(this.merger, 0, ch);
     });
     
-    // Conectar merger al destino
-    this.merger.connect(ctx.destination);
+    // Conectar merger al destino (a menos que se indique lo contrario)
+    if (!this._skipDestinationConnect) {
+      this.merger.connect(ctx.destination);
+    } else {
+      log.debug('Skipping destination connection (external routing)');
+    }
     
     // Reconectar los buses con la nueva matriz de ganancias por canal
     this._rebuildBusConnections(newChannelCount);

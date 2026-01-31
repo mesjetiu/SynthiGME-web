@@ -4,17 +4,28 @@ Este documento contiene toda la información necesaria para desarrolladores que 
 
 > **Importante**: SynthiGME-web es un proyecto "Vanilla JS" que utiliza ES Modules nativos. No usamos frameworks como React, Vue o Angular.
 
-## ⚠️ Nota sobre la carpeta `docs/`
+## ⚠️ Carpetas de salida - NO MODIFICAR MANUALMENTE
 
-La carpeta `docs/` es el destino de compilación para GitHub Pages.
-- **NUNCA modifiques nada dentro de `docs/` manualmente.**
-- Cualquier cambio se perderá en el siguiente build.
-- Realiza tus cambios en `src/` y ejecuta `npm run build`.
+| Carpeta | Propósito | Comando que la genera |
+|---------|-----------|----------------------|
+| `docs/` | PWA para GitHub Pages | `npm run build:web` |
+| `dist-app/` | App compilada para Electron | `npm run build:electron:*` |
+| `dist-electron/` | Instaladores (AppImage, exe) | `npm run build:electron:*` |
+
+**Importante**: Cada flujo de build es independiente:
+- `build:web` → `src/` → `docs/` (web/PWA)
+- `build:electron:*` → `src/` → `dist-app/` → `dist-electron/` (escritorio)
+
+`docs/` **NUNCA** es un paso intermedio para Electron. Ambos flujos compilan directamente desde `src/`.
 
 ## Requisitos previos
 
-- **Node.js**: v18 o superior.
-- **npm**: incluido con Node.js.
+- **Node.js**: v18 o superior
+- **npm**: incluido con Node.js
+
+Para builds de Electron en Linux con audio multicanal:
+- **PipeWire**: Sistema de audio (requerido para 8 canales independientes)
+- **Dependencias de compilación**: `build-essential`, `libpipewire-0.3-dev`
 
 Verifica tus versiones:
 ```bash
@@ -28,7 +39,11 @@ Desde la raíz del repositorio:
 ```bash
 npm install
 ```
-Esto instala `esbuild` (bundler/minificador) y las dependencias de desarrollo (electron, playwright, etc.).
+
+Para compilar el addon nativo de audio (opcional, solo Linux):
+```bash
+cd electron/native && npm install && cd ../..
+```
 
 ## Flujo de trabajo
 
@@ -40,7 +55,7 @@ Para desarrollo iterativo, usa los comandos rápidos (sin tests):
 # Desarrollo Electron (OSC, IPC, audio nativo)
 npm run dev
 
-# Desarrollo PWA web
+# Desarrollo PWA web (compila y muestra instrucciones)
 npm run dev:web
 ```
 
@@ -49,37 +64,40 @@ npm run dev:web
 Genera la versión web en `docs/` para GitHub Pages:
 
 ```bash
-# Sin tests (desarrollo)
+# Sin tests (desarrollo rápido)
 npm run build:web
 
 # Con tests (antes de commit)
 npm run build:web:test
 ```
 
-Pasos que realiza este script (`scripts/build.mjs`):
-1. Limpia `docs/`.
-2. Empaqueta y minifica JS desde `src/assets/js/app.js` usando esbuild.
-3. Minifica CSS y lo mueve a `docs/assets/css/`.
-4. Copia `index.html` y assets estáticos.
-
 ### Compilación Electron (Escritorio)
 
-Electron utiliza su propia carpeta de salida `dist-app/` y genera instaladores en `dist-electron/`.
+Genera instaladores en `dist-electron/`:
 
 ```bash
-# Linux (AppImage)
+# Plataforma actual (detecta automáticamente)
+npm run build:electron
+
+# Linux específico (AppImage)
 npm run build:electron:linux
 
-# Windows (exe portable + instalador)
+# Windows específico (exe + instalador NSIS)
 npm run build:electron:win
 
-# Ambos (Linux + Windows)
+# Ambas plataformas
 npm run build:electron:all
 
-# Build completo con tests
+# Con tests previos
+npm run build:electron:test
+```
+
+### Build completo (para releases)
+
+Compila todo (web + Electron) con tests:
+```bash
 npm run build:all
 ```
-Los artefactos se generan en `dist-electron/` con fecha y hora en el nombre.
 
 ## Tests
 
@@ -104,42 +122,51 @@ Opciones avanzadas:
 - `npm run test:audio:headed`: Ver el navegador mientras se ejecutan los tests.
 - `npm run test:audio:ui`: Usar la interfaz gráfica de Playwright.
 
-### Ejecutar todo
+### Ejecutar todos los tests
 ```bash
 npm run test:all
 ```
 
-## Scripts de npm
+## Referencia rápida de comandos
 
-Referencia rápida de comandos en `package.json`:
+### Desarrollo (sin tests, iteración rápida)
 
-### Desarrollo (rápidos, sin tests)
+| Comando | Genera | Descripción |
+|---------|--------|-------------|
+| `npm run dev` | - | Electron en modo desarrollo |
+| `npm run dev:web` | `docs/` | PWA web (compila y muestra instrucciones) |
+| `npm run build:i18n` | - | Solo traducciones YAML → JS |
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Lanza Electron en modo desarrollo |
-| `npm run dev:web` | Compila PWA y muestra instrucciones |
-| `npm run build:i18n` | Solo compila traducciones (YAML → JS) |
+### Build Web/PWA
 
-### Build (generar artefactos)
+| Comando | Genera | Tests |
+|---------|--------|-------|
+| `npm run build:web` | `docs/` | No |
+| `npm run build:web:test` | `docs/` | Sí |
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run build:web` | PWA en `docs/` (sin tests) |
-| `npm run build:web:test` | PWA en `docs/` (con tests) |
-| `npm run build:electron` | Instalador SO actual (sin tests) |
-| `npm run build:electron:linux` | AppImage Linux |
-| `npm run build:electron:win` | Instalador Windows |
-| `npm run build:electron:all` | Linux + Windows |
-| `npm run build:all` | Todo + tests (para releases) |
+### Build Electron
+
+| Comando | Genera | Plataforma |
+|---------|--------|------------|
+| `npm run build:electron` | `dist-electron/` | Actual |
+| `npm run build:electron:linux` | `dist-electron/` | Linux (AppImage) |
+| `npm run build:electron:win` | `dist-electron/` | Windows (exe/NSIS) |
+| `npm run build:electron:all` | `dist-electron/` | Linux + Windows |
+| `npm run build:electron:test` | `dist-electron/` | Actual + Tests |
+
+### Build completo
+
+| Comando | Genera | Descripción |
+|---------|--------|-------------|
+| `npm run build:all` | `docs/` + `dist-electron/` | Web + Electron (Linux+Win) con tests |
 
 ### Releases
 
 | Comando | Descripción |
 |---------|-------------|
-| `npm run release:patch` | 0.0.x → Incrementa versión patch |
-| `npm run release:minor` | 0.x.0 → Incrementa versión minor |
-| `npm run release:major` | x.0.0 → Incrementa versión major |
+| `npm run release:patch` | Incrementa versión 0.0.x |
+| `npm run release:minor` | Incrementa versión 0.x.0 |
+| `npm run release:major` | Incrementa versión x.0.0 |
 
 ## Versionado y Releases
 

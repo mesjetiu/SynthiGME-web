@@ -6,10 +6,10 @@
 #include <cmath>
 #include <iostream>
 
-// Ring buffer size: ~340ms de audio a 48kHz, 8 canales
-// Debe ser mayor que el buffer del ScriptProcessor (8192 frames = 170ms)
-// para evitar pérdida de datos cuando llegan chunks grandes
-static constexpr size_t RING_BUFFER_FRAMES = 16384;
+// Ring buffer size: ~85ms de audio a 48kHz, 8 canales
+// Debe ser mayor que el buffer del ScriptProcessor (1024 frames = 21ms)
+// para absorber jitter del IPC sin añadir latencia excesiva
+static constexpr size_t RING_BUFFER_FRAMES = 4096;
 
 PwStream::PwStream(const std::string& name, int channels, int sampleRate, int bufferSize)
     : name_(name)

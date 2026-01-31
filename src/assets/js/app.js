@@ -209,6 +209,7 @@ class App {
    * @returns {Promise<boolean>} true si el worklet está listo
    */
   async ensureAudio() {
+    console.log('🔊 ensureAudio() called');
     // Obtener latencyHint guardado o usar default según dispositivo
     const savedMode = localStorage.getItem(STORAGE_KEYS.LATENCY_MODE);
     const defaultMode = isMobileDevice() ? 'playback' : 'interactive';
@@ -218,11 +219,41 @@ class App {
     
     // Esperar a que el worklet esté listo (crucial para móviles)
     await this.engine.ensureWorkletReady();
+    console.log('🔊 worklet ready, calling _restoreMultichannelIfSaved');
+    
+    // Activar multicanal si estaba guardado (necesita AudioContext listo)
+    await this._restoreMultichannelIfSaved();
     
     // Iniciar osciloscopio cuando haya audio
     this._ensurePanel2ScopeStarted();
     
     return this.engine.workletReady;
+  }
+  
+  /**
+   * Restaura la salida multicanal si estaba guardada en preferencias.
+   * Debe llamarse después de que el AudioContext esté listo.
+   */
+  async _restoreMultichannelIfSaved() {
+    console.log('🔊 _restoreMultichannelIfSaved called, restored:', this._multichannelRestored);
+    if (this._multichannelRestored) return; // Solo una vez
+    this._multichannelRestored = true; // Marcar antes de async para evitar race conditions
+    
+    const savedOutputDevice = this.audioSettingsModal?.selectedOutputDevice;
+    console.log('🔊 savedOutputDevice:', savedOutputDevice);
+    
+    if (savedOutputDevice === 'multichannel-8ch') {
+      log.info('🔊 Restoring multichannel output from saved settings...');
+      const result = await this._activateMultichannelOutput();
+      console.log('🔊 _activateMultichannelOutput result:', result);
+      if (result.success) {
+        log.info('🔊 Multichannel output restored (8ch)');
+        this.audioSettingsModal.updatePhysicalChannels(8, 
+          ['1', '2', '3', '4', '5', '6', '7', '8']);
+      } else {
+        log.error('🔊 Failed to restore multichannel:', result.error);
+      }
+    }
   }
 
   _setupOutputFaders() {
@@ -423,9 +454,9 @@ class App {
         this.engine.setStereoBusRouting(busId, leftCh, rightCh);
       });
       
-      // Aplicar dispositivo de salida guardado
+      // Aplicar dispositivo de salida guardado (excepto multicanal que ya se activó arriba)
       const savedOutputDevice = this.audioSettingsModal.selectedOutputDevice;
-      if (savedOutputDevice && savedOutputDevice !== 'default') {
+      if (savedOutputDevice && savedOutputDevice !== 'default' && savedOutputDevice !== 'multichannel-8ch') {
         this.engine.setOutputDevice(savedOutputDevice);
       }
     };
@@ -1401,7 +1432,7 @@ class App {
     // Crear ScriptProcessorNode para capturar audio (deprecated pero funcional)
     // TODO: Migrar a AudioWorklet cuando sea necesario
     const ctx = this.engine.audioCtx;
-    const bufferSize = 2048; // ~42ms @ 48kHz - balance latencia/estabilidad
+    const bufferSize = 1024; // ~21ms @ 48kHz - baja latencia
     const inputChannels = 8;  // Recibimos 8 canales del merger
     const outputChannels = 2; // Necesitamos salida para que el callback se ejecute
     

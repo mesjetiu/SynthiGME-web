@@ -1432,7 +1432,7 @@ class App {
     // Crear ScriptProcessorNode para capturar audio (deprecated pero funcional)
     // TODO: Migrar a AudioWorklet cuando sea necesario
     const ctx = this.engine.audioCtx;
-    const bufferSize = 2048; // ~42ms @ 48kHz - balance latencia/estabilidad
+    const bufferSize = 512; // ~10.7ms @ 48kHz - baja latencia
     const inputChannels = 8;  // Recibimos 8 canales del merger
     const outputChannels = 2; // Necesitamos salida para que el callback se ejecute
     

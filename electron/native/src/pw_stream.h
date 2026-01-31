@@ -38,6 +38,7 @@ public:
     int getSampleRate() const { return sampleRate_; }
     int getBufferSize() const { return bufferSize_; }
     size_t getUnderflows() const { return underflows_.load(); }
+    size_t getBufferedFrames() const { return bufferedFrames_.load(); }
 
 private:
     // PipeWire callbacks (static para usar como C callbacks)
@@ -65,6 +66,7 @@ private:
     
     std::atomic<bool> running_{false};
     std::atomic<size_t> underflows_{0};
+    std::atomic<size_t> bufferedFrames_{0};  // Para métricas de latencia
     
     // Stream events
     struct pw_stream_events events_;

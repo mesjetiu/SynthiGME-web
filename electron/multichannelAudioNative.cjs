@@ -126,9 +126,11 @@ class MultichannelAudio {
       const framesWritten = this.audio.write(buffer);
       this._writeCount++;
       
-      // Log cada 100 writes para monitoreo
+      // Log cada 100 writes con métricas de latencia
       if (this._writeCount % 100 === 0) {
-        console.log(`[MultichannelAudio] Writes: ${this._writeCount}, Underflows: ${this.audio.underflows}`);
+        const bufferedFrames = this.audio.bufferedFrames || 0;
+        const latencyMs = (bufferedFrames / this.audio.sampleRate * 1000).toFixed(1);
+        console.log(`[MultichannelAudio] Writes: ${this._writeCount}, Buffered: ${bufferedFrames} frames (${latencyMs}ms), Underflows: ${this.audio.underflows}`);
       }
 
       return { success: true, framesWritten };

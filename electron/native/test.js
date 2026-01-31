@@ -60,6 +60,13 @@ function generateAndWrite() {
     const written = audio.write(buffer);
     totalFrames += written;
     
+    // Mostrar métricas de latencia
+    if (totalFrames % (SAMPLE_RATE / 2) < FRAMES_PER_CHUNK) {
+        const buffered = audio.bufferedFrames || 0;
+        const latencyMs = (buffered / SAMPLE_RATE * 1000).toFixed(1);
+        console.log(`  Frames: ${totalFrames}, Buffered: ${buffered} (${latencyMs}ms), Underflows: ${audio.underflows}`);
+    }
+    
     if (totalFrames < TOTAL_FRAMES) {
         // Continuar generando
         setImmediate(generateAndWrite);

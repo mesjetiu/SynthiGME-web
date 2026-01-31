@@ -4,22 +4,21 @@ Addon nativo de C++ para salida de audio multicanal (8 canales) en Linux usando 
 
 ## Estado: EN DESARROLLO 🚧
 
-Este addon es funcional pero está en fase de optimización.
+Este addon es funcional y con latencia aceptable para uso en tiempo real.
 
 ### ✅ Funcionando
 - Compilación con node-gyp
 - Stream de 8 canales independientes
 - Visible en qpwgraph como "SynthiGME" con puertos AUX0-AUX7
 - Integración con Electron via IPC
-- Ring buffer interno para absorber jitter
+- Ring buffer interno (16384 frames = ~340ms) para absorber chunks grandes
+- Métricas de latencia en tiempo real (bufferedFrames)
+- **Latencia actual: ~170-340ms** (depende del ScriptProcessor)
 
 ### 🔧 Pendiente de optimizar
-- **Latencia**: Actualmente ~1-2 segundos. Causas probables:
-  - Ring buffer demasiado grande (RING_BUFFER_FRAMES = 24000 = 500ms)
-  - Pre-buffering excesivo antes de empezar a reproducir
-  - Posible acumulación en el IPC renderer→main
-- Investigar uso de `pw_stream_trigger_process()` para forzar flush
-- Considerar buffer más pequeño con recuperación de underflows
+- Reducir buffer del ScriptProcessor de 8192 a 2048 frames
+- Posible migración a AudioWorklet para menor latencia
+- Investigar latencia mínima viable sin underflows
 
 ### 📋 Arquitectura
 

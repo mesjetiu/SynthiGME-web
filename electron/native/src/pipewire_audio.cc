@@ -30,6 +30,7 @@ private:
     Napi::Value GetChannels(const Napi::CallbackInfo& info);
     Napi::Value GetSampleRate(const Napi::CallbackInfo& info);
     Napi::Value GetUnderflows(const Napi::CallbackInfo& info);
+    Napi::Value GetBufferedFrames(const Napi::CallbackInfo& info);
     
     std::unique_ptr<PwStream> stream_;
 };
@@ -43,6 +44,7 @@ Napi::Object PipeWireAudio::Init(Napi::Env env, Napi::Object exports) {
         InstanceAccessor<&PipeWireAudio::GetChannels>("channels"),
         InstanceAccessor<&PipeWireAudio::GetSampleRate>("sampleRate"),
         InstanceAccessor<&PipeWireAudio::GetUnderflows>("underflows"),
+        InstanceAccessor<&PipeWireAudio::GetBufferedFrames>("bufferedFrames"),
     });
     
     Napi::FunctionReference* constructor = new Napi::FunctionReference();
@@ -166,6 +168,12 @@ Napi::Value PipeWireAudio::GetUnderflows(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     size_t underflows = stream_ ? stream_->getUnderflows() : 0;
     return Napi::Number::New(env, static_cast<double>(underflows));
+}
+
+Napi::Value PipeWireAudio::GetBufferedFrames(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    size_t frames = stream_ ? stream_->getBufferedFrames() : 0;
+    return Napi::Number::New(env, static_cast<double>(frames));
 }
 
 // Inicialización del módulo

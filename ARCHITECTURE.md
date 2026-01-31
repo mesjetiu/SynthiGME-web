@@ -436,12 +436,12 @@ src/assets/js/configs/
 
 | Archivo | Módulo | Contenido |
 |---------|--------|-----------|
-| `oscillator.config.js` | Osciladores | Rangos de frecuencia, niveles de salida, deriva térmica, parámetros de voltaje |
+| `oscillator.config.js` | Osciladores | Rangos de frecuencia, niveles de salida, deriva térmica, parámetros de voltaje, **rampas de frecuencia para knob** |
 | `noise.config.js` | Generadores de ruido | Tiempos de suavizado, parámetros Voss-McCartney |
 | `randomVoltage.config.js` | Random Voltage | Rangos de frecuencia, slew rate |
 | `oscilloscope.config.js` | Osciloscopio | Resolución CRT, glow, colores, buffer, trigger Schmitt |
 | `inputAmplifier.config.js` | Amplificadores de entrada | Ganancias, atenuaciones, límites |
-| `outputChannel.config.js` | Canales de salida | Rangos de filtros, niveles, pan |
+| `outputChannel.config.js` | Canales de salida | Rangos de filtros, niveles, pan, **rampas para knobs/faders** |
 | `audioMatrix.config.js` | Matriz de audio (Panel 5) | Ganancias por cruce, tipos de pin |
 | `controlMatrix.config.js` | Matriz de control (Panel 6) | Ganancias CV, tipos de pin |
 
@@ -789,7 +789,64 @@ Los osciladores aplican suavizado térmico y saturación a la entrada de CV de f
   }
   ```
 
-### 3.8.7 Clase Module (core/engine.js)
+### 3.8.7 Rampas para Controles Manuales (Knobs/Sliders)
+
+Los controles manuales (knobs y sliders) aplican **rampas de audio** para evitar "zipper noise" — saltos audibles cuando el usuario gira un knob rápidamente. Estas rampas usan `setTargetAtTime()` de Web Audio API que interpola exponencialmente a nivel de sample rate.
+
+**Comportamiento diferenciado por fuente de control:**
+
+| Fuente | Rampa | Motivo |
+|--------|-------|--------|
+| **Knob/Slider manual** | ✅ Configurable (200ms default) | Evita clicks al girar rápido |
+| **CV de matriz** | ❌ Instantáneo | Modulación precisa, FM/PWM sin latencia |
+| **OSC externo** | ❌ Instantáneo | Sincronización remota precisa |
+| **Carga de patch** | ❌ Instantáneo | Restaurar estado sin glissando |
+
+**Configuración en `oscillator.config.js`:**
+
+```javascript
+audio: {
+  // Rampa de frecuencia para knob manual (en segundos)
+  // τ = frequencyRampTime/3 para alcanzar ~95% del objetivo
+  frequencyRampTime: 0.2,  // 200ms default
+  
+  // Otros parámetros del oscilador...
+  smoothingTime: 0.01      // Para pulseWidth, symmetry, etc.
+}
+```
+
+**Configuración en `outputChannel.config.js`:**
+
+```javascript
+audio: {
+  ramps: {
+    level: 0.06,   // Fader de nivel: 60ms (más corto para responsividad)
+    filter: 0.2,   // Knob de filtro: 200ms
+    pan: 0.2       // Knob de pan: 200ms
+  }
+}
+```
+
+**Implementación:**
+
+1. **En `engine.js`**: Los métodos `setFrequency()`, `setOutputLevel()`, `setOutputPan()`, etc. aceptan parámetro opcional `{ ramp }`:
+   ```javascript
+   // Cambio instantáneo (CV)
+   node.setFrequency(440);
+   
+   // Con rampa (knob manual)
+   node.setFrequency(440, 0.2);  // 200ms
+   ```
+
+2. **En callbacks de knobs**: Leen el tiempo de rampa del config y lo pasan al método:
+   ```javascript
+   onChange: value => {
+     const ramp = audioConfig.frequencyRampTime ?? 0.2;
+     this._updatePanelOscFreq(panelIndex, oscIndex, value, undefined, { ramp });
+   }
+   ```
+
+### 3.8.8 Clase Module (core/engine.js)
 
 La clase base `Module` incluye métodos para aplicar soft clipping a las entradas. Todos los módulos heredan estos métodos:
 
@@ -802,7 +859,7 @@ La clase base `Module` incluye métodos para aplicar soft clipping a las entrada
 | `applyInputClipping(digital)` | Aplica clip a valor digital (convierte ↔ voltaje) |
 | `applyVoltageClipping(volts)` | Aplica clip a valor en voltios directamente |
 
-### 3.8.8 Ganancia de Pines de Matriz
+### 3.8.9 Ganancia de Pines de Matriz
 
 La función `calculateMatrixPinGain()` combina tipo de pin, resistencia de realimentación y tolerancia para calcular la ganancia de cada conexión:
 
@@ -835,7 +892,7 @@ Las funciones `_getPanel5PinGain()` y `_getPanel6PinGain()` usan `calculateMatri
 
 La configuración de tipos de pin por coordenada se puede definir en los archivos de configuración (`audioMatrixConfig.pinTypes`, `controlMatrixConfig.pinTypes`). Si no se especifica, se usa pin gris por defecto.
 
-### 3.8.9 Tolerancia de Resistencias
+### 3.8.10 Tolerancia de Resistencias
 
 La función `applyResistanceTolerance()` genera un error reproducible basado en un seed (ID de conexión), permitiendo que los patches suenen igual al recargarlos:
 

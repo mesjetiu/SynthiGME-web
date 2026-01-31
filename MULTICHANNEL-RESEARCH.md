@@ -1,6 +1,14 @@
-# Investigación: Salida Multicanal en SynthiGME
+# ⚠️ ARCHIVO HISTÓRICO - Investigación: Salida Multicanal en SynthiGME
 
-## Contexto del Problema
+> **Este documento es histórico.** La investigación documentada aquí llevó a la implementación actual.
+> 
+> Para documentación actualizada del sistema multicanal, ver:
+> - **[MULTICHANNEL.md](MULTICHANNEL.md)** - Guía de uso y configuración
+> - **[electron/native/README.md](electron/native/README.md)** - Detalles del addon nativo
+
+---
+
+## Contexto del Problema (Resuelto)
 
 SynthiGME necesita soportar 8 salidas de audio independientes que correspondan a las 8 salidas de la matriz del sintetizador, ruteables a hardware multicanal.
 

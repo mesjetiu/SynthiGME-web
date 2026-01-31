@@ -2,38 +2,34 @@
 
 Addon nativo de C++ para salida de audio multicanal (8 canales) en Linux usando libpipewire directamente.
 
-## Estado: EN DESARROLLO 🚧
+## Estado: ✅ FUNCIONAL
 
-Este addon es funcional y con latencia aceptable para uso en tiempo real.
+Este addon está en producción y soporta audio multicanal en tiempo real con latencia configurable.
 
-### ✅ Funcionando
+### ✅ Implementado
 - Compilación con node-gyp
 - Stream de 8 canales independientes
 - Visible en qpwgraph como "SynthiGME" con puertos AUX0-AUX7
-- Integración con Electron via IPC
-- Ring buffer interno (16384 frames = ~340ms) para absorber chunks grandes
-- Métricas de latencia en tiempo real (bufferedFrames)
-- **Latencia actual: ~170-340ms** (depende del ScriptProcessor)
-
-### 🔧 Pendiente de optimizar
-- Reducir buffer del ScriptProcessor de 8192 a 2048 frames
-- Posible migración a AudioWorklet para menor latencia
-- Investigar latencia mínima viable sin underflows
+- Integración con Electron via API directa (no IPC)
+- **SharedArrayBuffer lock-free** para comunicación AudioWorklet ↔ C++
+- Ring buffer configurable (8192 frames por defecto)
+- Latencia configurable: 10-170ms
+- Prebuffer automático antes de iniciar playback
 
 ### 📋 Arquitectura
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Electron                             │
-│  ┌──────────────────┐      ┌────────────────────────────┐  │
-│  │   Web Audio      │ IPC  │   Addon Nativo (C++)       │  │
-│  │   (renderer)     │─────▶│   - N-API binding          │  │
-│  │                  │      │   - libpipewire stream     │  │
-│  │  ScriptProcessor │      │   - Ring buffer interno    │  │
-│  │  8ch capture     │      │   - 8 canales AUX0-AUX7    │  │
-│  └──────────────────┘      └────────────────────────────┘  │
-│                                       │                     │
-└───────────────────────────────────────┼─────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        Electron                                  │
+│  ┌──────────────────┐      ┌─────────────────────────────────┐  │
+│  │   Web Audio      │      │   Addon Nativo (C++)            │  │
+│  │   (renderer)     │      │                                 │  │
+│  │                  │ SAB  │   SharedArrayBuffer (lock-free) │  │
+│  │  AudioWorklet    │─────▶│   Ring buffer interno           │  │
+│  │  8ch capture     │      │   PipeWire stream               │  │
+│  └──────────────────┘      └─────────────────────────────────┘  │
+│                                       │                          │
+└───────────────────────────────────────┼──────────────────────────┘
                                         ▼
                               ┌──────────────────┐
                               │    PipeWire      │

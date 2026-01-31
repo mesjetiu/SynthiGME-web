@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 25 de enero de 2026 (FM modulation working, CV chain corrected)
+> Última actualización: 31 de enero de 2026 (Audio multicanal 8ch vía PipeWire)
 
 ---
 
@@ -13,15 +13,32 @@ SynthiGME-web es una aplicación **vanilla JavaScript** (ES Modules) que reprodu
 | Capa | Tecnología |
 |------|------------|
 | Audio | Web Audio API + AudioWorklet |
+| Audio Multicanal | SharedArrayBuffer + Addon C++ (PipeWire, solo Linux) |
 | UI | DOM nativo + SVG |
 | Build | esbuild (bundler), svgo (optimización SVG) |
 | PWA | Service Worker + Web App Manifest |
+| Tests | Node.js test runner + Playwright |
 
 ---
 
 ## 2. Estructura de Carpetas
 
 ```
+/                           # Raíz del proyecto
+├── src/                    # Código fuente de la aplicación web
+├── electron/               # Código del wrapper Electron
+│   ├── native/             # Addon C++ para audio multicanal (PipeWire)
+│   └── *.cjs               # Main process, preload, OSC server
+├── tests/                  # Tests automatizados
+│   ├── audio/              # Tests de audio con Playwright
+│   ├── worklets/           # Tests de AudioWorklets
+│   ├── ui/                 # Tests de UI (modales, etc.)
+│   └── */                  # Tests por módulo
+├── scripts/                # Scripts de build y utilidades
+├── docs/                   # ⚠️ GENERADO - PWA para GitHub Pages
+├── dist-app/               # ⚠️ GENERADO - App compilada para Electron
+└── dist-electron/          # ⚠️ GENERADO - Instaladores (AppImage, exe)
+
 src/
 ├── index.html              # Punto de entrada HTML
 ├── manifest.webmanifest    # Configuración PWA
@@ -81,6 +98,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación. **Dormancy**: soporta mensaje `setDormant` para early exit en `process()` |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período. **Dormancy**: soporta mensaje `setDormant` para pausar captura |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
+| `multichannelCapture.worklet.js` | Captura de 8 canales para salida multicanal nativa. Usa **SharedArrayBuffer** para transferencia lock-free al addon C++ de PipeWire. Ring buffer con índices atómicos, soporta prebuffer configurable |
 | `cvThermalSlew.worklet.js` | Filtro one-pole asimétrico para emular inercia térmica del VCO CEM 3340. Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva). **CRÍTICO**: Implementación con **operaciones aritméticas puras** (`Math.abs()` para detectar dirección) — NO usa condicionales que bloquearían la propagación de señal a AudioParams. Se inserta en cadena CV: `freqCVInput → cvThermalSlew → cvSoftClip → detune`. Configurable en `oscillator.config.js` |
 | `cvSoftClip.worklet.js` | Saturación polinómica suave para limitar CV de frecuencia. Usa fórmula pura `y = x - x³·k` (sin condicionales) donde k es coeficiente configurable (rango 0.0001–1.0, por defecto 0.333). Se aplica después del thermal slew para recibir señal pre-suavizada. **Configuración**: coeficiente en `oscillator.config.js` → `softClip.coefficient`. **Limitación superada**: Web Audio API requiere aritmética pura en AudioWorklet para propagación a AudioParam |
 
@@ -2216,18 +2234,55 @@ El servidor HTTP integrado:
 
 ### Script de Preload (`electron/preload.cjs`)
 
-Actualmente expone información básica al renderer:
+Expone APIs al renderer de forma segura:
 ```javascript
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   platform: process.platform  // 'linux', 'win32', 'darwin'
 });
+
+// API de audio multicanal (solo Linux con PipeWire)
+window.multichannelAPI = {
+  checkAvailability: () => Promise,   // Verifica si el addon está disponible
+  open: (config) => Promise,          // Abre stream de 8 canales
+  close: () => Promise,               // Cierra stream
+  write: (buffer) => number,          // Escribe audio (fallback)
+  attachSharedBuffer: (sab) => bool,  // Conecta SharedArrayBuffer
+  setLatency: (ms) => void            // Configura latencia (10-170ms)
+};
 ```
 
-Preparado para futuras APIs:
-- `saveFile(data, filename)` — Guardar patches al sistema de archivos
-- `loadFile()` — Cargar patches desde diálogo nativo
-- `getMidiDevices()` — Acceso a MIDI nativo (si se implementa)
+### Audio Multicanal (8 canales independientes)
+
+SynthiGME soporta salida de audio en 8 canales físicos independientes en **Linux con PipeWire**, permitiendo rutear cada bus de salida a un canal diferente (visible en qpwgraph como `SynthiGME AUX0-AUX7`).
+
+**Arquitectura:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Electron                                  │
+│  ┌──────────────────┐      ┌─────────────────────────────────┐  │
+│  │   Web Audio      │      │   Addon C++ (electron/native/)  │  │
+│  │   AudioWorklet   │ SAB  │   - SharedArrayBuffer lock-free │  │
+│  │   8ch capture    │─────▶│   - Ring buffer 8192 frames     │  │
+│  │                  │      │   - PipeWire stream             │  │
+│  └──────────────────┘      └─────────────────────────────────┘  │
+│                                       │                          │
+└───────────────────────────────────────┼──────────────────────────┘
+                                        ▼
+                              ┌──────────────────┐
+                              │ PipeWire (AUX0-7)│
+                              └──────────────────┘
+```
+
+**Disponibilidad:**
+| Plataforma | 8ch independientes | Notas |
+|------------|-------------------|-------|
+| Linux + PipeWire | ✅ | Addon nativo incluido en AppImage |
+| Linux sin PipeWire | ❌ | Fallback a estéreo Web Audio |
+| Windows/macOS | ❌ | Estéreo Web Audio (por ahora) |
+| Web (navegador) | ❌ | Limitación de Chromium (max 2ch) |
+
+**Documentación completa:** [MULTICHANNEL.md](MULTICHANNEL.md)
 
 ### Scripts de npm
 
@@ -2577,7 +2632,7 @@ Opciones útiles:
 - `npm run test:audio:headed` ejecuta con navegador visible
 - `npm run test:audio:debug` activa modo debug del runner
 
-### Cobertura actual (~1157 casos)
+### Cobertura actual (~1264 casos)
 
 | Área | Tests | Verificaciones principales |
 |------|-------|---------------------------|
@@ -2591,7 +2646,9 @@ Opciones útiles:
 | `state/*` | Sistema de patches | Conversiones, migraciones, validación de esquema, persistencia |
 | `i18n/locales` | Internacionalización | Paridad en/es, claves esenciales, metadatos |
 | **`audio/worklets/*`** | **24 tests Playwright** | **Thermal slew, hybrid clipping, CV, sync, waveforms** |
+| `ui/audioSettingsModal` | Modal de audio | Lógica de latencia, cálculo total, visibilidad multicanal |
 | `ui/*` | Componentes de interfaz | Matriz grande, tooltips, PiP, menú de colores |
+| `worklets/multichannelCapture` | Ring buffer SharedArrayBuffer | Espacio disponible, overflow, Atomics, layout de buffer |
 | `worklets/*` | Procesadores DSP | Matemáticas de oscilador, formas de onda, PolyBLEP |
 | `utils/*` | Utilidades | Constantes, logging por niveles, `deepMerge()`, voltajes |
 

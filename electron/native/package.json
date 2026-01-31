@@ -1,0 +1,23 @@
+{
+  "name": "pipewire-audio-native",
+  "version": "0.1.0",
+  "description": "Native PipeWire audio output for SynthiGME Electron",
+  "main": "build/Release/pipewire_audio.node",
+  "private": true,
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "build": "node-gyp rebuild",
+    "clean": "node-gyp clean"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.3.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": ["linux"],
+  "cpu": ["x64", "arm64"]
+}

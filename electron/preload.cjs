@@ -98,6 +98,17 @@ window.multichannelAPI = {
         const bufferSize = 256;
         
         nativeStream = new nativeAudio.PipeWireAudio('SynthiGME', channels, sampleRate, bufferSize);
+        
+        // Aplicar configuración de latencia si existe
+        const latencyConfig = window._multichannelLatencyConfig;
+        if (latencyConfig) {
+          // Recalcular frames con el sampleRate actual
+          const prebufferFrames = Math.round((latencyConfig.prebufferMs / 1000) * sampleRate);
+          const ringBufferFrames = prebufferFrames * 2;
+          nativeStream.setLatency(prebufferFrames, ringBufferFrames);
+          console.log(`[Preload] Latency applied: ${prebufferFrames} frames (${latencyConfig.prebufferMs}ms)`);
+        }
+        
         const started = nativeStream.start();
         
         if (!started) {
@@ -105,11 +116,19 @@ window.multichannelAPI = {
           return Promise.resolve({ success: false, error: 'Failed to start stream' });
         }
         
-        console.log('[Preload] Native stream started');
+        const actualPrebuffer = nativeStream.prebufferFrames || 2048;
+        const actualLatencyMs = (actualPrebuffer / sampleRate * 1000).toFixed(1);
+        console.log(`[Preload] Native stream started (latency: ${actualLatencyMs}ms)`);
         
         return Promise.resolve({ 
           success: true, 
-          info: { sampleRate, channels, direct: true }
+          info: { 
+            sampleRate, 
+            channels, 
+            direct: true,
+            latencyMs: parseFloat(actualLatencyMs),
+            prebufferFrames: actualPrebuffer
+          }
         });
       } catch (e) {
         nativeStream = null;
@@ -176,14 +195,43 @@ window.multichannelAPI = {
     return ipcRenderer.invoke('multichannel:close');
   },
   
+  /**
+   * Configura la latencia del stream (debe llamarse ANTES de open())
+   * @param {number} prebufferMs - Latencia en milisegundos (5-200)
+   * @param {number} sampleRate - Sample rate para calcular frames
+   * @returns {boolean} true si se configuró correctamente
+   */
+  setLatency: (prebufferMs, sampleRate = 48000) => {
+    if (!nativeAudio) {
+      console.warn('[Preload] setLatency: no native audio');
+      return false;
+    }
+    // Guardar para aplicar al crear el stream
+    window._multichannelLatencyConfig = {
+      prebufferMs,
+      sampleRate,
+      prebufferFrames: Math.round((prebufferMs / 1000) * sampleRate),
+      ringBufferFrames: Math.round((prebufferMs / 1000) * sampleRate * 2)
+    };
+    console.log('[Preload] Latency configured:', window._multichannelLatencyConfig);
+    return true;
+  },
+  
   getInfo: () => {
     if (nativeStream) {
+      const sampleRate = nativeStream.sampleRate || 48000;
+      const prebufferFrames = nativeStream.prebufferFrames || 2048;
+      const prebufferMs = (prebufferFrames / sampleRate * 1000).toFixed(1);
+      
       return Promise.resolve({
         underflows: nativeStream.underflows,
         overflows: nativeStream.overflows,
         silentUnderflows: nativeStream.silentUnderflows,
         bufferedFrames: nativeStream.bufferedFrames,
         hasSharedBuffer: nativeStream.hasSharedBuffer,
+        prebufferFrames: prebufferFrames,
+        prebufferMs: parseFloat(prebufferMs),
+        sampleRate: sampleRate,
         direct: true
       });
     }

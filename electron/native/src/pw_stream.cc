@@ -6,21 +6,22 @@
 #include <cmath>
 #include <iostream>
 
-// Ring buffer size: ~85ms @ 48kHz
-// Necesario para absorber variabilidad del IPC entre renderer y main
-static constexpr size_t RING_BUFFER_FRAMES = 4096;
-
-// Pre-buffering: ~42ms - la mitad del buffer
-static constexpr size_t PREBUFFER_FRAMES = 2048;
+// Valores por defecto de latencia (configurables via setLatency)
+// RING_BUFFER_FRAMES: tamaño máximo del ring buffer
+// PREBUFFER_FRAMES: cuánto llenar antes de empezar a reproducir (latencia real)
+static constexpr size_t DEFAULT_RING_BUFFER_FRAMES = 4096;  // ~85ms @ 48kHz
+static constexpr size_t DEFAULT_PREBUFFER_FRAMES = 2048;    // ~42ms @ 48kHz
 
 PwStream::PwStream(const std::string& name, int channels, int sampleRate, int bufferSize)
     : name_(name)
     , channels_(channels)
     , sampleRate_(sampleRate)
     , bufferSize_(bufferSize)
+    , prebufferFrames_(DEFAULT_PREBUFFER_FRAMES)
+    , ringBufferFrames_(DEFAULT_RING_BUFFER_FRAMES)
 {
-    // Inicializar ring buffer
-    ringBuffer_.resize(RING_BUFFER_FRAMES * channels_, 0.0f);
+    // Inicializar ring buffer con tamaño configurable
+    ringBuffer_.resize(ringBufferFrames_ * channels_, 0.0f);
     
     // Inicializar eventos
     std::memset(&events_, 0, sizeof(events_));
@@ -122,7 +123,7 @@ bool PwStream::start() {
     
     std::cout << "[PwStream] Started: " << name_ 
               << " (" << channels_ << "ch @ " << sampleRate_ << "Hz, prebuffer: "
-              << PREBUFFER_FRAMES << " frames)" << std::endl;
+              << prebufferFrames_ << " frames, ~" << (prebufferFrames_ * 1000 / sampleRate_) << "ms)" << std::endl;
     
     return true;
 }
@@ -196,7 +197,7 @@ size_t PwStream::write(const float* data, size_t frames) {
     bufferedFrames_.store(buffered);
     
     // Salir de priming cuando hay suficiente buffer
-    if (priming_.load() && buffered >= PREBUFFER_FRAMES) {
+    if (priming_.load() && buffered >= prebufferFrames_) {
         priming_.store(false);
         std::cout << "[PwStream] Pre-buffer lleno, iniciando reproducción" << std::endl;
     }
@@ -273,7 +274,7 @@ void PwStream::processCallback() {
             }
             bufferedFrames_.store(buffered);
             
-            if (priming_.load() && buffered >= PREBUFFER_FRAMES) {
+            if (priming_.load() && buffered >= prebufferFrames_) {
                 priming_.store(false);
                 std::cout << "[PwStream] SharedArrayBuffer: pre-buffer lleno" << std::endl;
             }
@@ -416,4 +417,27 @@ size_t PwStream::readFromSharedBuffer(float* dest, size_t maxFrames) {
     sharedReadIndex_->store(pos, std::memory_order_release);
     
     return toRead;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Configuración de latencia
+// ═══════════════════════════════════════════════════════════════════════════
+
+void PwStream::setLatency(size_t prebufferFrames, size_t ringBufferFrames) {
+    if (running_.load()) {
+        std::cerr << "[PwStream] WARNING: setLatency llamado con stream activo, ignorando" << std::endl;
+        return;
+    }
+    
+    // Validar rangos razonables (min 256 frames ~5ms, max 16384 frames ~340ms @ 48kHz)
+    prebufferFrames_ = std::max<size_t>(256, std::min<size_t>(16384, prebufferFrames));
+    ringBufferFrames_ = std::max<size_t>(prebufferFrames_ * 2, std::min<size_t>(32768, ringBufferFrames));
+    
+    // Redimensionar ring buffer
+    ringBuffer_.resize(ringBufferFrames_ * channels_, 0.0f);
+    ringWritePos_ = 0;
+    ringReadPos_ = 0;
+    
+    std::cout << "[PwStream] Latencia configurada: prebuffer=" << prebufferFrames_ 
+              << " frames, ringbuffer=" << ringBufferFrames_ << " frames" << std::endl;
 }

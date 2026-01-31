@@ -59,6 +59,7 @@ export const STORAGE_KEYS = {
   OUTPUT_DEVICE: `${STORAGE_PREFIX}output-device`,
   INPUT_DEVICE: `${STORAGE_PREFIX}input-device`,
   MIC_PERMISSION_DENIED: `${STORAGE_PREFIX}mic-permission-denied`,
+  AUDIO_LATENCY: `${STORAGE_PREFIX}audio-latency`,
   
   // Grabación
   RECORDING_TRACKS: `${STORAGE_PREFIX}recording-tracks`,

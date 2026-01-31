@@ -40,6 +40,11 @@ private:
     Napi::Value DetachSharedBuffer(const Napi::CallbackInfo& info);
     Napi::Value HasSharedBuffer(const Napi::CallbackInfo& info);
     
+    // Latency configuration
+    Napi::Value SetLatency(const Napi::CallbackInfo& info);
+    Napi::Value GetPrebufferFrames(const Napi::CallbackInfo& info);
+    Napi::Value GetRingBufferFrames(const Napi::CallbackInfo& info);
+    
     std::unique_ptr<PwStream> stream_;
 };
 
@@ -50,6 +55,7 @@ Napi::Object PipeWireAudio::Init(Napi::Env env, Napi::Object exports) {
         InstanceMethod<&PipeWireAudio::Write>("write"),
         InstanceMethod<&PipeWireAudio::AttachSharedBuffer>("attachSharedBuffer"),
         InstanceMethod<&PipeWireAudio::DetachSharedBuffer>("detachSharedBuffer"),
+        InstanceMethod<&PipeWireAudio::SetLatency>("setLatency"),
         InstanceAccessor<&PipeWireAudio::IsRunning>("isRunning"),
         InstanceAccessor<&PipeWireAudio::HasSharedBuffer>("hasSharedBuffer"),
         InstanceAccessor<&PipeWireAudio::GetChannels>("channels"),
@@ -58,6 +64,8 @@ Napi::Object PipeWireAudio::Init(Napi::Env env, Napi::Object exports) {
         InstanceAccessor<&PipeWireAudio::GetOverflows>("overflows"),
         InstanceAccessor<&PipeWireAudio::GetSilentUnderflows>("silentUnderflows"),
         InstanceAccessor<&PipeWireAudio::GetBufferedFrames>("bufferedFrames"),
+        InstanceAccessor<&PipeWireAudio::GetPrebufferFrames>("prebufferFrames"),
+        InstanceAccessor<&PipeWireAudio::GetRingBufferFrames>("ringBufferFrames"),
     });
     
     Napi::FunctionReference* constructor = new Napi::FunctionReference();
@@ -282,6 +290,44 @@ Napi::Value PipeWireAudio::HasSharedBuffer(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     bool has = stream_ ? stream_->hasSharedBuffer() : false;
     return Napi::Boolean::New(env, has);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Latency configuration methods
+// ═══════════════════════════════════════════════════════════════════════════
+
+Napi::Value PipeWireAudio::SetLatency(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!stream_) {
+        Napi::Error::New(env, "Stream not initialized").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments: prebufferFrames, ringBufferFrames")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    size_t prebufferFrames = info[0].As<Napi::Number>().Uint32Value();
+    size_t ringBufferFrames = info[1].As<Napi::Number>().Uint32Value();
+    
+    stream_->setLatency(prebufferFrames, ringBufferFrames);
+    
+    return env.Undefined();
+}
+
+Napi::Value PipeWireAudio::GetPrebufferFrames(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    size_t frames = stream_ ? stream_->getPrebufferFrames() : 0;
+    return Napi::Number::New(env, static_cast<double>(frames));
+}
+
+Napi::Value PipeWireAudio::GetRingBufferFrames(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    size_t frames = stream_ ? stream_->getRingBufferFrames() : 0;
+    return Napi::Number::New(env, static_cast<double>(frames));
 }
 
 // Inicialización del módulo

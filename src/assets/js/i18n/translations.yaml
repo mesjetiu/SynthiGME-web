@@ -1445,6 +1445,163 @@ audio.inputs.enabled:
   pt: "✓ Entrada ativada"
   cs: "✓ Vstup povolen"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Sección de latencia (unificada en audio settings)
+# ─────────────────────────────────────────────────────────────────────────────
+
+audio.latency.title:
+  en: Latency
+  es: Latencia
+  fr: "Latence"
+  de: "Latenz"
+  it: "Latenza"
+  pt: "Latência"
+  cs: "Latence"
+
+audio.latency.description:
+  en: Adjust audio buffer. Lower = faster response but higher risk of clicks.
+  es: Ajusta el buffer de audio. Menor = respuesta más rápida pero más riesgo de clicks.
+  fr: "Ajuste le tampon audio. Moins = réponse plus rapide mais plus de risque de clics."
+  de: "Audiopuffer anpassen. Niedriger = schnellere Reaktion, aber höheres Risiko von Klicks."
+  it: "Regola il buffer audio. Minore = risposta più veloce ma maggiore rischio di clic."
+  pt: "Ajustar buffer de áudio. Menor = resposta mais rápida, mas maior risco de cliques."
+  cs: "Upravte zvukový buffer. Nižší = rychlejší odezva, ale vyšší riziko praskání."
+
+audio.latency.webAudio:
+  en: "Web Audio Buffer:"
+  es: "Buffer Web Audio:"
+  fr: "Tampon Web Audio :"
+  de: "Web Audio Puffer:"
+  it: "Buffer Web Audio:"
+  pt: "Buffer Web Audio:"
+  cs: "Web Audio Buffer:"
+
+audio.latency.multichannel:
+  en: "Multichannel Buffer:"
+  es: "Buffer Multicanal:"
+  fr: "Tampon Multicanal :"
+  de: "Mehrkanal-Puffer:"
+  it: "Buffer Multicanale:"
+  pt: "Buffer Multicanal:"
+  cs: "Vícekanálový buffer:"
+
+audio.latency.interactive:
+  en: "~10ms (Interactive)"
+  es: "~10ms (Interactivo)"
+  fr: "~10ms (Interactif)"
+  de: "~10ms (Interaktiv)"
+  it: "~10ms (Interattivo)"
+  pt: "~10ms (Interativo)"
+  cs: "~10ms (Interaktivní)"
+
+audio.latency.balanced:
+  en: "~25ms (Balanced)"
+  es: "~25ms (Equilibrado)"
+  fr: "~25ms (Équilibré)"
+  de: "~25ms (Ausgewogen)"
+  it: "~25ms (Bilanciato)"
+  pt: "~25ms (Equilibrado)"
+  cs: "~25ms (Vyvážený)"
+
+audio.latency.playback:
+  en: "~50ms (Playback)"
+  es: "~50ms (Reproducción)"
+  fr: "~50ms (Lecture)"
+  de: "~50ms (Wiedergabe)"
+  it: "~50ms (Riproduzione)"
+  pt: "~50ms (Reprodução)"
+  cs: "~50ms (Přehrávání)"
+
+audio.latency.safe:
+  en: "~100ms (Safe)"
+  es: "~100ms (Seguro)"
+  fr: "~100ms (Sûr)"
+  de: "~100ms (Sicher)"
+  it: "~100ms (Sicuro)"
+  pt: "~100ms (Seguro)"
+  cs: "~100ms (Bezpečný)"
+
+audio.latency.maximum:
+  en: "~200ms (Maximum)"
+  es: "~200ms (Máximo)"
+  fr: "~200ms (Maximum)"
+  de: "~200ms (Maximum)"
+  it: "~200ms (Massimo)"
+  pt: "~200ms (Máximo)"
+  cs: "~200ms (Maximum)"
+
+audio.latency.veryLow:
+  en: "very low"
+  es: "muy baja"
+  fr: "très basse"
+  de: "sehr niedrig"
+  it: "molto bassa"
+  pt: "muito baixa"
+  cs: "velmi nízká"
+
+audio.latency.low:
+  en: "low"
+  es: "baja"
+  fr: "basse"
+  de: "niedrig"
+  it: "bassa"
+  pt: "baixa"
+  cs: "nízká"
+
+audio.latency.normal:
+  en: "normal"
+  es: "normal"
+  fr: "normale"
+  de: "normal"
+  it: "normale"
+  pt: "normal"
+  cs: "normální"
+
+audio.latency.high:
+  en: "high"
+  es: "alta"
+  fr: "haute"
+  de: "hoch"
+  it: "alta"
+  pt: "alta"
+  cs: "vysoká"
+
+audio.latency.veryHigh:
+  en: "very high"
+  es: "muy alta"
+  fr: "très haute"
+  de: "sehr hoch"
+  it: "molto alta"
+  pt: "muito alta"
+  cs: "velmi vysoká"
+
+audio.latency.total:
+  en: "Estimated total latency:"
+  es: "Latencia total estimada:"
+  fr: "Latence totale estimée :"
+  de: "Geschätzte Gesamtlatenz:"
+  it: "Latenza totale stimata:"
+  pt: "Latência total estimada:"
+  cs: "Odhadovaná celková latence:"
+
+audio.latency.restartRequired:
+  en: "⚠️ Restart app to apply changes"
+  es: "⚠️ Reinicia la app para aplicar cambios"
+  fr: "⚠️ Redémarrez l'app pour appliquer"
+  de: "⚠️ App neu starten um Änderungen anzuwenden"
+  it: "⚠️ Riavvia l'app per applicare"
+  pt: "⚠️ Reinicie o app para aplicar"
+  cs: "⚠️ Restartujte app pro provedení změn"
+
+audio.latency.reconnectRequired:
+  en: "⚠️ Disable and re-enable device to apply"
+  es: "⚠️ Desactiva y reactiva el dispositivo para aplicar"
+  fr: "⚠️ Désactivez et réactivez le périphérique"
+  de: "⚠️ Gerät aus- und wieder einschalten"
+  it: "⚠️ Disattiva e riattiva il dispositivo"
+  pt: "⚠️ Desative e reative o dispositivo"
+  cs: "⚠️ Vypněte a znovu zapněte zařízení"
+
 # Permisos de micrófono denegados
 audio.permission.denied.title:
   en: Microphone access denied

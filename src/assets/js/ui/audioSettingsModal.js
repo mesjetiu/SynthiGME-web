@@ -461,6 +461,7 @@ export class AudioSettingsModal {
     if (els.inputChannelLabel) els.inputChannelLabel.textContent = t('audio.inputs.channels') + ' ';
     if (els.inputDesc) els.inputDesc.textContent = t('audio.inputs.description');
     if (els.inputPermissionBtn) els.inputPermissionBtn.textContent = t('audio.inputs.enable');
+    if (els.latencyLabel) els.latencyLabel.textContent = t('audio.latency.label') || 'Latencia:';
     
     // Actualizar nombres de configuración de canales
     this._updateChannelInfo();
@@ -786,6 +787,7 @@ export class AudioSettingsModal {
       if (isOutput) {
         this.selectedOutputDevice = deviceId;
         localStorage.setItem(STORAGE_KEYS.OUTPUT_DEVICE, deviceId);
+        this._updateLatencyVisibility();  // Mostrar/ocultar latencia
         if (this.onOutputDeviceChange) this.onOutputDeviceChange(deviceId);
       } else {
         this.selectedInputDevice = deviceId;
@@ -827,6 +829,10 @@ export class AudioSettingsModal {
     // Sección de salidas (OUTPUT ROUTING)
     const outputSection = this._createOutputSection();
     content.appendChild(outputSection);
+
+    // Sección de LATENCIA (Web Audio + Multicanal)
+    const latencySection = this._createLatencySection();
+    content.appendChild(latencySection);
 
     // Sección de entradas (INPUT ROUTING)
     const inputSection = this._createInputSection();
@@ -880,6 +886,10 @@ export class AudioSettingsModal {
     // Sección de salidas (OUTPUT ROUTING)
     const outputSection = this._createOutputSection();
     content.appendChild(outputSection);
+    
+    // Sección de LATENCIA (Web Audio + Multicanal)
+    const latencySection = this._createLatencySection();
+    content.appendChild(latencySection);
     
     // Sección de entradas (INPUT ROUTING) - reservada, deshabilitada
     const inputSection = this._createInputSection();
@@ -945,6 +955,8 @@ export class AudioSettingsModal {
     channelInfo.appendChild(this.channelInfoElement);
     section.appendChild(channelInfo);
     
+
+
     this._textElements.outputDesc = document.createElement('p');
     this._textElements.outputDesc.className = 'audio-settings-section__desc';
     this._textElements.outputDesc.textContent = t('audio.outputs.description');
@@ -957,6 +969,277 @@ export class AudioSettingsModal {
     section.appendChild(this.matrixContainer);
     
     return section;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECCIÓN DE LATENCIA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Crea la sección de configuración de latencia.
+   * Incluye:
+   * - Latencia Web Audio (AudioContext latencyHint)
+   * - Latencia Multicanal (prebuffer PipeWire, solo visible con 8ch)
+   * - Latencia total estimada
+   */
+  _createLatencySection() {
+    const section = document.createElement('div');
+    section.className = 'audio-settings-section audio-settings-latency';
+    
+    // Título
+    this._textElements.latencyTitle = document.createElement('h3');
+    this._textElements.latencyTitle.className = 'audio-settings-section__title';
+    this._textElements.latencyTitle.textContent = t('audio.latency.title') || 'Latencia';
+    section.appendChild(this._textElements.latencyTitle);
+    
+    // Descripción
+    this._textElements.latencyDesc = document.createElement('p');
+    this._textElements.latencyDesc.className = 'audio-settings-section__desc audio-settings-latency__desc';
+    this._textElements.latencyDesc.textContent = t('audio.latency.description') || 
+      'Ajusta el buffer de audio. Menor latencia = respuesta más rápida pero mayor riesgo de clicks.';
+    section.appendChild(this._textElements.latencyDesc);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // LATENCIA WEB AUDIO (afecta a toda la síntesis)
+    // ─────────────────────────────────────────────────────────────────────────
+    const webAudioRow = document.createElement('div');
+    webAudioRow.className = 'audio-settings-latency__row';
+    
+    this._textElements.webAudioLatencyLabel = document.createElement('label');
+    this._textElements.webAudioLatencyLabel.className = 'audio-settings-latency__label';
+    this._textElements.webAudioLatencyLabel.textContent = t('audio.latency.webAudio') || 'Buffer Web Audio:';
+    webAudioRow.appendChild(this._textElements.webAudioLatencyLabel);
+    
+    this.webAudioLatencySelect = document.createElement('select');
+    this.webAudioLatencySelect.className = 'audio-settings-latency__select';
+    
+    // Opciones de latencyHint para AudioContext
+    const webAudioOptions = [
+      { value: 'interactive', label: t('audio.latency.interactive') || '~10ms (Interactivo)', ms: 10 },
+      { value: 'balanced', label: t('audio.latency.balanced') || '~25ms (Equilibrado)', ms: 25 },
+      { value: 'playback', label: t('audio.latency.playback') || '~50ms (Reproducción)', ms: 50 },
+      { value: '0.1', label: t('audio.latency.safe') || '~100ms (Seguro)', ms: 100 },
+      { value: '0.2', label: t('audio.latency.maximum') || '~200ms (Máximo)', ms: 200 }
+    ];
+    
+    webAudioOptions.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      option.dataset.ms = opt.ms;
+      this.webAudioLatencySelect.appendChild(option);
+    });
+    
+    // Cargar valor guardado
+    const savedWebAudioLatency = localStorage.getItem(STORAGE_KEYS.LATENCY_MODE) || 'balanced';
+    this.webAudioLatencySelect.value = savedWebAudioLatency;
+    this._webAudioLatencyMs = this._getWebAudioLatencyMs(savedWebAudioLatency);
+    
+    this.webAudioLatencySelect.addEventListener('change', () => {
+      const mode = this.webAudioLatencySelect.value;
+      localStorage.setItem(STORAGE_KEYS.LATENCY_MODE, mode);
+      this._webAudioLatencyMs = this._getWebAudioLatencyMs(mode);
+      this._updateTotalLatency();
+      
+      // Mostrar mensaje de reinicio necesario
+      this._showWebAudioLatencyMessage();
+    });
+    
+    webAudioRow.appendChild(this.webAudioLatencySelect);
+    section.appendChild(webAudioRow);
+    
+    // Mensaje de reinicio para Web Audio
+    this.webAudioLatencyMessage = document.createElement('div');
+    this.webAudioLatencyMessage.className = 'audio-settings-latency__message';
+    this.webAudioLatencyMessage.style.display = 'none';
+    section.appendChild(this.webAudioLatencyMessage);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // LATENCIA MULTICANAL (solo visible con 8 canales nativos)
+    // ─────────────────────────────────────────────────────────────────────────
+    this.multichannelLatencyRow = document.createElement('div');
+    this.multichannelLatencyRow.className = 'audio-settings-latency__row audio-settings-latency__row--multichannel';
+    this.multichannelLatencyRow.style.display = 'none'; // Oculto por defecto
+    
+    this._textElements.multichannelLatencyLabel = document.createElement('label');
+    this._textElements.multichannelLatencyLabel.className = 'audio-settings-latency__label';
+    this._textElements.multichannelLatencyLabel.textContent = t('audio.latency.multichannel') || 'Buffer Multicanal:';
+    this.multichannelLatencyRow.appendChild(this._textElements.multichannelLatencyLabel);
+    
+    this.multichannelLatencySelect = document.createElement('select');
+    this.multichannelLatencySelect.className = 'audio-settings-latency__select';
+    
+    // Opciones de prebuffer para PipeWire nativo
+    const multichannelOptions = [
+      { value: 10, label: '~10ms (' + (t('audio.latency.veryLow') || 'muy baja') + ')' },
+      { value: 21, label: '~21ms (' + (t('audio.latency.low') || 'baja') + ')' },
+      { value: 42, label: '~42ms (' + (t('audio.latency.normal') || 'normal') + ') ✓' },
+      { value: 85, label: '~85ms (' + (t('audio.latency.high') || 'alta') + ')' },
+      { value: 170, label: '~170ms (' + (t('audio.latency.veryHigh') || 'muy alta') + ')' }
+    ];
+    
+    multichannelOptions.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      this.multichannelLatencySelect.appendChild(option);
+    });
+    
+    // Cargar valor guardado
+    const savedMultichannelLatency = localStorage.getItem(STORAGE_KEYS.AUDIO_LATENCY) || '42';
+    this.multichannelLatencySelect.value = savedMultichannelLatency;
+    this._multichannelLatencyMs = parseInt(savedMultichannelLatency, 10);
+    
+    this.multichannelLatencySelect.addEventListener('change', () => {
+      const newLatency = parseInt(this.multichannelLatencySelect.value, 10);
+      this._multichannelLatencyMs = newLatency;
+      localStorage.setItem(STORAGE_KEYS.AUDIO_LATENCY, newLatency.toString());
+      this._updateTotalLatency();
+      
+      // Aplicar al stream si está activo
+      if (window.multichannelAPI?.setLatency) {
+        window.multichannelAPI.setLatency(newLatency);
+      }
+      
+      // Mostrar mensaje de reconexión
+      this._showMultichannelLatencyMessage();
+    });
+    
+    this.multichannelLatencyRow.appendChild(this.multichannelLatencySelect);
+    section.appendChild(this.multichannelLatencyRow);
+    
+    // Mensaje de reconexión para Multicanal
+    this.multichannelLatencyMessage = document.createElement('div');
+    this.multichannelLatencyMessage.className = 'audio-settings-latency__message audio-settings-latency__message--multichannel';
+    this.multichannelLatencyMessage.style.display = 'none';
+    section.appendChild(this.multichannelLatencyMessage);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // LATENCIA TOTAL ESTIMADA
+    // ─────────────────────────────────────────────────────────────────────────
+    this.totalLatencyRow = document.createElement('div');
+    this.totalLatencyRow.className = 'audio-settings-latency__total';
+    
+    this._textElements.totalLatencyLabel = document.createElement('span');
+    this._textElements.totalLatencyLabel.className = 'audio-settings-latency__total-label';
+    this._textElements.totalLatencyLabel.textContent = t('audio.latency.total') || 'Latencia total estimada:';
+    this.totalLatencyRow.appendChild(this._textElements.totalLatencyLabel);
+    
+    this.totalLatencyValue = document.createElement('span');
+    this.totalLatencyValue.className = 'audio-settings-latency__total-value';
+    this.totalLatencyRow.appendChild(this.totalLatencyValue);
+    
+    section.appendChild(this.totalLatencyRow);
+    
+    // Actualizar visibilidad de multicanal y latencia total inicial
+    // Usamos setTimeout para asegurar que selectedOutputDevice ya esté cargado
+    setTimeout(() => {
+      this._updateLatencyVisibility();
+    }, 0);
+    
+    return section;
+  }
+
+  /**
+   * Obtiene la latencia aproximada en ms para un modo de Web Audio
+   * @param {string} mode - 'interactive', 'balanced', 'playback', '0.1', '0.2'
+   * @returns {number} - Latencia aproximada en ms
+   */
+  _getWebAudioLatencyMs(mode) {
+    const latencyMap = {
+      'interactive': 10,
+      'balanced': 25,
+      'playback': 50,
+      '0.1': 100,
+      '0.2': 200
+    };
+    return latencyMap[mode] || 25;
+  }
+
+  /**
+   * Actualiza la visualización de latencia total
+   */
+  _updateTotalLatency() {
+    if (!this.totalLatencyValue) return;
+    
+    const isMultichannel = this.selectedOutputDevice === 'multichannel-8ch';
+    const webAudioMs = this._webAudioLatencyMs || 25;
+    const multichannelMs = isMultichannel ? (this._multichannelLatencyMs || 42) : 0;
+    
+    const totalMs = webAudioMs + multichannelMs;
+    
+    // Formatear el texto
+    let text = `~${totalMs}ms`;
+    if (isMultichannel) {
+      text += ` (${webAudioMs} + ${multichannelMs})`;
+    }
+    
+    this.totalLatencyValue.textContent = text;
+    
+    // Colorear según la latencia
+    this.totalLatencyValue.classList.remove('latency-low', 'latency-medium', 'latency-high');
+    if (totalMs <= 35) {
+      this.totalLatencyValue.classList.add('latency-low');
+    } else if (totalMs <= 75) {
+      this.totalLatencyValue.classList.add('latency-medium');
+    } else {
+      this.totalLatencyValue.classList.add('latency-high');
+    }
+  }
+
+  /**
+   * Muestra/oculta la fila de latencia multicanal según el dispositivo
+   */
+  _updateLatencyVisibility() {
+    if (!this.multichannelLatencyRow) return;
+    
+    const isMultichannel = this.selectedOutputDevice === 'multichannel-8ch';
+    this.multichannelLatencyRow.style.display = isMultichannel ? 'flex' : 'none';
+    
+    // Actualizar total porque cambia si hay multicanal o no
+    this._updateTotalLatency();
+  }
+
+  /**
+   * Muestra mensaje de reinicio necesario para Web Audio
+   */
+  _showWebAudioLatencyMessage() {
+    if (!this.webAudioLatencyMessage) return;
+    
+    this.webAudioLatencyMessage.textContent = t('audio.latency.restartRequired') || 
+      '⚠️ Reinicia la aplicación para aplicar el cambio';
+    this.webAudioLatencyMessage.style.display = 'block';
+    
+    setTimeout(() => {
+      if (this.webAudioLatencyMessage) {
+        this.webAudioLatencyMessage.style.display = 'none';
+      }
+    }, 5000);
+  }
+
+  /**
+   * Muestra mensaje de reconexión necesaria para Multicanal
+   */
+  _showMultichannelLatencyMessage() {
+    if (!this.multichannelLatencyMessage) return;
+    
+    this.multichannelLatencyMessage.textContent = t('audio.latency.reconnectRequired') || 
+      '⚠️ Desactiva y reactiva el dispositivo para aplicar';
+    this.multichannelLatencyMessage.style.display = 'block';
+    
+    setTimeout(() => {
+      if (this.multichannelLatencyMessage) {
+        this.multichannelLatencyMessage.style.display = 'none';
+      }
+    }, 5000);
+  }
+
+  /**
+   * Obtiene la latencia multicanal configurada actualmente (en ms)
+   * @returns {number}
+   */
+  getConfiguredLatencyMs() {
+    return this._multichannelLatencyMs || 42;
   }
 
   /**
@@ -1403,6 +1686,9 @@ export class AudioSettingsModal {
     
     // Enumerar dispositivos cuando se abre el modal
     this._enumerateDevices();
+    
+    // Actualizar visibilidad de sección de latencia
+    this._updateLatencyVisibility();
     
     // Focus en el modal para accesibilidad
     requestAnimationFrame(() => {

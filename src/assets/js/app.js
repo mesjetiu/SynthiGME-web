@@ -1416,6 +1416,15 @@ class App {
     const channelLabels = ['1', '2', '3', '4', '5', '6', '7', '8'];
     this.engine.forcePhysicalChannels(8, channelLabels, true);
     
+    // Obtener latencia configurada del modal de ajustes
+    const configuredLatencyMs = this.audioSettingsModal?.getConfiguredLatencyMs?.() || 42;
+    log.info('🎛️ Using configured latency:', configuredLatencyMs, 'ms');
+    
+    // Configurar latencia ANTES de abrir el stream
+    if (window.multichannelAPI.setLatency) {
+      window.multichannelAPI.setLatency(configuredLatencyMs);
+    }
+    
     // Abrir el stream multicanal
     const sampleRate = this.engine.audioCtx?.sampleRate || 48000;
     const result = await window.multichannelAPI.open({ sampleRate, channels: 8 });

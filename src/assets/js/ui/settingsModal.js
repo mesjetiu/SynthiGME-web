@@ -1841,9 +1841,9 @@ export class SettingsModal {
     section.appendChild(this._createFilterBypassSubsection());
     
     // ─────────────────────────────────────────────────────────────────────
-    // Subsección: Latency Mode
+    // Subsección: Latency Mode - MOVIDO A Audio Settings Modal
     // ─────────────────────────────────────────────────────────────────────
-    section.appendChild(this._createLatencyModeSubsection());
+    // section.appendChild(this._createLatencyModeSubsection());
     
     return section;
   }

@@ -42,6 +42,11 @@ public:
     void detachSharedBuffer();
     bool hasSharedBuffer() const { return sharedBuffer_ != nullptr; }
     
+    // Configuración de latencia (debe llamarse ANTES de start())
+    void setLatency(size_t prebufferFrames, size_t ringBufferFrames);
+    size_t getPrebufferFrames() const { return prebufferFrames_; }
+    size_t getRingBufferFrames() const { return ringBufferFrames_; }
+    
     // Info
     int getChannels() const { return channels_; }
     int getSampleRate() const { return sampleRate_; }
@@ -67,6 +72,10 @@ private:
     int channels_;
     int sampleRate_;
     int bufferSize_;
+    
+    // Configuración de latencia (configurable antes de start)
+    size_t prebufferFrames_ = 2048;   // ~42ms @ 48kHz por defecto
+    size_t ringBufferFrames_ = 4096;  // ~85ms @ 48kHz por defecto
     
     // PipeWire objects
     struct pw_thread_loop* loop_ = nullptr;

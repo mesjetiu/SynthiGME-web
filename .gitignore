@@ -28,12 +28,14 @@ Thumbs.db
 .turbo/
 coverage/
 
-# Build outputs (docs/ is kept for GitHub Pages)
+# Build outputs
+# ⚠️ IMPORTANTE: docs/ se INCLUYE en los commits porque se sirve desde GitHub Pages
+# Los otros directorios de build se excluyen porque se regeneran en cada compilación
 dist/
 build/
 out/
 
-# Electron build outputs
+# Electron build outputs (siempre excluir, se regeneran)
 dist-electron/
 dist-app/
 

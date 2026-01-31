@@ -2,15 +2,18 @@
 
 ## Estructura del Proyecto
 
-### ⚠️ Carpeta `docs/` - NO MODIFICAR MANUALMENTE
+## Estructura del Proyecto
 
-La carpeta `docs/` es **generada automáticamente** por el proceso de build (`npm run build`).
+### ⚠️ Carpeta `docs/` - GENERADA, INCLUIDA EN GIT
+
+La carpeta `docs/` es **generada automáticamente** por el proceso de build (`npm run build:web`).
 Se usa exclusivamente para servir la PWA en GitHub Pages.
 
-**NUNCA**:
-- Crear archivos manualmente en `docs/`
-- Editar archivos en `docs/`
-- Poner documentación en `docs/`
+**Important**:
+- **`docs/` SÍ se commitea** - No está en `.gitignore` porque GitHub Pages la necesita
+- **NUNCA modificar manualmente** - Siempre regenerar con `npm run build:web`
+- **Crear archivos en `src/`, no en `docs/`** - Los cambios en `src/` se copian a `docs/` en el build
+- **La rama main es la fuente oficial** - GitHub Pages sirve desde `main:/docs`
 
 Los archivos fuente están en `src/` y se copian/procesan a `docs/` durante el build.
 
@@ -71,18 +74,27 @@ feat(oscillator): añadir soporte para hard sync entre osciladores
 ```
 
 ### Carpetas de build
-- `docs/` → PWA web para GitHub Pages
-- `dist-app/` → App web compilada para Electron (no se sube a git)
-- `dist-electron/` → Instaladores generados (no se sube a git)
+
+**IMPORTANTE**: Cada flujo de build es independiente. `docs/` NUNCA es paso intermedio para Electron.
+
+| Carpeta | Propósito | Comando |
+|---------|-----------|---------|
+| `docs/` | PWA web para GitHub Pages | `build:web` |
+| `dist-app/` | App compilada para Electron | `build:electron:*` |
+| `dist-electron/` | Instaladores (AppImage, exe) | `build:electron:*` |
+
+Flujos:
+- **Web**: `src/` → `docs/`
+- **Electron**: `src/` → `dist-app/` → `dist-electron/`
 
 ## Comandos de Build
 
 ### Estructura de comandos
 
 Los comandos siguen una nomenclatura consistente:
-- `dev` / `dev:web` → Desarrollo rápido (sin instaladores)
-- `build:web` → PWA web (genera docs/)
-- `build:electron` → App Electron (genera dist-electron/)
+- `dev` / `dev:web` → Desarrollo rápido
+- `build:web` → PWA web (`src/` → `docs/`)
+- `build:electron:*` → Electron (`src/` → `dist-app/` → `dist-electron/`)
 - Sufijo `:test` → Incluye ejecución de tests
 - Sin sufijo → Sin tests (más rápido para desarrollo)
 
@@ -99,14 +111,14 @@ Los comandos siguen una nomenclatura consistente:
 
 ### Comandos de build (generar artefactos):
 
-| Situación | Comando |
-|-----------|---------|
-| **Build PWA web** (sin tests) | `npm run build:web` |
-| **Build PWA web** (con tests) | `npm run build:web:test` |
-| **Build Electron** (sin tests) | `npm run build:electron` |
-| **Build Electron Linux** | `npm run build:electron:linux` |
-| **Build Electron Windows** | `npm run build:electron:win` |
-| **Build todo + tests** | `npm run build:all` |
+| Situación | Comando | Salida |
+|-----------|---------|--------|
+| **Build PWA web** (sin tests) | `npm run build:web` | `docs/` |
+| **Build PWA web** (con tests) | `npm run build:web:test` | `docs/` |
+| **Build Electron** (SO actual) | `npm run build:electron` | `dist-electron/` |
+| **Build Electron Linux** | `npm run build:electron:linux` | `dist-electron/` |
+| **Build Electron Windows** | `npm run build:electron:win` | `dist-electron/` |
+| **Build todo + tests** | `npm run build:all` | `docs/` + `dist-electron/` |
 
 ### Regla general:
 - **Desarrollo iterativo**: usar `dev` o `build:*` sin sufijo `:test`

@@ -395,7 +395,9 @@ ipcMain.handle('osc:getTargets', () => {
 // Handlers IPC para Audio Multicanal (8 salidas independientes)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const { multichannelAudio } = require('./multichannelAudio.cjs');
+// Usar addon nativo de PipeWire (baja latencia)
+const MultichannelAudio = require('./multichannelAudioNative.cjs');
+const multichannelAudio = new MultichannelAudio();
 
 // Verificar disponibilidad de audio multicanal
 ipcMain.handle('multichannel:check', () => {
@@ -410,13 +412,13 @@ ipcMain.handle('multichannel:open', async (event, config) => {
 // Escribir audio al stream (fire-and-forget, sin respuesta para no bloquear)
 let writeCount = 0;
 ipcMain.on('multichannel:write', (event, buffer) => {
-  // El buffer viene como ArrayBuffer desde el renderer
-  const nodeBuffer = Buffer.from(buffer);
+  // El buffer viene como ArrayBuffer desde el renderer, convertir a Float32Array
+  const float32Buffer = new Float32Array(buffer);
   writeCount++;
   if (writeCount % 100 === 1) {
-    console.log(`[Multichannel] write #${writeCount}, buffer size: ${nodeBuffer.length} bytes`);
+    console.log(`[Multichannel] write #${writeCount}, frames: ${float32Buffer.length / 8}`);
   }
-  multichannelAudio.write(nodeBuffer);
+  multichannelAudio.write(float32Buffer);
   // No responder - fire and forget
 });
 
@@ -428,7 +430,7 @@ ipcMain.handle('multichannel:close', async () => {
 
 // Obtener info del stream
 ipcMain.handle('multichannel:info', () => {
-  return multichannelAudio.getInfo();
+  return multichannelAudio.getStatus();
 });
 
 // Cuando Electron esté listo, crear ventana

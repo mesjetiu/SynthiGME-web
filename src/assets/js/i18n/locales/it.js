@@ -23,6 +23,7 @@ export default {
   "settings.tab.advanced": "Avanzate",
   "settings.tab.osc": "OSC",
   "settings.tab.about": "Informazioni",
+  "settings.tab.select": "Seleziona sezione",
   "settings.tab.display": "Visualizzazione",
   "settings.display.inactivePins": "Pin inattivi",
   "settings.display.inactivePins.description": "I pin della matrice che non collegano alcuna sorgente con alcuna destinazione sono considerati inattivi. Per impostazione predefinita, appaiono attenuati e non possono essere cliccati.",

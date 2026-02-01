@@ -23,6 +23,7 @@ export default {
   "settings.tab.advanced": "Avancé",
   "settings.tab.osc": "OSC",
   "settings.tab.about": "À propos",
+  "settings.tab.select": "Sélectionner la section",
   "settings.tab.display": "Affichage",
   "settings.display.inactivePins": "Broches inactives",
   "settings.display.inactivePins.description": "Les broches de matrice qui ne connectent aucune source à aucune destination sont considérées comme inactives. Par défaut, elles apparaissent atténuées et ne peuvent pas être cliquées.",

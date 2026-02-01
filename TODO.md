@@ -91,7 +91,3 @@ podría ser significativo en dispositivos móviles.
 - Añadir a README.md referencia a Fuzzy Gab, quien apoya este proyecto y lo difunde.
 
 - Revisar todo el documento ARCHITECTURE.md: errores, omisiones, desactualizaciones... Ha de servir de base a un eventual estudio escrito.
-
-## Modal de ajustes 
-
-- No se ve completo en móvil. no se ven pestañas y no hay scroll.

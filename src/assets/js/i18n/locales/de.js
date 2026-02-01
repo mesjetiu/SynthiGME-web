@@ -23,6 +23,7 @@ export default {
   "settings.tab.advanced": "Erweitert",
   "settings.tab.osc": "OSC",
   "settings.tab.about": "Über",
+  "settings.tab.select": "Abschnitt auswählen",
   "settings.tab.display": "Anzeige",
   "settings.display.inactivePins": "Inaktive Pins",
   "settings.display.inactivePins.description": "Matrix-Pins, die keine Quelle mit einem Ziel verbinden, gelten als inaktiv. Standardmäßig werden sie gedimmt und können nicht angeklickt werden.",

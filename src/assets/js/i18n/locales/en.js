@@ -23,6 +23,7 @@ export default {
   "settings.tab.advanced": "Advanced",
   "settings.tab.osc": "OSC",
   "settings.tab.about": "About",
+  "settings.tab.select": "Select section",
   "settings.tab.display": "Display",
   "settings.display.inactivePins": "Inactive Pins",
   "settings.display.inactivePins.description": "Matrix pins that don't connect any source with any destination are considered inactive. By default they appear dimmed and cannot be clicked.",

@@ -238,8 +238,11 @@ export class SettingsModal {
     const layout = document.createElement('div');
     layout.className = 'settings-modal__layout';
     
-    // Sidebar con pestañas
+    // Sidebar con pestañas (desktop)
     const tabsContainer = this._createTabs();
+    
+    // Dropdown para móvil
+    const tabDropdown = this._createTabDropdown();
     
     // Área de contenido (derecha)
     const contentArea = document.createElement('div');
@@ -286,6 +289,7 @@ export class SettingsModal {
     
     // Ensamblar layout
     layout.appendChild(tabsContainer);
+    layout.appendChild(tabDropdown);
     layout.appendChild(contentArea);
     
     // Ensamblar modal
@@ -405,6 +409,44 @@ export class SettingsModal {
   }
   
   /**
+   * Crea el dropdown de pestañas para móvil
+   */
+  _createTabDropdown() {
+    const container = document.createElement('div');
+    container.className = 'settings-modal__tab-dropdown';
+    
+    const select = document.createElement('select');
+    select.className = 'settings-modal__tab-select';
+    select.setAttribute('aria-label', t('settings.tab.select'));
+    
+    const tabs = [
+      { id: 'general', label: t('settings.tab.general') },
+      { id: 'display', label: t('settings.tab.display') },
+      { id: 'audio', label: t('settings.tab.audio') },
+      { id: 'recording', label: t('settings.tab.recording') },
+      { id: 'advanced', label: t('settings.tab.advanced') },
+      { id: 'osc', label: t('settings.tab.osc') },
+      { id: 'about', label: t('settings.tab.about') }
+    ];
+    
+    tabs.forEach(tab => {
+      const option = document.createElement('option');
+      option.value = tab.id;
+      option.textContent = tab.label;
+      select.appendChild(option);
+    });
+    
+    select.addEventListener('change', (e) => {
+      this._switchTab(e.target.value);
+    });
+    
+    this.tabSelectElement = select;
+    container.appendChild(select);
+    
+    return container;
+  }
+  
+  /**
    * Cambia a una pestaña específica
    */
   _switchTab(tabId) {
@@ -446,6 +488,11 @@ export class SettingsModal {
       btn.classList.toggle('settings-modal__tab--active', isActive);
       btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
+    
+    // Actualizar dropdown (para sincronizar con botones de pestaña en desktop)
+    if (this.tabSelectElement && this.tabSelectElement.value !== tabId) {
+      this.tabSelectElement.value = tabId;
+    }
     
     // Actualizar título del contenido
     if (this.contentTitleElement && this.tabLabels[tabId]) {

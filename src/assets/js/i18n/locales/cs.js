@@ -23,6 +23,7 @@ export default {
   "settings.tab.advanced": "Pokročilé",
   "settings.tab.osc": "OSC",
   "settings.tab.about": "O aplikaci",
+  "settings.tab.select": "Vybrat sekci",
   "settings.tab.display": "Zobrazení",
   "settings.display.inactivePins": "Neaktivní kolíky",
   "settings.display.inactivePins.description": "Kolíky matice, které nepropojují žádný zdroj s žádným cílem, jsou považovány za neaktivní. Ve výchozím nastavení se zobrazují ztlumené a nelze je klikat.",

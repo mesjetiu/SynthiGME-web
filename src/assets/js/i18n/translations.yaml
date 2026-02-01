@@ -145,6 +145,15 @@ settings.tab.about:
   pt: "Sobre"
   cs: "O aplikaci"
 
+settings.tab.select:
+  en: Select section
+  es: Seleccionar sección
+  fr: "Sélectionner la section"
+  de: "Abschnitt auswählen"
+  it: "Seleziona sezione"
+  pt: "Selecionar seção"
+  cs: "Vybrat sekci"
+
 settings.tab.display:
   en: Display
   es: Visualización

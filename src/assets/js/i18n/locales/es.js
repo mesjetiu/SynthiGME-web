@@ -23,6 +23,7 @@ export default {
   "settings.tab.advanced": "Avanzado",
   "settings.tab.osc": "OSC",
   "settings.tab.about": "Acerca de",
+  "settings.tab.select": "Seleccionar sección",
   "settings.tab.display": "Visualización",
   "settings.display.inactivePins": "Pines inactivos",
   "settings.display.inactivePins.description": "Los pines de la matriz que no conectan ninguna fuente con ningún destino se consideran inactivos. Por defecto aparecen atenuados y no se pueden pulsar.",

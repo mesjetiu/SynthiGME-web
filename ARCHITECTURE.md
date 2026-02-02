@@ -79,7 +79,7 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta los filtros LP/HP cuando están en posición neutral (|v|<0.02) para ahorrar CPU. Cadena de bus: `busInput → [hybridClipShaper] → filterLP → filterHP → levelNode → muteNode`. Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam) |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta los filtros LP/HP cuando están en posición neutral (|v|<0.02) para ahorrar CPU. **Cadena de bus POST-VCA (Cuenca 1982)**: `busInput → [clipper] → levelNode (VCA) → postVcaNode → filterLP → filterHP → muteNode → channelGains → out`. El nodo `postVcaNode` es el punto de split para re-entrada a matriz (POST-fader, PRE-filtro, PRE-mute). Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam). Ver sección "Output Channel Signal Chain" para detalles técnicos |
 | `blueprintMapper.js` | `compilePanelBlueprintMappings()` extrae filas/columnas ocultas de blueprints de paneles para configurar las matrices |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
@@ -113,7 +113,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `inputAmplifier.js` | `InputAmplifierModule` | 8 canales de entrada con control de ganancia individual |
 | `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
 | `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
-| `outputChannel.js` | `OutputChannel` | Canal de salida individual con filtro bipolar LP/HP, pan, nivel, y switch on/off. 8 instancias forman el panel de salida |
+| `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330, filtro bipolar LP/HP, pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
 | `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
 
@@ -126,6 +126,44 @@ export class MiModulo extends Module {
   createUI(container) { /* generar controles */ }
 }
 ```
+
+#### Output Channel Signal Chain (Cuenca/Datanomics 1982)
+
+La cadena de señal de los Output Channels sigue el diagrama técnico de la versión Cuenca/Datanomics 1982 del Synthi 100. El VCA se posiciona **antes** de los filtros, permitiendo re-entrada POST-fader a la matriz.
+
+```
+busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterLP → filterHP → muteNode → channelGains → out
+                                                       ↓
+                                               (re-entry to matrix)
+                                              rows 75-82 in audio matrix
+```
+
+**Nodos clave:**
+
+| Nodo | Tipo | Función |
+|------|------|---------|
+| `busInput` | GainNode | Punto de entrada al bus desde la matriz de audio |
+| `hybridClipShaper` | WaveShaperNode | Soft-clip opcional para saturación analógica |
+| `levelNode` | GainNode | VCA CEM 3330 emulado. Control de nivel del canal |
+| `postVcaNode` | GainNode | Split point para re-entrada a matriz. POST-VCA, PRE-filtro, PRE-mute |
+| `filterLP/filterHP` | BiquadFilterNode | Filtro bipolar LP/HP con bypass automático |
+| `muteNode` | GainNode | Switch On/Off del canal. Solo afecta salida externa |
+| `channelGains` | GainNode[] | Routing a salidas físicas (pan, stereo buses) |
+
+**VCA CEM 3330:**
+- Sensibilidad logarítmica: 10 dB/V
+- Posición 0 del fader: corte mecánico (ignora CV externo)
+- Saturación suave para CV > 0V
+- Curva muy pronunciada: posición 5 ≈ -60dB
+
+**Re-entrada a matriz:**
+- El nodo `postVcaNode` es la fuente para las filas 75-82 de la matriz de audio
+- Permite encadenar canales de salida (feedback, routing creativo)
+- La señal de re-entrada es POST-VCA pero PRE-mute, permitiendo silenciar la salida externa sin afectar el routing interno
+
+**Inicialización:**
+- Los switches On/Off se sincronizan con el engine en `app.js → engine.start()` wrapper
+- Esto garantiza que los `outputBuses[]` existan antes de aplicar el estado de mute
 
 ### 3.4 UI (`src/assets/js/ui/`)
 

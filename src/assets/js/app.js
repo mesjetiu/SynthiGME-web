@@ -3129,17 +3129,18 @@ class App {
           return false;
         }
       } else if (source.kind === 'outputBus') {
-        // Fuente: Output Bus (señal post-fader)
+        // Fuente: Output Bus (señal POST-VCA, PRE-filtro)
         const busIndex = source.bus - 1; // bus 1-8 → index 0-7
         
-        // Obtener el nodo levelNode del bus (señal post-fader)
+        // Obtener postVcaNode del bus (señal después del VCA, antes de filtros)
+        // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
         const busData = this.engine.outputBuses?.[busIndex];
-        if (!busData?.levelNode) {
-          log.warn(' Output bus levelNode not available for bus', source.bus);
+        if (!busData?.postVcaNode) {
+          log.warn(' Output bus postVcaNode not available for bus', source.bus);
           return false;
         }
         
-        outNode = busData.levelNode;
+        outNode = busData.postVcaNode;
       }
       
       if (!outNode) {
@@ -3473,17 +3474,18 @@ class App {
           return false;
         }
       } else if (source.kind === 'outputBus') {
-        // Fuente: Output Bus (señal post-fader como fuente de CV)
+        // Fuente: Output Bus (señal POST-VCA como fuente de CV)
         const busIndex = source.bus - 1; // bus 1-8 → index 0-7
         
-        // Obtener el nodo levelNode del bus (señal post-fader)
+        // Obtener postVcaNode del bus (señal después del VCA, antes de filtros)
+        // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
         const busData = this.engine.outputBuses?.[busIndex];
-        if (!busData?.levelNode) {
-          log.warn(' Output bus levelNode not available for bus', source.bus);
+        if (!busData?.postVcaNode) {
+          log.warn(' Output bus postVcaNode not available for bus', source.bus);
           return false;
         }
         
-        outNode = busData.levelNode;
+        outNode = busData.postVcaNode;
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
       // - 'envelope': generador de envolventes

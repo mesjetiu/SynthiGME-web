@@ -476,11 +476,17 @@ export class AudioEngine {
     this.outputLevels[busIndex] = value;
     const ctx = this.audioCtx;
     const bus = this.outputBuses[busIndex];
+    
     if (ctx && bus) {
-      // Solo aplicar si no está muteado
-      if (!this.outputMutes[busIndex]) {
-        setParamSmooth(bus.levelNode.gain, value, ctx, { ramp });
-      }
+      // ─────────────────────────────────────────────────────────────────────
+      // SIEMPRE actualizar levelNode (VCA), independientemente del mute
+      // ─────────────────────────────────────────────────────────────────────
+      // El mute (muteNode) es un nodo SEPARADO que corta la salida externa.
+      // El VCA debe actualizarse siempre porque:
+      // 1. La re-entrada a la matriz sale de postVcaNode (después del VCA)
+      // 2. El mute solo afecta la salida externa, no la re-entrada
+      // ─────────────────────────────────────────────────────────────────────
+      setParamSmooth(bus.levelNode.gain, value, ctx, { ramp });
     }
     if (busIndex === 0) this.bus1Level = value;
     if (busIndex === 1) this.bus2Level = value;
@@ -1338,8 +1344,10 @@ export class AudioEngine {
         const routingValue = this._outputRoutingMatrix?.[busIndex]?.[ch] ?? 0;
         gainNode.gain.value = routingValue;
         
-        // Conectar: levelNode → channelGain → masterGain del canal
-        bus.levelNode.connect(gainNode);
+        // Conectar: muteNode → channelGain → masterGain del canal
+        // La cadena completa es: input → [clipper] → VCA → postVca → filtros → muteNode
+        // Los channelGains van DESPUÉS del muteNode (final de la cadena)
+        bus.muteNode.connect(gainNode);
         gainNode.connect(this.masterGains[ch]);
         
         bus.channelGains.push(gainNode);

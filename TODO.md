@@ -52,16 +52,17 @@ no a la señal de re-entrada a la matriz.
   - Curva logarítmica funcional: dial 10 = 0 dB, dial 5 = -60 dB
   - **Corte mecánico incluido**: dial=0 ignora CV externo (ya en Paso 1)
 
-#### ✅ COMPLETADOS (cadena de señal)
+#### ⏳ PENDIENTES
 
-- [x] **Paso 4: Corregir cadena de señal en engine.js** (commit pendiente)
-  - **Cadena anterior (incorrecta):** `Entrada → Filtro → VCA → Mute → Pan`
-  - **Cadena correcta (Cuenca 1982):** `Entrada → [Clipper] → VCA → postVcaNode → Filtro → Mute → Pan`
-  - Añadido `postVcaNode` como punto de split POST-VCA, PRE-filtro
-  - El nodo de re-entry a matriz disponible en `bus.postVcaNode`
-  - Actualizada función `_updateFilterBypass()` para nueva cadena
-  - Actualizada función `setDormant()` para nueva cadena
-  - El VCA ahora procesa la señal ANTES del filtro (fiel al hardware)
+- [ ] **Paso 4: Corregir cadena de señal en engine.js** ⚠️ CRÍTICO
+  - **Problema actual:** `Entrada → Filtro → VCA → Mute → Pan`
+  - **Cadena correcta:** `Entrada → VCA → [split] → Filtro → Mute → Pan`
+  - Archivos a modificar:
+    - `src/assets/js/core/engine.js`: reorganizar `_initOutput()`
+    - Crear nodo de split POST-VCA para re-entry
+  - El nodo de re-entry debe tomar señal POST-VCA, PRE-filtro
+  - El medidor de nivel (si existe) también debe ir POST-VCA, PRE-filtro
+  - Tests de integración para verificar cadena
 
 #### ✅ COMPLETADOS (CV de matriz)
 

@@ -783,23 +783,23 @@ describe('AudioEngine.setOutputLevel (con AudioContext mock)', () => {
     engine.setOutputLevel(-1, 0.5);
   });
 
-  it('no aplica nivel si el canal está muteado', () => {
+  it('aplica nivel al VCA incluso si el canal está muteado (re-entrada matriz)', () => {
     setupEngine();
     
-    // Primero mutear el canal
+    // Mutear el canal
     engine.setOutputMute(0, true);
     
-    // El levelNode mantiene el valor anterior (no cambia mientras está muteado)
+    // El levelNode DEBE actualizarse aunque el canal esté muteado
+    // porque la re-entrada a la matriz (postVcaNode) está ANTES del mute
     const levelNode = engine.outputBuses[0].levelNode;
-    const initialValue = levelNode.gain.value;
     const initialCalls = levelNode.gain._calls.setTargetAtTime;
     
     engine.setOutputLevel(0, 0.75);
     
-    // El estado se guarda pero no se aplica al nodo
+    // El estado se guarda
     assert.equal(engine.outputLevels[0], 0.75);
-    // El nodo no recibe nueva llamada setTargetAtTime
-    assert.equal(levelNode.gain._calls.setTargetAtTime, initialCalls);
+    // El nodo SÍ recibe llamada setTargetAtTime (el VCA siempre se actualiza)
+    assert.equal(levelNode.gain._calls.setTargetAtTime, initialCalls + 1);
   });
 });
 

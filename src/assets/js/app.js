@@ -446,6 +446,20 @@ class App {
     this.engine.start = () => {
       originalStart();
       
+      // ─────────────────────────────────────────────────────────────────────
+      // SINCRONIZAR ESTADO DE MUTE DE OUTPUT CHANNELS
+      // ─────────────────────────────────────────────────────────────────────
+      // Los switches de power se crean antes de que el engine inicie,
+      // por lo que su estado inicial no se aplicó al engine. Lo hacemos ahora.
+      // ─────────────────────────────────────────────────────────────────────
+      if (this._outputChannelsPanel?.channels) {
+        log.info(' Syncing output channel mute states to engine...');
+        this._outputChannelsPanel.channels.forEach((channel, idx) => {
+          const isMuted = !channel.values.power;
+          this.engine.setOutputMute(idx, isMuted);
+        });
+      }
+      
       // Aplicar ruteo inicial después de start
       log.info(' Applying saved audio routing to engine...');
       const result = this.audioSettingsModal.applyRoutingToEngine((busIndex, channelGains) => {

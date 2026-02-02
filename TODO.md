@@ -172,7 +172,9 @@ podría ser significativo en dispositivos móviles.
 
 - los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.
 
-- Invongruencia en estado inicial en reiniciar (0) y inicio de app en freq (5).
+- Incongruencia en estado inicial en reiniciar (0) y inicio de app en freq (5).
+
+- Noto un problema he grabado diversas señales en un editor de ondas. veo que hay cierta asimetría en todas ellas: están corridas hacia el negativo. Subiendo el volumen al máximo se nota distorsión en una forma de onda cualquiera porque la parte negativa pica un poco. Pasa con todas las formas. Hay que descubrir en qué punto de la cadena ocurre.
 
 ## Documentación 
 

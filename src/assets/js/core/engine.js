@@ -239,21 +239,40 @@ export class AudioEngine {
       }
       
       // ─────────────────────────────────────────────────────────────────────
-      // FILTRO BIPOLAR: Lowpass + Highpass en serie
+      // VCA CEM 3330 (levelNode) - VA ANTES DEL FILTRO
+      // ─────────────────────────────────────────────────────────────────────
+      // En el Synthi 100 Cuenca/Datanomics 1982, el VCA procesa la señal
+      // ANTES del filtro. Esto significa que:
+      // 1. La re-entrada a la matriz es POST-VCA, PRE-filtro
+      // 2. El filtro solo afecta la salida externa, no la re-entrada
+      //
+      // Cadena correcta: Input → [Clipper] → VCA → Split → Filtro → Mute → Out
+      //                                        └─→ Re-entry (a matriz)
+      // ─────────────────────────────────────────────────────────────────────
+      const levelNode = ctx.createGain();
+      levelNode.gain.value = this.outputLevels[i];
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // POST-VCA SPLIT: Punto de división para re-entrada a matriz
+      // ─────────────────────────────────────────────────────────────────────
+      // Este nodo permite tomar la señal procesada por el VCA pero ANTES
+      // del filtro, para enviarla de vuelta a la matriz de audio.
+      // Por ahora no conectamos nada, pero el nodo está disponible.
+      // ─────────────────────────────────────────────────────────────────────
+      const postVcaNode = ctx.createGain();
+      postVcaNode.gain.value = 1.0;
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // FILTRO BIPOLAR: Lowpass + Highpass en serie (DESPUÉS del VCA)
       // ─────────────────────────────────────────────────────────────────────
       // Control bipolar: -1 a +1 donde:
       //   -1: Lowpass activo (corta agudos), Highpass bypass
       //    0: Ambos bypass (sin filtrado)
       //   +1: Highpass activo (corta graves), Lowpass bypass
       // 
-      // Implementación: LP y HP siempre conectados en serie.
-      // Cuando un filtro está en "bypass", su frecuencia se pone en el extremo
-      // donde no afecta la señal (LP=20kHz, HP=20Hz).
-      // 
-      // OPTIMIZACIÓN (Filter Bypass):
-      // Cuando el filtro está en posición neutral (|value| < threshold),
-      // los nodos BiquadFilter se desconectan completamente del grafo.
-      // Esto ahorra CPU ya que los filtros no procesan muestras.
+      // NOTA: Los filtros solo afectan la SALIDA EXTERNA.
+      // La señal de re-entrada a la matriz sale del postVcaNode,
+      // que es ANTES de los filtros.
       // ─────────────────────────────────────────────────────────────────────
       
       // Lowpass: activo cuando value < 0 (corta agudos)
@@ -268,25 +287,20 @@ export class AudioEngine {
       filterHP.Q.value = 0.707; // Butterworth
       filterHP.frequency.value = 20; // Bypass inicial (20Hz = deja pasar todo)
       
-      const levelNode = ctx.createGain();
-      levelNode.gain.value = this.outputLevels[i];
-      
       // Nodo de mute separado - permite silenciar sin interferir con CV de matriz
       const muteNode = ctx.createGain();
       muteNode.gain.value = this.outputMutes[i] ? 0 : 1;
       
       // ─────────────────────────────────────────────────────────────────────
-      // FILTER BYPASS: Conexión inicial
+      // CADENA DE SEÑAL CORRECTA (Cuenca 1982)
       // ─────────────────────────────────────────────────────────────────────
-      // Si el valor inicial del filtro es neutral y el bypass está habilitado,
-      // conectamos directamente busInput → levelNode (sin filtros).
-      // Si no, conectamos la cadena completa con filtros.
-      // 
-      // CADENA DE SEÑAL COMPLETA:
-      // busInput → [hybridClipShaper] → filterLP → filterHP → levelNode → muteNode
-      // 
-      // El hybridClipShaper es opcional y se inserta solo si hybridClipping
-      // está habilitado en la configuración.
+      // busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → ...
+      //                                                        │
+      //                                                        ├─→ filterLP → filterHP → muteNode → out
+      //                                                        └─→ (re-entry a matriz - disponible)
+      //
+      // FILTER BYPASS: Si el valor inicial del filtro es neutral,
+      // conectamos postVcaNode → muteNode directamente (sin filtros).
       // ─────────────────────────────────────────────────────────────────────
       const filterValue = this.outputFilters[i];
       const isNeutral = Math.abs(filterValue) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
@@ -295,33 +309,28 @@ export class AudioEngine {
       // Mantener los filtros pre-conectados entre sí (facilita reconexión)
       filterLP.connect(filterHP);
       
-      // Determinar el nodo que recibe la señal de busInput
-      // Si hay hybridClipShaper, pasa por él primero
+      // PASO 1: Conectar entrada → [clipper] → levelNode (VCA)
       if (hybridClipShaper) {
         busInput.connect(hybridClipShaper);
-        if (shouldBypass) {
-          // Bypass de filtros: clipper → levelNode directamente
-          hybridClipShaper.connect(levelNode);
-        } else {
-          // Cadena completa: clipper → filterLP → filterHP → levelNode
-          hybridClipShaper.connect(filterLP);
-          filterHP.connect(levelNode);
-        }
-        this._filterBypassState[i] = shouldBypass;
+        hybridClipShaper.connect(levelNode);
       } else {
-        if (shouldBypass) {
-          // Bypass: input → levelNode directamente
-          busInput.connect(levelNode);
-          this._filterBypassState[i] = true;
-        } else {
-          // Cadena completa: busInput → filterLP → filterHP → levelNode
-          busInput.connect(filterLP);
-          filterHP.connect(levelNode);
-          this._filterBypassState[i] = false;
-        }
+        busInput.connect(levelNode);
       }
       
-      levelNode.connect(muteNode);
+      // PASO 2: levelNode (VCA) → postVcaNode (split)
+      levelNode.connect(postVcaNode);
+      
+      // PASO 3: postVcaNode → filtros o bypass → muteNode
+      if (shouldBypass) {
+        // Bypass de filtros: postVcaNode → muteNode directamente
+        postVcaNode.connect(muteNode);
+        this._filterBypassState[i] = true;
+      } else {
+        // Cadena completa: postVcaNode → filterLP → filterHP → muteNode
+        postVcaNode.connect(filterLP);
+        filterHP.connect(muteNode);
+        this._filterBypassState[i] = false;
+      }
       
       // Aplicar valor inicial del filtro
       this._applyFilterValue(i, filterValue, filterLP, filterHP);
@@ -343,9 +352,10 @@ export class AudioEngine {
       const bus = {
         input: busInput,
         hybridClipShaper, // Saturación híbrida (emulación raíles ±12V, puede ser null)
-        filterLP,   // Filtro lowpass (activo con valores negativos)
+        levelNode,  // VCA - Nivel (para modulación CV de matriz) - ANTES del filtro
+        postVcaNode, // Punto de split POST-VCA para re-entry a matriz
+        filterLP,   // Filtro lowpass (activo con valores negativos) - DESPUÉS del VCA
         filterHP,   // Filtro highpass (activo con valores positivos)
-        levelNode,  // Nivel (para modulación CV de matriz)
         muteNode,   // Mute (para on/off del canal)
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
@@ -358,8 +368,11 @@ export class AudioEngine {
         _savedMuteValue: 1,
         /**
          * Activa/desactiva el modo dormant del bus.
-         * Cuando dormant, desconecta busInput del grafo para que los filtros
+         * Cuando dormant, desconecta busInput del grafo para que el VCA y filtros
          * no procesen audio. Ahorra CPU al evitar procesamiento innecesario.
+         * 
+         * Cadena (Cuenca 1982): input → [clipper] → VCA → postVca → filtros → mute
+         * 
          * @param {boolean} dormant - true para desconectar, false para reconectar
          */
         setDormant: (dormant) => {
@@ -367,35 +380,28 @@ export class AudioEngine {
           bus._isDormant = dormant;
           
           const engine = this;
-          const isBypassed = engine._filterBypassState?.[busIndex] ?? false;
           const hasClipper = !!bus.hybridClipShaper;
           
           if (dormant) {
-            // DORMANT: Desconectar busInput del grafo
+            // DORMANT: Desconectar busInput del grafo (cortar al inicio de la cadena)
             bus._savedMuteValue = bus.muteNode.gain.value;
             try {
               if (hasClipper) {
-                // Cadena con clipper: input → clipper → ...
+                // Cadena: input → clipper → levelNode → ...
                 bus.input.disconnect(bus.hybridClipShaper);
-              } else if (isBypassed) {
-                // Bypass activo (sin clipper): input → levelNode
-                bus.input.disconnect(bus.levelNode);
               } else {
-                // Filtros activos (sin clipper): input → filterLP
-                bus.input.disconnect(bus.filterLP);
+                // Cadena: input → levelNode → ...
+                bus.input.disconnect(bus.levelNode);
               }
               console.log(`[Dormancy] Output Bus ${busIndex + 1}: DORMANT (disconnected)`);
             } catch { /* Ya desconectado */ }
           } else {
-            // ACTIVE: Reconectar busInput según estado de bypass y clipper
+            // ACTIVE: Reconectar busInput
             try {
               if (hasClipper) {
-                // Cadena con clipper: reconectar input → clipper
                 bus.input.connect(bus.hybridClipShaper);
-              } else if (isBypassed) {
-                bus.input.connect(bus.levelNode);
               } else {
-                bus.input.connect(bus.filterLP);
+                bus.input.connect(bus.levelNode);
               }
               // Restaurar mute al valor guardado
               bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, ctx.currentTime);
@@ -650,6 +656,13 @@ export class AudioEngine {
    * Actualiza el estado de bypass del filtro para un bus específico.
    * Conecta/desconecta los nodos BiquadFilter según sea necesario.
    * 
+   * CADENA CORRECTA (Cuenca 1982):
+   * input → [clipper] → levelNode (VCA) → postVcaNode → filtros → muteNode
+   *                                              │
+   *                               [bypass] ──────┴──→ muteNode
+   * 
+   * El bypass desconecta postVcaNode de los filtros y lo conecta directo a muteNode.
+   * 
    * @param {number} busIndex - Índice del bus
    * @param {number} value - Valor actual del filtro
    * @private
@@ -660,18 +673,16 @@ export class AudioEngine {
     
     const isNeutral = Math.abs(value) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
     const currentlyBypassed = this._filterBypassState[busIndex];
-    const hasClipper = !!bus.hybridClipShaper;
     
-    // Determinar el nodo fuente (el que conecta a filtros o levelNode)
-    // Con clipper: fuente = clipper, Sin clipper: fuente = input
-    const sourceNode = hasClipper ? bus.hybridClipShaper : bus.input;
+    // El nodo fuente para los filtros es postVcaNode (después del VCA)
+    const sourceNode = bus.postVcaNode;
     
     if (isNeutral && !currentlyBypassed) {
-      // Activar bypass: desconectar filtros, conectar directo
+      // Activar bypass: desconectar filtros, conectar postVcaNode → muteNode
       try {
         sourceNode.disconnect(bus.filterLP);
-        bus.filterHP.disconnect(bus.levelNode);
-        sourceNode.connect(bus.levelNode);
+        bus.filterHP.disconnect(bus.muteNode);
+        sourceNode.connect(bus.muteNode);
         this._filterBypassState[busIndex] = true;
         
         if (this._filterBypassDebug) {
@@ -683,9 +694,9 @@ export class AudioEngine {
     } else if (!isNeutral && currentlyBypassed) {
       // Desactivar bypass: reconectar filtros
       try {
-        sourceNode.disconnect(bus.levelNode);
+        sourceNode.disconnect(bus.muteNode);
         sourceNode.connect(bus.filterLP);
-        bus.filterHP.connect(bus.levelNode);
+        bus.filterHP.connect(bus.muteNode);
         this._filterBypassState[busIndex] = false;
         
         if (this._filterBypassDebug) {

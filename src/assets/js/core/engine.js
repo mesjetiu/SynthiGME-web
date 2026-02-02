@@ -26,6 +26,8 @@ export const AUDIO_CONSTANTS = {
   SLOW_RAMP_TIME: 0.06,
   /** Tiempo de rampa rápido para modulaciones (10ms) */
   FAST_RAMP_TIME: 0.01,
+  /** Tiempo de crossfade para bypass de filtros (50ms, evita clicks) */
+  FILTER_BYPASS_CROSSFADE: 0.05,
   /** 
    * Umbral para activar el bypass de filtros.
    * Si |filterValue| < este umbral, los filtros se desconectan.
@@ -292,21 +294,43 @@ export class AudioEngine {
       muteNode.gain.value = this.outputMutes[i] ? 0 : 1;
       
       // ─────────────────────────────────────────────────────────────────────
-      // CADENA DE SEÑAL CORRECTA (Cuenca 1982)
+      // CROSSFADE NODES para bypass suave de filtros (evita clicks)
+      // ─────────────────────────────────────────────────────────────────────
+      // En lugar de desconectar/reconectar nodos (causa clicks), mantenemos
+      // ambas rutas conectadas y hacemos crossfade entre ellas:
+      //   postVcaNode → filterGain → filterLP → filterHP → muteNode
+      //   postVcaNode → bypassGain ─────────────────────→ muteNode
+      // ─────────────────────────────────────────────────────────────────────
+      const filterGain = ctx.createGain();
+      const bypassGain = ctx.createGain();
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // CADENA DE SEÑAL CORRECTA (Cuenca 1982) con crossfade
       // ─────────────────────────────────────────────────────────────────────
       // busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → ...
       //                                                        │
-      //                                                        ├─→ filterLP → filterHP → muteNode → out
+      //                                                        ├─→ filterGain → filterLP → filterHP ─┬─→ muteNode → out
+      //                                                        └─→ bypassGain ──────────────────────┘
       //                                                        └─→ (re-entry a matriz - disponible)
       //
-      // FILTER BYPASS: Si el valor inicial del filtro es neutral,
-      // conectamos postVcaNode → muteNode directamente (sin filtros).
+      // FILTER BYPASS: crossfade entre filterGain y bypassGain
       // ─────────────────────────────────────────────────────────────────────
       const filterValue = this.outputFilters[i];
       const isNeutral = Math.abs(filterValue) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
       const shouldBypass = this._filterBypassEnabled && isNeutral;
       
-      // Mantener los filtros pre-conectados entre sí (facilita reconexión)
+      // Establecer ganancias iniciales según estado de bypass
+      if (shouldBypass) {
+        filterGain.gain.value = 0;
+        bypassGain.gain.value = 1;
+        this._filterBypassState[i] = true;
+      } else {
+        filterGain.gain.value = 1;
+        bypassGain.gain.value = 0;
+        this._filterBypassState[i] = false;
+      }
+      
+      // Conectar cadena de filtros
       filterLP.connect(filterHP);
       
       // PASO 1: Conectar entrada → [clipper] → levelNode (VCA)
@@ -320,17 +344,15 @@ export class AudioEngine {
       // PASO 2: levelNode (VCA) → postVcaNode (split)
       levelNode.connect(postVcaNode);
       
-      // PASO 3: postVcaNode → filtros o bypass → muteNode
-      if (shouldBypass) {
-        // Bypass de filtros: postVcaNode → muteNode directamente
-        postVcaNode.connect(muteNode);
-        this._filterBypassState[i] = true;
-      } else {
-        // Cadena completa: postVcaNode → filterLP → filterHP → muteNode
-        postVcaNode.connect(filterLP);
-        filterHP.connect(muteNode);
-        this._filterBypassState[i] = false;
-      }
+      // PASO 3: postVcaNode → rutas paralelas con crossfade → muteNode
+      // Ruta de filtros: postVcaNode → filterGain → filterLP → filterHP → muteNode
+      postVcaNode.connect(filterGain);
+      filterGain.connect(filterLP);
+      filterHP.connect(muteNode);
+      
+      // Ruta de bypass: postVcaNode → bypassGain → muteNode
+      postVcaNode.connect(bypassGain);
+      bypassGain.connect(muteNode);
       
       // Aplicar valor inicial del filtro
       this._applyFilterValue(i, filterValue, filterLP, filterHP);
@@ -354,6 +376,8 @@ export class AudioEngine {
         hybridClipShaper, // Saturación híbrida (emulación raíles ±12V, puede ser null)
         levelNode,  // VCA - Nivel (para modulación CV de matriz) - ANTES del filtro
         postVcaNode, // Punto de split POST-VCA para re-entry a matriz
+        filterGain, // Ganancia para crossfade suave de filtros
+        bypassGain, // Ganancia para crossfade suave de bypass
         filterLP,   // Filtro lowpass (activo con valores negativos) - DESPUÉS del VCA
         filterHP,   // Filtro highpass (activo con valores positivos)
         muteNode,   // Mute (para on/off del canal)
@@ -660,14 +684,13 @@ export class AudioEngine {
   
   /**
    * Actualiza el estado de bypass del filtro para un bus específico.
-   * Conecta/desconecta los nodos BiquadFilter según sea necesario.
+   * Usa crossfade suave entre la ruta de filtros y la ruta directa para evitar clicks.
    * 
-   * CADENA CORRECTA (Cuenca 1982):
-   * input → [clipper] → levelNode (VCA) → postVcaNode → filtros → muteNode
-   *                                              │
-   *                               [bypass] ──────┴──→ muteNode
+   * CADENA CON CROSSFADE:
+   * postVcaNode → filterGain → filterLP → filterHP ─┬─→ muteNode
+   * postVcaNode → bypassGain ───────────────────────┘
    * 
-   * El bypass desconecta postVcaNode de los filtros y lo conecta directo a muteNode.
+   * El bypass hace crossfade: filterGain→0, bypassGain→1 (y viceversa)
    * 
    * @param {number} busIndex - Índice del bus
    * @param {number} value - Valor actual del filtro
@@ -675,41 +698,31 @@ export class AudioEngine {
    */
   _updateFilterBypass(busIndex, value) {
     const bus = this.outputBuses[busIndex];
-    if (!bus) return;
+    const ctx = this.audioCtx;
+    if (!bus || !ctx) return;
     
     const isNeutral = Math.abs(value) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
     const currentlyBypassed = this._filterBypassState[busIndex];
     
-    // El nodo fuente para los filtros es postVcaNode (después del VCA)
-    const sourceNode = bus.postVcaNode;
+    const crossfadeTime = AUDIO_CONSTANTS.FILTER_BYPASS_CROSSFADE;
     
     if (isNeutral && !currentlyBypassed) {
-      // Activar bypass: desconectar filtros, conectar postVcaNode → muteNode
-      try {
-        sourceNode.disconnect(bus.filterLP);
-        bus.filterHP.disconnect(bus.muteNode);
-        sourceNode.connect(bus.muteNode);
-        this._filterBypassState[busIndex] = true;
-        
-        if (this._filterBypassDebug) {
-          this._logFilterBypassChange(busIndex, true);
-        }
-      } catch {
-        // Ignorar errores si ya está en el estado correcto
+      // Activar bypass: crossfade a ruta directa
+      setParamSmooth(bus.filterGain.gain, 0, ctx, { ramp: crossfadeTime });
+      setParamSmooth(bus.bypassGain.gain, 1, ctx, { ramp: crossfadeTime });
+      this._filterBypassState[busIndex] = true;
+      
+      if (this._filterBypassDebug) {
+        this._logFilterBypassChange(busIndex, true);
       }
     } else if (!isNeutral && currentlyBypassed) {
-      // Desactivar bypass: reconectar filtros
-      try {
-        sourceNode.disconnect(bus.muteNode);
-        sourceNode.connect(bus.filterLP);
-        bus.filterHP.connect(bus.muteNode);
-        this._filterBypassState[busIndex] = false;
-        
-        if (this._filterBypassDebug) {
-          this._logFilterBypassChange(busIndex, false);
-        }
-      } catch {
-        // Ignorar errores si ya está en el estado correcto
+      // Desactivar bypass: crossfade a ruta de filtros
+      setParamSmooth(bus.filterGain.gain, 1, ctx, { ramp: crossfadeTime });
+      setParamSmooth(bus.bypassGain.gain, 0, ctx, { ramp: crossfadeTime });
+      this._filterBypassState[busIndex] = false;
+      
+      if (this._filterBypassDebug) {
+        this._logFilterBypassChange(busIndex, false);
       }
     }
   }
@@ -776,28 +789,27 @@ export class AudioEngine {
   setFilterBypassEnabled(enabled) {
     this._filterBypassEnabled = enabled;
     
+    const ctx = this.audioCtx;
+    if (!ctx) return;
+    
     if (enabled) {
       // Al habilitar, revisar todos los buses y aplicar bypass donde corresponda
       for (let i = 0; i < this.outputChannels; i++) {
         this._updateFilterBypass(i, this.outputFilters[i]);
       }
     } else {
-      // Al deshabilitar, reconectar todos los filtros
+      // Al deshabilitar, forzar ruta de filtros en todos los buses
       for (let i = 0; i < this.outputChannels; i++) {
         if (this._filterBypassState[i]) {
-          // Forzar reconexión de filtros
           const bus = this.outputBuses[i];
           if (bus) {
-            try {
-              bus.input.disconnect(bus.levelNode);
-              bus.input.connect(bus.filterLP);
-              bus.filterHP.connect(bus.levelNode);
-              this._filterBypassState[i] = false;
-              // Aplicar valores actuales de frecuencia
-              this._applyFilterValue(i, this.outputFilters[i]);
-            } catch {
-              // Ignorar errores
-            }
+            // Crossfade a ruta de filtros
+            const crossfadeTime = AUDIO_CONSTANTS.FILTER_BYPASS_CROSSFADE;
+            setParamSmooth(bus.filterGain.gain, 1, ctx, { ramp: crossfadeTime });
+            setParamSmooth(bus.bypassGain.gain, 0, ctx, { ramp: crossfadeTime });
+            this._filterBypassState[i] = false;
+            // Aplicar valores actuales de frecuencia
+            this._applyFilterValue(i, this.outputFilters[i]);
           }
         }
       }

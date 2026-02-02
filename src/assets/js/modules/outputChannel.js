@@ -19,6 +19,7 @@ import { Knob } from '../ui/knob.js';
 import { createKnobElements } from '../ui/knobFactory.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import { outputChannelConfig } from '../configs/index.js';
+import { vcaCalculateGain } from '../utils/voltageConstants.js';
 
 // Extraer configuración del outputChannel.config.js
 const knobsConfig = outputChannelConfig.knobs || {};
@@ -299,10 +300,10 @@ export class OutputChannel extends Module {
     
     this.slider = slider;
     
-    // Value display
+    // Value display (escala 0-10 del dial Synthi 100)
     const valueDisplay = document.createElement('div');
     valueDisplay.className = 'output-channel__value';
-    valueDisplay.textContent = this.values.level.toFixed(3);
+    valueDisplay.textContent = this.values.level.toFixed(1);
     this.valueDisplay = valueDisplay;
     
     let lastCommittedValue = this.values.level;
@@ -312,15 +313,22 @@ export class OutputChannel extends Module {
     const flushValue = () => {
       rafId = null;
       if (pendingValue == null) return;
-      const numericValue = pendingValue;
+      const dialValue = pendingValue;
       pendingValue = null;
-      if (numericValue === lastCommittedValue) return;
-      lastCommittedValue = numericValue;
-      this.values.level = numericValue;
+      if (dialValue === lastCommittedValue) return;
+      lastCommittedValue = dialValue;
+      this.values.level = dialValue;
+      
+      // VCA CEM 3330: convertir dial (0-10) a ganancia
+      // El segundo parámetro es CV externo (0 por ahora, se conectará vía matriz)
+      const gain = vcaCalculateGain(dialValue, 0);
+      
       // Rampa desde config para suavizar cambios manuales
       const ramp = rampsConfig.level ?? 0.06;
-      this.engine.setOutputLevel(this.channelIndex, numericValue, { ramp });
-      valueDisplay.textContent = numericValue.toFixed(3);
+      this.engine.setOutputLevel(this.channelIndex, gain, { ramp });
+      
+      // Mostrar valor del dial (escala 0-10 del Synthi 100)
+      valueDisplay.textContent = dialValue.toFixed(1);
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     
@@ -375,9 +383,11 @@ export class OutputChannel extends Module {
         this.slider.value = String(data.level);
       }
       if (this.valueDisplay) {
-        this.valueDisplay.textContent = data.level.toFixed(2);
+        this.valueDisplay.textContent = data.level.toFixed(1);
       }
-      this.engine.setOutputLevel(this.channelIndex, data.level, { ramp: 0.06 });
+      // VCA CEM 3330: convertir dial (0-10) a ganancia
+      const gain = vcaCalculateGain(data.level, 0);
+      this.engine.setOutputLevel(this.channelIndex, gain, { ramp: 0.06 });
     }
     
     // Filtro: actualizar valor y visual del knob

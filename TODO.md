@@ -12,80 +12,79 @@ Generan un voltaje de control (CV) que alimenta un chip VCA (CEM 3330).
 - Corte total: en posición 0, el fader desconecta mecánicamente (ignora CV externo)
 - Raíles: ±12V (saturación suave con CV > 0V, hard clip en ±12V)
 
-**Señal de re-entrada:** La señal post-VCA (antes de filtro y mute) vuelve a la matriz,
-permitiendo usar el canal como VCA interno sin enviar audio a altavoces.
+**Cadena de señal correcta (Cuenca 1982):**
+```
+Entrada Matriz → VCA (CEM 3330) → [Nodo división]
+                                       ├─→ Re-entry a matriz (POST-VCA, PRE-filtro)
+                                       └─→ Filtro LP/HP → Switch ON/OFF → Pan → Salida
+```
 
-### Plan de implementación (pasos pequeños y testeables)
+**IMPORTANTE:** El VCA va ANTES del filtro. El filtro solo afecta a la salida externa,
+no a la señal de re-entrada a la matriz.
 
-- [ ] **Paso 1: Constantes de VCA en voltageConstants.js**
-  - Añadir `VCA_DB_PER_VOLT = 10`
-  - Añadir `VCA_SLIDER_VOLTAGE_AT_MAX = 0` (posición 10 del dial)
-  - Añadir `VCA_SLIDER_VOLTAGE_AT_MIN = -12` (posición 0 del dial)
-  - Añadir `VCA_CUTOFF_DB = -120` (umbral de silencio absoluto)
-  - Crear función `vcaVoltageToGain(voltageSum)`:
-    - Si voltage ≤ -12V → return 0 (corte total)
-    - Si voltage en rango lineal → ganancia = 10^(voltage × 10 / 20)
-    - Si voltage > 0V → aplicar saturación híbrida (reutilizar `hybridSaturation`)
-  - Crear función `dialPositionToVoltage(position)`:
-    - position 0-10 → voltaje 0V a -12V (lineal)
+### Plan de implementación
 
-- [ ] **Paso 2: Tests unitarios para funciones VCA**
-  - En `tests/utils/voltageConstants.test.js`:
-    - `vcaVoltageToGain(0)` → ~1.0 (0 dB, ganancia unidad)
-    - `vcaVoltageToGain(-6)` → ~0.001 (-60 dB)
-    - `vcaVoltageToGain(-12)` → 0 (corte total)
-    - `vcaVoltageToGain(+2)` → >1.0 pero saturado
-    - `dialPositionToVoltage(10)` → 0V
-    - `dialPositionToVoltage(5)` → -6V
-    - `dialPositionToVoltage(0)` → -12V
+#### ✅ COMPLETADOS
 
-- [ ] **Paso 3: Actualizar outputChannel.config.js**
-  - Cambiar `faders.level`: min=0, max=10 (escala del dial físico)
-  - Añadir sección `vca`:
-    ```javascript
-    vca: {
-      dbPerVolt: 10,
-      sliderVoltageRange: { min: -12, max: 0 },
-      cutoffDb: -120,
-      // Saturación para CV positivo (reutilizar modelo de matriz)
-      saturation: {
-        linearThreshold: 0,     // 0V: empieza saturación suave
-        softThreshold: 2.0,     // +2V: saturación notable
-        hardLimit: 3.0,         // +3V: hard clip (equivale a +12V internos)
-        softness: 2.0
-      }
-    }
-    ```
-  - El CV externo se suma al voltaje del slider para calcular ganancia final
+- [x] **Paso 1: Constantes y funciones VCA** (commit `9a6e14b`)
+  - `src/assets/js/utils/voltageConstants.js`:
+    - Constantes: `VCA_DB_PER_VOLT`, `VCA_SLIDER_VOLTAGE_AT_MAX/MIN`, `VCA_CUTOFF_*`
+    - `vcaDialToVoltage(dialValue)`: dial 0-10 → voltaje -12V a 0V
+    - `vcaVoltageToGain(voltage)`: voltaje → ganancia (con saturación para CV > 0V)
+    - `vcaCalculateGain(dialValue, externalCV)`: función combinada dial + CV → ganancia
+  - `tests/utils/voltageConstants.test.js`: 15 tests unitarios
 
-- [ ] **Paso 4: Implementar lógica VCA en outputChannel.js**
-  - Modificar `_onLevelChange(dialPosition)`:
-    1. Calcular voltaje del slider: `sliderVoltage = dialPositionToVoltage(dialPosition)`
-    2. Obtener CV externo actual (si hay): `externalCV = this.currentExternalCV || 0`
-    3. Sumar: `totalVoltage = sliderVoltage + externalCV`
-    4. Calcular ganancia: `gain = vcaVoltageToGain(totalVoltage)`
-    5. Aplicar a `levelNode.gain` con rampa suave
-  - Implementar `setExternalCV(voltage)` para recibir CV de la matriz
-  - **Caso especial**: Si `dialPosition === 0`, forzar `gain = 0` (emula corte mecánico)
+- [x] **Paso 2: Config VCA en outputChannel.config.js** (pendiente commit)
+  - Fader cambiado de escala 0-1 a 0-10 (como dial físico)
+  - `schemaVersion` incrementado a 2
+  - Nueva sección `vca` con todos los parámetros documentados:
+    - `dbPerVolt: 10`
+    - `sliderVoltage: { atMax: 0, atMin: -12 }`
+    - `cutoffVoltage: -12`
+    - `saturation: { linearThreshold: 0, hardLimit: 3, softness: 2 }`
+  - `tests/configs/outputChannel.config.test.js`: 13 tests nuevos
 
-- [ ] **Paso 5: Tests de integración del VCA**
-  - Crear/ampliar `tests/modules/outputChannel.test.js`:
-    - Verificar curva logarítmica fader→ganancia
-    - Verificar suma de CV externo
-    - Verificar corte total en posición 0 ignora CV
-    - Verificar saturación con CV positivo alto
+- [x] **Paso 3: Integrar VCA en outputChannel.js** (commit `113f65b`)
+  - Importar `vcaCalculateGain` desde voltageConstants.js
+  - `flushValue()` convierte dial (0-10) a ganancia vía VCA
+  - `deserialize()` usa misma conversión
+  - Display muestra valor del dial (0.0-10.0)
+  - Curva logarítmica funcional: dial 10 = 0 dB, dial 5 = -60 dB
 
-- [ ] **Paso 6: Conectar CV de matriz a Output Channels**
-  - Verificar que `audioMatrix.js` ya conecta columnas 42-49 a `outputLevelCV`
-  - Asegurar que el CV llega al método `setExternalCV()` del canal correspondiente
-  - El CV debe convertirse a voltios (-1..+1 digital → -4V..+4V) antes de sumar
+#### ⏳ PENDIENTES
+
+- [ ] **Paso 4: Corte mecánico en dial=0**
+  - En `vcaCalculateGain()`: si `dialValue === 0`, return 0 (ignorar CV externo)
+  - Emula el comportamiento del fader que desconecta mecánicamente al final
+  - Añadir test: `vcaCalculateGain(0, +6V)` → 0 (no sonido aunque CV sea positivo)
+
+- [ ] **Paso 5: Corregir cadena de señal en engine.js** ⚠️ CRÍTICO
+  - **Problema actual:** `Entrada → Filtro → VCA → Mute → Pan`
+  - **Cadena correcta:** `Entrada → VCA → [split] → Filtro → Mute → Pan`
+  - Archivos a modificar:
+    - `src/assets/js/core/engine.js`: reorganizar `_initOutput()`
+    - Crear nodo de split POST-VCA para re-entry
+  - El nodo de re-entry debe tomar señal POST-VCA, PRE-filtro
+  - El medidor de nivel (si existe) también debe ir POST-VCA, PRE-filtro
+  - Tests de integración para verificar cadena
+
+- [ ] **Paso 6: Tests de integración VCA**
+  - Verificar curva logarítmica con audio real
+  - Verificar corte total en posición 0
+  - Verificar saturación con CV positivo alto
+  - Verificar que re-entry recibe señal POST-VCA, PRE-filtro
+
+- [ ] **Paso 7: Conectar CV de matriz a Output Channels**
+  - Columnas 42-49 de matriz de control → CV de canales 1-8
+  - Implementar `setExternalCV(voltage)` en OutputChannel
+  - Conversión escala: matriz (-1..+1) → voltios (-4V..+4V)
+  - Recalcular ganancia cuando cambie CV externo
 
 ### Notas adicionales
 
-- El filtro de salida (LP/HP) está POST-VCA, no se ve afectado por este cambio
-- La re-entrada a la matriz usa señal POST-VCA, PRE-filtro (ya implementado así)
-- NO implementar switch de respuesta rápida (canales 5-7) - mi Synthi de Cuenca no lo tiene
+- NO implementar switch de respuesta rápida (canales 5-7) - el Synthi de Cuenca no lo tiene
 - Todos los valores numéricos en config, nunca hardcodeados
+- El switch ON/OFF (mute) solo afecta salida externa, no re-entry
 
 ---
 

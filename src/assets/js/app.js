@@ -209,25 +209,37 @@ class App {
    * @returns {Promise<boolean>} true si el worklet está listo
    */
   async ensureAudio() {
-    console.log('🔊 ensureAudio() called');
-    // Obtener latencyHint guardado o usar default según dispositivo
-    const savedMode = localStorage.getItem(STORAGE_KEYS.LATENCY_MODE);
-    const defaultMode = isMobileDevice() ? 'playback' : 'interactive';
-    const latencyHint = savedMode || defaultMode;
+    // Evitar llamadas concurrentes - si ya hay una en progreso, esperar
+    if (this._ensureAudioPromise) {
+      return this._ensureAudioPromise;
+    }
     
-    this.engine.start({ latencyHint });
+    this._ensureAudioPromise = (async () => {
+      try {
+        // Obtener latencyHint guardado o usar default según dispositivo
+        const savedMode = localStorage.getItem(STORAGE_KEYS.LATENCY_MODE);
+        const defaultMode = isMobileDevice() ? 'playback' : 'interactive';
+        const latencyHint = savedMode || defaultMode;
+        
+        this.engine.start({ latencyHint });
+        
+        // Esperar a que el worklet esté listo (crucial para móviles)
+        await this.engine.ensureWorkletReady();
+        
+        // Activar multicanal si estaba guardado (necesita AudioContext listo)
+        await this._restoreMultichannelIfSaved();
+        
+        // Iniciar osciloscopio cuando haya audio
+        this._ensurePanel2ScopeStarted();
+        
+        return this.engine.workletReady;
+      } finally {
+        // Limpiar la promesa para permitir futuras llamadas
+        this._ensureAudioPromise = null;
+      }
+    })();
     
-    // Esperar a que el worklet esté listo (crucial para móviles)
-    await this.engine.ensureWorkletReady();
-    console.log('🔊 worklet ready, calling _restoreMultichannelIfSaved');
-    
-    // Activar multicanal si estaba guardado (necesita AudioContext listo)
-    await this._restoreMultichannelIfSaved();
-    
-    // Iniciar osciloscopio cuando haya audio
-    this._ensurePanel2ScopeStarted();
-    
-    return this.engine.workletReady;
+    return this._ensureAudioPromise;
   }
   
   /**
@@ -235,17 +247,14 @@ class App {
    * Debe llamarse después de que el AudioContext esté listo.
    */
   async _restoreMultichannelIfSaved() {
-    console.log('🔊 _restoreMultichannelIfSaved called, restored:', this._multichannelRestored);
     if (this._multichannelRestored) return; // Solo una vez
     this._multichannelRestored = true; // Marcar antes de async para evitar race conditions
     
     const savedOutputDevice = this.audioSettingsModal?.selectedOutputDevice;
-    console.log('🔊 savedOutputDevice:', savedOutputDevice);
     
     if (savedOutputDevice === 'multichannel-8ch') {
       log.info('🔊 Restoring multichannel output from saved settings...');
       const result = await this._activateMultichannelOutput();
-      console.log('🔊 _activateMultichannelOutput result:', result);
       if (result.success) {
         log.info('🔊 Multichannel output restored (8ch)');
         this.audioSettingsModal.updatePhysicalChannels(8, 
@@ -1408,7 +1417,10 @@ class App {
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async _activateMultichannelOutput() {
+    // CRÍTICO: Verificar disponibilidad ANTES de tocar el engine
+    // (en navegador web, window.multichannelAPI no existe)
     if (!window.multichannelAPI) {
+      log.info('🎛️ multichannelAPI not available (browser mode)');
       return { success: false, error: 'multichannelAPI no disponible' };
     }
     

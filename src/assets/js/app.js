@@ -3536,21 +3536,105 @@ class App {
         destNode = dest.channel === 'X' ? this.oscilloscope.inputX : this.oscilloscope.inputY;
         log.info(` Panel 6: Connecting to oscilloscope ${dest.channel}`);
       } else if (dest.kind === 'outputLevelCV') {
-        // Destino: Control de nivel de canal de salida
-        // La señal CV modula el gain del levelNode (bipolar: -1 a +1).
-        // NOTA: Comportamiento bipolar puede causar inversión de fase con CV < 0.
-        // TODO: Revisar si se necesita offset/escala para comportamiento unipolar.
+        // ─────────────────────────────────────────────────────────────────────
+        // Destino: Control de nivel de canal de salida (VCA CEM 3330)
+        // ─────────────────────────────────────────────────────────────────────
+        //
+        // En el hardware Synthi 100 (Cuenca 1982), el CV de la matriz se SUMA
+        // algebraicamente al voltaje del fader ANTES del VCA. Esto significa:
+        //
+        // 1. El CV afecta la ganancia de forma no lineal (10 dB/V)
+        // 2. Si el fader está en 0, el CV se IGNORA (corte mecánico)
+        // 3. CV positivo puede causar saturación suave
+        //
+        // IMPLEMENTACIÓN:
+        // Usamos un AudioWorkletNode para muestrear la señal CV y pasarla
+        // al método setExternalCV() del OutputChannel correspondiente.
+        // Esto permite aplicar el modelo VCA correcto incluyendo corte mecánico.
+        //
+        // ─────────────────────────────────────────────────────────────────────
         const busIndex = dest.busIndex;
-        const busData = this.engine.outputBuses?.[busIndex];
+        const outputChannel = this._outputChannelsPanel?.getChannel(busIndex);
         
-        if (!busData?.levelNode) {
-          log.warn(' Output bus levelNode not available for level CV, bus', busIndex);
+        if (!outputChannel) {
+          log.warn(' OutputChannel not available for level CV, bus', busIndex);
           return false;
         }
         
-        // El destino es el AudioParam gain del levelNode
-        destNode = busData.levelNode.gain;
-        log.info(` Panel 6: Connecting CV to output level bus ${busIndex + 1}`);
+        // ─────────────────────────────────────────────────────────────────────
+        // Crear nodo de muestreo de CV
+        // ─────────────────────────────────────────────────────────────────────
+        // Usamos un GainNode como destino temporal para capturar la señal.
+        // Un AnalyserNode nos permitirá leer el valor instantáneo del CV.
+        // ─────────────────────────────────────────────────────────────────────
+        const cvSampler = ctx.createGain();
+        cvSampler.gain.value = 1;
+        
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0;
+        
+        cvSampler.connect(analyser);
+        
+        // Silenciador: el CV no debe ir a los altavoces
+        const silencer = ctx.createGain();
+        silencer.gain.value = 0;
+        analyser.connect(silencer);
+        silencer.connect(ctx.destination);
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // Loop de muestreo del CV
+        // ─────────────────────────────────────────────────────────────────────
+        // Muestreamos a ~60Hz para no sobrecargar la CPU.
+        // El valor se pasa a setExternalCV() que recalcula la ganancia.
+        // ─────────────────────────────────────────────────────────────────────
+        const cvBuffer = new Float32Array(analyser.fftSize);
+        let rafId = null;
+        let isActive = true;
+        
+        const sampleCV = () => {
+          if (!isActive) return;
+          
+          analyser.getFloatTimeDomainData(cvBuffer);
+          // Tomar el valor medio del buffer (RMS sería más preciso pero más caro)
+          let sum = 0;
+          for (let i = 0; i < cvBuffer.length; i++) {
+            sum += cvBuffer[i];
+          }
+          const cvValue = sum / cvBuffer.length;
+          
+          // Escalar el CV normalizado (-1 a +1) a voltios
+          // La ganancia del pin ya está aplicada, pero el rango típico
+          // de la matriz es ±1. Escalamos a ±4V (rango típico de CV).
+          const cvVoltage = cvValue * 4;
+          
+          // Pasar al OutputChannel para que recalcule la ganancia del VCA
+          outputChannel.setExternalCV(cvVoltage, { ramp: 0.016 });
+          
+          rafId = requestAnimationFrame(sampleCV);
+        };
+        
+        // Iniciar muestreo
+        rafId = requestAnimationFrame(sampleCV);
+        
+        // El destNode para la conexión es el cvSampler
+        destNode = cvSampler;
+        
+        // Guardar referencias para cleanup (se fusionará con filter/gain después)
+        // Usamos una variable temporal que se fusionará con la conexión final
+        this._outputLevelCVData = {
+          cvSampler,
+          analyser,
+          silencer,
+          rafId,
+          stopSampling: () => {
+            isActive = false;
+            if (rafId) cancelAnimationFrame(rafId);
+            outputChannel.setExternalCV(0);  // Reset CV al desconectar
+          }
+        };
+        
+        log.info(` Panel 6: CV sampling to output level bus ${busIndex + 1}`);
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud
@@ -3592,11 +3676,17 @@ class App {
       gain.connect(destNode);
       
       // Guardar referencia completa (filtro + gain + pinColor)
-      this._panel6Routing.connections[key] = {
+      // Si hay datos de CV sampling pendientes, fusionarlos
+      const connectionData = {
         filter: pinFilter,
         gain: gain,
-        pinColor: pinColor || 'GREY'
+        pinColor: pinColor || 'GREY',
+        // Fusionar datos de outputLevelCV si existen
+        ...(this._outputLevelCVData || {})
       };
+      delete this._outputLevelCVData;  // Limpiar temporal
+      
+      this._panel6Routing.connections[key] = connectionData;
       
       log.info(` Panel 6: Connected ${source.kind}[${source.oscIndex ?? source.channel ?? ''}] → ${dest.kind}[${dest.oscIndex ?? dest.busIndex ?? ''}] (gain: ${pinGainValue}, fc: ${PIN_CUTOFF_FREQUENCIES[pinColor || 'GREY']?.toFixed(0)} Hz)`);
       
@@ -3611,8 +3701,29 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     const conn = this._panel6Routing.connections?.[key];
     if (conn) {
+      // Limpiar nodos de audio
       safeDisconnect(conn.filter);
       safeDisconnect(conn.gain);
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // Limpieza especial para outputLevelCV
+      // ─────────────────────────────────────────────────────────────────────
+      // El CV sampling usa nodos adicionales y un loop de RAF que deben
+      // detenerse para evitar memory leaks y llamadas innecesarias.
+      // ─────────────────────────────────────────────────────────────────────
+      if (conn.stopSampling) {
+        conn.stopSampling();
+      }
+      if (conn.cvSampler) {
+        safeDisconnect(conn.cvSampler);
+      }
+      if (conn.analyser) {
+        safeDisconnect(conn.analyser);
+      }
+      if (conn.silencer) {
+        safeDisconnect(conn.silencer);
+      }
+      
       delete this._panel6Routing.connections[key];
       log.info(` Panel 6: Disconnected ${key}`);
       

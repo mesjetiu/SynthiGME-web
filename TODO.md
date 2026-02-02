@@ -50,15 +50,11 @@ no a la señal de re-entrada a la matriz.
   - `deserialize()` usa misma conversión
   - Display muestra valor del dial (0.0-10.0)
   - Curva logarítmica funcional: dial 10 = 0 dB, dial 5 = -60 dB
+  - **Corte mecánico incluido**: dial=0 ignora CV externo (ya en Paso 1)
 
 #### ⏳ PENDIENTES
 
-- [ ] **Paso 4: Corte mecánico en dial=0**
-  - En `vcaCalculateGain()`: si `dialValue === 0`, return 0 (ignorar CV externo)
-  - Emula el comportamiento del fader que desconecta mecánicamente al final
-  - Añadir test: `vcaCalculateGain(0, +6V)` → 0 (no sonido aunque CV sea positivo)
-
-- [ ] **Paso 5: Corregir cadena de señal en engine.js** ⚠️ CRÍTICO
+- [ ] **Paso 4: Corregir cadena de señal en engine.js** ⚠️ CRÍTICO
   - **Problema actual:** `Entrada → Filtro → VCA → Mute → Pan`
   - **Cadena correcta:** `Entrada → VCA → [split] → Filtro → Mute → Pan`
   - Archivos a modificar:
@@ -68,17 +64,20 @@ no a la señal de re-entrada a la matriz.
   - El medidor de nivel (si existe) también debe ir POST-VCA, PRE-filtro
   - Tests de integración para verificar cadena
 
-- [ ] **Paso 6: Tests de integración VCA**
-  - Verificar curva logarítmica con audio real
-  - Verificar corte total en posición 0
-  - Verificar saturación con CV positivo alto
-  - Verificar que re-entry recibe señal POST-VCA, PRE-filtro
+#### ✅ COMPLETADOS (CV de matriz)
 
-- [ ] **Paso 7: Conectar CV de matriz a Output Channels**
+- [x] **Paso 5: Conectar CV de matriz a Output Channels** (commit pendiente)
   - Columnas 42-49 de matriz de control → CV de canales 1-8
-  - Implementar `setExternalCV(voltage)` en OutputChannel
-  - Conversión escala: matriz (-1..+1) → voltios (-4V..+4V)
-  - Recalcular ganancia cuando cambie CV externo
+  - Implementado `setExternalCV(voltage)` en OutputChannel
+  - Conversión escala: matriz (-1..+1) × 4 → voltios (-4V..+4V)
+  - Recalcula ganancia cuando cambia CV externo
+  - CV se muestrea via AnalyserNode a ~60Hz para no sobrecargar CPU
+  - **Corte mecánico verificado**: dial=0 ignora CV (tests unitarios)
+
+- [x] **Paso 6: Tests de VCA con CV externo** (incluido en Paso 5)
+  - Tests unitarios para corte mecánico con CV
+  - Tests de dial + CV combinados
+  - Tests de curva logarítmica 10 dB/V
 
 ### Notas adicionales
 

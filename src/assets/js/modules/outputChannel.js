@@ -63,7 +63,15 @@ export class OutputChannel extends Module {
       level: engine.getOutputLevel(channelIndex) ?? (levelCfg.initial ?? 0),
       filter: engine.getOutputFilter ? (engine.getOutputFilter(channelIndex) ?? (filterCfg.initial ?? 0)) : (filterCfg.initial ?? 0),
       pan: engine.outputPans?.[channelIndex] ?? (panCfg.initial ?? 0),
-      power: powerCfg.initial ?? true
+      power: powerCfg.initial ?? true,
+      // ─────────────────────────────────────────────────────────────────────
+      // CV externo desde matriz de control (columnas 42-49 del Panel 6)
+      // ─────────────────────────────────────────────────────────────────────
+      // El CV externo se suma algebraicamente al voltaje del fader antes de
+      // convertir a ganancia. Valor en voltios (típicamente -4V a +4V).
+      // Si el fader está en posición 0, el CV se ignora (corte mecánico).
+      // ─────────────────────────────────────────────────────────────────────
+      externalCV: 0
     };
   }
   
@@ -319,9 +327,14 @@ export class OutputChannel extends Module {
       lastCommittedValue = dialValue;
       this.values.level = dialValue;
       
-      // VCA CEM 3330: convertir dial (0-10) a ganancia
-      // El segundo parámetro es CV externo (0 por ahora, se conectará vía matriz)
-      const gain = vcaCalculateGain(dialValue, 0);
+      // ─────────────────────────────────────────────────────────────────────
+      // VCA CEM 3330: convertir dial + CV externo a ganancia
+      // ─────────────────────────────────────────────────────────────────────
+      // La función vcaCalculateGain() suma el voltaje del fader con el CV
+      // externo y aplica la curva logarítmica del VCA (10 dB/V).
+      // Si dialValue === 0, ignora el CV (corte mecánico del fader).
+      // ─────────────────────────────────────────────────────────────────────
+      const gain = vcaCalculateGain(dialValue, this.values.externalCV);
       
       // Rampa desde config para suavizar cambios manuales
       const ramp = rampsConfig.level ?? 0.06;
@@ -385,8 +398,8 @@ export class OutputChannel extends Module {
       if (this.valueDisplay) {
         this.valueDisplay.textContent = data.level.toFixed(1);
       }
-      // VCA CEM 3330: convertir dial (0-10) a ganancia
-      const gain = vcaCalculateGain(data.level, 0);
+      // VCA CEM 3330: convertir dial + CV externo a ganancia
+      const gain = vcaCalculateGain(data.level, this.values.externalCV);
       this.engine.setOutputLevel(this.channelIndex, gain, { ramp: 0.06 });
     }
     
@@ -414,6 +427,61 @@ export class OutputChannel extends Module {
         this.powerSwitch.setAttribute('aria-pressed', String(data.power));
       }
     }
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONTROL POR VOLTAJE EXTERNO (CV desde matriz Panel 6)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /**
+   * Establece el voltaje de control externo (CV) desde la matriz.
+   * 
+   * En el hardware Synthi 100 (Cuenca 1982), el CV de las columnas 42-49
+   * del Panel 6 se suma algebraicamente al voltaje del fader antes de
+   * alimentar el VCA CEM 3330.
+   * 
+   * COMPORTAMIENTO:
+   * - El CV se suma al voltaje del fader (-12V a 0V)
+   * - La ganancia se recalcula con vcaCalculateGain()
+   * - Si el fader está en posición 0, el CV se IGNORA (corte mecánico)
+   * - CV positivo puede aumentar ganancia más allá de 0dB (saturación)
+   * - CV negativo reduce la ganancia (atenuación adicional)
+   * 
+   * ESCALA DE VOLTAJE:
+   * - La matriz genera señales de -1 a +1 (normalizado)
+   * - El gain de la conexión escala esto a voltios reales
+   * - Típicamente el rango efectivo es ±4V a ±6V
+   * 
+   * @param {number} voltage - Voltaje de control en voltios (típico: -4V a +4V)
+   * @param {Object} [options] - Opciones de aplicación
+   * @param {number} [options.ramp=0.01] - Tiempo de rampa en segundos
+   */
+  setExternalCV(voltage, { ramp = 0.01 } = {}) {
+    // Almacenar el CV para uso posterior (cuando cambie el fader)
+    this.values.externalCV = voltage;
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Recalcular ganancia con el nuevo CV
+    // ─────────────────────────────────────────────────────────────────────
+    // vcaCalculateGain() maneja internamente:
+    // 1. Conversión dial → voltaje del fader
+    // 2. Suma con CV externo
+    // 3. Aplicación de curva logarítmica (10 dB/V)
+    // 4. Saturación para voltaje sumado > 0V
+    // 5. Corte mecánico si dial === 0
+    // ─────────────────────────────────────────────────────────────────────
+    const gain = vcaCalculateGain(this.values.level, voltage);
+    
+    // Aplicar la ganancia al engine con rampa suave
+    this.engine.setOutputLevel(this.channelIndex, gain, { ramp });
+  }
+  
+  /**
+   * Obtiene el voltaje de control externo actual.
+   * @returns {number} Voltaje en voltios
+   */
+  getExternalCV() {
+    return this.values.externalCV;
   }
 }
 
@@ -484,5 +552,17 @@ export class OutputChannelsPanel {
         }
       });
     }
+  }
+  
+  /**
+   * Obtiene un canal individual por su índice.
+   * 
+   * Usado por app.js para enviar CV desde la matriz al canal correspondiente.
+   * 
+   * @param {number} channelIndex - Índice del canal (0-7)
+   * @returns {OutputChannel|null} El canal o null si no existe
+   */
+  getChannel(channelIndex) {
+    return this.channels[channelIndex] ?? null;
   }
 }

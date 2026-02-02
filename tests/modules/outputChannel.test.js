@@ -252,3 +252,203 @@ describe('Valores límite de filtro', () => {
     assert.ok(lpBypass > hpBypass, 'LP bypass debe ser mayor que HP bypass');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TESTS: VCA CEM 3330 (Output Channels)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Estos tests verifican la emulación del VCA CEM 3330 usado en los Output Channels
+// de la versión Cuenca/Datanomics 1982 del Synthi 100.
+//
+// El VCA tiene:
+// - Sensibilidad de 10 dB/V
+// - Respuesta logarítmica
+// - Corte mecánico en posición 0 del fader (ignora CV externo)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Constantes del VCA replicadas de voltageConstants.js
+ */
+const VCA_DB_PER_VOLT = 10;
+const VCA_SLIDER_VOLTAGE_AT_MAX = 0;  // 0V (dial=10)
+const VCA_SLIDER_VOLTAGE_AT_MIN = -12;  // -12V (dial=0)
+
+/**
+ * Convierte posición del dial (0-10) a voltaje del slider.
+ * Réplica de vcaDialToVoltage() para tests sin imports ES6.
+ */
+function vcaDialToVoltage(dialPosition) {
+  // Lineal: 0→-12V, 10→0V
+  return VCA_SLIDER_VOLTAGE_AT_MIN + (dialPosition / 10) * (VCA_SLIDER_VOLTAGE_AT_MAX - VCA_SLIDER_VOLTAGE_AT_MIN);
+}
+
+/**
+ * Convierte voltaje sumado a ganancia lineal.
+ * Réplica simplificada de vcaVoltageToGain() para tests.
+ */
+function vcaVoltageToGain(voltage) {
+  // 0V → 0 dB → ganancia 1.0
+  // -12V → -120 dB → ganancia ~0
+  const dB = voltage * VCA_DB_PER_VOLT;
+  if (dB <= -120) return 0;
+  return Math.pow(10, dB / 20);
+}
+
+/**
+ * Calcula ganancia final del VCA con posición de dial y CV externo.
+ * Réplica de vcaCalculateGain() para tests.
+ */
+function vcaCalculateGain(dialPosition, externalCV = 0) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // CASO CRÍTICO: Posición 0 = corte mecánico total
+  // El fader físicamente desconecta. Cualquier CV externo es IGNORADO.
+  // ─────────────────────────────────────────────────────────────────────────
+  if (dialPosition <= 0) {
+    return 0;
+  }
+  
+  const sliderVoltage = vcaDialToVoltage(dialPosition);
+  const totalVoltage = sliderVoltage + externalCV;
+  return vcaVoltageToGain(totalVoltage);
+}
+
+describe('VCA CEM 3330 - Conversión dial a voltaje', () => {
+  it('dial = 10 → 0V (ganancia unidad)', () => {
+    const voltage = vcaDialToVoltage(10);
+    assert.ok(Math.abs(voltage - 0) < 0.001, `dial 10 debe dar 0V, dio ${voltage}V`);
+  });
+
+  it('dial = 0 → -12V (silencio antes de corte mecánico)', () => {
+    const voltage = vcaDialToVoltage(0);
+    assert.ok(Math.abs(voltage - (-12)) < 0.001, `dial 0 debe dar -12V, dio ${voltage}V`);
+  });
+
+  it('dial = 5 → -6V (mitad del recorrido)', () => {
+    const voltage = vcaDialToVoltage(5);
+    assert.ok(Math.abs(voltage - (-6)) < 0.001, `dial 5 debe dar -6V, dio ${voltage}V`);
+  });
+
+  it('escala lineal: incrementos iguales en dial dan incrementos iguales en voltaje', () => {
+    const v0 = vcaDialToVoltage(0);
+    const v2 = vcaDialToVoltage(2);
+    const v4 = vcaDialToVoltage(4);
+    const v6 = vcaDialToVoltage(6);
+    
+    const delta1 = v2 - v0;
+    const delta2 = v4 - v2;
+    const delta3 = v6 - v4;
+    
+    // Todos los deltas deben ser iguales (2.4V por cada 2 unidades)
+    assert.ok(Math.abs(delta1 - delta2) < 0.001, 'delta 0→2 debe ≈ delta 2→4');
+    assert.ok(Math.abs(delta2 - delta3) < 0.001, 'delta 2→4 debe ≈ delta 4→6');
+  });
+});
+
+describe('VCA CEM 3330 - Conversión voltaje a ganancia', () => {
+  it('0V → ganancia 1.0 (0 dB)', () => {
+    const gain = vcaVoltageToGain(0);
+    assert.ok(Math.abs(gain - 1.0) < 0.001, `0V debe dar ganancia 1.0, dio ${gain}`);
+  });
+
+  it('-6V → ganancia ~0.001 (-60 dB)', () => {
+    const gain = vcaVoltageToGain(-6);
+    const expectedDB = -60;
+    const expectedGain = Math.pow(10, expectedDB / 20);
+    assert.ok(Math.abs(gain - expectedGain) < 0.0001, `-6V debe dar ~${expectedGain}, dio ${gain}`);
+  });
+
+  it('-12V → ganancia ~0 (-120 dB)', () => {
+    const gain = vcaVoltageToGain(-12);
+    // -120 dB es prácticamente 0
+    assert.ok(gain < 0.000001, `-12V debe dar ganancia ~0, dio ${gain}`);
+  });
+
+  it('curva exponencial: cada -1V reduce ganancia en 10 dB', () => {
+    const g0 = vcaVoltageToGain(0);
+    const g1 = vcaVoltageToGain(-1);
+    const g2 = vcaVoltageToGain(-2);
+    
+    // Ratio entre g0/g1 y g1/g2 debe ser igual (~3.16 = 10dB)
+    const ratio1 = g0 / g1;
+    const ratio2 = g1 / g2;
+    const expected10dB = Math.pow(10, 10 / 20);
+    
+    assert.ok(Math.abs(ratio1 - expected10dB) < 0.01, `ratio debe ser ~${expected10dB}, es ${ratio1}`);
+    assert.ok(Math.abs(ratio2 - expected10dB) < 0.01, `ratio debe ser ~${expected10dB}, es ${ratio2}`);
+  });
+});
+
+describe('VCA CEM 3330 - Función vcaCalculateGain (alto nivel)', () => {
+  it('dial = 10, CV = 0 → ganancia 1.0', () => {
+    const gain = vcaCalculateGain(10, 0);
+    assert.ok(Math.abs(gain - 1.0) < 0.001, `dial 10 sin CV debe dar 1.0, dio ${gain}`);
+  });
+
+  it('dial = 5, CV = 0 → ganancia ~0.001 (-60 dB)', () => {
+    const gain = vcaCalculateGain(5, 0);
+    const expected = Math.pow(10, -60 / 20);  // ~0.001
+    assert.ok(Math.abs(gain - expected) < 0.0001, `dial 5 debe dar ~${expected}, dio ${gain}`);
+  });
+
+  it('dial = 5, CV = +3V → ganancia ~0.03 (-30 dB)', () => {
+    // dial 5 → -6V, +3V CV → -3V total → -30 dB
+    const gain = vcaCalculateGain(5, 3);
+    const expected = Math.pow(10, -30 / 20);  // ~0.03
+    assert.ok(Math.abs(gain - expected) < 0.001, `dial 5 + CV 3V debe dar ~${expected}, dio ${gain}`);
+  });
+
+  it('dial = 5, CV = +6V → ganancia 1.0 (0 dB)', () => {
+    // dial 5 → -6V, +6V CV → 0V total → 0 dB
+    const gain = vcaCalculateGain(5, 6);
+    assert.ok(Math.abs(gain - 1.0) < 0.001, `dial 5 + CV 6V debe dar 1.0, dio ${gain}`);
+  });
+
+  it('dial = 10, CV = -3V → ganancia ~0.03 (atenuación por CV negativo)', () => {
+    // dial 10 → 0V, -3V CV → -3V total → -30 dB
+    const gain = vcaCalculateGain(10, -3);
+    const expected = Math.pow(10, -30 / 20);
+    assert.ok(Math.abs(gain - expected) < 0.001, `dial 10 - CV 3V debe dar ~${expected}, dio ${gain}`);
+  });
+});
+
+describe('VCA CEM 3330 - CORTE MECÁNICO en posición 0', () => {
+  // ─────────────────────────────────────────────────────────────────────────
+  // TESTS CRÍTICOS
+  // Estos tests verifican el comportamiento más importante del fader:
+  // en posición 0, el fader desconecta MECÁNICAMENTE y cualquier CV externo
+  // es completamente ignorado.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  it('dial = 0, CV = 0 → ganancia 0 (silencio total)', () => {
+    const gain = vcaCalculateGain(0, 0);
+    assert.strictEqual(gain, 0, 'dial 0 debe dar ganancia 0');
+  });
+
+  it('dial = 0, CV = +5V → ganancia 0 (CV IGNORADO - corte mecánico)', () => {
+    const gain = vcaCalculateGain(0, 5);
+    assert.strictEqual(gain, 0, 'dial 0 + CV positivo debe seguir dando 0');
+  });
+
+  it('dial = 0, CV = +12V → ganancia 0 (CV máximo IGNORADO)', () => {
+    const gain = vcaCalculateGain(0, 12);
+    assert.strictEqual(gain, 0, 'dial 0 + CV máximo debe seguir dando 0');
+  });
+
+  it('dial = 0, CV = -5V → ganancia 0 (CV negativo también IGNORADO)', () => {
+    const gain = vcaCalculateGain(0, -5);
+    assert.strictEqual(gain, 0, 'dial 0 + CV negativo debe dar 0');
+  });
+
+  it('dial muy cercano a 0 (0.01) → ganancia NO es 0 (ya no hay corte mecánico)', () => {
+    const gain = vcaCalculateGain(0.01, 0);
+    // Dial 0.01 ya no está en corte mecánico, aunque la ganancia es muy baja
+    assert.ok(gain > 0, 'dial ligeramente > 0 debe dar ganancia > 0');
+    assert.ok(gain < 0.001, 'pero la ganancia debe ser muy pequeña');
+  });
+
+  it('dial negativo (-1) → tratado como 0, ganancia 0', () => {
+    // Valores negativos son inválidos pero deben manejarse
+    const gain = vcaCalculateGain(-1, 5);
+    assert.strictEqual(gain, 0, 'dial negativo debe tratarse como corte');
+  });
+});

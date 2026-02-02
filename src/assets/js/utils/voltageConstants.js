@@ -42,6 +42,62 @@ export const MAX_VOLTAGE_PP = 8.0;
  */
 export const SUPPLY_VOLTAGE = 12.0;
 
+// =============================================================================
+// CONSTANTES DEL VCA CEM 3330 (Output Channels - Versión Cuenca 1982)
+// =============================================================================
+//
+// En el Synthi 100 versión Cuenca/Datanomics 1982, los canales de salida utilizan
+// el chip VCA CEM 3330 para control de ganancia por voltaje.
+//
+// El fader NO procesa audio directamente. Genera un voltaje de control (CV) que
+// se suma con CV externos de la matriz antes de alimentar el VCA.
+//
+// Especificaciones del hardware:
+// - Fader: potenciómetro lineal 10kΩ, genera 0V (posición 10) a -12V (posición 0)
+// - VCA: respuesta logarítmica de 10 dB por cada voltio aplicado
+// - CV externo: se suma algebraicamente (entrada desde matriz columnas 42-49)
+// - Corte total: en posición 0, el fader desconecta mecánicamente (ignora CV)
+// - Raíles: ±12V (saturación suave con CV > 0V, hard clip en ±12V)
+//
+// Referencias: Manual Técnico Datanomics 1982, plano D100-08W1
+// =============================================================================
+
+/**
+ * Sensibilidad del VCA CEM 3330 en dB por Voltio.
+ * El manual especifica: "una pendiente de control de 10 dB por cada 1V"
+ * @constant {number}
+ */
+export const VCA_DB_PER_VOLT = 10;
+
+/**
+ * Voltaje del slider en posición máxima (dial = 10).
+ * En esta posición, el VCA tiene ganancia unidad (0 dB).
+ * @constant {number}
+ */
+export const VCA_SLIDER_VOLTAGE_AT_MAX = 0;  // 0V
+
+/**
+ * Voltaje del slider en posición mínima (dial = 0).
+ * Teóricamente -120 dB, pero el fader desconecta mecánicamente.
+ * @constant {number}
+ */
+export const VCA_SLIDER_VOLTAGE_AT_MIN = -12;  // -12V
+
+/**
+ * Umbral de dB donde consideramos silencio absoluto.
+ * 12V × 10 dB/V = 120 dB de atenuación máxima teórica.
+ * En la práctica, el fader desconecta antes de llegar a este nivel.
+ * @constant {number}
+ */
+export const VCA_CUTOFF_DB = -120;
+
+/**
+ * Umbral de voltaje para corte total (silencio absoluto).
+ * Corresponde al extremo del recorrido del fader donde desconecta.
+ * @constant {number}
+ */
+export const VCA_CUTOFF_VOLTAGE = -12;  // -12V → silencio total
+
 /**
  * Estándar de control de voltaje: 1 Voltio por Octava.
  * @constant {number}
@@ -962,3 +1018,187 @@ export function updatePinFilter(filter, pinType, time = null) {
     filter.frequency.value = cutoff;
   }
 }
+
+// =============================================================================
+// FUNCIONES DEL VCA CEM 3330 (Output Channels)
+// =============================================================================
+
+/**
+ * Convierte la posición del dial (0-10) a voltaje de control del slider.
+ * 
+ * El fader del Synthi 100 es un potenciómetro lineal de 10kΩ conectado
+ * entre 0V y -12V. La relación es estrictamente lineal.
+ * 
+ * @param {number} dialPosition - Posición del dial (0 a 10)
+ * @param {Object} [config] - Configuración de voltajes (desde outputChannel.config.js)
+ * @param {number} [config.voltageAtMax=0] - Voltaje en posición 10
+ * @param {number} [config.voltageAtMin=-12] - Voltaje en posición 0
+ * @returns {number} Voltaje de control en voltios
+ * 
+ * @example
+ * vcaDialToVoltage(10)  // → 0V (ganancia unidad)
+ * vcaDialToVoltage(5)   // → -6V (-60 dB)
+ * vcaDialToVoltage(0)   // → -12V (corte total)
+ */
+export function vcaDialToVoltage(dialPosition, config = {}) {
+  const voltageAtMax = config.voltageAtMax ?? VCA_SLIDER_VOLTAGE_AT_MAX;
+  const voltageAtMin = config.voltageAtMin ?? VCA_SLIDER_VOLTAGE_AT_MIN;
+  
+  // Clampear posición al rango válido 0-10
+  const clampedPosition = Math.max(0, Math.min(10, dialPosition));
+  
+  // Interpolación lineal: pos=0 → voltageAtMin, pos=10 → voltageAtMax
+  // voltage = voltageAtMin + (voltageAtMax - voltageAtMin) * (position / 10)
+  const t = clampedPosition / 10;
+  return voltageAtMin + (voltageAtMax - voltageAtMin) * t;
+}
+
+/**
+ * Convierte voltaje de control sumado a ganancia lineal del VCA.
+ * 
+ * El VCA CEM 3330 tiene respuesta logarítmica: 10 dB por cada voltio.
+ * - 0V → 0 dB (ganancia 1.0)
+ * - CV negativo → atenuación
+ * - CV positivo → amplificación (con saturación)
+ * 
+ * Comportamiento especial:
+ * - ≤ -12V: Corte total (ganancia = 0), emulando el corte mecánico del fader
+ * - > 0V: Saturación suave tipo tanh, emulando los raíles de alimentación
+ * 
+ * @param {number} voltage - Voltaje sumado (slider + CV externo) en voltios
+ * @param {Object} [config] - Configuración del VCA (desde outputChannel.config.js)
+ * @param {number} [config.dbPerVolt=10] - Sensibilidad del VCA
+ * @param {number} [config.cutoffVoltage=-12] - Voltaje de corte total
+ * @param {Object} [config.saturation] - Parámetros de saturación para CV positivo
+ * @param {number} [config.saturation.linearThreshold=0] - Inicio de zona lineal (V)
+ * @param {number} [config.saturation.hardLimit=3] - Límite duro (V)
+ * @param {number} [config.saturation.softness=2] - Factor de suavidad de saturación
+ * @returns {number} Ganancia lineal (0 a ~3 con saturación)
+ * 
+ * @example
+ * vcaVoltageToGain(0)     // → 1.0 (0 dB, ganancia unidad)
+ * vcaVoltageToGain(-6)    // → ~0.001 (-60 dB)
+ * vcaVoltageToGain(-12)   // → 0 (corte total)
+ * vcaVoltageToGain(2)     // → ~1.5 (amplificación saturada)
+ */
+export function vcaVoltageToGain(voltage, config = {}) {
+  const dbPerVolt = config.dbPerVolt ?? VCA_DB_PER_VOLT;
+  const cutoffVoltage = config.cutoffVoltage ?? VCA_CUTOFF_VOLTAGE;
+  
+  // Parámetros de saturación con defaults
+  const saturation = config.saturation ?? {};
+  const linearThreshold = saturation.linearThreshold ?? 0;    // 0V: empieza zona positiva
+  const hardLimit = saturation.hardLimit ?? 3.0;              // +3V: hard clip
+  const softness = saturation.softness ?? 2.0;
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // ZONA DE CORTE: voltage ≤ cutoffVoltage → silencio absoluto
+  // Emula el interruptor mecánico del fader en posición 0
+  // ─────────────────────────────────────────────────────────────────────────
+  if (voltage <= cutoffVoltage) {
+    return 0;
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // ZONA NORMAL: cutoffVoltage < voltage ≤ linearThreshold
+  // Conversión logarítmica estándar: ganancia = 10^(voltage × dbPerVolt / 20)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (voltage <= linearThreshold) {
+    // dB = voltage × dbPerVolt
+    // ganancia = 10^(dB / 20)
+    const dB = voltage * dbPerVolt;
+    return Math.pow(10, dB / 20);
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // ZONA DE SATURACIÓN: voltage > linearThreshold
+  // El manual advierte que a niveles altos de control positivo,
+  // "la intermodulación se vuelve notable y generalmente indeseable"
+  // 
+  // La saturación emula dos efectos:
+  // 1. Los raíles de alimentación ±12V que limitan el voltaje de control
+  // 2. La distorsión de intermodulación que aparece con ganancias altas
+  //
+  // Aplicamos compresión progresiva: cuanto más lejos esté el voltaje de
+  // linearThreshold, más se comprime hacia hardLimit.
+  //
+  // Usamos una fórmula que GARANTIZA compresión: el voltaje saturado siempre
+  // es menor que el voltaje original para todo voltage > linearThreshold.
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  // Exceso de voltaje sobre el umbral lineal
+  const excessVoltage = voltage - linearThreshold;
+  
+  // Ancho de la zona de saturación (máximo exceso permitido)
+  const softZoneWidth = hardLimit - linearThreshold;
+  
+  // Ratio de compresión: qué fracción del rango soft estamos usando
+  // Si voltage = hardLimit, ratio = 1
+  // Si voltage → ∞, ratio → ∞
+  const ratio = excessVoltage / softZoneWidth;
+  
+  // Aplicar compresión usando la fórmula: compressed = range × ratio / (1 + ratio × softness)
+  // Esta fórmula garantiza:
+  // - compressed < excessVoltage para todo ratio > 0 (siempre comprime)
+  // - compressed → softZoneWidth cuando ratio → ∞ (límite asintótico)
+  // - compressed ≈ excessVoltage cuando ratio es pequeño y softness ≈ 1
+  //
+  // Con softness = 2:
+  // - ratio = 0.5: compressed = range × 0.5 / (1 + 1) = range × 0.25
+  // - ratio = 1.0: compressed = range × 1 / (1 + 2) = range × 0.33
+  // - ratio = 2.0: compressed = range × 2 / (1 + 4) = range × 0.4
+  const compressedExcess = softZoneWidth * ratio / (1 + ratio * softness);
+  
+  // El voltaje saturado nunca supera hardLimit
+  const saturatedVoltage = linearThreshold + compressedExcess;
+  
+  // Convertir voltaje saturado a ganancia
+  const dB = saturatedVoltage * dbPerVolt;
+  return Math.pow(10, dB / 20);
+}
+
+/**
+ * Calcula la ganancia final del VCA combinando posición del dial y CV externo.
+ * 
+ * Esta es la función de alto nivel que combina:
+ * 1. Conversión dial → voltaje del slider
+ * 2. Suma con CV externo
+ * 3. Conversión voltaje sumado → ganancia
+ * 4. Lógica especial de corte total en posición 0
+ * 
+ * @param {number} dialPosition - Posición del dial (0-10)
+ * @param {number} [externalCV=0] - CV externo en voltios (desde matriz)
+ * @param {Object} [config] - Configuración completa del VCA
+ * @returns {number} Ganancia lineal final
+ * 
+ * @example
+ * // Solo fader, sin CV externo
+ * vcaCalculateGain(10)    // → 1.0 (ganancia unidad)
+ * vcaCalculateGain(5)     // → ~0.001 (-60 dB)
+ * vcaCalculateGain(0)     // → 0 (corte total)
+ * 
+ * // Fader a mitad + CV externo de +3V (boost)
+ * vcaCalculateGain(5, 3)  // → ~0.03 (-30 dB en vez de -60 dB)
+ * 
+ * // Fader a 0 + CV externo positivo → sigue siendo 0 (corte mecánico)
+ * vcaCalculateGain(0, 5)  // → 0 (el corte mecánico ignora CV)
+ */
+export function vcaCalculateGain(dialPosition, externalCV = 0, config = {}) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // CASO ESPECIAL: Posición 0 = corte mecánico total
+  // El fader físicamente desconecta la señal, ignorando cualquier CV externo
+  // ─────────────────────────────────────────────────────────────────────────
+  if (dialPosition <= 0) {
+    return 0;
+  }
+  
+  // Convertir posición del dial a voltaje del slider
+  const sliderVoltage = vcaDialToVoltage(dialPosition, config);
+  
+  // Sumar CV externo (ya debe venir en voltios desde la matriz)
+  const totalVoltage = sliderVoltage + externalCV;
+  
+  // Convertir voltaje sumado a ganancia
+  return vcaVoltageToGain(totalVoltage, config);
+}
+

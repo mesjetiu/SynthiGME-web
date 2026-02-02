@@ -15,6 +15,13 @@ import {
   KEYBOARD_MAX_VOLTAGE,
   SUPPLY_VOLTAGE,
   
+  // Constantes VCA CEM 3330
+  VCA_DB_PER_VOLT,
+  VCA_SLIDER_VOLTAGE_AT_MAX,
+  VCA_SLIDER_VOLTAGE_AT_MIN,
+  VCA_CUTOFF_DB,
+  VCA_CUTOFF_VOLTAGE,
+  
   // Resistencias de pin
   PIN_RESISTANCES,
   DEFAULT_PIN_TYPE,
@@ -36,6 +43,11 @@ import {
   calculateVirtualEarthSum,
   createSoftClipCurve,
   createHybridClipCurve,
+  
+  // Funciones VCA
+  vcaDialToVoltage,
+  vcaVoltageToGain,
+  vcaCalculateGain,
   
   // Defaults
   VOLTAGE_DEFAULTS
@@ -819,3 +831,302 @@ describe('voltageConstants - createHybridClipCurve()', () => {
     );
   });
 });
+
+// =============================================================================
+// VCA CEM 3330 - Constantes (Output Channels versión Cuenca 1982)
+// =============================================================================
+
+describe('voltageConstants - Constantes VCA CEM 3330', () => {
+  
+  it('tiene sensibilidad de 10 dB por voltio', () => {
+    assert.equal(VCA_DB_PER_VOLT, 10);
+  });
+  
+  it('tiene voltaje 0V en posición máxima del dial (10)', () => {
+    assert.equal(VCA_SLIDER_VOLTAGE_AT_MAX, 0);
+  });
+  
+  it('tiene voltaje -12V en posición mínima del dial (0)', () => {
+    assert.equal(VCA_SLIDER_VOLTAGE_AT_MIN, -12);
+  });
+  
+  it('tiene umbral de corte en -120 dB', () => {
+    assert.equal(VCA_CUTOFF_DB, -120);
+  });
+  
+  it('tiene voltaje de corte en -12V', () => {
+    assert.equal(VCA_CUTOFF_VOLTAGE, -12);
+  });
+  
+  it('coherencia: 12V × 10 dB/V = 120 dB', () => {
+    const dbRange = Math.abs(VCA_SLIDER_VOLTAGE_AT_MIN) * VCA_DB_PER_VOLT;
+    assert.equal(dbRange, Math.abs(VCA_CUTOFF_DB));
+  });
+});
+
+// =============================================================================
+// VCA CEM 3330 - Función vcaDialToVoltage
+// =============================================================================
+
+describe('voltageConstants - vcaDialToVoltage', () => {
+  
+  it('posición 10 (máximo) → 0V', () => {
+    const voltage = vcaDialToVoltage(10);
+    assert.equal(voltage, 0);
+  });
+  
+  it('posición 5 (centro) → -6V', () => {
+    const voltage = vcaDialToVoltage(5);
+    assert.equal(voltage, -6);
+  });
+  
+  it('posición 0 (mínimo) → -12V', () => {
+    const voltage = vcaDialToVoltage(0);
+    assert.equal(voltage, -12);
+  });
+  
+  it('posición 7.5 → -3V (interpolación lineal)', () => {
+    const voltage = vcaDialToVoltage(7.5);
+    assert.equal(voltage, -3);
+  });
+  
+  it('posición 2.5 → -9V (interpolación lineal)', () => {
+    const voltage = vcaDialToVoltage(2.5);
+    assert.equal(voltage, -9);
+  });
+  
+  it('clampea valores fuera de rango: -5 → -12V', () => {
+    const voltage = vcaDialToVoltage(-5);
+    assert.equal(voltage, -12);
+  });
+  
+  it('clampea valores fuera de rango: 15 → 0V', () => {
+    const voltage = vcaDialToVoltage(15);
+    assert.equal(voltage, 0);
+  });
+  
+  it('acepta configuración personalizada de voltajes', () => {
+    const config = { voltageAtMax: 0, voltageAtMin: -10 };
+    const voltage = vcaDialToVoltage(5, config);
+    assert.equal(voltage, -5);  // Mitad del rango 0 a -10
+  });
+});
+
+// =============================================================================
+// VCA CEM 3330 - Función vcaVoltageToGain
+// =============================================================================
+
+describe('voltageConstants - vcaVoltageToGain', () => {
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Zona de corte total
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  it('voltaje ≤ -12V → ganancia 0 (corte total)', () => {
+    assert.equal(vcaVoltageToGain(-12), 0);
+    assert.equal(vcaVoltageToGain(-15), 0);
+    assert.equal(vcaVoltageToGain(-100), 0);
+  });
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Zona normal (logarítmica 10 dB/V)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  it('voltaje 0V → ganancia 1.0 (0 dB, unidad)', () => {
+    const gain = vcaVoltageToGain(0);
+    assert.ok(
+      Math.abs(gain - 1.0) < 0.001,
+      `0V debe dar ganancia 1.0, obtenido: ${gain}`
+    );
+  });
+  
+  it('voltaje -6V → ganancia ~0.001 (-60 dB)', () => {
+    // -60 dB = 10^(-60/20) = 10^-3 = 0.001
+    const gain = vcaVoltageToGain(-6);
+    const expectedGain = Math.pow(10, -60 / 20);  // 0.001
+    assert.ok(
+      Math.abs(gain - expectedGain) < 0.0001,
+      `-6V debe dar ganancia ~0.001, obtenido: ${gain}`
+    );
+  });
+  
+  it('voltaje -3V → ganancia ~0.0316 (-30 dB)', () => {
+    // -30 dB = 10^(-30/20) ≈ 0.0316
+    const gain = vcaVoltageToGain(-3);
+    const expectedGain = Math.pow(10, -30 / 20);
+    assert.ok(
+      Math.abs(gain - expectedGain) < 0.001,
+      `-3V debe dar ganancia ~0.0316, obtenido: ${gain}`
+    );
+  });
+  
+  it('voltaje -11V → ganancia muy pequeña pero no cero', () => {
+    // -110 dB = 10^(-110/20) ≈ 3.16e-6
+    const gain = vcaVoltageToGain(-11);
+    assert.ok(gain > 0, 'Debe ser mayor que 0');
+    assert.ok(gain < 0.00001, `Debe ser muy pequeño: ${gain}`);
+  });
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Zona de saturación (CV positivo)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  it('voltaje +1V → ganancia > 1.0 (amplificación)', () => {
+    const gain = vcaVoltageToGain(1);
+    assert.ok(
+      gain > 1.0,
+      `+1V debe amplificar (ganancia > 1), obtenido: ${gain}`
+    );
+  });
+  
+  it('voltaje +2V → ganancia saturada (no llega a 10 dB × 2V)', () => {
+    // Sin saturación: +20 dB = 10^(20/20) = 10.0
+    // Con saturación debe ser significativamente menor
+    const gain = vcaVoltageToGain(2);
+    const unsaturatedGain = Math.pow(10, 20 / 20);  // 10.0
+    
+    assert.ok(gain > 1.0, 'Debe amplificar');
+    assert.ok(
+      gain < unsaturatedGain,
+      `+2V debe saturar (ganancia < ${unsaturatedGain}), obtenido: ${gain}`
+    );
+  });
+  
+  it('voltaje +3V (hard limit) → ganancia máxima saturada', () => {
+    const gain = vcaVoltageToGain(3);
+    // No debe ser infinito ni excesivo
+    assert.ok(Number.isFinite(gain), 'Debe ser finito');
+    assert.ok(gain < 100, `Ganancia debe estar limitada: ${gain}`);
+  });
+  
+  it('voltaje +10V → no explota, se mantiene en límite', () => {
+    const gain = vcaVoltageToGain(10);
+    const gainAt3V = vcaVoltageToGain(3);
+    
+    assert.ok(Number.isFinite(gain), 'Debe ser finito');
+    // Ganancia a +10V no debe ser mucho mayor que a +3V (saturación)
+    assert.ok(
+      gain < gainAt3V * 2,
+      `Saturación debe limitar: +10V=${gain}, +3V=${gainAt3V}`
+    );
+  });
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Configuración personalizada
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  it('acepta configuración personalizada de dbPerVolt', () => {
+    const config = { dbPerVolt: 20 };  // 20 dB/V en vez de 10
+    const gain = vcaVoltageToGain(-3, config);
+    // -3V × 20 dB/V = -60 dB = 0.001
+    const expectedGain = Math.pow(10, -60 / 20);
+    assert.ok(
+      Math.abs(gain - expectedGain) < 0.0001,
+      `Config custom: -3V a 20dB/V debe dar ~0.001, obtenido: ${gain}`
+    );
+  });
+});
+
+// =============================================================================
+// VCA CEM 3330 - Función vcaCalculateGain (función de alto nivel)
+// =============================================================================
+
+describe('voltageConstants - vcaCalculateGain', () => {
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Solo fader, sin CV externo
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  it('dial 10, sin CV → ganancia 1.0', () => {
+    const gain = vcaCalculateGain(10);
+    assert.ok(
+      Math.abs(gain - 1.0) < 0.001,
+      `Dial 10 debe dar ganancia 1.0, obtenido: ${gain}`
+    );
+  });
+  
+  it('dial 5, sin CV → ganancia ~0.001 (-60 dB)', () => {
+    const gain = vcaCalculateGain(5);
+    const expectedGain = Math.pow(10, -60 / 20);
+    assert.ok(
+      Math.abs(gain - expectedGain) < 0.0001,
+      `Dial 5 debe dar ~0.001, obtenido: ${gain}`
+    );
+  });
+  
+  it('dial 0, sin CV → ganancia 0 (corte total)', () => {
+    const gain = vcaCalculateGain(0);
+    assert.equal(gain, 0);
+  });
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Fader + CV externo
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  it('dial 5 + CV +3V → ganancia > dial 5 solo', () => {
+    const gainWithoutCV = vcaCalculateGain(5, 0);
+    const gainWithCV = vcaCalculateGain(5, 3);
+    
+    assert.ok(
+      gainWithCV > gainWithoutCV,
+      `CV positivo debe aumentar ganancia: sin=${gainWithoutCV}, con=${gainWithCV}`
+    );
+  });
+  
+  it('dial 5 + CV -3V → ganancia < dial 5 solo', () => {
+    const gainWithoutCV = vcaCalculateGain(5, 0);
+    const gainWithCV = vcaCalculateGain(5, -3);
+    
+    assert.ok(
+      gainWithCV < gainWithoutCV,
+      `CV negativo debe reducir ganancia: sin=${gainWithoutCV}, con=${gainWithCV}`
+    );
+  });
+  
+  it('dial 7 + CV +6V → satura en vez de ganancia lineal', () => {
+    // dial 7 → -3.6V, +6V CV → suma = +2.4V
+    // Sin saturación: +24 dB = ganancia ~16
+    // Con saturación: debe ser significativamente menor
+    const gain = vcaCalculateGain(7, 6);
+    const unsaturatedGain = Math.pow(10, 24 / 20);  // ~15.85
+    
+    assert.ok(
+      gain < unsaturatedGain,
+      `Debe saturar: obtenido ${gain}, sin saturar sería ${unsaturatedGain}`
+    );
+  });
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // CASO CRÍTICO: Corte mecánico en posición 0
+  // El fader en posición 0 desconecta físicamente, ignorando CV
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  it('dial 0 + CV +5V → sigue siendo 0 (corte mecánico)', () => {
+    const gain = vcaCalculateGain(0, 5);
+    assert.equal(
+      gain,
+      0,
+      'Dial en 0 debe ignorar CV externo (corte mecánico)'
+    );
+  });
+  
+  it('dial 0 + CV +100V → sigue siendo 0 (corte mecánico)', () => {
+    const gain = vcaCalculateGain(0, 100);
+    assert.equal(
+      gain,
+      0,
+      'Dial en 0 debe ignorar cualquier CV (corte mecánico)'
+    );
+  });
+  
+  it('dial ligeramente > 0 + CV → funciona normal', () => {
+    // dial 0.1 → voltaje ≈ -11.88V
+    // Con CV +11V → suma ≈ -0.88V → ganancia pequeña pero no cero
+    const gain = vcaCalculateGain(0.1, 11);
+    assert.ok(
+      gain > 0,
+      'Dial > 0 debe permitir CV externo'
+    );
+  });
+});
+

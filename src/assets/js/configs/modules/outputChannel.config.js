@@ -29,20 +29,20 @@ export default {
   
   knobs: {
     // ───────────────────────────────────────────────────────────────────
-    // Knob FILTER - Control bipolar de filtro LP/HP
+    // Knob FILTER - Control de filtro LP/HP (escala dial 0-10)
     // ───────────────────────────────────────────────────────────────────
-    // Rango bipolar -1 a +1:
-    //   -1: Lowpass activo (solo graves)
-    //    0: Sin filtrado (bypass, centro)
-    //   +1: Highpass activo (solo agudos)
+    // Escala dial Synthi 100 (0 a 10):
+    //    0: Lowpass activo (solo graves)
+    //    5: Sin filtrado (bypass, centro)
+    //   10: Highpass activo (solo agudos)
     //
     // La frecuencia de corte se calcula exponencialmente para un control
     // más musical del espectro.
     // ───────────────────────────────────────────────────────────────────
     filter: {
-      min: -1,
-      max: 1,
-      initial: 0,           // Sin filtro por defecto
+      min: 0,
+      max: 10,
+      initial: 5,           // Sin filtro por defecto (centro)
       curve: 'linear',
       pixelsForFullRange: 900  // Alta resolución (6× default)
     },

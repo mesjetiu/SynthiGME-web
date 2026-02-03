@@ -75,8 +75,8 @@ export class AudioEngine {
     this.physicalChannelLabels = ['L', 'R']; // Etiquetas de canales físicos
     this.outputLevels = Array.from({ length: this.outputChannels }, () => 0.0);
     this.outputPans = Array.from({ length: this.outputChannels }, () => 0.0);
-    // Filtro bipolar: -1 = lowpass máximo, 0 = sin filtro, +1 = highpass máximo
-    this.outputFilters = Array.from({ length: this.outputChannels }, () => 0.0);
+    // Filtro escala dial 0-10: 0=LP máximo, 5=sin filtro (bypass), 10=HP máximo
+    this.outputFilters = Array.from({ length: this.outputChannels }, () => 5.0);
     // Estado de mute por canal (false = activo, true = muteado)
     this.outputMutes = Array.from({ length: this.outputChannels }, () => false);
     this.outputBuses = [];
@@ -315,8 +315,9 @@ export class AudioEngine {
       //
       // FILTER BYPASS: crossfade entre filterGain y bypassGain
       // ─────────────────────────────────────────────────────────────────────
-      const filterValue = this.outputFilters[i];
-      const isNeutral = Math.abs(filterValue) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
+      const filterDialValue = this.outputFilters[i];
+      const filterBipolar = (filterDialValue - 5) / 5;  // Convertir dial (0-10) a bipolar (-1/+1)
+      const isNeutral = Math.abs(filterBipolar) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
       const shouldBypass = this._filterBypassEnabled && isNeutral;
       
       // Establecer ganancias iniciales según estado de bypass
@@ -354,8 +355,8 @@ export class AudioEngine {
       postVcaNode.connect(bypassGain);
       bypassGain.connect(muteNode);
       
-      // Aplicar valor inicial del filtro
-      this._applyFilterValue(i, filterValue, filterLP, filterHP);
+      // Aplicar valor inicial del filtro (usando valor bipolar)
+      this._applyFilterValue(i, filterBipolar, filterLP, filterHP);
 
       // Crear nodos de ganancia para cada canal físico (ruteo multicanal)
       const channelGains = [];
@@ -653,32 +654,36 @@ export class AudioEngine {
   }
 
   /**
-   * Establece el filtro bipolar de una salida lógica.
+   * Establece el filtro de una salida lógica.
    * 
    * @param {number} busIndex - Índice del bus (0-based)
-   * @param {number} value - Valor bipolar:
-   *   -1 = Lowpass máximo (solo graves, ~200Hz)
-   *    0 = Sin filtrado (señal limpia)
-   *   +1 = Highpass máximo (solo agudos, ~5kHz)
+   * @param {number} value - Valor en escala dial Synthi 100 (0-10):
+   *    0 = Lowpass máximo (solo graves, ~200Hz)
+   *    5 = Sin filtrado (señal limpia)
+   *   10 = Highpass máximo (solo agudos, ~5kHz)
    * @param {Object} [options] - Opciones
    * @param {number} [options.ramp=0.03] - Tiempo de rampa en segundos
    */
   setOutputFilter(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
     if (busIndex < 0 || busIndex >= this.outputChannels) return;
     
-    const clampedValue = Math.max(-1, Math.min(1, value));
-    this.outputFilters[busIndex] = clampedValue;
+    // Convertir escala dial (0-10) a bipolar interno (-1 a +1)
+    // 0→-1, 5→0, 10→+1
+    const dialClamped = Math.max(0, Math.min(10, value));
+    const bipolarValue = (dialClamped - 5) / 5;
+    
+    this.outputFilters[busIndex] = dialClamped;  // Guardar en escala dial
     
     // ─────────────────────────────────────────────────────────────────────
     // FILTER BYPASS: Optimización de CPU
     // ─────────────────────────────────────────────────────────────────────
     if (this._filterBypassEnabled) {
-      this._updateFilterBypass(busIndex, clampedValue);
+      this._updateFilterBypass(busIndex, bipolarValue);
     }
     
     // Solo aplicar valores de frecuencia si los filtros están conectados
     if (!this._filterBypassState[busIndex]) {
-      this._applyFilterValue(busIndex, clampedValue, null, null, ramp);
+      this._applyFilterValue(busIndex, bipolarValue, null, null, ramp);
     }
   }
   
@@ -795,7 +800,8 @@ export class AudioEngine {
     if (enabled) {
       // Al habilitar, revisar todos los buses y aplicar bypass donde corresponda
       for (let i = 0; i < this.outputChannels; i++) {
-        this._updateFilterBypass(i, this.outputFilters[i]);
+        const bipolar = (this.outputFilters[i] - 5) / 5;  // dial → bipolar
+        this._updateFilterBypass(i, bipolar);
       }
     } else {
       // Al deshabilitar, forzar ruta de filtros en todos los buses
@@ -808,8 +814,9 @@ export class AudioEngine {
             setParamSmooth(bus.filterGain.gain, 1, ctx, { ramp: crossfadeTime });
             setParamSmooth(bus.bypassGain.gain, 0, ctx, { ramp: crossfadeTime });
             this._filterBypassState[i] = false;
-            // Aplicar valores actuales de frecuencia
-            this._applyFilterValue(i, this.outputFilters[i]);
+            // Aplicar valores actuales de frecuencia (convertir dial → bipolar)
+            const bipolar = (this.outputFilters[i] - 5) / 5;
+            this._applyFilterValue(i, bipolar);
           }
         }
       }

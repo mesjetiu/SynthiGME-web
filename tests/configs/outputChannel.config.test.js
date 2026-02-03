@@ -26,9 +26,9 @@ describe('Output Channel Config', () => {
     it('debe tener configuración de filter', () => {
       const filter = outputChannelConfig.knobs.filter;
       assert.ok(filter);
-      assert.equal(filter.min, -1);
-      assert.equal(filter.max, 1);
-      assert.equal(filter.initial, 0);
+      assert.equal(filter.min, 0);
+      assert.equal(filter.max, 10);
+      assert.equal(filter.initial, 5);
       assert.equal(filter.pixelsForFullRange, 900);
     });
     

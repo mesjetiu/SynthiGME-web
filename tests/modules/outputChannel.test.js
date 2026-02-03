@@ -202,14 +202,14 @@ describe('Equal-power panning', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Rangos de valores de OutputChannel', () => {
-  it('filter knob: rango -1 a +1 con centro en 0', () => {
-    const min = -1;
-    const max = 1;
-    const center = 0;
+  it('filter knob: rango 0 a 10 con centro en 5', () => {
+    const min = 0;
+    const max = 10;
+    const center = 5;
     
-    assert.strictEqual(min, -1, 'min debe ser -1 (LP máximo)');
-    assert.strictEqual(max, 1, 'max debe ser +1 (HP máximo)');
-    assert.strictEqual(center, 0, 'centro debe ser 0 (bypass)');
+    assert.strictEqual(min, 0, 'min debe ser 0 (LP máximo)');
+    assert.strictEqual(max, 10, 'max debe ser 10 (HP máximo)');
+    assert.strictEqual(center, 5, 'centro debe ser 5 (bypass)');
   });
 
   it('pan knob: rango -1 a +1 con centro en 0', () => {

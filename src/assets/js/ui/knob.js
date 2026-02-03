@@ -137,6 +137,9 @@ export class Knob {
     // Forzar reflow para activar transición
     this.tooltip.offsetHeight;
     this.tooltip.classList.add('is-visible');
+    
+    // Añadir clase de iluminación al knob
+    this.rootEl.classList.add('is-tooltip-active');
   }
   
   /**
@@ -189,6 +192,9 @@ export class Knob {
     
     const tooltip = this.tooltip;
     tooltip.classList.remove('is-visible');
+    
+    // Quitar clase de iluminación del knob
+    this.rootEl.classList.remove('is-tooltip-active');
     
     // Eliminar después de la transición
     setTimeout(() => {

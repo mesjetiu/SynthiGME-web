@@ -464,6 +464,9 @@ export class OutputChannel extends Module {
       return;
     }
     
+    // Guardar referencia para poder quitar la clase después
+    this._sliderWrapEl = wrapEl;
+    
     this._sliderTooltip = document.createElement('div');
     this._sliderTooltip.className = 'knob-tooltip';  // Reutilizar estilos de knob
     this._sliderTooltip.innerHTML = this._generateSliderTooltipContent(getTooltipInfo);
@@ -473,6 +476,9 @@ export class OutputChannel extends Module {
     // Forzar reflow para activar transición
     this._sliderTooltip.offsetHeight;
     this._sliderTooltip.classList.add('is-visible');
+    
+    // Añadir clase de iluminación al slider wrap
+    wrapEl.classList.add('is-tooltip-active');
   }
   
   /**
@@ -527,6 +533,11 @@ export class OutputChannel extends Module {
     this._sliderTooltip.classList.remove('is-visible');
     const tooltip = this._sliderTooltip;
     this._sliderTooltip = null;
+    
+    // Quitar clase de iluminación del slider wrap
+    if (this._sliderWrapEl) {
+      this._sliderWrapEl.classList.remove('is-tooltip-active');
+    }
     
     // Eliminar después de la transición
     setTimeout(() => {

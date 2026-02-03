@@ -49,6 +49,9 @@ let resizingPip = null;
 let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
 let resizePointerId = null;
 
+/** Flag para indicar que hay un gesto táctil activo (evita ciclos de layout en Samsung) */
+let gestureInProgress = false;
+
 /** Posiciones aproximadas de cada panel en el layout del Synthi (relativas a la ventana) */
 const PANEL_POSITIONS = {
   'panel-1': { col: 0, row: 0 },
@@ -608,6 +611,7 @@ function setupPipEvents(pipContainer, panelId) {
   content.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
       e.preventDefault();
+      gestureInProgress = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       pinchStartDist = Math.hypot(dx, dy);
@@ -675,6 +679,10 @@ function setupPipEvents(pipContainer, panelId) {
   content.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
       pinchStartDist = 0;
+      // Desactivar flag con delay para que el momentum scroll termine
+      setTimeout(() => {
+        gestureInProgress = false;
+      }, 500);
     }
   }, { passive: true });
   
@@ -682,11 +690,16 @@ function setupPipEvents(pipContainer, panelId) {
   if (viewport) {
     let scrollSaveTimeout = null;
     viewport.addEventListener('scroll', () => {
-      // Debounce para no guardar en cada pixel de scroll
+      // Ignorar durante gestos activos para evitar ciclos de layout en Samsung
+      if (gestureInProgress) return;
+      // Debounce más largo para evitar lecturas de layout durante momentum scroll
       if (scrollSaveTimeout) clearTimeout(scrollSaveTimeout);
       scrollSaveTimeout = setTimeout(() => {
-        savePipState();
-      }, 300);
+        // Verificar de nuevo por si el gesto empezó durante el timeout
+        if (!gestureInProgress) {
+          savePipState();
+        }
+      }, 500);
     }, { passive: true });
   }
 }

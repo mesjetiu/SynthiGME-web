@@ -76,8 +76,8 @@ function _ensureInitialized() {
       return;
     }
     
-    // Si el toque es en un knob o pin, dejar que su propio handler decida
-    if (target?.closest?.('.knob, .knob-inner, .pin-btn')) {
+    // Si el toque es en un knob, pin o slider, dejar que su propio handler decida
+    if (target?.closest?.('.knob, .knob-inner, .pin-btn, .output-channel__slider')) {
       return;
     }
     

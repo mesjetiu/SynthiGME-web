@@ -2757,8 +2757,14 @@ class App {
     const showVoltage = () => localStorage.getItem(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE) !== 'false';
     const showAudio = () => localStorage.getItem(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES) !== 'false';
     
+    // Helper para convertir ganancia a dB
+    const gainToDb = (gain) => {
+      if (gain <= 0) return '-∞ dB';
+      return `${(20 * Math.log10(gain)).toFixed(1)} dB`;
+    };
+    
     // Helper para crear tooltips de levels
-    // Muestra: Vp-p (voltaje) y Gan (ganancia normalizada)
+    // Muestra: Vp-p (voltaje), ganancia y dB
     const getLevelTooltipInfo = (maxVpp) => (value, scaleValue) => {
       const parts = [];
       if (showVoltage()) {
@@ -2766,7 +2772,8 @@ class App {
         parts.push(`${vpp} Vp-p`);
       }
       if (showAudio()) {
-        parts.push(`Gan: ${value.toFixed(2)}`);
+        parts.push(`×${value.toFixed(2)}`);
+        parts.push(gainToDb(value));
       }
       return parts.length > 0 ? parts.join(' · ') : null;
     };

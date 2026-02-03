@@ -19,7 +19,12 @@ import { Knob } from '../ui/knob.js';
 import { createKnobElements } from '../ui/knobFactory.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import { outputChannelConfig } from '../configs/index.js';
-import { vcaCalculateGain } from '../utils/voltageConstants.js';
+import { vcaCalculateGain, vcaDialToVoltage } from '../utils/voltageConstants.js';
+import { registerTooltipHideCallback } from '../ui/tooltipManager.js';
+import { getVCATooltipInfo } from '../utils/tooltipUtils.js';
+
+// Detectar si el dispositivo tiene capacidad táctil
+const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 // Extraer configuración del outputChannel.config.js
 const knobsConfig = outputChannelConfig.knobs || {};
@@ -52,6 +57,12 @@ export class OutputChannel extends Module {
     this.panKnobEl = null;      // Elemento DOM del knob pan
     this.panKnobUI = null;      // Instancia de clase Knob para pan
     this.powerSwitch = null;
+    
+    // Tooltip del slider
+    this._sliderTooltip = null;
+    this._sliderTooltipAutoHideTimer = null;
+    this._sliderTooltipAutoHideDelay = 3000;
+    this._unregisterTooltipHide = null;
     
     // Estado - usar valores iniciales desde config
     const filterCfg = knobsConfig.filter || {};
@@ -314,6 +325,21 @@ export class OutputChannel extends Module {
     valueDisplay.textContent = this.values.level.toFixed(2);
     this.valueDisplay = valueDisplay;
     
+    // ─────────────────────────────────────────────────────────────────────
+    // Tooltip con info técnica (voltaje VCA, ganancia, dB)
+    // ─────────────────────────────────────────────────────────────────────
+    // Registrar callback para ocultar tooltip en gestos de navegación
+    this._unregisterTooltipHide = registerTooltipHideCallback(() => {
+      this._hideSliderTooltip();
+    });
+    
+    // Función generadora de contenido del tooltip
+    const getTooltipInfo = getVCATooltipInfo(
+      vcaDialToVoltage,
+      vcaCalculateGain,
+      () => this.values.externalCV
+    );
+    
     let lastCommittedValue = this.values.level;
     let rafId = null;
     let pendingValue = null;
@@ -345,10 +371,41 @@ export class OutputChannel extends Module {
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     
+    // ─────────────────────────────────────────────────────────────────────
+    // Tooltip: mostrar al interactuar, ocultar al soltar
+    // ─────────────────────────────────────────────────────────────────────
     slider.addEventListener('pointerdown', (ev) => {
       if (shouldBlockInteraction(ev)) return;
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
+      }
+      this._showSliderTooltip(wrap, getTooltipInfo);
+    });
+    
+    slider.addEventListener('pointerup', () => {
+      // En táctil, auto-ocultar después de un delay
+      if (hasTouchCapability()) {
+        this._scheduleTooltipAutoHide();
+      } else {
+        // En desktop, ocultar inmediatamente al soltar
+        this._hideSliderTooltip();
+      }
+    });
+    
+    slider.addEventListener('pointercancel', () => {
+      this._hideSliderTooltip();
+    });
+    
+    // En desktop: mostrar en hover, ocultar al salir
+    slider.addEventListener('mouseenter', () => {
+      if (!hasTouchCapability()) {
+        this._showSliderTooltip(wrap, getTooltipInfo);
+      }
+    });
+    
+    slider.addEventListener('mouseleave', () => {
+      if (!hasTouchCapability() && !slider.matches(':active')) {
+        this._hideSliderTooltip();
       }
     });
     
@@ -361,6 +418,8 @@ export class OutputChannel extends Module {
       if (!rafId) {
         rafId = requestAnimationFrame(flushValue);
       }
+      // Actualizar tooltip mientras se arrastra
+      this._updateSliderTooltip(getTooltipInfo);
     });
     
     shell.appendChild(slider);
@@ -368,6 +427,125 @@ export class OutputChannel extends Module {
     wrap.appendChild(valueDisplay);
     
     return wrap;
+  }
+  
+  /**
+   * Genera el contenido HTML del tooltip del slider.
+   * @param {function} getTooltipInfo - Función que genera la info técnica
+   * @returns {string}
+   */
+  _generateSliderTooltipContent(getTooltipInfo) {
+    const dialValue = this.values.level;
+    const mainText = dialValue.toFixed(2);
+    const extraInfo = getTooltipInfo(dialValue);
+    
+    if (extraInfo) {
+      return `<div class="knob-tooltip__main">${mainText}</div>` +
+             `<div class="knob-tooltip__info">${extraInfo}</div>`;
+    }
+    return mainText;
+  }
+  
+  /**
+   * Muestra el tooltip del slider.
+   * @param {HTMLElement} wrapEl - Elemento contenedor del slider
+   * @param {function} getTooltipInfo - Función que genera la info técnica
+   */
+  _showSliderTooltip(wrapEl, getTooltipInfo) {
+    // Cancelar auto-hide pendiente
+    if (this._sliderTooltipAutoHideTimer) {
+      clearTimeout(this._sliderTooltipAutoHideTimer);
+      this._sliderTooltipAutoHideTimer = null;
+    }
+    
+    if (this._sliderTooltip) {
+      // Ya existe, solo actualizar
+      this._updateSliderTooltip(getTooltipInfo);
+      return;
+    }
+    
+    this._sliderTooltip = document.createElement('div');
+    this._sliderTooltip.className = 'knob-tooltip';  // Reutilizar estilos de knob
+    this._sliderTooltip.innerHTML = this._generateSliderTooltipContent(getTooltipInfo);
+    document.body.appendChild(this._sliderTooltip);
+    this._positionSliderTooltip(wrapEl);
+    
+    // Forzar reflow para activar transición
+    this._sliderTooltip.offsetHeight;
+    this._sliderTooltip.classList.add('is-visible');
+  }
+  
+  /**
+   * Posiciona el tooltip encima del slider.
+   * @param {HTMLElement} wrapEl - Elemento contenedor del slider
+   */
+  _positionSliderTooltip(wrapEl) {
+    if (!this._sliderTooltip) return;
+    
+    const rect = wrapEl.getBoundingClientRect();
+    const tooltipRect = this._sliderTooltip.getBoundingClientRect();
+    
+    // Posicionar a la izquierda del slider (porque es vertical)
+    let left = rect.left - tooltipRect.width - 8;
+    let top = rect.top + rect.height / 2 - tooltipRect.height / 2;
+    
+    // Ajustar si sale de la pantalla
+    if (left < 4) {
+      // Poner a la derecha si no cabe a la izquierda
+      left = rect.right + 8;
+    }
+    if (top < 4) top = 4;
+    if (top + tooltipRect.height > window.innerHeight - 4) {
+      top = window.innerHeight - tooltipRect.height - 4;
+    }
+    
+    this._sliderTooltip.style.left = `${left}px`;
+    this._sliderTooltip.style.top = `${top}px`;
+  }
+  
+  /**
+   * Actualiza el contenido del tooltip.
+   * @param {function} getTooltipInfo - Función que genera la info técnica
+   */
+  _updateSliderTooltip(getTooltipInfo) {
+    if (this._sliderTooltip) {
+      this._sliderTooltip.innerHTML = this._generateSliderTooltipContent(getTooltipInfo);
+    }
+  }
+  
+  /**
+   * Oculta y elimina el tooltip del slider.
+   */
+  _hideSliderTooltip() {
+    if (this._sliderTooltipAutoHideTimer) {
+      clearTimeout(this._sliderTooltipAutoHideTimer);
+      this._sliderTooltipAutoHideTimer = null;
+    }
+    
+    if (!this._sliderTooltip) return;
+    
+    this._sliderTooltip.classList.remove('is-visible');
+    const tooltip = this._sliderTooltip;
+    this._sliderTooltip = null;
+    
+    // Eliminar después de la transición
+    setTimeout(() => {
+      if (tooltip.parentNode) {
+        tooltip.parentNode.removeChild(tooltip);
+      }
+    }, 150);
+  }
+  
+  /**
+   * Programa el auto-ocultado del tooltip (para táctil).
+   */
+  _scheduleTooltipAutoHide() {
+    if (this._sliderTooltipAutoHideTimer) {
+      clearTimeout(this._sliderTooltipAutoHideTimer);
+    }
+    this._sliderTooltipAutoHideTimer = setTimeout(() => {
+      this._hideSliderTooltip();
+    }, this._sliderTooltipAutoHideDelay);
   }
   
   /**

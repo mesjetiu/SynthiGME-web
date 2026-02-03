@@ -63,6 +63,15 @@ no a la señal de re-entrada a la matriz.
   - El nodo de re-entry debe tomar señal POST-VCA, PRE-filtro
   - El medidor de nivel (si existe) también debe ir POST-VCA, PRE-filtro
   - Tests de integración para verificar cadena
+- [ ] **Filtros de Output Channel (tarea genérica)**
+  - Hardware: control pasivo 1er orden (6 dB/oct) con potenciómetro lineal 10kΩ
+  - Dial 0-10: LP (0) ↔ Flat (5) ↔ HP (10); re-entry se toma antes del filtro
+  - Solo colorea salida externa (monitores/Cannon), no modifica señal de matriz
+  - Opciones a valorar:
+    1. IIRFilterNode 1er orden (coeficientes manuales)
+    2. AudioWorklet con filtro RC pasivo
+    3. Aproximación pragmática (shelving) hasta decidir fidelidad
+  - Revisar commits recientes de bypass suave en `engine.js` para integrar decisión
 
 #### ✅ COMPLETADOS (CV de matriz)
 

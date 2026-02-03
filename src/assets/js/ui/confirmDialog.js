@@ -90,7 +90,9 @@ export class ConfirmDialog {
     // Overlay
     this.overlay = document.createElement('div');
     this.overlay.className = 'confirm-dialog-overlay';
-    this.overlay.setAttribute('aria-hidden', 'true');
+    // Usar inert en lugar de aria-hidden para evitar warning de accesibilidad
+    // cuando el botón recibe focus. inert también previene focus e interacción.
+    this.overlay.inert = true;
     
     // Modal
     this.modal = document.createElement('div');
@@ -207,9 +209,9 @@ export class ConfirmDialog {
       this.rememberRow.style.display = 'none';
     }
     
-    // Mostrar
+    // Mostrar - primero quitar inert ANTES de hacer focus
+    this.overlay.inert = false;
     this.overlay.classList.add('confirm-dialog-overlay--visible');
-    this.overlay.setAttribute('aria-hidden', 'false');
     
     // Focus en el botón de confirmar
     requestAnimationFrame(() => {
@@ -235,7 +237,7 @@ export class ConfirmDialog {
     
     // Ocultar
     this.overlay.classList.remove('confirm-dialog-overlay--visible');
-    this.overlay.setAttribute('aria-hidden', 'true');
+    this.overlay.inert = true;
     
     // Resolver promesa
     if (this._resolve) {

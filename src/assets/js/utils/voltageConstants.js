@@ -988,9 +988,12 @@ export function createPinFilter(audioContext, pinType = 'WHITE', filterQ = 0.5) 
   // Obtener frecuencia de corte del pin, con fallback a WHITE
   const cutoff = PIN_CUTOFF_FREQUENCIES[pinType] ?? PIN_CUTOFF_FREQUENCIES.WHITE;
   
-  // Limitar a Nyquist/2 para evitar inestabilidad
-  // (aunque para RED será ~589kHz que se clampea a Nyquist internamente)
-  filter.frequency.value = cutoff;
+  // Clampear a 24000 Hz (rango nominal de BiquadFilter.frequency).
+  // Frecuencias superiores (RED ~589kHz, BLUE ~159kHz) actúan como bypass de facto,
+  // pero valores >24000 generan warnings en consola aunque funcionen.
+  // El clamp no afecta el comportamiento: cualquier fc > Nyquist/2 es transparente.
+  const maxFreq = 24000;
+  filter.frequency.value = Math.min(cutoff, maxFreq);
   
   return filter;
 }
@@ -1012,10 +1015,14 @@ export function createPinFilter(audioContext, pinType = 'WHITE', filterQ = 0.5) 
 export function updatePinFilter(filter, pinType, time = null) {
   const cutoff = PIN_CUTOFF_FREQUENCIES[pinType] ?? PIN_CUTOFF_FREQUENCIES.WHITE;
   
+  // Clampear a 24000 Hz (rango nominal de BiquadFilter.frequency)
+  const maxFreq = 24000;
+  const clampedCutoff = Math.min(cutoff, maxFreq);
+  
   if (time !== null) {
-    filter.frequency.setValueAtTime(cutoff, time);
+    filter.frequency.setValueAtTime(clampedCutoff, time);
   } else {
-    filter.frequency.value = cutoff;
+    filter.frequency.value = clampedCutoff;
   }
 }
 

@@ -85,7 +85,7 @@ export default {
       min: 0,
       max: 10,              // Escala 0-10 como dial físico
       initial: 0,           // Silencio por defecto
-      step: 0.1,            // 100 pasos (0.0, 0.1, 0.2, ... 10.0)
+      step: 0.01,           // 1000 pasos para mayor suavidad
       curve: 'linear'       // El fader es lineal; la curva log la aplica el VCA
     }
   },

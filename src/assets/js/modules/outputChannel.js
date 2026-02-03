@@ -311,7 +311,7 @@ export class OutputChannel extends Module {
     // Value display (escala 0-10 del dial Synthi 100)
     const valueDisplay = document.createElement('div');
     valueDisplay.className = 'output-channel__value';
-    valueDisplay.textContent = this.values.level.toFixed(1);
+    valueDisplay.textContent = this.values.level.toFixed(2);
     this.valueDisplay = valueDisplay;
     
     let lastCommittedValue = this.values.level;
@@ -341,7 +341,7 @@ export class OutputChannel extends Module {
       this.engine.setOutputLevel(this.channelIndex, gain, { ramp });
       
       // Mostrar valor del dial (escala 0-10 del Synthi 100)
-      valueDisplay.textContent = dialValue.toFixed(1);
+      valueDisplay.textContent = dialValue.toFixed(2);
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     
@@ -396,7 +396,7 @@ export class OutputChannel extends Module {
         this.slider.value = String(data.level);
       }
       if (this.valueDisplay) {
-        this.valueDisplay.textContent = data.level.toFixed(1);
+        this.valueDisplay.textContent = data.level.toFixed(2);
       }
       // VCA CEM 3330: convertir dial + CV externo a ganancia
       const gain = vcaCalculateGain(data.level, this.values.externalCV);

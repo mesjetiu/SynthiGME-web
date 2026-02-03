@@ -51,7 +51,13 @@ export class Knob {
 
     this.dragging = false;
     this.startY = 0;
+    this.lastY = 0;   // Para cálculo incremental del movimiento vertical
+    this.startX = 0;  // Para precisión progresiva horizontal
     this.startValue = this.value;
+    
+    // Configuración de precisión progresiva por desplazamiento horizontal
+    // A 200px de distancia horizontal se alcanza el factor máximo/mínimo
+    this.maxPxForSpeedEffect = 200;
     
     // Tooltip element
     this.tooltip = null;
@@ -231,9 +237,48 @@ export class Knob {
     this.modBadge.style.top = `${top}px`;
   }
 
-  _setModifierVisual(state) {
+  _setModifierVisual(state, factor = 1) {
     this._ensureModifierBadge();
     const prevState = this.modifierState;
+    
+    // Para estado progresivo, verificar si el factor cambió significativamente
+    if (state === 'progressive') {
+      // Mostrar badge solo si el factor se desvía más del 5% de 1x
+      const isNearNeutral = factor > 0.95 && factor < 1.05;
+      
+      if (isNearNeutral) {
+        // Cerca de 1x - comportarse como 'none'
+        state = 'none';
+      } else {
+        // Actualizar el badge con el factor actual
+        this._positionModifierBadge();
+        this.modBadge.classList.remove('is-fast', 'is-slow');
+        
+        // Formatear el factor para mostrar
+        let factorText;
+        if (factor >= 10) {
+          factorText = '10x';
+        } else if (factor >= 1) {
+          factorText = `${factor.toFixed(1)}x`;
+        } else if (factor <= 0.1) {
+          factorText = '0.1x';
+        } else {
+          factorText = `${factor.toFixed(2)}x`;
+        }
+        
+        this.modBadge.textContent = factorText;
+        
+        // Colorear según velocidad
+        if (factor > 1) {
+          this.modBadge.classList.add('is-fast');
+        } else {
+          this.modBadge.classList.add('is-slow');
+        }
+        this.modBadge.classList.add('is-active');
+        this.modifierState = 'progressive';
+        return;
+      }
+    }
     
     // Si el estado no cambió, solo reposicionar
     if (this.modifierState === state) {
@@ -260,8 +305,8 @@ export class Knob {
       this.modBadge.textContent = '0.1x';
       this.modBadge.classList.add('is-slow', 'is-active');
     } else {
-      // Solo mostrar 1x si venimos de un estado rápido/lento
-      if (prevState === 'fast' || prevState === 'slow') {
+      // Solo mostrar 1x si venimos de un estado rápido/lento/progresivo
+      if (prevState === 'fast' || prevState === 'slow' || prevState === 'progressive') {
         this.modBadge.textContent = '1x';
         this.modBadge.classList.add('is-active');
         this._modBadgeHideTimer = setTimeout(() => {
@@ -354,6 +399,8 @@ export class Knob {
       }
       this.dragging = true;
       this.startY = ev.clientY;
+      this.lastY = ev.clientY;  // Inicializar lastY para cálculo incremental
+      this.startX = ev.clientX;  // Guardar posición X inicial para precisión progresiva
       this.startValue = this.value;
       this.rootEl.setPointerCapture(ev.pointerId);
       lastPointerType = ev.pointerType;
@@ -374,24 +421,54 @@ export class Knob {
     this.rootEl.addEventListener('pointermove', ev => {
       if (!this.dragging) return;
       if (shouldBlockInteraction(ev)) return;
-      const dy = this.startY - ev.clientY;
       
-      // Modificadores de teclado para ajustar sensibilidad:
-      // Ctrl/Cmd: 10x más rápido (divide pixelsForFullRange por 10)
-      // Shift: 10x más lento (multiplica pixelsForFullRange por 10)
-      let effectivePixelsForFullRange = this.pixelsForFullRange;
-      let modifierState = 'none';
+      // Delta incremental: solo el movimiento vertical desde el último frame
+      const deltaY = this.lastY - ev.clientY;
+      this.lastY = ev.clientY;
+      
+      // Desplazamiento horizontal desde el punto inicial (para factor de velocidad)
+      const dx = ev.clientX - this.startX;
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // PRECISIÓN PROGRESIVA
+      // El desplazamiento horizontal determina el factor de velocidad:
+      //   - Derecha (+dx): más rápido (hasta 10x)
+      //   - Izquierda (-dx): más lento/preciso (hasta 0.1x)
+      //   - Centro (dx≈0): velocidad normal (1x)
+      // 
+      // Fórmula: factor = 10^(normalizedDx) donde normalizedDx ∈ [-1, 1]
+      // Esto da: 0.1x ← 1x → 10x de forma progresiva y simétrica
+      // ─────────────────────────────────────────────────────────────────────
+      
+      // Calcular factor base por desplazamiento horizontal
+      const normalizedDx = Math.max(-1, Math.min(1, dx / this.maxPxForSpeedEffect));
+      let speedFactor = Math.pow(10, normalizedDx);  // 0.1 a 10, pasando por 1
+      
+      // Los modificadores de teclado pueden forzar valores discretos (desktop)
+      let modifierState = 'progressive';
+      let effectiveSpeedFactor = speedFactor;
+      
       if (ev.ctrlKey || ev.metaKey) {
-        effectivePixelsForFullRange = this.pixelsForFullRange / 10;
+        // Forzar 10x rápido con Ctrl/Cmd
+        effectiveSpeedFactor = 10;
         modifierState = 'fast';
       } else if (ev.shiftKey) {
-        effectivePixelsForFullRange = this.pixelsForFullRange * 10;
+        // Forzar 0.1x lento con Shift
+        effectiveSpeedFactor = 0.1;
         modifierState = 'slow';
       }
-      this._setModifierVisual(modifierState);
       
-      const sens = (this.max - this.min) / effectivePixelsForFullRange;
-      const newValue = Math.min(this.max, Math.max(this.min, this.startValue + dy * sens));
+      // Actualizar badge visual
+      this._setModifierVisual(modifierState, effectiveSpeedFactor);
+      
+      // Calcular sensibilidad basada en el factor
+      // factor > 1 = más rápido = más sensible
+      // factor < 1 = más lento = menos sensible
+      const baseSens = (this.max - this.min) / this.pixelsForFullRange;
+      const sens = baseSens * effectiveSpeedFactor;
+      
+      // Aplicar delta incremental al valor actual
+      const newValue = Math.min(this.max, Math.max(this.min, this.value + deltaY * sens));
       
       // Solo actualizar si el valor realmente cambia
       if (newValue === this.value) return;

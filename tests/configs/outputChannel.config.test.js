@@ -49,7 +49,7 @@ describe('Output Channel Config', () => {
       assert.equal(level.min, 0);
       assert.equal(level.max, 10, 'El fader debe usar escala 0-10 como el dial físico');
       assert.equal(level.initial, 0);
-      assert.equal(level.step, 0.1, 'Paso de 0.1 para 100 posiciones');
+      assert.equal(level.step, 0.01, 'Paso de 0.01 para 1000 posiciones (mayor resolución)');
     });
   });
   

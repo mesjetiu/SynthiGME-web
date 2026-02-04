@@ -619,30 +619,58 @@ function setupPipEvents(pipContainer, panelId) {
     bringToFront(panelId);
   });
   
-  // Click para traer al frente + bloquear propagación al viewport subyacente
+  // ==========================================================================
+  // BLOQUEO DE PROPAGACIÓN AL VIEWPORT GENERAL
+  // - Pointer events: fase de BURBUJEO (para que drag/resize funcionen via document)
+  // - Touch/dblclick: fase de CAPTURA (para interceptar antes que el viewport)
+  // ==========================================================================
+  
+  // Pointer events en fase de burbujeo
   pipContainer.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     bringToFront(panelId);
   });
   
-  // Bloquear doble tap/click para que no haga zoom en el panel de debajo
+  // Durante drag/resize, permitir que los eventos lleguen al document
+  pipContainer.addEventListener('pointermove', (e) => {
+    if (!draggingPip && !resizingPip) e.stopPropagation();
+  });
+  
+  pipContainer.addEventListener('pointerup', (e) => {
+    if (!draggingPip && !resizingPip) e.stopPropagation();
+  });
+  
+  pipContainer.addEventListener('pointercancel', (e) => {
+    if (!draggingPip && !resizingPip) e.stopPropagation();
+  });
+  
+  pipContainer.addEventListener('click', (e) => e.stopPropagation());
+  
+  // dblclick y touch en fase de CAPTURA para interceptar antes que el viewport
   pipContainer.addEventListener('dblclick', (e) => {
     e.preventDefault();
     e.stopPropagation();
-  });
+  }, { capture: true });
   
-  // Bloquear touchend doble tap
+  pipContainer.addEventListener('touchstart', (e) => e.stopPropagation(), { capture: true, passive: true });
+  pipContainer.addEventListener('touchmove', (e) => e.stopPropagation(), { capture: true, passive: true });
+  pipContainer.addEventListener('touchcancel', (e) => e.stopPropagation(), { capture: true, passive: true });
+  
+  // touchend: bloquear propagación + detectar doble tap
   let lastTapTime = 0;
   pipContainer.addEventListener('touchend', (e) => {
+    e.stopPropagation();
     const now = Date.now();
     if (now - lastTapTime < 300) {
       e.preventDefault();
-      e.stopPropagation();
     }
     lastTapTime = now;
-  }, { passive: false });
+  }, { capture: true, passive: false });
   
-  // Scroll con rueda para zoom
+  // wheel: bloquear propagación al viewport
+  pipContainer.addEventListener('wheel', (e) => e.stopPropagation());
+  
+  // Ctrl+wheel para zoom interno del PiP
   pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {
     if (e.ctrlKey) {
       e.preventDefault();

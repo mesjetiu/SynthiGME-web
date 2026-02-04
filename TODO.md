@@ -34,7 +34,7 @@ no a la señal de re-entrada a la matriz.
     - `vcaCalculateGain(dialValue, externalCV)`: función combinada dial + CV → ganancia
   - `tests/utils/voltageConstants.test.js`: 15 tests unitarios
 
-- [x] **Paso 2: Config VCA en outputChannel.config.js** (pendiente commit)
+- [x] **Paso 2: Config VCA en outputChannel.config.js**
   - Fader cambiado de escala 0-1 a 0-10 (como dial físico)
   - `schemaVersion` incrementado a 2
   - Nueva sección `vca` con todos los parámetros documentados:
@@ -52,17 +52,42 @@ no a la señal de re-entrada a la matriz.
   - Curva logarítmica funcional: dial 10 = 0 dB, dial 5 = -60 dB
   - **Corte mecánico incluido**: dial=0 ignora CV externo (ya en Paso 1)
 
+- [x] **Paso 4: Cadena de señal correcta en engine.js**
+  - Cadena: `busInput → [clipper] → levelNode (VCA) → postVcaNode → [crossfade] → muteNode`
+  - `postVcaNode` es el punto de re-entry POST-VCA, PRE-filtro
+  - Crossfade suave entre ruta de filtros y bypass (sin clicks)
+  - Tests de audio en `outputChannel.audio.test.js` (16 tests)
+
+- [x] **Paso 5: Conectar CV de matriz a Output Channels**
+  - Columnas 42-49 de matriz de control → CV de canales 1-8
+  - Implementado `setExternalCV(voltage)` en OutputChannel
+  - Conversión escala: matriz (-1..+1) × 4 → voltios (-4V..+4V)
+  - CV muestreado via AnalyserNode a ~60Hz
+  - **Corte mecánico verificado**: dial=0 ignora CV (tests unitarios)
+
+- [x] **Paso 6: Escala filter cambiada a 0-10** (commit `be5198e`)
+  - Antes: -1/+1 con scaleMin/scaleMax -5/+5
+  - Ahora: 0-10 directamente (dial Synthi 100)
+  - Engine convierte internamente a bipolar para cálculos de frecuencia
+
 #### ⏳ PENDIENTES
 
-- [ ] **Paso 4: Corregir cadena de señal en engine.js** ⚠️ CRÍTICO
-  - **Problema actual:** `Entrada → Filtro → VCA → Mute → Pan`
-  - **Cadena correcta:** `Entrada → VCA → [split] → Filtro → Mute → Pan`
-  - Archivos a modificar:
-    - `src/assets/js/core/engine.js`: reorganizar `_initOutput()`
-    - Crear nodo de split POST-VCA para re-entry
-  - El nodo de re-entry debe tomar señal POST-VCA, PRE-filtro
-  - El medidor de nivel (si existe) también debe ir POST-VCA, PRE-filtro
-  - Tests de integración para verificar cadena
+- [ ] **AM de audio real (modulación a velocidad de audio)**
+  - **Problema actual:** CV se muestrea a 60Hz (requestAnimationFrame)
+    - Solo sirve para CV lento (envolventes, LFOs <30Hz)
+    - Para AM/tremolo a frecuencias audibles (>20Hz), es insuficiente
+  - **Solución propuesta:** AudioWorklet que aplique curva dB/V en tiempo real
+    - Entrada: señal CV de la matriz
+    - Salida: ganancia calculada según modelo VCA CEM 3330
+    - Conexión: worklet.output → levelNode.gain
+  - **Requisitos:**
+    - Mantener curva logarítmica 10 dB/V del hardware
+    - Corte mecánico cuando dial=0
+    - Saturación suave para CV > 0V
+  - **Tests necesarios:**
+    - Tests de `setExternalCV()` API
+    - Tests de audio con LFO modulando amplitud
+
 - [ ] **Filtros de Output Channel (tarea genérica)**
   - Hardware: control pasivo 1er orden (6 dB/oct) con potenciómetro lineal 10kΩ
   - Dial 0-10: LP (0) ↔ Flat (5) ↔ HP (10); re-entry se toma antes del filtro
@@ -70,23 +95,7 @@ no a la señal de re-entrada a la matriz.
   - Opciones a valorar:
     1. IIRFilterNode 1er orden (coeficientes manuales)
     2. AudioWorklet con filtro RC pasivo
-    3. Aproximación pragmática (shelving) hasta decidir fidelidad
-  - Revisar commits recientes de bypass suave en `engine.js` para integrar decisión
-
-#### ✅ COMPLETADOS (CV de matriz)
-
-- [x] **Paso 5: Conectar CV de matriz a Output Channels** (commit pendiente)
-  - Columnas 42-49 de matriz de control → CV de canales 1-8
-  - Implementado `setExternalCV(voltage)` en OutputChannel
-  - Conversión escala: matriz (-1..+1) × 4 → voltios (-4V..+4V)
-  - Recalcula ganancia cuando cambia CV externo
-  - CV se muestrea via AnalyserNode a ~60Hz para no sobrecargar CPU
-  - **Corte mecánico verificado**: dial=0 ignora CV (tests unitarios)
-
-- [x] **Paso 6: Tests de VCA con CV externo** (incluido en Paso 5)
-  - Tests unitarios para corte mecánico con CV
-  - Tests de dial + CV combinados
-  - Tests de curva logarítmica 10 dB/V
+    3. Aproximación pragmática (actual: BiquadFilter 2º orden)
 
 ### Notas adicionales
 

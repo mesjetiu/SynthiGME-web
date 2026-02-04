@@ -3570,94 +3570,52 @@ class App {
         // 2. Si el fader está en 0, el CV se IGNORA (corte mecánico)
         // 3. CV positivo puede causar saturación suave
         //
-        // IMPLEMENTACIÓN:
-        // Usamos un AudioWorkletNode para muestrear la señal CV y pasarla
-        // al método setExternalCV() del OutputChannel correspondiente.
-        // Esto permite aplicar el modelo VCA correcto incluyendo corte mecánico.
+        // IMPLEMENTACIÓN AUDIO-RATE:
+        // Conectamos el CV directamente al AudioWorklet del VCA del engine.
+        // Esto permite AM a frecuencias de audio (trémolo, ring mod, etc.)
+        // con la curva logarítmica 10 dB/V del CEM 3330.
         //
         // ─────────────────────────────────────────────────────────────────────
         const busIndex = dest.busIndex;
-        const outputChannel = this._outputChannelsPanel?.getChannel(busIndex);
         
-        if (!outputChannel) {
-          log.warn(' OutputChannel not available for level CV, bus', busIndex);
-          return false;
+        // Verificar que el engine esté disponible y los worklets cargados
+        if (!this.engine || !this.engine.workletReady) {
+          log.warn(' Engine or worklets not ready for audio-rate CV');
+          // Fallback a conexión dummy (el CV no tendrá efecto)
+          destNode = ctx.createGain();
+          destNode.gain.value = 0;
+        } else {
+          // ─────────────────────────────────────────────────────────────────────
+          // CREAR NODO INTERMEDIARIO PARA CV
+          // ─────────────────────────────────────────────────────────────────────
+          // El pinFilter y gain de la matriz se conectan aquí, y la salida
+          // va al VCA worklet del engine.
+          // ─────────────────────────────────────────────────────────────────────
+          const cvPassthrough = ctx.createGain();
+          cvPassthrough.gain.value = 1;
+          
+          // Conectar el passthrough al VCA worklet del engine
+          const connected = this.engine.connectOutputLevelCV(busIndex, cvPassthrough);
+          
+          if (connected) {
+            destNode = cvPassthrough;
+            
+            // Guardar referencia para cleanup
+            this._outputLevelCVData = {
+              cvPassthrough,
+              busIndex,
+              disconnect: () => {
+                this.engine?.disconnectOutputLevelCV(busIndex, cvPassthrough);
+              }
+            };
+            
+            log.info(` Panel 6: Audio-rate CV connected to output level bus ${busIndex + 1}`);
+          } else {
+            log.warn(' Failed to connect CV to VCA worklet');
+            destNode = ctx.createGain();
+            destNode.gain.value = 0;
+          }
         }
-        
-        // ─────────────────────────────────────────────────────────────────────
-        // Crear nodo de muestreo de CV
-        // ─────────────────────────────────────────────────────────────────────
-        // Usamos un GainNode como destino temporal para capturar la señal.
-        // Un AnalyserNode nos permitirá leer el valor instantáneo del CV.
-        // ─────────────────────────────────────────────────────────────────────
-        const cvSampler = ctx.createGain();
-        cvSampler.gain.value = 1;
-        
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0;
-        
-        cvSampler.connect(analyser);
-        
-        // Silenciador: el CV no debe ir a los altavoces
-        const silencer = ctx.createGain();
-        silencer.gain.value = 0;
-        analyser.connect(silencer);
-        silencer.connect(ctx.destination);
-        
-        // ─────────────────────────────────────────────────────────────────────
-        // Loop de muestreo del CV
-        // ─────────────────────────────────────────────────────────────────────
-        // Muestreamos a ~60Hz para no sobrecargar la CPU.
-        // El valor se pasa a setExternalCV() que recalcula la ganancia.
-        // ─────────────────────────────────────────────────────────────────────
-        const cvBuffer = new Float32Array(analyser.fftSize);
-        let rafId = null;
-        let isActive = true;
-        
-        const sampleCV = () => {
-          if (!isActive) return;
-          
-          analyser.getFloatTimeDomainData(cvBuffer);
-          // Tomar el valor medio del buffer (RMS sería más preciso pero más caro)
-          let sum = 0;
-          for (let i = 0; i < cvBuffer.length; i++) {
-            sum += cvBuffer[i];
-          }
-          const cvValue = sum / cvBuffer.length;
-          
-          // Escalar el CV normalizado (-1 a +1) a voltios
-          // La ganancia del pin ya está aplicada, pero el rango típico
-          // de la matriz es ±1. Escalamos a ±4V (rango típico de CV).
-          const cvVoltage = cvValue * 4;
-          
-          // Pasar al OutputChannel para que recalcule la ganancia del VCA
-          outputChannel.setExternalCV(cvVoltage, { ramp: 0.016 });
-          
-          rafId = requestAnimationFrame(sampleCV);
-        };
-        
-        // Iniciar muestreo
-        rafId = requestAnimationFrame(sampleCV);
-        
-        // El destNode para la conexión es el cvSampler
-        destNode = cvSampler;
-        
-        // Guardar referencias para cleanup (se fusionará con filter/gain después)
-        // Usamos una variable temporal que se fusionará con la conexión final
-        this._outputLevelCVData = {
-          cvSampler,
-          analyser,
-          silencer,
-          rafId,
-          stopSampling: () => {
-            isActive = false;
-            if (rafId) cancelAnimationFrame(rafId);
-            outputChannel.setExternalCV(0);  // Reset CV al desconectar
-          }
-        };
-        
-        log.info(` Panel 6: CV sampling to output level bus ${busIndex + 1}`);
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud
@@ -3731,9 +3689,17 @@ class App {
       // ─────────────────────────────────────────────────────────────────────
       // Limpieza especial para outputLevelCV
       // ─────────────────────────────────────────────────────────────────────
-      // El CV sampling usa nodos adicionales y un loop de RAF que deben
-      // detenerse para evitar memory leaks y llamadas innecesarias.
+      // Sistema nuevo (audio-rate): desconectar del VCA worklet
+      // Sistema legacy (60Hz): detener RAF y desconectar nodos de muestreo
       // ─────────────────────────────────────────────────────────────────────
+      if (conn.disconnect) {
+        // Sistema nuevo: desconectar del VCA worklet
+        conn.disconnect();
+      }
+      if (conn.cvPassthrough) {
+        safeDisconnect(conn.cvPassthrough);
+      }
+      // Legacy cleanup (para conexiones existentes antes de la migración)
       if (conn.stopSampling) {
         conn.stopSampling();
       }

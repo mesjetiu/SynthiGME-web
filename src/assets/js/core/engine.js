@@ -388,6 +388,8 @@ export class AudioEngine {
         // Nodos de pan para stereo buses (se crean en _createStereoBuses)
         stereoPanL: null,
         stereoPanR: null,
+        // VCA Worklet para modulación CV a audio-rate (se crea bajo demanda)
+        vcaWorklet: null,
         // Estado dormant - para desconectar buses sin conexiones entrantes
         _isDormant: false,
         _savedMuteValue: 1,
@@ -511,7 +513,33 @@ export class AudioEngine {
       // 1. La re-entrada a la matriz sale de postVcaNode (después del VCA)
       // 2. El mute solo afecta la salida externa, no la re-entrada
       // ─────────────────────────────────────────────────────────────────────
-      setParamSmooth(bus.levelNode.gain, value, ctx, { ramp });
+      
+      if (bus.vcaWorklet) {
+        // ─────────────────────────────────────────────────────────────────────
+        // MODO AUDIO-RATE: VCA worklet activo
+        // ─────────────────────────────────────────────────────────────────────
+        // El levelNode está en bypass (ganancia=1), el worklet controla todo.
+        // Actualizamos el parámetro dialVoltage del worklet.
+        // ─────────────────────────────────────────────────────────────────────
+        const dialVoltage = this._gainToDialVoltage(value);
+        const param = bus.vcaWorklet.parameters.get('dialVoltage');
+        if (param) {
+          // Usar linearRampToValueAtTime para transición suave
+          param.cancelScheduledValues(ctx.currentTime);
+          param.setValueAtTime(param.value, ctx.currentTime);
+          param.linearRampToValueAtTime(dialVoltage, ctx.currentTime + ramp);
+        }
+        // Actualizar cutoffEnabled (corte mecánico cuando dial=0)
+        const cutoffParam = bus.vcaWorklet.parameters.get('cutoffEnabled');
+        if (cutoffParam) {
+          cutoffParam.setValueAtTime(value <= 0 ? 1 : 0, ctx.currentTime);
+        }
+      } else {
+        // ─────────────────────────────────────────────────────────────────────
+        // MODO SIMPLE: GainNode directo (sin CV de audio-rate)
+        // ─────────────────────────────────────────────────────────────────────
+        setParamSmooth(bus.levelNode.gain, value, ctx, { ramp });
+      }
     }
     if (busIndex === 0) this.bus1Level = value;
     if (busIndex === 1) this.bus2Level = value;
@@ -519,6 +547,153 @@ export class AudioEngine {
 
   getOutputLevel(busIndex) {
     return this.outputLevels[busIndex] ?? 0.0;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // AUDIO-RATE CV: Modulación de nivel a sample-rate
+  // ───────────────────────────────────────────────────────────────────────────
+  // 
+  // El VCA CEM 3330 usa una curva logarítmica de 10 dB/V:
+  //   gain = 10^(totalVoltage / 20)  donde totalVoltage = dialVoltage + cvVoltage
+  //
+  // El dialVoltage (fader) va de -12V (dial=0) a 0V (dial=10):
+  //   dial=0 → -12V → gain=0.251 (pero el hardware tiene corte mecánico)
+  //   dial=10 → 0V → gain=1.0
+  //
+  // Para AM de audio real, el CV debe procesarse a sample-rate, no a 60Hz.
+  // Esto se logra con un AudioWorklet que recibe el CV como entrada de audio.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Conecta una fuente de CV al VCA del bus de salida para modulación AM a audio-rate.
+   * 
+   * Esto crea (o reutiliza) un VCA AudioWorklet que aplica la curva logarítmica
+   * 10 dB/V del CEM 3330 al CV entrante, permitiendo modulación de amplitud
+   * a frecuencias de audio (trémolo, ring modulation, etc.).
+   * 
+   * IMPORTANTE: Requiere que los worklets estén cargados (ensureWorkletReady()).
+   * 
+   * @param {number} busIndex - Índice del bus (0-7)
+   * @param {AudioNode} sourceNode - Nodo de audio que proporciona el CV
+   * @returns {boolean} true si la conexión fue exitosa
+   * 
+   * @example
+   * // Conectar LFO como CV para trémolo
+   * engine.connectOutputLevelCV(0, lfoNode);
+   */
+  connectOutputLevelCV(busIndex, sourceNode) {
+    if (busIndex < 0 || busIndex >= this.outputChannels) return false;
+    const ctx = this.audioCtx;
+    const bus = this.outputBuses[busIndex];
+    if (!ctx || !bus) return false;
+
+    // Verificar que los worklets estén cargados
+    if (!this.workletReady) {
+      log.warn('Worklets not ready for audio-rate CV. Call ensureWorkletReady() first.');
+      return false;
+    }
+
+    // Crear VCA worklet si no existe
+    if (!bus.vcaWorklet) {
+      try {
+        bus.vcaWorklet = new AudioWorkletNode(ctx, 'vca-processor', {
+          numberOfInputs: 2,  // 0: audio, 1: CV
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          parameterData: {
+            dialVoltage: this._gainToDialVoltage(this.outputLevels[busIndex]),
+            cvScale: 4.0,  // CV normalizado (-1,+1) * 4 = ±4V
+            cutoffEnabled: this.outputLevels[busIndex] > 0 ? 0 : 1
+          }
+        });
+
+        // ─────────────────────────────────────────────────────────────────────
+        // RECONECTAR CADENA DE SEÑAL
+        // ─────────────────────────────────────────────────────────────────────
+        // Cadena original: 
+        //   [clipper] → levelNode (GainNode) → postVcaNode
+        //
+        // Nueva cadena con VCA worklet:
+        //   [clipper] → vcaWorklet (entrada 0) → postVcaNode
+        //                    ↑
+        //               cvSource (entrada 1)
+        //
+        // El levelNode se mantiene pero se bypasea (ganancia=1).
+        // Esto permite volver al modo sin worklet si se desconecta el CV.
+        // ─────────────────────────────────────────────────────────────────────
+        
+        // Desconectar levelNode → postVcaNode
+        try {
+          bus.levelNode.disconnect(bus.postVcaNode);
+        } catch { /* Ya desconectado */ }
+
+        // Conectar: levelNode → vcaWorklet (entrada 0) → postVcaNode
+        bus.levelNode.connect(bus.vcaWorklet, 0, 0);
+        bus.vcaWorklet.connect(bus.postVcaNode);
+
+        // Poner levelNode en bypass (ganancia=1), el VCA worklet controla la ganancia
+        bus.levelNode.gain.setValueAtTime(1, ctx.currentTime);
+
+        log.info(`Bus ${busIndex + 1}: VCA worklet created for audio-rate AM`);
+      } catch (err) {
+        log.error(`Failed to create VCA worklet for bus ${busIndex}:`, err);
+        return false;
+      }
+    }
+
+    // Conectar la fuente de CV a la entrada 1 del worklet
+    try {
+      sourceNode.connect(bus.vcaWorklet, 0, 1);
+      log.info(`Bus ${busIndex + 1}: CV source connected to VCA worklet`);
+      return true;
+    } catch (err) {
+      log.error(`Failed to connect CV source to bus ${busIndex}:`, err);
+      return false;
+    }
+  }
+
+  /**
+   * Desconecta una fuente de CV del VCA del bus.
+   * 
+   * @param {number} busIndex - Índice del bus (0-7)
+   * @param {AudioNode} [sourceNode] - Nodo a desconectar (opcional, desconecta todo si no se especifica)
+   * @returns {boolean} true si se desconectó correctamente
+   */
+  disconnectOutputLevelCV(busIndex, sourceNode = null) {
+    if (busIndex < 0 || busIndex >= this.outputChannels) return false;
+    const ctx = this.audioCtx;
+    const bus = this.outputBuses[busIndex];
+    if (!ctx || !bus?.vcaWorklet) return false;
+
+    try {
+      if (sourceNode) {
+        // Desconectar solo este sourceNode
+        sourceNode.disconnect(bus.vcaWorklet);
+      } else {
+        // Nota: No podemos desconectar "solo entrada 1" sin saber qué nodos están conectados
+        // El llamador debe manejar la desconexión de fuentes específicas
+      }
+      log.info(`Bus ${busIndex + 1}: CV source disconnected`);
+      return true;
+    } catch (err) {
+      log.warn(`Disconnect CV failed for bus ${busIndex}:`, err);
+      return false;
+    }
+  }
+
+  /**
+   * Convierte ganancia lineal (0-1) a voltaje del dial (-12V a 0V).
+   * Inverso de la curva 10 dB/V del CEM 3330.
+   * 
+   * @param {number} gain - Ganancia lineal (0-1)
+   * @returns {number} Voltaje del dial (-12 a 0)
+   * @private
+   */
+  _gainToDialVoltage(gain) {
+    // gain = 10^(voltage/20)  →  voltage = 20 * log10(gain)
+    if (gain <= 0) return -12;  // Mínimo (corte mecánico)
+    if (gain >= 1) return 0;    // Máximo
+    return Math.max(-12, Math.min(0, 20 * Math.log10(gain)));
   }
 
   /**
@@ -1479,7 +1654,8 @@ export class AudioEngine {
           './assets/js/worklets/scopeCapture.worklet.js',
           './assets/js/worklets/noiseGenerator.worklet.js',
           './assets/js/worklets/cvThermalSlew.worklet.js',
-          './assets/js/worklets/cvSoftClip.worklet.js'
+          './assets/js/worklets/cvSoftClip.worklet.js',
+          './assets/js/worklets/vcaProcessor.worklet.js'
         ];
         
         await Promise.all(

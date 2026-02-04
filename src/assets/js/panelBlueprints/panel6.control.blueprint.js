@@ -213,15 +213,36 @@ export default {
     { colSynth: 41, dest: { kind: 'oscFreqCV', oscIndex: 11 } }, // Osc 12 Frequency
 
     // ─────────────────────────────────────────────────────────────────────────
+    // VOLTAGE INPUT - CANALES DE SALIDA 1-4 (columnas 42-45)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Estas son entradas de VOLTAJE (señal de control) que van al mismo punto
+    // que las entradas de audio del Panel 5: el input del bus ANTES del VCA.
+    //
+    // ARQUITECTURA:
+    //   Panel 5 (audio) ────────┬───→ [busInput] → [VCA] → [filtros] → salida
+    //   Panel 6 (voltage) ──────┘
+    //
+    // CASO DE USO PRINCIPAL:
+    // Permite usar el Output Channel como "slew limiter" o filtro de control:
+    // 1. Conectar señal de control rápida (LFO, envelope) a esta entrada
+    // 2. La señal pasa por el VCA con su filtro anti-click τ=5ms
+    // 3. Usar la re-entrada POST-fader del canal (filas 75-78) como fuente suavizada
+    //
+    // DIFERENCIA CON outputLevelCV (columnas 46-53):
+    // - Voltage Input: la señal PASA POR el canal y sale post-fader
+    // - outputLevelCV: la señal MODULA la ganancia del VCA
+    //
+    { colSynth: 42, dest: { kind: 'outputBus', bus: 1 } }, // Voltage Input Ch 1
+    { colSynth: 43, dest: { kind: 'outputBus', bus: 2 } }, // Voltage Input Ch 2
+    { colSynth: 44, dest: { kind: 'outputBus', bus: 3 } }, // Voltage Input Ch 3
+    { colSynth: 45, dest: { kind: 'outputBus', bus: 4 } }, // Voltage Input Ch 4
+
+    // ─────────────────────────────────────────────────────────────────────────
     // OUTPUT LEVEL CONTROL (columnas 46-53) - Control CV del nivel de salida
     // ─────────────────────────────────────────────────────────────────────────
-    // Permiten modular el nivel (gain) de los 8 canales de salida mediante CV.
+    // Permiten modular el nivel (gain) del VCA de los 8 canales de salida.
+    // La señal CV se SUMA al voltaje del fader y controla la ganancia.
     // Útil para: tremolo, ducking, mezcla dinámica, envelope following, etc.
-    //
-    // NOTA SOBRE COMPORTAMIENTO BIPOLAR:
-    // La señal CV es bipolar (-1 a +1) y se suma directamente al valor del fader.
-    // Esto significa que CV negativo puede invertir la fase o silenciar.
-    // TODO: Revisar si se necesita un offset/escala para comportamiento unipolar.
     //
     { colSynth: 46, dest: { kind: 'outputLevelCV', busIndex: 0 } }, // Out 1 Level
     { colSynth: 47, dest: { kind: 'outputLevelCV', busIndex: 1 } }, // Out 2 Level

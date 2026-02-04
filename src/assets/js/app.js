@@ -3616,6 +3616,30 @@ class App {
             destNode.gain.value = 0;
           }
         }
+      } else if (dest.kind === 'outputBus') {
+        // ─────────────────────────────────────────────────────────────────────
+        // Destino: Entrada de audio/voltaje al Output Channel (ANTES del VCA)
+        // ─────────────────────────────────────────────────────────────────────
+        //
+        // Columnas 42-45 de Panel 6: "Voltage Input" para canales 1-4
+        // La señal se suma a las entradas de audio del Panel 5 y pasa por
+        // toda la cadena del canal: VCA (con filtro anti-click) → filtros → salida
+        //
+        // CASO DE USO:
+        // Usar el Output Channel como "slew limiter" para señales de control.
+        // La señal de control entra aquí, pasa por el VCA (τ=5ms), y sale
+        // suavizada por la re-entrada POST-fader (filas 75-78).
+        //
+        // ─────────────────────────────────────────────────────────────────────
+        const busIndex = dest.bus - 1;
+        destNode = this.engine.getOutputBusNode(busIndex);
+        
+        if (!destNode) {
+          log.warn(' Output bus input not available for bus', dest.bus);
+          return false;
+        }
+        
+        log.info(` Panel 6: Voltage input connected to output channel ${dest.bus}`);
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud

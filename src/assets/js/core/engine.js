@@ -10,7 +10,7 @@ import {
   VOLTAGE_DEFAULTS,
   createHybridClipCurve
 } from '../utils/voltageConstants.js';
-import { audioMatrixConfig } from '../configs/index.js';
+import { audioMatrixConfig, outputChannelConfig } from '../configs/index.js';
 
 const log = createLogger('AudioEngine');
 
@@ -596,6 +596,9 @@ export class AudioEngine {
     // Crear VCA worklet si no existe
     if (!bus.vcaWorklet) {
       try {
+        // Obtener slewTime del config (filtro anti-click τ=5ms por defecto)
+        const slewTime = outputChannelConfig?.vca?.antiClickFilter?.slewTime ?? 0.005;
+        
         bus.vcaWorklet = new AudioWorkletNode(ctx, 'vca-processor', {
           numberOfInputs: 2,  // 0: audio, 1: CV
           numberOfOutputs: 1,
@@ -603,7 +606,8 @@ export class AudioEngine {
           parameterData: {
             dialVoltage: this._gainToDialVoltage(this.outputLevels[busIndex]),
             cvScale: 4.0,  // CV normalizado (-1,+1) * 4 = ±4V
-            cutoffEnabled: this.outputLevels[busIndex] > 0 ? 0 : 1
+            cutoffEnabled: this.outputLevels[busIndex] > 0 ? 0 : 1,
+            slewTime: slewTime  // Constante de tiempo del filtro anti-click
           }
         });
 

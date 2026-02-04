@@ -70,14 +70,17 @@ no a la señal de re-entrada a la matriz.
   - Ahora: 0-10 directamente (dial Synthi 100)
   - Engine convierte internamente a bipolar para cálculos de frecuencia
 
-- [x] **Paso 7: AM de audio real (AudioWorklet VCA CEM 3330)**
-  - Creado `vcaProcessor.worklet.js` con emulación completa del VCA
+- [x] **Paso 7: VCA AudioWorklet con filtro anti-click (τ=5ms)**
+  - Creado `vcaProcessor.worklet.js` con emulación completa del VCA CEM 3330
   - Curva logarítmica 10 dB/V implementada a sample-rate
   - Saturación suave para CV > 0V (tanh, hard limit 3V)
   - Corte mecánico: dial=0 ignora CV completamente
+  - Filtro anti-click: LPF 1 polo τ=5ms (fc≈32Hz) en entrada de CV
+  - Comportamiento fidedigno: AM limitada a frecuencias sub-audio (<32Hz)
+  - El Synthi de Cuenca NO tiene selector "Fast Response" (150μs)
   - Engine: métodos `connectOutputLevelCV()` / `disconnectOutputLevelCV()`
   - App.js actualizado: CV de matriz conectado directamente al worklet
-  - 22 tests nuevos para el modelo VCA (1360 tests totales)
+  - 30 tests para el modelo VCA (filtro de slew incluido)
 
 #### ⏳ PENDIENTES
 

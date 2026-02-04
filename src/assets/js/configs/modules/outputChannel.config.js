@@ -233,6 +233,53 @@ export default {
       linearThreshold: 0,   // Voltaje donde empieza la saturación
       hardLimit: 3,         // Voltaje máximo (≈ +30 dB teórico, ~3.16× ganancia)
       softness: 2           // Factor de suavidad de la compresión
+    },
+    
+    // ───────────────────────────────────────────────────────────────────
+    // FILTRO ANTI-CLICK (Slew Limiter)
+    // ───────────────────────────────────────────────────────────────────
+    // El circuito de control del VCA incluye un filtro paso-bajo de 1 polo
+    // para prevenir clicks audibles causados por cambios bruscos de voltaje.
+    //
+    // UBICACIÓN EN EL CIRCUITO (Manual Técnico Datanomics 1982):
+    //   El filtro está DESPUÉS de la suma de Fader + CV externo:
+    //
+    //   Fader (voltaje) ─┬─→ [SUMA] ─→ [LPF τ=5ms] ─→ VCA (ganancia)
+    //                    │
+    //   CV externo ──────┘
+    //
+    //   Por tanto, el filtro afecta TANTO al fader COMO al CV externo.
+    //   Cambios rápidos de cualquiera de los dos se suavizan igual.
+    //
+    // ESPECIFICACIONES DEL HARDWARE:
+    //   - Constante de tiempo: τ = 5 ms (R × C del filtro RC)
+    //   - Frecuencia de corte: fc = 1/(2πτ) ≈ 31.8 Hz
+    //   - Pendiente: -6 dB/octava (filtro de 1 polo)
+    //
+    // CONSECUENCIAS:
+    //   - Señales de control > 32 Hz se atenúan significativamente
+    //   - AM (modulación de amplitud) a frecuencias de audio NO es posible
+    //   - Solo responde a: envolventes suaves, LFOs lentos (<30 Hz), faders
+    //   - Movimientos rápidos del fader (incluso via OSC) se suavizan
+    //   - Este comportamiento es FIEL al hardware real de Cuenca
+    //
+    // NOTA HISTÓRICA:
+    //   Versiones anteriores del Synthi 100 tenían un selector "Fast Response"
+    //   (τ = 150 μs, fc ≈ 1060 Hz) en canales 5, 6 y 7. El modelo de Cuenca
+    //   de 1982 NO incluye esta opción - todos los canales usan 5 ms.
+    //
+    // PARÁMETROS:
+    //   - slewTime: Constante de tiempo τ en segundos (default: 0.005 = 5ms)
+    //   - Fórmula del filtro IIR: y[n] = y[n-1] + α × (x[n] - y[n-1])
+    //     donde α = 1 - e^(-1/(fs × τ))
+    // ───────────────────────────────────────────────────────────────────
+    antiClickFilter: {
+      slewTime: 0.005,      // 5 ms - constante de tiempo del hardware Cuenca
+      // Referencia: fc = 1/(2π × 0.005) ≈ 31.83 Hz
+      // Valores alternativos para experimentación:
+      // - 0.00015: Fast Response (150 μs, fc ≈ 1060 Hz) - NO disponible en Cuenca
+      // - 0.010:   Doble τ (10 ms, fc ≈ 16 Hz) - más suave aún
+      // - 0.001:   Más rápido (1 ms, fc ≈ 159 Hz) - para efectos AM suaves
     }
   }
 };

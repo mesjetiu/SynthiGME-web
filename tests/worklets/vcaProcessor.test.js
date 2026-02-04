@@ -289,6 +289,191 @@ describe('VCA CEM 3330 - Comportamiento AM (modulación)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TESTS DEL FILTRO ANTI-CLICK (SLEW LIMITER)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('VCA CEM 3330 - Filtro anti-click (τ=5ms)', () => {
+  
+  // Constantes del filtro
+  const SLEW_TIME = 0.005;  // 5ms
+  const SAMPLE_RATE = 48000;
+  
+  /**
+   * Simula el filtro de slew IIR de 1 polo.
+   * Replica el comportamiento del worklet.
+   * 
+   * @param {number[]} cvInput - Array de valores CV de entrada
+   * @param {number} slewTime - Constante de tiempo en segundos
+   * @param {number} sampleRate - Tasa de muestreo
+   * @returns {number[]} Array de valores CV suavizados
+   */
+  function applySlewFilter(cvInput, slewTime = SLEW_TIME, sampleRate = SAMPLE_RATE) {
+    const coef = 1 - Math.exp(-1 / (sampleRate * slewTime));
+    let smoothed = 0;
+    const output = [];
+    
+    for (const cv of cvInput) {
+      smoothed += (cv - smoothed) * coef;
+      output.push(smoothed);
+    }
+    
+    return output;
+  }
+  
+  /**
+   * Calcula la frecuencia de corte del filtro de 1 polo.
+   * fc = 1 / (2π × τ)
+   */
+  function getCutoffFrequency(slewTime) {
+    return 1 / (2 * Math.PI * slewTime);
+  }
+  
+  test('Frecuencia de corte con τ=5ms es ~31.8 Hz', () => {
+    const fc = getCutoffFrequency(SLEW_TIME);
+    assert.ok(fc > 30 && fc < 35, 
+      `fc esperada ~31.8 Hz, obtenida ${fc.toFixed(1)} Hz`);
+  });
+  
+  test('Paso DC pasa sin atenuación', () => {
+    // Una señal constante (DC) debe pasar sin cambios después de estabilizarse
+    const dcValue = 5.0;
+    const samples = 4800;  // 100ms a 48kHz
+    const cvInput = new Array(samples).fill(dcValue);
+    
+    const output = applySlewFilter(cvInput);
+    const finalValue = output[output.length - 1];
+    
+    // Después de ~20×τ (100ms), debe estar al 99.99% del valor final
+    assert.ok(Math.abs(finalValue - dcValue) < 0.001,
+      `DC debe pasar completo: esperado ${dcValue}, obtenido ${finalValue.toFixed(4)}`);
+  });
+  
+  test('Escalón unitario alcanza 63% en τ segundos', () => {
+    // Propiedad de filtro RC: alcanza 63.2% del valor final en τ segundos
+    const samplesInTau = Math.round(SLEW_TIME * SAMPLE_RATE);
+    const cvInput = new Array(samplesInTau).fill(1.0);
+    
+    const output = applySlewFilter(cvInput);
+    const valueAtTau = output[output.length - 1];
+    
+    // Debe estar entre 60% y 67% (tolerancia para errores numéricos)
+    assert.ok(valueAtTau > 0.60 && valueAtTau < 0.67,
+      `En τ debe ser ~63%: obtenido ${(valueAtTau * 100).toFixed(1)}%`);
+  });
+  
+  test('Señal de 10 Hz pasa con mínima atenuación', () => {
+    // Una señal de 10 Hz (muy por debajo de fc≈32 Hz) debe pasar casi íntegra
+    const freq = 10;  // Hz
+    const cycles = 5;
+    const samplesPerCycle = SAMPLE_RATE / freq;
+    const totalSamples = Math.round(cycles * samplesPerCycle);
+    
+    // Generar sinusoide de 10 Hz
+    const cvInput = [];
+    for (let i = 0; i < totalSamples; i++) {
+      cvInput.push(Math.sin(2 * Math.PI * freq * i / SAMPLE_RATE));
+    }
+    
+    const output = applySlewFilter(cvInput);
+    
+    // Medir amplitud pico del último ciclo (después de estabilización)
+    const lastCycleStart = Math.round((cycles - 1) * samplesPerCycle);
+    let maxOutput = 0;
+    for (let i = lastCycleStart; i < totalSamples; i++) {
+      maxOutput = Math.max(maxOutput, Math.abs(output[i]));
+    }
+    
+    // A 10 Hz (< fc/3), la atenuación debe ser < 3 dB (> 0.7 de amplitud)
+    assert.ok(maxOutput > 0.7, 
+      `Señal de 10 Hz debe pasar (>0.7): obtenido ${maxOutput.toFixed(3)}`);
+  });
+  
+  test('Señal de 100 Hz se atenúa significativamente', () => {
+    // Una señal de 100 Hz (> 3× fc) debe atenuarse significativamente
+    const freq = 100;  // Hz
+    const cycles = 10;
+    const samplesPerCycle = SAMPLE_RATE / freq;
+    const totalSamples = Math.round(cycles * samplesPerCycle);
+    
+    // Generar sinusoide de 100 Hz
+    const cvInput = [];
+    for (let i = 0; i < totalSamples; i++) {
+      cvInput.push(Math.sin(2 * Math.PI * freq * i / SAMPLE_RATE));
+    }
+    
+    const output = applySlewFilter(cvInput);
+    
+    // Medir amplitud pico del último ciclo
+    const lastCycleStart = Math.round((cycles - 1) * samplesPerCycle);
+    let maxOutput = 0;
+    for (let i = lastCycleStart; i < totalSamples; i++) {
+      maxOutput = Math.max(maxOutput, Math.abs(output[i]));
+    }
+    
+    // A 100 Hz (> 3×fc), la atenuación debe ser significativa (< -10 dB, < 0.32)
+    assert.ok(maxOutput < 0.35, 
+      `Señal de 100 Hz debe atenuarse (<0.35): obtenido ${maxOutput.toFixed(3)}`);
+  });
+  
+  test('Señal de 1000 Hz se atenúa casi completamente', () => {
+    // Una señal de 1000 Hz (> 30× fc) debe ser casi eliminada
+    const freq = 1000;  // Hz
+    const cycles = 50;
+    const samplesPerCycle = SAMPLE_RATE / freq;
+    const totalSamples = Math.round(cycles * samplesPerCycle);
+    
+    // Generar sinusoide de 1000 Hz
+    const cvInput = [];
+    for (let i = 0; i < totalSamples; i++) {
+      cvInput.push(Math.sin(2 * Math.PI * freq * i / SAMPLE_RATE));
+    }
+    
+    const output = applySlewFilter(cvInput);
+    
+    // Medir amplitud pico del último ciclo
+    const lastCycleStart = Math.round((cycles - 1) * samplesPerCycle);
+    let maxOutput = 0;
+    for (let i = lastCycleStart; i < totalSamples; i++) {
+      maxOutput = Math.max(maxOutput, Math.abs(output[i]));
+    }
+    
+    // A 1000 Hz, la atenuación debe ser > 30 dB (< 0.032)
+    assert.ok(maxOutput < 0.05, 
+      `Señal de 1000 Hz casi eliminada (<0.05): obtenido ${maxOutput.toFixed(4)}`);
+  });
+  
+  test('Consecuencia: AM audio-rate no es posible (comportamiento fidedigno)', () => {
+    // Este test documenta la limitación del hardware real
+    // El filtro de 5ms impide usar osciladores de audio como moduladores de AM
+    
+    const audioFreq = 440;  // Hz - frecuencia típica de oscilador
+    const cycles = 20;
+    const samplesPerCycle = SAMPLE_RATE / audioFreq;
+    const totalSamples = Math.round(cycles * samplesPerCycle);
+    
+    // Si intentamos usar una señal de 440 Hz como CV de AM...
+    const cvInput = [];
+    for (let i = 0; i < totalSamples; i++) {
+      cvInput.push(Math.sin(2 * Math.PI * audioFreq * i / SAMPLE_RATE));
+    }
+    
+    const output = applySlewFilter(cvInput);
+    
+    // La señal resultante será prácticamente DC (media ≈ 0)
+    const lastCycleStart = Math.round((cycles - 1) * samplesPerCycle);
+    let maxOutput = 0;
+    for (let i = lastCycleStart; i < totalSamples; i++) {
+      maxOutput = Math.max(maxOutput, Math.abs(output[i]));
+    }
+    
+    // La amplitud de 440 Hz a la salida del slew será negligible
+    // Con fc≈32Hz y f=440Hz (>13× fc), atenuación > 20dB
+    assert.ok(maxOutput < 0.1, 
+      `AM a 440 Hz muy atenuada (<0.1): ${maxOutput.toFixed(4)}`);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TESTS DE CORTE MECÁNICO (CUTOFF)
 // ─────────────────────────────────────────────────────────────────────────────
 

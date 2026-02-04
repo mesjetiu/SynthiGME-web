@@ -3150,18 +3150,19 @@ class App {
           return false;
         }
       } else if (source.kind === 'outputBus') {
-        // Fuente: Output Bus (señal POST-VCA, PRE-filtro)
+        // Fuente: Output Bus (señal POST-VCA, PRE-filtro, con DC blocker)
         const busIndex = source.bus - 1; // bus 1-8 → index 0-7
         
-        // Obtener postVcaNode del bus (señal después del VCA, antes de filtros)
+        // Obtener dcBlocker del bus (señal post-VCA con DC eliminado)
         // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
+        // El DC blocker elimina cualquier offset DC que pueda causar problemas
         const busData = this.engine.outputBuses?.[busIndex];
-        if (!busData?.postVcaNode) {
-          log.warn(' Output bus postVcaNode not available for bus', source.bus);
+        if (!busData?.dcBlocker) {
+          log.warn(' Output bus dcBlocker not available for bus', source.bus);
           return false;
         }
         
-        outNode = busData.postVcaNode;
+        outNode = busData.dcBlocker;
       }
       
       if (!outNode) {
@@ -3495,18 +3496,19 @@ class App {
           return false;
         }
       } else if (source.kind === 'outputBus') {
-        // Fuente: Output Bus (señal POST-VCA como fuente de CV)
+        // Fuente: Output Bus (señal POST-VCA como fuente de CV, con DC blocker)
         const busIndex = source.bus - 1; // bus 1-8 → index 0-7
         
-        // Obtener postVcaNode del bus (señal después del VCA, antes de filtros)
+        // Obtener dcBlocker del bus (señal post-VCA con DC eliminado)
         // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
+        // El DC blocker elimina cualquier offset DC que pueda causar problemas
         const busData = this.engine.outputBuses?.[busIndex];
-        if (!busData?.postVcaNode) {
-          log.warn(' Output bus postVcaNode not available for bus', source.bus);
+        if (!busData?.dcBlocker) {
+          log.warn(' Output bus dcBlocker not available for bus', source.bus);
           return false;
         }
         
-        outNode = busData.postVcaNode;
+        outNode = busData.dcBlocker;
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
       // - 'envelope': generador de envolventes

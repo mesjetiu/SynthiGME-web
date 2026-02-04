@@ -259,10 +259,21 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // Este nodo permite tomar la señal procesada por el VCA pero ANTES
       // del filtro, para enviarla de vuelta a la matriz de audio.
-      // Por ahora no conectamos nada, pero el nodo está disponible.
       // ─────────────────────────────────────────────────────────────────────
       const postVcaNode = ctx.createGain();
       postVcaNode.gain.value = 1.0;
+      
+      // ─────────────────────────────────────────────────────────────────────
+      // DC BLOCKER para re-entry: Elimina offset DC de la señal
+      // ─────────────────────────────────────────────────────────────────────
+      // Un highpass a ~5Hz elimina cualquier componente DC sin afectar audio.
+      // Esto previene que offsets DC se propaguen por la matriz de audio.
+      // ─────────────────────────────────────────────────────────────────────
+      const dcBlocker = ctx.createBiquadFilter();
+      dcBlocker.type = 'highpass';
+      dcBlocker.frequency.value = 5; // 5Hz - elimina DC sin afectar audio
+      dcBlocker.Q.value = 0.707;     // Butterworth - respuesta plana
+      postVcaNode.connect(dcBlocker);
       
       // ─────────────────────────────────────────────────────────────────────
       // FILTRO BIPOLAR: Lowpass + Highpass en serie (DESPUÉS del VCA)
@@ -376,7 +387,8 @@ export class AudioEngine {
         input: busInput,
         hybridClipShaper, // Saturación híbrida (emulación raíles ±12V, puede ser null)
         levelNode,  // VCA - Nivel (para modulación CV de matriz) - ANTES del filtro
-        postVcaNode, // Punto de split POST-VCA para re-entry a matriz
+        postVcaNode, // Punto de split POST-VCA (interno, antes de DC blocker)
+        dcBlocker,  // DC Blocker para re-entry a matriz (elimina offset DC)
         filterGain, // Ganancia para crossfade suave de filtros
         bypassGain, // Ganancia para crossfade suave de bypass
         filterLP,   // Filtro lowpass (activo con valores negativos) - DESPUÉS del VCA
@@ -414,10 +426,8 @@ export class AudioEngine {
             bus._savedMuteValue = bus.muteNode.gain.value;
             try {
               if (hasClipper) {
-                // Cadena: input → clipper → levelNode → ...
                 bus.input.disconnect(bus.hybridClipShaper);
               } else {
-                // Cadena: input → levelNode → ...
                 bus.input.disconnect(bus.levelNode);
               }
               console.log(`[Dormancy] Output Bus ${busIndex + 1}: DORMANT (disconnected)`);
@@ -430,8 +440,18 @@ export class AudioEngine {
               } else {
                 bus.input.connect(bus.levelNode);
               }
-              // Restaurar mute al valor guardado
-              bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, ctx.currentTime);
+              
+              // ─────────────────────────────────────────────────────────────
+              // RESINCRONIZAR VCA: Aplicar nivel actual del fader
+              // ─────────────────────────────────────────────────────────────
+              // Mientras el bus estaba dormant, el levelNode.gain puede haberse
+              // quedado desactualizado. Reaplicamos el valor del array de niveles.
+              // ─────────────────────────────────────────────────────────────
+              const currentLevel = engine.outputLevels[busIndex];
+              if (typeof currentLevel === 'number' && currentLevel !== bus.levelNode.gain.value) {
+                bus.levelNode.gain.setValueAtTime(currentLevel, engine.audioCtx.currentTime);
+              }
+              
               console.log(`[Dormancy] Output Bus ${busIndex + 1}: ACTIVE (reconnected)`);
             } catch { /* Error de conexión */ }
           }

@@ -86,6 +86,7 @@ export default {
   "settings.about.issues": "Bug melden / Kontakt",
   "settings.about.originalProject": "Originalprojekt (SuperCollider)",
   "settings.about.credits": "Danksagungen",
+  "settings.about.credits.development": "Entwicklung und Interface-Design: ",
   "settings.about.credits.appIcons": "App-Symbole: ",
   "settings.about.credits.uiIcons": "UI-Symbole: ",
   "settings.about.credits.inspiration": "Inspiriert von: ",

@@ -86,6 +86,7 @@ export default {
   "settings.about.issues": "Nahlásit chybu / Kontakt",
   "settings.about.originalProject": "Původní projekt (SuperCollider)",
   "settings.about.credits": "Kredity",
+  "settings.about.credits.development": "Vývoj a design rozhraní: ",
   "settings.about.credits.appIcons": "Ikony aplikace: ",
   "settings.about.credits.uiIcons": "Ikony UI: ",
   "settings.about.credits.inspiration": "Inspirováno: ",

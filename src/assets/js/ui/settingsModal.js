@@ -1413,6 +1413,16 @@ export class SettingsModal {
     issuesLi.appendChild(issuesLink);
     linksList.appendChild(issuesLi);
     
+    // Fuzzy Gab
+    const fuzzyLi = document.createElement('li');
+    const fuzzyLink = document.createElement('a');
+    fuzzyLink.href = 'https://fuzzygab.uclm.es/';
+    fuzzyLink.target = '_blank';
+    fuzzyLink.rel = 'noopener noreferrer';
+    fuzzyLink.textContent = 'Fuzzy Gab';
+    fuzzyLi.appendChild(fuzzyLink);
+    linksList.appendChild(fuzzyLi);
+    
     // Proyecto original (SuperCollider)
     const originalLi = document.createElement('li');
     const originalLink = document.createElement('a');
@@ -1445,6 +1455,18 @@ export class SettingsModal {
     const creditsList = document.createElement('ul');
     creditsList.className = 'settings-about__credits-list';
     
+    // Desarrollo e interfaz
+    const devLi = document.createElement('li');
+    const devLabel = document.createElement('span');
+    devLabel.className = 'settings-about__credit-label';
+    devLabel.textContent = t('settings.about.credits.development');
+    this.aboutDevelopmentLabelElement = devLabel;
+    const devValue = document.createElement('span');
+    devValue.textContent = 'Carlos Arturo Guerra Parra (Fuzzy Gab)';
+    devLi.appendChild(devLabel);
+    devLi.appendChild(devValue);
+    creditsList.appendChild(devLi);
+    
     // Iconos de la app: Sylvia Molina Muro
     const iconsLi = document.createElement('li');
     const iconsLabel = document.createElement('span');
@@ -1452,7 +1474,7 @@ export class SettingsModal {
     iconsLabel.textContent = t('settings.about.credits.appIcons');
     this.aboutAppIconsLabelElement = iconsLabel;
     const iconsValue = document.createElement('span');
-    iconsValue.textContent = 'Sylvia Molina Muro';
+    iconsValue.textContent = 'Sylvia Molina Muro (Fuzzy Gab)';
     iconsLi.appendChild(iconsLabel);
     iconsLi.appendChild(iconsValue);
     creditsList.appendChild(iconsLi);
@@ -1479,7 +1501,7 @@ export class SettingsModal {
     inspirationLabel.textContent = t('settings.about.credits.inspiration');
     this.aboutInspirationLabelElement = inspirationLabel;
     const inspirationValue = document.createElement('span');
-    inspirationValue.textContent = 'EMS Synthi 100 – GME de Cuenca';
+    inspirationValue.textContent = 'EMS Synthi 100 – Gabinete de Música Electroacústica de Cuenca';
     inspirationLi.appendChild(inspirationLabel);
     inspirationLi.appendChild(inspirationValue);
     creditsList.appendChild(inspirationLi);

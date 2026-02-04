@@ -718,6 +718,15 @@ settings.about.credits:
   pt: "Créditos"
   cs: "Kredity"
 
+settings.about.credits.development:
+  en: "Development & interface design: "
+  es: "Desarrollo y diseño de interfaz: "
+  fr: "Développement et design de l’interface : "
+  de: "Entwicklung und Interface-Design: "
+  it: "Sviluppo e design dell'interfaccia: "
+  pt: "Desenvolvimento e design da interface: "
+  cs: "Vývoj a design rozhraní: "
+
 settings.about.credits.appIcons:
   en: "App icons: "
   es: "Iconos de la app: "

@@ -10,6 +10,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ### Arreglado
 - **Menú contextual en Safari iOS**: Soporte de long press (500ms) para abrir menú contextual de paneles PiP en dispositivos táctiles donde el evento `contextmenu` no se dispara.
 - **Eventos en ventanas PiP**: Todos los eventos de ratón/touch se capturan dentro de las ventanas PiP, evitando propagación al canvas general que causaba zoom/pan erráticos en dispositivos móviles.
+ - **Créditos en Ajustes**: Añadido Fuzzy Gab en enlaces, orden y roles actualizados, y texto de inspiración ajustado a Gabinete de Música Electroacústica.
 
 ## [0.5.0] - 2026-02-03
 

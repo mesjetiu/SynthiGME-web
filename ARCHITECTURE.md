@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 31 de enero de 2026 (Audio multicanal 8ch vía PipeWire)
+> Última actualización: 4 de febrero de 2026 (VCA CEM 3330 con filtro anti-click τ=5ms)
 
 ---
 
@@ -99,6 +99,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período. **Dormancy**: soporta mensaje `setDormant` para pausar captura |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
 | `multichannelCapture.worklet.js` | Captura de 8 canales para salida multicanal nativa. Usa **SharedArrayBuffer** para transferencia lock-free al addon C++ de PipeWire. Ring buffer con índices atómicos, soporta prebuffer configurable |
+| `vcaProcessor.worklet.js` | Emulación del VCA CEM 3330 para canales de salida. Aplica curva 10 dB/V, corte mecánico en dial=0, saturación suave para CV positivo y filtro anti-click de 1 polo (τ=5ms) **después** de la suma fader+CV. La entrada de CV se procesa a sample-rate |
 | `cvThermalSlew.worklet.js` | Filtro one-pole asimétrico para emular inercia térmica del VCO CEM 3340. Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva). **CRÍTICO**: Implementación con **operaciones aritméticas puras** (`Math.abs()` para detectar dirección) — NO usa condicionales que bloquearían la propagación de señal a AudioParams. Se inserta en cadena CV: `freqCVInput → cvThermalSlew → cvSoftClip → detune`. Configurable en `oscillator.config.js` |
 | `cvSoftClip.worklet.js` | Saturación polinómica suave para limitar CV de frecuencia. Usa fórmula pura `y = x - x³·k` (sin condicionales) donde k es coeficiente configurable (rango 0.0001–1.0, por defecto 0.333). Se aplica después del thermal slew para recibir señal pre-suavizada. **Configuración**: coeficiente en `oscillator.config.js` → `softClip.coefficient`. **Limitación superada**: Web Audio API requiere aritmética pura en AudioWorklet para propagación a AudioParam |
 
@@ -154,6 +155,7 @@ busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterLP
 - Sensibilidad logarítmica: 10 dB/V
 - Posición 0 del fader: corte mecánico (ignora CV externo)
 - Saturación suave para CV > 0V
+- Filtro anti-click de 1 polo (τ = 5ms) **después** de la suma fader+CV
 - Curva muy pronunciada: posición 5 ≈ -60dB
 
 **Re-entrada a matriz:**

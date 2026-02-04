@@ -4,6 +4,8 @@ SynthiGME-web es una emulación del sintetizador modular **Synthi 100** del Gabi
 
 Esta versión web permite explorar el sintetizador directamente desde tu navegador, sin necesidad de instalar nada.
 
+**Última actualización:** 4 de febrero de 2026 (VCA CEM 3330 con filtro anti-click τ=5ms)
+
 ## 🚀 Acceso Rápido
 
 ### 🌐 Versión Web
@@ -45,6 +47,7 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 |--------|-------------|
 | **12 Osciladores** | Formas de onda: pulso, seno, triángulo, diente de sierra. Rango 1Hz–10kHz. Incluye *Hard Sync*. |
 | **Filtros y Ruido** | 2 Generadores de ruido (blanco/rosa) y filtros paso bajo/alto en la salida. |
+| **VCA de salida** | Curva CEM 3330 (10 dB/V), saturación suave y filtro anti-click de 1 polo (τ=5ms) tras la suma fader+CV. |
 | **Matrices 60x60** | Dos matrices de conexión: Audio (Panel 5) y Control (Panel 6). Usa los pines para conectar módulos. |
 | **Osciloscopio** | Visualización de señal en tiempo real (modos tiempo y X-Y Lissajous). |
 | **Grabación** | Exporta tu sesión directamente a archivos de audio WAV multitrack (hasta 12 pistas). |

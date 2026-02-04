@@ -452,3 +452,158 @@ describe('VCA CEM 3330 - CORTE MECÁNICO en posición 0', () => {
     assert.strictEqual(gain, 0, 'dial negativo debe tratarse como corte');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OutputChannel.setExternalCV() - API de modulación de amplitud
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('OutputChannel.setExternalCV() - API', () => {
+  // Mock del engine para verificar llamadas
+  function createMockEngine() {
+    const calls = [];
+    return {
+      calls,
+      setOutputLevel: (channelIndex, gain, options) => {
+        calls.push({ method: 'setOutputLevel', channelIndex, gain, options });
+      },
+      getOutputFilter: () => 5,  // Centro/bypass
+      getOutputPan: () => 0,
+      getOutputLevel: () => 0,
+      getOutputMute: () => false
+    };
+  }
+
+  // Crear instancia mínima de OutputChannel para testing
+  function createTestChannel(engine, channelIndex = 0) {
+    // Simular estructura básica del OutputChannel
+    return {
+      engine,
+      channelIndex,
+      values: {
+        level: 5,        // dial en posición media
+        externalCV: 0,
+        filter: 5,
+        pan: 0,
+        power: true
+      },
+      setExternalCV(voltage, { ramp = 0.01 } = {}) {
+        this.values.externalCV = voltage;
+        const gain = vcaCalculateGain(this.values.level, voltage);
+        this.engine.setOutputLevel(this.channelIndex, gain, { ramp });
+      },
+      getExternalCV() {
+        return this.values.externalCV;
+      }
+    };
+  }
+
+  it('setExternalCV() almacena el voltaje en values.externalCV', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    
+    channel.setExternalCV(3.5);
+    
+    assert.strictEqual(channel.values.externalCV, 3.5);
+  });
+
+  it('setExternalCV() llama a engine.setOutputLevel con ganancia calculada', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    channel.values.level = 10;  // dial máximo
+    
+    channel.setExternalCV(-3);  // CV de -3V → debería atenuar 30dB
+    
+    assert.strictEqual(engine.calls.length, 1);
+    assert.strictEqual(engine.calls[0].method, 'setOutputLevel');
+    assert.strictEqual(engine.calls[0].channelIndex, 0);
+    
+    // dial 10 → 0V, CV -3V → -3V total → -30 dB → gain ~0.0316
+    const expectedGain = Math.pow(10, -30 / 20);
+    assert.ok(Math.abs(engine.calls[0].gain - expectedGain) < 0.001);
+  });
+
+  it('setExternalCV() respeta corte mecánico (dial=0 ignora CV)', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    channel.values.level = 0;  // dial en corte
+    
+    channel.setExternalCV(10);  // CV alto
+    
+    // Debe llamar a setOutputLevel con ganancia 0
+    assert.strictEqual(engine.calls[0].gain, 0);
+  });
+
+  it('setExternalCV() con CV positivo puede aumentar ganancia (saturación)', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    channel.values.level = 8;  // dial 8 → -2.4V
+    
+    channel.setExternalCV(3);  // CV +3V → total +0.6V
+    
+    // Ganancia > 1.0 (pero saturada)
+    assert.ok(engine.calls[0].gain > 1.0, 'CV positivo debe poder superar ganancia 1.0');
+    assert.ok(engine.calls[0].gain < 2.0, 'pero saturación debe limitar');
+  });
+
+  it('getExternalCV() devuelve el voltaje almacenado', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    
+    channel.setExternalCV(-2.5);
+    
+    assert.strictEqual(channel.getExternalCV(), -2.5);
+  });
+
+  it('setExternalCV() usa rampa por defecto de 0.01s', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    
+    channel.setExternalCV(1);
+    
+    assert.deepStrictEqual(engine.calls[0].options, { ramp: 0.01 });
+  });
+
+  it('setExternalCV() acepta rampa personalizada', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    
+    channel.setExternalCV(1, { ramp: 0.05 });
+    
+    assert.deepStrictEqual(engine.calls[0].options, { ramp: 0.05 });
+  });
+
+  it('múltiples llamadas a setExternalCV() actualizan correctamente', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    channel.values.level = 10;
+    
+    channel.setExternalCV(0);
+    channel.setExternalCV(-3);
+    channel.setExternalCV(0);
+    
+    assert.strictEqual(engine.calls.length, 3);
+    // Primera: CV=0 → gain=1.0
+    assert.ok(Math.abs(engine.calls[0].gain - 1.0) < 0.001);
+    // Segunda: CV=-3 → gain~0.0316
+    assert.ok(Math.abs(engine.calls[1].gain - Math.pow(10, -30/20)) < 0.001);
+    // Tercera: CV=0 → gain=1.0 de nuevo
+    assert.ok(Math.abs(engine.calls[2].gain - 1.0) < 0.001);
+  });
+
+  it('cambio de dial recalcula ganancia con CV actual', () => {
+    const engine = createMockEngine();
+    const channel = createTestChannel(engine);
+    
+    // Establecer CV primero
+    channel.setExternalCV(3);  // +3V
+    engine.calls.length = 0;   // Limpiar llamadas
+    
+    // Simular cambio de dial (como hace flushValue)
+    channel.values.level = 5;  // dial 5 → -6V + CV 3V = -3V → -30dB
+    const gain = vcaCalculateGain(channel.values.level, channel.values.externalCV);
+    channel.engine.setOutputLevel(channel.channelIndex, gain, { ramp: 0.06 });
+    
+    const expectedGain = Math.pow(10, -30 / 20);
+    assert.ok(Math.abs(engine.calls[0].gain - expectedGain) < 0.001);
+  });
+});

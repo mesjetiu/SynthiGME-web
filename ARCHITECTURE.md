@@ -84,7 +84,7 @@ src/
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
 | `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
-| `dormancyManager.js` | `DormancyManager` orquesta el sistema de dormancy para optimización de rendimiento. Detecta módulos sin conexiones activas en las matrices y **suspende su procesamiento DSP** (no solo los silencia). Para osciladores y noise, envía mensaje `setDormant` al worklet que hace early exit en `process()`. Para Output Bus, desconecta el grafo. Para InputAmplifier, silencia GainNodes. Ahorra ~95% CPU por módulo inactivo. Configurable con opción de debug (toasts) |
+| `dormancyManager.js` | `DormancyManager` orquesta el sistema de dormancy para optimización de rendimiento. Detecta módulos sin conexiones activas en **ambas matrices (Panel 5 audio y Panel 6 control)** y **suspende su procesamiento DSP** (no solo los silencia). Para osciladores y noise, envía mensaje `setDormant` al worklet que hace early exit en `process()`. Para Output Bus, desconecta el grafo si no tiene entrada de audio NI de Voltage Input. Para InputAmplifier, silencia GainNodes. Ahorra ~95% CPU por módulo inactivo. Configurable con opción de debug (toasts) |
 
 > **Nota sobre dispositivos móviles:** El procesamiento de audio del sistema (Dolby Atmos, Audio Espacial, ecualizadores) puede interferir con la síntesis en tiempo real, causando cambios de volumen inesperados o distorsión. Ver sección "Solución de problemas" en README.md.
 
@@ -1751,11 +1751,11 @@ El `DormancyManager` detecta módulos de audio sin conexiones activas en las mat
 ```
 
 **Comportamiento:**
-- Analiza matrices de audio y control en cada cambio
-- Módulos sin conexiones → marcados como dormant
+- Analiza **ambas matrices** (Panel 5 audio y Panel 6 control) en cada cambio
+- Módulos sin conexiones relevantes → marcados como dormant
 - **Osciladores dormant**: mensaje `setDormant` al worklet → `process()` hace early exit (llena buffers con ceros sin calcular ondas). Ahorra ~95% CPU del worklet. La fase se mantiene para coherencia al despertar.
 - **NoiseModule dormant**: mensaje `setDormant` al worklet noiseGenerator → early exit sin generar ruido. Silencia levelNode.
-- **Output Bus dormant**: desconecta `busInput` del grafo (de `filterLP` si filtros activos, o de `levelNode` si bypass). Los filtros LP/HP no reciben audio y no consumen CPU.
+- **Output Bus dormant**: desconecta `busInput` del grafo (de `filterLP` si filtros activos, o de `levelNode` si bypass). Los filtros LP/HP no reciben audio y no consumen CPU. Un Output Bus está **activo** si tiene entrada desde Panel 5 (audio) **O** desde Panel 6 (Voltage Input en columnas 42-45).
 - **InputAmplifier dormant**: silencia los 8 GainNodes. Guarda y restaura niveles al despertar.
 - **Oscilloscope dormant**: mensaje `setDormant` al worklet scopeCapture → pausa captura de señal y procesamiento de trigger Schmitt.
 

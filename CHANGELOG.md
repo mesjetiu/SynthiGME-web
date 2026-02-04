@@ -10,7 +10,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ### Arreglado
 - **Menú contextual en Safari iOS**: Soporte de long press (500ms) para abrir menú contextual de paneles PiP en dispositivos táctiles donde el evento `contextmenu` no se dispara.
 - **Eventos en ventanas PiP**: Todos los eventos de ratón/touch se capturan dentro de las ventanas PiP, evitando propagación al canvas general que causaba zoom/pan erráticos en dispositivos móviles.
- - **Créditos en Ajustes**: Añadido Fuzzy Gab en enlaces, orden y roles actualizados, y texto de inspiración ajustado a Gabinete de Música Electroacústica.
+- **Créditos en Ajustes**: Añadido Fuzzy Gab en enlaces, orden y roles actualizados, y texto de inspiración ajustado a Gabinete de Música Electroacústica.
+- **Dormancy: Output Channel con Voltage Input**: Los canales de salida ahora despiertan correctamente al recibir señal por Voltage Input (columnas 42-45 de Panel 6), no solo por conexiones de audio (Panel 5).
 
 ## [0.5.0] - 2026-02-03
 

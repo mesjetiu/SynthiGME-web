@@ -238,10 +238,25 @@ export class DormancyManager {
     // ─────────────────────────────────────────────────────────────────────────
     // OUTPUT BUSES - 8 canales de salida
     // ─────────────────────────────────────────────────────────────────────────
+    // Un Output Channel está activo si tiene entrada desde:
+    // - Panel 5 (audio matrix): conexiones de audio de osciladores, noise, etc.
+    // - Panel 6 (control matrix): Voltage Input (columnas 42-45 para buses 1-4)
+    //
+    // El Voltage Input permite usar el Output Channel como "slew limiter":
+    // señal de control entra, pasa por VCA (τ=5ms), sale suavizada.
+    // ─────────────────────────────────────────────────────────────────────────
     for (let busIndex = 0; busIndex < 8; busIndex++) {
-      const hasInput = panel5Connections.some(c =>
+      // Entrada desde Panel 5 (audio)
+      const hasPanel5Input = panel5Connections.some(c =>
         c.dest?.kind === 'outputBus' && c.dest?.bus === busIndex + 1
       );
+      
+      // Entrada desde Panel 6 (Voltage Input - columnas 42-45)
+      const hasPanel6Input = panel6Connections.some(c =>
+        c.dest?.kind === 'outputBus' && c.dest?.bus === busIndex + 1
+      );
+      
+      const hasInput = hasPanel5Input || hasPanel6Input;
       this._setModuleDormant(`output-channel-${busIndex + 1}`, !hasInput);
     }
     

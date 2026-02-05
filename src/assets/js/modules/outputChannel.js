@@ -22,7 +22,8 @@ import { outputChannelConfig } from '../configs/index.js';
 import { 
   vcaCalculateGain, 
   vcaDialToVoltage, 
-  vcaCalculateGainLinear, 
+  vcaCalculateGainLinear,
+  sliderToDialLinear,
   isFaderLinearResponseEnabled 
 } from '../utils/voltageConstants.js';
 import { registerTooltipHideCallback } from '../ui/tooltipManager.js';
@@ -339,9 +340,20 @@ export class OutputChannel extends Module {
     });
     
     // Función generadora de contenido del tooltip
+    // Usa funciones dinámicas que seleccionan el cálculo según el modo activo
+    // En modo lineal: slider 5 → dial equivalente ~9.5 → voltaje ~-0.6V → ganancia ~0.5
+    // En modo log: slider 5 → dial 5 → voltaje -6V → ganancia ~0.001
     const getTooltipInfo = getVCATooltipInfo(
-      vcaDialToVoltage,
-      vcaCalculateGain,
+      (sliderValue) => {
+        // Calcular el dial efectivo según el modo
+        const dialValue = isFaderLinearResponseEnabled() 
+          ? sliderToDialLinear(sliderValue) 
+          : sliderValue;
+        return vcaDialToVoltage(dialValue);
+      },
+      (sliderValue, cv) => isFaderLinearResponseEnabled() 
+        ? vcaCalculateGainLinear(sliderValue, cv) 
+        : vcaCalculateGain(sliderValue, cv),
       () => this.values.externalCV
     );
     

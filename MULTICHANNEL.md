@@ -4,7 +4,7 @@ SynthiGME soporta salida de audio en **8 canales independientes**, permitiendo r
 
 ## Disponibilidad por Plataforma
 
-| Plataforma | 8 canales independientes | Ruteo en qpwgraph | Notas |
+| Plataforma | 12 canales independientes | Ruteo en qpwgraph | Notas |
 |------------|-------------------------|-------------------|-------|
 | **Linux + PipeWire** (Electron) | ✅ Sí | ✅ Sí | Requiere addon nativo compilado |
 | **Linux sin PipeWire** | ❌ No | — | Fallback a estéreo |

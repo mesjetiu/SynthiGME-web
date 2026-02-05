@@ -652,8 +652,24 @@ function setupPipEvents(pipContainer, panelId) {
     e.stopPropagation();
   }, { capture: true });
   
-  pipContainer.addEventListener('touchstart', (e) => e.stopPropagation(), { capture: true, passive: true });
-  pipContainer.addEventListener('touchmove', (e) => e.stopPropagation(), { capture: true, passive: true });
+  // Touch events: passive:false para poder bloquear zoom/pan del navegador en gestos multi-touch
+  // El preventDefault() es CRÍTICO para evitar que el pinch haga zoom de toda la página
+  pipContainer.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    // Bloquear comportamiento por defecto solo con 2+ toques (pinch/pan)
+    if (e.touches.length >= 2) {
+      e.preventDefault();
+    }
+  }, { capture: true, passive: false });
+  
+  pipContainer.addEventListener('touchmove', (e) => {
+    e.stopPropagation();
+    // Bloquear zoom/pan del navegador en gestos multi-touch
+    if (e.touches.length >= 2) {
+      e.preventDefault();
+    }
+  }, { capture: true, passive: false });
+  
   pipContainer.addEventListener('touchcancel', (e) => e.stopPropagation(), { capture: true, passive: true });
   
   // touchend: bloquear propagación + detectar doble tap

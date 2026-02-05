@@ -112,7 +112,7 @@ podría ser significativo en dispositivos móviles.
 
 - Release con versión en web, PWA, electro (Linux y Windows)
 - Revisar canales de grabación y normales en todas las plataformas.
-- Revisar README.md con créditos, info básica.
+- Revisar README.md con créditos, info básica. Canal de Telegram.
 - Corregir errores en todas las plataformas.
 - menús contextuales de Canvas y PiP.
 - En electron: se pueden anular atajos de refresco? (F5, Ctrl+Shift+R...).

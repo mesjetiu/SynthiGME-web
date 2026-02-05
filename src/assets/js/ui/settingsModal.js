@@ -557,6 +557,9 @@ export class SettingsModal {
     // Información de parámetros (tooltips)
     container.appendChild(this._createParamInfoSection());
     
+    // Respuesta de faders de salida
+    container.appendChild(this._createFaderResponseSection());
+    
     return container;
   }
   
@@ -1848,6 +1851,62 @@ export class SettingsModal {
     audioRow.appendChild(this.tooltipAudioCheckbox);
     audioRow.appendChild(this.tooltipAudioLabelElement);
     section.appendChild(audioRow);
+    
+    return section;
+  }
+  
+  /**
+   * Crea la sección de respuesta de faders de salida.
+   * Permite elegir entre respuesta logarítmica (auténtica) o lineal (más fácil).
+   * @returns {HTMLElement}
+   */
+  _createFaderResponseSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.faderResponseTitleElement = document.createElement('h3');
+    this.faderResponseTitleElement.className = 'settings-section__title';
+    this.faderResponseTitleElement.textContent = t('settings.display.faderResponse');
+    section.appendChild(this.faderResponseTitleElement);
+    
+    this.faderResponseDescElement = document.createElement('p');
+    this.faderResponseDescElement.className = 'settings-section__description';
+    this.faderResponseDescElement.textContent = t('settings.display.faderResponse.description');
+    section.appendChild(this.faderResponseDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para respuesta lineal de faders
+    // ─────────────────────────────────────────────────────────────────────
+    const linearRow = document.createElement('div');
+    linearRow.className = 'settings-row settings-row--checkbox';
+    
+    this.faderLinearCheckbox = document.createElement('input');
+    this.faderLinearCheckbox.type = 'checkbox';
+    this.faderLinearCheckbox.id = 'faderLinearCheckbox';
+    this.faderLinearCheckbox.className = 'settings-checkbox';
+    
+    // Cargar preferencia guardada (por defecto true = lineal activado)
+    const savedLinear = localStorage.getItem(STORAGE_KEYS.FADER_LINEAR_RESPONSE);
+    this.faderLinearResponse = savedLinear === null ? true : savedLinear === 'true';
+    this.faderLinearCheckbox.checked = this.faderLinearResponse;
+    
+    this.faderLinearLabelElement = document.createElement('label');
+    this.faderLinearLabelElement.className = 'settings-checkbox-label';
+    this.faderLinearLabelElement.htmlFor = 'faderLinearCheckbox';
+    this.faderLinearLabelElement.textContent = t('settings.display.faderResponse.linear');
+    
+    this.faderLinearCheckbox.addEventListener('change', () => {
+      this.faderLinearResponse = this.faderLinearCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.FADER_LINEAR_RESPONSE, String(this.faderLinearResponse));
+      // Notificar cambio para que los OutputChannels actualicen su comportamiento
+      document.dispatchEvent(new CustomEvent('synth:faderResponseChanged', {
+        detail: { linear: this.faderLinearResponse }
+      }));
+    });
+    
+    linearRow.appendChild(this.faderLinearCheckbox);
+    linearRow.appendChild(this.faderLinearLabelElement);
+    section.appendChild(linearRow);
     
     return section;
   }
@@ -3413,6 +3472,17 @@ export class SettingsModal {
     }
     if (this.tooltipAudioLabelElement) {
       this.tooltipAudioLabelElement.textContent = t('settings.display.paramInfo.audio');
+    }
+    
+    // Actualizar sección de respuesta de faders
+    if (this.faderResponseTitleElement) {
+      this.faderResponseTitleElement.textContent = t('settings.display.faderResponse');
+    }
+    if (this.faderResponseDescElement) {
+      this.faderResponseDescElement.textContent = t('settings.display.faderResponse.description');
+    }
+    if (this.faderLinearLabelElement) {
+      this.faderLinearLabelElement.textContent = t('settings.display.faderResponse.linear');
     }
     
     // Actualizar sección "Acerca de"

@@ -1175,3 +1175,94 @@ export function vcaCalculateGain(dialPosition, externalCV = 0, config = {}) {
   return vcaVoltageToGain(totalVoltage, config);
 }
 
+// =============================================================================
+// FUNCIONES DE RESPUESTA LINEAL DE FADERS (UI)
+// =============================================================================
+
+/**
+ * Convierte la posición del slider UI a dial equivalente para respuesta lineal.
+ * 
+ * En modo lineal, queremos que el slider controle la ganancia de forma directa:
+ * - Slider 50% (valor 5) → ganancia 50% → requiere dial ~9.5
+ * - Slider 10% (valor 1) → ganancia 10% → requiere dial ~8.3
+ * 
+ * Esta función calcula el dial que produciría la ganancia deseada SIN CV externo.
+ * El CV externo se sigue aplicando después con la curva logarítmica normal.
+ * 
+ * Matemática inversa:
+ * - Ganancia deseada = slider/10
+ * - ganancia = 10^(voltage × 10 / 20) = 10^(voltage / 2)
+ * - voltage = 2 × log10(ganancia)
+ * - dial = (voltage - (-12)) / 1.2 = (voltage + 12) / 1.2
+ * 
+ * @param {number} sliderValue - Posición del slider UI (0-10)
+ * @returns {number} Dial equivalente (0-10) que produciría esa ganancia
+ * 
+ * @example
+ * sliderToDialLinear(10)  // → 10 (ganancia 1.0)
+ * sliderToDialLinear(5)   // → ~9.5 (ganancia 0.5)
+ * sliderToDialLinear(1)   // → ~8.3 (ganancia 0.1)
+ * sliderToDialLinear(0)   // → 0 (corte)
+ */
+export function sliderToDialLinear(sliderValue) {
+  // Caso especial: corte total
+  if (sliderValue <= 0) return 0;
+  // Caso especial: máximo
+  if (sliderValue >= 10) return 10;
+  
+  // Ganancia deseada: slider/10
+  const gainDesired = sliderValue / 10;
+  
+  // Inversa de la curva 10 dB/V:
+  // voltage = 2 × log10(ganancia)
+  const voltage = 2 * Math.log10(gainDesired);
+  
+  // Convertir voltage a dial: dial = (voltage + 12) / 1.2
+  const dial = (voltage + 12) / 1.2;
+  
+  // Clampear a rango válido
+  return Math.max(0, Math.min(10, dial));
+}
+
+/**
+ * Calcula la ganancia del VCA con respuesta lineal del slider UI.
+ * 
+ * Esta función es un wrapper que:
+ * 1. Convierte el slider UI a un dial equivalente (para respuesta lineal)
+ * 2. Aplica vcaCalculateGain() normalmente con ese dial
+ * 
+ * El CV externo sigue funcionando exactamente igual que en modo logarítmico,
+ * con la curva 10 dB/V del VCA CEM 3330. Solo cambia cómo el slider UI
+ * se traduce a posición del dial.
+ * 
+ * @param {number} sliderValue - Posición del slider UI (0-10)
+ * @param {number} [externalCV=0] - CV externo en voltios (desde matriz)
+ * @param {Object} [config] - Configuración del VCA
+ * @returns {number} Ganancia lineal final
+ * 
+ * @example
+ * vcaCalculateGainLinear(10)   // → 1.0
+ * vcaCalculateGainLinear(5)    // → ~0.5 (en vez de ~0.001 del modo logarítmico)
+ * vcaCalculateGainLinear(0)    // → 0 (corte total)
+ * vcaCalculateGainLinear(5, 3) // → ~1.0 (CV aplica boost sobre ganancia 0.5)
+ */
+export function vcaCalculateGainLinear(sliderValue, externalCV = 0, config = {}) {
+  // Convertir slider UI a dial equivalente
+  const dialEquivalent = sliderToDialLinear(sliderValue);
+  
+  // Usar vcaCalculateGain normal con el dial equivalente
+  // Esto mantiene el CV funcionando exactamente igual
+  return vcaCalculateGain(dialEquivalent, externalCV, config);
+}
+
+/**
+ * Verifica si la respuesta lineal de faders está activada.
+ * Lee directamente de localStorage.
+ * 
+ * @returns {boolean} true si está en modo lineal, false si logarítmico
+ */
+export function isFaderLinearResponseEnabled() {
+  if (typeof localStorage === 'undefined') return true; // Default: lineal
+  const saved = localStorage.getItem('synthigme-fader-linear-response');
+  return saved === null ? true : saved === 'true';
+}

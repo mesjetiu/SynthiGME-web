@@ -256,6 +256,34 @@ settings.display.paramInfo.audio:
   pt: "Mostrar valores de áudio (frequência, ganho)"
   cs: "Zobrazit zvukové hodnoty (frekvence, zisk)"
 
+# Sección: Respuesta de faders
+settings.display.faderResponse:
+  en: Output Fader Response
+  es: Respuesta de faders de salida
+  fr: "Réponse des faders de sortie"
+  de: "Antwort der Ausgangsfader"
+  it: "Risposta dei fader di uscita"
+  pt: "Resposta dos faders de saída"
+  cs: "Odezva výstupních faderů"
+
+settings.display.faderResponse.description:
+  en: The original Synthi has a logarithmic response where most volume change happens at the end of the fader travel. Enable linear response for easier control at the expense of authenticity.
+  es: El Synthi original tiene una respuesta logarítmica donde la mayor parte del cambio de volumen ocurre al final del recorrido del fader. Activa la respuesta lineal para un control más fácil a costa de la autenticidad.
+  fr: "Le Synthi original a une réponse logarithmique où la plupart des changements de volume se produisent à la fin de la course du fader. Activez la réponse linéaire pour un contrôle plus facile au détriment de l'authenticité."
+  de: "Das Original-Synthi hat eine logarithmische Reaktion, bei der die meisten Lautstärkeänderungen am Ende des Faderweges auftreten. Aktivieren Sie die lineare Reaktion für eine einfachere Steuerung auf Kosten der Authentizität."
+  it: "Il Synthi originale ha una risposta logaritmica dove la maggior parte del cambiamento di volume avviene alla fine della corsa del fader. Abilita la risposta lineare per un controllo più facile a scapito dell'autenticità."
+  pt: "O Synthi original tem uma resposta logarítmica onde a maior parte da mudança de volume acontece no final do curso do fader. Ative a resposta linear para um controle mais fácil em detrimento da autenticidade."
+  cs: "Původní Synthi má logaritmickou odezvu, kde většina změn hlasitosti nastává na konci dráhy faderu. Povolte lineární odezvu pro snazší ovládání na úkor autenticity."
+
+settings.display.faderResponse.linear:
+  en: Linear gain response (easier control)
+  es: Respuesta lineal de ganancia (control más fácil)
+  fr: "Réponse linéaire de gain (contrôle plus facile)"
+  de: "Lineare Verstärkungsantwort (einfachere Steuerung)"
+  it: "Risposta lineare di guadagno (controllo più facile)"
+  pt: "Resposta linear de ganho (controle mais fácil)"
+  cs: "Lineární odezva zisku (snazší ovládání)"
+
 # Sección: OSC (Open Sound Control)
 settings.osc.title:
   en: OSC Communication

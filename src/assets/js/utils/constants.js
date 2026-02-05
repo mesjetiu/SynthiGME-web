@@ -122,6 +122,13 @@ export const STORAGE_KEYS = {
   VOLTAGE_THERMAL_DRIFT_ENABLED: `${STORAGE_PREFIX}voltage-thermal-drift-enabled`,
   
   // ─────────────────────────────────────────────────────────────────────────
+  // Faders de Output Channels
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Respuesta lineal de faders: el slider controla ganancia directamente en vez de voltaje */
+  FADER_LINEAR_RESPONSE: `${STORAGE_PREFIX}fader-linear-response`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
   // Tooltips de parámetros (knobs)
   // ─────────────────────────────────────────────────────────────────────────
   

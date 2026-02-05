@@ -19,7 +19,12 @@ import { Knob } from '../ui/knob.js';
 import { createKnobElements } from '../ui/knobFactory.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import { outputChannelConfig } from '../configs/index.js';
-import { vcaCalculateGain, vcaDialToVoltage } from '../utils/voltageConstants.js';
+import { 
+  vcaCalculateGain, 
+  vcaDialToVoltage, 
+  vcaCalculateGainLinear, 
+  isFaderLinearResponseEnabled 
+} from '../utils/voltageConstants.js';
 import { registerTooltipHideCallback } from '../ui/tooltipManager.js';
 import { getVCATooltipInfo } from '../utils/tooltipUtils.js';
 
@@ -354,13 +359,14 @@ export class OutputChannel extends Module {
       this.values.level = dialValue;
       
       // ─────────────────────────────────────────────────────────────────────
-      // VCA CEM 3330: convertir dial + CV externo a ganancia
+      // Calcular ganancia según el modo activo (lineal o logarítmico)
       // ─────────────────────────────────────────────────────────────────────
-      // La función vcaCalculateGain() suma el voltaje del fader con el CV
-      // externo y aplica la curva logarítmica del VCA (10 dB/V).
-      // Si dialValue === 0, ignora el CV (corte mecánico del fader).
+      // Modo lineal: el slider controla ganancia directamente (más intuitivo)
+      // Modo logarítmico: curva auténtica del VCA CEM 3330 (10 dB/V)
       // ─────────────────────────────────────────────────────────────────────
-      const gain = vcaCalculateGain(dialValue, this.values.externalCV);
+      const gain = isFaderLinearResponseEnabled()
+        ? vcaCalculateGainLinear(dialValue, this.values.externalCV)
+        : vcaCalculateGain(dialValue, this.values.externalCV);
       
       // Rampa desde config para suavizar cambios manuales
       const ramp = rampsConfig.level ?? 0.06;
@@ -588,7 +594,10 @@ export class OutputChannel extends Module {
         this.valueDisplay.textContent = data.level.toFixed(2);
       }
       // VCA CEM 3330: convertir dial + CV externo a ganancia
-      const gain = vcaCalculateGain(data.level, this.values.externalCV);
+      // Usar función según modo de respuesta del fader
+      const gain = isFaderLinearResponseEnabled()
+        ? vcaCalculateGainLinear(data.level, this.values.externalCV)
+        : vcaCalculateGain(data.level, this.values.externalCV);
       this.engine.setOutputLevel(this.channelIndex, gain, { ramp: 0.06 });
     }
     
@@ -652,14 +661,11 @@ export class OutputChannel extends Module {
     // ─────────────────────────────────────────────────────────────────────
     // Recalcular ganancia con el nuevo CV
     // ─────────────────────────────────────────────────────────────────────
-    // vcaCalculateGain() maneja internamente:
-    // 1. Conversión dial → voltaje del fader
-    // 2. Suma con CV externo
-    // 3. Aplicación de curva logarítmica (10 dB/V)
-    // 4. Saturación para voltaje sumado > 0V
-    // 5. Corte mecánico si dial === 0
+    // Usa el modo de respuesta configurado (lineal o logarítmico)
     // ─────────────────────────────────────────────────────────────────────
-    const gain = vcaCalculateGain(this.values.level, voltage);
+    const gain = isFaderLinearResponseEnabled()
+      ? vcaCalculateGainLinear(this.values.level, voltage)
+      : vcaCalculateGain(this.values.level, voltage);
     
     // Aplicar la ganancia al engine con rampa suave
     this.engine.setOutputLevel(this.channelIndex, gain, { ramp });

@@ -49,6 +49,10 @@ import {
   vcaVoltageToGain,
   vcaCalculateGain,
   
+  // Funciones de respuesta lineal de faders
+  sliderToDialLinear,
+  vcaCalculateGainLinear,
+  
   // Defaults
   VOLTAGE_DEFAULTS
 } from '../../src/assets/js/utils/voltageConstants.js';
@@ -1050,3 +1054,126 @@ describe('voltageConstants - vcaCalculateGain', () => {
   });
 });
 
+// =============================================================================
+// sliderToDialLinear - Conversión UI lineal
+// =============================================================================
+
+describe('voltageConstants - sliderToDialLinear', () => {
+  
+  it('slider 10 → dial 10 (ganancia 1.0)', () => {
+    const dial = sliderToDialLinear(10);
+    assert.equal(dial, 10);
+  });
+  
+  it('slider 0 → dial 0 (corte)', () => {
+    const dial = sliderToDialLinear(0);
+    assert.equal(dial, 0);
+  });
+  
+  it('slider 5 produce dial que da ganancia ≈ 0.5', () => {
+    // Con slider 5, queremos ganancia 0.5
+    // La función debe devolver un dial que, al pasar por vcaCalculateGain(dial, 0),
+    // produzca ganancia ≈ 0.5
+    const dial = sliderToDialLinear(5);
+    const gain = vcaCalculateGain(dial, 0);
+    
+    assert.ok(
+      Math.abs(gain - 0.5) < 0.01,
+      `Slider 5 debe dar ganancia ~0.5, obtenido: ${gain} (dial=${dial})`
+    );
+  });
+  
+  it('slider 1 produce dial que da ganancia ≈ 0.1', () => {
+    const dial = sliderToDialLinear(1);
+    const gain = vcaCalculateGain(dial, 0);
+    
+    assert.ok(
+      Math.abs(gain - 0.1) < 0.01,
+      `Slider 1 debe dar ganancia ~0.1, obtenido: ${gain} (dial=${dial})`
+    );
+  });
+  
+  it('slider 9 produce dial que da ganancia ≈ 0.9', () => {
+    const dial = sliderToDialLinear(9);
+    const gain = vcaCalculateGain(dial, 0);
+    
+    assert.ok(
+      Math.abs(gain - 0.9) < 0.01,
+      `Slider 9 debe dar ganancia ~0.9, obtenido: ${gain} (dial=${dial})`
+    );
+  });
+  
+  it('dial devuelto siempre está en rango [0, 10]', () => {
+    for (let s = 0; s <= 10; s += 0.5) {
+      const dial = sliderToDialLinear(s);
+      assert.ok(dial >= 0 && dial <= 10, `slider ${s} → dial ${dial} fuera de rango`);
+    }
+  });
+  
+  it('slider > 10 se clampea a dial 10', () => {
+    const dial = sliderToDialLinear(15);
+    assert.equal(dial, 10);
+  });
+  
+  it('slider < 0 se clampea a dial 0', () => {
+    const dial = sliderToDialLinear(-5);
+    assert.equal(dial, 0);
+  });
+});
+
+// =============================================================================
+// vcaCalculateGainLinear - Ganancia con respuesta lineal de UI
+// =============================================================================
+
+describe('voltageConstants - vcaCalculateGainLinear', () => {
+  
+  it('slider 10 sin CV → ganancia 1.0', () => {
+    const gain = vcaCalculateGainLinear(10, 0);
+    assert.ok(
+      Math.abs(gain - 1.0) < 0.001,
+      `Esperado 1.0, obtenido: ${gain}`
+    );
+  });
+  
+  it('slider 0 sin CV → ganancia 0 (corte)', () => {
+    const gain = vcaCalculateGainLinear(0, 0);
+    assert.equal(gain, 0);
+  });
+  
+  it('slider 5 sin CV → ganancia ≈ 0.5', () => {
+    const gain = vcaCalculateGainLinear(5, 0);
+    assert.ok(
+      Math.abs(gain - 0.5) < 0.01,
+      `Slider 5 debe dar ganancia ~0.5, obtenido: ${gain}`
+    );
+  });
+  
+  it('CV externo aplica curva logarítmica normal', () => {
+    // Slider 5 da ganancia 0.5 (dial ≈ 9.5)
+    // Con +3V de CV debería aumentar la ganancia
+    const gainBase = vcaCalculateGainLinear(5, 0);
+    const gainWithCV = vcaCalculateGainLinear(5, 3);
+    
+    assert.ok(
+      gainWithCV > gainBase,
+      `CV positivo debe aumentar ganancia: sin=${gainBase}, con=${gainWithCV}`
+    );
+  });
+  
+  it('corte mecánico (slider=0) ignora CV', () => {
+    const gain = vcaCalculateGainLinear(0, 10);
+    assert.equal(gain, 0, 'Slider 0 debe ignorar CV');
+  });
+  
+  it('respuesta es más lineal que modo logarítmico', () => {
+    // En modo logarítmico, slider 5 da ganancia ~0.001
+    // En modo lineal, slider 5 da ganancia ~0.5
+    const gainLog = vcaCalculateGain(5, 0);
+    const gainLin = vcaCalculateGainLinear(5, 0);
+    
+    assert.ok(
+      gainLin > gainLog * 100,  // Lineal da mucho más volumen a mitad
+      `Lineal (${gainLin}) debe ser >> log (${gainLog})`
+    );
+  });
+});

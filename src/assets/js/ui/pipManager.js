@@ -673,6 +673,8 @@ function setupPipEvents(pipContainer, panelId) {
   // Wheel para pan/zoom en el PiP
   // - Sin Ctrl: pan (scroll) manual porque el navegador no lo hace automáticamente
   // - Con Ctrl: zoom del contenido centrado en el cursor
+  // NOTA: passive:false es necesario para preventDefault() en Ctrl+wheel (evitar zoom del navegador)
+  // Chrome reporta warning pero es intencional y necesario para la funcionalidad
   const pipViewport = pipContainer.querySelector('.pip-viewport');
   const pipViewportInner = pipContainer.querySelector('.pip-viewport-inner');
   pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {

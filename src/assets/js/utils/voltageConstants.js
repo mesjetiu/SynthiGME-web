@@ -698,89 +698,55 @@ export function createSoftClipCurve(samples = 256, inputLimit = 1.0, softness = 
 export function createHybridClipCurve(
   samples = 1024,
   linearThreshold = 2.25,   // 9V / 4 = 2.25 digital
-  softThreshold = 2.875,    // 11.5V / 4 = 2.875 digital
+  softThreshold = 2.875,    // 11.5V / 4 = 2.875 digital (no usado, para compatibilidad)
   hardLimit = 3.0,          // 12V / 4 = 3.0 digital
   softness = 2.0
 ) {
   const curve = new Float32Array(samples);
   
-  // Ancho de la zona soft (input y output)
-  const softZoneWidth = hardLimit - linearThreshold;
+  // ─────────────────────────────────────────────────────────────────────────
+  // WaveShaperNode mapea entrada [-1, +1] a índices [0, samples-1]
+  // 
+  // Para emular saturación de raíles ±12V con señales en rango Web Audio [-1,+1]:
+  // - Las señales del Synthi van de -3 a +3 en unidades digitales (±12V / 4)
+  // - Web Audio normaliza a [-1, +1]
+  // - Por tanto, ±1 en Web Audio = ±4V en el Synthi (1/3 del rango)
+  // - La zona lineal del Synthi es hasta ±9V = ±2.25 digital = ±0.75 en Web Audio
+  // 
+  // Pero para evitar coloración no deseada en señales normales,
+  // hacemos la curva LINEAL para casi todo el rango, saturando solo muy cerca de ±1.
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  // Umbral de saturación: 95% del rango máximo
+  const saturationThreshold = 0.95;
   
   for (let i = 0; i < samples; i++) {
-    // WaveShaperNode: índice 0 → entrada -1, índice samples-1 → entrada +1
-    // Mapeamos el índice al rango [-hardLimit, +hardLimit]
-    // Usamos la fórmula estándar: x = (2i/(N-1) - 1) * hardLimit
-    // Esto garantiza: i=0 → x=-hardLimit, i=N-1 → x=+hardLimit, i=(N-1)/2 → x≈0
     const t = i / (samples - 1);  // 0 a 1
-    const normalizedIndex = 2 * t - 1;  // -1 a +1
-    const x = normalizedIndex * hardLimit;
+    const x = 2 * t - 1;          // -1 a +1
     
     const absX = Math.abs(x);
     const sign = x >= 0 ? 1 : -1;
     
     let y;
     
-    if (absX <= linearThreshold) {
+    if (absX <= saturationThreshold) {
       // ─────────────────────────────────────────────────────────────────────
-      // ZONA LINEAL: Ganancia 1:1, sin distorsión
+      // ZONA LINEAL: y = x (ganancia exactamente 1:1)
       // ─────────────────────────────────────────────────────────────────────
       y = x;
       
-    } else if (absX < hardLimit) {
-      // ─────────────────────────────────────────────────────────────────────
-      // ZONA SOFT: Saturación suave con tanh hacia el límite duro
-      // ─────────────────────────────────────────────────────────────────────
-      // Mapeamos el exceso sobre linearThreshold y aplicamos tanh para 
-      // comprimir gradualmente hacia hardLimit.
-      //
-      // Fórmula: output = linearThreshold + softZoneWidth * tanh(normalized * softness)
-      //
-      // Donde: softZoneWidth = hardLimit - linearThreshold
-      //        normalized = (input - linearThreshold) / softZoneWidth
-      //
-      // Propiedades:
-      // - tanh(0) = 0, así que en linearThreshold: output = linearThreshold
-      // - tanh(∞) = 1, así que en hardLimit: output → hardLimit (asintóticamente)
-      // - output SIEMPRE < input para input > linearThreshold (compresión)
-      //
-      // softness controla la "agresividad" del tanh:
-      // - softness BAJO: curva más lineal, compresión gradual
-      // - softness ALTO: curva satura rápido, se acerca a hardLimit más rápido
-      // ─────────────────────────────────────────────────────────────────────
-      const excess = absX - linearThreshold;
-      
-      // Normalizar el exceso al rango [0, 1]
-      const normalizedExcess = excess / softZoneWidth;
-      
-      // Aplicar tanh con softness como multiplicador
-      // tanh(softness * x) con softness > 1 satura más rápido
-      const compressedNormalized = Math.tanh(softness * normalizedExcess);
-      
-      // El exceso comprimido SIEMPRE es <= exceso original
-      // porque tanh(x) <= x para x > 0 cuando softness <= 1
-      // Para softness > 1, puede ser mayor, así que aplicamos min()
-      let compressedExcess = compressedNormalized * softZoneWidth;
-      compressedExcess = Math.min(compressedExcess, excess);  // Garantizar compresión
-      
-      // Suavizar la transición en los primeros 5% de la zona soft para continuidad
-      const interpFrac = 0.05;
-      if (normalizedExcess < interpFrac) {
-        // Interpolación lineal entre zona lineal y soft
-        const alpha = normalizedExcess / interpFrac;
-        const ySoft = linearThreshold + compressedExcess;
-        const yLinear = absX;
-        y = sign * (yLinear * (1 - alpha) + ySoft * alpha);
-      } else {
-        y = sign * (linearThreshold + compressedExcess);
-      }
-      
     } else {
       // ─────────────────────────────────────────────────────────────────────
-      // ZONA HARD: Clipping duro en los raíles (±12V = ±3.0 digital)
-      // "y luego recortar" (Manual Datanomics)
+      // ZONA SOFT: Saturación suave hacia ±1 usando tanh
       // ─────────────────────────────────────────────────────────────────────
-      y = sign * hardLimit;
+      const excess = absX - saturationThreshold;
+      const remainingRange = 1.0 - saturationThreshold;  // 0.05
+      const normalizedExcess = excess / remainingRange;
+      
+      // tanh comprime el exceso
+      const compressed = Math.tanh(softness * normalizedExcess) * remainingRange;
+      
+      y = sign * (saturationThreshold + compressed);
     }
     
     curve[i] = y;

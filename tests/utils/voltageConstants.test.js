@@ -548,17 +548,16 @@ describe('voltageConstants - createSoftClipCurve()', () => {
 });
 
 // =============================================================================
-// createHybridClipCurve - Saturación Híbrida (Lineal → Soft → Hard)
+// createHybridClipCurve - Curva de saturación suave para WaveShaperNode
 // =============================================================================
 //
-// Emula el comportamiento de los raíles de alimentación ±12V del Synthi 100:
-// - Zona Lineal: ≤ ±9V → sin distorsión
-// - Zona Soft: ±9V a ±11.5V → saturación tanh (op-amp perdiendo linealidad)
-// - Zona Hard: ≥ ±12V → clipping duro (raíles de alimentación)
+// Genera una curva para WaveShaperNode que:
+// - Es lineal (ganancia 1:1) para el 95% del rango [-1, +1]
+// - Aplica saturación suave (tanh) en el 5% extremo para evitar clicks
+// - Opera en rango Web Audio estándar [-1, +1]
 //
-// Referencia: Manual Técnico Datanomics 1982:
-// "Al aumentar la señal, esta primero debe alterar su forma ligeramente
-//  y luego recortar (clip)"
+// Los parámetros (linearThreshold, softThreshold, hardLimit, softness) se
+// mantienen por compatibilidad de API pero la curva usa umbral fijo de 0.95.
 // =============================================================================
 
 describe('voltageConstants - createHybridClipCurve()', () => {
@@ -599,101 +598,61 @@ describe('voltageConstants - createHybridClipCurve()', () => {
   });
   
   // ─────────────────────────────────────────────────────────────────────────
-  // Zona Lineal (≤ linearThreshold)
+  // Zona Lineal (≤ 0.95)
   // ─────────────────────────────────────────────────────────────────────────
   
-  it('es lineal (ganancia 1:1) por debajo del umbral lineal', () => {
-    // Usar umbrales en unidades digitales: 9V / 4 = 2.25
-    const linearThreshold = 2.25;  // 9V en digital
-    const hardLimit = 3.0;         // 12V en digital
+  it('es lineal (ganancia 1:1) por debajo del umbral de saturación (0.95)', () => {
+    const samples = 1024;
+    const curve = createHybridClipCurve(samples);
     
-    const curve = createHybridClipCurve(1024, linearThreshold, 2.875, hardLimit);
+    // Muestrear puntos en la zona lineal (< 0.95)
+    // El WaveShaper mapea índice 0-samples a entrada -1 a +1
+    const testInputs = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9];
     
-    // Muestrear puntos en la zona lineal (< 9V)
-    // El WaveShaper mapea índice 0-1023 a entrada -hardLimit a +hardLimit
-    const testVoltages = [0.5, 1.0, 1.5, 2.0];  // Todos < 2.25 (lineal)
-    
-    for (const v of testVoltages) {
-      // Convertir voltaje a índice de curva
-      const normalizedInput = (v / hardLimit + 1) / 2;  // 0 a 1
-      const index = Math.round(normalizedInput * (1024 - 1));
+    for (const x of testInputs) {
+      // Convertir entrada a índice de curva: índice = (x + 1) / 2 * (samples - 1)
+      const index = Math.round((x + 1) / 2 * (samples - 1));
       const output = curve[index];
       
       // En zona lineal: output ≈ input
       assert.ok(
-        Math.abs(output - v) < 0.05,
-        `En zona lineal (${v}V): esperado ~${v}, obtenido ${output}`
+        Math.abs(output - x) < 0.01,
+        `En zona lineal (x=${x}): esperado ~${x}, obtenido ${output}`
       );
     }
   });
   
   // ─────────────────────────────────────────────────────────────────────────
-  // Zona Soft (linearThreshold < x < softThreshold)
+  // Zona de Saturación (> 0.95)
   // ─────────────────────────────────────────────────────────────────────────
   
-  it('aplica saturación suave entre umbral lineal y soft', () => {
-    const linearThreshold = 2.25;  // 9V
-    const softThreshold = 2.875;   // 11.5V
-    const hardLimit = 3.0;         // 12V
-    
+  it('aplica saturación suave cerca de ±1', () => {
     const samples = 1024;
-    const curve = createHybridClipCurve(samples, linearThreshold, softThreshold, hardLimit);
+    const curve = createHybridClipCurve(samples);
     
-    // Punto en zona soft: 10V = 2.5 digital
-    const testVoltage = 2.5;
-    const normalizedInput = (testVoltage / hardLimit + 1) / 2;
-    const index = Math.round(normalizedInput * (samples - 1));
-    const output = curve[index];
-    
-    // Calcular el input REAL en este índice (por redondeo puede diferir de testVoltage)
-    const t = index / (samples - 1);
-    const normalizedIndex = 2 * t - 1;
-    const actualInput = normalizedIndex * hardLimit;
-    
-    // En zona soft: output <= input (compresión o pass-through por clamping)
-    // Tolerancia pequeña por precisión de punto flotante
-    assert.ok(
-      output <= actualInput + 0.001,
-      `Zona soft debe comprimir: actualInput=${actualInput}, output=${output}`
-    );
-    assert.ok(
-      output > linearThreshold,
-      `Zona soft no debe recortar aún: output=${output} debe ser > ${linearThreshold}`
-    );
-  });
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // Zona Hard (≥ hardLimit)
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  it('aplica clipping duro en el límite de los raíles (±12V)', () => {
-    const linearThreshold = 2.25;
-    const softThreshold = 2.875;
-    const hardLimit = 3.0;  // 12V
-    
-    const curve = createHybridClipCurve(1024, linearThreshold, softThreshold, hardLimit);
-    
-    // Los extremos de la curva deben ser exactamente ±hardLimit
-    const maxOutput = curve[1023];
+    // En el extremo (índice samples-1 = entrada +1), la salida debe estar
+    // cerca de 1 pero ligeramente comprimida por tanh
+    const maxOutput = curve[samples - 1];
     const minOutput = curve[0];
     
+    // Los extremos deben estar muy cerca de ±1 (la compresión es mínima)
     assert.ok(
-      Math.abs(maxOutput - hardLimit) < 0.01,
-      `Extremo positivo debe ser ${hardLimit}, obtenido ${maxOutput}`
+      maxOutput > 0.99 && maxOutput <= 1.0,
+      `Extremo positivo debe estar cerca de 1: ${maxOutput}`
     );
     assert.ok(
-      Math.abs(minOutput + hardLimit) < 0.01,
-      `Extremo negativo debe ser -${hardLimit}, obtenido ${minOutput}`
+      minOutput < -0.99 && minOutput >= -1.0,
+      `Extremo negativo debe estar cerca de -1: ${minOutput}`
     );
   });
   
-  it('nunca supera el hardLimit (brick wall)', () => {
-    const curve = createHybridClipCurve(1024, 2.25, 2.875, 3.0);
+  it('nunca supera ±1 (límite Web Audio)', () => {
+    const curve = createHybridClipCurve(1024);
     
     for (let i = 0; i < curve.length; i++) {
       assert.ok(
-        Math.abs(curve[i]) <= 3.0 + 0.001,
-        `Índice ${i} supera hardLimit: ${curve[i]}`
+        Math.abs(curve[i]) <= 1.0 + 0.001,
+        `Índice ${i} supera ±1: ${curve[i]}`
       );
     }
   });
@@ -702,13 +661,13 @@ describe('voltageConstants - createHybridClipCurve()', () => {
   // Continuidad de la curva
   // ─────────────────────────────────────────────────────────────────────────
   
-  it('es continua sin saltos abruptos entre zonas', () => {
-    const curve = createHybridClipCurve(1024, 2.25, 2.875, 3.0);
+  it('es continua sin saltos abruptos', () => {
+    const curve = createHybridClipCurve(1024);
     
-    // Verificar que no hay saltos mayores a un umbral razonable
-    // En las transiciones hardLimit → soft puede haber un salto ligeramente mayor
-    // debido a la transición entre clipping duro y compresión
-    const maxJump = 0.03;  // Máximo salto permitido entre muestras adyacentes
+    // Con 1024 muestras en rango [-1, +1], cada paso es ~2/1023 ≈ 0.002
+    // La pendiente máxima en zona lineal es 1, así que max delta ≈ 0.002
+    // En zona de saturación, la pendiente es menor
+    const maxJump = 0.01;
     
     for (let i = 1; i < curve.length; i++) {
       const delta = Math.abs(curve[i] - curve[i - 1]);
@@ -720,7 +679,7 @@ describe('voltageConstants - createHybridClipCurve()', () => {
   });
   
   it('es monótonamente creciente', () => {
-    const curve = createHybridClipCurve(1024, 2.25, 2.875, 3.0);
+    const curve = createHybridClipCurve(1024);
     
     for (let i = 1; i < curve.length; i++) {
       assert.ok(
@@ -731,69 +690,28 @@ describe('voltageConstants - createHybridClipCurve()', () => {
   });
   
   // ─────────────────────────────────────────────────────────────────────────
-  // Parámetros configurables
+  // Parámetros de softness
   // ─────────────────────────────────────────────────────────────────────────
   
-  it('respeta umbrales personalizados', () => {
-    // Umbral lineal más alto (10V = 2.5 digital)
-    const curve = createHybridClipCurve(1024, 2.5, 2.875, 3.0);
+  it('softness afecta la compresión en zona de saturación', () => {
+    // softness controla qué tan rápido satura la zona de transición
+    const curveLow = createHybridClipCurve(1024, 2.25, 2.875, 3.0, 0.5);
+    const curveHigh = createHybridClipCurve(1024, 2.25, 2.875, 3.0, 5.0);
     
-    // A 9V (2.25 digital) debería seguir siendo lineal con estos parámetros
-    const testVoltage = 2.25;
-    const normalizedInput = (testVoltage / 3.0 + 1) / 2;
-    const index = Math.round(normalizedInput * 1023);
-    const output = curve[index];
+    // En el extremo, ambas deben saturar pero con diferentes curvas
+    // Con softness alto, tanh satura más rápido (se acerca más a 1)
+    const extremeHigh = curveHigh[1023];
+    const extremeLow = curveLow[1023];
     
+    // Ambas deben estar razonablemente cerca de 1 (> 0.97)
+    assert.ok(extremeHigh > 0.97, `Softness alto debe saturar cerca de 1: ${extremeHigh}`);
+    assert.ok(extremeLow > 0.97, `Softness bajo debe saturar cerca de 1: ${extremeLow}`);
+    
+    // La diferencia puede ser mínima pero high debería estar más cerca de 1
     assert.ok(
-      Math.abs(output - testVoltage) < 0.05,
-      `Con linearThreshold=2.5, 2.25V debe ser lineal: esperado ~${testVoltage}, obtenido ${output}`
+      extremeHigh >= extremeLow - 0.001,
+      `Softness alto debe saturar más rápido: high=${extremeHigh}, low=${extremeLow}`
     );
-  });
-  
-  it('softness afecta la pendiente de la zona de saturación', () => {
-    // softness controla qué tan "suave" es la transición
-    // softness BAJO = curva más gradual, transición más suave (menos compresión)
-    // softness ALTO = curva satura más rápido, se acerca al hardLimit antes
-    const curveLow = createHybridClipCurve(1024, 2.25, 2.875, 3.0, 0.5);   // Softness bajo
-    const curveHigh = createHybridClipCurve(1024, 2.25, 2.875, 3.0, 3.0);  // Softness alto
-    
-    // En la zona soft, ambas curvas deben comprimir o mantener (output <= input)
-    const testVoltage = 2.6;  // En zona soft
-    const normalizedInput = (testVoltage / 3.0 + 1) / 2;
-    const index = Math.round(normalizedInput * 1023);
-    
-    // Ambas deben estar por debajo o igual a la entrada (tolerancia de 0.01 por clamping)
-    assert.ok(curveLow[index] <= testVoltage + 0.01, `Curva softness bajo no debe expandir`);
-    assert.ok(curveHigh[index] <= testVoltage + 0.01, `Curva softness alto no debe expandir`);
-    
-    // Con softness bajo (0.5), tanh(0.5*x) ≈ 0.5*x para x pequeño,
-    // así que comprime más (output más lejos de input)
-    // Con softness alto (3.0), tanh satura rápido, pero el clamp lo limita a ~input
-    // Por lo tanto curveLow[index] < curveHigh[index]
-    assert.ok(
-      curveLow[index] < curveHigh[index],
-      `Softness bajo comprime más: low=${curveLow[index]}, high=${curveHigh[index]}`
-    );
-  });
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // Valores por defecto (basados en Synthi 100)
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  it('usa valores por defecto del Synthi 100 (9V/11.5V/12V)', () => {
-    // Sin parámetros, debe usar:
-    // linearThreshold = 9V / 4 = 2.25
-    // softThreshold = 11.5V / 4 = 2.875
-    // hardLimit = 12V / 4 = 3.0
-    const curve = createHybridClipCurve(1024);
-    
-    // Verificar que en 8V (2.0 digital) es lineal
-    const linear8V = curve[Math.round((2.0 / 3.0 + 1) / 2 * 1023)];
-    assert.ok(Math.abs(linear8V - 2.0) < 0.1, `8V debe ser lineal: ${linear8V}`);
-    
-    // Verificar que 12V es exactamente 3.0
-    const hard12V = curve[1023];
-    assert.ok(Math.abs(hard12V - 3.0) < 0.01, `12V debe clipear a 3.0: ${hard12V}`);
   });
   
   // ─────────────────────────────────────────────────────────────────────────
@@ -801,7 +719,7 @@ describe('voltageConstants - createHybridClipCurve()', () => {
   // ─────────────────────────────────────────────────────────────────────────
   
   it('es válida para uso en WaveShaperNode (sin NaN ni Infinity)', () => {
-    const curve = createHybridClipCurve(1024, 2.25, 2.875, 3.0);
+    const curve = createHybridClipCurve(1024);
     
     for (let i = 0; i < curve.length; i++) {
       assert.ok(
@@ -812,22 +730,24 @@ describe('voltageConstants - createHybridClipCurve()', () => {
   });
   
   // ─────────────────────────────────────────────────────────────────────────
-  // Caso de uso: CV de frecuencia "toca techo"
+  // Compatibilidad de API
   // ─────────────────────────────────────────────────────────────────────────
   
-  it('simula CV tocando techo cuando suma excede raíles', () => {
-    const curve = createHybridClipCurve(1024, 2.25, 2.875, 3.0);
+  it('acepta parámetros legacy sin fallar', () => {
+    // Los parámetros originales (linearThreshold, softThreshold, hardLimit)
+    // se mantienen por compatibilidad aunque la curva usa umbral fijo interno
+    const curve = createHybridClipCurve(1024, 2.25, 2.875, 3.0, 2.0);
     
-    // Simular suma de múltiples CVs: 5V + 5V + 5V = 15V (3.75 digital)
-    // Pero la entrada del WaveShaper está normalizada a -1..+1 escalada por hardLimit
-    // El punto 15V/4 = 3.75 está fuera del rango del WaveShaper
-    // El máximo de salida debe ser 3.0 (12V)
+    assert.ok(curve instanceof Float32Array);
+    assert.equal(curve.length, 1024);
     
-    const maxOutput = curve[curve.length - 1];
-    assert.equal(
-      Math.round(maxOutput * 100) / 100,
-      3.0,
-      `CV excesivo debe estancarse en 3.0 (12V): ${maxOutput}`
+    // Debe seguir siendo lineal en la zona central
+    const centerIndex = 512;
+    const output = curve[centerIndex];
+    const expectedInput = 2 * (512 / 1023) - 1;  // ≈ 0.001
+    assert.ok(
+      Math.abs(output - expectedInput) < 0.01,
+      `Centro debe ser lineal: esperado ${expectedInput}, obtenido ${output}`
     );
   });
 });

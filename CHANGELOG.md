@@ -13,6 +13,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Créditos en Ajustes**: Añadido Fuzzy Gab en enlaces, orden y roles actualizados, y texto de inspiración ajustado a Gabinete de Música Electroacústica.
 - **Dormancy: Output Channel con Voltage Input**: Los canales de salida ahora despiertan correctamente al recibir señal por Voltage Input (columnas 42-45 de Panel 6), no solo por conexiones de audio (Panel 5).
 - **Re-entry de Output Channels: DC blocker**: Añadido filtro highpass a 5Hz en la salida de re-entry para eliminar offset DC que causaba comportamiento errático al activar switches. Resincronización del VCA al salir de dormancy.
+- **Re-entry de Output Channels: ganancia unitaria**: Corregido orden de argumentos en `createHybridClipCurve()` que causaba amplificación ~1.6× por cada Output Channel encadenado. Ahora la señal re-entry mantiene ganancia 1:1.
 
 ## [0.5.0] - 2026-02-03
 

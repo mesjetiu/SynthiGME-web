@@ -231,11 +231,11 @@ export class AudioEngine {
       if (hybridClipping.enabled) {
         hybridClipShaper = ctx.createWaveShaper();
         hybridClipShaper.curve = createHybridClipCurve(
+          hybridClipping.samples,
           hybridClipping.linearThreshold,
           hybridClipping.softThreshold,
           hybridClipping.hardLimit,
-          hybridClipping.softness,
-          hybridClipping.samples
+          hybridClipping.softness
         );
         hybridClipShaper.oversample = '2x'; // Evitar aliasing en transiciones
       }

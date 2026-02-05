@@ -672,21 +672,79 @@ function setupPipEvents(pipContainer, panelId) {
   
   // Wheel para pan/zoom en el PiP
   // - Sin Ctrl: pan (scroll) manual porque el navegador no lo hace automáticamente
-  // - Con Ctrl: zoom del contenido
+  // - Con Ctrl: zoom del contenido centrado en el cursor
   const pipViewport = pipContainer.querySelector('.pip-viewport');
+  const pipViewportInner = pipContainer.querySelector('.pip-viewport-inner');
   pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {
+    const state = activePips.get(panelId);
+    if (!state) return;
+    
     if (e.ctrlKey) {
-      // Zoom
+      // Zoom centrado en el cursor
       e.preventDefault();
-      const state = activePips.get(panelId);
-      if (state) {
-        const delta = e.deltaY > 0 ? -0.05 : 0.05;
-        updatePipScale(panelId, Math.max(MIN_SCALE, Math.min(MAX_SCALE, state.scale + delta)));
+      
+      const oldScale = state.scale;
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, oldScale + delta));
+      
+      if (newScale !== oldScale) {
+        // Posición del cursor relativa al viewport
+        const rect = pipViewport.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        
+        // Leer padding actual del viewport-inner
+        const oldPaddingX = parseFloat(pipViewportInner.style.paddingLeft) || 0;
+        const oldPaddingY = parseFloat(pipViewportInner.style.paddingTop) || 0;
+        
+        // Punto del panel (en coordenadas originales sin escalar) bajo el cursor
+        const panelPointX = (pipViewport.scrollLeft + cursorX - oldPaddingX) / oldScale;
+        const panelPointY = (pipViewport.scrollTop + cursorY - oldPaddingY) / oldScale;
+        
+        // Aplicar nueva escala (esto actualiza el padding)
+        updatePipScale(panelId, newScale);
+        
+        // Leer nuevo padding
+        const newPaddingX = parseFloat(pipViewportInner.style.paddingLeft) || 0;
+        const newPaddingY = parseFloat(pipViewportInner.style.paddingTop) || 0;
+        
+        // Calcular nuevo scroll para mantener el punto bajo el cursor
+        const newScrollX = panelPointX * newScale + newPaddingX - cursorX;
+        const newScrollY = panelPointY * newScale + newPaddingY - cursorY;
+        
+        pipViewport.scrollLeft = Math.max(0, newScrollX);
+        pipViewport.scrollTop = Math.max(0, newScrollY);
       }
     } else {
-      // Pan manual - el navegador no scrollea automáticamente por la estructura DOM
-      pipViewport.scrollLeft += e.deltaX || 0;
-      pipViewport.scrollTop += e.deltaY || 0;
+      // Pan manual con límites estrictos: siempre debe verse parte del panel
+      const viewportW = pipViewport.clientWidth;
+      const viewportH = pipViewport.clientHeight;
+      
+      // Tamaño del panel escalado
+      const panelEl = document.getElementById(panelId);
+      const scaledW = (panelEl?.offsetWidth || 760) * state.scale;
+      const scaledH = (panelEl?.offsetHeight || 760) * state.scale;
+      
+      // Mínimo visible del panel: siempre 50px
+      const minVisible = 50;
+      
+      // Calcular padding (mismo cálculo que updatePipScale)
+      const paddingX = Math.max(0, viewportW - minVisible);
+      const paddingY = Math.max(0, viewportH - minVisible);
+      
+      // Límites de scroll para mantener el panel visible
+      // - Mínimo: el borde derecho del panel menos minVisible debe estar visible
+      // - Máximo: el borde izquierdo del panel más minVisible debe estar visible
+      const minScrollX = Math.max(0, paddingX + minVisible - viewportW);
+      const maxScrollX = paddingX + scaledW - minVisible;
+      const minScrollY = Math.max(0, paddingY + minVisible - viewportH);
+      const maxScrollY = paddingY + scaledH - minVisible;
+      
+      const newScrollX = pipViewport.scrollLeft + (e.deltaX || 0);
+      const newScrollY = pipViewport.scrollTop + (e.deltaY || 0);
+      
+      pipViewport.scrollLeft = Math.max(minScrollX, Math.min(maxScrollX, newScrollX));
+      pipViewport.scrollTop = Math.max(minScrollY, Math.min(maxScrollY, newScrollY));
     }
   }, { passive: false });
   
@@ -952,18 +1010,28 @@ function updatePipScale(panelId, newScale, persist = true) {
   const viewportWidth = viewport ? viewport.clientWidth : state.width;
   const viewportHeight = viewport ? viewport.clientHeight : state.height - 32;
   
-  // Padding para permitir scroll incluso cuando el panel es más pequeño que la ventana
-  // El padding crea un "canvas virtual" más grande
-  const paddingX = Math.max(0, viewportWidth);
-  const paddingY = Math.max(0, viewportHeight);
+  // Padding para permitir scroll - limitado para que el panel no salga completamente de la vista
+  // Usamos un valor fijo de minVisible para estabilidad
+  const minVisible = 50;
+  const paddingX = Math.max(0, viewportWidth - minVisible);
+  const paddingY = Math.max(0, viewportHeight - minVisible);
   
-  // Actualizar tamaño del contenedor interno con padding extra
+  // Actualizar tamaño del contenedor interno
+  // El panel escalado está en (paddingX, paddingY) y ocupa (scaledWidth, scaledHeight)
+  // El contenedor debe ser: paddingX + scaledWidth + paddingX = 2*paddingX + scaledWidth
+  // Usamos box-sizing: border-box implícito, el width/height es el total scrollable
   const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
   if (viewportInner) {
-    viewportInner.style.width = `${scaledWidth + paddingX * 2}px`;
-    viewportInner.style.height = `${scaledHeight + paddingY * 2}px`;
+    // Tamaño total del área scrollable
+    const totalWidth = paddingX + scaledWidth + paddingX;
+    const totalHeight = paddingY + scaledHeight + paddingY;
+    viewportInner.style.width = `${totalWidth}px`;
+    viewportInner.style.height = `${totalHeight}px`;
     viewportInner.style.paddingLeft = `${paddingX}px`;
     viewportInner.style.paddingTop = `${paddingY}px`;
+    viewportInner.style.paddingRight = `${paddingX}px`;
+    viewportInner.style.paddingBottom = `${paddingY}px`;
+    viewportInner.style.boxSizing = 'border-box';
   }
   
   // Guardar estado después de cambiar zoom

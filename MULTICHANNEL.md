@@ -26,7 +26,7 @@ SynthiGME soporta salida de audio en **8 canales independientes**, permitiendo r
 
 1. Abre SynthiGME (versión Electron/AppImage)
 2. Ve a **Ajustes de Audio** (icono de engranaje → Audio)
-3. En **Dispositivo de salida**, selecciona **"SynthiGME 8ch (PipeWire)"**
+3. En **Dispositivo de salida**, selecciona **"SynthiGME 12ch (PipeWire)"****
 4. Configura la latencia multicanal según tus necesidades
 
 ### Configuración de Latencia
@@ -51,18 +51,22 @@ Una vez activo, verás en qpwgraph:
 ┌─────────────────────┐
 │     SynthiGME       │
 ├─────────────────────┤
-│ AUX0  ●─────────────┼──► Sistema / DAW / Hardware
-│ AUX1  ●─────────────┼──►
-│ AUX2  ●─────────────┼──►
-│ AUX3  ●─────────────┼──►
-│ AUX4  ●─────────────┼──►
-│ AUX5  ●─────────────┼──►
-│ AUX6  ●─────────────┼──►
-│ AUX7  ●─────────────┼──►
+│ AUX0   ●────────────┼──► Sistema / DAW / Hardware
+│ AUX1   ●────────────┼──►
+│ AUX2   ●────────────┼──►
+│ AUX3   ●────────────┼──►
+│ AUX4   ●────────────┼──►
+│ AUX5   ●────────────┼──►
+│ AUX6   ●────────────┼──►
+│ AUX7   ●────────────┼──►
+│ AUX8   ●────────────┼──►
+│ AUX9   ●────────────┼──►
+│ AUX10  ●────────────┼──►
+│ AUX11  ●────────────┼──►
 └─────────────────────┘
 ```
 
-Cada puerto `AUX0-AUX7` corresponde a un bus de salida del sintetizador (Output 1-8).
+Cada puerto `AUX0-AUX11` corresponde a un bus de salida del sintetizador (Output 1-12).
 
 ## Arquitectura Técnica
 
@@ -76,7 +80,7 @@ Cada puerto `AUX0-AUX7` corresponde a un bus de salida del sintetizador (Output 
 │  │   (renderer)     │      │                                 │  │
 │  │                  │ SAB  │   SharedArrayBuffer (lock-free) │  │
 │  │  AudioWorklet    │─────▶│   Ring buffer (8192 frames)     │  │
-│  │  8ch capture     │      │   PipeWire stream               │  │
+│  │  12ch capture    │      │   PipeWire stream               │  │
 │  └──────────────────┘      └─────────────────────────────────┘  │
 │                                       │                          │
 └───────────────────────────────────────┼──────────────────────────┘
@@ -93,7 +97,7 @@ Cada puerto `AUX0-AUX7` corresponde a un bus de salida del sintetizador (Output 
 
 | Componente | Archivo | Descripción |
 |------------|---------|-------------|
-| AudioWorklet (captura) | `src/assets/js/worklets/multichannelCapture.worklet.js` | Captura 8 canales desde Web Audio |
+| AudioWorklet (captura) | `src/assets/js/worklets/multichannelCapture.worklet.js` | Captura 12 canales desde Web Audio |
 | Addon nativo | `electron/native/src/` | Escribe audio a PipeWire |
 | Preload API | `electron/preload.cjs` | Expone `window.multichannelAPI` |
 | UI latencia | `src/assets/js/ui/audioSettingsModal.js` | Configuración de latencia |
@@ -108,7 +112,7 @@ La comunicación entre AudioWorklet y el addon nativo usa SharedArrayBuffer para
 ├─────────────────────────────────────────────────────────┤
 │ Bytes 0-3: writeIndex (Int32, Atomics)                 │
 │ Bytes 4-7: readIndex (Int32, Atomics)                  │
-│ Bytes 8+:  Audio data (Float32 × 8ch × 8192 frames)    │
+│ Bytes 8+:  Audio data (Float32 × 12ch × 8192 frames)   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -155,7 +159,7 @@ La arquitectura JS (detección, UI, fallback) ya está preparada para soportar m
 
 ## Solución de Problemas
 
-### No aparece la opción "SynthiGME 8ch"
+### No aparece la opción "SynthiGME 12ch"
 
 1. Verifica que estás usando la versión **Electron** (no el navegador web)
 2. Verifica que PipeWire está corriendo: `systemctl --user status pipewire`

@@ -26,7 +26,7 @@ Este addon está en producción y soporta audio multicanal en tiempo real con la
 │  │   (renderer)     │      │                                 │  │
 │  │                  │ SAB  │   SharedArrayBuffer (lock-free) │  │
 │  │  AudioWorklet    │─────▶│   Ring buffer interno           │  │
-│  │  8ch capture     │      │   PipeWire stream               │  │
+│  │  12ch capture    │      │   PipeWire stream               │  │
 │  └──────────────────┘      └─────────────────────────────────┘  │
 │                                       │                          │
 └───────────────────────────────────────┼──────────────────────────┘
@@ -107,7 +107,7 @@ audio.stop();
 El addon imprime mensajes de estado:
 ```
 [PwStream] State: connecting
-[PwStream] Started: SynthiGME (8ch @ 48000Hz)
+[PwStream] Started: SynthiGME (12ch @ 48000Hz)
 [PwStream] State: paused
 [PwStream] State: streaming
 [PwStream] Stopped. Underflows: 0

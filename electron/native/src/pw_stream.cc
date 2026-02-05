@@ -251,7 +251,7 @@ void PwStream::processCallback() {
     if (sharedBuffer_) {
         // Primero transferir del SharedArrayBuffer al ring buffer interno
         // para mantener el mecanismo de pre-buffering
-        float tempBuf[2048 * 8]; // max 2048 frames * 8 channels
+        float tempBuf[2048 * 12]; // max 2048 frames * 12 channels
         size_t transferred = readFromSharedBuffer(tempBuf, 2048);
         
         if (transferred > 0) {

@@ -13,7 +13,7 @@ let sharedBuffer = null;
 let controlBuffer = null;  // Int32Array [writeIndex, readIndex]
 let audioBuffer = null;    // Float32Array (interleaved samples)
 let bufferFrames = 0;
-let channels = 8;
+let channels = 12;
 let running = false;
 let nativeWrite = null;
 let pollInterval = null;
@@ -41,7 +41,7 @@ self.onmessage = (event) => {
 function initBuffer(data) {
   sharedBuffer = data.sharedBuffer;
   bufferFrames = data.bufferFrames;
-  channels = data.channels || 8;
+  channels = data.channels || 12;
   
   // Layout:
   // [0-3]: writeIndex (Int32)

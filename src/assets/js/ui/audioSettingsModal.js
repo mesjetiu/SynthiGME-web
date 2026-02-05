@@ -556,12 +556,12 @@ export class AudioSettingsModal {
       this.multichannelAvailable = result.available;
       
       if (result.available) {
-        log.info(' 8-channel native audio available (Electron/PipeWire)');
+        log.info(' 12-channel native audio available (Electron/PipeWire)');
         // Añadir dispositivo virtual al inicio de la lista
         this.availableOutputDevices.unshift({
-          deviceId: 'multichannel-8ch',
+          deviceId: 'multichannel-12ch',
           kind: 'audiooutput',
-          label: 'SynthiGME 8ch (PipeWire)',
+          label: 'SynthiGME 12ch (PipeWire)',
           groupId: 'multichannel'
         });
       } else {
@@ -577,7 +577,7 @@ export class AudioSettingsModal {
    * @returns {boolean}
    */
   isMultichannelDevice() {
-    return this.selectedOutputDevice === 'multichannel-8ch';
+    return this.selectedOutputDevice === 'multichannel-12ch';
   }
 
   /**
@@ -1162,7 +1162,7 @@ export class AudioSettingsModal {
   _updateTotalLatency() {
     if (!this.totalLatencyValue) return;
     
-    const isMultichannel = this.selectedOutputDevice === 'multichannel-8ch';
+    const isMultichannel = this.selectedOutputDevice === 'multichannel-12ch';
     const webAudioMs = this._webAudioLatencyMs || 25;
     const multichannelMs = isMultichannel ? (this._multichannelLatencyMs || 42) : 0;
     
@@ -1193,7 +1193,7 @@ export class AudioSettingsModal {
   _updateLatencyVisibility() {
     if (!this.multichannelLatencyRow) return;
     
-    const isMultichannel = this.selectedOutputDevice === 'multichannel-8ch';
+    const isMultichannel = this.selectedOutputDevice === 'multichannel-12ch';
     this.multichannelLatencyRow.style.display = isMultichannel ? 'flex' : 'none';
     
     // Actualizar total porque cambia si hay multicanal o no

@@ -187,11 +187,11 @@ describe('Lógica de latencia de audio', () => {
   describe('Visibilidad de multicanal', () => {
     // Replica la lógica de _updateLatencyVisibility
     const shouldShowMultichannel = (deviceId) => {
-      return deviceId === 'multichannel-8ch';
+      return deviceId === 'multichannel-12ch';
     };
 
-    it('visible con multichannel-8ch', () => {
-      assert.strictEqual(shouldShowMultichannel('multichannel-8ch'), true);
+    it('visible con multichannel-12ch', () => {
+      assert.strictEqual(shouldShowMultichannel('multichannel-12ch'), true);
     });
 
     it('oculto con default', () => {

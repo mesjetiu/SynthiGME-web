@@ -5,7 +5,7 @@
 
 const { PipeWireAudio } = require('./build/Release/pipewire_audio.node');
 
-const CHANNELS = 8;
+const CHANNELS = 12;
 const SAMPLE_RATE = 48000;
 const BUFFER_SIZE = 256;
 

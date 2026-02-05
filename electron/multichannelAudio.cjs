@@ -1,5 +1,5 @@
 /**
- * MultichannelAudio - Salida de audio de 8 canales via pw-cat (PipeWire)
+ * MultichannelAudio - Salida de audio multicanal (hasta 12 canales) via pw-cat (PipeWire)
  * 
  * Este módulo permite sacar audio por 8 canales físicos independientes
  * usando pw-cat directamente con PipeWire en Linux.
@@ -49,7 +49,7 @@ class MultichannelAudio {
    * Abre el stream de audio de 8 canales
    * @param {Object} [config]
    * @param {number} [config.sampleRate=48000]
-   * @param {number} [config.channels=8]
+   * @param {number} [config.channels=12]
    * @returns {Promise<{ success: boolean, error?: string, info?: Object }>}
    */
   async open(config = {}) {
@@ -64,7 +64,7 @@ class MultichannelAudio {
 
     this.config = {
       sampleRate: config.sampleRate || 48000,
-      channels: config.channels || 8
+      channels: config.channels || 12
     };
 
     try {

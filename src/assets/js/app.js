@@ -252,13 +252,13 @@ class App {
     
     const savedOutputDevice = this.audioSettingsModal?.selectedOutputDevice;
     
-    if (savedOutputDevice === 'multichannel-8ch') {
+    if (savedOutputDevice === 'multichannel-12ch') {
       log.info('🔊 Restoring multichannel output from saved settings...');
       const result = await this._activateMultichannelOutput();
       if (result.success) {
-        log.info('🔊 Multichannel output restored (8ch)');
-        this.audioSettingsModal.updatePhysicalChannels(8, 
-          ['1', '2', '3', '4', '5', '6', '7', '8']);
+        log.info('🔊 Multichannel output restored (12ch)');
+        this.audioSettingsModal.updatePhysicalChannels(12, 
+          ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
       } else {
         log.error('🔊 Failed to restore multichannel:', result.error);
       }
@@ -381,13 +381,13 @@ class App {
       // ─────────────────────────────────────────────────────────────────────────
       onOutputDeviceChange: async (deviceId) => {
         // Caso especial: multicanal nativo (solo Electron + Linux)
-        if (deviceId === 'multichannel-8ch') {
+        if (deviceId === 'multichannel-12ch') {
           const result = await this._activateMultichannelOutput();
           if (result.success) {
-            log.info(' Multichannel output activated (8ch)');
-            // Forzar 8 canales en el modal
-            this.audioSettingsModal.updatePhysicalChannels(8, 
-              ['1', '2', '3', '4', '5', '6', '7', '8']);
+            log.info(' Multichannel output activated (12ch)');
+            // Forzar 12 canales en el modal
+            this.audioSettingsModal.updatePhysicalChannels(12, 
+              ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
           } else {
             log.error(' Failed to activate multichannel:', result.error);
           }
@@ -479,7 +479,7 @@ class App {
       
       // Aplicar dispositivo de salida guardado (excepto multicanal que ya se activó arriba)
       const savedOutputDevice = this.audioSettingsModal.selectedOutputDevice;
-      if (savedOutputDevice && savedOutputDevice !== 'default' && savedOutputDevice !== 'multichannel-8ch') {
+      if (savedOutputDevice && savedOutputDevice !== 'default' && savedOutputDevice !== 'multichannel-12ch') {
         this.engine.setOutputDevice(savedOutputDevice);
       }
     };
@@ -1438,9 +1438,9 @@ class App {
       return { success: false, error: 'multichannelAPI no disponible' };
     }
     
-    // Primero forzar 8 canales en el engine
-    const channelLabels = ['1', '2', '3', '4', '5', '6', '7', '8'];
-    this.engine.forcePhysicalChannels(8, channelLabels, true);
+    // Primero forzar 12 canales en el engine
+    const channelLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+    this.engine.forcePhysicalChannels(12, channelLabels, true);
     
     // Obtener latencia configurada del modal de ajustes
     const configuredLatencyMs = this.audioSettingsModal?.getConfiguredLatencyMs?.() || 42;
@@ -1453,7 +1453,7 @@ class App {
     
     // Abrir el stream multicanal
     const sampleRate = this.engine.audioCtx?.sampleRate || 48000;
-    const result = await window.multichannelAPI.open({ sampleRate, channels: 8 });
+    const result = await window.multichannelAPI.open({ sampleRate, channels: 12 });
     
     if (!result.success) {
       this.engine.forcePhysicalChannels(2, ['L', 'R'], false);
@@ -1465,9 +1465,9 @@ class App {
     const ctx = this.engine.audioCtx;
     
     // Crear SharedArrayBuffer en el renderer si está disponible
-    // Layout: [writeIndex(4), readIndex(4), audioData(frames * 8ch * 4bytes)]
+    // Layout: [writeIndex(4), readIndex(4), audioData(frames * 12ch * 4bytes)]
     const SHARED_BUFFER_FRAMES = 8192;  // ~170ms @ 48kHz
-    const channels = 8;
+    const channels = 12;
     let sharedBuffer = null;
     
     // DEBUG: Verificar disponibilidad de SharedArrayBuffer
@@ -1520,11 +1520,11 @@ class App {
     this._multichannelWorklet = new AudioWorkletNode(ctx, 'multichannel-capture', {
       numberOfInputs: 1,
       numberOfOutputs: 1,
-      channelCount: 8,
+      channelCount: 12,
       channelCountMode: 'explicit',
       channelInterpretation: 'discrete',
       processorOptions: {
-        channels: 8,
+        channels: 12,
         chunkSize: chunkSize
       }
     });
@@ -1593,7 +1593,7 @@ class App {
     
     const ctx = this.engine.audioCtx;
     const bufferSize = 512;
-    const inputChannels = 8;
+    const inputChannels = 12;
     const outputChannels = 2;
     
     this._multichannelProcessor = ctx.createScriptProcessor(bufferSize, inputChannels, outputChannels);

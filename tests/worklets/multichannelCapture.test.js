@@ -179,7 +179,7 @@ describe('Ring Buffer - Detección de overflow', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('SharedArrayBuffer Layout', () => {
-  const CHANNELS = 8;
+  const CHANNELS = 12;
   const BUFFER_FRAMES = 8192;
   
   // Layout esperado:
@@ -202,8 +202,8 @@ describe('SharedArrayBuffer Layout', () => {
     const audioBytes = BUFFER_FRAMES * CHANNELS * 4; // Float32 = 4 bytes
     const totalBytes = controlBytes + audioBytes;
     
-    assert.strictEqual(totalBytes, 8 + 8192 * 8 * 4);
-    assert.strictEqual(totalBytes, 262152); // ~256KB
+    assert.strictEqual(totalBytes, 8 + 8192 * 12 * 4);
+    assert.strictEqual(totalBytes, 393224); // ~384KB
   });
 
   it('índice interleaved es correcto', () => {
@@ -211,7 +211,7 @@ describe('SharedArrayBuffer Layout', () => {
     const frame = 100;
     const channel = 3;
     const expectedIndex = frame * CHANNELS + channel;
-    assert.strictEqual(expectedIndex, 803);
+    assert.strictEqual(expectedIndex, 1203);
   });
 });
 
@@ -221,7 +221,7 @@ describe('SharedArrayBuffer Layout', () => {
 
 describe('Modo Fallback (MessagePort)', () => {
   const CHUNK_SIZE = 2048;
-  const CHANNELS = 8;
+  const CHANNELS = 12;
 
   it('chunk size por defecto es 2048 frames', () => {
     assert.strictEqual(CHUNK_SIZE, 2048);
@@ -229,7 +229,7 @@ describe('Modo Fallback (MessagePort)', () => {
 
   it('buffer fallback tiene tamaño correcto', () => {
     const bufferSize = CHUNK_SIZE * CHANNELS;
-    assert.strictEqual(bufferSize, 16384);
+    assert.strictEqual(bufferSize, 24576);
   });
 
   it('mensaje contiene metadatos necesarios', () => {
@@ -242,7 +242,7 @@ describe('Modo Fallback (MessagePort)', () => {
     
     assert.strictEqual(message.type, 'audioData');
     assert.strictEqual(message.frames, 2048);
-    assert.strictEqual(message.channels, 8);
+    assert.strictEqual(message.channels, 12);
   });
 });
 
@@ -251,9 +251,9 @@ describe('Modo Fallback (MessagePort)', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Configuración del Worklet', () => {
-  it('número de canales por defecto es 8', () => {
-    const defaultChannels = 8;
-    assert.strictEqual(defaultChannels, 8);
+  it('número de canales por defecto es 12', () => {
+    const defaultChannels = 12;
+    assert.strictEqual(defaultChannels, 12);
   });
 
   it('valores de latencia mapean a frames', () => {

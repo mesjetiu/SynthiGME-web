@@ -1,5 +1,5 @@
 /**
- * MultichannelAudio - Salida de audio de 8 canales via addon nativo PipeWire
+ * MultichannelAudio - Salida de audio multicanal (hasta 12 canales) via addon nativo PipeWire
  * 
  * Este módulo permite sacar audio por 8 canales físicos independientes
  * usando un addon nativo C++ con libpipewire directamente.
@@ -57,7 +57,7 @@ class MultichannelAudio {
    * Abre el stream de audio de 8 canales
    * @param {Object} [config]
    * @param {number} [config.sampleRate=48000]
-   * @param {number} [config.channels=8]
+   * @param {number} [config.channels=12]
    * @param {number} [config.bufferSize=256]
    * @returns {Promise<{ success: boolean, error?: string, info?: Object }>}
    */
@@ -73,7 +73,7 @@ class MultichannelAudio {
 
     this.config = {
       sampleRate: config.sampleRate || 48000,
-      channels: config.channels || 8,
+      channels: config.channels || 12,
       bufferSize: config.bufferSize || 256
     };
 

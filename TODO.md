@@ -106,15 +106,22 @@ podría ser significativo en dispositivos móviles.
 
 - Revisar todo el documento ARCHITECTURE.md: errores, omisiones, desactualizaciones... Ha de servir de base a un eventual estudio escrito.
 
-- Añadir un CREDITS.md
 
 ## Objetivo v0.6.0
 
+- Distinguir bien entre "dispositivo de audio" y "modo multicanal". Son cosas distintas.
+- Añadir canales de entrada al multicanal.
+- Revisar canales de grabación, que tomen de output Channel del lugar correcto en todas las plataformas.
+
+
+## Objetivo v0.7.0 (publicación tester)
+
 - Release con versión en web, PWA, electro (Linux y Windows)
-- Revisar canales de grabación y normales en todas las plataformas.
 - Revisar README.md con créditos, info básica. Canal de Telegram.
-- Corregir errores en todas las plataformas.
+- Corregir errores varios en todas las plataformas.
 - menús contextuales de Canvas y PiP.
 - En electron: se pueden anular atajos de refresco? (F5, Ctrl+Shift+R...).
 - Reordenación de opciones en Ajustes. Intuitivo...
 - Panel 1 y 4 con imagen de Synthi, sin módulos dummy.
+- Panel 3 con SVG terminado.
+- Añadir y completar CREDITS.md

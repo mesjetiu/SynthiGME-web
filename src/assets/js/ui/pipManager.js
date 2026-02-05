@@ -670,15 +670,23 @@ function setupPipEvents(pipContainer, panelId) {
   // wheel: bloquear propagación al viewport
   pipContainer.addEventListener('wheel', (e) => e.stopPropagation());
   
-  // Ctrl+wheel para zoom interno del PiP
+  // Wheel para pan/zoom en el PiP
+  // - Sin Ctrl: pan (scroll) manual porque el navegador no lo hace automáticamente
+  // - Con Ctrl: zoom del contenido
+  const pipViewport = pipContainer.querySelector('.pip-viewport');
   pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {
     if (e.ctrlKey) {
+      // Zoom
       e.preventDefault();
       const state = activePips.get(panelId);
       if (state) {
         const delta = e.deltaY > 0 ? -0.05 : 0.05;
         updatePipScale(panelId, Math.max(MIN_SCALE, Math.min(MAX_SCALE, state.scale + delta)));
       }
+    } else {
+      // Pan manual - el navegador no scrollea automáticamente por la estructura DOM
+      pipViewport.scrollLeft += e.deltaX || 0;
+      pipViewport.scrollTop += e.deltaY || 0;
     }
   }, { passive: false });
   

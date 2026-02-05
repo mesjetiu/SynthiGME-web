@@ -5307,6 +5307,8 @@ small { color:#aaa; }
   margin: 0;
   box-shadow: none;
   border-radius: 0;
+  /* Permitir que el scroll llegue al pip-viewport */
+  overflow: visible !important;
 }
 
 /* Handle de resize */
@@ -5389,6 +5391,11 @@ small { color:#aaa; }
 /* Panel marcado como extraído (placeholder visual) */
 .panel--pipped {
   /* El panel mantiene su tamaño pero está dentro del PiP */
+}
+
+/* Dentro del PiP, el matrix-container no debe capturar scroll - lo hace pip-viewport */
+.panel--pipped .matrix-container {
+  overflow: visible;
 }
 
 /* Placeholder que ocupa el lugar del panel extraído */

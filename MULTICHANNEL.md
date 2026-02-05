@@ -51,22 +51,25 @@ Una vez activo, verás en qpwgraph:
 ┌─────────────────────┐
 │     SynthiGME       │
 ├─────────────────────┤
-│ AUX0   ●────────────┼──► Sistema / DAW / Hardware
-│ AUX1   ●────────────┼──►
-│ AUX2   ●────────────┼──►
-│ AUX3   ●────────────┼──►
-│ AUX4   ●────────────┼──►
-│ AUX5   ●────────────┼──►
-│ AUX6   ●────────────┼──►
-│ AUX7   ●────────────┼──►
-│ AUX8   ●────────────┼──►
-│ AUX9   ●────────────┼──►
-│ AUX10  ●────────────┼──►
-│ AUX11  ●────────────┼──►
+│ Pan_1-4_L  ●────────┼──► Sistema / DAW / Hardware
+│ Pan_1-4_R  ●────────┼──►
+│ Pan_5-8_L  ●────────┼──►
+│ Pan_5-8_R  ●────────┼──►
+│ Out_1      ●────────┼──►
+│ Out_2      ●────────┼──►
+│ Out_3      ●────────┼──►
+│ Out_4      ●────────┼──►
+│ Out_5      ●────────┼──►
+│ Out_6      ●────────┼──►
+│ Out_7      ●────────┼──►
+│ Out_8      ●────────┼──►
 └─────────────────────┘
 ```
 
-Cada puerto `AUX0-AUX11` corresponde a un bus de salida del sintetizador (Output 1-12).
+**Organización de canales:**
+- **Pan 1-4 L/R**: Salida estéreo mezclada de los canales 1-4 con panning
+- **Pan 5-8 L/R**: Salida estéreo mezclada de los canales 5-8 con panning
+- **Out 1-8**: Salidas individuales de cada Output Channel
 
 ## Arquitectura Técnica
 

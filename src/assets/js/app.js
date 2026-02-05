@@ -258,7 +258,7 @@ class App {
       if (result.success) {
         log.info('🔊 Multichannel output restored (12ch)');
         this.audioSettingsModal.updatePhysicalChannels(12, 
-          ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+          ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
       } else {
         log.error('🔊 Failed to restore multichannel:', result.error);
       }
@@ -385,9 +385,9 @@ class App {
           const result = await this._activateMultichannelOutput();
           if (result.success) {
             log.info(' Multichannel output activated (12ch)');
-            // Forzar 12 canales en el modal
+            // Forzar 12 canales en el modal con nombres descriptivos
             this.audioSettingsModal.updatePhysicalChannels(12, 
-              ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+              ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
           } else {
             log.error(' Failed to activate multichannel:', result.error);
           }

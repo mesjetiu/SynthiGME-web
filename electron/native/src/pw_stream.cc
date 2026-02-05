@@ -50,6 +50,7 @@ bool PwStream::start() {
     }
     
     // Crear stream
+    // Nombres de puertos: 4 estéreo (Pan 1-4, Pan 5-8) + 8 individuales (Out 1-8)
     struct pw_properties* props = pw_properties_new(
         PW_KEY_MEDIA_TYPE, "Audio",
         PW_KEY_MEDIA_CATEGORY, "Playback",
@@ -57,6 +58,7 @@ bool PwStream::start() {
         PW_KEY_APP_NAME, "SynthiGME",
         PW_KEY_NODE_NAME, name_.c_str(),
         PW_KEY_NODE_DESCRIPTION, "SynthiGME Multichannel Output",
+        PW_KEY_NODE_CHANNELNAMES, "[ Pan_1-4_L, Pan_1-4_R, Pan_5-8_L, Pan_5-8_R, Out_1, Out_2, Out_3, Out_4, Out_5, Out_6, Out_7, Out_8 ]",
         nullptr
     );
     
@@ -86,7 +88,8 @@ bool PwStream::start() {
     audio_info.rate = static_cast<uint32_t>(sampleRate_);
     audio_info.channels = static_cast<uint32_t>(channels_);
     
-    // Asignar posiciones de canal (AUX0-AUX7 para 8 canales)
+    // Asignar posiciones de canal (AUX0-AUX11 para 12 canales)
+    // Los nombres descriptivos se asignan via PW_KEY_NODE_CHANNELNAMES arriba
     for (int i = 0; i < channels_ && i < SPA_AUDIO_MAX_CHANNELS; i++) {
         audio_info.position[i] = SPA_AUDIO_CHANNEL_AUX0 + i;
     }

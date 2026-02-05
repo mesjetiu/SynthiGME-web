@@ -8,8 +8,8 @@ Este addon está en producción y soporta audio multicanal en tiempo real con la
 
 ### ✅ Implementado
 - Compilación con node-gyp
-- Stream de 8 canales independientes
-- Visible en qpwgraph como "SynthiGME" con puertos AUX0-AUX7
+- Stream de 12 canales independientes
+- Visible en qpwgraph como "SynthiGME" con puertos Pan_1-4_L/R, Pan_5-8_L/R, Out_1-8
 - Integración con Electron via API directa (no IPC)
 - **SharedArrayBuffer lock-free** para comunicación AudioWorklet ↔ C++
 - Ring buffer configurable (8192 frames por defecto)
@@ -37,7 +37,7 @@ Este addon está en producción y soporta audio multicanal en tiempo real con la
                               │                  │
                               │  ┌────────────┐  │
                               │  │ SynthiGME  │  │
-                              │  │  AUX0-7    │  │
+                              │  │ Pan/Out    │  │
                               │  └────────────┘  │
                               └──────────────────┘
 ```

@@ -40,7 +40,7 @@ const TOTAL_FRAMES = SAMPLE_RATE * DURATION_SECONDS;
 
 console.log(`Reproduciendo ${DURATION_SECONDS} segundos de audio...`);
 console.log('Frecuencias por canal:', frequencies.map((f, i) => `CH${i}:${f}Hz`).join(', '));
-console.log('\n🎵 Abre qpwgraph para ver los 8 canales AUX0-AUX7\n');
+console.log('\n🎵 Abre qpwgraph para ver los puertos: Pan_1-4_L/R, Pan_5-8_L/R, Out_1-8\n');
 
 function generateAndWrite() {
     // Generar audio interleaved

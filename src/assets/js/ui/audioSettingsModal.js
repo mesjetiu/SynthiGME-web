@@ -134,26 +134,49 @@ export class AudioSettingsModal {
   }
 
   /**
-   * Devuelve el ruteo por defecto: out1 → canal 0, out2 → canal 1, resto apagado
+   * Devuelve el ruteo por defecto.
+   * - Estéreo (2ch): out1 → L, out2 → R
+   * - Multicanal (12ch): ruteo diagonal 1:1 (cada salida a su canal correspondiente)
    */
   _getDefaultRouting() {
+    const isMultichannel = this.physicalChannels >= 12;
+    
     return Array.from({ length: this.outputCount }, (_, busIdx) => 
       Array.from({ length: this.physicalChannels }, (_, chIdx) => {
-        // Por defecto: bus 0 → canal 0, bus 1 → canal 1
-        return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+        if (isMultichannel) {
+          // Multicanal: cada bus va a su canal correspondiente (diagonal)
+          // Bus 0 → canal 4 (Out 1), Bus 1 → canal 5 (Out 2), etc.
+          // Los primeros 4 canales son Pan 1-4 L/R y Pan 5-8 L/R
+          return chIdx === (busIdx + 4);
+        } else {
+          // Estéreo: bus 0 → canal 0 (L), bus 1 → canal 1 (R)
+          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+        }
       })
     );
   }
 
   /**
+   * Obtiene la clave de storage según el modo actual (estéreo vs multicanal).
+   * @returns {string}
+   */
+  _getRoutingStorageKey() {
+    return this.physicalChannels >= 12 
+      ? STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL 
+      : STORAGE_KEYS.AUDIO_ROUTING;
+  }
+
+  /**
    * Carga el ruteo desde localStorage.
+   * Usa claves diferentes para estéreo y multicanal.
    * Soporta tanto el formato legacy {left, right} como el nuevo formato multicanal [bool, bool, ...]
    * 
    * @returns {boolean[][]|null} - Matriz de ruteo o null si no hay datos guardados
    */
   _loadRouting() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.AUDIO_ROUTING);
+      const storageKey = this._getRoutingStorageKey();
+      const saved = localStorage.getItem(storageKey);
       if (!saved) return null;
       
       const parsed = JSON.parse(saved);
@@ -178,8 +201,12 @@ export class AudioSettingsModal {
           });
         }
         
-        // Sin datos guardados para este bus, usar default
+        // Sin datos guardados para este bus, usar default diagonal o estéreo
+        const isMultichannel = this.physicalChannels >= 12;
         return Array.from({ length: this.physicalChannels }, (_, chIdx) => {
+          if (isMultichannel) {
+            return chIdx === (busIdx + 4);
+          }
           return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
         });
       });
@@ -190,12 +217,14 @@ export class AudioSettingsModal {
   }
 
   /**
-   * Guarda el ruteo actual en localStorage (formato multicanal)
+   * Guarda el ruteo actual en localStorage.
+   * Usa claves diferentes para estéreo y multicanal.
    */
   _saveRouting() {
     try {
-      localStorage.setItem(STORAGE_KEYS.AUDIO_ROUTING, JSON.stringify(this.outputRouting));
-      log.info(' Routing saved to localStorage');
+      const storageKey = this._getRoutingStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(this.outputRouting));
+      log.info(` Routing saved to localStorage (key: ${storageKey})`);
     } catch (e) {
       log.warn(' Error saving routing to localStorage:', e);
     }
@@ -374,27 +403,39 @@ export class AudioSettingsModal {
    * Se llama cuando el engine detecta un cambio de dispositivo con diferente
    * número de canales.
    * 
+   * Cuando cambia entre estéreo y multicanal, recarga el ruteo desde la clave
+   * de localStorage correspondiente (son configuraciones independientes).
+   * 
    * @param {number} channelCount - Nuevo número de canales físicos
    * @param {string[]} [labels] - Etiquetas para los canales
    */
   updatePhysicalChannels(channelCount, labels) {
     const oldCount = this.physicalChannels;
+    const wasMultichannel = oldCount >= 12;
+    const isMultichannel = channelCount >= 12;
+    
     this.physicalChannels = channelCount;
     this.channelLabels = labels || this._generateDefaultLabels(channelCount);
     
     log.info(` Physical channels changed: ${oldCount} → ${channelCount}`);
     
-    // Expandir/recortar la matriz de ruteo para el nuevo número de canales
-    this.outputRouting = this.outputRouting.map((busRouting, busIdx) => {
-      return Array.from({ length: channelCount }, (_, chIdx) => {
-        if (chIdx < busRouting.length) {
-          // Preservar valor existente
-          return busRouting[chIdx];
-        }
-        // Nuevos canales: apagados por defecto
-        return false;
+    // Si cambiamos de modo (estéreo ↔ multicanal), recargar el ruteo guardado
+    // para ese modo o usar el default (son configuraciones independientes)
+    if (wasMultichannel !== isMultichannel) {
+      log.info(` Mode changed: ${wasMultichannel ? 'multichannel' : 'stereo'} → ${isMultichannel ? 'multichannel' : 'stereo'}`);
+      const loadedRouting = this._loadRouting();
+      this.outputRouting = loadedRouting || this._getDefaultRouting();
+    } else {
+      // Mismo modo: expandir/recortar la matriz de ruteo
+      this.outputRouting = this.outputRouting.map((busRouting, busIdx) => {
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (chIdx < busRouting.length) {
+            return busRouting[chIdx];
+          }
+          return false;
+        });
       });
-    });
+    }
     
     // Actualizar info de canales en la UI
     this._updateChannelInfo();

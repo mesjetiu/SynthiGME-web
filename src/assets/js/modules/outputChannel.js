@@ -424,8 +424,8 @@ export class OutputChannel extends Module {
       if (!rafId) {
         rafId = requestAnimationFrame(flushValue);
       }
-      // Actualizar tooltip mientras se arrastra
-      this._updateSliderTooltip(getTooltipInfo);
+      // Actualizar tooltip mientras se arrastra (usar valor actual del slider, no el diferido)
+      this._updateSliderTooltip(getTooltipInfo, pendingValue);
     });
     
     shell.appendChild(slider);
@@ -438,10 +438,11 @@ export class OutputChannel extends Module {
   /**
    * Genera el contenido HTML del tooltip del slider.
    * @param {function} getTooltipInfo - Función que genera la info técnica
+   * @param {number} [currentValue] - Valor actual (usa this.values.level si no se pasa)
    * @returns {string}
    */
-  _generateSliderTooltipContent(getTooltipInfo) {
-    const dialValue = this.values.level;
+  _generateSliderTooltipContent(getTooltipInfo, currentValue) {
+    const dialValue = currentValue ?? this.values.level;
     const mainText = dialValue.toFixed(2);
     const extraInfo = getTooltipInfo(dialValue);
     
@@ -518,10 +519,11 @@ export class OutputChannel extends Module {
   /**
    * Actualiza el contenido del tooltip.
    * @param {function} getTooltipInfo - Función que genera la info técnica
+   * @param {number} [currentValue] - Valor actual del slider
    */
-  _updateSliderTooltip(getTooltipInfo) {
+  _updateSliderTooltip(getTooltipInfo, currentValue) {
     if (this._sliderTooltip) {
-      this._sliderTooltip.innerHTML = this._generateSliderTooltipContent(getTooltipInfo);
+      this._sliderTooltip.innerHTML = this._generateSliderTooltipContent(getTooltipInfo, currentValue);
     }
   }
   

@@ -112,6 +112,7 @@ podría ser significativo en dispositivos móviles.
 
 - Release con versión en web, PWA, electro (Linux y Windows)
 - Revisar canales de grabación y normales en todas las plataformas.
+- Dial 0-10: LP (0) ↔ Flat (5) ↔ HP (10).
 - Revisar README.md con créditos, info básica. Canal de Telegram.
 - Corregir errores en todas las plataformas.
 - menús contextuales de Canvas y PiP.

@@ -202,14 +202,14 @@ describe('Equal-power panning', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Rangos de valores de OutputChannel', () => {
-  it('filter knob: rango 0 a 10 con centro en 5', () => {
-    const min = 0;
-    const max = 10;
-    const center = 5;
+  it('filter knob: rango -5 a 5 con centro en 0', () => {
+    const min = -5;
+    const max = 5;
+    const center = 0;
     
-    assert.strictEqual(min, 0, 'min debe ser 0 (LP máximo)');
-    assert.strictEqual(max, 10, 'max debe ser 10 (HP máximo)');
-    assert.strictEqual(center, 5, 'centro debe ser 5 (bypass)');
+    assert.strictEqual(min, -5, 'min debe ser -5 (LP máximo)');
+    assert.strictEqual(max, 5, 'max debe ser 5 (HP máximo)');
+    assert.strictEqual(center, 0, 'centro debe ser 0 (bypass)');
   });
 
   it('pan knob: rango -1 a +1 con centro en 0', () => {
@@ -466,7 +466,7 @@ describe('OutputChannel.setExternalCV() - API', () => {
       setOutputLevel: (channelIndex, gain, options) => {
         calls.push({ method: 'setOutputLevel', channelIndex, gain, options });
       },
-      getOutputFilter: () => 5,  // Centro/bypass
+      getOutputFilter: () => 0,  // Centro/bypass
       getOutputPan: () => 0,
       getOutputLevel: () => 0,
       getOutputMute: () => false
@@ -482,7 +482,7 @@ describe('OutputChannel.setExternalCV() - API', () => {
       values: {
         level: 5,        // dial en posición media
         externalCV: 0,
-        filter: 5,
+        filter: 0,
         pan: 0,
         power: true
       },

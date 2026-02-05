@@ -137,7 +137,7 @@ Matriz de conexiones de voltaje de control.
 
 ```
 /out/{n}/level          # 0 - 10
-/out/{n}/filter         # 0 - 10
+/out/{n}/filter         # -5 - 5
 /out/{n}/on             # 0 | 1
 /out/{n}/pan            # 0 - 10
 ```

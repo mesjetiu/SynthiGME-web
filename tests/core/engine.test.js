@@ -819,22 +819,22 @@ describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
     return engine;
   }
 
-  // Tests con escala dial 0-10: 0=LP máximo, 5=bypass, 10=HP máximo
+  // Tests con escala dial -5 a 5: -5=LP máximo, 0=bypass, 5=HP máximo
   
-  it('value=0 (dial) → LP=200Hz (lowpass máximo)', () => {
+  it('value=-5 (dial) → LP=200Hz (lowpass máximo)', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, 0);  // Dial 0 = bipolar -1
+    engine.setOutputFilter(0, -5);  // Dial -5 = bipolar -1
     
     const filterLP = engine.outputBuses[0].filterLP;
     // 200Hz para lowpass máximo
     assert.ok(Math.abs(filterLP.frequency.value - 200) < 1);
   });
 
-  it('value=5 (dial) → LP=20000Hz, HP=20Hz (bypass)', () => {
+  it('value=0 (dial) → LP=20000Hz, HP=20Hz (bypass)', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, 5);  // Dial 5 = bipolar 0
+    engine.setOutputFilter(0, 0);  // Dial 0 = bipolar 0
     
     const filterLP = engine.outputBuses[0].filterLP;
     const filterHP = engine.outputBuses[0].filterHP;
@@ -844,20 +844,20 @@ describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
     assert.ok(Math.abs(filterHP.frequency.value - 20) < 1);
   });
 
-  it('value=10 (dial) → HP=5000Hz (highpass máximo)', () => {
+  it('value=5 (dial) → HP=5000Hz (highpass máximo)', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, 10);  // Dial 10 = bipolar +1
+    engine.setOutputFilter(0, 5);  // Dial 5 = bipolar +1
     
     const filterHP = engine.outputBuses[0].filterHP;
     // 5000Hz para highpass máximo
     assert.ok(Math.abs(filterHP.frequency.value - 5000) < 1);
   });
 
-  it('valores < 5 activan LP, mantienen HP bypass', () => {
+  it('valores < 0 activan LP, mantienen HP bypass', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, 2.5);  // Dial 2.5 = bipolar -0.5
+    engine.setOutputFilter(0, -2.5);  // Dial -2.5 = bipolar -0.5
     
     const filterLP = engine.outputBuses[0].filterLP;
     const filterHP = engine.outputBuses[0].filterHP;
@@ -869,10 +869,10 @@ describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
     assert.ok(Math.abs(filterHP.frequency.value - 20) < 1);
   });
 
-  it('valores > 5 activan HP, mantienen LP bypass', () => {
+  it('valores > 0 activan HP, mantienen LP bypass', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, 7.5);  // Dial 7.5 = bipolar +0.5
+    engine.setOutputFilter(0, 2.5);  // Dial 2.5 = bipolar +0.5
     
     const filterLP = engine.outputBuses[0].filterLP;
     const filterHP = engine.outputBuses[0].filterHP;
@@ -887,19 +887,19 @@ describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
   it('actualiza el array outputFilters (escala dial)', () => {
     setupEngine();
     
-    engine.setOutputFilter(2, 1.5);  // Valor arbitrario en escala dial
+    engine.setOutputFilter(2, -1.5);  // Valor arbitrario en escala dial
     
-    assert.equal(engine.outputFilters[2], 1.5);
+    assert.equal(engine.outputFilters[2], -1.5);
   });
 
-  it('clampea valores fuera de rango [0, 10]', () => {
+  it('clampea valores fuera de rango [-5, 5]', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, -5);
-    assert.equal(engine.outputFilters[0], 0);  // Clampeado a 0
+    engine.setOutputFilter(0, -10);
+    assert.equal(engine.outputFilters[0], -5);  // Clampeado a -5
     
-    engine.setOutputFilter(0, 15);
-    assert.equal(engine.outputFilters[0], 10);  // Clampeado a 10
+    engine.setOutputFilter(0, 10);
+    assert.equal(engine.outputFilters[0], 5);  // Clampeado a 5
   });
 
   it('usa setTargetAtTime para transición suave', () => {
@@ -981,17 +981,17 @@ describe('AudioEngine.filterBypass (optimización de CPU)', () => {
     
     assert.equal(engine.isFilterBypassed(0), true);
     
-    engine.setOutputFilter(0, 7.5);  // Dial 7.5 = bipolar +0.5, activa HP
+    engine.setOutputFilter(0, 2.5);  // Dial 2.5 = bipolar +0.5, activa HP
     assert.equal(engine.isFilterBypassed(0), false);
     
-    engine.setOutputFilter(0, 5);    // Dial 5 = bipolar 0, bypass
+    engine.setOutputFilter(0, 0);    // Dial 0 = bipolar 0, bypass
     assert.equal(engine.isFilterBypassed(0), true);
   });
 
   it('setOutputFilter con valor no-neutral desactiva bypass', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, 7.5);  // Dial 7.5 = no neutral
+    engine.setOutputFilter(0, 2.5);  // Dial 2.5 = no neutral
     
     assert.equal(engine._filterBypassState[0], false);
   });
@@ -1000,40 +1000,40 @@ describe('AudioEngine.filterBypass (optimización de CPU)', () => {
     setupEngine();
     
     // Primero aplicar valor no-neutral
-    engine.setOutputFilter(0, 7.5);
+    engine.setOutputFilter(0, 2.5);
     assert.equal(engine._filterBypassState[0], false);
     
     // Luego volver a neutral
-    engine.setOutputFilter(0, 5);    // Dial 5 = centro/neutral
+    engine.setOutputFilter(0, 0);    // Dial 0 = centro/neutral
     assert.equal(engine._filterBypassState[0], true);
   });
 
-  it('valores cercanos a 5 (|v-5| < 0.1) activan bypass', () => {
+  it('valores cercanos a 0 (|v| < 0.5) activan bypass', () => {
     setupEngine();
     
-    engine.setOutputFilter(0, 7.5);  // Lejos del centro
+    engine.setOutputFilter(0, 2.5);  // Lejos del centro
     assert.equal(engine._filterBypassState[0], false);
     
-    // Valor cercano a 5 (5.05 → bipolar 0.01)
-    engine.setOutputFilter(0, 5.05);
+    // Valor cercano a 0 (0.05 → bipolar 0.01)
+    engine.setOutputFilter(0, 0.05);
     assert.equal(engine._filterBypassState[0], true);
     
-    engine.setOutputFilter(0, 7.5);
+    engine.setOutputFilter(0, 2.5);
     
-    // Valor cercano a 5 por debajo (4.95 → bipolar -0.01)
-    engine.setOutputFilter(0, 4.95);
+    // Valor cercano a 0 por debajo (-0.05 → bipolar -0.01)
+    engine.setOutputFilter(0, -0.05);
     assert.equal(engine._filterBypassState[0], true);
   });
 
   it('valores fuera del threshold no activan bypass', () => {
     setupEngine();
     
-    // Dial 5.15 → bipolar 0.03, claramente fuera del threshold (0.02)
-    engine.setOutputFilter(0, 5.15);
+    // Dial 0.15 → bipolar 0.03, claramente fuera del threshold (0.02)
+    engine.setOutputFilter(0, 0.15);
     assert.equal(engine._filterBypassState[0], false);
     
-    // Dial 4.85 → bipolar -0.03
-    engine.setOutputFilter(0, 4.85);
+    // Dial -0.15 → bipolar -0.03
+    engine.setOutputFilter(0, -0.15);
     assert.equal(engine._filterBypassState[0], false);
   });
 
@@ -1054,10 +1054,10 @@ describe('AudioEngine.filterBypass (optimización de CPU)', () => {
     engine.setFilterBypassEnabled(false);
     
     // Con bypass deshabilitado, el estado siempre debe ser false
-    engine.setOutputFilter(0, 5);    // Dial 5 = neutral
+    engine.setOutputFilter(0, 0);    // Dial 0 = neutral
     assert.equal(engine._filterBypassState[0], false);
     
-    engine.setOutputFilter(0, 7.5);  // Dial 7.5 = no neutral
+    engine.setOutputFilter(0, 2.5);  // Dial 2.5 = no neutral
     assert.equal(engine._filterBypassState[0], false);
   });
 });

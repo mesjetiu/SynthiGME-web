@@ -12,6 +12,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Cambiado
 - **UI: Opción de resolución oculta**: Selector de escala 1x/1.5x/2x... removido de Ajustes > Visualización. La app siempre inicia en 1x. Código mantenido para uso futuro.
+- **Output Channel: Filter escala -5 a 5**: El knob Filter de los canales de salida ahora usa la escala estándar del Synthi 100 (-5 a +5) con centro en 0 (bypass), en lugar de 0-10 con centro en 5.
 
 ### Arreglado
 - **Menú contextual en Safari iOS**: Soporte de long press (500ms) para abrir menú contextual de paneles PiP en dispositivos táctiles donde el evento `contextmenu` no se dispara.

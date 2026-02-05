@@ -222,13 +222,13 @@ export class OutputChannel extends Module {
     // Inicializar Filter Knob
     if (this.filterKnobEl && !this.filterKnobUI) {
       this.filterKnobUI = new Knob(this.filterKnobEl, {
-        min: filterCfg.min ?? 0,
-        max: filterCfg.max ?? 10,
+        min: filterCfg.min ?? -5,
+        max: filterCfg.max ?? 5,
         initial: this.values.filter,
         pixelsForFullRange: filterCfg.pixelsForFullRange ?? 900,
-        // Escala dial Synthi 100: 0-10 directamente
-        scaleMin: 0,
-        scaleMax: 10,
+        // Escala dial Synthi 100: -5 a +5 (bipolar)
+        scaleMin: -5,
+        scaleMax: 5,
         scaleDecimals: 1,
         valueElement: this.filterValueEl,
         onChange: (value) => {

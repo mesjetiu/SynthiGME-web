@@ -129,7 +129,7 @@ export const MODULE_PARAMETERS = {
     count: 8,
     parameters: {
       level: { type: 'float', min: 0, max: 10 },
-      filter: { type: 'float', min: 0, max: 10 },
+      filter: { type: 'float', min: -5, max: 5 },
       on: { type: 'int', values: [0, 1] },
       pan: { type: 'float', min: 0, max: 10 }
     }

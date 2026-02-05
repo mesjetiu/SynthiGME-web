@@ -1,87 +1,5 @@
 ## Output Channels - VCA CEM 3330 (versión Cuenca 1982)
 
-### Contexto técnico
-
-En el hardware real, los faders de los canales de salida NO procesan audio directamente.
-Generan un voltaje de control (CV) que alimenta un chip VCA (CEM 3330).
-
-**Especificaciones del hardware:**
-- Fader: potenciómetro lineal 10kΩ que genera 0V (posición 10) a -12V (posición 0)
-- VCA: respuesta logarítmica de 10 dB por cada voltio aplicado
-- CV externo: se suma algebraicamente al voltaje del fader (entrada desde matriz columnas 42-49)
-- Corte total: en posición 0, el fader desconecta mecánicamente (ignora CV externo)
-- Raíles: ±12V (saturación suave con CV > 0V, hard clip en ±12V)
-
-**Cadena de señal correcta (Cuenca 1982):**
-```
-Entrada Matriz → VCA (CEM 3330) → [Nodo división]
-                                       ├─→ Re-entry a matriz (POST-VCA, PRE-filtro)
-                                       └─→ Filtro LP/HP → Switch ON/OFF → Pan → Salida
-```
-
-**IMPORTANTE:** El VCA va ANTES del filtro. El filtro solo afecta a la salida externa,
-no a la señal de re-entrada a la matriz.
-
-### Plan de implementación
-
-#### ✅ COMPLETADOS
-
-- [x] **Paso 1: Constantes y funciones VCA** (commit `9a6e14b`)
-  - `src/assets/js/utils/voltageConstants.js`:
-    - Constantes: `VCA_DB_PER_VOLT`, `VCA_SLIDER_VOLTAGE_AT_MAX/MIN`, `VCA_CUTOFF_*`
-    - `vcaDialToVoltage(dialValue)`: dial 0-10 → voltaje -12V a 0V
-    - `vcaVoltageToGain(voltage)`: voltaje → ganancia (con saturación para CV > 0V)
-    - `vcaCalculateGain(dialValue, externalCV)`: función combinada dial + CV → ganancia
-  - `tests/utils/voltageConstants.test.js`: 15 tests unitarios
-
-- [x] **Paso 2: Config VCA en outputChannel.config.js**
-  - Fader cambiado de escala 0-1 a 0-10 (como dial físico)
-  - `schemaVersion` incrementado a 2
-  - Nueva sección `vca` con todos los parámetros documentados:
-    - `dbPerVolt: 10`
-    - `sliderVoltage: { atMax: 0, atMin: -12 }`
-    - `cutoffVoltage: -12`
-    - `saturation: { linearThreshold: 0, hardLimit: 3, softness: 2 }`
-  - `tests/configs/outputChannel.config.test.js`: 13 tests nuevos
-
-- [x] **Paso 3: Integrar VCA en outputChannel.js** (commit `113f65b`)
-  - Importar `vcaCalculateGain` desde voltageConstants.js
-  - `flushValue()` convierte dial (0-10) a ganancia vía VCA
-  - `deserialize()` usa misma conversión
-  - Display muestra valor del dial (0.0-10.0)
-  - Curva logarítmica funcional: dial 10 = 0 dB, dial 5 = -60 dB
-  - **Corte mecánico incluido**: dial=0 ignora CV externo (ya en Paso 1)
-
-- [x] **Paso 4: Cadena de señal correcta en engine.js**
-  - Cadena: `busInput → [clipper] → levelNode (VCA) → postVcaNode → [crossfade] → muteNode`
-  - `postVcaNode` es el punto de re-entry POST-VCA, PRE-filtro
-  - Crossfade suave entre ruta de filtros y bypass (sin clicks)
-  - Tests de audio en `outputChannel.audio.test.js` (16 tests)
-
-- [x] **Paso 5: Conectar CV de matriz a Output Channels**
-  - Columnas 42-49 de matriz de control → CV de canales 1-8
-  - Implementado `setExternalCV(voltage)` en OutputChannel
-  - Conversión escala: matriz (-1..+1) × 4 → voltios (-4V..+4V)
-  - CV muestreado via AnalyserNode a ~60Hz
-  - **Corte mecánico verificado**: dial=0 ignora CV (tests unitarios)
-
-- [x] **Paso 6: Escala filter cambiada a 0-10** (commit `be5198e`)
-  - Antes: -1/+1 con scaleMin/scaleMax -5/+5
-  - Ahora: 0-10 directamente (dial Synthi 100)
-  - Engine convierte internamente a bipolar para cálculos de frecuencia
-
-- [x] **Paso 7: VCA AudioWorklet con filtro anti-click (τ=5ms)**
-  - Creado `vcaProcessor.worklet.js` con emulación completa del VCA CEM 3330
-  - Curva logarítmica 10 dB/V implementada a sample-rate
-  - Saturación suave para CV > 0V (tanh, hard limit 3V)
-  - Corte mecánico: dial=0 ignora CV completamente
-  - Filtro anti-click: LPF 1 polo τ=5ms (fc≈32Hz) en entrada de CV
-  - Comportamiento fidedigno: AM limitada a frecuencias sub-audio (<32Hz)
-  - El Synthi de Cuenca NO tiene selector "Fast Response" (150μs)
-  - Engine: métodos `connectOutputLevelCV()` / `disconnectOutputLevelCV()`
-  - App.js actualizado: CV de matriz conectado directamente al worklet
-  - 30 tests para el modelo VCA (filtro de slew incluido)
-
 #### ⏳ PENDIENTES
 
 - [ ] **Filtros de Output Channel (tarea genérica)**
@@ -92,14 +10,6 @@ no a la señal de re-entrada a la matriz.
     1. IIRFilterNode 1er orden (coeficientes manuales)
     2. AudioWorklet con filtro RC pasivo
     3. Aproximación pragmática (actual: BiquadFilter 2º orden)
-
-### Notas adicionales
-
-- NO implementar switch de respuesta rápida (canales 5-7) - el Synthi de Cuenca no lo tiene
-- Todos los valores numéricos en config, nunca hardcodeados
-- El switch ON/OFF (mute) solo afecta salida externa, no re-entry
-
----
 
 ## Oscilador/matriz:
 
@@ -197,3 +107,14 @@ podría ser significativo en dispositivos móviles.
 - Revisar todo el documento ARCHITECTURE.md: errores, omisiones, desactualizaciones... Ha de servir de base a un eventual estudio escrito.
 
 - Añadir un CREDITS.md
+
+## Objetivo v0.6.0
+
+- Release con versión en web, PWA, electro (Linux y Windows)
+- Revisar canales de grabación y normales en todas las plataformas.
+- Revisar README.md con créditos, info básica.
+- Corregir errores en todas las plataformas.
+- menús contextuales de Canvas y PiP.
+- En electron: se pueden anular atajos de refresco? (F5, Ctrl+Shift+R...).
+- Reordenación de opciones en Ajustes. Intuitivo...
+- Panel 1 y 4 con imagen de Synthi, sin módulos dummy.

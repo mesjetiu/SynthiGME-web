@@ -63,12 +63,14 @@ export class SettingsModal {
     this.isMobile = isMobile;
     this.mobileWarningThreshold = 2; // Avisar en móvil si > 2x
     
-    // Escala actual: solo cargar de localStorage si "recordar" está activo
-    const rememberResolution = localStorage.getItem(STORAGE_KEYS.REMEMBER_RESOLUTION) === 'true';
-    const savedFactor = parseFloat(localStorage.getItem(STORAGE_KEYS.RESOLUTION));
-    // Si no recordar, siempre empezar en 1x (seguro)
-    this.currentResolution = (rememberResolution && this.resolutionFactors.includes(savedFactor)) ? savedFactor : 1;
-    this.rememberResolution = rememberResolution;
+    // Escala actual: siempre 1x al inicio (la opción de resolución está oculta)
+    // TODO: En el futuro, si se rehabilita la opción, descomentar la lógica de localStorage
+    // const rememberResolution = localStorage.getItem(STORAGE_KEYS.REMEMBER_RESOLUTION) === 'true';
+    // const savedFactor = parseFloat(localStorage.getItem(STORAGE_KEYS.RESOLUTION));
+    // this.currentResolution = (rememberResolution && this.resolutionFactors.includes(savedFactor)) ? savedFactor : 1;
+    // this.rememberResolution = rememberResolution;
+    this.currentResolution = 1;
+    this.rememberResolution = false;
     
     // Configuración de autoguardado
     const savedInterval = localStorage.getItem(STORAGE_KEYS.AUTOSAVE_INTERVAL);
@@ -543,10 +545,11 @@ export class SettingsModal {
     container.className = 'settings-tab-content';
     container.dataset.tab = 'display';
     
-    // Escala de renderizado (oculta en Firefox)
-    if (!this.isFirefox) {
-      container.appendChild(this._createResolutionSection());
-    }
+    // Escala de renderizado: oculta temporalmente (la funcionalidad se mantiene para uso futuro)
+    // TODO: Rehabilitar cuando se necesite la opción de resolución
+    // if (!this.isFirefox) {
+    //   container.appendChild(this._createResolutionSection());
+    // }
     
     // Pines inactivos de la matriz
     container.appendChild(this._createInactivePinsSection());

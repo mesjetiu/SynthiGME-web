@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 4 de febrero de 2026 (VCA CEM 3330 con filtro anti-click τ=5ms)
+> Última actualización: 5 de febrero de 2026 (respuesta lineal opcional en faders de salida)
 
 ---
 
@@ -157,6 +157,7 @@ busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterLP
 - Saturación suave para CV > 0V
 - Filtro anti-click de 1 polo (τ = 5ms) **después** de la suma fader+CV
 - Curva muy pronunciada: posición 5 ≈ -60dB
+- **Modo UI lineal (opcional)**: el slider puede mapearse a ganancia lineal mediante dial equivalente (slider 50% → ganancia 50%). El CV externo sigue aplicando la curva logarítmica 10 dB/V auténtica.
 
 **Re-entrada a matriz:**
 - El nodo `postVcaNode` es la fuente para las filas 75-82 de la matriz de audio
@@ -192,7 +193,7 @@ Componentes de interfaz reutilizables:
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
 | `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz de salida (8 buses → N canales físicos), matriz de entrada (N entradas sistema → 8 Input Amplifiers), selección de dispositivos, detección automática de canales, persistencia en localStorage |
-| `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: idioma, autoguardado, wake lock, atajos. Nueva pestaña "Visualización" con escala de renderizado y toggle de pines inactivos. Persistencia en localStorage |
+| `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: idioma, autoguardado, wake lock, atajos. Pestaña "Visualización" con escala de renderizado, toggle de pines inactivos y opción de respuesta lineal de faders de salida. Persistencia en localStorage |
 | `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-12), matriz de ruteo outputs→tracks adaptativa, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
 | `confirmDialog.js` | `ConfirmDialog` | Modal de confirmación reutilizable (singleton): título, mensaje, botones personalizables, opción "no volver a preguntar" con persistencia localStorage. Métodos estáticos `show()`, `getRememberedChoice()`, `clearRememberedChoice()` |
 | `inputDialog.js` | `InputDialog` | Diálogo de entrada de texto personalizado (singleton): reemplaza `prompt()` nativo, título/placeholder/valor por defecto configurables, soporte i18n |

@@ -116,7 +116,6 @@ podría ser significativo en dispositivos móviles.
 - Revisar README.md con créditos, info básica. Canal de Telegram.
 - Corregir errores varios en todas las plataformas.
 - menús contextuales de Canvas y PiP.
-- En electron: se pueden anular atajos de refresco? (F5, Ctrl+Shift+R...).
 - Reordenación de opciones en Ajustes. Intuitivo...
 - Panel 1 y 4 con imagen de Synthi, sin módulos dummy.
 - Panel 3 con SVG terminado.

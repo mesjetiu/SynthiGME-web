@@ -674,6 +674,12 @@ function setupPipEvents(pipContainer, panelId) {
   
   pipContainer.addEventListener('click', (e) => e.stopPropagation());
   
+  // Bloquear menú contextual del navegador en el contenido PiP
+  pipContainer.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  
   // dblclick y touch en fase de CAPTURA para interceptar antes que el viewport
   pipContainer.addEventListener('dblclick', (e) => {
     e.preventDefault();

@@ -57,7 +57,7 @@ describe('Output Channel Config', () => {
     it('debe tener configuración de power', () => {
       const power = outputChannelConfig.switches.power;
       assert.ok(power);
-      assert.equal(power.initial, true);
+      assert.equal(power.initial, false);
     });
   });
   

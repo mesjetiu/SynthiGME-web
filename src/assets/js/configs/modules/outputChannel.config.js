@@ -99,7 +99,7 @@ export default {
     // Switch POWER - On/Off (mute)
     // ───────────────────────────────────────────────────────────────────
     power: {
-      initial: true         // Encendido por defecto
+      initial: false        // Apagado por defecto
     }
   },
   

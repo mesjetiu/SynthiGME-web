@@ -1473,6 +1473,12 @@ class App {
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async _activateMultichannelOutput() {
+    // Evitar re-activación si ya está activo
+    if (this._multichannelActive) {
+      log.info('🎛️ Multichannel output already active, skipping');
+      return { success: true };
+    }
+    
     // CRÍTICO: Verificar disponibilidad ANTES de tocar el engine
     // (en navegador web, window.multichannelAPI no existe)
     if (!window.multichannelAPI) {
@@ -1693,6 +1699,8 @@ class App {
     // Desconectar worklet o processor
     if (this._multichannelWorklet) {
       try {
+        // Enviar señal de stop al worklet para que deje de procesar
+        this._multichannelWorklet.port.postMessage({ type: 'stop' });
         this.engine.merger.disconnect(this._multichannelWorklet);
         this._multichannelWorklet.disconnect();
         this._multichannelWorklet.port.close();
@@ -1737,6 +1745,12 @@ class App {
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async _activateMultichannelInput() {
+    // Evitar re-activación si ya está activo
+    if (this._multichannelInputActive) {
+      log.info('🎤 Multichannel input already active, skipping');
+      return { success: true };
+    }
+    
     // Verificar disponibilidad
     if (!window.multichannelInputAPI) {
       log.info('🎤 multichannelInputAPI not available (browser mode)');
@@ -1878,6 +1892,8 @@ class App {
     // Desconectar worklet y splitter
     if (this._multichannelInputWorklet) {
       try {
+        // Enviar señal de stop al worklet para que deje de procesar
+        this._multichannelInputWorklet.port.postMessage({ type: 'stop' });
         this._multichannelInputWorklet.disconnect();
         this._multichannelInputWorklet.port.close();
       } catch (e) {}

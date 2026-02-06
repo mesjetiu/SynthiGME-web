@@ -483,12 +483,14 @@ export class AudioSettingsModal {
     const isMultichannel = channelCount >= 12;
     
     log.info(` Physical channels changed: ${oldCount} → ${channelCount}`);
+    log.info(` Mode change: ${wasMultichannel ? 'multichannel' : 'stereo'} → ${isMultichannel ? 'multichannel' : 'stereo'}`);
     
     // Si cambiamos de modo (estéreo ↔ multicanal), primero guardar el ruteo actual
     // en su clave correspondiente ANTES de cambiar physicalChannels
     if (wasMultichannel !== isMultichannel) {
-      log.info(` Mode changed: ${wasMultichannel ? 'multichannel' : 'stereo'} → ${isMultichannel ? 'multichannel' : 'stereo'}`);
-      // Guardar el ruteo del modo anterior antes de cambiar de clave
+      const oldKey = this._getRoutingStorageKey();
+      log.info(` Saving current routing to OLD key: ${oldKey}`);
+      log.info(` Current outputRouting[1]:`, JSON.stringify(this.outputRouting[1]));
       this._saveRouting();
     }
     
@@ -498,8 +500,12 @@ export class AudioSettingsModal {
     // Si cambiamos de modo (estéreo ↔ multicanal), recargar el ruteo guardado
     // para ese modo o usar el default (son configuraciones independientes)
     if (wasMultichannel !== isMultichannel) {
+      const newKey = this._getRoutingStorageKey();
+      log.info(` Loading routing from NEW key: ${newKey}`);
       const loadedRouting = this._loadRouting();
+      log.info(` Loaded routing for bus 1:`, loadedRouting ? JSON.stringify(loadedRouting[1]) : 'null (using default)');
       this.outputRouting = loadedRouting || this._getDefaultRouting();
+      log.info(` Final outputRouting[1]:`, JSON.stringify(this.outputRouting[1]));
     } else {
       // Mismo modo: expandir/recortar la matriz de ruteo
       this.outputRouting = this.outputRouting.map((busRouting, busIdx) => {

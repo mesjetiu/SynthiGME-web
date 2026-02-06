@@ -20,7 +20,7 @@ Este addon está en producción y soporta audio multicanal en tiempo real con la
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Electron                                  │
+│                        Electron                                 │
 │  ┌──────────────────┐      ┌─────────────────────────────────┐  │
 │  │   Web Audio      │      │   Addon Nativo (C++)            │  │
 │  │   (renderer)     │      │                                 │  │
@@ -28,8 +28,8 @@ Este addon está en producción y soporta audio multicanal en tiempo real con la
 │  │  AudioWorklet    │─────▶│   Ring buffer interno           │  │
 │  │  12ch capture    │      │   PipeWire stream               │  │
 │  └──────────────────┘      └─────────────────────────────────┘  │
-│                                       │                          │
-└───────────────────────────────────────┼──────────────────────────┘
+│                                       │                         │
+└───────────────────────────────────────┼─────────────────────────┘
                                         ▼
                               ┌──────────────────┐
                               │    PipeWire      │

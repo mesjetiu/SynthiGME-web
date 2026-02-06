@@ -1,18 +1,18 @@
 # Audio Multicanal en SynthiGME
 
-SynthiGME soporta salida de audio en **8 canales independientes**, permitiendo rutear cada bus de salida del sintetizador a un canal de audio físico diferente.
+SynthiGME soporta audio multicanal independiente: **12 canales de salida** (4 buses estéreo + 8 individuales) y **8 canales de entrada** (directamente a los Input Amplifiers).
 
 ## Disponibilidad por Plataforma
 
-| Plataforma | 12 canales independientes | Ruteo en qpwgraph | Notas |
-|------------|-------------------------|-------------------|-------|
-| **Linux + PipeWire** (Electron) | ✅ Sí | ✅ Sí | Requiere addon nativo compilado |
-| **Linux sin PipeWire** | ❌ No | — | Fallback a estéreo |
-| **Windows** (Electron) | ❌ No (por ahora) | — | Estéreo vía Web Audio |
-| **macOS** (Electron) | ❌ No (por ahora) | — | Estéreo vía Web Audio |
-| **Web (navegador)** | ❌ No | — | Limitación de Chromium (max 2ch) |
+| Plataforma | Salida 12ch | Entrada 8ch | Ruteo en qpwgraph | Notas |
+|------------|-------------|-------------|-------------------|-------|
+| **Linux + PipeWire** (Electron) | ✅ | ✅ | ✅ | Addon nativo incluido en AppImage |
+| **Linux sin PipeWire** | ❌ | ❌ | — | Fallback a estéreo |
+| **Windows** (Electron) | ❌ | ❌ | — | Estéreo vía Web Audio |
+| **macOS** (Electron) | ❌ | ❌ | — | Estéreo vía Web Audio |
+| **Web (navegador)** | ❌ | ❌ | — | Limitación de Chromium (max 2ch) |
 
-> **Nota**: En todas las plataformas el sintetizador funciona con 8 buses lógicos internos. La diferencia es si se pueden rutear a 8 salidas físicas independientes.
+> **Nota**: En todas las plataformas el sintetizador funciona con 8 buses lógicos internos. La diferencia es si se pueden rutear a puertos físicos independientes.
 
 ## Uso en Linux con PipeWire
 
@@ -71,9 +71,35 @@ Una vez activo, verás en qpwgraph:
 - **Pan 5-8 L/R**: Salida estéreo mezclada de los canales 5-8 con panning
 - **Out 1-8**: Salidas individuales de cada Output Channel
 
+### Puertos de Entrada (input_amp_1..8)
+
+Al activar el modo multicanal, también se crean **8 puertos de entrada** en PipeWire que van directamente a los Input Amplifiers del sintetizador:
+
+```
+┌─────────────────────┐
+│     SynthiGME       │
+├─────────────────────┤
+│                     │
+│  ENTRADAS:          │
+│ ◄────● input_amp_1  │
+│ ◄────● input_amp_2  │
+│ ◄────● input_amp_3  │
+│ ◄────● input_amp_4  │
+│ ◄────● input_amp_5  │
+│ ◄────● input_amp_6  │
+│ ◄────● input_amp_7  │
+│ ◄────● input_amp_8  │
+│                     │
+└─────────────────────┘
+```
+
+En qpwgraph puedes conectar cualquier fuente de audio (micrófono, DAW, otro sintetizador) directamente a cada Input Amplifier sin pasar por el sistema de audio estéreo del navegador.
+
+**Matriz de ruteo de entrada**: En Ajustes de Audio, la sección de entrada muestra una matriz 8×8 que permite rutear cada puerto PipeWire (input_amp_1..8) a cualquier combinación de Input Amplifiers (Ch1..Ch8). Por defecto es diagonal 1:1.
+
 ## Arquitectura Técnica
 
-### Flujo de Audio (Linux + PipeWire)
+### Flujo de Audio - Salida (Linux + PipeWire)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -83,27 +109,55 @@ Una vez activo, verás en qpwgraph:
 │  │   (renderer)     │      │                                 │  │
 │  │                  │ SAB  │   SharedArrayBuffer (lock-free) │  │
 │  │  AudioWorklet    │─────▶│   Ring buffer (8192 frames)     │  │
-│  │  12ch capture    │      │   PipeWire stream               │  │
+│  │  12ch capture    │      │   PipeWire playback stream      │  │
 │  └──────────────────┘      └─────────────────────────────────┘  │
 │                                       │                          │
 └───────────────────────────────────────┼──────────────────────────┘
                                         ▼
                               ┌──────────────────┐
                               │    PipeWire      │
-                              │                  │
-                              │  8 puertos       │
-                              │  AUX0 - AUX7     │
+                              │  12 puertos OUT  │
+                              │  Pan_1-4_L/R...  │
+                              │  Out_1 - Out_8   │
                               └──────────────────┘
+```
+
+### Flujo de Audio - Entrada (Linux + PipeWire)
+
+```
+                              ┌──────────────────┐
+                              │    PipeWire      │
+                              │   8 puertos IN   │
+                              │  input_amp_1..8  │
+                              └──────────────────┘
+                                        │
+┌───────────────────────────────────────┼──────────────────────────┐
+│                        Electron       ▼                          │
+│  ┌──────────────────┐      ┌─────────────────────────────────┐  │
+│  │   Web Audio      │      │   Addon Nativo (C++)            │  │
+│  │   (renderer)     │      │                                 │  │
+│  │                  │ SAB  │   SharedArrayBuffer (lock-free) │  │
+│  │  AudioWorklet    │◀─────│   Ring buffer (8192 frames)     │  │
+│  │  8ch playback    │      │   PipeWire capture stream       │  │
+│  └──────────────────┘      └─────────────────────────────────┘  │
+│          │                                                       │
+│          ▼                                                       │
+│  ┌──────────────────┐                                            │
+│  │ Input Amplifiers │                                            │
+│  │    (Ch1..Ch8)    │                                            │
+│  └──────────────────┘                                            │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Componentes Clave
 
 | Componente | Archivo | Descripción |
 |------------|---------|-------------|
-| AudioWorklet (captura) | `src/assets/js/worklets/multichannelCapture.worklet.js` | Captura 12 canales desde Web Audio |
-| Addon nativo | `electron/native/src/` | Escribe audio a PipeWire |
-| Preload API | `electron/preload.cjs` | Expone `window.multichannelAPI` |
-| UI latencia | `src/assets/js/ui/audioSettingsModal.js` | Configuración de latencia |
+| AudioWorklet (salida) | `src/assets/js/worklets/multichannelCapture.worklet.js` | Captura 12 canales desde Web Audio, escribe a SAB |
+| AudioWorklet (entrada) | `src/assets/js/worklets/multichannelPlayback.worklet.js` | Lee 8 canales desde SAB, produce audio para Input Amplifiers |
+| Addon nativo | `electron/native/src/` | PwStream bidireccional (playback + capture) |
+| Preload API | `electron/preload.cjs` | Expone `window.multichannelAPI` y `window.multichannelInputAPI` |
+| UI ruteo | `src/assets/js/ui/audioSettingsModal.js` | Matrices de ruteo salida (12×N) y entrada (8×8) |
 
 ### SharedArrayBuffer
 

@@ -70,12 +70,19 @@ export function createMockGainNode() {
       connect: 0,
       disconnect: 0
     },
+    _connections: [],
     connect(destination, outputIndex, inputIndex) {
       this._calls.connect++;
+      this._connections.push({ destination, outputIndex, inputIndex });
       return destination;
     },
     disconnect(destination) {
       this._calls.disconnect++;
+      if (destination) {
+        this._connections = this._connections.filter(c => c.destination !== destination);
+      } else {
+        this._connections = [];
+      }
     }
   };
 }

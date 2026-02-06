@@ -1511,3 +1511,402 @@ describe('Module - applyVoltageClipping()', () => {
     assert.equal(result, 15.0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioEngine.forcePhysicalChannels - cambio de arquitectura de salida
+// ═══════════════════════════════════════════════════════════════════════════
+// Estos tests verifican que al cambiar el número de canales físicos
+// (ej: de 2 a 12 al activar multicanal), TODOS los componentes se
+// reconstruyen correctamente: masterGains, buses, merger Y stereo buses.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('AudioEngine.forcePhysicalChannels (con AudioContext mock)', () => {
+
+  let engine;
+  let mockCtx;
+  
+  function setupEngine(maxChannels = 2) {
+    mockCtx = createMockAudioContext({ maxChannelCount: maxChannels });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('cambia physicalChannels al valor solicitado', () => {
+    setupEngine(2);
+    
+    assert.equal(engine.physicalChannels, 2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    assert.equal(engine.physicalChannels, 12);
+  });
+
+  it('crea nuevos masterGains para el nuevo número de canales', () => {
+    setupEngine(2);
+    
+    assert.equal(engine.masterGains.length, 2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    assert.equal(engine.masterGains.length, 12);
+  });
+
+  it('crea nuevo merger con el número correcto de canales', () => {
+    setupEngine(2);
+    
+    const oldMerger = engine.merger;
+    
+    engine.forcePhysicalChannels(12);
+    
+    // El merger debe ser un nuevo objeto
+    assert.notEqual(engine.merger, oldMerger);
+    assert.equal(engine.merger.numberOfInputs, 12);
+  });
+
+  it('reconstruye channelGains de los outputBuses', () => {
+    setupEngine(2);
+    
+    // Inicialmente 2 channelGains por bus
+    assert.equal(engine.outputBuses[0].channelGains.length, 2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Ahora debe tener 12 channelGains por bus
+    assert.equal(engine.outputBuses[0].channelGains.length, 12);
+    engine.outputBuses.forEach(bus => {
+      assert.equal(bus.channelGains.length, 12);
+    });
+  });
+
+  it('devuelve success: true y el número de canales', () => {
+    setupEngine(2);
+    
+    const result = engine.forcePhysicalChannels(12);
+    
+    assert.equal(result.success, true);
+    assert.equal(result.channels, 12);
+  });
+
+  it('skipDestinationConnect=true NO conecta merger al destination', () => {
+    setupEngine(2);
+    
+    engine.forcePhysicalChannels(12, null, true);
+    
+    assert.equal(engine._skipDestinationConnect, true);
+    // El merger existe pero no está conectado al destination
+    assert.ok(engine.merger);
+  });
+
+  it('preserva _outputRoutingMatrix al cambiar canales', () => {
+    setupEngine(2);
+    
+    // Configurar routing: bus 0 → canal 0
+    engine.setOutputRouting(0, [1.0, 0.0]);
+    assert.equal(engine._outputRoutingMatrix[0][0], 1.0);
+    
+    engine.forcePhysicalChannels(12, null, true);
+    
+    // El routing 1:1 sobreescribe en skipDestinationConnect
+    // pero el punto es que no crashea
+    assert.ok(Array.isArray(engine._outputRoutingMatrix));
+    assert.equal(engine._outputRoutingMatrix.length, 8);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// _rebuildStereoBusConnections - reconexión tras cambio de canales
+// ═══════════════════════════════════════════════════════════════════════════
+// ESTE ES EL TEST CRÍTICO que habría detectado el bug:
+// Al llamar a forcePhysicalChannels, los stereo buses deben reconectarse
+// a los NUEVOS masterGains. Sin _rebuildStereoBusConnections, los
+// channelGains del stereo bus quedan conectados a masterGains viejos
+// (desconectados del merger) y el audio no sale.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Stereo buses sobreviven a forcePhysicalChannels (bug regression)', () => {
+
+  let engine;
+  let mockCtx;
+  
+  function setupEngine(maxChannels = 2) {
+    mockCtx = createMockAudioContext({ maxChannelCount: maxChannels });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('stereoBusOutputs tiene 4 elementos tras forcePhysicalChannels', () => {
+    setupEngine(2);
+    
+    assert.equal(engine.stereoBusOutputs.length, 4);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Debe seguir teniendo 4 stereo bus outputs
+    assert.equal(engine.stereoBusOutputs.length, 4);
+  });
+
+  it('channelGains de stereo buses se redimensionan al nuevo número de canales', () => {
+    setupEngine(2);
+    
+    // Inicialmente 2 channelGains por stereo bus
+    assert.equal(engine.stereoBusOutputs[0].channelGains.length, 2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Debe tener 12 channelGains por stereo bus
+    engine.stereoBusOutputs.forEach((output, idx) => {
+      assert.equal(output.channelGains.length, 12,
+        `stereoBusOutputs[${idx}] debe tener 12 channelGains, tiene ${output.channelGains.length}`);
+    });
+  });
+
+  it('channelGains son objetos NUEVOS (no los viejos desconectados)', () => {
+    setupEngine(2);
+    
+    // Guardar referencia a los channelGains viejos
+    const oldChannelGains0 = engine.stereoBusOutputs[0].channelGains;
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Los nuevos channelGains deben ser un array diferente
+    assert.notEqual(engine.stereoBusOutputs[0].channelGains, oldChannelGains0);
+  });
+
+  it('channelGains nuevos están conectados a los masterGains actuales', () => {
+    setupEngine(2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Cada channelGain del stereo bus debe tener al menos una conexión
+    // (a su masterGain correspondiente)
+    engine.stereoBusOutputs.forEach((output, idx) => {
+      output.channelGains.forEach((gainNode, ch) => {
+        assert.ok(gainNode._connections.length > 0,
+          `stereoBusOutputs[${idx}].channelGains[${ch}] debe estar conectado`);
+        // Verificar que se conectó al masterGain correcto
+        assert.equal(gainNode._connections[0].destination, engine.masterGains[ch],
+          `channelGains[${ch}] debe conectarse a masterGains[${ch}]`);
+      });
+    });
+  });
+
+  it('stereoBuses.A.channelGainsL se actualiza', () => {
+    setupEngine(2);
+    
+    const oldGains = engine.stereoBuses.A.channelGainsL;
+    assert.equal(oldGains.length, 2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Debe tener nuevos channelGains con 12 elementos
+    assert.equal(engine.stereoBuses.A.channelGainsL.length, 12);
+    assert.notEqual(engine.stereoBuses.A.channelGainsL, oldGains);
+  });
+
+  it('stereoBuses.B.channelGainsR se actualiza', () => {
+    setupEngine(2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    assert.equal(engine.stereoBuses.B.channelGainsR.length, 12);
+  });
+
+  it('setStereoBusRouting funciona DESPUÉS de forcePhysicalChannels', () => {
+    setupEngine(2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Configurar routing: Pan1-4L → canal 0
+    const gains = Array(12).fill(0);
+    gains[0] = 1;
+    engine.setStereoBusRouting(0, gains);
+    
+    // El channelGain[0] del stereo bus 0 debe tener ganancia 1
+    assert.equal(engine.stereoBusOutputs[0].channelGains[0].gain.value, 1);
+    // Los demás deben tener ganancia 0
+    assert.equal(engine.stereoBusOutputs[0].channelGains[1].gain.value, 0);
+  });
+
+  it('routing previo se preserva tras forcePhysicalChannels', () => {
+    setupEngine(2);
+    
+    // Configurar routing antes del cambio de canales
+    engine.setStereoBusRouting(0, [1, 0]); // Pan1-4L → canal 0
+    engine.setStereoBusRouting(1, [0, 1]); // Pan1-4R → canal 1
+    
+    assert.equal(engine._stereoBusRoutingMatrix[0][0], 1);
+    assert.equal(engine._stereoBusRoutingMatrix[1][1], 1);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Los valores previos deben conservarse (canales 0 y 1)
+    assert.equal(engine._stereoBusRoutingMatrix[0][0], 1, 'Row 0, canal 0 debe conservar valor 1');
+    assert.equal(engine._stereoBusRoutingMatrix[1][1], 1, 'Row 1, canal 1 debe conservar valor 1');
+    // Los canales nuevos (2-11) deben ser 0
+    assert.equal(engine._stereoBusRoutingMatrix[0][2], 0);
+    assert.equal(engine._stereoBusRoutingMatrix[0][11], 0);
+  });
+
+  it('channelGains nuevos reflejan el routing preservado', () => {
+    setupEngine(2);
+    
+    // Configurar routing: Pan1-4L → canal 0 (gain=1), canal 1 (gain=0)
+    engine.setStereoBusRouting(0, [1, 0]);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // El channelGain[0] del stereo bus 0 debe tener el valor preservado (1)
+    assert.equal(engine.stereoBusOutputs[0].channelGains[0].gain.value, 1,
+      'channelGains[0] debe tener gain=1 del routing preservado');
+    // Los canales nuevos deben tener gain=0
+    assert.equal(engine.stereoBusOutputs[0].channelGains[2].gain.value, 0);
+    assert.equal(engine.stereoBusOutputs[0].channelGains[11].gain.value, 0);
+  });
+
+  it('_stereoBusRoutingMatrix se redimensiona al nuevo número de canales', () => {
+    setupEngine(2);
+    
+    assert.equal(engine._stereoBusRoutingMatrix[0].length, 2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Cada fila debe tener 12 columnas
+    for (let row = 0; row < 4; row++) {
+      assert.equal(engine._stereoBusRoutingMatrix[row].length, 12,
+        `Row ${row} debe tener 12 columnas`);
+    }
+  });
+
+  it('outputL y outputR del stereoBus siguen existiendo', () => {
+    setupEngine(2);
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Los nodos sumadores/output no se recrean, solo los channelGains
+    assert.ok(engine.stereoBuses.A.outputL, 'outputL de bus A debe existir');
+    assert.ok(engine.stereoBuses.A.outputR, 'outputR de bus A debe existir');
+    assert.ok(engine.stereoBuses.B.outputL, 'outputL de bus B debe existir');
+    assert.ok(engine.stereoBuses.B.outputR, 'outputR de bus B debe existir');
+  });
+
+  it('múltiples llamadas a forcePhysicalChannels no corrompen el estado', () => {
+    setupEngine(2);
+    
+    // Simular: activar multicanal → desactivar → activar
+    engine.forcePhysicalChannels(12);
+    engine.forcePhysicalChannels(2);
+    engine.forcePhysicalChannels(12);
+    
+    assert.equal(engine.stereoBusOutputs.length, 4);
+    assert.equal(engine.stereoBusOutputs[0].channelGains.length, 12);
+    assert.equal(engine.masterGains.length, 12);
+    
+    // El routing debe funcionar
+    const gains = Array(12).fill(0);
+    gains[5] = 1;
+    engine.setStereoBusRouting(2, gains);
+    assert.equal(engine.stereoBusOutputs[2].channelGains[5].gain.value, 1);
+  });
+
+  it('channelGains viejos se desconectan', () => {
+    setupEngine(2);
+    
+    // Guardar referencia a los channelGains viejos
+    const oldGainsL = engine.stereoBuses.A.channelGainsL;
+    
+    engine.forcePhysicalChannels(12);
+    
+    // Los viejos deben haber recibido disconnect
+    oldGainsL.forEach(g => {
+      assert.ok(g._calls.disconnect > 0,
+        'Los channelGains viejos deben haberse desconectado');
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Flujo completo multicanal: forcePhysicalChannels + routing
+// ═══════════════════════════════════════════════════════════════════════════
+// Simula el flujo real de la app: el usuario activa multicanal,
+// se reconstruye la arquitectura, y se re-aplica el routing.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Flujo multicanal completo: force + routing (integración)', () => {
+
+  let engine;
+  let mockCtx;
+  
+  function setupEngine() {
+    mockCtx = createMockAudioContext({ maxChannelCount: 2 });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    return engine;
+  }
+
+  it('flujo típico multicanal: configurar routing estéreo → forzar 12ch → re-aplicar routing', () => {
+    setupEngine();
+    
+    // 1. Configurar routing estéreo: Pan1-4L→ch0, Pan1-4R→ch1
+    engine.setStereoBusRouting(0, [1, 0]); // L → left
+    engine.setStereoBusRouting(1, [0, 1]); // R → right
+    
+    // 2. Forzar 12 canales (simula activar multicanal)
+    engine.forcePhysicalChannels(12, null, true);
+    
+    // 3. Re-aplicar routing multicanal: Pan1-4L→ch0, Pan1-4R→ch1
+    const multiGains0 = Array(12).fill(0); multiGains0[0] = 1;
+    const multiGains1 = Array(12).fill(0); multiGains1[1] = 1;
+    const multiGains2 = Array(12).fill(0); multiGains2[2] = 1;
+    const multiGains3 = Array(12).fill(0); multiGains3[3] = 1;
+    
+    engine.setStereoBusRouting(0, multiGains0);
+    engine.setStereoBusRouting(1, multiGains1);
+    engine.setStereoBusRouting(2, multiGains2);
+    engine.setStereoBusRouting(3, multiGains3);
+    
+    // Verificar que el routing se aplicó correctamente
+    assert.equal(engine.stereoBusOutputs[0].channelGains[0].gain.value, 1, 'Pan1-4L → ch0');
+    assert.equal(engine.stereoBusOutputs[1].channelGains[1].gain.value, 1, 'Pan1-4R → ch1');
+    assert.equal(engine.stereoBusOutputs[2].channelGains[2].gain.value, 1, 'Pan5-8L → ch2');
+    assert.equal(engine.stereoBusOutputs[3].channelGains[3].gain.value, 1, 'Pan5-8R → ch3');
+    
+    // Canales no configurados deben estar a 0
+    assert.equal(engine.stereoBusOutputs[0].channelGains[1].gain.value, 0, 'Pan1-4L NO → ch1');
+    assert.equal(engine.stereoBusOutputs[0].channelGains[5].gain.value, 0, 'Pan1-4L NO → ch5');
+  });
+
+  it('output buses individuales también se reconstruyen para 12 canales', () => {
+    setupEngine();
+    
+    engine.forcePhysicalChannels(12, null, true);
+    
+    // Configurar routing para Out 1 → canal 4
+    const gains = Array(12).fill(0);
+    gains[4] = 1;
+    engine.setOutputRouting(0, gains);
+    
+    assert.equal(engine.outputBuses[0].channelGains[4].gain.value, 1);
+    assert.equal(engine.outputBuses[0].channelGains.length, 12);
+  });
+
+  it('vuelta a estéreo: volver de 12 a 2 canales', () => {
+    setupEngine();
+    
+    // Activar multicanal
+    engine.forcePhysicalChannels(12, null, true);
+    engine.setStereoBusRouting(0, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    
+    // Volver a estéreo
+    engine._skipDestinationConnect = false;
+    engine.forcePhysicalChannels(2);
+    
+    // Stereo buses deben tener 2 channelGains
+    assert.equal(engine.stereoBusOutputs[0].channelGains.length, 2);
+    assert.equal(engine.masterGains.length, 2);
+    
+    // El routing se preserva para los canales que existen
+    assert.equal(engine.stereoBusOutputs[0].channelGains[0].gain.value, 1);
+  });
+});

@@ -166,6 +166,19 @@ async function createWindow() {
     console.error('Error loading:', err);
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bloquear atajos de recarga para evitar reinicios accidentales en performance
+  // ─────────────────────────────────────────────────────────────────────────
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    const isRefresh =
+      input.key === 'F5' ||
+      (input.control && input.key === 'r') ||
+      (input.control && input.shift && input.key === 'R');
+    if (isRefresh) {
+      event.preventDefault();
+    }
+  });
+
   // Abrir DevTools en desarrollo (descomentar si necesario)
   // mainWindow.webContents.openDevTools();
 
@@ -188,16 +201,8 @@ function setupMenu() {
       submenu: [
         {
           label: 'Recargar',
-          accelerator: 'CmdOrCtrl+R',
           click: () => {
             if (mainWindow) mainWindow.reload();
-          }
-        },
-        {
-          label: 'Forzar Recarga',
-          accelerator: 'CmdOrCtrl+Shift+R',
-          click: () => {
-            if (mainWindow) mainWindow.webContents.reloadIgnoringCache();
           }
         },
         { type: 'separator' },

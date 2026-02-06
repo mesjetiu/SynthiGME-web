@@ -276,10 +276,12 @@ export class RecordingEngine {
     }
     
     // 8 individual outputs DESPUÉS (índices 4-11)
+    // IMPORTANTE: Usar muteNode (POST-switch) para que el switch on/off afecte la grabación
+    // Cadena: busInput → VCA → postVca → filters → muteNode → channelGains → out
     for (let bus = 0; bus < this._individualOutputCount; bus++) {
       const sourceIndex = this._stereoSourceCount + bus; // 4, 5, 6, 7, 8, 9, 10, 11
       this._outputGains[sourceIndex] = [];
-      const busNode = this.engine.outputBuses[bus]?.levelNode;
+      const busNode = this.engine.outputBuses[bus]?.muteNode;
       if (!busNode) continue;
       
       for (let track = 0; track < this._trackCount; track++) {

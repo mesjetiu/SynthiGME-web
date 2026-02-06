@@ -24,6 +24,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Dormancy: Output Channel con Voltage Input**: Los canales de salida ahora despiertan correctamente al recibir señal por Voltage Input (columnas 42-45 de Panel 6), no solo por conexiones de audio (Panel 5).
 - **Re-entry de Output Channels: soporte CV lento**: DC blocker reducido de 5Hz a 0.01Hz para permitir CV de frecuencias muy bajas (períodos hasta ~40s). La causa del offset DC original (transitorio del VCA al despertar de dormancy) se corrige sincronizando `_voltageSmoothed` instantáneamente via mensaje 'resync'. El DC blocker a 0.01Hz es solo protección residual contra DC estático.
 - **Re-entry de Output Channels: ganancia unitaria**: Corregido orden de argumentos en `createHybridClipCurve()` que causaba amplificación ~1.6× por cada Output Channel encadenado. Ahora la señal re-entry mantiene ganancia 1:1.
+- **Grabación: canales individuales POST-switch**: Los 8 canales individuales ahora se graban desde `muteNode` (POST-switch) en lugar de `levelNode` (PRE-switch), respetando el estado on/off de cada canal.
 
 ## [0.5.0] - 2026-02-03
 

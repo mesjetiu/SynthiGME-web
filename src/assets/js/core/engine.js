@@ -1217,8 +1217,9 @@ export class AudioEngine {
         A: { L: this.stereoBuses.A?.outputL, R: this.stereoBuses.A?.outputR },
         B: { L: this.stereoBuses.B?.outputL, R: this.stereoBuses.B?.outputR }
       },
-      // 8 canales individuales (post-filter, post-level)
-      individual: this.outputBuses.map(bus => bus.levelNode)
+      // 8 canales individuales POST-mute (respetan switch on/off)
+      // Cadena: busInput → VCA → postVca → filters → muteNode → out
+      individual: this.outputBuses.map(bus => bus.muteNode)
     };
   }
 

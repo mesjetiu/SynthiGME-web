@@ -253,27 +253,35 @@ export class AudioSettingsModal {
 
   /**
    * Devuelve el routing por defecto de stereo buses según el modo.
-   * - Estéreo: Ambos buses van a L/R (canales 0,1)
-   * - Multicanal: Diagonal - Pan 1-4 a canales 1,2 y Pan 5-8 a canales 3,4
-   * @returns {Object}
+   * Estructura: array de 4 filas (Pan1-4L, Pan1-4R, Pan5-8L, Pan5-8R)
+   * Cada fila es un array de booleanos para cada canal físico.
+   * - Estéreo: Pan1-4L→ch0, Pan1-4R→ch1, Pan5-8L→ch0, Pan5-8R→ch1
+   * - Multicanal: Pan1-4L→ch0, Pan1-4R→ch1, Pan5-8L→ch2, Pan5-8R→ch3
+   * @returns {boolean[][]}
    */
   _getDefaultStereoBusRouting() {
+    const channelCount = this.physicalChannels || 2;
+    
     if (this.outputMode === 'multichannel') {
-      return {
-        A: [0, 1],  // Pan 1-4 → canales 1, 2 (índices 0, 1)
-        B: [2, 3]   // Pan 5-8 → canales 3, 4 (índices 2, 3)
-      };
+      return [
+        Array.from({ length: channelCount }, (_, i) => i === 0),  // Pan1-4L → ch0
+        Array.from({ length: channelCount }, (_, i) => i === 1),  // Pan1-4R → ch1
+        Array.from({ length: channelCount }, (_, i) => i === 2),  // Pan5-8L → ch2
+        Array.from({ length: channelCount }, (_, i) => i === 3),  // Pan5-8R → ch3
+      ];
     } else {
-      return {
-        A: [0, 1],  // Pan 1-4 → L, R
-        B: [0, 1]   // Pan 5-8 → L, R
-      };
+      return [
+        Array.from({ length: channelCount }, (_, i) => i === 0),  // Pan1-4L → L
+        Array.from({ length: channelCount }, (_, i) => i === 1),  // Pan1-4R → R
+        Array.from({ length: channelCount }, (_, i) => i === 0),  // Pan5-8L → L
+        Array.from({ length: channelCount }, (_, i) => i === 1),  // Pan5-8R → R
+      ];
     }
   }
 
   /**
    * Carga el routing de stereo buses desde localStorage.
-   * @returns {Object|null}
+   * @returns {boolean[][]|null}
    */
   _loadStereoBusRouting() {
     try {
@@ -281,10 +289,16 @@ export class AudioSettingsModal {
       const saved = localStorage.getItem(storageKey);
       if (!saved) return null;
       const parsed = JSON.parse(saved);
-      if (parsed && Array.isArray(parsed.A) && Array.isArray(parsed.B)) {
-        return parsed;
-      }
-      return null;
+      
+      if (!Array.isArray(parsed) || parsed.length !== 4) return null;
+      
+      // Adaptar al número actual de canales físicos
+      const channelCount = this.physicalChannels || 2;
+      return parsed.map(row => 
+        Array.from({ length: channelCount }, (_, chIdx) => 
+          Array.isArray(row) && row[chIdx] === true
+        )
+      );
     } catch (e) {
       log.warn(' Error loading stereo bus routing:', e);
       return null;
@@ -307,13 +321,15 @@ export class AudioSettingsModal {
    * Aplica el routing de stereo buses al engine.
    * Debe llamarse al iniciar para sincronizar estado.
    * @param {Function} setStereoBusRouting - Función del engine para aplicar routing
+   *   Firma: setStereoBusRouting(stereoBusIndex, channelGains[])
    */
   applyStereoBusRoutingToEngine(setStereoBusRouting) {
     if (!setStereoBusRouting) return;
     
-    for (const busId of ['A', 'B']) {
-      const routing = this.stereoBusRouting[busId] || [0, 1];
-      setStereoBusRouting(busId, routing[0], routing[1]);
+    for (let rowIdx = 0; rowIdx < this.stereoBusCount; rowIdx++) {
+      const routing = this.stereoBusRouting[rowIdx] || [];
+      const channelGains = routing.map(active => active ? 1.0 : 0.0);
+      setStereoBusRouting(rowIdx, channelGains);
     }
     log.info(' Stereo bus routing applied to engine:', this.stereoBusRouting);
   }
@@ -1728,16 +1744,15 @@ export class AudioSettingsModal {
     btn.type = 'button';
     btn.className = 'routing-matrix__toggle routing-matrix__toggle--stereo';
     
-    // Determinar bus (A o B) y lado (L o R)
-    const busId = stereoBusIndex < 2 ? 'A' : 'B';
-    const side = stereoBusIndex % 2 === 0 ? 'L' : 'R';
-    const sideIndex = side === 'L' ? 0 : 1;
+    // Asegurar que el array de routing existe para este bus
+    if (!this.stereoBusRouting[stereoBusIndex]) {
+      this.stereoBusRouting[stereoBusIndex] = Array(this.physicalChannels).fill(false);
+    }
     
     // Verificar si está activo
-    const isActive = this.stereoBusRouting[busId]?.[sideIndex] === channelIndex;
+    const isActive = this.stereoBusRouting[stereoBusIndex][channelIndex] === true;
     btn.setAttribute('aria-pressed', String(isActive));
-    btn.dataset.stereoBus = busId;
-    btn.dataset.side = side;
+    btn.dataset.stereoBus = stereoBusIndex;
     btn.dataset.channel = channelIndex;
     btn.title = `${this.stereoBusLabels[stereoBusIndex]} → ${this.channelLabels[channelIndex] || `Ch${channelIndex + 1}`}`;
     
@@ -1752,40 +1767,31 @@ export class AudioSettingsModal {
 
   /**
    * Alterna el estado de ruteo de un stereo bus hacia un canal físico.
-   * Solo un canal puede estar activo por lado (L o R), o ninguno (-1).
+   * Permite múltiples canales activos por fila.
    * @param {number} stereoBusIndex - Índice del stereo bus (0-3)
    * @param {number} channelIndex - Índice del canal físico
    * @param {HTMLElement} btn - Botón que se pulsó
    */
   _toggleStereoBusRouting(stereoBusIndex, channelIndex, btn) {
-    const busId = stereoBusIndex < 2 ? 'A' : 'B';
-    const sideIndex = stereoBusIndex % 2 === 0 ? 0 : 1;
-    
-    // Si el canal ya está seleccionado, desactivar (-1)
-    const currentChannel = this.stereoBusRouting[busId][sideIndex];
-    const newChannel = currentChannel === channelIndex ? -1 : channelIndex;
-    
-    // Actualizar routing (solo un canal por lado, -1 = desactivado)
-    this.stereoBusRouting[busId][sideIndex] = newChannel;
-    this._saveStereoBusRouting();
-    
-    // Actualizar UI: desactivar todos los botones si -1, o activar solo el seleccionado
-    const rowIndex = stereoBusIndex;
-    if (this.outputToggleButtons[rowIndex]) {
-      this.outputToggleButtons[rowIndex].forEach((b, chIdx) => {
-        const isNowActive = newChannel >= 0 && chIdx === newChannel;
-        b.classList.toggle('routing-matrix__toggle--active', isNowActive);
-        b.setAttribute('aria-pressed', String(isNowActive));
-      });
+    // Asegurar que el array existe
+    if (!this.stereoBusRouting[stereoBusIndex]) {
+      this.stereoBusRouting[stereoBusIndex] = Array(this.physicalChannels).fill(false);
     }
     
-    // Notificar al engine
+    // Alternar estado (igual que Out 1-8)
+    this.stereoBusRouting[stereoBusIndex][channelIndex] = !this.stereoBusRouting[stereoBusIndex][channelIndex];
+    const isActive = this.stereoBusRouting[stereoBusIndex][channelIndex];
+    
+    btn.classList.toggle('routing-matrix__toggle--active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+    
+    // Persistir cambio
+    this._saveStereoBusRouting();
+    
+    // Notificar al engine con array completo de ganancias
     if (this.onStereoBusRoutingChange) {
-      this.onStereoBusRoutingChange(
-        busId,
-        this.stereoBusRouting[busId][0],
-        this.stereoBusRouting[busId][1]
-      );
+      const channelGains = this.stereoBusRouting[stereoBusIndex].map(active => active ? 1.0 : 0.0);
+      this.onStereoBusRoutingChange(stereoBusIndex, channelGains);
     }
   }
 
@@ -2394,8 +2400,10 @@ export class AudioSettingsModal {
     
     // Notificar cambios al engine
     if (this.onStereoBusRoutingChange) {
-      this.onStereoBusRoutingChange('A', this.stereoBusRouting.A[0], this.stereoBusRouting.A[1]);
-      this.onStereoBusRoutingChange('B', this.stereoBusRouting.B[0], this.stereoBusRouting.B[1]);
+      for (let rowIdx = 0; rowIdx < this.stereoBusCount; rowIdx++) {
+        const channelGains = this.stereoBusRouting[rowIdx].map(active => active ? 1.0 : 0.0);
+        this.onStereoBusRoutingChange(rowIdx, channelGains);
+      }
     }
     
     log.info(' Routing reset to defaults for mode:', this.outputMode);

@@ -66,14 +66,15 @@ export class AudioSettingsModal {
     this.stereoBusCount = this.stereoBusLabels.length; // 4
     this.totalOutputSources = this.stereoBusCount + this.outputCount; // 12
     
+    // Modo de salida: 'stereo' (normal) o 'multichannel' (12 canales PipeWire)
+    // IMPORTANTE: Inicializar ANTES de cargar stereo bus routing para usar la clave correcta
+    this.outputMode = localStorage.getItem(STORAGE_KEYS.OUTPUT_MODE) || 'stereo';
+    this.multichannelAvailable = false;  // Se detecta en _checkMultichannelAvailability
+    
     // Stereo bus routing: Pan 1-4 (A) y Pan 5-8 (B) a canales físicos
     // Por defecto depende del modo (estéreo vs multicanal)
     const loadedStereoBusRouting = this._loadStereoBusRouting();
     this.stereoBusRouting = loadedStereoBusRouting || this._getDefaultStereoBusRouting();
-    
-    // Modo de salida: 'stereo' (normal) o 'multichannel' (12 canales PipeWire)
-    this.outputMode = localStorage.getItem(STORAGE_KEYS.OUTPUT_MODE) || 'stereo';
-    this.multichannelAvailable = false;  // Se detecta en _checkMultichannelAvailability
     
     // Callbacks para cambios de modo
     this.onOutputModeChange = options.onOutputModeChange;

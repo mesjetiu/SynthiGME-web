@@ -1573,6 +1573,15 @@ audio.inputs.multichannel.labels:
   pt: "input_amp_{n}"
   cs: "input_amp_{n}"
 
+audio.inputs.reset:
+  en: "Reset to Defaults"
+  es: "Restablecer valores"
+  fr: "Réinitialiser"
+  de: "Zurücksetzen"
+  it: "Ripristina predefiniti"
+  pt: "Restaurar padrões"
+  cs: "Obnovit výchozí"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sección de latencia (unificada en audio settings)
 # ─────────────────────────────────────────────────────────────────────────────

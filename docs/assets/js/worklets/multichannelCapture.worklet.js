@@ -24,6 +24,7 @@ class MultichannelCaptureProcessor extends AudioWorkletProcessor {
     this.initialized = false;
     this.frameCount = 0;
     this.overflowCount = 0;
+    this.stopped = false;  // Flag para detener el procesamiento
     
     // Fallback: acumular y enviar via MessagePort si no hay SharedArrayBuffer
     this.fallbackMode = true;
@@ -31,10 +32,14 @@ class MultichannelCaptureProcessor extends AudioWorkletProcessor {
     this.fallbackBuffer = new Float32Array(this.fallbackChunkSize * this.channels);
     this.fallbackPos = 0;
     
-    // Recibir SharedArrayBuffer del main thread
+    // Recibir mensajes del main thread
     this.port.onmessage = (event) => {
       if (event.data.type === 'init' && event.data.sharedBuffer) {
         this.initSharedBuffer(event.data);
+      } else if (event.data.type === 'stop') {
+        // Señal para detener el worklet
+        this.stopped = true;
+        console.log('[Worklet] Stop signal received, shutting down...');
       }
     };
     
@@ -76,6 +81,11 @@ class MultichannelCaptureProcessor extends AudioWorkletProcessor {
   }
   
   process(inputs, outputs, parameters) {
+    // Si se ha recibido señal de stop, devolver false para destruir el worklet
+    if (this.stopped) {
+      return false;
+    }
+    
     const input = inputs[0];
     
     if (!input || input.length === 0) {

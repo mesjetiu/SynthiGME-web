@@ -733,3 +733,137 @@ describe('Redimensionamiento de arrays de routing', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE ROUTING DE ENTRADA
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Routing de entrada - Lógica aislada', () => {
+  const INPUT_COUNT = 8;  // 8 Input Amplifiers del Synthi
+  
+  /**
+   * Replica la lógica de _getDefaultInputRouting del modal.
+   * Default: sysIn1 → Ch1, sysIn2 → Ch2 (diagonal)
+   * @param {number} physicalInputChannels - Número de canales de entrada del sistema
+   */
+  const getDefaultInputRouting = (physicalInputChannels) => {
+    return Array.from({ length: physicalInputChannels }, (_, sysIdx) => 
+      Array.from({ length: INPUT_COUNT }, (_, chIdx) => sysIdx === chIdx)
+    );
+  };
+  
+  /**
+   * Replica la lógica de _getDefaultInputMultichannelRouting del modal.
+   * Default: diagonal 1:1 (input_amp_1 → Ch1, etc.)
+   */
+  const getDefaultInputMultichannelRouting = () => {
+    return Array.from({ length: 8 }, (_, pwIdx) => 
+      Array.from({ length: INPUT_COUNT }, (_, chIdx) => pwIdx === chIdx)
+    );
+  };
+
+  describe('Defaults de entrada estéreo', () => {
+    it('con 2 entradas: sysIn1 → Ch1, sysIn2 → Ch2', () => {
+      const routing = getDefaultInputRouting(2);
+      
+      assert.strictEqual(routing.length, 2);
+      assert.strictEqual(routing[0].length, INPUT_COUNT);
+      
+      // sysIn1 → Ch1
+      assert.strictEqual(routing[0][0], true);
+      assert.strictEqual(routing[0][1], false);
+      
+      // sysIn2 → Ch2
+      assert.strictEqual(routing[1][0], false);
+      assert.strictEqual(routing[1][1], true);
+    });
+    
+    it('con 4 entradas: diagonal para las primeras 4', () => {
+      const routing = getDefaultInputRouting(4);
+      
+      assert.strictEqual(routing.length, 4);
+      
+      for (let i = 0; i < 4; i++) {
+        assert.strictEqual(routing[i][i], true, `sysIn${i + 1} → Ch${i + 1}`);
+        // Resto OFF
+        for (let j = 0; j < INPUT_COUNT; j++) {
+          if (j !== i) {
+            assert.strictEqual(routing[i][j], false, `sysIn${i + 1} → Ch${j + 1} debería ser OFF`);
+          }
+        }
+      }
+    });
+    
+    it('con 8 entradas: diagonal completa', () => {
+      const routing = getDefaultInputRouting(8);
+      
+      assert.strictEqual(routing.length, 8);
+      
+      for (let i = 0; i < 8; i++) {
+        assert.strictEqual(routing[i][i], true, `sysIn${i + 1} → Ch${i + 1}`);
+      }
+    });
+  });
+
+  describe('Defaults de entrada multicanal', () => {
+    it('8 puertos PipeWire con diagonal', () => {
+      const routing = getDefaultInputMultichannelRouting();
+      
+      assert.strictEqual(routing.length, 8);
+      
+      for (let i = 0; i < 8; i++) {
+        assert.strictEqual(routing[i].length, INPUT_COUNT);
+        assert.strictEqual(routing[i][i], true, `input_amp_${i + 1} → Ch${i + 1}`);
+        
+        // Resto OFF
+        for (let j = 0; j < INPUT_COUNT; j++) {
+          if (j !== i) {
+            assert.strictEqual(routing[i][j], false, `input_amp_${i + 1} → Ch${j + 1} debería ser OFF`);
+          }
+        }
+      }
+    });
+  });
+
+  describe('Reset a defaults', () => {
+    it('input estéreo vuelve a diagonal', () => {
+      // Simular cambio de routing
+      const customRouting = [
+        [true, true, true, false, false, false, false, false],  // sysIn1 → múltiples
+        [false, false, false, false, false, false, false, true] // sysIn2 → Ch8
+      ];
+      
+      // Reset
+      const defaultRouting = getDefaultInputRouting(2);
+      
+      // Verificar que el default es diagonal
+      assert.strictEqual(defaultRouting[0][0], true);
+      assert.strictEqual(defaultRouting[0][1], false);
+      assert.strictEqual(defaultRouting[1][0], false);
+      assert.strictEqual(defaultRouting[1][1], true);
+      
+      // Y que es diferente del custom
+      assert.notDeepStrictEqual(customRouting, defaultRouting);
+    });
+    
+    it('input multicanal vuelve a diagonal', () => {
+      // Simular routing personalizado
+      const customRouting = Array.from({ length: 8 }, () => 
+        Array.from({ length: 8 }, () => true)  // Todos ON
+      );
+      
+      // Reset
+      const defaultRouting = getDefaultInputMultichannelRouting();
+      
+      // Verificar diagonal
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          assert.strictEqual(defaultRouting[i][j], i === j);
+        }
+      }
+      
+      // Y que es diferente del custom
+      assert.notDeepStrictEqual(customRouting, defaultRouting);
+    });
+  });
+});

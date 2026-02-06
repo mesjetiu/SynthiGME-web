@@ -179,6 +179,7 @@ export default {
   "audio.inputs.multichannel.title": "PipeWire → Amplificadores de entrada",
   "audio.inputs.multichannel.description": "Rotear 8 canais de entrada do PipeWire para os amplificadores de entrada.",
   "audio.inputs.multichannel.labels": "input_amp_{n}",
+  "audio.inputs.reset": "Restaurar padrões",
   "audio.latency.title": "Latência",
   "audio.latency.description": "Ajustar buffer de áudio. Menor = resposta mais rápida, mas maior risco de cliques.",
   "audio.latency.webAudio": "Buffer Web Audio:",

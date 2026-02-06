@@ -179,6 +179,7 @@ export default {
   "audio.inputs.multichannel.title": "PipeWire → Vstupní zesilovače",
   "audio.inputs.multichannel.description": "Směrovat 8 vstupních kanálů PipeWire na Vstupní zesilovače.",
   "audio.inputs.multichannel.labels": "input_amp_{n}",
+  "audio.inputs.reset": "Obnovit výchozí",
   "audio.latency.title": "Latence",
   "audio.latency.description": "Upravte zvukový buffer. Nižší = rychlejší odezva, ale vyšší riziko praskání.",
   "audio.latency.webAudio": "Web Audio Buffer:",

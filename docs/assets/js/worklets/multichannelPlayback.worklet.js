@@ -29,11 +29,16 @@ class MultichannelPlaybackProcessor extends AudioWorkletProcessor {
     this.initialized = false;
     this.frameCount = 0;
     this.underflowCount = 0;
+    this.stopped = false;  // Flag para detener el procesamiento
     
-    // Recibir SharedArrayBuffer del main thread
+    // Recibir mensajes del main thread
     this.port.onmessage = (event) => {
       if (event.data.type === 'init' && event.data.sharedBuffer) {
         this.initSharedBuffer(event.data);
+      } else if (event.data.type === 'stop') {
+        // Señal para detener el worklet
+        this.stopped = true;
+        console.log('[MultichannelPlayback] Stop signal received, shutting down...');
       }
     };
     
@@ -73,6 +78,11 @@ class MultichannelPlaybackProcessor extends AudioWorkletProcessor {
   }
   
   process(inputs, outputs, parameters) {
+    // Si se ha recibido señal de stop, devolver false para destruir el worklet
+    if (this.stopped) {
+      return false;
+    }
+    
     const output = outputs[0];
     
     if (!output || output.length === 0) {

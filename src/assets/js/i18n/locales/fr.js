@@ -179,6 +179,7 @@ export default {
   "audio.inputs.multichannel.title": "PipeWire → Amplificateurs d'entrée",
   "audio.inputs.multichannel.description": "Routez 8 canaux d'entrée PipeWire vers les amplificateurs d'entrée.",
   "audio.inputs.multichannel.labels": "input_amp_{n}",
+  "audio.inputs.reset": "Réinitialiser",
   "audio.latency.title": "Latence",
   "audio.latency.description": "Ajuste le tampon audio. Moins = réponse plus rapide mais plus de risque de clics.",
   "audio.latency.webAudio": "Tampon Web Audio :",

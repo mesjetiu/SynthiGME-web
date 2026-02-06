@@ -1919,6 +1919,18 @@ export class AudioSettingsModal {
     this._buildInputMatrix();
     this.inputStereoContent.appendChild(this.inputMatrixContainer);
     
+    // Botón para restablecer valores por defecto (input estéreo)
+    const inputResetContainer = document.createElement('div');
+    inputResetContainer.className = 'audio-settings-reset';
+    
+    this._textElements.inputResetBtn = document.createElement('button');
+    this._textElements.inputResetBtn.type = 'button';
+    this._textElements.inputResetBtn.className = 'audio-settings-reset__btn';
+    this._textElements.inputResetBtn.textContent = t('audio.inputs.reset');
+    this._textElements.inputResetBtn.addEventListener('click', () => this.resetInputRoutingToDefaults());
+    inputResetContainer.appendChild(this._textElements.inputResetBtn);
+    this.inputStereoContent.appendChild(inputResetContainer);
+    
     section.appendChild(this.inputStereoContent);
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -1939,6 +1951,18 @@ export class AudioSettingsModal {
     this.inputMultichannelMatrixContainer.className = 'routing-matrix-container';
     this._buildInputMultichannelMatrix();
     this.inputMultichannelContent.appendChild(this.inputMultichannelMatrixContainer);
+    
+    // Botón para restablecer valores por defecto (input multicanal)
+    const inputMcResetContainer = document.createElement('div');
+    inputMcResetContainer.className = 'audio-settings-reset';
+    
+    this._textElements.inputMcResetBtn = document.createElement('button');
+    this._textElements.inputMcResetBtn.type = 'button';
+    this._textElements.inputMcResetBtn.className = 'audio-settings-reset__btn';
+    this._textElements.inputMcResetBtn.textContent = t('audio.inputs.reset');
+    this._textElements.inputMcResetBtn.addEventListener('click', () => this.resetInputMultichannelRoutingToDefaults());
+    inputMcResetContainer.appendChild(this._textElements.inputMcResetBtn);
+    this.inputMultichannelContent.appendChild(inputMcResetContainer);
     
     section.appendChild(this.inputMultichannelContent);
     
@@ -2375,6 +2399,54 @@ export class AudioSettingsModal {
     }
     
     log.info(' Routing reset to defaults for mode:', this.outputMode);
+  }
+
+  /**
+   * Restablece el ruteo de entrada estéreo a valores por defecto.
+   * Default: sysIn1 → Ch1, sysIn2 → Ch2 (diagonal)
+   */
+  resetInputRoutingToDefaults() {
+    this.inputRouting = this._getDefaultInputRouting();
+    this._saveInputRouting();
+    
+    // Reconstruir UI
+    if (this.inputMatrixContainer) {
+      this._buildInputMatrix();
+    }
+    
+    // Notificar cambios al engine
+    if (this.onInputRoutingChange) {
+      for (let sysIdx = 0; sysIdx < this.inputRouting.length; sysIdx++) {
+        const channelGains = this.inputRouting[sysIdx].map(active => active ? 1.0 : 0.0);
+        this.onInputRoutingChange(sysIdx, channelGains);
+      }
+    }
+    
+    log.info(' Input routing reset to defaults');
+  }
+
+  /**
+   * Restablece el ruteo de entrada multicanal a valores por defecto.
+   * Default: diagonal 1:1 (input_amp_1 → Ch1, etc.)
+   */
+  resetInputMultichannelRoutingToDefaults() {
+    this.inputMultichannelRouting = this._getDefaultInputMultichannelRouting();
+    this._saveInputMultichannelRouting();
+    
+    // Reconstruir UI
+    if (this.inputMultichannelMatrixContainer) {
+      this._buildInputMultichannelMatrix();
+    }
+    
+    // Notificar cambios al engine
+    if (this.onInputMultichannelRoutingChange) {
+      for (let pwIdx = 0; pwIdx < this.inputMultichannelRouting.length; pwIdx++) {
+        const channelGains = this.inputMultichannelRouting[pwIdx].map(active => active ? 1.0 : 0.0);
+        this.onInputMultichannelRoutingChange(pwIdx, channelGains);
+      }
+    }
+    
+    log.info(' Input multichannel routing reset to defaults');
   }
 
   /**

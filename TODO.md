@@ -109,8 +109,7 @@ podría ser significativo en dispositivos móviles.
 
 ## Objetivo v0.6.0
 
-- Distinguir bien entre "dispositivo de audio" y "modo multicanal". Son cosas distintas.
-- Añadir canales de entrada al multicanal.
+- Distinguir entre ruteo estéreo y tuteo multicanal al guardar el patcheo en local storage.
 - Revisar canales de grabación, que tomen de output Channel del lugar correcto en todas las plataformas.
 
 

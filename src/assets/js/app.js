@@ -1748,6 +1748,10 @@ class App {
       return { success: false, error: 'Input amplifiers not ready' };
     }
     
+    // Desconectar el input estéreo del sistema si está activo
+    // (en modo multicanal usamos PipeWire directamente, no getUserMedia)
+    this._disconnectSystemAudioInput();
+    
     const ctx = this.engine.audioCtx;
     const sampleRate = ctx?.sampleRate || 48000;
     
@@ -1889,6 +1893,37 @@ class App {
     this._multichannelInputActive = false;
     
     log.info('🎤 Multichannel input deactivated');
+    
+    // Restaurar input estéreo del sistema si hay un dispositivo seleccionado
+    const inputDeviceId = this.audioSettingsModal?.selectedInputDevice;
+    if (inputDeviceId) {
+      await this._ensureSystemAudioInput(inputDeviceId);
+    }
+  }
+
+  /**
+   * Desconecta el audio del sistema (usado al activar multicanal).
+   * @private
+   */
+  _disconnectSystemAudioInput() {
+    if (this._systemAudioStream) {
+      this._systemAudioStream.getTracks().forEach(t => t.stop());
+      this._systemAudioStream = null;
+    }
+    if (this._systemAudioSource) {
+      this._systemAudioSource.disconnect();
+      this._systemAudioSource = null;
+    }
+    if (this._inputRoutingGains) {
+      this._inputRoutingGains.forEach(row => row.forEach(g => g.disconnect()));
+      this._inputRoutingGains = null;
+    }
+    if (this._systemAudioSplitter) {
+      try { this._systemAudioSplitter.disconnect(); } catch (e) {}
+      this._systemAudioSplitter = null;
+    }
+    this._systemAudioConnected = false;
+    log.info('🎤 System audio input disconnected');
   }
 
   /**

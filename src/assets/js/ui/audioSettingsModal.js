@@ -120,6 +120,12 @@ export class AudioSettingsModal {
       log.info(' Using default input routing (no saved data)');
     }
     
+    // Estado de ruteo de ENTRADA MULTICANAL: 8 puertos PipeWire → 8 Input Amplifiers
+    // inputMultichannelRouting[pipeWirePort][synthChannelIndex] = boolean
+    const loadedInputMcRouting = this._loadInputMultichannelRouting();
+    this.inputMultichannelRouting = loadedInputMcRouting || this._getDefaultInputMultichannelRouting();
+    this.inputMultichannelLabels = Array.from({ length: 8 }, (_, i) => `input_amp_${i + 1}`);
+    
     // Elementos DOM
     this.overlay = null;
     this.modal = null;
@@ -400,6 +406,60 @@ export class AudioSettingsModal {
     if (!this.inputChannelInfoElement) return;
     this.inputChannelInfoElement.textContent = this.physicalInputChannels === 1 ? t('audio.channel.mono') : 
       this.physicalInputChannels === 2 ? t('audio.channel.stereo') : `${this.physicalInputChannels}ch`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RUTEO DE ENTRADA MULTICANAL (PipeWire 8ch → Input Amplifiers del Synthi)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Devuelve el ruteo de entrada multicanal por defecto: 1:1 diagonal
+   * input_amp_1 → Ch1, input_amp_2 → Ch2, etc.
+   */
+  _getDefaultInputMultichannelRouting() {
+    return Array.from({ length: 8 }, (_, pwIdx) => 
+      Array.from({ length: this.inputCount }, (_, chIdx) => pwIdx === chIdx)
+    );
+  }
+
+  /**
+   * Carga el ruteo de entrada multicanal desde localStorage
+   * @returns {boolean[][]|null}
+   */
+  _loadInputMultichannelRouting() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.INPUT_ROUTING_MULTICHANNEL);
+      if (!saved) return null;
+      
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return null;
+      
+      // Adaptar a 8 puertos × inputCount canales
+      return Array.from({ length: 8 }, (_, pwIdx) => {
+        const savedRow = parsed[pwIdx];
+        if (!Array.isArray(savedRow)) {
+          return Array.from({ length: this.inputCount }, (_, chIdx) => pwIdx === chIdx);
+        }
+        return Array.from({ length: this.inputCount }, (_, chIdx) => {
+          return savedRow[chIdx] === true;
+        });
+      });
+    } catch (e) {
+      log.warn(' Error loading input multichannel routing:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Guarda el ruteo de entrada multicanal en localStorage
+   */
+  _saveInputMultichannelRouting() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.INPUT_ROUTING_MULTICHANNEL, JSON.stringify(this.inputMultichannelRouting));
+      log.info(' Input multichannel routing saved to localStorage');
+    } catch (e) {
+      log.warn(' Error saving input multichannel routing:', e);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1411,6 +1471,11 @@ export class AudioSettingsModal {
     this.inputStereoContent.style.display = isMultichannel ? 'none' : 'block';
     this.inputMultichannelContent.style.display = isMultichannel ? 'block' : 'none';
     
+    // Construir matriz multicanal si es necesario
+    if (isMultichannel) {
+      this._buildInputMultichannelMatrix();
+    }
+    
     // Actualizar título según modo
     if (this._textElements.inputTitle) {
       this._textElements.inputTitle.textContent = isMultichannel 
@@ -1762,16 +1827,11 @@ export class AudioSettingsModal {
     this._textElements.inputMultichannelDesc.textContent = t('audio.inputs.multichannel.description');
     this.inputMultichannelContent.appendChild(this._textElements.inputMultichannelDesc);
     
-    // Lista de canales 1:1
-    const channelList = document.createElement('div');
-    channelList.className = 'audio-settings-multichannel-channels';
-    for (let i = 1; i <= 8; i++) {
-      const channelItem = document.createElement('div');
-      channelItem.className = 'audio-settings-multichannel-channels__item';
-      channelItem.textContent = `input_amp_${i} → Ch${i}`;
-      channelList.appendChild(channelItem);
-    }
-    this.inputMultichannelContent.appendChild(channelList);
+    // Contenedor de la matriz de entrada multicanal (8 puertos PipeWire → 8 Input Amplifiers)
+    this.inputMultichannelMatrixContainer = document.createElement('div');
+    this.inputMultichannelMatrixContainer.className = 'routing-matrix-container';
+    this._buildInputMultichannelMatrix();
+    this.inputMultichannelContent.appendChild(this.inputMultichannelMatrixContainer);
     
     section.appendChild(this.inputMultichannelContent);
     
@@ -1929,6 +1989,153 @@ export class AudioSettingsModal {
       if (!this.inputRouting[sysIdx]) continue;
       const channelGains = this.inputRouting[sysIdx].map(active => active ? 1.0 : 0.0);
       this.onInputRoutingChange(sysIdx, channelGains);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MATRIZ DE ENTRADA MULTICANAL (PipeWire 8ch → Input Amplifiers del Synthi)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Construye la matriz de ruteo de entrada multicanal.
+   * Filas: 8 puertos PipeWire (input_amp_1 ... input_amp_8)
+   * Columnas: 8 Input Amplifiers del Synthi (Ch1-Ch8)
+   */
+  _buildInputMultichannelMatrix() {
+    if (!this.inputMultichannelMatrixContainer) {
+      log.warn('Input multichannel matrix container not found');
+      return;
+    }
+    
+    const matrix = document.createElement('div');
+    matrix.className = 'routing-matrix';
+    
+    // Header: Ch1, Ch2, ... Ch8 (Input Amplifiers del Synthi)
+    const matrixHeader = document.createElement('div');
+    matrixHeader.className = 'routing-matrix__header';
+    
+    const cornerCell = document.createElement('div');
+    cornerCell.className = 'routing-matrix__corner';
+    matrixHeader.appendChild(cornerCell);
+    
+    for (let chIdx = 0; chIdx < this.inputCount; chIdx++) {
+      const headerCell = document.createElement('div');
+      headerCell.className = 'routing-matrix__header-cell';
+      headerCell.textContent = `Ch${chIdx + 1}`;
+      headerCell.title = `Input Amplifier ${chIdx + 1}`;
+      matrixHeader.appendChild(headerCell);
+    }
+    
+    matrix.appendChild(matrixHeader);
+    
+    // Filas: una por cada puerto PipeWire (8 puertos)
+    this.inputMultichannelToggleButtons = [];
+    
+    for (let pwIdx = 0; pwIdx < 8; pwIdx++) {
+      const row = document.createElement('div');
+      row.className = 'routing-matrix__row';
+      
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'routing-matrix__row-label';
+      rowLabel.textContent = this.inputMultichannelLabels[pwIdx];
+      row.appendChild(rowLabel);
+      
+      // Array de botones para este puerto PipeWire
+      const rowButtons = [];
+      
+      // Un botón por cada Input Amplifier del Synthi
+      for (let chIdx = 0; chIdx < this.inputCount; chIdx++) {
+        const btn = this._createInputMultichannelToggleButton(pwIdx, chIdx);
+        row.appendChild(btn);
+        rowButtons.push(btn);
+      }
+      
+      this.inputMultichannelToggleButtons.push(rowButtons);
+      matrix.appendChild(row);
+    }
+    
+    // Reemplazar contenido del contenedor
+    this.inputMultichannelMatrixContainer.innerHTML = '';
+    this.inputMultichannelMatrixContainer.appendChild(matrix);
+  }
+
+  /**
+   * Crea un botón toggle para la matriz de ruteo de entrada multicanal
+   * @param {number} pipeWirePort - Índice del puerto PipeWire (0-7)
+   * @param {number} synthChannelIndex - Índice del Input Amplifier del Synthi (0-7)
+   */
+  _createInputMultichannelToggleButton(pipeWirePort, synthChannelIndex) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'routing-matrix__toggle';
+    
+    // Asegurar que el array de ruteo existe
+    if (!this.inputMultichannelRouting[pipeWirePort]) {
+      this.inputMultichannelRouting[pipeWirePort] = Array(this.inputCount).fill(false);
+    }
+    
+    const isActive = this.inputMultichannelRouting[pipeWirePort][synthChannelIndex] === true;
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.dataset.pwPort = pipeWirePort;
+    btn.dataset.synthChannel = synthChannelIndex;
+    btn.title = `${this.inputMultichannelLabels[pipeWirePort]} → Ch${synthChannelIndex + 1}`;
+    
+    if (isActive) {
+      btn.classList.add('routing-matrix__toggle--active');
+    }
+    
+    btn.addEventListener('click', () => this._toggleInputMultichannelRouting(pipeWirePort, synthChannelIndex, btn));
+    
+    return btn;
+  }
+
+  /**
+   * Alterna el estado de ruteo de un puerto PipeWire hacia un Input Amplifier.
+   * @param {number} pipeWirePort - Índice del puerto PipeWire (0-7)
+   * @param {number} synthChannelIndex - Índice del Input Amplifier del Synthi (0-7)
+   * @param {HTMLElement} btn - Botón que se pulsó
+   */
+  _toggleInputMultichannelRouting(pipeWirePort, synthChannelIndex, btn) {
+    // Asegurar que el array existe
+    if (!this.inputMultichannelRouting[pipeWirePort]) {
+      this.inputMultichannelRouting[pipeWirePort] = Array(this.inputCount).fill(false);
+    }
+    
+    // Alternar estado
+    this.inputMultichannelRouting[pipeWirePort][synthChannelIndex] = !this.inputMultichannelRouting[pipeWirePort][synthChannelIndex];
+    const isActive = this.inputMultichannelRouting[pipeWirePort][synthChannelIndex];
+    
+    btn.classList.toggle('routing-matrix__toggle--active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+    
+    // Persistir cambio en localStorage
+    this._saveInputMultichannelRouting();
+    
+    // Notificar cambio si hay callback
+    if (this.onInputMultichannelRoutingChange) {
+      const channelGains = this.inputMultichannelRouting[pipeWirePort].map(active => active ? 1.0 : 0.0);
+      this.onInputMultichannelRoutingChange(pipeWirePort, channelGains);
+    }
+  }
+
+  /**
+   * Obtiene el ruteo de entrada multicanal actual
+   * @returns {boolean[][]}
+   */
+  getInputMultichannelRouting() {
+    return this.inputMultichannelRouting;
+  }
+
+  /**
+   * Aplica todo el ruteo de entrada multicanal al engine (llamar al iniciar)
+   */
+  applyInputMultichannelRoutingToEngine() {
+    if (!this.onInputMultichannelRoutingChange) return;
+    
+    for (let pwIdx = 0; pwIdx < 8; pwIdx++) {
+      if (!this.inputMultichannelRouting[pwIdx]) continue;
+      const channelGains = this.inputMultichannelRouting[pwIdx].map(active => active ? 1.0 : 0.0);
+      this.onInputMultichannelRoutingChange(pwIdx, channelGains);
     }
   }
 

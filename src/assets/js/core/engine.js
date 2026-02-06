@@ -1236,7 +1236,7 @@ export class AudioEngine {
       }
     });
     
-    log.debug(`[Engine] setStereoBusRouting row ${rowIdx}: ${channelGains.map(g => g ? 1 : 0).join(',')}`);
+    log.debug(`Stereo bus routing row ${rowIdx}: ${channelGains.map(g => g ? 1 : 0).join(',')}`);
   }
 
   /**
@@ -1612,6 +1612,9 @@ export class AudioEngine {
     
     // Reconectar los buses con la nueva matriz de ganancias por canal
     this._rebuildBusConnections(newChannelCount);
+    
+    // Reconectar stereo buses (Pan 1-4, Pan 5-8) a los nuevos masterGains
+    this._rebuildStereoBusConnections(newChannelCount);
   }
 
   /**
@@ -1656,6 +1659,79 @@ export class AudioEngine {
       this.bus2L = this.outputBuses[1].channelGains?.[0] || null;
       this.bus2R = this.outputBuses[1].channelGains?.[1] || null;
     }
+  }
+
+  /**
+   * Reconstruye las conexiones de los stereo buses a los nuevos canales físicos.
+   * Similar a _rebuildBusConnections pero para los stereo buses (Pan 1-4, Pan 5-8).
+   * Crea nuevos nodos channelGain conectados a los masterGains actuales.
+   * 
+   * @param {number} channelCount - Número de canales físicos
+   * @private
+   */
+  _rebuildStereoBusConnections(channelCount) {
+    const ctx = this.audioCtx;
+    if (!ctx || !this.stereoBusOutputs?.length) return;
+    
+    // Redimensionar la matriz de routing para el nuevo número de canales
+    if (this._stereoBusRoutingMatrix) {
+      for (let row = 0; row < 4; row++) {
+        const oldRow = this._stereoBusRoutingMatrix[row] || [];
+        this._stereoBusRoutingMatrix[row] = Array.from(
+          { length: channelCount },
+          (_, ch) => oldRow[ch] ?? 0
+        );
+      }
+    }
+    
+    // Reconstruir channelGains para cada stereo bus
+    let outputIdx = 0;
+    for (const busId of ['A', 'B']) {
+      const stereoBus = this.stereoBuses[busId];
+      if (!stereoBus) continue;
+      const rowOffset = busId === 'A' ? 0 : 2;
+      
+      // --- Canal L ---
+      // Desconectar channelGains antiguos
+      stereoBus.channelGainsL?.forEach(g => g?.disconnect());
+      
+      // Crear nuevos channelGains para L
+      const channelGainsL = [];
+      for (let ch = 0; ch < channelCount; ch++) {
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = this._stereoBusRoutingMatrix?.[rowOffset]?.[ch] ?? 0;
+        stereoBus.outputL.connect(gainNode);
+        gainNode.connect(this.masterGains[ch]);
+        channelGainsL.push(gainNode);
+      }
+      stereoBus.channelGainsL = channelGainsL;
+      
+      // Actualizar referencia en stereoBusOutputs
+      if (this.stereoBusOutputs[outputIdx]) {
+        this.stereoBusOutputs[outputIdx].channelGains = channelGainsL;
+      }
+      outputIdx++;
+      
+      // --- Canal R ---
+      stereoBus.channelGainsR?.forEach(g => g?.disconnect());
+      
+      const channelGainsR = [];
+      for (let ch = 0; ch < channelCount; ch++) {
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = this._stereoBusRoutingMatrix?.[rowOffset + 1]?.[ch] ?? 0;
+        stereoBus.outputR.connect(gainNode);
+        gainNode.connect(this.masterGains[ch]);
+        channelGainsR.push(gainNode);
+      }
+      stereoBus.channelGainsR = channelGainsR;
+      
+      if (this.stereoBusOutputs[outputIdx]) {
+        this.stereoBusOutputs[outputIdx].channelGains = channelGainsR;
+      }
+      outputIdx++;
+    }
+    
+    log.info(`Stereo bus connections rebuilt for ${channelCount} channels`);
   }
 
   /**

@@ -260,6 +260,9 @@ class App {
         this.audioSettingsModal.updatePhysicalChannels(12, 
           ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
         
+        // Re-aplicar routing al engine tras reconstruir la arquitectura de salida
+        this._applyAllRoutingToEngine();
+        
         // También restaurar entrada multicanal
         const inputResult = await this._activateMultichannelInput();
         if (inputResult.success) {
@@ -416,6 +419,9 @@ class App {
             this.audioSettingsModal.updatePhysicalChannels(12, 
               ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
             
+            // Re-aplicar routing al engine tras reconstruir la arquitectura de salida
+            this._applyAllRoutingToEngine();
+            
             // Activar entrada multicanal (8ch)
             const inputResult = await this._activateMultichannelInput();
             if (inputResult.success) {
@@ -486,6 +492,8 @@ class App {
       this.engine.onPhysicalChannelsChange((channelCount, labels) => {
         log.info(` Physical channels changed: ${channelCount}`, labels);
         this.audioSettingsModal.updatePhysicalChannels(channelCount, labels);
+        // Re-aplicar routing tras reconstruir la arquitectura
+        this._applyAllRoutingToEngine();
       });
     }
     
@@ -1473,6 +1481,28 @@ class App {
   // Usa PipeWire nativo para salida de 8 canales independientes.
   // Comunicación lock-free via SharedArrayBuffer cuando está disponible.
   // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Re-aplica todo el routing de salida (buses individuales + stereo buses) al engine.
+   * Se usa después de reconstruir la arquitectura de salida (cambio de canales).
+   * @private
+   */
+  _applyAllRoutingToEngine() {
+    // Routing de buses individuales (Out 1-8)
+    log.info(' Re-applying output routing to engine after channel rebuild...');
+    const result = this.audioSettingsModal.applyRoutingToEngine((busIndex, channelGains) => {
+      return this.engine.setOutputRouting(busIndex, channelGains);
+    });
+    if (result.warnings?.length > 0) {
+      log.warn(' Routing warnings:', result.warnings);
+    }
+    
+    // Routing de stereo buses (Pan 1-4 L/R, Pan 5-8 L/R)
+    log.info(' Re-applying stereo bus routing to engine...');
+    this.audioSettingsModal.applyStereoBusRoutingToEngine((rowIdx, channelGains) => {
+      this.engine.setStereoBusRouting(rowIdx, channelGains);
+    });
+  }
 
   /**
    * Activa la salida multicanal nativa de 8 canales.

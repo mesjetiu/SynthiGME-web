@@ -141,6 +141,26 @@ class VCAProcessor extends AudioWorkletProcessor {
     this._lastDialVoltage = -999;
     this._lastCvScale = -999;
     this._baseGain = 0;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // HANDLER DE MENSAJES: Resincronización al despertar de dormancy
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cuando un Output Channel despierta de dormancy, el main thread envía
+    // un mensaje 'resync' con el voltaje actual del fader. Esto sincroniza
+    // instantáneamente _voltageSmoothed para evitar el transitorio de ramping
+    // que genera offset DC durante la transición.
+    //
+    // Sin este resync, _voltageSmoothed sigue en -12V (silencio) mientras el
+    // dialVoltage ya está en el valor actual del fader, causando un ramping
+    // audible que introduce offset DC en la señal de re-entry.
+    // ─────────────────────────────────────────────────────────────────────────
+    this.port.onmessage = (event) => {
+      if (event.data?.type === 'resync') {
+        // Sincronizar estado del filtro anti-click al voltaje actual
+        // Esto elimina el transitorio al despertar de dormancy
+        this._voltageSmoothed = event.data.dialVoltage ?? -12;
+      }
+    };
   }
 
   /**

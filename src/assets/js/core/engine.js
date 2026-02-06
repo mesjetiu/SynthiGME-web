@@ -264,15 +264,25 @@ export class AudioEngine {
       postVcaNode.gain.value = 1.0;
       
       // ─────────────────────────────────────────────────────────────────────
-      // DC BLOCKER para re-entry: Elimina offset DC de la señal
+      // DC BLOCKER para re-entry: Elimina offset DC estático
       // ─────────────────────────────────────────────────────────────────────
-      // Un highpass a ~5Hz elimina cualquier componente DC sin afectar audio.
-      // Esto previene que offsets DC se propaguen por la matriz de audio.
+      // Filtro highpass muy bajo (0.01Hz = período ~100s) para eliminar offset
+      // DC estático sin afectar CV de frecuencias muy bajas (LFOs lentos,
+      // envolventes largas, etc.).
+      //
+      // NOTA: La causa principal de offset DC en re-entry era el transitorio
+      // del VCA worklet al despertar de dormancy. Esto se corrige con el
+      // mensaje 'resync' que sincroniza _voltageSmoothed instantáneamente.
+      // Este DC blocker es una protección residual contra offsets DC
+      // que puedan venir de otras fuentes (patches mal configurados, etc.)
+      //
+      // Con 0.01Hz, señales CV con períodos hasta ~40s pasan prácticamente
+      // sin atenuación (-3dB a 0.01Hz, ganancia ~1.0 a 0.1Hz y superiores).
       // ─────────────────────────────────────────────────────────────────────
       const dcBlocker = ctx.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 5; // 5Hz - elimina DC sin afectar audio
-      dcBlocker.Q.value = 0.707;     // Butterworth - respuesta plana
+      dcBlocker.frequency.value = 0.01; // 0.01Hz - permite CV muy lento, bloquea solo DC puro
+      dcBlocker.Q.value = 0.707;        // Butterworth - respuesta plana
       postVcaNode.connect(dcBlocker);
       
       // ─────────────────────────────────────────────────────────────────────
@@ -446,10 +456,28 @@ export class AudioEngine {
               // ─────────────────────────────────────────────────────────────
               // Mientras el bus estaba dormant, el levelNode.gain puede haberse
               // quedado desactualizado. Reaplicamos el valor del array de niveles.
+              //
+              // IMPORTANTE: Si hay vcaWorklet activo, también debemos resincronizar
+              // su estado interno (_voltageSmoothed) para evitar el transitorio
+              // de ramping que genera offset DC. Ver vcaProcessor.worklet.js.
               // ─────────────────────────────────────────────────────────────
               const currentLevel = engine.outputLevels[busIndex];
-              if (typeof currentLevel === 'number' && currentLevel !== bus.levelNode.gain.value) {
-                bus.levelNode.gain.setValueAtTime(currentLevel, engine.audioCtx.currentTime);
+              if (typeof currentLevel === 'number') {
+                // Resincronizar GainNode (modo simple)
+                if (currentLevel !== bus.levelNode.gain.value) {
+                  bus.levelNode.gain.setValueAtTime(currentLevel, engine.audioCtx.currentTime);
+                }
+                
+                // Resincronizar VCA worklet (modo audio-rate con CV)
+                // Enviar mensaje para que _voltageSmoothed salte al valor correcto
+                // sin hacer ramping, eliminando el transitorio DC
+                if (bus.vcaWorklet?.port) {
+                  const dialVoltage = engine._gainToDialVoltage(currentLevel);
+                  bus.vcaWorklet.port.postMessage({
+                    type: 'resync',
+                    dialVoltage
+                  });
+                }
               }
               
               console.log(`[Dormancy] Output Bus ${busIndex + 1}: ACTIVE (reconnected)`);

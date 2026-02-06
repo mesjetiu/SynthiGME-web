@@ -644,6 +644,7 @@ export class AudioSettingsModal {
     this._updateOutputModeUI();
     this._updateDeviceSelectorVisibility();
     this._updateLatencyVisibility();
+    this._updateInputSectionVisibility();
     
     // Notificar al callback (solo si notify=true para evitar bucles)
     if (notify && this.onOutputModeChange) {
@@ -1397,6 +1398,28 @@ export class AudioSettingsModal {
   }
 
   /**
+   * Actualiza la visibilidad de la sección de input según el modo.
+   * En modo multicanal, muestra la configuración fija 8ch PipeWire → Input Amplifiers.
+   * En modo estéreo, muestra el selector de dispositivo y la matriz de ruteo.
+   */
+  _updateInputSectionVisibility() {
+    if (!this.inputStereoContent || !this.inputMultichannelContent) return;
+    
+    const isMultichannel = this.outputMode === 'multichannel';
+    
+    // Mostrar/ocultar contenido según modo
+    this.inputStereoContent.style.display = isMultichannel ? 'none' : 'block';
+    this.inputMultichannelContent.style.display = isMultichannel ? 'block' : 'none';
+    
+    // Actualizar título según modo
+    if (this._textElements.inputTitle) {
+      this._textElements.inputTitle.textContent = isMultichannel 
+        ? t('audio.inputs.multichannel.title')
+        : t('audio.inputs.title');
+    }
+  }
+
+  /**
    * Muestra mensaje de reinicio necesario para Web Audio
    */
   _showWebAudioLatencyMessage() {
@@ -1668,17 +1691,24 @@ export class AudioSettingsModal {
   _createInputSection() {
     const section = document.createElement('div');
     section.className = 'audio-settings-section';
+    this.inputSection = section;  // Guardar referencia para actualizaciones
     
     this._textElements.inputTitle = document.createElement('h3');
     this._textElements.inputTitle.className = 'audio-settings-section__title';
     this._textElements.inputTitle.textContent = t('audio.inputs.title');
     section.appendChild(this._textElements.inputTitle);
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONTENIDO PARA MODO ESTÉREO
+    // ─────────────────────────────────────────────────────────────────────────
+    this.inputStereoContent = document.createElement('div');
+    this.inputStereoContent.className = 'audio-settings-input-stereo';
+    
     // Selector de dispositivo de entrada
     const { wrapper: inputDeviceWrapper, select: inputSelect, label: inputLabel } = this._createDeviceSelector(t('audio.device.input'), false);
     this.inputDeviceSelect = inputSelect;
     this._textElements.inputDeviceLabel = inputLabel;
-    section.appendChild(inputDeviceWrapper);
+    this.inputStereoContent.appendChild(inputDeviceWrapper);
     
     // Botón para solicitar permisos de entrada (micrófono)
     this._textElements.inputPermissionBtn = document.createElement('button');
@@ -1689,7 +1719,7 @@ export class AudioSettingsModal {
       await this._enumerateDevices(true);
     });
     this.inputPermissionBtn = this._textElements.inputPermissionBtn;
-    section.appendChild(this._textElements.inputPermissionBtn);
+    this.inputStereoContent.appendChild(this._textElements.inputPermissionBtn);
     
     // Información de canales de entrada detectados
     const inputChannelInfo = document.createElement('div');
@@ -1704,18 +1734,49 @@ export class AudioSettingsModal {
     
     inputChannelInfo.appendChild(this._textElements.inputChannelLabel);
     inputChannelInfo.appendChild(this.inputChannelInfoElement);
-    section.appendChild(inputChannelInfo);
+    this.inputStereoContent.appendChild(inputChannelInfo);
     
     this._textElements.inputDesc = document.createElement('p');
     this._textElements.inputDesc.className = 'audio-settings-section__desc';
     this._textElements.inputDesc.textContent = t('audio.inputs.description');
-    section.appendChild(this._textElements.inputDesc);
+    this.inputStereoContent.appendChild(this._textElements.inputDesc);
     
     // Contenedor de la matriz de entrada (permite reconstrucción dinámica)
     this.inputMatrixContainer = document.createElement('div');
     this.inputMatrixContainer.className = 'routing-matrix-container';
     this._buildInputMatrix();
-    section.appendChild(this.inputMatrixContainer);
+    this.inputStereoContent.appendChild(this.inputMatrixContainer);
+    
+    section.appendChild(this.inputStereoContent);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONTENIDO PARA MODO MULTICANAL
+    // ─────────────────────────────────────────────────────────────────────────
+    this.inputMultichannelContent = document.createElement('div');
+    this.inputMultichannelContent.className = 'audio-settings-input-multichannel';
+    this.inputMultichannelContent.style.display = 'none';
+    
+    // Descripción del modo multicanal
+    this._textElements.inputMultichannelDesc = document.createElement('p');
+    this._textElements.inputMultichannelDesc.className = 'audio-settings-section__desc';
+    this._textElements.inputMultichannelDesc.textContent = t('audio.inputs.multichannel.description');
+    this.inputMultichannelContent.appendChild(this._textElements.inputMultichannelDesc);
+    
+    // Lista de canales 1:1
+    const channelList = document.createElement('div');
+    channelList.className = 'audio-settings-multichannel-channels';
+    for (let i = 1; i <= 8; i++) {
+      const channelItem = document.createElement('div');
+      channelItem.className = 'audio-settings-multichannel-channels__item';
+      channelItem.textContent = `input_amp_${i} → Ch${i}`;
+      channelList.appendChild(channelItem);
+    }
+    this.inputMultichannelContent.appendChild(channelList);
+    
+    section.appendChild(this.inputMultichannelContent);
+    
+    // Actualizar visibilidad según modo actual
+    this._updateInputSectionVisibility();
     
     return section;
   }

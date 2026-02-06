@@ -56,6 +56,7 @@ export const STORAGE_KEYS = {
   AUDIO_ROUTING: `${STORAGE_PREFIX}audio-routing`,
   AUDIO_ROUTING_MULTICHANNEL: `${STORAGE_PREFIX}audio-routing-multichannel`,
   INPUT_ROUTING: `${STORAGE_PREFIX}input-routing`,
+  INPUT_ROUTING_MULTICHANNEL: `${STORAGE_PREFIX}input-routing-multichannel`,
   STEREO_BUS_ROUTING: `${STORAGE_PREFIX}stereo-bus-routing`,
   OUTPUT_MODE: `${STORAGE_PREFIX}output-mode`,
   OUTPUT_DEVICE: `${STORAGE_PREFIX}output-device`,

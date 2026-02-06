@@ -7,7 +7,8 @@
  * APIs expuestas:
  * - electronAPI: información de plataforma
  * - oscAPI: comunicación OSC peer-to-peer
- * - multichannelAPI: audio multicanal 8ch via PipeWire con SharedArrayBuffer
+ * - multichannelAPI: audio multicanal 12ch OUTPUT via PipeWire con SharedArrayBuffer
+ * - multichannelInputAPI: audio multicanal 8ch INPUT via PipeWire con SharedArrayBuffer
  * 
  * @see /OSC.md - Documentación del protocolo OSC
  */
@@ -236,5 +237,131 @@ window.multichannelAPI = {
       });
     }
     return ipcRenderer.invoke('multichannel:info');
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API de Audio Multicanal INPUT (8 canales via PipeWire)
+// Captura audio desde PipeWire y lo expone via SharedArrayBuffer
+// Flujo: PipeWire capture → C++ → SAB → AudioWorklet → Web Audio graph
+// ─────────────────────────────────────────────────────────────────────────────
+
+let nativeInputStream = null;
+
+window.multichannelInputAPI = {
+  checkAvailability: () => {
+    const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+    if (nativeAudio) {
+      return Promise.resolve({ 
+        available: true, 
+        native: true,
+        sharedArrayBuffer: hasSharedArrayBuffer
+      });
+    }
+    return Promise.resolve({ available: false, native: false, sharedArrayBuffer: hasSharedArrayBuffer });
+  },
+  
+  /**
+   * Abre un stream de captura PipeWire con 8 canales (input_amp_1..8)
+   * @param {Object} config - { sampleRate, channels }
+   */
+  open: (config) => {
+    if (nativeAudio && !nativeInputStream) {
+      try {
+        const sampleRate = config?.sampleRate || 48000;
+        const channels = config?.channels || 8;
+        const bufferSize = 256;
+        const direction = 'input';
+        const channelNames = '';  // Usa los nombres por defecto del addon (input_amp_1..8)
+        const description = 'SynthiGME Multichannel Input';
+        
+        nativeInputStream = new nativeAudio.PipeWireAudio(
+          'SynthiGME-Input', channels, sampleRate, bufferSize,
+          direction, channelNames, description
+        );
+        
+        const started = nativeInputStream.start();
+        
+        if (!started) {
+          nativeInputStream = null;
+          return Promise.resolve({ success: false, error: 'Failed to start input stream' });
+        }
+        
+        console.log(`[Preload] Native input stream started (${channels}ch, ${sampleRate}Hz)`);
+        
+        return Promise.resolve({ 
+          success: true, 
+          info: { 
+            sampleRate, 
+            channels, 
+            direct: true,
+            direction: 'input'
+          }
+        });
+      } catch (e) {
+        nativeInputStream = null;
+        return Promise.resolve({ success: false, error: e.message });
+      }
+    }
+    if (nativeInputStream) {
+      return Promise.resolve({ success: false, error: 'Input stream already open' });
+    }
+    return Promise.resolve({ success: false, error: 'Native audio not available' });
+  },
+  
+  /**
+   * Adjunta un SharedArrayBuffer para recibir audio capturado.
+   * El C++ escribe en el SAB (writeIndex), el AudioWorklet lee (readIndex).
+   * Flujo inverso al output: C++ produce → JS consume.
+   * @param {SharedArrayBuffer} sharedBuffer - Buffer compartido
+   * @param {number} bufferFrames - Frames del buffer circular
+   */
+  attachSharedBuffer: (sharedBuffer, bufferFrames) => {
+    console.log('[Preload] Input attachSharedBuffer called, type:', sharedBuffer?.constructor?.name, 'frames:', bufferFrames);
+    if (nativeInputStream && sharedBuffer instanceof SharedArrayBuffer) {
+      try {
+        const wrapper = new Int32Array(sharedBuffer);
+        console.log('[Preload] Input: Passing Int32Array wrapper, length:', wrapper.length);
+        const success = nativeInputStream.attachSharedBuffer(wrapper, bufferFrames);
+        console.log('[Preload] Input attachSharedBuffer:', success ? 'OK - LOCK-FREE MODE!' : 'FAILED');
+        return success;
+      } catch (e) {
+        console.error('[Preload] Input attachSharedBuffer error:', e);
+        return false;
+      }
+    }
+    console.warn('[Preload] Input attachSharedBuffer: no stream or invalid buffer type');
+    return false;
+  },
+  
+  close: () => {
+    if (nativeInputStream) {
+      if (nativeInputStream.hasSharedBuffer) {
+        nativeInputStream.detachSharedBuffer();
+      }
+      nativeInputStream.stop();
+      nativeInputStream = null;
+      console.log('[Preload] Native input stream stopped');
+      return Promise.resolve();
+    }
+    return Promise.resolve();
+  },
+  
+  getInfo: () => {
+    if (nativeInputStream) {
+      const sampleRate = nativeInputStream.sampleRate || 48000;
+      
+      return Promise.resolve({
+        underflows: nativeInputStream.underflows,
+        overflows: nativeInputStream.overflows,
+        silentUnderflows: nativeInputStream.silentUnderflows,
+        bufferedFrames: nativeInputStream.bufferedFrames,
+        hasSharedBuffer: nativeInputStream.hasSharedBuffer,
+        sampleRate: sampleRate,
+        direct: true,
+        direction: 'input'
+      });
+    }
+    return Promise.resolve(null);
   }
 };

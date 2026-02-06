@@ -254,13 +254,21 @@ class App {
     
     if (savedMode === 'multichannel') {
       log.info('🔊 Restoring multichannel output from saved mode...');
-      const result = await this._activateMultichannelOutput();
-      if (result.success) {
+      const outputResult = await this._activateMultichannelOutput();
+      if (outputResult.success) {
         log.info('🔊 Multichannel output restored (12ch)');
         this.audioSettingsModal.updatePhysicalChannels(12, 
           ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
+        
+        // También restaurar entrada multicanal
+        const inputResult = await this._activateMultichannelInput();
+        if (inputResult.success) {
+          log.info('🎤 Multichannel input restored (8ch)');
+        } else {
+          log.warn('🎤 Multichannel input failed (output still active):', inputResult.error);
+        }
       } else {
-        log.error('🔊 Failed to restore multichannel:', result.error);
+        log.error('🔊 Failed to restore multichannel:', outputResult.error);
         // Revertir a estéreo si falla (notify=false para evitar callback loop)
         this.audioSettingsModal.setOutputMode('stereo', false);
       }
@@ -396,23 +404,34 @@ class App {
       // CALLBACK DE CAMBIO DE MODO DE SALIDA (estéreo/multicanal)
       // ─────────────────────────────────────────────────────────────────────────
       // Alterna entre salida estéreo (dispositivo seleccionado) y multicanal
-      // nativo (PipeWire 12 canales, solo Electron + Linux).
+      // nativo (PipeWire 12 canales salida + 8 canales entrada).
       // ─────────────────────────────────────────────────────────────────────────
       onOutputModeChange: async (mode) => {
         if (mode === 'multichannel') {
-          const result = await this._activateMultichannelOutput();
-          if (result.success) {
+          // Activar salida multicanal (12ch)
+          const outputResult = await this._activateMultichannelOutput();
+          if (outputResult.success) {
             log.info('🔊 Multichannel output activated (12ch)');
             // Forzar 12 canales en el modal con nombres descriptivos
             this.audioSettingsModal.updatePhysicalChannels(12, 
               ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
+            
+            // Activar entrada multicanal (8ch)
+            const inputResult = await this._activateMultichannelInput();
+            if (inputResult.success) {
+              log.info('🎤 Multichannel input activated (8ch)');
+            } else {
+              log.warn('🎤 Multichannel input failed (output still active):', inputResult.error);
+              // El input es opcional, no revertimos el output si falla
+            }
           } else {
-            log.error('🔊 Failed to activate multichannel:', result.error);
+            log.error('🔊 Failed to activate multichannel:', outputResult.error);
             // Revertir a estéreo (notify=false para evitar callback loop)
             this.audioSettingsModal.setOutputMode('stereo', false);
           }
         } else {
           // Modo estéreo: desactivar multicanal y restaurar dispositivo
+          await this._deactivateMultichannelInput();
           await this._deactivateMultichannelOutput();
           
           // Restaurar el dispositivo seleccionado en el modal
@@ -1703,6 +1722,173 @@ class App {
     
     this._multichannelActive = false;
     log.info('🎛️ Multichannel output deactivated, normal audio restored');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MULTICANAL INPUT (8 canales via PipeWire) - SOLO ELECTRON + LINUX
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Usa PipeWire nativo para captura de 8 canales independientes.
+  // Comunicación lock-free via SharedArrayBuffer: C++ escribe, worklet lee.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Activa la entrada multicanal nativa de 8 canales.
+   * Usa SharedArrayBuffer para comunicación lock-free con AudioWorklet.
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async _activateMultichannelInput() {
+    // Verificar disponibilidad
+    if (!window.multichannelInputAPI) {
+      log.info('🎤 multichannelInputAPI not available (browser mode)');
+      return { success: false, error: 'multichannelInputAPI no disponible' };
+    }
+    
+    if (!this.inputAmplifiers?.isStarted) {
+      log.warn('🎤 Input amplifiers not ready for multichannel input');
+      return { success: false, error: 'Input amplifiers not ready' };
+    }
+    
+    const ctx = this.engine.audioCtx;
+    const sampleRate = ctx?.sampleRate || 48000;
+    
+    // Abrir el stream de captura PipeWire
+    const result = await window.multichannelInputAPI.open({ sampleRate, channels: 8 });
+    
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+    
+    log.info('🎤 Multichannel input stream opened:', result.info);
+    
+    // Crear SharedArrayBuffer para recibir audio capturado
+    // Layout: [writeIndex(4), readIndex(4), audioData(frames * 8ch * 4bytes)]
+    const SHARED_BUFFER_FRAMES = 8192;  // ~170ms @ 48kHz
+    const channels = 8;
+    let sharedBuffer = null;
+    
+    if (typeof SharedArrayBuffer !== 'undefined') {
+      try {
+        const byteLength = 8 + (SHARED_BUFFER_FRAMES * channels * 4);
+        sharedBuffer = new SharedArrayBuffer(byteLength);
+        
+        // Inicializar índices a 0
+        const control = new Int32Array(sharedBuffer, 0, 2);
+        control[0] = 0;  // writeIndex (C++ escribe)
+        control[1] = 0;  // readIndex (worklet escribe)
+        
+        // Adjuntar al native stream
+        const attached = window.multichannelInputAPI.attachSharedBuffer(sharedBuffer, SHARED_BUFFER_FRAMES);
+        if (attached) {
+          this._sharedInputBuffer = sharedBuffer;
+          this._sharedInputBufferFrames = SHARED_BUFFER_FRAMES;
+          log.info('🎤 Input SharedArrayBuffer creado y adjuntado:', SHARED_BUFFER_FRAMES, 'frames');
+        } else {
+          log.warn('🎤 No se pudo adjuntar SharedArrayBuffer de input');
+          sharedBuffer = null;
+        }
+      } catch (e) {
+        log.warn('🎤 Error creando Input SharedArrayBuffer:', e.message);
+        sharedBuffer = null;
+      }
+    }
+    
+    if (!sharedBuffer) {
+      // Sin SharedArrayBuffer no podemos continuar
+      await window.multichannelInputAPI.close();
+      return { success: false, error: 'SharedArrayBuffer no disponible' };
+    }
+    
+    // Cargar el AudioWorklet de playback (lee del SAB y produce audio)
+    try {
+      await ctx.audioWorklet.addModule('./assets/js/worklets/multichannelPlayback.worklet.js');
+      log.info('🎤 MultichannelPlayback worklet loaded');
+    } catch (e) {
+      log.error('🎤 Failed to load playback worklet:', e);
+      await window.multichannelInputAPI.close();
+      return { success: false, error: 'Failed to load worklet' };
+    }
+    
+    // Crear el AudioWorkletNode
+    this._multichannelInputWorklet = new AudioWorkletNode(ctx, 'multichannel-playback', {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [8],
+      channelCount: 8,
+      channelCountMode: 'explicit',
+      channelInterpretation: 'discrete',
+      processorOptions: {
+        channels: 8
+      }
+    });
+    
+    // Configurar comunicación con el worklet
+    this._multichannelInputWorklet.port.onmessage = (event) => {
+      const { type } = event.data;
+      
+      if (type === 'ready') {
+        // Worklet listo - enviar SharedArrayBuffer
+        if (this._sharedInputBuffer) {
+          this._multichannelInputWorklet.port.postMessage({
+            type: 'init',
+            sharedBuffer: this._sharedInputBuffer,
+            bufferFrames: this._sharedInputBufferFrames
+          });
+          log.info('🎤 Input SharedArrayBuffer enviado al worklet');
+        }
+      } else if (type === 'initialized') {
+        log.info('🎤 Input worklet inicializado con SharedArrayBuffer');
+      }
+    };
+    
+    // Conectar worklet → ChannelSplitter → Input Amplifiers (1:1 directo)
+    const splitter = ctx.createChannelSplitter(8);
+    this._multichannelInputWorklet.connect(splitter);
+    
+    for (let ch = 0; ch < 8; ch++) {
+      const inputNode = this.inputAmplifiers.getInputNode(ch);
+      if (inputNode) {
+        splitter.connect(inputNode, ch);
+      }
+    }
+    
+    this._multichannelInputSplitter = splitter;
+    this._multichannelInputActive = true;
+    
+    log.info('🎤 Multichannel input active - 8ch PipeWire → Input Amplifiers');
+    return { success: true };
+  }
+
+  /**
+   * Desactiva la entrada multicanal nativa.
+   */
+  async _deactivateMultichannelInput() {
+    if (!this._multichannelInputActive) return;
+    
+    log.info('🎤 Deactivating multichannel input...');
+    
+    // Cerrar el stream nativo
+    if (window.multichannelInputAPI) {
+      await window.multichannelInputAPI.close();
+    }
+    
+    // Desconectar worklet y splitter
+    if (this._multichannelInputWorklet) {
+      try {
+        this._multichannelInputWorklet.disconnect();
+        this._multichannelInputWorklet.port.close();
+      } catch (e) {}
+      this._multichannelInputWorklet = null;
+    }
+    
+    if (this._multichannelInputSplitter) {
+      try { this._multichannelInputSplitter.disconnect(); } catch (e) {}
+      this._multichannelInputSplitter = null;
+    }
+    
+    this._sharedInputBuffer = null;
+    this._multichannelInputActive = false;
+    
+    log.info('🎤 Multichannel input deactivated');
   }
 
   /**

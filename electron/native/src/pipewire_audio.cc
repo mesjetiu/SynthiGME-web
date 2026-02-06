@@ -82,7 +82,7 @@ PipeWireAudio::PipeWireAudio(const Napi::CallbackInfo& info)
     Napi::Env env = info.Env();
     
     if (info.Length() < 4) {
-        Napi::TypeError::New(env, "Expected 4 arguments: name, channels, sampleRate, bufferSize")
+        Napi::TypeError::New(env, "Expected 4+ arguments: name, channels, sampleRate, bufferSize [, direction, channelNames, description]")
             .ThrowAsJavaScriptException();
         return;
     }
@@ -91,6 +91,27 @@ PipeWireAudio::PipeWireAudio(const Napi::CallbackInfo& info)
     int channels = info[1].As<Napi::Number>().Int32Value();
     int sampleRate = info[2].As<Napi::Number>().Int32Value();
     int bufferSize = info[3].As<Napi::Number>().Int32Value();
+    
+    // Dirección: "output" (default) o "input"
+    StreamDirection direction = StreamDirection::OUTPUT;
+    if (info.Length() > 4 && info[4].IsString()) {
+        std::string dirStr = info[4].As<Napi::String>().Utf8Value();
+        if (dirStr == "input") {
+            direction = StreamDirection::INPUT;
+        }
+    }
+    
+    // Nombres de canales personalizados (opcional)
+    std::string channelNames = "";
+    if (info.Length() > 5 && info[5].IsString()) {
+        channelNames = info[5].As<Napi::String>().Utf8Value();
+    }
+    
+    // Descripción del nodo (opcional)
+    std::string description = "";
+    if (info.Length() > 6 && info[6].IsString()) {
+        description = info[6].As<Napi::String>().Utf8Value();
+    }
     
     // Validar parámetros
     if (channels < 1 || channels > 64) {
@@ -105,7 +126,8 @@ PipeWireAudio::PipeWireAudio(const Napi::CallbackInfo& info)
         return;
     }
     
-    stream_ = std::make_unique<PwStream>(name, channels, sampleRate, bufferSize);
+    stream_ = std::make_unique<PwStream>(name, channels, sampleRate, bufferSize,
+                                          direction, channelNames, description);
 }
 
 PipeWireAudio::~PipeWireAudio() {

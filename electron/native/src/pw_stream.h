@@ -4,9 +4,13 @@
  * Crea un stream de audio con N canales usando libpipewire directamente.
  * Diseñado para baja latencia y control total de los canales.
  * 
+ * Soporta dos direcciones:
+ * - OUTPUT (playback): JS envía audio → PipeWire reproduce
+ * - INPUT (capture): PipeWire captura → JS lee audio
+ * 
  * Soporta dos modos de alimentación:
- * 1. write() - llamadas explícitas desde JS
- * 2. SharedArrayBuffer - lectura directa desde memoria compartida (lock-free)
+ * 1. write()/read() - llamadas explícitas desde JS
+ * 2. SharedArrayBuffer - comunicación lock-free con AudioWorklet
  */
 
 #ifndef PW_STREAM_H
@@ -24,20 +28,29 @@
 #include <thread>
 #include <condition_variable>
 
+enum class StreamDirection { OUTPUT, INPUT };
+
 class PwStream {
 public:
-    PwStream(const std::string& name, int channels, int sampleRate, int bufferSize);
+    PwStream(const std::string& name, int channels, int sampleRate, int bufferSize,
+             StreamDirection direction = StreamDirection::OUTPUT,
+             const std::string& channelNames = "",
+             const std::string& description = "");
     ~PwStream();
 
     bool start();
     void stop();
     bool isRunning() const { return running_.load(); }
     
-    // Modo 1: Escribe samples interleaved (float32) via llamadas JS
+    // Output mode: Escribe samples interleaved (float32) via llamadas JS
     size_t write(const float* data, size_t frames);
     
-    // Modo 2: Configura lectura desde SharedArrayBuffer
-    // buffer layout: [writeIndex(int32), readIndex(int32), audioData(float32[])]
+    // Input mode: Lee samples capturados del ring buffer
+    size_t read(float* dest, size_t maxFrames);
+    
+    // SharedArrayBuffer - comunicación lock-free
+    // Output: JS escribe, C++ lee (readFromSharedBuffer)
+    // Input: C++ escribe, JS lee (writeToSharedBuffer)
     bool attachSharedBuffer(void* buffer, size_t bufferSize, size_t bufferFrames);
     void detachSharedBuffer();
     bool hasSharedBuffer() const { return sharedBuffer_ != nullptr; }
@@ -48,6 +61,7 @@ public:
     size_t getRingBufferFrames() const { return ringBufferFrames_; }
     
     // Info
+    StreamDirection getDirection() const { return direction_; }
     int getChannels() const { return channels_; }
     int getSampleRate() const { return sampleRate_; }
     int getBufferSize() const { return bufferSize_; }
@@ -62,13 +76,20 @@ private:
     static void on_state_changed(void* userdata, enum pw_stream_state old,
                                   enum pw_stream_state state, const char* error);
     
-    void processCallback();
+    void processCallbackOutput();  // Playback: ring buffer → PipeWire
+    void processCallbackInput();   // Capture: PipeWire → ring buffer/SAB
     void runLoop();
     
-    // Lee datos del SharedArrayBuffer si está conectado
+    // Output mode: Lee datos del SharedArrayBuffer (JS escribe, C++ lee)
     size_t readFromSharedBuffer(float* dest, size_t maxFrames);
+    
+    // Input mode: Escribe datos al SharedArrayBuffer (C++ escribe, JS lee)
+    size_t writeToSharedBuffer(const float* data, size_t frames);
 
     std::string name_;
+    StreamDirection direction_;
+    std::string channelNames_;
+    std::string description_;
     int channels_;
     int sampleRate_;
     int bufferSize_;
@@ -81,13 +102,13 @@ private:
     struct pw_thread_loop* loop_ = nullptr;
     struct pw_stream* stream_ = nullptr;
     
-    // Ring buffer interno para datos de audio (usado con write())
+    // Ring buffer interno para datos de audio
     std::vector<float> ringBuffer_;
     size_t ringWritePos_ = 0;
     size_t ringReadPos_ = 0;
     std::mutex ringMutex_;
     
-    // SharedArrayBuffer externo (alternativa lock-free a write())
+    // SharedArrayBuffer externo (comunicación lock-free)
     void* sharedBuffer_ = nullptr;
     size_t sharedBufferSize_ = 0;
     size_t sharedBufferFrames_ = 0;

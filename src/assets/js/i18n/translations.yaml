@@ -1537,6 +1537,33 @@ audio.inputs.enabled:
   pt: "✓ Entrada ativada"
   cs: "✓ Vstup povolen"
 
+audio.inputs.multichannel.title:
+  en: PipeWire → Input Amplifiers
+  es: PipeWire → Input Amplifiers
+  fr: "PipeWire → Amplificateurs d'entrée"
+  de: "PipeWire → Eingangsverstärker"
+  it: "PipeWire → Amplificatori di ingresso"
+  pt: "PipeWire → Amplificadores de entrada"
+  cs: "PipeWire → Vstupní zesilovače"
+
+audio.inputs.multichannel.description:
+  en: Route 8 PipeWire input channels directly to Input Amplifiers.
+  es: Rutea 8 canales de entrada de PipeWire a los Input Amplifiers.
+  fr: "Routez 8 canaux d'entrée PipeWire vers les amplificateurs d'entrée."
+  de: "Leiten Sie 8 PipeWire-Eingangskanäle zu den Eingangsverstärkern weiter."
+  it: "Instrada 8 canali di ingresso PipeWire agli amplificatori di ingresso."
+  pt: "Rotear 8 canais de entrada do PipeWire para os amplificadores de entrada."
+  cs: "Směrovat 8 vstupních kanálů PipeWire na Vstupní zesilovače."
+
+audio.inputs.multichannel.labels:
+  en: "input_amp_{n}"
+  es: "input_amp_{n}"
+  fr: "input_amp_{n}"
+  de: "input_amp_{n}"
+  it: "input_amp_{n}"
+  pt: "input_amp_{n}"
+  cs: "input_amp_{n}"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sección de latencia (unificada en audio settings)
 # ─────────────────────────────────────────────────────────────────────────────

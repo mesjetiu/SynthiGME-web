@@ -12,8 +12,13 @@
 static constexpr size_t DEFAULT_RING_BUFFER_FRAMES = 4096;  // ~85ms @ 48kHz
 static constexpr size_t DEFAULT_PREBUFFER_FRAMES = 2048;    // ~42ms @ 48kHz
 
-PwStream::PwStream(const std::string& name, int channels, int sampleRate, int bufferSize)
+PwStream::PwStream(const std::string& name, int channels, int sampleRate, int bufferSize,
+                   StreamDirection direction, const std::string& channelNames,
+                   const std::string& description)
     : name_(name)
+    , direction_(direction)
+    , channelNames_(channelNames)
+    , description_(description)
     , channels_(channels)
     , sampleRate_(sampleRate)
     , bufferSize_(bufferSize)
@@ -49,16 +54,27 @@ bool PwStream::start() {
         return false;
     }
     
-    // Crear stream
-    // Nombres de puertos: 4 estéreo (Pan 1-4, Pan 5-8) + 8 individuales (Out 1-8)
+    // Determinar propiedades según dirección
+    const bool isOutput = (direction_ == StreamDirection::OUTPUT);
+    const char* mediaCategory = isOutput ? "Playback" : "Capture";
+    const char* defaultDesc = isOutput ? "SynthiGME Multichannel Output" : "SynthiGME Multichannel Input";
+    const char* nodeDesc = description_.empty() ? defaultDesc : description_.c_str();
+    
+    // Nombres de canales por defecto si no se especificaron
+    const char* defaultOutputNames = "[ Pan_1-4_L, Pan_1-4_R, Pan_5-8_L, Pan_5-8_R, Out_1, Out_2, Out_3, Out_4, Out_5, Out_6, Out_7, Out_8 ]";
+    const char* defaultInputNames = "[ input_amp_1, input_amp_2, input_amp_3, input_amp_4, input_amp_5, input_amp_6, input_amp_7, input_amp_8 ]";
+    const char* defaultNames = isOutput ? defaultOutputNames : defaultInputNames;
+    const char* channelNamesStr = channelNames_.empty() ? defaultNames : channelNames_.c_str();
+    
+    // Crear stream con propiedades
     struct pw_properties* props = pw_properties_new(
         PW_KEY_MEDIA_TYPE, "Audio",
-        PW_KEY_MEDIA_CATEGORY, "Playback",
+        PW_KEY_MEDIA_CATEGORY, mediaCategory,
         PW_KEY_MEDIA_ROLE, "Music",
         PW_KEY_APP_NAME, "SynthiGME",
         PW_KEY_NODE_NAME, name_.c_str(),
-        PW_KEY_NODE_DESCRIPTION, "SynthiGME Multichannel Output",
-        PW_KEY_NODE_CHANNELNAMES, "[ Pan_1-4_L, Pan_1-4_R, Pan_5-8_L, Pan_5-8_R, Out_1, Out_2, Out_3, Out_4, Out_5, Out_6, Out_7, Out_8 ]",
+        PW_KEY_NODE_DESCRIPTION, nodeDesc,
+        PW_KEY_NODE_CHANNELNAMES, channelNamesStr,
         nullptr
     );
     
@@ -88,7 +104,7 @@ bool PwStream::start() {
     audio_info.rate = static_cast<uint32_t>(sampleRate_);
     audio_info.channels = static_cast<uint32_t>(channels_);
     
-    // Asignar posiciones de canal (AUX0-AUX11 para 12 canales)
+    // Asignar posiciones de canal (AUX0-AUXN)
     // Los nombres descriptivos se asignan via PW_KEY_NODE_CHANNELNAMES arriba
     for (int i = 0; i < channels_ && i < SPA_AUDIO_MAX_CHANNELS; i++) {
         audio_info.position[i] = SPA_AUDIO_CHANNEL_AUX0 + i;
@@ -97,10 +113,12 @@ bool PwStream::start() {
     const struct spa_pod* params[1];
     params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat, &audio_info);
     
-    // Conectar stream
+    // Conectar stream con la dirección correcta
+    enum pw_direction pwDir = isOutput ? PW_DIRECTION_OUTPUT : PW_DIRECTION_INPUT;
+    
     int res = pw_stream_connect(
         stream_,
-        PW_DIRECTION_OUTPUT,
+        pwDir,
         PW_ID_ANY,
         static_cast<pw_stream_flags>(
             PW_STREAM_FLAG_AUTOCONNECT |
@@ -121,10 +139,12 @@ bool PwStream::start() {
     
     // Iniciar loop
     running_.store(true);
-    priming_.store(true);  // Empezar en modo pre-buffering
+    // Pre-buffering solo para output (input no necesita acumular antes de leer)
+    priming_.store(isOutput);
     pw_thread_loop_start(loop_);
     
-    std::cout << "[PwStream] Started: " << name_ 
+    const char* dirStr = isOutput ? "OUTPUT" : "INPUT";
+    std::cout << "[PwStream] Started " << dirStr << ": " << name_ 
               << " (" << channels_ << "ch @ " << sampleRate_ << "Hz, prebuffer: "
               << prebufferFrames_ << " frames, ~" << (prebufferFrames_ * 1000 / sampleRate_) << "ms)" << std::endl;
     
@@ -210,7 +230,11 @@ size_t PwStream::write(const float* data, size_t frames) {
 
 void PwStream::on_process(void* userdata) {
     auto* self = static_cast<PwStream*>(userdata);
-    self->processCallback();
+    if (self->direction_ == StreamDirection::OUTPUT) {
+        self->processCallbackOutput();
+    } else {
+        self->processCallbackInput();
+    }
 }
 
 void PwStream::on_state_changed(void* userdata, enum pw_stream_state old,
@@ -225,7 +249,7 @@ void PwStream::on_state_changed(void* userdata, enum pw_stream_state old,
     std::cout << std::endl;
 }
 
-void PwStream::processCallback() {
+void PwStream::processCallbackOutput() {
     struct pw_buffer* pwBuf = pw_stream_dequeue_buffer(stream_);
     if (!pwBuf) {
         return;
@@ -329,7 +353,101 @@ void PwStream::processCallback() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SharedArrayBuffer support - lectura lock-free desde memoria compartida
+// Input (Capture) mode - PipeWire → ring buffer / SharedArrayBuffer
+// ═══════════════════════════════════════════════════════════════════════════
+
+void PwStream::processCallbackInput() {
+    struct pw_buffer* pwBuf = pw_stream_dequeue_buffer(stream_);
+    if (!pwBuf) return;
+    
+    struct spa_buffer* buf = pwBuf->buffer;
+    const float* src = static_cast<const float*>(buf->datas[0].data);
+    
+    if (!src) {
+        pw_stream_queue_buffer(stream_, pwBuf);
+        return;
+    }
+    
+    // Calcular frames capturados
+    uint32_t stride = sizeof(float) * channels_;
+    uint32_t frames = buf->datas[0].chunk->size / stride;
+    
+    if (frames == 0) {
+        pw_stream_queue_buffer(stream_, pwBuf);
+        return;
+    }
+    
+    // Escribir al SharedArrayBuffer si está adjunto (lock-free, preferido)
+    if (sharedBuffer_) {
+        writeToSharedBuffer(src, frames);
+    }
+    
+    // También escribir al ring buffer interno para read() no-SAB
+    {
+        std::lock_guard<std::mutex> lock(ringMutex_);
+        const size_t ringSize = ringBuffer_.size();
+        const size_t samples = frames * channels_;
+        
+        // Verificar espacio disponible
+        size_t available;
+        if (ringWritePos_ >= ringReadPos_) {
+            available = ringSize - (ringWritePos_ - ringReadPos_) - channels_;
+        } else {
+            available = ringReadPos_ - ringWritePos_ - channels_;
+        }
+        
+        size_t toWrite = std::min(samples, available);
+        if (toWrite < samples) {
+            overflows_.fetch_add(1);
+        }
+        
+        for (size_t i = 0; i < toWrite; i++) {
+            ringBuffer_[ringWritePos_] = src[i];
+            ringWritePos_ = (ringWritePos_ + 1) % ringSize;
+        }
+        
+        // Actualizar métricas
+        size_t buffered;
+        if (ringWritePos_ >= ringReadPos_) {
+            buffered = (ringWritePos_ - ringReadPos_) / channels_;
+        } else {
+            buffered = (ringSize - ringReadPos_ + ringWritePos_) / channels_;
+        }
+        bufferedFrames_.store(buffered);
+    }
+    
+    pw_stream_queue_buffer(stream_, pwBuf);
+}
+
+size_t PwStream::read(float* dest, size_t maxFrames) {
+    if (!running_.load() || !dest || maxFrames == 0) return 0;
+    
+    std::lock_guard<std::mutex> lock(ringMutex_);
+    
+    const size_t ringSize = ringBuffer_.size();
+    
+    // Calcular datos disponibles
+    size_t available;
+    if (ringWritePos_ >= ringReadPos_) {
+        available = (ringWritePos_ - ringReadPos_) / channels_;
+    } else {
+        available = (ringSize - ringReadPos_ + ringWritePos_) / channels_;
+    }
+    
+    size_t toRead = std::min(available, maxFrames);
+    
+    for (size_t frame = 0; frame < toRead; frame++) {
+        for (int ch = 0; ch < channels_; ch++) {
+            dest[frame * channels_ + ch] = ringBuffer_[ringReadPos_];
+            ringReadPos_ = (ringReadPos_ + 1) % ringSize;
+        }
+    }
+    
+    return toRead;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SharedArrayBuffer support - comunicación lock-free con AudioWorklet
 // ═══════════════════════════════════════════════════════════════════════════
 
 bool PwStream::attachSharedBuffer(void* buffer, size_t bufferSize, size_t bufferFrames) {
@@ -420,6 +538,47 @@ size_t PwStream::readFromSharedBuffer(float* dest, size_t maxFrames) {
     sharedReadIndex_->store(pos, std::memory_order_release);
     
     return toRead;
+}
+
+// Input mode: C++ escribe al SharedArrayBuffer (JS lee via AudioWorklet)
+size_t PwStream::writeToSharedBuffer(const float* data, size_t frames) {
+    if (!sharedBuffer_ || !sharedWriteIndex_ || !sharedReadIndex_ || !sharedAudioData_) {
+        return 0;
+    }
+    
+    // Para input: C++ actualiza writeIndex, JS actualiza readIndex
+    int32_t writeIdx = sharedWriteIndex_->load(std::memory_order_relaxed);
+    int32_t readIdx = sharedReadIndex_->load(std::memory_order_acquire);
+    
+    // Calcular espacio disponible (con 1 slot de guarda)
+    int32_t available;
+    if (writeIdx >= readIdx) {
+        available = sharedBufferFrames_ - (writeIdx - readIdx) - 1;
+    } else {
+        available = readIdx - writeIdx - 1;
+    }
+    
+    if (available <= 0) {
+        overflows_.fetch_add(1);
+        return 0;
+    }
+    
+    size_t toWrite = std::min(static_cast<size_t>(available), frames);
+    
+    // Copiar datos interleaved al SAB
+    int32_t pos = writeIdx;
+    for (size_t frame = 0; frame < toWrite; frame++) {
+        size_t baseIndex = pos * channels_;
+        for (int ch = 0; ch < channels_; ch++) {
+            sharedAudioData_[baseIndex + ch] = data[frame * channels_ + ch];
+        }
+        pos = (pos + 1) % sharedBufferFrames_;
+    }
+    
+    // Actualizar writeIndex atómicamente
+    sharedWriteIndex_->store(pos, std::memory_order_release);
+    
+    return toWrite;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

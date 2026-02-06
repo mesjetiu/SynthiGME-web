@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Entrada multicanal PipeWire (8ch)**: Nueva captura de 8 canales independientes via PipeWire (input_amp_1..8) que van directamente a los Input Amplifiers. Activación conjunta con salida multicanal mediante el mismo toggle. Comunicación lock-free via SharedArrayBuffer.
 - **Respuesta lineal de faders (opcional)**: Nueva opción en Ajustes > Visualización para que los faders de Output Channel controlen la ganancia de forma lineal (slider 50% → ganancia 50%). Por defecto activado para mejor experiencia en ordenador. El CV externo sigue funcionando con la curva logarítmica 10 dB/V auténtica del VCA CEM 3330.
 
 ### Cambiado

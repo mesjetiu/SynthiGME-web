@@ -310,3 +310,426 @@ describe('STORAGE_KEYS de latencia', () => {
     );
   });
 });
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE ROUTING DE SALIDA
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Routing de salida - Lógica aislada', () => {
+  const OUTPUT_COUNT = 8;
+  
+  /**
+   * Replica la lógica de _getDefaultRouting del modal.
+   * @param {string} outputMode - 'stereo' o 'multichannel'
+   * @param {number} physicalChannels - Número de canales físicos
+   */
+  const getDefaultRouting = (outputMode, physicalChannels) => {
+    const isMultichannel = outputMode === 'multichannel';
+    
+    return Array.from({ length: OUTPUT_COUNT }, (_, busIdx) => 
+      Array.from({ length: physicalChannels }, (_, chIdx) => {
+        if (isMultichannel) {
+          // Multicanal: diagonal Out 1-8 → canales 5-12 (índices 4-11)
+          return chIdx === (busIdx + 4);
+        } else {
+          // Estéreo: todo OFF (el audio va por stereo buses)
+          return false;
+        }
+      })
+    );
+  };
+
+  describe('Defaults en modo estéreo', () => {
+    it('todos los outputs están en OFF', () => {
+      const routing = getDefaultRouting('stereo', 2);
+      
+      // Verificar que todos los valores son false
+      routing.forEach((bus, busIdx) => {
+        bus.forEach((value, chIdx) => {
+          assert.strictEqual(value, false, `Out ${busIdx + 1} → Ch ${chIdx + 1} debería ser OFF`);
+        });
+      });
+    });
+
+    it('genera array de 8 buses x 2 canales', () => {
+      const routing = getDefaultRouting('stereo', 2);
+      assert.strictEqual(routing.length, 8);
+      routing.forEach(bus => {
+        assert.strictEqual(bus.length, 2);
+      });
+    });
+  });
+
+  describe('Defaults en modo multicanal', () => {
+    it('diagonal: Out 1→Ch5, Out 2→Ch6, etc.', () => {
+      const routing = getDefaultRouting('multichannel', 12);
+      
+      // Verificar diagonal desplazada
+      for (let busIdx = 0; busIdx < OUTPUT_COUNT; busIdx++) {
+        for (let chIdx = 0; chIdx < 12; chIdx++) {
+          const expected = chIdx === (busIdx + 4);
+          assert.strictEqual(
+            routing[busIdx][chIdx], 
+            expected, 
+            `Out ${busIdx + 1} → Ch ${chIdx + 1} debería ser ${expected}`
+          );
+        }
+      }
+    });
+
+    it('genera array de 8 buses x 12 canales', () => {
+      const routing = getDefaultRouting('multichannel', 12);
+      assert.strictEqual(routing.length, 8);
+      routing.forEach(bus => {
+        assert.strictEqual(bus.length, 12);
+      });
+    });
+
+    it('canales 1-4 están en OFF (reservados para stereo buses)', () => {
+      const routing = getDefaultRouting('multichannel', 12);
+      
+      routing.forEach((bus, busIdx) => {
+        for (let chIdx = 0; chIdx < 4; chIdx++) {
+          assert.strictEqual(
+            bus[chIdx], 
+            false, 
+            `Out ${busIdx + 1} → Ch ${chIdx + 1} debería ser OFF`
+          );
+        }
+      });
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE STEREO BUS ROUTING
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Stereo Bus Routing - Lógica aislada', () => {
+  /**
+   * Replica la lógica de _getDefaultStereoBusRouting del modal.
+   * @param {string} outputMode - 'stereo' o 'multichannel'
+   */
+  const getDefaultStereoBusRouting = (outputMode) => {
+    if (outputMode === 'multichannel') {
+      return {
+        A: [0, 1],  // Pan 1-4 → canales 1, 2 (índices 0, 1)
+        B: [2, 3]   // Pan 5-8 → canales 3, 4 (índices 2, 3)
+      };
+    } else {
+      return {
+        A: [0, 1],  // Pan 1-4 → L, R
+        B: [0, 1]   // Pan 5-8 → L, R
+      };
+    }
+  };
+
+  describe('Defaults en modo estéreo', () => {
+    it('ambos buses van a L/R (canales 0,1)', () => {
+      const routing = getDefaultStereoBusRouting('stereo');
+      
+      assert.deepStrictEqual(routing.A, [0, 1]);
+      assert.deepStrictEqual(routing.B, [0, 1]);
+    });
+
+    it('Pan 1-4 y Pan 5-8 comparten los mismos canales', () => {
+      const routing = getDefaultStereoBusRouting('stereo');
+      
+      assert.strictEqual(routing.A[0], routing.B[0]);
+      assert.strictEqual(routing.A[1], routing.B[1]);
+    });
+  });
+
+  describe('Defaults en modo multicanal', () => {
+    it('Pan 1-4 → canales 1,2 (índices 0,1)', () => {
+      const routing = getDefaultStereoBusRouting('multichannel');
+      
+      assert.deepStrictEqual(routing.A, [0, 1]);
+    });
+
+    it('Pan 5-8 → canales 3,4 (índices 2,3)', () => {
+      const routing = getDefaultStereoBusRouting('multichannel');
+      
+      assert.deepStrictEqual(routing.B, [2, 3]);
+    });
+
+    it('buses A y B usan canales diferentes (diagonal)', () => {
+      const routing = getDefaultStereoBusRouting('multichannel');
+      
+      // No deben compartir canales
+      const channelsA = new Set(routing.A);
+      const channelsB = new Set(routing.B);
+      
+      for (const ch of channelsB) {
+        assert.ok(!channelsA.has(ch), `Canal ${ch} no debería estar en ambos buses`);
+      }
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE STORAGE KEYS DE ROUTING
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('STORAGE_KEYS de routing', () => {
+  describe('Output routing', () => {
+    it('AUDIO_ROUTING está definido', () => {
+      assert.ok('AUDIO_ROUTING' in STORAGE_KEYS);
+    });
+
+    it('AUDIO_ROUTING_MULTICHANNEL está definido', () => {
+      assert.ok('AUDIO_ROUTING_MULTICHANNEL' in STORAGE_KEYS);
+    });
+
+    it('claves de routing son diferentes', () => {
+      assert.notStrictEqual(
+        STORAGE_KEYS.AUDIO_ROUTING,
+        STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL
+      );
+    });
+
+    it('ambas usan el prefijo correcto', () => {
+      assert.ok(STORAGE_KEYS.AUDIO_ROUTING.startsWith('synthigme-'));
+      assert.ok(STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL.startsWith('synthigme-'));
+    });
+  });
+
+  describe('Stereo bus routing', () => {
+    it('STEREO_BUS_ROUTING está definido', () => {
+      assert.ok('STEREO_BUS_ROUTING' in STORAGE_KEYS);
+    });
+
+    it('STEREO_BUS_ROUTING_MULTICHANNEL está definido', () => {
+      assert.ok('STEREO_BUS_ROUTING_MULTICHANNEL' in STORAGE_KEYS);
+    });
+
+    it('claves de stereo bus son diferentes', () => {
+      assert.notStrictEqual(
+        STORAGE_KEYS.STEREO_BUS_ROUTING,
+        STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL
+      );
+    });
+
+    it('ambas usan el prefijo correcto', () => {
+      assert.ok(STORAGE_KEYS.STEREO_BUS_ROUTING.startsWith('synthigme-'));
+      assert.ok(STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL.startsWith('synthigme-'));
+    });
+  });
+
+  describe('Lógica de selección de clave', () => {
+    /**
+     * Replica la lógica de _getRoutingStorageKey
+     */
+    const getRoutingStorageKey = (outputMode) => {
+      return outputMode === 'multichannel' 
+        ? STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL 
+        : STORAGE_KEYS.AUDIO_ROUTING;
+    };
+
+    /**
+     * Replica la lógica de _getStereoBusRoutingStorageKey
+     */
+    const getStereoBusRoutingStorageKey = (outputMode) => {
+      return outputMode === 'multichannel'
+        ? STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL
+        : STORAGE_KEYS.STEREO_BUS_ROUTING;
+    };
+
+    it('modo stereo usa AUDIO_ROUTING', () => {
+      assert.strictEqual(
+        getRoutingStorageKey('stereo'),
+        STORAGE_KEYS.AUDIO_ROUTING
+      );
+    });
+
+    it('modo multichannel usa AUDIO_ROUTING_MULTICHANNEL', () => {
+      assert.strictEqual(
+        getRoutingStorageKey('multichannel'),
+        STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL
+      );
+    });
+
+    it('modo stereo usa STEREO_BUS_ROUTING', () => {
+      assert.strictEqual(
+        getStereoBusRoutingStorageKey('stereo'),
+        STORAGE_KEYS.STEREO_BUS_ROUTING
+      );
+    });
+
+    it('modo multichannel usa STEREO_BUS_ROUTING_MULTICHANNEL', () => {
+      assert.strictEqual(
+        getStereoBusRoutingStorageKey('multichannel'),
+        STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL
+      );
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE AISLAMIENTO DE MODOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Aislamiento de routing entre modos', () => {
+  beforeEach(() => {
+    clearLocalStorage();
+  });
+
+  afterEach(() => {
+    clearLocalStorage();
+  });
+
+  describe('Persistencia independiente', () => {
+    it('guardar en stereo no afecta a multichannel', () => {
+      // Simular guardar routing en modo estéreo
+      const stereoRouting = [[true, false], [false, true]];
+      localStorage.setItem(STORAGE_KEYS.AUDIO_ROUTING, JSON.stringify(stereoRouting));
+      
+      // Verificar que multichannel sigue vacío
+      const multichannel = localStorage.getItem(STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL);
+      assert.strictEqual(multichannel, null);
+    });
+
+    it('guardar en multichannel no afecta a stereo', () => {
+      // Simular guardar routing en modo multicanal
+      const mcRouting = [[false, false, false, false, true]];
+      localStorage.setItem(STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL, JSON.stringify(mcRouting));
+      
+      // Verificar que stereo sigue vacío
+      const stereo = localStorage.getItem(STORAGE_KEYS.AUDIO_ROUTING);
+      assert.strictEqual(stereo, null);
+    });
+
+    it('ambos modos pueden tener datos simultáneamente', () => {
+      const stereoRouting = [[true, true]];
+      const mcRouting = [[false, false, false, false, true, false, false, false, false, false, false, false]];
+      
+      localStorage.setItem(STORAGE_KEYS.AUDIO_ROUTING, JSON.stringify(stereoRouting));
+      localStorage.setItem(STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL, JSON.stringify(mcRouting));
+      
+      const loadedStereo = JSON.parse(localStorage.getItem(STORAGE_KEYS.AUDIO_ROUTING));
+      const loadedMc = JSON.parse(localStorage.getItem(STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL));
+      
+      assert.deepStrictEqual(loadedStereo, stereoRouting);
+      assert.deepStrictEqual(loadedMc, mcRouting);
+    });
+  });
+
+  describe('Stereo bus routing independiente', () => {
+    it('guardar en stereo no afecta a multichannel', () => {
+      const stereoSB = { A: [0, 1], B: [0, 1] };
+      localStorage.setItem(STORAGE_KEYS.STEREO_BUS_ROUTING, JSON.stringify(stereoSB));
+      
+      const multichannel = localStorage.getItem(STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL);
+      assert.strictEqual(multichannel, null);
+    });
+
+    it('cada modo puede tener configuración diferente de stereo buses', () => {
+      const stereoSB = { A: [0, 1], B: [0, 1] };  // Ambos a L/R
+      const mcSB = { A: [0, 1], B: [2, 3] };      // Diagonal
+      
+      localStorage.setItem(STORAGE_KEYS.STEREO_BUS_ROUTING, JSON.stringify(stereoSB));
+      localStorage.setItem(STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL, JSON.stringify(mcSB));
+      
+      const loadedStereo = JSON.parse(localStorage.getItem(STORAGE_KEYS.STEREO_BUS_ROUTING));
+      const loadedMc = JSON.parse(localStorage.getItem(STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL));
+      
+      // Verificar que son diferentes
+      assert.notDeepStrictEqual(loadedStereo.B, loadedMc.B);
+      
+      // Verificar valores específicos
+      assert.deepStrictEqual(loadedStereo.B, [0, 1]);
+      assert.deepStrictEqual(loadedMc.B, [2, 3]);
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE REDIMENSIONAMIENTO DE ARRAYS
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Redimensionamiento de arrays de routing', () => {
+  const OUTPUT_COUNT = 8;
+  
+  /**
+   * Replica la lógica de _resizeRoutingArrays
+   * Si hay datos existentes, los preserva. Si no, usa defaults.
+   */
+  const resizeRoutingArrays = (existingRouting, channelCount, outputMode) => {
+    const isMultichannel = channelCount >= 12;
+    
+    return Array.from({ length: OUTPUT_COUNT }, (_, busIdx) => {
+      const existingBus = existingRouting?.[busIdx];
+      
+      if (existingBus && existingBus.length > 0) {
+        // Preservar datos existentes, expandir/recortar
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (chIdx < existingBus.length) {
+            return existingBus[chIdx] === true;
+          }
+          return false;
+        });
+      } else {
+        // Default: diagonal para multicanal, todo OFF para estéreo
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (isMultichannel) {
+            return chIdx === (busIdx + 4);
+          }
+          return false;
+        });
+      }
+    });
+  };
+
+  it('expande de 2 a 12 canales preservando datos', () => {
+    const existing = [
+      [true, false],  // Out 1 → L
+      [false, true],  // Out 2 → R
+    ];
+    
+    const resized = resizeRoutingArrays(existing, 12, 'multichannel');
+    
+    // Verificar que los primeros 2 canales se preservan
+    assert.strictEqual(resized[0][0], true);
+    assert.strictEqual(resized[0][1], false);
+    assert.strictEqual(resized[1][0], false);
+    assert.strictEqual(resized[1][1], true);
+    
+    // Canales nuevos deben ser false
+    for (let ch = 2; ch < 12; ch++) {
+      assert.strictEqual(resized[0][ch], false);
+      assert.strictEqual(resized[1][ch], false);
+    }
+  });
+
+  it('recorta de 12 a 2 canales preservando datos', () => {
+    const existing = [
+      [false, false, false, false, true, false, false, false, false, false, false, false], // Out 1 → Ch5
+    ];
+    
+    const resized = resizeRoutingArrays(existing, 2, 'stereo');
+    
+    // Solo quedan 2 canales
+    assert.strictEqual(resized[0].length, 2);
+    assert.strictEqual(resized[0][0], false);
+    assert.strictEqual(resized[0][1], false);
+  });
+
+  it('sin datos existentes usa defaults para multicanal', () => {
+    const resized = resizeRoutingArrays(null, 12, 'multichannel');
+    
+    // Verificar diagonal
+    assert.strictEqual(resized[0][4], true);  // Out 1 → Ch5
+    assert.strictEqual(resized[1][5], true);  // Out 2 → Ch6
+    assert.strictEqual(resized[7][11], true); // Out 8 → Ch12
+  });
+
+  it('sin datos existentes usa defaults para estéreo', () => {
+    const resized = resizeRoutingArrays(null, 2, 'stereo');
+    
+    // Todo OFF en estéreo
+    resized.forEach(bus => {
+      bus.forEach(value => {
+        assert.strictEqual(value, false);
+      });
+    });
+  });
+});

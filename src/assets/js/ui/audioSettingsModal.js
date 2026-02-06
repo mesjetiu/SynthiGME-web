@@ -74,7 +74,14 @@ export class AudioSettingsModal {
       B: [0, 1]   // Pan 5-8 → L, R
     };
     
-    // Dispositivos seleccionados
+    // Modo de salida: 'stereo' (normal) o 'multichannel' (12 canales PipeWire)
+    this.outputMode = localStorage.getItem(STORAGE_KEYS.OUTPUT_MODE) || 'stereo';
+    this.multichannelAvailable = false;  // Se detecta en _checkMultichannelAvailability
+    
+    // Callbacks para cambios de modo
+    this.onOutputModeChange = options.onOutputModeChange;
+    
+    // Dispositivos seleccionados (solo relevante en modo estéreo)
     this.selectedOutputDevice = localStorage.getItem(STORAGE_KEYS.OUTPUT_DEVICE) || 'default';
     this.selectedInputDevice = localStorage.getItem(STORAGE_KEYS.INPUT_DEVICE) || 'default';
     this.availableOutputDevices = [];
@@ -83,6 +90,7 @@ export class AudioSettingsModal {
     // Elementos de selectores
     this.outputDeviceSelect = null;
     this.inputDeviceSelect = null;
+    this.outputModeRadios = null;  // Radios para estéreo/multicanal
     
     // Elemento para mostrar información de canales
     this.channelInfoElement = null;
@@ -572,16 +580,17 @@ export class AudioSettingsModal {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // MULTICANAL NATIVO (8 canales via PipeWire/PulseAudio) - SOLO ELECTRON
+  // MULTICANAL NATIVO (12 canales via PipeWire) - SOLO ELECTRON + LINUX
   // ═══════════════════════════════════════════════════════════════════════════
-  // En Electron + Linux podemos usar naudiodon para salida multicanal nativa.
-  // Esto crea 8 puertos de salida independientes ruteables en qpwgraph.
+  // En Electron + Linux podemos usar nuestro addon nativo para 12 canales.
+  // Esto crea puertos de salida independientes ruteables en qpwgraph.
+  // El multicanal es un MODO de operación, no un dispositivo.
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
    * Verifica si el audio multicanal nativo está disponible.
    * Solo funciona en Electron + Linux con PipeWire.
-   * Si está disponible, añade una opción virtual al selector de dispositivos.
+   * Actualiza this.multichannelAvailable para habilitar/deshabilitar el toggle.
    */
   async _checkMultichannelAvailability() {
     // Resetear estado
@@ -598,27 +607,104 @@ export class AudioSettingsModal {
       
       if (result.available) {
         log.info(' 12-channel native audio available (Electron/PipeWire)');
-        // Añadir dispositivo virtual al inicio de la lista
-        this.availableOutputDevices.unshift({
-          deviceId: 'multichannel-12ch',
-          kind: 'audiooutput',
-          label: 'SynthiGME 12ch (PipeWire)',
-          groupId: 'multichannel'
-        });
       } else {
         log.info(' Multichannel not available:', result.reason);
       }
+      
+      // Actualizar UI del toggle de modo
+      this._updateOutputModeUI();
     } catch (e) {
       log.warn(' Error checking multichannel availability:', e);
     }
   }
 
   /**
+   * Verifica si el modo actual es multicanal.
+   * @returns {boolean}
+   */
+  isMultichannelMode() {
+    return this.outputMode === 'multichannel';
+  }
+  
+  /**
+   * Cambia el modo de salida.
+   * @param {'stereo' | 'multichannel'} mode
+   * @param {boolean} [notify=true] - Si es false, no llama al callback (para evitar bucles)
+   */
+  setOutputMode(mode, notify = true) {
+    if (mode === this.outputMode) return;
+    if (mode === 'multichannel' && !this.multichannelAvailable) return;
+    
+    this.outputMode = mode;
+    localStorage.setItem(STORAGE_KEYS.OUTPUT_MODE, mode);
+    
+    log.info(` Output mode changed to: ${mode}`);
+    
+    // Actualizar UI
+    this._updateOutputModeUI();
+    this._updateDeviceSelectorVisibility();
+    this._updateLatencyVisibility();
+    
+    // Notificar al callback (solo si notify=true para evitar bucles)
+    if (notify && this.onOutputModeChange) {
+      this.onOutputModeChange(mode);
+    }
+  }
+  
+  /**
+   * Actualiza la UI del toggle de modo según disponibilidad.
+   */
+  _updateOutputModeUI() {
+    if (!this.outputModeRadios) return;
+    
+    const multichannelRadio = this.outputModeRadios.querySelector('input[value="multichannel"]');
+    const multichannelLabel = this.outputModeRadios.querySelector('.mode-multichannel-label');
+    
+    if (multichannelRadio) {
+      multichannelRadio.disabled = !this.multichannelAvailable;
+    }
+    
+    if (multichannelLabel) {
+      if (this.multichannelAvailable) {
+        multichannelLabel.classList.remove('disabled');
+        multichannelLabel.title = '';
+      } else {
+        multichannelLabel.classList.add('disabled');
+        multichannelLabel.title = t('audio.mode.unavailable');
+      }
+    }
+    
+    // Sincronizar radio seleccionado
+    const selectedRadio = this.outputModeRadios.querySelector(`input[value="${this.outputMode}"]`);
+    if (selectedRadio) {
+      selectedRadio.checked = true;
+    }
+  }
+  
+  /**
+   * Muestra/oculta el selector de dispositivo según el modo.
+   * En modo multicanal, el selector se deshabilita (ruteo externo en qpwgraph).
+   */
+  _updateDeviceSelectorVisibility() {
+    if (!this.outputDeviceSelect) return;
+    
+    const isMultichannel = this.outputMode === 'multichannel';
+    this.outputDeviceSelect.disabled = isMultichannel;
+    
+    // También el contenedor padre para estilizado
+    const wrapper = this.outputDeviceSelect.closest('.audio-settings-device-selector');
+    if (wrapper) {
+      wrapper.classList.toggle('disabled', isMultichannel);
+    }
+  }
+
+  /**
+   * @deprecated Usar isMultichannelMode() en su lugar
    * Verifica si el dispositivo seleccionado es el multicanal nativo.
    * @returns {boolean}
    */
   isMultichannelDevice() {
-    return this.selectedOutputDevice === 'multichannel-12ch';
+    return this.outputMode === 'multichannel';
   }
 
   /**
@@ -965,10 +1051,75 @@ export class AudioSettingsModal {
     this._textElements.outputTitle.textContent = t('audio.outputs.title');
     section.appendChild(this._textElements.outputTitle);
     
-    // Selector de dispositivo de salida
+    // ─────────────────────────────────────────────────────────────────────────
+    // TOGGLE DE MODO: Estéreo / Multicanal
+    // ─────────────────────────────────────────────────────────────────────────
+    const modeContainer = document.createElement('div');
+    modeContainer.className = 'audio-settings-mode';
+    
+    this._textElements.modeTitle = document.createElement('label');
+    this._textElements.modeTitle.className = 'audio-settings-mode__title';
+    this._textElements.modeTitle.textContent = t('audio.mode.title');
+    modeContainer.appendChild(this._textElements.modeTitle);
+    
+    this.outputModeRadios = document.createElement('div');
+    this.outputModeRadios.className = 'audio-settings-mode__radios';
+    
+    // Radio: Estéreo
+    const stereoLabel = document.createElement('label');
+    stereoLabel.className = 'audio-settings-mode__option mode-stereo-label';
+    const stereoRadio = document.createElement('input');
+    stereoRadio.type = 'radio';
+    stereoRadio.name = 'output-mode';
+    stereoRadio.value = 'stereo';
+    stereoRadio.checked = this.outputMode === 'stereo';
+    stereoRadio.addEventListener('change', () => this.setOutputMode('stereo'));
+    stereoLabel.appendChild(stereoRadio);
+    stereoLabel.appendChild(document.createTextNode(' ' + t('audio.mode.stereo')));
+    this.outputModeRadios.appendChild(stereoLabel);
+    
+    // Radio: Multicanal
+    const multichannelLabel = document.createElement('label');
+    multichannelLabel.className = 'audio-settings-mode__option mode-multichannel-label';
+    const multichannelRadio = document.createElement('input');
+    multichannelRadio.type = 'radio';
+    multichannelRadio.name = 'output-mode';
+    multichannelRadio.value = 'multichannel';
+    multichannelRadio.checked = this.outputMode === 'multichannel';
+    multichannelRadio.disabled = !this.multichannelAvailable;
+    multichannelRadio.addEventListener('change', () => this.setOutputMode('multichannel'));
+    multichannelLabel.appendChild(multichannelRadio);
+    multichannelLabel.appendChild(document.createTextNode(' ' + t('audio.mode.multichannel')));
+    if (!this.multichannelAvailable) {
+      multichannelLabel.classList.add('disabled');
+      multichannelLabel.title = t('audio.mode.unavailable');
+    }
+    this.outputModeRadios.appendChild(multichannelLabel);
+    
+    modeContainer.appendChild(this.outputModeRadios);
+    
+    // Descripción de modo multicanal
+    this._textElements.modeDesc = document.createElement('p');
+    this._textElements.modeDesc.className = 'audio-settings-mode__desc';
+    this._textElements.modeDesc.textContent = t('audio.mode.multichannel.desc');
+    this._textElements.modeDesc.style.display = this.outputMode === 'multichannel' ? 'block' : 'none';
+    modeContainer.appendChild(this._textElements.modeDesc);
+    
+    section.appendChild(modeContainer);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // SELECTOR DE DISPOSITIVO (solo visible en modo estéreo)
+    // ─────────────────────────────────────────────────────────────────────────
     const { wrapper: outputDeviceWrapper, select: outputSelect, label: outputLabel } = this._createDeviceSelector(t('audio.device.output'), true);
     this.outputDeviceSelect = outputSelect;
     this._textElements.outputDeviceLabel = outputLabel;
+    
+    // Deshabilitar si estamos en modo multicanal
+    if (this.outputMode === 'multichannel') {
+      outputSelect.disabled = true;
+      outputDeviceWrapper.classList.add('disabled');
+    }
+    
     section.appendChild(outputDeviceWrapper);
     
     // Botón para solicitar permisos (mostrar nombres de dispositivos)
@@ -1203,7 +1354,7 @@ export class AudioSettingsModal {
   _updateTotalLatency() {
     if (!this.totalLatencyValue) return;
     
-    const isMultichannel = this.selectedOutputDevice === 'multichannel-12ch';
+    const isMultichannel = this.outputMode === 'multichannel';
     const webAudioMs = this._webAudioLatencyMs || 25;
     const multichannelMs = isMultichannel ? (this._multichannelLatencyMs || 42) : 0;
     
@@ -1227,15 +1378,19 @@ export class AudioSettingsModal {
       this.totalLatencyValue.classList.add('latency-high');
     }
   }
-
   /**
-   * Muestra/oculta la fila de latencia multicanal según el dispositivo
+   * Muestra/oculta la fila de latencia multicanal según el modo
    */
   _updateLatencyVisibility() {
     if (!this.multichannelLatencyRow) return;
     
-    const isMultichannel = this.selectedOutputDevice === 'multichannel-12ch';
+    const isMultichannel = this.outputMode === 'multichannel';
     this.multichannelLatencyRow.style.display = isMultichannel ? 'flex' : 'none';
+    
+    // Actualizar descripción de modo
+    if (this._textElements.modeDesc) {
+      this._textElements.modeDesc.style.display = isMultichannel ? 'block' : 'none';
+    }
     
     // Actualizar total porque cambia si hay multicanal o no
     this._updateTotalLatency();

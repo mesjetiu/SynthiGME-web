@@ -250,10 +250,10 @@ class App {
     if (this._multichannelRestored) return; // Solo una vez
     this._multichannelRestored = true; // Marcar antes de async para evitar race conditions
     
-    const savedOutputDevice = this.audioSettingsModal?.selectedOutputDevice;
+    const savedMode = this.audioSettingsModal?.outputMode;
     
-    if (savedOutputDevice === 'multichannel-12ch') {
-      log.info('🔊 Restoring multichannel output from saved settings...');
+    if (savedMode === 'multichannel') {
+      log.info('🔊 Restoring multichannel output from saved mode...');
       const result = await this._activateMultichannelOutput();
       if (result.success) {
         log.info('🔊 Multichannel output restored (12ch)');
@@ -261,6 +261,8 @@ class App {
           ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
       } else {
         log.error('🔊 Failed to restore multichannel:', result.error);
+        // Revertir a estéreo si falla (notify=false para evitar callback loop)
+        this.audioSettingsModal.setOutputMode('stereo', false);
       }
     }
   }
@@ -377,30 +379,50 @@ class App {
       // ─────────────────────────────────────────────────────────────────────────
       // El engine detecta automáticamente el número de canales del nuevo
       // dispositivo y notifica al modal para reconstruir la matriz.
-      // Si es multicanal nativo (Electron), activa el bridge de 8 canales.
+      // Solo se llama en modo estéreo (en multicanal el selector está deshabilitado).
       // ─────────────────────────────────────────────────────────────────────────
       onOutputDeviceChange: async (deviceId) => {
-        // Caso especial: multicanal nativo (solo Electron + Linux)
-        if (deviceId === 'multichannel-12ch') {
-          const result = await this._activateMultichannelOutput();
-          if (result.success) {
-            log.info(' Multichannel output activated (12ch)');
-            // Forzar 12 canales en el modal con nombres descriptivos
-            this.audioSettingsModal.updatePhysicalChannels(12, 
-              ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
-          } else {
-            log.error(' Failed to activate multichannel:', result.error);
-          }
-          return;
-        }
-        
-        // Desactivar multicanal si estaba activo
+        // Desactivar multicanal si estaba activo (por si acaso)
         await this._deactivateMultichannelOutput();
         
         const result = await this.engine.setOutputDevice(deviceId);
         if (result.success) {
           log.info(` Output device changed. Channels: ${result.channels}`);
           // La notificación de canales se hace a través del callback registrado abajo
+        }
+      },
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLBACK DE CAMBIO DE MODO DE SALIDA (estéreo/multicanal)
+      // ─────────────────────────────────────────────────────────────────────────
+      // Alterna entre salida estéreo (dispositivo seleccionado) y multicanal
+      // nativo (PipeWire 12 canales, solo Electron + Linux).
+      // ─────────────────────────────────────────────────────────────────────────
+      onOutputModeChange: async (mode) => {
+        if (mode === 'multichannel') {
+          const result = await this._activateMultichannelOutput();
+          if (result.success) {
+            log.info('🔊 Multichannel output activated (12ch)');
+            // Forzar 12 canales en el modal con nombres descriptivos
+            this.audioSettingsModal.updatePhysicalChannels(12, 
+              ['Pan 1-4 L', 'Pan 1-4 R', 'Pan 5-8 L', 'Pan 5-8 R', 'Out 1', 'Out 2', 'Out 3', 'Out 4', 'Out 5', 'Out 6', 'Out 7', 'Out 8']);
+          } else {
+            log.error('🔊 Failed to activate multichannel:', result.error);
+            // Revertir a estéreo (notify=false para evitar callback loop)
+            this.audioSettingsModal.setOutputMode('stereo', false);
+          }
+        } else {
+          // Modo estéreo: desactivar multicanal y restaurar dispositivo
+          await this._deactivateMultichannelOutput();
+          
+          // Restaurar el dispositivo seleccionado en el modal
+          const deviceId = this.audioSettingsModal.selectedOutputDevice;
+          if (deviceId) {
+            const result = await this.engine.setOutputDevice(deviceId);
+            if (result.success) {
+              log.info(`🔊 Stereo mode restored. Device: ${deviceId}, Channels: ${result.channels}`);
+            }
+          }
         }
       },
       
@@ -477,9 +499,10 @@ class App {
         this.engine.setStereoBusRouting(busId, leftCh, rightCh);
       });
       
-      // Aplicar dispositivo de salida guardado (excepto multicanal que ya se activó arriba)
+      // Aplicar dispositivo de salida guardado (solo en modo estéreo)
       const savedOutputDevice = this.audioSettingsModal.selectedOutputDevice;
-      if (savedOutputDevice && savedOutputDevice !== 'default' && savedOutputDevice !== 'multichannel-12ch') {
+      const isMultichannel = this.audioSettingsModal.outputMode === 'multichannel';
+      if (savedOutputDevice && savedOutputDevice !== 'default' && !isMultichannel) {
         this.engine.setOutputDevice(savedOutputDevice);
       }
     };

@@ -2465,6 +2465,59 @@ small { color:#aaa; }
   color: #999;
 }
 
+/* Toggle de modo de salida (Estéreo/Multicanal) */
+.audio-settings-mode {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.audio-settings-mode__title {
+  display: block;
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audio-settings-mode__radios {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.audio-settings-mode__option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #ddd;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.audio-settings-mode__option:hover {
+  color: #fff;
+}
+
+.audio-settings-mode__option.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.audio-settings-mode__option input[type="radio"] {
+  accent-color: #ffd54f;
+}
+
+.audio-settings-mode__desc {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.4;
+}
+
 /* Botón de permisos para mostrar nombres de dispositivos */
 .audio-settings-permission-btn {
   display: block;

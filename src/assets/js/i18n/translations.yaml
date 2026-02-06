@@ -1399,6 +1399,52 @@ audio.device.system:
   pt: "Sistema"
   cs: "Systém"
 
+# Modo de salida (estéreo vs multicanal)
+audio.mode.title:
+  en: Output Mode
+  es: Modo de salida
+  fr: "Mode de sortie"
+  de: "Ausgabemodus"
+  it: "Modalità di uscita"
+  pt: "Modo de saída"
+  cs: "Režim výstupu"
+
+audio.mode.stereo:
+  en: Stereo
+  es: Estéreo
+  fr: "Stéréo"
+  de: "Stereo"
+  it: "Stereo"
+  pt: "Estéreo"
+  cs: "Stereo"
+
+audio.mode.multichannel:
+  en: Multichannel (12ch)
+  es: Multicanal (12ch)
+  fr: "Multicanal (12 canaux)"
+  de: "Mehrkanalig (12K)"
+  it: "Multicanale (12ch)"
+  pt: "Multicanal (12ch)"
+  cs: "Vícekanálový (12ch)"
+
+audio.mode.multichannel.desc:
+  en: Outputs 12 independent channels via PipeWire. Route in qpwgraph.
+  es: 12 canales independientes vía PipeWire. Rutea en qpwgraph.
+  fr: "12 canaux indépendants via PipeWire. Routez dans qpwgraph."
+  de: "12 unabhängige Kanäle über PipeWire. Routing in qpwgraph."
+  it: "12 canali indipendenti tramite PipeWire. Instrada in qpwgraph."
+  pt: "12 canais independentes via PipeWire. Rotear no qpwgraph."
+  cs: "12 nezávislých kanálů přes PipeWire. Směrovat v qpwgraph."
+
+audio.mode.unavailable:
+  en: (Requires Electron + PipeWire)
+  es: (Requiere Electron + PipeWire)
+  fr: "(Nécessite Electron + PipeWire)"
+  de: "(Erfordert Electron + PipeWire)"
+  it: "(Richiede Electron + PipeWire)"
+  pt: "(Requer Electron + PipeWire)"
+  cs: "(Vyžaduje Electron + PipeWire)"
+
 # Sección salidas
 audio.outputs.title:
   en: Outputs → System

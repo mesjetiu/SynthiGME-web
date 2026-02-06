@@ -1,7 +1,7 @@
 /**
  * AudioWorklet para captura multicanal con SharedArrayBuffer
  * 
- * Este worklet captura 8 canales de audio y los escribe directamente
+ * Este worklet captura hasta 12 canales de audio y los escribe directamente
  * a un SharedArrayBuffer (ring buffer) sin pasar por el event loop de JS.
  * Esto elimina los problemas de audio cuando la UI está ocupada.
  * 
@@ -16,7 +16,7 @@ class MultichannelCaptureProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     
-    this.channels = options.processorOptions?.channels || 8;
+    this.channels = options.processorOptions?.channels || 12;
     this.sharedBuffer = null;
     this.controlBuffer = null; // Int32Array para índices atómicos
     this.audioBuffer = null;   // Float32Array para samples

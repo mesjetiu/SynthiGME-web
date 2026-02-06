@@ -11,7 +11,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Respuesta lineal de faders (opcional)**: Nueva opción en Ajustes > Visualización para que los faders de Output Channel controlen la ganancia de forma lineal (slider 50% → ganancia 50%). Por defecto activado para mejor experiencia en ordenador. El CV externo sigue funcionando con la curva logarítmica 10 dB/V auténtica del VCA CEM 3330.
 
 ### Cambiado
-- **Salida multicanal expandida a 12 canales**: La salida multicanal PipeWire ahora soporta 12 canales independientes con nombres descriptivos: Pan 1-4 L/R, Pan 5-8 L/R (buses estéreo) y Out 1-8 (salidas individuales). Ruteo diagonal por defecto en multicanal. La configuración de ruteo se guarda separada del estéreo.
+- **Modo de salida separado del dispositivo**: Nueva UI con radio buttons para seleccionar entre modo Estéreo (dispositivo del sistema) y Multicanal (PipeWire 12ch). En modo multicanal el selector de dispositivo se deshabilita. Configuración de ruteo independiente para cada modo.
+- **Salida multicanal expandida a 12 canales**: La salida multicanal PipeWire ahora soporta 12 canales independientes con nombres descriptivos: Pan 1-4 L/R, Pan 5-8 L/R (buses estéreo) y Out 1-8 (salidas individuales). Ruteo diagonal por defecto en multicanal.
 - **UI: Opción de resolución oculta**: Selector de escala 1x/1.5x/2x... removido de Ajustes > Visualización. La app siempre inicia en 1x. Código mantenido para uso futuro.
 - **Output Channel: Filter escala -5 a 5**: El knob Filter de los canales de salida ahora usa la escala estándar del Synthi 100 (-5 a +5) con centro en 0 (bypass), en lugar de 0-10 con centro en 5.
 

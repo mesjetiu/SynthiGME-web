@@ -109,8 +109,7 @@ podría ser significativo en dispositivos móviles.
 
 ## Objetivo v0.6.0
 
-- Distinguir entre ruteo estéreo y ruteo multicanal al guardar el patcheo en local storage.
-- Revisar canales de grabación, que tomen de output Channel del lugar correcto en todas las plataformas.
+
 
 
 ## Objetivo v0.7.0 (publicación tester)

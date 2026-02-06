@@ -533,8 +533,16 @@ export class AudioSettingsModal {
         this.outputRouting = null;
       }
       
+      // Cargar stereo bus routing del modo actual (physicalChannels ya actualizado)
+      const loadedStereoBus = this._loadStereoBusRouting();
+      if (loadedStereoBus) {
+        this.stereoBusRouting = loadedStereoBus;
+      }
+      // Si no hay datos, usamos el valor ya inicializado en el constructor
+      
       // Ajustar tamaño de arrays
       this._resizeRoutingArrays(channelCount);
+      this._resizeStereoBusRoutingArrays(channelCount);
       
       this._routingInitialized = true;
       this._updateChannelInfo();
@@ -544,6 +552,7 @@ export class AudioSettingsModal {
       }
       // Guardar para persistir el routing (defaults o cargado)
       this._saveRouting();
+      this._saveStereoBusRouting();
       return;
     }
     
@@ -570,7 +579,15 @@ export class AudioSettingsModal {
       }
       // Si no hay routing guardado, outputRouting sigue null y _resizeRoutingArrays creará defaults
       
-      // Cargar stereo bus routing del nuevo modo
+    }
+    
+    // IMPORTANTE: Actualizar physicalChannels ANTES de cargar routing
+    // para que _loadStereoBusRouting use el tamaño correcto
+    this.physicalChannels = channelCount;
+    this.channelLabels = labels || this._generateDefaultLabels(channelCount);
+    
+    // Cargar stereo bus routing del nuevo modo (si hubo cambio de modo)
+    if (modeChanged) {
       const loadedStereoBus = this._loadStereoBusRouting();
       if (loadedStereoBus) {
         this.stereoBusRouting = loadedStereoBus;
@@ -579,17 +596,18 @@ export class AudioSettingsModal {
       }
     }
     
-    this.physicalChannels = channelCount;
-    this.channelLabels = labels || this._generateDefaultLabels(channelCount);
-    
     // Ajustar tamaño de arrays
     this._resizeRoutingArrays(channelCount);
+    this._resizeStereoBusRoutingArrays(channelCount);
     
     this._updateChannelInfo();
     if (this.matrixContainer) {
       this._rebuildMatrix();
     }
     this._saveRouting();
+    if (modeChanged) {
+      this._saveStereoBusRouting();
+    }
   }
   
   /**
@@ -615,6 +633,37 @@ export class AudioSettingsModal {
           if (isMultichannel) {
             return chIdx === (busIdx + 4);
           }
+          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+        });
+      }
+    });
+  }
+
+  /**
+   * Ajusta el tamaño de los arrays de stereo bus routing al número de canales
+   * @private
+   */
+  _resizeStereoBusRoutingArrays(channelCount) {
+    const isMultichannel = channelCount >= 12;
+    
+    this.stereoBusRouting = Array.from({ length: this.stereoBusCount }, (_, busIdx) => {
+      const existingBus = this.stereoBusRouting?.[busIdx];
+      
+      if (existingBus && existingBus.length > 0) {
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (chIdx < existingBus.length) {
+            return existingBus[chIdx] === true;
+          }
+          return false;
+        });
+      } else {
+        // Default: diagonal para multicanal, L/R para estéreo
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (isMultichannel) {
+            // Pan1-4L→ch0, Pan1-4R→ch1, Pan5-8L→ch2, Pan5-8R→ch3
+            return chIdx === busIdx;
+          }
+          // Estéreo: L→ch0, R→ch1, otros buses sin routing por defecto
           return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
         });
       }

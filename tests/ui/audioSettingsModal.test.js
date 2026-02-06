@@ -763,6 +763,145 @@ describe('Redimensionamiento de arrays de routing', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE REDIMENSIONAMIENTO DE STEREO BUS ROUTING
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Redimensionamiento de stereo bus routing arrays', () => {
+  const STEREO_BUS_COUNT = 4;  // Pan1-4L, Pan1-4R, Pan5-8L, Pan5-8R
+  
+  /**
+   * Replica la lógica de _resizeStereoBusRoutingArrays
+   * Si hay datos existentes, los preserva. Si no, usa defaults.
+   */
+  const resizeStereoBusRoutingArrays = (existingRouting, channelCount) => {
+    const isMultichannel = channelCount >= 12;
+    
+    return Array.from({ length: STEREO_BUS_COUNT }, (_, busIdx) => {
+      const existingBus = existingRouting?.[busIdx];
+      
+      if (existingBus && existingBus.length > 0) {
+        // Preservar datos existentes, expandir/recortar
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (chIdx < existingBus.length) {
+            return existingBus[chIdx] === true;
+          }
+          return false;
+        });
+      } else {
+        // Default: diagonal para multicanal, L/R para estéreo
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (isMultichannel) {
+            // Pan1-4L→ch0, Pan1-4R→ch1, Pan5-8L→ch2, Pan5-8R→ch3
+            return chIdx === busIdx;
+          }
+          // Estéreo: L→ch0, R→ch1 (buses 0 y 1)
+          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+        });
+      }
+    });
+  };
+
+  it('expande de 2 a 12 canales preservando datos', () => {
+    const existing = [
+      [true, false],   // Pan1-4L → L
+      [false, true],   // Pan1-4R → R
+      [true, false],   // Pan5-8L → L
+      [false, true],   // Pan5-8R → R
+    ];
+    
+    const resized = resizeStereoBusRoutingArrays(existing, 12);
+    
+    // Verificar que los primeros 2 canales se preservan
+    assert.strictEqual(resized[0][0], true);
+    assert.strictEqual(resized[0][1], false);
+    assert.strictEqual(resized[1][0], false);
+    assert.strictEqual(resized[1][1], true);
+    assert.strictEqual(resized[2][0], true);  // Pan5-8L preservado
+    assert.strictEqual(resized[3][1], true);  // Pan5-8R preservado
+    
+    // Canales nuevos (2-11) deben ser false
+    for (let ch = 2; ch < 12; ch++) {
+      assert.strictEqual(resized[0][ch], false);
+      assert.strictEqual(resized[1][ch], false);
+      assert.strictEqual(resized[2][ch], false);
+      assert.strictEqual(resized[3][ch], false);
+    }
+  });
+
+  it('recorta de 12 a 2 canales preservando datos', () => {
+    const existing = [
+      [true, false, false, false, false, false, false, false, false, false, false, false],  // Pan1-4L → ch0
+      [false, true, false, false, false, false, false, false, false, false, false, false],  // Pan1-4R → ch1
+      [false, false, true, false, false, false, false, false, false, false, false, false],  // Pan5-8L → ch2
+      [false, false, false, true, false, false, false, false, false, false, false, false],  // Pan5-8R → ch3
+    ];
+    
+    const resized = resizeStereoBusRoutingArrays(existing, 2);
+    
+    // Solo quedan 2 canales
+    assert.strictEqual(resized[0].length, 2);
+    assert.strictEqual(resized[2].length, 2);
+    
+    // Los datos del ch2 y ch3 se pierden al recortar
+    assert.strictEqual(resized[0][0], true);
+    assert.strictEqual(resized[1][1], true);
+    assert.strictEqual(resized[2][0], false);  // ch2 se perdió
+    assert.strictEqual(resized[3][0], false);  // ch3 se perdió
+  });
+
+  it('sin datos existentes usa defaults para multicanal (diagonal)', () => {
+    const resized = resizeStereoBusRoutingArrays(null, 12);
+    
+    // Verificar diagonal: bus N → canal N
+    assert.strictEqual(resized[0][0], true);   // Pan1-4L → ch0
+    assert.strictEqual(resized[1][1], true);   // Pan1-4R → ch1
+    assert.strictEqual(resized[2][2], true);   // Pan5-8L → ch2
+    assert.strictEqual(resized[3][3], true);   // Pan5-8R → ch3
+    
+    // El resto debe estar OFF
+    assert.strictEqual(resized[0][1], false);
+    assert.strictEqual(resized[1][0], false);
+    assert.strictEqual(resized[2][0], false);
+    assert.strictEqual(resized[3][0], false);
+  });
+
+  it('sin datos existentes usa defaults para estéreo (L/R)', () => {
+    const resized = resizeStereoBusRoutingArrays(null, 2);
+    
+    // Solo buses 0 y 1 tienen defaults (L/R)
+    assert.strictEqual(resized[0][0], true);   // Pan1-4L → L
+    assert.strictEqual(resized[0][1], false);
+    assert.strictEqual(resized[1][0], false);
+    assert.strictEqual(resized[1][1], true);   // Pan1-4R → R
+    
+    // Buses 2 y 3 no tienen defaults en estéreo
+    assert.strictEqual(resized[2][0], false);
+    assert.strictEqual(resized[2][1], false);
+    assert.strictEqual(resized[3][0], false);
+    assert.strictEqual(resized[3][1], false);
+  });
+
+  it('preserva las 4 filas al cambiar de modo', () => {
+    // Simula routing guardado en modo multicanal
+    const multichannelRouting = [
+      [true, false, true, false, false, false, false, false, false, false, false, false],  // Custom
+      [false, true, false, true, false, false, false, false, false, false, false, false],  // Custom
+      [false, false, false, false, true, false, false, false, false, false, false, false], // Custom
+      [false, false, false, false, false, true, false, false, false, false, false, false], // Custom
+    ];
+    
+    // Expandir/resize (mismo tamaño = preservar todo)
+    const resized = resizeStereoBusRoutingArrays(multichannelRouting, 12);
+    
+    // Las 4 filas deben preservarse exactamente
+    assert.deepStrictEqual(resized[0], multichannelRouting[0]);
+    assert.deepStrictEqual(resized[1], multichannelRouting[1]);
+    assert.deepStrictEqual(resized[2], multichannelRouting[2]);
+    assert.deepStrictEqual(resized[3], multichannelRouting[3]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // TESTS DE ROUTING DE ENTRADA
 // ═══════════════════════════════════════════════════════════════════════════
 

@@ -469,6 +469,14 @@ class App {
     });
     
     // ─────────────────────────────────────────────────────────────────────────
+    // INICIALIZAR ROUTING CON CANALES CORRECTOS
+    // ─────────────────────────────────────────────────────────────────────────
+    // El modal se crea con outputRouting=null para evitar guardar en clave incorrecta.
+    // Llamamos updatePhysicalChannels para cargar el routing del modo actual.
+    // ─────────────────────────────────────────────────────────────────────────
+    this.audioSettingsModal.updatePhysicalChannels(channelInfo.count, channelInfo.labels);
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // REGISTRAR CALLBACK PARA CAMBIOS DE CANALES
     // ─────────────────────────────────────────────────────────────────────────
     // Cuando el engine detecta un cambio en el número de canales (ej: el usuario

@@ -169,6 +169,7 @@ export default {
   "audio.outputs.channels": "Canaux détectés :",
   "audio.outputs.description": "Routez les sorties logiques du Synthi vers les sorties physiques du système.",
   "audio.outputs.more": "+{count} autres lignes (scroll pour voir)",
+  "audio.outputs.reset": "Réinitialiser",
   "audio.inputs.title": "Système → Amplificateurs d'entrée",
   "audio.inputs.channels": "Canaux d'entrée :",
   "audio.inputs.description": "Routez les entrées physiques du système vers les amplificateurs d'entrée du Synthi.",

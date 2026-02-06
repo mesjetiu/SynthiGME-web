@@ -1482,6 +1482,15 @@ audio.outputs.more:
   pt: "+{count} mais linhas (rolar para ver)"
   cs: "+{count} více řádků (procházejte a zobrazte)"
 
+audio.outputs.reset:
+  en: "Reset to Defaults"
+  es: "Restablecer valores"
+  fr: "Réinitialiser"
+  de: "Zurücksetzen"
+  it: "Ripristina predefiniti"
+  pt: "Restaurar padrões"
+  cs: "Obnovit výchozí"
+
 # Sección entradas
 audio.inputs.title:
   en: System → Input Amplifiers

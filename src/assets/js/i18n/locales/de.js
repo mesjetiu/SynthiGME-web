@@ -169,6 +169,7 @@ export default {
   "audio.outputs.channels": "Erkannte Kanäle:",
   "audio.outputs.description": "Leiten Sie die logischen Ausgänge des Synthi zu den physischen Ausgängen des Systems.",
   "audio.outputs.more": "+{count} weitere Reihen (zum Sehen scrollen)",
+  "audio.outputs.reset": "Zurücksetzen",
   "audio.inputs.title": "System → Eingangsverstärker",
   "audio.inputs.channels": "Eingangskanäle:",
   "audio.inputs.description": "Leiten Sie die physischen Eingänge des Systems zu den Eingangsverstärkern des Synthi weiter.",

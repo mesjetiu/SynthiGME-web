@@ -2691,6 +2691,29 @@ small { color:#aaa; }
   padding: 8px 0 4px;
 }
 
+/* Botón de reset de routing */
+.audio-settings-reset {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.audio-settings-reset__btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  color: #aaa;
+  background: rgba(80, 80, 80, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.audio-settings-reset__btn:hover {
+  background: rgba(100, 100, 100, 0.4);
+  color: #ddd;
+}
+
 /* Selector de dispositivo de audio */
 .audio-settings-device-selector {
   display: flex;

@@ -169,6 +169,7 @@ export default {
   "audio.outputs.channels": "Detected channels:",
   "audio.outputs.description": "Route Synthi logical outputs to system physical outputs.",
   "audio.outputs.more": "+{count} more rows (scroll to see)",
+  "audio.outputs.reset": "Reset to Defaults",
   "audio.inputs.title": "System → Input Amplifiers",
   "audio.inputs.channels": "Input channels:",
   "audio.inputs.description": "Route system physical inputs to Synthi Input Amplifiers.",

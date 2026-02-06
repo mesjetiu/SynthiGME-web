@@ -67,12 +67,9 @@ export class AudioSettingsModal {
     this.totalOutputSources = this.stereoBusCount + this.outputCount; // 12
     
     // Stereo bus routing: Pan 1-4 (A) y Pan 5-8 (B) a canales físicos
-    // Por defecto ambos van a L/R (canales 0,1)
+    // Por defecto depende del modo (estéreo vs multicanal)
     const loadedStereoBusRouting = this._loadStereoBusRouting();
-    this.stereoBusRouting = loadedStereoBusRouting || {
-      A: [0, 1],  // Pan 1-4 → L, R
-      B: [0, 1]   // Pan 5-8 → L, R
-    };
+    this.stereoBusRouting = loadedStereoBusRouting || this._getDefaultStereoBusRouting();
     
     // Modo de salida: 'stereo' (normal) o 'multichannel' (12 canales PipeWire)
     this.outputMode = localStorage.getItem(STORAGE_KEYS.OUTPUT_MODE) || 'stereo';
@@ -100,14 +97,10 @@ export class AudioSettingsModal {
     
     // Estado de ruteo de SALIDA: cada salida lógica tiene un array de booleanos por canal físico
     // outputRouting[busIndex][channelIndex] = boolean
-    const loadedRouting = this._loadRouting();
-    this.outputRouting = loadedRouting || this._getDefaultRouting();
-    
-    if (loadedRouting) {
-      log.info(' Output routing loaded from localStorage:', this.outputRouting);
-    } else {
-      log.info(' Using default output routing (no saved data)');
-    }
+    // IMPORTANTE: NO cargar el ruteo aquí - se carga en updatePhysicalChannels cuando
+    // sabemos el número real de canales. Esto evita el bug de guardar/cargar en claves incorrectas.
+    this.outputRouting = null;
+    this._routingInitialized = false;
     
     // Estado de ruteo de ENTRADA: cada entrada del sistema tiene un array de booleanos por Input Amplifier
     // inputRouting[systemInputIndex][synthChannelIndex] = boolean
@@ -148,34 +141,37 @@ export class AudioSettingsModal {
   }
 
   /**
-   * Devuelve el ruteo por defecto.
-   * - Estéreo (2ch): out1 → L, out2 → R
-   * - Multicanal (12ch): ruteo diagonal 1:1 (cada salida a su canal correspondiente)
+   * Devuelve el ruteo por defecto para Out 1-8.
+   * - Estéreo: Todo OFF (el audio principal va por stereo buses Pan 1-4 / Pan 5-8)
+   * - Multicanal: Diagonal para Out 1-8 → canales 5-12
+   *   (Los canales 1-4 son para stereo buses Pan 1-4 L/R y Pan 5-8 L/R)
    */
   _getDefaultRouting() {
-    const isMultichannel = this.physicalChannels >= 12;
+    const isMultichannel = this.outputMode === 'multichannel';
     
     return Array.from({ length: this.outputCount }, (_, busIdx) => 
       Array.from({ length: this.physicalChannels }, (_, chIdx) => {
         if (isMultichannel) {
-          // Multicanal: cada bus va a su canal correspondiente (diagonal)
-          // Bus 0 → canal 4 (Out 1), Bus 1 → canal 5 (Out 2), etc.
-          // Los primeros 4 canales son Pan 1-4 L/R y Pan 5-8 L/R
+          // Multicanal: cada bus Out 1-8 va a su canal correspondiente (diagonal)
+          // Bus 0 (Out 1) → canal 4 (índice 4), Bus 1 (Out 2) → canal 5 (índice 5), etc.
           return chIdx === (busIdx + 4);
         } else {
-          // Estéreo: bus 0 → canal 0 (L), bus 1 → canal 1 (R)
-          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+          // Estéreo: todo OFF (el audio va por stereo buses)
+          return false;
         }
       })
     );
   }
 
   /**
-   * Obtiene la clave de storage según el modo actual (estéreo vs multicanal).
+   * Obtiene la clave de storage según el modo de salida (estéreo vs multicanal).
+   * Usa outputMode en lugar de physicalChannels para consistencia:
+   * - Durante la inicialización, physicalChannels puede ser 2 aunque outputMode sea 'multichannel'
+   * - Esto garantiza que cargamos/guardamos en la clave correcta
    * @returns {string}
    */
   _getRoutingStorageKey() {
-    return this.physicalChannels >= 12 
+    return this.outputMode === 'multichannel' 
       ? STORAGE_KEYS.AUDIO_ROUTING_MULTICHANNEL 
       : STORAGE_KEYS.AUDIO_ROUTING;
   }
@@ -183,7 +179,8 @@ export class AudioSettingsModal {
   /**
    * Carga el ruteo desde localStorage.
    * Usa claves diferentes para estéreo y multicanal.
-   * Soporta tanto el formato legacy {left, right} como el nuevo formato multicanal [bool, bool, ...]
+   * NO redimensiona el array - lo devuelve tal como está guardado.
+   * El redimensionamiento ocurre en updatePhysicalChannels() cuando se conocen los canales reales.
    * 
    * @returns {boolean[][]|null} - Matriz de ruteo o null si no hay datos guardados
    */
@@ -191,38 +188,29 @@ export class AudioSettingsModal {
     try {
       const storageKey = this._getRoutingStorageKey();
       const saved = localStorage.getItem(storageKey);
-      if (!saved) return null;
+      if (!saved) {
+        return null;
+      }
       
       const parsed = JSON.parse(saved);
       if (!Array.isArray(parsed)) return null;
       
-      // Detectar formato y convertir
+      // Cargar tal cual está guardado, sin redimensionar
+      // El redimensionamiento ocurre después en updatePhysicalChannels()
       return Array.from({ length: this.outputCount }, (_, busIdx) => {
         const savedBus = parsed[busIdx];
         
         if (Array.isArray(savedBus)) {
-          // Formato multicanal: array de booleanos
-          // Expandir/recortar al número actual de canales físicos
-          return Array.from({ length: this.physicalChannels }, (_, chIdx) => {
-            return savedBus[chIdx] === true;
-          });
+          // Devolver el array tal cual (puede tener diferente tamaño que physicalChannels)
+          return [...savedBus];
         } else if (savedBus && typeof savedBus.left === 'boolean') {
-          // Formato legacy: {left, right} → convertir a array
-          return Array.from({ length: this.physicalChannels }, (_, chIdx) => {
-            if (chIdx === 0) return savedBus.left;
-            if (chIdx === 1) return savedBus.right;
-            return false; // Canales adicionales apagados
-          });
+          // Formato legacy: {left, right} → convertir a array de 2 elementos
+          return [savedBus.left, savedBus.right];
         }
         
-        // Sin datos guardados para este bus, usar default diagonal o estéreo
-        const isMultichannel = this.physicalChannels >= 12;
-        return Array.from({ length: this.physicalChannels }, (_, chIdx) => {
-          if (isMultichannel) {
-            return chIdx === (busIdx + 4);
-          }
-          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
-        });
+        // Sin datos guardados para este bus, devolver array vacío
+        // Se rellenará con defaults cuando se llame a updatePhysicalChannels
+        return [];
       });
     } catch (e) {
       log.warn(' Error loading routing from localStorage:', e);
@@ -237,10 +225,10 @@ export class AudioSettingsModal {
   _saveRouting() {
     try {
       const storageKey = this._getRoutingStorageKey();
-      localStorage.setItem(storageKey, JSON.stringify(this.outputRouting));
-      log.info(` Routing saved to localStorage (key: ${storageKey})`);
+      const dataToSave = JSON.stringify(this.outputRouting);
+      localStorage.setItem(storageKey, dataToSave);
     } catch (e) {
-      log.warn(' Error saving routing to localStorage:', e);
+      log.warn('[AudioSettingsModal] Error saving routing to localStorage:', e);
     }
   }
 
@@ -254,12 +242,43 @@ export class AudioSettingsModal {
   // ═════════════════════════════════════════════════════════════════════════════
 
   /**
+   * Obtiene la clave de storage para stereo bus routing según el modo.
+   * @returns {string}
+   */
+  _getStereoBusRoutingStorageKey() {
+    return this.outputMode === 'multichannel'
+      ? STORAGE_KEYS.STEREO_BUS_ROUTING_MULTICHANNEL
+      : STORAGE_KEYS.STEREO_BUS_ROUTING;
+  }
+
+  /**
+   * Devuelve el routing por defecto de stereo buses según el modo.
+   * - Estéreo: Ambos buses van a L/R (canales 0,1)
+   * - Multicanal: Diagonal - Pan 1-4 a canales 1,2 y Pan 5-8 a canales 3,4
+   * @returns {Object}
+   */
+  _getDefaultStereoBusRouting() {
+    if (this.outputMode === 'multichannel') {
+      return {
+        A: [0, 1],  // Pan 1-4 → canales 1, 2 (índices 0, 1)
+        B: [2, 3]   // Pan 5-8 → canales 3, 4 (índices 2, 3)
+      };
+    } else {
+      return {
+        A: [0, 1],  // Pan 1-4 → L, R
+        B: [0, 1]   // Pan 5-8 → L, R
+      };
+    }
+  }
+
+  /**
    * Carga el routing de stereo buses desde localStorage.
    * @returns {Object|null}
    */
   _loadStereoBusRouting() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.STEREO_BUS_ROUTING);
+      const storageKey = this._getStereoBusRoutingStorageKey();
+      const saved = localStorage.getItem(storageKey);
       if (!saved) return null;
       const parsed = JSON.parse(saved);
       if (parsed && Array.isArray(parsed.A) && Array.isArray(parsed.B)) {
@@ -277,10 +296,10 @@ export class AudioSettingsModal {
    */
   _saveStereoBusRouting() {
     try {
-      localStorage.setItem(STORAGE_KEYS.STEREO_BUS_ROUTING, JSON.stringify(this.stereoBusRouting));
-      log.info(' Stereo bus routing saved');
+      const storageKey = this._getStereoBusRoutingStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(this.stereoBusRouting));
     } catch (e) {
-      log.warn(' Error saving stereo bus routing:', e);
+      log.warn('[AudioSettingsModal] Error saving stereo bus routing:', e);
     }
   }
 
@@ -479,55 +498,110 @@ export class AudioSettingsModal {
    */
   updatePhysicalChannels(channelCount, labels) {
     const oldCount = this.physicalChannels;
-    const wasMultichannel = oldCount >= 12;
     const isMultichannel = channelCount >= 12;
+    const newModeStr = isMultichannel ? 'multichannel' : 'stereo';
     
-    log.info(` Physical channels changed: ${oldCount} → ${channelCount}`);
-    log.info(` Mode change: ${wasMultichannel ? 'multichannel' : 'stereo'} → ${isMultichannel ? 'multichannel' : 'stereo'}`);
-    
-    // Si cambiamos de modo (estéreo ↔ multicanal), primero guardar el ruteo actual
-    // en su clave correspondiente ANTES de cambiar physicalChannels
-    if (wasMultichannel !== isMultichannel) {
-      const oldKey = this._getRoutingStorageKey();
-      log.info(` Saving current routing to OLD key: ${oldKey}`);
-      log.info(` Current outputRouting[1]:`, JSON.stringify(this.outputRouting[1]));
+    // PRIMERA VEZ: Solo cargar el ruteo del modo correcto, no guardar nada
+    if (!this._routingInitialized) {
+      this.physicalChannels = channelCount;
+      this.channelLabels = labels || this._generateDefaultLabels(channelCount);
+      this.outputMode = newModeStr;
+      localStorage.setItem(STORAGE_KEYS.OUTPUT_MODE, newModeStr);
+      
+      // Cargar el ruteo guardado para este modo
+      const loadedRouting = this._loadRouting();
+      if (loadedRouting) {
+        this.outputRouting = loadedRouting;
+      } else {
+        this.outputRouting = null;
+      }
+      
+      // Ajustar tamaño de arrays
+      this._resizeRoutingArrays(channelCount);
+      
+      this._routingInitialized = true;
+      this._updateChannelInfo();
+      // Reconstruir matriz si existe el contenedor
+      if (this.matrixContainer) {
+        this._rebuildMatrix();
+      }
+      // Guardar para persistir el routing (defaults o cargado)
       this._saveRouting();
+      return;
+    }
+    
+    // CAMBIO DE MODO: Guardar el ruteo actual, cargar el del nuevo modo
+    const wasMultichannel = oldCount >= 12;
+    const modeChanged = wasMultichannel !== isMultichannel;
+    const oldModeStr = wasMultichannel ? 'multichannel' : 'stereo';
+    
+    if (modeChanged) {
+      // Guardar ruteo actual en la clave del modo ANTERIOR
+      this.outputMode = oldModeStr;
+      this._saveRouting();
+      this._saveStereoBusRouting();
+      
+      // Limpiar el routing actual para NO mezclar datos entre modos
+      this.outputRouting = null;
+      
+      // Cargar ruteo del modo NUEVO
+      this.outputMode = newModeStr;
+      localStorage.setItem(STORAGE_KEYS.OUTPUT_MODE, newModeStr);
+      const loadedRouting = this._loadRouting();
+      if (loadedRouting) {
+        this.outputRouting = loadedRouting;
+      }
+      // Si no hay routing guardado, outputRouting sigue null y _resizeRoutingArrays creará defaults
+      
+      // Cargar stereo bus routing del nuevo modo
+      const loadedStereoBus = this._loadStereoBusRouting();
+      if (loadedStereoBus) {
+        this.stereoBusRouting = loadedStereoBus;
+      } else {
+        this.stereoBusRouting = this._getDefaultStereoBusRouting();
+      }
     }
     
     this.physicalChannels = channelCount;
     this.channelLabels = labels || this._generateDefaultLabels(channelCount);
     
-    // Si cambiamos de modo (estéreo ↔ multicanal), recargar el ruteo guardado
-    // para ese modo o usar el default (son configuraciones independientes)
-    if (wasMultichannel !== isMultichannel) {
-      const newKey = this._getRoutingStorageKey();
-      log.info(` Loading routing from NEW key: ${newKey}`);
-      const loadedRouting = this._loadRouting();
-      log.info(` Loaded routing for bus 1:`, loadedRouting ? JSON.stringify(loadedRouting[1]) : 'null (using default)');
-      this.outputRouting = loadedRouting || this._getDefaultRouting();
-      log.info(` Final outputRouting[1]:`, JSON.stringify(this.outputRouting[1]));
-    } else {
-      // Mismo modo: expandir/recortar la matriz de ruteo
-      this.outputRouting = this.outputRouting.map((busRouting, busIdx) => {
-        return Array.from({ length: channelCount }, (_, chIdx) => {
-          if (chIdx < busRouting.length) {
-            return busRouting[chIdx];
-          }
-          return false;
-        });
-      });
-    }
+    // Ajustar tamaño de arrays
+    this._resizeRoutingArrays(channelCount);
     
-    // Actualizar info de canales en la UI
     this._updateChannelInfo();
-    
-    // Reconstruir la matriz visual
     if (this.matrixContainer) {
       this._rebuildMatrix();
     }
-    
-    // Guardar el nuevo estado
     this._saveRouting();
+  }
+  
+  /**
+   * Ajusta el tamaño de los arrays de routing al número de canales
+   * @private
+   */
+  _resizeRoutingArrays(channelCount) {
+    const isMultichannel = channelCount >= 12;
+    
+    this.outputRouting = Array.from({ length: this.outputCount }, (_, busIdx) => {
+      const existingBus = this.outputRouting?.[busIdx];
+      
+      if (existingBus && existingBus.length > 0) {
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (chIdx < existingBus.length) {
+            return existingBus[chIdx] === true;
+          }
+          return false;
+        });
+      } else {
+        // Default: diagonal para multicanal, L/R para estéreo
+        return Array.from({ length: channelCount }, (_, chIdx) => {
+          if (isMultichannel) {
+            return chIdx === (busIdx + 4);
+          }
+          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+        });
+      }
+    });
   }
 
   /**
@@ -578,6 +652,7 @@ export class AudioSettingsModal {
     if (els.outputDeviceLabel) els.outputDeviceLabel.textContent = t('audio.device.output');
     if (els.outputChannelLabel) els.outputChannelLabel.textContent = t('audio.outputs.channels') + ' ';
     if (els.outputDesc) els.outputDesc.textContent = t('audio.outputs.description');
+    if (els.resetBtn) els.resetBtn.textContent = t('audio.outputs.reset');
     if (els.inputTitle) els.inputTitle.textContent = t('audio.inputs.title');
     if (els.inputDeviceLabel) els.inputDeviceLabel.textContent = t('audio.device.input');
     if (els.inputChannelLabel) els.inputChannelLabel.textContent = t('audio.inputs.channels') + ' ';
@@ -1234,6 +1309,18 @@ export class AudioSettingsModal {
     this._buildMatrix();
     section.appendChild(this.matrixContainer);
     
+    // Botón para restablecer valores por defecto
+    const resetContainer = document.createElement('div');
+    resetContainer.className = 'audio-settings-reset';
+    
+    this._textElements.resetBtn = document.createElement('button');
+    this._textElements.resetBtn.type = 'button';
+    this._textElements.resetBtn.className = 'audio-settings-reset__btn';
+    this._textElements.resetBtn.textContent = t('audio.outputs.reset');
+    this._textElements.resetBtn.addEventListener('click', () => this.resetRoutingToDefaults());
+    resetContainer.appendChild(this._textElements.resetBtn);
+    section.appendChild(resetContainer);
+    
     return section;
   }
 
@@ -1545,6 +1632,13 @@ export class AudioSettingsModal {
    * Se puede llamar para reconstruir cuando cambia el número de canales.
    */
   _buildMatrix() {
+    // Si aún no hay routing inicializado, no construir la matriz
+    // Se construirá cuando updatePhysicalChannels() la llame
+    if (!this.outputRouting) {
+      log.info(' _buildMatrix: skipping, outputRouting not initialized yet');
+      return;
+    }
+    
     // Matriz de ruteo
     const matrix = document.createElement('div');
     matrix.className = 'routing-matrix';
@@ -2256,6 +2350,34 @@ export class AudioSettingsModal {
   }
 
   /**
+   * Restablece el ruteo a valores por defecto para el modo actual.
+   * - Stereo buses: según _getDefaultStereoBusRouting()
+   * - Output routing: según _getDefaultRouting()
+   */
+  resetRoutingToDefaults() {
+    // Restablecer stereo bus routing
+    this.stereoBusRouting = this._getDefaultStereoBusRouting();
+    this._saveStereoBusRouting();
+    
+    // Restablecer output routing
+    this.outputRouting = this._getDefaultRouting();
+    this._saveRouting();
+    
+    // Reconstruir UI
+    if (this.matrixContainer) {
+      this._rebuildMatrix();
+    }
+    
+    // Notificar cambios al engine
+    if (this.onStereoBusRoutingChange) {
+      this.onStereoBusRoutingChange('A', this.stereoBusRouting.A[0], this.stereoBusRouting.A[1]);
+      this.onStereoBusRoutingChange('B', this.stereoBusRouting.B[0], this.stereoBusRouting.B[1]);
+    }
+    
+    log.info(' Routing reset to defaults for mode:', this.outputMode);
+  }
+
+  /**
    * Aplica el ruteo actual al engine.
    * 
    * MODO MULTICANAL (nuevo):
@@ -2269,6 +2391,12 @@ export class AudioSettingsModal {
    */
   applyRoutingToEngine(applyFn) {
     if (typeof applyFn !== 'function') return { warnings: [] };
+    
+    // Si aún no hay routing inicializado, no aplicar nada
+    if (!this.outputRouting) {
+      log.info(' applyRoutingToEngine: skipping, outputRouting not initialized yet');
+      return { warnings: [] };
+    }
     
     const warnings = [];
     

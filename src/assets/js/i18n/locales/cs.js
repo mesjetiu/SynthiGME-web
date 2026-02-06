@@ -169,6 +169,7 @@ export default {
   "audio.outputs.channels": "Zjištěné kanály:",
   "audio.outputs.description": "Směrovat logické výstupy Synthi na fyzické výstupy systému.",
   "audio.outputs.more": "+{count} více řádků (procházejte a zobrazte)",
+  "audio.outputs.reset": "Obnovit výchozí",
   "audio.inputs.title": "Systém → Vstupní zesilovače",
   "audio.inputs.channels": "Vstupní kanály:",
   "audio.inputs.description": "Směrovat fyzické vstupy systému na Vstupní zesilovače Synthi.",

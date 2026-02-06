@@ -169,6 +169,7 @@ export default {
   "audio.outputs.channels": "Canali rilevati:",
   "audio.outputs.description": "Instrada le uscite logiche di Synthi alle uscite fisiche del sistema.",
   "audio.outputs.more": "+{count} altre righe (scorri per vedere)",
+  "audio.outputs.reset": "Ripristina predefiniti",
   "audio.inputs.title": "Sistema → Amplificatori di ingresso",
   "audio.inputs.channels": "Canali di ingresso:",
   "audio.inputs.description": "Instrada gli ingressi fisici del sistema agli amplificatori di ingresso di Synthi.",

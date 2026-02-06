@@ -462,12 +462,16 @@ export function openPip(panelId) {
   // Centrar el scroll en el panel (después de que se haya calculado el tamaño del viewport-inner con padding)
   const pipViewport = pipContainer.querySelector('.pip-viewport');
   if (pipViewport) {
-    // El padding es igual al tamaño del viewport, así que el centro está en ese punto
     const vw = pipViewport.clientWidth;
     const vh = pipViewport.clientHeight;
-    // Centrar el panel: el padding es vw, queremos que el panel esté centrado visualmente
-    pipViewport.scrollLeft = vw / 2;
-    pipViewport.scrollTop = vh / 2;
+    const panelW = (panelEl?.offsetWidth || 760) * state.scale;
+    const panelH = (panelEl?.offsetHeight || 760) * state.scale;
+    const minVisible = 50;
+    const padX = Math.max(0, vw - minVisible);
+    const padY = Math.max(0, vh - minVisible);
+    // Scroll para que el centro del panel escalado quede en el centro del viewport
+    pipViewport.scrollLeft = padX + panelW / 2 - vw / 2;
+    pipViewport.scrollTop = padY + panelH / 2 - vh / 2;
   }
   
   // Event listeners del PiP
@@ -781,8 +785,11 @@ function setupPipEvents(pipContainer, panelId) {
       const minScrollY = Math.max(0, paddingY + minVisible - viewportH);
       const maxScrollY = paddingY + scaledH - minVisible;
       
-      const newScrollX = pipViewport.scrollLeft + (e.deltaX || 0);
-      const newScrollY = pipViewport.scrollTop + (e.deltaY || 0);
+      // Escalar el delta cuadráticamente con el zoom: a menor zoom, paneo mucho más suave
+      // scale² da: 0.4→0.16, 0.7→0.49, 1.0→1.0 (natural a zoom real)
+      const panFactor = state.scale * state.scale;
+      const newScrollX = pipViewport.scrollLeft + (e.deltaX || 0) * panFactor;
+      const newScrollY = pipViewport.scrollTop + (e.deltaY || 0) * panFactor;
       
       pipViewport.scrollLeft = Math.max(minScrollX, Math.min(maxScrollX, newScrollX));
       pipViewport.scrollTop = Math.max(minScrollY, Math.min(maxScrollY, newScrollY));

@@ -459,12 +459,11 @@ class App {
       // ─────────────────────────────────────────────────────────────────────────
       // CALLBACK DE RUTEO DE STEREO BUSES (Pan 1-4 L/R, Pan 5-8 L/R)
       // ─────────────────────────────────────────────────────────────────────────
-      // Recibe: busId ('A' o 'B'), leftChannel, rightChannel
-      // Permite rutear los stereo buses a diferentes canales físicos.
-      // Valor -1 significa desconectado.
+      // Recibe: rowIdx (0=Pan1-4L, 1=Pan1-4R, 2=Pan5-8L, 3=Pan5-8R), channelGains[]
+      // Permite rutear cada salida de stereo bus a múltiples canales físicos.
       // ─────────────────────────────────────────────────────────────────────────
-      onStereoBusRoutingChange: (busId, leftChannel, rightChannel) => {
-        this.engine.setStereoBusRouting(busId, leftChannel, rightChannel);
+      onStereoBusRoutingChange: (rowIdx, channelGains) => {
+        this.engine.setStereoBusRouting(rowIdx, channelGains);
       }
     });
     
@@ -522,8 +521,8 @@ class App {
       
       // Aplicar routing de stereo buses
       log.info(' Applying stereo bus routing to engine...');
-      this.audioSettingsModal.applyStereoBusRoutingToEngine((busId, leftCh, rightCh) => {
-        this.engine.setStereoBusRouting(busId, leftCh, rightCh);
+      this.audioSettingsModal.applyStereoBusRoutingToEngine((rowIdx, channelGains) => {
+        this.engine.setStereoBusRouting(rowIdx, channelGains);
       });
       
       // Aplicar dispositivo de salida guardado (solo en modo estéreo)

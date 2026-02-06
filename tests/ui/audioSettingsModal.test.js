@@ -404,64 +404,92 @@ describe('Routing de salida - Lógica aislada', () => {
 // TESTS DE STEREO BUS ROUTING
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Stereo Bus Routing - Lógica aislada', () => {
+describe('Stereo Bus Routing - Lógica aislada (nuevo modelo matriz)', () => {
   /**
    * Replica la lógica de _getDefaultStereoBusRouting del modal.
+   * Ahora devuelve boolean[][] (4 filas × N canales)
    * @param {string} outputMode - 'stereo' o 'multichannel'
+   * @param {number} channelCount - Número de canales físicos
    */
-  const getDefaultStereoBusRouting = (outputMode) => {
+  const getDefaultStereoBusRouting = (outputMode, channelCount = 12) => {
     if (outputMode === 'multichannel') {
-      return {
-        A: [0, 1],  // Pan 1-4 → canales 1, 2 (índices 0, 1)
-        B: [2, 3]   // Pan 5-8 → canales 3, 4 (índices 2, 3)
-      };
+      return [
+        Array.from({ length: channelCount }, (_, i) => i === 0),  // Pan1-4L → ch0
+        Array.from({ length: channelCount }, (_, i) => i === 1),  // Pan1-4R → ch1
+        Array.from({ length: channelCount }, (_, i) => i === 2),  // Pan5-8L → ch2
+        Array.from({ length: channelCount }, (_, i) => i === 3),  // Pan5-8R → ch3
+      ];
     } else {
-      return {
-        A: [0, 1],  // Pan 1-4 → L, R
-        B: [0, 1]   // Pan 5-8 → L, R
-      };
+      return [
+        Array.from({ length: channelCount }, (_, i) => i === 0),  // Pan1-4L → L
+        Array.from({ length: channelCount }, (_, i) => i === 1),  // Pan1-4R → R
+        Array.from({ length: channelCount }, (_, i) => i === 0),  // Pan5-8L → L
+        Array.from({ length: channelCount }, (_, i) => i === 1),  // Pan5-8R → R
+      ];
     }
   };
 
-  describe('Defaults en modo estéreo', () => {
-    it('ambos buses van a L/R (canales 0,1)', () => {
-      const routing = getDefaultStereoBusRouting('stereo');
-      
-      assert.deepStrictEqual(routing.A, [0, 1]);
-      assert.deepStrictEqual(routing.B, [0, 1]);
+  describe('Estructura', () => {
+    it('devuelve 4 filas', () => {
+      const routing = getDefaultStereoBusRouting('stereo', 2);
+      assert.strictEqual(routing.length, 4);
     });
 
-    it('Pan 1-4 y Pan 5-8 comparten los mismos canales', () => {
-      const routing = getDefaultStereoBusRouting('stereo');
+    it('cada fila tiene N elementos (channelCount)', () => {
+      const routing = getDefaultStereoBusRouting('stereo', 12);
+      for (const row of routing) {
+        assert.strictEqual(row.length, 12);
+      }
+    });
+  });
+
+  describe('Defaults en modo estéreo', () => {
+    it('Pan1-4 L/R van a ch0/ch1', () => {
+      const routing = getDefaultStereoBusRouting('stereo', 2);
       
-      assert.strictEqual(routing.A[0], routing.B[0]);
-      assert.strictEqual(routing.A[1], routing.B[1]);
+      assert.strictEqual(routing[0][0], true);  // Pan1-4L → ch0
+      assert.strictEqual(routing[1][1], true);  // Pan1-4R → ch1
+    });
+
+    it('Pan5-8 L/R también van a ch0/ch1 (se suman)', () => {
+      const routing = getDefaultStereoBusRouting('stereo', 2);
+      
+      assert.strictEqual(routing[2][0], true);  // Pan5-8L → ch0
+      assert.strictEqual(routing[3][1], true);  // Pan5-8R → ch1
     });
   });
 
   describe('Defaults en modo multicanal', () => {
-    it('Pan 1-4 → canales 1,2 (índices 0,1)', () => {
-      const routing = getDefaultStereoBusRouting('multichannel');
-      
-      assert.deepStrictEqual(routing.A, [0, 1]);
+    it('Pan1-4L → ch0', () => {
+      const routing = getDefaultStereoBusRouting('multichannel', 12);
+      assert.strictEqual(routing[0][0], true);
+      assert.strictEqual(routing[0][1], false);
     });
 
-    it('Pan 5-8 → canales 3,4 (índices 2,3)', () => {
-      const routing = getDefaultStereoBusRouting('multichannel');
-      
-      assert.deepStrictEqual(routing.B, [2, 3]);
+    it('Pan1-4R → ch1', () => {
+      const routing = getDefaultStereoBusRouting('multichannel', 12);
+      assert.strictEqual(routing[1][1], true);
+      assert.strictEqual(routing[1][0], false);
     });
 
-    it('buses A y B usan canales diferentes (diagonal)', () => {
-      const routing = getDefaultStereoBusRouting('multichannel');
+    it('Pan5-8L → ch2', () => {
+      const routing = getDefaultStereoBusRouting('multichannel', 12);
+      assert.strictEqual(routing[2][2], true);
+      assert.strictEqual(routing[2][0], false);
+    });
+
+    it('Pan5-8R → ch3', () => {
+      const routing = getDefaultStereoBusRouting('multichannel', 12);
+      assert.strictEqual(routing[3][3], true);
+      assert.strictEqual(routing[3][0], false);
+    });
+
+    it('cada fila usa un canal diferente (diagonal)', () => {
+      const routing = getDefaultStereoBusRouting('multichannel', 12);
       
-      // No deben compartir canales
-      const channelsA = new Set(routing.A);
-      const channelsB = new Set(routing.B);
-      
-      for (const ch of channelsB) {
-        assert.ok(!channelsA.has(ch), `Canal ${ch} no debería estar en ambos buses`);
-      }
+      // Cada fila tiene exactamente 1 true en una posición diferente
+      const activeChannels = routing.map(row => row.findIndex(v => v === true));
+      assert.deepStrictEqual(activeChannels, [0, 1, 2, 3]);
     });
   });
 });

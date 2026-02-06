@@ -10,12 +10,14 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ### Añadido
 - **Entrada multicanal PipeWire (8ch)**: Nueva captura de 8 canales independientes via PipeWire (input_amp_1..8) que van directamente a los Input Amplifiers. Activación conjunta con salida multicanal mediante el mismo toggle. Comunicación lock-free via SharedArrayBuffer.
 - **Respuesta lineal de faders (opcional)**: Nueva opción en Ajustes > Visualización para que los faders de Output Channel controlen la ganancia de forma lineal (slider 50% → ganancia 50%). Por defecto activado para mejor experiencia en ordenador. El CV externo sigue funcionando con la curva logarítmica 10 dB/V auténtica del VCA CEM 3330.
+- **Botones de reset para matrices de entrada**: Las matrices de ruteo de entrada (estéreo y multicanal) ahora tienen botones "Restaurar por defecto" para volver a la configuración inicial rápidamente.
 
 ### Cambiado
 - **Modo de salida separado del dispositivo**: Nueva UI con radio buttons para seleccionar entre modo Estéreo (dispositivo del sistema) y Multicanal (PipeWire 12ch). En modo multicanal el selector de dispositivo se deshabilita. Configuración de ruteo independiente para cada modo.
 - **Salida multicanal expandida a 12 canales**: La salida multicanal PipeWire ahora soporta 12 canales independientes con nombres descriptivos: Pan 1-4 L/R, Pan 5-8 L/R (buses estéreo) y Out 1-8 (salidas individuales). Ruteo diagonal por defecto en multicanal.
 - **UI: Opción de resolución oculta**: Selector de escala 1x/1.5x/2x... removido de Ajustes > Visualización. La app siempre inicia en 1x. Código mantenido para uso futuro.
 - **Output Channel: Filter escala -5 a 5**: El knob Filter de los canales de salida ahora usa la escala estándar del Synthi 100 (-5 a +5) con centro en 0 (bypass), en lugar de 0-10 con centro en 5.
+- **Stereo buses: ruteo multi-canal unificado**: Los stereo buses (Pan 1-4 L/R, Pan 5-8 L/R) ahora usan el mismo sistema de ruteo que Out 1-8, permitiendo enviar cada salida a múltiples canales físicos simultáneamente. Orden de canales PipeWire consistente: primero stereo buses (ch 0-3), luego Out 1-8 (ch 4-11).
 
 ### Arreglado
 - **Ruteo de audio: aislamiento estéreo/multicanal**: La configuración de ruteo de salida ahora se guarda de forma independiente para modo estéreo y multicanal. Al cambiar de modo, se guarda primero el ruteo del modo anterior antes de cargar el del nuevo modo, evitando que los cambios en un modo afecten al otro.

@@ -296,68 +296,99 @@ describe('Output Mute - lógica de estado', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Stereo Bus Routing - estructura de datos
+// Stereo Bus Routing - estructura de datos (nuevo modelo matriz)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Stereo Bus Routing - estructura', () => {
+describe('Stereo Bus Routing - estructura matriz', () => {
   
-  // Simula la estructura stereoBusRouting del engine
-  function createStereoBusRouting() {
-    return {
-      A: [0, 1],  // Pan 1-4: L→Ch0, R→Ch1
-      B: [0, 1]   // Pan 5-8: L→Ch0, R→Ch1
-    };
+  // Simula la estructura _stereoBusRoutingMatrix del engine
+  // 4 filas: [0]=Pan1-4L, [1]=Pan1-4R, [2]=Pan5-8L, [3]=Pan5-8R
+  // N columnas: una por canal físico
+  function createStereoBusRoutingMatrix(channelCount = 12) {
+    return Array.from({ length: 4 }, () => 
+      Array(channelCount).fill(0)
+    );
   }
 
-  function setStereoBusRouting(routing, busId, leftChannel, rightChannel) {
-    if (!routing[busId]) return;
-    routing[busId] = [leftChannel, rightChannel];
+  function setStereoBusRouting(matrix, rowIdx, channelGains) {
+    if (rowIdx < 0 || rowIdx >= 4) return;
+    if (!Array.isArray(channelGains)) return;
+    channelGains.forEach((gain, ch) => {
+      if (ch < matrix[rowIdx].length) {
+        matrix[rowIdx][ch] = gain;
+      }
+    });
   }
 
-  function getStereoBusRouting(routing, busId) {
-    return routing[busId] ?? [0, 1];
+  function getStereoBusRouting(matrix, rowIdx) {
+    return matrix[rowIdx] ?? [];
   }
 
-  it('estructura inicial tiene buses A y B', () => {
-    const routing = createStereoBusRouting();
-    assert.ok(routing.A);
-    assert.ok(routing.B);
+  it('matriz tiene 4 filas', () => {
+    const matrix = createStereoBusRoutingMatrix();
+    assert.equal(matrix.length, 4);
   });
 
-  it('cada bus tiene [L, R] = [0, 1] por defecto', () => {
-    const routing = createStereoBusRouting();
-    assert.deepEqual(routing.A, [0, 1]);
-    assert.deepEqual(routing.B, [0, 1]);
+  it('cada fila tiene N canales (12 por defecto)', () => {
+    const matrix = createStereoBusRoutingMatrix(12);
+    assert.equal(matrix[0].length, 12);
+    assert.equal(matrix[3].length, 12);
   });
 
-  it('setStereoBusRouting actualiza los canales', () => {
-    const routing = createStereoBusRouting();
-    setStereoBusRouting(routing, 'A', 2, 3);
-    assert.deepEqual(routing.A, [2, 3]);
-    assert.deepEqual(routing.B, [0, 1]); // B sin cambios
+  it('todos los valores son 0 por defecto', () => {
+    const matrix = createStereoBusRoutingMatrix();
+    for (let row = 0; row < 4; row++) {
+      for (let ch = 0; ch < 12; ch++) {
+        assert.equal(matrix[row][ch], 0);
+      }
+    }
   });
 
-  it('setStereoBusRouting acepta -1 (desconectado)', () => {
-    const routing = createStereoBusRouting();
-    setStereoBusRouting(routing, 'A', -1, 1);
-    assert.deepEqual(routing.A, [-1, 1]);
+  it('setStereoBusRouting actualiza una fila', () => {
+    const matrix = createStereoBusRoutingMatrix(12);
+    const gains = Array(12).fill(0);
+    gains[0] = 1; // Activar canal 0
+    setStereoBusRouting(matrix, 0, gains);
+    
+    assert.equal(matrix[0][0], 1);
+    assert.equal(matrix[0][1], 0);
+    assert.equal(matrix[1][0], 0); // Otras filas sin cambios
   });
 
-  it('setStereoBusRouting acepta ambos desconectados', () => {
-    const routing = createStereoBusRouting();
-    setStereoBusRouting(routing, 'B', -1, -1);
-    assert.deepEqual(routing.B, [-1, -1]);
+  it('setStereoBusRouting permite múltiples canales activos', () => {
+    const matrix = createStereoBusRoutingMatrix(12);
+    const gains = Array(12).fill(0);
+    gains[0] = 1;
+    gains[2] = 1;
+    gains[5] = 1;
+    setStereoBusRouting(matrix, 0, gains);
+    
+    assert.equal(matrix[0][0], 1);
+    assert.equal(matrix[0][2], 1);
+    assert.equal(matrix[0][5], 1);
+    assert.equal(matrix[0][1], 0);
   });
 
-  it('getStereoBusRouting devuelve el routing actual', () => {
-    const routing = createStereoBusRouting();
-    routing.A = [4, 5];
-    assert.deepEqual(getStereoBusRouting(routing, 'A'), [4, 5]);
+  it('getStereoBusRouting devuelve la fila', () => {
+    const matrix = createStereoBusRoutingMatrix(12);
+    matrix[2] = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    assert.deepEqual(getStereoBusRouting(matrix, 2), [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
-  it('getStereoBusRouting devuelve [0,1] para bus inexistente', () => {
-    const routing = createStereoBusRouting();
-    assert.deepEqual(getStereoBusRouting(routing, 'C'), [0, 1]);
+  it('getStereoBusRouting devuelve [] para índice inválido', () => {
+    const matrix = createStereoBusRoutingMatrix();
+    assert.deepEqual(getStereoBusRouting(matrix, 99), []);
+  });
+
+  it('setStereoBusRouting ignora rowIdx inválido', () => {
+    const matrix = createStereoBusRoutingMatrix();
+    const gains = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    setStereoBusRouting(matrix, -1, gains);
+    setStereoBusRouting(matrix, 4, gains);
+    // Matriz sin cambios
+    for (let row = 0; row < 4; row++) {
+      assert.equal(matrix[row][0], 0);
+    }
   });
 });
 
@@ -1148,94 +1179,109 @@ describe('AudioEngine.setStereoBusRouting (con AudioContext mock)', () => {
   let engine;
   let mockCtx;
   
-  function setupEngine(maxChannels = 2) {
+  function setupEngine(maxChannels = 12) {
     mockCtx = createMockAudioContext({ maxChannelCount: maxChannels });
     engine = new AudioEngine({ outputChannels: 8 });
     engine.start({ audioContext: mockCtx });
     return engine;
   }
 
-  it('actualiza stereoBusRouting con nuevos canales', () => {
-    setupEngine(4);
+  it('actualiza _stereoBusRoutingMatrix con nuevos valores', () => {
+    setupEngine();
     
-    engine.setStereoBusRouting('A', 2, 3);
+    // Row 0 = Pan1-4L, activa canal 2
+    const channelGains = Array(12).fill(0);
+    channelGains[2] = 1;
+    engine.setStereoBusRouting(0, channelGains);
     
-    assert.deepEqual(engine.stereoBusRouting.A, [2, 3]);
+    const routing = engine.getStereoBusRouting(0);
+    assert.equal(routing[2], 1);
+    assert.equal(routing[0], 0);
   });
 
-  it('desconecta nodos antes de reconectar', () => {
-    setupEngine(4);
+  it('aplica ganancias a los channelGains del stereo bus', () => {
+    setupEngine();
     
-    const stereoBus = engine.stereoBuses.A;
-    const initialDisconnectsL = stereoBus.outputL._calls.disconnect;
-    const initialDisconnectsR = stereoBus.outputR._calls.disconnect;
+    // Activar Pan1-4L (row 0) en canal 0
+    const channelGains = Array(12).fill(0);
+    channelGains[0] = 1;
+    engine.setStereoBusRouting(0, channelGains);
     
-    engine.setStereoBusRouting('A', 2, 3);
-    
-    assert.ok(stereoBus.outputL._calls.disconnect > initialDisconnectsL);
-    assert.ok(stereoBus.outputR._calls.disconnect > initialDisconnectsR);
+    // Verificar que el channelGain correspondiente tiene ganancia 1
+    const stereoBusOutput = engine.stereoBusOutputs[0];
+    assert.equal(stereoBusOutput.channelGains[0].gain.value, 1);
   });
 
-  it('reconecta a nuevos masterGains', () => {
-    setupEngine(4);
+  it('permite activar múltiples canales por fila', () => {
+    setupEngine();
     
-    const stereoBus = engine.stereoBuses.A;
-    const initialConnectsL = stereoBus.outputL._calls.connect;
-    const initialConnectsR = stereoBus.outputR._calls.connect;
+    // Row 0: activar canales 0 y 2
+    const channelGains = Array(12).fill(0);
+    channelGains[0] = 1;
+    channelGains[2] = 1;
+    engine.setStereoBusRouting(0, channelGains);
     
-    engine.setStereoBusRouting('A', 2, 3);
-    
-    assert.ok(stereoBus.outputL._calls.connect > initialConnectsL);
-    assert.ok(stereoBus.outputR._calls.connect > initialConnectsR);
+    const routing = engine.getStereoBusRouting(0);
+    assert.equal(routing[0], 1);
+    assert.equal(routing[2], 1);
+    assert.equal(routing[1], 0);
   });
 
-  it('canal -1 desconecta sin reconectar (deshabilita)', () => {
-    setupEngine(4);
+  it('las 4 filas son independientes', () => {
+    setupEngine();
     
-    const stereoBus = engine.stereoBuses.A;
-    const initialConnects = stereoBus.outputL._calls.connect;
+    // Row 0: canal 0
+    engine.setStereoBusRouting(0, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    // Row 1: canal 1
+    engine.setStereoBusRouting(1, [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    // Row 2: canal 2
+    engine.setStereoBusRouting(2, [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    // Row 3: canal 3
+    engine.setStereoBusRouting(3, [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]);
     
-    // Desconectar L, mantener R en canal 1
-    engine.setStereoBusRouting('A', -1, 1);
-    
-    // L no debería reconectarse (el canal es -1)
-    // Solo R debería conectarse
-    assert.deepEqual(engine.stereoBusRouting.A, [-1, 1]);
+    assert.equal(engine.getStereoBusRouting(0)[0], 1);
+    assert.equal(engine.getStereoBusRouting(1)[1], 1);
+    assert.equal(engine.getStereoBusRouting(2)[2], 1);
+    assert.equal(engine.getStereoBusRouting(3)[3], 1);
   });
 
-  it('ambos canales -1 deshabilita el stereo bus', () => {
-    setupEngine(4);
-    
-    engine.setStereoBusRouting('B', -1, -1);
-    
-    assert.deepEqual(engine.stereoBusRouting.B, [-1, -1]);
-  });
-
-  it('bus A y B son independientes', () => {
-    setupEngine(4);
-    
-    engine.setStereoBusRouting('A', 0, 1);
-    engine.setStereoBusRouting('B', 2, 3);
-    
-    assert.deepEqual(engine.stereoBusRouting.A, [0, 1]);
-    assert.deepEqual(engine.stereoBusRouting.B, [2, 3]);
-  });
-
-  it('ignora busId inválido', () => {
-    setupEngine(2);
+  it('ignora rowIdx inválido', () => {
+    setupEngine();
     
     // No debe lanzar error
-    engine.setStereoBusRouting('C', 0, 1);
-    engine.setStereoBusRouting('', 0, 1);
+    engine.setStereoBusRouting(-1, [1, 0]);
+    engine.setStereoBusRouting(4, [1, 0]);
+    engine.setStereoBusRouting(100, [1, 0]);
   });
 
-  it('getStereoBusRouting devuelve el routing actual', () => {
-    setupEngine(4);
+  it('ignora channelGains inválido', () => {
+    setupEngine();
     
-    engine.setStereoBusRouting('A', 2, 3);
+    // No debe lanzar error
+    engine.setStereoBusRouting(0, null);
+    engine.setStereoBusRouting(0, 'invalid');
+    engine.setStereoBusRouting(0, 123);
+  });
+
+  it('getStereoBusRouting devuelve array vacío para rowIdx inválido', () => {
+    setupEngine();
     
-    const routing = engine.getStereoBusRouting('A');
-    assert.deepEqual(routing, [2, 3]);
+    const routing = engine.getStereoBusRouting(99);
+    assert.deepEqual(routing, []);
+  });
+
+  it('stereoBusOutputs tiene 4 elementos correctamente ordenados', () => {
+    setupEngine();
+    
+    assert.equal(engine.stereoBusOutputs.length, 4);
+    assert.equal(engine.stereoBusOutputs[0].busId, 'A');
+    assert.equal(engine.stereoBusOutputs[0].side, 'L');
+    assert.equal(engine.stereoBusOutputs[1].busId, 'A');
+    assert.equal(engine.stereoBusOutputs[1].side, 'R');
+    assert.equal(engine.stereoBusOutputs[2].busId, 'B');
+    assert.equal(engine.stereoBusOutputs[2].side, 'L');
+    assert.equal(engine.stereoBusOutputs[3].busId, 'B');
+    assert.equal(engine.stereoBusOutputs[3].side, 'R');
   });
 });
 

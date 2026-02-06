@@ -110,8 +110,6 @@ podría ser significativo en dispositivos móviles.
 ## Objetivo v0.6.0
 
 
-
-
 ## Objetivo v0.7.0 (publicación tester)
 
 - Release con versión en web, PWA, electro (Linux y Windows)

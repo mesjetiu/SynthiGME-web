@@ -482,15 +482,22 @@ export class AudioSettingsModal {
     const wasMultichannel = oldCount >= 12;
     const isMultichannel = channelCount >= 12;
     
+    log.info(` Physical channels changed: ${oldCount} → ${channelCount}`);
+    
+    // Si cambiamos de modo (estéreo ↔ multicanal), primero guardar el ruteo actual
+    // en su clave correspondiente ANTES de cambiar physicalChannels
+    if (wasMultichannel !== isMultichannel) {
+      log.info(` Mode changed: ${wasMultichannel ? 'multichannel' : 'stereo'} → ${isMultichannel ? 'multichannel' : 'stereo'}`);
+      // Guardar el ruteo del modo anterior antes de cambiar de clave
+      this._saveRouting();
+    }
+    
     this.physicalChannels = channelCount;
     this.channelLabels = labels || this._generateDefaultLabels(channelCount);
-    
-    log.info(` Physical channels changed: ${oldCount} → ${channelCount}`);
     
     // Si cambiamos de modo (estéreo ↔ multicanal), recargar el ruteo guardado
     // para ese modo o usar el default (son configuraciones independientes)
     if (wasMultichannel !== isMultichannel) {
-      log.info(` Mode changed: ${wasMultichannel ? 'multichannel' : 'stereo'} → ${isMultichannel ? 'multichannel' : 'stereo'}`);
       const loadedRouting = this._loadRouting();
       this.outputRouting = loadedRouting || this._getDefaultRouting();
     } else {

@@ -48,9 +48,37 @@
  *   p = +1 → HP:   H(s) = 2·(1 + s·τ)/(2 + s·τ)
  * 
  * Frecuencias características (τ = 4.7×10⁻⁴ s):
- *   LP fc(-3dB) = 1/(π·τ) ≈ 677 Hz
- *   HP transición ≈ 339-677 Hz (shelving de 6 dB)
- *   Pendiente: 6 dB/octava (primer orden)
+ *   Polo fundamental: fp = 1/(2π·τ) ≈ 339 Hz
+ *   LP fc(-3dB) = 1/(π·τ) ≈ 677 Hz (punto de -3 dB del lowpass)
+ *   HP transición ≈ 339-677 Hz (shelving de +6 dB)
+ *   Pendiente: 6 dB/octava (primer orden, un solo polo)
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * COMPORTAMIENTO EN AUDIO
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * Este filtro realiza una corrección tonal suave, no un corte brusco.
+ * El carácter del primer orden (6 dB/oct) es mucho más sutil que un
+ * Butterworth de segundo orden (12 dB/oct) o filtros resonantes.
+ * 
+ * Posición LP (dial -5, p=-1):
+ *   - Lowpass clásico: atenúa frecuencias por encima de fc ≈ 677 Hz
+ *   - Ganancia en DC = 0 dB (1.0), ganancia a 10 kHz ≈ -23 dB
+ *   - Resultado perceptivo: sonido oscuro, graves preservados, brillo eliminado
+ * 
+ * Posición neutra (dial 0, p=0):
+ *   - Respuesta plana: 0 dB en todo el espectro audible (20 Hz – 20 kHz)
+ *   - Equivalente a bypass total
+ * 
+ * Posición HP (dial +5, p=+1):
+ *   - Shelving de alta frecuencia: las HF ganan +6 dB respecto a LF
+ *   - NO es un highpass puro (no atenúa DC), sino un filtro de estantería
+ *   - Ganancia en DC = 0 dB, ganancia a 10 kHz ≈ +5.8 dB
+ *   - Resultado perceptivo: sonido brillante, presencia en agudos, graves intactos
+ * 
+ * Zona de transición (339-677 Hz): corresponde a medios-bajos, región
+ * fundamental de voz e instrumentos. La pendiente suave de 6 dB/oct hace
+ * que el efecto sea gradual y musical, sin artefactos de resonancia.
  * 
  * ═══════════════════════════════════════════════════════════════════════════
  * IMPLEMENTACIÓN DIGITAL
@@ -81,10 +109,10 @@ class OutputFilterProcessor extends AudioWorkletProcessor {
     return [
       {
         name: 'filterPosition',
-        defaultValue: 0,      // Centro = plano (sin filtrado)
-        minValue: -1,
-        maxValue: 1,
-        automationRate: 'k-rate'  // Manual (sin CV en el Synthi real)
+        defaultValue: 0,      // Centro = respuesta plana (0 dB en todo el espectro)
+        minValue: -1,         // LP máximo: fc ≈ 677 Hz, atenúa HF a -6 dB/oct
+        maxValue: 1,          // HP shelving: +6 dB en HF, LF intactas
+        automationRate: 'k-rate'  // Control manual (sin modulación CV en el Synthi real)
       }
     ];
   }
@@ -100,10 +128,11 @@ class OutputFilterProcessor extends AudioWorkletProcessor {
     const resistance = opts.potResistance || 10000;     // 10 kΩ
     const capacitance = opts.capacitance || 47e-9;      // 0.047 µF
     
-    // Constante de tiempo τ = R·C
-    const tau = resistance * capacitance;               // 4.7×10⁻⁴ s
+    // Constante de tiempo τ = R·C  (determina la frecuencia de corte del filtro)
+    const tau = resistance * capacitance;               // 4.7×10⁻⁴ s → fc ≈ 677 Hz
     
-    // K = 2·fs·τ (precalculado, constante para todo el proceso)
+    // K = 2·fs·τ (factor de prewarping bilineal, constante para todo el proceso)
+    // A 44100 Hz: K ≈ 41.5  →  polo digital cercano al polo analógico
     /** @private */
     this._K = 2 * sampleRate * tau;
     
@@ -114,7 +143,8 @@ class OutputFilterProcessor extends AudioWorkletProcessor {
     /** @private */ this._y1 = new Float64Array(2);  // y[n-1]
     
     // ─────────────────────────────────────────────────────────────────────
-    // Coeficientes IIR (inicializados para p=0 → plano)
+    // Coeficientes IIR de 1er orden (b0, b1 = numerador; a1 = denominador)
+    // Inicializados para p=0 → respuesta plana (b0=1, b1=a1 → H(z)=1)
     // ─────────────────────────────────────────────────────────────────────
     /** @private */ this._b0 = 1;
     /** @private */ this._b1 = 0;
@@ -124,8 +154,11 @@ class OutputFilterProcessor extends AudioWorkletProcessor {
 
   /**
    * Recalcula coeficientes IIR via transformada bilineal.
+   * Los coeficientes definen la respuesta en frecuencia del filtro:
+   *   - b0, b1: ganancia directa y retardada de la entrada
+   *   - a1: retroalimentación de la salida (define el polo / fc)
    * 
-   * @param {number} p - Posición del filtro (-1 a +1)
+   * @param {number} p - Posición del filtro (-1=LP fc≈677Hz, 0=plano, +1=HP shelf +6dB)
    * @private
    */
   _updateCoefficients(p) {
@@ -140,11 +173,18 @@ class OutputFilterProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Procesa un bloque de audio aplicando el filtro RC.
+   * Procesa un bloque de audio aplicando el filtro RC de 1er orden.
    * 
-   * @param {Float32Array[][]} inputs - Buffers de entrada
-   * @param {Float32Array[][]} outputs - Buffers de salida
-   * @param {Object} parameters - AudioParams (filterPosition)
+   * Ecuación en diferencias (IIR directa forma I):
+   *   y[n] = b0·x[n] + b1·x[n-1] - a1·y[n-1]
+   * 
+   * El filtro es k-rate: los coeficientes se recalculan una vez por bloque
+   * (128 samples), no por sample. Esto es suficiente para un control manual
+   * (knob) y evita artefactos de modulación rápida de coeficientes.
+   * 
+   * @param {Float32Array[][]} inputs - Buffers de entrada (audio a filtrar)
+   * @param {Float32Array[][]} outputs - Buffers de salida (audio filtrado)
+   * @param {Object} parameters - AudioParams: filterPosition[-1..+1]
    * @returns {boolean} true para mantener el nodo activo
    */
   process(inputs, outputs, parameters) {

@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 6 de febrero de 2026 (entrada multicanal PipeWire 8ch)
+> Última actualización: 7 de febrero de 2026 (filtro RC pasivo auténtico en Output Channels)
 
 ---
 
@@ -79,7 +79,7 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta los filtros LP/HP cuando están en posición neutral (|v|<0.02) para ahorrar CPU. **Cadena de bus POST-VCA (Cuenca 1982)**: `busInput → [clipper] → levelNode (VCA) → postVcaNode → filterLP → filterHP → muteNode → channelGains → out`. El nodo `postVcaNode` es el punto de split para re-entrada a matriz (POST-fader, PRE-filtro, PRE-mute). Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam). Ver sección "Output Channel Signal Chain" para detalles técnicos |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta el filtro RC cuando está en posición neutral (|v|<0.02) para ahorrar CPU. **Cadena de bus POST-VCA (Cuenca 1982)**: `busInput → [clipper] → levelNode (VCA) → postVcaNode → filterNode (filtro RC 1er orden) → muteNode → channelGains → out`. El filtro RC (6 dB/oct, fc≈677Hz) se crea de forma diferida tras carga del worklet (`_initFilterNodes()`). El nodo `postVcaNode` es el punto de split para re-entrada a matriz (POST-fader, PRE-filtro, PRE-mute). Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam). Ver sección "Output Channel Signal Chain" para detalles técnicos |
 | `blueprintMapper.js` | `compilePanelBlueprintMappings()` extrae filas/columnas ocultas de blueprints de paneles para configurar las matrices |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
@@ -102,6 +102,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `multichannelPlayback.worklet.js` | Reproducción de 8 canales desde entrada multicanal nativa. Lee audio desde **SharedArrayBuffer** donde C++ escribe samples de PipeWire. Flujo inverso a capture: PipeWire → C++ → SAB → worklet → Web Audio. Detecta underflow y rellena con silencio |
 | `vcaProcessor.worklet.js` | Emulación del VCA CEM 3330 para canales de salida. Aplica curva 10 dB/V, corte mecánico en dial=0, saturación suave para CV positivo y filtro anti-click de 1 polo (τ=5ms) **después** de la suma fader+CV. La entrada de CV se procesa a sample-rate. **Handler de mensajes**: recibe `{ type: 'resync', dialVoltage }` desde el motor para sincronizar instantáneamente `_voltageSmoothed` al despertar de dormancy, eliminando transitorio DC |
 | `cvThermalSlew.worklet.js` | Filtro one-pole asimétrico para emular inercia térmica del VCO CEM 3340. Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva). **CRÍTICO**: Implementación con **operaciones aritméticas puras** (`Math.abs()` para detectar dirección) — NO usa condicionales que bloquearían la propagación de señal a AudioParams. Se inserta en cadena CV: `freqCVInput → cvThermalSlew → cvSoftClip → detune`. Configurable en `oscillator.config.js` |
+| `outputFilter.worklet.js` | Filtro RC pasivo de 1er orden (6 dB/oct) para Output Channels. Modela el circuito real del plano D100-08 C1: pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×). Transición continua LP→plano→HP con un único AudioParam `filterPosition` (k-rate). **Audio**: LP fc(-3dB) ≈ 677 Hz, pendiente -6 dB/oct; HP shelving +6 dB en HF; zona de transición 339-677 Hz (medios-bajos). Coeficientes IIR via transformada bilineal. Carácter musical suave (un solo polo), no corte brusco |
 | `cvSoftClip.worklet.js` | Saturación polinómica suave para limitar CV de frecuencia. Usa fórmula pura `y = x - x³·k` (sin condicionales) donde k es coeficiente configurable (rango 0.0001–1.0, por defecto 0.333). Se aplica después del thermal slew para recibir señal pre-suavizada. **Configuración**: coeficiente en `oscillator.config.js` → `softClip.coefficient`. **Limitación superada**: Web Audio API requiere aritmética pura en AudioWorklet para propagación a AudioParam |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
@@ -115,7 +116,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `inputAmplifier.js` | `InputAmplifierModule` | 8 canales de entrada con control de ganancia individual |
 | `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
 | `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
-| `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330, filtro bipolar LP/HP, pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
+| `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330 y filtro RC pasivo de corrección tonal (1er orden, 6 dB/oct, fc ≈ 677 Hz). Control tonal bipolar: LP (atenúa agudos) ↔ plano (0 dB) ↔ HP shelving (+6 dB en HF). Pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
 | `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
 
@@ -134,7 +135,7 @@ export class MiModulo extends Module {
 La cadena de señal de los Output Channels sigue el diagrama técnico de la versión Cuenca/Datanomics 1982 del Synthi 100. El VCA se posiciona **antes** de los filtros, permitiendo re-entrada POST-fader a la matriz.
 
 ```
-busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterLP → filterHP → muteNode → channelGains → out
+busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterNode (RC worklet) → muteNode → channelGains → out
                                                        ↓
                                                (re-entry to matrix)
                                               rows 75-82 in audio matrix
@@ -148,7 +149,7 @@ busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterLP
 | `hybridClipShaper` | WaveShaperNode | Soft-clip opcional para saturación analógica |
 | `levelNode` | GainNode | VCA CEM 3330 emulado. Control de nivel del canal |
 | `postVcaNode` | GainNode | Split point para re-entrada a matriz. POST-VCA, PRE-filtro, PRE-mute |
-| `filterLP/filterHP` | BiquadFilterNode | Filtro bipolar LP/HP con bypass automático |
+| `filterNode` | AudioWorkletNode | Filtro RC pasivo 1er orden (plano D100-08 C1). LP fc≈677Hz / plano 0dB / HP shelf +6dB. Pendiente 6 dB/oct, bypass automático cuando |v|<0.02 |
 | `muteNode` | GainNode | Switch On/Off del canal. Solo afecta salida externa |
 | `channelGains` | GainNode[] | Routing a salidas físicas (pan, stereo buses) |
 
@@ -160,6 +161,19 @@ busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterLP
 - Curva muy pronunciada: posición 5 ≈ -60dB
 - **Modo UI lineal (opcional)**: el slider puede mapearse a ganancia lineal mediante dial equivalente (slider 50% → ganancia 50%). El CV externo sigue aplicando la curva logarítmica 10 dB/V auténtica.
 - **Resincronización en dormancy**: cuando un Output Channel despierta de dormancy (modo suspensión para ahorrar CPU), el motor envía mensaje `{ type: 'resync', dialVoltage }` al AudioWorklet VCA para sincronizar instantáneamente el estado del filtro anti-click (`_voltageSmoothed`). Esto elimina el transitorio de ramping que causaba offset DC en la señal de re-entrada.
+
+**Filtro RC pasivo (corrección tonal):**
+- Circuito del plano D100-08 C1: pot 10K LIN (RV1) + 2× condensadores 0.047µF (C11, C12) + buffer CA3140 (ganancia 2×)
+- **Tipo**: filtro IIR de 1er orden (un solo polo), pendiente de 6 dB/octava
+- **Constante de tiempo**: τ = R·C = 10kΩ × 47nF = 4.7×10⁻⁴ s
+- **Control bipolar** (dial -5 a +5 → interno -1 a +1):
+  - -5 (LP): fc(-3dB) ≈ 677 Hz, atenúa HF gradualmente. A 10 kHz ≈ -23 dB. Sonido oscuro.
+  - 0 (Plano): respuesta plana, 0 dB en todo el espectro (20 Hz – 20 kHz). Bypass total.
+  - +5 (HP shelf): shelving +6 dB por encima de ~677 Hz. Graves intactos (DC = 0 dB). Sonido brillante.
+- **Zona de transición**: 339-677 Hz (medios-bajos, región fundamental de voz e instrumentos)
+- **Carácter**: corrección tonal suave y musical, muy diferente de filtros resonantes o de 2º orden (12 dB/oct)
+- **Implementación**: AudioWorklet `output-filter` con coeficientes IIR via transformada bilineal. AudioParam `filterPosition` (k-rate). Creación diferida tras carga del worklet.
+- **Bypass automático**: cuando |valor| < 0.02, crossfade suave (50ms) a ruta directa para ahorrar CPU
 
 **Re-entrada a matriz:**
 - El nodo `postVcaNode` es la fuente para las filas 75-82 de la matriz de audio

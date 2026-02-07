@@ -32,17 +32,17 @@ export default {
     // Knob FILTER - Control de filtro LP/HP (escala dial -5 a 5)
     // ───────────────────────────────────────────────────────────────────
     // Escala dial Synthi 100 (-5 a 5):
-    //   -5: Lowpass activo (solo graves)
-    //    0: Sin filtrado (bypass, centro)
-    //   +5: Highpass activo (solo agudos)
+    //   -5: Lowpass activo (fc ≈ 677 Hz, atenúa agudos a 6 dB/oct)
+    //    0: Respuesta plana (sin coloración, 0 dB en todo el espectro)
+    //   +5: Shelving HF (+6 dB por encima de ~677 Hz, graves intactos)
     //
-    // La frecuencia de corte se calcula exponencialmente para un control
-    // más musical del espectro.
+    // El valor del dial se convierte internamente a bipolar (-1 a +1)
+    // y se envía al AudioParam filterPosition del worklet RC.
     // ───────────────────────────────────────────────────────────────────
     filter: {
       min: -5,
       max: 5,
-      initial: 0,           // Sin filtro por defecto (centro)
+      initial: 0,           // Respuesta plana por defecto (centro)
       curve: 'linear',
       pixelsForFullRange: 900  // Alta resolución (6× default)
     },
@@ -145,14 +145,21 @@ export default {
     // ───────────────────────────────────────────────────────────────────
     // CONFIGURACIÓN DEL FILTRO RC PASIVO (Cuenca 1982, plano D100-08 C1)
     // ───────────────────────────────────────────────────────────────────
-    // Circuito real: Pot 10K LIN + 2× C 0.047µF + buffer CA3140
-    // Topología: Input → C11 → [Pot] → C12 → GND, wiper → buffer (×2)
-    // Primer orden (6 dB/oct), fc ≈ 677 Hz en LP, shelving en HP
+    // Circuito real: Pot 10K LIN + 2× C 0.047µF + buffer CA3140 (ganancia 2×)
+    // Topología: Input → C11 → [Pot] → C12 → GND, wiper → buffer
+    //
+    // Respuesta de audio:
+    //   - Filtro IIR de 1er orden (un polo), pendiente 6 dB/octava
+    //   - τ = R·C = 10kΩ × 47nF = 4.7×10⁻⁴ s
+    //   - LP: fc(-3dB) = 1/(πτ) ≈ 677 Hz (atenúa agudos gradualmente)
+    //   - HP: shelving +6 dB por encima de ~677 Hz (realza agudos)
+    //   - Plano a posición central (0 dB en todo el espectro)
+    //   - Carácter musical: corrección tonal suave, no corte brusco
     // ───────────────────────────────────────────────────────────────────
     filter: {
-      capacitance: 47e-9,      // 0.047 µF (C11, C12)
-      potResistance: 10000,     // 10 kΩ pot lineal
-      order: 1                  // Primer orden (6 dB/oct)
+      capacitance: 47e-9,      // 0.047 µF (C11, C12) — define fc junto con R
+      potResistance: 10000,     // 10 kΩ pot lineal — rango completo del pot
+      order: 1                  // 1er orden → 6 dB/oct, un solo polo a ~339 Hz
     }
   },
 

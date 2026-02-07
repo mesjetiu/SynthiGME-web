@@ -288,21 +288,22 @@ export class AudioEngine {
       postVcaNode.connect(dcBlocker);
       
       // ─────────────────────────────────────────────────────────────────────
-      // FILTRO RC PASIVO: Emulación del circuito real (DESPUÉS del VCA)
+      // FILTRO RC PASIVO: Corrección tonal auténtica (DESPUÉS del VCA)
       // ─────────────────────────────────────────────────────────────────────
-      // Modelo exacto del circuito del plano D100-08 C1 (Cuenca 1982):
+      // Modelo del circuito real del plano D100-08 C1 (Cuenca 1982):
       //   Pot 10K lineal + 2× condensadores 0.047µF + buffer CA3140
       //
-      // Control bipolar: -1 a +1 donde:
-      //   -1: Lowpass (wiper hacia C12/GND, corta agudos, 6 dB/oct)
-      //    0: Plano (ganancia unitaria en todo el espectro)
-      //   +1: Highpass (wiper hacia C11/input, atenúa graves, 6 dB/oct)
+      // Respuesta de audio (1er orden, 6 dB/oct, un solo polo):
+      //   -1: Lowpass  → fc(-3dB) ≈ 677 Hz, atenúa HF gradualmente
+      //    0: Plano    → 0 dB en todo el espectro (20 Hz – 20 kHz)
+      //   +1: Shelving → +6 dB en HF (por encima de ~677 Hz), LF intactas
       //
-      // Primer orden (6 dB/oct), fc ≈ 677 Hz en extremos (τ = RC = 4.7e-4s)
+      // La pendiente suave de 6 dB/oct produce un coloreo musical,
+      // no un corte brusco. Zona de transición en medios-bajos (339-677 Hz).
       //
       // NOTA: Los filtros solo afectan la SALIDA EXTERNA.
       // La señal de re-entrada a la matriz sale del postVcaNode,
-      // que es ANTES de los filtros.
+      // que es ANTES de los filtros (POST-VCA, PRE-filtro).
       // ─────────────────────────────────────────────────────────────────────
       // filterNode se crea de forma diferida en _initFilterNodes(),
       // después de que _loadWorklet() haya cargado el módulo del worklet.
@@ -394,7 +395,7 @@ export class AudioEngine {
         dcBlocker,  // DC Blocker para re-entry a matriz (elimina offset DC)
         filterGain, // Ganancia para crossfade suave de filtros
         bypassGain, // Ganancia para crossfade suave de bypass
-        filterNode, // Filtro RC pasivo (AudioWorklet, 1er orden, 6 dB/oct)
+        filterNode, // Filtro RC pasivo (AudioWorklet, 1er orden 6 dB/oct, fc≈677Hz, LP↔plano↔HP shelf)
         muteNode,   // Mute (para on/off del canal)
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
@@ -772,7 +773,7 @@ export class AudioEngine {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // FILTRO BIPOLAR: Control de frecuencia Lowpass/Highpass
+  // FILTRO BIPOLAR RC: Corrección tonal Lowpass / Highpass (1er orden)
   // ───────────────────────────────────────────────────────────────────────────
   // 
   // ARQUITECTURA:
@@ -780,22 +781,31 @@ export class AudioEngine {
   //   Modelo exacto del circuito RC pasivo del plano D100-08 C1 (Cuenca 1982)
   //   Pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×)
   // 
-  // CONTROL BIPOLAR (rango -1 a +1):
-  //   value = -1: LP máximo (fc ≈ 677 Hz, corta agudos a 6 dB/oct)
-  //   value =  0: Plano (ganancia unitaria en todo el espectro)
-  //   value = +1: HP shelving (transición ≈ 339-677 Hz, +6 dB shelf)
+  // CONTROL BIPOLAR (rango -1 a +1, desde dial -5 a +5):
+  //   value = -1: Lowpass, fc(-3dB) ≈ 677 Hz, pendiente -6 dB/oct
+  //              Atenúa agudos: -12 dB a 2.7 kHz, -23 dB a 10 kHz
+  //              Resultado: sonido oscuro, graves preservados
+  //   value =  0: Respuesta plana, 0 dB en todo el espectro (20 Hz – 20 kHz)
+  //   value = +1: Shelving HF, +6 dB por encima de ~677 Hz
+  //              NO atenúa graves (DC = 0 dB); realza agudos
+  //              Resultado: sonido brillante, presencia en HF
+  // 
+  // NOTA MUSICAL: la pendiente de 6 dB/oct (1 polo) produce un coloreo
+  // suave y musical, muy diferente de filtros resonantes o de 2º orden.
+  // La zona de transición (339-677 Hz) afecta a medios-bajos.
   // 
   // El AudioParam 'filterPosition' recibe directamente el valor bipolar.
   // Los coeficientes IIR se recalculan en el worklet por bloque (k-rate).
   // ───────────────────────────────────────────────────────────────────────────
 
   /**
-   * Aplica el valor del filtro al AudioWorklet del bus.
-   * Establece el parámetro filterPosition del worklet RC.
+   * Aplica el valor del filtro al AudioWorklet RC del bus.
+   * Establece el parámetro filterPosition que controla los coeficientes IIR
+   * del filtro de 1er orden (6 dB/oct), determinando fc y respuesta en frecuencia.
    * 
-   * @param {number} busIndex - Índice del bus
-   * @param {number} value - Valor bipolar (-1 a +1)
-   * @param {number} [ramp] - Tiempo de rampa en segundos
+   * @param {number} busIndex - Índice del bus (0-7)
+   * @param {number} value - Valor bipolar (-1=LP fc≈677Hz, 0=plano 0dB, +1=HP shelf +6dB)
+   * @param {number} [ramp] - Tiempo de rampa en segundos (suaviza cambio de tono)
    */
   _applyFilterValue(busIndex, value, ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME) {
     const bus = this.outputBuses[busIndex];
@@ -815,15 +825,18 @@ export class AudioEngine {
   }
 
   /**
-   * Establece el filtro de una salida lógica.
+   * Establece el filtro tonal de una salida lógica (corrección LP/HP).
+   * 
+   * Filtro RC pasivo de 1er orden (6 dB/octava) modelado según el circuito
+   * real del Synthi 100 Cuenca (plano D100-08 C1).
    * 
    * @param {number} busIndex - Índice del bus (0-based)
    * @param {number} value - Valor en escala dial Synthi 100 (-5 a 5):
-   *   -5 = Lowpass máximo (corta agudos, fc ≈ 677 Hz)
-   *    0 = Sin filtrado (señal limpia, ganancia unitaria)
-   *   +5 = Highpass máximo (atenúa graves, shelving 6 dB)
+   *   -5 = Lowpass: fc(-3dB) ≈ 677 Hz, atenúa HF a -6 dB/oct (sonido oscuro)
+   *    0 = Respuesta plana: 0 dB en todo el espectro (sin coloración)
+   *   +5 = HP shelving: realce de +6 dB en HF, graves intactos (sonido brillante)
    * @param {Object} [options] - Opciones
-   * @param {number} [options.ramp=0.03] - Tiempo de rampa en segundos
+   * @param {number} [options.ramp=0.03] - Tiempo de rampa (evita clicks en transiciones)
    */
   setOutputFilter(busIndex, value, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
     if (busIndex < 0 || busIndex >= this.outputChannels) return;
@@ -1790,7 +1803,11 @@ export class AudioEngine {
    * porque AudioWorkletNode requiere que addModule() haya completado.
    * 
    * Reemplaza la conexión temporal filterGain → muteNode (passthrough)
-   * por la cadena real: filterGain → filterNode (RC worklet) → muteNode
+   * por la cadena real: filterGain → filterNode (filtro RC 1er orden) → muteNode
+   * 
+   * El filterNode implementa un IIR de 1 polo (6 dB/oct) con parámetro
+   * filterPosition que controla la respuesta: LP (fc≈677Hz) → plano → HP shelf (+6dB).
+   * Los valores del circuito (C=47nF, R=10kΩ) se pasan via processorOptions.
    * 
    * @private
    */

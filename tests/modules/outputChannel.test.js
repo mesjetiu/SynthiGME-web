@@ -2,7 +2,9 @@
  * Tests para lógica de audio de OutputChannel y Engine
  * 
  * Verifica:
- * - Coeficientes del filtro RC pasivo (modelo circuito Cuenca 1982)
+ * - Coeficientes IIR del filtro RC pasivo (modelo circuito Cuenca 1982)
+ * - Respuesta en frecuencia: fc, pendiente (dB/oct), ganancia en DC y HF
+ * - Shelving HP (+6 dB) y lowpass (fc ≈ 677 Hz, 6 dB/oct)
  * - Cálculo de panning equal-power
  * - Mapeo de valores de knobs
  */
@@ -14,8 +16,17 @@ import { describe, it } from 'node:test';
 // MODELO DEL FILTRO RC PASIVO (réplica del worklet, para tests sin AudioContext)
 // ─────────────────────────────────────────────────────────────────────────────
 // Circuito real: Pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×)
-// H(s) = (2 + (1+p)·s·τ) / (2 + s·τ)  donde τ = R·C
-// Transformada bilineal: K = 2·fs·τ
+//
+// Función de transferencia analógica:
+//   H(s) = (2 + (1+p)·s·τ) / (2 + s·τ)  donde τ = R·C = 4.7×10⁻⁴ s
+//
+// Comportamiento en audio:
+//   p=-1 → LP: fc(-3dB) ≈ 677 Hz, atenúa HF a -6 dB/oct
+//   p= 0 → Plano: 0 dB en todo el espectro (20 Hz – 20 kHz)
+//   p=+1 → Shelving HF: +6 dB por encima de ~677 Hz, LF intactas
+//
+// Implementación digital (transformada bilineal):
+//   K = 2·fs·τ
 //   b0 = (2 + (1+p)·K) / (2 + K)
 //   b1 = (2 - (1+p)·K) / (2 + K)
 //   a1 = (2 - K) / (2 + K)
@@ -29,10 +40,11 @@ const RC_DEFAULTS = {
 
 /**
  * Calcula coeficientes IIR del filtro RC para una posición dada.
+ * Réplica del algoritmo del worklet para verificación sin AudioContext.
  * 
- * @param {number} p - Posición bipolar (-1 a +1)
- * @param {Object} [opts] - Opciones de circuito
- * @returns {{ b0: number, b1: number, a1: number, K: number }}
+ * @param {number} p - Posición bipolar (-1=LP fc≈677Hz, 0=plano, +1=HP shelf +6dB)
+ * @param {Object} [opts] - Opciones de circuito (resistance, capacitance, sampleRate)
+ * @returns {{ b0: number, b1: number, a1: number, K: number }} Coeficientes normalizados
  */
 function getFilterCoefficients(p, opts = {}) {
   const R = opts.resistance || RC_DEFAULTS.resistance;
@@ -53,13 +65,14 @@ function getFilterCoefficients(p, opts = {}) {
 }
 
 /**
- * Calcula la respuesta en frecuencia del filtro a una frecuencia dada.
- * |H(e^jω)| = |b0 + b1·e^-jω| / |1 + a1·e^-jω|
+ * Calcula la magnitud de la respuesta en frecuencia del filtro.
+ * Evalúa |H(e^jω)| = |b0 + b1·e^-jω| / |1 + a1·e^-jω| a una frecuencia dada.
+ * Devuelve ganancia lineal (1.0 = 0 dB, 0.5 ≈ -6 dB, 2.0 ≈ +6 dB).
  * 
- * @param {{ b0: number, b1: number, a1: number }} coeffs
- * @param {number} freq - Frecuencia en Hz
+ * @param {{ b0: number, b1: number, a1: number }} coeffs - Coeficientes IIR
+ * @param {number} freq - Frecuencia de evaluación en Hz
  * @param {number} [fs=44100] - Frecuencia de muestreo
- * @returns {number} Magnitud de la respuesta
+ * @returns {number} Magnitud de la respuesta (ganancia lineal)
  */
 function getFrequencyResponse(coeffs, freq, fs = RC_DEFAULTS.sampleRate) {
   const omega = 2 * Math.PI * freq / fs;
@@ -94,7 +107,11 @@ function calculateEqualPowerPan(pan) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TESTS: FILTRO RC PASIVO - COEFICIENTES
+// TESTS: FILTRO RC PASIVO - COEFICIENTES IIR
+// ─────────────────────────────────────────────────────────────────────────────
+// Verifican que los coeficientes del filtro digital (b0, b1, a1) corresponden
+// a la transformada bilineal del circuito analógico y producen la respuesta
+// en frecuencia esperada en cada posición del dial.
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Filtro RC pasivo - Coeficientes IIR', () => {
@@ -140,7 +157,11 @@ describe('Filtro RC pasivo - Coeficientes IIR', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TESTS: FILTRO RC PASIVO - RESPUESTA EN FRECUENCIA
+// TESTS: FILTRO RC PASIVO - RESPUESTA EN FRECUENCIA (dB, fc, pendiente)
+// ─────────────────────────────────────────────────────────────────────────────
+// Verifican el comportamiento audible del filtro: ganancia en dB a distintas
+// frecuencias, frecuencia de corte (-3 dB), pendiente (6 dB/oct), shelving
+// HP (+6 dB) y transición gradual entre posiciones.
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Filtro RC pasivo - Respuesta en frecuencia', () => {

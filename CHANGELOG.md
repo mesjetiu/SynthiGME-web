@@ -18,6 +18,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Salida multicanal expandida a 12 canales**: La salida multicanal PipeWire ahora soporta 12 canales independientes con nombres descriptivos: Pan 1-4 L/R, Pan 5-8 L/R (buses estéreo) y Out 1-8 (salidas individuales). Ruteo diagonal por defecto en multicanal.
 - **UI: Opción de resolución oculta**: Selector de escala 1x/1.5x/2x... removido de Ajustes > Visualización. La app siempre inicia en 1x. Código mantenido para uso futuro.
 - **Output Channel: Filter escala -5 a 5**: El knob Filter de los canales de salida ahora usa la escala estándar del Synthi 100 (-5 a +5) con centro en 0 (bypass), en lugar de 0-10 con centro en 5.
+- **Output Channel: Filtro RC auténtico (1er orden, 6 dB/oct)**: Reemplazados los 2 BiquadFilter provisionales (LP+HP Butterworth, 12 dB/oct) por un AudioWorklet que modela el circuito RC pasivo real del Synthi 100 Cuenca (plano D100-08 C1): pot 10K LIN + 2× 0.047µF + buffer CA3140. Filtro IIR de un solo polo: LP fc(-3dB) ≈ 677 Hz, HP shelving +6 dB en HF, transición continua LP↔plano↔HP. Pendiente suave de 6 dB/oct para corrección tonal musical.
 - **Stereo buses: ruteo multi-canal unificado**: Los stereo buses (Pan 1-4 L/R, Pan 5-8 L/R) ahora usan el mismo sistema de ruteo que Out 1-8, permitiendo enviar cada salida a múltiples canales físicos simultáneamente. Orden de canales PipeWire consistente: primero stereo buses (ch 0-3), luego Out 1-8 (ch 4-11).
 
 ### Arreglado

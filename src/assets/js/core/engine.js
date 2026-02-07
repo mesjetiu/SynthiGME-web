@@ -268,23 +268,29 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // DC BLOCKER para re-entry: Elimina offset DC estático
       // ─────────────────────────────────────────────────────────────────────
-      // Filtro highpass muy bajo (0.01Hz = período ~100s) para eliminar offset
-      // DC estático sin afectar CV de frecuencias muy bajas (LFOs lentos,
-      // envolventes largas, etc.).
+      // Highpass a 2 Hz (τ ≈ 80 ms, settling < 0.5 s).
       //
-      // NOTA: La causa principal de offset DC en re-entry era el transitorio
-      // del VCA worklet al despertar de dormancy. Esto se corrige con el
-      // mensaje 'resync' que sincroniza _voltageSmoothed instantáneamente.
-      // Este DC blocker es una protección residual contra offsets DC
-      // que puedan venir de otras fuentes (patches mal configurados, etc.)
+      // HISTORIAL Y RATIONALE:
+      // - v0.4: 5 Hz original (buen settling pero atenuaba LFOs)
+      // - v0.5: 0.01 Hz (permitía CV lento pero τ ≈ 16 s → settling ~80 s)
+      //   Cualquier glitch (VCA wake-up, pin connect, etc.) generaba una
+      //   señal sub-Hz residual que tardaba > 1 min en asentarse.
+      //   Al usar re-entry como CV para FM, este residual causaba drift
+      //   de pitch claramente audible (~5 cents/mV a 1V/oct).
+      // - v0.6: 2 Hz. Transparente para audio (≥ 20 Hz: 0 dB).
+      //   LFOs típicos (> 2 Hz) pasan sin atenuación.
+      //   DC y transitorios se eliminan en < 0.5 s.
+      //   Para CV sub-Hz por re-entry, usar conexión directa en la matriz.
       //
-      // Con 0.01Hz, señales CV con períodos hasta ~40s pasan prácticamente
-      // sin atenuación (-3dB a 0.01Hz, ganancia ~1.0 a 0.1Hz y superiores).
+      // NOTA: La causa principal de offset DC era el transitorio del VCA
+      // worklet al despertar de dormancy, corregido con el mensaje 'resync'.
+      // Este DC blocker es protección residual (patches mal configurados,
+      // start-up glitches en mobile, etc.).
       // ─────────────────────────────────────────────────────────────────────
       const dcBlocker = ctx.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01; // 0.01Hz - permite CV muy lento, bloquea solo DC puro
-      dcBlocker.Q.value = 0.707;        // Butterworth - respuesta plana
+      dcBlocker.frequency.value = 2;     // 2 Hz — settling < 0.5 s, transparente para audio
+      dcBlocker.Q.value = 0.707;         // Butterworth — respuesta plana, sin resonancia
       postVcaNode.connect(dcBlocker);
       
       // ─────────────────────────────────────────────────────────────────────
@@ -885,10 +891,20 @@ export class AudioEngine {
     
     const crossfadeTime = AUDIO_CONSTANTS.FILTER_BYPASS_CROSSFADE;
     
+    // Tiempo de hard-set: 5τ después del inicio del crossfade.
+    // En ese punto setTargetAtTime ha alcanzado 99.3% del target;
+    // setValueAtTime fuerza el valor exacto y elimina el residuo
+    // asintótico de e^(-t/τ) que nunca llega a cero.
+    const hardSetDelay = 5 * crossfadeTime;
+    const now = ctx.currentTime;
+    
     if (isNeutral && !currentlyBypassed) {
       // Activar bypass: crossfade a ruta directa
       setParamSmooth(bus.filterGain.gain, 0, ctx, { ramp: crossfadeTime });
       setParamSmooth(bus.bypassGain.gain, 1, ctx, { ramp: crossfadeTime });
+      // Hard-set: forzar valores exactos tras 5τ
+      bus.filterGain.gain.setValueAtTime(0, now + hardSetDelay);
+      bus.bypassGain.gain.setValueAtTime(1, now + hardSetDelay);
       this._filterBypassState[busIndex] = true;
       
       if (this._filterBypassDebug) {
@@ -898,6 +914,9 @@ export class AudioEngine {
       // Desactivar bypass: crossfade a ruta de filtros
       setParamSmooth(bus.filterGain.gain, 1, ctx, { ramp: crossfadeTime });
       setParamSmooth(bus.bypassGain.gain, 0, ctx, { ramp: crossfadeTime });
+      // Hard-set: forzar valores exactos tras 5τ
+      bus.filterGain.gain.setValueAtTime(1, now + hardSetDelay);
+      bus.bypassGain.gain.setValueAtTime(0, now + hardSetDelay);
       this._filterBypassState[busIndex] = false;
       
       if (this._filterBypassDebug) {
@@ -985,8 +1004,13 @@ export class AudioEngine {
           if (bus) {
             // Crossfade a ruta de filtros
             const crossfadeTime = AUDIO_CONSTANTS.FILTER_BYPASS_CROSSFADE;
+            const now = ctx.currentTime;
             setParamSmooth(bus.filterGain.gain, 1, ctx, { ramp: crossfadeTime });
             setParamSmooth(bus.bypassGain.gain, 0, ctx, { ramp: crossfadeTime });
+            // Hard-set tras 5τ para forzar valores exactos
+            const hardSetDelay = 5 * crossfadeTime;
+            bus.filterGain.gain.setValueAtTime(1, now + hardSetDelay);
+            bus.bypassGain.gain.setValueAtTime(0, now + hardSetDelay);
             this._filterBypassState[i] = false;
             // Aplicar valores actuales de frecuencia (convertir dial → bipolar)
             const bipolar = this.outputFilters[i] / 5;  // dial (-5 a 5) → bipolar (-1 a +1)

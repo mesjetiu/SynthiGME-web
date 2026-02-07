@@ -143,20 +143,16 @@ export default {
     },
     
     // ───────────────────────────────────────────────────────────────────
-    // CONFIGURACIÓN DEL FILTRO
+    // CONFIGURACIÓN DEL FILTRO RC PASIVO (Cuenca 1982, plano D100-08 C1)
+    // ───────────────────────────────────────────────────────────────────
+    // Circuito real: Pot 10K LIN + 2× C 0.047µF + buffer CA3140
+    // Topología: Input → C11 → [Pot] → C12 → GND, wiper → buffer (×2)
+    // Primer orden (6 dB/oct), fc ≈ 677 Hz en LP, shelving en HP
     // ───────────────────────────────────────────────────────────────────
     filter: {
-      // Frecuencias de corte (Hz)
-      lowpassFreq: {
-        min: 200,           // Frecuencia mínima del LP (knob en -1)
-        max: 20000          // Frecuencia máxima del LP (knob cerca de 0)
-      },
-      highpassFreq: {
-        min: 20,            // Frecuencia mínima del HP (knob cerca de 0)
-        max: 5000           // Frecuencia máxima del HP (knob en +1)
-      },
-      // Factor Q del filtro
-      Q: 0.707              // Butterworth (respuesta plana)
+      capacitance: 47e-9,      // 0.047 µF (C11, C12)
+      potResistance: 10000,     // 10 kΩ pot lineal
+      order: 1                  // Primer orden (6 dB/oct)
     }
   },
 

@@ -288,29 +288,26 @@ export class AudioEngine {
       postVcaNode.connect(dcBlocker);
       
       // ─────────────────────────────────────────────────────────────────────
-      // FILTRO BIPOLAR: Lowpass + Highpass en serie (DESPUÉS del VCA)
+      // FILTRO RC PASIVO: Emulación del circuito real (DESPUÉS del VCA)
       // ─────────────────────────────────────────────────────────────────────
+      // Modelo exacto del circuito del plano D100-08 C1 (Cuenca 1982):
+      //   Pot 10K lineal + 2× condensadores 0.047µF + buffer CA3140
+      //
       // Control bipolar: -1 a +1 donde:
-      //   -1: Lowpass activo (corta agudos), Highpass bypass
-      //    0: Ambos bypass (sin filtrado)
-      //   +1: Highpass activo (corta graves), Lowpass bypass
-      // 
+      //   -1: Lowpass (wiper hacia C12/GND, corta agudos, 6 dB/oct)
+      //    0: Plano (ganancia unitaria en todo el espectro)
+      //   +1: Highpass (wiper hacia C11/input, atenúa graves, 6 dB/oct)
+      //
+      // Primer orden (6 dB/oct), fc ≈ 677 Hz en extremos (τ = RC = 4.7e-4s)
+      //
       // NOTA: Los filtros solo afectan la SALIDA EXTERNA.
       // La señal de re-entrada a la matriz sale del postVcaNode,
       // que es ANTES de los filtros.
       // ─────────────────────────────────────────────────────────────────────
-      
-      // Lowpass: activo cuando value < 0 (corta agudos)
-      const filterLP = ctx.createBiquadFilter();
-      filterLP.type = 'lowpass';
-      filterLP.Q.value = 0.707; // Butterworth (respuesta plana, sin resonancia)
-      filterLP.frequency.value = 20000; // Bypass inicial (20kHz = deja pasar todo)
-      
-      // Highpass: activo cuando value > 0 (corta graves)
-      const filterHP = ctx.createBiquadFilter();
-      filterHP.type = 'highpass';
-      filterHP.Q.value = 0.707; // Butterworth
-      filterHP.frequency.value = 20; // Bypass inicial (20Hz = deja pasar todo)
+      // filterNode se crea de forma diferida en _initFilterNodes(),
+      // después de que _loadWorklet() haya cargado el módulo del worklet.
+      // Mientras tanto, filterGain conecta directamente a muteNode (passthrough).
+      let filterNode = null;
       
       // Nodo de mute separado - permite silenciar sin interferir con CV de matriz
       const muteNode = ctx.createGain();
@@ -321,8 +318,8 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // En lugar de desconectar/reconectar nodos (causa clicks), mantenemos
       // ambas rutas conectadas y hacemos crossfade entre ellas:
-      //   postVcaNode → filterGain → filterLP → filterHP → muteNode
-      //   postVcaNode → bypassGain ─────────────────────→ muteNode
+      //   postVcaNode → filterGain → filterNode (worklet RC) → muteNode
+      //   postVcaNode → bypassGain ────────────────────────→ muteNode
       // ─────────────────────────────────────────────────────────────────────
       const filterGain = ctx.createGain();
       const bypassGain = ctx.createGain();
@@ -332,8 +329,8 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → ...
       //                                                        │
-      //                                                        ├─→ filterGain → filterLP → filterHP ─┬─→ muteNode → out
-      //                                                        └─→ bypassGain ──────────────────────┘
+      //                                                        ├─→ filterGain → filterNode (RC worklet) ─┬─→ muteNode → out
+      //                                                        └─→ bypassGain ──────────────────────────┘
       //                                                        └─→ (re-entry a matriz - disponible)
       //
       // FILTER BYPASS: crossfade entre filterGain y bypassGain
@@ -354,9 +351,6 @@ export class AudioEngine {
         this._filterBypassState[i] = false;
       }
       
-      // Conectar cadena de filtros
-      filterLP.connect(filterHP);
-      
       // PASO 1: Conectar entrada → [clipper] → levelNode (VCA)
       if (hybridClipShaper) {
         busInput.connect(hybridClipShaper);
@@ -369,17 +363,14 @@ export class AudioEngine {
       levelNode.connect(postVcaNode);
       
       // PASO 3: postVcaNode → rutas paralelas con crossfade → muteNode
-      // Ruta de filtros: postVcaNode → filterGain → filterLP → filterHP → muteNode
+      // Ruta de filtros: postVcaNode → filterGain → [filterNode] → muteNode
+      // (filterNode se inserta después via _initFilterNodes, de momento passthrough)
       postVcaNode.connect(filterGain);
-      filterGain.connect(filterLP);
-      filterHP.connect(muteNode);
+      filterGain.connect(muteNode);
       
       // Ruta de bypass: postVcaNode → bypassGain → muteNode
       postVcaNode.connect(bypassGain);
       bypassGain.connect(muteNode);
-      
-      // Aplicar valor inicial del filtro (usando valor bipolar)
-      this._applyFilterValue(i, filterBipolar, filterLP, filterHP);
 
       // Crear nodos de ganancia para cada canal físico (ruteo multicanal)
       const channelGains = [];
@@ -403,8 +394,7 @@ export class AudioEngine {
         dcBlocker,  // DC Blocker para re-entry a matriz (elimina offset DC)
         filterGain, // Ganancia para crossfade suave de filtros
         bypassGain, // Ganancia para crossfade suave de bypass
-        filterLP,   // Filtro lowpass (activo con valores negativos) - DESPUÉS del VCA
-        filterHP,   // Filtro highpass (activo con valores positivos)
+        filterNode, // Filtro RC pasivo (AudioWorklet, 1er orden, 6 dB/oct)
         muteNode,   // Mute (para on/off del canal)
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
@@ -786,99 +776,41 @@ export class AudioEngine {
   // ───────────────────────────────────────────────────────────────────────────
   // 
   // ARQUITECTURA:
-  //   Dos filtros BiquadFilter en serie: Lowpass → Highpass
-  //   Ambos con Q=0.707 (Butterworth, respuesta plana sin resonancia)
+  //   AudioWorklet 'output-filter' con filtro IIR de 1er orden (6 dB/oct)
+  //   Modelo exacto del circuito RC pasivo del plano D100-08 C1 (Cuenca 1982)
+  //   Pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×)
   // 
   // CONTROL BIPOLAR (rango -1 a +1):
-  //   value = -1: LP corta en ~200Hz (solo graves), HP bypass (20Hz)
-  //   value =  0: LP bypass (20kHz), HP bypass (20Hz) → señal limpia
-  //   value = +1: LP bypass (20kHz), HP corta en ~5kHz (solo agudos)
+  //   value = -1: LP máximo (fc ≈ 677 Hz, corta agudos a 6 dB/oct)
+  //   value =  0: Plano (ganancia unitaria en todo el espectro)
+  //   value = +1: HP shelving (transición ≈ 339-677 Hz, +6 dB shelf)
   // 
-  // MAPEO DE FRECUENCIAS (escala logarítmica):
-  //   La percepción humana de frecuencias es logarítmica, no lineal.
-  //   Por eso usamos: freq = 10^(log10(min) + t * (log10(max) - log10(min)))
-  //   donde t es el valor normalizado 0-1.
-  // 
-  //   Lowpass (valores negativos, -1 a 0):
-  //     -1 → 200 Hz (corta casi todo)
-  //      0 → 20000 Hz (bypass, deja pasar todo)
-  // 
-  //   Highpass (valores positivos, 0 a +1):
-  //      0 → 20 Hz (bypass, deja pasar todo)
-  //     +1 → 5000 Hz (corta graves y medios)
-  // 
-  // NOTA: Los rangos de frecuencia son asimétricos intencionalmente.
-  // El oído es más sensible a cambios en graves que en agudos.
+  // El AudioParam 'filterPosition' recibe directamente el valor bipolar.
+  // Los coeficientes IIR se recalculan en el worklet por bloque (k-rate).
   // ───────────────────────────────────────────────────────────────────────────
 
   /**
-   * Calcula frecuencia de corte del Lowpass según valor bipolar.
-   * Solo activo para valores negativos (-1 a 0).
-   * 
-   * @param {number} value - Valor bipolar (-1 a +1)
-   * @returns {number} Frecuencia en Hz (200 a 20000)
-   */
-  _getLowpassFreq(value) {
-    // value < 0: LP activo, mapear -1→200Hz, 0→20000Hz
-    // value >= 0: LP bypass (20000Hz)
-    if (value >= 0) return 20000;
-    
-    const t = 1 + value; // -1→0, 0→1
-    const minFreq = 200;
-    const maxFreq = 20000;
-    const minLog = Math.log10(minFreq);
-    const maxLog = Math.log10(maxFreq);
-    return Math.pow(10, minLog + t * (maxLog - minLog));
-  }
-
-  /**
-   * Calcula frecuencia de corte del Highpass según valor bipolar.
-   * Solo activo para valores positivos (0 a +1).
-   * 
-   * @param {number} value - Valor bipolar (-1 a +1)
-   * @returns {number} Frecuencia en Hz (20 a 5000)
-   */
-  _getHighpassFreq(value) {
-    // value > 0: HP activo, mapear 0→20Hz, +1→5000Hz
-    // value <= 0: HP bypass (20Hz)
-    if (value <= 0) return 20;
-    
-    const t = value; // 0→0, 1→1
-    const minFreq = 20;
-    const maxFreq = 5000;
-    const minLog = Math.log10(minFreq);
-    const maxLog = Math.log10(maxFreq);
-    return Math.pow(10, minLog + t * (maxLog - minLog));
-  }
-
-  /**
-   * Aplica el valor del filtro a los nodos LP y HP.
-   * Usado internamente durante inicialización y cambios.
+   * Aplica el valor del filtro al AudioWorklet del bus.
+   * Establece el parámetro filterPosition del worklet RC.
    * 
    * @param {number} busIndex - Índice del bus
    * @param {number} value - Valor bipolar (-1 a +1)
-   * @param {BiquadFilterNode} [filterLP] - Nodo LP (opcional, se obtiene del bus)
-   * @param {BiquadFilterNode} [filterHP] - Nodo HP (opcional, se obtiene del bus)
    * @param {number} [ramp] - Tiempo de rampa en segundos
    */
-  _applyFilterValue(busIndex, value, filterLP, filterHP, ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME) {
+  _applyFilterValue(busIndex, value, ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME) {
     const bus = this.outputBuses[busIndex];
-    const lp = filterLP || bus?.filterLP;
-    const hp = filterHP || bus?.filterHP;
+    const filterNode = bus?.filterNode;
     const ctx = this.audioCtx;
     
-    if (!lp || !hp) return;
+    if (!filterNode) return;
     
-    const lpFreq = this._getLowpassFreq(value);
-    const hpFreq = this._getHighpassFreq(value);
+    const param = filterNode.parameters.get('filterPosition');
+    if (!param) return;
     
     if (ctx) {
-      setParamSmooth(lp.frequency, lpFreq, ctx, { ramp });
-      setParamSmooth(hp.frequency, hpFreq, ctx, { ramp });
+      setParamSmooth(param, value, ctx, { ramp });
     } else {
-      // Sin contexto, aplicar directamente (inicialización)
-      lp.frequency.value = lpFreq;
-      hp.frequency.value = hpFreq;
+      param.value = value;
     }
   }
 
@@ -887,9 +819,9 @@ export class AudioEngine {
    * 
    * @param {number} busIndex - Índice del bus (0-based)
    * @param {number} value - Valor en escala dial Synthi 100 (-5 a 5):
-   *   -5 = Lowpass máximo (solo graves, ~200Hz)
-   *    0 = Sin filtrado (señal limpia)
-   *   +5 = Highpass máximo (solo agudos, ~5kHz)
+   *   -5 = Lowpass máximo (corta agudos, fc ≈ 677 Hz)
+   *    0 = Sin filtrado (señal limpia, ganancia unitaria)
+   *   +5 = Highpass máximo (atenúa graves, shelving 6 dB)
    * @param {Object} [options] - Opciones
    * @param {number} [options.ramp=0.03] - Tiempo de rampa en segundos
    */
@@ -910,9 +842,9 @@ export class AudioEngine {
       this._updateFilterBypass(busIndex, bipolarValue);
     }
     
-    // Solo aplicar valores de frecuencia si los filtros están conectados
+    // Solo aplicar valor si los filtros están conectados
     if (!this._filterBypassState[busIndex]) {
-      this._applyFilterValue(busIndex, bipolarValue, null, null, ramp);
+      this._applyFilterValue(busIndex, bipolarValue, ramp);
     }
   }
   
@@ -921,8 +853,8 @@ export class AudioEngine {
    * Usa crossfade suave entre la ruta de filtros y la ruta directa para evitar clicks.
    * 
    * CADENA CON CROSSFADE:
-   * postVcaNode → filterGain → filterLP → filterHP ─┬─→ muteNode
-   * postVcaNode → bypassGain ───────────────────────┘
+   * postVcaNode → filterGain → filterNode (RC worklet) ─┬─→ muteNode
+   * postVcaNode → bypassGain ──────────────────────────┘
    * 
    * El bypass hace crossfade: filterGain→0, bypassGain→1 (y viceversa)
    * 
@@ -1830,7 +1762,8 @@ export class AudioEngine {
           './assets/js/worklets/noiseGenerator.worklet.js',
           './assets/js/worklets/cvThermalSlew.worklet.js',
           './assets/js/worklets/cvSoftClip.worklet.js',
-          './assets/js/worklets/vcaProcessor.worklet.js'
+          './assets/js/worklets/vcaProcessor.worklet.js',
+          './assets/js/worklets/outputFilter.worklet.js'
         ];
         
         await Promise.all(
@@ -1839,6 +1772,9 @@ export class AudioEngine {
         
         this.workletReady = true;
         log.info('All worklets loaded:', worklets.length);
+        
+        // Crear los filterNodes ahora que el worklet está disponible
+        this._initFilterNodes();
       } catch (err) {
         log.error('Failed to load worklet:', err);
         this.workletReady = false;
@@ -1846,6 +1782,57 @@ export class AudioEngine {
     })();
 
     return this._workletLoadPromise;
+  }
+
+  /**
+   * Crea e inserta los AudioWorkletNode de filtro RC en todos los buses.
+   * Se llama automáticamente desde _loadWorklet() tras cargar el módulo,
+   * porque AudioWorkletNode requiere que addModule() haya completado.
+   * 
+   * Reemplaza la conexión temporal filterGain → muteNode (passthrough)
+   * por la cadena real: filterGain → filterNode (RC worklet) → muteNode
+   * 
+   * @private
+   */
+  _initFilterNodes() {
+    const ctx = this.audioCtx;
+    if (!ctx || !this.outputBuses.length) return;
+    
+    const filterConfig = outputChannelConfig.audio.filter;
+    
+    for (let i = 0; i < this.outputBuses.length; i++) {
+      const bus = this.outputBuses[i];
+      if (!bus || bus.filterNode) continue;  // Ya inicializado
+      
+      try {
+        const filterNode = new AudioWorkletNode(ctx, 'output-filter', {
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          parameterData: { filterPosition: 0 },
+          processorOptions: {
+            capacitance: filterConfig.capacitance,
+            potResistance: filterConfig.potResistance
+          }
+        });
+        
+        // Desconectar passthrough temporal: filterGain → muteNode
+        bus.filterGain.disconnect(bus.muteNode);
+        
+        // Insertar filterNode en la cadena: filterGain → filterNode → muteNode
+        bus.filterGain.connect(filterNode);
+        filterNode.connect(bus.muteNode);
+        
+        bus.filterNode = filterNode;
+        
+        // Aplicar valor actual del filtro si no es neutral
+        const bipolar = this.outputFilters[i] / 5;
+        if (Math.abs(bipolar) > 0.001) {
+          this._applyFilterValue(i, bipolar);
+        }
+      } catch (err) {
+        log.error(`Failed to create filter node for bus ${i}:`, err);
+      }
+    }
   }
 
   /**

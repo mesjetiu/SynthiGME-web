@@ -268,28 +268,32 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // DC BLOCKER para re-entry: Elimina offset DC estático
       // ─────────────────────────────────────────────────────────────────────
-      // Highpass a 2 Hz (τ ≈ 80 ms, settling < 0.5 s).
+      // Highpass a 0.01 Hz: pasa LFOs y CV lentas sin distorsión.
       //
       // HISTORIAL Y RATIONALE:
       // - v0.4: 5 Hz original (buen settling pero atenuaba LFOs)
       // - v0.5: 0.01 Hz (permitía CV lento pero τ ≈ 16 s → settling ~80 s)
-      //   Cualquier glitch (VCA wake-up, pin connect, etc.) generaba una
-      //   señal sub-Hz residual que tardaba > 1 min en asentarse.
-      //   Al usar re-entry como CV para FM, este residual causaba drift
-      //   de pitch claramente audible (~5 cents/mV a 1V/oct).
-      // - v0.6: 2 Hz. Transparente para audio (≥ 20 Hz: 0 dB).
-      //   LFOs típicos (> 2 Hz) pasan sin atenuación.
-      //   DC y transitorios se eliminan en < 0.5 s.
-      //   Para CV sub-Hz por re-entry, usar conexión directa en la matriz.
+      //   drift sub-Hz por residuo asintótico de setTargetAtTime en VCA.
+      // - v0.6-rc1: 2 Hz. Settling rápido pero destruye LFOs < 2 Hz.
+      //   Onda cuadrada 1 Hz: 99.8% droop en tramos planos → pendientes
+      //   exponenciales. Inusable como CV para FM (distorsión audible).
+      // - v0.6: Revierte a 0.01 Hz. El drift se resolvió con hard-set
+      //   (setValueAtTime tras 5τ) en _updateFilterBypass() y
+      //   setFilterBypassEnabled(), no con el DC blocker.
+      //   A 0.01 Hz: onda cuadrada 1 Hz tiene solo ~3% droop (< 0.3 dB),
+      //   señal CV transparente. DC real se bloquea en ~80 s (aceptable
+      //   como red de seguridad ya que el hard-set elimina la causa
+      //   principal de offset DC).
       //
       // NOTA: La causa principal de offset DC era el transitorio del VCA
-      // worklet al despertar de dormancy, corregido con el mensaje 'resync'.
-      // Este DC blocker es protección residual (patches mal configurados,
-      // start-up glitches en mobile, etc.).
+      // worklet al despertar de dormancy, corregido con el mensaje 'resync',
+      // y el residuo asintótico de setTargetAtTime, corregido con hard-set.
+      // Este DC blocker es protección residual para edge cases (patches
+      // mal configurados, start-up glitches en mobile, etc.).
       // ─────────────────────────────────────────────────────────────────────
       const dcBlocker = ctx.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 2;     // 2 Hz — settling < 0.5 s, transparente para audio
+      dcBlocker.frequency.value = 0.01;  // 0.01 Hz — transparente para LFOs ≥ 0.1 Hz, bloquea DC
       dcBlocker.Q.value = 0.707;         // Butterworth — respuesta plana, sin resonancia
       postVcaNode.connect(dcBlocker);
       

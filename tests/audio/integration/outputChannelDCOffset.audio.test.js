@@ -7,8 +7,8 @@
  * deriva lentamente sin que nada cambie.
  * 
  * Fuentes potenciales investigadas:
- * 1. BiquadFilter highpass a 2 Hz (DC blocker) — settling rápido (τ ≈ 80 ms)
- *    puede generar oscilación numérica por pérdida de precisión
+ * 1. BiquadFilter highpass a 0.01 Hz (DC blocker) — red de seguridad para DC
+ *    puro. Settling lento (τ ≈ 16 s) pero el hard-set en el VCA lo compensa
  * 2. setTargetAtTime(0) nunca llega a cero exacto → fuga por crossfade
  * 3. OutputFilter worklet IIR acumulando estado residual
  * 4. VCA slew filter con convergencia asintótica
@@ -57,7 +57,7 @@ function analyzeBuffer(samples) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TESTS: DC BLOCKER (BiquadFilter highpass 2 Hz)
+// TESTS: DC BLOCKER (BiquadFilter highpass 0.01 Hz)
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('Output Channel - Señal residual sin entrada', () => {
@@ -70,7 +70,7 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
   // TEST 1: DC Blocker con silencio no debe generar señal
   // ─────────────────────────────────────────────────────────────────────────
 
-  test('BiquadFilter highpass 2Hz con silencio no genera señal (2s)', async ({ page }) => {
+  test('BiquadFilter highpass 0.01Hz con silencio no genera señal (2s)', async ({ page }) => {
     const result = await page.evaluate(async (config) => {
       const { sampleRate, longDuration } = config;
       const length = Math.ceil(sampleRate * longDuration);
@@ -84,7 +84,7 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
       // DC Blocker idéntico al de engine.js
       const dcBlocker = offline.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 2;
+      dcBlocker.frequency.value = 0.01;
       dcBlocker.Q.value = 0.707;
 
       // Conectar silencio → dcBlocker → output
@@ -153,7 +153,7 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
       // DC Blocker
       const dcBlocker = offline.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 2;
+      dcBlocker.frequency.value = 0.01;
       dcBlocker.Q.value = 0.707;
 
       // Fuente: DC constante de 1.0V (simula offset del VCA)
@@ -185,8 +185,8 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
       return { snapshots, peakLastQuarter };
     }, DC_OFFSET_CONFIG);
 
-    // El DC blocker a 2Hz con DC constante: τ ≈ 1/(2π·2) ≈ 80ms
-    // En 2s estará prácticamente a 0. La tendencia debe ser decreciente.
+    // El DC blocker a 0.01Hz con DC constante: τ ≈ 1/(2π·0.01) ≈ 16s
+    // En 2s habrá decaído parcialmente. La tendencia debe ser decreciente.
     const values = result.snapshots.map(s => Math.abs(s.value));
     const firstValue = values[0];
     const lastValue = values[values.length - 1];
@@ -373,7 +373,7 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
 
       const dcBlocker = offline.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 2;
+      dcBlocker.frequency.value = 0.01;
       dcBlocker.Q.value = 0.707;
 
       osc.connect(envelope);
@@ -414,13 +414,12 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
     }, DC_OFFSET_CONFIG);
 
     // La señal post-dcBlocker debería converger a silencio.
-    // El DC blocker a 2Hz tiene τ ≈ 80ms, settling < 0.5s.
-    // A 0.5s post-señal, el residuo debe ser prácticamente 0.
-    
-    // A t>1s después de detener la fuente (0.8s post-señal),
-    // el residuo debe ser pequeño
+    // El DC blocker a 0.01Hz tiene τ ≈ 16s, settling lento.
+    // Pero una señal 440Hz no tiene componente DC, así que el filtro
+    // no almacena energía significativa. El residuo tras detener la
+    // fuente (burst de 200ms) debe ser pequeño.
     const lastSnapshot = result.snapshots[result.snapshots.length - 1];
-    expect(lastSnapshot.peak).toBeLessThan(0.001); // < 1mV
+    expect(lastSnapshot.peak).toBeLessThan(0.01); // < 10mV
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -527,7 +526,7 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
 
       const dcBlocker = offline.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 2;
+      dcBlocker.frequency.value = 0.01;
       dcBlocker.Q.value = 0.707;
 
       osc.connect(levelNode);
@@ -715,6 +714,293 @@ test.describe('Output Channel - Crossfade filter bypass: fuga de señal', () => 
     expect(result.peakWith).toBe(0);
     // Sin hard-set, habrá fuga residual
     expect(result.peakWithout).toBeGreaterThan(0);
+  });
+
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS: FIDELIDAD DE FORMA DE ONDA POR RE-ENTRY
+// ═══════════════════════════════════════════════════════════════════════════
+// Verifica que señales LFO (≥ 1 Hz) pasan por el DC blocker sin
+// distorsión significativa. El DC blocker a 0.01 Hz debe ser transparente
+// para estas señales. Un blocker demasiado alto (ej: 2 Hz) destruye la
+// forma de onda de una cuadrada de 1 Hz (99.8% droop en tramos planos).
+// ═══════════════════════════════════════════════════════════════════════════
+
+test.describe('Output Channel - Fidelidad de forma de onda en re-entry', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupAudioPage(page);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TEST 10: Onda cuadrada 1Hz debe mantener tramos planos (droop < 5%)
+  // ─────────────────────────────────────────────────────────────────────────
+  // Una onda cuadrada de 1 Hz usada como CV para FM necesita mantener
+  // los tramos planos. El DC blocker (highpass) introduce droop
+  // exponencial en las porciones constantes. A 0.01 Hz (τ ≈ 16s) el
+  // droop en 500ms es ~3%, aceptable. A 2 Hz (τ ≈ 80ms) era ~99.8%.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  test('Onda cuadrada 1Hz: droop < 5% tras DC blocker 0.01Hz', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const sampleRate = 44100;
+      const duration = 3.0; // 3 ciclos completos
+      const length = Math.ceil(sampleRate * duration);
+
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 2, // ch0: directo, ch1: con DC blocker
+        length,
+        sampleRate
+      });
+
+      // Onda cuadrada 1Hz (band-limited)
+      const osc = offline.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 1;
+
+      // Ruta directa (canal 0) — referencia sin filtro
+      const direct = offline.createGain();
+      direct.gain.value = 1.0;
+
+      // Ruta con DC blocker (canal 1) — como en engine.js
+      const dcBlocker = offline.createBiquadFilter();
+      dcBlocker.type = 'highpass';
+      dcBlocker.frequency.value = 0.01;
+      dcBlocker.Q.value = 0.707;
+
+      const merger = offline.createChannelMerger(2);
+
+      osc.connect(direct);
+      direct.connect(merger, 0, 0);
+
+      osc.connect(dcBlocker);
+      dcBlocker.connect(merger, 0, 1);
+
+      merger.connect(offline.destination);
+      osc.start(0);
+
+      const buffer = await offline.startRendering();
+      const directSamples = buffer.getChannelData(0);
+      const blockerSamples = buffer.getChannelData(1);
+
+      // Medir en puntos medios de semiciclos (donde la cuadrada es más plana)
+      // Semiciclos: +[0-0.5s], -[0.5-1s], +[1-1.5s], -[1.5-2s], +[2-2.5s], -[2.5-3s]
+      const measurements = [];
+      const midpoints = [0.25, 0.75, 1.25, 1.75, 2.25, 2.75];
+      const windowHalf = 128; // ±128 samples alrededor del punto medio
+
+      for (const t of midpoints) {
+        const center = Math.floor(t * sampleRate);
+        const start = Math.max(0, center - windowHalf);
+        const end = Math.min(length - 1, center + windowHalf);
+
+        let directMean = 0, blockerMean = 0;
+        let count = 0;
+        for (let i = start; i <= end; i++) {
+          directMean += directSamples[i];
+          blockerMean += blockerSamples[i];
+          count++;
+        }
+        directMean /= count;
+        blockerMean /= count;
+
+        const ratio = Math.abs(blockerMean / (directMean || 1));
+        measurements.push({
+          time: t,
+          direct: directMean,
+          blocked: blockerMean,
+          ratio,
+          droop: 1 - ratio
+        });
+      }
+
+      // Droop máximo (excluir primer semiciclo que puede tener transitorio)
+      const maxDroop = Math.max(...measurements.slice(1).map(m => m.droop));
+
+      // Peak del segundo ciclo (ya estabilizado)
+      const cycle2Start = Math.floor(1.0 * sampleRate);
+      const cycle2End = Math.floor(2.0 * sampleRate);
+      let directPeakC2 = 0, blockerPeakC2 = 0;
+      for (let i = cycle2Start; i < cycle2End; i++) {
+        if (Math.abs(directSamples[i]) > directPeakC2) {
+          directPeakC2 = Math.abs(directSamples[i]);
+        }
+        if (Math.abs(blockerSamples[i]) > blockerPeakC2) {
+          blockerPeakC2 = Math.abs(blockerSamples[i]);
+        }
+      }
+
+      return {
+        measurements,
+        maxDroop,
+        peakRatio: blockerPeakC2 / (directPeakC2 || 1),
+        directPeakC2,
+        blockerPeakC2
+      };
+    });
+
+    // Droop debe ser < 5% para CV preciso en FM
+    // A 0.01Hz: droop teórico ~3% por semiciclo de 500ms
+    expect(result.maxDroop).toBeLessThan(0.05);
+
+    // Peak ratio del segundo ciclo debe ser cercano a 1.0
+    expect(result.peakRatio).toBeGreaterThan(0.95);
+
+    console.log(`Square wave 1Hz droop: ${(result.maxDroop * 100).toFixed(1)}%`);
+    console.log(`Peak ratio cycle 2: ${result.peakRatio.toFixed(4)}`);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TEST 11: Comparativa — 0.01Hz vs 2Hz en cuadrada 1Hz
+  // ─────────────────────────────────────────────────────────────────────────
+  // Demuestra que 2 Hz destruye la cuadrada (>90% droop) mientras que
+  // 0.01 Hz la preserva (<5% droop). Sirve como regresión para evitar
+  // que alguien suba la frecuencia del DC blocker en el futuro.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  test('DC blocker 0.01Hz vs 2Hz: confirmar que 0.01Hz preserva cuadrada 1Hz', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const sampleRate = 44100;
+      const duration = 3.0;
+      const length = Math.ceil(sampleRate * duration);
+
+      // Función auxiliar: renderizar cuadrada 1Hz a través de un DC blocker
+      async function renderWithBlocker(freq) {
+        const offline = new OfflineAudioContext({
+          numberOfChannels: 2, // ch0: directo, ch1: filtrado
+          length,
+          sampleRate
+        });
+
+        const osc = offline.createOscillator();
+        osc.type = 'square';
+        osc.frequency.value = 1;
+
+        const dcBlocker = offline.createBiquadFilter();
+        dcBlocker.type = 'highpass';
+        dcBlocker.frequency.value = freq;
+        dcBlocker.Q.value = 0.707;
+
+        const merger = offline.createChannelMerger(2);
+
+        // ch0: directo (referencia)
+        osc.connect(merger, 0, 0);
+
+        // ch1: filtrado
+        osc.connect(dcBlocker);
+        dcBlocker.connect(merger, 0, 1);
+
+        merger.connect(offline.destination);
+        osc.start(0);
+
+        const buffer = await offline.startRendering();
+        return {
+          direct: buffer.getChannelData(0),
+          filtered: buffer.getChannelData(1)
+        };
+      }
+
+      const r001 = await renderWithBlocker(0.01);
+      const r2 = await renderWithBlocker(2);
+
+      // Medir la distorsión de la forma de onda comparando con la señal directa.
+      // Usamos el error RMS normalizado (NRMSE): cuanto más bajo, más fiel.
+      // Zona de medición: segundo ciclo completo (excluir transitorio inicial)
+      const analyzeStart = Math.floor(1.0 * sampleRate);
+      const analyzeEnd = Math.floor(3.0 * sampleRate);
+
+      function computeNRMSE(direct, filtered) {
+        let sumSqError = 0, sumSqDirect = 0;
+        for (let i = analyzeStart; i < analyzeEnd; i++) {
+          const err = filtered[i] - direct[i];
+          sumSqError += err * err;
+          sumSqDirect += direct[i] * direct[i];
+        }
+        return Math.sqrt(sumSqError / sumSqDirect);
+      }
+
+      const nrmse001 = computeNRMSE(r001.direct, r001.filtered);
+      const nrmse2 = computeNRMSE(r2.direct, r2.filtered);
+
+      return {
+        nrmse001,
+        nrmse2,
+        improvementRatio: nrmse2 / nrmse001
+      };
+    });
+
+    // 0.01Hz: error normalizado < 5% (casi transparente)
+    expect(result.nrmse001).toBeLessThan(0.05);
+
+    // 2Hz: error normalizado > 50% (destruye la forma de onda)
+    expect(result.nrmse2).toBeGreaterThan(0.5);
+
+    // 0.01Hz debe ser al menos 10x mejor que 2Hz
+    expect(result.improvementRatio).toBeGreaterThan(10);
+
+    console.log(`0.01Hz NRMSE: ${(result.nrmse001 * 100).toFixed(1)}%, 2Hz NRMSE: ${(result.nrmse2 * 100).toFixed(1)}%`);
+    console.log(`Improvement ratio: ${result.improvementRatio.toFixed(1)}x`);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TEST 12: Señal sinusoidal 1Hz debe pasar sin atenuación significativa
+  // ─────────────────────────────────────────────────────────────────────────
+
+  test('Sinusoidal 1Hz: atenuación < 0.1 dB tras DC blocker 0.01Hz', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const sampleRate = 44100;
+      const duration = 2.0;
+      const length = Math.ceil(sampleRate * duration);
+
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 2,
+        length,
+        sampleRate
+      });
+
+      const osc = offline.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 1;
+
+      const dcBlocker = offline.createBiquadFilter();
+      dcBlocker.type = 'highpass';
+      dcBlocker.frequency.value = 0.01;
+      dcBlocker.Q.value = 0.707;
+
+      const merger = offline.createChannelMerger(2);
+
+      osc.connect(merger, 0, 0);        // ch0: directo
+      osc.connect(dcBlocker);
+      dcBlocker.connect(merger, 0, 1);   // ch1: con DC blocker
+
+      merger.connect(offline.destination);
+      osc.start(0);
+
+      const buffer = await offline.startRendering();
+      const direct = buffer.getChannelData(0);
+      const filtered = buffer.getChannelData(1);
+
+      // Medir peak en el segundo ciclo (estabilizado)
+      const c2Start = Math.floor(1.0 * sampleRate);
+      const c2End = Math.floor(2.0 * sampleRate);
+      let directPeak = 0, filteredPeak = 0;
+      for (let i = c2Start; i < c2End; i++) {
+        if (Math.abs(direct[i]) > directPeak) directPeak = Math.abs(direct[i]);
+        if (Math.abs(filtered[i]) > filteredPeak) filteredPeak = Math.abs(filtered[i]);
+      }
+
+      const ratio = filteredPeak / (directPeak || 1);
+      const attenuationDb = -20 * Math.log10(ratio);
+
+      return { directPeak, filteredPeak, ratio, attenuationDb };
+    });
+
+    // Atenuación a 1Hz debe ser < 0.1 dB (prácticamente transparente)
+    expect(result.attenuationDb).toBeLessThan(0.1);
+    expect(result.ratio).toBeGreaterThan(0.98);
+
+    console.log(`1Hz sine attenuation: ${result.attenuationDb.toFixed(3)} dB (ratio: ${result.ratio.toFixed(4)})`);
   });
 
 });

@@ -102,7 +102,7 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
   // TEST 2: DC Blocker no debe atenuar ni amplificar señal de audio
   // ─────────────────────────────────────────────────────────────────────────
 
-  test('DC Blocker (2Hz highpass) debe tener ganancia unitaria a 440Hz', async ({ page }) => {
+  test('DC Blocker (0.01Hz highpass) debe tener ganancia unitaria a 440Hz', async ({ page }) => {
     const result = await page.evaluate(async (config) => {
       const { sampleRate, duration, testFrequency } = config;
       const length = Math.ceil(sampleRate * duration);
@@ -118,11 +118,11 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
       osc.type = 'sine';
       osc.frequency.value = testFrequency;
 
-      // DC Blocker: highpass a 2Hz (como en engine.js)
-      // Permite LFOs lentos, bloquea DC estático, settling rápido
+      // DC Blocker: highpass a 0.01Hz (como en engine.js)
+      // Transparente para audio y LFOs, bloquea solo DC puro
       const dcBlocker = offline.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 2;
+      dcBlocker.frequency.value = 0.01;
       dcBlocker.Q.value = 0.707;
 
       // Splitters para medir ambas señales
@@ -202,7 +202,7 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
 
       const dcBlocker = offline.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 2;
+      dcBlocker.frequency.value = 0.01;
       dcBlocker.Q.value = 0.707;
 
       // Conectar cadena
@@ -313,7 +313,7 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
 
       const oc1DcBlocker = offline.createBiquadFilter();
       oc1DcBlocker.type = 'highpass';
-      oc1DcBlocker.frequency.value = 2;
+      oc1DcBlocker.frequency.value = 0.01;
       oc1DcBlocker.Q.value = 0.707;
 
       // Matrix Pin GREY (re-entry): gain=1.0
@@ -332,7 +332,7 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
 
       const oc2DcBlocker = offline.createBiquadFilter();
       oc2DcBlocker.type = 'highpass';
-      oc2DcBlocker.frequency.value = 2;
+      oc2DcBlocker.frequency.value = 0.01;
       oc2DcBlocker.Q.value = 0.707;
 
       // Conectar cadena completa
@@ -567,7 +567,7 @@ test.describe('Re-Entry Gain - Diagnóstico de Amplificación', () => {
         measurements.afterPostVca = measurePeak(buffer.getChannelData(0));
       }
 
-      // Etapa 4: → dcBlocker (highpass 5Hz)
+      // Etapa 4: → dcBlocker (highpass 0.01Hz)
       {
         const ctx = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
         const osc = ctx.createOscillator();
@@ -581,7 +581,7 @@ test.describe('Re-Entry Gain - Diagnóstico de Amplificación', () => {
         postVca.gain.value = 1.0;
         const dcBlocker = ctx.createBiquadFilter();
         dcBlocker.type = 'highpass';
-        dcBlocker.frequency.value = 2;
+        dcBlocker.frequency.value = 0.01;
         dcBlocker.Q.value = 0.707;
         osc.connect(busInput);
         busInput.connect(vca);
@@ -607,7 +607,7 @@ test.describe('Re-Entry Gain - Diagnóstico de Amplificación', () => {
         postVca.gain.value = 1.0;
         const dcBlocker = ctx.createBiquadFilter();
         dcBlocker.type = 'highpass';
-        dcBlocker.frequency.value = 2;
+        dcBlocker.frequency.value = 0.01;
         dcBlocker.Q.value = 0.707;
         const pin = ctx.createGain();
         pin.gain.value = 1.0;

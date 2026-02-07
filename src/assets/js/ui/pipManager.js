@@ -539,6 +539,10 @@ export function closePip(panelId) {
   
   activePips.delete(panelId);
   
+  // Limpiar flag de gesto PiP (podría estar activo si se cerró durante un pinch)
+  gestureInProgress = false;
+  window.__synthPipGestureActive = false;
+  
   log.info(`Panel ${panelId} devuelto a viewport`);
   
   // Guardar estado
@@ -699,9 +703,24 @@ function setupPipEvents(pipContainer, panelId) {
   pipContainer.addEventListener('touchcancel', (e) => e.stopPropagation(), { capture: true, passive: true });
   
   // touchend: bloquear propagación + detectar doble tap
+  // IMPORTANTE: Este handler está en fase de CAPTURA, por lo que se ejecuta ANTES
+  // que los handlers de elementos hijos (como content). Por eso también debe limpiar
+  // el flag de gesto PiP aquí, ya que stopPropagation() impide que el touchend
+  // llegue al handler de content que hace la limpieza del pinch.
   let lastTapTime = 0;
   pipContainer.addEventListener('touchend', (e) => {
     e.stopPropagation();
+    
+    // Limpiar flag de gesto PiP si ya no hay pinch activo
+    // (necesario aquí porque stopPropagation en capture impide que
+    // el touchend llegue al handler de content.touchend)
+    if (e.touches.length < 2 && gestureInProgress) {
+      setTimeout(() => {
+        gestureInProgress = false;
+        window.__synthPipGestureActive = false;
+      }, 500);
+    }
+    
     const now = Date.now();
     if (now - lastTapTime < 300) {
       e.preventDefault();

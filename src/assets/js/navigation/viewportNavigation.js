@@ -868,6 +868,62 @@ export function initViewportNavigation({ outer, inner } = {}) {
   // Fallback for Samsung/Android Chrome
   outer.oncontextmenu = () => false;
 
+  // ─────────────────────────────────────────────────────────────────────
+  // LIMPIEZA DEFENSIVA de pointer maps
+  // En Android/Samsung, pointerup/pointercancel pueden perderse si:
+  // - Un PiP intercepta con stopPropagation
+  // - El navegador consume el evento internamente
+  // - Se cambia de pestaña/app durante un gesto
+  // Resultado: pointers/activeTouchMap quedan con entradas fantasma y
+  // el pinch-zoom deja de funcionar (pointers.size nunca es 2).
+  // ─────────────────────────────────────────────────────────────────────
+  
+  // Fallback: pointerup/pointercancel a nivel document (capture) como red de seguridad
+  // Si el pointer se perdió en outer, al menos lo limpiamos aquí
+  document.addEventListener('pointerup', (ev) => {
+    if (pointers.has(ev.pointerId)) {
+      pointers.delete(ev.pointerId);
+      recomputeNavGestureState();
+      if (pointers.size < 2) {
+        lastDist = null;
+        lastCentroid = null;
+      }
+    }
+    if (activeTouchMap.has(ev.pointerId)) {
+      activeTouchMap.delete(ev.pointerId);
+      updateNavGestureFlagFromCapture();
+    }
+  }, { capture: true });
+  
+  document.addEventListener('pointercancel', (ev) => {
+    if (pointers.has(ev.pointerId)) {
+      pointers.delete(ev.pointerId);
+      recomputeNavGestureState();
+      if (pointers.size < 2) {
+        lastDist = null;
+        lastCentroid = null;
+      }
+    }
+    if (activeTouchMap.has(ev.pointerId)) {
+      activeTouchMap.delete(ev.pointerId);
+      updateNavGestureFlagFromCapture();
+    }
+  }, { capture: true });
+  
+  // Limpiar todo al cambiar de pestaña/app o al volver (Android multitask)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      pointers.clear();
+      activeTouchMap.clear();
+      recomputeNavGestureState();
+      lastDist = null;
+      lastCentroid = null;
+      isPanning = false;
+      panPointerId = null;
+      window.__synthPipGestureActive = false;
+    }
+  });
+
   // Resize handler
   let navResizeTimer = null;
   const handleNavResize = () => {

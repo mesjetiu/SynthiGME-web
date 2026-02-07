@@ -2254,6 +2254,566 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════
+    // TEST: FM Octave Accuracy (diagnóstico de pérdida de señal CV)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Test de precisión de octava para modulación FM vía matriz de control.
+     * 
+     * Reproduce el escenario:
+     *   Osc modulante (cuadrada) → [pinFilter] → [pinGain] → cvChainInput
+     *   → [cvThermalSlew] → [cvSoftClip] → freqCVInput(×4800) → detune del portador
+     * 
+     * Mide la frecuencia del portador en las fases positiva y negativa
+     * del modulante y calcula el ratio real vs esperado.
+     * 
+     * @param {Object} config
+     * @param {number} config.carrierFreq - Frecuencia portador (Hz)
+     * @param {number} config.modulatorVpp - Voltaje pico-a-pico del modulante (V)
+     * @param {number} [config.modulatorFreq=1] - Frecuencia modulante (Hz)
+     * @param {boolean} [config.includePinFilter=true] - Incluir filtro RC del pin
+     * @param {boolean} [config.includeThermalSlew=true] - Incluir thermal slew
+     * @param {boolean} [config.includeSoftClip=true] - Incluir soft clip
+     * @param {string} [config.pinType='GREY'] - Tipo de pin
+     */
+    window.testFMOctaveAccuracy = async function(config) {
+      const {
+        carrierFreq = 400,
+        modulatorVpp = 1.0,         // 1V p-p → se espera 1 octava
+        modulatorFreq = 1,          // 1 Hz (LFO lento)
+        includePinFilter = true,
+        includeThermalSlew = true,
+        includeSoftClip = true,
+        pinType = 'GREY',
+        sampleRate = 44100,
+        duration = 2.0              // 2s → 2 ciclos completos del modulante
+      } = config;
+
+      // ═══════════════════════════════════════════════════════════════════
+      // CONSTANTES DEL SISTEMA (replicadas de voltageConstants.js)
+      // ═══════════════════════════════════════════════════════════════════
+      const DIGITAL_TO_VOLTAGE = 4.0;
+      const CENTS_PER_OCTAVE = 1200;
+      const centsGain = CENTS_PER_OCTAVE * DIGITAL_TO_VOLTAGE; // 4800
+      
+      // Conversión: Vpp → amplitud digital del modulante
+      const peakVoltage = modulatorVpp / 2;              // ±peakVoltage
+      const peakDigital = peakVoltage / DIGITAL_TO_VOLTAGE; // ±peakDigital
+      
+      // Frecuencias esperadas del portador
+      const expectedCentsHigh = peakDigital * centsGain;    // cents en fase positiva
+      const expectedCentsLow = -peakDigital * centsGain;    // cents en fase negativa
+      const expectedFreqHigh = carrierFreq * Math.pow(2, expectedCentsHigh / 1200);
+      const expectedFreqLow = carrierFreq * Math.pow(2, expectedCentsLow / 1200);
+      const expectedRatio = expectedFreqHigh / expectedFreqLow;
+      const expectedOctaves = Math.log2(expectedRatio);
+      
+      // Configuración del pin
+      const PIN_CUTOFFS = { WHITE: 15915, GREY: 15915, GREEN: 23405, RED: 24000 };
+      const PIN_GAINS = { WHITE: 1.0, GREY: 1.0, GREEN: 1.47, RED: 37.04 };
+      const pinCutoff = PIN_CUTOFFS[pinType] || 15915;
+      const pinGainValue = PIN_GAINS[pinType] || 1.0;
+
+      log(`FM Octave Test: ${modulatorVpp}Vpp @ ${carrierFreq}Hz carrier`);
+      log(`  Peak: ±${peakVoltage}V = ±${peakDigital.toFixed(4)} digital`);
+      log(`  Expected: ${expectedFreqLow.toFixed(1)}Hz – ${expectedFreqHigh.toFixed(1)}Hz`);
+      log(`  Expected ratio: ${expectedRatio.toFixed(4)} (${expectedOctaves.toFixed(4)} octaves)`);
+
+      const length = Math.ceil(sampleRate * duration);
+      const offline = new OfflineAudioContext({ numberOfChannels: 2, length, sampleRate });
+
+      // Cargar worklets
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+      if (includeThermalSlew) {
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/cvThermalSlew.worklet.js');
+      }
+      if (includeSoftClip) {
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/cvSoftClip.worklet.js');
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // MODULANTE: Oscilador cuadrada a frecuencia LFO
+      // ═══════════════════════════════════════════════════════════════════
+      const modulator = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'single',
+          waveform: 'pulse',
+          moduleSlewEnabled: true,     // Como en la app real
+          moduleSlewCutoff: 20000
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      modulator.parameters.get('frequency').value = modulatorFreq;
+      modulator.parameters.get('gain').value = peakDigital;  // Amplitud = peak digital
+      modulator.parameters.get('pulseWidth').value = 0.5;
+      modulator.parameters.get('detune').value = 0;
+
+      // ═══════════════════════════════════════════════════════════════════
+      // CADENA CV COMPLETA (replica app.js _handlePanel6ControlToggle)
+      // ═══════════════════════════════════════════════════════════════════
+
+      // 1. Pin Filter (BiquadFilter lowpass, emula RC del pin)
+      let pinFilter = null;
+      if (includePinFilter) {
+        pinFilter = offline.createBiquadFilter();
+        pinFilter.type = 'lowpass';
+        pinFilter.Q.value = 0.5;
+        pinFilter.frequency.value = Math.min(pinCutoff, 24000);
+      }
+
+      // 2. Pin Gain (Rf / R_pin)
+      const pinGain = offline.createGain();
+      pinGain.gain.value = pinGainValue;
+
+      // 3. CV Chain Input (unity gain, punto de conexión)
+      const cvChainInput = offline.createGain();
+      cvChainInput.gain.value = 1.0;
+
+      // 4. Thermal Slew (opcional)
+      let cvThermalSlew = null;
+      if (includeThermalSlew) {
+        cvThermalSlew = new AudioWorkletNode(offline, 'cv-thermal-slew', {
+          processorOptions: { riseTimeConstant: 0.005, fallTimeConstant: 0.02 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        cvThermalSlew.parameters.get('enabled').value = 1;
+        cvThermalSlew.parameters.get('threshold').value = 0.5;
+      }
+
+      // 5. Soft Clip (opcional)
+      let cvSoftClip = null;
+      if (includeSoftClip) {
+        cvSoftClip = new AudioWorkletNode(offline, 'cv-soft-clip', {
+          processorOptions: { coefficient: 0.0001 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+      }
+
+      // 6. Freq CV Input (conversión a cents: ×4800)
+      const freqCVInput = offline.createGain();
+      freqCVInput.gain.value = centsGain;
+
+      // ═══════════════════════════════════════════════════════════════════
+      // PORTADOR: Oscilador a frecuencia base
+      // ═══════════════════════════════════════════════════════════════════
+      const carrier = new AudioWorkletNode(offline, 'synth-oscillator', {
+        processorOptions: {
+          mode: 'single',
+          waveform: 'sine',
+          sinePurity: 1.0,
+          sineShapeAttenuation: 0
+        },
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      carrier.parameters.get('frequency').value = carrierFreq;
+      carrier.parameters.get('gain').value = 1.0;
+      carrier.parameters.get('detune').value = 0;
+
+      // ═══════════════════════════════════════════════════════════════════
+      // CONEXIONES
+      // ═══════════════════════════════════════════════════════════════════
+      // Cadena: modulator → [pinFilter] → pinGain → cvChainInput
+      //         → [thermalSlew] → [softClip] → freqCVInput(×4800) → detune
+      let lastModNode = modulator;
+      if (pinFilter) {
+        lastModNode.connect(pinFilter);
+        lastModNode = pinFilter;
+      }
+      lastModNode.connect(pinGain);
+      pinGain.connect(cvChainInput);
+
+      let lastCVNode = cvChainInput;
+      if (cvThermalSlew) {
+        lastCVNode.connect(cvThermalSlew);
+        lastCVNode = cvThermalSlew;
+      }
+      if (cvSoftClip) {
+        lastCVNode.connect(cvSoftClip);
+        lastCVNode = cvSoftClip;
+      }
+      lastCVNode.connect(freqCVInput);
+
+      // Conexión CRÍTICA: freqCVInput → detune AudioParam del portador
+      freqCVInput.connect(carrier.parameters.get('detune'));
+
+      // ═══════════════════════════════════════════════════════════════════
+      // SALIDAS: Canal 0 = portador, Canal 1 = modulante (para referencia)
+      // ═══════════════════════════════════════════════════════════════════
+      const merger = offline.createChannelMerger(2);
+      carrier.connect(merger, 0, 0);
+      modulator.connect(merger, 0, 1);
+      merger.connect(offline.destination);
+
+      // ═══════════════════════════════════════════════════════════════════
+      // RENDERIZAR
+      // ═══════════════════════════════════════════════════════════════════
+      const buffer = await offline.startRendering();
+      const carrierSamples = buffer.getChannelData(0);
+      const modulatorSamples = buffer.getChannelData(1);
+
+      // ═══════════════════════════════════════════════════════════════════
+      // ANÁLISIS: Separar segmentos HIGH y LOW del portador
+      // ═══════════════════════════════════════════════════════════════════
+      const samplesPerHalfCycle = Math.floor(sampleRate / modulatorFreq / 2);
+      const margin = Math.floor(sampleRate * 0.05); // 50ms de margen en transiciones
+
+      // Acumular muestras de las fases HIGH y LOW
+      const highSegments = [];
+      const lowSegments = [];
+      const numCycles = Math.floor(duration * modulatorFreq);
+
+      for (let cycle = 0; cycle < numCycles; cycle++) {
+        const cycleStart = cycle * samplesPerHalfCycle * 2;
+        // Primera mitad del ciclo: modulante en fase positiva
+        const highStart = cycleStart + margin;
+        const highEnd = cycleStart + samplesPerHalfCycle - margin;
+        // Segunda mitad: modulante en fase negativa
+        const lowStart = cycleStart + samplesPerHalfCycle + margin;
+        const lowEnd = cycleStart + samplesPerHalfCycle * 2 - margin;
+
+        if (highEnd <= carrierSamples.length && lowEnd <= carrierSamples.length) {
+          highSegments.push(carrierSamples.slice(highStart, highEnd));
+          lowSegments.push(carrierSamples.slice(lowStart, lowEnd));
+        }
+      }
+
+      // Concatenar segmentos para análisis más robusto
+      const allHigh = new Float32Array(highSegments.reduce((a, s) => a + s.length, 0));
+      const allLow = new Float32Array(lowSegments.reduce((a, s) => a + s.length, 0));
+      let offset = 0;
+      for (const seg of highSegments) { allHigh.set(seg, offset); offset += seg.length; }
+      offset = 0;
+      for (const seg of lowSegments) { allLow.set(seg, offset); offset += seg.length; }
+
+      // Medir frecuencia por zero-crossings (más preciso para señales puras)
+      function measureFreqByZeroCrossings(samples, sr) {
+        const crossings = [];
+        for (let i = 1; i < samples.length; i++) {
+          if (samples[i - 1] < 0 && samples[i] >= 0) {
+            // Interpolar cruce exacto
+            const frac = -samples[i - 1] / (samples[i] - samples[i - 1]);
+            crossings.push(i - 1 + frac);
+          }
+        }
+        if (crossings.length < 2) return 0;
+        // Calcular frecuencia promedio entre cruces consecutivos
+        let totalPeriod = 0;
+        for (let i = 1; i < crossings.length; i++) {
+          totalPeriod += crossings[i] - crossings[i - 1];
+        }
+        const avgPeriod = totalPeriod / (crossings.length - 1);
+        return sr / avgPeriod;
+      }
+
+      // También medir por FFT para verificación cruzada
+      const spectrumHigh = computeSpectrum(allHigh, sampleRate);
+      const spectrumLow = computeSpectrum(allLow, sampleRate);
+      const fftFreqHigh = findDominantFrequency(spectrumHigh)?.frequency || 0;
+      const fftFreqLow = findDominantFrequency(spectrumLow)?.frequency || 0;
+
+      const zcFreqHigh = measureFreqByZeroCrossings(allHigh, sampleRate);
+      const zcFreqLow = measureFreqByZeroCrossings(allLow, sampleRate);
+
+      // Usar zero-crossings como medida principal (más precisa)
+      const measuredFreqHigh = zcFreqHigh || fftFreqHigh;
+      const measuredFreqLow = zcFreqLow || fftFreqLow;
+      const measuredRatio = measuredFreqHigh / measuredFreqLow;
+      const measuredOctaves = Math.log2(measuredRatio);
+
+      // Medir nivel real del modulante en las fases estables
+      let modHighSum = 0, modHighCount = 0;
+      let modLowSum = 0, modLowCount = 0;
+      for (let cycle = 0; cycle < numCycles; cycle++) {
+        const cycleStart = cycle * samplesPerHalfCycle * 2;
+        const hS = cycleStart + margin;
+        const hE = cycleStart + samplesPerHalfCycle - margin;
+        const lS = cycleStart + samplesPerHalfCycle + margin;
+        const lE = cycleStart + samplesPerHalfCycle * 2 - margin;
+        if (hE <= modulatorSamples.length && lE <= modulatorSamples.length) {
+          for (let i = hS; i < hE; i++) { modHighSum += modulatorSamples[i]; modHighCount++; }
+          for (let i = lS; i < lE; i++) { modLowSum += modulatorSamples[i]; modLowCount++; }
+        }
+      }
+      const avgModHigh = modHighSum / modHighCount;
+      const avgModLow = modLowSum / modLowCount;
+      const actualModVpp = (avgModHigh - avgModLow) * DIGITAL_TO_VOLTAGE;
+
+      // Calcular error
+      const octaveError = measuredOctaves - expectedOctaves;
+      const errorCents = octaveError * 1200;
+      const errorPercent = (measuredRatio / expectedRatio - 1) * 100;
+      const voltageNeededForExactOctave = modulatorVpp / (measuredOctaves / expectedOctaves);
+
+      log(`  Modulator digital level: high=${avgModHigh.toFixed(6)}, low=${avgModLow.toFixed(6)}`);
+      log(`  Actual modulator Vpp: ${actualModVpp.toFixed(4)}V (requested: ${modulatorVpp}V)`);
+      log(`  Carrier HIGH: ZC=${zcFreqHigh.toFixed(2)}Hz, FFT=${fftFreqHigh.toFixed(2)}Hz`);
+      log(`  Carrier LOW:  ZC=${zcFreqLow.toFixed(2)}Hz, FFT=${fftFreqLow.toFixed(2)}Hz`);
+      log(`  Ratio: ${measuredRatio.toFixed(6)} (expected ${expectedRatio.toFixed(6)})`);
+      log(`  Octaves: ${measuredOctaves.toFixed(6)} (expected ${expectedOctaves.toFixed(6)})`);
+      log(`  Error: ${errorCents.toFixed(2)} cents (${errorPercent.toFixed(3)}%)`);
+
+      const passed = Math.abs(errorCents) < 10; // Tolerancia de 10 cents
+
+      return {
+        config: { carrierFreq, modulatorVpp, modulatorFreq, includePinFilter, includeThermalSlew, includeSoftClip, pinType },
+        modulator: {
+          requestedVpp: modulatorVpp,
+          actualVpp: actualModVpp,
+          digitalHigh: avgModHigh,
+          digitalLow: avgModLow,
+          levelLoss: (1 - actualModVpp / modulatorVpp) * 100  // % de pérdida
+        },
+        carrier: {
+          freqHigh: { zeroCrossing: zcFreqHigh, fft: fftFreqHigh },
+          freqLow: { zeroCrossing: zcFreqLow, fft: fftFreqLow }
+        },
+        expected: {
+          freqHigh: expectedFreqHigh,
+          freqLow: expectedFreqLow,
+          ratio: expectedRatio,
+          octaves: expectedOctaves
+        },
+        measured: {
+          freqHigh: measuredFreqHigh,
+          freqLow: measuredFreqLow,
+          ratio: measuredRatio,
+          octaves: measuredOctaves
+        },
+        error: {
+          cents: errorCents,
+          percent: errorPercent,
+          octaveError,
+          voltageNeededForExactOctave
+        },
+        analysis: {
+          passed,
+          tolerance: '±10 cents'
+        }
+      };
+    };
+
+    /**
+     * Diagnóstico detallado: mide el nivel de señal en cada etapa de la cadena CV.
+     * Identifica EXACTAMENTE dónde se pierde señal.
+     */
+    window.testCVChainStageByStage = async function(config) {
+      const {
+        cvAmplitude = 0.125,   // ±0.125 digital = ±0.5V = 1Vpp
+        frequency = 1,          // 1 Hz cuadrada
+        sampleRate = 44100,
+        duration = 2.0
+      } = config;
+
+      const DIGITAL_TO_VOLTAGE = 4.0;
+      const centsGain = 4800;
+      const margin = Math.floor(sampleRate * 0.1);
+      const samplesPerHalfCycle = Math.floor(sampleRate / frequency / 2);
+
+      log(`CV Chain Stage-by-Stage: ±${cvAmplitude} digital (±${(cvAmplitude * DIGITAL_TO_VOLTAGE).toFixed(2)}V)`);
+
+      // Helper: medir nivel medio en la fase estable positiva
+      async function measureStageOutput(setupFn) {
+        const length = Math.ceil(sampleRate * duration);
+        const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/cvThermalSlew.worklet.js');
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/cvSoftClip.worklet.js');
+
+        const outputNode = await setupFn(offline);
+        outputNode.connect(offline.destination);
+
+        const buffer = await offline.startRendering();
+        const samples = buffer.getChannelData(0);
+
+        // Medir nivel medio en las partes estables
+        let highSum = 0, highCount = 0;
+        let lowSum = 0, lowCount = 0;
+        const numCycles = Math.floor(duration * frequency);
+        for (let cycle = 0; cycle < numCycles; cycle++) {
+          const cycleStart = cycle * samplesPerHalfCycle * 2;
+          for (let i = cycleStart + margin; i < cycleStart + samplesPerHalfCycle - margin && i < samples.length; i++) {
+            highSum += samples[i]; highCount++;
+          }
+          for (let i = cycleStart + samplesPerHalfCycle + margin; i < cycleStart + samplesPerHalfCycle * 2 - margin && i < samples.length; i++) {
+            lowSum += samples[i]; lowCount++;
+          }
+        }
+        return {
+          avgHigh: highSum / highCount,
+          avgLow: lowSum / lowCount,
+          vpp: ((highSum / highCount) - (lowSum / lowCount)) * DIGITAL_TO_VOLTAGE
+        };
+      }
+
+      const stages = {};
+
+      // Etapa 0: Modulante solo (sin cadena)
+      stages['0_modulator_raw'] = await measureStageOutput(async (ctx) => {
+        const mod = new AudioWorkletNode(ctx, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: true, moduleSlewCutoff: 20000 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.parameters.get('frequency').value = frequency;
+        mod.parameters.get('gain').value = cvAmplitude;
+        mod.parameters.get('pulseWidth').value = 0.5;
+        return mod;
+      });
+
+      // Etapa 1: + pinFilter
+      stages['1_after_pinFilter'] = await measureStageOutput(async (ctx) => {
+        const mod = new AudioWorkletNode(ctx, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: true, moduleSlewCutoff: 20000 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.parameters.get('frequency').value = frequency;
+        mod.parameters.get('gain').value = cvAmplitude;
+        mod.parameters.get('pulseWidth').value = 0.5;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.Q.value = 0.5;
+        filter.frequency.value = 15915;
+        mod.connect(filter);
+        return filter;
+      });
+
+      // Etapa 2: + pinGain (GREY = 1.0)
+      stages['2_after_pinGain'] = await measureStageOutput(async (ctx) => {
+        const mod = new AudioWorkletNode(ctx, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: true, moduleSlewCutoff: 20000 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.parameters.get('frequency').value = frequency;
+        mod.parameters.get('gain').value = cvAmplitude;
+        mod.parameters.get('pulseWidth').value = 0.5;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.Q.value = 0.5; filter.frequency.value = 15915;
+        const gain = ctx.createGain(); gain.gain.value = 1.0;
+        mod.connect(filter); filter.connect(gain);
+        return gain;
+      });
+
+      // Etapa 3: + cvChainInput
+      stages['3_after_cvChainInput'] = await measureStageOutput(async (ctx) => {
+        const mod = new AudioWorkletNode(ctx, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: true, moduleSlewCutoff: 20000 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.parameters.get('frequency').value = frequency;
+        mod.parameters.get('gain').value = cvAmplitude;
+        mod.parameters.get('pulseWidth').value = 0.5;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.Q.value = 0.5; filter.frequency.value = 15915;
+        const pGain = ctx.createGain(); pGain.gain.value = 1.0;
+        const cvIn = ctx.createGain(); cvIn.gain.value = 1.0;
+        mod.connect(filter); filter.connect(pGain); pGain.connect(cvIn);
+        return cvIn;
+      });
+
+      // Etapa 4: + cvThermalSlew
+      stages['4_after_thermalSlew'] = await measureStageOutput(async (ctx) => {
+        const mod = new AudioWorkletNode(ctx, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: true, moduleSlewCutoff: 20000 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.parameters.get('frequency').value = frequency;
+        mod.parameters.get('gain').value = cvAmplitude;
+        mod.parameters.get('pulseWidth').value = 0.5;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.Q.value = 0.5; filter.frequency.value = 15915;
+        const pGain = ctx.createGain(); pGain.gain.value = 1.0;
+        const cvIn = ctx.createGain(); cvIn.gain.value = 1.0;
+        const slew = new AudioWorkletNode(ctx, 'cv-thermal-slew', {
+          processorOptions: { riseTimeConstant: 0.005, fallTimeConstant: 0.02 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        slew.parameters.get('enabled').value = 1;
+        slew.parameters.get('threshold').value = 0.5;
+        mod.connect(filter); filter.connect(pGain); pGain.connect(cvIn); cvIn.connect(slew);
+        return slew;
+      });
+
+      // Etapa 5: + cvSoftClip
+      stages['5_after_softClip'] = await measureStageOutput(async (ctx) => {
+        const mod = new AudioWorkletNode(ctx, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: true, moduleSlewCutoff: 20000 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.parameters.get('frequency').value = frequency;
+        mod.parameters.get('gain').value = cvAmplitude;
+        mod.parameters.get('pulseWidth').value = 0.5;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.Q.value = 0.5; filter.frequency.value = 15915;
+        const pGain = ctx.createGain(); pGain.gain.value = 1.0;
+        const cvIn = ctx.createGain(); cvIn.gain.value = 1.0;
+        const slew = new AudioWorkletNode(ctx, 'cv-thermal-slew', {
+          processorOptions: { riseTimeConstant: 0.005, fallTimeConstant: 0.02 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        slew.parameters.get('enabled').value = 1;
+        slew.parameters.get('threshold').value = 0.5;
+        const clip = new AudioWorkletNode(ctx, 'cv-soft-clip', {
+          processorOptions: { coefficient: 0.0001 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.connect(filter); filter.connect(pGain); pGain.connect(cvIn);
+        cvIn.connect(slew); slew.connect(clip);
+        return clip;
+      });
+
+      // Etapa 6: + freqCVInput (×4800) — mide el nivel en CENTS
+      stages['6_after_freqCVInput'] = await measureStageOutput(async (ctx) => {
+        const mod = new AudioWorkletNode(ctx, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: true, moduleSlewCutoff: 20000 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        mod.parameters.get('frequency').value = frequency;
+        mod.parameters.get('gain').value = cvAmplitude;
+        mod.parameters.get('pulseWidth').value = 0.5;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.Q.value = 0.5; filter.frequency.value = 15915;
+        const pGain = ctx.createGain(); pGain.gain.value = 1.0;
+        const cvIn = ctx.createGain(); cvIn.gain.value = 1.0;
+        const slew = new AudioWorkletNode(ctx, 'cv-thermal-slew', {
+          processorOptions: { riseTimeConstant: 0.005, fallTimeConstant: 0.02 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        slew.parameters.get('enabled').value = 1;
+        slew.parameters.get('threshold').value = 0.5;
+        const clip = new AudioWorkletNode(ctx, 'cv-soft-clip', {
+          processorOptions: { coefficient: 0.0001 },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        const freqCV = ctx.createGain(); freqCV.gain.value = 4800;
+        mod.connect(filter); filter.connect(pGain); pGain.connect(cvIn);
+        cvIn.connect(slew); slew.connect(clip); clip.connect(freqCV);
+        return freqCV;
+      });
+
+      // Calcular pérdidas por etapa
+      const ref = stages['0_modulator_raw'].avgHigh;
+      const report = {};
+      for (const [name, data] of Object.entries(stages)) {
+        const expectedHigh = name === '6_after_freqCVInput' ? ref * 4800 : ref;
+        const loss = name === '6_after_freqCVInput'
+          ? (1 - data.avgHigh / (ref * 4800)) * 100
+          : (1 - data.avgHigh / ref) * 100;
+        report[name] = {
+          avgHigh: data.avgHigh,
+          avgLow: data.avgLow,
+          vpp: data.vpp,
+          lossFromRef: loss
+        };
+        log(`  ${name}: high=${data.avgHigh.toFixed(8)}, low=${data.avgLow.toFixed(8)}, Vpp=${data.vpp.toFixed(6)}V, loss=${loss.toFixed(4)}%`);
+      }
+
+      return { stages: report, referenceHigh: ref };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
     // INICIALIZACIÓN
     // ═══════════════════════════════════════════════════════════════════════
 

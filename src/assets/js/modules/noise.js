@@ -1,51 +1,66 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * NOISE MODULE - SynthiGME
+ * NOISE MODULE — Synthi 100 Cuenca (Datanomics 1982)
  * ═══════════════════════════════════════════════════════════════════════════
  * 
- * Módulo de audio para generación de ruido, emulando el Noise Generator
- * del EMS Synthi 100 (1971).
+ * Módulo de audio para generación de ruido, emulando los generadores del
+ * EMS Synthi 100 versión Cuenca/GME.
  * 
  * ─────────────────────────────────────────────────────────────────────────────
- * CARACTERÍSTICAS DEL SYNTHI 100 ORIGINAL
+ * CIRCUITO REAL
  * ─────────────────────────────────────────────────────────────────────────────
  * 
- * El Synthi 100 incluía dos generadores de ruido idénticos con:
- * - Control de "Colour": transición continua entre ruido blanco y rosa
- * - Control de "Level": ganancia de salida
- * - Salida enrutable a la matriz de pines (filas 89-90)
+ * Fuente: Unión NP del transistor BC169C polarizada en inversa.
+ * Genera ruido impulsivo de espectro plano (white noise), amplificado.
  * 
- * El ruido blanco tiene energía igual en todas las frecuencias (densidad
- * espectral plana), mientras que el ruido rosa tiene energía igual por
- * octava (-3dB/octava), lo que suena más "natural" y "cálido".
+ * Filtro COLOUR: pot lineal 10kΩ + capacitor → filtro RC de 6 dB/oct
+ *   Dial 0:  LP → ruido oscuro/rosa (dark noise, atenúa HF)
+ *   Dial 5:  Plano → ruido blanco (white noise, ±3dB 100Hz-10kHz)
+ *   Dial 10: HP → ruido brillante/azul (bright noise, +6dB shelf HF)
+ * 
+ * Nivel: pot logarítmico 10kΩ (audio taper, tipo A), salida bufferizada
+ *   Dial 0:  Silencio total
+ *   Dial 10: Salida máxima (~3V p-p)
+ * 
+ * Doble función: fuente de audio (Subgrupo IIA-1/1) y fuente de voltaje
+ * de control aleatorio (Subgrupo IIA-2/1). DC-coupled, fmin ≈ 2-3 Hz.
  * 
  * ─────────────────────────────────────────────────────────────────────────────
  * IMPLEMENTACIÓN
  * ─────────────────────────────────────────────────────────────────────────────
  * 
- * Este módulo usa un AudioWorklet (noiseGenerator.worklet.js) que implementa
- * el algoritmo Voss-McCartney para generación de pink noise auténtico,
- * con interpolación suave entre white y pink según el parámetro colour.
+ * AudioWorklet genera ruido blanco y aplica filtro IIR de 1er orden
+ * (misma topología que outputFilter.worklet.js) controlado por
+ * colourPosition.
  * 
  * Cadena de audio:
- *   [NoiseGeneratorProcessor] → [GainNode (level)] → output
+ *   [NoiseGeneratorProcessor (white noise + colour filter)]
+ *       → [GainNode (level, curva LOG)]
+ *       → output (matriz Panel 5)
+ * 
+ * El módulo convierte:
+ *   - Dial colour 0-10 → posición bipolar -1..+1 → AudioParam colourPosition
+ *   - Dial level 0-10 → ganancia LOG (audio taper) → GainNode.gain
  * 
  * ─────────────────────────────────────────────────────────────────────────────
  * USO
  * ─────────────────────────────────────────────────────────────────────────────
  * 
  * ```javascript
- * const noise = new NoiseModule(engine, 'noise-1');
+ * const noise = new NoiseModule(engine, 'noise-1', {
+ *   initialColour: 5,
+ *   initialLevel: 0,
+ *   colourFilter: { potResistance: 10000, capacitance: 33e-9 },
+ *   levelCurve: { type: 'log', logBase: 10 }
+ * });
  * await noise.start();
- * noise.setColour(0.5);  // 50% white, 50% pink
- * noise.setLevel(0.8);   // 80% ganancia
- * 
- * // Conectar a destino
+ * noise.setColour(3);   // LP, ruido más oscuro
+ * noise.setLevel(7);    // ~50% percepción de volumen
  * noise.getOutputNode().connect(destination);
  * ```
  * 
  * ═══════════════════════════════════════════════════════════════════════════
- * @version 2.0.0 - Refactorizado para usar AudioWorklet con Voss-McCartney
+ * @version 2.0.0 — Reescrito: filtro COLOUR IIR, nivel LOG, rangos 0-10
  * @author SynthiGME Team
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -60,46 +75,67 @@ export class NoiseModule extends Module {
   /**
    * @param {AudioEngine} engine - Instancia del motor de audio
    * @param {string} id - Identificador único del módulo
-   * @param {Object} [config={}] - Configuración inicial desde blueprint
-   * @param {number} [config.initialColour=0] - Valor inicial de colour (0=white, 1=pink)
-   * @param {number} [config.initialLevel=0] - Valor inicial de level (0-1)
-   * @param {number} [config.levelSmoothingTime=0.03] - Tiempo de suavizado para level (segundos)
-   * @param {number} [config.colourSmoothingTime=0.01] - Tiempo de suavizado para colour (segundos)
+   * @param {Object} [config={}] - Configuración desde noise.config.js
+   * @param {number} [config.initialColour=5] - Valor inicial de colour (0-10, 5=white)
+   * @param {number} [config.initialLevel=0] - Valor inicial de level (0-10)
+   * @param {number} [config.levelSmoothingTime=0.03] - Tiempo de suavizado para level (s)
+   * @param {number} [config.colourSmoothingTime=0.01] - Tiempo de suavizado para colour (s)
+   * @param {Object} [config.colourFilter] - Parámetros del filtro RC del colour
+   * @param {number} [config.colourFilter.potResistance=10000] - Resistencia del pot (Ω)
+   * @param {number} [config.colourFilter.capacitance=33e-9] - Capacitancia (F)
+   * @param {Object} [config.levelCurve] - Tipo de curva del pot de nivel
+   * @param {string} [config.levelCurve.type='log'] - 'log' para pot logarítmico
+   * @param {number} [config.levelCurve.logBase=100] - Base de la curva logarítmica
+   * @param {Object} [config.ramps] - Tiempos de rampa para controles manuales
+   * @param {number} [config.ramps.colour=0.05] - Rampa del colour (s)
+   * @param {number} [config.ramps.level=0.06] - Rampa del level (s)
    */
   constructor(engine, id, config = {}) {
     super(engine, id, 'Noise Gen');
     
     /**
-     * Configuración del módulo, permite override desde blueprint.
+     * Configuración del módulo, permite override desde noise.config.js.
      * @type {Object}
      */
     this.config = {
-      initialColour: config.initialColour ?? 0,
+      initialColour: config.initialColour ?? 5,
       initialLevel: config.initialLevel ?? 0,
       levelSmoothingTime: config.levelSmoothingTime ?? 0.03,
-      colourSmoothingTime: config.colourSmoothingTime ?? 0.01
+      colourSmoothingTime: config.colourSmoothingTime ?? 0.01,
+      colourFilter: {
+        potResistance: config.colourFilter?.potResistance ?? 10000,
+        capacitance: config.colourFilter?.capacitance ?? 33e-9
+      },
+      levelCurve: {
+        type: config.levelCurve?.type ?? 'log',
+        logBase: config.levelCurve?.logBase ?? 100
+      },
+      ramps: {
+        colour: config.ramps?.colour ?? 0.05,
+        level: config.ramps?.level ?? 0.06
+      }
     };
     
     /**
-     * Nodo AudioWorklet para generación de ruido.
+     * Nodo AudioWorklet para generación de ruido + filtro colour.
      * @type {AudioWorkletNode|null}
      */
     this.workletNode = null;
     
     /**
-     * Nodo de ganancia para control de nivel.
+     * Nodo de ganancia para control de nivel (curva LOG).
      * @type {GainNode|null}
      */
     this.levelNode = null;
     
     /**
-     * Parámetro AudioParam para colour (referencia directa).
+     * AudioParam del filtro colour (referencia directa, -1..+1).
      * @type {AudioParam|null}
      */
     this.colourParam = null;
     
     /**
-     * Valores actuales de los parámetros.
+     * Valores actuales de los controles (escala de dial 0-10).
      * @type {Object}
      */
     this.values = {
@@ -115,6 +151,42 @@ export class NoiseModule extends Module {
   }
 
   /**
+   * Convierte la posición del dial colour (0-10) a posición bipolar (-1..+1)
+   * para el AudioParam del filtro IIR en el worklet.
+   * 
+   *   Dial 0  → -1 (LP, dark/pink)
+   *   Dial 5  →  0 (plano, white)
+   *   Dial 10 → +1 (HP, bright/blue)
+   * 
+   * @param {number} dial - Valor del dial (0-10)
+   * @returns {number} Posición bipolar (-1..+1)
+   */
+  _colourDialToPosition(dial) {
+    return (dial / 5) - 1;
+  }
+
+  /**
+   * Convierte la posición del dial level (0-10) a ganancia usando la curva
+   * logarítmica del pot real (audio taper, tipo A, ley del 10%).
+   * 
+   *   gain = (B^(dial/max) - 1) / (B - 1)
+   * 
+   * donde B = logBase (por defecto 100):
+   *   Dial 0:  gain = 0      (silencio)
+   *   Dial 5:  gain ≈ 0.091  (-21 dB, percepción ~"mitad volumen")
+   *   Dial 10: gain = 1.0    (0 dB, ~3V p-p)
+   * 
+   * @param {number} dial - Valor del dial (0-10)
+   * @returns {number} Ganancia lineal (0-1)
+   */
+  _levelDialToGain(dial) {
+    if (dial <= 0) return 0;
+    const base = this.config.levelCurve.logBase;
+    const normalized = dial / 10;   // 0..1
+    return (Math.pow(base, normalized) - 1) / (base - 1);
+  }
+
+  /**
    * Inicializa los nodos de audio.
    * Requiere que el worklet ya esté cargado en el AudioContext.
    * @private
@@ -124,22 +196,26 @@ export class NoiseModule extends Module {
     if (!ctx || this.workletNode) return;
     
     try {
-      // Crear nodo de worklet
+      // Crear nodo de worklet con parámetros del filtro COLOUR
       this.workletNode = new AudioWorkletNode(ctx, 'noise-generator', {
         numberOfInputs: 0,
         numberOfOutputs: 1,
-        outputChannelCount: [1]
+        outputChannelCount: [1],
+        processorOptions: {
+          potResistance: this.config.colourFilter.potResistance,
+          capacitance: this.config.colourFilter.capacitance
+        }
       });
       
-      // Guardar referencia al parámetro colour
-      this.colourParam = this.workletNode.parameters.get('colour');
-      this.colourParam.value = this.values.colour;
+      // Referencia al AudioParam del filtro colour (-1..+1)
+      this.colourParam = this.workletNode.parameters.get('colourPosition');
+      this.colourParam.value = this._colourDialToPosition(this.values.colour);
       
-      // Crear nodo de ganancia para nivel
+      // GainNode para nivel de salida (curva LOG del pot real)
       this.levelNode = ctx.createGain();
-      this.levelNode.gain.value = this.values.level;
+      this.levelNode.gain.value = this._levelDialToGain(this.values.level);
       
-      // Conectar cadena: worklet → level
+      // Cadena: worklet (noise + colour filter) → level → output
       this.workletNode.connect(this.levelNode);
       
       // Registrar salida para la matriz
@@ -194,49 +270,55 @@ export class NoiseModule extends Module {
   }
 
   /**
-   * Establece el color del ruido.
-   * @param {number} value - Valor de 0 (white) a 1 (pink)
+   * Establece el colour del ruido (dial 0-10).
+   * Convierte internamente a posición bipolar para el filtro IIR.
+   * 
+   * @param {number} value - Posición del dial (0=LP dark, 5=white, 10=HP bright)
    */
   setColour(value) {
-    this.values.colour = Math.max(0, Math.min(1, value));
+    this.values.colour = Math.max(0, Math.min(10, value));
     
     if (!this.colourParam) return;
     
     const ctx = this.getAudioCtx();
     if (!ctx) return;
     
+    const position = this._colourDialToPosition(this.values.colour);
     const now = ctx.currentTime;
     this.colourParam.cancelScheduledValues(now);
     this.colourParam.setTargetAtTime(
-      this.values.colour,
+      position,
       now,
-      this.config.colourSmoothingTime
+      this.config.ramps.colour / 3
     );
   }
 
   /**
-   * Establece el nivel de salida.
-   * @param {number} value - Valor de 0 a 1
+   * Establece el nivel de salida (dial 0-10, curva LOG).
+   * Convierte internamente a ganancia lineal usando la curva del pot real.
+   * 
+   * @param {number} value - Posición del dial (0=silencio, 10=máximo ~3V p-p)
    */
   setLevel(value) {
-    this.values.level = Math.max(0, Math.min(1, value));
+    this.values.level = Math.max(0, Math.min(10, value));
     
     if (!this.levelNode) return;
     
     const ctx = this.getAudioCtx();
     if (!ctx) return;
     
+    const gain = this._levelDialToGain(this.values.level);
     const now = ctx.currentTime;
     this.levelNode.gain.cancelScheduledValues(now);
     this.levelNode.gain.setTargetAtTime(
-      this.values.level,
+      gain,
       now,
-      this.config.levelSmoothingTime
+      this.config.ramps.level / 3
     );
   }
 
   /**
-   * Obtiene el valor actual de colour.
+   * Obtiene el valor actual de colour (escala de dial 0-10).
    * @returns {number}
    */
   getColour() {
@@ -244,7 +326,7 @@ export class NoiseModule extends Module {
   }
 
   /**
-   * Obtiene el valor actual de level.
+   * Obtiene el valor actual de level (escala de dial 0-10).
    * @returns {number}
    */
   getLevel() {
@@ -253,7 +335,7 @@ export class NoiseModule extends Module {
 
   /**
    * Obtiene el nodo de salida para conexiones externas.
-   * Si los nodos no están inicializados, intenta crearlos.
+   * Si los nodos no están inicializados, intenta crearlos (lazy init).
    * @returns {GainNode|null}
    */
   getOutputNode() {
@@ -265,8 +347,9 @@ export class NoiseModule extends Module {
   }
 
   /**
-   * Obtiene el AudioParam de colour para modulación directa.
+   * Obtiene el AudioParam de colour para modulación directa (CV).
    * Permite conectar LFOs u otras fuentes de modulación.
+   * Rango: -1 (LP) a +1 (HP), 0 = plano.
    * @returns {AudioParam|null}
    */
   getColourParam() {
@@ -292,7 +375,6 @@ export class NoiseModule extends Module {
     if (this.workletNode) {
       try {
         this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-        console.log(`[Dormancy] Noise ${this.id}: ${dormant ? 'DORMANT' : 'ACTIVE'}`);
       } catch (e) {
         // Ignorar errores si el worklet no está listo
       }
@@ -314,13 +396,12 @@ export class NoiseModule extends Module {
         this.levelNode.gain.setTargetAtTime(0, now, rampTime);
       } catch { /* Ignorar errores de AudioParam */ }
     } else {
-      // Restaurar nivel previo
-      const targetLevel = this._preDormantLevel ?? this.values.level;
+      // Restaurar nivel previo (convertido a ganancia LOG)
+      const targetGain = this._levelDialToGain(this._preDormantLevel ?? this.values.level);
       try {
         this.levelNode.gain.cancelScheduledValues(now);
-        this.levelNode.gain.setTargetAtTime(targetLevel, now, rampTime);
+        this.levelNode.gain.setTargetAtTime(targetGain, now, rampTime);
       } catch { /* Ignorar errores de AudioParam */ }
     }
   }
 }
-

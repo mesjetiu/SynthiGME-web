@@ -2146,17 +2146,23 @@ class App {
       // con la matriz (después del user gesture que activa el AudioContext)
       // ─────────────────────────────────────────────────────────────────────
       const noise1Audio = new NoiseModule(this.engine, noise1Cfg.id || 'noise-1', {
-        initialColour: noise1Cfg.knobs?.colour?.initial ?? noiseDefaults.initialColour ?? 0,
-        initialLevel: noise1Cfg.knobs?.level?.initial ?? noiseDefaults.initialLevel ?? 0,
+        initialColour: noise1Cfg.knobs?.colour?.initial ?? 5,
+        initialLevel: noise1Cfg.knobs?.level?.initial ?? 0,
         levelSmoothingTime: noise1Cfg.audio?.levelSmoothingTime ?? noiseDefaults.levelSmoothingTime ?? 0.03,
-        colourSmoothingTime: noise1Cfg.audio?.colourSmoothingTime ?? noiseDefaults.colourSmoothingTime ?? 0.01
+        colourSmoothingTime: noise1Cfg.audio?.colourSmoothingTime ?? noiseDefaults.colourSmoothingTime ?? 0.01,
+        colourFilter: noiseConfig.colourFilter,
+        levelCurve: noiseConfig.levelCurve,
+        ramps: noiseDefaults.ramps
       });
       
       const noise2Audio = new NoiseModule(this.engine, noise2Cfg.id || 'noise-2', {
-        initialColour: noise2Cfg.knobs?.colour?.initial ?? noiseDefaults.initialColour ?? 0,
-        initialLevel: noise2Cfg.knobs?.level?.initial ?? noiseDefaults.initialLevel ?? 0,
+        initialColour: noise2Cfg.knobs?.colour?.initial ?? 5,
+        initialLevel: noise2Cfg.knobs?.level?.initial ?? 0,
         levelSmoothingTime: noise2Cfg.audio?.levelSmoothingTime ?? noiseDefaults.levelSmoothingTime ?? 0.03,
-        colourSmoothingTime: noise2Cfg.audio?.colourSmoothingTime ?? noiseDefaults.colourSmoothingTime ?? 0.01
+        colourSmoothingTime: noise2Cfg.audio?.colourSmoothingTime ?? noiseDefaults.colourSmoothingTime ?? 0.01,
+        colourFilter: noiseConfig.colourFilter,
+        levelCurve: noiseConfig.levelCurve,
+        ramps: noiseDefaults.ramps
       });
       
       // NO llamar start() aquí - se hace lazy en _handlePanel5AudioToggle

@@ -1,229 +1,191 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * NOISE GENERATOR WORKLET - SynthiGME
+ * NOISE GENERATOR WORKLET — Synthi 100 Cuenca (Datanomics 1982)
  * ═══════════════════════════════════════════════════════════════════════════
  * 
- * AudioWorklet para generación de ruido con algoritmo Voss-McCartney.
- * Emula el comportamiento del Noise Generator del EMS Synthi 100 (1971).
+ * AudioWorklet para generación de ruido con filtro COLOUR de 6 dB/oct.
+ * Emula el circuito de los 2 generadores de ruido del EMS Synthi 100
+ * versión Cuenca/GME.
  * 
  * ─────────────────────────────────────────────────────────────────────────────
- * CARACTERÍSTICAS
+ * CIRCUITO REAL
  * ─────────────────────────────────────────────────────────────────────────────
  * 
- * - Ruido blanco (white): distribución uniforme, energía plana en frecuencia
- * - Ruido rosa (pink): algoritmo Voss-McCartney, -3dB/octava
- * - Control continuo de "colour" para transición suave white↔pink
- * - Generación sample-accurate sin artefactos
+ * Fuente de ruido:
+ *   Transistor BC169C con unión NP polarizada en inversa genera ruido
+ *   impulsivo de espectro plano (white noise). Amplificado y bufferizado.
+ *   Espectro plano ±3 dB de 100 Hz a 10 kHz.
+ * 
+ * Filtro COLOUR (6 dB/oct):
+ *   Topología idéntica al filtro RC del Output Channel (plano D100-08 C1):
+ *   White noise → C → [Pot 10K LIN] → C → GND, wiper → buffer
+ * 
+ *   Función de transferencia con buffer (ganancia 2×):
+ *     H(s) = 2·(2 + (1+p)·sτ) / (2 + sτ)     donde τ = R·C
+ * 
+ *   Posiciones del dial COLOUR (0-10):
+ *     Dial 0  (p=-1): LP — ruido oscuro/rosa, atenúa HF a -6 dB/oct
+ *     Dial 5  (p= 0): Plano — ruido blanco, 0 dB en todo el espectro
+ *     Dial 10 (p=+1): HP — ruido brillante/azul, +6 dB shelf en HF
+ * 
+ * DC-coupled: la señal se extiende hasta ~2-3 Hz (fmin del circuito),
+ * permitiendo uso como fuente de CV aleatorio para modulación lenta.
  * 
  * ─────────────────────────────────────────────────────────────────────────────
- * ALGORITMO VOSS-McCARTNEY
+ * COMPORTAMIENTO EN AUDIO
  * ─────────────────────────────────────────────────────────────────────────────
  * 
- * El algoritmo genera pink noise mediante la suma de múltiples generadores
- * de ruido blanco que se actualizan a diferentes tasas (octavas).
+ * El filtro COLOUR moldea el espectro del ruido blanco de forma continua:
  * 
- * - Generador 0: se actualiza cada sample
- * - Generador 1: se actualiza cada 2 samples
- * - Generador 2: se actualiza cada 4 samples
- * - ...
- * - Generador N: se actualiza cada 2^N samples
+ * Posición LP (dial 0, p=-1):
+ *   - Atenúa progresivamente por encima de fc ≈ 965 Hz
+ *   - Resultado: ruido "oscuro" o "cálido", énfasis en graves
+ *   - Uso musical: textura de fondo, "viento", padding atmosférico
+ *   - Uso CV: voltaje aleatorio de baja frecuencia (vibrato lento)
  * 
- * La suma de estos generadores produce una pendiente espectral de -3dB/octava,
- * que es la característica definitoria del pink noise.
+ * Posición neutra (dial 5, p=0):
+ *   - Espectro plano ±3 dB de 100 Hz a 10 kHz
+ *   - Ruido blanco clásico: energía igual en todas las frecuencias
+ *   - Uso musical: "soplido" o "siseo" puro, excitación de filtros
  * 
- * Referencia: Voss, R.F. & Clarke, J. (1978). "1/f noise in music and speech"
+ * Posición HP (dial 10, p=+1):
+ *   - Shelving: +6 dB en HF respecto a LF
+ *   - Resultado: ruido "brillante" o "metálico", presencia en agudos
+ *   - Uso musical: textura de lluvia, percusión sibilante, hi-hats
+ *   - Uso CV: voltaje aleatorio de mayor variación instantánea
+ * 
+ * ─────────────────────────────────────────────────────────────────────────────
+ * IMPLEMENTACIÓN DIGITAL
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 
+ * Transformada bilineal del filtro analógico (misma que outputFilter):
+ *   K = 2·fs·τ
+ *   a1 = (2 - K) / (2 + K)          — constante (polo del filtro)
+ *   Kinv = K / (2 + K)               — constante (factor de modulación)
+ * 
+ * Para cada sample con posición p (a-rate):
+ *   δ = p · Kinv
+ *   b0 = 1 + δ
+ *   b1 = a1 - δ
+ *   y[n] = b0·x[n] + b1·x[n-1] - a1·y[n-1]
+ * 
+ * Optimización: a1 y Kinv no dependen de p, solo se calculan una vez.
+ * Per-sample: 1 mul (δ), 2 sumas (b0,b1), 3 mul + 2 add (filtro).
+ * 
+ * Verificación (p=0): δ=0, b0=1, b1=a1 → H(z) = (1+a1·z⁻¹)/(1+a1·z⁻¹) = 1 ✓
  * 
  * ─────────────────────────────────────────────────────────────────────────────
  * PARÁMETROS AudioParam
  * ─────────────────────────────────────────────────────────────────────────────
  * 
- * | Parámetro | Rango   | Default | Descripción                              |
- * |-----------|---------|---------|------------------------------------------|
- * | colour    | 0 - 1   | 0       | 0 = white noise, 1 = pink noise          |
+ * | Parámetro       | Rango     | Default | Rate   | Descripción            |
+ * |-----------------|-----------|---------|--------|------------------------|
+ * | colourPosition  | -1 a +1   | 0       | a-rate | Posición del filtro    |
  * 
- * ─────────────────────────────────────────────────────────────────────────────
- * USO
- * ─────────────────────────────────────────────────────────────────────────────
- * 
- * ```javascript
- * await audioContext.audioWorklet.addModule('noiseGenerator.worklet.js');
- * const noise = new AudioWorkletNode(audioContext, 'noise-generator');
- * noise.parameters.get('colour').value = 0.5; // 50% white, 50% pink
- * noise.connect(destination);
- * ```
+ *   -1 = LP (dark/pink), 0 = flat (white), +1 = HP (bright/blue)
+ *   a-rate permite modulación CV desde la matriz de control (Panel 6)
  * 
  * ═══════════════════════════════════════════════════════════════════════════
- * @version 1.0.0
- * @author SynthiGME Team
+ * @module worklets/noiseGenerator
+ * @version 2.0.0 — Reescrito con filtro COLOUR IIR (antes: Voss-McCartney)
  * ═══════════════════════════════════════════════════════════════════════════
  */
-
-/**
- * Número de octavas para el algoritmo Voss-McCartney.
- * Más octavas = mejor aproximación a -3dB/octava, pero más CPU.
- * 8 octavas es un buen balance para audio de 44.1-48kHz.
- */
-const VOSS_OCTAVES = 8;
-
-/**
- * Factor de normalización para la suma de generadores Voss-McCartney.
- * Evita clipping al sumar múltiples fuentes de ruido.
- */
-const VOSS_NORMALIZATION = 1 / (VOSS_OCTAVES + 1);
 
 class NoiseGeneratorProcessor extends AudioWorkletProcessor {
-  
+
   /**
    * Definición de parámetros AudioParam.
+   * Un único parámetro controla la posición del filtro colour (-1..+1).
    */
   static get parameterDescriptors() {
     return [
       {
-        name: 'colour',
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'a-rate' // Modulación sample-accurate
+        name: 'colourPosition',
+        defaultValue: 0,        // Centro = espectro plano (ruido blanco)
+        minValue: -1,           // LP máximo: ruido oscuro/rosa
+        maxValue: 1,            // HP shelving: ruido brillante/azul
+        automationRate: 'a-rate'  // CV-modulable desde matriz de control
       }
     ];
   }
 
   constructor(options) {
     super();
-    
-    /**
-     * Valores actuales de los generadores Voss-McCartney.
-     * Cada generador mantiene su último valor hasta que le toca actualizarse.
-     * @type {Float32Array}
-     */
-    this.vossValues = new Float32Array(VOSS_OCTAVES);
-    
-    /**
-     * Contador de samples para determinar qué generadores actualizar.
-     * Se usa con operaciones bit a bit para eficiencia.
-     * @type {number}
-     */
-    this.sampleCounter = 0;
-    
-    /**
-     * Suma acumulada de los generadores Voss (para pink noise).
-     * Se actualiza incrementalmente para eficiencia.
-     * @type {number}
-     */
-    this.pinkSum = 0;
-    
-    // Inicializar generadores con valores aleatorios
-    this._initializeVossGenerators();
-    
-    /**
-     * Flag para indicar si el procesador debe detenerse.
-     * @type {boolean}
-     */
-    this.isRunning = true;
-    
-    /**
-     * Flag de dormancy: cuando true, el worklet hace early exit sin procesar.
-     * @type {boolean}
-     */
-    this.dormant = false;
-    
+
+    const opts = options?.processorOptions || {};
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Componentes del circuito COLOUR (valores del Synthi 100 Cuenca)
+    // ─────────────────────────────────────────────────────────────────────
+    const resistance = opts.potResistance || 10000;     // 10 kΩ pot lineal
+    const capacitance = opts.capacitance || 33e-9;      // 33 nF
+
+    // Constante de tiempo τ = R·C  (determina la frecuencia de corte)
+    const tau = resistance * capacitance;               // 3.3×10⁻⁴ s → fc ≈ 965 Hz
+
+    // Factor bilineal K = 2·fs·τ (constante para todo el proceso)
+    const K = 2 * sampleRate * tau;
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Coeficientes constantes del filtro IIR de 1er orden
+    // ─────────────────────────────────────────────────────────────────────
+    // a1 y Kinv NO dependen de la posición p del colour:
+    //   a1 = (2-K)/(2+K)  — define el polo (fc del filtro)
+    //   Kinv = K/(2+K)    — factor que modula b0,b1 con p
+    //
+    // Per-sample, los coeficientes variables se calculan como:
+    //   δ = p · Kinv
+    //   b0 = 1 + δ
+    //   b1 = a1 - δ
+    // ─────────────────────────────────────────────────────────────────────
+    /** @private */ this._a1 = (2 - K) / (2 + K);
+    /** @private */ this._Kinv = K / (2 + K);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Estado del filtro (mono, un solo canal de generación)
+    // ─────────────────────────────────────────────────────────────────────
+    /** @private */ this._x1 = 0;   // x[n-1] — sample de ruido anterior
+    /** @private */ this._y1 = 0;   // y[n-1] — salida filtrada anterior
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Control de estado
+    // ─────────────────────────────────────────────────────────────────────
+    /** @private */ this.isRunning = true;
+    /** @private */ this.dormant = false;
+
     // Escuchar mensajes del hilo principal
     this.port.onmessage = (event) => {
       if (event.data.type === 'stop') {
         this.isRunning = false;
       } else if (event.data.type === 'setDormant') {
         this.dormant = event.data.dormant;
-        console.log(`[Worklet] NoiseGenerator dormant: ${this.dormant}`);
       }
     };
   }
 
   /**
-   * Inicializa los generadores Voss-McCartney con valores aleatorios.
-   * Esto evita un transitorio inicial en el audio.
-   * @private
-   */
-  _initializeVossGenerators() {
-    for (let i = 0; i < VOSS_OCTAVES; i++) {
-      const value = Math.random() * 2 - 1;
-      this.vossValues[i] = value;
-      this.pinkSum += value;
-    }
-  }
-
-  /**
-   * Genera un sample de ruido blanco.
-   * Distribución uniforme en [-1, 1].
-   * @returns {number}
-   * @private
-   */
-  _whiteNoise() {
-    return Math.random() * 2 - 1;
-  }
-
-  /**
-   * Genera un sample de ruido rosa usando Voss-McCartney.
+   * Procesa un bloque de audio: genera ruido blanco y aplica filtro COLOUR.
    * 
-   * El algoritmo actualiza cada generador según su octava:
-   * - Generador 0: cada sample (bit 0 cambia)
-   * - Generador 1: cada 2 samples (bit 1 cambia)
-   * - Generador N: cada 2^N samples (bit N cambia)
+   * Cadena de señal por sample:
+   *   1. Genera ruido blanco: x[n] = Math.random() * 2 - 1
+   *   2. Calcula coeficientes b0, b1 según posición p del colour
+   *   3. Aplica filtro IIR: y[n] = b0·x[n] + b1·x[n-1] - a1·y[n-1]
+   *   4. Escribe resultado en buffer de salida
    * 
-   * Solo se actualizan los generadores cuyo bit correspondiente
-   * cambia entre el contador anterior y el actual, lo que hace
-   * el algoritmo O(1) en promedio.
-   * 
-   * @returns {number} Sample de pink noise normalizado
-   * @private
-   */
-  _pinkNoise() {
-    const prevCounter = this.sampleCounter;
-    this.sampleCounter++;
-    
-    // XOR para encontrar qué bits cambiaron
-    const changed = prevCounter ^ this.sampleCounter;
-    
-    // Actualizar solo los generadores cuyos bits cambiaron
-    for (let octave = 0; octave < VOSS_OCTAVES; octave++) {
-      if (changed & (1 << octave)) {
-        // Restar el valor antiguo de la suma
-        this.pinkSum -= this.vossValues[octave];
-        // Generar nuevo valor
-        this.vossValues[octave] = this._whiteNoise();
-        // Sumar el nuevo valor
-        this.pinkSum += this.vossValues[octave];
-      }
-    }
-    
-    // Añadir un generador de ruido blanco para las frecuencias más altas
-    // (el algoritmo Voss puro tiene un roll-off en altas frecuencias)
-    const whiteComponent = this._whiteNoise();
-    
-    // Normalizar la suma
-    return (this.pinkSum + whiteComponent) * VOSS_NORMALIZATION;
-  }
-
-  /**
-   * Procesa un bloque de audio.
-   * 
-   * @param {Float32Array[][]} inputs - No usado (generador)
-   * @param {Float32Array[][]} outputs - Buffer de salida
-   * @param {Object} parameters - Parámetros AudioParam
+   * @param {Float32Array[][]} inputs - No usado (generador, sin entradas)
+   * @param {Float32Array[][]} outputs - Buffer de salida mono
+   * @param {Object} parameters - AudioParams: colourPosition [-1..+1]
    * @returns {boolean} true para mantener el procesador activo
    */
   process(inputs, outputs, parameters) {
-    if (!this.isRunning) {
-      return false;
-    }
+    if (!this.isRunning) return false;
 
     const output = outputs[0];
-    if (!output || output.length === 0) {
-      return true;
-    }
+    if (!output || output.length === 0) return true;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // DORMANCY: Early exit - no generar ruido, solo silencio
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+    // DORMANCY: silencio sin procesamiento (ahorra ~95% CPU)
+    // ─────────────────────────────────────────────────────────────────────
     if (this.dormant) {
       for (let ch = 0; ch < output.length; ch++) {
         output[ch].fill(0);
@@ -232,25 +194,54 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
     }
 
     const channel = output[0];
-    const colourParam = parameters.colour;
-    
-    // Determinar si colour es constante o varía sample a sample
-    const isColourConstant = colourParam.length === 1;
-    
-    for (let i = 0; i < channel.length; i++) {
-      // Obtener valor de colour para este sample
-      const colour = isColourConstant ? colourParam[0] : colourParam[i];
-      
-      // Generar ambos tipos de ruido
-      const white = this._whiteNoise();
-      const pink = this._pinkNoise();
-      
-      // Interpolar entre white y pink según colour
-      // colour = 0 → white, colour = 1 → pink
-      channel[i] = white * (1 - colour) + pink * colour;
+    const colourParam = parameters.colourPosition;
+    const isConstant = colourParam.length === 1;
+    const a1 = this._a1;
+    const Kinv = this._Kinv;
+    let x1 = this._x1;
+    let y1 = this._y1;
+
+    if (isConstant) {
+      // ───────────────────────────────────────────────────────────────────
+      // K-RATE: posición constante → coeficientes constantes en el bloque
+      // Caso habitual cuando el colour no está siendo modulado por CV
+      // ───────────────────────────────────────────────────────────────────
+      const p = colourParam[0];
+      const delta = p * Kinv;
+      const b0 = 1 + delta;
+      const b1 = a1 - delta;
+
+      for (let i = 0; i < channel.length; i++) {
+        const x = Math.random() * 2 - 1;   // White noise
+        const y = b0 * x + b1 * x1 - a1 * y1;
+        channel[i] = y;
+        x1 = x;
+        y1 = y;
+      }
+    } else {
+      // ───────────────────────────────────────────────────────────────────
+      // A-RATE: posición varía per-sample (modulación CV activa)
+      // Solo 1 mul + 2 adds extra por sample respecto a k-rate
+      // ───────────────────────────────────────────────────────────────────
+      for (let i = 0; i < channel.length; i++) {
+        const p = colourParam[i];
+        const delta = p * Kinv;
+        const b0 = 1 + delta;
+        const b1 = a1 - delta;
+
+        const x = Math.random() * 2 - 1;   // White noise
+        const y = b0 * x + b1 * x1 - a1 * y1;
+        channel[i] = y;
+        x1 = x;
+        y1 = y;
+      }
     }
 
-    // Copiar a todos los canales de salida (mono → stereo si es necesario)
+    // Guardar estado con protección contra denormals
+    this._x1 = x1;
+    this._y1 = (Math.abs(y1) < 1e-30) ? 0 : y1;
+
+    // Copiar a canales adicionales si hay (mono → stereo)
     for (let ch = 1; ch < output.length; ch++) {
       output[ch].set(channel);
     }

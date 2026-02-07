@@ -109,6 +109,8 @@ podría ser significativo en dispositivos móviles.
 
 ## Objetivo v0.6.0
 
+- Offset cambiante (ondulatorio lento) en channels. Se nota al hacer FM sin enviar señal.
+
 
 ## Objetivo v0.7.0 (publicación tester)
 

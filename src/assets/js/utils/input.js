@@ -17,15 +17,16 @@
  * });
  */
 export function shouldBlockInteraction(ev) {
-  return ev.pointerType === 'touch' && window.__synthNavGestureActive;
+  return ev.pointerType === 'touch' && (window.__synthNavGestureActive || window.__synthPipGestureActive);
 }
 
 /**
  * Determina si hay un gesto de navegación activo.
  * Útil para bloquear interacciones que no tienen PointerEvent disponible.
+ * Incluye gestos tanto del viewport principal como de ventanas PiP.
  * 
  * @returns {boolean} true si hay navegación en progreso
  */
 export function isNavGestureActive() {
-  return !!window.__synthNavGestureActive;
+  return !!(window.__synthNavGestureActive || window.__synthPipGestureActive);
 }

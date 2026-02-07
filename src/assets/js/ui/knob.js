@@ -1,5 +1,5 @@
 // Componente Knob reutilizable para parámetros continuos en la interfaz
-import { shouldBlockInteraction } from '../utils/input.js';
+import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import { registerTooltipHideCallback } from './tooltipManager.js';
 
 // Detectar si el dispositivo tiene capacidad táctil (puede tener ambos: táctil y ratón)
@@ -48,6 +48,7 @@ export class Knob {
     // Configuración de tooltip táctil
     this.tooltipAutoHideDelay = tooltipAutoHideDelay;
     this._tooltipAutoHideTimer = null;
+    this._touchTooltipTimer = null;
 
     this.dragging = false;
     this.startY = 0;
@@ -182,6 +183,12 @@ export class Knob {
    * Oculta y elimina el tooltip
    */
   _hideTooltip() {
+    // Limpiar timer de tooltip retrasado (táctil)
+    if (this._touchTooltipTimer) {
+      clearTimeout(this._touchTooltipTimer);
+      this._touchTooltipTimer = null;
+    }
+    
     if (!this.tooltip) return;
     
     // Limpiar timer de auto-ocultado
@@ -371,10 +378,16 @@ export class Knob {
       this.rootEl.addEventListener('touchstart', (ev) => {
         tapStartTime = Date.now();
         tapStartY = ev.touches[0]?.clientY ?? 0;
-        wasTap = true;
+        // Solo es tap si es un solo dedo (no parte de gesto de pan/zoom)
+        wasTap = ev.touches.length === 1;
       }, { passive: true });
       
       this.rootEl.addEventListener('touchmove', (ev) => {
+        // Si hay múltiples toques (gesto de pan/zoom), no es un tap
+        if (ev.touches.length > 1) {
+          wasTap = false;
+          return;
+        }
         // Si se movió más de 10px, no es un tap
         const currentY = ev.touches[0]?.clientY ?? 0;
         if (Math.abs(currentY - tapStartY) > 10) {
@@ -384,8 +397,8 @@ export class Knob {
       
       this.rootEl.addEventListener('touchend', () => {
         const tapDuration = Date.now() - tapStartTime;
-        // Si fue un tap corto (< 200ms) y no hubo drag significativo
-        if (wasTap && tapDuration < 200 && !this.dragging) {
+        // Si fue un tap corto (< 200ms), sin drag y sin gesto de navegación activo
+        if (wasTap && tapDuration < 200 && !this.dragging && !isNavGestureActive()) {
           // Mostrar tooltip con autoHide
           this._showTooltipWithAutoHide();
         }
@@ -412,21 +425,39 @@ export class Knob {
       lastPointerType = ev.pointerType;
       
       // Mostrar tooltip durante drag
-      this._showTooltip();
+      if (ev.pointerType === 'touch') {
+        // En táctil, retrasar tooltip para evitar flash durante gestos de pan/zoom
+        // Si un segundo dedo llega (gesto), el timer se cancela
+        if (this._touchTooltipTimer) clearTimeout(this._touchTooltipTimer);
+        this._touchTooltipTimer = setTimeout(() => {
+          this._touchTooltipTimer = null;
+          if (this.dragging && !isNavGestureActive()) {
+            this._showTooltip();
+          }
+        }, 80);
+        // Limpiar el timer de autoHide durante drag
+        if (this._tooltipAutoHideTimer) {
+          clearTimeout(this._tooltipAutoHideTimer);
+          this._tooltipAutoHideTimer = null;
+        }
+      } else {
+        this._showTooltip();
+      }
       // Resetear indicador de modificador al inicio del drag
       this._setModifierVisual('none');
       this._positionModifierBadge();
-      
-      // En táctil, limpiar el timer de autoHide durante drag
-      if (ev.pointerType === 'touch' && this._tooltipAutoHideTimer) {
-        clearTimeout(this._tooltipAutoHideTimer);
-        this._tooltipAutoHideTimer = null;
-      }
     });
 
     this.rootEl.addEventListener('pointermove', ev => {
       if (!this.dragging) return;
-      if (shouldBlockInteraction(ev)) return;
+      if (shouldBlockInteraction(ev)) {
+        // Gesto de navegación detectado durante drag táctil: cancelar drag
+        this.dragging = false;
+        this._setModifierVisual('none');
+        this._hideTooltip();
+        try { this.rootEl.releasePointerCapture(ev.pointerId); } catch (_) { /* ignore */ }
+        return;
+      }
       
       // Delta incremental: solo el movimiento vertical desde el último frame
       const deltaY = this.lastY - ev.clientY;

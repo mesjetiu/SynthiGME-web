@@ -67,6 +67,7 @@ export class OutputChannel extends Module {
     // Tooltip del slider
     this._sliderTooltip = null;
     this._sliderTooltipAutoHideTimer = null;
+    this._sliderTooltipDelayTimer = null;
     this._sliderTooltipAutoHideDelay = 3000;
     this._unregisterTooltipHide = null;
     
@@ -397,10 +398,26 @@ export class OutputChannel extends Module {
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
-      this._showSliderTooltip(wrap, getTooltipInfo);
+      if (ev.pointerType === 'touch') {
+        // En táctil, retrasar tooltip para evitar flash durante gestos de pan/zoom
+        if (this._sliderTooltipDelayTimer) clearTimeout(this._sliderTooltipDelayTimer);
+        this._sliderTooltipDelayTimer = setTimeout(() => {
+          this._sliderTooltipDelayTimer = null;
+          if (!isNavGestureActive()) {
+            this._showSliderTooltip(wrap, getTooltipInfo);
+          }
+        }, 80);
+      } else {
+        this._showSliderTooltip(wrap, getTooltipInfo);
+      }
     });
     
     slider.addEventListener('pointerup', () => {
+      // Cancelar delay de tooltip si aún no se mostró
+      if (this._sliderTooltipDelayTimer) {
+        clearTimeout(this._sliderTooltipDelayTimer);
+        this._sliderTooltipDelayTimer = null;
+      }
       // En táctil, auto-ocultar después de un delay
       if (hasTouchCapability()) {
         this._scheduleTooltipAutoHide();
@@ -411,6 +428,10 @@ export class OutputChannel extends Module {
     });
     
     slider.addEventListener('pointercancel', () => {
+      if (this._sliderTooltipDelayTimer) {
+        clearTimeout(this._sliderTooltipDelayTimer);
+        this._sliderTooltipDelayTimer = null;
+      }
       this._hideSliderTooltip();
     });
     
@@ -543,6 +564,12 @@ export class OutputChannel extends Module {
    * Oculta y elimina el tooltip del slider.
    */
   _hideSliderTooltip() {
+    // Limpiar timer de tooltip retrasado (táctil)
+    if (this._sliderTooltipDelayTimer) {
+      clearTimeout(this._sliderTooltipDelayTimer);
+      this._sliderTooltipDelayTimer = null;
+    }
+    
     if (this._sliderTooltipAutoHideTimer) {
       clearTimeout(this._sliderTooltipAutoHideTimer);
       this._sliderTooltipAutoHideTimer = null;

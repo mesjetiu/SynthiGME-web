@@ -810,6 +810,7 @@ function setupPipEvents(pipContainer, panelId) {
     if (e.touches.length === 2) {
       e.preventDefault();
       gestureInProgress = true;
+      window.__synthPipGestureActive = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       pinchStartDist = Math.hypot(dx, dy);
@@ -887,6 +888,7 @@ function setupPipEvents(pipContainer, panelId) {
       // Desactivar flag con delay para que el momentum scroll termine
       setTimeout(() => {
         gestureInProgress = false;
+        window.__synthPipGestureActive = false;
       }, 500);
     }
   }, { passive: true });

@@ -102,7 +102,7 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
   // TEST 2: DC Blocker no debe atenuar ni amplificar señal de audio
   // ─────────────────────────────────────────────────────────────────────────
 
-  test('DC Blocker (0.01Hz highpass) debe tener ganancia unitaria a 440Hz', async ({ page }) => {
+  test('DC Blocker (AudioWorklet 0.01Hz) debe tener ganancia unitaria a 440Hz', async ({ page }) => {
     const result = await page.evaluate(async (config) => {
       const { sampleRate, duration, testFrequency } = config;
       const length = Math.ceil(sampleRate * duration);
@@ -118,12 +118,14 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
       osc.type = 'sine';
       osc.frequency.value = testFrequency;
 
-      // DC Blocker: highpass a 0.01Hz (como en engine.js)
+      // DC Blocker: AudioWorklet 1er orden a 0.01Hz (como en engine.js)
       // Transparente para audio y LFOs, bloquea solo DC puro
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       // Splitters para medir ambas señales
       const splitter = offline.createChannelSplitter(2);
@@ -200,10 +202,12 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
       const postVcaNode = offline.createGain();
       postVcaNode.gain.value = 1.0;
 
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       // Conectar cadena
       osc.connect(busInput);
@@ -311,10 +315,13 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
       const oc1PostVca = offline.createGain();
       oc1PostVca.gain.value = 1.0;
 
-      const oc1DcBlocker = offline.createBiquadFilter();
-      oc1DcBlocker.type = 'highpass';
-      oc1DcBlocker.frequency.value = 0.01;
-      oc1DcBlocker.Q.value = 0.707;
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+
+      const oc1DcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       // Matrix Pin GREY (re-entry): gain=1.0
       const matrixPin = offline.createGain();
@@ -330,10 +337,11 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
       const oc2PostVca = offline.createGain();
       oc2PostVca.gain.value = 1.0;
 
-      const oc2DcBlocker = offline.createBiquadFilter();
-      oc2DcBlocker.type = 'highpass';
-      oc2DcBlocker.frequency.value = 0.01;
-      oc2DcBlocker.Q.value = 0.707;
+      const oc2DcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       // Conectar cadena completa
       osc.connect(oc1Input);
@@ -399,10 +407,11 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
         const postVca = ctx.createGain();
         postVca.gain.value = 1.0;
 
-        const dcBlocker = ctx.createBiquadFilter();
-        dcBlocker.type = 'highpass';
-        dcBlocker.frequency.value = 2;
-        dcBlocker.Q.value = 0.707;
+        const dcBlocker = new AudioWorkletNode(ctx, 'dc-blocker', {
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          parameterData: { cutoffFrequency: 2 }
+        });
 
         // Conectar internamente
         input.connect(vca);
@@ -423,6 +432,9 @@ test.describe('Re-Entry Gain Chain - Ganancia Unitaria', () => {
       const osc = offline.createOscillator();
       osc.type = 'sine';
       osc.frequency.value = testFrequency;
+
+      // Cargar worklet antes de crear OCs
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
 
       // Crear 3 Output Channels
       const oc1 = createOC(offline);
@@ -567,9 +579,10 @@ test.describe('Re-Entry Gain - Diagnóstico de Amplificación', () => {
         measurements.afterPostVca = measurePeak(buffer.getChannelData(0));
       }
 
-      // Etapa 4: → dcBlocker (highpass 0.01Hz)
+      // Etapa 4: → dcBlocker (AudioWorklet 1er orden 0.01Hz)
       {
         const ctx = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+        await ctx.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.value = testFrequency;
@@ -579,10 +592,11 @@ test.describe('Re-Entry Gain - Diagnóstico de Amplificación', () => {
         vca.gain.value = 1.0;
         const postVca = ctx.createGain();
         postVca.gain.value = 1.0;
-        const dcBlocker = ctx.createBiquadFilter();
-        dcBlocker.type = 'highpass';
-        dcBlocker.frequency.value = 0.01;
-        dcBlocker.Q.value = 0.707;
+        const dcBlocker = new AudioWorkletNode(ctx, 'dc-blocker', {
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          parameterData: { cutoffFrequency: 0.01 }
+        });
         osc.connect(busInput);
         busInput.connect(vca);
         vca.connect(postVca);
@@ -596,6 +610,7 @@ test.describe('Re-Entry Gain - Diagnóstico de Amplificación', () => {
       // Etapa 5: → matrixPin (gain=1.0)
       {
         const ctx = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+        await ctx.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.value = testFrequency;
@@ -605,10 +620,11 @@ test.describe('Re-Entry Gain - Diagnóstico de Amplificación', () => {
         vca.gain.value = 1.0;
         const postVca = ctx.createGain();
         postVca.gain.value = 1.0;
-        const dcBlocker = ctx.createBiquadFilter();
-        dcBlocker.type = 'highpass';
-        dcBlocker.frequency.value = 0.01;
-        dcBlocker.Q.value = 0.707;
+        const dcBlocker = new AudioWorkletNode(ctx, 'dc-blocker', {
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          parameterData: { cutoffFrequency: 0.01 }
+        });
         const pin = ctx.createGain();
         pin.gain.value = 1.0;
         osc.connect(busInput);

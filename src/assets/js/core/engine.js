@@ -268,34 +268,34 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // DC BLOCKER para re-entry: Elimina offset DC estático
       // ─────────────────────────────────────────────────────────────────────
-      // Highpass a 0.01 Hz: pasa LFOs y CV lentas sin distorsión.
+      // AudioWorklet de 1er orden con auto-reset (dc-blocker processor).
+      // fc = 0.01 Hz: transparente para LFOs ≥ 0.1 Hz, bloquea DC.
       //
-      // HISTORIAL Y RATIONALE:
-      // - v0.4: 5 Hz original (buen settling pero atenuaba LFOs)
-      // - v0.5: 0.01 Hz (permitía CV lento pero τ ≈ 16 s → settling ~80 s)
-      //   drift sub-Hz por residuo asintótico de setTargetAtTime en VCA.
-      // - v0.6-rc1: 2 Hz. Settling rápido pero destruye LFOs < 2 Hz.
-      //   Onda cuadrada 1 Hz: 99.8% droop en tramos planos → pendientes
-      //   exponenciales. Inusable como CV para FM (distorsión audible).
-      // - v0.6: Revierte a 0.01 Hz. El drift se resolvió con hard-set
-      //   (setValueAtTime tras 5τ) en _updateFilterBypass() y
-      //   setFilterBypassEnabled(), no con el DC blocker.
-      //   A 0.01 Hz: onda cuadrada 1 Hz tiene solo ~3% droop (< 0.3 dB),
-      //   señal CV transparente. DC real se bloquea en ~80 s (aceptable
-      //   como red de seguridad ya que el hard-set elimina la causa
-      //   principal de offset DC).
+      // ARQUITECTURA:
+      //   postVcaNode → [dcBlockerWorklet] → dcBlocker (GainNode salida)
       //
-      // NOTA: La causa principal de offset DC era el transitorio del VCA
-      // worklet al despertar de dormancy, corregido con el mensaje 'resync',
-      // y el residuo asintótico de setTargetAtTime, corregido con hard-set.
-      // Este DC blocker es protección residual para edge cases (patches
-      // mal configurados, start-up glitches en mobile, etc.).
+      // dcBlocker es un GainNode (gain=1) que sirve como punto de
+      // conexión estable para el re-entry a la matriz. El worklet se
+      // inserta ANTES de dcBlocker via _initDCBlockerNodes() (diferido,
+      // requiere que el módulo del worklet esté cargado).
+      //
+      // Mientras el worklet no esté cargado, postVcaNode conecta
+      // directamente a dcBlocker (passthrough sin DC blocking).
+      //
+      // HISTORIAL:
+      // - v0.4-v0.6: BiquadFilter highpass nativo (2º orden).
+      //   Problema: polos near-unity producían "trend-following" al
+      //   cortar la señal → rampa ascendente lenta durante ~80s.
+      //   La frecuencia se subió a 2Hz (destruía LFOs) y se bajó a
+      //   0.01Hz (volvía el drift). Causa raíz: el 2º orden tiene
+      //   respuesta libre con inercia (recuerda posición Y velocidad).
+      // - v0.7: AudioWorklet de 1er orden. Sin trend-following (la
+      //   respuesta libre es exponencial pura). Auto-reset tras ~50ms
+      //   de silencio: elimina settling lento al cortar la señal.
       // ─────────────────────────────────────────────────────────────────────
-      const dcBlocker = ctx.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;  // 0.01 Hz — transparente para LFOs ≥ 0.1 Hz, bloquea DC
-      dcBlocker.Q.value = 0.707;         // Butterworth — respuesta plana, sin resonancia
-      postVcaNode.connect(dcBlocker);
+      const dcBlocker = ctx.createGain();
+      dcBlocker.gain.value = 1.0;  // Nodo de salida estable para re-entry
+      postVcaNode.connect(dcBlocker);  // Passthrough temporal hasta _initDCBlockerNodes()
       
       // ─────────────────────────────────────────────────────────────────────
       // FILTRO RC PASIVO: Corrección tonal auténtica (DESPUÉS del VCA)
@@ -402,7 +402,8 @@ export class AudioEngine {
         hybridClipShaper, // Saturación híbrida (emulación raíles ±12V, puede ser null)
         levelNode,  // VCA - Nivel (para modulación CV de matriz) - ANTES del filtro
         postVcaNode, // Punto de split POST-VCA (interno, antes de DC blocker)
-        dcBlocker,  // DC Blocker para re-entry a matriz (elimina offset DC)
+        dcBlocker,  // DC Blocker salida para re-entry a matriz (GainNode, worklet se inserta antes)
+        dcBlockerWorklet: null,  // AudioWorkletNode dc-blocker (se crea en _initDCBlockerNodes)
         filterGain, // Ganancia para crossfade suave de filtros
         bypassGain, // Ganancia para crossfade suave de bypass
         filterNode, // Filtro RC pasivo (AudioWorklet, 1er orden 6 dB/oct, fc≈677Hz, LP↔plano↔HP shelf)
@@ -1804,7 +1805,8 @@ export class AudioEngine {
           './assets/js/worklets/cvThermalSlew.worklet.js',
           './assets/js/worklets/cvSoftClip.worklet.js',
           './assets/js/worklets/vcaProcessor.worklet.js',
-          './assets/js/worklets/outputFilter.worklet.js'
+          './assets/js/worklets/outputFilter.worklet.js',
+          './assets/js/worklets/dcBlocker.worklet.js'
         ];
         
         await Promise.all(
@@ -1814,8 +1816,9 @@ export class AudioEngine {
         this.workletReady = true;
         log.info('All worklets loaded:', worklets.length);
         
-        // Crear los filterNodes ahora que el worklet está disponible
+        // Crear nodos AudioWorklet ahora que los módulos están disponibles
         this._initFilterNodes();
+        this._initDCBlockerNodes();
       } catch (err) {
         log.error('Failed to load worklet:', err);
         this.workletReady = false;
@@ -1876,6 +1879,55 @@ export class AudioEngine {
         }
       } catch (err) {
         log.error(`Failed to create filter node for bus ${i}:`, err);
+      }
+    }
+  }
+
+  /**
+   * Crea e inserta los AudioWorkletNode de DC blocker en todos los buses.
+   * Se llama automáticamente desde _loadWorklet() tras cargar el módulo.
+   * 
+   * Reemplaza la conexión temporal postVcaNode → dcBlocker (passthrough)
+   * por la cadena real: postVcaNode → dcBlockerWorklet → dcBlocker
+   * 
+   * El dcBlockerWorklet implementa un filtro de 1er orden:
+   *   y[n] = x[n] - x[n-1] + R·y[n-1]  (fc = 0.01 Hz)
+   * con auto-reset tras ~50ms de silencio para eliminar settling lento.
+   * 
+   * dcBlocker (GainNode) se mantiene como punto de conexión estable para
+   * el re-entry a la matriz — las conexiones externas no se alteran.
+   * 
+   * @private
+   */
+  _initDCBlockerNodes() {
+    const ctx = this.audioCtx;
+    if (!ctx || !this.outputBuses.length) return;
+    
+    for (let i = 0; i < this.outputBuses.length; i++) {
+      const bus = this.outputBuses[i];
+      if (!bus || bus.dcBlockerWorklet) continue;  // Ya inicializado
+      
+      try {
+        const dcBlockerWorklet = new AudioWorkletNode(ctx, 'dc-blocker', {
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          parameterData: { cutoffFrequency: 0.01 },
+          processorOptions: {
+            silenceThreshold: 1e-6,
+            silenceTimeMs: 50
+          }
+        });
+        
+        // Desconectar passthrough temporal: postVcaNode → dcBlocker
+        bus.postVcaNode.disconnect(bus.dcBlocker);
+        
+        // Insertar worklet: postVcaNode → dcBlockerWorklet → dcBlocker
+        bus.postVcaNode.connect(dcBlockerWorklet);
+        dcBlockerWorklet.connect(bus.dcBlocker);
+        
+        bus.dcBlockerWorklet = dcBlockerWorklet;
+      } catch (err) {
+        log.error(`Failed to create DC blocker worklet for bus ${i}:`, err);
       }
     }
   }

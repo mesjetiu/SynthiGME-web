@@ -7,8 +7,8 @@
  * deriva lentamente sin que nada cambie.
  * 
  * Fuentes potenciales investigadas:
- * 1. BiquadFilter highpass a 0.01 Hz (DC blocker) — red de seguridad para DC
- *    puro. Settling lento (τ ≈ 16 s) pero el hard-set en el VCA lo compensa
+ * 1. DC blocker AudioWorklet 1er orden a 0.01 Hz — red de seguridad para DC
+ *    puro. Auto-reset tras ~50ms de silencio elimina settling lento.
  * 2. setTargetAtTime(0) nunca llega a cero exacto → fuga por crossfade
  * 3. OutputFilter worklet IIR acumulando estado residual
  * 4. VCA slew filter con convergencia asintótica
@@ -57,7 +57,7 @@ function analyzeBuffer(samples) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TESTS: DC BLOCKER (BiquadFilter highpass 0.01 Hz)
+// TESTS: DC BLOCKER (AudioWorklet 1er orden, 0.01 Hz, auto-reset)
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('Output Channel - Señal residual sin entrada', () => {
@@ -70,7 +70,7 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
   // TEST 1: DC Blocker con silencio no debe generar señal
   // ─────────────────────────────────────────────────────────────────────────
 
-  test('BiquadFilter highpass 0.01Hz con silencio no genera señal (2s)', async ({ page }) => {
+  test('DC blocker AudioWorklet 0.01Hz con silencio no genera señal (2s)', async ({ page }) => {
     const result = await page.evaluate(async (config) => {
       const { sampleRate, longDuration } = config;
       const length = Math.ceil(sampleRate * longDuration);
@@ -81,11 +81,13 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
         sampleRate
       });
 
-      // DC Blocker idéntico al de engine.js
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      // DC Blocker AudioWorklet 1er orden (idéntico al de engine.js)
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       // Conectar silencio → dcBlocker → output
       // OfflineAudioContext no genera silencio explícito en un nodo desconectado,
@@ -150,11 +152,13 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
         sampleRate
       });
 
-      // DC Blocker
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      // DC Blocker AudioWorklet 1er orden
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       // Fuente: DC constante de 1.0V (simula offset del VCA)
       const dcSource = offline.createConstantSource();
@@ -371,10 +375,12 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
       const postVcaNode = offline.createGain();
       postVcaNode.gain.value = 1.0;
 
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       osc.connect(envelope);
       envelope.connect(postVcaNode);
@@ -524,10 +530,12 @@ test.describe('Output Channel - Señal residual sin entrada', () => {
       const postVcaNode = offline.createGain();
       postVcaNode.gain.value = 1.0;
 
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       osc.connect(levelNode);
       levelNode.connect(postVcaNode);
@@ -763,11 +771,13 @@ test.describe('Output Channel - Fidelidad de forma de onda en re-entry', () => {
       const direct = offline.createGain();
       direct.gain.value = 1.0;
 
-      // Ruta con DC blocker (canal 1) — como en engine.js
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      // Ruta con DC blocker (canal 1) — AudioWorklet 1er orden como en engine.js
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       const merger = offline.createChannelMerger(2);
 
@@ -877,10 +887,13 @@ test.describe('Output Channel - Fidelidad de forma de onda en re-entry', () => {
         osc.type = 'square';
         osc.frequency.value = 1;
 
-        const dcBlocker = offline.createBiquadFilter();
-        dcBlocker.type = 'highpass';
-        dcBlocker.frequency.value = freq;
-        dcBlocker.Q.value = 0.707;
+        // DC blocker AudioWorklet 1er orden con frecuencia variable
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+        const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          parameterData: { cutoffFrequency: freq }
+        });
 
         const merger = offline.createChannelMerger(2);
 
@@ -963,10 +976,12 @@ test.describe('Output Channel - Fidelidad de forma de onda en re-entry', () => {
       osc.type = 'sine';
       osc.frequency.value = 1;
 
-      const dcBlocker = offline.createBiquadFilter();
-      dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 0.01;
-      dcBlocker.Q.value = 0.707;
+      await offline.audioWorklet.addModule('/src/assets/js/worklets/dcBlocker.worklet.js');
+      const dcBlocker = new AudioWorkletNode(offline, 'dc-blocker', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        parameterData: { cutoffFrequency: 0.01 }
+      });
 
       const merger = offline.createChannelMerger(2);
 

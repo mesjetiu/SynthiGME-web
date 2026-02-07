@@ -6,7 +6,7 @@ import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
 import { safeDisconnect } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
-import { VOLTAGE_DEFAULTS, digitalToVoltage, voltageToDigital, createSoftClipCurve, createHybridClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
+import { VOLTAGE_DEFAULTS, DIGITAL_TO_VOLTAGE, digitalToVoltage, voltageToDigital, createSoftClipCurve, createHybridClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
 import { dialToFrequency } from './state/conversions.js';
 
 const log = createLogger('App');
@@ -3079,8 +3079,20 @@ class App {
   _getPanelKnobOptions(panelIndex, oscIndex) {
     const config = panelIndex === 3 ? this._getOscConfig(oscIndex) : oscillatorConfig.defaults;
     const knobsConfig = config?.knobs || {};
-    const voltageConfig = config?.voltage?.outputLevels || {};
     const audioConfig = config?.audio || {};
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // VOLTAJE PARA TOOLTIPS: Usar escala del sistema CV, NO outputLevels
+    // ─────────────────────────────────────────────────────────────────────
+    // Todas las formas de onda producen ±1 digital a nivel máximo.
+    // El sistema CV convierte: 1 digital = DIGITAL_TO_VOLTAGE = 4V.
+    // Por tanto, el Vpp real a nivel máximo es DIGITAL_TO_VOLTAGE × 2 = 8.0V.
+    //
+    // Los outputLevels del config son REFERENCIA del hardware real del Synthi 100
+    // (pulse=8.1V, saw=6.2V, etc.) pero NO reflejan la salida digital.
+    // Usar outputLevels causaba error en V/oct: tooltip "1V" ≠ 1V real en CV.
+    // ─────────────────────────────────────────────────────────────────────
+    const FULL_SCALE_VPP = DIGITAL_TO_VOLTAGE * 2; // 8.0V p-p
     
     const knobOptions = [];
     
@@ -3110,7 +3122,7 @@ class App {
     };
     
     const pulseLevelCfg = knobsConfig.pulseLevel || {};
-    const pulseVpp = voltageConfig.pulse ?? 8.0;
+    const pulseVpp = FULL_SCALE_VPP;
     knobOptions[0] = {
       min: pulseLevelCfg.min ?? 0,
       max: pulseLevelCfg.max ?? 1,
@@ -3141,7 +3153,7 @@ class App {
     };
     
     const sineLevelCfg = knobsConfig.sineLevel || {};
-    const sineVpp = voltageConfig.sine ?? 8.0;
+    const sineVpp = FULL_SCALE_VPP;
     knobOptions[2] = {
       min: sineLevelCfg.min ?? 0,
       max: sineLevelCfg.max ?? 1,
@@ -3176,7 +3188,7 @@ class App {
     };
     
     const triangleLevelCfg = knobsConfig.triangleLevel || {};
-    const triangleVpp = voltageConfig.triangle ?? 8.0;
+    const triangleVpp = FULL_SCALE_VPP;
     knobOptions[4] = {
       min: triangleLevelCfg.min ?? 0,
       max: triangleLevelCfg.max ?? 1,
@@ -3192,7 +3204,7 @@ class App {
     };
     
     const sawtoothLevelCfg = knobsConfig.sawtoothLevel || {};
-    const sawtoothVpp = voltageConfig.sawtooth ?? 8.0;
+    const sawtoothVpp = FULL_SCALE_VPP;
     knobOptions[5] = {
       min: sawtoothLevelCfg.min ?? 0,
       max: sawtoothLevelCfg.max ?? 1,

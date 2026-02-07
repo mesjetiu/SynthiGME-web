@@ -553,6 +553,13 @@ export default {
       // NOTA: El seno tiene atenuación variable según "Sine Shape" (ver sineShape.attenuation).
       // En forma de cuspoide extrema cae a 0.5V p-p (ratio 8:1).
       //
+      // ⚠️ IMPORTANTE: Estos valores son REFERENCIA DEL HARDWARE REAL.
+      // En la implementación digital, TODAS las formas de onda producen ±1 a nivel máximo,
+      // equivalente a ±4V = 8.0V p-p (según DIGITAL_TO_VOLTAGE = 4.0).
+      // Los tooltips de voltaje de la UI usan DIGITAL_TO_VOLTAGE×2 = 8.0V p-p para TODAS
+      // las formas de onda, NO estos valores, para que el voltaje mostrado sea consistente
+      // con el sistema CV (1V/oct). Ver app.js _createOscKnobOptions().
+      //
       outputLevels: {
         sine: 8.0,        // 8V p-p (referencia de calibración del sistema)
         sawtooth: 6.2,    // 5.0-7.4V p-p (promedio 6.2V, ganancia ×1.0)

@@ -70,12 +70,12 @@ describe('Output Channel Config', () => {
       assert.equal(audio.filterSmoothingTime, 0.03);
     });
     
-    it('debe tener configuración de filtro', () => {
+    it('debe tener configuración de filtro RC pasivo', () => {
       const filter = outputChannelConfig.audio.filter;
       assert.ok(filter);
-      assert.ok(filter.lowpassFreq);
-      assert.ok(filter.highpassFreq);
-      assert.equal(filter.Q, 0.707);
+      assert.equal(filter.capacitance, 47e-9, 'Capacitancia 0.047µF (C11, C12)');
+      assert.equal(filter.potResistance, 10000, 'Pot 10kΩ lineal');
+      assert.equal(filter.order, 1, 'Primer orden (6 dB/oct)');
     });
   });
   

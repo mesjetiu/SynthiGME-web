@@ -6,8 +6,8 @@
  * 
  * busInput → [clipper] → levelNode (VCA) → postVcaNode → [crossfade] → muteNode → channelGains
  *                                               │
- *                                               ├─→ filterGain → filterLP → filterHP ─┬─→ muteNode
- *                                               └─→ bypassGain ──────────────────────┘
+ *                                               ├─→ filterGain → filterNode (RC worklet) ─┬─→ muteNode
+ *                                               └─→ bypassGain ──────────────────────────┘
  *                                               └─→ (re-entry a matriz)
  * 
  * Tests críticos:
@@ -16,6 +16,12 @@
  * - Mute (muteNode) silencia sin afectar re-entry
  * - Re-entry (postVcaNode) es POST-VCA, PRE-filtro, PRE-mute
  * - Filter bypass crossfade (sin clicks)
+ * - Filtro LP/HP atenúa frecuencias correctamente
+ * 
+ * NOTA: Los tests de crossfade y LP/HP usan BiquadFilter nativo como proxy
+ * para validar la topología de crossfade, ya que AudioWorklet no es fácilmente
+ * testable en OfflineAudioContext. Los tests del modelo RC exacto están en
+ * outputChannel.test.js (verificación matemática de coeficientes).
  * 
  * @requires Playwright con Chromium
  * @requires tests/audio/harness.html

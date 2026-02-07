@@ -843,88 +843,77 @@ describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
   let engine;
   let mockCtx;
   
-  function setupEngine() {
+  async function setupEngine() {
     mockCtx = createMockAudioContext({ maxChannelCount: 2 });
     engine = new AudioEngine({ outputChannels: 8 });
     engine.start({ audioContext: mockCtx });
+    await engine._workletLoadPromise;  // Esperar a que se creen los filterNodes
     return engine;
   }
 
   // Tests con escala dial -5 a 5: -5=LP máximo, 0=bypass, 5=HP máximo
+  // El filtro es un AudioWorklet RC de 1er orden con parámetro filterPosition (-1 a +1)
   
-  it('value=-5 (dial) → LP=200Hz (lowpass máximo)', () => {
-    setupEngine();
+  it('value=-5 (dial) → filterPosition=-1 (LP máximo)', async () => {
+    await setupEngine();
     
     engine.setOutputFilter(0, -5);  // Dial -5 = bipolar -1
     
-    const filterLP = engine.outputBuses[0].filterLP;
-    // 200Hz para lowpass máximo
-    assert.ok(Math.abs(filterLP.frequency.value - 200) < 1);
+    const filterNode = engine.outputBuses[0].filterNode;
+    const param = filterNode.parameters.get('filterPosition');
+    assert.ok(Math.abs(param.value - (-1)) < 0.01, `filterPosition debe ser -1, es ${param.value}`);
   });
 
-  it('value=0 (dial) → LP=20000Hz, HP=20Hz (bypass)', () => {
-    setupEngine();
+  it('value=0 (dial) → filterPosition=0 (plano)', async () => {
+    await setupEngine();
     
     engine.setOutputFilter(0, 0);  // Dial 0 = bipolar 0
     
-    const filterLP = engine.outputBuses[0].filterLP;
-    const filterHP = engine.outputBuses[0].filterHP;
-    
-    // Bypass: LP en 20kHz, HP en 20Hz
-    assert.ok(Math.abs(filterLP.frequency.value - 20000) < 1);
-    assert.ok(Math.abs(filterHP.frequency.value - 20) < 1);
+    const filterNode = engine.outputBuses[0].filterNode;
+    const param = filterNode.parameters.get('filterPosition');
+    assert.ok(Math.abs(param.value) < 0.01, `filterPosition debe ser 0, es ${param.value}`);
   });
 
-  it('value=5 (dial) → HP=5000Hz (highpass máximo)', () => {
-    setupEngine();
+  it('value=5 (dial) → filterPosition=+1 (HP máximo)', async () => {
+    await setupEngine();
     
     engine.setOutputFilter(0, 5);  // Dial 5 = bipolar +1
     
-    const filterHP = engine.outputBuses[0].filterHP;
-    // 5000Hz para highpass máximo
-    assert.ok(Math.abs(filterHP.frequency.value - 5000) < 1);
+    const filterNode = engine.outputBuses[0].filterNode;
+    const param = filterNode.parameters.get('filterPosition');
+    assert.ok(Math.abs(param.value - 1) < 0.01, `filterPosition debe ser +1, es ${param.value}`);
   });
 
-  it('valores < 0 activan LP, mantienen HP bypass', () => {
-    setupEngine();
+  it('valores intermedios negativos → filterPosition proporcional', async () => {
+    await setupEngine();
     
     engine.setOutputFilter(0, -2.5);  // Dial -2.5 = bipolar -0.5
     
-    const filterLP = engine.outputBuses[0].filterLP;
-    const filterHP = engine.outputBuses[0].filterHP;
-    
-    // LP activo (frecuencia intermedia entre 200 y 20000)
-    assert.ok(filterLP.frequency.value < 20000);
-    assert.ok(filterLP.frequency.value > 200);
-    // HP en bypass (20Hz)
-    assert.ok(Math.abs(filterHP.frequency.value - 20) < 1);
+    const filterNode = engine.outputBuses[0].filterNode;
+    const param = filterNode.parameters.get('filterPosition');
+    assert.ok(Math.abs(param.value - (-0.5)) < 0.01, `filterPosition debe ser -0.5, es ${param.value}`);
   });
 
-  it('valores > 0 activan HP, mantienen LP bypass', () => {
-    setupEngine();
+  it('valores intermedios positivos → filterPosition proporcional', async () => {
+    await setupEngine();
     
     engine.setOutputFilter(0, 2.5);  // Dial 2.5 = bipolar +0.5
     
-    const filterLP = engine.outputBuses[0].filterLP;
-    const filterHP = engine.outputBuses[0].filterHP;
-    
-    // LP en bypass (20kHz)
-    assert.ok(Math.abs(filterLP.frequency.value - 20000) < 1);
-    // HP activo (frecuencia intermedia entre 20 y 5000)
-    assert.ok(filterHP.frequency.value > 20);
-    assert.ok(filterHP.frequency.value < 5000);
+    const filterNode = engine.outputBuses[0].filterNode;
+    const param = filterNode.parameters.get('filterPosition');
+    assert.ok(Math.abs(param.value - 0.5) < 0.01, `filterPosition debe ser +0.5, es ${param.value}`);
   });
 
-  it('actualiza el array outputFilters (escala dial)', () => {
-    setupEngine();
+  it('actualiza el array outputFilters (escala dial)', async () => {
+    await setupEngine();
     
     engine.setOutputFilter(2, -1.5);  // Valor arbitrario en escala dial
     
     assert.equal(engine.outputFilters[2], -1.5);
   });
 
-  it('clampea valores fuera de rango [-5, 5]', () => {
-    setupEngine();
+  it('clampea valores fuera de rango [-5, 5]', async () => {
+    await setupEngine();
     
     engine.setOutputFilter(0, -10);
     assert.equal(engine.outputFilters[0], -5);  // Clampeado a -5
@@ -933,19 +922,20 @@ describe('AudioEngine.setOutputFilter (con AudioContext mock)', () => {
     assert.equal(engine.outputFilters[0], 5);  // Clampeado a 5
   });
 
-  it('usa setTargetAtTime para transición suave', () => {
-    setupEngine();
+  it('usa setTargetAtTime para transición suave', async () => {
+    await setupEngine();
     
-    const filterLP = engine.outputBuses[0].filterLP;
-    const initialCalls = filterLP.frequency._calls.setTargetAtTime;
+    const filterNode = engine.outputBuses[0].filterNode;
+    const param = filterNode.parameters.get('filterPosition');
+    const initialCalls = param._calls.setTargetAtTime;
     
-    engine.setOutputFilter(0, 2.5);  // Activa LP
+    engine.setOutputFilter(0, 2.5);  // Activa filtro
     
-    assert.ok(filterLP.frequency._calls.setTargetAtTime > initialCalls);
+    assert.ok(param._calls.setTargetAtTime > initialCalls);
   });
 
-  it('ignora índices fuera de rango', () => {
-    setupEngine();
+  it('ignora índices fuera de rango', async () => {
+    await setupEngine();
     
     // No debe lanzar error
     engine.setOutputFilter(100, 7.5);

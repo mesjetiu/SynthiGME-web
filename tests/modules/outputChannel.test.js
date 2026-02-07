@@ -2,7 +2,7 @@
  * Tests para lógica de audio de OutputChannel y Engine
  * 
  * Verifica:
- * - Cálculo de frecuencias de filtro bipolar (LP/HP)
+ * - Coeficientes del filtro RC pasivo (modelo circuito Cuenca 1982)
  * - Cálculo de panning equal-power
  * - Mapeo de valores de knobs
  */
@@ -11,47 +11,72 @@ import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FUNCIONES REPLICADAS DE engine.js (para tests sin AudioContext)
+// MODELO DEL FILTRO RC PASIVO (réplica del worklet, para tests sin AudioContext)
+// ─────────────────────────────────────────────────────────────────────────────
+// Circuito real: Pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×)
+// H(s) = (2 + (1+p)·s·τ) / (2 + s·τ)  donde τ = R·C
+// Transformada bilineal: K = 2·fs·τ
+//   b0 = (2 + (1+p)·K) / (2 + K)
+//   b1 = (2 - (1+p)·K) / (2 + K)
+//   a1 = (2 - K) / (2 + K)
 // ─────────────────────────────────────────────────────────────────────────────
 
+const RC_DEFAULTS = {
+  resistance: 10000,      // 10 kΩ
+  capacitance: 47e-9,     // 0.047 µF
+  sampleRate: 44100       // fs típico
+};
+
 /**
- * Calcula frecuencia de corte del Lowpass según valor bipolar.
- * Solo activo para valores negativos (-1 a 0).
+ * Calcula coeficientes IIR del filtro RC para una posición dada.
  * 
- * @param {number} value - Valor bipolar (-1 a +1)
- * @returns {number} Frecuencia en Hz (200 a 20000)
+ * @param {number} p - Posición bipolar (-1 a +1)
+ * @param {Object} [opts] - Opciones de circuito
+ * @returns {{ b0: number, b1: number, a1: number, K: number }}
  */
-function getLowpassFreq(value) {
-  // value < 0: LP activo, mapear -1→200Hz, 0→20000Hz
-  // value >= 0: LP bypass (20000Hz)
-  if (value >= 0) return 20000;
+function getFilterCoefficients(p, opts = {}) {
+  const R = opts.resistance || RC_DEFAULTS.resistance;
+  const C = opts.capacitance || RC_DEFAULTS.capacitance;
+  const fs = opts.sampleRate || RC_DEFAULTS.sampleRate;
   
-  const t = 1 + value; // -1→0, 0→1
-  const minFreq = 200;
-  const maxFreq = 20000;
-  const minLog = Math.log10(minFreq);
-  const maxLog = Math.log10(maxFreq);
-  return Math.pow(10, minLog + t * (maxLog - minLog));
+  const tau = R * C;
+  const K = 2 * fs * tau;
+  const pK = (1 + p) * K;
+  const invDenom = 1 / (2 + K);
+  
+  return {
+    b0: (2 + pK) * invDenom,
+    b1: (2 - pK) * invDenom,
+    a1: (2 - K) * invDenom,
+    K
+  };
 }
 
 /**
- * Calcula frecuencia de corte del Highpass según valor bipolar.
- * Solo activo para valores positivos (0 a +1).
+ * Calcula la respuesta en frecuencia del filtro a una frecuencia dada.
+ * |H(e^jω)| = |b0 + b1·e^-jω| / |1 + a1·e^-jω|
  * 
- * @param {number} value - Valor bipolar (-1 a +1)
- * @returns {number} Frecuencia en Hz (20 a 5000)
+ * @param {{ b0: number, b1: number, a1: number }} coeffs
+ * @param {number} freq - Frecuencia en Hz
+ * @param {number} [fs=44100] - Frecuencia de muestreo
+ * @returns {number} Magnitud de la respuesta
  */
-function getHighpassFreq(value) {
-  // value > 0: HP activo, mapear 0→20Hz, +1→5000Hz
-  // value <= 0: HP bypass (20Hz)
-  if (value <= 0) return 20;
+function getFrequencyResponse(coeffs, freq, fs = RC_DEFAULTS.sampleRate) {
+  const omega = 2 * Math.PI * freq / fs;
+  const cosW = Math.cos(omega);
+  const sinW = Math.sin(omega);
   
-  const t = value; // 0→0, 1→1
-  const minFreq = 20;
-  const maxFreq = 5000;
-  const minLog = Math.log10(minFreq);
-  const maxLog = Math.log10(maxFreq);
-  return Math.pow(10, minLog + t * (maxLog - minLog));
+  // Numerador: b0 + b1·e^-jω
+  const numReal = coeffs.b0 + coeffs.b1 * cosW;
+  const numImag = -coeffs.b1 * sinW;
+  const numMag = Math.sqrt(numReal * numReal + numImag * numImag);
+  
+  // Denominador: 1 + a1·e^-jω
+  const denReal = 1 + coeffs.a1 * cosW;
+  const denImag = -coeffs.a1 * sinW;
+  const denMag = Math.sqrt(denReal * denReal + denImag * denImag);
+  
+  return numMag / denMag;
 }
 
 /**
@@ -69,90 +94,161 @@ function calculateEqualPowerPan(pan) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TESTS: FILTRO BIPOLAR
+// TESTS: FILTRO RC PASIVO - COEFICIENTES
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Filtro bipolar - Lowpass', () => {
-  it('value = -1 → frecuencia mínima (~200Hz)', () => {
-    const freq = getLowpassFreq(-1);
-    assert.ok(Math.abs(freq - 200) < 0.001, `freq ${freq} debe ser ~200`);
+describe('Filtro RC pasivo - Coeficientes IIR', () => {
+  it('p=0 (plano) → b0=1, b1=a1 (ganancia unitaria)', () => {
+    const c = getFilterCoefficients(0);
+    assert.ok(Math.abs(c.b0 - 1) < 1e-10, `b0 debe ser 1, es ${c.b0}`);
+    assert.ok(Math.abs(c.b1 - c.a1) < 1e-10, `b1 debe igualar a1 para plano`);
   });
 
-  it('value = 0 → bypass (20000Hz)', () => {
-    const freq = getLowpassFreq(0);
-    assert.ok(Math.abs(freq - 20000) < 0.001, `freq ${freq} debe ser ~20000`);
+  it('p=-1 (LP máximo) → b0=b1 (LP puro)', () => {
+    const c = getFilterCoefficients(-1);
+    // Para LP: pK = 0, así b0 = 2/(2+K) = b1
+    assert.ok(Math.abs(c.b0 - c.b1) < 1e-10, `b0 debe igualar b1 para LP puro`);
+    assert.ok(c.b0 > 0 && c.b0 < 1, `b0 debe estar entre 0 y 1, es ${c.b0}`);
   });
 
-  it('value > 0 → bypass (20000Hz)', () => {
-    assert.ok(Math.abs(getLowpassFreq(0.5) - 20000) < 0.001);
-    assert.ok(Math.abs(getLowpassFreq(1) - 20000) < 0.001);
+  it('p=+1 (HP máximo) → coeficientes correctos', () => {
+    const c = getFilterCoefficients(1);
+    const K = c.K;
+    // Para HP: pK = 2K
+    const expectedB0 = (2 + 2 * K) / (2 + K);
+    const expectedB1 = (2 - 2 * K) / (2 + K);
+    assert.ok(Math.abs(c.b0 - expectedB0) < 1e-10);
+    assert.ok(Math.abs(c.b1 - expectedB1) < 1e-10);
   });
 
-  it('value = -0.5 → frecuencia intermedia (~2000Hz)', () => {
-    const freq = getLowpassFreq(-0.5);
-    // -0.5 → t = 0.5, log interpolación 200→20000
-    assert.ok(freq > 1000 && freq < 3000, `freq ${freq} debe estar entre 1000 y 3000`);
+  it('K precalculado es correcto (2·fs·τ)', () => {
+    const c = getFilterCoefficients(0);
+    const expectedK = 2 * RC_DEFAULTS.sampleRate * RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
+    assert.ok(Math.abs(c.K - expectedK) < 1e-6, `K debe ser ${expectedK}, es ${c.K}`);
   });
 
-  it('curva logarítmica: incrementos iguales en valor dan incrementos proporcionales en frecuencia', () => {
-    const f1 = getLowpassFreq(-1);    // 200
-    const f2 = getLowpassFreq(-0.5);  // ~2000
-    const f3 = getLowpassFreq(0);     // 20000
+  it('coeficientes cambian monótonamente de LP a HP', () => {
+    const positions = [-1, -0.5, 0, 0.5, 1];
+    const b0Values = positions.map(p => getFilterCoefficients(p).b0);
     
-    // Ratio f2/f1 ≈ ratio f3/f2 (propiedad logarítmica)
-    const ratio1 = f2 / f1;
-    const ratio2 = f3 / f2;
-    assert.ok(Math.abs(ratio1 - ratio2) < 1, 'ratios deben ser aproximadamente iguales');
+    // b0 debe crecer monótonamente de LP a HP
+    for (let i = 1; i < b0Values.length; i++) {
+      assert.ok(b0Values[i] > b0Values[i - 1],
+        `b0 debe crecer: p=${positions[i - 1]}→${b0Values[i - 1]}, p=${positions[i]}→${b0Values[i]}`);
+    }
   });
 });
 
-describe('Filtro bipolar - Highpass', () => {
-  it('value = 0 → bypass (20Hz)', () => {
-    const freq = getHighpassFreq(0);
-    assert.ok(Math.abs(freq - 20) < 0.001, `freq ${freq} debe ser ~20`);
+// ─────────────────────────────────────────────────────────────────────────────
+// TESTS: FILTRO RC PASIVO - RESPUESTA EN FRECUENCIA
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Filtro RC pasivo - Respuesta en frecuencia', () => {
+  it('plano (p=0): ganancia unitaria en todo el espectro', () => {
+    const c = getFilterCoefficients(0);
+    
+    for (const freq of [50, 200, 1000, 5000, 15000]) {
+      const mag = getFrequencyResponse(c, freq);
+      assert.ok(Math.abs(mag - 1) < 0.001,
+        `Plano: ganancia a ${freq}Hz debe ser ~1.0, es ${mag.toFixed(4)}`);
+    }
   });
 
-  it('value < 0 → bypass (20Hz)', () => {
-    assert.ok(Math.abs(getHighpassFreq(-0.5) - 20) < 0.001);
-    assert.ok(Math.abs(getHighpassFreq(-1) - 20) < 0.001);
+  it('LP máximo (p=-1): ganancia DC=1, atenúa agudos', () => {
+    const c = getFilterCoefficients(-1);
+    
+    // DC debe ser 1.0
+    const magDC = getFrequencyResponse(c, 1);
+    assert.ok(Math.abs(magDC - 1) < 0.01, `LP DC debe ser ~1.0, es ${magDC.toFixed(4)}`);
+    
+    // 5kHz debe estar atenuado (>6dB)
+    const mag5k = getFrequencyResponse(c, 5000);
+    assert.ok(mag5k < 0.5, `LP 5kHz debe estar atenuado (<0.5), es ${mag5k.toFixed(4)}`);
+    
+    // 10kHz aún más atenuado
+    const mag10k = getFrequencyResponse(c, 10000);
+    assert.ok(mag10k < mag5k, `10kHz debe estar más atenuado que 5kHz`);
   });
 
-  it('value = +1 → frecuencia máxima (5000Hz)', () => {
-    const freq = getHighpassFreq(1);
-    assert.ok(Math.abs(freq - 5000) < 0.001, `freq ${freq} debe ser ~5000`);
+  it('HP máximo (p=+1): atenúa graves, HF boosteado (+6dB shelf)', () => {
+    const c = getFilterCoefficients(1);
+    
+    // DC debe ser 1.0 (shelving, no pasa-altos puro)
+    const magDC = getFrequencyResponse(c, 1);
+    assert.ok(Math.abs(magDC - 1) < 0.01, `HP DC debe ser ~1.0, es ${magDC.toFixed(4)}`);
+    
+    // HF debe acercarse a 2.0 (+6dB shelf)
+    const mag10k = getFrequencyResponse(c, 10000);
+    assert.ok(mag10k > 1.5, `HP 10kHz debe ser >1.5 (shelf), es ${mag10k.toFixed(4)}`);
+    
+    // La diferencia entre HF y DC es el shelving (~6dB)
+    const shelfDb = 20 * Math.log10(mag10k / magDC);
+    assert.ok(shelfDb > 3 && shelfDb < 7,
+      `Shelving debe ser ~6dB, es ${shelfDb.toFixed(1)}dB`);
   });
 
-  it('value = +0.5 → frecuencia intermedia (~316Hz)', () => {
-    const freq = getHighpassFreq(0.5);
-    // +0.5 → t = 0.5, log interpolación 20→5000
-    assert.ok(freq > 200 && freq < 500, `freq ${freq} debe estar entre 200 y 500`);
+  it('pendiente 6 dB/oct en LP (primer orden)', () => {
+    const c = getFilterCoefficients(-1);
+    
+    // Medir ganancia a 2kHz y 4kHz (una octava)
+    const mag2k = getFrequencyResponse(c, 2000);
+    const mag4k = getFrequencyResponse(c, 4000);
+    
+    const slopeDb = 20 * Math.log10(mag4k / mag2k);
+    // Primer orden: debe ser ~-6 dB/oct (tolerancia ±2dB por efectos de frecuencia finita)
+    assert.ok(slopeDb < -4 && slopeDb > -8,
+      `Pendiente debe ser ~-6 dB/oct, es ${slopeDb.toFixed(1)} dB/oct`);
+  });
+
+  it('transición continua: posiciones intermedias entre LP y plano', () => {
+    // A 2kHz, la atenuación debe crecer gradualmente
+    const positions = [0, -0.25, -0.5, -0.75, -1];
+    const mags = positions.map(p => getFrequencyResponse(getFilterCoefficients(p), 2000));
+    
+    for (let i = 1; i < mags.length; i++) {
+      assert.ok(mags[i] < mags[i - 1],
+        `Atenuación a 2kHz debe crecer: p=${positions[i - 1]}→${mags[i - 1].toFixed(3)}, p=${positions[i]}→${mags[i].toFixed(3)}`);
+    }
+  });
+
+  it('fc del LP ≈ 677 Hz (-3dB desde DC)', () => {
+    const c = getFilterCoefficients(-1);
+    const magDC = getFrequencyResponse(c, 1);
+    const target3dB = magDC / Math.SQRT2;
+    
+    // Buscar la frecuencia donde la magnitud cruza -3dB
+    let fc = 0;
+    for (let f = 100; f < 2000; f += 10) {
+      const mag = getFrequencyResponse(c, f);
+      if (mag <= target3dB) {
+        fc = f;
+        break;
+      }
+    }
+    
+    // fc debe estar cerca de 1/(π·τ) ≈ 677 Hz
+    const expectedFc = 1 / (Math.PI * RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance);
+    assert.ok(Math.abs(fc - expectedFc) < 50,
+      `fc(-3dB) debe ser ~${expectedFc.toFixed(0)}Hz, es ${fc}Hz`);
   });
 });
 
-describe('Filtro bipolar - Comportamiento conjunto LP/HP', () => {
-  it('centro (value=0) → ambos en bypass (señal limpia)', () => {
-    const lpFreq = getLowpassFreq(0);
-    const hpFreq = getHighpassFreq(0);
-    
-    // LP a 20kHz pasa todo, HP a 20Hz pasa todo
-    assert.ok(Math.abs(lpFreq - 20000) < 0.001, 'LP debe estar en bypass');
-    assert.ok(Math.abs(hpFreq - 20) < 0.001, 'HP debe estar en bypass');
+describe('Filtro RC pasivo - Valores del circuito Cuenca', () => {
+  it('τ = R·C = 4.7e-4 s', () => {
+    const tau = RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
+    assert.ok(Math.abs(tau - 4.7e-4) < 1e-8, `τ debe ser 4.7e-4, es ${tau}`);
   });
 
-  it('negativo (value<0) → LP activo, HP bypass', () => {
-    const lpFreq = getLowpassFreq(-0.7);
-    const hpFreq = getHighpassFreq(-0.7);
-    
-    assert.ok(lpFreq < 20000, 'LP debe estar activo');
-    assert.ok(Math.abs(hpFreq - 20) < 0.001, 'HP debe estar en bypass');
+  it('fc teórica = 1/(2πτ) ≈ 339 Hz (polo fundamental)', () => {
+    const tau = RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
+    const fc = 1 / (2 * Math.PI * tau);
+    assert.ok(Math.abs(fc - 339) < 1, `fc debe ser ~339Hz, es ${fc.toFixed(1)}`);
   });
 
-  it('positivo (value>0) → LP bypass, HP activo', () => {
-    const lpFreq = getLowpassFreq(0.7);
-    const hpFreq = getHighpassFreq(0.7);
-    
-    assert.ok(Math.abs(lpFreq - 20000) < 0.001, 'LP debe estar en bypass');
-    assert.ok(hpFreq > 20, 'HP debe estar activo');
+  it('fc LP (-3dB) = 1/(πτ) ≈ 677 Hz (factor 2× del divisor)', () => {
+    const tau = RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
+    const fcLP = 1 / (Math.PI * tau);
+    assert.ok(Math.abs(fcLP - 677) < 2, `fc LP debe ser ~677Hz, es ${fcLP.toFixed(1)}`);
   });
 });
 
@@ -231,25 +327,35 @@ describe('Rangos de valores de OutputChannel', () => {
   });
 });
 
-describe('Valores límite de filtro', () => {
-  it('LP: frecuencia mínima es audible (200Hz)', () => {
-    const freq = getLowpassFreq(-1);
-    assert.ok(freq >= 100, 'frecuencia mínima debe ser audible');
-    assert.ok(freq <= 500, 'frecuencia mínima no debe ser muy alta');
+describe('Valores límite de filtro RC', () => {
+  it('LP extremo (p=-1): fc ≈ 677 Hz, audible', () => {
+    const coeffs = getFilterCoefficients(-1);
+    // Buscar frecuencia de corte a -3dB
+    const refGain = getFrequencyResponse(coeffs, 10);  // ganancia DC (referencia)
+    const target = refGain * Math.SQRT1_2;  // -3dB
+    // fc nominal: 1/(2π·τ) = 1/(2π·10000·47e-9) ≈ 338 Hz (polo)
+    // fc del filtro completo (b0/b1 shape) ≈ 677 Hz
+    const fc677 = getFrequencyResponse(coeffs, 677);
+    assert.ok(fc677 < refGain, 'a 677 Hz debe haber atenuación LP');
+    assert.ok(fc677 > 0.3, 'la atenuación no debe ser extrema a 677 Hz');
   });
 
-  it('HP: frecuencia máxima es razonable (5kHz)', () => {
-    const freq = getHighpassFreq(1);
-    assert.ok(freq >= 3000, 'frecuencia máxima HP debe ser alta');
-    assert.ok(freq <= 10000, 'frecuencia máxima HP no debe ser extrema');
+  it('HP extremo (p=+1): atenúa graves por debajo de fc', () => {
+    const coeffs = getFilterCoefficients(+1);
+    const refHigh = getFrequencyResponse(coeffs, 5000);
+    const low100 = getFrequencyResponse(coeffs, 100);
+    assert.ok(low100 < refHigh, '100 Hz debe tener menos ganancia que 5 kHz en HP');
   });
 
-  it('LP/HP no se solapan cuando ambos están en bypass', () => {
-    const lpBypass = getLowpassFreq(0);
-    const hpBypass = getHighpassFreq(0);
-    
-    // LP en 20kHz, HP en 20Hz → no hay solapamiento
-    assert.ok(lpBypass > hpBypass, 'LP bypass debe ser mayor que HP bypass');
+  it('posición neutra (p=0): respuesta plana en todo el rango', () => {
+    const coeffs = getFilterCoefficients(0);
+    const g100 = getFrequencyResponse(coeffs, 100);
+    const g1k = getFrequencyResponse(coeffs, 1000);
+    const g10k = getFrequencyResponse(coeffs, 10000);
+    // Todas deben ser cercanas a 1 (ganancia unitaria ≈ plano)
+    assert.ok(Math.abs(g100 - 1) < 0.05, `100 Hz plano: ${g100}`);
+    assert.ok(Math.abs(g1k - 1) < 0.05, `1 kHz plano: ${g1k}`);
+    assert.ok(Math.abs(g10k - 1) < 0.1, `10 kHz plano: ${g10k}`);
   });
 });
 

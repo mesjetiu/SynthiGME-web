@@ -238,11 +238,19 @@ export function createMockAnalyserNode() {
  */
 export function createMockAudioWorkletNode(name, options = {}) {
   const parameterDescriptors = options.parameterDescriptors || [];
+  const parameterData = options.parameterData || {};
   const parameters = new Map();
   
   // Crear AudioParams según los descriptores
   parameterDescriptors.forEach(desc => {
     parameters.set(desc.name, createMockAudioParam(desc.defaultValue ?? 0));
+  });
+  
+  // También crear AudioParams desde parameterData (estándar AudioWorkletNode)
+  Object.entries(parameterData).forEach(([paramName, value]) => {
+    if (!parameters.has(paramName)) {
+      parameters.set(paramName, createMockAudioParam(value));
+    }
   });
   
   return {
@@ -467,5 +475,18 @@ export function createMockWindow(ctxOptions = {}) {
     AudioContext: MockAudioContext,
     webkitAudioContext: MockAudioContext,
     AudioWorkletNode: MockAudioWorkletNode
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GLOBAL MOCK: AudioWorkletNode
+// ═══════════════════════════════════════════════════════════════════════════
+// AudioWorkletNode es un global del navegador usado directamente por engine.js.
+// En Node.js no existe, así que lo instalamos aquí para que los tests que
+// importan este mock tengan acceso automático.
+// ═══════════════════════════════════════════════════════════════════════════
+if (typeof globalThis.AudioWorkletNode === 'undefined') {
+  globalThis.AudioWorkletNode = function MockAudioWorkletNode(context, name, options) {
+    return createMockAudioWorkletNode(name, options);
   };
 }

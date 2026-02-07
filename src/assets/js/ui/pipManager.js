@@ -715,9 +715,13 @@ function setupPipEvents(pipContainer, panelId) {
     // (necesario aquí porque stopPropagation en capture impide que
     // el touchend llegue al handler de content.touchend)
     if (e.touches.length < 2 && gestureInProgress) {
+      // Interacciones desbloqueadas inmediatamente para que knobs/sliders
+      // respondan sin delay al tocar tras soltar el gesto
+      window.__synthPipGestureActive = false;
+      // gestureInProgress se mantiene con delay para evitar lecturas de
+      // layout durante momentum scroll (solo afecta a scroll-save)
       setTimeout(() => {
         gestureInProgress = false;
-        window.__synthPipGestureActive = false;
       }, 500);
     }
     
@@ -904,10 +908,12 @@ function setupPipEvents(pipContainer, panelId) {
   content.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
       pinchStartDist = 0;
-      // Desactivar flag con delay para que el momentum scroll termine
+      // Desbloquear interacciones inmediatamente
+      window.__synthPipGestureActive = false;
+      // gestureInProgress con delay para que el momentum scroll termine
+      // (solo afecta a scroll-save, no a interacciones de usuario)
       setTimeout(() => {
         gestureInProgress = false;
-        window.__synthPipGestureActive = false;
       }, 500);
     }
   }, { passive: true });

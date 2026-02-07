@@ -95,7 +95,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | Archivo | Propósito |
 |---------|----------|
 | `synthOscillator.worklet.js` | Oscilador multi-waveform con **fase maestra unificada**. Modo `single` (1 forma de onda, 1 salida) o modo `multi` (4 formas de onda, 2 salidas). Todas las ondas derivan de una única fase (rampa 0→1 = sawtooth), garantizando coherencia perfecta. Anti-aliasing PolyBLEP, entrada para hard sync, parámetro `detune` para V/Oct, AudioParams individuales para niveles de cada onda. **Dormancy**: soporta mensaje `setDormant` para early exit en `process()`, ahorrando ~95% CPU cuando está inactivo |
-| `noiseGenerator.worklet.js` | Generador de ruido con algoritmo Voss-McCartney para ruido rosa (-3dB/octava) y blanco, con parámetro `colour` para interpolación. **Dormancy**: soporta mensaje `setDormant` para early exit en `process()` |
+| `noiseGenerator.worklet.js` | Generador de ruido blanco con filtro COLOUR IIR de 1er orden (6 dB/oct), misma topología que `outputFilter.worklet.js`. Fuente: white noise (emulación del transistor BC169C). Filtro RC con pot 10K LIN + C 33nF, τ = 3.3×10⁻⁴ s, fc ≈ 965 Hz. AudioParam `colourPosition` (a-rate, -1..+1): -1 = LP dark/pink (atenúa HF), 0 = flat white, +1 = HP bright/blue (+6dB shelf). Coeficientes optimizados: a1 y Kinv constantes, solo δ = p·Kinv varía per-sample. DC-coupled (fmin ≈ 2-3 Hz) para uso dual audio/CV. **Dormancy**: soporta `setDormant` para early exit |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período. **Dormancy**: soporta mensaje `setDormant` para pausar captura |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
 | `multichannelCapture.worklet.js` | Captura de 12 canales para salida multicanal nativa. Usa **SharedArrayBuffer** para transferencia lock-free al addon C++ de PipeWire. Ring buffer con índices atómicos, soporta prebuffer configurable |
@@ -112,7 +112,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | Archivo | Módulo | Descripción |
 |---------|--------|-------------|
 | `pulse.js` | `PulseModule` | Oscilador de onda cuadrada/pulso con ancho variable |
-| `noise.js` | `NoiseModule` | Generador de ruido blanco/rosa con AudioWorklet (Voss-McCartney) |
+| `noise.js` | `NoiseModule` | Generador de ruido con filtro COLOUR (6 dB/oct) y nivel LOG. Dial colour 0-10 → bipolar -1..+1 → filtro IIR. Dial level 0-10 → ganancia LOG (audio taper 10kΩ). Pasa `processorOptions` (R, C) al worklet |
 | `inputAmplifier.js` | `InputAmplifierModule` | 8 canales de entrada con control de ganancia individual |
 | `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
 | `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
@@ -495,7 +495,7 @@ src/assets/js/configs/
 | Archivo | Módulo | Contenido |
 |---------|--------|-----------|
 | `oscillator.config.js` | Osciladores | Rangos de frecuencia, niveles de salida, deriva térmica, parámetros de voltaje, **rampas de frecuencia para knob** |
-| `noise.config.js` | Generadores de ruido | Tiempos de suavizado, parámetros Voss-McCartney |
+| `noise.config.js` | Generadores de ruido | Circuito COLOUR (R=10kΩ, C=33nF, 6 dB/oct), curva LOG del level (base 10), rampas, rangos 0-10 |
 | `randomVoltage.config.js` | Random Voltage | Rangos de frecuencia, slew rate |
 | `oscilloscope.config.js` | Osciloscopio | Resolución CRT, glow, colores, buffer, trigger Schmitt |
 | `inputAmplifier.config.js` | Amplificadores de entrada | Ganancias, atenuaciones, límites |
@@ -566,17 +566,27 @@ export default {
 
 #### Ejemplo de Config (parámetros)
 ```javascript
-// configs/modules/noise.config.js
+// configs/modules/noise.config.js — Synthi 100 Cuenca (Datanomics 1982)
 export default {
-  noiseDefaults: {
-    levelSmoothingTime: 0.03,  // 30ms (evita clicks)
+  schemaVersion: 2,
+  defaults: {
     colourSmoothingTime: 0.01,
-    vossOctaves: 8             // Octavas del algoritmo Voss-McCartney
+    levelSmoothingTime: 0.03,
+    ramps: { colour: 0.05, level: 0.06 }
+  },
+  colourFilter: {
+    potResistance: 10000,   // 10 kΩ pot lineal COLOUR
+    capacitance: 33e-9,     // 33 nF → τ = 3.3×10⁻⁴ s, fc ≈ 965 Hz
+    order: 1                // 6 dB/oct, un solo polo
+  },
+  levelCurve: {
+    type: 'log',            // Pot LOG 10kΩ (audio taper tipo A)
+    logBase: 100            // gain = (100^(dial/10) - 1) / 99
   },
   noise1: {
     knobs: {
-      colour: { min: 0, max: 1, initial: 0, label: 'Colour' },
-      level: { min: 0, max: 1, initial: 0, label: 'Level' }
+      colour: { min: 0, max: 10, initial: 5 },  // 0=LP dark, 5=white, 10=HP bright
+      level: { min: 0, max: 10, initial: 0 }     // 0=silencio, 10=~3V p-p
     }
   }
 };

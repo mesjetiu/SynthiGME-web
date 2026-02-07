@@ -2306,13 +2306,13 @@ settings.filterBypass:
   cs: "Obejití filtru"
 
 settings.filterBypass.description:
-  en: Physically disconnects LP/HP filters when in neutral position, reducing CPU load.
-  es: Desconecta físicamente los filtros LP/HP cuando están en posición neutral, reduciendo carga de CPU.
-  fr: "Déconnecte physiquement les filtres LP/HP en position neutre, réduisant la charge du processeur."
-  de: "Trennt LP/HP-Filter physisch in Neutralposition auf und reduziert die CPU-Last."
-  it: "Disconnette fisicamente i filtri LP/HP quando in posizione neutra, riducendo il carico della CPU."
-  pt: "Desconecta fisicamente os filtros LP/HP quando em posição neutra, reduzindo a carga da CPU."
-  cs: "Fyzicky odpojuje LP/HP filtry v neutrální poloze, čímž snižuje zatížení CPU."
+  en: Bypasses output channel LP/HP filters and noise colour filter when in neutral position, reducing CPU load.
+  es: Puentea los filtros LP/HP de output channels y el filtro colour del noise en posición neutral, reduciendo carga de CPU.
+  fr: "Contourne les filtres LP/HP des canaux de sortie et le filtre colour du bruit en position neutre, réduisant la charge du processeur."
+  de: "Umgeht die LP/HP-Filter der Ausgangskanäle und den Noise-Colour-Filter in Neutralposition und reduziert die CPU-Last."
+  it: "Bypassa i filtri LP/HP dei canali di uscita e il filtro colour del rumore in posizione neutra, riducendo il carico della CPU."
+  pt: "Contorna os filtros LP/HP dos canais de saída e o filtro colour do ruído em posição neutra, reduzindo a carga da CPU."
+  cs: "Obchází LP/HP filtry výstupních kanálů a filtr colour šumu v neutrální poloze, čímž snižuje zatížení CPU."
 
 settings.filterBypass.enabled:
   en: Enable filter bypass

@@ -81,6 +81,7 @@ import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -1074,8 +1075,16 @@ class App {
   _setupFilterBypass() {
     // Escuchar cambios desde Settings
     document.addEventListener('synth:filterBypassEnabledChange', (e) => {
-      this.engine.setFilterBypassEnabled(e.detail.enabled);
-      log.info(`⚡ Filter bypass ${e.detail.enabled ? 'enabled' : 'disabled'}`);
+      const enabled = e.detail.enabled;
+      // Output channels (engine)
+      this.engine.setFilterBypassEnabled(enabled);
+      // Noise generators (worklet interno)
+      const noiseAudio = this._panel3LayoutData?.noiseAudioModules;
+      if (noiseAudio) {
+        noiseAudio.noise1.setFilterBypassEnabled(enabled);
+        noiseAudio.noise2.setFilterBypassEnabled(enabled);
+      }
+      log.info(`⚡ Filter bypass ${enabled ? 'enabled' : 'disabled'}`);
     });
     
     document.addEventListener('synth:filterBypassDebugChange', (e) => {
@@ -2170,9 +2179,24 @@ class App {
       
       noiseAudioModules = { noise1: noise1Audio, noise2: noise2Audio };
       
+      // Aplicar estado inicial de filter bypass (mismo setting que output channels).
+      // Leemos de localStorage porque settingsModal aún no se ha creado en este punto.
+      const savedBypass = localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_ENABLED);
+      const bypassEnabled = savedBypass === null ? true : savedBypass === 'true';
+      noise1Audio.setFilterBypassEnabled(bypassEnabled);
+      noise2Audio.setFilterBypassEnabled(bypassEnabled);
+      
       // ─────────────────────────────────────────────────────────────────────
       // Crear UI con callbacks vinculados a audio
       // ─────────────────────────────────────────────────────────────────────
+      
+      // Tooltips para knobs del noise generator
+      const cf = noiseConfig.colourFilter || {};
+      const noiseTau = (cf.potResistance || 10000) * (cf.capacitance || 33e-9);
+      const noiseFc = 1 / (Math.PI * noiseTau);  // LP fc(-3dB) ≈ 965 Hz
+      const noiseColourTooltip = getNoiseColourTooltipInfo(noiseFc);
+      const lc = noiseConfig.levelCurve || {};
+      const noiseLevelTooltip = getNoiseLevelTooltipInfo(3.0, lc.logBase || 100);
       
       // Noise Generator 1 UI
       const noise1Id = noise1Cfg.id || 'panel3-noise-1';
@@ -2182,11 +2206,13 @@ class App {
         knobOptions: {
           colour: {
             ...noise1Cfg.knobs?.colour,
-            onChange: (value) => noise1Audio.setColour(value)
+            onChange: (value) => noise1Audio.setColour(value),
+            getTooltipInfo: noiseColourTooltip
           },
           level: {
             ...noise1Cfg.knobs?.level,
-            onChange: (value) => noise1Audio.setLevel(value)
+            onChange: (value) => noise1Audio.setLevel(value),
+            getTooltipInfo: noiseLevelTooltip
           }
         }
       });
@@ -2201,11 +2227,13 @@ class App {
         knobOptions: {
           colour: {
             ...noise2Cfg.knobs?.colour,
-            onChange: (value) => noise2Audio.setColour(value)
+            onChange: (value) => noise2Audio.setColour(value),
+            getTooltipInfo: noiseColourTooltip
           },
           level: {
             ...noise2Cfg.knobs?.level,
-            onChange: (value) => noise2Audio.setLevel(value)
+            onChange: (value) => noise2Audio.setLevel(value),
+            getTooltipInfo: noiseLevelTooltip
           }
         }
       });

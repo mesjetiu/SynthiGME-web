@@ -257,7 +257,7 @@ export default {
   "settings.dormancy.enabled": "Povolit systém dormance",
   "settings.dormancy.debug": "Pouze ladění dormance",
   "settings.filterBypass": "Obejití filtru",
-  "settings.filterBypass.description": "Fyzicky odpojuje LP/HP filtry v neutrální poloze, čímž snižuje zatížení CPU.",
+  "settings.filterBypass.description": "Obchází LP/HP filtry výstupních kanálů a filtr colour šumu v neutrální poloze, čímž snižuje zatížení CPU.",
   "settings.filterBypass.enabled": "Povolit obejití filtru",
   "settings.filterBypass.debug": "Pouze ladění obejití filtru",
   "settings.latencyMode": "Režim latence",

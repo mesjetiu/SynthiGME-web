@@ -151,3 +151,76 @@ export function getVCATooltipInfo(vcaDialToVoltage, vcaCalculateGain, getExterna
     return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOOLTIPS PARA NOISE GENERATOR
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Genera información para tooltip del knob COLOUR del noise generator.
+ * Muestra tipo de ruido y frecuencia de corte del filtro.
+ * 
+ * Dial 0  → "LP · fc ≈ 965 Hz" (ruido oscuro/rosa)
+ * Dial 5  → "White noise" (espectro plano)
+ * Dial 10 → "HP · +6 dB shelf" (ruido brillante/azul)
+ * 
+ * @param {number} fcHz - Frecuencia de corte del filtro en Hz (≈ 965 para el Synthi 100)
+ * @returns {function(number, number): string|null} Función getTooltipInfo
+ */
+export function getNoiseColourTooltipInfo(fcHz) {
+  return (dialValue, scaleValue) => {
+    if (!showAudioTooltip()) return null;
+    
+    // Posición bipolar: 0→-1, 5→0, 10→+1
+    const p = (dialValue / 5) - 1;
+    const absp = Math.abs(p);
+    
+    if (absp < 0.02) {
+      return 'White noise';
+    } else if (p < 0) {
+      // LP — ruido oscuro
+      return `LP · fc ≈ ${Math.round(fcHz)} Hz`;
+    } else {
+      // HP — ruido brillante
+      return `HP · +6 dB shelf`;
+    }
+  };
+}
+
+/**
+ * Genera información para tooltip del knob LEVEL del noise generator.
+ * Muestra Vp-p, ganancia LOG y dB.
+ * 
+ * La ganancia se calcula con la curva LOG del pot real:
+ *   gain = (B^(dial/max) - 1) / (B - 1)
+ * 
+ * @param {number} maxVpp - Voltaje pico a pico máximo (~3V para el Synthi 100)
+ * @param {number} logBase - Base de la curva logarítmica (100 para audio taper)
+ * @returns {function(number, number): string|null} Función getTooltipInfo
+ */
+export function getNoiseLevelTooltipInfo(maxVpp, logBase) {
+  return (dialValue, scaleValue) => {
+    const parts = [];
+    
+    // Calcular ganancia LOG
+    let gain;
+    if (dialValue <= 0) {
+      gain = 0;
+    } else {
+      const normalized = dialValue / 10;
+      gain = (Math.pow(logBase, normalized) - 1) / (logBase - 1);
+    }
+    
+    if (showVoltageTooltip()) {
+      const vpp = (gain * maxVpp).toFixed(2);
+      parts.push(`${vpp} Vp-p`);
+    }
+    
+    if (showAudioTooltip()) {
+      parts.push(formatGain(gain));
+      parts.push(gainToDb(gain));
+    }
+    
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}

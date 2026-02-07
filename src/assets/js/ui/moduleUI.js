@@ -128,7 +128,7 @@ export class ModuleUI {
 
     // Crear instancia de Knob con escala Synthi 100
     const opts = this.knobOptions[key] || {};
-    const knob = new Knob(knobContainer, {
+    const knobConfig = {
       valueElement: valueEl,
       min: opts.min ?? 0,
       max: opts.max ?? 1,
@@ -139,7 +139,12 @@ export class ModuleUI {
       scaleMin: opts.scaleMin ?? 0,
       scaleMax: opts.scaleMax ?? 10,
       scaleDecimals: opts.scaleDecimals ?? 1
-    });
+    };
+    // Tooltip técnico (si lo proporciona el caller)
+    if (opts.getTooltipInfo) {
+      knobConfig.getTooltipInfo = opts.getTooltipInfo;
+    }
+    const knob = new Knob(knobContainer, knobConfig);
 
     this.knobs[key] = knob;
 

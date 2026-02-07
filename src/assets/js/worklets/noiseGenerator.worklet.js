@@ -152,6 +152,11 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
     // ─────────────────────────────────────────────────────────────────────
     /** @private */ this.isRunning = true;
     /** @private */ this.dormant = false;
+    /** @private */ this.filterBypassed = false;   // Fast path: skip IIR when flat
+
+    // Umbral para considerar p ≈ 0 (filtro plano, white noise puro)
+    // Mismo concepto que FILTER_BYPASS_THRESHOLD del Output Channel
+    /** @private */ this._bypassThreshold = 0.02;
 
     // Escuchar mensajes del hilo principal
     this.port.onmessage = (event) => {
@@ -159,6 +164,8 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
         this.isRunning = false;
       } else if (event.data.type === 'setDormant') {
         this.dormant = event.data.dormant;
+      } else if (event.data.type === 'setFilterBypassed') {
+        this.filterBypassed = event.data.bypassed;
       }
     };
   }
@@ -200,6 +207,25 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
     const Kinv = this._Kinv;
     let x1 = this._x1;
     let y1 = this._y1;
+
+    // ─────────────────────────────────────────────────────────────────────
+    // FILTER BYPASS: cuando p ≈ 0 y bypass habilitado, generar white noise
+    // directamente sin IIR (ahorra ~5 operaciones/sample)
+    // ─────────────────────────────────────────────────────────────────────
+    if (this.filterBypassed && isConstant &&
+        Math.abs(colourParam[0]) < this._bypassThreshold) {
+      for (let i = 0; i < channel.length; i++) {
+        channel[i] = Math.random() * 2 - 1;
+      }
+      // Reset estado del filtro para reactivación limpia
+      this._x1 = 0;
+      this._y1 = 0;
+
+      for (let ch = 1; ch < output.length; ch++) {
+        output[ch].set(channel);
+      }
+      return true;
+    }
 
     if (isConstant) {
       // ───────────────────────────────────────────────────────────────────

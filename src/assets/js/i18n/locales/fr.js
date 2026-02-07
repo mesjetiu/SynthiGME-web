@@ -257,7 +257,7 @@ export default {
   "settings.dormancy.enabled": "Activer le système de dormance",
   "settings.dormancy.debug": "Debug uniquement la dormance",
   "settings.filterBypass": "Contournement des filtres",
-  "settings.filterBypass.description": "Déconnecte physiquement les filtres LP/HP en position neutre, réduisant la charge du processeur.",
+  "settings.filterBypass.description": "Contourne les filtres LP/HP des canaux de sortie et le filtre colour du bruit en position neutre, réduisant la charge du processeur.",
   "settings.filterBypass.enabled": "Activer le contournement des filtres",
   "settings.filterBypass.debug": "Debug uniquement le contournement des filtres",
   "settings.latencyMode": "Mode de latence",

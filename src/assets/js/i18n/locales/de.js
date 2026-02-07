@@ -257,7 +257,7 @@ export default {
   "settings.dormancy.enabled": "Dormancy-System aktivieren",
   "settings.dormancy.debug": "Nur Dormancy debuggen",
   "settings.filterBypass": "Filter-Bypass",
-  "settings.filterBypass.description": "Trennt LP/HP-Filter physisch in Neutralposition auf und reduziert die CPU-Last.",
+  "settings.filterBypass.description": "Umgeht die LP/HP-Filter der Ausgangskanäle und den Noise-Colour-Filter in Neutralposition und reduziert die CPU-Last.",
   "settings.filterBypass.enabled": "Filter-Bypass aktivieren",
   "settings.filterBypass.debug": "Nur Filter-Bypass debuggen",
   "settings.latencyMode": "Latenzmodus",

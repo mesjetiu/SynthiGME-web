@@ -148,6 +148,27 @@ export class NoiseModule extends Module {
      * @type {boolean}
      */
     this.isStarted = false;
+    
+    /**
+     * Estado actual del filter bypass (colour en posición neutra).
+     * Cuando true, el worklet genera white noise sin IIR.
+     * @type {boolean}
+     */
+    this._colourBypassed = false;
+    
+    /**
+     * Si el filter bypass está habilitado globalmente (setting del usuario).
+     * Se sincroniza con el mismo setting que el Output Channel filter bypass.
+     * @type {boolean}
+     */
+    this._filterBypassEnabled = false;
+    
+    /**
+     * Umbral para considerar el colour como neutral (bypass).
+     * Mismo valor que FILTER_BYPASS_THRESHOLD del Output Channel.
+     * @type {number}
+     */
+    this._bypassThreshold = 0.02;
   }
 
   /**
@@ -272,6 +293,7 @@ export class NoiseModule extends Module {
   /**
    * Establece el colour del ruido (dial 0-10).
    * Convierte internamente a posición bipolar para el filtro IIR.
+   * Gestiona el filter bypass cuando el colour está en posición neutra.
    * 
    * @param {number} value - Posición del dial (0=LP dark, 5=white, 10=HP bright)
    */
@@ -284,6 +306,10 @@ export class NoiseModule extends Module {
     if (!ctx) return;
     
     const position = this._colourDialToPosition(this.values.colour);
+    
+    // Gestionar filter bypass
+    this._updateColourBypass(position);
+    
     const now = ctx.currentTime;
     this.colourParam.cancelScheduledValues(now);
     this.colourParam.setTargetAtTime(
@@ -362,6 +388,50 @@ export class NoiseModule extends Module {
    */
   getLevelParam() {
     return this.levelNode?.gain ?? null;
+  }
+  
+  /**
+   * Habilita o deshabilita el filter bypass del colour.
+   * Cuando habilitado, el worklet puede saltar el IIR si p ≈ 0 (white noise).
+   * Se conecta al mismo setting global que el filter bypass del Output Channel.
+   * 
+   * @param {boolean} enabled - true para habilitar bypass
+   */
+  setFilterBypassEnabled(enabled) {
+    this._filterBypassEnabled = !!enabled;
+    
+    if (this.workletNode) {
+      try {
+        // Si se deshabilita, forzar desactivación del bypass
+        const bypassed = enabled && Math.abs(this._colourDialToPosition(this.values.colour)) < this._bypassThreshold;
+        this.workletNode.port.postMessage({ type: 'setFilterBypassed', bypassed });
+        this._colourBypassed = bypassed;
+      } catch (e) {
+        // Ignorar errores si el worklet no está listo
+      }
+    }
+  }
+  
+  /**
+   * Actualiza el estado de bypass del filtro colour según la posición actual.
+   * Se llama internamente desde setColour().
+   * 
+   * @param {number} position - Posición bipolar del colour (-1..+1)
+   * @private
+   */
+  _updateColourBypass(position) {
+    if (!this._filterBypassEnabled || !this.workletNode) return;
+    
+    const isNeutral = Math.abs(position) < this._bypassThreshold;
+    
+    if (isNeutral !== this._colourBypassed) {
+      try {
+        this.workletNode.port.postMessage({ type: 'setFilterBypassed', bypassed: isNeutral });
+        this._colourBypassed = isNeutral;
+      } catch (e) {
+        // Ignorar errores si el worklet no está listo
+      }
+    }
   }
   
   /**

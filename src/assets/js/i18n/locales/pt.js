@@ -257,7 +257,7 @@ export default {
   "settings.dormancy.enabled": "Ativar sistema de dormência",
   "settings.dormancy.debug": "Apenas depurar dormência",
   "settings.filterBypass": "Bypass de filtro",
-  "settings.filterBypass.description": "Desconecta fisicamente os filtros LP/HP quando em posição neutra, reduzindo a carga da CPU.",
+  "settings.filterBypass.description": "Contorna os filtros LP/HP dos canais de saída e o filtro colour do ruído em posição neutra, reduzindo a carga da CPU.",
   "settings.filterBypass.enabled": "Ativar bypass de filtro",
   "settings.filterBypass.debug": "Apenas depurar bypass de filtro",
   "settings.latencyMode": "Modo de latência",

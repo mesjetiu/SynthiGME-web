@@ -29,15 +29,44 @@ let pipLayer = null;
 /** Z-index base para PiPs (por encima del viewport pero debajo de modales) */
 const PIP_Z_INDEX_BASE = 1200;
 
-/** Dimensiones por defecto del PiP */
-const DEFAULT_PIP_WIDTH = 320;
-const DEFAULT_PIP_HEIGHT = 320;
+/** Dimensiones mínimas del PiP */
 const MIN_PIP_SIZE = 150;
 // MAX_PIP_SIZE es dinámico: se calcula según el tamaño de la ventana
+
+/** Tamaño de cabecera del PiP */
+const PIP_HEADER_HEIGHT = 32;
 
 /** Límites de zoom */
 const MIN_SCALE_ABSOLUTE = 0.1; // Mínimo absoluto de seguridad
 const MAX_SCALE = 3.0;
+
+/** Protección anti-zoom accidental en pinch (mismos valores que el canvas principal) */
+const PIP_MIN_PINCH_DIST = 180;  // Distancia mínima para ratio estable
+const PIP_MAX_ZOOM_DELTA = 0.12; // Cambio máximo de zoom por frame
+const PIP_PINCH_EPSILON = 0.002; // Cambio mínimo para aplicar zoom
+
+/**
+ * Calcula las dimensiones iniciales del PiP para que el panel se vea
+ * como en el canvas principal a zoom mínimo.
+ * @returns {{width: number, height: number, scale: number}}
+ */
+function getInitialPipDimensions() {
+  const mainMinScale = window.__synthNavState?.getMinScale?.() || 0.4;
+  const panelSize = 760; // Tamaño estándar de los paneles
+  
+  // Tamaño del panel a zoom mínimo del canvas
+  let contentSize = Math.round(panelSize * mainMinScale);
+  
+  // Acotar: al menos MIN_PIP_SIZE, como máximo 50% de la pantalla
+  const maxDim = Math.min(window.innerWidth * 0.5, (window.innerHeight - PIP_HEADER_HEIGHT) * 0.5);
+  contentSize = Math.max(MIN_PIP_SIZE, Math.min(maxDim, contentSize));
+  
+  return {
+    width: contentSize,
+    height: contentSize + PIP_HEADER_HEIGHT,
+    scale: contentSize / panelSize
+  };
+}
 
 /**
  * Calcula el zoom mínimo para que el panel llene el viewport.
@@ -303,7 +332,7 @@ function hideContextMenu() {
  * @param {string} panelId - ID del panel
  * @returns {{x: number, y: number}} Posición inicial
  */
-function getInitialPipPosition(panelId) {
+function getInitialPipPosition(panelId, pipWidth, pipHeight) {
   const pos = PANEL_POSITIONS[panelId] || { col: 0, row: 0 };
   const cols = 4;
   const rows = 2;
@@ -322,12 +351,12 @@ function getInitialPipPosition(panelId) {
   const cellHeight = availableHeight / rows;
   
   // Centro de la celda menos la mitad del tamaño del PiP
-  const x = marginLeft + (pos.col * cellWidth) + (cellWidth - DEFAULT_PIP_WIDTH) / 2;
-  const y = marginTop + (pos.row * cellHeight) + (cellHeight - DEFAULT_PIP_HEIGHT) / 2;
+  const x = marginLeft + (pos.col * cellWidth) + (cellWidth - pipWidth) / 2;
+  const y = marginTop + (pos.row * cellHeight) + (cellHeight - pipHeight) / 2;
   
   return {
-    x: Math.max(marginLeft, Math.min(x, window.innerWidth - DEFAULT_PIP_WIDTH - marginRight)),
-    y: Math.max(marginTop, Math.min(y, window.innerHeight - DEFAULT_PIP_HEIGHT - marginBottom))
+    x: Math.max(marginLeft, Math.min(x, window.innerWidth - pipWidth - marginRight)),
+    y: Math.max(marginTop, Math.min(y, window.innerHeight - pipHeight - marginBottom))
   };
 }
 
@@ -395,13 +424,14 @@ export function openPip(panelId) {
   pipContainer.dataset.panelId = panelId;
   pipContainer.style.zIndex = PIP_Z_INDEX_BASE + activePips.size;
   
-  // Posición inicial basada en la posición del panel en el grid del Synthi
-  const initialPos = getInitialPipPosition(panelId);
+  // Dimensiones iniciales: panel al tamaño del zoom mínimo del canvas
+  const pipDims = getInitialPipDimensions();
+  const initialPos = getInitialPipPosition(panelId, pipDims.width, pipDims.height);
   
   pipContainer.style.left = `${initialPos.x}px`;
   pipContainer.style.top = `${initialPos.y}px`;
-  pipContainer.style.width = `${DEFAULT_PIP_WIDTH}px`;
-  pipContainer.style.height = `${DEFAULT_PIP_HEIGHT}px`;
+  pipContainer.style.width = `${pipDims.width}px`;
+  pipContainer.style.height = `${pipDims.height}px`;
   
   // Barra de título
   const header = document.createElement('div');
@@ -449,9 +479,9 @@ export function openPip(panelId) {
     pipContainer,
     x: initialPos.x,
     y: initialPos.y,
-    width: DEFAULT_PIP_WIDTH,
-    height: DEFAULT_PIP_HEIGHT,
-    scale: 0.4 // El panel de 760px se escala para caber
+    width: pipDims.width,
+    height: pipDims.height,
+    scale: pipDims.scale
   };
   
   activePips.set(panelId, state);
@@ -466,9 +496,10 @@ export function openPip(panelId) {
     const vh = pipViewport.clientHeight;
     const panelW = (panelEl?.offsetWidth || 760) * state.scale;
     const panelH = (panelEl?.offsetHeight || 760) * state.scale;
-    const minVisible = 50;
-    const padX = Math.max(0, vw - minVisible);
-    const padY = Math.max(0, vh - minVisible);
+    const minVisX = Math.min(vw, panelW) * (2 / 3);
+    const minVisY = Math.min(vh, panelH) * (2 / 3);
+    const padX = Math.max(0, vw - minVisX);
+    const padY = Math.max(0, vh - minVisY);
     // Scroll para que el centro del panel escalado quede en el centro del viewport
     pipViewport.scrollLeft = padX + panelW / 2 - vw / 2;
     pipViewport.scrollTop = padY + panelH / 2 - vh / 2;
@@ -538,10 +569,6 @@ export function closePip(panelId) {
   pipContainer.remove();
   
   activePips.delete(panelId);
-  
-  // Limpiar flag de gesto PiP (podría estar activo si se cerró durante un pinch)
-  gestureInProgress = false;
-  window.__synthPipGestureActive = false;
   
   log.info(`Panel ${panelId} devuelto a viewport`);
   
@@ -630,12 +657,12 @@ function setupPipEvents(pipContainer, panelId) {
     const viewportW = viewport ? viewport.clientWidth : state.width;
     const viewportH = viewport ? viewport.clientHeight : state.height - 32;
     // Calcular qué punto del panel está en el centro de la vista
-    // El padding es igual al tamaño del viewport
     const scrollX = viewport ? viewport.scrollLeft : 0;
     const scrollY = viewport ? viewport.scrollTop : 0;
-    // El padding es igual al tamaño del viewport
-    const paddingX = viewportW;
-    const paddingY = viewportH;
+    // Leer el padding real del viewport-inner
+    const viewportInner = pipContainer.querySelector('.pip-viewport-inner');
+    const paddingX = parseFloat(viewportInner?.style.paddingLeft) || 0;
+    const paddingY = parseFloat(viewportInner?.style.paddingTop) || 0;
     // Centro de la vista en coordenadas del viewport-inner: scrollX + viewportW/2
     // Eso corresponde al punto del panel escalado: (scrollX + viewportW/2) - paddingX
     // En coordenadas del panel ORIGINAL (sin escalar): ((scrollX + viewportW/2) - paddingX) / scale
@@ -703,28 +730,9 @@ function setupPipEvents(pipContainer, panelId) {
   pipContainer.addEventListener('touchcancel', (e) => e.stopPropagation(), { capture: true, passive: true });
   
   // touchend: bloquear propagación + detectar doble tap
-  // IMPORTANTE: Este handler está en fase de CAPTURA, por lo que se ejecuta ANTES
-  // que los handlers de elementos hijos (como content). Por eso también debe limpiar
-  // el flag de gesto PiP aquí, ya que stopPropagation() impide que el touchend
-  // llegue al handler de content que hace la limpieza del pinch.
   let lastTapTime = 0;
   pipContainer.addEventListener('touchend', (e) => {
     e.stopPropagation();
-    
-    // Limpiar flag de gesto PiP si ya no hay pinch activo
-    // (necesario aquí porque stopPropagation en capture impide que
-    // el touchend llegue al handler de content.touchend)
-    if (e.touches.length < 2 && gestureInProgress) {
-      // Interacciones desbloqueadas inmediatamente para que knobs/sliders
-      // respondan sin delay al tocar tras soltar el gesto
-      window.__synthPipGestureActive = false;
-      // gestureInProgress se mantiene con delay para evitar lecturas de
-      // layout durante momentum scroll (solo afecta a scroll-save)
-      setTimeout(() => {
-        gestureInProgress = false;
-      }, 500);
-    }
-    
     const now = Date.now();
     if (now - lastTapTime < 300) {
       e.preventDefault();
@@ -784,7 +792,7 @@ function setupPipEvents(pipContainer, panelId) {
         pipViewport.scrollTop = Math.max(0, newScrollY);
       }
     } else {
-      // Pan manual con límites estrictos: siempre debe verse parte del panel
+      // Pan manual con límites: al menos 2/3 del panel visible en cada eje
       const viewportW = pipViewport.clientWidth;
       const viewportH = pipViewport.clientHeight;
       
@@ -793,20 +801,19 @@ function setupPipEvents(pipContainer, panelId) {
       const scaledW = (panelEl?.offsetWidth || 760) * state.scale;
       const scaledH = (panelEl?.offsetHeight || 760) * state.scale;
       
-      // Mínimo visible del panel: siempre 50px
-      const minVisible = 50;
+      // Mínimo visible: 2/3 del menor entre viewport y panel escalado
+      const minVisX = Math.min(viewportW, scaledW) * (2 / 3);
+      const minVisY = Math.min(viewportH, scaledH) * (2 / 3);
       
       // Calcular padding (mismo cálculo que updatePipScale)
-      const paddingX = Math.max(0, viewportW - minVisible);
-      const paddingY = Math.max(0, viewportH - minVisible);
+      const paddingX = Math.max(0, viewportW - minVisX);
+      const paddingY = Math.max(0, viewportH - minVisY);
       
-      // Límites de scroll para mantener el panel visible
-      // - Mínimo: el borde derecho del panel menos minVisible debe estar visible
-      // - Máximo: el borde izquierdo del panel más minVisible debe estar visible
-      const minScrollX = Math.max(0, paddingX + minVisible - viewportW);
-      const maxScrollX = paddingX + scaledW - minVisible;
-      const minScrollY = Math.max(0, paddingY + minVisible - viewportH);
-      const maxScrollY = paddingY + scaledH - minVisible;
+      // Límites de scroll para mantener 2/3 del panel visible
+      const minScrollX = Math.max(0, paddingX + minVisX - viewportW);
+      const maxScrollX = paddingX + scaledW - minVisX;
+      const minScrollY = Math.max(0, paddingY + minVisY - viewportH);
+      const maxScrollY = paddingY + scaledH - minVisY;
       
       // Escalar el delta cuadráticamente con el zoom: a menor zoom, paneo mucho más suave
       // scale² da: 0.4→0.16, 0.7→0.49, 1.0→1.0 (natural a zoom real)
@@ -820,14 +827,12 @@ function setupPipEvents(pipContainer, panelId) {
   }, { passive: false });
   
   // Pinch zoom táctil dentro del PiP (centrado en el punto de pellizco)
+  // Usa enfoque frame-by-frame con protección anti-jitter (como el canvas principal)
   const content = pipContainer.querySelector('.pip-content');
   const viewport = pipContainer.querySelector('.pip-viewport');
-  let pinchStartDist = 0;
-  let pinchStartScale = 0;
+  let lastPinchDist = 0;
   let pinchCenterX = 0; // Relativo al panel (sin padding)
   let pinchCenterY = 0;
-  let pinchStartScrollX = 0;
-  let pinchStartScrollY = 0;
   
   content.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
@@ -836,9 +841,9 @@ function setupPipEvents(pipContainer, panelId) {
       window.__synthPipGestureActive = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchStartDist = Math.hypot(dx, dy);
+      lastPinchDist = Math.hypot(dx, dy);
       const state = activePips.get(panelId);
-      pinchStartScale = state ? state.scale : 0.4;
+      const currentScale = state ? state.scale : 0.4;
       
       // Calcular centro del pinch relativo al contenido del PANEL (no al viewport con padding)
       const rect = viewport.getBoundingClientRect();
@@ -855,48 +860,53 @@ function setupPipEvents(pipContainer, panelId) {
       const touchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
       
       // Centro relativo al panel en coordenadas ORIGINALES (sin escalar)
-      // Posición en viewport-inner = scroll + touchMid
-      // Posición en panel escalado = (scroll + touchMid) - padding
-      // Posición en panel original = ((scroll + touchMid) - padding) / scale
-      pinchCenterX = (scrollPosX + touchMidX - currentPaddingX) / pinchStartScale;
-      pinchCenterY = (scrollPosY + touchMidY - currentPaddingY) / pinchStartScale;
-      
-      pinchStartScrollX = scrollPosX;
-      pinchStartScrollY = scrollPosY;
+      pinchCenterX = (scrollPosX + touchMidX - currentPaddingX) / currentScale;
+      pinchCenterY = (scrollPosY + touchMidY - currentPaddingY) / currentScale;
     }
   }, { passive: false });
   
   content.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2 && pinchStartDist > 0) {
+    if (e.touches.length === 2 && lastPinchDist > 0) {
       e.preventDefault();
       e.stopPropagation();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
-      const scaleFactor = currentDist / pinchStartDist;
       
-      // Usar zoom mínimo dinámico para que el panel llene el viewport
-      const minScale = getMinScale(panelId);
-      const newScale = Math.max(minScale, Math.min(MAX_SCALE, pinchStartScale * scaleFactor));
+      // Protección: estabilizar ratio cuando los dedos están muy juntos
+      // (evita zoom aleatorio por micro-movimientos al hacer pan con dos dedos)
+      const effectiveLastDist = Math.max(lastPinchDist, PIP_MIN_PINCH_DIST);
+      const effectiveDist = Math.max(currentDist, PIP_MIN_PINCH_DIST);
+      const zoomFactor = effectiveDist / effectiveLastDist;
       
-      // Actualizar escala
-      updatePipScale(panelId, newScale);
+      // Limitar cambio máximo de zoom por frame
+      const clampedFactor = Math.max(1 - PIP_MAX_ZOOM_DELTA, Math.min(1 + PIP_MAX_ZOOM_DELTA, zoomFactor));
       
-      // Leer el padding ACTUAL después de updatePipScale
+      lastPinchDist = currentDist;
+      
+      const state = activePips.get(panelId);
+      if (!state) return;
+      
+      // Solo aplicar zoom si el cambio es significativo
+      if (Math.abs(clampedFactor - 1) > PIP_PINCH_EPSILON) {
+        const minScale = getMinScale(panelId);
+        const newScale = Math.max(minScale, Math.min(MAX_SCALE, state.scale * clampedFactor));
+        updatePipScale(panelId, newScale);
+      }
+      
+      // Reposicionar scroll para que el punto de pinch siga bajo los dedos
+      const currentScale = state.scale;
       const viewportInner = pipContainer.querySelector('.pip-viewport-inner');
       const newPaddingX = parseFloat(viewportInner?.style.paddingLeft) || 0;
       const newPaddingY = parseFloat(viewportInner?.style.paddingTop) || 0;
       
-      // La posición del punto del panel ORIGINAL ahora está en coordenadas escaladas
-      const scaledPinchX = pinchCenterX * newScale;
-      const scaledPinchY = pinchCenterY * newScale;
+      const scaledPinchX = pinchCenterX * currentScale;
+      const scaledPinchY = pinchCenterY * currentScale;
       
-      // Calcular el scroll necesario para que el punto de pinch siga bajo los dedos
       const rect = viewport.getBoundingClientRect();
       const touchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
       const touchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
       
-      // scroll = (posición en panel escalado) + padding - (posición en viewport)
       const newScrollX = scaledPinchX + newPaddingX - touchMidX;
       const newScrollY = scaledPinchY + newPaddingY - touchMidY;
       
@@ -907,13 +917,11 @@ function setupPipEvents(pipContainer, panelId) {
   
   content.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
-      pinchStartDist = 0;
-      // Desbloquear interacciones inmediatamente
-      window.__synthPipGestureActive = false;
-      // gestureInProgress con delay para que el momentum scroll termine
-      // (solo afecta a scroll-save, no a interacciones de usuario)
+      lastPinchDist = 0;
+      // Desactivar flag con delay para que el momentum scroll termine
       setTimeout(() => {
         gestureInProgress = false;
+        window.__synthPipGestureActive = false;
       }, 500);
     }
   }, { passive: true });
@@ -991,9 +999,10 @@ function handlePointerMove(e) {
     if (viewport && resizeStart.viewCenterX !== undefined) {
       const newViewportW = viewport.clientWidth;
       const newViewportH = viewport.clientHeight;
-      // El padding ahora es igual al nuevo tamaño del viewport
-      const newPaddingX = newViewportW;
-      const newPaddingY = newViewportH;
+      // Leer el padding real calculado por updatePipScale
+      const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
+      const newPaddingX = parseFloat(viewportInner?.style.paddingLeft) || 0;
+      const newPaddingY = parseFloat(viewportInner?.style.paddingTop) || 0;
       // El punto del panel original (viewCenterX/Y) ahora está en posición escalada:
       // posición en viewport-inner = newPadding + viewCenterX * newScale
       // Queremos que esa posición esté en el centro del viewport:
@@ -1093,11 +1102,11 @@ function updatePipScale(panelId, newScale, persist = true) {
   const viewportWidth = viewport ? viewport.clientWidth : state.width;
   const viewportHeight = viewport ? viewport.clientHeight : state.height - 32;
   
-  // Padding para permitir scroll - limitado para que el panel no salga completamente de la vista
-  // Usamos un valor fijo de minVisible para estabilidad
-  const minVisible = 50;
-  const paddingX = Math.max(0, viewportWidth - minVisible);
-  const paddingY = Math.max(0, viewportHeight - minVisible);
+  // Padding limitado para que al menos 2/3 del panel (o viewport) sea siempre visible
+  const minVisibleX = Math.min(viewportWidth, scaledWidth) * (2 / 3);
+  const minVisibleY = Math.min(viewportHeight, scaledHeight) * (2 / 3);
+  const paddingX = Math.max(0, viewportWidth - minVisibleX);
+  const paddingY = Math.max(0, viewportHeight - minVisibleY);
   
   // Actualizar tamaño del contenedor interno
   // El panel escalado está en (paddingX, paddingY) y ocupa (scaledWidth, scaledHeight)

@@ -67,6 +67,7 @@ import {
   setupPanelShortcutBadges
 } from './navigation/viewportNavigation.js';
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
+import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
 import { RecordingSettingsModal } from './ui/recordingSettingsModal.js';
 import { SettingsModal } from './ui/settingsModal.js';
@@ -4426,6 +4427,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   setupPanelZoomButtons();
   setupPanelShortcutBadges();
   setupPanelDoubleTapZoom();
+  
+  // Inicializar puente de menú nativo de Electron (si estamos en Electron)
+  initElectronMenuBridge();
   
   // ─── Ocultar splash screen después de la inicialización ───
   // Garantiza un tiempo mínimo de visualización para evitar parpadeos

@@ -5370,6 +5370,56 @@ small { color:#aaa; }
   color: #f44336 !important;
 }
 
+/* Botón de bloqueo */
+.pip-lock {
+  position: relative;
+}
+
+.pip-lock__icon-locked {
+  display: none;
+}
+
+.pip-lock__icon-unlocked {
+  display: block;
+}
+
+/* Estado bloqueado: cambiar icono y estilo */
+.pip-container--locked .pip-lock__icon-locked {
+  display: block;
+}
+
+.pip-container--locked .pip-lock__icon-unlocked {
+  display: none;
+}
+
+.pip-container--locked .pip-lock {
+  color: #ffb63b !important;
+  background: rgba(255, 182, 59, 0.2) !important;
+}
+
+/* Deshabilitar +/- cuando está bloqueado */
+.pip-container--locked .pip-maximize,
+.pip-container--locked .pip-minimize {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Ocultar resize handle cuando está bloqueado */
+.pip-container--locked .pip-resize-handle {
+  display: none;
+}
+
+/* Indicador visual de estado bloqueado en el borde */
+.pip-container--locked {
+  border-color: rgba(255, 182, 59, 0.4);
+}
+
+/* Bloquear scroll interno cuando está bloqueado */
+.pip-container--locked .pip-viewport {
+  overflow: hidden;
+}
+
 /* Contenido del PiP */
 .pip-content {
   flex: 1;

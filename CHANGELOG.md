@@ -7,8 +7,12 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **PiP: botón de bloqueo (candado)**: Bloquea tamaño, proporción, zoom interior, paneo y resize de la ventana flotante. Solo permite arrastrar. Estado persistente entre sesiones.
+
 ### Cambiado
 - **Fondos de paneles**: Paneles 1, 2, 3, 4 y 7 usan JPG temporales de diseño en lugar de SVGs vacíos. Panel 3 ya no carga su SVG placeholder. Paneles 5 y 6 (matrices) mantienen sus SVGs de producción. Instrucciones de migración a SVG documentadas en código.
+- **PiP: botones +/- son ahora maximizar/minimizar**: El botón + maximiza la ventana proporcionalmente hasta alcanzar un borde de pantalla, − restaura al tamaño por defecto. Se respeta la proporción de lados actual en ambos casos.
 
 ## [0.6.0] - 2026-02-08
 

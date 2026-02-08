@@ -3103,6 +3103,42 @@ pip.zoomOut:
   pt: "Reduzir"
   cs: "Oddálit"
 
+pip.maximize:
+  en: Maximize
+  es: Maximizar
+  fr: "Maximiser"
+  de: "Maximieren"
+  it: "Massimizza"
+  pt: "Maximizar"
+  cs: "Maximalizovat"
+
+pip.minimize:
+  en: Restore size
+  es: Minimizar
+  fr: "Réduire"
+  de: "Minimieren"
+  it: "Minimizza"
+  pt: "Minimizar"
+  cs: "Minimalizovat"
+
+pip.lock:
+  en: Lock
+  es: Bloquear
+  fr: "Verrouiller"
+  de: "Sperren"
+  it: "Blocca"
+  pt: "Bloquear"
+  cs: "Zamknout"
+
+pip.unlock:
+  en: Unlock
+  es: Desbloquear
+  fr: "Déverrouiller"
+  de: "Entsperren"
+  it: "Sblocca"
+  pt: "Desbloquear"
+  cs: "Odemknout"
+
 pip.placeholderHint:
   en: Click to restore
   es: Click para restaurar

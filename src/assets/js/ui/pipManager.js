@@ -181,6 +181,8 @@ export function initPipManager() {
     if (!focusedPipId || !activePips.has(focusedPipId)) return false;
     const state = activePips.get(focusedPipId);
     if (!state) return false;
+    // Bloquear zoom externo cuando está bloqueado
+    if (state.locked) return true;
     const minScale = getMinScale(focusedPipId);
     if (direction === 'in') {
       updatePipScale(focusedPipId, Math.min(state.scale * 1.25, MAX_SCALE));
@@ -470,8 +472,18 @@ export function openPip(panelId) {
   header.innerHTML = `
     <span class="pip-title">${getPanelTitle(panelId)}</span>
     <div class="pip-controls">
-      <button type="button" class="pip-zoom-out" aria-label="${t('pip.zoomOut', 'Alejar')}">−</button>
-      <button type="button" class="pip-zoom-in" aria-label="${t('pip.zoomIn', 'Acercar')}">+</button>
+      <button type="button" class="pip-minimize" aria-label="${t('pip.minimize', 'Minimizar')}">−</button>
+      <button type="button" class="pip-maximize" aria-label="${t('pip.maximize', 'Maximizar')}">+</button>
+      <button type="button" class="pip-lock" aria-label="${t('pip.lock', 'Bloquear')}">
+        <svg class="pip-lock__icon-unlocked" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="11" width="18" height="11" rx="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0"/>
+        </svg>
+        <svg class="pip-lock__icon-locked" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="11" width="18" height="11" rx="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </button>
       <button type="button" class="pip-close" aria-label="${t('pip.close', 'Cerrar')}">&times;</button>
     </div>
   `;
@@ -512,7 +524,11 @@ export function openPip(panelId) {
     y: initialPos.y,
     width: pipDims.width,
     height: pipDims.height,
-    scale: pipDims.scale
+    scale: pipDims.scale,
+    defaultWidth: pipDims.width,
+    defaultHeight: pipDims.height,
+    locked: false,
+    isMaximized: false
   };
   
   activePips.set(panelId, state);
@@ -644,27 +660,36 @@ export function openAllPips() {
 function setupPipEvents(pipContainer, panelId) {
   const header = pipContainer.querySelector('.pip-header');
   const closeBtn = pipContainer.querySelector('.pip-close');
-  const zoomInBtn = pipContainer.querySelector('.pip-zoom-in');
-  const zoomOutBtn = pipContainer.querySelector('.pip-zoom-out');
+  const maximizeBtn = pipContainer.querySelector('.pip-maximize');
+  const minimizeBtn = pipContainer.querySelector('.pip-minimize');
+  const lockBtn = pipContainer.querySelector('.pip-lock');
   const resizeHandle = pipContainer.querySelector('.pip-resize-handle');
   
   // Cerrar
   closeBtn.addEventListener('click', () => closePip(panelId));
   
-  // Zoom
-  zoomInBtn.addEventListener('click', () => {
+  // Maximizar ventana (crece proporcionalmente hasta borde de pantalla)
+  maximizeBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
-    if (state) {
-      updatePipScale(panelId, Math.min(state.scale + 0.1, MAX_SCALE));
-    }
+    if (!state || state.locked) return;
+    maximizePip(panelId);
   });
   
-  zoomOutBtn.addEventListener('click', () => {
+  // Minimizar ventana (vuelve al tamaño por defecto manteniendo proporción)
+  minimizeBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
-    if (state) {
-      const minScale = getMinScale(panelId);
-      updatePipScale(panelId, Math.max(state.scale - 0.1, minScale));
-    }
+    if (!state || state.locked) return;
+    restorePipSize(panelId);
+  });
+  
+  // Bloquear/desbloquear
+  lockBtn.addEventListener('click', () => {
+    const state = activePips.get(panelId);
+    if (!state) return;
+    state.locked = !state.locked;
+    pipContainer.classList.toggle('pip-container--locked', state.locked);
+    lockBtn.setAttribute('aria-label', state.locked ? t('pip.unlock', 'Desbloquear') : t('pip.lock', 'Bloquear'));
+    savePipState();
   });
   
   // Drag del header
@@ -684,12 +709,13 @@ function setupPipEvents(pipContainer, panelId) {
   
   // Resize
   resizeHandle.addEventListener('pointerdown', (e) => {
+    const state = activePips.get(panelId);
+    if (state?.locked) return;
     e.preventDefault();
     e.stopPropagation();
     resizingPip = panelId;
     resizePointerId = e.pointerId;
     resizeHandle.setPointerCapture(e.pointerId);
-    const state = activePips.get(panelId);
     const viewport = pipContainer.querySelector('.pip-viewport');
     const viewportW = viewport ? viewport.clientWidth : state.width;
     const viewportH = viewport ? viewport.clientHeight : state.height - 32;
@@ -792,6 +818,12 @@ function setupPipEvents(pipContainer, panelId) {
     const state = activePips.get(panelId);
     if (!state) return;
     
+    // Bloquear zoom y pan cuando está bloqueado
+    if (state.locked) {
+      if (e.ctrlKey) e.preventDefault();
+      return;
+    }
+    
     if (e.ctrlKey) {
       // Zoom centrado en el cursor — necesita preventDefault
       e.preventDefault();
@@ -862,13 +894,14 @@ function setupPipEvents(pipContainer, panelId) {
   
   content.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
+      const state = activePips.get(panelId);
+      if (state?.locked) return;
       e.preventDefault();
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       lastPinchDist = Math.hypot(dx, dy);
-      const state = activePips.get(panelId);
       const currentScale = state ? state.scale : 0.4;
       
       // Calcular centro del pinch relativo al contenido del PANEL (no al viewport con padding)
@@ -893,6 +926,8 @@ function setupPipEvents(pipContainer, panelId) {
   
   content.addEventListener('touchmove', (e) => {
     if (e.touches.length === 2 && lastPinchDist > 0) {
+      const state = activePips.get(panelId);
+      if (state?.locked) return;
       e.preventDefault();
       e.stopPropagation();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -910,7 +945,6 @@ function setupPipEvents(pipContainer, panelId) {
       
       lastPinchDist = currentDist;
       
-      const state = activePips.get(panelId);
       if (!state) return;
       
       // Solo aplicar zoom si el cambio es significativo
@@ -952,10 +986,29 @@ function setupPipEvents(pipContainer, panelId) {
     }
   }, { passive: true });
   
+  // Bloquear scroll interno cuando está bloqueado
+  if (viewport) {
+    let lastScrollLeft = 0;
+    let lastScrollTop = 0;
+    viewport.addEventListener('scroll', () => {
+      const state = activePips.get(panelId);
+      if (state?.locked) {
+        // Restaurar posición previa para bloquear el scroll
+        viewport.scrollLeft = lastScrollLeft;
+        viewport.scrollTop = lastScrollTop;
+        return;
+      }
+      lastScrollLeft = viewport.scrollLeft;
+      lastScrollTop = viewport.scrollTop;
+    }, { passive: true });
+  }
+  
   // Guardar estado cuando el usuario hace scroll dentro del viewport
   if (viewport) {
     let scrollSaveTimeout = null;
     viewport.addEventListener('scroll', () => {
+      const state = activePips.get(panelId);
+      if (state?.locked) return;
       // Ignorar durante gestos activos para evitar ciclos de layout en Samsung
       if (gestureInProgress) return;
       // Debounce más largo para evitar lecturas de layout durante momentum scroll
@@ -1083,6 +1136,179 @@ function handlePointerUp(e) {
   if (stateChanged) {
     savePipState();
   }
+}
+
+/**
+ * Maximiza la ventana PiP proporcionalmente hasta que un eje alcance el borde de la pantalla.
+ * Mantiene la proporción de lados actual del usuario.
+ * @param {string} panelId - ID del panel
+ */
+function maximizePip(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || state.locked) return;
+  
+  const margin = 20; // Margen en píxeles desde los bordes
+  const maxW = window.innerWidth - margin * 2;
+  const maxH = window.innerHeight - margin * 2;
+  
+  // Proporción actual de la ventana
+  const currentRatio = state.width / state.height;
+  
+  // Calcular tamaño máximo manteniendo proporción
+  let newW, newH;
+  if (currentRatio >= maxW / maxH) {
+    // Limitado por ancho
+    newW = maxW;
+    newH = Math.round(newW / currentRatio);
+  } else {
+    // Limitado por alto
+    newH = maxH;
+    newW = Math.round(newH * currentRatio);
+  }
+  
+  // Centrar en pantalla
+  const newX = Math.round((window.innerWidth - newW) / 2);
+  const newY = Math.round((window.innerHeight - newH) / 2);
+  
+  // Calcular nueva escala proporcional al cambio de tamaño
+  // Para que se vea la misma porción de panel, la escala escala con el tamaño
+  const oldW = state.width;
+  const sizeFactor = newW / oldW;
+  const oldScale = state.scale;
+  const minScale = getMinScale(panelId);
+  const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
+  
+  // Guardar centro visible del panel antes del cambio
+  const viewport = state.pipContainer.querySelector('.pip-viewport');
+  const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
+  let viewCenterX = 0, viewCenterY = 0;
+  if (viewport && viewportInner) {
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    const padX = parseFloat(viewportInner.style.paddingLeft) || 0;
+    const padY = parseFloat(viewportInner.style.paddingTop) || 0;
+    viewCenterX = (viewport.scrollLeft + vw / 2 - padX) / oldScale;
+    viewCenterY = (viewport.scrollTop + vh / 2 - padY) / oldScale;
+  }
+  
+  // Aplicar nuevo tamaño y posición
+  state.width = newW;
+  state.height = newH;
+  state.x = newX;
+  state.y = newY;
+  state.isMaximized = true;
+  state.pipContainer.style.width = `${newW}px`;
+  state.pipContainer.style.height = `${newH}px`;
+  state.pipContainer.style.left = `${newX}px`;
+  state.pipContainer.style.top = `${newY}px`;
+  
+  // Actualizar escala proporcionalmente al cambio de tamaño
+  updatePipScale(panelId, newScale, false);
+  
+  // Restaurar centro visible con la nueva escala
+  if (viewport && viewportInner) {
+    const newVw = viewport.clientWidth;
+    const newVh = viewport.clientHeight;
+    const newPadX = parseFloat(viewportInner.style.paddingLeft) || 0;
+    const newPadY = parseFloat(viewportInner.style.paddingTop) || 0;
+    viewport.scrollLeft = Math.max(0, viewCenterX * newScale + newPadX - newVw / 2);
+    viewport.scrollTop = Math.max(0, viewCenterY * newScale + newPadY - newVh / 2);
+  }
+  
+  savePipState();
+  log.debug(`PiP ${panelId} maximizado a ${newW}x${newH} (escala ${oldScale.toFixed(2)} → ${newScale.toFixed(2)})`);
+}
+
+/**
+ * Restaura la ventana PiP a su tamaño por defecto, manteniendo la proporción actual.
+ * @param {string} panelId - ID del panel
+ */
+function restorePipSize(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || state.locked) return;
+  
+  // Proporción actual de la ventana
+  const currentRatio = state.width / state.height;
+  
+  // Dimensiones por defecto
+  const defW = state.defaultWidth;
+  const defH = state.defaultHeight;
+  
+  // Ajustar tamaño por defecto a la proporción actual
+  let newW, newH;
+  const defaultRatio = defW / defH;
+  if (currentRatio >= defaultRatio) {
+    // Más ancha que el default: usar ancho por defecto
+    newW = defW;
+    newH = Math.round(newW / currentRatio);
+    // Si queda demasiado bajo, usar alto mínimo
+    if (newH < MIN_PIP_SIZE) {
+      newH = MIN_PIP_SIZE;
+      newW = Math.round(newH * currentRatio);
+    }
+  } else {
+    // Más alta que el default: usar alto por defecto
+    newH = defH;
+    newW = Math.round(newH * currentRatio);
+    // Si queda demasiado estrecho, usar ancho mínimo
+    if (newW < MIN_PIP_SIZE) {
+      newW = MIN_PIP_SIZE;
+      newH = Math.round(newW / currentRatio);
+    }
+  }
+  
+  // Calcular nueva escala proporcional al cambio de tamaño
+  const oldW = state.width;
+  const sizeFactor = newW / oldW;
+  const oldScale = state.scale;
+  const minScale = getMinScale(panelId);
+  const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
+  
+  // Guardar centro visible del panel antes del cambio
+  const viewport = state.pipContainer.querySelector('.pip-viewport');
+  const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
+  let viewCenterX = 0, viewCenterY = 0;
+  if (viewport && viewportInner) {
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    const padX = parseFloat(viewportInner.style.paddingLeft) || 0;
+    const padY = parseFloat(viewportInner.style.paddingTop) || 0;
+    viewCenterX = (viewport.scrollLeft + vw / 2 - padX) / oldScale;
+    viewCenterY = (viewport.scrollTop + vh / 2 - padY) / oldScale;
+  }
+  
+  // Mantener posición pero ajustar si se sale de pantalla
+  let newX = state.x;
+  let newY = state.y;
+  if (newX + newW > window.innerWidth) newX = Math.max(0, window.innerWidth - newW);
+  if (newY + newH > window.innerHeight) newY = Math.max(0, window.innerHeight - newH);
+  
+  // Aplicar nuevo tamaño
+  state.width = newW;
+  state.height = newH;
+  state.x = newX;
+  state.y = newY;
+  state.isMaximized = false;
+  state.pipContainer.style.width = `${newW}px`;
+  state.pipContainer.style.height = `${newH}px`;
+  state.pipContainer.style.left = `${newX}px`;
+  state.pipContainer.style.top = `${newY}px`;
+  
+  // Actualizar escala proporcionalmente al cambio de tamaño
+  updatePipScale(panelId, newScale, false);
+  
+  // Restaurar centro visible con la nueva escala
+  if (viewport && viewportInner) {
+    const newVw = viewport.clientWidth;
+    const newVh = viewport.clientHeight;
+    const newPadX = parseFloat(viewportInner.style.paddingLeft) || 0;
+    const newPadY = parseFloat(viewportInner.style.paddingTop) || 0;
+    viewport.scrollLeft = Math.max(0, viewCenterX * newScale + newPadX - newVw / 2);
+    viewport.scrollTop = Math.max(0, viewCenterY * newScale + newPadY - newVh / 2);
+  }
+  
+  savePipState();
+  log.debug(`PiP ${panelId} restaurado a ${newW}x${newH} (escala ${oldScale.toFixed(2)} → ${newScale.toFixed(2)})`);
 }
 
 /**
@@ -1222,7 +1448,11 @@ export function serializePipState() {
       scale: state.scale,
       scrollX,
       scrollY,
-      zIndex: parseInt(state.pipContainer.style.zIndex) || PIP_Z_INDEX_BASE
+      zIndex: parseInt(state.pipContainer.style.zIndex) || PIP_Z_INDEX_BASE,
+      locked: state.locked || false,
+      isMaximized: state.isMaximized || false,
+      defaultWidth: state.defaultWidth,
+      defaultHeight: state.defaultHeight
     });
   }
   return states;
@@ -1300,6 +1530,15 @@ export function restorePipState() {
         state.pipContainer.style.width = `${state.width}px`;
         state.pipContainer.style.height = `${state.height}px`;
         state.pipContainer.style.zIndex = zIndex || PIP_Z_INDEX_BASE;
+        
+        // Restaurar estado de bloqueo
+        if (savedState.locked) {
+          state.locked = true;
+          state.pipContainer.classList.add('pip-container--locked');
+        }
+        state.isMaximized = savedState.isMaximized || false;
+        if (savedState.defaultWidth) state.defaultWidth = savedState.defaultWidth;
+        if (savedState.defaultHeight) state.defaultHeight = savedState.defaultHeight;
         
         // No persistir durante restauración (evitar loop)
         updatePipScale(panelId, state.scale, false);

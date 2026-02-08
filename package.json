@@ -1,6 +1,6 @@
 {
   "name": "synthigme-web",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Prototype EMS Synthi interface in WebAudio",
   "type": "module",
   "main": "electron/main.cjs",
@@ -12,10 +12,8 @@
     "test:audio:debug": "npx playwright test --config=tests/audio/playwright.config.js --debug",
     "test:all": "node scripts/test-all.mjs",
     "pretest:require": "node scripts/run-tests.mjs --require-pass",
-    
     "dev": "npm run build:i18n && node scripts/build.mjs --outdir=dist-app && electron .",
     "dev:web": "npm run build:i18n && node scripts/build.mjs && echo 'Abre docs/index.html en navegador'",
-    
     "build:i18n": "node scripts/build-i18n.mjs",
     "build:web": "npm run build:i18n && node scripts/build.mjs",
     "build:web:test": "node scripts/run-tests.mjs --require-pass && npm run build:web",
@@ -25,7 +23,6 @@
     "build:electron:all": "npm run build:i18n && node scripts/electron-build.mjs --linux --win",
     "build:electron:test": "node scripts/run-tests.mjs --require-pass && npm run build:electron",
     "build:all": "node scripts/run-tests.mjs --require-pass && npm run build:web && npm run build:electron:all",
-    
     "count-lines": "./scripts/count-lines.sh",
     "optimize:panel-svg": "node scripts/tools/optimize-panel-svg.mjs",
     "version": "npm run build:web && git add -A",
@@ -77,18 +74,25 @@
       "electron/native/**/*"
     ],
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Audio",
       "icon": "resources/icons/icon.png",
       "artifactName": "${productName}-${env.BUILD_VERSION}-${arch}.${ext}"
     },
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "resources/icons/icon.ico",
       "artifactName": "${productName}-${env.BUILD_VERSION}-${arch}.${ext}"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.music",
       "icon": "resources/icons/icon.png",
       "artifactName": "${productName}-${env.BUILD_VERSION}-${arch}.${ext}"

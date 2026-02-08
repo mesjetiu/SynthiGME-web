@@ -32,6 +32,15 @@ _meta:
 # TEXTOS COMUNES (botones genéricos, acciones repetidas)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+app.windowTitle:
+  en: "Synthi GME (EMS Synthi 100 emulator from Cuenca, Spain)"
+  es: "Synthi GME (emulador del EMS Synthi 100 de Cuenca, España)"
+  fr: "Synthi GME (émulateur de l'EMS Synthi 100 de Cuenca, Espagne)"
+  de: "Synthi GME (Emulator des EMS Synthi 100 aus Cuenca, Spanien)"
+  it: "Synthi GME (emulatore dell'EMS Synthi 100 di Cuenca, Spagna)"
+  pt: "Synthi GME (emulador do EMS Synthi 100 de Cuenca, Espanha)"
+  cs: "Synthi GME (emulátor EMS Synthi 100 z Cuency, Španělsko)"
+
 common.yes:
   en: "Yes"
   es: "Sí"
@@ -2480,6 +2489,485 @@ settings.voltageEmulation.thermalDrift.description:
   it: "Simula la deriva lenta (±0,1%) degli oscillatori CEM 3340 a causa dei cambiamenti di temperatura."
   pt: "Simula a deriva lenta (±0,1%) dos osciladores CEM 3340 devido a mudanças de temperatura."
   cs: "Simuluje pomalý drift (±0,1%) oscilátorů CEM 3340 způsobený změnami teploty."
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MENÚ NATIVO DE ELECTRON
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── Archivo ───
+menu.file:
+  en: File
+  es: Archivo
+  fr: "Fichier"
+  de: "Datei"
+  it: "File"
+  pt: "Arquivo"
+  cs: "Soubor"
+
+menu.file.patches:
+  en: Patches…
+  es: Patches…
+  fr: "Patches…"
+  de: "Patches…"
+  it: "Patch…"
+  pt: "Patches…"
+  cs: "Patches…"
+
+menu.file.language:
+  en: Language
+  es: Idioma
+  fr: Langue
+  de: Sprache
+  it: Lingua
+  pt: Idioma
+  cs: Jazyk
+
+menu.file.reload:
+  en: Reload
+  es: Recargar
+  fr: "Recharger"
+  de: "Neu laden"
+  it: "Ricarica"
+  pt: "Recarregar"
+  cs: "Znovu načíst"
+
+menu.file.reload.confirm:
+  en: "Reload the application? Unsaved changes will be lost."
+  es: "¿Recargar la aplicación? Los cambios no guardados se perderán."
+  fr: "Recharger l'application ? Les modifications non enregistrées seront perdues."
+  de: "Anwendung neu laden? Nicht gespeicherte Änderungen gehen verloren."
+  it: "Ricaricare l'applicazione? Le modifiche non salvate andranno perse."
+  pt: "Recarregar o aplicativo? As alterações não salvas serão perdidas."
+  cs: "Znovu načíst aplikaci? Neuložené změny budou ztraceny."
+
+menu.file.quit:
+  en: Quit
+  es: Salir
+  fr: "Quitter"
+  de: "Beenden"
+  it: "Esci"
+  pt: "Sair"
+  cs: "Ukončit"
+
+# ─── Ver ───
+menu.view:
+  en: View
+  es: Ver
+  fr: "Affichage"
+  de: "Ansicht"
+  it: "Visualizza"
+  pt: "Visualizar"
+  cs: "Zobrazení"
+
+menu.view.quickbar:
+  en: Show Quickbar
+  es: Mostrar barra rápida
+  fr: "Afficher la barre rapide"
+  de: "Schnellleiste anzeigen"
+  it: "Mostra barra rapida"
+  pt: "Mostrar barra rápida"
+  cs: "Zobrazit rychlou lištu"
+
+menu.view.fullscreen:
+  en: Fullscreen
+  es: Pantalla completa
+  fr: "Plein écran"
+  de: "Vollbild"
+  it: "Schermo intero"
+  pt: "Tela cheia"
+  cs: "Celá obrazovka"
+
+menu.view.zoomIn:
+  en: Zoom In
+  es: Acercar
+  fr: "Zoom avant"
+  de: "Vergrößern"
+  it: "Ingrandisci"
+  pt: "Ampliar"
+  cs: "Přiblížit"
+
+menu.view.zoomOut:
+  en: Zoom Out
+  es: Alejar
+  fr: "Zoom arrière"
+  de: "Verkleinern"
+  it: "Rimpicciolisci"
+  pt: "Reduzir"
+  cs: "Oddálit"
+
+menu.view.zoomReset:
+  en: Reset Zoom
+  es: Zoom 100%
+  fr: "Réinitialiser le zoom"
+  de: "Zoom zurücksetzen"
+  it: "Reimposta zoom"
+  pt: "Redefinir zoom"
+  cs: "Obnovit přiblížení"
+
+menu.view.inactivePins:
+  en: Show inactive pins
+  es: Mostrar pines inactivos
+  fr: "Afficher les broches inactives"
+  de: "Inaktive Pins anzeigen"
+  it: "Mostra pin inattivi"
+  pt: "Mostrar pinos inativos"
+  cs: "Zobrazit neaktivní piny"
+
+menu.view.tooltipVoltage:
+  en: Show voltage tooltips
+  es: Mostrar tooltips de voltaje
+  fr: "Afficher les infobulles de tension"
+  de: "Spannungs-Tooltips anzeigen"
+  it: "Mostra tooltip tensione"
+  pt: "Mostrar dicas de tensão"
+  cs: "Zobrazit tooltips napětí"
+
+menu.view.tooltipAudioRate:
+  en: Show audio-rate info
+  es: Mostrar info de audio-rate
+  fr: "Afficher les infos audio-rate"
+  de: "Audio-Rate-Info anzeigen"
+  it: "Mostra info audio-rate"
+  pt: "Mostrar info de taxa de áudio"
+  cs: "Zobrazit info o audio-rate"
+
+menu.view.linearFaders:
+  en: Linear fader response
+  es: Respuesta lineal de faders
+  fr: "Réponse linéaire des faders"
+  de: "Lineare Fader-Antwort"
+  it: "Risposta lineare dei fader"
+  pt: "Resposta linear dos faders"
+  cs: "Lineární odezva faderů"
+
+menu.view.devTools:
+  en: Developer Tools
+  es: Herramientas de desarrollo
+  fr: "Outils de développement"
+  de: "Entwicklertools"
+  it: "Strumenti sviluppatore"
+  pt: "Ferramentas de desenvolvedor"
+  cs: "Nástroje pro vývojáře"
+
+# ─── Audio ───
+menu.audio:
+  en: Audio
+  es: Audio
+  fr: "Audio"
+  de: "Audio"
+  it: "Audio"
+  pt: "Áudio"
+  cs: "Zvuk"
+
+menu.audio.mute:
+  en: Mute
+  es: Silenciar
+  fr: "Sourdine"
+  de: "Stummschalten"
+  it: "Silenzia"
+  pt: "Mutar"
+  cs: "Ztlumit"
+
+menu.audio.unmute:
+  en: Unmute
+  es: Activar audio
+  fr: "Activer l'audio"
+  de: "Ton aktivieren"
+  it: "Attiva audio"
+  pt: "Desmutar"
+  cs: "Zrušit ztlumení"
+
+menu.audio.record:
+  en: Record
+  es: Grabar
+  fr: "Enregistrer"
+  de: "Aufnehmen"
+  it: "Registra"
+  pt: "Gravar"
+  cs: "Nahrávat"
+
+menu.audio.stopRecording:
+  en: Stop Recording
+  es: Detener grabación
+  fr: "Arrêter l'enregistrement"
+  de: "Aufnahme stoppen"
+  it: "Ferma registrazione"
+  pt: "Parar gravação"
+  cs: "Zastavit nahrávání"
+
+menu.audio.audioSettings:
+  en: Audio Settings…
+  es: Ajustes de audio…
+  fr: "Paramètres audio…"
+  de: "Audio-Einstellungen…"
+  it: "Impostazioni audio…"
+  pt: "Configurações de áudio…"
+  cs: "Nastavení zvuku…"
+
+menu.audio.recordSettings:
+  en: Recording Settings…
+  es: Ajustes de grabación…
+  fr: "Paramètres d'enregistrement…"
+  de: "Aufnahmeeinstellungen…"
+  it: "Impostazioni di registrazione…"
+  pt: "Configurações de gravação…"
+  cs: "Nastavení nahrávání…"
+
+# ─── Paneles ───
+menu.panels:
+  en: Panels
+  es: Paneles
+  fr: "Panneaux"
+  de: "Bedienfelder"
+  it: "Pannelli"
+  pt: "Painéis"
+  cs: "Panely"
+
+menu.panels.detachAll:
+  en: Detach All
+  es: Extraer todos
+  fr: "Détacher tout"
+  de: "Alle trennen"
+  it: "Stacca tutto"
+  pt: "Desanexar tudo"
+  cs: "Odpojit vše"
+
+menu.panels.attachAll:
+  en: Return All
+  es: Devolver todos
+  fr: "Retourner tout"
+  de: "Alle zurückgeben"
+  it: "Restituisci tutto"
+  pt: "Retornar tudo"
+  cs: "Vrátit vše"
+
+menu.panels.lockPan:
+  en: Lock Panning
+  es: Bloquear paneo
+  fr: "Verrouiller le panoramique"
+  de: "Schwenk sperren"
+  it: "Blocca panoramica"
+  pt: "Bloquear panorâmica"
+  cs: "Uzamknout posun"
+
+menu.panels.lockZoom:
+  en: Lock Zoom
+  es: Bloquear zoom
+  fr: "Verrouiller le zoom"
+  de: "Zoom sperren"
+  it: "Blocca zoom"
+  pt: "Bloquear zoom"
+  cs: "Uzamknout přiblížení"
+
+menu.panels.rememberPip:
+  en: Remember floating panels
+  es: Recordar paneles flotantes
+  fr: "Mémoriser les panneaux flottants"
+  de: "Schwebende Bedienfelder merken"
+  it: "Ricorda pannelli mobili"
+  pt: "Lembrar painéis flutuantes"
+  cs: "Zapamatovat plovoucí panely"
+
+# ─── Avanzado ───
+menu.advanced:
+  en: Advanced
+  es: Avanzado
+  fr: "Avancé"
+  de: "Erweitert"
+  it: "Avanzato"
+  pt: "Avançado"
+  cs: "Pokročilé"
+
+menu.advanced.debugGlobal:
+  en: Debug toasts (all)
+  es: Toasts de debug (todos)
+  fr: "Toasts de debug (tous)"
+  de: "Debug-Toasts (alle)"
+  it: "Toast di debug (tutti)"
+  pt: "Toasts de depuração (todos)"
+  cs: "Debug upozornění (vše)"
+
+menu.advanced.dormancy:
+  en: Module Dormancy
+  es: Dormancy de módulos
+  fr: "Dormance des modules"
+  de: "Moduldormanz"
+  it: "Dormienza dei moduli"
+  pt: "Dormência de módulos"
+  cs: "Dormance modulů"
+
+menu.advanced.dormancyDebug:
+  en: Debug dormancy
+  es: Debug dormancy
+  fr: "Debug dormance"
+  de: "Dormancy debuggen"
+  it: "Debug dormienza"
+  pt: "Depurar dormência"
+  cs: "Ladění dormance"
+
+menu.advanced.filterBypass:
+  en: Filter Bypass
+  es: Bypass de filtros
+  fr: "Contournement des filtres"
+  de: "Filter-Bypass"
+  it: "Bypass filtro"
+  pt: "Bypass de filtro"
+  cs: "Obejití filtru"
+
+menu.advanced.filterBypassDebug:
+  en: Debug filter bypass
+  es: Debug bypass de filtros
+  fr: "Debug contournement des filtres"
+  de: "Filter-Bypass debuggen"
+  it: "Debug bypass filtro"
+  pt: "Depurar bypass de filtro"
+  cs: "Ladění obejití filtru"
+
+menu.advanced.softClip:
+  en: Soft Clipping
+  es: Saturación suave
+  fr: "Écrêtage doux"
+  de: "Sanftes Clipping"
+  it: "Soft Clipping"
+  pt: "Clipping suave"
+  cs: "Měkké oříznutí"
+
+menu.advanced.pinTolerance:
+  en: Pin Tolerance
+  es: Tolerancia de pines
+  fr: "Tolérance des broches"
+  de: "Pin-Toleranz"
+  it: "Tolleranza pin"
+  pt: "Tolerância de pino"
+  cs: "Tolerance kolíku"
+
+menu.advanced.thermalDrift:
+  en: Thermal Drift
+  es: Deriva térmica
+  fr: "Dérive thermique"
+  de: "Thermische Drift"
+  it: "Deriva termica"
+  pt: "Deriva térmica"
+  cs: "Tepelná drift"
+
+menu.advanced.resetSynth:
+  en: Reset Synthesizer…
+  es: Reiniciar sintetizador…
+  fr: "Réinitialiser le synthétiseur…"
+  de: "Synthesizer zurücksetzen…"
+  it: "Ripristina sintetizzatore…"
+  pt: "Redefinir sintetizador…"
+  cs: "Resetovat syntezátor…"
+
+menu.advanced.settings:
+  en: All Settings…
+  es: Todos los ajustes…
+  fr: "Tous les paramètres…"
+  de: "Alle Einstellungen…"
+  it: "Tutte le impostazioni…"
+  pt: "Todas as configurações…"
+  cs: "Všechna nastavení…"
+
+# ─── OSC ───
+menu.osc:
+  en: OSC
+  es: OSC
+  fr: "OSC"
+  de: "OSC"
+  it: "OSC"
+  pt: "OSC"
+  cs: "OSC"
+
+menu.osc.enable:
+  en: Enable OSC
+  es: Activar OSC
+  fr: "Activer OSC"
+  de: "OSC aktivieren"
+  it: "Abilita OSC"
+  pt: "Ativar OSC"
+  cs: "Povolit OSC"
+
+menu.osc.sendToSC:
+  en: Send to SuperCollider
+  es: Enviar a SuperCollider
+  fr: "Envoyer à SuperCollider"
+  de: "An SuperCollider senden"
+  it: "Invia a SuperCollider"
+  pt: "Enviar para SuperCollider"
+  cs: "Odeslat do SuperCollideru"
+
+menu.osc.receiveFromSC:
+  en: Receive from SuperCollider
+  es: Recibir de SuperCollider
+  fr: "Recevoir de SuperCollider"
+  de: "Von SuperCollider empfangen"
+  it: "Ricevi da SuperCollider"
+  pt: "Receber de SuperCollider"
+  cs: "Přijmout ze SuperCollideru"
+
+menu.osc.showLog:
+  en: Show OSC Log
+  es: Mostrar log OSC
+  fr: "Afficher le journal OSC"
+  de: "OSC-Protokoll anzeigen"
+  it: "Mostra registro OSC"
+  pt: "Mostrar log OSC"
+  cs: "Zobrazit OSC protokol"
+
+menu.osc.settings:
+  en: OSC Settings…
+  es: Ajustes OSC…
+  fr: "Paramètres OSC…"
+  de: "OSC-Einstellungen…"
+  it: "Impostazioni OSC…"
+  pt: "Configurações OSC…"
+  cs: "Nastavení OSC…"
+
+# ─── Ayuda ───
+menu.help:
+  en: Help
+  es: Ayuda
+  fr: "Aide"
+  de: "Hilfe"
+  it: "Aiuto"
+  pt: "Ajuda"
+  cs: "Nápověda"
+
+menu.help.about:
+  en: About Synthi GME…
+  es: Acerca de Synthi GME…
+  fr: "À propos de Synthi GME…"
+  de: "Über Synthi GME…"
+  it: "Informazioni su Synthi GME…"
+  pt: "Sobre Synthi GME…"
+  cs: "O Synthi GME…"
+
+menu.help.repository:
+  en: GitHub Repository
+  es: Repositorio GitHub
+  fr: "Dépôt GitHub"
+  de: "GitHub-Repository"
+  it: "Repository GitHub"
+  pt: "Repositório GitHub"
+  cs: "GitHub repozitář"
+
+menu.help.reportBug:
+  en: Report a Bug…
+  es: Reportar un error…
+  fr: "Signaler un bug…"
+  de: "Bug melden…"
+  it: "Segnala un bug…"
+  pt: "Relatar um bug…"
+  cs: "Nahlásit chybu…"
+
+menu.help.checkUpdates:
+  en: Check for Updates…
+  es: Buscar actualizaciones…
+  fr: "Vérifier les mises à jour…"
+  de: "Nach Updates suchen…"
+  it: "Controlla aggiornamenti…"
+  pt: "Verificar atualizações…"
+  cs: "Zkontrolovat aktualizace…"
 
 toast.reset:
   en: Synthesizer reset to defaults

@@ -61,7 +61,13 @@ function parseYaml(text) {
         // Idiomas dentro de languages
         const langMatch = trimmed.match(/^(\w+):\s*(.+)$/);
         if (langMatch && result._meta.languages) {
-          result._meta.languages[langMatch[1]] = langMatch[2].trim();
+          let langName = langMatch[2].trim();
+          // Quitar comillas YAML si las tiene
+          if ((langName.startsWith('"') && langName.endsWith('"')) ||
+              (langName.startsWith("'") && langName.endsWith("'"))) {
+            langName = langName.slice(1, -1);
+          }
+          result._meta.languages[langMatch[1]] = langName;
         }
         continue;
       }

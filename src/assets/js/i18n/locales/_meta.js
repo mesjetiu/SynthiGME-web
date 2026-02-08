@@ -8,9 +8,9 @@ export const DEFAULT_LOCALE = "en";
 export const LANGUAGE_NAMES = {
   "en": "English",
   "es": "Español",
-  "fr": "\"Français\"",
-  "de": "\"Deutsch\"",
-  "it": "\"Italiano\"",
-  "pt": "\"Português\"",
-  "cs": "\"Čeština\""
+  "fr": "Français",
+  "de": "Deutsch",
+  "it": "Italiano",
+  "pt": "Português",
+  "cs": "Čeština"
 };

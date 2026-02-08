@@ -107,10 +107,6 @@ podría ser significativo en dispositivos móviles.
 - Revisar todo el documento ARCHITECTURE.md: errores, omisiones, desactualizaciones... Ha de servir de base a un eventual estudio escrito.
 
 
-## Objetivo v0.6.0
-
-- Offset cambiante (ondulatorio lento) en channels. Se nota al hacer FM sin enviar señal.
-
 
 ## Objetivo v0.7.0 (publicación tester)
 
@@ -120,4 +116,10 @@ podría ser significativo en dispositivos móviles.
 - Reordenación de opciones en Ajustes. Intuitivo...
 - Panel 1 y 4 con imagen de Synthi, sin módulos dummy.
 - Panel 3 con SVG terminado.
+- Parámetros no modificables por VC pasarlos a control rate.
 - Añadir y completar CREDITS.md
+- OSC: revisar que mensajes que salen no reentren.
+- OSC: probar entre dispositivos.
+- Bug: electron: mostrar voltajes no se marca en el menú. revisar los menús completos...
+- Crear Patches por defecto. A modo de tutorial...
+- Cada elemento (panel, módulo, grupo de módulos, 

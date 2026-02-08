@@ -26,8 +26,10 @@ SynthiGME soporta audio multicanal independiente: **12 canales de salida** (4 bu
 
 1. Abre SynthiGME (versión Electron/AppImage)
 2. Ve a **Ajustes de Audio** (icono de engranaje → Audio)
-3. En **Dispositivo de salida**, selecciona **"SynthiGME 12ch (PipeWire)"****
+3. En **Dispositivo de salida**, selecciona el modo **"Multicanal (PipeWire 12ch)"** con los radio buttons
 4. Configura la latencia multicanal según tus necesidades
+
+> **Nota:** La entrada multicanal (8 canales) se activa automáticamente junto con la salida multicanal.
 
 ### Configuración de Latencia
 
@@ -156,8 +158,10 @@ En qpwgraph puedes conectar cualquier fuente de audio (micrófono, DAW, otro sin
 | AudioWorklet (salida) | `src/assets/js/worklets/multichannelCapture.worklet.js` | Captura 12 canales desde Web Audio, escribe a SAB |
 | AudioWorklet (entrada) | `src/assets/js/worklets/multichannelPlayback.worklet.js` | Lee 8 canales desde SAB, produce audio para Input Amplifiers |
 | Addon nativo | `electron/native/src/` | PwStream bidireccional (playback + capture) |
+| Gestión audio multicanal | `electron/multichannelAudio.cjs` | Detección de PipeWire, gestión del ciclo de vida |
+| Integración nativa | `electron/multichannelAudioNative.cjs` | Puente entre Electron y addon C++ |
 | Preload API | `electron/preload.cjs` | Expone `window.multichannelAPI` y `window.multichannelInputAPI` |
-| UI ruteo | `src/assets/js/ui/audioSettingsModal.js` | Matrices de ruteo salida (12×N) y entrada (8×8) |
+| UI ruteo | `src/assets/js/ui/audioSettingsModal.js` | Matrices de ruteo salida (12×N) y entrada (8×8), radio buttons estéreo/multicanal |
 
 ### SharedArrayBuffer
 
@@ -216,7 +220,7 @@ La arquitectura JS (detección, UI, fallback) ya está preparada para soportar m
 
 ## Solución de Problemas
 
-### No aparece la opción "SynthiGME 12ch"
+### No aparece la opción multicanal
 
 1. Verifica que estás usando la versión **Electron** (no el navegador web)
 2. Verifica que PipeWire está corriendo: `systemctl --user status pipewire`

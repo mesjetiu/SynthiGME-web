@@ -4,7 +4,7 @@ SynthiGME-web es una emulación del sintetizador modular **Synthi 100** del Gabi
 
 Esta versión web permite explorar el sintetizador directamente desde tu navegador, sin necesidad de instalar nada.
 
-**Última actualización:** 4 de febrero de 2026 (VCA CEM 3330 con filtro anti-click τ=5ms)
+**Última actualización:** 8 de febrero de 2026 (menú nativo Electron con i18n, filtro COLOUR auténtico en Noise Generator)
 
 ## 🚀 Acceso Rápido
 
@@ -16,7 +16,7 @@ Puedes usar el sintetizador ahora mismo entrando en el siguiente enlace:
 *Funciona en Chrome, Edge, Firefox y Safari (versiones recientes).*
 
 ### 🖥️ Versión de Escritorio
-Si prefieres una aplicación nativa para mejorar el rendimiento y evitar limitaciones del navegador:
+Si prefieres una aplicación nativa con menú completo, soporte OSC y audio multicanal (12 canales de salida + 8 de entrada en Linux):
 
 1. Ve a la sección de **[Releases](https://github.com/mesjetiu/SynthiGME-web/releases)**.
 2. Descarga el instalador para tu sistema operativo:
@@ -46,12 +46,14 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 | Módulo | Descripción |
 |--------|-------------|
 | **12 Osciladores** | Formas de onda: pulso, seno, triángulo, diente de sierra. Rango 1Hz–10kHz. Incluye *Hard Sync*. |
-| **Filtros y Ruido** | 2 Generadores de ruido (blanco/rosa) y filtros paso bajo/alto en la salida. |
+| **Generadores de Ruido** | 2 Generadores con filtro COLOUR auténtico IIR 6dB/oct (circuito Synthi 100 Cuenca). Transición continua LP↔white↔HP. |
+| **Filtros de salida** | Filtro RC pasivo de 1er orden (6 dB/oct, fc ≈ 677 Hz) en cada canal de salida. Corrección tonal suave y musical. |
 | **VCA de salida** | Curva CEM 3330 (10 dB/V), saturación suave y filtro anti-click de 1 polo (τ=5ms) tras la suma fader+CV. |
 | **Matrices 60x60** | Dos matrices de conexión: Audio (Panel 5) y Control (Panel 6). Usa los pines para conectar módulos. |
 | **Osciloscopio** | Visualización de señal en tiempo real (modos tiempo y X-Y Lissajous). |
 | **Grabación** | Exporta tu sesión directamente a archivos de audio WAV multitrack (hasta 12 pistas). |
 | **Patches** | Guarda y carga tus configuraciones. Incluye autoguardado para no perder trabajo. |
+| **Audio Multicanal** | 12 canales de salida + 8 de entrada independientes en Linux (PipeWire). [Más info](MULTICHANNEL.md). |
 
 ### Atajos de Teclado
 Usar el teclado hace la experiencia mucho más fluida:
@@ -64,9 +66,12 @@ Usar el teclado hace la experiencia mucho más fluida:
 | `S` | Abrir Ajustes |
 | `F` | Pantalla completa |
 | `Shift+I` | Reinicializar (Panic) |
-| `1`-`8` | Navegar rápidamente entre paneles |
+| `1`-`7` | Navegar rápidamente entre paneles |
+| `0` | Vista general (todos los paneles) |
 | `Ctrl` + Click | Mover knobs 10 veces más rápido |
 | `Shift` + Click | Mover knobs con precisión fina |
+
+> **Versión Electron:** Todas estas acciones también están disponibles desde el menú nativo de la aplicación.
 
 ### Ajustes
 
@@ -101,6 +106,7 @@ Este es un proyecto Open Source. Si quieres ver el código, compilarlo tú mismo
 1. **[Guía de Desarrollo (DEVELOPMENT.md)](DEVELOPMENT.md)**: Instrucciones para instalar, compilar y ejecutar tests.
 2. **[Arquitectura (ARCHITECTURE.md)](ARCHITECTURE.md)**: Explicación profunda de cómo funciona el motor de audio y la UI.
 3. **[Protocolo OSC (OSC.md)](OSC.md)**: Documentación para controlar el sintetizador externamente.
+4. **[Audio Multicanal (MULTICHANNEL.md)](MULTICHANNEL.md)**: Guía de configuración de salida/entrada multicanal (Linux + PipeWire).
 
 > **Nota:** La carpeta `docs/` se genera automáticamente. No edites archivos allí.
 

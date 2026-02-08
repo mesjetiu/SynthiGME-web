@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 7 de febrero de 2026 (filtro RC pasivo auténtico en Output Channels)
+> Última actualización: 8 de febrero de 2026 (menú nativo Electron con i18n, botón flotante de mute, entrada multicanal 8ch)
 
 ---
 
@@ -28,7 +28,7 @@ SynthiGME-web es una aplicación **vanilla JavaScript** (ES Modules) que reprodu
 ├── src/                    # Código fuente de la aplicación web
 ├── electron/               # Código del wrapper Electron
 │   ├── native/             # Addon C++ para audio multicanal (PipeWire)
-│   └── *.cjs               # Main process, preload, OSC server
+│   └── *.cjs               # Main process, preload, menú nativo, OSC server, audio multicanal
 ├── tests/                  # Tests automatizados
 │   ├── audio/              # Tests de audio con Playwright
 │   ├── worklets/           # Tests de AudioWorklets
@@ -2272,10 +2272,12 @@ matrix.tooltip.format:
 
 | Script | Descripción |
 |--------|-------------|
-| `npm run build` | Genera bundle de producción en `docs/` (con tests) |
-| `npm run build:skip-tests` | Genera bundle en `docs/` (sin tests) |
-| `npm run electron:build` | Genera `dist-app/` + instaladores Electron |
-| `npm run build:all` | Tests + instaladores Electron (Linux/Win) |
+| `npm run dev` | Build a `dist-app/` + lanza Electron |
+| `npm run dev:web` | Compila PWA a `docs/` y muestra instrucciones |
+| `npm run build:web` | Genera bundle de producción en `docs/` (sin tests) |
+| `npm run build:web:test` | Genera bundle en `docs/` (con tests) |
+| `npm run build:electron` | Build a `dist-app/` + instaladores Electron |
+| `npm run build:all` | Tests + web + instaladores Electron (Linux/Win) |
 
 ### Proceso de Build (`scripts/build.mjs`)
 
@@ -2307,7 +2309,7 @@ docs/
     └── pwa/icons/
 ```
 
-**Electron:** `dist-app/` (misma estructura, generado por `electron:build`)
+**Electron:** `dist-app/` (misma estructura, generado por `build:electron`)
 
 ---
 
@@ -2327,8 +2329,12 @@ SynthiGME-web puede empaquetarse como aplicación nativa de escritorio usando **
 
 ```
 electron/
-├── main.cjs      # Proceso principal (CommonJS por compatibilidad con "type": "module")
-└── preload.cjs   # Script de preload para APIs nativas (preparado para futuro)
+├── main.cjs                    # Proceso principal (CommonJS por compatibilidad con "type": "module")
+├── electronMenu.cjs            # Sistema de menú nativo con i18n (7 menús, sincronización bidireccional)
+├── preload.cjs                 # Script de preload para APIs nativas
+├── oscServer.cjs               # Servidor OSC UDP multicast
+├── multichannelAudio.cjs       # Gestión de audio multicanal (detección, UI)
+└── multichannelAudioNative.cjs # Integración con addon C++ de PipeWire
 ```
 
 ### Proceso Principal (`electron/main.cjs`)
@@ -2337,11 +2343,27 @@ El proceso principal implementa:
 
 | Componente | Descripción |
 |------------|-------------|
-| **Servidor HTTP local** | Sirve `dist-app/` desde `http://127.0.0.1:49371` (puerto fijo para persistencia de datos) |
+| **Servidor HTTP local** | Sirve `dist-app/` desde `http://127.0.0.1:49371` (puerto fijo para persistencia de datos). Cabecera CSP con permisos mínimos |
 | **BrowserWindow** | Ventana 1280×720 (mínimo 1024×600) con `nodeIntegration: false` y `contextIsolation: true` |
-| **Menú nativo** | Archivo (recargar, salir), Ver (pantalla completa, zoom, DevTools), Ayuda (acerca de) |
+| **Menú nativo** | 7 menús completos con i18n (Archivo, Ver, Audio, Paneles, Avanzado, OSC, Ayuda). Sincronización bidireccional de estado con UI web vía IPC. Ver tabla de menús abajo |
+| **Título localizado** | Título de ventana traducido a 7 idiomas, se actualiza al cambiar idioma |
 | **Autoplay de audio** | `autoplayPolicy: 'no-user-gesture-required'` para síntesis sin interacción |
 | **Nombre en audio** | `app.setName('SynthiGME')` + flag `AudioServiceOutOfProcess` deshabilitado para mostrar nombre correcto en PipeWire/PulseAudio |
+| **Botón de mute flotante** | Cuando la quickbar está oculta, un botón de mute permanece visible como control de emergencia |
+
+#### Menú Nativo Electron (`electronMenu.cjs`)
+
+| Menú | Contenido |
+|------|-----------|
+| **Archivo** | Patches, selector de idioma (7 idiomas como radio buttons), Recargar (con confirmación), Salir |
+| **Ver** | Quickbar (checkbox), Pantalla completa, Zoom +/-/Reset, pines inactivos, tooltips de voltaje, info de audio-rate, faders lineales, DevTools |
+| **Audio** | Mute/Unmute (etiqueta dinámica), Grabar/Detener (etiqueta dinámica), Ajustes de Audio, Ajustes de Grabación |
+| **Paneles** | Toggle PiP por panel (7 paneles como checkboxes), Extraer/Devolver todos, Bloquear pan, Bloquear zoom, Recordar paneles flotantes |
+| **Avanzado** | Toasts de debug, Dormancy (+debug), Filter Bypass (+debug), Soft Clipping, Tolerancia de pines, Deriva térmica, Reset sintetizador, Todos los ajustes |
+| **OSC** | Activar OSC, Enviar/Recibir SuperCollider (desactivados sin OSC), Log OSC, Ajustes OSC |
+| **Ayuda** | Acerca de, Repositorio GitHub, Reportar error, Buscar actualizaciones |
+
+**Sincronización bidireccional**: Un objeto de estado compartido (~20+ flags) se actualiza desde el renderer vía IPC. `rebuildMenu()` reconstruye todo el menú nativo en cada cambio de estado o traducción.
 
 ### Por qué servidor HTTP en lugar de `file://`
 
@@ -2366,14 +2388,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform  // 'linux', 'win32', 'darwin'
 });
 
-// API de audio multicanal (solo Linux con PipeWire)
+// API de audio multicanal - SALIDA (solo Linux con PipeWire)
 window.multichannelAPI = {
   checkAvailability: () => Promise,   // Verifica si el addon está disponible
-  open: (config) => Promise,          // Abre stream de 8 canales
+  open: (config) => Promise,          // Abre stream de 12 canales
   close: () => Promise,               // Cierra stream
   write: (buffer) => number,          // Escribe audio (fallback)
   attachSharedBuffer: (sab) => bool,  // Conecta SharedArrayBuffer
   setLatency: (ms) => void            // Configura latencia (10-170ms)
+};
+
+// API de audio multicanal - ENTRADA (solo Linux con PipeWire)
+window.multichannelInputAPI = {
+  open: (config) => Promise,          // Abre stream de captura de 8 canales
+  close: () => Promise,               // Cierra stream
+  attachSharedBuffer: (sab) => bool,  // Conecta SharedArrayBuffer
+  setLatency: (ms) => void            // Configura latencia
+};
+
+// API de menú nativo
+window.menuAPI = {
+  onMenuAction: (callback) => void,   // Recibe acciones del menú
+  updateMenuState: (state) => void,   // Actualiza estado del menú
+  updateTranslations: (translations) => void  // Actualiza traducciones i18n
 };
 ```
 
@@ -2400,8 +2437,8 @@ SynthiGME soporta salida de audio en 8 canales físicos independientes en **Linu
 ```
 
 **Disponibilidad:**
-| Plataforma | 8ch independientes | Notas |
-|------------|-------------------|-------|
+| Plataforma | 12ch salida + 8ch entrada | Notas |
+|------------|--------------------------|-------|
 | Linux + PipeWire | ✅ | Addon nativo incluido en AppImage |
 | Linux sin PipeWire | ❌ | Fallback a estéreo Web Audio |
 | Windows/macOS | ❌ | Estéreo Web Audio (por ahora) |
@@ -2413,12 +2450,12 @@ SynthiGME soporta salida de audio en 8 canales físicos independientes en **Linu
 
 | Script | Comando | Descripción |
 |--------|---------|-------------|
-| `electron:dev` | `electron .` | Ejecuta en modo desarrollo (usa `dist-app/`) |
-| `electron:build` | `node scripts/electron-build.mjs` | Build fresh + instaladores |
-| `electron:build:linux` | `electron-build.mjs --linux` | AppImage (ej: `SynthiGME-0.3.0-20260128.143052-x86_64.AppImage`) |
-| `electron:build:win` | `electron-build.mjs --win` | Instalador NSIS + portable |
-| `electron:build:all` | `electron-build.mjs --linux --win` | Linux + Windows |
-| `build:all` | Tests + `electron:build:all` | Build completo con tests |
+| `dev` | `npm run dev` | Ejecuta build a `dist-app/` y lanza Electron |
+| `dev:web` | `npm run dev:web` | Build web rápido y muestra instrucciones |
+| `build:electron` | `npm run build:electron` | Build fresh + instaladores (plataforma actual) |
+| `build:electron:linux` | `npm run build:electron:linux` | AppImage (ej: `SynthiGME-0.5.0-20260208.095833-x86_64.AppImage`) |
+| `build:electron:win` | `npm run build:electron:win` | Instalador NSIS + portable |
+| `build:all` | `npm run build:all` | Tests + build web + instaladores Linux/Win |
 
 > **Nota**: Los nombres de archivo incluyen fecha/hora del build en lugar de contador secuencial.
 
@@ -2485,6 +2522,8 @@ Para builds firmados de macOS, usar CI/CD con GitHub Actions (ver README.md).
 | Acceso a archivos | API limitada | Completo (futuro) |
 | MIDI | Web MIDI API | Nativo (futuro) |
 | Audio | Depende del navegador | Chromium fijo |
+| **Audio multicanal** | No disponible (max 2ch) | 12ch salida + 8ch entrada (PipeWire) |
+| **Menú nativo** | No | 7 menús con i18n, sincronización bidireccional |
 | **OSC** | No disponible | UDP multicast + SuperCollider |
 
 ---
@@ -2604,16 +2643,16 @@ _handleIncomingKnob(oscIndex, param, value) {
 ```bash
 # Desarrollo web (PWA)
 1. Editar código en src/
-2. npm run build:skip-tests  # Genera docs/
+2. npm run build:web          # Genera docs/
 3. Servir docs/ con http-server o similar
 
 # Desarrollo Electron
 1. Editar código en src/
-2. npm run electron:dev       # Genera dist-app/ y ejecuta
+2. npm run dev                # Build a dist-app/ y lanza Electron
 3. (iterar 1-2)
 
 # Generar instaladores
-npm run electron:build:all    # Build fresh + instaladores Linux/Win
+npm run build:all             # Tests + build web + instaladores Linux/Win
 ```
 
 ---
@@ -2644,8 +2683,9 @@ npm run electron:build:all    # Build fresh + instaladores Linux/Win
 - [x] **Presets**: Sistema de guardado/carga de patches → Ver [Sección 4](#4-sistema-de-patchesestados)
 - [x] **Grabación**: Sistema de grabación multitrack WAV → Ver [Sección 6](#6-sistema-de-grabación-de-audio)
 - [x] **Atajos de teclado**: Sistema de shortcuts personalizables → Ver [Sección 7](#7-sistema-de-atajos-de-teclado)
+- [x] **Multicanal**: 12 canales de salida + 8 de entrada via PipeWire (Linux). Ver [Sección 13.1](#131-aplicación-de-escritorio-electron) y [MULTICHANNEL.md](MULTICHANNEL.md)
+- [x] **Menú nativo Electron**: 7 menús con i18n, sincronización bidireccional con UI web
 - [ ] **MIDI**: Soporte para controladores externos
-- [ ] **Multicanal**: Ruteo a más de 2 salidas físicas si el navegador lo permite
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam
 - [ ] **Interpolación de frames**: Suavizado adicional entre frames del osciloscopio si es necesario
 - [ ] **Trigger externo**: Permitir sincronizar osciloscopio con señal externa (otro oscilador)
@@ -2728,19 +2768,19 @@ Los tests de audio se ejecutan en navegador (Chromium headless) con Web Audio re
     - `frequencyCV.audio.test.js`: modulación CV 1V/octava
     - `hardSync.audio.test.js`: hard sync entre osciladores
     - `waveformAmplitude.audio.test.js`: amplitudes de formas de onda
-    - `cvThermalSlew.audio.test.js`: **slew térmico asimétrico (τ subida=150ms, τ bajada=500ms)**
-    - `hybridClip.audio.test.js`: **saturación híbrida de raíles ±12V (lineal→soft→hard)**
+    - `cvThermalSlew.audio.test.js`: slew térmico asimétrico (τ subida=150ms, τ bajada=500ms)
+    - `hybridClip.audio.test.js`: saturación híbrida de raíles ±12V (lineal→soft→hard)
+    - `vcaProcessor.audio.test.js`: VCA CEM 3330 (curva 10 dB/V, anti-click, resync dormancy)
   - `integration/`: 
     - `oscillatorToOutput.audio.test.js`: recorridos end‑to‑end básicos
-    - `cvChain.audio.test.js`: **NUEVO (enero 2026)** — 14 tests que detectan el bug de AudioWorklet → AudioParam:
-      - `cvSoftClip debe pasar señal a AudioParam` — Detección específica de condicionales bloqueando AudioParam
-      - `cvThermalSlew debe pasar señal a AudioParam` — Verificación de aritmética pura sin condicionales
-      - `testWorkletSignalPassthrough()` — A/B test: señal con/sin worklet (ratio esperado >0.5)
-      - `+1V CV → +1 octava (cadena completa)` — Verificación de 1V/octave calibrado (centsGain=4800)
-      - Pruebas de rango: ±1V, ±2V, ±4V (límites del sistema)
-      - Aislamiento: thermal slew solo y soft clip solo
-      - **Garantía futura**: Si alguien reintroduce condicionales en los worklets, estos tests fallarán inmediatamente
+    - `cvChain.audio.test.js`: 14 tests que detectan el bug de AudioWorklet → AudioParam
+    - `fmOctaveAccuracy.audio.test.js`: precisión V/oct para modulación FM
+    - `outputChannel.audio.test.js`: canal de salida completo
+    - `outputChannelDCOffset.audio.test.js`: DC offset y crossfade residual en re-entry
+    - `reEntryGain.audio.test.js`: ganancia unitaria de re-entrada a matriz
   - `matrix/`: routing de pines y ganancias (valores típicos, linealidad, preservación de señal)
+  - `pinFiltering.test.js`, `pinFilteringStress.test.js`: filtrado RC por tipo de pin
+  - `sanity.audio.test.js`: tests de cordura del entorno de audio
   - `harness.html`: página que carga worklets y expone helpers al entorno de test. Funciones nuevas:
     - `testWorkletToAudioParam()` — Verifica propagación desde worklet a AudioParam
     - `testWorkletSignalPassthrough()` — Compara A/B con/sin worklet

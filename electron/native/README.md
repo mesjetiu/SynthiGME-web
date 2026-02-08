@@ -1,17 +1,20 @@
 # PipeWire Audio Native Addon
 
-Addon nativo de C++ para salida de audio multicanal (8 canales) en Linux usando libpipewire directamente.
+Addon nativo de C++ para audio multicanal bidireccional en Linux usando libpipewire directamente.
+- **Salida**: 12 canales independientes (Pan 1-4 L/R + Out 1-8)
+- **Entrada**: 8 canales independientes (input_amp_1..8)
 
 ## Estado: ✅ FUNCIONAL
 
-Este addon está en producción y soporta audio multicanal en tiempo real con latencia configurable.
+Este addon está en producción y soporta audio multicanal bidireccional en tiempo real con latencia configurable.
 
 ### ✅ Implementado
 - Compilación con node-gyp
-- Stream de 12 canales independientes
-- Visible en qpwgraph como "SynthiGME" con puertos Pan_1-4_L/R, Pan_5-8_L/R, Out_1-8
+- **Salida**: Stream de 12 canales independientes con nombres descriptivos (Pan_1-4_L/R, Pan_5-8_L/R, Out_1-8)
+- **Entrada**: Stream de 8 canales de captura (input_amp_1..8) que van a los Input Amplifiers
+- Visible en qpwgraph como "SynthiGME" con puertos de salida y entrada
 - Integración con Electron via API directa (no IPC)
-- **SharedArrayBuffer lock-free** para comunicación AudioWorklet ↔ C++
+- **SharedArrayBuffer lock-free** para comunicación AudioWorklet ↔ C++ (bidireccional)
 - Ring buffer configurable (8192 frames por defecto)
 - Latencia configurable: 10-170ms
 - Prebuffer automático antes de iniciar playback
@@ -65,8 +68,8 @@ electron/native/
 ├── test.js              # Test standalone (genera tonos)
 └── src/
     ├── pipewire_audio.cc  # Binding N-API → JavaScript
-    ├── pw_stream.cc       # Implementación PipeWire
-    └── pw_stream.h        # Header con clase PwStream
+    ├── pw_stream.cc       # Implementación PipeWire (playback + capture)
+    └── pw_stream.h        # Header con clase PwStream (enum Direction: OUTPUT/INPUT)
 ```
 
 ### 🧪 Test standalone
@@ -74,8 +77,8 @@ electron/native/
 ```bash
 cd electron/native
 node test.js
-# Genera tonos en 8 canales durante 5 segundos
-# Abrir qpwgraph para ver los puertos
+# Genera tonos en 12 canales durante 5 segundos
+# Abrir qpwgraph para ver los puertos de salida y entrada
 ```
 
 ### 📚 API JavaScript
@@ -83,7 +86,7 @@ node test.js
 ```javascript
 const { PipeWireAudio } = require('./build/Release/pipewire_audio.node');
 
-// Crear stream
+// Crear stream de salida (12 canales)
 const audio = new PipeWireAudio(name, channels, sampleRate, bufferSize);
 
 // Iniciar
@@ -94,7 +97,7 @@ audio.write(float32Array);  // → frames escritos
 
 // Propiedades
 audio.isRunning;   // boolean
-audio.channels;    // number
+audio.channels;    // number (12 para salida, 8 para entrada)
 audio.sampleRate;  // number
 audio.underflows;  // number
 

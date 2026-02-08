@@ -585,6 +585,69 @@ export function setupMobileQuickActionsBar() {
       }
     });
   });
+
+  // ─── Visibilidad del quickbar (toggle desde menú nativo de Electron) ───
+  // En Electron, el quickbar se puede ocultar porque el menú nativo cubre
+  // todas las acciones. El botón de mute siempre permanece visible.
+  function setQuickbarVisibility(visible) {
+    bar.style.display = visible ? '' : 'none';
+    // Siempre mostrar el mute como botón flotante cuando el quickbar está oculto
+    let floatingMute = document.getElementById('floatingMuteBtn');
+    if (!visible) {
+      if (!floatingMute) {
+        floatingMute = document.createElement('button');
+        floatingMute.id = 'floatingMuteBtn';
+        floatingMute.type = 'button';
+        floatingMute.className = 'mobile-quickbar__btn mobile-quickbar__mute floating-mute-btn';
+        floatingMute.innerHTML = btnMute.innerHTML;
+        floatingMute.setAttribute('aria-pressed', btnMute.getAttribute('aria-pressed'));
+        floatingMute.setAttribute('aria-label', btnMute.getAttribute('aria-label'));
+        floatingMute.addEventListener('click', () => {
+          document.dispatchEvent(new CustomEvent('synth:toggleMute'));
+        });
+        document.body.appendChild(floatingMute);
+      }
+      floatingMute.style.display = '';
+      // Sincronizar estado de mute con el botón flotante
+      floatingMute.innerHTML = btnMute.innerHTML;
+      floatingMute.setAttribute('aria-pressed', btnMute.getAttribute('aria-pressed'));
+      floatingMute.classList.toggle('is-muted', isMuted);
+    } else if (floatingMute) {
+      floatingMute.style.display = 'none';
+    }
+    document.dispatchEvent(new CustomEvent('synth:quickbarVisibilityChanged', {
+      detail: { visible }
+    }));
+  }
+
+  // Escuchar toggle de visibilidad desde menú de Electron
+  document.addEventListener('synth:toggleQuickbar', (e) => {
+    const visible = e.detail?.visible ?? !bar.style.display !== 'none';
+    setQuickbarVisibility(visible);
+    try {
+      localStorage.setItem('synthigme-quickbar-visible', String(visible));
+    } catch { /* ignore */ }
+  });
+
+  // Sincronizar mute al botón flotante cuando cambia
+  document.addEventListener('synth:muteChanged', () => {
+    const floatingMute = document.getElementById('floatingMuteBtn');
+    if (floatingMute) {
+      floatingMute.innerHTML = btnMute.innerHTML;
+      floatingMute.setAttribute('aria-pressed', btnMute.getAttribute('aria-pressed'));
+      floatingMute.classList.toggle('is-muted', isMuted);
+    }
+  });
+
+  // Restaurar visibilidad guardada (en Electron)
+  if (typeof window.menuAPI !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('synthigme-quickbar-visible');
+      if (saved === 'false') {
+        setQuickbarVisibility(false);
+      }
+    } catch { /* ignore */ }
+  }
 }
 
 /**

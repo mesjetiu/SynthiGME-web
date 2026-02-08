@@ -158,8 +158,11 @@ export class SettingsModal {
     if (this.isOpen) return;
     this.isOpen = true;
     
+    // Re-sincronizar checkboxes desde localStorage (por si el menú nativo las cambió)
+    this._syncCheckboxesFromStorage();
+    
     // Cambiar a pestaña específica si se indica
-    if (tabId && ['general', 'audio', 'recording', 'advanced', 'about'].includes(tabId)) {
+    if (tabId && ['general', 'display', 'audio', 'recording', 'advanced', 'osc', 'about'].includes(tabId)) {
       this._switchTab(tabId);
     }
     
@@ -180,6 +183,76 @@ export class SettingsModal {
     this.isOpen = false;
     this.overlay.classList.remove('settings-overlay--visible');
     this.overlay.setAttribute('aria-hidden', 'true');
+  }
+  
+  /**
+   * Re-sincroniza el estado de los checkboxes desde localStorage.
+   * Necesario cuando el menú nativo de Electron cambia ajustes sin pasar por el modal.
+   * @private
+   */
+  _syncCheckboxesFromStorage() {
+    const readBool = (key, def) => {
+      const v = localStorage.getItem(key);
+      return v === null ? def : v === 'true';
+    };
+    
+    // Display
+    if (this.inactivePinsCheckbox) {
+      this.showInactivePins = readBool(STORAGE_KEYS.SHOW_INACTIVE_PINS, false);
+      this.inactivePinsCheckbox.checked = this.showInactivePins;
+    }
+    if (this.faderLinearCheckbox) {
+      this.faderLinearResponse = readBool(STORAGE_KEYS.FADER_LINEAR_RESPONSE, true);
+      this.faderLinearCheckbox.checked = this.faderLinearResponse;
+    }
+    if (this.tooltipVoltageCheckbox) {
+      this.showTooltipVoltage = readBool(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, false);
+      this.tooltipVoltageCheckbox.checked = this.showTooltipVoltage;
+    }
+    if (this.tooltipAudioCheckbox) {
+      this.showTooltipAudio = readBool(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, false);
+      this.tooltipAudioCheckbox.checked = this.showTooltipAudio;
+    }
+    if (this.pipRememberCheckbox) {
+      this.rememberPips = readBool(STORAGE_KEYS.PIP_REMEMBER, false);
+      this.pipRememberCheckbox.checked = this.rememberPips;
+    }
+    
+    // Avanzado - Optimizaciones
+    if (this.optimizationsDebugCheckbox) {
+      this.optimizationsDebug = readBool(STORAGE_KEYS.OPTIMIZATIONS_DEBUG, false);
+      this.optimizationsDebugCheckbox.checked = this.optimizationsDebug;
+    }
+    if (this.dormancyEnabledCheckbox) {
+      this.dormancyEnabled = readBool(STORAGE_KEYS.DORMANCY_ENABLED, true);
+      this.dormancyEnabledCheckbox.checked = this.dormancyEnabled;
+    }
+    if (this.dormancyDebugCheckbox) {
+      this.dormancyDebug = readBool(STORAGE_KEYS.DORMANCY_DEBUG, false);
+      this.dormancyDebugCheckbox.checked = this.dormancyDebug;
+    }
+    if (this.filterBypassEnabledCheckbox) {
+      this.filterBypassEnabled = readBool(STORAGE_KEYS.FILTER_BYPASS_ENABLED, true);
+      this.filterBypassEnabledCheckbox.checked = this.filterBypassEnabled;
+    }
+    if (this.filterBypassDebugCheckbox) {
+      this.filterBypassDebug = readBool(STORAGE_KEYS.FILTER_BYPASS_DEBUG, false);
+      this.filterBypassDebugCheckbox.checked = this.filterBypassDebug;
+    }
+    
+    // Avanzado - Emulación de voltaje
+    if (this.voltageSoftClipCheckbox) {
+      this.voltageSoftClipEnabled = readBool(STORAGE_KEYS.VOLTAGE_SOFT_CLIP_ENABLED, true);
+      this.voltageSoftClipCheckbox.checked = this.voltageSoftClipEnabled;
+    }
+    if (this.voltagePinToleranceCheckbox) {
+      this.voltagePinToleranceEnabled = readBool(STORAGE_KEYS.VOLTAGE_PIN_TOLERANCE_ENABLED, true);
+      this.voltagePinToleranceCheckbox.checked = this.voltagePinToleranceEnabled;
+    }
+    if (this.voltageThermalDriftCheckbox) {
+      this.voltageThermalDriftEnabled = readBool(STORAGE_KEYS.VOLTAGE_THERMAL_DRIFT_ENABLED, true);
+      this.voltageThermalDriftCheckbox.checked = this.voltageThermalDriftEnabled;
+    }
   }
   
   /**

@@ -143,6 +143,13 @@ export const STORAGE_KEYS = {
   TOOLTIP_SHOW_AUDIO_VALUES: `${STORAGE_PREFIX}tooltip-show-audio-values`,
   
   // ─────────────────────────────────────────────────────────────────────────
+  // Quickbar (barra de acciones rápidas)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Visibilidad del quickbar (en Electron se puede ocultar porque el menú nativo lo reemplaza) */
+  QUICKBAR_VISIBLE: `${STORAGE_PREFIX}quickbar-visible`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
   // OSC (Open Sound Control) - Comunicación peer-to-peer
   // ─────────────────────────────────────────────────────────────────────────
   

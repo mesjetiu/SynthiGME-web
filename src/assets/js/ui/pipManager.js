@@ -95,6 +95,12 @@ function getMinScale(panelId) {
   return Math.max(MIN_SCALE_ABSOLUTE, dynamicMin);
 }
 
+/**
+ * ID del PiP con foco (último interactuado). null = foco en canvas principal.
+ * Se expone como window.__synthFocusedPip para que el bridge de zoom lo consulte.
+ */
+let focusedPipId = null;
+
 /** Panel actualmente siendo arrastrado */
 let draggingPip = null;
 let dragOffset = { x: 0, y: 0 };
@@ -161,6 +167,31 @@ export function initPipManager() {
   
   // Shortcut para cerrar todos los PiPs: Escape doble
   let lastEscapeTime = 0;
+  // Click en el canvas principal → quitar foco del PiP
+  const viewportOuter = document.getElementById('viewportOuter');
+  if (viewportOuter) {
+    viewportOuter.addEventListener('pointerdown', () => {
+      focusedPipId = null;
+      window.__synthFocusedPip = null;
+    });
+  }
+
+  // Exponer función de zoom para PiP enfocado (usada por electronMenuBridge)
+  window.__synthZoomFocusedPip = (direction) => {
+    if (!focusedPipId || !activePips.has(focusedPipId)) return false;
+    const state = activePips.get(focusedPipId);
+    if (!state) return false;
+    const minScale = getMinScale(focusedPipId);
+    if (direction === 'in') {
+      updatePipScale(focusedPipId, Math.min(state.scale * 1.25, MAX_SCALE));
+    } else if (direction === 'out') {
+      updatePipScale(focusedPipId, Math.max(state.scale * 0.8, minScale));
+    } else if (direction === 'reset') {
+      updatePipScale(focusedPipId, minScale);
+    }
+    return true;
+  };
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && activePips.size > 0) {
       const now = Date.now();
@@ -569,6 +600,12 @@ export function closePip(panelId) {
   pipContainer.remove();
   
   activePips.delete(panelId);
+  
+  // Si el PiP cerrado tenía el foco, devolver foco al canvas principal
+  if (focusedPipId === panelId) {
+    focusedPipId = null;
+    window.__synthFocusedPip = null;
+  }
   
   log.info(`Panel ${panelId} devuelto a viewport`);
   
@@ -1058,6 +1095,9 @@ function bringToFront(panelId) {
   if (state) {
     state.pipContainer.style.zIndex = maxZ + 1;
   }
+  // Registrar como PiP con foco (para zoom global con Ctrl+/-)
+  focusedPipId = panelId;
+  window.__synthFocusedPip = panelId;
 }
 
 /**

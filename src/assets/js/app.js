@@ -770,6 +770,12 @@ class App {
     // Rehabilitar tracking de cambios
     sessionManager.applyingPatch(false);
     
+    // Forzar actualización síncrona de dormancy para que los módulos se
+    // resincronicen inmediatamente (fix: noise level no se restauraba porque
+    // setLevel() durante dormancy salta el AudioParam y el wake-up dependía
+    // de un requestAnimationFrame que podía deduplicarse o retrasarse)
+    this.dormancyManager?.flushPendingUpdate();
+    
     log.info(' Patch applied successfully');
   }
   
@@ -845,6 +851,9 @@ class App {
     
     // Rehabilitar tracking de cambios
     sessionManager.applyingPatch(false);
+    
+    // Forzar actualización síncrona de dormancy (misma razón que en _applyPatch)
+    this.dormancyManager?.flushPendingUpdate();
     
     // Limpiar estado guardado (no preguntar al reiniciar si no hay cambios)
     sessionManager.clearLastState();

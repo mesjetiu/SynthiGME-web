@@ -601,6 +601,80 @@ describe('DormancyManager', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Tests para flushPendingUpdate (fix: patch load race condition)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('DormancyManager flushPendingUpdate', () => {
+  
+  it('actualiza estados inmediatamente sin esperar rAF', () => {
+    const localStorage = new MockLocalStorage();
+    const app = createMockApp();
+    const manager = new MockDormancyManager(app, localStorage);
+    
+    // Sin conexiones → todo dormant
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('noise-1'), true);
+    
+    // Añadir conexión de noise
+    app._panel3Routing.connections['22:36'] = {};
+    
+    // flushPendingUpdate sincroniza inmediatamente
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('noise-1'), false);
+  });
+  
+  it('simula escenario de patch load: noise dormant → setLevel → wake up', () => {
+    const localStorage = new MockLocalStorage();
+    const app = createMockApp();
+    const manager = new MockDormancyManager(app, localStorage);
+    
+    // Estado inicial: noise sin conexión → dormant
+    manager.updateAllStates();
+    
+    const noiseModule = app._panel3LayoutData.noiseAudioModules.noise1;
+    assert.equal(noiseModule._isDormant, true);
+    
+    // Simular patch load:
+    // 1. Knobs restaurados (setLevel llamado pero salta AudioParam por dormant)
+    // 2. Matrix restaurada (conexión añadida)
+    app._panel3Routing.connections['22:36'] = {};
+    
+    // 3. flushPendingUpdate fuerza la actualización síncrona
+    manager.updateAllStates();
+    
+    // Noise debe estar activo ahora
+    assert.equal(noiseModule._isDormant, false);
+    assert.equal(manager.isDormant('noise-1'), false);
+  });
+  
+  it('simula escenario reset→patch: módulo pasa por dormant→active correctamente', () => {
+    const localStorage = new MockLocalStorage();
+    const app = createMockApp();
+    const manager = new MockDormancyManager(app, localStorage);
+    
+    // Estado inicial: noise conectado y activo
+    app._panel3Routing.connections['22:36'] = {};
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('noise-1'), false);
+    
+    // 1. Reset: limpiar conexiones
+    delete app._panel3Routing.connections['22:36'];
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('noise-1'), true);
+    
+    // 2. Patch load: restaurar conexiones
+    app._panel3Routing.connections['22:37'] = {};
+    manager.updateAllStates();
+    
+    // Noise debe estar activo con la nueva conexión
+    assert.equal(manager.isDormant('noise-1'), false);
+    
+    const noiseModule = app._panel3LayoutData.noiseAudioModules.noise1;
+    assert.equal(noiseModule._isDormant, false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Tests para setDormant en output buses
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -882,7 +956,7 @@ describe('NoiseModule dormancy', () => {
     assert.equal(cancelCalled, true);
   });
   
-  it('restaura el nivel previo al salir de dormancy', () => {
+  it('restaura el nivel actual (values.level) al salir de dormancy', () => {
     let currentGain = 0;
     
     const noiseModule = {
@@ -907,7 +981,8 @@ describe('NoiseModule dormancy', () => {
         if (!ctx) return;
         const now = ctx.currentTime;
         if (!dormant) {
-          const targetLevel = this._preDormantLevel ?? this.values.level;
+          // Usar values.level (verdad actual), no _preDormantLevel (snapshot)
+          const targetLevel = this.values.level;
           this.levelNode.gain.cancelScheduledValues(now);
           this.levelNode.gain.setTargetAtTime(targetLevel, now, 0.01);
         }
@@ -921,7 +996,54 @@ describe('NoiseModule dormancy', () => {
     
     noiseModule.setDormant(false);
     
-    assert.equal(currentGain, 0.7); // Restaura el nivel guardado
+    assert.equal(currentGain, 0.8); // Restaura values.level (0.8), no _preDormantLevel (0.7)
+  });
+  
+  it('restaura nivel modificado durante dormancy (patch load)', () => {
+    let currentGain = 0;
+    
+    const noiseModule = {
+      workletNode: { port: { postMessage() {} } },
+      levelNode: {
+        gain: {
+          value: 0,
+          cancelScheduledValues: () => {},
+          setTargetAtTime: (val) => { currentGain = val; }
+        }
+      },
+      values: { level: 0 },
+      _isDormant: true,
+      _preDormantLevel: 0,
+      getAudioCtx() { return { currentTime: 0 }; },
+      _onDormancyChange(dormant) {
+        if (this.workletNode) {
+          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
+        }
+        if (!this.levelNode) return;
+        const ctx = this.getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        if (!dormant) {
+          const targetLevel = this.values.level;
+          this.levelNode.gain.cancelScheduledValues(now);
+          this.levelNode.gain.setTargetAtTime(targetLevel, now, 0.01);
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    // Simular patch load durante dormancy: setLevel actualiza values pero no AudioParam
+    noiseModule.values.level = 0.7;
+    noiseModule._preDormantLevel = 0.7;
+    
+    noiseModule.setDormant(false);
+    
+    // Debe restaurar el nivel del patch (0.7), no el original (0)
+    assert.equal(currentGain, 0.7);
   });
 });
 
@@ -985,7 +1107,7 @@ describe('InputAmplifier dormancy', () => {
     }
   });
   
-  it('restaura los niveles al salir de dormancy', () => {
+  it('restaura los niveles actuales (no snapshot) al salir de dormancy', () => {
     const originalLevels = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.3, 0.4];
     const gainNodes = [];
     
@@ -1010,12 +1132,12 @@ describe('InputAmplifier dormancy', () => {
         if (!ctx) return;
         const now = ctx.currentTime;
         if (!dormant) {
-          const savedLevels = this._preDormantLevels || this.levels;
+          // Usar this.levels (verdad actual) en vez de _preDormantLevels (snapshot)
           for (let i = 0; i < this.gainNodes.length; i++) {
             const gain = this.gainNodes[i];
             if (gain) {
               gain.gain.cancelScheduledValues(now);
-              gain.gain.setTargetAtTime(savedLevels[i] || 0, now, 0.01);
+              gain.gain.setTargetAtTime(this.levels[i] || 0, now, 0.01);
             }
           }
         }
@@ -1032,6 +1154,59 @@ describe('InputAmplifier dormancy', () => {
     // Verifica que se restauraron los niveles
     for (let i = 0; i < 8; i++) {
       assert.equal(gainNodes[i].gain.value, originalLevels[i]);
+    }
+  });
+  
+  it('restaura niveles modificados durante dormancy (patch load)', () => {
+    const gainNodes = [];
+    
+    for (let i = 0; i < 8; i++) {
+      gainNodes.push({
+        gain: {
+          value: 0,
+          cancelScheduledValues: () => {},
+          setTargetAtTime: function(val) { this.value = val; }
+        }
+      });
+    }
+    
+    const inputAmp = {
+      gainNodes,
+      levels: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+      _isDormant: true,
+      _preDormantLevels: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+      getAudioCtx() { return { currentTime: 0 }; },
+      _onDormancyChange(dormant) {
+        const ctx = this.getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        if (!dormant) {
+          for (let i = 0; i < this.gainNodes.length; i++) {
+            const gain = this.gainNodes[i];
+            if (gain) {
+              gain.gain.cancelScheduledValues(now);
+              gain.gain.setTargetAtTime(this.levels[i] || 0, now, 0.01);
+            }
+          }
+        }
+      },
+      setDormant(dormant) {
+        if (this._isDormant === dormant) return;
+        this._isDormant = dormant;
+        this._onDormancyChange(dormant);
+      }
+    };
+    
+    // Simular patch load: cambiar niveles durante dormancy
+    const newLevels = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2];
+    inputAmp.levels = newLevels;
+    
+    // Despertar: debe usar los niveles NUEVOS, no el snapshot
+    inputAmp.setDormant(false);
+    
+    for (let i = 0; i < 8; i++) {
+      assert.equal(gainNodes[i].gain.value, newLevels[i],
+        `Canal ${i}: esperado ${newLevels[i]}, obtenido ${gainNodes[i].gain.value}`);
     }
   });
 });

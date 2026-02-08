@@ -182,6 +182,26 @@ export class DormancyManager {
   }
   
   /**
+   * Cancela cualquier actualización pendiente por rAF y ejecuta
+   * updateAllStates() de forma síncrona.
+   * 
+   * Debe llamarse al final de operaciones masivas (applyPatch,
+   * resetToDefaults) para que los módulos se resincronicen
+   * inmediatamente sin depender del requestAnimationFrame, que
+   * puede deduplicarse o retrasarse y causar que AudioParams
+   * (como el gain del noise) se queden desactualizados.
+   */
+  flushPendingUpdate() {
+    if (!this._enabled) return;
+    
+    if (this._pendingUpdate) {
+      cancelAnimationFrame(this._pendingUpdate);
+      this._pendingUpdate = null;
+    }
+    this.updateAllStates();
+  }
+  
+  /**
    * Recalcula el estado dormant de todos los módulos.
    */
   updateAllStates() {

@@ -210,14 +210,14 @@ export class InputAmplifierModule extends Module {
       }
       console.log(`[Dormancy] InputAmplifiers: DORMANT`);
     } else {
-      // Restaurar niveles previos
-      const savedLevels = this._preDormantLevels || this.levels;
+      // Restaurar niveles actuales (pueden haber cambiado durante dormancy
+      // por patch load, por lo que usamos this.levels en vez del snapshot)
       for (let i = 0; i < this.gainNodes.length; i++) {
         const gain = this.gainNodes[i];
         if (gain) {
           try {
             gain.gain.cancelScheduledValues(now);
-            gain.gain.setTargetAtTime(savedLevels[i] || 0, now, rampTime);
+            gain.gain.setTargetAtTime(this.levels[i] || 0, now, rampTime);
           } catch { /* Ignorar */ }
         }
       }

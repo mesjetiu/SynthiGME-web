@@ -300,6 +300,9 @@ export class NoiseModule extends Module {
   setColour(value) {
     this.values.colour = Math.max(0, Math.min(10, value));
     
+    // Si estamos en dormancy, solo guardar el valor. Se aplicará al despertar.
+    if (this._isDormant) return;
+    
     if (!this.colourParam) return;
     
     const ctx = this.getAudioCtx();
@@ -327,6 +330,13 @@ export class NoiseModule extends Module {
    */
   setLevel(value) {
     this.values.level = Math.max(0, Math.min(10, value));
+    
+    // Si estamos en dormancy, actualizar también el nivel guardado para que
+    // al despertar se restaure el valor correcto (fix: patch load race condition)
+    if (this._isDormant) {
+      this._preDormantLevel = this.values.level;
+      return; // No tocar AudioParam mientras dormant (está silenciado)
+    }
     
     if (!this.levelNode) return;
     
@@ -466,12 +476,22 @@ export class NoiseModule extends Module {
         this.levelNode.gain.setTargetAtTime(0, now, rampTime);
       } catch { /* Ignorar errores de AudioParam */ }
     } else {
-      // Restaurar nivel previo (convertido a ganancia LOG)
-      const targetGain = this._levelDialToGain(this._preDormantLevel ?? this.values.level);
+      // Restaurar nivel actual (puede haber cambiado durante dormancy por patch load)
+      const targetGain = this._levelDialToGain(this.values.level);
       try {
         this.levelNode.gain.cancelScheduledValues(now);
         this.levelNode.gain.setTargetAtTime(targetGain, now, rampTime);
       } catch { /* Ignorar errores de AudioParam */ }
+      
+      // Resincronizar colour AudioParam (puede haber cambiado durante dormancy)
+      if (this.colourParam) {
+        const position = this._colourDialToPosition(this.values.colour);
+        try {
+          this.colourParam.cancelScheduledValues(now);
+          this.colourParam.setTargetAtTime(position, now, rampTime);
+        } catch { /* Ignorar errores de AudioParam */ }
+        this._updateColourBypass(position);
+      }
     }
   }
 }

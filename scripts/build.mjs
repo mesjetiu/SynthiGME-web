@@ -198,6 +198,14 @@ async function run() {
   console.log('Copying Web Workers …');
   await copyWorkers();
 
+  // Copiar scripts standalone (no bundleados por esbuild)
+  const standaloneScripts = ['assets/js/fullscreenButton.js'];
+  for (const rel of standaloneScripts) {
+    const src = path.join(srcDir, rel);
+    const dest = path.join(outDir, rel);
+    try { await copyFile(src, dest); } catch { /* optional */ }
+  }
+
   console.log('Generating service worker …');
   await buildServiceWorker(cacheVersion);
 

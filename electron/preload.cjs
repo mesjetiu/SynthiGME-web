@@ -27,6 +27,38 @@ window.electronAPI = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// API de Menú nativo (comunicación bidireccional con el menú de Electron)
+// ─────────────────────────────────────────────────────────────────────────────
+window.menuAPI = {
+  /**
+   * Escucha acciones del menú nativo (main → renderer)
+   * @param {Function} callback - callback({ action, data })
+   * @returns {Function} Función para eliminar el listener
+   */
+  onMenuAction: (callback) => {
+    const handler = (event, payload) => callback(payload);
+    ipcRenderer.on('menu:action', handler);
+    return () => ipcRenderer.removeListener('menu:action', handler);
+  },
+
+  /**
+   * Envía estado actualizado al menú nativo (renderer → main)
+   * @param {Object} state - Estado parcial de checkboxes { key: value }
+   */
+  syncMenuState: (state) => {
+    ipcRenderer.send('menu:syncState', state);
+  },
+
+  /**
+   * Envía traducciones al menú nativo (renderer → main)
+   * @param {Object} translations - Objeto { key: translatedText }
+   */
+  syncTranslations: (translations) => {
+    ipcRenderer.send('menu:syncTranslations', translations);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // API OSC para comunicación peer-to-peer
 // ─────────────────────────────────────────────────────────────────────────────
 window.oscAPI = {

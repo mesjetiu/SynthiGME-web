@@ -6,11 +6,12 @@
  * de Web Audio API y AudioWorklet.
  */
 
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { createServer } = require('http');
 const { readFileSync, existsSync, statSync } = require('fs');
 const { OSCServer } = require('./oscServer.cjs');
+const { initMenu, updateMenuState, updateTranslations } = require('./electronMenu.cjs');
 
 // Establecer nombre de la aplicación (visible en PipeWire/PulseAudio)
 app.setName('SynthiGME');
@@ -77,13 +78,15 @@ function startServer(docsPath) {
         // Headers para deshabilitar caché de Chromium
         // Esto asegura que siempre se carguen los archivos del paquete actual
         // COOP/COEP headers habilitan SharedArrayBuffer para comunicación lock-free
+        // CSP: seguridad del renderer (blob: para AudioWorklet, unsafe-inline para estilos dinámicos)
         res.writeHead(200, { 
           'Content-Type': mimeType,
           'Cache-Control': 'no-store, no-cache, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0',
           'Cross-Origin-Opener-Policy': 'same-origin',
-          'Cross-Origin-Embedder-Policy': 'require-corp'
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+          'Content-Security-Policy': "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss:; font-src 'self' data:"
         });
         res.end(content);
       } catch (err) {
@@ -167,15 +170,36 @@ async function createWindow() {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Bloquear atajos de recarga para evitar reinicios accidentales en performance
+  // Bloquear atajos de recarga y zoom nativo de Chromium
+  // Recarga: F5, Ctrl+R → bloqueados para evitar reinicios accidentales
+  // Zoom: Ctrl+/-, Ctrl+0 → bloqueados para que los maneje el menú nativo
+  //   (el menú envía acciones al renderer que hacen zoom en el canvas)
   // ─────────────────────────────────────────────────────────────────────────
   mainWindow.webContents.on('before-input-event', (event, input) => {
     const isRefresh =
       input.key === 'F5' ||
       (input.control && input.key === 'r') ||
       (input.control && input.shift && input.key === 'R');
-    if (isRefresh) {
+    // Bloquear zoom nativo de Chromium (Ctrl+Plus, Ctrl+Minus, Ctrl+0)
+    // NOTA: event.preventDefault() aquí también bloquea los accelerators del menú
+    // nativo en Linux, así que enviamos la acción directamente vía IPC.
+    const isZoom = input.control && (
+      input.key === '+' || input.key === '=' ||
+      input.key === '-' || input.key === '_' ||
+      input.key === '0'
+    );
+    if (isRefresh || isZoom) {
       event.preventDefault();
+    }
+    // Despachar acciones de zoom manualmente (los accelerators no llegan al menú)
+    if (isZoom && input.type === 'keyDown') {
+      if (input.key === '+' || input.key === '=') {
+        mainWindow.webContents.send('menu:action', { action: 'zoomIn' });
+      } else if (input.key === '-' || input.key === '_') {
+        mainWindow.webContents.send('menu:action', { action: 'zoomOut' });
+      } else if (input.key === '0') {
+        mainWindow.webContents.send('menu:action', { action: 'zoomReset' });
+      }
     }
   });
 
@@ -187,123 +211,27 @@ async function createWindow() {
     mainWindow = null;
   });
 
-  // Configurar menú de aplicación
-  setupMenu();
+  // Configurar menú nativo de aplicación (7 menús con i18n)
+  initMenu(mainWindow);
 }
 
-/**
- * Configura el menú de la aplicación
- */
-function setupMenu() {
-  const template = [
-    {
-      label: 'Archivo',
-      submenu: [
-        {
-          label: 'Recargar',
-          click: () => {
-            if (mainWindow) mainWindow.reload();
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'Salir',
-          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4',
-          click: () => {
-            app.quit();
-          }
-        }
-      ]
-    },
-    {
-      label: 'Ver',
-      submenu: [
-        {
-          label: 'Pantalla Completa',
-          accelerator: 'F11',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.setFullScreen(!mainWindow.isFullScreen());
-            }
-          }
-        },
-        {
-          label: 'DevTools',
-          accelerator: 'CmdOrCtrl+Shift+I',
-          click: () => {
-            if (mainWindow) mainWindow.webContents.toggleDevTools();
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'Zoom +',
-          accelerator: 'CmdOrCtrl+Plus',
-          click: () => {
-            if (mainWindow) {
-              const zoom = mainWindow.webContents.getZoomFactor();
-              mainWindow.webContents.setZoomFactor(zoom + 0.1);
-            }
-          }
-        },
-        {
-          label: 'Zoom -',
-          accelerator: 'CmdOrCtrl+-',
-          click: () => {
-            if (mainWindow) {
-              const zoom = mainWindow.webContents.getZoomFactor();
-              mainWindow.webContents.setZoomFactor(Math.max(0.5, zoom - 0.1));
-            }
-          }
-        },
-        {
-          label: 'Zoom 100%',
-          accelerator: 'CmdOrCtrl+0',
-          click: () => {
-            if (mainWindow) mainWindow.webContents.setZoomFactor(1);
-          }
-        }
-      ]
-    },
-    {
-      label: 'Ayuda',
-      submenu: [
-        {
-          label: 'Acerca de Synthi GME',
-          click: () => {
-            const { dialog } = require('electron');
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              title: 'Acerca de Synthi GME',
-              message: 'Synthi GME',
-              detail: `Versión: ${app.getVersion()}\n\nEmulador del sintetizador EMS Synthi usando Web Audio API.\n\nLicencia: MIT`
-            });
-          }
-        }
-      ]
-    }
-  ];
+// ─────────────────────────────────────────────────────────────────────────────
+// Handlers IPC para Menú nativo (sincronización bidireccional)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // En macOS, el primer elemento del menú es el nombre de la app
-  if (process.platform === 'darwin') {
-    template.unshift({
-      label: app.getName(),
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'services' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
-    });
+// Renderer → Main: sincronizar estado de checkboxes del menú
+ipcMain.on('menu:syncState', (event, state) => {
+  updateMenuState(state);
+});
+
+// Renderer → Main: sincronizar traducciones del menú
+ipcMain.on('menu:syncTranslations', (event, translations) => {
+  updateTranslations(translations);
+  // Actualizar título de la ventana con la traducción del idioma activo
+  if (mainWindow && translations['app.windowTitle']) {
+    mainWindow.setTitle(translations['app.windowTitle']);
   }
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-}
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuración OSC

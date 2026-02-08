@@ -4414,61 +4414,57 @@ small { color:#aaa; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PATCH BROWSER MODAL
+   PATCH BROWSER — Ventana flotante arrastrable
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.patch-browser-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-.patch-browser-overlay--visible {
-  opacity: 1;
-  visibility: visible;
-}
-
 .patch-browser-modal {
+  position: fixed;
+  z-index: 9000;
   width: 90%;
   max-width: 480px;
   max-height: 85vh;
   overflow-y: auto;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(28, 28, 28, 0.95);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  background: rgba(28, 28, 28, 0.97);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0,0,0,0.3);
   -webkit-overflow-scrolling: touch;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.patch-browser-modal--visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.patch-browser-modal--dragging {
+  user-select: none;
+  transition: none;
 }
 
 /* Workaround para Samsung (misma fix que settings-modal) */
 @media (hover: none) and (pointer: coarse) {
-  .patch-browser-overlay {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: rgba(0, 0, 0, 0.85);
-  }
-  
   .patch-browser-modal {
     will-change: transform;
     isolation: isolate;
   }
 }
 
-/* Header */
+/* Header (draggable) */
 .patch-browser__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  user-select: none;
+}
+
+.patch-browser-modal--dragging .patch-browser__header {
+  cursor: grabbing;
 }
 
 .patch-browser__title {

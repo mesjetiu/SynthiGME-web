@@ -193,11 +193,23 @@ export function setupMobileQuickActionsBar() {
   btnPatches.type = 'button';
   btnPatches.className = 'mobile-quickbar__btn';
   btnPatches.id = 'btnPatches';
+  let patchesOpen = false;
   setButtonTooltip(btnPatches, t('quickbar.patches'));
   btnPatches.innerHTML = iconSvg('ti-files');
+  btnPatches.setAttribute('aria-pressed', 'false');
+  
+  function updatePatchesButton(open) {
+    patchesOpen = open;
+    btnPatches.setAttribute('aria-pressed', String(open));
+    btnPatches.classList.toggle('is-active', open);
+  }
   
   btnPatches.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('synth:togglePatches'));
+  });
+  
+  document.addEventListener('synth:patchBrowserChanged', (e) => {
+    updatePatchesButton(e.detail?.open ?? false);
   });
 
   // Botón de PiP (paneles flotantes) con menú desplegable

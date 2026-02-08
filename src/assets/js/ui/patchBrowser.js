@@ -3,7 +3,8 @@
  * PATCH BROWSER - SynthiGME
  * ═══════════════════════════════════════════════════════════════════════════
  * 
- * Modal para navegar, cargar, guardar y gestionar patches.
+ * Ventana flotante arrastrable para navegar, cargar, guardar y gestionar patches.
+ * No bloquea la interacción con el canvas ni con las PiP.
  * Diseñado para uso en performances en vivo con interfaz propia
  * (sin diálogos del sistema operativo).
  * 
@@ -46,7 +47,7 @@ function iconSvg(symbolId) {
 }
 
 /**
- * Modal de navegación de patches.
+ * Ventana flotante de navegación de patches.
  */
 export class PatchBrowser {
   /**
@@ -68,11 +69,15 @@ export class PatchBrowser {
     this.searchQuery = '';
     
     // Elementos DOM
-    this.overlay = null;
     this.modal = null;
     this.patchList = null;
     this.searchInput = null;
     this.isOpen = false;
+    
+    // Drag state
+    this._isDragging = false;
+    this._dragOffset = { x: 0, y: 0 };
+    this._dragPointerId = null;
     
     // Crear UI
     this._create();
@@ -91,8 +96,17 @@ export class PatchBrowser {
     await this._loadPatches();
     this._render();
     
-    this.overlay.classList.add('patch-browser-overlay--visible');
-    this.overlay.setAttribute('aria-hidden', 'false');
+    // Centrar la ventana si no ha sido arrastrada previamente
+    if (!this.modal.style.left) {
+      this._centerModal();
+    }
+    
+    this.modal.classList.add('patch-browser-modal--visible');
+    this.modal.setAttribute('aria-hidden', 'false');
+    
+    document.dispatchEvent(new CustomEvent('synth:patchBrowserChanged', {
+      detail: { open: true }
+    }));
     
     // Focus en búsqueda
     requestAnimationFrame(() => {
@@ -106,9 +120,13 @@ export class PatchBrowser {
   close() {
     if (!this.isOpen) return;
     this.isOpen = false;
-    this.overlay.classList.remove('patch-browser-overlay--visible');
-    this.overlay.setAttribute('aria-hidden', 'true');
+    this.modal.classList.remove('patch-browser-modal--visible');
+    this.modal.setAttribute('aria-hidden', 'true');
     this.selectedPatchId = null;
+    
+    document.dispatchEvent(new CustomEvent('synth:patchBrowserChanged', {
+      detail: { open: false }
+    }));
   }
   
   /**
@@ -138,21 +156,17 @@ export class PatchBrowser {
    * Crea la estructura DOM del modal.
    */
   _create() {
-    // Overlay
-    this.overlay = document.createElement('div');
-    this.overlay.className = 'patch-browser-overlay';
-    this.overlay.setAttribute('aria-hidden', 'true');
-    
-    // Modal
+    // Floating panel (no blocking overlay)
     this.modal = document.createElement('div');
     this.modal.className = 'patch-browser-modal';
     this.modal.setAttribute('role', 'dialog');
     this.modal.setAttribute('aria-labelledby', 'patchBrowserTitle');
-    this.modal.setAttribute('aria-modal', 'true');
+    this.modal.setAttribute('aria-hidden', 'true');
     
-    // Header
+    // Header (draggable)
     const header = document.createElement('div');
     header.className = 'patch-browser__header';
+    this._setupDrag(header);
     
     this.titleElement = document.createElement('h2');
     this.titleElement.id = 'patchBrowserTitle';
@@ -252,19 +266,89 @@ export class PatchBrowser {
     this.modal.appendChild(this.patchList);
     this.modal.appendChild(actionsBar);
     
-    this.overlay.appendChild(this.modal);
-    
-    // Cerrar al hacer clic fuera
-    this.overlay.addEventListener('click', (e) => {
-      if (e.target === this.overlay) this.close();
-    });
-    
     // Escape para cerrar
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isOpen) this.close();
     });
     
-    document.body.appendChild(this.overlay);
+    document.body.appendChild(this.modal);
+  }
+  
+  /**
+   * Configura el drag del header para mover la ventana.
+   * @param {HTMLElement} header
+   */
+  _setupDrag(header) {
+    header.style.cursor = 'grab';
+    header.style.touchAction = 'none';
+    
+    header.addEventListener('pointerdown', (e) => {
+      // Solo botón principal, ignorar clicks en botón de cerrar
+      if (e.button !== 0 || e.target.closest('.patch-browser__close')) return;
+      
+      this._isDragging = true;
+      this._dragPointerId = e.pointerId;
+      
+      const rect = this.modal.getBoundingClientRect();
+      this._dragOffset.x = e.clientX - rect.left;
+      this._dragOffset.y = e.clientY - rect.top;
+      
+      this.modal.classList.add('patch-browser-modal--dragging');
+      header.style.cursor = 'grabbing';
+      header.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    
+    header.addEventListener('pointermove', (e) => {
+      if (!this._isDragging || e.pointerId !== this._dragPointerId) return;
+      
+      const newX = Math.max(0, Math.min(window.innerWidth - 60, e.clientX - this._dragOffset.x));
+      const newY = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - this._dragOffset.y));
+      
+      this.modal.style.left = `${newX}px`;
+      this.modal.style.top = `${newY}px`;
+    });
+    
+    header.addEventListener('pointerup', (e) => {
+      if (!this._isDragging || e.pointerId !== this._dragPointerId) return;
+      
+      this._isDragging = false;
+      this._dragPointerId = null;
+      this.modal.classList.remove('patch-browser-modal--dragging');
+      header.style.cursor = 'grab';
+      try { header.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    });
+    
+    header.addEventListener('pointercancel', (e) => {
+      if (!this._isDragging || e.pointerId !== this._dragPointerId) return;
+      
+      this._isDragging = false;
+      this._dragPointerId = null;
+      this.modal.classList.remove('patch-browser-modal--dragging');
+      header.style.cursor = 'grab';
+    });
+  }
+  
+  /**
+   * Centra la ventana flotante en la pantalla.
+   */
+  _centerModal() {
+    // Hacer visible temporalmente para medir
+    this.modal.style.visibility = 'hidden';
+    this.modal.style.opacity = '0';
+    this.modal.style.display = 'block';
+    
+    const rect = this.modal.getBoundingClientRect();
+    const x = Math.max(0, (window.innerWidth - rect.width) / 2);
+    const y = Math.max(0, (window.innerHeight - rect.height) / 2);
+    
+    this.modal.style.left = `${x}px`;
+    this.modal.style.top = `${y}px`;
+    
+    // Restaurar (la transición CSS se encargará)
+    this.modal.style.removeProperty('visibility');
+    this.modal.style.removeProperty('opacity');
+    this.modal.style.removeProperty('display');
   }
   
   /**
@@ -496,8 +580,7 @@ export class PatchBrowser {
         this.onLoad(fullPatch);
       }
       
-      this.close();
-      // Toast global visible incluso después de cerrar el modal
+      // La ventana permanece abierta para cambiar rápidamente de patch
       showToast(t('patches.loadedName', { name }));
     } catch (err) {
       log.error(' Error loading:', err);
@@ -656,8 +739,8 @@ export class PatchBrowser {
    */
   destroy() {
     if (this._unsubscribeLocale) this._unsubscribeLocale();
-    if (this.overlay?.parentNode) {
-      this.overlay.parentNode.removeChild(this.overlay);
+    if (this.modal?.parentNode) {
+      this.modal.parentNode.removeChild(this.modal);
     }
   }
 }

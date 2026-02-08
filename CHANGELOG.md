@@ -19,6 +19,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Electron: selector de idioma en menú Archivo**: Submenú Archivo → Idioma con radio buttons para los 7 idiomas soportados. Al seleccionar un idioma se cambia la localización de toda la app. El idioma activo aparece marcado y se sincroniza con los ajustes web.
 
 ### Cambiado
+- **Patch Browser: ventana flotante arrastrable (no modal)**: El navegador de patches ya no bloquea la interacción con el canvas y las PiP. Se puede arrastrar por el header, permanece abierta tras cargar un patch para cambio rápido, y se cierra con Escape o el botón ×. Icono en quickbar y entrada en menú Archivo (Electron) muestran estado activo (highlight / checkbox).
 - **Electron: Ctrl+/- hacen zoom según el foco**: Los atajos Ctrl+/- y Ctrl+0 ahora hacen zoom en la ventana PiP enfocada (última en la que se hizo clic) o en el canvas principal si no hay PiP en foco. En Linux, las acciones se envían directamente vía IPC ya que `before-input-event` bloquea los accelerators del menú nativo.
 - **Electron: Recargar pide confirmación**: Archivo → Recargar muestra un diálogo de confirmación antes de recargar, para evitar pérdida accidental de estado durante performances.
 - **Electron: Paneles nombrados simplemente Panel 1-7**: El submenú Paneles ahora muestra "Panel 1", "Panel 2"... sin descripciones de contenido.

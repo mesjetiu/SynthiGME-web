@@ -413,6 +413,11 @@ function setupStateListeners() {
     syncState({ oscEnabled: e.detail?.enabled ?? false });
   });
 
+  // Patch browser
+  document.addEventListener('synth:patchBrowserChanged', (e) => {
+    syncState({ patchBrowserOpen: e.detail?.open ?? false });
+  });
+
   // PiP changes
   window.addEventListener('pip:open', () => {
     const openPips = getOpenPips();

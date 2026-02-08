@@ -46,6 +46,7 @@ let menuState = {
   muted: false,
   recording: false,
   quickbarVisible: true,
+  patchBrowserOpen: false,
   // Ver
   inactivePins: false,
   tooltipVoltage: false,
@@ -140,6 +141,8 @@ function buildMenuTemplate() {
     submenu: [
       {
         label: t('menu.file.patches', 'Patches…'),
+        type: 'checkbox',
+        checked: menuState.patchBrowserOpen,
         click: () => sendAction('togglePatches')
       },
       { type: 'separator' },

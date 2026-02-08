@@ -985,6 +985,46 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }, 90);
   }, { passive: true });
 
+  // ─── Zoom programático (Ctrl+/Ctrl- desde menú Electron) ───
+  // Permite hacer zoom centrado en el viewport desde eventos globales
+  document.addEventListener('synth:zoomIn', () => {
+    metricsDirty = true;
+    refreshMetrics();
+    cancelRasterize();
+    const cx = (metrics.outerWidth || outer.clientWidth) / 2;
+    const cy = (metrics.outerHeight || outer.clientHeight) / 2;
+    const minScale = getMinScale();
+    const newScale = Math.min(maxScale, Math.max(minScale, scale * 1.25));
+    adjustOffsetsForZoom(cx, cy, newScale);
+    markUserAdjusted();
+    scheduleRasterize();
+  });
+
+  document.addEventListener('synth:zoomOut', () => {
+    metricsDirty = true;
+    refreshMetrics();
+    cancelRasterize();
+    const cx = (metrics.outerWidth || outer.clientWidth) / 2;
+    const cy = (metrics.outerHeight || outer.clientHeight) / 2;
+    const minScale = getMinScale();
+    const newScale = Math.min(maxScale, Math.max(minScale, scale * 0.8));
+    adjustOffsetsForZoom(cx, cy, newScale);
+    markUserAdjusted();
+    scheduleRasterize();
+  });
+
+  document.addEventListener('synth:zoomReset', () => {
+    metricsDirty = true;
+    refreshMetrics();
+    fitContentToViewport();
+    render();
+    userHasAdjustedView = false;
+    focusedPanelId = null;
+    if (window.__synthResetFocusedPanel) {
+      window.__synthResetFocusedPanel();
+    }
+  });
+
   // ─── Fullscreen transition handling ───
   // Handle fullscreen changes immediately without debounce to prevent blank screen
   document.addEventListener('fullscreenchange', () => {

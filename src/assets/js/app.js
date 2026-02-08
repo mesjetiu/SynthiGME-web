@@ -100,10 +100,10 @@ class App {
     sessionManager.setSerializeCallback(() => this._serializeCurrentState());
     sessionManager.setRestoreCallback((patch) => this._applyPatch(patch));
 
-    // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
+    // Paneles 1 y 4: vacíos por ahora (solo fondo JPG). Blueprints en panelBlueprints/.
+    // Panel 2: osciloscopio. Panel 3: osciladores + noise + random CV.
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
     labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
-    this._panel1Audio = { nodes: [] };
 
     this.panel2 = this.panelManager.createPanel({ id: 'panel-2' });
     labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
@@ -113,7 +113,6 @@ class App {
 
     this.panel4 = this.panelManager.createPanel({ id: 'panel-4' });
     labelPanelSlot(this.panel4, null, { row: 1, col: 4 });
-    this._panel4Audio = { nodes: [] };
 
     // Panel 5: matriz de audio
     this.panel5 = this.panelManager.createPanel({ id: 'panel-5' });
@@ -176,11 +175,11 @@ class App {
     this._outputFadersModule = null;
     
     // Construir paneles
-    // Panel 1 y 4: Solo visual, sin audio (módulos dummy a reemplazar)
-    this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
+    // Panel 1 y 4: vacíos (blueprints placeholder, sin módulos aún)
+    // this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
     this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
-    this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
+    // this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
     
     this._setupOutputFaders();
     this._buildLargeMatrices();
@@ -4319,6 +4318,7 @@ class App {
     this._heightSyncScheduled = true;
     requestAnimationFrame(() => {
       this._heightSyncScheduled = false;
+      // Panel 1 y 4: sin layout (vacíos). _reflowOscillatorPanel hace early-return si no hay data.
       this._reflowOscillatorPanel(1);
       this._reflowOscillatorPanel(2);
       this._reflowOscillatorPanel(3);

@@ -414,6 +414,18 @@ export function getOpenPips() {
 }
 
 /**
+ * Trae un PiP al frente y le da foco.
+ * Usado por los atajos de teclado (1-7) cuando el panel está en PiP.
+ * @param {string} panelId - ID del panel
+ * @returns {boolean} true si el panel estaba en PiP y se enfocó
+ */
+export function focusPip(panelId) {
+  if (!activePips.has(panelId)) return false;
+  bringToFront(panelId);
+  return true;
+}
+
+/**
  * Extrae un panel a modo PiP.
  * @param {string} panelId - ID del panel
  */
@@ -512,6 +524,16 @@ export function openPip(panelId) {
   resizeHandle.className = 'pip-resize-handle';
   pipContainer.appendChild(resizeHandle);
   
+  // Badge de shortcut para PiP (se muestra al pulsar Alt)
+  const existingBadge = panelEl.querySelector('.panel-shortcut-badge');
+  if (existingBadge) {
+    const pipBadge = document.createElement('span');
+    pipBadge.className = 'pip-shortcut-badge';
+    pipBadge.textContent = existingBadge.textContent;
+    pipBadge.setAttribute('aria-hidden', 'true');
+    pipContainer.appendChild(pipBadge);
+  }
+
   pipLayer.appendChild(pipContainer);
   
   // Estado inicial

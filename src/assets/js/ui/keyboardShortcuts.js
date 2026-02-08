@@ -7,6 +7,7 @@ import { t } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { isPipped, focusPip } from './pipManager.js';
 
 const log = createLogger('KeyboardShortcuts');
 
@@ -56,6 +57,19 @@ const DEFAULT_SHORTCUTS = {
   overview: { key: '0', shift: false, ctrl: false, alt: false }
 };
 
+/**
+ * Si el panel está en PiP, lo enfoca y trae al frente.
+ * Si no, hace zoom/pan en el canvas principal.
+ * @param {string} panelId - ID del panel
+ */
+function panelShortcutAction(panelId) {
+  if (isPipped(panelId)) {
+    focusPip(panelId);
+  } else {
+    window.__synthAnimateToPanel?.(panelId);
+  }
+}
+
 // Mapeo de acciones a eventos/handlers
 const SHORTCUT_ACTIONS = {
   mute: () => document.dispatchEvent(new CustomEvent('synth:toggleMute')),
@@ -89,14 +103,14 @@ const SHORTCUT_ACTIONS = {
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
     }
   },
-  // Navegación de paneles
-  panel1: () => window.__synthAnimateToPanel?.('panel-1'),
-  panel2: () => window.__synthAnimateToPanel?.('panel-2'),
-  panel3: () => window.__synthAnimateToPanel?.('panel-3'),
-  panel4: () => window.__synthAnimateToPanel?.('panel-4'),
-  panel5: () => window.__synthAnimateToPanel?.('panel-5'),
-  panel6: () => window.__synthAnimateToPanel?.('panel-6'),
-  panelOutput: () => window.__synthAnimateToPanel?.('panel-output'),
+  // Navegación de paneles (si está en PiP, enfocar PiP; si no, zoom en canvas)
+  panel1: () => panelShortcutAction('panel-1'),
+  panel2: () => panelShortcutAction('panel-2'),
+  panel3: () => panelShortcutAction('panel-3'),
+  panel4: () => panelShortcutAction('panel-4'),
+  panel5: () => panelShortcutAction('panel-5'),
+  panel6: () => panelShortcutAction('panel-6'),
+  panelOutput: () => panelShortcutAction('panel-output'),
   overview: () => window.__synthAnimateToPanel?.(null)
 };
 

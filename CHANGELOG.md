@@ -9,6 +9,11 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 - **PiP: botón de bloqueo (candado)**: Bloquea tamaño, proporción, zoom interior, paneo y resize de la ventana flotante. Solo permite arrastrar. Estado persistente entre sesiones.
+- **Atajos de teclado (1-7) detectan PiP**: Si un panel está en modo flotante, el atajo lo enfoca y trae al frente en lugar de hacer zoom sobre el placeholder vacío del canvas.
+
+### Corregido
+- **Tooltip de knob pulsando indefinidamente**: Al hacer zoom a panel vía teclado (1-7), los tooltips activos se cierran para evitar que queden pulsando sin fin al moverse el contenido bajo el puntero.
+- **Badges de shortcut no reflejaban atajos personalizados**: Los números sobre los paneles (al pulsar Alt) ahora muestran el atajo real configurado en ajustes, no siempre 1-7.
 
 ### Cambiado
 - **Fondos de paneles**: Paneles 1, 2, 3, 4 y 7 usan JPG temporales de diseño en lugar de SVGs vacíos. Panel 3 ya no carga su SVG placeholder. Paneles 5 y 6 (matrices) mantienen sus SVGs de producción. Instrucciones de migración a SVG documentadas en código.

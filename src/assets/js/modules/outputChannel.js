@@ -447,6 +447,11 @@ export class OutputChannel extends Module {
         this._hideSliderTooltip();
       }
     });
+
+    // Forzar cierre del tooltip cuando el viewport se anima (zoom a panel vía teclado)
+    document.addEventListener('synth:dismissTooltips', () => {
+      this._hideSliderTooltip();
+    });
     
     slider.addEventListener('input', () => {
       if (isNavGestureActive()) {

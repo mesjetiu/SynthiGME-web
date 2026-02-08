@@ -523,16 +523,6 @@ export function openPip(panelId) {
   const resizeHandle = document.createElement('div');
   resizeHandle.className = 'pip-resize-handle';
   pipContainer.appendChild(resizeHandle);
-  
-  // Badge de shortcut para PiP (se muestra al pulsar Alt)
-  const existingBadge = panelEl.querySelector('.panel-shortcut-badge');
-  if (existingBadge) {
-    const pipBadge = document.createElement('span');
-    pipBadge.className = 'pip-shortcut-badge';
-    pipBadge.textContent = existingBadge.textContent;
-    pipBadge.setAttribute('aria-hidden', 'true');
-    pipContainer.appendChild(pipBadge);
-  }
 
   pipLayer.appendChild(pipContainer);
   

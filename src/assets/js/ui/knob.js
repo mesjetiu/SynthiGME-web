@@ -364,6 +364,12 @@ export class Knob {
         this._hideTooltip();
       }
     });
+
+    // Forzar cierre del tooltip cuando el viewport se anima (zoom a panel vía teclado):
+    // El contenido se desplaza bajo el puntero sin generar pointerleave.
+    document.addEventListener('synth:dismissTooltips', () => {
+      this._hideTooltip();
+    });
     
     // ─────────────────────────────────────────────────────────────────────
     // TÁCTIL: tap para mostrar tooltip con auto-hide

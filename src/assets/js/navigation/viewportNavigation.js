@@ -3,6 +3,7 @@
 
 import { renderCanvasBgViewport, shouldUseCanvasBg, renderCanvasBgPanels } from '../utils/canvasBackground.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { keyboardShortcuts } from '../ui/keyboardShortcuts.js';
 
 /**
  * Inicializa el sistema de navegación del viewport.
@@ -181,6 +182,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
     
     cancelRasterize();
+    // Ocultar tooltips de knobs/sliders: el contenido se mueve bajo el puntero
+    // y no se dispara pointerleave, dejando el tooltip activo indefinidamente.
+    document.dispatchEvent(new Event('synth:dismissTooltips'));
     requestAnimationFrame(animateStep);
   }
   
@@ -1129,35 +1133,75 @@ export function initViewportNavigation({ outer, inner } = {}) {
 //   });
 // }
 
+/** Mapeo de actionId → panelId para los badges de shortcut */
+const PANEL_SHORTCUT_MAP = [
+  { actionId: 'panel1', panelId: 'panel-1' },
+  { actionId: 'panel2', panelId: 'panel-2' },
+  { actionId: 'panel3', panelId: 'panel-3' },
+  { actionId: 'panel4', panelId: 'panel-4' },
+  { actionId: 'panel5', panelId: 'panel-5' },
+  { actionId: 'panel6', panelId: 'panel-6' },
+  { actionId: 'panelOutput', panelId: 'panel-output' }
+];
+
 /**
- * Crea badges con el número de shortcut en cada panel.
+ * Obtiene el texto corto del shortcut para mostrar en el badge.
+ * @param {string} actionId - ID de la acción (ej: 'panel1')
+ * @returns {string} Texto a mostrar (ej: '1', 'A', 'Ctrl+1'...)
+ */
+function getShortcutLabel(actionId) {
+  const binding = keyboardShortcuts.get(actionId);
+  if (!binding || !binding.key) return '—';
+  // Si es solo una tecla sin modificadores, mostrar solo la tecla en mayúscula
+  const hasMods = binding.ctrl || binding.alt || binding.shift;
+  if (!hasMods) return binding.key.toUpperCase();
+  return keyboardShortcuts.formatBinding(binding);
+}
+
+/**
+ * Actualiza el texto de todos los badges (panel + PiP) según los atajos actuales.
+ */
+function refreshShortcutBadges() {
+  PANEL_SHORTCUT_MAP.forEach(({ actionId, panelId }) => {
+    const label = getShortcutLabel(actionId);
+    // Badge en el panel del canvas
+    const panel = document.getElementById(panelId);
+    const badge = panel?.querySelector('.panel-shortcut-badge');
+    if (badge) {
+      badge.textContent = label;
+      badge.setAttribute('title', `Shortcut: ${label}`);
+    }
+    // Badge en la ventana PiP (si existe)
+    const pipContainer = document.querySelector(`.pip-container[data-panel-id="${panelId}"] .pip-shortcut-badge`);
+    if (pipContainer) {
+      pipContainer.textContent = label;
+    }
+  });
+}
+
+/**
+ * Crea badges con el shortcut en cada panel y se suscribe a cambios.
  */
 export function setupPanelShortcutBadges() {
-  const PANEL_DATA = [
-    { id: 'panel-1', num: '1' },
-    { id: 'panel-2', num: '2' },
-    { id: 'panel-3', num: '3' },
-    { id: 'panel-4', num: '4' },
-    { id: 'panel-5', num: '5' },
-    { id: 'panel-6', num: '6' },
-    { id: 'panel-output', num: '7' }
-  ];
-
-  PANEL_DATA.forEach(({ id, num }) => {
-    const panel = document.getElementById(id);
+  PANEL_SHORTCUT_MAP.forEach(({ actionId, panelId }) => {
+    const panel = document.getElementById(panelId);
     if (!panel) return;
 
     // Evitar duplicados
     if (panel.querySelector('.panel-shortcut-badge')) return;
 
+    const label = getShortcutLabel(actionId);
     const badge = document.createElement('span');
     badge.className = 'panel-shortcut-badge';
-    badge.textContent = num;
+    badge.textContent = label;
     badge.setAttribute('aria-hidden', 'true');
-    badge.setAttribute('title', `Shortcut: ${num}`);
+    badge.setAttribute('title', `Shortcut: ${label}`);
     
     panel.appendChild(badge);
   });
+
+  // Actualizar badges cuando el usuario cambie los atajos en ajustes
+  keyboardShortcuts.onChange(() => refreshShortcutBadges());
 }
 
 // DESACTIVADO: actualización visual de botones de zoom (botón desactivado)

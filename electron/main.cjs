@@ -203,6 +203,18 @@ async function createWindow() {
     }
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Restaurar menú nativo tras salir de HTML5 Fullscreen
+  // La web Fullscreen API (document.requestFullscreen) dispara
+  // enter/leave-html-full-screen en Electron. Al salir, el menú nativo
+  // puede quedar oculto (autoHideMenuBar=true internamente).
+  // Forzamos su visibilidad al salir.
+  // ─────────────────────────────────────────────────────────────────────────
+  mainWindow.on('leave-html-full-screen', () => {
+    mainWindow.setAutoHideMenuBar(false);
+    mainWindow.setMenuBarVisibility(true);
+  });
+
   // Abrir DevTools en desarrollo (descomentar si necesario)
   // mainWindow.webContents.openDevTools();
 

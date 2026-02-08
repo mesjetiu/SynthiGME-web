@@ -606,7 +606,7 @@ html:-webkit-full-screen #viewportOuter {
 }
 #panel-5,
 #panel-6 {
-  background-color: #7D7570;
+  background-color: #DCD8D7;
   background-image: none;
   padding: 0;
   display: flex;
@@ -1744,7 +1744,7 @@ small { color:#aaa; }
   display: flex;
   flex-direction: column;
   user-select: none;
-  background-color: #7D7570 !important;
+  background-color: #7D7570;
   grid-column: var(--panel-col, auto);
 }
 

@@ -16,10 +16,11 @@ const CANVAS_BG_LOAD_TIMEOUT_MS = 1500;
 const CANVAS_BG_PX_PER_CSS_PX = 2;
 const CANVAS_BG_PANELS = ['panel-1', 'panel-2', 'panel-3', 'panel-4'];
 const CANVAS_BG_SVG_BY_PANEL = {
-  // SVG ocultos temporalmente: paneles 1, 2 y 4 (dejar URLs comentadas para revertir rápido).
+  // SVG ocultos temporalmente: paneles 1, 2, 3 y 4 (dejar URLs comentadas para revertir rápido).
+  // Se usan JPGs de desarrollo; descomentar cuando los SVGs estén listos.
   // 'panel-1': './assets/panels/panel1_bg.svg',
   // 'panel-2': './assets/panels/panel2_bg.svg',
-  'panel-3': './assets/panels/panel3_bg.svg',
+  // 'panel-3': './assets/panels/panel3_bg.svg',
   // 'panel-4': './assets/panels/panel4_bg.svg'
 };
 
@@ -275,4 +276,25 @@ export async function injectInlinePanelSvgBackground(panelId, svgUrl, retries = 
   }
   
   panel.classList.add('has-inline-bg'); // Marcar como procesado aunque falle
+}
+
+/**
+ * Aplica una imagen (JPG/PNG) como fondo de un panel vía CSS background-image.
+ * Uso temporal durante desarrollo; se reemplazará por SVGs cuando estén listos.
+ *
+ * Para migrar un panel a SVG:
+ *  1. Descomentar su línea injectInlinePanelSvgBackground() en app.js
+ *  2. Comentar/eliminar su línea setPanelImageBackground() en app.js
+ *  3. Descomentar la entrada en CANVAS_BG_SVG_BY_PANEL (arriba en este archivo)
+ *  4. Cuando todos los paneles usen SVG, eliminar esta función y los JPGs.
+ *
+ * @param {string} panelId - ID del panel (ej. 'panel-1', 'panel-output')
+ * @param {string} imageUrl - URL de la imagen de fondo
+ */
+export function setPanelImageBackground(panelId, imageUrl) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.style.backgroundImage = `url('${imageUrl}')`;
+  panel.style.backgroundSize = '100% 100%';
+  panel.style.backgroundRepeat = 'no-repeat';
 }

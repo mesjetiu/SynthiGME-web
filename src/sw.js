@@ -12,6 +12,11 @@ const CORE_ASSETS = [
   './assets/panels/panel4_bg.svg',
   './assets/panels/panel5_bg.svg',
   './assets/panels/panel6_bg.svg',
+  './assets/panels/panel_1.jpg',
+  './assets/panels/panel_2.jpg',
+  './assets/panels/panel_3.jpg',
+  './assets/panels/panel_4.jpg',
+  './assets/panels/panel_7.jpg',
   './manifest.webmanifest',
   './assets/pwa/icons/app-icon-192.png',
   './assets/pwa/icons/app-icon-512.png'

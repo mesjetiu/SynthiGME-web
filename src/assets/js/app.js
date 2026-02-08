@@ -58,7 +58,8 @@ import { deepMerge } from './utils/objects.js';
 import { 
   preloadCanvasBgImages, 
   renderCanvasBgPanels, 
-  injectInlinePanelSvgBackground 
+  injectInlinePanelSvgBackground,
+  setPanelImageBackground
 } from './utils/canvasBackground.js';
 import { 
   initViewportNavigation, 
@@ -122,20 +123,39 @@ class App {
     this.panel6 = this.panelManager.createPanel({ id: 'panel-6' });
     labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
 
-    // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
-    // Paneles con fondo desactivado temporalmente: 1, 2 y 4.
-    // injectInlinePanelSvgBackground('panel-1', './assets/panels/panel1_bg.svg');
-    // injectInlinePanelSvgBackground('panel-2', './assets/panels/panel2_bg.svg');
-    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
-    // injectInlinePanelSvgBackground('panel-4', './assets/panels/panel4_bg.svg');
+    // ── Fondos de paneles ──────────────────────────────────────────────
+    // Paneles 5 y 6 (matrices): SVG de producción, terminados.
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
-        
-    // Canvas: pinta fondos de panel-1/2/3/4 para evitar lagunas en móvil.
+
+    // Paneles 1, 2, 3, 4 y 7: JPG temporales de desarrollo.
+    // ┌─────────────────────────────────────────────────────────────────┐
+    // │ MIGRAR UN PANEL DE JPG → SVG:                                  │
+    // │  1. Colocar el SVG en src/assets/panels/panelN_bg.svg          │
+    // │  2. Descomentar la línea injectInlinePanelSvgBackground(...)   │
+    // │  3. Comentar/eliminar la línea setPanelImageBackground(...)    │
+    // │  4. Descomentar la entrada en CANVAS_BG_SVG_BY_PANEL           │
+    // │     (canvasBackground.js) para soporte canvas en móvil         │
+    // │  5. Cuando TODOS los paneles tengan SVG, eliminar los JPGs     │
+    // │     de src/assets/panels/ y la función setPanelImageBackground │
+    // └─────────────────────────────────────────────────────────────────┘
+    // injectInlinePanelSvgBackground('panel-1', './assets/panels/panel1_bg.svg');
+    // injectInlinePanelSvgBackground('panel-2', './assets/panels/panel2_bg.svg');
+    // injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
+    // injectInlinePanelSvgBackground('panel-4', './assets/panels/panel4_bg.svg');
+
+    // Canvas: pinta fondos SVG de panel-1/2/3/4 en móvil (solo actúa si hay SVGs descomentados arriba).
     preloadCanvasBgImages();
     renderCanvasBgPanels();
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
+
+    // Fondos JPG temporales (eliminar línea correspondiente al migrar a SVG).
+    setPanelImageBackground('panel-1', './assets/panels/panel_1.jpg');
+    setPanelImageBackground('panel-2', './assets/panels/panel_2.jpg');
+    setPanelImageBackground('panel-3', './assets/panels/panel_3.jpg');
+    setPanelImageBackground('panel-4', './assets/panels/panel_4.jpg');
+    setPanelImageBackground('panel-output', './assets/panels/panel_7.jpg');
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
     // Sección para output channels - posicionada en la mitad inferior del panel

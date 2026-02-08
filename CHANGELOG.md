@@ -12,6 +12,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Cambiado
 - **Fondos de paneles**: Paneles 1, 2, 3, 4 y 7 usan JPG temporales de diseño en lugar de SVGs vacíos. Panel 3 ya no carga su SVG placeholder. Paneles 5 y 6 (matrices) mantienen sus SVGs de producción. Instrucciones de migración a SVG documentadas en código.
+- **Paneles 3 y 7: ocultar textos de módulos**: Eliminados títulos, etiquetas de knobs, valores numéricos y textos de switches en Panel 3 (osciladores, noise, random voltage) y Panel 7 (output channels), ya que están en las imágenes de fondo. Reglas CSS comentadas para restaurar fácilmente.
 - **PiP: botones +/- son ahora maximizar/minimizar**: El botón + maximiza la ventana proporcionalmente hasta alcanzar un borde de pantalla, − restaura al tamaño por defecto. Se respeta la proporción de lados actual en ambos casos.
 
 ## [0.6.0] - 2026-02-08

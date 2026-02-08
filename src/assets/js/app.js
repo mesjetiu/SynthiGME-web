@@ -63,7 +63,7 @@ import {
 } from './utils/canvasBackground.js';
 import { 
   initViewportNavigation, 
-  setupPanelZoomButtons, 
+  // setupPanelZoomButtons,  // DESACTIVADO: botón de zoom en panel (se mantiene doble click)
   setupPanelDoubleTapZoom,
   setupPanelShortcutBadges
 } from './navigation/viewportNavigation.js';
@@ -4444,7 +4444,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   
   // Configurar UI móvil y zoom de paneles
   setupMobileQuickActionsBar();
-  setupPanelZoomButtons();
+  // setupPanelZoomButtons();  // DESACTIVADO: botón de zoom en panel (se mantiene doble click)
   setupPanelShortcutBadges();
   setupPanelDoubleTapZoom();
   

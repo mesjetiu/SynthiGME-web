@@ -703,7 +703,8 @@ html:-webkit-full-screen #viewportOuter {
   z-index: 2;
 }
 
-/* Botón de zoom a panel (esquina inferior derecha) */
+/* DESACTIVADO: Botón de zoom a panel (esquina inferior derecha)
+   Se mantiene doble click/tap para centrar panel. Descomentar si se recupera.
 .panel-zoom-btn {
   position: absolute;
   right: 6px;
@@ -741,6 +742,7 @@ html:-webkit-full-screen #viewportOuter {
   border-color: rgba(255,215,128,0.6);
   color: #ffe9a3;
 }
+*/
 
 /* Indicador de número de panel (shortcut badge) - overlay grande al pulsar Ctrl */
 .panel-shortcut-badge {
@@ -769,6 +771,7 @@ body.show-panel-shortcuts .panel-shortcut-badge {
   visibility: visible;
 }
 
+/* DESACTIVADO: estilos adicionales del botón de zoom (botón desactivado)
 .panel-zoom-btn svg {
   width: 18px;
   height: 18px;
@@ -779,7 +782,6 @@ body.show-panel-shortcuts .panel-shortcut-badge {
   fill: none;
 }
 
-/* Asegurar que el botón de zoom esté bien posicionado en paneles 5 y 6 */
 #panel-5 > .panel-zoom-btn,
 #panel-6 > .panel-zoom-btn {
   position: absolute;
@@ -790,6 +792,7 @@ body.show-panel-shortcuts .panel-shortcut-badge {
   margin: 0;
   flex: none;
 }
+*/
 
 /* MODO AJUSTE: permite que el frame se salga del panel (no recortar pintura). */
 #panel-5.matrix-adjust,
@@ -2039,6 +2042,24 @@ small { color:#aaa; }
   height: 13px;
   top: 5px;
   border-radius: 2px;
+}
+
+/* ─── Panel 3: ocultar textos y valores (ya están en la imagen de fondo) ─── */
+/* Para restaurar los textos, descomentar este bloque */
+.panel3-layout .sgme-osc__header,
+.panel3-layout .sgme-osc__labels,
+.panel3-layout .sgme-osc__switch-label,
+.panel3-layout .sgme-osc__switch-hi,
+.panel3-layout .sgme-osc__switch-lo,
+.panel3-layout .noise-generator__header,
+.panel3-layout .noise-generator__knob-label,
+.panel3-layout .random-voltage__header,
+.panel3-layout .random-voltage__knob-label,
+/* Valores numéricos debajo de los knobs */
+.panel3-layout .sgme-osc__knob-value,
+.panel3-layout .noise-generator__knob-value,
+.panel3-layout .random-voltage__knob-value {
+  display: none;
 }
 
 .panel3-reserved-row {
@@ -5191,6 +5212,14 @@ small { color:#aaa; }
   margin-top: 4px;
   font-size: 9px;
   color: #bbb;
+}
+
+/* ─── Panel 7: ocultar textos y valores (ya están en la imagen de fondo) ─── */
+/* Para restaurar los textos, descomentar este bloque */
+#panel-output .synth-module__header,
+#panel-output .knob-label,
+#panel-output .knob-value {
+  display: none;
 }
 
 /* ─── Panel 7 Layout ─── */

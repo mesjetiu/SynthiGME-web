@@ -173,9 +173,10 @@ export function initViewportNavigation({ outer, inner } = {}) {
       } else {
         scheduleLowZoomUpdate();
         scheduleRasterize();
-        if (typeof updatePanelZoomButtons === 'function') {
-          updatePanelZoomButtons();
-        }
+        // DESACTIVADO: botón de zoom en panel
+        // if (typeof updatePanelZoomButtons === 'function') {
+        //   updatePanelZoomButtons();
+        // }
       }
     }
     
@@ -187,9 +188,10 @@ export function initViewportNavigation({ outer, inner } = {}) {
   window.__synthGetFocusedPanel = () => focusedPanelId;
   window.__synthResetFocusedPanel = () => {
     focusedPanelId = null;
-    if (typeof updatePanelZoomButtons === 'function') {
-      updatePanelZoomButtons();
-    }
+    // DESACTIVADO: botón de zoom en panel
+    // if (typeof updatePanelZoomButtons === 'function') {
+    //   updatePanelZoomButtons();
+    // }
   };
 
   const LOW_ZOOM_ENTER = 0.45;
@@ -1080,48 +1082,52 @@ export function initViewportNavigation({ outer, inner } = {}) {
   });
 }
 
-/**
- * Configura botones de zoom en cada panel.
- */
-export function setupPanelZoomButtons() {
-  const PANEL_IDS = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'panel-6', 'panel-output'];
-  const ICON_SPRITE = './assets/icons/ui-sprite.svg';
-  
-  const iconSvg = symbolId => `
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <use href="${ICON_SPRITE}#${symbolId}"></use>
-    </svg>
-  `;
-  
-  PANEL_IDS.forEach(panelId => {
-    const panel = document.getElementById(panelId);
-    if (!panel) return;
-    
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'panel-zoom-btn';
-    btn.setAttribute('aria-label', 'Enfocar panel');
-    btn.setAttribute('data-panel-id', panelId);
-    btn.innerHTML = iconSvg('ti-focus-2');
-    
-    btn.style.cssText = 'position:absolute; right:6px; bottom:6px; left:auto; top:auto;';
-    
-    btn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      const animateFn = window.__synthAnimateToPanel;
-      const getFocused = window.__synthGetFocusedPanel;
-      if (!animateFn) return;
-      
-      if (getFocused && getFocused() === panelId) {
-        animateFn(null);
-      } else {
-        animateFn(panelId);
-      }
-    });
-    
-    panel.appendChild(btn);
-  });
-}
+// ─── DESACTIVADO: botón de zoom en esquina inferior derecha de cada panel ───
+// Se mantiene la funcionalidad de doble click/tap para centrar panel.
+// Descomentar si se quiere recuperar el botón.
+//
+// /**
+//  * Configura botones de zoom en cada panel.
+//  */
+// export function setupPanelZoomButtons() {
+//   const PANEL_IDS = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'panel-6', 'panel-output'];
+//   const ICON_SPRITE = './assets/icons/ui-sprite.svg';
+//   
+//   const iconSvg = symbolId => `
+//     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+//       <use href="${ICON_SPRITE}#${symbolId}"></use>
+//     </svg>
+//   `;
+//   
+//   PANEL_IDS.forEach(panelId => {
+//     const panel = document.getElementById(panelId);
+//     if (!panel) return;
+//     
+//     const btn = document.createElement('button');
+//     btn.type = 'button';
+//     btn.className = 'panel-zoom-btn';
+//     btn.setAttribute('aria-label', 'Enfocar panel');
+//     btn.setAttribute('data-panel-id', panelId);
+//     btn.innerHTML = iconSvg('ti-focus-2');
+//     
+//     btn.style.cssText = 'position:absolute; right:6px; bottom:6px; left:auto; top:auto;';
+//     
+//     btn.addEventListener('click', (ev) => {
+//       ev.stopPropagation();
+//       const animateFn = window.__synthAnimateToPanel;
+//       const getFocused = window.__synthGetFocusedPanel;
+//       if (!animateFn) return;
+//       
+//       if (getFocused && getFocused() === panelId) {
+//         animateFn(null);
+//       } else {
+//         animateFn(panelId);
+//       }
+//     });
+//     
+//     panel.appendChild(btn);
+//   });
+// }
 
 /**
  * Crea badges con el número de shortcut en cada panel.
@@ -1154,13 +1160,14 @@ export function setupPanelShortcutBadges() {
   });
 }
 
-export function updatePanelZoomButtons() {
-  const focusedId = window.__synthGetFocusedPanel ? window.__synthGetFocusedPanel() : null;
-  document.querySelectorAll('.panel-zoom-btn').forEach(btn => {
-    const panelId = btn.getAttribute('data-panel-id');
-    btn.classList.toggle('is-zoomed', panelId === focusedId);
-  });
-}
+// DESACTIVADO: actualización visual de botones de zoom (botón desactivado)
+// export function updatePanelZoomButtons() {
+//   const focusedId = window.__synthGetFocusedPanel ? window.__synthGetFocusedPanel() : null;
+//   document.querySelectorAll('.panel-zoom-btn').forEach(btn => {
+//     const panelId = btn.getAttribute('data-panel-id');
+//     btn.classList.toggle('is-zoomed', panelId === focusedId);
+//   });
+// }
 
 /**
  * Configura doble tap/click en paneles para alternar zoom.

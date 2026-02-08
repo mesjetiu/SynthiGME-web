@@ -11,7 +11,7 @@ const path = require('path');
 const { createServer } = require('http');
 const { readFileSync, existsSync, statSync } = require('fs');
 const { OSCServer } = require('./oscServer.cjs');
-const { initMenu, updateMenuState, updateTranslations } = require('./electronMenu.cjs');
+const { initMenu, rebuildMenu, updateMenuState, updateTranslations } = require('./electronMenu.cjs');
 
 // Establecer nombre de la aplicación (visible en PipeWire/PulseAudio)
 app.setName('SynthiGME');
@@ -204,16 +204,25 @@ async function createWindow() {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Restaurar menú nativo tras salir de HTML5 Fullscreen
-  // La web Fullscreen API (document.requestFullscreen) dispara
-  // enter/leave-html-full-screen en Electron. Al salir, el menú nativo
-  // puede quedar oculto (autoHideMenuBar=true internamente).
-  // Forzamos su visibilidad al salir.
+  // Restaurar menú nativo tras salir de fullscreen
+  // document.requestFullscreen() en Electron dispara AMBOS eventos:
+  //   enter-full-screen (native) + enter-html-full-screen
+  // Al salir, setMenuBarVisibility(true) no basta porque Electron no
+  // re-renderiza el menú. Solución: reconstruir el menú completo y
+  // forzar foco de la ventana con un delay para que la transición termine.
   // ─────────────────────────────────────────────────────────────────────────
-  mainWindow.on('leave-html-full-screen', () => {
-    mainWindow.setAutoHideMenuBar(false);
-    mainWindow.setMenuBarVisibility(true);
-  });
+  const restoreMenuAfterFullscreen = () => {
+    setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      mainWindow.setAutoHideMenuBar(false);
+      mainWindow.setMenuBarVisibility(true);
+      rebuildMenu();
+      mainWindow.focus();
+    }, 200);
+  };
+
+  mainWindow.on('leave-full-screen', restoreMenuAfterFullscreen);
+  mainWindow.on('leave-html-full-screen', restoreMenuAfterFullscreen);
 
   // Abrir DevTools en desarrollo (descomentar si necesario)
   // mainWindow.webContents.openDevTools();

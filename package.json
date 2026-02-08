@@ -13,7 +13,7 @@
     "test:all": "node scripts/test-all.mjs",
     "pretest:require": "node scripts/run-tests.mjs --require-pass",
     
-    "dev": "npm run build:i18n && electron .",
+    "dev": "npm run build:i18n && node scripts/build.mjs --outdir=dist-app && electron .",
     "dev:web": "npm run build:i18n && node scripts/build.mjs && echo 'Abre docs/index.html en navegador'",
     
     "build:i18n": "node scripts/build-i18n.mjs",

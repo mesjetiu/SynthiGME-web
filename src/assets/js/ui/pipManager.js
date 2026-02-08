@@ -730,6 +730,8 @@ function setupPipEvents(pipContainer, panelId) {
   pipContainer.addEventListener('touchcancel', (e) => e.stopPropagation(), { capture: true, passive: true });
   
   // touchend: bloquear propagación + detectar doble tap
+  // IMPORTANTE: fase de BURBUJA (no captura) para que primero se ejecute
+  // el touchend del content (que resetea gestureInProgress/__synthPipGestureActive)
   let lastTapTime = 0;
   pipContainer.addEventListener('touchend', (e) => {
     e.stopPropagation();
@@ -738,96 +740,80 @@ function setupPipEvents(pipContainer, panelId) {
       e.preventDefault();
     }
     lastTapTime = now;
-  }, { capture: true, passive: false });
+  }, { passive: false });
   
   // wheel: bloquear propagación al viewport
-  pipContainer.addEventListener('wheel', (e) => e.stopPropagation());
+  pipContainer.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
   
   // Wheel para pan/zoom en el PiP
-  // Separado en dos handlers para optimizar: uno pasivo para pan, otro no-pasivo para Ctrl+zoom
+  // Un solo handler: preventDefault solo en Ctrl+wheel (zoom), pan es pasivo de hecho
+  // NOTA: passive:false es necesario porque Ctrl+wheel necesita preventDefault().
+  // Chrome reporta Violation pero es intencional y necesario para evitar el zoom del navegador.
   const pipViewport = pipContainer.querySelector('.pip-viewport');
   const pipViewportInner = pipContainer.querySelector('.pip-viewport-inner');
-  
-  // Handler pasivo para pan (sin Ctrl)
   pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {
     const state = activePips.get(panelId);
-    if (!state || e.ctrlKey) return; // Ignorar Ctrl+wheel aquí
+    if (!state) return;
     
-    // Pan manual con límites: al menos 2/3 del panel visible en cada eje
-    const viewportW = pipViewport.clientWidth;
-    const viewportH = pipViewport.clientHeight;
-    
-    // Tamaño del panel escalado
-    const panelEl = document.getElementById(panelId);
-    const scaledW = (panelEl?.offsetWidth || 760) * state.scale;
-    const scaledH = (panelEl?.offsetHeight || 760) * state.scale;
-    
-    // Mínimo visible: 2/3 del menor entre viewport y panel escalado
-    const minVisX = Math.min(viewportW, scaledW) * (2 / 3);
-    const minVisY = Math.min(viewportH, scaledH) * (2 / 3);
-    
-    // Calcular padding (mismo cálculo que updatePipScale)
-    const paddingX = Math.max(0, viewportW - minVisX);
-    const paddingY = Math.max(0, viewportH - minVisY);
-    
-    // Límites de scroll para mantener 2/3 del panel visible
-    const minScrollX = Math.max(0, paddingX + minVisX - viewportW);
-    const maxScrollX = paddingX + scaledW - minVisX;
-    const minScrollY = Math.max(0, paddingY + minVisY - viewportH);
-    const maxScrollY = paddingY + scaledH - minVisY;
-    
-    // Escalar el delta cuadráticamente con el zoom: a menor zoom, paneo mucho más suave
-    // scale² da: 0.4→0.16, 0.7→0.49, 1.0→1.0 (natural a zoom real)
-    const panFactor = state.scale * state.scale;
-    const newScrollX = pipViewport.scrollLeft + (e.deltaX || 0) * panFactor;
-    const newScrollY = pipViewport.scrollTop + (e.deltaY || 0) * panFactor;
-    
-    pipViewport.scrollLeft = Math.max(minScrollX, Math.min(maxScrollX, newScrollX));
-    pipViewport.scrollTop = Math.max(minScrollY, Math.min(maxScrollY, newScrollY));
-  }, { passive: true }); // Pasivo: no hacemos preventDefault
-  
-  // Handler no-pasivo solo para Ctrl+wheel zoom (evitar zoom del navegador)
-  pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {
-    const state = activePips.get(panelId);
-    if (!state || !e.ctrlKey) return; // Solo Ctrl+wheel
-    
-    // Zoom centrado en el cursor
-    e.preventDefault();
-    
-    const oldScale = state.scale;
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
-    const minScale = getMinScale(panelId);
-    const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale + delta));
-    
-    if (newScale !== oldScale) {
-      // Posición del cursor relativa al viewport
-      const rect = pipViewport.getBoundingClientRect();
-      const cursorX = e.clientX - rect.left;
-      const cursorY = e.clientY - rect.top;
+    if (e.ctrlKey) {
+      // Zoom centrado en el cursor — necesita preventDefault
+      e.preventDefault();
       
-      // Leer padding actual del viewport-inner
-      const oldPaddingX = parseFloat(pipViewportInner.style.paddingLeft) || 0;
-      const oldPaddingY = parseFloat(pipViewportInner.style.paddingTop) || 0;
+      const oldScale = state.scale;
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      const minScale = getMinScale(panelId);
+      const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale + delta));
       
-      // Punto del panel (en coordenadas originales sin escalar) bajo el cursor
-      const panelPointX = (pipViewport.scrollLeft + cursorX - oldPaddingX) / oldScale;
-      const panelPointY = (pipViewport.scrollTop + cursorY - oldPaddingY) / oldScale;
+      if (newScale !== oldScale) {
+        const rect = pipViewport.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        
+        const oldPaddingX = parseFloat(pipViewportInner.style.paddingLeft) || 0;
+        const oldPaddingY = parseFloat(pipViewportInner.style.paddingTop) || 0;
+        
+        const panelPointX = (pipViewport.scrollLeft + cursorX - oldPaddingX) / oldScale;
+        const panelPointY = (pipViewport.scrollTop + cursorY - oldPaddingY) / oldScale;
+        
+        updatePipScale(panelId, newScale);
+        
+        const newPaddingX = parseFloat(pipViewportInner.style.paddingLeft) || 0;
+        const newPaddingY = parseFloat(pipViewportInner.style.paddingTop) || 0;
+        
+        const newScrollX = panelPointX * newScale + newPaddingX - cursorX;
+        const newScrollY = panelPointY * newScale + newPaddingY - cursorY;
+        
+        pipViewport.scrollLeft = Math.max(0, newScrollX);
+        pipViewport.scrollTop = Math.max(0, newScrollY);
+      }
+    } else {
+      // Pan manual con límites: al menos 2/3 del panel visible en cada eje
+      const viewportW = pipViewport.clientWidth;
+      const viewportH = pipViewport.clientHeight;
       
-      // Aplicar nueva escala (esto actualiza el padding)
-      updatePipScale(panelId, newScale);
+      const panelEl = document.getElementById(panelId);
+      const scaledW = (panelEl?.offsetWidth || 760) * state.scale;
+      const scaledH = (panelEl?.offsetHeight || 760) * state.scale;
       
-      // Leer nuevo padding
-      const newPaddingX = parseFloat(pipViewportInner.style.paddingLeft) || 0;
-      const newPaddingY = parseFloat(pipViewportInner.style.paddingTop) || 0;
+      const minVisX = Math.min(viewportW, scaledW) * (2 / 3);
+      const minVisY = Math.min(viewportH, scaledH) * (2 / 3);
       
-      // Calcular nuevo scroll para mantener el punto bajo el cursor
-      const newScrollX = panelPointX * newScale + newPaddingX - cursorX;
-      const newScrollY = panelPointY * newScale + newPaddingY - cursorY;
+      const paddingX = Math.max(0, viewportW - minVisX);
+      const paddingY = Math.max(0, viewportH - minVisY);
       
-      pipViewport.scrollLeft = Math.max(0, newScrollX);
-      pipViewport.scrollTop = Math.max(0, newScrollY);
+      const minScrollX = Math.max(0, paddingX + minVisX - viewportW);
+      const maxScrollX = paddingX + scaledW - minVisX;
+      const minScrollY = Math.max(0, paddingY + minVisY - viewportH);
+      const maxScrollY = paddingY + scaledH - minVisY;
+      
+      const panFactor = state.scale * state.scale;
+      const newScrollX = pipViewport.scrollLeft + (e.deltaX || 0) * panFactor;
+      const newScrollY = pipViewport.scrollTop + (e.deltaY || 0) * panFactor;
+      
+      pipViewport.scrollLeft = Math.max(minScrollX, Math.min(maxScrollX, newScrollX));
+      pipViewport.scrollTop = Math.max(minScrollY, Math.min(maxScrollY, newScrollY));
     }
-  }, { passive: false }); // No-pasivo: necesario para preventDefault en Ctrl+wheel
+  }, { passive: false });
   
   // Pinch zoom táctil dentro del PiP (centrado en el punto de pellizco)
   // Usa enfoque frame-by-frame con protección anti-jitter (como el canvas principal)

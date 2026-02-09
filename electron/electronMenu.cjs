@@ -537,7 +537,7 @@ function buildMenuTemplate() {
       { type: 'separator' },
       {
         label: t('menu.help.checkUpdates', 'Check for Updates…'),
-        click: () => sendAction('checkUpdates')
+        click: () => openExternalUrl('https://github.com/mesjetiu/SynthiGME-web/releases')
       }
     ]
   };

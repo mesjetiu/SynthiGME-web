@@ -3276,9 +3276,19 @@ export class SettingsModal {
   }
   
   /**
-   * Maneja el clic en el botón de actualizaciones
+   * Maneja el clic en el botón de actualizaciones.
+   * En Electron: abre la página de releases en GitHub.
+   * En web (PWA): busca actualizaciones del Service Worker.
    */
   async _handleCheckUpdate() {
+    const isElectron = typeof window.oscAPI !== 'undefined';
+    
+    // En Electron, abrir directamente la página de releases
+    if (isElectron) {
+      window.open('https://github.com/mesjetiu/SynthiGME-web/releases', '_blank');
+      return;
+    }
+    
     // Si ya hay actualización disponible, instalar y recargar
     if (this._isUpdateAvailable || hasWaitingUpdate()) {
       this.updateCheckBtn.disabled = true;

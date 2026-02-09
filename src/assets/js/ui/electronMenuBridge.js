@@ -363,7 +363,7 @@ function handleMenuAction({ action, data }) {
       window.open(data?.url, '_blank');
       break;
     case 'checkUpdates':
-      document.dispatchEvent(new CustomEvent('synth:checkUpdates'));
+      // Handled directly in main process (opens GitHub releases)
       break;
 
     default:

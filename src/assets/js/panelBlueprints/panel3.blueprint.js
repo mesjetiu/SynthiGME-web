@@ -2,7 +2,7 @@
 // Panel 3 (Oscillators) Blueprint
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Este archivo define la ESTRUCTURA visual y de ruteo del Panel 3 del Synthi 100.
+// Este archivo define la ESTRUCTURA VISUAL del Panel 3 del Synthi 100.
 // Para PARÁMETROS de audio (rangos, curvas, calibración), ver los configs por módulo:
 //   - configs/modules/oscillator.config.js
 //   - configs/modules/noise.config.js
@@ -17,9 +17,9 @@
 // 1. *.blueprint.js — ESTRUCTURA (este archivo)
 //    - Layout visual (posiciones, tamaños, grid)
 //    - Slots y distribución de módulos
-//    - Mapeo a filas/columnas de matriz
 //    - Pines ocultos y huecos
 //    - NO contiene valores numéricos de parámetros de audio
+//    - NO contiene mapeo a filas/columnas de matriz (eso va en panel5/panel6 blueprints)
 //
 // 2. configs/modules/*.config.js — PARÁMETROS (uno por tipo de módulo)
 //    - Rangos de frecuencia, ganancia, etc.
@@ -41,8 +41,8 @@
 // - 2 Noise Generators
 // - 1 Random Control Voltage Generator
 //
-// Los Noise Generators ocupan las filas 89-90 de la matriz de audio (Panel 5).
-// Los Osciladores ocupan las filas 91-108 (2 filas por oscilador).
+// Para conexiones a matrices de audio (Panel 5) y control (Panel 6),
+// ver la referencia cruzada al final de este archivo.
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -205,26 +205,24 @@ export default {
     randomCV: {
       // ui: { }  — overrides de randomCVUI para este módulo
     }
-  },
+  }
   
   // ─────────────────────────────────────────────────────────────────────────
-  // MAPEO A MATRIZ DE AUDIO (Panel 5) — REFERENCIA DOCUMENTAL
+  // CONEXIONES A MATRICES (Panel 5 y Panel 6)
   // ─────────────────────────────────────────────────────────────────────────
   //
-  // Referencia cruzada con panel5.audio.blueprint.js.
-  // Las filas de la matriz de audio que corresponden a cada módulo.
-  // Los valores canónicos están en los configs de cada módulo y en el
-  // blueprint de Panel 5. Esta sección es solo documentación de referencia.
+  // Las conexiones de los módulos del Panel 3 a las matrices de audio y
+  // control se declaran en los blueprints de cada matriz (fuente única de verdad):
   //
-  matrixMapping: {
-    oscillators: {
-      firstRow: 91,     // Osc 1 sineSaw
-      lastRow: 108,     // Osc 9 triPulse (solo 9 implementados)
-      rowsPerOsc: 2     // Cada oscilador usa 2 filas (sineSaw, triPulse)
-    },
-    noiseGenerators: {
-      noise1: 89,
-      noise2: 90
-    }
-  }
+  //   - panel5.audio.blueprint.js
+  //     · sources: noise (filas 89-90), osc 1-9 (filas 91-108)
+  //     · destinations: hard sync osc 1-12 (columnas 24-35)
+  //
+  //   - panel6.control.blueprint.js
+  //     · sources: osc 10-12 (filas 83-88)
+  //     · destinations: freqCV osc 1-12 (columnas 30-41)
+  //
+  //   - configs/modules/noise.config.js — matrixRow por instancia
+  //   - configs/modules/randomVoltage.config.js — matrixRow pendiente
+  //
 };

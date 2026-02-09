@@ -123,10 +123,10 @@ class App {
     labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
 
     // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
-    // Paneles con fondo desactivado temporalmente: 1, 2 y 4.
+    // Paneles con fondo desactivado temporalmente: 1, 2, 3 y 4.
     // injectInlinePanelSvgBackground('panel-1', './assets/panels/panel1_bg.svg');
     // injectInlinePanelSvgBackground('panel-2', './assets/panels/panel2_bg.svg');
-    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
+    // injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
     // injectInlinePanelSvgBackground('panel-4', './assets/panels/panel4_bg.svg');
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');

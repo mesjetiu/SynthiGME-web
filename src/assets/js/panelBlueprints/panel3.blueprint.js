@@ -82,13 +82,10 @@ export default {
       height: 110,
       gap: 4,            // px — separación entre marcos de módulos
       
-      // Proporción de cada módulo (debe sumar 1)
-      // 2/9 + 2/9 + 5/9 = 9/9 = 1
-      proportions: {
-        noise1: 2 / 9,    // 2 knobs
-        noise2: 2 / 9,    // 2 knobs
-        randomCV: 5 / 9   // 5 knobs
-      }
+      // Padding horizontal dentro de cada marco de módulo (px).
+      // El ancho de cada módulo se calcula automáticamente:
+      //   ancho = nKnobs × knobSize + (nKnobs-1) × knobGap + 2 × modulePadding
+      modulePadding: 8
     }
   },
   

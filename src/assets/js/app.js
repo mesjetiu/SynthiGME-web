@@ -2380,18 +2380,16 @@ class App {
           const modulesGap = blueprintModulesRow.gap ?? 4;
           reserved.style.setProperty('--modules-row-gap', `${modulesGap}px`);
           
-          // Aplicar proporciones a los módulos desde el blueprint (flex-grow ratios)
+          // Aplicar padding y auto-sizing a los módulos desde el blueprint
           if (noiseModules) {
-            const proportions = blueprintModulesRow.proportions || { noise1: 2/9, noise2: 2/9, randomCV: 5/9 };
+            const modulePadding = blueprintModulesRow.modulePadding ?? 8;
+            const paddingStyle = `0 ${modulePadding}px 0`;
             
-            if (noiseModules.noise1?.element) {
-              noiseModules.noise1.element.style.flex = `${proportions.noise1} 0 0`;
-            }
-            if (noiseModules.noise2?.element) {
-              noiseModules.noise2.element.style.flex = `${proportions.noise2} 0 0`;
-            }
-            if (noiseModules.randomCV?.element) {
-              noiseModules.randomCV.element.style.flex = `${proportions.randomCV} 0 0`;
+            for (const mod of [noiseModules.noise1, noiseModules.noise2, noiseModules.randomCV]) {
+              if (mod?.element) {
+                mod.element.style.flex = '0 0 auto';
+                mod.element.style.padding = paddingStyle;
+              }
             }
           }
         } else {

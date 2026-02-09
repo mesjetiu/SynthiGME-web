@@ -127,11 +127,11 @@ export default {
   // Cada módulo puede sobrescribir en modules.noise1.ui / modules.noise2.ui.
   //
   noiseUI: {
-    knobSize: 40,          // px — diámetro del knob
+    knobSize: 65,          // px — diámetro del knob
     knobInnerPct: 76,      // % — círculo interior respecto al exterior
-    knobGap: [8],          // px — gap entre cada par de knobs (1 hueco para 2 knobs)
-    knobRowOffsetX: 0,     // px — desplazamiento horizontal de toda la fila de knobs
-    knobRowOffsetY: 0,     // px — desplazamiento vertical de toda la fila de knobs
+    knobGap: [15],          // px — gap entre cada par de knobs (1 hueco para 2 knobs)
+    knobRowOffsetX: 3,     // px — desplazamiento horizontal de toda la fila de knobs
+    knobRowOffsetY: 28,     // px — desplazamiento vertical de toda la fila de knobs
     knobOffsets: [0, 0],   // px — offset Y individual por knob (2 knobs)
   },
   

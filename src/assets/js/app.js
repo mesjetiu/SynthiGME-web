@@ -3256,10 +3256,11 @@ class App {
     const getFreqTooltipInfo = (value, scaleValue) => {
       const parts = [];
       
-      // Voltaje del dial (si está habilitado)
+      // Voltaje del potenciómetro (si está habilitado)
+      // El pot del Synthi 100 genera 0-10V proporcional a la posición del dial.
+      // El VCO interpreta ese voltaje con su propio tracking (0.95 u/oct).
       if (showVoltage()) {
-        const dialVoltage = 5 + (value - 5) / 0.95;
-        parts.push(dialVoltage.toFixed(3) + ' V');
+        parts.push(value.toFixed(3) + ' V');
       }
       
       // Frecuencia real (si está habilitado)

@@ -63,12 +63,10 @@ import {
 } from './utils/canvasBackground.js';
 import { 
   initViewportNavigation, 
-  // setupPanelZoomButtons,  // DESACTIVADO: botón de zoom en panel (se mantiene doble click)
   setupPanelDoubleTapZoom,
   setupPanelShortcutBadges
 } from './navigation/viewportNavigation.js';
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
-import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
 import { RecordingSettingsModal } from './ui/recordingSettingsModal.js';
 import { SettingsModal } from './ui/settingsModal.js';
@@ -100,10 +98,10 @@ class App {
     sessionManager.setSerializeCallback(() => this._serializeCurrentState());
     sessionManager.setRestoreCallback((patch) => this._applyPatch(patch));
 
-    // Paneles 1 y 4: vacíos por ahora (solo fondo JPG). Blueprints en panelBlueprints/.
-    // Panel 2: osciloscopio. Panel 3: osciladores + noise + random CV.
+    // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
     labelPanelSlot(this.panel1, null, { row: 1, col: 1 });
+    this._panel1Audio = { nodes: [] };
 
     this.panel2 = this.panelManager.createPanel({ id: 'panel-2' });
     labelPanelSlot(this.panel2, null, { row: 1, col: 2 });
@@ -113,6 +111,7 @@ class App {
 
     this.panel4 = this.panelManager.createPanel({ id: 'panel-4' });
     labelPanelSlot(this.panel4, null, { row: 1, col: 4 });
+    this._panel4Audio = { nodes: [] };
 
     // Panel 5: matriz de audio
     this.panel5 = this.panelManager.createPanel({ id: 'panel-5' });
@@ -122,28 +121,16 @@ class App {
     this.panel6 = this.panelManager.createPanel({ id: 'panel-6' });
     labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
 
-    // ── Fondos de paneles ──────────────────────────────────────────────
-    // Paneles 5 y 6 (matrices): SVG de producción, terminados.
-    injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
-    injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
-
-    // Paneles 1, 2, 3, 4 y 7: JPG temporales de desarrollo.
-    // ┌─────────────────────────────────────────────────────────────────┐
-    // │ MIGRAR UN PANEL DE JPG → SVG:                                  │
-    // │  1. Colocar el SVG en src/assets/panels/panelN_bg.svg          │
-    // │  2. Descomentar la línea injectInlinePanelSvgBackground(...)   │
-    // │  3. Comentar/eliminar la línea setPanelImageBackground(...)    │
-    // │  4. Descomentar la entrada en CANVAS_BG_SVG_BY_PANEL           │
-    // │     (canvasBackground.js) para soporte canvas en móvil         │
-    // │  5. Cuando TODOS los paneles tengan SVG, eliminar los JPGs     │
-    // │     de src/assets/panels/ y la función setPanelImageBackground │
-    // └─────────────────────────────────────────────────────────────────┘
+    // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
+    // Paneles con fondo desactivado temporalmente: 1, 2 y 4.
     // injectInlinePanelSvgBackground('panel-1', './assets/panels/panel1_bg.svg');
     // injectInlinePanelSvgBackground('panel-2', './assets/panels/panel2_bg.svg');
-    // injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
+    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
     // injectInlinePanelSvgBackground('panel-4', './assets/panels/panel4_bg.svg');
-
-    // Canvas: pinta fondos SVG de panel-1/2/3/4 en móvil (solo actúa si hay SVGs descomentados arriba).
+    injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
+    injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
+        
+    // Canvas: pinta fondos de panel-1/2/3/4 para evitar lagunas en móvil.
     preloadCanvasBgImages();
     renderCanvasBgPanels();
 
@@ -175,11 +162,11 @@ class App {
     this._outputFadersModule = null;
     
     // Construir paneles
-    // Panel 1 y 4: vacíos (blueprints placeholder, sin módulos aún)
-    // this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
+    // Panel 1 y 4: Solo visual, sin audio (módulos dummy a reemplazar)
+    this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
     this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
-    // this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
+    this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
     
     this._setupOutputFaders();
     this._buildLargeMatrices();
@@ -4319,7 +4306,6 @@ class App {
     this._heightSyncScheduled = true;
     requestAnimationFrame(() => {
       this._heightSyncScheduled = false;
-      // Panel 1 y 4: sin layout (vacíos). _reflowOscillatorPanel hace early-return si no hay data.
       this._reflowOscillatorPanel(1);
       this._reflowOscillatorPanel(2);
       this._reflowOscillatorPanel(3);
@@ -4445,12 +4431,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   
   // Configurar UI móvil y zoom de paneles
   setupMobileQuickActionsBar();
-  // setupPanelZoomButtons();  // DESACTIVADO: botón de zoom en panel (se mantiene doble click)
   setupPanelShortcutBadges();
   setupPanelDoubleTapZoom();
-  
-  // Inicializar puente de menú nativo de Electron (si estamos en Electron)
-  initElectronMenuBridge();
   
   // ─── Ocultar splash screen después de la inicialización ───
   // Garantiza un tiempo mínimo de visualización para evitar parpadeos

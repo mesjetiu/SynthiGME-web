@@ -40,6 +40,7 @@ const FALLBACK_OSC_UI = {
   knobSize: 42,
   knobInnerPct: 78,
   knobGap: [8, 8, 8, 8, 8, 8],
+  knobRowOffsetX: 0,
   knobRowOffsetY: -6,
   knobOffsets: [0, 0, 0, 0, 0, 0, 0],
   switchOffset: { leftPercent: 36, topPx: 6 },

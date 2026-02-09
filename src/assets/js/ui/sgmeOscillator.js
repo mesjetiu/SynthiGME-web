@@ -41,6 +41,7 @@ export class SGME_Oscillator {
     // Ajustes de knobs: tamaño, offset de fila y offsets individuales (px)
     this.knobSize = options.knobSize || 42;
     this.knobInnerPct = options.knobInnerPct || 78;
+    this.knobRowOffsetX = options.knobRowOffsetX ?? 0;
     this.knobRowOffsetY = options.knobRowOffsetY || -6;
     this.knobOffsets = options.knobOffsets || [0, 0, 0, 0, 0, 0, 0]; // array de px por knob
     this.knobLabels = options.knobLabels || DEFAULT_KNOB_LABELS;
@@ -108,7 +109,7 @@ export class SGME_Oscillator {
     bottom.className = 'sgme-osc__bottom';
     const knobsRow = document.createElement('div');
     knobsRow.className = 'sgme-osc__knobs';
-    knobsRow.style.transform = `translateY(${this.knobRowOffsetY}px)`;
+    knobsRow.style.transform = `translate(${this.knobRowOffsetX}px, ${this.knobRowOffsetY}px)`;
     this.knobLabels.forEach((label, idx) => {
       const shell = document.createElement('div');
       shell.className = 'sgme-osc__knob-shell';

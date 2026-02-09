@@ -2123,6 +2123,7 @@ class App {
         knobGap: oscUI.knobGap,
         switchOffset: oscUI.switchOffset,
         knobSize: oscUI.knobSize,
+        knobRowOffsetX: oscUI.knobRowOffsetX,
         knobRowOffsetY: oscUI.knobRowOffsetY,
         knobInnerPct: oscUI.knobInnerPct,
         knobOffsets: oscUI.knobOffsets,

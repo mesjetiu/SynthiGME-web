@@ -58,7 +58,7 @@ export default {
       rowsPerColumn: 6,
       
       // Tamaño base de cada oscilador (px)
-      oscSize: { width: 370, height: 110 },
+      oscSize: { width: 375, height: 103 }, // width: 370 height: 110, 100
       
       // Espaciado entre osciladores
       gap: { x: 0, y: 0 },

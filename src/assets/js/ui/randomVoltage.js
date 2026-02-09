@@ -50,7 +50,12 @@ export class RandomVoltage extends ModuleUI {
         { key: 'key', label: 'Key' }
       ],
       knobOptions: options.knobOptions || {},
-      knobSize: options.knobSize || 40
+      knobSize: options.knobSize || 40,
+      knobInnerPct: options.knobInnerPct,
+      knobGap: options.knobGap,
+      knobRowOffsetX: options.knobRowOffsetX,
+      knobRowOffsetY: options.knobRowOffsetY,
+      knobOffsets: options.knobOffsets
     });
   }
 }

@@ -33,6 +33,7 @@ import panel7Blueprint from './panelBlueprints/panel7.blueprint.js';
 import {
   oscillatorConfig,
   noiseConfig,
+  randomVoltageConfig,
   oscilloscopeConfig,
   inputAmplifierConfig,
   outputChannelConfig,
@@ -76,7 +77,7 @@ import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initPipManager, restorePipState } from './ui/pipManager.js';
 import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { showToast } from './ui/toast.js';
-import { labelPanelSlot, getOscillatorLayoutSpec, resolveOscillatorUI, getNoiseUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
+import { labelPanelSlot, getOscillatorLayoutSpec, resolveOscillatorUI, getNoiseUIDefaults, getRandomCVUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -2172,7 +2173,7 @@ class App {
       const noiseDefaults = noiseConfig.defaults || {};
       const noise1Cfg = noiseConfig.noise1 || {};
       const noise2Cfg = noiseConfig.noise2 || {};
-      const randomCVCfg = {}; // Random CV config se lee de randomVoltageConfig si es necesario
+      const randomCVCfg = randomVoltageConfig || {};
       
       // ─────────────────────────────────────────────────────────────────────
       // Crear módulos de audio para Noise Generators
@@ -2275,17 +2276,17 @@ class App {
       this._noiseUIs[noise2Id] = noise2;
       
       // Random Control Voltage Generator (solo UI, sin audio aún)
+      // Resolver UI config del blueprint para random CV
+      const randomCVUIDefaults = getRandomCVUIDefaults();
+      const randomCVBlueprintUI = panel3Blueprint?.modules?.randomCV?.ui || {};
+      const randomCVResolvedUI = resolveModuleUI(randomCVUIDefaults, randomCVBlueprintUI);
+      
       const randomCVId = randomCVCfg.id || 'panel3-random-cv';
       const randomCV = new RandomVoltage({
         id: randomCVId,
         title: randomCVCfg.title || 'Random Voltage',
-        knobOptions: randomCVCfg.knobs || {
-          mean: { min: -1, max: 1, initial: 0 },
-          variance: { min: 0, max: 1, initial: 0.5 },
-          voltage1: { min: 0, max: 1, initial: 0 },
-          voltage2: { min: 0, max: 1, initial: 0 },
-          key: { min: 0, max: 1, initial: 0 }
-        }
+        knobOptions: randomCVCfg.knobs || {},
+        ...randomCVResolvedUI
       });
       this._randomVoltageUIs[randomCVId] = randomCV;
       reservedRow.appendChild(randomCV.createElement());

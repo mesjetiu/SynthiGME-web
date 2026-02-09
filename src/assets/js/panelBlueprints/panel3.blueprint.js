@@ -3,7 +3,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Este archivo define la ESTRUCTURA visual y de ruteo del Panel 3 del Synthi 100.
-// Para PARÁMETROS de audio (rangos, curvas, calibración), ver panel3.oscillators.config.js.
+// Para PARÁMETROS de audio (rangos, curvas, calibración), ver los configs por módulo:
+//   - configs/modules/oscillator.config.js
+//   - configs/modules/noise.config.js
+//   - configs/modules/randomVoltage.config.js
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // SEPARACIÓN BLUEPRINT vs CONFIG
@@ -18,7 +21,7 @@
 //    - Pines ocultos y huecos
 //    - NO contiene valores numéricos de parámetros de audio
 //
-// 2. *.config.js — PARÁMETROS (panel3.oscillators.config.js)
+// 2. configs/modules/*.config.js — PARÁMETROS (uno por tipo de módulo)
 //    - Rangos de frecuencia, ganancia, etc.
 //    - Curvas de respuesta (linear, exponential)
 //    - Valores iniciales de knobs
@@ -132,6 +135,22 @@ export default {
   },
   
   // ─────────────────────────────────────────────────────────────────────────
+  // CONFIGURACIÓN VISUAL DEL RANDOM CONTROL VOLTAGE GENERATOR (defaults)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Igual que noiseUI pero para el Random Voltage Generator (5 knobs).
+  // Sobrescribible en modules.randomCV.ui.
+  //
+  randomCVUI: {
+    knobSize: 40,          // px — diámetro del knob
+    knobInnerPct: 76,      // % — círculo interior respecto al exterior
+    knobGap: [8, 8, 8, 8], // px — gap entre cada par de knobs (4 huecos para 5 knobs)
+    knobRowOffsetX: 0,     // px — desplazamiento horizontal de toda la fila de knobs
+    knobRowOffsetY: 0,     // px — desplazamiento vertical de toda la fila de knobs
+    knobOffsets: [0, 0, 0, 0, 0],  // px — offset Y individual por knob (5 knobs)
+  },
+  
+  // ─────────────────────────────────────────────────────────────────────────
   // SLOTS DE OSCILADORES
   // ─────────────────────────────────────────────────────────────────────────
   //
@@ -163,47 +182,39 @@ export default {
   ],
   
   // ─────────────────────────────────────────────────────────────────────────
-  // MÓDULOS ADICIONALES (ESTRUCTURA)
+  // OVERRIDES VISUALES POR MÓDULO
   // ─────────────────────────────────────────────────────────────────────────
   //
-  // Define la estructura de los módulos. Los parámetros de audio
-  // están en panel3.oscillators.config.js.
+  // Permite ajustar la apariencia visual de cada módulo individual respecto
+  // a los defaults de su tipo (noiseUI, randomCVUI).
+  //
+  // Los datos de identidad (id, title), parámetros de audio (knobs, rangos,
+  // curvas) y ruteo (matrixRow) están en los configs de cada módulo:
+  //   - configs/modules/noise.config.js
+  //   - configs/modules/randomVoltage.config.js
   //
   modules: {
     noise1: {
-      id: 'noise-1',
-      type: 'noiseGenerator',
-      title: 'Noise 1',
-      matrixRow: 89,
-      knobs: ['colour', 'level']
       // ui: { }  — overrides de noiseUI para este módulo
     },
     
     noise2: {
-      id: 'noise-2',
-      type: 'noiseGenerator',
-      title: 'Noise 2',
-      matrixRow: 90,
-      knobs: ['colour', 'level']
       // ui: { }  — overrides de noiseUI para este módulo
     },
     
-    // @see TODO.md - "Random Voltage: definir filas de matriz"
     randomCV: {
-      id: 'random-cv',
-      type: 'randomVoltage',
-      title: 'Random Voltage',
-      // matrixRows pendiente: { voltage1: ??, voltage2: ?? }
-      knobs: ['mean', 'variance', 'voltage1', 'voltage2', 'key']
+      // ui: { }  — overrides de randomCVUI para este módulo
     }
   },
   
   // ─────────────────────────────────────────────────────────────────────────
-  // MAPEO A MATRIZ DE AUDIO (Panel 5)
+  // MAPEO A MATRIZ DE AUDIO (Panel 5) — REFERENCIA DOCUMENTAL
   // ─────────────────────────────────────────────────────────────────────────
   //
   // Referencia cruzada con panel5.audio.blueprint.js.
   // Las filas de la matriz de audio que corresponden a cada módulo.
+  // Los valores canónicos están en los configs de cada módulo y en el
+  // blueprint de Panel 5. Esta sección es solo documentación de referencia.
   //
   matrixMapping: {
     oscillators: {

@@ -145,6 +145,17 @@ export function getNoiseUIDefaults() {
 }
 
 /**
+ * Devuelve los defaults de UI para el Random CV Generator del blueprint.
+ * @returns {Object} Defaults mergeados (FALLBACK_MODULE_UI → randomCVUI)
+ */
+export function getRandomCVUIDefaults() {
+  return {
+    ...FALLBACK_MODULE_UI,
+    ...panel3Blueprint?.randomCVUI
+  };
+}
+
+/**
  * Resuelve la configuración visual para un módulo (Noise, Random CV, etc.).
  * Merge: FALLBACK_MODULE_UI → defaults (noiseUI) → module.ui (overrides).
  *

@@ -99,11 +99,11 @@ export default {
   //
   oscillatorUI: {
     // Knobs
-    knobSize: 40,          // px — diámetro del knob
+    knobSize: 45,          // px — diámetro del knob
     knobInnerPct: 76,      // % — círculo interior respecto al exterior
-    knobGap: 8,            // px — espacio entre knobs en la fila
+    knobGap: [8, 8, 8, 8, 8, 8],  // px — gap entre cada par de knobs (6 huecos para 7 knobs)
     knobRowOffsetY: -15,   // px — desplazamiento vertical de toda la fila de knobs
-    knobOffsets: [0, 0, 0, 0, 0, 0, 0],  // px — offset Y individual por knob (7 knobs)
+    knobOffsets: [6, 6, 6, 6, 6, 6, -16],  // px — offset Y individual por knob (7 knobs)
     
     // Switch HI/LO
     switchOffset: { leftPercent: 36, topPx: 6 },

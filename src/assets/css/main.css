@@ -2015,8 +2015,9 @@ small { color:#aaa; }
 
 .sgme-osc__knobs {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: var(--osc-knob-gap, 8px);
+  grid-template-columns: repeat(7, auto);
+  gap: 0;
+  justify-content: center;
   align-items: center;
   width: 100%;
   transform: translateY(var(--osc-knob-row-offset-y, 0px));

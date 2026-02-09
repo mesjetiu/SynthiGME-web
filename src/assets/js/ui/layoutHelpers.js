@@ -39,7 +39,7 @@ export function labelPanelSlot(panel, label, layout = {}) {
 const FALLBACK_OSC_UI = {
   knobSize: 42,
   knobInnerPct: 78,
-  knobGap: 8,
+  knobGap: [8, 8, 8, 8, 8, 8],
   knobRowOffsetY: -6,
   knobOffsets: [0, 0, 0, 0, 0, 0, 0],
   switchOffset: { leftPercent: 36, topPx: 6 },
@@ -113,7 +113,8 @@ export function resolveOscillatorUI(defaults, slotUI) {
       ...(defaults.slotOffset || FALLBACK_OSC_UI.slotOffset),
       ...(slotUI.slotOffset || {})
     },
-    // knobOffsets: si el slot lo redefine, gana entero (no se suman)
-    knobOffsets: slotUI.knobOffsets || defaults.knobOffsets || FALLBACK_OSC_UI.knobOffsets
+    // Arrays: si el slot los redefine, ganan enteros (no se mezclan)
+    knobOffsets: slotUI.knobOffsets || defaults.knobOffsets || FALLBACK_OSC_UI.knobOffsets,
+    knobGap: slotUI.knobGap || defaults.knobGap || FALLBACK_OSC_UI.knobGap
   };
 }

@@ -34,7 +34,9 @@ export class SGME_Oscillator {
     this.id = options.id || `sgme-osc-${Date.now()}`;
     this.title = options.title || 'Oscillator';
     this.size = options.size || { width: 320, height: 90 };
-    this.knobGap = options.knobGap || 8;
+    // knobGap: array de 6 valores (gap entre cada par de knobs) o número uniforme
+    const rawGap = options.knobGap ?? 8;
+    this.knobGap = Array.isArray(rawGap) ? rawGap : Array(6).fill(rawGap);
     this.switchOffset = options.switchOffset || { leftPercent: 36, topPx: 6 };
     // Ajustes de knobs: tamaño, offset de fila y offsets individuales (px)
     this.knobSize = options.knobSize || 42;
@@ -57,7 +59,7 @@ export class SGME_Oscillator {
     root.id = this.id;
     root.style.setProperty('--osc-width', `${this.size.width}px`);
     root.style.setProperty('--osc-height', `${this.size.height}px`);
-    root.style.setProperty('--osc-knob-gap', `${this.knobGap}px`);
+    // knobGap se aplica por shell (margin-left), no como CSS grid gap
     root.style.setProperty('--osc-knob-size', `${this.knobSize}px`);
     root.style.setProperty('--osc-knob-inner-pct', `${this.knobInnerPct}%`);
     root.style.setProperty('--osc-knob-row-offset-y', `${this.knobRowOffsetY}px`);
@@ -110,6 +112,10 @@ export class SGME_Oscillator {
     this.knobLabels.forEach((label, idx) => {
       const shell = document.createElement('div');
       shell.className = 'sgme-osc__knob-shell';
+      // Gap individual: margin-left basado en knobGap[idx-1] (primer knob sin margen)
+      if (idx > 0 && this.knobGap[idx - 1]) {
+        shell.style.marginLeft = `${this.knobGap[idx - 1]}px`;
+      }
       if (Number.isFinite(this.knobOffsets[idx])) {
         shell.style.transform = `translateY(${this.knobOffsets[idx]}px)`;
       }

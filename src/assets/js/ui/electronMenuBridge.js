@@ -30,7 +30,7 @@ const MENU_TRANSLATION_KEYS = [
   // Archivo
   'menu.file', 'menu.file.patches', 'menu.file.language',
   'menu.file.reload', 'menu.file.quit',
-  'menu.file.reload.confirm', 'common.cancel',
+  'menu.file.reload.confirm', 'menu.file.quit.confirm', 'common.cancel',
   // Ver
   'menu.view', 'menu.view.quickbar', 'menu.view.fullscreen',
   'menu.view.zoomIn', 'menu.view.zoomOut', 'menu.view.zoomReset',

@@ -2549,6 +2549,15 @@ menu.file.quit:
   pt: "Sair"
   cs: "Ukončit"
 
+menu.file.quit.confirm:
+  en: "Quit the application?"
+  es: "¿Salir de la aplicación?"
+  fr: "Quitter l'application ?"
+  de: "Anwendung beenden?"
+  it: "Chiudere l'applicazione?"
+  pt: "Sair do aplicativo?"
+  cs: "Ukončit aplikaci?"
+
 # ─── Ver ───
 menu.view:
   en: View

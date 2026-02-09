@@ -283,6 +283,7 @@ export default {
   "menu.file.reload": "Reload",
   "menu.file.reload.confirm": "Reload the application? Unsaved changes will be lost.",
   "menu.file.quit": "Quit",
+  "menu.file.quit.confirm": "Quit the application?",
   "menu.view": "View",
   "menu.view.quickbar": "Show Quickbar",
   "menu.view.fullscreen": "Fullscreen",

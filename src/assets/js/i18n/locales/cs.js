@@ -283,6 +283,7 @@ export default {
   "menu.file.reload": "Znovu načíst",
   "menu.file.reload.confirm": "Znovu načíst aplikaci? Neuložené změny budou ztraceny.",
   "menu.file.quit": "Ukončit",
+  "menu.file.quit.confirm": "Ukončit aplikaci?",
   "menu.view": "Zobrazení",
   "menu.view.quickbar": "Zobrazit rychlou lištu",
   "menu.view.fullscreen": "Celá obrazovka",

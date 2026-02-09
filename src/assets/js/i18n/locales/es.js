@@ -283,6 +283,7 @@ export default {
   "menu.file.reload": "Recargar",
   "menu.file.reload.confirm": "¿Recargar la aplicación? Los cambios no guardados se perderán.",
   "menu.file.quit": "Salir",
+  "menu.file.quit.confirm": "¿Salir de la aplicación?",
   "menu.view": "Ver",
   "menu.view.quickbar": "Mostrar barra rápida",
   "menu.view.fullscreen": "Pantalla completa",

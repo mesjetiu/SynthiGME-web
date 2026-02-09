@@ -41,6 +41,9 @@ async function openExternalUrl(url) {
 /** @type {BrowserWindow|null} Referencia a la ventana principal */
 let mainWindow = null;
 
+/** Flag para indicar que el usuario ha confirmado salir */
+let _quitConfirmed = false;
+
 /** Estado actual de los checkboxes del menú */
 let menuState = {
   muted: false,
@@ -173,7 +176,24 @@ function buildMenuTemplate() {
       {
         label: t('menu.file.quit', 'Quit'),
         accelerator: isMac ? 'Cmd+Q' : 'Alt+F4',
-        click: () => app.quit()
+        click: async () => {
+          if (!mainWindow) { app.quit(); return; }
+          const { response } = await dialog.showMessageBox(mainWindow, {
+            type: 'question',
+            buttons: [
+              t('menu.file.quit', 'Quit'),
+              t('common.cancel', 'Cancel')
+            ],
+            defaultId: 1,
+            cancelId: 1,
+            title: t('menu.file.quit', 'Quit'),
+            message: t('menu.file.quit.confirm', 'Quit the application?')
+          });
+          if (response === 0) {
+            _quitConfirmed = true;
+            app.quit();
+          }
+        }
       }
     ]
   };
@@ -619,5 +639,8 @@ module.exports = {
   initMenu,
   rebuildMenu,
   updateMenuState,
-  updateTranslations
+  updateTranslations,
+  isQuitConfirmed: () => _quitConfirmed,
+  resetQuitConfirmed: () => { _quitConfirmed = false; },
+  t
 };

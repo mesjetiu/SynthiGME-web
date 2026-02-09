@@ -11,7 +11,7 @@ const path = require('path');
 const { createServer } = require('http');
 const { readFileSync, existsSync, statSync } = require('fs');
 const { OSCServer } = require('./oscServer.cjs');
-const { initMenu, rebuildMenu, updateMenuState, updateTranslations } = require('./electronMenu.cjs');
+const { initMenu, rebuildMenu, updateMenuState, updateTranslations, isQuitConfirmed, resetQuitConfirmed, t: menuT } = require('./electronMenu.cjs');
 
 // Establecer nombre de la aplicación (visible en PipeWire/PulseAudio)
 app.setName('SynthiGME');
@@ -226,6 +226,31 @@ async function createWindow() {
 
   // Abrir DevTools en desarrollo (descomentar si necesario)
   // mainWindow.webContents.openDevTools();
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Confirmación de cierre (Alt+F4, botón X de ventana)
+  // Si el usuario no ha confirmado vía menú, mostrar diálogo de confirmación
+  // ───────────────────────────────────────────────────────────────────────────
+  mainWindow.on('close', async (e) => {
+    if (isQuitConfirmed()) return; // Ya confirmado desde el menú
+    e.preventDefault();
+    const { dialog } = require('electron');
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      buttons: [
+        menuT('menu.file.quit', 'Quit'),
+        menuT('common.cancel', 'Cancel')
+      ],
+      defaultId: 1,
+      cancelId: 1,
+      title: menuT('menu.file.quit', 'Quit'),
+      message: menuT('menu.file.quit.confirm', 'Quit the application?')
+    });
+    if (response === 0) {
+      resetQuitConfirmed(); // Limpiar para futuro uso
+      mainWindow.destroy();
+    }
+  });
 
   // Manejar cierre de ventana
   mainWindow.on('closed', () => {

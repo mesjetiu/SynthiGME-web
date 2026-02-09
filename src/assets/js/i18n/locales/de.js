@@ -283,6 +283,7 @@ export default {
   "menu.file.reload": "Neu laden",
   "menu.file.reload.confirm": "Anwendung neu laden? Nicht gespeicherte Änderungen gehen verloren.",
   "menu.file.quit": "Beenden",
+  "menu.file.quit.confirm": "Anwendung beenden?",
   "menu.view": "Ansicht",
   "menu.view.quickbar": "Schnellleiste anzeigen",
   "menu.view.fullscreen": "Vollbild",

@@ -77,6 +77,7 @@ export default {
     // Fila de módulos adicionales (Noise, Random CV)
     modulesRow: {
       height: 110,
+      gap: 4,            // px — separación entre marcos de módulos
       
       // Proporción de cada módulo (debe sumar 1)
       // 2/9 + 2/9 + 5/9 = 9/9 = 1
@@ -112,6 +113,22 @@ export default {
     // Offset del slot completo (permite desplazar un oscilador
     // respecto a su posición calculada en el grid)
     slotOffset: { x: 0, y: 0 }
+  },
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONFIGURACIÓN VISUAL DE MÓDULOS DE RUIDO (defaults)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Igual que oscillatorUI pero para Noise Generators.
+  // Cada módulo puede sobrescribir en modules.noise1.ui / modules.noise2.ui.
+  //
+  noiseUI: {
+    knobSize: 40,          // px — diámetro del knob
+    knobInnerPct: 76,      // % — círculo interior respecto al exterior
+    knobGap: [8],          // px — gap entre cada par de knobs (1 hueco para 2 knobs)
+    knobRowOffsetX: 0,     // px — desplazamiento horizontal de toda la fila de knobs
+    knobRowOffsetY: 0,     // px — desplazamiento vertical de toda la fila de knobs
+    knobOffsets: [0, 0],   // px — offset Y individual por knob (2 knobs)
   },
   
   // ─────────────────────────────────────────────────────────────────────────
@@ -159,6 +176,7 @@ export default {
       title: 'Noise 1',
       matrixRow: 89,
       knobs: ['colour', 'level']
+      // ui: { }  — overrides de noiseUI para este módulo
     },
     
     noise2: {
@@ -167,6 +185,7 @@ export default {
       title: 'Noise 2',
       matrixRow: 90,
       knobs: ['colour', 'level']
+      // ui: { }  — overrides de noiseUI para este módulo
     },
     
     // @see TODO.md - "Random Voltage: definir filas de matriz"

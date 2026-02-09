@@ -76,7 +76,7 @@ import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initPipManager, restorePipState } from './ui/pipManager.js';
 import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { showToast } from './ui/toast.js';
-import { labelPanelSlot, getOscillatorLayoutSpec, resolveOscillatorUI } from './ui/layoutHelpers.js';
+import { labelPanelSlot, getOscillatorLayoutSpec, resolveOscillatorUI, getNoiseUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -2223,6 +2223,13 @@ class App {
       const lc = noiseConfig.levelCurve || {};
       const noiseLevelTooltip = getNoiseLevelTooltipInfo(3.0, lc.logBase || 100);
       
+      // Resolver UI config del blueprint para noise generators
+      const noiseUIDefaults = getNoiseUIDefaults();
+      const noise1BlueprintUI = panel3Blueprint?.modules?.noise1?.ui || {};
+      const noise2BlueprintUI = panel3Blueprint?.modules?.noise2?.ui || {};
+      const noise1UI = resolveModuleUI(noiseUIDefaults, noise1BlueprintUI);
+      const noise2UI = resolveModuleUI(noiseUIDefaults, noise2BlueprintUI);
+
       // Noise Generator 1 UI
       const noise1Id = noise1Cfg.id || 'panel3-noise-1';
       const noise1 = new NoiseGenerator({
@@ -2239,7 +2246,8 @@ class App {
             onChange: (value) => noise1Audio.setLevel(value),
             getTooltipInfo: noiseLevelTooltip
           }
-        }
+        },
+        ...noise1UI
       });
       reservedRow.appendChild(noise1.createElement());
       this._noiseUIs[noise1Id] = noise1;
@@ -2260,7 +2268,8 @@ class App {
             onChange: (value) => noise2Audio.setLevel(value),
             getTooltipInfo: noiseLevelTooltip
           }
-        }
+        },
+        ...noise2UI
       });
       reservedRow.appendChild(noise2.createElement());
       this._noiseUIs[noise2Id] = noise2;
@@ -2366,19 +2375,22 @@ class App {
           const rowHeight = blueprintModulesRow.height || layout.reservedHeight;
           reserved.style.height = `${rowHeight}px`;
           
-          // Aplicar proporciones a los módulos desde el blueprint
+          // Gap entre marcos de módulos (desde blueprint)
+          const modulesGap = blueprintModulesRow.gap ?? 4;
+          reserved.style.setProperty('--modules-row-gap', `${modulesGap}px`);
+          
+          // Aplicar proporciones a los módulos desde el blueprint (flex-grow ratios)
           if (noiseModules) {
             const proportions = blueprintModulesRow.proportions || { noise1: 2/9, noise2: 2/9, randomCV: 5/9 };
-            const totalWidth = columnWidth * 2 + gap.x;
             
             if (noiseModules.noise1?.element) {
-              noiseModules.noise1.element.style.flex = `0 0 ${proportions.noise1 * 100}%`;
+              noiseModules.noise1.element.style.flex = `${proportions.noise1} 0 0`;
             }
             if (noiseModules.noise2?.element) {
-              noiseModules.noise2.element.style.flex = `0 0 ${proportions.noise2 * 100}%`;
+              noiseModules.noise2.element.style.flex = `${proportions.noise2} 0 0`;
             }
             if (noiseModules.randomCV?.element) {
-              noiseModules.randomCV.element.style.flex = `0 0 ${proportions.randomCV * 100}%`;
+              noiseModules.randomCV.element.style.flex = `${proportions.randomCV} 0 0`;
             }
           }
         } else {

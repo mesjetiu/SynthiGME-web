@@ -2079,12 +2079,12 @@ small { color:#aaa; }
 
 /* Fila de módulos de ruido y random voltage */
 .panel3-modules-row {
-  background: rgba(20, 20, 20, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  border: none;
   justify-content: flex-start;
   padding: 0;
-  gap: 0;
-  overflow: hidden;
+  gap: var(--modules-row-gap, 4px);
+  overflow: visible;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -2092,38 +2092,30 @@ small { color:#aaa; }
    Estructura unificada con 9 knobs equidistantes
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* Contenedor de módulo individual (sin borde, transparente) */
+/* Contenedor de módulo individual (con marco propio tipo synth-module) */
 .noise-generator,
 .random-voltage {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: transparent;
-  border: none;
-  border-radius: 0;
+  background: var(--synth-module-bg);
+  border: 1px solid var(--synth-module-border);
+  border-radius: var(--synth-module-radius);
   padding: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-/* Proporciones: Noise1 = 2/9, Noise2 = 2/9, Random = 5/9 */
+/* Proporciones por defecto (JS las sobreescribe desde blueprint) */
 .noise-generator {
-  flex: 0 0 calc(100% * 2 / 9);
+  flex: 2 0 0;
 }
 
 .random-voltage {
-  flex: 0 0 calc(100% * 5 / 9);
+  flex: 5 0 0;
 }
 
-/* Separador vertical entre módulos */
-.noise-generator::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 10%;
-  height: 80%;
-  width: 1px;
-  background: rgba(255, 255, 255, 0.12);
-}
+/* (Separador ::after eliminado — cada módulo tiene su propio marco) */
 
 /* Headers de módulos */
 .noise-generator__header,
@@ -2142,19 +2134,19 @@ small { color:#aaa; }
 .noise-generator__knobs,
 .random-voltage__knobs {
   display: grid;
-  gap: var(--osc-knob-gap, 8px);
   align-items: start;
   justify-items: center;
+  justify-content: center;
   padding: 0 8px 8px;
   flex: 1;
 }
 
 .noise-generator__knobs {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, auto);
 }
 
 .random-voltage__knobs {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, auto);
 }
 
 /* Shell de knob individual */
@@ -2180,14 +2172,14 @@ small { color:#aaa; }
 /* Knob con mismo tamaño que osciladores */
 .noise-generator__knob,
 .random-voltage__knob {
-  width: var(--osc-knob-size, 40px);
-  height: var(--osc-knob-size, 40px);
+  width: var(--module-knob-size, 40px);
+  height: var(--module-knob-size, 40px);
 }
 
 .noise-generator__knob .knob-inner,
 .random-voltage__knob .knob-inner {
-  width: var(--osc-knob-inner-pct, 76%);
-  height: var(--osc-knob-inner-pct, 76%);
+  width: var(--module-knob-inner-pct, 76%);
+  height: var(--module-knob-inner-pct, 76%);
 }
 
 .noise-generator__knob .knob-inner::after,

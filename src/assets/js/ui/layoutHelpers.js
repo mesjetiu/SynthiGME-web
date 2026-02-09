@@ -32,6 +32,19 @@ export function labelPanelSlot(panel, label, layout = {}) {
 }
 
 /**
+ * Defaults internos para módulos (fallback si el blueprint no define noiseUI, etc.).
+ * @private
+ */
+const FALLBACK_MODULE_UI = {
+  knobSize: 40,
+  knobInnerPct: 76,
+  knobGap: [8],
+  knobRowOffsetX: 0,
+  knobRowOffsetY: 0,
+  knobOffsets: [0, 0]
+};
+
+/**
  * Defaults internos (fallback si el blueprint no define oscillatorUI).
  * Solo se usan si el blueprint no tiene la sección oscillatorUI.
  * @private
@@ -117,5 +130,35 @@ export function resolveOscillatorUI(defaults, slotUI) {
     // Arrays: si el slot los redefine, ganan enteros (no se mezclan)
     knobOffsets: slotUI.knobOffsets || defaults.knobOffsets || FALLBACK_OSC_UI.knobOffsets,
     knobGap: slotUI.knobGap || defaults.knobGap || FALLBACK_OSC_UI.knobGap
+  };
+}
+
+/**
+ * Devuelve los defaults de UI para Noise Generators del blueprint.
+ * @returns {Object} Defaults mergeados (FALLBACK_MODULE_UI → noiseUI)
+ */
+export function getNoiseUIDefaults() {
+  return {
+    ...FALLBACK_MODULE_UI,
+    ...panel3Blueprint?.noiseUI
+  };
+}
+
+/**
+ * Resuelve la configuración visual para un módulo (Noise, Random CV, etc.).
+ * Merge: FALLBACK_MODULE_UI → defaults (noiseUI) → module.ui (overrides).
+ *
+ * @param {Object} defaults - noiseUI del blueprint (ya mergeado con FALLBACK)
+ * @param {Object} [moduleUI] - overrides del módulo (modules.noise1.ui)
+ * @returns {Object} Configuración final para este módulo
+ */
+export function resolveModuleUI(defaults, moduleUI) {
+  if (!moduleUI) return { ...defaults };
+
+  return {
+    ...defaults,
+    ...moduleUI,
+    knobOffsets: moduleUI.knobOffsets || defaults.knobOffsets || FALLBACK_MODULE_UI.knobOffsets,
+    knobGap: moduleUI.knobGap || defaults.knobGap || FALLBACK_MODULE_UI.knobGap
   };
 }

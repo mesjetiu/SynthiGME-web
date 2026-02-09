@@ -59,6 +59,15 @@ export class ModuleUI {
     this.knobDefs = knobDefs;
     this.knobOptions = knobOptions;
     this.knobSize = knobSize;
+    this.knobInnerPct = options.knobInnerPct ?? 76;
+    
+    // knobGap: array (gap entre cada par de knobs) o número uniforme
+    const rawGap = options.knobGap ?? 8;
+    this.knobGap = Array.isArray(rawGap) ? rawGap : Array(Math.max(0, knobDefs.length - 1)).fill(rawGap);
+    
+    this.knobRowOffsetX = options.knobRowOffsetX ?? 0;
+    this.knobRowOffsetY = options.knobRowOffsetY ?? 0;
+    this.knobOffsets = options.knobOffsets || new Array(knobDefs.length).fill(0);
     
     this.element = null;
     this.knobs = {};
@@ -72,6 +81,10 @@ export class ModuleUI {
     const container = document.createElement('div');
     container.id = this.id;
     container.className = this.cssClass;
+    
+    // CSS custom properties para knob sizing
+    container.style.setProperty('--module-knob-size', `${this.knobSize}px`);
+    container.style.setProperty('--module-knob-inner-pct', `${this.knobInnerPct}%`);
 
     // Header con título
     const header = document.createElement('div');
@@ -82,12 +95,26 @@ export class ModuleUI {
     // Contenedor de knobs
     const knobsRow = document.createElement('div');
     knobsRow.className = `${this.cssClass}__knobs`;
+    // Offset de toda la fila de knobs
+    if (this.knobRowOffsetX || this.knobRowOffsetY) {
+      knobsRow.style.transform = `translate(${this.knobRowOffsetX}px, ${this.knobRowOffsetY}px)`;
+    }
+    // Gap: 0 en grid, margenes individuales por shell
+    knobsRow.style.gap = '0';
 
     // Crear knobs según definiciones
-    for (const def of this.knobDefs) {
+    this.knobDefs.forEach((def, idx) => {
       const shell = this._createKnobShell(def.label, def.key);
+      // Gap individual: margin-left basado en knobGap[idx-1]
+      if (idx > 0 && this.knobGap[idx - 1]) {
+        shell.style.marginLeft = `${this.knobGap[idx - 1]}px`;
+      }
+      // Offset Y individual por knob
+      if (Number.isFinite(this.knobOffsets[idx]) && this.knobOffsets[idx] !== 0) {
+        shell.style.transform = `translateY(${this.knobOffsets[idx]}px)`;
+      }
       knobsRow.appendChild(shell);
-    }
+    });
 
     container.appendChild(knobsRow);
 

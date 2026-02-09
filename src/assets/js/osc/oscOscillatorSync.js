@@ -81,7 +81,8 @@ class OscillatorOSCSync {
     if (!oscKey) return;
     
     // Convertir de valor UI (0-1) a valor OSC (0-10 o -5 a 5)
-    const oscValue = uiToOSCValue(uiValue, 'osc', oscKey);
+    // Nota: frequency ya viene en escala 0-10 del knob (no 0-1)
+    const oscValue = oscKey === 'frequency' ? uiValue : uiToOSCValue(uiValue, 'osc', oscKey);
     
     // Construir dirección: osc/{n}/{param} (n es 1-based)
     const address = `osc/${oscIndex + 1}/${oscKey}`;
@@ -162,7 +163,8 @@ class OscillatorOSCSync {
     if (knobIndex === undefined) return;
 
     // Convertir de valor OSC a valor UI (0-1)
-    const uiValue = oscToUIValue(oscValue, 'osc', param);
+    // Nota: frequency usa knob con rango 0-10 (= escala OSC), no necesita conversión
+    const uiValue = param === 'frequency' ? oscValue : oscToUIValue(oscValue, 'osc', param);
 
     // Evitar loop de retroalimentación
     this._ignoreOSCUpdates = true;

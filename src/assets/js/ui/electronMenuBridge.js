@@ -86,8 +86,8 @@ function readCurrentState() {
     quickbarVisible: readBool(STORAGE_KEYS.QUICKBAR_VISIBLE ?? 'synthigme-quickbar-visible', true),
     // Ver
     inactivePins: readBool(STORAGE_KEYS.SHOW_INACTIVE_PINS, false),
-    tooltipVoltage: readBool(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, false),
-    tooltipAudioRate: readBool(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, false),
+    tooltipVoltage: readBool(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, true),
+    tooltipAudioRate: readBool(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, true),
     linearFaders: readBool(STORAGE_KEYS.FADER_LINEAR_RESPONSE, true),
     // Paneles
     panLocked: window.__synthNavLocks?.panLocked ?? false,

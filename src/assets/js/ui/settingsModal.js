@@ -1892,6 +1892,9 @@ export class SettingsModal {
     this.tooltipVoltageCheckbox.addEventListener('change', () => {
       this.showTooltipVoltage = this.tooltipVoltageCheckbox.checked;
       localStorage.setItem(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, String(this.showTooltipVoltage));
+      document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+        detail: { key: 'tooltipShowVoltage', value: this.showTooltipVoltage }
+      }));
     });
     
     voltageRow.appendChild(this.tooltipVoltageCheckbox);
@@ -1922,6 +1925,9 @@ export class SettingsModal {
     this.tooltipAudioCheckbox.addEventListener('change', () => {
       this.showTooltipAudio = this.tooltipAudioCheckbox.checked;
       localStorage.setItem(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, String(this.showTooltipAudio));
+      document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+        detail: { key: 'tooltipShowAudioValues', value: this.showTooltipAudio }
+      }));
     });
     
     audioRow.appendChild(this.tooltipAudioCheckbox);

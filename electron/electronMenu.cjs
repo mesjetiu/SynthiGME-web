@@ -49,8 +49,8 @@ let menuState = {
   patchBrowserOpen: false,
   // Ver
   inactivePins: false,
-  tooltipVoltage: false,
-  tooltipAudioRate: false,
+  tooltipVoltage: true,
+  tooltipAudioRate: true,
   linearFaders: true,
   // Paneles
   panLocked: false,

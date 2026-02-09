@@ -8,67 +8,42 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
-- **PiP: botón de bloqueo (candado)**: Bloquea tamaño, proporción, zoom interior, paneo y resize de la ventana flotante. Solo permite arrastrar. Estado persistente entre sesiones.
-- **Atajos de teclado (1-7) detectan PiP**: Si un panel está en modo flotante, el atajo lo enfoca y trae al frente en lugar de hacer zoom sobre el placeholder vacío del canvas.
-
-### Corregido
-- **Tooltip de knob pulsando indefinidamente**: Al hacer zoom a panel vía teclado (1-7), los tooltips activos se cierran para evitar que queden pulsando sin fin al moverse el contenido bajo el puntero.
-- **Badges de shortcut no reflejaban atajos personalizados**: Los números sobre los paneles (al pulsar Alt) ahora muestran el atajo real configurado en ajustes, no siempre 1-7.
-
-### Cambiado
-- **Fondos de paneles**: Paneles 1, 2, 3, 4 y 7 usan JPG temporales de diseño en lugar de SVGs vacíos. Panel 3 ya no carga su SVG placeholder. Paneles 5 y 6 (matrices) mantienen sus SVGs de producción. Instrucciones de migración a SVG documentadas en código.
-- **Paneles 3 y 7: ocultar textos de módulos**: Eliminados títulos, etiquetas de knobs, valores numéricos y textos de switches en Panel 3 (osciladores, noise, random voltage) y Panel 7 (output channels), ya que están en las imágenes de fondo. Reglas CSS comentadas para restaurar fácilmente.
-- **PiP: botones +/- son ahora maximizar/minimizar**: El botón + maximiza la ventana proporcionalmente hasta alcanzar un borde de pantalla, − restaura al tamaño por defecto. Se respeta la proporción de lados actual en ambos casos.
-
-## [0.6.0] - 2026-02-08
-
-### Añadido
-- **Menú nativo completo en Electron**: 7 menús con i18n (Archivo, Ver, Audio, Paneles, Avanzado, OSC, Ayuda). Sincronización bidireccional de estado con UI web vía IPC. Selector de idioma integrado en menú Archivo.
-- **Toggle de visibilidad del quickbar en Electron**: Opción Ver → Mostrar barra rápida. Botón flotante de mute siempre visible como emergencia. Estado persistente en localStorage.
-- **Título de ventana localizado en Electron**: Título traducido al idioma activo (7 idiomas), se actualiza automáticamente al cambiar idioma.
-- **Entrada multicanal PipeWire (8ch)**: Captura de 8 canales independientes directo a Input Amplifiers. Activación conjunta con salida multicanal. Comunicación lock-free vía SharedArrayBuffer.
-- **Respuesta lineal de faders (opcional)**: En Ajustes > Visualización, slider 50% → ganancia 50%. Activado por defecto. El CV externo mantiene la curva logarítmica 10 dB/V auténtica del VCA CEM 3330.
-- **Botones de reset para matrices de entrada**: Botón "Restaurar por defecto" en matrices de ruteo estéreo y multicanal.
-- **Noise Generator: tooltips informativos**: COLOUR muestra tipo de filtro (LP/White/HP) con fc; LEVEL muestra Vp-p, ganancia y dB.
-- **Noise Generator: filter bypass en posición neutral**: Ruido blanco directo sin filtro IIR cuando COLOUR está en centro, ahorrando CPU. Configurable en Ajustes > Optimizaciones.
+- **Entrada multicanal PipeWire (8ch)**: Nueva captura de 8 canales independientes via PipeWire (input_amp_1..8) que van directamente a los Input Amplifiers. Activación conjunta con salida multicanal mediante el mismo toggle. Comunicación lock-free via SharedArrayBuffer.
+- **Tests de precisión V/oct**: Nueva suite de 13 tests de integración (`fmOctaveAccuracy.audio.test.js`) para verificar la precisión de modulación FM 1V/octava a través de la cadena CV completa (pin → cvChainInput → thermalSlew → softClip → freqCVInput). Incluye diagnóstico etapa por etapa para detectar pérdidas de señal.
+- **Respuesta lineal de faders (opcional)**: Nueva opción en Ajustes > Visualización para que los faders de Output Channel controlen la ganancia de forma lineal (slider 50% → ganancia 50%). Por defecto activado para mejor experiencia en ordenador. El CV externo sigue funcionando con la curva logarítmica 10 dB/V auténtica del VCA CEM 3330.
+- **Botones de reset para matrices de entrada**: Las matrices de ruteo de entrada (estéreo y multicanal) ahora tienen botones "Restaurar por defecto" para volver a la configuración inicial rápidamente.
+- **Noise Generator: tooltips informativos**: Los knobs COLOUR y LEVEL del generador de ruido ahora muestran tooltips con información técnica: COLOUR indica tipo de filtro (LP/White/HP) con fc; LEVEL muestra Vp-p, ganancia y dB. Corregido `ModuleUI._createKnobShell` para propagar `getTooltipInfo` al constructor de `Knob`.
+- **Noise Generator: filter bypass en posición neutral**: Cuando COLOUR está en centro (white noise), el worklet genera ruido blanco directamente sin procesar el filtro IIR, ahorrando CPU. Usa el mismo setting de bypass de filtros que los Output Channels en Ajustes > Optimizaciones.
 
 ### Cambiado
-- **Patch Browser flotante y no modal**: Arrastrable, no bloquea canvas ni PiP. Permanece abierto tras cargar patch. Indicador de estado activo en quickbar y menú Electron.
-- **Electron: zoom según foco**: Ctrl+/- y Ctrl+0 aplican zoom en PiP enfocada o canvas principal. En Linux, acciones directas vía IPC.
-- **Electron: confirmación al recargar**: Diálogo antes de Archivo → Recargar para evitar pérdida de estado en performances.
-- **Electron: paneles simplificados**: Submenú Paneles muestra "Panel 1", "Panel 2"... sin descripciones.
-- **Electron: `dev` reconstruye dist-app/**: Build completo antes de lanzar Electron, garantizando código actualizado.
-- **Electron: CSP en servidor local**: Cabecera Content-Security-Policy con permisos mínimos (blob: para AudioWorklet, unsafe-inline para estilos).
-- **Electron: atajos de recarga bloqueados**: F5, Ctrl+R, Ctrl+Shift+R deshabilitados para evitar reinicios accidentales en performances.
-- **Noise Generator: filtro COLOUR auténtico (1er orden, 6 dB/oct)**: Emulación del circuito real del Synthi 100 Cuenca: ruido blanco + filtro IIR (pot 10K LIN + C 33nF, fc ≈ 965 Hz). Dial 0-10: LP → white → HP. Nivel con pot LOG. DC-coupled para uso dual audio + CV aleatorio.
-- **Salida multicanal expandida a 12 canales**: Pan 1-4 L/R, Pan 5-8 L/R (buses estéreo) y Out 1-8 (salidas individuales). Modo estéreo/multicanal separado del dispositivo con ruteo independiente.
-- **Output Channel: Filter escala -5 a +5**: Escala estándar del Synthi 100, centro en 0 (bypass).
-- **Output Channel: Filtro RC auténtico (1er orden, 6 dB/oct)**: AudioWorklet que modela el circuito RC pasivo real (plano D100-08 C1): LP fc ≈ 677 Hz, HP shelving +6 dB HF, transición continua. Pendiente suave de 6 dB/oct.
-- **Stereo buses: ruteo multicanal unificado**: Misma capacidad de ruteo que Out 1-8, con canales PipeWire consistentes (stereo buses ch 0-3, Out 1-8 ch 4-11).
-- **UI: Opción de resolución oculta**: Selector de escala removido de Ajustes > Visualización, siempre inicia en 1x.
+- **Noise Generator: filtro COLOUR auténtico (1er orden, 6 dB/oct)**: Reescrito el generador de ruido para emular el circuito real del Synthi 100 Cuenca. Reemplazado el algoritmo Voss-McCartney (interpolación white↔pink) por ruido blanco + filtro IIR de 1er orden idéntico al del Output Channel: pot 10K LIN + C 33nF, τ = 3.3×10⁻⁴ s, fc ≈ 965 Hz. Dial COLOUR 0-10: LP dark/pink → flat white → HP bright/blue. Nivel con pot LOG 10kΩ (audio taper). DC-coupled (fmin ≈ 2-3 Hz) para uso dual audio + CV aleatorio.
+- **Electron: atajos de recarga bloqueados**: Los atajos F5, Ctrl+R y Ctrl+Shift+R están deshabilitados en la app de escritorio para evitar reinicios accidentales durante performances. El menú Archivo mantiene "Recargar" sin atajo para recarga manual si es necesaria.
+- **Modo de salida separado del dispositivo**: Nueva UI con radio buttons para seleccionar entre modo Estéreo (dispositivo del sistema) y Multicanal (PipeWire 12ch). En modo multicanal el selector de dispositivo se deshabilita. Configuración de ruteo independiente para cada modo.
+- **Salida multicanal expandida a 12 canales**: La salida multicanal PipeWire ahora soporta 12 canales independientes con nombres descriptivos: Pan 1-4 L/R, Pan 5-8 L/R (buses estéreo) y Out 1-8 (salidas individuales). Ruteo diagonal por defecto en multicanal.
+- **UI: Opción de resolución oculta**: Selector de escala 1x/1.5x/2x... removido de Ajustes > Visualización. La app siempre inicia en 1x. Código mantenido para uso futuro.
+- **Output Channel: Filter escala -5 a 5**: El knob Filter de los canales de salida ahora usa la escala estándar del Synthi 100 (-5 a +5) con centro en 0 (bypass), en lugar de 0-10 con centro en 5.
+- **Output Channel: Filtro RC auténtico (1er orden, 6 dB/oct)**: Reemplazados los 2 BiquadFilter provisionales (LP+HP Butterworth, 12 dB/oct) por un AudioWorklet que modela el circuito RC pasivo real del Synthi 100 Cuenca (plano D100-08 C1): pot 10K LIN + 2× 0.047µF + buffer CA3140. Filtro IIR de un solo polo: LP fc(-3dB) ≈ 677 Hz, HP shelving +6 dB en HF, transición continua LP↔plano↔HP. Pendiente suave de 6 dB/oct para corrección tonal musical.
+- **Stereo buses: ruteo multi-canal unificado**: Los stereo buses (Pan 1-4 L/R, Pan 5-8 L/R) ahora usan el mismo sistema de ruteo que Out 1-8, permitiendo enviar cada salida a múltiples canales físicos simultáneamente. Orden de canales PipeWire consistente: primero stereo buses (ch 0-3), luego Out 1-8 (ch 4-11).
 
 ### Arreglado
-- **PiP: bloqueo de controles táctiles tras pinch**: Flag de gesto activo corregido (movido a fase de burbuja), restaurando manipulación de controles tras zoom.
-- **PiP: tamaño inicial, paneo y protección pinch**: Tamaño inicial ~50% mayor, paneo expandido a 2/3 visible, protección anti-zoom accidental con estabilización de ratio.
-- **PiP: centrado y paneo más suave**: Panel centrado al abrir, paneo suavizado en desktop.
-- **PiP: eventos y menú contextual**: Eventos capturados dentro de PiP (evita zoom/pan erráticos en móvil), menú contextual nativo bloqueado, long press para menú en Safari iOS.
-- **PiP: controles no bloqueaban gestos táctiles**: Propagado flag de gesto desde pinch-zoom del PiP a `shouldBlockInteraction()`.
-- **PiP: warning 'scroll-blocking wheel event'**: Añadido `{ passive: true }` al listener de wheel en pipContainer.
-- **Tooltips táctiles durante pan/zoom**: No se activan durante gestos de dos dedos; retraso 80ms + cancelación si se detecta navegación.
-- **Nombres de idioma con comillas en Ajustes**: Parser YAML corregido para strip de comillas en `_meta.languages`.
-- **Electron: toggle de log OSC desde menú**: Evento corregido a `osc:log-visibility` en `window`.
-- **Electron: enlaces GitHub/reportar error**: Abiertos en navegador del sistema via `shell.openExternal` con fallback nativo.
-- **Electron: fullscreen unificado**: Menú y quickbar usan la misma Fullscreen API del navegador.
-- **Electron: menú desaparecía tras fullscreen**: Reconstrucción del menú con delay 200ms tras salir de pantalla completa.
-- **CSP: script inline bloqueado en Electron**: Extraído a archivo externo `fullscreenButton.js`.
-- **Stereo buses sin sonido en multicanal**: Reconexión de `channelGains` tras `forcePhysicalChannels(12)` vía `_rebuildStereoBusConnections()`. 23 tests de regresión añadidos.
-- **Stereo bus routing multicanal no persistía**: Corregido orden de actualización de `physicalChannels` vs carga de routing.
-- **Ruteo de audio: aislamiento estéreo/multicanal**: Configuración de ruteo guardada independientemente por modo, se preserva al cambiar.
-- **Output Channels: switches inicialmente apagados**: Apagados por defecto al iniciar y tras cada reinicio.
-- **Dormancy: Output Channel con Voltage Input**: Despiertan correctamente al recibir señal por columnas 42-45 de Panel 6.
-- **Re-entry de Output Channels**: DC blocker reducido a 0.01Hz para CV lento, resync instantáneo del VCA al despertar, ganancia unitaria corregida en `createHybridClipCurve()`.
-- **Grabación: canales individuales POST-switch**: Grabación desde `muteNode` respetando estado on/off de cada canal.
-- **Créditos en Ajustes**: Añadido Fuzzy Gab, roles actualizados, texto de inspiración ajustado.
+- **Patch load: nivel de noise (y otros módulos) no se restauraba**: Cuando un módulo estaba dormant (sin conexión en matriz) y se cargaba un patch, `setLevel()` guardaba el valor pero no tocaba el AudioParam (silenciado por dormancy). El wake-up dependía de un `requestAnimationFrame` que podía deduplicarse o retrasarse, dejando el gain a 0 pese a que el knob mostraba la posición correcta. Ahora `_applyPatch` y `_resetToDefaults` fuerzan una actualización síncrona de dormancy (`flushPendingUpdate`) para que los módulos se resincronicen inmediatamente. Mismo fix aplicado a InputAmplifier (usaba snapshot de niveles pre-dormancy en vez de los actuales).
+- **Tooltips de nivel de osciladores: calibración V/oct correcta**: Los tooltips de los knobs de nivel (pulse, sine, triangle, sawtooth) ahora muestran voltaje pico-a-pico basado en `DIGITAL_TO_VOLTAGE × 2 = 8.0V` para todas las formas de onda, en lugar de usar los valores de referencia del hardware (`outputLevels`) que varían por forma de onda. Esto garantiza que el voltaje mostrado corresponda exactamente al voltaje procesado por el sistema CV, esencial para modulación FM precisa 1V/octava.
+- **Tooltip de frecuencia: voltaje del potenciómetro (0-10V)**: Corregida la fórmula de conversión dial→voltaje en el tooltip del knob de frecuencia. Antes mostraba el voltaje interno del VCO (centrado en 5V, daba -0.263V en posición 0). Ahora muestra el voltaje real del potenciómetro: 0V en dial 0, 5V en dial 5, 10V en dial 10.
+- **Tooltips táctiles durante pan/zoom**: En tablets y dispositivos táctiles, los tooltips de knobs y sliders ya no se activan al tocar un control como parte de un gesto de dos dedos (pan/zoom). Solo aparecen con tap explícito o al manejar el control. El tooltip se retrasa 80ms en touch y se cancela si se detecta gesto de navegación.
+- **Controles en PiP no bloqueaban gestos táctiles**: Los knobs, sliders y faders dentro de ventanas PiP/Detached respondían al toque durante gestos de pan/zoom (pinch). Propagado el flag `__synthPipGestureActive` desde el pinch-zoom del PiP para que `shouldBlockInteraction()` bloquee controles también en PiP.
+- **Stereo buses sin sonido en multicanal**: El ruteo de stereo buses (Pan 1-4 L/R, Pan 5-8 L/R) no afectaba el audio en modo multicanal. Al cambiar de estéreo a multicanal, `forcePhysicalChannels(12)` reconstruía los `masterGains` pero no reconectaba los `channelGains` de los stereo buses, dejándolos conectados a nodos desconectados. Añadido `_rebuildStereoBusConnections()` en `_rebuildOutputArchitecture()` para recrear las conexiones y re-aplicar el routing tras cambiar de modo o dispositivo. Añadidos 23 tests de regresión para `forcePhysicalChannels` y supervivencia de stereo buses.
+- **Stereo bus routing multicanal no persistía**: El routing de stereo buses (Pan 5-8 L/R, filas 3-4 de la matriz) en modo multicanal no se guardaba ni cargaba correctamente. El problema era que `physicalChannels` se actualizaba DESPUÉS de llamar a `_loadStereoBusRouting()`, causando que se recortaran los datos guardados a solo 2 columnas. Añadida función `_resizeStereoBusRoutingArrays()` para manejar el redimensionamiento correctamente.
+- **Ruteo de audio: aislamiento estéreo/multicanal**: La configuración de ruteo de salida ahora se guarda de forma independiente para modo estéreo y multicanal. Al cambiar de modo, se guarda primero el ruteo del modo anterior antes de cargar el del nuevo modo, evitando que los cambios en un modo afecten al otro.
+- **Output Channels: switches inicialmente apagados**: Los switches de los 8 canales de salida están ahora apagados por defecto al iniciar y cada vez que se reinicia el sintetizador. Valor inicial cambio de `true` (encendido) a `false` (apagado).
+- **Menú contextual en Safari iOS**: Soporte de long press (500ms) para abrir menú contextual de paneles PiP en dispositivos táctiles donde el evento `contextmenu` no se dispara.
+- **Eventos en ventanas PiP**: Todos los eventos de ratón/touch se capturan dentro de las ventanas PiP, evitando propagación al canvas general que causaba zoom/pan erráticos en dispositivos móviles.
+- **Menú contextual del navegador en PiP**: Las ventanas PiP ahora bloquean el menú contextual nativo del navegador al hacer click derecho, manteniendo consistencia con el canvas principal.
+- **PiP: centrado y paneo más suave**: Al abrir un PiP, el panel queda centrado visualmente, y el paneo del contenido se suaviza en desktop para evitar desplazamientos exagerados.
+- **Créditos en Ajustes**: Añadido Fuzzy Gab en enlaces, orden y roles actualizados, y texto de inspiración ajustado a Gabinete de Música Electroacústica.
+- **Dormancy: Output Channel con Voltage Input**: Los canales de salida ahora despiertan correctamente al recibir señal por Voltage Input (columnas 42-45 de Panel 6), no solo por conexiones de audio (Panel 5).
+- **Re-entry de Output Channels: drift sub-Hz y fidelidad de forma de onda**: DC blocker reemplazado de BiquadFilter 2º orden a AudioWorklet 1er orden (`y[n] = x[n] - x[n-1] + R·y[n-1]`, fc=0.01 Hz). El BiquadFilter tenía dos polos near-unity que causaban trend-following: al cesar la señal, la salida seguía la última pendiente produciendo rampas ascendentes de ~80s. El filtro 1er orden solo tiene decaimiento exponencial (sin memoria de velocidad), eliminando el drift. Auto-reset tras 50ms de silencio borra el estado del filtro para settling instantáneo. Droop de cuadrada 1 Hz ~3% (<0.3 dB), transparente como CV para FM.
+- **Re-entry de Output Channels: ganancia unitaria**: Corregido orden de argumentos en `createHybridClipCurve()` que causaba amplificación ~1.6× por cada Output Channel encadenado. Ahora la señal re-entry mantiene ganancia 1:1.
+- **Grabación: canales individuales POST-switch**: Los 8 canales individuales ahora se graban desde `muteNode` (POST-switch) en lugar de `levelNode` (PRE-switch), respetando el estado on/off de cada canal.
 
 ## [0.5.0] - 2026-02-03
 

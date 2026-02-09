@@ -9,6 +9,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 - **Electron: confirmación al salir**: Archivo > Salir, Alt+F4 y el botón X de ventana ahora piden confirmación antes de cerrar la aplicación, igual que la opción de recargar. Diálogo traducido a todos los idiomas soportados.
+- **Tests de contratos Electron-menú**: 46 tests que verifican la integridad entre electronMenu.cjs, electronMenuBridge.js, preload.cjs y main.cjs. Detectan claves de traducción sin enviar, estado desincronizado, acciones sin handler, canales IPC inconsistentes y rotura de la lógica de confirmación de salida.
 
 ### Cambiado
 - **Electron: menú Ver renombrado**: "Mostrar tooltips de voltaje" → "Parámetros electrónicos en tooltips" y "Mostrar info de audio-rate" → "Info de audio en tooltips", descripciones más claras de lo que muestran (voltajes, dB, frecuencias, ganancias, etc.).

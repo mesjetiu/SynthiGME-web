@@ -74,6 +74,7 @@ import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initPipManager, restorePipState } from './ui/pipManager.js';
+import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { showToast } from './ui/toast.js';
 import { labelPanelSlot, getOscillatorLayoutSpec } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
@@ -4433,6 +4434,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   setupMobileQuickActionsBar();
   setupPanelShortcutBadges();
   setupPanelDoubleTapZoom();
+
+  // Inicializar puente de menú Electron (traducciones, estado, acciones IPC)
+  // Solo se activa si estamos en Electron (window.menuAPI existe)
+  initElectronMenuBridge();
   
   // ─── Ocultar splash screen después de la inicialización ───
   // Garantiza un tiempo mínimo de visualización para evitar parpadeos

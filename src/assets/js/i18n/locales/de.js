@@ -302,6 +302,7 @@ export default {
   "menu.audio.audioSettings": "Audio-Einstellungen…",
   "menu.audio.recordSettings": "Aufnahmeeinstellungen…",
   "menu.panels": "Bedienfelder",
+  "menu.panels.detachHeader": "Bedienfelder abtrennen",
   "menu.panels.detachAll": "Alle trennen",
   "menu.panels.attachAll": "Alle zurückgeben",
   "menu.panels.lockPan": "Schwenk sperren",

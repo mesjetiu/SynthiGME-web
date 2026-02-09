@@ -41,7 +41,7 @@ const MENU_TRANSLATION_KEYS = [
   'menu.audio.record', 'menu.audio.stopRecording',
   'menu.audio.audioSettings', 'menu.audio.recordSettings',
   // Paneles
-  'menu.panels', 'menu.panels.detachAll', 'menu.panels.attachAll',
+  'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
   'menu.panels.lockPan', 'menu.panels.lockZoom', 'menu.panels.rememberPip',
   // Avanzado
   'menu.advanced', 'menu.advanced.debugGlobal',

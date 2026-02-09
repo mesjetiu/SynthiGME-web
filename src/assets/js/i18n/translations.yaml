@@ -2723,6 +2723,15 @@ menu.panels:
   pt: "Painéis"
   cs: "Panely"
 
+menu.panels.detachHeader:
+  en: Detach Panels
+  es: Separar paneles
+  fr: "Détacher les panneaux"
+  de: "Bedienfelder abtrennen"
+  it: "Separa pannelli"
+  pt: "Separar painéis"
+  cs: "Odpojit panely"
+
 menu.panels.detachAll:
   en: Detach All
   es: Extraer todos

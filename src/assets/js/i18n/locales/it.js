@@ -302,6 +302,7 @@ export default {
   "menu.audio.audioSettings": "Impostazioni audio…",
   "menu.audio.recordSettings": "Impostazioni di registrazione…",
   "menu.panels": "Pannelli",
+  "menu.panels.detachHeader": "Separa pannelli",
   "menu.panels.detachAll": "Stacca tutto",
   "menu.panels.attachAll": "Restituisci tutto",
   "menu.panels.lockPan": "Blocca panoramica",

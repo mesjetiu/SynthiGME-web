@@ -312,6 +312,10 @@ function buildMenuTemplate() {
   const panelsMenu = {
     label: t('menu.panels', 'Panels'),
     submenu: [
+      {
+        label: t('menu.panels.detachHeader', 'Detach Panels'),
+        enabled: false
+      },
       ...panelItems,
       { type: 'separator' },
       {

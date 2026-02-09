@@ -302,6 +302,7 @@ export default {
   "menu.audio.audioSettings": "Nastavení zvuku…",
   "menu.audio.recordSettings": "Nastavení nahrávání…",
   "menu.panels": "Panely",
+  "menu.panels.detachHeader": "Odpojit panely",
   "menu.panels.detachAll": "Odpojit vše",
   "menu.panels.attachAll": "Vrátit vše",
   "menu.panels.lockPan": "Uzamknout posun",

@@ -302,6 +302,7 @@ export default {
   "menu.audio.audioSettings": "Paramètres audio…",
   "menu.audio.recordSettings": "Paramètres d'enregistrement…",
   "menu.panels": "Panneaux",
+  "menu.panels.detachHeader": "Détacher les panneaux",
   "menu.panels.detachAll": "Détacher tout",
   "menu.panels.attachAll": "Retourner tout",
   "menu.panels.lockPan": "Verrouiller le panoramique",

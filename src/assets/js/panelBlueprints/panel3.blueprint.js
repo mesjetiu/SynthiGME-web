@@ -58,17 +58,17 @@ export default {
       rowsPerColumn: 6,
       
       // Tamaño base de cada oscilador (px)
-      oscSize: { width: 375, height: 103 }, // width: 370 height: 110, 100
+      oscSize: { width: 375, height: 103 }, // Tamaños encontrados para cuadrar con la imagen de fondo.
       
       // Espaciado entre osciladores
-      gap: { x: 0, y: 0 },
+      gap: { x: 0, y: 0.3 }, // y: 0.3 encontrado para cuadrar con la imagen de fondo.
       
       // Margen externo
       airOuter: 0,
       airOuterY: 0,
       
       // Offset vertical desde el top
-      topOffset: 10,
+      topOffset: 3.2, // Offset encontrado para cuadrar con la imagen de fondo. Parece que ya no tiene efecto, quizás porque no puede bajar más.
       
       // Altura de la fila de módulos adicionales
       reservedHeight: 110

@@ -8,6 +8,15 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Electron: confirmación al salir**: Archivo > Salir, Alt+F4 y el botón X de ventana ahora piden confirmación antes de cerrar la aplicación, igual que la opción de recargar. Diálogo traducido a todos los idiomas soportados.
+
+### Cambiado
+- **Electron: menú Ver renombrado**: "Mostrar tooltips de voltaje" → "Parámetros electrónicos en tooltips" y "Mostrar info de audio-rate" → "Info de audio en tooltips", descripciones más claras de lo que muestran (voltajes, dB, frecuencias, ganancias, etc.).
+- **Electron: menú Paneles con título de sección**: El submenú ahora incluye un encabezado "Separar paneles" antes de la lista de paneles individuales, haciendo más clara la función de detach/attach.
+- **Electron: Buscar actualizaciones abre GitHub Releases**: Tanto en el menú Ayuda como en Ajustes > Avanzado, "Buscar actualizaciones" abre la página de releases del repositorio en el navegador externo. En versión web (PWA) se mantiene la comprobación de actualizaciones del Service Worker.
+
+### Arreglado
+- **Electron: sincronización de tooltips entre menú y ajustes**: Los checkboxes de parámetros electrónicos y audio info en el menú Ver no se sincronizaban con los ajustes al inicio (aparecían desmarcados cuando debían estar marcados). Corregidos valores por defecto inconsistentes (ahora true en todos los sitios) y añadidos eventos de sincronización bidireccional entre el modal de ajustes y el menú nativo.
 - **Entrada multicanal PipeWire (8ch)**: Nueva captura de 8 canales independientes via PipeWire (input_amp_1..8) que van directamente a los Input Amplifiers. Activación conjunta con salida multicanal mediante el mismo toggle. Comunicación lock-free via SharedArrayBuffer.
 - **Tests de precisión V/oct**: Nueva suite de 13 tests de integración (`fmOctaveAccuracy.audio.test.js`) para verificar la precisión de modulación FM 1V/octava a través de la cadena CV completa (pin → cvChainInput → thermalSlew → softClip → freqCVInput). Incluye diagnóstico etapa por etapa para detectar pérdidas de señal.
 - **Respuesta lineal de faders (opcional)**: Nueva opción en Ajustes > Visualización para que los faders de Output Channel controlen la ganancia de forma lineal (slider 50% → ganancia 50%). Por defecto activado para mejor experiencia en ordenador. El CV externo sigue funcionando con la curva logarítmica 10 dB/V auténtica del VCA CEM 3330.

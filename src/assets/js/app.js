@@ -164,10 +164,11 @@ class App {
     
     // Construir paneles
     // Panel 1 y 4: Solo visual, sin audio (módulos dummy a reemplazar)
-    this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
+    // TODO: Descomentar cuando se implemente contenido real para paneles 1 y 4
+    // this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
     this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
-    this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
+    // this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
     
     this._setupOutputFaders();
     this._buildLargeMatrices();

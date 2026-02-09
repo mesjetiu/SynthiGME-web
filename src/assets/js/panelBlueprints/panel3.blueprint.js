@@ -79,13 +79,17 @@ export default {
     
     // Fila de módulos adicionales (Noise, Random CV)
     modulesRow: {
-      height: 110,
       gap: 4,            // px — separación entre marcos de módulos
       
-      // Padding horizontal dentro de cada marco de módulo (px).
-      // El ancho de cada módulo se calcula automáticamente:
-      //   ancho = nKnobs × knobSize + (nKnobs-1) × knobGap + 2 × modulePadding
-      modulePadding: 8
+      // Tamaño fijo del MARCO de cada tipo de módulo.
+      // El contenido (knobs) se ajusta dentro sin afectar al marco.
+      // Primero se afina el marco para cuadrar con la imagen de fondo,
+      // luego se afina el contenido interior de forma independiente.
+      noiseSize:    { width: 80, height: 110 },    // px — marco de cada Noise Generator
+      randomCVSize: { width: 210, height: 110 },   // px — marco del Random CV Generator
+      
+      // Padding interno del marco (espacio entre borde y contenido)
+      padding: { top: 0, right: 4, bottom: 0, left: 4 }
     }
   },
   

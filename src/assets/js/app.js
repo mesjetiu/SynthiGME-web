@@ -2373,24 +2373,39 @@ class App {
         if (panelIndex === 3) {
           // Leer del BLUEPRINT (estructura visual)
           const blueprintModulesRow = panel3Blueprint?.layout?.modulesRow || {};
-          const rowHeight = blueprintModulesRow.height || layout.reservedHeight;
-          reserved.style.height = `${rowHeight}px`;
           
           // Gap entre marcos de módulos (desde blueprint)
           const modulesGap = blueprintModulesRow.gap ?? 4;
           reserved.style.setProperty('--modules-row-gap', `${modulesGap}px`);
           
-          // Aplicar padding y auto-sizing a los módulos desde el blueprint
+          // Aplicar tamaños fijos y padding desde el blueprint
           if (noiseModules) {
-            const modulePadding = blueprintModulesRow.modulePadding ?? 8;
-            const paddingStyle = `0 ${modulePadding}px 0`;
+            const noiseSize = blueprintModulesRow.noiseSize || { width: 80, height: 110 };
+            const randomCVSize = blueprintModulesRow.randomCVSize || { width: 210, height: 110 };
+            const pad = blueprintModulesRow.padding || { top: 0, right: 4, bottom: 0, left: 4 };
+            const padStyle = `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px`;
             
-            for (const mod of [noiseModules.noise1, noiseModules.noise2, noiseModules.randomCV]) {
+            // Noise generators — tamaño fijo
+            for (const mod of [noiseModules.noise1, noiseModules.noise2]) {
               if (mod?.element) {
-                mod.element.style.flex = '0 0 auto';
-                mod.element.style.padding = paddingStyle;
+                mod.element.style.width = `${noiseSize.width}px`;
+                mod.element.style.height = `${noiseSize.height}px`;
+                mod.element.style.padding = padStyle;
+                mod.element.style.flex = 'none';
               }
             }
+            
+            // Random CV — tamaño fijo
+            if (noiseModules.randomCV?.element) {
+              noiseModules.randomCV.element.style.width = `${randomCVSize.width}px`;
+              noiseModules.randomCV.element.style.height = `${randomCVSize.height}px`;
+              noiseModules.randomCV.element.style.padding = padStyle;
+              noiseModules.randomCV.element.style.flex = 'none';
+            }
+            
+            // Altura de la fila = la mayor de los módulos
+            const rowHeight = Math.max(noiseSize.height, randomCVSize.height);
+            reserved.style.height = `${rowHeight}px`;
           }
         } else {
           reserved.style.height = `${layout.reservedHeight}px`;

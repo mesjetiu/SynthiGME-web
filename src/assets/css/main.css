@@ -2092,7 +2092,7 @@ small { color:#aaa; }
    Estructura unificada con 9 knobs equidistantes
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* Contenedor de módulo individual (con marco propio tipo synth-module) */
+/* Contenedor de módulo individual (tamaño fijo desde blueprint, contenido se adapta dentro) */
 .noise-generator,
 .random-voltage {
   position: relative;
@@ -2101,15 +2101,9 @@ small { color:#aaa; }
   background: var(--synth-module-bg);
   border: 1px solid var(--synth-module-border);
   border-radius: var(--synth-module-radius);
-  padding: 0;
   box-sizing: border-box;
   overflow: hidden;
-}
-
-/* Tamaño auto basado en contenido (knobs + padding desde blueprint) */
-.noise-generator,
-.random-voltage {
-  flex: 0 0 auto;
+  flex: none;
 }
 
 /* (Separador ::after eliminado — cada módulo tiene su propio marco) */

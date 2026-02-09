@@ -76,7 +76,7 @@ import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initPipManager, restorePipState } from './ui/pipManager.js';
 import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { showToast } from './ui/toast.js';
-import { labelPanelSlot, getOscillatorLayoutSpec } from './ui/layoutHelpers.js';
+import { labelPanelSlot, getOscillatorLayoutSpec, resolveOscillatorUI } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -2094,7 +2094,8 @@ class App {
       oscillatorSlots = panel3Blueprint.oscillatorSlots.map(slot => ({
         index: slot.oscIndex + 1,   // UI usa 1-based
         col: slot.col,
-        row: slot.row
+        row: slot.row,
+        slotUI: slot.ui || null     // overrides de UI por oscilador
       }));
     } else {
       // Fallback: generar grid clásico
@@ -2111,15 +2112,20 @@ class App {
       const oscIndex = slot.index - 1;  // Convertir de 1-based a 0-based
       const knobOptions = this._getPanelKnobOptions(panelIndex, oscIndex);
       const oscId = `panel${panelIndex}-osc-${slot.index}`;
+      
+      // Resolver UI para este oscilador: defaults + overrides del slot
+      const oscUI = resolveOscillatorUI(layout.oscUIDefaults, slot.slotUI);
+      
       const osc = new SGME_Oscillator({
         id: oscId,
         title: `Osc ${slot.index}`,
         size: oscSize,
-        knobGap: layout.knobGap,
-        switchOffset: layout.switchOffset,
-        knobSize: 40,
-        knobRowOffsetY: -15,
-        knobInnerPct: 76,
+        knobGap: oscUI.knobGap,
+        switchOffset: oscUI.switchOffset,
+        knobSize: oscUI.knobSize,
+        knobRowOffsetY: oscUI.knobRowOffsetY,
+        knobInnerPct: oscUI.knobInnerPct,
+        knobOffsets: oscUI.knobOffsets,
         knobOptions,
         // Callback para recalcular frecuencia cuando cambia el switch HI/LO
         onRangeChange: (rangeState) => this._onOscRangeChange(panelIndex, oscIndex, rangeState)
@@ -2339,8 +2345,10 @@ class App {
       oscComponents.forEach(({ element, slot }) => {
         const col = slot.col;
         const row = slot.row;
-        const x = baseLeft + col * (columnWidth + gap.x);
-        const y = baseTop + row * (oscSize.height + gap.y);
+        // Aplicar slotOffset del blueprint (permite ajuste fino por oscilador)
+        const slotOffset = slot.slotUI?.slotOffset || layout.oscUIDefaults?.slotOffset || { x: 0, y: 0 };
+        const x = baseLeft + col * (columnWidth + gap.x) + (slotOffset.x || 0);
+        const y = baseTop + row * (oscSize.height + gap.y) + (slotOffset.y || 0);
         element.style.transform = `translate(${x}px, ${y}px)`;
       });
 

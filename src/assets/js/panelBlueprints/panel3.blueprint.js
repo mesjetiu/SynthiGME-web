@@ -89,6 +89,31 @@ export default {
   },
   
   // ─────────────────────────────────────────────────────────────────────────
+  // CONFIGURACIÓN VISUAL INTERIOR DE CADA OSCILADOR (defaults)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Valores generales que aplican a todos los osciladores.
+  // Cada oscilador puede sobrescribir cualquier propiedad en su slot
+  // (ver oscillatorSlots[].ui). Se hace merge shallow: lo que el slot
+  // defina gana sobre estos defaults.
+  //
+  oscillatorUI: {
+    // Knobs
+    knobSize: 40,          // px — diámetro del knob
+    knobInnerPct: 76,      // % — círculo interior respecto al exterior
+    knobGap: 8,            // px — espacio entre knobs en la fila
+    knobRowOffsetY: -15,   // px — desplazamiento vertical de toda la fila de knobs
+    knobOffsets: [0, 0, 0, 0, 0, 0, 0],  // px — offset Y individual por knob (7 knobs)
+    
+    // Switch HI/LO
+    switchOffset: { leftPercent: 36, topPx: 6 },
+    
+    // Offset del slot completo (permite desplazar un oscilador
+    // respecto a su posición calculada en el grid)
+    slotOffset: { x: 0, y: 0 }
+  },
+  
+  // ─────────────────────────────────────────────────────────────────────────
   // SLOTS DE OSCILADORES
   // ─────────────────────────────────────────────────────────────────────────
   //
@@ -96,6 +121,10 @@ export default {
   // oscIndex: índice 0-based del oscilador (0-11)
   // col: columna (0=izquierda, 1=derecha)
   // row: fila (0-5)
+  //
+  // Cada slot puede incluir una clave `ui` con overrides parciales
+  // de oscillatorUI. Ejemplo:
+  //   { oscIndex: 0, col: 0, row: 0, ui: { slotOffset: { x: 2, y: -1 } } }
   //
   oscillatorSlots: [
     // Columna izquierda (osciladores 1, 3, 5, 7, 9, 11)

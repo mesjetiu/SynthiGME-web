@@ -32,6 +32,21 @@ export function labelPanelSlot(panel, label, layout = {}) {
 }
 
 /**
+ * Defaults internos (fallback si el blueprint no define oscillatorUI).
+ * Solo se usan si el blueprint no tiene la sección oscillatorUI.
+ * @private
+ */
+const FALLBACK_OSC_UI = {
+  knobSize: 42,
+  knobInnerPct: 78,
+  knobGap: 8,
+  knobRowOffsetY: -6,
+  knobOffsets: [0, 0, 0, 0, 0, 0, 0],
+  switchOffset: { leftPercent: 36, topPx: 6 },
+  slotOffset: { x: 0, y: 0 }
+};
+
+/**
  * Devuelve la especificación de layout para paneles de osciladores.
  * Lee estructura base del blueprint y parámetros del config.
  * 
@@ -52,21 +67,53 @@ export function getOscillatorLayoutSpec() {
   const topOffset = blueprintLayout.topOffset ?? 10;
   const reservedHeight = blueprintLayout.reservedHeight ?? oscSize.height;
   
-  // Parámetros de UI del config (ajustes visuales)
-  const padding = 6;
-  const knobGap = 8;
-  const switchOffset = { leftPercent: 36, topPx: 6 };
+  // Configuración visual interior de cada oscilador (defaults generales)
+  const oscUIDefaults = {
+    ...FALLBACK_OSC_UI,
+    ...panel3Blueprint?.oscillatorUI
+  };
   
   return {
     oscSize,
-    padding,
+    padding: 6,
     gap,
     airOuter,
     airOuterY,
     rowsPerColumn,
     topOffset,
-    knobGap,
-    switchOffset,
-    reservedHeight
+    reservedHeight,
+    // Defaults de UI interior (consumidos por _buildOscillatorPanel)
+    oscUIDefaults
+  };
+}
+
+/**
+ * Resuelve la configuración visual interior para un oscilador concreto.
+ * Hace merge de: FALLBACK → oscillatorUI (defaults) → slot.ui (overrides).
+ *
+ * Merge shallow: las propiedades escalares del override ganan; para objetos
+ * anidados (switchOffset, slotOffset) se hace merge un nivel.
+ *
+ * @param {Object} defaults - oscillatorUI del blueprint (ya mergeado con FALLBACK)
+ * @param {Object} [slotUI] - overrides del slot (oscillatorSlots[i].ui)
+ * @returns {Object} Configuración final para este oscilador
+ */
+export function resolveOscillatorUI(defaults, slotUI) {
+  if (!slotUI) return { ...defaults };
+
+  return {
+    ...defaults,
+    ...slotUI,
+    // Merge un nivel para sub-objetos
+    switchOffset: {
+      ...(defaults.switchOffset || FALLBACK_OSC_UI.switchOffset),
+      ...(slotUI.switchOffset || {})
+    },
+    slotOffset: {
+      ...(defaults.slotOffset || FALLBACK_OSC_UI.slotOffset),
+      ...(slotUI.slotOffset || {})
+    },
+    // knobOffsets: si el slot lo redefine, gana entero (no se suman)
+    knobOffsets: slotUI.knobOffsets || defaults.knobOffsets || FALLBACK_OSC_UI.knobOffsets
   };
 }

@@ -172,7 +172,7 @@ describe('OSCServer', () => {
     });
   });
 
-  describe('Envío y recepción (loopback)', () => {
+  describe('Envío y recepción (peer-to-peer)', () => {
     let server;
     
     before(async () => {
@@ -181,7 +181,7 @@ describe('OSCServer', () => {
     });
     
     after(async () => {
-      server.onMessage = null; // Limpiar callback
+      server.onMessage = null;
       await server.stop();
     });
 
@@ -191,35 +191,32 @@ describe('OSCServer', () => {
       assert.strictEqual(result, false);
     });
 
-    it('debe recibir mensaje via loopback multicast', async () => {
-      // Dirección única para este test
-      const testAddress = '/SynthiGME/test/loopback/' + Date.now();
+    it('debe filtrar mensajes propios (eco multicast)', async () => {
+      // Cuando enviamos un mensaje multicast, el loopback nos lo devuelve.
+      // El servidor debe filtrarlo porque rinfo.address es una IP local.
+      const testAddress = '/SynthiGME/test/echo/' + Date.now();
       
-      const received = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Timeout esperando mensaje OSC'));
-        }, 2000);
-        
-        server.onMessage = (address, args, rinfo) => {
-          // Solo procesar nuestro mensaje específico
-          if (address === testAddress) {
-            clearTimeout(timeout);
-            resolve({ address, args, rinfo });
-          }
-        };
-        
-        // Pequeño delay para asegurar que el callback está registrado
-        setTimeout(() => {
-          server.send(testAddress, [42.5]);
-        }, 50);
-      });
+      let receivedCount = 0;
+      server.onMessage = (address) => {
+        if (address === testAddress) receivedCount++;
+      };
       
-      assert.strictEqual(received.address, testAddress);
-      assert.ok(Math.abs(received.args[0] - 42.5) < 0.0001);
+      // Enviar mensaje (se recibirá por loopback pero debe ser filtrado)
+      server.send(testAddress, [42.5]);
+      
+      // Esperar tiempo suficiente para que el loopback llegue
+      await new Promise(r => setTimeout(r, 200));
+      
+      assert.strictEqual(receivedCount, 0, 'Los mensajes propios deben ser filtrados por IP local');
+    });
+
+    it('debe tener IPs locales calculadas', () => {
+      assert.ok(server._localAddresses.size > 0, 'Debe haber al menos una IP local');
+      assert.ok(server._localAddresses.has('127.0.0.1'), 'Debe incluir loopback');
     });
 
     it('debe enviar mensaje sin error', () => {
-      server.onMessage = null; // Limpiar callback del test anterior
+      server.onMessage = null;
       const result = server.send('/SynthiGME/osc/1/frequency', [5.5]);
       assert.strictEqual(result, true);
     });

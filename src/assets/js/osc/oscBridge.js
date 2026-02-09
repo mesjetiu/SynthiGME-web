@@ -46,12 +46,6 @@ class OSCBridge {
     
     /** @type {Map<string, Set<Function>>} Callbacks por dirección OSC */
     this._listeners = new Map();
-    
-    /** @type {Set<string>} Mensajes recientes para filtrar loops */
-    this._recentMessages = new Set();
-    
-    /** @type {number} Tiempo en ms para considerar un mensaje como duplicado */
-    this._dedupeWindow = 50;
   }
 
   /**
@@ -197,11 +191,6 @@ class OSCBridge {
     // Normalizar valor a array
     const args = Array.isArray(value) ? value : [value];
 
-    // Registrar mensaje para deduplicación (evitar loops)
-    const msgKey = `${fullAddress}:${JSON.stringify(args)}`;
-    this._recentMessages.add(msgKey);
-    setTimeout(() => this._recentMessages.delete(msgKey), this._dedupeWindow);
-
     if (this.config.verbose) {
       console.log('[OSCBridge] Enviando:', fullAddress, args);
     }
@@ -297,14 +286,8 @@ class OSCBridge {
         return;
       }
 
-      // Deduplicación: ignorar mensajes propios recientes
-      const msgKey = `${address}:${JSON.stringify(args)}`;
-      if (this._recentMessages.has(msgKey)) {
-        if (this.config.verbose) {
-          console.log('[OSCBridge] Ignorando mensaje propio:', address);
-        }
-        return;
-      }
+      // Con multicast loopback desactivado en el servidor,
+      // solo llegan mensajes de otros peers (no eco propio)
 
       if (this.config.verbose) {
         console.log('[OSCBridge] Recibido:', address, args, 'de', from);

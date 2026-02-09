@@ -52,6 +52,13 @@ class OSCServer {
     this.running = false;
     
     /**
+     * Direcciones IPv4 locales de este host (para filtrar eco propio)
+     * Se calculan al iniciar el servidor
+     * @type {Set<string>}
+     */
+    this._localAddresses = new Set();
+    
+    /**
      * Lista de targets unicast adicionales (además del multicast)
      * Útil para enviar a aplicaciones que no soportan multicast (ej: SuperCollider)
      * @type {Array<{host: string, port: number}>}
@@ -109,10 +116,14 @@ class OSCServer {
         // Manejar mensajes entrantes
         this.socket.on('message', (buffer, rinfo) => {
           try {
+            // Filtrar mensajes propios: en multicast, el emisor también
+            // recibe su propio mensaje. Descartamos si viene de una IP local.
+            if (this._localAddresses.has(rinfo.address)) {
+              return;
+            }
+            
             const message = this._parseOSCMessage(buffer);
             if (message && this.onMessage) {
-              // Ignorar mensajes propios (mismo puerto local)
-              // Nota: en multicast todos reciben, incluido el emisor
               this.onMessage(message.address, message.args, rinfo);
             }
           } catch (err) {
@@ -129,12 +140,17 @@ class OSCServer {
             // Permitir envío multicast
             this.socket.setMulticastTTL(128);
             
-            // Recibir nuestros propios mensajes (para debug, se filtrarán luego)
+            // Loopback activado: necesario en Linux para que multicast funcione
+            // El filtrado de mensajes propios se hace por IP local
             this.socket.setMulticastLoopback(true);
+            
+            // Calcular direcciones IPv4 locales para filtrar eco
+            this._localAddresses = this._getLocalIPv4Addresses();
             
             this.running = true;
             console.log(`[OSC] Server listening on ${this.config.bindAddress}:${this.config.port}`);
             console.log(`[OSC] Multicast group: ${this.config.multicastGroup}`);
+            console.log(`[OSC] Local addresses (filtered):`, [...this._localAddresses]);
             
             if (this.onReady) this.onReady();
             resolve();
@@ -258,6 +274,28 @@ class OSCServer {
    */
   getUnicastTargets() {
     return [...this.unicastTargets];
+  }
+
+  /**
+   * Obtiene todas las direcciones IPv4 locales de este host.
+   * Se usa para filtrar mensajes multicast propios (eco).
+   * @private
+   * @returns {Set<string>} Conjunto de IPs locales
+   */
+  _getLocalIPv4Addresses() {
+    const os = require('os');
+    const addresses = new Set(['127.0.0.1']); // Siempre incluir loopback
+    const interfaces = os.networkInterfaces();
+    
+    for (const iface of Object.values(interfaces)) {
+      for (const addr of iface) {
+        if (addr.family === 'IPv4') {
+          addresses.add(addr.address);
+        }
+      }
+    }
+    
+    return addresses;
   }
 
   /**

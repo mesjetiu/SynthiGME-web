@@ -227,7 +227,7 @@ function buildMenuTemplate() {
       },
       {
         id: 'tooltipVoltage',
-        label: t('menu.view.tooltipVoltage', 'Show voltage tooltips'),
+        label: t('menu.view.tooltipVoltage', 'Electronic parameters in tooltips'),
         type: 'checkbox',
         checked: menuState.tooltipVoltage,
         click: (menuItem) => {
@@ -237,7 +237,7 @@ function buildMenuTemplate() {
       },
       {
         id: 'tooltipAudioRate',
-        label: t('menu.view.tooltipAudioRate', 'Show audio-rate info'),
+        label: t('menu.view.tooltipAudioRate', 'Audio info in tooltips'),
         type: 'checkbox',
         checked: menuState.tooltipAudioRate,
         click: (menuItem) => {

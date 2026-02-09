@@ -2614,22 +2614,22 @@ menu.view.inactivePins:
   cs: "Zobrazit neaktivní piny"
 
 menu.view.tooltipVoltage:
-  en: Show voltage tooltips
-  es: Mostrar tooltips de voltaje
-  fr: "Afficher les infobulles de tension"
-  de: "Spannungs-Tooltips anzeigen"
-  it: "Mostra tooltip tensione"
-  pt: "Mostrar dicas de tensão"
-  cs: "Zobrazit tooltips napětí"
+  en: Electronic parameters in tooltips
+  es: Parámetros electrónicos en tooltips
+  fr: "Paramètres électroniques dans les infobulles"
+  de: "Elektronische Parameter in Tooltips"
+  it: "Parametri elettronici nei tooltip"
+  pt: "Parâmetros eletrônicos nos tooltips"
+  cs: "Elektronické parametry v tooltipech"
 
 menu.view.tooltipAudioRate:
-  en: Show audio-rate info
-  es: Mostrar info de audio-rate
-  fr: "Afficher les infos audio-rate"
-  de: "Audio-Rate-Info anzeigen"
-  it: "Mostra info audio-rate"
-  pt: "Mostrar info de taxa de áudio"
-  cs: "Zobrazit info o audio-rate"
+  en: Audio info in tooltips
+  es: Info de audio en tooltips
+  fr: "Infos audio dans les infobulles"
+  de: "Audio-Infos in Tooltips"
+  it: "Info audio nei tooltip"
+  pt: "Info de áudio nos tooltips"
+  cs: "Audio info v tooltipech"
 
 menu.view.linearFaders:
   en: Linear fader response

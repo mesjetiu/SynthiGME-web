@@ -5259,7 +5259,12 @@ small { color:#aaa; }
 
 .panel1-placeholder {
   flex-shrink: 0;
-  opacity: 0.5;
+}
+
+/* Override global de .knob-wrapper (min-width:120px) dentro del Panel 1 */
+.panel1-placeholder .knob-wrapper {
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 /* Knobs de filtros: apilados verticalmente */
@@ -5267,10 +5272,10 @@ small { color:#aaa; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: space-evenly;
+  gap: 2px;
   height: 100%;
-  padding: 4px 0;
+  padding: 2px 0;
   box-sizing: border-box;
 }
 
@@ -5310,6 +5315,7 @@ small { color:#aaa; }
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 2px;
 }
 
 #panel-output .output-channels-section {

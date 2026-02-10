@@ -148,11 +148,11 @@ export default {
   // Sobrescribible en modules.randomCV.ui.
   //
   randomCVUI: {
-    knobSize: 40,          // px — diámetro del knob
+    knobSize: 65,          // px — diámetro del knob
     knobInnerPct: 76,      // % — círculo interior respecto al exterior
-    knobGap: [8, 8, 8, 8], // px — gap entre cada par de knobs (4 huecos para 5 knobs)
-    knobRowOffsetX: 0,     // px — desplazamiento horizontal de toda la fila de knobs
-    knobRowOffsetY: 0,     // px — desplazamiento vertical de toda la fila de knobs
+    knobGap: [12.9, 12.9, 12.9, 12.9], // px — gap entre cada par de knobs (4 huecos para 5 knobs)
+    knobRowOffsetX: 1,     // px — desplazamiento horizontal de toda la fila de knobs
+    knobRowOffsetY: 28,     // px — desplazamiento vertical de toda la fila de knobs
     knobOffsets: [0, 0, 0, 0, 0],  // px — offset Y individual por knob (5 knobs)
   },
   

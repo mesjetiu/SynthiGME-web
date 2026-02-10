@@ -1196,6 +1196,11 @@ class App {
     const blueprint = panel2Blueprint;
     // Config de osciloscopio (oscilloscopeConfig) se usa internamente en OscilloscopeDisplay
     
+    // Visibilidad de marcos de módulos (desde blueprint)
+    if (blueprint.showFrames === false) {
+      this.panel2.element.classList.add('hide-frames');
+    }
+    
     // Crear contenedor principal
     const host = document.createElement('div');
     host.id = 'panel2Layout';
@@ -1211,18 +1216,23 @@ class App {
                ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
       display: flex;
       flex-direction: column;
+      gap: ${blueprint.layout.gap ?? 6}px;
     `;
     this.panel2.appendElement(host);
     
-    // Crear sección del osciloscopio
+    // ─────────────────────────────────────────────────────────────────────────
+    // OSCILLOSCOPE (módulo funcional, toma el espacio restante)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    const scopeLayout = blueprint.layout.oscilloscope;
+    
     const scopeSection = document.createElement('div');
     scopeSection.className = 'panel2-oscilloscope-section';
-    const sectionConfig = blueprint.layout.sections.oscilloscope;
     scopeSection.style.cssText = `
-      flex: 0 0 ${sectionConfig.heightRatio * 100}%;
+      flex: ${scopeLayout.flex ?? 1} 1 0;
+      min-height: 0;
       width: 100%;
       box-sizing: border-box;
-      margin-bottom: ${sectionConfig.marginBottom || 0}px;
     `;
     host.appendChild(scopeSection);
     
@@ -1243,7 +1253,7 @@ class App {
     this.oscilloscope = scopeModule;
     
     // Crear el frame usando ModuleFrame
-    const frameConfig = blueprint.modules.oscilloscope.frame;
+    const frameConfig = scopeLayout.frame;
     const moduleFrame = new ModuleFrame({
       id: 'oscilloscope-module',
       title: null, // Sin título por ahora
@@ -1261,7 +1271,7 @@ class App {
     scopeSection.appendChild(frameElement);
     
     // Crear contenedor principal con layout horizontal (display + controles)
-    const displayConfig = blueprint.modules.oscilloscope.display;
+    const displayConfig = scopeLayout.display;
     const mainContainer = document.createElement('div');
     mainContainer.className = 'oscilloscope-main';
     mainContainer.style.cssText = `
@@ -1354,23 +1364,52 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // CONEXIÓN DISPLAY ↔ MÓDULO CON SINCRONIZACIÓN
     // ─────────────────────────────────────────────────────────────────────────
-    // Iniciar el render loop sincronizado con requestAnimationFrame.
-    // Esto evita "tearing" y temblores al desvincular la tasa de datos del
-    // worklet (~43 Hz) de la tasa de refresco del monitor (60+ Hz).
-    // ─────────────────────────────────────────────────────────────────────────
     display.startRenderLoop();
-    
-    // Conectar datos del módulo al display
     scopeModule.onData(data => display.draw(data));
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // FREQUENCY METER (placeholder)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    const freqMeterLayout = blueprint.layout.frequencyMeter;
+    const freqMeterFrame = new ModuleFrame({
+      id: 'frequency-meter',
+      title: 'Frequency Meter',
+      className: 'panel2-placeholder'
+    });
+    const freqMeterEl = freqMeterFrame.createElement();
+    freqMeterEl.style.cssText = `
+      width: 100%;
+      height: ${freqMeterLayout.height}px;
+      flex: 0 0 auto;
+    `;
+    host.appendChild(freqMeterEl);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // OCTAVE FILTER BANK (placeholder)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    const octaveFilterLayout = blueprint.layout.octaveFilterBank;
+    const octaveFilterFrame = new ModuleFrame({
+      id: 'octave-filter-bank',
+      title: 'Octave Filter Bank',
+      className: 'panel2-placeholder'
+    });
+    const octaveFilterEl = octaveFilterFrame.createElement();
+    octaveFilterEl.style.cssText = `
+      width: 100%;
+      height: ${octaveFilterLayout.height}px;
+      flex: 0 0 auto;
+    `;
+    host.appendChild(octaveFilterEl);
     
     // ─────────────────────────────────────────────────────────────────────────
     // INPUT AMPLIFIER LEVEL (8 canales de entrada)
     // ─────────────────────────────────────────────────────────────────────────
     
-    // Crear sección para Input Amplifiers
+    // Crear sección para Input Amplifier Level
     const inputAmpSection = document.createElement('div');
     inputAmpSection.className = 'panel2-input-amp-section';
-    const inputAmpSectionConfig = blueprint.layout.sections.inputAmplifiers;
     inputAmpSection.style.cssText = `
       flex: 0 0 auto;
       width: 100%;
@@ -1378,21 +1417,20 @@ class App {
     `;
     host.appendChild(inputAmpSection);
     
-    // Crear módulo de audio
+    // Crear módulo de audio (channels y parámetros desde config)
     const inputAmpModule = new InputAmplifierModule(this.engine, 'input-amplifiers', {
-      channels: blueprint.modules.inputAmplifiers.channels,
+      channels: inputAmplifierConfig.count,
       initialLevel: inputAmplifierConfig.knobs.level.initial,
       levelSmoothingTime: inputAmplifierConfig.audio.levelSmoothingTime
     });
     this.engine.addModule(inputAmpModule);
     this.inputAmplifiers = inputAmpModule;
     
-    // Crear UI
-    const inputAmpId = blueprint.modules.inputAmplifiers.id;
+    // Crear UI (título e id hardcoded, no del blueprint)
     const inputAmpUI = new InputAmplifierUI({
-      id: inputAmpId,
-      title: blueprint.modules.inputAmplifiers.title,
-      channels: blueprint.modules.inputAmplifiers.channels,
+      id: 'input-amplifiers',
+      title: 'Input Amplifier Level',
+      channels: inputAmplifierConfig.count,
       knobConfig: inputAmplifierConfig.knobs.level,
       onLevelChange: (channel, value) => {
         inputAmpModule.setLevel(channel, value);
@@ -1402,9 +1440,30 @@ class App {
     inputAmpSection.appendChild(inputAmpUI.createElement());
     
     // Guardar referencia para serialización
-    this._inputAmplifierUIs[inputAmpId] = inputAmpUI;
+    this._inputAmplifierUIs['input-amplifiers'] = inputAmpUI;
     
-    // Guardar referencias
+    // ─────────────────────────────────────────────────────────────────────────
+    // EXTERNAL TREATMENT DEVICES (placeholder)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    const extTreatmentLayout = blueprint.layout.externalTreatmentDevices;
+    const extTreatmentFrame = new ModuleFrame({
+      id: 'external-treatment-devices',
+      title: 'External Treatment Devices',
+      className: 'panel2-placeholder'
+    });
+    const extTreatmentEl = extTreatmentFrame.createElement();
+    extTreatmentEl.style.cssText = `
+      width: 100%;
+      height: ${extTreatmentLayout.height}px;
+      flex: 0 0 auto;
+    `;
+    host.appendChild(extTreatmentEl);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // GUARDAR REFERENCIAS
+    // ─────────────────────────────────────────────────────────────────────────
+    
     this._panel2Data = {
       host,
       scopeSection,
@@ -1415,7 +1474,10 @@ class App {
       modeToggle,
       inputAmpSection,
       inputAmpModule,
-      inputAmpUI
+      inputAmpUI,
+      freqMeterFrame,
+      octaveFilterFrame,
+      extTreatmentFrame
     };
     
     // Estado inicial

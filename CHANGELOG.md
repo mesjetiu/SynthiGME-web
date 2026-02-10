@@ -8,11 +8,13 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Panel 2 blueprint v2**: Refactorización completa del blueprint del Panel 2 a schemaVersion 2. Layout vertical con 5 módulos: Oscilloscope (funcional), Frequency Meter (placeholder), Octave Filter Bank (placeholder), Input Amplifier Level (funcional, 8 canales), External Treatment Devices (placeholder). Eliminados controls, matrixMapping, channels e ids del blueprint (ahora en configs). 36 tests nuevos para estructura, layout, módulos y separación blueprint/config.
 - **Electron: confirmación al salir**: Archivo > Salir, Alt+F4 y el botón X de ventana ahora piden confirmación antes de cerrar la aplicación, igual que la opción de recargar. Diálogo traducido a todos los idiomas soportados.
 - **Tests de contratos Electron-menú**: 46 tests que verifican la integridad entre electronMenu.cjs, electronMenuBridge.js, preload.cjs y main.cjs. Detectan claves de traducción sin enviar, estado desincronizado, acciones sin handler, canales IPC inconsistentes y rotura de la lógica de confirmación de salida.
 - **Rasterización adaptativa (nitidez de zoom)**: Nueva opción en Ajustes > Visualización y menú Ver de Electron para activar/desactivar la re-rasterización del DOM al hacer zoom. Cuando está activa, tras dejar de interactuar se aplica CSS zoom para forzar renderizado nítido a resolución real. Desactivada por defecto, disponible en todos los navegadores. Traducida a los 7 idiomas soportados.
 
 ### Cambiado
+- **"Input Amplifiers" → "Input Amplifier Level"**: Corregido el nombre del módulo en toda la aplicación (blueprint, UI, traducciones en/es) para usar el nombre correcto del Synthi 100.
 - **Electron: menú Ver renombrado**: "Mostrar tooltips de voltaje" → "Parámetros electrónicos en tooltips" y "Mostrar info de audio-rate" → "Info de audio en tooltips", descripciones más claras de lo que muestran (voltajes, dB, frecuencias, ganancias, etc.).
 - **Electron: menú Paneles con título de sección**: El submenú ahora incluye un encabezado "Separar paneles" antes de la lista de paneles individuales, haciendo más clara la función de detach/attach.
 - **Electron: Buscar actualizaciones abre GitHub Releases**: Tanto en el menú Ayuda como en Ajustes > Avanzado, "Buscar actualizaciones" abre la página de releases del repositorio en el navegador externo. En versión web (PWA) se mantiene la comprobación de actualizaciones del Service Worker.

@@ -1,129 +1,165 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Panel 2 Blueprint
+// Panel 2 (Oscilloscope, Input Amplifier Level & Placeholders) Blueprint
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Este archivo define la ESTRUCTURA visual y de ruteo del Panel 2.
-// Para PARÁMETROS de audio, ver panel2.config.js.
+// Este archivo define la ESTRUCTURA VISUAL del Panel 2 del Synthi 100.
+// Para PARÁMETROS de audio (rangos, curvas, calibración), ver los configs por módulo:
+//   - configs/modules/oscilloscope.config.js
+//   - configs/modules/inputAmplifier.config.js
 //
-// Panel 2 contiene:
-// - Osciloscopio (mitad superior, con su panelillo)
-// - Input Amplifier Level (8 canales de entrada del Synthi 100)
+// ─────────────────────────────────────────────────────────────────────────────
+// SEPARACIÓN BLUEPRINT vs CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Los archivos de panelBlueprints siguen una convención de dos archivos:
+//
+// 1. *.blueprint.js — ESTRUCTURA (este archivo)
+//    - Layout visual (posiciones, tamaños, secciones)
+//    - Distribución de módulos y placeholders
+//    - NO contiene valores numéricos de parámetros de audio
+//    - NO contiene channelCount (eso va en inputAmplifier.config.js)
+//    - NO contiene listas de controles (eso va en el config de cada módulo)
+//    - NO contiene mapeo a filas/columnas de matriz (eso va en panel5/panel6 blueprints)
+//    - NO contiene routing (eso va en los configs de cada módulo)
+//
+// 2. configs/modules/*.config.js — PARÁMETROS (uno por tipo de módulo)
+//    - Rangos de frecuencia, ganancia, etc.
+//    - Curvas de respuesta (linear, exponential)
+//    - Valores iniciales de knobs
+//    - Número de instancias (count)
+//    - Calibración por módulo
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTENIDO DEL PANEL 2 (Synthi 100)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// De arriba a abajo:
+//   - Oscilloscope (módulo más grande, funcional)
+//   - Frequency Meter (placeholder, sin audio aún)
+//   - Octave Filter Bank (placeholder, sin audio aún)
+//   - Input Amplifier Level (funcional, 8 canales de entrada)
+//   - External Treatment Devices (placeholder, sin audio aún)
+//
+// Para conexiones a matrices de audio (Panel 5) y control (Panel 6),
+// ver la referencia cruzada al final de este archivo.
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default {
-  schemaVersion: 1,
+  schemaVersion: 2,
   panelId: 'panel-2',
-  
+
+  // Mostrar/ocultar marcos de todos los módulos del panel.
+  // true  → marcos visibles (útil para posicionar contra imagen de fondo)
+  // false → marcos invisibles (aspecto final limpio)
+  showFrames: true,
+
   // ─────────────────────────────────────────────────────────────────────────
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────
-  
+  //
+  // El panel se divide verticalmente en 5 secciones de arriba a abajo.
+  // El osciloscopio toma el espacio restante (flex: 1), los placeholders
+  // usan alturas fijas, y el input amplifier se ajusta a su contenido.
+  //
+
   layout: {
     // Padding general del panel
     padding: { top: 10, right: 15, bottom: 10, left: 15 },
-    
-    // El panel se divide verticalmente en secciones
-    sections: {
-      oscilloscope: {
-        // Proporción del alto total (algo menos de la mitad)
-        heightRatio: 0.45,
-        // Margen entre secciones
-        marginBottom: 10
-      },
-      inputAmplifiers: {
-        // Resto del espacio para Input Amplifiers y futuros módulos
-        heightRatio: 0.55
-      }
-    }
-  },
-  
-  // ─────────────────────────────────────────────────────────────────────────
-  // MÓDULOS
-  // ─────────────────────────────────────────────────────────────────────────
-  
-  modules: {
+
+    // Gap vertical entre secciones de módulos
+    gap: 6,
+
+    // Sección del osciloscopio (módulo funcional, el más grande)
     oscilloscope: {
-      id: 'oscilloscope',
-      type: 'oscilloscope',
-      title: 'Oscilloscope',
-      section: 'oscilloscope',
-      
-      // El "panelillo" que contiene el osciloscopio
-      // Ocupa todo el ancho disponible
+      flex: 1,           // Toma todo el espacio vertical restante
+      marginBottom: 8,
+
+      // Configuración visual del marco
       frame: {
-        fullWidth: true,
-        padding: { top: 8, right: 10, bottom: 8, left: 10 },
-        border: true,
-        borderRadius: 6
+        borderRadius: 6,
+        padding: { top: 8, right: 10, bottom: 8, left: 10 }
       },
-      
-      // Configuración del display
+
+      // Configuración visual del display
       display: {
-        aspectRatio: 4 / 3,
-        fitWidth: true
-      },
-      
-      // Controles del osciloscopio (a la derecha del display)
-      controls: [
-        {
-          id: 'timeScale',
-          type: 'knob',
-          label: 'TIME',         // Escala horizontal (tiempo/división)
-          position: 'right'
-        },
-        {
-          id: 'ampScale',
-          type: 'knob',
-          label: 'AMP',          // Escala vertical (amplitud)
-          position: 'right'
-        }
-      ]
+        aspectRatio: 4 / 3
+      }
     },
-    
-    inputAmplifiers: {
-      id: 'input-amplifiers',
-      type: 'inputAmplifiers',
-      title: 'Input Amplifier Level',
-      section: 'inputAmplifiers',
-      
-      // Frame del módulo
-      frame: {
-        fullWidth: true,
-        border: true,
-        borderRadius: 6
-      },
-      
-      // 8 canales de entrada del Synthi 100 (Rows 1-8 en la matriz original)
-      channels: 8,
-      
-      // Controles: un knob de nivel por canal
-      controls: [
-        { id: 'level1', type: 'knob', label: 'Channel 1', channel: 0 },
-        { id: 'level2', type: 'knob', label: 'Channel 2', channel: 1 },
-        { id: 'level3', type: 'knob', label: 'Channel 3', channel: 2 },
-        { id: 'level4', type: 'knob', label: 'Channel 4', channel: 3 },
-        { id: 'level5', type: 'knob', label: 'Channel 5', channel: 4 },
-        { id: 'level6', type: 'knob', label: 'Channel 6', channel: 5 },
-        { id: 'level7', type: 'knob', label: 'Channel 7', channel: 6 },
-        { id: 'level8', type: 'knob', label: 'Channel 8', channel: 7 }
-      ]
+
+    // Frequency Meter (placeholder)
+    frequencyMeter: {
+      height: 60
+    },
+
+    // Octave Filter Bank (placeholder)
+    octaveFilterBank: {
+      height: 60
+    },
+
+    // Input Amplifier Level (módulo funcional, 8 knobs de ganancia)
+    inputAmplifierLevel: {
+      height: 'auto'    // Se ajusta al contenido
+    },
+
+    // External Treatment Devices (placeholder)
+    externalTreatmentDevices: {
+      height: 60
     }
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────────
-  // MAPEO A MATRIZ DE AUDIO (Panel 5)
+  // OVERRIDES VISUALES POR MÓDULO
   // ─────────────────────────────────────────────────────────────────────────
-  
-  matrixMapping: {
+  //
+  // Permite ajustar la apariencia visual de cada módulo individual.
+  //
+  // Los datos de identidad (id, title), parámetros de audio (knobs, rangos,
+  // curvas) y ruteo están en los configs de cada módulo:
+  //   - configs/modules/oscilloscope.config.js
+  //   - configs/modules/inputAmplifier.config.js
+  //
+  modules: {
+    // ── Módulo funcional: Oscilloscope ──────────────────────────────────
     oscilloscope: {
-      inputY: 57,   // Columna para entrada Y
-      inputX: 58    // Columna para entrada X (Lissajous)
+      // ui: { }  — overrides visuales del osciloscopio
     },
-    inputAmplifiers: {
-      // Filas 67-74 en la numeración Synthi (primeras 8 filas de la matriz)
-      firstRow: 67,
-      channels: 8
+
+    // ── Placeholders (sin funcionalidad aún) ────────────────────────────
+    frequencyMeter: {
+      // ui: { }  — overrides visuales cuando se implemente
+    },
+
+    octaveFilterBank: {
+      // ui: { }  — overrides visuales cuando se implemente
+    },
+
+    // ── Módulo funcional: Input Amplifier Level ─────────────────────────
+    inputAmplifierLevel: {
+      // ui: { }  — overrides visuales del input amplifier
+    },
+
+    // ── Placeholder ─────────────────────────────────────────────────────
+    externalTreatmentDevices: {
+      // ui: { }  — overrides visuales cuando se implemente
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONEXIONES A MATRICES (Panel 5 y Panel 6)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Las conexiones de los módulos del Panel 2 a las matrices de audio y
+  // control se declaran en los blueprints de cada matriz (fuente única de verdad):
+  //
+  //   - panel5.audio.blueprint.js
+  //     · destinations: oscilloscope inputY (col 57), inputX (col 58)
+  //     · sources: input amplifiers 1-8 (filas 67-74)
+  //
+  //   - panel6.control.blueprint.js
+  //     · sources: input amplifiers 1-8 (filas 67-74)
+  //
+  //   - configs/modules/oscilloscope.config.js — parámetros de audio
+  //   - configs/modules/inputAmplifier.config.js — parámetros de audio por canal
+  //
 };

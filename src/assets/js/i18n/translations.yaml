@@ -1530,8 +1530,8 @@ audio.outputs.reset:
 
 # Sección entradas
 audio.inputs.title:
-  en: System → Input Amplifiers
-  es: Sistema → Input Amplifiers
+  en: System → Input Amplifier Level
+  es: Sistema → Input Amplifier Level
   fr: "Système → Amplificateurs d'entrée"
   de: "System → Eingangsverstärker"
   it: "Sistema → Amplificatori di ingresso"
@@ -1548,8 +1548,8 @@ audio.inputs.channels:
   cs: "Vstupní kanály:"
 
 audio.inputs.description:
-  en: Route system physical inputs to Synthi Input Amplifiers.
-  es: Rutea las entradas físicas del sistema a los Input Amplifiers del Synthi.
+  en: Route system physical inputs to Synthi Input Amplifier Level.
+  es: Rutea las entradas físicas del sistema al Input Amplifier Level del Synthi.
   fr: "Routez les entrées physiques du système vers les amplificateurs d'entrée du Synthi."
   de: "Leiten Sie die physischen Eingänge des Systems zu den Eingangsverstärkern des Synthi weiter."
   it: "Instrada gli ingressi fisici del sistema agli amplificatori di ingresso di Synthi."
@@ -1584,8 +1584,8 @@ audio.inputs.enabled:
   cs: "✓ Vstup povolen"
 
 audio.inputs.multichannel.title:
-  en: PipeWire → Input Amplifiers
-  es: PipeWire → Input Amplifiers
+  en: PipeWire → Input Amplifier Level
+  es: PipeWire → Input Amplifier Level
   fr: "PipeWire → Amplificateurs d'entrée"
   de: "PipeWire → Eingangsverstärker"
   it: "PipeWire → Amplificatori di ingresso"
@@ -1593,8 +1593,8 @@ audio.inputs.multichannel.title:
   cs: "PipeWire → Vstupní zesilovače"
 
 audio.inputs.multichannel.description:
-  en: Route 8 PipeWire input channels directly to Input Amplifiers.
-  es: Rutea 8 canales de entrada de PipeWire a los Input Amplifiers.
+  en: Route 8 PipeWire input channels directly to Input Amplifier Level.
+  es: Rutea 8 canales de entrada de PipeWire al Input Amplifier Level.
   fr: "Routez 8 canaux d'entrée PipeWire vers les amplificateurs d'entrée."
   de: "Leiten Sie 8 PipeWire-Eingangskanäle zu den Eingangsverstärkern weiter."
   it: "Instrada 8 canali di ingresso PipeWire agli amplificatori di ingresso."

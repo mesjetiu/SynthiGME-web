@@ -2214,7 +2214,8 @@ small { color:#aaa; }
 .hide-frames .random-voltage,
 .hide-frames .synth-module,
 .hide-frames .output-channel-module,
-.hide-frames .panel7-placeholder {
+.hide-frames .panel7-placeholder,
+.hide-frames .panel2-placeholder {
   background: transparent;
   border-color: transparent;
 }
@@ -5239,6 +5240,12 @@ small { color:#aaa; }
 
 /* Placeholder de módulos no implementados */
 .panel7-placeholder {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+/* Placeholder de módulos no implementados en Panel 2 */
+.panel2-placeholder {
   flex-shrink: 0;
   opacity: 0.5;
 }

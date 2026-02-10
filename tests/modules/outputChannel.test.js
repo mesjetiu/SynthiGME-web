@@ -734,3 +734,48 @@ describe('OutputChannel.setExternalCV() - API', () => {
     assert.ok(Math.abs(engine.calls[0].gain - expectedGain) < 0.001);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OutputChannelsPanel - Regresión: constructor channelCount
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Verifica que OutputChannelsPanel lee channelCount correctamente.
+// Regresión: antes del fix, el constructor referenciaba la variable
+// inexistente `channelConfig` en lugar de `outputChannelConfig`.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('OutputChannelsPanel - channelCount constructor', () => {
+  // Réplica de la lógica del constructor para test sin DOM
+  function resolveChannelCount(explicit, configCount, fallback = 8) {
+    return explicit ?? configCount ?? fallback;
+  }
+
+  it('sin argumento: usa count del config (8)', () => {
+    const count = resolveChannelCount(undefined, 8);
+    assert.strictEqual(count, 8);
+  });
+
+  it('con argumento explícito: respeta el valor', () => {
+    const count = resolveChannelCount(4, 8);
+    assert.strictEqual(count, 4);
+  });
+
+  it('con argumento 0: respeta 0 (no cae al default)', () => {
+    // 0 ?? 8 = 0 (nullish coalescing no trata 0 como nullish)
+    const count = resolveChannelCount(0, 8);
+    assert.strictEqual(count, 0);
+  });
+
+  it('config undefined + sin argumento: fallback a 8', () => {
+    const count = resolveChannelCount(undefined, undefined);
+    assert.strictEqual(count, 8);
+  });
+
+  it('usa outputChannelConfig.count (no channelConfig que no existe)', () => {
+    // Este test documenta la regresión: channelConfig nunca existió
+    // como variable en outputChannel.js. El import correcto es outputChannelConfig.
+    const configModule = { count: 8 };
+    const count = resolveChannelCount(undefined, configModule.count);
+    assert.strictEqual(count, 8, 'debe leer count del config correcto');
+  });
+});

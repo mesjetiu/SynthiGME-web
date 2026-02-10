@@ -107,9 +107,9 @@ export default {
     knobSize: 45,          // px — diámetro del knob
     knobInnerPct: 76,      // % — círculo interior respecto al exterior
     knobGap: [9.3, 9.3, 9.3, 9.3, 9.3, 0.5],  // px — gap entre cada par de knobs (6 huecos para 7 knobs)
-    knobRowOffsetX: 0,     // px — desplazamiento horizontal de toda la fila de knobs
-    knobRowOffsetY: -15,   // px — desplazamiento vertical de toda la fila de knobs
-    knobOffsets: [6, 6, 6, 6, 6, 6, -16],  // px — offset Y individual por knob (7 knobs)
+    knobRowOffsetX: -2,     // px — desplazamiento horizontal de toda la fila de knobs
+    knobRowOffsetY: -17,   // px — desplazamiento vertical de toda la fila de knobs
+    knobOffsets: [6, 6, 6, 6, 6, 6, -18],  // px — offset Y individual por knob (7 knobs)
     
     // Switch HI/LO
     switchOffset: { leftPercent: 36, topPx: 6 },

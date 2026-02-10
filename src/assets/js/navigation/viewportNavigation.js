@@ -44,6 +44,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
   window.__synthSetResolutionFactor = (factor) => {
     if (isFirefox) return; // Firefox no necesita esto
     if (factor === currentResolutionFactor) return;
+    cancelRasterize();
+    clearActiveZoom(); // Limpiar zoom residual antes de aplicar resolución manual
     
     const animateFn = window.__synthAnimateToPanel;
     if (typeof animateFn === 'function') {
@@ -61,20 +63,173 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
   };
 
+  // ─── Rasterización adaptativa (sharp mode) ─────────────────────────────
+  // En Chrome/Safari, transform:scale() escala texturas GPU ya rasterizadas
+  // → resultado borroso al hacer zoom in. Solución: cuando el usuario deja
+  // de interactuar, aplicar CSS zoom al nivel de escala actual para forzar
+  // re-rasterización del DOM a resolución real. Al volver a mover/zoom,
+  // revertir a transform:scale() para fluidez de 60fps.
+  // Opción controlable por el usuario desde Ajustes > Visualización.
   let rasterizeTimer = null;
-  const RASTERIZE_DELAY_MS = 150;
+  const RASTERIZE_DELAY_MS = 200;
+  const MAX_SHARP_ZOOM = 3;
+  const MAX_RASTER_DIMENSION = 16384;
+  const MIN_SHARP_SCALE = 1.05; // Sin beneficio visual por debajo de ~1×
+  let sharpMode = false;
+  let sharpZoomFactor = 1;
 
+  // Preferencia del usuario (por defecto desactivado)
+  const savedSharpPref = localStorage.getItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED);
+  let sharpRasterizeEnabled = savedSharpPref === 'true';
+
+  // Escuchar cambios de la opción desde Ajustes o menú Electron
+  document.addEventListener('synth:sharpRasterizeChange', (e) => {
+    sharpRasterizeEnabled = e.detail?.enabled ?? false;
+    if (!sharpRasterizeEnabled) {
+      cancelRasterize();
+      clearActiveZoom();
+      render();
+    } else {
+      // Al activar, programar rasterización si hay zoom
+      scheduleRasterize();
+    }
+  });
+
+  // ── Zoom residual ──────────────────────────────────────────────────────
+  // Cuando el sharp mode está activo, inner.style.zoom se fija a un valor.
+  // Al desactivar el sharp mode (por interacción del usuario), NO quitamos
+  // el CSS zoom — eso causaría otra re-rasterización costosa a 1× que
+  // bloquea el hilo principal. En su lugar, mantenemos el zoom CSS como
+  // "residual" y lo compensamos en el transform. Resultado:
+  // - Entrada a sharp: render() aplica CSS zoom (re-rasterización → nítido)
+  // - Salida de sharp: transform compensa (instantáneo, sin re-rasterización)
+  // - El zoom residual solo se limpia en momentos seguros (fullscreen, cambio
+  //   de resolución manual) o al re-entrar en sharp a un nivel diferente.
+  let activeZoom = 1; // CSS zoom actualmente aplicado al DOM
+
+  // ── Commit diferido: aplica el CSS zoom en un RAF, cancelable por input ──
+  let sharpCommitRaf = null;
+  const MAX_SHARP_DEFER_FRAMES = 10; // Máx frames esperando input libre
+  let sharpDeferCount = 0;
+
+  function requestSharpCommit() {
+    cancelSharpCommit();
+    sharpDeferCount = 0;
+    sharpCommitRaf = requestAnimationFrame(commitSharpMode);
+  }
+
+  function cancelSharpCommit() {
+    if (sharpCommitRaf) {
+      cancelAnimationFrame(sharpCommitRaf);
+      sharpCommitRaf = null;
+    }
+    sharpDeferCount = 0;
+  }
+
+  /**
+   * Commit real del sharp mode. Comprueba isInputPending() antes de aplicar
+   * el CSS zoom para evitar bloquear el hilo principal si hay eventos pendientes.
+   * Si hay input pendiente, difiere al siguiente frame (hasta MAX_SHARP_DEFER_FRAMES).
+   */
+  function commitSharpMode() {
+    sharpCommitRaf = null;
+
+    // Si se canceló entre el schedule y el commit, abortar
+    if (sharpZoomFactor <= 1) return;
+
+    // Comprobar si hay input pendiente (Chrome 87+)
+    const hasPendingInput = typeof navigator?.scheduling?.isInputPending === 'function'
+      && navigator.scheduling.isInputPending({ includeContinuous: true });
+
+    if (hasPendingInput && sharpDeferCount < MAX_SHARP_DEFER_FRAMES) {
+      sharpDeferCount++;
+      sharpCommitRaf = requestAnimationFrame(commitSharpMode);
+      return;
+    }
+
+    // Aplicar: activar sharp mode y renderizar con nuevo CSS zoom
+    sharpMode = true;
+    render();
+  }
+
+  /**
+   * Cancela cualquier rasterización pendiente y desactiva sharp mode.
+   * NO quita el CSS zoom del DOM — se mantiene como zoom residual para
+   * evitar re-rasterización costosa al empezar a interactuar.
+   */
   function cancelRasterize() {
     if (rasterizeTimer) {
       clearTimeout(rasterizeTimer);
       rasterizeTimer = null;
     }
+    cancelSharpCommit();
+    sharpMode = false;
+    sharpZoomFactor = 1;
+    // NO requestRender(): el CSS zoom se mantiene como residual.
+    // render() lo compensará vía activeZoom en el transform.
+  }
+
+  /**
+   * Limpia forzosamente el zoom residual del DOM.
+   * Solo llamar en momentos seguros donde el lag es aceptable
+   * (fullscreen, cambio de resolución manual).
+   */
+  function clearActiveZoom() {
+    if (activeZoom > 1) {
+      activeZoom = 1;
+      inner.style.zoom = '';
+    }
   }
 
   function scheduleRasterize() {
-    // Con el nuevo sistema de resolución base, no necesitamos rasterización dinámica
-    // El factor de resolución ya proporciona la nitidez necesaria
+    if (!sharpRasterizeEnabled) return;
+    if (currentResolutionFactor > 1) return; // resolución manual activa
+    cancelRasterize();
+    rasterizeTimer = setTimeout(() => {
+      rasterizeTimer = null;
+      enterSharpMode();
+    }, RASTERIZE_DELAY_MS);
   }
+
+  /**
+   * Prepara el modo sharp: calcula el zoom seguro y programa su aplicación
+   * diferida vía requestAnimationFrame + isInputPending().
+   */
+  function enterSharpMode() {
+    if (!sharpRasterizeEnabled) return;
+    if (currentResolutionFactor > 1) return;
+
+    const target = Math.min(scale, MAX_SHARP_ZOOM);
+    if (target < MIN_SHARP_SCALE) {
+      // Escala demasiado baja para beneficio visual.
+      // Limpiar zoom residual si existe (la vista general es pequeña,
+      // el coste de re-rasterizar a 1× es bajo).
+      if (activeZoom > 1) {
+        clearActiveZoom();
+        render();
+      }
+      return;
+    }
+
+    // Verificar límites del compositor GPU
+    const cw = metrics.contentWidth || 1;
+    const ch = metrics.contentHeight || 1;
+    const maxByW = MAX_RASTER_DIMENSION / cw;
+    const maxByH = MAX_RASTER_DIMENSION / ch;
+    const safeZoom = Math.min(target, maxByW, maxByH);
+    if (safeZoom < MIN_SHARP_SCALE) return;
+
+    sharpZoomFactor = Math.round(safeZoom * 100) / 100;
+    requestSharpCommit();
+  }
+
+  // Exponer estado de sharp mode para depuración
+  window.__synthSharpMode = {
+    get active() { return sharpMode; },
+    get zoom() { return sharpZoomFactor; },
+    get activeZoom() { return activeZoom; },
+    get pending() { return sharpCommitRaf !== null; }
+  };
 
   let scale = 1;
   let maxScale = 6.0;
@@ -415,16 +570,34 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
-      if (currentResolutionFactor > 1) {
-        // Resolución alta: zoom base fijo, compensar con scale
-        const visualScale = scale / currentResolutionFactor;
-        inner.style.zoom = currentResolutionFactor;
-        inner.style.transform = `translate3d(${offsetX / currentResolutionFactor}px, ${offsetY / currentResolutionFactor}px, 0) scale(${visualScale})`;
+      // Determinar zoom efectivo:
+      // 1. Sharp mode activo → zoom del sharp mode (re-rasterización nueva)
+      // 2. Resolución manual fija → factor del usuario
+      // 3. Zoom residual → mantener CSS zoom existente para evitar
+      //    re-rasterización costosa al empezar a interactuar
+      let effectiveZoom = 1;
+      if (sharpMode && sharpZoomFactor > 1) {
+        effectiveZoom = sharpZoomFactor;
+      } else if (currentResolutionFactor > 1) {
+        effectiveZoom = currentResolutionFactor;
+      } else if (activeZoom > 1) {
+        effectiveZoom = activeZoom;
+      }
+
+      if (effectiveZoom > 1) {
+        const visualScale = scale / effectiveZoom;
+        // Solo modificar inner.style.zoom si cambió (evitar trabajo innecesario)
+        if (effectiveZoom !== activeZoom) {
+          inner.style.zoom = effectiveZoom;
+        }
+        inner.style.transform = `translate3d(${offsetX / effectiveZoom}px, ${offsetY / effectiveZoom}px, 0) scale(${visualScale})`;
       } else {
-        // Resolución 1x o Firefox: transform:scale() simple
-        inner.style.zoom = '';
+        if (activeZoom > 1) {
+          inner.style.zoom = '';
+        }
         inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
       }
+      activeZoom = effectiveZoom;
       window.__synthViewTransform = { scale, offsetX, offsetY };
     }
 
@@ -511,6 +684,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
   function prepareForFullscreen(entering) {
     if (!outer || !inner) return;
     
+    cancelRasterize();
+    clearActiveZoom(); // Limpiar zoom residual — fullscreen recalcula todo
     window.__synthFullscreenTransition = true;
     
     // Calcular las dimensiones objetivo
@@ -651,6 +826,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
 
     ev.preventDefault();
+    cancelRasterize();
     const lineHeight = 16;
     const deltaUnit = ev.deltaMode === 1 ? lineHeight : (ev.deltaMode === 2 ? (metrics.outerHeight || outer.clientHeight) : 1);
     const moveX = ev.deltaX * deltaUnit * wheelPanFactor * wheelPanSmoothing;
@@ -659,6 +835,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     offsetY -= moveY;
     requestRender();
     markUserAdjusted();
+    scheduleRasterize();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -709,6 +886,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const isMouseLike = ev.pointerType === 'mouse' || ev.pointerType === 'pen';
 
     if (isMouseLike && pointers.size === 1 && !isInteractiveTarget(ev.target)) {
+      cancelRasterize(); // Salir de sharp mode al iniciar pan
       isPanning = true;
       panPointerId = ev.pointerId;
       lastX = ev.clientX;
@@ -818,15 +996,12 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
 
     if (pointers.size === 0) {
-      const needsRasterize = didPinchZoom;
       didPinchZoom = false;
       
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
-      if (needsRasterize) {
-        scheduleRasterize();
-      }
+      scheduleRasterize(); // Siempre programar sharp mode al soltar
       requestRender();
 
       if (ev.pointerType === 'touch') {
@@ -851,6 +1026,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
       needsSnapOnEnd = false;
       lastPinchZoomAnchor = null;
       scheduleLowZoomUpdate('pinch');
+      scheduleRasterize(); // Programar sharp mode al soltar
       requestRender();
 
       if (ev.pointerType === 'touch') {
@@ -933,6 +1109,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   // Resize handler
   let navResizeTimer = null;
   const handleNavResize = () => {
+    cancelRasterize(); // Salir de sharp mode durante resize
     const oldWidth = lastViewportWidth;
     
     const oldOuterWidth = metrics.outerWidth;
@@ -963,12 +1140,16 @@ export function initViewportNavigation({ outer, inner } = {}) {
     clampOffsets();
     requestRender();
 
-    if (userHasAdjustedView) return;
+    if (userHasAdjustedView) {
+      scheduleRasterize();
+      return;
+    }
     
     if (window.__synthResetFocusedPanel) {
       window.__synthResetFocusedPanel();
     }
     fitContentToViewport();
+    scheduleRasterize();
   };
 
   window.addEventListener('resize', () => {
@@ -1020,6 +1201,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   });
 
   document.addEventListener('synth:zoomReset', () => {
+    cancelRasterize();
     metricsDirty = true;
     refreshMetrics();
     fitContentToViewport();
@@ -1029,11 +1211,13 @@ export function initViewportNavigation({ outer, inner } = {}) {
     if (window.__synthResetFocusedPanel) {
       window.__synthResetFocusedPanel();
     }
+    scheduleRasterize();
   });
 
   // ─── Fullscreen transition handling ───
   // Handle fullscreen changes immediately without debounce to prevent blank screen
   document.addEventListener('fullscreenchange', () => {
+    cancelRasterize(); // Salir de sharp mode durante transición fullscreen
     window.__synthFullscreenTransition = true;
     
     // Clear any pending debounced resize
@@ -1080,6 +1264,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
           
           // Disparar evento de nuevo para asegurar redibujado completo
           document.dispatchEvent(new CustomEvent('synth:fullscreenComplete'));
+          
+          // Programar sharp mode tras estabilización de fullscreen
+          scheduleRasterize();
         }, 400);
       });
     });

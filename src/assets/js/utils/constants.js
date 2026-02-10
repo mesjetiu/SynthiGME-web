@@ -89,6 +89,9 @@ export const STORAGE_KEYS = {
   // Visualización de matriz
   SHOW_INACTIVE_PINS: `${STORAGE_PREFIX}show-inactive-pins`,
   
+  // Rasterización adaptativa (nitidez de zoom)
+  SHARP_RASTERIZE_ENABLED: `${STORAGE_PREFIX}sharp-rasterize-enabled`,
+  
   // Picture-in-Picture (paneles flotantes)
   PIP_STATE: `${STORAGE_PREFIX}pip-state`,
   PIP_REMEMBER: `${STORAGE_PREFIX}pip-remember`,

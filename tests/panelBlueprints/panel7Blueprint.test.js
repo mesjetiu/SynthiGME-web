@@ -1,14 +1,15 @@
 /**
- * Tests para el blueprint del Panel 7 (Output Channels + Placeholders)
+ * Tests para el blueprint del Panel 7 (Output Channels + Joysticks + Sequencer)
  * 
  * Verifica la configuración correcta de:
  * - Estructura básica (schemaVersion, panelId, showFrames)
- * - Layout: fila superior (joysticks + sequencer) e inferior (output channels)
+ * - Layout: fila superior (joysticks con knobs + sequencer con switches/botones)
+ *   e inferior (output channels)
  * - Defaults visuales de output channels (outputChannelUI)
- * - Módulos declarados (placeholders y output channels 1-8)
+ * - Módulos declarados (3 placeholders y output channels 1-8)
  * - Separación blueprint/config (ausencia de propiedades de audio)
  * 
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { describe, it } from 'node:test';
@@ -111,6 +112,57 @@ describe('Panel 7 Blueprint - Layout', () => {
         upperRow.sequencerSize.height,
         'todos los módulos de la fila superior deben tener la misma altura'
       );
+    });
+
+    describe('Joystick config', () => {
+      const joy = upperRow.joystick;
+
+      it('existe con knobs array', () => {
+        assert.ok(joy, 'debe tener joystick config');
+        assert.ok(Array.isArray(joy.knobs), 'knobs debe ser array');
+      });
+
+      it('define 2 knobs: Range Horizontal, Range Vertical', () => {
+        assert.strictEqual(joy.knobs.length, 2);
+        assert.deepStrictEqual(joy.knobs, ['Range Horizontal', 'Range Vertical']);
+      });
+
+      it('tiene knobSize definido', () => {
+        assert.ok(joy.knobSize, 'debe tener knobSize');
+        assert.strictEqual(typeof joy.knobSize, 'string');
+      });
+    });
+
+    describe('Sequencer config', () => {
+      const seq = upperRow.sequencer;
+
+      it('existe con switches y buttons arrays', () => {
+        assert.ok(seq, 'debe tener sequencer config');
+        assert.ok(Array.isArray(seq.switches), 'switches debe ser array');
+        assert.ok(Array.isArray(seq.buttons), 'buttons debe ser array');
+      });
+
+      it('define 8 switches', () => {
+        assert.strictEqual(seq.switches.length, 8);
+      });
+
+      it('los switches son: A/B+ Dey 1, B, C+ Key 2, D, E+ Key 3, F, Key 4, Stop Clock', () => {
+        assert.deepStrictEqual(seq.switches, [
+          'A/B+ Dey 1', 'B', 'C+ Key 2', 'D',
+          'E+ Key 3', 'F', 'Key 4', 'Stop Clock'
+        ]);
+      });
+
+      it('define 8 botones', () => {
+        assert.strictEqual(seq.buttons.length, 8);
+      });
+
+      it('los botones son: Master Reset, Run Forward, Run Reverse, Stop, Reset Sequence, Step Forward, Step Reverse, Test O/P', () => {
+        assert.deepStrictEqual(seq.buttons, [
+          'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',
+          'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
+        ]);
+      });
     });
   });
 

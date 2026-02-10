@@ -32,10 +32,10 @@
 // CONTENIDO DEL PANEL 7 (Synthi 100)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Fila superior (placeholders, sin audio aún):
-//   - Joystick Left
-//   - Sequencer Operational Control
-//   - Joystick Right
+// Fila superior (placeholders con controles visuales, sin audio aún):
+//   - Joystick Left  (knobs: Range Horizontal, Range Vertical + pad joystick)
+//   - Sequencer Operational Control (8 switches + 8 botones)
+//   - Joystick Right (knobs: Range Horizontal, Range Vertical + pad joystick)
 //
 // Fila inferior:
 //   - 8 Output Channels (cada uno con Filter, Pan, Switch y Level Fader)
@@ -70,7 +70,25 @@ export default {
       // Tamaño fijo del MARCO de cada tipo de módulo (px).
       // El contenido se ajusta dentro sin afectar al marco.
       joystickSize:  { width: 160, height: 180 },
-      sequencerSize: { width: 420, height: 180 }
+      sequencerSize: { width: 420, height: 180 },
+
+      // Joystick: layout de 2 columnas (knobs izq | joystick pad der)
+      joystick: {
+        knobs: ['Range Horizontal', 'Range Vertical'],
+        knobSize: 'sm'
+      },
+
+      // Sequencer Operational Control
+      sequencer: {
+        switches: [
+          'A/B+ Dey 1', 'B', 'C+ Key 2', 'D',
+          'E+ Key 3', 'F', 'Key 4', 'Stop Clock'
+        ],
+        buttons: [
+          'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',
+          'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
+        ]
+      }
     },
 
     // Fila inferior: 8 Output Channels

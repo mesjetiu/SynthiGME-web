@@ -309,33 +309,101 @@ class App {
     
     const joystickSize = upperRow.joystickSize || { width: 160, height: 180 };
     const sequencerSize = upperRow.sequencerSize || { width: 420, height: 180 };
+    const joystickConfig = upperRow.joystick || { knobs: [], knobSize: 'sm' };
+    const sequencerConfig = upperRow.sequencer || { switches: [], buttons: [] };
     
-    // Joystick Left (placeholder)
+    // Joystick Left (placeholder con knobs + pad)
     const joystickLeftFrame = new ModuleFrame({
       id: 'joystick-left',
-      title: 'Joystick Left',
-      className: 'panel7-placeholder',
+      title: null,
+      className: 'panel7-placeholder panel7-joystick',
       size: joystickSize
     });
-    upperRowEl.appendChild(joystickLeftFrame.createElement());
+    const joystickLeftEl = joystickLeftFrame.createElement();
     
-    // Sequencer Operational Control (placeholder)
+    const joyLeftContent = document.createElement('div');
+    joyLeftContent.className = 'panel7-joystick-layout';
+    
+    const joyLeftKnobs = document.createElement('div');
+    joyLeftKnobs.className = 'panel7-joystick-knobs';
+    for (const knobName of joystickConfig.knobs) {
+      const knob = createKnob({ size: joystickConfig.knobSize, showValue: false });
+      joyLeftKnobs.appendChild(knob.wrapper);
+    }
+    joyLeftContent.appendChild(joyLeftKnobs);
+    
+    const joyLeftPad = document.createElement('div');
+    joyLeftPad.className = 'panel7-joystick-pad';
+    joyLeftContent.appendChild(joyLeftPad);
+    
+    joystickLeftFrame.appendToContent(joyLeftContent);
+    upperRowEl.appendChild(joystickLeftEl);
+    
+    // Sequencer Operational Control (placeholder con switches + botones)
     const sequencerFrame = new ModuleFrame({
       id: 'sequencer-control',
-      title: 'Sequencer',
-      className: 'panel7-placeholder',
+      title: null,
+      className: 'panel7-placeholder panel7-sequencer',
       size: sequencerSize
     });
-    upperRowEl.appendChild(sequencerFrame.createElement());
+    const sequencerEl = sequencerFrame.createElement();
     
-    // Joystick Right (placeholder)
+    const seqContent = document.createElement('div');
+    seqContent.className = 'panel7-sequencer-layout';
+    
+    // Fila de switches
+    const switchRow = document.createElement('div');
+    switchRow.className = 'panel7-sequencer-switches';
+    for (const label of sequencerConfig.switches) {
+      const sw = document.createElement('div');
+      sw.className = 'panel7-seq-switch';
+      const toggle = document.createElement('div');
+      toggle.className = 'panel7-seq-switch-toggle';
+      sw.appendChild(toggle);
+      switchRow.appendChild(sw);
+    }
+    seqContent.appendChild(switchRow);
+    
+    // Fila de botones
+    const buttonRow = document.createElement('div');
+    buttonRow.className = 'panel7-sequencer-buttons';
+    for (const label of sequencerConfig.buttons) {
+      const btn = document.createElement('button');
+      btn.className = 'panel7-seq-button';
+      btn.type = 'button';
+      buttonRow.appendChild(btn);
+    }
+    seqContent.appendChild(buttonRow);
+    
+    sequencerFrame.appendToContent(seqContent);
+    upperRowEl.appendChild(sequencerEl);
+    
+    // Joystick Right (placeholder con knobs + pad)
     const joystickRightFrame = new ModuleFrame({
       id: 'joystick-right',
-      title: 'Joystick Right',
-      className: 'panel7-placeholder',
+      title: null,
+      className: 'panel7-placeholder panel7-joystick',
       size: joystickSize
     });
-    upperRowEl.appendChild(joystickRightFrame.createElement());
+    const joystickRightEl = joystickRightFrame.createElement();
+    
+    const joyRightContent = document.createElement('div');
+    joyRightContent.className = 'panel7-joystick-layout';
+    
+    const joyRightKnobs = document.createElement('div');
+    joyRightKnobs.className = 'panel7-joystick-knobs';
+    for (const knobName of joystickConfig.knobs) {
+      const knob = createKnob({ size: joystickConfig.knobSize, showValue: false });
+      joyRightKnobs.appendChild(knob.wrapper);
+    }
+    joyRightContent.appendChild(joyRightKnobs);
+    
+    const joyRightPad = document.createElement('div');
+    joyRightPad.className = 'panel7-joystick-pad';
+    joyRightContent.appendChild(joyRightPad);
+    
+    joystickRightFrame.appendToContent(joyRightContent);
+    upperRowEl.appendChild(joystickRightEl);
     
     // Insertar ANTES de la sección de output channels (orden visual: arriba → abajo)
     this.outputPanel.element.insertBefore(upperRowEl, this.outputChannelsSection);

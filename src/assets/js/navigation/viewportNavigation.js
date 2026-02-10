@@ -359,7 +359,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   const LOW_ZOOM_EXIT_DELAY_MS = 500;
   const wheelPanFactor = 0.35;
   const wheelPanSmoothing = 0.92;
-  const MIN_VISIBLE_STRIP_PX = 32;
+  const MAX_PAN_MARGIN_RATIO = 0.25; // Máximo 1/4 del viewport vacío en cada borde
   const PINCH_SCALE_EPSILON = 0.002;
   const MULTI_PAN_EPSILON = 0.05;
   let clampDisabled = false;
@@ -475,19 +475,22 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const allowOverscroll = true;
 
     if (allowOverscroll) {
-      const visibleStripX = Math.min(MIN_VISIBLE_STRIP_PX, scaledWidth, outerWidth);
-      const visibleStripY = Math.min(MIN_VISIBLE_STRIP_PX, scaledHeight, outerHeight);
+      // Máximo 1/4 del viewport vacío en cada borde al hacer pan
+      const marginX = outerWidth * MAX_PAN_MARGIN_RATIO;
+      const marginY = outerHeight * MAX_PAN_MARGIN_RATIO;
 
-      const minOffsetX = visibleStripX - scaledWidth;
-      const maxOffsetX = outerWidth - visibleStripX;
+      // minOffset: borde derecho del contenido no más a la izquierda que 3/4 del viewport
+      // maxOffset: borde izquierdo del contenido no más a la derecha que 1/4 del viewport
+      const minOffsetX = outerWidth - marginX - scaledWidth;
+      const maxOffsetX = marginX;
       if (minOffsetX <= maxOffsetX) {
         offsetX = Math.min(Math.max(offsetX, minOffsetX), maxOffsetX);
       } else {
         offsetX = (minOffsetX + maxOffsetX) / 2;
       }
 
-      const minOffsetY = visibleStripY - scaledHeight;
-      const maxOffsetY = outerHeight - visibleStripY;
+      const minOffsetY = outerHeight - marginY - scaledHeight;
+      const maxOffsetY = marginY;
       if (minOffsetY <= maxOffsetY) {
         offsetY = Math.min(Math.max(offsetY, minOffsetY), maxOffsetY);
       } else {

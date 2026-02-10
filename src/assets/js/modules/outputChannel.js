@@ -739,7 +739,7 @@ export class OutputChannelsPanel {
   constructor(engine, channelCount) {
     this.engine = engine;
     // Usar el count del config si no se especifica
-    this.channelCount = channelCount ?? channelConfig.count ?? 8;
+    this.channelCount = channelCount ?? outputChannelConfig.count ?? 8;
     this.channels = [];
   }
   

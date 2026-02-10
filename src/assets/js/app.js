@@ -291,39 +291,75 @@ class App {
 
   _setupOutputFaders() {
     const blueprint = panel7Blueprint;
-    const layoutSection = blueprint.layout.sections.outputChannels;
-    const layoutRow = blueprint.layout.channelsRow || {};
-    const layoutSlider = blueprint.layout.slider || {};
-    const layoutChannel = blueprint.layout.channel || {};
+    const upperRow = blueprint.layout.upperRow || {};
+    const lowerRow = blueprint.layout.lowerRow || {};
+    const slider = lowerRow.slider || {};
+    const channelUI = blueprint.outputChannelUI || {};
     
+    // Visibilidad de marcos de módulos (desde blueprint)
+    if (blueprint.showFrames === false) {
+      this.outputPanel.element.classList.add('hide-frames');
+    }
+    
+    // ── Fila superior: Joystick Left | Sequencer | Joystick Right ──────
+    const upperRowEl = document.createElement('div');
+    upperRowEl.className = 'panel7-upper-row';
+    upperRowEl.style.gap = `${upperRow.gap ?? 8}px`;
+    const upperPad = upperRow.padding || { top: 0, right: 0, bottom: 0, left: 0 };
+    upperRowEl.style.padding = `${upperPad.top}px ${upperPad.right}px ${upperPad.bottom}px ${upperPad.left}px`;
+    
+    const joystickSize = upperRow.joystickSize || { width: 160, height: 180 };
+    const sequencerSize = upperRow.sequencerSize || { width: 420, height: 180 };
+    
+    // Joystick Left (placeholder)
+    const joystickLeftFrame = new ModuleFrame({
+      id: 'joystick-left',
+      title: 'Joystick Left',
+      className: 'panel7-placeholder',
+      size: joystickSize
+    });
+    upperRowEl.appendChild(joystickLeftFrame.createElement());
+    
+    // Sequencer Operational Control (placeholder)
+    const sequencerFrame = new ModuleFrame({
+      id: 'sequencer-control',
+      title: 'Sequencer',
+      className: 'panel7-placeholder',
+      size: sequencerSize
+    });
+    upperRowEl.appendChild(sequencerFrame.createElement());
+    
+    // Joystick Right (placeholder)
+    const joystickRightFrame = new ModuleFrame({
+      id: 'joystick-right',
+      title: 'Joystick Right',
+      className: 'panel7-placeholder',
+      size: joystickSize
+    });
+    upperRowEl.appendChild(joystickRightFrame.createElement());
+    
+    // Insertar ANTES de la sección de output channels (orden visual: arriba → abajo)
+    this.outputPanel.element.insertBefore(upperRowEl, this.outputChannelsSection);
+    
+    // ── Fila inferior: Output Channels ─────────────────────────────────
     // Aplicar estilos del blueprint al contenedor de la sección
     if (this.outputChannelsSection) {
-      const marginBottom = layoutSection.marginBottom ?? 10;
-      this.outputChannelsSection.style.marginBottom = `${marginBottom}px`;
-      
-      // Padding de la fila y dimensiones del slider/channel vía CSS custom properties
-      const rowPadding = layoutRow.padding || { top: 8, right: 8, bottom: 24, left: 8 };
+      const rowPadding = lowerRow.padding || { top: 8, right: 8, bottom: 12, left: 8 };
+      const contentPadding = channelUI.contentPadding || { top: 6, right: 4, bottom: 8, left: 4 };
       
       // CSS custom properties para slider y channel (heredadas por los hijos)
-      const sliderHeight = layoutSlider.height ?? 220;
-      const sliderShellHeight = layoutSlider.shellHeight ?? 240;
-      const sliderWidth = layoutSlider.width ?? 24;
-      const channelGap = layoutRow.gap ?? 8;
-      const contentPadding = layoutChannel.contentPadding || { top: 6, right: 4, bottom: 16, left: 4 };
-      
-      this.outputChannelsSection.style.setProperty('--oc-slider-height', `${sliderHeight}px`);
-      this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${sliderShellHeight}px`);
-      this.outputChannelsSection.style.setProperty('--oc-slider-width', `${sliderWidth}px`);
-      this.outputChannelsSection.style.setProperty('--oc-channel-gap', `${channelGap}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-height', `${slider.height ?? 250}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${slider.shellHeight ?? 270}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-width', `${slider.width ?? 24}px`);
+      this.outputChannelsSection.style.setProperty('--oc-channel-gap', `${lowerRow.gap ?? 8}px`);
       this.outputChannelsSection.style.setProperty('--oc-row-padding', 
         `${rowPadding.top}px ${rowPadding.right}px ${rowPadding.bottom}px ${rowPadding.left}px`);
       this.outputChannelsSection.style.setProperty('--oc-content-padding', 
         `${contentPadding.top}px ${contentPadding.right}px ${contentPadding.bottom}px ${contentPadding.left}px`);
     }
     
-    // Crear panel con 8 output channels individuales
-    const channelCount = blueprint.modules.outputChannels.channelCount;
-    this._outputChannelsPanel = new OutputChannelsPanel(this.engine, channelCount);
+    // Crear panel de output channels (channelCount viene del config, no del blueprint)
+    this._outputChannelsPanel = new OutputChannelsPanel(this.engine);
     this._outputChannelsPanel.createPanel(this.outputChannelsSection);
     
     // Mantener referencia como _outputFadersModule para compatibilidad con serialización

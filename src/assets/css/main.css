@@ -2212,7 +2212,9 @@ small { color:#aaa; }
 .hide-frames .sgme-osc,
 .hide-frames .noise-generator,
 .hide-frames .random-voltage,
-.hide-frames .synth-module {
+.hide-frames .synth-module,
+.hide-frames .output-channel-module,
+.hide-frames .panel7-placeholder {
   background: transparent;
   border-color: transparent;
 }
@@ -5216,13 +5218,29 @@ small { color:#aaa; }
 }
 
 /* ─── Panel 7 Layout ─── */
-/* Los valores de layout se aplican desde panel7.blueprint.js */
+/* Los valores de layout se aplican desde panel7.blueprint.js vía CSS custom properties */
 #panel-output {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 10px;
   overflow: hidden;
+}
+
+/* Fila superior: Joystick Left | Sequencer | Joystick Right */
+.panel7-upper-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* Placeholder de módulos no implementados */
+.panel7-placeholder {
+  flex-shrink: 0;
+  opacity: 0.5;
 }
 
 #panel-output .output-channels-section {

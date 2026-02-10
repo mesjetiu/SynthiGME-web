@@ -2081,6 +2081,11 @@ class App {
     const host = document.createElement('div');
     host.id = `panel${panelIndex}Layout`;
     host.className = 'panel3-layout';
+    
+    // Visibilidad de marcos de módulos (desde blueprint)
+    if (panel3Blueprint?.showFrames === false) {
+      host.classList.add('hide-frames');
+    }
     panel.appendElement(host);
 
     const layout = getOscillatorLayoutSpec();

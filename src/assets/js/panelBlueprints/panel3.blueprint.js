@@ -50,6 +50,11 @@ export default {
   schemaVersion: 1,
   panelId: 'panel-3',
   
+  // Mostrar/ocultar marcos de todos los módulos del panel.
+  // true  → marcos visibles (útil para posicionar contra imagen de fondo)
+  // false → marcos invisibles (aspecto final limpio)
+  showFrames: false,
+  
   // ─────────────────────────────────────────────────────────────────────────
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────

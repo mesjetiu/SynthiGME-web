@@ -1915,9 +1915,9 @@ small { color:#aaa; }
 .panel3-layout .sgme-osc {
   position: absolute;
   box-sizing: border-box;
-  background: rgba(20, 20, 20, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
+  background: var(--synth-module-bg);
+  border: 1px solid var(--synth-module-border);
+  border-radius: var(--synth-module-radius);
   color: #f3f3f3;
   font-size: 11px;
   display: flex;
@@ -2206,6 +2206,15 @@ small { color:#aaa; }
   --synth-module-border: rgba(255, 255, 255, 0.18);
   --synth-module-radius: 6px;
   --synth-module-header-size: 11px;
+}
+
+/* Ocultar marcos de módulos a nivel de panel (showFrames: false en blueprint) */
+.hide-frames .sgme-osc,
+.hide-frames .noise-generator,
+.hide-frames .random-voltage,
+.hide-frames .synth-module {
+  background: transparent;
+  border-color: transparent;
 }
 
 .synth-module {

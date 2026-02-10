@@ -217,6 +217,10 @@ export class SettingsModal {
       this.rememberPips = readBool(STORAGE_KEYS.PIP_REMEMBER, false);
       this.pipRememberCheckbox.checked = this.rememberPips;
     }
+    if (this.sharpRasterizeCheckbox) {
+      this.sharpRasterizeEnabled = readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false);
+      this.sharpRasterizeCheckbox.checked = this.sharpRasterizeEnabled;
+    }
     
     // Avanzado - Optimizaciones
     if (this.optimizationsDebugCheckbox) {
@@ -635,6 +639,9 @@ export class SettingsModal {
     
     // Respuesta de faders de salida
     container.appendChild(this._createFaderResponseSection());
+    
+    // Rasterización adaptativa (nitidez de zoom)
+    container.appendChild(this._createSharpRasterizeSection());
     
     return container;
   }
@@ -1784,6 +1791,69 @@ export class SettingsModal {
    */
   getShowInactivePins() {
     return this.showInactivePins;
+  }
+  
+  /**
+   * Crea la sección de rasterización adaptativa (nitidez de zoom)
+   * @returns {HTMLElement}
+   */
+  _createSharpRasterizeSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.sharpRasterizeTitleElement = document.createElement('h3');
+    this.sharpRasterizeTitleElement.className = 'settings-section__title';
+    this.sharpRasterizeTitleElement.textContent = t('settings.display.sharpRasterize');
+    section.appendChild(this.sharpRasterizeTitleElement);
+    
+    this.sharpRasterizeDescElement = document.createElement('p');
+    this.sharpRasterizeDescElement.className = 'settings-section__description';
+    this.sharpRasterizeDescElement.textContent = t('settings.display.sharpRasterize.description');
+    section.appendChild(this.sharpRasterizeDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para activar/desactivar rasterización adaptativa
+    // ─────────────────────────────────────────────────────────────────────
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--checkbox';
+    
+    this.sharpRasterizeCheckbox = document.createElement('input');
+    this.sharpRasterizeCheckbox.type = 'checkbox';
+    this.sharpRasterizeCheckbox.id = 'sharpRasterizeCheckbox';
+    this.sharpRasterizeCheckbox.className = 'settings-checkbox';
+    
+    // Por defecto desactivado — el usuario activa si desea nitidez tras zoom
+    const savedPref = localStorage.getItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED);
+    this.sharpRasterizeEnabled = savedPref === 'true';
+    this.sharpRasterizeCheckbox.checked = this.sharpRasterizeEnabled;
+    
+    this.sharpRasterizeLabelElement = document.createElement('label');
+    this.sharpRasterizeLabelElement.className = 'settings-checkbox-label';
+    this.sharpRasterizeLabelElement.htmlFor = 'sharpRasterizeCheckbox';
+    this.sharpRasterizeLabelElement.textContent = t('settings.display.sharpRasterize.enable');
+    
+    this.sharpRasterizeCheckbox.addEventListener('change', () => {
+      this._setSharpRasterize(this.sharpRasterizeCheckbox.checked);
+    });
+    
+    row.appendChild(this.sharpRasterizeCheckbox);
+    row.appendChild(this.sharpRasterizeLabelElement);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si la rasterización adaptativa está activa
+   * @param {boolean} enabled
+   */
+  _setSharpRasterize(enabled) {
+    this.sharpRasterizeEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, String(enabled));
+    
+    document.dispatchEvent(new CustomEvent('synth:sharpRasterizeChange', { 
+      detail: { enabled } 
+    }));
   }
   
   /**
@@ -3539,6 +3609,17 @@ export class SettingsModal {
     }
     if (this.inactivePinsLabelElement) {
       this.inactivePinsLabelElement.textContent = t('settings.display.inactivePins.show');
+    }
+    
+    // Actualizar sección de rasterización adaptativa
+    if (this.sharpRasterizeTitleElement) {
+      this.sharpRasterizeTitleElement.textContent = t('settings.display.sharpRasterize');
+    }
+    if (this.sharpRasterizeDescElement) {
+      this.sharpRasterizeDescElement.textContent = t('settings.display.sharpRasterize.description');
+    }
+    if (this.sharpRasterizeLabelElement) {
+      this.sharpRasterizeLabelElement.textContent = t('settings.display.sharpRasterize.enable');
     }
     
     // Actualizar sección de paneles flotantes (PiP)

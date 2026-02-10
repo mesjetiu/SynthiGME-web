@@ -55,6 +55,7 @@ let menuState = {
   tooltipVoltage: true,
   tooltipAudioRate: true,
   linearFaders: true,
+  sharpRasterize: false,
   // Paneles
   panLocked: false,
   zoomLocked: false,
@@ -273,6 +274,16 @@ function buildMenuTemplate() {
         click: (menuItem) => {
           menuState.linearFaders = menuItem.checked;
           sendAction('setLinearFaders', { enabled: menuItem.checked });
+        }
+      },
+      {
+        id: 'sharpRasterize',
+        label: t('menu.view.sharpRasterize', 'Adaptive rasterization (sharp zoom)'),
+        type: 'checkbox',
+        checked: menuState.sharpRasterize,
+        click: (menuItem) => {
+          menuState.sharpRasterize = menuItem.checked;
+          sendAction('setSharpRasterize', { enabled: menuItem.checked });
         }
       },
       { type: 'separator' },

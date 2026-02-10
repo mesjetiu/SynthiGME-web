@@ -35,7 +35,7 @@ const MENU_TRANSLATION_KEYS = [
   'menu.view', 'menu.view.quickbar', 'menu.view.fullscreen',
   'menu.view.zoomIn', 'menu.view.zoomOut', 'menu.view.zoomReset',
   'menu.view.inactivePins', 'menu.view.tooltipVoltage', 'menu.view.tooltipAudioRate',
-  'menu.view.linearFaders', 'menu.view.devTools',
+  'menu.view.linearFaders', 'menu.view.sharpRasterize', 'menu.view.devTools',
   // Audio
   'menu.audio', 'menu.audio.mute', 'menu.audio.unmute',
   'menu.audio.record', 'menu.audio.stopRecording',
@@ -89,6 +89,7 @@ function readCurrentState() {
     tooltipVoltage: readBool(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, true),
     tooltipAudioRate: readBool(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, true),
     linearFaders: readBool(STORAGE_KEYS.FADER_LINEAR_RESPONSE, true),
+    sharpRasterize: readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false),
     // Paneles
     panLocked: window.__synthNavLocks?.panLocked ?? false,
     zoomLocked: window.__synthNavLocks?.zoomLocked ?? false,
@@ -183,6 +184,12 @@ function handleMenuAction({ action, data }) {
       localStorage.setItem(STORAGE_KEYS.FADER_LINEAR_RESPONSE, String(data.enabled));
       document.dispatchEvent(new CustomEvent('synth:faderResponseChanged', {
         detail: { linear: data.enabled }
+      }));
+      break;
+    case 'setSharpRasterize':
+      localStorage.setItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, String(data.enabled));
+      document.dispatchEvent(new CustomEvent('synth:sharpRasterizeChange', {
+        detail: { enabled: data.enabled }
       }));
       break;
 
@@ -441,6 +448,7 @@ function setupStateListeners() {
   const specificEventMap = {
     'synth:showInactivePinsChange':    (e) => ({ inactivePins: e.detail?.show ?? false }),
     'synth:faderResponseChanged':      (e) => ({ linearFaders: e.detail?.linear ?? true }),
+    'synth:sharpRasterizeChange':        (e) => ({ sharpRasterize: e.detail?.enabled ?? false }),
     'synth:optimizationsDebugChange':  (e) => ({ debugGlobal: e.detail?.enabled ?? false }),
     'synth:dormancyEnabledChange':     (e) => ({ dormancy: e.detail?.enabled ?? true }),
     'synth:dormancyDebugChange':       (e) => ({ dormancyDebug: e.detail?.enabled ?? false }),

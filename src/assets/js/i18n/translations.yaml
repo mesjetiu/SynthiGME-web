@@ -293,6 +293,34 @@ settings.display.faderResponse.linear:
   pt: "Resposta linear de ganho (controle mais fácil)"
   cs: "Lineární odezva zisku (snazší ovládání)"
 
+# Sección: Rasterización adaptativa (nitidez de zoom)
+settings.display.sharpRasterize:
+  en: Zoom Sharpness
+  es: Nitidez de zoom
+  fr: "Netteté du zoom"
+  de: "Zoom-Schärfe"
+  it: "Nitidezza dello zoom"
+  pt: "Nitidez do zoom"
+  cs: "Ostrost zoomu"
+
+settings.display.sharpRasterize.description:
+  en: When zooming in, the browser stretches cached textures which look blurry. Adaptive rasterization re-renders the interface at full resolution after interaction stops, producing a sharp image. There may be a brief pause during re-rendering.
+  es: Al hacer zoom, el navegador escala texturas cacheadas que se ven borrosas. La rasterización adaptativa re-renderiza la interfaz a resolución completa cuando se deja de interactuar, produciendo una imagen nítida. Puede haber una breve pausa durante el re-renderizado.
+  fr: "Lors du zoom, le navigateur étire les textures mises en cache qui paraissent floues. La rastérisation adaptative re-rend l'interface à pleine résolution après la fin de l'interaction, produisant une image nette. Il peut y avoir une brève pause pendant le re-rendu."
+  de: "Beim Zoomen streckt der Browser zwischengespeicherte Texturen, die unscharf aussehen. Adaptive Rasterisierung rendert die Oberfläche nach Ende der Interaktion in voller Auflösung neu und erzeugt ein scharfes Bild. Während des Neurenderings kann es zu einer kurzen Pause kommen."
+  it: "Durante lo zoom, il browser allunga le texture memorizzate che appaiono sfocate. La rasterizzazione adattiva ri-renderizza l'interfaccia a piena risoluzione dopo la fine dell'interazione, producendo un'immagine nitida. Potrebbe esserci una breve pausa durante il ri-rendering."
+  pt: "Ao fazer zoom, o navegador estica texturas em cache que ficam desfocadas. A rasterização adaptativa re-renderiza a interface em resolução completa após o fim da interação, produzindo uma imagem nítida. Pode haver uma breve pausa durante a re-renderização."
+  cs: "Při zvětšování prohlížeč natahuje mezipaměťové textury, které vypadají rozmazaně. Adaptivní rasterizace překreslí rozhraní v plném rozlišení po ukončení interakce, což vytvoří ostrý obraz. Během překreslení může dojít k krátké pauze."
+
+settings.display.sharpRasterize.enable:
+  en: Enable adaptive rasterization
+  es: Activar rasterización adaptativa
+  fr: "Activer la rastérisation adaptative"
+  de: "Adaptive Rasterisierung aktivieren"
+  it: "Abilita rasterizzazione adattiva"
+  pt: "Ativar rasterização adaptativa"
+  cs: "Povolit adaptivní rasterizaci"
+
 # Sección: OSC (Open Sound Control)
 settings.osc.title:
   en: OSC Communication
@@ -2648,6 +2676,15 @@ menu.view.linearFaders:
   it: "Risposta lineare dei fader"
   pt: "Resposta linear dos faders"
   cs: "Lineární odezva faderů"
+
+menu.view.sharpRasterize:
+  en: Adaptive rasterization (sharp zoom)
+  es: Rasterización adaptativa (zoom nítido)
+  fr: "Rastérisation adaptative (zoom net)"
+  de: "Adaptive Rasterisierung (scharfer Zoom)"
+  it: "Rasterizzazione adattiva (zoom nitido)"
+  pt: "Rasterização adaptativa (zoom nítido)"
+  cs: "Adaptivní rasterizace (ostrý zoom)"
 
 menu.view.devTools:
   en: Developer Tools

@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Panel 1 blueprint v2 con placeholders**: Blueprint completo del Panel 1 a schemaVersion 2 con 16 módulos placeholder: 8 filtros (FLP 1-4, FHP 1-4, 3 knobs c/u), 3 Envelope Shapers (8 knobs c/u), 3 Ring Modulators (1 knob c/u), Reverberation (2 knobs) y Echo A.D.L. (4 knobs). Total 57 knobs sin título, solo visuales. Método `_buildPanel1()` en app.js, CSS dedicado y 68 tests de estructura, layout, módulos, separación blueprint/config y coherencia.
 - **Panel 2 blueprint v2**: Refactorización completa del blueprint del Panel 2 a schemaVersion 2. Layout vertical con 5 módulos: Oscilloscope (funcional), Frequency Meter (placeholder), Octave Filter Bank (placeholder), Input Amplifier Level (funcional, 8 canales), External Treatment Devices (placeholder). Eliminados controls, matrixMapping, channels e ids del blueprint (ahora en configs). 36 tests nuevos para estructura, layout, módulos y separación blueprint/config.
 - **Electron: confirmación al salir**: Archivo > Salir, Alt+F4 y el botón X de ventana ahora piden confirmación antes de cerrar la aplicación, igual que la opción de recargar. Diálogo traducido a todos los idiomas soportados.
 - **Tests de contratos Electron-menú**: 46 tests que verifican la integridad entre electronMenu.cjs, electronMenuBridge.js, preload.cjs y main.cjs. Detectan claves de traducción sin enviar, estado desincronizado, acciones sin handler, canales IPC inconsistentes y rotura de la lógica de confirmación de salida.

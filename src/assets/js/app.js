@@ -23,6 +23,7 @@ import { RandomVoltage } from './ui/randomVoltage.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
 
 // Blueprints (estructura visual y ruteo)
+import panel1Blueprint from './panelBlueprints/panel1.blueprint.js';
 import panel2Blueprint from './panelBlueprints/panel2.blueprint.js';
 import panel3Blueprint from './panelBlueprints/panel3.blueprint.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
@@ -164,9 +165,7 @@ class App {
     this._outputFadersModule = null;
     
     // Construir paneles
-    // Panel 1 y 4: Solo visual, sin audio (módulos dummy a reemplazar)
-    // TODO: Descomentar cuando se implemente contenido real para paneles 1 y 4
-    // this._buildOscillatorPanel(1, this.panel1, this._panel1Audio);
+    this._buildPanel1();  // Filtros, Envelopes, RM, Reverb, Echo (placeholders)
     this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
     // this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
@@ -1184,6 +1183,213 @@ class App {
         })
       });
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PANEL 1 - FILTROS, ENVELOPE SHAPERS, RING MODULATORS, REVERB, ECHO
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  _buildPanel1() {
+    if (!this.panel1) return;
+
+    const blueprint = panel1Blueprint;
+
+    // Visibilidad de marcos de módulos (desde blueprint)
+    if (blueprint.showFrames === false) {
+      this.panel1.element.classList.add('hide-frames');
+    }
+
+    // Crear contenedor principal
+    const host = document.createElement('div');
+    host.id = 'panel1Layout';
+    host.className = 'panel1-layout';
+    host.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      padding: ${blueprint.layout.padding.top}px ${blueprint.layout.padding.right}px 
+               ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
+      display: flex;
+      flex-direction: column;
+      gap: ${blueprint.layout.gap ?? 4}px;
+    `;
+    this.panel1.appendElement(host);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILA 1: FILTROS FLP 1-4 + FHP 1-4
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const filtersLayout = blueprint.layout.filtersRow;
+    const filtersRow = document.createElement('div');
+    filtersRow.className = 'panel1-filters-row';
+    filtersRow.style.cssText = `
+      display: flex;
+      gap: ${filtersLayout.gap}px;
+      height: ${filtersLayout.height}px;
+      flex: 0 0 auto;
+      width: 100%;
+    `;
+    host.appendChild(filtersRow);
+
+    // Crear los 8 filtros (FLP1-4 + FHP1-4)
+    const filterIds = ['flp1', 'flp2', 'flp3', 'flp4', 'fhp1', 'fhp2', 'fhp3', 'fhp4'];
+    const filterFrames = {};
+
+    for (const filterId of filterIds) {
+      const frame = new ModuleFrame({
+        id: `${filterId}-module`,
+        title: null,
+        className: 'panel1-placeholder panel1-filter'
+      });
+      const el = frame.createElement();
+      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+
+      // Crear knobs verticales: Frequency, Response, Level
+      const knobsContainer = document.createElement('div');
+      knobsContainer.className = 'panel1-filter-knobs';
+      for (const knobName of filtersLayout.knobs) {
+        const knob = createKnob({ size: filtersLayout.knobSize, showValue: false });
+        knobsContainer.appendChild(knob.wrapper);
+      }
+      frame.appendToContent(knobsContainer);
+
+      filtersRow.appendChild(el);
+      filterFrames[filterId] = frame;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILAS 2-4: ENVELOPE SHAPERS 1-3
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const envLayout = blueprint.layout.envelopeShapers;
+    const envFrames = {};
+
+    for (let i = 1; i <= envLayout.count; i++) {
+      const envId = `envelopeShaper${i}`;
+      const frame = new ModuleFrame({
+        id: `${envId}-module`,
+        title: null,
+        className: 'panel1-placeholder panel1-envelope'
+      });
+      const el = frame.createElement();
+      el.style.cssText = `
+        width: 100%;
+        height: ${envLayout.height}px;
+        flex: 0 0 auto;
+      `;
+
+      // Crear knobs horizontales
+      const knobsContainer = document.createElement('div');
+      knobsContainer.className = 'panel1-envelope-knobs';
+      for (const knobName of envLayout.knobs) {
+        const knob = createKnob({ size: envLayout.knobSize, showValue: false });
+        knobsContainer.appendChild(knob.wrapper);
+      }
+      frame.appendToContent(knobsContainer);
+
+      host.appendChild(el);
+      envFrames[envId] = frame;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILA 5: RING MODULATORS + REVERB + ECHO
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const bottomLayout = blueprint.layout.bottomRow;
+    const bottomRow = document.createElement('div');
+    bottomRow.className = 'panel1-bottom-row';
+    bottomRow.style.cssText = `
+      display: flex;
+      gap: ${bottomLayout.gap}px;
+      height: ${bottomLayout.height}px;
+      flex: 0 0 auto;
+      width: 100%;
+    `;
+    host.appendChild(bottomRow);
+
+    const bottomFrames = {};
+
+    // Ring Modulators 1-3 (1 knob cada uno: Level)
+    const rmConfig = bottomLayout.ringModulator;
+    for (let i = 1; i <= rmConfig.count; i++) {
+      const rmId = `ringModulator${i}`;
+      const frame = new ModuleFrame({
+        id: `${rmId}-module`,
+        title: null,
+        className: 'panel1-placeholder panel1-ring-mod'
+      });
+      const el = frame.createElement();
+      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+
+      const knobsContainer = document.createElement('div');
+      knobsContainer.className = 'panel1-bottom-knobs';
+      for (const knobName of rmConfig.knobs) {
+        const knob = createKnob({ size: rmConfig.knobSize, showValue: false });
+        knobsContainer.appendChild(knob.wrapper);
+      }
+      frame.appendToContent(knobsContainer);
+
+      bottomRow.appendChild(el);
+      bottomFrames[rmId] = frame;
+    }
+
+    // Reverberation 1 (2 knobs: Mix, Level)
+    const reverbConfig = bottomLayout.reverberation;
+    const reverbFrame = new ModuleFrame({
+      id: 'reverberation1-module',
+      title: null,
+      className: 'panel1-placeholder panel1-reverb'
+    });
+    const reverbEl = reverbFrame.createElement();
+    reverbEl.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+
+    const reverbKnobs = document.createElement('div');
+    reverbKnobs.className = 'panel1-bottom-knobs';
+    for (const knobName of reverbConfig.knobs) {
+      const knob = createKnob({ size: reverbConfig.knobSize, showValue: false });
+      reverbKnobs.appendChild(knob.wrapper);
+    }
+    reverbFrame.appendToContent(reverbKnobs);
+
+    bottomRow.appendChild(reverbEl);
+    bottomFrames.reverberation1 = reverbFrame;
+
+    // Echo A.D.L. (4 knobs: Delay, Mix, Feedback, Level)
+    const echoConfig = bottomLayout.echo;
+    const echoFrame = new ModuleFrame({
+      id: 'echoADL-module',
+      title: null,
+      className: 'panel1-placeholder panel1-echo'
+    });
+    const echoEl = echoFrame.createElement();
+    echoEl.style.cssText = `flex: 2 1 0; min-width: 0; height: 100%;`;
+
+    const echoKnobs = document.createElement('div');
+    echoKnobs.className = 'panel1-bottom-knobs';
+    for (const knobName of echoConfig.knobs) {
+      const knob = createKnob({ size: echoConfig.knobSize, showValue: false });
+      echoKnobs.appendChild(knob.wrapper);
+    }
+    echoFrame.appendToContent(echoKnobs);
+
+    bottomRow.appendChild(echoEl);
+    bottomFrames.echoADL = echoFrame;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GUARDAR REFERENCIAS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    this._panel1Data = {
+      host,
+      filtersRow,
+      filterFrames,
+      envFrames,
+      bottomRow,
+      bottomFrames
+    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

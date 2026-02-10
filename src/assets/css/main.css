@@ -2215,7 +2215,8 @@ small { color:#aaa; }
 .hide-frames .synth-module,
 .hide-frames .output-channel-module,
 .hide-frames .panel7-placeholder,
-.hide-frames .panel2-placeholder {
+.hide-frames .panel2-placeholder,
+.hide-frames .panel1-placeholder {
   background: transparent;
   border-color: transparent;
 }
@@ -5248,6 +5249,67 @@ small { color:#aaa; }
 .panel2-placeholder {
   flex-shrink: 0;
   opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PANEL 1 PLACEHOLDERS
+   Filtros, Envelope Shapers, Ring Modulators, Reverb y Echo.
+   Todos los módulos son placeholders con knobs sin funcionalidad.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.panel1-placeholder {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+/* Knobs de filtros: apilados verticalmente */
+.panel1-filter-knobs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+
+/* Knobs de envelope shapers: en fila horizontal */
+.panel1-envelope-knobs {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  padding: 2px 4px;
+  box-sizing: border-box;
+}
+
+/* Knobs de fila inferior (RM, Reverb, Echo): centrados horizontal */
+.panel1-bottom-knobs {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+/* Ajustar content area de los módulos Panel 1 para llenar el espacio */
+.panel1-filter .synth-module__content,
+.panel1-envelope .synth-module__content,
+.panel1-ring-mod .synth-module__content,
+.panel1-reverb .synth-module__content,
+.panel1-echo .synth-module__content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #panel-output .output-channels-section {

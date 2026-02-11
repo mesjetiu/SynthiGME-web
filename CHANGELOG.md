@@ -27,7 +27,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Corregido
 - **PiP: paneles recortados en ventanas flotantes**: El zoom mínimo ahora permite ver el panel completo (antes se cortaba ligeramente por cálculo incorrecto de header y bordes). Corregida altura de cabecera (32→37px), compensación de bordes CSS y escala inicial recalculada con dimensiones reales del viewport.
-- **PiP: resize desde cualquier borde y esquina proporcional**: Las ventanas PiP se pueden redimensionar arrastrando cualquier borde (un solo eje) o la esquina (proporción de aspecto bloqueada). Antes solo se podía redimensionar desde la esquina sin bloqueo de proporción.
+- **PiP: resize desde cualquier borde y esquina proporcional**: Las ventanas PiP se pueden redimensionar arrastrando cualquier borde (solo cambia tamaño de ventana, sin alterar el zoom) o la esquina (proporción de aspecto bloqueada con zoom ajustado para mostrar la misma imagen).
 - **PiP: paneo con ratón y flechas de teclado**: El contenido del PiP se puede panear arrastrando con el ratón (click izquierdo en fondo o click central). Las flechas del teclado panean el PiP enfocado en vez del canvas principal. Cuando un PiP tiene foco, absorbe los atajos de navegación.
 
 ### Cambiado

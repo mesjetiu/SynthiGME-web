@@ -1199,22 +1199,6 @@ function handlePointerMove(e) {
       newH = resizeStart.pipY + resizeStart.h - newY;
     }
     
-    // Calcular factor de escala basado en el cambio de tamaño
-    const scaleFactorW = newW / resizeStart.w;
-    const scaleFactorH = newH / resizeStart.h;
-    let scaleFactor;
-    if (resizeEdge === 'corner') {
-      scaleFactor = scaleFactorW; // Proporcional, ambos ejes iguales
-    } else if (resizeEdge === 'left' || resizeEdge === 'right') {
-      scaleFactor = scaleFactorW;
-    } else {
-      scaleFactor = scaleFactorH;
-    }
-    
-    const baseScale = resizeStart.scale || state.scale;
-    const minScale = getMinScale(resizingPip);
-    const newScale = Math.max(minScale, Math.min(MAX_SCALE, baseScale * scaleFactor));
-    
     state.width = newW;
     state.height = newH;
     state.x = newX;
@@ -1224,20 +1208,28 @@ function handlePointerMove(e) {
     state.pipContainer.style.left = `${newX}px`;
     state.pipContainer.style.top = `${newY}px`;
     
-    updatePipScale(resizingPip, newScale, false);
-    
-    // Ajustar scroll para mantener el mismo punto del panel en el centro de la vista
-    const viewport = state.pipContainer.querySelector('.pip-viewport');
-    if (viewport && resizeStart.viewCenterX !== undefined) {
-      const newViewportW = viewport.clientWidth;
-      const newViewportH = viewport.clientHeight;
-      const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
-      const newPaddingX = parseFloat(viewportInner?.style.paddingLeft) || 0;
-      const newPaddingY = parseFloat(viewportInner?.style.paddingTop) || 0;
-      const newScrollX = newPaddingX + resizeStart.viewCenterX * newScale - newViewportW / 2;
-      const newScrollY = newPaddingY + resizeStart.viewCenterY * newScale - newViewportH / 2;
-      viewport.scrollLeft = Math.max(0, newScrollX);
-      viewport.scrollTop = Math.max(0, newScrollY);
+    // Solo la esquina cambia el zoom; los bordes solo redimensionan la ventana
+    if (resizeEdge === 'corner') {
+      const scaleFactor = newW / resizeStart.w;
+      const baseScale = resizeStart.scale || state.scale;
+      const minScale = getMinScale(resizingPip);
+      const newScale = Math.max(minScale, Math.min(MAX_SCALE, baseScale * scaleFactor));
+      
+      updatePipScale(resizingPip, newScale, false);
+      
+      // Ajustar scroll para mantener el mismo punto del panel en el centro de la vista
+      const viewport = state.pipContainer.querySelector('.pip-viewport');
+      if (viewport && resizeStart.viewCenterX !== undefined) {
+        const newViewportW = viewport.clientWidth;
+        const newViewportH = viewport.clientHeight;
+        const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
+        const newPaddingX = parseFloat(viewportInner?.style.paddingLeft) || 0;
+        const newPaddingY = parseFloat(viewportInner?.style.paddingTop) || 0;
+        const newScrollX = newPaddingX + resizeStart.viewCenterX * newScale - newViewportW / 2;
+        const newScrollY = newPaddingY + resizeStart.viewCenterY * newScale - newViewportH / 2;
+        viewport.scrollLeft = Math.max(0, newScrollX);
+        viewport.scrollTop = Math.max(0, newScrollY);
+      }
     }
   }
 }

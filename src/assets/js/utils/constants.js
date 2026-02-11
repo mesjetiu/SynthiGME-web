@@ -144,6 +144,16 @@ export const STORAGE_KEYS = {
   
   /** Mostrar valores de audio (frecuencia, ganancia) en tooltips de knobs */
   TOOLTIP_SHOW_AUDIO_VALUES: `${STORAGE_PREFIX}tooltip-show-audio-values`,
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Interacción táctil
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Multitouch en controles: permite mover varios knobs/faders simultáneamente */
+  MULTITOUCH_CONTROLS: `${STORAGE_PREFIX}multitouch-controls`,
+  
+  /** Pan con un dedo: arrastrar el canvas con un dedo en dispositivos táctiles */
+  SINGLE_FINGER_PAN: `${STORAGE_PREFIX}single-finger-pan`,
   
   // ─────────────────────────────────────────────────────────────────────────
   // Quickbar (barra de acciones rápidas)

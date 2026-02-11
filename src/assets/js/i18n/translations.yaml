@@ -321,6 +321,61 @@ settings.display.sharpRasterize.enable:
   pt: "Ativar rasterização adaptativa"
   cs: "Povolit adaptivní rasterizaci"
 
+# Sección: Interacción táctil
+settings.display.touchInteraction:
+  en: Touch Interaction
+  es: Interacción táctil
+  fr: "Interaction tactile"
+  de: "Touch-Interaktion"
+  it: "Interazione tattile"
+  pt: "Interação tátil"
+  cs: "Dotyková interakce"
+
+settings.display.touchInteraction.description:
+  en: Options for touch gestures on mobile and tablet devices. Adjust panning and multi-finger control behavior according to your performance needs.
+  es: Opciones para gestos táctiles en dispositivos móviles y tablets. Ajusta el comportamiento del paneo y control con múltiples dedos según tus necesidades de interpretación.
+  fr: "Options pour les gestes tactiles sur appareils mobiles et tablettes. Ajustez le comportement du panoramique et du contrôle multi-doigts selon vos besoins de performance."
+  de: "Optionen für Touch-Gesten auf Mobilgeräten und Tablets. Passen Sie das Schwenk- und Mehrfinger-Steuerungsverhalten an Ihre Performance-Bedürfnisse an."
+  it: "Opzioni per i gesti tattili su dispositivi mobili e tablet. Regola il comportamento della panoramica e del controllo multi-dito in base alle tue esigenze performative."
+  pt: "Opções para gestos táteis em dispositivos móveis e tablets. Ajuste o comportamento de panorâmica e controle multi-dedo de acordo com suas necessidades de performance."
+  cs: "Možnosti dotykových gest na mobilních zařízeních a tabletech. Upravte chování posunu a víceprstového ovládání podle svých potřeb."
+
+settings.display.touchInteraction.singleFingerPan:
+  en: Pan canvas with one finger
+  es: Mover canvas con un dedo
+  fr: "Déplacer le canevas avec un doigt"
+  de: "Leinwand mit einem Finger verschieben"
+  it: "Sposta il canvas con un dito"
+  pt: "Mover canvas com um dedo"
+  cs: "Posouvat plátno jedním prstem"
+
+settings.display.touchInteraction.singleFingerPan.description:
+  en: Drag anywhere on the canvas background with one finger to pan. When disabled, use two-finger pinch to navigate.
+  es: Arrastra sobre el fondo del canvas con un dedo para hacer paneo. Al desactivar, usa pellizco con dos dedos para navegar.
+  fr: "Faites glisser n'importe où sur le fond du canevas avec un doigt pour panoramiquer. Désactivé, utilisez le pincement à deux doigts pour naviguer."
+  de: "Ziehen Sie mit einem Finger über den Canvas-Hintergrund, um zu schwenken. Deaktiviert, verwenden Sie die Zwei-Finger-Pinch-Geste zum Navigieren."
+  it: "Trascina ovunque sullo sfondo del canvas con un dito per panoramicare. Disattivato, usa il pizzico a due dita per navigare."
+  pt: "Arraste em qualquer lugar do fundo do canvas com um dedo para panorâmica. Desativado, use o pinçar com dois dedos para navegar."
+  cs: "Přetažením na pozadí plátna jedním prstem posunete zobrazení. Při deaktivaci použijte gesto sevření dvěma prsty."
+
+settings.display.touchInteraction.multitouch:
+  en: Multitouch controls
+  es: Controles multitáctil
+  fr: "Contrôles multitouch"
+  de: "Multitouch-Steuerung"
+  it: "Controlli multitouch"
+  pt: "Controles multitoque"
+  cs: "Vícedotykové ovládání"
+
+settings.display.touchInteraction.multitouch.description:
+  en: Move multiple knobs and faders simultaneously with different fingers. When disabled, only one control responds to touch at a time, preventing accidental changes during zoom/pan gestures.
+  es: Mueve varios knobs y faders simultáneamente con diferentes dedos. Al desactivar, solo un control responde al toque a la vez, evitando cambios accidentales durante gestos de zoom/paneo.
+  fr: "Déplacez plusieurs boutons et curseurs simultanément avec différents doigts. Désactivé, un seul contrôle répond au toucher à la fois, évitant les changements accidentels pendant les gestes de zoom/panoramique."
+  de: "Bewegen Sie mehrere Regler und Schieberegler gleichzeitig mit verschiedenen Fingern. Deaktiviert reagiert nur ein Regler gleichzeitig auf Berührung, um versehentliche Änderungen während Zoom-/Schwenkgesten zu vermeiden."
+  it: "Sposta più manopole e cursori contemporaneamente con dita diverse. Disattivato, solo un controllo risponde al tocco alla volta, prevenendo cambiamenti accidentali durante i gesti di zoom/panoramica."
+  pt: "Mova vários knobs e faders simultaneamente com dedos diferentes. Desativado, apenas um controle responde ao toque por vez, prevenindo mudanças acidentais durante gestos de zoom/panorâmica."
+  cs: "Ovládejte více knoflíků a posuvníků současně různými prsty. Při deaktivaci reaguje na dotek pouze jeden ovládací prvek, čímž se zabrání nechtěným změnám při gestech zoomu/posunu."
+
 # Sección: OSC (Open Sound Control)
 settings.osc.title:
   en: OSC Communication
@@ -2822,6 +2877,24 @@ menu.panels.rememberPip:
   it: "Ricorda pannelli mobili"
   pt: "Lembrar painéis flutuantes"
   cs: "Zapamatovat plovoucí panely"
+
+menu.panels.singleFingerPan:
+  en: Pan with one finger
+  es: Paneo con un dedo
+  fr: "Panoramique avec un doigt"
+  de: "Schwenken mit einem Finger"
+  it: "Panoramica con un dito"
+  pt: "Panorâmica com um dedo"
+  cs: "Posun jedním prstem"
+
+menu.panels.multitouchControls:
+  en: Multitouch controls
+  es: Controles multitáctil
+  fr: "Contrôles multitouch"
+  de: "Multitouch-Steuerung"
+  it: "Controlli multitouch"
+  pt: "Controles multitoque"
+  cs: "Vícedotykové ovládání"
 
 # ─── Avanzado ───
 menu.advanced:

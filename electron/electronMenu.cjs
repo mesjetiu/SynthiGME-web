@@ -60,6 +60,8 @@ let menuState = {
   panLocked: false,
   zoomLocked: false,
   rememberPip: false,
+  singleFingerPan: true,
+  multitouchControls: false,
   pipPanels: {},  // { 'panel-1': false, 'panel-2': false, ... }
   // Avanzado
   debugGlobal: false,
@@ -387,6 +389,27 @@ function buildMenuTemplate() {
         click: (menuItem) => {
           menuState.rememberPip = menuItem.checked;
           sendAction('setRememberPip', { enabled: menuItem.checked });
+        }
+      },
+      { type: 'separator' },
+      {
+        id: 'singleFingerPan',
+        label: t('menu.panels.singleFingerPan', 'Pan with one finger'),
+        type: 'checkbox',
+        checked: menuState.singleFingerPan,
+        click: (menuItem) => {
+          menuState.singleFingerPan = menuItem.checked;
+          sendAction('setSingleFingerPan', { enabled: menuItem.checked });
+        }
+      },
+      {
+        id: 'multitouchControls',
+        label: t('menu.panels.multitouchControls', 'Multitouch controls'),
+        type: 'checkbox',
+        checked: menuState.multitouchControls,
+        click: (menuItem) => {
+          menuState.multitouchControls = menuItem.checked;
+          sendAction('setMultitouchControls', { enabled: menuItem.checked });
         }
       }
     ]

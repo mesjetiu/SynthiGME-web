@@ -221,6 +221,14 @@ export class SettingsModal {
       this.sharpRasterizeEnabled = readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false);
       this.sharpRasterizeCheckbox.checked = this.sharpRasterizeEnabled;
     }
+    if (this.singleFingerPanCheckbox) {
+      this.singleFingerPanEnabled = readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true);
+      this.singleFingerPanCheckbox.checked = this.singleFingerPanEnabled;
+    }
+    if (this.multitouchControlsCheckbox) {
+      this.multitouchControlsEnabled = readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false);
+      this.multitouchControlsCheckbox.checked = this.multitouchControlsEnabled;
+    }
     
     // Avanzado - Optimizaciones
     if (this.optimizationsDebugCheckbox) {
@@ -642,6 +650,9 @@ export class SettingsModal {
     
     // Rasterización adaptativa (nitidez de zoom)
     container.appendChild(this._createSharpRasterizeSection());
+    
+    // Interacción táctil (multitouch, pan con un dedo)
+    container.appendChild(this._createTouchInteractionSection());
     
     return container;
   }
@@ -1852,6 +1863,121 @@ export class SettingsModal {
     localStorage.setItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, String(enabled));
     
     document.dispatchEvent(new CustomEvent('synth:sharpRasterizeChange', { 
+      detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Crea la sección de interacción táctil (multitouch, pan con un dedo)
+   * @returns {HTMLElement}
+   */
+  _createTouchInteractionSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.touchInteractionTitleElement = document.createElement('h3');
+    this.touchInteractionTitleElement.className = 'settings-section__title';
+    this.touchInteractionTitleElement.textContent = t('settings.display.touchInteraction');
+    section.appendChild(this.touchInteractionTitleElement);
+    
+    this.touchInteractionDescElement = document.createElement('p');
+    this.touchInteractionDescElement.className = 'settings-section__description';
+    this.touchInteractionDescElement.textContent = t('settings.display.touchInteraction.description');
+    section.appendChild(this.touchInteractionDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: Pan con un dedo (activado por defecto)
+    // ─────────────────────────────────────────────────────────────────────
+    const panRow = document.createElement('div');
+    panRow.className = 'settings-row settings-row--checkbox';
+    
+    this.singleFingerPanCheckbox = document.createElement('input');
+    this.singleFingerPanCheckbox.type = 'checkbox';
+    this.singleFingerPanCheckbox.id = 'singleFingerPanCheckbox';
+    this.singleFingerPanCheckbox.className = 'settings-checkbox';
+    
+    const savedPan = localStorage.getItem(STORAGE_KEYS.SINGLE_FINGER_PAN);
+    this.singleFingerPanEnabled = savedPan !== 'false'; // true por defecto
+    this.singleFingerPanCheckbox.checked = this.singleFingerPanEnabled;
+    
+    this.singleFingerPanLabelElement = document.createElement('label');
+    this.singleFingerPanLabelElement.className = 'settings-checkbox-label';
+    this.singleFingerPanLabelElement.htmlFor = 'singleFingerPanCheckbox';
+    this.singleFingerPanLabelElement.textContent = t('settings.display.touchInteraction.singleFingerPan');
+    
+    this.singleFingerPanCheckbox.addEventListener('change', () => {
+      this._setSingleFingerPan(this.singleFingerPanCheckbox.checked);
+    });
+    
+    panRow.appendChild(this.singleFingerPanCheckbox);
+    panRow.appendChild(this.singleFingerPanLabelElement);
+    section.appendChild(panRow);
+    
+    // Descripción del pan con un dedo
+    const panDesc = document.createElement('p');
+    panDesc.className = 'settings-section__description settings-section__description--sub';
+    panDesc.textContent = t('settings.display.touchInteraction.singleFingerPan.description');
+    section.appendChild(panDesc);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: Multitouch en controles (desactivado por defecto)
+    // ─────────────────────────────────────────────────────────────────────
+    const mtRow = document.createElement('div');
+    mtRow.className = 'settings-row settings-row--checkbox';
+    
+    this.multitouchControlsCheckbox = document.createElement('input');
+    this.multitouchControlsCheckbox.type = 'checkbox';
+    this.multitouchControlsCheckbox.id = 'multitouchControlsCheckbox';
+    this.multitouchControlsCheckbox.className = 'settings-checkbox';
+    
+    const savedMt = localStorage.getItem(STORAGE_KEYS.MULTITOUCH_CONTROLS);
+    this.multitouchControlsEnabled = savedMt === 'true'; // false por defecto
+    this.multitouchControlsCheckbox.checked = this.multitouchControlsEnabled;
+    
+    this.multitouchControlsLabelElement = document.createElement('label');
+    this.multitouchControlsLabelElement.className = 'settings-checkbox-label';
+    this.multitouchControlsLabelElement.htmlFor = 'multitouchControlsCheckbox';
+    this.multitouchControlsLabelElement.textContent = t('settings.display.touchInteraction.multitouch');
+    
+    this.multitouchControlsCheckbox.addEventListener('change', () => {
+      this._setMultitouchControls(this.multitouchControlsCheckbox.checked);
+    });
+    
+    mtRow.appendChild(this.multitouchControlsCheckbox);
+    mtRow.appendChild(this.multitouchControlsLabelElement);
+    section.appendChild(mtRow);
+    
+    // Descripción del multitouch
+    const mtDesc = document.createElement('p');
+    mtDesc.className = 'settings-section__description settings-section__description--sub';
+    mtDesc.textContent = t('settings.display.touchInteraction.multitouch.description');
+    section.appendChild(mtDesc);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si el pan con un dedo está activo
+   * @param {boolean} enabled
+   */
+  _setSingleFingerPan(enabled) {
+    this.singleFingerPanEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.SINGLE_FINGER_PAN, String(enabled));
+    
+    document.dispatchEvent(new CustomEvent('synth:singleFingerPanChange', { 
+      detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Establece si el multitouch de controles está activo
+   * @param {boolean} enabled
+   */
+  _setMultitouchControls(enabled) {
+    this.multitouchControlsEnabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.MULTITOUCH_CONTROLS, String(enabled));
+    
+    document.dispatchEvent(new CustomEvent('synth:multitouchControlsChange', { 
       detail: { enabled } 
     }));
   }

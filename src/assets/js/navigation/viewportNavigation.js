@@ -23,6 +23,20 @@ export function initViewportNavigation({ outer, inner } = {}) {
   window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
   const navLocks = window.__synthNavLocks;
 
+  // ─── Opciones de interacción táctil ────────────────────────────────────
+  // Multitouch: permite mover varios knobs/faders simultáneamente (off por defecto)
+  // Single-finger pan: arrastrar canvas con un dedo en táctil (on por defecto)
+  let multitouchControlsEnabled = localStorage.getItem(STORAGE_KEYS.MULTITOUCH_CONTROLS) === 'true';
+  let singleFingerPanEnabled = localStorage.getItem(STORAGE_KEYS.SINGLE_FINGER_PAN) !== 'false'; // true por defecto
+
+  document.addEventListener('synth:multitouchControlsChange', (e) => {
+    multitouchControlsEnabled = e.detail?.enabled ?? false;
+  });
+
+  document.addEventListener('synth:singleFingerPanChange', (e) => {
+    singleFingerPanEnabled = e.detail?.enabled ?? true;
+  });
+
   // Detectar Firefox (siempre renderiza nítido, no necesita rasterización)
   const isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
   window.__synthIsFirefox = isFirefox;
@@ -391,7 +405,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
       totalTouches++;
       if (!isInteractive) nonInteractiveTouches++;
     });
-    const navActive = totalTouches >= 2 && nonInteractiveTouches >= 1;
+    // Sin multitouch: cualquier toque con 2+ dedos activa navegación (bloquea controles)
+    // Con multitouch: solo si al menos un dedo está en zona no interactiva
+    const navActive = multitouchControlsEnabled
+      ? (totalTouches >= 2 && nonInteractiveTouches >= 1)
+      : (totalTouches >= 2);
     window.__synthNavGestureActive = navActive;
     outer.classList.toggle('is-gesturing', navActive);
   }
@@ -870,7 +888,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
       }
     });
     activeTouchCount = touchCount;
-    const next = touchCount >= 2 && nonInteractiveCount >= 1;
+    // Sin multitouch: cualquier toque con 2+ dedos activa navegación (bloquea controles)
+    // Con multitouch: solo si al menos un dedo está en zona no interactiva
+    const next = multitouchControlsEnabled
+      ? (touchCount >= 2 && nonInteractiveCount >= 1)
+      : (touchCount >= 2);
     if (next !== navGestureActive) {
       navGestureActive = next;
       window.__synthNavGestureActive = navGestureActive;
@@ -887,8 +909,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: ev.pointerType, isInteractive });
     recomputeNavGestureState();
     const isMouseLike = ev.pointerType === 'mouse' || ev.pointerType === 'pen';
+    const isTouchPan = ev.pointerType === 'touch' && singleFingerPanEnabled;
 
-    if (isMouseLike && pointers.size === 1 && !isInteractiveTarget(ev.target)) {
+    if ((isMouseLike || isTouchPan) && pointers.size === 1 && !isInteractiveTarget(ev.target)) {
       cancelRasterize(); // Salir de sharp mode al iniciar pan
       isPanning = true;
       panPointerId = ev.pointerId;

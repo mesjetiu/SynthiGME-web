@@ -43,6 +43,7 @@ const MENU_TRANSLATION_KEYS = [
   // Paneles
   'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
   'menu.panels.lockPan', 'menu.panels.lockZoom', 'menu.panels.rememberPip',
+  'menu.panels.singleFingerPan', 'menu.panels.multitouchControls',
   // Avanzado
   'menu.advanced', 'menu.advanced.debugGlobal',
   'menu.advanced.dormancy', 'menu.advanced.dormancyDebug',
@@ -94,6 +95,8 @@ function readCurrentState() {
     panLocked: window.__synthNavLocks?.panLocked ?? false,
     zoomLocked: window.__synthNavLocks?.zoomLocked ?? false,
     rememberPip: readBool(STORAGE_KEYS.PIP_REMEMBER, false),
+    singleFingerPan: readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true),
+    multitouchControls: readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false),
     pipPanels,
     // Avanzado
     debugGlobal: readBool(STORAGE_KEYS.OPTIMIZATIONS_DEBUG, false),
@@ -235,6 +238,18 @@ function handleMenuAction({ action, data }) {
       break;
     case 'setRememberPip':
       localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(data.enabled));
+      break;
+    case 'setSingleFingerPan':
+      localStorage.setItem(STORAGE_KEYS.SINGLE_FINGER_PAN, String(data.enabled));
+      document.dispatchEvent(new CustomEvent('synth:singleFingerPanChange', {
+        detail: { enabled: data.enabled }
+      }));
+      break;
+    case 'setMultitouchControls':
+      localStorage.setItem(STORAGE_KEYS.MULTITOUCH_CONTROLS, String(data.enabled));
+      document.dispatchEvent(new CustomEvent('synth:multitouchControlsChange', {
+        detail: { enabled: data.enabled }
+      }));
       break;
 
     // ─── Avanzado ───
@@ -457,6 +472,8 @@ function setupStateListeners() {
     'synth:voltageSoftClipChange':     (e) => ({ softClip: e.detail?.enabled ?? true }),
     'synth:voltagePinToleranceChange': (e) => ({ pinTolerance: e.detail?.enabled ?? true }),
     'synth:voltageThermalDriftChange': (e) => ({ thermalDrift: e.detail?.enabled ?? true }),
+    'synth:singleFingerPanChange':     (e) => ({ singleFingerPan: e.detail?.enabled ?? true }),
+    'synth:multitouchControlsChange':  (e) => ({ multitouchControls: e.detail?.enabled ?? false }),
   };
   for (const [eventName, extractor] of Object.entries(specificEventMap)) {
     document.addEventListener(eventName, (e) => syncState(extractor(e)));

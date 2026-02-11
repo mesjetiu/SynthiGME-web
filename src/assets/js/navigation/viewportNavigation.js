@@ -776,9 +776,87 @@ export function initViewportNavigation({ outer, inner } = {}) {
     userHasAdjustedView = true;
   }
 
+  // ─── Atajos de teclado para navegación del viewport ───
+  // Shift: deshabilitar clamp de bordes
+  // Flechas: paneo del canvas (paso proporcional al viewport)
+  // Ctrl+/Ctrl-/Ctrl+0: zoom (funciona tanto en navegador como en Electron)
+  const ARROW_PAN_FACTOR = 0.15; // fracción del viewport por pulsación
+
+  /**
+   * Comprueba si el usuario está escribiendo en un campo de texto.
+   * En ese caso, las flechas y atajos de zoom no deben interceptarse.
+   */
+  function _isTypingInInput(target) {
+    if (!target) return false;
+    const tag = target.tagName;
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (tag === 'INPUT' && target.type?.toLowerCase() !== 'range') return true;
+    if (target.isContentEditable) return true;
+    return false;
+  }
+
   window.addEventListener('keydown', ev => {
     if (ev.key === 'Shift') {
       setClampDisabled(true);
+    }
+
+    // ── Zoom con Ctrl+Plus / Ctrl+Minus / Ctrl+0 (navegador) ──
+    // En Electron estos atajos se interceptan en main.cjs (before-input-event)
+    // y se reenvían vía IPC. Aquí se manejan para que funcionen también en
+    // el navegador web, previniendo el zoom nativo de la página.
+    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey) {
+      const k = ev.key;
+      if (k === '+' || k === '=') {
+        ev.preventDefault();
+        if (window.__synthFocusedPip && window.__synthZoomFocusedPip) {
+          window.__synthZoomFocusedPip('in');
+        } else {
+          document.dispatchEvent(new CustomEvent('synth:zoomIn'));
+        }
+        return;
+      }
+      if (k === '-' || k === '_') {
+        ev.preventDefault();
+        if (window.__synthFocusedPip && window.__synthZoomFocusedPip) {
+          window.__synthZoomFocusedPip('out');
+        } else {
+          document.dispatchEvent(new CustomEvent('synth:zoomOut'));
+        }
+        return;
+      }
+      if (k === '0') {
+        ev.preventDefault();
+        if (window.__synthFocusedPip && window.__synthZoomFocusedPip) {
+          window.__synthZoomFocusedPip('reset');
+        } else {
+          document.dispatchEvent(new CustomEvent('synth:zoomReset'));
+        }
+        return;
+      }
+    }
+
+    // ── Paneo con flechas ──
+    // Solo cuando no se está escribiendo y sin modificadores (excepto Shift)
+    if (_isTypingInInput(ev.target)) return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
+    const arrowDir = {
+      ArrowLeft:  [1, 0],
+      ArrowRight: [-1, 0],
+      ArrowUp:    [0, 1],
+      ArrowDown:  [0, -1]
+    }[ev.key];
+
+    if (arrowDir) {
+      ev.preventDefault();
+      cancelRasterize();
+      const stepX = (metrics.outerWidth || outer.clientWidth) * ARROW_PAN_FACTOR;
+      const stepY = (metrics.outerHeight || outer.clientHeight) * ARROW_PAN_FACTOR;
+      offsetX += arrowDir[0] * stepX;
+      offsetY += arrowDir[1] * stepY;
+      requestRender();
+      markUserAdjusted();
+      scheduleRasterize();
     }
   });
 

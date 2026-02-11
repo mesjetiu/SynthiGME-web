@@ -8,6 +8,13 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Navegación con flechas del teclado**: Las teclas de flecha permiten hacer paneo del canvas principal (15% del viewport por pulsación). Solo activas cuando no se está escribiendo en un campo de texto.
+- **Zoom Ctrl+/Ctrl-/Ctrl+0 en navegador**: Los atajos de zoom que solo funcionaban en Electron ahora también funcionan en la versión web (PWA), previniendo el zoom nativo del navegador y controlando el zoom del canvas.
+
+### Eliminado
+- **Menú Electron: quitados "Bloquear paneo" y "Bloquear zoom"**: Opciones eliminadas del menú Paneles porque estaban inhabilitadas en desktop (solo afectaban a gestos táctiles móviles) y no tenían efecto.
+
+### Añadido
 - **Opciones de interacción táctil**: Dos nuevos ajustes en Ajustes > Visualización, menú Paneles de Electron y electronMenuBridge. *Pan con un dedo* (activado por defecto): permite arrastrar el canvas tocando el fondo con un dedo. *Controles multitáctil* (desactivado por defecto): permite mover varios knobs/faders simultáneamente; al desactivarlo, dos dedos en pantalla siempre activan zoom/pan y bloquean los controles, evitando cambios accidentales.
 - **Offset general por panel**: Propiedad `layout.offset: { x, y }` en los 4 blueprints (Paneles 1, 2, 3, 7) para reposicionar todos los módulos de un panel simultáneamente. Se aplica como `transform: translate()` en el contenedor host. Útil para ajustar la alineación cuando cambia la imagen de fondo. 4 tests nuevos.
 - **Panel 2: ocultar textos y valores**: Headers, labels de canal, nombres y valores de knobs ocultos con CSS (ya están en la imagen de fondo). Eliminada opacidad 0.5 de placeholders.

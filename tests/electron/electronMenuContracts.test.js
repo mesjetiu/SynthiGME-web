@@ -379,7 +379,7 @@ describe('Contrato de acciones (menú → bridge)', () => {
     //   sendAction('actionName', ...);
     const checkboxActions = [
       'toggleQuickbar', 'setInactivePins', 'setTooltipVoltage', 'setTooltipAudioRate',
-      'setLinearFaders', 'setPanLock', 'setZoomLock', 'setRememberPip',
+      'setLinearFaders', 'setRememberPip',
       'setDebugGlobal', 'setDormancy', 'setDormancyDebug',
       'setFilterBypass', 'setFilterBypassDebug',
       'setSoftClip', 'setPinTolerance', 'setThermalDrift',

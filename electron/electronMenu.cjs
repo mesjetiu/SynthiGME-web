@@ -57,8 +57,6 @@ let menuState = {
   linearFaders: true,
   sharpRasterize: false,
   // Paneles
-  panLocked: false,
-  zoomLocked: false,
   rememberPip: false,
   singleFingerPan: true,
   multitouchControls: false,
@@ -358,27 +356,6 @@ function buildMenuTemplate() {
       {
         label: t('menu.panels.attachAll', 'Return All'),
         click: () => sendAction('attachAllPips')
-      },
-      { type: 'separator' },
-      {
-        id: 'panLocked',
-        label: t('menu.panels.lockPan', 'Lock Panning'),
-        type: 'checkbox',
-        checked: menuState.panLocked,
-        click: (menuItem) => {
-          menuState.panLocked = menuItem.checked;
-          sendAction('setPanLock', { locked: menuItem.checked });
-        }
-      },
-      {
-        id: 'zoomLocked',
-        label: t('menu.panels.lockZoom', 'Lock Zoom'),
-        type: 'checkbox',
-        checked: menuState.zoomLocked,
-        click: (menuItem) => {
-          menuState.zoomLocked = menuItem.checked;
-          sendAction('setZoomLock', { locked: menuItem.checked });
-        }
       },
       { type: 'separator' },
       {

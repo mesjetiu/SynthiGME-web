@@ -42,7 +42,7 @@ const MENU_TRANSLATION_KEYS = [
   'menu.audio.audioSettings', 'menu.audio.recordSettings',
   // Paneles
   'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
-  'menu.panels.lockPan', 'menu.panels.lockZoom', 'menu.panels.rememberPip',
+  'menu.panels.rememberPip',
   'menu.panels.singleFingerPan', 'menu.panels.multitouchControls',
   // Avanzado
   'menu.advanced', 'menu.advanced.debugGlobal',
@@ -92,8 +92,6 @@ function readCurrentState() {
     linearFaders: readBool(STORAGE_KEYS.FADER_LINEAR_RESPONSE, true),
     sharpRasterize: readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false),
     // Paneles
-    panLocked: window.__synthNavLocks?.panLocked ?? false,
-    zoomLocked: window.__synthNavLocks?.zoomLocked ?? false,
     rememberPip: readBool(STORAGE_KEYS.PIP_REMEMBER, false),
     singleFingerPan: readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true),
     multitouchControls: readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false),
@@ -220,22 +218,6 @@ function handleMenuAction({ action, data }) {
       if (closeAllPips) closeAllPips();
       break;
     }
-    case 'setPanLock':
-      if (window.__synthNavLocks) {
-        window.__synthNavLocks.panLocked = data.locked;
-        document.dispatchEvent(new CustomEvent('synth:navLockChanged', {
-          detail: { panLocked: data.locked }
-        }));
-      }
-      break;
-    case 'setZoomLock':
-      if (window.__synthNavLocks) {
-        window.__synthNavLocks.zoomLocked = data.locked;
-        document.dispatchEvent(new CustomEvent('synth:navLockChanged', {
-          detail: { zoomLocked: data.locked }
-        }));
-      }
-      break;
     case 'setRememberPip':
       localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(data.enabled));
       break;

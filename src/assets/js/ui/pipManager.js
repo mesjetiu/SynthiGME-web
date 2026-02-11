@@ -112,6 +112,8 @@ let dragPointerId = null;
 let resizingPip = null;
 let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
 let resizePointerId = null;
+/** Borde que se está redimensionando: 'corner' | 'right' | 'bottom' | 'left' | 'top' */
+let resizeEdge = 'corner';
 
 /** Flag para indicar que hay un gesto táctil activo (evita ciclos de layout en Samsung) */
 let gestureInProgress = false;
@@ -521,9 +523,16 @@ export function openPip(panelId) {
   pipContainer.appendChild(header);
   pipContainer.appendChild(content);
   
-  // Handle de resize
+  // Handles de resize: bordes (un solo eje) + esquina (proporcional)
+  for (const edge of ['right', 'bottom', 'left', 'top']) {
+    const edgeHandle = document.createElement('div');
+    edgeHandle.className = `pip-resize-edge pip-resize-edge--${edge}`;
+    edgeHandle.dataset.edge = edge;
+    pipContainer.appendChild(edgeHandle);
+  }
   const resizeHandle = document.createElement('div');
   resizeHandle.className = 'pip-resize-handle';
+  resizeHandle.dataset.edge = 'corner';
   pipContainer.appendChild(resizeHandle);
 
   pipLayer.appendChild(pipContainer);
@@ -728,28 +737,24 @@ function setupPipEvents(pipContainer, panelId) {
     bringToFront(panelId);
   });
   
-  // Resize
-  resizeHandle.addEventListener('pointerdown', (e) => {
+  // Resize — función compartida para esquina y bordes
+  const startResize = (e, edge) => {
     const state = activePips.get(panelId);
     if (state?.locked) return;
     e.preventDefault();
     e.stopPropagation();
     resizingPip = panelId;
+    resizeEdge = edge;
     resizePointerId = e.pointerId;
-    resizeHandle.setPointerCapture(e.pointerId);
+    e.target.setPointerCapture(e.pointerId);
     const viewport = pipContainer.querySelector('.pip-viewport');
     const viewportW = viewport ? viewport.clientWidth : (state.width - PIP_BORDER_SIZE);
     const viewportH = viewport ? viewport.clientHeight : (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
-    // Calcular qué punto del panel está en el centro de la vista
     const scrollX = viewport ? viewport.scrollLeft : 0;
     const scrollY = viewport ? viewport.scrollTop : 0;
-    // Leer el padding real del viewport-inner
     const viewportInner = pipContainer.querySelector('.pip-viewport-inner');
     const paddingX = parseFloat(viewportInner?.style.paddingLeft) || 0;
     const paddingY = parseFloat(viewportInner?.style.paddingTop) || 0;
-    // Centro de la vista en coordenadas del viewport-inner: scrollX + viewportW/2
-    // Eso corresponde al punto del panel escalado: (scrollX + viewportW/2) - paddingX
-    // En coordenadas del panel ORIGINAL (sin escalar): ((scrollX + viewportW/2) - paddingX) / scale
     const viewCenterOnPanelX = (scrollX + viewportW / 2 - paddingX) / state.scale;
     const viewCenterOnPanelY = (scrollY + viewportH / 2 - paddingY) / state.scale;
     resizeStart = {
@@ -757,13 +762,23 @@ function setupPipEvents(pipContainer, panelId) {
       y: e.clientY,
       w: state.width,
       h: state.height,
+      pipX: state.x,
+      pipY: state.y,
       scale: state.scale,
-      // Punto del panel ORIGINAL que está en el centro de la vista
+      aspectRatio: state.width / state.height,
       viewCenterX: viewCenterOnPanelX,
       viewCenterY: viewCenterOnPanelY
     };
     pipContainer.classList.add('pip-container--resizing');
     bringToFront(panelId);
+  };
+  
+  // Corner handle (proporcional)
+  resizeHandle.addEventListener('pointerdown', (e) => startResize(e, 'corner'));
+  
+  // Edge handles (un solo eje)
+  pipContainer.querySelectorAll('.pip-resize-edge').forEach(edgeEl => {
+    edgeEl.addEventListener('pointerdown', (e) => startResize(e, edgeEl.dataset.edge));
   });
   
   // ==========================================================================
@@ -1066,32 +1081,83 @@ function handlePointerMove(e) {
     const state = activePips.get(resizingPip);
     if (!state) return;
     
-    // Límites dinámicos basados en la pantalla
-    const maxW = window.innerWidth - state.x;
-    const maxH = window.innerHeight - state.y;
-    
     const dx = e.clientX - resizeStart.x;
     const dy = e.clientY - resizeStart.y;
-    const newW = Math.max(MIN_PIP_SIZE, Math.min(maxW, resizeStart.w + dx));
-    const newH = Math.max(MIN_PIP_SIZE, Math.min(maxH, resizeStart.h + dy));
+    
+    let newW = resizeStart.w;
+    let newH = resizeStart.h;
+    let newX = resizeStart.pipX;
+    let newY = resizeStart.pipY;
+    
+    if (resizeEdge === 'corner') {
+      // Esquina: resize proporcional (aspect ratio bloqueado)
+      // Usar el eje con mayor desplazamiento para guiar la proporción
+      const ar = resizeStart.aspectRatio;
+      const candidateW = resizeStart.w + dx;
+      const candidateH = resizeStart.h + dy;
+      // Elegir la dimensión dominante
+      if (Math.abs(dx) * (resizeStart.h / resizeStart.w) >= Math.abs(dy)) {
+        newW = candidateW;
+        newH = newW / ar;
+      } else {
+        newH = candidateH;
+        newW = newH * ar;
+      }
+    } else if (resizeEdge === 'right') {
+      newW = resizeStart.w + dx;
+    } else if (resizeEdge === 'bottom') {
+      newH = resizeStart.h + dy;
+    } else if (resizeEdge === 'left') {
+      newW = resizeStart.w - dx;
+      newX = resizeStart.pipX + dx;
+    } else if (resizeEdge === 'top') {
+      newH = resizeStart.h - dy;
+      newY = resizeStart.pipY + dy;
+    }
+    
+    // Límites dinámicos basados en la pantalla
+    const maxW = window.innerWidth - newX;
+    const maxH = window.innerHeight - newY;
+    newW = Math.max(MIN_PIP_SIZE, Math.min(maxW, newW));
+    newH = Math.max(MIN_PIP_SIZE, Math.min(maxH, newH));
+    
+    // Para left/top: asegurar que no se salga de pantalla
+    if (resizeEdge === 'left') {
+      newX = resizeStart.pipX + resizeStart.w - newW;
+      newX = Math.max(0, newX);
+      newW = resizeStart.pipX + resizeStart.w - newX;
+    }
+    if (resizeEdge === 'top') {
+      newY = resizeStart.pipY + resizeStart.h - newH;
+      newY = Math.max(0, newY);
+      newH = resizeStart.pipY + resizeStart.h - newY;
+    }
     
     // Calcular factor de escala basado en el cambio de tamaño
-    // Usamos el promedio de ambos ejes para zoom uniforme
     const scaleFactorW = newW / resizeStart.w;
     const scaleFactorH = newH / resizeStart.h;
-    const scaleFactor = (scaleFactorW + scaleFactorH) / 2;
+    let scaleFactor;
+    if (resizeEdge === 'corner') {
+      scaleFactor = scaleFactorW; // Proporcional, ambos ejes iguales
+    } else if (resizeEdge === 'left' || resizeEdge === 'right') {
+      scaleFactor = scaleFactorW;
+    } else {
+      scaleFactor = scaleFactorH;
+    }
     
-    // Nueva escala proporcional al cambio de tamaño (con límite dinámico)
     const baseScale = resizeStart.scale || state.scale;
     const minScale = getMinScale(resizingPip);
     const newScale = Math.max(minScale, Math.min(MAX_SCALE, baseScale * scaleFactor));
     
     state.width = newW;
     state.height = newH;
+    state.x = newX;
+    state.y = newY;
     state.pipContainer.style.width = `${newW}px`;
     state.pipContainer.style.height = `${newH}px`;
+    state.pipContainer.style.left = `${newX}px`;
+    state.pipContainer.style.top = `${newY}px`;
     
-    // Actualizar escala proporcionalmente (sin persistir, se guarda al soltar)
     updatePipScale(resizingPip, newScale, false);
     
     // Ajustar scroll para mantener el mismo punto del panel en el centro de la vista
@@ -1099,15 +1165,9 @@ function handlePointerMove(e) {
     if (viewport && resizeStart.viewCenterX !== undefined) {
       const newViewportW = viewport.clientWidth;
       const newViewportH = viewport.clientHeight;
-      // Leer el padding real calculado por updatePipScale
       const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
       const newPaddingX = parseFloat(viewportInner?.style.paddingLeft) || 0;
       const newPaddingY = parseFloat(viewportInner?.style.paddingTop) || 0;
-      // El punto del panel original (viewCenterX/Y) ahora está en posición escalada:
-      // posición en viewport-inner = newPadding + viewCenterX * newScale
-      // Queremos que esa posición esté en el centro del viewport:
-      // newScrollX + newViewportW/2 = newPadding + viewCenterX * newScale
-      // newScrollX = newPadding + viewCenterX * newScale - newViewportW/2
       const newScrollX = newPaddingX + resizeStart.viewCenterX * newScale - newViewportW / 2;
       const newScrollY = newPaddingY + resizeStart.viewCenterY * newScale - newViewportH / 2;
       viewport.scrollLeft = Math.max(0, newScrollX);
@@ -1142,15 +1202,18 @@ function handlePointerUp(e) {
     const state = activePips.get(resizingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--resizing');
-      // Liberar pointer capture
-      const resizeHandle = state.pipContainer.querySelector('.pip-resize-handle');
-      if (resizeHandle && resizePointerId !== null) {
-        try { resizeHandle.releasePointerCapture(resizePointerId); } catch (_) { /* ignore */ }
+      // Liberar pointer capture del handle activo (esquina o borde)
+      if (resizePointerId !== null) {
+        try {
+          const activeEl = state.pipContainer.querySelector(`[data-edge="${resizeEdge}"]`);
+          if (activeEl) activeEl.releasePointerCapture(resizePointerId);
+        } catch (_) { /* ignore */ }
       }
       stateChanged = true;
     }
     resizingPip = null;
     resizePointerId = null;
+    resizeEdge = 'corner';
   }
   
   // Guardar estado después de drag/resize

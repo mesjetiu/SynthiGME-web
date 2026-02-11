@@ -5635,8 +5635,9 @@ small { color:#aaa; }
   pointer-events: none;
 }
 
-/* Ocultar resize handle cuando está bloqueado */
-.pip-container--locked .pip-resize-handle {
+/* Ocultar resize handles cuando está bloqueado */
+.pip-container--locked .pip-resize-handle,
+.pip-container--locked .pip-resize-edge {
   display: none;
 }
 
@@ -5694,7 +5695,46 @@ small { color:#aaa; }
   overflow: visible !important;
 }
 
-/* Handle de resize */
+/* Handles de resize (bordes y esquina) */
+.pip-resize-edge {
+  position: absolute;
+  touch-action: none;
+  z-index: 2;
+}
+
+.pip-resize-edge--right {
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.pip-resize-edge--bottom {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.pip-resize-edge--left {
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.pip-resize-edge--top {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+/* Handle de esquina (resize proporcional) */
 .pip-resize-handle {
   position: absolute;
   right: 0;
@@ -5704,7 +5744,8 @@ small { color:#aaa; }
   cursor: se-resize;
   background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.2) 50%);
   border-radius: 0 0 8px 0;
-  touch-action: none; /* Evitar interferencia con gestos táctiles */
+  touch-action: none;
+  z-index: 3;
 }
 
 .pip-resize-handle:hover {

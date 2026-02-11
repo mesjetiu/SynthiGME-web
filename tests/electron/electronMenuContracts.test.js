@@ -212,12 +212,59 @@ function extractReverseSyncListeners() {
   return listeners;
 }
 
+/**
+ * Extrae los valores por defecto del objeto menuState en electronMenu.cjs.
+ * @returns {Map<string, boolean>} clave → valor por defecto
+ */
+function extractMenuStateDefaults() {
+  const defaults = new Map();
+  const stateMatch = menuSource.match(
+    /let menuState\s*=\s*\{([\s\S]*?)\};/
+  );
+  if (!stateMatch) return defaults;
+  // Capturar líneas tipo: key: true/false (ignorar objetos como pipPanels: {})
+  const regex = /^\s*(\w+)\s*:\s*(true|false)\s*,?/gm;
+  let match;
+  while ((match = regex.exec(stateMatch[1])) !== null) {
+    defaults.set(match[1], match[2] === 'true');
+  }
+  return defaults;
+}
+
+/**
+ * Extrae los valores por defecto de readCurrentState() en el bridge.
+ * Parsea llamadas a readBool(KEY, default) y literales directos (key: false).
+ * @returns {Map<string, boolean>} clave → valor por defecto
+ */
+function extractBridgeStateDefaults() {
+  const defaults = new Map();
+  const fnMatch = bridgeSource.match(
+    /function readCurrentState\(\)\s*\{[\s\S]*?return\s*\{([\s\S]*?)\};\s*\}/
+  );
+  if (!fnMatch) return defaults;
+  // readBool(KEY, true/false)
+  const readBoolRegex = /^\s*(\w+)\s*:\s*readBool\([^,]+,\s*(true|false)\)/gm;
+  let match;
+  while ((match = readBoolRegex.exec(fnMatch[1])) !== null) {
+    defaults.set(match[1], match[2] === 'true');
+  }
+  // Literales directos: key: true/false (e.g., muted: false, recording: false)
+  const literalRegex = /^\s*(\w+)\s*:\s*(true|false)\s*,/gm;
+  while ((match = literalRegex.exec(fnMatch[1])) !== null) {
+    if (!defaults.has(match[1])) {
+      defaults.set(match[1], match[2] === 'true');
+    }
+  }
+  return defaults;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Datos extraídos (se cachean antes de los tests)
 // ═══════════════════════════════════════════════════════════════════════════
 
 let menuTranslationKeys, mainTranslationKeys, bridgeTranslationKeys;
 let menuStateKeys, bridgeStateKeys;
+let menuStateDefaults, bridgeStateDefaults;
 let menuActions, bridgeCases;
 let menuIPCChannels, bridgeIPCChannels, preloadIPCChannels, mainIPCChannels;
 let reverseSyncListeners;
@@ -228,6 +275,8 @@ before(() => {
   bridgeTranslationKeys = extractBridgeTranslationKeys();
   menuStateKeys = extractMenuStateKeys();
   bridgeStateKeys = extractBridgeStateKeys();
+  menuStateDefaults = extractMenuStateDefaults();
+  bridgeStateDefaults = extractBridgeStateDefaults();
   menuActions = extractMenuActions();
   bridgeCases = extractBridgeSwitchCases();
   menuIPCChannels = extractIPCChannels(menuSource);
@@ -531,10 +580,17 @@ describe('Sincronización inversa (app → menú via eventos)', () => {
   it('los checkboxes del menú con estado persistente tienen sync inverso', () => {
     // Claves que deben sincronizarse de vuelta al menú cuando cambian desde la UI
     const MUST_SYNC_BACK = [
-      'inactivePins', 'dormancy', 'dormancyDebug',
+      // Ver
+      'inactivePins', 'linearFaders', 'sharpRasterize',
+      // Paneles
+      'singleFingerPan', 'multitouchControls', 'rememberPip',
+      // Avanzado
+      'dormancy', 'dormancyDebug',
       'filterBypass', 'filterBypassDebug',
       'softClip', 'pinTolerance', 'thermalDrift',
-      'debugGlobal', 'linearFaders'
+      'debugGlobal',
+      // OSC
+      'oscSendToSC', 'oscReceiveFromSC', 'oscShowLog'
     ];
     const synced = new Set(reverseSyncListeners.values());
     const missing = MUST_SYNC_BACK.filter(k => !synced.has(k));
@@ -584,7 +640,58 @@ describe('Sincronización inversa (app → menú via eventos)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 7. LÓGICA DE FUNCIONES PURAS (replicadas para test unitario)
+// 7. CONSISTENCIA DE VALORES POR DEFECTO (menú ↔ bridge)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Consistencia de valores por defecto (menuState ↔ readCurrentState)', () => {
+
+  it('los extractores encuentran defaults en ambos componentes', () => {
+    assert.ok(menuStateDefaults.size > 0, 'No se extrajeron defaults de menuState en electronMenu.cjs');
+    assert.ok(bridgeStateDefaults.size > 0, 'No se extrajeron defaults de readCurrentState() en el bridge');
+  });
+
+  it('todos los defaults de menuState coinciden con los de readCurrentState()', () => {
+    // Claves que NO tienen equivalente directo (son dinámicas o especiales)
+    const SKIP = ['patchBrowserOpen'];
+    const mismatches = [];
+    for (const [key, menuDefault] of menuStateDefaults) {
+      if (SKIP.includes(key)) continue;
+      if (!bridgeStateDefaults.has(key)) continue; // Ya cubierto por el test de claves
+      const bridgeDefault = bridgeStateDefaults.get(key);
+      if (menuDefault !== bridgeDefault) {
+        mismatches.push(
+          `  - '${key}': menuState=${menuDefault}, bridge=${bridgeDefault}`
+        );
+      }
+    }
+    assert.strictEqual(
+      mismatches.length, 0,
+      `Defaults no coinciden entre menuState y readCurrentState():\n` +
+      mismatches.join('\n') +
+      `\n\nEsto causa que el menú muestre un estado inicial incorrecto ` +
+      `cuando el usuario nunca ha tocado el ajuste (localStorage vacío).`
+    );
+  });
+
+  it('readCurrentState() define default para cada clave booleana de menuState', () => {
+    const SKIP = ['patchBrowserOpen', 'pipPanels'];
+    const missing = [];
+    for (const [key] of menuStateDefaults) {
+      if (SKIP.includes(key)) continue;
+      if (!bridgeStateDefaults.has(key)) {
+        missing.push(`  - '${key}' falta en readCurrentState()`);
+      }
+    }
+    assert.strictEqual(
+      missing.length, 0,
+      `Claves booleanas de menuState sin default en readCurrentState():\n` +
+      missing.join('\n')
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 8. LÓGICA DE FUNCIONES PURAS (replicadas para test unitario)
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Lógica de la función t() (fallback de traducciones)', () => {
@@ -655,7 +762,7 @@ describe('Lógica de updateMenuState (merge de estado)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 8. ESTRUCTURA DEL BRIDGE
+// 9. ESTRUCTURA DEL BRIDGE
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Estructura del bridge (electronMenuBridge.js)', () => {
@@ -710,7 +817,7 @@ describe('Estructura del bridge (electronMenuBridge.js)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 9. INTEGRIDAD DE PRELOAD (API surface)
+// 10. INTEGRIDAD DE PRELOAD (API surface)
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Integridad de la API del preload', () => {

@@ -467,6 +467,7 @@ function setupStateListeners() {
     const stateMap = {
       tooltipShowVoltage: 'tooltipVoltage',
       tooltipShowAudioValues: 'tooltipAudioRate',
+      rememberPip: 'rememberPip',
       oscSendToSC: 'oscSendToSC',
       oscReceiveFromSC: 'oscReceiveFromSC',
       oscLogVisible: 'oscShowLog'

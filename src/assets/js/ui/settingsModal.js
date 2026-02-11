@@ -206,11 +206,11 @@ export class SettingsModal {
       this.faderLinearCheckbox.checked = this.faderLinearResponse;
     }
     if (this.tooltipVoltageCheckbox) {
-      this.showTooltipVoltage = readBool(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, false);
+      this.showTooltipVoltage = readBool(STORAGE_KEYS.TOOLTIP_SHOW_VOLTAGE, true);
       this.tooltipVoltageCheckbox.checked = this.showTooltipVoltage;
     }
     if (this.tooltipAudioCheckbox) {
-      this.showTooltipAudio = readBool(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, false);
+      this.showTooltipAudio = readBool(STORAGE_KEYS.TOOLTIP_SHOW_AUDIO_VALUES, true);
       this.tooltipAudioCheckbox.checked = this.showTooltipAudio;
     }
     if (this.pipRememberCheckbox) {
@@ -923,6 +923,9 @@ export class SettingsModal {
     sendCheckbox.addEventListener('change', async () => {
       const enabled = sendCheckbox.checked;
       localStorage.setItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND, enabled);
+      document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+        detail: { key: 'oscSendToSC', value: enabled }
+      }));
       
       const SC_HOST = '127.0.0.1';
       const SC_PORT = parseInt(localStorage.getItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_PORT) || '57120', 10);
@@ -1015,6 +1018,9 @@ export class SettingsModal {
     
     receiveCheckbox.addEventListener('change', () => {
       localStorage.setItem(STORAGE_KEYS.OSC_SUPERCOLLIDER_RECEIVE, receiveCheckbox.checked);
+      document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+        detail: { key: 'oscReceiveFromSC', value: receiveCheckbox.checked }
+      }));
       // La recepción ya funciona vía multicast, solo guardamos la preferencia
       // para futura configuración (ej: filtrar mensajes de SC)
     });
@@ -1363,6 +1369,9 @@ export class SettingsModal {
     
     checkbox.addEventListener('change', () => {
       localStorage.setItem(STORAGE_KEYS.OSC_LOG_VISIBLE, checkbox.checked);
+      document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+        detail: { key: 'oscLogVisible', value: checkbox.checked }
+      }));
       // Emitir evento para que el log window responda
       // La ventana solo se mostrará si OSC está activo (controlado en oscLogWindow)
       window.dispatchEvent(new CustomEvent('osc:log-visibility', { 
@@ -2011,9 +2020,9 @@ export class SettingsModal {
     this.pipRememberCheckbox.id = 'pipRememberCheckbox';
     this.pipRememberCheckbox.className = 'settings-checkbox';
     
-    // Cargar preferencia guardada (por defecto true = recordar)
+    // Cargar preferencia guardada (por defecto false = no recordar)
     const savedPref = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
-    this.rememberPips = savedPref !== 'false'; // true por defecto
+    this.rememberPips = savedPref === 'true';
     this.pipRememberCheckbox.checked = this.rememberPips;
     
     this.pipRememberLabelElement = document.createElement('label');
@@ -2039,6 +2048,9 @@ export class SettingsModal {
   _setRememberPips(remember) {
     this.rememberPips = remember;
     localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(remember));
+    document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+      detail: { key: 'rememberPip', value: remember }
+    }));
     
     // Si se desactiva, limpiar estado guardado
     if (!remember) {

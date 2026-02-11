@@ -33,8 +33,11 @@ const PIP_Z_INDEX_BASE = 1200;
 const MIN_PIP_SIZE = 150;
 // MAX_PIP_SIZE es dinámico: se calcula según el tamaño de la ventana
 
-/** Tamaño de cabecera del PiP */
-const PIP_HEADER_HEIGHT = 32;
+/** Tamaño de cabecera del PiP (24px botones + 12px padding + 1px border-bottom) */
+const PIP_HEADER_HEIGHT = 37;
+
+/** Espacio extra del contenedor PiP por bordes CSS (1px × 2 lados) */
+const PIP_BORDER_SIZE = 2;
 
 /** Límites de zoom */
 const MIN_SCALE_ABSOLUTE = 0.1; // Mínimo absoluto de seguridad
@@ -62,15 +65,14 @@ function getInitialPipDimensions() {
   contentSize = Math.max(MIN_PIP_SIZE, Math.min(maxDim, contentSize));
   
   return {
-    width: contentSize,
-    height: contentSize + PIP_HEADER_HEIGHT,
+    width: contentSize + PIP_BORDER_SIZE,
+    height: contentSize + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE,
     scale: contentSize / panelSize
   };
 }
 
 /**
- * Calcula el zoom mínimo para que el panel llene el viewport.
- * El lado más corto del viewport debe coincidir con el panel.
+ * Calcula el zoom mínimo para que el panel quepa entero en el viewport.
  * @param {string} panelId - ID del panel
  * @returns {number} Escala mínima
  */
@@ -83,13 +85,13 @@ function getMinScale(panelId) {
   const panelHeight = panelEl?.offsetHeight || 760;
   
   const viewport = state.pipContainer.querySelector('.pip-viewport');
-  const viewportWidth = viewport?.clientWidth || state.width;
-  const viewportHeight = viewport?.clientHeight || (state.height - 32);
+  const viewportWidth = viewport?.clientWidth || (state.width - PIP_BORDER_SIZE);
+  const viewportHeight = viewport?.clientHeight || (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
   
-  // El zoom mínimo es el mayor de los ratios (para que el panel llene el viewport)
+  // El zoom mínimo es el menor de los ratios (para que el panel quepa entero en el viewport)
   const minScaleX = viewportWidth / panelWidth;
   const minScaleY = viewportHeight / panelHeight;
-  const dynamicMin = Math.max(minScaleX, minScaleY);
+  const dynamicMin = Math.min(minScaleX, minScaleY);
   
   // Usar el mayor entre el dinámico y el mínimo absoluto
   return Math.max(MIN_SCALE_ABSOLUTE, dynamicMin);
@@ -548,6 +550,13 @@ export function openPip(panelId) {
   // Aplicar escala inicial
   updatePipScale(panelId, state.scale);
   
+  // Recalcular escala con dimensiones reales del viewport (descuenta bordes, header real, etc.)
+  const fitScale = getMinScale(panelId);
+  if (fitScale !== state.scale) {
+    state.scale = fitScale;
+    updatePipScale(panelId, fitScale);
+  }
+  
   // Centrar el scroll en el panel (después de que se haya calculado el tamaño del viewport-inner con padding)
   const pipViewport = pipContainer.querySelector('.pip-viewport');
   if (pipViewport) {
@@ -729,8 +738,8 @@ function setupPipEvents(pipContainer, panelId) {
     resizePointerId = e.pointerId;
     resizeHandle.setPointerCapture(e.pointerId);
     const viewport = pipContainer.querySelector('.pip-viewport');
-    const viewportW = viewport ? viewport.clientWidth : state.width;
-    const viewportH = viewport ? viewport.clientHeight : state.height - 32;
+    const viewportW = viewport ? viewport.clientWidth : (state.width - PIP_BORDER_SIZE);
+    const viewportH = viewport ? viewport.clientHeight : (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
     // Calcular qué punto del panel está en el centro de la vista
     const scrollX = viewport ? viewport.scrollLeft : 0;
     const scrollY = viewport ? viewport.scrollTop : 0;
@@ -1366,8 +1375,8 @@ function updatePipScale(panelId, newScale, persist = true) {
   
   // Obtener tamaño del viewport (contenido visible)
   const viewport = state.pipContainer.querySelector('.pip-viewport');
-  const viewportWidth = viewport ? viewport.clientWidth : state.width;
-  const viewportHeight = viewport ? viewport.clientHeight : state.height - 32;
+  const viewportWidth = viewport ? viewport.clientWidth : (state.width - PIP_BORDER_SIZE);
+  const viewportHeight = viewport ? viewport.clientHeight : (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
   
   // Padding limitado para que al menos 2/3 del panel (o viewport) sea siempre visible
   const minVisibleX = Math.min(viewportWidth, scaledWidth) * (2 / 3);

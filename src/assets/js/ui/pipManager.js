@@ -115,6 +115,11 @@ let resizePointerId = null;
 /** Borde que se está redimensionando: 'corner' | 'right' | 'bottom' | 'left' | 'top' */
 let resizeEdge = 'corner';
 
+/** Panel actualmente siendo paneado con ratón */
+let panningPip = null;
+let panStart = { x: 0, y: 0, scrollX: 0, scrollY: 0 };
+let panPointerId = null;
+
 /** Flag para indicar que hay un gesto táctil activo (evita ciclos de layout en Samsung) */
 let gestureInProgress = false;
 
@@ -195,6 +200,20 @@ export function initPipManager() {
     } else if (direction === 'reset') {
       updatePipScale(focusedPipId, minScale);
     }
+    return true;
+  };
+
+  // Exponer función de paneo con flechas para PiP enfocado
+  window.__synthPanFocusedPip = (dirX, dirY) => {
+    if (!focusedPipId || !activePips.has(focusedPipId)) return false;
+    const state = activePips.get(focusedPipId);
+    if (!state || state.locked) return true; // Absorber pero no actuar si bloqueado
+    const viewport = state.pipContainer.querySelector('.pip-viewport');
+    if (!viewport) return false;
+    const stepX = viewport.clientWidth * 0.15;
+    const stepY = viewport.clientHeight * 0.15;
+    viewport.scrollLeft += dirX * stepX;
+    viewport.scrollTop += dirY * stepY;
     return true;
   };
 
@@ -1057,6 +1076,53 @@ function setupPipEvents(pipContainer, panelId) {
       }, 500);
     }, { passive: true });
   }
+  
+  // ── Paneo con arrastre del ratón dentro del contenido ──
+  // Click izquierdo en fondo no interactivo o click central → pan
+  const isInteractivePipTarget = (el) => {
+    if (!el) return false;
+    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader, button, input, select, textarea';
+    if (el.closest('[data-prevent-pan="true"]')) return true;
+    return !!el.closest(selector);
+  };
+  
+  content.addEventListener('pointerdown', (e) => {
+    const state = activePips.get(panelId);
+    if (!state || state.locked) return;
+    // Botón central siempre panea; botón izquierdo solo si no es un control interactivo
+    const isMiddle = e.button === 1;
+    const isLeft = e.button === 0;
+    if (!isMiddle && !isLeft) return;
+    if (isLeft && isInteractivePipTarget(e.target)) return;
+    
+    e.preventDefault();
+    panningPip = panelId;
+    panPointerId = e.pointerId;
+    content.setPointerCapture(e.pointerId);
+    panStart.x = e.clientX;
+    panStart.y = e.clientY;
+    panStart.scrollX = viewport.scrollLeft;
+    panStart.scrollY = viewport.scrollTop;
+    content.style.cursor = 'grabbing';
+  });
+  
+  content.addEventListener('pointermove', (e) => {
+    if (panningPip !== panelId || e.pointerId !== panPointerId) return;
+    const dx = e.clientX - panStart.x;
+    const dy = e.clientY - panStart.y;
+    viewport.scrollLeft = panStart.scrollX - dx;
+    viewport.scrollTop = panStart.scrollY - dy;
+  });
+  
+  const endPan = (e) => {
+    if (panningPip !== panelId || e.pointerId !== panPointerId) return;
+    try { content.releasePointerCapture(panPointerId); } catch (_) { /* ignore */ }
+    panningPip = null;
+    panPointerId = null;
+    content.style.cursor = '';
+  };
+  content.addEventListener('pointerup', endPan);
+  content.addEventListener('pointercancel', endPan);
 }
 
 /**

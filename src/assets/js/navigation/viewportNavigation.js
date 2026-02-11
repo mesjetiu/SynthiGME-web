@@ -849,6 +849,12 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
     if (arrowDir) {
       ev.preventDefault();
+      // Si hay un PiP en foco, redirigir paneo a su viewport
+      if (window.__synthFocusedPip && window.__synthPanFocusedPip) {
+        // Invertir signos: ArrowLeft → scroll derecha (-), ArrowRight → scroll izquierda (+)
+        window.__synthPanFocusedPip(-arrowDir[0], -arrowDir[1]);
+        return;
+      }
       cancelRasterize();
       const stepX = (metrics.outerWidth || outer.clientWidth) * ARROW_PAN_FACTOR;
       const stepY = (metrics.outerHeight || outer.clientHeight) * ARROW_PAN_FACTOR;

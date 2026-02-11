@@ -2328,6 +2328,16 @@ small { color:#aaa; }
    OSCILLOSCOPE MODULE — Estilos específicos del osciloscopio
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ─── Panel 2: ocultar textos y valores (ya están en la imagen de fondo) ─── */
+/* Para restaurar los textos, descomentar este bloque */
+.panel2-layout .synth-module__header,
+.panel2-layout .input-amplifier__label,
+.panel2-layout .knob-label,
+.panel2-layout .knob-value,
+.panel2-layout .input-amplifier__value {
+  display: none;
+}
+
 .synth-module--oscilloscope {
   width: 100%;
   height: 100%;
@@ -5354,7 +5364,6 @@ small { color:#aaa; }
 /* Placeholder de módulos no implementados en Panel 2 */
 .panel2-placeholder {
   flex-shrink: 0;
-  opacity: 0.5;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

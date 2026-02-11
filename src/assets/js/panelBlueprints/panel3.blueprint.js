@@ -60,6 +60,10 @@ export default {
   // ─────────────────────────────────────────────────────────────────────────
   
   layout: {
+    // Offset general del panel (px) — desplaza todos los módulos
+    // respecto a la imagen de fondo. Útil para ajustes finos.
+    offset: { x: 0, y: 0 },
+
     // Grid de osciladores: 2 columnas x 6 filas
     oscillators: {
       columns: 2,

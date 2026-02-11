@@ -300,6 +300,12 @@ class App {
       this.outputPanel.element.classList.add('hide-frames');
     }
     
+    // Offset general del panel (desde blueprint)
+    const panelOffset = blueprint.layout.offset || { x: 0, y: 0 };
+    if (panelOffset.x !== 0 || panelOffset.y !== 0) {
+      this.outputPanel.element.style.transform = `translate(${panelOffset.x}px, ${panelOffset.y}px)`;
+    }
+    
     // ── Fila superior: Joystick Left | Sequencer | Joystick Right ──────
     const upperRowEl = document.createElement('div');
     upperRowEl.className = 'panel7-upper-row';
@@ -1271,6 +1277,7 @@ class App {
     const host = document.createElement('div');
     host.id = 'panel1Layout';
     host.className = 'panel1-layout';
+    const offset = blueprint.layout.offset || { x: 0, y: 0 };
     host.style.cssText = `
       position: absolute;
       top: 0;
@@ -1283,6 +1290,7 @@ class App {
       display: flex;
       flex-direction: column;
       gap: ${blueprint.layout.gap ?? 4}px;
+      transform: translate(${offset.x}px, ${offset.y}px);
     `;
     this.panel1.appendElement(host);
 
@@ -1479,6 +1487,7 @@ class App {
     const host = document.createElement('div');
     host.id = 'panel2Layout';
     host.className = 'panel2-layout';
+    const offset = blueprint.layout.offset || { x: 0, y: 0 };
     host.style.cssText = `
       position: absolute;
       top: 0;
@@ -1491,6 +1500,7 @@ class App {
       display: flex;
       flex-direction: column;
       gap: ${blueprint.layout.gap ?? 6}px;
+      transform: translate(${offset.x}px, ${offset.y}px);
     `;
     this.panel2.appendElement(host);
     
@@ -2453,6 +2463,12 @@ class App {
     const host = document.createElement('div');
     host.id = `panel${panelIndex}Layout`;
     host.className = 'panel3-layout';
+    
+    // Offset general del panel (desde blueprint)
+    const panelOffset = panel3Blueprint?.layout?.offset || { x: 0, y: 0 };
+    if (panelOffset.x !== 0 || panelOffset.y !== 0) {
+      host.style.transform = `translate(${panelOffset.x}px, ${panelOffset.y}px)`;
+    }
     
     // Visibilidad de marcos de módulos (desde blueprint)
     if (panel3Blueprint?.showFrames === false) {

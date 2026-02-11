@@ -65,6 +65,13 @@ describe('Panel 2 Blueprint - Layout', () => {
     assert.ok(panel2Blueprint.layout.gap >= 0, 'gap no puede ser negativo');
   });
 
+  it('tiene offset general con x e y numéricos', () => {
+    const offset = panel2Blueprint.layout.offset;
+    assert.ok(offset, 'debe tener offset');
+    assert.strictEqual(typeof offset.x, 'number', 'offset.x debe ser número');
+    assert.strictEqual(typeof offset.y, 'number', 'offset.y debe ser número');
+  });
+
   describe('Sección Oscilloscope', () => {
     const osc = panel2Blueprint.layout.oscilloscope;
 

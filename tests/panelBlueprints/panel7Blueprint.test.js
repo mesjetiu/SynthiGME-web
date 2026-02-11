@@ -66,6 +66,13 @@ describe('Panel 7 Blueprint - Layout', () => {
     assert.strictEqual(typeof padding.left, 'number');
   });
 
+  it('tiene offset general con x e y numéricos', () => {
+    const offset = panel7Blueprint.layout.offset;
+    assert.ok(offset, 'debe tener offset');
+    assert.strictEqual(typeof offset.x, 'number', 'offset.x debe ser número');
+    assert.strictEqual(typeof offset.y, 'number', 'offset.y debe ser número');
+  });
+
   describe('Fila superior (upperRow)', () => {
     const upperRow = panel7Blueprint.layout.upperRow;
 

@@ -41,6 +41,13 @@ describe('Panel 3 Blueprint - Estructura básica', () => {
     assert.ok(panel3Blueprint.layout, 'debe tener layout');
   });
 
+  it('tiene offset general con x e y numéricos', () => {
+    const offset = panel3Blueprint.layout.offset;
+    assert.ok(offset, 'debe tener offset');
+    assert.strictEqual(typeof offset.x, 'number', 'offset.x debe ser número');
+    assert.strictEqual(typeof offset.y, 'number', 'offset.y debe ser número');
+  });
+
   it('tiene oscillatorUI definido', () => {
     assert.ok(panel3Blueprint.oscillatorUI, 'debe tener oscillatorUI');
   });

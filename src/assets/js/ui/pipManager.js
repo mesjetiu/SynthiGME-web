@@ -1308,16 +1308,26 @@ function maximizePip(panelId) {
     newW = Math.round(newH * currentRatio);
   }
   
-  // Centrar en pantalla
-  const newX = Math.round((window.innerWidth - newW) / 2);
-  const newY = Math.round((window.innerHeight - newH) / 2);
+  // Mantener posición actual pero ajustar si se sale de pantalla
+  let newX = state.x;
+  let newY = state.y;
+  if (newX + newW > window.innerWidth) newX = Math.max(0, window.innerWidth - newW);
+  if (newY + newH > window.innerHeight) newY = Math.max(0, window.innerHeight - newH);
+  if (newX < 0) newX = 0;
+  if (newY < 0) newY = 0;
   
   // Calcular nueva escala proporcional al cambio de tamaño
   // Para que se vea la misma porción de panel, la escala escala con el tamaño
   const oldW = state.width;
   const sizeFactor = newW / oldW;
   const oldScale = state.scale;
-  const minScale = getMinScale(panelId);
+  // Calcular minScale con las NUEVAS dimensiones del viewport (no las actuales)
+  const panelEl = document.getElementById(panelId);
+  const panelWidth = panelEl?.offsetWidth || 760;
+  const panelHeight = panelEl?.offsetHeight || 760;
+  const newViewportW = newW - PIP_BORDER_SIZE;
+  const newViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  const minScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(newViewportW / panelWidth, newViewportH / panelHeight));
   const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
   
   // Guardar centro visible del panel antes del cambio
@@ -1403,7 +1413,13 @@ function restorePipSize(panelId) {
   const oldW = state.width;
   const sizeFactor = newW / oldW;
   const oldScale = state.scale;
-  const minScale = getMinScale(panelId);
+  // Calcular minScale con las NUEVAS dimensiones del viewport (no las actuales)
+  const panelEl = document.getElementById(panelId);
+  const panelWidth = panelEl?.offsetWidth || 760;
+  const panelHeight = panelEl?.offsetHeight || 760;
+  const newViewportW = newW - PIP_BORDER_SIZE;
+  const newViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  const minScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(newViewportW / panelWidth, newViewportH / panelHeight));
   const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
   
   // Guardar centro visible del panel antes del cambio

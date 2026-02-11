@@ -106,20 +106,24 @@ podría ser significativo en dispositivos móviles.
 
 - Revisar todo el documento ARCHITECTURE.md: errores, omisiones, desactualizaciones... Ha de servir de base a un eventual estudio escrito.
 
+## Objetivo v0.7.0
 
+- Cada elemento (panel, módulo, grupo de módulos,se han de poder reiniciar a valor de inicio con menú contextual.
+- Colocar todos los módulos aunque no estén funcionando.
+- Botón y atajo de refresco (rasterización a demanda)
 
-## Objetivo v0.7.0 (publicación tester)
+## Objetivo v0.8.0 (optimización y telemetría)
+
+- Parámetros no modificables por VC pasarlos a control rate.
+- Implementación de telemetría mínima.
+- OSC: probar entre dispositivos y perfeccionarlo.
+- Corregir errores varios en todas las plataformas.
+
+## Objetivo v0.9.0 (publicación tester)
 
 - Release con versión en web, PWA, electro (Linux y Windows)
 - Revisar README.md con créditos, info básica. Canal de Telegram.
-- Corregir errores varios en todas las plataformas.
+- Créditos de fotos de paneles (si se mantienen)
 - Reordenación de opciones en Ajustes. Intuitivo...
-- Panel 1 y 4 con imagen de Synthi, sin módulos dummy.
-- Panel 3 con SVG terminado.
-- Parámetros no modificables por VC pasarlos a control rate.
+- Hacer los SVGs de paneles.
 - Añadir y completar CREDITS.md
-- OSC: revisar que mensajes que salen no reentren.
-- OSC: probar entre dispositivos.
-- Bug: electron: mostrar voltajes no se marca en el menú. revisar los menús completos...
-- Crear Patches por defecto. A modo de tutorial...
-- Cada elemento (panel, módulo, grupo de módulos,se han de poder reiniciar a valor de inicio con menú contextual.

@@ -474,26 +474,6 @@ export class PatchBrowser {
     }
   }
   
-  /**
-   * Muestra un toast de feedback.
-   */
-  _showToast(message) {
-    let toast = document.getElementById('patchBrowserToast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'patchBrowserToast';
-      toast.className = 'patch-browser-toast';
-      document.body.appendChild(toast);
-    }
-    toast.textContent = message;
-    toast.classList.add('patch-browser-toast--visible');
-    
-    clearTimeout(this._toastTimeout);
-    this._toastTimeout = setTimeout(() => {
-      toast.classList.remove('patch-browser-toast--visible');
-    }, 2000);
-  }
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // HANDLERS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -528,10 +508,10 @@ export class PatchBrowser {
       await savePatch(patch);
       await this._loadPatches();
       this._render();
-      this._showToast(t('patches.saved'));
+      showToast(t('patches.saved'), { level: 'success' });
     } catch (err) {
       log.error(' Error saving:', err);
-      this._showToast(t('patches.errorSaving'));
+      showToast(t('patches.errorSaving'), { level: 'error' });
     }
   }
   
@@ -600,14 +580,14 @@ export class PatchBrowser {
       log.info(' Loaded patch:', patch ? patch.name : 'null');
       if (patch) {
         exportPatchToFile(patch);
-        this._showToast(t('patches.exported'));
+        showToast(t('patches.exported'), { level: 'success' });
       } else {
         log.warn(' Patch not found in IndexedDB');
-        this._showToast(t('patches.errorExporting'));
+        showToast(t('patches.errorExporting'), { level: 'error' });
       }
     } catch (err) {
       log.error(' Error exporting:', err);
-      this._showToast(t('patches.errorExporting'));
+      showToast(t('patches.errorExporting'), { level: 'error' });
     }
   }
   
@@ -634,10 +614,10 @@ export class PatchBrowser {
       await renamePatch(this.selectedPatchId, result.value);
       await this._loadPatches();
       this._render();
-      this._showToast(t('patches.renamed'));
+      showToast(t('patches.renamed'), { level: 'success' });
     } catch (err) {
       log.error(' Error renaming:', err);
-      this._showToast(t('patches.errorRenaming'));
+      showToast(t('patches.errorRenaming'), { level: 'error' });
     }
   }
   
@@ -652,7 +632,7 @@ export class PatchBrowser {
       await savePatch(patch);
       await this._loadPatches();
       this._render();
-      this._showToast(t('patches.imported'));
+      showToast(t('patches.imported'), { level: 'success' });
     } catch (err) {
       log.error(' Error importing:', err);
     }
@@ -680,7 +660,7 @@ export class PatchBrowser {
       await this._loadPatches();
       this._render();
       this._updateActionButtons();
-      this._showToast(t('patches.deleted'));
+      showToast(t('patches.deleted'), { level: 'success' });
     } catch (err) {
       log.error(' Error deleting:', err);
     }

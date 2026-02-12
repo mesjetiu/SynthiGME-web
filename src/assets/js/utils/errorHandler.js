@@ -44,6 +44,9 @@ let totalErrorCount = 0;
 /** Flag para evitar doble inicialización */
 let initialized = false;
 
+/** ID del setInterval de limpieza (para poder cancelarlo en tests) */
+let cleanupIntervalId = null;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
 // ─────────────────────────────────────────────────────────────────────────────
@@ -223,7 +226,7 @@ export function initErrorHandler() {
   window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
   // Limpieza periódica del mapa de dedup
-  setInterval(cleanupHashes, DEDUP_COOLDOWN_MS * 20);
+  cleanupIntervalId = setInterval(cleanupHashes, DEDUP_COOLDOWN_MS * 20);
 
   initialized = true;
   log.info('Handlers globales de errores instalados');
@@ -300,6 +303,10 @@ export function reportError(message, details = {}) {
 export const _testing = {
   get initialized() { return initialized; },
   reset() {
+    if (cleanupIntervalId !== null) {
+      clearInterval(cleanupIntervalId);
+      cleanupIntervalId = null;
+    }
     initialized = false;
     errorBuffer.length = 0;
     recentHashes.clear();

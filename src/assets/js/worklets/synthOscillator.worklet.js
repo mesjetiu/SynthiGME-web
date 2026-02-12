@@ -571,10 +571,24 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
       return true; // Mantener el nodo activo pero sin procesar
     }
 
-    if (this.mode === 'multi') {
-      this.processMulti(outputs, inputs, parameters, numSamples);
-    } else {
-      this.processSingle(outputs, inputs, parameters, numSamples);
+    try {
+      if (this.mode === 'multi') {
+        this.processMulti(outputs, inputs, parameters, numSamples);
+      } else {
+        this.processSingle(outputs, inputs, parameters, numSamples);
+      }
+    } catch (err) {
+      // Silencio limpio en vez de basura de audio
+      for (const output of outputs) {
+        for (const channel of output) {
+          channel.fill(0);
+        }
+      }
+      // Notificar al hilo principal (una sola vez)
+      if (!this._processErrorReported) {
+        this._processErrorReported = true;
+        this.port.postMessage({ type: 'process-error', message: err.message || String(err) });
+      }
     }
 
     return true;

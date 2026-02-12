@@ -7,7 +7,7 @@
  * - Notificación a listeners suscritos
  * - API pública (getErrorBuffer, getErrorCount, reportError, onError)
  */
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Mock mínimo de window para que initErrorHandler() pueda funcionar
@@ -33,6 +33,12 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  _testing.reset();
+});
+
+// Limpieza final: asegurar que el setInterval de cleanupHashes se cancele
+// para que el child process de node --test pueda terminar
+after(() => {
   _testing.reset();
 });
 

@@ -199,8 +199,14 @@ class SessionManager {
     
     // Delay para que la UI esté lista
     setTimeout(async () => {
-      await this._restoreCallback({ modules: state.modules || state });
-      log.info(` Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
+      try {
+        await this._restoreCallback({ modules: state.modules || state });
+        log.info(` Previous state restored (saved at ${new Date(timestamp).toLocaleString()})`);
+      } catch (err) {
+        log.error('Error restaurando estado previo:', err);
+        // Limpiar estado corrupto para que no vuelva a fallar en el próximo inicio
+        this.clearLastState();
+      }
     }, 500);
   }
 

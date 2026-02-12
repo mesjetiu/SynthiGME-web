@@ -3565,31 +3565,10 @@ export class SettingsModal {
     
     // Mostrar toast de feedback (con warning si es móvil y factor > threshold)
     if (this.isMobile && factor > this.mobileWarningThreshold) {
-      this._showToast(t('toast.resolution.mobileWarning', { factor }));
+      showToast(t('toast.resolution.mobileWarning', { factor }), { level: 'warning' });
     } else {
-      this._showToast(t('toast.resolution', { factor }));
+      showToast(t('toast.resolution', { factor }));
     }
-  }
-  
-  /**
-   * Muestra un toast temporal de feedback
-   * @param {string} message
-   */
-  _showToast(message) {
-    let toast = document.getElementById('settingsToast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'settingsToast';
-      toast.className = 'resolution-toast';
-      document.body.appendChild(toast);
-    }
-    toast.textContent = message;
-    toast.classList.add('resolution-toast--visible');
-    
-    clearTimeout(this._toastTimeout);
-    this._toastTimeout = setTimeout(() => {
-      toast.classList.remove('resolution-toast--visible');
-    }, 1500);
   }
   
   /**

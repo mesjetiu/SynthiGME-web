@@ -10,6 +10,21 @@ const srcDir = path.join(projectRoot, 'src');
 const packageJsonPath = path.join(projectRoot, 'package.json');
 const bundledAssetDirs = new Set(['js', 'css']);
 
+// ─── Cargar .env si existe (no requiere dependencias externas) ───
+try {
+  const envPath = path.join(projectRoot, '.env');
+  const envContent = await fs.readFile(envPath, 'utf8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim();
+    if (!process.env[key]) process.env[key] = value;
+  }
+} catch { /* .env no existe — OK, se usa process.env directamente */ }
+
 // Carpeta destino configurable via argumento --outdir=<path>
 // Por defecto: docs/ (para GitHub Pages)
 function getOutputDir() {

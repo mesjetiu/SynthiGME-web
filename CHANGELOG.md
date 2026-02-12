@@ -8,6 +8,9 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Manejo global de errores (Fase 1)**: Sistema de captura de errores no controlados con `window.onerror`, `unhandledrejection` y `processorerror` en AudioWorklets. Ring buffer en memoria con deduplicación, preparado para telemetría futura. Bootstrap protegido contra splash congelado, fallos de audio notificados al usuario, y handler `unhandledRejection` en Electron.
+
+### Añadido
 - **Navegación con flechas del teclado**: Las teclas de flecha permiten hacer paneo del canvas principal (15% del viewport por pulsación). Solo activas cuando no se está escribiendo en un campo de texto.
 - **Zoom Ctrl+/Ctrl-/Ctrl+0 en navegador**: Los atajos de zoom que solo funcionaban en Electron ahora también funcionan en la versión web (PWA), previniendo el zoom nativo del navegador y controlando el zoom del canvas.
 

@@ -124,6 +124,25 @@ Los comandos siguen una nomenclatura consistente:
 - **Desarrollo iterativo**: usar `dev` o `build:*` sin sufijo `:test`
 - **Antes de commit/release**: usar comandos con `:test` o `build:all`
 
+## Uso del terminal
+
+Reglas para evitar que la sesión zsh se congele o deje de renderizar salida:
+
+### ⚠️ Nunca usar strings multilínea en comandos de terminal
+- **Prohibido**: `git commit -m "línea 1\nlínea 2"` o heredocs `<<EOF`
+- Las comillas anidadas, saltos de línea y caracteres especiales rompen la sesión zsh
+- **En su lugar**: escribir el mensaje a un archivo con `create_file` y luego usar `git commit -F archivo.txt`
+- Después del commit, eliminar el archivo temporal: `rm archivo.txt`
+
+### Comandos cortos y simples
+- Mantener los comandos lo más breves posible
+- Encadenar con `&&` solo comandos simples sin caracteres especiales
+- Evitar escapes `\"`, `\n`, `$()` dentro de strings en el terminal
+
+### Limitar terminales abiertos
+- No acumular terminales — reutilizar los existentes
+- Si el terminal no responde, **no insistir** — pedir al usuario que reinicie VS Code
+
 ## CHANGELOG
 
 Cada cambio debe registrarse en `CHANGELOG.md` de forma clara y escueta. El changelog es crítico para el versionado.

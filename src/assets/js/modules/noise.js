@@ -67,6 +67,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
+import { attachProcessorErrorHandler } from '../utils/audio.js';
 
 const log = createLogger('NoiseModule');
 
@@ -227,6 +228,7 @@ export class NoiseModule extends Module {
           capacitance: this.config.colourFilter.capacitance
         }
       });
+      attachProcessorErrorHandler(this.workletNode, 'noise-generator');
       
       // Referencia al AudioParam del filtro colour (-1..+1)
       this.colourParam = this.workletNode.parameters.get('colourPosition');

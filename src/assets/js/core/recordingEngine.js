@@ -1,5 +1,6 @@
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS, MAX_RECORDING_TRACKS } from '../utils/constants.js';
+import { attachProcessorErrorHandler } from '../utils/audio.js';
 
 const log = createLogger('RecordingEngine');
 
@@ -397,6 +398,7 @@ export class RecordingEngine {
         channelCount: this._trackCount
       }
     });
+    attachProcessorErrorHandler(this.workletNode, 'recording-capture-processor');
     
     // Connect merger to worklet
     this._trackMerger.connect(this.workletNode);

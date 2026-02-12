@@ -21,6 +21,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
+import { attachProcessorErrorHandler } from '../utils/audio.js';
 
 const log = createLogger('OscilloscopeModule');
 
@@ -131,6 +132,7 @@ export class OscilloscopeModule extends Module {
         schmittHysteresis: this.schmittHysteresis
       }
     });
+    attachProcessorErrorHandler(this.captureNode, 'scope-capture');
     
     // Conectar entradas al worklet
     this.inputY.connect(this.captureNode, 0, 0);

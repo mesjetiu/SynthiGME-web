@@ -4,7 +4,7 @@ import { compilePanelBlueprintMappings } from './core/blueprintMapper.js';
 import { getOrCreateOscState, applyOscStateImmediate } from './core/oscillatorState.js';
 import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
-import { safeDisconnect } from './utils/audio.js';
+import { safeDisconnect, attachProcessorErrorHandler } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
 import { VOLTAGE_DEFAULTS, DIGITAL_TO_VOLTAGE, digitalToVoltage, voltageToDigital, createSoftClipCurve, createHybridClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
 import { dialToFrequency } from './state/conversions.js';
@@ -83,6 +83,7 @@ import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
+import { initErrorHandler } from './utils/errorHandler.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
@@ -2023,6 +2024,7 @@ class App {
         chunkSize: chunkSize
       }
     });
+    attachProcessorErrorHandler(this._multichannelWorklet, 'multichannel-capture');
     
     this._mcWorkletChunks = 0;
     
@@ -2285,6 +2287,7 @@ class App {
         channels: 8
       }
     });
+    attachProcessorErrorHandler(this._multichannelInputWorklet, 'multichannel-playback');
     
     // Configurar comunicación con el worklet
     this._multichannelInputWorklet.port.onmessage = (event) => {
@@ -2909,6 +2912,7 @@ class App {
                 fallTimeConstant: thermalSlewConfig.fallTimeConstant ?? 0.5
               }
             });
+            attachProcessorErrorHandler(cvThermalSlew, `cv-thermal-slew[osc ${oscIndex} retry]`);
             
             const thresholdParam = cvThermalSlew.parameters?.get('threshold');
             if (thresholdParam) {
@@ -3065,6 +3069,7 @@ class App {
             fallTimeConstant: thermalSlewConfig.fallTimeConstant ?? 0.5
           }
         });
+        attachProcessorErrorHandler(cvThermalSlew, `cv-thermal-slew[osc ${oscIndex}]`);
         
         const thresholdParam = cvThermalSlew.parameters?.get('threshold');
         if (thresholdParam) {
@@ -3099,6 +3104,7 @@ class App {
             coefficient: softClipCoefficient
           }
         });
+        attachProcessorErrorHandler(cvSoftClip, `cv-soft-clip[osc ${oscIndex}]`);
         log.info(`[FM] Osc ${oscIndex}: cvSoftClip CREATED (coefficient=${softClipCoefficient})`);
       } catch (err) {
         log.warn(`[FM] Osc ${oscIndex}: Failed to create cvSoftClip:`, err);
@@ -4811,65 +4817,85 @@ function hideSplashScreen() {
   }, 800);
 }
 
+// ─── Instalar handlers globales de errores lo antes posible ───
+initErrorHandler();
+
 window.addEventListener('DOMContentLoaded', async () => {
-  // ─── Marcar tiempo de inicio para calcular tiempo mínimo de splash ───
   const splashStartTime = Date.now();
   
-  // Inicializar sistema de internacionalización antes de crear la UI
-  await initI18n();
-  
-  // Detectar versión antes de crear la app (para que esté disponible en modales)
-  await detectBuildVersion();
-  
-  // ensureOrientationHint(); // Desactivado: reemplazado por bloqueador portrait permanente
-  initPortraitBlocker();
-  
-  // Intentar bloquear orientación a landscape (solo funciona en fullscreen/PWA)
-  if (screen.orientation && screen.orientation.lock) {
-    screen.orientation.lock('landscape').catch(() => {
-      // Bloqueo de orientación no soportado o denegado
-    });
-  }
-  
-  window._synthApp = new App();
-  if (window._synthApp && window._synthApp.ensureAudio) {
-    window._synthApp.ensureAudio();
-  }
-  
-  // DEBUG: Exponer channelBypass a consola para diagnóstico
-  // Usar: window.channelBypass(true) o window.channelBypass(false)
-  window.channelBypass = (enabled) => {
-    const app = window._synthApp;
-    if (app && app.engine) {
-      app.engine.setChannelBypassDebug(enabled);
-    } else {
-      console.warn('Engine no disponible');
+  try {
+    // Inicializar sistema de internacionalización antes de crear la UI
+    await initI18n();
+    
+    // Detectar versión antes de crear la app (para que esté disponible en modales)
+    await detectBuildVersion();
+    
+    // ensureOrientationHint(); // Desactivado: reemplazado por bloqueador portrait permanente
+    initPortraitBlocker();
+    
+    // Intentar bloquear orientación a landscape (solo funciona en fullscreen/PWA)
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {
+        // Bloqueo de orientación no soportado o denegado
+      });
     }
-  };
-  
-  // Inicializar navegación del viewport
-  initViewportNavigation();
-  
-  // Inicializar sistema PiP (paneles flotantes)
-  initPipManager();
-  
-  // Restaurar paneles PiP de sesión anterior
-  restorePipState();
-  
-  // Registrar service worker
-  registerServiceWorker();
-  
-  // Configurar UI móvil y zoom de paneles
-  setupMobileQuickActionsBar();
-  setupPanelShortcutBadges();
-  setupPanelDoubleTapZoom();
+    
+    window._synthApp = new App();
+    if (window._synthApp && window._synthApp.ensureAudio) {
+      window._synthApp.ensureAudio().catch((err) => {
+        log.error('Error al inicializar audio:', err);
+        showToast('Error al inicializar audio. Recarga la página.');
+      });
+    }
+    
+    // DEBUG: Exponer channelBypass a consola para diagnóstico
+    // Usar: window.channelBypass(true) o window.channelBypass(false)
+    window.channelBypass = (enabled) => {
+      const app = window._synthApp;
+      if (app && app.engine) {
+        app.engine.setChannelBypassDebug(enabled);
+      } else {
+        console.warn('Engine no disponible');
+      }
+    };
+    
+    // Inicializar navegación del viewport
+    initViewportNavigation();
+    
+    // Inicializar sistema PiP (paneles flotantes)
+    initPipManager();
+    
+    // Restaurar paneles PiP de sesión anterior
+    restorePipState();
+    
+    // Registrar service worker
+    registerServiceWorker();
+    
+    // Configurar UI móvil y zoom de paneles
+    setupMobileQuickActionsBar();
+    setupPanelShortcutBadges();
+    setupPanelDoubleTapZoom();
 
-  // Inicializar puente de menú Electron (traducciones, estado, acciones IPC)
-  // Solo se activa si estamos en Electron (window.menuAPI existe)
-  initElectronMenuBridge();
+    // Inicializar puente de menú Electron (traducciones, estado, acciones IPC)
+    // Solo se activa si estamos en Electron (window.menuAPI existe)
+    initElectronMenuBridge();
+  } catch (err) {
+    // ─── Error crítico en bootstrap: mostrar mensaje y ocultar splash ───
+    log.error('Error crítico durante la inicialización:', err);
+    try {
+      showToast('Error crítico al iniciar la aplicación. Recarga la página.');
+    } catch (_) {
+      // Fallback: si ni el toast funciona, inyectar directamente en el DOM
+      const msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#c0392b;color:#fff;padding:24px;border-radius:8px;z-index:99999;font-size:18px;text-align:center;';
+      msg.textContent = 'Error crítico al iniciar. Recarga la página.';
+      document.body?.appendChild(msg);
+    }
+  }
   
   // ─── Ocultar splash screen después de la inicialización ───
   // Garantiza un tiempo mínimo de visualización para evitar parpadeos
+  // NOTA: se ejecuta siempre, incluso si hubo error (para que el splash no quede congelado)
   const elapsedTime = Date.now() - splashStartTime;
   const remainingTime = Math.max(0, SPLASH_MIN_DISPLAY_MS - elapsedTime);
   

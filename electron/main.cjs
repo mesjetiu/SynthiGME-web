@@ -464,3 +464,7 @@ app.on('will-quit', async () => {
 process.on('uncaughtException', (error) => {
   console.error('Error no capturado:', error);
 });
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Promise no capturada:', reason);
+});

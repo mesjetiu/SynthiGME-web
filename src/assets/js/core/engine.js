@@ -2,6 +2,7 @@
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { showToast } from '../ui/toast.js';
+import { attachProcessorErrorHandler } from '../utils/audio.js';
 import {
   applySoftClip,
   digitalToVoltage,
@@ -662,6 +663,7 @@ export class AudioEngine {
             slewTime: slewTime  // Constante de tiempo del filtro anti-click
           }
         });
+        attachProcessorErrorHandler(bus.vcaWorklet, `vca-processor[bus ${busIndex}]`);
 
         // ─────────────────────────────────────────────────────────────────────
         // RECONECTAR CADENA DE SEÑAL
@@ -1862,6 +1864,7 @@ export class AudioEngine {
             potResistance: filterConfig.potResistance
           }
         });
+        attachProcessorErrorHandler(filterNode, `output-filter[bus ${i}]`);
         
         // Desconectar passthrough temporal: filterGain → muteNode
         bus.filterGain.disconnect(bus.muteNode);
@@ -1917,6 +1920,7 @@ export class AudioEngine {
             silenceTimeMs: 50
           }
         });
+        attachProcessorErrorHandler(dcBlockerWorklet, `dc-blocker[bus ${i}]`);
         
         // Desconectar passthrough temporal: postVcaNode → dcBlocker
         bus.postVcaNode.disconnect(bus.dcBlocker);
@@ -1989,6 +1993,7 @@ export class AudioEngine {
       channelCountMode: 'explicit', // No cambiar automáticamente el channel count
       processorOptions: { waveform }
     });
+    attachProcessorErrorHandler(node, 'synth-oscillator[single]');
 
     // Establecer valores iniciales
     node.parameters.get('frequency').value = frequency;
@@ -2116,6 +2121,7 @@ export class AudioEngine {
         moduleSlewEnabled
       }
     });
+    attachProcessorErrorHandler(node, 'synth-oscillator[multi]');
 
     // Establecer valores iniciales
     node.parameters.get('frequency').value = frequency;

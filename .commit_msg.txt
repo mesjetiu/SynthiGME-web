@@ -1,0 +1,16 @@
+feat(errores): Fase 1 — redes de seguridad globales de errores
+
+- Nuevo modulo errorHandler.js: captura window.onerror y unhandledrejection
+  con ring buffer (50 entradas), deduplicacion por hash (1s cooldown) y
+  sistema de listeners para futura telemetria
+- Bootstrap (DOMContentLoaded) envuelto en try/catch con fallback visual
+  que inyecta mensaje de error en el DOM si el toast falla, evitando que
+  el splash screen quede congelado ante errores criticos
+- ensureAudio() ahora tiene .catch() que muestra toast al usuario cuando
+  falla la inicializacion del motor de audio
+- processorerror handler en los 13 AudioWorkletNodes: vca-processor,
+  output-filter, dc-blocker, synth-oscillator, scope-capture,
+  noise-generator, recording-capture-processor, multichannel-capture,
+  multichannel-playback, cv-thermal-slew, cv-soft-clip
+- Electron: process.on(unhandledRejection) junto al handler existente
+- 17 tests nuevos para errorHandler (ring buffer, dedup, listeners, API)

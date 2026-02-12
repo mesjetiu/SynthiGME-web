@@ -242,9 +242,8 @@ async function sendBatch(payloads) {
   try {
     const response = await fetch(ENDPOINT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events: payloads }),
-      // No enviar cookies ni credenciales
+      redirect: 'follow',
       credentials: 'omit'
     });
     return response.ok;
@@ -262,7 +261,7 @@ function sendBeaconBatch(payloads) {
   try {
     const blob = new Blob(
       [JSON.stringify({ events: payloads })],
-      { type: 'application/json' }
+      { type: 'text/plain' }
     );
     navigator.sendBeacon(ENDPOINT_URL, blob);
   } catch {
@@ -351,6 +350,12 @@ export function init() {
   if (!isEnabled()) return;
 
   initialized = true;
+
+  // Registrar inicio de sesión (siempre es el primer evento)
+  trackEvent('session_start');
+
+  // Flush inicial tras breve delay (no esperar los 30s del intervalo)
+  setTimeout(() => flush().catch(() => {}), 3000);
 
   // Suscribirse a errores globales
   unsubError = onError(trackError);

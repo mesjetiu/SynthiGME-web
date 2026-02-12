@@ -4921,9 +4921,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Inicializar puente de menú Electron (traducciones, estado, acciones IPC)
     // Solo se activa si estamos en Electron (window.menuAPI existe)
     initElectronMenuBridge();
-    
-    // Registrar inicio de sesión para telemetría (solo si hay consentimiento)
-    telemetryTrackEvent('session_start');
   } catch (err) {
     // ─── Error crítico en bootstrap: mostrar mensaje y ocultar splash ───
     log.error('Error crítico durante la inicialización:', err);

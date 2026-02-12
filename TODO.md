@@ -108,14 +108,9 @@ podría ser significativo en dispositivos móviles.
 ## Objetivo v0.7.0
 
 - Colocar todos los módulos aunque no estén funcionando.
-- Botón y atajo de refresco (rasterización a demanda)
-
-## Objetivo v0.8.0 (optimización y telemetría)
-
-- Parámetros no modificables por VC pasarlos a control rate.
 - OSC: probar entre dispositivos y perfeccionarlo.
 
-## Objetivo v0.9.0 (publicación tester)
+## Objetivo v0.8.0 (optimización y publicación tester)
 
 - Release con versión en web, PWA, electro (Linux y Windows)
 - Corregir errores varios en todas las plataformas.
@@ -124,3 +119,7 @@ podría ser significativo en dispositivos móviles.
 - Reordenación de opciones en Ajustes. Intuitivo...
 - Hacer los SVGs de paneles.
 - Añadir y completar CREDITS.md
+
+## Después...
+
+- Parámetros no modificables por VC pasarlos a control rate.

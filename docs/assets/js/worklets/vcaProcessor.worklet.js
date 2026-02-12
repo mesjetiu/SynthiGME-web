@@ -210,6 +210,7 @@ class VCAProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs, parameters) {
+    try {
     const audioInput = inputs[0];
     const cvInput = inputs[1];
     const output = outputs[0];
@@ -313,6 +314,21 @@ class VCAProcessor extends AudioWorkletProcessor {
     }
     
     return true;
+    } catch (err) {
+      // Silencio limpio en vez de basura de audio
+      const output = outputs[0];
+      if (output) {
+        for (let ch = 0; ch < output.length; ch++) {
+          output[ch].fill(0);
+        }
+      }
+      // Notificar al hilo principal (una sola vez)
+      if (!this._processErrorReported) {
+        this._processErrorReported = true;
+        this.port.postMessage({ type: 'process-error', message: err.message || String(err) });
+      }
+      return true;
+    }
   }
 }
 

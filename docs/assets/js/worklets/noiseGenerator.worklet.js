@@ -187,6 +187,7 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, parameters) {
     if (!this.isRunning) return false;
 
+    try {
     const output = outputs[0];
     if (!output || output.length === 0) return true;
 
@@ -273,6 +274,21 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
     }
 
     return true;
+    } catch (err) {
+      // Silencio limpio en vez de basura de audio
+      const output = outputs[0];
+      if (output) {
+        for (let ch = 0; ch < output.length; ch++) {
+          output[ch].fill(0);
+        }
+      }
+      // Notificar al hilo principal (una sola vez)
+      if (!this._processErrorReported) {
+        this._processErrorReported = true;
+        this.port.postMessage({ type: 'process-error', message: err.message || String(err) });
+      }
+      return true;
+    }
   }
 }
 

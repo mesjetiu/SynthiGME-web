@@ -8,9 +8,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
-- **Manejo global de errores (Fase 1)**: Sistema de captura de errores no controlados con `window.onerror`, `unhandledrejection` y `processorerror` en AudioWorklets. Ring buffer en memoria con deduplicación, preparado para telemetría futura. Bootstrap protegido contra splash congelado, fallos de audio notificados al usuario, y handler `unhandledRejection` en Electron.
-
-### Añadido
+- **Manejo global de errores (Fases 1-2)**: Sistema de captura de errores no controlados con `window.onerror`, `unhandledrejection` y `processorerror` en AudioWorklets. Ring buffer en memoria con deduplicación, preparado para telemetría futura. Bootstrap protegido contra splash congelado, fallos de audio notificados al usuario, y handler `unhandledRejection` en Electron. Fase 2: try/catch en `process()` de los 3 worklets críticos (oscillator, VCA, noise) con silencio limpio y reporte único en caso de error. Protección de session restore con limpieza automática de estado corrupto. Toast unificado con niveles de severidad (info/success/warning/error) reemplazando los 3 sistemas de toast independientes. 30 tests nuevos.
+- **Telemetría anónima (Fase 3)**: Módulo `telemetry.js` con cola de eventos en memoria, flush periódico (30s), cola offline en localStorage, sendBeacon al cerrar pestaña, rate limiting (20 eventos/sesión, 6 errores auto). Conexión automática con `errorHandler.onError()`. Backend Google Apps Script que inserta en Sheets (hoja mensual) y alerta a Telegram en errores. URL inyectada en build (`__TELEMETRY_URL__`), desactivada si vacía. 22 tests nuevos.
 - **Navegación con flechas del teclado**: Las teclas de flecha permiten hacer paneo del canvas principal (15% del viewport por pulsación). Solo activas cuando no se está escribiendo en un campo de texto.
 - **Zoom Ctrl+/Ctrl-/Ctrl+0 en navegador**: Los atajos de zoom que solo funcionaban en Electron ahora también funcionan en la versión web (PWA), previniendo el zoom nativo del navegador y controlando el zoom del canvas.
 

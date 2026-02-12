@@ -174,20 +174,20 @@ export default {
   //   { oscIndex: 0, col: 0, row: 0, ui: { slotOffset: { x: 2, y: -1 } } }
   //
   oscillatorSlots: [
-    // Columna izquierda (osciladores 1, 3, 5, 7, 9, 11)
+    // Columna izquierda (osciladores 1–6)
     { oscIndex: 0, col: 0, row: 0 },   // Osc 1
-    { oscIndex: 2, col: 0, row: 1 },   // Osc 3
-    { oscIndex: 4, col: 0, row: 2 },   // Osc 5
-    { oscIndex: 6, col: 0, row: 3 },   // Osc 7
-    { oscIndex: 8, col: 0, row: 4 },   // Osc 9
-    { oscIndex: 10, col: 0, row: 5 },  // Osc 11
+    { oscIndex: 1, col: 0, row: 1 },   // Osc 2
+    { oscIndex: 2, col: 0, row: 2 },   // Osc 3
+    { oscIndex: 3, col: 0, row: 3 },   // Osc 4
+    { oscIndex: 4, col: 0, row: 4 },   // Osc 5
+    { oscIndex: 5, col: 0, row: 5 },   // Osc 6
     
-    // Columna derecha (osciladores 2, 4, 6, 8, 10, 12)
-    { oscIndex: 1, col: 1, row: 0 },   // Osc 2
-    { oscIndex: 3, col: 1, row: 1 },   // Osc 4
-    { oscIndex: 5, col: 1, row: 2 },   // Osc 6
-    { oscIndex: 7, col: 1, row: 3 },   // Osc 8
-    { oscIndex: 9, col: 1, row: 4 },   // Osc 10
+    // Columna derecha (osciladores 7–12)
+    { oscIndex: 6, col: 1, row: 0 },   // Osc 7
+    { oscIndex: 7, col: 1, row: 1 },   // Osc 8
+    { oscIndex: 8, col: 1, row: 2 },   // Osc 9
+    { oscIndex: 9, col: 1, row: 3 },   // Osc 10
+    { oscIndex: 10, col: 1, row: 4 },  // Osc 11
     { oscIndex: 11, col: 1, row: 5 }   // Osc 12
   ],
   

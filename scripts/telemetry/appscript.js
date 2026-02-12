@@ -105,25 +105,28 @@ function insertRow(config, event) {
     sheet = ss.insertSheet(sheetName);
     // Cabeceras
     sheet.appendRow([
-      'Timestamp', 'ID', 'Version', 'Env', 'OS', 'Browser',
-      'Type', 'Data', 'Raw TS'
+      'Fecha', 'Hora', 'ID', 'Version', 'Entorno', 'SO', 'Navegador',
+      'Evento', 'Datos'
     ]);
     sheet.setFrozenRows(1);
   }
 
   const date = new Date(event.ts || Date.now());
+  const tz = Session.getScriptTimeZone();
+  const dateStr = Utilities.formatDate(date, tz, 'yyyy-MM-dd');
+  const timeStr = Utilities.formatDate(date, tz, 'HH:mm:ss');
   const dataStr = event.data ? JSON.stringify(event.data) : '';
 
   sheet.appendRow([
-    date.toISOString(),
+    dateStr,
+    timeStr,
     event.id || '',
     event.v || '',
     event.env || '',
     event.os || '',
     event.browser || '',
     event.type || '',
-    dataStr,
-    event.ts || ''
+    dataStr
   ]);
 }
 

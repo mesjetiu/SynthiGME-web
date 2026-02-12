@@ -14,7 +14,7 @@ import { t, getLocale, setLocale, getSupportedLocales, onLocaleChange } from '..
 import { checkForUpdates, applyUpdate, hasWaitingUpdate, onUpdateAvailable } from '../utils/serviceWorker.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
-import { STORAGE_KEYS, AUTOSAVE_INTERVALS, isMobileDevice } from '../utils/constants.js';
+import { STORAGE_KEYS, STORAGE_PREFIX, AUTOSAVE_INTERVALS, isMobileDevice } from '../utils/constants.js';
 import { WakeLockManager } from '../utils/wakeLock.js';
 import { showToast } from './toast.js';
 import { setEnabled as telemetrySetEnabled } from '../utils/telemetry.js';
@@ -153,7 +153,7 @@ export class SettingsModal {
   
   /**
    * Abre el modal
-   * @param {string} [tabId] - ID de pestaña a activar (general, audio, recording, advanced)
+   * @param {string} [tabId] - ID de pestaña a activar (general, interface, audio, advanced, osc, about)
    */
   open(tabId) {
     if (this.isOpen) return;
@@ -163,7 +163,7 @@ export class SettingsModal {
     this._syncCheckboxesFromStorage();
     
     // Cambiar a pestaña específica si se indica
-    if (tabId && ['general', 'display', 'audio', 'recording', 'advanced', 'osc', 'about'].includes(tabId)) {
+    if (tabId && ['general', 'interface', 'audio', 'advanced', 'osc', 'about'].includes(tabId)) {
       this._switchTab(tabId);
     }
     
@@ -358,9 +358,8 @@ export class SettingsModal {
     this.tabContents = {};
     this.tabContentCreated = {
       general: false,
-      display: false,
+      interface: false,
       audio: false,
-      recording: false,
       advanced: false,
       about: false
     };
@@ -413,7 +412,7 @@ export class SettingsModal {
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>`,
-      display: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      interface: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
         <line x1="8" y1="21" x2="16" y2="21"/>
         <line x1="12" y1="17" x2="12" y2="21"/>
@@ -422,10 +421,6 @@ export class SettingsModal {
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
         <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-      </svg>`,
-      recording: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <circle cx="12" cy="12" r="3" fill="currentColor"/>
       </svg>`,
       advanced: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="4" y1="21" x2="4" y2="14"/>
@@ -460,9 +455,8 @@ export class SettingsModal {
     
     const tabs = [
       { id: 'general', label: t('settings.tab.general') },
-      { id: 'display', label: t('settings.tab.display') },
+      { id: 'interface', label: t('settings.tab.interface') },
       { id: 'audio', label: t('settings.tab.audio') },
-      { id: 'recording', label: t('settings.tab.recording') },
       { id: 'advanced', label: t('settings.tab.advanced') },
       { id: 'osc', label: t('settings.tab.osc') },
       { id: 'about', label: t('settings.tab.about') }
@@ -514,9 +508,8 @@ export class SettingsModal {
     
     const tabs = [
       { id: 'general', label: t('settings.tab.general') },
-      { id: 'display', label: t('settings.tab.display') },
+      { id: 'interface', label: t('settings.tab.interface') },
       { id: 'audio', label: t('settings.tab.audio') },
-      { id: 'recording', label: t('settings.tab.recording') },
       { id: 'advanced', label: t('settings.tab.advanced') },
       { id: 'osc', label: t('settings.tab.osc') },
       { id: 'about', label: t('settings.tab.about') }
@@ -549,14 +542,11 @@ export class SettingsModal {
     if (!this.tabContentCreated[tabId]) {
       let content;
       switch (tabId) {
-        case 'display':
-          content = this._createDisplayTabContent();
+        case 'interface':
+          content = this._createInterfaceTabContent();
           break;
         case 'audio':
           content = this._createAudioTabContent();
-          break;
-        case 'recording':
-          content = this._createRecordingTabContent();
           break;
         case 'advanced':
           content = this._createAdvancedTabContent();
@@ -622,19 +612,22 @@ export class SettingsModal {
     // Pantalla (Wake Lock)
     container.appendChild(this._createWakeLockSection());
     
-    // Atajos de teclado
-    container.appendChild(this._createShortcutsSection());
+    // Actualizaciones (movido desde Avanzado)
+    container.appendChild(this._createUpdatesSection());
+    
+    // Telemetría anónima (movido desde Avanzado)
+    container.appendChild(this._createTelemetrySection());
     
     return container;
   }
   
   /**
-   * Crea el contenido de la pestaña Visualización
+   * Crea el contenido de la pestaña Interfaz (antes Visualización)
    */
-  _createDisplayTabContent() {
+  _createInterfaceTabContent() {
     const container = document.createElement('div');
     container.className = 'settings-tab-content';
-    container.dataset.tab = 'display';
+    container.dataset.tab = 'interface';
     
     // Escala de renderizado: oculta temporalmente (la funcionalidad se mantiene para uso futuro)
     // TODO: Rehabilitar cuando se necesite la opción de resolución
@@ -660,6 +653,9 @@ export class SettingsModal {
     // Interacción táctil (multitouch, pan con un dedo)
     container.appendChild(this._createTouchInteractionSection());
     
+    // Atajos de teclado (movido desde General)
+    container.appendChild(this._createShortcutsSection());
+    
     return container;
   }
   
@@ -681,25 +677,10 @@ export class SettingsModal {
       container.appendChild(placeholder);
     }
     
-    return container;
-  }
-  
-  /**
-   * Crea el contenido de la pestaña Recording
-   */
-  _createRecordingTabContent() {
-    const container = document.createElement('div');
-    container.className = 'settings-tab-content';
-    container.dataset.tab = 'recording';
-    
+    // Grabación (integrada en la pestaña Audio)
     if (this.recordingSettingsModal) {
-      const content = this.recordingSettingsModal.createEmbeddableContent();
-      container.appendChild(content);
-    } else {
-      const placeholder = document.createElement('p');
-      placeholder.className = 'settings-section__description';
-      placeholder.textContent = 'Recording settings not available';
-      container.appendChild(placeholder);
+      const recContent = this.recordingSettingsModal.createEmbeddableContent();
+      container.appendChild(recContent);
     }
     
     return container;
@@ -718,12 +699,6 @@ export class SettingsModal {
     
     // Emulación de voltajes (Synthi 100 Cuenca/Datanomics 1982)
     container.appendChild(this._createVoltageEmulationSection());
-    
-    // Actualizaciones
-    container.appendChild(this._createUpdatesSection());
-    
-    // Telemetría anónima
-    container.appendChild(this._createTelemetrySection());
     
     // Reset
     container.appendChild(this._createResetSection());
@@ -2854,7 +2829,8 @@ export class SettingsModal {
   }
   
   /**
-   * Maneja el reseteo del sintetizador
+   * Maneja la restauración de ajustes por defecto
+   * Elimina todas las preferencias de localStorage y recarga la página
    */
   async _handleReset() {
     const result = await ConfirmDialog.show({
@@ -2865,8 +2841,18 @@ export class SettingsModal {
     
     if (!result.confirmed) return;
     
-    document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
-    this.close();
+    // Eliminar todas las claves synthigme-* de localStorage
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(STORAGE_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // Recargar para aplicar valores por defecto
+    window.location.reload();
   }
   
   /**
@@ -3779,9 +3765,8 @@ export class SettingsModal {
     // Actualizar pestañas
     if (this.tabButtons) {
       if (this.tabButtons.general) this.tabButtons.general.textContent = t('settings.tab.general');
-      if (this.tabButtons.display) this.tabButtons.display.textContent = t('settings.tab.display');
+      if (this.tabButtons.interface) this.tabButtons.interface.textContent = t('settings.tab.interface');
       if (this.tabButtons.audio) this.tabButtons.audio.textContent = t('settings.tab.audio');
-      if (this.tabButtons.recording) this.tabButtons.recording.textContent = t('settings.tab.recording');
       if (this.tabButtons.advanced) this.tabButtons.advanced.textContent = t('settings.tab.advanced');
       if (this.tabButtons.about) this.tabButtons.about.textContent = t('settings.tab.about');
     }

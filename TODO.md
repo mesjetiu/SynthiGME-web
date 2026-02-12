@@ -107,14 +107,12 @@ podría ser significativo en dispositivos móviles.
 
 ## Objetivo v0.7.0
 
-- Cada elemento (panel, módulo, grupo de módulos,se han de poder reiniciar a valor de inicio con menú contextual.
 - Colocar todos los módulos aunque no estén funcionando.
 - Botón y atajo de refresco (rasterización a demanda)
 
 ## Objetivo v0.8.0 (optimización y telemetría)
 
 - Parámetros no modificables por VC pasarlos a control rate.
-- ~~Implementación de telemetría mínima.~~ ✅ Completado (Fases 1-4, ver TELEMETRY-PLAN.md)
 - OSC: probar entre dispositivos y perfeccionarlo.
 - Corregir errores varios en todas las plataformas.
 

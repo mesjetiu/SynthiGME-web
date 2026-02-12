@@ -36,10 +36,12 @@ const MENU_TRANSLATION_KEYS = [
   'menu.view.zoomIn', 'menu.view.zoomOut', 'menu.view.zoomReset',
   'menu.view.inactivePins', 'menu.view.tooltipVoltage', 'menu.view.tooltipAudioRate',
   'menu.view.linearFaders', 'menu.view.sharpRasterize', 'menu.view.devTools',
+  // Preferencias
+  'menu.preferences', 'menu.preferences.settings',
   // Audio
   'menu.audio', 'menu.audio.mute', 'menu.audio.unmute',
   'menu.audio.record', 'menu.audio.stopRecording',
-  'menu.audio.audioSettings', 'menu.audio.recordSettings',
+  'menu.audio.audioSettings',
   // Paneles
   'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
   'menu.panels.rememberPip',

@@ -118,15 +118,6 @@ settings.tab.audio:
   pt: "Áudio"
   cs: "Zvuk"
 
-settings.tab.recording:
-  en: Recording
-  es: Grabación
-  fr: "Enregistrement"
-  de: "Aufnahme"
-  it: "Registrazione"
-  pt: "Gravação"
-  cs: "Nahrávání"
-
 settings.tab.advanced:
   en: Advanced
   es: Avanzado
@@ -163,14 +154,14 @@ settings.tab.select:
   pt: "Selecionar seção"
   cs: "Vybrat sekci"
 
-settings.tab.display:
-  en: Display
-  es: Visualización
-  fr: "Affichage"
-  de: "Anzeige"
-  it: "Visualizzazione"
-  pt: "Exibição"
-  cs: "Zobrazení"
+settings.tab.interface:
+  en: Interface
+  es: Interfaz
+  fr: "Interface"
+  de: "Oberfläche"
+  it: "Interfaccia"
+  pt: "Interface"
+  cs: "Rozhraní"
 
 # Sección: Visualización
 settings.display.inactivePins:
@@ -2193,13 +2184,13 @@ recording.track:
   cs: "Stopa"
 
 recording.routing.title:
-  en: Output routing
-  es: Ruteo de salidas
-  fr: "Routage des sorties"
-  de: "Ausgangsrouting"
-  it: "Instradamento di uscita"
-  pt: "Roteamento de saída"
-  cs: "Směrování výstupu"
+  en: Recording track routing
+  es: Ruteo de pistas de grabación
+  fr: "Routage des pistes d'enregistrement"
+  de: "Aufnahmespur-Routing"
+  it: "Instradamento tracce di registrazione"
+  pt: "Roteamento de faixas de gravação"
+  cs: "Směrování nahrávacích stop"
 
 recording.routing.description:
   en: Select which outputs are recorded to each track
@@ -2278,40 +2269,40 @@ toast.recordingError:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 settings.reset:
-  en: Reset synthesizer
-  es: Reiniciar sintetizador
-  fr: "Réinitialiser le synthétiseur"
-  de: "Synthesizer zurücksetzen"
-  it: "Ripristina sintetizzatore"
-  pt: "Redefinir sintetizador"
-  cs: "Resetovat syntezátor"
+  en: Restore default settings
+  es: Restaurar ajustes por defecto
+  fr: "Restaurer les paramètres par défaut"
+  de: "Standardeinstellungen wiederherstellen"
+  it: "Ripristina impostazioni predefinite"
+  pt: "Restaurar configurações padrão"
+  cs: "Obnovit výchozí nastavení"
 
 settings.reset.description:
-  en: Reset all modules to their initial values. This action cannot be undone.
-  es: Reinicia todos los módulos a sus valores iniciales. Esta acción no se puede deshacer.
-  fr: "Réinitialisez tous les modules à leurs valeurs initiales. Cette action ne peut pas être annulée."
-  de: "Setzen Sie alle Module auf ihre Anfangswerte zurück. Diese Aktion kann nicht rückgängig gemacht werden."
-  it: "Ripristina tutti i moduli ai loro valori iniziali. Questa azione non può essere annullata."
-  pt: "Redefinir todos os módulos para seus valores iniciais. Esta ação não pode ser desfeita."
-  cs: "Resetujte všechny moduly na jejich počáteční hodnoty. Tuto akci nelze vrátit zpět."
+  en: Remove all saved preferences and restore default values. The page will reload.
+  es: Elimina todas las preferencias guardadas y restaura los valores por defecto. La página se recargará.
+  fr: "Supprime toutes les préférences enregistrées et restaure les valeurs par défaut. La page sera rechargée."
+  de: "Entfernt alle gespeicherten Einstellungen und stellt die Standardwerte wieder her. Die Seite wird neu geladen."
+  it: "Rimuove tutte le preferenze salvate e ripristina i valori predefiniti. La pagina verrà ricaricata."
+  pt: "Remove todas as preferências salvas e restaura os valores padrão. A página será recarregada."
+  cs: "Odstraní všechny uložené předvolby a obnoví výchozí hodnoty. Stránka se znovu načte."
 
 settings.reset.button:
-  en: Reset to defaults
-  es: Reiniciar valores
-  fr: "Réinitialiser aux valeurs par défaut"
-  de: "Auf Standard zurücksetzen"
+  en: Restore defaults
+  es: Restaurar valores por defecto
+  fr: "Restaurer les valeurs par défaut"
+  de: "Standardwerte wiederherstellen"
   it: "Ripristina predefiniti"
-  pt: "Redefinir para padrões"
-  cs: "Resetovat na výchozí"
+  pt: "Restaurar padrões"
+  cs: "Obnovit výchozí hodnoty"
 
 settings.reset.confirm:
-  en: Are you sure you want to reset all modules to their default values? This cannot be undone.
-  es: ¿Seguro que quieres reiniciar todos los módulos a sus valores por defecto? Esta acción no se puede deshacer.
-  fr: "Êtes-vous sûr de vouloir réinitialiser tous les modules à leurs valeurs par défaut ? Cela ne peut pas être annulé."
-  de: "Möchten Sie wirklich alle Module auf ihre Standardwerte zurücksetzen? Dies kann nicht rückgängig gemacht werden."
-  it: "Sei sicuro di voler ripristinare tutti i moduli ai loro valori predefiniti? Ciò non può essere annullato."
-  pt: "Tem certeza de que deseja redefinir todos os módulos para seus valores padrão? Isto não pode ser desfeito."
-  cs: "Jste si jisti, že chcete resetovat všechny moduly na jejich výchozí hodnoty? To nelze vrátit zpět."
+  en: Are you sure you want to restore all settings to their default values? The page will reload.
+  es: ¿Seguro que quieres restaurar todos los ajustes a sus valores por defecto? La página se recargará.
+  fr: "Êtes-vous sûr de vouloir restaurer tous les paramètres à leurs valeurs par défaut ? La page sera rechargée."
+  de: "Möchten Sie wirklich alle Einstellungen auf ihre Standardwerte zurücksetzen? Die Seite wird neu geladen."
+  it: "Sei sicuro di voler ripristinare tutte le impostazioni ai valori predefiniti? La pagina verrà ricaricata."
+  pt: "Tem certeza de que deseja restaurar todas as configurações para seus valores padrão? A página será recarregada."
+  cs: "Jste si jisti, že chcete obnovit všechna nastavení na výchozí hodnoty? Stránka se znovu načte."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OPTIMIZACIONES DE RENDIMIENTO
@@ -2641,6 +2632,25 @@ menu.file.quit.confirm:
   pt: "Sair do aplicativo?"
   cs: "Ukončit aplikaci?"
 
+# ─── Preferencias ───
+menu.preferences:
+  en: Preferences
+  es: Preferencias
+  fr: "Préférences"
+  de: "Einstellungen"
+  it: "Preferenze"
+  pt: "Preferências"
+  cs: "Předvolby"
+
+menu.preferences.settings:
+  en: All Settings…
+  es: Todos los ajustes…
+  fr: "Tous les paramètres…"
+  de: "Alle Einstellungen…"
+  it: "Tutte le impostazioni…"
+  pt: "Todas as configurações…"
+  cs: "Všechna nastavení…"
+
 # ─── Ver ───
 menu.view:
   en: View
@@ -2797,22 +2807,13 @@ menu.audio.stopRecording:
   cs: "Zastavit nahrávání"
 
 menu.audio.audioSettings:
-  en: Audio Settings…
-  es: Ajustes de audio…
-  fr: "Paramètres audio…"
-  de: "Audio-Einstellungen…"
-  it: "Impostazioni audio…"
-  pt: "Configurações de áudio…"
-  cs: "Nastavení zvuku…"
-
-menu.audio.recordSettings:
-  en: Recording Settings…
-  es: Ajustes de grabación…
-  fr: "Paramètres d'enregistrement…"
-  de: "Aufnahmeeinstellungen…"
-  it: "Impostazioni di registrazione…"
-  pt: "Configurações de gravação…"
-  cs: "Nastavení nahrávání…"
+  en: Audio & Recording Settings…
+  es: Ajustes de audio y grabación…
+  fr: "Paramètres audio et enregistrement…"
+  de: "Audio- und Aufnahmeeinstellungen…"
+  it: "Impostazioni audio e registrazione…"
+  pt: "Configurações de áudio e gravação…"
+  cs: "Nastavení zvuku a nahrávání…"
 
 # ─── Paneles ───
 menu.panels:

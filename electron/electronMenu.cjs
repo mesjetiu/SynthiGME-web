@@ -7,9 +7,10 @@
  * 
  * Estructura de menús:
  * - Archivo: Patches, recargar, salir
- * - Ver: Quickbar, fullscreen, zoom, display options, DevTools
- * - Audio: Mute, grabar, ajustes de audio/grabación
- * - Paneles: Toggle PiP por panel, extraer/devolver todos, locks
+ * - Ver: Quickbar, fullscreen, zoom, DevTools
+ * - Preferencias: Idioma, display options, touch, abrir ajustes
+ * - Audio: Mute, grabar, ajustes de audio
+ * - Paneles: Toggle PiP por panel, extraer/devolver todos, recordar PiP
  * - Avanzado: Optimizaciones, emulación de voltaje, reset, ajustes
  * - OSC: Toggle OSC, SuperCollider, log, ajustes
  * - Ayuda: Acerca de, repositorio, reportar error, actualizaciones
@@ -153,11 +154,6 @@ function buildMenuTemplate() {
       },
       { type: 'separator' },
       {
-        label: t('menu.file.language', 'Language'),
-        submenu: buildLanguageSubmenu()
-      },
-      { type: 'separator' },
-      {
         label: t('menu.file.reload', 'Reload'),
         click: async () => {
           if (!mainWindow) return;
@@ -239,6 +235,25 @@ function buildMenuTemplate() {
       },
       { type: 'separator' },
       {
+        label: t('menu.view.devTools', 'Developer Tools'),
+        accelerator: 'CmdOrCtrl+Shift+I',
+        click: () => {
+          if (mainWindow) mainWindow.webContents.toggleDevTools();
+        }
+      }
+    ]
+  };
+
+  // ─── Preferencias ───
+  const preferencesMenu = {
+    label: t('menu.preferences', 'Preferences'),
+    submenu: [
+      {
+        label: t('menu.file.language', 'Language'),
+        submenu: buildLanguageSubmenu()
+      },
+      { type: 'separator' },
+      {
         id: 'inactivePins',
         label: t('menu.view.inactivePins', 'Show inactive pins'),
         type: 'checkbox',
@@ -290,11 +305,29 @@ function buildMenuTemplate() {
       },
       { type: 'separator' },
       {
-        label: t('menu.view.devTools', 'Developer Tools'),
-        accelerator: 'CmdOrCtrl+Shift+I',
-        click: () => {
-          if (mainWindow) mainWindow.webContents.toggleDevTools();
+        id: 'singleFingerPan',
+        label: t('menu.panels.singleFingerPan', 'Pan with one finger'),
+        type: 'checkbox',
+        checked: menuState.singleFingerPan,
+        click: (menuItem) => {
+          menuState.singleFingerPan = menuItem.checked;
+          sendAction('setSingleFingerPan', { enabled: menuItem.checked });
         }
+      },
+      {
+        id: 'multitouchControls',
+        label: t('menu.panels.multitouchControls', 'Multitouch controls'),
+        type: 'checkbox',
+        checked: menuState.multitouchControls,
+        click: (menuItem) => {
+          menuState.multitouchControls = menuItem.checked;
+          sendAction('setMultitouchControls', { enabled: menuItem.checked });
+        }
+      },
+      { type: 'separator' },
+      {
+        label: t('menu.preferences.settings', 'All Settings…'),
+        click: () => sendAction('openSettings', { tab: 'interface' })
       }
     ]
   };
@@ -320,12 +353,8 @@ function buildMenuTemplate() {
       },
       { type: 'separator' },
       {
-        label: t('menu.audio.audioSettings', 'Audio Settings…'),
+        label: t('menu.audio.audioSettings', 'Audio & Recording Settings…'),
         click: () => sendAction('openSettings', { tab: 'audio' })
-      },
-      {
-        label: t('menu.audio.recordSettings', 'Recording Settings…'),
-        click: () => sendAction('openSettings', { tab: 'recording' })
       }
     ]
   };
@@ -368,27 +397,6 @@ function buildMenuTemplate() {
         click: (menuItem) => {
           menuState.rememberPip = menuItem.checked;
           sendAction('setRememberPip', { enabled: menuItem.checked });
-        }
-      },
-      { type: 'separator' },
-      {
-        id: 'singleFingerPan',
-        label: t('menu.panels.singleFingerPan', 'Pan with one finger'),
-        type: 'checkbox',
-        checked: menuState.singleFingerPan,
-        click: (menuItem) => {
-          menuState.singleFingerPan = menuItem.checked;
-          sendAction('setSingleFingerPan', { enabled: menuItem.checked });
-        }
-      },
-      {
-        id: 'multitouchControls',
-        label: t('menu.panels.multitouchControls', 'Multitouch controls'),
-        type: 'checkbox',
-        checked: menuState.multitouchControls,
-        click: (menuItem) => {
-          menuState.multitouchControls = menuItem.checked;
-          sendAction('setMultitouchControls', { enabled: menuItem.checked });
         }
       }
     ]
@@ -587,7 +595,7 @@ function buildMenuTemplate() {
   };
 
   // Construir template final
-  const template = [fileMenu, viewMenu, audioMenu, panelsMenu, advancedMenu, oscMenu, helpMenu];
+  const template = [fileMenu, viewMenu, preferencesMenu, audioMenu, panelsMenu, advancedMenu, oscMenu, helpMenu];
 
   // En macOS, añadir menú de la app al principio
   if (isMac) {

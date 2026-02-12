@@ -4,6 +4,7 @@
 import { createLogger } from '../utils/logger.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { showContextMenu, hideContextMenu } from './contextMenuManager.js';
 
 const log = createLogger('PipManager');
 
@@ -149,9 +150,6 @@ export const ALL_PANELS = [
   { id: 'panel-output', name: () => 'Panel 7' }
 ];
 
-/** Menú contextual activo */
-let activeContextMenu = null;
-
 /** Duración del long press en ms para activar menú contextual (iOS Safari) */
 const LONG_PRESS_DURATION = 500;
 
@@ -249,7 +247,14 @@ function setupPanelContextMenus() {
       if (activePips.has(panelEl.id)) return;
       
       e.preventDefault();
-      showPanelContextMenu(panelEl.id, e.clientX, e.clientY);
+      showContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        panelId: panelEl.id,
+        isPipped: false,
+        target: e.target,
+        onDetach: openPip
+      });
     });
     
     // Long press para dispositivos táctiles (iOS Safari no dispara contextmenu)
@@ -271,7 +276,14 @@ function setupPanelContextMenus() {
         if (navigator.vibrate) {
           navigator.vibrate(50);
         }
-        showPanelContextMenu(panelEl.id, startX, startY);
+        showContextMenu({
+          x: startX,
+          y: startY,
+          panelId: panelEl.id,
+          isPipped: false,
+          target: e.target,
+          onDetach: openPip
+        });
       }, LONG_PRESS_DURATION);
       
       longPressTimers.set(panelEl.id, timer);
@@ -300,87 +312,6 @@ function setupPanelContextMenus() {
       }
     }, { passive: true });
   });
-}
-
-/**
- * Muestra el menú contextual para un panel.
- * @param {string} panelId - ID del panel
- * @param {number} x - Posición X
- * @param {number} y - Posición Y
- */
-function showPanelContextMenu(panelId, x, y) {
-  hideContextMenu();
-  
-  const menu = document.createElement('div');
-  menu.className = 'pip-context-menu';
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
-  
-  // Opción: Separar este panel
-  const detachItem = document.createElement('button');
-  detachItem.className = 'pip-context-menu__item';
-  detachItem.innerHTML = `
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="3" y="3" width="18" height="18" rx="2"/>
-      <path d="M9 3v18"/>
-      <path d="M14 9l3 3-3 3"/>
-    </svg>
-    <span>${t('pip.detach', 'Separar panel')}</span>
-  `;
-  detachItem.addEventListener('click', () => {
-    hideContextMenu();
-    openPip(panelId);
-  });
-  menu.appendChild(detachItem);
-  
-  document.body.appendChild(menu);
-  activeContextMenu = menu;
-  
-  // Ajustar posición si se sale de la pantalla
-  requestAnimationFrame(() => {
-    const rect = menu.getBoundingClientRect();
-    if (rect.right > window.innerWidth) {
-      menu.style.left = `${x - rect.width}px`;
-    }
-    if (rect.bottom > window.innerHeight) {
-      menu.style.top = `${y - rect.height}px`;
-    }
-  });
-  
-  // Cerrar al hacer click fuera (sin consumir eventos para permitir abrir otro menú)
-  const closeHandler = (e) => {
-    if (activeContextMenu && activeContextMenu.contains(e.target)) return;
-    hideContextMenu();
-    document.removeEventListener('click', closeHandler);
-    document.removeEventListener('contextmenu', closeOnContextMenu);
-  };
-  
-  const closeOnContextMenu = (e) => {
-    // Si el click derecho es en un panel, dejar que se abra el nuevo menú
-    if (e.target.closest?.('.panel')) {
-      document.removeEventListener('click', closeHandler);
-      document.removeEventListener('contextmenu', closeOnContextMenu);
-      return;
-    }
-    hideContextMenu();
-    document.removeEventListener('click', closeHandler);
-    document.removeEventListener('contextmenu', closeOnContextMenu);
-  };
-  
-  setTimeout(() => {
-    document.addEventListener('click', closeHandler);
-    document.addEventListener('contextmenu', closeOnContextMenu);
-  }, 10);
-}
-
-/**
- * Oculta el menú contextual activo.
- */
-function hideContextMenu() {
-  if (activeContextMenu) {
-    activeContextMenu.remove();
-    activeContextMenu = null;
-  }
 }
 
 /**
@@ -827,10 +758,18 @@ function setupPipEvents(pipContainer, panelId) {
   
   pipContainer.addEventListener('click', (e) => e.stopPropagation());
   
-  // Bloquear menú contextual del navegador en el contenido PiP
+  // Menú contextual personalizado en el contenido PiP (devolver panel + reset)
   pipContainer.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    showContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      panelId,
+      isPipped: true,
+      target: e.target,
+      onAttach: closePip
+    });
   });
   
   // dblclick y touch en fase de CAPTURA para interceptar antes que el viewport

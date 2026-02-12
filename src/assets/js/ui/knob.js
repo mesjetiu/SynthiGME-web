@@ -33,6 +33,7 @@ export class Knob {
     this.min = min;
     this.max = max;
     this.value = initial;
+    this.initialValue = initial;
     this.onChange = onChange;
     this.format = format;
     this.pixelsForFullRange = pixelsForFullRange;
@@ -604,5 +605,12 @@ export class Knob {
 
   getValue() {
     return this.value;
+  }
+
+  /**
+   * Reinicia el knob a su valor inicial.
+   */
+  resetToDefault() {
+    this.setValue(this.initialValue);
   }
 }

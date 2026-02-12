@@ -213,6 +213,18 @@ export default {
     },
 
     // ·······································································
+    // SWITCHES (controles discretos)
+    // ·······································································
+    switches: {
+      // Switch HI/LO: selecciona el rango de frecuencia del oscilador
+      //   'hi': capacitor C9 (1nF) → rango de audio (5 Hz - 20 kHz)
+      //   'lo': capacitor C10 (10nF) → frecuencia ÷10 (sub-audio/control)
+      range: {
+        initial: 'hi'            // Rango HI (audio) por defecto
+      }
+    },
+
+    // ·······································································
     // PARÁMETROS DE AUDIO (no controlados por knob)
     // ·······································································
     audio: {

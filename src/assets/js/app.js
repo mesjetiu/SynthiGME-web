@@ -673,6 +673,11 @@ class App {
       await this._resetToDefaults();
     });
     
+    // Listener para reinicio contextual (panel, módulo o control individual)
+    document.addEventListener('synth:resetContext', (e) => {
+      this._handleContextReset(e.detail);
+    });
+    
     // Listener para marcar sesión como "dirty" cuando el usuario interactúa
     document.addEventListener('synth:userInteraction', () => {
       sessionManager.markDirty();
@@ -910,21 +915,14 @@ class App {
     // Deshabilitar tracking de cambios durante el reset
     sessionManager.applyingPatch(true);
     
-    // Valores por defecto para cada tipo de módulo
-    const defaultOscillator = { knobs: [0, 0.5, 0, 0.5, 0, 0, 0], rangeState: 'hi' };
-    const defaultNoise = { colour: 0, level: 0 };
-    const defaultRandomVoltage = { mean: 0.5, variance: 0.5, voltage1: 0, voltage2: 0, key: 0.5 };
-    const defaultInputAmplifiers = { levels: Array(8).fill(0) };
-    // Formato compatible: usar channels con level para el nuevo OutputChannelsPanel
-    const defaultOutputChannels = { 
-      channels: Array(8).fill(null).map(() => ({ level: 0, filter: 0, pan: 0, power: false }))
-    };
+    // Leer valores por defecto de los configs (fuente única de verdad)
+    const defaults = this._defaultValues;
     
     // Resetear osciladores
     if (this._oscillatorUIs) {
       for (const ui of Object.values(this._oscillatorUIs)) {
         if (ui && typeof ui.deserialize === 'function') {
-          ui.deserialize(defaultOscillator);
+          ui.deserialize(defaults.oscillator);
         }
       }
     }
@@ -933,7 +931,7 @@ class App {
     if (this._noiseUIs) {
       for (const ui of Object.values(this._noiseUIs)) {
         if (ui && typeof ui.deserialize === 'function') {
-          ui.deserialize(defaultNoise);
+          ui.deserialize(defaults.noise);
         }
       }
     }
@@ -942,7 +940,7 @@ class App {
     if (this._randomVoltageUIs) {
       for (const ui of Object.values(this._randomVoltageUIs)) {
         if (ui && typeof ui.deserialize === 'function') {
-          ui.deserialize(defaultRandomVoltage);
+          ui.deserialize(defaults.randomVoltage);
         }
       }
     }
@@ -951,14 +949,14 @@ class App {
     if (this._inputAmplifierUIs) {
       for (const ui of Object.values(this._inputAmplifierUIs)) {
         if (ui && typeof ui.deserialize === 'function') {
-          ui.deserialize(defaultInputAmplifiers);
+          ui.deserialize(defaults.inputAmplifiers);
         }
       }
     }
     
     // Resetear Output Faders / Output Channels
     if (this._outputFadersModule && typeof this._outputFadersModule.deserialize === 'function') {
-      this._outputFadersModule.deserialize(defaultOutputChannels);
+      this._outputFadersModule.deserialize(defaults.outputChannels);
     }
     
     // Limpiar matrices de conexiones
@@ -983,6 +981,259 @@ class App {
     showToast(t('toast.reset'));
     
     log.info(' Reset to defaults complete');
+  }
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // REINICIO CONTEXTUAL (panel, módulo o control individual)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Valores por defecto por tipo de módulo, extraídos de los configs (fuente única de verdad) */
+  get _defaultValues() {
+    // Oscilador: extraer initial de cada knob en el orden esperado por serialize/deserialize
+    const oscKnobs = oscillatorConfig.defaults.knobs;
+    const oscKnobOrder = ['pulseLevel', 'pulseWidth', 'sineLevel', 'sineSymmetry', 'triangleLevel', 'sawtoothLevel', 'frequency'];
+    const oscRangeState = oscillatorConfig.defaults.switches?.range?.initial ?? 'hi';
+
+    // Noise: los dos generadores son idénticos, usar noise1 como referencia
+    const noiseKnobs = noiseConfig.noise1.knobs;
+
+    // Random voltage
+    const rvKnobs = randomVoltageConfig.knobs;
+
+    // Input amplifiers
+    const iaKnobs = inputAmplifierConfig.knobs;
+    const iaCount = inputAmplifierConfig.count;
+
+    // Output channels
+    const ocKnobs = outputChannelConfig.knobs;
+    const ocFaders = outputChannelConfig.faders;
+    const ocSwitches = outputChannelConfig.switches;
+    const ocCount = outputChannelConfig.count;
+
+    return {
+      oscillator: {
+        knobs: oscKnobOrder.map(name => oscKnobs[name].initial),
+        rangeState: oscRangeState
+      },
+      noise: {
+        colour: noiseKnobs.colour.initial,
+        level: noiseKnobs.level.initial
+      },
+      randomVoltage: {
+        mean: rvKnobs.mean.initial,
+        variance: rvKnobs.variance.initial,
+        voltage1: rvKnobs.voltage1.initial,
+        voltage2: rvKnobs.voltage2.initial,
+        key: rvKnobs.key.initial
+      },
+      inputAmplifiers: {
+        levels: Array(iaCount).fill(iaKnobs.level.initial)
+      },
+      outputChannels: {
+        channels: Array(ocCount).fill(null).map(() => ({
+          level: ocFaders.level.initial,
+          filter: ocKnobs.filter.initial,
+          pan: ocKnobs.pan.initial,
+          power: ocSwitches.power.initial
+        }))
+      }
+    };
+  }
+  
+  /**
+   * Mapeo de panelId → módulos contenidos.
+   * Devuelve un array de {type, id, ui} para cada módulo del panel.
+   * @param {string} panelId
+   * @returns {Array<{type: string, id: string, ui: Object}>}
+   */
+  _getModulesForPanel(panelId) {
+    const modules = [];
+    
+    switch (panelId) {
+      case 'panel-3': {
+        // Osciladores
+        for (const [id, ui] of Object.entries(this._oscillatorUIs)) {
+          if (id.startsWith('panel3-osc-')) modules.push({ type: 'oscillator', id, ui });
+        }
+        // Noise generators
+        for (const [id, ui] of Object.entries(this._noiseUIs)) {
+          if (id.startsWith('panel3-noise-')) modules.push({ type: 'noise', id, ui });
+        }
+        // Random voltage
+        for (const [id, ui] of Object.entries(this._randomVoltageUIs)) {
+          if (id.startsWith('panel3-random')) modules.push({ type: 'randomVoltage', id, ui });
+        }
+        break;
+      }
+      case 'panel-2': {
+        // Input amplifiers
+        for (const [id, ui] of Object.entries(this._inputAmplifierUIs)) {
+          modules.push({ type: 'inputAmplifiers', id, ui });
+        }
+        break;
+      }
+      case 'panel-output': {
+        // Output channels
+        if (this._outputFadersModule) {
+          modules.push({ type: 'outputChannels', id: 'output-channels', ui: this._outputFadersModule });
+        }
+        break;
+      }
+      case 'panel-5': {
+        // Matriz de audio — reset = limpiar conexiones
+        if (this.largeMatrixAudio) {
+          modules.push({ type: 'matrixAudio', id: 'matrix-audio', ui: this.largeMatrixAudio });
+        }
+        break;
+      }
+      case 'panel-6': {
+        // Matriz de control — reset = limpiar conexiones
+        if (this.largeMatrixControl) {
+          modules.push({ type: 'matrixControl', id: 'matrix-control', ui: this.largeMatrixControl });
+        }
+        break;
+      }
+    }
+    return modules;
+  }
+  
+  /**
+   * Busca un módulo UI por su ID de DOM.
+   * @param {string} moduleId - ID del elemento DOM del módulo
+   * @returns {{ type: string, ui: Object } | null}
+   */
+  _findModuleById(moduleId) {
+    // Osciladores
+    if (this._oscillatorUIs[moduleId]) {
+      return { type: 'oscillator', ui: this._oscillatorUIs[moduleId] };
+    }
+    // Noise
+    if (this._noiseUIs[moduleId]) {
+      return { type: 'noise', ui: this._noiseUIs[moduleId] };
+    }
+    // Random voltage
+    if (this._randomVoltageUIs[moduleId]) {
+      return { type: 'randomVoltage', ui: this._randomVoltageUIs[moduleId] };
+    }
+    // Input amplifiers
+    if (this._inputAmplifierUIs[moduleId]) {
+      return { type: 'inputAmplifiers', ui: this._inputAmplifierUIs[moduleId] };
+    }
+    // Output channels (el ID del DOM puede variar; intentar coincidencia parcial)
+    if (this._outputFadersModule) {
+      const outEl = this._outputFadersModule.element || document.getElementById(moduleId);
+      if (outEl && moduleId === outEl.id) {
+        return { type: 'outputChannels', ui: this._outputFadersModule };
+      }
+    }
+    return null;
+  }
+  
+  /**
+   * Reinicia un módulo individual a sus valores por defecto.
+   * @param {string} type - Tipo de módulo
+   * @param {Object} ui - Instancia UI del módulo
+   */
+  _resetModule(type, ui) {
+    const defaults = this._defaultValues;
+    if (!ui || typeof ui.deserialize !== 'function') return;
+    
+    switch (type) {
+      case 'oscillator':
+        ui.deserialize(defaults.oscillator);
+        break;
+      case 'noise':
+        ui.deserialize(defaults.noise);
+        break;
+      case 'randomVoltage':
+        ui.deserialize(defaults.randomVoltage);
+        break;
+      case 'inputAmplifiers':
+        ui.deserialize(defaults.inputAmplifiers);
+        break;
+      case 'outputChannels':
+        ui.deserialize(defaults.outputChannels);
+        break;
+      case 'matrixAudio':
+        ui.deserialize({ connections: [] });
+        break;
+      case 'matrixControl':
+        ui.deserialize({ connections: [] });
+        break;
+    }
+  }
+  
+  /**
+   * Reinicia un control individual (knob) a su valor por defecto.
+   * @param {string} moduleId - ID del módulo
+   * @param {number} knobIndex - Índice del knob en el módulo
+   */
+  _resetControl(moduleId, knobIndex) {
+    const found = this._findModuleById(moduleId);
+    if (!found) return;
+    
+    const { type, ui } = found;
+    
+    if (type === 'oscillator') {
+      // SGME_Oscillator: knobs es un array
+      const knob = ui.knobs[knobIndex];
+      if (knob && typeof knob.resetToDefault === 'function') {
+        knob.resetToDefault();
+      }
+    } else if (ui.knobs && typeof ui.knobs === 'object') {
+      // ModuleUI: knobs es un objeto keyed
+      const knobKeys = Object.keys(ui.knobs);
+      const key = knobKeys[knobIndex];
+      if (key && ui.knobs[key] && typeof ui.knobs[key].resetToDefault === 'function') {
+        ui.knobs[key].resetToDefault();
+      }
+    }
+  }
+  
+  /**
+   * Maneja un evento de reinicio contextual (panel, módulo o control).
+   * @param {Object} detail - Detalle del evento synth:resetContext
+   * @param {'panel'|'module'|'control'} detail.level - Nivel de reinicio
+   * @param {string} detail.panelId - ID del panel
+   * @param {string} [detail.moduleId] - ID del módulo (para module/control)
+   * @param {number} [detail.knobIndex] - Índice del knob (para control)
+   */
+  _handleContextReset(detail) {
+    const { level, panelId, moduleId, knobIndex } = detail;
+    
+    log.info(`Context reset: level=${level}, panel=${panelId}, module=${moduleId}, knob=${knobIndex}`);
+    
+    // Deshabilitar tracking de cambios durante el reset
+    sessionManager.applyingPatch(true);
+    
+    try {
+      switch (level) {
+        case 'panel': {
+          const modules = this._getModulesForPanel(panelId);
+          for (const mod of modules) {
+            this._resetModule(mod.type, mod.ui);
+          }
+          break;
+        }
+        case 'module': {
+          const found = this._findModuleById(moduleId);
+          if (found) {
+            this._resetModule(found.type, found.ui);
+          }
+          break;
+        }
+        case 'control': {
+          this._resetControl(moduleId, knobIndex);
+          break;
+        }
+      }
+    } finally {
+      // Rehabilitar tracking de cambios
+      sessionManager.applyingPatch(false);
+      
+      // Forzar actualización de dormancy
+      this.dormancyManager?.flushPendingUpdate();
+    }
   }
   
   /**

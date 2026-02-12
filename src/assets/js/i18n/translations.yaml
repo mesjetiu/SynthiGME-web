@@ -3341,6 +3341,38 @@ panel.output:
   cs: "Výstup"
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# MENÚ CONTEXTUAL - REINICIAR (RESET)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# {name} se reemplaza dinámicamente por el nombre del panel/módulo/control
+contextMenu.resetPanel:
+  en: "Reset panel"
+  es: "Reiniciar panel"
+  fr: "Réinitialiser le panneau"
+  de: "Bedienfeld zurücksetzen"
+  it: "Ripristina pannello"
+  pt: "Redefinir painel"
+  cs: "Resetovat panel"
+
+contextMenu.resetModule:
+  en: "Reset {name}"
+  es: "Reiniciar {name}"
+  fr: "Réinitialiser {name}"
+  de: "{name} zurücksetzen"
+  it: "Ripristina {name}"
+  pt: "Redefinir {name}"
+  cs: "Resetovat {name}"
+
+contextMenu.resetControl:
+  en: "Reset {name}"
+  es: "Reiniciar {name}"
+  fr: "Réinitialiser {name}"
+  de: "{name} zurücksetzen"
+  it: "Ripristina {name}"
+  pt: "Redefinir {name}"
+  cs: "Resetovat {name}"
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ORIENTACIÓN Y PANTALLA
 # ═══════════════════════════════════════════════════════════════════════════════
 

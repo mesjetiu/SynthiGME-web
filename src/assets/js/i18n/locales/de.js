@@ -432,5 +432,13 @@ export default {
   "pinColor.blue": "Blau (Verstärkung)",
   "pinColor.yellow": "Gelb (Mittelgewinn)",
   "pinColor.cyan": "Cyan (weich)",
-  "pinColor.purple": "Violett (subtil)"
+  "pinColor.purple": "Violett (subtil)",
+  "telemetry.consent.title": "Anonyme Berichte",
+  "telemetry.consent.message": "Helfen Sie, SynthiGME zu verbessern, indem Sie anonyme Fehler- und Sitzungsberichte senden. Es werden keine persönlichen Daten, musikalische Inhalte oder Nutzungsdetails erfasst.",
+  "telemetry.consent.accept": "Aktivieren",
+  "telemetry.consent.decline": "Nein, danke",
+  "telemetry.consent.remember": "Meine Wahl merken",
+  "settings.telemetry": "Anonyme Berichte",
+  "settings.telemetry.label": "Anonyme Berichte senden",
+  "settings.telemetry.description": "Sendet anonyme Fehler- und Sitzungsberichte, um SynthiGME zu verbessern. Es werden keine persönlichen Daten, musikalische Inhalte oder Nutzungsdetails erfasst. Sie können dies jederzeit ändern."
 };

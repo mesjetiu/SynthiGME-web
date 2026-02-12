@@ -1,6 +1,7 @@
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS, MAX_RECORDING_TRACKS } from '../utils/constants.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { trackEvent as telemetryTrackEvent } from '../utils/telemetry.js';
 
 const log = createLogger('RecordingEngine');
 
@@ -498,18 +499,24 @@ export class RecordingEngine {
     }
     
     // Encode to WAV
-    const wavBlob = this._encodeWAV(trackData, this._sampleRate);
-    
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `synthigme-${timestamp}.wav`;
-    
-    // Notificar ANTES de descargar (en móviles el download puede interferir)
-    if (this.onRecordingStop) this.onRecordingStop(filename);
-    log.info(` Recording saved: ${filename}`);
-    
-    // Trigger download (con pequeño delay para permitir que el toast se muestre)
-    setTimeout(() => this._downloadBlob(wavBlob, filename), 100);
+    try {
+      const wavBlob = this._encodeWAV(trackData, this._sampleRate);
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `synthigme-${timestamp}.wav`;
+      
+      // Notificar ANTES de descargar (en móviles el download puede interferir)
+      if (this.onRecordingStop) this.onRecordingStop(filename);
+      log.info(` Recording saved: ${filename}`);
+      
+      // Trigger download (con pequeño delay para permitir que el toast se muestre)
+      setTimeout(() => this._downloadBlob(wavBlob, filename), 100);
+    } catch (err) {
+      log.error(' Export failed:', err);
+      telemetryTrackEvent('export_fail', { message: err?.message || String(err) });
+      if (this.onRecordingStop) this.onRecordingStop(null);
+    }
   }
 
   /**

@@ -432,5 +432,13 @@ export default {
   "pinColor.blue": "Modrý (posílení)",
   "pinColor.yellow": "Žlutý (střední zisk)",
   "pinColor.cyan": "Azurový (měkký)",
-  "pinColor.purple": "Purpurový (jemný)"
+  "pinColor.purple": "Purpurový (jemný)",
+  "telemetry.consent.title": "Anonymní hlášení",
+  "telemetry.consent.message": "Pomozte zlepšit SynthiGME zasíláním anonymních hlášení o chybách a relacích. Nejsou shromažďovány žádné osobní údaje, hudební obsah ani podrobnosti o používání.",
+  "telemetry.consent.accept": "Povolit",
+  "telemetry.consent.decline": "Ne, děkuji",
+  "telemetry.consent.remember": "Zapamatovat moji volbu",
+  "settings.telemetry": "Anonymní hlášení",
+  "settings.telemetry.label": "Zasílat anonymní hlášení",
+  "settings.telemetry.description": "Zasílá anonymní hlášení o chybách a relacích pro zlepšení SynthiGME. Nejsou shromažďovány žádné osobní údaje, hudební obsah ani podrobnosti o používání. Toto můžete kdykoli změnit."
 };

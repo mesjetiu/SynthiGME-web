@@ -17,6 +17,7 @@ import { ConfirmDialog } from './confirmDialog.js';
 import { STORAGE_KEYS, AUTOSAVE_INTERVALS, isMobileDevice } from '../utils/constants.js';
 import { WakeLockManager } from '../utils/wakeLock.js';
 import { showToast } from './toast.js';
+import { setEnabled as telemetrySetEnabled, isEnabled as telemetryIsEnabled } from '../utils/telemetry.js';
 
 /**
  * Modal de configuración general con pestañas
@@ -264,6 +265,11 @@ export class SettingsModal {
     if (this.voltageThermalDriftCheckbox) {
       this.voltageThermalDriftEnabled = readBool(STORAGE_KEYS.VOLTAGE_THERMAL_DRIFT_ENABLED, true);
       this.voltageThermalDriftCheckbox.checked = this.voltageThermalDriftEnabled;
+    }
+    
+    // Avanzado - Telemetría
+    if (this.telemetryEnabledCheckbox) {
+      this.telemetryEnabledCheckbox.checked = telemetryIsEnabled();
     }
   }
   
@@ -715,6 +721,9 @@ export class SettingsModal {
     
     // Actualizaciones
     container.appendChild(this._createUpdatesSection());
+    
+    // Telemetría anónima
+    container.appendChild(this._createTelemetrySection());
     
     // Reset
     container.appendChild(this._createResetSection());
@@ -2768,6 +2777,51 @@ export class SettingsModal {
   }
   
   /**
+   * Crea la sección de telemetría anónima
+   */
+  _createTelemetrySection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    // Título
+    this.telemetryTitleElement = document.createElement('h3');
+    this.telemetryTitleElement.className = 'settings-section__title';
+    this.telemetryTitleElement.textContent = t('settings.telemetry');
+    section.appendChild(this.telemetryTitleElement);
+    
+    // Descripción
+    this.telemetryDescElement = document.createElement('p');
+    this.telemetryDescElement.className = 'settings-section__description';
+    this.telemetryDescElement.textContent = t('settings.telemetry.description');
+    section.appendChild(this.telemetryDescElement);
+    
+    // Checkbox
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--checkbox';
+    
+    this.telemetryEnabledCheckbox = document.createElement('input');
+    this.telemetryEnabledCheckbox.type = 'checkbox';
+    this.telemetryEnabledCheckbox.id = 'telemetryEnabledCheckbox';
+    this.telemetryEnabledCheckbox.className = 'settings-checkbox';
+    this.telemetryEnabledCheckbox.checked = telemetryIsEnabled();
+    
+    this.telemetryEnabledLabelElement = document.createElement('label');
+    this.telemetryEnabledLabelElement.className = 'settings-checkbox-label';
+    this.telemetryEnabledLabelElement.htmlFor = 'telemetryEnabledCheckbox';
+    this.telemetryEnabledLabelElement.textContent = t('settings.telemetry.label');
+    
+    this.telemetryEnabledCheckbox.addEventListener('change', () => {
+      telemetrySetEnabled(this.telemetryEnabledCheckbox.checked);
+    });
+    
+    row.appendChild(this.telemetryEnabledCheckbox);
+    row.appendChild(this.telemetryEnabledLabelElement);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
    * Crea la sección de reseteo del sintetizador
    */
   _createResetSection() {
@@ -3673,6 +3727,17 @@ export class SettingsModal {
     
     if (this.wakeLockLabelElement) {
       this.wakeLockLabelElement.textContent = t('settings.wakelock');
+    }
+    
+    // Actualizar sección de telemetría
+    if (this.telemetryTitleElement) {
+      this.telemetryTitleElement.textContent = t('settings.telemetry');
+    }
+    if (this.telemetryDescElement) {
+      this.telemetryDescElement.textContent = t('settings.telemetry.description');
+    }
+    if (this.telemetryEnabledLabelElement) {
+      this.telemetryEnabledLabelElement.textContent = t('settings.telemetry.label');
     }
     
     // Actualizar sección de reset

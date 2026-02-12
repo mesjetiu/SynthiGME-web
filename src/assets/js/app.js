@@ -84,7 +84,7 @@ import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
 import { initErrorHandler } from './utils/errorHandler.js';
-import { init as initTelemetry, trackEvent as telemetryTrackEvent } from './utils/telemetry.js';
+import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled, isEnabled as telemetryIsEnabled } from './utils/telemetry.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
@@ -4820,7 +4820,45 @@ function hideSplashScreen() {
     if (window._synthApp && window._synthApp.triggerRestoreLastState) {
       window._synthApp.triggerRestoreLastState();
     }
+    
+    // Mostrar diálogo de consentimiento de telemetría (solo en primer uso)
+    showTelemetryConsentIfNeeded();
   }, 800);
+}
+
+/**
+ * Muestra el diálogo de consentimiento de telemetría si es la primera vez.
+ * Usa ConfirmDialog con rememberKey para no volver a preguntar.
+ * No bloquea el uso de la app.
+ */
+async function showTelemetryConsentIfNeeded() {
+  // Si ya hay una elección guardada, no preguntar
+  const { skip } = ConfirmDialog.getRememberedChoice('telemetry-consent');
+  if (skip) return;
+  
+  // Si ya se configuró telemetría manualmente, no preguntar
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.TELEMETRY_ENABLED);
+    if (stored !== null) return;
+  } catch { /* ignore */ }
+  
+  // Pequeño delay para no solapar con el diálogo de restaurar sesión
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  const result = await ConfirmDialog.show({
+    title: t('telemetry.consent.title'),
+    message: t('telemetry.consent.message'),
+    confirmText: t('telemetry.consent.accept'),
+    cancelText: t('telemetry.consent.decline'),
+    rememberKey: 'telemetry-consent',
+    rememberText: t('telemetry.consent.remember')
+  });
+  
+  telemetrySetEnabled(result.confirmed);
+  
+  if (result.confirmed) {
+    telemetryTrackEvent('first_run');
+  }
 }
 
 // ─── Instalar handlers globales de errores lo antes posible ───
@@ -4854,6 +4892,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       window._synthApp.ensureAudio().catch((err) => {
         log.error('Error al inicializar audio:', err);
         showToast('Error al inicializar audio. Recarga la página.', { level: 'error', duration: 5000 });
+        telemetryTrackEvent('audio_fail', { message: err?.message || String(err) });
       });
     }
     

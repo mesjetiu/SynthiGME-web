@@ -5,6 +5,7 @@
 
 import { createLogger } from './logger.js';
 import { reportError } from './errorHandler.js';
+import { trackEvent as telemetryTrackEvent } from './telemetry.js';
 
 const log = createLogger('Audio');
 
@@ -60,6 +61,7 @@ export function attachProcessorErrorHandler(node, processorName) {
       source: `worklet:${processorName}`,
       type: 'processorerror'
     });
+    telemetryTrackEvent('worklet_crash', { processor: processorName });
   });
   
   return node;

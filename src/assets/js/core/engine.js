@@ -3,6 +3,7 @@ import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { showToast } from '../ui/toast.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { trackEvent as telemetryTrackEvent } from '../utils/telemetry.js';
 import {
   applySoftClip,
   digitalToVoltage,
@@ -1824,6 +1825,7 @@ export class AudioEngine {
       } catch (err) {
         log.error('Failed to load worklet:', err);
         this.workletReady = false;
+        telemetryTrackEvent('worklet_fail', { message: err?.message || String(err) });
       }
     })();
 

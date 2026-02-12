@@ -4,7 +4,7 @@ SynthiGME-web es una emulación del sintetizador modular **Synthi 100** del Gabi
 
 Esta versión web permite explorar el sintetizador directamente desde tu navegador, sin necesidad de instalar nada.
 
-**Última actualización:** 8 de febrero de 2026 (menú nativo Electron con i18n, filtro COLOUR auténtico en Noise Generator)
+**Última actualización:** 12 de febrero de 2026 (sistema de telemetría anónima opt-in, manejo global de errores)
 
 ## 🚀 Acceso Rápido
 
@@ -89,7 +89,21 @@ Pulsa el icono de engranaje (o la tecla `S`) para configurar:
 
 ---
 
-## 💻 Requisitos del Sistema
+## � Privacidad y Telemetría
+
+SynthiGME incluye un sistema de **reportes anónimos** completamente opcional:
+
+- **Opt-in**: se te pide permiso la primera vez. Si no aceptas, no se envía nada.
+- **Anónimo**: un UUID aleatorio identifica la instalación, sin nombre, email ni IP.
+- **Mínimo**: solo se reportan errores técnicos y arranques de sesión.
+- **Sin datos musicales**: nunca se envían configuraciones de knobs, patches ni contenido.
+- **Configurable**: puedes activar/desactivar en cualquier momento desde Ajustes > Avanzado.
+
+Los reportes ayudan a detectar errores en distintas plataformas y mejorar la estabilidad de la aplicación.
+
+---
+
+## �💻 Requisitos del Sistema
 
 No necesitas un ordenador potente, pero el procesamiento de audio en tiempo real requiere ciertos mínimos:
 

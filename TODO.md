@@ -115,7 +115,7 @@ podría ser significativo en dispositivos móviles.
 ## Objetivo v0.8.0 (optimización y telemetría)
 
 - Parámetros no modificables por VC pasarlos a control rate.
-- Implementación de telemetría mínima.
+- ~~Implementación de telemetría mínima.~~ ✅ Completado (Fases 1-4, ver TELEMETRY-PLAN.md)
 - OSC: probar entre dispositivos y perfeccionarlo.
 - Corregir errores varios en todas las plataformas.
 

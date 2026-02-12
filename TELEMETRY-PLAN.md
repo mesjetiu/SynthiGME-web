@@ -1,13 +1,13 @@
-# Plan de implementación: Manejo de errores + Telemetría
+# Sistema de Manejo de Errores y Telemetría
 
-Estado: **En progreso**
-Inicio: 2026-02-12
+Estado: **Completado** ✅
+Implementación: 12 de febrero de 2026
 
 ---
 
 ## Visión general
 
-Implementar un sistema completo de manejo de errores y telemetría mínima en 4 fases secuenciales. Cada fase construye sobre la anterior.
+Sistema completo de manejo de errores y telemetría anónima mínima implementado en 4 fases. Cada fase construye sobre la anterior.
 
 **Principios:**
 - Opt-in explícito (consentimiento del usuario)
@@ -18,334 +18,179 @@ Implementar un sistema completo de manejo de errores y telemetría mínima en 4 
 
 ---
 
-## Fase 1 — Redes de seguridad globales
+## Resumen de la implementación
 
-> **Objetivo:** Capturar errores que hoy desaparecen silenciosamente, sin modificar el código de módulos existentes.
+### Fase 1 — Redes de seguridad globales ✅
 
-### 1.1 Crear `src/assets/js/utils/errorHandler.js`
+| Componente | Archivo | Descripción |
+|-----------|---------|-------------|
+| Error handler global | `errorHandler.js` | `window.onerror` + `unhandledrejection` + ring buffer (50 errores) con deduplicación por hash y cooldown 1s |
+| Bootstrap protegido | `app.js` | Try/catch en `DOMContentLoaded` — splash no se congela ante errores |
+| Audio fail handler | `app.js` | Catch en `ensureAudio()` con toast al usuario |
+| processorerror | `engine.js`, `app.js`, `oscilloscope.js`, `noise.js`, `recordingEngine.js` | Handler en los 13 AudioWorkletNodes |
+| Electron rejections | `electron/main.cjs` | `process.on('unhandledRejection')` |
 
-Módulo singleton que instala handlers globales al importarse:
+### Fase 2 — Protección interna de módulos ✅
 
-- **`window.onerror`** → captura errores JS no controlados
-- **`window.addEventListener('unhandledrejection')`** → captura Promises rechazadas
-- **Ring buffer en memoria** (últimos 50 errores) con: timestamp, mensaje, stack, fuente, línea
-- **Deduplicación por hash** del stack trace (mismo error no se repite en el buffer)
-- **Cooldown** de 1s entre errores idénticos (evita floods en bucles de `requestAnimationFrame`)
-- **API pública**:
-  - `getErrorBuffer()` → retorna array de errores capturados
-  - `onError(callback)` → suscribir listeners (para telemetría en Fase 3)
-  - `getErrorCount()` → total de errores desde inicio de sesión
-- **No muestra nada al usuario** (eso lo hace cada caller o el toast). Solo recolecta.
+| Componente | Archivo | Descripción |
+|-----------|---------|-------------|
+| Worklet try/catch | `synthOscillator.worklet.js`, `vcaProcessor.worklet.js`, `noiseGenerator.worklet.js` | `process()` protegido: silencio limpio + `port.postMessage` error (1 vez) |
+| Session restore | `sessionManager.js` | Try/catch en restore callback — estado corrupto no rompe inicio |
+| Toast unificado | `toast.js` | Niveles info/success/warning/error, CSS por nivel. Reemplaza 3 implementaciones duplicadas |
 
-**Archivos:** nuevo `src/assets/js/utils/errorHandler.js`
+### Fase 3 — Infraestructura de telemetría ✅
 
-### 1.2 Try/catch envolvente en bootstrap `DOMContentLoaded`
+| Componente | Archivo | Descripción |
+|-----------|---------|-------------|
+| Módulo telemetría | `telemetry.js` | Cola en memoria, flush 30s, offline queue en localStorage, sendBeacon al cerrar, rate limiting |
+| Apps Script | `scripts/telemetry/appscript.js` | Receptor → Sheets (hoja mensual) + alertas Telegram |
+| Guía de despliegue | `scripts/telemetry/README.md` | Instrucciones paso a paso para Sheets, Telegram y Apps Script |
+| Build define | `scripts/build.mjs` | `__TELEMETRY_URL__` inyectado en esbuild (también aplica a Electron via `electron-build.mjs`) |
+| Storage keys | `constants.js` | `TELEMETRY_ENABLED`, `TELEMETRY_ID`, `TELEMETRY_QUEUE` |
+| Conexión errores | `telemetry.js` → `errorHandler.onError()` | Errores auto-reportados (máx 6/sesión) |
 
-Envolver el handler completo de `DOMContentLoaded` en `app.js` con try/catch:
-- En caso de error: ocultar splash screen y mostrar mensaje de error crítico al usuario
-- Usar `showToast()` o un div de emergencia si el toast no está disponible
-- Loguear al `errorHandler` del punto 1.1
+### Fase 4 — Consentimiento y UI ✅
 
-**Archivos:** `src/assets/js/app.js` (handler DOMContentLoaded, ~líneas 4814-4884)
-
-### 1.3 Catch en `ensureAudio()` fire-and-forget
-
-La llamada `window._synthApp.ensureAudio()` en DOMContentLoaded es fire-and-forget (sin `await`, sin `.catch()`). Añadir `.catch()` que:
-- Logee el error
-- Muestre toast "Error al inicializar audio"
-
-**Archivos:** `src/assets/js/app.js` (~línea 4835-4836)
-
-### 1.4 Handler `processorerror` en AudioWorkletNodes
-
-Crear función helper en `engine.js` que añada handler `processorerror` a cualquier `AudioWorkletNode`. Aplicar a todas las 13 instancias:
-
-| Archivo | Nodos | Procesadores |
-|---------|-------|-------------|
-| `engine.js` | 5 | vca-processor, output-filter, dc-blocker, synth-oscillator (×2) |
-| `app.js` | 5 | multichannel-capture, multichannel-playback, cv-thermal-slew (×2), cv-soft-clip |
-| `oscilloscope.js` | 1 | scope-capture |
-| `noise.js` | 1 | noise-generator |
-| `recordingEngine.js` | 1 | recording-capture-processor |
-
-Cada handler:
-- Loguea `[processorerror] nombreDelProcesador: error.message`
-- Notifica al `errorHandler` ring buffer
-- Muestra toast al usuario con nombre del módulo afectado
-
-**Archivos:** `src/assets/js/core/engine.js`, `src/assets/js/app.js`, `src/assets/js/modules/oscilloscope.js`, `src/assets/js/modules/noise.js`, `src/assets/js/core/recordingEngine.js`
-
-### 1.5 `unhandledRejection` en Electron main process
-
-Añadir `process.on('unhandledRejection')` junto al `uncaughtException` existente en `electron/main.cjs`.
-
-**Archivos:** `electron/main.cjs` (~línea 466)
-
-### Criterio de completado Fase 1
-- [ ] `errorHandler.js` creado con tests unitarios
-- [ ] Bootstrap protegido — splash no se congela ante errores
-- [ ] `ensureAudio()` notifica fallos al usuario
-- [ ] Los 13 AudioWorkletNodes tienen `processorerror` handler
-- [ ] Electron captura rejections no manejadas
-- [ ] Tests pasan (`npm run build:web:test`)
+| Componente | Archivo | Descripción |
+|-----------|---------|-------------|
+| Diálogo consentimiento | `app.js` → `ConfirmDialog.show()` | Primer inicio si `TELEMETRY_ENABLED` es null. Indica que puede cambiarse en Ajustes |
+| Toggle en Ajustes | `settingsModal.js` | Pestaña Avanzado, checkbox que lee/escribe directamente en localStorage |
+| Toggle en menú Electron | `electronMenu.cjs` + `electronMenuBridge.js` | Checkbox en submenú Avanzado con sincronización bidireccional |
+| i18n | `translations.yaml` | 7 idiomas: en, es, fr, de, it, pt, cs |
+| Eventos instrumentados | Varios archivos | session_start, first_run, error, worklet_fail, worklet_crash, audio_fail, export_fail |
 
 ---
 
-## Fase 2 — Protección interna de módulos críticos
+## Cómo funciona
 
-> **Objetivo:** Proteger los puntos donde errores silenciosos causan degradación de funcionalidad.
-
-### 2.1 Try/catch en `process()` de worklets críticos
-
-Envolver el cuerpo de `process()` en try/catch en:
-- `synthOscillator.worklet.js` — si falla, silencio en oscilador
-- `vcaProcessor.worklet.js` — si falla, silencio en canal de salida
-- `noiseGenerator.worklet.js` — si falla, silencio en ruido
-
-El catch:
-- Llena el output con ceros (silencio limpio en vez de basura)
-- Envía `port.postMessage({ type: 'error', message })` al hilo principal (1 sola vez, con flag)
-- Detecta NaN/Infinity en outputs (opcional, solo en debug)
-
-**Archivos:** `src/assets/js/worklets/synthOscillator.worklet.js`, `vcaProcessor.worklet.js`, `noiseGenerator.worklet.js`
-
-### 2.2 Proteger callback de session restore
-
-En `sessionManager.js`, envolver el `setTimeout` + `_restoreCallback` en try/catch para que un estado corrupto no rompa el inicio:
+### Flujo de datos
 
 ```
-setTimeout(async () => {
-  try {
-    await this._restoreCallback(...)
-  } catch (err) {
-    log.error('Error restaurando estado:', err);
-    // Limpiar estado corrupto y notificar
-  }
-}, 500);
+  Usuario acepta consentimiento (primer inicio)
+             ↓
+  localStorage: TELEMETRY_ENABLED = 'true'
+             ↓
+  telemetry.init() → suscribe a errorHandler.onError()
+                   → inicia flush periódico (30s)
+                   → registra listener visibilitychange (sendBeacon)
+                   → registra listener online (flush offline queue)
+             ↓
+  Eventos se acumulan en cola en memoria
+             ↓
+  Cada 30s (o al cerrar pestaña): POST batch al endpoint
+             ↓
+  Google Apps Script (doPost)
+      ├── Inserta filas en Google Sheets (hoja mensual: "2026-02")
+      └── Si es error/worklet_fail/crash → alerta a Telegram
 ```
 
-**Archivos:** `src/assets/js/state/sessionManager.js`
+### Payload de cada evento
 
-### 2.3 Proteger `triggerRestoreLastState`
-
-En `app.js`, envolver `triggerRestoreLastState()` en try/catch — actualmente puede fallar si `ensureAudio()` falla dentro de esta función.
-
-**Archivos:** `src/assets/js/app.js` (~línea 1237)
-
-### 2.4 Unificar sistema de toasts
-
-Reemplazar las 3 implementaciones duplicadas por una sola en `toast.js` con niveles:
-
-| Nivel | Color | Icono | Uso |
-|-------|-------|-------|-----|
-| `info` | Actual (neutro) | — | Feedback general |
-| `warning` | Amarillo | ⚠ | Degradación, fallback |
-| `error` | Rojo | ✕ | Fallo de operación |
-| `success` | Verde | ✓ | Operación completada |
-
-- Eliminar `_showToast()` de `patchBrowser.js` y `settingsModal.js`
-- Actualizar los ~28 call sites para usar `showToast(msg, { level, duration })`
-- CSS con clases por nivel
-
-**Archivos:** `src/assets/js/ui/toast.js`, `src/assets/js/ui/patchBrowser.js`, `src/assets/js/ui/settingsModal.js`, `src/assets/css/` (estilos de toast)
-
-### Criterio de completado Fase 2
-- [ ] Worklets críticos no mueren silenciosamente
-- [ ] Session restore no puede romper el inicio
-- [ ] Sistema de toast unificado con niveles
-- [ ] Tests pasan
-
----
-
-## Fase 3 — Infraestructura de telemetría
-
-> **Objetivo:** Crear el módulo de telemetría y el backend (Apps Script).
-
-### 3.1 Crear `src/assets/js/utils/telemetry.js`
-
-Módulo singleton con:
-
-- **ID anónimo**: `crypto.randomUUID()`, persistido en `STORAGE_KEYS.TELEMETRY_ID`
-- **Consentimiento**: lee/escribe `STORAGE_KEYS.TELEMETRY_ENABLED` (boolean)
-- **Cola de eventos en memoria** con flush periódico (cada 30s si hay eventos)
-- **Cola offline**: si `!navigator.onLine`, guarda en `STORAGE_KEYS.TELEMETRY_QUEUE` (localStorage). Flush en evento `online`.
-- **`sendBeacon`** en `visibilitychange` (estado `hidden`) y `beforeunload` como último recurso
-- **Rate limiting**: máx 6 eventos por sesión, dedup de errores por hash
-- **Envío**: `POST` a `__TELEMETRY_URL__` (inyectado en build) con payload JSON
-- **API pública**:
-  - `telemetry.init()` — inicializa, conecta con `errorHandler.onError()`
-  - `telemetry.trackEvent(type, data)` — registra evento
-  - `telemetry.trackError(error, context)` — registra error (delegado desde errorHandler)
-  - `telemetry.isEnabled()` / `telemetry.setEnabled(bool)`
-  - `telemetry.flush()` — forzar envío de cola
-
-**Payload de cada evento:**
 ```json
 {
-  "id": "uuid-anónimo",
+  "id": "uuid-anonimo-persistente",
   "v": "0.6.0-20260212.143052",
   "env": "web|electron",
   "os": "Linux|Windows|macOS|Android|iOS",
-  "browser": "Chrome 120|Firefox 115|Electron",
-  "type": "session_start|error|worklet_fail|export_fail",
-  "data": { ... },
+  "browser": "Chrome|Firefox|Edge|Safari|Electron",
+  "type": "session_start|error|worklet_fail|...",
+  "data": { "message": "...", "type": "...", "source": "..." },
   "ts": 1739349600000
 }
 ```
 
-### 3.2 Añadir claves de storage
+### Rate limiting
 
-En `constants.js`, añadir a `STORAGE_KEYS`:
-- `TELEMETRY_ENABLED`: `synthigme-telemetry-enabled`
-- `TELEMETRY_ID`: `synthigme-telemetry-id`
-- `TELEMETRY_QUEUE`: `synthigme-telemetry-queue`
+| Límite | Valor |
+|--------|-------|
+| Eventos por sesión | 20 |
+| Errores auto-reportados por sesión | 6 |
+| Cola offline máxima | 50 eventos |
+| Flush interval | 30 segundos |
+| Deduplicación | Por hash de stack (cooldown 1s en errorHandler) |
 
-### 3.3 Añadir `__TELEMETRY_URL__` al build
+### Datos NO enviados
 
-En `scripts/build.mjs` y `scripts/electron-build.mjs`, añadir al bloque `define`:
-```js
-__TELEMETRY_URL__: JSON.stringify(process.env.TELEMETRY_URL || '')
-```
-
-Vacío por defecto — la telemetría se desactiva si no hay URL configurada.
-
-### 3.4 Crear Google Apps Script
-
-Ubicación: `scripts/telemetry/appscript.js` + `scripts/telemetry/README.md`
-
-Funcionalidad:
-1. Recibe `POST` con JSON de eventos
-2. Valida clave simple (`key` en payload, inyectada en build)
-3. Inserta fila en Google Sheets (una hoja por mes para organización)
-4. Si `type` es `error` o `critical`: reenvía a Telegram via Bot API
-5. Devuelve `{ ok: true }` o `{ error: "mensaje" }`
-
-El README documenta:
-- Cómo crear el bot de Telegram
-- Cómo crear la hoja de Sheets
-- Cómo desplegar el Apps Script como web app
-- Cómo obtener la URL y configurar `TELEMETRY_URL`
-
-### 3.5 Conectar errorHandler → telemetry
-
-En `app.js`, al inicializar:
-```js
-import { initErrorHandler } from './utils/errorHandler.js';
-import { telemetry } from './utils/telemetry.js';
-
-// Antes de todo (fuera del DOMContentLoaded)
-initErrorHandler();
-
-// Después de verificar consentimiento
-telemetry.init();
-```
-
-### Criterio de completado Fase 3
-- [ ] `telemetry.js` creado con tests
-- [ ] Apps Script creado y documentado
-- [ ] Build inyecta URL de telemetría
-- [ ] errorHandler alimenta telemetría automáticamente
-- [ ] Cola offline funciona (test con `navigator.onLine = false`)
-- [ ] `sendBeacon` funciona al cerrar pestaña
+- ❌ Nombre, email, IP del usuario
+- ❌ Contenido musical (patches, configuraciones de knobs/faders)
+- ❌ Paths del sistema de archivos (stacks truncados a 2 líneas)
+- ❌ Tiempos de uso detallados ni frecuencia de uso
+- ❌ Información de hardware (solo familia de SO y navegador)
 
 ---
 
-## Fase 4 — Consentimiento y UI
+## Puesta en marcha
 
-> **Objetivo:** Pedir permiso al usuario e integrar la telemetría en la app.
+Para que la telemetría funcione en producción se necesitan 3 cosas:
 
-### 4.1 Textos i18n
+### 1. Backend (una sola vez)
 
-Añadir a `translations.yaml` (7 idiomas):
-- `telemetry.consent.title` — "Reportes anónimos"
-- `telemetry.consent.message` — Texto explicativo
-- `telemetry.consent.accept` — "Activar"
-- `telemetry.consent.decline` — "No, gracias"
-- `telemetry.consent.remember` — "Recordar mi elección"
-- `telemetry.settings.label` — "Enviar reportes anónimos"
-- `telemetry.settings.description` — Texto descriptivo para ajustes
+Seguir la guía de [scripts/telemetry/README.md](scripts/telemetry/README.md):
 
-### 4.2 Diálogo de consentimiento en primer inicio
+1. **Google Sheets**: Crear hoja "SynthiGME Telemetry" → copiar el ID
+2. **Bot de Telegram**: Crear con @BotFather → guardar token + chat_id del grupo de alertas
+3. **Google Apps Script**: Nuevo proyecto → pegar `scripts/telemetry/appscript.js` → configurar propiedades del script (`SHEET_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) → Deploy como Web App ("Anyone") → copiar URL
 
-Usar `ConfirmDialog.show()` en `app.js` después de ocultar el splash:
-- `rememberKey: 'telemetry-consent'`
-- Si acepta: `telemetry.setEnabled(true)` + `telemetry.trackEvent('first_run')`
-- Si rechaza: `telemetry.setEnabled(false)`
-- No bloquea el uso de la app
+### 2. Build con URL (cada vez que se genera un release)
 
-### 4.3 Toggle en Ajustes
+```bash
+# Web (GitHub Pages)
+TELEMETRY_URL="https://script.google.com/macros/s/XXXXX/exec" npm run build:web
 
-Añadir en la pestaña "Avanzado" de `settingsModal.js`:
-- Checkbox "Enviar reportes anónimos" con texto descriptivo
-- Lee/escribe `STORAGE_KEYS.TELEMETRY_ENABLED`
-- Al cambiar: `telemetry.setEnabled(value)`
+# Electron (Linux + Windows)
+TELEMETRY_URL="https://script.google.com/macros/s/XXXXX/exec" npm run build:electron:all
+```
 
-### 4.4 Instrumentar eventos clave
+Sin `TELEMETRY_URL`, la telemetría se desactiva silenciosamente — la app funciona igual pero no envía nada.
 
-| Evento | Dónde | Cuándo |
-|--------|-------|--------|
-| `session_start` | `app.js` DOMContentLoaded | 1× al inicio |
-| `error` | `errorHandler.js` → `telemetry.js` | automático |
-| `worklet_fail` | `engine.js` `_loadWorklet` catch | si worklets no cargan |
-| `worklet_crash` | `processorerror` handlers | si worklet muere en runtime |
-| `audio_fail` | `ensureAudio()` catch | si AudioContext falla |
-| `export_fail` | `recordingEngine.js` | si exportación falla |
-| `first_run` | consent dialog | 1× si acepta telemetría |
+### 3. Verificación
 
-**No instrumentar**: knobs, faders, matrices, parámetros musicales, contenido.
-
-### Criterio de completado Fase 4
-- [ ] Diálogo de consentimiento funciona en primer inicio
-- [ ] Toggle en ajustes funciona
-- [ ] Eventos se envían correctamente a Apps Script
-- [ ] Sheets recibe datos estructurados
-- [ ] Telegram recibe alertas de errores
-- [ ] Sin telemetría si no hay consentimiento
-- [ ] Sin telemetría si no hay URL configurada
-- [ ] Tests pasan (`npm run build:web:test`)
+1. Hacer build con `TELEMETRY_URL`
+2. Abrir la app → aceptar consentimiento
+3. Verificar en Google Sheets que aparece `session_start` y `first_run`
+4. Provocar un error (ej: `throw new Error('test')` en consola) → verificar que llega a Sheets y Telegram
+5. Cerrar pestaña → verificar que el sendBeacon envió los eventos pendientes
 
 ---
 
-## Archivos afectados (resumen)
+## Archivos del sistema
 
-### Nuevos
-- `src/assets/js/utils/errorHandler.js`
-- `src/assets/js/utils/telemetry.js`
-- `scripts/telemetry/appscript.js`
-- `scripts/telemetry/README.md`
-- Tests correspondientes en `tests/`
+### Código fuente
 
-### Modificados
-- `src/assets/js/app.js` — bootstrap, consent, eventos
-- `src/assets/js/core/engine.js` — processorerror
-- `src/assets/js/modules/oscilloscope.js` — processorerror
-- `src/assets/js/modules/noise.js` — processorerror
-- `src/assets/js/core/recordingEngine.js` — processorerror
-- `src/assets/js/state/sessionManager.js` — protección restore
-- `src/assets/js/ui/toast.js` — niveles de severidad
-- `src/assets/js/ui/patchBrowser.js` — migrar a toast unificado
-- `src/assets/js/ui/settingsModal.js` — migrar toast + toggle telemetría
-- `src/assets/js/utils/constants.js` — claves de storage
-- `src/assets/js/i18n/locales/translations.yaml` — textos telemetría
-- `src/assets/js/worklets/synthOscillator.worklet.js` — try/catch process()
-- `src/assets/js/worklets/vcaProcessor.worklet.js` — try/catch process()
-- `src/assets/js/worklets/noiseGenerator.worklet.js` — try/catch process()
-- `scripts/build.mjs` — define TELEMETRY_URL
-- `scripts/electron-build.mjs` — define TELEMETRY_URL
-- `electron/main.cjs` — unhandledRejection
+| Archivo | Propósito |
+|---------|-----------|
+| `src/assets/js/utils/errorHandler.js` | Captura global de errores, ring buffer, deduplicación |
+| `src/assets/js/utils/telemetry.js` | Cola de eventos, flush, offline queue, sendBeacon, rate limiting |
+| `src/assets/js/utils/constants.js` | `STORAGE_KEYS.TELEMETRY_*` |
+| `src/assets/js/ui/settingsModal.js` | Checkbox en Ajustes > Avanzado |
+| `src/assets/js/ui/electronMenuBridge.js` | Sync bidireccional menú Electron ↔ renderer |
+| `electron/electronMenu.cjs` | Checkbox en menú Avanzado nativo |
+| `src/assets/js/app.js` | Diálogo de consentimiento + eventos instrumentados |
+| `src/assets/js/ui/toast.js` | Toast unificado con niveles |
+
+### Backend y despliegue
+
+| Archivo | Propósito |
+|---------|-----------|
+| `scripts/telemetry/appscript.js` | Google Apps Script (pegar en Code.gs) |
+| `scripts/telemetry/README.md` | Guía paso a paso de despliegue |
+| `scripts/build.mjs` | Inyecta `__TELEMETRY_URL__` en esbuild |
+
+### Tests (49 tests)
+
+| Archivo | Tests |
+|---------|-------|
+| `tests/utils/telemetry.test.js` | Módulo telemetry.js: cola, flush, offline, rate limiting |
+| `tests/utils/telemetryEvents.test.js` | Eventos instrumentados: payload, auto-error, buildPayload |
+| `tests/ui/telemetryConsent.test.js` | Consentimiento: setEnabled/isEnabled, persistencia, toggle |
 
 ---
 
-## Dependencias entre fases
+## Tests
 
-```
-Fase 1 (errores globales)
-   ↓
-Fase 2 (protección interna + toast unificado)
-   ↓
-Fase 3 (infraestructura telemetría)
-   ↓
-Fase 4 (consentimiento + UI + instrumentación)
-```
+1900 tests pasan (0 fallos), incluyendo los 49 nuevos de error handling + telemetría.
 
-Cada fase es funcional por sí misma y aporta valor independiente.
+```bash
+npm test                  # Tests unitarios (Node.js)
+npm run build:web:test    # Build + tests completos
+```

@@ -260,6 +260,8 @@ Utilidades compartidas:
 | `waveforms.js` | Síntesis de formas de onda: `createPulseWave()` y `createAsymmetricSineWave()` usando Fourier |
 | `objects.js` | Utilidades de objetos: `deepMerge()` para combinar configuraciones |
 | `wakeLock.js` | `WakeLockManager` para mantener pantalla encendida (Screen Wake Lock API) |
+| `errorHandler.js` | Captura global de errores (`window.onerror`, `unhandledrejection`), ring buffer con deduplicación, listeners para telemetría |
+| `telemetry.js` | Telemetría anónima opt-in: cola de eventos, flush periódico, offline queue, sendBeacon, rate limiting. Ver [Sección 17](#17-manejo-de-errores-y-telemetría) |
 
 #### Constantes globales (`constants.js`)
 
@@ -288,6 +290,7 @@ Centraliza valores que se reutilizan en múltiples archivos:
 | PiP | `PIP_STATE`, `PIP_REMEMBER` |
 | Optimizaciones | `OPTIMIZATIONS_DEBUG`, `DORMANCY_ENABLED`, `DORMANCY_DEBUG`, `FILTER_BYPASS_ENABLED`, `FILTER_BYPASS_DEBUG`, `LATENCY_MODE` |
 | Emulación voltajes | `VOLTAGE_SOFT_CLIP_ENABLED`, `VOLTAGE_PIN_TOLERANCE_ENABLED`, `VOLTAGE_THERMAL_DRIFT_ENABLED` |
+| Telemetría | `TELEMETRY_ENABLED`, `TELEMETRY_ID`, `TELEMETRY_QUEUE` |
 
 **Uso:**
 ```javascript
@@ -2685,6 +2688,8 @@ npm run build:all             # Tests + build web + instaladores Linux/Win
 - [x] **Atajos de teclado**: Sistema de shortcuts personalizables → Ver [Sección 7](#7-sistema-de-atajos-de-teclado)
 - [x] **Multicanal**: 12 canales de salida + 8 de entrada via PipeWire (Linux). Ver [Sección 13.1](#131-aplicación-de-escritorio-electron) y [MULTICHANNEL.md](MULTICHANNEL.md)
 - [x] **Menú nativo Electron**: 7 menús con i18n, sincronización bidireccional con UI web
+- [x] **Manejo de errores**: Error handler global, protección de worklets y bootstrap, toast unificado con niveles → Ver [Sección 17](#17-manejo-de-errores-y-telemetría)
+- [x] **Telemetría anónima**: Sistema opt-in con consentimiento, Google Sheets + alertas Telegram → Ver [Sección 17](#17-manejo-de-errores-y-telemetría)
 - [ ] **MIDI**: Soporte para controladores externos
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam
 - [ ] **Interpolación de frames**: Suavizado adicional entre frames del osciloscopio si es necesario
@@ -2840,3 +2845,84 @@ await engine.init(mockCtx);
 2. Usa `describe` / `it` de `node:test` y `assert` de `node:assert/strict`
 3. Para tests de audio, importa y usa el mock de AudioContext
 4. Ejecuta `npm test` para validar
+
+---
+
+## 17. Manejo de Errores y Telemetría
+
+Sistema de captura global de errores y telemetría anónima mínima. Documentación completa en [TELEMETRY-PLAN.md](TELEMETRY-PLAN.md).
+
+### 17.1 Error Handler (`errorHandler.js`)
+
+Módulo singleton que instala handlers globales al importarse:
+
+- **`window.onerror`**: captura errores JS no controlados
+- **`unhandledrejection`**: captura Promises rechazadas
+- **Ring buffer** en memoria (últimos 50 errores) con deduplicación por hash de stack y cooldown de 1s
+- **`onError(callback)`**: suscribe listeners (usado por telemetry.js)
+- **`processorerror`** handler en los 13 AudioWorkletNodes
+
+Protecciones adicionales:
+- Try/catch en `process()` de worklets críticos (oscillator, VCA, noise): silencio limpio + reporte único
+- Bootstrap DOMContentLoaded protegido contra splash congelado
+- Session restore con limpieza automática de estado corrupto
+
+### 17.2 Toast Unificado (`toast.js`)
+
+Sistema de notificaciones con 4 niveles de severidad, reemplazando 3 implementaciones duplicadas:
+
+| Nivel | Color | Uso |
+|-------|-------|-----|
+| `info` | Neutro | Feedback general |
+| `success` | Verde | Operación completada |
+| `warning` | Amarillo | Degradación, fallback |
+| `error` | Rojo | Fallo de operación |
+
+### 17.3 Telemetría (`telemetry.js`)
+
+**Principios**: opt-in explícito, sin datos personales, sin IP, sin contenido musical.
+
+```
+App → telemetry.js → Google Apps Script → Google Sheets + Telegram
+```
+
+- **Consentimiento**: Diálogo en primer inicio + toggle en Ajustes > Avanzado + menú Electron
+- **Cola de eventos** en memoria con flush periódico (30s)
+- **Cola offline** en localStorage (máx 50), flush al reconectar
+- **sendBeacon** al cerrar pestaña (último intento fiable)
+- **Rate limiting**: 20 eventos/sesión, 6 errores auto/sesión
+- **URL inyectada en build** (`__TELEMETRY_URL__`): sin URL = desactivado silenciosamente
+
+Eventos instrumentados:
+
+| Evento | Cuándo |
+|--------|--------|
+| `session_start` | Al iniciar la app (1×) |
+| `first_run` | Al aceptar telemetría por primera vez |
+| `error` | Error JS no capturado (automático via errorHandler) |
+| `worklet_fail` | AudioWorklet no carga |
+| `worklet_crash` | processorerror en runtime |
+| `audio_fail` | AudioContext falla al inicializar |
+| `export_fail` | Fallo en exportación de grabación |
+
+### 17.4 Backend (Google Apps Script)
+
+El script receptor (`scripts/telemetry/appscript.js`) se despliega como Web App en Google Apps Script:
+
+1. Recibe POST con lote de eventos JSON
+2. Inserta filas en Google Sheets (una hoja por mes: "2026-02")
+3. Si es error/crash, envía alerta a Telegram via Bot API
+
+Guía de despliegue: [scripts/telemetry/README.md](scripts/telemetry/README.md).
+
+### 17.5 Configuración de build
+
+```bash
+# Build con telemetría habilitada
+TELEMETRY_URL="https://script.google.com/macros/s/XXXXX/exec" npm run build:web
+
+# Build sin telemetría (por defecto)
+npm run build:web
+```
+
+La variable `__TELEMETRY_URL__` se inyecta en `scripts/build.mjs` via esbuild `define`. El build de Electron usa el mismo script, por lo que ambas plataformas comparten la misma configuración.

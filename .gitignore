@@ -1,6 +1,7 @@
 .release-cache/
 /local/
 node_modules/
+.commit_msg.txt
 
 # Estudio técnico-histórico (repositorio separado)
 synthiGME-implementation-study/

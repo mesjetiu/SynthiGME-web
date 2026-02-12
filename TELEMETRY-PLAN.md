@@ -133,14 +133,25 @@ Seguir la guía de [scripts/telemetry/README.md](scripts/telemetry/README.md):
 
 ### 2. Build con URL (cada vez que se genera un release)
 
-```bash
-# Web (GitHub Pages)
-TELEMETRY_URL="https://script.google.com/macros/s/XXXXX/exec" npm run build:web
+**Método recomendado:** archivo `.env` (se lee automáticamente en cada build):
 
-# Electron (Linux + Windows)
-TELEMETRY_URL="https://script.google.com/macros/s/XXXXX/exec" npm run build:electron:all
+```bash
+# Copiar plantilla y rellenar la URL
+cp .env.example .env
+# Editar .env con la URL del Apps Script
+
+# Luego, cualquier build incluye telemetría automáticamente:
+npm run build:web
+npm run build:electron:all
 ```
 
+**Método alternativo:** variable de entorno directa:
+
+```bash
+TELEMETRY_URL="https://script.google.com/macros/s/XXXXX/exec" npm run build:web
+```
+
+Las variables de `process.env` tienen prioridad sobre `.env`.
 Sin `TELEMETRY_URL`, la telemetría se desactiva silenciosamente — la app funciona igual pero no envía nada.
 
 ### 3. Verificación
@@ -174,7 +185,9 @@ Sin `TELEMETRY_URL`, la telemetría se desactiva silenciosamente — la app func
 |---------|-----------|
 | `scripts/telemetry/appscript.js` | Google Apps Script (pegar en Code.gs) |
 | `scripts/telemetry/README.md` | Guía paso a paso de despliegue |
-| `scripts/build.mjs` | Inyecta `__TELEMETRY_URL__` en esbuild |
+| `scripts/build.mjs` | Inyecta `__TELEMETRY_URL__` en esbuild, carga `.env` automáticamente |
+| `.env.example` | Plantilla de variables de entorno (committed) |
+| `.env` | Variables de entorno locales con `TELEMETRY_URL` (gitignored) |
 
 ### Tests (49 tests)
 

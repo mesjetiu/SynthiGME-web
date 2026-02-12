@@ -1,15 +1,14 @@
 ## Output Channels - VCA CEM 3330 (versión Cuenca 1982)
 
-#### ⏳ PENDIENTES
+#### ✅ COMPLETADO
 
-- [ ] **Filtros de Output Channel (tarea genérica)**
+- [x] **Filtros de Output Channel**
   - Hardware: control pasivo 1er orden (6 dB/oct) con potenciómetro lineal 10kΩ
-  - Dial 0-10: LP (0) ↔ Flat (5) ↔ HP (10); re-entry se toma antes del filtro
-  - Solo colorea salida externa (monitores/Cannon), no modifica señal de matriz
-  - Opciones a valorar:
-    1. IIRFilterNode 1er orden (coeficientes manuales)
-    2. AudioWorklet con filtro RC pasivo
-    3. Aproximación pragmática (actual: BiquadFilter 2º orden)
+  - Dial -5 a +5: LP ↔ Flat ↔ HP; re-entry se toma antes del filtro
+  - Implementado como AudioWorklet con filtro RC pasivo (plano D100-08 C1)
+  - Bypass automático cuando |valor| < 0.02
+
+#### ⏳ PENDIENTES
 
 ## Oscilador/matriz:
 

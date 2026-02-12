@@ -183,6 +183,33 @@ El proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
    - Crea un commit y un tag `vX.Y.Z`.
 4. Haz push: `git push origin main && git push origin --tags`.
 
+## Variables de entorno para builds
+
+El sistema de build lee automáticamente un archivo `.env` en la raíz del proyecto (si existe). Esto permite configurar variables sin tener que escribirlas en cada comando.
+
+### Configuración
+
+1. Copia el archivo de ejemplo:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edita `.env` con tus valores (no se commitea, está en `.gitignore`).
+
+### Variables disponibles
+
+| Variable | Propósito | Efecto si ausente |
+|----------|-----------|-------------------|
+| `TELEMETRY_URL` | URL del endpoint de telemetría (Google Apps Script) | Telemetría desactivada silenciosamente |
+
+También puedes pasar variables directamente en el comando:
+```bash
+TELEMETRY_URL="https://..." npm run build:web
+```
+
+Las variables de `process.env` tienen prioridad sobre las de `.env`.
+
+---
+
 ## Herramientas de desarrollo
 
 ### Optimización de SVG de paneles
@@ -208,4 +235,14 @@ La estructura básica de código fuente en `src/`:
 - `src/assets/css/`: Estilos.
 - `src/assets/panels/`: SVG de paneles optimizados (producción).
 - `design/panels/`: SVG de paneles fuente (Inkscape).
-- `scripts/`: Scripts de mantenimiento y build (Node.js).
+- `scripts/`: Scripts de build y utilidades:
+  - `build.mjs`: Build principal (esbuild, copia assets, inyecta versión). Lee `.env` automáticamente.
+  - `build-i18n.mjs`: Genera locales JS desde `translations.yaml`.
+  - `electron-build.mjs`: Wrapper de electron-builder con timestamp.
+  - `run-tests.mjs`: Runner de tests unitarios.
+  - `test-all.mjs`: Resumen estructurado de todos los tests.
+  - `telemetry/`: Backend de telemetría (Apps Script + guía de despliegue).
+  - `release/`: Scripts de versionado y generación de requisitos.
+  - `tools/`: Herramientas de desarrollo (optimización SVG, etc.).
+- `.env.example`: Plantilla de variables de entorno (committed).
+- `.env`: Variables de entorno locales (gitignored).

@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 8 de febrero de 2026 (menú nativo Electron con i18n, botón flotante de mute, entrada multicanal 8ch)
+> Última actualización: 12 de febrero de 2026 (menú nativo Electron con i18n, botón flotante de mute, entrada multicanal 8ch, manejo global de errores y telemetría anónima)
 
 ---
 
@@ -35,6 +35,12 @@ SynthiGME-web es una aplicación **vanilla JavaScript** (ES Modules) que reprodu
 │   ├── ui/                 # Tests de UI (modales, etc.)
 │   └── */                  # Tests por módulo
 ├── scripts/                # Scripts de build y utilidades
+│   ├── build.mjs           # Build principal (esbuild), lee .env automáticamente
+│   ├── build-i18n.mjs      # Genera locales JS desde YAML
+│   ├── electron-build.mjs  # Wrapper electron-builder con timestamp
+│   ├── telemetry/          # Backend de telemetría (Apps Script + guía)
+│   ├── release/            # Scripts de versionado
+│   └── tools/              # Herramientas (optimización SVG, etc.)
 ├── docs/                   # ⚠️ GENERADO - PWA para GitHub Pages
 ├── dist-app/               # ⚠️ GENERADO - App compilada para Electron
 └── dist-electron/          # ⚠️ GENERADO - Instaladores (AppImage, exe)
@@ -218,6 +224,7 @@ Componentes de interfaz reutilizables:
 | `patchBrowser.js` | `PatchBrowser` | Modal para gestionar patches: guardar, cargar, eliminar, renombrar, exportar/importar archivos `.sgme.json`, búsqueda por nombre |
 | `quickbar.js` | — | Barra de acciones rápidas para móvil (bloqueo zoom/pan, ajustes, configuración de audio, pantalla completa, **menú PiP**) |
 | `pipManager.js` | `initPipManager()`, `openPip()`, `closePip()`, `togglePip()` | Sistema de paneles flotantes (Picture-in-Picture). Permite extraer cualquier panel del layout principal a una ventana flotante independiente con zoom/scroll propios. Funciones: `openAllPips()`, `closeAllPips()`, `getOpenPips()`, `isPipped()`. Persistencia de estado (posición, tamaño, scroll) en localStorage. Constante `ALL_PANELS` define los 7 paneles disponibles |
+| `electronMenuBridge.js` | `initElectronMenuBridge()` | Puente bidireccional entre menú nativo Electron y renderer. Recibe acciones del menú, envía estado y traducciones, sincroniza toggles (telemetría, OSC, PiP, etc.) |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)
 
@@ -2280,19 +2287,27 @@ matrix.tooltip.format:
 | `npm run build:web` | Genera bundle de producción en `docs/` (sin tests) |
 | `npm run build:web:test` | Genera bundle en `docs/` (con tests) |
 | `npm run build:electron` | Build a `dist-app/` + instaladores Electron |
+| `npm run build:electron:linux` | Instaladores Linux (AppImage) |
+| `npm run build:electron:win` | Instaladores Windows (exe/NSIS) |
 | `npm run build:all` | Tests + web + instaladores Electron (Linux/Win) |
+| `npm run build:i18n` | Genera locales JS desde `translations.yaml` |
+| `npm test` | Tests unitarios (Node.js test runner) |
+| `npm run test:audio` | Tests de audio (Playwright + Chromium headless) |
+| `npm run test:all` | Todos los tests con resumen estructurado |
 
 ### Proceso de Build (`scripts/build.mjs`)
 
 El script acepta `--outdir=<path>` para cambiar la carpeta de salida (por defecto `docs/`).
 
+0. **Carga `.env`** si existe en la raíz del proyecto (parser propio, sin dependencias externas). Las variables de `process.env` tienen prioridad.
 1. Limpia directorio de salida
 2. Copia assets estáticos (HTML, manifest, SW, iconos)
 3. Bundlea JS con esbuild (ES2020, minificado)
 4. Bundlea CSS con esbuild
 5. **Copia AudioWorklets sin bundlear** (deben ser archivos separados)
 6. Inyecta versión con timestamp (`X.Y.Z-YYYYMMDD.HHmmss`) en el código
-7. Genera `build-info.json` con metadatos del build
+7. Inyecta `__TELEMETRY_URL__` desde variable de entorno (vacía = telemetría desactivada)
+8. Genera `build-info.json` con metadatos del build
 
 ### Salida
 
@@ -2740,14 +2755,20 @@ tests/
 │   ├── matrixTooltip.test.js    # Tests del sistema de tooltips
 │   ├── oscilloscopeDisplay.test.js  # Tests del display del osciloscopio
 │   ├── pinColorMenu.test.js     # Tests del menú de colores de pin
-│   └── pipManager.test.js       # Tests del sistema PiP
+│   ├── pipManager.test.js       # Tests del sistema PiP
+│   └── telemetryConsent.test.js # Tests de consentimiento de telemetría
 ├── worklets/
 │   └── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
 ├── panelBlueprints/             # Tests de blueprints de paneles
+├── electron/
+│   └── electronMenuContracts.test.js  # Tests de contratos Electron-menú (IPC, i18n, sync)
 └── utils/
     ├── constants.test.js        # Tests de constantes globales
+    ├── errorHandler.test.js     # Tests del error handler global
     ├── logger.test.js           # Tests del sistema de logging
     ├── objects.test.js          # Tests de utilidades de objetos
+    ├── telemetry.test.js        # Tests del módulo de telemetría
+    ├── telemetryEvents.test.js  # Tests de eventos instrumentados
     └── voltageConstants.test.js # Tests del sistema de voltajes
 ```
 
@@ -2802,7 +2823,7 @@ Opciones útiles:
 - `npm run test:audio:headed` ejecuta con navegador visible
 - `npm run test:audio:debug` activa modo debug del runner
 
-### Cobertura actual (~1264 casos)
+### Cobertura actual (~1900 casos)
 
 | Área | Tests | Verificaciones principales |
 |------|-------|---------------------------|
@@ -2822,6 +2843,10 @@ Opciones útiles:
 | `worklets/multichannelPlayback` | Ring buffer SharedArrayBuffer (entrada) | Frames disponibles, underflow, lectura interleaved, wrap around |
 | `worklets/*` | Procesadores DSP | Matemáticas de oscilador, formas de onda, PolyBLEP |
 | `utils/*` | Utilidades | Constantes, logging por niveles, `deepMerge()`, voltajes |
+| `utils/errorHandler` | Error handler global | Ring buffer, deduplicación, listeners, cooldown |
+| `utils/telemetry*` | Telemetría | Cola, flush, offline, rate limiting, eventos instrumentados, consentimiento |
+| `ui/telemetryConsent` | Consentimiento telemetría | setEnabled/isEnabled, persistencia, toggle |
+| `electron/*` | Contratos Electron-menú | IPC, claves i18n, sync bidireccional, canales |
 
 ### Mock de AudioContext
 
@@ -2917,12 +2942,27 @@ Guía de despliegue: [scripts/telemetry/README.md](scripts/telemetry/README.md).
 
 ### 17.5 Configuración de build
 
-```bash
-# Build con telemetría habilitada
-TELEMETRY_URL="https://script.google.com/macros/s/XXXXX/exec" npm run build:web
+La variable `__TELEMETRY_URL__` se inyecta en `scripts/build.mjs` via esbuild `define`. El build de Electron usa el mismo script, por lo que ambas plataformas comparten la misma configuración.
 
-# Build sin telemetría (por defecto)
-npm run build:web
+**Método recomendado: archivo `.env`**
+
+El script de build carga automáticamente `.env` de la raíz del proyecto (parser propio, sin dependencias externas). Copiar `.env.example` como `.env` y rellenar la URL:
+
+```dotenv
+TELEMETRY_URL=https://script.google.com/macros/s/XXXXX/exec
 ```
 
-La variable `__TELEMETRY_URL__` se inyecta en `scripts/build.mjs` via esbuild `define`. El build de Electron usa el mismo script, por lo que ambas plataformas comparten la misma configuración.
+Con `.env` configurado, todos los builds incluyen telemetría automáticamente:
+
+```bash
+npm run build:web        # Lee TELEMETRY_URL de .env
+npm run build:electron   # Idem
+```
+
+**Método alternativo: variable de entorno**
+
+```bash
+TELEMETRY_URL="https://..." npm run build:web
+```
+
+Las variables de `process.env` tienen prioridad sobre `.env`. Sin `TELEMETRY_URL`, la telemetría se desactiva silenciosamente — la app funciona igual pero no envía nada.

@@ -3950,13 +3950,13 @@ telemetry.consent.title:
   cs: "Anonymní hlášení"
 
 telemetry.consent.message:
-  en: Help improve SynthiGME by sending anonymous error and session reports. No personal data, musical content, or usage details are collected.
-  es: Ayuda a mejorar SynthiGME enviando reportes anónimos de errores y sesiones. No se recopilan datos personales, contenido musical ni detalles de uso.
-  fr: "Aidez à améliorer SynthiGME en envoyant des rapports anonymes d'erreurs et de sessions. Aucune donnée personnelle, contenu musical ou détail d'utilisation n'est collecté."
-  de: "Helfen Sie, SynthiGME zu verbessern, indem Sie anonyme Fehler- und Sitzungsberichte senden. Es werden keine persönlichen Daten, musikalische Inhalte oder Nutzungsdetails erfasst."
-  it: "Aiuta a migliorare SynthiGME inviando report anonimi di errori e sessioni. Non vengono raccolti dati personali, contenuti musicali o dettagli di utilizzo."
-  pt: "Ajude a melhorar o SynthiGME enviando relatórios anônimos de erros e sessões. Nenhum dado pessoal, conteúdo musical ou detalhe de uso é coletado."
-  cs: "Pomozte zlepšit SynthiGME zasíláním anonymních hlášení o chybách a relacích. Nejsou shromažďovány žádné osobní údaje, hudební obsah ani podrobnosti o používání."
+  en: Help improve SynthiGME by sending anonymous error and session reports. No personal data, musical content, or usage details are collected. You can change this at any time in Settings.
+  es: Ayuda a mejorar SynthiGME enviando reportes anónimos de errores y sesiones. No se recopilan datos personales, contenido musical ni detalles de uso. Puedes cambiar esto en cualquier momento en Ajustes.
+  fr: "Aidez à améliorer SynthiGME en envoyant des rapports anonymes d'erreurs et de sessions. Aucune donnée personnelle n'est collectée. Vous pouvez modifier cela à tout moment dans les Paramètres."
+  de: "Helfen Sie, SynthiGME zu verbessern, indem Sie anonyme Fehler- und Sitzungsberichte senden. Es werden keine persönlichen Daten erfasst. Sie können dies jederzeit in den Einstellungen ändern."
+  it: "Aiuta a migliorare SynthiGME inviando report anonimi di errori e sessioni. Non vengono raccolti dati personali. Puoi modificarlo in qualsiasi momento nelle Impostazioni."
+  pt: "Ajude a melhorar o SynthiGME enviando relatórios anônimos de erros e sessões. Nenhum dado pessoal é coletado. Você pode alterar isso a qualquer momento nas Configurações."
+  cs: "Pomozte zlepšit SynthiGME zasíláním anonymních hlášení o chybách a relacích. Nejsou shromažďovány žádné osobní údaje. Toto můžete kdykoli změnit v Nastavení."
 
 telemetry.consent.accept:
   en: Enable
@@ -3976,14 +3976,14 @@ telemetry.consent.decline:
   pt: "Não, obrigado"
   cs: "Ne, děkuji"
 
-telemetry.consent.remember:
-  en: Remember my choice
-  es: Recordar mi elección
-  fr: "Se souvenir de mon choix"
-  de: "Meine Wahl merken"
-  it: "Ricorda la mia scelta"
-  pt: "Lembrar minha escolha"
-  cs: "Zapamatovat moji volbu"
+menu.advanced.telemetry:
+  en: Anonymous Reports
+  es: Reportes anónimos
+  fr: "Rapports anonymes"
+  de: "Anonyme Berichte"
+  it: "Report anonimi"
+  pt: "Relatórios anônimos"
+  cs: "Anonymní hlášení"
 
 settings.telemetry:
   en: Anonymous Reports

@@ -434,10 +434,10 @@ export default {
   "pinColor.cyan": "Ciano (suave)",
   "pinColor.purple": "Roxo (sutil)",
   "telemetry.consent.title": "Relatórios anônimos",
-  "telemetry.consent.message": "Ajude a melhorar o SynthiGME enviando relatórios anônimos de erros e sessões. Nenhum dado pessoal, conteúdo musical ou detalhe de uso é coletado.",
+  "telemetry.consent.message": "Ajude a melhorar o SynthiGME enviando relatórios anônimos de erros e sessões. Nenhum dado pessoal é coletado. Você pode alterar isso a qualquer momento nas Configurações.",
   "telemetry.consent.accept": "Ativar",
   "telemetry.consent.decline": "Não, obrigado",
-  "telemetry.consent.remember": "Lembrar minha escolha",
+  "menu.advanced.telemetry": "Relatórios anônimos",
   "settings.telemetry": "Relatórios anônimos",
   "settings.telemetry.label": "Enviar relatórios anônimos",
   "settings.telemetry.description": "Envia relatórios anônimos de erros e sessões para ajudar a melhorar o SynthiGME. Nenhum dado pessoal, conteúdo musical ou detalhe de uso é coletado. Você pode alterar isso a qualquer momento."

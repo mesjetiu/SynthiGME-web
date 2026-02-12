@@ -84,7 +84,7 @@ import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
 import { initErrorHandler } from './utils/errorHandler.js';
-import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled, isEnabled as telemetryIsEnabled } from './utils/telemetry.js';
+import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
@@ -4832,11 +4832,7 @@ function hideSplashScreen() {
  * No bloquea el uso de la app.
  */
 async function showTelemetryConsentIfNeeded() {
-  // Si ya hay una elección guardada, no preguntar
-  const { skip } = ConfirmDialog.getRememberedChoice('telemetry-consent');
-  if (skip) return;
-  
-  // Si ya se configuró telemetría manualmente, no preguntar
+  // Si ya se configuró telemetría (aceptó o rechazó), no preguntar
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.TELEMETRY_ENABLED);
     if (stored !== null) return;
@@ -4849,9 +4845,7 @@ async function showTelemetryConsentIfNeeded() {
     title: t('telemetry.consent.title'),
     message: t('telemetry.consent.message'),
     confirmText: t('telemetry.consent.accept'),
-    cancelText: t('telemetry.consent.decline'),
-    rememberKey: 'telemetry-consent',
-    rememberText: t('telemetry.consent.remember')
+    cancelText: t('telemetry.consent.decline')
   });
   
   telemetrySetEnabled(result.confirmed);

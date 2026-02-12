@@ -131,18 +131,24 @@ describe('Telemetría — Consentimiento y UI (Fase 4)', () => {
     });
   });
   
-  describe('Consentimiento remembered (simulación ConfirmDialog)', () => {
+  describe('Consentimiento persistido en TELEMETRY_ENABLED', () => {
     
-    it('elección recordada en localStorage impide re-preguntar', () => {
-      // Simular que ConfirmDialog guardó la elección
-      localStorage.setItem('synthigme-confirm-telemetry-consent', 'true');
-      const stored = localStorage.getItem('synthigme-confirm-telemetry-consent');
-      assert.equal(stored, 'true', 'La elección debe estar almacenada');
+    it('elección guardada en TELEMETRY_ENABLED impide re-preguntar', () => {
+      // Simular que el usuario aceptó el consentimiento
+      setEnabled(true);
+      const stored = localStorage.getItem(STORAGE_KEYS.TELEMETRY_ENABLED);
+      assert.notEqual(stored, null, 'La elección debe estar almacenada');
     });
     
-    it('sin elección previa, no hay key en localStorage', () => {
-      const stored = localStorage.getItem('synthigme-confirm-telemetry-consent');
+    it('sin elección previa, TELEMETRY_ENABLED es null', () => {
+      const stored = localStorage.getItem(STORAGE_KEYS.TELEMETRY_ENABLED);
       assert.equal(stored, null, 'No debe haber elección previa');
+    });
+    
+    it('rechazar también persiste la elección (false)', () => {
+      setEnabled(false);
+      const stored = localStorage.getItem(STORAGE_KEYS.TELEMETRY_ENABLED);
+      assert.equal(stored, 'false', 'Rechazar debe guardar false');
     });
   });
   

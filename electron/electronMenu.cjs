@@ -70,6 +70,8 @@ let menuState = {
   softClip: true,
   pinTolerance: true,
   thermalDrift: true,
+  // Telemetría
+  telemetryEnabled: false,
   // OSC
   oscEnabled: false,
   oscSendToSC: false,
@@ -477,6 +479,17 @@ function buildMenuTemplate() {
         click: (menuItem) => {
           menuState.thermalDrift = menuItem.checked;
           sendAction('setThermalDrift', { enabled: menuItem.checked });
+        }
+      },
+      { type: 'separator' },
+      {
+        id: 'telemetryEnabled',
+        label: t('menu.advanced.telemetry', 'Anonymous Reports'),
+        type: 'checkbox',
+        checked: menuState.telemetryEnabled,
+        click: (menuItem) => {
+          menuState.telemetryEnabled = menuItem.checked;
+          sendAction('setTelemetry', { enabled: menuItem.checked });
         }
       },
       { type: 'separator' },

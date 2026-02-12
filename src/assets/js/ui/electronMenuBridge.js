@@ -49,6 +49,7 @@ const MENU_TRANSLATION_KEYS = [
   'menu.advanced.dormancy', 'menu.advanced.dormancyDebug',
   'menu.advanced.filterBypass', 'menu.advanced.filterBypassDebug',
   'menu.advanced.softClip', 'menu.advanced.pinTolerance', 'menu.advanced.thermalDrift',
+  'menu.advanced.telemetry',
   'menu.advanced.resetSynth', 'menu.advanced.settings',
   // OSC
   'menu.osc', 'menu.osc.enable', 'menu.osc.sendToSC', 'menu.osc.receiveFromSC',
@@ -105,6 +106,8 @@ function readCurrentState() {
     softClip: readBool(STORAGE_KEYS.VOLTAGE_SOFT_CLIP_ENABLED, true),
     pinTolerance: readBool(STORAGE_KEYS.VOLTAGE_PIN_TOLERANCE_ENABLED, true),
     thermalDrift: readBool(STORAGE_KEYS.VOLTAGE_THERMAL_DRIFT_ENABLED, true),
+    // Telemetría
+    telemetryEnabled: readBool(STORAGE_KEYS.TELEMETRY_ENABLED, false),
     // OSC
     oscEnabled: readBool(STORAGE_KEYS.OSC_ENABLED, false),
     oscSendToSC: readBool(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND, false),
@@ -283,6 +286,13 @@ function handleMenuAction({ action, data }) {
         detail: { enabled: data.enabled }
       }));
       break;
+    case 'setTelemetry':
+      localStorage.setItem(STORAGE_KEYS.TELEMETRY_ENABLED, String(data.enabled));
+      import('../utils/telemetry.js').then(({ setEnabled }) => setEnabled(data.enabled));
+      document.dispatchEvent(new CustomEvent('synth:telemetryEnabledChange', {
+        detail: { enabled: data.enabled }
+      }));
+      break;
     case 'resetSynth':
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
       break;
@@ -454,6 +464,7 @@ function setupStateListeners() {
     'synth:voltageSoftClipChange':     (e) => ({ softClip: e.detail?.enabled ?? true }),
     'synth:voltagePinToleranceChange': (e) => ({ pinTolerance: e.detail?.enabled ?? true }),
     'synth:voltageThermalDriftChange': (e) => ({ thermalDrift: e.detail?.enabled ?? true }),
+    'synth:telemetryEnabledChange':    (e) => ({ telemetryEnabled: e.detail?.enabled ?? false }),
     'synth:singleFingerPanChange':     (e) => ({ singleFingerPan: e.detail?.enabled ?? true }),
     'synth:multitouchControlsChange':  (e) => ({ multitouchControls: e.detail?.enabled ?? false }),
   };

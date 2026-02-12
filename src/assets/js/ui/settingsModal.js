@@ -17,7 +17,7 @@ import { ConfirmDialog } from './confirmDialog.js';
 import { STORAGE_KEYS, AUTOSAVE_INTERVALS, isMobileDevice } from '../utils/constants.js';
 import { WakeLockManager } from '../utils/wakeLock.js';
 import { showToast } from './toast.js';
-import { setEnabled as telemetrySetEnabled, isEnabled as telemetryIsEnabled } from '../utils/telemetry.js';
+import { setEnabled as telemetrySetEnabled } from '../utils/telemetry.js';
 
 /**
  * Modal de configuración general con pestañas
@@ -269,7 +269,7 @@ export class SettingsModal {
     
     // Avanzado - Telemetría
     if (this.telemetryEnabledCheckbox) {
-      this.telemetryEnabledCheckbox.checked = telemetryIsEnabled();
+      this.telemetryEnabledCheckbox.checked = readBool(STORAGE_KEYS.TELEMETRY_ENABLED, false);
     }
   }
   
@@ -2803,7 +2803,7 @@ export class SettingsModal {
     this.telemetryEnabledCheckbox.type = 'checkbox';
     this.telemetryEnabledCheckbox.id = 'telemetryEnabledCheckbox';
     this.telemetryEnabledCheckbox.className = 'settings-checkbox';
-    this.telemetryEnabledCheckbox.checked = telemetryIsEnabled();
+    this.telemetryEnabledCheckbox.checked = localStorage.getItem(STORAGE_KEYS.TELEMETRY_ENABLED) === 'true';
     
     this.telemetryEnabledLabelElement = document.createElement('label');
     this.telemetryEnabledLabelElement.className = 'settings-checkbox-label';
@@ -2811,7 +2811,11 @@ export class SettingsModal {
     this.telemetryEnabledLabelElement.textContent = t('settings.telemetry.label');
     
     this.telemetryEnabledCheckbox.addEventListener('change', () => {
-      telemetrySetEnabled(this.telemetryEnabledCheckbox.checked);
+      const enabled = this.telemetryEnabledCheckbox.checked;
+      telemetrySetEnabled(enabled);
+      document.dispatchEvent(new CustomEvent('synth:telemetryEnabledChange', {
+        detail: { enabled }
+      }));
     });
     
     row.appendChild(this.telemetryEnabledCheckbox);

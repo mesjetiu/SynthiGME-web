@@ -434,10 +434,10 @@ export default {
   "pinColor.cyan": "Cyan (soft)",
   "pinColor.purple": "Purple (subtle)",
   "telemetry.consent.title": "Anonymous Reports",
-  "telemetry.consent.message": "Help improve SynthiGME by sending anonymous error and session reports. No personal data, musical content, or usage details are collected.",
+  "telemetry.consent.message": "Help improve SynthiGME by sending anonymous error and session reports. No personal data, musical content, or usage details are collected. You can change this at any time in Settings.",
   "telemetry.consent.accept": "Enable",
   "telemetry.consent.decline": "No, thanks",
-  "telemetry.consent.remember": "Remember my choice",
+  "menu.advanced.telemetry": "Anonymous Reports",
   "settings.telemetry": "Anonymous Reports",
   "settings.telemetry.label": "Send anonymous reports",
   "settings.telemetry.description": "Sends anonymous error and session reports to help improve SynthiGME. No personal data, musical content, or usage details are collected. You can change this at any time."

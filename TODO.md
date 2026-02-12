@@ -114,11 +114,11 @@ podría ser significativo en dispositivos móviles.
 
 - Parámetros no modificables por VC pasarlos a control rate.
 - OSC: probar entre dispositivos y perfeccionarlo.
-- Corregir errores varios en todas las plataformas.
 
 ## Objetivo v0.9.0 (publicación tester)
 
 - Release con versión en web, PWA, electro (Linux y Windows)
+- Corregir errores varios en todas las plataformas.
 - Revisar README.md con créditos, info básica. Canal de Telegram.
 - Créditos de fotos de paneles (si se mantienen)
 - Reordenación de opciones en Ajustes. Intuitivo...

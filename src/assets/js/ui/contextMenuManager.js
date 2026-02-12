@@ -57,7 +57,10 @@ const ICON_RESET = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" 
  */
 function detectModule(target) {
   // Selectores de módulos conocidos (más específico primero)
-  const moduleEl = target.closest('.sgme-osc, .noise-generator, .random-voltage, .synth-module, .input-amplifiers-module');
+  // output-channel-module antes de synth-module para capturar el canal individual
+  const moduleEl = target.closest(
+    '.sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .synth-module, .input-amplifiers-module'
+  );
   if (!moduleEl) return null;
   
   const id = moduleEl.id;
@@ -82,24 +85,45 @@ function detectModule(target) {
 function detectControl(target, moduleInfo) {
   if (!moduleInfo) return null;
   
-  // Buscar el knob-shell más cercano (contiene knob + label + value)
+  const moduleEl = moduleInfo.element;
+  
+  // ── Output channel: detectar slider, knob-wrap o switch ──
+  if (moduleEl.classList.contains('output-channel-module')) {
+    // Slider (fader de nivel)
+    const sliderWrap = target.closest('.output-channel__slider-wrap');
+    if (sliderWrap) {
+      return { label: 'Level', knobIndex: -1, controlType: 'slider', moduleId: moduleInfo.id };
+    }
+    // Knobs (filter, pan) dentro de output-channel__knob-wrap
+    const knobWrap = target.closest('.output-channel__knob-wrap');
+    if (knobWrap) {
+      const knobName = knobWrap.dataset.knob; // 'filter' o 'pan'
+      const label = knobName ? knobName.charAt(0).toUpperCase() + knobName.slice(1) : 'Knob';
+      return { label, knobIndex: -1, controlType: 'knob', controlKey: knobName, moduleId: moduleInfo.id };
+    }
+    // Switch on/off
+    const switchWrap = target.closest('.output-channel__switch-wrap');
+    if (switchWrap) {
+      return { label: 'Power', knobIndex: -1, controlType: 'switch', moduleId: moduleInfo.id };
+    }
+    return null;
+  }
+  
+  // ── Osciladores: knobs en array por índice ──
+  // Buscar el knob-shell más cercano
   const shellSelectors = '.sgme-osc__knob-shell, .noise-generator__knob-shell, .random-voltage__knob-shell';
   const shell = target.closest(shellSelectors) || target.closest('[class*="__knob-shell"]');
   if (!shell) return null;
   
-  // Para osciladores: los knobs están en un array, usar índice
-  const moduleEl = moduleInfo.element;
   const isOscillator = moduleEl.classList.contains('sgme-osc');
   
   if (isOscillator) {
-    // Buscar el label en la fila de labels (posición del shell = índice)
     const shellsContainer = moduleEl.querySelector('.sgme-osc__knobs');
     if (!shellsContainer) return null;
     const allShells = Array.from(shellsContainer.children);
     const knobIndex = allShells.indexOf(shell);
     if (knobIndex < 0) return null;
     
-    // El label del oscilador está en la fila de labels (sgme-osc__labels)
     const labelsRow = moduleEl.querySelector('.sgme-osc__labels');
     const labelSpans = labelsRow ? Array.from(labelsRow.children) : [];
     const label = labelSpans[knobIndex]?.textContent?.trim() || `Knob ${knobIndex + 1}`;
@@ -107,11 +131,10 @@ function detectControl(target, moduleInfo) {
     return { label, knobIndex, moduleId: moduleInfo.id };
   }
   
-  // Para ModuleUI (noise, random voltage, etc.): buscar el label dentro del shell
+  // ── ModuleUI (noise, random voltage, etc.): knobs por clave ──
   const labelEl = shell.querySelector('[class*="__knob-label"]');
   const label = labelEl?.textContent?.trim() || '';
   
-  // Calcular índice: buscar entre hermanos
   const knobsRow = shell.parentElement;
   const allShells = knobsRow ? Array.from(knobsRow.children).filter(
     el => el.classList.contains(`${moduleEl.className.split(' ')[0]}__knob-shell`) || 
@@ -210,6 +233,8 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
           panelId, 
           moduleId: controlInfo.moduleId, 
           knobIndex: controlInfo.knobIndex,
+          controlType: controlInfo.controlType,
+          controlKey: controlInfo.controlKey,
           controlLabel: controlInfo.label 
         });
       }

@@ -341,11 +341,12 @@ export class Knob {
     this._setModifierVisual('none');
     
     // ─────────────────────────────────────────────────────────────────────
-    // Prevenir menú contextual (por ahora no tiene opciones específicas)
+    // Prevenir menú contextual nativo del navegador pero permitir propagación
+    // para que el contextMenuManager del panel reciba el evento.
     // ─────────────────────────────────────────────────────────────────────
     this.rootEl.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      e.stopPropagation();
+      // NO stopPropagation: el evento debe burbujear al panel
     });
     
     // ─────────────────────────────────────────────────────────────────────

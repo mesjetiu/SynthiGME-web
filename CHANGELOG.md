@@ -19,6 +19,9 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Corregido
 - **Reinicio global usaba valores hardcoded incorrectos**: `_resetToDefaults()` reseteaba el colour del ruido a 0 (LP oscuro) en vez de 5 (white noise), la frecuencia del oscilador a 0 en vez de 5 (Do central), y el mean/key del Random Voltage a 0.5 en vez de 0. Ahora lee los valores iniciales directamente de los configs de módulos, eliminando la duplicación. Añadido `switches.range.initial` al config del oscilador.
+- **Menú contextual: knobs bloqueaban clic derecho**: Los knobs hacían `stopPropagation()` en el evento contextmenu, impidiendo que el menú contextual apareciera sobre ellos. Corregido para que el evento burbujee al panel.
+- **Menú contextual: no detectaba controles individuales**: Ahora detecta knobs, sliders y switches en output channels, además de los knob-shells de osciladores y módulos genéricos (noise, random voltage).
+- **Menú contextual: reiniciar output channel reseteaba los 8 canales**: `_findModuleById` no resolvía output channels individuales. Ahora usa el ID del DOM (`output-channel-N`) para localizar el canal específico y resetearlo sin afectar a los demás.
 
 ### Añadido
 - **Opciones de interacción táctil**: Dos nuevos ajustes en Ajustes > Visualización, menú Paneles de Electron y electronMenuBridge. *Pan con un dedo* (activado por defecto): permite arrastrar el canvas tocando el fondo con un dedo. *Controles multitáctil* (desactivado por defecto): permite mover varios knobs/faders simultáneamente; al desactivarlo, dos dedos en pantalla siempre activan zoom/pan y bloquean los controles, evitando cambios accidentales.

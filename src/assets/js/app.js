@@ -1119,11 +1119,12 @@ class App {
     if (this._inputAmplifierUIs[moduleId]) {
       return { type: 'inputAmplifiers', ui: this._inputAmplifierUIs[moduleId] };
     }
-    // Output channels (el ID del DOM puede variar; intentar coincidencia parcial)
-    if (this._outputFadersModule) {
-      const outEl = this._outputFadersModule.element || document.getElementById(moduleId);
-      if (outEl && moduleId === outEl.id) {
-        return { type: 'outputChannels', ui: this._outputFadersModule };
+    // Output channel individual (ID: output-channel-1..8)
+    if (this._outputFadersModule && moduleId.startsWith('output-channel-')) {
+      const idx = parseInt(moduleId.replace('output-channel-', ''), 10) - 1;
+      const channel = this._outputFadersModule.getChannel(idx);
+      if (channel) {
+        return { type: 'outputChannel', ui: channel };
       }
     }
     return null;
@@ -1154,6 +1155,12 @@ class App {
       case 'outputChannels':
         ui.deserialize(defaults.outputChannels);
         break;
+      case 'outputChannel': {
+        // Canal individual: construir defaults de un solo canal
+        const singleChDefaults = defaults.outputChannels.channels[0];
+        ui.deserialize(singleChDefaults);
+        break;
+      }
       case 'matrixAudio':
         ui.deserialize({ connections: [] });
         break;
@@ -1164,24 +1171,45 @@ class App {
   }
   
   /**
-   * Reinicia un control individual (knob) a su valor por defecto.
+   * Reinicia un control individual (knob, slider o switch) a su valor por defecto.
    * @param {string} moduleId - ID del módulo
-   * @param {number} knobIndex - Índice del knob en el módulo
+   * @param {number} knobIndex - Índice del knob en el módulo (-1 para output channels)
+   * @param {Object} [extra] - Info adicional (controlType, controlKey para output channels)
    */
-  _resetControl(moduleId, knobIndex) {
+  _resetControl(moduleId, knobIndex, extra = {}) {
     const found = this._findModuleById(moduleId);
     if (!found) return;
     
     const { type, ui } = found;
+    const { controlType, controlKey } = extra;
     
+    // Output channel individual: manejar slider, knobs y switch
+    if (type === 'outputChannel') {
+      const defaults = this._defaultValues;
+      const chDefaults = defaults.outputChannels.channels[0];
+      
+      if (controlType === 'slider') {
+        ui.deserialize({ level: chDefaults.level });
+      } else if (controlType === 'knob' && controlKey) {
+        // filter o pan
+        ui.deserialize({ [controlKey]: chDefaults[controlKey] });
+      } else if (controlType === 'switch') {
+        ui.deserialize({ power: chDefaults.power });
+      }
+      return;
+    }
+    
+    // Oscilador: knobs en array
     if (type === 'oscillator') {
-      // SGME_Oscillator: knobs es un array
       const knob = ui.knobs[knobIndex];
       if (knob && typeof knob.resetToDefault === 'function') {
         knob.resetToDefault();
       }
-    } else if (ui.knobs && typeof ui.knobs === 'object') {
-      // ModuleUI: knobs es un objeto keyed
+      return;
+    }
+    
+    // ModuleUI (noise, random voltage, etc.): knobs es un objeto keyed
+    if (ui.knobs && typeof ui.knobs === 'object') {
       const knobKeys = Object.keys(ui.knobs);
       const key = knobKeys[knobIndex];
       if (key && ui.knobs[key] && typeof ui.knobs[key].resetToDefault === 'function') {
@@ -1199,9 +1227,9 @@ class App {
    * @param {number} [detail.knobIndex] - Índice del knob (para control)
    */
   _handleContextReset(detail) {
-    const { level, panelId, moduleId, knobIndex } = detail;
+    const { level, panelId, moduleId, knobIndex, controlType, controlKey } = detail;
     
-    log.info(`Context reset: level=${level}, panel=${panelId}, module=${moduleId}, knob=${knobIndex}`);
+    log.info(`Context reset: level=${level}, panel=${panelId}, module=${moduleId}, knob=${knobIndex}, controlType=${controlType}`);
     
     // Deshabilitar tracking de cambios durante el reset
     sessionManager.applyingPatch(true);
@@ -1223,7 +1251,7 @@ class App {
           break;
         }
         case 'control': {
-          this._resetControl(moduleId, knobIndex);
+          this._resetControl(moduleId, knobIndex, { controlType, controlKey });
           break;
         }
       }

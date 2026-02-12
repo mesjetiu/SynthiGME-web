@@ -186,13 +186,13 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   if (isPipped) {
     menu.appendChild(createMenuItem(
       ICON_ATTACH,
-      t('pip.attach', 'Devolver panel'),
+      t('pip.attach'),
       () => { hideContextMenu(); onAttach?.(panelId); }
     ));
   } else {
     menu.appendChild(createMenuItem(
       ICON_DETACH,
-      t('pip.detach', 'Extraer panel'),
+      t('pip.detach'),
       () => { hideContextMenu(); onDetach?.(panelId); }
     ));
   }
@@ -203,7 +203,7 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   // ── Opción 2: Reiniciar panel ──
   menu.appendChild(createMenuItem(
     ICON_RESET,
-    t('contextMenu.resetPanel', 'Reiniciar panel'),
+    t('contextMenu.resetPanel'),
     () => {
       hideContextMenu();
       dispatchReset('panel', { panelId });
@@ -214,7 +214,7 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   if (moduleInfo) {
     menu.appendChild(createMenuItem(
       ICON_RESET,
-      t('contextMenu.resetModule', 'Reiniciar {name}', { name: moduleInfo.name }),
+      t('contextMenu.resetModule', { name: moduleInfo.name }),
       () => {
         hideContextMenu();
         dispatchReset('module', { panelId, moduleId: moduleInfo.id, moduleName: moduleInfo.name });
@@ -226,7 +226,7 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   if (controlInfo && controlInfo.label) {
     menu.appendChild(createMenuItem(
       ICON_RESET,
-      t('contextMenu.resetControl', 'Reiniciar {name}', { name: controlInfo.label }),
+      t('contextMenu.resetControl', { name: controlInfo.label }),
       () => {
         hideContextMenu();
         dispatchReset('control', { 

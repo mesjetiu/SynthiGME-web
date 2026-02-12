@@ -22,6 +22,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Menú contextual: knobs bloqueaban clic derecho**: Los knobs hacían `stopPropagation()` en el evento contextmenu, impidiendo que el menú contextual apareciera sobre ellos. Corregido para que el evento burbujee al panel.
 - **Menú contextual: no detectaba controles individuales**: Ahora detecta knobs, sliders y switches en output channels, además de los knob-shells de osciladores y módulos genéricos (noise, random voltage).
 - **Menú contextual: reiniciar output channel reseteaba los 8 canales**: `_findModuleById` no resolvía output channels individuales. Ahora usa el ID del DOM (`output-channel-N`) para localizar el canal específico y resetearlo sin afectar a los demás.
+- **Menú contextual: nombres mostraban `{name}` literal**: Las llamadas a `t()` usaban firma incorrecta `t(key, fallback, params)` cuando la función solo acepta `t(key, params)`. El objeto con el nombre se descartaba y el placeholder no se interpolaba.
 
 ### Añadido
 - **Opciones de interacción táctil**: Dos nuevos ajustes en Ajustes > Visualización, menú Paneles de Electron y electronMenuBridge. *Pan con un dedo* (activado por defecto): permite arrastrar el canvas tocando el fondo con un dedo. *Controles multitáctil* (desactivado por defecto): permite mover varios knobs/faders simultáneamente; al desactivarlo, dos dedos en pantalla siempre activan zoom/pan y bloquean los controles, evitando cambios accidentales.

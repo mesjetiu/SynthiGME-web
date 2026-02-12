@@ -110,6 +110,38 @@ function detectBrowser() {
   return 'other';
 }
 
+/** Timestamp de inicio de sesión (para calcular uptime) */
+const SESSION_START_TIME = Date.now();
+
+/**
+ * Recopila contexto técnico del entorno (sin datos personales).
+ * @returns {Object}
+ */
+function getContext() {
+  const ctx = {};
+  try {
+    // Resolución de pantalla
+    if (typeof screen !== 'undefined') {
+      ctx.screen = `${screen.width}x${screen.height}`;
+    }
+    // Idioma de la app
+    ctx.lang = localStorage.getItem(STORAGE_KEYS.LANGUAGE) || navigator?.language || 'unknown';
+    // Modo de salida de audio
+    ctx.outputMode = localStorage.getItem(STORAGE_KEYS.OUTPUT_MODE) || 'stereo';
+    // Estado del AudioContext y sample rate
+    const ac = window._synthApp?.engine?.audioContext;
+    if (ac) {
+      ctx.audioState = ac.state;       // 'running', 'suspended', 'closed'
+      ctx.sampleRate = ac.sampleRate;  // 44100, 48000, etc.
+    }
+    // Uptime en segundos desde init
+    ctx.uptime = Math.round((Date.now() - SESSION_START_TIME) / 1000);
+  } catch {
+    // Mejor esfuerzo — no romper si algo falla
+  }
+  return ctx;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ID anónimo
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,6 +259,7 @@ function buildPayload(type, data = {}) {
     browser: detectBrowser(),
     type,
     data,
+    ctx: getContext(),
     ts: Date.now()
   };
 }
@@ -334,9 +367,10 @@ export function trackError(errorEntry) {
     message: errorEntry.message,
     type: errorEntry.type,
     source: errorEntry.source || '',
-    // No enviar stack completo (puede contener paths del usuario)
-    // Solo las primeras 2 líneas del stack para contexto
-    stack: (errorEntry.stack || '').split('\n').slice(0, 2).join('\n')
+    line: errorEntry.line || 0,
+    col: errorEntry.col || 0,
+    stack: errorEntry.stack || '',
+    errorCount: autoErrorCount  // ¿error aislado o cascada?
   });
 }
 

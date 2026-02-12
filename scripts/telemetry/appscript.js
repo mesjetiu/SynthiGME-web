@@ -106,7 +106,9 @@ function insertRow(config, event) {
     // Cabeceras
     sheet.appendRow([
       'Fecha', 'Hora', 'ID', 'Version', 'Entorno', 'SO', 'Navegador',
-      'Evento', 'Datos'
+      'Evento',
+      'Pantalla', 'Idioma', 'Audio', 'SampleRate', 'Salida', 'Uptime(s)',
+      'Datos'
     ]);
     sheet.setFrozenRows(1);
   }
@@ -115,6 +117,7 @@ function insertRow(config, event) {
   const tz = Session.getScriptTimeZone();
   const dateStr = Utilities.formatDate(date, tz, 'yyyy-MM-dd');
   const timeStr = Utilities.formatDate(date, tz, 'HH:mm:ss');
+  const ctx = event.ctx || {};
   const dataStr = event.data ? JSON.stringify(event.data) : '';
 
   sheet.appendRow([
@@ -126,6 +129,12 @@ function insertRow(config, event) {
     event.os || '',
     event.browser || '',
     event.type || '',
+    ctx.screen || '',
+    ctx.lang || '',
+    ctx.audioState || '',
+    ctx.sampleRate || '',
+    ctx.outputMode || '',
+    ctx.uptime != null ? ctx.uptime : '',
     dataStr
   ]);
 }
@@ -165,12 +174,16 @@ function sendTelegramAlert(config, event) {
 
   const emoji = event.type === 'error' ? '🔴' : '⚠️';
   const dataMsg = event.data?.message || JSON.stringify(event.data || {});
+  const ctx = event.ctx || {};
+  const stack = event.data?.stack ? `\nStack: \`${escapeMarkdown(event.data.stack.substring(0, 300))}\`` : '';
 
   const text = [
     `${emoji} *SynthiGME ${event.type}*`,
     `Version: \`${event.v || '?'}\``,
     `Env: ${event.env || '?'} / ${event.os || '?'} / ${event.browser || '?'}`,
-    `Message: ${escapeMarkdown(dataMsg)}`,
+    `Audio: ${ctx.audioState || '?'} @ ${ctx.sampleRate || '?'}Hz / ${ctx.outputMode || '?'}`,
+    `Screen: ${ctx.screen || '?'} / Lang: ${ctx.lang || '?'} / Uptime: ${ctx.uptime != null ? ctx.uptime + 's' : '?'}`,
+    `Message: ${escapeMarkdown(dataMsg)}${stack}`,
     `Time: ${new Date(event.ts).toISOString()}`
   ].join('\n');
 

@@ -191,7 +191,20 @@ export const STORAGE_KEYS = {
   OSC_SUPERCOLLIDER_RECEIVE: `${STORAGE_PREFIX}osc-supercollider-receive`,
   
   /** Mostrar ventana de log OSC */
-  OSC_LOG_VISIBLE: `${STORAGE_PREFIX}osc-log-visible`
+  OSC_LOG_VISIBLE: `${STORAGE_PREFIX}osc-log-visible`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Telemetría anónima
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Consentimiento de telemetría (true/false) */
+  TELEMETRY_ENABLED: `${STORAGE_PREFIX}telemetry-enabled`,
+  
+  /** ID anónimo persistente (UUID) */
+  TELEMETRY_ID: `${STORAGE_PREFIX}telemetry-id`,
+  
+  /** Cola de eventos offline (JSON array) */
+  TELEMETRY_QUEUE: `${STORAGE_PREFIX}telemetry-queue`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -121,7 +121,8 @@ async function buildJs(cacheVersion) {
     outdir: path.join(outDir, 'assets/js'),
     define: {
       __BUILD_VERSION__: JSON.stringify(cacheVersion),
-      __LOG_LEVEL__: '1' // LogLevel.ERROR en producción
+      __LOG_LEVEL__: '1', // LogLevel.ERROR en producción
+      __TELEMETRY_URL__: JSON.stringify(process.env.TELEMETRY_URL || '')
     }
   });
 }

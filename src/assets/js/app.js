@@ -84,6 +84,7 @@ import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
 import { initErrorHandler } from './utils/errorHandler.js';
+import { init as initTelemetry, trackEvent as telemetryTrackEvent } from './utils/telemetry.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
@@ -1003,7 +1004,7 @@ class App {
       document.dispatchEvent(new CustomEvent('synth:recordingChanged', {
         detail: { recording: true }
       }));
-      showToast(t('toast.recordingStarted'));
+      showToast(t('toast.recordingStarted'), { level: 'success' });
     };
     
     this._recordingEngine.onRecordingStop = (filename) => {
@@ -1011,9 +1012,9 @@ class App {
         detail: { recording: false }
       }));
       if (filename) {
-        showToast(t('toast.recordingSaved', { filename }));
+        showToast(t('toast.recordingSaved', { filename }), { level: 'success' });
       } else {
-        showToast(t('toast.recordingEmpty'));
+        showToast(t('toast.recordingEmpty'), { level: 'warning' });
       }
     };
     
@@ -1024,7 +1025,7 @@ class App {
         await this._recordingEngine.toggle();
       } catch (e) {
         log.error(' Recording error:', e);
-        showToast(t('toast.recordingError'));
+        showToast(t('toast.recordingError'), { level: 'error' });
       }
     });
     
@@ -1116,7 +1117,7 @@ class App {
         const success = await oscBridge.start();
         if (!success) {
           // Si falla, no cambiar estado y mostrar error
-          showToast(t('quickbar.oscError', 'Error al activar OSC'));
+          showToast(t('quickbar.oscError', 'Error al activar OSC'), { level: 'error' });
           return;
         }
         this._oscEnabled = true;
@@ -1240,23 +1241,28 @@ class App {
    * Espera a que el worklet esté listo antes de restaurar.
    */
   async triggerRestoreLastState() {
-    // Esperar a que el worklet esté listo antes de restaurar el patch
-    // Esto es crucial para móviles donde la carga puede tardar más
-    await this.ensureAudio();
-    
-    if (this.settingsModal.getRestoreOnStart()) {
-      sessionManager.maybeRestoreLastState({
-        getAskBeforeRestore: () => this.settingsModal.getAskBeforeRestore(),
-        setAskBeforeRestore: (v) => this.settingsModal.setAskBeforeRestore(v),
-        getRememberedChoice: (key) => ConfirmDialog.getRememberedChoice(key),
-        showConfirmDialog: () => ConfirmDialog.show({
-          title: t('patches.lastSession'),
-          confirmText: t('patches.lastSession.yes'),
-          cancelText: t('patches.lastSession.no'),
-          rememberKey: 'restore-last-session',
-          rememberText: t('patches.lastSession.remember')
-        })
-      });
+    try {
+      // Esperar a que el worklet esté listo antes de restaurar el patch
+      // Esto es crucial para móviles donde la carga puede tardar más
+      await this.ensureAudio();
+      
+      if (this.settingsModal.getRestoreOnStart()) {
+        sessionManager.maybeRestoreLastState({
+          getAskBeforeRestore: () => this.settingsModal.getAskBeforeRestore(),
+          setAskBeforeRestore: (v) => this.settingsModal.setAskBeforeRestore(v),
+          getRememberedChoice: (key) => ConfirmDialog.getRememberedChoice(key),
+          showConfirmDialog: () => ConfirmDialog.show({
+            title: t('patches.lastSession'),
+            confirmText: t('patches.lastSession.yes'),
+            cancelText: t('patches.lastSession.no'),
+            rememberKey: 'restore-last-session',
+            rememberText: t('patches.lastSession.remember')
+          })
+        });
+      }
+    } catch (err) {
+      log.error('Error al restaurar estado previo:', err);
+      showToast(t('toast.restoreError', 'Error al restaurar estado previo'), { level: 'error', duration: 3000 });
     }
   }
 
@@ -4820,6 +4826,9 @@ function hideSplashScreen() {
 // ─── Instalar handlers globales de errores lo antes posible ───
 initErrorHandler();
 
+// ─── Inicializar telemetría (solo si el usuario dio consentimiento) ───
+initTelemetry();
+
 window.addEventListener('DOMContentLoaded', async () => {
   const splashStartTime = Date.now();
   
@@ -4844,7 +4853,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (window._synthApp && window._synthApp.ensureAudio) {
       window._synthApp.ensureAudio().catch((err) => {
         log.error('Error al inicializar audio:', err);
-        showToast('Error al inicializar audio. Recarga la página.');
+        showToast('Error al inicializar audio. Recarga la página.', { level: 'error', duration: 5000 });
       });
     }
     
@@ -4879,11 +4888,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Inicializar puente de menú Electron (traducciones, estado, acciones IPC)
     // Solo se activa si estamos en Electron (window.menuAPI existe)
     initElectronMenuBridge();
+    
+    // Registrar inicio de sesión para telemetría (solo si hay consentimiento)
+    telemetryTrackEvent('session_start');
   } catch (err) {
     // ─── Error crítico en bootstrap: mostrar mensaje y ocultar splash ───
     log.error('Error crítico durante la inicialización:', err);
     try {
-      showToast('Error crítico al iniciar la aplicación. Recarga la página.');
+      showToast('Error crítico al iniciar la aplicación. Recarga la página.', { level: 'error', duration: 10000 });
     } catch (_) {
       // Fallback: si ni el toast funciona, inyectar directamente en el DOM
       const msg = document.createElement('div');

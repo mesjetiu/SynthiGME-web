@@ -86,7 +86,7 @@ function startServer(docsPath) {
           'Expires': '0',
           'Cross-Origin-Opener-Policy': 'same-origin',
           'Cross-Origin-Embedder-Policy': 'require-corp',
-          'Content-Security-Policy': "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss:; font-src 'self' data:"
+          'Content-Security-Policy': "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss: https://script.google.com https://script.googleusercontent.com; font-src 'self' data:"
         });
         res.end(content);
       } catch (err) {

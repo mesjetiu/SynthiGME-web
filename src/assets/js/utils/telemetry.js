@@ -351,8 +351,18 @@ export function init() {
 
   initialized = true;
 
-  // Registrar inicio de sesión (siempre es el primer evento)
-  trackEvent('session_start');
+  // Registrar inicio de sesión UNA vez por sesión de pestaña.
+  // sessionStorage sobrevive a reloads (ej. controllerchange del SW)
+  // pero se limpia al cerrar pestaña → semántica correcta de "sesión".
+  try {
+    if (!sessionStorage.getItem('telemetry_session_started')) {
+      trackEvent('session_start');
+      sessionStorage.setItem('telemetry_session_started', '1');
+    }
+  } catch {
+    // sessionStorage no disponible: enviar siempre (peor caso: duplicado)
+    trackEvent('session_start');
+  }
 
   // Flush inicial tras breve delay (no esperar los 30s del intervalo)
   setTimeout(() => flush().catch(() => {}), 3000);

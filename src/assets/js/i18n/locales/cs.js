@@ -312,6 +312,7 @@ export default {
   "menu.audio.record": "Nahrávat",
   "menu.audio.stopRecording": "Zastavit nahrávání",
   "menu.audio.audioSettings": "Nastavení zvuku a nahrávání…",
+  "menu.audio.preventSleep": "Zabránit uspání systému",
   "menu.panels": "Panely",
   "menu.panels.detachHeader": "Odpojit panely",
   "menu.panels.detachAll": "Odpojit vše",

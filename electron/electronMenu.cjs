@@ -71,6 +71,8 @@ let menuState = {
   softClip: true,
   pinTolerance: true,
   thermalDrift: true,
+  // Energía
+  preventSleep: true,
   // Telemetría
   telemetryEnabled: false,
   // OSC
@@ -350,6 +352,17 @@ function buildMenuTemplate() {
           ? t('menu.audio.stopRecording', 'Stop Recording')
           : t('menu.audio.record', 'Record'),
         click: () => sendAction('toggleRecording')
+      },
+      { type: 'separator' },
+      {
+        id: 'preventSleep',
+        label: t('menu.audio.preventSleep', 'Prevent system sleep'),
+        type: 'checkbox',
+        checked: menuState.preventSleep,
+        click: (menuItem) => {
+          menuState.preventSleep = menuItem.checked;
+          sendAction('setPreventSleep', { enabled: menuItem.checked });
+        }
       },
       { type: 'separator' },
       {

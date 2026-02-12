@@ -312,6 +312,7 @@ export default {
   "menu.audio.record": "Gravar",
   "menu.audio.stopRecording": "Parar gravação",
   "menu.audio.audioSettings": "Configurações de áudio e gravação…",
+  "menu.audio.preventSleep": "Impedir suspensão do sistema",
   "menu.panels": "Painéis",
   "menu.panels.detachHeader": "Separar painéis",
   "menu.panels.detachAll": "Desanexar tudo",

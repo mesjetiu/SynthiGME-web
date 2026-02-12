@@ -2815,6 +2815,15 @@ menu.audio.audioSettings:
   pt: "Configurações de áudio e gravação…"
   cs: "Nastavení zvuku a nahrávání…"
 
+menu.audio.preventSleep:
+  en: Prevent system sleep
+  es: Impedir suspensión del sistema
+  fr: "Empêcher la mise en veille"
+  de: "Systemruhezustand verhindern"
+  it: "Impedisci sospensione del sistema"
+  pt: "Impedir suspensão do sistema"
+  cs: "Zabránit uspání systému"
+
 # ─── Paneles ───
 menu.panels:
   en: Panels

@@ -237,6 +237,13 @@ class App {
         
         // Esperar a que el worklet esté listo (crucial para móviles)
         await this.engine.ensureWorkletReady();
+
+        // Prevenir suspensión del sistema mientras hay audio activo (Electron)
+        // Respeta la preferencia del usuario (misma que Wake Lock web)
+        const sleepPref = localStorage.getItem(STORAGE_KEYS.WAKE_LOCK_ENABLED);
+        if (sleepPref === null || sleepPref === 'true') {
+          window.powerAPI?.preventSleep();
+        }
         
         // Activar multicanal si estaba guardado (necesita AudioContext listo)
         await this._restoreMultichannelIfSaved();
@@ -1345,9 +1352,15 @@ class App {
       onWakeLockChange: (enabled) => {
         if (enabled) {
           this.wakeLockManager.enable();
+          window.powerAPI?.preventSleep();
         } else {
           this.wakeLockManager.disable();
+          window.powerAPI?.allowSleep();
         }
+        // Notificar al menú Electron del cambio
+        document.dispatchEvent(new CustomEvent('synth:wakeLockChange', {
+          detail: { enabled }
+        }));
         log.info(` Wake lock ${enabled ? 'enabled' : 'disabled'}`);
       },
       // Referencias a modales para integración en pestañas

@@ -41,6 +41,7 @@ const MENU_TRANSLATION_KEYS = [
   // Audio
   'menu.audio', 'menu.audio.mute', 'menu.audio.unmute',
   'menu.audio.record', 'menu.audio.stopRecording',
+  'menu.audio.preventSleep',
   'menu.audio.audioSettings',
   // Paneles
   'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
@@ -99,6 +100,8 @@ function readCurrentState() {
     singleFingerPan: readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true),
     multitouchControls: readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false),
     pipPanels,
+    // Energía
+    preventSleep: readBool(STORAGE_KEYS.WAKE_LOCK_ENABLED, true),
     // Avanzado
     debugGlobal: readBool(STORAGE_KEYS.OPTIMIZATIONS_DEBUG, false),
     dormancy: readBool(STORAGE_KEYS.DORMANCY_ENABLED, true),
@@ -205,6 +208,14 @@ function handleMenuAction({ action, data }) {
       break;
     case 'toggleRecording':
       document.dispatchEvent(new CustomEvent('synth:toggleRecording'));
+      break;
+
+    // ─── Energía ───
+    case 'setPreventSleep':
+      localStorage.setItem(STORAGE_KEYS.WAKE_LOCK_ENABLED, String(data.enabled));
+      document.dispatchEvent(new CustomEvent('synth:wakeLockChange', {
+        detail: { enabled: data.enabled }
+      }));
       break;
 
     // ─── Paneles ───
@@ -469,6 +480,7 @@ function setupStateListeners() {
     'synth:telemetryEnabledChange':    (e) => ({ telemetryEnabled: e.detail?.enabled ?? false }),
     'synth:singleFingerPanChange':     (e) => ({ singleFingerPan: e.detail?.enabled ?? true }),
     'synth:multitouchControlsChange':  (e) => ({ multitouchControls: e.detail?.enabled ?? false }),
+    'synth:wakeLockChange':            (e) => ({ preventSleep: e.detail?.enabled ?? true }),
   };
   for (const [eventName, extractor] of Object.entries(specificEventMap)) {
     document.addEventListener(eventName, (e) => syncState(extractor(e)));

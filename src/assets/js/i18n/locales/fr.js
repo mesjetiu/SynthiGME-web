@@ -312,6 +312,7 @@ export default {
   "menu.audio.record": "Enregistrer",
   "menu.audio.stopRecording": "Arrêter l'enregistrement",
   "menu.audio.audioSettings": "Paramètres audio et enregistrement…",
+  "menu.audio.preventSleep": "Empêcher la mise en veille",
   "menu.panels": "Panneaux",
   "menu.panels.detachHeader": "Détacher les panneaux",
   "menu.panels.detachAll": "Détacher tout",

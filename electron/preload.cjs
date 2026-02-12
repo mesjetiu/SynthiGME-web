@@ -59,6 +59,16 @@ window.menuAPI = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// API de gestión de energía (prevención de suspensión del sistema)
+// ─────────────────────────────────────────────────────────────────────────────
+window.powerAPI = {
+  /** Bloquea suspensión del sistema (llamar al iniciar audio) */
+  preventSleep: () => ipcRenderer.invoke('power:preventSleep'),
+  /** Permite suspensión del sistema (se limpia automáticamente al cerrar) */
+  allowSleep: () => ipcRenderer.invoke('power:allowSleep')
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // API OSC para comunicación peer-to-peer
 // ─────────────────────────────────────────────────────────────────────────────
 window.oscAPI = {

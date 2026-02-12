@@ -7,6 +7,10 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **Electron: prevención de suspensión del sistema**: Checkbox en menú Audio y sincronizado con la opción Wake Lock de Ajustes > General. Activado por defecto. Usa `powerSaveBlocker` de Electron (suspensión del sistema) + Wake Lock API web (pantalla) bajo una misma preferencia. Se activa al arrancar audio si la preferencia está habilitada. Traducciones en 7 idiomas.
+- **Electron: atajo global Ctrl+Shift+M para silenciar**: Funciona incluso sin foco de la app, útil en actuaciones en directo. Usa `globalShortcut` de Electron, reutiliza el pipeline existente del menú (`menu:action` → `toggleMute`).
+
 ### Cambiado
 - **Reorganización de Ajustes y menú Electron**: Pestañas de ajustes reducidas de 7 a 6 con agrupación coherente por dominio. Pestaña "Visualización" renombrada a "Interfaz" (incluye ahora atajos de teclado). Pestaña "Grabación" eliminada, su contenido fusionado en "Audio". Secciones Actualizaciones y Telemetría movidas de Avanzado a General. Pestaña Avanzado queda solo con optimización, emulación de voltaje y restaurar ajustes. En Electron: nuevo menú "Preferencias" con idioma, opciones de visualización y opciones táctiles; menú "Ver" simplificado a solo controles de ventana; menú "Audio" unificado con un solo enlace a ajustes; menú "Paneles" limpiado de opciones táctiles. Traducciones actualizadas en 7 idiomas.
 - **Título de ruteo de grabación clarificado**: "Ruteo de salidas" renombrado a "Ruteo de pistas de grabación" para evitar confusión con salida de audio.

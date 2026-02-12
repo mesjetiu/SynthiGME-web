@@ -6,7 +6,7 @@
  * de Web Audio API y AudioWorklet.
  */
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, powerSaveBlocker, globalShortcut } = require('electron');
 const path = require('path');
 const { createServer } = require('http');
 const { readFileSync, existsSync, statSync } = require('fs');
@@ -36,6 +36,7 @@ app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer');
 let mainWindow = null;
 let server = null;
 let oscServer = null;
+let powerBlockerId = null;
 
 // Tipos MIME para archivos estáticos
 const mimeTypes = {
@@ -280,6 +281,31 @@ ipcMain.on('menu:syncTranslations', (event, translations) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Prevención de suspensión del sistema
+// Bloquea apagado de pantalla y suspensión mientras el motor de audio está activo.
+// El renderer activa/desactiva al iniciar/detener el audio.
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('power:preventSleep', () => {
+  if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
+    return { success: true, alreadyActive: true };
+  }
+  powerBlockerId = powerSaveBlocker.start('prevent-display-sleep');
+  console.log('[Power] Sleep prevention activated (id:', powerBlockerId, ')');
+  return { success: true };
+});
+
+ipcMain.handle('power:allowSleep', () => {
+  if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
+    powerSaveBlocker.stop(powerBlockerId);
+    console.log('[Power] Sleep prevention deactivated');
+    powerBlockerId = null;
+    return { success: true };
+  }
+  return { success: true, alreadyInactive: true };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Configuración OSC
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -430,6 +456,18 @@ app.whenReady().then(() => {
   // Inicializar servidor OSC (no iniciado hasta que el usuario lo active)
   initOSCServer();
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Atajos de teclado globales (funcionan sin foco de la app)
+  // Útiles durante actuaciones en directo cuando se usa otra aplicación.
+  // Ctrl+Shift+M: silenciar/desilenciar (igual que Teams/Zoom)
+  // NOTA: Cmd+M en macOS es "minimizar ventana", por eso usamos Shift+M
+  // ───────────────────────────────────────────────────────────────────────────
+  globalShortcut.register('CommandOrControl+Shift+M', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('menu:action', { action: 'toggleMute' });
+    }
+  });
+
   // En macOS, recrear ventana si se hace clic en el dock
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -447,6 +485,15 @@ app.on('window-all-closed', () => {
 
 // Limpiar recursos al salir
 app.on('will-quit', async () => {
+  // Liberar atajos globales
+  globalShortcut.unregisterAll();
+
+  // Desactivar bloqueo de suspensión
+  if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
+    powerSaveBlocker.stop(powerBlockerId);
+    powerBlockerId = null;
+  }
+
   // Cerrar multicanal (elimina el sink de PulseAudio)
   if (multichannelAudio) {
     await multichannelAudio.close();

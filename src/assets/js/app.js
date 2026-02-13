@@ -344,6 +344,7 @@ class App {
       size: joystickSize
     });
     const joystickLeftEl = joystickLeftFrame.createElement();
+    joystickLeftEl.dataset.moduleName = joystickConfig.left.title;
 
     const joyLeftContent = document.createElement('div');
     joyLeftContent.className = 'panel7-joystick-layout';
@@ -356,8 +357,6 @@ class App {
     const leftRangeYKnob = createKnob({
       size: joystickUIConfig.knobSize,
       showValue: false,
-      min: leftCfgY.min,
-      max: leftCfgY.max,
       initial: leftCfgY.initial / leftCfgY.max,
       scaleMin: leftCfgY.min,
       scaleMax: leftCfgY.max,
@@ -367,6 +366,7 @@ class App {
         this._joystickModules.left.setRangeY(v * leftCfgY.max);
       }
     });
+    leftRangeYKnob.wrapper.dataset.knob = 'rangeY';
     joyLeftKnobs.appendChild(leftRangeYKnob.wrapper);
 
     // Knob inferior: Range X
@@ -374,8 +374,6 @@ class App {
     const leftRangeXKnob = createKnob({
       size: joystickUIConfig.knobSize,
       showValue: false,
-      min: leftCfgX.min,
-      max: leftCfgX.max,
       initial: leftCfgX.initial / leftCfgX.max,
       scaleMin: leftCfgX.min,
       scaleMax: leftCfgX.max,
@@ -385,6 +383,7 @@ class App {
         this._joystickModules.left.setRangeX(v * leftCfgX.max);
       }
     });
+    leftRangeXKnob.wrapper.dataset.knob = 'rangeX';
     joyLeftKnobs.appendChild(leftRangeXKnob.wrapper);
     joyLeftContent.appendChild(joyLeftKnobs);
 
@@ -443,6 +442,7 @@ class App {
       size: joystickSize
     });
     const joystickRightEl = joystickRightFrame.createElement();
+    joystickRightEl.dataset.moduleName = joystickConfig.right.title;
     
     const joyRightContent = document.createElement('div');
     joyRightContent.className = 'panel7-joystick-layout';
@@ -455,8 +455,6 @@ class App {
     const rightRangeYKnob = createKnob({
       size: joystickUIConfig.knobSize,
       showValue: false,
-      min: rightCfgY.min,
-      max: rightCfgY.max,
       initial: rightCfgY.initial / rightCfgY.max,
       scaleMin: rightCfgY.min,
       scaleMax: rightCfgY.max,
@@ -466,6 +464,7 @@ class App {
         this._joystickModules.right.setRangeY(v * rightCfgY.max);
       }
     });
+    rightRangeYKnob.wrapper.dataset.knob = 'rangeY';
     joyRightKnobs.appendChild(rightRangeYKnob.wrapper);
 
     // Knob inferior: Range X
@@ -473,8 +472,6 @@ class App {
     const rightRangeXKnob = createKnob({
       size: joystickUIConfig.knobSize,
       showValue: false,
-      min: rightCfgX.min,
-      max: rightCfgX.max,
       initial: rightCfgX.initial / rightCfgX.max,
       scaleMin: rightCfgX.min,
       scaleMax: rightCfgX.max,
@@ -484,6 +481,7 @@ class App {
         this._joystickModules.right.setRangeX(v * rightCfgX.max);
       }
     });
+    rightRangeXKnob.wrapper.dataset.knob = 'rangeX';
     joyRightKnobs.appendChild(rightRangeXKnob.wrapper);
     joyRightContent.appendChild(joyRightKnobs);
     
@@ -499,6 +497,22 @@ class App {
     this._joystickKnobs = {
       left: { rangeY: leftRangeYKnob, rangeX: leftRangeXKnob },
       right: { rangeY: rightRangeYKnob, rangeX: rightRangeXKnob }
+    };
+
+    // Mapa de UI para reinicio contextual (módulo + knobs + pad + config)
+    this._joystickUIs = {
+      'joystick-left': {
+        module: this._joystickModules.left,
+        knobs: this._joystickKnobs.left,
+        padEl: joyLeftPad,
+        config: joystickConfig.left
+      },
+      'joystick-right': {
+        module: this._joystickModules.right,
+        knobs: this._joystickKnobs.right,
+        padEl: joyRightPad,
+        config: joystickConfig.right
+      }
     };
     
     // Insertar ANTES de la sección de output channels (orden visual: arriba → abajo)
@@ -543,9 +557,11 @@ class App {
     handle.className = 'joystick-handle';
     padEl.appendChild(handle);
 
+    // Factor de escala visual: ~5/6 del recorrido total
+    const handleScale = 0.83;
     const updateHandle = (nx, ny) => {
-      const px = (nx + 1) / 2;
-      const py = (1 - ny) / 2;
+      const px = (nx * handleScale + 1) / 2;
+      const py = (1 - ny * handleScale) / 2;
       handle.style.left = (px * 100) + '%';
       handle.style.top = (py * 100) + '%';
       handle.style.transform = 'translate(-50%, -50%)';
@@ -562,6 +578,9 @@ class App {
     };
 
     padEl.addEventListener('pointerdown', ev => {
+      if (ev.button === 2) return; // Click derecho: no mover stick
+      ev.stopPropagation();
+      ev.preventDefault();
       this.ensureAudio();
       // Iniciar módulo de audio si no lo está
       if (!module.isStarted) module.start();
@@ -570,7 +589,9 @@ class App {
     });
 
     padEl.addEventListener('pointermove', ev => {
-      if (ev.buttons === 0) return;
+      if (ev.buttons === 0 || ev.buttons === 2) return; // Ignorar sin botón o botón derecho
+      ev.stopPropagation();
+      ev.preventDefault();
       processEvent(ev);
     });
 
@@ -1282,6 +1303,10 @@ class App {
         if (this._outputFadersModule) {
           modules.push({ type: 'outputChannels', id: 'output-channels', ui: this._outputFadersModule });
         }
+        // Joysticks
+        for (const [id, joyUI] of Object.entries(this._joystickUIs || {})) {
+          modules.push({ type: 'joystick', id, ui: joyUI });
+        }
         break;
       }
       case 'panel-5': {
@@ -1332,6 +1357,10 @@ class App {
         return { type: 'outputChannel', ui: channel };
       }
     }
+    // Joystick (ID: joystick-left, joystick-right)
+    if (this._joystickUIs?.[moduleId]) {
+      return { type: 'joystick', ui: this._joystickUIs[moduleId] };
+    }
     return null;
   }
   
@@ -1341,8 +1370,26 @@ class App {
    * @param {Object} ui - Instancia UI del módulo
    */
   _resetModule(type, ui) {
+    if (!ui) return;
+
+    // Joystick: reset especial (no usa deserialize)
+    if (type === 'joystick') {
+      const { module, knobs, padEl, config } = ui;
+      const defRangeX = config?.knobs?.rangeX?.initial ?? 0;
+      const defRangeY = config?.knobs?.rangeY?.initial ?? 0;
+      const maxX = config?.knobs?.rangeX?.max || 10;
+      const maxY = config?.knobs?.rangeY?.max || 10;
+      module.setPosition(0, 0);
+      module.setRangeX(defRangeX);
+      module.setRangeY(defRangeY);
+      if (knobs?.rangeX?.knobInstance) knobs.rangeX.knobInstance.setValue(defRangeX / maxX);
+      if (knobs?.rangeY?.knobInstance) knobs.rangeY.knobInstance.setValue(defRangeY / maxY);
+      if (padEl?._joystickUpdateHandle) padEl._joystickUpdateHandle(0, 0);
+      return;
+    }
+
     const defaults = this._defaultValues;
-    if (!ui || typeof ui.deserialize !== 'function') return;
+    if (typeof ui.deserialize !== 'function') return;
     
     switch (type) {
       case 'oscillator':
@@ -1400,6 +1447,22 @@ class App {
         ui.deserialize({ [controlKey]: chDefaults[controlKey] });
       } else if (controlType === 'switch') {
         ui.deserialize({ power: chDefaults.power });
+      }
+      return;
+    }
+
+    // Joystick: knob (rangeX/rangeY) o pad (posición)
+    if (type === 'joystick') {
+      const { module, knobs, padEl, config } = ui;
+      if (controlType === 'pad') {
+        module.setPosition(0, 0);
+        if (padEl?._joystickUpdateHandle) padEl._joystickUpdateHandle(0, 0);
+      } else if (controlType === 'knob' && controlKey) {
+        const defVal = config?.knobs?.[controlKey]?.initial ?? 0;
+        const max = config?.knobs?.[controlKey]?.max || 10;
+        if (controlKey === 'rangeX') module.setRangeX(defVal);
+        else if (controlKey === 'rangeY') module.setRangeY(defVal);
+        if (knobs?.[controlKey]?.knobInstance) knobs[controlKey].knobInstance.setValue(defVal / max);
       }
       return;
     }

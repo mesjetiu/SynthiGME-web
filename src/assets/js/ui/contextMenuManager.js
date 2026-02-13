@@ -57,20 +57,20 @@ const ICON_RESET = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" 
  */
 function detectModule(target) {
   // Selectores de módulos conocidos (más específico primero)
-  // output-channel-module antes de synth-module para capturar el canal individual
+  // output-channel-module y panel7-joystick antes de synth-module para capturar el módulo específico
   const moduleEl = target.closest(
-    '.sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .synth-module, .input-amplifiers-module'
+    '.sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .synth-module, .input-amplifiers-module'
   );
   if (!moduleEl) return null;
   
   const id = moduleEl.id;
   if (!id) return null;
   
-  // Extraer nombre visible del header
+  // Extraer nombre visible: data-module-name (ej: joystick) o header text o fallback a id
   const header = moduleEl.querySelector(
     '.sgme-osc__header, .synth-module__header, .noise-generator__header, .random-voltage__header, .input-amplifiers__header'
   );
-  const name = header?.textContent?.trim() || id;
+  const name = moduleEl.dataset.moduleName || header?.textContent?.trim() || id;
   
   return { id, name, element: moduleEl };
 }
@@ -87,6 +87,21 @@ function detectControl(target, moduleInfo) {
   
   const moduleEl = moduleInfo.element;
   
+  // ── Joystick: detectar pad o knob de rango ──
+  if (moduleEl.classList.contains('panel7-joystick')) {
+    const pad = target.closest('.panel7-joystick-pad');
+    if (pad) {
+      return { label: 'Joystick', knobIndex: -1, controlType: 'pad', moduleId: moduleInfo.id };
+    }
+    const knobWrapper = target.closest('.knob-wrapper');
+    if (knobWrapper && knobWrapper.dataset.knob) {
+      const knobKey = knobWrapper.dataset.knob;
+      const label = knobKey === 'rangeY' ? 'Range Y' : knobKey === 'rangeX' ? 'Range X' : 'Range';
+      return { label, knobIndex: -1, controlType: 'knob', controlKey: knobKey, moduleId: moduleInfo.id };
+    }
+    return null;
+  }
+
   // ── Output channel: detectar slider, knob-wrap o switch ──
   if (moduleEl.classList.contains('output-channel-module')) {
     // Slider (fader de nivel)

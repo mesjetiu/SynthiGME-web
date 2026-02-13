@@ -127,6 +127,7 @@ export class DormancyManager {
    */
   _showCurrentStateToast() {
     const panel5Connections = this._getPanel5Connections();
+    const panel6Connections = this._getPanel6Connections();
     
     // Contar conexiones de osciladores
     const connectedOscs = new Set();
@@ -137,7 +138,8 @@ export class DormancyManager {
     });
     
     // Verificar oscilador activo (al menos uno conectado a salida)
-    const hasScopeInput = panel5Connections.some(c => c.dest?.kind === 'oscilloscope');
+    const hasScopeInput = panel5Connections.some(c => c.dest?.kind === 'oscilloscope')
+      || panel6Connections.some(c => c.dest?.kind === 'oscilloscope');
     const hasNoiseOutput = panel5Connections.some(c => c.source?.kind === 'noiseGen');
     const hasInputAmp = panel5Connections.some(c => c.source?.kind === 'inputAmp');
     
@@ -251,7 +253,10 @@ export class DormancyManager {
     // ─────────────────────────────────────────────────────────────────────────
     // OSCILLOSCOPE - 2 entradas (X, Y)
     // ─────────────────────────────────────────────────────────────────────────
+    // El osciloscopio puede recibir señal desde Panel 5 (audio) o Panel 6 (control)
     const hasScopeInput = panel5Connections.some(c =>
+      c.dest?.kind === 'oscilloscope'
+    ) || panel6Connections.some(c =>
       c.dest?.kind === 'oscilloscope'
     );
     this._setModuleDormant('oscilloscope', !hasScopeInput);

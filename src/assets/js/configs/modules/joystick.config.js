@@ -75,7 +75,7 @@ export default {
 
     // Rampas para controles manuales
     ramps: {
-      position: 0.01,   // 10ms — movimiento del joystick instantáneo
+      position: 0.03,   // 30ms — rampa lineal entre eventos de puntero (~60fps)
       range: 0.05       // 50ms — cambio de rango suave
     }
   },
@@ -126,7 +126,7 @@ export default {
       rangeY: {
         min: 0,
         max: 10,
-        initial: 5,           // Mitad de rango (±4V) por defecto
+        initial: 0,           // Sin salida por defecto (módulo dormant)
         curve: 'linear',
         pixelsForFullRange: 900
       },
@@ -136,7 +136,7 @@ export default {
       rangeX: {
         min: 0,
         max: 10,
-        initial: 5,
+        initial: 0,
         curve: 'linear',
         pixelsForFullRange: 900
       }
@@ -159,14 +159,14 @@ export default {
       rangeY: {
         min: 0,
         max: 10,
-        initial: 5,
+        initial: 0,
         curve: 'linear',
         pixelsForFullRange: 900
       },
       rangeX: {
         min: 0,
         max: 10,
-        initial: 5,
+        initial: 0,
         curve: 'linear',
         pixelsForFullRange: 900
       }

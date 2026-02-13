@@ -97,8 +97,8 @@ export class JoystickModule extends Module {
     /** @type {number} */ this.y = 0;
 
     // ── Estado de rango (escala dial 0-10) ─────────────────────────────
-    /** @type {number} */ this._rangeX = 5;
-    /** @type {number} */ this._rangeY = 5;
+    /** @type {number} */ this._rangeX = 0;
+    /** @type {number} */ this._rangeY = 0;
 
     // ── Flags ──────────────────────────────────────────────────────────
     /** @type {boolean} */ this.isStarted = false;
@@ -230,8 +230,17 @@ export class JoystickModule extends Module {
     const ctx = this.getAudioCtx();
     if (!ctx || !this.xConst || !this.yConst) return;
 
-    setParamSmooth(this.xConst.offset, x, ctx, { ramp: this.config.ramps.position });
-    setParamSmooth(this.yConst.offset, y, ctx, { ramp: this.config.ramps.position });
+    // Rampa lineal para interpolación continua entre eventos de puntero (~60fps).
+    // linearRampToValueAtTime produce transiciones mucho más suaves que
+    // setTargetAtTime para actualizaciones frecuentes de posición.
+    const now = ctx.currentTime;
+    const rampEnd = now + this.config.ramps.position;
+    this.xConst.offset.cancelScheduledValues(now);
+    this.xConst.offset.setValueAtTime(this.xConst.offset.value, now);
+    this.xConst.offset.linearRampToValueAtTime(x, rampEnd);
+    this.yConst.offset.cancelScheduledValues(now);
+    this.yConst.offset.setValueAtTime(this.yConst.offset.value, now);
+    this.yConst.offset.linearRampToValueAtTime(y, rampEnd);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

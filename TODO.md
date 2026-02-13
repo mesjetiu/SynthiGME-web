@@ -10,6 +10,18 @@
 
 #### ⏳ PENDIENTES
 
+## Joystick Module
+
+#### ✅ COMPLETADO
+
+- [x] **Joystick Module completo (Left y Right)**
+  - Señal DC bipolar ±8V (ConstantSourceNode + GainNode, sin worklet)
+  - Knobs Range X/Y independientes (pot 10K LIN, dial 0-10)
+  - Integración en Panel 6 (filas 117-120)
+  - Dormancy automática (ningún eje conectado → silencio)
+  - Serialización/deserialización de posición y rangos
+  - Config en joystick.config.js, 37 tests unitarios
+
 ## Oscilador/matriz:
 
 - Implementar, testar y bien documentar todas las distorsiones y limites por voltajes, impedancias, etc. Servirá de base de la arquitectura global del synthi y de próximos módulos.

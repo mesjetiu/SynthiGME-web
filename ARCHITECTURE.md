@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 12 de febrero de 2026 (menú nativo Electron con i18n, botón flotante de mute, entrada multicanal 8ch, manejo global de errores y telemetría anónima)
+> Última actualización: 13 de febrero de 2026 (módulo joystick completo con dormancy y rango por eje, menú nativo Electron con i18n, botón flotante de mute, entrada multicanal 8ch, manejo global de errores y telemetría anónima)
 
 ---
 
@@ -90,7 +90,7 @@ src/
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
 | `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
-| `dormancyManager.js` | `DormancyManager` orquesta el sistema de dormancy para optimización de rendimiento. Detecta módulos sin conexiones activas en **ambas matrices (Panel 5 audio y Panel 6 control)** y **suspende su procesamiento DSP** (no solo los silencia). Para osciladores y noise, envía mensaje `setDormant` al worklet que hace early exit en `process()`. Para Output Bus, desconecta el grafo si no tiene entrada de audio NI de Voltage Input. Para InputAmplifier, silencia GainNodes. Ahorra ~95% CPU por módulo inactivo. Configurable con opción de debug (toasts) |
+| `dormancyManager.js` | `DormancyManager` orquesta el sistema de dormancy para optimización de rendimiento. Detecta módulos sin conexiones activas en **ambas matrices (Panel 5 audio y Panel 6 control)** y **suspende su procesamiento DSP** (no solo los silencia). Para osciladores y noise, envía mensaje `setDormant` al worklet que hace early exit en `process()`. Para Output Bus, desconecta el grafo si no tiene entrada de audio NI de Voltage Input. Para InputAmplifier, silencia GainNodes. Para Joystick, silencia GainNodes de rango cuando ningún eje tiene salida en Panel 6. Ahorra ~95% CPU por módulo inactivo. Configurable con opción de debug (toasts) |
 
 > **Nota sobre dispositivos móviles:** El procesamiento de audio del sistema (Dolby Atmos, Audio Espacial, ecualizadores) puede interferir con la síntesis en tiempo real, causando cambios de volumen inesperados o distorsión. Ver sección "Solución de problemas" en README.md.
 
@@ -121,7 +121,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `noise.js` | `NoiseModule` | Generador de ruido con filtro COLOUR (6 dB/oct) y nivel LOG. Dial colour 0-10 → bipolar -1..+1 → filtro IIR. Dial level 0-10 → ganancia LOG (audio taper 10kΩ). Pasa `processorOptions` (R, C) al worklet |
 | `inputAmplifier.js` | `InputAmplifierModule` | 8 canales de entrada con control de ganancia individual |
 | `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
-| `joystick.js` | `JoystickModule` | Control XY para modulación bidimensional |
+| `joystick.js` | `JoystickModule` | Control XY bipolar (±8V DC) que emula los joysticks del Synthi 100. Usa `ConstantSourceNode` + `GainNode` por eje (X, Y) sin worklet para máxima eficiencia en señales DC. Knobs Range X/Y independientes (pot 10K LIN, dial 0-10 → gain 0-1). Dormancy: silencia gains cuando ningún eje está conectado en Panel 6, restaura al reconectar. Filas 117-120 en matriz de control. Serialización completa de posición y rangos |
 | `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330 y filtro RC pasivo de corrección tonal (1er orden, 6 dB/oct, fc ≈ 677 Hz). Control tonal bipolar: LP (atenúa agudos) ↔ plano (0 dB) ↔ HP shelving (+6 dB en HF). Pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
 | `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
@@ -495,6 +495,7 @@ src/assets/js/configs/
     ├── oscillator.config.js
     ├── noise.config.js
     ├── randomVoltage.config.js
+    ├── joystick.config.js
     ├── inputAmplifier.config.js
     ├── outputChannel.config.js
     ├── oscilloscope.config.js
@@ -507,6 +508,7 @@ src/assets/js/configs/
 | `oscillator.config.js` | Osciladores | Rangos de frecuencia, niveles de salida, deriva térmica, parámetros de voltaje, **rampas de frecuencia para knob** |
 | `noise.config.js` | Generadores de ruido | Circuito COLOUR (R=10kΩ, C=33nF, 6 dB/oct), curva LOG del level (base 10), rampas, rangos 0-10 |
 | `randomVoltage.config.js` | Random Voltage | Rangos de frecuencia, slew rate |
+| `joystick.config.js` | Joysticks (Left/Right) | Filas de matriz (117-120), rampas (posición 10ms, rango 50ms), knobs Range X/Y (0-10, initial 5), curva lineal (pot 10K LIN) |
 | `oscilloscope.config.js` | Osciloscopio | Resolución CRT, glow, colores, buffer, trigger Schmitt |
 | `inputAmplifier.config.js` | Amplificadores de entrada | Ganancias, atenuaciones, límites |
 | `outputChannel.config.js` | Canales de salida | Rangos de filtros, niveles, pan, **rampas para knobs/faders** |

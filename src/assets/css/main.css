@@ -5261,6 +5261,11 @@ small { color:#aaa; }
   align-items: center;
 }
 
+/* Joystick Right: columnas invertidas (pad | knobs) para simetría con Left */
+.panel7-joystick-right .panel7-joystick-layout {
+  flex-direction: row-reverse;
+}
+
 .panel7-joystick-knobs {
   display: flex;
   flex-direction: column;

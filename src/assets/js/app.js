@@ -393,11 +393,11 @@ class App {
     sequencerFrame.appendToContent(seqContent);
     upperRowEl.appendChild(sequencerEl);
     
-    // Joystick Right (placeholder con knobs + pad)
+    // Joystick Right (placeholder con knobs + pad, columnas invertidas para simetría)
     const joystickRightFrame = new ModuleFrame({
       id: 'joystick-right',
       title: null,
-      className: 'panel7-placeholder panel7-joystick',
+      className: 'panel7-placeholder panel7-joystick panel7-joystick-right',
       size: joystickSize
     });
     const joystickRightEl = joystickRightFrame.createElement();

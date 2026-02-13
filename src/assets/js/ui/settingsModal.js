@@ -1503,6 +1503,17 @@ export class SettingsModal {
     issuesLi.appendChild(issuesLink);
     linksList.appendChild(issuesLi);
     
+    // Grupo Telegram
+    const telegramLi = document.createElement('li');
+    const telegramLink = document.createElement('a');
+    telegramLink.href = 'https://t.me/synthigme';
+    telegramLink.target = '_blank';
+    telegramLink.rel = 'noopener noreferrer';
+    telegramLink.textContent = t('settings.about.telegram');
+    this.aboutTelegramLinkElement = telegramLink;
+    telegramLi.appendChild(telegramLink);
+    linksList.appendChild(telegramLi);
+    
     // Fuzzy Gab
     const fuzzyLi = document.createElement('li');
     const fuzzyLink = document.createElement('a');
@@ -3853,6 +3864,9 @@ export class SettingsModal {
     }
     if (this.aboutIssuesLinkElement) {
       this.aboutIssuesLinkElement.textContent = t('settings.about.issues');
+    }
+    if (this.aboutTelegramLinkElement) {
+      this.aboutTelegramLinkElement.textContent = t('settings.about.telegram');
     }
     if (this.aboutOriginalLinkElement) {
       this.aboutOriginalLinkElement.textContent = t('settings.about.originalProject');

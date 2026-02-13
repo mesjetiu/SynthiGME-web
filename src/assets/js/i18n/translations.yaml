@@ -811,6 +811,15 @@ settings.about.issues:
   pt: "Relatar um bug / Contato"
   cs: "Nahlásit chybu / Kontakt"
 
+settings.about.telegram:
+  en: Join our Telegram Group
+  es: Únete a nuestro grupo de Telegram
+  fr: "Rejoindre notre groupe Telegram"
+  de: "Treten Sie unserer Telegram-Gruppe bei"
+  it: "Unisciti al nostro gruppo Telegram"
+  pt: "Participe do nosso grupo no Telegram"
+  cs: "Připojte se k naší skupině na Telegramu"
+
 settings.about.originalProject:
   en: Original project (SuperCollider)
   es: Proyecto original (SuperCollider)

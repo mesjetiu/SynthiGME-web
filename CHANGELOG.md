@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Enlace a comunidad en Telegram**: Añadido enlace al grupo oficial [https://t.me/synthigme](https://t.me/synthigme) en README.md y en la pestaña "Acerca de" de Ajustes para soporte y feedback de testers. Traducciones en 7 idiomas.
 - **Electron: prevención de suspensión del sistema**: Checkbox en menú Audio y sincronizado con la opción Wake Lock de Ajustes > General. Activado por defecto. Usa `powerSaveBlocker` de Electron (suspensión del sistema) + Wake Lock API web (pantalla) bajo una misma preferencia. Se activa al arrancar audio si la preferencia está habilitada. Traducciones en 7 idiomas.
 - **Electron: atajo global Ctrl+Shift+M para silenciar**: Funciona incluso sin foco de la app, útil en actuaciones en directo. Usa `globalShortcut` de Electron, reutiliza el pipeline existente del menú (`menu:action` → `toggleMute`).
 

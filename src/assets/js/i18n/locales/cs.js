@@ -96,6 +96,7 @@ export default {
   "settings.about.links": "Odkazy",
   "settings.about.repository": "GitHub repozitář",
   "settings.about.issues": "Nahlásit chybu / Kontakt",
+  "settings.about.telegram": "Připojte se k naší skupině na Telegramu",
   "settings.about.originalProject": "Původní projekt (SuperCollider)",
   "settings.about.credits": "Kredity",
   "settings.about.credits.development": "Vývoj a design rozhraní: ",

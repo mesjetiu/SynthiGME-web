@@ -126,6 +126,16 @@ Este es un proyecto Open Source. Si quieres ver el código, compilarlo tú mismo
 
 ---
 
+## 📢 Comunidad y Soporte
+
+¿Tienes dudas, sugerencias o quieres estar al día de las novedades? ¡Únete a nuestra comunidad!
+
+👉 **[Grupo de Telegram: SynthiGME](https://t.me/synthigme)**
+
+Es un espacio para compartir parches, proponer mejoras, reportar errores y participar como tester en las versiones beta.
+
+---
+
 ## Licencia y Créditos
 
 Este proyecto se distribuye bajo licencia **[MIT](LICENSE)**.

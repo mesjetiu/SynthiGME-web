@@ -96,6 +96,7 @@ export default {
   "settings.about.links": "Liens",
   "settings.about.repository": "Dépôt GitHub",
   "settings.about.issues": "Signaler un bug / Contacter",
+  "settings.about.telegram": "Rejoindre notre groupe Telegram",
   "settings.about.originalProject": "Projet original (SuperCollider)",
   "settings.about.credits": "Crédits",
   "settings.about.credits.development": "Développement et design de l’interface : ",

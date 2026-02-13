@@ -58,6 +58,7 @@
 // | 'inputAmp'    | Canal de entrada de audio del sistema     | channel (0-7)        |
 // | 'outputBus'   | Salida de bus de audio (post-fader)       | bus (1-8)            |
 // | 'panel3Osc'   | Salida de oscilador del Panel 3           | oscIndex, channelId  |
+// | 'joystick'    | Eje de joystick (voltaje DC bipolar)      | side, axis           |
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // DESTINATIONS (DESTINOS DE MODULACIÓN)
@@ -171,7 +172,28 @@ export default {
     { rowSynth: 86, source: { kind: 'panel3Osc', oscIndex: 10, channelId: 'triPulse' } },
     // Osc 12 (oscIndex: 11)
     { rowSynth: 87, source: { kind: 'panel3Osc', oscIndex: 11, channelId: 'sineSaw' } },
-    { rowSynth: 88, source: { kind: 'panel3Osc', oscIndex: 11, channelId: 'triPulse' } }
+    { rowSynth: 88, source: { kind: 'panel3Osc', oscIndex: 11, channelId: 'triPulse' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // JOYSTICKS (filas 117-120) — Fuentes de voltaje DC bipolar
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cada joystick tiene 2 ejes (Y, X), cada eje produce ±8V DC
+    // escalado por el pot de rango correspondiente.
+    //
+    // Joystick Left (LH):
+    //   Fila 117: eje Y (vertical)
+    //   Fila 118: eje X (horizontal)
+    //
+    // Joystick Right (RH):
+    //   Fila 119: eje Y (vertical)
+    //   Fila 120: eje X (horizontal)
+    //
+    // Referencia: Manual Datanomics 1982, PC-12 Joystick Buffer
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 117, source: { kind: 'joystick', side: 'left', axis: 'y' } },
+    { rowSynth: 118, source: { kind: 'joystick', side: 'left', axis: 'x' } },
+    { rowSynth: 119, source: { kind: 'joystick', side: 'right', axis: 'y' } },
+    { rowSynth: 120, source: { kind: 'joystick', side: 'right', axis: 'x' } }
   ],
 
   // ─────────────────────────────────────────────────────────────────────────

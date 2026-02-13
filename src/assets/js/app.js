@@ -14,6 +14,7 @@ import { RecordingEngine } from './core/recordingEngine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputChannelsPanel } from './modules/outputChannel.js';
 import { NoiseModule } from './modules/noise.js';
+import { JoystickModule } from './modules/joystick.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { getSharedTooltip } from './ui/matrixTooltip.js';
@@ -39,7 +40,8 @@ import {
   inputAmplifierConfig,
   outputChannelConfig,
   audioMatrixConfig,
-  controlMatrixConfig
+  controlMatrixConfig,
+  joystickConfig
 } from './configs/index.js';
 
 // Osciloscopio
@@ -324,10 +326,17 @@ class App {
     
     const joystickSize = upperRow.joystickSize || { width: 160, height: 180 };
     const sequencerSize = upperRow.sequencerSize || { width: 420, height: 180 };
-    const joystickConfig = upperRow.joystick || { knobs: [], knobSize: 'sm' };
+    const joystickUIConfig = upperRow.joystick || { knobs: [], knobSize: 'sm' };
     const sequencerConfig = upperRow.sequencer || { switches: [], buttons: [] };
-    
-    // Joystick Left (placeholder con knobs + pad)
+
+    // ── Inicializar módulos de audio de joystick ──────────────────────────
+    const joyRamps = joystickConfig.defaults?.ramps || { position: 0.01, range: 0.05 };
+    this._joystickModules = {
+      left: new JoystickModule(this.engine, 'joystick-left', { ramps: joyRamps }),
+      right: new JoystickModule(this.engine, 'joystick-right', { ramps: joyRamps })
+    };
+
+    // Joystick Left (knobs + pad conectados al módulo de audio)
     const joystickLeftFrame = new ModuleFrame({
       id: 'joystick-left',
       title: null,
@@ -335,22 +344,55 @@ class App {
       size: joystickSize
     });
     const joystickLeftEl = joystickLeftFrame.createElement();
-    
+
     const joyLeftContent = document.createElement('div');
     joyLeftContent.className = 'panel7-joystick-layout';
-    
+
     const joyLeftKnobs = document.createElement('div');
     joyLeftKnobs.className = 'panel7-joystick-knobs';
-    for (const knobName of joystickConfig.knobs) {
-      const knob = createKnob({ size: joystickConfig.knobSize, showValue: false });
-      joyLeftKnobs.appendChild(knob.wrapper);
-    }
+
+    // Knob superior: Range Y
+    const leftCfgY = joystickConfig.left.knobs.rangeY;
+    const leftRangeYKnob = createKnob({
+      size: joystickUIConfig.knobSize,
+      showValue: false,
+      min: leftCfgY.min,
+      max: leftCfgY.max,
+      initial: leftCfgY.initial / leftCfgY.max,
+      scaleMin: leftCfgY.min,
+      scaleMax: leftCfgY.max,
+      pixelsForFullRange: leftCfgY.pixelsForFullRange,
+      onChange: v => {
+        this.ensureAudio();
+        this._joystickModules.left.setRangeY(v * leftCfgY.max);
+      }
+    });
+    joyLeftKnobs.appendChild(leftRangeYKnob.wrapper);
+
+    // Knob inferior: Range X
+    const leftCfgX = joystickConfig.left.knobs.rangeX;
+    const leftRangeXKnob = createKnob({
+      size: joystickUIConfig.knobSize,
+      showValue: false,
+      min: leftCfgX.min,
+      max: leftCfgX.max,
+      initial: leftCfgX.initial / leftCfgX.max,
+      scaleMin: leftCfgX.min,
+      scaleMax: leftCfgX.max,
+      pixelsForFullRange: leftCfgX.pixelsForFullRange,
+      onChange: v => {
+        this.ensureAudio();
+        this._joystickModules.left.setRangeX(v * leftCfgX.max);
+      }
+    });
+    joyLeftKnobs.appendChild(leftRangeXKnob.wrapper);
     joyLeftContent.appendChild(joyLeftKnobs);
-    
+
     const joyLeftPad = document.createElement('div');
     joyLeftPad.className = 'panel7-joystick-pad';
+    this._setupJoystickPad(joyLeftPad, this._joystickModules.left);
     joyLeftContent.appendChild(joyLeftPad);
-    
+
     joystickLeftFrame.appendToContent(joyLeftContent);
     upperRowEl.appendChild(joystickLeftEl);
     
@@ -393,7 +435,7 @@ class App {
     sequencerFrame.appendToContent(seqContent);
     upperRowEl.appendChild(sequencerEl);
     
-    // Joystick Right (placeholder con knobs + pad, columnas invertidas para simetría)
+    // Joystick Right (knobs + pad conectados al módulo de audio, columnas invertidas)
     const joystickRightFrame = new ModuleFrame({
       id: 'joystick-right',
       title: null,
@@ -407,18 +449,57 @@ class App {
     
     const joyRightKnobs = document.createElement('div');
     joyRightKnobs.className = 'panel7-joystick-knobs';
-    for (const knobName of joystickConfig.knobs) {
-      const knob = createKnob({ size: joystickConfig.knobSize, showValue: false });
-      joyRightKnobs.appendChild(knob.wrapper);
-    }
+
+    // Knob superior: Range Y
+    const rightCfgY = joystickConfig.right.knobs.rangeY;
+    const rightRangeYKnob = createKnob({
+      size: joystickUIConfig.knobSize,
+      showValue: false,
+      min: rightCfgY.min,
+      max: rightCfgY.max,
+      initial: rightCfgY.initial / rightCfgY.max,
+      scaleMin: rightCfgY.min,
+      scaleMax: rightCfgY.max,
+      pixelsForFullRange: rightCfgY.pixelsForFullRange,
+      onChange: v => {
+        this.ensureAudio();
+        this._joystickModules.right.setRangeY(v * rightCfgY.max);
+      }
+    });
+    joyRightKnobs.appendChild(rightRangeYKnob.wrapper);
+
+    // Knob inferior: Range X
+    const rightCfgX = joystickConfig.right.knobs.rangeX;
+    const rightRangeXKnob = createKnob({
+      size: joystickUIConfig.knobSize,
+      showValue: false,
+      min: rightCfgX.min,
+      max: rightCfgX.max,
+      initial: rightCfgX.initial / rightCfgX.max,
+      scaleMin: rightCfgX.min,
+      scaleMax: rightCfgX.max,
+      pixelsForFullRange: rightCfgX.pixelsForFullRange,
+      onChange: v => {
+        this.ensureAudio();
+        this._joystickModules.right.setRangeX(v * rightCfgX.max);
+      }
+    });
+    joyRightKnobs.appendChild(rightRangeXKnob.wrapper);
     joyRightContent.appendChild(joyRightKnobs);
     
     const joyRightPad = document.createElement('div');
     joyRightPad.className = 'panel7-joystick-pad';
+    this._setupJoystickPad(joyRightPad, this._joystickModules.right);
     joyRightContent.appendChild(joyRightPad);
     
     joystickRightFrame.appendToContent(joyRightContent);
     upperRowEl.appendChild(joystickRightEl);
+
+    // Guardar referencias de knobs para serialización
+    this._joystickKnobs = {
+      left: { rangeY: leftRangeYKnob, rangeX: leftRangeXKnob },
+      right: { rangeY: rightRangeYKnob, rangeX: rightRangeXKnob }
+    };
     
     // Insertar ANTES de la sección de output channels (orden visual: arriba → abajo)
     this.outputPanel.element.insertBefore(upperRowEl, this.outputChannelsSection);
@@ -446,6 +527,66 @@ class App {
     
     // Mantener referencia como _outputFadersModule para compatibilidad con serialización
     this._outputFadersModule = this._outputChannelsPanel;
+  }
+
+  /**
+   * Configura la interacción de puntero en un pad de joystick.
+   * Convierte eventos de puntero en posición normalizada (-1..+1)
+   * y actualiza el módulo de audio correspondiente.
+   *
+   * @param {HTMLElement} padEl - Elemento del pad
+   * @param {JoystickModule} module - Módulo de audio asociado
+   * @private
+   */
+  _setupJoystickPad(padEl, module) {
+    const handle = document.createElement('div');
+    handle.className = 'joystick-handle';
+    padEl.appendChild(handle);
+
+    const updateHandle = (nx, ny) => {
+      const px = (nx + 1) / 2;
+      const py = (1 - ny) / 2;
+      handle.style.left = (px * 100) + '%';
+      handle.style.top = (py * 100) + '%';
+      handle.style.transform = 'translate(-50%, -50%)';
+    };
+
+    const processEvent = (ev) => {
+      const rect = padEl.getBoundingClientRect();
+      const x = (ev.clientX - rect.left) / rect.width;
+      const y = (ev.clientY - rect.top) / rect.height;
+      const nx = Math.max(-1, Math.min(1, x * 2 - 1));
+      const ny = Math.max(-1, Math.min(1, 1 - y * 2));
+      module.setPosition(nx, ny);
+      updateHandle(nx, ny);
+    };
+
+    padEl.addEventListener('pointerdown', ev => {
+      this.ensureAudio();
+      // Iniciar módulo de audio si no lo está
+      if (!module.isStarted) module.start();
+      padEl.setPointerCapture(ev.pointerId);
+      processEvent(ev);
+    });
+
+    padEl.addEventListener('pointermove', ev => {
+      if (ev.buttons === 0) return;
+      processEvent(ev);
+    });
+
+    padEl.addEventListener('pointerup', ev => {
+      try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
+    });
+
+    padEl.addEventListener('pointerleave', ev => {
+      if (ev.buttons === 0) return;
+      try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
+    });
+
+    // Guardar referencia para poder actualizar el handle desde deserialización
+    padEl._joystickUpdateHandle = updateHandle;
+
+    updateHandle(0, 0);
   }
 
   _setupUI() {
@@ -815,6 +956,19 @@ class App {
       state.modules.matrixControl = this.largeMatrixControl.serialize();
     }
     
+    // Serializar estado de joysticks (posición + rangos)
+    if (this._joystickModules) {
+      state.modules.joysticks = {};
+      for (const [side, module] of Object.entries(this._joystickModules)) {
+        state.modules.joysticks[side] = {
+          x: module.getX(),
+          y: module.getY(),
+          rangeX: module.getRangeX(),
+          rangeY: module.getRangeY()
+        };
+      }
+    }
+    
     return state;
   }
   
@@ -900,6 +1054,32 @@ class App {
       this.largeMatrixControl.deserialize(modules.matrixControl);
     }
     
+    // Restaurar estado de joysticks
+    if (modules.joysticks && this._joystickModules) {
+      for (const [side, data] of Object.entries(modules.joysticks)) {
+        const module = this._joystickModules[side];
+        if (module && data) {
+          // Aplicar rangos primero (para que estén listos cuando se aplique posición)
+          if (data.rangeX !== undefined) module.setRangeX(data.rangeX);
+          if (data.rangeY !== undefined) module.setRangeY(data.rangeY);
+          // Aplicar posición
+          if (data.x !== undefined && data.y !== undefined) {
+            module.setPosition(data.x, data.y);
+          }
+          // Actualizar knobs de la UI
+          const knobs = this._joystickKnobs?.[side];
+          if (knobs) {
+            if (data.rangeX !== undefined && knobs.rangeX?.knobInstance) {
+              knobs.rangeX.knobInstance.setValue(data.rangeX / 10); // dial→normalizado
+            }
+            if (data.rangeY !== undefined && knobs.rangeY?.knobInstance) {
+              knobs.rangeY.knobInstance.setValue(data.rangeY / 10);
+            }
+          }
+        }
+      }
+    }
+    
     // Rehabilitar tracking de cambios
     sessionManager.applyingPatch(false);
     
@@ -973,6 +1153,24 @@ class App {
     
     if (this.largeMatrixControl && typeof this.largeMatrixControl.deserialize === 'function') {
       this.largeMatrixControl.deserialize({ connections: [] });
+    }
+    
+    // Resetear joysticks a posición central y rango por defecto
+    if (this._joystickModules) {
+      for (const [side, module] of Object.entries(this._joystickModules)) {
+        const sideConfig = joystickConfig[side];
+        const defaultRangeX = sideConfig?.knobs?.rangeX?.initial ?? 5;
+        const defaultRangeY = sideConfig?.knobs?.rangeY?.initial ?? 5;
+        module.setPosition(0, 0);
+        module.setRangeX(defaultRangeX);
+        module.setRangeY(defaultRangeY);
+        // Actualizar knobs de la UI
+        const knobs = this._joystickKnobs?.[side];
+        if (knobs) {
+          if (knobs.rangeX?.knobInstance) knobs.rangeX.knobInstance.setValue(defaultRangeX / 10);
+          if (knobs.rangeY?.knobInstance) knobs.rangeY.knobInstance.setValue(defaultRangeY / 10);
+        }
+      }
     }
     
     // Rehabilitar tracking de cambios
@@ -4603,6 +4801,28 @@ class App {
         }
         
         outNode = busData.dcBlocker;
+      } else if (source.kind === 'joystick') {
+        // Fuente: Joystick (voltaje DC bipolar, eje X o Y)
+        const side = source.side; // 'left' o 'right'
+        const axis = source.axis; // 'x' o 'y'
+        const joyModule = this._joystickModules?.[side];
+
+        if (!joyModule) {
+          log.warn(' Joystick module not found for side:', side);
+          return false;
+        }
+
+        // Asegurar que el módulo esté iniciado
+        if (!joyModule.isStarted) {
+          joyModule.start();
+        }
+
+        outNode = axis === 'x' ? joyModule.getOutputNodeX() : joyModule.getOutputNodeY();
+
+        if (!outNode) {
+          log.warn(` Joystick ${side} output node not available for axis ${axis}`);
+          return false;
+        }
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
       // - 'envelope': generador de envolventes

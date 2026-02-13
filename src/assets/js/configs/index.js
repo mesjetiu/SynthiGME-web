@@ -17,6 +17,9 @@ export { default as oscillatorConfig } from './modules/oscillator.config.js';
 export { default as noiseConfig } from './modules/noise.config.js';
 export { default as randomVoltageConfig } from './modules/randomVoltage.config.js';
 
+// Módulos de control manual
+export { default as joystickConfig } from './modules/joystick.config.js';
+
 // Módulos de entrada/salida
 export { default as inputAmplifierConfig } from './modules/inputAmplifier.config.js';
 export { default as outputChannelConfig } from './modules/outputChannel.config.js';
@@ -35,6 +38,7 @@ export { default as controlMatrixConfig } from './modules/controlMatrix.config.j
 import oscillatorConfig from './modules/oscillator.config.js';
 import noiseConfig from './modules/noise.config.js';
 import randomVoltageConfig from './modules/randomVoltage.config.js';
+import joystickConfig from './modules/joystick.config.js';
 import inputAmplifierConfig from './modules/inputAmplifier.config.js';
 import outputChannelConfig from './modules/outputChannel.config.js';
 import oscilloscopeConfig from './modules/oscilloscope.config.js';
@@ -49,5 +53,6 @@ export default {
   outputChannel: outputChannelConfig,
   oscilloscope: oscilloscopeConfig,
   audioMatrix: audioMatrixConfig,
-  controlMatrix: controlMatrixConfig
+  controlMatrix: controlMatrixConfig,
+  joystick: joystickConfig
 };

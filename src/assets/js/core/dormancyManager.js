@@ -23,6 +23,7 @@
  * - OutputChannel: No tiene entrada conectada → dormant
  * - Oscilloscope: No tiene entrada conectada → dormant
  * - InputAmplifier: Ningún canal tiene salida conectada → dormant
+ * - Joystick: Ningún eje tiene salida conectada en Panel 6 → dormant
  * 
  * ─────────────────────────────────────────────────────────────────────────────
  * INSPIRACIÓN
@@ -280,6 +281,19 @@ export class DormancyManager {
       this._setModuleDormant(`output-channel-${busIndex + 1}`, !hasInput);
     }
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // JOYSTICKS - 2 joysticks (left, right), cada uno con 2 ejes en Panel 6
+    // ─────────────────────────────────────────────────────────────────────────
+    // Un joystick está activo si al menos un eje tiene salida en Panel 6.
+    // Solo consultan Panel 6 (control) ya que son fuentes de voltaje DC.
+    // ─────────────────────────────────────────────────────────────────────────
+    for (const side of ['left', 'right']) {
+      const hasAnyAxisConnected = panel6Connections.some(c =>
+        c.source?.kind === 'joystick' && c.source?.side === side
+      );
+      this._setModuleDormant(`joystick-${side}`, !hasAnyAxisConnected);
+    }
+    
     // Mostrar toast consolidado si debug está activo
     this._showConsolidatedToast();
   }
@@ -422,6 +436,14 @@ export class DormancyManager {
     if (moduleId.startsWith('output-channel-')) {
       const busIndex = parseInt(moduleId.split('-')[2], 10) - 1;
       return this.app.engine?.outputBuses?.[busIndex];
+    }
+    
+    // Joystick modules
+    if (moduleId === 'joystick-left') {
+      return this.app._joystickModules?.left;
+    }
+    if (moduleId === 'joystick-right') {
+      return this.app._joystickModules?.right;
     }
     
     // Módulos registrados en engine

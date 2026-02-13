@@ -114,11 +114,8 @@ podría ser significativo en dispositivos móviles.
 
 - Release con versión en web, PWA, electro (Linux y Windows)
 - Corregir errores varios en todas las plataformas.
-- Revisar README.md con créditos, info básica. Canal de Telegram.
 - Créditos de fotos de paneles (si se mantienen)
-- Reordenación de opciones en Ajustes. Intuitivo...
 - Hacer los SVGs de paneles.
-- Añadir y completar CREDITS.md
 
 ## Después...
 

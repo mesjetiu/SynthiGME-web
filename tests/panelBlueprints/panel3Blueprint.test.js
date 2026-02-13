@@ -284,14 +284,14 @@ describe('Panel 3 Blueprint - oscillatorSlots', () => {
     assert.strictEqual(col1.length, 6, 'columna derecha: 6 osciladores');
   });
 
-  it('distribución intercalada: impares a la izquierda, pares a la derecha', () => {
-    // Columna 0: osc 1,3,5,7,9,11 (oscIndex 0,2,4,6,8,10)
+  it('distribución secuencial: 1-6 a la izquierda, 7-12 a la derecha', () => {
+    // Columna 0: osc 1-6 (oscIndex 0,1,2,3,4,5)
     const col0Indices = slots.filter(s => s.col === 0).map(s => s.oscIndex).sort((a, b) => a - b);
-    assert.deepStrictEqual(col0Indices, [0, 2, 4, 6, 8, 10], 'col 0: índices pares (osc impares)');
+    assert.deepStrictEqual(col0Indices, [0, 1, 2, 3, 4, 5], 'col 0: osciladores 1-6');
 
-    // Columna 1: osc 2,4,6,8,10,12 (oscIndex 1,3,5,7,9,11)
+    // Columna 1: osc 7-12 (oscIndex 6,7,8,9,10,11)
     const col1Indices = slots.filter(s => s.col === 1).map(s => s.oscIndex).sort((a, b) => a - b);
-    assert.deepStrictEqual(col1Indices, [1, 3, 5, 7, 9, 11], 'col 1: índices impares (osc pares)');
+    assert.deepStrictEqual(col1Indices, [6, 7, 8, 9, 10, 11], 'col 1: osciladores 7-12');
   });
 });
 

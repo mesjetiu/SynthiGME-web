@@ -27,6 +27,9 @@ const activePips = new Map();
 /** Contenedor de todos los PiPs */
 let pipLayer = null;
 
+/** Flag para evitar guardar estado durante la restauración */
+let _isRestoring = false;
+
 /** Z-index base para PiPs (por encima del viewport pero debajo de modales) */
 const PIP_Z_INDEX_BASE = 1200;
 
@@ -382,8 +385,9 @@ export function focusPip(panelId) {
 /**
  * Extrae un panel a modo PiP.
  * @param {string} panelId - ID del panel
+ * @param {Object} [restoredConfig] - Configuración guardada para restaurar (posición, tamaño, zoom, scroll, lock)
  */
-export function openPip(panelId) {
+export function openPip(panelId, restoredConfig = null) {
   const panelEl = document.getElementById(panelId);
   if (!panelEl || activePips.has(panelId)) return;
   
@@ -421,16 +425,37 @@ export function openPip(panelId) {
   const pipContainer = document.createElement('div');
   pipContainer.className = 'pip-container';
   pipContainer.dataset.panelId = panelId;
-  pipContainer.style.zIndex = PIP_Z_INDEX_BASE + activePips.size;
   
-  // Dimensiones iniciales: panel al tamaño del zoom mínimo del canvas
-  const pipDims = getInitialPipDimensions();
-  const initialPos = getInitialPipPosition(panelId, pipDims.width, pipDims.height);
+  // ── Dimensiones y posición: usar config restaurada o calcular iniciales ──
+  let initX, initY, initW, initH, initScale;
   
-  pipContainer.style.left = `${initialPos.x}px`;
-  pipContainer.style.top = `${initialPos.y}px`;
-  pipContainer.style.width = `${pipDims.width}px`;
-  pipContainer.style.height = `${pipDims.height}px`;
+  if (restoredConfig) {
+    // Ajustar posición a los límites de la ventana actual
+    const maxX = window.innerWidth - restoredConfig.width;
+    const maxY = window.innerHeight - 40;
+    const maxW = window.innerWidth - Math.max(0, restoredConfig.x);
+    const maxH = window.innerHeight - Math.max(0, restoredConfig.y);
+    initX = Math.max(0, Math.min(maxX, restoredConfig.x));
+    initY = Math.max(0, Math.min(maxY, restoredConfig.y));
+    initW = Math.max(MIN_PIP_SIZE, Math.min(maxW, restoredConfig.width));
+    initH = Math.max(MIN_PIP_SIZE, Math.min(maxH, restoredConfig.height));
+    initScale = restoredConfig.scale; // Se clampeará después del reflow
+    pipContainer.style.zIndex = restoredConfig.zIndex || PIP_Z_INDEX_BASE + activePips.size;
+  } else {
+    const pipDims = getInitialPipDimensions();
+    const initialPos = getInitialPipPosition(panelId, pipDims.width, pipDims.height);
+    initX = initialPos.x;
+    initY = initialPos.y;
+    initW = pipDims.width;
+    initH = pipDims.height;
+    initScale = pipDims.scale;
+    pipContainer.style.zIndex = PIP_Z_INDEX_BASE + activePips.size;
+  }
+  
+  pipContainer.style.left = `${initX}px`;
+  pipContainer.style.top = `${initY}px`;
+  pipContainer.style.width = `${initW}px`;
+  pipContainer.style.height = `${initH}px`;
   
   // Barra de título
   const header = document.createElement('div');
@@ -493,43 +518,90 @@ export function openPip(panelId) {
     originalParent,
     originalIndex,
     pipContainer,
-    x: initialPos.x,
-    y: initialPos.y,
-    width: pipDims.width,
-    height: pipDims.height,
-    scale: pipDims.scale,
-    defaultWidth: pipDims.width,
-    defaultHeight: pipDims.height,
-    locked: false,
-    isMaximized: false
+    x: initX,
+    y: initY,
+    width: initW,
+    height: initH,
+    scale: initScale,
+    defaultWidth: restoredConfig?.defaultWidth || initW,
+    defaultHeight: restoredConfig?.defaultHeight || initH,
+    locked: false, // El lock se aplica después del scroll en restauración
+    isMaximized: restoredConfig?.isMaximized || false,
+    // Última posición de scroll conocida (usada por el lock listener para revertir)
+    // Pre-inicializar con valores guardados para que el lock no revierta a 0
+    lastScrollLeft: restoredConfig?.scrollX || 0,
+    lastScrollTop: restoredConfig?.scrollY || 0
   };
   
   activePips.set(panelId, state);
   
-  // Aplicar escala inicial
-  updatePipScale(panelId, state.scale);
-  
-  // Recalcular escala con dimensiones reales del viewport (descuenta bordes, header real, etc.)
-  const fitScale = getMinScale(panelId);
-  if (fitScale !== state.scale) {
-    state.scale = fitScale;
-    updatePipScale(panelId, fitScale);
-  }
-  
-  // Centrar el scroll en el panel (después de que se haya calculado el tamaño del viewport-inner con padding)
-  const pipViewport = pipContainer.querySelector('.pip-viewport');
-  if (pipViewport) {
-    const vw = pipViewport.clientWidth;
-    const vh = pipViewport.clientHeight;
-    const panelW = (panelEl?.offsetWidth || 760) * state.scale;
-    const panelH = (panelEl?.offsetHeight || 760) * state.scale;
-    const minVisX = Math.min(vw, panelW) * (2 / 3);
-    const minVisY = Math.min(vh, panelH) * (2 / 3);
-    const padX = Math.max(0, vw - minVisX);
-    const padY = Math.max(0, vh - minVisY);
-    // Scroll para que el centro del panel escalado quede en el centro del viewport
-    pipViewport.scrollLeft = padX + panelW / 2 - vw / 2;
-    pipViewport.scrollTop = padY + panelH / 2 - vh / 2;
+  if (restoredConfig) {
+    // ── RESTAURACIÓN: aplicar escala guardada directamente ──
+    // Forzar reflow para que viewport tenga dimensiones correctas
+    // eslint-disable-next-line no-unused-expressions
+    pipContainer.offsetHeight;
+    
+    // Clampear escala al mínimo permitido por el tamaño real del viewport
+    const minScale = getMinScale(panelId);
+    state.scale = Math.max(minScale, Math.min(MAX_SCALE, initScale));
+    updatePipScale(panelId, state.scale, false);
+    
+    log.debug(`PiP ${panelId} restaurado: scale=${state.scale.toFixed(3)} (saved=${initScale}, min=${minScale.toFixed(3)}), size=${initW}x${initH}`);
+    
+    // Restaurar scroll y lock en rAF (necesita layout con el nuevo scale/padding)
+    const savedScrollX = restoredConfig.scrollX || 0;
+    const savedScrollY = restoredConfig.scrollY || 0;
+    const shouldLock = restoredConfig.locked || false;
+    const appliedScale = state.scale;
+    
+    requestAnimationFrame(() => {
+      // Re-aplicar escala con layout definitivo
+      updatePipScale(panelId, appliedScale, false);
+      
+      // Restaurar scroll y actualizar referencia de lock directamente
+      viewport.scrollLeft = savedScrollX;
+      viewport.scrollTop = savedScrollY;
+      state.lastScrollLeft = savedScrollX;
+      state.lastScrollTop = savedScrollY;
+      
+      log.debug(`PiP ${panelId} rAF: scroll=${viewport.scrollLeft},${viewport.scrollTop} (target=${savedScrollX},${savedScrollY})`);
+      
+      // Diferir el lock al siguiente macrotask: los scroll events de las
+      // asignaciones anteriores se despachan asíncronamente. Si aplicamos
+      // el lock aquí, el listener revertirá el scroll a lastScroll (viejo).
+      // Con setTimeout(0), los scroll events ya habrán actualizado lastScroll.
+      if (shouldLock) {
+        setTimeout(() => {
+          state.locked = true;
+          pipContainer.classList.add('pip-container--locked');
+        }, 0);
+      }
+    });
+  } else {
+    // ── NUEVO PIP: calcular escala y centrar ──
+    updatePipScale(panelId, state.scale);
+    
+    // Recalcular escala con dimensiones reales del viewport
+    const fitScale = getMinScale(panelId);
+    if (fitScale !== state.scale) {
+      state.scale = fitScale;
+      updatePipScale(panelId, fitScale);
+    }
+    
+    // Centrar el scroll en el panel
+    const pipViewport = pipContainer.querySelector('.pip-viewport');
+    if (pipViewport) {
+      const vw = pipViewport.clientWidth;
+      const vh = pipViewport.clientHeight;
+      const panelW = (panelEl?.offsetWidth || 760) * state.scale;
+      const panelH = (panelEl?.offsetHeight || 760) * state.scale;
+      const minVisX = Math.min(vw, panelW) * (2 / 3);
+      const minVisY = Math.min(vh, panelH) * (2 / 3);
+      const padX = Math.max(0, vw - minVisX);
+      const padY = Math.max(0, vh - minVisY);
+      pipViewport.scrollLeft = padX + panelW / 2 - vw / 2;
+      pipViewport.scrollTop = padY + panelH / 2 - vh / 2;
+    }
   }
   
   // Event listeners del PiP
@@ -982,18 +1054,16 @@ function setupPipEvents(pipContainer, panelId) {
   
   // Bloquear scroll interno cuando está bloqueado
   if (viewport) {
-    let lastScrollLeft = 0;
-    let lastScrollTop = 0;
     viewport.addEventListener('scroll', () => {
       const state = activePips.get(panelId);
       if (state?.locked) {
         // Restaurar posición previa para bloquear el scroll
-        viewport.scrollLeft = lastScrollLeft;
-        viewport.scrollTop = lastScrollTop;
+        viewport.scrollLeft = state.lastScrollLeft;
+        viewport.scrollTop = state.lastScrollTop;
         return;
       }
-      lastScrollLeft = viewport.scrollLeft;
-      lastScrollTop = viewport.scrollTop;
+      state.lastScrollLeft = viewport.scrollLeft;
+      state.lastScrollTop = viewport.scrollTop;
     }, { passive: true });
   }
   
@@ -1003,13 +1073,15 @@ function setupPipEvents(pipContainer, panelId) {
     viewport.addEventListener('scroll', () => {
       const state = activePips.get(panelId);
       if (state?.locked) return;
+      // Ignorar durante restauración (el scroll de openPip no debe persistirse)
+      if (_isRestoring) return;
       // Ignorar durante gestos activos para evitar ciclos de layout en Samsung
       if (gestureInProgress) return;
       // Debounce más largo para evitar lecturas de layout durante momentum scroll
       if (scrollSaveTimeout) clearTimeout(scrollSaveTimeout);
       scrollSaveTimeout = setTimeout(() => {
-        // Verificar de nuevo por si el gesto empezó durante el timeout
-        if (!gestureInProgress) {
+        // Verificar de nuevo por si el gesto o restauración empezó durante el timeout
+        if (!gestureInProgress && !_isRestoring) {
           savePipState();
         }
       }, 500);
@@ -1559,6 +1631,9 @@ export function serializePipState() {
  * Guarda el estado de los PiPs en localStorage.
  */
 export function savePipState() {
+  // No guardar durante restauración (openPip llama a savePipState con datos iniciales)
+  if (_isRestoring) return;
+  
   // Verificar si está habilitado recordar PiPs
   const remember = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
   if (remember === 'false') return;
@@ -1590,70 +1665,34 @@ export function restorePipState() {
     
     log.info('Restaurando', states.length, 'paneles PiP');
     
-    // Restaurar cada PiP con su configuración guardada
+    // Bloquear saves intermedios durante la restauración
+    _isRestoring = true;
+    
     for (const savedState of states) {
-      const { panelId, x, y, width, height, scale, zIndex } = savedState;
-      
-      // Verificar que el panel existe
-      const panelEl = document.getElementById(panelId);
+      const panelEl = document.getElementById(savedState.panelId);
       if (!panelEl) {
-        log.warn('Panel no encontrado para restaurar:', panelId);
+        log.warn('Panel no encontrado para restaurar:', savedState.panelId);
         continue;
       }
       
-      // Abrir el PiP
-      openPip(panelId);
-      
-      // Aplicar configuración guardada
-      const state = activePips.get(panelId);
-      if (state) {
-        // Ajustar posición (asegurar que esté dentro de la ventana)
-        const maxX = window.innerWidth - width;
-        const maxY = window.innerHeight - 40;
-        const maxW = window.innerWidth - Math.max(0, x);
-        const maxH = window.innerHeight - Math.max(0, y);
-        state.x = Math.max(0, Math.min(maxX, x));
-        state.y = Math.max(0, Math.min(maxY, y));
-        state.width = Math.max(MIN_PIP_SIZE, Math.min(maxW, width));
-        state.height = Math.max(MIN_PIP_SIZE, Math.min(maxH, height));
-        
-        // Usar límite dinámico después de establecer dimensiones
-        const minScale = getMinScale(panelId);
-        state.scale = Math.max(minScale, Math.min(MAX_SCALE, scale));
-        
-        // Aplicar al DOM
-        state.pipContainer.style.left = `${state.x}px`;
-        state.pipContainer.style.top = `${state.y}px`;
-        state.pipContainer.style.width = `${state.width}px`;
-        state.pipContainer.style.height = `${state.height}px`;
-        state.pipContainer.style.zIndex = zIndex || PIP_Z_INDEX_BASE;
-        
-        // Restaurar estado de bloqueo
-        if (savedState.locked) {
-          state.locked = true;
-          state.pipContainer.classList.add('pip-container--locked');
-        }
-        state.isMaximized = savedState.isMaximized || false;
-        if (savedState.defaultWidth) state.defaultWidth = savedState.defaultWidth;
-        if (savedState.defaultHeight) state.defaultHeight = savedState.defaultHeight;
-        
-        // No persistir durante restauración (evitar loop)
-        updatePipScale(panelId, state.scale, false);
-        
-        // Restaurar posición del scroll interno
-        if (savedState.scrollX !== undefined || savedState.scrollY !== undefined) {
-          const viewport = state.pipContainer.querySelector('.pip-viewport');
-          if (viewport) {
-            // Usar setTimeout para asegurar que el layout esté calculado
-            setTimeout(() => {
-              viewport.scrollLeft = savedState.scrollX || 0;
-              viewport.scrollTop = savedState.scrollY || 0;
-            }, 50);
-          }
-        }
-      }
+      // Abrir PiP directamente con la configuración guardada
+      // (openPip se encarga de aplicar dimensiones, escala, scroll y lock)
+      openPip(savedState.panelId, savedState);
     }
+    
+    // Desbloquear saves después de que los rAF de restauración terminen
+    // Doble rAF: el primero es el de openPip (scale+scroll+lock),
+    // el segundo garantiza que ya terminó
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        _isRestoring = false;
+        savePipState();
+        log.debug('PiP restore completado, estado guardado');
+      });
+    });
+    
   } catch (e) {
+    _isRestoring = false;
     log.warn('Error restaurando estado PiP:', e);
   }
 }

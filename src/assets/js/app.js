@@ -423,13 +423,42 @@ class App {
       buttonsGap: sequencerConfig.buttonsGap ?? 4,
       switchesOffset: resolveOffset(sequencerConfig.switchesOffset, { x: 0, y: 0 }),
       buttonsOffset: resolveOffset(sequencerConfig.buttonsOffset, { x: 0, y: 0 }),
+      clockRateOffset: resolveOffset(
+        sequencerConfig.clockRateOffset,
+        sequencerConfig.clockRate?.rowOffset || { x: 0, y: 0 }
+      ),
+      clockRateKnobOffset: resolveOffset(
+        sequencerConfig.clockRateKnobOffset,
+        sequencerConfig.clockRate?.knobOffset || { x: 0, y: 0 }
+      ),
       switchOffsets: Array.isArray(sequencerConfig.switchOffsets) ? sequencerConfig.switchOffsets : [],
-      buttonOffsets: Array.isArray(sequencerConfig.buttonOffsets) ? sequencerConfig.buttonOffsets : []
+      buttonOffsets: Array.isArray(sequencerConfig.buttonOffsets) ? sequencerConfig.buttonOffsets : [],
+      clockRate: {
+        label: sequencerConfig.clockRate?.label || 'Clock Rate',
+        knobSize: sequencerConfig.clockRate?.knobSize || 'sm',
+        rowOffset: resolveOffset(sequencerConfig.clockRate?.rowOffset, { x: 0, y: 0 }),
+        knobOffset: resolveOffset(sequencerConfig.clockRate?.knobOffset, { x: 0, y: 0 })
+      }
     };
 
     const joystickLeftUI = mergePanel7UI(joystickDefaults, moduleOverrides.joystickLeft?.ui);
     const joystickRightUI = mergePanel7UI(joystickDefaults, moduleOverrides.joystickRight?.ui);
     const sequencerUI = mergePanel7UI(sequencerDefaults, moduleOverrides.sequencer?.ui);
+    const sequencerClockOverride = moduleOverrides.sequencer?.ui?.clockRate || {};
+    sequencerUI.clockRateOffset = resolveOffset(
+      moduleOverrides.sequencer?.ui?.clockRateOffset,
+      sequencerDefaults.clockRateOffset
+    );
+    sequencerUI.clockRateKnobOffset = resolveOffset(
+      moduleOverrides.sequencer?.ui?.clockRateKnobOffset,
+      sequencerDefaults.clockRateKnobOffset
+    );
+    sequencerUI.clockRate = {
+      ...sequencerDefaults.clockRate,
+      ...sequencerClockOverride,
+      rowOffset: resolveOffset(sequencerClockOverride.rowOffset, sequencerDefaults.clockRate.rowOffset),
+      knobOffset: resolveOffset(sequencerClockOverride.knobOffset, sequencerDefaults.clockRate.knobOffset)
+    };
 
     // ── Inicializar módulos de audio de joystick ──────────────────────────
     const joyRamps = joystickConfig.defaults?.ramps || { position: 0.01, range: 0.05 };
@@ -548,6 +577,24 @@ class App {
       buttonRow.appendChild(btn);
     }
     seqContent.appendChild(buttonRow);
+
+    // Fila de knob central: Clock Rate
+    const clockRow = document.createElement('div');
+    clockRow.className = 'panel7-sequencer-clock';
+    applyOffset(clockRow, sequencerUI.clockRateOffset || sequencerUI.clockRate?.rowOffset);
+
+    const clockRateKnob = createKnob({
+      label: sequencerUI.clockRate?.label || 'Clock Rate',
+      size: sequencerUI.clockRate?.knobSize || 'sm',
+      showValue: false,
+      initial: 0.5,
+      onChange: () => {}
+    });
+    clockRateKnob.wrapper.classList.add('panel7-seq-clock-knob');
+    clockRateKnob.wrapper.dataset.knob = 'clockRate';
+    applyOffset(clockRateKnob.wrapper, sequencerUI.clockRateKnobOffset || sequencerUI.clockRate?.knobOffset);
+    clockRow.appendChild(clockRateKnob.wrapper);
+    seqContent.appendChild(clockRow);
     
     sequencerFrame.appendToContent(seqContent);
     applyOffset(sequencerEl, sequencerUI.offset);

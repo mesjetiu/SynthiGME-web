@@ -34,7 +34,7 @@
 //
 // Fila superior (placeholders con controles visuales, sin audio aún):
 //   - Joystick Left  (knobs: Range Horizontal, Range Vertical + pad joystick)
-//   - Sequencer Operational Control (8 switches + 8 botones)
+//   - Sequencer Operational Control (8 switches + 8 botones + knob Clock Rate)
 //   - Joystick Right (knobs: Range Horizontal, Range Vertical + pad joystick)
 //
 // Fila inferior:
@@ -61,7 +61,7 @@ export default {
   layout: {
     // Offset general del panel (px) — desplaza todos los módulos
     // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: -35 },
+    offset: { x: 0, y: 27 },
 
     // Padding general del panel
     padding: { top: 0, right: 10, bottom: 10, left: 10 },
@@ -76,8 +76,8 @@ export default {
 
       // Tamaño fijo del MARCO de cada tipo de módulo (px).
       // El contenido se ajusta dentro sin afectar al marco.
-      joystickSize:  { width: 215, height: 180 },
-      sequencerSize: { width: 252, height: 180 },
+      joystickSize:  { width: 215, height: 240 },
+      sequencerSize: { width: 252, height: 240 },
 
       // Joystick: layout de 2 columnas (knobs izq | joystick pad der)
       joystick: {
@@ -108,11 +108,13 @@ export default {
 
         // Ajuste fino del bloque de sequencer
         contentPadding: { top: 4, right: 4, bottom: 4, left: 4 },
-        rowsGap: 8,                       // separación entre fila switches y fila botones
+        rowsGap: 8,                       // separación vertical entre filas internas del sequencer
         switchesGap: 4,                   // gap horizontal entre switches
         buttonsGap: 4,                    // gap horizontal entre botones
         switchesOffset: { x: 0, y: 0 },   // offset de la fila de switches
         buttonsOffset: { x: 0, y: 0 },    // offset de la fila de botones
+        clockRateOffset: { x: 0, y: 0 },  // offset de la fila del knob Clock Rate
+        clockRateKnobOffset: { x: 0, y: 0 }, // offset del knob Clock Rate
 
         // Offsets individuales por control (8 + 8)
         switchOffsets: [
@@ -122,7 +124,13 @@ export default {
         buttonOffsets: [
           { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
           { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
-        ]
+        ],
+
+        // Fila adicional bajo botones: knob central "Clock Rate"
+        clockRate: {
+          label: 'Clock Rate',
+          knobSize: 'sm'
+        }
       }
     },
 
@@ -186,10 +194,12 @@ export default {
 
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     sequencer: {
-      visible: true
+      visible: true,
       // ui: { }  — overrides visuales del sequencer.
       // Soporta: offset, contentPadding, rowsGap, switchesGap, buttonsGap,
-      //          switchesOffset, buttonsOffset, switchOffsets, buttonOffsets
+      //          switchesOffset, buttonsOffset, switchOffsets, buttonOffsets,
+      //          clockRateOffset, clockRateKnobOffset,
+      //          clockRate { label, knobSize }
     },
 
     joystickRight: {

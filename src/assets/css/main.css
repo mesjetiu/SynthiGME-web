@@ -5358,6 +5358,18 @@ small { color:#aaa; }
   box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
 }
 
+.panel7-sequencer-clock {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* Excepción: mostrar etiqueta solo para el knob Clock Rate */
+#panel-output .panel7-seq-clock-knob .knob-label {
+  display: block;
+}
+
 /* Content area del Panel 7 joystick y sequencer */
 .panel7-joystick .synth-module__content,
 .panel7-sequencer .synth-module__content {

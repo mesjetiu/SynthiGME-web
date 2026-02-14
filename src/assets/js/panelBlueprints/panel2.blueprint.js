@@ -126,26 +126,29 @@ export default {
   modules: {
     // ── Módulo funcional: Oscilloscope ──────────────────────────────────
     oscilloscope: {
+      visible: true,
       // ui: { }  — overrides visuales del osciloscopio
     },
 
     // ── Placeholders (sin funcionalidad aún) ────────────────────────────
+    // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     frequencyMeter: {
-      // ui: { }  — overrides visuales cuando se implemente
+      visible: false
     },
 
     octaveFilterBank: {
-      // ui: { }  — overrides visuales cuando se implemente
+      visible: false
     },
 
     // ── Módulo funcional: Input Amplifier Level ─────────────────────────
     inputAmplifierLevel: {
+      visible: true,
       // ui: { }  — overrides visuales del input amplifier
     },
 
     // ── Placeholder ─────────────────────────────────────────────────────
     externalTreatmentDevices: {
-      // ui: { }  — overrides visuales cuando se implemente
+      visible: false
     }
   }
 

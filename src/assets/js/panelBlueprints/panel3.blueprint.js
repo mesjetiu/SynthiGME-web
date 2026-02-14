@@ -205,14 +205,18 @@ export default {
   //
   modules: {
     noise1: {
+      visible: true,
       // ui: { }  — overrides de noiseUI para este módulo
     },
     
     noise2: {
+      visible: true,
       // ui: { }  — overrides de noiseUI para este módulo
     },
     
+    // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     randomCV: {
+      visible: false,
       // ui: { }  — overrides de randomCVUI para este módulo
     }
   }

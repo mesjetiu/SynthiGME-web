@@ -284,10 +284,11 @@ describe('Panel 1 Blueprint - Módulos', () => {
       `debe haber 16 módulos, hay ${keys.length}: ${keys.join(', ')}`);
   });
 
-  it('todos los módulos son placeholders (objetos vacíos)', () => {
+  it('todos los módulos son placeholders (solo pueden tener visible)', () => {
     for (const [key, mod] of Object.entries(modules)) {
-      assert.strictEqual(Object.keys(mod).length, 0,
-        `modules.${key} debe ser objeto vacío (placeholder)`);
+      const keys = Object.keys(mod).filter(k => k !== 'visible');
+      assert.strictEqual(keys.length, 0,
+        `modules.${key} solo puede tener la propiedad visible, tiene: ${keys.join(', ')}`);
     }
   });
 });

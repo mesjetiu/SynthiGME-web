@@ -93,6 +93,23 @@ import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VISIBILIDAD DE MÓDULOS
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Aplica visibility:hidden + pointer-events:none a módulos marcados
+// con visible:false en el blueprint. El módulo sigue ocupando su
+// espacio en el layout (no se usa display:none), pero es invisible
+// y no responde a clics ni hover.
+//
+function applyModuleVisibility(element, blueprint, moduleKey) {
+  const mod = blueprint.modules?.[moduleKey];
+  if (mod && mod.visible === false) {
+    element.style.visibility = 'hidden';
+    element.style.pointerEvents = 'none';
+  }
+}
+
 class App {
   constructor() {
     this.engine = new AudioEngine();
@@ -432,6 +449,7 @@ class App {
     seqContent.appendChild(buttonRow);
     
     sequencerFrame.appendToContent(seqContent);
+    applyModuleVisibility(sequencerEl, blueprint, 'sequencer');
     upperRowEl.appendChild(sequencerEl);
     
     // Joystick Right (knobs + pad conectados al módulo de audio, columnas invertidas)
@@ -1892,6 +1910,7 @@ class App {
       }
       frame.appendToContent(knobsContainer);
 
+      applyModuleVisibility(el, blueprint, filterId);
       filtersRow.appendChild(el);
       filterFrames[filterId] = frame;
     }
@@ -1926,6 +1945,7 @@ class App {
       }
       frame.appendToContent(knobsContainer);
 
+      applyModuleVisibility(el, blueprint, envId);
       host.appendChild(el);
       envFrames[envId] = frame;
     }
@@ -1968,6 +1988,7 @@ class App {
       }
       frame.appendToContent(knobsContainer);
 
+      applyModuleVisibility(el, blueprint, rmId);
       bottomRow.appendChild(el);
       bottomFrames[rmId] = frame;
     }
@@ -1990,6 +2011,7 @@ class App {
     }
     reverbFrame.appendToContent(reverbKnobs);
 
+    applyModuleVisibility(reverbEl, blueprint, 'reverberation1');
     bottomRow.appendChild(reverbEl);
     bottomFrames.reverberation1 = reverbFrame;
 
@@ -2011,6 +2033,7 @@ class App {
     }
     echoFrame.appendToContent(echoKnobs);
 
+    applyModuleVisibility(echoEl, blueprint, 'echoADL');
     bottomRow.appendChild(echoEl);
     bottomFrames.echoADL = echoFrame;
 
@@ -2227,6 +2250,7 @@ class App {
       height: ${freqMeterLayout.height}px;
       flex: 0 0 auto;
     `;
+    applyModuleVisibility(freqMeterEl, blueprint, 'frequencyMeter');
     host.appendChild(freqMeterEl);
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -2245,6 +2269,7 @@ class App {
       height: ${octaveFilterLayout.height}px;
       flex: 0 0 auto;
     `;
+    applyModuleVisibility(octaveFilterEl, blueprint, 'octaveFilterBank');
     host.appendChild(octaveFilterEl);
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -2302,6 +2327,7 @@ class App {
       height: ${extTreatmentLayout.height}px;
       flex: 0 0 auto;
     `;
+    applyModuleVisibility(extTreatmentEl, blueprint, 'externalTreatmentDevices');
     host.appendChild(extTreatmentEl);
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -3244,7 +3270,9 @@ class App {
         ...randomCVResolvedUI
       });
       this._randomVoltageUIs[randomCVId] = randomCV;
-      reservedRow.appendChild(randomCV.createElement());
+      const randomCVEl = randomCV.createElement();
+      applyModuleVisibility(randomCVEl, panel3Blueprint, 'randomCV');
+      reservedRow.appendChild(randomCVEl);
       
       host.appendChild(reservedRow);
       

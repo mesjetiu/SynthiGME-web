@@ -126,32 +126,33 @@ export default {
   //
   modules: {
     // ── Filtros paso bajo (Low Pass) ────────────────────────────────────
-    flp1: {},
-    flp2: {},
-    flp3: {},
-    flp4: {},
+    // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
+    flp1: { visible: false },
+    flp2: { visible: false },
+    flp3: { visible: false },
+    flp4: { visible: false },
 
     // ── Filtros paso alto (High Pass) ───────────────────────────────────
-    fhp1: {},
-    fhp2: {},
-    fhp3: {},
-    fhp4: {},
+    fhp1: { visible: false },
+    fhp2: { visible: false },
+    fhp3: { visible: false },
+    fhp4: { visible: false },
 
     // ── Envelope Shapers ────────────────────────────────────────────────
-    envelopeShaper1: {},
-    envelopeShaper2: {},
-    envelopeShaper3: {},
+    envelopeShaper1: { visible: false },
+    envelopeShaper2: { visible: false },
+    envelopeShaper3: { visible: false },
 
     // ── Ring Modulators ─────────────────────────────────────────────────
-    ringModulator1: {},
-    ringModulator2: {},
-    ringModulator3: {},
+    ringModulator1: { visible: false },
+    ringModulator2: { visible: false },
+    ringModulator3: { visible: false },
 
     // ── Reverberación ───────────────────────────────────────────────────
-    reverberation1: {},
+    reverberation1: { visible: false },
 
     // ── Echo A.D.L. ─────────────────────────────────────────────────────
-    echoADL: {}
+    echoADL: { visible: false }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

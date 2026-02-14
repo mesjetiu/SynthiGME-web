@@ -146,26 +146,29 @@ export default {
   modules: {
     // ── Fila superior (placeholders sin funcionalidad) ──────────────────
     joystickLeft: {
-      // ui: { }  — overrides visuales cuando se implemente
+      visible: true,
+      // ui: { }  — overrides visuales del joystick izquierdo
     },
 
+    // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     sequencer: {
-      // ui: { }  — overrides visuales cuando se implemente
+      visible: false
     },
 
     joystickRight: {
-      // ui: { }  — overrides visuales cuando se implemente
+      visible: true,
+      // ui: { }  — overrides visuales del joystick derecho
     },
 
     // ── Fila inferior: Output Channels 1-8 ──────────────────────────────
-    oc1: { /* ui: { } */ },
-    oc2: { /* ui: { } */ },
-    oc3: { /* ui: { } */ },
-    oc4: { /* ui: { } */ },
-    oc5: { /* ui: { } */ },
-    oc6: { /* ui: { } */ },
-    oc7: { /* ui: { } */ },
-    oc8: { /* ui: { } */ }
+    oc1: { visible: true },
+    oc2: { visible: true },
+    oc3: { visible: true },
+    oc4: { visible: true },
+    oc5: { visible: true },
+    oc6: { visible: true },
+    oc7: { visible: true },
+    oc8: { visible: true }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

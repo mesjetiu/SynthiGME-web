@@ -715,12 +715,15 @@ class App {
     if (this.outputChannelsSection) {
       const rowPadding = lowerRow.padding || { top: 8, right: 8, bottom: 12, left: 8 };
       const contentPadding = channelUI.contentPadding || { top: 6, right: 4, bottom: 8, left: 4 };
+      const channelSize = lowerRow.channelSize || { width: 80, height: 350 };
       applyOffset(this.outputChannelsSection, lowerRow.offset);
       
       // CSS custom properties para slider y channel (heredadas por los hijos)
       this.outputChannelsSection.style.setProperty('--oc-slider-height', `${slider.height ?? 250}px`);
       this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${slider.shellHeight ?? 270}px`);
       this.outputChannelsSection.style.setProperty('--oc-slider-width', `${slider.width ?? 24}px`);
+      this.outputChannelsSection.style.setProperty('--oc-channel-width', `${channelSize.width ?? 80}px`);
+      this.outputChannelsSection.style.setProperty('--oc-channel-height', `${channelSize.height ?? 350}px`);
       this.outputChannelsSection.style.setProperty('--oc-channel-gap', `${lowerRow.gap ?? 8}px`);
       this.outputChannelsSection.style.setProperty('--oc-row-padding', 
         `${rowPadding.top}px ${rowPadding.right}px ${rowPadding.bottom}px ${rowPadding.left}px`);

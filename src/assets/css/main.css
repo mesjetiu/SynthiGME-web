@@ -5051,9 +5051,13 @@ small { color:#aaa; }
 
 /* Cada módulo de canal */
 .output-channel-module {
-  flex: 1 1 0;
-  min-width: 80px;
-  max-width: 120px;
+  flex: 0 0 var(--oc-channel-width, 80px);
+  width: var(--oc-channel-width, 80px);
+  min-width: var(--oc-channel-width, 80px);
+  max-width: var(--oc-channel-width, 80px);
+  height: var(--oc-channel-height, 350px);
+  min-height: var(--oc-channel-height, 350px);
+  max-height: var(--oc-channel-height, 350px);
 }
 
 .output-channel-module .synth-module__header {

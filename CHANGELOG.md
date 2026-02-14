@@ -40,6 +40,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Menú contextual: nombres mostraban `{name}` literal**: Las llamadas a `t()` usaban firma incorrecta `t(key, fallback, params)` cuando la función solo acepta `t(key, params)`. El objeto con el nombre se descartaba y el placeholder no se interpolaba.
 - **PiP: menú contextual no se cerraba en móvil ni con Escape**: El cierre dependía de `click/contextmenu` en burbuja y quedaba bloqueado por `stopPropagation()` dentro de PiP. Añadido cierre por `pointerdown`/`touchstart` en captura y por tecla Escape en `contextMenuManager`.
 - **Panel 7: halo activo en pads de joystick**: Los pads de joystick ahora muestran halo palpitante al pasar el ratón, tocar o arrastrar, igual que el feedback visual de controles activos en knobs/sliders.
+- **Panel 7: `channelSize` ahora controla realmente ancho y alto de Output Channels**: El layout de la fila inferior aplica `lowerRow.channelSize.width` y `lowerRow.channelSize.height` al tamaño final de cada canal, en lugar de quedar limitado por reglas CSS fijas.
 
 ### Añadido
 - **Opciones de interacción táctil**: Dos nuevos ajustes en Ajustes > Visualización, menú Paneles de Electron y electronMenuBridge. *Pan con un dedo* (activado por defecto): permite arrastrar el canvas tocando el fondo con un dedo. *Controles multitáctil* (desactivado por defecto): permite mover varios knobs/faders simultáneamente; al desactivarlo, dos dedos en pantalla siempre activan zoom/pan y bloquean los controles, evitando cambios accidentales.

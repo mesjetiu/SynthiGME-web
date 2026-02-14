@@ -162,7 +162,7 @@ export default {
       offset: { x: 0, y: 0 },
 
       // Tamaño fijo del MARCO de cada canal (px)
-      channelSize: { width: 75, height: 350 },
+      channelSize: { width: 85, height: 440 },
 
       // Configuración del slider de nivel (dentro de cada canal)
       slider: {

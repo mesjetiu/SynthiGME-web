@@ -87,7 +87,7 @@ export default {
 
         // Ajuste fino interno del joystick izquierdo
         layoutGap: 6,                 // gap entre columna de knobs y joystick pad
-        knobsGap: 15,                  // gap vertical entre knobs
+        knobsGap: 35,                  // gap vertical entre knobs
         knobsOffset: { x: 15, y: 35 }, // offset de la columna de knobs
         padOffset: { x: 0, y: 0 },    // offset del pad
         knobOffsets: [                // offsets por knob [RangeY, RangeX]
@@ -104,7 +104,7 @@ export default {
 
         // Ajuste fino interno del joystick derecho
         layoutGap: 6,
-        knobsGap: 15,
+        knobsGap: 35,
         knobsOffset: { x: -15, y: 35 },
         padOffset: { x: 0, y: 0 },
         knobOffsets: [

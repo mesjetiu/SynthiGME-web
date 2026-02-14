@@ -52,7 +52,7 @@ export default {
   // Mostrar/ocultar marcos de todos los módulos del panel.
   // true  → marcos visibles (útil para posicionar contra imagen de fondo)
   // false → marcos invisibles (aspecto final limpio)
-  showFrames: true,
+  showFrames: false,
 
   // ─────────────────────────────────────────────────────────────────────────
   // CONFIGURACIÓN DEL LAYOUT VISUAL
@@ -186,9 +186,9 @@ export default {
     // Knobs (filter, pan)
     knobSize: 60,            // px — diámetro del knob
     knobInnerPct: 76,        // % — círculo interior respecto al exterior
-    knobGap: 8,              // px — gap vertical entre los 2 knobs (Filter y Pan)
+    knobGap: 23,              // px — gap vertical entre los 2 knobs (Filter y Pan)
     knobRowOffsetX: 0,       // px — desplazamiento horizontal de la fila de knobs
-    knobRowOffsetY: 30,       // px — desplazamiento vertical de la fila de knobs
+    knobRowOffsetY: 20,       // px — desplazamiento vertical de la fila de knobs
 
     // Slider (level) — tamaño visual del fader
     sliderSize: {
@@ -198,8 +198,8 @@ export default {
     },
 
     // Espaciados verticales entre grupos de controles
-    knobButtonGap: 2,        // gap entre knobs y botón on/off
-    buttonSliderGap: 2,      // gap entre botón on/off y slider
+    knobButtonGap: 28,        // gap entre knobs y botón on/off
+    buttonSliderGap: -35,      // gap entre botón on/off y slider
 
     // Botón On/Off (vertical)
     // Arriba = ON, abajo = OFF

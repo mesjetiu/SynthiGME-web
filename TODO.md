@@ -121,6 +121,7 @@ podría ser significativo en dispositivos móviles.
 
 - Colocar todos los módulos aunque no estén funcionando.
 - OSC: probar entre dispositivos y perfeccionarlo.
+- Revisar input amplifier levels según manuales técnicos.
 
 ## Objetivo v0.8.0 (optimización y publicación tester)
 

@@ -318,6 +318,7 @@ class App {
 
   _setupOutputFaders() {
     const blueprint = panel7Blueprint;
+    const panelLayout = blueprint.layout || {};
     const upperRow = blueprint.layout.upperRow || {};
     const lowerRow = blueprint.layout.lowerRow || {};
     const slider = lowerRow.slider || {};
@@ -328,11 +329,33 @@ class App {
       this.outputPanel.element.classList.add('hide-frames');
     }
     
-    // Offset general del panel (desde blueprint)
-    const panelOffset = blueprint.layout.offset || { x: 0, y: 0 };
-    if (panelOffset.x !== 0 || panelOffset.y !== 0) {
-      this.outputPanel.element.style.transform = `translate(${panelOffset.x}px, ${panelOffset.y}px)`;
-    }
+    // Host interno del layout (se desplaza respecto al fondo del panel)
+    const panel7Layout = document.createElement('div');
+    panel7Layout.className = 'panel7-layout';
+
+    const panelPadding = panelLayout.padding || { top: 0, right: 10, bottom: 10, left: 10 };
+    panel7Layout.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: ${panelPadding.top}px ${panelPadding.right}px ${panelPadding.bottom}px ${panelPadding.left}px;
+      z-index: 1;
+    `;
+
+    // Offset general del layout (desde blueprint)
+    const panelOffset = panelLayout.offset || { x: 0, y: 0 };
+    panel7Layout.style.transform = `translate(${panelOffset.x}px, ${panelOffset.y}px)`;
+
+    // Re-parent de la sección inferior dentro del host para que TODO el layout
+    // (fila superior + output channels) se mueva junto con el offset.
+    this.outputPanel.element.insertBefore(panel7Layout, this.outputChannelsSection);
+    panel7Layout.appendChild(this.outputChannelsSection);
     
     // ── Fila superior: Joystick Left | Sequencer | Joystick Right ──────
     const upperRowEl = document.createElement('div');
@@ -534,7 +557,7 @@ class App {
     };
     
     // Insertar ANTES de la sección de output channels (orden visual: arriba → abajo)
-    this.outputPanel.element.insertBefore(upperRowEl, this.outputChannelsSection);
+    panel7Layout.insertBefore(upperRowEl, this.outputChannelsSection);
     
     // ── Fila inferior: Output Channels ─────────────────────────────────
     // Aplicar estilos del blueprint al contenedor de la sección

@@ -84,12 +84,13 @@ export default {
       joystickLeft: {
         knobs: ['Range Horizontal', 'Range Vertical'],
         knobSize: 65,
+        padSize: 120,
 
         // Ajuste fino interno del joystick izquierdo
         layoutGap: 6,                 // gap entre columna de knobs y joystick pad
-        knobsGap: 35,                  // gap vertical entre knobs
-        knobsOffset: { x: 15, y: 35 }, // offset de la columna de knobs
-        padOffset: { x: 0, y: 0 },    // offset del pad
+        knobsGap: 23,                  // gap vertical entre knobs
+        knobsOffset: { x: 15, y: 40 }, // offset de la columna de knobs
+        padOffset: { x: 0, y: 40 },    // offset del pad
         knobOffsets: [                // offsets por knob [RangeY, RangeX]
           { x: 0, y: 0 },
           { x: 0, y: 0 }
@@ -101,12 +102,13 @@ export default {
       joystickRight: {
         knobs: ['Range Horizontal', 'Range Vertical'],
         knobSize: 65,
+        padSize: 120,
 
         // Ajuste fino interno del joystick derecho
         layoutGap: 6,
-        knobsGap: 35,
-        knobsOffset: { x: -15, y: 35 },
-        padOffset: { x: 0, y: 0 },
+        knobsGap: 23,
+        knobsOffset: { x: -15, y: 40 },
+        padOffset: { x: 0, y: 40 },
         knobOffsets: [
           { x: 0, y: 0 },
           { x: 0, y: 0 }
@@ -207,7 +209,7 @@ export default {
     joystickLeft: {
       visible: true,
       // ui: { }  — overrides visuales del joystick izquierdo.
-      // Soporta: offset, knobSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
+      // Soporta: offset, knobSize, padSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
@@ -223,7 +225,7 @@ export default {
     joystickRight: {
       visible: true,
       // ui: { }  — overrides visuales del joystick derecho.
-      // Soporta: offset, knobSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
+      // Soporta: offset, knobSize, padSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // ── Fila inferior: Output Channels 1-8 ──────────────────────────────

@@ -410,6 +410,7 @@ class App {
       offset: { x: 0, y: 0 },
       layoutGap: joystickConfig.layoutGap ?? 6,
       knobsGap: joystickConfig.knobsGap ?? 8,
+      padSize: toNum(joystickConfig.padSize, 100),
       knobsOffset: resolveOffset(joystickConfig.knobsOffset, { x: 0, y: 0 }),
       padOffset: resolveOffset(joystickConfig.padOffset, { x: 0, y: 0 }),
       knobOffsets: Array.isArray(joystickConfig.knobOffsets) ? joystickConfig.knobOffsets : []
@@ -528,6 +529,13 @@ class App {
 
     const joyLeftPad = document.createElement('div');
     joyLeftPad.className = 'panel7-joystick-pad';
+    if (Number.isFinite(joystickLeftUI.padSize) && joystickLeftUI.padSize > 0) {
+      joyLeftPad.style.width = `${joystickLeftUI.padSize}px`;
+      joyLeftPad.style.height = `${joystickLeftUI.padSize}px`;
+      joyLeftPad.style.maxWidth = `${joystickLeftUI.padSize}px`;
+      joyLeftPad.style.maxHeight = `${joystickLeftUI.padSize}px`;
+      joyLeftPad.style.flex = '0 0 auto';
+    }
     applyOffset(joyLeftPad, joystickLeftUI.padOffset);
     this._setupJoystickPad(joyLeftPad, this._joystickModules.left);
     joyLeftContent.appendChild(joyLeftPad);
@@ -662,6 +670,13 @@ class App {
     
     const joyRightPad = document.createElement('div');
     joyRightPad.className = 'panel7-joystick-pad';
+    if (Number.isFinite(joystickRightUI.padSize) && joystickRightUI.padSize > 0) {
+      joyRightPad.style.width = `${joystickRightUI.padSize}px`;
+      joyRightPad.style.height = `${joystickRightUI.padSize}px`;
+      joyRightPad.style.maxWidth = `${joystickRightUI.padSize}px`;
+      joyRightPad.style.maxHeight = `${joystickRightUI.padSize}px`;
+      joyRightPad.style.flex = '0 0 auto';
+    }
     applyOffset(joyRightPad, joystickRightUI.padOffset);
     this._setupJoystickPad(joyRightPad, this._joystickModules.right);
     joyRightContent.appendChild(joyRightPad);

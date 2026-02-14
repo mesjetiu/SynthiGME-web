@@ -5365,11 +5365,6 @@ small { color:#aaa; }
   width: 100%;
 }
 
-/* Excepción: mostrar etiqueta solo para el knob Clock Rate */
-#panel-output .panel7-seq-clock-knob .knob-label {
-  display: block;
-}
-
 /* Content area del Panel 7 joystick y sequencer */
 .panel7-joystick .synth-module__content,
 .panel7-sequencer .synth-module__content {

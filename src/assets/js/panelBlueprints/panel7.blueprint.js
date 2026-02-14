@@ -90,7 +90,7 @@ export default {
         layoutGap: 6,                 // gap entre columna de knobs y joystick pad
         knobsGap: 23,                  // gap vertical entre knobs
         knobsOffset: { x: 15, y: 40 }, // offset de la columna de knobs
-        padOffset: { x: 0, y: 40 },    // offset del pad
+        padOffset: { x: 10, y: 40 },    // offset del pad
         knobOffsets: [                // offsets por knob [RangeY, RangeX]
           { x: 0, y: 0 },
           { x: 0, y: 0 }
@@ -108,7 +108,7 @@ export default {
         layoutGap: 6,
         knobsGap: 23,
         knobsOffset: { x: -15, y: 40 },
-        padOffset: { x: 0, y: 40 },
+        padOffset: { x: -10, y: 40 },
         knobOffsets: [
           { x: 0, y: 0 },
           { x: 0, y: 0 }

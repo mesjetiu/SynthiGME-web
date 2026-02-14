@@ -24,6 +24,10 @@ export class InputAmplifierUI {
    * @param {string} [options.title='Input Amplifier Level'] - Título del panelillo
    * @param {number} [options.channels=8] - Número de canales
    * @param {Object} [options.knobConfig] - Configuración de los knobs
+    * @param {Object} [options.layout] - Configuración visual de layout
+    * @param {number} [options.layout.knobsGap=8] - Gap horizontal entre knobs
+    * @param {{x:number,y:number}} [options.layout.knobsRowOffset] - Offset de la fila de knobs
+    * @param {Array<{x:number,y:number}>} [options.layout.knobOffsets] - Offsets por canal/knob
    * @param {Function} [options.onLevelChange] - Callback: (channel, value) => {}
    */
   constructor(options = {}) {
@@ -35,6 +39,11 @@ export class InputAmplifierUI {
       max: 1,
       initial: 0,
       pixelsForFullRange: 150
+    };
+    this.layout = {
+      knobsGap: options.layout?.knobsGap ?? 8,
+      knobsRowOffset: options.layout?.knobsRowOffset || { x: 0, y: 0 },
+      knobOffsets: Array.isArray(options.layout?.knobOffsets) ? options.layout.knobOffsets : []
     };
     this.onLevelChange = options.onLevelChange || null;
     
@@ -74,6 +83,12 @@ export class InputAmplifierUI {
     // Contenedor de knobs en fila horizontal
     const knobsRow = document.createElement('div');
     knobsRow.className = 'input-amplifier__knobs-row';
+    knobsRow.style.gap = `${Number.isFinite(Number(this.layout.knobsGap)) ? Number(this.layout.knobsGap) : 8}px`;
+    const rowOffsetX = Number(this.layout.knobsRowOffset?.x) || 0;
+    const rowOffsetY = Number(this.layout.knobsRowOffset?.y) || 0;
+    if (rowOffsetX !== 0 || rowOffsetY !== 0) {
+      knobsRow.style.transform = `translate(${rowOffsetX}px, ${rowOffsetY}px)`;
+    }
     
     // Crear 8 knobs
     for (let i = 0; i < this.channels; i++) {
@@ -96,6 +111,12 @@ export class InputAmplifierUI {
   _createChannelKnob(channel) {
     const wrapper = document.createElement('div');
     wrapper.className = 'input-amplifier__channel';
+    const channelOffset = this.layout.knobOffsets?.[channel];
+    const channelOffsetX = Number(channelOffset?.x) || 0;
+    const channelOffsetY = Number(channelOffset?.y) || 0;
+    if (channelOffsetX !== 0 || channelOffsetY !== 0) {
+      wrapper.style.transform = `translate(${channelOffsetX}px, ${channelOffsetY}px)`;
+    }
     
     // Label superior "Channel N"
     const label = document.createElement('div');

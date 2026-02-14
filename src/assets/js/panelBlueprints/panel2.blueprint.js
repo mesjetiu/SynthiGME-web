@@ -103,7 +103,20 @@ export default {
 
     // Input Amplifier Level (módulo funcional, 8 knobs de ganancia)
     inputAmplifierLevel: {
-      height: 'auto'    // Se ajusta al contenido
+      height: 'auto',    // Se ajusta al contenido
+
+      // Ajuste fino del bloque completo
+      offset: { x: 0, y: 0 },
+
+      // Ajuste fino interno de la fila de knobs
+      knobsGap: 8,
+      knobsRowOffset: { x: 0, y: 0 },
+
+      // Offsets individuales por canal (1..8)
+      knobOffsets: [
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
+      ]
     },
 
     // External Treatment Devices (placeholder)
@@ -144,6 +157,7 @@ export default {
     inputAmplifierLevel: {
       visible: true,
       // ui: { }  — overrides visuales del input amplifier
+      // Soporta: offset, knobsGap, knobsRowOffset, knobOffsets
     },
 
     // ── Placeholder ─────────────────────────────────────────────────────

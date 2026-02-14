@@ -323,6 +323,40 @@ class App {
     const lowerRow = blueprint.layout.lowerRow || {};
     const slider = lowerRow.slider || {};
     const channelUI = blueprint.outputChannelUI || {};
+    const moduleOverrides = blueprint.modules || {};
+
+    const toNum = (value, fallback = 0) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    };
+
+    const resolveOffset = (offset, fallback = { x: 0, y: 0 }) => ({
+      x: toNum(offset?.x, fallback.x),
+      y: toNum(offset?.y, fallback.y)
+    });
+
+    const applyOffset = (el, offset, fallback = { x: 0, y: 0 }) => {
+      if (!el) return;
+      const resolved = resolveOffset(offset, fallback);
+      if (resolved.x !== 0 || resolved.y !== 0) {
+        el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
+      }
+    };
+
+    const mergePanel7UI = (defaults, moduleUI = {}) => {
+      return {
+        ...defaults,
+        ...moduleUI,
+        offset: resolveOffset(moduleUI.offset, defaults.offset || { x: 0, y: 0 }),
+        padOffset: resolveOffset(moduleUI.padOffset, defaults.padOffset || { x: 0, y: 0 }),
+        knobsOffset: resolveOffset(moduleUI.knobsOffset, defaults.knobsOffset || { x: 0, y: 0 }),
+        switchesOffset: resolveOffset(moduleUI.switchesOffset, defaults.switchesOffset || { x: 0, y: 0 }),
+        buttonsOffset: resolveOffset(moduleUI.buttonsOffset, defaults.buttonsOffset || { x: 0, y: 0 }),
+        knobOffsets: Array.isArray(moduleUI.knobOffsets) ? moduleUI.knobOffsets : (defaults.knobOffsets || []),
+        switchOffsets: Array.isArray(moduleUI.switchOffsets) ? moduleUI.switchOffsets : (defaults.switchOffsets || []),
+        buttonOffsets: Array.isArray(moduleUI.buttonOffsets) ? moduleUI.buttonOffsets : (defaults.buttonOffsets || [])
+      };
+    };
     
     // Visibilidad de marcos de módulos (desde blueprint)
     if (blueprint.showFrames === false) {
@@ -363,11 +397,39 @@ class App {
     upperRowEl.style.gap = `${upperRow.gap ?? 8}px`;
     const upperPad = upperRow.padding || { top: 0, right: 0, bottom: 0, left: 0 };
     upperRowEl.style.padding = `${upperPad.top}px ${upperPad.right}px ${upperPad.bottom}px ${upperPad.left}px`;
+    applyOffset(upperRowEl, upperRow.offset);
     
     const joystickSize = upperRow.joystickSize || { width: 160, height: 180 };
     const sequencerSize = upperRow.sequencerSize || { width: 420, height: 180 };
     const joystickUIConfig = upperRow.joystick || { knobs: [], knobSize: 'sm' };
     const sequencerConfig = upperRow.sequencer || { switches: [], buttons: [] };
+
+    const joystickDefaults = {
+      ...joystickUIConfig,
+      offset: { x: 0, y: 0 },
+      layoutGap: joystickUIConfig.layoutGap ?? 6,
+      knobsGap: joystickUIConfig.knobsGap ?? 8,
+      knobsOffset: resolveOffset(joystickUIConfig.knobsOffset, { x: 0, y: 0 }),
+      padOffset: resolveOffset(joystickUIConfig.padOffset, { x: 0, y: 0 }),
+      knobOffsets: Array.isArray(joystickUIConfig.knobOffsets) ? joystickUIConfig.knobOffsets : []
+    };
+
+    const sequencerDefaults = {
+      ...sequencerConfig,
+      offset: { x: 0, y: 0 },
+      contentPadding: sequencerConfig.contentPadding || { top: 4, right: 4, bottom: 4, left: 4 },
+      rowsGap: sequencerConfig.rowsGap ?? 8,
+      switchesGap: sequencerConfig.switchesGap ?? 4,
+      buttonsGap: sequencerConfig.buttonsGap ?? 4,
+      switchesOffset: resolveOffset(sequencerConfig.switchesOffset, { x: 0, y: 0 }),
+      buttonsOffset: resolveOffset(sequencerConfig.buttonsOffset, { x: 0, y: 0 }),
+      switchOffsets: Array.isArray(sequencerConfig.switchOffsets) ? sequencerConfig.switchOffsets : [],
+      buttonOffsets: Array.isArray(sequencerConfig.buttonOffsets) ? sequencerConfig.buttonOffsets : []
+    };
+
+    const joystickLeftUI = mergePanel7UI(joystickDefaults, moduleOverrides.joystickLeft?.ui);
+    const joystickRightUI = mergePanel7UI(joystickDefaults, moduleOverrides.joystickRight?.ui);
+    const sequencerUI = mergePanel7UI(sequencerDefaults, moduleOverrides.sequencer?.ui);
 
     // ── Inicializar módulos de audio de joystick ──────────────────────────
     const joyRamps = joystickConfig.defaults?.ramps || { position: 0.01, range: 0.05 };
@@ -388,9 +450,12 @@ class App {
 
     const joyLeftContent = document.createElement('div');
     joyLeftContent.className = 'panel7-joystick-layout';
+    joyLeftContent.style.gap = `${toNum(joystickLeftUI.layoutGap, 6)}px`;
 
     const joyLeftKnobs = document.createElement('div');
     joyLeftKnobs.className = 'panel7-joystick-knobs';
+    joyLeftKnobs.style.gap = `${toNum(joystickLeftUI.knobsGap, 8)}px`;
+    applyOffset(joyLeftKnobs, joystickLeftUI.knobsOffset);
 
     // Knob superior: Range Y
     const leftCfgY = joystickConfig.left.knobs.rangeY;
@@ -407,6 +472,7 @@ class App {
       }
     });
     leftRangeYKnob.wrapper.dataset.knob = 'rangeY';
+    applyOffset(leftRangeYKnob.wrapper, joystickLeftUI.knobOffsets?.[0]);
     joyLeftKnobs.appendChild(leftRangeYKnob.wrapper);
 
     // Knob inferior: Range X
@@ -424,15 +490,18 @@ class App {
       }
     });
     leftRangeXKnob.wrapper.dataset.knob = 'rangeX';
+    applyOffset(leftRangeXKnob.wrapper, joystickLeftUI.knobOffsets?.[1]);
     joyLeftKnobs.appendChild(leftRangeXKnob.wrapper);
     joyLeftContent.appendChild(joyLeftKnobs);
 
     const joyLeftPad = document.createElement('div');
     joyLeftPad.className = 'panel7-joystick-pad';
+    applyOffset(joyLeftPad, joystickLeftUI.padOffset);
     this._setupJoystickPad(joyLeftPad, this._joystickModules.left);
     joyLeftContent.appendChild(joyLeftPad);
 
     joystickLeftFrame.appendToContent(joyLeftContent);
+    applyOffset(joystickLeftEl, joystickLeftUI.offset);
     upperRowEl.appendChild(joystickLeftEl);
     
     // Sequencer Operational Control (placeholder con switches + botones)
@@ -446,13 +515,19 @@ class App {
     
     const seqContent = document.createElement('div');
     seqContent.className = 'panel7-sequencer-layout';
+    const seqPad = sequencerUI.contentPadding || { top: 4, right: 4, bottom: 4, left: 4 };
+    seqContent.style.padding = `${toNum(seqPad.top)}px ${toNum(seqPad.right)}px ${toNum(seqPad.bottom)}px ${toNum(seqPad.left)}px`;
+    seqContent.style.gap = `${toNum(sequencerUI.rowsGap, 8)}px`;
     
     // Fila de switches
     const switchRow = document.createElement('div');
     switchRow.className = 'panel7-sequencer-switches';
-    for (const label of sequencerConfig.switches) {
+    switchRow.style.gap = `${toNum(sequencerUI.switchesGap, 4)}px`;
+    applyOffset(switchRow, sequencerUI.switchesOffset);
+    for (const [idx, label] of sequencerConfig.switches.entries()) {
       const sw = document.createElement('div');
       sw.className = 'panel7-seq-switch';
+      applyOffset(sw, sequencerUI.switchOffsets?.[idx]);
       const toggle = document.createElement('div');
       toggle.className = 'panel7-seq-switch-toggle';
       sw.appendChild(toggle);
@@ -463,15 +538,19 @@ class App {
     // Fila de botones
     const buttonRow = document.createElement('div');
     buttonRow.className = 'panel7-sequencer-buttons';
-    for (const label of sequencerConfig.buttons) {
+    buttonRow.style.gap = `${toNum(sequencerUI.buttonsGap, 4)}px`;
+    applyOffset(buttonRow, sequencerUI.buttonsOffset);
+    for (const [idx, label] of sequencerConfig.buttons.entries()) {
       const btn = document.createElement('button');
       btn.className = 'panel7-seq-button';
       btn.type = 'button';
+      applyOffset(btn, sequencerUI.buttonOffsets?.[idx]);
       buttonRow.appendChild(btn);
     }
     seqContent.appendChild(buttonRow);
     
     sequencerFrame.appendToContent(seqContent);
+    applyOffset(sequencerEl, sequencerUI.offset);
     applyModuleVisibility(sequencerEl, blueprint, 'sequencer');
     upperRowEl.appendChild(sequencerEl);
     
@@ -487,9 +566,12 @@ class App {
     
     const joyRightContent = document.createElement('div');
     joyRightContent.className = 'panel7-joystick-layout';
+    joyRightContent.style.gap = `${toNum(joystickRightUI.layoutGap, 6)}px`;
     
     const joyRightKnobs = document.createElement('div');
     joyRightKnobs.className = 'panel7-joystick-knobs';
+    joyRightKnobs.style.gap = `${toNum(joystickRightUI.knobsGap, 8)}px`;
+    applyOffset(joyRightKnobs, joystickRightUI.knobsOffset);
 
     // Knob superior: Range Y
     const rightCfgY = joystickConfig.right.knobs.rangeY;
@@ -506,6 +588,7 @@ class App {
       }
     });
     rightRangeYKnob.wrapper.dataset.knob = 'rangeY';
+    applyOffset(rightRangeYKnob.wrapper, joystickRightUI.knobOffsets?.[0]);
     joyRightKnobs.appendChild(rightRangeYKnob.wrapper);
 
     // Knob inferior: Range X
@@ -523,15 +606,18 @@ class App {
       }
     });
     rightRangeXKnob.wrapper.dataset.knob = 'rangeX';
+    applyOffset(rightRangeXKnob.wrapper, joystickRightUI.knobOffsets?.[1]);
     joyRightKnobs.appendChild(rightRangeXKnob.wrapper);
     joyRightContent.appendChild(joyRightKnobs);
     
     const joyRightPad = document.createElement('div');
     joyRightPad.className = 'panel7-joystick-pad';
+    applyOffset(joyRightPad, joystickRightUI.padOffset);
     this._setupJoystickPad(joyRightPad, this._joystickModules.right);
     joyRightContent.appendChild(joyRightPad);
     
     joystickRightFrame.appendToContent(joyRightContent);
+    applyOffset(joystickRightEl, joystickRightUI.offset);
     upperRowEl.appendChild(joystickRightEl);
 
     // Guardar referencias de knobs para serialización
@@ -564,6 +650,7 @@ class App {
     if (this.outputChannelsSection) {
       const rowPadding = lowerRow.padding || { top: 8, right: 8, bottom: 12, left: 8 };
       const contentPadding = channelUI.contentPadding || { top: 6, right: 4, bottom: 8, left: 4 };
+      applyOffset(this.outputChannelsSection, lowerRow.offset);
       
       // CSS custom properties para slider y channel (heredadas por los hijos)
       this.outputChannelsSection.style.setProperty('--oc-slider-height', `${slider.height ?? 250}px`);
@@ -2082,6 +2169,21 @@ class App {
     if (!this.panel2) return;
 
     const blueprint = panel2Blueprint;
+    const toNum = (value, fallback = 0) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    };
+    const resolveOffset = (offset, fallback = { x: 0, y: 0 }) => ({
+      x: toNum(offset?.x, fallback.x),
+      y: toNum(offset?.y, fallback.y)
+    });
+    const applyOffset = (el, offset, fallback = { x: 0, y: 0 }) => {
+      if (!el) return;
+      const resolved = resolveOffset(offset, fallback);
+      if (resolved.x !== 0 || resolved.y !== 0) {
+        el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
+      }
+    };
     // Config de osciloscopio (oscilloscopeConfig) se usa internamente en OscilloscopeDisplay
     
     // Visibilidad de marcos de módulos (desde blueprint)
@@ -2298,6 +2400,25 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     // INPUT AMPLIFIER LEVEL (8 canales de entrada)
     // ─────────────────────────────────────────────────────────────────────────
+
+    const inputAmpLayout = blueprint.layout.inputAmplifierLevel || {};
+    const inputAmpModuleUI = blueprint.modules?.inputAmplifierLevel?.ui || {};
+    const inputAmpUIDefaults = {
+      offset: resolveOffset(inputAmpLayout.offset, { x: 0, y: 0 }),
+      knobsGap: toNum(inputAmpLayout.knobsGap, 8),
+      knobsRowOffset: resolveOffset(inputAmpLayout.knobsRowOffset, { x: 0, y: 0 }),
+      knobOffsets: Array.isArray(inputAmpLayout.knobOffsets) ? inputAmpLayout.knobOffsets : []
+    };
+    const inputAmpUIConfig = {
+      ...inputAmpUIDefaults,
+      ...inputAmpModuleUI,
+      offset: resolveOffset(inputAmpModuleUI.offset, inputAmpUIDefaults.offset),
+      knobsGap: toNum(inputAmpModuleUI.knobsGap, inputAmpUIDefaults.knobsGap),
+      knobsRowOffset: resolveOffset(inputAmpModuleUI.knobsRowOffset, inputAmpUIDefaults.knobsRowOffset),
+      knobOffsets: Array.isArray(inputAmpModuleUI.knobOffsets)
+        ? inputAmpModuleUI.knobOffsets
+        : inputAmpUIDefaults.knobOffsets
+    };
     
     // Crear sección para Input Amplifier Level
     const inputAmpSection = document.createElement('div');
@@ -2307,6 +2428,7 @@ class App {
       width: 100%;
       box-sizing: border-box;
     `;
+    applyOffset(inputAmpSection, inputAmpUIConfig.offset);
     host.appendChild(inputAmpSection);
     
     // Crear módulo de audio (channels y parámetros desde config)
@@ -2324,6 +2446,11 @@ class App {
       title: 'Input Amplifier Level',
       channels: inputAmplifierConfig.count,
       knobConfig: inputAmplifierConfig.knobs.level,
+      layout: {
+        knobsGap: inputAmpUIConfig.knobsGap,
+        knobsRowOffset: inputAmpUIConfig.knobsRowOffset,
+        knobOffsets: inputAmpUIConfig.knobOffsets
+      },
       onLevelChange: (channel, value) => {
         inputAmpModule.setLevel(channel, value);
       }

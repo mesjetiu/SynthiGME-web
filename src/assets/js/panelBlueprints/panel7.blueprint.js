@@ -61,25 +61,38 @@ export default {
   layout: {
     // Offset general del panel (px) — desplaza todos los módulos
     // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 0 },
+    offset: { x: 0, y: -35 },
 
     // Padding general del panel
-    padding: { top: 10, right: 10, bottom: 10, left: 10 },
+    padding: { top: 0, right: 10, bottom: 10, left: 10 },
 
     // Fila superior: Joystick Left | Sequencer | Joystick Right
     upperRow: {
-      gap: 8,
+      gap: 2,
       padding: { top: 0, right: 0, bottom: 0, left: 0 },
+
+      // Offset de toda la fila superior (joysticks + sequencer)
+      offset: { x: 0, y: 0 },
 
       // Tamaño fijo del MARCO de cada tipo de módulo (px).
       // El contenido se ajusta dentro sin afectar al marco.
-      joystickSize:  { width: 160, height: 180 },
-      sequencerSize: { width: 420, height: 180 },
+      joystickSize:  { width: 215, height: 180 },
+      sequencerSize: { width: 252, height: 180 },
 
       // Joystick: layout de 2 columnas (knobs izq | joystick pad der)
       joystick: {
         knobs: ['Range Horizontal', 'Range Vertical'],
-        knobSize: 'sm'
+        knobSize: 'sm',
+
+        // Ajuste fino interno del joystick
+        layoutGap: 6,                 // gap entre columna de knobs y joystick pad
+        knobsGap: 8,                  // gap vertical entre knobs
+        knobsOffset: { x: 0, y: 0 },  // offset de la columna de knobs
+        padOffset: { x: 0, y: 0 },    // offset del pad
+        knobOffsets: [                // offsets por knob [RangeY, RangeX]
+          { x: 0, y: 0 },
+          { x: 0, y: 0 }
+        ]
       },
 
       // Sequencer Operational Control
@@ -91,6 +104,24 @@ export default {
         buttons: [
           'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',
           'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
+        ],
+
+        // Ajuste fino del bloque de sequencer
+        contentPadding: { top: 4, right: 4, bottom: 4, left: 4 },
+        rowsGap: 8,                       // separación entre fila switches y fila botones
+        switchesGap: 4,                   // gap horizontal entre switches
+        buttonsGap: 4,                    // gap horizontal entre botones
+        switchesOffset: { x: 0, y: 0 },   // offset de la fila de switches
+        buttonsOffset: { x: 0, y: 0 },    // offset de la fila de botones
+
+        // Offsets individuales por control (8 + 8)
+        switchOffsets: [
+          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
+        ],
+        buttonOffsets: [
+          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
         ]
       }
     },
@@ -99,6 +130,8 @@ export default {
     lowerRow: {
       gap: 8,
       padding: { top: 8, right: 8, bottom: 12, left: 8 },
+      // Offset de toda la fila inferior (Output Channels)
+      offset: { x: 0, y: 0 },
 
       // Tamaño fijo del MARCO de cada canal (px)
       channelSize: { width: 80, height: 350 },
@@ -147,17 +180,22 @@ export default {
     // ── Fila superior (placeholders sin funcionalidad) ──────────────────
     joystickLeft: {
       visible: true,
-      // ui: { }  — overrides visuales del joystick izquierdo
+      // ui: { }  — overrides visuales del joystick izquierdo.
+      // Soporta: offset, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     sequencer: {
-      visible: false
+      visible: true
+      // ui: { }  — overrides visuales del sequencer.
+      // Soporta: offset, contentPadding, rowsGap, switchesGap, buttonsGap,
+      //          switchesOffset, buttonsOffset, switchOffsets, buttonOffsets
     },
 
     joystickRight: {
       visible: true,
-      // ui: { }  — overrides visuales del joystick derecho
+      // ui: { }  — overrides visuales del joystick derecho.
+      // Soporta: offset, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // ── Fila inferior: Output Channels 1-8 ──────────────────────────────

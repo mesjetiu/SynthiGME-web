@@ -121,22 +121,40 @@ describe('Panel 7 Blueprint - Layout', () => {
       );
     });
 
-    describe('Joystick config', () => {
-      const joy = upperRow.joystick;
+    describe('Joystick config (left/right independientes)', () => {
+      const joyLeft = upperRow.joystickLeft;
+      const joyRight = upperRow.joystickRight;
 
-      it('existe con knobs array', () => {
-        assert.ok(joy, 'debe tener joystick config');
-        assert.ok(Array.isArray(joy.knobs), 'knobs debe ser array');
-      });
-
-      it('define 2 knobs: Range Horizontal, Range Vertical', () => {
-        assert.strictEqual(joy.knobs.length, 2);
+      function assertJoystickShape(joy, side) {
+        assert.ok(joy, `debe tener joystick${side}`);
+        assert.ok(Array.isArray(joy.knobs), `joystick${side}.knobs debe ser array`);
         assert.deepStrictEqual(joy.knobs, ['Range Horizontal', 'Range Vertical']);
+        assert.strictEqual(typeof joy.knobSize, 'number', `joystick${side}.knobSize debe ser número`);
+        assert.ok(joy.knobSize > 0, `joystick${side}.knobSize debe ser positivo`);
+        assert.strictEqual(typeof joy.padSize, 'number', `joystick${side}.padSize debe ser número`);
+        assert.ok(joy.padSize > 0, `joystick${side}.padSize debe ser positivo`);
+        assert.strictEqual(typeof joy.layoutGap, 'number', `joystick${side}.layoutGap debe ser número`);
+        assert.strictEqual(typeof joy.knobsGap, 'number', `joystick${side}.knobsGap debe ser número`);
+        assert.strictEqual(typeof joy.knobsOffset?.x, 'number', `joystick${side}.knobsOffset.x debe ser número`);
+        assert.strictEqual(typeof joy.knobsOffset?.y, 'number', `joystick${side}.knobsOffset.y debe ser número`);
+        assert.strictEqual(typeof joy.padOffset?.x, 'number', `joystick${side}.padOffset.x debe ser número`);
+        assert.strictEqual(typeof joy.padOffset?.y, 'number', `joystick${side}.padOffset.y debe ser número`);
+        assert.ok(Array.isArray(joy.knobOffsets), `joystick${side}.knobOffsets debe ser array`);
+        assert.strictEqual(joy.knobOffsets.length, 2, `joystick${side}.knobOffsets debe tener 2 elementos`);
+      }
+
+      it('joystickLeft tiene estructura completa de layout', () => {
+        assertJoystickShape(joyLeft, 'Left');
       });
 
-      it('tiene knobSize definido', () => {
-        assert.ok(joy.knobSize, 'debe tener knobSize');
-        assert.strictEqual(typeof joy.knobSize, 'string');
+      it('joystickRight tiene estructura completa de layout', () => {
+        assertJoystickShape(joyRight, 'Right');
+      });
+
+      it('left y right son configuraciones separadas (sin objeto compartido)', () => {
+        assert.notStrictEqual(joyLeft, joyRight, 'left/right no deben compartir referencia');
+        assert.notStrictEqual(joyLeft.knobOffsets, joyRight.knobOffsets,
+          'left/right no deben compartir array knobOffsets');
       });
     });
 
@@ -239,12 +257,8 @@ describe('Panel 7 Blueprint - outputChannelUI', () => {
       `knobInnerPct debe estar entre 0 y 100, es ${ui.knobInnerPct}`);
   });
 
-  it('knobGap es array de números', () => {
-    assert.ok(Array.isArray(ui.knobGap), 'knobGap debe ser array');
-    assert.ok(ui.knobGap.length > 0, 'knobGap debe tener al menos un elemento');
-    ui.knobGap.forEach((g, i) => {
-      assert.strictEqual(typeof g, 'number', `knobGap[${i}] debe ser número`);
-    });
+  it('knobGap es número (gap vertical entre 2 knobs)', () => {
+    assert.strictEqual(typeof ui.knobGap, 'number');
   });
 
   it('knobRowOffsetX y knobRowOffsetY son números', () => {
@@ -259,6 +273,25 @@ describe('Panel 7 Blueprint - outputChannelUI', () => {
     assert.strictEqual(typeof cp.right, 'number');
     assert.strictEqual(typeof cp.bottom, 'number');
     assert.strictEqual(typeof cp.left, 'number');
+  });
+
+  it('tiene sliderSize con width/height/shellHeight numéricos', () => {
+    assert.ok(ui.sliderSize, 'debe tener sliderSize');
+    assert.strictEqual(typeof ui.sliderSize.width, 'number');
+    assert.strictEqual(typeof ui.sliderSize.height, 'number');
+    assert.strictEqual(typeof ui.sliderSize.shellHeight, 'number');
+  });
+
+  it('tiene gaps verticales knobButtonGap y buttonSliderGap', () => {
+    assert.strictEqual(typeof ui.knobButtonGap, 'number');
+    assert.strictEqual(typeof ui.buttonSliderGap, 'number');
+  });
+
+  it('tiene buttonSize vertical con width/height/indicator', () => {
+    assert.ok(ui.buttonSize, 'debe tener buttonSize');
+    assert.strictEqual(typeof ui.buttonSize.width, 'number');
+    assert.strictEqual(typeof ui.buttonSize.height, 'number');
+    assert.strictEqual(typeof ui.buttonSize.indicator, 'number');
   });
 });
 

@@ -89,6 +89,12 @@ describe('Panel 1 Blueprint - Layout', () => {
       assert.ok(fr.gap >= 0, 'gap no puede ser negativo');
     });
 
+    it('tiene offset de fila con x e y numéricos', () => {
+      assert.ok(fr.offset, 'debe tener offset');
+      assert.strictEqual(typeof fr.offset.x, 'number');
+      assert.strictEqual(typeof fr.offset.y, 'number');
+    });
+
     it('define 3 knobs por filtro: Frequency, Response, Level', () => {
       assert.ok(Array.isArray(fr.knobs), 'knobs debe ser array');
       assert.strictEqual(fr.knobs.length, 3);
@@ -98,6 +104,19 @@ describe('Panel 1 Blueprint - Layout', () => {
     it('tiene knobSize definido', () => {
       assert.ok(fr.knobSize, 'debe tener knobSize');
       assert.strictEqual(typeof fr.knobSize, 'string');
+    });
+
+    it('tiene knobInnerPct entre 0 y 100', () => {
+      assert.strictEqual(typeof fr.knobInnerPct, 'number');
+      assert.ok(fr.knobInnerPct > 0 && fr.knobInnerPct <= 100);
+    });
+
+    it('tiene knobGap numérico y knobsOffset válido', () => {
+      assert.strictEqual(typeof fr.knobGap, 'number');
+      assert.ok(fr.knobGap >= 0, 'knobGap no puede ser negativo');
+      assert.ok(fr.knobsOffset, 'debe tener knobsOffset');
+      assert.strictEqual(typeof fr.knobsOffset.x, 'number');
+      assert.strictEqual(typeof fr.knobsOffset.y, 'number');
     });
 
     it('tiene knobDirection vertical', () => {
@@ -121,6 +140,12 @@ describe('Panel 1 Blueprint - Layout', () => {
       assert.ok(es.gap >= 0, 'gap no puede ser negativo');
     });
 
+    it('tiene offset de sección con x e y numéricos', () => {
+      assert.ok(es.offset, 'debe tener offset');
+      assert.strictEqual(typeof es.offset.x, 'number');
+      assert.strictEqual(typeof es.offset.y, 'number');
+    });
+
     it('define count = 3 (tres envelope shapers)', () => {
       assert.strictEqual(es.count, 3);
     });
@@ -138,6 +163,16 @@ describe('Panel 1 Blueprint - Layout', () => {
     it('tiene knobSize definido', () => {
       assert.ok(es.knobSize, 'debe tener knobSize');
       assert.strictEqual(typeof es.knobSize, 'string');
+    });
+
+    it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
+      assert.strictEqual(typeof es.knobInnerPct, 'number');
+      assert.ok(es.knobInnerPct > 0 && es.knobInnerPct <= 100);
+      assert.strictEqual(typeof es.knobGap, 'number');
+      assert.ok(es.knobGap >= 0, 'knobGap no puede ser negativo');
+      assert.ok(es.knobsOffset, 'debe tener knobsOffset');
+      assert.strictEqual(typeof es.knobsOffset.x, 'number');
+      assert.strictEqual(typeof es.knobsOffset.y, 'number');
     });
 
     it('tiene knobDirection horizontal', () => {
@@ -161,6 +196,12 @@ describe('Panel 1 Blueprint - Layout', () => {
       assert.ok(br.gap >= 0, 'gap no puede ser negativo');
     });
 
+    it('tiene offset de fila con x e y numéricos', () => {
+      assert.ok(br.offset, 'debe tener offset');
+      assert.strictEqual(typeof br.offset.x, 'number');
+      assert.strictEqual(typeof br.offset.y, 'number');
+    });
+
     describe('Ring Modulator config', () => {
       const rm = br.ringModulator;
 
@@ -176,6 +217,16 @@ describe('Panel 1 Blueprint - Layout', () => {
 
       it('tiene knobSize definido', () => {
         assert.ok(rm.knobSize, 'debe tener knobSize');
+      });
+
+      it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
+        assert.strictEqual(typeof rm.knobInnerPct, 'number');
+        assert.ok(rm.knobInnerPct > 0 && rm.knobInnerPct <= 100);
+        assert.strictEqual(typeof rm.knobGap, 'number');
+        assert.ok(rm.knobGap >= 0, 'knobGap no puede ser negativo');
+        assert.ok(rm.knobsOffset, 'debe tener knobsOffset');
+        assert.strictEqual(typeof rm.knobsOffset.x, 'number');
+        assert.strictEqual(typeof rm.knobsOffset.y, 'number');
       });
     });
 
@@ -195,6 +246,16 @@ describe('Panel 1 Blueprint - Layout', () => {
       it('tiene knobSize definido', () => {
         assert.ok(rev.knobSize, 'debe tener knobSize');
       });
+
+      it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
+        assert.strictEqual(typeof rev.knobInnerPct, 'number');
+        assert.ok(rev.knobInnerPct > 0 && rev.knobInnerPct <= 100);
+        assert.strictEqual(typeof rev.knobGap, 'number');
+        assert.ok(rev.knobGap >= 0, 'knobGap no puede ser negativo');
+        assert.ok(rev.knobsOffset, 'debe tener knobsOffset');
+        assert.strictEqual(typeof rev.knobsOffset.x, 'number');
+        assert.strictEqual(typeof rev.knobsOffset.y, 'number');
+      });
     });
 
     describe('Echo A.D.L. config', () => {
@@ -212,6 +273,16 @@ describe('Panel 1 Blueprint - Layout', () => {
 
       it('tiene knobSize definido', () => {
         assert.ok(echo.knobSize, 'debe tener knobSize');
+      });
+
+      it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
+        assert.strictEqual(typeof echo.knobInnerPct, 'number');
+        assert.ok(echo.knobInnerPct > 0 && echo.knobInnerPct <= 100);
+        assert.strictEqual(typeof echo.knobGap, 'number');
+        assert.ok(echo.knobGap >= 0, 'knobGap no puede ser negativo');
+        assert.ok(echo.knobsOffset, 'debe tener knobsOffset');
+        assert.strictEqual(typeof echo.knobsOffset.x, 'number');
+        assert.strictEqual(typeof echo.knobsOffset.y, 'number');
       });
     });
   });

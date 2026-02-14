@@ -109,7 +109,9 @@ export default {
       offset: { x: 0, y: 0 },
 
       // Ajuste fino interno de la fila de knobs
-      knobsGap: 8,
+      knobGap: 8,
+      knobSize: 'sm',
+      knobInnerPct: 78,
       knobsRowOffset: { x: 0, y: 0 },
 
       // Offsets individuales por canal (1..8)
@@ -157,7 +159,7 @@ export default {
     inputAmplifierLevel: {
       visible: true,
       // ui: { }  — overrides visuales del input amplifier
-      // Soporta: offset, knobsGap, knobsRowOffset, knobOffsets
+      // Soporta: offset, knobGap, knobSize, knobInnerPct, knobsRowOffset, knobOffsets
     },
 
     // ── Placeholder ─────────────────────────────────────────────────────

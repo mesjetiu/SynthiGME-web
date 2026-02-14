@@ -125,6 +125,47 @@ describe('Panel 2 Blueprint - Layout', () => {
       assert.ok(ial, 'debe tener sección inputAmplifierLevel');
       assert.ok(ial.height !== undefined, 'debe tener height');
     });
+
+    it('tiene offset general con x e y numéricos', () => {
+      assert.ok(ial.offset, 'debe tener offset');
+      assert.strictEqual(typeof ial.offset.x, 'number');
+      assert.strictEqual(typeof ial.offset.y, 'number');
+    });
+
+    it('tiene knobGap numérico', () => {
+      assert.strictEqual(typeof ial.knobGap, 'number');
+      assert.ok(ial.knobGap >= 0, 'knobGap no puede ser negativo');
+    });
+
+    it('tiene knobSize como string o número positivo', () => {
+      const t = typeof ial.knobSize;
+      assert.ok(t === 'string' || t === 'number', 'knobSize debe ser string o number');
+      if (t === 'number') {
+        assert.ok(ial.knobSize > 0, 'knobSize numérico debe ser positivo');
+      }
+    });
+
+    it('tiene knobInnerPct entre 0 y 100', () => {
+      assert.strictEqual(typeof ial.knobInnerPct, 'number');
+      assert.ok(ial.knobInnerPct > 0 && ial.knobInnerPct <= 100,
+        `knobInnerPct debe estar entre 0 y 100, es ${ial.knobInnerPct}`);
+    });
+
+    it('tiene knobsRowOffset con x e y numéricos', () => {
+      assert.ok(ial.knobsRowOffset, 'debe tener knobsRowOffset');
+      assert.strictEqual(typeof ial.knobsRowOffset.x, 'number');
+      assert.strictEqual(typeof ial.knobsRowOffset.y, 'number');
+    });
+
+    it('tiene knobOffsets de 8 canales con offsets válidos', () => {
+      assert.ok(Array.isArray(ial.knobOffsets), 'knobOffsets debe ser array');
+      assert.strictEqual(ial.knobOffsets.length, 8,
+        `knobOffsets debe tener 8 elementos, tiene ${ial.knobOffsets.length}`);
+      ial.knobOffsets.forEach((o, i) => {
+        assert.strictEqual(typeof o.x, 'number', `knobOffsets[${i}].x debe ser número`);
+        assert.strictEqual(typeof o.y, 'number', `knobOffsets[${i}].y debe ser número`);
+      });
+    });
   });
 
   describe('Sección External Treatment Devices (placeholder)', () => {

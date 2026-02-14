@@ -2069,6 +2069,36 @@ class App {
     if (!this.panel1) return;
 
     const blueprint = panel1Blueprint;
+    const toNum = (value, fallback = 0) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    };
+    const resolveOffset = (offset, fallback = { x: 0, y: 0 }) => ({
+      x: toNum(offset?.x, fallback.x),
+      y: toNum(offset?.y, fallback.y)
+    });
+    const applyOffset = (el, offset, fallback = { x: 0, y: 0 }) => {
+      if (!el) return;
+      const resolved = resolveOffset(offset, fallback);
+      if (resolved.x !== 0 || resolved.y !== 0) {
+        el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
+      }
+    };
+    const createPanel1Knob = ({ knobSize = 'sm', knobInnerPct = 78 }) => {
+      const sizePreset = typeof knobSize === 'string' ? knobSize : '';
+      const knob = createKnob({ size: sizePreset, showValue: false });
+      if (typeof knobSize === 'number' && Number.isFinite(knobSize) && knobSize > 0) {
+        knob.knobEl.style.width = `${knobSize}px`;
+        knob.knobEl.style.height = `${knobSize}px`;
+      }
+      const inner = knob.knobEl.querySelector('.knob-inner');
+      if (inner) {
+        const pct = toNum(knobInnerPct, 78);
+        inner.style.width = `${pct}%`;
+        inner.style.height = `${pct}%`;
+      }
+      return knob;
+    };
 
     // Visibilidad de marcos de módulos (desde blueprint)
     if (blueprint.showFrames === false) {
@@ -2110,6 +2140,7 @@ class App {
       flex: 0 0 auto;
       width: 100%;
     `;
+    applyOffset(filtersRow, filtersLayout.offset);
     host.appendChild(filtersRow);
 
     // Crear los 8 filtros (FLP1-4 + FHP1-4)
@@ -2117,6 +2148,7 @@ class App {
     const filterFrames = {};
 
     for (const filterId of filterIds) {
+      const filterModuleUI = blueprint.modules?.[filterId]?.ui || {};
       const frame = new ModuleFrame({
         id: `${filterId}-module`,
         title: null,
@@ -2128,11 +2160,17 @@ class App {
       // Crear knobs verticales: Frequency, Response, Level
       const knobsContainer = document.createElement('div');
       knobsContainer.className = 'panel1-filter-knobs';
+      knobsContainer.style.gap = `${toNum(filterModuleUI.knobGap, toNum(filtersLayout.knobGap, 2))}px`;
+      applyOffset(knobsContainer, filterModuleUI.knobsOffset, filtersLayout.knobsOffset || { x: 0, y: 0 });
       for (const knobName of filtersLayout.knobs) {
-        const knob = createKnob({ size: filtersLayout.knobSize, showValue: false });
+        const knob = createPanel1Knob({
+          knobSize: filterModuleUI.knobSize ?? filtersLayout.knobSize,
+          knobInnerPct: filterModuleUI.knobInnerPct ?? filtersLayout.knobInnerPct
+        });
         knobsContainer.appendChild(knob.wrapper);
       }
       frame.appendToContent(knobsContainer);
+      applyOffset(el, filterModuleUI.offset, filtersLayout.moduleOffset || { x: 0, y: 0 });
 
       applyModuleVisibility(el, blueprint, filterId);
       filtersRow.appendChild(el);
@@ -2154,6 +2192,7 @@ class App {
         className: 'panel1-placeholder panel1-envelope'
       });
       const el = frame.createElement();
+      const envModuleUI = blueprint.modules?.[envId]?.ui || {};
       el.style.cssText = `
         width: 100%;
         height: ${envLayout.height}px;
@@ -2163,11 +2202,17 @@ class App {
       // Crear knobs horizontales
       const knobsContainer = document.createElement('div');
       knobsContainer.className = 'panel1-envelope-knobs';
+      knobsContainer.style.gap = `${toNum(envModuleUI.knobGap, toNum(envLayout.knobGap, 2))}px`;
+      applyOffset(knobsContainer, envModuleUI.knobsOffset, envLayout.knobsOffset || { x: 0, y: 0 });
       for (const knobName of envLayout.knobs) {
-        const knob = createKnob({ size: envLayout.knobSize, showValue: false });
+        const knob = createPanel1Knob({
+          knobSize: envModuleUI.knobSize ?? envLayout.knobSize,
+          knobInnerPct: envModuleUI.knobInnerPct ?? envLayout.knobInnerPct
+        });
         knobsContainer.appendChild(knob.wrapper);
       }
       frame.appendToContent(knobsContainer);
+      applyOffset(el, envModuleUI.offset, envLayout.moduleOffset || { x: 0, y: 0 });
 
       applyModuleVisibility(el, blueprint, envId);
       host.appendChild(el);
@@ -2188,6 +2233,7 @@ class App {
       flex: 0 0 auto;
       width: 100%;
     `;
+    applyOffset(bottomRow, bottomLayout.offset);
     host.appendChild(bottomRow);
 
     const bottomFrames = {};
@@ -2202,15 +2248,22 @@ class App {
         className: 'panel1-placeholder panel1-ring-mod'
       });
       const el = frame.createElement();
+      const rmModuleUI = blueprint.modules?.[rmId]?.ui || {};
       el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
 
       const knobsContainer = document.createElement('div');
       knobsContainer.className = 'panel1-bottom-knobs';
+      knobsContainer.style.gap = `${toNum(rmModuleUI.knobGap, toNum(rmConfig.knobGap, 6))}px`;
+      applyOffset(knobsContainer, rmModuleUI.knobsOffset, rmConfig.knobsOffset || { x: 0, y: 0 });
       for (const knobName of rmConfig.knobs) {
-        const knob = createKnob({ size: rmConfig.knobSize, showValue: false });
+        const knob = createPanel1Knob({
+          knobSize: rmModuleUI.knobSize ?? rmConfig.knobSize,
+          knobInnerPct: rmModuleUI.knobInnerPct ?? rmConfig.knobInnerPct
+        });
         knobsContainer.appendChild(knob.wrapper);
       }
       frame.appendToContent(knobsContainer);
+      applyOffset(el, rmModuleUI.offset, rmConfig.moduleOffset || { x: 0, y: 0 });
 
       applyModuleVisibility(el, blueprint, rmId);
       bottomRow.appendChild(el);
@@ -2225,15 +2278,22 @@ class App {
       className: 'panel1-placeholder panel1-reverb'
     });
     const reverbEl = reverbFrame.createElement();
+    const reverbUI = blueprint.modules?.reverberation1?.ui || {};
     reverbEl.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
 
     const reverbKnobs = document.createElement('div');
     reverbKnobs.className = 'panel1-bottom-knobs';
+    reverbKnobs.style.gap = `${toNum(reverbUI.knobGap, toNum(reverbConfig.knobGap, 6))}px`;
+    applyOffset(reverbKnobs, reverbUI.knobsOffset, reverbConfig.knobsOffset || { x: 0, y: 0 });
     for (const knobName of reverbConfig.knobs) {
-      const knob = createKnob({ size: reverbConfig.knobSize, showValue: false });
+      const knob = createPanel1Knob({
+        knobSize: reverbUI.knobSize ?? reverbConfig.knobSize,
+        knobInnerPct: reverbUI.knobInnerPct ?? reverbConfig.knobInnerPct
+      });
       reverbKnobs.appendChild(knob.wrapper);
     }
     reverbFrame.appendToContent(reverbKnobs);
+    applyOffset(reverbEl, reverbUI.offset, reverbConfig.moduleOffset || { x: 0, y: 0 });
 
     applyModuleVisibility(reverbEl, blueprint, 'reverberation1');
     bottomRow.appendChild(reverbEl);
@@ -2247,15 +2307,22 @@ class App {
       className: 'panel1-placeholder panel1-echo'
     });
     const echoEl = echoFrame.createElement();
+    const echoUI = blueprint.modules?.echoADL?.ui || {};
     echoEl.style.cssText = `flex: 2 1 0; min-width: 0; height: 100%;`;
 
     const echoKnobs = document.createElement('div');
     echoKnobs.className = 'panel1-bottom-knobs';
+    echoKnobs.style.gap = `${toNum(echoUI.knobGap, toNum(echoConfig.knobGap, 6))}px`;
+    applyOffset(echoKnobs, echoUI.knobsOffset, echoConfig.knobsOffset || { x: 0, y: 0 });
     for (const knobName of echoConfig.knobs) {
-      const knob = createKnob({ size: echoConfig.knobSize, showValue: false });
+      const knob = createPanel1Knob({
+        knobSize: echoUI.knobSize ?? echoConfig.knobSize,
+        knobInnerPct: echoUI.knobInnerPct ?? echoConfig.knobInnerPct
+      });
       echoKnobs.appendChild(knob.wrapper);
     }
     echoFrame.appendToContent(echoKnobs);
+    applyOffset(echoEl, echoUI.offset, echoConfig.moduleOffset || { x: 0, y: 0 });
 
     applyModuleVisibility(echoEl, blueprint, 'echoADL');
     bottomRow.appendChild(echoEl);
@@ -2517,17 +2584,27 @@ class App {
 
     const inputAmpLayout = blueprint.layout.inputAmplifierLevel || {};
     const inputAmpModuleUI = blueprint.modules?.inputAmplifierLevel?.ui || {};
+    const inputAmpKnobGap = Array.isArray(inputAmpLayout.knobGap)
+      ? toNum(inputAmpLayout.knobGap[0], toNum(inputAmpLayout.knobsGap, 8))
+      : toNum(inputAmpLayout.knobGap, toNum(inputAmpLayout.knobsGap, 8));
     const inputAmpUIDefaults = {
       offset: resolveOffset(inputAmpLayout.offset, { x: 0, y: 0 }),
-      knobsGap: toNum(inputAmpLayout.knobsGap, 8),
+      knobGap: inputAmpKnobGap,
+      knobSize: inputAmpLayout.knobSize ?? 'sm',
+      knobInnerPct: toNum(inputAmpLayout.knobInnerPct, 78),
       knobsRowOffset: resolveOffset(inputAmpLayout.knobsRowOffset, { x: 0, y: 0 }),
       knobOffsets: Array.isArray(inputAmpLayout.knobOffsets) ? inputAmpLayout.knobOffsets : []
     };
+    const inputAmpModuleKnobGap = Array.isArray(inputAmpModuleUI.knobGap)
+      ? toNum(inputAmpModuleUI.knobGap[0], inputAmpUIDefaults.knobGap)
+      : toNum(inputAmpModuleUI.knobGap, inputAmpUIDefaults.knobGap);
     const inputAmpUIConfig = {
       ...inputAmpUIDefaults,
       ...inputAmpModuleUI,
       offset: resolveOffset(inputAmpModuleUI.offset, inputAmpUIDefaults.offset),
-      knobsGap: toNum(inputAmpModuleUI.knobsGap, inputAmpUIDefaults.knobsGap),
+      knobGap: inputAmpModuleKnobGap,
+      knobSize: inputAmpModuleUI.knobSize ?? inputAmpUIDefaults.knobSize,
+      knobInnerPct: toNum(inputAmpModuleUI.knobInnerPct, inputAmpUIDefaults.knobInnerPct),
       knobsRowOffset: resolveOffset(inputAmpModuleUI.knobsRowOffset, inputAmpUIDefaults.knobsRowOffset),
       knobOffsets: Array.isArray(inputAmpModuleUI.knobOffsets)
         ? inputAmpModuleUI.knobOffsets
@@ -2561,7 +2638,9 @@ class App {
       channels: inputAmplifierConfig.count,
       knobConfig: inputAmplifierConfig.knobs.level,
       layout: {
-        knobsGap: inputAmpUIConfig.knobsGap,
+        knobGap: inputAmpUIConfig.knobGap,
+        knobSize: inputAmpUIConfig.knobSize,
+        knobInnerPct: inputAmpUIConfig.knobInnerPct,
         knobsRowOffset: inputAmpUIConfig.knobsRowOffset,
         knobOffsets: inputAmpUIConfig.knobOffsets
       },

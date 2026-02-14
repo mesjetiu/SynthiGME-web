@@ -25,7 +25,9 @@ export class InputAmplifierUI {
    * @param {number} [options.channels=8] - Número de canales
    * @param {Object} [options.knobConfig] - Configuración de los knobs
     * @param {Object} [options.layout] - Configuración visual de layout
-    * @param {number} [options.layout.knobsGap=8] - Gap horizontal entre knobs
+    * @param {number} [options.layout.knobGap=8] - Gap horizontal entre knobs
+    * @param {number|string} [options.layout.knobSize='sm'] - Tamaño del knob ('sm' o px)
+    * @param {number} [options.layout.knobInnerPct=78] - Tamaño interior del knob en %
     * @param {{x:number,y:number}} [options.layout.knobsRowOffset] - Offset de la fila de knobs
     * @param {Array<{x:number,y:number}>} [options.layout.knobOffsets] - Offsets por canal/knob
    * @param {Function} [options.onLevelChange] - Callback: (channel, value) => {}
@@ -41,7 +43,9 @@ export class InputAmplifierUI {
       pixelsForFullRange: 150
     };
     this.layout = {
-      knobsGap: options.layout?.knobsGap ?? 8,
+      knobGap: options.layout?.knobGap ?? options.layout?.knobsGap ?? 8,
+      knobSize: options.layout?.knobSize ?? 'sm',
+      knobInnerPct: options.layout?.knobInnerPct ?? 78,
       knobsRowOffset: options.layout?.knobsRowOffset || { x: 0, y: 0 },
       knobOffsets: Array.isArray(options.layout?.knobOffsets) ? options.layout.knobOffsets : []
     };
@@ -83,7 +87,7 @@ export class InputAmplifierUI {
     // Contenedor de knobs en fila horizontal
     const knobsRow = document.createElement('div');
     knobsRow.className = 'input-amplifier__knobs-row';
-    knobsRow.style.gap = `${Number.isFinite(Number(this.layout.knobsGap)) ? Number(this.layout.knobsGap) : 8}px`;
+    knobsRow.style.gap = `${Number.isFinite(Number(this.layout.knobGap)) ? Number(this.layout.knobGap) : 8}px`;
     const rowOffsetX = Number(this.layout.knobsRowOffset?.x) || 0;
     const rowOffsetY = Number(this.layout.knobsRowOffset?.y) || 0;
     if (rowOffsetX !== 0 || rowOffsetY !== 0) {
@@ -126,10 +130,22 @@ export class InputAmplifierUI {
     
     // Contenedor del knob
     const knobEl = document.createElement('div');
-    knobEl.className = 'knob knob--sm input-amplifier__knob';
+    const knobSizeClass = typeof this.layout.knobSize === 'string' && this.layout.knobSize
+      ? ` knob--${this.layout.knobSize}`
+      : '';
+    knobEl.className = `knob${knobSizeClass} input-amplifier__knob`;
+    if (typeof this.layout.knobSize === 'number' && Number.isFinite(this.layout.knobSize) && this.layout.knobSize > 0) {
+      knobEl.style.width = `${this.layout.knobSize}px`;
+      knobEl.style.height = `${this.layout.knobSize}px`;
+    }
     
     const inner = document.createElement('div');
     inner.className = 'knob-inner';
+    const innerPct = Number(this.layout.knobInnerPct);
+    if (Number.isFinite(innerPct) && innerPct > 0) {
+      inner.style.width = `${innerPct}%`;
+      inner.style.height = `${innerPct}%`;
+    }
     knobEl.appendChild(inner);
     wrapper.appendChild(knobEl);
     

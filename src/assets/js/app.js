@@ -716,15 +716,22 @@ class App {
       const rowPadding = lowerRow.padding || { top: 8, right: 8, bottom: 12, left: 8 };
       const contentPadding = channelUI.contentPadding || { top: 6, right: 4, bottom: 8, left: 4 };
       const channelSize = lowerRow.channelSize || { width: 80, height: 350 };
+      const sliderSize = channelUI.sliderSize || {};
+      const buttonSize = channelUI.buttonSize || {};
       applyOffset(this.outputChannelsSection, lowerRow.offset);
       
       // CSS custom properties para slider y channel (heredadas por los hijos)
-      this.outputChannelsSection.style.setProperty('--oc-slider-height', `${slider.height ?? 250}px`);
-      this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${slider.shellHeight ?? 270}px`);
-      this.outputChannelsSection.style.setProperty('--oc-slider-width', `${slider.width ?? 24}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-height', `${sliderSize.height ?? slider.height ?? 250}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${sliderSize.shellHeight ?? slider.shellHeight ?? 270}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-width', `${sliderSize.width ?? slider.width ?? 24}px`);
       this.outputChannelsSection.style.setProperty('--oc-channel-width', `${channelSize.width ?? 80}px`);
       this.outputChannelsSection.style.setProperty('--oc-channel-height', `${channelSize.height ?? 350}px`);
       this.outputChannelsSection.style.setProperty('--oc-channel-gap', `${lowerRow.gap ?? 8}px`);
+      this.outputChannelsSection.style.setProperty('--oc-knob-button-gap', `${toNum(channelUI.knobButtonGap, 2)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-button-slider-gap', `${toNum(channelUI.buttonSliderGap, 2)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-button-width', `${toNum(buttonSize.width, 18)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-button-height', `${toNum(buttonSize.height, 30)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-button-indicator-size', `${toNum(buttonSize.indicator, 8)}px`);
       this.outputChannelsSection.style.setProperty('--oc-row-padding', 
         `${rowPadding.top}px ${rowPadding.right}px ${rowPadding.bottom}px ${rowPadding.left}px`);
       this.outputChannelsSection.style.setProperty('--oc-content-padding', 

@@ -5099,17 +5099,18 @@ small { color:#aaa; }
   display: flex;
   justify-content: center;
   padding: 2px 0;
+  margin-top: var(--oc-knob-button-gap, 2px);
 }
 
 .output-channel__switch {
-  width: 28px;
-  height: 16px;
-  border-radius: 8px;
+  width: var(--oc-button-width, 18px);
+  height: var(--oc-button-height, 30px);
+  border-radius: 999px;
   background: #2a2a2a;
   border: 1px solid #444;
   cursor: pointer;
   position: relative;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .output-channel__switch:hover {
@@ -5123,17 +5124,18 @@ small { color:#aaa; }
 
 .output-channel__switch-indicator {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 8px;
-  height: 8px;
+  top: calc(100% - var(--oc-button-indicator-size, 8px) - 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--oc-button-indicator-size, 8px);
+  height: var(--oc-button-indicator-size, 8px);
   border-radius: 50%;
   background: #444;
-  transition: left 0.15s ease, background 0.15s ease;
+  transition: top 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .output-channel__switch.is-on .output-channel__switch-indicator {
-  left: 15px;
+  top: 3px;
   background: #0f0;
   box-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
 }
@@ -5144,6 +5146,7 @@ small { color:#aaa; }
   flex-direction: column;
   align-items: center;
   width: 100%;
+  margin-top: var(--oc-button-slider-gap, 2px);
 }
 
 .output-channel__slider-shell {

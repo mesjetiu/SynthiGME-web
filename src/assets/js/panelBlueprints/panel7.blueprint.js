@@ -61,7 +61,7 @@ export default {
   layout: {
     // Offset general del panel (px) — desplaza todos los módulos
     // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 27 },
+    offset: { x: 0, y: 18 },
 
     // Padding general del panel
     padding: { top: 0, right: 10, bottom: 10, left: 10 },
@@ -156,13 +156,13 @@ export default {
 
     // Fila inferior: 8 Output Channels
     lowerRow: {
-      gap: 1,
-      padding: { top: 8, right: 8, bottom: 12, left: 8 },
+      gap: 0.5,
+      padding: { top: 3, right: 8, bottom: 12, left: 8 },
       // Offset de toda la fila inferior (Output Channels)
-      offset: { x: 0, y: 0 },
+      offset: { x: 0, y: -2 },
 
       // Tamaño fijo del MARCO de cada canal (px)
-      channelSize: { width: 85, height: 440 },
+      channelSize: { width: 85, height: 425 },
 
       // Configuración del slider de nivel (dentro de cada canal)
       slider: {
@@ -184,11 +184,30 @@ export default {
   //
   outputChannelUI: {
     // Knobs (filter, pan)
-    knobSize: 30,            // px — diámetro del knob
+    knobSize: 50,            // px — diámetro del knob
     knobInnerPct: 76,        // % — círculo interior respecto al exterior
     knobGap: [8],            // px — gap entre cada par de knobs
     knobRowOffsetX: 0,       // px — desplazamiento horizontal de la fila de knobs
-    knobRowOffsetY: 0,       // px — desplazamiento vertical de la fila de knobs
+    knobRowOffsetY: 10,       // px — desplazamiento vertical de la fila de knobs
+
+    // Slider (level) — tamaño visual del fader
+    sliderSize: {
+      width: 24,
+      height: 125,
+      shellHeight: 270
+    },
+
+    // Espaciados verticales entre grupos de controles
+    knobButtonGap: 2,        // gap entre knobs y botón on/off
+    buttonSliderGap: 2,      // gap entre botón on/off y slider
+
+    // Botón On/Off (vertical)
+    // Arriba = ON, abajo = OFF
+    buttonSize: {
+      width: 18,
+      height: 30,
+      indicator: 8
+    },
 
     // Padding interno del contenido (espacio entre borde del marco y controles)
     contentPadding: { top: 6, right: 4, bottom: 8, left: 4 }

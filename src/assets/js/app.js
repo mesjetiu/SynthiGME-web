@@ -750,6 +750,12 @@ class App {
     handle.className = 'joystick-handle';
     padEl.appendChild(handle);
 
+    let pointerActive = false;
+    let hoverMouse = false;
+    const refreshPadGlow = () => {
+      padEl.classList.toggle('is-tooltip-active', pointerActive || hoverMouse);
+    };
+
     // Factor de escala visual: ~5/6 del recorrido total
     const handleScale = 0.83;
     const updateHandle = (nx, ny) => {
@@ -775,6 +781,8 @@ class App {
       ev.stopPropagation();
       ev.preventDefault();
       this.ensureAudio();
+      pointerActive = true;
+      refreshPadGlow();
       // Iniciar módulo de audio si no lo está
       if (!module.isStarted) module.start();
       padEl.setPointerCapture(ev.pointerId);
@@ -790,11 +798,34 @@ class App {
 
     padEl.addEventListener('pointerup', ev => {
       try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
+      pointerActive = false;
+      refreshPadGlow();
+    });
+
+    padEl.addEventListener('pointercancel', () => {
+      pointerActive = false;
+      refreshPadGlow();
+    });
+
+    padEl.addEventListener('pointerenter', ev => {
+      if (ev.pointerType === 'mouse') {
+        hoverMouse = true;
+        refreshPadGlow();
+      }
     });
 
     padEl.addEventListener('pointerleave', ev => {
+      if (ev.pointerType === 'mouse') {
+        hoverMouse = false;
+        if (ev.buttons === 0) {
+          refreshPadGlow();
+          return;
+        }
+      }
       if (ev.buttons === 0) return;
       try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
+      pointerActive = false;
+      refreshPadGlow();
     });
 
     // Guardar referencia para poder actualizar el handle desde deserialización

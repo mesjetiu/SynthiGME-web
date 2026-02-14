@@ -39,6 +39,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Menú contextual: reiniciar output channel reseteaba los 8 canales**: `_findModuleById` no resolvía output channels individuales. Ahora usa el ID del DOM (`output-channel-N`) para localizar el canal específico y resetearlo sin afectar a los demás.
 - **Menú contextual: nombres mostraban `{name}` literal**: Las llamadas a `t()` usaban firma incorrecta `t(key, fallback, params)` cuando la función solo acepta `t(key, params)`. El objeto con el nombre se descartaba y el placeholder no se interpolaba.
 - **PiP: menú contextual no se cerraba en móvil ni con Escape**: El cierre dependía de `click/contextmenu` en burbuja y quedaba bloqueado por `stopPropagation()` dentro de PiP. Añadido cierre por `pointerdown`/`touchstart` en captura y por tecla Escape en `contextMenuManager`.
+- **Panel 7: halo activo en pads de joystick**: Los pads de joystick ahora muestran halo palpitante al pasar el ratón, tocar o arrastrar, igual que el feedback visual de controles activos en knobs/sliders.
 
 ### Añadido
 - **Opciones de interacción táctil**: Dos nuevos ajustes en Ajustes > Visualización, menú Paneles de Electron y electronMenuBridge. *Pan con un dedo* (activado por defecto): permite arrastrar el canvas tocando el fondo con un dedo. *Controles multitáctil* (desactivado por defecto): permite mover varios knobs/faders simultáneamente; al desactivarlo, dos dedos en pantalla siempre activan zoom/pan y bloquean los controles, evitando cambios accidentales.

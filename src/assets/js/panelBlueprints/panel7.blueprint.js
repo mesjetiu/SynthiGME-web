@@ -90,7 +90,7 @@ export default {
         layoutGap: 6,                 // gap entre columna de knobs y joystick pad
         knobsGap: 23,                  // gap vertical entre knobs
         knobsOffset: { x: 15, y: 40 }, // offset de la columna de knobs
-        padOffset: { x: 10, y: 40 },    // offset del pad
+        padOffset: { x: 13, y: 40 },    // offset del pad
         knobOffsets: [                // offsets por knob [RangeY, RangeX]
           { x: 0, y: 0 },
           { x: 0, y: 0 }
@@ -108,7 +108,7 @@ export default {
         layoutGap: 6,
         knobsGap: 23,
         knobsOffset: { x: -15, y: 40 },
-        padOffset: { x: -10, y: 40 },
+        padOffset: { x: -13, y: 40 },
         knobOffsets: [
           { x: 0, y: 0 },
           { x: 0, y: 0 }
@@ -156,13 +156,13 @@ export default {
 
     // Fila inferior: 8 Output Channels
     lowerRow: {
-      gap: 8,
+      gap: 1,
       padding: { top: 8, right: 8, bottom: 12, left: 8 },
       // Offset de toda la fila inferior (Output Channels)
       offset: { x: 0, y: 0 },
 
       // Tamaño fijo del MARCO de cada canal (px)
-      channelSize: { width: 80, height: 350 },
+      channelSize: { width: 75, height: 350 },
 
       // Configuración del slider de nivel (dentro de cada canal)
       slider: {
@@ -214,7 +214,7 @@ export default {
 
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     sequencer: {
-      visible: true,
+      visible: false,
       // ui: { }  — overrides visuales del sequencer.
       // Soporta: offset, contentPadding, rowsGap, switchesGap, buttonsGap,
       //          switchesOffset, buttonsOffset, switchOffsets, buttonOffsets,

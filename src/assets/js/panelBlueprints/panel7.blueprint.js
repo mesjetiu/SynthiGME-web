@@ -79,17 +79,35 @@ export default {
       joystickSize:  { width: 215, height: 240 },
       sequencerSize: { width: 252, height: 240 },
 
-      // Joystick: layout de 2 columnas (knobs izq | joystick pad der)
-      joystick: {
+      // Joystick Left: layout de 2 columnas (knobs izq | joystick pad der)
+      // Totalmente independiente de joystickRight.
+      joystickLeft: {
         knobs: ['Range Horizontal', 'Range Vertical'],
-        knobSize: 'sm',
+        knobSize: 65,
 
-        // Ajuste fino interno del joystick
+        // Ajuste fino interno del joystick izquierdo
         layoutGap: 6,                 // gap entre columna de knobs y joystick pad
-        knobsGap: 8,                  // gap vertical entre knobs
-        knobsOffset: { x: 0, y: 0 },  // offset de la columna de knobs
+        knobsGap: 15,                  // gap vertical entre knobs
+        knobsOffset: { x: 15, y: 35 }, // offset de la columna de knobs
         padOffset: { x: 0, y: 0 },    // offset del pad
         knobOffsets: [                // offsets por knob [RangeY, RangeX]
+          { x: 0, y: 0 },
+          { x: 0, y: 0 }
+        ]
+      },
+
+      // Joystick Right: layout de 2 columnas (knobs | pad en columnas invertidas por CSS)
+      // Totalmente independiente de joystickLeft.
+      joystickRight: {
+        knobs: ['Range Horizontal', 'Range Vertical'],
+        knobSize: 65,
+
+        // Ajuste fino interno del joystick derecho
+        layoutGap: 6,
+        knobsGap: 15,
+        knobsOffset: { x: -15, y: 35 },
+        padOffset: { x: 0, y: 0 },
+        knobOffsets: [
           { x: 0, y: 0 },
           { x: 0, y: 0 }
         ]
@@ -189,7 +207,7 @@ export default {
     joystickLeft: {
       visible: true,
       // ui: { }  — overrides visuales del joystick izquierdo.
-      // Soporta: offset, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
+      // Soporta: offset, knobSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
@@ -205,7 +223,7 @@ export default {
     joystickRight: {
       visible: true,
       // ui: { }  — overrides visuales del joystick derecho.
-      // Soporta: offset, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
+      // Soporta: offset, knobSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // ── Fila inferior: Output Channels 1-8 ──────────────────────────────

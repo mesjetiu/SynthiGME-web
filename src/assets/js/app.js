@@ -401,18 +401,21 @@ class App {
     
     const joystickSize = upperRow.joystickSize || { width: 160, height: 180 };
     const sequencerSize = upperRow.sequencerSize || { width: 420, height: 180 };
-    const joystickUIConfig = upperRow.joystick || { knobs: [], knobSize: 'sm' };
+    const joystickLeftConfig = upperRow.joystickLeft || { knobs: ['Range Horizontal', 'Range Vertical'], knobSize: 'sm' };
+    const joystickRightConfig = upperRow.joystickRight || { knobs: ['Range Horizontal', 'Range Vertical'], knobSize: 'sm' };
     const sequencerConfig = upperRow.sequencer || { switches: [], buttons: [] };
 
-    const joystickDefaults = {
-      ...joystickUIConfig,
+    const buildJoystickDefaults = (joystickConfig) => ({
+      ...joystickConfig,
       offset: { x: 0, y: 0 },
-      layoutGap: joystickUIConfig.layoutGap ?? 6,
-      knobsGap: joystickUIConfig.knobsGap ?? 8,
-      knobsOffset: resolveOffset(joystickUIConfig.knobsOffset, { x: 0, y: 0 }),
-      padOffset: resolveOffset(joystickUIConfig.padOffset, { x: 0, y: 0 }),
-      knobOffsets: Array.isArray(joystickUIConfig.knobOffsets) ? joystickUIConfig.knobOffsets : []
-    };
+      layoutGap: joystickConfig.layoutGap ?? 6,
+      knobsGap: joystickConfig.knobsGap ?? 8,
+      knobsOffset: resolveOffset(joystickConfig.knobsOffset, { x: 0, y: 0 }),
+      padOffset: resolveOffset(joystickConfig.padOffset, { x: 0, y: 0 }),
+      knobOffsets: Array.isArray(joystickConfig.knobOffsets) ? joystickConfig.knobOffsets : []
+    });
+    const joystickLeftDefaults = buildJoystickDefaults(joystickLeftConfig);
+    const joystickRightDefaults = buildJoystickDefaults(joystickRightConfig);
 
     const sequencerDefaults = {
       ...sequencerConfig,
@@ -441,8 +444,8 @@ class App {
       }
     };
 
-    const joystickLeftUI = mergePanel7UI(joystickDefaults, moduleOverrides.joystickLeft?.ui);
-    const joystickRightUI = mergePanel7UI(joystickDefaults, moduleOverrides.joystickRight?.ui);
+    const joystickLeftUI = mergePanel7UI(joystickLeftDefaults, moduleOverrides.joystickLeft?.ui);
+    const joystickRightUI = mergePanel7UI(joystickRightDefaults, moduleOverrides.joystickRight?.ui);
     const sequencerUI = mergePanel7UI(sequencerDefaults, moduleOverrides.sequencer?.ui);
     const sequencerClockOverride = moduleOverrides.sequencer?.ui?.clockRate || {};
     sequencerUI.clockRateOffset = resolveOffset(
@@ -489,7 +492,7 @@ class App {
     // Knob superior: Range Y
     const leftCfgY = joystickConfig.left.knobs.rangeY;
     const leftRangeYKnob = createKnob({
-      size: joystickUIConfig.knobSize,
+      size: joystickLeftUI.knobSize || 'sm',
       showValue: false,
       initial: leftCfgY.initial / leftCfgY.max,
       scaleMin: leftCfgY.min,
@@ -507,7 +510,7 @@ class App {
     // Knob inferior: Range X
     const leftCfgX = joystickConfig.left.knobs.rangeX;
     const leftRangeXKnob = createKnob({
-      size: joystickUIConfig.knobSize,
+      size: joystickLeftUI.knobSize || 'sm',
       showValue: false,
       initial: leftCfgX.initial / leftCfgX.max,
       scaleMin: leftCfgX.min,
@@ -623,7 +626,7 @@ class App {
     // Knob superior: Range Y
     const rightCfgY = joystickConfig.right.knobs.rangeY;
     const rightRangeYKnob = createKnob({
-      size: joystickUIConfig.knobSize,
+      size: joystickRightUI.knobSize || 'sm',
       showValue: false,
       initial: rightCfgY.initial / rightCfgY.max,
       scaleMin: rightCfgY.min,
@@ -641,7 +644,7 @@ class App {
     // Knob inferior: Range X
     const rightCfgX = joystickConfig.right.knobs.rangeX;
     const rightRangeXKnob = createKnob({
-      size: joystickUIConfig.knobSize,
+      size: joystickRightUI.knobSize || 'sm',
       showValue: false,
       initial: rightCfgX.initial / rightCfgX.max,
       scaleMin: rightCfgX.min,

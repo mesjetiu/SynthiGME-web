@@ -275,6 +275,20 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
     if (activeContextMenu && activeContextMenu.contains(e.target)) return;
     hideContextMenu();
   };
+
+  // Cerrar al hacer pointer/touch fuera (captura para funcionar aunque haya stopPropagation en PiP)
+  const closeOnPointerDown = (e) => {
+    if (activeContextMenu && activeContextMenu.contains(e.target)) return;
+    hideContextMenu();
+  };
+
+  // Cerrar con Escape
+  const closeOnEscape = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      hideContextMenu();
+    }
+  };
   
   const closeOnContextMenu = (e) => {
     // Si el click derecho es en un panel o PiP, dejar que se abra el nuevo menú
@@ -288,6 +302,9 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   const cleanup = () => {
     document.removeEventListener('click', closeHandler);
     document.removeEventListener('contextmenu', closeOnContextMenu);
+    document.removeEventListener('pointerdown', closeOnPointerDown, true);
+    document.removeEventListener('touchstart', closeOnPointerDown, true);
+    document.removeEventListener('keydown', closeOnEscape);
     cleanupListeners = null;
   };
   
@@ -296,6 +313,9 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   setTimeout(() => {
     document.addEventListener('click', closeHandler);
     document.addEventListener('contextmenu', closeOnContextMenu);
+    document.addEventListener('pointerdown', closeOnPointerDown, true);
+    document.addEventListener('touchstart', closeOnPointerDown, true);
+    document.addEventListener('keydown', closeOnEscape);
   }, 10);
 }
 

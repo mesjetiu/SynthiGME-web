@@ -184,11 +184,11 @@ export default {
   //
   outputChannelUI: {
     // Knobs (filter, pan)
-    knobSize: 50,            // px — diámetro del knob
+    knobSize: 60,            // px — diámetro del knob
     knobInnerPct: 76,        // % — círculo interior respecto al exterior
-    knobGap: [8],            // px — gap entre cada par de knobs
+    knobGap: 8,              // px — gap vertical entre los 2 knobs (Filter y Pan)
     knobRowOffsetX: 0,       // px — desplazamiento horizontal de la fila de knobs
-    knobRowOffsetY: 10,       // px — desplazamiento vertical de la fila de knobs
+    knobRowOffsetY: 30,       // px — desplazamiento vertical de la fila de knobs
 
     // Slider (level) — tamaño visual del fader
     sliderSize: {

@@ -718,6 +718,9 @@ class App {
       const channelSize = lowerRow.channelSize || { width: 80, height: 350 };
       const sliderSize = channelUI.sliderSize || {};
       const buttonSize = channelUI.buttonSize || {};
+      const knobGapValue = Array.isArray(channelUI.knobGap)
+        ? toNum(channelUI.knobGap[0], 8)
+        : toNum(channelUI.knobGap, 8);
       applyOffset(this.outputChannelsSection, lowerRow.offset);
       
       // CSS custom properties para slider y channel (heredadas por los hijos)
@@ -732,6 +735,11 @@ class App {
       this.outputChannelsSection.style.setProperty('--oc-button-width', `${toNum(buttonSize.width, 18)}px`);
       this.outputChannelsSection.style.setProperty('--oc-button-height', `${toNum(buttonSize.height, 30)}px`);
       this.outputChannelsSection.style.setProperty('--oc-button-indicator-size', `${toNum(buttonSize.indicator, 8)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-knob-size', `${toNum(channelUI.knobSize, 42)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-knob-inner-pct', `${toNum(channelUI.knobInnerPct, 78)}%`);
+      this.outputChannelsSection.style.setProperty('--oc-knob-gap', `${knobGapValue}px`);
+      this.outputChannelsSection.style.setProperty('--oc-knob-row-offset-x', `${toNum(channelUI.knobRowOffsetX, 0)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-knob-row-offset-y', `${toNum(channelUI.knobRowOffsetY, 0)}px`);
       this.outputChannelsSection.style.setProperty('--oc-row-padding', 
         `${rowPadding.top}px ${rowPadding.right}px ${rowPadding.bottom}px ${rowPadding.left}px`);
       this.outputChannelsSection.style.setProperty('--oc-content-padding', 

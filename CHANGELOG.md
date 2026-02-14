@@ -42,6 +42,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Panel 7: halo activo en pads de joystick**: Los pads de joystick ahora muestran halo palpitante al pasar el ratón, tocar o arrastrar, igual que el feedback visual de controles activos en knobs/sliders.
 - **Panel 7: `channelSize` ahora controla realmente ancho y alto de Output Channels**: El layout de la fila inferior aplica `lowerRow.channelSize.width` y `lowerRow.channelSize.height` al tamaño final de cada canal, en lugar de quedar limitado por reglas CSS fijas.
 - **Panel 7: más ajuste fino en Output Channels y switch vertical**: Añadidos en `outputChannelUI` los parámetros `sliderSize`, `knobButtonGap`, `buttonSize` y `buttonSliderGap`. El botón On/Off de cada canal ahora es vertical (arriba = ON, abajo = OFF).
+- **Panel 7: `outputChannelUI` aplica ajuste fino real en knobs**: `knobSize`, `knobInnerPct`, `knobRowOffsetX`, `knobRowOffsetY` y `knobGap` ya afectan al render de Output Channels. `knobGap` se usa como valor escalar (gap vertical entre Filter y Pan).
 
 ### Añadido
 - **Opciones de interacción táctil**: Dos nuevos ajustes en Ajustes > Visualización, menú Paneles de Electron y electronMenuBridge. *Pan con un dedo* (activado por defecto): permite arrastrar el canvas tocando el fondo con un dedo. *Controles multitáctil* (desactivado por defecto): permite mover varios knobs/faders simultáneamente; al desactivarlo, dos dedos en pantalla siempre activan zoom/pan y bloquean los controles, evitando cambios accidentales.

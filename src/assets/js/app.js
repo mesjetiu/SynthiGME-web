@@ -88,7 +88,7 @@ import { WakeLockManager } from './utils/wakeLock.js';
 import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -109,6 +109,8 @@ function applyModuleVisibility(element, blueprint, moduleKey) {
     element.style.pointerEvents = 'none';
   }
 }
+
+const JOYSTICK_MAX_OUTPUT_VOLTAGE = 8;
 
 class App {
   constructor() {
@@ -499,6 +501,7 @@ class App {
       scaleMin: leftCfgY.min,
       scaleMax: leftCfgY.max,
       pixelsForFullRange: leftCfgY.pixelsForFullRange,
+      getTooltipInfo: this._getJoystickRangeTooltipInfo(this._joystickModules.left, 'y'),
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.left.setRangeY(v * leftCfgY.max);
@@ -517,6 +520,7 @@ class App {
       scaleMin: leftCfgX.min,
       scaleMax: leftCfgX.max,
       pixelsForFullRange: leftCfgX.pixelsForFullRange,
+      getTooltipInfo: this._getJoystickRangeTooltipInfo(this._joystickModules.left, 'x'),
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.left.setRangeX(v * leftCfgX.max);
@@ -640,6 +644,7 @@ class App {
       scaleMin: rightCfgY.min,
       scaleMax: rightCfgY.max,
       pixelsForFullRange: rightCfgY.pixelsForFullRange,
+      getTooltipInfo: this._getJoystickRangeTooltipInfo(this._joystickModules.right, 'y'),
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.right.setRangeY(v * rightCfgY.max);
@@ -658,6 +663,7 @@ class App {
       scaleMin: rightCfgX.min,
       scaleMax: rightCfgX.max,
       pixelsForFullRange: rightCfgX.pixelsForFullRange,
+      getTooltipInfo: this._getJoystickRangeTooltipInfo(this._joystickModules.right, 'x'),
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.right.setRangeX(v * rightCfgX.max);
@@ -754,6 +760,64 @@ class App {
     this._outputFadersModule = this._outputChannelsPanel;
   }
 
+    _formatSignedValue(value, decimals = 2) {
+      const abs = Math.abs(value).toFixed(decimals);
+      if (Object.is(value, -0) || value < 0) return `-${abs}`;
+      if (value > 0) return `+${abs}`;
+      return abs;
+    }
+
+    _getJoystickAxisSnapshot(module, axis) {
+      const isX = axis === 'x';
+      const padGain = isX ? module.getX() : module.getY();
+      const rangeDial = isX ? module.getRangeX() : module.getRangeY();
+      const rangeGain = Math.max(0, Math.min(1, rangeDial / 10));
+      const outputVoltage = padGain * rangeGain * JOYSTICK_MAX_OUTPUT_VOLTAGE;
+      return { padGain, rangeDial, rangeGain, outputVoltage };
+    }
+
+    _getJoystickRangeTooltipInfo(module, axis) {
+      const axisLabel = axis.toUpperCase();
+      return () => {
+        const parts = [];
+        const state = this._getJoystickAxisSnapshot(module, axis);
+
+        if (showVoltageTooltip()) {
+          parts.push(`${axisLabel} out: ${formatVoltage(state.outputVoltage, 2)}`);
+        }
+
+        if (showAudioTooltip()) {
+          parts.push(`Range ${formatGain(state.rangeGain)}`);
+          parts.push(`Pad ×${this._formatSignedValue(state.padGain, 2)}`);
+        }
+
+        return parts.length > 0 ? parts.join(' · ') : null;
+      };
+    }
+
+    _getJoystickPadTooltipContent(module) {
+      const x = this._getJoystickAxisSnapshot(module, 'x');
+      const y = this._getJoystickAxisSnapshot(module, 'y');
+      const showVoltage = showVoltageTooltip();
+      const showAudio = showAudioTooltip();
+
+      const mainText = showVoltage
+        ? `X ${formatVoltage(x.outputVoltage, 2)} · Y ${formatVoltage(y.outputVoltage, 2)}`
+        : `X ×${this._formatSignedValue(x.padGain, 2)} · Y ×${this._formatSignedValue(y.padGain, 2)}`;
+
+      const infoParts = [];
+      if (showAudio) {
+        infoParts.push(`Range X ${formatGain(x.rangeGain)} · Range Y ${formatGain(y.rangeGain)}`);
+        infoParts.push(`Pad X ×${this._formatSignedValue(x.padGain, 2)} · Pad Y ×${this._formatSignedValue(y.padGain, 2)}`);
+      }
+
+      if (infoParts.length > 0) {
+        return `<div class="knob-tooltip__main">${mainText}</div><div class="knob-tooltip__info">${infoParts.join('<br>')}</div>`;
+      }
+
+      return `<div class="knob-tooltip__main">${mainText}</div>`;
+    }
+
   /**
    * Configura la interacción de puntero en un pad de joystick.
    * Convierte eventos de puntero en posición normalizada (-1..+1)
@@ -767,6 +831,56 @@ class App {
     const handle = document.createElement('div');
     handle.className = 'joystick-handle';
     padEl.appendChild(handle);
+
+    let tooltipEl = null;
+    const showPadTooltip = () => {
+      if (tooltipEl) return;
+      tooltipEl = document.createElement('div');
+      tooltipEl.className = 'knob-tooltip';
+      tooltipEl.innerHTML = this._getJoystickPadTooltipContent(module);
+      document.body.appendChild(tooltipEl);
+      positionPadTooltip();
+      tooltipEl.offsetHeight;
+      tooltipEl.classList.add('is-visible');
+    };
+
+    const positionPadTooltip = () => {
+      if (!tooltipEl) return;
+      const rect = padEl.getBoundingClientRect();
+      const ttRect = tooltipEl.getBoundingClientRect();
+
+      let left = rect.left + rect.width / 2 - ttRect.width / 2;
+      let top = rect.top - ttRect.height - 8;
+
+      if (left < 4) left = 4;
+      if (left + ttRect.width > window.innerWidth - 4) {
+        left = window.innerWidth - ttRect.width - 4;
+      }
+      if (top < 4) {
+        top = rect.bottom + 8;
+      }
+
+      tooltipEl.style.left = `${left}px`;
+      tooltipEl.style.top = `${top}px`;
+    };
+
+    const updatePadTooltip = () => {
+      if (!tooltipEl) return;
+      tooltipEl.innerHTML = this._getJoystickPadTooltipContent(module);
+      positionPadTooltip();
+    };
+
+    const hidePadTooltip = () => {
+      if (!tooltipEl) return;
+      const tooltip = tooltipEl;
+      tooltip.classList.remove('is-visible');
+      setTimeout(() => {
+        if (tooltip.parentNode) {
+          tooltip.parentNode.removeChild(tooltip);
+        }
+      }, 150);
+      tooltipEl = null;
+    };
 
     let pointerActive = false;
     let hoverMouse = false;
@@ -792,6 +906,7 @@ class App {
       const ny = Math.max(-1, Math.min(1, 1 - y * 2));
       module.setPosition(nx, ny);
       updateHandle(nx, ny);
+      updatePadTooltip();
     };
 
     padEl.addEventListener('pointerdown', ev => {
@@ -801,6 +916,7 @@ class App {
       this.ensureAudio();
       pointerActive = true;
       refreshPadGlow();
+      showPadTooltip();
       // Iniciar módulo de audio si no lo está
       if (!module.isStarted) module.start();
       padEl.setPointerCapture(ev.pointerId);
@@ -818,17 +934,21 @@ class App {
       try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
       pointerActive = false;
       refreshPadGlow();
+      if (!hoverMouse) hidePadTooltip();
     });
 
     padEl.addEventListener('pointercancel', () => {
       pointerActive = false;
       refreshPadGlow();
+      if (!hoverMouse) hidePadTooltip();
     });
 
     padEl.addEventListener('pointerenter', ev => {
       if (ev.pointerType === 'mouse') {
         hoverMouse = true;
         refreshPadGlow();
+        showPadTooltip();
+        updatePadTooltip();
       }
     });
 
@@ -837,6 +957,7 @@ class App {
         hoverMouse = false;
         if (ev.buttons === 0) {
           refreshPadGlow();
+          hidePadTooltip();
           return;
         }
       }
@@ -844,6 +965,7 @@ class App {
       try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
       pointerActive = false;
       refreshPadGlow();
+      if (!hoverMouse) hidePadTooltip();
     });
 
     // Guardar referencia para poder actualizar el handle desde deserialización

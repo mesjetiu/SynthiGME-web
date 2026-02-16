@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 13 de febrero de 2026 (módulo joystick completo con dormancy y rango por eje, menú nativo Electron con i18n, botón flotante de mute, entrada multicanal 8ch, manejo global de errores y telemetría anónima)
+> Última actualización: 16 de febrero de 2026 (sección 18: análisis PiP clones vs reparenting)
 
 ---
 
@@ -2968,3 +2968,52 @@ TELEMETRY_URL="https://..." npm run build:web
 ```
 
 Las variables de `process.env` tienen prioridad sobre `.env`. Sin `TELEMETRY_URL`, la telemetría se desactiva silenciosamente — la app funciona igual pero no envía nada.
+
+---
+
+## 18. PiP — Decisiones Arquitectónicas y Lecciones Aprendidas
+
+### 18.1 Arquitectura actual: DOM Reparenting
+
+El sistema PiP usa **reparenting DOM**: el elemento `#panel-N` real se mueve del grid del canvas al contenedor PiP flotante. Un `<div class="pip-placeholder">` ocupa su lugar en el grid para preservar el layout.
+
+**Ventajas de este enfoque:**
+- Todos los event listeners existentes (knobs, sliders, pines, switches) sobreviven al movimiento.
+- Las conexiones de Web Audio (AudioNodes, AudioParams) permanecen intactas.
+- No se necesita sincronización visual ni event forwarding.
+- `contextMenuManager`, `tooltipManager` y todo el sistema de UI funciona sin cambios.
+- El código es simple: ~1700 líneas frente a las ~2700 de la alternativa.
+
+### 18.2 Rama `pip-refactor-wip`: modelo de clones (descartado)
+
+En febrero de 2026 se exploró un modelo alternativo basado en **clones del DOM** (`cloneNode(true)`) con el objetivo de soportar múltiples ventanas PiP del mismo panel simultáneamente. La rama `pip-refactor-wip` (HEAD: `2ca28bc`) preserva este trabajo.
+
+#### Qué hacía diferente
+
+| Aspecto | Reparenting (actual) | Clones (descartado) |
+|---------|---------------------|---------------------|
+| Panel en PiP | El mismo elemento DOM | Copia profunda (`cloneNode`) |
+| Event listeners | Sobreviven | No existen en el clon |
+| Audio bindings | Intactos | Solo en el source |
+| Sincronización | Innecesaria | `MutationObserver` + `syncCloneVisuals()` continuo |
+| Eventos de usuario | Nativos | Event forwarding: captura → cálculo de coords → dispatch sintético |
+| Multi-instancia | ❌ 1 PiP por panel | ✅ N PiPs del mismo panel |
+| Líneas de código | ~1700 | ~2700 |
+
+#### Por qué fue problemático
+
+1. **Event forwarding por tipo de control**: Cada tipo de control (knob, slider, switch, pin, joystick) necesitaba su propio pipeline. Los sliders `<input type="range">` fueron los peores: el browser mueve el thumb nativamente al recibir eventos de puntero, obligando a calcular valores por delta (`computeSliderValueFromDelta`) y aplicarlos programáticamente al source (`applySliderValue`).
+
+2. **WebKit tablet y `<input type="range">`**: En iPad/tablets WebKit, ni `pointer-events: none`, ni `disabled`, ni `preventDefault()` impiden que el browser mueva el thumb nativo del slider al tocarlo. Se probaron 5 enfoques (6 commits), incluyendo un overlay CSS `::after` sobre los shells. El problema opera a nivel de compositor, por debajo de CSS/HTML.
+
+3. **Sincronización bidireccional**: El clon debía reflejar en tiempo real los cambios del source (rotaciones de knobs, valores de sliders, estados de switches, píxeles de canvas). Esto requirió `SYNC_TARGETS`, `SYNC_CLASS_TARGETS`, loops de `requestAnimationFrame` para canvas, y un `MutationObserver` cuyo `refreshClone()` reemplazaba el DOM completo — perdiendo las CSS transitions cada vez.
+
+4. **Tooltips en el clon**: Los tooltips del source no son visibles en el clon. Se creó un sistema paralelo con flags (`__synthFromPip`, `_sliderFromPip`, `_sliderPipInstanceId`), bypass de `hasTouchCapability()` para eventos sintéticos, y `mouseenter`/`mouseleave` sintéticos.
+
+5. **Cascada de efectos secundarios**: Cada fix generaba un nuevo bug. CSS `pointer-events: none` en sliders rompía switches. `disabled` en sliders alteraba la apariencia. Tooltip por `pointerdown` movía el slider a su valor máximo. Cada iteración requería modificar archivos fuera de `pipManager.js` (outputChannel, knob, tooltipManager, main.css…).
+
+#### Lecciones
+
+- **DOM reparenting >> cloning** para paneles interactivos con bindings de audio. La clonación solo merece la pena si los controles son puramente de lectura.
+- **Multi-instancia PiP del mismo panel** requiere una arquitectura fundamentalmente diferente (posiblemente Web Components con shadow DOM, o virtualización del state con render múltiple). No es viable como refactorización incremental del sistema actual.
+- **`<input type="range">` en WebKit tablet** es indomable con CSS/JS estándar para bloquear interacción nativa. Solo un overlay DOM (elemento físico encima) funciona, y aun así introduce complejidad en el forwarding de eventos.

@@ -1354,20 +1354,20 @@ function handlePointerMove(e) {
     state.pipContainer.style.left = `${newX}px`;
     state.pipContainer.style.top = `${newY}px`;
     
-    // Para bordes left/top: compensar scroll para que el contenido
-    // permanezca anclado al lado opuesto (derecha/abajo).
-    // Al crecer la ventana desde la izquierda, el contenido nuevo aparece a la izquierda,
-    // así que el scroll debe aumentar para mantener la vista en el mismo punto.
+    // Para bordes left/top: compensar scroll para anclar el contenido
+    // al lado opuesto (derecha/abajo). Si el viewport encoge ΔH,
+    // para que el borde inferior visible quede fijo:
+    //   newScroll = oldScroll - ΔH  (ΔH < 0 al encoger → scroll sube)
     if (resizeEdge === 'left' || resizeEdge === 'top') {
       const viewport = state.pipContainer.querySelector('.pip-viewport');
       if (viewport) {
         if (resizeEdge === 'left') {
           const widthDelta = newW - resizeStart.w;
-          viewport.scrollLeft = Math.max(0, resizeStart.scrollX + widthDelta);
+          viewport.scrollLeft = Math.max(0, resizeStart.scrollX - widthDelta);
         }
         if (resizeEdge === 'top') {
           const heightDelta = newH - resizeStart.h;
-          viewport.scrollTop = Math.max(0, resizeStart.scrollY + heightDelta);
+          viewport.scrollTop = Math.max(0, resizeStart.scrollY - heightDelta);
         }
       }
     }

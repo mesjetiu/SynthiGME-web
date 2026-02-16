@@ -911,6 +911,11 @@ function setupPipEvents(pipContainer, panelId) {
   
   pipContainer.addEventListener('click', (e) => e.stopPropagation());
   
+  // Mouse events legacy: bloquear propagación al canvas principal
+  pipContainer.addEventListener('mousedown', (e) => e.stopPropagation());
+  pipContainer.addEventListener('mouseup', (e) => e.stopPropagation());
+  pipContainer.addEventListener('mousemove', (e) => e.stopPropagation());
+  
   // Menú contextual personalizado en el contenido PiP (devolver panel + reset)
   pipContainer.addEventListener('contextmenu', (e) => {
     e.preventDefault();

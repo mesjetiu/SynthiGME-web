@@ -1613,6 +1613,8 @@ export function setupPanelDoubleTapZoom() {
     }
 
     panel.addEventListener('dblclick', (ev) => {
+      // Ignorar si el panel está en PiP (tiene sus propios handlers)
+      if (panel.classList.contains('panel--pipped')) return;
       if (isInteractiveElement(ev.target)) return;
       ev.preventDefault();
       ev.stopPropagation();
@@ -1620,6 +1622,8 @@ export function setupPanelDoubleTapZoom() {
     });
 
     panel.addEventListener('touchend', (ev) => {
+      // Ignorar si el panel está en PiP (tiene sus propios handlers)
+      if (panel.classList.contains('panel--pipped')) return;
       if (isInteractiveElement(ev.target)) return;
       if (window.__synthNavGestureActive) {
         lastTapTime = 0;

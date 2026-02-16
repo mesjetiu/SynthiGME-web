@@ -899,13 +899,15 @@ class App {
     };
 
     // ─────────────────────────────────────────────────────────────────────
-    // Anti-jump: el pad usa tracking relativo. Al tocar, se calcula el
-    // offset entre el pointer y la posición actual del handle. Mientras
-    // se arrastra, se aplica el delta desde ese offset. Así el handle
-    // nunca salta al punto de toque, solo se mueve por arrastre.
+    // Handle-only drag: solo permitir arrastre si el pointer toca el handle.
+    // Si se toca la superficie del pad fuera del handle, solo se muestra
+    // tooltip pero el handle no se mueve. Usa tracking relativo para
+    // arrastre suave sin saltos.
     // ─────────────────────────────────────────────────────────────────────
+    let handleGrabbed = false;
     let dragOffsetNx = 0;
     let dragOffsetNy = 0;
+    const HANDLE_HIT_MARGIN = 8; // px extra alrededor del handle (32px + margen)
 
     const pointerToNormalized = (ev) => {
       const rect = padEl.getBoundingClientRect();
@@ -915,6 +917,16 @@ class App {
         nx: Math.max(-1, Math.min(1, x * 2 - 1)),
         ny: Math.max(-1, Math.min(1, 1 - y * 2))
       };
+    };
+
+    const isPointerOnHandle = (ev) => {
+      const handleRect = handle.getBoundingClientRect();
+      const cx = handleRect.left + handleRect.width / 2;
+      const cy = handleRect.top + handleRect.height / 2;
+      const hitRadius = handleRect.width / 2 + HANDLE_HIT_MARGIN;
+      const dx = ev.clientX - cx;
+      const dy = ev.clientY - cy;
+      return (dx * dx + dy * dy) <= (hitRadius * hitRadius);
     };
 
     const applyPosition = (nx, ny) => {
@@ -935,18 +947,19 @@ class App {
       showPadTooltip();
       // Iniciar módulo de audio si no lo está
       if (!module.isStarted) module.start();
-      padEl.setPointerCapture(ev.pointerId);
-      // Anti-jump: guardar offset entre pointer y posición actual del handle
-      const pointer = pointerToNormalized(ev);
-      const currentX = module.getX();
-      const currentY = module.getY();
-      dragOffsetNx = pointer.nx - currentX;
-      dragOffsetNy = pointer.ny - currentY;
-      // No mover el handle — solo preparar para arrastre relativo
+      // Comprobar si el pointer está sobre el handle
+      handleGrabbed = isPointerOnHandle(ev);
+      if (handleGrabbed) {
+        padEl.setPointerCapture(ev.pointerId);
+        // Guardar offset para tracking relativo
+        const pointer = pointerToNormalized(ev);
+        dragOffsetNx = pointer.nx - module.getX();
+        dragOffsetNy = pointer.ny - module.getY();
+      }
     });
 
     padEl.addEventListener('pointermove', ev => {
-      if (ev.buttons === 0 || ev.buttons === 2) return; // Ignorar sin botón o botón derecho
+      if (!handleGrabbed || ev.buttons === 0 || ev.buttons === 2) return;
       ev.stopPropagation();
       ev.preventDefault();
       // Aplicar posición relativa: pointer actual menos offset inicial
@@ -956,12 +969,14 @@ class App {
 
     padEl.addEventListener('pointerup', ev => {
       try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
+      handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();
       if (!hoverMouse) hidePadTooltip();
     });
 
     padEl.addEventListener('pointercancel', () => {
+      handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();
       if (!hoverMouse) hidePadTooltip();

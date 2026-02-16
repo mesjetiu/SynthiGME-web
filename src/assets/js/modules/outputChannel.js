@@ -363,14 +363,12 @@ export class OutputChannel extends Module {
     let pendingValue = null;
     
     // ─────────────────────────────────────────────────────────────────────
-    // Anti-jump: evitar que un click/tap en el track del slider mueva el
-    // thumb bruscamente a esa posición. Solo el arrastre del thumb debe
-    // cambiar el valor. Al primer 'input' tras 'pointerdown', si el salto
-    // es mayor que el umbral, se restaura el valor previo.
+    // Thumb-only drag: solo permitir arrastre si el pointer toca el thumb.
+    // Si se toca el track (fuera del thumb), el slider no se mueve.
+    // El thumb es vertical (writing-mode: vertical-lr, direction: rtl).
     // ─────────────────────────────────────────────────────────────────────
-    let valueBeforePointerDown = lastCommittedValue;
-    let isFirstInputAfterDown = false;
-    const JUMP_THRESHOLD = 0.05; // 5% del rango (0-1) = salto de track
+    let thumbGrabbed = false;
+    const THUMB_HIT_MARGIN = 14; // px extra alrededor del thumb (10px alto + margen)
     
     const flushValue = () => {
       rafId = null;
@@ -405,9 +403,18 @@ export class OutputChannel extends Module {
     // ─────────────────────────────────────────────────────────────────────
     slider.addEventListener('pointerdown', (ev) => {
       if (shouldBlockInteraction(ev)) return;
-      // Anti-jump: guardar valor actual antes de que el browser lo modifique
-      valueBeforePointerDown = Number(slider.value);
-      isFirstInputAfterDown = true;
+      // Thumb-only: comprobar si el pointer está sobre el thumb
+      // El slider es vertical (writing-mode: vertical-lr, direction: rtl)
+      // top = max value (10), bottom = min value (0)
+      const sliderRect = slider.getBoundingClientRect();
+      const currentVal = Number(slider.value);
+      const minVal = Number(slider.min);
+      const maxVal = Number(slider.max);
+      const ratio = (currentVal - minVal) / (maxVal - minVal);
+      // En vertical-lr + rtl: ratio 0 = bottom, ratio 1 = top
+      const thumbY = sliderRect.bottom - ratio * sliderRect.height;
+      const pointerY = ev.clientY;
+      thumbGrabbed = Math.abs(pointerY - thumbY) <= THUMB_HIT_MARGIN;
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
@@ -472,21 +479,10 @@ export class OutputChannel extends Module {
     });
     
     slider.addEventListener('input', () => {
-      if (isNavGestureActive()) {
+      if (isNavGestureActive() || !thumbGrabbed) {
+        // Bloquear: gesto de navegación activo o no se agarró el thumb
         slider.value = String(lastCommittedValue);
         return;
-      }
-      // Anti-jump: en el primer input tras pointerdown, detectar si fue un
-      // salto de track (click lejos del thumb) y restaurar el valor previo
-      if (isFirstInputAfterDown) {
-        isFirstInputAfterDown = false;
-        const newVal = Number(slider.value);
-        const delta = Math.abs(newVal - valueBeforePointerDown);
-        if (delta > JUMP_THRESHOLD) {
-          // Salto de track detectado — restaurar valor previo
-          slider.value = String(valueBeforePointerDown);
-          return;
-        }
       }
       pendingValue = Number(slider.value);
       if (!rafId) {

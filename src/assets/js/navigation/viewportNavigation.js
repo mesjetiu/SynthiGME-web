@@ -892,6 +892,21 @@ export function initViewportNavigation({ outer, inner } = {}) {
     if (ev.pointerType !== 'touch') return;
     activeTouchMap.delete(ev.pointerId);
     updateNavGestureFlagFromCapture();
+    // También limpiar el mapa de pointers (bubble-phase) para evitar
+    // pointers fantasma cuando un control interactivo (ej. joystick pad)
+    // usa setPointerCapture y el pointerup no llega por burbujeo.
+    if (pointers.has(ev.pointerId)) {
+      pointers.delete(ev.pointerId);
+      recomputeNavGestureState();
+      if (pointers.size < 2) {
+        lastDist = null;
+        lastCentroid = null;
+      }
+      if (panPointerId === ev.pointerId) {
+        isPanning = false;
+        panPointerId = null;
+      }
+    }
   };
 
   outer.addEventListener('pointerup', handleTouchEndCapture, true);

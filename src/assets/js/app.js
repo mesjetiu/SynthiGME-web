@@ -986,7 +986,6 @@ class App {
         hidePadTooltip();
         return;
       }
-      ev.stopPropagation();
       ev.preventDefault();
       this.ensureAudio();
       cancelTooltipAutoHide();
@@ -997,10 +996,10 @@ class App {
         if (padTooltipDelayTimer) clearTimeout(padTooltipDelayTimer);
         padTooltipDelayTimer = setTimeout(() => {
           padTooltipDelayTimer = null;
-          if (activePointers.size <= 1) {
+          if (activePointers.size <= 1 && !window.__synthNavGestureActive) {
             showPadTooltip();
           }
-        }, 80);
+        }, 120);
       } else {
         showPadTooltip();
       }
@@ -1020,8 +1019,8 @@ class App {
 
     padEl.addEventListener('pointermove', ev => {
       if (!handleGrabbed || ev.buttons === 0 || ev.buttons === 2) return;
-      // Protección pinch: múltiples pointers locales en el pad
-      if (activePointers.size > 1) {
+      // Protección pinch: múltiples pointers locales O gesto de navegación global
+      if (activePointers.size > 1 || window.__synthNavGestureActive) {
         handleGrabbed = false;
         if (capturedPointerId !== null) {
           try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }
@@ -1036,7 +1035,6 @@ class App {
         hidePadTooltip();
         return;
       }
-      ev.stopPropagation();
       ev.preventDefault();
       // Aplicar posición relativa: pointer actual menos offset inicial
       const pointer = pointerToNormalized(ev);
@@ -1091,14 +1089,18 @@ class App {
       }
     });
 
-    // Forzar cierre del tooltip cuando el viewport detecta gesto de
-    // navegación (multi-touch, zoom a panel, etc.). El pad bloquea
-    // propagación (stopPropagation) para evitar pointers fantasma en
-    // el viewport, así que usamos este evento global como canal.
+    // Forzar cierre del tooltip y cancelar drag cuando el viewport
+    // detecta gesto de navegación (multi-touch, zoom a panel, etc.).
     document.addEventListener('synth:dismissTooltips', () => {
       if (padTooltipDelayTimer) {
         clearTimeout(padTooltipDelayTimer);
         padTooltipDelayTimer = null;
+      }
+      // Cancelar drag activo para que el handle no se mueva
+      handleGrabbed = false;
+      if (capturedPointerId !== null) {
+        try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }
+        capturedPointerId = null;
       }
       cancelTooltipAutoHide();
       hidePadTooltip();

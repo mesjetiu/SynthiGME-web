@@ -1581,10 +1581,18 @@ export function setupPanelDoubleTapZoom() {
   
   const INTERACTIVE_SELECTORS = [
     'button', 'input', 'select', 'textarea', 'a',
-    '.knob', '.knob-cap', '.knob-pointer', '.knob-ring',
+    '.knob', '.knob-inner', '.knob-cap', '.knob-wrap',
     '.slider', '.switch', '.toggle', '.fader',
-    '.panel-zoom-btn', '.matrix-pin',
-    '[role="button"]', '[role="slider"]', '[draggable="true"]'
+    '.output-fader', '.output-channel__slider', '.output-channel__switch',
+    '.synth-toggle',
+    '.pin-btn', '.matrix-cell',
+    '.joystick-pad', '.joystick-handle',
+    '.panel7-joystick-pad',
+    '.panel7-seq-switch', '.panel7-seq-button',
+    '.sgme-osc__knob', '.noise-generator__knob', '.random-voltage__knob',
+    '.panel-zoom-btn',
+    '[role="button"]', '[role="slider"]', '[draggable="true"]',
+    '[data-prevent-pan="true"]'
   ].join(',');
 
   PANEL_IDS.forEach(panelId => {
@@ -1596,8 +1604,7 @@ export function setupPanelDoubleTapZoom() {
 
     function isInteractiveElement(el) {
       if (!el || el === panel) return false;
-      if (el.matches && el.matches(INTERACTIVE_SELECTORS)) return true;
-      return isInteractiveElement(el.parentElement);
+      return !!el.closest(INTERACTIVE_SELECTORS);
     }
 
     function handleZoomToggle() {

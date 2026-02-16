@@ -92,8 +92,8 @@ function _ensureInitialized() {
       return;
     }
     
-    // Si el toque es en un knob, pin o slider, dejar que su propio handler decida
-    if (target?.closest?.('.knob, .knob-inner, .pin-btn, .output-channel__slider')) {
+    // Si el toque es en un knob, pin, slider o pad de joystick, dejar que su propio handler decida
+    if (target?.closest?.('.knob, .knob-inner, .pin-btn, .output-channel__slider, .panel7-joystick-pad')) {
       return;
     }
     

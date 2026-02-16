@@ -53,6 +53,7 @@ import { ModuleFrame } from './ui/moduleFrame.js';
 import { Toggle } from './ui/toggle.js';
 import { Knob } from './ui/knob.js';
 import { createKnob } from './ui/knobFactory.js';
+import { registerTooltipHideCallback, hideOtherTooltips } from './ui/tooltipManager.js';
 
 // Utilidades de audio
 import { createPulseWave, createAsymmetricSineWave } from './utils/waveforms.js';
@@ -833,8 +834,11 @@ class App {
     padEl.appendChild(handle);
 
     let tooltipEl = null;
+    let padHideCallback = null; // Se asigna más abajo, tras definir las funciones que usa
     const showPadTooltip = () => {
       if (tooltipEl) return;
+      // Ocultar otros tooltips (knobs, matrix, sliders) para evitar superposición
+      hideOtherTooltips(padHideCallback);
       tooltipEl = document.createElement('div');
       tooltipEl.className = 'knob-tooltip';
       tooltipEl.innerHTML = this._getJoystickPadTooltipContent(module);
@@ -908,6 +912,15 @@ class App {
     const refreshPadGlow = () => {
       padEl.classList.toggle('is-tooltip-active', pointerActive || hoverMouse);
     };
+
+    // Callback de ocultación para tooltipManager (exclusión mutua con otros tooltips)
+    padHideCallback = () => {
+      cancelTooltipAutoHide();
+      hidePadTooltip();
+      pointerActive = false;
+      refreshPadGlow();
+    };
+    registerTooltipHideCallback(padHideCallback);
 
     // Factor de escala visual: ~5/6 del recorrido total
     const handleScale = 0.83;

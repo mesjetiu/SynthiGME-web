@@ -986,6 +986,7 @@ class App {
         hidePadTooltip();
         return;
       }
+      ev.stopPropagation();
       ev.preventDefault();
       this.ensureAudio();
       cancelTooltipAutoHide();
@@ -1035,6 +1036,7 @@ class App {
         hidePadTooltip();
         return;
       }
+      ev.stopPropagation();
       ev.preventDefault();
       // Aplicar posición relativa: pointer actual menos offset inicial
       const pointer = pointerToNormalized(ev);

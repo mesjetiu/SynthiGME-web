@@ -881,20 +881,52 @@ export function initViewportNavigation({ outer, inner } = {}) {
     setClampDisabled(false);
   });
 
+  // ─── Capture-phase touch tracking ─────────────────────────────────
+  // Registrar TODOS los touch pointers en capture phase para que:
+  // 1) activeTouchMap + __synthNavGestureActive funcione siempre
+  // 2) pointers map tenga datos para zoom incluso cuando controles
+  //    interactivos (ej. joystick pad) usan stopPropagation en burbujeo
+  // ───────────────────────────────────────────────────────────────────
   outer.addEventListener('pointerdown', ev => {
     if (ev.pointerType !== 'touch') return;
     const isInteractive = isInteractiveTargetCapture(ev.target);
     activeTouchMap.set(ev.pointerId, isInteractive);
     updateNavGestureFlagFromCapture();
+    // Alimentar pointers map desde captura para que el zoom funcione
+    // aunque el control bloquee propagación con stopPropagation.
+    // Si el evento llega también por burbujeo, se sobreescribirá
+    // con los mismos datos (sin efecto negativo).
+    if (!pointers.has(ev.pointerId)) {
+      pointers.set(ev.pointerId, {
+        x: ev.clientX, y: ev.clientY,
+        pointerType: ev.pointerType,
+        isInteractive
+      });
+      recomputeNavGestureState();
+    }
+  }, true);
+
+  // Capture-phase pointermove: actualizar coordenadas para zoom.
+  // Necesario porque controles con stopPropagation impiden que
+  // el pointermove llegue al handler de burbujeo del viewport.
+  outer.addEventListener('pointermove', ev => {
+    if (ev.pointerType !== 'touch') return;
+    if (!pointers.has(ev.pointerId)) return;
+    const prev = pointers.get(ev.pointerId);
+    pointers.set(ev.pointerId, {
+      x: ev.clientX, y: ev.clientY,
+      pointerType: prev?.pointerType,
+      isInteractive: prev?.isInteractive
+    });
   }, true);
 
   const handleTouchEndCapture = ev => {
     if (ev.pointerType !== 'touch') return;
     activeTouchMap.delete(ev.pointerId);
     updateNavGestureFlagFromCapture();
-    // También limpiar el mapa de pointers (bubble-phase) para evitar
-    // pointers fantasma cuando un control interactivo (ej. joystick pad)
-    // usa setPointerCapture y el pointerup no llega por burbujeo.
+    // Limpiar pointers map para evitar pointers fantasma cuando
+    // un control usa setPointerCapture y el pointerup no llega
+    // al handler de burbujeo del viewport.
     if (pointers.has(ev.pointerId)) {
       pointers.delete(ev.pointerId);
       recomputeNavGestureState();

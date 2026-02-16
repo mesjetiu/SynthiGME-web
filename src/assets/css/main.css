@@ -5727,43 +5727,43 @@ small { color:#aaa; }
 
 .pip-resize-edge--right {
   top: 0;
-  right: -7px;
-  width: 20px;
+  right: -15px;
+  width: 36px;
   height: 100%;
   cursor: ew-resize;
 }
 
 .pip-resize-edge--bottom {
-  bottom: -7px;
+  bottom: -15px;
   left: 0;
   width: 100%;
-  height: 20px;
+  height: 36px;
   cursor: ns-resize;
 }
 
 .pip-resize-edge--left {
   top: 0;
-  left: -7px;
-  width: 20px;
+  left: -15px;
+  width: 36px;
   height: 100%;
   cursor: ew-resize;
 }
 
 .pip-resize-edge--top {
-  top: -7px;
+  top: -15px;
   left: 0;
   width: 100%;
-  height: 20px;
+  height: 36px;
   cursor: ns-resize;
 }
 
 /* Handle de esquina (resize proporcional) */
 .pip-resize-handle {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
+  right: -8px;
+  bottom: -8px;
+  width: 32px;
+  height: 32px;
   cursor: se-resize;
   background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.2) 50%);
   border-radius: 0 0 8px 0;

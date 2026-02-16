@@ -1145,7 +1145,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
   });
 
-  // Disable browser context menu globally (except for text input fields, matrix pins, and panels)
+  // Disable browser context menu globally (except for text input fields, matrix pins, panels, and PiP placeholders)
   document.addEventListener('contextmenu', ev => {
     const tag = ev.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target.isContentEditable) return;
@@ -1153,12 +1153,17 @@ export function initViewportNavigation({ outer, inner } = {}) {
     if (ev.target.closest?.('button.pin-btn')) return;
     // Allow contextmenu on panels (for PiP detach)
     if (ev.target.closest?.('.panel')) return;
+    // Allow contextmenu on PiP placeholders (for panel restore)
+    if (ev.target.closest?.('.pip-placeholder')) return;
     ev.preventDefault();
     ev.stopImmediatePropagation();
   }, { capture: true });
 
-  // Fallback for Samsung/Android Chrome
-  outer.oncontextmenu = () => false;
+  // Fallback for Samsung/Android Chrome — no bloquear si el target es un placeholder
+  outer.oncontextmenu = (e) => {
+    if (e.target.closest?.('.pip-placeholder')) return true;
+    return false;
+  };
 
   // ─────────────────────────────────────────────────────────────────────
   // LIMPIEZA DEFENSIVA de pointer maps

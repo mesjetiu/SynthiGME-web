@@ -1031,16 +1031,34 @@ function setupPipEvents(pipContainer, panelId) {
     }
   }, { passive: false });
   
-  // Pinch zoom táctil dentro del PiP (centrado en el punto de pellizco)
+  // Helper: detectar si un elemento es un control interactivo (knobs, pines, etc.)
+  const isInteractivePipTarget = (el) => {
+    if (!el) return false;
+    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader, button, input, select, textarea';
+    if (el.closest('[data-prevent-pan="true"]')) return true;
+    return !!el.closest(selector);
+  };
+  
+  // Gestos táctiles dentro del PiP:
+  // - 1 dedo: pan (scroll del viewport)
+  // - 2 dedos: pinch-zoom centrado en el punto de pellizco
   // Usa enfoque frame-by-frame con protección anti-jitter (como el canvas principal)
   const content = pipContainer.querySelector('.pip-content');
   const viewport = pipContainer.querySelector('.pip-viewport');
   let lastPinchDist = 0;
   let pinchCenterX = 0; // Relativo al panel (sin padding)
   let pinchCenterY = 0;
+  // Estado para pan táctil de 1 dedo
+  let touchPanId = null;        // touch identifier activo
+  let touchPanStartX = 0;
+  let touchPanStartY = 0;
+  let touchPanScrollX = 0;
+  let touchPanScrollY = 0;
   
   content.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
+      // ── Pinch con 2 dedos: cancelar pan de 1 dedo si estaba activo ──
+      touchPanId = null;
       const state = activePips.get(panelId);
       if (state?.locked) return;
       e.preventDefault();
@@ -1071,11 +1089,23 @@ function setupPipEvents(pipContainer, panelId) {
       // Centro relativo al panel en coordenadas ORIGINALES (sin escalar)
       pinchCenterX = (scrollPosX + touchMidX - currentPaddingX) / currentScale;
       pinchCenterY = (scrollPosY + touchMidY - currentPaddingY) / currentScale;
+    } else if (e.touches.length === 1 && touchPanId === null) {
+      // ── Pan con 1 dedo: mismo mecanismo que el de 2 dedos ──
+      const state = activePips.get(panelId);
+      if (state?.locked) return;
+      // No iniciar pan si el target es un control interactivo
+      if (isInteractivePipTarget(e.touches[0].target)) return;
+      touchPanId = e.touches[0].identifier;
+      touchPanStartX = e.touches[0].clientX;
+      touchPanStartY = e.touches[0].clientY;
+      touchPanScrollX = viewport.scrollLeft;
+      touchPanScrollY = viewport.scrollTop;
     }
   }, { passive: false });
   
   content.addEventListener('touchmove', (e) => {
     if (e.touches.length === 2 && lastPinchDist > 0) {
+      // ── Pinch-zoom con 2 dedos ──
       const state = activePips.get(panelId);
       if (state?.locked) return;
       e.preventDefault();
@@ -1122,6 +1152,16 @@ function setupPipEvents(pipContainer, panelId) {
       
       viewport.scrollLeft = Math.max(0, newScrollX);
       viewport.scrollTop = Math.max(0, newScrollY);
+    } else if (e.touches.length === 1 && touchPanId !== null) {
+      // ── Pan con 1 dedo ──
+      // Buscar el touch activo por su identifier
+      const touch = Array.from(e.touches).find(t => t.identifier === touchPanId);
+      if (!touch) return;
+      e.preventDefault();
+      const dx = touch.clientX - touchPanStartX;
+      const dy = touch.clientY - touchPanStartY;
+      viewport.scrollLeft = touchPanScrollX - dx;
+      viewport.scrollTop = touchPanScrollY - dy;
     }
   }, { passive: false });
   
@@ -1133,6 +1173,11 @@ function setupPipEvents(pipContainer, panelId) {
         gestureInProgress = false;
         window.__synthPipGestureActive = false;
       }, 500);
+    }
+    // Resetear pan de 1 dedo si el touch que se levantó es el que estaba paneando
+    if (touchPanId !== null) {
+      const still = Array.from(e.touches).find(t => t.identifier === touchPanId);
+      if (!still) touchPanId = null;
     }
   }, { passive: true });
   
@@ -1173,15 +1218,12 @@ function setupPipEvents(pipContainer, panelId) {
   }
   
   // ── Paneo con arrastre del ratón dentro del contenido ──
-  // Click izquierdo en fondo no interactivo o click central → pan
-  const isInteractivePipTarget = (el) => {
-    if (!el) return false;
-    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader, button, input, select, textarea';
-    if (el.closest('[data-prevent-pan="true"]')) return true;
-    return !!el.closest(selector);
-  };
+  // Solo ratón: click izquierdo en fondo no interactivo o click central → pan
+  // El paneo táctil se gestiona con touch events (arriba) para evitar conflictos con pines y controles.
   
   content.addEventListener('pointerdown', (e) => {
+    // Solo ratón — el touch ya se gestiona con touchstart/touchmove
+    if (e.pointerType === 'touch') return;
     const state = activePips.get(panelId);
     if (!state || state.locked) return;
     // Botón central siempre panea; botón izquierdo solo si no es un control interactivo
@@ -1202,6 +1244,7 @@ function setupPipEvents(pipContainer, panelId) {
   });
   
   content.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
     if (panningPip !== panelId || e.pointerId !== panPointerId) return;
     const dx = e.clientX - panStart.x;
     const dy = e.clientY - panStart.y;
@@ -1210,6 +1253,7 @@ function setupPipEvents(pipContainer, panelId) {
   });
   
   const endPan = (e) => {
+    if (e.pointerType === 'touch') return;
     if (panningPip !== panelId || e.pointerId !== panPointerId) return;
     try { content.releasePointerCapture(panPointerId); } catch (_) { /* ignore */ }
     panningPip = null;

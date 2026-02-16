@@ -884,6 +884,27 @@ class App {
 
     let pointerActive = false;
     let hoverMouse = false;
+    let tooltipAutoHideTimer = null;
+    const TOOLTIP_AUTO_HIDE_DELAY = 3000; // 3s, igual que sliders
+    const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    const scheduleTooltipAutoHide = () => {
+      if (tooltipAutoHideTimer) clearTimeout(tooltipAutoHideTimer);
+      tooltipAutoHideTimer = setTimeout(() => {
+        tooltipAutoHideTimer = null;
+        hidePadTooltip();
+        pointerActive = false;
+        refreshPadGlow();
+      }, TOOLTIP_AUTO_HIDE_DELAY);
+    };
+
+    const cancelTooltipAutoHide = () => {
+      if (tooltipAutoHideTimer) {
+        clearTimeout(tooltipAutoHideTimer);
+        tooltipAutoHideTimer = null;
+      }
+    };
+
     const refreshPadGlow = () => {
       padEl.classList.toggle('is-tooltip-active', pointerActive || hoverMouse);
     };
@@ -937,11 +958,25 @@ class App {
       updatePadTooltip();
     };
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Protección pinch: rastrear pointers activos en el pad. Si se detecta
+    // un segundo dedo, cancelar drag para permitir zoom del viewport.
+    // ─────────────────────────────────────────────────────────────────────
+    const activePointers = new Set();
+
     padEl.addEventListener('pointerdown', ev => {
       if (ev.button === 2) return; // Click derecho: no mover stick
+      activePointers.add(ev.pointerId);
+      // Protección pinch: si hay más de un dedo, cancelar todo
+      if (activePointers.size > 1) {
+        handleGrabbed = false;
+        try { padEl.releasePointerCapture(ev.pointerId); } catch { /* */ }
+        return;
+      }
       ev.stopPropagation();
       ev.preventDefault();
       this.ensureAudio();
+      cancelTooltipAutoHide();
       pointerActive = true;
       refreshPadGlow();
       showPadTooltip();
@@ -960,6 +995,8 @@ class App {
 
     padEl.addEventListener('pointermove', ev => {
       if (!handleGrabbed || ev.buttons === 0 || ev.buttons === 2) return;
+      // Protección pinch: si hay más de un pointer, no procesar
+      if (activePointers.size > 1) return;
       ev.stopPropagation();
       ev.preventDefault();
       // Aplicar posición relativa: pointer actual menos offset inicial
@@ -968,14 +1005,21 @@ class App {
     });
 
     padEl.addEventListener('pointerup', ev => {
+      activePointers.delete(ev.pointerId);
       try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
       handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();
-      if (!hoverMouse) hidePadTooltip();
+      // En táctil: auto-ocultar tooltip tras 3s. En desktop: ocultar si no hay hover.
+      if (isTouchDevice()) {
+        scheduleTooltipAutoHide();
+      } else if (!hoverMouse) {
+        hidePadTooltip();
+      }
     });
 
-    padEl.addEventListener('pointercancel', () => {
+    padEl.addEventListener('pointercancel', ev => {
+      activePointers.delete(ev.pointerId);
       handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();
@@ -985,6 +1029,7 @@ class App {
     padEl.addEventListener('pointerenter', ev => {
       if (ev.pointerType === 'mouse') {
         hoverMouse = true;
+        cancelTooltipAutoHide();
         refreshPadGlow();
         showPadTooltip();
         updatePadTooltip();

@@ -1001,7 +1001,7 @@ class App {
         if (padTooltipDelayTimer) clearTimeout(padTooltipDelayTimer);
         padTooltipDelayTimer = setTimeout(() => {
           padTooltipDelayTimer = null;
-          if (activePointers.size <= 1 && !window.__synthNavGestureActive) {
+          if (activePointers.size <= 1 && !window.__synthNavGestureActive && !window.__synthPipGestureActive) {
             showPadTooltip();
           }
         }, 120);
@@ -1030,8 +1030,8 @@ class App {
 
     padEl.addEventListener('pointermove', ev => {
       if (!handleGrabbed || ev.buttons === 0 || ev.buttons === 2) return;
-      // Protección pinch: múltiples pointers locales O gesto de navegación global
-      if (activePointers.size > 1 || window.__synthNavGestureActive) {
+      // Protección pinch: múltiples pointers locales O gesto de navegación/PiP global
+      if (activePointers.size > 1 || window.__synthNavGestureActive || window.__synthPipGestureActive) {
         handleGrabbed = false;
         if (capturedPointerId !== null) {
           try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }

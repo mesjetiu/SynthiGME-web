@@ -1011,6 +1011,9 @@ function setupPipEvents(pipContainer, panelId) {
       e.preventDefault();
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
+      // Ocultar tooltips de controles interactivos (ej. joystick pad)
+      // para que cancelen drag y no muevan el handle durante el pinch
+      document.dispatchEvent(new Event('synth:dismissTooltips'));
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       lastPinchDist = Math.hypot(dx, dy);

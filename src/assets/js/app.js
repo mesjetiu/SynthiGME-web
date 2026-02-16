@@ -986,11 +986,7 @@ class App {
         hidePadTooltip();
         return;
       }
-      // En touch: NO bloquear propagación para que el viewport pueda
-      // detectar un segundo dedo y activar __synthNavGestureActive
-      if (ev.pointerType !== 'touch') {
-        ev.stopPropagation();
-      }
+      ev.stopPropagation();
       ev.preventDefault();
       this.ensureAudio();
       cancelTooltipAutoHide();
@@ -1001,11 +997,10 @@ class App {
         if (padTooltipDelayTimer) clearTimeout(padTooltipDelayTimer);
         padTooltipDelayTimer = setTimeout(() => {
           padTooltipDelayTimer = null;
-          // Comprobar flag global de navegación Y pointers locales
-          if (activePointers.size <= 1 && !window.__synthNavGestureActive) {
+          if (activePointers.size <= 1) {
             showPadTooltip();
           }
-        }, 120);
+        }, 80);
       } else {
         showPadTooltip();
       }
@@ -1025,9 +1020,8 @@ class App {
 
     padEl.addEventListener('pointermove', ev => {
       if (!handleGrabbed || ev.buttons === 0 || ev.buttons === 2) return;
-      // Protección pinch: flag global o múltiples pointers locales
-      if (activePointers.size > 1 || window.__synthNavGestureActive) {
-        // Cancelar drag si se inició un gesto de navegación
+      // Protección pinch: múltiples pointers locales en el pad
+      if (activePointers.size > 1) {
         handleGrabbed = false;
         if (capturedPointerId !== null) {
           try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }
@@ -1095,6 +1089,21 @@ class App {
         showPadTooltip();
         updatePadTooltip();
       }
+    });
+
+    // Forzar cierre del tooltip cuando el viewport detecta gesto de
+    // navegación (multi-touch, zoom a panel, etc.). El pad bloquea
+    // propagación (stopPropagation) para evitar pointers fantasma en
+    // el viewport, así que usamos este evento global como canal.
+    document.addEventListener('synth:dismissTooltips', () => {
+      if (padTooltipDelayTimer) {
+        clearTimeout(padTooltipDelayTimer);
+        padTooltipDelayTimer = null;
+      }
+      cancelTooltipAutoHide();
+      hidePadTooltip();
+      pointerActive = false;
+      refreshPadGlow();
     });
 
     padEl.addEventListener('pointerleave', ev => {

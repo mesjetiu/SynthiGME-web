@@ -410,8 +410,13 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const navActive = multitouchControlsEnabled
       ? (totalTouches >= 2 && nonInteractiveTouches >= 1)
       : (totalTouches >= 2);
+    const wasActive = window.__synthNavGestureActive;
     window.__synthNavGestureActive = navActive;
     outer.classList.toggle('is-gesturing', navActive);
+    // Al iniciar gesto de navegación, ocultar tooltips de todos los controles
+    if (navActive && !wasActive) {
+      document.dispatchEvent(new Event('synth:dismissTooltips'));
+    }
   }
 
   const metrics = {

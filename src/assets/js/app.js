@@ -965,13 +965,19 @@ class App {
     // ─────────────────────────────────────────────────────────────────────
     const activePointers = new Set();
     let capturedPointerId = null;
+    let padTooltipDelayTimer = null;
 
     padEl.addEventListener('pointerdown', ev => {
       if (ev.button === 2) return; // Click derecho: no mover stick
       activePointers.add(ev.pointerId);
-      // Protección pinch: si hay más de un dedo, cancelar drag
+      // Protección pinch: si hay más de un dedo, cancelar drag y tooltip
       if (activePointers.size > 1) {
         handleGrabbed = false;
+        // Cancelar tooltip pendiente si aún no se mostró
+        if (padTooltipDelayTimer) {
+          clearTimeout(padTooltipDelayTimer);
+          padTooltipDelayTimer = null;
+        }
         // Liberar captura del PRIMER dedo para que el viewport pueda hacer pinch
         if (capturedPointerId !== null) {
           try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }
@@ -988,7 +994,18 @@ class App {
       cancelTooltipAutoHide();
       pointerActive = true;
       refreshPadGlow();
-      showPadTooltip();
+      // En táctil, retrasar tooltip para evitar flash durante pinch/pan
+      if (ev.pointerType === 'touch') {
+        if (padTooltipDelayTimer) clearTimeout(padTooltipDelayTimer);
+        padTooltipDelayTimer = setTimeout(() => {
+          padTooltipDelayTimer = null;
+          if (activePointers.size <= 1) {
+            showPadTooltip();
+          }
+        }, 80);
+      } else {
+        showPadTooltip();
+      }
       // Iniciar módulo de audio si no lo está
       if (!module.isStarted) module.start();
       // Comprobar si el pointer está sobre el handle
@@ -1023,6 +1040,15 @@ class App {
       handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();
+      // Si el timer de tooltip estaba pendiente (tap rápido), mostrar ahora
+      const tooltipWasPending = !!padTooltipDelayTimer;
+      if (padTooltipDelayTimer) {
+        clearTimeout(padTooltipDelayTimer);
+        padTooltipDelayTimer = null;
+      }
+      if (tooltipWasPending && activePointers.size === 0) {
+        showPadTooltip();
+      }
       // En táctil: auto-ocultar tooltip tras 3s. En desktop: ocultar si no hay hover.
       if (isTouchDevice()) {
         scheduleTooltipAutoHide();
@@ -1033,6 +1059,10 @@ class App {
 
     padEl.addEventListener('pointercancel', ev => {
       activePointers.delete(ev.pointerId);
+      if (padTooltipDelayTimer) {
+        clearTimeout(padTooltipDelayTimer);
+        padTooltipDelayTimer = null;
+      }
       handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();

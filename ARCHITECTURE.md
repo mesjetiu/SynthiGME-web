@@ -123,7 +123,6 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `oscilloscope.js` | `OscilloscopeModule` | Osciloscopio dual con modos Y-T y X-Y (Lissajous), trigger configurable |
 | `joystick.js` | `JoystickModule` | Control XY bipolar (±8V DC) que emula los joysticks del Synthi 100. Usa `ConstantSourceNode` + `GainNode` por eje (X, Y) sin worklet para máxima eficiencia en señales DC. Knobs Range X/Y independientes (pot 10K LIN, dial 0-10 → gain 0-1). Dormancy: silencia gains cuando ningún eje está conectado en Panel 6, restaura al reconectar. Filas 117-120 en matriz de control. Serialización completa de posición y rangos |
 | `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330 y filtro RC pasivo de corrección tonal (1er orden, 6 dB/oct, fc ≈ 677 Hz). Control tonal bipolar: LP (atenúa agudos) ↔ plano (0 dB) ↔ HP shelving (+6 dB en HF). Pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
-| `outputFaders.js` | `OutputFadersModule` | UI de 8 faders para niveles de salida |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
 
 **Patrón de módulo:**
@@ -1418,7 +1417,7 @@ if (!result.valid) {
 | `NoiseGenerator` | `ui/noiseGenerator.js` | `KnobModuleState` | `{ colour, level }` |
 | `RandomVoltage` | `ui/randomVoltage.js` | `KnobModuleState` | `{ mean, variance, voltage1, voltage2, key }` |
 | `InputAmplifierUI` | `ui/inputAmplifierUI.js` | `LevelsState` | `{ levels: number[8] }` |
-| `OutputFaderModule` | `modules/outputFaders.js` | `LevelsState` | `{ levels: number[8] }` |
+| `OutputChannelsPanel` | `modules/outputChannel.js` | `OutputChannelsState` | `{ channels: [{level, filter, pan, power}] }` |
 | `LargeMatrix` | `ui/largeMatrix.js` | `MatrixState` | `{ connections: [row, col][] }` |
 
 ### 4.7 PatchBrowser UI
@@ -2737,7 +2736,6 @@ tests/
 │   ├── oscillator.test.js       # Tests del oscilador
 │   ├── oscilloscope.test.js     # Tests del osciloscopio
 │   ├── outputChannel.test.js    # Tests del canal de salida
-│   ├── outputFaders.test.js     # Tests del módulo de faders
 │   ├── outputRouter.test.js     # Tests del router de salidas
 │   └── pulse.test.js            # Tests del oscilador pulse
 ├── configs/

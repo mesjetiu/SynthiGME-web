@@ -69,7 +69,7 @@
 
 /**
  * Estado serializado de módulos con array de niveles.
- * Aplica a: InputAmplifierUI, OutputFaderModule.
+ * Aplica a: InputAmplifierUI.
  * 
  * @typedef {Object} LevelsState
  * @property {number[]} levels - Array de valores 0-1, uno por canal

@@ -928,7 +928,11 @@ class App {
     let handleGrabbed = false;
     let dragOffsetNx = 0;
     let dragOffsetNy = 0;
+    let dragConfirmed = false; // touch: requiere movimiento mínimo
+    let dragStartX = 0;
+    let dragStartY = 0;
     const HANDLE_HIT_MARGIN = 8; // px extra alrededor del handle (32px + margen)
+    const TOUCH_DRAG_THRESHOLD = 6; // px mínimo antes de confirmar drag (evita pinch)
 
     const pointerToNormalized = (ev) => {
       const rect = padEl.getBoundingClientRect();
@@ -1015,6 +1019,12 @@ class App {
         const pointer = pointerToNormalized(ev);
         dragOffsetNx = pointer.nx - module.getX();
         dragOffsetNy = pointer.ny - module.getY();
+        // Touch: requiere movimiento mínimo antes de mover handle.
+        // Esto da tiempo al segundo dedo del pinch para llegar sin
+        // que los micro-movimientos del primer dedo muevan el handle.
+        dragStartX = ev.clientX;
+        dragStartY = ev.clientY;
+        dragConfirmed = (ev.pointerType !== 'touch');
       }
     });
 
@@ -1038,6 +1048,14 @@ class App {
       }
       ev.stopPropagation();
       ev.preventDefault();
+      // Touch: no mover handle hasta superar umbral mínimo de movimiento.
+      // Permite al segundo dedo del pinch llegar sin cambiar el valor.
+      if (!dragConfirmed) {
+        const dx = ev.clientX - dragStartX;
+        const dy = ev.clientY - dragStartY;
+        if (dx * dx + dy * dy < TOUCH_DRAG_THRESHOLD * TOUCH_DRAG_THRESHOLD) return;
+        dragConfirmed = true;
+      }
       // Aplicar posición relativa: pointer actual menos offset inicial
       const pointer = pointerToNormalized(ev);
       applyPosition(pointer.nx - dragOffsetNx, pointer.ny - dragOffsetNy);

@@ -870,7 +870,9 @@ function setupPipEvents(pipContainer, panelId) {
       scale: state.scale,
       aspectRatio: state.width / state.height,
       viewCenterX: viewCenterOnPanelX,
-      viewCenterY: viewCenterOnPanelY
+      viewCenterY: viewCenterOnPanelY,
+      scrollX,
+      scrollY
     };
     pipContainer.classList.add('pip-container--resizing');
     bringToFront(panelId);
@@ -1351,6 +1353,24 @@ function handlePointerMove(e) {
     state.pipContainer.style.height = `${newH}px`;
     state.pipContainer.style.left = `${newX}px`;
     state.pipContainer.style.top = `${newY}px`;
+    
+    // Para bordes left/top: compensar scroll para que el contenido
+    // permanezca anclado al lado opuesto (derecha/abajo).
+    // Al crecer la ventana desde la izquierda, el contenido nuevo aparece a la izquierda,
+    // así que el scroll debe aumentar para mantener la vista en el mismo punto.
+    if (resizeEdge === 'left' || resizeEdge === 'top') {
+      const viewport = state.pipContainer.querySelector('.pip-viewport');
+      if (viewport) {
+        if (resizeEdge === 'left') {
+          const widthDelta = newW - resizeStart.w;
+          viewport.scrollLeft = Math.max(0, resizeStart.scrollX + widthDelta);
+        }
+        if (resizeEdge === 'top') {
+          const heightDelta = newH - resizeStart.h;
+          viewport.scrollTop = Math.max(0, resizeStart.scrollY + heightDelta);
+        }
+      }
+    }
     
     // Solo la esquina cambia el zoom; los bordes solo redimensionan la ventana
     if (resizeEdge === 'corner') {

@@ -960,17 +960,26 @@ class App {
 
     // ─────────────────────────────────────────────────────────────────────
     // Protección pinch: rastrear pointers activos en el pad. Si se detecta
-    // un segundo dedo, cancelar drag para permitir zoom del viewport.
+    // un segundo dedo, cancelar drag y liberar captura del primero para
+    // que el navegador pueda iniciar el gesto de zoom/pan.
     // ─────────────────────────────────────────────────────────────────────
     const activePointers = new Set();
+    let capturedPointerId = null;
 
     padEl.addEventListener('pointerdown', ev => {
       if (ev.button === 2) return; // Click derecho: no mover stick
       activePointers.add(ev.pointerId);
-      // Protección pinch: si hay más de un dedo, cancelar todo
+      // Protección pinch: si hay más de un dedo, cancelar drag
       if (activePointers.size > 1) {
         handleGrabbed = false;
-        try { padEl.releasePointerCapture(ev.pointerId); } catch { /* */ }
+        // Liberar captura del PRIMER dedo para que el viewport pueda hacer pinch
+        if (capturedPointerId !== null) {
+          try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }
+          capturedPointerId = null;
+        }
+        pointerActive = false;
+        refreshPadGlow();
+        hidePadTooltip();
         return;
       }
       ev.stopPropagation();
@@ -986,6 +995,7 @@ class App {
       handleGrabbed = isPointerOnHandle(ev);
       if (handleGrabbed) {
         padEl.setPointerCapture(ev.pointerId);
+        capturedPointerId = ev.pointerId;
         // Guardar offset para tracking relativo
         const pointer = pointerToNormalized(ev);
         dragOffsetNx = pointer.nx - module.getX();
@@ -1006,7 +1016,10 @@ class App {
 
     padEl.addEventListener('pointerup', ev => {
       activePointers.delete(ev.pointerId);
-      try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
+      if (capturedPointerId === ev.pointerId) {
+        try { padEl.releasePointerCapture(ev.pointerId); } catch { /* ya liberado */ }
+        capturedPointerId = null;
+      }
       handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();

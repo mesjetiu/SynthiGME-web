@@ -37,6 +37,7 @@ export class SGME_Oscillator {
     // knobGap: array de 6 valores (gap entre cada par de knobs) o número uniforme
     const rawGap = options.knobGap ?? 8;
     this.knobGap = Array.isArray(rawGap) ? rawGap : Array(6).fill(rawGap);
+    this.buttonSize = options.buttonSize || { width: 18, height: 30, indicator: 8 };
     this.switchOffset = options.switchOffset || { leftPercent: 36, topPx: 6 };
     // Ajustes de knobs: tamaño, offset de fila y offsets individuales (px)
     this.knobSize = options.knobSize || 42;
@@ -66,6 +67,9 @@ export class SGME_Oscillator {
     root.style.setProperty('--osc-knob-row-offset-y', `${this.knobRowOffsetY}px`);
     root.style.setProperty('--switch-left-percent', `${this.switchOffset.leftPercent}%`);
     root.style.setProperty('--switch-top-px', `${this.switchOffset.topPx}px`);
+    root.style.setProperty('--osc-button-width', `${this.buttonSize.width}px`);
+    root.style.setProperty('--osc-button-height', `${this.buttonSize.height}px`);
+    root.style.setProperty('--osc-button-indicator-size', `${this.buttonSize.indicator}px`);
     root.style.width = `${this.size.width}px`;
     root.style.height = `${this.size.height}px`;
 
@@ -85,16 +89,15 @@ export class SGME_Oscillator {
     });
     top.appendChild(labelRow);
 
-    const range = document.createElement('div');
-    range.className = 'sgme-osc__switch';
-    range.innerHTML = `
-      <div class="sgme-osc__switch-label">Range</div>
-      <div class="sgme-osc__switch-body">
-        <span class="sgme-osc__switch-hi">HI</span>
-        <span class="sgme-osc__switch-toggle" aria-hidden="true"></span>
-        <span class="sgme-osc__switch-lo">LO</span>
-      </div>
-    `;
+    const rangeWrap = document.createElement('div');
+    rangeWrap.className = 'output-channel__switch-wrap sgme-osc__switch-wrap';
+    const range = document.createElement('button');
+    range.type = 'button';
+    range.className = 'output-channel__switch';
+    range.setAttribute('aria-label', `${this.title} range`);
+    const indicator = document.createElement('span');
+    indicator.className = 'output-channel__switch-indicator';
+    range.appendChild(indicator);
     range.addEventListener('click', () => {
       this.rangeState = this.rangeState === 'hi' ? 'lo' : 'hi';
       this._renderRange(range);
@@ -103,7 +106,8 @@ export class SGME_Oscillator {
         this.onRangeChange(this.rangeState);
       }
     });
-    top.appendChild(range);
+    rangeWrap.appendChild(range);
+    top.appendChild(rangeWrap);
 
     const bottom = document.createElement('div');
     bottom.className = 'sgme-osc__bottom';
@@ -164,9 +168,10 @@ export class SGME_Oscillator {
   }
 
   _renderRange(rangeEl) {
-    const isLo = this.rangeState === 'lo';
-    rangeEl.classList.toggle('is-lo', isLo);
-    rangeEl.setAttribute('data-state', isLo ? 'lo' : 'hi');
+    const isHi = this.rangeState === 'hi';
+    rangeEl.classList.toggle('is-on', isHi);
+    rangeEl.setAttribute('aria-pressed', String(isHi));
+    rangeEl.setAttribute('data-state', isHi ? 'hi' : 'lo');
   }
   
   /**
@@ -196,7 +201,7 @@ export class SGME_Oscillator {
     // El knob de frecuencia necesita el rango correcto para calcular Hz
     if (data.rangeState === 'hi' || data.rangeState === 'lo') {
       this.rangeState = data.rangeState;
-      const rangeEl = document.querySelector(`#${this.id} .sgme-osc__switch`);
+      const rangeEl = document.querySelector(`#${this.id} .output-channel__switch`);
       if (rangeEl) this._renderRange(rangeEl);
     }
     

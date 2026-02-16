@@ -1973,52 +1973,23 @@ small { color:#aaa; }
   text-overflow: ellipsis;
 }
 
-.sgme-osc__switch {
+/* ─── Switch HI/LO del oscilador (reutiliza output-channel__switch) ─── */
+.sgme-osc__switch-wrap {
   position: absolute;
   top: var(--switch-top-px, 6px);
   left: var(--switch-left-percent, 36%);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: center;
-  font-size: 9px;
-  cursor: pointer;
+  padding: 0;
+  margin: 0;
 }
 
-.sgme-osc__switch-body {
-  display: grid;
-  grid-template-columns: auto 10px auto;
-  gap: 3px;
-  align-items: center;
+.sgme-osc__switch-wrap .output-channel__switch {
+  width: var(--osc-button-width, 18px);
+  height: var(--osc-button-height, 30px);
 }
 
-.sgme-osc__switch-toggle {
-  width: 10px;
-  height: 18px;
-  border-radius: 2px;
-  border: 1px solid #999;
-  background: linear-gradient(180deg, #ddd, #777);
-  box-shadow: inset 0 0 2px rgba(0,0,0,0.5);
-  transition: transform 0.08s ease, background 0.12s ease, border-color 0.12s ease;
-}
-
-.sgme-osc__switch.is-lo .sgme-osc__switch-toggle {
-  transform: translateY(5px);
-  background: linear-gradient(180deg, #bbb, #555);
-  border-color: #ccc;
-}
-
-.sgme-osc__switch-hi,
-.sgme-osc__switch-lo {
-  transition: color 0.12s ease;
-}
-
-.sgme-osc__switch:not(.is-lo) .sgme-osc__switch-hi {
-  color: #ffeb3b;
-}
-
-.sgme-osc__switch.is-lo .sgme-osc__switch-lo {
-  color: #ffeb3b;
+.sgme-osc__switch-wrap .output-channel__switch-indicator {
+  width: var(--osc-button-indicator-size, 8px);
+  height: var(--osc-button-indicator-size, 8px);
 }
 
 .sgme-osc__bottom {
@@ -2065,9 +2036,6 @@ small { color:#aaa; }
 /* Para restaurar los textos, descomentar este bloque */
 .panel3-layout .sgme-osc__header,
 .panel3-layout .sgme-osc__labels,
-.panel3-layout .sgme-osc__switch-label,
-.panel3-layout .sgme-osc__switch-hi,
-.panel3-layout .sgme-osc__switch-lo,
 .panel3-layout .noise-generator__header,
 .panel3-layout .noise-generator__knob-label,
 .panel3-layout .random-voltage__header,

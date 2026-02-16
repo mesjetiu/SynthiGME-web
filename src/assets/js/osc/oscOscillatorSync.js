@@ -212,7 +212,7 @@ class OscillatorOSCSync {
         oscUI.rangeState = normalizedRange;
         
         // Actualizar UI del switch
-        const rangeEl = document.querySelector(`#${oscId} .sgme-osc__switch`);
+        const rangeEl = document.querySelector(`#${oscId} .output-channel__switch`);
         if (rangeEl) {
           oscUI._renderRange(rangeEl);
         }

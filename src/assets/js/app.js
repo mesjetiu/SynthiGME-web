@@ -970,15 +970,13 @@ class App {
     padEl.addEventListener('pointerdown', ev => {
       if (ev.button === 2) return; // Click derecho: no mover stick
       activePointers.add(ev.pointerId);
-      // Protección pinch: si hay más de un dedo, cancelar drag y tooltip
+      // Protección pinch: si hay más de un dedo en el pad, cancelar
       if (activePointers.size > 1) {
         handleGrabbed = false;
-        // Cancelar tooltip pendiente si aún no se mostró
         if (padTooltipDelayTimer) {
           clearTimeout(padTooltipDelayTimer);
           padTooltipDelayTimer = null;
         }
-        // Liberar captura del PRIMER dedo para que el viewport pueda hacer pinch
         if (capturedPointerId !== null) {
           try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }
           capturedPointerId = null;
@@ -988,21 +986,26 @@ class App {
         hidePadTooltip();
         return;
       }
-      ev.stopPropagation();
+      // En touch: NO bloquear propagación para que el viewport pueda
+      // detectar un segundo dedo y activar __synthNavGestureActive
+      if (ev.pointerType !== 'touch') {
+        ev.stopPropagation();
+      }
       ev.preventDefault();
       this.ensureAudio();
       cancelTooltipAutoHide();
       pointerActive = true;
       refreshPadGlow();
-      // En táctil, retrasar tooltip para evitar flash durante pinch/pan
+      // En táctil, retrasar tooltip para dar tiempo a detectar pinch
       if (ev.pointerType === 'touch') {
         if (padTooltipDelayTimer) clearTimeout(padTooltipDelayTimer);
         padTooltipDelayTimer = setTimeout(() => {
           padTooltipDelayTimer = null;
-          if (activePointers.size <= 1) {
+          // Comprobar flag global de navegación Y pointers locales
+          if (activePointers.size <= 1 && !window.__synthNavGestureActive) {
             showPadTooltip();
           }
-        }, 80);
+        }, 120);
       } else {
         showPadTooltip();
       }
@@ -1022,8 +1025,23 @@ class App {
 
     padEl.addEventListener('pointermove', ev => {
       if (!handleGrabbed || ev.buttons === 0 || ev.buttons === 2) return;
-      // Protección pinch: si hay más de un pointer, no procesar
-      if (activePointers.size > 1) return;
+      // Protección pinch: flag global o múltiples pointers locales
+      if (activePointers.size > 1 || window.__synthNavGestureActive) {
+        // Cancelar drag si se inició un gesto de navegación
+        handleGrabbed = false;
+        if (capturedPointerId !== null) {
+          try { padEl.releasePointerCapture(capturedPointerId); } catch { /* */ }
+          capturedPointerId = null;
+        }
+        if (padTooltipDelayTimer) {
+          clearTimeout(padTooltipDelayTimer);
+          padTooltipDelayTimer = null;
+        }
+        pointerActive = false;
+        refreshPadGlow();
+        hidePadTooltip();
+        return;
+      }
       ev.stopPropagation();
       ev.preventDefault();
       // Aplicar posición relativa: pointer actual menos offset inicial

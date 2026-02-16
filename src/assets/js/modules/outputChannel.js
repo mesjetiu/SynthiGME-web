@@ -362,6 +362,16 @@ export class OutputChannel extends Module {
     let rafId = null;
     let pendingValue = null;
     
+    // ─────────────────────────────────────────────────────────────────────
+    // Anti-jump: evitar que un click/tap en el track del slider mueva el
+    // thumb bruscamente a esa posición. Solo el arrastre del thumb debe
+    // cambiar el valor. Al primer 'input' tras 'pointerdown', si el salto
+    // es mayor que el umbral, se restaura el valor previo.
+    // ─────────────────────────────────────────────────────────────────────
+    let valueBeforePointerDown = lastCommittedValue;
+    let isFirstInputAfterDown = false;
+    const JUMP_THRESHOLD = 0.05; // 5% del rango (0-1) = salto de track
+    
     const flushValue = () => {
       rafId = null;
       if (pendingValue == null) return;
@@ -395,6 +405,9 @@ export class OutputChannel extends Module {
     // ─────────────────────────────────────────────────────────────────────
     slider.addEventListener('pointerdown', (ev) => {
       if (shouldBlockInteraction(ev)) return;
+      // Anti-jump: guardar valor actual antes de que el browser lo modifique
+      valueBeforePointerDown = Number(slider.value);
+      isFirstInputAfterDown = true;
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
@@ -457,6 +470,18 @@ export class OutputChannel extends Module {
       if (isNavGestureActive()) {
         slider.value = String(lastCommittedValue);
         return;
+      }
+      // Anti-jump: en el primer input tras pointerdown, detectar si fue un
+      // salto de track (click lejos del thumb) y restaurar el valor previo
+      if (isFirstInputAfterDown) {
+        isFirstInputAfterDown = false;
+        const newVal = Number(slider.value);
+        const delta = Math.abs(newVal - valueBeforePointerDown);
+        if (delta > JUMP_THRESHOLD) {
+          // Salto de track detectado — restaurar valor previo
+          slider.value = String(valueBeforePointerDown);
+          return;
+        }
       }
       pendingValue = Number(slider.value);
       if (!rafId) {

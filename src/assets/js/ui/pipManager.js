@@ -409,17 +409,63 @@ export function openPip(panelId, restoredConfig = null) {
   placeholder.innerHTML = `
     <div class="pip-placeholder__content">
       <span class="pip-placeholder__title">${getPanelTitle(panelId)}</span>
-      <span class="pip-placeholder__hint">${t('pip.placeholderHint', 'Click para restaurar')}</span>
+      <span class="pip-placeholder__hint">${t('pip.placeholderHint', 'Mantener pulsado para opciones')}</span>
     </div>
   `;
   
   // Insertar placeholder donde estaba el panel
   panelEl.parentElement.insertBefore(placeholder, panelEl);
   
-  // Click en placeholder cierra el PiP
-  placeholder.addEventListener('click', () => {
-    closePip(panelId);
+  // Menú contextual en placeholder: right-click (desktop) + long-press (touch).
+  // No se usa click directo para evitar restaurar el panel por accidente.
+  placeholder.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      panelId,
+      isPipped: true,
+      target: e.target,
+      onAttach: closePip
+    });
   });
+  
+  // Long press para dispositivos táctiles (iOS Safari no dispara contextmenu)
+  let phLongPressTimer = null;
+  let phSuppressContext = false;
+  
+  placeholder.addEventListener('touchstart', (e) => {
+    if (phLongPressTimer) clearTimeout(phLongPressTimer);
+    const touch = e.touches[0];
+    const sx = touch.clientX;
+    const sy = touch.clientY;
+    
+    phLongPressTimer = setTimeout(() => {
+      phLongPressTimer = null;
+      phSuppressContext = true;
+      if (navigator.vibrate) navigator.vibrate(50);
+      showContextMenu({
+        x: sx, y: sy,
+        panelId,
+        isPipped: true,
+        target: e.target,
+        onAttach: closePip
+      });
+    }, LONG_PRESS_DURATION);
+  }, { passive: true });
+  
+  placeholder.addEventListener('touchmove', () => {
+    if (phLongPressTimer) { clearTimeout(phLongPressTimer); phLongPressTimer = null; }
+  }, { passive: true });
+  
+  placeholder.addEventListener('touchend', () => {
+    if (phLongPressTimer) { clearTimeout(phLongPressTimer); phLongPressTimer = null; }
+  }, { passive: true });
+  
+  placeholder.addEventListener('touchcancel', () => {
+    if (phLongPressTimer) { clearTimeout(phLongPressTimer); phLongPressTimer = null; }
+  }, { passive: true });
   
   // Crear contenedor PiP
   const pipContainer = document.createElement('div');

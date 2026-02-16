@@ -363,7 +363,7 @@ export default {
   "pip.minimize": "Minimalizovat",
   "pip.lock": "Zamknout",
   "pip.unlock": "Odemknout",
-  "pip.placeholderHint": "Kliknutím obnovte",
+  "pip.placeholderHint": "Dlouhý stisk nebo pravé tlačítko pro možnosti",
   "panel.oscillators1": "Oscilátory 1-3",
   "panel.oscilloscope": "Osciloskop",
   "panel.oscillators2": "Oscilátory 4-6",

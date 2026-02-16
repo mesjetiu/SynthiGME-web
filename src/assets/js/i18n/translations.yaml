@@ -3287,13 +3287,13 @@ pip.unlock:
   cs: Odemknout
 
 pip.placeholderHint:
-  en: Click to restore
-  es: Click para restaurar
-  fr: Cliquez pour restaurer
-  de: Klicken zum Wiederherstellen
-  it: Fai clic per ripristinare
-  pt: Clique para restaurar
-  cs: Kliknutím obnovte
+  en: Long press or right-click for options
+  es: Mantener pulsado para opciones
+  fr: Appui long ou clic droit pour options
+  de: Lange drücken oder Rechtsklick für Optionen
+  it: Pressione a lungo o clic destro per le opzioni
+  pt: Pressione longo ou clique direito para opções
+  cs: Dlouhý stisk nebo pravé tlačítko pro možnosti
 
 # Títulos de paneles para PiP
 panel.oscillators1:

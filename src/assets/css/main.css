@@ -5887,7 +5887,7 @@ small { color:#aaa; }
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: default;
   transition: border-color 150ms ease, background-color 150ms ease;
   /* Usar la misma columna de grid que el panel original */
   grid-column: var(--panel-col, auto);

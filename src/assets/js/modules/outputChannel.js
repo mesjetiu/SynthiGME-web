@@ -26,7 +26,7 @@ import {
   sliderToDialLinear,
   isFaderLinearResponseEnabled 
 } from '../utils/voltageConstants.js';
-import { registerTooltipHideCallback } from '../ui/tooltipManager.js';
+import { registerTooltipHideCallback, hideOtherTooltips } from '../ui/tooltipManager.js';
 import { getVCATooltipInfo } from '../utils/tooltipUtils.js';
 
 // Detectar si el dispositivo tiene capacidad táctil
@@ -336,9 +336,10 @@ export class OutputChannel extends Module {
     // Tooltip con info técnica (voltaje VCA, ganancia, dB)
     // ─────────────────────────────────────────────────────────────────────
     // Registrar callback para ocultar tooltip en gestos de navegación
-    this._unregisterTooltipHide = registerTooltipHideCallback(() => {
+    this._tooltipHideCallback = () => {
       this._hideSliderTooltip();
-    });
+    };
+    this._unregisterTooltipHide = registerTooltipHideCallback(this._tooltipHideCallback);
     
     // Función generadora de contenido del tooltip
     // Usa funciones dinámicas que seleccionan el cálculo según el modo activo
@@ -523,6 +524,9 @@ export class OutputChannel extends Module {
    * @param {function} getTooltipInfo - Función que genera la info técnica
    */
   _showSliderTooltip(wrapEl, getTooltipInfo) {
+    // Ocultar otros tooltips (knobs, matrix) para evitar superposición
+    hideOtherTooltips(this._tooltipHideCallback);
+    
     // Cancelar auto-hide pendiente
     if (this._sliderTooltipAutoHideTimer) {
       clearTimeout(this._sliderTooltipAutoHideTimer);

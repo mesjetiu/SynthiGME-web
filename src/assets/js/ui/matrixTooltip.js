@@ -39,7 +39,7 @@
 
 import { t } from '../i18n/index.js';
 import { getPinSublabel } from './pinColorMenu.js';
-import { registerTooltipHideCallback } from './tooltipManager.js';
+import { registerTooltipHideCallback, hideOtherTooltips } from './tooltipManager.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LABEL GENERATION
@@ -192,9 +192,10 @@ export class MatrixTooltip {
     this._attachedMatrices = new Map(); // table -> { sourceMap, destMap, rowBase, colBase }
     
     // Registrar callback de ocultación para eventos globales (zoom/pan, tap fuera)
-    this._unregisterTooltipHide = registerTooltipHideCallback(() => {
+    this._tooltipHideCallback = () => {
       this.hide();
-    });
+    };
+    this._unregisterTooltipHide = registerTooltipHideCallback(this._tooltipHideCallback);
   }
   
   /**
@@ -272,6 +273,9 @@ export class MatrixTooltip {
    */
   show(pinBtn, content) {
     if (!pinBtn || !content) return;
+    
+    // Ocultar otros tooltips (knobs, sliders) para evitar superposición
+    hideOtherTooltips(this._tooltipHideCallback);
     
     // Remove pulse from previous pin if different
     if (this._currentPinBtn && this._currentPinBtn !== pinBtn) {

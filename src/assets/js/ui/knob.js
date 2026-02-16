@@ -1,6 +1,6 @@
 // Componente Knob reutilizable para parámetros continuos en la interfaz
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
-import { registerTooltipHideCallback } from './tooltipManager.js';
+import { registerTooltipHideCallback, hideOtherTooltips } from './tooltipManager.js';
 
 // Detectar si el dispositivo tiene capacidad táctil (puede tener ambos: táctil y ratón)
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -77,11 +77,12 @@ export class Knob {
     this.maxAngle = 135;
     
     // Registrar callback de ocultación de tooltip para eventos globales (zoom/pan, tap fuera)
-    this._unregisterTooltipHide = registerTooltipHideCallback(() => {
+    this._tooltipHideCallback = () => {
       if (!this.dragging) {
         this._hideTooltip();
       }
-    });
+    };
+    this._unregisterTooltipHide = registerTooltipHideCallback(this._tooltipHideCallback);
     
     this._attach();
     this._updateVisual();
@@ -129,6 +130,9 @@ export class Knob {
    */
   _showTooltip() {
     if (this.tooltip) return;
+    
+    // Ocultar otros tooltips (knobs, matrix, sliders) para evitar superposición
+    hideOtherTooltips(this._tooltipHideCallback);
     
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'knob-tooltip';

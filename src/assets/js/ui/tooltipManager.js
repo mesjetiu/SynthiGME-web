@@ -45,6 +45,22 @@ export function hideAllTooltips() {
 }
 
 /**
+ * Oculta todos los tooltips excepto el identificado por excludeCallback.
+ * Útil para que al mostrar un tooltip se oculten los demás sin afectar al propio.
+ * @param {Function} excludeCallback - Callback a excluir (el del tooltip que se va a mostrar)
+ */
+export function hideOtherTooltips(excludeCallback) {
+  _hideCallbacks.forEach(callback => {
+    if (callback === excludeCallback) return;
+    try {
+      callback();
+    } catch (e) {
+      console.warn('[TooltipManager] Error hiding tooltip:', e);
+    }
+  });
+}
+
+/**
  * Inicializa los listeners globales una sola vez.
  */
 function _ensureInitialized() {

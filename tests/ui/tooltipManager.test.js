@@ -23,7 +23,8 @@ import assert from 'node:assert/strict';
 
 import {
   registerTooltipHideCallback,
-  hideAllTooltips
+  hideAllTooltips,
+  hideOtherTooltips
 } from '../../src/assets/js/ui/tooltipManager.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -206,5 +207,63 @@ describe('TooltipManager - SSR Safety', () => {
     });
     
     assert.equal(called, true, 'El callback debería funcionar sin DOM');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXCLUSIÓN MUTUA DE TOOLTIPS
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('TooltipManager - hideOtherTooltips()', () => {
+
+  it('oculta todos los tooltips excepto el excluido', () => {
+    let calledA = false;
+    let calledB = false;
+    let calledC = false;
+
+    const cbA = () => { calledA = true; };
+    const cbB = () => { calledB = true; };
+    const cbC = () => { calledC = true; };
+
+    registerTooltipHideCallback(cbA);
+    registerTooltipHideCallback(cbB);
+    registerTooltipHideCallback(cbC);
+
+    hideOtherTooltips(cbB);
+
+    assert.equal(calledA, true, 'cbA debería haberse llamado');
+    assert.equal(calledB, false, 'cbB no debería haberse llamado (excluido)');
+    assert.equal(calledC, true, 'cbC debería haberse llamado');
+  });
+
+  it('no lanza error si el callback excluido no está registrado', () => {
+    let called = false;
+    const cbRegistered = () => { called = true; };
+    const cbNotRegistered = () => {};
+
+    registerTooltipHideCallback(cbRegistered);
+
+    assert.doesNotThrow(() => {
+      hideOtherTooltips(cbNotRegistered);
+    });
+
+    assert.equal(called, true, 'El callback registrado debería haberse llamado');
+  });
+
+  it('continúa ejecutando si un callback falla', () => {
+    let calledOk = false;
+    const cbOk = () => { calledOk = true; };
+    const cbFail = () => { throw new Error('Error en callback'); };
+    const cbExclude = () => {};
+
+    registerTooltipHideCallback(cbFail);
+    registerTooltipHideCallback(cbOk);
+    registerTooltipHideCallback(cbExclude);
+
+    assert.doesNotThrow(() => {
+      hideOtherTooltips(cbExclude);
+    });
+
+    assert.equal(calledOk, true, 'cbOk debería haberse llamado a pesar del error');
   });
 });

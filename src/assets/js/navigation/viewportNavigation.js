@@ -1045,7 +1045,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: ev.pointerType, isInteractive });
     recomputeNavGestureState();
     const isMouseLike = ev.pointerType === 'mouse' || ev.pointerType === 'pen';
-    const isTouchPan = ev.pointerType === 'touch' && singleFingerPanEnabled;
+    const isTouchPan = ev.pointerType === 'touch' && singleFingerPanEnabled && !navLocks.panLocked;
 
     if ((isMouseLike || isTouchPan) && pointers.size === 1 && !isInteractiveTarget(ev.target)) {
       cancelRasterize(); // Salir de sharp mode al iniciar pan
@@ -1129,6 +1129,11 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
 
     if (pointers.size === 1 && isPanning && panPointerId === ev.pointerId) {
+      if (navLocks.panLocked && prev?.pointerType === 'touch') {
+        isPanning = false;
+        panPointerId = null;
+        return;
+      }
       const dx = ev.clientX - lastX;
       const dy = ev.clientY - lastY;
       lastX = ev.clientX;

@@ -23,6 +23,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Corregido
 - **Menú Electron: cadenas sin traducir en Preferencias**: Las claves `menu.preferences` y `menu.preferences.settings` no se enviaban al proceso Electron, mostrando siempre "Preferences" y "All Settings…" en inglés. Corregida la lista de claves en electronMenuBridge.
+- **Canvas principal: bloqueo de paneo consistente en táctil**: Al activar "bloquear paneo" en quickbar, ahora también se bloquea el paneo con un dedo (no solo el de dos dedos), unificando permisos y restricciones de navegación táctil.
 
 ### Añadido
 - **Menú contextual jerárquico con reinicio**: Clic derecho (o long press en móvil) muestra opciones contextuales según el elemento clicado: extraer/devolver panel, reiniciar panel completo, reiniciar módulo individual (ej. "Reiniciar Osc 1") y reiniciar control concreto (ej. "Reiniciar Frequency"). Funciona tanto en paneles normales como en paneles flotantes PiP (donde muestra "Devolver panel" en lugar de "Extraer panel"). Nuevo módulo `contextMenuManager.js`, propiedad `initialValue` en Knob con método `resetToDefault()`, y traducciones en 7 idiomas. Los valores por defecto se leen de los configs de módulos (fuente única de verdad), compartidos con el reinicio global del sintetizador.

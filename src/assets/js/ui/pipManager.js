@@ -439,10 +439,14 @@ export function openPip(panelId, restoredConfig = null) {
   panelEl.parentElement.insertBefore(placeholder, panelEl);
   
   // Menú contextual en placeholder: right-click (desktop) + long-press (touch).
-  // No se usa click directo para evitar restaurar el panel por accidente.
+  // Unificar lógica de suppressNextContextMenu y preventDefault como en paneles principales
   placeholder.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (suppressNextContextMenu) {
+      suppressNextContextMenu = false;
+      return;
+    }
     showContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -452,20 +456,22 @@ export function openPip(panelId, restoredConfig = null) {
       onAttach: closePip
     });
   });
-  
+
   // Long press para dispositivos táctiles (iOS Safari no dispara contextmenu)
   let phLongPressTimer = null;
-  let phSuppressContext = false;
-  
+  let phLongPressFired = false;
+
   placeholder.addEventListener('touchstart', (e) => {
     if (phLongPressTimer) clearTimeout(phLongPressTimer);
+    phLongPressFired = false;
     const touch = e.touches[0];
     const sx = touch.clientX;
     const sy = touch.clientY;
-    
+
     phLongPressTimer = setTimeout(() => {
       phLongPressTimer = null;
-      phSuppressContext = true;
+      phLongPressFired = true;
+      suppressNextContextMenu = true;
       if (navigator.vibrate) navigator.vibrate(50);
       showContextMenu({
         x: sx, y: sy,
@@ -476,17 +482,24 @@ export function openPip(panelId, restoredConfig = null) {
       });
     }, LONG_PRESS_DURATION);
   }, { passive: true });
-  
+
   placeholder.addEventListener('touchmove', () => {
     if (phLongPressTimer) { clearTimeout(phLongPressTimer); phLongPressTimer = null; }
+    phLongPressFired = false;
   }, { passive: true });
-  
-  placeholder.addEventListener('touchend', () => {
+
+  placeholder.addEventListener('touchend', (e) => {
     if (phLongPressTimer) { clearTimeout(phLongPressTimer); phLongPressTimer = null; }
-  }, { passive: true });
-  
+    // Prevenir click sintético tras long-press
+    if (phLongPressFired) {
+      e.preventDefault();
+      phLongPressFired = false;
+    }
+  }, { passive: false });
+
   placeholder.addEventListener('touchcancel', () => {
     if (phLongPressTimer) { clearTimeout(phLongPressTimer); phLongPressTimer = null; }
+    phLongPressFired = false;
   }, { passive: true });
   
   // Crear contenedor PiP

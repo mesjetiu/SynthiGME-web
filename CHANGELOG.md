@@ -22,6 +22,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Restaurar ajustes por defecto sustituye a reiniciar sintetizador en Ajustes**: El botón de Avanzado ahora borra todas las preferencias de localStorage y recarga la página, en lugar de reiniciar los módulos del sintetizador (que ya está disponible desde quickbar y menú Electron).
 
 ### Corregido
+- **Menú contextual en tablets: parpadeo al abrir con long-press**: El menú contextual vibraba/parpadeaba al abrirlo con pulsación larga en pantalla táctil por doble invocación (timer long-press + evento contextmenu nativo) y cierre prematuro por eventos sintéticos del finger-lift. Corregido con flag `suppressNextContextMenu`, `longPressFired` con `preventDefault` en touchend, y delay de cierre ampliado a 300ms en touch.
 - **Menú Electron: cadenas sin traducir en Preferencias**: Las claves `menu.preferences` y `menu.preferences.settings` no se enviaban al proceso Electron, mostrando siempre "Preferences" y "All Settings…" en inglés. Corregida la lista de claves en electronMenuBridge.
 - **Canvas principal: bloqueo de paneo consistente en táctil**: Al activar "bloquear paneo" en quickbar, ahora también se bloquea el paneo con un dedo (no solo el de dos dedos), unificando permisos y restricciones de navegación táctil.
 

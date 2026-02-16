@@ -310,13 +310,19 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   
   cleanupListeners = cleanup;
   
+  // Delay antes de registrar los listeners de cierre.
+  // En touch, el finger-lift tras un long-press genera touchend/pointerup/click
+  // que llegarían inmediatamente si el delay es demasiado corto.
+  // 300ms asegura que esos eventos sintéticos ya pasaron antes de escuchar.
+  const closeDelay = ('ontouchstart' in window) ? 300 : 10;
+  
   setTimeout(() => {
     document.addEventListener('click', closeHandler);
     document.addEventListener('contextmenu', closeOnContextMenu);
     document.addEventListener('pointerdown', closeOnPointerDown, true);
     document.addEventListener('touchstart', closeOnPointerDown, true);
     document.addEventListener('keydown', closeOnEscape);
-  }, 10);
+  }, closeDelay);
 }
 
 /**

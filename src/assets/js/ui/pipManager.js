@@ -159,6 +159,12 @@ const LONG_PRESS_DURATION = 500;
 /** Estado del long press por panel */
 const longPressTimers = new Map();
 
+/** Tracking de long-press disparados (para prevenir click sintético en touchend) */
+const longPressFired = new Map();
+
+/** Flag para suprimir el contextmenu nativo que el browser dispara tras un long-press táctil */
+let suppressNextContextMenu = false;
+
 /**
  * Inicializa el sistema PiP creando el layer contenedor.
  */
@@ -246,10 +252,15 @@ function setupPanelContextMenus() {
   panels.forEach(panelEl => {
     // Evento contextmenu estándar (click derecho en desktop)
     panelEl.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      // Si el long-press timer ya abrió el menú, suprimir el contextmenu nativo duplicado
+      if (suppressNextContextMenu) {
+        suppressNextContextMenu = false;
+        return;
+      }
       // Solo mostrar si el panel no está ya en PiP
       if (activePips.has(panelEl.id)) return;
       
-      e.preventDefault();
       showContextMenu({
         x: e.clientX,
         y: e.clientY,
@@ -268,6 +279,7 @@ function setupPanelContextMenus() {
       if (longPressTimers.has(panelEl.id)) {
         clearTimeout(longPressTimers.get(panelEl.id));
       }
+      longPressFired.delete(panelEl.id);
       
       const touch = e.touches[0];
       const startX = touch.clientX;
@@ -275,6 +287,9 @@ function setupPanelContextMenus() {
       
       const timer = setTimeout(() => {
         longPressTimers.delete(panelEl.id);
+        longPressFired.set(panelEl.id, true);
+        // Suprimir el contextmenu nativo que el browser puede disparar tras el long-press
+        suppressNextContextMenu = true;
         // Vibrar si está disponible (feedback háptico)
         if (navigator.vibrate) {
           navigator.vibrate(50);
@@ -298,21 +313,28 @@ function setupPanelContextMenus() {
         clearTimeout(longPressTimers.get(panelEl.id));
         longPressTimers.delete(panelEl.id);
       }
+      longPressFired.delete(panelEl.id);
     }, { passive: true });
     
     // Cancelar long press si el dedo se levanta
-    panelEl.addEventListener('touchend', () => {
+    panelEl.addEventListener('touchend', (e) => {
       if (longPressTimers.has(panelEl.id)) {
         clearTimeout(longPressTimers.get(panelEl.id));
         longPressTimers.delete(panelEl.id);
       }
-    }, { passive: true });
+      // Prevenir click sintético tras long-press (cerraría el menú contextual)
+      if (longPressFired.has(panelEl.id)) {
+        e.preventDefault();
+        longPressFired.delete(panelEl.id);
+      }
+    }, { passive: false });
     
     panelEl.addEventListener('touchcancel', () => {
       if (longPressTimers.has(panelEl.id)) {
         clearTimeout(longPressTimers.get(panelEl.id));
         longPressTimers.delete(panelEl.id);
       }
+      longPressFired.delete(panelEl.id);
     }, { passive: true });
   });
 }

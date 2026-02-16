@@ -898,14 +898,30 @@ class App {
       handle.style.transform = 'translate(-50%, -50%)';
     };
 
-    const processEvent = (ev) => {
+    // ─────────────────────────────────────────────────────────────────────
+    // Anti-jump: el pad usa tracking relativo. Al tocar, se calcula el
+    // offset entre el pointer y la posición actual del handle. Mientras
+    // se arrastra, se aplica el delta desde ese offset. Así el handle
+    // nunca salta al punto de toque, solo se mueve por arrastre.
+    // ─────────────────────────────────────────────────────────────────────
+    let dragOffsetNx = 0;
+    let dragOffsetNy = 0;
+
+    const pointerToNormalized = (ev) => {
       const rect = padEl.getBoundingClientRect();
       const x = (ev.clientX - rect.left) / rect.width;
       const y = (ev.clientY - rect.top) / rect.height;
-      const nx = Math.max(-1, Math.min(1, x * 2 - 1));
-      const ny = Math.max(-1, Math.min(1, 1 - y * 2));
-      module.setPosition(nx, ny);
-      updateHandle(nx, ny);
+      return {
+        nx: Math.max(-1, Math.min(1, x * 2 - 1)),
+        ny: Math.max(-1, Math.min(1, 1 - y * 2))
+      };
+    };
+
+    const applyPosition = (nx, ny) => {
+      const clampedNx = Math.max(-1, Math.min(1, nx));
+      const clampedNy = Math.max(-1, Math.min(1, ny));
+      module.setPosition(clampedNx, clampedNy);
+      updateHandle(clampedNx, clampedNy);
       updatePadTooltip();
     };
 
@@ -920,14 +936,22 @@ class App {
       // Iniciar módulo de audio si no lo está
       if (!module.isStarted) module.start();
       padEl.setPointerCapture(ev.pointerId);
-      processEvent(ev);
+      // Anti-jump: guardar offset entre pointer y posición actual del handle
+      const pointer = pointerToNormalized(ev);
+      const currentX = module.getX();
+      const currentY = module.getY();
+      dragOffsetNx = pointer.nx - currentX;
+      dragOffsetNy = pointer.ny - currentY;
+      // No mover el handle — solo preparar para arrastre relativo
     });
 
     padEl.addEventListener('pointermove', ev => {
       if (ev.buttons === 0 || ev.buttons === 2) return; // Ignorar sin botón o botón derecho
       ev.stopPropagation();
       ev.preventDefault();
-      processEvent(ev);
+      // Aplicar posición relativa: pointer actual menos offset inicial
+      const pointer = pointerToNormalized(ev);
+      applyPosition(pointer.nx - dragOffsetNx, pointer.ny - dragOffsetNy);
     });
 
     padEl.addEventListener('pointerup', ev => {

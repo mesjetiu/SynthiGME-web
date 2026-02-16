@@ -426,10 +426,15 @@ export class OutputChannel extends Module {
     });
     
     slider.addEventListener('pointerup', () => {
-      // Cancelar delay de tooltip si aún no se mostró
+      // Si el timer de tooltip estaba pendiente (tap rápido), mostrar ahora
+      const tooltipWasPending = !!this._sliderTooltipDelayTimer;
       if (this._sliderTooltipDelayTimer) {
         clearTimeout(this._sliderTooltipDelayTimer);
         this._sliderTooltipDelayTimer = null;
+      }
+      if (tooltipWasPending && !isNavGestureActive()) {
+        // El tap fue tan rápido que el tooltip no llegó a mostrarse
+        this._showSliderTooltip(wrap, getTooltipInfo);
       }
       // En táctil, auto-ocultar después de un delay
       if (hasTouchCapability()) {

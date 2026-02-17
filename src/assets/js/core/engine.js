@@ -270,16 +270,11 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // RE-ENTRY: postVcaNode es el punto de conexión para re-entrada
       // ─────────────────────────────────────────────────────────────────────
-      // La señal post-VCA se envía directamente a la matriz de audio sin
-      // DC blocker. El DC blocker fue eliminado porque destruía señales
-      // DC legítimas (joystick, voltajes de control). Un voltaje DC
-      // constante debe pasar sin modificación para que la re-entry
-      // funcione correctamente como fuente de CV.
+      // La señal post-VCA se envía directamente a la matriz de audio.
+      // No se interpone ningún filtro DC: las señales DC legítimas
+      // (joystick, voltajes de control) deben pasar sin modificación
+      // para que la re-entry funcione correctamente como fuente de CV.
       // ─────────────────────────────────────────────────────────────────────
-      // dcBlocker es un alias de postVcaNode para compatibilidad con
-      // el código de re-entry en app.js.
-      // ─────────────────────────────────────────────────────────────────────
-      const dcBlocker = postVcaNode;
       
       // ─────────────────────────────────────────────────────────────────────
       // FILTRO RC PASIVO: Corrección tonal auténtica (DESPUÉS del VCA)
@@ -385,8 +380,7 @@ export class AudioEngine {
         input: busInput,
         hybridClipShaper, // Saturación híbrida (emulación raíles ±12V, puede ser null)
         levelNode,  // VCA - Nivel (para modulación CV de matriz) - ANTES del filtro
-        postVcaNode, // Punto de split POST-VCA (interno, antes de DC blocker)
-        dcBlocker,  // Alias de postVcaNode — punto de re-entry a matriz (sin DC blocker)
+        postVcaNode, // Punto de split POST-VCA y re-entry a matriz (señal directa, sin DC blocker)
         filterGain, // Ganancia para crossfade suave de filtros
         bypassGain, // Ganancia para crossfade suave de bypass
         filterNode, // Filtro RC pasivo (AudioWorklet, 1er orden 6 dB/oct, fc≈677Hz, LP↔plano↔HP shelf)

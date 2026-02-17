@@ -5193,12 +5193,12 @@ class App {
         // Obtener postVcaNode del bus (señal post-VCA directa)
         // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
         const busData = this.engine.outputBuses?.[busIndex];
-        if (!busData?.dcBlocker) {
+        if (!busData?.postVcaNode) {
           log.warn(' Output bus postVcaNode not available for bus', source.bus);
           return false;
         }
         
-        outNode = busData.dcBlocker;
+        outNode = busData.postVcaNode;
       }
       
       if (!outNode) {
@@ -5538,12 +5538,12 @@ class App {
         // Obtener postVcaNode del bus (señal post-VCA directa)
         // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
         const busData = this.engine.outputBuses?.[busIndex];
-        if (!busData?.dcBlocker) {
+        if (!busData?.postVcaNode) {
           log.warn(' Output bus postVcaNode not available for bus', source.bus);
           return false;
         }
         
-        outNode = busData.dcBlocker;
+        outNode = busData.postVcaNode;
       } else if (source.kind === 'joystick') {
         // Fuente: Joystick (voltaje DC bipolar, eje X o Y)
         const side = source.side; // 'left' o 'right'

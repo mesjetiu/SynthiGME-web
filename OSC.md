@@ -299,6 +299,19 @@ Módulo único.
 
 **Ejemplo:** `/SynthiGME/invertor/gain 2.0`
 
+### 19. Joysticks (`/joy/{1-2}/...`)
+
+2 joysticks (1=izquierdo, 2=derecho). Cada uno con pad XY y knobs de rango.
+
+```
+/joy/{n}/positionX      # -1 - 1 (posición normalizada del pad)
+/joy/{n}/positionY      # -1 - 1 (posición normalizada del pad)
+/joy/{n}/rangeX         # 0 - 10 (rango del eje X)
+/joy/{n}/rangeY         # 0 - 10 (rango del eje Y)
+```
+
+**Ejemplo:** `/SynthiGME/joy/1/positionX 0.5`
+
 ---
 
 ## Mecanismo Anti-Loop
@@ -478,15 +491,20 @@ n.sendMsg('/SynthiGME/osc/1/frequency', 5.0);
 
 ```
 electron/
-├── main.cjs              # Proceso principal, inicializa OSC server
-├── preload.cjs           # Expone oscAPI al renderer
-└── oscServer.cjs         # Servidor UDP OSC
+├── main.cjs                    # Proceso principal, inicializa OSC server
+├── preload.cjs                 # Expone oscAPI al renderer
+└── oscServer.cjs               # Servidor UDP OSC
 
 src/assets/js/
 └── osc/
-    ├── oscBridge.js      # API unificada para renderer
-    ├── oscMessages.js    # Mapeo de direcciones a controles
-    └── oscConfig.js      # Configuración de usuario
+    ├── index.js                # Re-exportaciones del módulo OSC
+    ├── oscBridge.js            # API unificada para renderer
+    ├── oscAddressMap.js        # Mapeo de direcciones OSC a controles
+    ├── oscOscillatorSync.js    # Sincronización de osciladores (Panel 3)
+    ├── oscInputAmplifierSync.js # Sincronización de input amplifiers (Panel 2)
+    ├── oscOutputChannelSync.js # Sincronización de output channels (Panel 7)
+    ├── oscNoiseGeneratorSync.js # Sincronización de noise generators (Panel 3)
+    └── oscJoystickSync.js      # Sincronización de joysticks (Panel 7)
 
 tests/
 └── osc/
@@ -526,4 +544,5 @@ Requiere servidor bridge externo con WebSocket.
 
 | Versión | Fecha | Cambios |
 |---------|-------|---------|
+| 0.2.0 | 2026-02-17 | OSC sync para input amplifiers, output channels, noise generators y joysticks |
 | 0.1.0 | 2026-01-27 | Documentación inicial, claves OSC de SuperCollider |

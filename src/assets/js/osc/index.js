@@ -42,5 +42,17 @@ export {
   OSC_KEY_TO_KNOB_INDEX
 } from './oscOscillatorSync.js';
 
+// Sincronización de amplificadores de entrada
+export { inputAmplifierOSCSync } from './oscInputAmplifierSync.js';
+
+// Sincronización de canales de salida
+export { outputChannelOSCSync } from './oscOutputChannelSync.js';
+
+// Sincronización de generadores de ruido
+export { noiseGeneratorOSCSync } from './oscNoiseGeneratorSync.js';
+
+// Sincronización de joysticks
+export { joystickOSCSync } from './oscJoystickSync.js';
+
 // Re-exportar oscBridge como default para uso simplificado
 export { default } from './oscBridge.js';

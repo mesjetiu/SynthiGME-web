@@ -286,6 +286,18 @@ export const MODULE_PARAMETERS = {
       gain: { type: 'float', min: -5, max: 5 },
       offset: { type: 'float', min: -5, max: 5 }
     }
+  },
+
+  // Joysticks (2 instancias)
+  joy: {
+    indexed: true,
+    count: 2,
+    parameters: {
+      positionX: { type: 'float', min: -1, max: 1 },
+      positionY: { type: 'float', min: -1, max: 1 },
+      rangeX: { type: 'float', min: 0, max: 10 },
+      rangeY: { type: 'float', min: 0, max: 10 }
+    }
   }
 };
 

@@ -28,6 +28,7 @@ import {
 } from '../utils/voltageConstants.js';
 import { registerTooltipHideCallback, hideOtherTooltips } from '../ui/tooltipManager.js';
 import { getVCATooltipInfo } from '../utils/tooltipUtils.js';
+import { outputChannelOSCSync } from '../osc/oscOutputChannelSync.js';
 
 // Detectar si el dispositivo tiene capacidad táctil
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -237,6 +238,9 @@ export class OutputChannel extends Module {
           // Rampa desde config para suavizar cambios manuales
           const ramp = rampsConfig.filter ?? 0.2;
           this.engine.setOutputFilter(this.channelIndex, value, { ramp });
+          if (!outputChannelOSCSync.shouldIgnoreOSC()) {
+            outputChannelOSCSync.sendFilterChange(this.channelIndex, value);
+          }
           document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
       });
@@ -259,6 +263,9 @@ export class OutputChannel extends Module {
           // Rampa desde config para suavizar cambios manuales
           const ramp = rampsConfig.pan ?? 0.2;
           this.engine.setOutputPan(this.channelIndex, value, { ramp });
+          if (!outputChannelOSCSync.shouldIgnoreOSC()) {
+            outputChannelOSCSync.sendPanChange(this.channelIndex, value);
+          }
           document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
       });
@@ -292,6 +299,9 @@ export class OutputChannel extends Module {
       switchEl.setAttribute('aria-pressed', String(this.values.power));
       // Mutear/desmutear el canal (power=true → muted=false)
       this.engine.setOutputMute(this.channelIndex, !this.values.power);
+      if (!outputChannelOSCSync.shouldIgnoreOSC()) {
+        outputChannelOSCSync.sendPowerChange(this.channelIndex, this.values.power);
+      }
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     });
     
@@ -396,6 +406,9 @@ export class OutputChannel extends Module {
       
       // Mostrar valor del dial (escala 0-10 del Synthi 100)
       valueDisplay.textContent = dialValue.toFixed(2);
+      if (!outputChannelOSCSync.shouldIgnoreOSC()) {
+        outputChannelOSCSync.sendLevelChange(this.channelIndex, dialValue);
+      }
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     

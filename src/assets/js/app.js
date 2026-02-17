@@ -93,6 +93,10 @@ import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, showVoltageTooltip
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
+import { inputAmplifierOSCSync } from './osc/oscInputAmplifierSync.js';
+import { outputChannelOSCSync } from './osc/oscOutputChannelSync.js';
+import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
+import { joystickOSCSync } from './osc/oscJoystickSync.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VISIBILIDAD DE MÓDULOS
@@ -203,6 +207,11 @@ class App {
     
     // Inicializar sincronización OSC para osciladores (Panel 3)
     oscillatorOSCSync.init(this);
+    // Inicializar sincronización OSC para otros módulos
+    inputAmplifierOSCSync.init(this);
+    outputChannelOSCSync.init(this);
+    noiseGeneratorOSCSync.init(this);
+    joystickOSCSync.init(this);
 
     // Resize handler con debounce
     let appResizeTimer = null;
@@ -506,6 +515,9 @@ class App {
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.left.setRangeY(v * leftCfgY.max);
+        if (!joystickOSCSync.shouldIgnoreOSC()) {
+          joystickOSCSync.sendRangeYChange(0, v * leftCfgY.max);
+        }
       }
     });
     leftRangeYKnob.wrapper.dataset.knob = 'rangeY';
@@ -525,6 +537,9 @@ class App {
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.left.setRangeX(v * leftCfgX.max);
+        if (!joystickOSCSync.shouldIgnoreOSC()) {
+          joystickOSCSync.sendRangeXChange(0, v * leftCfgX.max);
+        }
       }
     });
     leftRangeXKnob.wrapper.dataset.knob = 'rangeX';
@@ -542,7 +557,7 @@ class App {
       joyLeftPad.style.flex = '0 0 auto';
     }
     applyOffset(joyLeftPad, joystickLeftUI.padOffset);
-    this._setupJoystickPad(joyLeftPad, this._joystickModules.left);
+    this._setupJoystickPad(joyLeftPad, this._joystickModules.left, 0);
     joyLeftContent.appendChild(joyLeftPad);
 
     joystickLeftFrame.appendToContent(joyLeftContent);
@@ -649,6 +664,9 @@ class App {
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.right.setRangeY(v * rightCfgY.max);
+        if (!joystickOSCSync.shouldIgnoreOSC()) {
+          joystickOSCSync.sendRangeYChange(1, v * rightCfgY.max);
+        }
       }
     });
     rightRangeYKnob.wrapper.dataset.knob = 'rangeY';
@@ -668,6 +686,9 @@ class App {
       onChange: v => {
         this.ensureAudio();
         this._joystickModules.right.setRangeX(v * rightCfgX.max);
+        if (!joystickOSCSync.shouldIgnoreOSC()) {
+          joystickOSCSync.sendRangeXChange(1, v * rightCfgX.max);
+        }
       }
     });
     rightRangeXKnob.wrapper.dataset.knob = 'rangeX';
@@ -685,7 +706,7 @@ class App {
       joyRightPad.style.flex = '0 0 auto';
     }
     applyOffset(joyRightPad, joystickRightUI.padOffset);
-    this._setupJoystickPad(joyRightPad, this._joystickModules.right);
+    this._setupJoystickPad(joyRightPad, this._joystickModules.right, 1);
     joyRightContent.appendChild(joyRightPad);
     
     joystickRightFrame.appendToContent(joyRightContent);
@@ -826,9 +847,10 @@ class App {
    *
    * @param {HTMLElement} padEl - Elemento del pad
    * @param {JoystickModule} module - Módulo de audio asociado
+   * @param {number} joyIndex - Índice del joystick (0=left, 1=right)
    * @private
    */
-  _setupJoystickPad(padEl, module) {
+  _setupJoystickPad(padEl, module, joyIndex = 0) {
     const handle = document.createElement('div');
     handle.className = 'joystick-handle';
     padEl.appendChild(handle);
@@ -973,6 +995,9 @@ class App {
       module.setPosition(clampedNx, clampedNy);
       updateHandle(clampedNx, clampedNy);
       updatePadTooltip();
+      if (!joystickOSCSync.shouldIgnoreOSC()) {
+        joystickOSCSync.sendPositionChange(joyIndex, clampedNx, clampedNy);
+      }
     };
 
     // ─────────────────────────────────────────────────────────────────────
@@ -2957,6 +2982,9 @@ class App {
       },
       onLevelChange: (channel, value) => {
         inputAmpModule.setLevel(channel, value);
+        if (!inputAmplifierOSCSync.shouldIgnoreOSC()) {
+          inputAmplifierOSCSync.sendLevelChange(channel, value);
+        }
       }
     });
     
@@ -3874,12 +3902,22 @@ class App {
         knobOptions: {
           colour: {
             ...noise1Cfg.knobs?.colour,
-            onChange: (value) => noise1Audio.setColour(value),
+            onChange: (value) => {
+              noise1Audio.setColour(value);
+              if (!noiseGeneratorOSCSync.shouldIgnoreOSC()) {
+                noiseGeneratorOSCSync.sendColourChange(0, value);
+              }
+            },
             getTooltipInfo: noiseColourTooltip
           },
           level: {
             ...noise1Cfg.knobs?.level,
-            onChange: (value) => noise1Audio.setLevel(value),
+            onChange: (value) => {
+              noise1Audio.setLevel(value);
+              if (!noiseGeneratorOSCSync.shouldIgnoreOSC()) {
+                noiseGeneratorOSCSync.sendLevelChange(0, value);
+              }
+            },
             getTooltipInfo: noiseLevelTooltip
           }
         },
@@ -3896,12 +3934,22 @@ class App {
         knobOptions: {
           colour: {
             ...noise2Cfg.knobs?.colour,
-            onChange: (value) => noise2Audio.setColour(value),
+            onChange: (value) => {
+              noise2Audio.setColour(value);
+              if (!noiseGeneratorOSCSync.shouldIgnoreOSC()) {
+                noiseGeneratorOSCSync.sendColourChange(1, value);
+              }
+            },
             getTooltipInfo: noiseColourTooltip
           },
           level: {
             ...noise2Cfg.knobs?.level,
-            onChange: (value) => noise2Audio.setLevel(value),
+            onChange: (value) => {
+              noise2Audio.setLevel(value);
+              if (!noiseGeneratorOSCSync.shouldIgnoreOSC()) {
+                noiseGeneratorOSCSync.sendLevelChange(1, value);
+              }
+            },
             getTooltipInfo: noiseLevelTooltip
           }
         },

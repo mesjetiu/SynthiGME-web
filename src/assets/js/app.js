@@ -5187,15 +5187,14 @@ class App {
           return false;
         }
       } else if (source.kind === 'outputBus') {
-        // Fuente: Output Bus (señal POST-VCA, PRE-filtro, con DC blocker)
+        // Fuente: Output Bus (señal POST-VCA, PRE-filtro)
         const busIndex = source.bus - 1; // bus 1-8 → index 0-7
         
-        // Obtener dcBlocker del bus (señal post-VCA con DC eliminado)
+        // Obtener postVcaNode del bus (señal post-VCA directa)
         // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
-        // El DC blocker elimina cualquier offset DC que pueda causar problemas
         const busData = this.engine.outputBuses?.[busIndex];
         if (!busData?.dcBlocker) {
-          log.warn(' Output bus dcBlocker not available for bus', source.bus);
+          log.warn(' Output bus postVcaNode not available for bus', source.bus);
           return false;
         }
         
@@ -5533,15 +5532,14 @@ class App {
           return false;
         }
       } else if (source.kind === 'outputBus') {
-        // Fuente: Output Bus (señal POST-VCA como fuente de CV, con DC blocker)
+        // Fuente: Output Bus (señal POST-VCA como fuente de CV)
         const busIndex = source.bus - 1; // bus 1-8 → index 0-7
         
-        // Obtener dcBlocker del bus (señal post-VCA con DC eliminado)
+        // Obtener postVcaNode del bus (señal post-VCA directa)
         // Según planos Cuenca 1982: la re-entrada es post-fader pero pre-filtro
-        // El DC blocker elimina cualquier offset DC que pueda causar problemas
         const busData = this.engine.outputBuses?.[busIndex];
         if (!busData?.dcBlocker) {
-          log.warn(' Output bus dcBlocker not available for bus', source.bus);
+          log.warn(' Output bus postVcaNode not available for bus', source.bus);
           return false;
         }
         

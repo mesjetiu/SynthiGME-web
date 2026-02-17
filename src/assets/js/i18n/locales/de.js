@@ -363,6 +363,7 @@ export default {
   "pip.minimize": "Minimieren",
   "pip.lock": "Sperren",
   "pip.unlock": "Entsperren",
+  "pip.fitPanel": "Panel anpassen",
   "pip.placeholderHint": "Lange drücken oder Rechtsklick für Optionen",
   "panel.oscillators1": "Oszillatoren 1-3",
   "panel.oscilloscope": "Oszilloskop",

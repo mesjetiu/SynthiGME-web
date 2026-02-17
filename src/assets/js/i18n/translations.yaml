@@ -3286,6 +3286,15 @@ pip.unlock:
   pt: Desbloquear
   cs: Odemknout
 
+pip.fitPanel:
+  en: Fit panel
+  es: Ajustar panel
+  fr: Ajuster panneau
+  de: Panel anpassen
+  it: Adatta pannello
+  pt: Ajustar painel
+  cs: Přizpůsobit panel
+
 pip.placeholderHint:
   en: Long press or right-click for options
   es: Mantener pulsado para opciones

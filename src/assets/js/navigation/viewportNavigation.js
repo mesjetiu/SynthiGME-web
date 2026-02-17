@@ -18,8 +18,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
   }
   if (!outer || !inner) return;
 
-  // Flags de sesión para bloquear gestos (solo UI móvil los cambia).
-  // Desktop (wheel/ratón) no usa estos locks.
+  // Flags de sesión para bloquear gestos de navegación.
+  // Aplica a todas las plataformas: táctil (pinch/pan) y desktop (wheel/ratón).
   window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
   const navLocks = window.__synthNavLocks;
 
@@ -967,6 +967,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     metricsDirty = true;
     if (ev.ctrlKey || ev.metaKey) {
       ev.preventDefault();
+      if (navLocks.zoomLocked) return;
       cancelRasterize();
       const cx = ev.clientX - (metrics.outerLeft || 0);
       const cy = ev.clientY - (metrics.outerTop || 0);
@@ -983,6 +984,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
 
     ev.preventDefault();
+    if (navLocks.panLocked) return;
     cancelRasterize();
     const lineHeight = 16;
     const deltaUnit = ev.deltaMode === 1 ? lineHeight : (ev.deltaMode === 2 ? (metrics.outerHeight || outer.clientHeight) : 1);
@@ -1129,7 +1131,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
 
     if (pointers.size === 1 && isPanning && panPointerId === ev.pointerId) {
-      if (navLocks.panLocked && prev?.pointerType === 'touch') {
+      if (navLocks.panLocked) {
         isPanning = false;
         panPointerId = null;
         return;

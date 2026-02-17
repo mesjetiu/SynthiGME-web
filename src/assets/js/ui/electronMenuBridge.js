@@ -45,6 +45,7 @@ const MENU_TRANSLATION_KEYS = [
   'menu.audio.audioSettings',
   // Paneles
   'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
+  'menu.panels.lockPan', 'menu.panels.lockZoom',
   'menu.panels.rememberPip',
   'menu.panels.singleFingerPan', 'menu.panels.multitouchControls',
   // Avanzado
@@ -96,6 +97,8 @@ function readCurrentState() {
     linearFaders: readBool(STORAGE_KEYS.FADER_LINEAR_RESPONSE, true),
     sharpRasterize: readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false),
     // Paneles
+    lockPan: Boolean(window.__synthNavLocks?.panLocked),
+    lockZoom: Boolean(window.__synthNavLocks?.zoomLocked),
     rememberPip: readBool(STORAGE_KEYS.PIP_REMEMBER, false),
     singleFingerPan: readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true),
     multitouchControls: readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false),
@@ -237,6 +240,22 @@ function handleMenuAction({ action, data }) {
     case 'setRememberPip':
       localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(data.enabled));
       break;
+    case 'setLockPan': {
+      const locks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
+      locks.panLocked = Boolean(data.enabled);
+      document.dispatchEvent(new CustomEvent('synth:panLockChange', {
+        detail: { enabled: locks.panLocked }
+      }));
+      break;
+    }
+    case 'setLockZoom': {
+      const locks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
+      locks.zoomLocked = Boolean(data.enabled);
+      document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
+        detail: { enabled: locks.zoomLocked }
+      }));
+      break;
+    }
     case 'setSingleFingerPan':
       localStorage.setItem(STORAGE_KEYS.SINGLE_FINGER_PAN, String(data.enabled));
       document.dispatchEvent(new CustomEvent('synth:singleFingerPanChange', {
@@ -478,6 +497,8 @@ function setupStateListeners() {
     'synth:voltagePinToleranceChange': (e) => ({ pinTolerance: e.detail?.enabled ?? true }),
     'synth:voltageThermalDriftChange': (e) => ({ thermalDrift: e.detail?.enabled ?? true }),
     'synth:telemetryEnabledChange':    (e) => ({ telemetryEnabled: e.detail?.enabled ?? false }),
+    'synth:panLockChange':             (e) => ({ lockPan: e.detail?.enabled ?? false }),
+    'synth:zoomLockChange':            (e) => ({ lockZoom: e.detail?.enabled ?? false }),
     'synth:singleFingerPanChange':     (e) => ({ singleFingerPan: e.detail?.enabled ?? true }),
     'synth:multitouchControlsChange':  (e) => ({ multitouchControls: e.detail?.enabled ?? false }),
     'synth:wakeLockChange':            (e) => ({ preventSleep: e.detail?.enabled ?? true }),

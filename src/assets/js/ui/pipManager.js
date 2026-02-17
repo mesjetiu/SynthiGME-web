@@ -720,6 +720,31 @@ export function openPip(panelId, restoredConfig = null) {
   
   // Emitir evento
   window.dispatchEvent(new CustomEvent('pip:open', { detail: { panelId } }));
+  
+  // ── Auto-lock al abrir la primera PiP ──
+  // Cuando se pasa de 0 a 1 PiP (y no es restauración de sesión),
+  // zoom out al mínimo y bloquear paneo+zoom del canvas principal.
+  // El usuario puede desbloquear manualmente después.
+  if (activePips.size === 1 && !_isRestoring) {
+    // 1. Zoom out a vista general (animado)
+    if (typeof window.__synthAnimateToPanel === 'function') {
+      window.__synthAnimateToPanel(null, 600);
+    }
+    // 2. Bloquear paneo y zoom
+    const navLocks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
+    if (!navLocks.panLocked) {
+      navLocks.panLocked = true;
+      document.dispatchEvent(new CustomEvent('synth:panLockChange', {
+        detail: { enabled: true }
+      }));
+    }
+    if (!navLocks.zoomLocked) {
+      navLocks.zoomLocked = true;
+      document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
+        detail: { enabled: true }
+      }));
+    }
+  }
 }
 
 /**

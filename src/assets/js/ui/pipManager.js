@@ -76,8 +76,8 @@ function getInitialPipDimensions() {
 }
 
 /**
- * Calcula el zoom mínimo para que el panel llene el eje más próximo del viewport (cover).
- * El panel se adapta al eje más pequeño; solo desborda (con scroll) en el otro eje.
+ * Calcula el zoom mínimo para que el panel quepa completo en el viewport (contain).
+ * El panel se ve entero; solo habrá margen en un eje (el que sobra), nunca en ambos.
  * @param {string} panelId - ID del panel
  * @returns {number} Escala mínima
  */
@@ -93,11 +93,11 @@ function getMinScale(panelId) {
   const viewportWidth = viewport?.clientWidth || (state.width - PIP_BORDER_SIZE);
   const viewportHeight = viewport?.clientHeight || (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
   
-  // El zoom mínimo es el MAYOR de los ratios (cover): el panel llena el eje más próximo
-  // Solo habrá margen (overflow con scroll) en un eje, nunca en ambos
+  // El zoom mínimo es el MENOR de los ratios (contain): el panel cabe completo
+  // Solo habrá margen en un eje (donde sobra espacio), nunca en ambos
   const minScaleX = viewportWidth / panelWidth;
   const minScaleY = viewportHeight / panelHeight;
-  const dynamicMin = Math.max(minScaleX, minScaleY);
+  const dynamicMin = Math.min(minScaleX, minScaleY);
   
   // Usar el mayor entre el dinámico y el mínimo absoluto
   return Math.max(MIN_SCALE_ABSOLUTE, dynamicMin);
@@ -234,6 +234,23 @@ export function initPipManager() {
         closeAllPips();
       }
       lastEscapeTime = now;
+    }
+    
+    // Shortcuts +/- (sin Ctrl) para redimensionar PiP enfocado
+    // Ctrl+/- se usa para zoom del contenido (viewportNavigation)
+    if (focusedPipId && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const state = activePips.get(focusedPipId);
+      if (!state || state.locked) return;
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        maximizePip(focusedPipId);
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        restorePipSize(focusedPipId);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        fitPanelToSquare(focusedPipId);
+      }
     }
   });
   
@@ -548,6 +565,12 @@ export function openPip(panelId, restoredConfig = null) {
     <div class="pip-controls">
       <button type="button" class="pip-minimize" aria-label="${t('pip.minimize', 'Minimizar')}">−</button>
       <button type="button" class="pip-maximize" aria-label="${t('pip.maximize', 'Maximizar')}">+</button>
+      <button type="button" class="pip-fit" aria-label="${t('pip.fitPanel', 'Ajustar panel')}">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M9 3v18M3 9h18"/>
+        </svg>
+      </button>
       <button type="button" class="pip-lock" aria-label="${t('pip.lock', 'Bloquear')}">
         <svg class="pip-lock__icon-unlocked" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
           <rect x="3" y="11" width="18" height="11" rx="2"/>
@@ -794,6 +817,7 @@ function setupPipEvents(pipContainer, panelId) {
   const closeBtn = pipContainer.querySelector('.pip-close');
   const maximizeBtn = pipContainer.querySelector('.pip-maximize');
   const minimizeBtn = pipContainer.querySelector('.pip-minimize');
+  const fitBtn = pipContainer.querySelector('.pip-fit');
   const lockBtn = pipContainer.querySelector('.pip-lock');
   const resizeHandle = pipContainer.querySelector('.pip-resize-handle');
   
@@ -812,6 +836,13 @@ function setupPipEvents(pipContainer, panelId) {
     const state = activePips.get(panelId);
     if (!state || state.locked) return;
     restorePipSize(panelId);
+  });
+  
+  // Ajustar a cuadrado mostrando panel completo
+  fitBtn.addEventListener('click', () => {
+    const state = activePips.get(panelId);
+    if (!state || state.locked) return;
+    fitPanelToSquare(panelId);
   });
   
   // Bloquear/desbloquear
@@ -1368,8 +1399,8 @@ function handlePointerMove(e) {
         viewport.scrollTop = Math.max(0, newScrollY);
       }
     } else {
-      // Bordes: recalcular escala mínima (cover) para que el contenido
-      // siempre llene el eje más próximo sin márgenes en ambos ejes
+      // Bordes: recalcular escala mínima (contain) para que el contenido
+      // siempre se vea completo sin cortes
       const minScale = getMinScale(resizingPip);
       if (state.scale < minScale) {
         updatePipScale(resizingPip, minScale, false);
@@ -1441,20 +1472,28 @@ function maximizePip(panelId) {
   const maxW = window.innerWidth - margin * 2;
   const maxH = window.innerHeight - margin * 2;
   
-  // Proporción actual de la ventana
-  const currentRatio = state.width / state.height;
+  // Proporción del VIEWPORT (sin header ni bordes) para preservar la forma real
+  const vpW = state.width - PIP_BORDER_SIZE;
+  const vpH = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  const vpRatio = vpW / vpH; // 1.0 si es cuadrado
   
-  // Calcular tamaño máximo manteniendo proporción
-  let newW, newH;
-  if (currentRatio >= maxW / maxH) {
-    // Limitado por ancho
-    newW = maxW;
-    newH = Math.round(newW / currentRatio);
+  // Espacio disponible para el viewport dentro del contenedor máximo
+  const maxVpW = maxW - PIP_BORDER_SIZE;
+  const maxVpH = maxH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  
+  // Calcular viewport máximo manteniendo proporción
+  let newVpW, newVpH;
+  if (vpRatio >= maxVpW / maxVpH) {
+    newVpW = maxVpW;
+    newVpH = Math.round(newVpW / vpRatio);
   } else {
-    // Limitado por alto
-    newH = maxH;
-    newW = Math.round(newH * currentRatio);
+    newVpH = maxVpH;
+    newVpW = Math.round(newVpH * vpRatio);
   }
+  
+  // Reconstruir dimensiones del contenedor desde el viewport
+  let newW = newVpW + PIP_BORDER_SIZE;
+  let newH = newVpH + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE;
   
   // Mantener posición actual pero ajustar si se sale de pantalla
   let newX = state.x;
@@ -1475,20 +1514,10 @@ function maximizePip(panelId) {
   const panelHeight = panelEl?.offsetHeight || 760;
   const newViewportW = newW - PIP_BORDER_SIZE;
   const newViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
-  // Cover: llenar el eje más próximo (Math.max)
-  const minScale = Math.max(MIN_SCALE_ABSOLUTE, Math.max(newViewportW / panelWidth, newViewportH / panelHeight));
-  const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
-  
-  // Guardar centro visible del panel antes del cambio
-  const viewport = state.pipContainer.querySelector('.pip-viewport');
-  let viewCenterX = 0, viewCenterY = 0;
-  if (viewport) {
-    const vw = viewport.clientWidth;
-    const vh = viewport.clientHeight;
-    // Sin padding: el panel empieza en (0,0)
-    viewCenterX = (viewport.scrollLeft + vw / 2) / oldScale;
-    viewCenterY = (viewport.scrollTop + vh / 2) / oldScale;
-  }
+  // Contain: el panel debe caber completamente visible (Math.min)
+  const containScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(newViewportW / panelWidth, newViewportH / panelHeight));
+  // La escala crece proporcionalmente, pero nunca por debajo del contain
+  const newScale = Math.max(containScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
   
   // Aplicar nuevo tamaño y posición
   state.width = newW;
@@ -1501,15 +1530,16 @@ function maximizePip(panelId) {
   state.pipContainer.style.left = `${newX}px`;
   state.pipContainer.style.top = `${newY}px`;
   
-  // Actualizar escala proporcionalmente al cambio de tamaño
+  // Actualizar escala — usar contain para que se vea completo
   updatePipScale(panelId, newScale, false);
   
-  // Restaurar centro visible con la nueva escala
+  // Panel completo visible: centrar scroll
+  const viewport = state.pipContainer.querySelector('.pip-viewport');
   if (viewport) {
-    const newVw = viewport.clientWidth;
-    const newVh = viewport.clientHeight;
-    viewport.scrollLeft = Math.max(0, viewCenterX * newScale - newVw / 2);
-    viewport.scrollTop = Math.max(0, viewCenterY * newScale - newVh / 2);
+    const scaledW = panelWidth * newScale;
+    const scaledH = panelHeight * newScale;
+    viewport.scrollLeft = Math.max(0, (scaledW - viewport.clientWidth) / 2);
+    viewport.scrollTop = Math.max(0, (scaledH - viewport.clientHeight) / 2);
   }
   
   savePipState();
@@ -1524,35 +1554,37 @@ function restorePipSize(panelId) {
   const state = activePips.get(panelId);
   if (!state || state.locked) return;
   
-  // Proporción actual de la ventana
-  const currentRatio = state.width / state.height;
+  // Proporción del VIEWPORT (sin header ni bordes) para preservar la forma real
+  const vpW = state.width - PIP_BORDER_SIZE;
+  const vpH = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  const vpRatio = vpW / vpH; // 1.0 si es cuadrado
   
-  // Dimensiones por defecto
-  const defW = state.defaultWidth;
-  const defH = state.defaultHeight;
+  // Dimensiones por defecto del viewport
+  const defVpW = state.defaultWidth - PIP_BORDER_SIZE;
+  const defVpH = state.defaultHeight - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  const defVpRatio = defVpW / defVpH;
   
-  // Ajustar tamaño por defecto a la proporción actual
-  let newW, newH;
-  const defaultRatio = defW / defH;
-  if (currentRatio >= defaultRatio) {
-    // Más ancha que el default: usar ancho por defecto
-    newW = defW;
-    newH = Math.round(newW / currentRatio);
-    // Si queda demasiado bajo, usar alto mínimo
-    if (newH < MIN_PIP_SIZE) {
-      newH = MIN_PIP_SIZE;
-      newW = Math.round(newH * currentRatio);
+  // Ajustar viewport por defecto a la proporción actual
+  let newVpW, newVpH;
+  if (vpRatio >= defVpRatio) {
+    newVpW = defVpW;
+    newVpH = Math.round(newVpW / vpRatio);
+    if (newVpH < MIN_PIP_SIZE - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE) {
+      newVpH = MIN_PIP_SIZE - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+      newVpW = Math.round(newVpH * vpRatio);
     }
   } else {
-    // Más alta que el default: usar alto por defecto
-    newH = defH;
-    newW = Math.round(newH * currentRatio);
-    // Si queda demasiado estrecho, usar ancho mínimo
-    if (newW < MIN_PIP_SIZE) {
-      newW = MIN_PIP_SIZE;
-      newH = Math.round(newW / currentRatio);
+    newVpH = defVpH;
+    newVpW = Math.round(newVpH * vpRatio);
+    if (newVpW < MIN_PIP_SIZE - PIP_BORDER_SIZE) {
+      newVpW = MIN_PIP_SIZE - PIP_BORDER_SIZE;
+      newVpH = Math.round(newVpW / vpRatio);
     }
   }
+  
+  // Reconstruir dimensiones del contenedor desde el viewport
+  let newW = newVpW + PIP_BORDER_SIZE;
+  let newH = newVpH + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE;
   
   // Calcular nueva escala proporcional al cambio de tamaño
   const oldW = state.width;
@@ -1564,20 +1596,9 @@ function restorePipSize(panelId) {
   const panelHeight = panelEl?.offsetHeight || 760;
   const newViewportW = newW - PIP_BORDER_SIZE;
   const newViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
-  // Cover: llenar el eje más próximo (Math.max)
-  const minScale = Math.max(MIN_SCALE_ABSOLUTE, Math.max(newViewportW / panelWidth, newViewportH / panelHeight));
-  const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
-  
-  // Guardar centro visible del panel antes del cambio
-  const viewport = state.pipContainer.querySelector('.pip-viewport');
-  let viewCenterX = 0, viewCenterY = 0;
-  if (viewport) {
-    const vw = viewport.clientWidth;
-    const vh = viewport.clientHeight;
-    // Sin padding: el panel empieza en (0,0)
-    viewCenterX = (viewport.scrollLeft + vw / 2) / oldScale;
-    viewCenterY = (viewport.scrollTop + vh / 2) / oldScale;
-  }
+  // Contain: el panel debe caber completamente visible (Math.min)
+  const containScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(newViewportW / panelWidth, newViewportH / panelHeight));
+  const newScale = Math.max(containScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
   
   // Mantener posición pero ajustar si se sale de pantalla
   let newX = state.x;
@@ -1596,19 +1617,85 @@ function restorePipSize(panelId) {
   state.pipContainer.style.left = `${newX}px`;
   state.pipContainer.style.top = `${newY}px`;
   
-  // Actualizar escala proporcionalmente al cambio de tamaño
+  // Actualizar escala — usar contain para que se vea completo
   updatePipScale(panelId, newScale, false);
   
-  // Restaurar centro visible con la nueva escala
+  // Panel completo visible: centrar scroll
+  const viewport = state.pipContainer.querySelector('.pip-viewport');
   if (viewport) {
-    const newVw = viewport.clientWidth;
-    const newVh = viewport.clientHeight;
-    viewport.scrollLeft = Math.max(0, viewCenterX * newScale - newVw / 2);
-    viewport.scrollTop = Math.max(0, viewCenterY * newScale - newVh / 2);
+    const scaledW = panelWidth * newScale;
+    const scaledH = panelHeight * newScale;
+    viewport.scrollLeft = Math.max(0, (scaledW - viewport.clientWidth) / 2);
+    viewport.scrollTop = Math.max(0, (scaledH - viewport.clientHeight) / 2);
   }
   
   savePipState();
   log.debug(`PiP ${panelId} restaurado a ${newW}x${newH} (escala ${oldScale.toFixed(2)} → ${newScale.toFixed(2)})`);
+}
+
+/**
+ * Ajusta la ventana PiP a un cuadrado que muestre el panel completo,
+ * usando el eje más pequeño actual como referencia para caber en pantalla.
+ * @param {string} panelId - ID del panel
+ */
+function fitPanelToSquare(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || state.locked) return;
+  
+  const panelEl = document.getElementById(panelId);
+  const panelWidth = panelEl?.offsetWidth || 760;
+  const panelHeight = panelEl?.offsetHeight || 760;
+  
+  // Usar el eje más pequeño actual como referencia
+  const viewportW = state.width - PIP_BORDER_SIZE;
+  const viewportH = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  const smallestAxis = Math.min(viewportW, viewportH);
+  
+  // El cuadrado tendrá lado = smallestAxis (para garantizar que cabe en pantalla)
+  // Pero necesitamos que el PANEL (que puede no ser cuadrado) quepa entero.
+  // Escala contain: el panel cabe completo dentro del cuadrado
+  const containScale = Math.min(smallestAxis / panelWidth, smallestAxis / panelHeight);
+  
+  // Tamaño de la ventana PiP: cuadrado basado en el panel escalado
+  const scaledSize = Math.max(panelWidth, panelHeight) * containScale;
+  const newW = Math.max(MIN_PIP_SIZE, Math.round(scaledSize) + PIP_BORDER_SIZE);
+  const newH = Math.max(MIN_PIP_SIZE, Math.round(scaledSize) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
+  
+  // Centrar en la posición actual
+  let newX = state.x + (state.width - newW) / 2;
+  let newY = state.y + (state.height - newH) / 2;
+  
+  // Asegurar que no se sale de pantalla
+  newX = Math.max(0, Math.min(newX, window.innerWidth - newW));
+  newY = Math.max(0, Math.min(newY, window.innerHeight - newH));
+  
+  // Aplicar nuevo tamaño
+  const oldScale = state.scale;
+  state.width = newW;
+  state.height = newH;
+  state.x = newX;
+  state.y = newY;
+  state.pipContainer.style.width = `${newW}px`;
+  state.pipContainer.style.height = `${newH}px`;
+  state.pipContainer.style.left = `${newX}px`;
+  state.pipContainer.style.top = `${newY}px`;
+  
+  // Escala: el panel debe caber completo (contain)
+  const finalViewportW = newW - PIP_BORDER_SIZE;
+  const finalViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  const fitScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(finalViewportW / panelWidth, finalViewportH / panelHeight));
+  
+  updatePipScale(panelId, fitScale, false);
+  
+  // Centrar scroll (el panel es más pequeño que el viewport, scroll = 0)
+  const viewport = state.pipContainer.querySelector('.pip-viewport');
+  if (viewport) {
+    viewport.scrollLeft = 0;
+    viewport.scrollTop = 0;
+  }
+  
+  savePipState();
+  log.debug(`PiP ${panelId} ajustado a cuadrado ${newW}x${newH} (escala ${oldScale.toFixed(2)} → ${fitScale.toFixed(2)})`);
 }
 
 /**

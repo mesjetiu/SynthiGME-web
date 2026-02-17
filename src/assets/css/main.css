@@ -5650,9 +5650,10 @@ small { color:#aaa; }
   background: rgba(255, 182, 59, 0.2) !important;
 }
 
-/* Deshabilitar +/- cuando está bloqueado */
+/* Deshabilitar +/-/fit cuando está bloqueado */
 .pip-container--locked .pip-maximize,
-.pip-container--locked .pip-minimize {
+.pip-container--locked .pip-minimize,
+.pip-container--locked .pip-fit {
   opacity: 0.3;
   cursor: not-allowed;
   pointer-events: none;

@@ -255,6 +255,14 @@ function extractBridgeStateDefaults() {
       defaults.set(match[1], match[2] === 'true');
     }
   }
+  // Expresiones Boolean(): key: Boolean(...) → default false
+  // (e.g., lockPan: Boolean(window.__synthNavLocks?.panLocked))
+  const booleanExprRegex = /^\s*(\w+)\s*:\s*Boolean\(/gm;
+  while ((match = booleanExprRegex.exec(fnMatch[1])) !== null) {
+    if (!defaults.has(match[1])) {
+      defaults.set(match[1], false); // Boolean(undefined) → false al inicio
+    }
+  }
   return defaults;
 }
 

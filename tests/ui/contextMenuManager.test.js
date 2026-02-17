@@ -26,7 +26,12 @@ global.localStorage = {
 
 const { showContextMenu, hideContextMenu } = await import('../../src/assets/js/ui/contextMenuManager.js');
 
+// Esperar a que todos los timers pendientes se ejecuten.
+// showContextMenu usa setTimeout(cb, closeDelay) para registrar listeners de cierre.
+// En JSDOM, 'ontouchstart' in window === true → closeDelay = 300ms (rama táctil).
+// Necesitamos esperar más de 300ms para que los listeners estén registrados.
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const CLOSE_LISTENER_DELAY = 350; // > 300ms del setTimeout interno de showContextMenu en modo touch
 
 describe('ContextMenuManager - cierre del menú', () => {
   beforeEach(() => {
@@ -52,7 +57,7 @@ describe('ContextMenuManager - cierre del menú', () => {
 
     assert.ok(document.querySelector('.pip-context-menu'), 'menú debe estar visible');
 
-    await wait(20);
+    await wait(CLOSE_LISTENER_DELAY);
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     assert.strictEqual(document.querySelector('.pip-context-menu'), null, 'menú debe cerrarse con Escape');
@@ -80,7 +85,7 @@ describe('ContextMenuManager - cierre del menú', () => {
 
     assert.ok(document.querySelector('.pip-context-menu'), 'menú debe estar visible');
 
-    await wait(20);
+    await wait(CLOSE_LISTENER_DELAY);
     outside.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
 
     assert.strictEqual(document.querySelector('.pip-context-menu'), null,

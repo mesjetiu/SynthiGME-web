@@ -391,10 +391,10 @@ export function setupMobileQuickActionsBar() {
     btnZoom.classList.toggle('is-active', Boolean(navLocks.zoomLocked));
     btnFs.classList.toggle('is-active', Boolean(document.fullscreenElement));
 
-    btnPan.hidden = !isCoarse;
-    btnPan.disabled = !isCoarse;
-    btnZoom.hidden = !isCoarse;
-    btnZoom.disabled = !isCoarse;
+    btnPan.hidden = false;
+    btnPan.disabled = false;
+    btnZoom.hidden = false;
+    btnZoom.disabled = false;
 
     btnFs.hidden = shouldHideFullscreen();
     btnFs.disabled = btnFs.hidden;
@@ -416,11 +416,17 @@ export function setupMobileQuickActionsBar() {
   btnPan.addEventListener('click', () => {
     navLocks.panLocked = !navLocks.panLocked;
     applyPressedState();
+    document.dispatchEvent(new CustomEvent('synth:panLockChange', {
+      detail: { enabled: navLocks.panLocked }
+    }));
   });
 
   btnZoom.addEventListener('click', () => {
     navLocks.zoomLocked = !navLocks.zoomLocked;
     applyPressedState();
+    document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
+      detail: { enabled: navLocks.zoomLocked }
+    }));
   });
 
   btnFs.addEventListener('click', async () => {
@@ -444,6 +450,16 @@ export function setupMobileQuickActionsBar() {
     } finally {
       applyPressedState();
     }
+  });
+
+  // Escuchar cambios de lock desde fuentes externas (menú Electron, pipManager)
+  document.addEventListener('synth:panLockChange', (e) => {
+    navLocks.panLocked = e.detail?.enabled ?? false;
+    applyPressedState();
+  });
+  document.addEventListener('synth:zoomLockChange', (e) => {
+    navLocks.zoomLocked = e.detail?.enabled ?? false;
+    applyPressedState();
   });
 
   document.addEventListener('fullscreenchange', applyPressedState);

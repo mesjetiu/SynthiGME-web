@@ -30,6 +30,10 @@ let pipLayer = null;
 /** Flag para evitar guardar estado durante la restauración */
 let _isRestoring = false;
 
+/** Flag: los locks del canvas fueron activados automáticamente al abrir la primera PiP.
+ *  Se invalida si el usuario cambia los locks manualmente. */
+let _autoLockedByPip = false;
+
 /** Z-index base para PiPs (por encima del viewport pero debajo de modales) */
 const PIP_Z_INDEX_BASE = 1200;
 
@@ -182,6 +186,16 @@ export function initPipManager() {
   document.addEventListener('pointermove', handlePointerMove);
   document.addEventListener('pointerup', handlePointerUp);
   document.addEventListener('pointercancel', handlePointerUp);
+  
+  // Invalidar auto-lock si el usuario cambia los locks manualmente
+  // (cualquier cambio que no venga del propio pipAutoLock)
+  const invalidateAutoLock = (e) => {
+    if (_autoLockedByPip && e.detail?.source !== 'pipAutoLock') {
+      _autoLockedByPip = false;
+    }
+  };
+  document.addEventListener('synth:panLockChange', invalidateAutoLock);
+  document.addEventListener('synth:zoomLockChange', invalidateAutoLock);
   
   // Shortcut para cerrar todos los PiPs: Escape doble
   let lastEscapeTime = 0;
@@ -732,16 +746,17 @@ export function openPip(panelId, restoredConfig = null) {
     }
     // 2. Bloquear paneo y zoom
     const navLocks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
+    _autoLockedByPip = true;
     if (!navLocks.panLocked) {
       navLocks.panLocked = true;
       document.dispatchEvent(new CustomEvent('synth:panLockChange', {
-        detail: { enabled: true }
+        detail: { enabled: true, source: 'pipAutoLock' }
       }));
     }
     if (!navLocks.zoomLocked) {
       navLocks.zoomLocked = true;
       document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
-        detail: { enabled: true }
+        detail: { enabled: true, source: 'pipAutoLock' }
       }));
     }
   }
@@ -810,6 +825,28 @@ export function closePip(panelId) {
   
   // Emitir evento
   window.dispatchEvent(new CustomEvent('pip:close', { detail: { panelId } }));
+  
+  // ── Auto-unlock al cerrar la última PiP ──
+  // Si los locks fueron activados por auto-lock y el usuario no los cambió
+  // manualmente, desbloquear al volver a 0 PiPs.
+  if (activePips.size === 0 && _autoLockedByPip) {
+    _autoLockedByPip = false;
+    const navLocks = window.__synthNavLocks;
+    if (navLocks) {
+      if (navLocks.panLocked) {
+        navLocks.panLocked = false;
+        document.dispatchEvent(new CustomEvent('synth:panLockChange', {
+          detail: { enabled: false, source: 'pipAutoLock' }
+        }));
+      }
+      if (navLocks.zoomLocked) {
+        navLocks.zoomLocked = false;
+        document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
+          detail: { enabled: false, source: 'pipAutoLock' }
+        }));
+      }
+    }
+  }
 }
 
 /**

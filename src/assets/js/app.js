@@ -968,8 +968,8 @@ class App {
     };
 
     const applyPosition = (nx, ny) => {
-      const clampedNx = Math.max(-1, Math.min(1, nx));
-      const clampedNy = Math.max(-1, Math.min(1, ny));
+      const clampedNx = Math.max(-1, Math.min(1, nx / handleScale));
+      const clampedNy = Math.max(-1, Math.min(1, ny / handleScale));
       module.setPosition(clampedNx, clampedNy);
       updateHandle(clampedNx, clampedNy);
       updatePadTooltip();
@@ -1028,10 +1028,10 @@ class App {
       if (handleGrabbed) {
         padEl.setPointerCapture(ev.pointerId);
         capturedPointerId = ev.pointerId;
-        // Guardar offset para tracking relativo
+        // Guardar offset para tracking relativo (en espacio visual con handleScale)
         const pointer = pointerToNormalized(ev);
-        dragOffsetNx = pointer.nx - module.getX();
-        dragOffsetNy = pointer.ny - module.getY();
+        dragOffsetNx = pointer.nx - module.getX() * handleScale;
+        dragOffsetNy = pointer.ny - module.getY() * handleScale;
         // Touch: requiere movimiento mínimo antes de mover handle.
         // Esto da tiempo al segundo dedo del pinch para llegar sin
         // que los micro-movimientos del primer dedo muevan el handle.

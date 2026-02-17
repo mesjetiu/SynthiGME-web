@@ -1041,7 +1041,7 @@ function setupPipEvents(pipContainer, panelId) {
   // Helper: detectar si un elemento es un control interactivo (knobs, pines, etc.)
   const isInteractivePipTarget = (el) => {
     if (!el) return false;
-    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .joystick-handle, .output-fader, button, input, select, textarea';
+    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .panel7-joystick-pad, .joystick-handle, .output-fader, button, input, select, textarea';
     if (el.closest('[data-prevent-pan="true"]')) return true;
     return !!el.closest(selector);
   };

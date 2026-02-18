@@ -1701,6 +1701,11 @@ class App {
           if (data.x !== undefined && data.y !== undefined) {
             module.setPosition(data.x, data.y);
           }
+          // Actualizar handle visual del pad
+          const joystickUI = Object.values(this._joystickUIs || {}).find(ui => ui.module === module);
+          if (joystickUI?.padEl?._joystickUpdateHandle) {
+            joystickUI.padEl._joystickUpdateHandle(module.getX(), module.getY());
+          }
           // Actualizar knobs de la UI
           const knobs = this._joystickKnobs?.[side];
           if (knobs) {

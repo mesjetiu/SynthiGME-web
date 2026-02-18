@@ -6047,6 +6047,11 @@ class App {
         const newGain = this._getPanel5PinGain(row, col, dest, newColor);
         conn.gain.gain.setValueAtTime(newGain, currentTime);
         log.info(` Panel 5: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0)} Hz)`);
+        
+        // Enviar cambio de color via OSC
+        if (!matrixOSCSync.shouldIgnoreOSC()) {
+          matrixOSCSync.sendAudioPinChange(row, col, true, newColor);
+        }
       }
     };
     
@@ -6066,6 +6071,11 @@ class App {
         const newGain = this._getPanel6PinGain(row, col, dest, newColor);
         conn.gain.gain.setValueAtTime(newGain, currentTime);
         log.info(` Panel 6: Pin color changed [${row}:${col}] → ${newColor} (gain: ${newGain.toFixed(3)}, fc: ${PIN_CUTOFF_FREQUENCIES[newColor]?.toFixed(0)} Hz)`);
+        
+        // Enviar cambio de color via OSC
+        if (!matrixOSCSync.shouldIgnoreOSC()) {
+          matrixOSCSync.sendControlPinChange(row, col, true, newColor);
+        }
       }
     };
     

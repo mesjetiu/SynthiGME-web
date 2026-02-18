@@ -712,27 +712,18 @@ class MatrixOSCSync {
           }
         }
       } else if (shouldConnect && isCurrentlyConnected) {
-        // Ya conectado: actualizar color si cambió
+        // Ya conectado: actualizar color si cambió (sin desconectar/reconectar)
         const currentColor = routing.connections[key]?.pinColor;
-        if (currentColor !== pinInfo.pinColor) {
-          // Desconectar primero
-          if (largeMatrix.onToggle) {
-            largeMatrix.onToggle(rowIndex, colIndex, false, btn);
-          }
-          btn.classList.remove('active');
-          largeMatrix._removePinColorClasses(btn);
-
-          // Reconectar con nuevo color
-          if (pinInfo.pinColor) {
-            largeMatrix._pinColors.set(key, pinInfo.pinColor);
-          }
-          const effectiveColor = largeMatrix._getEffectivePinColor(rowIndex, colIndex);
-          if (largeMatrix.onToggle) {
-            const allow = largeMatrix.onToggle(rowIndex, colIndex, true, btn, effectiveColor) !== false;
-            if (allow) {
-              btn.classList.add('active');
-              largeMatrix._applyPinColorClass(btn, effectiveColor);
-            }
+        if (currentColor !== pinInfo.pinColor && pinInfo.pinColor) {
+          // Actualizar el color guardado
+          largeMatrix._pinColors.set(key, pinInfo.pinColor);
+          
+          // Actualizar visual
+          largeMatrix._applyPinColorClass(btn, pinInfo.pinColor);
+          
+          // Notificar cambio de color (actualiza ganancia y filtro RC sin glitch)
+          if (largeMatrix.onPinColorChange) {
+            largeMatrix.onPinColorChange(rowIndex, colIndex, pinInfo.pinColor, btn);
           }
         }
       } else if (!shouldConnect && isCurrentlyConnected) {

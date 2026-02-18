@@ -8,6 +8,7 @@ import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
 import { togglePip, ALL_PANELS, getOpenPips, openAllPips, closeAllPips } from './pipManager.js';
 import { oscBridge } from '../osc/oscBridge.js';
+import { undoRedoManager } from '../state/undoRedoManager.js';
 
 const log = createLogger('Quickbar');
 
@@ -197,6 +198,41 @@ export function setupMobileQuickActionsBar() {
   setButtonTooltip(btnPatches, t('quickbar.patches'));
   btnPatches.innerHTML = iconSvg('ti-files');
   btnPatches.setAttribute('aria-pressed', 'false');
+
+  // Botones de Undo/Redo
+  const btnUndo = document.createElement('button');
+  btnUndo.type = 'button';
+  btnUndo.className = 'mobile-quickbar__btn';
+  btnUndo.id = 'btnUndo';
+  btnUndo.disabled = true;
+  setButtonTooltip(btnUndo, t('quickbar.undo'));
+  btnUndo.innerHTML = iconSvg('ti-arrow-back-up');
+  
+  const btnRedo = document.createElement('button');
+  btnRedo.type = 'button';
+  btnRedo.className = 'mobile-quickbar__btn';
+  btnRedo.id = 'btnRedo';
+  btnRedo.disabled = true;
+  setButtonTooltip(btnRedo, t('quickbar.redo'));
+  btnRedo.innerHTML = iconSvg('ti-arrow-forward-up');
+  
+  function updateUndoRedoButtons(canUndo, canRedo) {
+    btnUndo.disabled = !canUndo;
+    btnUndo.classList.toggle('is-disabled', !canUndo);
+    btnRedo.disabled = !canRedo;
+    btnRedo.classList.toggle('is-disabled', !canRedo);
+  }
+  
+  btnUndo.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('synth:undo'));
+  });
+  
+  btnRedo.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('synth:redo'));
+  });
+  
+  // Suscribirse a cambios del historial de undo/redo
+  undoRedoManager.onChange(updateUndoRedoButtons);
   
   function updatePatchesButton(open) {
     patchesOpen = open;
@@ -571,6 +607,8 @@ export function setupMobileQuickActionsBar() {
 
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
+  group.appendChild(btnUndo);
+  group.appendChild(btnRedo);
   group.appendChild(btnPatches);
   group.appendChild(btnPipContainer);
   group.appendChild(btnRecord);
@@ -591,7 +629,7 @@ export function setupMobileQuickActionsBar() {
   
   // Configurar long-press para tooltips en móvil
   setupAllLongPressTooltips([
-    btnMute, tab, btnPan, btnZoom, btnPatches, btnPip,
+    btnMute, tab, btnPan, btnZoom, btnUndo, btnRedo, btnPatches, btnPip,
     btnRecord, btnReset, btnOsc, btnFs, btnSettings
   ]);
 
@@ -599,6 +637,8 @@ export function setupMobileQuickActionsBar() {
   onLocaleChange(() => {
     setButtonTooltip(btnMute, t(isMuted ? 'quickbar.unmute' : 'quickbar.mute'));
     setButtonTooltip(tab, t(expanded ? 'quickbar.close' : 'quickbar.open'));
+    setButtonTooltip(btnUndo, t('quickbar.undo'));
+    setButtonTooltip(btnRedo, t('quickbar.redo'));
     setButtonTooltip(btnPatches, t('quickbar.patches'));
     setButtonTooltip(btnPip, t('quickbar.pip', 'Paneles flotantes'));
     setButtonTooltip(btnRecord, t(isRecording ? 'quickbar.stopRecording' : 'quickbar.record'));

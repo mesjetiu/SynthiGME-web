@@ -38,6 +38,8 @@ function isUserTyping(e) {
 
 // Atajos por defecto
 const DEFAULT_SHORTCUTS = {
+  undo: { key: 'z', shift: false, ctrl: true, alt: false },
+  redo: { key: 'u', shift: false, ctrl: true, alt: false },
   mute: { key: 'm', shift: false, ctrl: false, alt: false },
   record: { key: 'r', shift: false, ctrl: false, alt: false },
   patches: { key: 'p', shift: false, ctrl: false, alt: false },
@@ -72,6 +74,8 @@ function panelShortcutAction(panelId) {
 
 // Mapeo de acciones a eventos/handlers
 const SHORTCUT_ACTIONS = {
+  undo: () => document.dispatchEvent(new CustomEvent('synth:undo')),
+  redo: () => document.dispatchEvent(new CustomEvent('synth:redo')),
   mute: () => document.dispatchEvent(new CustomEvent('synth:toggleMute')),
   record: () => document.dispatchEvent(new CustomEvent('synth:toggleRecording')),
   patches: () => document.dispatchEvent(new CustomEvent('synth:togglePatches')),

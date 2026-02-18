@@ -2099,6 +2099,46 @@ quickbar.oscError:
   cs: Chyba při povolování OSC
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# UNDO / REDO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+quickbar.undo:
+  en: Undo (Ctrl+Z)
+  es: Deshacer (Ctrl+Z)
+  fr: Annuler (Ctrl+Z)
+  de: Rückgängig (Strg+Z)
+  it: Annulla (Ctrl+Z)
+  pt: Desfazer (Ctrl+Z)
+  cs: Zpět (Ctrl+Z)
+
+quickbar.redo:
+  en: Redo (Ctrl+U)
+  es: Rehacer (Ctrl+U)
+  fr: Rétablir (Ctrl+U)
+  de: Wiederherstellen (Strg+U)
+  it: Ripristina (Ctrl+U)
+  pt: Refazer (Ctrl+U)
+  cs: Znovu (Ctrl+U)
+
+toast.undo:
+  en: Change undone
+  es: Cambio deshecho
+  fr: Modification annulée
+  de: Änderung rückgängig gemacht
+  it: Modifica annullata
+  pt: Alteração desfeita
+  cs: Změna vrácena
+
+toast.redo:
+  en: Change redone
+  es: Cambio rehecho
+  fr: Modification rétablie
+  de: Änderung wiederhergestellt
+  it: Modifica ripristinata
+  pt: Alteração refeita
+  cs: Změna obnovena
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # GRABACIÓN DE AUDIO
 # ═══════════════════════════════════════════════════════════════════════════════
 

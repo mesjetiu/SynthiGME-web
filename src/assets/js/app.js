@@ -4,6 +4,7 @@ import { compilePanelBlueprintMappings } from './core/blueprintMapper.js';
 import { getOrCreateOscState, applyOscStateImmediate } from './core/oscillatorState.js';
 import { DormancyManager } from './core/dormancyManager.js';
 import { sessionManager } from './state/sessionManager.js';
+import { undoRedoManager } from './state/undoRedoManager.js';
 import { safeDisconnect, attachProcessorErrorHandler } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
 import { VOLTAGE_DEFAULTS, DIGITAL_TO_VOLTAGE, digitalToVoltage, voltageToDigital, createSoftClipCurve, createHybridClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
@@ -129,6 +130,9 @@ class App {
     // Configurar sessionManager con callbacks
     sessionManager.setSerializeCallback(() => this._serializeCurrentState());
     sessionManager.setRestoreCallback((patch) => this._applyPatch(patch));
+    
+    // Configurar undo/redo manager (se inicializa después de crear los módulos)
+    // La inicialización real ocurre en _setupUndoRedo()
 
     // Paneles 1, 3, 4: SGME Oscillators. Panel 2: vacío/reservado para futuros módulos
     this.panel1 = this.panelManager.createPanel({ id: 'panel-1' });
@@ -1429,10 +1433,20 @@ class App {
     // Listener para marcar sesión como "dirty" cuando el usuario interactúa
     document.addEventListener('synth:userInteraction', () => {
       sessionManager.markDirty();
+      // Registrar cambio en el historial de undo/redo
+      undoRedoManager.commitInteraction();
       // Resumir AudioContext si está suspendido (requiere gesto del usuario)
       if (this.engine.audioCtx && this.engine.audioCtx.state === 'suspended') {
         this.engine.audioCtx.resume();
       }
+    });
+    
+    // Listeners de undo/redo (disparados desde quickbar o atajos de teclado)
+    document.addEventListener('synth:undo', () => {
+      undoRedoManager.undo();
+    });
+    document.addEventListener('synth:redo', () => {
+      undoRedoManager.redo();
     });
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -1463,6 +1477,11 @@ class App {
     // PATCH BROWSER (guardar/cargar estados del sintetizador)
     // ─────────────────────────────────────────────────────────────────────────
     this._setupPatchBrowser();
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // UNDO / REDO (historial de cambios del usuario)
+    // ─────────────────────────────────────────────────────────────────────────
+    this._setupUndoRedo();
   }
   
   /**
@@ -1476,6 +1495,8 @@ class App {
         await this._applyPatch(patchData);
         // Limpiar flag de autoguardado (el usuario cargó un patch explícitamente)
         sessionManager.clearLastState();
+        // Limpiar historial de undo (nuevo punto de partida)
+        undoRedoManager.clear();
       },
       onSave: () => {
         // Serializar el estado actual para guardarlo
@@ -1490,6 +1511,18 @@ class App {
     document.addEventListener('synth:togglePatches', () => {
       this.patchBrowser.toggle();
     });
+  }
+  
+  /**
+   * Configura el sistema de undo/redo.
+   * Se inicializa al final del setup, cuando todos los módulos están listos.
+   */
+  _setupUndoRedo() {
+    undoRedoManager.init(
+      () => this._serializeCurrentState(),
+      (state) => this._applyPatch(state)
+    );
+    log.info('Undo/redo system initialized');
   }
   
   /**
@@ -1781,6 +1814,9 @@ class App {
     
     // Limpiar estado guardado (no preguntar al reiniciar si no hay cambios)
     sessionManager.clearLastState();
+    
+    // Limpiar historial de undo (nuevo punto de partida)
+    undoRedoManager.clear();
     
     // Mostrar toast de confirmación
     showToast(t('toast.reset'));

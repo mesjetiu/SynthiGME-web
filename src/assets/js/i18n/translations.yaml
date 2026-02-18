@@ -2210,6 +2210,78 @@ recording.routing.description:
   pt: Selecione quais saídas são gravadas em cada faixa
   cs: Vyberte, které výstupy se nahrávají na každou stopu
 
+recording.format.label:
+  en: Format
+  es: Formato
+  fr: Format
+  de: Format
+  it: Formato
+  pt: Formato
+  cs: Formát
+
+recording.format.wav:
+  en: WAV (lossless, multi-track)
+  es: WAV (sin pérdidas, multipista)
+  fr: WAV (sans perte, multipiste)
+  de: WAV (verlustfrei, Mehrspur)
+  it: WAV (lossless, multitraccia)
+  pt: WAV (sem perdas, multipista)
+  cs: WAV (bezeztrátový, vícestopý)
+
+recording.format.webmOpus:
+  en: WebM/Opus (compressed, stereo)
+  es: WebM/Opus (comprimido, estéreo)
+  fr: WebM/Opus (compressé, stéréo)
+  de: WebM/Opus (komprimiert, Stereo)
+  it: WebM/Opus (compresso, stereo)
+  pt: WebM/Opus (comprimido, estéreo)
+  cs: WebM/Opus (komprimovaný, stereo)
+
+recording.format.wavDesc:
+  en: Lossless 16-bit PCM. Supports up to 12 tracks with custom routing. Large file size.
+  es: Sin pérdidas 16-bit PCM. Soporta hasta 12 pistas con ruteo personalizado. Archivos grandes.
+  fr: Sans perte 16-bit PCM. Jusqu'à 12 pistes avec routage personnalisé. Fichiers volumineux.
+  de: Verlustfrei 16-Bit PCM. Bis zu 12 Spuren mit benutzerdefiniertem Routing. Große Dateien.
+  it: Lossless 16-bit PCM. Fino a 12 tracce con routing personalizzato. File di grandi dimensioni.
+  pt: Sem perdas 16-bit PCM. Suporta até 12 faixas com roteamento personalizado. Arquivos grandes.
+  cs: Bezeztrátový 16-bit PCM. Až 12 stop s vlastním směrováním. Velké soubory.
+
+recording.format.webmOpusDesc:
+  en: High-quality compressed audio. Stereo only. Much smaller files, ideal for sharing.
+  es: Audio comprimido de alta calidad. Solo estéreo. Archivos mucho más pequeños, ideal para compartir.
+  fr: Audio compressé haute qualité. Stéréo uniquement. Fichiers plus petits, idéal pour partager.
+  de: Hochwertig komprimiertes Audio. Nur Stereo. Viel kleinere Dateien, ideal zum Teilen.
+  it: Audio compresso di alta qualità. Solo stereo. File molto più piccoli, ideale per la condivisione.
+  pt: Áudio comprimido de alta qualidade. Apenas estéreo. Arquivos muito menores, ideal para compartilhar.
+  cs: Vysoce kvalitní komprimovaný zvuk. Pouze stereo. Mnohem menší soubory, ideální pro sdílení.
+
+recording.bitrate.label:
+  en: Quality (bitrate)
+  es: Calidad (bitrate)
+  fr: Qualité (débit)
+  de: Qualität (Bitrate)
+  it: Qualità (bitrate)
+  pt: Qualidade (bitrate)
+  cs: Kvalita (bitrate)
+
+recording.bitrate.recommended:
+  en: recommended
+  es: recomendado
+  fr: recommandé
+  de: empfohlen
+  it: consigliato
+  pt: recomendado
+  cs: doporučeno
+
+recording.overlay.recording:
+  en: Recording in progress
+  es: Grabación en curso
+  fr: Enregistrement en cours
+  de: Aufnahme läuft
+  it: Registrazione in corso
+  pt: Gravação em andamento
+  cs: Probíhá nahrávání
+
 settings.recording:
   en: Audio recording
   es: Grabación de audio
@@ -2220,13 +2292,13 @@ settings.recording:
   cs: Zvukový záznam
 
 settings.recording.description:
-  en: Record audio output to WAV files (16-bit PCM)
-  es: Graba la salida de audio a archivos WAV (16-bit PCM)
-  fr: Enregistrez la sortie audio sur des fichiers WAV (16-bit PCM)
-  de: Audioausgang in WAV-Dateien aufnehmen (16-Bit PCM)
-  it: Registra uscita audio in file WAV (PCM a 16 bit)
-  pt: Gravar saída de áudio em arquivos WAV (PCM de 16 bits)
-  cs: Zaznamenat zvukový výstup do souborů WAV (16bitový PCM)
+  en: Record audio output to WAV (lossless) or WebM/Opus (compressed)
+  es: Graba la salida de audio a WAV (sin pérdidas) o WebM/Opus (comprimido)
+  fr: Enregistrez la sortie audio en WAV (sans perte) ou WebM/Opus (compressé)
+  de: Audioausgang aufnehmen als WAV (verlustfrei) oder WebM/Opus (komprimiert)
+  it: Registra uscita audio in WAV (lossless) o WebM/Opus (compresso)
+  pt: Gravar saída de áudio em WAV (sem perdas) ou WebM/Opus (comprimido)
+  cs: Zaznamenat zvukový výstup do WAV (bezeztrátový) nebo WebM/Opus (komprimovaný)
 
 settings.recording.configure:
   en: Configure recording

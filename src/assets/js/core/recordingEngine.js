@@ -6,11 +6,23 @@ import { trackEvent as telemetryTrackEvent } from '../utils/telemetry.js';
 const log = createLogger('RecordingEngine');
 
 /**
- * RecordingEngine - Audio recording system with multi-track WAV export.
+ * RecordingEngine - Audio recording system with multi-format export.
  * 
- * Uses an AudioWorklet to capture samples from configurable output buses
- * and exports to 16-bit PCM WAV format.
+ * Supports two recording modes:
+ * - WAV (16-bit PCM): Uses AudioWorklet for multi-track capture (1-12 tracks)
+ * - WebM/Opus: Uses native MediaRecorder for stereo capture (efficient, lossy)
+ * 
+ * Default: WebM/Opus at 192kbps stereo.
  */
+
+/** @type {Object<string, {extension: string, mimeType: string, lossy: boolean, maxTracks: number}>} */
+const RECORDING_FORMATS = {
+  'wav': { extension: 'wav', mimeType: 'audio/wav', lossy: false, maxTracks: 12 },
+  'webm-opus': { extension: 'webm', mimeType: 'audio/webm;codecs=opus', lossy: true, maxTracks: 2 }
+};
+
+const DEFAULT_FORMAT = 'webm-opus';
+const DEFAULT_BITRATE = 192000; // 192 kbps
 
 export class RecordingEngine {
   /**
@@ -23,9 +35,14 @@ export class RecordingEngine {
     this.workletReady = false;
     this._workletLoadPromise = null;
     
-    // Recording buffers per track (arrays of Float32Arrays)
+    // Recording buffers per track (arrays of Float32Arrays) — WAV mode
     this._trackBuffers = [];
     this._sampleRate = 44100;
+    
+    // MediaRecorder — WebM/Opus mode
+    this._mediaRecorder = null;
+    this._mediaChunks = [];
+    this._mediaStreamDest = null;
     
     // Número de fuentes: 4 stereo (Pan 1-4 L/R, Pan 5-8 L/R) + 8 individuales = 12
     // ORDEN: stereo primero (0-3), luego individuales (4-11)
@@ -35,6 +52,8 @@ export class RecordingEngine {
     
     // Recording configuration
     this._trackCount = this._loadTrackCount();
+    this._format = this._loadFormat();
+    this._bitrate = this._loadBitrate();
     // Routing matrix: [sourceIndex][trackIndex] = gain (0 or 1)
     // sourceIndex 0-7: Out 1-8, sourceIndex 8-11: stereo buses
     this._routingMatrix = this._loadRoutingMatrix();
@@ -66,6 +85,93 @@ export class RecordingEngine {
    */
   _saveTrackCount(count) {
     localStorage.setItem(STORAGE_KEYS.RECORDING_TRACKS, String(count));
+  }
+
+  /**
+   * Load recording format from storage
+   */
+  _loadFormat() {
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_FORMAT);
+    if (stored && RECORDING_FORMATS[stored]) return stored;
+    return DEFAULT_FORMAT;
+  }
+
+  /**
+   * Save recording format to storage
+   */
+  _saveFormat(format) {
+    localStorage.setItem(STORAGE_KEYS.RECORDING_FORMAT, format);
+  }
+
+  /**
+   * Load bitrate from storage (for lossy formats)
+   */
+  _loadBitrate() {
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_BITRATE);
+    if (stored) {
+      const val = parseInt(stored, 10);
+      if (val > 0) return val;
+    }
+    return DEFAULT_BITRATE;
+  }
+
+  /**
+   * Save bitrate to storage
+   */
+  _saveBitrate(bitrate) {
+    localStorage.setItem(STORAGE_KEYS.RECORDING_BITRATE, String(bitrate));
+  }
+
+  /**
+   * Get current recording format
+   */
+  get format() {
+    return this._format;
+  }
+
+  /**
+   * Set recording format
+   */
+  set format(fmt) {
+    if (!RECORDING_FORMATS[fmt]) return;
+    this._format = fmt;
+    this._saveFormat(fmt);
+    
+    // Si el formato es lossy y tiene más tracks del máximo, ajustar
+    const maxTracks = RECORDING_FORMATS[fmt].maxTracks;
+    if (this._trackCount > maxTracks) {
+      this.trackCount = maxTracks;
+    }
+  }
+
+  /**
+   * Get current bitrate (bps)
+   */
+  get bitrate() {
+    return this._bitrate;
+  }
+
+  /**
+   * Set bitrate (bps)
+   */
+  set bitrate(bps) {
+    this._bitrate = bps;
+    this._saveBitrate(bps);
+  }
+
+  /**
+   * Get format info object
+   */
+  get formatInfo() {
+    return RECORDING_FORMATS[this._format] || RECORDING_FORMATS[DEFAULT_FORMAT];
+  }
+
+  /**
+   * Get all available formats
+   * @returns {Object}
+   */
+  static get FORMATS() {
+    return RECORDING_FORMATS;
   }
 
   /**
@@ -130,7 +236,8 @@ export class RecordingEngine {
    * Set track count and update routing matrix
    */
   set trackCount(count) {
-    const newCount = Math.max(1, Math.min(MAX_RECORDING_TRACKS, count));
+    const maxForFormat = this.formatInfo.maxTracks;
+    const newCount = Math.max(1, Math.min(Math.min(MAX_RECORDING_TRACKS, maxForFormat), count));
     if (newCount === this._trackCount) return;
     
     this._trackCount = newCount;
@@ -361,7 +468,7 @@ export class RecordingEngine {
    * Start recording
    */
   async startRecording() {
-    log.info(' startRecording() called, isRecording:', this.isRecording);
+    log.info(' startRecording() called, isRecording:', this.isRecording, 'format:', this._format);
     if (this.isRecording) {
       log.warn(' Already recording, ignoring');
       return;
@@ -384,6 +491,17 @@ export class RecordingEngine {
       }
     }
     
+    if (this._format === 'webm-opus') {
+      await this._startMediaRecording(ctx);
+    } else {
+      await this._startWavRecording(ctx);
+    }
+  }
+
+  /**
+   * Start WAV recording using AudioWorklet pipeline
+   */
+  async _startWavRecording(ctx) {
     log.info(' Building routing graph...');
     // Build/rebuild routing graph (creates mixers and merger, but NOT worklet)
     await this._buildRoutingGraph();
@@ -410,7 +528,7 @@ export class RecordingEngine {
         this._handleSamples(event.data.channels);
       } else if (event.data.type === 'stopped') {
         log.info(' Worklet confirmed stop, finalizing...');
-        this._finalizeRecording();
+        this._finalizeWavRecording();
       } else {
         log.warn(' Unknown worklet message:', event.data);
       }
@@ -428,11 +546,82 @@ export class RecordingEngine {
     this.workletNode.port.postMessage({ command: 'start' });
     
     if (this.onRecordingStart) this.onRecordingStart();
-    log.info(' Recording started successfully');
+    log.info(' WAV recording started successfully');
   }
 
   /**
-   * Stop recording and export WAV
+   * Start WebM/Opus recording using native MediaRecorder
+   */
+  async _startMediaRecording(ctx) {
+    log.info(' Starting MediaRecorder (WebM/Opus)...');
+    
+    // Build routing graph to get the stereo mix through the merger
+    await this._buildRoutingGraph();
+    
+    // Create a MediaStreamDestination to capture the stereo output
+    this._mediaStreamDest = ctx.createMediaStreamDestination();
+    this._trackMerger.connect(this._mediaStreamDest);
+    
+    // Find best supported MIME type
+    const mimeType = this._getBestOpusMimeType();
+    if (!mimeType) {
+      log.error(' No supported WebM/Opus MIME type found');
+      this._cleanupMediaRecording();
+      throw new Error('WebM/Opus recording not supported in this browser');
+    }
+    
+    // Create MediaRecorder
+    const options = { mimeType, audioBitsPerSecond: this._bitrate };
+    this._mediaRecorder = new MediaRecorder(this._mediaStreamDest.stream, options);
+    this._mediaChunks = [];
+    
+    this._mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        this._mediaChunks.push(e.data);
+      }
+    };
+    
+    this._mediaRecorder.onstop = () => {
+      log.info(' MediaRecorder stopped, finalizing...');
+      this._finalizeMediaRecording();
+    };
+    
+    this._mediaRecorder.onerror = (e) => {
+      log.error(' MediaRecorder error:', e.error);
+      this.isRecording = false;
+      this._cleanupMediaRecording();
+      if (this.onRecordingStop) this.onRecordingStop(null);
+    };
+    
+    // Start recording - request data every second for smooth progress
+    this._mediaRecorder.start(1000);
+    this.isRecording = true;
+    
+    if (this.onRecordingStart) this.onRecordingStart();
+    log.info(' WebM/Opus recording started successfully');
+  }
+
+  /**
+   * Find best supported Opus MIME type
+   * @returns {string|null}
+   */
+  _getBestOpusMimeType() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus'
+    ];
+    for (const mime of candidates) {
+      if (MediaRecorder.isTypeSupported(mime)) {
+        log.info(` Using MIME type: ${mime}`);
+        return mime;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Stop recording and export
    */
   stopRecording() {
     log.info(' stopRecording() called, isRecording:', this.isRecording);
@@ -442,20 +631,25 @@ export class RecordingEngine {
     }
     
     this.isRecording = false;
-    log.info(' Sending stop command to worklet...');
-    if (this.workletNode) {
+    
+    if (this._mediaRecorder && this._mediaRecorder.state !== 'inactive') {
+      // WebM/Opus mode: stop MediaRecorder (triggers onstop → _finalizeMediaRecording)
+      log.info(' Stopping MediaRecorder...');
+      this._mediaRecorder.stop();
+    } else if (this.workletNode) {
+      // WAV mode: stop worklet (triggers 'stopped' message → _finalizeWavRecording)
+      log.info(' Sending stop command to worklet...');
       this.workletNode.port.postMessage({ command: 'stop' });
     } else {
-      log.error(' No worklet node to stop!');
+      log.error(' No recording mechanism to stop!');
     }
-    // _finalizeRecording will be called when worklet confirms stop
   }
 
   /**
-   * Finalize recording and trigger WAV download
+   * Finalize WAV recording and trigger download
    */
-  _finalizeRecording() {
-    log.info(' Finalizing recording...');
+  _finalizeWavRecording() {
+    log.info(' Finalizing WAV recording...');
     
     // Disconnect and destroy worklet (to free resources)
     if (this.workletNode) {
@@ -517,6 +711,58 @@ export class RecordingEngine {
       telemetryTrackEvent('export_fail', { message: err?.message || String(err) });
       if (this.onRecordingStop) this.onRecordingStop(null);
     }
+  }
+
+  /**
+   * Finalize WebM/Opus recording and trigger download
+   */
+  _finalizeMediaRecording() {
+    log.info(' Finalizing WebM/Opus recording...');
+    
+    if (this._mediaChunks.length === 0) {
+      log.warn(' No audio recorded');
+      this._cleanupMediaRecording();
+      if (this.onRecordingStop) this.onRecordingStop(null);
+      return;
+    }
+    
+    try {
+      const blob = new Blob(this._mediaChunks, { type: this._mediaRecorder?.mimeType || 'audio/webm' });
+      
+      // Determine extension from actual MIME type
+      const mimeType = this._mediaRecorder?.mimeType || '';
+      const extension = mimeType.includes('ogg') ? 'ogg' : 'webm';
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `synthigme-${timestamp}.${extension}`;
+      
+      // Cleanup before notifying
+      this._cleanupMediaRecording();
+      
+      // Notificar ANTES de descargar
+      if (this.onRecordingStop) this.onRecordingStop(filename);
+      log.info(` Recording saved: ${filename}`);
+      
+      // Trigger download
+      setTimeout(() => this._downloadBlob(blob, filename), 100);
+    } catch (err) {
+      log.error(' Export failed:', err);
+      telemetryTrackEvent('export_fail', { message: err?.message || String(err) });
+      this._cleanupMediaRecording();
+      if (this.onRecordingStop) this.onRecordingStop(null);
+    }
+  }
+
+  /**
+   * Clean up MediaRecorder resources
+   */
+  _cleanupMediaRecording() {
+    if (this._mediaStreamDest) {
+      this._mediaStreamDest.disconnect();
+      this._mediaStreamDest = null;
+    }
+    this._mediaRecorder = null;
+    this._mediaChunks = [];
   }
 
   /**

@@ -1,10 +1,11 @@
 /**
  * Modal de configuración de grabación de audio.
- * Permite configurar número de pistas y matriz de ruteo outputs → tracks.
+ * Permite configurar formato, bitrate, número de pistas y matriz de ruteo.
  */
 
 import { t, onLocaleChange } from '../i18n/index.js';
 import { OUTPUT_CHANNELS, MAX_RECORDING_TRACKS } from '../utils/constants.js';
+import { RecordingEngine } from '../core/recordingEngine.js';
 
 /**
  * Modal para configurar la grabación de audio WAV.
@@ -64,11 +65,21 @@ export class RecordingSettingsModal {
     const container = document.createElement('div');
     container.className = 'recording-settings-content';
 
-    // Track count selector
+    // Format selector (WAV / WebM Opus)
+    const formatSection = this._createFormatSection();
+    container.appendChild(formatSection);
+
+    // Bitrate selector (solo para formatos lossy)
+    const bitrateSection = this._createBitrateSection();
+    container.appendChild(bitrateSection);
+    this._embeddedBitrateSection = bitrateSection;
+
+    // Track count selector (solo para WAV)
     const trackSection = this._createTrackCountSection();
     container.appendChild(trackSection);
+    this._embeddedTrackSection = trackSection;
 
-    // Routing matrix section
+    // Routing matrix section (solo para WAV)
     const matrixSection = document.createElement('div');
     matrixSection.className = 'recording-settings-section';
 
@@ -91,9 +102,13 @@ export class RecordingSettingsModal {
     matrixSection.appendChild(matrixDesc);
     matrixSection.appendChild(matrixContainer);
     container.appendChild(matrixSection);
+    this._embeddedMatrixSection = matrixSection;
 
     // Construir matriz en este contenedor
     this._buildMatrixInContainer(matrixContainer);
+
+    // Aplicar visibilidad según formato actual
+    this._updateFormatDependentUI();
 
     return container;
   }
@@ -251,6 +266,177 @@ export class RecordingSettingsModal {
     this.overlay.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') this.close();
     });
+  }
+
+  /**
+   * Creates format selector section (WAV / WebM Opus)
+   */
+  _createFormatSection() {
+    const section = document.createElement('div');
+    section.className = 'recording-settings-section';
+
+    const row = document.createElement('div');
+    row.className = 'recording-settings-row';
+
+    const label = document.createElement('label');
+    label.className = 'recording-settings-row__label';
+    label.textContent = t('recording.format.label');
+    label.htmlFor = 'recording-format';
+    this._textElements.formatLabel = label;
+
+    const selectWrapper = document.createElement('div');
+    selectWrapper.className = 'recording-settings-select-wrapper';
+
+    this.formatSelect = document.createElement('select');
+    this.formatSelect.className = 'recording-settings-select';
+    this.formatSelect.id = 'recording-format';
+
+    const formats = RecordingEngine.FORMATS;
+    for (const [key, info] of Object.entries(formats)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = key === 'wav' 
+        ? t('recording.format.wav')
+        : t('recording.format.webmOpus');
+      if (key === this.recordingEngine.format) opt.selected = true;
+      this.formatSelect.appendChild(opt);
+    }
+
+    this.formatSelect.addEventListener('change', () => {
+      this.recordingEngine.format = this.formatSelect.value;
+      this._updateFormatDependentUI();
+      this._updateTrackCountOptions();
+    });
+
+    selectWrapper.appendChild(this.formatSelect);
+    row.appendChild(label);
+    row.appendChild(selectWrapper);
+    section.appendChild(row);
+
+    // Descripción del formato
+    const desc = document.createElement('p');
+    desc.className = 'recording-settings-section__description recording-settings-format-desc';
+    this._formatDescElement = desc;
+    this._updateFormatDescription();
+    section.appendChild(desc);
+
+    return section;
+  }
+
+  /**
+   * Creates bitrate selector section (for lossy formats)
+   */
+  _createBitrateSection() {
+    const section = document.createElement('div');
+    section.className = 'recording-settings-section';
+
+    const row = document.createElement('div');
+    row.className = 'recording-settings-row';
+
+    const label = document.createElement('label');
+    label.className = 'recording-settings-row__label';
+    label.textContent = t('recording.bitrate.label');
+    label.htmlFor = 'recording-bitrate';
+    this._textElements.bitrateLabel = label;
+
+    const selectWrapper = document.createElement('div');
+    selectWrapper.className = 'recording-settings-select-wrapper';
+
+    this.bitrateSelect = document.createElement('select');
+    this.bitrateSelect.className = 'recording-settings-select';
+    this.bitrateSelect.id = 'recording-bitrate';
+
+    const bitrates = [
+      { value: 64000, label: '64 kbps' },
+      { value: 128000, label: '128 kbps' },
+      { value: 192000, label: `192 kbps (${t('recording.bitrate.recommended')})` },
+      { value: 256000, label: '256 kbps' },
+      { value: 320000, label: '320 kbps' }
+    ];
+
+    for (const { value, label: text } of bitrates) {
+      const opt = document.createElement('option');
+      opt.value = String(value);
+      opt.textContent = text;
+      if (value === this.recordingEngine.bitrate) opt.selected = true;
+      this.bitrateSelect.appendChild(opt);
+    }
+
+    this.bitrateSelect.addEventListener('change', () => {
+      this.recordingEngine.bitrate = parseInt(this.bitrateSelect.value, 10);
+    });
+
+    selectWrapper.appendChild(this.bitrateSelect);
+    row.appendChild(label);
+    row.appendChild(selectWrapper);
+    section.appendChild(row);
+
+    return section;
+  }
+
+  /**
+   * Updates format description text
+   */
+  _updateFormatDescription() {
+    if (!this._formatDescElement) return;
+    const format = this.recordingEngine.format;
+    if (format === 'wav') {
+      this._formatDescElement.textContent = t('recording.format.wavDesc');
+    } else {
+      this._formatDescElement.textContent = t('recording.format.webmOpusDesc');
+    }
+  }
+
+  /**
+   * Show/hide sections based on current format
+   * - WAV: show tracks, routing matrix; hide bitrate
+   * - WebM/Opus: show bitrate; hide tracks, routing matrix
+   */
+  _updateFormatDependentUI() {
+    const isLossy = this.recordingEngine.formatInfo.lossy;
+    
+    // Bitrate: only for lossy
+    if (this._embeddedBitrateSection) {
+      this._embeddedBitrateSection.style.display = isLossy ? '' : 'none';
+    }
+    if (this._modalBitrateSection) {
+      this._modalBitrateSection.style.display = isLossy ? '' : 'none';
+    }
+
+    // Tracks + routing: only for lossless (WAV)
+    if (this._embeddedTrackSection) {
+      this._embeddedTrackSection.style.display = isLossy ? 'none' : '';
+    }
+    if (this._modalTrackSection) {
+      this._modalTrackSection.style.display = isLossy ? 'none' : '';
+    }
+    if (this._embeddedMatrixSection) {
+      this._embeddedMatrixSection.style.display = isLossy ? 'none' : '';
+    }
+    if (this._modalMatrixSection) {
+      this._modalMatrixSection.style.display = isLossy ? 'none' : '';
+    }
+
+    this._updateFormatDescription();
+  }
+
+  /**
+   * Updates track count options based on current format limits
+   */
+  _updateTrackCountOptions() {
+    if (!this.trackCountSelect) return;
+    const maxTracks = this.recordingEngine.formatInfo.maxTracks;
+    const currentCount = this.recordingEngine.trackCount;
+
+    Array.from(this.trackCountSelect.options).forEach((opt) => {
+      const val = parseInt(opt.value, 10);
+      opt.disabled = val > maxTracks;
+    });
+
+    // Si el valor actual excede el máximo, ajustar
+    if (currentCount > maxTracks) {
+      this.trackCountSelect.value = String(maxTracks);
+    }
   }
 
   /**
@@ -422,11 +608,35 @@ export class RecordingSettingsModal {
     const els = this._textElements;
     if (els.title) els.title.textContent = t('recording.title');
     if (els.closeBtn) els.closeBtn.setAttribute('aria-label', t('recording.close'));
+    if (els.formatLabel) els.formatLabel.textContent = t('recording.format.label');
+    if (els.bitrateLabel) els.bitrateLabel.textContent = t('recording.bitrate.label');
     if (els.trackLabel) els.trackLabel.textContent = t('recording.tracks.label');
     if (els.matrixTitle) els.matrixTitle.textContent = t('recording.routing.title');
     if (els.matrixDesc) els.matrixDesc.textContent = t('recording.routing.description');
     
-    // Update select options
+    // Update format select options
+    if (this.formatSelect) {
+      Array.from(this.formatSelect.options).forEach((opt) => {
+        if (opt.value === 'wav') opt.textContent = t('recording.format.wav');
+        else if (opt.value === 'webm-opus') opt.textContent = t('recording.format.webmOpus');
+      });
+    }
+
+    // Update bitrate select (recommended label)
+    if (this.bitrateSelect) {
+      Array.from(this.bitrateSelect.options).forEach((opt) => {
+        const val = parseInt(opt.value, 10);
+        const kbps = val / 1000;
+        opt.textContent = val === 192000 
+          ? `${kbps} kbps (${t('recording.bitrate.recommended')})` 
+          : `${kbps} kbps`;
+      });
+    }
+
+    // Update format description
+    this._updateFormatDescription();
+
+    // Update track count select options
     if (this.trackCountSelect) {
       Array.from(this.trackCountSelect.options).forEach((opt, i) => {
         const val = i + 1;

@@ -68,6 +68,8 @@ export const STORAGE_KEYS = {
   // Grabación
   RECORDING_TRACKS: `${STORAGE_PREFIX}recording-tracks`,
   RECORDING_ROUTING: `${STORAGE_PREFIX}recording-routing`,
+  RECORDING_FORMAT: `${STORAGE_PREFIX}recording-format`,
+  RECORDING_BITRATE: `${STORAGE_PREFIX}recording-bitrate`,
   
   // Sesión
   LAST_STATE: `${STORAGE_PREFIX}last-state`,

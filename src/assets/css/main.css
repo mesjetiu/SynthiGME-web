@@ -4957,6 +4957,100 @@ small { color:#aaa; }
   50% { box-shadow: 0 0 12px 3px rgba(255, 60, 60, 0.8); }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   OVERLAY DE GRABACIÓN - Indicador visual REC sobre la pantalla
+   ═══════════════════════════════════════════════════════════════════ */
+
+.recording-overlay {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.recording-overlay--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.recording-overlay__indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 60, 60, 0.4);
+  border-radius: 20px;
+  padding: 5px 12px 5px 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  animation: recording-overlay-glow 2s ease-in-out infinite;
+}
+
+.recording-overlay__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff3c3c;
+  flex-shrink: 0;
+  animation: recording-dot-pulse 1s ease-in-out infinite;
+}
+
+.recording-overlay__label {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: bold;
+  color: #ff6b6b;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.recording-overlay__timer {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: rgba(255, 180, 180, 0.8);
+  letter-spacing: 1px;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+@keyframes recording-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.8); }
+}
+
+@keyframes recording-overlay-glow {
+  0%, 100% { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(255, 60, 60, 0); }
+  50% { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 8px 2px rgba(255, 60, 60, 0.15); }
+}
+
+/* Responsive: en móvil más compacto */
+@media (max-width: 768px) {
+  .recording-overlay {
+    top: 8px;
+    left: 8px;
+  }
+  .recording-overlay__indicator {
+    padding: 4px 10px 4px 7px;
+    gap: 5px;
+  }
+  .recording-overlay__dot {
+    width: 8px;
+    height: 8px;
+  }
+  .recording-overlay__label {
+    font-size: 11px;
+  }
+  .recording-overlay__timer {
+    font-size: 10px;
+  }
+}
+
 /* Botón OSC activo en quickbar */
 .mobile-quickbar__btn.is-osc-active {
   background: rgba(30, 140, 180, 0.9);

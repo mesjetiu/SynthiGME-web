@@ -74,6 +74,7 @@ import {
 import { setupMobileQuickActionsBar, ensureOrientationHint } from './ui/quickbar.js';
 import { AudioSettingsModal } from './ui/audioSettingsModal.js';
 import { RecordingSettingsModal } from './ui/recordingSettingsModal.js';
+import { RecordingOverlay } from './ui/recordingOverlay.js';
 import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
@@ -2123,6 +2124,9 @@ class App {
       recordingEngine: this._recordingEngine,
       outputCount: this.engine.outputChannels
     });
+    
+    // Crear overlay visual de grabación (indicador REC pulsante)
+    this._recordingOverlay = new RecordingOverlay();
     
     // Callbacks del motor de grabación
     this._recordingEngine.onRecordingStart = () => {

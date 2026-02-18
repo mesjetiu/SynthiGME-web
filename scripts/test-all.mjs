@@ -5,11 +5,32 @@
 
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+import { mkdirSync, createWriteStream } from 'fs';
 import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
+
+// Log file setup
+const logDir = path.join(projectRoot, 'test-results');
+mkdirSync(logDir, { recursive: true });
+const logPath = path.join(logDir, 'test.log');
+const logStream = createWriteStream(logPath, { flags: 'w' });
+
+/** Strip ANSI escape codes for clean log output */
+function stripAnsi(str) {
+  return str.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/** Write to log file (without ANSI codes) */
+function logToFile(str) {
+  logStream.write(stripAnsi(str));
+}
+
+// Write header
+const timestamp = new Date().toISOString();
+logToFile(`SynthiGME Test Log - ${timestamp}\n${'='.repeat(60)}\n\n`);
 
 // Colores ANSI
 const colors = {
@@ -44,12 +65,14 @@ function runCommand(command, args, label) {
       const str = data.toString();
       output += str;
       process.stdout.write(str);
+      logToFile(str);
     });
     
     proc.stderr.on('data', (data) => {
       const str = data.toString();
       output += str;
       process.stderr.write(str);
+      logToFile(str);
     });
     
     proc.on('close', (code) => {
@@ -133,11 +156,17 @@ function printSummary(results, totalDuration) {
   const { c } = { c: colors };
   const line = '═'.repeat(60);
   const thinLine = '─'.repeat(60);
+
+  /** Print to console and log file */
+  function log(str = '') {
+    console.log(str);
+    logToFile(str + '\n');
+  }
   
-  console.log('\n');
-  console.log(`${c.cyan}${line}${c.reset}`);
-  console.log(`${c.bold}${c.cyan}                    📊 RESUMEN DE TESTS${c.reset}`);
-  console.log(`${c.cyan}${line}${c.reset}`);
+  log('');
+  log(`${c.cyan}${line}${c.reset}`);
+  log(`${c.bold}${c.cyan}                    📊 RESUMEN DE TESTS${c.reset}`);
+  log(`${c.cyan}${line}${c.reset}`);
   
   let totalTests = 0;
   let totalPassed = 0;
@@ -149,10 +178,10 @@ function printSummary(results, totalDuration) {
       ? `${c.green}PASSED${c.reset}` 
       : `${c.red}FAILED${c.reset}`;
     
-    console.log(`\n${c.bold}${result.label}${c.reset}`);
-    console.log(`${c.dim}${thinLine}${c.reset}`);
-    console.log(`  ${icon} Estado: ${status}`);
-    console.log(`  ⏱  Tiempo: ${c.yellow}${formatDuration(result.duration)}${c.reset}`);
+    log(`\n${c.bold}${result.label}${c.reset}`);
+    log(`${c.dim}${thinLine}${c.reset}`);
+    log(`  ${icon} Estado: ${status}`);
+    log(`  ⏱  Tiempo: ${c.yellow}${formatDuration(result.duration)}${c.reset}`);
     
     if (result.stats) {
       const { stats } = result;
@@ -160,36 +189,37 @@ function printSummary(results, totalDuration) {
       totalPassed += stats.passed;
       totalFailed += stats.failed;
       
-      console.log(`  📋 Tests:  ${c.bold}${stats.total}${c.reset} total`);
+      log(`  📋 Tests:  ${c.bold}${stats.total}${c.reset} total`);
       if (stats.passed > 0) {
-        console.log(`             ${c.green}${stats.passed} passed${c.reset}`);
+        log(`             ${c.green}${stats.passed} passed${c.reset}`);
       }
       if (stats.failed > 0) {
-        console.log(`             ${c.red}${stats.failed} failed${c.reset}`);
+        log(`             ${c.red}${stats.failed} failed${c.reset}`);
       }
       if (stats.skipped > 0) {
-        console.log(`             ${c.yellow}${stats.skipped} skipped${c.reset}`);
+        log(`             ${c.yellow}${stats.skipped} skipped${c.reset}`);
       }
     }
   }
   
   // Totales
-  console.log(`\n${c.cyan}${line}${c.reset}`);
-  console.log(`${c.bold}                       📈 TOTALES${c.reset}`);
-  console.log(`${c.cyan}${line}${c.reset}`);
+  log(`\n${c.cyan}${line}${c.reset}`);
+  log(`${c.bold}                       📈 TOTALES${c.reset}`);
+  log(`${c.cyan}${line}${c.reset}`);
   
   const allPassed = results.every(r => r.success);
   const statusBg = allPassed ? c.bgGreen : c.bgRed;
   const statusText = allPassed ? ' ALL PASSED ' : '  FAILED  ';
   
-  console.log(`\n  ${statusBg}${c.bold}${c.white}${statusText}${c.reset}`);
-  console.log(`\n  📊 Tests totales: ${c.bold}${totalTests}${c.reset}`);
-  console.log(`     ${c.green}✓ Passed: ${totalPassed}${c.reset}`);
+  log(`\n  ${statusBg}${c.bold}${c.white}${statusText}${c.reset}`);
+  log(`\n  📊 Tests totales: ${c.bold}${totalTests}${c.reset}`);
+  log(`     ${c.green}✓ Passed: ${totalPassed}${c.reset}`);
   if (totalFailed > 0) {
-    console.log(`     ${c.red}✗ Failed: ${totalFailed}${c.reset}`);
+    log(`     ${c.red}✗ Failed: ${totalFailed}${c.reset}`);
   }
-  console.log(`\n  ⏱  Tiempo total: ${c.bold}${c.yellow}${formatDuration(totalDuration)}${c.reset}`);
-  console.log(`${c.cyan}${line}${c.reset}\n`);
+  log(`\n  ⏱  Tiempo total: ${c.bold}${c.yellow}${formatDuration(totalDuration)}${c.reset}`);
+  log(`${c.cyan}${line}${c.reset}`);
+  log('');
   
   return allPassed;
 }
@@ -198,19 +228,28 @@ async function main() {
   const startTime = Date.now();
   const results = [];
   
-  console.log(`\n${colors.bold}${colors.cyan}🧪 Ejecutando suite completa de tests...${colors.reset}\n`);
-  console.log(`${colors.dim}${'─'.repeat(60)}${colors.reset}\n`);
+  const header1 = `\n${colors.bold}${colors.cyan}🧪 Ejecutando suite completa de tests...${colors.reset}\n`;
+  const sep = `${colors.dim}${'─'.repeat(60)}${colors.reset}\n`;
+  console.log(header1);
+  logToFile(stripAnsi(header1) + '\n');
+  console.log(sep);
+  logToFile(stripAnsi(sep) + '\n');
   
   // 1. Tests unitarios (Node.js)
-  console.log(`${colors.bold}📦 Tests Unitarios (Node.js)${colors.reset}\n`);
+  const unitHeader = `${colors.bold}📦 Tests Unitarios (Node.js)${colors.reset}\n`;
+  console.log(unitHeader);
+  logToFile(stripAnsi(unitHeader) + '\n');
   const unitResult = await runCommand('npm', ['test'], 'Tests Unitarios (Node.js)');
   unitResult.stats = parseUnitTestStats(unitResult.output);
   results.push(unitResult);
   
-  console.log(`\n${colors.dim}${'─'.repeat(60)}${colors.reset}\n`);
+  console.log(`\n${sep}`);
+  logToFile('\n' + stripAnsi(sep) + '\n');
   
   // 2. Tests de audio (Playwright)
-  console.log(`${colors.bold}🔊 Tests de Audio (Playwright)${colors.reset}\n`);
+  const audioHeader = `${colors.bold}🔊 Tests de Audio (Playwright)${colors.reset}\n`;
+  console.log(audioHeader);
+  logToFile(stripAnsi(audioHeader) + '\n');
   const audioResult = await runCommand('npm', ['run', 'test:audio'], 'Tests de Audio (Playwright)');
   audioResult.stats = parseAudioTestStats(audioResult.output);
   results.push(audioResult);
@@ -218,6 +257,13 @@ async function main() {
   // Resumen final
   const totalDuration = Date.now() - startTime;
   const allPassed = printSummary(results, totalDuration);
+
+  // Log file path
+  console.log(`  📄 Log guardado en: ${colors.dim}test-results/test.log${colors.reset}\n`);
+  logToFile(`\nLog: ${logPath}\n`);
+
+  // Close log stream before exit
+  await new Promise((resolve) => logStream.end(resolve));
   
   process.exit(allPassed ? 0 : 1);
 }

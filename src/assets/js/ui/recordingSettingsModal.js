@@ -306,6 +306,19 @@ export class RecordingSettingsModal {
       this.recordingEngine.format = this.formatSelect.value;
       this._updateFormatDependentUI();
       this._updateTrackCountOptions();
+
+      // Sync track count selector with engine value (may have been clamped)
+      if (this.trackCountSelect) {
+        this.trackCountSelect.value = String(this.recordingEngine.trackCount);
+      }
+
+      // Rebuild routing matrix to reflect new track count
+      if (this.matrixContainer) {
+        this._rebuildMatrix();
+      }
+      if (this.embeddedMatrixContainer) {
+        this._buildMatrixInContainer(this.embeddedMatrixContainer);
+      }
     });
 
     selectWrapper.appendChild(this.formatSelect);
@@ -403,19 +416,16 @@ export class RecordingSettingsModal {
       this._modalBitrateSection.style.display = isLossy ? '' : 'none';
     }
 
-    // Tracks + routing: only for lossless (WAV)
+    // Track count selector: hide for lossy (fixed at 2 stereo)
     if (this._embeddedTrackSection) {
       this._embeddedTrackSection.style.display = isLossy ? 'none' : '';
     }
     if (this._modalTrackSection) {
       this._modalTrackSection.style.display = isLossy ? 'none' : '';
     }
-    if (this._embeddedMatrixSection) {
-      this._embeddedMatrixSection.style.display = isLossy ? 'none' : '';
-    }
-    if (this._modalMatrixSection) {
-      this._modalMatrixSection.style.display = isLossy ? 'none' : '';
-    }
+
+    // Routing matrix: always visible (columns limited by trackCount)
+    // For lossy formats trackCount is already forced to 2
 
     this._updateFormatDescription();
   }

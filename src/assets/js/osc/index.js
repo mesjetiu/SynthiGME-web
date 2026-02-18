@@ -54,5 +54,8 @@ export { noiseGeneratorOSCSync } from './oscNoiseGeneratorSync.js';
 // Sincronización de joysticks
 export { joystickOSCSync } from './oscJoystickSync.js';
 
+// Sincronización de matrices (audio Panel 5 + control Panel 6)
+export { matrixOSCSync } from './oscMatrixSync.js';
+
 // Re-exportar oscBridge como default para uso simplificado
 export { default } from './oscBridge.js';

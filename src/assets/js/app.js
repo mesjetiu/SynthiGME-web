@@ -99,6 +99,7 @@ import { inputAmplifierOSCSync } from './osc/oscInputAmplifierSync.js';
 import { outputChannelOSCSync } from './osc/oscOutputChannelSync.js';
 import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
+import { matrixOSCSync } from './osc/oscMatrixSync.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VISIBILIDAD DE MÓDULOS
@@ -217,6 +218,8 @@ class App {
     outputChannelOSCSync.init(this);
     noiseGeneratorOSCSync.init(this);
     joystickOSCSync.init(this);
+    // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
+    matrixOSCSync.init(this);
 
     // Resize handler con debounce
     let appResizeTimer = null;
@@ -5397,6 +5400,11 @@ class App {
       // Notificar al DormancyManager del cambio de conexiones
       this.dormancyManager?.onConnectionChange();
       
+      // Enviar cambio de pin via OSC
+      if (!matrixOSCSync.shouldIgnoreOSC()) {
+        matrixOSCSync.sendAudioPinChange(rowIndex, colIndex, true, pinColor);
+      }
+      
       return true;
     }
 
@@ -5419,6 +5427,11 @@ class App {
 
     // Notificar al DormancyManager del cambio de conexiones
     this.dormancyManager?.onConnectionChange();
+    
+    // Enviar desconexión via OSC
+    if (!matrixOSCSync.shouldIgnoreOSC()) {
+      matrixOSCSync.sendAudioPinChange(rowIndex, colIndex, false, null);
+    }
     
     return true;
   }
@@ -5852,6 +5865,11 @@ class App {
       // Notificar al DormancyManager del cambio de conexiones
       this.dormancyManager?.onConnectionChange();
       
+      // Enviar cambio de pin via OSC
+      if (!matrixOSCSync.shouldIgnoreOSC()) {
+        matrixOSCSync.sendControlPinChange(rowIndex, colIndex, true, pinColor);
+      }
+      
       return true;
     }
 
@@ -5907,6 +5925,11 @@ class App {
 
     // Notificar al DormancyManager del cambio de conexiones
     this.dormancyManager?.onConnectionChange();
+    
+    // Enviar desconexión via OSC
+    if (!matrixOSCSync.shouldIgnoreOSC()) {
+      matrixOSCSync.sendControlPinChange(rowIndex, colIndex, false, null);
+    }
     
     return true;
   }

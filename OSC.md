@@ -113,25 +113,158 @@ Los valores se transmiten en **escala real** del parámetro (no normalizada 0-1)
 
 **Ejemplo:** `/SynthiGME/osc/1/frequency 5.5`
 
-### 2. Patchbay Audio (`/patchA/{row}/{col}`)
+### 2. Matriz de Audio (`/audio/...`)
 
-Matriz de conexiones de audio. Coordenadas con origen arriba-izquierda.
+Matriz de conexiones de audio del Panel 5 del Synthi 100. Conecta fuentes de señal
+(osciladores, ruido, entradas, buses) a destinos de audio (salidas, sync, osciloscopio).
 
-```
-/patchA/{row}/{col}     # 0 = desconectado, 1 = conectado
-```
-
-**Ejemplo:** `/SynthiGME/patchA/91/36 1`
-
-### 3. Patchbay Voltage (`/patchV/{row}/{col}`)
-
-Matriz de conexiones de voltaje de control.
+#### Formato de dirección
 
 ```
-/patchV/{row}/{col}     # 0 = desconectado, 1 = conectado
+/audio/{source}/{Dest}  {pin|0}
+       ─minúsc─  ─Mayúsc─
 ```
 
-**Ejemplo:** `/SynthiGME/patchV/16/8 1`
+La convención **minúsculas → Mayúscula** marca visualmente la transición source → destino.
+
+#### Sources (fuentes de señal — minúsculas)
+
+| Dirección | Descripción |
+|-----------|-------------|
+| `in/{1-8}` | Amplificadores de entrada |
+| `bus/{1-8}` | Buses de salida (feedback post-fader) |
+| `noise/{1-2}` | Generadores de ruido |
+| `osc/{1-9}/sinSaw` | Oscilador — salida sine + sawtooth |
+| `osc/{1-9}/triPul` | Oscilador — salida triangle + pulse |
+
+#### Destinations (destinos — Mayúscula inicial)
+
+| Dirección | Descripción |
+|-----------|-------------|
+| `Out/{1-8}` | Canales de salida |
+| `Sync/{1-12}` | Hard sync de oscilador (resetea fase) |
+| `Scope/{Y,X}` | Osciloscopio (Y=vertical, X=Lissajous) |
+
+#### Ejemplos
+
+```
+/SynthiGME/audio/osc/1/sinSaw/Out/1     WHITE    # Osc 1 sine+saw → Out 1
+/SynthiGME/audio/osc/3/triPul/Out/2     GREEN    # Osc 3 tri+pulse → Out 2 (atenuado)
+/SynthiGME/audio/noise/1/Out/4          GREY     # Ruido 1 → Out 4 (precisión)
+/SynthiGME/audio/in/2/Out/1             WHITE    # Input 2 → Out 1
+/SynthiGME/audio/bus/1/Out/5            RED      # Bus 1 feedback → Out 5 (alta ganancia)
+/SynthiGME/audio/osc/5/sinSaw/Sync/2    GREY     # Osc 5 sin+saw → Hard sync Osc 2
+/SynthiGME/audio/osc/1/triPul/Scope/Y   RED      # Osc 1 tri+pulse → Osciloscopio Y
+/SynthiGME/audio/osc/1/sinSaw/Out/1     0        # Desconectar
+```
+
+### 3. Matriz de Control (`/cv/...`)
+
+Matriz de conexiones de voltaje de control del Panel 6 del Synthi 100. Conecta fuentes
+de señal de control (osciladores 10-12, joysticks, entradas, buses) a destinos modulables
+(frecuencia de osciladores, nivel de salidas, osciloscopio).
+
+#### Formato de dirección
+
+```
+/cv/{source}/{Dest}  {pin|0}
+    ─minúsc─  ─Mayúsc─
+```
+
+#### Sources (fuentes CV — minúsculas)
+
+| Dirección | Descripción |
+|-----------|-------------|
+| `in/{1-8}` | Amplificadores de entrada (audio como CV) |
+| `bus/{1-8}` | Buses de salida (feedback post-fader) |
+| `osc/{10-12}/sinSaw` | Oscilador — salida sine + sawtooth |
+| `osc/{10-12}/triPul` | Oscilador — salida triangle + pulse |
+| `joy/{L,R}/{y,x}` | Joystick (L=izquierdo, R=derecho) |
+
+#### Destinations (destinos CV — Mayúscula inicial)
+
+| Dirección | Descripción |
+|-----------|-------------|
+| `Out/{1-4}` | Voltage input de canales de salida (mismo bus que Panel 5) |
+| `Freq/{1-12}` | Frecuencia CV de oscilador |
+| `Level/{1-8}` | Control CV del nivel de salida |
+| `Scope/{Y,X}` | Osciloscopio (Y=vertical, X=Lissajous) |
+
+#### Ejemplos
+
+```
+/SynthiGME/cv/joy/L/y/Freq/1            GREY     # Joystick L eje Y → Osc 1 freq CV
+/SynthiGME/cv/osc/10/sinSaw/Freq/3      WHITE    # Osc 10 sin+saw → Osc 3 freq CV
+/SynthiGME/cv/joy/R/x/Level/1           GREEN    # Joystick R eje X → Out 1 level CV
+/SynthiGME/cv/in/1/Out/1                GREY     # Input 1 → Voltage input Out Ch 1
+/SynthiGME/cv/bus/2/Scope/X             RED      # Bus 2 → Osciloscopio X
+/SynthiGME/cv/osc/12/triPul/Level/8     PURPLE   # Osc 12 tri+pulse → Out 8 level CV
+/SynthiGME/cv/joy/L/y/Freq/1            0        # Desconectar
+```
+
+### Valores de conexión (pines)
+
+Las matrices del Synthi 100 usan **pines con resistencias** que determinan la ganancia
+de cada conexión. Cada color de pin corresponde a un valor de resistencia específico
+del sintetizador original de Cuenca (Datanomics 1982).
+
+#### Formato por defecto: color del pin (string)
+
+| Color | Resistencia | Tolerancia | Ganancia (Rf=100kΩ) | Uso típico |
+|-------|------------|------------|---------------------|------------|
+| `WHITE` | 100 kΩ | ±10% | 1.0× | Audio general |
+| `GREY` | 100 kΩ | ±0.5% | 1.0× | CV de precisión (intervalos afinados) |
+| `GREEN` | 68 kΩ | ±10% | 1.47× | Mezcla atenuada |
+| `RED` | 2.7 kΩ | ±10% | 37× | Osciloscopio / señal fuerte |
+| `BLUE` | 10 kΩ | ±10% | 10× | Alta ganancia (legacy Belgrado) |
+| `YELLOW` | 22 kΩ | ±10% | 4.5× | Jumpers / boost de señal |
+| `CYAN` | 250 kΩ | ±10% | 0.4× | Mezcla muy atenuada |
+| `PURPLE` | 1 MΩ | ±10% | 0.1× | Influencia mínima |
+
+> **Nota:** La ganancia se calcula como `Rf / Rpin` donde Rf = 100 kΩ es la resistencia
+> de realimentación estándar del nodo de suma de tierra virtual del Synthi 100.
+> Los valores de tolerancia se aplican opcionalmente para emular las variaciones
+> del hardware real.
+
+#### Desconexión
+
+Enviar `0` (entero o float) como valor desconecta el pin:
+
+```
+/SynthiGME/audio/osc/1/sinSaw/Out/1  0
+```
+
+#### Formato alternativo: ganancia + tolerancia (2 floats)
+
+Configurable en Ajustes > OSC. En lugar de enviar el nombre del color, se envían
+dos valores numéricos: ganancia y tolerancia.
+
+```
+/SynthiGME/audio/osc/1/sinSaw/Out/1  1.0 0.10     # ≈ WHITE (gain=1.0, tol=±10%)
+/SynthiGME/audio/osc/1/sinSaw/Out/1  37.0 0.10    # ≈ RED (gain=37, tol=±10%)
+/SynthiGME/audio/osc/1/sinSaw/Out/1  1.0 0.005    # ≈ GREY (gain=1.0, tol=±0.5%)
+/SynthiGME/audio/osc/1/sinSaw/Out/1  0.1 0.10     # ≈ PURPLE (gain=0.1, tol=±10%)
+```
+
+El receptor siempre acepta ambos formatos:
+- **String** (`WHITE`, `RED`...) → aplica resistencia y tolerancia del color
+- **Float + Float** (ganancia, tolerancia) → aplica directamente; al mostrar en la UI,
+  busca el color más cercano
+- **`0`** → desconecta
+
+#### Alias de coordenadas (compatibilidad)
+
+Para compatibilidad con la implementación original de SuperCollider, el receptor
+también acepta direcciones con coordenadas Synthi (números de serigrafía):
+
+```
+/SynthiGME/audio/91/36   WHITE      # ≡ /audio/osc/1/sinSaw/Out/1 WHITE
+/SynthiGME/cv/117/30     GREY       # ≡ /cv/joy/L/y/Freq/1 GREY
+```
+
+Cuando los dos segmentos tras `audio`/`cv` son numéricos, se resuelven automáticamente
+consultando los blueprints de Panel 5 y Panel 6. El envío siempre usa formato semántico
+por defecto (configurable para enviar coordenadas si se desea compatibilidad SC).
 
 ### 4. Canales de Salida (`/out/{1-8}/...`)
 
@@ -429,18 +562,25 @@ SynthiGME escucha en el grupo multicast `224.0.1.1:57121`:
 // Crear NetAddr para multicast
 ~synthi = NetAddr("224.0.1.1", 57121);
 
-// Ejemplos de control de osciladores
-~synthi.sendMsg('/SynthiGME/osc1/frequency', 5.0);
-~synthi.sendMsg('/SynthiGME/osc1/sinelevel', 7.5);
-~synthi.sendMsg('/SynthiGME/osc1/range', "hi");
-
-// Controlar filtro
-~synthi.sendMsg('/SynthiGME/filter1/frequency', 3.0);
-~synthi.sendMsg('/SynthiGME/filter1/response', 8.0);
-
-// Controlar reverb
+// ─── Control de módulos ───
+~synthi.sendMsg('/SynthiGME/osc/1/frequency', 5.0);
+~synthi.sendMsg('/SynthiGME/osc/1/sinelevel', 7.5);
+~synthi.sendMsg('/SynthiGME/osc/1/range', "hi");
+~synthi.sendMsg('/SynthiGME/filter/2/frequency', 3.0);
 ~synthi.sendMsg('/SynthiGME/reverb/mix', 4.0);
-~synthi.sendMsg('/SynthiGME/reverb/level', 6.0);
+
+// ─── Conexiones en matrices ───
+// Conectar Osc 1 sine+saw → Out 1 con pin blanco
+~synthi.sendMsg('/SynthiGME/audio/osc/1/sinSaw/Out/1', "WHITE");
+
+// Conectar Joystick L eje Y → Osc 1 freq CV con pin gris (precisión)
+~synthi.sendMsg('/SynthiGME/cv/joy/L/y/Freq/1', "GREY");
+
+// Desconectar
+~synthi.sendMsg('/SynthiGME/audio/osc/1/sinSaw/Out/1', 0);
+
+// Alias de coordenadas (compatibilidad con SuperCollider original)
+~synthi.sendMsg('/SynthiGME/audio/91/36', "WHITE");  // ≡ osc/1/sinSaw/Out/1
 ```
 
 #### Automatización desde SC
@@ -454,7 +594,7 @@ fork {
     var freq = 0;
     loop {
         freq = (sin(thisThread.seconds * 0.5) + 1) * 5; // 0-10
-        ~synthi.sendMsg('/SynthiGME/osc1/frequency', freq);
+        ~synthi.sendMsg('/SynthiGME/osc/1/frequency', freq);
         0.05.wait;
     };
 };
@@ -475,14 +615,23 @@ fork {
 Para verificar que la implementación funciona, usar este código en SuperCollider:
 
 ```supercollider
-// Recibir mensajes OSC de SynthiGME-web
+// ─── Test de módulos ───
 OSCdef(\synthiTest, { |msg, time, addr|
     "Recibido: % desde %".format(msg, addr).postln;
 }, '/SynthiGME/osc/1/frequency');
 
-// Enviar mensaje de prueba a SynthiGME-web
 n = NetAddr("224.0.1.1", 57121);
 n.sendMsg('/SynthiGME/osc/1/frequency', 5.0);
+
+// ─── Test de matrices ───
+// Conectar Osc 1 sine+saw → Out 1 con pin blanco
+n.sendMsg('/SynthiGME/audio/osc/1/sinSaw/Out/1', "WHITE");
+
+// Conectar Joystick L eje Y → Osc 1 freq CV con pin gris
+n.sendMsg('/SynthiGME/cv/joy/L/y/Freq/1', "GREY");
+
+// Desconectar
+n.sendMsg('/SynthiGME/audio/osc/1/sinSaw/Out/1', 0);
 ```
 
 ---
@@ -543,6 +692,5 @@ Requiere servidor bridge externo con WebSocket.
 ## Historial de Cambios
 
 | Versión | Fecha | Cambios |
-|---------|-------|---------|
-| 0.2.0 | 2026-02-17 | OSC sync para input amplifiers, output channels, noise generators y joysticks |
+|---------|-------|---------|| 0.3.0 | 2026-02-18 | Nuevo protocolo semántico para matrices (`/audio/`, `/cv/`): direcciones legibles con convención minúsculas→Mayúscula (source→Dest), valores por color de pin con resistencias reales, formato alternativo ganancia+tolerancia, alias de coordenadas Synthi para compatibilidad SC || 0.2.0 | 2026-02-17 | OSC sync para input amplifiers, output channels, noise generators y joysticks |
 | 0.1.0 | 2026-01-27 | Documentación inicial, claves OSC de SuperCollider |

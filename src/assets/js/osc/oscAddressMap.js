@@ -106,20 +106,23 @@ export const MODULE_PARAMETERS = {
     }
   },
 
-  // Patchbay Audio
-  patchA: {
+  // Matriz de audio (Panel 5) — direcciones semánticas
+  // Formato: /audio/{source}/{Dest} {pinColor|0}
+  // Ej: /audio/osc/1/sinSaw/Out/1 WHITE
+  audio: {
     indexed: false,
     parameters: {
-      // Direcciones dinámicas: /patchA/{row}/{col}
-      _dynamic: { type: 'matrix', valueType: 'int', values: [0, 1] }
+      _dynamic: { type: 'matrix', valueType: 'string', values: ['WHITE', 'GREY', 'GREEN', 'RED', 'BLUE', 'YELLOW', 'CYAN', 'PURPLE', 0] }
     }
   },
 
-  // Patchbay Voltage
-  patchV: {
+  // Matriz de control (Panel 6) — direcciones semánticas
+  // Formato: /cv/{source}/{Dest} {pinColor|0}
+  // Ej: /cv/osc/10/sinSaw/Freq/3 GREY
+  cv: {
     indexed: false,
     parameters: {
-      _dynamic: { type: 'matrix', valueType: 'int', values: [0, 1] }
+      _dynamic: { type: 'matrix', valueType: 'string', values: ['WHITE', 'GREY', 'GREEN', 'RED', 'BLUE', 'YELLOW', 'CYAN', 'PURPLE', 0] }
     }
   },
 

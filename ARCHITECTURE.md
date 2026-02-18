@@ -85,7 +85,7 @@ src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta el filtro RC cuando está en posición neutral (|v|<0.02) para ahorrar CPU. **Cadena de bus POST-VCA (Cuenca 1982)**: `busInput → [clipper] → levelNode (VCA) → postVcaNode → filterNode (filtro RC 1er orden) → muteNode → channelGains → out`. El filtro RC (6 dB/oct, fc≈677Hz) se crea de forma diferida tras carga del worklet (`_initFilterNodes()`). El nodo `postVcaNode` es el punto de split para re-entrada a matriz (POST-fader, PRE-filtro, PRE-mute). Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam). Ver sección "Output Channel Signal Chain" para detalles técnicos |
+| `engine.js` | `AudioEngine` gestiona el `AudioContext`, buses de salida (8 lógicos → N físicos), registro de módulos, carga de AudioWorklets, y clase base `Module`. Métodos clave: `setOutputLevel()`, `setOutputPan()`, `setOutputFilter()`, `setOutputRouting()` (ruteo multicanal). Incluye sistema de **Filter Bypass** que desconecta el filtro RC cuando está en posición neutral (|v|<0.02) para ahorrar CPU. **Cadena de bus (Cuenca 1982)**: `busInput → [clipper] → VCA → postVcaNode → filtros → muteNode → [dcBlocker] → dcBlockerOut → channelGains → out`. El filtro RC (6 dB/oct, fc≈677Hz) y el DC blocker (fc=1Hz) se crean de forma diferida tras carga de worklets (`_initFilterNodes()`, `_initDCBlockerNodes()`). El nodo `postVcaNode` es el punto de split para re-entrada a matriz (POST-fader, PRE-filtro, PRE-mute, sin DC blocker). Exporta `AUDIO_CONSTANTS` (tiempos de rampa, threshold de bypass) y `setParamSmooth()` (helper para cambios suaves de AudioParam). Ver sección "Output Channel Signal Chain" para diagrama Mermaid detallado |
 | `blueprintMapper.js` | `compilePanelBlueprintMappings()` extrae filas/columnas ocultas de blueprints de paneles para configurar las matrices |
 | `matrix.js` | Lógica de conexión de pines para matrices pequeñas |
 | `oscillatorState.js` | Estado de osciladores: `getOrCreateOscState()`, `applyOscStateToNode()`. Centraliza valores (freq, niveles, pulseWidth, sineSymmetry) y aplicación a nodos worklet/nativos |
@@ -139,11 +139,112 @@ export class MiModulo extends Module {
 
 La cadena de señal de los Output Channels sigue el diagrama técnico de la versión Cuenca/Datanomics 1982 del Synthi 100. El VCA se posiciona **antes** de los filtros, permitiendo re-entrada POST-fader a la matriz.
 
+```mermaid
+%%{ init: { 'theme': 'base', 'themeVariables': { 'fontSize': '12px' } } }%%
+flowchart LR
+    %% ═══════════════════════════════════════════════════════
+    %% ENTRADA
+    %% ═══════════════════════════════════════════════════════
+    MATRIX["🔲 Matriz de Audio<br/><i>columnas 42-49</i>"]
+    MATRIX --> busInput
+
+    subgraph BUS["Output Channel Bus (×8)"]
+        direction LR
+
+        busInput["busInput<br/><small>GainNode</small>"]
+        clipper["hybridClipShaper<br/><small>WaveShaperNode</small><br/><i>soft-clip ±12V</i>"]
+        levelNode["levelNode<br/><small>GainNode</small><br/><i>VCA CEM 3330</i>"]
+        postVcaNode["postVcaNode<br/><small>GainNode</small><br/><i>SPLIT POINT</i>"]
+
+        busInput -.->|"opcional"| clipper --> levelNode
+        busInput -->|"sin clipper"| levelNode
+        levelNode --> postVcaNode
+    end
+
+    %% ═══════════════════════════════════════════════════════
+    %% CROSSFADE DE FILTROS (post-VCA)
+    %% ═══════════════════════════════════════════════════════
+    subgraph FILTROS["Crossfade de Filtros"]
+        direction LR
+        filterGain["filterGain<br/><small>GainNode</small><br/><i>crossfade</i>"]
+        filterNode["filterNode<br/><small>AudioWorkletNode</small><br/><i>RC 1er orden</i><br/><i>fc≈677Hz, 6dB/oct</i>"]
+        bypassGain["bypassGain<br/><small>GainNode</small><br/><i>crossfade</i>"]
+        
+        filterGain --> filterNode
+    end
+
+    postVcaNode --> filterGain
+    postVcaNode --> bypassGain
+
+    %% ═══════════════════════════════════════════════════════
+    %% MUTE + DC BLOCKER (solo ruta de salida)
+    %% ═══════════════════════════════════════════════════════
+    muteNode["muteNode<br/><small>GainNode</small><br/><i>On/Off</i>"]
+    filterNode --> muteNode
+    bypassGain --> muteNode
+
+    subgraph DCBLOCK["DC Blocker (protección altavoces)"]
+        direction LR
+        dcBlockerWorklet["dcBlockerWorklet<br/><small>AudioWorkletNode</small><br/><i>HPF 1er orden</i><br/><i>fc=1Hz</i>"]
+        dcBlockerOut["dcBlockerOut<br/><small>GainNode</small>"]
+        dcBlockerWorklet --> dcBlockerOut
+    end
+
+    muteNode --> dcBlockerWorklet
+
+    %% ═══════════════════════════════════════════════════════
+    %% SALIDA A ALTAVOCES
+    %% ═══════════════════════════════════════════════════════
+    subgraph SALIDA["Salida a Altavoces 🔊"]
+        direction LR
+        channelGains["channelGains[]<br/><small>GainNode[]</small><br/><i>ruteo multicanal</i>"]
+        stereoPanL["stereoPanL<br/><small>GainNode</small>"]
+        stereoPanR["stereoPanR<br/><small>GainNode</small>"]
+    end
+
+    dcBlockerOut --> channelGains
+    dcBlockerOut --> stereoPanL
+    dcBlockerOut --> stereoPanR
+
+    channelGains --> masterGains["masterGains[]<br/><small>→ audioCtx.destination</small><br/>🔊"]
+    stereoPanL --> stereoBusL["stereoBus.sumL"]
+    stereoPanR --> stereoBusR["stereoBus.sumR"]
+
+    %% ═══════════════════════════════════════════════════════
+    %% RE-ENTRY (sin DC blocker — DC pasa para CV)
+    %% ═══════════════════════════════════════════════════════
+    postVcaNode -->|"RE-ENTRY<br/><i>sin DC blocker</i><br/><i>DC pasa para CV</i>"| REENTRY["🔲 Matriz de Audio<br/><i>filas 75-82</i>"]
+
+    %% ═══════════════════════════════════════════════════════
+    %% CV EXTERNO
+    %% ═══════════════════════════════════════════════════════
+    CVIN["CV externo<br/><i>desde matriz</i>"] -.->|"suma con fader"| levelNode
+
+    %% ═══════════════════════════════════════════════════════
+    %% ESTILOS
+    %% ═══════════════════════════════════════════════════════
+    classDef worklet fill:#4a9eff,stroke:#2a6cb8,color:#fff
+    classDef gain fill:#f5f5f5,stroke:#999,color:#333
+    classDef matrix fill:#ffd700,stroke:#b8960a,color:#333
+    classDef split fill:#ff6b6b,stroke:#c44,color:#fff
+    classDef output fill:#51cf66,stroke:#2b9e3e,color:#fff
+
+    class filterNode,dcBlockerWorklet worklet
+    class busInput,levelNode,muteNode,filterGain,bypassGain,dcBlockerOut,channelGains,stereoPanL,stereoPanR gain
+    class MATRIX,REENTRY,CVIN matrix
+    class postVcaNode split
+    class masterGains output
 ```
-busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterNode (RC worklet) → muteNode → channelGains → out
-                                                       ↓
-                                               (re-entry to matrix)
-                                              rows 75-82 in audio matrix
+
+> **Nota**: El diagrama Mermaid se renderiza automáticamente en GitHub.
+> Para verlo localmente, usar la extensión "Markdown Preview Mermaid Support" de VS Code.
+
+**Resumen de la cadena:**
+
+```
+busInput → [clipper] → VCA → postVcaNode ──→ filterGain → filterNode ─┬→ muteNode → [dcBlocker] → dcBlockerOut → channelGains → 🔊
+                                    │         bypassGain ──────────────┘                              └→ stereoPan → stereoBus
+                                    └──→ RE-ENTRY a matriz (filas 75-82) — DC pasa sin filtrar
 ```
 
 **Nodos clave:**
@@ -151,12 +252,17 @@ busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterNo
 | Nodo | Tipo | Función |
 |------|------|---------|
 | `busInput` | GainNode | Punto de entrada al bus desde la matriz de audio |
-| `hybridClipShaper` | WaveShaperNode | Soft-clip opcional para saturación analógica |
+| `hybridClipShaper` | WaveShaperNode | Soft-clip opcional para saturación analógica (emulación raíles ±12V) |
 | `levelNode` | GainNode | VCA CEM 3330 emulado. Control de nivel del canal |
-| `postVcaNode` | GainNode | Split point para re-entrada a matriz. POST-VCA, PRE-filtro, PRE-mute |
-| `filterNode` | AudioWorkletNode | Filtro RC pasivo 1er orden (plano D100-08 C1). LP fc≈677Hz / plano 0dB / HP shelf +6dB. Pendiente 6 dB/oct, bypass automático cuando |v|<0.02 |
+| `postVcaNode` | GainNode | **Split point** para re-entrada a matriz. POST-VCA, PRE-filtro, PRE-mute. Las señales DC pasan sin filtrar |
+| `filterGain` | GainNode | Crossfade: ganancia de la ruta con filtro (0=bypass, 1=activo) |
+| `bypassGain` | GainNode | Crossfade: ganancia de la ruta directa (1=bypass, 0=filtro activo) |
+| `filterNode` | AudioWorkletNode | Filtro RC pasivo 1er orden (plano D100-08 C1). LP fc≈677Hz / plano 0dB / HP shelf +6dB. 6 dB/oct |
 | `muteNode` | GainNode | Switch On/Off del canal. Solo afecta salida externa |
-| `channelGains` | GainNode[] | Routing a salidas físicas (pan, stereo buses) |
+| `dcBlockerWorklet` | AudioWorkletNode | DC blocker 1er orden (fc=1Hz). Protege altavoces. Solo ruta de salida, NO re-entry |
+| `dcBlockerOut` | GainNode | Passthrough post-DC-blocker. Alimenta channelGains y stereoPan |
+| `channelGains` | GainNode[] | Routing a salidas físicas (multicanal) |
+| `stereoPanL/R` | GainNode | Pan estéreo (ley de igual potencia) hacia stereo buses |
 
 **VCA CEM 3330:**
 - Sensibilidad logarítmica: 10 dB/V
@@ -182,9 +288,10 @@ busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → filterNo
 
 **Re-entrada a matriz:**
 - El nodo `postVcaNode` es la fuente para las filas 75-82 de la matriz de audio
-- **DC Blocker de 0.01Hz**: filtro highpass muy bajo (período ~100s) para eliminar offset DC estático sin afectar CV de frecuencias muy bajas (LFOs lentos, envolventes largas)
+- **Sin DC blocker**: la re-entry NO pasa por el DC blocker. Las señales DC legítimas (joystick, voltajes de control) llegan intactas a la matriz para su uso como CV
+- El **DC blocker** (fc=1Hz) solo actúa en la ruta de **salida a altavoces** (entre `muteNode` y `channelGains`), protegiendo contra DC sin afectar la re-entry
 - Permite encadenar canales de salida (feedback, routing creativo)
-- La señal de re-entrada es POST-VCA pero PRE-mute, permitiendo silenciar la salida externa sin afectar el routing interno
+- La señal de re-entrada es POST-VCA pero PRE-filtro y PRE-mute, permitiendo silenciar la salida externa sin afectar el routing interno
 
 **Inicialización:**
 - Los switches On/Off se sincronizan con el engine en `app.js → engine.start()` wrapper

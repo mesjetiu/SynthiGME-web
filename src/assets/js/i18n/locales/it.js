@@ -418,6 +418,7 @@ export default {
   "matrix.source.noiseGen": "Rumore {index}",
   "matrix.source.panel3Osc.sineSaw": "Osc {osc} (sin+saw)",
   "matrix.source.panel3Osc.triPulse": "Osc {osc} (tri+pul)",
+  "matrix.source.joystick": "Joystick {side} {axis}",
   "matrix.dest.outputBus": "Uscita {bus}",
   "matrix.dest.oscilloscope.Y": "Scope Y",
   "matrix.dest.oscilloscope.X": "Scope X",

@@ -3807,6 +3807,15 @@ matrix.source.panel3Osc.triPulse:
   pt: Osc {osc} (tri+pul)
   cs: Osc {osc} (tri+pul)
 
+matrix.source.joystick:
+  en: "Joystick {side} {axis}"
+  es: "Joystick {side} {axis}"
+  fr: "Joystick {side} {axis}"
+  de: "Joystick {side} {axis}"
+  it: "Joystick {side} {axis}"
+  pt: "Joystick {side} {axis}"
+  cs: "Joystick {side} {axis}"
+
 # Destinations (columns)
 matrix.dest.outputBus:
   en: "Out {bus}"

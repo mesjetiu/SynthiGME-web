@@ -56,6 +56,7 @@ import { registerTooltipHideCallback, hideOtherTooltips } from './tooltipManager
  * - outputBus:  { kind: 'outputBus', bus: 1-8 }        → "Out Bus 1"
  * - noiseGen:   { kind: 'noiseGen', index: 0-1 }       → "Noise 1"
  * - panel3Osc:  { kind: 'panel3Osc', oscIndex: 0-11, channelId: 'sineSaw'|'triPulse' } → "Osc 1 (sin+saw)"
+ * - joystick:   { kind: 'joystick', side: 'left'|'right', axis: 'x'|'y' } → "Joystick L Y"
  */
 export function getLabelForSource(source) {
   if (!source || !source.kind) return null;
@@ -81,6 +82,13 @@ export function getLabelForSource(source) {
         ? 'matrix.source.panel3Osc.triPulse' 
         : 'matrix.source.panel3Osc.sineSaw';
       return t(key, { osc: oscNum });
+    }
+    
+    case 'joystick': {
+      // side: 'left' | 'right', axis: 'x' | 'y'
+      const sideKey = source.side === 'right' ? 'R' : 'L';
+      const axisKey = (source.axis || 'y').toUpperCase();
+      return t('matrix.source.joystick', { side: sideKey, axis: axisKey });
     }
     
     default:

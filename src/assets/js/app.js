@@ -1113,6 +1113,8 @@ class App {
       handleGrabbed = false;
       pointerActive = false;
       refreshPadGlow();
+      // Notificar interacción al soltar (una vez por gesto, para undo/redo)
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
       // Si el timer de tooltip estaba pendiente (tap rápido), mostrar ahora
       const tooltipWasPending = !!padTooltipDelayTimer;
       if (padTooltipDelayTimer) {

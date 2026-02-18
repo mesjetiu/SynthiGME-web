@@ -241,7 +241,6 @@ export class OutputChannel extends Module {
           if (!outputChannelOSCSync.shouldIgnoreOSC()) {
             outputChannelOSCSync.sendFilterChange(this.channelIndex, value);
           }
-          document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
       });
     }
@@ -266,7 +265,6 @@ export class OutputChannel extends Module {
           if (!outputChannelOSCSync.shouldIgnoreOSC()) {
             outputChannelOSCSync.sendPanChange(this.channelIndex, value);
           }
-          document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
       });
     }
@@ -409,7 +407,6 @@ export class OutputChannel extends Module {
       if (!outputChannelOSCSync.shouldIgnoreOSC()) {
         outputChannelOSCSync.sendLevelChange(this.channelIndex, dialValue);
       }
-      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     };
     
     // ─────────────────────────────────────────────────────────────────────
@@ -447,6 +444,8 @@ export class OutputChannel extends Module {
     });
     
     slider.addEventListener('pointerup', () => {
+      // Notificar interacción al soltar (una vez por gesto, no durante drag)
+      document.dispatchEvent(new CustomEvent('synth:userInteraction'));
       // Si el timer de tooltip estaba pendiente (tap rápido), mostrar ahora
       const tooltipWasPending = !!this._sliderTooltipDelayTimer;
       if (this._sliderTooltipDelayTimer) {

@@ -8,7 +8,7 @@
  * Problema reportado: OC1 → OC2 → OC3 amplifica progresivamente
  * cuando todos los faders están a 10 y pines GREY (100k).
  * 
- * Cadena actual (sin DC blocker, eliminado en commit e6cb5b3):
+ * Cadena actual (DC blocker solo en salida a altavoces, NO en re-entry):
  *   OSC → OC1.input → VCA(gain=1.0) → postVcaNode
  *                                          ↓
  *   matrixPin(gain=1.0) ← ────────────────┘

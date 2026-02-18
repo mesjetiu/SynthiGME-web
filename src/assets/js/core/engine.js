@@ -319,11 +319,12 @@ export class AudioEngine {
       // ─────────────────────────────────────────────────────────────────────
       // busInput → [hybridClipShaper] → levelNode (VCA) → postVcaNode → ...
       //                                                        │
-      //                                                        ├─→ filterGain → filterNode (RC worklet) ─┬─→ muteNode → out
+      //                                                        ├─→ filterGain → filterNode (RC worklet) ─┬─→ muteNode → [dcBlocker] → dcBlockerOut → channelGains → 🔊
       //                                                        └─→ bypassGain ──────────────────────────┘
-      //                                                        └─→ (re-entry a matriz - disponible)
+      //                                                        └─→ (re-entry a matriz - señal directa, DC pasa)
       //
       // FILTER BYPASS: crossfade entre filterGain y bypassGain
+      // DC BLOCKER: solo en salida a altavoces, re-entry NO lo atraviesa
       // ─────────────────────────────────────────────────────────────────────
       const filterDialValue = this.outputFilters[i];
       const filterBipolar = filterDialValue / 5;  // Convertir dial (-5 a 5) a bipolar (-1/+1)
@@ -362,6 +363,20 @@ export class AudioEngine {
       postVcaNode.connect(bypassGain);
       bypassGain.connect(muteNode);
 
+      // ─────────────────────────────────────────────────────────────────────
+      // DC BLOCKER OUTPUT: Protección de altavoces (SOLO ruta de salida)
+      // ─────────────────────────────────────────────────────────────────────
+      // Nodo passthrough que será reemplazado por el AudioWorklet dcBlocker
+      // una vez cargado (_initDCBlockerNodes). Cadena final:
+      //   muteNode → dcBlockerWorklet → dcBlockerOut → channelGains → 🔊
+      //
+      // IMPORTANTE: La re-entry (postVcaNode → matriz) NO pasa por aquí.
+      // Las señales DC legítimas (CV, joystick) llegan intactas a la matriz.
+      // ─────────────────────────────────────────────────────────────────────
+      const dcBlockerOut = ctx.createGain();
+      dcBlockerOut.gain.value = 1.0;
+      muteNode.connect(dcBlockerOut);  // Passthrough temporal hasta _initDCBlockerNodes
+
       // Crear nodos de ganancia para cada canal físico (ruteo multicanal)
       const channelGains = [];
       for (let ch = 0; ch < initialChannels; ch++) {
@@ -369,7 +384,7 @@ export class AudioEngine {
         // Usar valor de la matriz de ruteo
         const routingValue = this._outputRoutingMatrix[i]?.[ch] ?? 0;
         gainNode.gain.value = routingValue;
-        muteNode.connect(gainNode);
+        dcBlockerOut.connect(gainNode);
         gainNode.connect(this.masterGains[ch]);
         channelGains.push(gainNode);
       }
@@ -385,6 +400,8 @@ export class AudioEngine {
         bypassGain, // Ganancia para crossfade suave de bypass
         filterNode, // Filtro RC pasivo (AudioWorklet, 1er orden 6 dB/oct, fc≈677Hz, LP↔plano↔HP shelf)
         muteNode,   // Mute (para on/off del canal)
+        dcBlockerOut, // GainNode post-DC-blocker para salida a altavoces (passthrough hasta worklet init)
+        dcBlockerWorklet: null, // AudioWorkletNode DC blocker (se crea en _initDCBlockerNodes)
         panLeft: channelGains[0] || null,
         panRight: channelGains[1] || null,
         channelGains, // Array completo de ganancias por canal
@@ -1122,9 +1139,10 @@ export class AudioEngine {
       bus.stereoPanL = ctx.createGain();
       bus.stereoPanR = ctx.createGain();
       
-      // Conectar desde muteNode a los nodos de pan (después de mute, no de level)
-      bus.muteNode.connect(bus.stereoPanL);
-      bus.muteNode.connect(bus.stereoPanR);
+      // Conectar desde dcBlockerOut a los nodos de pan (después de DC blocker)
+      // La cadena es: muteNode → [dcBlocker] → dcBlockerOut → stereoPan
+      bus.dcBlockerOut.connect(bus.stereoPanL);
+      bus.dcBlockerOut.connect(bus.stereoPanR);
       
       // Conectar nodos de pan a los sumadores del stereo bus
       bus.stereoPanL.connect(stereoBus.sumL);
@@ -1592,10 +1610,10 @@ export class AudioEngine {
         const routingValue = this._outputRoutingMatrix?.[busIndex]?.[ch] ?? 0;
         gainNode.gain.value = routingValue;
         
-        // Conectar: muteNode → channelGain → masterGain del canal
-        // La cadena completa es: input → [clipper] → VCA → postVca → filtros → muteNode
-        // Los channelGains van DESPUÉS del muteNode (final de la cadena)
-        bus.muteNode.connect(gainNode);
+        // Conectar: dcBlockerOut → channelGain → masterGain del canal
+        // La cadena completa es: input → [clipper] → VCA → postVca → filtros → muteNode → [dcBlocker] → dcBlockerOut
+        // Los channelGains van DESPUÉS del dcBlockerOut (final de la cadena)
+        bus.dcBlockerOut.connect(gainNode);
         gainNode.connect(this.masterGains[ch]);
         
         bus.channelGains.push(gainNode);
@@ -1783,7 +1801,8 @@ export class AudioEngine {
           './assets/js/worklets/cvThermalSlew.worklet.js',
           './assets/js/worklets/cvSoftClip.worklet.js',
           './assets/js/worklets/vcaProcessor.worklet.js',
-          './assets/js/worklets/outputFilter.worklet.js'
+          './assets/js/worklets/outputFilter.worklet.js',
+          './assets/js/worklets/dcBlocker.worklet.js'
         ];
         
         await Promise.all(
@@ -1795,6 +1814,7 @@ export class AudioEngine {
         
         // Crear nodos AudioWorklet ahora que los módulos están disponibles
         this._initFilterNodes();
+        this._initDCBlockerNodes();
       } catch (err) {
         log.error('Failed to load worklet:', err);
         this.workletReady = false;
@@ -1861,7 +1881,54 @@ export class AudioEngine {
     }
   }
 
-
+  /**
+   * Crea e inserta los AudioWorkletNode de DC blocker en todos los buses.
+   * Se llama automáticamente desde _loadWorklet() tras cargar el módulo.
+   * 
+   * Reemplaza la conexión temporal muteNode → dcBlockerOut (passthrough)
+   * por la cadena real: muteNode → dcBlockerWorklet → dcBlockerOut
+   * 
+   * El dcBlocker implementa un filtro paso-alto de 1er orden que elimina
+   * componentes DC en la ruta hacia altavoces. La re-entry (postVcaNode)
+   * NO pasa por este filtro, preservando señales DC legítimas para CV.
+   * 
+   * fc se lee de outputChannel.config.js (audio.dcBlocker.cutoffFrequency).
+   * 
+   * @private
+   */
+  _initDCBlockerNodes() {
+    const ctx = this.audioCtx;
+    if (!ctx || !this.outputBuses.length) return;
+    
+    const dcBlockerConfig = outputChannelConfig.audio.dcBlocker;
+    
+    for (let i = 0; i < this.outputBuses.length; i++) {
+      const bus = this.outputBuses[i];
+      if (!bus || bus.dcBlockerWorklet) continue;  // Ya inicializado
+      
+      try {
+        const dcBlockerWorklet = new AudioWorkletNode(ctx, 'dc-blocker', {
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          parameterData: {
+            cutoffFrequency: dcBlockerConfig.cutoffFrequency
+          }
+        });
+        attachProcessorErrorHandler(dcBlockerWorklet, `dc-blocker[bus ${i}]`);
+        
+        // Desconectar passthrough temporal: muteNode → dcBlockerOut
+        bus.muteNode.disconnect(bus.dcBlockerOut);
+        
+        // Insertar dcBlockerWorklet en la cadena: muteNode → dcBlockerWorklet → dcBlockerOut
+        bus.muteNode.connect(dcBlockerWorklet);
+        dcBlockerWorklet.connect(bus.dcBlockerOut);
+        
+        bus.dcBlockerWorklet = dcBlockerWorklet;
+      } catch (err) {
+        log.error(`Failed to create DC blocker node for bus ${i}:`, err);
+      }
+    }
+  }
 
   /**
    * Espera a que el worklet esté listo antes de crear nodos.

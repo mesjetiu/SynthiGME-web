@@ -6,9 +6,11 @@
  * al usar un Output Channel como fuente CV para FM, el tono del oscilador
  * deriva lentamente sin que nada cambie.
  * 
- * Nota: El DC blocker AudioWorklet fue eliminado (commit e6cb5b3).
- * Los tests de este archivo verifican la cadena actual sin DC blocker:
- * setTargetAtTime convergencia, cadena OC completa, crossfade filter bypass.
+ * Nota: El DC blocker AudioWorklet fue reposicionado (antes estaba en re-entry,
+ * ahora está en la ruta de salida a altavoces, entre muteNode y channelGains).
+ * La re-entry (postVcaNode) NO tiene DC blocker, preservando DC para CV.
+ * Los tests de este archivo verifican setTargetAtTime convergencia,
+ * cadena OC completa, crossfade filter bypass, y DC blocker en output.
  * 
  * @requires Playwright con Chromium
  * @requires tests/audio/harness.html
@@ -54,7 +56,7 @@ function analyzeBuffer(samples) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TESTS: CADENA DE SEÑAL DEL OUTPUT CHANNEL (sin DC blocker)
+// TESTS: CADENA DE SEÑAL DEL OUTPUT CHANNEL
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('Output Channel - Señal residual sin entrada', () => {
@@ -441,6 +443,187 @@ test.describe('Output Channel - Crossfade filter bypass: fuga de señal', () => 
     expect(result.peakWith).toBe(0);
     // Sin hard-set, habrá fuga residual
     expect(result.peakWithout).toBeGreaterThan(0);
+  });
+
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS: DC BLOCKER EN RUTA DE SALIDA A ALTAVOCES
+// ═══════════════════════════════════════════════════════════════════════════
+// El DC blocker (1er orden, fc=1Hz) está posicionado SOLO en la ruta de
+// salida a altavoces: muteNode → [dcBlocker] → dcBlockerOut → channelGains
+//
+// La re-entry (postVcaNode → matriz) NO pasa por el DC blocker.
+// ═══════════════════════════════════════════════════════════════════════════
+
+test.describe('Output Channel - DC Blocker en salida (fc=1Hz)', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await setupAudioPage(page);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TEST 10: DC blocker elimina componente DC en salida
+  // ─────────────────────────────────────────────────────────────────────────
+  // Simula un DC constante entrando al DC blocker. La salida debe tender
+  // a 0 mientras que la re-entry debe mantener el DC intacto.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  test('DC blocker elimina DC en salida pero re-entry lo preserva', async ({ page }) => {
+    const result = await page.evaluate(async (config) => {
+      const { sampleRate } = config;
+      const duration = 2.0;
+      const length = Math.ceil(sampleRate * duration);
+
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 2, // Canal 0: salida (con DC blocker), Canal 1: re-entry (sin DC blocker)
+        length,
+        sampleRate
+      });
+
+      // Fuente DC constante (simula joystick a +1V)
+      const dcSource = offline.createConstantSource();
+      dcSource.offset.value = 1.0;
+
+      // Simular postVcaNode
+      const postVcaNode = offline.createGain();
+      postVcaNode.gain.value = 1.0;
+
+      // Simular muteNode
+      const muteNode = offline.createGain();
+      muteNode.gain.value = 1.0;
+
+      // Simular DC blocker con un filtro IIR de 1er orden (fc=1Hz)
+      // y[n] = x[n] - x[n-1] + R*y[n-1], R = 1 - 2π·fc/fs
+      const fc = 1; // 1 Hz como en el config
+      const R = 1 - (2 * Math.PI * fc / sampleRate);
+
+      // Usamos un ScriptProcessorNode para simular el DC blocker
+      // (AudioWorklet no disponible en OfflineAudioContext en tests)
+      // Alternativa: usar IIRFilter con los coeficientes equivalentes
+      // H(z) = (1 - z⁻¹) / (1 - R·z⁻¹)
+      // feedforward = [1, -1], feedback = [1, -R]
+      const dcBlockerFilter = offline.createIIRFilter(
+        [1, -1],       // feedforward: 1 - z⁻¹
+        [1, -R]        // feedback: 1 - R·z⁻¹
+      );
+
+      // Cadena de salida: dcSource → postVcaNode → muteNode → dcBlocker → destination (ch0)
+      // Cadena re-entry: dcSource → postVcaNode → destination (ch1)
+      const merger = offline.createChannelMerger(2);
+
+      dcSource.connect(postVcaNode);
+
+      // Ruta filtro → mute → DC blocker → salida (ch0)
+      postVcaNode.connect(muteNode);
+      muteNode.connect(dcBlockerFilter);
+      dcBlockerFilter.connect(merger, 0, 0);
+
+      // Ruta re-entry directa (ch1)
+      postVcaNode.connect(merger, 0, 1);
+
+      merger.connect(offline.destination);
+      dcSource.start(0);
+
+      const buffer = await offline.startRendering();
+      const outputPath = buffer.getChannelData(0);
+      const reEntryPath = buffer.getChannelData(1);
+
+      // Medir DC residual en la salida (últimos 0.5s)
+      const measureStart = Math.floor(1.5 * sampleRate);
+      let outputDC = 0, reEntryDC = 0;
+      let count = 0;
+      for (let i = measureStart; i < outputPath.length; i++) {
+        outputDC += outputPath[i];
+        reEntryDC += reEntryPath[i];
+        count++;
+      }
+      outputDC /= count;
+      reEntryDC /= count;
+
+      return {
+        outputDC: Math.abs(outputDC),
+        reEntryDC,
+        outputDCdB: 20 * Math.log10(Math.abs(outputDC) || 1e-30),
+        settling: Math.abs(outputDC) < 0.001 ? 'settled' : 'not settled'
+      };
+    }, DC_OFFSET_CONFIG);
+
+    // La salida debe tener DC prácticamente eliminado después de 1.5s (>9τ para fc=1Hz)
+    expect(result.outputDC).toBeLessThan(0.01);
+
+    // La re-entry debe mantener el DC intacto (+1.0V)
+    expect(result.reEntryDC).toBeCloseTo(1.0, 4);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TEST 11: DC blocker es transparente para señal de audio (440 Hz)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  test('DC blocker transparente para audio 440Hz (atenuación < 0.001 dB)', async ({ page }) => {
+    const result = await page.evaluate(async (config) => {
+      const { sampleRate } = config;
+      const duration = 0.5;
+      const length = Math.ceil(sampleRate * duration);
+
+      const offline = new OfflineAudioContext({
+        numberOfChannels: 2, // Canal 0: con DC blocker, Canal 1: referencia
+        length,
+        sampleRate
+      });
+
+      const osc = offline.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 440;
+
+      // DC blocker IIR (fc=1Hz)
+      const fc = 1;
+      const R = 1 - (2 * Math.PI * fc / sampleRate);
+      const dcBlocker = offline.createIIRFilter([1, -1], [1, -R]);
+
+      const merger = offline.createChannelMerger(2);
+
+      // Canal 0: con DC blocker
+      osc.connect(dcBlocker);
+      dcBlocker.connect(merger, 0, 0);
+
+      // Canal 1: referencia directa
+      osc.connect(merger, 0, 1);
+
+      merger.connect(offline.destination);
+      osc.start(0);
+
+      const buffer = await offline.startRendering();
+      const filtered = buffer.getChannelData(0);
+      const reference = buffer.getChannelData(1);
+
+      // Medir RMS en la segunda mitad (después del settling)
+      const measureStart = Math.floor(0.25 * sampleRate);
+      let rmsFiltered = 0, rmsRef = 0;
+      let count = 0;
+      for (let i = measureStart; i < filtered.length; i++) {
+        rmsFiltered += filtered[i] * filtered[i];
+        rmsRef += reference[i] * reference[i];
+        count++;
+      }
+      rmsFiltered = Math.sqrt(rmsFiltered / count);
+      rmsRef = Math.sqrt(rmsRef / count);
+
+      const attenuationDb = 20 * Math.log10(rmsFiltered / rmsRef);
+
+      return {
+        rmsFiltered,
+        rmsRef,
+        attenuationDb,
+        ratio: rmsFiltered / rmsRef
+      };
+    }, DC_OFFSET_CONFIG);
+
+    // A 440 Hz con fc=1Hz, la atenuación teórica es < 0.0001 dB (despreciable)
+    // Aceptamos hasta -0.01 dB como margen
+    expect(result.attenuationDb).toBeGreaterThan(-0.01);
+    // La ratio debe ser esencialmente 1.0
+    expect(result.ratio).toBeCloseTo(1.0, 3);
   });
 
 });

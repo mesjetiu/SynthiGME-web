@@ -1,24 +1,28 @@
 /**
- * Tests de regresión: eliminación del DC blocker en el Output Channel
+ * Tests de regresión: DC blocker reposicionado en el Output Channel
  * 
- * Bug original: El DC blocker (AudioWorklet de 1er orden, fc=0.01Hz) en la
- * ruta de re-entry del Output Channel filtraba señales DC legítimas
+ * Bug original: El DC blocker (AudioWorklet de 1er orden, fc=0.01Hz) estaba
+ * en la ruta de re-entry del Output Channel, filtrando señales DC legítimas
  * (joystick, voltajes de control estáticos), haciéndolas tender a 0V.
  * 
- * Fix (commit c198033): Se eliminó el DC blocker completamente.
- * Refactor: Se eliminó el alias dcBlocker → postVcaNode, el archivo
- * dcBlocker.worklet.js y todas las referencias. El punto de re-entry
- * es ahora directamente postVcaNode, sin indirección.
+ * Fix: El DC blocker se reposicionó a la ruta de SALIDA a altavoces
+ * (entre muteNode y channelGains). La re-entry (postVcaNode → matriz)
+ * ya NO pasa por el DC blocker, preservando señales DC para CV.
+ * 
+ * Arquitectura actual:
+ *   postVcaNode → filtros → muteNode → [dcBlocker] → dcBlockerOut → channelGains → 🔊
+ *   postVcaNode → re-entry a matriz (SIN DC blocker, DC pasa)
+ * 
+ * fc = 1 Hz (configurable en outputChannel.config.js)
  * 
  * Estos tests verifican que:
- * 1. No existe ningún rastro de DC blocker en engine.js
- * 2. app.js usa postVcaNode directamente para re-entry (no dcBlocker)
- * 3. postVcaNode está correctamente conectado en la cadena de señal
- * 4. El archivo dcBlocker.worklet.js no existe
+ * 1. El DC blocker existe en la ruta de salida (engine.js)
+ * 2. La re-entry usa postVcaNode directamente (sin DC blocker)
+ * 3. app.js NO contiene dcBlocker (solo engine.js lo gestiona)
+ * 4. El worklet dcBlocker.worklet.js existe
+ * 5. La configuración fc está en outputChannel.config.js
  * 
  * Método: análisis estático del código fuente (no requiere AudioContext ni DOM).
- * 
- * @see commit c198033 - fix(output-channel): eliminar DC blocker
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,76 +37,86 @@ const engineSource = readFileSync(resolve(ROOT, 'src/assets/js/core/engine.js'),
 const appSource = readFileSync(resolve(ROOT, 'src/assets/js/app.js'), 'utf-8');
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 1. ENGINE.JS: NO DEBE EXISTIR NINGÚN RASTRO DE DC BLOCKER
+// 1. ENGINE.JS: DC BLOCKER EN RUTA DE SALIDA A ALTAVOCES
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Engine: sin DC blocker ni alias', () => {
+describe('Engine: DC blocker en ruta de salida (no en re-entry)', () => {
 
-  it('no existe variable dcBlocker (ni alias ni nodo separado)', () => {
-    const dcBlockerVar = /\bconst dcBlocker\b/;
+  it('existe dcBlockerOut en el objeto bus', () => {
     assert.ok(
-      !dcBlockerVar.test(engineSource),
-      'No debe existir ninguna variable dcBlocker en engine.js.\n' +
-      'El punto de re-entry es postVcaNode directamente.'
+      engineSource.includes('dcBlockerOut'),
+      'El bus debe tener dcBlockerOut como nodo de salida post-DC-blocker.'
     );
   });
 
-  it('no existe propiedad dcBlocker en el objeto bus', () => {
-    const dcBlockerProp = /\bdcBlocker[,:\s]/;
+  it('existe dcBlockerWorklet en el objeto bus', () => {
     assert.ok(
-      !dcBlockerProp.test(engineSource),
-      'El objeto bus no debe tener propiedad dcBlocker.\n' +
-      'La re-entry usa postVcaNode directamente.'
+      engineSource.includes('dcBlockerWorklet'),
+      'El bus debe tener dcBlockerWorklet para el AudioWorklet de DC blocking.'
     );
   });
 
-  it('no existe dcBlockerWorklet en el bus', () => {
+  it('existe la función _initDCBlockerNodes', () => {
     assert.ok(
-      !engineSource.includes('dcBlockerWorklet'),
-      'No debe existir dcBlockerWorklet en engine.js.'
+      engineSource.includes('_initDCBlockerNodes'),
+      '_initDCBlockerNodes debe existir para crear los worklets de DC blocker.'
     );
   });
 
-  it('no existe la función _initDCBlockerNodes', () => {
-    assert.ok(
-      !engineSource.includes('_initDCBlockerNodes'),
-      '_initDCBlockerNodes no debe existir.'
-    );
-  });
-
-  it('no se crea AudioWorkletNode dc-blocker', () => {
+  it('se crea AudioWorkletNode dc-blocker', () => {
     const workletNode = /new AudioWorkletNode\([^)]*'dc-blocker'/;
     assert.ok(
-      !workletNode.test(engineSource),
-      'No debe crearse AudioWorkletNode dc-blocker.'
+      workletNode.test(engineSource),
+      'Debe crearse AudioWorkletNode dc-blocker para la ruta de salida.'
     );
   });
 
-  it('dcBlocker.worklet.js no está en la lista de worklets a cargar', () => {
+  it('dcBlocker.worklet.js está en la lista de worklets a cargar', () => {
     assert.ok(
-      !engineSource.includes('dcBlocker.worklet.js'),
-      'dcBlocker.worklet.js no debe estar en la lista de worklets.'
+      engineSource.includes('dcBlocker.worklet.js'),
+      'dcBlocker.worklet.js debe estar en la lista de worklets a cargar.'
     );
   });
 
-  it('no hay parámetros del DC blocker (cutoffFrequency 0.01)', () => {
+  it('muteNode conecta a dcBlockerOut (cadena de salida)', () => {
+    assert.ok(
+      engineSource.includes('muteNode.connect(dcBlockerOut)'),
+      'Debe existir muteNode.connect(dcBlockerOut) en la cadena de salida.'
+    );
+  });
+
+  it('dcBlockerOut conecta a channelGains (no muteNode directamente)', () => {
+    assert.ok(
+      engineSource.includes('dcBlockerOut.connect(gainNode)'),
+      'Debe existir dcBlockerOut.connect(gainNode) para los channelGains.'
+    );
+  });
+
+  it('dcBlockerOut conecta a stereoPan (no muteNode directamente)', () => {
+    assert.ok(
+      engineSource.includes('bus.dcBlockerOut.connect(bus.stereoPanL)'),
+      'Debe existir bus.dcBlockerOut.connect(bus.stereoPanL) para stereo buses.'
+    );
+  });
+
+  it('no hay fc=0.01 Hz antiguo del DC blocker original', () => {
     assert.ok(
       !/cutoffFrequency:\s*0\.01/.test(engineSource),
-      'No debe haber cutoffFrequency: 0.01 (parámetro del DC blocker eliminado).'
+      'No debe haber cutoffFrequency: 0.01 (valor antiguo del DC blocker original).'
     );
   });
 
-  it('no hay parámetros del DC blocker (silenceThreshold, silenceTimeMs)', () => {
+  it('no hay parámetros obsoletos del DC blocker v1 (silenceThreshold, silenceTimeMs)', () => {
     assert.ok(!engineSource.includes('silenceThreshold'), 'No debe haber silenceThreshold.');
     assert.ok(!engineSource.includes('silenceTimeMs'), 'No debe haber silenceTimeMs.');
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 2. ENGINE.JS: postVcaNode COMO PUNTO DIRECTO DE RE-ENTRY
+// 2. ENGINE.JS: RE-ENTRY USA postVcaNode (SIN DC BLOCKER)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Engine: postVcaNode es el punto directo de re-entry', () => {
+describe('Engine: postVcaNode es el punto directo de re-entry (sin DC blocker)', () => {
 
   it('postVcaNode está expuesto en el objeto bus', () => {
     const busProp = /postVcaNode,?\s*\/\//;
@@ -133,24 +147,18 @@ describe('Engine: postVcaNode es el punto directo de re-entry', () => {
     );
   });
 
-  it('no existe desconexión postVcaNode → dcBlocker', () => {
-    assert.ok(
-      !/postVcaNode\.disconnect\(.*dcBlocker\)/.test(engineSource),
-      'No debe haber disconnect de postVcaNode a dcBlocker.'
-    );
-  });
-
-  it('documenta la ausencia del DC blocker', () => {
-    assert.ok(
-      engineSource.includes('sin DC blocker') || engineSource.includes('sin filtro DC'),
-      'Debe documentar explícitamente que no hay DC blocker en la ruta.'
-    );
-  });
-
-  it('documenta que señales DC legítimas deben pasar', () => {
+  it('documenta que señales DC legítimas pasan por re-entry', () => {
     assert.ok(
       engineSource.includes('DC') && engineSource.includes('legítimas'),
-      'Debe documentar que las señales DC legítimas pasan sin modificación.'
+      'Debe documentar que las señales DC legítimas pasan sin modificación por re-entry.'
+    );
+  });
+
+  it('documenta que el DC blocker NO está en la re-entry', () => {
+    assert.ok(
+      engineSource.includes('re-entry') &&
+      (engineSource.includes('sin DC blocker') || engineSource.includes('NO pasa por')),
+      'Debe documentar que el DC blocker no está en la ruta de re-entry.'
     );
   });
 });
@@ -165,7 +173,7 @@ describe('App: re-entry usa postVcaNode directamente (no dcBlocker)', () => {
     assert.ok(
       !appSource.includes('dcBlocker'),
       'app.js no debe contener ninguna referencia a dcBlocker.\n' +
-      'La re-entry debe usar busData.postVcaNode.'
+      'La re-entry debe usar busData.postVcaNode. El DC blocker es interno a engine.js.'
     );
   });
 
@@ -185,17 +193,62 @@ describe('App: re-entry usa postVcaNode directamente (no dcBlocker)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 4. WORKLET: ARCHIVO ELIMINADO
+// 4. WORKLET: ARCHIVO EXISTE
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Worklet dcBlocker.worklet.js eliminado', () => {
+describe('Worklet dcBlocker.worklet.js existe', () => {
 
-  it('el archivo dcBlocker.worklet.js no existe en src', () => {
+  it('el archivo dcBlocker.worklet.js existe en src', () => {
     const workletPath = resolve(ROOT, 'src/assets/js/worklets/dcBlocker.worklet.js');
     assert.ok(
-      !existsSync(workletPath),
-      'El archivo dcBlocker.worklet.js no debe existir en src/assets/js/worklets/.\n' +
-      'Ya no se usa y debe eliminarse para evitar confusión.'
+      existsSync(workletPath),
+      'El archivo dcBlocker.worklet.js debe existir en src/assets/js/worklets/.\n' +
+      'Es necesario para el DC blocker en la ruta de salida a altavoces.'
+    );
+  });
+
+  it('el worklet registra el procesador dc-blocker', () => {
+    const workletSource = readFileSync(
+      resolve(ROOT, 'src/assets/js/worklets/dcBlocker.worklet.js'), 'utf-8'
+    );
+    assert.ok(
+      workletSource.includes("registerProcessor('dc-blocker'"),
+      'El worklet debe registrar el procesador como dc-blocker.'
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 5. CONFIG: fc CONFIGURABLE EN outputChannel.config.js
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Config: DC blocker fc configurable en outputChannel.config.js', () => {
+
+  it('outputChannel.config.js contiene sección dcBlocker', () => {
+    const configSource = readFileSync(
+      resolve(ROOT, 'src/assets/js/configs/modules/outputChannel.config.js'), 'utf-8'
+    );
+    assert.ok(
+      configSource.includes('dcBlocker'),
+      'outputChannel.config.js debe tener sección dcBlocker en audio.'
+    );
+  });
+
+  it('outputChannel.config.js define cutoffFrequency', () => {
+    const configSource = readFileSync(
+      resolve(ROOT, 'src/assets/js/configs/modules/outputChannel.config.js'), 'utf-8'
+    );
+    assert.ok(
+      configSource.includes('cutoffFrequency'),
+      'outputChannel.config.js debe definir cutoffFrequency para el DC blocker.'
+    );
+  });
+
+  it('engine.js lee fc del config (no hardcodeado)', () => {
+    assert.ok(
+      engineSource.includes('dcBlockerConfig.cutoffFrequency') ||
+      engineSource.includes('outputChannelConfig.audio.dcBlocker'),
+      'engine.js debe leer la fc del DC blocker desde el config, no hardcodearla.'
     );
   });
 });

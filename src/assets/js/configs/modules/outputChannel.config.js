@@ -160,6 +160,31 @@ export default {
       capacitance: 47e-9,      // 0.047 µF (C11, C12) — define fc junto con R
       potResistance: 10000,     // 10 kΩ pot lineal — rango completo del pot
       order: 1                  // 1er orden → 6 dB/oct, un solo polo a ~339 Hz
+    },
+
+    // ───────────────────────────────────────────────────────────────────
+    // DC BLOCKER — Protección de altavoces en salida final
+    // ───────────────────────────────────────────────────────────────────
+    // Filtro paso-alto de 1er orden que elimina componentes DC y
+    // sub-graves peligrosos SOLO en la ruta hacia altavoces.
+    //
+    // POSICIÓN EN LA CADENA:
+    //   ... → muteNode → 🔵 DC BLOCKER → channelGains → masterGains → 🔊
+    //
+    // La re-entry a la matriz (postVcaNode) NO pasa por este filtro,
+    // preservando señales DC legítimas (joystick, CV) para la matriz.
+    //
+    // Algoritmo: y[n] = x[n] - x[n-1] + R·y[n-1]  (Julius O. Smith III)
+    // donde R = 1 - 2π·fc/fs
+    //
+    // Con fc = 1 Hz:
+    //   - -3 dB a 1 Hz, -0.04 dB a 10 Hz (totalmente inaudible)
+    //   - τ ≈ 159 ms: settling ~800 ms para 5τ
+    //   - Transparente para todo el rango audible (20 Hz – 20 kHz)
+    //   - Bloquea DC puro y sub-graves extremos (<1 Hz)
+    // ───────────────────────────────────────────────────────────────────
+    dcBlocker: {
+      cutoffFrequency: 1       // 1 Hz — protección de altavoces, transparente para audio
     }
   },
 

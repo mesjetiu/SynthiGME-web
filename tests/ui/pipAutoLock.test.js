@@ -64,13 +64,21 @@ describe('PiP auto-lock al abrir primera PiP', () => {
   });
 
   it('solo hace auto-lock al pasar de 0 a 1 PiP (activePips.size === 1)', () => {
-    const sizeCheck = pipSource.match(/activePips\.size === 1 && !_isRestoring/);
-    assert.ok(sizeCheck, 'El auto-lock debe verificar activePips.size === 1 y no estar restaurando');
+    const sizeCheck = pipSource.match(/activePips\.size === 1 && !_isRestoring && !restoredConfig/);
+    assert.ok(sizeCheck, 'El auto-lock debe verificar activePips.size === 1, no restaurando sesión ni patch');
   });
 
   it('no hace auto-lock durante la restauración de sesión (_isRestoring)', () => {
-    const restoringGuard = pipSource.match(/activePips\.size === 1 && !_isRestoring/);
-    assert.ok(restoringGuard, 'El auto-lock debe excluir restauración de sesión');
+    const restoringGuard = pipSource.match(/!_isRestoring && !restoredConfig/);
+    assert.ok(restoringGuard, 'El auto-lock debe excluir restauración de sesión (_isRestoring)');
+  });
+
+  it('no hace auto-lock durante la restauración de patch (restoredConfig)', () => {
+    const restoredConfigGuard = pipSource.match(/!restoredConfig/);
+    assert.ok(restoredConfigGuard, 'El auto-lock debe excluir restauración de patch (restoredConfig)');
+    // Verificar que restoredConfig está en la misma condición que _isRestoring
+    const fullCondition = pipSource.match(/activePips\.size === 1 && !_isRestoring && !restoredConfig/);
+    assert.ok(fullCondition, 'restoredConfig debe estar en la misma guarda que _isRestoring');
   });
 
   it('hace zoom out a vista general al auto-lock', () => {

@@ -794,8 +794,10 @@ describe('Redimensionamiento de stereo bus routing arrays', () => {
             // Pan1-4L→ch0, Pan1-4R→ch1, Pan5-8L→ch2, Pan5-8R→ch3
             return chIdx === busIdx;
           }
-          // Estéreo: L→ch0, R→ch1 (buses 0 y 1)
-          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+          // Estéreo: buses L (0,2) → ch0, buses R (1,3) → ch1
+          // Pan1-4L→L, Pan1-4R→R, Pan5-8L→L, Pan5-8R→R
+          const targetCh = busIdx % 2;
+          return chIdx === targetCh;
         });
       }
     });
@@ -874,11 +876,11 @@ describe('Redimensionamiento de stereo bus routing arrays', () => {
     assert.strictEqual(resized[1][0], false);
     assert.strictEqual(resized[1][1], true);   // Pan1-4R → R
     
-    // Buses 2 y 3 no tienen defaults en estéreo
-    assert.strictEqual(resized[2][0], false);
+    // Buses 2 y 3 también tienen defaults (Pan5-8L→L, Pan5-8R→R)
+    assert.strictEqual(resized[2][0], true);   // Pan5-8L → L
     assert.strictEqual(resized[2][1], false);
     assert.strictEqual(resized[3][0], false);
-    assert.strictEqual(resized[3][1], false);
+    assert.strictEqual(resized[3][1], true);   // Pan5-8R → R
   });
 
   it('preserva las 4 filas al cambiar de modo', () => {

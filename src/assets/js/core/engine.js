@@ -537,7 +537,7 @@ export class AudioEngine {
 
   /**
    * Inicializa la matriz de ruteo multicanal con valores por defecto.
-   * Por defecto: bus 0 → canal 0 (L), bus 1 → canal 1 (R), resto apagado.
+   * Por defecto: todo a 0 (el audio fluye por stereo buses, no por routing directo).
    * 
    * @param {number} channelCount - Número de canales físicos
    */

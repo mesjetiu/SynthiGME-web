@@ -628,12 +628,13 @@ export class AudioSettingsModal {
           return false;
         });
       } else {
-        // Default: diagonal para multicanal, L/R para estéreo
+        // Default: diagonal para multicanal, todo OFF para estéreo
+        // (en estéreo el audio va por stereo buses Pan 1-4 / Pan 5-8, no por Out 1-8)
         return Array.from({ length: channelCount }, (_, chIdx) => {
           if (isMultichannel) {
             return chIdx === (busIdx + 4);
           }
-          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+          return false;
         });
       }
     });
@@ -663,8 +664,10 @@ export class AudioSettingsModal {
             // Pan1-4L→ch0, Pan1-4R→ch1, Pan5-8L→ch2, Pan5-8R→ch3
             return chIdx === busIdx;
           }
-          // Estéreo: L→ch0, R→ch1, otros buses sin routing por defecto
-          return (busIdx === 0 && chIdx === 0) || (busIdx === 1 && chIdx === 1);
+          // Estéreo: buses L (0,2) → ch0, buses R (1,3) → ch1
+          // Pan1-4L→L, Pan1-4R→R, Pan5-8L→L, Pan5-8R→R
+          const targetCh = busIdx % 2; // 0→L, 1→R, 2→L, 3→R
+          return chIdx === targetCh;
         });
       }
     });

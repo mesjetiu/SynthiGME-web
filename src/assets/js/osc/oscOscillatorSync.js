@@ -9,6 +9,7 @@
  */
 
 import { oscBridge } from './oscBridge.js';
+import { flashGlow } from '../ui/glowManager.js';
 import { uiToOSCValue, oscToUIValue } from './oscAddressMap.js';
 
 /**
@@ -215,6 +216,7 @@ class OscillatorOSCSync {
         const rangeEl = document.querySelector(`#${oscId} .output-channel__switch`);
         if (rangeEl) {
           oscUI._renderRange(rangeEl);
+          flashGlow(rangeEl);
         }
         
         // Recalcular frecuencia con el nuevo rango

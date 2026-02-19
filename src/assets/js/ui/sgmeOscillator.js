@@ -8,6 +8,7 @@
 
 // UI scaffold for SGME Oscillator (solo interacción visual; sin audio por ahora)
 import { Knob } from './knob.js';
+import { flashGlow } from './glowManager.js';
 const DEFAULT_KNOB_LABELS = [
   'Pulse level',
   'Pulse shape',
@@ -202,7 +203,10 @@ export class SGME_Oscillator {
     if (data.rangeState === 'hi' || data.rangeState === 'lo') {
       this.rangeState = data.rangeState;
       const rangeEl = document.querySelector(`#${this.id} .output-channel__switch`);
-      if (rangeEl) this._renderRange(rangeEl);
+      if (rangeEl) {
+        this._renderRange(rangeEl);
+        flashGlow(rangeEl);
+      }
     }
     
     // 2. Aplicar valores de knobs (sus onChange usarán el rangeState correcto)

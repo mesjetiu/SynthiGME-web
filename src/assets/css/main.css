@@ -1165,11 +1165,26 @@ h1 {
   }
 }
 
+/* Switch glow effect */
+.output-channel__switch.glow-flash {
+  animation: switch-glow-flash var(--glow-duration, 500ms) ease-out forwards;
+}
+
+@keyframes switch-glow-flash {
+  0% {
+    box-shadow: var(--glow-flash-shadow, 0 0 14px 6px rgba(255, 215, 128, 0.9));
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
 /* ── Glow desactivado ──────────────────────────────────────────────────── */
 .glow-disabled .knob.is-tooltip-active,
 .glow-disabled .knob.glow-flash,
 .glow-disabled .output-channel__slider-wrap.is-tooltip-active .output-channel__slider-shell,
-.glow-disabled .output-channel__slider-wrap.glow-flash .output-channel__slider-shell {
+.glow-disabled .output-channel__slider-wrap.glow-flash .output-channel__slider-shell,
+.glow-disabled .output-channel__switch.glow-flash {
   animation: none;
 }
 

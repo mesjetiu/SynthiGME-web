@@ -216,6 +216,7 @@ class OutputChannelOSCSync {
           if (outputChannel.powerSwitch) {
             outputChannel.powerSwitch.classList.toggle('is-on', isOn);
             outputChannel.powerSwitch.setAttribute('aria-pressed', String(isOn));
+            flashGlow(outputChannel.powerSwitch);
           }
           outputChannel.engine.setOutputMute(channel, !isOn);
           break;

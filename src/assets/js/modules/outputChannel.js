@@ -719,6 +719,7 @@ export class OutputChannel extends Module {
       if (this.powerSwitch) {
         this.powerSwitch.classList.toggle('is-on', data.power);
         this.powerSwitch.setAttribute('aria-pressed', String(data.power));
+        flashGlow(this.powerSwitch);
       }
     }
   }

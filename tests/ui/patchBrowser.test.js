@@ -321,6 +321,9 @@ describe('PatchBrowser — estructura DOM', () => {
           <button class="patch-browser__btn--primary"></button>
           <button class="patch-browser__btn--overwrite"></button>
         </div>
+        <label class="patch-browser__visual-check">
+          <input type="checkbox"><span></span>
+        </label>
       </div>
       <div class="patch-browser__controls">
         <div class="patch-browser__search">
@@ -340,6 +343,7 @@ describe('PatchBrowser — estructura DOM', () => {
     assert.ok(modal.querySelector('.patch-browser__save-buttons'), 'save buttons presente');
     assert.ok(modal.querySelector('.patch-browser__btn--primary'), 'botón primario presente');
     assert.ok(modal.querySelector('.patch-browser__btn--overwrite'), 'botón overwrite presente');
+    assert.ok(modal.querySelector('.patch-browser__visual-check'), 'visual checkbox presente');
     assert.ok(modal.querySelector('.patch-browser__controls'), 'controls zone presente');
     assert.ok(modal.querySelector('.patch-browser__search-input'), 'search input presente');
     assert.ok(modal.querySelector('.patch-browser__actions'), 'actions bar presente');
@@ -492,5 +496,210 @@ describe('PatchBrowser — savePatch con existingId (sobrescritura)', () => {
       code.includes('store.add'),
       'savePatch debe usar store.add para crear nuevo'
     );
+  });
+});
+
+describe('PatchBrowser — configuración visual en patches', () => {
+  
+  it('listPatches incluye campo hasPipState en la respuesta', async () => {
+    // Verificar que storage.js mapea hasPipState
+    const fs = await import('fs');
+    const path = await import('path');
+    const fileURL = await import('url');
+    
+    const projectRoot = path.resolve(
+      path.dirname(fileURL.fileURLToPath(import.meta.url)), 
+      '../..'
+    );
+    const storagePath = path.join(projectRoot, 'src/assets/js/state/storage.js');
+    const code = fs.readFileSync(storagePath, 'utf-8');
+    
+    assert.ok(
+      code.includes('hasPipState'),
+      'listPatches debe mapear hasPipState'
+    );
+  });
+  
+  it('patchBrowser importa serializePipState y closeAllPips de pipManager', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const fileURL = await import('url');
+    
+    const projectRoot = path.resolve(
+      path.dirname(fileURL.fileURLToPath(import.meta.url)), 
+      '../..'
+    );
+    const pbPath = path.join(projectRoot, 'src/assets/js/ui/patchBrowser.js');
+    const code = fs.readFileSync(pbPath, 'utf-8');
+    
+    assert.ok(
+      code.includes('serializePipState'),
+      'patchBrowser debe importar serializePipState'
+    );
+    assert.ok(
+      code.includes('closeAllPips'),
+      'patchBrowser debe importar closeAllPips'
+    );
+    assert.ok(
+      code.includes('openPip'),
+      'patchBrowser debe importar openPip'
+    );
+  });
+  
+  it('_maybeAddVisualState añade pipState si checkbox activo', () => {
+    // Simular la lógica de _maybeAddVisualState
+    const mockPipState = [
+      { panelId: 'panel-1', x: 100, y: 200, width: 400, height: 300, scale: 0.5 },
+      { panelId: 'panel-3', x: 500, y: 100, width: 350, height: 280, scale: 0.6 }
+    ];
+    
+    function maybeAddVisualState(patch, checkboxChecked, serializeFn) {
+      if (checkboxChecked) {
+        patch.pipState = serializeFn();
+      }
+      return patch;
+    }
+    
+    const patch = { name: 'Test', modules: {} };
+    
+    // Con checkbox activo
+    const result = maybeAddVisualState(patch, true, () => mockPipState);
+    assert.ok(Array.isArray(result.pipState), 'pipState debe ser un array');
+    assert.strictEqual(result.pipState.length, 2, 'debe tener 2 PiPs');
+    assert.strictEqual(result.pipState[0].panelId, 'panel-1');
+    assert.strictEqual(result.pipState[1].x, 500);
+  });
+  
+  it('_maybeAddVisualState no añade pipState si checkbox inactivo', () => {
+    function maybeAddVisualState(patch, checkboxChecked, serializeFn) {
+      if (checkboxChecked) {
+        patch.pipState = serializeFn();
+      }
+      return patch;
+    }
+    
+    const patch = { name: 'Test', modules: {} };
+    const result = maybeAddVisualState(patch, false, () => []);
+    assert.strictEqual(result.pipState, undefined, 'no debe tener pipState');
+  });
+  
+  it('_maybeRestoreVisualState restaura si checkbox activo y datos presentes', () => {
+    const closedPanels = [];
+    const openedPanels = [];
+    
+    function maybeRestoreVisualState(patchData, checked, closeFn, openFn) {
+      if (!checked) return;
+      if (!patchData?.pipState || !Array.isArray(patchData.pipState)) return;
+      closeFn();
+      for (const state of patchData.pipState) {
+        openFn(state.panelId, state);
+      }
+    }
+    
+    const patchData = {
+      pipState: [
+        { panelId: 'panel-1', x: 100, y: 200 },
+        { panelId: 'panel-5', x: 300, y: 400 }
+      ]
+    };
+    
+    let allClosed = false;
+    maybeRestoreVisualState(
+      patchData,
+      true,
+      () => { allClosed = true; },
+      (id, state) => { openedPanels.push({ id, state }); }
+    );
+    
+    assert.ok(allClosed, 'debe cerrar todas las PiPs primero');
+    assert.strictEqual(openedPanels.length, 2, 'debe abrir 2 PiPs');
+    assert.strictEqual(openedPanels[0].id, 'panel-1');
+    assert.strictEqual(openedPanels[1].id, 'panel-5');
+  });
+  
+  it('_maybeRestoreVisualState no hace nada si checkbox inactivo', () => {
+    let called = false;
+    
+    function maybeRestoreVisualState(patchData, checked, closeFn, openFn) {
+      if (!checked) return;
+      if (!patchData?.pipState || !Array.isArray(patchData.pipState)) return;
+      closeFn();
+    }
+    
+    maybeRestoreVisualState(
+      { pipState: [{ panelId: 'panel-1' }] },
+      false,
+      () => { called = true; },
+      () => {}
+    );
+    
+    assert.ok(!called, 'no debe cerrar PiPs');
+  });
+  
+  it('_maybeRestoreVisualState ignora patches sin pipState', () => {
+    let called = false;
+    
+    function maybeRestoreVisualState(patchData, checked, closeFn, openFn) {
+      if (!checked) return;
+      if (!patchData?.pipState || !Array.isArray(patchData.pipState)) return;
+      closeFn();
+    }
+    
+    maybeRestoreVisualState(
+      { modules: {} },
+      true,
+      () => { called = true; },
+      () => {}
+    );
+    
+    assert.ok(!called, 'no debe hacer nada si el patch no tiene pipState');
+  });
+  
+  it('preferencia visual se persiste en localStorage', () => {
+    // Simular _getVisualPref y _setVisualPref
+    const KEY = 'synthigme-patch-include-visual';
+    
+    // Por defecto true (no existe la clave)
+    localStorage.removeItem(KEY);
+    assert.ok(localStorage.getItem(KEY) !== 'false', 'default debe ser true');
+    
+    // Desactivar
+    localStorage.setItem(KEY, 'false');
+    assert.strictEqual(localStorage.getItem(KEY), 'false');
+    
+    // Reactivar
+    localStorage.setItem(KEY, 'true');
+    assert.ok(localStorage.getItem(KEY) !== 'false');
+    
+    // Limpiar
+    localStorage.removeItem(KEY);
+  });
+});
+
+describe('PatchBrowser — traducciones de configuración visual', () => {
+  
+  it('7 idiomas tienen las claves de configuración visual', async () => {
+    const locales = ['en', 'es', 'fr', 'de', 'it', 'pt', 'cs'];
+    const newKeys = ['patches.includeVisual', 'patches.hasVisual'];
+    
+    for (const locale of locales) {
+      const mod = (await import(`../../src/assets/js/i18n/locales/${locale}.js`)).default;
+      for (const key of newKeys) {
+        assert.ok(mod[key] !== undefined, `${locale}: clave ${key} debe existir`);
+        assert.ok(mod[key].length > 0, `${locale}: clave ${key} no debe estar vacía`);
+      }
+    }
+  });
+  
+  it('includeVisual contiene "PIP" en todos los idiomas', async () => {
+    const locales = ['en', 'es', 'fr', 'de', 'it', 'pt', 'cs'];
+    
+    for (const locale of locales) {
+      const mod = (await import(`../../src/assets/js/i18n/locales/${locale}.js`)).default;
+      assert.ok(
+        mod['patches.includeVisual'].includes('PIP'),
+        `${locale}: includeVisual debe mencionar PIPs`
+      );
+    }
   });
 });

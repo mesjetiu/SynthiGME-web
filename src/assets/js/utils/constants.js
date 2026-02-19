@@ -98,6 +98,9 @@ export const STORAGE_KEYS = {
   // Rasterización adaptativa (nitidez de zoom)
   SHARP_RASTERIZE_ENABLED: `${STORAGE_PREFIX}sharp-rasterize-enabled`,
   
+  // Patches: incluir configuración visual (PiPs)
+  PATCH_INCLUDE_VISUAL: `${STORAGE_PREFIX}patch-include-visual`,
+  
   // Picture-in-Picture (paneles flotantes)
   PIP_STATE: `${STORAGE_PREFIX}pip-state`,
   PIP_REMEMBER: `${STORAGE_PREFIX}pip-remember`,

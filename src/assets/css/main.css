@@ -4543,6 +4543,37 @@ small { color:#aaa; }
   gap: 8px;
 }
 
+/* Visual config checkbox */
+.patch-browser__visual-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  cursor: pointer;
+  color: #999;
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+.patch-browser__visual-check input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #ffd54f;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.patch-browser__visual-check:hover {
+  color: #ccc;
+}
+
+/* Visual badge on patch items */
+.patch-browser__visual-badge {
+  margin-left: 4px;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
 /* Controls zone (search + actions — siempre visible) */
 .patch-browser__controls {
   padding: 8px 20px 4px;

@@ -409,6 +409,8 @@ export default {
   "patches.overwrite": "Sobrescribir",
   "patches.confirmOverwrite": "¿Sobrescribir patch \"{name}\"?",
   "patches.overwritten": "Patch sobrescrito",
+  "patches.includeVisual": "Incluir configuración visual (PIPs)",
+  "patches.hasVisual": "Incluye configuración visual",
   "patches.search": "Buscar...",
   "patches.empty": "No hay patches guardados",
   "patches.load": "Cargar",

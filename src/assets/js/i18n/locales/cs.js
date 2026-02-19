@@ -409,6 +409,8 @@ export default {
   "patches.overwrite": "Přepsat",
   "patches.confirmOverwrite": "Přepsat patch \"{name}\"?",
   "patches.overwritten": "Patch přepsán",
+  "patches.includeVisual": "Zahrnout vizuální rozložení (PIPs)",
+  "patches.hasVisual": "Zahrnuje vizuální rozložení",
   "patches.search": "Hledat...",
   "patches.empty": "Zatím nejsou uloženy žádné patches",
   "patches.load": "Načíst",

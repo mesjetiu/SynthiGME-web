@@ -33,6 +33,8 @@ import { ConfirmDialog } from './confirmDialog.js';
 import { InputDialog } from './inputDialog.js';
 import { showToast } from './toast.js';
 import { createLogger } from '../utils/logger.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
+import { serializePipState, closeAllPips, openPip } from './pipManager.js';
 
 const log = createLogger('PatchBrowser');
 import {
@@ -92,6 +94,7 @@ export class PatchBrowser {
     this.nameInput = null;
     this.saveNewBtn = null;
     this.overwriteBtn = null;
+    this.includeVisualCheckbox = null;
     this.isOpen = false;
     
     // Drag state
@@ -255,8 +258,26 @@ export class PatchBrowser {
     saveBtns.appendChild(this.saveNewBtn);
     saveBtns.appendChild(this.overwriteBtn);
     
+    // Visual layout checkbox
+    const visualRow = document.createElement('label');
+    visualRow.className = 'patch-browser__visual-check';
+    
+    this.includeVisualCheckbox = document.createElement('input');
+    this.includeVisualCheckbox.type = 'checkbox';
+    this.includeVisualCheckbox.checked = this._getVisualPref();
+    this.includeVisualCheckbox.addEventListener('change', () => {
+      this._setVisualPref(this.includeVisualCheckbox.checked);
+    });
+    
+    this.includeVisualLabel = document.createElement('span');
+    this.includeVisualLabel.textContent = t('patches.includeVisual');
+    
+    visualRow.appendChild(this.includeVisualCheckbox);
+    visualRow.appendChild(this.includeVisualLabel);
+    
     saveZone.appendChild(this.nameInput);
     saveZone.appendChild(saveBtns);
+    saveZone.appendChild(visualRow);
     
     // ─── Controls zone: search + action buttons (siempre visible) ───
     const controlsZone = document.createElement('div');
@@ -486,6 +507,15 @@ export class PatchBrowser {
       name.appendChild(badge);
     }
     
+    // Badge de configuración visual incluida
+    if (patch.hasPipState) {
+      const visualBadge = document.createElement('span');
+      visualBadge.className = 'patch-browser__visual-badge';
+      visualBadge.textContent = '🖼';
+      visualBadge.title = t('patches.hasVisual');
+      name.appendChild(visualBadge);
+    }
+    
     const date = document.createElement('div');
     date.className = 'patch-browser__item-date';
     date.textContent = this._formatDate(patch.savedAt);
@@ -576,6 +606,56 @@ export class PatchBrowser {
   // ═══════════════════════════════════════════════════════════════════════════
   
   /**
+   * Lee la preferencia de incluir configuración visual en los patches.
+   * @returns {boolean}
+   */
+  _getVisualPref() {
+    return localStorage.getItem(STORAGE_KEYS.PATCH_INCLUDE_VISUAL) !== 'false';
+  }
+  
+  /**
+   * Guarda la preferencia de incluir configuración visual.
+   * @param {boolean} enabled
+   */
+  _setVisualPref(enabled) {
+    localStorage.setItem(STORAGE_KEYS.PATCH_INCLUDE_VISUAL, String(enabled));
+  }
+  
+  /**
+   * Añade la configuración visual (PiP state) al patch si la opción está activa.
+   * @param {Object} patch - Objeto del patch
+   * @returns {Object} Patch con o sin pipState
+   */
+  _maybeAddVisualState(patch) {
+    if (this.includeVisualCheckbox?.checked) {
+      patch.pipState = serializePipState();
+    }
+    return patch;
+  }
+  
+  /**
+   * Restaura la configuración visual (PiP state) de un patch si la opción está activa.
+   * @param {Object} patchData - Datos del patch cargado
+   */
+  _maybeRestoreVisualState(patchData) {
+    if (!this.includeVisualCheckbox?.checked) return;
+    if (!patchData?.pipState || !Array.isArray(patchData.pipState)) return;
+    
+    // Cerrar todas las PiPs actuales
+    closeAllPips();
+    
+    // Restaurar cada PiP guardada en el patch
+    for (const savedState of patchData.pipState) {
+      const panelEl = document.getElementById(savedState.panelId);
+      if (panelEl) {
+        openPip(savedState.panelId, savedState);
+      }
+    }
+    
+    log.info('Visual layout restored:', patchData.pipState.length, 'PIPs');
+  }
+  
+  /**
    * Guarda el estado actual como nuevo patch (siempre crea entrada nueva).
    */
   async _handleSaveNew() {
@@ -591,6 +671,7 @@ export class PatchBrowser {
         patch = createEmptyPatch(name);
       }
       
+      this._maybeAddVisualState(patch);
       await savePatch(patch);
       await this._loadPatches();
       this._render();
@@ -629,6 +710,7 @@ export class PatchBrowser {
         patchData = createEmptyPatch(name);
       }
       
+      this._maybeAddVisualState(patchData);
       await savePatch(patchData, this.selectedPatchId);
       await this._loadPatches();
       this._render();
@@ -711,6 +793,9 @@ export class PatchBrowser {
       if (this.onLoad) {
         this.onLoad(fullPatch);
       }
+      
+      // Restaurar configuración visual si la opción está activa
+      this._maybeRestoreVisualState(fullPatch);
       
       // La ventana permanece abierta para cambiar rápidamente de patch
       showToast(t('patches.loadedName', { name }));
@@ -840,6 +925,10 @@ export class PatchBrowser {
     
     if (this.importBtn) {
       this.importBtn.querySelector('span').textContent = t('patches.import');
+    }
+    
+    if (this.includeVisualLabel) {
+      this.includeVisualLabel.textContent = t('patches.includeVisual');
     }
     
     if (this.nameInput) {

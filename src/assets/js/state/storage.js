@@ -139,7 +139,8 @@ export async function listPatches(options = {}) {
         savedAt: p.savedAt,
         category: p.category,
         formatVersion: p.formatVersion,
-        appVersion: p.appVersion
+        appVersion: p.appVersion,
+        hasPipState: Array.isArray(p.pipState) && p.pipState.length > 0
       }));
       
       // Ordenar

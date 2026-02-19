@@ -3730,6 +3730,24 @@ patches.overwritten:
   pt: Patch sobrescrito
   cs: Patch přepsán
 
+patches.includeVisual:
+  en: Include visual layout (PIPs)
+  es: Incluir configuración visual (PIPs)
+  fr: Inclure la disposition visuelle (PIPs)
+  de: Visuelles Layout einschließen (PIPs)
+  it: Includi layout visivo (PIPs)
+  pt: Incluir layout visual (PIPs)
+  cs: Zahrnout vizuální rozložení (PIPs)
+
+patches.hasVisual:
+  en: Includes visual layout
+  es: Incluye configuración visual
+  fr: Inclut la disposition visuelle
+  de: Enthält visuelles Layout
+  it: Include layout visivo
+  pt: Inclui layout visual
+  cs: Zahrnuje vizuální rozložení
+
 patches.search:
   en: Search...
   es: Buscar...

@@ -409,6 +409,8 @@ export default {
   "patches.overwrite": "Écraser",
   "patches.confirmOverwrite": "Écraser le patch \"{name}\" ?",
   "patches.overwritten": "Patch écrasé",
+  "patches.includeVisual": "Inclure la disposition visuelle (PIPs)",
+  "patches.hasVisual": "Inclut la disposition visuelle",
   "patches.search": "Chercher...",
   "patches.empty": "Aucun patch enregistré pour l'instant",
   "patches.load": "Charger",

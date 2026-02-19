@@ -35,6 +35,7 @@ const menuSource = readFileSync(resolve(ROOT, 'electron/electronMenu.cjs'), 'utf
 const bridgeSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/electronMenuBridge.js'), 'utf-8');
 const preloadSource = readFileSync(resolve(ROOT, 'electron/preload.cjs'), 'utf-8');
 const mainSource = readFileSync(resolve(ROOT, 'electron/main.cjs'), 'utf-8');
+const oscLogWindowSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/oscLogWindow.js'), 'utf-8');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Extractores de contratos (parsean el código fuente con regex)
@@ -860,5 +861,51 @@ describe('Integridad de la API del preload', () => {
   it('expone window.electronAPI con isElectron', () => {
     assert.ok(preloadSource.includes('window.electronAPI'), 'Falta window.electronAPI');
     assert.ok(preloadSource.includes('isElectron'), 'Falta isElectron en electronAPI');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. SINCRONIZACIÓN DE COMPONENTES UI → MENÚ ELECTRON
+// ═══════════════════════════════════════════════════════════════════════════
+// Verifican que los componentes UI que cambian estado directamente
+// (sin pasar por settingsModal) disparan synth:settingChanged para
+// que el bridge sincronice el menú Electron.
+
+describe('Sync UI → menú: oscLogWindow.js', () => {
+
+  it('show() dispara synth:settingChanged con oscLogVisible=true', () => {
+    // El método show() debe notificar al bridge para sincronizar el menú Electron
+    const showMatch = oscLogWindowSource.match(
+      /show\(\)\s*\{([\s\S]*?)^\s{2}\}/m
+    );
+    assert.ok(showMatch, 'No se encontró el método show()');
+    const showBody = showMatch[1];
+    assert.ok(
+      showBody.includes("synth:settingChanged") && showBody.includes("oscLogVisible"),
+      'show() no dispara synth:settingChanged con key oscLogVisible — ' +
+      'el menú Electron no se enterará de que la ventana se abrió'
+    );
+  });
+
+  it('hide() dispara synth:settingChanged con oscLogVisible=false', () => {
+    // El método hide() debe notificar al bridge para sincronizar el menú Electron
+    const hideMatch = oscLogWindowSource.match(
+      /hide\([\w\s=]*\)\s*\{([\s\S]*?)^\s{2}\}/m
+    );
+    assert.ok(hideMatch, 'No se encontró el método hide()');
+    const hideBody = hideMatch[1];
+    assert.ok(
+      hideBody.includes("synth:settingChanged") && hideBody.includes("oscLogVisible"),
+      'hide() no dispara synth:settingChanged con key oscLogVisible — ' +
+      'el menú Electron quedará desincronizado al cerrar la ventana con ✕'
+    );
+  });
+
+  it('la key oscLogVisible está mapeada a oscShowLog en el bridge', () => {
+    // Verificar que el stateMap en el bridge mapea oscLogVisible → oscShowLog
+    assert.ok(
+      bridgeSource.includes("oscLogVisible") && bridgeSource.includes("oscShowLog"),
+      'Falta mapeo oscLogVisible → oscShowLog en synth:settingChanged handler del bridge'
+    );
   });
 });

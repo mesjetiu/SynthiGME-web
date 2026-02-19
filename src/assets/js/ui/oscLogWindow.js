@@ -328,6 +328,11 @@ export class OSCLogWindow {
     const checkbox = document.getElementById('osc-log-checkbox');
     if (checkbox) checkbox.checked = true;
     
+    // Sincronizar menú Electron
+    document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+      detail: { key: 'oscLogVisible', value: true }
+    }));
+    
     log.info('Log window shown');
   }
   
@@ -344,6 +349,11 @@ export class OSCLogWindow {
       localStorage.setItem(STORAGE_KEYS.OSC_LOG_VISIBLE, 'false');
       const checkbox = document.getElementById('osc-log-checkbox');
       if (checkbox) checkbox.checked = false;
+      
+      // Sincronizar menú Electron
+      document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+        detail: { key: 'oscLogVisible', value: false }
+      }));
     }
     
     log.info('Log window hidden');

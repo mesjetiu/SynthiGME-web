@@ -162,12 +162,19 @@ describe('oscAddressMap', () => {
   describe('MODULE_PARAMETERS', () => {
     it('debe tener todos los módulos principales', () => {
       const expectedModules = [
-        'osc', 'patchA', 'patchV', 'out', 'in', 'return', 'env',
+        'osc', 'out', 'in', 'return', 'env',
         'ring', 'noise', 'random', 'slew', 'filter', 'filterBank',
         'reverb', 'echo', 'oscilloscope', 'keyboard', 'invertor'
       ];
       
       for (const mod of expectedModules) {
+        assert.ok(MODULE_PARAMETERS[mod], `Módulo ${mod} debe existir`);
+      }
+    });
+
+    it('debe tener los nuevos módulos de matrices y joysticks', () => {
+      const newModules = ['audio', 'cv', 'joy'];
+      for (const mod of newModules) {
         assert.ok(MODULE_PARAMETERS[mod], `Módulo ${mod} debe existir`);
       }
     });
@@ -184,6 +191,31 @@ describe('oscAddressMap', () => {
 
     it('filtros deben tener 3 instancias', () => {
       assert.strictEqual(MODULE_PARAMETERS.filter.count, 3);
+    });
+
+    it('joysticks deben tener 2 instancias con 4 parámetros', () => {
+      assert.strictEqual(MODULE_PARAMETERS.joy.indexed, true);
+      assert.strictEqual(MODULE_PARAMETERS.joy.count, 2);
+      const params = Object.keys(MODULE_PARAMETERS.joy.parameters);
+      assert.ok(params.includes('positionX'), 'debe tener positionX');
+      assert.ok(params.includes('positionY'), 'debe tener positionY');
+      assert.ok(params.includes('rangeX'), 'debe tener rangeX');
+      assert.ok(params.includes('rangeY'), 'debe tener rangeY');
+    });
+
+    it('matrices audio y cv deben tener parámetro dinámico', () => {
+      assert.ok(MODULE_PARAMETERS.audio.parameters._dynamic, 'audio debe tener _dynamic');
+      assert.ok(MODULE_PARAMETERS.cv.parameters._dynamic, 'cv debe tener _dynamic');
+      assert.strictEqual(MODULE_PARAMETERS.audio.parameters._dynamic.type, 'matrix');
+      assert.strictEqual(MODULE_PARAMETERS.cv.parameters._dynamic.type, 'matrix');
+    });
+
+    it('canales de salida deben tener 4 parámetros (level, filter, pan, on)', () => {
+      const params = Object.keys(MODULE_PARAMETERS.out.parameters);
+      assert.ok(params.includes('level'), 'debe tener level');
+      assert.ok(params.includes('filter'), 'debe tener filter');
+      assert.ok(params.includes('pan'), 'debe tener pan');
+      assert.ok(params.includes('on'), 'debe tener on');
     });
   });
 });

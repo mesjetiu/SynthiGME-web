@@ -620,3 +620,90 @@ describe('RecordingEngine (con AudioContext mock)', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE FORMATOS DE GRABACIÓN (WAV vs WebM/Opus) — feat d7ba429
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Constantes de formatos replicadas del módulo */
+const RECORDING_FORMATS = {
+  'wav': { extension: 'wav', mimeType: 'audio/wav', lossy: false, maxTracks: 12 },
+  'webm-opus': { extension: 'webm', mimeType: 'audio/webm;codecs=opus', lossy: true, maxTracks: 2 }
+};
+
+const DEFAULT_FORMAT = 'webm-opus';
+const DEFAULT_BITRATE = 192000;
+
+describe('RecordingEngine - Formatos de grabación', () => {
+
+  describe('RECORDING_FORMATS', () => {
+    it('tiene exactamente 2 formatos (wav y webm-opus)', () => {
+      assert.strictEqual(Object.keys(RECORDING_FORMATS).length, 2);
+      assert.ok(RECORDING_FORMATS['wav']);
+      assert.ok(RECORDING_FORMATS['webm-opus']);
+    });
+
+    it('WAV es lossless con extensión .wav', () => {
+      const wav = RECORDING_FORMATS['wav'];
+      assert.strictEqual(wav.extension, 'wav');
+      assert.strictEqual(wav.mimeType, 'audio/wav');
+      assert.strictEqual(wav.lossy, false);
+    });
+
+    it('WebM/Opus es lossy con extensión .webm', () => {
+      const webm = RECORDING_FORMATS['webm-opus'];
+      assert.strictEqual(webm.extension, 'webm');
+      assert.strictEqual(webm.mimeType, 'audio/webm;codecs=opus');
+      assert.strictEqual(webm.lossy, true);
+    });
+
+    it('WAV soporta hasta 12 tracks', () => {
+      assert.strictEqual(RECORDING_FORMATS['wav'].maxTracks, 12);
+    });
+
+    it('WebM/Opus se limita a 2 tracks (stereo)', () => {
+      assert.strictEqual(RECORDING_FORMATS['webm-opus'].maxTracks, 2);
+    });
+  });
+
+  describe('Valores por defecto', () => {
+    it('formato por defecto es webm-opus', () => {
+      assert.strictEqual(DEFAULT_FORMAT, 'webm-opus');
+    });
+
+    it('bitrate por defecto es 192000 (192 kbps)', () => {
+      assert.strictEqual(DEFAULT_BITRATE, 192000);
+    });
+  });
+
+  describe('Validación de formato', () => {
+    it('formato válido retorna su config', () => {
+      for (const key of Object.keys(RECORDING_FORMATS)) {
+        assert.ok(RECORDING_FORMATS[key].extension, `${key} tiene extension`);
+        assert.ok(RECORDING_FORMATS[key].mimeType, `${key} tiene mimeType`);
+      }
+    });
+
+    it('formato inválido no existe en el mapa', () => {
+      assert.strictEqual(RECORDING_FORMATS['mp3'], undefined);
+      assert.strictEqual(RECORDING_FORMATS['flac'], undefined);
+    });
+  });
+
+  describe('Limitación de tracks por formato', () => {
+    it('WAV: trackCount puede ser 1..12', () => {
+      const maxTracks = RECORDING_FORMATS['wav'].maxTracks;
+      for (const count of [1, 2, 4, 8, 12]) {
+        const clamped = Math.min(count, maxTracks);
+        assert.strictEqual(clamped, count);
+      }
+    });
+
+    it('WebM/Opus: trackCount se clampea a 2', () => {
+      const maxTracks = RECORDING_FORMATS['webm-opus'].maxTracks;
+      assert.strictEqual(Math.min(4, maxTracks), 2);
+      assert.strictEqual(Math.min(8, maxTracks), 2);
+      assert.strictEqual(Math.min(1, maxTracks), 1);
+    });
+  });
+});

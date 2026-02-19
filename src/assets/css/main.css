@@ -677,10 +677,10 @@ html:-webkit-full-screen #viewportOuter {
   display: block;
 }
 
-#panel-1 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
-#panel-2 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
-#panel-3 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
-#panel-4 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn) {
+#panel-1 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn):not(.panel-note),
+#panel-2 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn):not(.panel-note),
+#panel-3 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn):not(.panel-note),
+#panel-4 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn):not(.panel-note) {
   position: relative;
   z-index: 1;
 }
@@ -701,8 +701,8 @@ html:-webkit-full-screen #viewportOuter {
   display: block;
 }
 
-#panel-5 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn),
-#panel-6 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn) {
+#panel-5 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn):not(.panel-note),
+#panel-6 > :not(.panel-inline-bg):not(.panel-build-version):not(.panel-shortcut-badge):not(.panel-zoom-btn):not(.panel-note) {
   position: relative;
   z-index: 1;
 }
@@ -6113,6 +6113,176 @@ small { color:#aaa; }
 /* Ocultar botón de detach cuando el panel está en PiP (ya tiene el X de cerrar) */
 .pip-viewport .pip-detach-btn {
   display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* NOTAS POST-IT EN PANELES                                                  */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.panel-note {
+  position: absolute;
+  z-index: 50;
+  min-width: 80px;
+  min-height: 50px;
+  max-width: 50%;
+  background: var(--note-bg, #fef3b5);
+  border: 1px solid var(--note-border, #e6d570);
+  border-radius: 3px;
+  box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.25);
+  color: var(--note-text, #5a4e00);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+  cursor: default;
+  user-select: none;
+  transition: box-shadow 150ms ease, opacity 150ms ease;
+  contain: layout style;
+  touch-action: none;
+}
+
+.panel-note:hover {
+  box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.panel-note--dragging {
+  opacity: 0.85;
+  box-shadow: 4px 6px 18px rgba(0, 0, 0, 0.4);
+  cursor: grabbing;
+}
+
+/* ── Header (drag handle + botones) ── */
+
+.panel-note__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+  cursor: grab;
+  border-bottom: 1px solid var(--note-border, #e6d570);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  border-radius: 3px 3px 0 0;
+}
+
+.panel-note--dragging .panel-note__header {
+  cursor: grabbing;
+}
+
+.panel-note__drag {
+  font-size: 10px;
+  letter-spacing: 1px;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.panel-note__actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.panel-note:hover .panel-note__actions {
+  opacity: 1;
+}
+
+/* En touch siempre visible (no hay hover) */
+@media (pointer: coarse) {
+  .panel-note__actions {
+    opacity: 1;
+  }
+}
+
+.panel-note__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--note-text, #5a4e00);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: opacity 100ms, background 100ms;
+}
+
+.panel-note__btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.panel-note__btn--delete:hover {
+  background: rgba(200, 0, 0, 0.15);
+  color: #c00;
+}
+
+/* ── Body (texto editable) ── */
+
+.panel-note__body {
+  padding: 4px 6px 6px;
+  min-height: 20px;
+  outline: none;
+  cursor: text;
+  user-select: text;
+  word-break: break-word;
+  white-space: pre-wrap;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.panel-note__body:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.45;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.panel-note__body:focus {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Selector de color ── */
+
+.panel-note__color-picker {
+  position: absolute;
+  top: 22px;
+  right: 4px;
+  display: flex;
+  gap: 3px;
+  padding: 4px 5px;
+  background: #333;
+  border-radius: 5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  z-index: 60;
+  animation: pip-context-menu-fade-in 100ms ease-out;
+}
+
+.panel-note__color-swatch {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 80ms ease;
+}
+
+.panel-note__color-swatch:hover {
+  transform: scale(1.2);
+}
+
+.panel-note__color-swatch.is-active {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
 /* ─── Menú contextual para paneles ─── */

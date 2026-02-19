@@ -35,6 +35,7 @@ import { showToast } from './toast.js';
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { serializePipState, closeAllPips, openPip } from './pipManager.js';
+import { serializeNotes, deserializeNotes } from './panelNotes.js';
 
 const log = createLogger('PatchBrowser');
 import {
@@ -632,6 +633,7 @@ export class PatchBrowser {
       if (typeof window.__synthSerializeViewportState === 'function') {
         patch.viewportState = window.__synthSerializeViewportState();
       }
+      patch.notesState = serializeNotes();
     }
     return patch;
   }
@@ -653,6 +655,12 @@ export class PatchBrowser {
         }
       }
       log.info('Visual layout restored:', patchData.pipState.length, 'PIPs');
+    }
+    
+    // Restaurar notas post-it
+    if (patchData?.notesState && Array.isArray(patchData.notesState)) {
+      deserializeNotes(patchData.notesState);
+      log.info('Notas restauradas:', patchData.notesState.length);
     }
     
     // Restaurar viewport (después de que las PIPs se asienten en el DOM)

@@ -14,6 +14,7 @@
 
 import { createLogger } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
+import { createNote } from './panelNotes.js';
 
 const log = createLogger('ContextMenu');
 
@@ -42,6 +43,13 @@ const ICON_ATTACH = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"
 const ICON_RESET = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
   <path d="M3 12a9 9 0 1 1 3 6.74"/>
   <polyline points="3 22 3 16 9 16"/>
+</svg>`;
+
+const ICON_NOTE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+  <path d="M15.5 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V8.5L15.5 3z"/>
+  <polyline points="14 3 14 8 21 8"/>
+  <line x1="8" y1="13" x2="16" y2="13"/>
+  <line x1="8" y1="17" x2="12" y2="17"/>
 </svg>`;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -211,6 +219,30 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
       () => { hideContextMenu(); onDetach?.(panelId); }
     ));
   }
+  
+  // ── Separador ──
+  menu.appendChild(createSeparator());
+  
+  // ── Opción: Añadir nota post-it ──
+  menu.appendChild(createMenuItem(
+    ICON_NOTE,
+    t('notes.add'),
+    () => {
+      hideContextMenu();
+      // Calcular posición relativa al panel en %
+      const panelEl = document.getElementById(panelId);
+      if (panelEl) {
+        const panelRect = panelEl.getBoundingClientRect();
+        const scaleX = panelRect.width / panelEl.offsetWidth;
+        const scaleY = panelRect.height / panelEl.offsetHeight;
+        const localX = (x - panelRect.left) / scaleX;
+        const localY = (y - panelRect.top) / scaleY;
+        const xPct = (localX / panelEl.offsetWidth) * 100;
+        const yPct = (localY / panelEl.offsetHeight) * 100;
+        createNote(panelId, { xPct, yPct });
+      }
+    }
+  ));
   
   // ── Separador ──
   menu.appendChild(createSeparator());

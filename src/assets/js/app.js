@@ -81,6 +81,7 @@ import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initPipManager, restorePipState } from './ui/pipManager.js';
+import { initPanelNotes } from './ui/panelNotes.js';
 import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { showToast } from './ui/toast.js';
 import { labelPanelSlot, getOscillatorLayoutSpec, resolveOscillatorUI, getNoiseUIDefaults, getRandomCVUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
@@ -6405,6 +6406,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     // Restaurar paneles PiP de sesión anterior
     restorePipState();
+    
+    // Inicializar notas post-it en paneles
+    initPanelNotes();
     
     // Registrar service worker
     registerServiceWorker();

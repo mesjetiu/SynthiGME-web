@@ -106,6 +106,9 @@ export const STORAGE_KEYS = {
   VIEWPORT_STATE: `${STORAGE_PREFIX}viewport-state`,
   REMEMBER_VISUAL_LAYOUT: `${STORAGE_PREFIX}remember-visual-layout`,
   
+  // Notas post-it en paneles
+  PANEL_NOTES: `${STORAGE_PREFIX}panel-notes`,
+  
   // ─────────────────────────────────────────────────────────────────────────
   // Optimización de rendimiento
   // Cada optimización tiene un toggle enabled + un toggle debug opcional

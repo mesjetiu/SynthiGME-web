@@ -3589,6 +3589,100 @@ contextMenu.resetControl:
   cs: Resetovat {name}
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# NOTAS POST-IT EN PANELES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+notes.add:
+  en: Add note
+  es: Añadir nota
+  fr: Ajouter une note
+  de: Notiz hinzufügen
+  it: Aggiungi nota
+  pt: Adicionar nota
+  cs: Přidat poznámku
+
+notes.delete:
+  en: Delete note
+  es: Eliminar nota
+  fr: Supprimer la note
+  de: Notiz löschen
+  it: Elimina nota
+  pt: Excluir nota
+  cs: Smazat poznámku
+
+notes.placeholder:
+  en: Write here...
+  es: Escribe aquí...
+  fr: Écrivez ici...
+  de: Hier schreiben...
+  it: Scrivi qui...
+  pt: Escreva aqui...
+  cs: Pište sem...
+
+notes.color:
+  en: Change color
+  es: Cambiar color
+  fr: Changer la couleur
+  de: Farbe ändern
+  it: Cambia colore
+  pt: Mudar cor
+  cs: Změnit barvu
+
+notes.color.yellow:
+  en: Yellow
+  es: Amarillo
+  fr: Jaune
+  de: Gelb
+  it: Giallo
+  pt: Amarelo
+  cs: Žlutá
+
+notes.color.pink:
+  en: Pink
+  es: Rosa
+  fr: Rose
+  de: Rosa
+  it: Rosa
+  pt: Rosa
+  cs: Růžová
+
+notes.color.blue:
+  en: Blue
+  es: Azul
+  fr: Bleu
+  de: Blau
+  it: Blu
+  pt: Azul
+  cs: Modrá
+
+notes.color.green:
+  en: Green
+  es: Verde
+  fr: Vert
+  de: Grün
+  it: Verde
+  pt: Verde
+  cs: Zelená
+
+notes.color.orange:
+  en: Orange
+  es: Naranja
+  fr: Orange
+  de: Orange
+  it: Arancione
+  pt: Laranja
+  cs: Oranžová
+
+notes.color.purple:
+  en: Purple
+  es: Morado
+  fr: Violet
+  de: Lila
+  it: Viola
+  pt: Roxo
+  cs: Fialová
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ORIENTACIÓN Y PANTALLA
 # ═══════════════════════════════════════════════════════════════════════════════
 

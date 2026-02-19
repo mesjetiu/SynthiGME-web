@@ -79,6 +79,7 @@ import { RecordingOverlay } from './ui/recordingOverlay.js';
 import { SettingsModal } from './ui/settingsModal.js';
 import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
+import { triggerEasterEgg } from './ui/easterEgg.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initPipManager, restorePipState } from './ui/pipManager.js';
 import { initPanelNotes } from './ui/panelNotes.js';
@@ -6397,6 +6398,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         console.warn('Engine no disponible');
       }
     };
+
+    // 🥚 Easter Egg — accesible desde consola: window.egg()
+    window.egg = triggerEasterEgg;
     
     // Inicializar navegación del viewport
     initViewportNavigation();

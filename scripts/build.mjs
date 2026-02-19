@@ -222,6 +222,11 @@ async function run() {
     try { await copyFile(src, dest); } catch { /* optional */ }
   }
 
+  // Copiar vendor scripts (cargados dinámicamente, no bundleados)
+  const vendorDir = path.join(srcDir, 'assets/js/vendor');
+  const vendorDest = path.join(outDir, 'assets/js/vendor');
+  try { await copyDirectory(vendorDir, vendorDest); } catch { /* optional */ }
+
   console.log('Generating service worker …');
   await buildServiceWorker(cacheVersion);
 

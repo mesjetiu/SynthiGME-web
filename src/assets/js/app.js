@@ -1344,6 +1344,32 @@ class App {
       // ─────────────────────────────────────────────────────────────────────────
       onOutputModeChange: async (mode) => {
         if (mode === 'multichannel') {
+          // Asegurar que el audio esté inicializado antes de activar multicanal.
+          // Si DSP está deshabilitado (ej: "Activar audio al iniciar" desactivado),
+          // lo re-habilitamos automáticamente — el usuario quiere multicanal, necesita audio.
+          const dspWasOff = !this.engine.dspEnabled;
+          if (dspWasOff) {
+            log.info('🔊 DSP disabled, enabling for multichannel activation...');
+            await this.engine.resumeDSP();
+          }
+          const audioReady = await this.ensureAudio();
+          if (!audioReady) {
+            log.error('🔊 Cannot activate multichannel: audio engine failed to start');
+            this.audioSettingsModal.setOutputMode('stereo', false);
+            return;
+          }
+          // Si el audio se acaba de inicializar (estaba off), re-aplicar patch
+          // para recrear conexiones de audio omitidas con DSP off
+          if (dspWasOff) {
+            const currentState = this._serializeCurrentState();
+            if (currentState) {
+              await this._applyPatch(currentState);
+            }
+            // Notificar del cambio de estado DSP (actualiza checkboxes, menú Electron, etc.)
+            document.dispatchEvent(new CustomEvent('synth:dspChanged', {
+              detail: { enabled: true }
+            }));
+          }
           // Activar salida multicanal (12ch)
           const outputResult = await this._activateMultichannelOutput();
           if (outputResult.success) {
@@ -3313,6 +3339,12 @@ class App {
       return { success: false, error: 'multichannelAPI no disponible' };
     }
     
+    // CRÍTICO: AudioContext debe existir para crear nodos de audio
+    if (!this.engine.audioCtx) {
+      log.error('🎛️ Cannot activate multichannel: AudioContext is null');
+      return { success: false, error: 'AudioContext no inicializado' };
+    }
+    
     // Primero forzar 12 canales en el engine
     const channelLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
     this.engine.forcePhysicalChannels(12, channelLabels, true);
@@ -3387,7 +3419,15 @@ class App {
       log.info('🎛️ MultichannelCapture worklet loaded');
     } catch (e) {
       log.error('🎛️ Failed to load worklet:', e);
-      return this._activateMultichannelOutputFallback();
+      try {
+        return await this._activateMultichannelOutputFallback();
+      } catch (fallbackError) {
+        // Si también falla el fallback, limpiar estado y cerrar stream
+        log.error('🎛️ Fallback also failed:', fallbackError);
+        await window.multichannelAPI.close();
+        this.engine.forcePhysicalChannels(2, ['L', 'R'], false);
+        return { success: false, error: 'Worklet y fallback fallaron' };
+      }
     }
     
     // Crear el AudioWorkletNode
@@ -3468,6 +3508,9 @@ class App {
     log.warn('🎛️ Using ScriptProcessor fallback (may have UI-related audio glitches)');
     
     const ctx = this.engine.audioCtx;
+    if (!ctx) {
+      throw new Error('AudioContext is null - cannot create ScriptProcessor fallback');
+    }
     const bufferSize = 512;
     const inputChannels = 12;
     const outputChannels = 2;

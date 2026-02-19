@@ -79,6 +79,82 @@ function getInitialPipDimensions() {
   };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOOLTIPS PARA BOTONES PIP (estilo quickbar)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Tiempo de pulsación larga para mostrar tooltip en táctil (ms) */
+const PIP_LONG_PRESS_DURATION = 400;
+
+/** Tooltip PiP activo actualmente */
+let _pipTooltipBtn = null;
+let _pipLongPressTimer = null;
+
+/**
+ * Oculta el tooltip PiP activo.
+ */
+function hidePipTooltip() {
+  if (_pipTooltipBtn) {
+    _pipTooltipBtn.classList.remove('tooltip-visible');
+    _pipTooltipBtn = null;
+  }
+  if (_pipLongPressTimer) {
+    clearTimeout(_pipLongPressTimer);
+    _pipLongPressTimer = null;
+  }
+}
+
+/**
+ * Configura long-press tooltip en un botón PiP individual.
+ * @param {HTMLElement} btn - Botón a configurar
+ */
+function setupPipBtnLongPress(btn) {
+  let startX = 0, startY = 0, shown = false;
+
+  btn.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    shown = false;
+    _pipLongPressTimer = setTimeout(() => {
+      hidePipTooltip();
+      btn.classList.add('tooltip-visible');
+      _pipTooltipBtn = btn;
+      shown = true;
+      if (navigator.vibrate) navigator.vibrate(15);
+    }, PIP_LONG_PRESS_DURATION);
+  }, { passive: true });
+
+  btn.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) {
+      hidePipTooltip();
+    }
+  }, { passive: true });
+
+  btn.addEventListener('touchend', (e) => {
+    if (shown) {
+      e.preventDefault();
+      setTimeout(hidePipTooltip, 1500);
+    } else {
+      hidePipTooltip();
+    }
+  });
+
+  btn.addEventListener('touchcancel', () => hidePipTooltip(), { passive: true });
+}
+
+/**
+ * Configura tooltips long-press para todos los botones de un contenedor PiP.
+ * @param {HTMLElement} pipContainer - Contenedor PiP
+ */
+function setupPipLongPressTooltips(pipContainer) {
+  const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (!isTouch) return;
+  const buttons = pipContainer.querySelectorAll('.pip-controls button[data-tooltip]');
+  buttons.forEach(btn => setupPipBtnLongPress(btn));
+}
+
 /**
  * Calcula el zoom mínimo para que el panel quepa completo en el viewport (contain).
  * El panel se ve entero; solo habrá margen en un eje (el que sobra), nunca en ambos.
@@ -577,15 +653,15 @@ export function openPip(panelId, restoredConfig = null) {
   header.innerHTML = `
     <span class="pip-title">${getPanelTitle(panelId)}</span>
     <div class="pip-controls">
-      <button type="button" class="pip-minimize" aria-label="${t('pip.minimize', 'Minimizar')}">−</button>
-      <button type="button" class="pip-maximize" aria-label="${t('pip.maximize', 'Maximizar')}">+</button>
-      <button type="button" class="pip-fit" aria-label="${t('pip.fitPanel', 'Ajustar panel')}">
+      <button type="button" class="pip-minimize" aria-label="${t('pip.minimize', 'Minimizar')}" data-tooltip="${t('pip.minimize', 'Minimizar')}">−</button>
+      <button type="button" class="pip-maximize" aria-label="${t('pip.maximize', 'Maximizar')}" data-tooltip="${t('pip.maximize', 'Maximizar')}">+</button>
+      <button type="button" class="pip-fit" aria-label="${t('pip.fitPanel', 'Ajustar panel')}" data-tooltip="${t('pip.fitPanel', 'Ajustar panel')}">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
           <rect x="3" y="3" width="18" height="18" rx="2"/>
           <path d="M9 3v18M3 9h18"/>
         </svg>
       </button>
-      <button type="button" class="pip-lock" aria-label="${t('pip.lock', 'Bloquear')}">
+      <button type="button" class="pip-lock" aria-label="${t('pip.lock', 'Bloquear')}" data-tooltip="${t('pip.lock', 'Bloquear')}">
         <svg class="pip-lock__icon-unlocked" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
           <rect x="3" y="11" width="18" height="11" rx="2"/>
           <path d="M7 11V7a5 5 0 0 1 10 0"/>
@@ -595,7 +671,7 @@ export function openPip(panelId, restoredConfig = null) {
           <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
       </button>
-      <button type="button" class="pip-close" aria-label="${t('pip.close', 'Cerrar')}">&times;</button>
+      <button type="button" class="pip-close" aria-label="${t('pip.close', 'Cerrar')}" data-tooltip="${t('pip.close', 'Cerrar')}">&times;</button>
     </div>
   `;
   
@@ -694,6 +770,12 @@ export function openPip(panelId, restoredConfig = null) {
         setTimeout(() => {
           state.locked = true;
           pipContainer.classList.add('pip-container--locked');
+          const lockBtn = pipContainer.querySelector('.pip-lock');
+          if (lockBtn) {
+            const label = t('pip.unlock', 'Desbloquear');
+            lockBtn.setAttribute('aria-label', label);
+            lockBtn.setAttribute('data-tooltip', label);
+          }
         }, 0);
       }
     });
@@ -884,6 +966,9 @@ function setupPipEvents(pipContainer, panelId) {
   const lockBtn = pipContainer.querySelector('.pip-lock');
   const resizeHandle = pipContainer.querySelector('.pip-resize-handle');
   
+  // Configurar tooltips long-press para táctil en todos los botones del PiP
+  setupPipLongPressTooltips(pipContainer);
+  
   // Cerrar
   closeBtn.addEventListener('click', () => closePip(panelId));
   
@@ -914,7 +999,9 @@ function setupPipEvents(pipContainer, panelId) {
     if (!state) return;
     state.locked = !state.locked;
     pipContainer.classList.toggle('pip-container--locked', state.locked);
-    lockBtn.setAttribute('aria-label', state.locked ? t('pip.unlock', 'Desbloquear') : t('pip.lock', 'Bloquear'));
+    const lockLabel = state.locked ? t('pip.unlock', 'Desbloquear') : t('pip.lock', 'Bloquear');
+    lockBtn.setAttribute('aria-label', lockLabel);
+    lockBtn.setAttribute('data-tooltip', lockLabel);
     savePipState();
   });
   

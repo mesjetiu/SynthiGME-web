@@ -5864,6 +5864,59 @@ small { color:#aaa; }
   overflow: hidden;
 }
 
+/* ─── Tooltips para botones PiP (estilo quickbar) ─── */
+.pip-controls button[data-tooltip] {
+  position: relative;
+}
+
+.pip-controls button[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 10000;
+}
+
+/* El último botón (cerrar) alinea tooltip a la derecha para no salirse */
+.pip-controls button:last-child[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* El primer botón alinea tooltip a la izquierda para no salirse */
+.pip-controls button:first-child[data-tooltip]::after {
+  left: 0;
+  transform: none;
+}
+
+/* Mostrar en hover (dispositivos con ratón) */
+@media (hover: hover) and (pointer: fine) {
+  .pip-controls button[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Tooltip visible por long-press en táctil */
+.pip-controls button.tooltip-visible[data-tooltip]::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* Contenido del PiP */
 .pip-content {
   flex: 1;

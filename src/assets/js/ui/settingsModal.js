@@ -106,6 +106,12 @@ export class SettingsModal {
     const defaultLatencyMode = isMobileDevice() ? 'playback' : 'interactive';
     this.latencyMode = savedLatencyMode || defaultLatencyMode;
     
+    // DSP (motor de audio)
+    const savedDspEnabled = localStorage.getItem(STORAGE_KEYS.DSP_ENABLED);
+    this.dspEnabled = savedDspEnabled === null ? true : savedDspEnabled === 'true';
+    const savedDspStartEnabled = localStorage.getItem(STORAGE_KEYS.DSP_START_ENABLED);
+    this.dspStartEnabled = savedDspStartEnabled === null ? true : savedDspStartEnabled === 'true';
+    
     // ─────────────────────────────────────────────────────────────────────
     // Emulación de voltajes (Synthi 100 Cuenca/Datanomics 1982)
     // ─────────────────────────────────────────────────────────────────────
@@ -270,6 +276,16 @@ export class SettingsModal {
     // Avanzado - Telemetría
     if (this.telemetryEnabledCheckbox) {
       this.telemetryEnabledCheckbox.checked = readBool(STORAGE_KEYS.TELEMETRY_ENABLED, false);
+    }
+    
+    // Audio - DSP
+    if (this.dspEnabledCheckbox) {
+      this.dspEnabled = readBool(STORAGE_KEYS.DSP_ENABLED, true);
+      this.dspEnabledCheckbox.checked = this.dspEnabled;
+    }
+    if (this.dspStartEnabledCheckbox) {
+      this.dspStartEnabled = readBool(STORAGE_KEYS.DSP_START_ENABLED, true);
+      this.dspStartEnabledCheckbox.checked = this.dspStartEnabled;
     }
   }
   
@@ -667,6 +683,9 @@ export class SettingsModal {
     container.className = 'settings-tab-content';
     container.dataset.tab = 'audio';
     
+    // Sección DSP (motor de audio on/off) - Al principio de la pestaña Audio
+    container.appendChild(this._createDSPSection());
+    
     if (this.audioSettingsModal) {
       const content = this.audioSettingsModal.createEmbeddableContent();
       container.appendChild(content);
@@ -684,6 +703,93 @@ export class SettingsModal {
     }
     
     return container;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECCIÓN: DSP (Motor de audio)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  /**
+   * Crea la sección DSP dentro de la pestaña Audio.
+   * Incluye checkbox para encender/apagar el motor de audio en vivo
+   * y checkbox para habilitar audio al inicio.
+   * @returns {HTMLElement}
+   */
+  _createDSPSection() {
+    const section = document.createElement('section');
+    section.className = 'settings-section';
+    
+    // Título
+    this.dspTitleElement = document.createElement('h3');
+    this.dspTitleElement.className = 'settings-section__title';
+    this.dspTitleElement.textContent = t('settings.dsp');
+    section.appendChild(this.dspTitleElement);
+    
+    // Descripción
+    this.dspDescElement = document.createElement('p');
+    this.dspDescElement.className = 'settings-section__description';
+    this.dspDescElement.textContent = t('settings.dsp.description');
+    section.appendChild(this.dspDescElement);
+    
+    // Checkbox: DSP habilitado (toggle en vivo)
+    const enabledRow = document.createElement('div');
+    enabledRow.className = 'settings-row settings-row--checkbox';
+    
+    this.dspEnabledCheckbox = document.createElement('input');
+    this.dspEnabledCheckbox.type = 'checkbox';
+    this.dspEnabledCheckbox.id = 'dspEnabledCheckbox';
+    this.dspEnabledCheckbox.className = 'settings-checkbox';
+    this.dspEnabledCheckbox.checked = this.dspEnabled;
+    
+    this.dspEnabledLabelElement = document.createElement('label');
+    this.dspEnabledLabelElement.className = 'settings-checkbox-label';
+    this.dspEnabledLabelElement.htmlFor = 'dspEnabledCheckbox';
+    this.dspEnabledLabelElement.textContent = t('settings.dsp.enabled');
+    
+    this.dspEnabledCheckbox.addEventListener('change', () => {
+      this.dspEnabled = this.dspEnabledCheckbox.checked;
+      document.dispatchEvent(new CustomEvent('synth:toggleDSP', {
+        detail: { enabled: this.dspEnabled }
+      }));
+    });
+    
+    enabledRow.appendChild(this.dspEnabledCheckbox);
+    enabledRow.appendChild(this.dspEnabledLabelElement);
+    section.appendChild(enabledRow);
+    
+    // Checkbox: Iniciar con audio encendido
+    const startRow = document.createElement('div');
+    startRow.className = 'settings-row settings-row--checkbox';
+    
+    this.dspStartEnabledCheckbox = document.createElement('input');
+    this.dspStartEnabledCheckbox.type = 'checkbox';
+    this.dspStartEnabledCheckbox.id = 'dspStartEnabledCheckbox';
+    this.dspStartEnabledCheckbox.className = 'settings-checkbox';
+    this.dspStartEnabledCheckbox.checked = this.dspStartEnabled;
+    
+    this.dspStartEnabledLabelElement = document.createElement('label');
+    this.dspStartEnabledLabelElement.className = 'settings-checkbox-label';
+    this.dspStartEnabledLabelElement.htmlFor = 'dspStartEnabledCheckbox';
+    this.dspStartEnabledLabelElement.textContent = t('settings.dsp.startEnabled');
+    
+    this.dspStartEnabledCheckbox.addEventListener('change', () => {
+      this.dspStartEnabled = this.dspStartEnabledCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.DSP_START_ENABLED, String(this.dspStartEnabled));
+    });
+    
+    startRow.appendChild(this.dspStartEnabledCheckbox);
+    startRow.appendChild(this.dspStartEnabledLabelElement);
+    section.appendChild(startRow);
+    
+    // Escuchar cambios de estado de DSP (desde menú Electron o programático)
+    document.addEventListener('synth:dspChanged', (e) => {
+      this.dspEnabled = e.detail?.enabled ?? true;
+      if (this.dspEnabledCheckbox) {
+        this.dspEnabledCheckbox.checked = this.dspEnabled;
+      }
+    });
+    
+    return section;
   }
   
   /**

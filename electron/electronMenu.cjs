@@ -49,6 +49,7 @@ let _quitConfirmed = false;
 let menuState = {
   muted: false,
   recording: false,
+  dspEnabled: true,
   quickbarVisible: true,
   patchBrowserOpen: false,
   // Ver
@@ -340,6 +341,17 @@ function buildMenuTemplate() {
   const audioMenu = {
     label: t('menu.audio', 'Audio'),
     submenu: [
+      {
+        id: 'dspEnabled',
+        label: t('menu.audio.dsp', 'DSP (Audio Engine)'),
+        type: 'checkbox',
+        checked: menuState.dspEnabled,
+        click: (menuItem) => {
+          menuState.dspEnabled = menuItem.checked;
+          sendAction('toggleDSP', { enabled: menuItem.checked });
+        }
+      },
+      { type: 'separator' },
       {
         id: 'mute',
         label: menuState.muted

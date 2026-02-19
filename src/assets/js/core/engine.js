@@ -66,6 +66,18 @@ export class AudioEngine {
     this._workletLoadPromise = null;
 
     // ─────────────────────────────────────────────────────────────────────────
+    // DSP (AUDIO ENGINE ON/OFF)
+    // ─────────────────────────────────────────────────────────────────────────
+    // dspEnabled: si es false, start() es no-op y el audio no se inicializa.
+    // Se lee de localStorage al arrancar; se puede cambiar en vivo con
+    // suspendDSP() / resumeDSP().
+    // ─────────────────────────────────────────────────────────────────────────
+    const hasLS = typeof localStorage !== 'undefined';
+    const savedDsp = hasLS ? localStorage.getItem(STORAGE_KEYS.DSP_ENABLED) : null;
+    // Por defecto el DSP está habilitado (comportamiento histórico)
+    this.dspEnabled = savedDsp === null ? true : savedDsp === 'true';
+
+    // ─────────────────────────────────────────────────────────────────────────
     // CONFIGURACIÓN DE CANALES
     // ─────────────────────────────────────────────────────────────────────────
     // outputChannels: número de salidas lógicas del sintetizador (buses)
@@ -163,6 +175,12 @@ export class AudioEngine {
    * @param {string} [options.latencyHint='interactive'] - Hint de latencia: 'interactive', 'balanced', 'playback'
    */
   start(options = {}) {
+    // Si DSP está deshabilitado, no crear AudioContext
+    if (!this.dspEnabled) {
+      log.info('DSP disabled, skipping AudioContext creation');
+      return;
+    }
+    
     if (this.audioCtx) {
       // Si ya existe el contexto, no intentar resume automático.
       // El resume se hará cuando haya un gesto del usuario.
@@ -2234,6 +2252,52 @@ export class AudioEngine {
     };
 
     return node;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // DSP ON/OFF: Suspender y reanudar el motor de audio en vivo
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Suspende el DSP: congela el AudioContext (CPU ~0%) sin destruir el grafo.
+   * Los nodos mantienen su estado y se reanudan con resumeDSP().
+   * Si el AudioContext no existe aún, simplemente marca dspEnabled = false.
+   * @returns {Promise<void>}
+   */
+  async suspendDSP() {
+    this.dspEnabled = false;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.DSP_ENABLED, 'false');
+    }
+    if (this.audioCtx && this.audioCtx.state !== 'closed') {
+      try {
+        await this.audioCtx.suspend();
+        log.info('DSP suspended (AudioContext frozen)');
+      } catch (e) {
+        log.warn('Error suspending AudioContext:', e);
+      }
+    }
+  }
+
+  /**
+   * Reanuda el DSP: descongela el AudioContext si estaba suspendido.
+   * Si el AudioContext no existía, lo marca para ser creado en el próximo
+   * ensureAudio() (al interactuar con un control).
+   * @returns {Promise<void>}
+   */
+  async resumeDSP() {
+    this.dspEnabled = true;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.DSP_ENABLED, 'true');
+    }
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      try {
+        await this.audioCtx.resume();
+        log.info('DSP resumed (AudioContext running)');
+      } catch (e) {
+        log.warn('Error resuming AudioContext:', e);
+      }
+    }
   }
 
   /**

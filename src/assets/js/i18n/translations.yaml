@@ -2044,6 +2044,33 @@ toast.unmute:
   pt: Áudio ativo
   cs: Zvuk aktivní
 
+toast.dspEnabled:
+  en: Audio engine enabled
+  es: Motor de audio activado
+  fr: Moteur audio activé
+  de: Audio-Engine aktiviert
+  it: Motore audio abilitato
+  pt: Motor de áudio ativado
+  cs: Zvukový engine povolen
+
+toast.dspDisabled:
+  en: Audio engine disabled
+  es: Motor de audio desactivado
+  fr: Moteur audio désactivé
+  de: Audio-Engine deaktiviert
+  it: Motore audio disabilitato
+  pt: Motor de áudio desativado
+  cs: Zvukový engine zakázán
+
+toast.dspRequired:
+  en: Audio engine is disabled. Enable it in Audio settings.
+  es: El motor de audio está desactivado. Actívalo en Ajustes de audio.
+  fr: Le moteur audio est désactivé. Activez-le dans les paramètres audio.
+  de: Die Audio-Engine ist deaktiviert. Aktivieren Sie sie in den Audio-Einstellungen.
+  it: Il motore audio è disabilitato. Abilitalo nelle impostazioni audio.
+  pt: O motor de áudio está desativado. Ative-o nas configurações de áudio.
+  cs: Zvukový engine je zakázán. Povolte jej v nastavení zvuku.
+
 quickbar.fullscreen:
   en: Fullscreen (F)
   es: Pantalla completa (F)
@@ -2455,6 +2482,46 @@ settings.optimizations.debugGlobal:
   it: Mostra toast di debug per tutte le ottimizzazioni
   pt: Mostrar toasts de depuração para todas as otimizações
   cs: Zobrazit debug upozornění pro všechny optimalizace
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DSP (Motor de audio on/off)
+# ─────────────────────────────────────────────────────────────────────────────
+
+settings.dsp:
+  en: Audio Engine (DSP)
+  es: Motor de audio (DSP)
+  fr: Moteur audio (DSP)
+  de: Audio-Engine (DSP)
+  it: Motore audio (DSP)
+  pt: Motor de áudio (DSP)
+  cs: Zvukový engine (DSP)
+
+settings.dsp.description:
+  en: Enable or disable the audio engine. When disabled, the app works as an OSC controller without audio processing.
+  es: Activa o desactiva el motor de audio. Cuando está desactivado, la app funciona como controlador OSC sin procesamiento de audio.
+  fr: Active ou désactive le moteur audio. Lorsqu'il est désactivé, l'application fonctionne comme un contrôleur OSC sans traitement audio.
+  de: Aktivieren oder deaktivieren Sie die Audio-Engine. Wenn deaktiviert, arbeitet die App als OSC-Controller ohne Audioverarbeitung.
+  it: Abilita o disabilita il motore audio. Quando disabilitato, l'app funziona come controller OSC senza elaborazione audio.
+  pt: Ativa ou desativa o motor de áudio. Quando desativado, o app funciona como controlador OSC sem processamento de áudio.
+  cs: Povolí nebo zakáže zvukový engine. Při zakázání aplikace funguje jako OSC kontroler bez zpracování zvuku.
+
+settings.dsp.enabled:
+  en: Audio engine enabled
+  es: Motor de audio activado
+  fr: Moteur audio activé
+  de: Audio-Engine aktiviert
+  it: Motore audio abilitato
+  pt: Motor de áudio ativado
+  cs: Zvukový engine povolen
+
+settings.dsp.startEnabled:
+  en: Enable audio on startup
+  es: Activar audio al iniciar
+  fr: Activer l'audio au démarrage
+  de: Audio beim Start aktivieren
+  it: Abilita audio all'avvio
+  pt: Ativar áudio ao iniciar
+  cs: Povolit zvuk při spuštění
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dormancy (silencia módulos sin conexiones)
@@ -2944,6 +3011,15 @@ menu.audio.preventSleep:
   it: Impedisci sospensione del sistema
   pt: Impedir suspensão do sistema
   cs: Zabránit uspání systému
+
+menu.audio.dsp:
+  en: DSP (Audio Engine)
+  es: DSP (motor de audio)
+  fr: DSP (moteur audio)
+  de: DSP (Audio-Engine)
+  it: DSP (motore audio)
+  pt: DSP (motor de áudio)
+  cs: DSP (zvukový engine)
 
 # ─── Paneles ───
 menu.panels:

@@ -52,7 +52,11 @@ export const STORAGE_KEYS = {
   // Idioma
   LANGUAGE: `${STORAGE_PREFIX}language`,
   
-  // Audio
+  // Audio (DSP)
+  DSP_ENABLED: `${STORAGE_PREFIX}dsp-enabled`,
+  DSP_START_ENABLED: `${STORAGE_PREFIX}dsp-start-enabled`,
+  
+  // Audio (routing)
   AUDIO_ROUTING: `${STORAGE_PREFIX}audio-routing`,
   AUDIO_ROUTING_MULTICHANNEL: `${STORAGE_PREFIX}audio-routing-multichannel`,
   INPUT_ROUTING: `${STORAGE_PREFIX}input-routing`,

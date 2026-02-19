@@ -128,6 +128,13 @@ class App {
     this._panel3Routing = { connections: {}, rowMap: null, colMap: null };
     this.placeholderPanels = {};
     
+    // Si "Iniciar con audio" está desactivado, deshabilitar DSP al arrancar
+    const dspStartEnabled = localStorage.getItem(STORAGE_KEYS.DSP_START_ENABLED);
+    if (dspStartEnabled === 'false') {
+      this.engine.dspEnabled = false;
+      localStorage.setItem(STORAGE_KEYS.DSP_ENABLED, 'false');
+    }
+    
     // Configurar sessionManager con callbacks
     sessionManager.setSerializeCallback(() => this._serializeCurrentState());
     sessionManager.setRestoreCallback((patch) => this._applyPatch(patch));
@@ -260,6 +267,11 @@ class App {
    * @returns {Promise<boolean>} true si el worklet está listo
    */
   async ensureAudio() {
+    // Si DSP está deshabilitado, no iniciar audio
+    if (!this.engine.dspEnabled) {
+      return false;
+    }
+    
     // Evitar llamadas concurrentes - si ya hay una en progreso, esperar
     if (this._ensureAudioPromise) {
       return this._ensureAudioPromise;
@@ -1199,8 +1211,48 @@ class App {
   }
 
   _setupUI() {
+    // Handler para toggle de DSP (motor de audio on/off)
+    document.addEventListener('synth:toggleDSP', async (e) => {
+      const forceEnabled = e.detail?.enabled;
+      const newState = forceEnabled !== undefined ? forceEnabled : !this.engine.dspEnabled;
+      
+      if (newState) {
+        // Activar DSP: reanudar o inicializar con patch actual
+        await this.engine.resumeDSP();
+        // Si el AudioContext no existía, necesitamos inicializarlo y aplicar patch
+        if (!this.engine.audioCtx) {
+          await this.ensureAudio();
+          // Reaplicar el estado actual (patch) al audio recién creado
+          const currentState = this._serializeCurrentState();
+          if (currentState) {
+            await this._applyPatch(currentState);
+          }
+        }
+        showToast(t('toast.dspEnabled'));
+      } else {
+        // Desactivar DSP: suspender AudioContext
+        // Detener grabación si está activa
+        if (this._recordingEngine?.isRecording) {
+          await this._recordingEngine.toggle();
+        }
+        // Detener osciloscopio
+        if (this._panel2Data?.scopeModule?.isRunning) {
+          this._panel2Data.scopeModule.stop();
+          this._panel2ScopeStarted = false;
+        }
+        await this.engine.suspendDSP();
+        showToast(t('toast.dspDisabled'));
+      }
+      
+      // Notificar del cambio de estado
+      document.dispatchEvent(new CustomEvent('synth:dspChanged', {
+        detail: { enabled: this.engine.dspEnabled }
+      }));
+    });
+    
     // Handler para mute global desde quickbar
     document.addEventListener('synth:toggleMute', () => {
+      if (!this.engine.dspEnabled) return;
       this.ensureAudio();
       // Resumir AudioContext (estamos en un gesto del usuario)
       if (this.engine.audioCtx && this.engine.audioCtx.state === 'suspended') {
@@ -1441,7 +1493,8 @@ class App {
       // Registrar cambio en el historial de undo/redo
       undoRedoManager.commitInteraction();
       // Resumir AudioContext si está suspendido (requiere gesto del usuario)
-      if (this.engine.audioCtx && this.engine.audioCtx.state === 'suspended') {
+      // NO reanudar si DSP está deshabilitado (modo controlador OSC)
+      if (this.engine.dspEnabled && this.engine.audioCtx && this.engine.audioCtx.state === 'suspended') {
         this.engine.audioCtx.resume();
       }
     });
@@ -1624,7 +1677,10 @@ class App {
     
     // Asegurar que el worklet esté listo antes de aplicar el patch
     // Esto es crucial para móviles donde la carga puede tardar más
-    await this.ensureAudio();
+    // Si DSP está deshabilitado, no iniciar audio (la UI se actualiza igualmente)
+    if (this.engine.dspEnabled) {
+      await this.ensureAudio();
+    }
     
     // Deshabilitar tracking de cambios durante la aplicación del patch
     sessionManager.applyingPatch(true);
@@ -2195,6 +2251,10 @@ class App {
     
     // Handler para toggle de grabación
     document.addEventListener('synth:toggleRecording', async () => {
+      if (!this.engine.dspEnabled) {
+        showToast(t('toast.dspRequired'), { level: 'warning' });
+        return;
+      }
       this.ensureAudio();
       try {
         await this._recordingEngine.toggle();
@@ -5216,6 +5276,8 @@ class App {
     if (!source || !dest) return true;
 
     if (activate) {
+      // Si DSP está deshabilitado, no conectar audio (la UI sigue funcionando)
+      if (!this.engine.dspEnabled) return true;
       this.ensureAudio();
       const ctx = this.engine.audioCtx;
       if (!ctx) return false;

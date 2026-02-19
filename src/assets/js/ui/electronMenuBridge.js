@@ -43,6 +43,7 @@ const MENU_TRANSLATION_KEYS = [
   'menu.audio.record', 'menu.audio.stopRecording',
   'menu.audio.preventSleep',
   'menu.audio.audioSettings',
+  'menu.audio.dsp',
   // Paneles
   'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
   'menu.panels.lockPan', 'menu.panels.lockZoom',
@@ -89,6 +90,7 @@ function readCurrentState() {
   return {
     muted: false, // No hay persistencia de mute, siempre empieza unmuted
     recording: false,
+    dspEnabled: readBool(STORAGE_KEYS.DSP_ENABLED, true),
     quickbarVisible: readBool(STORAGE_KEYS.QUICKBAR_VISIBLE ?? 'synthigme-quickbar-visible', true),
     // Ver
     inactivePins: readBool(STORAGE_KEYS.SHOW_INACTIVE_PINS, false),
@@ -211,6 +213,11 @@ function handleMenuAction({ action, data }) {
       break;
     case 'toggleRecording':
       document.dispatchEvent(new CustomEvent('synth:toggleRecording'));
+      break;
+    case 'toggleDSP':
+      document.dispatchEvent(new CustomEvent('synth:toggleDSP', {
+        detail: { enabled: data?.enabled }
+      }));
       break;
 
     // ─── Energía ───
@@ -452,6 +459,11 @@ function setupStateListeners() {
   // Recording
   document.addEventListener('synth:recordingChanged', (e) => {
     syncState({ recording: e.detail?.recording ?? false });
+  });
+
+  // DSP state
+  document.addEventListener('synth:dspChanged', (e) => {
+    syncState({ dspEnabled: e.detail?.enabled ?? true });
   });
 
   // OSC status

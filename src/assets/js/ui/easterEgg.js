@@ -5,9 +5,8 @@
  * sincronizado con una melodía chiptune estilo videojuego de los 80.
  * Usa su propio AudioContext para no interferir con el sintetizador.
  *
- * Uso:
- *   import { triggerEasterEgg } from './ui/easterEgg.js';
- *   triggerEasterEgg();
+ * Trigger: tocar alternadamente pad1, pad2, pad1, pad2 × 4 (8 taps).
+ * Solo taps rápidos sin arrastre, consecutivos, sin tocar nada en medio.
  *
  * @module ui/easterEgg
  */
@@ -540,4 +539,129 @@ export async function triggerEasterEgg() {
     console.error('[EasterEgg] Error:', err);
     isPlaying = false;
   }
+}
+
+
+// ─── Trigger: secuencia de taps en pads de joystick ───
+
+// Secuencia requerida: pad1, pad2, pad1, pad2, pad1, pad2, pad1, pad2
+const TRIGGER_SEQUENCE = [0, 1, 0, 1, 0, 1, 0, 1];
+const TAP_MAX_DURATION = 300;   // ms máximo que puede durar un tap (pointerdown→pointerup)
+const TAP_MAX_MOVEMENT = 10;    // px máximo de movimiento para considerarlo tap (no drag)
+const SEQUENCE_TIMEOUT = 2000;  // ms máximo entre taps consecutivos
+
+/**
+ * Instala el detector de secuencia de taps en los pads de joystick.
+ * Busca los pads por su contenedor (module frame con id joystick-left/right).
+ * Debe llamarse después de que el DOM del panel 7 esté construido.
+ */
+export function initEasterEggTrigger() {
+  const pad1Container = document.querySelector('#joystick-left .panel7-joystick-pad');
+  const pad2Container = document.querySelector('#joystick-right .panel7-joystick-pad');
+
+  if (!pad1Container || !pad2Container) {
+    // Panel 7 aún no existe o los pads no se encontraron
+    return;
+  }
+
+  const pads = [pad1Container, pad2Container];
+
+  // Estado de la secuencia
+  let sequenceIndex = 0;
+  let lastTapTime = 0;
+
+  // Estado del tap en curso (para distinguir tap de drag)
+  let tapStartTime = 0;
+  let tapStartX = 0;
+  let tapStartY = 0;
+  let tapPadIndex = -1;
+  let tapPointerId = -1;
+
+  const resetSequence = () => {
+    sequenceIndex = 0;
+    lastTapTime = 0;
+  };
+
+  // Cualquier interacción fuera de los pads rompe la secuencia
+  const onGlobalPointerDown = (ev) => {
+    const target = ev.target;
+    if (!pad1Container.contains(target) && !pad2Container.contains(target)) {
+      resetSequence();
+    }
+  };
+  document.addEventListener('pointerdown', onGlobalPointerDown, true);
+
+  // Instalar listeners en cada pad
+  pads.forEach((pad, padIndex) => {
+    pad.addEventListener('pointerdown', (ev) => {
+      if (isPlaying) return;
+      // Solo rastrear el primer dedo/click
+      if (tapPointerId !== -1) {
+        resetSequence();
+        return;
+      }
+      tapStartTime = performance.now();
+      tapStartX = ev.clientX;
+      tapStartY = ev.clientY;
+      tapPadIndex = padIndex;
+      tapPointerId = ev.pointerId;
+    });
+
+    pad.addEventListener('pointerup', (ev) => {
+      if (isPlaying) return;
+      if (ev.pointerId !== tapPointerId) return;
+
+      const now = performance.now();
+      const duration = now - tapStartTime;
+      const dx = ev.clientX - tapStartX;
+      const dy = ev.clientY - tapStartY;
+      const movement = Math.sqrt(dx * dx + dy * dy);
+
+      // Limpiar estado del tap
+      const padIdx = tapPadIndex;
+      tapPointerId = -1;
+      tapPadIndex = -1;
+
+      // ¿Es un tap válido? (corto y sin movimiento)
+      if (duration > TAP_MAX_DURATION || movement > TAP_MAX_MOVEMENT) {
+        resetSequence();
+        return;
+      }
+
+      // ¿Ha pasado demasiado tiempo desde el último tap?
+      if (sequenceIndex > 0 && (now - lastTapTime) > SEQUENCE_TIMEOUT) {
+        resetSequence();
+      }
+
+      // ¿Este pad es el esperado en la secuencia?
+      if (padIdx !== TRIGGER_SEQUENCE[sequenceIndex]) {
+        resetSequence();
+        // Comprobar si este tap inicia una nueva secuencia válida
+        if (padIdx === TRIGGER_SEQUENCE[0]) {
+          sequenceIndex = 1;
+          lastTapTime = now;
+        }
+        return;
+      }
+
+      // ¡Tap correcto!
+      sequenceIndex++;
+      lastTapTime = now;
+
+      // ¿Secuencia completa?
+      if (sequenceIndex >= TRIGGER_SEQUENCE.length) {
+        resetSequence();
+        triggerEasterEgg();
+      }
+    });
+
+    // Cancelar si el pointer se pierde (sale del pad, se cancela, etc.)
+    pad.addEventListener('pointercancel', (ev) => {
+      if (ev.pointerId === tapPointerId) {
+        tapPointerId = -1;
+        tapPadIndex = -1;
+        resetSequence();
+      }
+    });
+  });
 }

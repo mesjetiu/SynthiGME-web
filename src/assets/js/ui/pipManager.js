@@ -736,10 +736,11 @@ export function openPip(panelId, restoredConfig = null) {
   window.dispatchEvent(new CustomEvent('pip:open', { detail: { panelId } }));
   
   // ── Auto-lock al abrir la primera PiP ──
-  // Cuando se pasa de 0 a 1 PiP (y no es restauración de sesión),
+  // Cuando se pasa de 0 a 1 PiP (y no es restauración),
   // zoom out al mínimo y bloquear paneo+zoom del canvas principal.
   // El usuario puede desbloquear manualmente después.
-  if (activePips.size === 1 && !_isRestoring) {
+  // Se omite si restoredConfig (restauración de patch) o _isRestoring (sesión).
+  if (activePips.size === 1 && !_isRestoring && !restoredConfig) {
     // 1. Zoom out a vista general (animado)
     if (typeof window.__synthAnimateToPanel === 'function') {
       window.__synthAnimateToPanel(null, 600);

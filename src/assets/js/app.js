@@ -1219,14 +1219,16 @@ class App {
       if (newState) {
         // Activar DSP: reanudar o inicializar con patch actual
         await this.engine.resumeDSP();
-        // Si el AudioContext no existía, necesitamos inicializarlo y aplicar patch
         if (!this.engine.audioCtx) {
           await this.ensureAudio();
-          // Reaplicar el estado actual (patch) al audio recién creado
-          const currentState = this._serializeCurrentState();
-          if (currentState) {
-            await this._applyPatch(currentState);
-          }
+        }
+        // Siempre re-aplicar patch para recrear conexiones de audio que
+        // pudieron omitirse mientras DSP estaba off (los pines de la UI
+        // se activan pero _handlePanel5AudioToggle retorna sin crear nodos
+        // de audio cuando dspEnabled=false)
+        const currentState = this._serializeCurrentState();
+        if (currentState) {
+          await this._applyPatch(currentState);
         }
         showToast(t('toast.dspEnabled'));
       } else {

@@ -437,7 +437,7 @@ describe('Contrato de acciones (menú → bridge)', () => {
     //   sendAction('actionName', ...);
     const checkboxActions = [
       'toggleQuickbar', 'setInactivePins', 'setTooltipVoltage', 'setTooltipAudioRate',
-      'setLinearFaders', 'setRememberPip',
+      'setLinearFaders', 'setRememberVisualLayout',
       'setDebugGlobal', 'setDormancy', 'setDormancyDebug',
       'setFilterBypass', 'setFilterBypassDebug',
       'setSoftClip', 'setPinTolerance', 'setThermalDrift',
@@ -592,7 +592,7 @@ describe('Sincronización inversa (app → menú via eventos)', () => {
       // Ver
       'inactivePins', 'linearFaders', 'sharpRasterize',
       // Paneles
-      'singleFingerPan', 'multitouchControls', 'rememberPip',
+      'singleFingerPan', 'multitouchControls', 'rememberVisualLayout',
       // Avanzado
       'dormancy', 'dormancyDebug',
       'filterBypass', 'filterBypassDebug',

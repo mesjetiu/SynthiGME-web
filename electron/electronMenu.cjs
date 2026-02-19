@@ -61,7 +61,7 @@ let menuState = {
   // Paneles
   lockPan: false,
   lockZoom: false,
-  rememberPip: false,
+  rememberVisualLayout: false,
   singleFingerPan: true,
   multitouchControls: false,
   pipPanels: {},  // { 'panel-1': false, 'panel-2': false, ... }
@@ -438,13 +438,13 @@ function buildMenuTemplate() {
       },
       { type: 'separator' },
       {
-        id: 'rememberPip',
-        label: t('menu.panels.rememberPip', 'Remember floating panels'),
+        id: 'rememberVisualLayout',
+        label: t('menu.panels.rememberVisualLayout', 'Remember visual layout'),
         type: 'checkbox',
-        checked: menuState.rememberPip,
+        checked: menuState.rememberVisualLayout,
         click: (menuItem) => {
-          menuState.rememberPip = menuItem.checked;
-          sendAction('setRememberPip', { enabled: menuItem.checked });
+          menuState.rememberVisualLayout = menuItem.checked;
+          sendAction('setRememberVisualLayout', { enabled: menuItem.checked });
         }
       }
     ]

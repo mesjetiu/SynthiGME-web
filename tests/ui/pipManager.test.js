@@ -139,17 +139,17 @@ describe('Persistencia de PiP', () => {
   });
 
   describe('isRememberPipsEnabled()', () => {
-    it('devuelve true por defecto', () => {
-      assert.equal(isRememberPipsEnabled(), true);
+    it('devuelve false por defecto', () => {
+      assert.equal(isRememberPipsEnabled(), false);
     });
 
     it('devuelve false si está deshabilitado', () => {
-      globalThis.localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, 'false');
+      globalThis.localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, 'false');
       assert.equal(isRememberPipsEnabled(), false);
     });
 
     it('devuelve true si está explícitamente habilitado', () => {
-      globalThis.localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, 'true');
+      globalThis.localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, 'true');
       assert.equal(isRememberPipsEnabled(), true);
     });
   });
@@ -158,7 +158,7 @@ describe('Persistencia de PiP', () => {
     it('guarda true en localStorage', () => {
       setRememberPips(true);
       assert.equal(
-        globalThis.localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER),
+        globalThis.localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT),
         'true'
       );
     });
@@ -166,7 +166,7 @@ describe('Persistencia de PiP', () => {
     it('guarda false en localStorage', () => {
       setRememberPips(false);
       assert.equal(
-        globalThis.localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER),
+        globalThis.localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT),
         'false'
       );
     });
@@ -212,10 +212,10 @@ describe('STORAGE_KEYS para PiP', () => {
     );
   });
 
-  it('PIP_REMEMBER existe y tiene formato correcto', () => {
-    assert.ok(STORAGE_KEYS.PIP_REMEMBER, 'Debería existir PIP_REMEMBER');
+  it('REMEMBER_VISUAL_LAYOUT existe y tiene formato correcto', () => {
+    assert.ok(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, 'Debería existir REMEMBER_VISUAL_LAYOUT');
     assert.ok(
-      STORAGE_KEYS.PIP_REMEMBER.startsWith('synthigme-'),
+      STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT.startsWith('synthigme-'),
       'Debería tener prefijo synthigme-'
     );
   });
@@ -464,9 +464,9 @@ describe('Interacción PiP con localStorage', () => {
   });
 
   describe('Persistencia habilitada/deshabilitada', () => {
-    it('por defecto la persistencia está habilitada', () => {
-      // Sin configurar nada, debe estar habilitado
-      assert.equal(isRememberPipsEnabled(), true);
+    it('por defecto la persistencia está deshabilitada', () => {
+      // Sin configurar nada, debe estar deshabilitado
+      assert.equal(isRememberPipsEnabled(), false);
     });
 
     it('deshabilitar persistencia limpia estado guardado', () => {
@@ -495,16 +495,16 @@ describe('Interacción PiP con localStorage', () => {
     });
 
     it('toggle de persistencia funciona correctamente', () => {
-      // Empezamos habilitados
+      // Empezamos deshabilitados (por defecto)
+      assert.equal(isRememberPipsEnabled(), false);
+      
+      // Habilitar
+      setRememberPips(true);
       assert.equal(isRememberPipsEnabled(), true);
       
       // Deshabilitar
       setRememberPips(false);
       assert.equal(isRememberPipsEnabled(), false);
-      
-      // Habilitar de nuevo
-      setRememberPips(true);
-      assert.equal(isRememberPipsEnabled(), true);
     });
   });
 

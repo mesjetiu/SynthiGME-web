@@ -703,7 +703,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     fitContentToViewport();
     
     // Restaurar viewport de sesión anterior (sobreescribe fit-to-content)
-    if (localStorage.getItem(STORAGE_KEYS.VIEWPORT_REMEMBER) === 'true') {
+    if (localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT) === 'true') {
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.VIEWPORT_STATE));
         if (saved && typeof saved.scale === 'number') {
@@ -711,6 +711,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
           offsetX = saved.offsetX || 0;
           offsetY = saved.offsetY || 0;
           focusedPanelId = saved.focusedPanelId || null;
+          userHasAdjustedView = true; // Evitar que handleNavResize resetee
           requestRender();
         }
       } catch { /* estado corrupto, ignorar */ }
@@ -812,6 +813,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     offsetX = state.offsetX || 0;
     offsetY = state.offsetY || 0;
     focusedPanelId = state.focusedPanelId || null;
+    userHasAdjustedView = true; // Evitar que handleNavResize resetee
     requestRender();
   };
 
@@ -819,7 +821,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
    * Guarda el estado del viewport en localStorage si la preferencia está activa.
    */
   function saveViewportStateIfEnabled() {
-    if (localStorage.getItem(STORAGE_KEYS.VIEWPORT_REMEMBER) !== 'true') return;
+    if (localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT) !== 'true') return;
     try {
       const state = window.__synthSerializeViewportState();
       localStorage.setItem(STORAGE_KEYS.VIEWPORT_STATE, JSON.stringify(state));
@@ -832,9 +834,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
     if (document.visibilityState === 'hidden') saveViewportStateIfEnabled();
   });
 
-  // Escuchar cambios en la preferencia de recordar viewport
+  // Escuchar cambios en la preferencia de recordar disposición visual
   document.addEventListener('synth:settingChanged', (e) => {
-    if (e.detail?.key === 'rememberViewport') {
+    if (e.detail?.key === 'rememberVisualLayout') {
       if (e.detail.value) {
         saveViewportStateIfEnabled();
       }

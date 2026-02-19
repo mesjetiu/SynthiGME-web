@@ -721,20 +721,18 @@ describe('PatchBrowser — traducciones de configuración visual', () => {
     }
   });
   
-  it('7 idiomas tienen las claves de viewport', async () => {
+  it('7 idiomas tienen la clave unificada de disposición visual', async () => {
     const locales = ['en', 'es', 'fr', 'de', 'it', 'pt', 'cs'];
-    const viewportKeys = ['settings.display.viewport', 'settings.display.viewport.remember'];
+    const unifiedKey = 'settings.display.pip.remember';
     
     for (const locale of locales) {
       const mod = (await import(`../../src/assets/js/i18n/locales/${locale}.js`)).default;
-      for (const key of viewportKeys) {
-        assert.ok(mod[key] !== undefined, `${locale}: clave ${key} debe existir`);
-        assert.ok(mod[key].length > 0, `${locale}: clave ${key} no debe estar vacía`);
-      }
+      assert.ok(mod[unifiedKey] !== undefined, `${locale}: clave ${unifiedKey} debe existir`);
+      assert.ok(mod[unifiedKey].length > 0, `${locale}: clave ${unifiedKey} no debe estar vacía`);
     }
   });
   
-  it('constants.js tiene VIEWPORT_STATE y VIEWPORT_REMEMBER', async () => {
+  it('constants.js tiene VIEWPORT_STATE y REMEMBER_VISUAL_LAYOUT', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const fileURL = await import('url');
@@ -747,7 +745,7 @@ describe('PatchBrowser — traducciones de configuración visual', () => {
     const code = fs.readFileSync(constantsPath, 'utf-8');
     
     assert.ok(code.includes('VIEWPORT_STATE'), 'debe tener VIEWPORT_STATE');
-    assert.ok(code.includes('VIEWPORT_REMEMBER'), 'debe tener VIEWPORT_REMEMBER');
+    assert.ok(code.includes('REMEMBER_VISUAL_LAYOUT'), 'debe tener REMEMBER_VISUAL_LAYOUT');
   });
   
   it('viewportNavigation.js expone __synthSerializeViewportState y __synthRestoreViewportState', async () => {

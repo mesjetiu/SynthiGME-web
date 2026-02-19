@@ -655,10 +655,16 @@ export class PatchBrowser {
       log.info('Visual layout restored:', patchData.pipState.length, 'PIPs');
     }
     
-    // Restaurar viewport
+    // Restaurar viewport (después de que las PIPs se asienten en el DOM)
     if (patchData?.viewportState && typeof window.__synthRestoreViewportState === 'function') {
-      window.__synthRestoreViewportState(patchData.viewportState);
-      log.info('Viewport state restored');
+      const viewportState = patchData.viewportState;
+      // Doble rAF: esperar a que el reflow de PIPs termine antes de aplicar
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.__synthRestoreViewportState(viewportState);
+          log.info('Viewport state restored');
+        });
+      });
     }
   }
   

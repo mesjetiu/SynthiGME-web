@@ -98,16 +98,13 @@ export const STORAGE_KEYS = {
   // Rasterización adaptativa (nitidez de zoom)
   SHARP_RASTERIZE_ENABLED: `${STORAGE_PREFIX}sharp-rasterize-enabled`,
   
-  // Patches: incluir configuración visual (PIPs + viewport)
+  // Patches: incluir configuración visual (paneles flotantes + vista)
   PATCH_INCLUDE_VISUAL: `${STORAGE_PREFIX}patch-include-visual`,
   
-  // Picture-in-Picture (paneles flotantes)
+  // Disposición visual: paneles flotantes + posición del canvas
   PIP_STATE: `${STORAGE_PREFIX}pip-state`,
-  PIP_REMEMBER: `${STORAGE_PREFIX}pip-remember`,
-  
-  // Viewport (posición y zoom del canvas principal)
   VIEWPORT_STATE: `${STORAGE_PREFIX}viewport-state`,
-  VIEWPORT_REMEMBER: `${STORAGE_PREFIX}viewport-remember`,
+  REMEMBER_VISUAL_LAYOUT: `${STORAGE_PREFIX}remember-visual-layout`,
   
   // ─────────────────────────────────────────────────────────────────────────
   // Optimización de rendimiento

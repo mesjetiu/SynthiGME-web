@@ -47,7 +47,7 @@ const MENU_TRANSLATION_KEYS = [
   // Paneles
   'menu.panels', 'menu.panels.detachHeader', 'menu.panels.detachAll', 'menu.panels.attachAll',
   'menu.panels.lockPan', 'menu.panels.lockZoom',
-  'menu.panels.rememberPip',
+  'menu.panels.rememberVisualLayout',
   'menu.panels.singleFingerPan', 'menu.panels.multitouchControls',
   // Avanzado
   'menu.advanced', 'menu.advanced.debugGlobal',
@@ -101,7 +101,7 @@ function readCurrentState() {
     // Paneles
     lockPan: Boolean(window.__synthNavLocks?.panLocked),
     lockZoom: Boolean(window.__synthNavLocks?.zoomLocked),
-    rememberPip: readBool(STORAGE_KEYS.PIP_REMEMBER, false),
+    rememberVisualLayout: readBool(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, false),
     singleFingerPan: readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true),
     multitouchControls: readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false),
     pipPanels,
@@ -244,8 +244,8 @@ function handleMenuAction({ action, data }) {
       if (closeAllPips) closeAllPips();
       break;
     }
-    case 'setRememberPip':
-      localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(data.enabled));
+    case 'setRememberVisualLayout':
+      localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, String(data.enabled));
       break;
     case 'setLockPan': {
       const locks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
@@ -525,7 +525,7 @@ function setupStateListeners() {
     const stateMap = {
       tooltipShowVoltage: 'tooltipVoltage',
       tooltipShowAudioValues: 'tooltipAudioRate',
-      rememberPip: 'rememberPip',
+      rememberVisualLayout: 'rememberVisualLayout',
       oscSendToSC: 'oscSendToSC',
       oscReceiveFromSC: 'oscReceiveFromSC',
       oscLogVisible: 'oscShowLog'

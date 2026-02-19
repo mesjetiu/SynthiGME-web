@@ -221,12 +221,8 @@ export class SettingsModal {
       this.tooltipAudioCheckbox.checked = this.showTooltipAudio;
     }
     if (this.pipRememberCheckbox) {
-      this.rememberPips = readBool(STORAGE_KEYS.PIP_REMEMBER, false);
+      this.rememberPips = readBool(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, false);
       this.pipRememberCheckbox.checked = this.rememberPips;
-    }
-    if (this.viewportRememberCheckbox) {
-      this.rememberViewport = readBool(STORAGE_KEYS.VIEWPORT_REMEMBER, false);
-      this.viewportRememberCheckbox.checked = this.rememberViewport;
     }
     if (this.sharpRasterizeCheckbox) {
       this.sharpRasterizeEnabled = readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false);
@@ -658,11 +654,8 @@ export class SettingsModal {
     // Pines inactivos de la matriz
     container.appendChild(this._createInactivePinsSection());
     
-    // Paneles flotantes (PiP)
+    // Disposición visual (paneles flotantes + vista del canvas)
     container.appendChild(this._createPipSection());
-    
-    // Navegación del viewport (posición y zoom del canvas)
-    container.appendChild(this._createViewportSection());
     
     // Información de parámetros (tooltips)
     container.appendChild(this._createParamInfoSection());
@@ -2100,7 +2093,7 @@ export class SettingsModal {
   }
   
   /**
-   * Crea la sección de paneles flotantes (PiP)
+   * Crea la sección de disposición visual (paneles flotantes + vista del canvas)
    * @returns {HTMLElement}
    */
   _createPipSection() {
@@ -2118,7 +2111,8 @@ export class SettingsModal {
     section.appendChild(this.pipDescElement);
     
     // ─────────────────────────────────────────────────────────────────────
-    // Checkbox para recordar paneles PiP entre sesiones
+    // Checkbox para recordar disposición visual entre sesiones
+    // (paneles flotantes + posición del canvas)
     // ─────────────────────────────────────────────────────────────────────
     const row = document.createElement('div');
     row.className = 'settings-row settings-row--checkbox';
@@ -2129,7 +2123,7 @@ export class SettingsModal {
     this.pipRememberCheckbox.className = 'settings-checkbox';
     
     // Cargar preferencia guardada (por defecto false = no recordar)
-    const savedPref = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
+    const savedPref = localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT);
     this.rememberPips = savedPref === 'true';
     this.pipRememberCheckbox.checked = this.rememberPips;
     
@@ -2150,80 +2144,20 @@ export class SettingsModal {
   }
   
   /**
-   * Establece si se recuerdan los paneles PiP entre sesiones
+   * Establece si se recuerda la disposición visual entre sesiones
+   * (paneles flotantes + posición del canvas)
    * @param {boolean} remember
    */
   _setRememberPips(remember) {
     this.rememberPips = remember;
-    localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(remember));
+    localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, String(remember));
     document.dispatchEvent(new CustomEvent('synth:settingChanged', {
-      detail: { key: 'rememberPip', value: remember }
+      detail: { key: 'rememberVisualLayout', value: remember }
     }));
     
-    // Si se desactiva, limpiar estado guardado
+    // Si se desactiva, limpiar estado guardado de ambos
     if (!remember) {
       localStorage.removeItem(STORAGE_KEYS.PIP_STATE);
-    }
-  }
-
-  /**
-   * Crea la sección de navegación del viewport
-   * @returns {HTMLElement}
-   */
-  _createViewportSection() {
-    const section = document.createElement('div');
-    section.className = 'settings-section';
-    
-    this.viewportTitleElement = document.createElement('h3');
-    this.viewportTitleElement.className = 'settings-section__title';
-    this.viewportTitleElement.textContent = t('settings.display.viewport');
-    section.appendChild(this.viewportTitleElement);
-    
-    // ─────────────────────────────────────────────────────────────────────
-    // Checkbox para recordar posición del viewport entre sesiones
-    // ─────────────────────────────────────────────────────────────────────
-    const row = document.createElement('div');
-    row.className = 'settings-row settings-row--checkbox';
-    
-    this.viewportRememberCheckbox = document.createElement('input');
-    this.viewportRememberCheckbox.type = 'checkbox';
-    this.viewportRememberCheckbox.id = 'viewportRememberCheckbox';
-    this.viewportRememberCheckbox.className = 'settings-checkbox';
-    
-    // Cargar preferencia guardada (por defecto false = no recordar)
-    const savedPref = localStorage.getItem(STORAGE_KEYS.VIEWPORT_REMEMBER);
-    this.rememberViewport = savedPref === 'true';
-    this.viewportRememberCheckbox.checked = this.rememberViewport;
-    
-    this.viewportRememberLabelElement = document.createElement('label');
-    this.viewportRememberLabelElement.className = 'settings-checkbox-label';
-    this.viewportRememberLabelElement.htmlFor = 'viewportRememberCheckbox';
-    this.viewportRememberLabelElement.textContent = t('settings.display.viewport.remember');
-    
-    this.viewportRememberCheckbox.addEventListener('change', () => {
-      this._setRememberViewport(this.viewportRememberCheckbox.checked);
-    });
-    
-    row.appendChild(this.viewportRememberCheckbox);
-    row.appendChild(this.viewportRememberLabelElement);
-    section.appendChild(row);
-    
-    return section;
-  }
-  
-  /**
-   * Establece si se recuerda la posición del viewport entre sesiones
-   * @param {boolean} remember
-   */
-  _setRememberViewport(remember) {
-    this.rememberViewport = remember;
-    localStorage.setItem(STORAGE_KEYS.VIEWPORT_REMEMBER, String(remember));
-    document.dispatchEvent(new CustomEvent('synth:settingChanged', {
-      detail: { key: 'rememberViewport', value: remember }
-    }));
-    
-    // Si se desactiva, limpiar estado guardado
-    if (!remember) {
       localStorage.removeItem(STORAGE_KEYS.VIEWPORT_STATE);
     }
   }

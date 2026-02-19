@@ -1900,9 +1900,9 @@ export function savePipState() {
   // No guardar durante restauración (openPip llama a savePipState con datos iniciales)
   if (_isRestoring) return;
   
-  // Verificar si está habilitado recordar PiPs
-  const remember = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
-  if (remember === 'false') return;
+  // Verificar si está habilitado recordar disposición visual
+  const remember = localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT);
+  if (remember !== 'true') return;
   
   const state = serializePipState();
   try {
@@ -1918,9 +1918,9 @@ export function savePipState() {
  * Debe llamarse después de que los paneles estén en el DOM.
  */
 export function restorePipState() {
-  // Verificar si está habilitado recordar PiPs
-  const remember = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
-  if (remember === 'false') return;
+  // Verificar si está habilitado recordar disposición visual
+  const remember = localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT);
+  if (remember !== 'true') return;
   
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.PIP_STATE);
@@ -1971,21 +1971,21 @@ export function clearPipState() {
 }
 
 /**
- * Verifica si está habilitado recordar PiPs entre sesiones.
+ * Verifica si está habilitado recordar la disposición visual entre sesiones.
  * @returns {boolean}
  */
 export function isRememberPipsEnabled() {
-  const saved = localStorage.getItem(STORAGE_KEYS.PIP_REMEMBER);
-  // Por defecto true (habilitado)
-  return saved !== 'false';
+  const saved = localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT);
+  // Por defecto false (deshabilitado)
+  return saved === 'true';
 }
 
 /**
- * Establece si se deben recordar los PiPs entre sesiones.
+ * Establece si se debe recordar la disposición visual entre sesiones.
  * @param {boolean} enabled
  */
 export function setRememberPips(enabled) {
-  localStorage.setItem(STORAGE_KEYS.PIP_REMEMBER, String(enabled));
+  localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, String(enabled));
   if (!enabled) {
     clearPipState();
   }

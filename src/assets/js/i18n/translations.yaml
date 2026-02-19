@@ -191,52 +191,33 @@ settings.display.inactivePins.show:
   pt: Mostrar pinos inativos como ativos
   cs: Zobrazit neaktivní kolíky jako aktivní
 
-# Sección: Paneles flotantes (PiP)
+# Sección: Disposición visual (paneles flotantes + vista del canvas)
 settings.display.pip:
-  en: Floating Panels (PiP)
-  es: Paneles flotantes (PiP)
-  fr: Panneaux flottants (PiP)
-  de: Schwebende Bedienfelder (PiP)
-  it: Pannelli Mobili (PiP)
-  pt: Painéis Flutuantes (PiP)
-  cs: Plovoucí panely (PiP)
+  en: Visual Layout
+  es: Disposición visual
+  fr: Disposition visuelle
+  de: Visuelles Layout
+  it: Disposizione visiva
+  pt: Disposição visual
+  cs: Vizuální rozložení
 
 settings.display.pip.description:
-  en: Floating panels allow you to detach any panel and view it independently while navigating the synthesizer. Use the pin icon on each panel to detach it.
-  es: Los paneles flotantes permiten extraer cualquier panel y verlo de forma independiente mientras navegas por el sintetizador. Usa el icono del pin en cada panel para extraerlo.
-  fr: Les panneaux flottants vous permettent de détacher n'importe quel panneau et de le visualiser indépendamment en naviguant dans le synthétiseur. Utilisez l'icône de broche sur chaque panneau pour le détacher.
-  de: Mit schwebenden Bedienfeldern können Sie jedes Bedienfeld trennen und unabhängig anzeigen, während Sie durch den Synthesizer navigieren. Verwenden Sie das Pin-Symbol auf jedem Bedienfeld, um es zu trennen.
-  it: I pannelli mobili ti permettono di staccare qualsiasi pannello e visualizzarlo indipendentemente mentre navighi il sintetizzatore. Usa l'icona del pin su ogni pannello per staccarlo.
-  pt: Painéis flutuantes permitem que você desanexe qualquer painel e o visualize independentemente enquanto navega pelo sintetizador. Use o ícone de pino em cada painel para desanexá-lo.
-  cs: Plovoucí panely vám umožňují odpojit jakýkoliv panel a zobrazit jej nezávisle během navigace v syntezátoru. Použijte ikonu kolíku v každém panelu k odpojení.
+  en: The visual layout includes the position and size of floating panels and the zoom and scroll position of the main canvas. When enabled, this layout is restored when you reopen the application.
+  es: La disposición visual incluye la posición y tamaño de los paneles flotantes y la posición de zoom y desplazamiento del canvas principal. Al activarse, esta disposición se restaura al reabrir la aplicación.
+  fr: La disposition visuelle comprend la position et la taille des panneaux flottants ainsi que la position de zoom et de défilement du canevas principal. Lorsqu'elle est activée, cette disposition est restaurée à la réouverture de l'application.
+  de: Das visuelle Layout umfasst Position und Größe der schwebenden Bedienfelder sowie die Zoom- und Scroll-Position der Hauptansicht. Bei Aktivierung wird dieses Layout beim erneuten Öffnen der Anwendung wiederhergestellt.
+  it: La disposizione visiva include la posizione e le dimensioni dei pannelli flottanti e la posizione di zoom e scorrimento del canvas principale. Quando attivata, questa disposizione viene ripristinata alla riapertura dell'applicazione.
+  pt: A disposição visual inclui a posição e o tamanho dos painéis flutuantes e a posição de zoom e rolagem do canvas principal. Quando ativada, esta disposição é restaurada ao reabrir o aplicativo.
+  cs: Vizuální rozložení zahrnuje polohu a velikost plovoucích panelů a polohu přiblížení a posunutí hlavního plátna. Při aktivaci je toto rozložení obnoveno při opětovném otevření aplikace.
 
 settings.display.pip.remember:
-  en: Remember floating panels between sessions
-  es: Recordar paneles flotantes entre sesiones
-  fr: Mémoriser les panneaux flottants entre les sessions
-  de: Schwebende Bedienfelder zwischen Sitzungen speichern
-  it: Ricorda i pannelli mobili tra le sessioni
-  pt: Lembrar painéis flutuantes entre sessões
-  cs: Zapamatovat si plovoucí panely mezi relacemi
-
-# Sección: Navegación del viewport
-settings.display.viewport:
-  en: Viewport Navigation
-  es: Navegación del viewport
-  fr: Navigation de la vue
-  de: Viewport-Navigation
-  it: Navigazione del viewport
-  pt: Navegação do viewport
-  cs: Navigace zobrazení
-
-settings.display.viewport.remember:
-  en: Remember viewport position between sessions
-  es: Recordar posición del viewport entre sesiones
-  fr: Mémoriser la position de la vue entre les sessions
-  de: Viewport-Position zwischen Sitzungen speichern
-  it: Ricorda la posizione del viewport tra le sessioni
-  pt: Lembrar posição do viewport entre sessões
-  cs: Zapamatovat si pozici zobrazení mezi relacemi
+  en: Remember visual layout between sessions
+  es: Recordar disposición visual entre sesiones
+  fr: Mémoriser la disposition visuelle entre les sessions
+  de: Visuelles Layout zwischen Sitzungen speichern
+  it: Ricorda la disposizione visiva tra le sessioni
+  pt: Lembrar disposição visual entre sessões
+  cs: Zapamatovat si vizuální rozložení mezi relacemi
 
 # Sección: Información de parámetros (tooltips)
 settings.display.paramInfo:
@@ -3095,14 +3076,14 @@ menu.panels.lockZoom:
   pt: Bloquear zoom
   cs: Uzamknout přiblížení
 
-menu.panels.rememberPip:
-  en: Remember floating panels
-  es: Recordar paneles flotantes
-  fr: Mémoriser les panneaux flottants
-  de: Schwebende Bedienfelder merken
-  it: Ricorda pannelli mobili
-  pt: Lembrar painéis flutuantes
-  cs: Zapamatovat plovoucí panely
+menu.panels.rememberVisualLayout:
+  en: Remember visual layout
+  es: Recordar disposición visual
+  fr: Mémoriser la disposition visuelle
+  de: Visuelles Layout merken
+  it: Ricorda disposizione visiva
+  pt: Lembrar disposição visual
+  cs: Zapamatovat vizuální rozložení
 
 menu.panels.singleFingerPan:
   en: Pan with one finger

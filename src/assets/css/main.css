@@ -1999,7 +1999,7 @@ small { color:#aaa; }
   font-size: 11px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   /* Evitar forzar capas en cada oscilador (móvil: VRAM). */
   will-change: auto;
 }
@@ -2147,7 +2147,7 @@ small { color:#aaa; }
   border: 1px solid var(--synth-module-border);
   border-radius: var(--synth-module-radius);
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   flex: none;
 }
 
@@ -2275,7 +2275,7 @@ small { color:#aaa; }
   font-size: 11px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .synth-module__header {

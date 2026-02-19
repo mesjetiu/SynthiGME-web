@@ -4435,12 +4435,13 @@ small { color:#aaa; }
   width: 90%;
   max-width: 480px;
   max-height: 85vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(28, 28, 28, 0.97);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0,0,0,0.3);
-  -webkit-overflow-scrolling: touch;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.2s ease, visibility 0.2s ease;
@@ -4473,6 +4474,7 @@ small { color:#aaa; }
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   cursor: grab;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .patch-browser-modal--dragging .patch-browser__header {
@@ -4507,14 +4509,48 @@ small { color:#aaa; }
   color: #fff;
 }
 
-/* Toolbar */
-.patch-browser__toolbar {
-  display: flex;
-  gap: 8px;
+/* Save zone (name input + save buttons) */
+.patch-browser__save-zone {
   padding: 12px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
+.patch-browser__name-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(20, 20, 20, 0.5);
+  color: #eee;
+  font-size: 0.95rem;
+  outline: none;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.patch-browser__name-input:focus {
+  border-color: rgba(255, 180, 60, 0.5);
+}
+
+.patch-browser__name-input::placeholder {
+  color: #666;
+}
+
+.patch-browser__save-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* Controls zone (search + actions — siempre visible) */
+.patch-browser__controls {
+  padding: 8px 20px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+/* Shared button styles */
 .patch-browser__btn {
   flex: 1;
   display: flex;
@@ -4528,13 +4564,18 @@ small { color:#aaa; }
   color: #bbb;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
-.patch-browser__btn:hover {
+.patch-browser__btn:hover:not(:disabled) {
   background: rgba(60, 60, 60, 0.7);
   border-color: rgba(255, 255, 255, 0.25);
   color: #ddd;
+}
+
+.patch-browser__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .patch-browser__btn--primary {
@@ -4543,9 +4584,20 @@ small { color:#aaa; }
   color: #ffd54f;
 }
 
-.patch-browser__btn--primary:hover {
+.patch-browser__btn--primary:hover:not(:disabled) {
   background: rgba(255, 180, 60, 0.25);
   border-color: rgba(255, 180, 60, 0.5);
+}
+
+.patch-browser__btn--overwrite {
+  background: rgba(100, 180, 255, 0.1);
+  border-color: rgba(100, 180, 255, 0.3);
+  color: #90caf9;
+}
+
+.patch-browser__btn--overwrite:hover:not(:disabled) {
+  background: rgba(100, 180, 255, 0.2);
+  border-color: rgba(100, 180, 255, 0.5);
 }
 
 .patch-browser__btn svg {
@@ -4557,8 +4609,8 @@ small { color:#aaa; }
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 12px 20px;
-  padding: 10px 14px;
+  margin-bottom: 8px;
+  padding: 8px 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   background: rgba(20, 20, 20, 0.5);
@@ -4583,9 +4635,49 @@ small { color:#aaa; }
   color: #666;
 }
 
-/* Patch list */
+/* Actions bar (siempre visible, encima de la lista) */
+.patch-browser__actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.patch-browser__action-btn {
+  flex: 1;
+  padding: 8px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(40, 40, 40, 0.6);
+  color: #bbb;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.patch-browser__action-btn:hover:not(:disabled) {
+  background: rgba(60, 60, 60, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ddd;
+}
+
+.patch-browser__action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.patch-browser__action-btn--danger:hover:not(:disabled) {
+  background: rgba(239, 83, 80, 0.15);
+  border-color: rgba(239, 83, 80, 0.4);
+  color: #ef5350;
+}
+
+/* Patch list (SOLO esta zona hace scroll) */
 .patch-browser__list {
-  padding: 0 12px 12px;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 12px;
+  min-height: 80px;
 }
 
 .patch-browser__empty {
@@ -4655,42 +4747,14 @@ small { color:#aaa; }
   font-size: 0.8rem;
 }
 
-/* Actions bar */
-.patch-browser__actions {
+/* Footer (Import) */
+.patch-browser__footer {
   display: flex;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 8px 20px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(20, 20, 20, 0.3);
-}
-
-.patch-browser__action-btn {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  background: rgba(40, 40, 40, 0.6);
-  color: #bbb;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
-}
-
-.patch-browser__action-btn:hover:not(:disabled) {
-  background: rgba(60, 60, 60, 0.7);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #ddd;
-}
-
-.patch-browser__action-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.patch-browser__action-btn--danger:hover:not(:disabled) {
-  background: rgba(239, 83, 80, 0.15);
-  border-color: rgba(239, 83, 80, 0.4);
-  color: #ef5350;
+  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

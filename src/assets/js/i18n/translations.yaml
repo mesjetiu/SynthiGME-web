@@ -3694,6 +3694,42 @@ patches.saveCurrent:
   pt: Salvar atual
   cs: Uložit aktuální
 
+patches.saveNew:
+  en: Save new
+  es: Guardar nuevo
+  fr: Enregistrer nouveau
+  de: Neu speichern
+  it: Salva nuovo
+  pt: Salvar novo
+  cs: Uložit nový
+
+patches.overwrite:
+  en: Overwrite
+  es: Sobrescribir
+  fr: Écraser
+  de: Überschreiben
+  it: Sovrascrivi
+  pt: Sobrescrever
+  cs: Přepsat
+
+patches.confirmOverwrite:
+  en: Overwrite patch "{name}"?
+  es: ¿Sobrescribir patch "{name}"?
+  fr: Écraser le patch "{name}" ?
+  de: Patch "{name}" überschreiben?
+  it: Sovrascrivere patch "{name}"?
+  pt: Sobrescrever patch "{name}"?
+  cs: Přepsat patch "{name}"?
+
+patches.overwritten:
+  en: Patch overwritten
+  es: Patch sobrescrito
+  fr: Patch écrasé
+  de: Patch überschrieben
+  it: Patch sovrascritto
+  pt: Patch sobrescrito
+  cs: Patch přepsán
+
 patches.search:
   en: Search...
   es: Buscar...

@@ -8,6 +8,23 @@
  * Diseñado para uso en performances en vivo con interfaz propia
  * (sin diálogos del sistema operativo).
  * 
+ * Layout:
+ *   ┌──────────────────────────────┐
+ *   │  PATCHES                 ✕  │  ← Header arrastrable
+ *   ├──────────────────────────────┤
+ *   │  [nombre_patch__________]   │  ← Input editable (copy/paste)
+ *   │  [💾 Nuevo] [💾 Sobrescribir]│  ← Guardar / sobrescribir
+ *   ├──────────────────────────────┤
+ *   │  [🔍 Buscar...]             │  ← Filtro
+ *   │  [Cargar][Export][Ren][🗑]  │  ← Acciones (siempre visibles)
+ *   ├──────────────────────────────┤
+ *   │  │ ○ Patch 1       fecha │  │
+ *   │  │ ● Patch 2       fecha │  │  ← Solo esta zona hace scroll
+ *   │  │ ○ Patch 3       fecha │  │
+ *   ├──────────────────────────────┤
+ *   │  [📥 Importar]              │  ← Importar archivo
+ *   └──────────────────────────────┘
+ * 
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -72,6 +89,9 @@ export class PatchBrowser {
     this.modal = null;
     this.patchList = null;
     this.searchInput = null;
+    this.nameInput = null;
+    this.saveNewBtn = null;
+    this.overwriteBtn = null;
     this.isOpen = false;
     
     // Drag state
@@ -108,9 +128,10 @@ export class PatchBrowser {
       detail: { open: true }
     }));
     
-    // Focus en búsqueda
+    // Focus en el input de nombre
     requestAnimationFrame(() => {
-      this.searchInput?.focus();
+      this.nameInput?.focus();
+      this.nameInput?.select();
     });
   }
   
@@ -123,6 +144,7 @@ export class PatchBrowser {
     this.modal.classList.remove('patch-browser-modal--visible');
     this.modal.setAttribute('aria-hidden', 'true');
     this.selectedPatchId = null;
+    this._updateActionButtons();
     
     document.dispatchEvent(new CustomEvent('synth:patchBrowserChanged', {
       detail: { open: false }
@@ -154,6 +176,8 @@ export class PatchBrowser {
   
   /**
    * Crea la estructura DOM del modal.
+   * 
+   * Layout flex-column: header, save-zone, controls, lista (scroll), footer.
    */
   _create() {
     // Floating panel (no blocking overlay)
@@ -163,7 +187,7 @@ export class PatchBrowser {
     this.modal.setAttribute('aria-labelledby', 'patchBrowserTitle');
     this.modal.setAttribute('aria-hidden', 'true');
     
-    // Header (draggable)
+    // ─── Header (draggable) ───
     const header = document.createElement('div');
     header.className = 'patch-browser__header';
     this._setupDrag(header);
@@ -183,24 +207,60 @@ export class PatchBrowser {
     header.appendChild(this.titleElement);
     header.appendChild(closeBtn);
     
-    // Toolbar
-    const toolbar = document.createElement('div');
-    toolbar.className = 'patch-browser__toolbar';
+    // ─── Save zone: name input + save buttons ───
+    const saveZone = document.createElement('div');
+    saveZone.className = 'patch-browser__save-zone';
     
-    this.saveBtn = document.createElement('button');
-    this.saveBtn.type = 'button';
-    this.saveBtn.className = 'patch-browser__btn patch-browser__btn--primary';
-    this.saveBtn.innerHTML = `${iconSvg('ti-device-floppy')} <span>${t('patches.saveCurrent')}</span>`;
-    this.saveBtn.addEventListener('click', () => this._handleSave());
+    // Name input (editable, soporta copy/paste)
+    this.nameInput = document.createElement('input');
+    this.nameInput.type = 'text';
+    this.nameInput.className = 'patch-browser__name-input';
+    this.nameInput.placeholder = t('patches.defaultName');
+    this.nameInput.value = t('patches.defaultName');
+    this.nameInput.autocomplete = 'off';
+    this.nameInput.spellcheck = false;
     
-    this.importBtn = document.createElement('button');
-    this.importBtn.type = 'button';
-    this.importBtn.className = 'patch-browser__btn';
-    this.importBtn.innerHTML = `${iconSvg('ti-upload')} <span>${t('patches.import')}</span>`;
-    this.importBtn.addEventListener('click', () => this._handleImport());
+    // Actualizar estado de botones cuando cambia el nombre
+    this.nameInput.addEventListener('input', () => this._updateSaveButtons());
     
-    toolbar.appendChild(this.saveBtn);
-    toolbar.appendChild(this.importBtn);
+    // Enter para guardar (nuevo o sobrescribir según contexto)
+    this.nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (this.selectedPatchId !== null && !this.overwriteBtn.disabled) {
+          this._handleOverwrite();
+        } else {
+          this._handleSaveNew();
+        }
+      }
+    });
+    
+    // Save buttons row
+    const saveBtns = document.createElement('div');
+    saveBtns.className = 'patch-browser__save-buttons';
+    
+    this.saveNewBtn = document.createElement('button');
+    this.saveNewBtn.type = 'button';
+    this.saveNewBtn.className = 'patch-browser__btn patch-browser__btn--primary';
+    this.saveNewBtn.innerHTML = `${iconSvg('ti-device-floppy')} <span>${t('patches.saveNew')}</span>`;
+    this.saveNewBtn.addEventListener('click', () => this._handleSaveNew());
+    
+    this.overwriteBtn = document.createElement('button');
+    this.overwriteBtn.type = 'button';
+    this.overwriteBtn.className = 'patch-browser__btn patch-browser__btn--overwrite';
+    this.overwriteBtn.innerHTML = `${iconSvg('ti-device-floppy')} <span>${t('patches.overwrite')}</span>`;
+    this.overwriteBtn.disabled = true;
+    this.overwriteBtn.addEventListener('click', () => this._handleOverwrite());
+    
+    saveBtns.appendChild(this.saveNewBtn);
+    saveBtns.appendChild(this.overwriteBtn);
+    
+    saveZone.appendChild(this.nameInput);
+    saveZone.appendChild(saveBtns);
+    
+    // ─── Controls zone: search + action buttons (siempre visible) ───
+    const controlsZone = document.createElement('div');
+    controlsZone.className = 'patch-browser__controls';
     
     // Search
     const searchWrapper = document.createElement('div');
@@ -218,11 +278,7 @@ export class PatchBrowser {
     
     searchWrapper.appendChild(this.searchInput);
     
-    // Patch list container
-    this.patchList = document.createElement('div');
-    this.patchList.className = 'patch-browser__list';
-    
-    // Actions bar
+    // Actions bar (Load, Export, Rename, Delete)
     const actionsBar = document.createElement('div');
     actionsBar.className = 'patch-browser__actions';
     
@@ -259,12 +315,31 @@ export class PatchBrowser {
     actionsBar.appendChild(this.renameBtn);
     actionsBar.appendChild(this.deleteBtn);
     
-    // Ensamblar
+    controlsZone.appendChild(searchWrapper);
+    controlsZone.appendChild(actionsBar);
+    
+    // ─── Patch list (solo esta zona hace scroll) ───
+    this.patchList = document.createElement('div');
+    this.patchList.className = 'patch-browser__list';
+    
+    // ─── Footer: Import ───
+    const footer = document.createElement('div');
+    footer.className = 'patch-browser__footer';
+    
+    this.importBtn = document.createElement('button');
+    this.importBtn.type = 'button';
+    this.importBtn.className = 'patch-browser__btn';
+    this.importBtn.innerHTML = `${iconSvg('ti-upload')} <span>${t('patches.import')}</span>`;
+    this.importBtn.addEventListener('click', () => this._handleImport());
+    
+    footer.appendChild(this.importBtn);
+    
+    // ─── Ensamblar ───
     this.modal.appendChild(header);
-    this.modal.appendChild(toolbar);
-    this.modal.appendChild(searchWrapper);
+    this.modal.appendChild(saveZone);
+    this.modal.appendChild(controlsZone);
     this.modal.appendChild(this.patchList);
-    this.modal.appendChild(actionsBar);
+    this.modal.appendChild(footer);
     
     // Escape para cerrar
     document.addEventListener('keydown', (e) => {
@@ -336,7 +411,7 @@ export class PatchBrowser {
     // Hacer visible temporalmente para medir
     this.modal.style.visibility = 'hidden';
     this.modal.style.opacity = '0';
-    this.modal.style.display = 'block';
+    this.modal.style.display = 'flex';
     
     const rect = this.modal.getBoundingClientRect();
     const x = Math.max(0, (window.innerWidth - rect.width) / 2);
@@ -436,16 +511,27 @@ export class PatchBrowser {
   }
   
   /**
-   * Selecciona un patch.
+   * Selecciona un patch y rellena el input de nombre.
    */
   _selectPatch(id) {
-    this.selectedPatchId = id;
+    // Deseleccionar si se hace click en el ya seleccionado
+    if (this.selectedPatchId === id) {
+      this.selectedPatchId = null;
+      this.nameInput.value = t('patches.defaultName');
+    } else {
+      this.selectedPatchId = id;
+      const patch = this.patches.find(p => p.id === id);
+      if (patch) {
+        this.nameInput.value = patch.name;
+      }
+    }
     this._render();
     this._updateActionButtons();
+    this._updateSaveButtons();
   }
   
   /**
-   * Actualiza el estado de los botones de acción.
+   * Actualiza el estado de los botones de acción (Load, Export, Rename, Delete).
    */
   _updateActionButtons() {
     const hasSelection = this.selectedPatchId !== null;
@@ -453,6 +539,17 @@ export class PatchBrowser {
     this.exportBtn.disabled = !hasSelection;
     this.renameBtn.disabled = !hasSelection;
     this.deleteBtn.disabled = !hasSelection;
+  }
+  
+  /**
+   * Actualiza el estado de los botones Save New / Overwrite.
+   */
+  _updateSaveButtons() {
+    const name = this.nameInput.value.trim();
+    // Save new: siempre habilitado si hay nombre
+    this.saveNewBtn.disabled = !name;
+    // Overwrite: solo si hay selección Y hay nombre
+    this.overwriteBtn.disabled = !name || this.selectedPatchId === null;
   }
   
   /**
@@ -479,30 +576,19 @@ export class PatchBrowser {
   // ═══════════════════════════════════════════════════════════════════════════
   
   /**
-   * Guarda el estado actual como nuevo patch.
+   * Guarda el estado actual como nuevo patch (siempre crea entrada nueva).
    */
-  async _handleSave() {
-    const result = await InputDialog.show({
-      title: t('patches.namePrompt'),
-      placeholder: t('patches.defaultName'),
-      defaultValue: t('patches.defaultName'),
-      confirmText: t('patches.saveCurrent'),
-      cancelText: t('common.cancel')
-    });
-    if (!result.confirmed || !result.value) return;
-    const name = result.value;
+  async _handleSaveNew() {
+    const name = this.nameInput.value.trim();
+    if (!name) return;
     
     try {
-      // Obtener estado actual via callback
       let patch;
       if (this.onSave) {
         const state = await this.onSave();
-        patch = {
-          name: name.trim(),
-          ...state
-        };
+        patch = { name, ...state };
       } else {
-        patch = createEmptyPatch(name.trim());
+        patch = createEmptyPatch(name);
       }
       
       await savePatch(patch);
@@ -512,6 +598,72 @@ export class PatchBrowser {
     } catch (err) {
       log.error(' Error saving:', err);
       showToast(t('patches.errorSaving'), { level: 'error' });
+    }
+  }
+  
+  /**
+   * Sobrescribe el patch seleccionado con el estado actual.
+   */
+  async _handleOverwrite() {
+    if (this.selectedPatchId === null) return;
+    const name = this.nameInput.value.trim();
+    if (!name) return;
+    
+    const patch = this.patches.find(p => p.id === this.selectedPatchId);
+    if (!patch) return;
+    
+    // Confirmar sobrescritura
+    const result = await ConfirmDialog.show({
+      title: t('patches.confirmOverwrite', { name: patch.name }),
+      confirmText: t('common.yes'),
+      cancelText: t('common.no')
+    });
+    if (!result.confirmed) return;
+    
+    try {
+      let patchData;
+      if (this.onSave) {
+        const state = await this.onSave();
+        patchData = { name, ...state };
+      } else {
+        patchData = createEmptyPatch(name);
+      }
+      
+      await savePatch(patchData, this.selectedPatchId);
+      await this._loadPatches();
+      this._render();
+      showToast(t('patches.overwritten'), { level: 'success' });
+    } catch (err) {
+      log.error(' Error overwriting:', err);
+      showToast(t('patches.errorSaving'), { level: 'error' });
+    }
+  }
+  
+  /**
+   * Guarda el estado actual (legacy — mantiene compatibilidad con atajos de teclado).
+   * Si hay un patch seleccionado, sobrescribe; si no, abre diálogo de nombre.
+   */
+  async _handleSave() {
+    if (this.selectedPatchId !== null) {
+      await this._handleOverwrite();
+    } else {
+      // Pedir nombre si no está el browser abierto o no hay nombre en el input
+      const name = this.nameInput?.value?.trim();
+      if (name && this.isOpen) {
+        await this._handleSaveNew();
+      } else {
+        const result = await InputDialog.show({
+          title: t('patches.namePrompt'),
+          placeholder: t('patches.defaultName'),
+          defaultValue: t('patches.defaultName'),
+          confirmText: t('patches.saveCurrent'),
+          cancelText: t('common.cancel')
+        });
+        if (!result.confirmed || !result.value) return;
+        
+        if (this.nameInput) this.nameInput.value = result.value;
+        await this._handleSaveNew();
+      }
     }
   }
   
@@ -612,6 +764,8 @@ export class PatchBrowser {
     
     try {
       await renamePatch(this.selectedPatchId, result.value);
+      // Actualizar el input de nombre si el patch renombrado está seleccionado
+      this.nameInput.value = result.value;
       await this._loadPatches();
       this._render();
       showToast(t('patches.renamed'), { level: 'success' });
@@ -657,9 +811,11 @@ export class PatchBrowser {
     try {
       await deletePatch(this.selectedPatchId);
       this.selectedPatchId = null;
+      this.nameInput.value = t('patches.defaultName');
       await this._loadPatches();
       this._render();
       this._updateActionButtons();
+      this._updateSaveButtons();
       showToast(t('patches.deleted'), { level: 'success' });
     } catch (err) {
       log.error(' Error deleting:', err);
@@ -674,12 +830,20 @@ export class PatchBrowser {
       this.titleElement.textContent = t('patches.title');
     }
     
-    if (this.saveBtn) {
-      this.saveBtn.querySelector('span').textContent = t('patches.saveCurrent');
+    if (this.saveNewBtn) {
+      this.saveNewBtn.querySelector('span').textContent = t('patches.saveNew');
+    }
+    
+    if (this.overwriteBtn) {
+      this.overwriteBtn.querySelector('span').textContent = t('patches.overwrite');
     }
     
     if (this.importBtn) {
       this.importBtn.querySelector('span').textContent = t('patches.import');
+    }
+    
+    if (this.nameInput) {
+      this.nameInput.placeholder = t('patches.defaultName');
     }
     
     if (this.searchInput) {

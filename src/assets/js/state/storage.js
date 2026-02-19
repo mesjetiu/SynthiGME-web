@@ -140,7 +140,7 @@ export async function listPatches(options = {}) {
         category: p.category,
         formatVersion: p.formatVersion,
         appVersion: p.appVersion,
-        hasPipState: Array.isArray(p.pipState) && p.pipState.length > 0
+        hasVisualState: (Array.isArray(p.pipState) && p.pipState.length > 0) || p.viewportState != null
       }));
       
       // Ordenar

@@ -699,7 +699,23 @@ export function initViewportNavigation({ outer, inner } = {}) {
     requestRender();
   }
 
-  requestAnimationFrame(() => fitContentToViewport());
+  requestAnimationFrame(() => {
+    fitContentToViewport();
+    
+    // Restaurar viewport de sesión anterior (sobreescribe fit-to-content)
+    if (localStorage.getItem(STORAGE_KEYS.VIEWPORT_REMEMBER) === 'true') {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.VIEWPORT_STATE));
+        if (saved && typeof saved.scale === 'number') {
+          scale = saved.scale;
+          offsetX = saved.offsetX || 0;
+          offsetY = saved.offsetY || 0;
+          focusedPanelId = saved.focusedPanelId || null;
+          requestRender();
+        }
+      } catch { /* estado corrupto, ignorar */ }
+    }
+  });
 
   /**
    * Pre-calcula y aplica las dimensiones de fullscreen ANTES de que el navegador
@@ -770,6 +786,60 @@ export function initViewportNavigation({ outer, inner } = {}) {
   
   // Exponer globalmente para que quickbar pueda llamarla
   window.__synthPrepareForFullscreen = prepareForFullscreen;
+
+  // ─── Serialización / restauración del viewport ─────────────────────────
+  // Permite guardar y restaurar la posición/zoom del canvas principal.
+  // Usado por patches (configuración visual) y persistencia entre sesiones.
+
+  /**
+   * Devuelve el estado actual del viewport como objeto serializable.
+   * @returns {{ scale: number, offsetX: number, offsetY: number, focusedPanelId: string|null }}
+   */
+  window.__synthSerializeViewportState = () => ({
+    scale,
+    offsetX,
+    offsetY,
+    focusedPanelId
+  });
+
+  /**
+   * Restaura el viewport a un estado previamente serializado.
+   * @param {{ scale: number, offsetX: number, offsetY: number, focusedPanelId?: string|null }} state
+   */
+  window.__synthRestoreViewportState = (state) => {
+    if (!state || typeof state.scale !== 'number') return;
+    scale = state.scale;
+    offsetX = state.offsetX || 0;
+    offsetY = state.offsetY || 0;
+    focusedPanelId = state.focusedPanelId || null;
+    requestRender();
+  };
+
+  /**
+   * Guarda el estado del viewport en localStorage si la preferencia está activa.
+   */
+  function saveViewportStateIfEnabled() {
+    if (localStorage.getItem(STORAGE_KEYS.VIEWPORT_REMEMBER) !== 'true') return;
+    try {
+      const state = window.__synthSerializeViewportState();
+      localStorage.setItem(STORAGE_KEYS.VIEWPORT_STATE, JSON.stringify(state));
+    } catch { /* silenciar errores de storage */ }
+  }
+
+  // Guardar viewport al cerrar/ocultar la pestaña
+  window.addEventListener('beforeunload', saveViewportStateIfEnabled);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveViewportStateIfEnabled();
+  });
+
+  // Escuchar cambios en la preferencia de recordar viewport
+  document.addEventListener('synth:settingChanged', (e) => {
+    if (e.detail?.key === 'rememberViewport') {
+      if (e.detail.value) {
+        saveViewportStateIfEnabled();
+      }
+    }
+  });
 
   function setClampDisabled(value) {
     if (clampDisabled === value) return;

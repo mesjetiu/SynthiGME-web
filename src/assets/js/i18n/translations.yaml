@@ -219,6 +219,25 @@ settings.display.pip.remember:
   pt: Lembrar painéis flutuantes entre sessões
   cs: Zapamatovat si plovoucí panely mezi relacemi
 
+# Sección: Navegación del viewport
+settings.display.viewport:
+  en: Viewport Navigation
+  es: Navegación del viewport
+  fr: Navigation de la vue
+  de: Viewport-Navigation
+  it: Navigazione del viewport
+  pt: Navegação do viewport
+  cs: Navigace zobrazení
+
+settings.display.viewport.remember:
+  en: Remember viewport position between sessions
+  es: Recordar posición del viewport entre sesiones
+  fr: Mémoriser la position de la vue entre les sessions
+  de: Viewport-Position zwischen Sitzungen speichern
+  it: Ricorda la posizione del viewport tra le sessioni
+  pt: Lembrar posição do viewport entre sessões
+  cs: Zapamatovat si pozici zobrazení mezi relacemi
+
 # Sección: Información de parámetros (tooltips)
 settings.display.paramInfo:
   en: Parameter Information
@@ -3731,13 +3750,13 @@ patches.overwritten:
   cs: Patch přepsán
 
 patches.includeVisual:
-  en: Include visual layout (PIPs)
-  es: Incluir configuración visual (PIPs)
-  fr: Inclure la disposition visuelle (PIPs)
-  de: Visuelles Layout einschließen (PIPs)
-  it: Includi layout visivo (PIPs)
-  pt: Incluir layout visual (PIPs)
-  cs: Zahrnout vizuální rozložení (PIPs)
+  en: Include visual layout
+  es: Incluir configuración visual
+  fr: Inclure la disposition visuelle
+  de: Visuelles Layout einschließen
+  it: Includi layout visivo
+  pt: Incluir layout visual
+  cs: Zahrnout vizuální rozložení
 
 patches.hasVisual:
   en: Includes visual layout

@@ -508,7 +508,7 @@ export class PatchBrowser {
     }
     
     // Badge de configuración visual incluida
-    if (patch.hasPipState) {
+    if (patch.hasVisualState) {
       const visualBadge = document.createElement('span');
       visualBadge.className = 'patch-browser__visual-badge';
       visualBadge.textContent = '🖼';
@@ -622,37 +622,44 @@ export class PatchBrowser {
   }
   
   /**
-   * Añade la configuración visual (PiP state) al patch si la opción está activa.
+   * Añade la configuración visual (PiPs + viewport) al patch si la opción está activa.
    * @param {Object} patch - Objeto del patch
-   * @returns {Object} Patch con o sin pipState
+   * @returns {Object} Patch con o sin estado visual
    */
   _maybeAddVisualState(patch) {
     if (this.includeVisualCheckbox?.checked) {
       patch.pipState = serializePipState();
+      if (typeof window.__synthSerializeViewportState === 'function') {
+        patch.viewportState = window.__synthSerializeViewportState();
+      }
     }
     return patch;
   }
   
   /**
-   * Restaura la configuración visual (PiP state) de un patch si la opción está activa.
+   * Restaura la configuración visual (PiPs + viewport) de un patch si la opción está activa.
    * @param {Object} patchData - Datos del patch cargado
    */
   _maybeRestoreVisualState(patchData) {
     if (!this.includeVisualCheckbox?.checked) return;
-    if (!patchData?.pipState || !Array.isArray(patchData.pipState)) return;
     
-    // Cerrar todas las PiPs actuales
-    closeAllPips();
-    
-    // Restaurar cada PiP guardada en el patch
-    for (const savedState of patchData.pipState) {
-      const panelEl = document.getElementById(savedState.panelId);
-      if (panelEl) {
-        openPip(savedState.panelId, savedState);
+    // Restaurar PIPs
+    if (patchData?.pipState && Array.isArray(patchData.pipState)) {
+      closeAllPips();
+      for (const savedState of patchData.pipState) {
+        const panelEl = document.getElementById(savedState.panelId);
+        if (panelEl) {
+          openPip(savedState.panelId, savedState);
+        }
       }
+      log.info('Visual layout restored:', patchData.pipState.length, 'PIPs');
     }
     
-    log.info('Visual layout restored:', patchData.pipState.length, 'PIPs');
+    // Restaurar viewport
+    if (patchData?.viewportState && typeof window.__synthRestoreViewportState === 'function') {
+      window.__synthRestoreViewportState(patchData.viewportState);
+      log.info('Viewport state restored');
+    }
   }
   
   /**

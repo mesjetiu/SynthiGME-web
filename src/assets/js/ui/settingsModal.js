@@ -224,6 +224,10 @@ export class SettingsModal {
       this.rememberPips = readBool(STORAGE_KEYS.PIP_REMEMBER, false);
       this.pipRememberCheckbox.checked = this.rememberPips;
     }
+    if (this.viewportRememberCheckbox) {
+      this.rememberViewport = readBool(STORAGE_KEYS.VIEWPORT_REMEMBER, false);
+      this.viewportRememberCheckbox.checked = this.rememberViewport;
+    }
     if (this.sharpRasterizeCheckbox) {
       this.sharpRasterizeEnabled = readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false);
       this.sharpRasterizeCheckbox.checked = this.sharpRasterizeEnabled;
@@ -656,6 +660,9 @@ export class SettingsModal {
     
     // Paneles flotantes (PiP)
     container.appendChild(this._createPipSection());
+    
+    // Navegación del viewport (posición y zoom del canvas)
+    container.appendChild(this._createViewportSection());
     
     // Información de parámetros (tooltips)
     container.appendChild(this._createParamInfoSection());
@@ -2156,6 +2163,68 @@ export class SettingsModal {
     // Si se desactiva, limpiar estado guardado
     if (!remember) {
       localStorage.removeItem(STORAGE_KEYS.PIP_STATE);
+    }
+  }
+
+  /**
+   * Crea la sección de navegación del viewport
+   * @returns {HTMLElement}
+   */
+  _createViewportSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.viewportTitleElement = document.createElement('h3');
+    this.viewportTitleElement.className = 'settings-section__title';
+    this.viewportTitleElement.textContent = t('settings.display.viewport');
+    section.appendChild(this.viewportTitleElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox para recordar posición del viewport entre sesiones
+    // ─────────────────────────────────────────────────────────────────────
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--checkbox';
+    
+    this.viewportRememberCheckbox = document.createElement('input');
+    this.viewportRememberCheckbox.type = 'checkbox';
+    this.viewportRememberCheckbox.id = 'viewportRememberCheckbox';
+    this.viewportRememberCheckbox.className = 'settings-checkbox';
+    
+    // Cargar preferencia guardada (por defecto false = no recordar)
+    const savedPref = localStorage.getItem(STORAGE_KEYS.VIEWPORT_REMEMBER);
+    this.rememberViewport = savedPref === 'true';
+    this.viewportRememberCheckbox.checked = this.rememberViewport;
+    
+    this.viewportRememberLabelElement = document.createElement('label');
+    this.viewportRememberLabelElement.className = 'settings-checkbox-label';
+    this.viewportRememberLabelElement.htmlFor = 'viewportRememberCheckbox';
+    this.viewportRememberLabelElement.textContent = t('settings.display.viewport.remember');
+    
+    this.viewportRememberCheckbox.addEventListener('change', () => {
+      this._setRememberViewport(this.viewportRememberCheckbox.checked);
+    });
+    
+    row.appendChild(this.viewportRememberCheckbox);
+    row.appendChild(this.viewportRememberLabelElement);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
+  /**
+   * Establece si se recuerda la posición del viewport entre sesiones
+   * @param {boolean} remember
+   */
+  _setRememberViewport(remember) {
+    this.rememberViewport = remember;
+    localStorage.setItem(STORAGE_KEYS.VIEWPORT_REMEMBER, String(remember));
+    document.dispatchEvent(new CustomEvent('synth:settingChanged', {
+      detail: { key: 'rememberViewport', value: remember }
+    }));
+    
+    // Si se desactiva, limpiar estado guardado
+    if (!remember) {
+      localStorage.removeItem(STORAGE_KEYS.VIEWPORT_STATE);
     }
   }
 

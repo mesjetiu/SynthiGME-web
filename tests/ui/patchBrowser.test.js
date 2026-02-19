@@ -501,8 +501,8 @@ describe('PatchBrowser — savePatch con existingId (sobrescritura)', () => {
 
 describe('PatchBrowser — configuración visual en patches', () => {
   
-  it('listPatches incluye campo hasPipState en la respuesta', async () => {
-    // Verificar que storage.js mapea hasPipState
+  it('listPatches incluye campo hasVisualState en la respuesta', async () => {
+    // Verificar que storage.js mapea hasVisualState (pipState o viewportState)
     const fs = await import('fs');
     const path = await import('path');
     const fileURL = await import('url');
@@ -515,8 +515,8 @@ describe('PatchBrowser — configuración visual en patches', () => {
     const code = fs.readFileSync(storagePath, 'utf-8');
     
     assert.ok(
-      code.includes('hasPipState'),
-      'listPatches debe mapear hasPipState'
+      code.includes('hasVisualState'),
+      'listPatches debe mapear hasVisualState'
     );
   });
   
@@ -546,16 +546,20 @@ describe('PatchBrowser — configuración visual en patches', () => {
     );
   });
   
-  it('_maybeAddVisualState añade pipState si checkbox activo', () => {
+  it('_maybeAddVisualState añade pipState y viewportState si checkbox activo', () => {
     // Simular la lógica de _maybeAddVisualState
     const mockPipState = [
       { panelId: 'panel-1', x: 100, y: 200, width: 400, height: 300, scale: 0.5 },
       { panelId: 'panel-3', x: 500, y: 100, width: 350, height: 280, scale: 0.6 }
     ];
+    const mockViewportState = { scale: 0.35, offsetX: 50, offsetY: 30, focusedPanelId: null };
     
-    function maybeAddVisualState(patch, checkboxChecked, serializeFn) {
+    function maybeAddVisualState(patch, checkboxChecked, serializePipFn, serializeViewportFn) {
       if (checkboxChecked) {
-        patch.pipState = serializeFn();
+        patch.pipState = serializePipFn();
+        if (serializeViewportFn) {
+          patch.viewportState = serializeViewportFn();
+        }
       }
       return patch;
     }
@@ -563,36 +567,45 @@ describe('PatchBrowser — configuración visual en patches', () => {
     const patch = { name: 'Test', modules: {} };
     
     // Con checkbox activo
-    const result = maybeAddVisualState(patch, true, () => mockPipState);
+    const result = maybeAddVisualState(patch, true, () => mockPipState, () => mockViewportState);
     assert.ok(Array.isArray(result.pipState), 'pipState debe ser un array');
     assert.strictEqual(result.pipState.length, 2, 'debe tener 2 PiPs');
     assert.strictEqual(result.pipState[0].panelId, 'panel-1');
     assert.strictEqual(result.pipState[1].x, 500);
+    assert.ok(result.viewportState, 'viewportState debe existir');
+    assert.strictEqual(result.viewportState.scale, 0.35);
+    assert.strictEqual(result.viewportState.offsetX, 50);
   });
   
-  it('_maybeAddVisualState no añade pipState si checkbox inactivo', () => {
-    function maybeAddVisualState(patch, checkboxChecked, serializeFn) {
+  it('_maybeAddVisualState no añade estado visual si checkbox inactivo', () => {
+    function maybeAddVisualState(patch, checkboxChecked, serializePipFn, serializeViewportFn) {
       if (checkboxChecked) {
-        patch.pipState = serializeFn();
+        patch.pipState = serializePipFn();
+        if (serializeViewportFn) patch.viewportState = serializeViewportFn();
       }
       return patch;
     }
     
     const patch = { name: 'Test', modules: {} };
-    const result = maybeAddVisualState(patch, false, () => []);
+    const result = maybeAddVisualState(patch, false, () => [], () => ({}));
     assert.strictEqual(result.pipState, undefined, 'no debe tener pipState');
+    assert.strictEqual(result.viewportState, undefined, 'no debe tener viewportState');
   });
   
-  it('_maybeRestoreVisualState restaura si checkbox activo y datos presentes', () => {
-    const closedPanels = [];
+  it('_maybeRestoreVisualState restaura PIPs y viewport si checkbox activo', () => {
     const openedPanels = [];
+    let viewportRestored = null;
     
-    function maybeRestoreVisualState(patchData, checked, closeFn, openFn) {
+    function maybeRestoreVisualState(patchData, checked, closeFn, openFn, restoreViewportFn) {
       if (!checked) return;
-      if (!patchData?.pipState || !Array.isArray(patchData.pipState)) return;
-      closeFn();
-      for (const state of patchData.pipState) {
-        openFn(state.panelId, state);
+      if (patchData?.pipState && Array.isArray(patchData.pipState)) {
+        closeFn();
+        for (const state of patchData.pipState) {
+          openFn(state.panelId, state);
+        }
+      }
+      if (patchData?.viewportState && restoreViewportFn) {
+        restoreViewportFn(patchData.viewportState);
       }
     }
     
@@ -600,7 +613,8 @@ describe('PatchBrowser — configuración visual en patches', () => {
       pipState: [
         { panelId: 'panel-1', x: 100, y: 200 },
         { panelId: 'panel-5', x: 300, y: 400 }
-      ]
+      ],
+      viewportState: { scale: 0.5, offsetX: 100, offsetY: 50, focusedPanelId: 'panel-1' }
     };
     
     let allClosed = false;
@@ -608,13 +622,17 @@ describe('PatchBrowser — configuración visual en patches', () => {
       patchData,
       true,
       () => { allClosed = true; },
-      (id, state) => { openedPanels.push({ id, state }); }
+      (id, state) => { openedPanels.push({ id, state }); },
+      (state) => { viewportRestored = state; }
     );
     
     assert.ok(allClosed, 'debe cerrar todas las PiPs primero');
     assert.strictEqual(openedPanels.length, 2, 'debe abrir 2 PiPs');
     assert.strictEqual(openedPanels[0].id, 'panel-1');
     assert.strictEqual(openedPanels[1].id, 'panel-5');
+    assert.ok(viewportRestored, 'debe restaurar viewport');
+    assert.strictEqual(viewportRestored.scale, 0.5);
+    assert.strictEqual(viewportRestored.focusedPanelId, 'panel-1');
   });
   
   it('_maybeRestoreVisualState no hace nada si checkbox inactivo', () => {
@@ -691,15 +709,77 @@ describe('PatchBrowser — traducciones de configuración visual', () => {
     }
   });
   
-  it('includeVisual contiene "PIP" en todos los idiomas', async () => {
+  it('includeVisual NO contiene nomenclatura interna PIP', async () => {
     const locales = ['en', 'es', 'fr', 'de', 'it', 'pt', 'cs'];
     
     for (const locale of locales) {
       const mod = (await import(`../../src/assets/js/i18n/locales/${locale}.js`)).default;
       assert.ok(
-        mod['patches.includeVisual'].includes('PIP'),
-        `${locale}: includeVisual debe mencionar PIPs`
+        !mod['patches.includeVisual'].includes('PIP'),
+        `${locale}: includeVisual no debe usar nomenclatura interna PIPs`
       );
     }
+  });
+  
+  it('7 idiomas tienen las claves de viewport', async () => {
+    const locales = ['en', 'es', 'fr', 'de', 'it', 'pt', 'cs'];
+    const viewportKeys = ['settings.display.viewport', 'settings.display.viewport.remember'];
+    
+    for (const locale of locales) {
+      const mod = (await import(`../../src/assets/js/i18n/locales/${locale}.js`)).default;
+      for (const key of viewportKeys) {
+        assert.ok(mod[key] !== undefined, `${locale}: clave ${key} debe existir`);
+        assert.ok(mod[key].length > 0, `${locale}: clave ${key} no debe estar vacía`);
+      }
+    }
+  });
+  
+  it('constants.js tiene VIEWPORT_STATE y VIEWPORT_REMEMBER', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const fileURL = await import('url');
+    
+    const projectRoot = path.resolve(
+      path.dirname(fileURL.fileURLToPath(import.meta.url)),
+      '../..'
+    );
+    const constantsPath = path.join(projectRoot, 'src/assets/js/utils/constants.js');
+    const code = fs.readFileSync(constantsPath, 'utf-8');
+    
+    assert.ok(code.includes('VIEWPORT_STATE'), 'debe tener VIEWPORT_STATE');
+    assert.ok(code.includes('VIEWPORT_REMEMBER'), 'debe tener VIEWPORT_REMEMBER');
+  });
+  
+  it('viewportNavigation.js expone __synthSerializeViewportState y __synthRestoreViewportState', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const fileURL = await import('url');
+    
+    const projectRoot = path.resolve(
+      path.dirname(fileURL.fileURLToPath(import.meta.url)),
+      '../..'
+    );
+    const vpPath = path.join(projectRoot, 'src/assets/js/navigation/viewportNavigation.js');
+    const code = fs.readFileSync(vpPath, 'utf-8');
+    
+    assert.ok(code.includes('__synthSerializeViewportState'), 'debe exponer __synthSerializeViewportState');
+    assert.ok(code.includes('__synthRestoreViewportState'), 'debe exponer __synthRestoreViewportState');
+  });
+  
+  it('patchBrowser incluye viewportState en _maybeAddVisualState', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const fileURL = await import('url');
+    
+    const projectRoot = path.resolve(
+      path.dirname(fileURL.fileURLToPath(import.meta.url)),
+      '../..'
+    );
+    const pbPath = path.join(projectRoot, 'src/assets/js/ui/patchBrowser.js');
+    const code = fs.readFileSync(pbPath, 'utf-8');
+    
+    assert.ok(code.includes('viewportState'), 'patchBrowser debe manejar viewportState');
+    assert.ok(code.includes('__synthSerializeViewportState'), 'debe usar __synthSerializeViewportState');
+    assert.ok(code.includes('__synthRestoreViewportState'), 'debe usar __synthRestoreViewportState');
   });
 });

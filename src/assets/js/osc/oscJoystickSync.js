@@ -17,6 +17,7 @@
  */
 
 import { oscBridge } from './oscBridge.js';
+import { flashGlow } from '../ui/glowManager.js';
 
 /**
  * Clase que gestiona la sincronización OSC de joysticks
@@ -180,6 +181,7 @@ class JoystickOSCSync {
               handle.style.top = (py * 100) + '%';
               handle.style.transform = 'translate(-50%, -50%)';
             }
+            flashGlow(joyUI.padEl);
           }
           break;
         }

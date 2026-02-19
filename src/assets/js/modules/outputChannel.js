@@ -29,6 +29,7 @@ import {
 import { registerTooltipHideCallback, hideOtherTooltips } from '../ui/tooltipManager.js';
 import { getVCATooltipInfo } from '../utils/tooltipUtils.js';
 import { outputChannelOSCSync } from '../osc/oscOutputChannelSync.js';
+import { flashGlow } from '../ui/glowManager.js';
 
 // Detectar si el dispositivo tiene capacidad táctil
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -318,6 +319,9 @@ export class OutputChannel extends Module {
     
     const wrap = document.createElement('div');
     wrap.className = 'output-channel__slider-wrap';
+    
+    // Guardar referencia al wrap para glow de cambios programáticos
+    this._sliderWrapEl = wrap;
     
     const shell = document.createElement('div');
     shell.className = 'output-channel__slider-shell';
@@ -687,6 +691,10 @@ export class OutputChannel extends Module {
         ? vcaCalculateGainLinear(data.level, this.values.externalCV)
         : vcaCalculateGain(data.level, this.values.externalCV);
       this.engine.setOutputLevel(this.channelIndex, gain, { ramp: 0.06 });
+      // Flash de glow en el slider wrap
+      if (this._sliderWrapEl) {
+        flashGlow(this._sliderWrapEl);
+      }
     }
     
     // Filtro: actualizar valor y visual del knob

@@ -1,6 +1,7 @@
 // Componente Knob reutilizable para parámetros continuos en la interfaz
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import { registerTooltipHideCallback, hideOtherTooltips } from './tooltipManager.js';
+import { flashGlow } from './glowManager.js';
 
 // Detectar si el dispositivo tiene capacidad táctil (puede tener ambos: táctil y ratón)
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -602,8 +603,9 @@ export class Knob {
     this.value = newValue;
     this._updateVisual();
     if (this.onChange) this.onChange(this.value);
-    // Notificar solo si no estamos arrastrando (evita spam de eventos)
+    // Flash de glow para cambios programáticos (patch, OSC, reset)
     if (!this.dragging) {
+      flashGlow(this.rootEl);
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     }
   }

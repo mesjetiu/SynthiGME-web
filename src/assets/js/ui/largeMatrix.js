@@ -7,6 +7,7 @@
  */
 
 import { getPinColorMenu, PIN_CSS_COLORS } from './pinColorMenu.js';
+import { flashPinGlow } from './glowManager.js';
 
 /** Tiempo en ms para detectar pulsación larga (touch) */
 const LONG_PRESS_DURATION = 500;
@@ -221,6 +222,7 @@ export class LargeMatrix {
       // Aplicar clase de color si se activa
       if (nextActive) {
         this._applyPinColorClass(btn, pinColor);
+        flashPinGlow(btn);
       } else {
         this._removePinColorClasses(btn);
         // Limpiar color guardado al desactivar
@@ -612,10 +614,12 @@ export class LargeMatrix {
           if (allow) {
             btn.classList.add('active');
             this._applyPinColorClass(btn, effectiveColor);
+            flashPinGlow(btn);
           }
         } else {
           btn.classList.add('active');
           this._applyPinColorClass(btn, effectiveColor);
+          flashPinGlow(btn);
         }
       }
     });

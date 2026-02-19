@@ -18,6 +18,7 @@
  */
 
 import { oscBridge } from './oscBridge.js';
+import { flashPinGlow } from '../ui/glowManager.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAPEO DE DESCRIPTORES DE BLUEPRINT A SEGMENTOS DE DIRECCIÓN OSC
@@ -709,6 +710,7 @@ class MatrixOSCSync {
           if (allow) {
             btn.classList.add('active');
             largeMatrix._applyPinColorClass(btn, effectiveColor);
+            flashPinGlow(btn);
           }
         }
       } else if (shouldConnect && isCurrentlyConnected) {

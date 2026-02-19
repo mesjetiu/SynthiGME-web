@@ -284,6 +284,61 @@ settings.display.faderResponse.linear:
   pt: Resposta linear de ganho (controle mais fácil)
   cs: Lineární odezva zisku (snazší ovládání)
 
+# Sección: Efecto glow (halo brillante en controles)
+settings.display.glow:
+  en: Control Glow Effect
+  es: Efecto de brillo en controles
+  fr: Effet de luminosité des contrôles
+  de: Leuchteffekt der Bedienelemente
+  it: Effetto luminoso dei controlli
+  pt: Efeito de brilho nos controles
+  cs: Efekt záře ovládacích prvků
+
+settings.display.glow.description:
+  en: Pulsing halo around knobs, sliders, pads and pins when their value changes. Useful for live performances so the audience can see what's being adjusted. The glow activates on interaction, patch loading, OSC messages, and resets.
+  es: Halo pulsante alrededor de knobs, sliders, pads y pines cuando cambia su valor. Útil en actuaciones en directo para que el público vea qué se está ajustando. El brillo se activa con interacción, carga de patches, mensajes OSC y reinicios.
+  fr: Halo pulsant autour des boutons, curseurs, pads et broches lorsque leur valeur change. Utile pour les performances en direct afin que le public puisse voir ce qui est ajusté. La lueur s'active lors de l'interaction, du chargement de patches, des messages OSC et des réinitialisations.
+  de: Pulsierender Leuchteffekt um Regler, Schieberegler, Pads und Pins wenn sich ihr Wert ändert. Nützlich für Live-Auftritte, damit das Publikum sehen kann, was angepasst wird. Der Leuchteffekt aktiviert sich bei Interaktion, Patch-Laden, OSC-Nachrichten und Resets.
+  it: Alone pulsante attorno a manopole, cursori, pad e pin quando il loro valore cambia. Utile per esibizioni dal vivo in modo che il pubblico possa vedere cosa viene regolato. La luminosità si attiva con l'interazione, il caricamento di patch, messaggi OSC e reset.
+  pt: Halo pulsante ao redor de knobs, sliders, pads e pinos quando seu valor muda. Útil em performances ao vivo para que o público veja o que está sendo ajustado. O brilho se ativa com interação, carregamento de patches, mensagens OSC e resets.
+  cs: Pulzující záře kolem knoflíků, posuvníků, padů a pinů při změně jejich hodnoty. Užitečné pro živé výkony, aby publikum vidělo, co se upravuje. Záře se aktivuje při interakci, načítání patchů, OSC zprávách a resetech.
+
+settings.display.glow.performance:
+  en: "Performance: maximum visibility for live shows"
+  es: "Performance: máxima visibilidad para shows en directo"
+  fr: "Performance : visibilité maximale pour les spectacles en direct"
+  de: "Performance: maximale Sichtbarkeit für Live-Shows"
+  it: "Performance: massima visibilità per spettacoli dal vivo"
+  pt: "Performance: máxima visibilidade para shows ao vivo"
+  cs: "Performance: maximální viditelnost pro živé show"
+
+settings.display.glow.standard:
+  en: "Standard: visible and balanced effect"
+  es: "Estándar: efecto visible y equilibrado"
+  fr: "Standard : effet visible et équilibré"
+  de: "Standard: sichtbarer und ausgewogener Effekt"
+  it: "Standard: effetto visibile e bilanciato"
+  pt: "Padrão: efeito visível e equilibrado"
+  cs: "Standardní: viditelný a vyvážený efekt"
+
+settings.display.glow.subtle:
+  en: "Subtle: barely visible, for personal use"
+  es: "Sutil: apenas visible, para uso personal"
+  fr: "Subtil : à peine visible, pour un usage personnel"
+  de: "Dezent: kaum sichtbar, für den persönlichen Gebrauch"
+  it: "Sottile: appena visibile, per uso personale"
+  pt: "Sutil: quase invisível, para uso pessoal"
+  cs: "Jemný: sotva viditelný, pro osobní použití"
+
+settings.display.glow.off:
+  en: "Off: no glow effect"
+  es: "Apagado: sin efecto de brillo"
+  fr: "Désactivé : aucun effet de luminosité"
+  de: "Aus: kein Leuchteffekt"
+  it: "Spento: nessun effetto luminoso"
+  pt: "Desligado: sem efeito de brilho"
+  cs: "Vypnuto: žádný efekt záře"
+
 # Sección: Rasterización adaptativa (nitidez de zoom)
 settings.display.sharpRasterize:
   en: Zoom Sharpness

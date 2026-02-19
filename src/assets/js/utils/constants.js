@@ -217,7 +217,14 @@ export const STORAGE_KEYS = {
   TELEMETRY_ID: `${STORAGE_PREFIX}telemetry-id`,
   
   /** Cola de eventos offline (JSON array) */
-  TELEMETRY_QUEUE: `${STORAGE_PREFIX}telemetry-queue`
+  TELEMETRY_QUEUE: `${STORAGE_PREFIX}telemetry-queue`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Efecto glow (halo brillante en controles)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Preset de glow: 'performance', 'standard', 'subtle', 'off' */
+  GLOW_PRESET: `${STORAGE_PREFIX}glow-preset`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

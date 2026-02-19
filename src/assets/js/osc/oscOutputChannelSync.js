@@ -21,6 +21,7 @@ import {
   sliderToDialLinear,
   isFaderLinearResponseEnabled
 } from '../utils/voltageConstants.js';
+import { flashGlow } from '../ui/glowManager.js';
 
 /**
  * Clase que gestiona la sincronización OSC de canales de salida
@@ -184,6 +185,10 @@ class OutputChannelOSCSync {
           }
           // Aplicar al motor de audio (necesita ganancia, no dial)
           this._applyLevel(outputChannel, oscValue);
+          // Flash de glow en el slider wrap
+          if (outputChannel._sliderWrapEl) {
+            flashGlow(outputChannel._sliderWrapEl);
+          }
           break;
           
         case 'filter':

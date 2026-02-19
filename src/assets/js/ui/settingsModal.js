@@ -18,6 +18,7 @@ import { STORAGE_KEYS, STORAGE_PREFIX, AUTOSAVE_INTERVALS, isMobileDevice } from
 import { WakeLockManager } from '../utils/wakeLock.js';
 import { showToast } from './toast.js';
 import { setEnabled as telemetrySetEnabled } from '../utils/telemetry.js';
+import { getGlowPreset, setGlowPreset, getGlowPresetIds } from './glowManager.js';
 
 /**
  * Modal de configuración general con pestañas
@@ -659,6 +660,9 @@ export class SettingsModal {
     
     // Información de parámetros (tooltips)
     container.appendChild(this._createParamInfoSection());
+    
+    // Efecto glow (halo brillante en controles)
+    container.appendChild(this._createGlowSection());
     
     // Respuesta de faders de salida
     container.appendChild(this._createFaderResponseSection());
@@ -2245,6 +2249,66 @@ export class SettingsModal {
     audioRow.appendChild(this.tooltipAudioCheckbox);
     audioRow.appendChild(this.tooltipAudioLabelElement);
     section.appendChild(audioRow);
+    
+    return section;
+  }
+  
+  /**
+   * Crea la sección de efecto glow (halo brillante en controles).
+   * Permite elegir entre presets de intensidad o desactivar.
+   * @returns {HTMLElement}
+   */
+  _createGlowSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.glowTitleElement = document.createElement('h3');
+    this.glowTitleElement.className = 'settings-section__title';
+    this.glowTitleElement.textContent = t('settings.display.glow');
+    section.appendChild(this.glowTitleElement);
+    
+    this.glowDescElement = document.createElement('p');
+    this.glowDescElement.className = 'settings-section__description';
+    this.glowDescElement.textContent = t('settings.display.glow.description');
+    section.appendChild(this.glowDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Selector de preset de glow (radio buttons)
+    // ─────────────────────────────────────────────────────────────────────
+    const currentPreset = getGlowPreset();
+    const presets = getGlowPresetIds();
+    
+    this._glowRadios = {};
+    
+    for (const presetId of presets) {
+      const row = document.createElement('div');
+      row.className = 'settings-row settings-row--checkbox';
+      
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'glowPreset';
+      radio.id = `glowPreset-${presetId}`;
+      radio.value = presetId;
+      radio.className = 'settings-checkbox';
+      radio.checked = presetId === currentPreset;
+      
+      const label = document.createElement('label');
+      label.className = 'settings-checkbox-label';
+      label.htmlFor = `glowPreset-${presetId}`;
+      label.textContent = t(`settings.display.glow.${presetId}`);
+      
+      radio.addEventListener('change', () => {
+        if (radio.checked) {
+          setGlowPreset(presetId);
+        }
+      });
+      
+      this._glowRadios[presetId] = radio;
+      
+      row.appendChild(radio);
+      row.appendChild(label);
+      section.appendChild(row);
+    }
     
     return section;
   }
@@ -3936,6 +4000,22 @@ export class SettingsModal {
     }
     if (this.tooltipAudioLabelElement) {
       this.tooltipAudioLabelElement.textContent = t('settings.display.paramInfo.audio');
+    }
+    
+    // Actualizar sección de efecto glow
+    if (this.glowTitleElement) {
+      this.glowTitleElement.textContent = t('settings.display.glow');
+    }
+    if (this.glowDescElement) {
+      this.glowDescElement.textContent = t('settings.display.glow.description');
+    }
+    if (this._glowRadios) {
+      for (const presetId of getGlowPresetIds()) {
+        const label = this._glowRadios[presetId]?.parentElement?.querySelector('label');
+        if (label) {
+          label.textContent = t(`settings.display.glow.${presetId}`);
+        }
+      }
     }
     
     // Actualizar sección de respuesta de faders

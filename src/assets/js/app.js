@@ -102,6 +102,7 @@ import { outputChannelOSCSync } from './osc/oscOutputChannelSync.js';
 import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
+import { initGlowManager } from './ui/glowManager.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VISIBILIDAD DE MÓDULOS
@@ -6365,6 +6366,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   try {
     // Inicializar sistema de internacionalización antes de crear la UI
     await initI18n();
+    
+    // Inicializar sistema de glow (halo brillante en controles)
+    initGlowManager();
     
     // Detectar versión antes de crear la app (para que esté disponible en modales)
     await detectBuildVersion();

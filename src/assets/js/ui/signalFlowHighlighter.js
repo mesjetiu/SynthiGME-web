@@ -248,7 +248,7 @@ export class SignalFlowHighlighter {
       // Si ya hay un elemento bajo el cursor, resaltar ahora
       if (this._hoveredElement) {
         const pinBtn = this._hoveredElement.closest?.('button.pin-btn');
-        if (pinBtn && pinBtn.classList.contains('active')) {
+        if (pinBtn) {
           this._highlightPin(pinBtn);
         } else {
           const moduleEl = findModuleElement(this._hoveredElement);
@@ -284,7 +284,7 @@ export class SignalFlowHighlighter {
     
     // ¿Es un pin de matriz?
     const pinBtn = e.target?.closest?.('button.pin-btn');
-    if (pinBtn && pinBtn.classList.contains('active')) {
+    if (pinBtn) {
       this._highlightPin(pinBtn);
       return;
     }
@@ -328,7 +328,7 @@ export class SignalFlowHighlighter {
     
     // ¿Es un pin?
     const pinBtn = e.target?.closest?.('button.pin-btn');
-    if (pinBtn && pinBtn.classList.contains('active')) {
+    if (pinBtn) {
       // Toggle: si ya está resaltado, limpiar
       if (pinBtn.classList.contains(CSS_CLASSES.SOURCE_PIN) || 
           pinBtn.classList.contains(CSS_CLASSES.DEST_PIN)) {

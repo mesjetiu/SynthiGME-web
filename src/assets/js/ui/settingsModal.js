@@ -2357,6 +2357,8 @@ export class SettingsModal {
     this.signalFlowEnabledCheckbox.addEventListener('change', () => {
       const enabled = this.signalFlowEnabledCheckbox.checked;
       localStorage.setItem(STORAGE_KEYS.SIGNAL_FLOW_ENABLED, String(enabled));
+      // Habilitar/deshabilitar la opción subordinada
+      this.signalFlowNoModifierCheckbox.disabled = !enabled;
       document.dispatchEvent(new CustomEvent('synth:signalFlowEnabledChanged', {
         detail: { enabled }
       }));
@@ -2367,10 +2369,10 @@ export class SettingsModal {
     section.appendChild(enabledRow);
     
     // ─────────────────────────────────────────────────────────────────────
-    // Checkbox: activar sin tecla modificadora (siempre visible al hover/clic)
+    // Checkbox: activar sin tecla modificadora (subordinado, indentado)
     // ─────────────────────────────────────────────────────────────────────
     const noModifierRow = document.createElement('div');
-    noModifierRow.className = 'settings-row settings-row--checkbox';
+    noModifierRow.className = 'settings-row settings-row--checkbox settings-row--indent';
     
     this.signalFlowNoModifierCheckbox = document.createElement('input');
     this.signalFlowNoModifierCheckbox.type = 'checkbox';
@@ -2381,6 +2383,9 @@ export class SettingsModal {
     const savedRequireModifier = localStorage.getItem(STORAGE_KEYS.SIGNAL_FLOW_REQUIRE_MODIFIER);
     const requireModifier = savedRequireModifier === 'true'; // false por defecto
     this.signalFlowNoModifierCheckbox.checked = !requireModifier;
+    
+    // Deshabilitado si el flujo de señal está desactivado
+    this.signalFlowNoModifierCheckbox.disabled = !this.signalFlowEnabledCheckbox.checked;
     
     const noModifierLabel = document.createElement('label');
     noModifierLabel.className = 'settings-checkbox-label';

@@ -7,6 +7,8 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
+import { flashGlow } from './glowManager.js';
+
 export class Toggle {
   /**
    * @param {Object} options
@@ -59,6 +61,7 @@ export class Toggle {
     if (this.onChange) {
       this.onChange(this.state, this.state === 'a' ? this.labelA : this.labelB);
     }
+    flashGlow(this.element);
     // Notificar que hay cambios sin guardar
     document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     return this.state;
@@ -72,6 +75,7 @@ export class Toggle {
     if (state === 'a' || state === 'b') {
       this.state = state;
       this._render();
+      flashGlow(this.element);
     }
   }
 

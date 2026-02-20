@@ -1187,6 +1187,9 @@ h1 {
 .glow-disabled .output-channel__switch.glow-flash {
   animation: none;
 }
+.glow-disabled .synth-toggle.glow-flash .synth-toggle__track {
+  animation: none;
+}
 
 /* Main value display (scale value like 0.0 - 10.0) */
 .knob-tooltip__main {
@@ -2382,6 +2385,20 @@ small { color:#aaa; }
 
 .synth-toggle.is-b .synth-toggle__thumb {
   left: 16px;
+}
+
+/* Synth-toggle glow effect */
+.synth-toggle.glow-flash .synth-toggle__track {
+  animation: toggle-glow-flash var(--glow-duration, 500ms) ease-out forwards;
+}
+
+@keyframes toggle-glow-flash {
+  0% {
+    box-shadow: var(--glow-flash-shadow, 0 0 14px 6px rgba(255, 215, 128, 0.9));
+  }
+  100% {
+    box-shadow: none;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

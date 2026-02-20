@@ -301,6 +301,7 @@ export class OutputChannel extends Module {
       if (!outputChannelOSCSync.shouldIgnoreOSC()) {
         outputChannelOSCSync.sendPowerChange(this.channelIndex, this.values.power);
       }
+      flashGlow(switchEl);
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
     });
     

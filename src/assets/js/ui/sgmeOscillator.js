@@ -106,6 +106,7 @@ export class SGME_Oscillator {
       if (typeof this.onRangeChange === 'function') {
         this.onRangeChange(this.rangeState);
       }
+      flashGlow(range);
     });
     rangeWrap.appendChild(range);
     top.appendChild(rangeWrap);

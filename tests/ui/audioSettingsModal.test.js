@@ -17,25 +17,9 @@ import assert from 'node:assert/strict';
 // MOCKS MÍNIMOS (solo localStorage para tests de persistencia)
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Mock de localStorage si no existe
-if (!globalThis.localStorage) {
-  globalThis.localStorage = {
-    _data: {},
-    getItem(key) { return this._data[key] ?? null; },
-    setItem(key, value) { this._data[key] = String(value); },
-    removeItem(key) { delete this._data[key]; },
-    clear() { this._data = {}; }
-  };
-}
+import '../mocks/localStorage.mock.js';
 
-// Fallback para clear si no existe (en ciertos ambientes)
-const clearLocalStorage = () => {
-  if (globalThis.localStorage.clear) {
-    globalThis.localStorage.clear();
-  } else if (globalThis.localStorage._data) {
-    globalThis.localStorage._data = {};
-  }
-};
+const clearLocalStorage = () => localStorage.clear();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // IMPORTS

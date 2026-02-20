@@ -11,6 +11,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import '../mocks/localStorage.mock.js';
 
 import { AUDIO_CONSTANTS } from '../../src/assets/js/core/engine.js';
 

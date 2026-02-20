@@ -18,15 +18,7 @@ import assert from 'node:assert/strict';
 
 // ─── Mock de entorno mínimo ───
 
-const storage = {};
-if (typeof globalThis.localStorage === 'undefined') {
-  globalThis.localStorage = {
-    getItem(key) { return storage[key] ?? null; },
-    setItem(key, val) { storage[key] = String(val); },
-    removeItem(key) { delete storage[key]; },
-    clear() { Object.keys(storage).forEach(k => delete storage[k]); }
-  };
-}
+import '../mocks/localStorage.mock.js';
 
 if (typeof globalThis.window === 'undefined') {
   globalThis.window = {

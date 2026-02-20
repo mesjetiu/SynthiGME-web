@@ -12,15 +12,7 @@ import { describe, it, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 // ─── Mock de localStorage ───
-const storage = {};
-if (typeof globalThis.localStorage === 'undefined') {
-  globalThis.localStorage = {
-    getItem(key) { return storage[key] ?? null; },
-    setItem(key, val) { storage[key] = String(val); },
-    removeItem(key) { delete storage[key]; },
-    clear() { Object.keys(storage).forEach(k => delete storage[k]); }
-  };
-}
+import '../mocks/localStorage.mock.js';
 
 // ─── Mock de window (para logger) ───
 if (typeof globalThis.window === 'undefined') {

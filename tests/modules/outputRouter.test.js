@@ -9,6 +9,7 @@
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import '../mocks/localStorage.mock.js';
 import { createMockAudioContext } from '../mocks/audioContext.mock.js';
 
 import { OutputRouterModule } from '../../src/assets/js/modules/outputRouter.js';

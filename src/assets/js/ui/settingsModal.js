@@ -2336,6 +2336,37 @@ export class SettingsModal {
     section.appendChild(this.signalFlowDescElement);
     
     // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: activar/desactivar flujo de señal
+    // ─────────────────────────────────────────────────────────────────────
+    const enabledRow = document.createElement('div');
+    enabledRow.className = 'settings-row settings-row--checkbox';
+    
+    this.signalFlowEnabledCheckbox = document.createElement('input');
+    this.signalFlowEnabledCheckbox.type = 'checkbox';
+    this.signalFlowEnabledCheckbox.id = 'signalFlowEnabled';
+    this.signalFlowEnabledCheckbox.className = 'settings-checkbox';
+    
+    const savedEnabled = localStorage.getItem(STORAGE_KEYS.SIGNAL_FLOW_ENABLED);
+    this.signalFlowEnabledCheckbox.checked = savedEnabled !== 'false'; // true por defecto
+    
+    const enabledLabel = document.createElement('label');
+    enabledLabel.className = 'settings-checkbox-label';
+    enabledLabel.htmlFor = 'signalFlowEnabled';
+    enabledLabel.textContent = t('settings.signalFlow.enabled');
+    
+    this.signalFlowEnabledCheckbox.addEventListener('change', () => {
+      const enabled = this.signalFlowEnabledCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.SIGNAL_FLOW_ENABLED, String(enabled));
+      document.dispatchEvent(new CustomEvent('synth:signalFlowEnabledChanged', {
+        detail: { enabled }
+      }));
+    });
+    
+    enabledRow.appendChild(this.signalFlowEnabledCheckbox);
+    enabledRow.appendChild(enabledLabel);
+    section.appendChild(enabledRow);
+    
+    // ─────────────────────────────────────────────────────────────────────
     // Checkbox: activar sin tecla modificadora (siempre visible al hover/clic)
     // ─────────────────────────────────────────────────────────────────────
     const noModifierRow = document.createElement('div');
@@ -2346,11 +2377,9 @@ export class SettingsModal {
     this.signalFlowNoModifierCheckbox.id = 'signalFlowNoModifier';
     this.signalFlowNoModifierCheckbox.className = 'settings-checkbox';
     
-    // Por defecto: en móvil/tablet no requiere modificador, en desktop sí
+    // Por defecto: sin modificador (tanto en desktop como móvil)
     const savedRequireModifier = localStorage.getItem(STORAGE_KEYS.SIGNAL_FLOW_REQUIRE_MODIFIER);
-    const requireModifier = savedRequireModifier !== null 
-      ? savedRequireModifier === 'true' 
-      : !isMobileDevice();
+    const requireModifier = savedRequireModifier === 'true'; // false por defecto
     this.signalFlowNoModifierCheckbox.checked = !requireModifier;
     
     const noModifierLabel = document.createElement('label');

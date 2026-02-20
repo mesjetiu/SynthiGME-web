@@ -25,7 +25,6 @@
 
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
-import { isMobileDevice } from '../utils/constants.js';
 
 const log = createLogger('SignalFlowHighlighter');
 
@@ -37,6 +36,7 @@ const log = createLogger('SignalFlowHighlighter');
 const CSS_CLASSES = {
   SOURCE_GLOW: 'signal-flow-source',
   DEST_GLOW: 'signal-flow-dest',
+  BOTH_GLOW: 'signal-flow-both',
   SOURCE_PIN: 'signal-flow-pin-source',
   DEST_PIN: 'signal-flow-pin-dest',
   ACTIVE: 'signal-flow-active'
@@ -134,10 +134,15 @@ export class SignalFlowHighlighter {
     this._hoveredElement = null; // Elemento actualmente bajo el cursor
     
     // Configuración
-    this._requireModifier = !isMobileDevice();
+    this._enabled = true; // Activado por defecto
+    this._requireModifier = false; // Sin modificador por defecto (también en desktop)
     this._modifierKey = 'Control'; // Valor por defecto
     
-    // Cargar preferencia de localStorage
+    // Cargar preferencias de localStorage
+    const savedEnabled = localStorage.getItem(STORAGE_KEYS.SIGNAL_FLOW_ENABLED);
+    if (savedEnabled !== null) {
+      this._enabled = savedEnabled !== 'false';
+    }
     const savedRequireModifier = localStorage.getItem(STORAGE_KEYS.SIGNAL_FLOW_REQUIRE_MODIFIER);
     if (savedRequireModifier !== null) {
       this._requireModifier = savedRequireModifier === 'true';
@@ -212,12 +217,32 @@ export class SignalFlowHighlighter {
     this._modifierKey = key;
   }
   
+  /**
+   * Activa o desactiva el resaltado de flujo de señal.
+   * @param {boolean} enabled
+   */
+  setEnabled(enabled) {
+    this._enabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.SIGNAL_FLOW_ENABLED, String(enabled));
+    if (!enabled) {
+      this._modifierKeyPressed = false;
+      this._clearAllHighlights();
+    }
+  }
+  
+  /**
+   * @returns {boolean} Si el resaltado de flujo está activado
+   */
+  getEnabled() {
+    return this._enabled;
+  }
+  
   // ─────────────────────────────────────────────────────────────────────────
   // EVENT HANDLERS
   // ─────────────────────────────────────────────────────────────────────────
   
   _handleKeyDown(e) {
-    if (!this._requireModifier) return;
+    if (!this._enabled || !this._requireModifier) return;
     if (e.key === this._modifierKey && !e.repeat) {
       this._modifierKeyPressed = true;
       // Si ya hay un elemento bajo el cursor, resaltar ahora
@@ -234,7 +259,7 @@ export class SignalFlowHighlighter {
   }
   
   _handleKeyUp(e) {
-    if (!this._requireModifier) return;
+    if (!this._enabled || !this._requireModifier) return;
     if (e.key === this._modifierKey) {
       this._modifierKeyPressed = false;
       this._clearAllHighlights();
@@ -250,6 +275,9 @@ export class SignalFlowHighlighter {
   _handleMouseOver(e) {
     // Siempre trackear el elemento bajo el cursor
     this._hoveredElement = e.target;
+    
+    // Desactivado → solo trackear
+    if (!this._enabled) return;
     
     // Requiere modificador y no está pulsado → no resaltar, solo trackear
     if (this._requireModifier && !this._modifierKeyPressed) return;
@@ -278,6 +306,7 @@ export class SignalFlowHighlighter {
       this._hoveredElement = relatedTarget || null;
     }
     
+    if (!this._enabled) return;
     if (this._requireModifier && !this._modifierKeyPressed) return;
     
     const pinBtn = e.target?.closest?.('button.pin-btn');
@@ -293,6 +322,7 @@ export class SignalFlowHighlighter {
   }
   
   _handleClick(e) {
+    if (!this._enabled) return;
     // En modo sin modificador: click sobre módulo o pin activa highlight
     if (this._requireModifier) return;
     
@@ -348,13 +378,28 @@ export class SignalFlowHighlighter {
     
     this._clearAllHighlights();
     
-    // Marcar el módulo como activo (sin color de flujo)
-    moduleEl.classList.add(CSS_CLASSES.ACTIVE);
-    this._highlightedElements.add(moduleEl);
+    // Buscar en ambas matrices y determinar el rol del módulo
+    const roles = { isSource: false, isDest: false, hasConnections: false };
+    this._findAndHighlightForModule(moduleId, this._panel5Routing, this._matrixAudio, roles);
+    this._findAndHighlightForModule(moduleId, this._panel6Routing, this._matrixControl, roles);
     
-    // Buscar en ambas matrices
-    this._findAndHighlightForModule(moduleId, this._panel5Routing, this._matrixAudio);
-    this._findAndHighlightForModule(moduleId, this._panel6Routing, this._matrixControl);
+    // Solo resaltar el módulo llamante si tiene alguna conexión activa
+    if (roles.hasConnections) {
+      moduleEl.classList.add(CSS_CLASSES.ACTIVE);
+      this._highlightedElements.add(moduleEl);
+      
+      // Aplicar color significativo al módulo llamante
+      if (roles.isSource && roles.isDest) {
+        // Recursivo: es origen Y destino → animación alternante
+        moduleEl.classList.add(CSS_CLASSES.BOTH_GLOW);
+      } else if (roles.isSource) {
+        // Es fuente → cyan (envía señal)
+        moduleEl.classList.add(CSS_CLASSES.SOURCE_GLOW);
+      } else if (roles.isDest) {
+        // Es destino → magenta (recibe señal)
+        moduleEl.classList.add(CSS_CLASSES.DEST_GLOW);
+      }
+    }
   }
   
   /**
@@ -363,7 +408,7 @@ export class SignalFlowHighlighter {
    * @param {Object} routing - { connections, sourceMap, destMap }
    * @param {import('./largeMatrix.js').LargeMatrix} matrix - Instancia de la matriz
    */
-  _findAndHighlightForModule(moduleId, routing, matrix) {
+  _findAndHighlightForModule(moduleId, routing, matrix, roles) {
     if (!routing || !routing.connections || !routing.sourceMap || !routing.destMap) return;
     
     const connections = routing.connections;
@@ -386,6 +431,8 @@ export class SignalFlowHighlighter {
       const isDest = destModuleIds.includes(moduleId);
       
       if (isSource) {
+        roles.isSource = true;
+        roles.hasConnections = true;
         // Este módulo es la fuente → resaltar destino en MAGENTA
         destModuleIds.forEach(id => this._applyGlowToModule(id, CSS_CLASSES.DEST_GLOW));
         // Resaltar el pin como destino
@@ -393,6 +440,8 @@ export class SignalFlowHighlighter {
       }
       
       if (isDest) {
+        roles.isDest = true;
+        roles.hasConnections = true;
         // Este módulo es el destino → resaltar fuente en CYAN
         sourceModuleIds.forEach(id => this._applyGlowToModule(id, CSS_CLASSES.SOURCE_GLOW));
         // Resaltar el pin como fuente
@@ -456,12 +505,18 @@ export class SignalFlowHighlighter {
     const el = document.getElementById(moduleId);
     if (!el) return;
     
-    // Si ya tiene el otro tipo de glow (es fuente Y destino de sí mismo),
-    // no sobrescribir
-    if (el.classList.contains(CSS_CLASSES.SOURCE_GLOW) && cssClass === CSS_CLASSES.DEST_GLOW) return;
-    if (el.classList.contains(CSS_CLASSES.DEST_GLOW) && cssClass === CSS_CLASSES.SOURCE_GLOW) return;
+    // Si ya tiene el otro tipo de glow → es fuente Y destino → alternante
+    const hasSource = el.classList.contains(CSS_CLASSES.SOURCE_GLOW);
+    const hasDest = el.classList.contains(CSS_CLASSES.DEST_GLOW);
     
-    el.classList.add(cssClass);
+    if ((hasSource && cssClass === CSS_CLASSES.DEST_GLOW) ||
+        (hasDest && cssClass === CSS_CLASSES.SOURCE_GLOW)) {
+      el.classList.remove(CSS_CLASSES.SOURCE_GLOW, CSS_CLASSES.DEST_GLOW);
+      el.classList.add(CSS_CLASSES.BOTH_GLOW);
+    } else if (!el.classList.contains(CSS_CLASSES.BOTH_GLOW)) {
+      el.classList.add(cssClass);
+    }
+    
     this._highlightedElements.add(el);
   }
   
@@ -489,6 +544,7 @@ export class SignalFlowHighlighter {
       el.classList.remove(
         CSS_CLASSES.SOURCE_GLOW,
         CSS_CLASSES.DEST_GLOW,
+        CSS_CLASSES.BOTH_GLOW,
         CSS_CLASSES.ACTIVE
       );
     }

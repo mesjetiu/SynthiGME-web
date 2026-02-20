@@ -1478,6 +1478,15 @@ settings.signalFlow.noModifier:
   pt: Ativar sem tecla modificadora (recomendado em tablets)
   cs: Aktivovat bez modifikační klávesy (doporučeno na tabletech)
 
+settings.signalFlow.enabled:
+  en: Show signal flow on hover
+  es: Mostrar flujo de señal al pasar el ratón
+  fr: Afficher le flux de signal au survol
+  de: Signalfluss beim Überfahren anzeigen
+  it: Mostra flusso del segnale al passaggio
+  pt: Mostrar fluxo de sinal ao passar o cursor
+  cs: Zobrazit tok signálu při najetí
+
 toast.autosave:
   en: State auto-saved
   es: Estado guardado automáticamente

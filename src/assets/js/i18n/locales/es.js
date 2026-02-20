@@ -169,6 +169,7 @@ export default {
   "settings.signalFlow": "Flujo de señal",
   "settings.signalFlow.description": "Resalta visualmente el origen (cyan) y destino (magenta) de las conexiones al pasar sobre módulos o pines activos. En desktop requiere mantener la tecla modificadora.",
   "settings.signalFlow.noModifier": "Activar sin tecla modificadora (recomendado en tablets)",
+  "settings.signalFlow.enabled": "Mostrar flujo de señal al pasar el ratón",
   "toast.autosave": "Estado guardado automáticamente",
   "toast.autosave.exit": "Estado guardado antes de salir",
   "toast.restored": "Estado anterior restaurado",

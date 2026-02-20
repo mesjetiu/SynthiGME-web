@@ -5659,6 +5659,13 @@ class App {
         this._signalFlowHighlighter.setRequireModifier(e.detail.requireModifier);
       }
     });
+    
+    // Escuchar activación/desactivación desde settings
+    document.addEventListener('synth:signalFlowEnabledChanged', (e) => {
+      if (typeof e.detail?.enabled === 'boolean') {
+        this._signalFlowHighlighter.setEnabled(e.detail.enabled);
+      }
+    });
   }
 
   /**

@@ -169,6 +169,7 @@ export default {
   "settings.signalFlow": "Signal flow",
   "settings.signalFlow.description": "Visually highlights the source (cyan) and destination (magenta) of connections when hovering over modules or active pins. On desktop, requires holding the modifier key.",
   "settings.signalFlow.noModifier": "Activate without modifier key (recommended on tablets)",
+  "settings.signalFlow.enabled": "Show signal flow on hover",
   "toast.autosave": "State auto-saved",
   "toast.autosave.exit": "State saved before exit",
   "toast.restored": "Previous state restored",

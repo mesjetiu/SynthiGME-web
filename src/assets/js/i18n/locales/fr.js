@@ -169,6 +169,7 @@ export default {
   "settings.signalFlow": "Flux de signal",
   "settings.signalFlow.description": "Met en évidence visuellement l'origine (cyan) et la destination (magenta) des connexions au survol des modules ou pins actifs. Sur desktop, maintenir la touche modificatrice.",
   "settings.signalFlow.noModifier": "Activer sans touche modificatrice (recommandé sur tablettes)",
+  "settings.signalFlow.enabled": "Afficher le flux de signal au survol",
   "toast.autosave": "État sauvegardé automatiquement",
   "toast.autosave.exit": "État enregistré avant la fermeture",
   "toast.restored": "État précédent restauré",

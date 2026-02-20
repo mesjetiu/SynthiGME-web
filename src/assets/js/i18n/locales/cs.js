@@ -169,6 +169,7 @@ export default {
   "settings.signalFlow": "Tok signálu",
   "settings.signalFlow.description": "Vizuálně zvýrazní zdroj (azurová) a cíl (purpurová) připojení při najetí na moduly nebo aktivní piny. Na desktopu vyžaduje podržení modifikační klávesy.",
   "settings.signalFlow.noModifier": "Aktivovat bez modifikační klávesy (doporučeno na tabletech)",
+  "settings.signalFlow.enabled": "Zobrazit tok signálu při najetí",
   "toast.autosave": "Stav automaticky uložen",
   "toast.autosave.exit": "Stav uložen před zavřením",
   "toast.restored": "Předchozí stav obnoven",

@@ -169,6 +169,7 @@ export default {
   "settings.signalFlow": "Signalfluss",
   "settings.signalFlow.description": "Hebt visuell den Ursprung (Cyan) und das Ziel (Magenta) von Verbindungen hervor, wenn Module oder aktive Pins überfahren werden. Auf Desktop muss die Modifizierertaste gehalten werden.",
   "settings.signalFlow.noModifier": "Ohne Modifizierertaste aktivieren (empfohlen auf Tablets)",
+  "settings.signalFlow.enabled": "Signalfluss beim Überfahren anzeigen",
   "toast.autosave": "Status automatisch gespeichert",
   "toast.autosave.exit": "Status vor dem Beenden gespeichert",
   "toast.restored": "Vorheriger Status wiederhergestellt",

@@ -1243,12 +1243,34 @@ h1 {
   position: relative;
 }
 
-/* Módulo activo (el que tiene el cursor encima): borde blanco sutil */
+/* Módulo activo (el que tiene el cursor encima): z-index elevado */
 .signal-flow-active {
-  border-color: rgba(255, 255, 255, 0.6) !important;
-  box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.2) !important;
   z-index: 11;
   position: relative;
+}
+
+/* Módulo que es fuente Y destino al mismo tiempo: glow alternante cyan↔magenta */
+.signal-flow-both {
+  animation: signal-flow-alternate 2s ease-in-out infinite !important;
+  z-index: 10;
+  position: relative;
+}
+
+@keyframes signal-flow-alternate {
+  0%, 100% {
+    box-shadow:
+      0 0 var(--signal-flow-glow-blur) var(--signal-flow-glow-spread)
+      rgba(var(--signal-flow-source-color), var(--signal-flow-glow-opacity)),
+      inset 0 0 8px 2px rgba(var(--signal-flow-source-color), 0.15);
+    border-color: rgba(var(--signal-flow-source-color), 0.7);
+  }
+  50% {
+    box-shadow:
+      0 0 var(--signal-flow-glow-blur) var(--signal-flow-glow-spread)
+      rgba(var(--signal-flow-dest-color), var(--signal-flow-glow-opacity)),
+      inset 0 0 8px 2px rgba(var(--signal-flow-dest-color), 0.15);
+    border-color: rgba(var(--signal-flow-dest-color), 0.7);
+  }
 }
 
 /* ── Glow en pines de matriz ───────────────────────────────────────────── */

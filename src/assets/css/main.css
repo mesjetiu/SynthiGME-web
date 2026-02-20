@@ -6407,7 +6407,7 @@ small { color:#aaa; }
 .panel-note {
   position: absolute;
   z-index: 50;
-  min-width: 50px;
+  min-width: 110px;
   min-height: 36px;
   max-width: 80%;
   max-height: 80%;

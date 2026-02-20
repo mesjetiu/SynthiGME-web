@@ -2,8 +2,13 @@
  * PanelNotes - Notas estilo post-it arrastrables sobre paneles.
  *
  * Permite al usuario crear notas de texto posicionadas libremente dentro
- * de cada panel del sintetizador. Las coordenadas se almacenan en porcentaje
- * relativo al panel para que sobrevivan a zoom, paneo y PiP sin recalcular.
+ * de cada panel del sintetizador, o en el viewport (espacio libre fuera
+ * de los paneles). Las notas NO se mueven entre paneles ni entre panel
+ * y viewport: cada nota pertenece permanentemente a su contenedor.
+ *
+ * - Notas de panel: coordenadas en % relativo al panel (sobreviven a
+ *   zoom, paneo y PiP). Pueden sobresalir visualmente del panel.
+ * - Notas de viewport: coordenadas en px absolutos en viewportInner.
  *
  * Características:
  * - Texto editable con soporte para negrita/cursiva (contentEditable + innerHTML)
@@ -298,6 +303,14 @@ export function createNote(panelId, options = {}) {
     showTextContextMenu(note, body, e.clientX, e.clientY);
   });
   
+  // ── Al perder el foco, deshacer selección visual ──
+  body.addEventListener('blur', () => {
+    const sel = window.getSelection?.();
+    if (sel && !sel.isCollapsed) {
+      sel.removeAllRanges();
+    }
+  });
+  
   note.appendChild(body);
   
   // ── Drag & Drop (ratón + touch) ──
@@ -325,6 +338,8 @@ export function createNote(panelId, options = {}) {
   
   if (!_isRestoring) {
     saveNotes();
+    // Dar foco al cuerpo para que el usuario escriba directamente
+    body.focus();
   }
   
   log.debug('Nota creada:', noteId, 'en', panelId);
@@ -758,10 +773,10 @@ function applyNoteColor(noteEl, colorDef) {
 
 /**
  * Configura arrastre de una nota (ratón + touch).
- * Soporta arrastre entre paneles y al viewport:
- * - Al arrastrar, la nota se reubica temporalmente en viewportInner
- * - Al soltar, se detecta el panel destino (o viewport)
- * - En PiP o sin viewportInner, usa arrastre simple en-panel
+ * Las notas se mueven SOLO dentro de su contenedor:
+ * - Notas de panel: arrastre en % relativo al panel (pueden sobresalir visualmente)
+ * - Notas de viewport: arrastre en px dentro de viewportInner
+ * No hay arrastre entre paneles ni entre panel y viewport.
  *
  * @param {HTMLElement} noteEl - Elemento de la nota
  * @param {HTMLElement} handleEl - Elemento que actúa como drag handle
@@ -773,16 +788,7 @@ function setupNoteDrag(noteEl, handleEl) {
   let startY = 0;
   let startLeftPx = 0;
   let startTopPx = 0;
-  let usePxDrag = false;
-  let originPanelEl = null;
-  
-  function getViewportScale() {
-    const vi = document.getElementById('viewportInner');
-    if (!vi) return { scale: 1, vi: null, viRect: null };
-    const viRect = vi.getBoundingClientRect();
-    const scale = vi.offsetWidth > 0 ? viRect.width / vi.offsetWidth : 1;
-    return { scale, vi, viRect };
-  }
+  let isViewportNote = false;
   
   function onPointerDown(e) {
     if (!e.target.closest('.panel-note__header')) return;
@@ -800,49 +806,16 @@ function setupNoteDrag(noteEl, handleEl) {
     startX = e.clientX;
     startY = e.clientY;
     
-    originPanelEl = noteEl.closest('.panel');
-    const isInPiP = !!noteEl.closest('.pip-container');
-    const isViewportNote = noteEl.dataset.panelId === VIEWPORT_PANEL_ID;
-    const { scale, vi, viRect } = getViewportScale();
+    isViewportNote = noteEl.dataset.panelId === VIEWPORT_PANEL_ID;
     
-    if (vi && originPanelEl && !isInPiP) {
-      // ── Nota en panel del canvas principal: reparentar a viewportInner ──
-      const noteRect = noteEl.getBoundingClientRect();
-      const localX = (noteRect.left - viRect.left) / scale;
-      const localY = (noteRect.top - viRect.top) / scale;
-      const w = noteEl.offsetWidth;
-      const h = noteEl.offsetHeight;
-      
-      // Quitar del set del panel origen
-      const set = panelNotesMap.get(originPanelEl.id);
-      if (set) set.delete(noteEl);
-      
-      // Reparentar a viewportInner con coords px
-      noteEl.style.left = `${localX}px`;
-      noteEl.style.top = `${localY}px`;
-      noteEl.style.width = `${w}px`;
-      noteEl.style.height = `${h}px`;
-      vi.appendChild(noteEl);
-      
-      startLeftPx = localX;
-      startTopPx = localY;
-      usePxDrag = true;
-      
-    } else if (isViewportNote && vi) {
-      // ── Nota ya en viewport: arrastrar en px ──
+    if (isViewportNote) {
+      // ── Nota de viewport: arrastrar en px ──
       startLeftPx = parseFloat(noteEl.style.left) || 0;
       startTopPx = parseFloat(noteEl.style.top) || 0;
-      
-      const set = panelNotesMap.get(VIEWPORT_PANEL_ID);
-      if (set) set.delete(noteEl);
-      
-      usePxDrag = true;
-      
     } else {
-      // ── Arrastre simple en-panel (PiP o sin viewportInner) ──
+      // ── Nota de panel: arrastrar en-panel ──
       startLeftPx = noteEl.offsetLeft;
       startTopPx = noteEl.offsetTop;
-      usePxDrag = false;
     }
     
     noteEl.classList.add('panel-note--dragging');
@@ -856,13 +829,15 @@ function setupNoteDrag(noteEl, handleEl) {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     
-    if (usePxDrag) {
+    if (isViewportNote) {
       // Arrastre en espacio viewportInner (px con corrección de zoom)
-      const { scale } = getViewportScale();
+      const vi = document.getElementById('viewportInner');
+      const viRect = vi?.getBoundingClientRect();
+      const scale = (vi && vi.offsetWidth > 0) ? viRect.width / vi.offsetWidth : 1;
       noteEl.style.left = `${startLeftPx + dx / scale}px`;
       noteEl.style.top = `${startTopPx + dy / scale}px`;
     } else {
-      // Arrastre en-panel (% relativo al padre)
+      // Arrastre en-panel (% relativo al panel padre)
       const parentEl = noteEl.closest('.panel') || noteEl.parentElement;
       const parentRect = parentEl.getBoundingClientRect();
       const scaleX = parentRect.width / parentEl.offsetWidth;
@@ -874,8 +849,9 @@ function setupNoteDrag(noteEl, handleEl) {
       const xPct = (newLeftPx / parentEl.offsetWidth) * 100;
       const yPct = (newTopPx / parentEl.offsetHeight) * 100;
       
-      noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
-      noteEl.style.top = `${clamp(yPct, -5, 95)}%`;
+      // Permitir sobresalir un poco pero no irse demasiado lejos
+      noteEl.style.left = `${clamp(xPct, -15, 95)}%`;
+      noteEl.style.top = `${clamp(yPct, -15, 95)}%`;
     }
   }
   
@@ -890,26 +866,6 @@ function setupNoteDrag(noteEl, handleEl) {
       handleEl.releasePointerCapture(e.pointerId);
     } catch { /* ya released */ }
     
-    if (usePxDrag) {
-      // Buscar panel destino bajo el cursor
-      const targetPanel = findPanelAtPoint(e.clientX, e.clientY);
-      
-      if (targetPanel) {
-        // ── Soltar en un panel: reparentar y convertir a % ──
-        reparentNoteToPanel(noteEl, targetPanel);
-      } else {
-        // ── Soltar en viewport (espacio libre): mantener en viewportInner ──
-        noteEl.dataset.panelId = VIEWPORT_PANEL_ID;
-        noteEl.style.minHeight = '';
-        
-        if (!panelNotesMap.has(VIEWPORT_PANEL_ID)) {
-          panelNotesMap.set(VIEWPORT_PANEL_ID, new Set());
-        }
-        panelNotesMap.get(VIEWPORT_PANEL_ID).add(noteEl);
-      }
-      usePxDrag = false;
-    }
-    
     saveNotes();
   }
   
@@ -922,62 +878,6 @@ function setupNoteDrag(noteEl, handleEl) {
   noteEl.addEventListener('touchmove', (e) => {
     if (isDragging) e.preventDefault();
   }, { passive: false });
-}
-
-/**
- * Encuentra el panel (hijo directo de viewportInner) bajo las coords de pantalla.
- * @param {number} clientX
- * @param {number} clientY
- * @returns {HTMLElement|null}
- */
-function findPanelAtPoint(clientX, clientY) {
-  const vi = document.getElementById('viewportInner');
-  if (!vi) return null;
-  
-  const panels = vi.querySelectorAll(':scope > .panel');
-  for (const panel of panels) {
-    const rect = panel.getBoundingClientRect();
-    if (clientX >= rect.left && clientX <= rect.right &&
-        clientY >= rect.top && clientY <= rect.bottom) {
-      return panel;
-    }
-  }
-  return null;
-}
-
-/**
- * Reparenta una nota desde viewportInner a un panel destino,
- * convirtiendo coordenadas de px a % del panel.
- * @param {HTMLElement} noteEl
- * @param {HTMLElement} targetPanel
- */
-function reparentNoteToPanel(noteEl, targetPanel) {
-  const noteLeftPx = parseFloat(noteEl.style.left);
-  const noteTopPx = parseFloat(noteEl.style.top);
-  const noteW = noteEl.offsetWidth;
-  const noteH = noteEl.offsetHeight;
-  
-  const relX = noteLeftPx - targetPanel.offsetLeft;
-  const relY = noteTopPx - targetPanel.offsetTop;
-  
-  const xPct = (relX / targetPanel.offsetWidth) * 100;
-  const yPct = (relY / targetPanel.offsetHeight) * 100;
-  const wPct = (noteW / targetPanel.offsetWidth) * 100;
-  const hPct = (noteH / targetPanel.offsetHeight) * 100;
-  
-  noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
-  noteEl.style.top = `${clamp(yPct, -5, 95)}%`;
-  noteEl.style.width = `${wPct}%`;
-  noteEl.style.height = `${hPct}%`;
-  noteEl.style.minHeight = '';
-  noteEl.dataset.panelId = targetPanel.id;
-  
-  targetPanel.appendChild(noteEl);
-  
-  if (!panelNotesMap.has(targetPanel.id)) {
-    panelNotesMap.set(targetPanel.id, new Set());
-  }
-  panelNotesMap.get(targetPanel.id).add(noteEl);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -6407,8 +6407,8 @@ small { color:#aaa; }
 .panel-note {
   position: absolute;
   z-index: 50;
-  min-width: 100px;
-  min-height: 60px;
+  min-width: 50px;
+  min-height: 36px;
   max-width: 80%;
   max-height: 80%;
   display: flex;
@@ -6438,6 +6438,13 @@ small { color:#aaa; }
   opacity: 0.85;
   box-shadow: 4px 6px 18px rgba(0, 0, 0, 0.4);
   cursor: grabbing;
+  z-index: 100;
+}
+
+/* Notas directas en viewportInner (no pertenecen a ningún panel) */
+#viewportInner > .panel-note {
+  max-width: none;
+  max-height: none;
 }
 
 /* ── Header (drag handle + botones) ── */

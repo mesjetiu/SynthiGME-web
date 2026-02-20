@@ -60,7 +60,8 @@ import {
   restoreNotes,
   getNoteColors,
   pasteNoteFromClipboard,
-  hasNoteInClipboard
+  hasNoteInClipboard,
+  VIEWPORT_PANEL_ID
 } from '../../src/assets/js/ui/panelNotes.js';
 
 import { STORAGE_KEYS } from '../../src/assets/js/utils/constants.js';
@@ -943,5 +944,238 @@ describe('PanelNotes — estructura DOM ampliada', () => {
   it('nota tiene data-prevent-pan', () => {
     const note = createNote('panel-1');
     assert.equal(note.getAttribute('data-prevent-pan'), 'true');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTAS DE VIEWPORT (no pertenecen a ningún panel)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Crea viewportInner con paneles como hijos (estructura real de la app) */
+function createViewportWithPanels(panelCount = 3) {
+  const vi = document.createElement('div');
+  vi.id = 'viewportInner';
+  Object.defineProperty(vi, 'offsetWidth', { value: 4000, configurable: true });
+  Object.defineProperty(vi, 'offsetHeight', { value: 2000, configurable: true });
+  document.body.appendChild(vi);
+
+  for (let i = 1; i <= panelCount; i++) {
+    const panel = document.createElement('div');
+    panel.id = `panel-${i}`;
+    panel.className = 'panel';
+    Object.defineProperty(panel, 'offsetWidth', { value: 800, configurable: true });
+    Object.defineProperty(panel, 'offsetHeight', { value: 600, configurable: true });
+    Object.defineProperty(panel, 'offsetLeft', { value: (i - 1) * 850, configurable: true });
+    Object.defineProperty(panel, 'offsetTop', { value: 0, configurable: true });
+    vi.appendChild(panel);
+  }
+  return vi;
+}
+
+describe('PanelNotes — VIEWPORT_PANEL_ID', () => {
+  it('VIEWPORT_PANEL_ID es un string no vacío', () => {
+    assert.equal(typeof VIEWPORT_PANEL_ID, 'string');
+    assert.ok(VIEWPORT_PANEL_ID.length > 0);
+  });
+});
+
+describe('PanelNotes — notas de viewport', () => {
+  beforeEach(() => {
+    cleanup();
+    createViewportWithPanels(3);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('crea una nota de viewport en viewportInner', () => {
+    const note = createNote(VIEWPORT_PANEL_ID, { xPx: 100, yPx: 200 });
+    assert.ok(note, 'Debería devolver el elemento de la nota');
+    assert.ok(note.classList.contains('panel-note'));
+    assert.equal(note.dataset.panelId, VIEWPORT_PANEL_ID);
+    const vi = document.getElementById('viewportInner');
+    assert.ok(vi.contains(note), 'Nota debería ser hija de viewportInner');
+  });
+
+  it('nota de viewport usa posición en px', () => {
+    const note = createNote(VIEWPORT_PANEL_ID, { xPx: 150, yPx: 300 });
+    assert.equal(note.style.left, '150px');
+    assert.equal(note.style.top, '300px');
+  });
+
+  it('nota de viewport usa tamaño en px', () => {
+    const note = createNote(VIEWPORT_PANEL_ID, { wPx: 250, hPx: 180 });
+    assert.equal(note.style.width, '250px');
+    assert.equal(note.style.minHeight, '180px');
+  });
+
+  it('nota de viewport con valores por defecto', () => {
+    const note = createNote(VIEWPORT_PANEL_ID);
+    assert.ok(note.style.left.endsWith('px'));
+    assert.ok(note.style.top.endsWith('px'));
+    assert.ok(note.style.width.endsWith('px'));
+    assert.ok(note.style.minHeight.endsWith('px'));
+  });
+
+  it('nota de viewport tiene misma estructura DOM que nota de panel', () => {
+    const note = createNote(VIEWPORT_PANEL_ID, { xPx: 50, yPx: 50 });
+    assert.ok(note.querySelector('.panel-note__header'));
+    assert.ok(note.querySelector('.panel-note__body'));
+    assert.ok(note.querySelector('.panel-note__drag'));
+    assert.ok(note.querySelector('.panel-note__btn--delete'));
+  });
+
+  it('nota de viewport acepta texto y color', () => {
+    const note = createNote(VIEWPORT_PANEL_ID, {
+      xPx: 50, yPx: 50, text: 'Viewport note', color: 'blue'
+    });
+    const body = note.querySelector('.panel-note__body');
+    assert.equal(body.textContent, 'Viewport note');
+    assert.equal(note.dataset.noteColor, 'blue');
+  });
+
+  it('devuelve null si viewportInner no existe', () => {
+    // Limpiar todo incluyendo viewportInner
+    document.body.innerHTML = '';
+    clearAllNotes();
+    const note = createNote(VIEWPORT_PANEL_ID);
+    assert.strictEqual(note, null);
+  });
+
+  it('removeNote funciona con notas de viewport', () => {
+    const note = createNote(VIEWPORT_PANEL_ID, { xPx: 100, yPx: 100 });
+    const id = note.id;
+    removeNote(id);
+    assert.strictEqual(document.getElementById(id), null);
+  });
+
+  it('clearAllNotes elimina también notas de viewport', () => {
+    createNote(VIEWPORT_PANEL_ID, { xPx: 100, yPx: 100 });
+    createNote('panel-1', { text: 'panel' });
+    clearAllNotes();
+    const result = serializeNotes();
+    assert.equal(result.length, 0);
+  });
+});
+
+describe('PanelNotes — serialización de notas viewport', () => {
+  beforeEach(() => {
+    cleanup();
+    createViewportWithPanels(2);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('serializa notas de viewport con coordenadas px', () => {
+    createNote(VIEWPORT_PANEL_ID, { xPx: 500, yPx: 300, wPx: 250, hPx: 150 });
+    const result = serializeNotes();
+    const vpNote = result.find(n => n.panelId === VIEWPORT_PANEL_ID);
+    assert.ok(vpNote, 'Debería serializar la nota de viewport');
+    assert.equal(vpNote.xPx, 500);
+    assert.equal(vpNote.yPx, 300);
+    assert.equal(vpNote.wPx, 250);
+    assert.equal(vpNote.hPx, 150);
+    // No debe tener campos de panel (xPct etc.)
+    assert.strictEqual(vpNote.xPct, undefined);
+  });
+
+  it('serializa notas de panel y viewport juntas', () => {
+    createNote('panel-1', { text: 'En panel', xPct: 10, yPct: 20 });
+    createNote(VIEWPORT_PANEL_ID, { xPx: 2000, yPx: 100, text: 'Libre' });
+    const result = serializeNotes();
+    assert.equal(result.length, 2);
+    const panelNote = result.find(n => n.panelId === 'panel-1');
+    const vpNote = result.find(n => n.panelId === VIEWPORT_PANEL_ID);
+    assert.ok(panelNote);
+    assert.ok(vpNote);
+    assert.equal(panelNote.xPct, 10);
+    assert.equal(vpNote.xPx, 2000);
+  });
+
+  it('roundtrip de notas viewport funciona', () => {
+    createNote(VIEWPORT_PANEL_ID, {
+      xPx: 400, yPx: 200, wPx: 180, hPx: 120,
+      text: 'VP roundtrip', color: 'purple', fontSize: 14
+    });
+    const serialized = serializeNotes();
+    clearAllNotes();
+    deserializeNotes(serialized);
+
+    const restored = serializeNotes();
+    assert.equal(restored.length, 1);
+    const n = restored[0];
+    assert.equal(n.panelId, VIEWPORT_PANEL_ID);
+    assert.equal(n.xPx, 400);
+    assert.equal(n.yPx, 200);
+    assert.equal(n.text, 'VP roundtrip');
+    assert.equal(n.color, 'purple');
+    assert.equal(n.fontSize, 14);
+  });
+
+  it('roundtrip mixto: panel + viewport', () => {
+    createNote('panel-1', { text: 'P1', xPct: 10, yPct: 20, color: 'blue' });
+    createNote('panel-2', { text: 'P2', xPct: 30, yPct: 40, color: 'green' });
+    createNote(VIEWPORT_PANEL_ID, { text: 'VP', xPx: 1000, yPx: 500, color: 'orange' });
+
+    const serialized = serializeNotes();
+    assert.equal(serialized.length, 3);
+
+    clearAllNotes();
+    deserializeNotes(serialized);
+
+    const restored = serializeNotes();
+    assert.equal(restored.length, 3);
+
+    const p1 = restored.find(n => n.text === 'P1');
+    assert.equal(p1.panelId, 'panel-1');
+    assert.equal(p1.xPct, 10);
+
+    const vp = restored.find(n => n.text === 'VP');
+    assert.equal(vp.panelId, VIEWPORT_PANEL_ID);
+    assert.equal(vp.xPx, 1000);
+  });
+
+  it('persistencia localStorage incluye notas viewport', () => {
+    createNote(VIEWPORT_PANEL_ID, { xPx: 100, yPx: 200, text: 'persist VP' });
+    const stored = getStoredNotes();
+    assert.ok(stored);
+    const vpNote = stored.find(n => n.panelId === VIEWPORT_PANEL_ID);
+    assert.ok(vpNote);
+    assert.equal(vpNote.text, 'persist VP');
+  });
+});
+
+describe('PanelNotes — sanitización HTML con tags de alineación', () => {
+  beforeEach(() => {
+    cleanup();
+    createPanels(1);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('permite tags div en HTML (usado por justifyCenter)', () => {
+    const html = '<div style="text-align: center">centrado</div>';
+    const note = createNote('panel-1', { html });
+    const body = note.querySelector('.panel-note__body');
+    assert.ok(body.innerHTML.includes('<div'), 'Debería permitir <div>');
+    assert.ok(body.innerHTML.includes('centrado'));
+  });
+
+  it('permite tags p en HTML (usado por algunos navegadores para justify)', () => {
+    const html = '<p style="text-align: right">derecha</p>';
+    const note = createNote('panel-1', { html });
+    const body = note.querySelector('.panel-note__body');
+    assert.ok(body.innerHTML.includes('<p'), 'Debería permitir <p>');
+  });
+
+  it('sigue bloqueando tags peligrosos', () => {
+    const html = '<div>ok</div><script>malo</script><iframe src="x"></iframe>';
+    const note = createNote('panel-1', { html });
+    const body = note.querySelector('.panel-note__body');
+    assert.ok(!body.innerHTML.includes('<script>'), 'No debería contener <script>');
+    assert.ok(!body.innerHTML.includes('<iframe'), 'No debería contener <iframe>');
+    assert.ok(body.innerHTML.includes('<div>ok</div>'), 'Debería mantener <div>');
   });
 });

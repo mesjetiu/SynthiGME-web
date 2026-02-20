@@ -3872,6 +3872,33 @@ notes.ctx.pasteNote:
   pt: Colar nota
   cs: Vložit poznámku
 
+notes.ctx.alignLeft:
+  en: Align left
+  es: Alinear izquierda
+  fr: Aligner à gauche
+  de: Linksbündig
+  it: Allinea a sinistra
+  pt: Alinhar à esquerda
+  cs: Zarovnat vlevo
+
+notes.ctx.alignCenter:
+  en: Center
+  es: Centrar
+  fr: Centrer
+  de: Zentrieren
+  it: Centra
+  pt: Centralizar
+  cs: Zarovnat na střed
+
+notes.ctx.alignRight:
+  en: Align right
+  es: Alinear derecha
+  fr: Aligner à droite
+  de: Rechtsbündig
+  it: Allinea a destra
+  pt: Alinhar à direita
+  cs: Zarovnat vpravo
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ORIENTACIÓN Y PANTALLA
 # ═══════════════════════════════════════════════════════════════════════════════

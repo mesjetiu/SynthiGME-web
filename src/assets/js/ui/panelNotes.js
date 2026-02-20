@@ -58,6 +58,9 @@ const FONT_SIZE_STEP = 1;
 /** Tamaño mínimo en px para que la nota sea usable */
 const MIN_SIZE_PX = 60;
 
+/** ID especial para notas de viewport (no pertenecen a ningún panel) */
+export const VIEWPORT_PANEL_ID = '__viewport__';
+
 /** Z-index base de notas (por encima de controles del panel, por debajo de modales) */
 const NOTE_Z_INDEX = 50;
 
@@ -89,6 +92,11 @@ export function initPanelNotes() {
     }
   });
   
+  // Inicializar set para notas del viewport (no pertenecen a ningún panel)
+  if (!panelNotesMap.has(VIEWPORT_PANEL_ID)) {
+    panelNotesMap.set(VIEWPORT_PANEL_ID, new Set());
+  }
+  
   // Restaurar notas guardadas
   restoreNotes();
   
@@ -114,19 +122,17 @@ export function initPanelNotes() {
  * @returns {HTMLElement|null} Elemento de la nota creada
  */
 export function createNote(panelId, options = {}) {
-  const panel = document.getElementById(panelId);
-  if (!panel) {
-    log.warn('Panel no encontrado:', panelId);
+  const isViewport = panelId === VIEWPORT_PANEL_ID;
+  const container = isViewport
+    ? document.getElementById('viewportInner')
+    : document.getElementById(panelId);
+  if (!container) {
+    log.warn('Container no encontrado:', panelId);
     return null;
   }
   
   const noteId = options.id || `note-${Date.now()}-${++noteIdCounter}`;
   const colorDef = NOTE_COLORS.find(c => c.id === (options.color || DEFAULT_COLOR)) || NOTE_COLORS[0];
-  
-  const xPct = clamp(options.xPct ?? 50, 0, 95);
-  const yPct = clamp(options.yPct ?? 50, 0, 95);
-  const wPct = options.wPct ?? DEFAULT_WIDTH_PCT;
-  const hPct = options.hPct ?? DEFAULT_HEIGHT_PCT;
   const fontSize = options.fontSize ?? DEFAULT_FONT_SIZE;
   
   // ── Crear DOM ──
@@ -138,11 +144,24 @@ export function createNote(panelId, options = {}) {
   note.dataset.fontSize = String(fontSize);
   note.setAttribute('data-prevent-pan', 'true');
   
-  // Posición y tamaño en %
-  note.style.left = `${xPct}%`;
-  note.style.top = `${yPct}%`;
-  note.style.width = `${wPct}%`;
-  note.style.minHeight = `${hPct}%`;
+  // Posición y tamaño
+  if (isViewport) {
+    // Notas de viewport usan px absolutos en viewportInner
+    note.style.left = `${options.xPx ?? 100}px`;
+    note.style.top = `${options.yPx ?? 100}px`;
+    note.style.width = `${options.wPx ?? 200}px`;
+    note.style.minHeight = `${options.hPx ?? 100}px`;
+  } else {
+    // Notas de panel usan % relativos al panel
+    const xPct = clamp(options.xPct ?? 50, 0, 95);
+    const yPct = clamp(options.yPct ?? 50, 0, 95);
+    const wPct = options.wPct ?? DEFAULT_WIDTH_PCT;
+    const hPct = options.hPct ?? DEFAULT_HEIGHT_PCT;
+    note.style.left = `${xPct}%`;
+    note.style.top = `${yPct}%`;
+    note.style.width = `${wPct}%`;
+    note.style.minHeight = `${hPct}%`;
+  }
   note.style.fontSize = `${fontSize}px`;
   applyNoteColor(note, colorDef);
   
@@ -282,10 +301,10 @@ export function createNote(panelId, options = {}) {
   note.appendChild(body);
   
   // ── Drag & Drop (ratón + touch) ──
-  setupNoteDrag(note, header, panel);
+  setupNoteDrag(note, header);
   
-  // ── Insertar en el panel ──
-  panel.appendChild(note);
+  // ── Insertar en el contenedor (panel o viewportInner) ──
+  container.appendChild(note);
   
   // ── Observar resize del usuario (CSS resize: both) ──
   if (typeof ResizeObserver !== 'undefined') {
@@ -439,6 +458,30 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   // Cursiva
   menu.appendChild(createNoteMenuItem(t('notes.ctx.italic'), () => {
     document.execCommand('italic', false, null);
+    hideNoteContextMenu();
+    saveNotes();
+  }));
+  
+  // Separador (alineación)
+  menu.appendChild(createNoteMenuSeparator());
+  
+  // Alinear izquierda
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.alignLeft'), () => {
+    document.execCommand('justifyLeft', false, null);
+    hideNoteContextMenu();
+    saveNotes();
+  }));
+  
+  // Centrar
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.alignCenter'), () => {
+    document.execCommand('justifyCenter', false, null);
+    hideNoteContextMenu();
+    saveNotes();
+  }));
+  
+  // Alinear derecha
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.alignRight'), () => {
+    document.execCommand('justifyRight', false, null);
     hideNoteContextMenu();
     saveNotes();
   }));
@@ -715,28 +758,34 @@ function applyNoteColor(noteEl, colorDef) {
 
 /**
  * Configura arrastre de una nota (ratón + touch).
- * Posiciona usando porcentajes relativos al panel.
+ * Soporta arrastre entre paneles y al viewport:
+ * - Al arrastrar, la nota se reubica temporalmente en viewportInner
+ * - Al soltar, se detecta el panel destino (o viewport)
+ * - En PiP o sin viewportInner, usa arrastre simple en-panel
  *
  * @param {HTMLElement} noteEl - Elemento de la nota
  * @param {HTMLElement} handleEl - Elemento que actúa como drag handle
- * @param {HTMLElement} panelEl - Panel contenedor
  */
-function setupNoteDrag(noteEl, handleEl, panelEl) {
+function setupNoteDrag(noteEl, handleEl) {
   let isDragging = false;
+  let pointerId = null;
   let startX = 0;
   let startY = 0;
   let startLeftPx = 0;
   let startTopPx = 0;
-  let pointerId = null;
+  let usePxDrag = false;
+  let originPanelEl = null;
   
-  function getPanelRect() {
-    return panelEl.getBoundingClientRect();
+  function getViewportScale() {
+    const vi = document.getElementById('viewportInner');
+    if (!vi) return { scale: 1, vi: null, viRect: null };
+    const viRect = vi.getBoundingClientRect();
+    const scale = vi.offsetWidth > 0 ? viRect.width / vi.offsetWidth : 1;
+    return { scale, vi, viRect };
   }
   
   function onPointerDown(e) {
-    // Solo el drag handle inicia arrastre
     if (!e.target.closest('.panel-note__header')) return;
-    // Ignorar si se pulsó un botón
     if (e.target.closest('.panel-note__btn')) return;
     
     e.preventDefault();
@@ -748,8 +797,52 @@ function setupNoteDrag(noteEl, handleEl, panelEl) {
     
     startX = e.clientX;
     startY = e.clientY;
-    startLeftPx = noteEl.offsetLeft;
-    startTopPx = noteEl.offsetTop;
+    
+    originPanelEl = noteEl.closest('.panel');
+    const isInPiP = !!noteEl.closest('.pip-container');
+    const isViewportNote = noteEl.dataset.panelId === VIEWPORT_PANEL_ID;
+    const { scale, vi, viRect } = getViewportScale();
+    
+    if (vi && originPanelEl && !isInPiP) {
+      // ── Nota en panel del canvas principal: reparentar a viewportInner ──
+      const noteRect = noteEl.getBoundingClientRect();
+      const localX = (noteRect.left - viRect.left) / scale;
+      const localY = (noteRect.top - viRect.top) / scale;
+      const w = noteEl.offsetWidth;
+      const h = noteEl.offsetHeight;
+      
+      // Quitar del set del panel origen
+      const set = panelNotesMap.get(originPanelEl.id);
+      if (set) set.delete(noteEl);
+      
+      // Reparentar a viewportInner con coords px
+      noteEl.style.left = `${localX}px`;
+      noteEl.style.top = `${localY}px`;
+      noteEl.style.width = `${w}px`;
+      noteEl.style.height = `${h}px`;
+      noteEl.style.minHeight = '';
+      vi.appendChild(noteEl);
+      
+      startLeftPx = localX;
+      startTopPx = localY;
+      usePxDrag = true;
+      
+    } else if (isViewportNote && vi) {
+      // ── Nota ya en viewport: arrastrar en px ──
+      startLeftPx = parseFloat(noteEl.style.left) || 0;
+      startTopPx = parseFloat(noteEl.style.top) || 0;
+      
+      const set = panelNotesMap.get(VIEWPORT_PANEL_ID);
+      if (set) set.delete(noteEl);
+      
+      usePxDrag = true;
+      
+    } else {
+      // ── Arrastre simple en-panel (PiP o sin viewportInner) ──
+      startLeftPx = noteEl.offsetLeft;
+      startTopPx = noteEl.offsetTop;
+      usePxDrag = false;
+    }
     
     noteEl.classList.add('panel-note--dragging');
   }
@@ -762,20 +855,27 @@ function setupNoteDrag(noteEl, handleEl, panelEl) {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     
-    const panelRect = getPanelRect();
-    // Calcular escala del panel (transform scale en PiP)
-    const scaleX = panelRect.width / panelEl.offsetWidth;
-    const scaleY = panelRect.height / panelEl.offsetHeight;
-    
-    const newLeftPx = startLeftPx + dx / scaleX;
-    const newTopPx = startTopPx + dy / scaleY;
-    
-    // Convertir a %
-    const xPct = (newLeftPx / panelEl.offsetWidth) * 100;
-    const yPct = (newTopPx / panelEl.offsetHeight) * 100;
-    
-    noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
-    noteEl.style.top = `${clamp(yPct, -5, 95)}%`;
+    if (usePxDrag) {
+      // Arrastre en espacio viewportInner (px con corrección de zoom)
+      const { scale } = getViewportScale();
+      noteEl.style.left = `${startLeftPx + dx / scale}px`;
+      noteEl.style.top = `${startTopPx + dy / scale}px`;
+    } else {
+      // Arrastre en-panel (% relativo al padre)
+      const parentEl = noteEl.closest('.panel') || noteEl.parentElement;
+      const parentRect = parentEl.getBoundingClientRect();
+      const scaleX = parentRect.width / parentEl.offsetWidth;
+      const scaleY = parentRect.height / parentEl.offsetHeight;
+      
+      const newLeftPx = startLeftPx + dx / scaleX;
+      const newTopPx = startTopPx + dy / scaleY;
+      
+      const xPct = (newLeftPx / parentEl.offsetWidth) * 100;
+      const yPct = (newTopPx / parentEl.offsetHeight) * 100;
+      
+      noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
+      noteEl.style.top = `${clamp(yPct, -5, 95)}%`;
+    }
   }
   
   function onPointerUp(e) {
@@ -788,6 +888,29 @@ function setupNoteDrag(noteEl, handleEl, panelEl) {
     try {
       handleEl.releasePointerCapture(e.pointerId);
     } catch { /* ya released */ }
+    
+    if (usePxDrag) {
+      // Buscar panel destino bajo el cursor
+      const targetPanel = findPanelAtPoint(e.clientX, e.clientY);
+      
+      if (targetPanel) {
+        // ── Soltar en un panel: reparentar y convertir a % ──
+        reparentNoteToPanel(noteEl, targetPanel);
+      } else {
+        // ── Soltar en viewport (espacio libre): mantener en viewportInner ──
+        noteEl.dataset.panelId = VIEWPORT_PANEL_ID;
+        // Convertir height fijo a minHeight para permitir resize
+        const h = noteEl.offsetHeight;
+        noteEl.style.height = '';
+        noteEl.style.minHeight = `${h}px`;
+        
+        if (!panelNotesMap.has(VIEWPORT_PANEL_ID)) {
+          panelNotesMap.set(VIEWPORT_PANEL_ID, new Set());
+        }
+        panelNotesMap.get(VIEWPORT_PANEL_ID).add(noteEl);
+      }
+      usePxDrag = false;
+    }
     
     saveNotes();
   }
@@ -803,6 +926,62 @@ function setupNoteDrag(noteEl, handleEl, panelEl) {
   }, { passive: false });
 }
 
+/**
+ * Encuentra el panel (hijo directo de viewportInner) bajo las coords de pantalla.
+ * @param {number} clientX
+ * @param {number} clientY
+ * @returns {HTMLElement|null}
+ */
+function findPanelAtPoint(clientX, clientY) {
+  const vi = document.getElementById('viewportInner');
+  if (!vi) return null;
+  
+  const panels = vi.querySelectorAll(':scope > .panel');
+  for (const panel of panels) {
+    const rect = panel.getBoundingClientRect();
+    if (clientX >= rect.left && clientX <= rect.right &&
+        clientY >= rect.top && clientY <= rect.bottom) {
+      return panel;
+    }
+  }
+  return null;
+}
+
+/**
+ * Reparenta una nota desde viewportInner a un panel destino,
+ * convirtiendo coordenadas de px a % del panel.
+ * @param {HTMLElement} noteEl
+ * @param {HTMLElement} targetPanel
+ */
+function reparentNoteToPanel(noteEl, targetPanel) {
+  const noteLeftPx = parseFloat(noteEl.style.left);
+  const noteTopPx = parseFloat(noteEl.style.top);
+  const noteW = noteEl.offsetWidth;
+  const noteH = noteEl.offsetHeight;
+  
+  const relX = noteLeftPx - targetPanel.offsetLeft;
+  const relY = noteTopPx - targetPanel.offsetTop;
+  
+  const xPct = (relX / targetPanel.offsetWidth) * 100;
+  const yPct = (relY / targetPanel.offsetHeight) * 100;
+  const wPct = (noteW / targetPanel.offsetWidth) * 100;
+  const hPct = (noteH / targetPanel.offsetHeight) * 100;
+  
+  noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
+  noteEl.style.top = `${clamp(yPct, -5, 95)}%`;
+  noteEl.style.width = `${wPct}%`;
+  noteEl.style.height = '';
+  noteEl.style.minHeight = `${hPct}%`;
+  noteEl.dataset.panelId = targetPanel.id;
+  
+  targetPanel.appendChild(noteEl);
+  
+  if (!panelNotesMap.has(targetPanel.id)) {
+    panelNotesMap.set(targetPanel.id, new Set());
+  }
+  panelNotesMap.get(targetPanel.id).add(noteEl);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SERIALIZACIÓN
 // ─────────────────────────────────────────────────────────────────────────────
@@ -815,26 +994,45 @@ export function serializeNotes() {
   const notes = [];
   
   for (const [panelId, set] of panelNotesMap) {
-    const panelEl = document.getElementById(panelId);
+    const isViewport = panelId === VIEWPORT_PANEL_ID;
+    const panelEl = isViewport ? null : document.getElementById(panelId);
     const pw = panelEl?.offsetWidth || 0;
     const ph = panelEl?.offsetHeight || 0;
     for (const note of set) {
       const body = note.querySelector('.panel-note__body');
-      // Usar dimensiones computadas si están disponibles (navegador real),
-      // fallback a estilos inline (jsdom/tests)
-      const useComputed = pw > 0 && ph > 0 && note.offsetWidth > 0;
-      notes.push({
-        id: note.id,
-        panelId,
-        xPct: parseFloat(note.style.left) || 0,
-        yPct: parseFloat(note.style.top) || 0,
-        wPct: useComputed ? (note.offsetWidth / pw) * 100 : (parseFloat(note.style.width) || DEFAULT_WIDTH_PCT),
-        hPct: useComputed ? (note.offsetHeight / ph) * 100 : (parseFloat(note.style.minHeight) || DEFAULT_HEIGHT_PCT),
-        text: body?.textContent || '',
-        html: body?.innerHTML || '',
-        color: note.dataset.noteColor || DEFAULT_COLOR,
-        fontSize: parseInt(note.dataset.fontSize, 10) || DEFAULT_FONT_SIZE
-      });
+      
+      if (isViewport) {
+        // Notas de viewport: coordenadas en px
+        notes.push({
+          id: note.id,
+          panelId: VIEWPORT_PANEL_ID,
+          xPx: parseFloat(note.style.left) || 0,
+          yPx: parseFloat(note.style.top) || 0,
+          wPx: note.offsetWidth > 0 ? note.offsetWidth : (parseFloat(note.style.width) || 200),
+          hPx: note.offsetHeight > 0 ? note.offsetHeight : (parseFloat(note.style.minHeight) || 100),
+          text: body?.textContent || '',
+          html: body?.innerHTML || '',
+          color: note.dataset.noteColor || DEFAULT_COLOR,
+          fontSize: parseInt(note.dataset.fontSize, 10) || DEFAULT_FONT_SIZE
+        });
+      } else {
+        // Notas de panel: coordenadas en % del panel
+        // Usar dimensiones computadas si están disponibles (navegador real),
+        // fallback a estilos inline (jsdom/tests)
+        const useComputed = pw > 0 && ph > 0 && note.offsetWidth > 0;
+        notes.push({
+          id: note.id,
+          panelId,
+          xPct: parseFloat(note.style.left) || 0,
+          yPct: parseFloat(note.style.top) || 0,
+          wPct: useComputed ? (note.offsetWidth / pw) * 100 : (parseFloat(note.style.width) || DEFAULT_WIDTH_PCT),
+          hPct: useComputed ? (note.offsetHeight / ph) * 100 : (parseFloat(note.style.minHeight) || DEFAULT_HEIGHT_PCT),
+          text: body?.textContent || '',
+          html: body?.innerHTML || '',
+          color: note.dataset.noteColor || DEFAULT_COLOR,
+          fontSize: parseInt(note.dataset.fontSize, 10) || DEFAULT_FONT_SIZE
+        });
+      }
     }
   }
   
@@ -854,17 +1052,30 @@ export function deserializeNotes(notesData) {
   clearAllNotes();
   
   for (const data of notesData) {
-    createNote(data.panelId, {
-      id: data.id,
-      xPct: data.xPct,
-      yPct: data.yPct,
-      wPct: data.wPct,
-      hPct: data.hPct,
-      text: data.text,
-      html: data.html,
-      color: data.color,
-      fontSize: data.fontSize
-    });
+    if (data.panelId === VIEWPORT_PANEL_ID) {
+      createNote(VIEWPORT_PANEL_ID, {
+        id: data.id,
+        xPx: data.xPx,
+        yPx: data.yPx,
+        wPx: data.wPx,
+        hPx: data.hPx,
+        html: data.html,
+        color: data.color,
+        fontSize: data.fontSize
+      });
+    } else {
+      createNote(data.panelId, {
+        id: data.id,
+        xPct: data.xPct,
+        yPct: data.yPct,
+        wPct: data.wPct,
+        hPct: data.hPct,
+        text: data.text,
+        html: data.html,
+        color: data.color,
+        fontSize: data.fontSize
+      });
+    }
   }
   
   _isRestoring = false;
@@ -941,6 +1152,6 @@ function clamp(val, min, max) {
  */
 function sanitizeNoteHTML(html) {
   if (!html) return '';
-  // Solo permitir tags de formato inline seguros
-  return html.replace(/<(?!\/?(?:b|i|strong|em|br|span|u)\b)[^>]*>/gi, '');
+  // Solo permitir tags de formato inline seguros (+ div/p para justificación)
+  return html.replace(/<(?!\/?(?:b|i|strong|em|br|span|u|div|p)\b)[^>]*>/gi, '');
 }

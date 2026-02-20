@@ -6404,7 +6404,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     };
 
     // 🥚 Easter Egg — trigger: tap pad1,pad2 alternadamente ×4
-    initEasterEggTrigger();
+    // Si el synth tiene parámetros modificados → solo visual, sin sonido
+    initEasterEggTrigger({ isDirtyFn: () => sessionManager.isDirty() });
     window.egg = triggerEasterEgg; // debug: consola
     
     // Inicializar navegación del viewport

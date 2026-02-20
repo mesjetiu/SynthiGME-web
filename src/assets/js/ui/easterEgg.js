@@ -8,6 +8,10 @@
  * Trigger: tocar alternadamente pad1, pad2, pad1, pad2 × 4 (8 taps).
  * Solo taps rápidos sin arrastre, consecutivos, sin tocar nada en medio.
  *
+ * Seguridad: si el sintetizador tiene algún parámetro modificado
+ * respecto a su estado inicial (isDirty), solo se muestran los fuegos
+ * artificiales sin sonido, para no interferir con el trabajo del usuario.
+ *
  * @module ui/easterEgg
  */
 
@@ -463,74 +467,76 @@ function ensureFireworksLoaded() {
  * 🥚 Lanza el Easter Egg: fuegos artificiales + melodía 8-bit.
  * Se puede llamar desde cualquier parte de la app.
  * Click en el overlay para cerrar antes de tiempo.
+ *
+ * @param {Object} [options]
+ * @param {boolean} [options.visualOnly=false] - Si true, solo fuegos sin sonido
  */
-export async function triggerEasterEgg() {
+export async function triggerEasterEgg(options = {}) {
   if (isPlaying) return;
   isPlaying = true;
+
+  const visualOnly = !!options.visualOnly;
+  let ctx = null;
 
   try {
     // 1. Cargar fireworks-js dinámicamente
     await ensureFireworksLoaded();
 
-    // 2. Crear AudioContext propio (no interferimos con el Synthi)
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AudioCtx();
+    // 2. Crear AudioContext propio (solo si hay sonido)
+    if (!visualOnly) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      ctx = new AudioCtx();
 
-    // Master gain + compresor para que suene bien sin clipear
-    const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.setValueAtTime(-12, ctx.currentTime);
-    compressor.knee.setValueAtTime(10, ctx.currentTime);
-    compressor.ratio.setValueAtTime(6, ctx.currentTime);
-    compressor.attack.setValueAtTime(0.003, ctx.currentTime);
-    compressor.release.setValueAtTime(0.15, ctx.currentTime);
+      // Master gain + compresor para que suene bien sin clipear
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-12, ctx.currentTime);
+      compressor.knee.setValueAtTime(10, ctx.currentTime);
+      compressor.ratio.setValueAtTime(6, ctx.currentTime);
+      compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+      compressor.release.setValueAtTime(0.15, ctx.currentTime);
 
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.7, ctx.currentTime);
-    compressor.connect(masterGain).connect(ctx.destination);
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.7, ctx.currentTime);
+      compressor.connect(masterGain).connect(ctx.destination);
+
+      // Programar la melodía
+      const t0 = ctx.currentTime + 0.1;
+
+      for (const [midi, beat, dur] of LEAD) {
+        playSquareNote(ctx, compressor, NOTE_FREQ[midi], t0 + beat * BEAT, dur * BEAT);
+      }
+      for (const [midi, beat, dur] of BASS) {
+        playTriangleNote(ctx, compressor, NOTE_FREQ[midi], t0 + beat * BEAT, dur * BEAT);
+      }
+      for (const [midi, beat, dur] of ARPEGGIO) {
+        playPulseNote(ctx, compressor, NOTE_FREQ[midi], t0 + beat * BEAT, dur * BEAT);
+      }
+      for (const [type, beat, dur] of DRUMS) {
+        playDrum(ctx, compressor, type, t0 + beat * BEAT, dur * BEAT);
+      }
+
+      // Ráfagas de fuegos sincronizadas con melodía
+      scheduleFireworkBursts(t0);
+
+      // Fade out del master al final
+      const totalBeats = 19.5;
+      const endTime = t0 + totalBeats * BEAT;
+      masterGain.gain.setValueAtTime(0.7, endTime - 1);
+      masterGain.gain.linearRampToValueAtTime(0, endTime);
+    }
 
     // 3. Crear overlay visual
     overlayEl = createOverlay();
-
-    // Click para cerrar
     overlayEl.addEventListener('click', () => cleanup(ctx), { once: true });
 
     // 4. Iniciar fuegos artificiales
     fireworksInstance = startFireworks(overlayEl);
 
-    // 5. Programar la melodía
-    const t0 = ctx.currentTime + 0.1;
-
-    // Lead (onda cuadrada)
-    for (const [midi, beat, dur] of LEAD) {
-      playSquareNote(ctx, compressor, NOTE_FREQ[midi], t0 + beat * BEAT, dur * BEAT);
-    }
-
-    // Bajo (onda triangular)
-    for (const [midi, beat, dur] of BASS) {
-      playTriangleNote(ctx, compressor, NOTE_FREQ[midi], t0 + beat * BEAT, dur * BEAT);
-    }
-
-    // Arpegios (pulso)
-    for (const [midi, beat, dur] of ARPEGGIO) {
-      playPulseNote(ctx, compressor, NOTE_FREQ[midi], t0 + beat * BEAT, dur * BEAT);
-    }
-
-    // Percusión
-    for (const [type, beat, dur] of DRUMS) {
-      playDrum(ctx, compressor, type, t0 + beat * BEAT, dur * BEAT);
-    }
-
-    // 6. Programar ráfagas de fuegos sincronizadas
-    scheduleFireworkBursts(t0);
-
-    // 7. Fade out del master al final
+    // 5. Auto-limpieza al terminar
     const totalBeats = 19.5;
-    const endTime = t0 + totalBeats * BEAT;
-    masterGain.gain.setValueAtTime(0.7, endTime - 1);
-    masterGain.gain.linearRampToValueAtTime(0, endTime);
-
-    // 8. Auto-limpieza al terminar la melodía
-    const totalDurationMs = (totalBeats * BEAT + 1.5) * 1000;
+    const totalDurationMs = visualOnly
+      ? 8000                                   // 8s para modo visual
+      : (totalBeats * BEAT + 1.5) * 1000;      // duración de la melodía
     setTimeout(() => {
       if (isPlaying) cleanup(ctx);
     }, totalDurationMs);
@@ -545,17 +551,22 @@ export async function triggerEasterEgg() {
 // ─── Trigger: secuencia de taps en pads de joystick ───
 
 // Secuencia requerida: pad1, pad2, pad1, pad2, pad1, pad2, pad1, pad2
-const TRIGGER_SEQUENCE = [0, 1, 0, 1, 0, 1, 0, 1];
-const TAP_MAX_DURATION = 300;   // ms máximo que puede durar un tap (pointerdown→pointerup)
-const TAP_MAX_MOVEMENT = 10;    // px máximo de movimiento para considerarlo tap (no drag)
-const SEQUENCE_TIMEOUT = 2000;  // ms máximo entre taps consecutivos
+export const TRIGGER_SEQUENCE = [0, 1, 0, 1, 0, 1, 0, 1];
+export const TAP_MAX_DURATION = 300;   // ms máximo que puede durar un tap (pointerdown→pointerup)
+export const TAP_MAX_MOVEMENT = 10;    // px máximo de movimiento para considerarlo tap (no drag)
+export const SEQUENCE_TIMEOUT = 2000;  // ms máximo entre taps consecutivos
 
 /**
  * Instala el detector de secuencia de taps en los pads de joystick.
  * Busca los pads por su contenedor (module frame con id joystick-left/right).
  * Debe llamarse después de que el DOM del panel 7 esté construido.
+ *
+ * @param {Object} [options]
+ * @param {() => boolean} [options.isDirtyFn] - Función que devuelve true si el
+ *   sintetizador tiene parámetros modificados. Si dirty → solo visual, sin sonido.
  */
-export function initEasterEggTrigger() {
+export function initEasterEggTrigger(options = {}) {
+  const isDirtyFn = options.isDirtyFn || (() => false);
   const pad1Container = document.querySelector('#joystick-left .panel7-joystick-pad');
   const pad2Container = document.querySelector('#joystick-right .panel7-joystick-pad');
 
@@ -651,7 +662,8 @@ export function initEasterEggTrigger() {
       // ¿Secuencia completa?
       if (sequenceIndex >= TRIGGER_SEQUENCE.length) {
         resetSequence();
-        triggerEasterEgg();
+        const dirty = isDirtyFn();
+        triggerEasterEgg({ visualOnly: dirty });
       }
     });
 

@@ -3782,6 +3782,96 @@ notes.color.purple:
   pt: Roxo
   cs: Fialová
 
+notes.fontUp:
+  en: Increase font size
+  es: Aumentar tamaño de texto
+  fr: Augmenter la taille du texte
+  de: Schriftgröße vergrößern
+  it: Aumenta dimensione testo
+  pt: Aumentar tamanho do texto
+  cs: Zvětšit velikost písma
+
+notes.fontDown:
+  en: Decrease font size
+  es: Reducir tamaño de texto
+  fr: Réduire la taille du texte
+  de: Schriftgröße verkleinern
+  it: Riduci dimensione testo
+  pt: Diminuir tamanho do texto
+  cs: Zmenšit velikost písma
+
+notes.ctx.cut:
+  en: Cut
+  es: Cortar
+  fr: Couper
+  de: Ausschneiden
+  it: Taglia
+  pt: Cortar
+  cs: Vyjmout
+
+notes.ctx.copy:
+  en: Copy
+  es: Copiar
+  fr: Copier
+  de: Kopieren
+  it: Copia
+  pt: Copiar
+  cs: Kopírovat
+
+notes.ctx.paste:
+  en: Paste
+  es: Pegar
+  fr: Coller
+  de: Einfügen
+  it: Incolla
+  pt: Colar
+  cs: Vložit
+
+notes.ctx.bold:
+  en: Bold
+  es: Negrita
+  fr: Gras
+  de: Fett
+  it: Grassetto
+  pt: Negrito
+  cs: Tučné
+
+notes.ctx.italic:
+  en: Italic
+  es: Cursiva
+  fr: Italique
+  de: Kursiv
+  it: Corsivo
+  pt: Itálico
+  cs: Kurzíva
+
+notes.ctx.copyNote:
+  en: Copy note
+  es: Copiar nota
+  fr: Copier la note
+  de: Notiz kopieren
+  it: Copia nota
+  pt: Copiar nota
+  cs: Kopírovat poznámku
+
+notes.ctx.cutNote:
+  en: Cut note
+  es: Cortar nota
+  fr: Couper la note
+  de: Notiz ausschneiden
+  it: Taglia nota
+  pt: Cortar nota
+  cs: Vyjmout poznámku
+
+notes.ctx.pasteNote:
+  en: Paste note
+  es: Pegar nota
+  fr: Coller la note
+  de: Notiz einfügen
+  it: Incolla nota
+  pt: Colar nota
+  cs: Vložit poznámku
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ORIENTACIÓN Y PANTALLA
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -14,7 +14,7 @@
 
 import { createLogger } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
-import { createNote } from './panelNotes.js';
+import { createNote, pasteNoteFromClipboard, hasNoteInClipboard } from './panelNotes.js';
 
 const log = createLogger('ContextMenu');
 
@@ -50,6 +50,13 @@ const ICON_NOTE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" s
   <polyline points="14 3 14 8 21 8"/>
   <line x1="8" y1="13" x2="16" y2="13"/>
   <line x1="8" y1="17" x2="12" y2="17"/>
+</svg>`;
+
+const ICON_PASTE_NOTE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+  <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+  <line x1="9" y1="12" x2="15" y2="12"/>
+  <line x1="9" y1="16" x2="13" y2="16"/>
 </svg>`;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,6 +250,28 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
       }
     }
   ));
+  
+  // ── Opción: Pegar nota (solo si hay nota en clipboard) ──
+  if (hasNoteInClipboard()) {
+    menu.appendChild(createMenuItem(
+      ICON_PASTE_NOTE,
+      t('notes.ctx.pasteNote'),
+      () => {
+        hideContextMenu();
+        const panelEl = document.getElementById(panelId);
+        if (panelEl) {
+          const panelRect = panelEl.getBoundingClientRect();
+          const scaleX = panelRect.width / panelEl.offsetWidth;
+          const scaleY = panelRect.height / panelEl.offsetHeight;
+          const localX = (x - panelRect.left) / scaleX;
+          const localY = (y - panelRect.top) / scaleY;
+          const xPct = (localX / panelEl.offsetWidth) * 100;
+          const yPct = (localY / panelEl.offsetHeight) * 100;
+          pasteNoteFromClipboard(panelId, xPct, yPct);
+        }
+      }
+    ));
+  }
   
   // ── Separador ──
   menu.appendChild(createSeparator());

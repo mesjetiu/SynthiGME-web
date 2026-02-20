@@ -5,6 +5,15 @@
  * de cada panel del sintetizador. Las coordenadas se almacenan en porcentaje
  * relativo al panel para que sobrevivan a zoom, paneo y PiP sin recalcular.
  *
+ * Características:
+ * - Texto editable con soporte para negrita/cursiva (contentEditable + innerHTML)
+ * - Menú contextual propio: texto (cortar/copiar/pegar/negrita/cursiva)
+ *   y nota (copiar nota/cortar nota/eliminar)
+ * - Atajos de teclado: Ctrl+B (negrita), Ctrl+I (cursiva), Ctrl+C/X/V
+ * - Botones +/- para cambiar tamaño de fuente
+ * - Copiar/cortar/pegar notas entre paneles
+ * - Eventos NO se propagan al panel (evita menú contextual del panel)
+ *
  * Persistencia:
  * - Se guardan en localStorage (STORAGE_KEYS.PANEL_NOTES)
  * - Se incluyen en patches si la opción visual está activa
@@ -40,6 +49,12 @@ const DEFAULT_COLOR = 'yellow';
 const DEFAULT_WIDTH_PCT = 12;
 const DEFAULT_HEIGHT_PCT = 10;
 
+/** Tamaño de fuente por defecto y rango (px) */
+const DEFAULT_FONT_SIZE = 11;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 24;
+const FONT_SIZE_STEP = 1;
+
 /** Tamaño mínimo en px para que la nota sea usable */
 const MIN_SIZE_PX = 60;
 
@@ -54,6 +69,9 @@ const panelNotesMap = new Map();
 
 /** Flag para suprimir guardado durante restauración */
 let _isRestoring = false;
+
+/** Clipboard interno para copiar/cortar notas */
+let _noteClipboard = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INICIALIZACIÓN
@@ -109,6 +127,7 @@ export function createNote(panelId, options = {}) {
   const yPct = clamp(options.yPct ?? 50, 0, 95);
   const wPct = options.wPct ?? DEFAULT_WIDTH_PCT;
   const hPct = options.hPct ?? DEFAULT_HEIGHT_PCT;
+  const fontSize = options.fontSize ?? DEFAULT_FONT_SIZE;
   
   // ── Crear DOM ──
   const note = document.createElement('div');
@@ -116,6 +135,7 @@ export function createNote(panelId, options = {}) {
   note.id = noteId;
   note.dataset.noteColor = colorDef.id;
   note.dataset.panelId = panelId;
+  note.dataset.fontSize = String(fontSize);
   note.setAttribute('data-prevent-pan', 'true');
   
   // Posición y tamaño en %
@@ -123,7 +143,17 @@ export function createNote(panelId, options = {}) {
   note.style.top = `${yPct}%`;
   note.style.width = `${wPct}%`;
   note.style.minHeight = `${hPct}%`;
+  note.style.fontSize = `${fontSize}px`;
   applyNoteColor(note, colorDef);
+  
+  // ── Bloquear propagación de TODOS los eventos relevantes ──
+  // Evita que el menú contextual del panel se dispare sobre la nota
+  const stopEvents = ['contextmenu', 'pointerdown', 'pointerup', 'click', 'dblclick', 'mousedown', 'mouseup', 'touchstart', 'touchend'];
+  for (const evtName of stopEvents) {
+    note.addEventListener(evtName, (e) => {
+      e.stopPropagation();
+    }, true);
+  }
   
   // ── Barra de título (drag handle + acciones) ──
   const header = document.createElement('div');
@@ -136,6 +166,28 @@ export function createNote(panelId, options = {}) {
   
   const actions = document.createElement('div');
   actions.className = 'panel-note__actions';
+  
+  // Botón reducir fuente (A-)
+  const fontDownBtn = document.createElement('button');
+  fontDownBtn.className = 'panel-note__btn panel-note__btn--font-down';
+  fontDownBtn.innerHTML = 'A<small>−</small>';
+  fontDownBtn.title = t('notes.fontDown');
+  fontDownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    changeFontSize(note, -FONT_SIZE_STEP);
+  });
+  actions.appendChild(fontDownBtn);
+  
+  // Botón aumentar fuente (A+)
+  const fontUpBtn = document.createElement('button');
+  fontUpBtn.className = 'panel-note__btn panel-note__btn--font-up';
+  fontUpBtn.innerHTML = 'A<small>+</small>';
+  fontUpBtn.title = t('notes.fontUp');
+  fontUpBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    changeFontSize(note, FONT_SIZE_STEP);
+  });
+  actions.appendChild(fontUpBtn);
   
   // Botón de color
   const colorBtn = document.createElement('button');
@@ -163,20 +215,32 @@ export function createNote(panelId, options = {}) {
   header.appendChild(actions);
   note.appendChild(header);
   
+  // ── Menú contextual propio del header/nota (copiar nota, cortar nota, eliminar) ──
+  header.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showNoteContextMenu(note, e.clientX, e.clientY);
+  });
+  
   // ── Área de texto ──
   const body = document.createElement('div');
   body.className = 'panel-note__body';
   body.contentEditable = 'true';
   body.spellcheck = false;
-  body.textContent = options.text || '';
+  
+  // Restaurar HTML (soporta negrita/cursiva)
+  if (options.html) {
+    body.innerHTML = sanitizeNoteHTML(options.html);
+  } else if (options.text) {
+    body.textContent = options.text;
+  }
   
   // Placeholder
-  if (!options.text) {
+  if (!options.text && !options.html) {
     body.dataset.placeholder = t('notes.placeholder');
   }
   
   body.addEventListener('input', () => {
-    // Quitar placeholder cuando hay texto
     if (body.textContent.trim()) {
       delete body.dataset.placeholder;
     } else {
@@ -185,9 +249,33 @@ export function createNote(panelId, options = {}) {
     saveNotes();
   });
   
-  // Evitar propagación de eventos de teclado al viewport
+  // ── Atajos de teclado en el body ──
   body.addEventListener('keydown', (e) => {
     e.stopPropagation();
+    
+    const isMod = e.ctrlKey || e.metaKey;
+    if (!isMod) return;
+    
+    switch (e.key.toLowerCase()) {
+      case 'b':
+        e.preventDefault();
+        document.execCommand('bold', false, null);
+        saveNotes();
+        break;
+      case 'i':
+        e.preventDefault();
+        document.execCommand('italic', false, null);
+        saveNotes();
+        break;
+      // Ctrl+C/X/V los dejamos pasar al navegador (comportamiento nativo)
+    }
+  });
+  
+  // ── Menú contextual de texto ──
+  body.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showTextContextMenu(note, body, e.clientX, e.clientY);
   });
   
   note.appendChild(body);
@@ -260,6 +348,271 @@ export function clearAllNotes() {
     set.clear();
   }
   saveNotes();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAMAÑO DE FUENTE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Cambia el tamaño de fuente de una nota.
+ * @param {HTMLElement} noteEl - Elemento de la nota
+ * @param {number} delta - Incremento (+) o decremento (-) en px
+ */
+function changeFontSize(noteEl, delta) {
+  const current = parseInt(noteEl.dataset.fontSize, 10) || DEFAULT_FONT_SIZE;
+  const next = clamp(current + delta, MIN_FONT_SIZE, MAX_FONT_SIZE);
+  noteEl.dataset.fontSize = String(next);
+  noteEl.style.fontSize = `${next}px`;
+  saveNotes();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MENÚ CONTEXTUAL DE TEXTO (dentro del body de la nota)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Muestra menú contextual para texto seleccionado dentro de una nota.
+ * Opciones: Cortar, Copiar, Pegar, Negrita, Cursiva.
+ *
+ * @param {HTMLElement} noteEl - Elemento de la nota
+ * @param {HTMLElement} bodyEl - Elemento .panel-note__body
+ * @param {number} x - clientX
+ * @param {number} y - clientY
+ */
+function showTextContextMenu(noteEl, bodyEl, x, y) {
+  hideNoteContextMenu();
+  
+  const menu = document.createElement('div');
+  menu.className = 'panel-note__context-menu';
+  menu.setAttribute('data-prevent-pan', 'true');
+  
+  const sel = window.getSelection();
+  const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
+  
+  // Cortar
+  const cutItem = createNoteMenuItem(t('notes.ctx.cut'), () => {
+    document.execCommand('cut');
+    hideNoteContextMenu();
+    saveNotes();
+  });
+  cutItem.disabled = !hasSelection;
+  menu.appendChild(cutItem);
+  
+  // Copiar
+  const copyItem = createNoteMenuItem(t('notes.ctx.copy'), () => {
+    document.execCommand('copy');
+    hideNoteContextMenu();
+  });
+  copyItem.disabled = !hasSelection;
+  menu.appendChild(copyItem);
+  
+  // Pegar
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.paste'), () => {
+    document.execCommand('paste');
+    hideNoteContextMenu();
+    saveNotes();
+  }));
+  
+  // Separador
+  menu.appendChild(createNoteMenuSeparator());
+  
+  // Negrita
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.bold'), () => {
+    document.execCommand('bold', false, null);
+    hideNoteContextMenu();
+    saveNotes();
+  }));
+  
+  // Cursiva
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.italic'), () => {
+    document.execCommand('italic', false, null);
+    hideNoteContextMenu();
+    saveNotes();
+  }));
+  
+  document.body.appendChild(menu);
+  _activeNoteCtxMenu = menu;
+  
+  positionContextMenu(menu, x, y);
+  setupNoteCtxMenuClose(menu);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MENÚ CONTEXTUAL DE NOTA (en el header / zona no-texto)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Muestra menú contextual para la nota completa.
+ * Opciones: Copiar nota, Cortar nota, Eliminar nota.
+ *
+ * @param {HTMLElement} noteEl - Elemento de la nota
+ * @param {number} x - clientX
+ * @param {number} y - clientY
+ */
+function showNoteContextMenu(noteEl, x, y) {
+  hideNoteContextMenu();
+  
+  const menu = document.createElement('div');
+  menu.className = 'panel-note__context-menu';
+  menu.setAttribute('data-prevent-pan', 'true');
+  
+  // Copiar nota
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.copyNote'), () => {
+    copyNoteToClipboard(noteEl, false);
+    hideNoteContextMenu();
+  }));
+  
+  // Cortar nota
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.cutNote'), () => {
+    copyNoteToClipboard(noteEl, true);
+    hideNoteContextMenu();
+  }));
+  
+  // Separador
+  menu.appendChild(createNoteMenuSeparator());
+  
+  // Eliminar
+  menu.appendChild(createNoteMenuItem(t('notes.delete'), () => {
+    removeNote(noteEl.id);
+    hideNoteContextMenu();
+  }));
+  
+  document.body.appendChild(menu);
+  _activeNoteCtxMenu = menu;
+  
+  positionContextMenu(menu, x, y);
+  setupNoteCtxMenuClose(menu);
+}
+
+/** Menú contextual de nota activo */
+let _activeNoteCtxMenu = null;
+
+/** Oculta el menú contextual de nota activo */
+function hideNoteContextMenu() {
+  if (_activeNoteCtxMenu) {
+    _activeNoteCtxMenu.remove();
+    _activeNoteCtxMenu = null;
+  }
+}
+
+/**
+ * Posiciona un menú contextual ajustándolo a los bordes de la pantalla.
+ */
+function positionContextMenu(menu, x, y) {
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+      menu.style.left = `${x - rect.width}px`;
+    }
+    if (rect.bottom > window.innerHeight) {
+      menu.style.top = `${y - rect.height}px`;
+    }
+  });
+}
+
+/**
+ * Configura cierre automático del menú contextual de nota.
+ */
+function setupNoteCtxMenuClose(menu) {
+  const close = (e) => {
+    if (menu.contains(e.target)) return;
+    hideNoteContextMenu();
+    cleanup();
+  };
+  const closeOnEscape = (e) => {
+    if (e.key === 'Escape') {
+      hideNoteContextMenu();
+      cleanup();
+    }
+  };
+  const cleanup = () => {
+    document.removeEventListener('pointerdown', close, true);
+    document.removeEventListener('keydown', closeOnEscape);
+  };
+  setTimeout(() => {
+    document.addEventListener('pointerdown', close, true);
+    document.addEventListener('keydown', closeOnEscape);
+  }, 50);
+}
+
+/**
+ * Crea un elemento de menú contextual de nota.
+ */
+function createNoteMenuItem(text, onClick) {
+  const item = document.createElement('button');
+  item.className = 'panel-note__ctx-item';
+  item.textContent = text;
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onClick();
+  });
+  return item;
+}
+
+/**
+ * Crea un separador de menú contextual de nota.
+ */
+function createNoteMenuSeparator() {
+  const sep = document.createElement('div');
+  sep.className = 'panel-note__ctx-separator';
+  return sep;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PORTAPAPELES DE NOTAS (copiar/cortar/pegar notas entre paneles)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Copia (o corta) una nota al clipboard interno.
+ * @param {HTMLElement} noteEl - Nota a copiar
+ * @param {boolean} cut - Si es true, elimina la nota tras copiar
+ */
+function copyNoteToClipboard(noteEl, cut = false) {
+  const body = noteEl.querySelector('.panel-note__body');
+  _noteClipboard = {
+    html: body?.innerHTML || '',
+    text: body?.textContent || '',
+    color: noteEl.dataset.noteColor || DEFAULT_COLOR,
+    fontSize: parseInt(noteEl.dataset.fontSize, 10) || DEFAULT_FONT_SIZE,
+    wPct: parseFloat(noteEl.style.width) || DEFAULT_WIDTH_PCT,
+    hPct: parseFloat(noteEl.style.minHeight) || DEFAULT_HEIGHT_PCT,
+  };
+  if (cut) {
+    removeNote(noteEl.id);
+  }
+  log.debug('Nota', cut ? 'cortada' : 'copiada', 'al clipboard');
+}
+
+/**
+ * Pega una nota del clipboard interno en un panel.
+ * @param {string} panelId - ID del panel destino
+ * @param {number} xPct - Posición X en %
+ * @param {number} yPct - Posición Y en %
+ * @returns {HTMLElement|null}
+ */
+export function pasteNoteFromClipboard(panelId, xPct, yPct) {
+  if (!_noteClipboard) return null;
+  return createNote(panelId, {
+    xPct,
+    yPct,
+    wPct: _noteClipboard.wPct,
+    hPct: _noteClipboard.hPct,
+    html: _noteClipboard.html,
+    color: _noteClipboard.color,
+    fontSize: _noteClipboard.fontSize,
+  });
+}
+
+/**
+ * Comprueba si hay una nota en el clipboard interno.
+ * @returns {boolean}
+ */
+export function hasNoteInClipboard() {
+  return _noteClipboard !== null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -446,7 +799,9 @@ export function serializeNotes() {
         wPct: parseFloat(note.style.width) || DEFAULT_WIDTH_PCT,
         hPct: parseFloat(note.style.minHeight) || DEFAULT_HEIGHT_PCT,
         text: body?.textContent || '',
-        color: note.dataset.noteColor || DEFAULT_COLOR
+        html: body?.innerHTML || '',
+        color: note.dataset.noteColor || DEFAULT_COLOR,
+        fontSize: parseInt(note.dataset.fontSize, 10) || DEFAULT_FONT_SIZE
       });
     }
   }
@@ -474,7 +829,9 @@ export function deserializeNotes(notesData) {
       wPct: data.wPct,
       hPct: data.hPct,
       text: data.text,
-      color: data.color
+      html: data.html,
+      color: data.color,
+      fontSize: data.fontSize
     });
   }
   
@@ -543,4 +900,15 @@ export function getNoteColors() {
  */
 function clamp(val, min, max) {
   return Math.min(max, Math.max(min, val));
+}
+
+/**
+ * Sanitiza HTML de nota, permitiendo solo tags seguros (b, i, strong, em, br, span).
+ * @param {string} html
+ * @returns {string}
+ */
+function sanitizeNoteHTML(html) {
+  if (!html) return '';
+  // Solo permitir tags de formato inline seguros
+  return html.replace(/<(?!\/?(?:b|i|strong|em|br|span|u)\b)[^>]*>/gi, '');
 }

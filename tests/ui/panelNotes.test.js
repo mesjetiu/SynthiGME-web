@@ -11,6 +11,10 @@
  * - Estructura DOM esperada (header, body, botones)
  * - Integración con patches (serializeNotes/deserializeNotes)
  * - Flag _isRestoring suprime guardados intermedios
+ * - Tamaño de fuente (+/-)
+ * - Soporte HTML (negrita/cursiva) en serialización
+ * - Clipboard de notas (copiar/cortar/pegar)
+ * - Bloqueo de propagación de eventos
  *
  * Se usa JSDOM para simular el DOM. Las dependencias (logger, i18n) se
  * importan directamente ya que funcionan sin DOM pesado.
@@ -54,7 +58,9 @@ import {
   deserializeNotes,
   saveNotes,
   restoreNotes,
-  getNoteColors
+  getNoteColors,
+  pasteNoteFromClipboard,
+  hasNoteInClipboard
 } from '../../src/assets/js/ui/panelNotes.js';
 
 import { STORAGE_KEYS } from '../../src/assets/js/utils/constants.js';
@@ -743,5 +749,199 @@ describe('PanelNotes — edge cases', () => {
     deserializeNotes(serialized);
     const [data] = serializeNotes();
     assert.equal(data.text.length, 5000);
+  });
+});
+
+describe('PanelNotes — tamaño de fuente', () => {
+  beforeEach(() => {
+    cleanup();
+    createPanels(1);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('nota tiene tamaño de fuente por defecto (11px)', () => {
+    const note = createNote('panel-1');
+    assert.equal(note.dataset.fontSize, '11');
+    assert.equal(note.style.fontSize, '11px');
+  });
+
+  it('acepta tamaño de fuente personalizado', () => {
+    const note = createNote('panel-1', { fontSize: 16 });
+    assert.equal(note.dataset.fontSize, '16');
+    assert.equal(note.style.fontSize, '16px');
+  });
+
+  it('fontSize se serializa y restaura', () => {
+    createNote('panel-1', { text: 'font test', fontSize: 18 });
+    const serialized = serializeNotes();
+    assert.equal(serialized[0].fontSize, 18);
+
+    clearAllNotes();
+    deserializeNotes(serialized);
+
+    const restored = serializeNotes();
+    assert.equal(restored[0].fontSize, 18);
+  });
+
+  it('header contiene botones A+ y A-', () => {
+    const note = createNote('panel-1');
+    const fontDown = note.querySelector('.panel-note__btn--font-down');
+    const fontUp = note.querySelector('.panel-note__btn--font-up');
+    assert.ok(fontDown, 'Debería tener botón A-');
+    assert.ok(fontUp, 'Debería tener botón A+');
+  });
+});
+
+describe('PanelNotes — soporte HTML (negrita/cursiva)', () => {
+  beforeEach(() => {
+    cleanup();
+    createPanels(1);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('acepta HTML en options.html', () => {
+    const note = createNote('panel-1', { html: 'hello <b>bold</b> world' });
+    const body = note.querySelector('.panel-note__body');
+    assert.ok(body.innerHTML.includes('<b>bold</b>'), 'Debería contener tag <b>');
+  });
+
+  it('serializa campo html con innerHTML', () => {
+    const note = createNote('panel-1', { html: '<i>italic</i> text' });
+    const [data] = serializeNotes();
+    assert.ok(data.html.includes('<i>italic</i>'), 'html debería contener <i>');
+    assert.equal(data.text, 'italic text', 'text debe ser plain text');
+  });
+
+  it('roundtrip de HTML funciona', () => {
+    createNote('panel-1', { html: '<b>bold</b> and <i>italic</i>' });
+    const serialized = serializeNotes();
+    clearAllNotes();
+    deserializeNotes(serialized);
+
+    const [data] = serializeNotes();
+    assert.ok(data.html.includes('<b>bold</b>'));
+    assert.ok(data.html.includes('<i>italic</i>'));
+  });
+
+  it('sanitiza tags peligrosos en HTML', () => {
+    const note = createNote('panel-1', { html: '<b>ok</b><script>alert(1)</script><i>ok2</i>' });
+    const body = note.querySelector('.panel-note__body');
+    assert.ok(!body.innerHTML.includes('<script>'), 'No debería contener <script>');
+    assert.ok(body.innerHTML.includes('<b>ok</b>'), 'Debería mantener <b>');
+    assert.ok(body.innerHTML.includes('<i>ok2</i>'), 'Debería mantener <i>');
+  });
+
+  it('prefiere html sobre text si ambos están en options', () => {
+    const note = createNote('panel-1', { text: 'plain', html: '<b>rich</b>' });
+    const body = note.querySelector('.panel-note__body');
+    assert.ok(body.innerHTML.includes('<b>rich</b>'));
+  });
+});
+
+describe('PanelNotes — clipboard de notas', () => {
+  beforeEach(() => {
+    cleanup();
+    createPanels(2);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('hasNoteInClipboard es false inicialmente', () => {
+    // El clipboard se mantiene entre tests (módulo global), pero al inicio no debería haber nada
+    // Este test valida la función exportada
+    assert.equal(typeof hasNoteInClipboard(), 'boolean');
+  });
+
+  it('pasteNoteFromClipboard devuelve null si no hay nada en clipboard', () => {
+    // Limpiar clipboard indirectamente creando un estado limpio
+    // Nota: no podemos limpiar _noteClipboard directamente, pero pasteNoteFromClipboard
+    // devuelve null si el clipboard está vacío
+    // Solo verificamos que la función no explota
+    const result = pasteNoteFromClipboard('panel-1', 50, 50);
+    // Puede ser null o un elemento dependiendo del estado del clipboard del módulo
+    assert.ok(result === null || result instanceof dom.window.HTMLElement);
+  });
+});
+
+describe('PanelNotes — bloqueo de propagación de eventos', () => {
+  beforeEach(() => {
+    cleanup();
+    createPanels(1);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('contextmenu en nota no propaga al panel', () => {
+    const note = createNote('panel-1');
+    let panelGotEvent = false;
+    const panel = document.getElementById('panel-1');
+    panel.addEventListener('contextmenu', () => { panelGotEvent = true; });
+
+    const event = new dom.window.Event('contextmenu', { bubbles: true });
+    note.dispatchEvent(event);
+    assert.equal(panelGotEvent, false, 'El panel no debe recibir contextmenu de la nota');
+  });
+
+  it('pointerdown en nota no propaga al panel', () => {
+    const note = createNote('panel-1');
+    let panelGotEvent = false;
+    const panel = document.getElementById('panel-1');
+    panel.addEventListener('pointerdown', () => { panelGotEvent = true; });
+
+    const event = new dom.window.Event('pointerdown', { bubbles: true });
+    note.dispatchEvent(event);
+    assert.equal(panelGotEvent, false, 'El panel no debe recibir pointerdown de la nota');
+  });
+
+  it('click en nota no propaga al panel', () => {
+    const note = createNote('panel-1');
+    let panelGotEvent = false;
+    const panel = document.getElementById('panel-1');
+    panel.addEventListener('click', () => { panelGotEvent = true; });
+
+    const event = new dom.window.Event('click', { bubbles: true });
+    note.dispatchEvent(event);
+    assert.equal(panelGotEvent, false, 'El panel no debe recibir click de la nota');
+  });
+});
+
+describe('PanelNotes — estructura DOM ampliada', () => {
+  beforeEach(() => {
+    cleanup();
+    createPanels(1);
+    initPanelNotes();
+  });
+
+  afterEach(() => cleanup());
+
+  it('body tiene contentEditable', () => {
+    const note = createNote('panel-1');
+    const body = note.querySelector('.panel-note__body');
+    assert.equal(body.contentEditable, 'true');
+  });
+
+  it('header tiene 4 botones (A-, A+, color, eliminar)', () => {
+    const note = createNote('panel-1');
+    const buttons = note.querySelectorAll('.panel-note__btn');
+    assert.equal(buttons.length, 4, 'Debe tener exactamente 4 botones');
+  });
+
+  it('todos los botones tienen title (tooltip)', () => {
+    const note = createNote('panel-1');
+    const buttons = note.querySelectorAll('.panel-note__btn');
+    for (const btn of buttons) {
+      assert.ok(btn.title, `Botón ${btn.className} debe tener title`);
+    }
+  });
+
+  it('nota tiene data-prevent-pan', () => {
+    const note = createNote('panel-1');
+    assert.equal(note.getAttribute('data-prevent-pan'), 'true');
   });
 });

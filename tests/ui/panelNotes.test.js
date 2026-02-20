@@ -180,15 +180,15 @@ describe('PanelNotes — createNote', () => {
 
   it('asigna tamaño por defecto en porcentaje', () => {
     const note = createNote('panel-1');
-    // El ancho y minHeight deben tener valores de % > 0
+    // El ancho y height deben tener valores de % > 0
     assert.ok(note.style.width.endsWith('%'), 'Ancho debería ser en %');
-    assert.ok(note.style.minHeight.endsWith('%'), 'MinHeight debería ser en %');
+    assert.ok(note.style.height.endsWith('%'), 'Height debería ser en %');
   });
 
   it('acepta tamaño personalizado', () => {
     const note = createNote('panel-1', { wPct: 20, hPct: 15 });
     assert.equal(note.style.width, '20%');
-    assert.equal(note.style.minHeight, '15%');
+    assert.equal(note.style.height, '15%');
   });
 
   it('crea la estructura DOM correcta (header + body)', () => {
@@ -1006,7 +1006,7 @@ describe('PanelNotes — notas de viewport', () => {
   it('nota de viewport usa tamaño en px', () => {
     const note = createNote(VIEWPORT_PANEL_ID, { wPx: 250, hPx: 180 });
     assert.equal(note.style.width, '250px');
-    assert.equal(note.style.minHeight, '180px');
+    assert.equal(note.style.height, '180px');
   });
 
   it('nota de viewport con valores por defecto', () => {
@@ -1014,7 +1014,7 @@ describe('PanelNotes — notas de viewport', () => {
     assert.ok(note.style.left.endsWith('px'));
     assert.ok(note.style.top.endsWith('px'));
     assert.ok(note.style.width.endsWith('px'));
-    assert.ok(note.style.minHeight.endsWith('px'));
+    assert.ok(note.style.height.endsWith('px'));
   });
 
   it('nota de viewport tiene misma estructura DOM que nota de panel', () => {

@@ -150,7 +150,7 @@ export function createNote(panelId, options = {}) {
     note.style.left = `${options.xPx ?? 100}px`;
     note.style.top = `${options.yPx ?? 100}px`;
     note.style.width = `${options.wPx ?? 200}px`;
-    note.style.minHeight = `${options.hPx ?? 100}px`;
+    note.style.height = `${options.hPx ?? 100}px`;
   } else {
     // Notas de panel usan % relativos al panel
     const xPct = clamp(options.xPct ?? 50, 0, 95);
@@ -160,7 +160,7 @@ export function createNote(panelId, options = {}) {
     note.style.left = `${xPct}%`;
     note.style.top = `${yPct}%`;
     note.style.width = `${wPct}%`;
-    note.style.minHeight = `${hPct}%`;
+    note.style.height = `${hPct}%`;
   }
   note.style.fontSize = `${fontSize}px`;
   applyNoteColor(note, colorDef);
@@ -787,6 +787,8 @@ function setupNoteDrag(noteEl, handleEl) {
   function onPointerDown(e) {
     if (!e.target.closest('.panel-note__header')) return;
     if (e.target.closest('.panel-note__btn')) return;
+    // Solo arrastrar con botón izquierdo; clic derecho → menú contextual
+    if (e.button !== 0) return;
     
     e.preventDefault();
     e.stopPropagation();
@@ -820,7 +822,6 @@ function setupNoteDrag(noteEl, handleEl) {
       noteEl.style.top = `${localY}px`;
       noteEl.style.width = `${w}px`;
       noteEl.style.height = `${h}px`;
-      noteEl.style.minHeight = '';
       vi.appendChild(noteEl);
       
       startLeftPx = localX;
@@ -899,10 +900,7 @@ function setupNoteDrag(noteEl, handleEl) {
       } else {
         // ── Soltar en viewport (espacio libre): mantener en viewportInner ──
         noteEl.dataset.panelId = VIEWPORT_PANEL_ID;
-        // Convertir height fijo a minHeight para permitir resize
-        const h = noteEl.offsetHeight;
-        noteEl.style.height = '';
-        noteEl.style.minHeight = `${h}px`;
+        noteEl.style.minHeight = '';
         
         if (!panelNotesMap.has(VIEWPORT_PANEL_ID)) {
           panelNotesMap.set(VIEWPORT_PANEL_ID, new Set());
@@ -970,8 +968,8 @@ function reparentNoteToPanel(noteEl, targetPanel) {
   noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
   noteEl.style.top = `${clamp(yPct, -5, 95)}%`;
   noteEl.style.width = `${wPct}%`;
-  noteEl.style.height = '';
-  noteEl.style.minHeight = `${hPct}%`;
+  noteEl.style.height = `${hPct}%`;
+  noteEl.style.minHeight = '';
   noteEl.dataset.panelId = targetPanel.id;
   
   targetPanel.appendChild(noteEl);
@@ -1009,7 +1007,7 @@ export function serializeNotes() {
           xPx: parseFloat(note.style.left) || 0,
           yPx: parseFloat(note.style.top) || 0,
           wPx: note.offsetWidth > 0 ? note.offsetWidth : (parseFloat(note.style.width) || 200),
-          hPx: note.offsetHeight > 0 ? note.offsetHeight : (parseFloat(note.style.minHeight) || 100),
+          hPx: note.offsetHeight > 0 ? note.offsetHeight : (parseFloat(note.style.height) || 100),
           text: body?.textContent || '',
           html: body?.innerHTML || '',
           color: note.dataset.noteColor || DEFAULT_COLOR,
@@ -1026,7 +1024,7 @@ export function serializeNotes() {
           xPct: parseFloat(note.style.left) || 0,
           yPct: parseFloat(note.style.top) || 0,
           wPct: useComputed ? (note.offsetWidth / pw) * 100 : (parseFloat(note.style.width) || DEFAULT_WIDTH_PCT),
-          hPct: useComputed ? (note.offsetHeight / ph) * 100 : (parseFloat(note.style.minHeight) || DEFAULT_HEIGHT_PCT),
+          hPct: useComputed ? (note.offsetHeight / ph) * 100 : (parseFloat(note.style.height) || DEFAULT_HEIGHT_PCT),
           text: body?.textContent || '',
           html: body?.innerHTML || '',
           color: note.dataset.noteColor || DEFAULT_COLOR,

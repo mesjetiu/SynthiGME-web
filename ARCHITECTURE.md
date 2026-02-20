@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 20 de febrero de 2026 (sección 19: sistema de efecto glow)
+> Última actualización: 20 de febrero de 2026 (sección 20: resaltado de flujo de señal)
 
 ---
 
@@ -331,6 +331,7 @@ Componentes de interfaz reutilizables:
 | `patchBrowser.js` | `PatchBrowser` | Modal para gestionar patches: guardar, cargar, eliminar, renombrar, exportar/importar archivos `.sgme.json`, búsqueda por nombre |
 | `quickbar.js` | — | Barra de acciones rápidas para móvil (bloqueo zoom/pan, ajustes, configuración de audio, pantalla completa, **menú PiP**) |
 | `pipManager.js` | `initPipManager()`, `openPip()`, `closePip()`, `togglePip()` | Sistema de paneles flotantes (Picture-in-Picture). Permite extraer cualquier panel del layout principal a una ventana flotante independiente con zoom/scroll propios. Funciones: `openAllPips()`, `closeAllPips()`, `getOpenPips()`, `isPipped()`. Persistencia de estado (posición, tamaño, scroll) en localStorage. Constante `ALL_PANELS` define los 7 paneles disponibles |
+| `signalFlowHighlighter.js` | `SignalFlowHighlighter` | Resaltado visual de flujo de señal: al hacer hover/tap sobre un módulo o pin, resalta módulos conectados con glow cyan (fuente) y magenta (destino). Modo sin modificador (por defecto) o con tecla configurable. Ver [sección 20](#20-resaltado-de-flujo-de-señal) |
 | `electronMenuBridge.js` | `initElectronMenuBridge()` | Puente bidireccional entre menú nativo Electron y renderer. Recibe acciones del menú, envía estado y traducciones, sincroniza toggles (telemetría, OSC, PiP, etc.) |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)
@@ -2864,6 +2865,7 @@ tests/
 │   ├── oscilloscopeDisplay.test.js  # Tests del display del osciloscopio
 │   ├── pinColorMenu.test.js     # Tests del menú de colores de pin
 │   ├── pipManager.test.js       # Tests del sistema PiP
+│   ├── signalFlowHighlighter.test.js  # Tests del resaltado de flujo de señal
 │   └── telemetryConsent.test.js # Tests de consentimiento de telemetría
 ├── worklets/
 │   └── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
@@ -2946,7 +2948,7 @@ Opciones útiles:
 | `i18n/locales` | Internacionalización | Paridad en/es, claves esenciales, metadatos |
 | **`audio/worklets/*`** | **24 tests Playwright** | **Thermal slew, hybrid clipping, CV, sync, waveforms** |
 | `ui/audioSettingsModal` | Modal de audio | Lógica de latencia, cálculo total, visibilidad multicanal |
-| `ui/*` | Componentes de interfaz | Matriz grande, tooltips, PiP, menú de colores |
+| `ui/*` | Componentes de interfaz | Matriz grande, tooltips, PiP, menú de colores, flujo de señal |
 | `worklets/multichannelCapture` | Ring buffer SharedArrayBuffer (salida) | Espacio disponible, overflow, Atomics, layout de buffer |
 | `worklets/multichannelPlayback` | Ring buffer SharedArrayBuffer (entrada) | Frames disponibles, underflow, lectura interleaved, wrap around |
 | `worklets/*` | Procesadores DSP | Matemáticas de oscilador, formas de onda, PolyBLEP |
@@ -3298,3 +3300,153 @@ Cubierto en `tests/ui/glowManager.test.js` (90 tests):
 - **CSS variables**: generación de `--glow-*`, formato `rgba()`, toggle de `glow-disabled`
 - **CSS estático**: presencia de 8 `@keyframes`, 5 selectores de activación, 6 reglas de desactivación, 7 variables CSS, `overflow: visible`
 - **Integración JS**: 9 archivos importan y llaman `flashGlow`/`flashPinGlow`, 7 puntos de activación verificados (click handlers + deserialize)
+
+---
+
+## 20. Resaltado de Flujo de Señal
+
+Sistema visual que permite rastrear las conexiones activas entre módulos del sintetizador. Al interactuar con un módulo o pin de la matriz, se iluminan los módulos conectados con colores semánticos.
+
+### 20.1 Arquitectura
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                   signalFlowHighlighter.js                       │
+│                                                                  │
+│  Constructor ──► lee localStorage (enabled, requireModifier)     │
+│                                                                  │
+│  init() ──► keydown/keyup/mouseover/mouseout/click listeners     │
+│                                                                  │
+│  _highlightModule(el) ──► panel5Routing + panel6Routing          │
+│       │                   (sourceMap, destMap, connections)       │
+│       ├──► _applyGlowToModule(id, CSS_CLASS)                     │
+│       └──► _applyGlowToPin(matrix, row, col, CSS_CLASS)          │
+│                                                                  │
+│  _highlightPin(btn) ──► identifica matriz ──► sourceMap/destMap  │
+│       └──► _applyGlowToModule(sourceId/destId, CSS_CLASS)        │
+│                                                                  │
+│  _clearAllHighlights() ──► remove all CSS classes                │
+└──────────────────────────────────────────────────────────────────┘
+        │                                      ▲
+        ▼                                      │
+┌────────────────┐               ┌─────────────────────────┐
+│   main.css     │               │   settingsModal.js      │
+│                │               │                         │
+│ .signal-flow-  │               │ Checkbox "Mostrar flujo"│
+│   source       │               │ Checkbox "Sin tecla"    │
+│   dest         │               │   (indentado,           │
+│   both         │               │    subordinado)         │
+│   active       │               │                         │
+│   pin-source   │               │ CustomEvent dispatch    │
+│   pin-dest     │               │ → app.js listener       │
+│                │               │ → highlighter.setEnabled│
+│ @keyframes     │               │   /setRequireModifier   │
+│  signal-flow-  │               └─────────────────────────┘
+│  alternate     │
+└────────────────┘
+```
+
+### 20.2 Colores semánticos
+
+| Clase CSS | Color | Significado | Uso |
+|-----------|-------|-------------|-----|
+| `.signal-flow-source` | Cyan (`#00e5ff`) | Módulo que **envía** señal | Hover sobre módulo destino |
+| `.signal-flow-dest` | Magenta (`#ff1744`) | Módulo que **recibe** señal | Hover sobre módulo fuente |
+| `.signal-flow-both` | Animación alternante | Módulo es fuente **y** destino | Feedback recursivo |
+| `.signal-flow-active` | — (borde) | Módulo bajo el cursor | Indicador de selección |
+| `.signal-flow-pin-source` | Cyan | Pin de origen | Hover sobre módulo destino |
+| `.signal-flow-pin-dest` | Magenta | Pin de destino | Hover sobre módulo fuente |
+
+Los colores cyan y magenta se eligieron para evitar confusión con los colores de pin azul (`#2196F3`) y rojo (`#f44336`).
+
+### 20.3 Modos de activación
+
+| Modo | Activación | Configuración |
+|------|-----------|---------------|
+| **Sin modificador** (defecto) | Hover en desktop, tap en móvil | `requireModifier = false` |
+| **Con tecla modificadora** | Mantener Ctrl/Alt + hover | `requireModifier = true` |
+
+El modo se configura en **Ajustes > Interfaz > Resaltado de flujo de señal**:
+- Checkbox principal: activa/desactiva el resaltado globalmente (encendido por defecto)
+- Checkbox subordinado (indentado): "Activar sin tecla modificadora" (encendido por defecto, deshabilitado si el principal está apagado)
+
+### 20.4 Mapeo de descriptores a módulos DOM
+
+La función interna `getModuleElementIds(descriptor)` traduce los descriptores de routing (de `blueprintMapper.js`) a IDs de elementos DOM:
+
+| `descriptor.kind` | ID DOM resultado |
+|-------------------|-----------------|
+| `panel3Osc` | `panel3-osc-{oscIndex+1}` |
+| `noiseGen` | `panel3-noise-{index+1}` |
+| `inputAmp` | `input-amplifiers` |
+| `outputBus` | `output-channel-{bus}` |
+| `joystick` | `joystick-{side}` |
+| `oscilloscope` | `oscilloscope-module` |
+| `oscSync` | `panel3-osc-{oscIndex+1}` |
+| `oscFreqCV` | `panel3-osc-{oscIndex+1}` |
+| `outputLevelCV` | `output-channel-{busIndex+1}` |
+
+### 20.5 Búsqueda en ambas matrices
+
+El highlighter consulta **Panel 5 (audio) y Panel 6 (control)** simultáneamente para encontrar todas las conexiones activas de un módulo. Cada routing tiene:
+- `connections`: objeto con claves `"row:col"` para pines activos
+- `sourceMap`: `Map<row, descriptor>` — mapea filas a descriptores de fuente
+- `destMap`: `Map<col, descriptor>` — mapea columnas a descriptores de destino
+
+### 20.6 Interacción con pines
+
+Los pines de la matriz muestran el flujo de señal al hacer hover o tap **independientemente de si están marcados como activos** (con o sin la clase `.active`). Esto permite al usuario explorar las conexiones potenciales de cualquier posición en la matriz.
+
+### 20.7 API pública
+
+```javascript
+import { SignalFlowHighlighter } from './ui/signalFlowHighlighter.js';
+
+// Inicialización (en app.js)
+const highlighter = new SignalFlowHighlighter({
+  panel5Routing,    // { connections, sourceMap, destMap }
+  panel6Routing,    // { connections, sourceMap, destMap }
+  matrixAudio,      // instancia LargeMatrix
+  matrixControl     // instancia LargeMatrix
+});
+highlighter.init();
+
+// Configuración
+highlighter.setEnabled(true);           // activar/desactivar
+highlighter.setRequireModifier(false);  // modo sin tecla
+highlighter.setModifierKey('Alt');      // cambiar tecla
+highlighter.getEnabled();               // → true
+highlighter.getRequireModifier();       // → false
+
+// Limpieza
+highlighter.destroy();
+```
+
+### 20.8 Persistencia
+
+| Clave localStorage | Valor por defecto | Descripción |
+|--------------------|-------------------|-------------|
+| `synthigme-signal-flow-enabled` | `'true'` | Resaltado activado |
+| `synthigme-signal-flow-require-modifier` | `'false'` | Sin tecla modificadora |
+
+### 20.9 Tests
+
+Cubierto en `tests/ui/signalFlowHighlighter.test.js` (86 tests):
+
+- **Constructor**: valores por defecto, carga desde localStorage (enabled, requireModifier)
+- **API**: setEnabled/getEnabled, setRequireModifier/getRequireModifier, setModifierKey, persistencia localStorage
+- **Highlight de módulo**: clases CSS aplicadas (source, dest, active), módulos sin conexiones, módulos sin ID
+- **Dual-role (both)**: conversión source+dest → both, no duplicación, animación alternante
+- **Highlight de pin**: detección de matriz (audio/control), coordenadas inválidas, pin sin tabla
+- **Glow en pines**: _applyGlowToPin, null safety, pin inexistente
+- **clearAllHighlights**: limpieza de módulos y pines (6 clases CSS)
+- **Desactivado**: no resalta, pero trackea hoveredElement
+- **Modifier key mode**: keydown/keyup, repeat ignorado, tecla incorrecta, pin bajo cursor
+- **Click toggle**: activar/desactivar, toggle off, click fuera limpia, no funciona con requireModifier
+- **Blur**: limpieza completa de estado
+- **getModuleElementIds**: 10 tipos de descriptor verificados indirectamente
+- **Routing inválido**: null, sin sourceMap, sin connections
+- **Ambas matrices**: búsqueda simultánea en Panel 5 y Panel 6
+- **Pines sin .active**: hover, click y modifier key funcionan sin clase active
+- **CSS estático**: 6 variables, 6 selectores, keyframes, settings-row--indent
+- **Storage keys**: existencia y prefijo correcto

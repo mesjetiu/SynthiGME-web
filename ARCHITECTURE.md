@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 16 de febrero de 2026 (sección 18: análisis PiP clones vs reparenting)
+> Última actualización: 20 de febrero de 2026 (sección 19: sistema de efecto glow)
 
 ---
 
@@ -306,6 +306,7 @@ Componentes de interfaz reutilizables:
 | `knob.js` | `Knob` | Control rotativo SVG con eventos de arrastre, curvas de respuesta configurable; soporte de modificadores (Ctrl/Cmd 10× más rápido, Shift 10× más preciso) |
 | `knobFactory.js` | `createKnobElements()`, `createKnob()` | Factory para crear DOM de knobs. Evita duplicación del markup HTML |
 | `toggle.js` | `Toggle` | Interruptor de dos estados con etiquetas personalizables |
+| `glowManager.js` | `flashGlow()`, `flashPinGlow()` | Sistema centralizado de halo brillante pulsante en controles. 4 presets configurables (performance/standard/subtle/off), CSS variables dinámicas, persistencia en localStorage. Ver [sección 19](#19-sistema-de-efecto-glow) |
 | `toast.js` | `showToast()` | Notificaciones toast temporales con animación fade-out |
 | `layoutHelpers.js` | `labelPanelSlot()`, `getOscillatorLayoutSpec()` | Helpers de layout para configurar posición de paneles en la cuadrícula |
 | `portraitBlocker.js` | `initPortraitBlocker()` | Bloquea la app en modo portrait, muestra hint para rotar dispositivo |
@@ -3122,3 +3123,178 @@ En febrero de 2026 se exploró un modelo alternativo basado en **clones del DOM*
 - **DOM reparenting >> cloning** para paneles interactivos con bindings de audio. La clonación solo merece la pena si los controles son puramente de lectura.
 - **Multi-instancia PiP del mismo panel** requiere una arquitectura fundamentalmente diferente (posiblemente Web Components con shadow DOM, o virtualización del state con render múltiple). No es viable como refactorización incremental del sistema actual.
 - **`<input type="range">` en WebKit tablet** es indomable con CSS/JS estándar para bloquear interacción nativa. Solo un overlay DOM (elemento físico encima) funciona, y aun así introduce complejidad en el forwarding de eventos.
+
+---
+
+## 19. Sistema de Efecto Glow
+
+Sistema centralizado de halo brillante pulsante para retroalimentación visual en todos los controles interactivos del sintetizador. Pensado para performances en directo: el público ve en tiempo real qué controles están variando.
+
+### 19.1 Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       glowManager.js                            │
+│                                                                 │
+│  GLOW_PRESETS ──► _currentPreset ──► _applyCSSVariables()       │
+│      │                                      │                   │
+│  performance     CSS custom properties      ▼                   │
+│  standard        en document.documentElement                    │
+│  subtle          --glow-knob-shadow                             │
+│  off             --glow-slider-shadow                           │
+│                  --glow-pad-shadow                              │
+│                  --glow-pin-shadow                              │
+│                  --glow-flash-shadow                            │
+│                  --glow-duration                                │
+│                                                                 │
+│  flashGlow(el) ──► .glow-flash ──► setTimeout ──► remove class  │
+│  flashPinGlow(el)► .glow-flash-pin ► setTimeout ► remove class  │
+└─────────────────────────────────────────────────────────────────┘
+         │                                    ▲
+         ▼                                    │
+┌─────────────────┐                  ┌────────────────────┐
+│   main.css      │                  │  Consumidores JS   │
+│                 │                  │                    │
+│ @keyframes      │                  │ knob.js            │
+│  knob-glow-flash│                  │ toggle.js          │
+│  slider-glow-   │                  │ sgmeOscillator.js  │
+│  switch-glow-   │                  │ outputChannel.js   │
+│  pin-glow-flash │                  │ largeMatrix.js     │
+│  pad-glow-flash │                  │ oscMatrixSync.js   │
+│  toggle-glow-   │                  │ oscJoystickSync.js │
+│                 │                  │ oscOutputChannel.. │
+│ .glow-disabled  │                  │ oscOscillatorSync. │
+│  → animation:   │                  └────────────────────┘
+│    none         │
+└─────────────────┘
+```
+
+### 19.2 Presets
+
+Cada preset define 7 propiedades que controlan el efecto visual:
+
+| Propiedad | Tipo | Descripción |
+|-----------|------|-------------|
+| `id` | `string` | Identificador del preset |
+| `intensity` | `number` (0-3) | Multiplicador de tamaño del halo |
+| `spread` | `number` (px) | Radio base de difusión |
+| `duration` | `number` (ms) | Duración del flash |
+| `color` | `[R, G, B]` | Color base del glow (ámbar dorado: `[255, 215, 128]`) |
+| `opacity` | `number` (0-1) | Opacidad máxima |
+| `pulseOnChange` | `boolean` | Activar pulso en cambios programáticos |
+
+Presets disponibles:
+
+| Preset | Intensity | Spread | Duration | Opacity | Uso |
+|--------|-----------|--------|----------|---------|-----|
+| **performance** | 2.5 | 18px | 600ms | 0.95 | Shows en directo, máxima visibilidad |
+| **standard** | 1.6 | 14px | 500ms | 0.80 | Uso general (preset por defecto) |
+| **subtle** | 0.8 | 8px | 400ms | 0.55 | Uso personal, efecto mínimo |
+| **off** | 0 | 0 | 0 | 0 | Sin efecto glow |
+
+El usuario selecciona el preset desde **Ajustes > Interfaz**. Se persiste en `localStorage` con la clave `synthigme-glow-preset`.
+
+### 19.3 Mecanismo CSS
+
+El sistema opera en dos capas coordinadas:
+
+**1. Variables CSS dinámicas** — `glowManager._applyCSSVariables()` calcula los valores de `box-shadow` para cada tipo de control y los aplica como CSS custom properties en `document.documentElement`. Cada tipo tiene multiplicadores diferentes sobre los valores base del preset:
+
+| Variable CSS | Tipo de control | Factor sobre spread×intensity |
+|-------------|-----------------|-------------------------------|
+| `--glow-knob-shadow` | Knobs | ×1.0 |
+| `--glow-slider-shadow` | Sliders | ×0.85 |
+| `--glow-pad-shadow` | Joystick pads | ×0.9 (con `inset` shadow) |
+| `--glow-pin-shadow` | Pines de matriz | ×0.7 |
+| `--glow-flash-shadow` | Flash genérico | ×1.2 (más intenso) |
+
+**2. Animaciones CSS** — Las reglas `@keyframes` en `main.css` leen las variables para animar `box-shadow` desde el valor máximo hasta transparente:
+
+| Keyframe | Activación (clase) | Duración |
+|----------|-------------------|----------|
+| `knob-tooltip-glow` | `.knob.is-tooltip-active` | `1s infinite` (hover/drag) |
+| `knob-glow-flash` | `.knob.glow-flash` | `var(--glow-duration)` |
+| `slider-glow-flash` | `.output-channel__slider-wrap.glow-flash` | `var(--glow-duration)` |
+| `switch-glow-flash` | `.output-channel__switch.glow-flash` | `var(--glow-duration)` |
+| `toggle-glow-flash` | `.synth-toggle.glow-flash .synth-toggle__track` | `var(--glow-duration)` |
+| `pin-glow-flash` | `.pin-btn.glow-flash-pin` | `var(--glow-duration)` |
+| `pad-glow-flash` | `.panel7-joystick-pad.glow-flash` | `var(--glow-duration)` |
+
+**Desactivación**: Cuando `intensity === 0` (preset `off`), se añade la clase `glow-disabled` a `<html>`, y las reglas CSS `.glow-disabled .*.glow-flash { animation: none }` anulan todas las animaciones.
+
+### 19.4 Dos tipos de glow
+
+El sistema distingue dos situaciones de activación:
+
+| Tipo | Trigger | Clase CSS | Duración | Ejemplo |
+|------|---------|-----------|----------|----------|
+| **Hover/drag** | Usuario arrastra un control | `.is-tooltip-active` | Infinita (mientras dure el gesto) | Knob pulsante al girar |
+| **Flash** | Cambio programático | `.glow-flash` / `.glow-flash-pin` | Finita (se auto-quita) | Carga de patch, mensaje OSC, reset |
+
+`flashGlow()` no se activa si el elemento ya tiene `.is-tooltip-active` para evitar interferencia visual.
+
+### 19.5 Puntos de activación
+
+Los consumidores llaman a `flashGlow(element)` o `flashPinGlow(pinBtn)` en estos puntos:
+
+| Archivo | Punto de activación | Función |
+|---------|--------------------|---------|
+| `knob.js` | `setValue()` cuando `!this.dragging` | `flashGlow(this.rootEl)` |
+| `toggle.js` | `toggle()` (click de usuario) | `flashGlow(this.element)` |
+| `toggle.js` | `setState()` (cambio programático) | `flashGlow(this.element)` |
+| `outputChannel.js` | Click en switch de power | `flashGlow(switchEl)` |
+| `outputChannel.js` | `deserialize()` — slider y power | `flashGlow(this._sliderWrapEl)`, `flashGlow(this.powerSwitch)` |
+| `sgmeOscillator.js` | Click en switch HI/LO | `flashGlow(range)` |
+| `sgmeOscillator.js` | `deserialize()` — range | `flashGlow(rangeEl)` |
+| `largeMatrix.js` | Click en pin, `deserialize()` | `flashPinGlow(btn)` |
+| `oscMatrixSync.js` | Mensaje OSC de pin | `flashPinGlow(btn)` |
+| `oscOutputChannelSync.js` | Mensaje OSC level/power | `flashGlow(...)` |
+| `oscJoystickSync.js` | Mensaje OSC posición | `flashGlow(joyUI.padEl)` |
+| `oscOscillatorSync.js` | Mensaje OSC rango | `flashGlow(rangeEl)` |
+
+### 19.6 Overflow visible
+
+El efecto `box-shadow` se pinta fuera de los límites del elemento. Los contenedores de módulos deben tener `overflow: visible` para que el halo no se clipee:
+
+```css
+.synth-module          { overflow: visible; }
+.panel3-layout .sgme-osc { overflow: visible; }
+.noise-generator       { overflow: visible; }
+.random-voltage        { overflow: visible; }
+```
+
+Esto fue un bug corregido: originalmente usaban `overflow: hidden` y el glow era invisible.
+
+### 19.7 API pública
+
+```javascript
+import { initGlowManager, flashGlow, flashPinGlow,
+         setGlowPreset, getGlowPreset, getGlowPresetIds,
+         isGlowEnabled } from './ui/glowManager.js';
+
+// Inicialización (en app.js, después de initI18n)
+initGlowManager();
+
+// Cambiar preset
+setGlowPreset('performance');  // 'performance' | 'standard' | 'subtle' | 'off'
+
+// Flash en un control (cambio programático)
+flashGlow(knobElement);        // Knobs, sliders, switches, toggles, pads
+flashPinGlow(pinButton);       // Pines de matriz (usa scale() en la animación)
+
+// Consultas
+getGlowPreset();               // → 'standard'
+getGlowPresetIds();            // → ['performance', 'standard', 'subtle', 'off']
+isGlowEnabled();               // → true (false solo si preset === 'off')
+```
+
+### 19.8 Tests
+
+Cubierto en `tests/ui/glowManager.test.js` (90 tests):
+
+- **Presets**: estructura, tipos de datos, valores, coherencia de IDs
+- **API**: init/get/set, persistencia localStorage, IDs inválidos, `isGlowEnabled`
+- **flashGlow/flashPinGlow**: clase DOM, auto-remoción por timer, preset off, null safety, anti-sobreposición con `is-tooltip-active`
+- **CSS variables**: generación de `--glow-*`, formato `rgba()`, toggle de `glow-disabled`
+- **CSS estático**: presencia de 8 `@keyframes`, 5 selectores de activación, 6 reglas de desactivación, 7 variables CSS, `overflow: visible`
+- **Integración JS**: 9 archivos importan y llaman `flashGlow`/`flashPinGlow`, 7 puntos de activación verificados (click handlers + deserialize)

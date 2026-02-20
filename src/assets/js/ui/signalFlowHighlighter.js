@@ -56,10 +56,10 @@ function getModuleElementIds(descriptor) {
   
   switch (descriptor.kind) {
     case 'panel3Osc':
-      return [`osc-${(descriptor.oscIndex ?? 0) + 1}`];
+      return [`panel3-osc-${(descriptor.oscIndex ?? 0) + 1}`];
     
     case 'noiseGen':
-      return [`noise-${(descriptor.index ?? 0) + 1}`];
+      return [`panel3-noise-${(descriptor.index ?? 0) + 1}`];
     
     case 'inputAmp':
       return ['input-amplifiers'];
@@ -73,13 +73,13 @@ function getModuleElementIds(descriptor) {
     }
     
     case 'oscilloscope':
-      return ['oscilloscope'];
+      return ['oscilloscope-module'];
     
     case 'oscSync':
-      return [`osc-${(descriptor.oscIndex ?? 0) + 1}`];
+      return [`panel3-osc-${(descriptor.oscIndex ?? 0) + 1}`];
     
     case 'oscFreqCV':
-      return [`osc-${(descriptor.oscIndex ?? 0) + 1}`];
+      return [`panel3-osc-${(descriptor.oscIndex ?? 0) + 1}`];
     
     case 'outputLevelCV':
       return [`output-channel-${(descriptor.busIndex ?? 0) + 1}`];
@@ -131,6 +131,7 @@ export class SignalFlowHighlighter {
     this._modifierKeyPressed = false;
     this._highlightedElements = new Set();
     this._highlightedPins = new Set();
+    this._hoveredElement = null; // Elemento actualmente bajo el cursor
     
     // Configuración
     this._requireModifier = !isMobileDevice();
@@ -219,6 +220,16 @@ export class SignalFlowHighlighter {
     if (!this._requireModifier) return;
     if (e.key === this._modifierKey && !e.repeat) {
       this._modifierKeyPressed = true;
+      // Si ya hay un elemento bajo el cursor, resaltar ahora
+      if (this._hoveredElement) {
+        const pinBtn = this._hoveredElement.closest?.('button.pin-btn');
+        if (pinBtn && pinBtn.classList.contains('active')) {
+          this._highlightPin(pinBtn);
+        } else {
+          const moduleEl = findModuleElement(this._hoveredElement);
+          if (moduleEl) this._highlightModule(moduleEl);
+        }
+      }
     }
   }
   
@@ -232,11 +243,15 @@ export class SignalFlowHighlighter {
   
   _handleBlur() {
     this._modifierKeyPressed = false;
+    this._hoveredElement = null;
     this._clearAllHighlights();
   }
   
   _handleMouseOver(e) {
-    // Requiere modificador y no está pulsado → no hacer nada
+    // Siempre trackear el elemento bajo el cursor
+    this._hoveredElement = e.target;
+    
+    // Requiere modificador y no está pulsado → no resaltar, solo trackear
     if (this._requireModifier && !this._modifierKeyPressed) return;
     
     // ¿Es un pin de matriz?
@@ -255,14 +270,21 @@ export class SignalFlowHighlighter {
   }
   
   _handleMouseOut(e) {
+    // Limpiar tracking si salimos del elemento trackeado
+    const relatedTarget = e.relatedTarget;
+    const currentModule = findModuleElement(e.target);
+    const nextModule = relatedTarget ? findModuleElement(relatedTarget) : null;
+    if (!nextModule || nextModule !== currentModule) {
+      this._hoveredElement = relatedTarget || null;
+    }
+    
     if (this._requireModifier && !this._modifierKeyPressed) return;
     
     const pinBtn = e.target?.closest?.('button.pin-btn');
-    const moduleEl = findModuleElement(e.target);
+    const moduleEl = currentModule;
     
     if (pinBtn || moduleEl) {
       // Verificar que realmente estamos saliendo del elemento
-      const relatedTarget = e.relatedTarget;
       if (pinBtn && pinBtn.contains(relatedTarget)) return;
       if (moduleEl && moduleEl.contains(relatedTarget)) return;
       

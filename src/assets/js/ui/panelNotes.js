@@ -46,8 +46,8 @@ const NOTE_COLORS = [
 const DEFAULT_COLOR = 'yellow';
 
 /** Tamaño por defecto de notas (en % del panel) */
-const DEFAULT_WIDTH_PCT = 12;
-const DEFAULT_HEIGHT_PCT = 10;
+const DEFAULT_WIDTH_PCT = 20;
+const DEFAULT_HEIGHT_PCT = 15;
 
 /** Tamaño de fuente por defecto y rango (px) */
 const DEFAULT_FONT_SIZE = 11;
@@ -146,13 +146,14 @@ export function createNote(panelId, options = {}) {
   note.style.fontSize = `${fontSize}px`;
   applyNoteColor(note, colorDef);
   
-  // ── Bloquear propagación de TODOS los eventos relevantes ──
-  // Evita que el menú contextual del panel se dispare sobre la nota
+  // ── Bloquear propagación de eventos al panel (fase de burbujeo) ──
+  // Usando bubbling (no capture) para que los handlers internos
+  // (botones, drag, menús contextuales) se ejecuten primero.
   const stopEvents = ['contextmenu', 'pointerdown', 'pointerup', 'click', 'dblclick', 'mousedown', 'mouseup', 'touchstart', 'touchend'];
   for (const evtName of stopEvents) {
     note.addEventListener(evtName, (e) => {
       e.stopPropagation();
-    }, true);
+    });
   }
   
   // ── Barra de título (drag handle + acciones) ──
@@ -285,6 +286,17 @@ export function createNote(panelId, options = {}) {
   
   // ── Insertar en el panel ──
   panel.appendChild(note);
+  
+  // ── Observar resize del usuario (CSS resize: both) ──
+  if (typeof ResizeObserver !== 'undefined') {
+    let resizeTimer = null;
+    const ro = new ResizeObserver(() => {
+      if (_isRestoring) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => saveNotes(), 400);
+    });
+    ro.observe(note);
+  }
   
   // Registrar
   if (!panelNotesMap.has(panelId)) {
@@ -657,8 +669,22 @@ function showColorPicker(noteEl, anchorEl) {
     picker.appendChild(swatch);
   });
   
-  // Posicionar junto al botón
-  noteEl.appendChild(picker);
+  // Posicionar junto al botón (en body para evitar overflow:hidden)
+  document.body.appendChild(picker);
+  const btnRect = anchorEl.getBoundingClientRect();
+  picker.style.left = `${btnRect.left}px`;
+  picker.style.top = `${btnRect.bottom + 2}px`;
+  
+  // Ajustar si se sale de la pantalla
+  requestAnimationFrame(() => {
+    const rect = picker.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+      picker.style.left = `${window.innerWidth - rect.width - 4}px`;
+    }
+    if (rect.bottom > window.innerHeight) {
+      picker.style.top = `${btnRect.top - rect.height - 2}px`;
+    }
+  });
   
   // Cerrar al hacer click fuera
   const close = (e) => {
@@ -789,15 +815,21 @@ export function serializeNotes() {
   const notes = [];
   
   for (const [panelId, set] of panelNotesMap) {
+    const panelEl = document.getElementById(panelId);
+    const pw = panelEl?.offsetWidth || 0;
+    const ph = panelEl?.offsetHeight || 0;
     for (const note of set) {
       const body = note.querySelector('.panel-note__body');
+      // Usar dimensiones computadas si están disponibles (navegador real),
+      // fallback a estilos inline (jsdom/tests)
+      const useComputed = pw > 0 && ph > 0 && note.offsetWidth > 0;
       notes.push({
         id: note.id,
         panelId,
         xPct: parseFloat(note.style.left) || 0,
         yPct: parseFloat(note.style.top) || 0,
-        wPct: parseFloat(note.style.width) || DEFAULT_WIDTH_PCT,
-        hPct: parseFloat(note.style.minHeight) || DEFAULT_HEIGHT_PCT,
+        wPct: useComputed ? (note.offsetWidth / pw) * 100 : (parseFloat(note.style.width) || DEFAULT_WIDTH_PCT),
+        hPct: useComputed ? (note.offsetHeight / ph) * 100 : (parseFloat(note.style.minHeight) || DEFAULT_HEIGHT_PCT),
         text: body?.textContent || '',
         html: body?.innerHTML || '',
         color: note.dataset.noteColor || DEFAULT_COLOR,

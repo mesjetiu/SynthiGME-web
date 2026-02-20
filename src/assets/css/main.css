@@ -6407,9 +6407,14 @@ small { color:#aaa; }
 .panel-note {
   position: absolute;
   z-index: 50;
-  min-width: 80px;
-  min-height: 50px;
-  max-width: 50%;
+  min-width: 100px;
+  min-height: 60px;
+  max-width: 80%;
+  max-height: 80%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: both;
   background: var(--note-bg, #fef3b5);
   border: 1px solid var(--note-border, #e6d570);
   border-radius: 3px;
@@ -6528,6 +6533,7 @@ small { color:#aaa; }
 /* ── Body (texto editable) ── */
 
 .panel-note__body {
+  flex: 1;
   padding: 4px 6px 6px;
   min-height: 20px;
   outline: none;
@@ -6538,6 +6544,7 @@ small { color:#aaa; }
   font-size: inherit;
   line-height: inherit;
   color: inherit;
+  overflow-y: auto;
 }
 
 .panel-note__body:empty::before {
@@ -6554,16 +6561,14 @@ small { color:#aaa; }
 /* ── Selector de color ── */
 
 .panel-note__color-picker {
-  position: absolute;
-  top: 22px;
-  right: 4px;
+  position: fixed;
   display: flex;
   gap: 3px;
   padding: 4px 5px;
   background: #333;
   border-radius: 5px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-  z-index: 60;
+  z-index: 10001;
   animation: pip-context-menu-fade-in 100ms ease-out;
 }
 

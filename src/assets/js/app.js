@@ -103,6 +103,8 @@ import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
 import { initGlowManager } from './ui/glowManager.js';
+import { SignalFlowHighlighter } from './ui/signalFlowHighlighter.js';
+import { keyboardShortcuts } from './ui/keyboardShortcuts.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VISIBILIDAD DE MÓDULOS
@@ -218,6 +220,7 @@ class App {
     this._buildLargeMatrices();
     this._setupPanel5AudioRouting();
     this._setupPanel6ControlRouting();
+    this._initSignalFlowHighlighter();
     this._setupUI();
     this._schedulePanelSync();
     
@@ -5620,6 +5623,42 @@ class App {
         this._handlePanel6ControlToggle(rowIndex, colIndex, nextActive, pinColor)
       );
     }
+  }
+
+  /**
+   * Inicializa el resaltador de flujo de señal.
+   * Lee la tecla configurada desde shortcuts y escucha cambios de configuración.
+   */
+  _initSignalFlowHighlighter() {
+    const signalFlowBinding = keyboardShortcuts.get('signalFlow');
+    
+    this._signalFlowHighlighter = new SignalFlowHighlighter({
+      panel5Routing: this._panel3Routing,
+      panel6Routing: this._panel6Routing,
+      matrixAudio: this.largeMatrixAudio,
+      matrixControl: this.largeMatrixControl
+    });
+    
+    // Configurar la tecla modificadora según el shortcut
+    if (signalFlowBinding?.key) {
+      this._signalFlowHighlighter.setModifierKey(signalFlowBinding.key);
+    }
+    
+    this._signalFlowHighlighter.init();
+    
+    // Escuchar cambios de tecla modificadora desde settings
+    document.addEventListener('synth:signalFlowKeyChanged', (e) => {
+      if (e.detail?.key) {
+        this._signalFlowHighlighter.setModifierKey(e.detail.key);
+      }
+    });
+    
+    // Escuchar cambios de modo (con/sin modificador) desde settings
+    document.addEventListener('synth:signalFlowModeChanged', (e) => {
+      if (typeof e.detail?.requireModifier === 'boolean') {
+        this._signalFlowHighlighter.setRequireModifier(e.detail.requireModifier);
+      }
+    });
   }
 
   /**

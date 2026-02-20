@@ -1325,6 +1325,15 @@ settings.shortcuts.showPanelHints:
   pt: Mostrar números de painéis (manter pressionado)
   cs: Zobrazit čísla panelů (podržet)
 
+settings.shortcuts.signalFlow:
+  en: Highlight signal flow (hold)
+  es: Resaltar flujo de señal (mantener)
+  fr: Surligner le flux de signal (maintenir)
+  de: Signalfluss hervorheben (halten)
+  it: Evidenzia flusso segnale (tieni premuto)
+  pt: Destacar fluxo de sinal (manter pressionado)
+  cs: Zvýraznit tok signálu (podržet)
+
 settings.shortcuts.panel1:
   en: Panel 1
   es: Panel 1
@@ -1441,6 +1450,33 @@ settings.shortcuts.resetDefaults:
   it: Ripristina scorciatoie
   pt: Redefinir atalhos
   cs: Resetovat zkratky
+
+settings.signalFlow:
+  en: Signal flow
+  es: Flujo de señal
+  fr: Flux de signal
+  de: Signalfluss
+  it: Flusso del segnale
+  pt: Fluxo de sinal
+  cs: Tok signálu
+
+settings.signalFlow.description:
+  en: Visually highlights the source (cyan) and destination (magenta) of connections when hovering over modules or active pins. On desktop, requires holding the modifier key.
+  es: Resalta visualmente el origen (cyan) y destino (magenta) de las conexiones al pasar sobre módulos o pines activos. En desktop requiere mantener la tecla modificadora.
+  fr: Met en évidence visuellement l'origine (cyan) et la destination (magenta) des connexions au survol des modules ou pins actifs. Sur desktop, maintenir la touche modificatrice.
+  de: Hebt visuell den Ursprung (Cyan) und das Ziel (Magenta) von Verbindungen hervor, wenn Module oder aktive Pins überfahren werden. Auf Desktop muss die Modifizierertaste gehalten werden.
+  it: Evidenzia visivamente l'origine (ciano) e la destinazione (magenta) delle connessioni al passaggio su moduli o pin attivi. Su desktop richiede di tenere premuto il tasto modificatore.
+  pt: Destaca visualmente a origem (ciano) e o destino (magenta) das conexões ao passar sobre módulos ou pinos ativos. No desktop requer manter a tecla modificadora pressionada.
+  cs: Vizuálně zvýrazní zdroj (azurová) a cíl (purpurová) připojení při najetí na moduly nebo aktivní piny. Na desktopu vyžaduje podržení modifikační klávesy.
+
+settings.signalFlow.noModifier:
+  en: Activate without modifier key (recommended on tablets)
+  es: Activar sin tecla modificadora (recomendado en tablets)
+  fr: Activer sans touche modificatrice (recommandé sur tablettes)
+  de: Ohne Modifizierertaste aktivieren (empfohlen auf Tablets)
+  it: Attiva senza tasto modificatore (consigliato su tablet)
+  pt: Ativar sem tecla modificadora (recomendado em tablets)
+  cs: Aktivovat bez modifikační klávesy (doporučeno na tabletech)
 
 toast.autosave:
   en: State auto-saved

@@ -224,7 +224,14 @@ export const STORAGE_KEYS = {
   // ─────────────────────────────────────────────────────────────────────────
   
   /** Preset de glow: 'performance', 'standard', 'subtle', 'off' */
-  GLOW_PRESET: `${STORAGE_PREFIX}glow-preset`
+  GLOW_PRESET: `${STORAGE_PREFIX}glow-preset`,
+  
+  // ─────────────────────────────────────────────────────────────────────────
+  // Signal Flow Highlighter (resaltado visual de flujo de señal)
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /** Requerir tecla modificadora para activar el resaltado de flujo de señal */
+  SIGNAL_FLOW_REQUIRE_MODIFIER: `${STORAGE_PREFIX}signal-flow-require-modifier`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

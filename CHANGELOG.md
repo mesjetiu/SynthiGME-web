@@ -25,6 +25,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Electron: confirmación al salir**: Diálogo traducido en Archivo > Salir, Alt+F4 y botón X. 46 tests de contratos Electron-menú.
 - **Botones de reset para matrices de entrada**: Estéreo y multicanal con "Restaurar por defecto".
 - **Tests de precisión V/oct**: 13 tests de integración para modulación FM 1V/octava.
+- **Resaltado de flujo de señal**: Hover+Ctrl sobre módulo o pin muestra orígenes (cyan) y destinos (magenta) con glow animado. Modo sin modificador para táctil/tablet. Tecla y modo configurables en Ajustes > Interfaz.
 
 ### Cambiado
 - **Reorganización de Ajustes y menú Electron**: Pestañas reducidas de 7 a 6 ("Visualización" → "Interfaz", "Grabación" fusionada en "Audio"). Nuevo menú "Preferencias" en Electron. "Restaurar ajustes" sustituye a "Reiniciar sintetizador" en Avanzado.

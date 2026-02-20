@@ -48,6 +48,8 @@ const DEFAULT_SHORTCUTS = {
   reset: { key: 'i', shift: true, ctrl: false, alt: false },
   // Tecla modificadora para mostrar hints de navegación de paneles (Alt o Control)
   showPanelHints: { key: 'Alt', shift: false, ctrl: false, alt: false },
+  // Tecla modificadora para activar el resaltado de flujo de señal
+  signalFlow: { key: 'Control', shift: false, ctrl: false, alt: false },
   // Navegación de paneles
   panel1: { key: '1', shift: false, ctrl: false, alt: false },
   panel2: { key: '2', shift: false, ctrl: false, alt: false },

@@ -1191,6 +1191,100 @@ h1 {
   animation: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIGNAL FLOW HIGHLIGHTER — Resaltado de flujo de señal en módulos y pines
+   ═══════════════════════════════════════════════════════════════════════════
+   
+   Muestra visualmente el flujo de señal al pasar el ratón con Ctrl pulsado
+   (o clic en tablets) sobre módulos o pines activos.
+   
+   Colores:
+   - CYAN (#00e5ff) → módulo/pin que ENVÍA señal (fuente/source)
+   - MAGENTA (#ff1744) → módulo/pin que RECIBE señal (destino/dest)
+   
+   Se eligieron cyan y magenta en vez de azul/rojo puros para evitar confusión
+   con los colores de pines existentes (pin-blue #2196F3, pin-red #f44336).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --signal-flow-source-color: 0, 229, 255;    /* Cyan */
+  --signal-flow-dest-color: 255, 23, 68;      /* Magenta/rojo intenso */
+  --signal-flow-glow-spread: 12px;
+  --signal-flow-glow-blur: 18px;
+  --signal-flow-glow-opacity: 0.85;
+  --signal-flow-transition: 200ms ease-out;
+}
+
+/* ── Glow en módulos (frame completo) ──────────────────────────────────── */
+
+.signal-flow-source {
+  box-shadow:
+    0 0 var(--signal-flow-glow-blur) var(--signal-flow-glow-spread)
+    rgba(var(--signal-flow-source-color), var(--signal-flow-glow-opacity)),
+    inset 0 0 8px 2px
+    rgba(var(--signal-flow-source-color), 0.15) !important;
+  border-color: rgba(var(--signal-flow-source-color), 0.7) !important;
+  transition: box-shadow var(--signal-flow-transition),
+              border-color var(--signal-flow-transition);
+  z-index: 10;
+  position: relative;
+}
+
+.signal-flow-dest {
+  box-shadow:
+    0 0 var(--signal-flow-glow-blur) var(--signal-flow-glow-spread)
+    rgba(var(--signal-flow-dest-color), var(--signal-flow-glow-opacity)),
+    inset 0 0 8px 2px
+    rgba(var(--signal-flow-dest-color), 0.15) !important;
+  border-color: rgba(var(--signal-flow-dest-color), 0.7) !important;
+  transition: box-shadow var(--signal-flow-transition),
+              border-color var(--signal-flow-transition);
+  z-index: 10;
+  position: relative;
+}
+
+/* Módulo activo (el que tiene el cursor encima): borde blanco sutil */
+.signal-flow-active {
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.2) !important;
+  z-index: 11;
+  position: relative;
+}
+
+/* ── Glow en pines de matriz ───────────────────────────────────────────── */
+
+.signal-flow-pin-source {
+  box-shadow: 0 0 8px 4px rgba(var(--signal-flow-source-color), 0.9) !important;
+  background-color: rgba(var(--signal-flow-source-color), 0.8) !important;
+  transform: scale(1.6);
+  transition: box-shadow var(--signal-flow-transition),
+              background-color var(--signal-flow-transition),
+              transform var(--signal-flow-transition);
+  z-index: 5;
+}
+
+.signal-flow-pin-dest {
+  box-shadow: 0 0 8px 4px rgba(var(--signal-flow-dest-color), 0.9) !important;
+  background-color: rgba(var(--signal-flow-dest-color), 0.8) !important;
+  transform: scale(1.6);
+  transition: box-shadow var(--signal-flow-transition),
+              background-color var(--signal-flow-transition),
+              transform var(--signal-flow-transition);
+  z-index: 5;
+}
+
+/* ── Animación pulsante sutil para el glow de módulos ──────────────────── */
+
+@keyframes signal-flow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.signal-flow-source,
+.signal-flow-dest {
+  animation: signal-flow-pulse 2s ease-in-out infinite;
+}
+
 /* Main value display (scale value like 0.0 - 10.0) */
 .knob-tooltip__main {
   font-size: 14px;

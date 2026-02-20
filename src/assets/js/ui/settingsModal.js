@@ -664,6 +664,9 @@ export class SettingsModal {
     // Efecto glow (halo brillante en controles)
     container.appendChild(this._createGlowSection());
     
+    // Resaltado de flujo de señal
+    container.appendChild(this._createSignalFlowSection());
+    
     // Respuesta de faders de salida
     container.appendChild(this._createFaderResponseSection());
     
@@ -2314,6 +2317,63 @@ export class SettingsModal {
   }
   
   /**
+   * Crea la sección de resaltado de flujo de señal.
+   * Permite activar/desactivar el modo sin tecla modificadora.
+   * @returns {HTMLElement}
+   */
+  _createSignalFlowSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.signalFlowTitleElement = document.createElement('h3');
+    this.signalFlowTitleElement.className = 'settings-section__title';
+    this.signalFlowTitleElement.textContent = t('settings.signalFlow');
+    section.appendChild(this.signalFlowTitleElement);
+    
+    this.signalFlowDescElement = document.createElement('p');
+    this.signalFlowDescElement.className = 'settings-section__description';
+    this.signalFlowDescElement.textContent = t('settings.signalFlow.description');
+    section.appendChild(this.signalFlowDescElement);
+    
+    // ─────────────────────────────────────────────────────────────────────
+    // Checkbox: activar sin tecla modificadora (siempre visible al hover/clic)
+    // ─────────────────────────────────────────────────────────────────────
+    const noModifierRow = document.createElement('div');
+    noModifierRow.className = 'settings-row settings-row--checkbox';
+    
+    this.signalFlowNoModifierCheckbox = document.createElement('input');
+    this.signalFlowNoModifierCheckbox.type = 'checkbox';
+    this.signalFlowNoModifierCheckbox.id = 'signalFlowNoModifier';
+    this.signalFlowNoModifierCheckbox.className = 'settings-checkbox';
+    
+    // Por defecto: en móvil/tablet no requiere modificador, en desktop sí
+    const savedRequireModifier = localStorage.getItem(STORAGE_KEYS.SIGNAL_FLOW_REQUIRE_MODIFIER);
+    const requireModifier = savedRequireModifier !== null 
+      ? savedRequireModifier === 'true' 
+      : !isMobileDevice();
+    this.signalFlowNoModifierCheckbox.checked = !requireModifier;
+    
+    const noModifierLabel = document.createElement('label');
+    noModifierLabel.className = 'settings-checkbox-label';
+    noModifierLabel.htmlFor = 'signalFlowNoModifier';
+    noModifierLabel.textContent = t('settings.signalFlow.noModifier');
+    
+    this.signalFlowNoModifierCheckbox.addEventListener('change', () => {
+      const noModifier = this.signalFlowNoModifierCheckbox.checked;
+      localStorage.setItem(STORAGE_KEYS.SIGNAL_FLOW_REQUIRE_MODIFIER, String(!noModifier));
+      document.dispatchEvent(new CustomEvent('synth:signalFlowModeChanged', {
+        detail: { requireModifier: !noModifier }
+      }));
+    });
+    
+    noModifierRow.appendChild(this.signalFlowNoModifierCheckbox);
+    noModifierRow.appendChild(noModifierLabel);
+    section.appendChild(noModifierRow);
+    
+    return section;
+  }
+  
+  /**
    * Crea la sección de respuesta de faders de salida.
    * Permite elegir entre respuesta logarítmica (auténtica) o lineal (más fácil).
    * @returns {HTMLElement}
@@ -3329,9 +3389,12 @@ export class SettingsModal {
     label.textContent = t(`settings.shortcuts.${actionId}`);
     label.dataset.i18n = `settings.shortcuts.${actionId}`;
     
-    // Caso especial: showPanelHints usa un selector en lugar de captura
+    // Caso especial: showPanelHints y signalFlow usan un selector en lugar de captura
     if (actionId === 'showPanelHints') {
       return this._createShowPanelHintsRow(row, label, actionId);
+    }
+    if (actionId === 'signalFlow') {
+      return this._createSignalFlowRow(row, label, actionId);
     }
     
     // Contenedor del input y botón
@@ -3431,6 +3494,62 @@ export class SettingsModal {
         ctrl: false, 
         alt: false 
       });
+    });
+    
+    inputWrapper.appendChild(select);
+    
+    row.appendChild(label);
+    row.appendChild(inputWrapper);
+    
+    return row;
+  }
+  
+  /**
+   * Crea una fila especial para signalFlow con selector Alt/Ctrl
+   * @param {HTMLElement} row
+   * @param {HTMLElement} label
+   * @param {string} actionId
+   * @returns {HTMLElement}
+   */
+  _createSignalFlowRow(row, label, actionId) {
+    const inputWrapper = document.createElement('div');
+    inputWrapper.className = 'settings-shortcut-input-wrapper';
+    
+    // Selector para elegir Alt o Ctrl
+    const select = document.createElement('select');
+    select.className = 'settings-shortcut-input settings-shortcut-select';
+    select.dataset.actionId = actionId;
+    
+    const optionCtrl = document.createElement('option');
+    optionCtrl.value = 'Control';
+    optionCtrl.textContent = 'Ctrl';
+    
+    const optionAlt = document.createElement('option');
+    optionAlt.value = 'Alt';
+    optionAlt.textContent = 'Alt';
+    
+    select.appendChild(optionCtrl);
+    select.appendChild(optionAlt);
+    
+    // Establecer valor actual
+    const binding = keyboardShortcuts.get(actionId);
+    select.value = binding?.key || 'Control';
+    
+    // Guardar referencia para actualizaciones
+    this.shortcutInputs[actionId] = select;
+    
+    // Listener de cambio
+    select.addEventListener('change', () => {
+      keyboardShortcuts.set(actionId, { 
+        key: select.value, 
+        shift: false, 
+        ctrl: false, 
+        alt: false 
+      });
+      // Notificar al signal flow highlighter del cambio
+      document.dispatchEvent(new CustomEvent('synth:signalFlowKeyChanged', {
+        detail: { key: select.value }
+      }));
     });
     
     inputWrapper.appendChild(select);

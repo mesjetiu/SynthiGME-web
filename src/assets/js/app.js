@@ -1132,8 +1132,13 @@ class App {
         capturedPointerId = null;
       }
       handleGrabbed = false;
-      pointerActive = false;
-      refreshPadGlow();
+      // En táctil: mantener glow pulsante activo mientras el tooltip esté visible.
+      // scheduleTooltipAutoHide() lo quitará tras 3s (igual que los knobs).
+      // En desktop: quitar inmediatamente si no hay hover.
+      if (ev.pointerType !== 'touch') {
+        pointerActive = false;
+        refreshPadGlow();
+      }
       // Notificar interacción al soltar (una vez por gesto, para undo/redo)
       document.dispatchEvent(new CustomEvent('synth:userInteraction'));
       // Si el timer de tooltip estaba pendiente (tap rápido), mostrar ahora

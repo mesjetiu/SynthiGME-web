@@ -958,7 +958,9 @@ class App {
     };
 
     const refreshPadGlow = () => {
-      padEl.classList.toggle('is-tooltip-active', pointerActive || hoverMouse);
+      // tooltipAutoHideTimer: tras un tap táctil, el glow debe persistir durante
+      // el periodo de auto-hide (3s) aunque otro handler limpie pointerActive.
+      padEl.classList.toggle('is-tooltip-active', pointerActive || hoverMouse || !!tooltipAutoHideTimer);
     };
 
     // Callback de ocultación para tooltipManager (exclusión mutua con otros tooltips)
@@ -1165,6 +1167,7 @@ class App {
         padTooltipDelayTimer = null;
       }
       handleGrabbed = false;
+      cancelTooltipAutoHide();
       pointerActive = false;
       refreshPadGlow();
       if (!hoverMouse) hidePadTooltip();

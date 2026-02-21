@@ -689,10 +689,10 @@ function inferShape(el, rect) {
  *   3. Módulos — frames que rodean controles (synth-module, sgme-osc, etc.)
  *   4. Controles — knobs, sliders, botones, joystick pads, etc.
  *
- * Excluidos: pines de matrices (miles), canvas, SVG internals, tooltips.
+ * Excluidos: canvas, SVG internals, tooltips.
  * @returns {Array<{x,y,w,h,shape,fillStyle,strokeStyle,delay,tx,ty,rot,sc}>}
  */
-const MAX_GHOSTS = 300;
+const MAX_GHOSTS = 2000;
 
 function gatherGhosts() {
   const MIN_SIZE = 3;
@@ -717,6 +717,7 @@ function gatherGhosts() {
   // ── Selector de controles internos (dentro de módulos) ──
   const CONTROL_SEL = [
     '.knob',
+    '.pin-btn',
     '.output-channel__slider-shell',
     '.panel7-joystick-pad',
     '.panel7-seq-button',
@@ -763,8 +764,8 @@ function gatherGhosts() {
   // 4. Controles internos (knobs, sliders, botones, headers...)
   for (const el of document.querySelectorAll(CONTROL_SEL)) {
     if (EXCLUDE_TAGS.has(el.tagName)) continue;
-    // Excluir pines de matrices y tooltips
-    if (el.closest('.matrix-container, .matrix, .tooltip, [role="tooltip"]')) continue;
+    // Excluir tooltips
+    if (el.closest('.tooltip, [role="tooltip"]')) continue;
     const r = el.getBoundingClientRect();
     if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
       candidates.push({ el, rect: r, priority: 2 });
@@ -801,8 +802,8 @@ function gatherGhosts() {
       delay: Math.random() * 600,
       tx: (Math.random() - 0.5) * vw * 0.7,
       ty: (Math.random() - 0.5) * vh * 0.6,
-      rot: (Math.random() - 0.5) * 720,
-      sc: 0.3 + Math.random() * 2,
+      rot: shape === 'dot' ? 0 : (Math.random() - 0.5) * 720,
+      sc: shape === 'dot' ? 1 : 0.3 + Math.random() * 2,
     });
   }
   return ghosts;

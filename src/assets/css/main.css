@@ -5623,7 +5623,8 @@ small { color:#aaa; }
   flex-direction: column;
   justify-content: flex-end;
   padding: 10px;
-  overflow: hidden;
+  /* overflow visible para que las notas post-it no se recorten al sobresalir */
+  overflow: visible;
 }
 
 /* Fila superior: Joystick Left | Sequencer | Joystick Right */
@@ -6440,6 +6441,12 @@ small { color:#aaa; }
   box-shadow: 4px 6px 18px rgba(0, 0, 0, 0.4);
   cursor: grabbing;
   z-index: 100;
+}
+
+/* Elevar z-index del panel cuando una nota se arrastra, para que no quede
+   tapada por paneles adyacentes (cada panel es un stacking context por contain) */
+.panel--note-dragging {
+  z-index: 10 !important;
 }
 
 /* Notas directas en viewportInner (no pertenecen a ningún panel) */

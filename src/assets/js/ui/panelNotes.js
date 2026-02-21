@@ -1056,6 +1056,11 @@ function setupNoteDrag(noteEl, handleEl) {
       isPending = false;
       isDragging = true;
       noteEl.classList.add('panel-note--dragging');
+      // Elevar z-index del panel padre para que la nota no quede bajo paneles adyacentes
+      if (!isViewportNote) {
+        const panelEl = noteEl.closest('.panel');
+        if (panelEl) panelEl.classList.add('panel--note-dragging');
+      }
     }
     
     e.preventDefault();
@@ -1092,6 +1097,9 @@ function setupNoteDrag(noteEl, handleEl) {
     isDragging = false;
     pointerId = null;
     noteEl.classList.remove('panel-note--dragging');
+    // Restaurar z-index del panel padre
+    const panelEl = noteEl.closest('.panel');
+    if (panelEl) panelEl.classList.remove('panel--note-dragging');
     
     try {
       handleEl.releasePointerCapture(e.pointerId);

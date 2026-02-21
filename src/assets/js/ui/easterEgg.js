@@ -837,15 +837,22 @@ export async function triggerEasterEgg(options = {}) {
 //  TRIGGER: Secuencia de taps en pads de joystick
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Secuencia requerida: pad1, pad2, pad1, pad2, pad1, pad2, pad1, pad2
+// Secuencia requerida: frame1, frame2, frame1, frame2, frame1, frame2, frame1, frame2
 export const TRIGGER_SEQUENCE = [0, 1, 0, 1, 0, 1, 0, 1];
 export const TAP_MAX_DURATION = 300;   // ms máximo que puede durar un tap
 export const TAP_MAX_MOVEMENT = 10;    // px máximo de movimiento para considerarlo tap
 export const SEQUENCE_TIMEOUT = 2000;  // ms máximo entre taps consecutivos
 
+// Si true, el Easter egg solo reproduce sonido cuando el patch NO ha sido
+// modificado (isDirtyFn). Si false, siempre reproduce sonido.
+// Mantenemos la infraestructura (isDirtyFn, markCleanFn, wasDirtyAtSequenceStart)
+// para poder activarlo en el futuro cambiando este flag a true.
+const ENFORCE_CLEAN_CHECK = false;
+
 /**
- * Instala el detector de secuencia de taps en los pads de joystick.
- * Busca los pads por su contenedor (module frame con id joystick-left/right).
+ * Instala el detector de secuencia de taps en los frames de joystick.
+ * Busca los frames por id (joystick-left/right — los .synth-module contenedores).
+ * Usa los frames en lugar de los pads para no interferir con la interacción del joystick.
  * Debe llamarse después de que el DOM del panel 7 esté construido.
  *
  * @param {Object} [options]
@@ -858,14 +865,14 @@ export const SEQUENCE_TIMEOUT = 2000;  // ms máximo entre taps consecutivos
 export function initEasterEggTrigger(options = {}) {
   const isDirtyFn = options.isDirtyFn || (() => false);
   const markCleanFn = options.markCleanFn || null;
-  const pad1Container = document.querySelector('#joystick-left .panel7-joystick-pad');
-  const pad2Container = document.querySelector('#joystick-right .panel7-joystick-pad');
+  const frame1 = document.querySelector('#joystick-left');
+  const frame2 = document.querySelector('#joystick-right');
 
-  if (!pad1Container || !pad2Container) {
+  if (!frame1 || !frame2) {
     return;
   }
 
-  const pads = [pad1Container, pad2Container];
+  const frames = [frame1, frame2];
 
   // Estado de la secuencia
   let sequenceIndex = 0;
@@ -881,23 +888,77 @@ export function initEasterEggTrigger(options = {}) {
   let tapStartY = 0;
   let tapPadIndex = -1;
   let tapPointerId = -1;
+  let countdownEl = null;
+
+  /** Muestra un número grande centrado en pantalla (cuenta atrás) */
+  function showCountdown(n) {
+    removeCountdown();
+    const el = document.createElement('div');
+    el.className = 'easter-egg-countdown';
+    el.textContent = n;
+    Object.assign(el.style, {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%) scale(0.3)',
+      zIndex: '99999',
+      fontSize: '18vw',
+      fontWeight: '900',
+      fontFamily: 'system-ui, sans-serif',
+      color: 'rgba(200, 140, 255, 0.85)',
+      textShadow: '0 0 40px rgba(130, 50, 200, 0.7), 0 0 80px rgba(50, 130, 220, 0.4)',
+      pointerEvents: 'none',
+      userSelect: 'none',
+      opacity: '0',
+      transition: 'none',
+    });
+    document.body.appendChild(el);
+    countdownEl = el;
+    // Forzar reflow y animar entrada
+    el.offsetHeight; // eslint-disable-line no-unused-expressions
+    Object.assign(el.style, {
+      transition: 'opacity 0.15s ease-out, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1)',
+      opacity: '1',
+      transform: 'translate(-50%, -50%) scale(1)',
+    });
+    // Auto-fade tras 600ms
+    setTimeout(() => {
+      if (countdownEl === el) {
+        Object.assign(el.style, {
+          transition: 'opacity 0.4s ease-in, transform 0.4s ease-in',
+          opacity: '0',
+          transform: 'translate(-50%, -50%) scale(1.8)',
+        });
+        setTimeout(() => el.remove(), 400);
+      }
+    }, 600);
+  }
+
+  /** Elimina la cuenta atrás inmediatamente */
+  function removeCountdown() {
+    if (countdownEl) {
+      countdownEl.remove();
+      countdownEl = null;
+    }
+  }
 
   const resetSequence = () => {
     sequenceIndex = 0;
     lastTapTime = 0;
     wasDirtyAtSequenceStart = false;
+    removeCountdown();
   };
 
-  // Cualquier interacción fuera de los pads rompe la secuencia
+  // Cualquier interacción fuera de los frames rompe la secuencia
   document.addEventListener('pointerdown', (ev) => {
-    if (!pad1Container.contains(ev.target) && !pad2Container.contains(ev.target)) {
+    if (!frame1.contains(ev.target) && !frame2.contains(ev.target)) {
       resetSequence();
     }
   }, true);
 
-  // Instalar listeners en cada pad
-  pads.forEach((pad, padIndex) => {
-    pad.addEventListener('pointerdown', (ev) => {
+  // Instalar listeners en cada frame
+  frames.forEach((frame, frameIndex) => {
+    frame.addEventListener('pointerdown', (ev) => {
       if (isPlaying) return;
       if (tapPointerId !== -1) {
         resetSequence();
@@ -905,7 +966,7 @@ export function initEasterEggTrigger(options = {}) {
       }
 
       // Capturar estado dirty al inicio de la secuencia.
-      // Lo hacemos en pointerdown (antes de que el pointerup del pad
+      // Lo hacemos en pointerdown (antes de que el pointerup del frame
       // dispare synth:userInteraction → markDirty).
       if (sequenceIndex === 0) {
         wasDirtyAtSequenceStart = isDirtyFn();
@@ -914,11 +975,11 @@ export function initEasterEggTrigger(options = {}) {
       tapStartTime = performance.now();
       tapStartX = ev.clientX;
       tapStartY = ev.clientY;
-      tapPadIndex = padIndex;
+      tapPadIndex = frameIndex;
       tapPointerId = ev.pointerId;
     });
 
-    pad.addEventListener('pointerup', (ev) => {
+    frame.addEventListener('pointerup', (ev) => {
       if (isPlaying) return;
       if (ev.pointerId !== tapPointerId) return;
 
@@ -962,9 +1023,15 @@ export function initEasterEggTrigger(options = {}) {
       sequenceIndex++;
       lastTapTime = now;
 
+      // Cuenta atrás: mostrar 3, 2, 1 cuando quedan 3 taps o menos
+      const remaining = TRIGGER_SEQUENCE.length - sequenceIndex;
+      if (remaining > 0 && remaining <= 3) {
+        showCountdown(remaining);
+      }
+
       // ¿Secuencia completa?
       if (sequenceIndex >= TRIGGER_SEQUENCE.length) {
-        const dirty = wasDirtyAtSequenceStart;
+        const dirty = ENFORCE_CLEAN_CHECK && wasDirtyAtSequenceStart;
         resetSequence();
         // Si no estaba dirty al inicio, deshacer el dirty que nuestros
         // propios taps causaron (pointerup → synth:userInteraction → markDirty)
@@ -973,7 +1040,7 @@ export function initEasterEggTrigger(options = {}) {
       }
     });
 
-    pad.addEventListener('pointercancel', (ev) => {
+    frame.addEventListener('pointercancel', (ev) => {
       if (ev.pointerId === tapPointerId) {
         tapPointerId = -1;
         tapPadIndex = -1;

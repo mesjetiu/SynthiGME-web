@@ -598,11 +598,7 @@ export class Knob {
 
   setValue(value) {
     const newValue = Math.min(this.max, Math.max(this.min, value));
-    if (newValue === this.value) {
-      // Valor sin cambios, pero flash de glow para feedback visual
-      if (!this.dragging) flashGlow(this.rootEl);
-      return;
-    }
+    if (newValue === this.value) return;
     
     this.value = newValue;
     this._updateVisual();

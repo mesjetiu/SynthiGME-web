@@ -580,8 +580,14 @@ export class LargeMatrix {
     // Limpiar colores previos
     this._pinColors.clear();
     
-    // Primero, desactivar todas las conexiones existentes
+    // Recordar qué pins estaban activos antes del cambio
+    const previouslyActive = new Set();
     const activeButtons = this.table.querySelectorAll('button.pin-btn.active');
+    activeButtons.forEach(btn => {
+      previouslyActive.add(`${btn.dataset.row}:${btn.dataset.col}`);
+    });
+
+    // Desactivar todas las conexiones existentes
     activeButtons.forEach(btn => {
       const row = parseInt(btn.dataset.row, 10);
       const col = parseInt(btn.dataset.col, 10);
@@ -593,7 +599,8 @@ export class LargeMatrix {
       this._removePinColorClasses(btn);
     });
     
-    // Luego, activar las conexiones del patch
+    // Activar las conexiones del nuevo patch
+    const newlyActive = new Set();
     data.connections.forEach((conn) => {
       // Soporta formato antiguo [row, col] y nuevo [row, col, pinType]
       const row = conn[0];
@@ -615,18 +622,31 @@ export class LargeMatrix {
           if (allow) {
             btn.classList.add('active');
             this._applyPinColorClass(btn, effectiveColor);
+            newlyActive.add(`${row}:${col}`);
           }
         } else {
           btn.classList.add('active');
           this._applyPinColorClass(btn, effectiveColor);
+          newlyActive.add(`${row}:${col}`);
         }
       }
     });
 
-    // Flash en TODOS los pins visibles: cada pin recibió un valor programático
-    // (los activos se activaron, los inactivos se confirmaron en 0)
-    const allVisible = this.table.querySelectorAll('button.pin-btn:not(.is-hidden-pin):not(:disabled)');
-    allVisible.forEach(btn => flashPinGlow(btn));
+    // Flash solo en pins cuyo estado cambió (activo→inactivo o inactivo→activo)
+    for (const key of previouslyActive) {
+      if (!newlyActive.has(key)) {
+        const [r, c] = key.split(':');
+        const btn = this.table.querySelector(`button.pin-btn[data-row="${r}"][data-col="${c}"]`);
+        if (btn) flashPinGlow(btn);
+      }
+    }
+    for (const key of newlyActive) {
+      if (!previouslyActive.has(key)) {
+        const [r, c] = key.split(':');
+        const btn = this.table.querySelector(`button.pin-btn[data-row="${r}"][data-col="${c}"]`);
+        if (btn) flashPinGlow(btn);
+      }
+    }
   }
   
   /**

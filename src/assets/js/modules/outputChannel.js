@@ -679,6 +679,7 @@ export class OutputChannel extends Module {
     if (!data) return;
     
     if (typeof data.level === 'number') {
+      const levelChanged = data.level !== this.values.level;
       this.values.level = data.level;
       if (this.slider) {
         this.slider.value = String(data.level);
@@ -692,8 +693,8 @@ export class OutputChannel extends Module {
         ? vcaCalculateGainLinear(data.level, this.values.externalCV)
         : vcaCalculateGain(data.level, this.values.externalCV);
       this.engine.setOutputLevel(this.channelIndex, gain, { ramp: 0.06 });
-      // Flash de glow en el slider wrap
-      if (this._sliderWrapEl) {
+      // Flash de glow solo si el nivel cambió
+      if (levelChanged && this._sliderWrapEl) {
         flashGlow(this._sliderWrapEl);
       }
     }
@@ -716,11 +717,12 @@ export class OutputChannel extends Module {
     }
     
     if (typeof data.power === 'boolean') {
+      const powerChanged = data.power !== this.values.power;
       this.values.power = data.power;
       if (this.powerSwitch) {
         this.powerSwitch.classList.toggle('is-on', data.power);
         this.powerSwitch.setAttribute('aria-pressed', String(data.power));
-        flashGlow(this.powerSwitch);
+        if (powerChanged) flashGlow(this.powerSwitch);
       }
     }
   }

@@ -202,11 +202,12 @@ export class SGME_Oscillator {
     // 1. Aplicar rangeState PRIMERO (antes de los knobs)
     // El knob de frecuencia necesita el rango correcto para calcular Hz
     if (data.rangeState === 'hi' || data.rangeState === 'lo') {
+      const rangeChanged = data.rangeState !== this.rangeState;
       this.rangeState = data.rangeState;
       const rangeEl = document.querySelector(`#${this.id} .output-channel__switch`);
       if (rangeEl) {
         this._renderRange(rangeEl);
-        flashGlow(rangeEl);
+        if (rangeChanged) flashGlow(rangeEl);
       }
     }
     

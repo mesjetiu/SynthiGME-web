@@ -1794,11 +1794,11 @@ class App {
           if (data.x !== undefined && data.y !== undefined) {
             module.setPosition(data.x, data.y);
           }
-          // Actualizar handle visual del pad
+          // Actualizar handle visual del pad (flash solo si posición cambió)
           const joystickUI = Object.values(this._joystickUIs || {}).find(ui => ui.module === module);
           if (joystickUI?.padEl?._joystickUpdateHandle) {
             joystickUI.padEl._joystickUpdateHandle(module.getX(), module.getY());
-            flashGlow(joystickUI.padEl);
+            if (data.x !== undefined || data.y !== undefined) flashGlow(joystickUI.padEl);
           }
           // Actualizar knobs de la UI
           const knobs = this._joystickKnobs?.[side];
@@ -1904,12 +1904,13 @@ class App {
           if (knobs.rangeX?.knobInstance) knobs.rangeX.knobInstance.setValue(defaultRangeX / 10);
           if (knobs.rangeY?.knobInstance) knobs.rangeY.knobInstance.setValue(defaultRangeY / 10);
         }
-        // Actualizar handle visual del pad
+        // Actualizar handle visual del pad (flash solo si posición cambió)
         const joystickKey = `joystick-${side}`;
         const padEl = this._joystickUIs?.[joystickKey]?.padEl;
         if (padEl?._joystickUpdateHandle) {
+          const wasAtOrigin = module.getX() === 0 && module.getY() === 0;
           padEl._joystickUpdateHandle(0, 0);
-          flashGlow(padEl);
+          if (!wasAtOrigin) flashGlow(padEl);
         }
       }
     }
@@ -2108,8 +2109,9 @@ class App {
       if (knobs?.rangeX?.knobInstance) knobs.rangeX.knobInstance.setValue(defRangeX / maxX);
       if (knobs?.rangeY?.knobInstance) knobs.rangeY.knobInstance.setValue(defRangeY / maxY);
       if (padEl?._joystickUpdateHandle) {
+        const wasAtOrigin = module.getX() === 0 && module.getY() === 0;
         padEl._joystickUpdateHandle(0, 0);
-        flashGlow(padEl);
+        if (!wasAtOrigin) flashGlow(padEl);
       }
       return;
     }
@@ -2181,10 +2183,11 @@ class App {
     if (type === 'joystick') {
       const { module, knobs, padEl, config } = ui;
       if (controlType === 'pad') {
+        const wasAtOrigin = module.getX() === 0 && module.getY() === 0;
         module.setPosition(0, 0);
         if (padEl?._joystickUpdateHandle) {
           padEl._joystickUpdateHandle(0, 0);
-          flashGlow(padEl);
+          if (!wasAtOrigin) flashGlow(padEl);
         }
       } else if (controlType === 'knob' && controlKey) {
         const defVal = config?.knobs?.[controlKey]?.initial ?? 0;

@@ -72,7 +72,7 @@ export class Toggle {
    * @param {string} state - 'a' o 'b'
    */
   setState(state) {
-    if (state === 'a' || state === 'b') {
+    if ((state === 'a' || state === 'b') && state !== this.state) {
       this.state = state;
       this._render();
       flashGlow(this.element);

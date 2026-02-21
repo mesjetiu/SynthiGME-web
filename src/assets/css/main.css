@@ -610,7 +610,7 @@ html:-webkit-full-screen #viewportOuter {
   box-shadow: 0 0 10px rgba(0,0,0,0.5);
   height: var(--panel-width);
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: visible;
   position: relative;
   transition: box-shadow 120ms ease, border-color 120ms ease;
   /* Optimizaciones de rendimiento: aisla el layout para evitar reflows en cascada */
@@ -630,8 +630,8 @@ html:-webkit-full-screen #viewportOuter {
   justify-content: center;
   /* Necesario para que position:absolute de hijos funcione */
   position: relative;
-  /* Evitar scroll/bounce residual en tablets: la regla base .panel tiene overflow-y:auto */
-  overflow: hidden;
+  /* overflow visible para que las notas post-it no se recorten al sobresalir */
+  overflow: visible;
   overscroll-behavior: none;
   touch-action: pan-x pan-y pinch-zoom;
   /* NO usar contain: paint ni isolation: isolate aquí porque fuerzan rasterización
@@ -648,7 +648,8 @@ html:-webkit-full-screen #viewportOuter {
   background-image: none;
   padding: 0;
   position: relative;
-  overflow: hidden;
+  /* overflow visible para que las notas post-it no se recorten al sobresalir */
+  overflow: visible;
   /* Aísla el layout y paint para mejorar rendimiento */
   contain: layout style;
 }
@@ -5963,7 +5964,7 @@ small { color:#aaa; }
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   transition: box-shadow 150ms ease;
 }
 

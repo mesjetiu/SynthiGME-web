@@ -53,6 +53,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Patch load: módulos dormant no restauraban nivel**: Forzada actualización síncrona de dormancy.
 - **Stereo buses multicanal**: Reconexión tras forcePhysicalChannels. Routing persistente. Aislamiento estéreo/multicanal.
 - **Re-entry de Output Channels**: DC blocker 1er orden (fc=0.01Hz) elimina drift sub-Hz. Ganancia unitaria corregida.
+- **Notas en viewport sin menú contextual**: El bloqueador global capturaba el evento antes de llegar al handler de la nota.
 - **Grabación: canales POST-switch** respetan estado on/off.
 - **Output Channels: switches apagados por defecto**.
 - **Dormancy: Output Channel despierta con Voltage Input** (Panel 6).

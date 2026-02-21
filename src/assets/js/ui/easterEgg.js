@@ -278,6 +278,67 @@ PIECES.chiptune = playChiptunePiece;
 // ─── Síntesis electroacústica ───
 
 /**
+ * Crea un impulse response sintético para reverb por convolución.
+ * @param {AudioContext} ctx
+ * @param {number} duration — duración en segundos
+ * @param {number} decay — velocidad de decaimiento (mayor = más corto)
+ * @returns {ConvolverNode}
+ */
+function createReverb(ctx, duration = 3, decay = 2.5) {
+  const rate = ctx.sampleRate;
+  const len = Math.ceil(rate * duration);
+  const impulse = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  const conv = ctx.createConvolver();
+  conv.buffer = impulse;
+  return conv;
+}
+
+/**
+ * Crea un delay estéreo con feedback.
+ * @returns {{ input: GainNode, output: GainNode }}
+ */
+function createStereoDelay(ctx, delayTimeL = 0.37, delayTimeR = 0.53, feedback = 0.45, wetLevel = 0.3) {
+  const input = ctx.createGain();
+  const output = ctx.createGain();
+  const delayL = ctx.createDelay(2);
+  const delayR = ctx.createDelay(2);
+  const fbGainL = ctx.createGain();
+  const fbGainR = ctx.createGain();
+  const wetGain = ctx.createGain();
+  const merger = ctx.createChannelMerger(2);
+
+  delayL.delayTime.value = delayTimeL;
+  delayR.delayTime.value = delayTimeR;
+  fbGainL.gain.value = feedback;
+  fbGainR.gain.value = feedback;
+  wetGain.gain.value = wetLevel;
+
+  // Dry
+  input.connect(output);
+  // Wet path L
+  input.connect(delayL);
+  delayL.connect(fbGainL);
+  fbGainL.connect(delayR);  // cruzado para efecto ping-pong
+  delayL.connect(merger, 0, 0);
+  // Wet path R
+  input.connect(delayR);
+  delayR.connect(fbGainR);
+  fbGainR.connect(delayL);
+  delayR.connect(merger, 0, 1);
+  // Mix
+  merger.connect(wetGain);
+  wetGain.connect(output);
+
+  return { input, output };
+}
+
+/**
  * Tono sinusoidal sostenido con fade in/out configurable.
  */
 function playSineTone(ctx, dest, freq, startTime, duration, volume,
@@ -391,133 +452,180 @@ function playFMTexture(ctx, dest, carrierFreq, modFreqStart, modFreqEnd,
 
 /**
  * Programa y ejecuta la pieza electroacústica «Studie II» — versión extendida.
+ * Con reverb por convolución, delay estéreo, filtros resonantes y FM compleja.
  *
  * Estructura en 6 secciones (~35s):
- *   I.    Klang     (0–6s)   — Emergencia de drones con batimiento
- *   II.   Punkte    (5–10s)  — Puntillismo: pings en accelerando
+ *   I.    Klang     (0–6s)   — Impacto inicial + drones emergentes
+ *   II.   Punkte    (5–10s)  — Puntillismo: pings con reverb
  *   III.  Gruppen   (9–16s)  — Gestos: glissandi, ruido, FM
  *   IV.   Eruption  (15–23s) — Clímax: texturas FM masivas, caos
- *   V.    Resonanz  (22–29s) — Ecos resonantes, pings invertidos
+ *   V.    Resonanz  (22–29s) — Ecos con delay estéreo, pings invertidos
  *   VI.   Stille    (28–35s) — Disolución lenta, silencio
  *
  * @returns {{ totalDurationSec: number, burstTimes: number[] }}
  */
 function playElectroacousticPiece(ctx, dest) {
-  const t0 = ctx.currentTime + 0.1;
+  const t0 = ctx.currentTime + 0.05;
 
-  // ─── I. Klang (0–6s): Emergencia ───
-  // Dron profundo con batimiento lento (~1.5 Hz)
-  playSineTone(ctx, dest, 55, t0, 7, 0.14, { fadeIn: 3.5, fadeOut: 2 });
-  playSineTone(ctx, dest, 56.5, t0 + 0.3, 6.5, 0.11, { fadeIn: 3, fadeOut: 1.5 });
-  // Quinta justa
-  playSineTone(ctx, dest, 82.5, t0 + 1, 5, 0.09, { fadeIn: 1.5, fadeOut: 1 });
-  // Octava aparece
-  playSineTone(ctx, dest, 110, t0 + 2.5, 4, 0.07, { fadeIn: 0.5, fadeOut: 1.5 });
-  // Parciales superiores
-  playSineTone(ctx, dest, 165, t0 + 3.2, 3.5, 0.04, { fadeIn: 0.3, fadeOut: 1.2 });
-  playSineTone(ctx, dest, 220, t0 + 4, 3, 0.035, { fadeIn: 0.2, fadeOut: 1 });
-  // Sub-bajo pulsante
-  playSineTone(ctx, dest, 27.5, t0 + 0.5, 5.5, 0.10, { fadeIn: 2, fadeOut: 2 });
+  // ─── Efectos globales ───
+  const reverb = createReverb(ctx, 3.5, 2.2);
+  const reverbGain = ctx.createGain();
+  reverbGain.gain.value = 0.25;
+  reverb.connect(reverbGain).connect(dest);
 
-  // ─── II. Punkte (5–10s): Puntillismo ───
+  const delay = createStereoDelay(ctx, 0.31, 0.47, 0.4, 0.2);
+  delay.output.connect(dest);
+
+  // Bus seco + bus con efectos
+  const dryBus = ctx.createGain();
+  dryBus.gain.value = 1.0;
+  dryBus.connect(dest);
+
+  const fxBus = ctx.createGain();
+  fxBus.gain.value = 1.0;
+  fxBus.connect(dest);
+  fxBus.connect(reverb);
+  fxBus.connect(delay.input);
+
+  // ─── I. Klang (0–6s): Impacto + Emergencia ───
+  // *** Golpe inicial de ruido — no silencio ***
+  playFilteredNoise(ctx, fxBus, 60, 2000, 2, t0, 0.6, 0.20);
+  // Dron profundo inmediato (fadeIn corto)
+  playSineTone(ctx, dryBus, 55, t0, 7, 0.16, { fadeIn: 0.3, fadeOut: 2 });
+  playSineTone(ctx, dryBus, 56.5, t0 + 0.1, 6.5, 0.12, { fadeIn: 0.5, fadeOut: 1.5 });
+  // Sub-bajo pulsante (inmediato)
+  playSineTone(ctx, dryBus, 27.5, t0 + 0.05, 5, 0.12, { fadeIn: 0.1, fadeOut: 2 });
+  // Quinta justa con batimiento
+  playSineTone(ctx, fxBus, 82.5, t0 + 0.5, 5, 0.08, { fadeIn: 0.3, fadeOut: 1 });
+  playSineTone(ctx, fxBus, 83.8, t0 + 0.7, 4.5, 0.06, { fadeIn: 0.3, fadeOut: 1 });
+  // Octava y parciales — emergen rápido
+  playSineTone(ctx, fxBus, 110, t0 + 1.2, 4, 0.07, { fadeIn: 0.2, fadeOut: 1.5 });
+  playSineTone(ctx, fxBus, 165, t0 + 2, 3.5, 0.04, { fadeIn: 0.15, fadeOut: 1.2 });
+  playSineTone(ctx, fxBus, 220, t0 + 2.5, 3, 0.035, { fadeIn: 0.1, fadeOut: 1 });
+  // Glissando sub-grave ascendente (gesto de apertura)
+  playSineGliss(ctx, fxBus, 20, 110, t0, 3, 0.10);
+  // FM sutil de textura — empieza desde el comienzo
+  playFMTexture(ctx, fxBus, 55, 0.3, 8, 0.1, 3, t0 + 0.5, 5, 0.04);
+
+  // ─── II. Punkte (5–10s): Puntillismo con reverb ───
   const pings = [
-    [880,  5.0, 0.22, 0.08],   [1320, 5.4, 0.10, 0.06],
-    [440,  5.9, 0.30, 0.09],   [2200, 6.2, 0.05, 0.05],
-    [550,  6.4, 0.18, 0.07],   [1760, 6.7, 0.08, 0.04],
-    [330,  6.85, 0.35, 0.08],  [3300, 7.0, 0.03, 0.03],
-    [660,  7.15, 0.12, 0.07],  [1100, 7.28, 0.07, 0.05],
-    [2640, 7.38, 0.04, 0.04],  [440,  7.48, 0.20, 0.06],
-    [1650, 7.56, 0.05, 0.04],  [880,  7.62, 0.08, 0.05],
-    [3960, 7.68, 0.02, 0.03],  [220,  7.74, 0.25, 0.07],
-    [1320, 7.80, 0.03, 0.04],  [550,  7.85, 0.04, 0.05],
-    [2200, 7.90, 0.025, 0.03], [770,  7.94, 0.03, 0.04],
+    [880,  5.0, 0.22, 0.09],   [1320, 5.3, 0.10, 0.07],
+    [440,  5.7, 0.30, 0.10],   [2200, 6.0, 0.05, 0.06],
+    [550,  6.2, 0.18, 0.08],   [1760, 6.5, 0.08, 0.05],
+    [330,  6.65, 0.35, 0.09],  [3300, 6.8, 0.03, 0.04],
+    [660,  6.95, 0.12, 0.08],  [1100, 7.08, 0.07, 0.06],
+    [2640, 7.18, 0.04, 0.05],  [440,  7.28, 0.20, 0.07],
+    [1650, 7.36, 0.05, 0.05],  [880,  7.42, 0.08, 0.06],
+    [3960, 7.48, 0.02, 0.04],  [220,  7.54, 0.25, 0.08],
+    [1320, 7.60, 0.03, 0.05],  [550,  7.65, 0.04, 0.06],
+    [2200, 7.70, 0.025, 0.04], [770,  7.74, 0.03, 0.05],
     // Accelerando: nube densa
-    [1100, 7.97, 0.02, 0.03],  [3300, 8.0, 0.015, 0.02],
-    [440,  8.02, 0.015, 0.04], [1760, 8.04, 0.01, 0.03],
-    [660,  8.06, 0.01, 0.03],  [2200, 8.08, 0.01, 0.02],
-    [880,  8.10, 0.01, 0.03],  [330,  8.12, 0.015, 0.04],
-    [1650, 8.14, 0.01, 0.02],  [550,  8.16, 0.01, 0.03],
-    // Rebote — pings que se expanden de nuevo
-    [2200, 8.5, 0.08, 0.05],   [440,  8.7, 0.15, 0.06],
-    [1320, 9.0, 0.10, 0.04],   [660,  9.3, 0.18, 0.05],
-    [3300, 9.5, 0.05, 0.03],   [880,  9.7, 0.12, 0.04],
+    [1100, 7.77, 0.02, 0.04],  [3300, 7.80, 0.015, 0.03],
+    [440,  7.82, 0.015, 0.05], [1760, 7.84, 0.01, 0.04],
+    [660,  7.86, 0.01, 0.04],  [2200, 7.88, 0.01, 0.03],
+    [880,  7.90, 0.01, 0.04],  [330,  7.92, 0.015, 0.05],
+    [1650, 7.94, 0.01, 0.03],  [550,  7.96, 0.01, 0.04],
+    // Rebote — pings que se expanden de nuevo (con reverb)
+    [2200, 8.3, 0.08, 0.06],   [440,  8.5, 0.15, 0.07],
+    [1320, 8.8, 0.10, 0.05],   [660,  9.1, 0.18, 0.06],
+    [3300, 9.3, 0.05, 0.04],   [880,  9.5, 0.12, 0.05],
   ];
   for (const [freq, time, dur, vol] of pings) {
-    playSinePing(ctx, dest, freq, t0 + time, dur, vol);
+    // Pings van al bus con efectos para reverb/delay
+    playSinePing(ctx, fxBus, freq, t0 + time, dur, vol);
   }
+  // Cama de ruido filtrado sutil debajo de los pings
+  playFilteredNoise(ctx, fxBus, 1000, 3000, 12, t0 + 5, 4, 0.025);
 
   // ─── III. Gruppen (9–16s): Gestos y texturas ───
-  playSineGliss(ctx, dest, 80, 3500, t0 + 9, 4, 0.10);
-  playFilteredNoise(ctx, dest, 400, 6000, 8, t0 + 9.5, 3.5, 0.07);
-  playSineGliss(ctx, dest, 4000, 120, t0 + 11, 3, 0.08);
-  playFMTexture(ctx, dest, 220, 1, 80, 0.5, 12, t0 + 12, 3, 0.07);
-  // Glissandi cruzados
-  playSineGliss(ctx, dest, 200, 5000, t0 + 13, 2.5, 0.06);
-  playSineGliss(ctx, dest, 6000, 100, t0 + 13.5, 2.5, 0.06);
-  playFilteredNoise(ctx, dest, 200, 8000, 1.5, t0 + 15, 0.1, 0.14);
+  playSineGliss(ctx, fxBus, 80, 4500, t0 + 9, 4, 0.10);
+  playFilteredNoise(ctx, fxBus, 400, 7000, 8, t0 + 9.5, 3.5, 0.08);
+  playSineGliss(ctx, fxBus, 5000, 100, t0 + 10.5, 3, 0.08);
+  playFMTexture(ctx, fxBus, 220, 1, 120, 0.5, 15, t0 + 11.5, 3, 0.08);
+  // Glissandi cruzados (efecto «tijera»)
+  playSineGliss(ctx, fxBus, 150, 6000, t0 + 12.5, 2.5, 0.07);
+  playSineGliss(ctx, fxBus, 7000, 80, t0 + 13, 2.5, 0.07);
+  // FM metálica con modulación rápida
+  playFMTexture(ctx, fxBus, 440, 50, 300, 4, 18, t0 + 13.5, 2, 0.06);
+  // «Corte de cinta» — ruido breve banda ancha
+  playFilteredNoise(ctx, fxBus, 200, 10000, 1.5, t0 + 15, 0.12, 0.16);
+  // Rebotes de pings que cruzan el panorama (via delay estéreo)
+  playSinePing(ctx, fxBus, 1760, t0 + 14, 0.15, 0.10);
+  playSinePing(ctx, fxBus, 2640, t0 + 14.3, 0.10, 0.08);
+  playSinePing(ctx, fxBus, 3520, t0 + 14.5, 0.08, 0.07);
 
   // ─── IV. Eruption (15–23s): Clímax ───
   // FM masiva — carrier grave, modulador en barrido amplio
-  playFMTexture(ctx, dest, 110, 2, 200, 1, 20, t0 + 15.5, 4, 0.09);
-  playFMTexture(ctx, dest, 330, 5, 150, 2, 15, t0 + 16, 3.5, 0.07);
+  playFMTexture(ctx, fxBus, 110, 2, 250, 1, 25, t0 + 15.5, 4.5, 0.10);
+  playFMTexture(ctx, fxBus, 330, 5, 180, 2, 18, t0 + 16, 4, 0.08);
   // Glissandi extremos simultáneos
-  playSineGliss(ctx, dest, 30, 8000, t0 + 16, 3, 0.08);
-  playSineGliss(ctx, dest, 10000, 40, t0 + 16.5, 3.5, 0.07);
-  // Ráfaga de ruido (explosión)
-  playFilteredNoise(ctx, dest, 100, 12000, 1, t0 + 17, 0.15, 0.18);
-  // Textura FM aguda — metálica
-  playFMTexture(ctx, dest, 880, 10, 500, 3, 25, t0 + 18, 3, 0.06);
-  // Drones disonantes
-  playSineTone(ctx, dest, 233, t0 + 18, 4, 0.06, { fadeIn: 0.5, fadeOut: 2 });
-  playSineTone(ctx, dest, 247, t0 + 18.5, 3.5, 0.05, { fadeIn: 0.3, fadeOut: 2 });
-  // Puntillismo caótico rápido
+  playSineGliss(ctx, fxBus, 25, 10000, t0 + 16, 3.5, 0.09);
+  playSineGliss(ctx, fxBus, 12000, 30, t0 + 16.5, 4, 0.08);
+  // Explosión de ruido con filtro resonante
+  playFilteredNoise(ctx, fxBus, 80, 14000, 1, t0 + 17, 0.2, 0.20);
+  // Textura FM aguda — campanas metálicas
+  playFMTexture(ctx, fxBus, 880, 15, 600, 4, 30, t0 + 17.5, 3.5, 0.07);
+  playFMTexture(ctx, fxBus, 1320, 7, 400, 2, 20, t0 + 18, 3, 0.05);
+  // Drones disonantes (cluster de semitonos)
+  playSineTone(ctx, fxBus, 233, t0 + 18, 4, 0.06, { fadeIn: 0.3, fadeOut: 2 });
+  playSineTone(ctx, fxBus, 247, t0 + 18.3, 3.5, 0.05, { fadeIn: 0.2, fadeOut: 2 });
+  playSineTone(ctx, fxBus, 262, t0 + 18.5, 3, 0.04, { fadeIn: 0.2, fadeOut: 2 });
+  // Puntillismo caótico — ráfaga de pings con reverb
   const chaosFreqs = [3520, 1760, 440, 7040, 880, 2640, 5280, 330, 1320, 660];
-  for (let i = 0; i < 20; i++) {
-    const t = 19.5 + i * 0.12;
-    const f = chaosFreqs[i % chaosFreqs.length] * (0.8 + Math.random() * 0.4);
-    playSinePing(ctx, dest, f, t0 + t, 0.02 + Math.random() * 0.06, 0.03 + Math.random() * 0.04);
+  for (let i = 0; i < 25; i++) {
+    const t = 19.5 + i * 0.09;
+    const f = chaosFreqs[i % chaosFreqs.length] * (0.7 + Math.random() * 0.6);
+    playSinePing(ctx, fxBus, f, t0 + t, 0.02 + Math.random() * 0.08, 0.04 + Math.random() * 0.05);
   }
-  // Ruido de banda ancha descendente
-  playFilteredNoise(ctx, dest, 8000, 200, 3, t0 + 20, 2.5, 0.08);
-  // Último golpe FM
-  playFMTexture(ctx, dest, 55, 1, 300, 5, 30, t0 + 21.5, 1.5, 0.10);
+  // Ruido descendente con mucha resonancia
+  playFilteredNoise(ctx, fxBus, 10000, 150, 4, t0 + 20, 2.5, 0.09);
+  // Golpe FM final de la erupción
+  playFMTexture(ctx, fxBus, 55, 1, 400, 5, 35, t0 + 21.5, 1.5, 0.12);
+  // Ping reverberado que marca el fin del clímax
+  playSinePing(ctx, fxBus, 4400, t0 + 22.5, 0.3, 0.10);
 
-  // ─── V. Resonanz (22–29s): Ecos resonantes ───
-  // Pings largos con mucha reverberación (duraciones largas)
+  // ─── V. Resonanz (22–29s): Ecos y resonancias ───
+  // Pings largos procesados con delay estéreo (ping-pong)
   const resonantPings = [
-    [220,  22.5, 1.5, 0.07],  [440,  23.0, 1.2, 0.05],
-    [330,  24.0, 1.8, 0.06],  [660,  24.5, 0.8, 0.04],
-    [165,  25.5, 2.0, 0.06],  [550,  26.0, 1.0, 0.04],
-    [880,  26.5, 0.6, 0.03],  [110,  27.0, 2.5, 0.07],
-    [1320, 27.5, 0.4, 0.03],  [275,  28.0, 1.5, 0.05],
+    [220,  23.0, 1.5, 0.08],  [440,  23.5, 1.2, 0.06],
+    [330,  24.5, 1.8, 0.07],  [660,  25.0, 0.8, 0.05],
+    [165,  25.8, 2.0, 0.07],  [550,  26.3, 1.0, 0.05],
+    [880,  26.8, 0.6, 0.04],  [110,  27.3, 2.5, 0.08],
+    [1320, 27.8, 0.4, 0.04],  [275,  28.3, 1.5, 0.06],
   ];
   for (const [freq, time, dur, vol] of resonantPings) {
-    playSineTone(ctx, dest, freq, t0 + time, dur, vol, { fadeIn: 0.02, fadeOut: dur * 0.8 });
+    playSineTone(ctx, fxBus, freq, t0 + time, dur, vol, { fadeIn: 0.01, fadeOut: dur * 0.8 });
   }
-  // Glissando lento descendente como eco
-  playSineGliss(ctx, dest, 2000, 200, t0 + 23, 5, 0.05);
-  // FM suave, fantasmal
-  playFMTexture(ctx, dest, 110, 0.5, 10, 0.2, 3, t0 + 24, 4, 0.04);
-  // Ruido filtrado resonante
-  playFilteredNoise(ctx, dest, 800, 300, 20, t0 + 25, 3, 0.03);
+  // Glissando lento descendente como eco lejano
+  playSineGliss(ctx, fxBus, 2500, 150, t0 + 23.5, 5, 0.05);
+  // FM fantasmal suave
+  playFMTexture(ctx, fxBus, 110, 0.3, 12, 0.15, 3, t0 + 24.5, 4, 0.04);
+  // Ruido resonante estrecho (como viento en tubos)
+  playFilteredNoise(ctx, fxBus, 900, 250, 25, t0 + 25.5, 3, 0.03);
+  // Glissando inverso ascendente (reflejo)
+  playSineGliss(ctx, fxBus, 80, 800, t0 + 27, 2, 0.04);
 
   // ─── VI. Stille (28–35s): Disolución ───
-  // Armónicos agudos con batimiento
-  playSineTone(ctx, dest, 4400, t0 + 28, 4, 0.03, { fadeIn: 1, fadeOut: 3 });
-  playSineTone(ctx, dest, 4000, t0 + 28.5, 3.5, 0.025, { fadeIn: 0.5, fadeOut: 3 });
-  // Glissando descendente final
-  playSineGliss(ctx, dest, 1200, 40, t0 + 29, 4.5, 0.08);
+  // Armónicos agudos lejanos con batimiento
+  playSineTone(ctx, fxBus, 4400, t0 + 28.5, 4.5, 0.03, { fadeIn: 0.8, fadeOut: 3.5 });
+  playSineTone(ctx, fxBus, 4000, t0 + 29, 4, 0.025, { fadeIn: 0.5, fadeOut: 3 });
+  // Glissando descendente final (largo, hacia el silencio)
+  playSineGliss(ctx, fxBus, 1500, 30, t0 + 29.5, 5, 0.07);
   // Dron grave final
-  playSineTone(ctx, dest, 55, t0 + 30, 5, 0.07, { fadeIn: 0.3, fadeOut: 4.5 });
-  playSineTone(ctx, dest, 110, t0 + 30.5, 4.5, 0.05, { fadeIn: 0.2, fadeOut: 4 });
-  // Susurro de ruido residual
-  playFilteredNoise(ctx, dest, 2000, 300, 5, t0 + 32, 2.5, 0.02);
-  // Último ping lejano
-  playSinePing(ctx, dest, 3520, t0 + 34, 0.5, 0.02);
+  playSineTone(ctx, dryBus, 55, t0 + 30, 5, 0.06, { fadeIn: 0.2, fadeOut: 4.5 });
+  playSineTone(ctx, dryBus, 110, t0 + 30.5, 4.5, 0.04, { fadeIn: 0.15, fadeOut: 4 });
+  // FM residual fantasmal
+  playFMTexture(ctx, fxBus, 55, 0.1, 3, 0.05, 1, t0 + 31, 3, 0.02);
+  // Susurro de ruido
+  playFilteredNoise(ctx, fxBus, 2500, 200, 6, t0 + 32, 2.5, 0.018);
+  // Último ping reverberado (lejano)
+  playSinePing(ctx, fxBus, 3520, t0 + 34, 0.5, 0.025);
+  // Ping final casi inaudible
+  playSinePing(ctx, fxBus, 1760, t0 + 34.5, 0.3, 0.015);
 
   return {
     totalDurationSec: 35,
-    burstTimes: [0, 3, 5.5, 8, 9.5, 13, 15, 17, 19, 21.5, 24, 27, 29, 32],
+    burstTimes: [0, 2, 5, 6.8, 9, 12, 15, 17, 19, 21.5, 23, 26, 29, 32],
   };
 }
 

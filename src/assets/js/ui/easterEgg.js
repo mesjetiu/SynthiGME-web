@@ -24,6 +24,7 @@
 
 // ─── Estado ───
 let isPlaying = false;
+let backdropEl = null;
 let overlayEl = null;
 let activeAnimations = [];
 
@@ -389,81 +390,134 @@ function playFMTexture(ctx, dest, carrierFreq, modFreqStart, modFreqEnd,
 }
 
 /**
- * Programa y ejecuta la pieza electroacústica «Studie».
+ * Programa y ejecuta la pieza electroacústica «Studie II» — versión extendida.
  *
- * Estructura en 4 secciones:
- *   I.   Klang   (0–5s)  — Emergencia de tonos sinusoidales con batimiento
- *   II.  Punkte  (4–9s)  — Puntillismo: pings sinusoidales en accelerando
- *   III. Gruppen (8–14s) — Gestos: glissandi, ruido filtrado, FM
- *   IV.  Stille  (14–20s)— Disolución: armónicos agudos, descenso, silencio
+ * Estructura en 6 secciones (~35s):
+ *   I.    Klang     (0–6s)   — Emergencia de drones con batimiento
+ *   II.   Punkte    (5–10s)  — Puntillismo: pings en accelerando
+ *   III.  Gruppen   (9–16s)  — Gestos: glissandi, ruido, FM
+ *   IV.   Eruption  (15–23s) — Clímax: texturas FM masivas, caos
+ *   V.    Resonanz  (22–29s) — Ecos resonantes, pings invertidos
+ *   VI.   Stille    (28–35s) — Disolución lenta, silencio
  *
  * @returns {{ totalDurationSec: number, burstTimes: number[] }}
  */
 function playElectroacousticPiece(ctx, dest) {
   const t0 = ctx.currentTime + 0.1;
 
-  // ─── I. Klang (0–5s): Emergencia ───
+  // ─── I. Klang (0–6s): Emergencia ───
   // Dron profundo con batimiento lento (~1.5 Hz)
-  playSineTone(ctx, dest, 55, t0, 5.5, 0.14, { fadeIn: 3, fadeOut: 1.5 });
-  playSineTone(ctx, dest, 56.5, t0 + 0.3, 5, 0.11, { fadeIn: 2.5, fadeOut: 1.5 });
-  // Quinta justa (82.5 Hz ≈ 55 × 3/2)
-  playSineTone(ctx, dest, 82.5, t0 + 1, 4.2, 0.09, { fadeIn: 1.5, fadeOut: 1 });
+  playSineTone(ctx, dest, 55, t0, 7, 0.14, { fadeIn: 3.5, fadeOut: 2 });
+  playSineTone(ctx, dest, 56.5, t0 + 0.3, 6.5, 0.11, { fadeIn: 3, fadeOut: 1.5 });
+  // Quinta justa
+  playSineTone(ctx, dest, 82.5, t0 + 1, 5, 0.09, { fadeIn: 1.5, fadeOut: 1 });
   // Octava aparece
-  playSineTone(ctx, dest, 110, t0 + 2.5, 3, 0.07, { fadeIn: 0.5, fadeOut: 1.5 });
-  // Parcial agudo (quinta de la octava)
-  playSineTone(ctx, dest, 165, t0 + 3.2, 2.5, 0.04, { fadeIn: 0.3, fadeOut: 1.2 });
+  playSineTone(ctx, dest, 110, t0 + 2.5, 4, 0.07, { fadeIn: 0.5, fadeOut: 1.5 });
+  // Parciales superiores
+  playSineTone(ctx, dest, 165, t0 + 3.2, 3.5, 0.04, { fadeIn: 0.3, fadeOut: 1.2 });
+  playSineTone(ctx, dest, 220, t0 + 4, 3, 0.035, { fadeIn: 0.2, fadeOut: 1 });
+  // Sub-bajo pulsante
+  playSineTone(ctx, dest, 27.5, t0 + 0.5, 5.5, 0.10, { fadeIn: 2, fadeOut: 2 });
 
-  // ─── II. Punkte (4–9s): Puntillismo ───
-  // Pings de la serie armónica de 55 Hz, de dispersos a densos
+  // ─── II. Punkte (5–10s): Puntillismo ───
   const pings = [
-    // [freq, time, dur, vol]  — tiempo relativo a t0
-    [880,  4.0, 0.22, 0.08],   [1320, 4.4, 0.10, 0.06],
-    [440,  4.9, 0.30, 0.09],   [2200, 5.2, 0.05, 0.05],
-    [550,  5.4, 0.18, 0.07],   [1760, 5.7, 0.08, 0.04],
-    [330,  5.85, 0.35, 0.08],  [3300, 6.0, 0.03, 0.03],
-    [660,  6.15, 0.12, 0.07],  [1100, 6.28, 0.07, 0.05],
-    [2640, 6.38, 0.04, 0.04],  [440,  6.48, 0.20, 0.06],
-    [1650, 6.56, 0.05, 0.04],  [880,  6.62, 0.08, 0.05],
-    [3960, 6.68, 0.02, 0.03],  [220,  6.74, 0.25, 0.07],
-    [1320, 6.80, 0.03, 0.04],  [550,  6.85, 0.04, 0.05],
-    [2200, 6.90, 0.025, 0.03], [770,  6.94, 0.03, 0.04],
-    // Accelerando final: nube densa
-    [1100, 6.97, 0.02, 0.03],  [3300, 7.0, 0.015, 0.02],
-    [440,  7.02, 0.015, 0.04], [1760, 7.04, 0.01, 0.03],
-    [660,  7.06, 0.01, 0.03],  [2200, 7.08, 0.01, 0.02],
-    [880,  7.10, 0.01, 0.03],  [330,  7.12, 0.015, 0.04],
-    [1650, 7.14, 0.01, 0.02],  [550,  7.16, 0.01, 0.03],
+    [880,  5.0, 0.22, 0.08],   [1320, 5.4, 0.10, 0.06],
+    [440,  5.9, 0.30, 0.09],   [2200, 6.2, 0.05, 0.05],
+    [550,  6.4, 0.18, 0.07],   [1760, 6.7, 0.08, 0.04],
+    [330,  6.85, 0.35, 0.08],  [3300, 7.0, 0.03, 0.03],
+    [660,  7.15, 0.12, 0.07],  [1100, 7.28, 0.07, 0.05],
+    [2640, 7.38, 0.04, 0.04],  [440,  7.48, 0.20, 0.06],
+    [1650, 7.56, 0.05, 0.04],  [880,  7.62, 0.08, 0.05],
+    [3960, 7.68, 0.02, 0.03],  [220,  7.74, 0.25, 0.07],
+    [1320, 7.80, 0.03, 0.04],  [550,  7.85, 0.04, 0.05],
+    [2200, 7.90, 0.025, 0.03], [770,  7.94, 0.03, 0.04],
+    // Accelerando: nube densa
+    [1100, 7.97, 0.02, 0.03],  [3300, 8.0, 0.015, 0.02],
+    [440,  8.02, 0.015, 0.04], [1760, 8.04, 0.01, 0.03],
+    [660,  8.06, 0.01, 0.03],  [2200, 8.08, 0.01, 0.02],
+    [880,  8.10, 0.01, 0.03],  [330,  8.12, 0.015, 0.04],
+    [1650, 8.14, 0.01, 0.02],  [550,  8.16, 0.01, 0.03],
+    // Rebote — pings que se expanden de nuevo
+    [2200, 8.5, 0.08, 0.05],   [440,  8.7, 0.15, 0.06],
+    [1320, 9.0, 0.10, 0.04],   [660,  9.3, 0.18, 0.05],
+    [3300, 9.5, 0.05, 0.03],   [880,  9.7, 0.12, 0.04],
   ];
   for (const [freq, time, dur, vol] of pings) {
     playSinePing(ctx, dest, freq, t0 + time, dur, vol);
   }
 
-  // ─── III. Gruppen (8–14s): Gestos y texturas ───
-  // Glissando ascendente (sirena electrónica)
-  playSineGliss(ctx, dest, 80, 2500, t0 + 8, 3.2, 0.10);
-  // Ruido filtrado con barrido ascendente (viento electrónico)
-  playFilteredNoise(ctx, dest, 400, 5000, 8, t0 + 8.5, 2.8, 0.07);
-  // Glissando descendente superpuesto
-  playSineGliss(ctx, dest, 3000, 120, t0 + 9.5, 2.8, 0.08);
-  // Textura FM: carrier 220Hz, modulador barriendo 1→80Hz, índice creciente
-  playFMTexture(ctx, dest, 220, 1, 80, 0.5, 12, t0 + 10.5, 2.8, 0.07);
-  // Transiente: «corte de cinta» — ruido breve de banda ancha
-  playFilteredNoise(ctx, dest, 200, 8000, 1.5, t0 + 13, 0.08, 0.14);
+  // ─── III. Gruppen (9–16s): Gestos y texturas ───
+  playSineGliss(ctx, dest, 80, 3500, t0 + 9, 4, 0.10);
+  playFilteredNoise(ctx, dest, 400, 6000, 8, t0 + 9.5, 3.5, 0.07);
+  playSineGliss(ctx, dest, 4000, 120, t0 + 11, 3, 0.08);
+  playFMTexture(ctx, dest, 220, 1, 80, 0.5, 12, t0 + 12, 3, 0.07);
+  // Glissandi cruzados
+  playSineGliss(ctx, dest, 200, 5000, t0 + 13, 2.5, 0.06);
+  playSineGliss(ctx, dest, 6000, 100, t0 + 13.5, 2.5, 0.06);
+  playFilteredNoise(ctx, dest, 200, 8000, 1.5, t0 + 15, 0.1, 0.14);
 
-  // ─── IV. Stille (14–20s): Disolución ───
-  // Armónicos agudos emergentes con batimiento rápido
-  playSineTone(ctx, dest, 4400, t0 + 14, 3.5, 0.035, { fadeIn: 1, fadeOut: 2 });
-  playSineTone(ctx, dest, 4000, t0 + 14.5, 3, 0.03, { fadeIn: 0.5, fadeOut: 2 });
-  // Glissando descendente final (espejo del ascendente de la sección III)
-  playSineGliss(ctx, dest, 1200, 55, t0 + 15.5, 3.5, 0.10);
-  // Dron grave final, desvaneciéndose
-  playSineTone(ctx, dest, 110, t0 + 16.5, 3.5, 0.09, { fadeIn: 0.3, fadeOut: 3 });
+  // ─── IV. Eruption (15–23s): Clímax ───
+  // FM masiva — carrier grave, modulador en barrido amplio
+  playFMTexture(ctx, dest, 110, 2, 200, 1, 20, t0 + 15.5, 4, 0.09);
+  playFMTexture(ctx, dest, 330, 5, 150, 2, 15, t0 + 16, 3.5, 0.07);
+  // Glissandi extremos simultáneos
+  playSineGliss(ctx, dest, 30, 8000, t0 + 16, 3, 0.08);
+  playSineGliss(ctx, dest, 10000, 40, t0 + 16.5, 3.5, 0.07);
+  // Ráfaga de ruido (explosión)
+  playFilteredNoise(ctx, dest, 100, 12000, 1, t0 + 17, 0.15, 0.18);
+  // Textura FM aguda — metálica
+  playFMTexture(ctx, dest, 880, 10, 500, 3, 25, t0 + 18, 3, 0.06);
+  // Drones disonantes
+  playSineTone(ctx, dest, 233, t0 + 18, 4, 0.06, { fadeIn: 0.5, fadeOut: 2 });
+  playSineTone(ctx, dest, 247, t0 + 18.5, 3.5, 0.05, { fadeIn: 0.3, fadeOut: 2 });
+  // Puntillismo caótico rápido
+  const chaosFreqs = [3520, 1760, 440, 7040, 880, 2640, 5280, 330, 1320, 660];
+  for (let i = 0; i < 20; i++) {
+    const t = 19.5 + i * 0.12;
+    const f = chaosFreqs[i % chaosFreqs.length] * (0.8 + Math.random() * 0.4);
+    playSinePing(ctx, dest, f, t0 + t, 0.02 + Math.random() * 0.06, 0.03 + Math.random() * 0.04);
+  }
+  // Ruido de banda ancha descendente
+  playFilteredNoise(ctx, dest, 8000, 200, 3, t0 + 20, 2.5, 0.08);
+  // Último golpe FM
+  playFMTexture(ctx, dest, 55, 1, 300, 5, 30, t0 + 21.5, 1.5, 0.10);
+
+  // ─── V. Resonanz (22–29s): Ecos resonantes ───
+  // Pings largos con mucha reverberación (duraciones largas)
+  const resonantPings = [
+    [220,  22.5, 1.5, 0.07],  [440,  23.0, 1.2, 0.05],
+    [330,  24.0, 1.8, 0.06],  [660,  24.5, 0.8, 0.04],
+    [165,  25.5, 2.0, 0.06],  [550,  26.0, 1.0, 0.04],
+    [880,  26.5, 0.6, 0.03],  [110,  27.0, 2.5, 0.07],
+    [1320, 27.5, 0.4, 0.03],  [275,  28.0, 1.5, 0.05],
+  ];
+  for (const [freq, time, dur, vol] of resonantPings) {
+    playSineTone(ctx, dest, freq, t0 + time, dur, vol, { fadeIn: 0.02, fadeOut: dur * 0.8 });
+  }
+  // Glissando lento descendente como eco
+  playSineGliss(ctx, dest, 2000, 200, t0 + 23, 5, 0.05);
+  // FM suave, fantasmal
+  playFMTexture(ctx, dest, 110, 0.5, 10, 0.2, 3, t0 + 24, 4, 0.04);
+  // Ruido filtrado resonante
+  playFilteredNoise(ctx, dest, 800, 300, 20, t0 + 25, 3, 0.03);
+
+  // ─── VI. Stille (28–35s): Disolución ───
+  // Armónicos agudos con batimiento
+  playSineTone(ctx, dest, 4400, t0 + 28, 4, 0.03, { fadeIn: 1, fadeOut: 3 });
+  playSineTone(ctx, dest, 4000, t0 + 28.5, 3.5, 0.025, { fadeIn: 0.5, fadeOut: 3 });
+  // Glissando descendente final
+  playSineGliss(ctx, dest, 1200, 40, t0 + 29, 4.5, 0.08);
+  // Dron grave final
+  playSineTone(ctx, dest, 55, t0 + 30, 5, 0.07, { fadeIn: 0.3, fadeOut: 4.5 });
+  playSineTone(ctx, dest, 110, t0 + 30.5, 4.5, 0.05, { fadeIn: 0.2, fadeOut: 4 });
   // Susurro de ruido residual
-  playFilteredNoise(ctx, dest, 2000, 400, 5, t0 + 18, 1.8, 0.025);
+  playFilteredNoise(ctx, dest, 2000, 300, 5, t0 + 32, 2.5, 0.02);
+  // Último ping lejano
+  playSinePing(ctx, dest, 3520, t0 + 34, 0.5, 0.02);
 
   return {
-    totalDurationSec: 20,
-    burstTimes: [0, 3, 5.5, 8, 9.5, 13, 14.5, 16, 18],
+    totalDurationSec: 35,
+    burstTimes: [0, 3, 5.5, 8, 9.5, 13, 15, 17, 19, 21.5, 24, 27, 29, 32],
   };
 }
 
@@ -494,13 +548,14 @@ const PALETTE = [
  * max: máximo de elementos a animar por selector.
  */
 const GHOST_CONFIG = [
-  { sel: '.knob',                         shape: 'circle', max: 80 },
-  { sel: '.output-channel__slider-shell', shape: 'vrect',  max: 16 },
-  { sel: '.output-channel__switch',       shape: 'vrect',  max: 16 },
-  { sel: '.panel7-joystick-pad',          shape: 'circle', max: 4  },
-  { sel: '.pin-btn.active',              shape: 'dot',    max: 60 },
-  { sel: '.synth-module__header',         shape: 'rect',   max: 30 },
-  { sel: '.panel7-seq-button',            shape: 'dot',    max: 8  },
+  { sel: '.panel',                        shape: 'rect',   max: 7   },  // los 7 paneles principales
+  { sel: '.synth-module',                 shape: 'rect',   max: 15  },  // módulos dentro de paneles
+  { sel: '.synth-module__header',         shape: 'rect',   max: 12  },  // frames
+  { sel: '.synth-module__content',        shape: 'rect',   max: 7   },  // cuerpos de módulo
+  { sel: '.knob',                         shape: 'circle', max: 30  },  // knobs
+  { sel: '.output-channel__slider-shell', shape: 'vrect',  max: 12  },  // sliders
+  { sel: '.panel7-joystick-pad',          shape: 'circle', max: 4   },  // pads
+  { sel: '.panel7-seq-button',            shape: 'dot',    max: 8   },  // botones seq
 ];
 
 /**
@@ -518,11 +573,10 @@ function createGhostEl(rect, shape, colorIdx) {
     `top: ${rect.top}px`,
     `width: ${Math.max(rect.width, 4)}px`,
     `height: ${Math.max(rect.height, 4)}px`,
-    `background: rgba(${r},${g},${b},0.55)`,
-    `border: 1px solid rgba(${r},${g},${b},0.75)`,
-    `border-radius: ${shape === 'circle' || shape === 'dot' ? '50%' : '3px'}`,
-    `box-shadow: 0 0 ${glow}px rgba(${r},${g},${b},0.35),` +
-      ` inset 0 0 ${glow * 0.4}px rgba(${r},${g},${b},0.2)`,
+    `background: rgba(${r},${g},${b},0.6)`,
+    `border: 1px solid rgba(${r},${g},${b},0.8)`,
+    `border-radius: ${shape === 'circle' || shape === 'dot' ? '50%' : '4px'}`,
+    `box-shadow: 0 0 ${glow}px rgba(${r},${g},${b},0.35)`,
     'pointer-events: none',
     'will-change: transform, opacity',
   ].join(';');
@@ -568,17 +622,19 @@ function gatherGhosts(container) {
 }
 
 /**
- * Anima los fantasmas: aparecen → tiemblan → se dispersan → giran →
- * se disuelven y desaparecen.
+ * Anima los fantasmas: aparecen → tiemblan → se dispersan → explotan →
+ * se mezclan y transforman → resuenan → se disuelven.
  *
- * Fases sincronizadas con la pieza electroacústica (~20s):
- *   0-6%   Aparición: fade-in en posición original
- *   6-18%  Tremor: vibración sutil (Klang)
- *  18-38%  Dispersión: los elementos se separan (Punkte)
- *  38-58%  Caos: máximo desplazamiento y rotación (Gruppen)
- *  58-72%  Máxima disolución
- *  72-90%  Retorno: derivan de vuelta, se desvanecen (Stille)
- *  90-100% Desaparición final
+ * Fases sincronizadas con la pieza electroacústica (~35s):
+ *   0-4%   Aparición: fade-in en posición original
+ *   4-14%  Tremor: vibración sutil (Klang)
+ *  14-26%  Dispersión: los elementos se separan (Punkte)
+ *  26-42%  Caos: máximo desplazamiento y rotación (Gruppen)
+ *  42-58%  Erupción: explosión, escala extrema, giro salvaje (Eruption)
+ *  58-74%  Resonancia: rebotes, pulsaciones (Resonanz)
+ *  74-88%  Reagrupamiento: los elementos empiezan a volver (Stille)
+ *  88-97%  Retorno: vuelven a su posición original
+ *  97-100% Fundido rápido final
  *
  * @param {HTMLElement[]} ghosts
  * @param {number} durationMs
@@ -586,54 +642,68 @@ function gatherGhosts(container) {
  */
 function animateGhosts(ghosts, durationMs) {
   const animations = [];
+  const vw = window.innerWidth || 1200;
+  const vh = window.innerHeight || 800;
 
   for (const ghost of ghosts) {
-    const delay = Math.random() * 2500;
+    const delay = Math.random() * 800;
 
-    // Desplazamiento, rotación y escala aleatorios por fantasma
-    const tx = (Math.random() - 0.5) * 350;
-    const ty = (Math.random() - 0.5) * 300;
-    const rot = (Math.random() - 0.5) * 540;
-    const sc = 0.3 + Math.random() * 1.5;
+    // Desplazamiento salvaje — cruza la pantalla
+    const tx = (Math.random() - 0.5) * vw * 0.8;
+    const ty = (Math.random() - 0.5) * vh * 0.7;
+    // Segundo punto de destino (para la erupción)
+    const tx2 = (Math.random() - 0.5) * vw * 1.0;
+    const ty2 = (Math.random() - 0.5) * vh * 0.9;
+    const rot = (Math.random() - 0.5) * 1080;
+    const rot2 = rot + (Math.random() - 0.5) * 720;
+    const sc = 0.2 + Math.random() * 2.5;
+    const sc2 = 0.1 + Math.random() * 3;
 
     // Micro-jitter para la fase de tremor
-    const jx = (Math.random() - 0.5) * 8;
-    const jy = (Math.random() - 0.5) * 8;
+    const jx = (Math.random() - 0.5) * 15;
+    const jy = (Math.random() - 0.5) * 15;
 
     const keyframes = [
       // Aparición
       { transform: 'translate(0,0) rotate(0deg) scale(1)',
         opacity: 0, offset: 0 },
       { transform: 'translate(0,0) rotate(0deg) scale(1)',
-        opacity: 0.8, offset: 0.06 },
+        opacity: 0.85, offset: 0.04 },
       // Tremor (Klang)
-      { transform: `translate(${jx}px,${jy}px) rotate(${rot * 0.02}deg) scale(1.02)`,
-        opacity: 0.75, offset: 0.18 },
+      { transform: `translate(${jx}px,${jy}px) rotate(${rot * 0.03}deg) scale(1.05)`,
+        opacity: 0.8, offset: 0.14 },
       // Dispersión (Punkte)
-      { transform: `translate(${tx * 0.4}px,${ty * 0.4}px) rotate(${rot * 0.3}deg) scale(${0.7 + sc * 0.3})`,
-        opacity: 0.6, offset: 0.38 },
+      { transform: `translate(${tx * 0.4}px,${ty * 0.4}px) rotate(${rot * 0.25}deg) scale(${0.6 + sc * 0.3})`,
+        opacity: 0.7, offset: 0.26 },
       // Caos (Gruppen)
       { transform: `translate(${tx}px,${ty}px) rotate(${rot}deg) scale(${sc})`,
-        opacity: 0.4, offset: 0.58 },
-      // Máxima disolución
-      { transform: `translate(${tx * 1.15}px,${ty * 1.15}px) rotate(${rot * 1.2}deg) scale(${sc * 0.7})`,
-        opacity: 0.25, offset: 0.72 },
-      // Retorno (Stille)
-      { transform: `translate(${tx * 0.3}px,${ty * 0.3}px) rotate(${rot * 0.2}deg) scale(0.85)`,
-        opacity: 0.12, offset: 0.90 },
-      // Desaparición
-      { transform: 'translate(0,0) rotate(0deg) scale(0.5)',
+        opacity: 0.55, offset: 0.42 },
+      // Erupción — explosión máxima, escala extrema, giro salvaje
+      { transform: `translate(${tx2}px,${ty2}px) rotate(${rot2}deg) scale(${sc2})`,
+        opacity: 0.45, offset: 0.58 },
+      // Resonancia — rebote, pulsación
+      { transform: `translate(${tx * 0.5}px,${ty * -0.4}px) rotate(${rot * 0.6}deg) scale(${sc * 0.8})`,
+        opacity: 0.4, offset: 0.74 },
+      // Reagrupamiento — los elementos empiezan a volver
+      { transform: `translate(${tx * 0.15}px,${ty * 0.1}px) rotate(${rot * 0.08}deg) scale(1.1)`,
+        opacity: 0.6, offset: 0.88 },
+      // Retorno — vuelven a su lugar original
+      { transform: 'translate(0,0) rotate(0deg) scale(1)',
+        opacity: 0.85, offset: 0.97 },
+      // Desaparición — fundido rápido final
+      { transform: 'translate(0,0) rotate(0deg) scale(1)',
         opacity: 0, offset: 1 },
     ];
 
-    const anim = ghost.animate(keyframes, {
-      duration: durationMs - delay,
-      delay,
-      easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
-      fill: 'both',
-    });
-
-    animations.push(anim);
+    try {
+      const anim = ghost.animate(keyframes, {
+        duration: durationMs - delay,
+        delay,
+        easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        fill: 'both',
+      });
+      animations.push(anim);
+    } catch (_) { /* JSDOM */ }
   }
 
   return animations;
@@ -646,15 +716,22 @@ function animateGhosts(ghosts, durationMs) {
  * @param {number[]} burstTimes — tiempos en segundos
  */
 function scheduleVisualPulses(overlay, burstTimes) {
-  for (const t of burstTimes) {
+  for (let i = 0; i < burstTimes.length; i++) {
+    const t = burstTimes[i];
+    // Intensidad creciente hacia el clímax (mitad de la pieza)
+    const progress = i / burstTimes.length;
+    const intensity = progress < 0.5
+      ? 0.08 + progress * 0.3
+      : 0.23 - (progress - 0.5) * 0.3;
+    const spread = 150 + intensity * 600;
     setTimeout(() => {
       if (!overlay || !overlay.parentElement) return;
       try {
         overlay.animate([
           { boxShadow: 'inset 0 0 0 rgba(255,255,255,0)' },
-          { boxShadow: 'inset 0 0 200px rgba(180,160,255,0.12)' },
+          { boxShadow: `inset 0 0 ${spread}px rgba(180,140,255,${intensity})` },
           { boxShadow: 'inset 0 0 0 rgba(255,255,255,0)' },
-        ], { duration: 500, easing: 'ease-out' });
+        ], { duration: 600, easing: 'ease-out' });
       } catch (_) { /* ignore — JSDOM */ }
     }, t * 1000);
   }
@@ -665,6 +742,25 @@ function scheduleVisualPulses(overlay, burstTimes) {
  * @param {number} durationMs — duración total de la animación
  */
 function createOverlay(durationMs) {
+  // ── Capa 1: Backdrop estático (sin animaciones → nunca glitchea) ──
+  const backdrop = document.createElement('div');
+  backdrop.id = 'easter-egg-backdrop';
+  backdrop.style.cssText = [
+    'position: fixed',
+    'top: 0',
+    'left: 0',
+    'width: 100vw',
+    'height: 100vh',
+    'z-index: 9998',
+    'background: radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.88), rgba(5,5,12,0.93) 70%)',
+    'opacity: 0',
+    'transition: opacity 0.8s ease-in',
+    'pointer-events: none',
+  ].join(';');
+  document.body.appendChild(backdrop);
+  backdropEl = backdrop;
+
+  // ── Capa 2: Overlay animado (fantasmas + filtros) ──
   const overlay = document.createElement('div');
   overlay.id = 'easter-egg-overlay';
   overlay.style.cssText = [
@@ -674,7 +770,7 @@ function createOverlay(durationMs) {
     'width: 100vw',
     'height: 100vh',
     'z-index: 9999',
-    'background: radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.90), rgba(5,5,12,0.95) 70%)',
+    'background: transparent',
     'cursor: pointer',
     'opacity: 0',
     'transition: opacity 0.8s ease-in',
@@ -682,14 +778,18 @@ function createOverlay(durationMs) {
     'overflow: hidden',
   ].join(';');
 
-  // Rotación de matiz animada sobre el gradiente
+  // Rotación de matiz animada — solo sobre la capa de fantasmas, no el backdrop
   try {
     overlay.animate([
-      { filter: 'hue-rotate(0deg) brightness(1)' },
-      { filter: 'hue-rotate(90deg) brightness(1.08)' },
-      { filter: 'hue-rotate(180deg) brightness(0.95)' },
-      { filter: 'hue-rotate(270deg) brightness(1.05)' },
-      { filter: 'hue-rotate(360deg) brightness(1)' },
+      { filter: 'hue-rotate(0deg) brightness(1) saturate(1)' },
+      { filter: 'hue-rotate(60deg) brightness(1.1) saturate(1.3)' },
+      { filter: 'hue-rotate(120deg) brightness(0.95) saturate(1.1)' },
+      { filter: 'hue-rotate(200deg) brightness(1.15) saturate(1.4)' },
+      { filter: 'hue-rotate(280deg) brightness(0.9) saturate(1.2)' },
+      { filter: 'hue-rotate(360deg) brightness(1.1) saturate(1.3)' },
+      { filter: 'hue-rotate(480deg) brightness(0.95) saturate(1.1)' },
+      { filter: 'hue-rotate(560deg) brightness(1.05) saturate(1.2)' },
+      { filter: 'hue-rotate(720deg) brightness(1) saturate(1)' },
     ], {
       duration: durationMs,
       iterations: 1,
@@ -715,6 +815,7 @@ function createOverlay(durationMs) {
   document.body.appendChild(overlay);
 
   requestAnimationFrame(() => {
+    backdrop.style.opacity = '1';
     overlay.style.opacity = '1';
   });
 
@@ -742,6 +843,15 @@ function cleanup(audioCtx) {
     audioCtx.close().catch(() => {});
   }
 
+  // Fade-out y eliminar backdrop estático
+  if (backdropEl) {
+    backdropEl.style.opacity = '0';
+    const bd = backdropEl;
+    backdropEl = null;
+    setTimeout(() => { bd.remove(); }, 800);
+  }
+
+  // Fade-out y eliminar overlay animado
   if (overlayEl) {
     overlayEl.style.opacity = '0';
     const el = overlayEl;

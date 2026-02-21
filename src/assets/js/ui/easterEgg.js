@@ -856,11 +856,13 @@ function gatherGhosts() {
 }
 
 // ─── Interpolación de fases para renderizado en canvas ───
-const PHASE_OFFSETS = [0, 0.03, 0.14, 0.36, 0.60, 0.80, 0.85, 1];
-const PHASE_TX_F   = [0,    0,  0.7,  1.0, 0.55, 0.10,    0, 0];
-const PHASE_TY_F   = [0,    0,  0.7,  1.0, 0.55, 0.10,    0, 0];
-const PHASE_ROT_F  = [0,    0,  0.5,  1.0, 0.85, 0.10,    0, 0];
-const PHASE_ALPHA  = [1,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 1];
+// Fase 0→0.085: calma (~3s en pieza de 35s) — piezas visibles en su sitio
+// Fase 0.085→0.19: dispersión inicial gradual
+const PHASE_OFFSETS = [0, 0.085, 0.19, 0.38, 0.60, 0.80, 0.85, 1];
+const PHASE_TX_F   = [0,     0,  0.7,  1.0, 0.55, 0.10,    0, 0];
+const PHASE_TY_F   = [0,     0,  0.7,  1.0, 0.55, 0.10,    0, 0];
+const PHASE_ROT_F  = [0,     0,  0.5,  1.0, 0.85, 0.10,    0, 0];
+const PHASE_ALPHA  = [1,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 1];
 const DEG_TO_RAD   = Math.PI / 180;
 const FADE_OUT_MS  = 6000;  // duración del fade-out final (tras la música)
 

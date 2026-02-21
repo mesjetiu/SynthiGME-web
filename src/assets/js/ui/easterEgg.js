@@ -806,15 +806,17 @@ function gatherGhosts(container) {
     selected = [...fixed, ...controls.slice(0, Math.max(MAX_GHOSTS - fixed.length, 0))];
   }
 
-  // Crear fantasmas
+  // Crear fantasmas en un DocumentFragment para minimizar reflows
+  const fragment = document.createDocumentFragment();
   const ghosts = [];
   for (let i = 0; i < selected.length; i++) {
     const { el, rect } = selected[i];
     const shape = inferShape(el, rect);
     const ghost = createGhostEl(rect, shape, i);
-    container.appendChild(ghost);
+    fragment.appendChild(ghost);
     ghosts.push(ghost);
   }
+  container.appendChild(fragment);
 
   return ghosts;
 }
@@ -896,17 +898,17 @@ function animateGhosts(ghosts, durationMs) {
  * @param {HTMLElement} overlay
  * @param {number[]} burstTimes — tiempos en segundos
  */
-function scheduleVisualPulses(overlay, burstTimes) {
+function scheduleVisualPulses(backdrop, burstTimes) {
   for (let i = 0; i < burstTimes.length; i++) {
     const t = burstTimes[i];
     setTimeout(() => {
-      if (!overlay || !overlay.parentElement) return;
+      if (!backdrop || !backdrop.parentElement) return;
       try {
-        // Flash de backdrop-color — solo opacity, sin boxShadow (GPU-friendly)
-        overlay.animate([
-          { backgroundColor: 'rgba(140,100,220,0)' },
-          { backgroundColor: 'rgba(140,100,220,0.12)' },
-          { backgroundColor: 'rgba(140,100,220,0)' },
+        // Pulso de opacidad en el backdrop — opacity SÍ es GPU-composited
+        backdrop.animate([
+          { opacity: 0.85 },
+          { opacity: 1 },
+          { opacity: 0.85 },
         ], { duration: 500, easing: 'ease-out' });
       } catch (_) { /* ignore — JSDOM */ }
     }, t * 1000);
@@ -954,20 +956,8 @@ function createOverlay(durationMs) {
     'overflow: hidden',
   ].join(';');
 
-  // Ciclo de color sutil en el backdrop (no en el overlay para no forzar
-  // re-renderizado de los fantasmas). Solo anima background — GPU-friendly.
-  try {
-    backdrop.animate([
-      { background: 'radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.88), rgba(5,5,12,0.93) 70%)' },
-      { background: 'radial-gradient(ellipse at 50% 50%, rgba(15,5,60,0.90), rgba(8,3,18,0.93) 70%)' },
-      { background: 'radial-gradient(ellipse at 60% 40%, rgba(30,5,40,0.88), rgba(5,5,15,0.93) 70%)' },
-      { background: 'radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.88), rgba(5,5,12,0.93) 70%)' },
-    ], {
-      duration: durationMs,
-      iterations: 1,
-      easing: 'linear',
-    });
-  } catch (_) { /* ignore — JSDOM */ }
+  // Backdrop estático — no animamos gradientes (no son GPU-composited,
+  // forzarían repintado completo cada frame). Los fantasmas dan el movimiento.
 
   const hint = document.createElement('div');
   hint.textContent = '\u{1F50A} click para cerrar';
@@ -1097,8 +1087,8 @@ export async function triggerEasterEgg(options = {}) {
     const ghosts = gatherGhosts(overlayEl);
     activeAnimations = animateGhosts(ghosts, durationMs);
 
-    // Pulsos visuales sincronizados con la pieza
-    scheduleVisualPulses(overlayEl, burstTimes);
+    // Pulsos visuales sincronizados con la pieza (en el backdrop, no overlay)
+    scheduleVisualPulses(backdropEl, burstTimes);
 
     // Esperar 600ms antes de escuchar click para cerrar.
     // Esto evita que el click sintético que generan los navegadores móviles

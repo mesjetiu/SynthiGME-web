@@ -9,6 +9,7 @@ import { createLogger } from '../utils/logger.js';
 import { togglePip, ALL_PANELS, getOpenPips, openAllPips, closeAllPips } from './pipManager.js';
 import { oscBridge } from '../osc/oscBridge.js';
 import { undoRedoManager } from '../state/undoRedoManager.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 const log = createLogger('Quickbar');
 
@@ -560,14 +561,27 @@ export function setupMobileQuickActionsBar() {
   btnReset.innerHTML = iconSvg('ti-refresh');
   
   btnReset.addEventListener('click', async () => {
+    // Comprobar si el usuario desactivó la confirmación en Ajustes
+    if (localStorage.getItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET) === 'false') {
+      document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
+      return;
+    }
     const result = await ConfirmDialog.show({
-      title: t('settings.reset.confirm'),
+      title: t('synth.reset.confirm'),
       confirmText: t('common.yes'),
-      cancelText: t('common.no')
+      cancelText: t('common.no'),
+      rememberKey: 'skip-reset-confirm',
+      rememberText: t('common.dontAskAgain')
     });
     if (result.confirmed) {
+      // Si marcó "no volver a preguntar", guardar en ajuste persistente
+      if (result.remember) {
+        localStorage.setItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET, 'false');
+      }
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
     }
+    // Limpiar siempre el rememberKey del ConfirmDialog (el STORAGE_KEY es la fuente de verdad)
+    ConfirmDialog.clearRememberedChoice('skip-reset-confirm');
   });
 
   // Botón OSC (solo visible si OSC está disponible)

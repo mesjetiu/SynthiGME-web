@@ -288,6 +288,11 @@ export class SettingsModal {
       this.dspStartEnabled = readBool(STORAGE_KEYS.DSP_START_ENABLED, true);
       this.dspStartEnabledCheckbox.checked = this.dspStartEnabled;
     }
+    
+    // General - Confirmación de reinicio
+    if (this.confirmResetCheckbox) {
+      this.confirmResetCheckbox.checked = localStorage.getItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET) !== 'false';
+    }
   }
   
   /**
@@ -625,6 +630,9 @@ export class SettingsModal {
     
     // Autoguardado
     container.appendChild(this._createAutoSaveSection());
+    
+    // Confirmación de reinicio
+    container.appendChild(this._createConfirmResetSection());
     
     // Pantalla (Wake Lock)
     container.appendChild(this._createWakeLockSection());
@@ -3079,8 +3087,45 @@ export class SettingsModal {
   }
   
   /**
-   * Crea la sección de reseteo del sintetizador
+   * Crea la sección de confirmación de reinicio del sintetizador.
+   * Permite al usuario desactivar la pregunta de confirmación al reiniciar.
    */
+  _createConfirmResetSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--checkbox';
+    
+    this.confirmResetCheckbox = document.createElement('input');
+    this.confirmResetCheckbox.type = 'checkbox';
+    this.confirmResetCheckbox.id = 'confirmResetCheckbox';
+    this.confirmResetCheckbox.className = 'settings-checkbox';
+    // Marcado = pedir confirmación (por defecto true si no existe la clave)
+    this.confirmResetCheckbox.checked = localStorage.getItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET) !== 'false';
+    
+    this.confirmResetLabelElement = document.createElement('label');
+    this.confirmResetLabelElement.className = 'settings-checkbox-label';
+    this.confirmResetLabelElement.htmlFor = 'confirmResetCheckbox';
+    this.confirmResetLabelElement.textContent = t('settings.synth.confirmReset');
+    
+    this.confirmResetCheckbox.addEventListener('change', () => {
+      if (this.confirmResetCheckbox.checked) {
+        // Re-habilitar confirmación: eliminar la clave (default = confirmar)
+        localStorage.removeItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET);
+      } else {
+        // Deshabilitar confirmación
+        localStorage.setItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET, 'false');
+      }
+    });
+    
+    row.appendChild(this.confirmResetCheckbox);
+    row.appendChild(this.confirmResetLabelElement);
+    section.appendChild(row);
+    
+    return section;
+  }
+  
   _createResetSection() {
     const section = document.createElement('div');
     section.className = 'settings-section settings-section--danger';
@@ -4065,6 +4110,11 @@ export class SettingsModal {
     }
     if (this.telemetryEnabledLabelElement) {
       this.telemetryEnabledLabelElement.textContent = t('settings.telemetry.label');
+    }
+    
+    // Actualizar sección de confirmación de reinicio
+    if (this.confirmResetLabelElement) {
+      this.confirmResetLabelElement.textContent = t('settings.synth.confirmReset');
     }
     
     // Actualizar sección de reset

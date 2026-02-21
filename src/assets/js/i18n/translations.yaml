@@ -2198,6 +2198,33 @@ quickbar.reset:
   pt: Redefinir sintetizador (Shift+I)
   cs: Resetovat syntezátor (Shift+I)
 
+synth.reset.confirm:
+  en: Are you sure you want to reset the synthesizer to its initial values?
+  es: ¿Seguro que quieres reiniciar el sintetizador a sus valores iniciales?
+  fr: Êtes-vous sûr de vouloir réinitialiser le synthétiseur à ses valeurs initiales ?
+  de: Möchten Sie den Synthesizer wirklich auf die Anfangswerte zurücksetzen?
+  it: Sei sicuro di voler ripristinare il sintetizzatore ai valori iniziali?
+  pt: Tem certeza de que deseja redefinir o sintetizador para seus valores iniciais?
+  cs: Jste si jisti, že chcete resetovat syntezátor na počáteční hodnoty?
+
+common.dontAskAgain:
+  en: Don't ask again
+  es: No volver a preguntar
+  fr: Ne plus demander
+  de: Nicht erneut fragen
+  it: Non chiedere più
+  pt: Não perguntar novamente
+  cs: Znovu se neptat
+
+settings.synth.confirmReset:
+  en: Ask for confirmation when resetting synth
+  es: Pedir confirmación al reiniciar el sintetizador
+  fr: Demander confirmation lors de la réinitialisation du synthé
+  de: Bestätigung beim Zurücksetzen des Synthesizers verlangen
+  it: Chiedi conferma al ripristino del sintetizzatore
+  pt: Pedir confirmação ao redefinir o sintetizador
+  cs: Při resetování syntezátoru požádat o potvrzení
+
 quickbar.oscOn:
   en: OSC enabled - Click to disable
   es: OSC habilitado - Click para deshabilitar

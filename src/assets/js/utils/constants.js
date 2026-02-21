@@ -175,6 +175,9 @@ export const STORAGE_KEYS = {
   /** Visibilidad del quickbar (en Electron se puede ocultar porque el menú nativo lo reemplaza) */
   QUICKBAR_VISIBLE: `${STORAGE_PREFIX}quickbar-visible`,
   
+  /** Pedir confirmación al reiniciar el sintetizador (default: true) */
+  CONFIRM_SYNTH_RESET: `${STORAGE_PREFIX}confirm-synth-reset`,
+  
   // ─────────────────────────────────────────────────────────────────────────
   // OSC (Open Sound Control) - Comunicación peer-to-peer
   // ─────────────────────────────────────────────────────────────────────────

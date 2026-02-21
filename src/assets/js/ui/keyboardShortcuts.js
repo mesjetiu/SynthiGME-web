@@ -100,14 +100,24 @@ const SHORTCUT_ACTIONS = {
     }
   },
   reset: async () => {
+    if (localStorage.getItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET) === 'false') {
+      document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
+      return;
+    }
     const result = await ConfirmDialog.show({
-      title: t('settings.reset.confirm'),
+      title: t('synth.reset.confirm'),
       confirmText: t('common.yes'),
-      cancelText: t('common.no')
+      cancelText: t('common.no'),
+      rememberKey: 'skip-reset-confirm',
+      rememberText: t('common.dontAskAgain')
     });
     if (result.confirmed) {
+      if (result.remember) {
+        localStorage.setItem(STORAGE_KEYS.CONFIRM_SYNTH_RESET, 'false');
+      }
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
     }
+    ConfirmDialog.clearRememberedChoice('skip-reset-confirm');
   },
   // Navegación de paneles (si está en PiP, enfocar PiP; si no, zoom en canvas)
   panel1: () => panelShortcutAction('panel-1'),

@@ -180,10 +180,10 @@ function setupJoystickDOM() {
 }
 
 async function cleanupOverlays() {
-  // Click overlay to trigger cleanup (resets isPlaying)
+  // Dblclick overlay to trigger cleanup (resets isPlaying)
   const overlay = document.getElementById('easter-egg-overlay');
   if (overlay) {
-    overlay.click();
+    overlay.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true }));
     await new Promise(r => setTimeout(r, 50));
   }
   document.querySelectorAll('[style*="position: fixed"]').forEach(el => el.remove());
@@ -482,19 +482,26 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
       'Debe tener auto-limpieza temporizada');
   });
 
-  it('permite cerrar manualmente haciendo click en el overlay', () => {
-    assert.ok(easterEggSource.includes("'click'"),
-      'Debe escuchar click para cierre manual');
+  it('permite cerrar manualmente con doble click en el overlay', () => {
+    assert.ok(easterEggSource.includes("'dblclick'"),
+      'Debe escuchar dblclick para cierre manual');
     assert.ok(easterEggSource.includes('{ once: true }'),
-      'El listener de click debe ser once para evitar fugas');
+      'El listener de dblclick debe ser once para evitar fugas');
   });
 
-  it('retrasa el listener de click para evitar cierre por click sintético en móvil', () => {
+  it('permite cerrar con tecla Escape', () => {
+    assert.ok(easterEggSource.includes("'Escape'"),
+      'Debe escuchar tecla Escape para cierre');
+    assert.ok(easterEggSource.includes("'keydown'"),
+      'Debe usar evento keydown para detectar Escape');
+  });
+
+  it('retrasa el listener de dblclick para evitar cierre accidental', () => {
     const fnBody = easterEggSource.substring(
       easterEggSource.indexOf('export async function triggerEasterEgg')
     );
-    assert.ok(fnBody.includes('setTimeout') && fnBody.includes("'click'"),
-      'El listener de click debe instalarse con delay (setTimeout)');
+    assert.ok(fnBody.includes('setTimeout') && fnBody.includes("'dblclick'"),
+      'El listener de dblclick debe instalarse con delay (setTimeout)');
   });
 
   it('isDirtyFn se captura en pointerdown (antes de que pointerup marque dirty)', () => {
@@ -641,26 +648,42 @@ describe('Easter Egg — Desintegración visual (análisis estático)', () => {
   });
 
   it('cada fantasma tiene desplazamiento, rotación y escala aleatorios', () => {
-    const animFn = easterEggSource.substring(
-      easterEggSource.indexOf('function animateGhosts'),
-      easterEggSource.indexOf('function scheduleVisualPulses')
+    const ghostFn = easterEggSource.substring(
+      easterEggSource.indexOf('function gatherGhosts('),
+      easterEggSource.indexOf('// ─── Interpolación')
     );
-    assert.ok(animFn.includes('translate('), 'Debe incluir translate');
-    assert.ok(animFn.includes('rotate('), 'Debe incluir rotate');
-    assert.ok(animFn.includes('scale('), 'Debe incluir scale');
-    assert.ok(animFn.includes('Math.random()'), 'Valores deben ser aleatorios');
+    assert.ok(ghostFn.includes('Math.random()'), 'Valores deben ser aleatorios');
+    assert.ok(easterEggSource.includes('translate('), 'Debe incluir translate');
+    assert.ok(easterEggSource.includes('rotate('), 'Debe incluir rotate');
+    assert.ok(easterEggSource.includes('scale('), 'Debe incluir scale');
   });
 
-  it('el overlay tiene gradiente radial oscuro', () => {
-    assert.ok(easterEggSource.includes('radial-gradient'),
-      'Overlay debe usar gradiente radial');
+  it('no tiene backdrop oscuro (transparente, deja ver el Synthi)', () => {
+    assert.ok(!easterEggSource.includes('easter-egg-backdrop'),
+      'No debe crear backdrop oscuro');
   });
 
-  it('tiene pulsos visuales sincronizados con la música', () => {
-    assert.ok(easterEggSource.includes('function scheduleVisualPulses('),
-      'Debe tener función scheduleVisualPulses');
-    assert.ok(easterEggSource.includes('scheduleVisualPulses(backdropEl, burstTimes)'),
-      'Debe llamar scheduleVisualPulses con burstTimes de la pieza');
+  it('tiene efecto atractor hacia el puntero del ratón/dedo', () => {
+    assert.ok(easterEggSource.includes('attractorX'),
+      'Debe tener estado de atractor X');
+    assert.ok(easterEggSource.includes('attractorY'),
+      'Debe tener estado de atractor Y');
+    assert.ok(easterEggSource.includes('attractorActive'),
+      'Debe tener flag de atractor activo');
+    assert.ok(easterEggSource.includes('pointermove'),
+      'Debe rastrear movimiento del puntero');
+  });
+
+  it('el influjo del atractor decae al final de la animación', () => {
+    assert.ok(easterEggSource.includes('attractorDecay'),
+      'Debe tener decay del atractor');
+  });
+
+  it('los fantasmas tienen wobble sinusoidal y espiral para movimiento orgánico', () => {
+    assert.ok(easterEggSource.includes('wFreqX'),
+      'Debe tener frecuencia de wobble X');
+    assert.ok(easterEggSource.includes('spiralR'),
+      'Debe tener radio de espiral');
   });
 
   it('las formas fantasma se infieren dinámicamente según el elemento', () => {

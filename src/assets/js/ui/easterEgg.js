@@ -5,7 +5,9 @@
  * del Synthi sincronizada con una pieza musical generada por síntesis.
  * Los elementos de la interfaz (knobs, sliders, módulos, pines) se
  * convierten en siluetas geométricas que flotan, giran, se dispersan
- * y se disuelven sobre un fondo oscuro con gradientes de color cambiante.
+ * y se disuelven con trayectorias orgánicas (wobble + espiral).
+ * El puntero del ratón (o dedo en tablet) actúa como atractor suave
+ * que influye en la trayectoria de los elementos.
  * Usa su propio AudioContext para no interferir con el sintetizador.
  *
  * Piezas disponibles:
@@ -24,9 +26,14 @@
 
 // ─── Estado ───
 let isPlaying = false;
-let backdropEl = null;
 let overlayEl = null;
 let canvasAnimId = 0;
+
+// ─── Atractor (puntero del ratón / dedo en tablet) ───
+let attractorX = -9999;
+let attractorY = -9999;
+let attractorActive = false;
+let _onKeyDown = null;    // ref para cleanup de Escape
 
 // ─── Pieza seleccionada ───
 const PIECES = {};       // se llena más abajo
@@ -809,21 +816,29 @@ function gatherGhosts() {
         ? `rgba(255,255,255,0.7)`
         : `rgba(${r},${g},${b},0.7)`,
       delay: Math.random() * 600,
-      tx: (Math.random() - 0.5) * vw * 0.7,
-      ty: (Math.random() - 0.5) * vh * 0.6,
-      rot: shape === 'dot' ? 0 : (Math.random() - 0.5) * 720,
-      sc: shape === 'dot' ? 1 : 0.3 + Math.random() * 2,
+      tx: (Math.random() - 0.5) * vw * 1.4,
+      ty: (Math.random() - 0.5) * vh * 1.2,
+      rot: shape === 'dot' ? 0 : (Math.random() - 0.5) * 1800,
+      sc: shape === 'dot' ? 1 : 0.3 + Math.random() * 2.5,
+      // Wobble sinusoidal (movimiento orgánico ondulante)
+      wFreqX: 0.4 + Math.random() * 2.5,
+      wFreqY: 0.6 + Math.random() * 2.5,
+      wAmpX: 15 + Math.random() * 120,
+      wAmpY: 15 + Math.random() * 120,
+      // Espiral (movimiento orbital)
+      spiralR: 8 + Math.random() * 70,
+      spiralSpd: (Math.random() - 0.5) * 6,
     });
   }
   return ghosts;
 }
 
 // ─── Interpolación de fases para renderizado en canvas ───
-const PHASE_OFFSETS = [0, 0.05, 0.25, 0.50, 0.85, 0.96, 1];
-const PHASE_TX_F   = [0,    0,  0.3,    1,  0.1,    0,  0];
-const PHASE_TY_F   = [0,    0,  0.3,    1,  0.1,    0,  0];
-const PHASE_ROT_F  = [0,    0,  0.2,    1, 0.05,    0,  0];
-const PHASE_ALPHA  = [0,  0.8,  0.7,  0.5,  0.7,  0.8,  0];
+const PHASE_OFFSETS = [0, 0.04, 0.18, 0.42, 0.68, 0.90, 1];
+const PHASE_TX_F   = [0,    0,  0.7,  1.0,  0.55, 0.15, 0];
+const PHASE_TY_F   = [0,    0,  0.7,  1.0,  0.55, 0.15, 0];
+const PHASE_ROT_F  = [0,    0,  0.5,  1.0,  0.85, 0.10, 0];
+const PHASE_ALPHA  = [0,  0.9,  0.85, 0.55, 0.65, 0.70, 0];
 const DEG_TO_RAD   = Math.PI / 180;
 
 function phaseScale(idx, sc) {
@@ -837,16 +852,57 @@ function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
-/** Interpola posición/rotación/escala/opacidad de un ghost en un instante. */
-function interpolateGhost(progress, ghost) {
+/** Interpola posición/rotación/escala/opacidad de un ghost en un instante.
+ *  @param {number} progress — progreso normalizado 0..1
+ *  @param {Object} ghost — datos del ghost (posición, parámetros de movimiento)
+ *  @param {number} [elapsedSec=0] — tiempo transcurrido en segundos (para wobble/espiral)
+ *  @param {number} [axTarget=0] — posición X del atractor
+ *  @param {number} [ayTarget=0] — posición Y del atractor
+ *  @param {boolean} [hasAttractor=false] — si el atractor está activo
+ */
+function interpolateGhost(progress, ghost, elapsedSec = 0, axTarget = 0, ayTarget = 0, hasAttractor = false) {
   let i = 0;
   while (i < PHASE_OFFSETS.length - 2 && PHASE_OFFSETS[i + 1] <= progress) i++;
   const segLen = PHASE_OFFSETS[i + 1] - PHASE_OFFSETS[i];
   const t = easeInOut(Math.max(0, Math.min(1, (progress - PHASE_OFFSETS[i]) / segLen)));
   const lerp = (a, b) => a + (b - a) * t;
+
+  const baseTx = lerp(PHASE_TX_F[i], PHASE_TX_F[i + 1]) * ghost.tx;
+  const baseTy = lerp(PHASE_TY_F[i], PHASE_TY_F[i + 1]) * ghost.ty;
+
+  // Envolvente para wobble/espiral: sube y baja suavemente con el progreso
+  const env = Math.sin(progress * Math.PI);
+
+  // Wobble sinusoidal — ondulación orgánica sobre la trayectoria base
+  const TAU = 6.283185;
+  const wx = (ghost.wAmpX || 0) * Math.sin(elapsedSec * (ghost.wFreqX || 0) * TAU) * env;
+  const wy = (ghost.wAmpY || 0) * Math.cos(elapsedSec * (ghost.wFreqY || 0) * TAU) * env;
+
+  // Espiral — componente orbital que añade movimiento circular
+  const sa = elapsedSec * (ghost.spiralSpd || 0);
+  const sr = (ghost.spiralR || 0) * env;
+
+  let finalTx = baseTx + wx + Math.cos(sa) * sr;
+  let finalTy = baseTy + wy + Math.sin(sa) * sr;
+
+  // Atractor: el puntero tira suavemente de los elementos hacia él
+  if (hasAttractor) {
+    const ghostCx = ghost.x + ghost.w / 2 + finalTx;
+    const ghostCy = ghost.y + ghost.h / 2 + finalTy;
+    const dx = axTarget - ghostCx;
+    const dy = ayTarget - ghostCy;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    // Fuerza inversamente proporcional a la distancia, con radio de influencia ~500px
+    const strength = Math.min(1, 400 / dist) * 0.35;
+    // El influjo decae en el último 15% para que vuelvan a su sitio
+    const attractorDecay = progress > 0.85 ? Math.max(0, 1 - (progress - 0.85) / 0.15) : 1;
+    finalTx += dx * strength * env * attractorDecay;
+    finalTy += dy * strength * env * attractorDecay;
+  }
+
   return {
-    tx: lerp(PHASE_TX_F[i], PHASE_TX_F[i + 1]) * ghost.tx,
-    ty: lerp(PHASE_TY_F[i], PHASE_TY_F[i + 1]) * ghost.ty,
+    tx: finalTx,
+    ty: finalTy,
     rot: lerp(PHASE_ROT_F[i], PHASE_ROT_F[i + 1]) * ghost.rot,
     scale: lerp(phaseScale(i, ghost.sc), phaseScale(i + 1, ghost.sc)),
     alpha: lerp(PHASE_ALPHA[i], PHASE_ALPHA[i + 1]),
@@ -884,7 +940,10 @@ function startCanvasAnimation(canvas, ghostData, durationMs) {
       const ge = elapsed - ghost.delay;
       if (ge < 0) continue;
       const progress = Math.min(ge / (durationMs - ghost.delay), 1);
-      const { tx, ty, rot, scale, alpha } = interpolateGhost(progress, ghost);
+      const elapsedSec = ge / 1000;
+      const { tx, ty, rot, scale, alpha } = interpolateGhost(
+        progress, ghost, elapsedSec, attractorX, attractorY, attractorActive
+      );
       if (alpha < 0.01) continue;
 
       const cx = ghost.x + ghost.w / 2 + tx;
@@ -930,52 +989,11 @@ function startCanvasAnimation(canvas, ghostData, durationMs) {
 }
 
 /**
- * Programa pulsos visuales en el overlay sincronizados con la pieza.
- * Cada pulso es un breve flash de brillo interior.
- * @param {HTMLElement} overlay
- * @param {number[]} burstTimes — tiempos en segundos
- */
-function scheduleVisualPulses(backdrop, burstTimes) {
-  for (let i = 0; i < burstTimes.length; i++) {
-    const t = burstTimes[i];
-    setTimeout(() => {
-      if (!backdrop || !backdrop.parentElement) return;
-      try {
-        // Pulso de opacidad en el backdrop — opacity SÍ es GPU-composited
-        backdrop.animate([
-          { opacity: 0.85 },
-          { opacity: 1 },
-          { opacity: 0.85 },
-        ], { duration: 500, easing: 'ease-out' });
-      } catch (_) { /* ignore — JSDOM */ }
-    }, t * 1000);
-  }
-}
-
-/**
- * Crea el overlay oscuro con gradiente radial y rotación de matiz animada.
+ * Crea el overlay transparente con canvas para la animación.
  * @param {number} durationMs — duración total de la animación
  */
 function createOverlay(durationMs) {
-  // ── Capa 1: Backdrop estático (sin animaciones → nunca glitchea) ──
-  const backdrop = document.createElement('div');
-  backdrop.id = 'easter-egg-backdrop';
-  backdrop.style.cssText = [
-    'position: fixed',
-    'top: 0',
-    'left: 0',
-    'width: 100vw',
-    'height: 100vh',
-    'z-index: 9998',
-    'background: radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.88), rgba(5,5,12,0.93) 70%)',
-    'opacity: 0',
-    'transition: opacity 0.8s ease-in',
-    'pointer-events: none',
-  ].join(';');
-  document.body.appendChild(backdrop);
-  backdropEl = backdrop;
-
-  // ── Capa 2: Overlay animado (fantasmas + filtros) ──
+  // Overlay transparente que captura interacción y contiene el canvas
   const overlay = document.createElement('div');
   overlay.id = 'easter-egg-overlay';
   overlay.style.cssText = [
@@ -986,7 +1004,7 @@ function createOverlay(durationMs) {
     'height: 100vh',
     'z-index: 9999',
     'background: transparent',
-    'cursor: pointer',
+    'cursor: default',
     'opacity: 0',
     'transition: opacity 0.8s ease-in',
     'pointer-events: auto',
@@ -999,7 +1017,7 @@ function createOverlay(durationMs) {
   overlay.appendChild(canvas);
 
   const hint = document.createElement('div');
-  hint.textContent = '\u{1F50A} click para cerrar';
+  hint.textContent = '\u{1F50A} doble click o Esc para cerrar';
   hint.style.cssText = [
     'position: absolute',
     'bottom: 20px',
@@ -1016,15 +1034,27 @@ function createOverlay(durationMs) {
   document.body.appendChild(overlay);
 
   // Forzar reflow para que el navegador procese opacity:0 antes de animar a 1
-  void backdrop.offsetHeight;
   void overlay.offsetHeight;
 
-  // Doble rAF para máxima compatibilidad
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      backdrop.style.opacity = '1';
       overlay.style.opacity = '1';
     });
+  });
+
+  // ── Tracking del atractor (ratón / dedo) ──
+  overlay.addEventListener('pointermove', (ev) => {
+    attractorX = ev.clientX;
+    attractorY = ev.clientY;
+    attractorActive = true;
+  });
+  overlay.addEventListener('pointerdown', (ev) => {
+    attractorX = ev.clientX;
+    attractorY = ev.clientY;
+    attractorActive = true;
+  });
+  overlay.addEventListener('pointerleave', () => {
+    attractorActive = false;
   });
 
   return { overlay, canvas };
@@ -1051,13 +1081,14 @@ function cleanup(audioCtx) {
     audioCtx.close().catch(() => {});
   }
 
-  // Fade-out y eliminar backdrop estático
-  if (backdropEl) {
-    backdropEl.style.opacity = '0';
-    const bd = backdropEl;
-    backdropEl = null;
-    setTimeout(() => { bd.remove(); }, 800);
+  // Desregistrar listener de Escape
+  if (_onKeyDown) {
+    document.removeEventListener('keydown', _onKeyDown);
+    _onKeyDown = null;
   }
+
+  // Resetear atractor
+  attractorActive = false;
 
   // Fade-out y eliminar overlay animado
   if (overlayEl) {
@@ -1076,7 +1107,7 @@ function cleanup(audioCtx) {
 /**
  * 🥚 Lanza el Easter Egg: desintegración visual + pieza musical.
  * Se puede llamar desde cualquier parte de la app.
- * Click en el overlay para cerrar antes de tiempo.
+ * Doble click en el overlay o Esc para cerrar antes de tiempo.
  *
  * @param {Object} [options]
  * @param {boolean} [options.visualOnly=false] - Si true, solo visual sin sonido
@@ -1127,18 +1158,18 @@ export async function triggerEasterEgg(options = {}) {
     const ghostData = gatherGhosts();
     startCanvasAnimation(canvas, ghostData, durationMs);
 
-    // Pulsos visuales sincronizados con la pieza (en el backdrop, no overlay)
-    scheduleVisualPulses(backdropEl, burstTimes);
-
-    // Esperar 600ms antes de escuchar click para cerrar.
-    // Esto evita que el click sintético que generan los navegadores móviles
-    // tras el último pointerup (el tap que completa la secuencia) cierre
-    // el overlay inmediatamente.
+    // Cerrar con doble click (retraso para evitar cierre accidental)
     setTimeout(() => {
       if (overlayEl) {
-        overlayEl.addEventListener('click', () => cleanup(ctx), { once: true });
+        overlayEl.addEventListener('dblclick', () => cleanup(ctx), { once: true });
       }
     }, 600);
+
+    // Cerrar con Escape
+    _onKeyDown = (ev) => {
+      if (ev.key === 'Escape') cleanup(ctx);
+    };
+    document.addEventListener('keydown', _onKeyDown);
 
     // Auto-limpieza al terminar
     setTimeout(() => {

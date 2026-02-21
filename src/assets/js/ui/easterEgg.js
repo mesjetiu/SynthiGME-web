@@ -652,19 +652,37 @@ const PALETTE = [
 ];
 
 /**
- * Selectores CSS de elementos del Synthi y su forma geométrica.
- * max: máximo de elementos a animar por selector.
+ * Selectores CSS de elementos del Synthi.
+ * Estos se buscan explícitamente. Además, `gatherGhosts` recoge
+ * TODOS los elementos visibles hijos de `.panel` que superen un
+ * tamaño mínimo, de forma que cualquier control nuevo se captura
+ * automáticamente sin necesidad de añadirlo aquí.
+ *
+ * MAX_GHOSTS limita el total de fantasmas para rendimiento GPU.
  */
-const GHOST_CONFIG = [
-  { sel: '.panel',                        shape: 'rect',   max: 7   },  // los 7 paneles principales
-  { sel: '.synth-module',                 shape: 'rect',   max: 15  },  // módulos dentro de paneles
-  { sel: '.synth-module__header',         shape: 'rect',   max: 12  },  // frames
-  { sel: '.synth-module__content',        shape: 'rect',   max: 7   },  // cuerpos de módulo
-  { sel: '.knob',                         shape: 'circle', max: 30  },  // knobs
-  { sel: '.output-channel__slider-shell', shape: 'vrect',  max: 12  },  // sliders
-  { sel: '.panel7-joystick-pad',          shape: 'circle', max: 4   },  // pads
-  { sel: '.panel7-seq-button',            shape: 'dot',    max: 8   },  // botones seq
-];
+const MAX_GHOSTS = 120;
+
+/**
+ * Determina la forma de un fantasma según las dimensiones y clases del elemento.
+ * @param {Element} el
+ * @param {DOMRect} rect
+ * @returns {'circle'|'dot'|'rect'}
+ */
+function inferShape(el, rect) {
+  const ratio = rect.width / (rect.height || 1);
+  const size = Math.max(rect.width, rect.height);
+  // Elementos explícitamente circulares
+  if (el.classList.contains('knob') || el.classList.contains('knob-inner') ||
+      el.classList.contains('panel7-joystick-pad')) {
+    return 'circle';
+  }
+  // Cuadrado pequeño y casi 1:1 → dot
+  if (size < 20 && ratio > 0.7 && ratio < 1.4) return 'dot';
+  // Cuadrado mediano y casi 1:1 → circle
+  if (size < 60 && ratio > 0.7 && ratio < 1.4) return 'circle';
+  // Todo lo demás → rect
+  return 'rect';
+}
 
 /**
  * Crea un elemento «fantasma» — silueta geométrica con glow —
@@ -693,37 +711,79 @@ function createGhostEl(rect, shape, colorIdx) {
 }
 
 /**
- * Recoge elementos visibles del DOM del Synthi y crea fantasmas
- * geométricos dentro del overlay.
+ * Recoge TODOS los elementos visibles dentro de los paneles del Synthi
+ * y crea fantasmas geométricos dentro del overlay.
+ *
+ * Estrategia dinámica: recorre los hijos de cada `.panel` (y el panel
+ * mismo) buscando elementos con tamaño real (>3px). No depende de
+ * selectores fijos — cualquier control nuevo en un panel se captura
+ * automáticamente. Limitado a MAX_GHOSTS para rendimiento GPU.
  */
 function gatherGhosts(container) {
-  const ghosts = [];
-  let colorIdx = 0;
+  const MIN_SIZE = 3;   // px mínimo para considerar un elemento
+  const candidates = [];
 
-  for (const { sel, shape, max } of GHOST_CONFIG) {
-    let elements = [...document.querySelectorAll(sel)];
+  // 1. Los propios paneles (cuadrados grandes)
+  for (const panel of document.querySelectorAll('.panel')) {
+    const r = panel.getBoundingClientRect();
+    if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
+      candidates.push({ el: panel, rect: r, depth: 0 });
+    }
+  }
 
-    // Solo elementos con tamaño real (visibles)
-    elements = elements.filter(el => {
-      const r = el.getBoundingClientRect();
-      return r.width > 1 && r.height > 1;
-    });
+  // 2. Todos los elementos visibles dentro de cada panel
+  //    Recorremos TODOS los hijos con querySelectorAll('*') y filtramos
+  //    por tamaño. Excluimos elementos de infraestructura (canvas, svg internos,
+  //    tooltips, menus) que no tienen sentido visual como fantasma.
+  const EXCLUDE = new Set(['CANVAS', 'SVG', 'PATH', 'CIRCLE', 'RECT', 'LINE',
+    'POLYLINE', 'POLYGON', 'TEXT', 'TSPAN', 'BR', 'SCRIPT', 'STYLE', 'LINK']);
 
-    // Limitar cantidad por muestreo aleatorio (Fisher-Yates parcial)
-    if (elements.length > max) {
-      for (let i = elements.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [elements[i], elements[j]] = [elements[j], elements[i]];
+  for (const panel of document.querySelectorAll('.panel')) {
+    const children = panel.querySelectorAll('*');
+    for (const child of children) {
+      // Excluir SVG/canvas internals, tooltips, menús contextuales
+      if (EXCLUDE.has(child.tagName)) continue;
+      if (child.closest('.tooltip, .context-menu, [role="tooltip"]')) continue;
+
+      const r = child.getBoundingClientRect();
+      if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
+        // Depth: paneles=0, módulos=1, controles=2+
+        const depth = child.closest('.synth-module__content, .synth-module__controls')
+          ? 2 : child.closest('.synth-module') ? 1 : 0;
+        candidates.push({ el: child, rect: r, depth });
       }
-      elements = elements.slice(0, max);
     }
+  }
 
-    for (const el of elements) {
-      const rect = el.getBoundingClientRect();
-      const ghost = createGhostEl(rect, shape, colorIdx++);
-      container.appendChild(ghost);
-      ghosts.push(ghost);
+  // 3. Muestreo aleatorio si excede MAX_GHOSTS, pero asegurando diversidad:
+  //    siempre incluir los paneles (depth 0) y una buena muestra de cada nivel.
+  let selected = candidates;
+  if (candidates.length > MAX_GHOSTS) {
+    // Separar por profundidad
+    const d0 = candidates.filter(c => c.depth === 0);
+    const d1 = candidates.filter(c => c.depth === 1);
+    const d2 = candidates.filter(c => c.depth >= 2);
+
+    // Siempre todos los paneles y módulos (son pocos)
+    const fixed = [...d0, ...d1];
+    const remaining = MAX_GHOSTS - fixed.length;
+
+    // Fisher-Yates parcial para los controles
+    for (let i = d2.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [d2[i], d2[j]] = [d2[j], d2[i]];
     }
+    selected = [...fixed, ...d2.slice(0, Math.max(remaining, 0))];
+  }
+
+  // 4. Crear fantasmas
+  const ghosts = [];
+  for (let i = 0; i < selected.length; i++) {
+    const { el, rect } = selected[i];
+    const shape = inferShape(el, rect);
+    const ghost = createGhostEl(rect, shape, i);
+    container.appendChild(ghost);
+    ghosts.push(ghost);
   }
 
   return ghosts;

@@ -225,6 +225,7 @@ export class LargeMatrix {
         flashPinGlow(btn);
       } else {
         this._removePinColorClasses(btn);
+        flashPinGlow(btn);
         // Limpiar color guardado al desactivar
         this._pinColors.delete(`${rowIndex}:${colIndex}`);
       }
@@ -614,15 +615,18 @@ export class LargeMatrix {
           if (allow) {
             btn.classList.add('active');
             this._applyPinColorClass(btn, effectiveColor);
-            flashPinGlow(btn);
           }
         } else {
           btn.classList.add('active');
           this._applyPinColorClass(btn, effectiveColor);
-          flashPinGlow(btn);
         }
       }
     });
+
+    // Flash en TODOS los pins visibles: cada pin recibió un valor programático
+    // (los activos se activaron, los inactivos se confirmaron en 0)
+    const allVisible = this.table.querySelectorAll('button.pin-btn:not(.is-hidden-pin):not(:disabled)');
+    allVisible.forEach(btn => flashPinGlow(btn));
   }
   
   /**
@@ -643,6 +647,7 @@ export class LargeMatrix {
       }
       btn.classList.remove('active');
       this._removePinColorClasses(btn);
+      flashPinGlow(btn);
     });
   }
   

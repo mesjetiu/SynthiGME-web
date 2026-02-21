@@ -811,10 +811,10 @@ function gatherGhosts() {
       shape,
       fillStyle: isPin
         ? `rgba(${r},${g},${b},0.95)`
-        : `rgba(${r},${g},${b},0.55)`,
+        : `rgba(${r},${g},${b},0.80)`,
       strokeStyle: isPin
-        ? `rgba(255,255,255,0.7)`
-        : `rgba(${r},${g},${b},0.7)`,
+        ? `rgba(255,255,255,0.8)`
+        : `rgba(${r},${g},${b},0.85)`,
       delay: Math.random() * 600,
       tx: (Math.random() - 0.5) * vw * 1.4,
       ty: (Math.random() - 0.5) * vh * 1.2,
@@ -834,12 +834,13 @@ function gatherGhosts() {
 }
 
 // ─── Interpolación de fases para renderizado en canvas ───
-const PHASE_OFFSETS = [0, 0.04, 0.18, 0.42, 0.68, 0.90, 1];
-const PHASE_TX_F   = [0,    0,  0.7,  1.0,  0.55, 0.15, 0];
-const PHASE_TY_F   = [0,    0,  0.7,  1.0,  0.55, 0.15, 0];
-const PHASE_ROT_F  = [0,    0,  0.5,  1.0,  0.85, 0.10, 0];
-const PHASE_ALPHA  = [0,  0.9,  0.85, 0.55, 0.65, 0.70, 0];
+const PHASE_OFFSETS = [0, 0.03, 0.14, 0.36, 0.60, 0.80, 0.85, 1];
+const PHASE_TX_F   = [0,    0,  0.7,  1.0, 0.55, 0.10,    0, 0];
+const PHASE_TY_F   = [0,    0,  0.7,  1.0, 0.55, 0.10,    0, 0];
+const PHASE_ROT_F  = [0,    0,  0.5,  1.0, 0.85, 0.10,    0, 0];
+const PHASE_ALPHA  = [1,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 1];
 const DEG_TO_RAD   = Math.PI / 180;
+const FADE_OUT_MS  = 6000;  // duración del fade-out final (tras la música)
 
 function phaseScale(idx, sc) {
   if (idx === 2) return 0.7 + sc * 0.2;
@@ -853,14 +854,13 @@ function easeInOut(t) {
 }
 
 /** Interpola posición/rotación/escala/opacidad de un ghost en un instante.
+ *  Función pura: solo depende de progress, ghost y tiempo.
+ *  El atractor se aplica externamente en el bucle de animación.
  *  @param {number} progress — progreso normalizado 0..1
  *  @param {Object} ghost — datos del ghost (posición, parámetros de movimiento)
  *  @param {number} [elapsedSec=0] — tiempo transcurrido en segundos (para wobble/espiral)
- *  @param {number} [axTarget=0] — posición X del atractor
- *  @param {number} [ayTarget=0] — posición Y del atractor
- *  @param {boolean} [hasAttractor=false] — si el atractor está activo
  */
-function interpolateGhost(progress, ghost, elapsedSec = 0, axTarget = 0, ayTarget = 0, hasAttractor = false) {
+function interpolateGhost(progress, ghost, elapsedSec = 0) {
   let i = 0;
   while (i < PHASE_OFFSETS.length - 2 && PHASE_OFFSETS[i + 1] <= progress) i++;
   const segLen = PHASE_OFFSETS[i + 1] - PHASE_OFFSETS[i];
@@ -882,23 +882,8 @@ function interpolateGhost(progress, ghost, elapsedSec = 0, axTarget = 0, ayTarge
   const sa = elapsedSec * (ghost.spiralSpd || 0);
   const sr = (ghost.spiralR || 0) * env;
 
-  let finalTx = baseTx + wx + Math.cos(sa) * sr;
-  let finalTy = baseTy + wy + Math.sin(sa) * sr;
-
-  // Atractor: el puntero tira suavemente de los elementos hacia él
-  if (hasAttractor) {
-    const ghostCx = ghost.x + ghost.w / 2 + finalTx;
-    const ghostCy = ghost.y + ghost.h / 2 + finalTy;
-    const dx = axTarget - ghostCx;
-    const dy = ayTarget - ghostCy;
-    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    // Fuerza inversamente proporcional a la distancia, con radio de influencia ~500px
-    const strength = Math.min(1, 400 / dist) * 0.35;
-    // El influjo decae en el último 15% para que vuelvan a su sitio
-    const attractorDecay = progress > 0.85 ? Math.max(0, 1 - (progress - 0.85) / 0.15) : 1;
-    finalTx += dx * strength * env * attractorDecay;
-    finalTy += dy * strength * env * attractorDecay;
-  }
+  const finalTx = baseTx + wx + Math.cos(sa) * sr;
+  const finalTy = baseTy + wy + Math.sin(sa) * sr;
 
   return {
     tx: finalTx,
@@ -917,8 +902,9 @@ function interpolateGhost(progress, ghost, elapsedSec = 0, axTarget = 0, ayTarge
  * @param {HTMLCanvasElement} canvas
  * @param {Array} ghostData — datos devueltos por gatherGhosts()
  * @param {number} durationMs
+ * @param {HTMLElement} overlay — overlay contenedor (para animar su fondo)
  */
-function startCanvasAnimation(canvas, ghostData, durationMs) {
+function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
   const ctx2d = canvas.getContext('2d');
   if (!ctx2d) return; // JSDOM
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -928,31 +914,123 @@ function startCanvasAnimation(canvas, ghostData, durationMs) {
   canvas.height = h * dpr;
   ctx2d.scale(dpr, dpr);
 
+  // Inicializar estado de física por ghost (velocidad + offset acumulado)
+  for (const ghost of ghostData) {
+    ghost.vx = 0;  // velocidad X (px/s)
+    ghost.vy = 0;  // velocidad Y (px/s)
+    ghost.ox = 0;  // offset acumulado X (px)
+    ghost.oy = 0;  // offset acumulado Y (px)
+    // Dirección aleatoria de drift (dispersión sin atractor)
+    ghost.driftAngle = Math.random() * 6.283185;
+    ghost.driftSpeed = 40 + Math.random() * 80; // px/s de empuje base
+  }
+
   const startTime = performance.now();
+  let prevTime = startTime;
+  const totalMs = durationMs + FADE_OUT_MS;
+  const fadeInMs = 1000;  // 1s de fade-in al inicio
 
   function frame(now) {
+    const dt = Math.min((now - prevTime) / 1000, 0.05); // delta en seg, cap a 50ms
+    prevTime = now;
     const elapsed = now - startTime;
-    if (elapsed >= durationMs || !canvas.parentElement) return;
+    if (elapsed >= totalMs || !canvas.parentElement) return;
 
     ctx2d.clearRect(0, 0, w, h);
+
+    // ── Fade global: in al inicio, out tras la música ──
+    let globalFade;
+    if (elapsed < fadeInMs) {
+      globalFade = elapsed / fadeInMs;
+    } else if (elapsed > durationMs) {
+      globalFade = Math.max(0, 1 - (elapsed - durationMs) / FADE_OUT_MS);
+    } else {
+      globalFade = 1;
+    }
+    // Fondo del overlay sincronizado con el fade global
+    overlay.style.background = `rgba(5, 5, 15, ${globalFade.toFixed(3)})`;
 
     for (const ghost of ghostData) {
       const ge = elapsed - ghost.delay;
       if (ge < 0) continue;
+      // Progress solo sobre la duración de la música (no el fade-out extra)
       const progress = Math.min(ge / (durationMs - ghost.delay), 1);
       const elapsedSec = ge / 1000;
       const { tx, ty, rot, scale, alpha } = interpolateGhost(
-        progress, ghost, elapsedSec, attractorX, attractorY, attractorActive
+        progress, ghost, elapsedSec
       );
-      if (alpha < 0.01) continue;
 
-      const cx = ghost.x + ghost.w / 2 + tx;
-      const cy = ghost.y + ghost.h / 2 + ty;
+      // ── Atractor físico: arrastre con velocidad acumulada ──
+      // Fuerza suave que afecta también a elementos lejanos.
+      // La velocidad se acumula en el tiempo → se puede "arrastrar" con el cursor.
+      const attractorDecay = progress > 0.85
+        ? Math.max(0, 1 - (progress - 0.85) / 0.15) : 1;
+
+      if (attractorActive && attractorDecay > 0 && dt > 0) {
+        const ghostCx = ghost.x + ghost.w / 2 + tx + ghost.ox;
+        const ghostCy = ghost.y + ghost.h / 2 + ty + ghost.oy;
+        const dx = attractorX - ghostCx;
+        const dy = attractorY - ghostCy;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        // Fuerza agresiva: componente proporcional + componente inversa
+        // Cercanos: tirón fuerte. Lejanos: tirón creciente con el tiempo.
+        // A dist=0 → ~4000 px/s², dist=200 → ~2600, dist=800 → ~1000
+        const strength = 4000;
+        const range = 500;
+        const force = strength / (1 + dist / range);
+        // Componente lineal extra: empuja lejanos proporcionalmente a distancia
+        const linearPull = 1.5; // px/s² por px de distancia
+        const totalForceX = (dx / dist) * force + dx * linearPull;
+        const totalForceY = (dy / dist) * force + dy * linearPull;
+        ghost.vx += totalForceX * dt * attractorDecay;
+        ghost.vy += totalForceY * dt * attractorDecay;
+      }
+
+      // Sin atractor: dispersión aleatoria continua (drift)
+      if (!attractorActive && dt > 0 && attractorDecay > 0) {
+        // Rotar lentamente el ángulo de drift → trayectorias curvas
+        ghost.driftAngle += (Math.random() - 0.5) * 2.0 * dt;
+        const driftForce = ghost.driftSpeed * (1 + progress * 2); // acelera con el tiempo
+        ghost.vx += Math.cos(ghost.driftAngle) * driftForce * dt;
+        ghost.vy += Math.sin(ghost.driftAngle) * driftForce * dt;
+      }
+
+      // Damping: suave con atractor (inercia), medio sin él (deja que se dispersen)
+      const dampFactor = attractorActive ? 0.97 : 0.92;
+      ghost.vx *= Math.pow(dampFactor, dt * 60);
+      ghost.vy *= Math.pow(dampFactor, dt * 60);
+
+      // Integrar offset acumulado
+      ghost.ox += ghost.vx * dt;
+      ghost.oy += ghost.vy * dt;
+
+      // Limitar offset máximo para evitar que se pierdan fuera de pantalla
+      const maxOffset = 2000;
+      const offsetDist = Math.sqrt(ghost.ox * ghost.ox + ghost.oy * ghost.oy);
+      if (offsetDist > maxOffset) {
+        const clamp = maxOffset / offsetDist;
+        ghost.ox *= clamp;
+        ghost.oy *= clamp;
+      }
+
+      // Al final de la animación, devolver suavemente a posición base
+      if (attractorDecay < 1) {
+        ghost.ox *= attractorDecay;
+        ghost.oy *= attractorDecay;
+        ghost.vx *= attractorDecay;
+        ghost.vy *= attractorDecay;
+      }
+
+      const finalAlpha = alpha * globalFade;
+      if (finalAlpha < 0.01) continue;
+
+      const cx = ghost.x + ghost.w / 2 + tx + ghost.ox;
+      const cy = ghost.y + ghost.h / 2 + ty + ghost.oy;
       const hw = ghost.w / 2;
       const hh = ghost.h / 2;
 
       ctx2d.save();
-      ctx2d.globalAlpha = alpha;
+      ctx2d.globalAlpha = finalAlpha;
       ctx2d.translate(cx, cy);
       ctx2d.rotate(rot * DEG_TO_RAD);
       ctx2d.scale(scale, scale);
@@ -1003,7 +1081,7 @@ function createOverlay(durationMs) {
     'width: 100vw',
     'height: 100vh',
     'z-index: 9999',
-    'background: transparent',
+    'background: rgba(5, 5, 15, 0)',
     'cursor: default',
     'opacity: 0',
     'transition: opacity 0.8s ease-in',
@@ -1042,18 +1120,31 @@ function createOverlay(durationMs) {
     });
   });
 
-  // ── Tracking del atractor (ratón / dedo) ──
+  // ── Tracking del atractor (solo al arrastrar: click+move / touch drag) ──
+  let pointerIsDown = false;
+  overlay.addEventListener('pointerdown', (ev) => {
+    pointerIsDown = true;
+    attractorX = ev.clientX;
+    attractorY = ev.clientY;
+    attractorActive = true;
+    overlay.setPointerCapture(ev.pointerId);
+  });
   overlay.addEventListener('pointermove', (ev) => {
+    if (!pointerIsDown) return;  // sin click/touch → sin atracción
     attractorX = ev.clientX;
     attractorY = ev.clientY;
     attractorActive = true;
   });
-  overlay.addEventListener('pointerdown', (ev) => {
-    attractorX = ev.clientX;
-    attractorY = ev.clientY;
-    attractorActive = true;
+  overlay.addEventListener('pointerup', () => {
+    pointerIsDown = false;
+    attractorActive = false;
   });
   overlay.addEventListener('pointerleave', () => {
+    pointerIsDown = false;
+    attractorActive = false;
+  });
+  overlay.addEventListener('pointercancel', () => {
+    pointerIsDown = false;
     attractorActive = false;
   });
 
@@ -1156,7 +1247,7 @@ export async function triggerEasterEgg(options = {}) {
     overlayEl = overlay;
 
     const ghostData = gatherGhosts();
-    startCanvasAnimation(canvas, ghostData, durationMs);
+    startCanvasAnimation(canvas, ghostData, durationMs, overlay);
 
     // Cerrar con doble click (retraso para evitar cierre accidental)
     setTimeout(() => {
@@ -1171,10 +1262,10 @@ export async function triggerEasterEgg(options = {}) {
     };
     document.addEventListener('keydown', _onKeyDown);
 
-    // Auto-limpieza al terminar
+    // Auto-limpieza al terminar (música + fade-out visual)
     setTimeout(() => {
       if (isPlaying) cleanup(ctx);
-    }, (totalDurationSec + 1.5) * 1000);
+    }, (totalDurationSec + FADE_OUT_MS / 1000 + 1.5) * 1000);
 
   } catch (err) {
     console.error('[EasterEgg] Error:', err);

@@ -702,6 +702,7 @@ function inferShape(el, rect) {
  * @returns {Array<{x,y,w,h,shape,fillStyle,strokeStyle,delay,tx,ty,rot,sc}>}
  */
 const MAX_GHOSTS = 2000;
+const MAX_PINS = 50;   // pines simbólicos (hay cientos, solo unos pocos)
 
 function gatherGhosts() {
   const MIN_SIZE = 1;
@@ -726,7 +727,6 @@ function gatherGhosts() {
   // ── Selector de controles internos (dentro de módulos) ──
   const CONTROL_SEL = [
     '.knob',
-    '.pin-btn',
     '.output-channel__slider-shell',
     '.panel7-joystick-pad',
     '.panel7-seq-button',
@@ -779,6 +779,23 @@ function gatherGhosts() {
     if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
       candidates.push({ el, rect: r, priority: 2 });
     }
+  }
+
+  // 5. Pines simbólicos (solo un muestreo, no todos)
+  const allPins = [...document.querySelectorAll('.pin-btn')].filter(el => {
+    if (EXCLUDE_TAGS.has(el.tagName)) return false;
+    if (el.closest('.tooltip, [role="tooltip"]')) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > MIN_SIZE && r.height > MIN_SIZE;
+  });
+  // Fisher-Yates para muestreo aleatorio de pines
+  for (let i = allPins.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allPins[i], allPins[j]] = [allPins[j], allPins[i]];
+  }
+  for (const el of allPins.slice(0, MAX_PINS)) {
+    const r = el.getBoundingClientRect();
+    candidates.push({ el, rect: r, priority: 3 });
   }
 
   // Limitar si excede MAX_GHOSTS: siempre paneles/notas/módulos, muestreo de controles
@@ -920,9 +937,12 @@ function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
     ghost.vy = 0;  // velocidad Y (px/s)
     ghost.ox = 0;  // offset acumulado X (px)
     ghost.oy = 0;  // offset acumulado Y (px)
+    // Masa proporcional al área: elementos grandes = más inercia
+    const area = ghost.w * ghost.h;
+    ghost.mass = 0.5 + Math.sqrt(area) / 40; // ~0.5 (pines) a ~5+ (paneles)
     // Dirección aleatoria de drift (dispersión sin atractor)
     ghost.driftAngle = Math.random() * 6.283185;
-    ghost.driftSpeed = 40 + Math.random() * 80; // px/s de empuje base
+    ghost.driftSpeed = 200 + Math.random() * 300; // px/s de empuje base
   }
 
   const startTime = performance.now();
@@ -982,23 +1002,28 @@ function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
         const linearPull = 1.5; // px/s² por px de distancia
         const totalForceX = (dx / dist) * force + dx * linearPull;
         const totalForceY = (dy / dist) * force + dy * linearPull;
-        ghost.vx += totalForceX * dt * attractorDecay;
-        ghost.vy += totalForceY * dt * attractorDecay;
+        // F = ma → a = F/m : elementos grandes aceleran menos
+        ghost.vx += (totalForceX / ghost.mass) * dt * attractorDecay;
+        ghost.vy += (totalForceY / ghost.mass) * dt * attractorDecay;
       }
 
       // Sin atractor: dispersión aleatoria continua (drift)
       if (!attractorActive && dt > 0 && attractorDecay > 0) {
         // Rotar lentamente el ángulo de drift → trayectorias curvas
-        ghost.driftAngle += (Math.random() - 0.5) * 2.0 * dt;
-        const driftForce = ghost.driftSpeed * (1 + progress * 2); // acelera con el tiempo
-        ghost.vx += Math.cos(ghost.driftAngle) * driftForce * dt;
-        ghost.vy += Math.sin(ghost.driftAngle) * driftForce * dt;
+        ghost.driftAngle += (Math.random() - 0.5) * 2.5 * dt;
+        const driftForce = ghost.driftSpeed * (1 + progress * 5); // acelera rápido
+        // Elementos pequeños se dispersan más rápido (F/m)
+        ghost.vx += (Math.cos(ghost.driftAngle) * driftForce / ghost.mass) * dt;
+        ghost.vy += (Math.sin(ghost.driftAngle) * driftForce / ghost.mass) * dt;
       }
 
-      // Damping: suave con atractor (inercia), medio sin él (deja que se dispersen)
-      const dampFactor = attractorActive ? 0.97 : 0.92;
-      ghost.vx *= Math.pow(dampFactor, dt * 60);
-      ghost.vy *= Math.pow(dampFactor, dt * 60);
+      // Damping: elementos grandes frenan menos (más inercia)
+      // Base suave → casi sin fricción para dispersión libre
+      const baseDamp = attractorActive ? 0.97 : 0.975;
+      // Elementos pesados: damping más cercano a 1 (menos frenado)
+      const massDamp = Math.min(baseDamp + (ghost.mass - 1) * 0.004, 0.995);
+      ghost.vx *= Math.pow(massDamp, dt * 60);
+      ghost.vy *= Math.pow(massDamp, dt * 60);
 
       // Integrar offset acumulado
       ghost.ox += ghost.vx * dt;

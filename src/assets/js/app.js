@@ -6355,7 +6355,7 @@ class App {
  * Para desactivar el tiempo mínimo, establecer en 0.
  * ═══════════════════════════════════════════════════════════════════════════
  */
-const SPLASH_MIN_DISPLAY_MS = 3200;
+const SPLASH_MIN_DISPLAY_MS = 0;
 
 /**
  * Oculta el splash screen con una transición suave.

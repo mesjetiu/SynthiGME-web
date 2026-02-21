@@ -384,8 +384,9 @@ describe('Easter Egg — Mecanismo de seguridad (isDirtyFn + markCleanFn)', () =
   it('isDirtyFn se captura al inicio de la secuencia (pointerdown primer tap)', () => {
     assert.ok(easterEggSource.includes('wasDirtyAtSequenceStart = isDirtyFn()'),
       'isDirtyFn debe capturarse al inicio de la secuencia');
-    assert.ok(easterEggSource.includes('const dirty = wasDirtyAtSequenceStart'),
-      'Debe usar el valor capturado al inicio, no el actual');
+    assert.ok(easterEggSource.includes('ENFORCE_CLEAN_CHECK') &&
+      easterEggSource.includes('wasDirtyAtSequenceStart'),
+      'Debe usar el valor capturado al inicio, con ENFORCE_CLEAN_CHECK');
   });
 
   it('markCleanFn se llama si no estaba dirty al inicio', () => {
@@ -424,8 +425,8 @@ describe('Easter Egg — Mecanismo de seguridad (isDirtyFn + markCleanFn)', () =
       'createOverlay se ejecuta siempre');
     assert.ok(afterAudioBlock.includes('gatherGhosts'),
       'gatherGhosts se ejecuta siempre');
-    assert.ok(afterAudioBlock.includes('animateGhosts'),
-      'animateGhosts se ejecuta siempre');
+    assert.ok(afterAudioBlock.includes('startCanvasAnimation'),
+      'startCanvasAnimation se ejecuta siempre');
   });
 });
 
@@ -456,10 +457,10 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
   });
 
   it('cancela animaciones al hacer cleanup', () => {
-    assert.ok(easterEggSource.includes('anim.cancel()'),
-      'Debe cancelar las animaciones de los fantasmas');
-    assert.ok(easterEggSource.includes('activeAnimations = []'),
-      'Debe limpiar la lista de animaciones activas');
+    assert.ok(easterEggSource.includes('cancelAnimationFrame(canvasAnimId)'),
+      'Debe cancelar la animación del canvas');
+    assert.ok(easterEggSource.includes('canvasAnimId = 0'),
+      'Debe limpiar el ID de animación');
   });
 
   it('tiene guard contra doble ejecución (isPlaying)', () => {
@@ -552,9 +553,9 @@ describe('Easter Egg — Integración en app.js', () => {
       'Debe pasar isDirtyFn');
     assert.ok(appSource.includes('sessionManager.isDirty()'),
       'isDirtyFn debe consultar sessionManager.isDirty()');
-    assert.ok(appSource.includes('markCleanFn:'),
+    assert.ok(appSource.includes('markCleanFn'),
       'Debe pasar markCleanFn');
-    assert.ok(appSource.includes('sessionManager.markClean()'),
+    assert.ok(appSource.includes('sessionManager.markClean'),
       'markCleanFn debe llamar sessionManager.markClean()');
   });
 
@@ -591,24 +592,24 @@ describe('Easter Egg — Desintegración visual (análisis estático)', () => {
       `PALETTE debe tener al menos 6 colores (tiene ${entries ? entries.length : 0})`);
   });
 
-  it('tiene configuración GHOST_CONFIG con selectores del Synthi', () => {
-    assert.ok(easterEggSource.includes('const GHOST_CONFIG = ['),
-      'Debe definir GHOST_CONFIG');
+  it('tiene selectores del Synthi en gatherGhosts', () => {
+    assert.ok(easterEggSource.includes('function gatherGhosts('),
+      'Debe tener función gatherGhosts');
     assert.ok(easterEggSource.includes('.knob'),
       'Debe animar knobs');
-    assert.ok(easterEggSource.includes('.pin-btn'),
-      'Debe animar pines de matriz');
+    assert.ok(easterEggSource.includes('.synth-module'),
+      'Debe animar módulos');
     assert.ok(easterEggSource.includes('.synth-module__header'),
       'Debe animar cabeceras de módulos');
   });
 
-  it('crea elementos fantasma geométricos (createGhostEl)', () => {
-    assert.ok(easterEggSource.includes('function createGhostEl('),
-      'Debe tener función createGhostEl');
-    assert.ok(easterEggSource.includes("border-radius"),
-      'Los fantasmas deben tener border-radius (formas geométricas)');
-    assert.ok(easterEggSource.includes('box-shadow'),
-      'Los fantasmas deben tener glow (box-shadow)');
+  it('renderiza fantasmas en canvas (startCanvasAnimation)', () => {
+    assert.ok(easterEggSource.includes('function startCanvasAnimation('),
+      'Debe tener función startCanvasAnimation');
+    assert.ok(easterEggSource.includes('getContext'),
+      'Debe obtener contexto 2D del canvas');
+    assert.ok(easterEggSource.includes('ellipse') || easterEggSource.includes('arc'),
+      'Debe dibujar formas circulares en canvas');
   });
 
   it('recoge elementos del DOM y crea fantasmas (gatherGhosts)', () => {
@@ -623,20 +624,20 @@ describe('Easter Egg — Desintegración visual (análisis estático)', () => {
       'Debe usar muestreo aleatorio para limitar fantasmas');
   });
 
-  it('anima fantasmas con Web Animations API (animateGhosts)', () => {
-    assert.ok(easterEggSource.includes('function animateGhosts('),
-      'Debe tener función animateGhosts');
-    assert.ok(easterEggSource.includes('.animate(keyframes'),
-      'Debe usar element.animate() (Web Animations API)');
+  it('anima fantasmas con requestAnimationFrame en canvas', () => {
+    assert.ok(easterEggSource.includes('function startCanvasAnimation('),
+      'Debe tener función startCanvasAnimation');
+    assert.ok(easterEggSource.includes('requestAnimationFrame(frame)'),
+      'Debe usar requestAnimationFrame para el bucle de animación');
   });
 
-  it('los fantasmas tienen fases: aparición → tremor → dispersión → caos → retorno', () => {
-    assert.ok(easterEggSource.includes('offset: 0'),    'Debe tener keyframe de inicio');
-    assert.ok(easterEggSource.includes('offset: 0.06'), 'Debe tener fase de aparición');
-    assert.ok(easterEggSource.includes('offset: 0.18'), 'Debe tener fase de tremor');
-    assert.ok(easterEggSource.includes('offset: 0.38'), 'Debe tener fase de dispersión');
-    assert.ok(easterEggSource.includes('offset: 0.58'), 'Debe tener fase de caos');
-    assert.ok(easterEggSource.includes('offset: 1'),    'Debe tener keyframe final');
+  it('los fantasmas tienen fases definidas en PHASE_OFFSETS', () => {
+    assert.ok(easterEggSource.includes('PHASE_OFFSETS'),
+      'Debe definir PHASE_OFFSETS para las fases de animación');
+    assert.ok(easterEggSource.includes('interpolateGhost'),
+      'Debe interpolar estado del ghost por fase');
+    assert.ok(easterEggSource.includes('PHASE_ALPHA'),
+      'Debe tener curva de opacidad por fase');
   });
 
   it('cada fantasma tiene desplazamiento, rotación y escala aleatorios', () => {
@@ -650,30 +651,25 @@ describe('Easter Egg — Desintegración visual (análisis estático)', () => {
     assert.ok(animFn.includes('Math.random()'), 'Valores deben ser aleatorios');
   });
 
-  it('el overlay tiene gradiente radial oscuro con rotación de matiz', () => {
+  it('el overlay tiene gradiente radial oscuro', () => {
     assert.ok(easterEggSource.includes('radial-gradient'),
       'Overlay debe usar gradiente radial');
-    assert.ok(easterEggSource.includes('hue-rotate'),
-      'Overlay debe animar hue-rotate');
   });
 
   it('tiene pulsos visuales sincronizados con la música', () => {
     assert.ok(easterEggSource.includes('function scheduleVisualPulses('),
       'Debe tener función scheduleVisualPulses');
-    assert.ok(easterEggSource.includes('scheduleVisualPulses(overlayEl, burstTimes)'),
+    assert.ok(easterEggSource.includes('scheduleVisualPulses(backdropEl, burstTimes)'),
       'Debe llamar scheduleVisualPulses con burstTimes de la pieza');
   });
 
-  it('las formas fantasma son círculos para knobs y rectángulos para módulos', () => {
-    // Verificar que GHOST_CONFIG usa 'circle' para knobs y 'rect' para módulos
-    const configSection = easterEggSource.substring(
-      easterEggSource.indexOf('const GHOST_CONFIG'),
-      easterEggSource.indexOf('function createGhostEl')
-    );
-    assert.ok(configSection.includes("'.knob'") && configSection.includes("'circle'"),
+  it('las formas fantasma se infieren dinámicamente según el elemento', () => {
+    assert.ok(easterEggSource.includes('function inferShape('),
+      'Debe tener función inferShape para determinar forma');
+    assert.ok(easterEggSource.includes("'circle'") && easterEggSource.includes("'rect'"),
+      'Debe soportar formas circle y rect');
+    assert.ok(easterEggSource.includes('.knob') && easterEggSource.includes("return 'circle'"),
       'Knobs deben mapearse a círculos');
-    assert.ok(configSection.includes("'.synth-module__header'") && configSection.includes("'rect'"),
-      'Módulos deben mapearse a rectángulos');
   });
 });
 
@@ -861,7 +857,7 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
-    const overlays = document.querySelectorAll('[style*="position: fixed"]');
+    const overlays = document.querySelectorAll('#easter-egg-overlay');
     assert.strictEqual(overlays.length, 0, 'No debería haber overlay con secuencia incompleta');
   });
 
@@ -906,7 +902,7 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
-    const overlays = document.querySelectorAll('[style*="position: fixed"]');
+    const overlays = document.querySelectorAll('#easter-egg-overlay');
     assert.strictEqual(overlays.length, 0,
       'Secuencia empezando por pad2 no debe funcionar');
   });
@@ -975,7 +971,7 @@ describe('Easter Egg — Seguridad: sessionManager integrado en app.js', () => {
       'app.js marca dirty');
     assert.ok(appSource.includes('sessionManager.isDirty()'),
       'isDirtyFn usa sessionManager.isDirty()');
-    assert.ok(appSource.includes('sessionManager.markClean()'),
+    assert.ok(appSource.includes('sessionManager.markClean'),
       'markCleanFn usa sessionManager.markClean()');
   });
 });

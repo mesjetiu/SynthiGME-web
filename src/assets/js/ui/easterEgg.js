@@ -26,7 +26,7 @@
 let isPlaying = false;
 let backdropEl = null;
 let overlayEl = null;
-let activeAnimations = [];
+let canvasAnimId = 0;
 
 // ─── Pieza seleccionada ───
 const PIECES = {};       // se llena más abajo
@@ -680,31 +680,8 @@ function inferShape(el, rect) {
 }
 
 /**
- * Crea un elemento «fantasma» — silueta geométrica con glow —
- * en la posición de un elemento real del Synthi, dentro del overlay.
- */
-function createGhostEl(rect, shape, colorIdx) {
-  const el = document.createElement('div');
-  const [r, g, b] = PALETTE[colorIdx % PALETTE.length];
-
-  el.style.cssText = [
-    'position: fixed',
-    `left: ${rect.left}px`,
-    `top: ${rect.top}px`,
-    `width: ${Math.max(rect.width, 4)}px`,
-    `height: ${Math.max(rect.height, 4)}px`,
-    `background: rgba(${r},${g},${b},0.55)`,
-    `border: 1px solid rgba(${r},${g},${b},0.7)`,
-    `border-radius: ${shape === 'circle' || shape === 'dot' ? '50%' : '4px'}`,
-    'pointer-events: none',
-  ].join(';');
-
-  return el;
-}
-
-/**
- * Recoge los elementos visibles del Synthi y crea fantasmas geométricos
- * dentro del overlay.
+ * Recoge los elementos visibles del Synthi y devuelve datos de fantasmas
+ * (sin crear elementos DOM — se renderizan en un único canvas).
  *
  * Niveles capturados:
  *   1. Paneles (.panel) — los 7 bloques principales
@@ -713,10 +690,11 @@ function createGhostEl(rect, shape, colorIdx) {
  *   4. Controles — knobs, sliders, botones, joystick pads, etc.
  *
  * Excluidos: pines de matrices (miles), canvas, SVG internals, tooltips.
+ * @returns {Array<{x,y,w,h,shape,fillStyle,strokeStyle,delay,tx,ty,rot,sc}>}
  */
 const MAX_GHOSTS = 300;
 
-function gatherGhosts(container) {
+function gatherGhosts() {
   const MIN_SIZE = 3;
   const candidates = [];
 
@@ -806,90 +784,137 @@ function gatherGhosts(container) {
     selected = [...fixed, ...controls.slice(0, Math.max(MAX_GHOSTS - fixed.length, 0))];
   }
 
-  // Crear fantasmas en un DocumentFragment para minimizar reflows
-  const fragment = document.createDocumentFragment();
+  // Datos de fantasmas (posición, forma, color, parámetros de animación)
+  const vw = window.innerWidth || 1200;
+  const vh = window.innerHeight || 800;
   const ghosts = [];
   for (let i = 0; i < selected.length; i++) {
     const { el, rect } = selected[i];
     const shape = inferShape(el, rect);
-    const ghost = createGhostEl(rect, shape, i);
-    fragment.appendChild(ghost);
-    ghosts.push(ghost);
+    const [r, g, b] = PALETTE[i % PALETTE.length];
+    ghosts.push({
+      x: rect.left, y: rect.top,
+      w: Math.max(rect.width, 4), h: Math.max(rect.height, 4),
+      shape,
+      fillStyle: `rgba(${r},${g},${b},0.55)`,
+      strokeStyle: `rgba(${r},${g},${b},0.7)`,
+      delay: Math.random() * 600,
+      tx: (Math.random() - 0.5) * vw * 0.7,
+      ty: (Math.random() - 0.5) * vh * 0.6,
+      rot: (Math.random() - 0.5) * 720,
+      sc: 0.3 + Math.random() * 2,
+    });
   }
-  container.appendChild(fragment);
-
   return ghosts;
 }
 
+// ─── Interpolación de fases para renderizado en canvas ───
+const PHASE_OFFSETS = [0, 0.05, 0.25, 0.50, 0.85, 0.96, 1];
+const PHASE_TX_F   = [0,    0,  0.3,    1,  0.1,    0,  0];
+const PHASE_TY_F   = [0,    0,  0.3,    1,  0.1,    0,  0];
+const PHASE_ROT_F  = [0,    0,  0.2,    1, 0.05,    0,  0];
+const PHASE_ALPHA  = [0,  0.8,  0.7,  0.5,  0.7,  0.8,  0];
+const DEG_TO_RAD   = Math.PI / 180;
+
+function phaseScale(idx, sc) {
+  if (idx === 2) return 0.7 + sc * 0.2;
+  if (idx === 3) return sc;
+  if (idx === 4) return 1.05;
+  return 1;
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+/** Interpola posición/rotación/escala/opacidad de un ghost en un instante. */
+function interpolateGhost(progress, ghost) {
+  let i = 0;
+  while (i < PHASE_OFFSETS.length - 2 && PHASE_OFFSETS[i + 1] <= progress) i++;
+  const segLen = PHASE_OFFSETS[i + 1] - PHASE_OFFSETS[i];
+  const t = easeInOut(Math.max(0, Math.min(1, (progress - PHASE_OFFSETS[i]) / segLen)));
+  const lerp = (a, b) => a + (b - a) * t;
+  return {
+    tx: lerp(PHASE_TX_F[i], PHASE_TX_F[i + 1]) * ghost.tx,
+    ty: lerp(PHASE_TY_F[i], PHASE_TY_F[i + 1]) * ghost.ty,
+    rot: lerp(PHASE_ROT_F[i], PHASE_ROT_F[i + 1]) * ghost.rot,
+    scale: lerp(phaseScale(i, ghost.sc), phaseScale(i + 1, ghost.sc)),
+    alpha: lerp(PHASE_ALPHA[i], PHASE_ALPHA[i + 1]),
+  };
+}
+
 /**
- * Anima los fantasmas: aparecen → tiemblan → se dispersan → explotan →
- * se mezclan y transforman → resuenan → se disuelven.
+ * Renderiza todos los fantasmas en un único <canvas> con requestAnimationFrame.
+ * Un solo canvas = 1 capa de composición GPU, en lugar de N elementos DOM
+ * con N capas individuales. Drásticamente más rápido en tablets y móviles.
  *
- * Fases sincronizadas con la pieza electroacústica (~35s):
- *   0-4%   Aparición: fade-in en posición original
- *   4-14%  Tremor: vibración sutil (Klang)
- *  14-26%  Dispersión: los elementos se separan (Punkte)
- *  26-42%  Caos: máximo desplazamiento y rotación (Gruppen)
- *  42-58%  Erupción: explosión, escala extrema, giro salvaje (Eruption)
- *  58-74%  Resonancia: rebotes, pulsaciones (Resonanz)
- *  74-88%  Reagrupamiento: los elementos empiezan a volver (Stille)
- *  88-97%  Retorno: vuelven a su posición original
- *  97-100% Fundido rápido final
- *
- * @param {HTMLElement[]} ghosts
+ * @param {HTMLCanvasElement} canvas
+ * @param {Array} ghostData — datos devueltos por gatherGhosts()
  * @param {number} durationMs
- * @returns {Animation[]}
  */
-function animateGhosts(ghosts, durationMs) {
-  const animations = [];
-  const vw = window.innerWidth || 1200;
-  const vh = window.innerHeight || 800;
+function startCanvasAnimation(canvas, ghostData, durationMs) {
+  const ctx2d = canvas.getContext('2d');
+  if (!ctx2d) return; // JSDOM
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx2d.scale(dpr, dpr);
 
-  for (const ghost of ghosts) {
-    const delay = Math.random() * 600;
+  const startTime = performance.now();
 
-    // Desplazamiento — cruza la pantalla
-    const tx = (Math.random() - 0.5) * vw * 0.7;
-    const ty = (Math.random() - 0.5) * vh * 0.6;
-    const rot = (Math.random() - 0.5) * 720;
-    const sc = 0.3 + Math.random() * 2;
+  function frame(now) {
+    const elapsed = now - startTime;
+    if (elapsed >= durationMs || !canvas.parentElement) return;
 
-    // Solo transform (GPU-composited), opacity solo en entrada/salida
-    const keyframes = [
-      // Aparición
-      { transform: 'translate(0,0) rotate(0deg) scale(1)',
-        opacity: 0, offset: 0 },
-      { transform: 'translate(0,0) rotate(0deg) scale(1)',
-        opacity: 0.8, offset: 0.05 },
-      // Dispersión
-      { transform: `translate(${tx * 0.3}px,${ty * 0.3}px) rotate(${rot * 0.2}deg) scale(${0.7 + sc * 0.2})`,
-        opacity: 0.7, offset: 0.25 },
-      // Caos máximo
-      { transform: `translate(${tx}px,${ty}px) rotate(${rot}deg) scale(${sc})`,
-        opacity: 0.5, offset: 0.50 },
-      // Reagrupamiento
-      { transform: `translate(${tx * 0.1}px,${ty * 0.1}px) rotate(${rot * 0.05}deg) scale(1.05)`,
-        opacity: 0.7, offset: 0.85 },
-      // Retorno
-      { transform: 'translate(0,0) rotate(0deg) scale(1)',
-        opacity: 0.8, offset: 0.96 },
-      // Fundido final
-      { transform: 'translate(0,0) rotate(0deg) scale(1)',
-        opacity: 0, offset: 1 },
-    ];
+    ctx2d.clearRect(0, 0, w, h);
 
-    try {
-      const anim = ghost.animate(keyframes, {
-        duration: durationMs - delay,
-        delay,
-        easing: 'ease-in-out',
-        fill: 'both',
-      });
-      animations.push(anim);
-    } catch (_) { /* JSDOM */ }
+    for (const ghost of ghostData) {
+      const ge = elapsed - ghost.delay;
+      if (ge < 0) continue;
+      const progress = Math.min(ge / (durationMs - ghost.delay), 1);
+      const { tx, ty, rot, scale, alpha } = interpolateGhost(progress, ghost);
+      if (alpha < 0.01) continue;
+
+      const cx = ghost.x + ghost.w / 2 + tx;
+      const cy = ghost.y + ghost.h / 2 + ty;
+      const hw = ghost.w / 2;
+      const hh = ghost.h / 2;
+
+      ctx2d.save();
+      ctx2d.globalAlpha = alpha;
+      ctx2d.translate(cx, cy);
+      ctx2d.rotate(rot * DEG_TO_RAD);
+      ctx2d.scale(scale, scale);
+
+      ctx2d.fillStyle = ghost.fillStyle;
+      ctx2d.strokeStyle = ghost.strokeStyle;
+      ctx2d.lineWidth = 1;
+
+      if (ghost.shape === 'circle' || ghost.shape === 'dot') {
+        ctx2d.beginPath();
+        ctx2d.ellipse(0, 0, hw, hh, 0, 0, Math.PI * 2);
+        ctx2d.fill();
+        ctx2d.stroke();
+      } else {
+        ctx2d.beginPath();
+        if (ctx2d.roundRect) {
+          ctx2d.roundRect(-hw, -hh, ghost.w, ghost.h, 4);
+        } else {
+          ctx2d.rect(-hw, -hh, ghost.w, ghost.h);
+        }
+        ctx2d.fill();
+        ctx2d.stroke();
+      }
+
+      ctx2d.restore();
+    }
+
+    canvasAnimId = requestAnimationFrame(frame);
   }
 
-  return animations;
+  canvasAnimId = requestAnimationFrame(frame);
 }
 
 /**
@@ -956,8 +981,10 @@ function createOverlay(durationMs) {
     'overflow: hidden',
   ].join(';');
 
-  // Backdrop estático — no animamos gradientes (no son GPU-composited,
-  // forzarían repintado completo cada frame). Los fantasmas dan el movimiento.
+  // Canvas para renderizar fantasmas (1 sola capa GPU vs N elementos DOM)
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
+  overlay.appendChild(canvas);
 
   const hint = document.createElement('div');
   hint.textContent = '\u{1F50A} click para cerrar';
@@ -988,7 +1015,7 @@ function createOverlay(durationMs) {
     });
   });
 
-  return overlay;
+  return { overlay, canvas };
 }
 
 
@@ -1002,11 +1029,11 @@ function createOverlay(durationMs) {
 function cleanup(audioCtx) {
   isPlaying = false;
 
-  // Cancelar animaciones de fantasmas
-  for (const anim of activeAnimations) {
-    try { anim.cancel(); } catch (_) { /* ignore */ }
+  // Cancelar animación canvas
+  if (canvasAnimId) {
+    cancelAnimationFrame(canvasAnimId);
+    canvasAnimId = 0;
   }
-  activeAnimations = [];
 
   if (audioCtx && audioCtx.state !== 'closed') {
     audioCtx.close().catch(() => {});
@@ -1082,10 +1109,11 @@ export async function triggerEasterEgg(options = {}) {
 
     // Visual: overlay con gradiente + desintegración de fantasmas
     const durationMs = totalDurationSec * 1000;
-    overlayEl = createOverlay(durationMs);
+    const { overlay, canvas } = createOverlay(durationMs);
+    overlayEl = overlay;
 
-    const ghosts = gatherGhosts(overlayEl);
-    activeAnimations = animateGhosts(ghosts, durationMs);
+    const ghostData = gatherGhosts();
+    startCanvasAnimation(canvas, ghostData, durationMs);
 
     // Pulsos visuales sincronizados con la pieza (en el backdrop, no overlay)
     scheduleVisualPulses(backdropEl, burstTimes);

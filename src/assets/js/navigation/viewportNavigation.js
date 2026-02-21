@@ -343,6 +343,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
       } else {
         scheduleLowZoomUpdate();
         scheduleRasterize();
+        scheduleViewportSave();
         // DESACTIVADO: botón de zoom en panel
         // if (typeof updatePanelZoomButtons === 'function') {
         //   updatePanelZoomButtons();
@@ -648,6 +649,13 @@ export function initViewportNavigation({ outer, inner } = {}) {
       // Skip stabilization during fullscreen transition (handled separately)
       if (window.__synthFullscreenTransition || document.fullscreenElement) return;
       
+      // Si el usuario (o la restauración de sesión) ya ajustó la vista,
+      // no resetear a vista general — respetar la posición/zoom guardados
+      if (userHasAdjustedView) {
+        window.visualViewport.removeEventListener('resize', handleViewportStabilization);
+        return;
+      }
+      
       stabilizationCount++;
       metricsDirty = true;
       refreshMetrics();
@@ -828,6 +836,19 @@ export function initViewportNavigation({ outer, inner } = {}) {
     } catch { /* silenciar errores de storage */ }
   }
 
+  // ─── Guardado periódico con debounce al cambiar zoom/pan ────────────────
+  // Complementa beforeunload/visibilitychange para no perder estado si el
+  // navegador no dispara esos eventos (crash, kill, cierre forzado).
+  let _viewportSaveTimer = null;
+  const VIEWPORT_SAVE_DEBOUNCE_MS = 2000;
+  function scheduleViewportSave() {
+    if (_viewportSaveTimer) clearTimeout(_viewportSaveTimer);
+    _viewportSaveTimer = setTimeout(() => {
+      _viewportSaveTimer = null;
+      saveViewportStateIfEnabled();
+    }, VIEWPORT_SAVE_DEBOUNCE_MS);
+  }
+
   // Guardar viewport al cerrar/ocultar la pestaña
   window.addEventListener('beforeunload', saveViewportStateIfEnabled);
   document.addEventListener('visibilitychange', () => {
@@ -851,6 +872,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
   function markUserAdjusted() {
     userHasAdjustedView = true;
+    scheduleViewportSave();
   }
 
   // ─── Atajos de teclado para navegación del viewport ───
@@ -1463,6 +1485,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
       window.__synthResetFocusedPanel();
     }
     scheduleRasterize();
+    // Guardar estado de reset (vista general) para que se restaure así
+    scheduleViewportSave();
   });
 
   // ─── Fullscreen transition handling ───

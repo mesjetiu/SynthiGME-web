@@ -1059,9 +1059,6 @@ class App {
       this.ensureAudio();
       cancelTooltipAutoHide();
       pointerActive = true;
-      // Touch: usar flashGlow (finito, persiste al soltar) ANTES de activar
-      // is-tooltip-active, porque flashGlow no se sobrepone a tooltip-active.
-      if (ev.pointerType === 'touch') flashGlow(padEl);
       refreshPadGlow();
       // En táctil, retrasar tooltip para dar tiempo a detectar pinch
       if (ev.pointerType === 'touch') {

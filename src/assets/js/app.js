@@ -1059,6 +1059,9 @@ class App {
       this.ensureAudio();
       cancelTooltipAutoHide();
       pointerActive = true;
+      // Touch: usar flashGlow (finito, persiste al soltar) ANTES de activar
+      // is-tooltip-active, porque flashGlow no se sobrepone a tooltip-active.
+      if (ev.pointerType === 'touch') flashGlow(padEl);
       refreshPadGlow();
       // En táctil, retrasar tooltip para dar tiempo a detectar pinch
       if (ev.pointerType === 'touch') {
@@ -1895,6 +1898,7 @@ class App {
         const sideConfig = joystickConfig[side];
         const defaultRangeX = sideConfig?.knobs?.rangeX?.initial ?? 5;
         const defaultRangeY = sideConfig?.knobs?.rangeY?.initial ?? 5;
+        const wasAtOrigin = module.getX() === 0 && module.getY() === 0;
         module.setPosition(0, 0);
         module.setRangeX(defaultRangeX);
         module.setRangeY(defaultRangeY);
@@ -1908,7 +1912,6 @@ class App {
         const joystickKey = `joystick-${side}`;
         const padEl = this._joystickUIs?.[joystickKey]?.padEl;
         if (padEl?._joystickUpdateHandle) {
-          const wasAtOrigin = module.getX() === 0 && module.getY() === 0;
           padEl._joystickUpdateHandle(0, 0);
           if (!wasAtOrigin) flashGlow(padEl);
         }
@@ -2103,13 +2106,13 @@ class App {
       const defRangeY = config?.knobs?.rangeY?.initial ?? 0;
       const maxX = config?.knobs?.rangeX?.max || 10;
       const maxY = config?.knobs?.rangeY?.max || 10;
+      const wasAtOrigin = module.getX() === 0 && module.getY() === 0;
       module.setPosition(0, 0);
       module.setRangeX(defRangeX);
       module.setRangeY(defRangeY);
       if (knobs?.rangeX?.knobInstance) knobs.rangeX.knobInstance.setValue(defRangeX / maxX);
       if (knobs?.rangeY?.knobInstance) knobs.rangeY.knobInstance.setValue(defRangeY / maxY);
       if (padEl?._joystickUpdateHandle) {
-        const wasAtOrigin = module.getX() === 0 && module.getY() === 0;
         padEl._joystickUpdateHandle(0, 0);
         if (!wasAtOrigin) flashGlow(padEl);
       }

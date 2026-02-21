@@ -169,10 +169,12 @@ function showViewportContextMenu(screenX, screenY, xPx, yPx) {
     menu.appendChild(createNoteMenuSeparator());
     menu.appendChild(createNoteMenuItem(t('notes.ctx.pasteNote'), () => {
       hideNoteContextMenu();
-      // El clipboard guarda wPct/hPct; para viewport se usan defaults de px
+      // Preservar tamaño original de la nota
       createNote(VIEWPORT_PANEL_ID, {
         xPx,
         yPx,
+        wPx: _noteClipboard.wPx,
+        hPx: _noteClipboard.hPx,
         html: _noteClipboard.html,
         color: _noteClipboard.color,
         fontSize: _noteClipboard.fontSize,
@@ -768,14 +770,31 @@ function createNoteMenuSeparator() {
  */
 function copyNoteToClipboard(noteEl, cut = false) {
   const body = noteEl.querySelector('.panel-note__body');
-  _noteClipboard = {
+  const srcIsViewport = noteEl.dataset.panelId === VIEWPORT_PANEL_ID;
+  const clipData = {
     html: body?.innerHTML || '',
     text: body?.textContent || '',
     color: noteEl.dataset.noteColor || DEFAULT_COLOR,
     fontSize: parseInt(noteEl.dataset.fontSize, 10) || DEFAULT_FONT_SIZE,
-    wPct: parseFloat(noteEl.style.width) || DEFAULT_WIDTH_PCT,
-    hPct: parseFloat(noteEl.style.minHeight) || DEFAULT_HEIGHT_PCT,
+    srcIsViewport,
   };
+  if (srcIsViewport) {
+    // Viewport: dimensiones en px
+    clipData.wPx = noteEl.offsetWidth > 0 ? noteEl.offsetWidth : (parseFloat(noteEl.style.width) || 200);
+    clipData.hPx = noteEl.offsetHeight > 0 ? noteEl.offsetHeight : (parseFloat(noteEl.style.height) || 100);
+  } else {
+    // Panel: dimensiones en % — calcular desde computed si es posible
+    const panelEl = document.getElementById(noteEl.dataset.panelId);
+    const pw = panelEl?.offsetWidth || 0;
+    const ph = panelEl?.offsetHeight || 0;
+    const useComputed = pw > 0 && ph > 0 && noteEl.offsetWidth > 0;
+    clipData.wPct = useComputed ? (noteEl.offsetWidth / pw) * 100 : (parseFloat(noteEl.style.width) || DEFAULT_WIDTH_PCT);
+    clipData.hPct = useComputed ? (noteEl.offsetHeight / ph) * 100 : (parseFloat(noteEl.style.height) || DEFAULT_HEIGHT_PCT);
+    // Guardar también px para paste cross-context (panel→viewport)
+    clipData.wPx = noteEl.offsetWidth > 0 ? noteEl.offsetWidth : 200;
+    clipData.hPx = noteEl.offsetHeight > 0 ? noteEl.offsetHeight : 100;
+  }
+  _noteClipboard = clipData;
   if (cut) {
     removeNote(noteEl.id);
   }
@@ -791,15 +810,29 @@ function copyNoteToClipboard(noteEl, cut = false) {
  */
 export function pasteNoteFromClipboard(panelId, xPct, yPct) {
   if (!_noteClipboard) return null;
-  return createNote(panelId, {
+  const opts = {
     xPct,
     yPct,
-    wPct: _noteClipboard.wPct,
-    hPct: _noteClipboard.hPct,
     html: _noteClipboard.html,
     color: _noteClipboard.color,
     fontSize: _noteClipboard.fontSize,
-  });
+  };
+  if (_noteClipboard.wPct != null) {
+    // Source was a panel note — use pct directly
+    opts.wPct = _noteClipboard.wPct;
+    opts.hPct = _noteClipboard.hPct;
+  } else {
+    // Source was a viewport note (px only) — convert to % of target panel
+    const panelEl = document.getElementById(panelId);
+    const pw = panelEl?.offsetWidth || 0;
+    const ph = panelEl?.offsetHeight || 0;
+    if (pw > 0 && ph > 0) {
+      opts.wPct = (_noteClipboard.wPx / pw) * 100;
+      opts.hPct = (_noteClipboard.hPx / ph) * 100;
+    }
+    // else: defaults from createNote
+  }
+  return createNote(panelId, opts);
 }
 
 /**

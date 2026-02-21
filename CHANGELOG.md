@@ -54,6 +54,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Stereo buses multicanal**: Reconexión tras forcePhysicalChannels. Routing persistente. Aislamiento estéreo/multicanal.
 - **Re-entry de Output Channels**: DC blocker 1er orden (fc=0.01Hz) elimina drift sub-Hz. Ganancia unitaria corregida.
 - **Notas en viewport sin menú contextual**: El bloqueador global capturaba el evento antes de llegar al handler de la nota.
+- **Notas recortadas al sobresalir del panel**: `overflow: hidden` en paneles y PiP impedía ver la parte que sobresalía; cambiado a `overflow: visible`.
+- **Copiar/pegar notas no preservaba tamaño**: Se leía `style.minHeight` (vacío) en vez de dimensiones computed, y notas de viewport (px) se interpretaban como porcentaje al pegar en panel. Corregido con detección de contexto (viewport/panel) y conversión de unidades.
 - **Grabación: canales POST-switch** respetan estado on/off.
 - **Output Channels: switches apagados por defecto**.
 - **Dormancy: Output Channel despierta con Voltage Input** (Panel 6).

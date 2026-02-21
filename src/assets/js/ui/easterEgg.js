@@ -28,6 +28,9 @@
 let isPlaying = false;
 let overlayEl = null;
 let canvasAnimId = 0;
+let _autoCleanupTimer = 0;   // ref para cancelar auto-limpieza
+let _dblclickDelayTimer = 0; // ref para cancelar retraso de dblclick
+let _overlayRemoveTimer = 0; // ref para cancelar remove del overlay
 
 // ─── Atractor (puntero del ratón / dedo en tablet) ───
 let attractorX = -9999;
@@ -1544,6 +1547,20 @@ function createOverlay(durationMs) {
 function cleanup(audioCtx) {
   isPlaying = false;
 
+  // Cancelar timers pendientes
+  if (_autoCleanupTimer) {
+    clearTimeout(_autoCleanupTimer);
+    _autoCleanupTimer = 0;
+  }
+  if (_dblclickDelayTimer) {
+    clearTimeout(_dblclickDelayTimer);
+    _dblclickDelayTimer = 0;
+  }
+  if (_overlayRemoveTimer) {
+    clearTimeout(_overlayRemoveTimer);
+    _overlayRemoveTimer = 0;
+  }
+
   // Cancelar animación canvas
   if (canvasAnimId) {
     cancelAnimationFrame(canvasAnimId);
@@ -1572,7 +1589,7 @@ function cleanup(audioCtx) {
     overlayEl.style.opacity = '0';
     const el = overlayEl;
     overlayEl = null;
-    setTimeout(() => { el.remove(); }, 800);
+    _overlayRemoveTimer = setTimeout(() => { el.remove(); }, 800);
   }
 }
 
@@ -1639,7 +1656,8 @@ export async function triggerEasterEgg(options = {}) {
     startCanvasAnimation(canvas, ghostData, durationMs, overlay);
 
     // Cerrar con doble click (retraso para evitar cierre accidental)
-    setTimeout(() => {
+    _dblclickDelayTimer = setTimeout(() => {
+      _dblclickDelayTimer = 0;
       if (overlayEl) {
         overlayEl.addEventListener('dblclick', () => cleanup(ctx), { once: true });
       }
@@ -1652,7 +1670,8 @@ export async function triggerEasterEgg(options = {}) {
     document.addEventListener('keydown', _onKeyDown);
 
     // Auto-limpieza al terminar (música + fade-out visual)
-    setTimeout(() => {
+    _autoCleanupTimer = setTimeout(() => {
+      _autoCleanupTimer = 0;
       if (isPlaying) cleanup(ctx);
     }, (totalDurationSec + FADE_OUT_MS / 1000 + 1.5) * 1000);
 

@@ -837,7 +837,7 @@ function gatherGhosts() {
       strokeStyle: isPin
         ? `rgba(255,255,255,0.8)`
         : `rgba(${r},${g},${b},0.85)`,
-      delay: Math.random() * 600,
+      delay: Math.random() * 400,
       tx: (Math.random() - 0.5) * vw * 1.4,
       ty: (Math.random() - 0.5) * vh * 1.2,
       rot: shape === 'dot' ? 0 : (Math.random() - 0.5) * 1800,
@@ -856,13 +856,15 @@ function gatherGhosts() {
 }
 
 // ─── Interpolación de fases para renderizado en canvas ───
-// Fase 0→0.085: calma (~3s en pieza de 35s) — piezas visibles en su sitio
-// Fase 0.085→0.19: dispersión inicial gradual
-const PHASE_OFFSETS = [0, 0.085, 0.19, 0.38, 0.60, 0.80, 0.85, 1];
-const PHASE_TX_F   = [0,     0,  0.7,  1.0, 0.55, 0.10,    0, 0];
-const PHASE_TY_F   = [0,     0,  0.7,  1.0, 0.55, 0.10,    0, 0];
-const PHASE_ROT_F  = [0,     0,  0.5,  1.0, 0.85, 0.10,    0, 0];
-const PHASE_ALPHA  = [1,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 1];
+// Fase 0→0.06: calma (~2s en pieza de 35s) — piezas quietas en su sitio
+// Fase 0.06→0.20: dispersión inicial suave y gradual
+const PHASE_OFFSETS = [0, 0.06, 0.20, 0.40, 0.62, 0.80, 0.85, 1];
+const PHASE_TX_F   = [0,    0,  0.5,  1.0, 0.55, 0.10,    0, 0];
+const PHASE_TY_F   = [0,    0,  0.5,  1.0, 0.55, 0.10,    0, 0];
+const PHASE_ROT_F  = [0,    0,  0.3,  1.0, 0.85, 0.10,    0, 0];
+const PHASE_ALPHA  = [1,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 1];
+// Umbral de calma: por debajo de este progress, todo movimiento es 0
+const CALM_END = 0.06;
 const DEG_TO_RAD   = Math.PI / 180;
 const FADE_OUT_MS  = 6000;  // duración del fade-out final (tras la música)
 
@@ -894,8 +896,11 @@ function interpolateGhost(progress, ghost, elapsedSec = 0) {
   const baseTx = lerp(PHASE_TX_F[i], PHASE_TX_F[i + 1]) * ghost.tx;
   const baseTy = lerp(PHASE_TY_F[i], PHASE_TY_F[i + 1]) * ghost.ty;
 
-  // Envolvente para wobble/espiral: sube y baja suavemente con el progreso
-  const env = Math.sin(progress * Math.PI);
+  // Envolvente para wobble/espiral: 0 durante calma, sube gradualmente después
+  // Calma total hasta CALM_END, luego ramp-up, luego envolvente natural
+  const calmFactor = progress < CALM_END ? 0
+    : Math.min(1, (progress - CALM_END) / 0.12);
+  const env = Math.sin(progress * Math.PI) * calmFactor;
 
   // Wobble sinusoidal — ondulación orgánica sobre la trayectoria base
   const TAU = 6.283185;
@@ -955,7 +960,7 @@ function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
   const startTime = performance.now();
   let prevTime = startTime;
   const totalMs = durationMs + FADE_OUT_MS;
-  const fadeInMs = 1000;  // 1s de fade-in al inicio
+  const fadeInMs = 2000;  // 2s de fade-in al inicio
 
   function frame(now) {
     const dt = Math.min((now - prevTime) / 1000, 0.05); // delta en seg, cap a 50ms
@@ -1015,35 +1020,41 @@ function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
       }
 
       // Sin atractor: dispersión aleatoria continua (drift)
-      if (!attractorActive && dt > 0 && attractorDecay > 0) {
+      // Calma inicial: sin drift hasta que progress supera la fase de calma
+      // Luego crece gradualmente de 0 a 1
+      const driftEnvelope = progress < CALM_END ? 0
+        : Math.min(1, (progress - CALM_END) / 0.15);
+      if (!attractorActive && dt > 0 && attractorDecay > 0 && driftEnvelope > 0) {
         // Rotar lentamente el ángulo de drift → trayectorias curvas
         ghost.driftAngle += (Math.random() - 0.5) * 2.5 * dt;
-        const driftForce = ghost.driftSpeed * (1 + progress * 5); // acelera rápido
-        // Elementos pequeños se dispersan más rápido (F/m)
+        const driftForce = ghost.driftSpeed * driftEnvelope * (1 + progress * 2);
         ghost.vx += (Math.cos(ghost.driftAngle) * driftForce / ghost.mass) * dt;
         ghost.vy += (Math.sin(ghost.driftAngle) * driftForce / ghost.mass) * dt;
       }
 
-      // Damping: elementos grandes frenan menos (más inercia)
-      // Base suave → casi sin fricción para dispersión libre
-      const baseDamp = attractorActive ? 0.97 : 0.975;
-      // Elementos pesados: damping más cercano a 1 (menos frenado)
-      const massDamp = Math.min(baseDamp + (ghost.mass - 1) * 0.004, 0.995);
+      // Fuerza de retorno suave: empuja hacia el centro del viewport
+      // cuando el ghost se aleja demasiado. Permite salir parcialmente
+      // pero impide que todos se pierdan fuera de pantalla.
+      const margin = 0.15; // 15% del viewport como margen
+      const ghostAbsX = ghost.x + ghost.w / 2 + ghost.ox;
+      const ghostAbsY = ghost.y + ghost.h / 2 + ghost.oy;
+      const xMin = -w * margin, xMax = w * (1 + margin);
+      const yMin = -h * margin, yMax = h * (1 + margin);
+      const returnStrength = 120; // px/s² de retorno
+      if (ghostAbsX < xMin) ghost.vx += returnStrength * dt;
+      else if (ghostAbsX > xMax) ghost.vx -= returnStrength * dt;
+      if (ghostAbsY < yMin) ghost.vy += returnStrength * dt;
+      else if (ghostAbsY > yMax) ghost.vy -= returnStrength * dt;
+
+      // Damping: fricción moderada para mantener movimiento sin escapar
+      const baseDamp = attractorActive ? 0.97 : 0.955;
+      const massDamp = Math.min(baseDamp + (ghost.mass - 1) * 0.004, 0.985);
       ghost.vx *= Math.pow(massDamp, dt * 60);
       ghost.vy *= Math.pow(massDamp, dt * 60);
 
       // Integrar offset acumulado
       ghost.ox += ghost.vx * dt;
       ghost.oy += ghost.vy * dt;
-
-      // Limitar offset máximo para evitar que se pierdan fuera de pantalla
-      const maxOffset = 2000;
-      const offsetDist = Math.sqrt(ghost.ox * ghost.ox + ghost.oy * ghost.oy);
-      if (offsetDist > maxOffset) {
-        const clamp = maxOffset / offsetDist;
-        ghost.ox *= clamp;
-        ghost.oy *= clamp;
-      }
 
       // Al final de la animación, devolver suavemente a posición base
       if (attractorDecay < 1) {

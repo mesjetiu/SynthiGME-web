@@ -41,7 +41,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **UI: selector de resolución oculto**. La app siempre inicia en 1x.
 
 ### Corregido
-- **Glow inconsistente al reiniciar**: Al reiniciar el sintetizador, solo brillaban sliders y toggles. Ahora todos los elementos (knobs incluidos) hacen flash de glow al recibir un valor, esté o no ya en ese valor.
+- **Glow inconsistente al reiniciar**: Al reiniciar el sintetizador, solo brillaban sliders y toggles. Ahora todos los elementos (knobs y pads de joystick incluidos) hacen flash de glow al recibir un valor programáticamente (reset, carga de patch, menú contextual). Pines de matriz ya lo tenían.
 - **Joystick pads no se reiniciaban desde quickbar**: El handle visual del pad no se actualizaba al reiniciar el sintetizador desde el botón de quickbar o atajo de teclado, aunque el estado de audio sí se reseteaba.
 - **DSP on/off: patch sin sonido tras off→load→on**: Al encender DSP siempre se re-aplica el patch actual.
 - **Joystick pad**: Arrastre llegaba solo a ~0.8. Inoperable en PiP tablet. Halo activo añadido.

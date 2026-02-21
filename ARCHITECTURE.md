@@ -3249,6 +3249,7 @@ Los consumidores llaman a `flashGlow(element)` o `flashPinGlow(pinBtn)` en estos
 | `sgmeOscillator.js` | Click en switch HI/LO | `flashGlow(range)` |
 | `sgmeOscillator.js` | `deserialize()` — range | `flashGlow(rangeEl)` |
 | `largeMatrix.js` | Click en pin, `deserialize()` | `flashPinGlow(btn)` |
+| `app.js` | Reset, carga de patch, menú contextual — pads joystick | `flashGlow(padEl)` |
 | `oscMatrixSync.js` | Mensaje OSC de pin | `flashPinGlow(btn)` |
 | `oscOutputChannelSync.js` | Mensaje OSC level/power | `flashGlow(...)` |
 | `oscJoystickSync.js` | Mensaje OSC posición | `flashGlow(joyUI.padEl)` |
@@ -3299,7 +3300,7 @@ Cubierto en `tests/ui/glowManager.test.js` (90 tests):
 - **flashGlow/flashPinGlow**: clase DOM, auto-remoción por timer, preset off, null safety, anti-sobreposición con `is-tooltip-active`
 - **CSS variables**: generación de `--glow-*`, formato `rgba()`, toggle de `glow-disabled`
 - **CSS estático**: presencia de 8 `@keyframes`, 5 selectores de activación, 6 reglas de desactivación, 7 variables CSS, `overflow: visible`
-- **Integración JS**: 9 archivos importan y llaman `flashGlow`/`flashPinGlow`, 7 puntos de activación verificados (click handlers + deserialize)
+- **Integración JS**: 10 archivos importan y llaman `flashGlow`/`flashPinGlow`, 8 puntos de activación verificados (click handlers + deserialize + reset/patch)
 
 ---
 

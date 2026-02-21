@@ -563,7 +563,11 @@ describe('Glow integración — Archivos que importan y usan flashGlow/flashPinG
     assertGlowUsage('src/assets/js/osc/oscMatrixSync.js', 'flashPinGlow');
   });
 
-  // ── initGlowManager en app.js ──────────────────────────────────────────
+  // ── flashGlow en app.js (pads de joystick) ─────────────────────────────
+
+  it('app.js importa y usa flashGlow (pads de joystick)', () => {
+    assertGlowUsage('src/assets/js/app.js', 'flashGlow');
+  });
 
   it('app.js importa initGlowManager', () => {
     const source = readFileSync(resolve(ROOT, 'src/assets/js/app.js'), 'utf-8');

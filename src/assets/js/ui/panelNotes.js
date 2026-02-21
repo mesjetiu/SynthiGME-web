@@ -56,9 +56,13 @@ const DEFAULT_HEIGHT_PCT = 15;
 
 /** Tamaño de fuente por defecto y rango (px) */
 const DEFAULT_FONT_SIZE = 11;
-const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 24;
+const MIN_FONT_SIZE = 4;
+const MAX_FONT_SIZE = 72;
 const FONT_SIZE_STEP = 1;
+
+/** Intervalos para auto-repeat al mantener presionado A+/A- (ms) */
+const FONT_REPEAT_DELAY = 400;
+const FONT_REPEAT_INTERVAL = 80;
 
 /** Tamaño mínimo en px para que la nota sea usable */
 const MIN_SIZE_PX = 60;
@@ -267,26 +271,20 @@ export function createNote(panelId, options = {}) {
   const actions = document.createElement('div');
   actions.className = 'panel-note__actions';
   
-  // Botón reducir fuente (A-)
+  // Botón reducir fuente (A-) — soporta press-and-hold para repetición
   const fontDownBtn = document.createElement('button');
   fontDownBtn.className = 'panel-note__btn panel-note__btn--font-down';
   fontDownBtn.innerHTML = 'A<small>−</small>';
   fontDownBtn.title = t('notes.fontDown');
-  fontDownBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    changeFontSize(note, -FONT_SIZE_STEP);
-  });
+  setupFontButton(fontDownBtn, note, -FONT_SIZE_STEP);
   actions.appendChild(fontDownBtn);
   
-  // Botón aumentar fuente (A+)
+  // Botón aumentar fuente (A+) — soporta press-and-hold para repetición
   const fontUpBtn = document.createElement('button');
   fontUpBtn.className = 'panel-note__btn panel-note__btn--font-up';
   fontUpBtn.innerHTML = 'A<small>+</small>';
   fontUpBtn.title = t('notes.fontUp');
-  fontUpBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    changeFontSize(note, FONT_SIZE_STEP);
-  });
+  setupFontButton(fontUpBtn, note, FONT_SIZE_STEP);
   actions.appendChild(fontUpBtn);
   
   // Botón de color
@@ -474,6 +472,58 @@ export function clearAllNotes() {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAMAÑO DE FUENTE
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Configura un botón de fuente con soporte para clic simple y press-and-hold.
+ * Al mantener presionado, repite el cambio de tamaño con aceleración.
+ * @param {HTMLElement} btn - Botón A+ o A-
+ * @param {HTMLElement} noteEl - Elemento de la nota
+ * @param {number} delta - Incremento (+) o decremento (-) en px
+ */
+function setupFontButton(btn, noteEl, delta) {
+  let repeatTimeout = null;
+  let repeatInterval = null;
+  
+  function startRepeat() {
+    stopRepeat();
+    changeFontSize(noteEl, delta);
+    repeatTimeout = setTimeout(() => {
+      repeatInterval = setInterval(() => {
+        changeFontSize(noteEl, delta);
+      }, FONT_REPEAT_INTERVAL);
+    }, FONT_REPEAT_DELAY);
+  }
+  
+  function stopRepeat() {
+    if (repeatTimeout) { clearTimeout(repeatTimeout); repeatTimeout = null; }
+    if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
+  }
+  
+  btn.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    btn.setPointerCapture(e.pointerId);
+    startRepeat();
+  });
+  
+  btn.addEventListener('pointerup', (e) => {
+    e.stopPropagation();
+    stopRepeat();
+  });
+  
+  btn.addEventListener('pointercancel', (e) => {
+    stopRepeat();
+  });
+  
+  btn.addEventListener('pointerleave', (e) => {
+    stopRepeat();
+  });
+  
+  // Prevenir click redundante (ya se maneja con pointerdown)
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+}
 
 /**
  * Cambia el tamaño de fuente de una nota.

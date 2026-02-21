@@ -112,7 +112,9 @@ describe('STORAGE_KEYS', () => {
       'OUTPUT_DEVICE',
       'LAST_STATE',
       'LATENCY_MODE',
-      'AUDIO_LATENCY'
+      'AUDIO_LATENCY',
+      'CONFIRM_SYNTH_RESET',
+      'GLOW_PRESET'
     ];
     for (const key of requiredKeys) {
       assert.ok(key in STORAGE_KEYS, `Falta clave requerida: ${key}`);

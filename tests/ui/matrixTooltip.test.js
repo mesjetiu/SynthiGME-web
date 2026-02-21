@@ -10,8 +10,14 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-import { getLabelForSource, getLabelForDest } from '../../src/assets/js/ui/matrixTooltip.js';
+import { getLabelForSource, getLabelForDest, MatrixTooltip } from '../../src/assets/js/ui/matrixTooltip.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const tooltipSource = readFileSync(resolve(__dirname, '../../src/assets/js/ui/matrixTooltip.js'), 'utf-8');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // getLabelForSource
@@ -134,6 +140,41 @@ describe('getLabelForDest', () => {
     const label = getLabelForDest({ kind: 'outputLevelCV', busIndex: 0 });
     assert.ok(label, 'Debería devolver un label');
     assert.ok(typeof label === 'string', 'Label debe ser string');
+  });
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MatrixTooltip — show() con autoHide
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('MatrixTooltip — show() autoHide', () => {
+
+  it('MatrixTooltip es una clase exportada', () => {
+    assert.strictEqual(typeof MatrixTooltip, 'function');
+  });
+
+  it('show() acepta autoHide como opción con default true', () => {
+    assert.ok(tooltipSource.includes('{ autoHide = true }'),
+      'show() debe tener parámetro autoHide con default true');
+  });
+
+  it('desktop hover usa autoHide: false para no desaparecer', () => {
+    const start = tooltipSource.indexOf('_handleMouseEnter(ev)');
+    const end = tooltipSource.indexOf('_handleMouseLeave', start);
+    const mouseEnterFn = tooltipSource.substring(start, end);
+    assert.ok(mouseEnterFn.includes('autoHide: false'),
+      'mouseenter handler debe pasar autoHide: false para que el tooltip no desaparezca en desktop');
+  });
+
+  it('autoHide controla si se establece setTimeout para ocultar', () => {
+    const showStart = tooltipSource.indexOf('show(pinBtn, content');
+    const showEnd = tooltipSource.indexOf('\n  hide()', showStart);
+    const showFn = tooltipSource.substring(showStart, showEnd);
+    assert.ok(showFn.includes('if (autoHide)'),
+      'show() debe comprobar autoHide antes de setTimeout');
+    assert.ok(showFn.includes('this.autoHideDelay'),
+      'El timeout debe usar autoHideDelay');
   });
 });
 

@@ -140,8 +140,11 @@ describe('Claves esenciales de i18n', () => {
     'common.no',
     'common.cancel',
     'common.ok',
+    'common.dontAskAgain',
     'settings.title',
-    'settings.close'
+    'settings.close',
+    'synth.reset.confirm',
+    'settings.synth.confirmReset'
   ];
 
   for (const key of essentialKeys) {

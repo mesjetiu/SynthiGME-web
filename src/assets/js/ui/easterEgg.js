@@ -653,14 +653,9 @@ const PALETTE = [
 
 /**
  * Selectores CSS de elementos del Synthi.
- * Estos se buscan explícitamente. Además, `gatherGhosts` recoge
- * TODOS los elementos visibles hijos de `.panel` que superen un
- * tamaño mínimo, de forma que cualquier control nuevo se captura
- * automáticamente sin necesidad de añadirlo aquí.
- *
- * MAX_GHOSTS limita el total de fantasmas para rendimiento GPU.
+ * gatherGhosts busca solo 3 niveles: paneles, notas y módulos (frames).
+ * No desciende a controles individuales (knobs, sliders, pines).
  */
-const MAX_GHOSTS = 120;
 
 /**
  * Determina la forma de un fantasma según las dimensiones y clases del elemento.
@@ -711,75 +706,66 @@ function createGhostEl(rect, shape, colorIdx) {
 }
 
 /**
- * Recoge TODOS los elementos visibles dentro de los paneles del Synthi
- * y crea fantasmas geométricos dentro del overlay.
+ * Recoge los elementos visibles del Synthi y crea fantasmas geométricos
+ * dentro del overlay.
  *
- * Estrategia dinámica: recorre los hijos de cada `.panel` (y el panel
- * mismo) buscando elementos con tamaño real (>3px). No depende de
- * selectores fijos — cualquier control nuevo en un panel se captura
- * automáticamente. Limitado a MAX_GHOSTS para rendimiento GPU.
+ * Solo se capturan 3 niveles de profundidad (sin entrar en knobs, etc.):
+ *   1. Paneles (.panel) — los 7 bloques principales
+ *   2. Notas (.panel-note) — pueden estar dentro de paneles o en viewportInner
+ *   3. Módulos — frames que rodean controles (synth-module, sgme-osc, etc.)
+ *
+ * Esto mantiene el número de fantasmas bajo (~20-40) y el rendimiento alto.
  */
 function gatherGhosts(container) {
-  const MIN_SIZE = 3;   // px mínimo para considerar un elemento
+  const MIN_SIZE = 3;
   const candidates = [];
 
-  // 1. Los propios paneles (cuadrados grandes)
-  for (const panel of document.querySelectorAll('.panel')) {
-    const r = panel.getBoundingClientRect();
+  // ── Selector de módulos (frames, no internals) ──
+  // Coincide con los contenedores de nivel módulo usados en la app.
+  // Si se añaden nuevos tipos de módulo, basta con añadir su clase aquí.
+  const MODULE_SEL = [
+    '.synth-module',
+    '.sgme-osc',
+    '.noise-generator',
+    '.random-voltage',
+    '.output-channel-module',
+    '.input-amplifier-module',
+    '.input-amplifiers-module',
+    '.panel7-joystick',
+    '.panel7-sequencer',
+    '.panel1-placeholder',
+    '.panel2-placeholder',
+    '.matrix-container',
+  ].join(',');
+
+  // 1. Paneles
+  for (const el of document.querySelectorAll('.panel')) {
+    const r = el.getBoundingClientRect();
     if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
-      candidates.push({ el: panel, rect: r, depth: 0 });
+      candidates.push({ el, rect: r });
     }
   }
 
-  // 2. Todos los elementos visibles dentro de cada panel
-  //    Recorremos TODOS los hijos con querySelectorAll('*') y filtramos
-  //    por tamaño. Excluimos elementos de infraestructura (canvas, svg internos,
-  //    tooltips, menus) que no tienen sentido visual como fantasma.
-  const EXCLUDE = new Set(['CANVAS', 'SVG', 'PATH', 'CIRCLE', 'RECT', 'LINE',
-    'POLYLINE', 'POLYGON', 'TEXT', 'TSPAN', 'BR', 'SCRIPT', 'STYLE', 'LINK']);
-
-  for (const panel of document.querySelectorAll('.panel')) {
-    const children = panel.querySelectorAll('*');
-    for (const child of children) {
-      // Excluir SVG/canvas internals, tooltips, menús contextuales
-      if (EXCLUDE.has(child.tagName)) continue;
-      if (child.closest('.tooltip, .context-menu, [role="tooltip"]')) continue;
-
-      const r = child.getBoundingClientRect();
-      if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
-        // Depth: paneles=0, módulos=1, controles=2+
-        const depth = child.closest('.synth-module__content, .synth-module__controls')
-          ? 2 : child.closest('.synth-module') ? 1 : 0;
-        candidates.push({ el: child, rect: r, depth });
-      }
+  // 2. Notas — pueden estar dentro de paneles O en #viewportInner
+  for (const el of document.querySelectorAll('.panel-note')) {
+    const r = el.getBoundingClientRect();
+    if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
+      candidates.push({ el, rect: r });
     }
   }
 
-  // 3. Muestreo aleatorio si excede MAX_GHOSTS, pero asegurando diversidad:
-  //    siempre incluir los paneles (depth 0) y una buena muestra de cada nivel.
-  let selected = candidates;
-  if (candidates.length > MAX_GHOSTS) {
-    // Separar por profundidad
-    const d0 = candidates.filter(c => c.depth === 0);
-    const d1 = candidates.filter(c => c.depth === 1);
-    const d2 = candidates.filter(c => c.depth >= 2);
-
-    // Siempre todos los paneles y módulos (son pocos)
-    const fixed = [...d0, ...d1];
-    const remaining = MAX_GHOSTS - fixed.length;
-
-    // Fisher-Yates parcial para los controles
-    for (let i = d2.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [d2[i], d2[j]] = [d2[j], d2[i]];
+  // 3. Módulos (frames) — sin descender a sus hijos
+  for (const el of document.querySelectorAll(MODULE_SEL)) {
+    const r = el.getBoundingClientRect();
+    if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
+      candidates.push({ el, rect: r });
     }
-    selected = [...fixed, ...d2.slice(0, Math.max(remaining, 0))];
   }
 
-  // 4. Crear fantasmas
+  // Crear fantasmas (no se necesita muestreo, son pocos)
   const ghosts = [];
-  for (let i = 0; i < selected.length; i++) {
-    const { el, rect } = selected[i];
+  for (let i = 0; i < candidates.length; i++) {
+    const { el, rect } = candidates[i];
     const shape = inferShape(el, rect);
     const ghost = createGhostEl(rect, shape, i);
     container.appendChild(ghost);
@@ -982,9 +968,16 @@ function createOverlay(durationMs) {
 
   document.body.appendChild(overlay);
 
+  // Forzar reflow para que el navegador procese opacity:0 antes de animar a 1
+  void backdrop.offsetHeight;
+  void overlay.offsetHeight;
+
+  // Doble rAF para máxima compatibilidad
   requestAnimationFrame(() => {
-    backdrop.style.opacity = '1';
-    overlay.style.opacity = '1';
+    requestAnimationFrame(() => {
+      backdrop.style.opacity = '1';
+      overlay.style.opacity = '1';
+    });
   });
 
   return overlay;

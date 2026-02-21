@@ -1276,7 +1276,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
   });
 
-  // Disable browser context menu globally (except for text input fields, matrix pins, panels, and PiP placeholders)
+  // Disable browser context menu globally (except for text input fields, matrix pins, panels, PiP placeholders, and viewport empty space)
   document.addEventListener('contextmenu', ev => {
     const tag = ev.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target.isContentEditable) return;
@@ -1286,13 +1286,16 @@ export function initViewportNavigation({ outer, inner } = {}) {
     if (ev.target.closest?.('.panel')) return;
     // Allow contextmenu on PiP placeholders (for panel restore)
     if (ev.target.closest?.('.pip-placeholder')) return;
+    // Allow contextmenu on viewportInner empty space (for creating viewport notes)
+    if (ev.target.id === 'viewportInner') return;
     ev.preventDefault();
     ev.stopImmediatePropagation();
   }, { capture: true });
 
-  // Fallback for Samsung/Android Chrome — no bloquear si el target es un placeholder
+  // Fallback for Samsung/Android Chrome — no bloquear si el target es un placeholder o viewportInner
   outer.oncontextmenu = (e) => {
     if (e.target.closest?.('.pip-placeholder')) return true;
+    if (e.target.id === 'viewportInner') return true;
     return false;
   };
 

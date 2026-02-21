@@ -102,10 +102,85 @@ export function initPanelNotes() {
     panelNotesMap.set(VIEWPORT_PANEL_ID, new Set());
   }
   
+  // Configurar menú contextual en viewportInner (espacio vacío entre paneles)
+  setupViewportContextMenu();
+  
   // Restaurar notas guardadas
   restoreNotes();
   
   log.info('PanelNotes inicializado');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MENÚ CONTEXTUAL DE VIEWPORT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Configura el menú contextual en el espacio vacío del viewport (viewportInner)
+ * para permitir crear notas fuera de los paneles.
+ */
+function setupViewportContextMenu() {
+  const vi = document.getElementById('viewportInner');
+  if (!vi) return;
+  
+  vi.addEventListener('contextmenu', (e) => {
+    // Solo si el clic fue directamente en viewportInner (no en un hijo como panel o nota)
+    if (e.target !== vi) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Calcular posición en px dentro de viewportInner (con corrección de zoom)
+    const viRect = vi.getBoundingClientRect();
+    const scale = vi.offsetWidth > 0 ? viRect.width / vi.offsetWidth : 1;
+    const xPx = (e.clientX - viRect.left) / scale;
+    const yPx = (e.clientY - viRect.top) / scale;
+    
+    showViewportContextMenu(e.clientX, e.clientY, xPx, yPx);
+  });
+}
+
+/**
+ * Muestra un menú contextual para el viewport con opciones de notas.
+ * @param {number} screenX - Posición X en pantalla (para posicionar el menú)
+ * @param {number} screenY - Posición Y en pantalla (para posicionar el menú)
+ * @param {number} xPx - Posición X en px dentro de viewportInner
+ * @param {number} yPx - Posición Y en px dentro de viewportInner
+ */
+function showViewportContextMenu(screenX, screenY, xPx, yPx) {
+  hideNoteContextMenu();
+  
+  const menu = document.createElement('div');
+  menu.className = 'panel-note__context-menu';
+  menu.setAttribute('data-prevent-pan', 'true');
+  
+  // Añadir nota
+  menu.appendChild(createNoteMenuItem(t('notes.add'), () => {
+    hideNoteContextMenu();
+    createNote(VIEWPORT_PANEL_ID, { xPx, yPx });
+  }));
+  
+  // Pegar nota (solo si hay nota en clipboard)
+  if (hasNoteInClipboard()) {
+    menu.appendChild(createNoteMenuSeparator());
+    menu.appendChild(createNoteMenuItem(t('notes.ctx.pasteNote'), () => {
+      hideNoteContextMenu();
+      // El clipboard guarda wPct/hPct; para viewport se usan defaults de px
+      createNote(VIEWPORT_PANEL_ID, {
+        xPx,
+        yPx,
+        html: _noteClipboard.html,
+        color: _noteClipboard.color,
+        fontSize: _noteClipboard.fontSize,
+      });
+    }));
+  }
+  
+  document.body.appendChild(menu);
+  _activeNoteCtxMenu = menu;
+  
+  positionContextMenu(menu, screenX, screenY);
+  setupNoteCtxMenuClose(menu);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -849,9 +924,9 @@ function setupNoteDrag(noteEl, handleEl) {
       const xPct = (newLeftPx / parentEl.offsetWidth) * 100;
       const yPct = (newTopPx / parentEl.offsetHeight) * 100;
       
-      // Permitir sobresalir un poco pero no irse demasiado lejos
-      noteEl.style.left = `${clamp(xPct, -15, 95)}%`;
-      noteEl.style.top = `${clamp(yPct, -15, 95)}%`;
+      // Clamp para que la barra de título siempre quede visible dentro del panel
+      noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
+      noteEl.style.top = `${clamp(yPct, 0, 95)}%`;
     }
   }
   

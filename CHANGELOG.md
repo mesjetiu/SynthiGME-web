@@ -48,7 +48,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Output Channel DC blocker**: Reposicionado a salida de altavoces (fc=1Hz). Re-entry DC-transparente para CV.
 - **PiP: múltiples correcciones**: Resize, filtrado de eventos, paneo táctil unificado, viewport restaurado al cargar patch, controles bloqueaban gestos táctiles, centrado al abrir, paneles recortados.
 - **Doble click/tap en controles no activa zoom de panel**: Lista de selectores interactivos corregida.
-- **Tooltips**: Superpuestos en táctil (exclusión mutua). Calibración V/oct en knobs de nivel. Frecuencia muestra voltaje 0-10V del potenciómetro. Sin activación accidental durante pan/zoom.
+- **Tooltips**: Superpuestos en táctil (exclusión mutua). Calibración V/oct en knobs de nivel. Frecuencia muestra voltaje 0-10V del potenciómetro. Sin activación accidental durante pan/zoom. Tooltip de pines no desaparece mientras el ratón sigue encima (auto-hide solo en táctil).
 - **Menú contextual**: Knobs bloqueaban click derecho. Detección de controles individuales. Output channel individual. Interpolación de nombres. Cierre en móvil/Escape. Safari iOS.
 - **Reinicio global: valores por defecto leídos de configs** (eliminados valores hardcoded incorrectos).
 - **OSC**: Frecuencia mapeaba 0-100 en lugar de 0-10. Mensajes propios filtrados por IP local.

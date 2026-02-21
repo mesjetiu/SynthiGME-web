@@ -278,8 +278,10 @@ export class MatrixTooltip {
    * 
    * @param {HTMLButtonElement} pinBtn - The pin button element
    * @param {{text: string, pinInfo: string|null}|string} content - Tooltip content (object with text and pinInfo, or legacy string)
+   * @param {Object} [options] - Show options
+   * @param {boolean} [options.autoHide=true] - Whether to auto-hide after autoHideDelay (true for mobile, false for desktop hover)
    */
-  show(pinBtn, content) {
+  show(pinBtn, content, { autoHide = true } = {}) {
     if (!pinBtn || !content) return;
     
     // Ocultar otros tooltips (knobs, sliders) para evitar superposición
@@ -352,12 +354,13 @@ export class MatrixTooltip {
     tooltip.classList.add('is-visible');
     this._isVisible = true;
     
-    // Set up auto-hide timeout (for mobile)
+    // Set up auto-hide timeout (only for mobile/touch interactions)
     this._clearHideTimeout();
-    this._hideTimeout = setTimeout(() => this.hide(), this.autoHideDelay);
-    
-    // Listen for taps outside to hide
-    document.addEventListener('touchstart', this._onDocumentTap, { passive: true, once: true });
+    if (autoHide) {
+      this._hideTimeout = setTimeout(() => this.hide(), this.autoHideDelay);
+      // Listen for taps outside to hide
+      document.addEventListener('touchstart', this._onDocumentTap, { passive: true, once: true });
+    }
   }
   
   /**
@@ -504,7 +507,7 @@ export class MatrixTooltip {
     
     const content = this._getTooltipText(row, col, maps, btn);
     if (content) {
-      this.show(btn, content);
+      this.show(btn, content, { autoHide: false });
     }
   }
   

@@ -666,6 +666,8 @@ const PALETTE = [
 function inferShape(el, rect) {
   const ratio = rect.width / (rect.height || 1);
   const size = Math.max(rect.width, rect.height);
+  // Pines de matriz → siempre dot
+  if (el.classList.contains('pin-btn')) return 'dot';
   // Elementos explícitamente circulares
   if (el.classList.contains('knob') || el.classList.contains('knob-inner') ||
       el.classList.contains('panel7-joystick-pad')) {
@@ -695,7 +697,7 @@ function inferShape(el, rect) {
 const MAX_GHOSTS = 2000;
 
 function gatherGhosts() {
-  const MIN_SIZE = 3;
+  const MIN_SIZE = 1;
   const candidates = [];
 
   // ── Selector de módulos (frames) ──
@@ -793,12 +795,19 @@ function gatherGhosts() {
     const { el, rect } = selected[i];
     const shape = inferShape(el, rect);
     const [r, g, b] = PALETTE[i % PALETTE.length];
+    // Pines: dot = círculo pequeño, color brillante, tamaño mínimo mayor
+    const isPin = el.classList.contains('pin-btn') || shape === 'dot';
     ghosts.push({
       x: rect.left, y: rect.top,
-      w: Math.max(rect.width, 4), h: Math.max(rect.height, 4),
+      w: isPin ? Math.max(rect.width, 8) : Math.max(rect.width, 4),
+      h: isPin ? Math.max(rect.height, 8) : Math.max(rect.height, 4),
       shape,
-      fillStyle: `rgba(${r},${g},${b},0.55)`,
-      strokeStyle: `rgba(${r},${g},${b},0.7)`,
+      fillStyle: isPin
+        ? `rgba(${r},${g},${b},0.95)`
+        : `rgba(${r},${g},${b},0.55)`,
+      strokeStyle: isPin
+        ? `rgba(255,255,255,0.7)`
+        : `rgba(${r},${g},${b},0.7)`,
       delay: Math.random() * 600,
       tx: (Math.random() - 0.5) * vw * 0.7,
       ty: (Math.random() - 0.5) * vh * 0.6,
@@ -894,8 +903,10 @@ function startCanvasAnimation(canvas, ghostData, durationMs) {
       ctx2d.lineWidth = 1;
 
       if (ghost.shape === 'circle' || ghost.shape === 'dot') {
+        const r = ghost.shape === 'dot' ? Math.max(hw, 4) : hw;
+        const ry = ghost.shape === 'dot' ? Math.max(hh, 4) : hh;
         ctx2d.beginPath();
-        ctx2d.ellipse(0, 0, hw, hh, 0, 0, Math.PI * 2);
+        ctx2d.ellipse(0, 0, r, ry, 0, 0, Math.PI * 2);
         ctx2d.fill();
         ctx2d.stroke();
       } else {

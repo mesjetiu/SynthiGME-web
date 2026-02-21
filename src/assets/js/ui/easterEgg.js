@@ -1083,6 +1083,7 @@ function createOverlay(durationMs) {
     'z-index: 9999',
     'background: rgba(5, 5, 15, 0)',
     'cursor: default',
+    'touch-action: none',
     'opacity: 0',
     'transition: opacity 0.8s ease-in',
     'pointer-events: auto',

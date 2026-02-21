@@ -686,7 +686,6 @@ function inferShape(el, rect) {
 function createGhostEl(rect, shape, colorIdx) {
   const el = document.createElement('div');
   const [r, g, b] = PALETTE[colorIdx % PALETTE.length];
-  const glow = Math.max(rect.width, rect.height) * 0.5;
 
   el.style.cssText = [
     'position: fixed',
@@ -694,12 +693,10 @@ function createGhostEl(rect, shape, colorIdx) {
     `top: ${rect.top}px`,
     `width: ${Math.max(rect.width, 4)}px`,
     `height: ${Math.max(rect.height, 4)}px`,
-    `background: rgba(${r},${g},${b},0.6)`,
-    `border: 1px solid rgba(${r},${g},${b},0.8)`,
+    `background: rgba(${r},${g},${b},0.55)`,
+    `border: 1px solid rgba(${r},${g},${b},0.7)`,
     `border-radius: ${shape === 'circle' || shape === 'dot' ? '50%' : '4px'}`,
-    `box-shadow: 0 0 ${glow}px rgba(${r},${g},${b},0.35)`,
     'pointer-events: none',
-    'will-change: transform, opacity',
   ].join(';');
 
   return el;
@@ -800,51 +797,34 @@ function animateGhosts(ghosts, durationMs) {
   const vh = window.innerHeight || 800;
 
   for (const ghost of ghosts) {
-    const delay = Math.random() * 800;
+    const delay = Math.random() * 600;
 
-    // Desplazamiento salvaje — cruza la pantalla
-    const tx = (Math.random() - 0.5) * vw * 0.8;
-    const ty = (Math.random() - 0.5) * vh * 0.7;
-    // Segundo punto de destino (para la erupción)
-    const tx2 = (Math.random() - 0.5) * vw * 1.0;
-    const ty2 = (Math.random() - 0.5) * vh * 0.9;
-    const rot = (Math.random() - 0.5) * 1080;
-    const rot2 = rot + (Math.random() - 0.5) * 720;
-    const sc = 0.2 + Math.random() * 2.5;
-    const sc2 = 0.1 + Math.random() * 3;
+    // Desplazamiento — cruza la pantalla
+    const tx = (Math.random() - 0.5) * vw * 0.7;
+    const ty = (Math.random() - 0.5) * vh * 0.6;
+    const rot = (Math.random() - 0.5) * 720;
+    const sc = 0.3 + Math.random() * 2;
 
-    // Micro-jitter para la fase de tremor
-    const jx = (Math.random() - 0.5) * 15;
-    const jy = (Math.random() - 0.5) * 15;
-
+    // Solo transform (GPU-composited), opacity solo en entrada/salida
     const keyframes = [
       // Aparición
       { transform: 'translate(0,0) rotate(0deg) scale(1)',
         opacity: 0, offset: 0 },
       { transform: 'translate(0,0) rotate(0deg) scale(1)',
-        opacity: 0.85, offset: 0.04 },
-      // Tremor (Klang)
-      { transform: `translate(${jx}px,${jy}px) rotate(${rot * 0.03}deg) scale(1.05)`,
-        opacity: 0.8, offset: 0.14 },
-      // Dispersión (Punkte)
-      { transform: `translate(${tx * 0.4}px,${ty * 0.4}px) rotate(${rot * 0.25}deg) scale(${0.6 + sc * 0.3})`,
-        opacity: 0.7, offset: 0.26 },
-      // Caos (Gruppen)
+        opacity: 0.8, offset: 0.05 },
+      // Dispersión
+      { transform: `translate(${tx * 0.3}px,${ty * 0.3}px) rotate(${rot * 0.2}deg) scale(${0.7 + sc * 0.2})`,
+        opacity: 0.7, offset: 0.25 },
+      // Caos máximo
       { transform: `translate(${tx}px,${ty}px) rotate(${rot}deg) scale(${sc})`,
-        opacity: 0.55, offset: 0.42 },
-      // Erupción — explosión máxima, escala extrema, giro salvaje
-      { transform: `translate(${tx2}px,${ty2}px) rotate(${rot2}deg) scale(${sc2})`,
-        opacity: 0.45, offset: 0.58 },
-      // Resonancia — rebote, pulsación
-      { transform: `translate(${tx * 0.5}px,${ty * -0.4}px) rotate(${rot * 0.6}deg) scale(${sc * 0.8})`,
-        opacity: 0.4, offset: 0.74 },
-      // Reagrupamiento — los elementos empiezan a volver
-      { transform: `translate(${tx * 0.15}px,${ty * 0.1}px) rotate(${rot * 0.08}deg) scale(1.1)`,
-        opacity: 0.6, offset: 0.88 },
-      // Retorno — vuelven a su lugar original
+        opacity: 0.5, offset: 0.50 },
+      // Reagrupamiento
+      { transform: `translate(${tx * 0.1}px,${ty * 0.1}px) rotate(${rot * 0.05}deg) scale(1.05)`,
+        opacity: 0.7, offset: 0.85 },
+      // Retorno
       { transform: 'translate(0,0) rotate(0deg) scale(1)',
-        opacity: 0.85, offset: 0.97 },
-      // Desaparición — fundido rápido final
+        opacity: 0.8, offset: 0.96 },
+      // Fundido final
       { transform: 'translate(0,0) rotate(0deg) scale(1)',
         opacity: 0, offset: 1 },
     ];
@@ -853,7 +833,7 @@ function animateGhosts(ghosts, durationMs) {
       const anim = ghost.animate(keyframes, {
         duration: durationMs - delay,
         delay,
-        easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        easing: 'ease-in-out',
         fill: 'both',
       });
       animations.push(anim);
@@ -872,20 +852,15 @@ function animateGhosts(ghosts, durationMs) {
 function scheduleVisualPulses(overlay, burstTimes) {
   for (let i = 0; i < burstTimes.length; i++) {
     const t = burstTimes[i];
-    // Intensidad creciente hacia el clímax (mitad de la pieza)
-    const progress = i / burstTimes.length;
-    const intensity = progress < 0.5
-      ? 0.08 + progress * 0.3
-      : 0.23 - (progress - 0.5) * 0.3;
-    const spread = 150 + intensity * 600;
     setTimeout(() => {
       if (!overlay || !overlay.parentElement) return;
       try {
+        // Flash de backdrop-color — solo opacity, sin boxShadow (GPU-friendly)
         overlay.animate([
-          { boxShadow: 'inset 0 0 0 rgba(255,255,255,0)' },
-          { boxShadow: `inset 0 0 ${spread}px rgba(180,140,255,${intensity})` },
-          { boxShadow: 'inset 0 0 0 rgba(255,255,255,0)' },
-        ], { duration: 600, easing: 'ease-out' });
+          { backgroundColor: 'rgba(140,100,220,0)' },
+          { backgroundColor: 'rgba(140,100,220,0.12)' },
+          { backgroundColor: 'rgba(140,100,220,0)' },
+        ], { duration: 500, easing: 'ease-out' });
       } catch (_) { /* ignore — JSDOM */ }
     }, t * 1000);
   }
@@ -932,18 +907,14 @@ function createOverlay(durationMs) {
     'overflow: hidden',
   ].join(';');
 
-  // Rotación de matiz animada — solo sobre la capa de fantasmas, no el backdrop
+  // Ciclo de color sutil en el backdrop (no en el overlay para no forzar
+  // re-renderizado de los fantasmas). Solo anima background — GPU-friendly.
   try {
-    overlay.animate([
-      { filter: 'hue-rotate(0deg) brightness(1) saturate(1)' },
-      { filter: 'hue-rotate(60deg) brightness(1.1) saturate(1.3)' },
-      { filter: 'hue-rotate(120deg) brightness(0.95) saturate(1.1)' },
-      { filter: 'hue-rotate(200deg) brightness(1.15) saturate(1.4)' },
-      { filter: 'hue-rotate(280deg) brightness(0.9) saturate(1.2)' },
-      { filter: 'hue-rotate(360deg) brightness(1.1) saturate(1.3)' },
-      { filter: 'hue-rotate(480deg) brightness(0.95) saturate(1.1)' },
-      { filter: 'hue-rotate(560deg) brightness(1.05) saturate(1.2)' },
-      { filter: 'hue-rotate(720deg) brightness(1) saturate(1)' },
+    backdrop.animate([
+      { background: 'radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.88), rgba(5,5,12,0.93) 70%)' },
+      { background: 'radial-gradient(ellipse at 50% 50%, rgba(15,5,60,0.90), rgba(8,3,18,0.93) 70%)' },
+      { background: 'radial-gradient(ellipse at 60% 40%, rgba(30,5,40,0.88), rgba(5,5,15,0.93) 70%)' },
+      { background: 'radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.88), rgba(5,5,12,0.93) 70%)' },
     ], {
       duration: durationMs,
       iterations: 1,

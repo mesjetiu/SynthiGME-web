@@ -9,6 +9,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 - **Undo/Redo global**: Deshacer/rehacer basado en snapshots (hasta 50 estados). Botones en quickbar, Ctrl+Z / Ctrl+U. Se limpia al cargar patch o resetear.
+- **Confirmación de reinicio opcional**: Checkbox "No volver a preguntar" en el diálogo de reinicio. Opción en Ajustes > General para reactivar/desactivar la confirmación. Se sincroniza con la casilla del diálogo.
 - **PiP mejorado**: Auto-lock/unlock de canvas al extraer/cerrar paneles. Escala contain (panel siempre visible completo). Placeholder requiere long-press o click derecho para devolver panel. Resize desde cualquier borde/esquina. Paneo con ratón y flechas. Maximizar/restaurar sin perder posición.
 - **Menú contextual jerárquico**: Clic derecho (o long press en móvil) con opciones por elemento: extraer/devolver panel, reiniciar panel, módulo o control concreto. Valores por defecto leídos de configs de módulos (fuente única de verdad).
 - **Manejo global de errores**: Captura con `window.onerror`, `unhandledrejection` y `processorerror` en AudioWorklets. Try/catch en worklets críticos con silencio limpio. Toast unificado con niveles de severidad reemplazando 3 sistemas independientes.
@@ -40,6 +41,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **UI: selector de resolución oculto**. La app siempre inicia en 1x.
 
 ### Corregido
+- **Glow inconsistente al reiniciar**: Al reiniciar el sintetizador, solo brillaban sliders y toggles. Ahora todos los elementos (knobs incluidos) hacen flash de glow al recibir un valor, esté o no ya en ese valor.
+- **Joystick pads no se reiniciaban desde quickbar**: El handle visual del pad no se actualizaba al reiniciar el sintetizador desde el botón de quickbar o atajo de teclado, aunque el estado de audio sí se reseteaba.
 - **DSP on/off: patch sin sonido tras off→load→on**: Al encender DSP siempre se re-aplica el patch actual.
 - **Joystick pad**: Arrastre llegaba solo a ~0.8. Inoperable en PiP tablet. Halo activo añadido.
 - **Output Channel DC blocker**: Reposicionado a salida de altavoces (fc=1Hz). Re-entry DC-transparente para CV.

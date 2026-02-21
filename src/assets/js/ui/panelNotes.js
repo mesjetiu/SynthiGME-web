@@ -325,7 +325,7 @@ export function createNote(panelId, options = {}) {
   // ── Área de texto ──
   const body = document.createElement('div');
   body.className = 'panel-note__body';
-  body.contentEditable = 'true';
+  body.contentEditable = 'false';
   body.spellcheck = false;
   
   // Restaurar HTML (soporta negrita/cursiva)
@@ -371,25 +371,41 @@ export function createNote(panelId, options = {}) {
     }
   });
   
-  // ── Menú contextual de texto ──
+  // ── Menú contextual: texto (editando) o nota (no editando) ──
   body.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    showTextContextMenu(note, body, e.clientX, e.clientY);
+    if (body.contentEditable === 'true') {
+      showTextContextMenu(note, body, e.clientX, e.clientY);
+    } else {
+      showNoteContextMenu(note, e.clientX, e.clientY);
+    }
   });
   
-  // ── Al perder el foco, deshacer selección visual ──
-  body.addEventListener('blur', () => {
-    const sel = window.getSelection?.();
-    if (sel && !sel.isCollapsed) {
-      sel.removeAllRanges();
+  // ── Al recuperar foco, cancelar salida de edición ──
+  body.addEventListener('focus', () => {
+    if (body._exitEditTimeout) {
+      clearTimeout(body._exitEditTimeout);
+      body._exitEditTimeout = null;
     }
+  });
+  
+  // ── Al perder el foco, salir de modo edición (con retardo para menú contextual) ──
+  body.addEventListener('blur', () => {
+    body._exitEditTimeout = setTimeout(() => {
+      body._exitEditTimeout = null;
+      body.contentEditable = 'false';
+      const sel = window.getSelection?.();
+      if (sel && !sel.isCollapsed) {
+        sel.removeAllRanges();
+      }
+    }, 200);
   });
   
   note.appendChild(body);
   
-  // ── Drag & Drop (ratón + touch) ──
-  setupNoteDrag(note, header);
+  // ── Drag & Drop (ratón + touch) — arrastre desde header o body (si no edita) ──
+  setupNoteDrag(note, note);
   
   // ── Insertar en el contenedor (panel o viewportInner) ──
   container.appendChild(note);
@@ -413,7 +429,8 @@ export function createNote(panelId, options = {}) {
   
   if (!_isRestoring) {
     saveNotes();
-    // Dar foco al cuerpo para que el usuario escriba directamente
+    // Entrar en modo edición para que el usuario escriba directamente
+    body.contentEditable = 'true';
     body.focus();
   }
   
@@ -563,8 +580,23 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   const sel = window.getSelection();
   const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
   
+  // Guardar rango para restaurar tras clic en menú (el body pierde foco al pulsar el menú)
+  const savedRange = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0).cloneRange() : null;
+  
+  /** Restaura foco y selección en bodyEl antes de execCommand */
+  function restoreEditingContext() {
+    bodyEl.contentEditable = 'true';
+    bodyEl.focus();
+    if (savedRange) {
+      const s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(savedRange);
+    }
+  }
+  
   // Cortar
   const cutItem = createNoteMenuItem(t('notes.ctx.cut'), () => {
+    restoreEditingContext();
     document.execCommand('cut');
     hideNoteContextMenu();
     saveNotes();
@@ -574,6 +606,7 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   
   // Copiar
   const copyItem = createNoteMenuItem(t('notes.ctx.copy'), () => {
+    restoreEditingContext();
     document.execCommand('copy');
     hideNoteContextMenu();
   });
@@ -582,6 +615,7 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   
   // Pegar
   menu.appendChild(createNoteMenuItem(t('notes.ctx.paste'), () => {
+    restoreEditingContext();
     document.execCommand('paste');
     hideNoteContextMenu();
     saveNotes();
@@ -592,6 +626,7 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   
   // Negrita
   menu.appendChild(createNoteMenuItem(t('notes.ctx.bold'), () => {
+    restoreEditingContext();
     document.execCommand('bold', false, null);
     hideNoteContextMenu();
     saveNotes();
@@ -599,6 +634,7 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   
   // Cursiva
   menu.appendChild(createNoteMenuItem(t('notes.ctx.italic'), () => {
+    restoreEditingContext();
     document.execCommand('italic', false, null);
     hideNoteContextMenu();
     saveNotes();
@@ -609,6 +645,7 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   
   // Alinear izquierda
   menu.appendChild(createNoteMenuItem(t('notes.ctx.alignLeft'), () => {
+    restoreEditingContext();
     document.execCommand('justifyLeft', false, null);
     hideNoteContextMenu();
     saveNotes();
@@ -616,6 +653,7 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   
   // Centrar
   menu.appendChild(createNoteMenuItem(t('notes.ctx.alignCenter'), () => {
+    restoreEditingContext();
     document.execCommand('justifyCenter', false, null);
     hideNoteContextMenu();
     saveNotes();
@@ -623,6 +661,7 @@ function showTextContextMenu(noteEl, bodyEl, x, y) {
   
   // Alinear derecha
   menu.appendChild(createNoteMenuItem(t('notes.ctx.alignRight'), () => {
+    restoreEditingContext();
     document.execCommand('justifyRight', false, null);
     hideNoteContextMenu();
     saveNotes();
@@ -653,6 +692,23 @@ function showNoteContextMenu(noteEl, x, y) {
   const menu = document.createElement('div');
   menu.className = 'panel-note__context-menu';
   menu.setAttribute('data-prevent-pan', 'true');
+  
+  // Editar nota (entrar en modo edición)
+  menu.appendChild(createNoteMenuItem(t('notes.ctx.edit'), () => {
+    hideNoteContextMenu();
+    const bodyEl = noteEl.querySelector('.panel-note__body');
+    if (bodyEl) {
+      if (bodyEl._exitEditTimeout) {
+        clearTimeout(bodyEl._exitEditTimeout);
+        bodyEl._exitEditTimeout = null;
+      }
+      bodyEl.contentEditable = 'true';
+      bodyEl.focus();
+    }
+  }));
+  
+  // Separador
+  menu.appendChild(createNoteMenuSeparator());
   
   // Copiar nota
   menu.appendChild(createNoteMenuItem(t('notes.ctx.copyNote'), () => {
@@ -940,25 +996,36 @@ function applyNoteColor(noteEl, colorDef) {
  * @param {HTMLElement} handleEl - Elemento que actúa como drag handle
  */
 function setupNoteDrag(noteEl, handleEl) {
-  let isDragging = false;
+  const DRAG_THRESHOLD = 4; // px antes de considerar arrastre real
+  const DBLCLICK_TIME = 400; // ms máximo entre clics para doble clic
+  let isPending = false;   // pointerdown registrado, aún sin superar umbral
+  let isDragging = false;  // umbral superado, arrastre activo
   let pointerId = null;
   let startX = 0;
   let startY = 0;
   let startLeftPx = 0;
   let startTopPx = 0;
   let isViewportNote = false;
+  let lastClickTime = 0;   // timestamp del último clic sin arrastre
+  let lastClickTarget = null; // target del último clic
+  let downTarget = null;    // target original del pointerdown (setPointerCapture cambia e.target)
   
   function onPointerDown(e) {
-    if (!e.target.closest('.panel-note__header')) return;
-    if (e.target.closest('.panel-note__btn')) return;
+    // Permitir arrastre desde header (excepto botones) o body (si no está editando)
+    const fromHeader = e.target.closest('.panel-note__header') && !e.target.closest('.panel-note__btn');
+    const bodyEl = noteEl.querySelector('.panel-note__body');
+    const fromBody = e.target.closest('.panel-note__body') && bodyEl?.contentEditable !== 'true';
+    if (!fromHeader && !fromBody) return;
     // Solo arrastrar con botón izquierdo; clic derecho → menú contextual
     if (e.button !== 0) return;
     
-    e.preventDefault();
+    // No hacer preventDefault aquí: permitir dblclick nativo
     e.stopPropagation();
     
-    isDragging = true;
+    isPending = true;
+    isDragging = false;
     pointerId = e.pointerId;
+    downTarget = e.target; // guardar antes de setPointerCapture
     handleEl.setPointerCapture(e.pointerId);
     
     startX = e.clientX;
@@ -967,35 +1034,40 @@ function setupNoteDrag(noteEl, handleEl) {
     isViewportNote = noteEl.dataset.panelId === VIEWPORT_PANEL_ID;
     
     if (isViewportNote) {
-      // ── Nota de viewport: arrastrar en px ──
       startLeftPx = parseFloat(noteEl.style.left) || 0;
       startTopPx = parseFloat(noteEl.style.top) || 0;
     } else {
-      // ── Nota de panel: arrastrar en-panel ──
       startLeftPx = noteEl.offsetLeft;
       startTopPx = noteEl.offsetTop;
     }
-    
-    noteEl.classList.add('panel-note--dragging');
   }
   
   function onPointerMove(e) {
-    if (!isDragging || e.pointerId !== pointerId) return;
-    e.preventDefault();
-    e.stopPropagation();
+    if (e.pointerId !== pointerId) return;
+    if (!isPending && !isDragging) return;
     
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     
+    // Comprobar umbral antes de activar arrastre real
+    if (isPending && !isDragging) {
+      if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+      // Supera umbral → activar arrastre
+      isPending = false;
+      isDragging = true;
+      noteEl.classList.add('panel-note--dragging');
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (isViewportNote) {
-      // Arrastre en espacio viewportInner (px con corrección de zoom)
       const vi = document.getElementById('viewportInner');
       const viRect = vi?.getBoundingClientRect();
       const scale = (vi && vi.offsetWidth > 0) ? viRect.width / vi.offsetWidth : 1;
       noteEl.style.left = `${startLeftPx + dx / scale}px`;
       noteEl.style.top = `${startTopPx + dy / scale}px`;
     } else {
-      // Arrastre en-panel (% relativo al panel padre)
       const parentEl = noteEl.closest('.panel') || noteEl.parentElement;
       const parentRect = parentEl.getBoundingClientRect();
       const scaleX = parentRect.width / parentEl.offsetWidth;
@@ -1007,15 +1079,16 @@ function setupNoteDrag(noteEl, handleEl) {
       const xPct = (newLeftPx / parentEl.offsetWidth) * 100;
       const yPct = (newTopPx / parentEl.offsetHeight) * 100;
       
-      // Clamp para que la barra de título siempre quede visible dentro del panel
       noteEl.style.left = `${clamp(xPct, -5, 95)}%`;
       noteEl.style.top = `${clamp(yPct, 0, 95)}%`;
     }
   }
   
   function onPointerUp(e) {
-    if (!isDragging || e.pointerId !== pointerId) return;
+    if (e.pointerId !== pointerId) return;
     
+    const wasDragging = isDragging;
+    isPending = false;
     isDragging = false;
     pointerId = null;
     noteEl.classList.remove('panel-note--dragging');
@@ -1024,7 +1097,30 @@ function setupNoteDrag(noteEl, handleEl) {
       handleEl.releasePointerCapture(e.pointerId);
     } catch { /* ya released */ }
     
-    saveNotes();
+    if (wasDragging) {
+      saveNotes();
+    } else {
+      // Detección de doble clic manual (setPointerCapture cambia e.target)
+      const bodyEl = noteEl.querySelector('.panel-note__body');
+      const clickedBody = downTarget?.closest('.panel-note__body');
+      if (clickedBody && bodyEl) {
+        const now = Date.now();
+        if (lastClickTarget === bodyEl && (now - lastClickTime) < DBLCLICK_TIME) {
+          // ── Doble clic → entrar en modo edición ──
+          lastClickTime = 0;
+          lastClickTarget = null;
+          if (bodyEl._exitEditTimeout) {
+            clearTimeout(bodyEl._exitEditTimeout);
+            bodyEl._exitEditTimeout = null;
+          }
+          bodyEl.contentEditable = 'true';
+          bodyEl.focus();
+        } else {
+          lastClickTime = now;
+          lastClickTarget = bodyEl;
+        }
+      }
+    }
   }
   
   handleEl.addEventListener('pointerdown', onPointerDown);

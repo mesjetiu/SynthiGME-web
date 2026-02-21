@@ -6545,14 +6545,23 @@ small { color:#aaa; }
   padding: 4px 6px 6px;
   min-height: 20px;
   outline: none;
-  cursor: text;
-  user-select: text;
+  cursor: grab;
+  user-select: none;
   word-break: break-word;
   white-space: pre-wrap;
   font-size: inherit;
   line-height: inherit;
   color: inherit;
   overflow-y: auto;
+}
+
+.panel-note__body[contenteditable="true"] {
+  cursor: text;
+  user-select: text;
+}
+
+.panel-note--dragging .panel-note__body {
+  cursor: grabbing;
 }
 
 .panel-note__body:empty::before {

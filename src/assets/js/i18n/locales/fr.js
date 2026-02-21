@@ -426,6 +426,7 @@ export default {
   "notes.ctx.paste": "Coller",
   "notes.ctx.bold": "Gras",
   "notes.ctx.italic": "Italique",
+  "notes.ctx.edit": "Modifier",
   "notes.ctx.copyNote": "Copier la note",
   "notes.ctx.cutNote": "Couper la note",
   "notes.ctx.pasteNote": "Coller la note",

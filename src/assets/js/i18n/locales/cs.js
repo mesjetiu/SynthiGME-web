@@ -426,6 +426,7 @@ export default {
   "notes.ctx.paste": "Vložit",
   "notes.ctx.bold": "Tučné",
   "notes.ctx.italic": "Kurzíva",
+  "notes.ctx.edit": "Upravit",
   "notes.ctx.copyNote": "Kopírovat poznámku",
   "notes.ctx.cutNote": "Vyjmout poznámku",
   "notes.ctx.pasteNote": "Vložit poznámku",

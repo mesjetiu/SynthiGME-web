@@ -3872,6 +3872,15 @@ notes.ctx.italic:
   pt: Itálico
   cs: Kurzíva
 
+notes.ctx.edit:
+  en: Edit
+  es: Editar
+  fr: Modifier
+  de: Bearbeiten
+  it: Modifica
+  pt: Editar
+  cs: Upravit
+
 notes.ctx.copyNote:
   en: Copy note
   es: Copiar nota

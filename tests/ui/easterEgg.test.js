@@ -1,14 +1,15 @@
 /**
- * Tests para easterEgg — Easter Egg con fuegos artificiales y pieza musical
+ * Tests para easterEgg — Easter Egg con desintegración visual + pieza musical
  *
  * Cobertura:
- * 1. Constantes y configuración: secuencia, umbrales de tap, timeout
- * 2. triggerEasterEgg: modo normal (audio+visual), modo visualOnly, guard de doble ejecución
- * 3. initEasterEggTrigger: detección de secuencia de taps, reset por drag/timeout/pad incorrecto
- * 4. Mecanismo de seguridad: isDirtyFn capturado al inicio de secuencia (antes de markDirty)
- * 5. No rompe nada: no interfiere con AudioContext del Synthi, limpieza completa del DOM
- * 6. Piezas musicales: chiptune y electroacústica, selección por defecto
- * 7. Análisis estático: exports, integración en app.js, vendor presente
+ *  1. Constantes y configuración
+ *  2. triggerEasterEgg: modo normal, visualOnly, guard doble ejecución
+ *  3. initEasterEggTrigger: detección de secuencia, reset por drag/timeout/pad
+ *  4. Mecanismo de seguridad: isDirtyFn + markCleanFn
+ *  5. Aislamiento: AudioContext propio, limpieza DOM, no interfiere con Synthi
+ *  6. Piezas musicales: chiptune y electroacústica
+ *  7. Efectos visuales: fantasmas, paleta, animación, overlay
+ *  8. Integración app.js, exports, vendor eliminado
  */
 import { describe, it, before, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +23,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '../..');
 const EASTER_EGG_PATH = resolve(ROOT, 'src/assets/js/ui/easterEgg.js');
 const APP_PATH = resolve(ROOT, 'src/assets/js/app.js');
-const VENDOR_PATH = resolve(ROOT, 'src/assets/js/vendor/fireworks.umd.js');
 const BUILD_SCRIPT_PATH = resolve(ROOT, 'scripts/build.mjs');
 
 // ─── Leer código fuente para análisis estático ───────────────────────────────
@@ -36,6 +36,7 @@ global.document = dom.window.document;
 global.CustomEvent = dom.window.CustomEvent;
 global.HTMLElement = dom.window.HTMLElement;
 global.performance = { now: () => Date.now() };
+global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
 
 // Mock AudioContext completo
 let audioContextCreated = false;
@@ -74,6 +75,12 @@ const mockBufferSource = {
   disconnect: () => {},
   playbackRate: mockAudioParam
 };
+const mockBiquadFilter = {
+  type: 'lowpass',
+  frequency: { ...mockAudioParam },
+  Q: { ...mockAudioParam },
+  connect: () => mockGainNode
+};
 
 class MockAudioContext {
   constructor() {
@@ -104,26 +111,19 @@ class MockAudioContext {
     };
   }
   createBufferSource() { return { ...mockBufferSource, playbackRate: { ...mockAudioParam } }; }
+  createBiquadFilter() {
+    return {
+      type: 'lowpass',
+      frequency: { ...mockAudioParam },
+      Q: { ...mockAudioParam },
+      connect: () => ({ ...mockGainNode, gain: { ...mockAudioParam }, connect: () => ({ connect: () => {} }) })
+    };
+  }
   close() { audioContextClosed = true; this.state = 'closed'; return Promise.resolve(); }
 }
 
 global.window.AudioContext = MockAudioContext;
 global.window.webkitAudioContext = MockAudioContext;
-
-// Mock Fireworks
-class MockFireworks {
-  constructor(container, options) {
-    this.container = container;
-    this.options = options;
-    this._running = false;
-  }
-  start() { this._running = true; }
-  stop(immediate) { this._running = false; }
-  launch(count) {}
-}
-
-// Simular que fireworks-js ya está cargado
-global.window.Fireworks = { Fireworks: MockFireworks };
 
 // ─── Import módulo bajo test ─────────────────────────────────────────────────
 const {
@@ -137,18 +137,10 @@ const {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/**
- * Espera a que la promesa de triggerEasterEgg se resuelva.
- * triggerEasterEgg es async, necesitamos que el microtask se complete.
- */
 function flushAsync() {
   return new Promise(resolve => setTimeout(resolve, 20));
 }
 
-/**
- * Crea un PointerEvent simulado compatible con JSDOM.
- * JSDOM no soporta PointerEvent, así que usamos MouseEvent con propiedades extra.
- */
 function createPointerEvent(type, { pointerId = 1, clientX = 50, clientY = 50 } = {}) {
   const ev = new dom.window.MouseEvent(type, {
     bubbles: true,
@@ -156,30 +148,20 @@ function createPointerEvent(type, { pointerId = 1, clientX = 50, clientY = 50 } 
     clientX,
     clientY
   });
-  // Añadir pointerId que JSDOM no soporta nativamente
   Object.defineProperty(ev, 'pointerId', { value: pointerId, writable: false });
   return ev;
 }
 
-/**
- * Simula un tap rápido en un pad (pointerdown + pointerup inmediato).
- */
 function simulateTap(pad, { pointerId = 1, x = 50, y = 50 } = {}) {
   pad.dispatchEvent(createPointerEvent('pointerdown', { pointerId, clientX: x, clientY: y }));
   pad.dispatchEvent(createPointerEvent('pointerup', { pointerId, clientX: x, clientY: y }));
 }
 
-/**
- * Simula un drag (pointerdown en un sitio, pointerup en otro lejano).
- */
 function simulateDrag(pad, { pointerId = 1 } = {}) {
   pad.dispatchEvent(createPointerEvent('pointerdown', { pointerId, clientX: 50, clientY: 50 }));
   pad.dispatchEvent(createPointerEvent('pointerup', { pointerId, clientX: 200, clientY: 200 }));
 }
 
-/**
- * Crea DOM con los dos pads de joystick dentro de sus contenedores.
- */
 function setupJoystickDOM() {
   document.body.innerHTML = `
     <div id="joystick-left">
@@ -197,13 +179,17 @@ function setupJoystickDOM() {
   };
 }
 
-/**
- * Limpia overlays del Easter Egg que queden en el DOM.
- */
-function cleanupOverlays() {
+async function cleanupOverlays() {
+  // Click overlay to trigger cleanup (resets isPlaying)
+  const overlay = document.getElementById('easter-egg-overlay');
+  if (overlay) {
+    overlay.click();
+    await new Promise(r => setTimeout(r, 50));
+  }
   document.querySelectorAll('[style*="position: fixed"]').forEach(el => el.remove());
-  document.querySelectorAll('.easter-egg-overlay').forEach(el => el.remove());
+  document.querySelectorAll('#easter-egg-overlay').forEach(el => el.remove());
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. CONSTANTES Y CONFIGURACIÓN
@@ -237,57 +223,48 @@ describe('Easter Egg — Constantes', () => {
   });
 });
 
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. triggerEasterEgg — API pública
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Easter Egg — triggerEasterEgg()', () => {
 
-  beforeEach(() => {
+  beforeEach(async () => {
     audioContextCreated = false;
     audioContextClosed = false;
-    cleanupOverlays();
+    await cleanupOverlays();
   });
 
   afterEach(async () => {
-    // Dar tiempo a cleanup automático y limpiar
-    await flushAsync();
-    cleanupOverlays();
+    // Wait for click listener install (600ms delay) + click to cleanup
+    await new Promise(r => setTimeout(r, 700));
+    await cleanupOverlays();
   });
 
   it('es una función async exportada', () => {
     assert.strictEqual(typeof triggerEasterEgg, 'function');
   });
 
-  it('crea overlay visual (fuegos artificiales)', async () => {
+  it('crea overlay visual (desintegración)', async () => {
     await triggerEasterEgg({ visualOnly: true });
     await flushAsync();
-    // El overlay debería estar en el DOM (position: fixed, z-index alto)
-    const overlays = document.querySelectorAll('[style*="position"]');
-    // Puede haber overlay — la función crea uno
     assert.ok(true, 'triggerEasterEgg se ejecutó sin errores');
   });
 
-  it('modo normal: crea AudioContext para la melodía', async () => {
+  it('modo normal: crea AudioContext para la pieza', async () => {
     audioContextCreated = false;
-    // Necesitamos resetear el estado de isPlaying primero
-    // Esperamos a que limpie del test anterior
-    await new Promise(r => setTimeout(r, 100));
-    cleanupOverlays();
-
     await triggerEasterEgg();
     assert.ok(audioContextCreated, 'Se creó un AudioContext');
   });
 
   it('modo visualOnly: NO crea AudioContext', async () => {
     audioContextCreated = false;
-    await new Promise(r => setTimeout(r, 100));
-    cleanupOverlays();
-
     await triggerEasterEgg({ visualOnly: true });
     assert.ok(!audioContextCreated, 'No se creó AudioContext en modo visualOnly');
   });
 });
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. initEasterEggTrigger — Detección de secuencia de taps
@@ -310,15 +287,19 @@ describe('Easter Egg — initEasterEggTrigger()', () => {
   });
 
   it('acepta opciones vacías sin error', () => {
-    const { pad1 } = setupJoystickDOM();
+    setupJoystickDOM();
     assert.doesNotThrow(() => initEasterEggTrigger({}));
   });
 
-  it('acepta isDirtyFn como opción', () => {
+  it('acepta isDirtyFn y markCleanFn como opciones', () => {
     setupJoystickDOM();
-    assert.doesNotThrow(() => initEasterEggTrigger({ isDirtyFn: () => false }));
+    assert.doesNotThrow(() => initEasterEggTrigger({
+      isDirtyFn: () => false,
+      markCleanFn: () => {},
+    }));
   });
 });
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. Detección de secuencia — análisis de lógica
@@ -377,14 +358,14 @@ describe('Easter Egg — Lógica de secuencia (análisis estático)', () => {
   });
 });
 
+
 // ═══════════════════════════════════════════════════════════════════════════
-// 5. Mecanismo de seguridad — isDirtyFn
+// 5. Mecanismo de seguridad — isDirtyFn + markCleanFn
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Easter Egg — Mecanismo de seguridad (isDirtyFn)', () => {
+describe('Easter Egg — Mecanismo de seguridad (isDirtyFn + markCleanFn)', () => {
 
   it('triggerEasterEgg acepta options.visualOnly', () => {
-    // Verificar que la firma acepta el parámetro
     const fnSource = easterEggSource.substring(
       easterEggSource.indexOf('export async function triggerEasterEgg')
     );
@@ -392,25 +373,33 @@ describe('Easter Egg — Mecanismo de seguridad (isDirtyFn)', () => {
     assert.ok(fnSource.includes('visualOnly'), 'Lee visualOnly de options');
   });
 
-  it('initEasterEggTrigger acepta options.isDirtyFn', () => {
+  it('initEasterEggTrigger acepta isDirtyFn y markCleanFn', () => {
     const fnSource = easterEggSource.substring(
       easterEggSource.indexOf('export function initEasterEggTrigger')
     );
     assert.ok(fnSource.includes('isDirtyFn'), 'Acepta isDirtyFn');
+    assert.ok(fnSource.includes('markCleanFn'), 'Acepta markCleanFn');
   });
 
   it('isDirtyFn se captura al inicio de la secuencia (pointerdown primer tap)', () => {
-    // isDirtyFn se llama en pointerdown cuando sequenceIndex === 0
     assert.ok(easterEggSource.includes('wasDirtyAtSequenceStart = isDirtyFn()'),
       'isDirtyFn debe capturarse al inicio de la secuencia');
-    // Se usa wasDirtyAtSequenceStart al completar
     assert.ok(easterEggSource.includes('const dirty = wasDirtyAtSequenceStart'),
       'Debe usar el valor capturado al inicio, no el actual');
   });
 
-  it('si isDirtyFn devolvió false al inicio de secuencia → visualOnly=false', () => {
-    assert.ok(easterEggSource.includes('triggerEasterEgg({ visualOnly: dirty })'),
-      'dirty (capturado al inicio) se pasa como visualOnly');
+  it('markCleanFn se llama si no estaba dirty al inicio', () => {
+    assert.ok(easterEggSource.includes('if (!dirty && markCleanFn) markCleanFn()'),
+      'Debe limpiar dirty causado por los propios taps del Easter egg');
+  });
+
+  it('markCleanFn NO se llama si estaba dirty al inicio', () => {
+    // Si dirty es true, no se llama markCleanFn — la condición !dirty lo impide
+    const triggerBlock = easterEggSource.substring(
+      easterEggSource.indexOf('if (!dirty && markCleanFn)')
+    );
+    assert.ok(triggerBlock.includes('!dirty'),
+      'Solo limpia si no estaba dirty antes de la secuencia');
   });
 
   it('visualOnly=true omite creación de AudioContext', () => {
@@ -425,21 +414,24 @@ describe('Easter Egg — Mecanismo de seguridad (isDirtyFn)', () => {
       'AudioContext se crea solo dentro del bloque !visualOnly');
   });
 
-  it('visualOnly=true sigue mostrando overlay y fireworks', () => {
+  it('visualOnly=true sigue mostrando overlay y desintegración', () => {
     const fnBody = easterEggSource.substring(
       easterEggSource.indexOf('export async function triggerEasterEgg'),
       easterEggSource.indexOf('//  TRIGGER:')
     );
-    const afterVisualOnlyBlock = fnBody.substring(fnBody.indexOf('// Visual:'));
-    assert.ok(afterVisualOnlyBlock.includes('createOverlay()'),
+    const afterAudioBlock = fnBody.substring(fnBody.indexOf('// Visual:'));
+    assert.ok(afterAudioBlock.includes('createOverlay'),
       'createOverlay se ejecuta siempre');
-    assert.ok(afterVisualOnlyBlock.includes('startFireworks'),
-      'startFireworks se ejecuta siempre');
+    assert.ok(afterAudioBlock.includes('gatherGhosts'),
+      'gatherGhosts se ejecuta siempre');
+    assert.ok(afterAudioBlock.includes('animateGhosts'),
+      'animateGhosts se ejecuta siempre');
   });
 });
 
+
 // ═══════════════════════════════════════════════════════════════════════════
-// 6. No rompe nada — aislamiento y limpieza
+// 6. Aislamiento y no-regresión
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Easter Egg — Aislamiento y no-regresión', () => {
@@ -463,9 +455,11 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
       'Debe eliminar el overlay del DOM');
   });
 
-  it('detiene fireworks al hacer cleanup', () => {
-    assert.ok(easterEggSource.includes('fireworksInstance.stop'),
-      'Debe detener la instancia de fireworks');
+  it('cancela animaciones al hacer cleanup', () => {
+    assert.ok(easterEggSource.includes('anim.cancel()'),
+      'Debe cancelar las animaciones de los fantasmas');
+    assert.ok(easterEggSource.includes('activeAnimations = []'),
+      'Debe limpiar la lista de animaciones activas');
   });
 
   it('tiene guard contra doble ejecución (isPlaying)', () => {
@@ -474,10 +468,9 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
   });
 
   it('cleanup es robusto: no falla si no hay AudioContext', () => {
-    // En modo visualOnly, ctx es null — cleanup debe manejarlo
     const cleanupFn = easterEggSource.substring(
       easterEggSource.indexOf('function cleanup(audioCtx)'),
-      easterEggSource.indexOf('function scheduleFireworkBursts')
+      easterEggSource.indexOf('//  API PÚBLICA')
     );
     assert.ok(cleanupFn.includes('if (audioCtx && audioCtx.state'),
       'Cleanup verifica que audioCtx exista antes de cerrarlo');
@@ -496,8 +489,6 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
   });
 
   it('retrasa el listener de click para evitar cierre por click sintético en móvil', () => {
-    // El overlay no debe cerrarse inmediatamente por el click sintético
-    // que genera el navegador después del pointerup del último tap
     const fnBody = easterEggSource.substring(
       easterEggSource.indexOf('export async function triggerEasterEgg')
     );
@@ -506,8 +497,6 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
   });
 
   it('isDirtyFn se captura en pointerdown (antes de que pointerup marque dirty)', () => {
-    // El pointerup del pad del joystick despacha synth:userInteraction → markDirty.
-    // El Easter egg debe capturar isDirty en pointerdown (antes de eso).
     assert.ok(easterEggSource.includes('sequenceIndex === 0'),
       'Debe capturar dirty al inicio de la secuencia');
     assert.ok(easterEggSource.includes('wasDirtyAtSequenceStart = isDirtyFn()'),
@@ -520,22 +509,25 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
       `Easter egg no debe tener imports (encontrados: ${imports.join(', ')})`);
   });
 
-  it('fireworks-js se carga dinámicamente (lazy loading)', () => {
-    assert.ok(easterEggSource.includes('ensureFireworksLoaded'),
-      'Debe cargar fireworks solo cuando se necesita');
-    assert.ok(easterEggSource.includes("script.src = './assets/js/vendor/fireworks.umd.js'"),
-      'La ruta del vendor debe ser relativa a index.html');
-  });
-
   it('no despacha synth:userInteraction (no marca dirty)', () => {
-    // El módulo puede mencionar synth:userInteraction en comentarios,
-    // pero no debe despacharlo (dispatchEvent / CustomEvent)
     assert.ok(!easterEggSource.includes("dispatchEvent(new CustomEvent('synth:userInteraction')"),
       'Easter egg no debe despachar synth:userInteraction');
     assert.ok(!easterEggSource.includes("dispatchEvent(new Event('synth:userInteraction')"),
       'Easter egg no debe despachar synth:userInteraction (Event)');
   });
+
+  it('no depende de fireworks-js (eliminado)', () => {
+    assert.ok(!easterEggSource.includes('fireworksInstance'),
+      'No debe haber referencia a fireworksInstance');
+    assert.ok(!easterEggSource.includes('ensureFireworksLoaded'),
+      'No debe haber función ensureFireworksLoaded');
+    assert.ok(!easterEggSource.includes('window.Fireworks'),
+      'No debe depender de window.Fireworks');
+    assert.ok(!easterEggSource.includes('fireworks.umd.js'),
+      'No debe referenciar el vendor de fireworks');
+  });
 });
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 7. Integración con app.js
@@ -553,11 +545,17 @@ describe('Easter Egg — Integración en app.js', () => {
       'La ruta de import debe apuntar a ui/easterEgg.js');
   });
 
-  it('llama initEasterEggTrigger con isDirtyFn del sessionManager', () => {
-    assert.ok(appSource.includes('initEasterEggTrigger({ isDirtyFn:'),
-      'Debe pasar isDirtyFn a initEasterEggTrigger');
+  it('llama initEasterEggTrigger con isDirtyFn y markCleanFn', () => {
+    assert.ok(appSource.includes('initEasterEggTrigger('),
+      'Debe llamar a initEasterEggTrigger');
+    assert.ok(appSource.includes('isDirtyFn:'),
+      'Debe pasar isDirtyFn');
     assert.ok(appSource.includes('sessionManager.isDirty()'),
       'isDirtyFn debe consultar sessionManager.isDirty()');
+    assert.ok(appSource.includes('markCleanFn:'),
+      'Debe pasar markCleanFn');
+    assert.ok(appSource.includes('sessionManager.markClean()'),
+      'markCleanFn debe llamar sessionManager.markClean()');
   });
 
   it('expone window.egg para debug en consola', () => {
@@ -566,7 +564,6 @@ describe('Easter Egg — Integración en app.js', () => {
   });
 
   it('inicializa el trigger después de construir los paneles', () => {
-    // Buscar la llamada (no el import) — la llamada incluye '('
     const triggerCallPos = appSource.indexOf('initEasterEggTrigger(');
     const viewportCallPos = appSource.indexOf('initViewportNavigation(');
     assert.ok(triggerCallPos > 0, 'initEasterEggTrigger() debe estar en app.js');
@@ -576,29 +573,110 @@ describe('Easter Egg — Integración en app.js', () => {
   });
 });
 
+
 // ═══════════════════════════════════════════════════════════════════════════
-// 8. Vendor — fireworks-js
+// 8. Efectos visuales — Desintegración
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Easter Egg — Vendor (fireworks-js)', () => {
+describe('Easter Egg — Desintegración visual (análisis estático)', () => {
 
-  it('fireworks.umd.js existe en src/assets/js/vendor/', () => {
-    assert.ok(existsSync(VENDOR_PATH),
-      `Falta ${VENDOR_PATH}`);
+  it('tiene paleta de colores PALETTE con al menos 6 colores', () => {
+    assert.ok(easterEggSource.includes('const PALETTE = ['),
+      'Debe definir PALETTE');
+    const paletteMatch = easterEggSource.match(/const PALETTE = \[([\s\S]*?)\];/);
+    assert.ok(paletteMatch, 'PALETTE debe ser un array');
+    // Contar entradas [r,g,b]
+    const entries = paletteMatch[1].match(/\[\d+/g);
+    assert.ok(entries && entries.length >= 6,
+      `PALETTE debe tener al menos 6 colores (tiene ${entries ? entries.length : 0})`);
   });
 
-  it('fireworks.umd.js no está vacío', () => {
-    const content = readFileSync(VENDOR_PATH, 'utf-8');
-    assert.ok(content.length > 1000,
-      `fireworks.umd.js parece demasiado pequeño (${content.length} bytes)`);
+  it('tiene configuración GHOST_CONFIG con selectores del Synthi', () => {
+    assert.ok(easterEggSource.includes('const GHOST_CONFIG = ['),
+      'Debe definir GHOST_CONFIG');
+    assert.ok(easterEggSource.includes('.knob'),
+      'Debe animar knobs');
+    assert.ok(easterEggSource.includes('.pin-btn'),
+      'Debe animar pines de matriz');
+    assert.ok(easterEggSource.includes('.synth-module__header'),
+      'Debe animar cabeceras de módulos');
   });
 
-  it('build.mjs copia vendor/ al directorio de salida', () => {
-    const buildSource = readFileSync(BUILD_SCRIPT_PATH, 'utf-8');
-    assert.ok(buildSource.includes('vendor'),
-      'build.mjs debe copiar la carpeta vendor/');
+  it('crea elementos fantasma geométricos (createGhostEl)', () => {
+    assert.ok(easterEggSource.includes('function createGhostEl('),
+      'Debe tener función createGhostEl');
+    assert.ok(easterEggSource.includes("border-radius"),
+      'Los fantasmas deben tener border-radius (formas geométricas)');
+    assert.ok(easterEggSource.includes('box-shadow'),
+      'Los fantasmas deben tener glow (box-shadow)');
+  });
+
+  it('recoge elementos del DOM y crea fantasmas (gatherGhosts)', () => {
+    assert.ok(easterEggSource.includes('function gatherGhosts('),
+      'Debe tener función gatherGhosts');
+    assert.ok(easterEggSource.includes('getBoundingClientRect'),
+      'Debe leer posiciones de elementos reales');
+  });
+
+  it('limita el número de fantasmas por tipo (Fisher-Yates)', () => {
+    assert.ok(easterEggSource.includes('Math.floor(Math.random()'),
+      'Debe usar muestreo aleatorio para limitar fantasmas');
+  });
+
+  it('anima fantasmas con Web Animations API (animateGhosts)', () => {
+    assert.ok(easterEggSource.includes('function animateGhosts('),
+      'Debe tener función animateGhosts');
+    assert.ok(easterEggSource.includes('.animate(keyframes'),
+      'Debe usar element.animate() (Web Animations API)');
+  });
+
+  it('los fantasmas tienen fases: aparición → tremor → dispersión → caos → retorno', () => {
+    assert.ok(easterEggSource.includes('offset: 0'),    'Debe tener keyframe de inicio');
+    assert.ok(easterEggSource.includes('offset: 0.06'), 'Debe tener fase de aparición');
+    assert.ok(easterEggSource.includes('offset: 0.18'), 'Debe tener fase de tremor');
+    assert.ok(easterEggSource.includes('offset: 0.38'), 'Debe tener fase de dispersión');
+    assert.ok(easterEggSource.includes('offset: 0.58'), 'Debe tener fase de caos');
+    assert.ok(easterEggSource.includes('offset: 1'),    'Debe tener keyframe final');
+  });
+
+  it('cada fantasma tiene desplazamiento, rotación y escala aleatorios', () => {
+    const animFn = easterEggSource.substring(
+      easterEggSource.indexOf('function animateGhosts'),
+      easterEggSource.indexOf('function scheduleVisualPulses')
+    );
+    assert.ok(animFn.includes('translate('), 'Debe incluir translate');
+    assert.ok(animFn.includes('rotate('), 'Debe incluir rotate');
+    assert.ok(animFn.includes('scale('), 'Debe incluir scale');
+    assert.ok(animFn.includes('Math.random()'), 'Valores deben ser aleatorios');
+  });
+
+  it('el overlay tiene gradiente radial oscuro con rotación de matiz', () => {
+    assert.ok(easterEggSource.includes('radial-gradient'),
+      'Overlay debe usar gradiente radial');
+    assert.ok(easterEggSource.includes('hue-rotate'),
+      'Overlay debe animar hue-rotate');
+  });
+
+  it('tiene pulsos visuales sincronizados con la música', () => {
+    assert.ok(easterEggSource.includes('function scheduleVisualPulses('),
+      'Debe tener función scheduleVisualPulses');
+    assert.ok(easterEggSource.includes('scheduleVisualPulses(overlayEl, burstTimes)'),
+      'Debe llamar scheduleVisualPulses con burstTimes de la pieza');
+  });
+
+  it('las formas fantasma son círculos para knobs y rectángulos para módulos', () => {
+    // Verificar que GHOST_CONFIG usa 'circle' para knobs y 'rect' para módulos
+    const configSection = easterEggSource.substring(
+      easterEggSource.indexOf('const GHOST_CONFIG'),
+      easterEggSource.indexOf('function createGhostEl')
+    );
+    assert.ok(configSection.includes("'.knob'") && configSection.includes("'circle'"),
+      'Knobs deben mapearse a círculos');
+    assert.ok(configSection.includes("'.synth-module__header'") && configSection.includes("'rect'"),
+      'Módulos deben mapearse a rectángulos');
   });
 });
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 9. Piezas musicales — chiptune y electroacústica
@@ -687,7 +765,6 @@ describe('Easter Egg — Pieza electroacústica (Studie)', () => {
   });
 
   it('devuelve totalDurationSec y burstTimes', () => {
-    // Verificar que la función devuelve los campos necesarios
     const fnBody = easterEggSource.substring(
       easterEggSource.indexOf('function playElectroacousticPiece'),
       easterEggSource.indexOf('PIECES.electroacoustic')
@@ -697,12 +774,10 @@ describe('Easter Egg — Pieza electroacústica (Studie)', () => {
   });
 
   it('usa solo ondas sine (estilo Studie I/II de Stockhausen)', () => {
-    // Las funciones de la pieza electroacústica solo usan osc.type = 'sine'
     const fnBody = easterEggSource.substring(
       easterEggSource.indexOf('// ─── Síntesis electroacústica'),
       easterEggSource.indexOf('PIECES.electroacoustic')
     );
-    // No debe usar square/triangle en la sección electroacústica
     assert.ok(!fnBody.includes("osc.type = 'square'"),
       'No debe usar onda cuadrada en la pieza electroacústica');
     assert.ok(!fnBody.includes("osc.type = 'triangle'"),
@@ -744,22 +819,15 @@ describe('Easter Egg — Selección de piezas', () => {
   });
 });
 
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 10. Secuencia de taps — simulación funcional con JSDOM
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Easter Egg — Simulación de secuencia de taps', () => {
   let pad1, pad2, other;
-  let triggerCount;
-  let lastVisualOnly;
-
-  // Para estos tests necesitamos un hook en triggerEasterEgg.
-  // Como el módulo ya importado llama a triggerEasterEgg internamente,
-  // verificamos el comportamiento observando el DOM y contando llamadas.
 
   beforeEach(() => {
-    triggerCount = 0;
-    lastVisualOnly = undefined;
     const els = setupJoystickDOM();
     pad1 = els.pad1;
     pad2 = els.pad2;
@@ -773,14 +841,12 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
 
   it('initEasterEggTrigger instala listeners sin error', () => {
     assert.doesNotThrow(() => {
-      initEasterEggTrigger({ isDirtyFn: () => false });
+      initEasterEggTrigger({ isDirtyFn: () => false, markCleanFn: () => {} });
     });
   });
 
   it('taps en pad correcto no lanzan error (secuencia parcial)', () => {
     initEasterEggTrigger({ isDirtyFn: () => false });
-
-    // Solo 2 taps (secuencia incompleta) — no debe lanzar
     assert.doesNotThrow(() => {
       simulateTap(pad1);
       simulateTap(pad2);
@@ -789,58 +855,42 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
 
   it('no lanza Easter egg con secuencia incompleta (solo 6 de 8 taps)', () => {
     initEasterEggTrigger({ isDirtyFn: () => false });
-
-    // 6 taps alternados — secuencia incompleta
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
-    // No debería haber overlay en el DOM aún
     const overlays = document.querySelectorAll('[style*="position: fixed"]');
     assert.strictEqual(overlays.length, 0, 'No debería haber overlay con secuencia incompleta');
   });
 
   it('un drag (movimiento > TAP_MAX_MOVEMENT) resetea la secuencia', () => {
     initEasterEggTrigger({ isDirtyFn: () => false });
-
-    // 4 taps correctos
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
-
-    // Drag en pad1 — debe resetear
     simulateDrag(pad1);
-
-    // 4 taps más — no completará porque el drag resetea
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
-
     const overlays = document.querySelectorAll('[style*="position: fixed"]');
     assert.strictEqual(overlays.length, 0, 'Drag debe resetear la secuencia');
   });
 
   it('tap en elemento fuera de pads resetea la secuencia', () => {
     initEasterEggTrigger({ isDirtyFn: () => false });
-
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
-
-    // Interacción fuera de los pads
     other.dispatchEvent(createPointerEvent('pointerdown', { clientX: 300, clientY: 300 }));
-
-    // Continuar secuencia — pero ya fue reseteada
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
-
     const overlays = document.querySelectorAll('[style*="position: fixed"]');
     assert.strictEqual(overlays.length, 0,
       'Interacción fuera de pads debe resetear la secuencia');
@@ -848,8 +898,6 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
 
   it('secuencia con pad incorrecto (pad2 primero) no funciona', () => {
     initEasterEggTrigger({ isDirtyFn: () => false });
-
-    // Empezar con pad2 en vez de pad1 — incorrecto
     simulateTap(pad2);
     simulateTap(pad1);
     simulateTap(pad2);
@@ -858,7 +906,6 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
     simulateTap(pad1);
     simulateTap(pad2);
     simulateTap(pad1);
-
     const overlays = document.querySelectorAll('[style*="position: fixed"]');
     assert.strictEqual(overlays.length, 0,
       'Secuencia empezando por pad2 no debe funcionar');
@@ -866,13 +913,8 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
 
   it('pointercancel resetea el estado del tap', () => {
     initEasterEggTrigger({ isDirtyFn: () => false });
-
-    // Iniciar tap pero cancelar
     pad1.dispatchEvent(createPointerEvent('pointerdown', { pointerId: 1, clientX: 50, clientY: 50 }));
     pad1.dispatchEvent(createPointerEvent('pointercancel', { pointerId: 1 }));
-
-    // Completar secuencia normal — debería funcionar porque pointercancel
-    // resetea limpiamente
     assert.doesNotThrow(() => {
       simulateTap(pad1);
       simulateTap(pad2);
@@ -880,8 +922,9 @@ describe('Easter Egg — Simulación de secuencia de taps', () => {
   });
 });
 
+
 // ═══════════════════════════════════════════════════════════════════════════
-// 11. Seguridad — Integración sessionManager (análisis estático)
+// 11. Seguridad — sessionManager integrado en app.js
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('Easter Egg — Seguridad: sessionManager integrado en app.js', () => {
@@ -907,6 +950,14 @@ describe('Easter Egg — Seguridad: sessionManager integrado en app.js', () => {
       'isDirty debe devolver this._dirty');
   });
 
+  it('sessionManager tiene método markClean()', () => {
+    const smSource = readFileSync(
+      resolve(ROOT, 'src/assets/js/state/sessionManager.js'), 'utf-8'
+    );
+    assert.ok(smSource.includes('markClean()'),
+      'sessionManager debe tener método markClean()');
+  });
+
   it('synth:userInteraction → markDirty() en app.js (cadena de eventos)', () => {
     assert.ok(appSource.includes('synth:userInteraction'),
       'app.js debe escuchar synth:userInteraction');
@@ -915,22 +966,20 @@ describe('Easter Egg — Seguridad: sessionManager integrado en app.js', () => {
   });
 
   it('la cadena completa es: knob/toggle → synth:userInteraction → markDirty → isDirty=true → visualOnly', () => {
-    // Verificar que los componentes UI disparan synth:userInteraction
     const knobSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/knob.js'), 'utf-8');
     assert.ok(knobSource.includes('synth:userInteraction'),
       'knob.js debe despachar synth:userInteraction');
-
-    // Verificar que app.js conecta el evento con markDirty
     assert.ok(appSource.includes("'synth:userInteraction'"),
       'app.js escucha el evento');
     assert.ok(appSource.includes('sessionManager.markDirty()'),
       'app.js marca dirty');
-
-    // Verificar que initEasterEggTrigger consulta isDirtyFn
     assert.ok(appSource.includes('sessionManager.isDirty()'),
       'isDirtyFn usa sessionManager.isDirty()');
+    assert.ok(appSource.includes('sessionManager.markClean()'),
+      'markCleanFn usa sessionManager.markClean()');
   });
 });
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 12. Exports del módulo
@@ -962,11 +1011,8 @@ describe('Easter Egg — Exports del módulo', () => {
     assert.strictEqual(typeof SEQUENCE_TIMEOUT, 'number');
   });
 
-  it('no exporta funciones internas (cleanup, createOverlay, play*, etc.)', () => {
-    // Las funciones internas no deben estar en exports
+  it('no exporta funciones internas (cleanup, createOverlay, etc.)', () => {
     const exportMatches = easterEggSource.match(/^export\s/gm) || [];
-    // Solo debería haber exports para: triggerEasterEgg, initEasterEggTrigger,
-    // TRIGGER_SEQUENCE, TAP_MAX_DURATION, TAP_MAX_MOVEMENT, SEQUENCE_TIMEOUT
     const expectedExports = 6;
     assert.strictEqual(exportMatches.length, expectedExports,
       `Debería haber exactamente ${expectedExports} exports, encontrados: ${exportMatches.length}`);

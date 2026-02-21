@@ -1,30 +1,31 @@
 /**
- * 🥚 Easter Egg — Fuegos artificiales + pieza musical
+ * 🥚 Easter Egg — Desintegración visual + pieza musical
  *
- * Módulo autocontenido que lanza un show de fuegos artificiales
- * sincronizado con una pieza musical generada por síntesis.
+ * Módulo autocontenido que lanza una animación de «desintegración»
+ * del Synthi sincronizada con una pieza musical generada por síntesis.
+ * Los elementos de la interfaz (knobs, sliders, módulos, pines) se
+ * convierten en siluetas geométricas que flotan, giran, se dispersan
+ * y se disuelven sobre un fondo oscuro con gradientes de color cambiante.
  * Usa su propio AudioContext para no interferir con el sintetizador.
  *
  * Piezas disponibles:
  *  - 'electroacoustic' (por defecto): Estudio electroacústico evocando
  *    la música electrónica de los años 50–70 (Stockhausen, Xenakis, Varèse).
- *    Tonos sinusoidales, glissandi, ruido filtrado, síntesis FM.
  *  - 'chiptune': Melodía 8-bit estilo videojuego retro (NES).
  *
  * Trigger: tocar alternadamente pad1, pad2, pad1, pad2 × 4 (8 taps).
- * Solo taps rápidos sin arrastre, consecutivos, sin tocar nada en medio.
  *
  * Seguridad: si el sintetizador tiene algún parámetro modificado
- * respecto a su estado inicial (isDirty), solo se muestran los fuegos
- * artificiales sin sonido, para no interferir con el trabajo del usuario.
+ * respecto a su estado inicial (isDirty), solo se muestra la animación
+ * visual sin sonido, para no interferir con el trabajo del usuario.
  *
  * @module ui/easterEgg
  */
 
 // ─── Estado ───
 let isPlaying = false;
-let fireworksInstance = null;
 let overlayEl = null;
+let activeAnimations = [];
 
 // ─── Pieza seleccionada ───
 const PIECES = {};       // se llena más abajo
@@ -470,13 +471,200 @@ PIECES.electroacoustic = playElectroacousticPiece;
 
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  EFECTOS VISUALES
+//  EFECTOS VISUALES — Desintegración del Synthi
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Crea el overlay fullscreen para los fuegos artificiales.
+ * Paleta de colores para los fantasmas (sombrío pero colorido).
+ * Cada entrada es [R, G, B].
  */
-function createOverlay() {
+const PALETTE = [
+  [130, 50, 200],   // violeta profundo
+  [50, 130, 220],   // azul eléctrico
+  [35, 175, 150],   // teal oscuro
+  [200, 50, 90],    // magenta profundo
+  [200, 145, 30],   // ámbar
+  [70, 195, 120],   // esmeralda
+  [170, 80, 200],   // lavanda
+  [220, 70, 50],    // bermellón
+];
+
+/**
+ * Selectores CSS de elementos del Synthi y su forma geométrica.
+ * max: máximo de elementos a animar por selector.
+ */
+const GHOST_CONFIG = [
+  { sel: '.knob',                         shape: 'circle', max: 80 },
+  { sel: '.output-channel__slider-shell', shape: 'vrect',  max: 16 },
+  { sel: '.output-channel__switch',       shape: 'vrect',  max: 16 },
+  { sel: '.panel7-joystick-pad',          shape: 'circle', max: 4  },
+  { sel: '.pin-btn.active',              shape: 'dot',    max: 60 },
+  { sel: '.synth-module__header',         shape: 'rect',   max: 30 },
+  { sel: '.panel7-seq-button',            shape: 'dot',    max: 8  },
+];
+
+/**
+ * Crea un elemento «fantasma» — silueta geométrica con glow —
+ * en la posición de un elemento real del Synthi, dentro del overlay.
+ */
+function createGhostEl(rect, shape, colorIdx) {
+  const el = document.createElement('div');
+  const [r, g, b] = PALETTE[colorIdx % PALETTE.length];
+  const glow = Math.max(rect.width, rect.height) * 0.5;
+
+  el.style.cssText = [
+    'position: fixed',
+    `left: ${rect.left}px`,
+    `top: ${rect.top}px`,
+    `width: ${Math.max(rect.width, 4)}px`,
+    `height: ${Math.max(rect.height, 4)}px`,
+    `background: rgba(${r},${g},${b},0.55)`,
+    `border: 1px solid rgba(${r},${g},${b},0.75)`,
+    `border-radius: ${shape === 'circle' || shape === 'dot' ? '50%' : '3px'}`,
+    `box-shadow: 0 0 ${glow}px rgba(${r},${g},${b},0.35),` +
+      ` inset 0 0 ${glow * 0.4}px rgba(${r},${g},${b},0.2)`,
+    'pointer-events: none',
+    'will-change: transform, opacity',
+  ].join(';');
+
+  return el;
+}
+
+/**
+ * Recoge elementos visibles del DOM del Synthi y crea fantasmas
+ * geométricos dentro del overlay.
+ */
+function gatherGhosts(container) {
+  const ghosts = [];
+  let colorIdx = 0;
+
+  for (const { sel, shape, max } of GHOST_CONFIG) {
+    let elements = [...document.querySelectorAll(sel)];
+
+    // Solo elementos con tamaño real (visibles)
+    elements = elements.filter(el => {
+      const r = el.getBoundingClientRect();
+      return r.width > 1 && r.height > 1;
+    });
+
+    // Limitar cantidad por muestreo aleatorio (Fisher-Yates parcial)
+    if (elements.length > max) {
+      for (let i = elements.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [elements[i], elements[j]] = [elements[j], elements[i]];
+      }
+      elements = elements.slice(0, max);
+    }
+
+    for (const el of elements) {
+      const rect = el.getBoundingClientRect();
+      const ghost = createGhostEl(rect, shape, colorIdx++);
+      container.appendChild(ghost);
+      ghosts.push(ghost);
+    }
+  }
+
+  return ghosts;
+}
+
+/**
+ * Anima los fantasmas: aparecen → tiemblan → se dispersan → giran →
+ * se disuelven y desaparecen.
+ *
+ * Fases sincronizadas con la pieza electroacústica (~20s):
+ *   0-6%   Aparición: fade-in en posición original
+ *   6-18%  Tremor: vibración sutil (Klang)
+ *  18-38%  Dispersión: los elementos se separan (Punkte)
+ *  38-58%  Caos: máximo desplazamiento y rotación (Gruppen)
+ *  58-72%  Máxima disolución
+ *  72-90%  Retorno: derivan de vuelta, se desvanecen (Stille)
+ *  90-100% Desaparición final
+ *
+ * @param {HTMLElement[]} ghosts
+ * @param {number} durationMs
+ * @returns {Animation[]}
+ */
+function animateGhosts(ghosts, durationMs) {
+  const animations = [];
+
+  for (const ghost of ghosts) {
+    const delay = Math.random() * 2500;
+
+    // Desplazamiento, rotación y escala aleatorios por fantasma
+    const tx = (Math.random() - 0.5) * 350;
+    const ty = (Math.random() - 0.5) * 300;
+    const rot = (Math.random() - 0.5) * 540;
+    const sc = 0.3 + Math.random() * 1.5;
+
+    // Micro-jitter para la fase de tremor
+    const jx = (Math.random() - 0.5) * 8;
+    const jy = (Math.random() - 0.5) * 8;
+
+    const keyframes = [
+      // Aparición
+      { transform: 'translate(0,0) rotate(0deg) scale(1)',
+        opacity: 0, offset: 0 },
+      { transform: 'translate(0,0) rotate(0deg) scale(1)',
+        opacity: 0.8, offset: 0.06 },
+      // Tremor (Klang)
+      { transform: `translate(${jx}px,${jy}px) rotate(${rot * 0.02}deg) scale(1.02)`,
+        opacity: 0.75, offset: 0.18 },
+      // Dispersión (Punkte)
+      { transform: `translate(${tx * 0.4}px,${ty * 0.4}px) rotate(${rot * 0.3}deg) scale(${0.7 + sc * 0.3})`,
+        opacity: 0.6, offset: 0.38 },
+      // Caos (Gruppen)
+      { transform: `translate(${tx}px,${ty}px) rotate(${rot}deg) scale(${sc})`,
+        opacity: 0.4, offset: 0.58 },
+      // Máxima disolución
+      { transform: `translate(${tx * 1.15}px,${ty * 1.15}px) rotate(${rot * 1.2}deg) scale(${sc * 0.7})`,
+        opacity: 0.25, offset: 0.72 },
+      // Retorno (Stille)
+      { transform: `translate(${tx * 0.3}px,${ty * 0.3}px) rotate(${rot * 0.2}deg) scale(0.85)`,
+        opacity: 0.12, offset: 0.90 },
+      // Desaparición
+      { transform: 'translate(0,0) rotate(0deg) scale(0.5)',
+        opacity: 0, offset: 1 },
+    ];
+
+    const anim = ghost.animate(keyframes, {
+      duration: durationMs - delay,
+      delay,
+      easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+      fill: 'both',
+    });
+
+    animations.push(anim);
+  }
+
+  return animations;
+}
+
+/**
+ * Programa pulsos visuales en el overlay sincronizados con la pieza.
+ * Cada pulso es un breve flash de brillo interior.
+ * @param {HTMLElement} overlay
+ * @param {number[]} burstTimes — tiempos en segundos
+ */
+function scheduleVisualPulses(overlay, burstTimes) {
+  for (const t of burstTimes) {
+    setTimeout(() => {
+      if (!overlay || !overlay.parentElement) return;
+      try {
+        overlay.animate([
+          { boxShadow: 'inset 0 0 0 rgba(255,255,255,0)' },
+          { boxShadow: 'inset 0 0 200px rgba(180,160,255,0.12)' },
+          { boxShadow: 'inset 0 0 0 rgba(255,255,255,0)' },
+        ], { duration: 500, easing: 'ease-out' });
+      } catch (_) { /* ignore — JSDOM */ }
+    }, t * 1000);
+  }
+}
+
+/**
+ * Crea el overlay oscuro con gradiente radial y rotación de matiz animada.
+ * @param {number} durationMs — duración total de la animación
+ */
+function createOverlay(durationMs) {
   const overlay = document.createElement('div');
   overlay.id = 'easter-egg-overlay';
   overlay.style.cssText = [
@@ -486,21 +674,37 @@ function createOverlay() {
     'width: 100vw',
     'height: 100vh',
     'z-index: 9999',
-    'background: rgba(0, 0, 0, 0.85)',
+    'background: radial-gradient(ellipse at 35% 45%, rgba(25,5,50,0.90), rgba(5,5,12,0.95) 70%)',
     'cursor: pointer',
     'opacity: 0',
-    'transition: opacity 0.6s ease-in',
+    'transition: opacity 0.8s ease-in',
     'pointer-events: auto',
+    'overflow: hidden',
   ].join(';');
 
+  // Rotación de matiz animada sobre el gradiente
+  try {
+    overlay.animate([
+      { filter: 'hue-rotate(0deg) brightness(1)' },
+      { filter: 'hue-rotate(90deg) brightness(1.08)' },
+      { filter: 'hue-rotate(180deg) brightness(0.95)' },
+      { filter: 'hue-rotate(270deg) brightness(1.05)' },
+      { filter: 'hue-rotate(360deg) brightness(1)' },
+    ], {
+      duration: durationMs,
+      iterations: 1,
+      easing: 'linear',
+    });
+  } catch (_) { /* ignore — JSDOM */ }
+
   const hint = document.createElement('div');
-  hint.textContent = '🔊 click para cerrar';
+  hint.textContent = '\u{1F50A} click para cerrar';
   hint.style.cssText = [
     'position: absolute',
     'bottom: 20px',
     'left: 50%',
     'transform: translateX(-50%)',
-    'color: rgba(255,255,255,0.5)',
+    'color: rgba(255,255,255,0.35)',
     'font-family: monospace',
     'font-size: 14px',
     'z-index: 10000',
@@ -517,45 +721,6 @@ function createOverlay() {
   return overlay;
 }
 
-/**
- * Inicializa los fuegos artificiales en el overlay.
- */
-function startFireworks(container) {
-  const Fw = window.Fireworks?.default || window.Fireworks;
-  if (!Fw) {
-    console.warn('[EasterEgg] fireworks-js no disponible');
-    return null;
-  }
-
-  const fw = new Fw(container, {
-    autoresize: true,
-    opacity: 0.5,
-    acceleration: 1.05,
-    friction: 0.97,
-    gravity: 1.5,
-    particles: 80,
-    traceLength: 3,
-    traceSpeed: 10,
-    explosion: 6,
-    intensity: 25,
-    flickering: 50,
-    lineStyle: 'round',
-    hue: { min: 0, max: 360 },
-    delay: { min: 15, max: 30 },
-    rocketsPoint: { min: 20, max: 80 },
-    lineWidth: {
-      explosion: { min: 1, max: 3 },
-      trace: { min: 1, max: 2 },
-    },
-    brightness: { min: 50, max: 80 },
-    decay: { min: 0.015, max: 0.03 },
-    mouse: { click: false, move: false, max: 1 },
-  });
-
-  fw.start();
-  return fw;
-}
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  ORQUESTACIÓN
@@ -567,10 +732,11 @@ function startFireworks(container) {
 function cleanup(audioCtx) {
   isPlaying = false;
 
-  if (fireworksInstance) {
-    try { fireworksInstance.stop(true); } catch (_) { /* ignore */ }
-    fireworksInstance = null;
+  // Cancelar animaciones de fantasmas
+  for (const anim of activeAnimations) {
+    try { anim.cancel(); } catch (_) { /* ignore */ }
   }
+  activeAnimations = [];
 
   if (audioCtx && audioCtx.state !== 'closed') {
     audioCtx.close().catch(() => {});
@@ -580,22 +746,7 @@ function cleanup(audioCtx) {
     overlayEl.style.opacity = '0';
     const el = overlayEl;
     overlayEl = null;
-    setTimeout(() => { el.remove(); }, 600);
-  }
-}
-
-/**
- * Programa ráfagas de fireworks sincronizadas con la pieza.
- * @param {number[]} burstTimes — tiempos en segundos desde el inicio
- */
-function scheduleFireworkBursts(burstTimes) {
-  for (const delaySec of burstTimes) {
-    setTimeout(() => {
-      if (!isPlaying || !fireworksInstance) return;
-      try {
-        fireworksInstance.launch(3 + Math.floor(Math.random() * 4));
-      } catch (_) { /* ignore */ }
-    }, delaySec * 1000);
+    setTimeout(() => { el.remove(); }, 800);
   }
 }
 
@@ -605,30 +756,12 @@ function scheduleFireworkBursts(burstTimes) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Carga el script de fireworks-js si no está cargado.
- * @returns {Promise<void>}
- */
-function ensureFireworksLoaded() {
-  return new Promise((resolve, reject) => {
-    if (window.Fireworks) {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = './assets/js/vendor/fireworks.umd.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('No se pudo cargar fireworks-js'));
-    document.head.appendChild(script);
-  });
-}
-
-/**
- * 🥚 Lanza el Easter Egg: fuegos artificiales + pieza musical.
+ * 🥚 Lanza el Easter Egg: desintegración visual + pieza musical.
  * Se puede llamar desde cualquier parte de la app.
  * Click en el overlay para cerrar antes de tiempo.
  *
  * @param {Object} [options]
- * @param {boolean} [options.visualOnly=false] - Si true, solo fuegos sin sonido
+ * @param {boolean} [options.visualOnly=false] - Si true, solo visual sin sonido
  */
 export async function triggerEasterEgg(options = {}) {
   if (isPlaying) return;
@@ -638,10 +771,8 @@ export async function triggerEasterEgg(options = {}) {
   let ctx = null;
 
   try {
-    await ensureFireworksLoaded();
-
-    let totalDurationSec = 12;
-    let burstTimes = [0, 2, 4, 6, 8, 10];
+    let totalDurationSec = 20;
+    let burstTimes = [0, 3, 6, 9, 12, 15, 18];
 
     // Audio: crear contexto y reproducir pieza (solo si no es visualOnly)
     if (!visualOnly) {
@@ -670,8 +801,15 @@ export async function triggerEasterEgg(options = {}) {
       masterGain.gain.linearRampToValueAtTime(0, fadeStart + 1.5);
     }
 
-    // Visual: overlay + fireworks
-    overlayEl = createOverlay();
+    // Visual: overlay con gradiente + desintegración de fantasmas
+    const durationMs = totalDurationSec * 1000;
+    overlayEl = createOverlay(durationMs);
+
+    const ghosts = gatherGhosts(overlayEl);
+    activeAnimations = animateGhosts(ghosts, durationMs);
+
+    // Pulsos visuales sincronizados con la pieza
+    scheduleVisualPulses(overlayEl, burstTimes);
 
     // Esperar 600ms antes de escuchar click para cerrar.
     // Esto evita que el click sintético que generan los navegadores móviles
@@ -682,11 +820,6 @@ export async function triggerEasterEgg(options = {}) {
         overlayEl.addEventListener('click', () => cleanup(ctx), { once: true });
       }
     }, 600);
-
-    fireworksInstance = startFireworks(overlayEl);
-
-    // Ráfagas de fuegos sincronizadas con la pieza
-    scheduleFireworkBursts(burstTimes);
 
     // Auto-limpieza al terminar
     setTimeout(() => {
@@ -718,9 +851,13 @@ export const SEQUENCE_TIMEOUT = 2000;  // ms máximo entre taps consecutivos
  * @param {Object} [options]
  * @param {() => boolean} [options.isDirtyFn] - Función que devuelve true si el
  *   sintetizador tiene parámetros modificados. Si dirty → solo visual, sin sonido.
+ * @param {() => void} [options.markCleanFn] - Función que limpia el estado dirty.
+ *   Se llama al completar la secuencia del Easter egg si no estaba dirty al inicio,
+ *   para deshacer el dirty causado por los propios taps (synth:userInteraction).
  */
 export function initEasterEggTrigger(options = {}) {
   const isDirtyFn = options.isDirtyFn || (() => false);
+  const markCleanFn = options.markCleanFn || null;
   const pad1Container = document.querySelector('#joystick-left .panel7-joystick-pad');
   const pad2Container = document.querySelector('#joystick-right .panel7-joystick-pad');
 
@@ -829,6 +966,9 @@ export function initEasterEggTrigger(options = {}) {
       if (sequenceIndex >= TRIGGER_SEQUENCE.length) {
         const dirty = wasDirtyAtSequenceStart;
         resetSequence();
+        // Si no estaba dirty al inicio, deshacer el dirty que nuestros
+        // propios taps causaron (pointerup → synth:userInteraction → markDirty)
+        if (!dirty && markCleanFn) markCleanFn();
         triggerEasterEgg({ visualOnly: dirty });
       }
     });

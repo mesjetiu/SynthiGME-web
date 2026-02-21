@@ -34,6 +34,8 @@ let attractorX = -9999;
 let attractorY = -9999;
 let attractorActive = false;
 let _onKeyDown = null;    // ref para cleanup de Escape
+let _interactiveCtx = null;  // AudioContext para sonidos interactivos
+let _dragNodes = null;       // nodos de síntesis del arrastre continuo
 
 // ─── Pieza seleccionada ───
 const PIECES = {};       // se llena más abajo
@@ -1091,6 +1093,346 @@ function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
   canvasAnimId = requestAnimationFrame(frame);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  SONIDOS INTERACTIVOS — clicks y arrastres del usuario
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Toca un gesto sonoro al hacer click/tap — estilo Synthi.
+ * Elige aleatoriamente entre varios tipos de gesto para máxima variedad.
+ * @param {AudioContext} ctx
+ * @param {number} x — posición X normalizada 0..1
+ * @param {number} y — posición Y normalizada 0..1
+ */
+function playInteractionPing(ctx, x, y) {
+  if (!ctx || ctx.state === 'closed') return;
+  const now = ctx.currentTime;
+  const pan = ctx.createStereoPanner();
+  pan.pan.setValueAtTime((x - 0.5) * 1.8, now);
+  pan.connect(ctx.destination);
+  const baseFreq = 80 + (1 - y) * 3000;
+  const rnd = () => 0.6 + Math.random() * 0.8;
+
+  // Elegir tipo de gesto aleatoriamente
+  const gestureType = Math.floor(Math.random() * 5);
+
+  switch (gestureType) {
+    case 0: { // ── Impacto FM metálico (campana/gong) ──
+      const ratios = [1.41, 2.76, 3.14, 0.71, 1.73, 5.19, 7.13];
+      const ratio = ratios[Math.floor(Math.random() * ratios.length)];
+      const c = ctx.createOscillator();
+      const m = ctx.createOscillator();
+      const mG = ctx.createGain();
+      const cG = ctx.createGain();
+      c.type = 'sine'; m.type = 'sine';
+      c.frequency.setValueAtTime(baseFreq * rnd(), now);
+      c.frequency.exponentialRampToValueAtTime(Math.max(baseFreq * 0.15, 20), now + 0.6);
+      m.frequency.setValueAtTime(baseFreq * ratio, now);
+      const idx = 400 + Math.random() * 1200;
+      mG.gain.setValueAtTime(idx, now);
+      mG.gain.exponentialRampToValueAtTime(1, now + 0.3);
+      m.connect(mG).connect(c.frequency);
+      cG.gain.setValueAtTime(0.35, now);
+      cG.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      c.connect(cG).connect(pan);
+      c.start(now); m.start(now);
+      c.stop(now + 0.65); m.stop(now + 0.65);
+      break;
+    }
+    case 1: { // ── Glissando doble cruzado (ascendente + descendente) ──
+      const g1 = ctx.createOscillator();
+      const g2 = ctx.createOscillator();
+      const gG1 = ctx.createGain();
+      const gG2 = ctx.createGain();
+      g1.type = 'sawtooth'; g2.type = 'square';
+      const lo = 60 + Math.random() * 100;
+      const hi = 2000 + Math.random() * 4000;
+      g1.frequency.setValueAtTime(lo, now);
+      g1.frequency.exponentialRampToValueAtTime(hi, now + 0.2);
+      g1.frequency.exponentialRampToValueAtTime(Math.max(lo * 0.5, 20), now + 0.5);
+      g2.frequency.setValueAtTime(hi, now);
+      g2.frequency.exponentialRampToValueAtTime(Math.max(lo, 20), now + 0.3);
+      gG1.gain.setValueAtTime(0.25, now);
+      gG1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      gG2.gain.setValueAtTime(0.15, now);
+      gG2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      // Filtro resonante
+      const flt = ctx.createBiquadFilter();
+      flt.type = 'bandpass';
+      flt.frequency.setValueAtTime(baseFreq, now);
+      flt.Q.setValueAtTime(6 + Math.random() * 10, now);
+      g1.connect(gG1).connect(flt);
+      g2.connect(gG2).connect(flt);
+      flt.connect(pan);
+      g1.start(now); g2.start(now);
+      g1.stop(now + 0.55); g2.stop(now + 0.4);
+      break;
+    }
+    case 2: { // ── Ráfaga de ruido resonante (percusión electrónica) ──
+      const bufLen = Math.ceil(ctx.sampleRate * 0.25);
+      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f1 = ctx.createBiquadFilter();
+      const f2 = ctx.createBiquadFilter();
+      f1.type = 'bandpass';
+      f1.frequency.setValueAtTime(baseFreq * 2, now);
+      f1.frequency.exponentialRampToValueAtTime(Math.max(baseFreq * 0.1, 20), now + 0.2);
+      f1.Q.setValueAtTime(15 + Math.random() * 20, now);
+      f2.type = 'highpass';
+      f2.frequency.setValueAtTime(200, now);
+      const nG = ctx.createGain();
+      nG.gain.setValueAtTime(0.4, now);
+      nG.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      src.connect(f1).connect(f2).connect(nG).connect(pan);
+      src.start(now); src.stop(now + 0.25);
+      // Sub-golpe tonal
+      const sub = ctx.createOscillator();
+      const sG = ctx.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(baseFreq * 0.5, now);
+      sub.frequency.exponentialRampToValueAtTime(Math.max(baseFreq * 0.1, 20), now + 0.15);
+      sG.gain.setValueAtTime(0.3, now);
+      sG.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      sub.connect(sG).connect(pan);
+      sub.start(now); sub.stop(now + 0.25);
+      break;
+    }
+    case 3: { // ── Acorde de armónicos (cluster breve) ──
+      const harmonics = [1, 1.5, 2.0, 2.67, 3.5, 4.75];
+      const count = 3 + Math.floor(Math.random() * 3);
+      // Shuffle y elegir count
+      for (let i = harmonics.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [harmonics[i], harmonics[j]] = [harmonics[j], harmonics[i]];
+      }
+      const fBase = baseFreq * (0.3 + Math.random() * 0.7);
+      for (let i = 0; i < count; i++) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = ['sine', 'triangle', 'square'][Math.floor(Math.random() * 3)];
+        const f = fBase * harmonics[i] * rnd();
+        o.frequency.setValueAtTime(Math.max(f, 20), now);
+        o.frequency.exponentialRampToValueAtTime(Math.max(f * 0.7, 20), now + 0.3);
+        const delay = i * 0.015; // escalonado
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(0.18 / count, now + delay + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.3 + delay);
+        o.connect(g).connect(pan);
+        o.start(now + delay);
+        o.stop(now + 0.35 + delay);
+      }
+      break;
+    }
+    case 4: { // ── Zumbido FM rápido + eco descendente ──
+      const c = ctx.createOscillator();
+      const m = ctx.createOscillator();
+      const mG = ctx.createGain();
+      const cG = ctx.createGain();
+      c.type = 'sine'; m.type = 'square';
+      const f = baseFreq * rnd();
+      c.frequency.setValueAtTime(f, now);
+      m.frequency.setValueAtTime(f * (2 + Math.random() * 6), now);
+      m.frequency.exponentialRampToValueAtTime(Math.max(f * 0.5, 20), now + 0.15);
+      mG.gain.setValueAtTime(f * 4, now);
+      mG.gain.exponentialRampToValueAtTime(1, now + 0.1);
+      m.connect(mG).connect(c.frequency);
+      cG.gain.setValueAtTime(0.3, now);
+      cG.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      c.connect(cG).connect(pan);
+      c.start(now); m.start(now);
+      c.stop(now + 0.2); m.stop(now + 0.2);
+      // Eco: repetición más suave
+      for (let rep = 1; rep <= 3; rep++) {
+        const t0 = now + rep * 0.08;
+        const eO = ctx.createOscillator();
+        const eG = ctx.createGain();
+        eO.type = 'sine';
+        const eF = f * Math.pow(0.75, rep);
+        eO.frequency.setValueAtTime(Math.max(eF, 20), t0);
+        eO.frequency.exponentialRampToValueAtTime(Math.max(eF * 0.5, 20), t0 + 0.1);
+        const vol = 0.2 / (rep + 1);
+        eG.gain.setValueAtTime(vol, t0);
+        eG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.12);
+        eO.connect(eG).connect(pan);
+        eO.start(t0); eO.stop(t0 + 0.15);
+      }
+      break;
+    }
+  }
+}
+
+/**
+ * Inicia síntesis continua estilo Synthi al empezar a arrastrar.
+ * Tres osciladores con FM cruzada, ring mod, filtro resonante y LFO de barrido.
+ * Volumen prominente para que se perciba claramente sobre la pieza.
+ * @param {AudioContext} ctx
+ * @param {number} x — posición X normalizada 0..1
+ * @param {number} y — posición Y normalizada 0..1
+ */
+function startDragTone(ctx, x, y) {
+  if (!ctx || ctx.state === 'closed') return;
+  stopDragTone();
+  const now = ctx.currentTime;
+  const freq = 60 + (1 - y) * 1500;
+
+  // ── Oscilador 1: portador principal (sawtooth) ──
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sawtooth';
+  osc1.frequency.setValueAtTime(freq, now);
+
+  // ── Oscilador 2: sub-oscilador una octava abajo ──
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'square';
+  osc2.frequency.setValueAtTime(freq * 0.501, now); // batimiento lento
+
+  // ── Oscilador 3: modulador FM agudo ──
+  const osc3 = ctx.createOscillator();
+  osc3.type = 'sine';
+  const fmRatio = 1.5 + x * 5; // ratio FM controlado por X
+  osc3.frequency.setValueAtTime(freq * fmRatio, now);
+  const fmGain = ctx.createGain();
+  fmGain.gain.setValueAtTime(freq * (0.5 + x * 3), now); // índice FM por X
+  osc3.connect(fmGain);
+  fmGain.connect(osc1.frequency); // FM sobre osc1
+
+  // ── LFO doble: vibrato + barrido de filtro ──
+  const lfo1 = ctx.createOscillator();
+  const lfo1Gain = ctx.createGain();
+  lfo1.type = 'sine';
+  lfo1.frequency.setValueAtTime(4 + x * 12, now);
+  lfo1Gain.gain.setValueAtTime(freq * 0.04, now); // vibrato amplio
+  lfo1.connect(lfo1Gain);
+  lfo1Gain.connect(osc1.frequency);
+  lfo1Gain.connect(osc2.frequency);
+
+  const lfo2 = ctx.createOscillator();
+  const lfo2Gain = ctx.createGain();
+  lfo2.type = 'triangle';
+  lfo2.frequency.setValueAtTime(0.3 + x * 2, now); // barrido lento del filtro
+  lfo2Gain.gain.setValueAtTime(1500 + y * 2000, now);
+  lfo2.connect(lfo2Gain);
+
+  // ── Mixer ──
+  const mix = ctx.createGain();
+  mix.gain.setValueAtTime(1, now);
+  const osc1Gain = ctx.createGain();
+  osc1Gain.gain.setValueAtTime(0.6, now);
+  const osc2Gain = ctx.createGain();
+  osc2Gain.gain.setValueAtTime(0.4, now);
+  osc1.connect(osc1Gain).connect(mix);
+  osc2.connect(osc2Gain).connect(mix);
+
+  // ── Filtro resonante principal ──
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(400 + (1 - y) * 4000, now);
+  filter.Q.setValueAtTime(5 + x * 15, now);
+  lfo2Gain.connect(filter.frequency); // LFO barre el filtro
+
+  // ── Segundo filtro: formante/vocal ──
+  const filter2 = ctx.createBiquadFilter();
+  filter2.type = 'peaking';
+  filter2.frequency.setValueAtTime(freq * 3, now);
+  filter2.gain.setValueAtTime(8, now);
+  filter2.Q.setValueAtTime(4, now);
+
+  // ── Distorsión suave (waveshaper) ──
+  const shaper = ctx.createWaveShaper();
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const x2 = (i / 128) - 1;
+    curve[i] = (Math.PI + 3) * x2 / (Math.PI + 3 * Math.abs(x2));
+  }
+  shaper.curve = curve;
+  shaper.oversample = '2x';
+
+  // ── Master con fade-in ──
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0, now);
+  master.gain.linearRampToValueAtTime(0.22, now + 0.15);
+
+  // ── Panner estéreo ──
+  const panner = ctx.createStereoPanner();
+  panner.pan.setValueAtTime((x - 0.5) * 1.4, now);
+
+  // ── Routing ──
+  mix.connect(filter).connect(shaper).connect(filter2)
+    .connect(master).connect(panner).connect(ctx.destination);
+
+  osc1.start(now); osc2.start(now); osc3.start(now);
+  lfo1.start(now); lfo2.start(now);
+
+  _dragNodes = {
+    osc1, osc2, osc3, lfo1, lfo2, filter, filter2, master, panner,
+    lfo1Gain, lfo2Gain, fmGain, ctx,
+  };
+}
+
+/**
+ * Actualiza la síntesis de arrastre según la posición del cursor.
+ * Frecuencia, filtro, FM, vibrato y panner evolucionan en tiempo real.
+ * @param {number} x — posición X normalizada 0..1
+ * @param {number} y — posición Y normalizada 0..1
+ */
+function updateDragTone(x, y) {
+  if (!_dragNodes) return;
+  const { osc1, osc2, osc3, lfo1, lfo2, filter, filter2,
+          panner, lfo1Gain, lfo2Gain, fmGain, ctx: dCtx } = _dragNodes;
+  if (!dCtx || dCtx.state === 'closed') return;
+  const now = dCtx.currentTime;
+  const freq = 60 + (1 - y) * 1500;
+  const t = now + 0.06;
+
+  // Osciladores
+  osc1.frequency.exponentialRampToValueAtTime(Math.max(freq, 20), t);
+  osc2.frequency.exponentialRampToValueAtTime(Math.max(freq * 0.501, 20), t);
+  const fmRatio = 1.5 + x * 5;
+  osc3.frequency.exponentialRampToValueAtTime(Math.max(freq * fmRatio, 20), t);
+  fmGain.gain.linearRampToValueAtTime(freq * (0.5 + x * 3), t);
+
+  // LFOs
+  lfo1.frequency.linearRampToValueAtTime(4 + x * 12, t);
+  lfo1Gain.gain.linearRampToValueAtTime(freq * 0.04, t);
+  lfo2.frequency.linearRampToValueAtTime(0.3 + x * 2, t);
+  lfo2Gain.gain.linearRampToValueAtTime(1500 + y * 2000, t);
+
+  // Filtros
+  filter.frequency.exponentialRampToValueAtTime(
+    Math.max(400 + (1 - y) * 4000, 20), t);
+  filter.Q.linearRampToValueAtTime(5 + x * 15, t);
+  filter2.frequency.exponentialRampToValueAtTime(Math.max(freq * 3, 20), t);
+
+  // Panner
+  panner.pan.linearRampToValueAtTime((x - 0.5) * 1.4, t);
+}
+
+/**
+ * Detiene la síntesis de arrastre con fade-out suave.
+ */
+function stopDragTone() {
+  if (!_dragNodes) return;
+  const { osc1, osc2, osc3, lfo1, lfo2, master, ctx: dCtx } = _dragNodes;
+  if (dCtx && dCtx.state !== 'closed') {
+    try {
+      const now = dCtx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      master.gain.linearRampToValueAtTime(0, now + 0.2);
+      const stopAt = now + 0.25;
+      osc1.stop(stopAt);
+      osc2.stop(stopAt);
+      osc3.stop(stopAt);
+      lfo1.stop(stopAt);
+      lfo2.stop(stopAt);
+    } catch (e) { /* ctx cerrado o ya parado */ }
+  }
+  _dragNodes = null;
+}
+
+
 /**
  * Crea el overlay transparente con canvas para la animación.
  * @param {number} durationMs — duración total de la animación
@@ -1154,24 +1496,38 @@ function createOverlay(durationMs) {
     attractorY = ev.clientY;
     attractorActive = true;
     overlay.setPointerCapture(ev.pointerId);
+    // Sonido interactivo: ping al click + inicio tono de arrastre
+    const nx = ev.clientX / (window.innerWidth || 1);
+    const ny = ev.clientY / (window.innerHeight || 1);
+    if (_interactiveCtx) {
+      playInteractionPing(_interactiveCtx, nx, ny);
+      startDragTone(_interactiveCtx, nx, ny);
+    }
   });
   overlay.addEventListener('pointermove', (ev) => {
     if (!pointerIsDown) return;  // sin click/touch → sin atracción
     attractorX = ev.clientX;
     attractorY = ev.clientY;
     attractorActive = true;
+    // Actualizar tono de arrastre según posición
+    const nx = ev.clientX / (window.innerWidth || 1);
+    const ny = ev.clientY / (window.innerHeight || 1);
+    updateDragTone(nx, ny);
   });
   overlay.addEventListener('pointerup', () => {
     pointerIsDown = false;
     attractorActive = false;
+    stopDragTone();
   });
   overlay.addEventListener('pointerleave', () => {
     pointerIsDown = false;
     attractorActive = false;
+    stopDragTone();
   });
   overlay.addEventListener('pointercancel', () => {
     pointerIsDown = false;
     attractorActive = false;
+    stopDragTone();
   });
 
   return { overlay, canvas };
@@ -1203,6 +1559,10 @@ function cleanup(audioCtx) {
     document.removeEventListener('keydown', _onKeyDown);
     _onKeyDown = null;
   }
+
+  // Detener sonidos interactivos
+  stopDragTone();
+  _interactiveCtx = null;
 
   // Resetear atractor
   attractorActive = false;
@@ -1255,6 +1615,9 @@ export async function triggerEasterEgg(options = {}) {
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(0.7, ctx.currentTime);
       compressor.connect(masterGain).connect(ctx.destination);
+
+      // Guardar ref para sonidos interactivos
+      _interactiveCtx = ctx;
 
       const pieceFn = PIECES[selectedPiece] || PIECES.electroacoustic;
       const result = pieceFn(ctx, compressor);

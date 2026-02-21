@@ -1903,6 +1903,10 @@ class App {
           if (knobs.rangeX?.knobInstance) knobs.rangeX.knobInstance.setValue(defaultRangeX / 10);
           if (knobs.rangeY?.knobInstance) knobs.rangeY.knobInstance.setValue(defaultRangeY / 10);
         }
+        // Actualizar handle visual del pad
+        const joystickKey = `joystick-${side}`;
+        const padEl = this._joystickUIs?.[joystickKey]?.padEl;
+        if (padEl?._joystickUpdateHandle) padEl._joystickUpdateHandle(0, 0);
       }
     }
     

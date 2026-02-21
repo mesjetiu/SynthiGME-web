@@ -1681,8 +1681,10 @@ const ENFORCE_CLEAN_CHECK = false;
 
 /**
  * Instala el detector de secuencia de taps en los frames de joystick.
- * Busca los frames por id (joystick-left/right — los .synth-module contenedores).
- * Usa los frames en lugar de los pads para no interferir con la interacción del joystick.
+ * Usa listeners a nivel de document en fase de CAPTURA para interceptar
+ * los eventos ANTES de que cualquier capa intermedia (PiP, pad, knobs)
+ * los detenga con stopPropagation(). Esto funciona independientemente
+ * de si el panel está en el viewport principal o en un PiP flotante.
  * Debe llamarse después de que el DOM del panel 7 esté construido.
  *
  * @param {Object} [options]
@@ -1779,103 +1781,115 @@ export function initEasterEggTrigger(options = {}) {
     removeCountdown();
   };
 
-  // Cualquier interacción fuera de los frames rompe la secuencia
+  /**
+   * Determina a qué frame (0 o 1) pertenece el target del evento.
+   * Devuelve -1 si el target no está dentro de ningún frame.
+   */
+  function getFrameIndex(target) {
+    for (let i = 0; i < frames.length; i++) {
+      if (frames[i].contains(target)) return i;
+    }
+    return -1;
+  }
+
+  // ── Todos los listeners a nivel de document, capture phase ──
+  // Esto garantiza que se ejecutan ANTES de cualquier stopPropagation()
+  // en capas intermedias (PiP container, joystick pad, knobs, etc.)
+
   document.addEventListener('pointerdown', (ev) => {
-    if (!frame1.contains(ev.target) && !frame2.contains(ev.target)) {
+    const frameIdx = getFrameIndex(ev.target);
+
+    // Click fuera de ambos frames → resetear secuencia
+    if (frameIdx === -1) {
       resetSequence();
+      return;
+    }
+
+    // Click dentro de un frame
+    if (isPlaying) return;
+    if (tapPointerId !== -1) {
+      resetSequence();
+      return;
+    }
+
+    // Capturar estado dirty al inicio de la secuencia.
+    if (sequenceIndex === 0) {
+      wasDirtyAtSequenceStart = isDirtyFn();
+    }
+
+    tapStartTime = performance.now();
+    tapStartX = ev.clientX;
+    tapStartY = ev.clientY;
+    tapPadIndex = frameIdx;
+    tapPointerId = ev.pointerId;
+  }, true);
+
+  document.addEventListener('pointerup', (ev) => {
+    if (isPlaying) return;
+    if (ev.pointerId !== tapPointerId) return;
+
+    const now = performance.now();
+    const duration = now - tapStartTime;
+    const dx = ev.clientX - tapStartX;
+    const dy = ev.clientY - tapStartY;
+    const movement = Math.sqrt(dx * dx + dy * dy);
+
+    const padIdx = tapPadIndex;
+    tapPointerId = -1;
+    tapPadIndex = -1;
+
+    // ¿Es un tap válido? (corto y sin movimiento)
+    if (duration > TAP_MAX_DURATION || movement > TAP_MAX_MOVEMENT) {
+      resetSequence();
+      return;
+    }
+
+    // ¿Ha pasado demasiado tiempo desde el último tap?
+    if (sequenceIndex > 0 && (now - lastTapTime) > SEQUENCE_TIMEOUT) {
+      resetSequence();
+      // Re-capturar dirty para el nuevo intento
+      if (padIdx === TRIGGER_SEQUENCE[0]) {
+        wasDirtyAtSequenceStart = isDirtyFn();
+      }
+    }
+
+    // ¿Este pad es el esperado en la secuencia?
+    if (padIdx !== TRIGGER_SEQUENCE[sequenceIndex]) {
+      resetSequence();
+      if (padIdx === TRIGGER_SEQUENCE[0]) {
+        wasDirtyAtSequenceStart = isDirtyFn();
+        sequenceIndex = 1;
+        lastTapTime = now;
+      }
+      return;
+    }
+
+    // ¡Tap correcto!
+    sequenceIndex++;
+    lastTapTime = now;
+
+    // Cuenta atrás: mostrar 3, 2, 1 cuando quedan 3 taps o menos
+    const remaining = TRIGGER_SEQUENCE.length - sequenceIndex;
+    if (remaining > 0 && remaining <= 3) {
+      showCountdown(remaining);
+    }
+
+    // ¿Secuencia completa?
+    if (sequenceIndex >= TRIGGER_SEQUENCE.length) {
+      const dirty = ENFORCE_CLEAN_CHECK && wasDirtyAtSequenceStart;
+      resetSequence();
+      // Si no estaba dirty al inicio, deshacer el dirty que nuestros
+      // propios taps causaron (pointerup → synth:userInteraction → markDirty)
+      if (!dirty && markCleanFn) markCleanFn();
+      triggerEasterEgg({ visualOnly: dirty });
     }
   }, true);
 
-  // Instalar listeners en cada frame
-  frames.forEach((frame, frameIndex) => {
-    frame.addEventListener('pointerdown', (ev) => {
-      if (isPlaying) return;
-      if (tapPointerId !== -1) {
-        resetSequence();
-        return;
-      }
-
-      // Capturar estado dirty al inicio de la secuencia.
-      // Lo hacemos en pointerdown (antes de que el pointerup del frame
-      // dispare synth:userInteraction → markDirty).
-      if (sequenceIndex === 0) {
-        wasDirtyAtSequenceStart = isDirtyFn();
-      }
-
-      tapStartTime = performance.now();
-      tapStartX = ev.clientX;
-      tapStartY = ev.clientY;
-      tapPadIndex = frameIndex;
-      tapPointerId = ev.pointerId;
-    });
-
-    frame.addEventListener('pointerup', (ev) => {
-      if (isPlaying) return;
-      if (ev.pointerId !== tapPointerId) return;
-
-      const now = performance.now();
-      const duration = now - tapStartTime;
-      const dx = ev.clientX - tapStartX;
-      const dy = ev.clientY - tapStartY;
-      const movement = Math.sqrt(dx * dx + dy * dy);
-
-      const padIdx = tapPadIndex;
+  document.addEventListener('pointercancel', (ev) => {
+    if (ev.pointerId === tapPointerId) {
       tapPointerId = -1;
       tapPadIndex = -1;
-
-      // ¿Es un tap válido? (corto y sin movimiento)
-      if (duration > TAP_MAX_DURATION || movement > TAP_MAX_MOVEMENT) {
-        resetSequence();
-        return;
-      }
-
-      // ¿Ha pasado demasiado tiempo desde el último tap?
-      if (sequenceIndex > 0 && (now - lastTapTime) > SEQUENCE_TIMEOUT) {
-        resetSequence();
-        // Re-capturar dirty para el nuevo intento
-        if (padIdx === TRIGGER_SEQUENCE[0]) {
-          wasDirtyAtSequenceStart = isDirtyFn();
-        }
-      }
-
-      // ¿Este pad es el esperado en la secuencia?
-      if (padIdx !== TRIGGER_SEQUENCE[sequenceIndex]) {
-        resetSequence();
-        if (padIdx === TRIGGER_SEQUENCE[0]) {
-          wasDirtyAtSequenceStart = isDirtyFn();
-          sequenceIndex = 1;
-          lastTapTime = now;
-        }
-        return;
-      }
-
-      // ¡Tap correcto!
-      sequenceIndex++;
-      lastTapTime = now;
-
-      // Cuenta atrás: mostrar 3, 2, 1 cuando quedan 3 taps o menos
-      const remaining = TRIGGER_SEQUENCE.length - sequenceIndex;
-      if (remaining > 0 && remaining <= 3) {
-        showCountdown(remaining);
-      }
-
-      // ¿Secuencia completa?
-      if (sequenceIndex >= TRIGGER_SEQUENCE.length) {
-        const dirty = ENFORCE_CLEAN_CHECK && wasDirtyAtSequenceStart;
-        resetSequence();
-        // Si no estaba dirty al inicio, deshacer el dirty que nuestros
-        // propios taps causaron (pointerup → synth:userInteraction → markDirty)
-        if (!dirty && markCleanFn) markCleanFn();
-        triggerEasterEgg({ visualOnly: dirty });
-      }
-    });
-
-    frame.addEventListener('pointercancel', (ev) => {
-      if (ev.pointerId === tapPointerId) {
-        tapPointerId = -1;
-        tapPadIndex = -1;
-        resetSequence();
-      }
-    });
-  });
+      resetSequence();
+    }
+  }, true);
 }

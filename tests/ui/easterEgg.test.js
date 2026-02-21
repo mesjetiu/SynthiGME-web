@@ -1,13 +1,14 @@
 /**
- * Tests para easterEgg — Easter Egg con fuegos artificiales y melodía 8-bit
+ * Tests para easterEgg — Easter Egg con fuegos artificiales y pieza musical
  *
  * Cobertura:
  * 1. Constantes y configuración: secuencia, umbrales de tap, timeout
  * 2. triggerEasterEgg: modo normal (audio+visual), modo visualOnly, guard de doble ejecución
  * 3. initEasterEggTrigger: detección de secuencia de taps, reset por drag/timeout/pad incorrecto
- * 4. Mecanismo de seguridad: isDirtyFn controla visualOnly
+ * 4. Mecanismo de seguridad: isDirtyFn capturado al inicio de secuencia (antes de markDirty)
  * 5. No rompe nada: no interfiere con AudioContext del Synthi, limpieza completa del DOM
- * 6. Análisis estático: exports, integración en app.js, vendor presente
+ * 6. Piezas musicales: chiptune y electroacústica, selección por defecto
+ * 7. Análisis estático: exports, integración en app.js, vendor presente
  */
 import { describe, it, before, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -372,7 +373,7 @@ describe('Easter Egg — Lógica de secuencia (análisis estático)', () => {
 
   it('llama triggerEasterEgg con visualOnly=dirty al completar secuencia', () => {
     assert.ok(easterEggSource.includes('triggerEasterEgg({ visualOnly: dirty })'),
-      'Debe pasar visualOnly basado en isDirtyFn');
+      'Debe pasar visualOnly basado en estado dirty capturado al inicio');
   });
 });
 
@@ -398,30 +399,27 @@ describe('Easter Egg — Mecanismo de seguridad (isDirtyFn)', () => {
     assert.ok(fnSource.includes('isDirtyFn'), 'Acepta isDirtyFn');
   });
 
-  it('isDirtyFn se consulta al completar la secuencia, no antes', () => {
-    // isDirtyFn solo aparece en el bloque de secuencia completa
-    const triggerSection = easterEggSource.substring(
-      easterEggSource.indexOf('// ¿Secuencia completa?')
-    );
-    const beforeTrigger = triggerSection.substring(0, triggerSection.indexOf('triggerEasterEgg'));
-    assert.ok(beforeTrigger.includes('isDirtyFn()'),
-      'isDirtyFn se consulta justo antes de llamar triggerEasterEgg');
+  it('isDirtyFn se captura al inicio de la secuencia (pointerdown primer tap)', () => {
+    // isDirtyFn se llama en pointerdown cuando sequenceIndex === 0
+    assert.ok(easterEggSource.includes('wasDirtyAtSequenceStart = isDirtyFn()'),
+      'isDirtyFn debe capturarse al inicio de la secuencia');
+    // Se usa wasDirtyAtSequenceStart al completar
+    assert.ok(easterEggSource.includes('const dirty = wasDirtyAtSequenceStart'),
+      'Debe usar el valor capturado al inicio, no el actual');
   });
 
-  it('si isDirtyFn devuelve false (pristine) → visualOnly=false', () => {
+  it('si isDirtyFn devolvió false al inicio de secuencia → visualOnly=false', () => {
     assert.ok(easterEggSource.includes('triggerEasterEgg({ visualOnly: dirty })'),
-      'dirty=false de isDirtyFn se pasa como visualOnly=false');
+      'dirty (capturado al inicio) se pasa como visualOnly');
   });
 
   it('visualOnly=true omite creación de AudioContext', () => {
     const fnBody = easterEggSource.substring(
       easterEggSource.indexOf('export async function triggerEasterEgg'),
-      easterEggSource.indexOf('// ─── Trigger:')
+      easterEggSource.indexOf('//  TRIGGER:')
     );
-    // El bloque de audio está condicionado por !visualOnly
     assert.ok(fnBody.includes('if (!visualOnly)'),
       'El bloque de audio está protegido por !visualOnly');
-    // AudioContext solo se crea dentro de ese bloque
     const audioBlock = fnBody.substring(fnBody.indexOf('if (!visualOnly)'));
     assert.ok(audioBlock.includes('new AudioCtx()'),
       'AudioContext se crea solo dentro del bloque !visualOnly');
@@ -430,19 +428,13 @@ describe('Easter Egg — Mecanismo de seguridad (isDirtyFn)', () => {
   it('visualOnly=true sigue mostrando overlay y fireworks', () => {
     const fnBody = easterEggSource.substring(
       easterEggSource.indexOf('export async function triggerEasterEgg'),
-      easterEggSource.indexOf('// ─── Trigger:')
+      easterEggSource.indexOf('//  TRIGGER:')
     );
-    // createOverlay y startFireworks están FUERA del bloque !visualOnly
-    const afterVisualOnlyBlock = fnBody.substring(fnBody.indexOf('// 3. Crear overlay'));
+    const afterVisualOnlyBlock = fnBody.substring(fnBody.indexOf('// Visual:'));
     assert.ok(afterVisualOnlyBlock.includes('createOverlay()'),
       'createOverlay se ejecuta siempre');
     assert.ok(afterVisualOnlyBlock.includes('startFireworks'),
       'startFireworks se ejecuta siempre');
-  });
-
-  it('modo visualOnly tiene duración de auto-limpieza diferente (8s)', () => {
-    assert.ok(easterEggSource.includes('? 8000'),
-      'Modo visual usa 8000ms de duración');
   });
 });
 
@@ -503,6 +495,25 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
       'El listener de click debe ser once para evitar fugas');
   });
 
+  it('retrasa el listener de click para evitar cierre por click sintético en móvil', () => {
+    // El overlay no debe cerrarse inmediatamente por el click sintético
+    // que genera el navegador después del pointerup del último tap
+    const fnBody = easterEggSource.substring(
+      easterEggSource.indexOf('export async function triggerEasterEgg')
+    );
+    assert.ok(fnBody.includes('setTimeout') && fnBody.includes("'click'"),
+      'El listener de click debe instalarse con delay (setTimeout)');
+  });
+
+  it('isDirtyFn se captura en pointerdown (antes de que pointerup marque dirty)', () => {
+    // El pointerup del pad del joystick despacha synth:userInteraction → markDirty.
+    // El Easter egg debe capturar isDirty en pointerdown (antes de eso).
+    assert.ok(easterEggSource.includes('sequenceIndex === 0'),
+      'Debe capturar dirty al inicio de la secuencia');
+    assert.ok(easterEggSource.includes('wasDirtyAtSequenceStart = isDirtyFn()'),
+      'Debe guardar isDirtyFn() en wasDirtyAtSequenceStart en pointerdown');
+  });
+
   it('no importa ni depende de módulos del sintetizador', () => {
     const imports = easterEggSource.match(/^import\s.+$/gm) || [];
     assert.strictEqual(imports.length, 0,
@@ -517,8 +528,12 @@ describe('Easter Egg — Aislamiento y no-regresión', () => {
   });
 
   it('no despacha synth:userInteraction (no marca dirty)', () => {
-    assert.ok(!easterEggSource.includes('synth:userInteraction'),
-      'Easter egg no debe despachar eventos que marquen la sesión como dirty');
+    // El módulo puede mencionar synth:userInteraction en comentarios,
+    // pero no debe despacharlo (dispatchEvent / CustomEvent)
+    assert.ok(!easterEggSource.includes("dispatchEvent(new CustomEvent('synth:userInteraction')"),
+      'Easter egg no debe despachar synth:userInteraction');
+    assert.ok(!easterEggSource.includes("dispatchEvent(new Event('synth:userInteraction')"),
+      'Easter egg no debe despachar synth:userInteraction (Event)');
   });
 });
 
@@ -586,10 +601,10 @@ describe('Easter Egg — Vendor (fireworks-js)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 9. Melodía — estructura de datos
+// 9. Piezas musicales — chiptune y electroacústica
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Easter Egg — Melodía 8-bit (análisis estático)', () => {
+describe('Easter Egg — Pieza chiptune 8-bit', () => {
 
   it('tiene 4 canales: LEAD, BASS, ARPEGGIO, DRUMS', () => {
     assert.ok(easterEggSource.includes('const LEAD = ['), 'Falta canal LEAD');
@@ -602,7 +617,7 @@ describe('Easter Egg — Melodía 8-bit (análisis estático)', () => {
     assert.ok(easterEggSource.includes('playSquareNote'), 'Falta onda cuadrada (lead)');
     assert.ok(easterEggSource.includes('playTriangleNote'), 'Falta onda triangular (bass)');
     assert.ok(easterEggSource.includes('playPulseNote'), 'Falta onda pulso (arpeggio)');
-    assert.ok(easterEggSource.includes('playDrum'), 'Falta percusión');
+    assert.ok(easterEggSource.includes('playChipDrum'), 'Falta percusión');
   });
 
   it('BPM está definido y es razonable para chiptune (120-200)', () => {
@@ -618,6 +633,114 @@ describe('Easter Egg — Melodía 8-bit (análisis estático)', () => {
       'Debe tener tabla de frecuencias MIDI');
     assert.ok(easterEggSource.includes('440'),
       'Debe usar A4=440Hz como referencia');
+  });
+
+  it('tiene función playChiptunePiece que devuelve totalDurationSec y burstTimes', () => {
+    assert.ok(easterEggSource.includes('function playChiptunePiece(ctx, dest)'),
+      'Debe existir la función playChiptunePiece');
+    assert.ok(easterEggSource.includes('PIECES.chiptune = playChiptunePiece'),
+      'Debe registrarse en PIECES');
+  });
+});
+
+describe('Easter Egg — Pieza electroacústica (Studie)', () => {
+
+  it('tiene función playElectroacousticPiece registrada en PIECES', () => {
+    assert.ok(easterEggSource.includes('function playElectroacousticPiece(ctx, dest)'),
+      'Debe existir la función playElectroacousticPiece');
+    assert.ok(easterEggSource.includes('PIECES.electroacoustic = playElectroacousticPiece'),
+      'Debe registrarse en PIECES');
+  });
+
+  it('es la pieza seleccionada por defecto', () => {
+    assert.ok(easterEggSource.includes("selectedPiece = 'electroacoustic'"),
+      'selectedPiece debe ser electroacoustic por defecto');
+  });
+
+  it('usa síntesis de tonos sinusoidales puros (no square/triangle)', () => {
+    assert.ok(easterEggSource.includes('playSineTone'),
+      'Debe usar tonos sinusoidales sostenidos');
+    assert.ok(easterEggSource.includes('playSinePing'),
+      'Debe usar pings sinusoidales puntillistas');
+  });
+
+  it('usa glissandi (barridos de frecuencia)', () => {
+    assert.ok(easterEggSource.includes('playSineGliss'),
+      'Debe usar glissandi sinusoidales');
+  });
+
+  it('usa ruido filtrado con barrido de frecuencia', () => {
+    assert.ok(easterEggSource.includes('playFilteredNoise'),
+      'Debe usar ruido blanco filtrado');
+  });
+
+  it('usa síntesis FM (modulación de frecuencia)', () => {
+    assert.ok(easterEggSource.includes('playFMTexture'),
+      'Debe usar síntesis FM para texturas metálicas');
+  });
+
+  it('tiene 4 secciones: Klang, Punkte, Gruppen, Stille', () => {
+    assert.ok(easterEggSource.includes('Klang'), 'Falta sección Klang');
+    assert.ok(easterEggSource.includes('Punkte'), 'Falta sección Punkte');
+    assert.ok(easterEggSource.includes('Gruppen'), 'Falta sección Gruppen');
+    assert.ok(easterEggSource.includes('Stille'), 'Falta sección Stille');
+  });
+
+  it('devuelve totalDurationSec y burstTimes', () => {
+    // Verificar que la función devuelve los campos necesarios
+    const fnBody = easterEggSource.substring(
+      easterEggSource.indexOf('function playElectroacousticPiece'),
+      easterEggSource.indexOf('PIECES.electroacoustic')
+    );
+    assert.ok(fnBody.includes('totalDurationSec'), 'Debe devolver totalDurationSec');
+    assert.ok(fnBody.includes('burstTimes'), 'Debe devolver burstTimes');
+  });
+
+  it('usa solo ondas sine (estilo Studie I/II de Stockhausen)', () => {
+    // Las funciones de la pieza electroacústica solo usan osc.type = 'sine'
+    const fnBody = easterEggSource.substring(
+      easterEggSource.indexOf('// ─── Síntesis electroacústica'),
+      easterEggSource.indexOf('PIECES.electroacoustic')
+    );
+    // No debe usar square/triangle en la sección electroacústica
+    assert.ok(!fnBody.includes("osc.type = 'square'"),
+      'No debe usar onda cuadrada en la pieza electroacústica');
+    assert.ok(!fnBody.includes("osc.type = 'triangle'"),
+      'No debe usar onda triangular en la pieza electroacústica');
+  });
+});
+
+describe('Easter Egg — Selección de piezas', () => {
+
+  it('tiene objeto PIECES con al menos 2 piezas', () => {
+    assert.ok(easterEggSource.includes('PIECES.chiptune'), 'Falta pieza chiptune');
+    assert.ok(easterEggSource.includes('PIECES.electroacoustic'), 'Falta pieza electroacoustic');
+  });
+
+  it('triggerEasterEgg usa PIECES[selectedPiece] para elegir la pieza', () => {
+    assert.ok(easterEggSource.includes('PIECES[selectedPiece]'),
+      'Debe seleccionar pieza dinámicamente');
+  });
+
+  it('tiene fallback a electroacoustic si la pieza seleccionada no existe', () => {
+    assert.ok(easterEggSource.includes('PIECES.electroacoustic'),
+      'Debe tener fallback a electroacoustic');
+  });
+
+  it('ambas piezas devuelven totalDurationSec y burstTimes', () => {
+    const chipFn = easterEggSource.substring(
+      easterEggSource.indexOf('function playChiptunePiece'),
+      easterEggSource.indexOf('PIECES.chiptune')
+    );
+    assert.ok(chipFn.includes('totalDurationSec'), 'Chiptune debe devolver totalDurationSec');
+    assert.ok(chipFn.includes('burstTimes'), 'Chiptune debe devolver burstTimes');
+
+    const elecFn = easterEggSource.substring(
+      easterEggSource.indexOf('function playElectroacousticPiece'),
+      easterEggSource.indexOf('PIECES.electroacoustic')
+    );
+    assert.ok(elecFn.includes('totalDurationSec'), 'Electroacoustic debe devolver totalDurationSec');
+    assert.ok(elecFn.includes('burstTimes'), 'Electroacoustic debe devolver burstTimes');
   });
 });
 

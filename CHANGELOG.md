@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Easter egg**: Fuegos artificiales (fireworks-js) + pieza musical al completar secuencia de 8 taps alternados en joystick pads (L,R,L,R…). Dos piezas: electroacústica ("Studie" — 4 secciones con síntesis FM, ruido filtrado, glissandi, puntillismo) y chiptune 8-bit. Modo solo-visual si la sesión tiene cambios (isDirty capturado al inicio de la secuencia). Guard anti-flicker en móvil (delay de click listener). 88 tests.
 - **Undo/Redo global**: Deshacer/rehacer basado en snapshots (hasta 50 estados). Botones en quickbar, Ctrl+Z / Ctrl+U. Se limpia al cargar patch o resetear.
 - **Confirmación de reinicio opcional**: Checkbox "No volver a preguntar" en el diálogo de reinicio. Opción en Ajustes > General para reactivar/desactivar la confirmación. Se sincroniza con la casilla del diálogo.
 - **PiP mejorado**: Auto-lock/unlock de canvas al extraer/cerrar paneles. Escala contain (panel siempre visible completo). Placeholder requiere long-press o click derecho para devolver panel. Resize desde cualquier borde/esquina. Paneo con ratón y flechas. Maximizar/restaurar sin perder posición.

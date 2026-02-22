@@ -858,10 +858,10 @@ function gatherGhosts() {
 // ─── Interpolación de fases para renderizado en canvas ───
 // Fase 0→0.06: calma (~2s en pieza de 35s) — piezas quietas en su sitio
 // Fase 0.06→0.20: dispersión inicial suave y gradual
-const PHASE_OFFSETS = [0, 0.06, 0.20, 0.40, 0.62, 0.80, 0.85, 1];
-const PHASE_TX_F   = [0,    0,  0.5,  1.0, 0.55, 0.10,    0, 0];
-const PHASE_TY_F   = [0,    0,  0.5,  1.0, 0.55, 0.10,    0, 0];
-const PHASE_ROT_F  = [0,    0,  0.3,  1.0, 0.85, 0.10,    0, 0];
+const PHASE_OFFSETS = [0, 0.06, 0.20, 0.40, 0.60, 0.75, 0.85, 1];
+const PHASE_TX_F   = [0,    0,  0.5,  1.0, 0.55, 0.15,    0, 0];
+const PHASE_TY_F   = [0,    0,  0.5,  1.0, 0.55, 0.15,    0, 0];
+const PHASE_ROT_F  = [0,    0,  0.3,  1.0, 0.85, 0.15,    0, 0];
 const PHASE_ALPHA  = [1,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 1];
 // Umbral de calma: por debajo de este progress, todo movimiento es 0
 const CALM_END = 0.06;
@@ -995,8 +995,10 @@ function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
       // ── Atractor físico: arrastre con velocidad acumulada ──
       // Fuerza suave que afecta también a elementos lejanos.
       // La velocidad se acumula en el tiempo → se puede "arrastrar" con el cursor.
-      const attractorDecay = progress > 0.85
-        ? Math.max(0, 1 - (progress - 0.85) / 0.15) : 1;
+      // Decay del atractor/drift: empieza a reducirse en progress 0.75
+      // para dar ~8.75s de retorno suave (25% de 35s)
+      const attractorDecay = progress > 0.75
+        ? Math.max(0, 1 - (progress - 0.75) / 0.25) : 1;
 
       if (attractorActive && attractorDecay > 0 && dt > 0) {
         const ghostCx = ghost.x + ghost.w / 2 + tx + ghost.ox;
@@ -1057,11 +1059,13 @@ function startCanvasAnimation(canvas, ghostData, durationMs, overlay) {
       ghost.oy += ghost.vy * dt;
 
       // Al final de la animación, devolver suavemente a posición base
+      // Retorno exponencial: lerp suave en vez de multiplicación brusca
       if (attractorDecay < 1) {
-        ghost.ox *= attractorDecay;
-        ghost.oy *= attractorDecay;
-        ghost.vx *= attractorDecay;
-        ghost.vy *= attractorDecay;
+        const returnRate = 1 - Math.pow(attractorDecay, 0.5); // 0→1 suave
+        ghost.ox *= (1 - returnRate);
+        ghost.oy *= (1 - returnRate);
+        ghost.vx *= (1 - returnRate * 0.5);
+        ghost.vy *= (1 - returnRate * 0.5);
       }
 
       const finalAlpha = alpha * globalFade;

@@ -125,30 +125,76 @@ describe('Selectores interactivos para prevención de zoom', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 2. LÓGICA DE DOBLE CLICK
+// 2. LÓGICA DE DOBLE CLICK (click manual + dblclick guard)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Lógica de dblclick en paneles', () => {
+describe('Lógica de click manual para doble-click en paneles', () => {
+
+  it('se registra click handler en cada panel', () => {
+    const clickHandler = doubleTapSection.match(
+      /panel\.addEventListener\('click'/
+    );
+    assert.ok(clickHandler, 'Debe registrar handler click en paneles');
+  });
+
+  it('filtra clicks en elementos interactivos (isInteractiveElement)', () => {
+    const guard = doubleTapSection.match(
+      /click[\s\S]*?isInteractiveElement\(ev\.target\)[\s\S]*?return/
+    );
+    assert.ok(guard, 'click debe filtrar elementos interactivos y retornar temprano');
+  });
+
+  it('ignora paneles en PiP (panel--pipped)', () => {
+    const pipGuard = doubleTapSection.match(
+      /click[\s\S]*?panel--pipped[\s\S]*?return/
+    );
+    assert.ok(pipGuard, 'click debe ignorar paneles en modo PiP');
+  });
+
+  it('descarta clicks sintéticos generados por touch (lastTouchEndTime)', () => {
+    const touchGuard = doubleTapSection.match(
+      /click[\s\S]*?lastTouchEndTime[\s\S]*?return/
+    );
+    assert.ok(touchGuard, 'click debe descartar clicks sintéticos tras un touch');
+  });
+
+  it('valida distancia entre clics (MAX_DBLCLICK_DISTANCE)', () => {
+    const distConst = doubleTapSection.match(/MAX_DBLCLICK_DISTANCE\s*=\s*(\d+)/);
+    assert.ok(distConst, 'Debe definir MAX_DBLCLICK_DISTANCE');
+    const dist = parseInt(distConst[1]);
+    assert.ok(dist >= 20 && dist <= 100,
+      `MAX_DBLCLICK_DISTANCE (${dist}px) debe estar entre 20-100px`);
+  });
+
+  it('usa estado separado para click (clickX/clickY) independiente de touch', () => {
+    const clickState = doubleTapSection.match(
+      /ev\.clientX\s*-\s*clickX/
+    );
+    assert.ok(clickState, 'click debe usar clickX/clickY, no variables compartidas con touch');
+  });
+
+  it('comprueba distancia < MAX_DBLCLICK_DISTANCE para validar doble-click', () => {
+    const distCheck = doubleTapSection.match(
+      /dist\s*<\s*MAX_DBLCLICK_DISTANCE/
+    );
+    assert.ok(distCheck, 'click debe comparar distancia con MAX_DBLCLICK_DISTANCE');
+  });
+
+  it('llama a handleZoomToggle() al hacer doble click válido', () => {
+    const zoomToggle = doubleTapSection.match(
+      /click[\s\S]*?handleZoomToggle\(\)/
+    );
+    assert.ok(zoomToggle, 'click debe llamar handleZoomToggle');
+  });
+});
+
+describe('Guard dblclick nativo en paneles', () => {
 
   it('se registra dblclick handler en cada panel', () => {
     const dblclickHandler = doubleTapSection.match(
       /panel\.addEventListener\('dblclick'/
     );
-    assert.ok(dblclickHandler, 'Debe registrar handler dblclick en paneles');
-  });
-
-  it('filtra clicks en elementos interactivos (isInteractiveElement)', () => {
-    const guard = doubleTapSection.match(
-      /dblclick[\s\S]*?isInteractiveElement\(ev\.target\)[\s\S]*?return/
-    );
-    assert.ok(guard, 'dblclick debe filtrar elementos interactivos y retornar temprano');
-  });
-
-  it('ignora paneles en PiP (panel--pipped)', () => {
-    const pipGuard = doubleTapSection.match(
-      /dblclick[\s\S]*?panel--pipped[\s\S]*?return/
-    );
-    assert.ok(pipGuard, 'dblclick debe ignorar paneles en modo PiP');
+    assert.ok(dblclickHandler, 'Debe registrar handler dblclick como guard');
   });
 
   it('previene el comportamiento por defecto (preventDefault)', () => {
@@ -163,13 +209,6 @@ describe('Lógica de dblclick en paneles', () => {
       /dblclick[\s\S]*?ev\.stopPropagation\(\)/
     );
     assert.ok(stopProp, 'dblclick debe llamar stopPropagation');
-  });
-
-  it('llama a handleZoomToggle() al hacer doble click válido', () => {
-    const zoomToggle = doubleTapSection.match(
-      /dblclick[\s\S]*?handleZoomToggle\(\)/
-    );
-    assert.ok(zoomToggle, 'dblclick debe llamar handleZoomToggle');
   });
 });
 
@@ -213,6 +252,34 @@ describe('Lógica de doble-tap táctil en paneles', () => {
     const delay = parseInt(delayConst[1]);
     assert.ok(delay >= 200 && delay <= 500,
       `DOUBLE_TAP_DELAY (${delay}ms) debe estar entre 200-500ms`);
+  });
+
+  it('marca lastTouchEndTime para que click descarte sintéticos', () => {
+    const mark = doubleTapSection.match(
+      /touchend[\s\S]*?lastTouchEndTime\s*=\s*Date\.now\(\)/
+    );
+    assert.ok(mark, 'touchend debe marcar lastTouchEndTime');
+  });
+
+  it('usa estado separado para touch (touchX/touchY) independiente de click', () => {
+    const touchState = doubleTapSection.match(
+      /touch\.clientX\s*-\s*touchX/
+    );
+    assert.ok(touchState, 'touchend debe usar touchX/touchY, no variables compartidas con click');
+  });
+
+  it('valida distancia entre taps (dist < MAX_DBLCLICK_DISTANCE)', () => {
+    const distCheck = doubleTapSection.match(
+      /touchend[\s\S]*?dist\s*<\s*MAX_DBLCLICK_DISTANCE/
+    );
+    assert.ok(distCheck, 'touchend debe comparar distancia entre taps con MAX_DBLCLICK_DISTANCE');
+  });
+
+  it('usa changedTouches[0] para obtener la posición del tap', () => {
+    const touchPos = doubleTapSection.match(
+      /touchend[\s\S]*?ev\.changedTouches\[0\]/
+    );
+    assert.ok(touchPos, 'touchend debe usar changedTouches[0] para la posición');
   });
 
   it('el handler es pasivo false ({ passive: false })', () => {

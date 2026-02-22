@@ -1681,6 +1681,8 @@ export function setupPanelShortcutBadges() {
 export function setupPanelDoubleTapZoom() {
   const PANEL_IDS = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'panel-6', 'panel-output'];
   const DOUBLE_TAP_DELAY = 300;
+  /** Distancia máxima (px en pantalla) entre los dos clics/taps para considerarlos doble clic */
+  const MAX_DBLCLICK_DISTANCE = 50;
   
   const INTERACTIVE_SELECTORS = [
     'button', 'input', 'select', 'textarea', 'a',
@@ -1702,8 +1704,18 @@ export function setupPanelDoubleTapZoom() {
     const panel = document.getElementById(panelId);
     if (!panel) return;
 
-    let lastTapTime = 0;
-    let lastTapTarget = null;
+    // Estado separado para click (ratón) y touch (táctil).
+    // NO pueden compartir estado porque en táctil el navegador dispara
+    // touchend Y click sintético en secuencia, y el click vería el estado
+    // del touchend como "primer clic" provocando zoom con un solo tap.
+    let clickTime = 0;
+    let clickX = 0;
+    let clickY = 0;
+    let touchTime = 0;
+    let touchX = 0;
+    let touchY = 0;
+    /** Marca temporal del último touchend para descartar clicks sintéticos */
+    let lastTouchEndTime = 0;
 
     function isInteractiveElement(el) {
       if (!el || el === panel) return false;
@@ -1722,41 +1734,68 @@ export function setupPanelDoubleTapZoom() {
       }
     }
 
-    panel.addEventListener('dblclick', (ev) => {
+    // Click handler solo para ratón; los taps táctiles van por touchend
+    panel.addEventListener('click', (ev) => {
       // Ignorar si el panel está en PiP (tiene sus propios handlers)
+      if (panel.classList.contains('panel--pipped')) return;
+      if (isInteractiveElement(ev.target)) return;
+      // Descartar clicks sintéticos generados por el navegador tras un touch
+      if (Date.now() - lastTouchEndTime < 500) return;
+
+      const now = Date.now();
+      const dx = ev.clientX - clickX;
+      const dy = ev.clientY - clickY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if ((now - clickTime) < DOUBLE_TAP_DELAY && dist < MAX_DBLCLICK_DISTANCE) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        handleZoomToggle();
+        clickTime = 0;
+      } else {
+        clickTime = now;
+        clickX = ev.clientX;
+        clickY = ev.clientY;
+      }
+    });
+
+    // Anular dblclick nativo para que no dispare zoom sin validación de distancia
+    panel.addEventListener('dblclick', (ev) => {
       if (panel.classList.contains('panel--pipped')) return;
       if (isInteractiveElement(ev.target)) return;
       ev.preventDefault();
       ev.stopPropagation();
-      handleZoomToggle();
     });
 
     panel.addEventListener('touchend', (ev) => {
       // Ignorar si el panel está en PiP (tiene sus propios handlers)
       if (panel.classList.contains('panel--pipped')) return;
       if (isInteractiveElement(ev.target)) return;
+      lastTouchEndTime = Date.now();
       if (window.__synthNavGestureActive) {
-        lastTapTime = 0;
-        lastTapTarget = null;
+        touchTime = 0;
         return;
       }
       if ((ev.touches && ev.touches.length > 0) || (ev.changedTouches && ev.changedTouches.length > 1)) {
-        lastTapTime = 0;
-        lastTapTarget = null;
+        touchTime = 0;
         return;
       }
-      
+
+      const touch = ev.changedTouches[0];
       const now = Date.now();
-      const timeSinceLastTap = now - lastTapTime;
+      const timeSinceLastTap = now - touchTime;
+      const dx = touch.clientX - touchX;
+      const dy = touch.clientY - touchY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
       
-      if (timeSinceLastTap < DOUBLE_TAP_DELAY && lastTapTarget === panel) {
+      if (timeSinceLastTap < DOUBLE_TAP_DELAY && dist < MAX_DBLCLICK_DISTANCE) {
         ev.preventDefault();
         handleZoomToggle();
-        lastTapTime = 0;
-        lastTapTarget = null;
+        touchTime = 0;
       } else {
-        lastTapTime = now;
-        lastTapTarget = panel;
+        touchTime = now;
+        touchX = touch.clientX;
+        touchY = touch.clientY;
       }
     }, { passive: false });
   });

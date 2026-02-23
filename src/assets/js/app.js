@@ -2901,6 +2901,7 @@ class App {
     
     const scopeLayout = blueprint.layout.oscilloscope;
     const scopeSize = scopeLayout.size;
+    const scopeOffset = scopeLayout.offset || { x: 0, y: 0 };
     
     const scopeSection = document.createElement('div');
     scopeSection.className = 'panel2-oscilloscope-section';
@@ -2910,6 +2911,7 @@ class App {
       box-sizing: border-box;
       margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
+    applyOffset(scopeSection, scopeOffset);
     host.appendChild(scopeSection);
     
     // Crear módulo de audio primero (necesitamos referencia para el toggle)

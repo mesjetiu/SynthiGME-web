@@ -88,6 +88,12 @@ describe('Panel 2 Blueprint - Layout', () => {
       assert.strictEqual(osc.flex, undefined, 'no debe usar flex');
     });
 
+    it('tiene offset con x e y numéricos', () => {
+      assert.ok(osc.offset, 'debe tener offset');
+      assert.strictEqual(typeof osc.offset.x, 'number', 'offset.x debe ser número');
+      assert.strictEqual(typeof osc.offset.y, 'number', 'offset.y debe ser número');
+    });
+
     it('tiene frame con borderRadius y padding', () => {
       assert.ok(osc.frame, 'debe tener frame');
       assert.strictEqual(typeof osc.frame.borderRadius, 'number');

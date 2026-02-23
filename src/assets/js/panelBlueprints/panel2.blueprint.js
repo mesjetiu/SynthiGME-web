@@ -67,7 +67,7 @@ export default {
   layout: {
     // Offset general del panel (px) — desplaza todos los módulos
     // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 200, y: 100 },
+    offset: { x: 40, y: 60 },
 
     // Padding general del panel
     padding: { top: 10, right: 15, bottom: 10, left: 15 },

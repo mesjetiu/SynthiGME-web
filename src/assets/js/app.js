@@ -3063,6 +3063,7 @@ class App {
       box-sizing: border-box;
       margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
+    applyOffset(freqMeterEl, freqMeterLayout.offset);
     applyModuleVisibility(freqMeterEl, blueprint, 'frequencyMeter');
     host.appendChild(freqMeterEl);
     
@@ -3084,6 +3085,7 @@ class App {
       box-sizing: border-box;
       margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
+    applyOffset(octaveFilterEl, octaveFilterLayout.offset);
     applyModuleVisibility(octaveFilterEl, blueprint, 'octaveFilterBank');
     host.appendChild(octaveFilterEl);
     
@@ -3185,6 +3187,7 @@ class App {
       height: ${extTreatmentSize.height}px;
       box-sizing: border-box;
     `;
+    applyOffset(extTreatmentEl, extTreatmentLayout.offset);
     applyModuleVisibility(extTreatmentEl, blueprint, 'externalTreatmentDevices');
     host.appendChild(extTreatmentEl);
     

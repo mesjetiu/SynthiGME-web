@@ -99,28 +99,28 @@ export default {
 
     // ── Frequency Meter (placeholder) ───────────────────────────────────
     frequencyMeter: {
-      size: { width: 730, height: 140 },
-      offset: { x: 0, y: 80 }
+      size: { width: 744, height: 143 },
+      offset: { x: -7, y: 81 }
     },
 
     // ── Octave Filter Bank (placeholder) ────────────────────────────────
     octaveFilterBank: {
-      size: { width: 735, height: 60 },
-      offset: { x: 0, y: 100 }
+      size: { width: 744, height: 60 },
+      offset: { x: -7, y: 81 }
     },
 
     // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───
     inputAmplifierLevel: {
-      size: { width: 730, height: 90 },
+      size: { width: 744, height: 90 },
 
       // Ajuste fino del bloque completo
-      offset: { x: 0, y: 250 },
+      offset: { x: -7, y: 81 },
 
       // Ajuste fino interno de la fila de knobs
       knobGap: 8,
       knobSize: 'sm',
       knobInnerPct: 78,
-      knobsRowOffset: { x: 0, y: 50 },
+      knobsRowOffset: { x: 0, y: 0 },
 
       // Offsets individuales por canal (1..8)
       knobOffsets: [
@@ -131,16 +131,16 @@ export default {
 
     // ── External Treatment Devices (última fila, dos módulos lado a lado) ──
     externalTreatmentRow: {
-      gap: 6,  // px — separación horizontal entre Send y Return
+      gap: 2,  // px — separación horizontal entre Send y Return
 
       extTreatmentSend: {
-        size: { width: 362, height: 60 },
-        offset: { x: 0, y: 0 }
+        size: { width: 371, height: 60 },
+        offset: { x: -7.5, y: 81 }
       },
 
       extTreatmentReturn: {
-        size: { width: 362, height: 60 },
-        offset: { x: 0, y: 0 }
+        size: { width: 371, height: 60 },
+        offset: { x: -7.5, y: 81 }
       }
     }
   },

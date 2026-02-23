@@ -3171,25 +3171,57 @@ class App {
     this._inputAmplifierUIs['input-amplifiers'] = inputAmpUI;
     
     // ─────────────────────────────────────────────────────────────────────────
-    // EXTERNAL TREATMENT DEVICES (placeholder)
+    // EXTERNAL TREATMENT DEVICES (última fila, dos módulos lado a lado)
     // ─────────────────────────────────────────────────────────────────────────
     
-    const extTreatmentLayout = blueprint.layout.externalTreatmentDevices;
-    const extTreatmentSize = extTreatmentLayout.size;
-    const extTreatmentFrame = new ModuleFrame({
-      id: 'external-treatment-devices',
-      title: 'External Treatment Devices',
-      className: 'panel2-placeholder'
-    });
-    const extTreatmentEl = extTreatmentFrame.createElement();
-    extTreatmentEl.style.cssText = `
-      width: ${extTreatmentSize.width}px;
-      height: ${extTreatmentSize.height}px;
+    const extRow = blueprint.layout.externalTreatmentRow;
+    const extRowGap = toNum(extRow?.gap, 6);
+    
+    // Contenedor de fila (flex horizontal)
+    const extRowSection = document.createElement('div');
+    extRowSection.className = 'panel2-ext-treatment-row';
+    extRowSection.style.cssText = `
+      display: flex;
+      gap: ${extRowGap}px;
       box-sizing: border-box;
     `;
-    applyOffset(extTreatmentEl, extTreatmentLayout.offset);
-    applyModuleVisibility(extTreatmentEl, blueprint, 'externalTreatmentDevices');
-    host.appendChild(extTreatmentEl);
+    host.appendChild(extRowSection);
+    
+    // ── Send Level ──
+    const extSendLayout = extRow?.extTreatmentSend || {};
+    const extSendSize = extSendLayout.size || { width: 362, height: 60 };
+    const extSendFrame = new ModuleFrame({
+      id: 'ext-treatment-send',
+      title: 'Send Level',
+      className: 'panel2-placeholder'
+    });
+    const extSendEl = extSendFrame.createElement();
+    extSendEl.style.cssText = `
+      width: ${extSendSize.width}px;
+      height: ${extSendSize.height}px;
+      box-sizing: border-box;
+    `;
+    applyOffset(extSendEl, extSendLayout.offset);
+    applyModuleVisibility(extSendEl, blueprint, 'extTreatmentSend');
+    extRowSection.appendChild(extSendEl);
+    
+    // ── Return Level ──
+    const extReturnLayout = extRow?.extTreatmentReturn || {};
+    const extReturnSize = extReturnLayout.size || { width: 362, height: 60 };
+    const extReturnFrame = new ModuleFrame({
+      id: 'ext-treatment-return',
+      title: 'Return Level',
+      className: 'panel2-placeholder'
+    });
+    const extReturnEl = extReturnFrame.createElement();
+    extReturnEl.style.cssText = `
+      width: ${extReturnSize.width}px;
+      height: ${extReturnSize.height}px;
+      box-sizing: border-box;
+    `;
+    applyOffset(extReturnEl, extReturnLayout.offset);
+    applyModuleVisibility(extReturnEl, blueprint, 'extTreatmentReturn');
+    extRowSection.appendChild(extReturnEl);
     
     // ─────────────────────────────────────────────────────────────────────────
     // GUARDAR REFERENCIAS
@@ -3208,7 +3240,8 @@ class App {
       inputAmpUI,
       freqMeterFrame,
       octaveFilterFrame,
-      extTreatmentFrame
+      extSendFrame,
+      extReturnFrame
     };
     
     // Estado inicial

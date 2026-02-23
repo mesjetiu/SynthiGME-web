@@ -38,7 +38,9 @@
 //   - Frequency Meter (placeholder, sin audio aún)
 //   - Octave Filter Bank (placeholder, sin audio aún)
 //   - Input Amplifier Level (funcional, 8 canales de entrada)
-//   - External Treatment Devices (placeholder, sin audio aún)
+//   - External Treatment Devices (última fila, dos módulos lado a lado):
+//       · Send Level (placeholder, sin audio aún)
+//       · Return Level (placeholder, sin audio aún)
 //
 // Para conexiones a matrices de audio (Panel 5) y control (Panel 6),
 // ver la referencia cruzada al final de este archivo.
@@ -58,10 +60,10 @@ export default {
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────
   //
-  // El panel (760×760 px) se divide en 5 secciones de arriba a abajo.
-  // Cada sección tiene tamaño fijo (width × height) en px.
-  // offset: desplazamiento del bloque completo del módulo dentro del panel.
-  // gap: separación vertical fija entre secciones.
+  // El panel (760×760 px) se divide en 5 filas de arriba a abajo.
+  // Cada fila contiene uno o más módulos con tamaño fijo (width × height) en px.
+  // offset: desplazamiento fino del módulo respecto a su posición en la fila.
+  // gap: separación vertical fija entre filas.
   //
 
   layout: {
@@ -97,14 +99,14 @@ export default {
 
     // ── Frequency Meter (placeholder) ───────────────────────────────────
     frequencyMeter: {
-      size: { width: 730, height: 60 },
-      offset: { x: 0, y: 0 }
+      size: { width: 730, height: 140 },
+      offset: { x: 0, y: 80 }
     },
 
     // ── Octave Filter Bank (placeholder) ────────────────────────────────
     octaveFilterBank: {
-      size: { width: 730, height: 60 },
-      offset: { x: 0, y: 0 }
+      size: { width: 735, height: 60 },
+      offset: { x: 0, y: 100 }
     },
 
     // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───
@@ -112,13 +114,13 @@ export default {
       size: { width: 730, height: 90 },
 
       // Ajuste fino del bloque completo
-      offset: { x: 0, y: 0 },
+      offset: { x: 0, y: 250 },
 
       // Ajuste fino interno de la fila de knobs
       knobGap: 8,
       knobSize: 'sm',
       knobInnerPct: 78,
-      knobsRowOffset: { x: 0, y: 0 },
+      knobsRowOffset: { x: 0, y: 50 },
 
       // Offsets individuales por canal (1..8)
       knobOffsets: [
@@ -127,10 +129,19 @@ export default {
       ]
     },
 
-    // ── External Treatment Devices (placeholder) ────────────────────────
-    externalTreatmentDevices: {
-      size: { width: 730, height: 60 },
-      offset: { x: 0, y: 0 }
+    // ── External Treatment Devices (última fila, dos módulos lado a lado) ──
+    externalTreatmentRow: {
+      gap: 6,  // px — separación horizontal entre Send y Return
+
+      extTreatmentSend: {
+        size: { width: 362, height: 60 },
+        offset: { x: 0, y: 0 }
+      },
+
+      extTreatmentReturn: {
+        size: { width: 362, height: 60 },
+        offset: { x: 0, y: 0 }
+      }
     }
   },
 
@@ -169,8 +180,12 @@ export default {
       // Soporta: offset, knobGap, knobSize, knobInnerPct, knobsRowOffset, knobOffsets
     },
 
-    // ── Placeholder ─────────────────────────────────────────────────────
-    externalTreatmentDevices: {
+    // ── External Treatment Devices (dos módulos en la misma fila) ───────
+    extTreatmentSend: {
+      visible: true
+    },
+
+    extTreatmentReturn: {
       visible: true
     }
   }

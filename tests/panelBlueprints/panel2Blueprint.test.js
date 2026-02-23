@@ -3,9 +3,9 @@
  * 
  * Verifica la configuración correcta de:
  * - Estructura básica (schemaVersion, panelId, showFrames)
- * - Layout: 5 secciones verticales (oscilloscope, frequencyMeter, octaveFilterBank,
- *   inputAmplifierLevel, externalTreatmentDevices)
- * - Módulos declarados (2 funcionales + 3 placeholders)
+ * - Layout: 5 filas (oscilloscope, frequencyMeter, octaveFilterBank,
+ *   inputAmplifierLevel, externalTreatmentRow con Send + Return)
+ * - Módulos declarados (2 funcionales + 4 placeholders)
  * - Separación blueprint/config (ausencia de propiedades de audio, controls, matrixMapping)
  * 
  * @version 1.0.0
@@ -207,28 +207,57 @@ describe('Panel 2 Blueprint - Layout', () => {
     });
   });
 
-  describe('Sección External Treatment Devices (placeholder)', () => {
-    const etd = panel2Blueprint.layout.externalTreatmentDevices;
+  describe('Sección External Treatment Row (última fila, dos módulos)', () => {
+    const row = panel2Blueprint.layout.externalTreatmentRow;
 
-    it('existe con size (width y height) numéricos', () => {
-      assert.ok(etd, 'debe tener sección externalTreatmentDevices');
-      assert.ok(etd.size, 'debe tener size');
-      assert.strictEqual(typeof etd.size.width, 'number');
-      assert.ok(etd.size.width > 0, 'width debe ser positivo');
-      assert.strictEqual(typeof etd.size.height, 'number');
-      assert.ok(etd.size.height > 0, 'height debe ser positivo');
+    it('existe con gap numérico', () => {
+      assert.ok(row, 'debe tener sección externalTreatmentRow');
+      assert.strictEqual(typeof row.gap, 'number', 'gap debe ser número');
+      assert.ok(row.gap >= 0, 'gap no puede ser negativo');
     });
 
-    it('tiene offset con x e y numéricos', () => {
-      assert.ok(etd.offset, 'debe tener offset');
-      assert.strictEqual(typeof etd.offset.x, 'number', 'offset.x debe ser número');
-      assert.strictEqual(typeof etd.offset.y, 'number', 'offset.y debe ser número');
+    describe('extTreatmentSend', () => {
+      const send = row.extTreatmentSend;
+
+      it('existe con size (width y height) numéricos', () => {
+        assert.ok(send, 'debe tener extTreatmentSend');
+        assert.ok(send.size, 'debe tener size');
+        assert.strictEqual(typeof send.size.width, 'number');
+        assert.ok(send.size.width > 0, 'width debe ser positivo');
+        assert.strictEqual(typeof send.size.height, 'number');
+        assert.ok(send.size.height > 0, 'height debe ser positivo');
+      });
+
+      it('tiene offset con x e y numéricos', () => {
+        assert.ok(send.offset, 'debe tener offset');
+        assert.strictEqual(typeof send.offset.x, 'number', 'offset.x debe ser número');
+        assert.strictEqual(typeof send.offset.y, 'number', 'offset.y debe ser número');
+      });
+    });
+
+    describe('extTreatmentReturn', () => {
+      const ret = row.extTreatmentReturn;
+
+      it('existe con size (width y height) numéricos', () => {
+        assert.ok(ret, 'debe tener extTreatmentReturn');
+        assert.ok(ret.size, 'debe tener size');
+        assert.strictEqual(typeof ret.size.width, 'number');
+        assert.ok(ret.size.width > 0, 'width debe ser positivo');
+        assert.strictEqual(typeof ret.size.height, 'number');
+        assert.ok(ret.size.height > 0, 'height debe ser positivo');
+      });
+
+      it('tiene offset con x e y numéricos', () => {
+        assert.ok(ret.offset, 'debe tener offset');
+        assert.strictEqual(typeof ret.offset.x, 'number', 'offset.x debe ser número');
+        assert.strictEqual(typeof ret.offset.y, 'number', 'offset.y debe ser número');
+      });
     });
   });
 
-  it('tiene exactamente 5 secciones de módulos en el layout', () => {
+  it('tiene exactamente 5 filas de módulos en el layout', () => {
     const layoutSections = ['oscilloscope', 'frequencyMeter', 'octaveFilterBank',
-      'inputAmplifierLevel', 'externalTreatmentDevices'];
+      'inputAmplifierLevel', 'externalTreatmentRow'];
     for (const name of layoutSections) {
       assert.ok(panel2Blueprint.layout[name],
         `debe tener sección layout.${name}`);
@@ -266,15 +295,20 @@ describe('Panel 2 Blueprint - Módulos', () => {
       assert.strictEqual(typeof modules.octaveFilterBank, 'object');
     });
 
-    it('tiene externalTreatmentDevices', () => {
-      assert.ok('externalTreatmentDevices' in modules, 'debe tener módulo externalTreatmentDevices');
-      assert.strictEqual(typeof modules.externalTreatmentDevices, 'object');
+    it('tiene extTreatmentSend', () => {
+      assert.ok('extTreatmentSend' in modules, 'debe tener módulo extTreatmentSend');
+      assert.strictEqual(typeof modules.extTreatmentSend, 'object');
+    });
+
+    it('tiene extTreatmentReturn', () => {
+      assert.ok('extTreatmentReturn' in modules, 'debe tener módulo extTreatmentReturn');
+      assert.strictEqual(typeof modules.extTreatmentReturn, 'object');
     });
   });
 
-  it('total de módulos: 2 funcionales + 3 placeholders = 5', () => {
+  it('total de módulos: 2 funcionales + 4 placeholders = 6', () => {
     const keys = Object.keys(modules);
-    assert.strictEqual(keys.length, 5, `debe haber 5 módulos, hay ${keys.length}: ${keys.join(', ')}`);
+    assert.strictEqual(keys.length, 6, `debe haber 6 módulos, hay ${keys.length}: ${keys.join(', ')}`);
   });
 
   it('naming: usa inputAmplifierLevel (no inputAmplifiers)', () => {
@@ -371,9 +405,12 @@ describe('Panel 2 Blueprint - Separación blueprint/config', () => {
       'no debe existir layout.sections de la v1');
   });
 
+  it('NO tiene módulo "externalTreatmentDevices" monolítico (estructura anterior)', () => {
+    assert.strictEqual(panel2Blueprint.modules.externalTreatmentDevices, undefined,
+      'no debe existir el módulo monolítico "externalTreatmentDevices", usar extTreatmentSend + extTreatmentReturn');
+  });
+
   it('NO tiene módulo "inputAmplifiers" monolítico (estructura v1)', () => {
-    // En v1 existía modules.inputAmplifiers con id, title, channels, controls
-    // En v2 se usa inputAmplifierLevel sin datos de audio
     assert.strictEqual(panel2Blueprint.modules.inputAmplifiers, undefined,
       'no debe existir el módulo monolítico "inputAmplifiers" de la v1');
   });

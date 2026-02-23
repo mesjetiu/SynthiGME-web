@@ -122,6 +122,12 @@ describe('Panel 2 Blueprint - Layout', () => {
       assert.strictEqual(typeof fm.size.height, 'number');
       assert.ok(fm.size.height > 0, 'height debe ser positivo');
     });
+
+    it('tiene offset con x e y numéricos', () => {
+      assert.ok(fm.offset, 'debe tener offset');
+      assert.strictEqual(typeof fm.offset.x, 'number', 'offset.x debe ser número');
+      assert.strictEqual(typeof fm.offset.y, 'number', 'offset.y debe ser número');
+    });
   });
 
   describe('Sección Octave Filter Bank (placeholder)', () => {
@@ -134,6 +140,12 @@ describe('Panel 2 Blueprint - Layout', () => {
       assert.ok(ofb.size.width > 0, 'width debe ser positivo');
       assert.strictEqual(typeof ofb.size.height, 'number');
       assert.ok(ofb.size.height > 0, 'height debe ser positivo');
+    });
+
+    it('tiene offset con x e y numéricos', () => {
+      assert.ok(ofb.offset, 'debe tener offset');
+      assert.strictEqual(typeof ofb.offset.x, 'number', 'offset.x debe ser número');
+      assert.strictEqual(typeof ofb.offset.y, 'number', 'offset.y debe ser número');
     });
   });
 
@@ -205,6 +217,12 @@ describe('Panel 2 Blueprint - Layout', () => {
       assert.ok(etd.size.width > 0, 'width debe ser positivo');
       assert.strictEqual(typeof etd.size.height, 'number');
       assert.ok(etd.size.height > 0, 'height debe ser positivo');
+    });
+
+    it('tiene offset con x e y numéricos', () => {
+      assert.ok(etd.offset, 'debe tener offset');
+      assert.strictEqual(typeof etd.offset.x, 'number', 'offset.x debe ser número');
+      assert.strictEqual(typeof etd.offset.y, 'number', 'offset.y debe ser número');
     });
   });
 

@@ -97,12 +97,14 @@ export default {
 
     // ── Frequency Meter (placeholder) ───────────────────────────────────
     frequencyMeter: {
-      size: { width: 730, height: 60 }
+      size: { width: 730, height: 60 },
+      offset: { x: 0, y: 0 }
     },
 
     // ── Octave Filter Bank (placeholder) ────────────────────────────────
     octaveFilterBank: {
-      size: { width: 730, height: 60 }
+      size: { width: 730, height: 60 },
+      offset: { x: 0, y: 0 }
     },
 
     // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───
@@ -127,7 +129,8 @@ export default {
 
     // ── External Treatment Devices (placeholder) ────────────────────────
     externalTreatmentDevices: {
-      size: { width: 730, height: 60 }
+      size: { width: 730, height: 60 },
+      offset: { x: 0, y: 0 }
     }
   },
 
@@ -152,11 +155,11 @@ export default {
     // ── Placeholders (sin funcionalidad aún) ────────────────────────────
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     frequencyMeter: {
-      visible: false
+      visible: true
     },
 
     octaveFilterBank: {
-      visible: false
+      visible: true
     },
 
     // ── Módulo funcional: Input Amplifier Level ─────────────────────────
@@ -168,7 +171,7 @@ export default {
 
     // ── Placeholder ─────────────────────────────────────────────────────
     externalTreatmentDevices: {
-      visible: false
+      visible: true
     }
   }
 

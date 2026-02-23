@@ -67,7 +67,7 @@ export default {
   layout: {
     // Offset general del panel (px) — desplaza todos los módulos
     // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 40, y: 60 },
+    offset: { x: 0, y: 0 },
 
     // Padding general del panel
     padding: { top: 10, right: 15, bottom: 10, left: 15 },
@@ -77,10 +77,10 @@ export default {
 
     // ── Sección del osciloscopio (módulo funcional, el más grande) ──────
     oscilloscope: {
-      size: { width: 630, height: 230 },
+      size: { width: 527, height: 225 },
 
       // Ajuste fino del bloque completo del osciloscopio
-      offset: { x: 0, y: 0 },
+      offset: { x: 105, y: 22 },
 
       // Configuración visual del marco
       // frame.padding: espacio INTERNO entre el borde del marco y su contenido

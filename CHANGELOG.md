@@ -35,7 +35,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **"Input Amplifiers" → "Input Amplifier Level"**: Nombre corregido en toda la app según Synthi 100.
 - **Output Channel: filtro RC auténtico (1er orden, 6 dB/oct)**: Escala -5 a +5. Circuito RC pasivo del Synthi 100 Cuenca: pot 10K LIN + 2× 0.047µF, transición continua LP↔plano↔HP.
 - **Panel 7 Blueprint refactorizado**: Separación blueprint/config completa. Layout dos filas, offsets por módulo, ajuste fino real en knobs y switches verticales.
-- **Paneles 1 y 2: ajuste fino de layout**: Soporte real de offsets, knobGap, knobSize, knobInnerPct y offsets por módulo en blueprints.
+- **Paneles 1 y 2: ajuste fino de layout**: Soporte real de offsets, knobGap, knobSize, knobInnerPct y offsets por módulo en blueprints. Panel 2 refactorizado: todos los módulos con tamaño fijo en px (`size: { width, height }`), eliminados `flex`, `auto` y tamaños relativos para control preciso del layout.
 - **Salida multicanal expandida a 12 canales**: Pan 1-4 L/R, Pan 5-8 L/R (buses estéreo) y Out 1-8. Ruteo unificado con envío a múltiples canales simultáneos. Modo de salida separado del dispositivo con radio buttons.
 - **Electron: atajos de recarga bloqueados**: F5, Ctrl+R, Ctrl+Shift+R deshabilitados para evitar reinicios accidentales.
 - **Electron: Buscar actualizaciones abre GitHub Releases** en navegador externo.

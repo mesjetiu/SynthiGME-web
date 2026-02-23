@@ -75,10 +75,17 @@ describe('Panel 2 Blueprint - Layout', () => {
   describe('Sección Oscilloscope', () => {
     const osc = panel2Blueprint.layout.oscilloscope;
 
-    it('existe con flex numérico', () => {
+    it('existe con size (width y height) numéricos', () => {
       assert.ok(osc, 'debe tener sección oscilloscope');
-      assert.strictEqual(typeof osc.flex, 'number');
-      assert.ok(osc.flex > 0, 'flex debe ser positivo');
+      assert.ok(osc.size, 'debe tener size');
+      assert.strictEqual(typeof osc.size.width, 'number');
+      assert.ok(osc.size.width > 0, 'width debe ser positivo');
+      assert.strictEqual(typeof osc.size.height, 'number');
+      assert.ok(osc.size.height > 0, 'height debe ser positivo');
+    });
+
+    it('NO usa flex (tamaño fijo, no relativo)', () => {
+      assert.strictEqual(osc.flex, undefined, 'no debe usar flex');
     });
 
     it('tiene frame con borderRadius y padding', () => {
@@ -101,29 +108,43 @@ describe('Panel 2 Blueprint - Layout', () => {
   describe('Sección Frequency Meter (placeholder)', () => {
     const fm = panel2Blueprint.layout.frequencyMeter;
 
-    it('existe con height numérico', () => {
+    it('existe con size (width y height) numéricos', () => {
       assert.ok(fm, 'debe tener sección frequencyMeter');
-      assert.strictEqual(typeof fm.height, 'number');
-      assert.ok(fm.height > 0, 'height debe ser positivo');
+      assert.ok(fm.size, 'debe tener size');
+      assert.strictEqual(typeof fm.size.width, 'number');
+      assert.ok(fm.size.width > 0, 'width debe ser positivo');
+      assert.strictEqual(typeof fm.size.height, 'number');
+      assert.ok(fm.size.height > 0, 'height debe ser positivo');
     });
   });
 
   describe('Sección Octave Filter Bank (placeholder)', () => {
     const ofb = panel2Blueprint.layout.octaveFilterBank;
 
-    it('existe con height numérico', () => {
+    it('existe con size (width y height) numéricos', () => {
       assert.ok(ofb, 'debe tener sección octaveFilterBank');
-      assert.strictEqual(typeof ofb.height, 'number');
-      assert.ok(ofb.height > 0, 'height debe ser positivo');
+      assert.ok(ofb.size, 'debe tener size');
+      assert.strictEqual(typeof ofb.size.width, 'number');
+      assert.ok(ofb.size.width > 0, 'width debe ser positivo');
+      assert.strictEqual(typeof ofb.size.height, 'number');
+      assert.ok(ofb.size.height > 0, 'height debe ser positivo');
     });
   });
 
   describe('Sección Input Amplifier Level', () => {
     const ial = panel2Blueprint.layout.inputAmplifierLevel;
 
-    it('existe con height definido', () => {
+    it('existe con size (width y height) numéricos', () => {
       assert.ok(ial, 'debe tener sección inputAmplifierLevel');
-      assert.ok(ial.height !== undefined, 'debe tener height');
+      assert.ok(ial.size, 'debe tener size');
+      assert.strictEqual(typeof ial.size.width, 'number');
+      assert.ok(ial.size.width > 0, 'width debe ser positivo');
+      assert.strictEqual(typeof ial.size.height, 'number');
+      assert.ok(ial.size.height > 0, 'height debe ser positivo');
+    });
+
+    it('NO usa height auto (tamaño fijo, no relativo)', () => {
+      assert.notStrictEqual(ial.height, 'auto', 'no debe usar height auto');
     });
 
     it('tiene offset general con x e y numéricos', () => {
@@ -171,10 +192,13 @@ describe('Panel 2 Blueprint - Layout', () => {
   describe('Sección External Treatment Devices (placeholder)', () => {
     const etd = panel2Blueprint.layout.externalTreatmentDevices;
 
-    it('existe con height numérico', () => {
+    it('existe con size (width y height) numéricos', () => {
       assert.ok(etd, 'debe tener sección externalTreatmentDevices');
-      assert.strictEqual(typeof etd.height, 'number');
-      assert.ok(etd.height > 0, 'height debe ser positivo');
+      assert.ok(etd.size, 'debe tener size');
+      assert.strictEqual(typeof etd.size.width, 'number');
+      assert.ok(etd.size.width > 0, 'width debe ser positivo');
+      assert.strictEqual(typeof etd.size.height, 'number');
+      assert.ok(etd.size.height > 0, 'height debe ser positivo');
     });
   });
 

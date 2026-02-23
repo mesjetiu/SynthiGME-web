@@ -74,10 +74,9 @@ export default {
     // Gap vertical entre secciones de módulos
     gap: 6,
 
-    // Sección del osciloscopio (módulo funcional, el más grande)
+    // ── Sección del osciloscopio (módulo funcional, el más grande) ──────
     oscilloscope: {
-      flex: 1,           // Toma todo el espacio vertical restante
-      marginBottom: 8,
+      size: { width: 730, height: 430 },
 
       // Configuración visual del marco
       frame: {
@@ -91,19 +90,19 @@ export default {
       }
     },
 
-    // Frequency Meter (placeholder)
+    // ── Frequency Meter (placeholder) ───────────────────────────────────
     frequencyMeter: {
-      height: 60
+      size: { width: 730, height: 60 }
     },
 
-    // Octave Filter Bank (placeholder)
+    // ── Octave Filter Bank (placeholder) ────────────────────────────────
     octaveFilterBank: {
-      height: 60
+      size: { width: 730, height: 60 }
     },
 
-    // Input Amplifier Level (módulo funcional, 8 knobs de ganancia)
+    // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───
     inputAmplifierLevel: {
-      height: 'auto',    // Se ajusta al contenido
+      size: { width: 730, height: 90 },
 
       // Ajuste fino del bloque completo
       offset: { x: 0, y: 0 },
@@ -121,9 +120,9 @@ export default {
       ]
     },
 
-    // External Treatment Devices (placeholder)
+    // ── External Treatment Devices (placeholder) ────────────────────────
     externalTreatmentDevices: {
-      height: 60
+      size: { width: 730, height: 60 }
     }
   },
 

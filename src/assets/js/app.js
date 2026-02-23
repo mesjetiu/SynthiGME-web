@@ -2891,9 +2891,6 @@ class App {
       box-sizing: border-box;
       padding: ${blueprint.layout.padding.top}px ${blueprint.layout.padding.right}px 
                ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
-      display: flex;
-      flex-direction: column;
-      gap: ${blueprint.layout.gap ?? 6}px;
       transform: translate(${offset.x}px, ${offset.y}px);
     `;
     this.panel2.appendElement(host);
@@ -2903,14 +2900,15 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     
     const scopeLayout = blueprint.layout.oscilloscope;
+    const scopeSize = scopeLayout.size;
     
     const scopeSection = document.createElement('div');
     scopeSection.className = 'panel2-oscilloscope-section';
     scopeSection.style.cssText = `
-      flex: ${scopeLayout.flex ?? 1} 1 0;
-      min-height: 0;
-      width: 100%;
+      width: ${scopeSize.width}px;
+      height: ${scopeSize.height}px;
       box-sizing: border-box;
+      margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
     host.appendChild(scopeSection);
     
@@ -3050,6 +3048,7 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     
     const freqMeterLayout = blueprint.layout.frequencyMeter;
+    const freqMeterSize = freqMeterLayout.size;
     const freqMeterFrame = new ModuleFrame({
       id: 'frequency-meter',
       title: 'Frequency Meter',
@@ -3057,9 +3056,10 @@ class App {
     });
     const freqMeterEl = freqMeterFrame.createElement();
     freqMeterEl.style.cssText = `
-      width: 100%;
-      height: ${freqMeterLayout.height}px;
-      flex: 0 0 auto;
+      width: ${freqMeterSize.width}px;
+      height: ${freqMeterSize.height}px;
+      box-sizing: border-box;
+      margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
     applyModuleVisibility(freqMeterEl, blueprint, 'frequencyMeter');
     host.appendChild(freqMeterEl);
@@ -3069,6 +3069,7 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     
     const octaveFilterLayout = blueprint.layout.octaveFilterBank;
+    const octaveFilterSize = octaveFilterLayout.size;
     const octaveFilterFrame = new ModuleFrame({
       id: 'octave-filter-bank',
       title: 'Octave Filter Bank',
@@ -3076,9 +3077,10 @@ class App {
     });
     const octaveFilterEl = octaveFilterFrame.createElement();
     octaveFilterEl.style.cssText = `
-      width: 100%;
-      height: ${octaveFilterLayout.height}px;
-      flex: 0 0 auto;
+      width: ${octaveFilterSize.width}px;
+      height: ${octaveFilterSize.height}px;
+      box-sizing: border-box;
+      margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
     applyModuleVisibility(octaveFilterEl, blueprint, 'octaveFilterBank');
     host.appendChild(octaveFilterEl);
@@ -3119,10 +3121,12 @@ class App {
     // Crear sección para Input Amplifier Level
     const inputAmpSection = document.createElement('div');
     inputAmpSection.className = 'panel2-input-amp-section';
+    const inputAmpSize = inputAmpLayout.size || { width: 730, height: 90 };
     inputAmpSection.style.cssText = `
-      flex: 0 0 auto;
-      width: 100%;
+      width: ${inputAmpSize.width}px;
+      height: ${inputAmpSize.height}px;
       box-sizing: border-box;
+      margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
     applyOffset(inputAmpSection, inputAmpUIConfig.offset);
     host.appendChild(inputAmpSection);
@@ -3167,6 +3171,7 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
     
     const extTreatmentLayout = blueprint.layout.externalTreatmentDevices;
+    const extTreatmentSize = extTreatmentLayout.size;
     const extTreatmentFrame = new ModuleFrame({
       id: 'external-treatment-devices',
       title: 'External Treatment Devices',
@@ -3174,9 +3179,9 @@ class App {
     });
     const extTreatmentEl = extTreatmentFrame.createElement();
     extTreatmentEl.style.cssText = `
-      width: 100%;
-      height: ${extTreatmentLayout.height}px;
-      flex: 0 0 auto;
+      width: ${extTreatmentSize.width}px;
+      height: ${extTreatmentSize.height}px;
+      box-sizing: border-box;
     `;
     applyModuleVisibility(extTreatmentEl, blueprint, 'externalTreatmentDevices');
     host.appendChild(extTreatmentEl);

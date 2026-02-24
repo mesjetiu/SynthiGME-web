@@ -95,10 +95,14 @@ export default {
       // size: tamaño real del display en px (ajustar a imagen de fondo)
       // offset: posición del display dentro del frame
       // transparent: true → fondo transparente, sin cuadrícula (solo beams)
+      // beamOffsets: ajuste fino en Y de cada beam (px, relativo a su centro natural en 1/4 y 3/4)
+      // centerOffset: desplazamiento del centro del Lissajous (modo X-Y)
       display: {
-        size: { width: 200, height: 150 },
-        offset: { x: 0, y: 0 },
-        transparent: true
+        size: { width: 178, height: 142 },
+        offset: { x: 19, y: 10 },
+        transparent: true,
+        beamOffsets: { beam1Y: 1, beam2Y: -1 },
+        centerOffset: { x: 0, y: 0 }
       }
     },
 

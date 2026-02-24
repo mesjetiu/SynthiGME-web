@@ -2978,6 +2978,8 @@ class App {
     // Crear display con resolución interna fija
     const displayStyles = oscilloscopeConfig.display;
     const isTransparent = displayConfig.transparent === true;
+    const beamOffsets = displayConfig.beamOffsets || { beam1Y: 0, beam2Y: 0 };
+    const centerOffset = displayConfig.centerOffset || { x: 0, y: 0 };
     const display = new OscilloscopeDisplay({
       container: displayContainer,
       internalWidth: displayStyles.internalWidth,
@@ -2990,7 +2992,11 @@ class App {
       centerColor: displayStyles.centerColor,
       lineWidth: displayStyles.lineWidth,
       showGrid: isTransparent ? false : displayStyles.showGrid,
-      showTriggerIndicator: displayStyles.showTriggerIndicator
+      showTriggerIndicator: displayStyles.showTriggerIndicator,
+      beam1OffsetY: beamOffsets.beam1Y || 0,
+      beam2OffsetY: beamOffsets.beam2Y || 0,
+      centerOffsetX: centerOffset.x || 0,
+      centerOffsetY: centerOffset.y || 0
     });
     
     // Crear contenedor de knobs (a la derecha del display)

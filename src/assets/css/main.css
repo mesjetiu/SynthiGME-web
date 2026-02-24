@@ -2532,6 +2532,11 @@ small { color:#aaa; }
   display: none;
 }
 
+/* Mostrar labels de knobs del osciloscopio (no están en la imagen de fondo) */
+.panel2-layout .synth-module--oscilloscope .knob-label {
+  display: block;
+}
+
 .synth-module--oscilloscope {
   width: 100%;
   height: 100%;

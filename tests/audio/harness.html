@@ -2814,6 +2814,211 @@
     };
 
     // ═══════════════════════════════════════════════════════════════════════
+    // PWM MODULATION TEST
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Test de modulación PWM (Pulse Width Modulation) vía AudioParam.
+     * 
+     * Simula la conexión de la matriz de audio Panel 5 al AudioParam
+     * 'pulseWidth' del oscilador, emulando el comportamiento del CEM 3340.
+     *
+     * Compara el espectro de una onda pulse con y sin modulación PWM:
+     * - Sin modulación: pulse con duty cycle fijo → solo armónicos impares (50%)
+     *   o espectro estático con nulls en múltiplos de 1/duty
+     * - Con modulación: el barrido del duty cycle produce un espectro más
+     *   "lleno" (armónicos pares aparecen) y efectos tipo chorus/ensemble
+     *
+     * @param {Object} config
+     * @param {number} config.carrierFreq - Frecuencia del oscilador portador
+     * @param {number} config.modFreq - Frecuencia del LFO modulador
+     * @param {number} config.modDepth - Profundidad de modulación (0-0.49)
+     * @param {number} config.basePulseWidth - Duty cycle base (0.01-0.99)
+     * @param {number} config.duration - Duración del render en segundos
+     * @param {number} config.sampleRate - Sample rate
+     * @returns {Object} Resultado con espectros comparativos
+     */
+    window.testPWMModulation = async function(config) {
+      const {
+        carrierFreq = 440,
+        modFreq = 5,
+        modDepth = 0.3,
+        basePulseWidth = 0.5,
+        duration = 1.0,
+        sampleRate = 44100
+      } = config;
+
+      log(`PWM test: carrier=${carrierFreq}Hz, mod=${modFreq}Hz, depth=${modDepth}, base PW=${basePulseWidth}`);
+
+      const length = Math.ceil(sampleRate * duration);
+
+      // ─── RENDER SIN MODULACIÓN (referencia) ───────────────────────────
+      const offlineRef = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+      await offlineRef.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      const oscRef = new AudioWorkletNode(offlineRef, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: false },
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+      });
+      oscRef.parameters.get('frequency').value = carrierFreq;
+      oscRef.parameters.get('pulseWidth').value = basePulseWidth;
+      oscRef.parameters.get('gain').value = 1.0;
+      oscRef.connect(offlineRef.destination);
+
+      const bufferRef = await offlineRef.startRendering();
+      const samplesRef = bufferRef.getChannelData(0);
+
+      // ─── RENDER CON MODULACIÓN PWM ────────────────────────────────────
+      const offlineMod = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+      await offlineMod.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+      // Oscilador portador (pulse)
+      const oscMod = new AudioWorkletNode(offlineMod, 'synth-oscillator', {
+        processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: false },
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+      });
+      oscMod.parameters.get('frequency').value = carrierFreq;
+      oscMod.parameters.get('pulseWidth').value = basePulseWidth;
+      oscMod.parameters.get('gain').value = 1.0;
+
+      // LFO modulador (usa OscillatorNode nativo para simplicidad)
+      const lfo = offlineMod.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = modFreq;
+
+      // GainNode para controlar profundidad de modulación
+      // modDepth: amplitud del LFO en unidades de pulseWidth
+      const lfoGain = offlineMod.createGain();
+      lfoGain.gain.value = modDepth;
+
+      // Conectar LFO → gain → pulseWidth AudioParam
+      lfo.connect(lfoGain);
+      lfoGain.connect(oscMod.parameters.get('pulseWidth'));
+      lfo.start(0);
+
+      oscMod.connect(offlineMod.destination);
+
+      const bufferMod = await offlineMod.startRendering();
+      const samplesMod = bufferMod.getChannelData(0);
+
+      // ─── ANÁLISIS ─────────────────────────────────────────────────────
+      const spectrumRef = computeSpectrum(samplesRef, sampleRate);
+      const spectrumMod = computeSpectrum(samplesMod, sampleRate);
+
+      // Calcular RMS de ambas señales
+      const rmsRef = calculateRMS(samplesRef);
+      const rmsMod = calculateRMS(samplesMod);
+
+      // Analizar diferencia espectral: con PWM, armónicos pares deben aparecer
+      // (si basePulseWidth=0.5, sin mod solo hay impares)
+      const h1Ref = spectrumRef.find(b => b.frequency > carrierFreq * 0.9 && b.frequency < carrierFreq * 1.1);
+      const h2Ref = spectrumRef.find(b => b.frequency > carrierFreq * 1.9 && b.frequency < carrierFreq * 2.1);
+      const h3Ref = spectrumRef.find(b => b.frequency > carrierFreq * 2.9 && b.frequency < carrierFreq * 3.1);
+
+      const h1Mod = spectrumMod.find(b => b.frequency > carrierFreq * 0.9 && b.frequency < carrierFreq * 1.1);
+      const h2Mod = spectrumMod.find(b => b.frequency > carrierFreq * 1.9 && b.frequency < carrierFreq * 2.1);
+      const h3Mod = spectrumMod.find(b => b.frequency > carrierFreq * 2.9 && b.frequency < carrierFreq * 3.1);
+
+      // Sidebands: con PWM, aparecen frecuencias a carrier ± modFreq
+      const sideband1 = spectrumMod.find(b => 
+        b.frequency > (carrierFreq - modFreq * 1.5) && b.frequency < (carrierFreq - modFreq * 0.5));
+      const sideband2 = spectrumMod.find(b => 
+        b.frequency > (carrierFreq + modFreq * 0.5) && b.frequency < (carrierFreq + modFreq * 1.5));
+
+      return {
+        config,
+        reference: {
+          rms: rmsRef,
+          peak: calculatePeak(samplesRef),
+          h1: h1Ref, h2: h2Ref, h3: h3Ref,
+          samplePreview: Array.from(samplesRef.slice(0, 512))
+        },
+        modulated: {
+          rms: rmsMod,
+          peak: calculatePeak(samplesMod),
+          h1: h1Mod, h2: h2Mod, h3: h3Mod,
+          sideband1, sideband2,
+          samplePreview: Array.from(samplesMod.slice(0, 512))
+        },
+        // Comparación directa
+        spectralDifference: {
+          h2Increase: (h2Mod?.magnitude ?? 0) - (h2Ref?.magnitude ?? 0),
+          hasSidebands: (sideband1?.magnitude ?? 0) > 0.001 || (sideband2?.magnitude ?? 0) > 0.001
+        }
+      };
+    };
+
+    /**
+     * Test de PWM en extremos: verifica colapso a DC cuando duty cycle
+     * se acerca a 0% o 100%.
+     * 
+     * Basado en especificaciones CEM 3340:
+     * - En duty 0% o 100%, la señal colapsa a DC (silencio AC)
+     * - Justo antes, solo quedan armónicos superiores ("thin buzz")
+     */
+    window.testPWMExtremes = async function(config) {
+      const {
+        frequency = 440,
+        duration = 0.5,
+        sampleRate = 44100
+      } = config;
+
+      log(`PWM extremes test @ ${frequency}Hz`);
+
+      const results = {};
+      const testWidths = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99];
+
+      for (const pw of testWidths) {
+        const length = Math.ceil(sampleRate * duration);
+        const offline = new OfflineAudioContext({ numberOfChannels: 1, length, sampleRate });
+        await offline.audioWorklet.addModule('/src/assets/js/worklets/synthOscillator.worklet.js');
+
+        const osc = new AudioWorkletNode(offline, 'synth-oscillator', {
+          processorOptions: { mode: 'single', waveform: 'pulse', moduleSlewEnabled: false },
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+        });
+        osc.parameters.get('frequency').value = frequency;
+        osc.parameters.get('pulseWidth').value = pw;
+        osc.parameters.get('gain').value = 1.0;
+        osc.connect(offline.destination);
+
+        const buffer = await offline.startRendering();
+        const samples = buffer.getChannelData(0);
+
+        const rms = calculateRMS(samples);
+
+        // Calcular media (componente DC) y RMS-AC
+        let sum = 0;
+        for (let j = 0; j < samples.length; j++) sum += samples[j];
+        const mean = sum / samples.length;
+
+        // AC RMS: RMS con DC eliminada (lo que realmente importa para audio)
+        let acSum = 0;
+        for (let j = 0; j < samples.length; j++) {
+          const ac = samples[j] - mean;
+          acSum += ac * ac;
+        }
+        const acRms = Math.sqrt(acSum / samples.length);
+
+        results[pw] = {
+          rms,
+          acRms,
+          mean,
+          peak: calculatePeak(samples),
+          zeroCrossings: (() => {
+            let c = 0;
+            for (let i = 1; i < samples.length; i++) {
+              if ((samples[i-1] < 0 && samples[i] >= 0) || (samples[i-1] >= 0 && samples[i] < 0)) c++;
+            }
+            return c;
+          })()
+        };
+      }
+
+      return { config, results };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
     // INICIALIZACIÓN
     // ═══════════════════════════════════════════════════════════════════════
 

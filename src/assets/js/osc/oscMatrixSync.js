@@ -92,6 +92,10 @@ function destToOSCSegment(dest) {
       // oscIndex es 0-indexed → OSC 1-indexed
       return `Freq/${(dest.oscIndex ?? 0) + 1}`;
 
+    case 'oscPWM':
+      // oscIndex es 0-indexed → OSC 1-indexed
+      return `PWM/${(dest.oscIndex ?? 0) + 1}`;
+
     case 'outputLevelCV':
       // busIndex es 0-indexed → OSC 1-indexed
       return `Level/${(dest.busIndex ?? 0) + 1}`;
@@ -219,6 +223,14 @@ function parseDestSegment(parts, matrixType) {
     }
   }
 
+  // PWM/{n} (solo audio)
+  if (seg === 'PWM' && parts.length >= 2 && matrixType === 'audio') {
+    const n = parseInt(parts[1], 10);
+    if (!isNaN(n)) {
+      return { kind: 'oscPWM', oscIndex: n - 1 };
+    }
+  }
+
   // Level/{n} (solo cv)
   if (seg === 'Level' && parts.length >= 2 && matrixType === 'cv') {
     const n = parseInt(parts[1], 10);
@@ -292,6 +304,9 @@ function findColForDest(destMap, target) {
         if (dest.channel === target.channel) return colIndex;
         break;
       case 'oscFreqCV':
+        if (dest.oscIndex === target.oscIndex) return colIndex;
+        break;
+      case 'oscPWM':
         if (dest.oscIndex === target.oscIndex) return colIndex;
         break;
       case 'outputLevelCV':

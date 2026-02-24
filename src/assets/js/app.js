@@ -5528,6 +5528,88 @@ class App {
         }
         
         log.info(` Hard sync → Osc ${oscIndex + 1}`);
+      } else if (dest.kind === 'oscPWM') {
+        // ─────────────────────────────────────────────────────────────────────
+        // PWM INPUT (Pulse Width Modulation)
+        // ─────────────────────────────────────────────────────────────────────
+        // Señal de audio que modula el ancho de pulso (duty cycle) del oscilador.
+        //
+        // Basado en circuitería CEM 3340 del Synthi 100 (Datanomics 1982):
+        // - Nodo de suma IC1 (CA3140): suma algebraica de Vpot y Vmatriz
+        // - Entrada de matriz con ganancia 1 (R2=100K, R4=100K de feedback)
+        // - Respuesta lineal: potenciómetro 10K LIN
+        // - Se conecta directamente al AudioParam 'pulseWidth' (a-rate)
+        //   del worklet, que acepta modulación por muestra
+        // - La Web Audio API suma la señal conectada al valor base (.value)
+        //   del AudioParam, emulando el nodo de suma del CA3140
+        //
+        // ESCALADO:
+        // La señal de audio normalizada (±1) necesita escalarse al rango
+        // útil del pulseWidth (0.01-0.99). Un GainNode de 0.49 convierte
+        // ±1 → ±0.49, que sumado al valor base 0.5 da el rango completo.
+        // Este escalado se aplica vía _getPanel5PinGain × pwmScale.
+        //
+        // COLAPSO A DC:
+        // Cuando la suma (knob + modulación) excede el rango 0.01-0.99,
+        // el worklet clampea el pulseWidth. En valores extremos (≈0 o ≈1),
+        // la onda de pulso colapsa a DC (silencio), exactamente como el
+        // CEM 3340 real cuando alcanza 0% o 100% de duty cycle.
+        //
+        const oscIndex = dest.oscIndex;
+        const oscNodes = this._ensurePanel3Nodes(oscIndex);
+        const multiOsc = oscNodes?.multiOsc;
+        
+        if (!multiOsc) {
+          log.warn(' multiOsc not available for PWM, osc', oscIndex);
+          return false;
+        }
+        
+        // Obtener el AudioParam 'pulseWidth' del worklet
+        const pwParam = multiOsc.parameters?.get('pulseWidth');
+        if (!pwParam) {
+          log.warn(' pulseWidth AudioParam not available for osc', oscIndex);
+          return false;
+        }
+        
+        // Guardar referencia al AudioParam como destino especial
+        // Se usará más abajo para conectar gain.connect(pwParam)
+        destNode = null; // No hay destNode convencional
+        
+        log.info(` PWM → Osc ${oscIndex + 1}`);
+        
+        // ─── Crear cadena de audio PWM ───────────────────────────────────
+        const pinFilterQ = audioMatrixConfig?.pinFiltering?.filterQ ?? 0.5;
+        const pinFilter = createPinFilter(ctx, pinColor || 'GREY', pinFilterQ);
+        
+        // GainNode del pin (ganancia de la matriz)
+        const gain = ctx.createGain();
+        const pinGainValue = this._getPanel5PinGain(rowIndex, colIndex, dest, pinColor);
+        
+        // Escalar la ganancia del pin para el rango del AudioParam pulseWidth.
+        // La señal de audio ±1 con ganancia pwmScale modula ±pwmScale del duty cycle.
+        // Con pwmScale=0.49 y señal ±1: duty cycle varía de 0.01 a 0.99 (rango completo).
+        // Multiplicamos por pinGainValue para que el tipo de pin afecte la profundidad.
+        const pwmScale = 0.49;
+        gain.gain.value = pinGainValue * pwmScale;
+        
+        // Conectar: source → pinFilter → gain → pulseWidth AudioParam
+        outNode.connect(pinFilter);
+        pinFilter.connect(gain);
+        gain.connect(pwParam);
+        
+        this._panel3Routing.connections[key] = { 
+          filter: pinFilter, 
+          gain: gain,
+          pinColor: pinColor || 'GREY'
+        };
+        
+        this.dormancyManager?.onConnectionChange();
+        
+        if (!matrixOSCSync.shouldIgnoreOSC()) {
+          matrixOSCSync.sendAudioPinChange(rowIndex, colIndex, true, pinColor);
+        }
+        
+        return true;
       }
       
       if (!destNode) {

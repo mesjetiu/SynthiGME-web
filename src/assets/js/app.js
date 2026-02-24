@@ -2970,7 +2970,6 @@ class App {
       top: ${displayOffset.y}px;
       width: ${displaySize.width}px;
       height: ${displaySize.height}px;
-      background: ${oscilloscopeConfig.display.bgColor};
       border-radius: 4px;
       overflow: hidden;
     `;
@@ -2978,6 +2977,7 @@ class App {
     
     // Crear display con resolución interna fija
     const displayStyles = oscilloscopeConfig.display;
+    const isTransparent = displayConfig.transparent === true;
     const display = new OscilloscopeDisplay({
       container: displayContainer,
       internalWidth: displayStyles.internalWidth,
@@ -2985,11 +2985,11 @@ class App {
       useDevicePixelRatio: displayStyles.useDevicePixelRatio,
       mode: oscilloscopeConfig.audio.mode,
       lineColor: displayStyles.lineColor,
-      bgColor: displayStyles.bgColor,
+      bgColor: isTransparent ? 'transparent' : displayStyles.bgColor,
       gridColor: displayStyles.gridColor,
       centerColor: displayStyles.centerColor,
       lineWidth: displayStyles.lineWidth,
-      showGrid: displayStyles.showGrid,
+      showGrid: isTransparent ? false : displayStyles.showGrid,
       showTriggerIndicator: displayStyles.showTriggerIndicator
     });
     

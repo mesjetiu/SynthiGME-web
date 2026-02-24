@@ -94,9 +94,11 @@ export default {
       // Configuración visual del display
       // size: tamaño real del display en px (ajustar a imagen de fondo)
       // offset: posición del display dentro del frame
+      // transparent: true → fondo transparente, sin cuadrícula (solo beams)
       display: {
         size: { width: 200, height: 150 },
-        offset: { x: 0, y: 0 }
+        offset: { x: 0, y: 0 },
+        transparent: true
       }
     },
 

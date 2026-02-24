@@ -93,7 +93,7 @@ export class OscilloscopeDisplay {
         display: block;
         width: 100%;
         height: 100%;
-        background: ${bgColor};
+        ${bgColor !== 'transparent' ? `background: ${bgColor};` : ''}
         border-radius: 4px;
       `;
       
@@ -581,8 +581,12 @@ export class OscilloscopeDisplay {
     this.lastTriggered = data.triggered;
     
     // Limpiar canvas
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, width, height);
+    if (bgColor === 'transparent') {
+      ctx.clearRect(0, 0, width, height);
+    } else {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, width, height);
+    }
     
     // Dibujar cuadrícula
     if (showGrid) {
@@ -608,20 +612,26 @@ export class OscilloscopeDisplay {
   drawEmpty() {
     const { ctx, width, height, bgColor, showGrid, centerColor } = this;
     
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, width, height);
+    if (bgColor === 'transparent') {
+      ctx.clearRect(0, 0, width, height);
+    } else {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, width, height);
+    }
     
     if (showGrid) {
       this._drawGrid();
     }
     
-    // Línea central
-    ctx.strokeStyle = centerColor;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, height / 2);
-    ctx.lineTo(width, height / 2);
-    ctx.stroke();
+    // Línea central (no mostrar en modo transparente)
+    if (bgColor !== 'transparent') {
+      ctx.strokeStyle = centerColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+    }
   }
 
   /**

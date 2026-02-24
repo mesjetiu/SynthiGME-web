@@ -72,7 +72,11 @@ export class OscilloscopeDisplay {
       glowColor = null,          // Color del glow Beam 1 (null = usa lineColor)
       glowColor2 = null,         // Color del glow Beam 2 (null = usa lineColor2)
       showGrid = true,
-      showTriggerIndicator = true
+      showTriggerIndicator = true,
+      beam1OffsetY = 0,            // Ajuste fino vertical del Beam 1 (px)
+      beam2OffsetY = 0,            // Ajuste fino vertical del Beam 2 (px)
+      centerOffsetX = 0,           // Desplazamiento X del centro Lissajous (px)
+      centerOffsetY = 0            // Desplazamiento Y del centro Lissajous (px)
     } = options;
     
     // Calcular resolución real (con soporte Retina)
@@ -120,6 +124,10 @@ export class OscilloscopeDisplay {
     this.glowColor2 = glowColor2 || lineColor2;  // Glow del Beam 2
     this.showGrid = showGrid;
     this.showTriggerIndicator = showTriggerIndicator;
+    this.beam1OffsetY = beam1OffsetY;
+    this.beam2OffsetY = beam2OffsetY;
+    this.centerOffsetX = centerOffsetX;
+    this.centerOffsetY = centerOffsetY;
     
     // Escalas de visualización (controladas por knobs)
     this.timeScale = 1.0;        // 1.0 = todo el buffer, 0.1 = 10% (zoom)
@@ -357,35 +365,37 @@ export class OscilloscopeDisplay {
     const effectiveLength = Math.floor(baseLength * timeScale);
     
     // ─────────────────────────────────────────────────────────────────────────
-    // DUAL BEAM: Cada beam se posiciona en un tercio del display
-    // - Beam 1: centerY = height/3 (línea divisoria superior)
-    // - Beam 2: centerY = 2*height/3 (línea divisoria inferior)
-    // Esto divide el display en 3 espacios iguales con los beams como divisores
+    // DUAL BEAM: Cada beam se posiciona en un cuarto del display
+    // - Beam 1: centerY = height/4 (cuarto superior)
+    // - Beam 2: centerY = 3*height/4 (cuarto inferior)
+    // Cada beam puede oscilar dentro de su mitad (height/2)
+    // beamOffsets permiten ajuste fino desde blueprint
     // ─────────────────────────────────────────────────────────────────────────
-    const thirdHeight = height / 3;
+    const quarterHeight = height / 4;
     
-    // Altura disponible para la oscilación de cada beam (1/3 del total)
-    const beamHeight = thirdHeight;
+    // Altura disponible para la oscilación de cada beam (mitad del display)
+    const beamHeight = height / 2;
+    
+    // Aplicar offsets en resolución interna (escalar por dpr)
+    const dpr = this.dpr || 1;
+    const b1OffY = (this.beam1OffsetY || 0) * dpr;
+    const b2OffY = (this.beam2OffsetY || 0) * dpr;
     
     // ─────────────────────────────────────────────────────────────────────────
-    // BEAM 1: Señal Y (columnas Panel 5 - audio) - en 1/3 del alto
+    // BEAM 1: Señal Y (columnas Panel 5 - audio) - en 1/4 del alto
     // ─────────────────────────────────────────────────────────────────────────
     if (bufferY && bufferY.length > 0) {
-      const beam1CenterY = thirdHeight;  // Línea a 1/3 del alto
+      const beam1CenterY = quarterHeight + b1OffY;
       this._drawSingleBeam(bufferY, effectiveLength, this.lineColor, this.glowColor, beam1CenterY, beamHeight);
     }
     
     // ─────────────────────────────────────────────────────────────────────────
     // BEAM 2: Señal X como segunda forma de onda (columnas Panel 6 - control)
-    // En 2/3 del alto - Solo se dibuja si hay señal significativa
+    // En 3/4 del alto - Siempre visible (línea plana si no hay señal)
     // ─────────────────────────────────────────────────────────────────────────
     if (bufferX && bufferX.length > 0) {
-      // Detectar si hay señal real en bufferX (no solo silencio)
-      const hasSignal = bufferX.some(v => Math.abs(v) > 0.001);
-      if (hasSignal) {
-        const beam2CenterY = 2 * thirdHeight;  // Línea a 2/3 del alto
-        this._drawSingleBeam(bufferX, effectiveLength, this.lineColor2, this.glowColor2, beam2CenterY, beamHeight);
-      }
+      const beam2CenterY = 3 * quarterHeight + b2OffY;
+      this._drawSingleBeam(bufferX, effectiveLength, this.lineColor2, this.glowColor2, beam2CenterY, beamHeight);
     }
     
     this._drawTriggerIndicator(triggered);
@@ -478,7 +488,7 @@ export class OscilloscopeDisplay {
    * @private
    */
   _drawXY(bufferX, bufferY) {
-    const { ctx, width, height, lineColor, lineWidth, glowBlur, glowColor } = this;
+    const { ctx, width, height, lineColor, lineWidth, glowBlur, glowColor, dpr } = this;
     
     if (!bufferX || !bufferY || bufferX.length === 0) return;
     
@@ -500,6 +510,10 @@ export class OscilloscopeDisplay {
     const targetPoints = Math.min(len, width);
     const step = len / targetPoints;
     
+    // Offsets del centro del Lissajous (en resolución interna)
+    const cOffX = (this.centerOffsetX || 0) * dpr;
+    const cOffY = (this.centerOffsetY || 0) * dpr;
+    
     for (let i = 0; i < targetPoints; i++) {
       // Promediar un grupo de samples
       const startIdx = Math.floor(i * step);
@@ -515,9 +529,9 @@ export class OscilloscopeDisplay {
       const avgX = count > 0 ? sumX / count : 0;
       const avgY = count > 0 ? sumY / count : 0;
       
-      // Mapear -1..1 a 0..width y 0..height
-      const x = ((avgX + 1) / 2) * width;
-      const y = ((1 - avgY) / 2) * height;  // Invertido
+      // Mapear -1..1 a 0..width y 0..height, con center offsets
+      const x = ((avgX + 1) / 2) * width + cOffX;
+      const y = ((1 - avgY) / 2) * height + cOffY;  // Invertido
       
       if (i === 0) {
         ctx.moveTo(x, y);
@@ -623,15 +637,28 @@ export class OscilloscopeDisplay {
       this._drawGrid();
     }
     
-    // Línea central (no mostrar en modo transparente)
-    if (bgColor !== 'transparent') {
-      ctx.strokeStyle = centerColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, height / 2);
-      ctx.lineTo(width, height / 2);
-      ctx.stroke();
-    }
+    // Beams en reposo: dos líneas horizontales a 1/4 y 3/4
+    const dpr = this.dpr || 1;
+    const b1OffY = (this.beam1OffsetY || 0) * dpr;
+    const b2OffY = (this.beam2OffsetY || 0) * dpr;
+    const beam1Y = height / 4 + b1OffY;
+    const beam2Y = 3 * height / 4 + b2OffY;
+    
+    ctx.lineWidth = this.lineWidth;
+    
+    // Beam 1 (señal Y)
+    ctx.strokeStyle = this.lineColor;
+    ctx.beginPath();
+    ctx.moveTo(0, beam1Y);
+    ctx.lineTo(width, beam1Y);
+    ctx.stroke();
+    
+    // Beam 2 (señal X)
+    ctx.strokeStyle = this.lineColor2;
+    ctx.beginPath();
+    ctx.moveTo(0, beam2Y);
+    ctx.lineTo(width, beam2Y);
+    ctx.stroke();
   }
 
   /**

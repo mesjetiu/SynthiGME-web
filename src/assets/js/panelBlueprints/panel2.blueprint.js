@@ -54,7 +54,7 @@ export default {
   // Mostrar/ocultar marcos de todos los módulos del panel.
   // true  → marcos visibles (útil para posicionar contra imagen de fondo)
   // false → marcos invisibles (aspecto final limpio)
-  showFrames: true,
+  showFrames: false,
 
   // ─────────────────────────────────────────────────────────────────────────
   // CONFIGURACIÓN DEL LAYOUT VISUAL
@@ -101,8 +101,8 @@ export default {
         size: { width: 178, height: 142 },
         offset: { x: 19, y: 10 },
         transparent: true,
-        beamOffsets: { beam1Y: 1, beam2Y: -1 },
-        centerOffset: { x: 0, y: 0 }
+        beamOffsets: { beam1Y: 4, beam2Y: -4 },
+        centerOffset: { x: 4, y: 0 }
       }
     },
 
@@ -175,11 +175,11 @@ export default {
     // ── Placeholders (sin funcionalidad aún) ────────────────────────────
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     frequencyMeter: {
-      visible: true
+      visible: false
     },
 
     octaveFilterBank: {
-      visible: true
+      visible: false
     },
 
     // ── Módulo funcional: Input Amplifier Level ─────────────────────────
@@ -191,11 +191,11 @@ export default {
 
     // ── External Treatment Devices (dos módulos en la misma fila) ───────
     extTreatmentSend: {
-      visible: true
+      visible: false
     },
 
     extTreatmentReturn: {
-      visible: true
+      visible: false
     }
   }
 

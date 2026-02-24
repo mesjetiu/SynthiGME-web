@@ -130,6 +130,11 @@ export function getLabelForDest(dest) {
       // oscIndex is 0-indexed, display as 1-indexed
       return t('matrix.dest.oscSync', { osc: (dest.oscIndex ?? 0) + 1 });
     
+    case 'oscPWM':
+      // Pulse Width Modulation input - modulates duty cycle via CEM 3340
+      // oscIndex is 0-indexed, display as 1-indexed
+      return t('matrix.dest.oscPWM', { osc: (dest.oscIndex ?? 0) + 1 });
+    
     case 'outputLevelCV':
       // busIndex is 0-indexed, display as 1-indexed
       return t('matrix.dest.outputLevelCV', { bus: (dest.busIndex ?? 0) + 1 });

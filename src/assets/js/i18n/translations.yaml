@@ -4447,6 +4447,15 @@ matrix.dest.oscSync:
   pt: Osc {osc} Sync
   cs: Osc {osc} Sync
 
+matrix.dest.oscPWM:
+  en: "Osc {osc} PWM"
+  es: "Osc {osc} PWM"
+  fr: Osc {osc} PWM
+  de: Osc {osc} PWM
+  it: Osc {osc} PWM
+  pt: Osc {osc} PWM
+  cs: Osc {osc} PWM
+
 matrix.dest.outputLevelCV:
   en: "Out {bus} Level CV"
   fr: Out {bus} Level CV

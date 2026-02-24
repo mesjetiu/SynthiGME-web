@@ -141,6 +141,40 @@ describe('getLabelForDest', () => {
     assert.ok(label, 'Debería devolver un label');
     assert.ok(typeof label === 'string', 'Label debe ser string');
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PWM TESTS
+  // ─────────────────────────────────────────────────────────────────────────
+  // Columnas que permiten modular el ancho de pulso (duty cycle)
+  // de los osciladores 1-6 desde la matriz de audio (Panel 5).
+  // Basado en circuitería CEM 3340 del Synthi 100 (1982).
+
+  it('genera label no-vacío para oscPWM', () => {
+    const label = getLabelForDest({ kind: 'oscPWM', oscIndex: 0 });
+    assert.ok(label, 'Debería devolver un label para oscPWM');
+    assert.ok(typeof label === 'string', 'Label debe ser string');
+  });
+
+  it('oscPWM label contiene número de oscilador o clave i18n', () => {
+    const label0 = getLabelForDest({ kind: 'oscPWM', oscIndex: 0 });
+    const label5 = getLabelForDest({ kind: 'oscPWM', oscIndex: 5 });
+    
+    const isI18nKey0 = label0.includes('matrix.dest.oscPWM');
+    const isI18nKey5 = label5.includes('matrix.dest.oscPWM');
+    
+    if (!isI18nKey0) {
+      assert.ok(label0.includes('1'), `Label para oscIndex 0 debería contener "1", got: ${label0}`);
+    }
+    if (!isI18nKey5) {
+      assert.ok(label5.includes('6'), `Label para oscIndex 5 debería contener "6", got: ${label5}`);
+    }
+  });
+
+  it('oscPWM label contiene "PWM" o clave i18n correcta', () => {
+    const label = getLabelForDest({ kind: 'oscPWM', oscIndex: 2 });
+    const hasPWM = label.toUpperCase().includes('PWM');
+    assert.ok(hasPWM, `Label debería contener "PWM", got: ${label}`);
+  });
 });
 
 

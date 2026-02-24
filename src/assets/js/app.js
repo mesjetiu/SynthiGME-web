@@ -1702,6 +1702,17 @@ class App {
       }
     }
     
+    // Serializar osciloscopio (knobs + modo)
+    if (this._panel2Data) {
+      const { timeKnob, ampKnob, levelKnob, modeToggle } = this._panel2Data;
+      state.modules.oscilloscope = {
+        timeScale: timeKnob?.knobInstance?.getValue() ?? 1.0,
+        ampScale: ampKnob?.knobInstance?.getValue() ?? 1.0,
+        triggerLevel: levelKnob?.knobInstance?.getValue() ?? 0.0,
+        mode: modeToggle?.getState() ?? 'a'
+      };
+    }
+    
     return state;
   }
   
@@ -1788,6 +1799,27 @@ class App {
     // Restaurar matriz de conexiones de control
     if (modules.matrixControl && this.largeMatrixControl && typeof this.largeMatrixControl.deserialize === 'function') {
       this.largeMatrixControl.deserialize(modules.matrixControl);
+    }
+    
+    // Restaurar osciloscopio
+    if (modules.oscilloscope && this._panel2Data) {
+      const data = modules.oscilloscope;
+      const { timeKnob, ampKnob, levelKnob, modeToggle, display, scopeModule } = this._panel2Data;
+      if (typeof data.timeScale === 'number' && timeKnob?.knobInstance) {
+        timeKnob.knobInstance.setValue(data.timeScale);
+      }
+      if (typeof data.ampScale === 'number' && ampKnob?.knobInstance) {
+        ampKnob.knobInstance.setValue(data.ampScale);
+      }
+      if (typeof data.triggerLevel === 'number' && levelKnob?.knobInstance) {
+        levelKnob.knobInstance.setValue(data.triggerLevel);
+      }
+      if (data.mode && modeToggle) {
+        modeToggle.setState(data.mode);
+        const mode = data.mode === 'a' ? 'yt' : 'xy';
+        if (display) display.setMode(mode);
+        if (scopeModule?.setMode) scopeModule.setMode(mode);
+      }
     }
     
     // Restaurar estado de joysticks
@@ -1897,6 +1929,21 @@ class App {
       this.largeMatrixControl.deserialize({ connections: [] });
     }
     
+    // Resetear osciloscopio
+    if (this._panel2Data) {
+      const { timeKnob, ampKnob, levelKnob, modeToggle, display, scopeModule } = this._panel2Data;
+      const scopeDefaults = defaults.oscilloscope;
+      if (timeKnob?.knobInstance) timeKnob.knobInstance.setValue(scopeDefaults.timeScale);
+      if (ampKnob?.knobInstance) ampKnob.knobInstance.setValue(scopeDefaults.ampScale);
+      if (levelKnob?.knobInstance) levelKnob.knobInstance.setValue(scopeDefaults.triggerLevel);
+      if (modeToggle) {
+        modeToggle.setState(scopeDefaults.mode);
+        const mode = scopeDefaults.mode === 'a' ? 'yt' : 'xy';
+        if (display) display.setMode(mode);
+        if (scopeModule?.setMode) scopeModule.setMode(mode);
+      }
+    }
+    
     // Resetear joysticks a posición central y rango por defecto
     if (this._joystickModules) {
       for (const [side, module] of Object.entries(this._joystickModules)) {
@@ -1968,10 +2015,20 @@ class App {
     const ocSwitches = outputChannelConfig.switches;
     const ocCount = outputChannelConfig.count;
 
+    // Oscilloscope
+    const scopeKnobs = oscilloscopeConfig.knobs;
+    const scopeInitialMode = oscilloscopeConfig.audio.mode === 'xy' ? 'b' : 'a';
+
     return {
       oscillator: {
         knobs: oscKnobOrder.map(name => oscKnobs[name].initial),
         rangeState: oscRangeState
+      },
+      oscilloscope: {
+        timeScale: scopeKnobs.timeScale.initial,
+        ampScale: scopeKnobs.ampScale.initial,
+        triggerLevel: scopeKnobs.triggerLevel.initial,
+        mode: scopeInitialMode
       },
       noise: {
         colour: noiseKnobs.colour.initial,
@@ -2024,6 +2081,10 @@ class App {
         break;
       }
       case 'panel-2': {
+        // Osciloscopio
+        if (this._panel2Data) {
+          modules.push({ type: 'oscilloscope', id: 'oscilloscope-module', ui: this._panel2Data });
+        }
         // Input amplifiers
         for (const [id, ui] of Object.entries(this._inputAmplifierUIs)) {
           modules.push({ type: 'inputAmplifiers', id, ui });
@@ -2077,6 +2138,10 @@ class App {
     if (this._randomVoltageUIs[moduleId]) {
       return { type: 'randomVoltage', ui: this._randomVoltageUIs[moduleId] };
     }
+    // Oscilloscope
+    if (moduleId === 'oscilloscope-module' && this._panel2Data) {
+      return { type: 'oscilloscope', ui: this._panel2Data };
+    }
     // Input amplifiers
     if (this._inputAmplifierUIs[moduleId]) {
       return { type: 'inputAmplifiers', ui: this._inputAmplifierUIs[moduleId] };
@@ -2125,6 +2190,23 @@ class App {
     }
 
     const defaults = this._defaultValues;
+
+    // Osciloscopio: reset especial (no usa deserialize genérico)
+    if (type === 'oscilloscope') {
+      const { timeKnob, ampKnob, levelKnob, modeToggle, display, scopeModule } = ui;
+      const scopeDefaults = defaults.oscilloscope;
+      if (timeKnob?.knobInstance) timeKnob.knobInstance.setValue(scopeDefaults.timeScale);
+      if (ampKnob?.knobInstance) ampKnob.knobInstance.setValue(scopeDefaults.ampScale);
+      if (levelKnob?.knobInstance) levelKnob.knobInstance.setValue(scopeDefaults.triggerLevel);
+      if (modeToggle) {
+        modeToggle.setState(scopeDefaults.mode);
+        const mode = scopeDefaults.mode === 'a' ? 'yt' : 'xy';
+        if (display) display.setMode(mode);
+        if (scopeModule?.setMode) scopeModule.setMode(mode);
+      }
+      return;
+    }
+
     if (typeof ui.deserialize !== 'function') return;
     
     switch (type) {
@@ -2183,6 +2265,24 @@ class App {
         ui.deserialize({ [controlKey]: chDefaults[controlKey] });
       } else if (controlType === 'switch') {
         ui.deserialize({ power: chDefaults.power });
+      }
+      return;
+    }
+
+    // Osciloscopio: knobs individuales o toggle
+    if (type === 'oscilloscope') {
+      const { timeKnob, ampKnob, levelKnob, modeToggle, display, scopeModule } = ui;
+      const scopeDefaults = this._defaultValues.oscilloscope;
+      const scopeKnobMap = { 0: timeKnob, 1: ampKnob, 2: levelKnob };
+      if (controlType === 'toggle' || controlType === 'switch') {
+        if (modeToggle) {
+          modeToggle.setState(scopeDefaults.mode);
+          const mode = scopeDefaults.mode === 'a' ? 'yt' : 'xy';
+          if (display) display.setMode(mode);
+          if (scopeModule?.setMode) scopeModule.setMode(mode);
+        }
+      } else if (scopeKnobMap[knobIndex]?.knobInstance) {
+        scopeKnobMap[knobIndex].knobInstance.resetToDefault();
       }
       return;
     }
@@ -3242,6 +3342,9 @@ class App {
       scopeModule,
       display,
       modeToggle,
+      timeKnob,
+      ampKnob,
+      levelKnob,
       inputAmpSection,
       inputAmpModule,
       inputAmpUI,

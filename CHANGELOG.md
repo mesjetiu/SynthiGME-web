@@ -20,7 +20,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Opciones de interacción táctil**: Pan con un dedo (ON por defecto) y controles multitáctil (OFF por defecto, evita cambios accidentales durante zoom/pan).
 - **Rasterización adaptativa**: Re-rasterización del DOM al hacer zoom para nitidez a resolución real. Desactivada por defecto.
 - **Panel 1 blueprint v2**: 16 módulos placeholder (filtros, envelopes, ring modulators, reverb, echo) con 57 knobs y ajuste fino de layout. 68 tests.
-- **Panel 2 blueprint v2**: Oscilloscope funcional, Input Amplifier Level funcional (8 canales) y 3 módulos placeholder. Textos ocultos con CSS (ya en imagen de fondo). 36 tests.
+- **Panel 2 blueprint v2**: Oscilloscope funcional, Input Amplifier Level funcional (8 canales) y 3 módulos placeholder. Textos ocultos con CSS (ya en imagen de fondo). Knobs y toggle del osciloscopio integrados en sistema de estado: persistencia entre sesiones, guardado/carga en patches y reinicio a valores iniciales (global, panel, módulo y control individual). 36 tests.
 - **Panel 7 joysticks y sequencer**: Joysticks Left/Right con 2 knobs y pad circular. Sequencer con 8 switches, 8 botones y knob Clock Rate. Ajuste fino independiente por lado.
 - **Entrada multicanal PipeWire 8ch**: 8 canales independientes directo a Input Amplifiers, con activación conjunta y comunicación lock-free via SharedArrayBuffer.
 - **Respuesta lineal de faders**: Opción para control de ganancia lineal en Output Channels. CV externo sigue con curva logarítmica 10 dB/V del VCA CEM 3330.

@@ -2244,8 +2244,11 @@ Si `audioCtx.destination.maxChannelCount > 2`, el router podrá asignar buses a 
 | 24-35 | Hard Sync Osc 1-12 | Entrada de sincronización para cada oscilador. La señal resetea la fase del oscilador destino en cada flanco positivo. |
 | 36-43 | Output Bus 1-8 | Buses de salida de audio |
 | 57-58 | Osciloscopio Y/X | Entradas del osciloscopio (Y-T o Lissajous) |
+| 59-64 | PWM Osc 1-6 | Modulación del ancho de pulso. Señal → filtro RC → GainNode (×0.49) → AudioParam `pulseWidth`. Escala ±0.49 para mapear señal bipolar al rango de duty cycle (0.01–0.99). |
 
 **Hard Sync:** Permite sincronizar la fase de un oscilador "slave" con la frecuencia de un oscilador "master". El worklet detecta flancos positivos y resetea `this.phase = 0`. Esto crea timbres armónicos complejos característicos de la síntesis analógica clásica.
+
+**PWM (Pulse Width Modulation):** Permite modular el ancho de pulso de los osciladores 1-6 desde cualquier fuente de la matriz de audio. Emula el circuito CEM 3340 del Synthi 100 (Cuenca, 1982): IC1 CA3140 como nodo sumador con ganancia unitaria (R2=R4=100K). La señal de la matriz se suma al valor base del knob Shape mediante `gain.connect(pulseWidth)` de Web Audio API, que replica exactamente el comportamiento del sumador analógico.
 
 ### Matriz de Control (Panel 6)
 - Rutea señales de control (CV) entre módulos
@@ -2341,6 +2344,7 @@ Ejemplo: Panel 6 tiene hiddenCols0: [33] (hueco en índice físico 33)
 | `outputBus` | `bus: 1-8` | "Out 1" |
 | `oscilloscope` | `channel: 'X'|'Y'` | "Scope Y" |
 | `oscFreqCV` | `oscIndex: 0-11` | "Osc 1 Freq CV" |
+| `oscPWM` | `oscIndex: 0-5` | "Osc 1 PWM" |
 
 #### Feedback Visual
 
@@ -2807,6 +2811,7 @@ npm run build:all             # Tests + build web + instaladores Linux/Win
 ## 15. Consideraciones Futuras
 
 - [x] **Hard sync**: Entrada de sincronización implementada en worklet y expuesta en matriz de audio (Panel 5, columnas 24-35). Conexión directa sin GainNode intermedio.
+- [x] **PWM CV desde matriz**: Modulación del ancho de pulso de osciladores 1-6 desde la matriz de audio (Panel 5, columnas 59-64). Señal → filtro RC → Gain(×0.49) → pulseWidth AudioParam.
 - [ ] **Paneo por bus**: Añadir control de panorama a cada bus lógico
 - [x] **Presets**: Sistema de guardado/carga de patches → Ver [Sección 4](#4-sistema-de-patchesestados)
 - [x] **Grabación**: Sistema de grabación multitrack WAV → Ver [Sección 6](#6-sistema-de-grabación-de-audio)
@@ -2907,6 +2912,7 @@ Los tests de audio se ejecutan en navegador (Chromium headless) con Web Audio re
     - `cvThermalSlew.audio.test.js`: slew térmico asimétrico (τ subida=150ms, τ bajada=500ms)
     - `hybridClip.audio.test.js`: saturación híbrida de raíles ±12V (lineal→soft→hard)
     - `vcaProcessor.audio.test.js`: VCA CEM 3330 (curva 10 dB/V, anti-click, resync dormancy)
+    - `pwm.audio.test.js`: modulación PWM del CEM 3340 (LFO→pulseWidth, armónicos pares, AC RMS en extremos)
   - `integration/`: 
     - `oscillatorToOutput.audio.test.js`: recorridos end‑to‑end básicos
     - `cvChain.audio.test.js`: 14 tests que detectan el bug de AudioWorklet → AudioParam
@@ -3385,6 +3391,7 @@ La función interna `getModuleElementIds(descriptor)` traduce los descriptores d
 | `oscilloscope` | `oscilloscope-module` |
 | `oscSync` | `panel3-osc-{oscIndex+1}` |
 | `oscFreqCV` | `panel3-osc-{oscIndex+1}` |
+| `oscPWM` | `panel3-osc-{oscIndex+1}` |
 | `outputLevelCV` | `output-channel-{busIndex+1}` |
 
 ### 20.5 Búsqueda en ambas matrices

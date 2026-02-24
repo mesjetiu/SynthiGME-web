@@ -7,7 +7,7 @@ import { sessionManager } from './state/sessionManager.js';
 import { undoRedoManager } from './state/undoRedoManager.js';
 import { safeDisconnect, attachProcessorErrorHandler } from './utils/audio.js';
 import { createLogger } from './utils/logger.js';
-import { VOLTAGE_DEFAULTS, DIGITAL_TO_VOLTAGE, digitalToVoltage, voltageToDigital, createSoftClipCurve, createHybridClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
+import { VOLTAGE_DEFAULTS, DIGITAL_TO_VOLTAGE, KNOB_POT_MAX_VOLTAGE, digitalToVoltage, voltageToDigital, createSoftClipCurve, createHybridClipCurve, calculateMatrixPinGain, PIN_RESISTANCES, STANDARD_FEEDBACK_RESISTANCE, createPinFilter, updatePinFilter, PIN_CUTOFF_FREQUENCIES } from './utils/voltageConstants.js';
 import { dialToFrequency } from './state/conversions.js';
 
 const log = createLogger('App');
@@ -5123,7 +5123,7 @@ class App {
         const parts = [];
         // Voltaje del potenciómetro (0-10V proporcional a la posición del dial)
         if (showVoltage()) {
-          parts.push((value * 10).toFixed(2) + ' V');
+          parts.push((value * KNOB_POT_MAX_VOLTAGE).toFixed(2) + ' V');
         }
         // Ciclo de trabajo (duty cycle)
         if (showAudio()) {
@@ -5601,9 +5601,14 @@ class App {
         
         // Escalar la ganancia del pin para el rango del AudioParam pulseWidth.
         // La señal de audio ±1 con ganancia pwmScale modula ±pwmScale del duty cycle.
-        // Con pwmScale=0.49 y señal ±1: duty cycle varía de 0.01 a 0.99 (rango completo).
+        // pwmScale se deriva de los límites del config: (max - min) / 2.
+        // Con min=0.01, max=0.99 → pwmScale=0.49 → rango completo 0.01-0.99.
         // Multiplicamos por pinGainValue para que el tipo de pin afecte la profundidad.
-        const pwmScale = 0.49;
+        const oscCfg = this._getOscConfig(oscIndex);
+        const pwCfg = oscCfg?.knobs?.pulseWidth ?? oscillatorConfig.defaults?.knobs?.pulseWidth ?? {};
+        const pwMin = pwCfg.min ?? 0.01;
+        const pwMax = pwCfg.max ?? 0.99;
+        const pwmScale = (pwMax - pwMin) / 2;
         gain.gain.value = pinGainValue * pwmScale;
         
         // Conectar: source → pinFilter → gain → pulseWidth AudioParam

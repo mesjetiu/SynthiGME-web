@@ -37,6 +37,14 @@ export const DIGITAL_TO_VOLTAGE = 4.0;
 export const MAX_VOLTAGE_PP = 8.0;
 
 /**
+ * Rango de voltaje de los potenciómetros lineales.
+ * Los diales del Synthi 100 recorren de 0 a 10 (equivalente a 0-10V).
+ * Usado para convertir valores normalizados (0-1) a voltaje del pot.
+ * @constant {number}
+ */
+export const KNOB_POT_MAX_VOLTAGE = 10;
+
+/**
  * Voltaje de alimentación del sistema analógico.
  * @constant {number}
  */

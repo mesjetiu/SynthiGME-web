@@ -92,8 +92,11 @@ export default {
       },
 
       // Configuración visual del display
+      // size: tamaño real del display en px (ajustar a imagen de fondo)
+      // offset: posición del display dentro del frame
       display: {
-        aspectRatio: 4 / 3
+        size: { width: 200, height: 150 },
+        offset: { x: 0, y: 0 }
       }
     },
 
@@ -105,22 +108,22 @@ export default {
 
     // ── Octave Filter Bank (placeholder) ────────────────────────────────
     octaveFilterBank: {
-      size: { width: 744, height: 90 },
-      offset: { x: -7, y: 70 }
+      size: { width: 744, height: 93 },
+      offset: { x: -7, y: 76 }
     },
 
     // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───
     inputAmplifierLevel: {
-      size: { width: 744, height: 90 },
+      size: { width: 744, height: 93 },
 
       // Ajuste fino del bloque completo
-      offset: { x: -7, y: 81 },
+      offset: { x: -7, y: 70 },
 
       // Ajuste fino interno de la fila de knobs
-      knobGap: 8,
-      knobSize: 'sm',
+      knobGap: 28.5,
+      knobSize: 65,
       knobInnerPct: 78,
-      knobsRowOffset: { x: 0, y: 0 },
+      knobsRowOffset: { x: 0, y: 18 },
 
       // Offsets individuales por canal (1..8)
       knobOffsets: [
@@ -134,13 +137,13 @@ export default {
       gap: 2,  // px — separación horizontal entre Send y Return
 
       extTreatmentSend: {
-        size: { width: 371, height: 60 },
-        offset: { x: -7.5, y: 81 }
+        size: { width: 371, height: 94 },
+        offset: { x: -7.5, y: 65 }
       },
 
       extTreatmentReturn: {
-        size: { width: 371, height: 60 },
-        offset: { x: -7.5, y: 81 }
+        size: { width: 371, height: 94 },
+        offset: { x: -7.5, y: 65 }
       }
     }
   },

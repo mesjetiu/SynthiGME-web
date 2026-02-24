@@ -104,10 +104,16 @@ describe('Panel 2 Blueprint - Layout', () => {
       assert.strictEqual(typeof osc.frame.padding.left, 'number');
     });
 
-    it('tiene display con aspectRatio numérico', () => {
+    it('tiene display con size (width y height) y offset', () => {
       assert.ok(osc.display, 'debe tener display');
-      assert.strictEqual(typeof osc.display.aspectRatio, 'number');
-      assert.ok(osc.display.aspectRatio > 0, 'aspectRatio debe ser positivo');
+      assert.ok(osc.display.size, 'display debe tener size');
+      assert.strictEqual(typeof osc.display.size.width, 'number');
+      assert.ok(osc.display.size.width > 0, 'display width debe ser positivo');
+      assert.strictEqual(typeof osc.display.size.height, 'number');
+      assert.ok(osc.display.size.height > 0, 'display height debe ser positivo');
+      assert.ok(osc.display.offset, 'display debe tener offset');
+      assert.strictEqual(typeof osc.display.offset.x, 'number');
+      assert.strictEqual(typeof osc.display.offset.y, 'number');
     });
   });
 

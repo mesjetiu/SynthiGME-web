@@ -2948,27 +2948,28 @@ class App {
     `;
     scopeSection.appendChild(frameElement);
     
-    // Crear contenedor principal con layout horizontal (display + controles)
+    // Crear contenedor principal (posicionamiento relativo para offset del display)
     const displayConfig = scopeLayout.display;
+    const displaySize = displayConfig.size || { width: 200, height: 150 };
+    const displayOffset = displayConfig.offset || { x: 0, y: 0 };
     const mainContainer = document.createElement('div');
     mainContainer.className = 'oscilloscope-main';
     mainContainer.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
+      position: relative;
       width: 100%;
+      height: 100%;
     `;
     moduleFrame.appendToContent(mainContainer);
     
-    // Crear contenedor del display
+    // Crear contenedor del display (posición absoluta dentro del frame)
     const displayContainer = document.createElement('div');
     displayContainer.className = 'oscilloscope-display-container';
     displayContainer.style.cssText = `
-      flex: 0 0 auto;
-      width: 60%;
-      max-width: 240px;
-      aspect-ratio: ${displayConfig.aspectRatio};
+      position: absolute;
+      left: ${displayOffset.x}px;
+      top: ${displayOffset.y}px;
+      width: ${displaySize.width}px;
+      height: ${displaySize.height}px;
       background: ${oscilloscopeConfig.display.bgColor};
       border-radius: 4px;
       overflow: hidden;

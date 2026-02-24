@@ -210,6 +210,33 @@ export default {
     // ─────────────────────────────────────────────────────────────────────────
     // Y = vertical (forma de onda), X = horizontal (modo Lissajous)
     { colSynth: 57, dest: { kind: 'oscilloscope', channel: 'Y' } },
-    { colSynth: 58, dest: { kind: 'oscilloscope', channel: 'X' } }
+    { colSynth: 58, dest: { kind: 'oscilloscope', channel: 'X' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PWM INPUTS (columnas 59-64 → Osc 1-6 pulse width modulation)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Señal de audio conectada modula el ancho de pulso (duty cycle) del
+    // oscilador destino via el AudioParam 'pulseWidth' del worklet CEM 3340.
+    //
+    // Basado en circuitería del Synthi 100 (Datanomics 1982):
+    // - Chip CEM 3340: pin 5 controla PWM linealmente (0V→0%, 5V→100%)
+    // - Nodo de suma (IC1, CA3140): Vpot × 1/12 + Vmatriz × 1
+    //   · Knob Shape (0-12V) entra por R34=1.2M → ganancia 1/12
+    //   · Entrada matriz entra por R2=100K → ganancia 1 (feedback R4=100K)
+    // - Respuesta lineal: potenciómetro 10K LIN
+    // - En extremos (0% / 100% duty cycle): señal colapsa a DC (silencio)
+    // - "Thin buzz": justo antes del colapso, fundamental desaparece y solo
+    //   quedan armónicos superiores (comportamiento emergente del PolyBLEP)
+    //
+    // Solo los 6 primeros osciladores tienen entrada PWM en la matriz de audio
+    // del Synthi 100 de Cuenca (1982). La circuitería interna de los 12 es
+    // idéntica (PC-02), pero solo estos 6 están cableados a la matriz.
+    //
+    { colSynth: 59, dest: { kind: 'oscPWM', oscIndex: 0 } },
+    { colSynth: 60, dest: { kind: 'oscPWM', oscIndex: 1 } },
+    { colSynth: 61, dest: { kind: 'oscPWM', oscIndex: 2 } },
+    { colSynth: 62, dest: { kind: 'oscPWM', oscIndex: 3 } },
+    { colSynth: 63, dest: { kind: 'oscPWM', oscIndex: 4 } },
+    { colSynth: 64, dest: { kind: 'oscPWM', oscIndex: 5 } }
   ]
 };

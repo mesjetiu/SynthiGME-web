@@ -281,4 +281,66 @@ describe('compilePanelBlueprintMappings – Panel 5', () => {
     );
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // PWM INPUTS: columnas Synthi 59–64 → Osc 1–6 pulse width modulation
+  // ─────────────────────────────────────────────────────────────────────────
+  // Señal de audio conectada a estas columnas modula el ancho de pulso
+  // del oscilador destino via el AudioParam 'pulseWidth' del worklet.
+  //
+  // Basado en circuitería CEM 3340 del Synthi 100 (1982):
+  // - Entrada de matriz con ganancia 1 (R2=100K, R4=100K)
+  // - Se suma al voltaje del knob manual de Shape
+  // - Respuesta lineal del duty cycle
+  // - Solo los 6 primeros osciladores tienen entrada PWM en la matriz de audio
+  //
+  // Mapeo (colBase=1, hiddenCols0=[33,65,66]):
+  //   colSynth 59 → ordinal 58 → col física 59 → oscIndex 0 (Osc 1)
+  //   colSynth 64 → ordinal 63 → col física 64 → oscIndex 5 (Osc 6)
+
+  it('oscPWM para Osc 1 debe estar en columna física 59 (Synthi 59)', () => {
+    const dest = result.destMap.get(59);
+    assert.ok(dest, 'No hay destino en columna 59 (Osc 1 PWM)');
+    assert.equal(dest.kind, 'oscPWM');
+    assert.equal(dest.oscIndex, 0);
+  });
+
+  it('oscPWM para Osc 3 debe estar en columna física 61 (Synthi 61)', () => {
+    const dest = result.destMap.get(61);
+    assert.ok(dest, 'No hay destino en columna 61 (Osc 3 PWM)');
+    assert.equal(dest.kind, 'oscPWM');
+    assert.equal(dest.oscIndex, 2);
+  });
+
+  it('oscPWM para Osc 6 debe estar en columna física 64 (Synthi 64)', () => {
+    const dest = result.destMap.get(64);
+    assert.ok(dest, 'No hay destino en columna 64 (Osc 6 PWM)');
+    assert.equal(dest.kind, 'oscPWM');
+    assert.equal(dest.oscIndex, 5);
+  });
+
+  it('debe haber 6 destinos oscPWM (uno por oscilador 1-6)', () => {
+    let pwmCount = 0;
+    for (const [, dest] of result.destMap) {
+      if (dest.kind === 'oscPWM') {
+        pwmCount++;
+      }
+    }
+    assert.equal(pwmCount, 6, 'Debe haber exactamente 6 destinos oscPWM');
+  });
+
+  it('los oscIndex de oscPWM deben ser consecutivos 0–5', () => {
+    const pwmIndices = [];
+    for (const [, dest] of result.destMap) {
+      if (dest.kind === 'oscPWM') {
+        pwmIndices.push(dest.oscIndex);
+      }
+    }
+    pwmIndices.sort((a, b) => a - b);
+    assert.deepEqual(
+      pwmIndices,
+      [0, 1, 2, 3, 4, 5],
+      'Los oscIndex deben cubrir 0–5'
+    );
+  });
+
 });

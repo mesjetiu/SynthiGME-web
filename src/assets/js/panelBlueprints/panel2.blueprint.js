@@ -105,8 +105,8 @@ export default {
 
     // ── Octave Filter Bank (placeholder) ────────────────────────────────
     octaveFilterBank: {
-      size: { width: 744, height: 60 },
-      offset: { x: -7, y: 81 }
+      size: { width: 744, height: 90 },
+      offset: { x: -7, y: 70 }
     },
 
     // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───

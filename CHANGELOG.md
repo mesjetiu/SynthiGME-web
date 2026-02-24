@@ -8,7 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
-- **PWM CV desde matriz de audio (Panel 5)**: Columnas 59-64 permiten modular el ancho de pulso de los osciladores 1-6 desde cualquier fuente de audio. Routing completo: source → filtro RC → GainNode (×0.49) → pulseWidth AudioParam. Escala ±0.49 mapea señal bipolar al rango de duty cycle. Tooltips, i18n (7 idiomas) y glow de flujo de señal incluidos. 7 tests Playwright de audio + 5 blueprint + 2 tooltip + 1 signal flow.
+- **PWM CV desde matriz de audio (Panel 5)**: Columnas 59-64 permiten modular el ancho de pulso de los osciladores 1-6 desde cualquier fuente de audio. Routing completo: source → filtro RC → GainNode (×0.49) → pulseWidth AudioParam. Escala ±0.49 mapea señal bipolar al rango de duty cycle. Tooltips, i18n (7 idiomas), glow de flujo de señal y sincronización OSC incluidos. 7 tests Playwright de audio + 5 blueprint + 2 tooltip + 1 signal flow.
 - **Easter egg**: Desintegración visual del Synthi (knobs, sliders, módulos, paneles flotan, giran, explotan y se recomponen con paleta sombría-colorida) + pieza electroacústica "Studie II" (35s, 6 secciones) al completar secuencia de 8 taps alternados en frames de joystick (L,R,L,R…). Cuenta atrás 3-2-1 en los últimos taps. Backdrop estático + overlay animado (dos capas). Sonido siempre activo (ENFORCE_CLEAN_CHECK=false, infraestructura isDirty preservada). Chiptune 8-bit como pieza alternativa. 98 tests.
 - **Undo/Redo global**: Deshacer/rehacer basado en snapshots (hasta 50 estados). Botones en quickbar, Ctrl+Z / Ctrl+U. Se limpia al cargar patch o resetear.
 - **Confirmación de reinicio opcional**: Checkbox "No volver a preguntar" en el diálogo de reinicio. Opción en Ajustes > General para reactivar/desactivar la confirmación. Se sincroniza con la casilla del diálogo.
@@ -51,7 +51,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Output Channel DC blocker**: Reposicionado a salida de altavoces (fc=1Hz). Re-entry DC-transparente para CV.
 - **PiP: múltiples correcciones**: Resize, filtrado de eventos, paneo táctil unificado, viewport restaurado al cargar patch, controles bloqueaban gestos táctiles, centrado al abrir, paneles recortados.
 - **Doble click/tap en controles no activa zoom de panel**: Lista de selectores interactivos corregida. Validación de proximidad: dos clics en zonas distintas del panel ya no se interpretan como doble clic (distancia máxima 50px).
-- **Tooltips**: Superpuestos en táctil (exclusión mutua). Calibración V/oct en knobs de nivel. Frecuencia muestra voltaje 0-10V del potenciómetro. Sin activación accidental durante pan/zoom. Tooltip de pines no desaparece mientras el ratón sigue encima (auto-hide solo en táctil).
+- **Tooltips**: Superpuestos en táctil (exclusión mutua). Calibración V/oct en knobs de nivel. Frecuencia muestra voltaje 0-10V del potenciómetro. Shape muestra voltaje (0-10V) y duty cycle con indicador `+ CV` cuando hay modulación conectada. Sin activación accidental durante pan/zoom. Tooltip de pines no desaparece mientras el ratón sigue encima (auto-hide solo en táctil).
 - **Menú contextual**: Knobs bloqueaban click derecho. Detección de controles individuales. Output channel individual. Interpolación de nombres. Cierre en móvil/Escape. Safari iOS.
 - **Reinicio global: valores por defecto leídos de configs** (eliminados valores hardcoded incorrectos).
 - **OSC**: Frecuencia mapeaba 0-100 en lugar de 0-10. Mensajes propios filtrados por IP local.

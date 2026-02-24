@@ -5119,7 +5119,21 @@ class App {
           oscillatorOSCSync.sendKnobChange(oscIndex, 1, value);
         }
       },
-      getTooltipInfo: (value) => showAudio() ? `Duty: ${Math.round(value * 100)}%` : null
+      getTooltipInfo: (value) => {
+        const parts = [];
+        // Voltaje del potenciómetro (0-10V proporcional a la posición del dial)
+        if (showVoltage()) {
+          parts.push((value * 10).toFixed(2) + ' V');
+        }
+        // Ciclo de trabajo (duty cycle)
+        if (showAudio()) {
+          let dutyStr = `Duty: ${Math.round(value * 100)}%`;
+          const hasPWMCV = this._hasOscillatorPWMCV(oscIndex);
+          if (hasPWMCV) dutyStr += ' + CV';
+          parts.push(dutyStr);
+        }
+        return parts.length > 0 ? parts.join(' · ') : null;
+      }
     };
     
     const sineLevelCfg = knobsConfig.sineLevel || {};
@@ -5745,6 +5759,30 @@ class App {
       
       // Comprobar si el destino es CV de frecuencia para este oscilador
       if (dest?.kind === 'oscFreqCV' && dest?.oscIndex === oscIndex) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Comprueba si hay alguna conexión PWM CV activa en la matriz de audio (Panel 5)
+   * para un oscilador específico.
+   * @param {number} oscIndex - Índice 0-based del oscilador
+   * @returns {boolean}
+   */
+  _hasOscillatorPWMCV(oscIndex) {
+    const routing = this._panel3Routing;
+    if (!routing?.connections || !routing?.destMap) {
+      return false;
+    }
+    
+    for (const key of Object.keys(routing.connections)) {
+      const colIndex = parseInt(key.split(':')[1], 10);
+      const dest = routing.destMap.get(colIndex);
+      
+      if (dest?.kind === 'oscPWM' && dest?.oscIndex === oscIndex) {
         return true;
       }
     }

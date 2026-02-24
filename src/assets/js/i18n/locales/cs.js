@@ -488,6 +488,7 @@ export default {
   "matrix.dest.oscilloscope.X": "Scope X",
   "matrix.dest.oscFreqCV": "Osc {osc} Freq CV",
   "matrix.dest.oscSync": "Osc {osc} Sync",
+  "matrix.dest.oscPWM": "Osc {osc} PWM",
   "matrix.dest.outputLevelCV": "Výstup {bus} Level CV",
   "matrix.tooltip.format": "{source} → {dest}",
   "matrix.tooltip.unknownSource": "Řádek {row}",

@@ -81,6 +81,9 @@ function getModuleElementIds(descriptor) {
     case 'oscFreqCV':
       return [`panel3-osc-${(descriptor.oscIndex ?? 0) + 1}`];
     
+    case 'oscPWM':
+      return [`panel3-osc-${(descriptor.oscIndex ?? 0) + 1}`];
+    
     case 'outputLevelCV':
       return [`output-channel-${(descriptor.busIndex ?? 0) + 1}`];
     

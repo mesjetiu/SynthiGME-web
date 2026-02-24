@@ -1128,6 +1128,38 @@ describe('SignalFlowHighlighter — getModuleElementIds (indirecto)', () => {
     assert.ok(oscEl.classList.contains('signal-flow-source'));
   });
 
+  it('oscPWM resuelve a panel3-osc-N (oscilador destino de PWM)', () => {
+    const oscEl = createModuleElement('panel3-osc-1', 'sgme-osc');
+    const noiseEl = createModuleElement('panel3-noise-1', 'noise-generator');
+    
+    const routing = createRouting([{
+      row: 0, col: 0,
+      source: { kind: 'noiseGen', index: 0 },
+      dest: { kind: 'oscPWM', oscIndex: 0 }
+    }]);
+    
+    const h = createHighlighter({ panel5Routing: routing });
+    h._highlightModule(oscEl);
+    
+    assert.ok(noiseEl.classList.contains('signal-flow-source'));
+  });
+
+  it('oscPWM con oscIndex=5 resuelve a panel3-osc-6', () => {
+    const oscEl = createModuleElement('panel3-osc-6', 'sgme-osc');
+    const inputEl = createModuleElement('input-amplifiers', 'input-amplifier-module');
+    
+    const routing = createRouting([{
+      row: 0, col: 0,
+      source: { kind: 'inputAmp', channel: 0 },
+      dest: { kind: 'oscPWM', oscIndex: 5 }
+    }]);
+    
+    const h = createHighlighter({ panel5Routing: routing });
+    h._highlightModule(oscEl);
+    
+    assert.ok(inputEl.classList.contains('signal-flow-source'));
+  });
+
   it('descriptor desconocido no resuelve ningún módulo', () => {
     const oscEl = createModuleElement('panel3-osc-1', 'sgme-osc');
     

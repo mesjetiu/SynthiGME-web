@@ -30,10 +30,11 @@
 
 :root {
   color: #eee;
-  font-family: 'Microgramma Extended', 'Microgramma', system-ui, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
 
   /* Fuentes temáticas del Synthi */
-  --font-ui: 'Microgramma Extended', 'Microgramma', system-ui, sans-serif;
+  --font-synthi: 'Microgramma Extended', 'Microgramma', system-ui, sans-serif;
+  --font-ui: system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', monospace;
   --panel-width: 760px;
   --panel-gap: 1.25rem;
@@ -51,6 +52,13 @@
   --pin-color-purple: #9C27B0;   /* 1MΩ   ×0.1 */
   /* Legado */
   --pin-color-active: #ffb63b;   /* Fallback amarillo (legacy) */
+}
+
+/* Clase utilitaria: tipografía Microgramma para títulos/etiquetas en mayúsculas.
+   Uso: <span class="font-synthi">OSCILLATOR 1</span> */
+.font-synthi {
+  font-family: var(--font-synthi);
+  text-transform: uppercase;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -143,6 +151,7 @@
   letter-spacing: 0.15em;
   color: #ffe9a3; /* Amarillo cálido característico del Synthi */
   text-transform: uppercase;
+  font-family: var(--font-synthi);
 }
 
 /* ─── Versión ─── */
@@ -877,6 +886,7 @@ body.show-panel-shortcuts .panel-shortcut-badge {
   margin-bottom: 0.6rem;
   font-size: 0.7rem;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.08em;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.28);
@@ -912,6 +922,7 @@ h1 {
   margin-bottom: 0.2rem;
   font-size: 0.9rem;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.05em;
   color: #ccc;
 }
@@ -1568,6 +1579,7 @@ table.matrix {
   font-weight: 600;
   color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.5px;
 }
 
@@ -1661,6 +1673,7 @@ table.matrix {
   font-weight: 600;
   color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.5px;
 }
 
@@ -2185,6 +2198,7 @@ small { color:#aaa; }
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   text-align: center;
 }
 
@@ -2327,6 +2341,7 @@ small { color:#aaa; }
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.04em;
   color: #f3f3f3;
   text-align: center;
@@ -2368,6 +2383,7 @@ small { color:#aaa; }
   font-size: 9px;
   color: #ccc;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.02em;
   white-space: nowrap;
   text-align: center;
@@ -2450,6 +2466,7 @@ small { color:#aaa; }
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   text-align: center;
   padding: 6px 8px 4px;
   font-size: var(--synth-module-header-size);
@@ -2488,6 +2505,7 @@ small { color:#aaa; }
 
 .synth-toggle__label {
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.04em;
   transition: color 0.15s ease;
 }
@@ -2617,6 +2635,7 @@ small { color:#aaa; }
 .input-amplifier__label {
   font-size: 9px;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.03em;
   color: #ddd;
   margin-bottom: 4px;
@@ -2745,6 +2764,7 @@ small { color:#aaa; }
   font-weight: 600;
   color: #ddd;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.05em;
 }
 
@@ -2769,6 +2789,7 @@ small { color:#aaa; }
   color: #aaa;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.05em;
 }
 
@@ -3590,6 +3611,7 @@ small { color:#aaa; }
   font-weight: 600;
   color: #ddd;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.05em;
 }
 
@@ -5137,6 +5159,7 @@ small { color:#aaa; }
   font-weight: 600;
   color: #ddd;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.05em;
 }
 
@@ -5514,6 +5537,7 @@ small { color:#aaa; }
   font-size: 8px;
   color: #aaa;
   text-transform: uppercase;
+  font-family: var(--font-synthi);
   letter-spacing: 0.03em;
   margin-top: 0;
 }

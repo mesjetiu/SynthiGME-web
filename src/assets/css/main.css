@@ -1,7 +1,40 @@
 /* Hoja de estilos globales para el panel Synthi y sus controles modulares */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIPOGRAFÍA - Microgramma (Aldo Novarese, 1952)
+   Fuente original de los paneles del EMS Synthi 100 / VCS3
+   ═══════════════════════════════════════════════════════════════════════════ */
+@font-face {
+  font-family: 'Microgramma';
+  src: url('../fonts/MicrogrammaNormal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Microgramma Extended';
+  src: url('../fonts/MicrogrammaDMediumExtended.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Microgramma Extended';
+  src: url('../fonts/MicrogrammaDBoldExtended.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color: #eee;
-  font-family: sans-serif;
+  font-family: 'Microgramma Extended', 'Microgramma', system-ui, sans-serif;
+
+  /* Fuentes temáticas del Synthi */
+  --font-ui: 'Microgramma Extended', 'Microgramma', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', monospace;
   --panel-width: 760px;
   --panel-gap: 1.25rem;
   
@@ -492,7 +525,7 @@ html:-webkit-full-screen #viewportOuter {
 .mobile-quickbar__btn--text {
   font-size: 13px;
   font-weight: 600;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   letter-spacing: -0.5px;
 }
 
@@ -531,7 +564,7 @@ html:-webkit-full-screen #viewportOuter {
   color: #ccc;
   font-size: 13px;
   font-weight: 600;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
   white-space: nowrap;
@@ -564,7 +597,7 @@ html:-webkit-full-screen #viewportOuter {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -773,7 +806,7 @@ html:-webkit-full-screen #viewportOuter {
   color: rgba(255,255,255,0.85);
   font-size: clamp(48px, 15vw, 120px);
   font-weight: 700;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease, visibility 0.15s ease;
@@ -1660,7 +1693,7 @@ table.matrix {
   color: #fff;
   font-size: 12px;
   font-weight: 500;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-ui);
   white-space: nowrap;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -3913,7 +3946,7 @@ small { color:#aaa; }
   display: flex;
   flex-direction: column;
   z-index: 1900; /* Por debajo de modales (2000) */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.8rem;
   overflow: hidden;
   resize: both;
@@ -6425,7 +6458,7 @@ small { color:#aaa; }
   border-radius: 3px;
   box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.25);
   color: var(--note-text, #5a4e00);
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   line-height: 1.35;
   cursor: default;

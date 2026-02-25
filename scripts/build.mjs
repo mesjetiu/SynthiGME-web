@@ -164,6 +164,8 @@ async function buildCss() {
     minify: true,
     sourcemap: false,
     outdir: path.join(outDir, 'assets/css'),
+    loader: { '.woff2': 'file' },
+    assetNames: '../fonts/[name]',
     plugins: [externalizePanelSvgs]
   });
 }

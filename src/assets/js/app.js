@@ -6716,6 +6716,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Inicializar sistema de internacionalización antes de crear la UI
     await initI18n();
     
+    // Traducir texto del splash (hardcodeado en HTML como fallback en español)
+    const splashLoaderText = document.querySelector('.splash__loader-text');
+    if (splashLoaderText) splashLoaderText.textContent = t('splash.loading');
+    
     // Inicializar sistema de glow (halo brillante en controles)
     initGlowManager();
     

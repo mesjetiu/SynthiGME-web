@@ -11,6 +11,7 @@ export default {
   "settings.language.it": "Italiano",
   "settings.language.pt": "Português",
   "settings.language.cs": "Čeština",
+  "splash.loading": "Laden",
   "app.windowTitle": "Synthi GME (Emulator des EMS Synthi 100 aus Cuenca, Spanien)",
   "common.yes": "Ja",
   "common.no": "Nein",

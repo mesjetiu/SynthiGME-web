@@ -5,7 +5,7 @@
    height="200"
    version="1.1"
    id="svg75"
-   sodipodi:docname="knob_temp.svg"
+   sodipodi:docname="knob.svg"
    xml:space="preserve"
    inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
@@ -76,21 +76,18 @@
    fill="#222222" />
   </defs>
   <g
-   id="KNOB_SYNTHI_V3_CLOCKWISE"
-   transform="matrix(-0.88349451,0.51014176,-0.51005043,-0.88365269,239.37661,137.35811)">
+   id="KNOB_SYNTHI_V3_CLOCKWISE">
     
-    <ellipse
-   cx="100.56273"
-   cy="99.813904"
+    <circle
+   cx="100"
+   cy="100"
+   r="100"
    fill="#ffffff"
    fill-opacity="0.15"
    stroke="none"
    id="circle2"
    inkscape:label="circle2"
-   style="display:inline;fill:#a1a1a1;fill-opacity:0.525732;stroke-width:1"
-   rx="98.318008"
-   ry="97.683716"
-   transform="matrix(0.99999826,0.00186631,-0.00563606,0.99998412,0,0)" />
+   style="display:inline;fill:#a1a1a1;fill-opacity:0.525732" />
     <g
    id="AgarreCompleto"
    transform="matrix(0.86206897,0,0,0.86206897,13.793103,13.793103)">

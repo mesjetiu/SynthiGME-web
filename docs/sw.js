@@ -1,4 +1,4 @@
-const CACHE_VERSION = '0.7.0-20260225.142056';
+const CACHE_VERSION = '0.7.0-20260226.070000';
 const CACHE_NAME = `synthigme-cache-v${CACHE_VERSION}`;
 const CORE_ASSETS = [
   './',
@@ -14,7 +14,7 @@ const CORE_ASSETS = [
   './assets/panels/panel6_bg.svg',
   './assets/panels/panel_1.jpg',
   './assets/panels/panel_2.jpg',
-  './assets/panels/panel_3.jpg',
+  './assets/panels/panel_3.svg',
   './assets/panels/panel_4.jpg',
   './assets/panels/panel_7.jpg',
   './manifest.webmanifest',

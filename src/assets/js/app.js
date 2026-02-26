@@ -188,7 +188,7 @@ class App {
     // Fondos JPG temporales (eliminar línea correspondiente al migrar a SVG).
     setPanelImageBackground('panel-1', './assets/panels/panel_1.jpg');
     setPanelImageBackground('panel-2', './assets/panels/panel_2.jpg');
-    setPanelImageBackground('panel-3', './assets/panels/panel_3.jpg');
+    setPanelImageBackground('panel-3', './assets/panels/panel_3.svg');
     setPanelImageBackground('panel-4', './assets/panels/panel_4.jpg');
     setPanelImageBackground('panel-output', './assets/panels/panel_7.jpg');
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });

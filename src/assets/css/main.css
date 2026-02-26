@@ -54,7 +54,7 @@
   --pin-color-active: #ffb63b;   /* Fallback amarillo (legacy) */
 
   /* Color de fondo del Synthi 100 — visble tras transparencias de SVG/JPG de panel */
-  --synthi-bg-color: #b9afa6;
+  --synthi-bg-color: #c8bfb7;
 }
 
 /* Clase utilitaria: tipografía Microgramma para títulos/etiquetas en mayúsculas.
@@ -1126,9 +1126,10 @@ h1 {
   box-shadow: none;
   overflow: visible;
 }
+.knob.knob--svg .knob-inner,
 .knob.knob--svg .knob-inner {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   background: none;
   box-shadow: none;
   border-radius: 0;

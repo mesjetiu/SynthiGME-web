@@ -37,8 +37,8 @@ export class NoiseGenerator extends ModuleUI {
       title: options.title || 'Noise',
       cssClass: 'noise-generator',
       knobDefs: [
-        { key: 'colour', label: 'Colour' },
-        { key: 'level', label: 'Level' }
+        { key: 'colour', label: 'Colour', color: '#547FA1' },
+        { key: 'level', label: 'Level', color: '#BEB7B1' }
       ],
       knobOptions: options.knobOptions || {},
       knobSize: options.knobSize || 40,

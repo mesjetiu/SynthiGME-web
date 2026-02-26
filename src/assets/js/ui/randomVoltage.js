@@ -43,11 +43,11 @@ export class RandomVoltage extends ModuleUI {
       title: options.title || 'Random Voltage',
       cssClass: 'random-voltage',
       knobDefs: [
-        { key: 'mean', label: 'Mean' },
-        { key: 'variance', label: 'Variance' },
-        { key: 'voltage1', label: 'Voltage 1' },
-        { key: 'voltage2', label: 'Voltage 2' },
-        { key: 'key', label: 'Key' }
+        { key: 'mean', label: 'Mean', color: '#B54049' },
+        { key: 'variance', label: 'Variance', color: '#B54049' },
+        { key: 'voltage1', label: 'Voltage 1', color: '#BEB7B1' },
+        { key: 'voltage2', label: 'Voltage 2', color: '#BEB7B1' },
+        { key: 'key', label: 'Key', color: '#BEB7B1' }
       ],
       knobOptions: options.knobOptions || {},
       knobSize: options.knobSize || 40,

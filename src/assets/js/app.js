@@ -532,6 +532,7 @@ class App {
     const leftCfgY = joystickConfig.left.knobs.rangeY;
     const leftRangeYKnob = createKnob({
       size: joystickLeftUI.knobSize || 'sm',
+      centerColor: '#C8A638',  // amarillo
       showValue: false,
       initial: leftCfgY.initial / leftCfgY.max,
       scaleMin: leftCfgY.min,
@@ -554,6 +555,7 @@ class App {
     const leftCfgX = joystickConfig.left.knobs.rangeX;
     const leftRangeXKnob = createKnob({
       size: joystickLeftUI.knobSize || 'sm',
+      centerColor: '#C8A638',  // amarillo
       showValue: false,
       initial: leftCfgX.initial / leftCfgX.max,
       scaleMin: leftCfgX.min,
@@ -681,6 +683,7 @@ class App {
     const rightCfgY = joystickConfig.right.knobs.rangeY;
     const rightRangeYKnob = createKnob({
       size: joystickRightUI.knobSize || 'sm',
+      centerColor: '#C8A638',  // amarillo
       showValue: false,
       initial: rightCfgY.initial / rightCfgY.max,
       scaleMin: rightCfgY.min,
@@ -703,6 +706,7 @@ class App {
     const rightCfgX = joystickConfig.right.knobs.rangeX;
     const rightRangeXKnob = createKnob({
       size: joystickRightUI.knobSize || 'sm',
+      centerColor: '#C8A638',  // amarillo
       showValue: false,
       initial: rightCfgX.initial / rightCfgX.max,
       scaleMin: rightCfgX.min,

@@ -166,7 +166,8 @@ export class OutputChannel extends Module {
       label: 'Filter',
       size: 'sm',
       className: 'output-channel__knob-wrap',
-      showValue: true
+      showValue: true,
+      centerColor: '#547FA1'  // azul
     });
     
     wrapper.dataset.knob = 'filter';
@@ -196,7 +197,8 @@ export class OutputChannel extends Module {
       label: 'Pan',
       size: 'sm',
       className: 'output-channel__knob-wrap',
-      showValue: true
+      showValue: true,
+      centerColor: '#BEB7B1'  // blanco
     });
     
     wrapper.dataset.knob = 'pan';

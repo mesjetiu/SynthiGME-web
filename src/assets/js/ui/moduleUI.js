@@ -155,6 +155,11 @@ export class ModuleUI {
 
     const knobCenter = document.createElement('div');
     knobCenter.className = 'knob-center';
+    // Color de centro del knob (definido en knobDefs de cada módulo)
+    const def = this.knobDefs.find(d => d.key === key);
+    if (def?.color) {
+      knobCenter.style.setProperty('--knob-center-color', def.color);
+    }
     knobContainer.appendChild(knobCenter);
     shell.appendChild(knobContainer);
 

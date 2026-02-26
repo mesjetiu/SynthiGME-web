@@ -34,7 +34,8 @@ export function createKnobElements(options = {}) {
     label = '',
     size = '',
     className = '',
-    showValue = false
+    showValue = false,
+    centerColor = ''
   } = options;
 
   // Wrapper principal
@@ -60,6 +61,9 @@ export function createKnobElements(options = {}) {
   // Centro de color (no rota) - brillo simulado fijo
   const center = document.createElement('div');
   center.className = 'knob-center';
+  if (centerColor) {
+    center.style.setProperty('--knob-center-color', centerColor);
+  }
   knobEl.appendChild(center);
 
   wrapper.appendChild(knobEl);
@@ -123,6 +127,7 @@ export function createKnob(options = {}) {
     label,
     size,
     className,
+    centerColor,
     showValue = true, // Por defecto mostrar valor
     min = 0,
     max = 1,
@@ -137,7 +142,7 @@ export function createKnob(options = {}) {
   } = options;
 
   // Crear elementos DOM
-  const elements = createKnobElements({ label, size, className, showValue });
+  const elements = createKnobElements({ label, size, className, showValue, centerColor });
 
   // Opciones para la instancia Knob
   const knobOptions = {

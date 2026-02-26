@@ -19,6 +19,18 @@ const DEFAULT_KNOB_LABELS = [
   'Frequency'
 ];
 
+// Colores de centro por knob (Synthi 100 original)
+// Orden: pulse level, pulse shape, sine level, sine symmetry, triangle, sawtooth, freq
+const DEFAULT_KNOB_COLORS = [
+  '#547FA1', // 0: Pulse level — azul
+  '#467660', // 1: Pulse shape — verde
+  '#BEB7B1', // 2: Sine level — blanco
+  '#467660', // 3: Sine symmetry — verde
+  '#547FA1', // 4: Triangle level — azul
+  '#BEB7B1', // 5: Sawtooth level — blanco
+  '#242227'  // 6: Frequency — negro
+];
+
 // Escalas de display estilo Synthi 100: índices 1 (shape) y 3 (symmetry) son bipolares (-5 a +5)
 const DEFAULT_KNOB_SCALES = [
   { min: 0, max: 10 },  // 0: Pulse level
@@ -141,6 +153,9 @@ export class SGME_Oscillator {
       knob.appendChild(inner);
       const knobCenter = document.createElement('div');
       knobCenter.className = 'knob-center';
+      if (DEFAULT_KNOB_COLORS[idx]) {
+        knobCenter.style.setProperty('--knob-center-color', DEFAULT_KNOB_COLORS[idx]);
+      }
       knob.appendChild(knobCenter);
       shell.appendChild(knob);
       

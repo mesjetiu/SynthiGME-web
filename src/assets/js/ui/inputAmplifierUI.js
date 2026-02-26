@@ -150,6 +150,7 @@ export class InputAmplifierUI {
     knobEl.appendChild(inner);
     const knobCenter = document.createElement('div');
     knobCenter.className = 'knob-center';
+    knobCenter.style.setProperty('--knob-center-color', '#BEB7B1');  // blanco
     knobEl.appendChild(knobCenter);
     wrapper.appendChild(knobEl);
     

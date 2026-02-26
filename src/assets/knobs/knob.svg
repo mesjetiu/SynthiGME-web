@@ -5,7 +5,7 @@
     <ellipse id="MuescaRedonda" cx="100" cy="38" rx="9" ry="12" fill="#222222"/>
   </defs>
   <!-- Orientación: posición 0 (valor mínimo). CSS rota 0-300° para ir de 0 a 10. -->
-  <g id="KNOB_SYNTHI_V3_CLOCKWISE" transform="rotate(150.00172,99.419531,99.033762)">
+  <g id="KNOB_SYNTHI_V3_CLOCKWISE" transform="rotate(150,100,100)">
     <!-- Cuerpo exterior del knob -->
     <circle cx="100" cy="100" r="98" fill="#a1a1a1" fill-opacity="0.885167" stroke="none"/>
     <!-- Agarre con muescas -->

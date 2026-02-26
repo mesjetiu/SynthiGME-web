@@ -54,7 +54,7 @@
   --pin-color-active: #ffb63b;   /* Fallback amarillo (legacy) */
 
   /* Color de fondo del Synthi 100 — visble tras transparencias de SVG/JPG de panel */
-  --synthi-bg-color: #c8bfb7;
+  --synthi-bg-color: #e8e4e0;
 }
 
 /* Clase utilitaria: tipografía Microgramma para títulos/etiquetas en mayúsculas.
@@ -1125,6 +1125,8 @@ h1 {
   background: none;
   box-shadow: none;
   overflow: visible;
+  /* Anular flex del .knob base para que no afecte al layout SVG */
+  display: block;
 }
 .knob.knob--svg .knob-inner,
 .knob.knob--svg .knob-inner {
@@ -1133,6 +1135,7 @@ h1 {
   background: none;
   box-shadow: none;
   border-radius: 0;
+  position: relative;
 }
 .knob.knob--svg .knob-inner::after {
   display: none;
@@ -1149,9 +1152,9 @@ h1 {
   /* r=50 de viewBox 200 = 50% del diámetro del knob */
   width: 50%;
   height: 50%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  /* Centrado robusto: inset 0 + margin auto, inmune a flex/grid del padre */
+  inset: 0;
+  margin: auto;
   border-radius: 50%;
   background: #467660;
   pointer-events: none;

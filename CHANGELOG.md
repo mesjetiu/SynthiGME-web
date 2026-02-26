@@ -33,6 +33,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Cambiado
 - **Reorganización de Ajustes y menú Electron**: Pestañas reducidas de 7 a 6 ("Visualización" → "Interfaz", "Grabación" fusionada en "Audio"). Nuevo menú "Preferencias" en Electron. "Restaurar ajustes" sustituye a "Reiniciar sintetizador" en Avanzado.
+- **Panel 3: fondo SVG con textos Microgramma y dibujos de osciladores** en sustitución del JPG provisional.
+- **Color de fondo unificado en todos los paneles**: Variable CSS `--synthi-bg-color: #b9afa6` (tomado de foto del Synthi real). Se aplica a paneles 1-7; las imágenes de fondo se superponen y las transparencias muestran este color.
 - **"Input Amplifiers" → "Input Amplifier Level"**: Nombre corregido en toda la app según Synthi 100.
 - **Output Channel: filtro RC auténtico (1er orden, 6 dB/oct)**: Escala -5 a +5. Circuito RC pasivo del Synthi 100 Cuenca: pot 10K LIN + 2× 0.047µF, transición continua LP↔plano↔HP.
 - **Panel 7 Blueprint refactorizado**: Separación blueprint/config completa. Layout dos filas, offsets por módulo, ajuste fino real en knobs y switches verticales.

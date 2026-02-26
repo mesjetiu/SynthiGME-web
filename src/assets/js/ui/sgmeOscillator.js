@@ -146,7 +146,9 @@ export class SGME_Oscillator {
       inner.className = 'knob-inner';
       const ringImg = document.createElement('img');
       ringImg.className = 'knob-svg-ring';
-      ringImg.src = 'assets/knobs/knob.svg';
+      // Knobs bipolares (-5 a +5) usan SVG con escala centrada en 0
+      const scale = DEFAULT_KNOB_SCALES[idx] || { min: 0, max: 10 };
+      ringImg.src = (scale.min < 0) ? 'assets/knobs/knob-0-center.svg' : 'assets/knobs/knob.svg';
       ringImg.alt = '';
       ringImg.draggable = false;
       inner.appendChild(ringImg);
@@ -166,8 +168,7 @@ export class SGME_Oscillator {
       
       knobsRow.appendChild(shell);
 
-      // Escala de display (estilo Synthi 100)
-      const scale = DEFAULT_KNOB_SCALES[idx] || { min: 0, max: 10 };
+      // Escala de display (estilo Synthi 100) — ya resuelta arriba para elegir SVG
       
       const baseOptions = {
         min: this.knobRange.min,

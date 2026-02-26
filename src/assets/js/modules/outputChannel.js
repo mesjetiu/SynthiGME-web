@@ -167,7 +167,8 @@ export class OutputChannel extends Module {
       size: 'sm',
       className: 'output-channel__knob-wrap',
       showValue: true,
-      centerColor: '#547FA1'  // azul
+      centerColor: '#547FA1',  // azul
+      svgSrc: 'assets/knobs/knob-0-center.svg'
     });
     
     wrapper.dataset.knob = 'filter';
@@ -198,7 +199,8 @@ export class OutputChannel extends Module {
       size: 'sm',
       className: 'output-channel__knob-wrap',
       showValue: true,
-      centerColor: '#BEB7B1'  // blanco
+      centerColor: '#BEB7B1',  // blanco
+      svgSrc: 'assets/knobs/knob-0-center.svg'
     });
     
     wrapper.dataset.knob = 'pan';

@@ -16,6 +16,7 @@ import { Knob } from './knob.js';
  * @param {string} [options.size=''] - Tamaño: '' (normal), 'sm', 'lg'
  * @param {string} [options.className=''] - Clases CSS adicionales para el wrapper
  * @param {boolean} [options.showValue=false] - Mostrar elemento de valor
+ * @param {string} [options.svgSrc='assets/knobs/knob.svg'] - Ruta al SVG del anillo exterior
  * @returns {Object} { wrapper, knobEl, inner, labelEl?, valueEl? }
  * 
  * @example
@@ -35,7 +36,8 @@ export function createKnobElements(options = {}) {
     size = '',
     className = '',
     showValue = false,
-    centerColor = ''
+    centerColor = '',
+    svgSrc = 'assets/knobs/knob.svg'
   } = options;
 
   // Wrapper principal
@@ -52,7 +54,7 @@ export function createKnobElements(options = {}) {
   inner.className = 'knob-inner';
   const ringImg = document.createElement('img');
   ringImg.className = 'knob-svg-ring';
-  ringImg.src = 'assets/knobs/knob.svg';
+  ringImg.src = svgSrc;
   ringImg.alt = '';
   ringImg.draggable = false;
   inner.appendChild(ringImg);
@@ -99,6 +101,7 @@ export function createKnobElements(options = {}) {
  * @param {string} [options.size=''] - Tamaño: '' (normal), 'sm', 'lg'
  * @param {string} [options.className=''] - Clases CSS adicionales
  * @param {boolean} [options.showValue=true] - Mostrar elemento de valor (default: true)
+ * @param {string} [options.svgSrc='assets/knobs/knob.svg'] - Ruta al SVG del anillo exterior
  * @param {number} [options.min=0] - Valor mínimo interno
  * @param {number} [options.max=1] - Valor máximo interno
  * @param {number} [options.initial=0] - Valor inicial
@@ -128,6 +131,7 @@ export function createKnob(options = {}) {
     size,
     className,
     centerColor,
+    svgSrc,
     showValue = true, // Por defecto mostrar valor
     min = 0,
     max = 1,
@@ -142,7 +146,7 @@ export function createKnob(options = {}) {
   } = options;
 
   // Crear elementos DOM
-  const elements = createKnobElements({ label, size, className, showValue, centerColor });
+  const elements = createKnobElements({ label, size, className, showValue, centerColor, svgSrc });
 
   // Opciones para la instancia Knob
   const knobOptions = {

@@ -74,10 +74,12 @@ export class Knob {
     this._rafId = null;
     this._pendingValue = null;
 
-    // SVG orientado en posición 0 (mínimo). Rotamos 0-300° (10/12 circunferencia).
-    // CSS rotate(0deg) = valor 0, rotate(300deg) = valor 10.
-    this.minAngle = 0;
-    this.maxAngle = 300;
+    // Rango de rotación: 300° (10/12 circunferencia).
+    // El SVG NO tiene rotación interna — CSS maneja toda la rotación.
+    // Offset de 150° para orientar el "0" abajo-izquierda (posición original del Synthi).
+    // rotate(150deg) = valor 0, rotate(450deg) = valor 10.
+    this.minAngle = 150;
+    this.maxAngle = 450;
     
     // Registrar callback de ocultación de tooltip para eventos globales (zoom/pan, tap fuera)
     this._tooltipHideCallback = () => {

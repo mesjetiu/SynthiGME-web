@@ -33,6 +33,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Notas post-it en paneles**: Notas arrastrables y editables sobre cualquier panel (canvas y PiP) y en el viewport (espacio libre entre paneles). Arrastre desde la zona de texto (además del header); doble clic o menú contextual para editar texto. Notas visibles al sobresalir de cualquier panel (incluido panel 7); panel elevado durante arrastre para no quedar bajo paneles adyacentes. Menú contextual en viewport para crear/pegar notas. Arrastre limitado para que la barra de título nunca salga del panel. Texto enriquecido (negrita/cursiva con Ctrl+B/I). Alineación izquierda/centrado/derecha en menú contextual. Menú contextual propio (cortar/copiar/pegar texto, formato, alineación, editar). Copiar/cortar/pegar notas entre paneles. Botones A+/A- para tamaño de fuente (rango 4–72px) con auto-repeat al mantener pulsado. 6 colores seleccionables. Resize hasta 50×36px. Persistencia en localStorage y patches. Eventos aislados (no traspasan al panel). 100 tests.
 
 ### Cambiado
+- **Fondo del Synthi aclarado a blanco mate** (`--synthi-bg-color: #e8e4e0`).
 - **Reorganización de Ajustes y menú Electron**: Pestañas reducidas de 7 a 6 ("Visualización" → "Interfaz", "Grabación" fusionada en "Audio"). Nuevo menú "Preferencias" en Electron. "Restaurar ajustes" sustituye a "Reiniciar sintetizador" en Avanzado.
 - **Panel 3: fondo SVG con textos Microgramma y dibujos de osciladores** en sustitución del JPG provisional.
 - **Color de fondo unificado en todos los paneles**: Variable CSS `--synthi-bg-color: #b9afa6` (tomado de foto del Synthi real). Se aplica a paneles 1-7; las imágenes de fondo se superponen y las transparencias muestran este color.
@@ -46,6 +47,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **UI: selector de resolución oculto**. La app siempre inicia en 1x.
 
 ### Corregido
+- **Knobs SVG: centrado preciso del anillo**: La rotación del grupo SVG se delega a CSS (`transform-origin: 50% 50%`) eliminando el pivot descentrado de Inkscape. SVG sin transform en el grupo principal; ángulos CSS 150°–450°.
 - **Viewport no restauraba posición/zoom entre sesiones**: El handler de estabilización de `visualViewport` reseteaba incondicionalmente a vista general durante los primeros 4s de carga, machacando el estado restaurado de localStorage. Ahora respeta `userHasAdjustedView`. Guardado periódico con debounce (2s) además de `beforeunload`/`visibilitychange`.
 - **Glow condicional en todos los controles**: Flash de glow solo cuando el valor cambia realmente (knobs, pads, pines, toggles, sliders, switches). Evita flash masivo innecesario al resetear con valores ya en su estado por defecto. Mejora rendimiento con matrices grandes.
 - **Joystick pads no se reiniciaban desde quickbar**: El handle visual del pad no se actualizaba al reiniciar el sintetizador desde el botón de quickbar o atajo de teclado, aunque el estado de audio sí se reseteaba.

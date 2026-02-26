@@ -21,9 +21,9 @@
    inkscape:pageopacity="1"
    inkscape:pagecheckerboard="0"
    inkscape:deskcolor="#d1d1d1"
-   inkscape:zoom="12.485687"
-   inkscape:cx="44.33076"
-   inkscape:cy="12.213985"
+   inkscape:zoom="202.67791"
+   inkscape:cx="99.15486"
+   inkscape:cy="199.04241"
    inkscape:window-width="1920"
    inkscape:window-height="1005"
    inkscape:window-x="0"
@@ -76,19 +76,18 @@
    fill="#222222" />
   </defs>
   <g
-   id="KNOB_SYNTHI_V3_CLOCKWISE"
-   transform="rotate(150.00172,99.419531,99.033762)">
+   id="KNOB_SYNTHI_V3_CLOCKWISE">
     
     <circle
    cx="100"
    cy="100"
-   r="98"
+   r="100"
    fill="#ffffff"
    fill-opacity="0.15"
    stroke="none"
    id="circle2"
    inkscape:label="circle2"
-   style="display:inline;fill:#a1a1a1;fill-opacity:0.885167" />
+   style="display:inline;fill:#a1a1a1;fill-opacity:0.525732" />
     <g
    id="AgarreCompleto"
    transform="matrix(0.86206897,0,0,0.86206897,13.793103,13.793103)">

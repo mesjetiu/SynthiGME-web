@@ -47,7 +47,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **UI: selector de resolución oculto**. La app siempre inicia en 1x.
 
 ### Corregido
-- **Fuente Microgramma en móvil**: `font-weight: 600` no coincidía con ningún peso WOFF2 (400/500/700), provocando fallback a `system-ui` en dispositivos sin la fuente instalada. Corregido a 700 en los 8 selectores afectados.
+- **Fuente Microgramma en móvil**: El SVG de panel 3 usaba `font-family:'Microgramma D Extended'` (nombre PostScript local) y se cargaba como `background-image` (aislado del DOM). En móvil la fuente no existe y no heredaba los `@font-face` WOFF2. Corregido: renombrado a `'Microgramma Extended'` (204 ocurrencias) e inyección inline del SVG en el DOM. Ajustado también `font-weight: 600` → `700` en 8 selectores CSS con `--font-synthi`.
 - **Knobs SVG: centrado preciso del anillo**: La rotación del grupo SVG se delega a CSS (`transform-origin: 50% 50%`) eliminando el pivot descentrado de Inkscape. SVG sin transform en el grupo principal; ángulos CSS 150°–450°.
 - **Viewport no restauraba posición/zoom entre sesiones**: El handler de estabilización de `visualViewport` reseteaba incondicionalmente a vista general durante los primeros 4s de carga, machacando el estado restaurado de localStorage. Ahora respeta `userHasAdjustedView`. Guardado periódico con debounce (2s) además de `beforeunload`/`visibilitychange`.
 - **Glow condicional en todos los controles**: Flash de glow solo cuando el valor cambia realmente (knobs, pads, pines, toggles, sliders, switches). Evita flash masivo innecesario al resetear con valores ya en su estado por defecto. Mejora rendimiento con matrices grandes.

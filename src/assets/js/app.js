@@ -178,7 +178,10 @@ class App {
     // injectInlinePanelSvgBackground('panel-4', './assets/panels/panel4_bg.svg');
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
-        
+
+    // Panel 3: SVG inyectado inline para heredar @font-face del DOM (Microgramma WOFF2)
+    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel_3.svg');
+
     // Canvas: pinta fondos de panel-1/2/3/4 para evitar lagunas en móvil.
     preloadCanvasBgImages();
     renderCanvasBgPanels();
@@ -188,7 +191,7 @@ class App {
     // Fondos JPG temporales (eliminar línea correspondiente al migrar a SVG).
     setPanelImageBackground('panel-1', './assets/panels/panel_1.jpg');
     setPanelImageBackground('panel-2', './assets/panels/panel_2.jpg');
-    setPanelImageBackground('panel-3', './assets/panels/panel_3.svg');
+    // Panel 3: fondo inline (arriba), ya no necesita background-image
     setPanelImageBackground('panel-4', './assets/panels/panel_4.jpg');
     setPanelImageBackground('panel-output', './assets/panels/panel_7.jpg');
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });

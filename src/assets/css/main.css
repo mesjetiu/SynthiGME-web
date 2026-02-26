@@ -52,6 +52,9 @@
   --pin-color-purple: #9C27B0;   /* 1MΩ   ×0.1 */
   /* Legado */
   --pin-color-active: #ffb63b;   /* Fallback amarillo (legacy) */
+
+  /* Color de fondo del Synthi 100 — visble tras transparencias de SVG/JPG de panel */
+  --synthi-bg-color: #b9afa6;
 }
 
 /* Clase utilitaria: tipografía Microgramma para títulos/etiquetas en mayúsculas.
@@ -664,7 +667,7 @@ html:-webkit-full-screen #viewportOuter {
 }
 #panel-5,
 #panel-6 {
-  background-color: #DCD8D7;
+  background-color: var(--synthi-bg-color);
   background-image: none;
   padding: 0;
   display: flex;
@@ -686,7 +689,7 @@ html:-webkit-full-screen #viewportOuter {
 #panel-2,
 #panel-3,
 #panel-4 {
-  background-color: #7D7570;
+  background-color: var(--synthi-bg-color);
   background-image: none;
   padding: 0;
   position: relative;
@@ -5679,6 +5682,7 @@ small { color:#aaa; }
 /* ─── Panel 7 Layout ─── */
 /* Los valores de layout se aplican desde panel7.blueprint.js vía CSS custom properties */
 #panel-output {
+  background-color: var(--synthi-bg-color);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;

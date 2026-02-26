@@ -127,14 +127,21 @@ export class SGME_Oscillator {
         shell.style.transform = `translateY(${this.knobOffsets[idx]}px)`;
       }
       const knob = document.createElement('div');
-      knob.className = 'knob sgme-osc__knob';
+      knob.className = 'knob knob--svg sgme-osc__knob';
       knob.style.width = `${this.knobSize}px`;
       knob.style.height = `${this.knobSize}px`;
       const inner = document.createElement('div');
       inner.className = 'knob-inner';
-      inner.style.width = `${this.knobInnerPct}%`;
-      inner.style.height = `${this.knobInnerPct}%`;
+      const ringImg = document.createElement('img');
+      ringImg.className = 'knob-svg-ring';
+      ringImg.src = 'assets/knobs/knob.svg';
+      ringImg.alt = '';
+      ringImg.draggable = false;
+      inner.appendChild(ringImg);
       knob.appendChild(inner);
+      const knobCenter = document.createElement('div');
+      knobCenter.className = 'knob-center';
+      knob.appendChild(knobCenter);
       shell.appendChild(knob);
       
       // Elemento de valor debajo del knob

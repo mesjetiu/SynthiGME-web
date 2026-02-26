@@ -44,12 +44,23 @@ export function createKnobElements(options = {}) {
   // Elemento del knob
   const knobEl = document.createElement('div');
   const sizeClass = size ? ` knob--${size}` : '';
-  knobEl.className = `knob${sizeClass}`;
+  knobEl.className = `knob knob--svg${sizeClass}`;
 
-  // Inner (indicador de rotación)
+  // Inner (indicador de rotación) - contiene el SVG del anillo que gira
   const inner = document.createElement('div');
   inner.className = 'knob-inner';
+  const ringImg = document.createElement('img');
+  ringImg.className = 'knob-svg-ring';
+  ringImg.src = 'assets/knobs/knob.svg';
+  ringImg.alt = '';
+  ringImg.draggable = false;
+  inner.appendChild(ringImg);
   knobEl.appendChild(inner);
+
+  // Centro de color (no rota) - brillo simulado fijo
+  const center = document.createElement('div');
+  center.className = 'knob-center';
+  knobEl.appendChild(center);
 
   wrapper.appendChild(knobEl);
 

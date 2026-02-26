@@ -133,7 +133,7 @@ export class InputAmplifierUI {
     const knobSizeClass = typeof this.layout.knobSize === 'string' && this.layout.knobSize
       ? ` knob--${this.layout.knobSize}`
       : '';
-    knobEl.className = `knob${knobSizeClass} input-amplifier__knob`;
+    knobEl.className = `knob knob--svg${knobSizeClass} input-amplifier__knob`;
     if (typeof this.layout.knobSize === 'number' && Number.isFinite(this.layout.knobSize) && this.layout.knobSize > 0) {
       knobEl.style.width = `${this.layout.knobSize}px`;
       knobEl.style.height = `${this.layout.knobSize}px`;
@@ -141,12 +141,16 @@ export class InputAmplifierUI {
     
     const inner = document.createElement('div');
     inner.className = 'knob-inner';
-    const innerPct = Number(this.layout.knobInnerPct);
-    if (Number.isFinite(innerPct) && innerPct > 0) {
-      inner.style.width = `${innerPct}%`;
-      inner.style.height = `${innerPct}%`;
-    }
+    const ringImg = document.createElement('img');
+    ringImg.className = 'knob-svg-ring';
+    ringImg.src = 'assets/knobs/knob.svg';
+    ringImg.alt = '';
+    ringImg.draggable = false;
+    inner.appendChild(ringImg);
     knobEl.appendChild(inner);
+    const knobCenter = document.createElement('div');
+    knobCenter.className = 'knob-center';
+    knobEl.appendChild(knobCenter);
     wrapper.appendChild(knobEl);
     
     // Valor debajo del knob

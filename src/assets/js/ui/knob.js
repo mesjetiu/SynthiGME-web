@@ -74,8 +74,10 @@ export class Knob {
     this._rafId = null;
     this._pendingValue = null;
 
-    this.minAngle = -135;
-    this.maxAngle = 135;
+    // SVG orientado en posición 0 (mínimo). Rotamos 0-300° (10/12 circunferencia).
+    // CSS rotate(0deg) = valor 0, rotate(300deg) = valor 10.
+    this.minAngle = 0;
+    this.maxAngle = 300;
     
     // Registrar callback de ocultación de tooltip para eventos globales (zoom/pan, tap fuera)
     this._tooltipHideCallback = () => {

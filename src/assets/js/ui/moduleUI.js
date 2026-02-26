@@ -141,11 +141,21 @@ export class ModuleUI {
 
     // Knob container
     const knobContainer = document.createElement('div');
-    knobContainer.className = `knob ${this.cssClass}__knob`;
+    knobContainer.className = `knob knob--svg ${this.cssClass}__knob`;
 
     const knobInner = document.createElement('div');
     knobInner.className = 'knob-inner';
+    const ringImg = document.createElement('img');
+    ringImg.className = 'knob-svg-ring';
+    ringImg.src = 'assets/knobs/knob.svg';
+    ringImg.alt = '';
+    ringImg.draggable = false;
+    knobInner.appendChild(ringImg);
     knobContainer.appendChild(knobInner);
+
+    const knobCenter = document.createElement('div');
+    knobCenter.className = 'knob-center';
+    knobContainer.appendChild(knobCenter);
     shell.appendChild(knobContainer);
 
     // Valor debajo del knob (visible, muestra escala 0-10)

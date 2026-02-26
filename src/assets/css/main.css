@@ -1633,7 +1633,7 @@ table.matrix {
 .pin-color-menu__title {
   padding: 4px 12px 8px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
   font-family: var(--font-synthi);
@@ -1727,7 +1727,7 @@ table.matrix {
 .pin-color-menu__section-header {
   padding: 6px 12px 4px;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
   font-family: var(--font-synthi);
@@ -2252,7 +2252,7 @@ small { color:#aaa; }
 }
 
 .sgme-osc__header {
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-family: var(--font-synthi);
@@ -2396,7 +2396,7 @@ small { color:#aaa; }
 .noise-generator__header,
 .random-voltage__header {
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   font-family: var(--font-synthi);
   letter-spacing: 0.04em;
@@ -2520,7 +2520,7 @@ small { color:#aaa; }
 }
 
 .synth-module__header {
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-family: var(--font-synthi);
@@ -2818,7 +2818,7 @@ small { color:#aaa; }
 .audio-settings-section__title {
   margin: 0 0 0.35rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #ddd;
   text-transform: uppercase;
   font-family: var(--font-synthi);
@@ -3665,7 +3665,7 @@ small { color:#aaa; }
 .settings-section__title {
   margin: 0 0 0.5rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #ddd;
   text-transform: uppercase;
   font-family: var(--font-synthi);
@@ -5213,7 +5213,7 @@ small { color:#aaa; }
 .recording-settings-section__title {
   margin: 0 0 0.5rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #ddd;
   text-transform: uppercase;
   font-family: var(--font-synthi);

@@ -2,6 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 /**
+ * Mapeo de nombres de fuente: Inkscape (sistema) → Web (@font-face WOFF2).
+ * Los SVG de design/ usan nombres PostScript que Inkscape reconoce.
+ * Al optimizar para producción, se renombran al @font-face del CSS.
+ */
+const FONT_NAME_MAP = {
+  'Microgramma D Extended': 'Microgramma Extended',
+};
+
+/**
  * Acorta colores hexadecimales de 6 dígitos a 3 cuando es posible.
  * #000000 → #000, #ffffff → #fff, #aabbcc → #abc
  */
@@ -211,6 +220,18 @@ async function main() {
 
   // Elimina stroke-width de elementos text y tspan (causan texto "gordo")
   svg = svg.replace(/(<(?:text|tspan)[^>]*)\sstroke-width="[^"]*"/g, "$1");
+
+  // Remapea nombres de fuente de Inkscape a @font-face web
+  let fontRenames = 0;
+  for (const [inkName, webName] of Object.entries(FONT_NAME_MAP)) {
+    const re = new RegExp(inkName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    const matches = svg.match(re);
+    if (matches) {
+      fontRenames += matches.length;
+      svg = svg.replace(re, webName);
+    }
+  }
+  if (fontRenames) console.log("fuentes renombradas:", fontRenames, "ocurrencias");
 
   const styleMap = new Map();
   let classCounter = 0;

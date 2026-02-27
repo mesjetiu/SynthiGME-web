@@ -48,7 +48,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **UI: selector de resolución oculto**. La app siempre inicia en 1x.
 
 ### Cambiado (herramientas)
-- **Script de optimización SVG generalizado**: `optimize-panel-svg.mjs` → `optimize-svg.mjs`. Preserva IDs referenciados (`url(#)`, `href`, `xlink:href`). Eliminación de imágenes opcional (`--keep-images`). Salida por defecto = mismo archivo (in-place). Corregidas regex para elementos sodipodi self-closing y atributos con dígitos (`sodipodi:r1`, `arg2`, etc.).
+- **Script de optimización SVG generalizado**: `optimize-panel-svg.mjs` → `optimize-svg.mjs`. Preserva IDs referenciados (`url(#)`, `href`, `xlink:href`). Eliminación de imágenes opcional (`--keep-images`). Salida por defecto = mismo archivo (in-place). Corregidas regex para elementos sodipodi self-closing y atributos con dígitos (`sodipodi:r1`, `arg2`, etc.). Remapeo automático de fuentes Inkscape→web (`Microgramma D Extended` → `Microgramma Extended`); los SVGs de `design/` mantienen el nombre de sistema para Inkscape.
 - **SVGs optimizados**: knob.svg −53%, knob-0-center.svg −53%, panel_3.svg −55%. Tamaño de fuente de knobs ampliado a ~22px.
 - **Colores de centro de knobs centralizados**: Nuevo `configs/knobColors.js` como fuente única de verdad (azul, verde, blanco, negro, rojo, amarillo). Eliminados hex hardcoded de 6 archivos. Eliminado `centro-knob-amarillo.svg` (no se usaba; el color se aplica via CSS `--knob-center-color`).
 

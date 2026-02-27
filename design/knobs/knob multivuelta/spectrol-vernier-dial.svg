@@ -23,24 +23,20 @@
   <defs>
     <!-- ==================== GRADIENTS ==================== -->
     
-    <!-- Base silver tone for outer disc ring -->
-    <radialGradient id="vd-metal" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#c8c8c8"/>
-      <stop offset="100%" stop-color="#b0b0b0"/>
+    <!-- Brushed aluminum for outer disc ring -->
+    <radialGradient id="vd-metal" cx="45%" cy="42%" r="55%">
+      <stop offset="0%" stop-color="#e2e2e2"/>
+      <stop offset="25%" stop-color="#d6d6d6"/>
+      <stop offset="50%" stop-color="#cacaca"/>
+      <stop offset="75%" stop-color="#d0d0d0"/>
+      <stop offset="100%" stop-color="#b8b8b8"/>
     </radialGradient>
     
-    <!-- Bevel highlight for disc outer edge (3D rim effect) -->
-    <radialGradient id="vd-bevel" cx="50%" cy="50%" r="50%">
-      <stop offset="88%" stop-color="transparent"/>
-      <stop offset="94%" stop-color="rgba(255,255,255,0.35)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.15)"/>
-    </radialGradient>
-    
-    <!-- Inner shadow gradient (cone recedes toward center hole) -->
-    <radialGradient id="vd-coneInner" cx="50%" cy="50%" r="50%">
-      <stop offset="58%" stop-color="rgba(0,0,0,0.08)"/>
-      <stop offset="68%" stop-color="transparent"/>
-      <stop offset="100%" stop-color="transparent"/>
+    <!-- Bevel highlight for disc edge (3D rim effect) -->
+    <radialGradient id="vd-bevel" cx="42%" cy="40%" r="58%">
+      <stop offset="86%" stop-color="transparent"/>
+      <stop offset="93%" stop-color="rgba(255,255,255,0.3)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.12)"/>
     </radialGradient>
     
     <!-- Depth gradient for hexagonal knob (light upper-left) -->
@@ -89,9 +85,9 @@
     <!-- Subtle inner edge highlight -->
     <circle cx="150" cy="150" r="95" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
     
-    <!-- ====== MAJOR TICK MARKS (9 marks, every 36° — 0 uses minor tick) ====== -->
-    <!-- Value 0 at 0° gets a minor tick only (number centered) -->
-    <use href="#vd-minTick"/>
+    <!-- ====== MAJOR TICK MARKS (10 marks, every 36°) ====== -->
+    <!-- Value 0 at 0° (12 o'clock = indicator position) -->
+    <use href="#vd-majTick"/>
     <!-- Value 10 at 36° -->
     <use href="#vd-majTick" transform="rotate(36,150,150)"/>
     <!-- Value 20 at 72° -->
@@ -163,60 +159,21 @@
     <use href="#vd-minTick" transform="rotate(345.6,150,150)"/>
     <use href="#vd-minTick" transform="rotate(352.8,150,150)"/>
     
-    <!-- ====== SCALE NUMBERS (radially oriented, split around tick) ====== -->
-    <!-- Each number rotated so baseline points outward from center.
-         Tens digit LEFT of tick, units digit RIGHT of tick.
-         Exception: "0" is centered (no major tick). -->
+    <!-- ====== SCALE NUMBERS (upright text, r=72 from center) ====== -->
+    <!-- Numbers are positioned upright (readable); they rotate with the disc -->
     <g font-family="'DIN Bold','Futura Bold','Futura','Univers 55','Helvetica Neue',Arial,sans-serif"
-       font-weight="bold" font-size="14" fill="#ffffff"
-       dominant-baseline="central">
-      <!-- 0 at 0° — centered, no major tick -->
-      <text x="150" y="76" text-anchor="middle">0</text>
-      <!-- 10 at 36° — "1" left of tick, "0" right -->
-      <g transform="rotate(36,150,150)">
-        <text x="147" y="76" text-anchor="end">1</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 20 at 72° -->
-      <g transform="rotate(72,150,150)">
-        <text x="147" y="76" text-anchor="end">2</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 30 at 108° -->
-      <g transform="rotate(108,150,150)">
-        <text x="147" y="76" text-anchor="end">3</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 40 at 144° -->
-      <g transform="rotate(144,150,150)">
-        <text x="147" y="76" text-anchor="end">4</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 50 at 180° -->
-      <g transform="rotate(180,150,150)">
-        <text x="147" y="76" text-anchor="end">5</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 60 at 216° -->
-      <g transform="rotate(216,150,150)">
-        <text x="147" y="76" text-anchor="end">6</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 70 at 252° -->
-      <g transform="rotate(252,150,150)">
-        <text x="147" y="76" text-anchor="end">7</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 80 at 288° -->
-      <g transform="rotate(288,150,150)">
-        <text x="147" y="76" text-anchor="end">8</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
-      <!-- 90 at 324° -->
-      <g transform="rotate(324,150,150)">
-        <text x="147" y="76" text-anchor="end">9</text>
-        <text x="153" y="76" text-anchor="start">0</text>
-      </g>
+       font-weight="bold" font-size="16" fill="#ffffff"
+       text-anchor="middle" dominant-baseline="central">
+      <text x="150.0" y="78.0">0</text>
+      <text x="192.3" y="91.8">10</text>
+      <text x="218.5" y="127.7">20</text>
+      <text x="218.5" y="172.3">30</text>
+      <text x="192.3" y="208.2">40</text>
+      <text x="150.0" y="222.0">50</text>
+      <text x="107.7" y="208.2">60</text>
+      <text x="81.5"  y="172.3">70</text>
+      <text x="81.5"  y="127.7">80</text>
+      <text x="107.7" y="91.8">90</text>
     </g>
   </g>
 
@@ -242,49 +199,20 @@
       <circle cx="150" cy="150" r="140" fill="none" stroke="#999" stroke-width="0.7"/>
       <circle cx="150" cy="150" r="138.5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>
       
-      <!-- ====== CONICAL CHROME REFLECTIONS ====== -->
-      <!-- Broad angular bands of light and shadow simulating specular
-           reflection on a polished conical surface. Each sector is a pie
-           slice (path from center to outer edge) with smooth opacity.
-           Light source: upper-left. -->
-      
-      <!-- BRIGHT HIGHLIGHT BAND: ~290°-360° (upper-left quadrant) -->
-      <path d="M150,150 L42.6,91.5 A140,140 0 0,1 150,10 Z"
-            fill="white" opacity="0.32"/>
-      <!-- Softer transition into highlight: ~260°-290° -->
-      <path d="M150,150 L16.3,137.6 A140,140 0 0,1 42.6,91.5 Z"
-            fill="white" opacity="0.18"/>
-      <!-- Bright top-right: ~0°-30° -->
-      <path d="M150,150 L150,10 A140,140 0 0,1 220,22.2 Z"
-            fill="white" opacity="0.22"/>
-      <!-- Fade out right: ~30°-70° -->
-      <path d="M150,150 L220,22.2 A140,140 0 0,1 281.4,103.6 Z"
-            fill="white" opacity="0.08"/>
-      
-      <!-- SHADOW BAND: ~100°-180° (lower-right quadrant) -->
-      <path d="M150,150 L289.1,124.3 A140,140 0 0,1 283.7,196.4 Z"
-            fill="black" opacity="0.10"/>
-      <path d="M150,150 L283.7,196.4 A140,140 0 0,1 220,277.8 Z"
-            fill="black" opacity="0.16"/>
-      <path d="M150,150 L220,277.8 A140,140 0 0,1 150,290 Z"
-            fill="black" opacity="0.13"/>
-      
-      <!-- MEDIUM-DARK: ~180°-230° (lower-left) -->
-      <path d="M150,150 L150,290 A140,140 0 0,1 80,277.8 Z"
-            fill="black" opacity="0.08"/>
-      <path d="M150,150 L80,277.8 A140,140 0 0,1 28.9,219.5 Z"
-            fill="black" opacity="0.05"/>
-      
-      <!-- SECONDARY CATCH-LIGHT: ~230°-260° (left side) -->
-      <path d="M150,150 L28.9,219.5 A140,140 0 0,1 16.3,137.6 Z"
-            fill="white" opacity="0.10"/>
-      
-      <!-- Inner darkening (cone recedes toward center hole) -->
-      <circle cx="150" cy="150" r="140" fill="url(#vd-coneInner)"/>
+      <!-- Brushed metal texture (concentric circular striations) -->
+      <circle cx="150" cy="150" r="136" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="132" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="128" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="124" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="120" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="116" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="112" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="108" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="104" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
       
       <!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) -->
-      <circle cx="150" cy="150" r="97" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="2.5"/>
-      <circle cx="150" cy="150" r="96.5" fill="none" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
+      <circle cx="150" cy="150" r="97" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="2"/>
+      <circle cx="150" cy="150" r="96.5" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
     </g>
     
     <!-- Counter window (on the ring surface between r=96 and r=140) -->
@@ -313,20 +241,17 @@
   <!-- Rotated 40° from 12 o'clock on the outer disc surface        -->
   <!-- ============================================================ -->
   <g id="ClickableBrakeLever">
-    <!-- Flat metal tab protruding radially from the outer rim at ~40° from 12 o'clock.
-         In the real Spectrol, this small lever controls the friction brake. -->
     <g transform="rotate(40,150,150)">
-      <!-- Tab body: flat rectangle extending beyond outer rim -->
-      <rect x="146.5" y="1" width="7" height="14" rx="1.5" ry="1"
-            fill="#c0c0c0" stroke="#999" stroke-width="0.6"/>
-      <!-- Top highlight (bevelled edge) -->
-      <rect x="147" y="1.5" width="6" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
-      <!-- Grip grooves (knurling) -->
-      <line x1="147.5" y1="4.5" x2="152.5" y2="4.5" stroke="#aaa" stroke-width="0.4"/>
-      <line x1="147.5" y1="6" x2="152.5" y2="6" stroke="#999" stroke-width="0.4"/>
-      <line x1="147.5" y1="7.5" x2="152.5" y2="7.5" stroke="#aaa" stroke-width="0.4"/>
-      <!-- Bottom shadow (tab meets disc) -->
-      <rect x="146.5" y="12" width="7" height="3" rx="1" fill="rgba(0,0,0,0.15)"/>
+      <!-- Lever arm -->
+      <rect x="147" y="4" width="6" height="15" rx="2" ry="2"
+            fill="#b5b5b5" stroke="#888" stroke-width="0.5"/>
+      <!-- Knurled top of lever -->
+      <rect x="147.5" y="4.5" width="5" height="5" rx="1" fill="#c8c8c8"/>
+      <!-- Pivot screw -->
+      <circle cx="150" cy="13" r="3.5" fill="#c0c0c0" stroke="#888" stroke-width="0.5"/>
+      <circle cx="150" cy="13" r="1.8" fill="#a8a8a8"/>
+      <!-- Screw slot -->
+      <line x1="148.5" y1="13" x2="151.5" y2="13" stroke="#888" stroke-width="0.6"/>
     </g>
   </g>
 

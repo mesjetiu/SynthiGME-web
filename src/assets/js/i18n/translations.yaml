@@ -297,6 +297,43 @@ settings.display.faderResponse.linear:
   pt: Resposta linear de ganho (controle mais fácil)
   cs: Lineární odezva zisku (snazší ovládání)
 
+# Sección: Estilo visual de los knobs
+settings.display.knobStyle:
+  en: Knob Appearance
+  es: Apariencia de los knobs
+  fr: Apparence des boutons
+  de: Erscheinungsbild der Regler
+  it: Aspetto delle manopole
+  pt: Aparência dos botões
+  cs: Vzhled otočných knoflíků
+
+settings.display.knobStyle.description:
+  en: Choose between the authentic Synthi 100 knob design (SVG with coloured centres and scale ring) or a simplified CSS design.
+  es: Elige entre el diseño auténtico del Synthi 100 (SVG con centros de color y anillo de escala) o un diseño CSS simplificado.
+  fr: Choisissez entre le design authentique du Synthi 100 (SVG avec centres colorés et anneau de graduation) ou un design CSS simplifié.
+  de: Wählen Sie zwischen dem authentischen Synthi-100-Design (SVG mit farbigen Zentren und Skalenring) oder einem vereinfachten CSS-Design.
+  it: Scegli tra il design autentico del Synthi 100 (SVG con centri colorati e anello di scala) o un design CSS semplificato.
+  pt: Escolha entre o design autêntico do Synthi 100 (SVG com centros coloridos e anel de escala) ou um design CSS simplificado.
+  cs: Vyberte si mezi autentickým designem Synthi 100 (SVG s barevnými středy a stupnicovým kroužkem) nebo zjednodušeným CSS designem.
+
+settings.display.knobStyle.svg:
+  en: Authentic Synthi 100 (SVG knobs with scale)
+  es: Synthi 100 auténtico (knobs SVG con escala)
+  fr: Synthi 100 authentique (boutons SVG avec échelle)
+  de: Authentisches Synthi 100 (SVG-Regler mit Skala)
+  it: Synthi 100 autentico (manopole SVG con scala)
+  pt: Synthi 100 autêntico (botões SVG com escala)
+  cs: Autentický Synthi 100 (SVG knoflíky se stupnicí)
+
+settings.display.knobStyle.css:
+  en: Simplified (CSS knobs)
+  es: Simplificado (knobs CSS)
+  fr: Simplifié (boutons CSS)
+  de: Vereinfacht (CSS-Regler)
+  it: Semplificato (manopole CSS)
+  pt: Simplificado (botões CSS)
+  cs: Zjednodušený (CSS knoflíky)
+
 # Sección: Efecto glow (halo brillante en controles)
 settings.display.glow:
   en: Control Glow Effect

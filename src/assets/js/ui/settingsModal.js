@@ -132,6 +132,10 @@ export class SettingsModal {
     // Detectar Firefox (no necesita selector de resolución)
     this.isFirefox = /Firefox\/\d+/.test(navigator.userAgent);
     
+    // Estilo visual de knobs: aplicar al inicio (antes de que se creen los knobs)
+    this.knobStyle = localStorage.getItem(STORAGE_KEYS.KNOB_STYLE) || 'svg';
+    this._applyKnobStyle(this.knobStyle);
+    
     // Elementos DOM
     this.overlay = null;
     this.modal = null;
@@ -237,6 +241,12 @@ export class SettingsModal {
       this.multitouchControlsEnabled = readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false);
       this.multitouchControlsCheckbox.checked = this.multitouchControlsEnabled;
     }
+    
+    // Knob style (radio buttons)
+    const savedKnobStyle = localStorage.getItem(STORAGE_KEYS.KNOB_STYLE) || 'svg';
+    const knobStyleRadio = this.modal?.querySelector(`#knobStyle-${savedKnobStyle}`);
+    if (knobStyleRadio) knobStyleRadio.checked = true;
+    this._applyKnobStyle(savedKnobStyle);
     
     // Avanzado - Optimizaciones
     if (this.optimizationsDebugCheckbox) {
@@ -677,6 +687,9 @@ export class SettingsModal {
     
     // Respuesta de faders de salida
     container.appendChild(this._createFaderResponseSection());
+    
+    // Estilo visual de knobs (SVG auténtico vs CSS simplificado)
+    container.appendChild(this._createKnobStyleSection());
     
     // Rasterización adaptativa (nitidez de zoom)
     container.appendChild(this._createSharpRasterizeSection());
@@ -2472,6 +2485,77 @@ export class SettingsModal {
   }
   
   /**
+   * Crea la sección de estilo visual de knobs (SVG auténtico vs CSS simplificado).
+   * @returns {HTMLElement}
+   */
+  _createKnobStyleSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.knobStyleTitleElement = document.createElement('h3');
+    this.knobStyleTitleElement.className = 'settings-section__title';
+    this.knobStyleTitleElement.textContent = t('settings.display.knobStyle');
+    section.appendChild(this.knobStyleTitleElement);
+    
+    this.knobStyleDescElement = document.createElement('p');
+    this.knobStyleDescElement.className = 'settings-section__description';
+    this.knobStyleDescElement.textContent = t('settings.display.knobStyle.description');
+    section.appendChild(this.knobStyleDescElement);
+    
+    // Radio buttons: SVG (default) vs CSS
+    const savedStyle = localStorage.getItem(STORAGE_KEYS.KNOB_STYLE) || 'svg';
+    
+    const createRadio = (value, labelKey) => {
+      const row = document.createElement('div');
+      row.className = 'settings-row settings-row--checkbox';
+      
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'knobStyle';
+      radio.id = `knobStyle-${value}`;
+      radio.value = value;
+      radio.className = 'settings-checkbox';
+      radio.checked = savedStyle === value;
+      
+      const label = document.createElement('label');
+      label.className = 'settings-checkbox-label';
+      label.htmlFor = `knobStyle-${value}`;
+      label.textContent = t(labelKey);
+      
+      radio.addEventListener('change', () => {
+        if (radio.checked) {
+          localStorage.setItem(STORAGE_KEYS.KNOB_STYLE, value);
+          this._applyKnobStyle(value);
+        }
+      });
+      
+      row.appendChild(radio);
+      row.appendChild(label);
+      return row;
+    };
+    
+    section.appendChild(createRadio('svg', 'settings.display.knobStyle.svg'));
+    section.appendChild(createRadio('css', 'settings.display.knobStyle.css'));
+    
+    // Aplicar estilo guardado al cargar
+    this._applyKnobStyle(savedStyle);
+    
+    return section;
+  }
+  
+  /**
+   * Aplica el estilo visual de knobs (SVG auténtico o CSS simplificado).
+   * @param {'svg'|'css'} style
+   */
+  _applyKnobStyle(style) {
+    if (style === 'css') {
+      document.body.classList.add('knob-style-css');
+    } else {
+      document.body.classList.remove('knob-style-css');
+    }
+  }
+  
+  /**
    * Crea la sección de optimizaciones de rendimiento.
    * Agrupa todas las optimizaciones: dormancy, filter bypass, etc.
    * @returns {HTMLElement}
@@ -4230,6 +4314,14 @@ export class SettingsModal {
     }
     if (this.faderLinearLabelElement) {
       this.faderLinearLabelElement.textContent = t('settings.display.faderResponse.linear');
+    }
+    
+    // Actualizar sección de estilo de knobs
+    if (this.knobStyleTitleElement) {
+      this.knobStyleTitleElement.textContent = t('settings.display.knobStyle');
+    }
+    if (this.knobStyleDescElement) {
+      this.knobStyleDescElement.textContent = t('settings.display.knobStyle.description');
     }
     
     // Actualizar sección "Acerca de"

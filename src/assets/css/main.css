@@ -1170,6 +1170,54 @@ h1 {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+ * KNOB STYLE CSS — Override global para volver al diseño CSS clásico
+ * Se activa cuando body tiene clase .knob-style-css
+ * ───────────────────────────────────────────────────────────────────────────── */
+.knob-style-css .knob.knob--svg {
+  background: radial-gradient(circle at 30% 30%, #555, #222);
+  box-shadow: 0 0 7px rgba(0,0,0,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.knob-style-css .knob.knob--svg .knob-inner {
+  width: 78% !important;
+  height: 78% !important;
+  background: radial-gradient(circle at 30% 30%, #777, #333);
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.7);
+  border-radius: 50%;
+  position: relative;
+}
+.knob-style-css .knob.knob--svg .knob-inner::after {
+  display: block;
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 18px;
+  background: #ffeb3b;
+  border-radius: 2px;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 0 3px rgba(0,0,0,0.7);
+}
+.knob-style-css .knob.knob--svg.knob--sm .knob-inner::after {
+  width: 3px;
+  height: 14px;
+  top: 5px;
+}
+.knob-style-css .knob.knob--svg.knob--xs .knob-inner::after {
+  width: 3px;
+  height: 10px;
+  top: 4px;
+}
+.knob-style-css .knob-svg-ring,
+.knob-style-css .knob-center {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
  * KNOB TOOLTIPS
  * ─────────────────────────────────────────────────────────────────────────────
  * Floating tooltip that shows value and extra info for knobs.

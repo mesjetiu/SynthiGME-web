@@ -148,6 +148,9 @@ export const STORAGE_KEYS = {
   /** Respuesta lineal de faders: el slider controla ganancia directamente en vez de voltaje */
   FADER_LINEAR_RESPONSE: `${STORAGE_PREFIX}fader-linear-response`,
   
+  /** Estilo visual de knobs: 'svg' (auténtico Synthi 100) o 'css' (simplificado) */
+  KNOB_STYLE: `${STORAGE_PREFIX}knob-style`,
+  
   // ─────────────────────────────────────────────────────────────────────────
   // Tooltips de parámetros (knobs)
   // ─────────────────────────────────────────────────────────────────────────

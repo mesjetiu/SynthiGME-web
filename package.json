@@ -24,7 +24,7 @@
     "build:electron:test": "node scripts/run-tests.mjs --require-pass && npm run build:electron",
     "build:all": "node scripts/run-tests.mjs --require-pass && npm run build:web && npm run build:electron:all",
     "count-lines": "./scripts/count-lines.sh",
-    "optimize:panel-svg": "node scripts/tools/optimize-panel-svg.mjs",
+    "optimize:svg": "node scripts/tools/optimize-svg.mjs",
     "version": "npm run build:web && git add -A",
     "release:patch": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version patch --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",
     "release:minor": "node scripts/run-tests.mjs --require-pass && node scripts/release/pre.mjs && npm version minor --message \"release: Synthi GME v%s\" && node scripts/release/post.mjs",

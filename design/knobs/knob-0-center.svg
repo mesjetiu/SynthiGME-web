@@ -21,15 +21,15 @@
    inkscape:pageopacity="1"
    inkscape:pagecheckerboard="0"
    inkscape:deskcolor="#d1d1d1"
-   inkscape:zoom="5.9066117"
-   inkscape:cx="107.50664"
-   inkscape:cy="-52.568209"
+   inkscape:zoom="2.9409431"
+   inkscape:cx="69.875545"
+   inkscape:cy="58.654654"
    inkscape:window-width="1920"
    inkscape:window-height="1005"
    inkscape:window-x="0"
    inkscape:window-y="0"
    inkscape:window-maximized="1"
-   inkscape:current-layer="NumerosRadiales" />
+   inkscape:current-layer="svg75" />
   <defs
    id="defs2">
     <radialGradient
@@ -76,18 +76,20 @@
    fill="#222222" />
   </defs>
   <g
-   id="KNOB_SYNTHI_V3_CLOCKWISE">
+   id="KNOB_SYNTHI_V3_CLOCKWISE"
+   transform="matrix(-0.86711416,0.49849681,-0.49852219,-0.86665437,236.56366,136.81576)">
     
     <circle
-   cx="100"
-   cy="100"
+   cx="126.02171"
+   cy="-64.175774"
    r="100"
    fill="#ffffff"
    fill-opacity="0.15"
    stroke="none"
    id="circle2"
    inkscape:label="circle2"
-   style="display:inline;fill:#a1a1a1;fill-opacity:0.525732" />
+   style="display:inline;fill:#a1a1a1;fill-opacity:0.525732"
+   transform="rotate(71.987183)" />
     <g
    id="AgarreCompleto"
    transform="matrix(0.86206897,0,0,0.86206897,13.793103,13.793103)">
@@ -427,93 +429,124 @@
    transform="matrix(0.9198797,0,0,0.9198797,8.0120287,8.0120298)">
         <text
    id="text65"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.0863px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="100.00014"
-   y="30.000019"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="100.01255"
+   y="35.239059"><tspan
      sodipodi:role="line"
-     id="tspan12">5</tspan></text>
+     id="tspan12"
+     x="100.01255"
+     y="35.239059"
+     style="stroke-width:0.925157">5</tspan></text>
         <text
    transform="rotate(30)"
    id="text66"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.0863px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="136.60271"
-   y="-33.397522"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="136.61346"
+   y="-28.16469"><tspan
      sodipodi:role="line"
-     id="tspan11">4</tspan></text>
+     id="tspan11"
+     x="136.61346"
+     y="-28.16469"
+     style="stroke-width:0.925157">4</tspan></text>
         <text
    transform="rotate(60)"
    id="text67"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.0863px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="136.60277"
-   y="-106.60269"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="136.60898"
+   y="-101.3744"><tspan
      sodipodi:role="line"
-     id="tspan10">3</tspan></text>
+     id="tspan10"
+     x="136.60898"
+     y="-101.3744"
+     style="stroke-width:0.925157">3</tspan></text>
         <text
    transform="rotate(90)"
    id="text68"
-   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15.0863px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
    x="100.0001"
-   y="-170.00023"><tspan
+   y="-164.77361"><tspan
      sodipodi:role="line"
-     id="tspan9">2</tspan></text>
+     id="tspan9"
+     x="100.0001"
+     y="-164.77361"
+     style="stroke-width:0.925157">2</tspan></text>
         <text
    transform="rotate(120)"
    id="text69"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.0863px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="36.602589"
-   y="-206.60283"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="36.596382"
+   y="-201.37454"><tspan
      sodipodi:role="line"
-     id="tspan8">1</tspan></text>
+     id="tspan8"
+     x="36.596382"
+     y="-201.37454"
+     style="stroke-width:0.925157">1</tspan></text>
         <text
    transform="rotate(150)"
    id="text70"
-   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15.0863px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="-36.602604"
-   y="-206.60278"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="-36.613354"
+   y="-201.36996"><tspan
      sodipodi:role="line"
-     id="tspan2">0</tspan></text>
+     id="tspan2"
+     x="-36.613354"
+     y="-201.36996"
+     style="stroke-width:0.925157">0</tspan></text>
         <text
    transform="scale(-1)"
    id="text71"
-   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15.0863px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="-100.00014"
-   y="-170.00027"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="-100.01255"
+   y="-164.76123"><tspan
      sodipodi:role="line"
      id="tspan3"
-     x="-100.00014"
-     y="-170.00027">-1</tspan></text>
+     x="-100.01255"
+     y="-164.76123"
+     style="stroke-width:0.925157">-1</tspan></text>
         <text
    transform="rotate(-150)"
    id="text72"
-   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15.0863px;font-family:Sans;-inkscape-font-specification:'Sans, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="-136.60271"
-   y="-106.60267"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="-136.61346"
+   y="-101.35743"><tspan
      sodipodi:role="line"
-     id="tspan4">-2</tspan></text>
+     id="tspan4"
+     x="-136.61346"
+     y="-101.35743"
+     style="stroke-width:0.925157">-2</tspan></text>
         <text
    transform="rotate(-120)"
    id="text73"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.0863px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="-136.60277"
-   y="-33.397552"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="-136.60898"
+   y="-28.14776"><tspan
      sodipodi:role="line"
-     id="tspan5">-3</tspan></text>
+     id="tspan5"
+     x="-136.60898"
+     y="-28.14776"
+     style="stroke-width:0.925157">-3</tspan></text>
         <text
    transform="rotate(-90)"
    id="text74"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.0863px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
    x="-100.0001"
-   y="30.000023"><tspan
+   y="35.251476"><tspan
      sodipodi:role="line"
-     id="tspan6">-4</tspan></text>
+     id="tspan6"
+     x="-100.0001"
+     y="35.251476"
+     style="stroke-width:0.925157">-4</tspan></text>
         <text
    transform="rotate(-60)"
    id="text75"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.0863px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
-   x="-36.602589"
-   y="66.602631"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:20.4623px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.925157"
+   x="-36.596382"
+   y="71.852417"><tspan
      sodipodi:role="line"
-     id="tspan7">-5</tspan></text>
+     id="tspan7"
+     x="-36.596382"
+     y="71.852417"
+     style="stroke-width:0.925157">-5</tspan></text>
       </g>
     </g>
     

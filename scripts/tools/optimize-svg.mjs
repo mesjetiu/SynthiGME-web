@@ -129,11 +129,30 @@ function getPanelPrefix(outputPath) {
   return `s${Math.abs(hash).toString(36).slice(0, 4)}`;
 }
 
+/**
+ * Escanea el SVG para encontrar IDs referenciados por url(#id), href="#id"
+ * o xlink:href="#id". Estos IDs no se pueden eliminar.
+ */
+function findReferencedIds(svg) {
+  const ids = new Set();
+  // url(#id) en atributos style, fill, clip-path, mask, filter, etc.
+  for (const m of svg.matchAll(/url\(#([^)]+)\)/g)) ids.add(m[1]);
+  // href="#id" (SVG2) y xlink:href="#id" (SVG1)
+  for (const m of svg.matchAll(/(?:xlink:)?href="#([^"]+)"/g)) ids.add(m[1]);
+  return ids;
+}
+
 async function main() {
-  const input = process.argv[2];
-  const output = process.argv[3] || "panel.dedupe.svg";
+  const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  const flags = new Set(process.argv.slice(2).filter(a => a.startsWith('--')));
+  const input = args[0];
+  const output = args[1] || input; // por defecto sobreescribe el original
+  const keepImages = flags.has('--keep-images');
+
   if (!input) {
-    console.error("Uso: node optimize-panel-svg.mjs input.svg [output.svg]");
+    console.error("Uso: node optimize-svg.mjs input.svg [output.svg] [--keep-images]");
+    console.error("  Si no se especifica output, sobreescribe el archivo de entrada.");
+    console.error("  --keep-images  No eliminar imágenes embebidas");
     process.exit(1);
   }
 
@@ -151,20 +170,26 @@ async function main() {
   // Elimina DOCTYPE si existe
   svg = svg.replace(/<!DOCTYPE[^>]*>\s*/gi, "");
 
-  // Quita metadata/comments/namedview (no afecta render)
+  // Quita metadata/comments (no afecta render)
   svg = svg.replace(/<metadata[\s\S]*?<\/metadata>/g, "");
   svg = svg.replace(/<!--[\s\S]*?-->/g, "");
-  svg = svg.replace(/<sodipodi:namedview[\s\S]*?<\/sodipodi:namedview>/g, "");
 
-  // Elimina elementos de Inkscape/Sodipodi innecesarios
-  svg = svg.replace(/<inkscape:[^>]*\/>/g, "");
-  svg = svg.replace(/<inkscape:[^>]*>[\s\S]*?<\/inkscape:[^>]*>/g, "");
+  // Elimina TODOS los elementos de namespaces Inkscape/Sodipodi (self-closing y con cierre)
+  svg = svg.replace(/<(?:inkscape|sodipodi):[^>]*\/>/g, "");
+  svg = svg.replace(/<(?:inkscape|sodipodi):[^>]*>[\s\S]*?<\/(?:inkscape|sodipodi):[^>]*>/g, "");
   
-  // Elimina atributos de namespaces Inkscape/Sodipodi
-  svg = svg.replace(/\s(?:inkscape|sodipodi):[a-z-]+="[^"]*"/gi, "");
+  // Elimina atributos de namespaces Inkscape/Sodipodi (incluye r1, r2, arg1, etc.)
+  svg = svg.replace(/\s(?:inkscape|sodipodi):[a-z0-9-]+="[^"]*"/gi, "");
   
-  // Elimina TODOS los atributos id (no son necesarios para renderizado)
-  svg = svg.replace(/\sid="[^"]*"/g, "");
+  // Elimina IDs no referenciados (preserva los usados por url(), href, xlink:href)
+  const referencedIds = findReferencedIds(svg);
+  let removedIds = 0;
+  let keptIds = 0;
+  svg = svg.replace(/\sid="([^"]*)"/g, (match, id) => {
+    if (referencedIds.has(id)) { keptIds++; return match; }
+    removedIds++;
+    return '';
+  });
   
   // Elimina atributos xml:space
   svg = svg.replace(/\sxml:space="[^"]*"/g, "");
@@ -176,10 +201,13 @@ async function main() {
   svg = svg.replace(/\s(x|y|x1|y1|x2|y2|cx|cy|r|rx|ry|width|height|dx|dy)="([^"]*)"/g,
     (m, attr, val) => ` ${attr}="${roundNumber(val)}"`);
 
-  // Elimina imágenes embebidas (pueden causar renderizado pesado/duplicado)
-  const imageCountBefore = (svg.match(/<image[\s\S]*?(?:\/>|<\/image>)/g) || []).length;
-  svg = svg.replace(/<image[\s\S]*?(?:\/>|<\/image>)/g, "");
-  if (imageCountBefore) console.log("imágenes eliminadas:", imageCountBefore);
+  // Elimina imágenes embebidas (a menos que se use --keep-images)
+  let imageCountBefore = 0;
+  if (!keepImages) {
+    imageCountBefore = (svg.match(/<image[\s\S]*?(?:\/>|<\/image>)/g) || []).length;
+    svg = svg.replace(/<image[\s\S]*?(?:\/>|<\/image>)/g, "");
+    if (imageCountBefore) console.log("imágenes eliminadas:", imageCountBefore);
+  }
 
   // Elimina stroke-width de elementos text y tspan (causan texto "gordo")
   svg = svg.replace(/(<(?:text|tspan)[^>]*)\sstroke-width="[^"]*"/g, "$1");
@@ -261,10 +289,12 @@ async function main() {
 
   await fs.writeFile(output, svg, "utf8");
 
+  const reduction = ((1 - afterSize / beforeSize) * 100).toFixed(1);
   console.log("OK ->", output);
+  console.log(`IDs: ${removedIds} eliminados, ${keptIds} preservados (referenciados)`);
   console.log("style= antes:", styleCountBefore, "después:", styleCountAfter);
   console.log("reemplazos:", replaced, "clases únicas:", styleMap.size);
-  console.log("tamaño antes:", beforeSize, "después:", afterSize, "bytes");
+  console.log(`tamaño: ${beforeSize} → ${afterSize} bytes (−${reduction}%)`);
 }
 
 main().catch((e) => {

@@ -16,7 +16,7 @@ Panel6/   → panel6_source.svg
 1. **Editar** en Inkscape: `design/panels/PanelN/panelN_source.svg`
 2. **Optimizar** con el script:
    ```bash
-   node scripts/tools/optimize-panel-svg.mjs design/panels/Panel3/panel3_source.svg src/assets/panels/panel3_bg.svg
+   npm run optimize:svg -- design/panels/Panel3/panel3_source.svg src/assets/panels/panel3_bg.svg
    ```
 3. **Verificar** el resultado en la app
 

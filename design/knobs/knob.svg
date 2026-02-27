@@ -21,15 +21,15 @@
    inkscape:pageopacity="1"
    inkscape:pagecheckerboard="0"
    inkscape:deskcolor="#d1d1d1"
-   inkscape:zoom="2.7337027"
-   inkscape:cx="128.94599"
-   inkscape:cy="132.60403"
+   inkscape:zoom="1.6921282"
+   inkscape:cx="-1.1819436"
+   inkscape:cy="88.350281"
    inkscape:window-width="1920"
    inkscape:window-height="1005"
    inkscape:window-x="0"
    inkscape:window-y="0"
    inkscape:window-maximized="1"
-   inkscape:current-layer="svg75" />
+   inkscape:current-layer="EscalaSistema" />
   <defs
    id="defs2">
     <radialGradient
@@ -424,76 +424,77 @@
    font-weight="bold"
    fill="#ffffff"
    text-anchor="middle"
-   transform="matrix(0.9198797,0,0,0.9198797,8.0120287,8.0120298)">
+   transform="matrix(0.87017873,0,0,0.87017873,12.982132,12.97389)">
         <text
    id="text65"
-   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:15.08629988px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff"
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
    x="100.00014"
-   y="30.000019"><tspan
+   y="30.809925"><tspan
      sodipodi:role="line"
      id="tspan1"
      x="100.00014"
-     y="30.000019">10</tspan></text>
+     y="30.809925"
+     style="stroke-width:0.988402">10</tspan></text>
         <text
    transform="rotate(30)"
    id="text66"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="136.60271"
-   y="-33.397522">9</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="136.60175"
+   y="-32.587357">9</text>
         <text
    transform="rotate(60)"
    id="text67"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="136.60277"
-   y="-106.60269">8</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="136.6011"
+   y="-105.79182">8</text>
         <text
    transform="rotate(90)"
    id="text68"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="100.0001"
-   y="-170.00023">7</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="99.998177"
+   y="-169.1884">7</text>
         <text
    transform="rotate(120)"
    id="text69"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="36.602589"
-   y="-206.60283">6</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="36.600922"
+   y="-205.79004">6</text>
         <text
    transform="rotate(150)"
    id="text70"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="-36.602604"
-   y="-206.60278">5</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="-36.603565"
+   y="-205.78929">5</text>
         <text
    transform="scale(-1)"
    id="text71"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
    x="-100.00014"
-   y="-170.00027">4</text>
+   y="-169.18652">4</text>
         <text
    transform="rotate(-150)"
    id="text72"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="-136.60271"
-   y="-106.60267">3</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="-136.60175"
+   y="-105.78917">3</text>
         <text
    transform="rotate(-120)"
    id="text73"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="-136.60277"
-   y="-33.397552">2</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="-136.6011"
+   y="-32.584759">2</text>
         <text
    transform="rotate(-90)"
    id="text74"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="-100.0001"
-   y="30.000023">1</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="-99.998177"
+   y="30.811853">1</text>
         <text
    transform="rotate(-60)"
    id="text75"
-   style="font-weight:500;font-size:15.08629988px;font-family:'Univers 55';fill:#ffffff;-inkscape-font-specification:'Univers 55, Medium';font-style:normal;font-stretch:normal;font-variant:normal;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-   x="-36.602589"
-   y="66.602631">0</text>
+   style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:21.8612px;font-family:'Univers 55';-inkscape-font-specification:'Univers 55, Medium';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#ffffff;stroke-width:0.988402"
+   x="-36.600922"
+   y="67.413498">0</text>
       </g>
     </g>
     

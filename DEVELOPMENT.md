@@ -212,19 +212,29 @@ Las variables de `process.env` tienen prioridad sobre las de `.env`.
 
 ## Herramientas de desarrollo
 
-### Optimización de SVG de paneles
+### Optimización de SVG
 
-Los archivos fuente de diseño (Inkscape) están en `design/panels/`. Para generar los SVG optimizados que usa la app:
+El script `scripts/tools/optimize-svg.mjs` optimiza cualquier SVG de Inkscape para producción.
+Siempre se ejecuta sobre archivos en `src/assets/`, **nunca** sobre los fuentes de `design/`.
 
 ```bash
-npm run optimize:panel-svg -- design/panels/Panel3/panel3_source.svg src/assets/panels/panel3_bg.svg
+# Optimizar in-place (sobreescribe el archivo)
+npm run optimize:svg -- src/assets/knobs/knob.svg
+
+# Optimizar con salida a otro archivo
+npm run optimize:svg -- design/panels/Panel3/panel3_source.svg src/assets/panels/panel3_bg.svg
+
+# Preservar imágenes embebidas
+npm run optimize:svg -- src/assets/panels/panel_3.svg --keep-images
 ```
 
-El script (`scripts/tools/optimize-panel-svg.mjs`) realiza:
+El script realiza:
 - Eliminación de metadatos de Inkscape y atributos innecesarios
+- Eliminación de IDs no referenciados (preserva los usados por `url(#)`, `href`, `xlink:href`)
 - Compactación de colores (`#ffffff` → `#fff`)
 - Reducción de precisión en coordenadas
-- Deduplicación de estilos CSS
+- Deduplicación de estilos inline → clases CSS
+- Minificación de whitespace
 
 ## Estructura del Proyecto
 

@@ -23,20 +23,41 @@
   <defs>
     <!-- ==================== GRADIENTS ==================== -->
     
-    <!-- Brushed aluminum for outer disc ring -->
-    <radialGradient id="vd-metal" cx="45%" cy="42%" r="55%">
-      <stop offset="0%" stop-color="#e2e2e2"/>
-      <stop offset="25%" stop-color="#d6d6d6"/>
-      <stop offset="50%" stop-color="#cacaca"/>
-      <stop offset="75%" stop-color="#d0d0d0"/>
-      <stop offset="100%" stop-color="#b8b8b8"/>
+    <!-- Base silver tone for outer disc ring -->
+    <radialGradient id="vd-metal" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c8c8c8"/>
+      <stop offset="100%" stop-color="#b0b0b0"/>
     </radialGradient>
     
-    <!-- Bevel highlight for disc edge (3D rim effect) -->
-    <radialGradient id="vd-bevel" cx="42%" cy="40%" r="58%">
-      <stop offset="86%" stop-color="transparent"/>
-      <stop offset="93%" stop-color="rgba(255,255,255,0.3)"/>
+    <!-- Bevel highlight for disc outer edge (3D rim effect) -->
+    <radialGradient id="vd-bevel" cx="50%" cy="50%" r="50%">
+      <stop offset="88%" stop-color="transparent"/>
+      <stop offset="94%" stop-color="rgba(255,255,255,0.35)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.15)"/>
+    </radialGradient>
+    
+    <!-- Conical specular: bright band upper-left (light reflected on cone surface) -->
+    <linearGradient id="vd-coneSpec1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.50)"/>
+      <stop offset="20%" stop-color="rgba(255,255,255,0.30)"/>
+      <stop offset="40%" stop-color="rgba(255,255,255,0.05)"/>
+      <stop offset="60%" stop-color="transparent"/>
       <stop offset="100%" stop-color="rgba(0,0,0,0.12)"/>
+    </linearGradient>
+    
+    <!-- Conical specular 2: secondary catch-light, perpendicular axis -->
+    <linearGradient id="vd-coneSpec2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+      <stop offset="30%" stop-color="rgba(255,255,255,0.06)"/>
+      <stop offset="50%" stop-color="transparent"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </linearGradient>
+    
+    <!-- Inner shadow gradient (cone recedes toward center) -->
+    <radialGradient id="vd-coneInner" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="rgba(0,0,0,0.10)"/>
+      <stop offset="68%" stop-color="transparent"/>
+      <stop offset="100%" stop-color="transparent"/>
     </radialGradient>
     
     <!-- Depth gradient for hexagonal knob (light upper-left) -->
@@ -85,9 +106,9 @@
     <!-- Subtle inner edge highlight -->
     <circle cx="150" cy="150" r="95" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
     
-    <!-- ====== MAJOR TICK MARKS (10 marks, every 36°) ====== -->
-    <!-- Value 0 at 0° (12 o'clock = indicator position) -->
-    <use href="#vd-majTick"/>
+    <!-- ====== MAJOR TICK MARKS (9 marks, every 36° — 0 uses minor tick) ====== -->
+    <!-- Value 0 at 0° gets a minor tick only (number centered) -->
+    <use href="#vd-minTick"/>
     <!-- Value 10 at 36° -->
     <use href="#vd-majTick" transform="rotate(36,150,150)"/>
     <!-- Value 20 at 72° -->
@@ -159,21 +180,60 @@
     <use href="#vd-minTick" transform="rotate(345.6,150,150)"/>
     <use href="#vd-minTick" transform="rotate(352.8,150,150)"/>
     
-    <!-- ====== SCALE NUMBERS (upright text, r=72 from center) ====== -->
-    <!-- Numbers are positioned upright (readable); they rotate with the disc -->
+    <!-- ====== SCALE NUMBERS (radially oriented, split around tick) ====== -->
+    <!-- Each number rotated so baseline points outward from center.
+         Tens digit LEFT of tick, units digit RIGHT of tick.
+         Exception: "0" is centered (no major tick). -->
     <g font-family="'DIN Bold','Futura Bold','Futura','Univers 55','Helvetica Neue',Arial,sans-serif"
-       font-weight="bold" font-size="16" fill="#ffffff"
-       text-anchor="middle" dominant-baseline="central">
-      <text x="150.0" y="78.0">0</text>
-      <text x="192.3" y="91.8">10</text>
-      <text x="218.5" y="127.7">20</text>
-      <text x="218.5" y="172.3">30</text>
-      <text x="192.3" y="208.2">40</text>
-      <text x="150.0" y="222.0">50</text>
-      <text x="107.7" y="208.2">60</text>
-      <text x="81.5"  y="172.3">70</text>
-      <text x="81.5"  y="127.7">80</text>
-      <text x="107.7" y="91.8">90</text>
+       font-weight="bold" font-size="14" fill="#ffffff"
+       dominant-baseline="central">
+      <!-- 0 at 0° — centered, no major tick -->
+      <text x="150" y="76" text-anchor="middle">0</text>
+      <!-- 10 at 36° — "1" left of tick, "0" right -->
+      <g transform="rotate(36,150,150)">
+        <text x="147" y="76" text-anchor="end">1</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 20 at 72° -->
+      <g transform="rotate(72,150,150)">
+        <text x="147" y="76" text-anchor="end">2</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 30 at 108° -->
+      <g transform="rotate(108,150,150)">
+        <text x="147" y="76" text-anchor="end">3</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 40 at 144° -->
+      <g transform="rotate(144,150,150)">
+        <text x="147" y="76" text-anchor="end">4</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 50 at 180° -->
+      <g transform="rotate(180,150,150)">
+        <text x="147" y="76" text-anchor="end">5</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 60 at 216° -->
+      <g transform="rotate(216,150,150)">
+        <text x="147" y="76" text-anchor="end">6</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 70 at 252° -->
+      <g transform="rotate(252,150,150)">
+        <text x="147" y="76" text-anchor="end">7</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 80 at 288° -->
+      <g transform="rotate(288,150,150)">
+        <text x="147" y="76" text-anchor="end">8</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
+      <!-- 90 at 324° -->
+      <g transform="rotate(324,150,150)">
+        <text x="147" y="76" text-anchor="end">9</text>
+        <text x="153" y="76" text-anchor="start">0</text>
+      </g>
     </g>
   </g>
 
@@ -199,20 +259,111 @@
       <circle cx="150" cy="150" r="140" fill="none" stroke="#999" stroke-width="0.7"/>
       <circle cx="150" cy="150" r="138.5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>
       
-      <!-- Brushed metal texture (concentric circular striations) -->
-      <circle cx="150" cy="150" r="136" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
-      <circle cx="150" cy="150" r="132" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
-      <circle cx="150" cy="150" r="128" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
-      <circle cx="150" cy="150" r="124" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
-      <circle cx="150" cy="150" r="120" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
-      <circle cx="150" cy="150" r="116" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
-      <circle cx="150" cy="150" r="112" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
-      <circle cx="150" cy="150" r="108" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
-      <circle cx="150" cy="150" r="104" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <!-- Radial brushed metal (cone surface: lines radiate from center) -->
+      <!-- 90 lines every 4°, visible striations for machined aluminium -->
+      <g stroke-linecap="butt" opacity="0.8">
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(0,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(4,150,150)" stroke="#b8b8b8" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(8,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(12,150,150)" stroke="#bcbcbc" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(16,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(20,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(24,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(28,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(32,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(36,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(40,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(44,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(48,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(52,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(56,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(60,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(64,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(68,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(72,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(76,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(80,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(84,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(88,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(92,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(96,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(100,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(104,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(108,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(112,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(116,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(120,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(124,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(128,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(132,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(136,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(140,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(144,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(148,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(152,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(156,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(160,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(164,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(168,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(172,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(176,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(180,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(184,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(188,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(192,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(196,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(200,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(204,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(208,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(212,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(216,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(220,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(224,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(228,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(232,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(236,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(240,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(244,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(248,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(252,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(256,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(260,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(264,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(268,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(272,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(276,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(280,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(284,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(288,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(292,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(296,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(300,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(304,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(308,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(312,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(316,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(320,150,150)" stroke="#d8d8d8" stroke-width="1.2"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(324,150,150)" stroke="#bababa" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(328,150,150)" stroke="#d0d0d0" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(332,150,150)" stroke="#b8b8b8" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(336,150,150)" stroke="#d5d5d5" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(340,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(344,150,150)" stroke="#d2d2d2" stroke-width="1.0"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(348,150,150)" stroke="#b6b6b6" stroke-width="0.7"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(352,150,150)" stroke="#d8d8d8" stroke-width="1.1"/>
+        <line x1="150" y1="12" x2="150" y2="96" transform="rotate(356,150,150)" stroke="#bcbcbc" stroke-width="0.8"/>
+      </g>
+      
+      <!-- Conical specular highlight: main catch-light upper-left -->
+      <circle cx="150" cy="150" r="140" fill="url(#vd-coneSpec1)"/>
+      <!-- Secondary specular catch-light -->
+      <circle cx="150" cy="150" r="140" fill="url(#vd-coneSpec2)"/>
+      <!-- Inner darkening (cone recedes toward center hole) -->
+      <circle cx="150" cy="150" r="140" fill="url(#vd-coneInner)"/>
       
       <!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) -->
-      <circle cx="150" cy="150" r="97" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="2"/>
-      <circle cx="150" cy="150" r="96.5" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+      <circle cx="150" cy="150" r="97" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="2.5"/>
+      <circle cx="150" cy="150" r="96.5" fill="none" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
     </g>
     
     <!-- Counter window (on the ring surface between r=96 and r=140) -->

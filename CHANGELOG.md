@@ -47,7 +47,12 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Electron: Buscar actualizaciones abre GitHub Releases** en navegador externo.
 - **UI: selector de resolución oculto**. La app siempre inicia en 1x.
 
+### Cambiado (herramientas)
+- **Script de optimización SVG generalizado**: `optimize-panel-svg.mjs` → `optimize-svg.mjs`. Preserva IDs referenciados (`url(#)`, `href`, `xlink:href`). Eliminación de imágenes opcional (`--keep-images`). Salida por defecto = mismo archivo (in-place). Corregidas regex para elementos sodipodi self-closing y atributos con dígitos (`sodipodi:r1`, `arg2`, etc.).
+- **SVGs optimizados**: knob.svg −53%, knob-0-center.svg −53%, centro-knob-amarillo.svg −60%, panel_3.svg −55%. Tamaño de fuente de knobs ampliado a ~22px.
+
 ### Corregido
+- **Knobs bipolares (knob-0-center) mostraban valor incorrecto**: El SVG bipolar tiene rotación interna de 150° que no se compensaba en CSS. Añadido `angleOffset` en Knob (−150° para bipolares) para que la escala −5/+5 muestre el valor correcto.
 - **Fuente Microgramma en móvil**: El SVG de panel 3 usaba `font-family:'Microgramma D Extended'` (nombre PostScript local) y se cargaba como `background-image` (aislado del DOM). En móvil la fuente no existe y no heredaba los `@font-face` WOFF2. Corregido: renombrado a `'Microgramma Extended'` (204 ocurrencias) e inyección inline del SVG en el DOM. Ajustado también `font-weight: 600` → `700` en 8 selectores CSS con `--font-synthi`.
 - **Knobs SVG: centrado preciso del anillo**: La rotación del grupo SVG se delega a CSS (`transform-origin: 50% 50%`) eliminando el pivot descentrado de Inkscape. SVG sin transform en el grupo principal; ángulos CSS 150°–450°.
 - **Viewport no restauraba posición/zoom entre sesiones**: El handler de estabilización de `visualViewport` reseteaba incondicionalmente a vista general durante los primeros 4s de carga, machacando el estado restaurado de localStorage. Ahora respeta `userHasAdjustedView`. Guardado periódico con debounce (2s) además de `beforeunload`/`visibilitychange`.

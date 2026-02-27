@@ -27,7 +27,9 @@ export class Knob {
       // Recibe (value, scaleValue) y retorna string o null
       getTooltipInfo = null,
       // Tiempo de auto-ocultado del tooltip en móvil (ms)
-      tooltipAutoHideDelay = 3000
+      tooltipAutoHideDelay = 3000,
+      // Offset angular para SVGs con rotación interna (ej: knob-0-center.svg = -150)
+      angleOffset = 0
     } = options;
 
     this.valueEl = valueElement;
@@ -75,11 +77,11 @@ export class Knob {
     this._pendingValue = null;
 
     // Rango de rotación: 300° (10/12 circunferencia).
-    // El SVG NO tiene rotación interna — CSS maneja toda la rotación.
     // Offset de 150° para orientar el "0" abajo-izquierda (posición original del Synthi).
     // rotate(150deg) = valor 0, rotate(450deg) = valor 10.
-    this.minAngle = 150;
-    this.maxAngle = 450;
+    // angleOffset compensa SVGs con rotación interna (knob-0-center.svg tiene 150° interno).
+    this.minAngle = 150 + angleOffset;
+    this.maxAngle = 450 + angleOffset;
     
     // Registrar callback de ocultación de tooltip para eventos globales (zoom/pan, tap fuera)
     this._tooltipHideCallback = () => {

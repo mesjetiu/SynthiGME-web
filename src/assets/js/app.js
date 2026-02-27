@@ -5230,6 +5230,7 @@ class App {
       max: pulseWidthCfg.max ?? 1,
       initial: pulseWidthCfg.initial ?? 0.5,
       pixelsForFullRange: pulseWidthCfg.pixelsForFullRange ?? 900,
+      angleOffset: -150,
       onChange: value => {
         this._updatePanelPulseWidth(panelIndex, oscIndex, value);
         if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {
@@ -5275,6 +5276,7 @@ class App {
       max: sineSymmetryCfg.max ?? 1,
       initial: sineSymmetryCfg.initial ?? 0.5,
       pixelsForFullRange: sineSymmetryCfg.pixelsForFullRange ?? 900,
+      angleOffset: -150,
       onChange: value => {
         this._updatePanelSineSymmetry(panelIndex, oscIndex, value);
         if (panelIndex === 3 && !oscillatorOSCSync.shouldIgnoreOSC()) {

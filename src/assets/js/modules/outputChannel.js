@@ -237,6 +237,7 @@ export class OutputChannel extends Module {
         scaleMin: -5,
         scaleMax: 5,
         scaleDecimals: 1,
+        angleOffset: -150,
         valueElement: this.filterValueEl,
         onChange: (value) => {
           this.values.filter = value;
@@ -261,6 +262,7 @@ export class OutputChannel extends Module {
         scaleMin: -5,
         scaleMax: 5,
         scaleDecimals: 1,
+        angleOffset: -150,
         valueElement: this.panValueEl,
         onChange: (value) => {
           this.values.pan = value;

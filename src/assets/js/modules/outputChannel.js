@@ -17,6 +17,7 @@ import { Module } from '../core/engine.js';
 import { ModuleFrame } from '../ui/moduleFrame.js';
 import { Knob } from '../ui/knob.js';
 import { createKnobElements } from '../ui/knobFactory.js';
+import { KNOB_BLUE, KNOB_WHITE } from '../configs/knobColors.js';
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import { outputChannelConfig } from '../configs/index.js';
 import { 
@@ -167,7 +168,7 @@ export class OutputChannel extends Module {
       size: 'sm',
       className: 'output-channel__knob-wrap',
       showValue: true,
-      centerColor: '#547FA1',  // azul
+      centerColor: KNOB_BLUE,
       svgSrc: 'assets/knobs/knob-0-center.svg'
     });
     
@@ -199,7 +200,7 @@ export class OutputChannel extends Module {
       size: 'sm',
       className: 'output-channel__knob-wrap',
       showValue: true,
-      centerColor: '#BEB7B1',  // blanco
+      centerColor: KNOB_WHITE,
       svgSrc: 'assets/knobs/knob-0-center.svg'
     });
     

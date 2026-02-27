@@ -15,6 +15,7 @@
 
 import { ModuleFrame } from './moduleFrame.js';
 import { Knob } from './knob.js';
+import { KNOB_WHITE } from '../configs/knobColors.js';
 
 export class InputAmplifierUI {
   
@@ -150,7 +151,7 @@ export class InputAmplifierUI {
     knobEl.appendChild(inner);
     const knobCenter = document.createElement('div');
     knobCenter.className = 'knob-center';
-    knobCenter.style.setProperty('--knob-center-color', '#BEB7B1');  // blanco
+    knobCenter.style.setProperty('--knob-center-color', KNOB_WHITE);
     knobEl.appendChild(knobCenter);
     wrapper.appendChild(knobEl);
     

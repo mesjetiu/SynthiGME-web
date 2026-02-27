@@ -28,6 +28,7 @@
  */
 
 import { ModuleUI } from './moduleUI.js';
+import { KNOB_RED, KNOB_WHITE } from '../configs/knobColors.js';
 
 export class RandomVoltage extends ModuleUI {
   /**
@@ -43,11 +44,11 @@ export class RandomVoltage extends ModuleUI {
       title: options.title || 'Random Voltage',
       cssClass: 'random-voltage',
       knobDefs: [
-        { key: 'mean', label: 'Mean', color: '#B54049' },
-        { key: 'variance', label: 'Variance', color: '#B54049' },
-        { key: 'voltage1', label: 'Voltage 1', color: '#BEB7B1' },
-        { key: 'voltage2', label: 'Voltage 2', color: '#BEB7B1' },
-        { key: 'key', label: 'Key', color: '#BEB7B1' }
+        { key: 'mean', label: 'Mean', color: KNOB_RED },
+        { key: 'variance', label: 'Variance', color: KNOB_RED },
+        { key: 'voltage1', label: 'Voltage 1', color: KNOB_WHITE },
+        { key: 'voltage2', label: 'Voltage 2', color: KNOB_WHITE },
+        { key: 'key', label: 'Key', color: KNOB_WHITE }
       ],
       knobOptions: options.knobOptions || {},
       knobSize: options.knobSize || 40,

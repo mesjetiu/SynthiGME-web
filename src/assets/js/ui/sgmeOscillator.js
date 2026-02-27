@@ -9,6 +9,7 @@
 // UI scaffold for SGME Oscillator (solo interacción visual; sin audio por ahora)
 import { Knob } from './knob.js';
 import { flashGlow } from './glowManager.js';
+import { KNOB_BLUE, KNOB_GREEN, KNOB_WHITE, KNOB_BLACK } from '../configs/knobColors.js';
 const DEFAULT_KNOB_LABELS = [
   'Pulse level',
   'Pulse shape',
@@ -22,13 +23,13 @@ const DEFAULT_KNOB_LABELS = [
 // Colores de centro por knob (Synthi 100 original)
 // Orden: pulse level, pulse shape, sine level, sine symmetry, triangle, sawtooth, freq
 const DEFAULT_KNOB_COLORS = [
-  '#547FA1', // 0: Pulse level — azul
-  '#467660', // 1: Pulse shape — verde
-  '#BEB7B1', // 2: Sine level — blanco
-  '#467660', // 3: Sine symmetry — verde
-  '#547FA1', // 4: Triangle level — azul
-  '#BEB7B1', // 5: Sawtooth level — blanco
-  '#242227'  // 6: Frequency — negro
+  KNOB_BLUE,   // 0: Pulse level
+  KNOB_GREEN,  // 1: Pulse shape
+  KNOB_WHITE,  // 2: Sine level
+  KNOB_GREEN,  // 3: Sine symmetry
+  KNOB_BLUE,   // 4: Triangle level
+  KNOB_WHITE,  // 5: Sawtooth level
+  KNOB_BLACK   // 6: Frequency
 ];
 
 // Escalas de display estilo Synthi 100: índices 1 (shape) y 3 (symmetry) son bipolares (-5 a +5)

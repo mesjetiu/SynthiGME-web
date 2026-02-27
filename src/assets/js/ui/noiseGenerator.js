@@ -22,6 +22,7 @@
  */
 
 import { ModuleUI } from './moduleUI.js';
+import { KNOB_BLUE, KNOB_WHITE } from '../configs/knobColors.js';
 
 export class NoiseGenerator extends ModuleUI {
   /**
@@ -37,8 +38,8 @@ export class NoiseGenerator extends ModuleUI {
       title: options.title || 'Noise',
       cssClass: 'noise-generator',
       knobDefs: [
-        { key: 'colour', label: 'Colour', color: '#547FA1' },
-        { key: 'level', label: 'Level', color: '#BEB7B1' }
+        { key: 'colour', label: 'Colour', color: KNOB_BLUE },
+        { key: 'level', label: 'Level', color: KNOB_WHITE }
       ],
       knobOptions: options.knobOptions || {},
       knobSize: options.knobSize || 40,

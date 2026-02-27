@@ -1156,7 +1156,7 @@ h1 {
   inset: 0;
   margin: auto;
   border-radius: 50%;
-  /* Color por defecto (verde), sobrescrito inline por cada módulo */
+  /* Color por defecto (verde = KNOB_GREEN de knobColors.js), sobrescrito inline por cada módulo */
   background: var(--knob-center-color, #467660);
   pointer-events: none;
 }

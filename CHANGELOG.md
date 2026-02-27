@@ -49,7 +49,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Cambiado (herramientas)
 - **Script de optimización SVG generalizado**: `optimize-panel-svg.mjs` → `optimize-svg.mjs`. Preserva IDs referenciados (`url(#)`, `href`, `xlink:href`). Eliminación de imágenes opcional (`--keep-images`). Salida por defecto = mismo archivo (in-place). Corregidas regex para elementos sodipodi self-closing y atributos con dígitos (`sodipodi:r1`, `arg2`, etc.).
-- **SVGs optimizados**: knob.svg −53%, knob-0-center.svg −53%, centro-knob-amarillo.svg −60%, panel_3.svg −55%. Tamaño de fuente de knobs ampliado a ~22px.
+- **SVGs optimizados**: knob.svg −53%, knob-0-center.svg −53%, panel_3.svg −55%. Tamaño de fuente de knobs ampliado a ~22px.
+- **Colores de centro de knobs centralizados**: Nuevo `configs/knobColors.js` como fuente única de verdad (azul, verde, blanco, negro, rojo, amarillo). Eliminados hex hardcoded de 6 archivos. Eliminado `centro-knob-amarillo.svg` (no se usaba; el color se aplica via CSS `--knob-center-color`).
 
 ### Corregido
 - **Knobs bipolares (knob-0-center) mostraban valor incorrecto**: El SVG bipolar tiene rotación interna de 150° que no se compensaba en CSS. Añadido `angleOffset` en Knob (−150° para bipolares) para que la escala −5/+5 muestre el valor correcto.

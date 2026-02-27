@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Spectrol Multi-turn Vernier Dial (Model 15 style)
+  Based on EMS Synthi 100 frequency/range controls
+  
+  viewBox: 300x300, center at (150,150)
+  
+  Layer structure (bottom to top):
+    #GyratoryBlackDisk    - Rotating inner disc with 0-100 scale (rotate via CSS/JS)
+    #FixedSilverOuterDisk - Chrome outer ring (static, masked donut shape)
+    #ClickableBrakeLever  - Friction brake lever (interactive)
+    #CentralHexKnob       - Hexagonal grip knob (rotates with inner disc)
+    #counterDigit         - Turn counter text element (update programmatically 0-9)
+  
+  Usage:
+    - Rotate #GyratoryBlackDisk and #CentralHexKnob together for dial control
+    - Update #counterDigit text for the turn counter (0-9)
+    - #FixedSilverOuterDisk and indicator remain static
+  
+  Typography: DIN Bold / Futura Bold / Helvetica Neue (sans-serif fallback)
+-->
+<svg viewBox="0 0 300 300" width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- ==================== GRADIENTS ==================== -->
+    
+    <!-- Brushed aluminum for outer disc ring -->
+    <radialGradient id="vd-metal" cx="45%" cy="42%" r="55%">
+      <stop offset="0%" stop-color="#e2e2e2"/>
+      <stop offset="25%" stop-color="#d6d6d6"/>
+      <stop offset="50%" stop-color="#cacaca"/>
+      <stop offset="75%" stop-color="#d0d0d0"/>
+      <stop offset="100%" stop-color="#b8b8b8"/>
+    </radialGradient>
+    
+    <!-- Bevel highlight for disc edge (3D rim effect) -->
+    <radialGradient id="vd-bevel" cx="42%" cy="40%" r="58%">
+      <stop offset="86%" stop-color="transparent"/>
+      <stop offset="93%" stop-color="rgba(255,255,255,0.3)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.12)"/>
+    </radialGradient>
+    
+    <!-- Depth gradient for hexagonal knob (light upper-left) -->
+    <radialGradient id="vd-knob" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#404040"/>
+      <stop offset="50%" stop-color="#2a2a2a"/>
+      <stop offset="100%" stop-color="#151515"/>
+    </radialGradient>
+    
+    <!-- Center cap gradient -->
+    <radialGradient id="vd-cap" cx="42%" cy="38%" r="60%">
+      <stop offset="0%" stop-color="#333"/>
+      <stop offset="100%" stop-color="#111"/>
+    </radialGradient>
+    
+    <!-- ==================== MASKS ==================== -->
+    
+    <!-- Ring mask: cuts a circular hole in the outer disc to reveal inner disc -->
+    <mask id="vd-ringMask">
+      <rect width="300" height="300" fill="white"/>
+      <circle cx="150" cy="150" r="96" fill="black"/>
+    </mask>
+    
+    <!-- ==================== TICK DEFINITIONS ==================== -->
+    
+    <!-- Major tick mark (at every 10 units: 0, 10, 20...90) -->
+    <line id="vd-majTick" x1="150" y1="56" x2="150" y2="67"
+          stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
+    
+    <!-- Minor tick mark (at every 2 units between majors) -->
+    <line id="vd-minTick" x1="150" y1="56" x2="150" y2="62"
+          stroke="#cccccc" stroke-width="0.8" stroke-linecap="round"/>
+  </defs>
+
+
+  <!-- ============================================================ -->
+  <!-- LAYER 1: ROTATING BLACK DISC WITH SCALE                      -->
+  <!-- Rotate this group via CSS transform-origin: 150px 150px      -->
+  <!-- One full rotation (360°) = 0 to 100 on the scale             -->
+  <!-- Each unit = 3.6°, each major division (10) = 36°             -->
+  <!-- ============================================================ -->
+  <g id="GyratoryBlackDisk">
+    <!-- Black disc surface -->
+    <circle cx="150" cy="150" r="96" fill="#1a1a1a"/>
+    <circle cx="150" cy="150" r="96" fill="none" stroke="#2a2a2a" stroke-width="0.5"/>
+    <!-- Subtle inner edge highlight -->
+    <circle cx="150" cy="150" r="95" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+    
+    <!-- ====== MAJOR TICK MARKS (10 marks, every 36°) ====== -->
+    <!-- Value 0 at 0° (12 o'clock = indicator position) -->
+    <use href="#vd-majTick"/>
+    <!-- Value 10 at 36° -->
+    <use href="#vd-majTick" transform="rotate(36,150,150)"/>
+    <!-- Value 20 at 72° -->
+    <use href="#vd-majTick" transform="rotate(72,150,150)"/>
+    <!-- Value 30 at 108° -->
+    <use href="#vd-majTick" transform="rotate(108,150,150)"/>
+    <!-- Value 40 at 144° -->
+    <use href="#vd-majTick" transform="rotate(144,150,150)"/>
+    <!-- Value 50 at 180° -->
+    <use href="#vd-majTick" transform="rotate(180,150,150)"/>
+    <!-- Value 60 at 216° -->
+    <use href="#vd-majTick" transform="rotate(216,150,150)"/>
+    <!-- Value 70 at 252° -->
+    <use href="#vd-majTick" transform="rotate(252,150,150)"/>
+    <!-- Value 80 at 288° -->
+    <use href="#vd-majTick" transform="rotate(288,150,150)"/>
+    <!-- Value 90 at 324° -->
+    <use href="#vd-majTick" transform="rotate(324,150,150)"/>
+    
+    <!-- ====== MINOR TICK MARKS (40 marks, every 7.2° between majors) ====== -->
+    <!-- Section 0→10 (7.2°, 14.4°, 21.6°, 28.8°) -->
+    <use href="#vd-minTick" transform="rotate(7.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(14.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(21.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(28.8,150,150)"/>
+    <!-- Section 10→20 -->
+    <use href="#vd-minTick" transform="rotate(43.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(50.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(57.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(64.8,150,150)"/>
+    <!-- Section 20→30 -->
+    <use href="#vd-minTick" transform="rotate(79.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(86.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(93.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(100.8,150,150)"/>
+    <!-- Section 30→40 -->
+    <use href="#vd-minTick" transform="rotate(115.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(122.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(129.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(136.8,150,150)"/>
+    <!-- Section 40→50 -->
+    <use href="#vd-minTick" transform="rotate(151.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(158.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(165.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(172.8,150,150)"/>
+    <!-- Section 50→60 -->
+    <use href="#vd-minTick" transform="rotate(187.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(194.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(201.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(208.8,150,150)"/>
+    <!-- Section 60→70 -->
+    <use href="#vd-minTick" transform="rotate(223.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(230.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(237.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(244.8,150,150)"/>
+    <!-- Section 70→80 -->
+    <use href="#vd-minTick" transform="rotate(259.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(266.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(273.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(280.8,150,150)"/>
+    <!-- Section 80→90 -->
+    <use href="#vd-minTick" transform="rotate(295.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(302.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(309.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(316.8,150,150)"/>
+    <!-- Section 90→0 -->
+    <use href="#vd-minTick" transform="rotate(331.2,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(338.4,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(345.6,150,150)"/>
+    <use href="#vd-minTick" transform="rotate(352.8,150,150)"/>
+    
+    <!-- ====== SCALE NUMBERS (upright text, r=72 from center) ====== -->
+    <!-- Numbers are positioned upright (readable); they rotate with the disc -->
+    <g font-family="'DIN Bold','Futura Bold','Futura','Univers 55','Helvetica Neue',Arial,sans-serif"
+       font-weight="bold" font-size="16" fill="#ffffff"
+       text-anchor="middle" dominant-baseline="central">
+      <text x="150.0" y="78.0">0</text>
+      <text x="192.3" y="91.8">10</text>
+      <text x="218.5" y="127.7">20</text>
+      <text x="218.5" y="172.3">30</text>
+      <text x="192.3" y="208.2">40</text>
+      <text x="150.0" y="222.0">50</text>
+      <text x="107.7" y="208.2">60</text>
+      <text x="81.5"  y="172.3">70</text>
+      <text x="81.5"  y="127.7">80</text>
+      <text x="107.7" y="91.8">90</text>
+    </g>
+  </g>
+
+
+  <!-- ============================================================ -->
+  <!-- LAYER 2: FIXED SILVER OUTER DISC (ring shape, static)        -->
+  <!-- Masked to create a donut: outer r=140, inner hole r=96       -->
+  <!-- This ring sits ON TOP of the inner disc edge                 -->
+  <!-- ============================================================ -->
+  <g id="FixedSilverOuterDisk">
+    <!-- Outer disc ring (masked to donut shape) -->
+    <g mask="url(#vd-ringMask)">
+      <!-- Drop shadow (offset 2px right and down) -->
+      <circle cx="152" cy="153" r="141" fill="rgba(0,0,0,0.12)"/>
+      
+      <!-- Main disc body (brushed aluminum) -->
+      <circle cx="150" cy="150" r="140" fill="url(#vd-metal)"/>
+      
+      <!-- 3D bevel effect on rim -->
+      <circle cx="150" cy="150" r="140" fill="url(#vd-bevel)"/>
+      
+      <!-- Outer edge details -->
+      <circle cx="150" cy="150" r="140" fill="none" stroke="#999" stroke-width="0.7"/>
+      <circle cx="150" cy="150" r="138.5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>
+      
+      <!-- Brushed metal texture (concentric circular striations) -->
+      <circle cx="150" cy="150" r="136" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="132" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="128" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="124" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="120" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="116" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="112" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      <circle cx="150" cy="150" r="108" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+      <circle cx="150" cy="150" r="104" fill="none" stroke="rgba(0,0,0,0.03)" stroke-width="0.4"/>
+      
+      <!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) -->
+      <circle cx="150" cy="150" r="97" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="2"/>
+      <circle cx="150" cy="150" r="96.5" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+    </g>
+    
+    <!-- Counter window (on the ring surface between r=96 and r=140) -->
+    <!-- Window frame -->
+    <rect x="136" y="14" width="28" height="24" rx="3" ry="3"
+          fill="#080808" stroke="#888" stroke-width="0.8"/>
+    <!-- Drum shadow (top and bottom of window opening) -->
+    <rect x="137" y="15" width="26" height="4" rx="1" fill="rgba(0,0,0,0.5)"/>
+    <rect x="137" y="33" width="26" height="4" rx="1" fill="rgba(0,0,0,0.3)"/>
+    <!-- Counter digit (update programmatically: 0-9 for turn count) -->
+    <text id="counterDigit" x="150" y="28"
+          text-anchor="middle" dominant-baseline="central"
+          font-family="'DIN Bold','Futura Bold','Futura','Helvetica Neue',Arial,sans-serif"
+          font-size="19" font-weight="bold" fill="#ffffff">0</text>
+    
+    <!-- Indicator mark / reading pointer (below counter window) -->
+    <!-- Small triangle pointing inward toward the scale -->
+    <polygon points="150,55 147,44 153,44" fill="#333" stroke="#222" stroke-width="0.4"/>
+    <!-- Fine indicator line extending to disc edge -->
+    <line x1="150" y1="52" x2="150" y2="56" stroke="#222" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+
+
+  <!-- ============================================================ -->
+  <!-- LAYER 3: FRICTION BRAKE LEVER (clickable, upper-right)       -->
+  <!-- Rotated 40° from 12 o'clock on the outer disc surface        -->
+  <!-- ============================================================ -->
+  <g id="ClickableBrakeLever">
+    <g transform="rotate(40,150,150)">
+      <!-- Lever arm -->
+      <rect x="147" y="4" width="6" height="15" rx="2" ry="2"
+            fill="#b5b5b5" stroke="#888" stroke-width="0.5"/>
+      <!-- Knurled top of lever -->
+      <rect x="147.5" y="4.5" width="5" height="5" rx="1" fill="#c8c8c8"/>
+      <!-- Pivot screw -->
+      <circle cx="150" cy="13" r="3.5" fill="#c0c0c0" stroke="#888" stroke-width="0.5"/>
+      <circle cx="150" cy="13" r="1.8" fill="#a8a8a8"/>
+      <!-- Screw slot -->
+      <line x1="148.5" y1="13" x2="151.5" y2="13" stroke="#888" stroke-width="0.6"/>
+    </g>
+  </g>
+
+
+  <!-- ============================================================ -->
+  <!-- LAYER 4: CENTRAL HEXAGONAL KNOB (topmost)                    -->
+  <!-- Rotates together with GyratoryBlackDisk                      -->
+  <!-- Hex circumradius = 38, pointy-top orientation                -->
+  <!-- ============================================================ -->
+  <g id="CentralHexKnob">
+    <!-- Cast shadow (depth illusion — knob is recessed) -->
+    <circle cx="151" cy="152" r="42" fill="rgba(0,0,0,0.2)"/>
+    
+    <!-- Recess ring (dark area around hex knob) -->
+    <circle cx="150" cy="150" r="42" fill="#111"/>
+    <circle cx="150" cy="150" r="42" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
+    
+    <!-- Hexagonal knob body -->
+    <!-- 6 vertices at r=38, pointy-top: 0°, 60°, 120°, 180°, 240°, 300° -->
+    <polygon points="150,112 182.9,131 182.9,169 150,188 117.1,169 117.1,131"
+             fill="url(#vd-knob)" stroke="#3a3a3a" stroke-width="0.5"/>
+    
+    <!-- 3D facet shading (upper faces brighter, lower faces darker) -->
+    <!-- Upper-left face -->
+    <polygon points="150,112 117.1,131 150,150"
+             fill="rgba(255,255,255,0.06)"/>
+    <!-- Upper-right face -->
+    <polygon points="150,112 182.9,131 150,150"
+             fill="rgba(255,255,255,0.04)"/>
+    <!-- Lower-left face -->
+    <polygon points="117.1,169 150,188 150,150"
+             fill="rgba(0,0,0,0.06)"/>
+    <!-- Lower-right face -->
+    <polygon points="182.9,169 150,188 150,150"
+             fill="rgba(0,0,0,0.1)"/>
+    
+    <!-- Hex edge highlights (top edges bright, bottom edges dark) -->
+    <line x1="117.1" y1="131" x2="150" y2="112" stroke="rgba(255,255,255,0.12)" stroke-width="0.6"/>
+    <line x1="150" y1="112" x2="182.9" y2="131" stroke="rgba(255,255,255,0.1)" stroke-width="0.6"/>
+    <line x1="182.9" y1="169" x2="150" y2="188" stroke="rgba(0,0,0,0.15)" stroke-width="0.6"/>
+    <line x1="150" y1="188" x2="117.1" y2="169" stroke="rgba(0,0,0,0.15)" stroke-width="0.6"/>
+    <!-- Side edges (neutral) -->
+    <line x1="182.9" y1="131" x2="182.9" y2="169" stroke="rgba(0,0,0,0.05)" stroke-width="0.5"/>
+    <line x1="117.1" y1="131" x2="117.1" y2="169" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+    
+    <!-- Central grip cap (raised circle in center of hex) -->
+    <circle cx="150" cy="150" r="18" fill="url(#vd-cap)" stroke="#2a2a2a" stroke-width="0.5"/>
+    <!-- Cap highlight ring -->
+    <circle cx="150" cy="150" r="16" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+    <!-- Inner ring detail -->
+    <circle cx="150" cy="150" r="12" fill="#1a1a1a" stroke="#282828" stroke-width="0.4"/>
+    
+    <!-- Rotation reference indicator (small dot near edge of hex, top) -->
+    <circle cx="150" cy="116" r="2" fill="#4a4a4a" stroke="#333" stroke-width="0.3"/>
+  </g>
+</svg>

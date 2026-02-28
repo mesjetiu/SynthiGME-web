@@ -31,36 +31,36 @@
     
     <!-- Bevel highlight for disc outer edge (3D rim effect) -->
     <radialGradient id="vd-bevel" cx="50%" cy="50%" r="50%">
-      <stop offset="88%" stop-color="transparent"/>
-      <stop offset="94%" stop-color="rgba(255,255,255,0.35)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.15)"/>
+      <stop offset="88%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="94%" stop-color="rgb(255,255,255)" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="rgb(0,0,0)" stop-opacity="0.15"/>
     </radialGradient>
     
     <!-- Conical specular: strong bright band upper-left, shadow lower-right -->
     <linearGradient id="vd-coneSpec1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.55)"/>
-      <stop offset="12%" stop-color="rgba(255,255,255,0.35)"/>
-      <stop offset="30%" stop-color="rgba(255,255,255,0.12)"/>
-      <stop offset="48%" stop-color="transparent"/>
-      <stop offset="65%" stop-color="rgba(0,0,0,0.05)"/>
-      <stop offset="82%" stop-color="rgba(0,0,0,0.12)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.20)"/>
+      <stop offset="0%" stop-color="rgb(255,255,255)" stop-opacity="0.55"/>
+      <stop offset="12%" stop-color="rgb(255,255,255)" stop-opacity="0.35"/>
+      <stop offset="30%" stop-color="rgb(255,255,255)" stop-opacity="0.12"/>
+      <stop offset="48%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="65%" stop-color="rgb(0,0,0)" stop-opacity="0.05"/>
+      <stop offset="82%" stop-color="rgb(0,0,0)" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="rgb(0,0,0)" stop-opacity="0.20"/>
     </linearGradient>
     
     <!-- Conical specular 2: secondary perpendicular catch-light + shadow -->
     <linearGradient id="vd-coneSpec2" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
-      <stop offset="20%" stop-color="rgba(255,255,255,0.06)"/>
-      <stop offset="45%" stop-color="transparent"/>
-      <stop offset="70%" stop-color="rgba(0,0,0,0.04)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.10)"/>
+      <stop offset="0%" stop-color="rgb(255,255,255)" stop-opacity="0.18"/>
+      <stop offset="20%" stop-color="rgb(255,255,255)" stop-opacity="0.06"/>
+      <stop offset="45%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="70%" stop-color="rgb(0,0,0)" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="rgb(0,0,0)" stop-opacity="0.10"/>
     </linearGradient>
     
     <!-- Inner shadow gradient (cone recedes toward center) -->
     <radialGradient id="vd-coneInner" cx="50%" cy="50%" r="50%">
-      <stop offset="55%" stop-color="rgba(0,0,0,0.10)"/>
-      <stop offset="68%" stop-color="transparent"/>
-      <stop offset="100%" stop-color="transparent"/>
+      <stop offset="55%" stop-color="rgb(0,0,0)" stop-opacity="0.10"/>
+      <stop offset="68%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
     
     <!-- Depth gradient for hexagonal knob (light upper-left) -->
@@ -107,7 +107,7 @@
     <circle cx="150" cy="150" r="96" fill="#1a1a1a"/>
     <circle cx="150" cy="150" r="96" fill="none" stroke="#2a2a2a" stroke-width="0.5"/>
     <!-- Subtle inner edge highlight -->
-    <circle cx="150" cy="150" r="95" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+    <circle cx="150" cy="150" r="95" fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.04" stroke-width="0.8"/>
     
     <!-- ====== MAJOR TICK MARKS (9 marks, every 36° — 0 uses minor tick) ====== -->
     <!-- Value 0 at 0° gets a minor tick only (number centered) -->
@@ -249,7 +249,7 @@
     <!-- Outer disc ring (masked to donut shape) -->
     <g mask="url(#vd-ringMask)">
       <!-- Drop shadow (offset 2px right and down) -->
-      <circle cx="152" cy="153" r="141" fill="rgba(0,0,0,0.12)"/>
+      <circle cx="152" cy="153" r="141" fill="rgb(0,0,0)" fill-opacity="0.12"/>
       
       <!-- Main disc body (brushed aluminum) -->
       <circle cx="150" cy="150" r="140" fill="url(#vd-metal)"/>
@@ -259,7 +259,7 @@
       
       <!-- Outer edge details -->
       <circle cx="150" cy="150" r="140" fill="none" stroke="#999" stroke-width="0.7"/>
-      <circle cx="150" cy="150" r="138.5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>
+      <circle cx="150" cy="150" r="138.5" fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.3" stroke-width="0.6"/>
       
       <!-- ==========================================================
            Realistic conical reflections using pie-slice WEDGES      
@@ -279,34 +279,34 @@
       <!-- ZONE 1: BRIGHT SPECULAR — 300° to 30° (90° span, upper-left) -->
       <!-- Outer: 300°=(28.8,80) → 30°=(220,28.8) | Inner: 300°=(66.9,102) → 30°=(198,66.9) -->
       <path d="M 66.9,102 L 28.8,80 A 140,140 0 0,1 220,28.8 L 198,66.9 A 96,96 0 0,0 66.9,102 Z"
-            fill="rgba(255,255,255,0.30)"/>
+            fill="rgb(255,255,255)" fill-opacity="0.30"/>
       
       <!-- ZONE 1a: HOT SPECULAR CORE — 330° to 10° (40° narrower, brighter) -->
       <!-- Outer: 330°=(80,28.8) → 10°=(174.3,12.1) | Inner: 330°=(102,66.9) → 10°=(166.7,55.4) -->
       <path d="M 102,66.9 L 80,28.8 A 140,140 0 0,1 174.3,12.1 L 166.7,55.4 A 96,96 0 0,0 102,66.9 Z"
-            fill="rgba(255,255,255,0.20)"/>
+            fill="rgb(255,255,255)" fill-opacity="0.20"/>
       
       <!-- ZONE 2: MEDIUM-BRIGHT TRANSITION — 30° to 90° (60° span, upper-right) -->
       <!-- Outer: 30°=(220,28.8) → 90°=(290,150) | Inner: 30°=(198,66.9) → 90°=(246,150) -->
       <path d="M 198,66.9 L 220,28.8 A 140,140 0 0,1 290,150 L 246,150 A 96,96 0 0,0 198,66.9 Z"
-            fill="rgba(255,255,255,0.08)"/>
+            fill="rgb(255,255,255)" fill-opacity="0.08"/>
       
       <!-- ZONE 3: NEUTRAL — 90° to 150° (no overlay, base metal shows through) -->
       
       <!-- ZONE 4: SHADOW BAND — 150° to 240° (90° span, lower area) -->
       <!-- Outer: 150°=(220,271.2) → 240°=(28.8,220) | Inner: 150°=(198,233.1) → 240°=(66.9,198) -->
       <path d="M 198,233.1 L 220,271.2 A 140,140 0 0,1 28.8,220 L 66.9,198 A 96,96 0 0,0 198,233.1 Z"
-            fill="rgba(0,0,0,0.15)"/>
+            fill="rgb(0,0,0)" fill-opacity="0.15"/>
       
       <!-- ZONE 4a: DEEP SHADOW CORE — 180° to 220° (40° narrower, darker) -->
       <!-- Outer: 180°=(150,290) → 220°=(60.0,257.2) | Inner: 180°=(150,246) → 220°=(88.3,223.5) -->
       <path d="M 150,246 L 150,290 A 140,140 0 0,1 60.0,257.2 L 88.3,223.5 A 96,96 0 0,0 150,246 Z"
-            fill="rgba(0,0,0,0.10)"/>
+            fill="rgb(0,0,0)" fill-opacity="0.10"/>
       
       <!-- ZONE 5: SHADOW-TO-LIGHT TRANSITION — 240° to 300° (60° span, left) -->
       <!-- Outer: 240°=(28.8,220) → 300°=(28.8,80) | Inner: 240°=(66.9,198) → 300°=(66.9,102) -->
       <path d="M 66.9,198 L 28.8,220 A 140,140 0 0,1 28.8,80 L 66.9,102 A 96,96 0 0,0 66.9,198 Z"
-            fill="rgba(0,0,0,0.05)"/>
+            fill="rgb(0,0,0)" fill-opacity="0.05"/>
       
       <!-- Subtle radial brushed texture (very fine, barely visible, just hints machining) -->
       <g stroke-linecap="butt" opacity="0.10">
@@ -328,8 +328,8 @@
       <circle cx="150" cy="150" r="140" fill="url(#vd-coneInner)"/>
       
       <!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) -->
-      <circle cx="150" cy="150" r="97" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="2.5"/>
-      <circle cx="150" cy="150" r="96.5" fill="none" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
+      <circle cx="150" cy="150" r="97" fill="none" stroke="rgb(0,0,0)" stroke-opacity="0.22" stroke-width="2.5"/>
+      <circle cx="150" cy="150" r="96.5" fill="none" stroke="rgb(0,0,0)" stroke-opacity="0.10" stroke-width="1"/>
     </g>
     
     <!-- Counter window (on the ring surface between r=96 and r=140) -->
@@ -337,8 +337,8 @@
     <rect x="136" y="14" width="28" height="24" rx="3" ry="3"
           fill="#080808" stroke="#888" stroke-width="0.8"/>
     <!-- Drum shadow (top and bottom of window opening) -->
-    <rect x="137" y="15" width="26" height="4" rx="1" fill="rgba(0,0,0,0.5)"/>
-    <rect x="137" y="33" width="26" height="4" rx="1" fill="rgba(0,0,0,0.3)"/>
+    <rect x="137" y="15" width="26" height="4" rx="1" fill="rgb(0,0,0)" fill-opacity="0.5"/>
+    <rect x="137" y="33" width="26" height="4" rx="1" fill="rgb(0,0,0)" fill-opacity="0.3"/>
     <!-- Counter digit (update programmatically: 0-9 for turn count) -->
     <text id="counterDigit" x="150" y="28"
           text-anchor="middle" dominant-baseline="central"
@@ -365,7 +365,7 @@
             fill="#a8a8a8" stroke="#888" stroke-width="0.6"/>
       <!-- Tab surface highlight (brushed metal look) -->
       <path d="M146,5 L154,5 L155,11 C155,13 153,14 150,14 C147,14 145,13 145,11 Z"
-            fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.4"/>
+            fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.2" stroke-width="0.4"/>
       <!-- Knurled grip lines on tab -->
       <line x1="147" y1="6" x2="153" y2="6" stroke="#999" stroke-width="0.4"/>
       <line x1="147" y1="7.5" x2="153" y2="7.5" stroke="#bbb" stroke-width="0.3"/>
@@ -382,11 +382,11 @@
   <!-- ============================================================ -->
   <g id="CentralHexKnob">
     <!-- Cast shadow (depth illusion — knob is recessed) -->
-    <circle cx="151" cy="152" r="42" fill="rgba(0,0,0,0.2)"/>
+    <circle cx="151" cy="152" r="42" fill="rgb(0,0,0)" fill-opacity="0.2"/>
     
     <!-- Recess ring (dark area around hex knob) -->
     <circle cx="150" cy="150" r="42" fill="#111"/>
-    <circle cx="150" cy="150" r="42" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
+    <circle cx="150" cy="150" r="42" fill="none" stroke="rgb(0,0,0)" stroke-opacity="0.3" stroke-width="1"/>
     
     <!-- Hexagonal knob body -->
     <!-- 6 vertices at r=38, pointy-top: 0°, 60°, 120°, 180°, 240°, 300° -->
@@ -396,30 +396,30 @@
     <!-- 3D facet shading (upper faces brighter, lower faces darker) -->
     <!-- Upper-left face -->
     <polygon points="150,112 117.1,131 150,150"
-             fill="rgba(255,255,255,0.06)"/>
+             fill="rgb(255,255,255)" fill-opacity="0.06"/>
     <!-- Upper-right face -->
     <polygon points="150,112 182.9,131 150,150"
-             fill="rgba(255,255,255,0.04)"/>
+             fill="rgb(255,255,255)" fill-opacity="0.04"/>
     <!-- Lower-left face -->
     <polygon points="117.1,169 150,188 150,150"
-             fill="rgba(0,0,0,0.06)"/>
+             fill="rgb(0,0,0)" fill-opacity="0.06"/>
     <!-- Lower-right face -->
     <polygon points="182.9,169 150,188 150,150"
-             fill="rgba(0,0,0,0.1)"/>
+             fill="rgb(0,0,0)" fill-opacity="0.1"/>
     
     <!-- Hex edge highlights (top edges bright, bottom edges dark) -->
-    <line x1="117.1" y1="131" x2="150" y2="112" stroke="rgba(255,255,255,0.12)" stroke-width="0.6"/>
-    <line x1="150" y1="112" x2="182.9" y2="131" stroke="rgba(255,255,255,0.1)" stroke-width="0.6"/>
-    <line x1="182.9" y1="169" x2="150" y2="188" stroke="rgba(0,0,0,0.15)" stroke-width="0.6"/>
-    <line x1="150" y1="188" x2="117.1" y2="169" stroke="rgba(0,0,0,0.15)" stroke-width="0.6"/>
+    <line x1="117.1" y1="131" x2="150" y2="112" stroke="rgb(255,255,255)" stroke-opacity="0.12" stroke-width="0.6"/>
+    <line x1="150" y1="112" x2="182.9" y2="131" stroke="rgb(255,255,255)" stroke-opacity="0.1" stroke-width="0.6"/>
+    <line x1="182.9" y1="169" x2="150" y2="188" stroke="rgb(0,0,0)" stroke-opacity="0.15" stroke-width="0.6"/>
+    <line x1="150" y1="188" x2="117.1" y2="169" stroke="rgb(0,0,0)" stroke-opacity="0.15" stroke-width="0.6"/>
     <!-- Side edges (neutral) -->
-    <line x1="182.9" y1="131" x2="182.9" y2="169" stroke="rgba(0,0,0,0.05)" stroke-width="0.5"/>
-    <line x1="117.1" y1="131" x2="117.1" y2="169" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+    <line x1="182.9" y1="131" x2="182.9" y2="169" stroke="rgb(0,0,0)" stroke-opacity="0.05" stroke-width="0.5"/>
+    <line x1="117.1" y1="131" x2="117.1" y2="169" stroke="rgb(255,255,255)" stroke-opacity="0.05" stroke-width="0.5"/>
     
     <!-- Central grip cap (raised circle in center of hex) -->
     <circle cx="150" cy="150" r="18" fill="url(#vd-cap)" stroke="#2a2a2a" stroke-width="0.5"/>
     <!-- Cap highlight ring -->
-    <circle cx="150" cy="150" r="16" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+    <circle cx="150" cy="150" r="16" fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.06" stroke-width="0.5"/>
     <!-- Inner ring detail -->
     <circle cx="150" cy="150" r="12" fill="#1a1a1a" stroke="#282828" stroke-width="0.4"/>
     

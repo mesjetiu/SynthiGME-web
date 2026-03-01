@@ -28,11 +28,11 @@
    id="svg138"
    sodipodi:docname="spectrol-vernier-dial.svg"
    inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xml:space="preserve"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
      id="namedview138"
      pagecolor="#ffffff"
      bordercolor="#cccccc"
@@ -41,155 +41,116 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="1.3153781"
-     inkscape:cx="161.55051"
-     inkscape:cy="152.42766"
+     inkscape:zoom="1.8835303"
+     inkscape:cx="182.90123"
+     inkscape:cy="152.10799"
      inkscape:window-width="1920"
      inkscape:window-height="1005"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg138" />
-  <defs
-     id="defs25">
-    <!-- ==================== GRADIENTS ==================== -->
-    <!-- Base silver tone for outer disc ring -->
-    <radialGradient
+     inkscape:current-layer="svg138" /><defs
+     id="defs25"><!-- ==================== GRADIENTS ==================== --><!-- Base silver tone for outer disc ring --><radialGradient
        id="vd-metal"
        cx="50%"
        cy="50%"
-       r="50%">
-      <stop
+       r="50%"><stop
          offset="0%"
          stop-color="#c8c8c8"
-         id="stop1" />
-      <stop
+         id="stop1" /><stop
          offset="100%"
          stop-color="#b0b0b0"
-         id="stop2" />
-    </radialGradient>
-    <!-- Bevel highlight for disc outer edge (3D rim effect) -->
-    <radialGradient
+         id="stop2" /></radialGradient><!-- Bevel highlight for disc outer edge (3D rim effect) --><radialGradient
        id="vd-bevel"
        cx="50%"
        cy="50%"
-       r="50%">
-      <stop
+       r="50%"><stop
          offset="88%"
          stop-color="#000000"
          stop-opacity="0"
-         id="stop3" />
-      <stop
+         id="stop3" /><stop
          offset="94%"
          stop-color="rgb(255,255,255)"
          stop-opacity="0.35"
-         id="stop4" />
-      <stop
+         id="stop4" /><stop
          offset="100%"
          stop-color="rgb(0,0,0)"
          stop-opacity="0.15"
-         id="stop5" />
-    </radialGradient>
-    <!-- Conical specular: strong bright band upper-left, shadow lower-right -->
-    <linearGradient
+         id="stop5" /></radialGradient><!-- Conical specular: strong bright band upper-left, shadow lower-right --><linearGradient
        id="vd-coneSpec1"
        x1="0%"
        y1="0%"
        x2="100%"
-       y2="100%">
-      <stop
+       y2="100%"><stop
          offset="0%"
          stop-color="rgb(255,255,255)"
          stop-opacity="0.55"
-         id="stop6" />
-      <stop
+         id="stop6" /><stop
          offset="12%"
          stop-color="rgb(255,255,255)"
          stop-opacity="0.35"
-         id="stop7" />
-      <stop
+         id="stop7" /><stop
          offset="30%"
          stop-color="rgb(255,255,255)"
          stop-opacity="0.12"
-         id="stop8" />
-      <stop
+         id="stop8" /><stop
          offset="48%"
          stop-color="#000000"
          stop-opacity="0"
-         id="stop9" />
-      <stop
+         id="stop9" /><stop
          offset="65%"
          stop-color="rgb(0,0,0)"
          stop-opacity="0.05"
-         id="stop10" />
-      <stop
+         id="stop10" /><stop
          offset="82%"
          stop-color="rgb(0,0,0)"
          stop-opacity="0.12"
-         id="stop11" />
-      <stop
+         id="stop11" /><stop
          offset="100%"
          stop-color="rgb(0,0,0)"
          stop-opacity="0.20"
-         id="stop12" />
-    </linearGradient>
-    <!-- Conical specular 2: secondary perpendicular catch-light + shadow -->
-    <linearGradient
+         id="stop12" /></linearGradient><!-- Conical specular 2: secondary perpendicular catch-light + shadow --><linearGradient
        id="vd-coneSpec2"
        x1="100%"
        y1="0%"
        x2="0%"
-       y2="100%">
-      <stop
+       y2="100%"><stop
          offset="0%"
          stop-color="rgb(255,255,255)"
          stop-opacity="0.18"
-         id="stop13" />
-      <stop
+         id="stop13" /><stop
          offset="20%"
          stop-color="rgb(255,255,255)"
          stop-opacity="0.06"
-         id="stop14" />
-      <stop
+         id="stop14" /><stop
          offset="45%"
          stop-color="#000000"
          stop-opacity="0"
-         id="stop15" />
-      <stop
+         id="stop15" /><stop
          offset="70%"
          stop-color="rgb(0,0,0)"
          stop-opacity="0.04"
-         id="stop16" />
-      <stop
+         id="stop16" /><stop
          offset="100%"
          stop-color="rgb(0,0,0)"
          stop-opacity="0.10"
-         id="stop17" />
-    </linearGradient>
-    <!-- Inner shadow gradient (cone recedes toward center) -->
-    <radialGradient
+         id="stop17" /></linearGradient><!-- Inner shadow gradient (cone recedes toward center) --><radialGradient
        id="vd-coneInner"
        cx="50%"
        cy="50%"
-       r="50%">
-      <stop
+       r="50%"><stop
          offset="55%"
          stop-color="rgb(0,0,0)"
          stop-opacity="0.10"
-         id="stop18" />
-      <stop
+         id="stop18" /><stop
          offset="68%"
          stop-color="#000000"
          stop-opacity="0"
-         id="stop19" />
-      <stop
+         id="stop19" /><stop
          offset="100%"
          stop-color="#000000"
          stop-opacity="0"
-         id="stop20" />
-    </radialGradient>
-    <!-- Depth gradient for hexagonal knob (light upper-left) -->
-    <radialGradient
+         id="stop20" /></radialGradient><!-- Depth gradient for hexagonal knob (light upper-left) --><radialGradient
        id="vd-knob"
        cx="154.08196"
        cy="128.88377"
@@ -197,57 +158,39 @@
        gradientTransform="scale(0.93047881,1.0747155)"
        fx="154.08196"
        fy="128.88377"
-       gradientUnits="userSpaceOnUse">
-      <stop
+       gradientUnits="userSpaceOnUse"><stop
          offset="0%"
          stop-color="#404040"
-         id="stop21" />
-      <stop
+         id="stop21" /><stop
          offset="50%"
          stop-color="#2a2a2a"
-         id="stop22" />
-      <stop
+         id="stop22" /><stop
          offset="100%"
          stop-color="#151515"
-         id="stop23" />
-    </radialGradient>
-    <!-- Center cap gradient -->
-    <radialGradient
+         id="stop23" /></radialGradient><!-- Center cap gradient --><radialGradient
        id="vd-cap"
        cx="147.08"
        cy="145.62"
        r="21.900001"
        fx="147.08"
        fy="145.62"
-       gradientUnits="userSpaceOnUse">
-      <stop
+       gradientUnits="userSpaceOnUse"><stop
          offset="0%"
          stop-color="#333"
-         id="stop24" />
-      <stop
+         id="stop24" /><stop
          offset="100%"
          stop-color="#111"
-         id="stop25" />
-    </radialGradient>
-    <!-- ==================== MASKS ==================== -->
-    <!-- Ring mask: cuts a circular hole in the outer disc to reveal inner disc -->
-    <mask
-       id="vd-ringMask">
-      <rect
+         id="stop25" /></radialGradient><!-- ==================== MASKS ==================== --><!-- Ring mask: cuts a circular hole in the outer disc to reveal inner disc --><mask
+       id="vd-ringMask"><rect
          width="300"
          height="300"
          fill="white"
-         id="rect25" />
-      <circle
+         id="rect25" /><circle
          cx="150"
          cy="150"
          r="96"
          fill="black"
-         id="circle25" />
-    </mask>
-    <!-- ==================== TICK DEFINITIONS ==================== -->
-    <!-- Major tick mark (at every 10 units: 0, 10, 20...90) -->
-    <line
+         id="circle25" /></mask><!-- ==================== TICK DEFINITIONS ==================== --><!-- Major tick mark (at every 10 units: 0, 10, 20...90) --><line
        id="vd-majTick"
        x1="150"
        y1="56"
@@ -255,9 +198,7 @@
        y2="67"
        stroke="#ffffff"
        stroke-width="1.8"
-       stroke-linecap="round" />
-    <!-- Minor tick mark (at every 2 units between majors) -->
-    <line
+       stroke-linecap="round" /><!-- Minor tick mark (at every 2 units between majors) --><line
        id="vd-minTick"
        x1="150"
        y1="56"
@@ -265,34 +206,21 @@
        y2="62"
        stroke="#cccccc"
        stroke-width="0.8"
-       stroke-linecap="round" />
-  </defs>
-  <!-- ============================================================ -->
-  <!-- LAYER 1: ROTATING BLACK DISC WITH SCALE                      -->
-  <!-- Rotate this group via CSS transform-origin: 150px 150px      -->
-  <!-- One full rotation (360°) = 0 to 100 on the scale             -->
-  <!-- Each unit = 3.6°, each major division (10) = 36°             -->
-  <!-- ============================================================ -->
-  <g
+       stroke-linecap="round" /></defs><!-- ============================================================ --><!-- LAYER 1: ROTATING BLACK DISC WITH SCALE                      --><!-- Rotate this group via CSS transform-origin: 150px 150px      --><!-- One full rotation (360°) = 0 to 100 on the scale             --><!-- Each unit = 3.6°, each major division (10) = 36°             --><!-- ============================================================ --><g
      id="GyratoryBlackDisk"
-     style="display:inline">
-    <!-- Black disc surface -->
-    <circle
+     style="display:inline"><!-- Black disc surface --><circle
        cx="150"
        cy="150"
        r="96"
        fill="#1a1a1a"
-       id="circle26" />
-    <circle
+       id="circle26" /><circle
        cx="150"
        cy="150"
        r="96"
        fill="none"
        stroke="#2a2a2a"
        stroke-width="0.5"
-       id="circle27" />
-    <!-- Subtle inner edge highlight -->
-    <circle
+       id="circle27" /><!-- Subtle inner edge highlight --><circle
        cx="150"
        cy="150"
        r="95"
@@ -300,444 +228,303 @@
        stroke="#ffffff"
        stroke-opacity="0.04"
        stroke-width="0.8"
-       id="circle28" />
-    <!-- ====== MAJOR TICK MARKS (9 marks, every 36° — 0 uses minor tick) ====== -->
-    <!-- Value 0 at 0° gets a minor tick only (number centered) -->
-    <use
+       id="circle28" /><!-- ====== MAJOR TICK MARKS (9 marks, every 36° — 0 uses minor tick) ====== --><!-- Value 0 at 0° gets a minor tick only (number centered) --><use
        href="#vd-minTick"
-       id="use28" />
-    <!-- Value 10 at 36° -->
-    <use
+       id="use28" /><!-- Value 10 at 36° --><use
        href="#vd-majTick"
        transform="rotate(36,150,150)"
-       id="use29" />
-    <!-- Value 20 at 72° -->
-    <use
+       id="use29" /><!-- Value 20 at 72° --><use
        href="#vd-majTick"
        transform="rotate(72,150,150)"
-       id="use30" />
-    <!-- Value 30 at 108° -->
-    <use
+       id="use30" /><!-- Value 30 at 108° --><use
        href="#vd-majTick"
        transform="rotate(108,150,150)"
-       id="use31" />
-    <!-- Value 40 at 144° -->
-    <use
+       id="use31" /><!-- Value 40 at 144° --><use
        href="#vd-majTick"
        transform="rotate(144,150,150)"
-       id="use32" />
-    <!-- Value 50 at 180° -->
-    <use
+       id="use32" /><!-- Value 50 at 180° --><use
        href="#vd-majTick"
        transform="rotate(180,150,150)"
-       id="use33" />
-    <!-- Value 60 at 216° -->
-    <use
+       id="use33" /><!-- Value 60 at 216° --><use
        href="#vd-majTick"
        transform="rotate(-144,150,150)"
-       id="use34" />
-    <!-- Value 70 at 252° -->
-    <use
+       id="use34" /><!-- Value 70 at 252° --><use
        href="#vd-majTick"
        transform="rotate(-108,150,150)"
-       id="use35" />
-    <!-- Value 80 at 288° -->
-    <use
+       id="use35" /><!-- Value 80 at 288° --><use
        href="#vd-majTick"
        transform="rotate(-72,150,150)"
-       id="use36" />
-    <!-- Value 90 at 324° -->
-    <use
+       id="use36" /><!-- Value 90 at 324° --><use
        href="#vd-majTick"
        transform="rotate(-36,150,150)"
-       id="use37" />
-    <!-- ====== MINOR TICK MARKS (40 marks, every 7.2° between majors) ====== -->
-    <!-- Section 0→10 (7.2°, 14.4°, 21.6°, 28.8°) -->
-    <use
+       id="use37" /><!-- ====== MINOR TICK MARKS (40 marks, every 7.2° between majors) ====== --><!-- Section 0→10 (7.2°, 14.4°, 21.6°, 28.8°) --><use
        href="#vd-minTick"
        transform="rotate(7.2,150,150)"
-       id="use38" />
-    <use
+       id="use38" /><use
        href="#vd-minTick"
        transform="rotate(14.4,150,150)"
-       id="use39" />
-    <use
+       id="use39" /><use
        href="#vd-minTick"
        transform="rotate(21.6,150,150)"
-       id="use40" />
-    <use
+       id="use40" /><use
        href="#vd-minTick"
        transform="rotate(28.8,150,150)"
-       id="use41" />
-    <!-- Section 10→20 -->
-    <use
+       id="use41" /><!-- Section 10→20 --><use
        href="#vd-minTick"
        transform="rotate(43.2,150,150)"
-       id="use42" />
-    <use
+       id="use42" /><use
        href="#vd-minTick"
        transform="rotate(50.4,150,150)"
-       id="use43" />
-    <use
+       id="use43" /><use
        href="#vd-minTick"
        transform="rotate(57.6,150,150)"
-       id="use44" />
-    <use
+       id="use44" /><use
        href="#vd-minTick"
        transform="rotate(64.8,150,150)"
-       id="use45" />
-    <!-- Section 20→30 -->
-    <use
+       id="use45" /><!-- Section 20→30 --><use
        href="#vd-minTick"
        transform="rotate(79.2,150,150)"
-       id="use46" />
-    <use
+       id="use46" /><use
        href="#vd-minTick"
        transform="rotate(86.4,150,150)"
-       id="use47" />
-    <use
+       id="use47" /><use
        href="#vd-minTick"
        transform="rotate(93.6,150,150)"
-       id="use48" />
-    <use
+       id="use48" /><use
        href="#vd-minTick"
        transform="rotate(100.8,150,150)"
-       id="use49" />
-    <!-- Section 30→40 -->
-    <use
+       id="use49" /><!-- Section 30→40 --><use
        href="#vd-minTick"
        transform="rotate(115.2,150,150)"
-       id="use50" />
-    <use
+       id="use50" /><use
        href="#vd-minTick"
        transform="rotate(122.4,150,150)"
-       id="use51" />
-    <use
+       id="use51" /><use
        href="#vd-minTick"
        transform="rotate(129.6,150,150)"
-       id="use52" />
-    <use
+       id="use52" /><use
        href="#vd-minTick"
        transform="rotate(136.8,150,150)"
-       id="use53" />
-    <!-- Section 40→50 -->
-    <use
+       id="use53" /><!-- Section 40→50 --><use
        href="#vd-minTick"
        transform="rotate(151.2,150,150)"
-       id="use54" />
-    <use
+       id="use54" /><use
        href="#vd-minTick"
        transform="rotate(158.4,150,150)"
-       id="use55" />
-    <use
+       id="use55" /><use
        href="#vd-minTick"
        transform="rotate(165.6,150,150)"
-       id="use56" />
-    <use
+       id="use56" /><use
        href="#vd-minTick"
        transform="rotate(172.8,150,150)"
-       id="use57" />
-    <!-- Section 50→60 -->
-    <use
+       id="use57" /><!-- Section 50→60 --><use
        href="#vd-minTick"
        transform="rotate(-172.8,150,150)"
-       id="use58" />
-    <use
+       id="use58" /><use
        href="#vd-minTick"
        transform="rotate(-165.6,150,150)"
-       id="use59" />
-    <use
+       id="use59" /><use
        href="#vd-minTick"
        transform="rotate(-158.4,150,150)"
-       id="use60" />
-    <use
+       id="use60" /><use
        href="#vd-minTick"
        transform="rotate(-151.2,150,150)"
-       id="use61" />
-    <!-- Section 60→70 -->
-    <use
+       id="use61" /><!-- Section 60→70 --><use
        href="#vd-minTick"
        transform="rotate(-136.8,150,150)"
-       id="use62" />
-    <use
+       id="use62" /><use
        href="#vd-minTick"
        transform="rotate(-129.6,150,150)"
-       id="use63" />
-    <use
+       id="use63" /><use
        href="#vd-minTick"
        transform="rotate(-122.4,150,150)"
-       id="use64" />
-    <use
+       id="use64" /><use
        href="#vd-minTick"
        transform="rotate(-115.2,150,150)"
-       id="use65" />
-    <!-- Section 70→80 -->
-    <use
+       id="use65" /><!-- Section 70→80 --><use
        href="#vd-minTick"
        transform="rotate(-100.8,150,150)"
-       id="use66" />
-    <use
+       id="use66" /><use
        href="#vd-minTick"
        transform="rotate(-93.6,150,150)"
-       id="use67" />
-    <use
+       id="use67" /><use
        href="#vd-minTick"
        transform="rotate(-86.4,150,150)"
-       id="use68" />
-    <use
+       id="use68" /><use
        href="#vd-minTick"
        transform="rotate(-79.2,150,150)"
-       id="use69" />
-    <!-- Section 80→90 -->
-    <use
+       id="use69" /><!-- Section 80→90 --><use
        href="#vd-minTick"
        transform="rotate(-64.8,150,150)"
-       id="use70" />
-    <use
+       id="use70" /><use
        href="#vd-minTick"
        transform="rotate(-57.6,150,150)"
-       id="use71" />
-    <use
+       id="use71" /><use
        href="#vd-minTick"
        transform="rotate(-50.4,150,150)"
-       id="use72" />
-    <use
+       id="use72" /><use
        href="#vd-minTick"
        transform="rotate(-43.2,150,150)"
-       id="use73" />
-    <!-- Section 90→0 -->
-    <use
+       id="use73" /><!-- Section 90→0 --><use
        href="#vd-minTick"
        transform="rotate(-28.8,150,150)"
-       id="use74" />
-    <use
+       id="use74" /><use
        href="#vd-minTick"
        transform="rotate(-21.6,150,150)"
-       id="use75" />
-    <use
+       id="use75" /><use
        href="#vd-minTick"
        transform="rotate(-14.4,150,150)"
-       id="use76" />
-    <use
+       id="use76" /><use
        href="#vd-minTick"
        transform="rotate(-7.2,150,150)"
-       id="use77" />
-    <!-- ====== SCALE NUMBERS (radially oriented, split around tick) ====== -->
-    <!-- Tens digit LEFT of tick, units digit RIGHT of tick.
-         Exception: "0" is centered (no major tick). -->
-    <g
+       id="use77" /><!-- ====== SCALE NUMBERS (radially oriented, split around tick) ====== --><!-- Tens digit LEFT of tick, units digit RIGHT of tick.
+         Exception: "0" is centered (no major tick). --><g
        font-family="'DIN Bold', 'Futura Bold', Futura, 'Univers 55', 'Helvetica Neue', Arial, sans-serif"
        font-weight="bold"
        font-size="14px"
        fill="#ffffff"
        dominant-baseline="central"
-       id="g96">
-      <!-- 0 at 0° — centered, no major tick -->
-      <text
+       id="g96"><!-- 0 at 0° — centered, no major tick --><text
          x="150"
          y="76"
          text-anchor="middle"
          id="text77"
-         style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      <!-- 10 at 36° -->
-      <g
+         style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text><!-- 10 at 36° --><g
          transform="rotate(36,150,150)"
-         id="g79">
-        <text
+         id="g79"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text78"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">1</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">1</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text79"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 20 at 72° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 20 at 72° --><g
          transform="rotate(72,150,150)"
-         id="g81">
-        <text
+         id="g81"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text80"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">2</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">2</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text81"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 30 at 108° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 30 at 108° --><g
          transform="rotate(108,150,150)"
-         id="g83">
-        <text
+         id="g83"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text82"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">3</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">3</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text83"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 40 at 144° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 40 at 144° --><g
          transform="rotate(144,150,150)"
-         id="g85">
-        <text
+         id="g85"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text84"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">4</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">4</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text85"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 50 at 180° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 50 at 180° --><g
          transform="rotate(180,150,150)"
-         id="g87">
-        <text
+         id="g87"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text86"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">5</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">5</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text87"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 60 at 216° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 60 at 216° --><g
          transform="rotate(-144,150,150)"
-         id="g89">
-        <text
+         id="g89"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text88"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">6</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">6</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text89"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 70 at 252° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 70 at 252° --><g
          transform="rotate(-108,150,150)"
-         id="g91">
-        <text
+         id="g91"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text90"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">7</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">7</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text91"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 80 at 288° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 80 at 288° --><g
          transform="rotate(-72,150,150)"
-         id="g93">
-        <text
+         id="g93"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text92"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">8</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">8</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text93"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-      <!-- 90 at 324° -->
-      <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g><!-- 90 at 324° --><g
          transform="rotate(-36,150,150)"
-         id="g95">
-        <text
+         id="g95"><text
            x="147"
            y="76"
            text-anchor="end"
            id="text94"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">9</text>
-        <text
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">9</text><text
            x="153"
            y="76"
            text-anchor="start"
            id="text95"
-           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text>
-      </g>
-    </g>
-  </g>
-  <!-- ============================================================ -->
-  <!-- LAYER 2: FIXED SILVER OUTER DISC (ring shape, static)        -->
-  <!-- Masked to create a donut: outer r=140, inner hole r=96       -->
-  <!-- This ring sits ON TOP of the inner disc edge                 -->
-  <!-- ============================================================ -->
-  <g
+           style="-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:20px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">0</text></g></g></g><!-- ============================================================ --><!-- LAYER 2: FIXED SILVER OUTER DISC (ring shape, static)        --><!-- Masked to create a donut: outer r=140, inner hole r=96       --><!-- This ring sits ON TOP of the inner disc edge                 --><!-- ============================================================ --><g
      id="FixedSilverOuterDisk"
-     style="display:inline">
-    <!-- Outer disc ring (masked to donut shape) -->
-    <g
+     style="display:inline"><!-- Outer disc ring (masked to donut shape) --><g
        mask="url(#vd-ringMask)"
-       id="g118">
-      <!-- Drop shadow (offset 2px right and down) -->
-      <circle
+       id="g118"><!-- Drop shadow (offset 2px right and down) --><circle
          cx="152"
          cy="153"
          r="141"
          fill="#000000"
          fill-opacity="0.12"
-         id="circle96" />
-      <!-- Main disc body (brushed aluminum) -->
-      <circle
+         id="circle96" /><!-- Main disc body (brushed aluminum) --><circle
          cx="150"
          cy="150"
          r="140"
          fill="url(#vd-metal)"
-         id="circle97" />
-      <!-- 3D bevel effect on rim -->
-      <circle
+         id="circle97" /><!-- 3D bevel effect on rim --><circle
          cx="150"
          cy="150"
          r="140"
          fill="url(#vd-bevel)"
-         id="circle98" />
-      <!-- Outer edge details -->
-      <circle
+         id="circle98" /><!-- Outer edge details --><circle
          cx="150"
          cy="150"
          r="140"
          fill="none"
          stroke="#999999"
          stroke-width="0.7"
-         id="circle99" />
-      <circle
+         id="circle99" /><circle
          cx="150"
          cy="150"
          r="138.5"
@@ -745,8 +532,7 @@
          stroke="#ffffff"
          stroke-opacity="0.3"
          stroke-width="0.6"
-         id="circle100" />
-      <!-- ==========================================================
+         id="circle100" /><!-- ==========================================================
            Realistic conical reflections using pie-slice WEDGES      
            (annular sectors from r=96 to r=140).                     
                                                                      
@@ -759,64 +545,41 @@
                                                                      
            Coordinates: for angle θ (CW from 12 o'clock):           
              x = 150 + R·sin(θ), y = 150 - R·cos(θ)                
-           ========================================================== -->
-      <!-- ZONE 1: BRIGHT SPECULAR — 300° to 30° (90° span, upper-left) -->
-      <!-- Outer: 300°=(28.8,80) → 30°=(220,28.8) | Inner: 300°=(66.9,102) → 30°=(198,66.9) -->
-      <path
+           ========================================================== --><!-- ZONE 1: BRIGHT SPECULAR — 300° to 30° (90° span, upper-left) --><!-- Outer: 300°=(28.8,80) → 30°=(220,28.8) | Inner: 300°=(66.9,102) → 30°=(198,66.9) --><path
          d="M 66.9,102 28.8,80 A 140,140 0 0 1 220,28.8 L 198,66.9 A 96,96 0 0 0 66.9,102 Z"
          fill="#ffffff"
          fill-opacity="0.3"
-         id="path100" />
-      <!-- ZONE 1a: HOT SPECULAR CORE — 330° to 10° (40° narrower, brighter) -->
-      <!-- Outer: 330°=(80,28.8) → 10°=(174.3,12.1) | Inner: 330°=(102,66.9) → 10°=(166.7,55.4) -->
-      <path
+         id="path100" /><!-- ZONE 1a: HOT SPECULAR CORE — 330° to 10° (40° narrower, brighter) --><!-- Outer: 330°=(80,28.8) → 10°=(174.3,12.1) | Inner: 330°=(102,66.9) → 10°=(166.7,55.4) --><path
          d="M 102,66.9 80,28.8 a 140,140 0 0 1 94.3,-16.7 l -7.6,43.3 A 96,96 0 0 0 102,66.9 Z"
          fill="#ffffff"
          fill-opacity="0.2"
-         id="path101" />
-      <!-- ZONE 2: MEDIUM-BRIGHT TRANSITION — 30° to 90° (60° span, upper-right) -->
-      <!-- Outer: 30°=(220,28.8) → 90°=(290,150) | Inner: 30°=(198,66.9) → 90°=(246,150) -->
-      <path
+         id="path101" /><!-- ZONE 2: MEDIUM-BRIGHT TRANSITION — 30° to 90° (60° span, upper-right) --><!-- Outer: 30°=(220,28.8) → 90°=(290,150) | Inner: 30°=(198,66.9) → 90°=(246,150) --><path
          d="M 198,66.9 220,28.8 A 140,140 0 0 1 290,150 H 246 A 96,96 0 0 0 198,66.9 Z"
          fill="#ffffff"
          fill-opacity="0.08"
-         id="path102" />
-      <!-- ZONE 3: NEUTRAL — 90° to 150° (no overlay, base metal shows through) -->
-      <!-- ZONE 4: SHADOW BAND — 150° to 240° (90° span, lower area) -->
-      <!-- Outer: 150°=(220,271.2) → 240°=(28.8,220) | Inner: 150°=(198,233.1) → 240°=(66.9,198) -->
-      <path
+         id="path102" /><!-- ZONE 3: NEUTRAL — 90° to 150° (no overlay, base metal shows through) --><!-- ZONE 4: SHADOW BAND — 150° to 240° (90° span, lower area) --><!-- Outer: 150°=(220,271.2) → 240°=(28.8,220) | Inner: 150°=(198,233.1) → 240°=(66.9,198) --><path
          d="m 198,233.1 22,38.1 A 140,140 0 0 1 28.8,220 L 66.9,198 A 96,96 0 0 0 198,233.1 Z"
          fill="#000000"
          fill-opacity="0.15"
-         id="path103" />
-      <!-- ZONE 4a: DEEP SHADOW CORE — 180° to 220° (40° narrower, darker) -->
-      <!-- Outer: 180°=(150,290) → 220°=(60.0,257.2) | Inner: 180°=(150,246) → 220°=(88.3,223.5) -->
-      <path
+         id="path103" /><!-- ZONE 4a: DEEP SHADOW CORE — 180° to 220° (40° narrower, darker) --><!-- Outer: 180°=(150,290) → 220°=(60.0,257.2) | Inner: 180°=(150,246) → 220°=(88.3,223.5) --><path
          d="m 150,246 v 44 A 140,140 0 0 1 60,257.2 L 88.3,223.5 A 96,96 0 0 0 150,246 Z"
          fill="#000000"
          fill-opacity="0.1"
-         id="path104" />
-      <!-- ZONE 5: SHADOW-TO-LIGHT TRANSITION — 240° to 300° (60° span, left) -->
-      <!-- Outer: 240°=(28.8,220) → 300°=(28.8,80) | Inner: 240°=(66.9,198) → 300°=(66.9,102) -->
-      <path
+         id="path104" /><!-- ZONE 5: SHADOW-TO-LIGHT TRANSITION — 240° to 300° (60° span, left) --><!-- Outer: 240°=(28.8,220) → 300°=(28.8,80) | Inner: 240°=(66.9,198) → 300°=(66.9,102) --><path
          d="m 66.9,198 -38.1,22 a 140,140 0 0 1 0,-140 l 38.1,22 a 96,96 0 0 0 0,96 z"
          fill="#000000"
          fill-opacity="0.05"
-         id="path105" />
-      <!-- Subtle radial brushed texture (very fine, barely visible, just hints machining) -->
-      <g
+         id="path105" /><!-- Subtle radial brushed texture (very fine, barely visible, just hints machining) --><g
          stroke-linecap="butt"
          opacity="0.1"
-         id="g116">
-        <line
+         id="g116"><line
            x1="150"
            y1="12"
            x2="150"
            y2="96"
            stroke="#ffffff"
            stroke-width="0.4"
-           id="line105" />
-        <line
+           id="line105" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -824,8 +587,7 @@
            transform="rotate(30,150,150)"
            stroke="#000000"
            stroke-width="0.3"
-           id="line106" />
-        <line
+           id="line106" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -833,8 +595,7 @@
            transform="rotate(60,150,150)"
            stroke="#ffffff"
            stroke-width="0.4"
-           id="line107" />
-        <line
+           id="line107" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -842,8 +603,7 @@
            transform="rotate(90,150,150)"
            stroke="#000000"
            stroke-width="0.3"
-           id="line108" />
-        <line
+           id="line108" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -851,8 +611,7 @@
            transform="rotate(120,150,150)"
            stroke="#ffffff"
            stroke-width="0.4"
-           id="line109" />
-        <line
+           id="line109" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -860,8 +619,7 @@
            transform="rotate(150,150,150)"
            stroke="#000000"
            stroke-width="0.3"
-           id="line110" />
-        <line
+           id="line110" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -869,8 +627,7 @@
            transform="rotate(180,150,150)"
            stroke="#ffffff"
            stroke-width="0.4"
-           id="line111" />
-        <line
+           id="line111" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -878,8 +635,7 @@
            transform="rotate(-150,150,150)"
            stroke="#000000"
            stroke-width="0.3"
-           id="line112" />
-        <line
+           id="line112" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -887,8 +643,7 @@
            transform="rotate(-120,150,150)"
            stroke="#ffffff"
            stroke-width="0.4"
-           id="line113" />
-        <line
+           id="line113" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -896,8 +651,7 @@
            transform="rotate(-90,150,150)"
            stroke="#000000"
            stroke-width="0.3"
-           id="line114" />
-        <line
+           id="line114" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -905,8 +659,7 @@
            transform="rotate(-60,150,150)"
            stroke="#ffffff"
            stroke-width="0.4"
-           id="line115" />
-        <line
+           id="line115" /><line
            x1="150"
            y1="12"
            x2="150"
@@ -914,17 +667,12 @@
            transform="rotate(-30,150,150)"
            stroke="#000000"
            stroke-width="0.3"
-           id="line116" />
-      </g>
-      <!-- Inner darkening (cone recedes into center hole) -->
-      <circle
+           id="line116" /></g><!-- Inner darkening (cone recedes into center hole) --><circle
          cx="150"
          cy="150"
          r="140"
          fill="url(#vd-coneInner)"
-         id="circle116" />
-      <!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) -->
-      <circle
+         id="circle116" /><!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) --><circle
          cx="150"
          cy="150"
          r="97"
@@ -932,8 +680,7 @@
          stroke="#000000"
          stroke-opacity="0.22"
          stroke-width="2.5"
-         id="circle117" />
-      <circle
+         id="circle117" /><circle
          cx="150"
          cy="150"
          r="96.5"
@@ -941,11 +688,7 @@
          stroke="#000000"
          stroke-opacity="0.1"
          stroke-width="1"
-         id="circle118" />
-    </g>
-    <!-- Counter window (on the ring surface between r=96 and r=140) -->
-    <!-- Window frame -->
-    <rect
+         id="circle118" /></g><!-- Counter window (on the ring surface between r=96 and r=140) --><!-- Window frame --><rect
        x="128.68427"
        y="16.149292"
        width="42.631458"
@@ -955,9 +698,7 @@
        fill="#080808"
        stroke="#888888"
        stroke-width="0.983356"
-       id="rect118" />
-    <!-- Drum shadow (top and bottom of window opening) -->
-    <rect
+       id="rect118" /><!-- Drum shadow (top and bottom of window opening) --><rect
        x="137"
        y="15"
        width="26"
@@ -966,8 +707,7 @@
        fill="#000000"
        fill-opacity="0.5"
        id="rect119"
-       style="display:none" />
-    <rect
+       style="display:none" /><rect
        x="137"
        y="33"
        width="26"
@@ -976,9 +716,7 @@
        fill="#000000"
        fill-opacity="0.3"
        id="rect120"
-       style="display:none" />
-    <!-- Counter digit (update programmatically: 0-9 for turn count) -->
-    <text
+       style="display:none" /><!-- Counter digit (update programmatically: 0-9 for turn count) --><text
        id="counterDigit"
        x="150"
        y="29.646088"
@@ -989,17 +727,12 @@
        font-weight="bold"
        fill="#ffffff"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:20px;font-family:'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;-inkscape-font-specification:'DIN Bold, Futura Bold, Futura, Helvetica Neue, Arial, sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
-       inkscape:label="counterDigit">0</text>
-    <!-- Indicator mark / reading pointer (below counter window) -->
-    <!-- Small triangle pointing inward toward the scale -->
-    <polygon
+       inkscape:label="counterDigit">0</text><!-- Indicator mark / reading pointer (below counter window) --><!-- Small triangle pointing inward toward the scale --><polygon
        points="153,44 150,55 147,44 "
        fill="#333333"
        stroke="#222222"
        stroke-width="0.4"
-       id="polygon120" />
-    <!-- Fine indicator line extending to disc edge -->
-    <line
+       id="polygon120" /><!-- Fine indicator line extending to disc edge --><line
        x1="150"
        y1="52"
        x2="150"
@@ -1007,97 +740,69 @@
        stroke="#222222"
        stroke-width="1.5"
        stroke-linecap="round"
-       id="line120" />
-  </g>
-  <!-- ============================================================ -->
-  <!-- LAYER 3: FRICTION BRAKE LEVER (clickable, upper-right)       -->
-  <!-- Rotated 40° from 12 o'clock on the outer disc surface        -->
-  <!-- ============================================================ -->
-  <g
+       id="line120" /></g><!-- ============================================================ --><!-- LAYER 3: FRICTION BRAKE LEVER (clickable, upper-right)       --><!-- Rotated 40° from 12 o'clock on the outer disc surface        --><!-- ============================================================ --><g
      id="ClickableBrakeLever"
      style="display:inline"
-     transform="matrix(3.3705678,0,0,3.3705678,-570.50084,-99.37324)">
-    <g
+     transform="matrix(3.3705678,0,0,3.3705678,-570.50084,-99.37324)"><g
        transform="rotate(40,150,150)"
-       id="g124">
-      <!-- Brake tab: flat metal paddle protruding from outer rim -->
-      <!-- Tab body (extends outward from disc edge) -->
-      <path
+       id="g124"><!-- Brake tab: flat metal paddle protruding from outer rim --><!-- Tab body (extends outward from disc edge) --><path
          d="m 145,4 h 10 l 1,8 c 0,2 -2,3 -6,3 -4,0 -6,-1 -6,-3 z"
          fill="#a8a8a8"
          stroke="#888888"
          stroke-width="0.6"
-         id="path120" />
-      <!-- Tab surface highlight (brushed metal look) -->
-      <path
+         id="path120"
+         style="fill:#000000;stroke-width:0.18453864;stroke-dasharray:none" /><!-- Tab surface highlight (brushed metal look) --><path
          d="m 146,5 h 8 l 1,6 c 0,2 -2,3 -5,3 -3,0 -5,-1 -5,-3 z"
          fill="none"
          stroke="#ffffff"
          stroke-opacity="0.2"
          stroke-width="0.4"
-         id="path121" />
-      <!-- Knurled grip lines on tab -->
-      <line
+         id="path121"
+         style="fill:#1a1a1a" /><!-- Knurled grip lines on tab --><line
          x1="147"
          y1="6"
          x2="153"
          y2="6"
          stroke="#999999"
          stroke-width="0.4"
-         id="line121" />
-      <line
+         id="line121" /><line
          x1="147"
          y1="7.5"
          x2="153"
          y2="7.5"
          stroke="#bbbbbb"
          stroke-width="0.3"
-         id="line122" />
-      <line
+         id="line122" /><line
          x1="147"
          y1="9"
          x2="153"
          y2="9"
          stroke="#999999"
          stroke-width="0.4"
-         id="line123" />
-      <line
+         id="line123" /><line
          x1="147.5"
          y1="10.5"
          x2="152.5"
          y2="10.5"
          stroke="#bbbbbb"
          stroke-width="0.3"
-         id="line124" />
-    </g>
-  </g>
-  <!-- ============================================================ -->
-  <!-- LAYER 4: CENTRAL HEXAGONAL KNOB (topmost)                    -->
-  <!-- Rotates together with GyratoryBlackDisk                      -->
-  <!-- Hex circumradius = 38, pointy-top orientation                -->
-  <!-- ============================================================ -->
-  <g
+         id="line124" /></g></g><!-- ============================================================ --><!-- LAYER 4: CENTRAL HEXAGONAL KNOB (topmost)                    --><!-- Rotates together with GyratoryBlackDisk                      --><!-- Hex circumradius = 38, pointy-top orientation                --><!-- ============================================================ --><g
      id="CentralHexKnob"
      style="display:inline"
-     transform="matrix(1.732653,0,0,1.732653,-110.08112,-110.44744)">
-    <!-- Cast shadow (depth illusion — knob is recessed) -->
-    <circle
+     transform="matrix(1.732653,0,0,1.732653,-110.08112,-110.44744)"><!-- Cast shadow (depth illusion — knob is recessed) --><circle
        cx="151"
        cy="152"
        r="42"
        fill="#000000"
        fill-opacity="0.2"
        id="circle124"
-       style="display:none" />
-    <!-- Recess ring (dark area around hex knob) -->
-    <circle
+       style="display:none" /><!-- Recess ring (dark area around hex knob) --><circle
        cx="150"
        cy="150"
        r="42"
        fill="#111111"
        id="circle125"
-       style="display:none" />
-    <circle
+       style="display:none" /><circle
        cx="150"
        cy="150"
        r="42"
@@ -1106,43 +811,33 @@
        stroke-opacity="0.3"
        stroke-width="1"
        id="circle126"
-       style="display:none" />
-    <!-- Hexagonal knob body -->
-    <!-- 6 vertices at r=38, pointy-top: 0°, 60°, 120°, 180°, 240°, 300° -->
-    <polygon
-       points="150,188 117.1,169 117.1,131 150,112 182.9,131 182.9,169 "
-       fill="url(#vd-knob)"
+       style="display:none" /><!-- Hexagonal knob body --><!-- 6 vertices at r=38, pointy-top: 0°, 60°, 120°, 180°, 240°, 300° --><polygon
+       points="117.1,131 150,112 182.9,131 182.9,169 150,188 117.1,169 "
+       fill="#d8d8d8"
        stroke="#3a3a3a"
        stroke-width="0.5"
        id="polygon126"
-       style="fill:url(#vd-knob)" />
-    <!-- 3D facet shading (upper faces brighter, lower faces darker) -->
-    <!-- Upper-left face -->
-    <polygon
-       points="150,112 117.1,131 150,150 "
+       style="display:inline;fill:#666666" /><!-- 3D facet shading (upper faces brighter, lower faces darker) --><!-- Upper-left face --><polygon
+       points="117.1,131 150,150 150,112 "
        fill="#ffffff"
        fill-opacity="0.06"
-       id="polygon127" />
-    <!-- Upper-right face -->
-    <polygon
+       id="polygon127"
+       style="display:none" /><!-- Upper-right face --><polygon
        points="150,112 182.9,131 150,150 "
        fill="#ffffff"
        fill-opacity="0.04"
-       id="polygon128" />
-    <!-- Lower-left face -->
-    <polygon
+       id="polygon128"
+       style="display:none" /><!-- Lower-left face --><polygon
        points="117.1,169 150,188 150,150 "
        fill="#000000"
        fill-opacity="0.06"
-       id="polygon129" />
-    <!-- Lower-right face -->
-    <polygon
+       id="polygon129"
+       style="display:none" /><!-- Lower-right face --><polygon
        points="182.9,169 150,188 150,150 "
        fill="#000000"
        fill-opacity="0.1"
-       id="polygon130" />
-    <!-- Hex edge highlights (top edges bright, bottom edges dark) -->
-    <line
+       id="polygon130"
+       style="display:none" /><!-- Hex edge highlights (top edges bright, bottom edges dark) --><line
        x1="117.1"
        y1="131"
        x2="150"
@@ -1150,8 +845,8 @@
        stroke="#ffffff"
        stroke-opacity="0.12"
        stroke-width="0.6"
-       id="line130" />
-    <line
+       id="line130"
+       style="display:none" /><line
        x1="150"
        y1="112"
        x2="182.89999"
@@ -1159,8 +854,8 @@
        stroke="#ffffff"
        stroke-opacity="0.1"
        stroke-width="0.6"
-       id="line131" />
-    <line
+       id="line131"
+       style="display:none" /><line
        x1="182.89999"
        y1="169"
        x2="150"
@@ -1168,8 +863,7 @@
        stroke="#000000"
        stroke-opacity="0.15"
        stroke-width="0.6"
-       id="line132" />
-    <line
+       id="line132" /><line
        x1="150"
        y1="188"
        x2="117.1"
@@ -1177,9 +871,7 @@
        stroke="#000000"
        stroke-opacity="0.15"
        stroke-width="0.6"
-       id="line133" />
-    <!-- Side edges (neutral) -->
-    <line
+       id="line133" /><!-- Side edges (neutral) --><line
        x1="182.89999"
        y1="131"
        x2="182.89999"
@@ -1188,8 +880,7 @@
        stroke-opacity="0.05"
        stroke-width="0.5"
        id="line134"
-       style="display:inline" />
-    <line
+       style="display:inline" /><line
        x1="117.1"
        y1="131"
        x2="117.1"
@@ -1198,15 +889,10 @@
        stroke-opacity="0.05"
        stroke-width="0.5"
        id="line135"
-       style="display:inline" />
-    <!-- Central grip cap (raised circle in center of hex) -->
-    <!-- Cap highlight ring -->
-    <!-- Inner ring detail -->
-    <g
+       style="display:inline" /><!-- Central grip cap (raised circle in center of hex) --><!-- Cap highlight ring --><!-- Inner ring detail --><g
        id="g138"
        inkscape:label="disco_interior"
-       transform="matrix(1.7548267,0,0,1.7548267,-113.22401,-113.22401)">
-      <circle
+       transform="matrix(1.7548267,0,0,1.7548267,-113.22401,-113.22401)"><circle
          cx="150"
          cy="150"
          r="18"
@@ -1214,8 +900,7 @@
          stroke="#2a2a2a"
          stroke-width="0.5"
          id="circle135"
-         style="display:inline;fill:url(#vd-cap)" />
-      <circle
+         style="display:inline;fill:url(#vd-cap)" /><circle
          cx="150"
          cy="150"
          r="16"
@@ -1224,19 +909,15 @@
          stroke-opacity="0.06"
          stroke-width="0.5"
          id="circle136"
-         style="display:inline" />
-      <circle
+         style="display:none" /><circle
          cx="150"
          cy="150"
-         r="12"
+         r="16.465565"
          fill="#1a1a1a"
          stroke="#282828"
-         stroke-width="0.4"
+         stroke-width="0.548852"
          id="circle137"
-         style="display:inline" />
-    </g>
-    <!-- Rotation reference indicator (small dot near edge of hex, top) -->
-    <circle
+         style="display:inline" /></g><!-- Rotation reference indicator (small dot near edge of hex, top) --><circle
        cx="150"
        cy="116"
        r="2"
@@ -1244,6 +925,4 @@
        stroke="#333333"
        stroke-width="0.3"
        id="circle138"
-       style="display:none" />
-  </g>
-</svg>
+       style="display:none" /></g></svg>

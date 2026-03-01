@@ -143,6 +143,7 @@ La convención **minúsculas → Mayúscula** marca visualmente la transición s
 |-----------|-------------|
 | `Out/{1-8}` | Canales de salida |
 | `Sync/{1-12}` | Hard sync de oscilador (resetea fase) |
+| `PWM/{1-6}` | Modulación de ancho de pulso (osciladores 1-6) |
 | `Scope/{Y,X}` | Osciloscopio (Y=vertical, X=Lissajous) |
 
 #### Ejemplos
@@ -155,6 +156,7 @@ La convención **minúsculas → Mayúscula** marca visualmente la transición s
 /SynthiGME/audio/bus/1/Out/5            RED      # Bus 1 feedback → Out 5 (alta ganancia)
 /SynthiGME/audio/osc/5/sinSaw/Sync/2    GREY     # Osc 5 sin+saw → Hard sync Osc 2
 /SynthiGME/audio/osc/1/triPul/Scope/Y   RED      # Osc 1 tri+pulse → Osciloscopio Y
+/SynthiGME/audio/noise/1/PWM/3          GREY     # Ruido 1 → PWM Osc 3 (precisión)
 /SynthiGME/audio/osc/1/sinSaw/Out/1     0        # Desconectar
 ```
 
@@ -653,12 +655,16 @@ src/assets/js/
     ├── oscInputAmplifierSync.js # Sincronización de input amplifiers (Panel 2)
     ├── oscOutputChannelSync.js # Sincronización de output channels (Panel 7)
     ├── oscNoiseGeneratorSync.js # Sincronización de noise generators (Panel 3)
-    └── oscJoystickSync.js      # Sincronización de joysticks (Panel 7)
+    ├── oscJoystickSync.js      # Sincronización de joysticks (Panel 7)
+    └── oscMatrixSync.js        # Sincronización de matrices audio/control + PWM
 
 tests/
 └── osc/
-    ├── oscServer.test.js
-    └── oscBridge.test.js
+    ├── oscAddressMap.test.js
+    ├── oscControlSync.test.js
+    ├── oscMatrixSync.test.js
+    ├── oscOscillatorSync.test.js
+    └── oscServer.test.js
 ```
 
 ---
@@ -692,5 +698,6 @@ Requiere servidor bridge externo con WebSocket.
 ## Historial de Cambios
 
 | Versión | Fecha | Cambios |
-|---------|-------|---------|| 0.3.0 | 2026-02-18 | Nuevo protocolo semántico para matrices (`/audio/`, `/cv/`): direcciones legibles con convención minúsculas→Mayúscula (source→Dest), valores por color de pin con resistencias reales, formato alternativo ganancia+tolerancia, alias de coordenadas Synthi para compatibilidad SC || 0.2.0 | 2026-02-17 | OSC sync para input amplifiers, output channels, noise generators y joysticks |
+|---------|-------|---------|| 0.4.0 | 2026-02-26 | PWM como destino de matriz audio (`/audio/.../PWM/{1-6}`), `oscMatrixSync.js` para sincronización de matrices |
+| 0.3.0 | 2026-02-18 | Nuevo protocolo semántico para matrices (`/audio/`, `/cv/`): direcciones legibles con convención minúsculas→Mayúscula (source→Dest), valores por color de pin con resistencias reales, formato alternativo ganancia+tolerancia, alias de coordenadas Synthi para compatibilidad SC || 0.2.0 | 2026-02-17 | OSC sync para input amplifiers, output channels, noise generators y joysticks |
 | 0.1.0 | 2026-01-27 | Documentación inicial, claves OSC de SuperCollider |

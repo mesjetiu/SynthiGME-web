@@ -53,7 +53,7 @@ debido a la saturación en los amplificadores de suma (I/C 6 e I/C 7).
 
 ## UI:
 
-- Crear menú contextual de cada mando, de cada módulo... para reiniciar, para poner un valor concreto...
+- ~~Crear menú contextual de cada mando, de cada módulo... para reiniciar, para poner un valor concreto...~~ ✅ Implementado (`contextMenuManager.js`)
 
 ## Sistema Dormancy:
 
@@ -119,16 +119,16 @@ podría ser significativo en dispositivos móviles.
 
 ## Objetivo v0.7.0
 
-- Colocar todos los módulos aunque no estén funcionando.
-- OSC: probar entre dispositivos y perfeccionarlo.
-- Revisar input amplifier levels según manuales técnicos.
+- [x] Colocar todos los módulos aunque no estén funcionando.
+- [ ] OSC: probar entre dispositivos y perfeccionarlo.
+- [ ] Revisar input amplifier levels según manuales técnicos.
 
 ## Objetivo v0.8.0 (optimización y publicación tester)
 
 - Release con versión en web, PWA, electro (Linux y Windows)
 - Corregir errores varios en todas las plataformas.
 - Créditos de fotos de paneles (si se mantienen)
-- Hacer los SVGs de paneles.
+- ~~Hacer los SVGs de paneles.~~ ✅ Panel 3 SVG hecho.
 
 ## Después...
 

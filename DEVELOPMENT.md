@@ -243,6 +243,8 @@ Para detalles sobre la arquitectura interna, módulos y flujo de audio, consulta
 La estructura básica de código fuente en `src/`:
 - `src/assets/js/`: Código fuente JS modular.
 - `src/assets/css/`: Estilos.
+- `src/assets/fonts/`: Fuentes tipográficas (Microgramma, Eurostile, Univers).
+- `src/assets/knobs/`: SVGs de knobs (knob.svg, knob-0-center.svg).
 - `src/assets/panels/`: SVG de paneles optimizados (producción).
 - `design/panels/`: SVG de paneles fuente (Inkscape).
 - `scripts/`: Scripts de build y utilidades:

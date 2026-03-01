@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 20 de febrero de 2026 (sección 20: resaltado de flujo de señal)
+> Última actualización: 26 de febrero de 2026 (actualización general: UI, OSC, tests, configs)
 
 ---
 
@@ -52,7 +52,9 @@ src/
 └── assets/
     ├── css/
     │   └── main.css        # Estilos globales
+    ├── fonts/              # Fuentes tipográficas (Microgramma, Eurostile, Univers)
     ├── icons/              # Iconos Tabler
+    ├── knobs/              # SVGs de knobs (knob.svg, knob-0-center.svg)
     ├── panels/             # SVGs de paneles del sintetizador
     ├── pwa/icons/          # Iconos para PWA
     └── js/
@@ -322,6 +324,12 @@ Componentes de interfaz reutilizables:
 | `panelManager.js` | `PanelManager` | Gestión de paneles, carga de SVG, posicionamiento |
 | `sgmeOscillator.js` | `SgmeOscillator` | UI compuesta de oscilador (knobs + display) |
 | `outputRouter.js` | — | Helper para UI del router de salidas |
+| `contextMenuManager.js` | `ContextMenuManager` | Menú contextual jerárquico: clic derecho/long press en módulos, knobs, pines, paneles. Opciones de reinicio (panel, módulo, control individual), extraer/devolver PiP. Valores por defecto leídos de configs |
+| `easterEgg.js` | `EasterEgg` | Desintegración visual del Synthi + pieza electroacústica al completar secuencia de taps en joystick. Animación CSS con backdrop, overlay, countdown |
+| `oscLogWindow.js` | `OscLogWindow` | Ventana flotante de debug OSC: log de mensajes en tiempo real, filtrado, scroll automático |
+| `panelNotes.js` | `PanelNotes` | Notas post-it arrastrables en paneles y viewport. Texto enriquecido, resize, colores, copiar/pegar, persistencia en localStorage y patches |
+| `recordingOverlay.js` | `RecordingOverlay` | Overlay visual de grabación activa con contador de tiempo |
+| `tooltipManager.js` | `TooltipManager` | Gestor centralizado de tooltips: exclusión mutua en táctil, calibración V/oct, duty cycle, voltaje. Auto-hide configurable |
 | `audioSettingsModal.js` | `AudioSettingsModal` | Modal de configuración de audio: matriz de salida (8 buses → N canales físicos), matriz de entrada (N entradas sistema → 8 Input Amplifiers), selección de dispositivos, detección automática de canales, persistencia en localStorage |
 | `settingsModal.js` | `SettingsModal` | Modal de ajustes generales: idioma, autoguardado, wake lock, atajos. Pestaña "Visualización" con escala de renderizado, toggle de pines inactivos y opción de respuesta lineal de faders de salida. Persistencia en localStorage |
 | `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-12), matriz de ruteo outputs→tracks adaptativa, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
@@ -599,6 +607,7 @@ Parámetros de audio y calibración organizados por tipo de módulo:
 ```
 src/assets/js/configs/
 ├── index.js              # Índice centralizado (importación agrupada)
+├── knobColors.js         # Colores de centro de knobs (fuente única de verdad): azul, verde, blanco, negro, rojo, amarillo
 └── modules/
     ├── oscillator.config.js
     ├── noise.config.js
@@ -653,8 +662,10 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 
 | Archivo | Tipo | Contenido |
 |---------|------|-----------|
+| `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos placeholder (filtros, envelopes, ring modulators, reverb, echo) con 57 knobs |
 | `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
+| `panel4.blueprint.js` | Blueprint | Layout del Panel 4: módulos placeholder para futuras funcionalidades |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
 | `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
 | `panel7.blueprint.js` | Blueprint | Layout del Panel 7: 8 Output Channels (Filter, Pan, Switch, Level Fader por canal) |
@@ -2677,7 +2688,12 @@ src/assets/js/osc/
 ├── index.js              # Exports del módulo
 ├── oscBridge.js          # Singleton que abstrae envío/recepción
 ├── oscAddressMap.js      # Mapeo direcciones ↔ controles, conversión valores
-└── oscOscillatorSync.js  # Sincronización de 12 osciladores via OSC
+├── oscOscillatorSync.js  # Sincronización de 12 osciladores via OSC
+├── oscInputAmplifierSync.js # Sincronización de input amplifiers
+├── oscOutputChannelSync.js  # Sincronización de output channels
+├── oscNoiseGeneratorSync.js # Sincronización de noise generators
+├── oscJoystickSync.js       # Sincronización de joysticks
+└── oscMatrixSync.js         # Sincronización de matrices audio/control (incluye PWM)
 ```
 
 ### Protocolo
@@ -2718,10 +2734,14 @@ src/assets/js/osc/
 | Módulo | Parámetros | Estado |
 |--------|------------|--------|
 | **Osciladores (12)** | frequency, pulselevel, pulseshape, sinelevel, sinesymmetry, trianglelevel, sawtoothlevel, range | ✅ Implementado |
+| **Noise (2)** | colour, level | ✅ Implementado |
+| **Input Amplifiers (8)** | level | ✅ Implementado |
+| **Output Channels (8)** | filter, pan, level | ✅ Implementado |
+| **Joysticks (2)** | posición X/Y, range X/Y | ✅ Implementado |
+| **Matriz Audio** | conexiones source→dest con tipo de pin | ✅ Implementado |
+| **Matriz Control** | conexiones source→dest con tipo de pin | ✅ Implementado |
 | Filtros | — | ⏳ Planificado |
-| Noise | — | ⏳ Planificado |
 | Envelopes | — | ⏳ Planificado |
-| Matrices | — | ⏳ Planificado |
 
 ### Configuración en UI
 
@@ -2853,6 +2873,7 @@ tests/
 │   ├── outputRouter.test.js     # Tests del router de salidas
 │   └── pulse.test.js            # Tests del oscilador pulse
 ├── configs/
+│   ├── knobColors.test.js       # Tests de colores de centro de knobs
 │   ├── matrix.config.test.js        # Tests de configs de matrices (audio/control)
 │   ├── oscillator.config.test.js    # Tests de config de osciladores
 │   └── outputChannel.config.test.js # Tests de config de canales de salida
@@ -2865,16 +2886,50 @@ tests/
 ├── i18n/
 │   └── locales.test.js          # Tests de paridad de traducciones
 ├── ui/
-│   ├── largeMatrix.test.js      # Tests de la matriz grande
-│   ├── matrixTooltip.test.js    # Tests del sistema de tooltips
+│   ├── audioSettingsModal.test.js    # Tests del modal de audio
+│   ├── contextMenuManager.test.js   # Tests del menú contextual jerárquico
+│   ├── doubleTapZoom.test.js        # Tests de doble tap para zoom a panel
+│   ├── easterEgg.test.js            # Tests del easter egg
+│   ├── glowManager.test.js          # Tests del sistema de glow
+│   ├── inputAmplifierUI.test.js     # Tests de input amplifier UI
+│   ├── knob.test.js                 # Tests del knob rotativo
+│   ├── knobFactory.test.js          # Tests de la factoría de knobs
+│   ├── largeMatrix.test.js          # Tests de la matriz grande
+│   ├── layoutHelpers.test.js        # Tests de helpers de layout
+│   ├── matrixTooltip.test.js        # Tests del sistema de tooltips
+│   ├── moduleFrame.test.js          # Tests del frame de módulos
+│   ├── moduleUI.test.js             # Tests de la clase base ModuleUI
 │   ├── oscilloscopeDisplay.test.js  # Tests del display del osciloscopio
-│   ├── pinColorMenu.test.js     # Tests del menú de colores de pin
-│   ├── pipManager.test.js       # Tests del sistema PiP
+│   ├── panelNotes.test.js           # Tests de notas post-it
+│   ├── patchBrowser.test.js         # Tests del navegador de patches
+│   ├── pinColorMenu.test.js         # Tests del menú de colores de pin
+│   ├── pipAutoLock.test.js          # Tests de auto-lock PiP
+│   ├── pipContainFit.test.js        # Tests de contain-fit PiP
+│   ├── pipManager.test.js           # Tests del sistema PiP
+│   ├── recordingOverlay.test.js     # Tests del overlay de grabación
+│   ├── sgmeOscillator.test.js       # Tests del oscilador Synthi
 │   ├── signalFlowHighlighter.test.js  # Tests del resaltado de flujo de señal
-│   └── telemetryConsent.test.js # Tests de consentimiento de telemetría
+│   ├── telemetryConsent.test.js     # Tests de consentimiento de telemetría
+│   ├── toast.test.js                # Tests de notificaciones toast
+│   ├── toggle.test.js               # Tests del interruptor Toggle
+│   └── tooltipManager.test.js       # Tests del gestor de tooltips
 ├── worklets/
 │   └── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
 ├── panelBlueprints/             # Tests de blueprints de paneles
+│   ├── panel1Blueprint.test.js      # Tests de Panel 1 blueprint (placeholder)
+│   ├── panel2Blueprint.test.js      # Tests de Panel 2 blueprint (osciloscopio)
+│   ├── panel3Blueprint.test.js      # Tests de Panel 3 blueprint (osciladores)
+│   ├── panel5Blueprint.test.js      # Tests de Panel 5 blueprint (matriz audio)
+│   ├── panel6Blueprint.test.js      # Tests de Panel 6 blueprint (matriz control)
+│   └── panel7Blueprint.test.js      # Tests de Panel 7 blueprint (output channels)
+├── osc/
+│   ├── oscAddressMap.test.js        # Tests del mapa de direcciones OSC
+│   ├── oscControlSync.test.js       # Tests de sincronización de control
+│   ├── oscMatrixSync.test.js        # Tests de sincronización de matrices (audio+control+PWM)
+│   ├── oscOscillatorSync.test.js    # Tests de sincronización de osciladores
+│   └── oscServer.test.js            # Tests del servidor OSC
+├── integration/
+│   └── knobOscillator.test.js       # Tests de integración knob-oscilador
 ├── electron/
 │   └── electronMenuContracts.test.js  # Tests de contratos Electron-menú (IPC, i18n, sync)
 └── utils/
@@ -2939,7 +2994,7 @@ Opciones útiles:
 - `npm run test:audio:headed` ejecuta con navegador visible
 - `npm run test:audio:debug` activa modo debug del runner
 
-### Cobertura actual (~1900 casos)
+### Cobertura actual (~2800 casos)
 
 | Área | Tests | Verificaciones principales |
 |------|-------|---------------------------|

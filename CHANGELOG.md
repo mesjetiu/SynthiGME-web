@@ -18,7 +18,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Menú contextual jerárquico**: Clic derecho (o long press en móvil) con opciones por elemento: extraer/devolver panel, reiniciar panel, módulo o control concreto. Valores por defecto leídos de configs de módulos (fuente única de verdad).
 - **Manejo global de errores**: Captura con `window.onerror`, `unhandledrejection` y `processorerror` en AudioWorklets. Try/catch en worklets críticos con silencio limpio. Toast unificado con niveles de severidad reemplazando 3 sistemas independientes.
 - **Telemetría anónima opt-in**: Cola de eventos con flush periódico, cola offline, sendBeacon. Backend Google Apps Script → Sheets + alertas Telegram. Consentimiento en primer inicio, toggle en Ajustes y menú Electron.
-- **Atajos de teclado ampliados**: Flechas para paneo del canvas. Zoom Ctrl+/−/0 ahora también en navegador (PWA).
+- **Atajos de teclado ampliados**: Flechas para paneo del canvas. Zoom Ctrl+/−/0 ahora también en navegador (PWA).\n- **Doble tap/clic para zoom a panel**: Doble tap en zona no interactiva de un panel centra y ajusta ese panel al viewport. Validación de proximidad (50px) para evitar falsos positivos.
 - **Opciones de interacción táctil**: Pan con un dedo (ON por defecto) y controles multitáctil (OFF por defecto, evita cambios accidentales durante zoom/pan).
 - **Rasterización adaptativa**: Re-rasterización del DOM al hacer zoom para nitidez a resolución real. Desactivada por defecto.
 - **Panel 1 blueprint v2**: 16 módulos placeholder (filtros, envelopes, ring modulators, reverb, echo) con 57 knobs y ajuste fino de layout. 68 tests.

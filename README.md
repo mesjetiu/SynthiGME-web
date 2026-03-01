@@ -4,7 +4,7 @@ SynthiGME-web es una emulación del sintetizador modular **Synthi 100** del Gabi
 
 Esta versión web permite explorar el sintetizador directamente desde tu navegador, sin necesidad de instalar nada.
 
-**Última actualización:** 13 de febrero de 2026 (módulo joystick completo, sistema de telemetría anónima opt-in, manejo global de errores)
+**Última actualización:** 26 de febrero de 2026 (knobs SVG, PWM CV, easter egg, undo/redo, notas post-it, flujo de señal, menú contextual)
 
 ## 🚀 Acceso Rápido
 
@@ -45,7 +45,7 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 
 | Módulo | Descripción |
 |--------|-------------|
-| **12 Osciladores** | Formas de onda: pulso, seno, triángulo, diente de sierra. Rango 1Hz–10kHz. Incluye *Hard Sync*. |
+| **12 Osciladores** | Formas de onda: pulso, seno, triángulo, diente de sierra. Rango 1Hz–10kHz. Incluye *Hard Sync* y *PWM CV desde matriz*. |
 | **Generadores de Ruido** | 2 Generadores con filtro COLOUR auténtico IIR 6dB/oct (circuito Synthi 100 Cuenca). Transición continua LP↔white↔HP. |
 | **Joysticks** | 2 joysticks XY con voltaje DC bipolar (±8V), knobs Range X/Y independientes. Control en tiempo real para modulación de parámetros vía matriz de control. |
 | **Filtros de salida** | Filtro RC pasivo de 1er orden (6 dB/oct, fc ≈ 677 Hz) en cada canal de salida. Corrección tonal suave y musical. |
@@ -54,6 +54,12 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 | **Osciloscopio** | Visualización de señal en tiempo real (modos tiempo y X-Y Lissajous). |
 | **Grabación** | Exporta tu sesión directamente a archivos de audio WAV multitrack (hasta 12 pistas). |
 | **Patches** | Guarda y carga tus configuraciones. Incluye autoguardado para no perder trabajo. |
+| **Undo/Redo** | Deshaz/rehaz cambios con Ctrl+Z / Ctrl+U (hasta 50 estados). |
+| **Knobs SVG** | Controles rotativos auténticos del Synthi 100 original con colores reales. Estilo CSS alternativo disponible en Ajustes. |
+| **Notas post-it** | Notas arrastrables sobre paneles y viewport. Texto enriquecido, colores, copiar/pegar. |
+| **Flujo de señal** | Hover/tap sobre módulo o pin muestra orígenes (cyan) y destinos (magenta) con glow animado. |
+| **Menú contextual** | Clic derecho/long press para reiniciar panel, módulo o control individual. |
+| **Easter egg** | Secuencia secreta en joysticks desencadena animación y pieza electroacústica. |
 | **Audio Multicanal** | 12 canales de salida + 8 de entrada independientes en Linux (PipeWire). [Más info](MULTICHANNEL.md). |
 
 ### Atajos de Teclado
@@ -67,8 +73,13 @@ Usar el teclado hace la experiencia mucho más fluida:
 | `S` | Abrir Ajustes |
 | `F` | Pantalla completa |
 | `Shift+I` | Reinicializar (Panic) |
+| `Ctrl+Z` | Deshacer |
+| `Ctrl+U` | Rehacer |
 | `1`-`7` | Navegar rápidamente entre paneles |
 | `0` | Vista general (todos los paneles) |
+| `←↑→↓` | Paneo del canvas |
+| `Ctrl+`/`Ctrl-` | Zoom in/out |
+| `Ctrl+0` | Restablecer zoom |
 | `Ctrl` + Click | Mover knobs 10 veces más rápido |
 | `Shift` + Click | Mover knobs con precisión fina |
 
@@ -86,6 +97,9 @@ Pulsa el icono de engranaje (o la tecla `S`) para configurar:
   - 🇵🇹 Português
   - 🇨🇿 Čeština
 - **Escalado**: Aumenta el tamaño de la interfaz (1x - 4x).
+- **Estilo de knobs**: Alterna entre knobs SVG auténticos del Synthi 100 (por defecto) y knobs CSS simplificados.
+- **Efecto glow**: Elige entre 4 presets de halo en controles: performance, standard, subtle u off.
+- **Flujo de señal**: Activa/desactiva el resaltado visual de conexiones al pasar sobre módulos.
 - **Emulación de voltajes**: Activa el comportamiento "analógico" (imprecisión de componentes, deriva térmica) para un sonido más auténtico.
 
 ---

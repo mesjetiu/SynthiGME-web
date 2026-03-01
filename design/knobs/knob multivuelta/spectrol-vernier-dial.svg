@@ -3,7 +3,7 @@
   Spectrol Multi-turn Vernier Dial (Model 15 style)
   Based on EMS Synthi 100 frequency/range controls
   
-  viewBox: 300x300, center at (150,150)
+  viewBox: 282x284, center at (150,150)
   
   Layer structure (bottom to top):
     #GyratoryBlackDisk    - Rotating inner disc with 0-100 scale (rotate via CSS/JS)
@@ -21,9 +21,9 @@
 -->
 
 <svg
-   viewBox="0 0 300 300"
-   width="300"
-   height="300"
+   viewBox="10 10 280 280"
+   width="280"
+   height="280"
    version="1.1"
    id="svg138"
    sodipodi:docname="spectrol-vernier-dial.svg"
@@ -41,9 +41,9 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="1.8835303"
-     inkscape:cx="182.90123"
-     inkscape:cy="152.10799"
+     inkscape:zoom="1.0911397"
+     inkscape:cx="575.08678"
+     inkscape:cy="131.51387"
      inkscape:window-width="1920"
      inkscape:window-height="1005"
      inkscape:window-x="0"
@@ -501,13 +501,7 @@
      id="FixedSilverOuterDisk"
      style="display:inline"><!-- Outer disc ring (masked to donut shape) --><g
        mask="url(#vd-ringMask)"
-       id="g118"><!-- Drop shadow (offset 2px right and down) --><circle
-         cx="152"
-         cy="153"
-         r="141"
-         fill="#000000"
-         fill-opacity="0.12"
-         id="circle96" /><!-- Main disc body (brushed aluminum) --><circle
+       id="g118"><!-- Drop shadow (offset 2px right and down) --><!-- Main disc body (brushed aluminum) --><circle
          cx="150"
          cy="150"
          r="140"
@@ -524,7 +518,8 @@
          fill="none"
          stroke="#999999"
          stroke-width="0.7"
-         id="circle99" /><circle
+         id="circle99"
+         style="display:none" /><circle
          cx="150"
          cy="150"
          r="138.5"
@@ -672,7 +667,8 @@
          cy="150"
          r="140"
          fill="url(#vd-coneInner)"
-         id="circle116" /><!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) --><circle
+         id="circle116"
+         style="display:inline" /><!-- Inner edge of outer disc (rim shadow where it overhangs inner disc) --><circle
          cx="150"
          cy="150"
          r="97"
@@ -680,7 +676,8 @@
          stroke="#000000"
          stroke-opacity="0.22"
          stroke-width="2.5"
-         id="circle117" /><circle
+         id="circle117"
+         style="display:inline" /><circle
          cx="150"
          cy="150"
          r="96.5"
@@ -688,7 +685,8 @@
          stroke="#000000"
          stroke-opacity="0.1"
          stroke-width="1"
-         id="circle118" /></g><!-- Counter window (on the ring surface between r=96 and r=140) --><!-- Window frame --><rect
+         id="circle118"
+         style="display:inline" /></g><!-- Counter window (on the ring surface between r=96 and r=140) --><!-- Window frame --><rect
        x="128.68427"
        y="16.149292"
        width="42.631458"

@@ -57,7 +57,7 @@ describe('InputAmplifierUI - layout fino', () => {
     assert.strictEqual(row.style.gap, '9px');
   });
 
-  it('aplica knobSize numérico y knobInnerPct a todos los knobs', () => {
+  it('aplica knobSize numérico a todos los knobs', () => {
     const ui = new InputAmplifierUI({
       layout: {
         knobSize: 44,
@@ -76,9 +76,11 @@ describe('InputAmplifierUI - layout fino', () => {
       assert.strictEqual(knob.style.height, '44px');
       const inner = knob.querySelector('.knob-inner');
       assert.ok(inner, 'cada knob debe tener inner');
-      assert.strictEqual(inner.style.width, '61%');
-      assert.strictEqual(inner.style.height, '61%');
+      // knobInnerPct se aplica via CSS custom property, no como estilo inline
     });
+
+    // knobInnerPct se almacena en el layout para uso por CSS
+    assert.strictEqual(ui.layout.knobInnerPct, 61);
   });
 
   it('aplica knobOffsets por canal cuando se proporcionan', () => {

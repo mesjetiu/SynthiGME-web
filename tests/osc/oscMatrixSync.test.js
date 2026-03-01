@@ -196,6 +196,20 @@ describe('destToOSCSegment', () => {
     });
   });
 
+  describe('oscPWM', () => {
+    it('oscIndex 0 → PWM/1 (0-based a 1-based)', () => {
+      assert.strictEqual(destToOSCSegment({ kind: 'oscPWM', oscIndex: 0 }), 'PWM/1');
+    });
+
+    it('oscIndex 5 → PWM/6', () => {
+      assert.strictEqual(destToOSCSegment({ kind: 'oscPWM', oscIndex: 5 }), 'PWM/6');
+    });
+
+    it('sin oscIndex usa default 0 → PWM/1', () => {
+      assert.strictEqual(destToOSCSegment({ kind: 'oscPWM' }), 'PWM/1');
+    });
+  });
+
   describe('Casos inválidos', () => {
     it('null retorna null', () => {
       assert.strictEqual(destToOSCSegment(null), null);
@@ -363,13 +377,14 @@ describe('Convenciones de formato de dirección OSC', () => {
     }
   });
 
-  it('destinos usan Mayúscula inicial (Out, Sync, Scope, Freq, Level)', () => {
+  it('destinos usan Mayúscula inicial (Out, Sync, Scope, Freq, Level, PWM)', () => {
     const dests = [
       destToOSCSegment({ kind: 'outputBus', bus: 1 }),
       destToOSCSegment({ kind: 'oscSync', oscIndex: 0 }),
       destToOSCSegment({ kind: 'oscilloscope', channel: 'Y' }),
       destToOSCSegment({ kind: 'oscFreqCV', oscIndex: 0 }),
-      destToOSCSegment({ kind: 'outputLevelCV', busIndex: 0 })
+      destToOSCSegment({ kind: 'outputLevelCV', busIndex: 0 }),
+      destToOSCSegment({ kind: 'oscPWM', oscIndex: 0 })
     ];
 
     for (const seg of dests) {

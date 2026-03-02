@@ -94,16 +94,21 @@ describe('createKnobElements', () => {
     assert.strictEqual(result.valueEl, undefined);
   });
 
-  it('acepta centerColor (se inyecta en SVG cuando se carga)', () => {
-    // El color se aplica al SVG inline tras carga asíncrona;
-    // en tests solo verificamos que no lanza error al pasar centerColor
+  it('aplica centerColor como CSS custom property en .knob-center', () => {
     const { knobEl } = createKnobElements({ centerColor: '#FF0000' });
-    assert.ok(knobEl, 'knobEl debe existir aunque centerColor no sea verificable sin SVG');
+    const center = knobEl.querySelector('.knob-center');
+    assert.ok(center, 'debe crear knob-center');
+    assert.strictEqual(
+      center.style.getPropertyValue('--knob-center-color'),
+      '#FF0000'
+    );
   });
 
-  it('no lanza error cuando centerColor no se proporciona', () => {
+  it('no aplica centerColor cuando no se proporciona', () => {
     const { knobEl } = createKnobElements();
-    assert.ok(knobEl, 'knobEl debe existir sin centerColor');
+    const center = knobEl.querySelector('.knob-center');
+    assert.ok(center, 'debe crear knob-center');
+    assert.strictEqual(center.style.getPropertyValue('--knob-center-color'), '');
   });
 
   it('acepta svgSrc personalizado (se carga async)', () => {
@@ -111,10 +116,12 @@ describe('createKnobElements', () => {
     assert.ok(inner, 'inner debe existir con svgSrc personalizado');
   });
 
-  it('la estructura DOM es wrapper > knobEl > inner', () => {
+  it('la estructura DOM es wrapper > knobEl > [inner, center]', () => {
     const { wrapper, knobEl, inner } = createKnobElements();
     assert.strictEqual(knobEl.parentElement, wrapper);
     assert.strictEqual(inner.parentElement, knobEl);
+    const center = knobEl.querySelector('.knob-center');
+    assert.strictEqual(center.parentElement, knobEl);
   });
 });
 

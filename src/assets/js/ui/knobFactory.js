@@ -2,9 +2,9 @@
  * Factory para crear elementos DOM de knobs.
  * Centraliza la creación del markup HTML para evitar duplicación.
  * 
- * Los SVGs se cargan inline para acceso programático al centro de color
- * (elemento #knob-center-color). Los IDs se hacen únicos por instancia
- * para evitar colisiones cuando hay múltiples knobs en el DOM.
+ * Los SVGs del anillo/escala se cargan inline con IDs únicos por instancia.
+ * El centro de color es un div separado (.knob-center) posicionado fuera de
+ * .knob-inner para que NO gire con el knob. Color vía CSS --knob-center-color.
  * 
  * @module ui/knobFactory
  */
@@ -15,7 +15,7 @@ import { loadSvgInline } from './svgInlineLoader.js';
 /**
  * Crea los elementos DOM para un knob con label y valor opcional.
  * NO instancia la clase Knob, solo crea el markup.
- * El SVG se carga inline de forma asíncrona para inyectar el color del centro.
+ * El SVG del anillo se carga inline; el centro de color es un div independiente.
  * 
  * @param {Object} options - Opciones de configuración
  * @param {string} [options.label] - Texto del label (opcional)
@@ -62,15 +62,18 @@ export function createKnobElements(options = {}) {
   inner.className = 'knob-inner';
   knobEl.appendChild(inner);
 
+  // Centro de color — fuera de inner para que NO gire
+  const center = document.createElement('div');
+  center.className = 'knob-center';
+  if (centerColor) {
+    center.style.setProperty('--knob-center-color', centerColor);
+  }
+  knobEl.appendChild(center);
+
   wrapper.appendChild(knobEl);
 
-  // Cargar SVG inline de forma asíncrona
-  loadSvgInline(svgSrc, inner).then(({ svg, prefix }) => {
-    if (svg && centerColor) {
-      const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
-      if (centerEl) centerEl.setAttribute('fill', centerColor);
-    }
-  });
+  // Cargar SVG inline de forma asíncrona (solo el anillo/escala)
+  loadSvgInline(svgSrc, inner);
 
   const result = { wrapper, knobEl, inner };
 

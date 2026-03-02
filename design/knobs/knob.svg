@@ -156,24 +156,6 @@
    id="circle14" />
     </g>
     <g
-   id="CentroColor"
-   inkscape:label="CentroColor">
-      <circle
-   id="knob-center-color"
-   cx="100"
-   cy="100"
-   r="50"
-   fill="#467660"
-   inkscape:label="knob-center-color" />
-      <circle
-   cx="100"
-   cy="100"
-   r="50"
-   fill="url(#gradienteVolumen)"
-   pointer-events="none"
-   id="circle-gradient-overlay" />
-    </g>
-    <g
    id="EscalaSistema"
    transform="matrix(0,-1.179616,1.179616,0,-17.9616,217.9616)">
       <g

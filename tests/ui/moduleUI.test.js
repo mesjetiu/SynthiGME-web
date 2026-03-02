@@ -150,16 +150,18 @@ describe('ModuleUI - createElement()', () => {
     assert.strictEqual(knobsRow.style.transform, 'translate(10px, -5px)');
   });
 
-  it('aplica color de centro cuando knobDef tiene color (vía SVG inline async)', () => {
+  it('aplica color de centro cuando knobDef tiene color', () => {
     const m = new ModuleUI({
       cssClass: 'test-module',
       knobDefs: [{ key: 'freq', label: 'Freq', color: '#FF0000' }]
     });
     const el = m.createElement();
-    // El color se inyecta en el SVG inline de forma asíncrona;
-    // en tests sin servidor solo verificamos que la estructura DOM existe
-    const inner = el.querySelector('.knob-inner');
-    assert.ok(inner, 'debe tener knob-inner donde se inyecta el SVG');
+    const center = el.querySelector('.knob-center');
+    assert.ok(center, 'debe tener knob-center');
+    assert.strictEqual(
+      center.style.getPropertyValue('--knob-center-color'),
+      '#FF0000'
+    );
   });
 });
 

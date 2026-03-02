@@ -185,19 +185,22 @@ export class SGME_Oscillator {
         const inner = document.createElement('div');
         inner.className = 'knob-inner';
         knob.appendChild(inner);
+
+        // Centro de color — fuera de inner para que NO gire
+        const knobCenter = document.createElement('div');
+        knobCenter.className = 'knob-center';
+        if (DEFAULT_KNOB_COLORS[idx]) {
+          knobCenter.style.setProperty('--knob-center-color', DEFAULT_KNOB_COLORS[idx]);
+        }
+        knob.appendChild(knobCenter);
+
         shell.appendChild(knob);
         shell.appendChild(valueEl);
         knobsRow.appendChild(shell);
 
-        // Cargar SVG inline y setear color del centro
+        // Cargar SVG inline (solo anillo/escala)
         const svgSrc = (scale.min < 0) ? 'assets/knobs/knob-0-center.svg' : 'assets/knobs/knob.svg';
-        const color = DEFAULT_KNOB_COLORS[idx];
-        loadSvgInline(svgSrc, inner).then(({ svg, prefix }) => {
-          if (svg && color) {
-            const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
-            if (centerEl) centerEl.setAttribute('fill', color);
-          }
-        });
+        loadSvgInline(svgSrc, inner);
 
         knobInstance = new Knob(knob, { ...baseOptions, ...perKnob });
       }

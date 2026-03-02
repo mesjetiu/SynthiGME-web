@@ -145,15 +145,16 @@ export class InputAmplifierUI {
     inner.className = 'knob-inner';
     knobEl.appendChild(inner);
 
+    // Centro de color — fuera de inner para que NO gire
+    const knobCenter = document.createElement('div');
+    knobCenter.className = 'knob-center';
+    knobCenter.style.setProperty('--knob-center-color', KNOB_WHITE);
+    knobEl.appendChild(knobCenter);
+
     wrapper.appendChild(knobEl);
 
-    // Cargar SVG inline y setear color blanco del centro
-    loadSvgInline('assets/knobs/knob.svg', inner).then(({ svg, prefix }) => {
-      if (svg) {
-        const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
-        if (centerEl) centerEl.setAttribute('fill', KNOB_WHITE);
-      }
-    });
+    // Cargar SVG inline (solo anillo/escala)
+    loadSvgInline('assets/knobs/knob.svg', inner);
     
     // Valor debajo del knob
     const valueEl = document.createElement('div');

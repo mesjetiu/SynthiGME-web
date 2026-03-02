@@ -148,14 +148,17 @@ export class ModuleUI {
     knobInner.className = 'knob-inner';
     knobContainer.appendChild(knobInner);
 
-    // Cargar SVG inline y setear color del centro
+    // Centro de color — fuera de inner para que NO gire
     const def = this.knobDefs.find(d => d.key === key);
-    loadSvgInline('assets/knobs/knob.svg', knobInner).then(({ svg, prefix }) => {
-      if (svg && def?.color) {
-        const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
-        if (centerEl) centerEl.setAttribute('fill', def.color);
-      }
-    });
+    const knobCenter = document.createElement('div');
+    knobCenter.className = 'knob-center';
+    if (def?.color) {
+      knobCenter.style.setProperty('--knob-center-color', def.color);
+    }
+    knobContainer.appendChild(knobCenter);
+
+    // Cargar SVG inline (solo anillo/escala)
+    loadSvgInline('assets/knobs/knob.svg', knobInner);
 
     shell.appendChild(knobContainer);
 

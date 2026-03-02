@@ -1140,13 +1140,31 @@ h1 {
 .knob.knob--svg .knob-inner::after {
   display: none;
 }
-/* SVG inline del knob (reemplaza al antiguo <img class="knob-svg-ring">) */
+/* SVG inline del knob */
 .knob-inner > svg {
   width: 100%;
   height: 100%;
   display: block;
   pointer-events: none;
   user-select: none;
+}
+/* Centro de color — NO gira (está fuera de .knob-inner) */
+.knob-center {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  inset: 0;
+  margin: auto;
+  border-radius: 50%;
+  background: var(--knob-center-color, #467660);
+  pointer-events: none;
+}
+.knob-center::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, rgba(255,255,255,0.4), rgba(0,0,0,0.2));
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1192,8 +1210,9 @@ h1 {
   height: 10px;
   top: 4px;
 }
-/* En modo CSS, ocultar el SVG inline */
-.knob-style-css .knob-inner > svg {
+/* En modo CSS, ocultar el SVG inline y el centro */
+.knob-style-css .knob-inner > svg,
+.knob-style-css .knob-center {
   display: none;
 }
 

@@ -1,13 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Toggle - Switch de dos estados reutilizable
+// Toggle - Switch de dos estados reutilizable (SVG toggle metálico)
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Toggle visual tipo switch para alternar entre dos modos/estados.
+// Usa el SVG del toggle-switch.svg con animación vertical de la palanca.
 // Usa la clase CSS .synth-toggle para estilos.
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { flashGlow } from './glowManager.js';
+import { loadSvgInline } from './svgInlineLoader.js';
 
 export class Toggle {
   /**
@@ -39,7 +41,7 @@ export class Toggle {
     root.innerHTML = `
       <span class="synth-toggle__label synth-toggle__label-a">${this.labelA}</span>
       <div class="synth-toggle__track">
-        <div class="synth-toggle__thumb"></div>
+        <div class="synth-toggle__svg-container"></div>
       </div>
       <span class="synth-toggle__label synth-toggle__label-b">${this.labelB}</span>
     `;
@@ -48,6 +50,17 @@ export class Toggle {
     
     this.element = root;
     this._render();
+    
+    // Cargar SVG inline del toggle
+    const svgContainer = root.querySelector('.synth-toggle__svg-container');
+    loadSvgInline('assets/knobs/toggle-switch.svg', svgContainer).then(({ svg, prefix }) => {
+      if (svg) {
+        this._svgPrefix = prefix;
+        this._leverGroup = svg.getElementById(`${prefix}toggle-lever`);
+        this._updateLever();
+      }
+    });
+    
     return root;
   }
 
@@ -99,5 +112,20 @@ export class Toggle {
     if (!this.element) return;
     this.element.classList.toggle('is-b', this.state === 'b');
     this.element.setAttribute('data-state', this.state);
+    this._updateLever();
+  }
+
+  /**
+   * Actualiza la posición de la palanca SVG.
+   * Estado 'a' = palanca arriba (sin transform).
+   * Estado 'b' = palanca abajo (flip vertical).
+   */
+  _updateLever() {
+    if (!this._leverGroup) return;
+    if (this.state === 'b') {
+      this._leverGroup.setAttribute('transform', 'translate(0,200) scale(1,-1)');
+    } else {
+      this._leverGroup.removeAttribute('transform');
+    }
   }
 }

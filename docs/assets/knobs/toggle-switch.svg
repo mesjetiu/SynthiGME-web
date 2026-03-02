@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="48 7 104 186"
+   width="104"
+   height="186"
+   version="1.1"
+   id="toggleSwitchSvg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+
+  <defs id="defs-toggle">
+
+    <!-- ===== GRADIENTES PARA TUERCA HEXAGONAL ===== -->
+
+    <!-- Gradiente radial principal de la tuerca (brillo metálico general) -->
+    <radialGradient id="nutRadialGradient" cx="45%" cy="40%" r="60%" fx="40%" fy="35%">
+      <stop offset="0%" stop-color="#e8e8e8" stop-opacity="1"/>
+      <stop offset="25%" stop-color="#d0d0d0" stop-opacity="1"/>
+      <stop offset="50%" stop-color="#b8b8b8" stop-opacity="1"/>
+      <stop offset="75%" stop-color="#a0a0a0" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#888888" stop-opacity="1"/>
+    </radialGradient>
+
+    <!-- Gradiente lineal para bisel superior de la tuerca -->
+    <linearGradient id="nutBevelTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.1"/>
+    </linearGradient>
+
+    <!-- Gradiente lineal para bisel inferior de la tuerca -->
+    <linearGradient id="nutBevelBottom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.25"/>
+    </linearGradient>
+
+    <!-- Gradientes para cada cara del hexágono (simular 3D) -->
+    <linearGradient id="hexFaceTopRight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d8d8d8"/>
+      <stop offset="100%" stop-color="#c0c0c0"/>
+    </linearGradient>
+    <linearGradient id="hexFaceRight" x1="0" y1="0" x2="1" y2="0.5">
+      <stop offset="0%" stop-color="#c8c8c8"/>
+      <stop offset="100%" stop-color="#a8a8a8"/>
+    </linearGradient>
+    <linearGradient id="hexFaceBottomRight" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#b0b0b0"/>
+      <stop offset="100%" stop-color="#909090"/>
+    </linearGradient>
+    <linearGradient id="hexFaceBottomLeft" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#a0a0a0"/>
+      <stop offset="100%" stop-color="#888888"/>
+    </linearGradient>
+    <linearGradient id="hexFaceLeft" x1="1" y1="0.5" x2="0" y2="0">
+      <stop offset="0%" stop-color="#b8b8b8"/>
+      <stop offset="100%" stop-color="#989898"/>
+    </linearGradient>
+    <linearGradient id="hexFaceTopLeft" x1="1" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#d0d0d0"/>
+      <stop offset="100%" stop-color="#e0e0e0"/>
+    </linearGradient>
+
+    <!-- ===== GRADIENTES PARA EL AGUJERO CENTRAL ===== -->
+    <radialGradient id="centralHoleGradient" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#606060"/>
+      <stop offset="60%" stop-color="#404040"/>
+      <stop offset="100%" stop-color="#252525"/>
+    </radialGradient>
+
+    <radialGradient id="centralRimGradient" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#cccccc"/>
+      <stop offset="50%" stop-color="#999999"/>
+      <stop offset="100%" stop-color="#666666"/>
+    </radialGradient>
+
+    <!-- ===== GRADIENTES PARA LA PALANCA ===== -->
+
+    <!-- Gradiente horizontal del mango (simula cilindro metálico) -->
+    <linearGradient id="leverCylinderGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7a7a7a"/>
+      <stop offset="10%" stop-color="#a0a0a0"/>
+      <stop offset="28%" stop-color="#cccccc"/>
+      <stop offset="42%" stop-color="#e2e2e2"/>
+      <stop offset="52%" stop-color="#e8e8e8"/>
+      <stop offset="62%" stop-color="#dddddd"/>
+      <stop offset="78%" stop-color="#b8b8b8"/>
+      <stop offset="92%" stop-color="#959595"/>
+      <stop offset="100%" stop-color="#707070"/>
+    </linearGradient>
+
+    <!-- Gradiente radial para la zona dome: simula curvatura esférica -->
+    <!-- Se aplica CON clipPath solo a la zona superior del mango     -->
+    <radialGradient id="leverDomeRadial" cx="45%" cy="45%" r="55%" fx="40%" fy="40%"
+                    gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#e8e8e8" stop-opacity="0.7"/>
+      <stop offset="35%" stop-color="#d0d0d0" stop-opacity="0.4"/>
+      <stop offset="70%" stop-color="#a0a0a0" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#707070" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ClipPath para confinar el gradiente dome a la zona superior -->
+    <clipPath id="domeClip">
+      <rect x="82" y="8" width="36" height="30"/>
+    </clipPath>
+
+    <!-- Sombra bajo la tuerca -->
+    <radialGradient id="nutShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="60%" stop-color="#000000" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Filtro de sombra suave -->
+    <filter id="shadowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur"/>
+      <feOffset dx="1" dy="2" result="offsetBlur"/>
+      <feMerge>
+        <feMergeNode in="offsetBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Filtro de sombra para la palanca -->
+    <filter id="leverShadowFilter" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="blur"/>
+      <feOffset dx="2" dy="3" result="offsetBlur"/>
+      <feComponentTransfer in="offsetBlur" result="shadow">
+        <feFuncA type="linear" slope="0.4"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+  </defs>
+
+  <!-- ============================================= -->
+  <!-- GRUPO FIJO: TUERCA HEXAGONAL (toggle-base)    -->
+  <!-- ============================================= -->
+  <g id="toggle-base">
+
+    <!-- Sombra exterior suave -->
+    <circle cx="100" cy="108" r="68" fill="url(#nutShadow)" opacity="0.5"/>
+
+    <!-- Cuerpo hexagonal principal -->
+    <!-- Radio del hexágono: 62px, centro en (100,100) -->
+    <!-- Vértices: 0°=arriba, luego cada 60° en sentido horario -->
+    <!-- flat-top hexagon: rotado 30° para que tenga cara plana arriba -->
+
+    <!-- Hexágono completo como base -->
+    <polygon
+       id="hexBody"
+       points="146.31,73.25 146.31,126.75 100,153.5 53.69,126.75 53.69,73.25 100,46.5"
+       fill="url(#nutRadialGradient)"
+       stroke="#777777"
+       stroke-width="0.5"
+       filter="url(#shadowFilter)"/>
+
+    <!-- Caras individuales del hexágono para efecto 3D -->
+    <!-- Cara superior (flat top) -->
+    <polygon points="53.69,73.25 100,46.5 146.31,73.25 100,100"
+             fill="url(#hexFaceTopLeft)" opacity="0.3"/>
+    <!-- Cara derecha superior -->
+    <polygon points="146.31,73.25 146.31,126.75 100,100"
+             fill="url(#hexFaceRight)" opacity="0.25"/>
+    <!-- Cara derecha inferior -->
+    <polygon points="146.31,126.75 100,153.5 100,100"
+             fill="url(#hexFaceBottomRight)" opacity="0.35"/>
+    <!-- Cara inferior -->
+    <polygon points="100,153.5 53.69,126.75 100,100"
+             fill="url(#hexFaceBottomLeft)" opacity="0.35"/>
+    <!-- Cara izquierda inferior -->
+    <polygon points="53.69,126.75 53.69,73.25 100,100"
+             fill="url(#hexFaceLeft)" opacity="0.25"/>
+    <!-- Cara izquierda superior -->
+    <polygon points="53.69,73.25 100,46.5 100,100"
+             fill="url(#hexFaceTopLeft)" opacity="0.15"/>
+
+    <!-- Bordes biselados superiores (brillo en aristas) -->
+    <line x1="53.69" y1="73.25" x2="100" y2="46.5"
+          stroke="#ffffff" stroke-width="1.2" opacity="0.4" stroke-linecap="round"/>
+    <line x1="100" y1="46.5" x2="146.31" y2="73.25"
+          stroke="#ffffff" stroke-width="1.0" opacity="0.35" stroke-linecap="round"/>
+    <line x1="53.69" y1="73.25" x2="53.69" y2="126.75"
+          stroke="#ffffff" stroke-width="0.6" opacity="0.2" stroke-linecap="round"/>
+
+    <!-- Bordes biselados inferiores (sombra en aristas) -->
+    <line x1="146.31" y1="73.25" x2="146.31" y2="126.75"
+          stroke="#444444" stroke-width="0.8" opacity="0.3" stroke-linecap="round"/>
+    <line x1="146.31" y1="126.75" x2="100" y2="153.5"
+          stroke="#333333" stroke-width="1.0" opacity="0.35" stroke-linecap="round"/>
+    <line x1="100" y1="153.5" x2="53.69" y2="126.75"
+          stroke="#444444" stroke-width="0.8" opacity="0.25" stroke-linecap="round"/>
+
+    <!-- Brillo especular diagonal en la tuerca -->
+    <ellipse cx="82" cy="78" rx="25" ry="12"
+             fill="#ffffff" opacity="0.15"
+             transform="rotate(-25 82 78)"/>
+
+    <!-- Anillo exterior del agujero central -->
+    <circle cx="100" cy="100" r="32"
+            fill="url(#centralRimGradient)"
+            stroke="#666666" stroke-width="0.8"/>
+
+    <!-- Reborde interior (bisel del agujero) -->
+    <circle cx="100" cy="100" r="29"
+            fill="none"
+            stroke="#aaaaaa" stroke-width="0.5" opacity="0.6"/>
+
+    <!-- Agujero central oscuro -->
+    <circle cx="100" cy="100" r="27"
+            fill="url(#centralHoleGradient)"
+            stroke="#333333" stroke-width="0.5"/>
+
+    <!-- Reflejo sutil en el borde del agujero -->
+    <path d="M 75,92 A 27,27 0 0,1 125,92"
+          fill="none" stroke="#bbbbbb" stroke-width="0.8" opacity="0.4"/>
+
+  </g>
+
+  <!-- ============================================= -->
+  <!-- GRUPO MÓVIL: PALANCA (toggle-lever)           -->
+  <!-- Posición por defecto: hacia arriba (HI)       -->
+  <!-- Para posición LO: transform="scale(1,-1)" con -->
+  <!-- transform-origin en el centro (100,100)       -->
+  <!-- ============================================= -->
+  <g id="toggle-lever" filter="url(#leverShadowFilter)">
+
+    <!-- Base circular de la palanca (eje que sale del agujero) -->
+    <circle cx="100" cy="100" r="12"
+            fill="#7a7a7a" stroke="#5a5a5a" stroke-width="0.5"/>
+    <circle cx="98.5" cy="98.5" r="6"
+            fill="#999999" opacity="0.3"/>
+
+    <!-- Mango con forma de porra: pieza CONTINUA única.              -->
+    <!-- Base ~14px ancho, se ensancha hasta ~28px en la cabeza,      -->
+    <!-- con punta redondeada integrada (arco semicircular).          -->
+    <path id="leverShape"
+          d="M 93,98
+             L 92,80
+             C 91.5,70 91,63 90,56
+             C 89,49 88,43 87,38
+             C 86,33 85.5,28 86.5,24
+             C 87.5,20 90,17 94,15
+             A 14,14 0 0,1 106,15
+             C 110,17 112.5,20 113.5,24
+             C 114.5,28 114,33 113,38
+             C 112,43 111,49 110,56
+             C 109,63 108.5,70 108,80
+             L 107,98
+             Z"
+          fill="url(#leverCylinderGradient)"
+          stroke="#777777" stroke-width="0.3"/>
+
+    <!-- Overlay radial en la zona dome para transición cilindro→esfera -->
+    <path d="M 93,98
+             L 92,80
+             C 91.5,70 91,63 90,56
+             C 89,49 88,43 87,38
+             C 86,33 85.5,28 86.5,24
+             C 87.5,20 90,17 94,15
+             A 14,14 0 0,1 106,15
+             C 110,17 112.5,20 113.5,24
+             C 114.5,28 114,33 113,38
+             C 112,43 111,49 110,56
+             C 109,63 108.5,70 108,80
+             L 107,98
+             Z"
+          fill="url(#leverDomeRadial)"
+          clip-path="url(#domeClip)"/>
+
+    <!-- Sombra lateral izquierda (sigue la curvatura) -->
+    <path d="M 93,94
+             L 92,80
+             C 91.5,70 91,62 90.2,54
+             C 89.5,46 88.5,40 87,35
+             C 86.2,31 85.8,27 86.8,23"
+          fill="none" stroke="#555555" stroke-width="2.2" opacity="0.18"
+          stroke-linecap="round"/>
+
+    <!-- Sombra lateral derecha (sigue la curvatura) -->
+    <path d="M 107,94
+             L 108,80
+             C 108.5,70 109,62 109.8,54
+             C 110.5,46 111.5,40 113,35
+             C 113.8,31 114.2,27 113.2,23"
+          fill="none" stroke="#4a4a4a" stroke-width="1.8" opacity="0.15"
+          stroke-linecap="round"/>
+
+    <!-- Brillo central: recto en cuerpo, curva al llegar al dome -->
+    <path d="M 99,92
+             L 99,50
+             C 99,38 99,28 98.5,22
+             C 98,18 97,15.5 95.5,14"
+          fill="none" stroke="#ffffff" stroke-width="2" opacity="0.14"
+          stroke-linecap="round"/>
+
+    <!-- Brillo que envuelve el dome siguiendo su arco -->
+    <path d="M 91,20
+             C 93,16 96,13.5 100,13
+             C 103,13.5 105,15 106,17"
+          fill="none" stroke="#ffffff" stroke-width="1.8" opacity="0.18"
+          stroke-linecap="round"/>
+
+    <!-- Reflejo especular puntual en el dome (como en metal pulido) -->
+    <ellipse cx="96" cy="14" rx="3.5" ry="2"
+             fill="#ffffff" opacity="0.28"
+             transform="rotate(-20,96,14)"/>
+
+    <!-- Brillo secundario tenue al otro lado -->
+    <ellipse cx="105" cy="17" rx="1.5" ry="1"
+             fill="#ffffff" opacity="0.06"/>
+
+    <!-- Línea fina de brillo en la zona cilíndrica -->
+    <line x1="99" y1="86" x2="99" y2="35"
+          stroke="#ffffff" stroke-width="0.5" opacity="0.08"
+          stroke-linecap="round"/>
+
+  </g>
+
+</svg>

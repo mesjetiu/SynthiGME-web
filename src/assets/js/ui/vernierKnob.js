@@ -151,6 +151,10 @@ export class VernierKnob extends Knob {
     this._svgCounter = null;
     /** @type {HTMLDivElement} Contenedor del SVG inline */
     this._svgContainer = rootEl.querySelector('.vernier-svg-container');
+    /** @type {number} Último dígito del contador (para evitar writes redundantes) */
+    this._lastCounterDigit = -1;
+    /** @type {string} Último valor formateado (para evitar writes redundantes) */
+    this._lastFormattedValue = '';
 
     // Cargar y montar el SVG inline
     this._loadSvg();
@@ -209,6 +213,10 @@ export class VernierKnob extends Knob {
   /**
    * Actualización visual rápida (solo rotación y texto).
    * Override de Knob._updateVisualFast()
+   * 
+   * Optimizado para rendimiento durante drag:
+   * - Solo escribe textContent cuando el valor realmente cambia
+   * - Evita getBoundingClientRect (badge) a menos que sea necesario
    */
   _updateVisualFast() {
     const { angle, counterDigit } = this._calcVisualState();
@@ -218,14 +226,19 @@ export class VernierKnob extends Knob {
       this._svgRotor.style.transform = `rotate(${angle}deg)`;
     }
 
-    // Actualizar el dígito del contador en la ventana
-    if (this._svgCounter) {
+    // Actualizar el dígito del contador solo si cambió
+    if (this._svgCounter && counterDigit !== this._lastCounterDigit) {
       this._svgCounter.textContent = String(counterDigit);
+      this._lastCounterDigit = counterDigit;
     }
 
-    // Actualizar el valor de texto bajo el knob (escala de display)
+    // Actualizar el valor de texto solo si cambió
     if (this.valueEl) {
-      this.valueEl.textContent = this._formatScaleValue();
+      const formatted = this._formatScaleValue();
+      if (formatted !== this._lastFormattedValue) {
+        this.valueEl.textContent = formatted;
+        this._lastFormattedValue = formatted;
+      }
     }
 
     // Reposicionar badge si está visible

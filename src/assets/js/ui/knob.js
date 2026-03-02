@@ -75,6 +75,8 @@ export class Knob {
     // RAF para actualizaciones visuales fluidas
     this._rafId = null;
     this._pendingValue = null;
+    /** @type {string} Último valor formateado (evita escrituras DOM redundantes) */
+    this._lastFormattedValue = '';
 
     // Rango de rotación: 300° (10/12 circunferencia).
     // Offset de 150° para orientar el "0" abajo-izquierda (posición original del Synthi).
@@ -591,7 +593,13 @@ export class Knob {
     const t = (this.value - this.min) / (this.max - this.min);
     const angle = this.minAngle + t * (this.maxAngle - this.minAngle);
     this.innerEl.style.transform = `rotate(${angle}deg)`;
-    if (this.valueEl) this.valueEl.textContent = this._formatScaleValue();
+    if (this.valueEl) {
+      const formatted = this._formatScaleValue();
+      if (formatted !== this._lastFormattedValue) {
+        this.valueEl.textContent = formatted;
+        this._lastFormattedValue = formatted;
+      }
+    }
     // Reposicionar badge si está visible para seguir el knob
     if (this.modBadge && this.modBadge.classList.contains('is-active')) {
       this._positionModifierBadge();

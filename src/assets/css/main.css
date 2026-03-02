@@ -1076,7 +1076,7 @@ h1 {
   box-shadow: inset 0 0 6px rgba(0,0,0,0.7);
   position: relative;
   transform-origin: 50% 50%;
-  transition: transform 0.03s linear;
+  will-change: transform;
 }
 .knob-inner::after {
   content: "";
@@ -1252,7 +1252,7 @@ h1 {
 /* El grupo giratorio usa CSS transform para rotar */
 .vernier-svg-container #vd-rotor {
   transform-origin: 150px 150px;
-  transition: transform 0.03s linear;
+  will-change: transform;
 }
 /* En modo knob-style-css, ocultar el SVG vernier y mostrar knob CSS */
 .knob-style-css .knob.knob--vernier .vernier-svg-container {

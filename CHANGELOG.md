@@ -8,6 +8,11 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+
+### Cambiado
+- **Rendimiento de knobs**: Eliminada transición CSS (30ms) de `.knob-inner` y `#vd-rotor` que causaba retardo visual durante drag; reemplazada por `will-change: transform` para composición GPU. TextContent del valor y contador solo se escriben al DOM cuando realmente cambian, evitando layout thrashing durante interacción.
+
+### Añadido
 - **Knob Vernier multivuelta (Spectrol)**: Dial de frecuencia del oscilador reemplazado por SVG realista del Spectrol Model 15 con 10 vueltas completas (3600°), disco negro giratorio, anillo plateado fijo con reflejos cónicos, hexágono central, ventana con contador digital (0-10) que indica la vuelta actual, y palanca de freno. Clase `VernierKnob` hereda toda la interacción de `Knob` (drag, tooltips, precisión progresiva, serialización).
 - **Knobs SVG del Synthi 100 original**: Anillo/escala como SVG inline (cargado con `svgInlineLoader.js`, IDs únicos por instancia). Centro de color como div `.knob-center` separado fuera de `.knob-inner` para que NO gire; color vía CSS `--knob-center-color`. Colores del original: azul, verde, blanco, negro, rojo, amarillo. Rango de giro 300°. Diseño CSS anterior conservado como fallback.
 - **Selector de estilo de knobs en Ajustes**: Opción en Interfaz para alternar entre knobs SVG auténticos del Synthi 100 (por defecto) y knobs CSS simplificados. Persistencia en localStorage.

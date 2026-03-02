@@ -10,6 +10,7 @@
 import { Knob } from './knob.js';
 import { VernierKnob } from './vernierKnob.js';
 import { flashGlow } from './glowManager.js';
+import { loadSvgInline } from './svgInlineLoader.js';
 import { KNOB_BLUE, KNOB_GREEN, KNOB_WHITE, KNOB_BLACK } from '../configs/knobColors.js';
 
 /** Índice del knob de frecuencia (usa Vernier dial) */
@@ -176,30 +177,28 @@ export class SGME_Oscillator {
         knobsRow.appendChild(shell);
         knobInstance = new VernierKnob(knob, { ...baseOptions, ...perKnob });
       } else {
-        // ── Knobs estándar (SVG ring + centro de color) ──
+        // ── Knobs estándar (SVG inline + centro de color programático) ──
         const knob = document.createElement('div');
         knob.className = 'knob knob--svg sgme-osc__knob';
         knob.style.width = `${this.knobSize}px`;
         knob.style.height = `${this.knobSize}px`;
         const inner = document.createElement('div');
         inner.className = 'knob-inner';
-        const ringImg = document.createElement('img');
-        ringImg.className = 'knob-svg-ring';
-        // Knobs bipolares (-5 a +5) usan SVG con escala centrada en 0
-        ringImg.src = (scale.min < 0) ? 'assets/knobs/knob-0-center.svg' : 'assets/knobs/knob.svg';
-        ringImg.alt = '';
-        ringImg.draggable = false;
-        inner.appendChild(ringImg);
         knob.appendChild(inner);
-        const knobCenter = document.createElement('div');
-        knobCenter.className = 'knob-center';
-        if (DEFAULT_KNOB_COLORS[idx]) {
-          knobCenter.style.setProperty('--knob-center-color', DEFAULT_KNOB_COLORS[idx]);
-        }
-        knob.appendChild(knobCenter);
         shell.appendChild(knob);
         shell.appendChild(valueEl);
         knobsRow.appendChild(shell);
+
+        // Cargar SVG inline y setear color del centro
+        const svgSrc = (scale.min < 0) ? 'assets/knobs/knob-0-center.svg' : 'assets/knobs/knob.svg';
+        const color = DEFAULT_KNOB_COLORS[idx];
+        loadSvgInline(svgSrc, inner).then(({ svg, prefix }) => {
+          if (svg && color) {
+            const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
+            if (centerEl) centerEl.setAttribute('fill', color);
+          }
+        });
+
         knobInstance = new Knob(knob, { ...baseOptions, ...perKnob });
       }
 

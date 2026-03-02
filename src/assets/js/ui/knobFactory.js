@@ -2,14 +2,20 @@
  * Factory para crear elementos DOM de knobs.
  * Centraliza la creación del markup HTML para evitar duplicación.
  * 
+ * Los SVGs se cargan inline para acceso programático al centro de color
+ * (elemento #knob-center-color). Los IDs se hacen únicos por instancia
+ * para evitar colisiones cuando hay múltiples knobs en el DOM.
+ * 
  * @module ui/knobFactory
  */
 
 import { Knob } from './knob.js';
+import { loadSvgInline } from './svgInlineLoader.js';
 
 /**
  * Crea los elementos DOM para un knob con label y valor opcional.
  * NO instancia la clase Knob, solo crea el markup.
+ * El SVG se carga inline de forma asíncrona para inyectar el color del centro.
  * 
  * @param {Object} options - Opciones de configuración
  * @param {string} [options.label] - Texto del label (opcional)
@@ -17,13 +23,15 @@ import { Knob } from './knob.js';
  * @param {string} [options.className=''] - Clases CSS adicionales para el wrapper
  * @param {boolean} [options.showValue=false] - Mostrar elemento de valor
  * @param {string} [options.svgSrc='assets/knobs/knob.svg'] - Ruta al SVG del anillo exterior
+ * @param {string} [options.centerColor=''] - Color del centro (#hex), inyectado en el SVG inline
  * @returns {Object} { wrapper, knobEl, inner, labelEl?, valueEl? }
  * 
  * @example
  * const { wrapper, knobEl, valueEl } = createKnobElements({
  *   label: 'Freq',
  *   size: 'sm',
- *   showValue: true
+ *   showValue: true,
+ *   centerColor: '#547FA1'
  * });
  * container.appendChild(wrapper);
  * 
@@ -49,26 +57,20 @@ export function createKnobElements(options = {}) {
   const sizeClass = size ? ` knob--${size}` : '';
   knobEl.className = `knob knob--svg${sizeClass}`;
 
-  // Inner (indicador de rotación) - contiene el SVG del anillo que gira
+  // Inner (indicador de rotación) - contiene el SVG inline que gira
   const inner = document.createElement('div');
   inner.className = 'knob-inner';
-  const ringImg = document.createElement('img');
-  ringImg.className = 'knob-svg-ring';
-  ringImg.src = svgSrc;
-  ringImg.alt = '';
-  ringImg.draggable = false;
-  inner.appendChild(ringImg);
   knobEl.appendChild(inner);
 
-  // Centro de color (no rota) - brillo simulado fijo
-  const center = document.createElement('div');
-  center.className = 'knob-center';
-  if (centerColor) {
-    center.style.setProperty('--knob-center-color', centerColor);
-  }
-  knobEl.appendChild(center);
-
   wrapper.appendChild(knobEl);
+
+  // Cargar SVG inline de forma asíncrona
+  loadSvgInline(svgSrc, inner).then(({ svg, prefix }) => {
+    if (svg && centerColor) {
+      const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
+      if (centerEl) centerEl.setAttribute('fill', centerColor);
+    }
+  });
 
   const result = { wrapper, knobEl, inner };
 

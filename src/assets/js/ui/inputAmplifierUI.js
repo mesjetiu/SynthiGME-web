@@ -16,6 +16,7 @@
 import { ModuleFrame } from './moduleFrame.js';
 import { Knob } from './knob.js';
 import { KNOB_WHITE } from '../configs/knobColors.js';
+import { loadSvgInline } from './svgInlineLoader.js';
 
 export class InputAmplifierUI {
   
@@ -142,18 +143,17 @@ export class InputAmplifierUI {
     
     const inner = document.createElement('div');
     inner.className = 'knob-inner';
-    const ringImg = document.createElement('img');
-    ringImg.className = 'knob-svg-ring';
-    ringImg.src = 'assets/knobs/knob.svg';
-    ringImg.alt = '';
-    ringImg.draggable = false;
-    inner.appendChild(ringImg);
     knobEl.appendChild(inner);
-    const knobCenter = document.createElement('div');
-    knobCenter.className = 'knob-center';
-    knobCenter.style.setProperty('--knob-center-color', KNOB_WHITE);
-    knobEl.appendChild(knobCenter);
+
     wrapper.appendChild(knobEl);
+
+    // Cargar SVG inline y setear color blanco del centro
+    loadSvgInline('assets/knobs/knob.svg', inner).then(({ svg, prefix }) => {
+      if (svg) {
+        const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
+        if (centerEl) centerEl.setAttribute('fill', KNOB_WHITE);
+      }
+    });
     
     // Valor debajo del knob
     const valueEl = document.createElement('div');

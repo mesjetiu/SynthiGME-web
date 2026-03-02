@@ -32,6 +32,7 @@
  */
 
 import { Knob } from './knob.js';
+import { loadSvgInline } from './svgInlineLoader.js';
 
 export class ModuleUI {
   /**
@@ -145,22 +146,17 @@ export class ModuleUI {
 
     const knobInner = document.createElement('div');
     knobInner.className = 'knob-inner';
-    const ringImg = document.createElement('img');
-    ringImg.className = 'knob-svg-ring';
-    ringImg.src = 'assets/knobs/knob.svg';
-    ringImg.alt = '';
-    ringImg.draggable = false;
-    knobInner.appendChild(ringImg);
     knobContainer.appendChild(knobInner);
 
-    const knobCenter = document.createElement('div');
-    knobCenter.className = 'knob-center';
-    // Color de centro del knob (definido en knobDefs de cada módulo)
+    // Cargar SVG inline y setear color del centro
     const def = this.knobDefs.find(d => d.key === key);
-    if (def?.color) {
-      knobCenter.style.setProperty('--knob-center-color', def.color);
-    }
-    knobContainer.appendChild(knobCenter);
+    loadSvgInline('assets/knobs/knob.svg', knobInner).then(({ svg, prefix }) => {
+      if (svg && def?.color) {
+        const centerEl = svg.querySelector(`#${prefix}knob-center-color`);
+        if (centerEl) centerEl.setAttribute('fill', def.color);
+      }
+    });
+
     shell.appendChild(knobContainer);
 
     // Valor debajo del knob (visible, muestra escala 0-10)

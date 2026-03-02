@@ -38,6 +38,10 @@ async function fetchVernierSvg() {
       .then(text => {
         svgCache = text;
         return text;
+      })
+      .catch(err => {
+        svgFetchPromise = null;
+        throw err;
       });
   }
   return svgFetchPromise;
@@ -157,7 +161,12 @@ export class VernierKnob extends Knob {
    * @private
    */
   async _loadSvg() {
-    const svgText = await fetchVernierSvg();
+    let svgText;
+    try {
+      svgText = await fetchVernierSvg();
+    } catch {
+      return; // Falla silenciosamente (ej: entorno de tests sin servidor)
+    }
     if (!this._svgContainer) return;
 
     this._svgContainer.innerHTML = svgText;

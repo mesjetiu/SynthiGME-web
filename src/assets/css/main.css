@@ -2654,6 +2654,7 @@ small { color:#aaa; }
   font-size: 10px;
   color: #aaa;
   outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .synth-toggle:focus,
@@ -5744,6 +5745,7 @@ small { color:#aaa; }
   background: transparent;
   border: none;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .output-channel__switch--svg:hover {

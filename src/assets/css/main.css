@@ -2653,6 +2653,13 @@ small { color:#aaa; }
   user-select: none;
   font-size: 10px;
   color: #aaa;
+  outline: none;
+}
+
+.synth-toggle:focus,
+.synth-toggle:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .synth-toggle__label {
@@ -5741,6 +5748,12 @@ small { color:#aaa; }
 
 .output-channel__switch--svg:hover {
   border-color: transparent;
+}
+
+.output-channel__switch--svg:focus,
+.output-channel__switch--svg:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .output-channel__switch--svg.is-on {

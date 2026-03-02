@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Toggle Switch Preview</title>
+  <style>
+    body {
+      background: #d4d0c8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      gap: 40px;
+    }
+    h1 { color: #333; }
+    .preview-row {
+      display: flex;
+      gap: 60px;
+      align-items: center;
+    }
+    .preview-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .toggle-wrapper {
+      width: 120px;
+      height: 120px;
+      background: #e8e4dc;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .toggle-wrapper svg {
+      width: 100px;
+      height: 100px;
+    }
+    .label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #333;
+    }
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      width: 120px;
+      padding: 0 5px;
+    }
+    .size-grid {
+      display: flex;
+      gap: 30px;
+      align-items: flex-end;
+    }
+    .size-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    .interactive-wrapper {
+      width: 160px;
+      height: 200px;
+      background: #e8e4dc;
+      border: 2px solid #999;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .interactive-wrapper:hover {
+      border-color: #666;
+    }
+    .interactive-wrapper svg {
+      width: 120px;
+      height: 120px;
+    }
+    .hint {
+      font-size: 12px;
+      color: #888;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Toggle Switch – Preview</h1>
+
+  <h2>Posición HI (arriba) y LO (abajo)</h2>
+  <div class="preview-row">
+    <div class="preview-container">
+      <div class="label-row">
+        <span class="label">HI</span>
+      </div>
+      <div class="toggle-wrapper" id="hi-static">
+        <!-- Se cargará dinámicamente -->
+      </div>
+      <span class="label">Posición HI</span>
+    </div>
+
+    <div class="preview-container">
+      <div class="label-row">
+        <span class="label">LO</span>
+      </div>
+      <div class="toggle-wrapper" id="lo-static">
+        <!-- Se cargará dinámicamente -->
+      </div>
+      <span class="label">Posición LO</span>
+    </div>
+  </div>
+
+  <h2>Varios tamaños</h2>
+  <div class="size-grid">
+    <div class="size-item">
+      <div id="size-40" style="width:40px;height:40px;"></div>
+      <span class="label">40px</span>
+    </div>
+    <div class="size-item">
+      <div id="size-60" style="width:60px;height:60px;"></div>
+      <span class="label">60px</span>
+    </div>
+    <div class="size-item">
+      <div id="size-100" style="width:100px;height:100px;"></div>
+      <span class="label">100px</span>
+    </div>
+    <div class="size-item">
+      <div id="size-150" style="width:150px;height:150px;"></div>
+      <span class="label">150px</span>
+    </div>
+  </div>
+
+  <h2>Interactivo (haz clic)</h2>
+  <div class="interactive-wrapper" id="interactive-toggle" onclick="toggleState()">
+    <div class="label-row" style="width:140px;">
+      <span></span>
+      <span class="label">HI</span>
+    </div>
+    <div id="interactive-svg-container"></div>
+    <div class="label-row" style="width:140px;">
+      <span></span>
+      <span class="label">LO</span>
+    </div>
+    <span class="hint">Clic para cambiar</span>
+  </div>
+
+  <script>
+    let isHi = true;
+
+    async function loadSVG() {
+      const response = await fetch('toggle-switch.svg');
+      const svgText = await response.text();
+      return svgText;
+    }
+
+    function createRotatedSVG(svgText) {
+      // Flip lever vertically using scale(1,-1) centered at (100,100)
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgText, 'image/svg+xml');
+      const lever = doc.getElementById('toggle-lever');
+      if (lever) {
+        lever.setAttribute('transform', 'translate(0,200) scale(1,-1)');
+      }
+      return new XMLSerializer().serializeToString(doc);
+    }
+
+    async function init() {
+      const svgText = await loadSVG();
+
+      // HI static
+      document.getElementById('hi-static').innerHTML = svgText;
+
+      // LO static
+      document.getElementById('lo-static').innerHTML = createRotatedSVG(svgText);
+
+      // Sizes
+      ['size-40', 'size-60', 'size-100', 'size-150'].forEach(id => {
+        document.getElementById(id).innerHTML = svgText;
+        const svg = document.getElementById(id).querySelector('svg');
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+      });
+
+      // Interactive
+      const interactiveContainer = document.getElementById('interactive-svg-container');
+      interactiveContainer.innerHTML = svgText;
+      const interactiveSvg = interactiveContainer.querySelector('svg');
+      interactiveSvg.style.width = '120px';
+      interactiveSvg.style.height = '120px';
+
+      // Add class to lever for CSS animation
+      const lever = interactiveSvg.getElementById('toggle-lever');
+      if (lever) lever.classList.add('toggle-lever-group');
+    }
+
+    function toggleState() {
+      isHi = !isHi;
+      const wrapper = document.getElementById('interactive-toggle');
+      const lever = wrapper.querySelector('#toggle-lever');
+
+      if (isHi) {
+        wrapper.classList.remove('state-lo');
+        lever.setAttribute('transform', '');
+      } else {
+        wrapper.classList.add('state-lo');
+        // Flip vertical: scale(1,-1) centrado en y=100
+        lever.setAttribute('transform', 'translate(0,200) scale(1,-1)');
+      }
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

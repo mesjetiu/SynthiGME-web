@@ -112,11 +112,23 @@ export class SGME_Oscillator {
     rangeWrap.className = 'output-channel__switch-wrap sgme-osc__switch-wrap';
     const range = document.createElement('button');
     range.type = 'button';
-    range.className = 'output-channel__switch';
+    range.className = 'output-channel__switch output-channel__switch--svg';
     range.setAttribute('aria-label', `${this.title} range`);
-    const indicator = document.createElement('span');
-    indicator.className = 'output-channel__switch-indicator';
-    range.appendChild(indicator);
+    
+    // Contenedor para SVG del toggle
+    const svgContainer = document.createElement('div');
+    svgContainer.className = 'toggle-svg-container';
+    range.appendChild(svgContainer);
+    
+    // Cargar SVG inline del toggle
+    loadSvgInline('assets/knobs/toggle-switch.svg', svgContainer).then(({ svg, prefix }) => {
+      if (svg) {
+        this._rangeSvgPrefix = prefix;
+        this._rangeLeverGroup = svg.getElementById(`${prefix}toggle-lever`);
+        this._updateRangeLever();
+      }
+    });
+    
     range.addEventListener('click', () => {
       this.rangeState = this.rangeState === 'hi' ? 'lo' : 'hi';
       this._renderRange(range);
@@ -220,6 +232,15 @@ export class SGME_Oscillator {
     rangeEl.classList.toggle('is-on', isHi);
     rangeEl.setAttribute('aria-pressed', String(isHi));
     rangeEl.setAttribute('data-state', isHi ? 'hi' : 'lo');
+    this._updateRangeLever();
+  }
+
+  /** Actualiza la posición visual de la palanca SVG del toggle de rango */
+  _updateRangeLever() {
+    if (!this._rangeLeverGroup) return;
+    const isHi = this.rangeState === 'hi';
+    // Estado 'hi' = palanca arriba (sin transform), 'lo' = palanca abajo (flip vertical)
+    this._rangeLeverGroup.setAttribute('transform', isHi ? '' : 'translate(0,200) scale(1,-1)');
   }
   
   /**

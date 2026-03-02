@@ -31,6 +31,7 @@ import { registerTooltipHideCallback, hideOtherTooltips } from '../ui/tooltipMan
 import { getVCATooltipInfo } from '../utils/tooltipUtils.js';
 import { outputChannelOSCSync } from '../osc/oscOutputChannelSync.js';
 import { flashGlow } from '../ui/glowManager.js';
+import { loadSvgInline } from '../ui/svgInlineLoader.js';
 
 // Detectar si el dispositivo tiene capacidad táctil
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -288,21 +289,31 @@ export class OutputChannel extends Module {
     
     const switchEl = document.createElement('button');
     switchEl.type = 'button';
-    switchEl.className = 'output-channel__switch';
+    switchEl.className = 'output-channel__switch output-channel__switch--svg';
     switchEl.classList.toggle('is-on', this.values.power);
     switchEl.setAttribute('aria-pressed', String(this.values.power));
     switchEl.setAttribute('aria-label', `Channel ${this.channelIndex + 1} power`);
     
-    // Indicador visual
-    const indicator = document.createElement('span');
-    indicator.className = 'output-channel__switch-indicator';
-    switchEl.appendChild(indicator);
+    // Contenedor para SVG del toggle
+    const svgContainer = document.createElement('div');
+    svgContainer.className = 'toggle-svg-container';
+    switchEl.appendChild(svgContainer);
+    
+    // Cargar SVG inline del toggle
+    loadSvgInline('assets/knobs/toggle-switch.svg', svgContainer).then(({ svg, prefix }) => {
+      if (svg) {
+        this._powerSvgPrefix = prefix;
+        this._powerLeverGroup = svg.getElementById(`${prefix}toggle-lever`);
+        this._updatePowerLever();
+      }
+    });
     
     // Toggle power/mute del canal
     switchEl.addEventListener('click', () => {
       this.values.power = !this.values.power;
       switchEl.classList.toggle('is-on', this.values.power);
       switchEl.setAttribute('aria-pressed', String(this.values.power));
+      this._updatePowerLever();
       // Mutear/desmutear el canal (power=true → muted=false)
       this.engine.setOutputMute(this.channelIndex, !this.values.power);
       if (!outputChannelOSCSync.shouldIgnoreOSC()) {
@@ -316,6 +327,14 @@ export class OutputChannel extends Module {
     wrap.appendChild(switchEl);
     
     return wrap;
+  }
+
+  /** Actualiza la posición visual de la palanca SVG del toggle de power */
+  _updatePowerLever() {
+    if (!this._powerLeverGroup) return;
+    // power=true → palanca arriba (sin transform), power=false → palanca abajo (flip)
+    this._powerLeverGroup.setAttribute('transform',
+      this.values.power ? '' : 'translate(0,200) scale(1,-1)');
   }
   
   /**
@@ -729,6 +748,7 @@ export class OutputChannel extends Module {
       if (this.powerSwitch) {
         this.powerSwitch.classList.toggle('is-on', data.power);
         this.powerSwitch.setAttribute('aria-pressed', String(data.power));
+        this._updatePowerLever();
         if (powerChanged) flashGlow(this.powerSwitch);
       }
     }

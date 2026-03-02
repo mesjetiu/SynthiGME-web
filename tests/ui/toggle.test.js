@@ -145,11 +145,11 @@ describe('Toggle - createElement()', () => {
     assert.strictEqual(labelB.textContent, 'LO');
   });
 
-  it('contiene track y thumb', () => {
+  it('contiene track y SVG container', () => {
     const t = new Toggle({ labelA: 'HI', labelB: 'LO' });
     const el = t.createElement();
     assert.ok(el.querySelector('.synth-toggle__track'), 'debe tener track');
-    assert.ok(el.querySelector('.synth-toggle__thumb'), 'debe tener thumb');
+    assert.ok(el.querySelector('.synth-toggle__svg-container'), 'debe tener SVG container');
   });
 
   it('aplica data-state según estado inicial', () => {

@@ -104,6 +104,7 @@ import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
 import { initGlowManager, flashGlow } from './ui/glowManager.js';
+import { loadSvgInline } from './ui/svgInlineLoader.js';
 import { SignalFlowHighlighter } from './ui/signalFlowHighlighter.js';
 import { keyboardShortcuts } from './ui/keyboardShortcuts.js';
 
@@ -622,6 +623,7 @@ class App {
       applyOffset(sw, sequencerUI.switchOffsets?.[idx]);
       const toggle = document.createElement('div');
       toggle.className = 'panel7-seq-switch-toggle';
+      loadSvgInline('assets/knobs/toggle-switch.svg', toggle);
       sw.appendChild(toggle);
       switchRow.appendChild(sw);
     }

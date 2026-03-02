@@ -2382,6 +2382,11 @@ small { color:#aaa; }
   height: var(--osc-button-indicator-size, 8px);
 }
 
+.sgme-osc__switch-wrap .toggle-svg-container {
+  width: var(--osc-button-width, 18px);
+  height: var(--osc-button-height, 30px);
+}
+
 .sgme-osc__bottom {
   flex: 1 0 56%;
   padding: 2px 8px 10px;
@@ -2674,32 +2679,39 @@ small { color:#aaa; }
 }
 
 .synth-toggle__track {
-  width: 28px;
-  height: 14px;
-  background: #222;
-  border: 1px solid #444;
-  border-radius: 7px;
   position: relative;
-  transition: border-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
 
 .synth-toggle:hover .synth-toggle__track {
-  border-color: #0f0;
+  filter: brightness(1.2);
 }
 
+/* Legacy thumb (ya no se usa, se mantiene por compatibilidad) */
 .synth-toggle__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 8px;
-  height: 8px;
-  background: #0f0;
-  border-radius: 50%;
-  transition: left 0.15s ease;
+  display: none;
 }
 
 .synth-toggle.is-b .synth-toggle__thumb {
-  left: 16px;
+  display: none;
+}
+
+/* ─── SVG Toggle Container (synth-toggle) ─── */
+.synth-toggle__svg-container {
+  width: 22px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.synth-toggle__svg-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* Synth-toggle glow effect */
@@ -5717,6 +5729,39 @@ small { color:#aaa; }
   border-color: #0a0;
 }
 
+/* ─── SVG Toggle para switches ─── */
+.output-channel__switch--svg {
+  width: auto;
+  height: auto;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.output-channel__switch--svg:hover {
+  border-color: transparent;
+}
+
+.output-channel__switch--svg.is-on {
+  background: transparent;
+  border-color: transparent;
+}
+
+.toggle-svg-container {
+  width: var(--oc-button-width, 18px);
+  height: var(--oc-button-height, 30px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-svg-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .output-channel__switch-indicator {
   position: absolute;
   top: calc(100% - var(--oc-button-indicator-size, 8px) - 3px);
@@ -5968,10 +6013,16 @@ small { color:#aaa; }
 .panel7-seq-switch-toggle {
   width: 10px;
   height: 22px;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #777 0%, #444 100%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.panel7-seq-switch-toggle svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .panel7-sequencer-buttons {

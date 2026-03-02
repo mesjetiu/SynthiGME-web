@@ -796,9 +796,10 @@ class App {
       this.outputChannelsSection.style.setProperty('--oc-channel-gap', `${lowerRow.gap ?? 8}px`);
       this.outputChannelsSection.style.setProperty('--oc-knob-button-gap', `${toNum(channelUI.knobButtonGap, 2)}px`);
       this.outputChannelsSection.style.setProperty('--oc-button-slider-gap', `${toNum(channelUI.buttonSliderGap, 2)}px`);
-      this.outputChannelsSection.style.setProperty('--oc-button-width', `${toNum(buttonSize.width, 18)}px`);
-      this.outputChannelsSection.style.setProperty('--oc-button-height', `${toNum(buttonSize.height, 30)}px`);
-      this.outputChannelsSection.style.setProperty('--oc-button-indicator-size', `${toNum(buttonSize.indicator, 8)}px`);
+      const buttonScale = toNum(buttonSize.scale, 1);
+      this.outputChannelsSection.style.setProperty('--oc-button-width', `${toNum(buttonSize.width, 18) * buttonScale}px`);
+      this.outputChannelsSection.style.setProperty('--oc-button-height', `${toNum(buttonSize.height, 30) * buttonScale}px`);
+      this.outputChannelsSection.style.setProperty('--oc-button-indicator-size', `${toNum(buttonSize.indicator, 8) * buttonScale}px`);
       this.outputChannelsSection.style.setProperty('--oc-knob-size', `${toNum(channelUI.knobSize, 42)}px`);
       this.outputChannelsSection.style.setProperty('--oc-knob-inner-pct', `${toNum(channelUI.knobInnerPct, 78)}%`);
       this.outputChannelsSection.style.setProperty('--oc-knob-gap', `${knobGapValue}px`);

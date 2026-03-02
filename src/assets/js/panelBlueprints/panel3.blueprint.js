@@ -120,9 +120,10 @@ export default {
     knobRowOffsetY: -17,   // px — desplazamiento vertical de toda la fila de knobs
     knobOffsets: [6, 6, 6, 6, 6, 6, -18],  // px — offset Y individual por knob (7 knobs)
     
-    // Switch HI/LO (reutiliza output-channel__switch)
+    // Switch HI/LO — toggle SVG metálico
     buttonSize: { width: 18, height: 30, indicator: 8 },
-    switchOffset: { leftPercent: 36, topPx: 6 },
+    buttonScale: 1,        // factor de escala uniforme del toggle (ej: 1.5 = 50% más grande)
+    switchOffset: { leftPercent: 26.5, topPx: -3 },
     
     // Offset del slot completo (permite desplazar un oscilador
     // respecto a su posición calculada en el grid)

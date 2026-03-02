@@ -57,6 +57,7 @@ export class SGME_Oscillator {
     const rawGap = options.knobGap ?? 8;
     this.knobGap = Array.isArray(rawGap) ? rawGap : Array(6).fill(rawGap);
     this.buttonSize = options.buttonSize || { width: 18, height: 30, indicator: 8 };
+    this.buttonScale = options.buttonScale ?? 1;
     this.switchOffset = options.switchOffset || { leftPercent: 36, topPx: 6 };
     // Ajustes de knobs: tamaño, offset de fila y offsets individuales (px)
     this.knobSize = options.knobSize || 42;
@@ -86,9 +87,9 @@ export class SGME_Oscillator {
     root.style.setProperty('--osc-knob-row-offset-y', `${this.knobRowOffsetY}px`);
     root.style.setProperty('--switch-left-percent', `${this.switchOffset.leftPercent}%`);
     root.style.setProperty('--switch-top-px', `${this.switchOffset.topPx}px`);
-    root.style.setProperty('--osc-button-width', `${this.buttonSize.width}px`);
-    root.style.setProperty('--osc-button-height', `${this.buttonSize.height}px`);
-    root.style.setProperty('--osc-button-indicator-size', `${this.buttonSize.indicator}px`);
+    root.style.setProperty('--osc-button-width', `${this.buttonSize.width * this.buttonScale}px`);
+    root.style.setProperty('--osc-button-height', `${this.buttonSize.height * this.buttonScale}px`);
+    root.style.setProperty('--osc-button-indicator-size', `${this.buttonSize.indicator * this.buttonScale}px`);
     root.style.width = `${this.size.width}px`;
     root.style.height = `${this.size.height}px`;
 

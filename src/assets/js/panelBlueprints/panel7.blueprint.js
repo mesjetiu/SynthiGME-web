@@ -206,7 +206,8 @@ export default {
     buttonSize: {
       width: 18,
       height: 30,
-      indicator: 8
+      indicator: 8,
+      scale: 1             // factor de escala uniforme del toggle (ej: 1.5 = 50% más grande)
     },
 
     // Padding interno del contenido (espacio entre borde del marco y controles)

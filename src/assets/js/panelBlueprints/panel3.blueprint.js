@@ -120,6 +120,18 @@ export default {
     knobRowOffsetY: -17,   // px — desplazamiento vertical de toda la fila de knobs
     knobOffsets: [6, 6, 6, 6, 6, 6, -18],  // px — offset Y individual por knob (7 knobs)
     
+    // Colores del centro de cada knob (7 knobs, Synthi 100 original)
+    // null = vernier (sin centro de color)
+    knobColors: [
+      'blue',    // 0: Pulse level
+      'green',   // 1: Pulse shape
+      'white',   // 2: Sine level
+      'green',   // 3: Sine symmetry
+      'blue',    // 4: Triangle level
+      'white',   // 5: Sawtooth level
+      'black'    // 6: Frequency (no visible, se usa vernier)
+    ],
+    
     // Switch HI/LO — toggle SVG metálico
     buttonSize: { width: 18, height: 30, indicator: 8 },
     buttonScale: 0.85,        // factor de escala uniforme del toggle (ej: 1.5 = 50% más grande)
@@ -144,6 +156,12 @@ export default {
     knobRowOffsetX: 3,     // px — desplazamiento horizontal de toda la fila de knobs
     knobRowOffsetY: 28,     // px — desplazamiento vertical de toda la fila de knobs
     knobOffsets: [0, 0],   // px — offset Y individual por knob (2 knobs)
+    
+    // Colores del centro de cada knob (2 knobs, Synthi 100 original)
+    knobColors: [
+      'blue',    // 0: Colour
+      'white'    // 1: Level
+    ],
   },
   
   // ─────────────────────────────────────────────────────────────────────────
@@ -160,6 +178,15 @@ export default {
     knobRowOffsetX: 1,     // px — desplazamiento horizontal de toda la fila de knobs
     knobRowOffsetY: 28,     // px — desplazamiento vertical de toda la fila de knobs
     knobOffsets: [0, 0, 0, 0, 0],  // px — offset Y individual por knob (5 knobs)
+    
+    // Colores del centro de cada knob (5 knobs, Synthi 100 original)
+    knobColors: [
+      'red',     // 0: Mean
+      'red',     // 1: Variance
+      'white',   // 2: Voltage 1
+      'white',   // 3: Voltage 2
+      'white'    // 4: Key
+    ],
   },
   
   // ─────────────────────────────────────────────────────────────────────────

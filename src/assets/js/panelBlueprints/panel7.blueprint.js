@@ -83,6 +83,7 @@ export default {
       // Totalmente independiente de joystickRight.
       joystickLeft: {
         knobs: ['Range Horizontal', 'Range Vertical'],
+        knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
         knobSize: 65,
         padSize: 120,
 
@@ -101,6 +102,7 @@ export default {
       // Totalmente independiente de joystickLeft.
       joystickRight: {
         knobs: ['Range Horizontal', 'Range Vertical'],
+        knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
         knobSize: 65,
         padSize: 120,
 
@@ -182,6 +184,12 @@ export default {
     knobGap: 23,              // px — gap vertical entre los 2 knobs (Filter y Pan)
     knobRowOffsetX: 0,       // px — desplazamiento horizontal de la fila de knobs
     knobRowOffsetY: 20,       // px — desplazamiento vertical de la fila de knobs
+    
+    // Colores del centro de cada knob (2 knobs, Synthi 100 original)
+    knobColors: [
+      'blue',    // 0: Filter
+      'white'    // 1: Pan
+    ],
 
     // Slider (level) — tamaño visual del fader
     sliderSize: {

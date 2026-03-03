@@ -26,6 +26,7 @@ La documentación del proyecto va en la **raíz**:
 - `CHANGELOG.md` - Historial de cambios
 - `OSC.md` - Documentación del protocolo OSC
 - `TODO.md` - Tareas pendientes
+- `MODULE-CREATION-GUIDE.md` - Checklist completo para crear nuevos módulos
 
 ### Estructura de Carpetas
 
@@ -169,3 +170,21 @@ Cada cambio debe registrarse en `CHANGELOG.md` de forma clara y escueta. El chan
    ```
 
 4. **Cuándo unificar**: Si hay cambios secuenciales de la misma característica, fusionarlos en una entrada que describe el estado final
+
+## Módulos nuevos
+
+Al crear un nuevo módulo de sintetizador, **siempre consultar `MODULE-CREATION-GUIDE.md`** antes de empezar. El checklist cubre ~23 archivos entre creación y modificación, y es fácil olvidar puntos de integración.
+
+### Puntos críticos que no olvidar
+- **Worklet**: `registerProcessor()` + mensajes `setDormant`/`stop`
+- **Módulo de audio**: `extends Module`, `this.outputs.push({ id, kind, node, label })`
+- **Blueprint**: filas `{ rowSynth, source: { kind, output } }` en `panel6.control.blueprint.js`
+- **Engine**: registrar worklet en array de `_loadWorklets()`
+- **App.js**: ~14 puntos de integración (imports, constructor, creación, serialize/deserialize, reset, ruteo)
+- **Signal flow**: case en `getModuleElementIds()` + CSS class en `findModuleElement()`
+- **Matrix tooltip**: case en `getLabelForSource()` + claves i18n
+- **Dormancy**: bloque en `updateAllStates()` + case en `_findModule()`
+- **OSC sync**: singleton con anti-feedback y deduplicación
+- **Tooltips**: funciones factory por knob en `tooltipUtils.js`
+- **i18n**: entradas en `translations.yaml` (7 idiomas) + `npm run build:i18n`
+- **Tests**: 7 categorías (worklet, módulo, config, OSC, dormancy, blueprint, tooltip)

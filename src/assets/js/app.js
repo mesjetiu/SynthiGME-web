@@ -15,6 +15,7 @@ import { RecordingEngine } from './core/recordingEngine.js';
 import { PanelManager } from './ui/panelManager.js';
 import { OutputChannelsPanel } from './modules/outputChannel.js';
 import { NoiseModule } from './modules/noise.js';
+import { RandomCVModule } from './modules/randomCV.js';
 import { JoystickModule } from './modules/joystick.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
@@ -94,13 +95,14 @@ import { WakeLockManager } from './utils/wakeLock.js';
 import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
 import { inputAmplifierOSCSync } from './osc/oscInputAmplifierSync.js';
 import { outputChannelOSCSync } from './osc/oscOutputChannelSync.js';
 import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
+import { randomCVOSCSync } from './osc/oscRandomCVSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
 import { initGlowManager, flashGlow } from './ui/glowManager.js';
@@ -235,6 +237,7 @@ class App {
     inputAmplifierOSCSync.init(this);
     outputChannelOSCSync.init(this);
     noiseGeneratorOSCSync.init(this);
+    randomCVOSCSync.init(this);
     joystickOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
@@ -4182,6 +4185,7 @@ class App {
     let reservedRow = null;
     let noiseModules = null;
     let noiseAudioModules = null;
+    let randomCVAudio = null;
     
     if (panelIndex === 3) {
       reservedRow = document.createElement('div');
@@ -4313,7 +4317,29 @@ class App {
       reservedRow.appendChild(noise2.createElement());
       this._noiseUIs[noise2Id] = noise2;
       
-      // Random Control Voltage Generator (solo UI, sin audio aún)
+      // ─────────────────────────────────────────────────────────────────────
+      // Random Control Voltage Generator (placa PC-21, D100-21 C1)
+      // ─────────────────────────────────────────────────────────────────────
+      
+      // Crear módulo de audio
+      const rvgAudioConfig = randomVoltageConfig.audio || {};
+      const rvgLevelCurve = randomVoltageConfig.levelCurve || {};
+      const rvgRamps = randomVoltageConfig.ramps || {};
+      randomCVAudio = new RandomCVModule(this.engine, 'panel3-random-cv', {
+        levelCurve: { logBase: rvgLevelCurve.logBase || 100 },
+        ramps: { level: rvgRamps.level || 0.06, mean: rvgRamps.mean || 0.05 }
+      });
+      
+      // Tooltips para knobs del Random CV
+      const rvgMeanTooltip = getRandomCVMeanTooltipInfo(rvgAudioConfig.voltsPerOctave || 0.55);
+      const rvgVarianceTooltip = getRandomCVVarianceTooltipInfo();
+      const rvgVoltageLevelTooltip = getRandomCVVoltageLevelTooltipInfo(
+        rvgAudioConfig.maxVoltage || 2.5, rvgLevelCurve.logBase || 100
+      );
+      const rvgKeyTooltip = getRandomCVKeyTooltipInfo(
+        (rvgAudioConfig.keyPulseWidth || 0.005) * 1000
+      );
+      
       // Resolver UI config del blueprint para random CV
       const randomCVUIDefaults = getRandomCVUIDefaults();
       const randomCVBlueprintUI = panel3Blueprint?.modules?.randomCV?.ui || {};
@@ -4322,8 +4348,59 @@ class App {
       const randomCVId = randomCVCfg.id || 'panel3-random-cv';
       const randomCV = new RandomVoltage({
         id: randomCVId,
-        title: randomCVCfg.title || 'Random Voltage',
-        knobOptions: randomCVCfg.knobs || {},
+        title: randomCVCfg.title || 'Random Control Voltage',
+        knobOptions: {
+          mean: {
+            ...randomCVCfg.knobs?.mean,
+            onChange: (value) => {
+              randomCVAudio.setMean(value);
+              if (!randomCVOSCSync.shouldIgnoreOSC()) {
+                randomCVOSCSync.sendChange('mean', value);
+              }
+            },
+            getTooltipInfo: rvgMeanTooltip
+          },
+          variance: {
+            ...randomCVCfg.knobs?.variance,
+            onChange: (value) => {
+              randomCVAudio.setVariance(value);
+              if (!randomCVOSCSync.shouldIgnoreOSC()) {
+                randomCVOSCSync.sendChange('variance', value);
+              }
+            },
+            getTooltipInfo: rvgVarianceTooltip
+          },
+          voltage1: {
+            ...randomCVCfg.knobs?.voltage1,
+            onChange: (value) => {
+              randomCVAudio.setVoltage1Level(value);
+              if (!randomCVOSCSync.shouldIgnoreOSC()) {
+                randomCVOSCSync.sendChange('voltage1', value);
+              }
+            },
+            getTooltipInfo: rvgVoltageLevelTooltip
+          },
+          voltage2: {
+            ...randomCVCfg.knobs?.voltage2,
+            onChange: (value) => {
+              randomCVAudio.setVoltage2Level(value);
+              if (!randomCVOSCSync.shouldIgnoreOSC()) {
+                randomCVOSCSync.sendChange('voltage2', value);
+              }
+            },
+            getTooltipInfo: rvgVoltageLevelTooltip
+          },
+          key: {
+            ...randomCVCfg.knobs?.key,
+            onChange: (value) => {
+              randomCVAudio.setKeyLevel(value);
+              if (!randomCVOSCSync.shouldIgnoreOSC()) {
+                randomCVOSCSync.sendChange('key', value);
+              }
+            },
+            getTooltipInfo: rvgKeyTooltip
+          }
+        },
         ...randomCVResolvedUI
       });
       this._randomVoltageUIs[randomCVId] = randomCV;
@@ -4353,7 +4430,8 @@ class App {
       oscComponents,
       reserved: reservedRow,
       noiseModules,
-      noiseAudioModules
+      noiseAudioModules,
+      randomCVAudio
     };
     panelAudio.nodes = new Array(oscComponents.length).fill(null);
     this[rafKey] = null;
@@ -6151,12 +6229,33 @@ class App {
           log.warn(` Joystick ${side} output node not available for axis ${axis}`);
           return false;
         }
+      } else if (source.kind === 'randomCV') {
+        // Fuente: Random Control Voltage Generator (placa PC-21)
+        const rvgOutput = source.output; // 'voltage1', 'voltage2' o 'key'
+        const panel3Data = this['_panel3LayoutData'];
+        const rvgModule = panel3Data?.randomCVAudio;
+
+        if (!rvgModule) {
+          log.warn(' Random CV module not initialized');
+          return false;
+        }
+
+        // Lazy start: arranca el módulo solo al primer pin
+        if (!rvgModule.isStarted) {
+          rvgModule.start();
+        }
+
+        outNode = rvgModule.getOutputNode(rvgOutput);
+
+        if (!outNode) {
+          log.warn(` Random CV output node not available for: ${rvgOutput}`);
+          return false;
+        }
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
       // - 'envelope': generador de envolventes
       // - 'lfo': LFO dedicado
       // - 'sequencer': secuenciador de voltaje
-      // - 'randomVoltage': generador de voltaje aleatorio
       
       if (!outNode) {
         log.warn(' No output node for control source', source);

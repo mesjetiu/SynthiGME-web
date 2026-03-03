@@ -175,6 +175,20 @@ export default {
     { rowSynth: 88, source: { kind: 'panel3Osc', oscIndex: 11, channelId: 'triPulse' } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // RANDOM CONTROL VOLTAGE GENERATOR (filas 89-91)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Placa PC-21 (D100-21 C1). Tres salidas simultáneas y sincronizadas:
+    //   Fila 89: Key Pulse — pulso de 5ms, amplitud ajustable ±5V
+    //   Fila 90: Voltage 1 — DC aleatorio ±2.5V, distribución uniforme
+    //   Fila 91: Voltage 2 — DC aleatorio ±2.5V, independiente de V1
+    //
+    // Referencia: Manual Datanomics 1982, placa de control derecha
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 89, source: { kind: 'randomCV', output: 'key' } },
+    { rowSynth: 90, source: { kind: 'randomCV', output: 'voltage1' } },
+    { rowSynth: 91, source: { kind: 'randomCV', output: 'voltage2' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // JOYSTICKS (filas 117-120) — Fuentes de voltaje DC bipolar
     // ─────────────────────────────────────────────────────────────────────────
     // Cada joystick tiene 2 ejes (Y, X), cada eje produce ±8V DC

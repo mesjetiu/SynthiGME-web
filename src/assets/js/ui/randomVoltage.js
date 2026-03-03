@@ -2,11 +2,11 @@
  * RandomVoltage - Componente UI para Random Control Voltage Generator
  * 
  * Genera la interfaz visual con 5 knobs:
- * - Mean: Valor medio de la señal aleatoria
- * - Variance: Varianza/dispersión de los valores
- * - Voltage 1: Salida de voltaje 1
- * - Voltage 2: Salida de voltaje 2
- * - Key: Control de disparo/gate
+ * - Mean: Ritmo promedio del reloj (0.2-20 Hz, exponencial)
+ * - Variance: Varianza temporal (-5=constante, +5=máxima irregularidad)
+ * - Voltage 1: Nivel de salida V1 (±2.5V, curva LOG)
+ * - Voltage 2: Nivel de salida V2 (±2.5V, curva LOG)
+ * - Key: Amplitud del pulso de disparo (±5V, 5ms)
  * 
  * Extiende ModuleUI para reutilizar la lógica común de knobs.
  * 
@@ -14,13 +14,13 @@
  * ```javascript
  * const rcvg = new RandomVoltage({
  *   id: 'random-cv-1',
- *   title: 'Random Voltage',
+ *   title: 'Random Control Voltage',
  *   knobOptions: {
- *     mean: { min: -1, max: 1, initial: 0, onChange: fn },
- *     variance: { min: 0, max: 1, initial: 0.5, onChange: fn },
- *     voltage1: { min: 0, max: 1, initial: 0, onChange: fn },
- *     voltage2: { min: 0, max: 1, initial: 0, onChange: fn },
- *     key: { min: 0, max: 1, initial: 0, onChange: fn }
+ *     mean: { min: -5, max: 5, initial: 0, onChange: fn },
+ *     variance: { min: -5, max: 5, initial: 0, onChange: fn },
+ *     voltage1: { min: 0, max: 10, initial: 0, onChange: fn },
+ *     voltage2: { min: 0, max: 10, initial: 0, onChange: fn },
+ *     key: { min: -5, max: 5, initial: 0, onChange: fn }
  *   }
  * });
  * container.appendChild(rcvg.createElement());
@@ -41,7 +41,7 @@ export class RandomVoltage extends ModuleUI {
   constructor(options = {}) {
     super({
       id: options.id || 'random-voltage',
-      title: options.title || 'Random Voltage',
+      title: options.title || 'Random Control Voltage',
       cssClass: 'random-voltage',
       knobDefs: [
         { key: 'mean', label: 'Mean', color: KNOB_RED },

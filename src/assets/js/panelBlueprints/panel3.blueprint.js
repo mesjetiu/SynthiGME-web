@@ -218,7 +218,7 @@ export default {
     
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     randomCV: {
-      visible: false,
+      visible: true,
       // ui: { }  — overrides de randomCVUI para este módulo
     }
   }

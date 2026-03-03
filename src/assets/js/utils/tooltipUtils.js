@@ -224,3 +224,146 @@ export function getNoiseLevelTooltipInfo(maxVpp, logBase) {
     return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RANDOM CONTROL VOLTAGE GENERATOR
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Genera información para tooltip del knob MEAN del Random CV Generator.
+ * Muestra la frecuencia del reloj (Hz), el período (ms/s) y el voltaje
+ * interno equivalente (dato informativo, no hay entrada CV de matriz).
+ *
+ * Mapeo exponencial: dial -5 → 0.2 Hz, dial 0 → ~2 Hz, dial +5 → 20 Hz
+ *   freq = 0.2 × 100^((dial + 5) / 10)
+ *
+ * El voltaje interno mostrado corresponde a la sensibilidad de 0.55V/octava
+ * del circuito original (placa PC-21).
+ *
+ * @param {number} [voltsPerOctave=0.55] - Sensibilidad CV del Mean Rate
+ * @returns {function(number, number): string|null} Función getTooltipInfo
+ */
+export function getRandomCVMeanTooltipInfo(voltsPerOctave = 0.55) {
+  const minFreq = 0.2;
+  const freqRatio = 100; // 20 / 0.2
+  
+  return (dialValue) => {
+    const parts = [];
+    
+    // Calcular frecuencia
+    const normalized = (dialValue + 5) / 10; // 0..1
+    const freq = minFreq * Math.pow(freqRatio, normalized);
+    
+    if (showAudioTooltip()) {
+      // Frecuencia
+      parts.push(`${freq.toFixed(1)} Hz`);
+      
+      // Período en unidad legible
+      const period = 1 / freq;
+      if (period >= 1) {
+        parts.push(`${period.toFixed(1)} s`);
+      } else {
+        parts.push(`${(period * 1000).toFixed(0)} ms`);
+      }
+    }
+    
+    if (showVoltageTooltip()) {
+      // Voltaje interno equivalente (informativo)
+      // Referencia: 0V = frecuencia central (~2 Hz)
+      // Cada 0.55V = 1 octava
+      const octavesFromCenter = (dialValue) / (10 / Math.log2(freqRatio));
+      const voltage = octavesFromCenter * voltsPerOctave;
+      parts.push(`${voltage >= 0 ? '+' : ''}${voltage.toFixed(2)}V`);
+    }
+    
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera información para tooltip del knob VARIANCE del Random CV Generator.
+ * Muestra el porcentaje de varianza y una descripción textual.
+ *
+ * Mapeo lineal: dial -5 → 0% (constante), dial +5 → 100% (máxima irregularidad)
+ *
+ * @returns {function(number, number): string|null} Función getTooltipInfo
+ */
+export function getRandomCVVarianceTooltipInfo() {
+  return (dialValue) => {
+    if (!showAudioTooltip()) return null;
+    
+    const pct = ((dialValue + 5) / 10) * 100;
+    
+    if (pct <= 0) {
+      return 'Constante';
+    } else if (pct < 25) {
+      return `${pct.toFixed(0)}% · Estable`;
+    } else if (pct < 75) {
+      return `${pct.toFixed(0)}% · Moderada`;
+    } else {
+      return `${pct.toFixed(0)}% · Máxima`;
+    }
+  };
+}
+
+/**
+ * Genera información para tooltip de los knobs VOLTAGE 1 / VOLTAGE 2 del Random CV.
+ * Muestra voltaje pico (±V), ganancia y dB.
+ *
+ * Usa curva LOG idéntica a la del potenciómetro 10K logarítmico (D100-21 W1).
+ * Voltaje máximo de salida: ±2.5V (5V pico a pico).
+ *
+ * @param {number} [maxVoltage=2.5] - Voltaje pico máximo (±V)
+ * @param {number} [logBase=100] - Base de la curva logarítmica
+ * @returns {function(number, number): string|null} Función getTooltipInfo
+ */
+export function getRandomCVVoltageLevelTooltipInfo(maxVoltage = 2.5, logBase = 100) {
+  return (dialValue) => {
+    const parts = [];
+    
+    // Calcular ganancia LOG (misma curva que noise level)
+    let gain;
+    if (dialValue <= 0) {
+      gain = 0;
+    } else {
+      const normalized = dialValue / 10;
+      gain = (Math.pow(logBase, normalized) - 1) / (logBase - 1);
+    }
+    
+    if (showVoltageTooltip()) {
+      const vpeak = (gain * maxVoltage).toFixed(2);
+      parts.push(`±${vpeak}V`);
+    }
+    
+    if (showAudioTooltip()) {
+      parts.push(formatGain(gain));
+      parts.push(gainToDb(gain));
+    }
+    
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera información para tooltip del knob KEY del Random CV Generator.
+ * Muestra el voltaje del pulso y su ancho (5ms fijo).
+ *
+ * Mapeo lineal bipolar: dial -5 → -5V, dial 0 → sin pulso, dial +5 → +5V
+ *
+ * @param {number} [pulseWidthMs=5] - Ancho del pulso en ms
+ * @returns {function(number, number): string|null} Función getTooltipInfo
+ */
+export function getRandomCVKeyTooltipInfo(pulseWidthMs = 5) {
+  return (dialValue) => {
+    if (!showVoltageTooltip() && !showAudioTooltip()) return null;
+    
+    const voltage = dialValue; // directo: dial = voltaje
+    
+    if (Math.abs(voltage) < 0.05) {
+      return 'Sin pulso';
+    }
+    
+    const sign = voltage > 0 ? '+' : '';
+    return `${sign}${voltage.toFixed(1)}V · ${pulseWidthMs} ms`;
+  };
+}

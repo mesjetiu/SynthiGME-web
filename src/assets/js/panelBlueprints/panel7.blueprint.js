@@ -198,8 +198,8 @@ export default {
     },
 
     // Espaciados verticales entre grupos de controles
-    knobButtonGap: 28,        // gap entre knobs y botón on/off
-    buttonSliderGap: -35,      // gap entre botón on/off y slider
+    knobButtonGap: 30,        // gap entre knobs y botón on/off
+    buttonSliderGap: -37,      // gap entre botón on/off y slider
 
     // Botón On/Off (vertical)
     // Arriba = ON, abajo = OFF
@@ -207,7 +207,7 @@ export default {
       width: 18,
       height: 30,
       indicator: 8,
-      scale: 1             // factor de escala uniforme del toggle (ej: 1.5 = 50% más grande)
+      scale: 0.85             // factor de escala uniforme del toggle (ej: 1.5 = 50% más grande)
     },
 
     // Padding interno del contenido (espacio entre borde del marco y controles)

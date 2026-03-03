@@ -87,9 +87,10 @@ export class SGME_Oscillator {
     root.style.setProperty('--osc-knob-row-offset-y', `${this.knobRowOffsetY}px`);
     root.style.setProperty('--switch-left-percent', `${this.switchOffset.leftPercent}%`);
     root.style.setProperty('--switch-top-px', `${this.switchOffset.topPx}px`);
-    root.style.setProperty('--osc-button-width', `${this.buttonSize.width * this.buttonScale}px`);
-    root.style.setProperty('--osc-button-height', `${this.buttonSize.height * this.buttonScale}px`);
-    root.style.setProperty('--osc-button-indicator-size', `${this.buttonSize.indicator * this.buttonScale}px`);
+    root.style.setProperty('--osc-button-width', `${this.buttonSize.width}px`);
+    root.style.setProperty('--osc-button-height', `${this.buttonSize.height}px`);
+    root.style.setProperty('--osc-button-indicator-size', `${this.buttonSize.indicator}px`);
+    root.style.setProperty('--osc-button-scale', `${this.buttonScale}`);
     root.style.width = `${this.size.width}px`;
     root.style.height = `${this.size.height}px`;
 

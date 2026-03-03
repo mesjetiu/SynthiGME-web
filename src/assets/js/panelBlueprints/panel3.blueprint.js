@@ -122,8 +122,8 @@ export default {
     
     // Switch HI/LO — toggle SVG metálico
     buttonSize: { width: 18, height: 30, indicator: 8 },
-    buttonScale: 1,        // factor de escala uniforme del toggle (ej: 1.5 = 50% más grande)
-    switchOffset: { leftPercent: 26.5, topPx: -3 },
+    buttonScale: 0.85,        // factor de escala uniforme del toggle (ej: 1.5 = 50% más grande)
+    switchOffset: { leftPercent: 26.5, topPx: -4 },
     
     // Offset del slot completo (permite desplazar un oscilador
     // respecto a su posición calculada en el grid)

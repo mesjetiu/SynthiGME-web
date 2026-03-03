@@ -2385,6 +2385,8 @@ small { color:#aaa; }
 .sgme-osc__switch-wrap .toggle-svg-container {
   width: var(--osc-button-width, 18px);
   height: var(--osc-button-height, 30px);
+  transform: scale(var(--osc-button-scale, 1));
+  transform-origin: center center;
 }
 
 .sgme-osc__bottom {
@@ -5769,6 +5771,8 @@ small { color:#aaa; }
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: scale(var(--oc-button-scale, 1));
+  transform-origin: center center;
 }
 
 .toggle-svg-container svg {

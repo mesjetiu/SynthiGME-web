@@ -271,6 +271,12 @@ class RandomCVProcessor extends AudioWorkletProcessor {
         this._dormant = !!data.dormant;
         // No reseteamos _samplesUntilNext: el reloj siguió contando
         // durante dormancy, así que la fase se preserva al despertar.
+        if (!this._dormant) {
+          // Limpiar pulso key residual de eventos fantasma durante dormancy.
+          // Sin esto, al despertar habría un pulso key parcial sin evento
+          // asociado visible para el exterior.
+          this._keySamplesRemaining = 0;
+        }
         break;
         
       case 'stop':

@@ -9,6 +9,10 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 - **Random Control Voltage Generator (RCVG)**: Implementación completa del generador de voltaje de control aleatorio (placa PC-21, D100-21 C1). Reloj interno 0.2–20 Hz con jitter temporal configurable, dos salidas DC aleatorias independientes (±2.5V, distribución uniforme, pot LOG 10K) y pulso Key de 5ms (±5V, bipolar). Tres filas en Panel 6 (89=Key, 90=V1, 91=V2) como fuentes de modulación CV. AudioWorkletProcessor dedicado, dormancy automático, sincronización OSC (`/random/*`), tooltips con frecuencia/período/voltaje/varianza, y lazy start al primer pin.
+- **Tests RCVG**: 211 tests para el generador de voltaje de control aleatorio: config (estructura, matrix rows, audio, LOG, ramps, knobs, coherencia), worklet (meanDialToFreq exponencial, varianceDialToNorm, jitter, constantes, process() 3 canales, Key pulse, dormancy con preservación de fase), módulo (inicialización, LOG gain, bipolar key, clamping, getOutputNode, dormancy), OSC (5 direcciones, coherencia con oscAddressMap), blueprint Panel 6 (3 fuentes, filas 89-91), dormancy (transiciones, _findModule), tooltips (mean freq/período, variance %, voltage LOG/dB, key V/ms).
+
+### Corregido
+- **RCVG dormancy**: Pulso key espurio al despertar de dormancy. Los eventos fantasma internos establecían `_keySamplesRemaining` pero nunca lo decrementaban durante dormancy, produciendo un pulso key parcial sin evento asociado al despertar. Ahora se resetea al transicionar de dormant a activo.
 
 ### Cambiado
 - **Rendimiento de knobs**: Eliminada transición CSS (30ms) de `.knob-inner` y `#vd-rotor` que causaba retardo visual durante drag; reemplazada por `will-change: transform` para composición GPU. TextContent del valor y contador solo se escriben al DOM cuando realmente cambian, evitando layout thrashing durante interacción.

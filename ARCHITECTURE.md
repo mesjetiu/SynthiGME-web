@@ -112,6 +112,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `cvThermalSlew.worklet.js` | Filtro one-pole asimétrico para emular inercia térmica del VCO CEM 3340. Calentamiento rápido (τ = 150ms, proceso activo) vs enfriamiento lento (τ = 500ms, disipación pasiva). **CRÍTICO**: Implementación con **operaciones aritméticas puras** (`Math.abs()` para detectar dirección) — NO usa condicionales que bloquearían la propagación de señal a AudioParams. Se inserta en cadena CV: `freqCVInput → cvThermalSlew → cvSoftClip → detune`. Configurable en `oscillator.config.js` |
 | `outputFilter.worklet.js` | Filtro RC pasivo de 1er orden (6 dB/oct) para Output Channels. Modela el circuito real del plano D100-08 C1: pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×). Transición continua LP→plano→HP con un único AudioParam `filterPosition` (k-rate). **Audio**: LP fc(-3dB) ≈ 677 Hz, pendiente -6 dB/oct; HP shelving +6 dB en HF; zona de transición 339-677 Hz (medios-bajos). Coeficientes IIR via transformada bilineal. Carácter musical suave (un solo polo), no corte brusco |
 | `cvSoftClip.worklet.js` | Saturación polinómica suave para limitar CV de frecuencia. Usa fórmula pura `y = x - x³·k` (sin condicionales) donde k es coeficiente configurable (rango 0.0001–1.0, por defecto 0.333). Se aplica después del thermal slew para recibir señal pre-suavizada. **Configuración**: coeficiente en `oscillator.config.js` → `softClip.coefficient`. **Limitación superada**: Web Audio API requiere aritmética pura en AudioWorklet para propagación a AudioParam |
+| `randomCV.worklet.js` | Generador de voltaje de control aleatorio (placa PC-21, D100-21 C1). Reloj interno 0.2–20 Hz con mapeo exponencial (`freq = 0.2 × 100^(norm)`), jitter temporal multiplicativo configurable (varianza 0–100%). 3 canales: V1 (DC aleatorio ±1), V2 (DC aleatorio ±1), Key (pulso 5ms, amplitud 1.0). **Dormancy**: el reloj sigue corriendo internamente durante dormancy (eventos fantasma actualizan V1/V2), la salida se silencia. Al despertar, la fase del ritmo se preserva y `_keySamplesRemaining` se resetea para evitar pulsos key espurios |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -126,6 +127,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `joystick.js` | `JoystickModule` | Control XY bipolar (±8V DC) que emula los joysticks del Synthi 100. Usa `ConstantSourceNode` + `GainNode` por eje (X, Y) sin worklet para máxima eficiencia en señales DC. Knobs Range X/Y independientes (pot 10K LIN, dial 0-10 → gain 0-1). Dormancy: silencia gains cuando ningún eje está conectado en Panel 6, restaura al reconectar. Filas 117-120 en matriz de control. Serialización completa de posición y rangos |
 | `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330 y filtro RC pasivo de corrección tonal (1er orden, 6 dB/oct, fc ≈ 677 Hz). Control tonal bipolar: LP (atenúa agudos) ↔ plano (0 dB) ↔ HP shelving (+6 dB en HF). Pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
+| `randomCV.js` | `RandomCVModule` | Generador de voltaje de control aleatorio. Cadena: `AudioWorkletNode(random-cv, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (voltage1, voltage2, key). Niveles V1/V2 con curva LOG (base 100, pot 10K audio taper), nivel Key lineal bipolar (±5V). Lazy start al primer pin en Panel 6. Dormancy: rampea ganancias y envía `setDormant` al worklet. Filas Panel 6: 89 (Key), 90 (V1), 91 (V2) |
 
 **Patrón de módulo:**
 ```javascript
@@ -624,7 +626,7 @@ src/assets/js/configs/
 |---------|--------|-----------|
 | `oscillator.config.js` | Osciladores | Rangos de frecuencia, niveles de salida, deriva térmica, parámetros de voltaje, **rampas de frecuencia para knob** |
 | `noise.config.js` | Generadores de ruido | Circuito COLOUR (R=10kΩ, C=33nF, 6 dB/oct), curva LOG del level (base 10), rampas, rangos 0-10 |
-| `randomVoltage.config.js` | Random Voltage | Rangos de frecuencia, slew rate |
+| `randomVoltage.config.js` | Random Voltage | Reloj 0.2–20 Hz (ratio 100, ~6.6 oct), pulso Key 5ms, voltaje ±2.5V (V1/V2) y ±5V (Key), curva LOG base 100, V/Oct 0.55, rampas level 60ms / mean 50ms, 5 knobs: mean/variance (-5..+5), voltage1/voltage2 (0..10), key (-5..+5) |
 | `joystick.config.js` | Joysticks (Left/Right) | Filas de matriz (117-120), rampas (posición 10ms, rango 50ms), knobs Range X/Y (0-10, initial 5), curva lineal (pot 10K LIN) |
 | `oscilloscope.config.js` | Osciloscopio | Resolución CRT, glow, colores, buffer, trigger Schmitt |
 | `inputAmplifier.config.js` | Amplificadores de entrada | Ganancias, atenuaciones, límites |

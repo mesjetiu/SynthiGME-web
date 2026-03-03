@@ -1348,7 +1348,17 @@
              y="151.17033"
              id="tspan30"><tspan
                dx="0 0 0 0 0 0 -0.90475816 0.90475947 0 0 0 0 0 0 -0.90475577 0.90475947 0 0 0 0 0 0 -0.90475911 0.90475947"
-               id="tspan29">RANDOM CONTROL VOLTAGE GENERATOR</tspan></tspan></text></g></mask></defs><sodipodi:namedview
+               id="tspan29">RANDOM CONTROL VOLTAGE GENERATOR</tspan></tspan></text></g></mask><rect
+       x="295.4902"
+       y="146.98354"
+       width="153.07611"
+       height="25.893473"
+       id="rect84" /><rect
+       x="295.4902"
+       y="146.98354"
+       width="153.07611"
+       height="25.893473"
+       id="rect102" /></defs><sodipodi:namedview
      id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#cccccc"
@@ -1357,15 +1367,15 @@
      inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="0.97531235"
-     inkscape:cx="3018.5202"
-     inkscape:cy="3206.665"
+     inkscape:zoom="0.30010998"
+     inkscape:cx="1429.476"
+     inkscape:cy="2454.1003"
      inkscape:window-width="1920"
      inkscape:window-height="1005"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g28" /><g
+     inkscape:current-layer="layer1-2" /><g
      inkscape:groupmode="layer"
      inkscape:label="Image"
      id="g1"
@@ -1446,6 +1456,14 @@
          style="display:inline;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:8.26451;stroke-dasharray:none;stroke-opacity:1"
          d="m 171.84032,834.45616 3378.37038,0.045"
          id="path9-0-4-6-3-4-6-6-6"
+         inkscape:label="path9" /><path
+         style="display:inline;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:6.99033;stroke-dasharray:none;stroke-opacity:1"
+         d="m 1707.2821,3590.8139 1834.7039,0.059"
+         id="path77"
+         inkscape:label="path9" /><path
+         style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:4.19647;stroke-dasharray:none;stroke-opacity:1"
+         d="m 2441.8289,3590.5832 v 57.5093"
+         id="path78"
          inkscape:label="path9" /></g><g
        id="g219"
        inkscape:label="noise 2"
@@ -1762,7 +1780,27 @@
          inkscape:label="key"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan39">KEY</tspan></text></g><g
+           id="tspan39">KEY</tspan></text><text
+         xml:space="preserve"
+         transform="matrix(4.026298,0,0,3.7076718,-981.69347,2776.3401)"
+         id="text78"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4.66666px;font-family:'Microgramma D Extended';-inkscape-font-specification:'Microgramma D Extended, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:0.609542px;word-spacing:0.0397742px;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect84);display:inline;fill:#28170b;stroke-width:4.0252"
+         inkscape:label="TimeBetweenConnections"><tspan
+           x="295.49023"
+           y="151.17033"
+           id="tspan41"><tspan
+             dx="0 0 0 0 -0.039775275 0.039775848 0 0 0 0 0 0 -0.039776705 0.039775848"
+             id="tspan40">TIME BETWEEN CONNECTIONS</tspan></tspan></text><text
+         xml:space="preserve"
+         transform="matrix(4.100348,0,0,3.7076718,-19.585927,2776.3401)"
+         id="text84"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4.66666px;font-family:'Microgramma D Extended';-inkscape-font-specification:'Microgramma D Extended, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:0.609542px;word-spacing:0.0397742px;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect102);display:inline;fill:#28170b;stroke-width:4.0252"
+         inkscape:label="OutputRange"><tspan
+           x="295.49023"
+           y="151.17033"
+           id="tspan43"><tspan
+             dx="0 0 0 0 0 0 -0.039774798 0.039773941"
+             id="tspan42">OUTPUT RANGE</tspan></tspan></text></g><g
        id="g292"
        inkscape:label="noise 1"
        style="display:inline"
@@ -1807,7 +1845,7 @@
          inkscape:label="level-noise"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan40">LEVEL</tspan></text><path
+           id="tspan44">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path284"
@@ -1848,7 +1886,7 @@
          inkscape:label="colour-noise"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan41">COLOUR</tspan></text><rect
+           id="tspan45">COLOUR</tspan></text><rect
          style="display:inline;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect292"
          width="506.1669"
@@ -1876,7 +1914,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan42">-</tspan></text><text
+             id="tspan46">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text31"
@@ -1884,7 +1922,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan43">+</tspan></text></g><text
+             id="tspan47">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text8"
@@ -1892,7 +1930,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan44">FREQUENCY</tspan></text><g
+           id="tspan48">FREQUENCY</tspan></text><g
          id="g3"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -1950,7 +1988,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan45">LEVEL</tspan></text><path
+           id="tspan49">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path20"
@@ -1991,7 +2029,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan46">LEVEL</tspan></text><text
+           id="tspan50">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text12"
@@ -1999,7 +2037,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan47">TRIANGLE</tspan></text><text
+           id="tspan51">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text13"
@@ -2007,7 +2045,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan48">SAWTOOTH</tspan></text><path
+           id="tspan52">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -2048,7 +2086,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan49">SYMMETRY</tspan></text><path
+           id="tspan53">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path34"
          sodipodi:type="arc"
@@ -2071,7 +2109,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan50">LEVEL</tspan></text><text
+           id="tspan54">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text11"
@@ -2079,7 +2117,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan51">SINE</tspan></text><path
+           id="tspan55">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path35"
          sodipodi:type="arc"
@@ -2190,7 +2228,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan52">SHAPE</tspan></text><path
+           id="tspan56">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path17"
@@ -2231,7 +2269,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan53">LEVEL</tspan></text><rect
+           id="tspan57">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect11"
          width="386.31262"
@@ -2247,7 +2285,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan54">HI</tspan></text><text
+           id="tspan58">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text1"
@@ -2255,7 +2293,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan55">RANGE</tspan></text><text
+           id="tspan59">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text10"
@@ -2263,7 +2301,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan56">PULSE</tspan></text><text
+           id="tspan60">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text15"
@@ -2271,7 +2309,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan57">LO</tspan></text><path
+           id="tspan61">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path18"
@@ -2397,7 +2435,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan58">-</tspan></text><text
+             id="tspan62">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text47"
@@ -2405,7 +2443,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan59">+</tspan></text></g><text
+             id="tspan63">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text48"
@@ -2413,7 +2451,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan60">FREQUENCY</tspan></text><g
+           id="tspan64">FREQUENCY</tspan></text><g
          id="g50"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -2471,7 +2509,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan61">LEVEL</tspan></text><path
+           id="tspan65">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path53"
@@ -2512,7 +2550,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan62">LEVEL</tspan></text><text
+           id="tspan66">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text55"
@@ -2520,7 +2558,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan63">TRIANGLE</tspan></text><text
+           id="tspan67">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text56"
@@ -2528,7 +2566,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan64">SAWTOOTH</tspan></text><path
+           id="tspan68">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -2569,7 +2607,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan65">SYMMETRY</tspan></text><path
+           id="tspan69">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path59"
          sodipodi:type="arc"
@@ -2592,7 +2630,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan66">LEVEL</tspan></text><text
+           id="tspan70">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text60"
@@ -2600,7 +2638,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan67">SINE</tspan></text><path
+           id="tspan71">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path60"
          sodipodi:type="arc"
@@ -2711,7 +2749,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan68">SHAPE</tspan></text><path
+           id="tspan72">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path70"
@@ -2752,7 +2790,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan69">LEVEL</tspan></text><rect
+           id="tspan73">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect71"
          width="386.31262"
@@ -2768,7 +2806,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan70">HI</tspan></text><text
+           id="tspan74">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text73"
@@ -2776,7 +2814,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan71">RANGE</tspan></text><text
+           id="tspan75">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text74"
@@ -2784,7 +2822,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan72">PULSE</tspan></text><text
+           id="tspan76">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text75"
@@ -2792,7 +2830,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan73">LO</tspan></text><path
+           id="tspan77">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path75"
@@ -2918,7 +2956,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan74">-</tspan></text><text
+             id="tspan78">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text102"
@@ -2926,7 +2964,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan75">+</tspan></text></g><text
+             id="tspan79">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text103"
@@ -2934,7 +2972,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan76">FREQUENCY</tspan></text><g
+           id="tspan80">FREQUENCY</tspan></text><g
          id="g105"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -2992,7 +3030,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan77">LEVEL</tspan></text><path
+           id="tspan81">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path108"
@@ -3033,7 +3071,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan78">LEVEL</tspan></text><text
+           id="tspan82">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text110"
@@ -3041,7 +3079,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan79">TRIANGLE</tspan></text><text
+           id="tspan83">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text111"
@@ -3049,7 +3087,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan80">SAWTOOTH</tspan></text><path
+           id="tspan84">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -3090,7 +3128,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan81">SYMMETRY</tspan></text><path
+           id="tspan85">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path114"
          sodipodi:type="arc"
@@ -3113,7 +3151,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan82">LEVEL</tspan></text><text
+           id="tspan86">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text115"
@@ -3121,7 +3159,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan83">SINE</tspan></text><path
+           id="tspan87">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path115"
          sodipodi:type="arc"
@@ -3232,7 +3270,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan84">SHAPE</tspan></text><path
+           id="tspan88">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path125"
@@ -3273,7 +3311,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan85">LEVEL</tspan></text><rect
+           id="tspan89">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect126"
          width="386.31262"
@@ -3289,7 +3327,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan86">HI</tspan></text><text
+           id="tspan90">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text128"
@@ -3297,7 +3335,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan87">RANGE</tspan></text><text
+           id="tspan91">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text129"
@@ -3305,7 +3343,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan88">PULSE</tspan></text><text
+           id="tspan92">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text130"
@@ -3313,7 +3351,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan89">LO</tspan></text><path
+           id="tspan93">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path130"
@@ -3439,7 +3477,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan90">-</tspan></text><text
+             id="tspan94">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text141"
@@ -3447,7 +3485,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan91">+</tspan></text></g><text
+             id="tspan95">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text142"
@@ -3455,7 +3493,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan92">FREQUENCY</tspan></text><g
+           id="tspan96">FREQUENCY</tspan></text><g
          id="g144"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -3513,7 +3551,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan93">LEVEL</tspan></text><path
+           id="tspan97">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path147"
@@ -3554,7 +3592,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan94">LEVEL</tspan></text><text
+           id="tspan98">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text149"
@@ -3562,7 +3600,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan95">TRIANGLE</tspan></text><text
+           id="tspan99">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text150"
@@ -3570,7 +3608,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan96">SAWTOOTH</tspan></text><path
+           id="tspan100">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -3611,7 +3649,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan97">SYMMETRY</tspan></text><path
+           id="tspan101">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path153"
          sodipodi:type="arc"
@@ -3634,7 +3672,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan98">LEVEL</tspan></text><text
+           id="tspan102">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text154"
@@ -3642,7 +3680,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan99">SINE</tspan></text><path
+           id="tspan103">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path154"
          sodipodi:type="arc"
@@ -3753,7 +3791,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan100">SHAPE</tspan></text><path
+           id="tspan104">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path164"
@@ -3794,7 +3832,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan101">LEVEL</tspan></text><rect
+           id="tspan105">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect165"
          width="386.31262"
@@ -3810,7 +3848,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan102">HI</tspan></text><text
+           id="tspan106">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text167"
@@ -3818,7 +3856,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan103">RANGE</tspan></text><text
+           id="tspan107">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text168"
@@ -3826,7 +3864,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan104">PULSE</tspan></text><text
+           id="tspan108">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text169"
@@ -3834,7 +3872,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan105">LO</tspan></text><path
+           id="tspan109">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path169"
@@ -3960,7 +3998,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan106">-</tspan></text><text
+             id="tspan110">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text212"
@@ -3968,7 +4006,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan107">+</tspan></text></g><text
+             id="tspan111">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text213"
@@ -3976,7 +4014,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan108">FREQUENCY</tspan></text><g
+           id="tspan112">FREQUENCY</tspan></text><g
          id="g215"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -4034,7 +4072,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan109">LEVEL</tspan></text><path
+           id="tspan113">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path218"
@@ -4075,7 +4113,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan110">LEVEL</tspan></text><text
+           id="tspan114">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text220"
@@ -4083,7 +4121,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan111">TRIANGLE</tspan></text><text
+           id="tspan115">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text221"
@@ -4091,7 +4129,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan112">SAWTOOTH</tspan></text><path
+           id="tspan116">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -4132,7 +4170,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan113">SYMMETRY</tspan></text><path
+           id="tspan117">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path224"
          sodipodi:type="arc"
@@ -4155,7 +4193,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan114">LEVEL</tspan></text><text
+           id="tspan118">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text225"
@@ -4163,7 +4201,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan115">SINE</tspan></text><path
+           id="tspan119">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path225"
          sodipodi:type="arc"
@@ -4274,7 +4312,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan116">SHAPE</tspan></text><path
+           id="tspan120">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path235"
@@ -4315,7 +4353,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan117">LEVEL</tspan></text><rect
+           id="tspan121">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect236"
          width="386.31262"
@@ -4331,7 +4369,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan118">HI</tspan></text><text
+           id="tspan122">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text238"
@@ -4339,7 +4377,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan119">RANGE</tspan></text><text
+           id="tspan123">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text239"
@@ -4347,7 +4385,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan120">PULSE</tspan></text><text
+           id="tspan124">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text240"
@@ -4355,7 +4393,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan121">LO</tspan></text><path
+           id="tspan125">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path240"
@@ -4481,7 +4519,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan122">-</tspan></text><text
+             id="tspan126">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text267"
@@ -4489,7 +4527,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan123">+</tspan></text></g><text
+             id="tspan127">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text268"
@@ -4497,7 +4535,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan124">FREQUENCY</tspan></text><g
+           id="tspan128">FREQUENCY</tspan></text><g
          id="g270"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -4555,7 +4593,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan125">LEVEL</tspan></text><path
+           id="tspan129">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path273"
@@ -4596,7 +4634,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan126">LEVEL</tspan></text><text
+           id="tspan130">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text275"
@@ -4604,7 +4642,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan127">TRIANGLE</tspan></text><text
+           id="tspan131">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text276"
@@ -4612,7 +4650,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan128">SAWTOOTH</tspan></text><path
+           id="tspan132">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -4653,7 +4691,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan129">SYMMETRY</tspan></text><path
+           id="tspan133">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path279"
          sodipodi:type="arc"
@@ -4676,7 +4714,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan130">LEVEL</tspan></text><text
+           id="tspan134">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text280"
@@ -4684,7 +4722,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan131">SINE</tspan></text><path
+           id="tspan135">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path280"
          sodipodi:type="arc"
@@ -4795,7 +4833,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan132">SHAPE</tspan></text><path
+           id="tspan136">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path290"
@@ -4836,7 +4874,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan133">LEVEL</tspan></text><rect
+           id="tspan137">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect291"
          width="386.31262"
@@ -4852,7 +4890,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan134">HI</tspan></text><text
+           id="tspan138">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text293"
@@ -4860,7 +4898,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan135">RANGE</tspan></text><text
+           id="tspan139">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text294"
@@ -4868,7 +4906,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan136">PULSE</tspan></text><text
+           id="tspan140">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text295"
@@ -4876,7 +4914,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan137">LO</tspan></text><path
+           id="tspan141">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path295"
@@ -5002,7 +5040,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan138">-</tspan></text><text
+             id="tspan142">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text322"
@@ -5010,7 +5048,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan139">+</tspan></text></g><text
+             id="tspan143">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text323"
@@ -5018,7 +5056,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan140">FREQUENCY</tspan></text><g
+           id="tspan144">FREQUENCY</tspan></text><g
          id="g325"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -5076,7 +5114,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan141">LEVEL</tspan></text><path
+           id="tspan145">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path328"
@@ -5117,7 +5155,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan142">LEVEL</tspan></text><text
+           id="tspan146">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text330"
@@ -5125,7 +5163,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan143">TRIANGLE</tspan></text><text
+           id="tspan147">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text331"
@@ -5133,7 +5171,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan144">SAWTOOTH</tspan></text><path
+           id="tspan148">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -5174,7 +5212,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan145">SYMMETRY</tspan></text><path
+           id="tspan149">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path334"
          sodipodi:type="arc"
@@ -5197,7 +5235,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan146">LEVEL</tspan></text><text
+           id="tspan150">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text335"
@@ -5205,7 +5243,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan147">SINE</tspan></text><path
+           id="tspan151">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path335"
          sodipodi:type="arc"
@@ -5316,7 +5354,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan148">SHAPE</tspan></text><path
+           id="tspan152">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path345"
@@ -5357,7 +5395,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan149">LEVEL</tspan></text><rect
+           id="tspan153">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect346"
          width="386.31262"
@@ -5373,7 +5411,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan150">HI</tspan></text><text
+           id="tspan154">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text348"
@@ -5381,7 +5419,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan151">RANGE</tspan></text><text
+           id="tspan155">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text349"
@@ -5389,7 +5427,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan152">PULSE</tspan></text><text
+           id="tspan156">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text350"
@@ -5397,7 +5435,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan153">LO</tspan></text><path
+           id="tspan157">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path350"
@@ -5523,7 +5561,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan154">-</tspan></text><text
+             id="tspan158">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text361"
@@ -5531,7 +5569,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan155">+</tspan></text></g><text
+             id="tspan159">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text362"
@@ -5539,7 +5577,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan156">FREQUENCY</tspan></text><g
+           id="tspan160">FREQUENCY</tspan></text><g
          id="g364"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -5597,7 +5635,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan157">LEVEL</tspan></text><path
+           id="tspan161">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path367"
@@ -5638,7 +5676,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan158">LEVEL</tspan></text><text
+           id="tspan162">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text369"
@@ -5646,7 +5684,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan159">TRIANGLE</tspan></text><text
+           id="tspan163">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text370"
@@ -5654,7 +5692,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan160">SAWTOOTH</tspan></text><path
+           id="tspan164">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -5695,7 +5733,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan161">SYMMETRY</tspan></text><path
+           id="tspan165">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path373"
          sodipodi:type="arc"
@@ -5718,7 +5756,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan162">LEVEL</tspan></text><text
+           id="tspan166">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text374"
@@ -5726,7 +5764,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan163">SINE</tspan></text><path
+           id="tspan167">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path374"
          sodipodi:type="arc"
@@ -5837,7 +5875,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan164">SHAPE</tspan></text><path
+           id="tspan168">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path384"
@@ -5878,7 +5916,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan165">LEVEL</tspan></text><rect
+           id="tspan169">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect385"
          width="386.31262"
@@ -5894,7 +5932,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan166">HI</tspan></text><text
+           id="tspan170">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text387"
@@ -5902,7 +5940,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan167">RANGE</tspan></text><text
+           id="tspan171">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text388"
@@ -5910,7 +5948,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan168">PULSE</tspan></text><text
+           id="tspan172">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text389"
@@ -5918,7 +5956,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan169">LO</tspan></text><path
+           id="tspan173">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path389"
@@ -6044,7 +6082,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan170">-</tspan></text><text
+             id="tspan174">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text400"
@@ -6052,7 +6090,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan171">+</tspan></text></g><text
+             id="tspan175">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text401"
@@ -6060,7 +6098,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan172">FREQUENCY</tspan></text><g
+           id="tspan176">FREQUENCY</tspan></text><g
          id="g403"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -6118,7 +6156,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan173">LEVEL</tspan></text><path
+           id="tspan177">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path406"
@@ -6159,7 +6197,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan174">LEVEL</tspan></text><text
+           id="tspan178">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text408"
@@ -6167,7 +6205,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan175">TRIANGLE</tspan></text><text
+           id="tspan179">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text409"
@@ -6175,7 +6213,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan176">SAWTOOTH</tspan></text><path
+           id="tspan180">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -6216,7 +6254,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan177">SYMMETRY</tspan></text><path
+           id="tspan181">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path412"
          sodipodi:type="arc"
@@ -6239,7 +6277,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan178">LEVEL</tspan></text><text
+           id="tspan182">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text413"
@@ -6247,7 +6285,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan179">SINE</tspan></text><path
+           id="tspan183">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path413"
          sodipodi:type="arc"
@@ -6358,7 +6396,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan180">SHAPE</tspan></text><path
+           id="tspan184">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path423"
@@ -6399,7 +6437,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan181">LEVEL</tspan></text><rect
+           id="tspan185">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect424"
          width="386.31262"
@@ -6415,7 +6453,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan182">HI</tspan></text><text
+           id="tspan186">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text426"
@@ -6423,7 +6461,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan183">RANGE</tspan></text><text
+           id="tspan187">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text427"
@@ -6431,7 +6469,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan184">PULSE</tspan></text><text
+           id="tspan188">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text428"
@@ -6439,7 +6477,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan185">LO</tspan></text><path
+           id="tspan189">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path428"
@@ -6565,7 +6603,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan186">-</tspan></text><text
+             id="tspan190">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text439"
@@ -6573,7 +6611,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan187">+</tspan></text></g><text
+             id="tspan191">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text440"
@@ -6581,7 +6619,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan188">FREQUENCY</tspan></text><g
+           id="tspan192">FREQUENCY</tspan></text><g
          id="g442"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -6639,7 +6677,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan189">LEVEL</tspan></text><path
+           id="tspan193">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path445"
@@ -6680,7 +6718,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan190">LEVEL</tspan></text><text
+           id="tspan194">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text447"
@@ -6688,7 +6726,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan191">TRIANGLE</tspan></text><text
+           id="tspan195">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text448"
@@ -6696,7 +6734,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan192">SAWTOOTH</tspan></text><path
+           id="tspan196">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -6737,7 +6775,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan193">SYMMETRY</tspan></text><path
+           id="tspan197">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path451"
          sodipodi:type="arc"
@@ -6760,7 +6798,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan194">LEVEL</tspan></text><text
+           id="tspan198">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text452"
@@ -6768,7 +6806,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan195">SINE</tspan></text><path
+           id="tspan199">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path452"
          sodipodi:type="arc"
@@ -6879,7 +6917,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan196">SHAPE</tspan></text><path
+           id="tspan200">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path462"
@@ -6920,7 +6958,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan197">LEVEL</tspan></text><rect
+           id="tspan201">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect463"
          width="386.31262"
@@ -6936,7 +6974,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan198">HI</tspan></text><text
+           id="tspan202">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text465"
@@ -6944,7 +6982,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan199">RANGE</tspan></text><text
+           id="tspan203">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text466"
@@ -6952,7 +6990,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan200">PULSE</tspan></text><text
+           id="tspan204">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text467"
@@ -6960,7 +6998,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan201">LO</tspan></text><path
+           id="tspan205">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path467"
@@ -7086,7 +7124,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan202">-</tspan></text><text
+             id="tspan206">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text478"
@@ -7094,7 +7132,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan203">+</tspan></text></g><text
+             id="tspan207">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text479"
@@ -7102,7 +7140,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan204">FREQUENCY</tspan></text><g
+           id="tspan208">FREQUENCY</tspan></text><g
          id="g481"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -7160,7 +7198,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan205">LEVEL</tspan></text><path
+           id="tspan209">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path484"
@@ -7201,7 +7239,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan206">LEVEL</tspan></text><text
+           id="tspan210">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text486"
@@ -7209,7 +7247,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan207">TRIANGLE</tspan></text><text
+           id="tspan211">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text487"
@@ -7217,7 +7255,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan208">SAWTOOTH</tspan></text><path
+           id="tspan212">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -7258,7 +7296,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan209">SYMMETRY</tspan></text><path
+           id="tspan213">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path490"
          sodipodi:type="arc"
@@ -7281,7 +7319,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan210">LEVEL</tspan></text><text
+           id="tspan214">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text491"
@@ -7289,7 +7327,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan211">SINE</tspan></text><path
+           id="tspan215">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path491"
          sodipodi:type="arc"
@@ -7400,7 +7438,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan212">SHAPE</tspan></text><path
+           id="tspan216">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path501"
@@ -7441,7 +7479,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan213">LEVEL</tspan></text><rect
+           id="tspan217">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect502"
          width="386.31262"
@@ -7457,7 +7495,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan214">HI</tspan></text><text
+           id="tspan218">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text504"
@@ -7465,7 +7503,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan215">RANGE</tspan></text><text
+           id="tspan219">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text505"
@@ -7473,7 +7511,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan216">PULSE</tspan></text><text
+           id="tspan220">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text506"
@@ -7481,7 +7519,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan217">LO</tspan></text><path
+           id="tspan221">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path506"
@@ -7607,7 +7645,7 @@
            inkscape:label="menos-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan218">-</tspan></text><text
+             id="tspan222">-</tspan></text><text
            xml:space="preserve"
            transform="matrix(7.362323,0,0,7.6374776,-542.38317,-954.49733)"
            id="text517"
@@ -7615,7 +7653,7 @@
            inkscape:label="mas-freq"><tspan
              x="295.49023"
              y="151.17033"
-             id="tspan219">+</tspan></text></g><text
+             id="tspan223">+</tspan></text></g><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-347.44594,-796.53633)"
          id="text518"
@@ -7623,7 +7661,7 @@
          inkscape:label="frequency"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan220">FREQUENCY</tspan></text><g
+           id="tspan224">FREQUENCY</tspan></text><g
          id="g520"
          transform="translate(1488.8174,142.16281)"
          inkscape:label="flechas-freq"><path
@@ -7681,7 +7719,7 @@
          inkscape:label="level-saw"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan221">LEVEL</tspan></text><path
+           id="tspan225">LEVEL</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path523"
@@ -7722,7 +7760,7 @@
          inkscape:label="level-tri"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan222">LEVEL</tspan></text><text
+           id="tspan226">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-196.97996,-428.80644)"
          id="text525"
@@ -7730,7 +7768,7 @@
          inkscape:label="triangle"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan223">TRIANGLE</tspan></text><text
+           id="tspan227">TRIANGLE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.3739512,0,0,4.494462,-26.596753,-428.12042)"
          id="text526"
@@ -7738,7 +7776,7 @@
          inkscape:label="sawtooth"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan224">SAWTOOTH</tspan></text><path
+           id="tspan228">SAWTOOTH</tspan></text><path
          d="m 750.24193,315.37505 a 14.400864,13.730657 0 0 0 28.80172,0 14.40087,13.730663 0 0 0 28.80174,0"
          fill="none"
          stroke="#000000"
@@ -7779,7 +7817,7 @@
          inkscape:label="symmetry-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan225">SYMMETRY</tspan></text><path
+           id="tspan229">SYMMETRY</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path529"
          sodipodi:type="arc"
@@ -7802,7 +7840,7 @@
          inkscape:label="level-sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan226">LEVEL</tspan></text><text
+           id="tspan230">LEVEL</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-522.79824,-428.05006)"
          id="text530"
@@ -7810,7 +7848,7 @@
          inkscape:label="sine"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan227">SINE</tspan></text><path
+           id="tspan231">SINE</tspan></text><path
          style="display:inline;fill:#28170b;stroke-width:3.0525"
          id="path530"
          sodipodi:type="arc"
@@ -7921,7 +7959,7 @@
          inkscape:label="shape"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan228">SHAPE</tspan></text><path
+           id="tspan232">SHAPE</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path540"
@@ -7962,7 +8000,7 @@
          inkscape:label="level-pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan229">LEVEL</tspan></text><rect
+           id="tspan233">LEVEL</tspan></text><rect
          style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
          id="rect541"
          width="386.31262"
@@ -7978,7 +8016,7 @@
          inkscape:label="hi"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan230">HI</tspan></text><text
+           id="tspan234">HI</tspan></text><text
          xml:space="preserve"
          transform="matrix(6.022894,0,0,6.1840453,-1482.0824,-765.94784)"
          id="text543"
@@ -7986,7 +8024,7 @@
          inkscape:label="range"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan231">RANGE</tspan></text><text
+           id="tspan235">RANGE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.1833242,0,0,4.494462,-1023.9855,-426.6751)"
          id="text544"
@@ -7994,7 +8032,7 @@
          inkscape:label="pulse"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan232">PULSE</tspan></text><text
+           id="tspan236">PULSE</tspan></text><text
          xml:space="preserve"
          transform="matrix(4.4245768,0,0,4.2304346,-746.61352,-431.76951)"
          id="text545"
@@ -8002,7 +8040,7 @@
          inkscape:label="lo"><tspan
            x="295.49023"
            y="151.17033"
-           id="tspan233">LO</tspan></text><path
+           id="tspan237">LO</tspan></text><path
          sodipodi:type="star"
          style="display:inline;fill:#28170b;stroke-width:4.0252"
          id="path545"

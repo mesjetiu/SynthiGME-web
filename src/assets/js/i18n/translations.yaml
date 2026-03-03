@@ -3389,6 +3389,79 @@ menu.advanced.settings:
   pt: Todas as configurações…
   cs: Všechna nastavení…
 
+# ─── MIDI ───
+menu.midi:
+  en: MIDI
+  es: MIDI
+  fr: MIDI
+  de: MIDI
+  it: MIDI
+  pt: MIDI
+  cs: MIDI
+
+menu.midi.enable:
+  en: Enable MIDI
+  es: Activar MIDI
+  fr: Activer MIDI
+  de: MIDI aktivieren
+  it: Abilita MIDI
+  pt: Ativar MIDI
+  cs: Povolit MIDI
+
+menu.midi.mappings:
+  en: Mappings
+  es: Asignaciones
+  fr: Assignations
+  de: Zuweisungen
+  it: Assegnazioni
+  pt: Mapeamentos
+  cs: Přiřazení
+
+menu.midi.devices:
+  en: Devices
+  es: Dispositivos
+  fr: Appareils
+  de: Geräte
+  it: Dispositivi
+  pt: Dispositivos
+  cs: Zařízení
+
+menu.midi.clearAll:
+  en: Clear All Mappings
+  es: Borrar todas las asignaciones
+  fr: Effacer toutes les assignations
+  de: Alle Zuweisungen löschen
+  it: Cancella tutte le assegnazioni
+  pt: Limpar todos os mapeamentos
+  cs: Smazat všechna přiřazení
+
+menu.midi.export:
+  en: Export Mappings…
+  es: Exportar asignaciones…
+  fr: Exporter les assignations…
+  de: Zuweisungen exportieren…
+  it: Esporta assegnazioni…
+  pt: Exportar mapeamentos…
+  cs: Exportovat přiřazení…
+
+menu.midi.import:
+  en: Import Mappings…
+  es: Importar asignaciones…
+  fr: Importer des assignations…
+  de: Zuweisungen importieren…
+  it: Importa assegnazioni…
+  pt: Importar mapeamentos…
+  cs: Importovat přiřazení…
+
+menu.midi.settings:
+  en: MIDI Settings…
+  es: Ajustes MIDI…
+  fr: Paramètres MIDI…
+  de: MIDI-Einstellungen…
+  it: Impostazioni MIDI…
+  pt: Configurações MIDI…
+  cs: Nastavení MIDI…
+
 # ─── OSC ───
 menu.osc:
   en: OSC

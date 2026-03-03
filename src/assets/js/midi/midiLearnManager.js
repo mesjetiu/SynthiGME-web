@@ -140,8 +140,10 @@ class MIDILearnManagerClass {
     // Registrar listener de mensajes MIDI
     this._unsubscribeMessages = midiAccess.onMessage((msg) => this._onMIDIMessage(msg));
 
-    this._enabled = true;
-    log.info(`MIDI Learn inicializado — ${this._mappings.size} mapping(s) cargado(s)`);
+    // Respetar estado persistido (puede estar desactivado desde menú Electron)
+    const storedEnabled = localStorage.getItem(STORAGE_KEYS.MIDI_ENABLED);
+    this._enabled = storedEnabled !== 'false'; // true por defecto
+    log.info(`MIDI Learn inicializado — ${this._mappings.size} mapping(s) cargado(s), ${this._enabled ? 'activo' : 'desactivado'}`);
   }
 
   /**
@@ -158,6 +160,20 @@ class MIDILearnManagerClass {
    */
   get enabled() {
     return this._enabled;
+  }
+
+  /**
+   * Activa o desactiva el sistema MIDI Learn.
+   * Cuando se desactiva, los mensajes MIDI se ignoran pero los mappings se conservan.
+   * @param {boolean} enabled
+   */
+  setEnabled(enabled) {
+    this._enabled = enabled;
+    localStorage.setItem(STORAGE_KEYS.MIDI_ENABLED, String(enabled));
+    log.info(`MIDI Learn ${enabled ? 'activado' : 'desactivado'}`);
+    document.dispatchEvent(new CustomEvent('midi:enabledChanged', {
+      detail: { enabled }
+    }));
   }
 
   /**

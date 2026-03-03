@@ -441,6 +441,7 @@ describe('Contrato de acciones (menú → bridge)', () => {
       'setDebugGlobal', 'setDormancy', 'setDormancyDebug',
       'setFilterBypass', 'setFilterBypassDebug',
       'setSoftClip', 'setPinTolerance', 'setThermalDrift',
+      'toggleMidi',
       'toggleOscLog', 'togglePip'
     ];
     const missingStateUpdate = checkboxActions.filter(action => {
@@ -598,6 +599,8 @@ describe('Sincronización inversa (app → menú via eventos)', () => {
       'filterBypass', 'filterBypassDebug',
       'softClip', 'pinTolerance', 'thermalDrift',
       'debugGlobal',
+      // MIDI
+      'midiEnabled',
       // OSC
       'oscSendToSC', 'oscReceiveFromSC', 'oscShowLog'
     ];

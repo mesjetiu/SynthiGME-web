@@ -251,6 +251,11 @@ class App {
         midiLearnManager.init(this);
         midiLearnManager.applyVisualIndicators();
         log.info(`MIDI Learn inicializado — ${midiAccess.getInputs().length} dispositivo(s)`);
+        // Sincronizar estado MIDI al menú Electron
+        document.dispatchEvent(new CustomEvent('midi:devicesChanged', {
+          detail: { count: midiAccess.getInputs().length }
+        }));
+        document.dispatchEvent(new CustomEvent('midi:mappingChanged'));
       } else {
         log.warn('MIDI no disponible — MIDI Learn funcionará cuando haya acceso');
         // Registrar igualmente para que si el usuario reintenta funcione
@@ -260,6 +265,20 @@ class App {
       log.error('Error inicializando MIDI:', err);
     });
     initMIDILearnOverlay();
+
+    // Escuchar eventos MIDI desde menú Electron
+    document.addEventListener('midi:toggleEnabled', (e) => {
+      midiLearnManager.setEnabled(e.detail?.enabled ?? true);
+    });
+    document.addEventListener('midi:clearAll', () => {
+      midiLearnManager.clearAllMappings();
+    });
+    document.addEventListener('midi:export', () => {
+      midiLearnManager.downloadMappings();
+    });
+    document.addEventListener('midi:import', () => {
+      midiLearnManager.uploadMappings();
+    });
 
     // Resize handler con debounce
     let appResizeTimer = null;

@@ -12,6 +12,7 @@
  * - Audio: Mute, grabar, ajustes de audio
  * - Paneles: Toggle PiP por panel, extraer/devolver todos, recordar PiP
  * - Avanzado: Optimizaciones, emulación de voltaje, reset, ajustes
+ * - MIDI: Toggle MIDI, mappings count, limpiar/exportar/importar, ajustes
  * - OSC: Toggle OSC, SuperCollider, log, ajustes
  * - Ayuda: Acerca de, repositorio, reportar error, actualizaciones
  */
@@ -78,6 +79,10 @@ let menuState = {
   preventSleep: true,
   // Telemetría
   telemetryEnabled: false,
+  // MIDI
+  midiEnabled: true,
+  midiDeviceCount: 0,
+  midiMappingCount: 0,
   // OSC
   oscEnabled: false,
   oscSendToSC: false,
@@ -561,6 +566,52 @@ function buildMenuTemplate() {
     ]
   };
 
+  // ─── MIDI ───
+  const midiMenu = {
+    label: t('menu.midi', 'MIDI'),
+    submenu: [
+      {
+        id: 'midiEnabled',
+        label: t('menu.midi.enable', 'Enable MIDI'),
+        type: 'checkbox',
+        checked: menuState.midiEnabled,
+        click: (menuItem) => {
+          menuState.midiEnabled = menuItem.checked;
+          sendAction('toggleMidi', { enabled: menuItem.checked });
+        }
+      },
+      { type: 'separator' },
+      {
+        label: `${t('menu.midi.mappings', 'Mappings')}: ${menuState.midiMappingCount}`,
+        enabled: false
+      },
+      {
+        label: `${t('menu.midi.devices', 'Devices')}: ${menuState.midiDeviceCount}`,
+        enabled: false
+      },
+      { type: 'separator' },
+      {
+        label: t('menu.midi.clearAll', 'Clear All Mappings'),
+        enabled: menuState.midiMappingCount > 0,
+        click: () => sendAction('midiClearAll')
+      },
+      {
+        label: t('menu.midi.export', 'Export Mappings…'),
+        enabled: menuState.midiMappingCount > 0,
+        click: () => sendAction('midiExport')
+      },
+      {
+        label: t('menu.midi.import', 'Import Mappings…'),
+        click: () => sendAction('midiImport')
+      },
+      { type: 'separator' },
+      {
+        label: t('menu.midi.settings', 'MIDI Settings…'),
+        click: () => sendAction('openSettings', { tab: 'midi' })
+      }
+    ]
+  };
+
   // ─── OSC ───
   const oscMenu = {
     label: t('menu.osc', 'OSC'),
@@ -643,7 +694,7 @@ function buildMenuTemplate() {
   };
 
   // Construir template final
-  const template = [fileMenu, viewMenu, preferencesMenu, audioMenu, panelsMenu, advancedMenu, oscMenu, helpMenu];
+  const template = [fileMenu, viewMenu, preferencesMenu, audioMenu, panelsMenu, advancedMenu, midiMenu, oscMenu, helpMenu];
 
   // En macOS, añadir menú de la app al principio
   if (isMac) {

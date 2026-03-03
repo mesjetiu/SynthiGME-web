@@ -2475,7 +2475,7 @@ SynthiGME-web puede empaquetarse como aplicación nativa de escritorio usando **
 ```
 electron/
 ├── main.cjs                    # Proceso principal (CommonJS por compatibilidad con "type": "module")
-├── electronMenu.cjs            # Sistema de menú nativo con i18n (7 menús, sincronización bidireccional)
+├── electronMenu.cjs            # Sistema de menú nativo con i18n (9 menús, sincronización bidireccional)
 ├── preload.cjs                 # Script de preload para APIs nativas
 ├── oscServer.cjs               # Servidor OSC UDP multicast
 ├── multichannelAudio.cjs       # Gestión de audio multicanal (detección, UI)
@@ -2490,7 +2490,7 @@ El proceso principal implementa:
 |------------|-------------|
 | **Servidor HTTP local** | Sirve `dist-app/` desde `http://127.0.0.1:49371` (puerto fijo para persistencia de datos). Cabecera CSP con permisos mínimos |
 | **BrowserWindow** | Ventana 1280×720 (mínimo 1024×600) con `nodeIntegration: false` y `contextIsolation: true` |
-| **Menú nativo** | 7 menús completos con i18n (Archivo, Ver, Audio, Paneles, Avanzado, OSC, Ayuda). Sincronización bidireccional de estado con UI web vía IPC. Ver tabla de menús abajo |
+| **Menú nativo** | 9 menús completos con i18n (Archivo, Ver, Preferencias, Audio, Paneles, Avanzado, MIDI, OSC, Ayuda). Sincronización bidireccional de estado con UI web vía IPC. Ver tabla de menús abajo |
 | **Título localizado** | Título de ventana traducido a 7 idiomas, se actualiza al cambiar idioma |
 | **Autoplay de audio** | `autoplayPolicy: 'no-user-gesture-required'` para síntesis sin interacción |
 | **Nombre en audio** | `app.setName('SynthiGME')` + flag `AudioServiceOutOfProcess` deshabilitado para mostrar nombre correcto en PipeWire/PulseAudio |
@@ -2505,6 +2505,7 @@ El proceso principal implementa:
 | **Audio** | Mute/Unmute (etiqueta dinámica), Grabar/Detener (etiqueta dinámica), Ajustes de Audio, Ajustes de Grabación |
 | **Paneles** | Toggle PiP por panel (7 paneles como checkboxes), Extraer/Devolver todos, Bloquear pan, Bloquear zoom, Recordar paneles flotantes |
 | **Avanzado** | Toasts de debug, Dormancy (+debug), Filter Bypass (+debug), Soft Clipping, Tolerancia de pines, Deriva térmica, Reset sintetizador, Todos los ajustes |
+| **MIDI** | Activar MIDI (checkbox), Mappings count (info), Devices count (info), Limpiar mappings, Exportar/Importar, Ajustes MIDI |
 | **OSC** | Activar OSC, Enviar/Recibir SuperCollider (desactivados sin OSC), Log OSC, Ajustes OSC |
 | **Ayuda** | Acerca de, Repositorio GitHub, Reportar error, Buscar actualizaciones |
 
@@ -2668,7 +2669,7 @@ Para builds firmados de macOS, usar CI/CD con GitHub Actions (ver README.md).
 | MIDI | Web MIDI API (MIDI Learn) | Web MIDI API (MIDI Learn) |
 | Audio | Depende del navegador | Chromium fijo |
 | **Audio multicanal** | No disponible (max 2ch) | 12ch salida + 8ch entrada (PipeWire) |
-| **Menú nativo** | No | 7 menús con i18n, sincronización bidireccional |
+| **Menú nativo** | No | 9 menús con i18n, sincronización bidireccional |
 | **OSC** | No disponible | UDP multicast + SuperCollider |
 
 ---
@@ -2867,6 +2868,18 @@ Sigue el mismo patrón que el módulo OSC:
 - Ejemplo: `aconnect 28:0 14:0` (rutea dispositivo ALSA 28 a Midi Through)
 - Es necesario llamar `input.open()` explícitamente antes de asignar `onmidimessage`
 
+### Menú Electron
+
+En Electron, el menú nativo incluye una sección **MIDI** con:
+- **Activar MIDI** (checkbox): habilita/deshabilita MIDI Learn globalmente, estado persistido en localStorage
+- **Mappings** (info): muestra el número de mappings activos
+- **Devices** (info): muestra el número de dispositivos MIDI conectados
+- **Limpiar todos los mappings**: elimina todas las asignaciones
+- **Exportar/Importar**: descarga/sube mappings como JSON
+- **Ajustes MIDI**: abre la pestaña MIDI en el modal de ajustes
+
+La sincronización es bidireccional: cambios desde la UI web actualizan el menú vía eventos (`midi:enabledChanged`, `midi:mappingChanged`, `midi:devicesChanged`), y acciones del menú se propagan a la app vía `document.dispatchEvent`.
+
 ### Tests
 
 76 tests unitarios en `tests/midi/midiLearn.test.js`:
@@ -2908,7 +2921,7 @@ Sigue el mismo patrón que el módulo OSC:
 - [x] **Grabación**: Sistema de grabación multitrack WAV → Ver [Sección 6](#6-sistema-de-grabación-de-audio)
 - [x] **Atajos de teclado**: Sistema de shortcuts personalizables → Ver [Sección 7](#7-sistema-de-atajos-de-teclado)
 - [x] **Multicanal**: 12 canales de salida + 8 de entrada via PipeWire (Linux). Ver [Sección 13.1](#131-aplicación-de-escritorio-electron) y [MULTICHANNEL.md](MULTICHANNEL.md)
-- [x] **Menú nativo Electron**: 7 menús con i18n, sincronización bidireccional con UI web
+- [x] **Menú nativo Electron**: 9 menús con i18n, sincronización bidireccional con UI web
 - [x] **Manejo de errores**: Error handler global, protección de worklets y bootstrap, toast unificado con niveles → Ver [Sección 17](#17-manejo-de-errores-y-telemetría)
 - [x] **Telemetría anónima**: Sistema opt-in con consentimiento, Google Sheets + alertas Telegram → Ver [Sección 17](#17-manejo-de-errores-y-telemetría)
 - [x] **MIDI**: Soporte para controladores externos → Ver [Sección 13.3](#133-midi-learn)

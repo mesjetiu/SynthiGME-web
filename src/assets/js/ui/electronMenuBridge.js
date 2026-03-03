@@ -56,6 +56,9 @@ const MENU_TRANSLATION_KEYS = [
   'menu.advanced.softClip', 'menu.advanced.pinTolerance', 'menu.advanced.thermalDrift',
   'menu.advanced.telemetry',
   'menu.advanced.resetSynth', 'menu.advanced.settings',
+  // MIDI
+  'menu.midi', 'menu.midi.enable', 'menu.midi.mappings', 'menu.midi.devices',
+  'menu.midi.clearAll', 'menu.midi.export', 'menu.midi.import', 'menu.midi.settings',
   // OSC
   'menu.osc', 'menu.osc.enable', 'menu.osc.sendToSC', 'menu.osc.receiveFromSC',
   'menu.osc.showLog', 'menu.osc.settings',
@@ -118,6 +121,10 @@ function readCurrentState() {
     thermalDrift: readBool(STORAGE_KEYS.VOLTAGE_THERMAL_DRIFT_ENABLED, true),
     // Telemetría
     telemetryEnabled: readBool(STORAGE_KEYS.TELEMETRY_ENABLED, false),
+    // MIDI
+    midiEnabled: readBool(STORAGE_KEYS.MIDI_ENABLED, true),
+    midiDeviceCount: 0,  // se actualiza dinámicamente
+    midiMappingCount: 0, // se actualiza dinámicamente
     // OSC
     oscEnabled: readBool(STORAGE_KEYS.OSC_ENABLED, false),
     oscSendToSC: readBool(STORAGE_KEYS.OSC_SUPERCOLLIDER_SEND, false),
@@ -336,6 +343,25 @@ function handleMenuAction({ action, data }) {
       document.dispatchEvent(new CustomEvent('synth:resetToDefaults'));
       break;
 
+    // ─── MIDI ───
+    case 'toggleMidi': {
+      const enabled = data?.enabled ?? true;
+      localStorage.setItem(STORAGE_KEYS.MIDI_ENABLED, String(enabled));
+      document.dispatchEvent(new CustomEvent('midi:toggleEnabled', {
+        detail: { enabled }
+      }));
+      break;
+    }
+    case 'midiClearAll':
+      document.dispatchEvent(new CustomEvent('midi:clearAll'));
+      break;
+    case 'midiExport':
+      document.dispatchEvent(new CustomEvent('midi:export'));
+      break;
+    case 'midiImport':
+      document.dispatchEvent(new CustomEvent('midi:import'));
+      break;
+
     // ─── OSC ───
     case 'toggleOsc':
       document.dispatchEvent(new CustomEvent('osc:toggle'));
@@ -539,6 +565,24 @@ function setupStateListeners() {
   // Quickbar visibility
   document.addEventListener('synth:quickbarVisibilityChanged', (e) => {
     syncState({ quickbarVisible: e.detail?.visible ?? true });
+  });
+
+  // ── MIDI ──
+  // Sincronizar estado MIDI al menú
+  document.addEventListener('midi:enabledChanged', (e) => {
+    syncState({ midiEnabled: e.detail?.enabled ?? true });
+  });
+  document.addEventListener('midi:mappingChanged', () => {
+    // Importar dinámicamente para evitar dependencia circular
+    import('../midi/midiLearnManager.js').then(({ midiLearnManager }) => {
+      syncState({ midiMappingCount: midiLearnManager.mappingCount });
+    });
+  });
+  document.addEventListener('midi:statusChanged', (e) => {
+    syncState({ midiDeviceCount: e.detail?.inputs?.length ?? 0 });
+  });
+  document.addEventListener('midi:devicesChanged', (e) => {
+    syncState({ midiDeviceCount: e.detail?.count ?? 0 });
   });
 }
 

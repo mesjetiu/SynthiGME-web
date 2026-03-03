@@ -1382,6 +1382,9 @@ h1 {
 .glow-disabled .synth-toggle.glow-flash .synth-toggle__track {
   animation: none;
 }
+.glow-disabled .rotary-switch.glow-flash .rotary-switch__body {
+  animation: none;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    SIGNAL FLOW HIGHLIGHTER — Resaltado de flujo de señal en módulos y pines
@@ -2732,6 +2735,92 @@ small { color:#aaa; }
 @keyframes toggle-glow-flash {
   0% {
     box-shadow: var(--glow-flash-shadow, 0 0 14px 6px rgba(255, 215, 128, 0.9));
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ROTARY-SWITCH — Selector rotativo de 2 posiciones
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rotary-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 10px;
+  color: #aaa;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rotary-switch:focus,
+.rotary-switch:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.rotary-switch__label {
+  text-transform: uppercase;
+  font-family: var(--font-synthi);
+  letter-spacing: 0.04em;
+  transition: color 0.15s ease;
+}
+
+.rotary-switch__label-a {
+  color: #0f0;
+}
+
+.rotary-switch.is-b .rotary-switch__label-a {
+  color: #666;
+}
+
+.rotary-switch__label-b {
+  color: #666;
+}
+
+.rotary-switch.is-b .rotary-switch__label-b {
+  color: #0f0;
+}
+
+.rotary-switch__body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rotary-switch:hover .rotary-switch__body {
+  filter: brightness(1.15);
+}
+
+/* ─── SVG Rotary Switch Container ─── */
+.rotary-switch__svg-container {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rotary-switch__svg-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Rotary-switch glow effect */
+.rotary-switch.glow-flash .rotary-switch__body {
+  animation: rotary-switch-glow-flash var(--glow-duration, 500ms) ease-out forwards;
+}
+
+@keyframes rotary-switch-glow-flash {
+  0% {
+    box-shadow: var(--glow-flash-shadow, 0 0 14px 6px rgba(255, 215, 128, 0.9));
+    border-radius: 50%;
   }
   100% {
     box-shadow: none;

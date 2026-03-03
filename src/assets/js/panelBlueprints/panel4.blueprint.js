@@ -37,9 +37,9 @@
 //            Envelope Follower 1 (knob blanco: Range)
 //            Envelope Follower 2 (knob blanco: Range)
 //     Col 2: Upper Keyboard — Pitch (vernier), Key Velocity (amarillo),
-//            Env. Control (blanco), Retrigger Key Release (toggle)
+//            Env. Control (blanco), Retrigger Key Release (selector rotativo ON/KBD)
 //     Col 3: Lower Keyboard — Pitch (vernier), Key Velocity (amarillo),
-//            Env. Control (blanco), Retrigger Key Release (toggle)
+//            Env. Control (blanco), Retrigger Key Release (selector rotativo ON/KBD)
 //     Col 4-7: pendientes de definición
 //
 // Para conexiones a matrices de audio (Panel 5) y control (Panel 6),
@@ -122,6 +122,33 @@ export default {
       },
 
       // ── Columna 2: Upper Keyboard ───────────────────────────────────
+      //
+      // Controles de arriba a abajo (tal y como aparecen en la serigrafía
+      // del panel original del Synthi 100):
+      //
+      //   ┌─────────────────────────────────┐
+      //   │  Pitch (vernier multivuelta)    │ Rango de afinación
+      //   │  Key Velocity (knob amarillo)   │ Sensibilidad a velocidad
+      //   │  Env. Control (knob blanco)     │ CV de envelope (−/+)
+      //   │                                 │
+      //   │  ▼ RETRIGGER KEY RELEASE        │ ← texto serigrafía
+      //   │  ON ◉ KBD                       │ ← selector rotativo
+      //   │  KEY RELEASE or NEW PITCH       │ ← texto serigrafía
+      //   └─────────────────────────────────┘
+      //
+      // El selector rotativo "Retrigger Key Release" controla cuándo
+      // el envelope se redispara al tocar notas:
+      //
+      //   ON  → retrigger siempre (cada nota dispara el envelope)
+      //   KBD → retrigger solo en key release o cambio de pitch
+      //         (en legato no redispara: mantener una nota y pulsar
+      //          otra del mismo pitch no genera nuevo ataque)
+      //
+      // En el hardware es un interruptor rotativo pequeño (no toggle
+      // de palanca). Se implementa con el componente RotarySwitch.
+      // Los textos "RETRIGGER KEY RELEASE" y "KEY RELEASE or NEW PITCH"
+      // son parte de la imagen de fondo del panel (serigrafía), no DOM.
+      //
       column2: {
         id: 'upperKeyboard',
         knobs: [
@@ -129,14 +156,17 @@ export default {
           { name: 'Key Velocity', type: 'standard', color: 'yellow' },
           { name: 'Env. Control', type: 'standard', color: 'white' }
         ],
-        toggles: [
-          { name: 'Retrigger Key Release', labelA: 'Off', labelB: 'On' }
+        switches: [
+          { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
         ],
         knobGap: 4,          // Gap vertical entre knobs
-        toggleGap: 4          // Gap entre último knob y toggle
+        switchGap: 4          // Gap entre último knob y selector rotativo
       },
 
       // ── Columna 3: Lower Keyboard ──────────────────────────────────
+      // Misma disposición que Upper Keyboard (columna 2).
+      // Ver comentarios de column2 para la descripción del selector
+      // rotativo "Retrigger Key Release" (ON / KBD).
       column3: {
         id: 'lowerKeyboard',
         knobs: [
@@ -144,11 +174,11 @@ export default {
           { name: 'Key Velocity', type: 'standard', color: 'yellow' },
           { name: 'Env. Control', type: 'standard', color: 'white' }
         ],
-        toggles: [
-          { name: 'Retrigger Key Release', labelA: 'Off', labelB: 'On' }
+        switches: [
+          { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
         ],
         knobGap: 4,
-        toggleGap: 4
+        switchGap: 4
       }
 
       // Columnas 4-7: pendientes de definición

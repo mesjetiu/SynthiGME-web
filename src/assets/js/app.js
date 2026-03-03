@@ -55,6 +55,7 @@ import { OscilloscopeDisplay } from './ui/oscilloscopeDisplay.js';
 // UI Components reutilizables
 import { ModuleFrame } from './ui/moduleFrame.js';
 import { Toggle } from './ui/toggle.js';
+import { RotarySwitch } from './ui/rotarySwitch.js';
 import { Knob } from './ui/knob.js';
 import { createKnob } from './ui/knobFactory.js';
 import { createVernierElements, VernierKnob } from './ui/vernierKnob.js';
@@ -3163,6 +3164,16 @@ class App {
       return toggle;
     };
 
+    // ── Helper: crear un selector rotativo ──────────────────────────────
+    const createPanel4RotarySwitch = (switchDef, moduleId, idx) => {
+      return new RotarySwitch({
+        id: `${moduleId}-rotary-switch-${idx}`,
+        labelA: switchDef.labelA || 'A',
+        labelB: switchDef.labelB || 'B',
+        initial: 'a'
+      });
+    };
+
     // ── Columna 1: PVC + Envelope Followers (3 submódulos apilados) ─────
     const col1Layout = korLayout.column1;
     const col1Container = document.createElement('div');
@@ -3264,19 +3275,26 @@ class App {
         }
       }
 
-      // Toggles
-      if (colLayout.toggles) {
-        for (let i = 0; i < colLayout.toggles.length; i++) {
-          const toggleDef = colLayout.toggles[i];
-          const toggleWrapper = document.createElement('div');
-          toggleWrapper.className = 'panel4-toggle-wrapper';
-          toggleWrapper.style.cssText = `
-            margin-top: ${colLayout.toggleGap ?? 4}px;
-            transform: scale(${toNum(knobUI.toggleScale, 0.7)});
+      // Switches (selectores rotativos u otros controles de 2 estados)
+      if (colLayout.switches) {
+        for (let i = 0; i < colLayout.switches.length; i++) {
+          const switchDef = colLayout.switches[i];
+          const switchWrapper = document.createElement('div');
+          switchWrapper.className = 'panel4-switch-wrapper';
+          switchWrapper.style.cssText = `
+            margin-top: ${colLayout.switchGap ?? 4}px;
           `;
-          const toggle = createPanel4Toggle(toggleDef, colId, i);
-          toggleWrapper.appendChild(toggle.createElement());
-          content.appendChild(toggleWrapper);
+
+          if (switchDef.type === 'rotarySwitch') {
+            const rs = createPanel4RotarySwitch(switchDef, colId, i);
+            switchWrapper.appendChild(rs.createElement());
+          } else {
+            // Fallback: toggle clásico
+            const toggle = createPanel4Toggle(switchDef, colId, i);
+            switchWrapper.style.transform = `scale(${toNum(knobUI.toggleScale, 0.7)})`;
+            switchWrapper.appendChild(toggle.createElement());
+          }
+          content.appendChild(switchWrapper);
         }
       }
 

@@ -64,6 +64,9 @@ class RandomCVProcessor extends AudioWorkletProcessor {
     /** Samples restantes hasta el próximo evento */
     this._samplesUntilNext = 0;
     
+    /** Duración total del intervalo actual (para recálculo proporcional) */
+    this._currentIntervalLength = 0;
+    
     // ─── Estado de las salidas ─────────────────────────────────────────
     
     /** Valor DC actual de Voltage 1 (normalizado ±1) */
@@ -181,7 +184,9 @@ class RandomCVProcessor extends AudioWorkletProcessor {
     this._keySamplesRemaining = this._keyPulseSamples;
     
     // Calcular próximo intervalo
-    this._samplesUntilNext = this._calculateNextInterval();
+    const interval = this._calculateNextInterval();
+    this._samplesUntilNext = interval;
+    this._currentIntervalLength = interval;
   }
   
   /**
@@ -259,9 +264,32 @@ class RandomCVProcessor extends AudioWorkletProcessor {
    */
   _handleMessage(data) {
     switch (data.type) {
-      case 'setMean':
+      case 'setMean': {
+        const oldFreq = this._meanFreq;
         this._meanFreq = this._meanDialToFreq(data.value);
+        
+        // ── Recálculo proporcional (comportamiento analógico) ─────────
+        // En el Synthi 100, el control Mean Rate modifica la corriente
+        // de carga del condensador del UJT (Q13, placa PC-21).
+        // Al cambiar la corriente, la carga acumulada se conserva y
+        // el tiempo restante escala proporcionalmente con la nueva tasa.
+        // Ejemplo: si el condensador va al 50% y la frecuencia se
+        // multiplica por 10, el 50% restante se alcanza 10× más rápido.
+        if (this._currentIntervalLength > 0 && oldFreq > 0) {
+          const elapsed = this._currentIntervalLength - this._samplesUntilNext;
+          const fraction = elapsed / this._currentIntervalLength;
+          // Nuevo período base (sin jitter — el jitter de este ciclo
+          // ya fue decidido por el umbral de disparo del UJT)
+          const newBasePeriod = Math.max(
+            Math.round(sampleRate / this._meanFreq),
+            Math.round(MIN_PERIOD * sampleRate)
+          );
+          const newRemaining = Math.round(newBasePeriod * (1 - fraction));
+          this._samplesUntilNext = Math.max(0, newRemaining);
+          this._currentIntervalLength = elapsed + this._samplesUntilNext;
+        }
         break;
+      }
         
       case 'setVariance':
         this._variance = this._varianceDialToNorm(data.value);

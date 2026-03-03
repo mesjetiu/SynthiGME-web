@@ -4136,6 +4136,8 @@ class App {
         title: `Osc ${slot.index}`,
         size: oscSize,
         knobGap: oscUI.knobGap,
+        buttonSize: oscUI.buttonSize,
+        buttonScale: oscUI.buttonScale,
         switchOffset: oscUI.switchOffset,
         knobSize: oscUI.knobSize,
         knobRowOffsetX: oscUI.knobRowOffsetX,

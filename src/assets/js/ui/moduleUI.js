@@ -133,6 +133,7 @@ export class ModuleUI {
   _createKnobShell(label, key) {
     const shell = document.createElement('div');
     shell.className = `${this.cssClass}__knob-shell`;
+    shell.dataset.knob = key;
 
     // Label encima del knob
     const labelEl = document.createElement('div');

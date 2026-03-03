@@ -149,6 +149,15 @@ settings.tab.osc:
   pt: OSC
   cs: OSC
 
+settings.tab.midi:
+  en: MIDI
+  es: MIDI
+  fr: MIDI
+  de: MIDI
+  it: MIDI
+  pt: MIDI
+  cs: MIDI
+
 settings.tab.about:
   en: About
   es: Acerca de
@@ -3765,6 +3774,24 @@ contextMenu.resetControl:
   pt: Redefinir {name}
   cs: Resetovat {name}
 
+contextMenu.midiLearn:
+  en: MIDI Learn
+  es: MIDI Learn
+  fr: MIDI Learn
+  de: MIDI Learn
+  it: MIDI Learn
+  pt: MIDI Learn
+  cs: MIDI Learn
+
+contextMenu.midiUnlearn:
+  en: "Remove MIDI ({source})"
+  es: "Quitar MIDI ({source})"
+  fr: "Retirer MIDI ({source})"
+  de: "MIDI entfernen ({source})"
+  it: "Rimuovi MIDI ({source})"
+  pt: "Remover MIDI ({source})"
+  cs: "Odebrat MIDI ({source})"
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # NOTAS POST-IT EN PANELES
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -4755,3 +4782,151 @@ settings.telemetry.description:
   it: Invia report anonimi di errori e sessioni per aiutare a migliorare SynthiGME. Non vengono raccolti dati personali, contenuti musicali o dettagli di utilizzo. Puoi modificarlo in qualsiasi momento.
   pt: Envia relatórios anônimos de erros e sessões para ajudar a melhorar o SynthiGME. Nenhum dado pessoal, conteúdo musical ou detalhe de uso é coletado. Você pode alterar isso a qualquer momento.
   cs: Zasílá anonymní hlášení o chybách a relacích pro zlepšení SynthiGME. Nejsou shromažďovány žádné osobní údaje, hudební obsah ani podrobnosti o používání. Toto můžete kdykoli změnit.
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MIDI LEARN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+midi.learn.waiting:
+  en: Move a MIDI control...
+  es: Mueve un control MIDI...
+  fr: Bougez un contrôle MIDI...
+  de: Bewegen Sie einen MIDI-Regler...
+  it: Muovi un controllo MIDI...
+  pt: Mova um controle MIDI...
+  cs: Pohybujte MIDI ovladačem...
+
+midi.learn.cancel:
+  en: Cancel
+  es: Cancelar
+  fr: Annuler
+  de: Abbrechen
+  it: Annulla
+  pt: Cancelar
+  cs: Zrušit
+
+midi.notSupported:
+  en: Your browser does not support Web MIDI API
+  es: Tu navegador no soporta Web MIDI API
+  fr: Votre navigateur ne supporte pas l'API Web MIDI
+  de: Ihr Browser unterstützt die Web MIDI API nicht
+  it: Il tuo browser non supporta l'API Web MIDI
+  pt: Seu navegador não suporta a API Web MIDI
+  cs: Váš prohlížeč nepodporuje Web MIDI API
+
+settings.midi.description:
+  en: Map MIDI controllers (knobs, faders, wheels, pads) to synthesizer controls. Right-click any control and select MIDI Learn.
+  es: Mapea controladores MIDI (knobs, faders, ruedas, pads) a controles del sintetizador. Haz clic derecho en cualquier control y selecciona MIDI Learn.
+  fr: Mappez des contrôleurs MIDI (potentiomètres, faders, molettes, pads) aux commandes du synthétiseur. Cliquez droit sur un contrôle et sélectionnez MIDI Learn.
+  de: Ordnen Sie MIDI-Controller (Knöpfe, Fader, Räder, Pads) den Synthesizer-Reglern zu. Klicken Sie mit der rechten Maustaste auf ein Regler und wählen Sie MIDI Learn.
+  it: Mappa controller MIDI (manopole, fader, ruote, pad) ai controlli del sintetizzatore. Fai clic destro su un controllo e seleziona MIDI Learn.
+  pt: Mapeie controladores MIDI (knobs, faders, rodas, pads) para controles do sintetizador. Clique com o botão direito em um controle e selecione MIDI Learn.
+  cs: Namapujte MIDI ovladače (knoby, fadery, kolečka, pady) na ovládací prvky syntetizéru. Klikněte pravým tlačítkem na ovladač a vyberte MIDI Learn.
+
+settings.midi.devices:
+  en: Detected devices
+  es: Dispositivos detectados
+  fr: Périphériques détectés
+  de: Erkannte Geräte
+  it: Dispositivi rilevati
+  pt: Dispositivos detectados
+  cs: Detekovaná zařízení
+
+settings.midi.noDevices:
+  en: No MIDI devices connected
+  es: No hay dispositivos MIDI conectados
+  fr: Aucun périphérique MIDI connecté
+  de: Keine MIDI-Geräte angeschlossen
+  it: Nessun dispositivo MIDI collegato
+  pt: Nenhum dispositivo MIDI conectado
+  cs: Žádná MIDI zařízení nejsou připojena
+
+settings.midi.mappings:
+  en: Mappings
+  es: Asignaciones
+  fr: Assignations
+  de: Zuordnungen
+  it: Assegnazioni
+  pt: Mapeamentos
+  cs: Mapování
+
+settings.midi.noMappings:
+  en: No MIDI mappings configured
+  es: Sin asignaciones MIDI configuradas
+  fr: Aucune assignation MIDI configurée
+  de: Keine MIDI-Zuordnungen konfiguriert
+  it: Nessuna assegnazione MIDI configurata
+  pt: Nenhum mapeamento MIDI configurado
+  cs: Žádná MIDI mapování nejsou nakonfigurována
+
+settings.midi.removeMapping:
+  en: Remove mapping
+  es: Eliminar asignación
+  fr: Supprimer l'assignation
+  de: Zuordnung entfernen
+  it: Rimuovi assegnazione
+  pt: Remover mapeamento
+  cs: Odebrat mapování
+
+settings.midi.export:
+  en: Export
+  es: Exportar
+  fr: Exporter
+  de: Exportieren
+  it: Esporta
+  pt: Exportar
+  cs: Exportovat
+
+settings.midi.import:
+  en: Import
+  es: Importar
+  fr: Importer
+  de: Importieren
+  it: Importa
+  pt: Importar
+  cs: Importovat
+
+settings.midi.clearAll:
+  en: Clear all
+  es: Borrar todas
+  fr: Tout effacer
+  de: Alle löschen
+  it: Cancella tutto
+  pt: Limpar tudo
+  cs: Smazat vše
+
+settings.midi.clearConfirm:
+  en: Remove all MIDI mappings?
+  es: ¿Eliminar todas las asignaciones MIDI?
+  fr: Supprimer toutes les assignations MIDI ?
+  de: Alle MIDI-Zuordnungen entfernen?
+  it: Rimuovere tutte le assegnazioni MIDI?
+  pt: Remover todos os mapeamentos MIDI?
+  cs: Odebrat všechna MIDI mapování?
+
+settings.midi.cleared:
+  en: MIDI mappings cleared
+  es: Asignaciones MIDI borradas
+  fr: Assignations MIDI effacées
+  de: MIDI-Zuordnungen gelöscht
+  it: Assegnazioni MIDI cancellate
+  pt: Mapeamentos MIDI limpos
+  cs: MIDI mapování smazána
+
+settings.midi.exported:
+  en: MIDI mappings exported
+  es: Asignaciones MIDI exportadas
+  fr: Assignations MIDI exportées
+  de: MIDI-Zuordnungen exportiert
+  it: Assegnazioni MIDI esportate
+  pt: Mapeamentos MIDI exportados
+  cs: MIDI mapování exportována
+
+settings.midi.imported:
+  en: "{count} mapping(s) imported"
+  es: "{count} asignación(es) importada(s)"
+  fr: "{count} assignation(s) importée(s)"
+  de: "{count} Zuordnung(en) importiert"
+  it: "{count} assegnazione/i importata/e"
+  pt: "{count} mapeamento(s) importado(s)"
+  cs: "{count} mapování importováno"

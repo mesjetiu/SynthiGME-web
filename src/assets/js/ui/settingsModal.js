@@ -19,6 +19,8 @@ import { WakeLockManager } from '../utils/wakeLock.js';
 import { showToast } from './toast.js';
 import { setEnabled as telemetrySetEnabled } from '../utils/telemetry.js';
 import { getGlowPreset, setGlowPreset, getGlowPresetIds } from './glowManager.js';
+import { midiAccess } from '../midi/midiAccess.js';
+import { midiLearnManager } from '../midi/midiLearnManager.js';
 
 /**
  * Modal de configuración general con pestañas
@@ -468,6 +470,14 @@ export class SettingsModal {
       osc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
       </svg>`,
+      midi: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
+        <circle cx="16" cy="9" r="1.2" fill="currentColor"/>
+        <circle cx="6" cy="13" r="1.2" fill="currentColor"/>
+        <circle cx="18" cy="13" r="1.2" fill="currentColor"/>
+        <circle cx="12" cy="15" r="1.2" fill="currentColor"/>
+      </svg>`,
       about: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
         <line x1="12" y1="16" x2="12" y2="12"/>
@@ -491,6 +501,7 @@ export class SettingsModal {
       { id: 'audio', label: t('settings.tab.audio') },
       { id: 'advanced', label: t('settings.tab.advanced') },
       { id: 'osc', label: t('settings.tab.osc') },
+      { id: 'midi', label: t('settings.tab.midi') },
       { id: 'about', label: t('settings.tab.about') }
     ];
     
@@ -544,6 +555,7 @@ export class SettingsModal {
       { id: 'audio', label: t('settings.tab.audio') },
       { id: 'advanced', label: t('settings.tab.advanced') },
       { id: 'osc', label: t('settings.tab.osc') },
+      { id: 'midi', label: t('settings.tab.midi') },
       { id: 'about', label: t('settings.tab.about') }
     ];
     
@@ -585,6 +597,9 @@ export class SettingsModal {
           break;
         case 'osc':
           content = this._createOSCTabContent();
+          break;
+        case 'midi':
+          content = this._createMIDITabContent();
           break;
         case 'about':
           content = this._createAboutTabContent();
@@ -1503,6 +1518,270 @@ export class SettingsModal {
     return section;
   }
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PESTAÑA: MIDI
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  /**
+   * Crea el contenido de la pestaña MIDI
+   */
+  _createMIDITabContent() {
+    const container = document.createElement('div');
+    container.className = 'settings-tab-content';
+    container.dataset.tab = 'midi';
+    
+    // ── 1. Descripción ──
+    container.appendChild(this._createMIDIDescriptionSection());
+    
+    // ── 2. Dispositivos detectados ──
+    container.appendChild(this._createMIDIDevicesSection());
+    
+    // ── 3. Tabla de mappings ──
+    container.appendChild(this._createMIDIMappingsSection());
+    
+    // ── 4. Acciones (importar/exportar/borrar) ──
+    container.appendChild(this._createMIDIActionsSection());
+    
+    return container;
+  }
+
+  /**
+   * Sección descriptiva del MIDI
+   */
+  _createMIDIDescriptionSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    if (!midiAccess.supported) {
+      section.innerHTML = `
+        <p class="settings-section__description settings-section__description--warning">
+          ${t('midi.notSupported')}
+        </p>
+      `;
+      return section;
+    }
+    
+    section.innerHTML = `
+      <p class="settings-section__description">
+        ${t('settings.midi.description')}
+      </p>
+    `;
+    return section;
+  }
+
+  /**
+   * Sección de dispositivos MIDI detectados
+   */
+  _createMIDIDevicesSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.midi.devices');
+    section.appendChild(title);
+    
+    const devicesList = document.createElement('div');
+    devicesList.className = 'midi-devices-list';
+    devicesList.id = 'midi-devices-list';
+    section.appendChild(devicesList);
+    
+    this._updateMIDIDevicesList(devicesList);
+    
+    // Auto-actualizar al conectar/desconectar dispositivos
+    document.addEventListener('midi:statusChanged', () => {
+      const list = document.getElementById('midi-devices-list');
+      if (list) this._updateMIDIDevicesList(list);
+    });
+    
+    return section;
+  }
+
+  /**
+   * Actualiza la lista de dispositivos MIDI en la UI.
+   */
+  _updateMIDIDevicesList(container) {
+    const inputs = midiAccess.getInputs();
+    
+    if (inputs.length === 0) {
+      container.innerHTML = `<div class="settings-row"><span class="settings-row__label settings-row__label--dimmed">${t('settings.midi.noDevices')}</span></div>`;
+      return;
+    }
+    
+    container.innerHTML = '';
+    inputs.forEach(device => {
+      const row = document.createElement('div');
+      row.className = 'settings-row';
+      
+      const nameEl = document.createElement('span');
+      nameEl.className = 'settings-row__label';
+      nameEl.textContent = device.name;
+      
+      const stateEl = document.createElement('span');
+      stateEl.className = `midi-device-state midi-device-state--${device.state}`;
+      stateEl.textContent = device.state === 'connected' ? '●' : '○';
+      stateEl.title = device.state;
+      
+      row.appendChild(stateEl);
+      row.appendChild(nameEl);
+      
+      if (device.manufacturer) {
+        const mfgEl = document.createElement('span');
+        mfgEl.className = 'settings-row__label settings-row__label--dimmed';
+        mfgEl.textContent = device.manufacturer;
+        mfgEl.style.marginLeft = 'auto';
+        row.appendChild(mfgEl);
+      }
+      
+      container.appendChild(row);
+    });
+  }
+
+  /**
+   * Sección de tabla de mappings MIDI activos
+   */
+  _createMIDIMappingsSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.midi.mappings');
+    section.appendChild(title);
+    
+    const table = document.createElement('div');
+    table.className = 'midi-mappings-table';
+    table.id = 'midi-mappings-table';
+    section.appendChild(table);
+    
+    this._updateMIDIMappingsTable(table);
+    
+    // Auto-actualizar cuando cambian los mappings
+    document.addEventListener('midi:mappingChanged', () => {
+      const tbl = document.getElementById('midi-mappings-table');
+      if (tbl) this._updateMIDIMappingsTable(tbl);
+    });
+    document.addEventListener('midi:learnComplete', () => {
+      const tbl = document.getElementById('midi-mappings-table');
+      if (tbl) this._updateMIDIMappingsTable(tbl);
+    });
+    
+    return section;
+  }
+
+  /**
+   * Actualiza la tabla de mappings MIDI.
+   */
+  _updateMIDIMappingsTable(container) {
+    const mappings = midiLearnManager.getAllMappings();
+    
+    if (mappings.length === 0) {
+      container.innerHTML = `<div class="settings-row"><span class="settings-row__label settings-row__label--dimmed">${t('settings.midi.noMappings')}</span></div>`;
+      return;
+    }
+    
+    container.innerHTML = '';
+    
+    mappings.forEach(mapping => {
+      const row = document.createElement('div');
+      row.className = 'settings-row midi-mapping-row';
+      
+      // Origen MIDI
+      const sourceEl = document.createElement('span');
+      sourceEl.className = 'midi-mapping__source';
+      sourceEl.textContent = midiLearnManager._formatMIDISource(mapping);
+      
+      // Flecha
+      const arrowEl = document.createElement('span');
+      arrowEl.className = 'midi-mapping__arrow';
+      arrowEl.textContent = '→';
+      
+      // Destino (control del synth)
+      const targetEl = document.createElement('span');
+      targetEl.className = 'midi-mapping__target';
+      targetEl.textContent = mapping.target.label || mapping.target.moduleId;
+      
+      // Dispositivo
+      const deviceEl = document.createElement('span');
+      deviceEl.className = 'midi-mapping__device settings-row__label--dimmed';
+      deviceEl.textContent = mapping.deviceName;
+      
+      // Botón eliminar
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'midi-mapping__delete';
+      deleteBtn.textContent = '✕';
+      deleteBtn.title = t('settings.midi.removeMapping');
+      deleteBtn.addEventListener('click', () => {
+        midiLearnManager.removeMappingByKey(mapping.midiKey);
+      });
+      
+      row.appendChild(sourceEl);
+      row.appendChild(arrowEl);
+      row.appendChild(targetEl);
+      row.appendChild(deviceEl);
+      row.appendChild(deleteBtn);
+      container.appendChild(row);
+    });
+  }
+
+  /**
+   * Sección de acciones MIDI (exportar, importar, borrar)
+   */
+  _createMIDIActionsSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    row.style.gap = '8px';
+    row.style.flexWrap = 'wrap';
+    
+    // Exportar
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'settings-btn';
+    exportBtn.textContent = t('settings.midi.export');
+    exportBtn.addEventListener('click', () => {
+      midiLearnManager.downloadMappings();
+      showToast(t('settings.midi.exported'));
+    });
+    
+    // Importar
+    const importBtn = document.createElement('button');
+    importBtn.className = 'settings-btn';
+    importBtn.textContent = t('settings.midi.import');
+    importBtn.addEventListener('click', async () => {
+      const result = await midiLearnManager.uploadMappings();
+      if (result.success) {
+        showToast(t('settings.midi.imported', { count: result.count }));
+      } else {
+        showToast(result.error || 'Error', 'error');
+      }
+    });
+    
+    // Borrar todos
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'settings-btn settings-btn--danger';
+    clearBtn.textContent = t('settings.midi.clearAll');
+    clearBtn.addEventListener('click', () => {
+      if (midiLearnManager.mappingCount === 0) return;
+      const dialog = new ConfirmDialog({
+        message: t('settings.midi.clearConfirm'),
+        onConfirm: () => {
+          midiLearnManager.clearAllMappings();
+          showToast(t('settings.midi.cleared'));
+        }
+      });
+      dialog.show();
+    });
+    
+    row.appendChild(exportBtn);
+    row.appendChild(importBtn);
+    row.appendChild(clearBtn);
+    section.appendChild(row);
+    
+    return section;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // PESTAÑA: ACERCA DE
   // ═══════════════════════════════════════════════════════════════════════════

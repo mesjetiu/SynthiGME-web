@@ -105,6 +105,9 @@ import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
 import { randomCVOSCSync } from './osc/oscRandomCVSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
+import { midiAccess } from './midi/midiAccess.js';
+import { midiLearnManager } from './midi/midiLearnManager.js';
+import { initMIDILearnOverlay } from './midi/midiLearnOverlay.js';
 import { initGlowManager, flashGlow } from './ui/glowManager.js';
 import { loadSvgInline } from './ui/svgInlineLoader.js';
 import { SignalFlowHighlighter } from './ui/signalFlowHighlighter.js';
@@ -241,6 +244,22 @@ class App {
     joystickOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
+
+    // Inicializar sistema MIDI Learn
+    midiAccess.init().then((success) => {
+      if (success) {
+        midiLearnManager.init(this);
+        midiLearnManager.applyVisualIndicators();
+        log.info(`MIDI Learn inicializado — ${midiAccess.getInputs().length} dispositivo(s)`);
+      } else {
+        log.warn('MIDI no disponible — MIDI Learn funcionará cuando haya acceso');
+        // Registrar igualmente para que si el usuario reintenta funcione
+        midiLearnManager.init(this);
+      }
+    }).catch(err => {
+      log.error('Error inicializando MIDI:', err);
+    });
+    initMIDILearnOverlay();
 
     // Resize handler con debounce
     let appResizeTimer = null;

@@ -213,6 +213,16 @@ export const STORAGE_KEYS = {
   OSC_LOG_VISIBLE: `${STORAGE_PREFIX}osc-log-visible`,
   
   // ─────────────────────────────────────────────────────────────────────────
+  // MIDI Learn (mapeo de controladores MIDI a controles del sintetizador)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** MIDI habilitado */
+  MIDI_ENABLED: `${STORAGE_PREFIX}midi-enabled`,
+
+  /** Mappings MIDI en formato JSON (estructura exportable) */
+  MIDI_MAPPINGS: `${STORAGE_PREFIX}midi-mappings`,
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Telemetría anónima
   // ─────────────────────────────────────────────────────────────────────────
   

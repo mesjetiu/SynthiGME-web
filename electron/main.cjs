@@ -126,6 +126,15 @@ async function createWindow() {
   const { session } = require('electron');
   const ses = session.defaultSession;
   
+  // Conceder acceso MIDI automáticamente (sin popup de permisos)
+  ses.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'midi' || permission === 'midiSysex') {
+      callback(true);
+      return;
+    }
+    callback(true);
+  });
+
   // Limpiar caché HTTP
   await ses.clearCache();
   

@@ -15,6 +15,8 @@
 import { createLogger } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import { createNote, pasteNoteFromClipboard, hasNoteInClipboard } from './panelNotes.js';
+import { midiLearnManager } from '../midi/midiLearnManager.js';
+import { midiAccess } from '../midi/midiAccess.js';
 
 const log = createLogger('ContextMenu');
 
@@ -57,6 +59,23 @@ const ICON_PASTE_NOTE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="n
   <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
   <line x1="9" y1="12" x2="15" y2="12"/>
   <line x1="9" y1="16" x2="13" y2="16"/>
+</svg>`;
+
+const ICON_MIDI = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+  <circle cx="12" cy="12" r="10"/>
+  <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="16" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="6" cy="13" r="1.2" fill="currentColor"/>
+  <circle cx="18" cy="13" r="1.2" fill="currentColor"/>
+  <circle cx="12" cy="15" r="1.2" fill="currentColor"/>
+</svg>`;
+
+const ICON_MIDI_UNLEARN = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+  <circle cx="12" cy="12" r="10"/>
+  <line x1="7" y1="7" x2="17" y2="17" stroke-width="2"/>
+  <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="16" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="12" cy="15" r="1.2" fill="currentColor"/>
 </svg>`;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,6 +184,9 @@ function detectControl(target, moduleInfo) {
   const labelEl = shell.querySelector('[class*="__knob-label"]');
   const label = labelEl?.textContent?.trim() || '';
   
+  // Extraer clave del knob desde data-knob (puesta por ModuleUI._createKnobShell)
+  const controlKey = shell.dataset?.knob || null;
+  
   const knobsRow = shell.parentElement;
   const allShells = knobsRow ? Array.from(knobsRow.children).filter(
     el => el.classList.contains(`${moduleEl.className.split(' ')[0]}__knob-shell`) || 
@@ -172,7 +194,7 @@ function detectControl(target, moduleInfo) {
   ) : [];
   const knobIndex = allShells.indexOf(shell);
   
-  return { label: label || `Knob ${knobIndex + 1}`, knobIndex, moduleId: moduleInfo.id };
+  return { label: label || `Knob ${knobIndex + 1}`, knobIndex, controlKey, controlType: 'knob', moduleId: moduleInfo.id };
 }
 
 /**
@@ -315,6 +337,48 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
         });
       }
     ));
+  }
+  
+  // ── Opciones MIDI Learn (solo si se detectó un control) ──
+  if (controlInfo && controlInfo.label) {
+    menu.appendChild(createSeparator());
+    
+    const existingMapping = midiLearnManager.getMappingForControl(controlInfo);
+    
+    if (midiAccess.supported) {
+      // "MIDI Learn" — asignar un CC/nota/pitchbend a este control
+      menu.appendChild(createMenuItem(
+        ICON_MIDI,
+        t('contextMenu.midiLearn'),
+        () => {
+          hideContextMenu();
+          midiLearnManager.startLearn(controlInfo);
+        }
+      ));
+      
+      // "Quitar MIDI" — solo visible si el control ya tiene mapping
+      if (existingMapping) {
+        const sourceLabel = midiLearnManager._formatMIDISource(existingMapping);
+        menu.appendChild(createMenuItem(
+          ICON_MIDI_UNLEARN,
+          t('contextMenu.midiUnlearn', { source: sourceLabel }),
+          () => {
+            hideContextMenu();
+            midiLearnManager.removeMappingForControl(controlInfo);
+          }
+        ));
+      }
+    } else {
+      // Navegador sin Web MIDI API — item deshabilitado
+      const disabledItem = createMenuItem(
+        ICON_MIDI,
+        t('contextMenu.midiLearn'),
+        () => {}
+      );
+      disabledItem.classList.add('is-disabled');
+      disabledItem.title = t('midi.notSupported');
+      menu.appendChild(disabledItem);
+    }
   }
   
   document.body.appendChild(menu);

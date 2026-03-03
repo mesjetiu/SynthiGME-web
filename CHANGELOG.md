@@ -14,6 +14,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Corregido
 - **RCVG dormancy**: Pulso key espurio al despertar de dormancy. Los eventos fantasma internos establecían `_keySamplesRemaining` pero nunca lo decrementaban durante dormancy, produciendo un pulso key parcial sin evento asociado al despertar. Ahora se resetea al transicionar de dormant a activo.
+- **MIDI Learn**: Corregido rango de valores — el slider (0-10) recibía valores normalizados 0-1, cubriendo solo el 10% del recorrido. Corregida pérdida de mensajes MIDI rápidos — el anti-feedback descartaba mensajes entrantes en vez de aplicar siempre el último valor recibido.
 
 ### Cambiado
 - **Rendimiento de knobs**: Eliminada transición CSS (30ms) de `.knob-inner` y `#vd-rotor` que causaba retardo visual durante drag; reemplazada por `will-change: transform` para composición GPU. TextContent del valor y contador solo se escriben al DOM cuando realmente cambian, evitando layout thrashing durante interacción.

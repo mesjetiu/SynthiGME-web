@@ -93,7 +93,7 @@ class MIDIAccessManager {
     if (this._initialized) return true;
 
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
-      console.warn('[MIDI] Web MIDI API no soportada en este navegador');
+      log.warn('Web MIDI API no soportada en este navegador');
       this._supported = false;
       return false;
     }
@@ -101,22 +101,8 @@ class MIDIAccessManager {
     this._supported = true;
 
     try {
-      console.log('[MIDI] Solicitando acceso MIDI...');
       this._midiAccess = await navigator.requestMIDIAccess({ sysex: false });
       this._initialized = true;
-
-      // Diagnóstico: listar todos los puertos raw
-      console.log('[MIDI] Acceso concedido. Puertos de entrada:');
-      for (const input of this._midiAccess.inputs.values()) {
-        console.log(`[MIDI]   IN: "${input.name}" id=${input.id} state=${input.state} connection=${input.connection} manufacturer="${input.manufacturer}"`);
-      }
-      console.log('[MIDI] Puertos de salida:');
-      for (const output of this._midiAccess.outputs.values()) {
-        console.log(`[MIDI]   OUT: "${output.name}" id=${output.id} state=${output.state}`);
-      }
-      if (this._midiAccess.inputs.size === 0) {
-        console.warn('[MIDI] ⚠ No se encontraron puertos de entrada MIDI. Verifica que el dispositivo esté conectado y que el navegador tenga acceso.');
-      }
 
       // Escuchar cambios de estado (conexión/desconexión)
       this._midiAccess.onstatechange = (e) => this._onStateChange(e);
@@ -125,12 +111,12 @@ class MIDIAccessManager {
       await this._bindAllInputs();
 
       const inputs = this.getInputs();
-      console.log(`[MIDI] Inicializado — ${inputs.length} dispositivo(s) de entrada activo(s)`);
+      log.info(`MIDI inicializado — ${inputs.length} dispositivo(s): ${inputs.map(d => d.name).join(', ') || '(ninguno)'}`);
 
       this._emitStatusChanged();
       return true;
     } catch (err) {
-      console.error('[MIDI] Error al solicitar acceso MIDI:', err);
+      log.error('Error al solicitar acceso MIDI:', err.message);
       this._initialized = false;
       return false;
     }
@@ -208,7 +194,7 @@ class MIDIAccessManager {
       if (input.state === 'connected') {
         openPromises.push(
           this._openAndBind(input).catch(err =>
-            console.warn(`[MIDI] No se pudo abrir ${input.name}: ${err.message}`, err)
+            log.warn(`No se pudo abrir ${input.name}: ${err.message}`)
           )
         );
       }
@@ -222,13 +208,12 @@ class MIDIAccessManager {
    */
   async _openAndBind(input) {
     // Abrir explícitamente — en Linux Chrome esto es imprescindible
-    console.log(`[MIDI] Abriendo puerto: "${input.name}" (connection=${input.connection})...`);
     if (input.connection !== 'open') {
       await input.open();
     }
     input.onmidimessage = this._onMIDIMessage;
     this._activeInputs.set(input.id, input);
-    console.log(`[MIDI] ✓ Puerto vinculado: "${input.name}" (${input.id}) [${input.connection}]`);
+    log.info(`Puerto MIDI vinculado: ${input.name}`);
   }
 
   /**
@@ -238,12 +223,6 @@ class MIDIAccessManager {
   _onMIDIMessage(event) {
     const parsed = this._parseMessage(event);
     if (!parsed) return;
-
-    // Log siempre visible (no depende de LOG_LEVEL)
-    console.log(`[MIDI] IN: ${parsed.type} ch=${parsed.channel} from="${parsed.deviceName}"`,
-      parsed.type === 'cc' ? `cc=${parsed.cc} val=${parsed.value}` :
-      parsed.type === 'pitchbend' ? `val=${parsed.value}` :
-      `note=${parsed.note} vel=${parsed.velocity}`);
 
     for (const cb of this._messageCallbacks) {
       try {
@@ -334,12 +313,12 @@ class MIDIAccessManager {
     if (port.type !== 'input') return;
 
     if (port.state === 'connected') {
-      console.log(`[MIDI] Dispositivo conectado: "${port.name}"`);
+      log.info(`Dispositivo MIDI conectado: ${port.name}`);
       this._openAndBind(port).catch(err =>
-        console.warn(`[MIDI] No se pudo abrir ${port.name}: ${err.message}`, err)
+        log.warn(`No se pudo abrir ${port.name}: ${err.message}`)
       );
     } else {
-      console.log(`[MIDI] Dispositivo desconectado: "${port.name}"`);
+      log.info(`Dispositivo MIDI desconectado: ${port.name}`);
       port.onmidimessage = null;
       this._activeInputs.delete(port.id);
     }

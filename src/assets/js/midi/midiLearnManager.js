@@ -113,6 +113,9 @@ class MIDILearnManagerClass {
     /** Flag anti-feedback (como el OSC sync) */
     this._ignoreMIDIUpdates = false;
 
+    /** Timer para limpiar flag anti-feedback */
+    this._antiFeedbackTimer = null;
+
     /** Unsubscribe del listener de mensajes MIDI */
     this._unsubscribeMessages = null;
 
@@ -576,8 +579,6 @@ class MIDILearnManagerClass {
    * @param {import('./midiAccess.js').ParsedMIDIMessage} msg
    */
   _applyMapping(msg) {
-    if (this._ignoreMIDIUpdates) return;
-
     const type = msg.type === 'noteoff' ? 'noteon' : msg.type;
     const number = type === 'cc' ? msg.cc : type === 'noteon' ? msg.note : 0;
     const midiKey = buildMIDIKey(msg.deviceId, msg.channel, type, number);
@@ -592,11 +593,18 @@ class MIDILearnManagerClass {
     // Convertir valor MIDI al rango del control
     const { control, controlType } = resolved;
 
+    // Anti-feedback: marcamos flag para que los onChange de controles
+    // sepan que este cambio viene de MIDI y no generen bucles.
+    // NUNCA descartamos mensajes MIDI entrantes — siempre se aplica
+    // el último valor recibido independientemente de la velocidad.
     this._ignoreMIDIUpdates = true;
+    clearTimeout(this._antiFeedbackTimer);
     try {
       this._applyValueToControl(control, controlType, msg);
     } finally {
-      setTimeout(() => { this._ignoreMIDIUpdates = false; }, ANTI_FEEDBACK_DELAY);
+      this._antiFeedbackTimer = setTimeout(() => {
+        this._ignoreMIDIUpdates = false;
+      }, ANTI_FEEDBACK_DELAY);
     }
   }
 
@@ -637,8 +645,12 @@ class MIDILearnManagerClass {
         } else {
           normalized = (msg.velocity || 0) / 127;
         }
-        // El slider va de 0 a 1
-        channel.deserialize({ level: normalized });
+        // Escalar al rango real del slider (ej: 0-10 en Output Channel)
+        const sliderEl = channel.slider;
+        const sliderMin = parseFloat(sliderEl?.min ?? 0);
+        const sliderMax = parseFloat(sliderEl?.max ?? 10);
+        const level = sliderMin + normalized * (sliderMax - sliderMin);
+        channel.deserialize({ level });
         break;
       }
 

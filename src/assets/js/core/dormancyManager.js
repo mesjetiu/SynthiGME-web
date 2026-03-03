@@ -241,8 +241,17 @@ export class DormancyManager {
       this._setModuleDormant(`noise-${noiseIndex + 1}`, !hasOutput);
     }
     
-    // ─────────────────────────────────────────────────────────────────────────
-    // INPUT AMPLIFIERS - 8 canales
+    // ─────────────────────────────────────────────────────────────────────────    // RANDOM CONTROL VOLTAGE GENERATOR - filas 89-91 en Panel 6
+    // ─────────────────────────────────────────────────────────────────────────────
+    // El módulo completo duerme/despierta como una unidad (3 salidas)
+    {
+      const hasRCVOutput = panel6Connections.some(c =>
+        c.source?.kind === 'randomCV'
+      );
+      this._setModuleDormant('random-cv', !hasRCVOutput);
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────────    // INPUT AMPLIFIERS - 8 canales
     // ─────────────────────────────────────────────────────────────────────────
     // Por ahora, todos los canales comparten estado (podría granularizarse)
     const hasAnyInputConnected = panel5Connections.some(c =>
@@ -425,6 +434,11 @@ export class DormancyManager {
     }
     if (moduleId === 'noise-2') {
       return this.app._panel3LayoutData?.noiseAudioModules?.noise2;
+    }
+    
+    // Random Control Voltage Generator
+    if (moduleId === 'random-cv') {
+      return this.app._panel3LayoutData?.randomCVAudio;
     }
     
     // Oscilloscope

@@ -24,12 +24,13 @@ import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
-import { KNOB_YELLOW } from './configs/knobColors.js';
+import { KNOB_YELLOW, KNOB_WHITE } from './configs/knobColors.js';
 
 // Blueprints (estructura visual y ruteo)
 import panel1Blueprint from './panelBlueprints/panel1.blueprint.js';
 import panel2Blueprint from './panelBlueprints/panel2.blueprint.js';
 import panel3Blueprint from './panelBlueprints/panel3.blueprint.js';
+import panel4Blueprint from './panelBlueprints/panel4.blueprint.js';
 import panel5AudioBlueprint from './panelBlueprints/panel5.audio.blueprint.js';
 import panel6ControlBlueprint from './panelBlueprints/panel6.control.blueprint.js';
 import panel7Blueprint from './panelBlueprints/panel7.blueprint.js';
@@ -56,6 +57,7 @@ import { ModuleFrame } from './ui/moduleFrame.js';
 import { Toggle } from './ui/toggle.js';
 import { Knob } from './ui/knob.js';
 import { createKnob } from './ui/knobFactory.js';
+import { createVernierElements, VernierKnob } from './ui/vernierKnob.js';
 import { registerTooltipHideCallback, hideOtherTooltips } from './ui/tooltipManager.js';
 
 // Utilidades de audio
@@ -224,7 +226,7 @@ class App {
     this._buildPanel1();  // Filtros, Envelopes, RM, Reverb, Echo (placeholders)
     this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
-    // this._buildOscillatorPanel(4, this.panel4, this._panel4Audio);
+    this._buildPanel4();  // Voltímetros, Sequencer Display, Keyboard Output Range
     
     this._setupOutputFaders();
     this._buildLargeMatrices();
@@ -2999,6 +3001,319 @@ class App {
       envFrames,
       bottomRow,
       bottomFrames
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PANEL 4 - VOLTÍMETROS, SEQUENCER DISPLAY, KEYBOARD OUTPUT RANGE
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  _buildPanel4() {
+    if (!this.panel4) return;
+
+    const blueprint = panel4Blueprint;
+    const toNum = (value, fallback = 0) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    };
+    const resolveOffset = (offset, fallback = { x: 0, y: 0 }) => ({
+      x: toNum(offset?.x, fallback.x),
+      y: toNum(offset?.y, fallback.y)
+    });
+    const applyOffset = (el, offset, fallback = { x: 0, y: 0 }) => {
+      if (!el) return;
+      const resolved = resolveOffset(offset, fallback);
+      if (resolved.x !== 0 || resolved.y !== 0) {
+        el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
+      }
+    };
+
+    const knobUI = blueprint.panel4KnobUI || {};
+    const COLOR_MAP = { white: KNOB_WHITE, yellow: KNOB_YELLOW };
+
+    // Visibilidad de marcos de módulos (desde blueprint)
+    if (blueprint.showFrames === false) {
+      this.panel4.element.classList.add('hide-frames');
+    }
+
+    // Crear contenedor principal
+    const host = document.createElement('div');
+    host.id = 'panel4Layout';
+    host.className = 'panel4-layout';
+    const offset = blueprint.layout.offset || { x: 0, y: 0 };
+    host.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      padding: ${blueprint.layout.padding.top}px ${blueprint.layout.padding.right}px 
+               ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
+      display: flex;
+      flex-direction: column;
+      gap: ${blueprint.layout.gap ?? 4}px;
+      transform: translate(${offset.x}px, ${offset.y}px);
+    `;
+    this.panel4.appendElement(host);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILA 1: 8 VOLTÍMETROS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const vmLayout = blueprint.layout.voltmetersRow;
+    const voltmetersRow = document.createElement('div');
+    voltmetersRow.className = 'panel4-voltmeters-row';
+    voltmetersRow.style.cssText = `
+      display: flex;
+      gap: ${vmLayout.gap}px;
+      height: ${vmLayout.height}px;
+      flex: 0 0 auto;
+      width: 100%;
+    `;
+    applyOffset(voltmetersRow, vmLayout.offset);
+    host.appendChild(voltmetersRow);
+
+    const voltmeterFrames = {};
+    for (let i = 1; i <= vmLayout.count; i++) {
+      const vmId = `voltmeter${i}`;
+      const frame = new ModuleFrame({
+        id: `${vmId}-module`,
+        title: null,
+        className: 'panel4-placeholder panel4-voltmeter'
+      });
+      const el = frame.createElement();
+      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+
+      applyModuleVisibility(el, blueprint, vmId);
+      voltmetersRow.appendChild(el);
+      voltmeterFrames[vmId] = frame;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILA 2: SEQUENCER EVENT TIME
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const seqLayout = blueprint.layout.sequencerEventTime;
+    const seqFrame = new ModuleFrame({
+      id: 'sequencerEventTime-module',
+      title: null,
+      className: 'panel4-placeholder panel4-sequencer-event-time'
+    });
+    const seqEl = seqFrame.createElement();
+    seqEl.style.cssText = `
+      width: 100%;
+      height: ${seqLayout.height}px;
+      flex: 0 0 auto;
+    `;
+    applyOffset(seqEl, seqLayout.offset);
+    applyModuleVisibility(seqEl, blueprint, 'sequencerEventTime');
+    host.appendChild(seqEl);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILA 3: KEYBOARD OUTPUT RANGE (7 columnas)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const korLayout = blueprint.layout.keyboardOutputRange;
+    const korRow = document.createElement('div');
+    korRow.className = 'panel4-keyboard-output-range';
+    korRow.style.cssText = `
+      display: flex;
+      gap: ${korLayout.gap}px;
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 0;
+    `;
+    applyOffset(korRow, korLayout.offset);
+    host.appendChild(korRow);
+
+    const korFrames = {};
+
+    // ── Helper: crear un knob estándar ───────────────────────────────────
+    const createPanel4Knob = (knobDef) => {
+      const colorHex = COLOR_MAP[knobDef.color] || '';
+      return createKnob({
+        size: '',
+        showValue: false,
+        centerColor: colorHex
+      });
+    };
+
+    // ── Helper: crear un knob vernier ───────────────────────────────────
+    const createPanel4Vernier = () => {
+      const elements = createVernierElements({ showValue: false });
+      const vernierSize = toNum(knobUI.vernierKnobSize, 55);
+      elements.knobEl.style.width = `${vernierSize}px`;
+      elements.knobEl.style.height = `${vernierSize}px`;
+      const knobInstance = new VernierKnob(elements.knobEl, {
+        min: 0, max: 1, initial: 0,
+        scaleMin: 0, scaleMax: 10
+      });
+      return { wrapper: elements.wrapper, knobInstance };
+    };
+
+    // ── Helper: crear un toggle ─────────────────────────────────────────
+    const createPanel4Toggle = (toggleDef, moduleId, idx) => {
+      const toggle = new Toggle({
+        id: `${moduleId}-toggle-${idx}`,
+        labelA: toggleDef.labelA || 'Off',
+        labelB: toggleDef.labelB || 'On',
+        initial: 'a'
+      });
+      return toggle;
+    };
+
+    // ── Columna 1: PVC + Envelope Followers (3 submódulos apilados) ─────
+    const col1Layout = korLayout.column1;
+    const col1Container = document.createElement('div');
+    col1Container.className = 'panel4-kor-column panel4-kor-column--stacked';
+    col1Container.style.cssText = `
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: ${col1Layout.gap ?? 2}px;
+    `;
+
+    for (const subDef of col1Layout.subModules) {
+      const frame = new ModuleFrame({
+        id: `${subDef.id}-module`,
+        title: null,
+        className: `panel4-placeholder panel4-${subDef.id}`
+      });
+      const el = frame.createElement();
+      el.style.cssText = `flex: ${subDef.flex} 1 0; min-height: 0;`;
+
+      // Crear knobs del submódulo
+      const knobsContainer = document.createElement('div');
+      knobsContainer.className = 'panel4-column-knobs';
+      knobsContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        gap: 4px;
+      `;
+
+      for (const knobDef of subDef.knobs) {
+        if (knobDef.type === 'vernier') {
+          const { wrapper } = createPanel4Vernier();
+          knobsContainer.appendChild(wrapper);
+        } else {
+          const knob = createPanel4Knob(knobDef);
+          const stdSize = toNum(knobUI.standardKnobSize, 45);
+          knob.knobEl.style.width = `${stdSize}px`;
+          knob.knobEl.style.height = `${stdSize}px`;
+          const inner = knob.knobEl.querySelector('.knob-inner');
+          if (inner) {
+            const pct = toNum(knobUI.knobInnerPct, 76);
+            inner.style.width = `${pct}%`;
+            inner.style.height = `${pct}%`;
+          }
+          knobsContainer.appendChild(knob.wrapper);
+        }
+      }
+
+      frame.appendToContent(knobsContainer);
+      applyModuleVisibility(el, blueprint, subDef.id);
+      col1Container.appendChild(el);
+      korFrames[subDef.id] = frame;
+    }
+    korRow.appendChild(col1Container);
+
+    // ── Helper: construir columna de teclado (Upper/Lower Keyboard) ─────
+    const buildKeyboardColumn = (colLayout) => {
+      const colId = colLayout.id;
+      const frame = new ModuleFrame({
+        id: `${colId}-module`,
+        title: null,
+        className: `panel4-placeholder panel4-${colId}`
+      });
+      const el = frame.createElement();
+      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+
+      const content = document.createElement('div');
+      content.className = 'panel4-keyboard-content';
+      content.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        gap: ${colLayout.knobGap ?? 4}px;
+      `;
+
+      // Knobs
+      for (const knobDef of colLayout.knobs) {
+        if (knobDef.type === 'vernier') {
+          const { wrapper } = createPanel4Vernier();
+          content.appendChild(wrapper);
+        } else {
+          const knob = createPanel4Knob(knobDef);
+          const stdSize = toNum(knobUI.standardKnobSize, 45);
+          knob.knobEl.style.width = `${stdSize}px`;
+          knob.knobEl.style.height = `${stdSize}px`;
+          const inner = knob.knobEl.querySelector('.knob-inner');
+          if (inner) {
+            const pct = toNum(knobUI.knobInnerPct, 76);
+            inner.style.width = `${pct}%`;
+            inner.style.height = `${pct}%`;
+          }
+          content.appendChild(knob.wrapper);
+        }
+      }
+
+      // Toggles
+      if (colLayout.toggles) {
+        for (let i = 0; i < colLayout.toggles.length; i++) {
+          const toggleDef = colLayout.toggles[i];
+          const toggleWrapper = document.createElement('div');
+          toggleWrapper.className = 'panel4-toggle-wrapper';
+          toggleWrapper.style.cssText = `
+            margin-top: ${colLayout.toggleGap ?? 4}px;
+            transform: scale(${toNum(knobUI.toggleScale, 0.7)});
+          `;
+          const toggle = createPanel4Toggle(toggleDef, colId, i);
+          toggleWrapper.appendChild(toggle.createElement());
+          content.appendChild(toggleWrapper);
+        }
+      }
+
+      frame.appendToContent(content);
+      applyModuleVisibility(el, blueprint, colId);
+      return { el, frame };
+    };
+
+    // ── Columna 2: Upper Keyboard ───────────────────────────────────────
+    const upperKb = buildKeyboardColumn(korLayout.column2);
+    korRow.appendChild(upperKb.el);
+    korFrames.upperKeyboard = upperKb.frame;
+
+    // ── Columna 3: Lower Keyboard ───────────────────────────────────────
+    const lowerKb = buildKeyboardColumn(korLayout.column3);
+    korRow.appendChild(lowerKb.el);
+    korFrames.lowerKeyboard = lowerKb.frame;
+
+    // ── Columnas 4-7: placeholders vacíos ───────────────────────────────
+    for (let i = 4; i <= korLayout.columns; i++) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'panel4-kor-column panel4-kor-column--empty';
+      placeholder.style.cssText = `flex: 1 1 0; min-width: 0;`;
+      korRow.appendChild(placeholder);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GUARDAR REFERENCIAS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    this._panel4Data = {
+      host,
+      voltmetersRow,
+      voltmeterFrames,
+      seqFrame,
+      korRow,
+      korFrames
     };
   }
 

@@ -91,6 +91,12 @@ export function getLabelForSource(source) {
       return t('matrix.source.joystick', { side: sideKey, axis: axisKey });
     }
     
+    case 'randomCV': {
+      // output: 'key' | 'voltage1' | 'voltage2'
+      const outputKey = source.output || 'key';
+      return t(`matrix.source.randomCV.${outputKey}`);
+    }
+    
     default:
       return null;
   }

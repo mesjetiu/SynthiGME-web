@@ -4455,6 +4455,33 @@ matrix.source.joystick:
   pt: "Joystick {side} {axis}"
   cs: "Joystick {side} {axis}"
 
+matrix.source.randomCV.key:
+  en: "Random CV Key"
+  es: "Random CV Key"
+  fr: "Random CV Key"
+  de: "Random CV Key"
+  it: "Random CV Key"
+  pt: "Random CV Key"
+  cs: "Random CV Key"
+
+matrix.source.randomCV.voltage1:
+  en: "Random CV V1"
+  es: "Random CV V1"
+  fr: "Random CV V1"
+  de: "Random CV V1"
+  it: "Random CV V1"
+  pt: "Random CV V1"
+  cs: "Random CV V1"
+
+matrix.source.randomCV.voltage2:
+  en: "Random CV V2"
+  es: "Random CV V2"
+  fr: "Random CV V2"
+  de: "Random CV V2"
+  it: "Random CV V2"
+  pt: "Random CV V2"
+  cs: "Random CV V2"
+
 # Destinations (columns)
 matrix.dest.outputBus:
   en: "Out {bus}"

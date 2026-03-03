@@ -445,6 +445,102 @@ describe('RandomCV Worklet — Import real', () => {
     assert.ok(eventCount <= 30, `Demasiados eventos (${eventCount}) a 20 Hz`);
   });
   
+  test('setMean mid-cycle: recálculo proporcional (comportamiento UJT analógico)', () => {
+    const proc = new RandomCVProcessor();
+    
+    // Configurar reloj lento: 0.2 Hz (dial -5), sin jitter
+    // Período = 5 segundos = 240000 samples a 48 kHz
+    proc.port.onmessage({ data: { type: 'setMean', value: -5 } });
+    proc.port.onmessage({ data: { type: 'setVariance', value: -5 } });
+    
+    // Primer evento se dispara en sample 0.
+    // Procesar 1 bloque para que se dispare y comience el nuevo intervalo de 240000 samples.
+    const outputs0 = createOutputs(3, 128);
+    proc.process([], outputs0, {});
+    
+    // Ahora avanzar ~100000 samples (≈42% del período de 5s)
+    const blocksToAdvance = Math.floor(100000 / 128);
+    for (let i = 0; i < blocksToAdvance; i++) {
+      const o = createOutputs(3, 128);
+      proc.process([], o, {});
+    }
+    
+    // Verificar que NO hubo segundo evento aún (estamos a 42% de 240000)
+    // Ahora cambiar a reloj rápido: 20 Hz (dial +5)
+    // Nuevo período base = 2400 samples
+    // Fracción transcurrida ≈ 42%, nueva restante = 2400 * 58% ≈ 1392 samples ≈ ~11 bloques
+    proc.port.onmessage({ data: { type: 'setMean', value: 5 } });
+    
+    // Si el recálculo proporcional funciona, el siguiente evento debería
+    // llegar en MUY POCOS bloques (no en los ~1094 bloques restantes del
+    // período original de 5 segundos)
+    let eventFound = false;
+    const maxBlocksToWait = 50; // Máximo 50 bloques ≈ 6400 samples ≈ 0.13s
+    
+    for (let block = 0; block < maxBlocksToWait; block++) {
+      const outputs = createOutputs(3, 128);
+      proc.process([], outputs, {});
+      
+      for (let i = 0; i < 128; i++) {
+        if (outputs[0][2][i] === 1.0) {
+          eventFound = true;
+          break;
+        }
+      }
+      if (eventFound) break;
+    }
+    
+    assert.ok(eventFound,
+      'Tras cambiar mean de 0.2 Hz a 20 Hz mid-cycle, el evento debe llegar en < 50 bloques (6400 samples). ' +
+      'El recálculo proporcional acorta el ciclo como haría el condensador del UJT analógico.');
+  });
+  
+  test('setMean mid-cycle: cambio a frecuencia menor alarga el ciclo', () => {
+    const proc = new RandomCVProcessor();
+    
+    // Configurar reloj rápido: 20 Hz (dial +5), sin jitter
+    // Período = 2400 samples
+    proc.port.onmessage({ data: { type: 'setMean', value: 5 } });
+    proc.port.onmessage({ data: { type: 'setVariance', value: -5 } });
+    
+    // Primer evento en sample 0
+    const outputs0 = createOutputs(3, 128);
+    proc.process([], outputs0, {});
+    
+    // Avanzar ~600 samples (25% del período de 2400)
+    const blocksToAdvance = Math.floor(600 / 128);
+    for (let i = 0; i < blocksToAdvance; i++) {
+      const o = createOutputs(3, 128);
+      proc.process([], o, {});
+    }
+    
+    // Cambiar a reloj lento: 0.2 Hz (dial -5)
+    // Nuevo período base = 240000 samples
+    // Fracción transcurrida ≈ 25%, nueva restante = 240000 * 75% = 180000 samples
+    proc.port.onmessage({ data: { type: 'setMean', value: -5 } });
+    
+    // El próximo evento NO debería llegar en los siguientes 1000 bloques (128000 samples) 
+    // porque faltan ~180000 samples
+    let eventFound = false;
+    
+    for (let block = 0; block < 1000; block++) {
+      const outputs = createOutputs(3, 128);
+      proc.process([], outputs, {});
+      
+      for (let i = 0; i < 128; i++) {
+        if (outputs[0][2][i] === 1.0) {
+          eventFound = true;
+          break;
+        }
+      }
+      if (eventFound) break;
+    }
+    
+    assert.ok(!eventFound,
+      'Tras cambiar mean de 20 Hz a 0.2 Hz mid-cycle, el evento NO debe llegar en 1000 bloques (128000 samples). ' +
+      'El condensador analógico se carga más lento, alargando el ciclo.');
+  });
+
   test('setVariance=0 produce intervalos iguales', () => {
     const proc = new RandomCVProcessor();
     proc.port.onmessage({ data: { type: 'setMean', value: 0 } });   // ~2 Hz

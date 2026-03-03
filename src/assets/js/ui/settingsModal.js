@@ -166,7 +166,7 @@ export class SettingsModal {
   
   /**
    * Abre el modal
-   * @param {string} [tabId] - ID de pestaña a activar (general, interface, audio, advanced, osc, about)
+   * @param {string} [tabId] - ID de pestaña a activar (general, interface, audio, advanced, midi, osc, about)
    */
   open(tabId) {
     if (this.isOpen) return;
@@ -176,7 +176,7 @@ export class SettingsModal {
     this._syncCheckboxesFromStorage();
     
     // Cambiar a pestaña específica si se indica
-    if (tabId && ['general', 'interface', 'audio', 'advanced', 'osc', 'about'].includes(tabId)) {
+    if (tabId && ['general', 'interface', 'audio', 'advanced', 'midi', 'osc', 'about'].includes(tabId)) {
       this._switchTab(tabId);
     }
     

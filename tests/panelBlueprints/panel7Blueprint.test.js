@@ -215,24 +215,26 @@ describe('Panel 7 Blueprint - Layout', () => {
       assert.ok(cs.height > 0, 'height debe ser positivo');
     });
 
-    it('tiene configuración de slider', () => {
-      const slider = lowerRow.slider;
-      assert.ok(slider, 'debe tener slider');
+    it('tiene configuración de slider en outputChannelUI', () => {
+      const slider = panel7Blueprint.outputChannelUI.sliderSize;
+      assert.ok(slider, 'debe tener sliderSize en outputChannelUI');
       assert.strictEqual(typeof slider.shellHeight, 'number');
       assert.strictEqual(typeof slider.height, 'number');
       assert.strictEqual(typeof slider.width, 'number');
     });
 
     it('slider height ≤ shellHeight (slider cabe dentro del shell)', () => {
+      const slider = panel7Blueprint.outputChannelUI.sliderSize;
       assert.ok(
-        lowerRow.slider.height <= lowerRow.slider.shellHeight,
+        slider.height <= slider.shellHeight,
         'height del slider no puede superar shellHeight'
       );
     });
 
     it('slider shellHeight < channelSize.height (cabe en el canal)', () => {
+      const slider = panel7Blueprint.outputChannelUI.sliderSize;
       assert.ok(
-        lowerRow.slider.shellHeight < lowerRow.channelSize.height,
+        slider.shellHeight < lowerRow.channelSize.height,
         'el shell del slider debe caber dentro del canal'
       );
     });

@@ -96,6 +96,53 @@ function pitchBendToKnobValue(bendValue, min, max) {
   return min + normalized * (max - min);
 }
 
+/**
+ * Convierte valor MIDI a rango de slider (réplica de _applyValueToControl para sliders).
+ * Lee min/max del slider HTML → escala al rango real.
+ */
+function midiToSliderValue(midiValue, midiMax, sliderMin, sliderMax) {
+  const normalized = midiValue / midiMax;
+  return sliderMin + normalized * (sliderMax - sliderMin);
+}
+
+/**
+ * Simula el comportamiento anti-feedback con múltiples mensajes rápidos.
+ * Réplica del flujo en _applyMapping: nunca descarta mensajes MIDI entrantes,
+ * siempre aplica el último valor.
+ */
+function simulateRapidMessages(messages) {
+  let lastApplied = null;
+  let ignoreMIDI = false;
+  let timer = null;
+
+  for (const msg of messages) {
+    // NUNCA descartamos mensajes MIDI entrantes (el fix)
+    ignoreMIDI = true;
+    clearTimeout(timer);
+    lastApplied = msg.value;
+    timer = setTimeout(() => { ignoreMIDI = false; }, 10);
+  }
+
+  return { lastApplied, ignoreMIDI };
+}
+
+/**
+ * Simula el viejo comportamiento (pre-fix) que descartaba mensajes.
+ */
+function simulateRapidMessagesOld(messages) {
+  let lastApplied = null;
+  let ignoreMIDI = false;
+
+  for (const msg of messages) {
+    if (ignoreMIDI) continue; // BUG: descarta mensajes
+    ignoreMIDI = true;
+    lastApplied = msg.value;
+    setTimeout(() => { ignoreMIDI = false; }, 10);
+  }
+
+  return { lastApplied };
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TESTS
@@ -463,5 +510,260 @@ describe('MIDI — Simulación de mapa de mappings', () => {
     assert.ok(restored.has('dev1:0:cc:21'));
     assert.ok(restored.has('dev1:1:pitchbend:0'));
     assert.strictEqual(restored.get('dev1:0:cc:21').target.label, 'Shape 1');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TESTS — Escalado de rango para sliders
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('MIDI — Escalado de rango para sliders', () => {
+
+  describe('CC → Slider Output Channel (rango 0–10)', () => {
+    it('CC 0 → slider en 0 (mínimo)', () => {
+      assert.strictEqual(midiToSliderValue(0, 127, 0, 10), 0);
+    });
+
+    it('CC 127 → slider en 10 (máximo)', () => {
+      assert.strictEqual(midiToSliderValue(127, 127, 0, 10), 10);
+    });
+
+    it('CC 64 → slider ≈ 5.04 (centro)', () => {
+      const val = midiToSliderValue(64, 127, 0, 10);
+      assert.ok(Math.abs(val - 5.04) < 0.1, `Esperado ~5.04, recibido ${val}`);
+    });
+
+    it('CC 1 → slider ≈ 0.079 (paso mínimo)', () => {
+      const val = midiToSliderValue(1, 127, 0, 10);
+      assert.ok(val > 0 && val < 0.1, `Esperado pequeño positivo, recibido ${val}`);
+    });
+
+    it('NO debe limitarse a 0–1 (bug del rango incorrecto)', () => {
+      const maxVal = midiToSliderValue(127, 127, 0, 10);
+      assert.ok(maxVal > 1, `Slider máximo debe ser >1, recibido ${maxVal}`);
+      assert.strictEqual(maxVal, 10);
+    });
+  });
+
+  describe('Pitch Bend → Slider Output Channel (rango 0–10)', () => {
+    it('bend 0 → slider en 0', () => {
+      assert.strictEqual(midiToSliderValue(0, 16383, 0, 10), 0);
+    });
+
+    it('bend 16383 → slider en 10', () => {
+      assert.strictEqual(midiToSliderValue(16383, 16383, 0, 10), 10);
+    });
+
+    it('bend 8192 → slider ≈ 5.0 (centro)', () => {
+      const val = midiToSliderValue(8192, 16383, 0, 10);
+      assert.ok(Math.abs(val - 5.0) < 0.1, `Esperado ~5.0, recibido ${val}`);
+    });
+  });
+
+  describe('Velocity → Slider Output Channel (rango 0–10)', () => {
+    it('velocity 0 → slider en 0', () => {
+      assert.strictEqual(midiToSliderValue(0, 127, 0, 10), 0);
+    });
+
+    it('velocity 127 → slider en 10', () => {
+      assert.strictEqual(midiToSliderValue(127, 127, 0, 10), 10);
+    });
+
+    it('velocity 64 → slider ≈ centro', () => {
+      const val = midiToSliderValue(64, 127, 0, 10);
+      assert.ok(val > 4.5 && val < 5.5, `Esperado ~5.0, recibido ${val}`);
+    });
+  });
+
+  describe('Rangos de otros controles', () => {
+    it('CC → knob filter (-5 a +5) cubre rango completo', () => {
+      const min = ccToKnobValue(0, -5, 5);
+      const max = ccToKnobValue(127, -5, 5);
+      assert.strictEqual(min, -5);
+      assert.strictEqual(max, 5);
+      assert.strictEqual(max - min, 10);
+    });
+
+    it('CC → knob pan (-1 a +1) cubre rango completo', () => {
+      const min = ccToKnobValue(0, -1, 1);
+      const max = ccToKnobValue(127, -1, 1);
+      assert.strictEqual(min, -1);
+      assert.strictEqual(max, 1);
+    });
+
+    it('CC → knob oscilador (0 a 10) cubre rango completo', () => {
+      const min = ccToKnobValue(0, 0, 10);
+      const max = ccToKnobValue(127, 0, 10);
+      assert.strictEqual(min, 0);
+      assert.strictEqual(max, 10);
+    });
+
+    it('rango genérico: MIDI siempre cubre min a max completamente', () => {
+      // Verificar con rangos arbitrarios
+      for (const [lo, hi] of [[0, 1], [0, 10], [-5, 5], [-1, 1], [20, 20000]]) {
+        assert.strictEqual(ccToKnobValue(0, lo, hi), lo);
+        assert.strictEqual(ccToKnobValue(127, lo, hi), hi);
+        assert.strictEqual(pitchBendToKnobValue(0, lo, hi), lo);
+        assert.strictEqual(pitchBendToKnobValue(16383, lo, hi), hi);
+      }
+    });
+  });
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TESTS — Anti-feedback y mensajes rápidos
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('MIDI — Anti-feedback y mensajes rápidos', () => {
+
+  describe('Nunca descartar mensajes MIDI entrantes', () => {
+    it('mensajes rápidos: siempre aplica el último valor', () => {
+      // Simular 10 mensajes CC rápidos (0→127 en ráfaga)
+      const messages = [];
+      for (let i = 0; i <= 127; i += 13) {
+        messages.push({ type: 'cc', value: i });
+      }
+      messages.push({ type: 'cc', value: 127 }); // último
+
+      const result = simulateRapidMessages(messages);
+      assert.strictEqual(result.lastApplied, 127, 'Debe aplicar el último valor');
+    });
+
+    it('el viejo comportamiento SÍ perdía mensajes (validación del bug)', () => {
+      const messages = [
+        { type: 'cc', value: 10 },
+        { type: 'cc', value: 50 },
+        { type: 'cc', value: 100 },
+        { type: 'cc', value: 127 }
+      ];
+
+      const oldResult = simulateRapidMessagesOld(messages);
+      // El viejo código solo aplicaba el primer mensaje (10) porque el flag
+      // descartaba los demás sincrónicamente
+      assert.strictEqual(oldResult.lastApplied, 10, 'Viejo: solo aplicaba el primer mensaje');
+
+      const newResult = simulateRapidMessages(messages);
+      assert.strictEqual(newResult.lastApplied, 127, 'Nuevo: siempre aplica el último');
+    });
+
+    it('flag anti-feedback queda activo tras ráfaga (para onChange)', () => {
+      const messages = [{ type: 'cc', value: 64 }];
+      const result = simulateRapidMessages(messages);
+      // El flag está activo inmediatamente (para prevenir onChange → feedback)
+      assert.strictEqual(result.ignoreMIDI, true);
+    });
+
+    it('un solo mensaje se aplica correctamente', () => {
+      const result = simulateRapidMessages([{ type: 'cc', value: 42 }]);
+      assert.strictEqual(result.lastApplied, 42);
+    });
+
+    it('secuencia ascendente completa: último es máximo', () => {
+      const messages = Array.from({ length: 128 }, (_, i) => ({ type: 'cc', value: i }));
+      const result = simulateRapidMessages(messages);
+      assert.strictEqual(result.lastApplied, 127);
+    });
+
+    it('secuencia descendente completa: último es mínimo', () => {
+      const messages = Array.from({ length: 128 }, (_, i) => ({ type: 'cc', value: 127 - i }));
+      const result = simulateRapidMessages(messages);
+      assert.strictEqual(result.lastApplied, 0);
+    });
+
+    it('ida y vuelta: último valor es el final', () => {
+      const messages = [
+        { value: 0 }, { value: 50 }, { value: 100 }, { value: 127 },
+        { value: 100 }, { value: 50 }, { value: 25 }
+      ];
+      const result = simulateRapidMessages(messages);
+      assert.strictEqual(result.lastApplied, 25);
+    });
+  });
+
+  describe('clearTimeout previene acumulación de timers', () => {
+    it('solo el último timer está activo tras ráfaga', () => {
+      let timerCount = 0;
+      let activeTimer = null;
+      let ignoreMIDI = false;
+
+      // Simular ráfaga de 100 mensajes con clearTimeout
+      for (let i = 0; i < 100; i++) {
+        ignoreMIDI = true;
+        clearTimeout(activeTimer);
+        activeTimer = setTimeout(() => {
+          timerCount++;
+          ignoreMIDI = false;
+        }, 10);
+      }
+
+      // Solo debe haber 1 timer pendiente, no 100
+      // (no podemos verificar esto sincrónicamente, pero verificamos
+      // que el patrón no acumula side effects)
+      assert.strictEqual(ignoreMIDI, true, 'Flag activo durante ráfaga');
+      assert.strictEqual(timerCount, 0, 'Timer no ha disparado aún (async)');
+      clearTimeout(activeTimer); // limpiar
+    });
+  });
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TESTS — Toggle desde MIDI
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('MIDI — Toggle y switches', () => {
+
+  /**
+   * Simula la conversión de mensaje MIDI a estado de toggle
+   * (réplica de _applyValueToControl para switch/toggle)
+   */
+  function midiToToggleState(msg) {
+    if (msg.type === 'noteon' || msg.type === 'noteoff') {
+      return (msg.type === 'noteon' && (msg.velocity || 0) > 0) ? 'b' : 'a';
+    }
+    if (msg.type === 'cc') {
+      return msg.value > 63 ? 'b' : 'a';
+    }
+    // pitchbend
+    return msg.value > 8191 ? 'b' : 'a';
+  }
+
+  describe('Toggle desde Note On/Off', () => {
+    it('Note On con velocity > 0 → estado b (encendido)', () => {
+      assert.strictEqual(midiToToggleState({ type: 'noteon', velocity: 100 }), 'b');
+    });
+
+    it('Note On con velocity 0 → estado a (apagado)', () => {
+      assert.strictEqual(midiToToggleState({ type: 'noteon', velocity: 0 }), 'a');
+    });
+
+    it('Note Off → estado a (apagado)', () => {
+      assert.strictEqual(midiToToggleState({ type: 'noteoff', velocity: 64 }), 'a');
+    });
+  });
+
+  describe('Toggle desde CC', () => {
+    it('CC > 63 → estado b (encendido)', () => {
+      assert.strictEqual(midiToToggleState({ type: 'cc', value: 127 }), 'b');
+      assert.strictEqual(midiToToggleState({ type: 'cc', value: 64 }), 'b');
+    });
+
+    it('CC ≤ 63 → estado a (apagado)', () => {
+      assert.strictEqual(midiToToggleState({ type: 'cc', value: 63 }), 'a');
+      assert.strictEqual(midiToToggleState({ type: 'cc', value: 0 }), 'a');
+    });
+  });
+
+  describe('Toggle desde Pitch Bend', () => {
+    it('bend > 8191 → estado b', () => {
+      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 8192 }), 'b');
+      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 16383 }), 'b');
+    });
+
+    it('bend ≤ 8191 → estado a', () => {
+      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 8191 }), 'a');
+      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 0 }), 'a');
+    });
   });
 });

@@ -2665,7 +2665,7 @@ Para builds firmados de macOS, usar CI/CD con GitHub Actions (ver README.md).
 | Tamaño | ~2MB (cacheado) | ~150-200MB |
 | Actualizaciones | Automáticas (SW) | Manual o electron-updater |
 | Acceso a archivos | API limitada | Completo (futuro) |
-| MIDI | Web MIDI API | Nativo (futuro) |
+| MIDI | Web MIDI API (MIDI Learn) | Web MIDI API (MIDI Learn) |
 | Audio | Depende del navegador | Chromium fijo |
 | **Audio multicanal** | No disponible (max 2ch) | 12ch salida + 8ch entrada (PipeWire) |
 | **Menú nativo** | No | 7 menús con i18n, sincronización bidireccional |
@@ -2809,6 +2809,75 @@ _handleIncomingKnob(oscIndex, param, value) {
 npm run build:all             # Tests + build web + instaladores Linux/Win
 ```
 
+## 13.3 MIDI Learn
+
+SynthiGME soporta **MIDI Learn** para mapear cualquier controlador MIDI externo (knobs, faders, ruedas, botones) a los controles del sintetizador. Funciona tanto en la versión web (PWA) como en Electron, usando la **Web MIDI API**.
+
+### Arquitectura
+
+```
+src/assets/js/midi/
+├── midiAccess.js          # Wrapper Web MIDI API (singleton)
+├── midiLearnManager.js    # Motor de Learn y mappings (singleton)
+└── midiLearnOverlay.js    # Overlay visual durante learn
+```
+
+### Flujo de MIDI Learn
+
+1. Click derecho en cualquier control → "MIDI Learn"
+2. Overlay visual indica que está esperando un mensaje MIDI
+3. El usuario mueve un knob/slider/rueda en su controlador MIDI
+4. El primer mensaje MIDI entrante se asocia al control
+5. A partir de ahora, ese control MIDI mueve el control del synth
+
+### Tipos de mensaje soportados
+
+| Tipo | Resolución | Uso típico |
+|------|------------|------------|
+| CC (Control Change) | 7 bits (0–127) | Knobs, faders |
+| Pitch Bend | 14 bits (0–16383) | Ruedas de pitch |
+| Note On/Off | Velocity (0–127) | Toggles, triggers |
+
+### Conversión de valores
+
+El valor MIDI se normaliza a 0–1 y luego se escala al **rango real del control destino**:
+
+- **Knobs**: `knob.min + normalized × (knob.max − knob.min)` (ej: 0–10, −5 a +5, −1 a +1)
+- **Sliders**: lee `min`/`max` del elemento HTML del slider (ej: 0–10 para Output Channel)
+- **Toggles**: CC > 63 = ON, ≤ 63 = OFF; Note On = ON, Note Off = OFF
+
+### Anti-feedback
+
+Sigue el mismo patrón que el módulo OSC:
+- Flag `_ignoreMIDIUpdates` activo durante 10ms tras aplicar un valor
+- **Nunca descarta mensajes MIDI entrantes** — siempre aplica el último valor recibido
+- El flag solo previene que los `onChange` de controles generen bucles de retroalimentación
+- `clearTimeout` del timer anterior para evitar acumulación en ráfagas rápidas
+
+### Persistencia
+
+- Mappings guardados en `localStorage` (`STORAGE_KEYS.MIDI_MAPPINGS`)
+- Exportar/importar como JSON desde la pestaña MIDI en Ajustes
+- Los mappings se restauran al recargar, reconectando automáticamente si el dispositivo está disponible
+
+### Notas sobre Linux
+
+- Chrome en Linux con PipeWire puede no ver dispositivos MIDI directamente
+- Solución: usar `aconnect` para enrutar el dispositivo real a "Midi Through Port-0"
+- Ejemplo: `aconnect 28:0 14:0` (rutea dispositivo ALSA 28 a Midi Through)
+- Es necesario llamar `input.open()` explícitamente antes de asignar `onmidimessage`
+
+### Tests
+
+76 tests unitarios en `tests/midi/midiLearn.test.js`:
+- Parsing de mensajes (CC, Note On/Off, Pitch Bend, mensajes no soportados)
+- Claves de mapping (`buildMIDIKey`, `buildControlId`)
+- Conversión de valores (CC→knob, PitchBend→knob, rangos completos)
+- Escalado de rango para sliders (0–10, no 0–1)
+- Anti-feedback y mensajes rápidos (nunca descarta, siempre último valor)
+- Toggle desde MIDI (Note, CC, Pitch Bend)
+- Simulación de mappings (añadir, reemplazar, eliminar, serialización)
+
 ---
 
 ## 14. Patrones de Código
@@ -2842,7 +2911,7 @@ npm run build:all             # Tests + build web + instaladores Linux/Win
 - [x] **Menú nativo Electron**: 7 menús con i18n, sincronización bidireccional con UI web
 - [x] **Manejo de errores**: Error handler global, protección de worklets y bootstrap, toast unificado con niveles → Ver [Sección 17](#17-manejo-de-errores-y-telemetría)
 - [x] **Telemetría anónima**: Sistema opt-in con consentimiento, Google Sheets + alertas Telegram → Ver [Sección 17](#17-manejo-de-errores-y-telemetría)
-- [ ] **MIDI**: Soporte para controladores externos
+- [x] **MIDI**: Soporte para controladores externos → Ver [Sección 13.3](#133-midi-learn)
 - [ ] **CV para faders**: Validar estabilidad antes de exponer todos los faders como AudioParam
 - [ ] **Interpolación de frames**: Suavizado adicional entre frames del osciloscopio si es necesario
 - [ ] **Trigger externo**: Permitir sincronizar osciloscopio con señal externa (otro oscilador)
@@ -2924,6 +2993,8 @@ tests/
 │   ├── panel5Blueprint.test.js      # Tests de Panel 5 blueprint (matriz audio)
 │   ├── panel6Blueprint.test.js      # Tests de Panel 6 blueprint (matriz control)
 │   └── panel7Blueprint.test.js      # Tests de Panel 7 blueprint (output channels)
+├── midi/
+│   └── midiLearn.test.js             # Tests de MIDI Learn (parsing, mappings, rangos, anti-feedback)
 ├── osc/
 │   ├── oscAddressMap.test.js        # Tests del mapa de direcciones OSC
 │   ├── oscControlSync.test.js       # Tests de sincronización de control
@@ -3019,6 +3090,7 @@ Opciones útiles:
 | `utils/errorHandler` | Error handler global | Ring buffer, deduplicación, listeners, cooldown |
 | `utils/telemetry*` | Telemetría | Cola, flush, offline, rate limiting, eventos instrumentados, consentimiento |
 | `ui/telemetryConsent` | Consentimiento telemetría | setEnabled/isEnabled, persistencia, toggle |
+| `midi/*` | MIDI Learn | Parsing, claves, conversión, rangos slider, anti-feedback, toggles, mappings |
 | `electron/*` | Contratos Electron-menú | IPC, claves i18n, sync bidireccional, canales |
 
 ### Mock de AudioContext

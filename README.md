@@ -59,6 +59,7 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 | **Notas post-it** | Notas arrastrables sobre paneles y viewport. Texto enriquecido, colores, copiar/pegar. |
 | **Flujo de señal** | Hover/tap sobre módulo o pin muestra orígenes (cyan) y destinos (magenta) con glow animado. |
 | **Menú contextual** | Clic derecho/long press para reiniciar panel, módulo o control individual. |
+| **MIDI Learn** | Conecta cualquier controlador MIDI externo a los controles del sintetizador. CC, Pitch Bend y Notes. Menú contextual → "MIDI Learn". Mappings persistentes y exportables. |
 | **Easter egg** | Secuencia secreta en joysticks desencadena animación y pieza electroacústica. |
 | **Audio Multicanal** | 12 canales de salida + 8 de entrada independientes en Linux (PipeWire). [Más info](MULTICHANNEL.md). |
 
@@ -100,6 +101,7 @@ Pulsa el icono de engranaje (o la tecla `S`) para configurar:
 - **Estilo de knobs**: Alterna entre knobs SVG auténticos del Synthi 100 (por defecto) y knobs CSS simplificados.
 - **Efecto glow**: Elige entre 4 presets de halo en controles: performance, standard, subtle u off.
 - **Flujo de señal**: Activa/desactiva el resaltado visual de conexiones al pasar sobre módulos.
+- **MIDI**: Dispositivos detectados, tabla de mappings activos, exportar/importar configuración.
 - **Emulación de voltajes**: Activa el comportamiento "analógico" (imprecisión de componentes, deriva térmica) para un sonido más auténtico.
 
 ---

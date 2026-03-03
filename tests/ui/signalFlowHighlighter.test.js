@@ -1160,6 +1160,38 @@ describe('SignalFlowHighlighter — getModuleElementIds (indirecto)', () => {
     assert.ok(inputEl.classList.contains('signal-flow-source'));
   });
 
+  it('randomCV resuelve a panel3-random-cv', () => {
+    const rcvEl = createModuleElement('panel3-random-cv', 'random-voltage');
+    const oscEl = createModuleElement('panel3-osc-1', 'sgme-osc');
+    
+    const routing = createRouting([{
+      row: 0, col: 0,
+      source: { kind: 'randomCV', output: 'voltage1' },
+      dest: { kind: 'oscFreqCV', oscIndex: 0 }
+    }]);
+    
+    const h = createHighlighter({ panel6Routing: routing });
+    h._highlightModule(rcvEl);
+    
+    assert.ok(oscEl.classList.contains('signal-flow-dest'));
+  });
+
+  it('randomCV como fuente resalta el módulo random-voltage', () => {
+    const rcvEl = createModuleElement('panel3-random-cv', 'random-voltage');
+    const oscEl = createModuleElement('panel3-osc-1', 'sgme-osc');
+    
+    const routing = createRouting([{
+      row: 0, col: 0,
+      source: { kind: 'randomCV', output: 'key' },
+      dest: { kind: 'oscFreqCV', oscIndex: 0 }
+    }]);
+    
+    const h = createHighlighter({ panel6Routing: routing });
+    h._highlightModule(oscEl);
+    
+    assert.ok(rcvEl.classList.contains('signal-flow-source'));
+  });
+
   it('descriptor desconocido no resuelve ningún módulo', () => {
     const oscEl = createModuleElement('panel3-osc-1', 'sgme-osc');
     

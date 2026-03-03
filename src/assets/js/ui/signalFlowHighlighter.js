@@ -87,6 +87,9 @@ function getModuleElementIds(descriptor) {
     case 'outputLevelCV':
       return [`output-channel-${(descriptor.busIndex ?? 0) + 1}`];
     
+    case 'randomCV':
+      return ['panel3-random-cv'];
+    
     default:
       return [];
   }

@@ -142,6 +142,28 @@ export function createMockChannelMerger(numberOfInputs = 6) {
   };
 }
 
+/**
+ * Crea un mock de ChannelSplitterNode.
+ * @param {number} numberOfOutputs - Número de salidas del splitter
+ * @returns {Object} Mock de ChannelSplitterNode
+ */
+export function createMockChannelSplitter(numberOfOutputs = 6) {
+  return {
+    numberOfOutputs,
+    _calls: {
+      connect: 0,
+      disconnect: 0
+    },
+    connect(destination, outputIndex, inputIndex) {
+      this._calls.connect++;
+      return destination;
+    },
+    disconnect(destination) {
+      this._calls.disconnect++;
+    }
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // OSCILLATOR NODE MOCK
 // ═══════════════════════════════════════════════════════════════════════════
@@ -371,6 +393,7 @@ export function createMockAudioContext(options = {}) {
       gain: [],
       biquadFilter: [],
       channelMerger: [],
+      channelSplitter: [],
       oscillator: [],
       analyser: [],
       audioWorklet: [],
@@ -390,6 +413,11 @@ export function createMockAudioContext(options = {}) {
     createChannelMerger(numberOfInputs = 6) {
       const node = createMockChannelMerger(numberOfInputs);
       this._createdNodes.channelMerger.push(node);
+      return node;
+    },
+    createChannelSplitter(numberOfOutputs = 6) {
+      const node = createMockChannelSplitter(numberOfOutputs);
+      this._createdNodes.channelSplitter.push(node);
       return node;
     },
     createOscillator() {

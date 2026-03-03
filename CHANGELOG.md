@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Random Control Voltage Generator (RCVG)**: Implementación completa del generador de voltaje de control aleatorio (placa PC-21, D100-21 C1). Reloj interno 0.2–20 Hz con jitter temporal configurable, dos salidas DC aleatorias independientes (±2.5V, distribución uniforme, pot LOG 10K) y pulso Key de 5ms (±5V, bipolar). Tres filas en Panel 6 (89=Key, 90=V1, 91=V2) como fuentes de modulación CV. AudioWorkletProcessor dedicado, dormancy automático, sincronización OSC (`/random/*`), tooltips con frecuencia/período/voltaje/varianza, y lazy start al primer pin.
 
 ### Cambiado
 - **Rendimiento de knobs**: Eliminada transición CSS (30ms) de `.knob-inner` y `#vd-rotor` que causaba retardo visual durante drag; reemplazada por `will-change: transform` para composición GPU. TextContent del valor y contador solo se escriben al DOM cuando realmente cambian, evitando layout thrashing durante interacción.

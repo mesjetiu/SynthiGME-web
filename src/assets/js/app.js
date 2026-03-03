@@ -364,7 +364,7 @@ class App {
     const panelLayout = blueprint.layout || {};
     const upperRow = blueprint.layout.upperRow || {};
     const lowerRow = blueprint.layout.lowerRow || {};
-    const slider = lowerRow.slider || {};
+
     const channelUI = blueprint.outputChannelUI || {};
     const moduleOverrides = blueprint.modules || {};
 
@@ -788,9 +788,11 @@ class App {
       applyOffset(this.outputChannelsSection, lowerRow.offset);
       
       // CSS custom properties para slider y channel (heredadas por los hijos)
-      this.outputChannelsSection.style.setProperty('--oc-slider-height', `${sliderSize.height ?? slider.height ?? 250}px`);
-      this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${sliderSize.shellHeight ?? slider.shellHeight ?? 270}px`);
-      this.outputChannelsSection.style.setProperty('--oc-slider-width', `${sliderSize.width ?? slider.width ?? 24}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-height', `${toNum(sliderSize.height, 250)}px`);
+      this.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${toNum(sliderSize.shellHeight, 270)}px`);
+      const shellW = toNum(sliderSize.shellWidth, 0);
+      this.outputChannelsSection.style.setProperty('--oc-slider-shell-width', shellW > 0 ? `${shellW}px` : '100%');
+      this.outputChannelsSection.style.setProperty('--oc-slider-width', `${toNum(sliderSize.width, 24)}px`);
       this.outputChannelsSection.style.setProperty('--oc-channel-width', `${channelSize.width ?? 80}px`);
       this.outputChannelsSection.style.setProperty('--oc-channel-height', `${channelSize.height ?? 350}px`);
       this.outputChannelsSection.style.setProperty('--oc-channel-gap', `${lowerRow.gap ?? 8}px`);

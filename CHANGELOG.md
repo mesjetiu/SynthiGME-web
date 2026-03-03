@@ -11,6 +11,8 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Cambiado
 - **Rendimiento de knobs**: Eliminada transición CSS (30ms) de `.knob-inner` y `#vd-rotor` que causaba retardo visual durante drag; reemplazada por `will-change: transform` para composición GPU. TextContent del valor y contador solo se escriben al DOM cuando realmente cambian, evitando layout thrashing durante interacción.
+- **Toggles SVG escalables**: Integrado el nuevo toggle SVG en todos los osciladores y canales de salida. Eliminados artefactos de glow, focus y tap highlight. El factor de escala ahora se controla por blueprint y se aplica correctamente vía CSS `transform: scale()`. Corregido el factor de escala en panel3.blueprint.js y panel7.blueprint.js para visualización proporcional.
+- **Output Channel sliders**: Añadido `shellWidth` independiente del ancho del fader. Eliminada configuración duplicada de slider (`layout.lowerRow.slider` → única fuente de verdad en `outputChannelUI.sliderSize`). Fijado layout vertical de los canales con `align-items: flex-start` para que los gaps no muevan todo el panel.
 
 ### Añadido
 - **Knob Vernier multivuelta (Spectrol)**: Dial de frecuencia del oscilador reemplazado por SVG realista del Spectrol Model 15 con 10 vueltas completas (3600°), disco negro giratorio, anillo plateado fijo con reflejos cónicos, hexágono central, ventana con contador digital (0-10) que indica la vuelta actual, y palanca de freno. Clase `VernierKnob` hereda toda la interacción de `Knob` (drag, tooltips, precisión progresiva, serialización).

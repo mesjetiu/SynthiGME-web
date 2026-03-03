@@ -5662,6 +5662,7 @@ small { color:#aaa; }
 
 .output-channel-module .synth-module__content {
   padding: var(--oc-content-padding, 6px 4px 16px);
+  align-items: flex-start;
 }
 
 /* Contenido interno del canal (vertical) */
@@ -5810,7 +5811,7 @@ small { color:#aaa; }
 
 .output-channel__slider-shell {
   height: var(--oc-slider-shell-height, 240px);
-  width: 100%;
+  width: var(--oc-slider-shell-width, 100%);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -61,7 +61,7 @@ export default {
   layout: {
     // Offset general del panel (px) — desplaza todos los módulos
     // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 18 },
+    offset: { x: 0, y: 19 }, // y= 18
 
     // Padding general del panel
     padding: { top: 0, right: 10, bottom: 10, left: 10 },
@@ -159,17 +159,10 @@ export default {
       gap: 0.5,
       padding: { top: 3, right: 8, bottom: 12, left: 8 },
       // Offset de toda la fila inferior (Output Channels)
-      offset: { x: 0, y: -2 },
+      offset: { x: 0, y: -3 },
 
       // Tamaño fijo del MARCO de cada canal (px)
-      channelSize: { width: 85, height: 425 },
-
-      // Configuración del slider de nivel (dentro de cada canal)
-      slider: {
-        shellHeight: 270,
-        height: 250,
-        width: 24
-      }
+      channelSize: { width: 85, height: 425 }
     }
   },
 
@@ -194,12 +187,13 @@ export default {
     sliderSize: {
       width: 24,
       height: 125,
-      shellHeight: 270
+      shellWidth: 30,
+      shellHeight: 135
     },
 
     // Espaciados verticales entre grupos de controles
     knobButtonGap: 30,        // gap entre knobs y botón on/off
-    buttonSliderGap: -37,      // gap entre botón on/off y slider
+    buttonSliderGap: 31,      // gap entre botón on/off y slider
 
     // Botón On/Off (vertical)
     // Arriba = ON, abajo = OFF

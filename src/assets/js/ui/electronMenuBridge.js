@@ -108,6 +108,13 @@ function readCurrentState() {
     singleFingerPan: readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true),
     multitouchControls: readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false),
     pipPanels,
+    // Teclados flotantes
+    keyboardVisible: (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.KEYBOARD_STATE);
+        return raw ? (JSON.parse(raw).visible === true) : false;
+      } catch { return false; }
+    })(),
     // Energía
     preventSleep: readBool(STORAGE_KEYS.WAKE_LOCK_ENABLED, true),
     // Avanzado
@@ -251,9 +258,18 @@ function handleMenuAction({ action, data }) {
       if (closeAllPips) closeAllPips();
       break;
     }
-    case 'toggleKeyboard': {
-      const { toggleKeyboard: toggleKeyboardFn } = require_toggleKeyboard();
-      if (toggleKeyboardFn) toggleKeyboardFn();
+    case 'toggleKeyboard':
+    case 'setKeyboardVisible': {
+      const { openKeyboard, closeKeyboard } = require_toggleKeyboard();
+      if (data?.visible !== undefined) {
+        // Estado explícito desde menú Electron
+        if (data.visible) { if (openKeyboard) openKeyboard(); }
+        else { if (closeKeyboard) closeKeyboard(); }
+      } else {
+        // Toggle genérico (fallback)
+        const { toggleKeyboard: toggleKeyboardFn } = require_toggleKeyboard();
+        if (toggleKeyboardFn) toggleKeyboardFn();
+      }
       break;
     }
     case 'setRememberVisualLayout':
@@ -481,9 +497,11 @@ function require_togglePip() {
 let _keyboardModule = null;
 function require_toggleKeyboard() {
   if (!_keyboardModule) {
-    _keyboardModule = { toggleKeyboard: null };
+    _keyboardModule = { toggleKeyboard: null, openKeyboard: null, closeKeyboard: null };
     import('./keyboardWindow.js').then(mod => {
       _keyboardModule.toggleKeyboard = mod.toggleKeyboard;
+      _keyboardModule.openKeyboard = mod.openKeyboard;
+      _keyboardModule.closeKeyboard = mod.closeKeyboard;
     });
   }
   return _keyboardModule;
@@ -538,6 +556,11 @@ function setupStateListeners() {
       pipPanels[id] = openPips.includes(id);
     });
     syncState({ pipPanels });
+  });
+
+  // Keyboard window visibility
+  document.addEventListener('synth:keyboardToggle', (e) => {
+    syncState({ keyboardVisible: e.detail?.visible ?? false });
   });
 
   // Settings changed (from modal or menu → sync menu checkboxes)
@@ -625,8 +648,9 @@ export function initElectronMenuBridge() {
   initialized = true;
   log.info('Initializing Electron menu bridge');
 
-  // Pre-cargar módulo PiP
+  // Pre-cargar módulos lazy (evita que el primer clic falle por import async)
   require_togglePip();
+  require_toggleKeyboard();
 
   // 1. Enviar traducciones iniciales al menú
   syncTranslations();

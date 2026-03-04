@@ -429,7 +429,7 @@ function buildMenuTemplate() {
         checked: menuState.keyboardVisible,
         click: (menuItem) => {
           menuState.keyboardVisible = menuItem.checked;
-          sendAction('toggleKeyboard');
+          sendAction('setKeyboardVisible', { visible: menuItem.checked });
         }
       },
       { type: 'separator' },

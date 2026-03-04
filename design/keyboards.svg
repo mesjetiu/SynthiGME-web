@@ -17,13 +17,13 @@
     Black keys:  {keyboard}-{Note}s{Octave}    e.g. upper-Cs4  (C#4)
 
   Dimensions in mm. viewBox units = mm.
-  Total: 968 x 421 mm
+  Total: 968 x 338 mm
 -->
 
 <svg
-   viewBox="0 0 968 421"
+   viewBox="0 0 968 338"
    width="968mm"
-   height="421mm"
+   height="338mm"
    version="1.1"
    id="svg92"
    sodipodi:docname="keyboard_bg.svg"
@@ -42,9 +42,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="0.10166609"
-     inkscape:cx="732.79107"
-     inkscape:cy="3063.9519"
+     inkscape:zoom="0.14330962"
+     inkscape:cx="2306.1955"
+     inkscape:cy="198.87011"
      inkscape:window-width="1920"
      inkscape:window-height="1005"
      inkscape:window-x="0"
@@ -173,7 +173,8 @@
   </g>
   <!-- Black leather strip (top arm rest) -->
   <g
-     id="leather-strip">
+     id="leather-strip"
+     transform="scale(1,1.04)">
     <rect
        x="40"
        y="0"
@@ -187,7 +188,7 @@
        y="48"
        width="888"
        height="2"
-       fill="#000"
+       fill="#000000"
        opacity="0.4"
        id="rect9" />
     <!-- Stitching line -->
@@ -196,9 +197,9 @@
        y1="25"
        x2="918"
        y2="25"
-       stroke="#2D2D2D"
+       stroke="#2d2d2d"
        stroke-width="0.4"
-       stroke-dasharray="3,3"
+       stroke-dasharray="3, 3"
        opacity="0.25"
        id="line9" />
   </g>

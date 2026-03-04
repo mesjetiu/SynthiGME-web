@@ -279,59 +279,185 @@ function _setupKeyFeedback() {
   const svg = container.querySelector('svg');
   if (!svg) return;
 
-  /** @type {Map<number, Element>} pointerId → tecla actualmente pulsada */
+  /** @type {Map<number, {key: Element|null, x: number, y: number}>} */
   const activePointers = new Map();
 
+  /** Paso de interpolación en px — menor que el ancho de la tecla más estrecha */
+  const INTERP_STEP = 3;
+
+  // ── Cache de rectángulos de teclas (evita tocar el DOM en cada frame) ──
+  // Se reconstruye cuando cambia el tamaño de la ventana.
+  /** @type {{el: Element, left: number, right: number, top: number, bottom: number}[]} */
+  let blackKeyRects = [];
+  /** @type {{el: Element, left: number, right: number, top: number, bottom: number}[]} */
+  let whiteKeyRects = [];
+
+  function rebuildKeyCache() {
+    blackKeyRects = [];
+    whiteKeyRects = [];
+    for (const k of svg.querySelectorAll('.black-key')) {
+      const r = k.getBoundingClientRect();
+      blackKeyRects.push({ el: k, left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+    }
+    for (const k of svg.querySelectorAll('.white-key')) {
+      const r = k.getBoundingClientRect();
+      whiteKeyRects.push({ el: k, left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+    }
+    // Ordenar por x para poder hacer early-exit
+    blackKeyRects.sort((a, b) => a.left - b.left);
+    whiteKeyRects.sort((a, b) => a.left - b.left);
+  }
+
+  // Construir cache al inicio y en cada resize de la ventana
+  rebuildKeyCache();
+  const resizeObserver = new ResizeObserver(() => rebuildKeyCache());
+  resizeObserver.observe(container);
+
+  /**
+   * Hit-test con cache de rects — pura aritmética, sin tocar el DOM.
+   * Negras primero (prioridad visual, están encima).
+   */
+  function hitTestKey(clientX, clientY) {
+    // Negras primero
+    for (const kr of blackKeyRects) {
+      if (clientX < kr.left) continue;      // aún no llegamos
+      if (clientX > kr.right) continue;     // ya pasamos (no break: están ordenadas pero tienen gaps)
+      if (clientY >= kr.top && clientY <= kr.bottom) return kr.el;
+    }
+    // Blancas
+    for (const kr of whiteKeyRects) {
+      if (clientX < kr.left) continue;
+      if (clientX > kr.right) continue;
+      if (clientY >= kr.top && clientY <= kr.bottom) return kr.el;
+    }
+    return null;
+  }
+
+  /** Duración mínima del flash visual de una tecla (ms) */
+  const FLASH_DURATION = 20;
+
+  /** @type {Map<Element, number>} tecla → timerId del flash pendiente */
+  const flashTimers = new Map();
+
   function pressKey(key) {
+    // Si tenía un timer de release pendiente, cancelarlo (sigue pulsada)
+    const prev = flashTimers.get(key);
+    if (prev) clearTimeout(prev);
+    flashTimers.delete(key);
     key.classList.add('key-pressed');
   }
 
   function releaseKey(key) {
-    key.classList.remove('key-pressed');
+    // No quitar inmediatamente — dejar al menos FLASH_DURATION ms para que
+    // el navegador tenga tiempo de renderizar el estado pulsado.
+    const existing = flashTimers.get(key);
+    if (existing) return; // ya hay un timer pendiente
+    const tid = setTimeout(() => {
+      key.classList.remove('key-pressed');
+      flashTimers.delete(key);
+    }, FLASH_DURATION);
+    flashTimers.set(key, tid);
   }
 
-  svg.addEventListener('pointerdown', (e) => {
-    const key = e.target.closest(KEY_SELECTOR);
-    if (!key) return;
-    if (e.button !== 0) return;                 // solo botón primario
-    e.preventDefault();
-    activePointers.set(e.pointerId, key);
-    pressKey(key);
-    svg.setPointerCapture(e.pointerId);
-  });
-
-  svg.addEventListener('pointermove', (e) => {
-    const prevKey = activePointers.get(e.pointerId);
-    if (!prevKey) return;
-    // Detectar si se ha movido a otra tecla
-    const elemUnder = document.elementFromPoint(e.clientX, e.clientY);
-    const newKey = elemUnder?.closest(KEY_SELECTOR);
+  /**
+   * Procesa un punto: compara con la tecla previa y actualiza estado visual.
+   * @returns {Element|null} tecla resultante
+   */
+  function processPoint(pointerId, clientX, clientY) {
+    const info = activePointers.get(pointerId);
+    const prevKey = info?.key || null;
+    const newKey = hitTestKey(clientX, clientY);
     if (newKey !== prevKey) {
-      releaseKey(prevKey);
-      if (newKey) {
-        pressKey(newKey);
-        activePointers.set(e.pointerId, newKey);
-      } else {
-        activePointers.delete(e.pointerId);
+      if (prevKey) releaseKey(prevKey);
+      if (newKey) pressKey(newKey);
+    }
+    return newKey;
+  }
+
+  /**
+   * Interpola la línea entre (x0,y0) → (x1,y1) muestreando cada INTERP_STEP px
+   * y hace hit-test en cada punto intermedio.  Esto garantiza que no se salte
+   * ninguna tecla aunque el puntero se mueva más rápido que la tasa de pointermove.
+   */
+  function interpolateAndProcess(pointerId, x0, y0, x1, y1) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.ceil(dist / INTERP_STEP);
+
+    let lastKey = activePointers.get(pointerId)?.key || null;
+
+    if (steps <= 1) {
+      // Movimiento pequeño — un solo hit-test
+      lastKey = processPoint(pointerId, x1, y1);
+    } else {
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const sx = x0 + dx * t;
+        const sy = y0 + dy * t;
+        lastKey = processPoint(pointerId, sx, sy);
+        // Actualizar info parcialmente para que processPoint compare bien
+        const info = activePointers.get(pointerId);
+        if (info) info.key = lastKey;
       }
     }
+
+    // Guardar posición final y tecla
+    const info = activePointers.get(pointerId);
+    if (info) {
+      info.key = lastKey;
+      info.x = x1;
+      info.y = y1;
+    }
+  }
+
+  // ── pointerdown en SVG: inicia el glissando ──
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    // Recachear rects (la ventana puede haberse movido desde el último drag)
+    rebuildKeyCache();
+    const key = hitTestKey(e.clientX, e.clientY);
+    if (!key) return;
+    e.preventDefault();
+    activePointers.set(e.pointerId, { key, x: e.clientX, y: e.clientY });
+    pressKey(key);
   });
 
-  svg.addEventListener('pointerup', (e) => {
-    const key = activePointers.get(e.pointerId);
-    if (key) {
-      releaseKey(key);
-      activePointers.delete(e.pointerId);
+  // ── pointermove en document: glissando con interpolación ──
+  document.addEventListener('pointermove', (e) => {
+    const info = activePointers.get(e.pointerId);
+    if (!info) return;
+
+    const prevX = info.x;
+    const prevY = info.y;
+
+    // Procesar eventos coalescidos (posiciones intermedias del navegador)
+    const coalesced = e.getCoalescedEvents?.() || [];
+    if (coalesced.length > 1) {
+      let cx = prevX, cy = prevY;
+      for (const ce of coalesced) {
+        interpolateAndProcess(e.pointerId, cx, cy, ce.clientX, ce.clientY);
+        cx = ce.clientX;
+        cy = ce.clientY;
+      }
+    } else {
+      interpolateAndProcess(e.pointerId, prevX, prevY, e.clientX, e.clientY);
     }
-    svg.releasePointerCapture(e.pointerId);
   });
 
-  svg.addEventListener('pointercancel', (e) => {
-    const key = activePointers.get(e.pointerId);
-    if (key) {
-      releaseKey(key);
-      activePointers.delete(e.pointerId);
-    }
+  // ── pointerup / pointercancel en document ──
+  document.addEventListener('pointerup', (e) => {
+    const info = activePointers.get(e.pointerId);
+    if (!info) return;
+    if (info.key) releaseKey(info.key);
+    activePointers.delete(e.pointerId);
+  });
+
+  document.addEventListener('pointercancel', (e) => {
+    const info = activePointers.get(e.pointerId);
+    if (!info) return;
+    if (info.key) releaseKey(info.key);
+    activePointers.delete(e.pointerId);
   });
 
   // Evitar selección de texto al arrastrar sobre teclas

@@ -7493,7 +7493,6 @@ small { color:#aaa; }
 
 .keyboard-window .white-key {
   cursor: pointer;
-  transition: fill 0.05s ease;
 }
 
 .keyboard-window .white-key:hover {
@@ -7506,7 +7505,6 @@ small { color:#aaa; }
 
 .keyboard-window .black-key {
   cursor: pointer;
-  transition: fill 0.05s ease;
 }
 
 .keyboard-window .black-key:hover {

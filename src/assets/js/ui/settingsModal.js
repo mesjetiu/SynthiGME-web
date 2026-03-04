@@ -1806,6 +1806,9 @@ export class SettingsModal {
     // Créditos
     container.appendChild(this._createAboutCreditsSection());
     
+    // Financiación pública
+    container.appendChild(this._createAboutFundingSection());
+    
     return container;
   }
   
@@ -2022,6 +2025,46 @@ export class SettingsModal {
     
     section.appendChild(title);
     section.appendChild(creditsList);
+    
+    return section;
+  }
+  
+  /**
+   * Crea la sección de financiación pública
+   */
+  _createAboutFundingSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    const title = document.createElement('h3');
+    title.className = 'settings-section__title';
+    title.textContent = t('settings.about.funding');
+    this.aboutFundingTitleElement = title;
+    
+    const desc = document.createElement('p');
+    desc.className = 'settings-section__description';
+    desc.textContent = t('settings.about.funding.description');
+    this.aboutFundingDescElement = desc;
+    
+    const logosContainer = document.createElement('div');
+    logosContainer.className = 'settings-about__funding-logos';
+    
+    const fundingImg = document.createElement('img');
+    fundingImg.src = './assets/icons/funding/funding-logos.jpg';
+    fundingImg.alt = 'Cofinanciado por la Unión Europea, Ministerio de Hacienda y Función Pública, Fondos Europeos, Castilla-La Mancha';
+    fundingImg.className = 'settings-about__funding-img';
+    
+    const uclmImg = document.createElement('img');
+    uclmImg.src = './assets/icons/funding/uclm-fuzzygab.jpg';
+    uclmImg.alt = 'Universidad de Castilla-La Mancha (UCLM) – Fuzzy Gab';
+    uclmImg.className = 'settings-about__funding-img';
+    
+    logosContainer.appendChild(fundingImg);
+    logosContainer.appendChild(uclmImg);
+    
+    section.appendChild(title);
+    section.appendChild(desc);
+    section.appendChild(logosContainer);
     
     return section;
   }
@@ -4645,6 +4688,12 @@ export class SettingsModal {
     }
     if (this.aboutInspirationLabelElement) {
       this.aboutInspirationLabelElement.textContent = t('settings.about.credits.inspiration');
+    }
+    if (this.aboutFundingTitleElement) {
+      this.aboutFundingTitleElement.textContent = t('settings.about.funding');
+    }
+    if (this.aboutFundingDescElement) {
+      this.aboutFundingDescElement.textContent = t('settings.about.funding.description');
     }
     
     // Shortcuts section

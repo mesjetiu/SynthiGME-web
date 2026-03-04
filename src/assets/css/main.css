@@ -4488,6 +4488,22 @@ small { color:#aaa; }
   text-decoration: underline;
 }
 
+/* Logos de financiación pública */
+.settings-about__funding-logos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  align-items: center;
+}
+
+.settings-about__funding-img {
+  max-width: 100%;
+  width: 420px;
+  height: auto;
+  border-radius: 4px;
+}
+
 /* Sección de peligro (reset) */
 .settings-section--danger {
   margin-top: 16px;

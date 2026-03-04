@@ -115,6 +115,8 @@ export default {
   "settings.about.credits.appIcons": "Icônes d'application :",
   "settings.about.credits.uiIcons": "Icônes d'interface :",
   "settings.about.credits.inspiration": "Inspiré par :",
+  "settings.about.funding": "Financement public",
+  "settings.about.funding.description": "Ce projet a été développé avec un financement public.",
   "settings.language": "Langue",
   "settings.scale": "Échelle de rendu",
   "settings.scale.description": "Échelle plus élevée = image plus nette, mais utilisation plus importante des ressources. Se réinitialise à 1× au redémarrage sauf si \"Mémoriser\" est activé.",

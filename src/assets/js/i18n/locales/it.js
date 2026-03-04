@@ -115,6 +115,8 @@ export default {
   "settings.about.credits.appIcons": "Icone app:",
   "settings.about.credits.uiIcons": "Icone UI:",
   "settings.about.credits.inspiration": "Ispirato da:",
+  "settings.about.funding": "Finanziamento pubblico",
+  "settings.about.funding.description": "Questo progetto è stato sviluppato con finanziamento pubblico.",
   "settings.language": "Lingua",
   "settings.scale": "Scala di rendering",
   "settings.scale.description": "Scala più alta = immagine più nitida, ma più utilizzo di risorse. Si ripristina a 1× al riavvio a meno che \"Ricorda\" non sia abilitato.",

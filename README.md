@@ -4,7 +4,7 @@ SynthiGME-web es una emulación del sintetizador modular **Synthi 100** del Gabi
 
 Esta versión web permite explorar el sintetizador directamente desde tu navegador, sin necesidad de instalar nada.
 
-**Última actualización:** 26 de febrero de 2026 (knobs SVG, PWM CV, easter egg, undo/redo, notas post-it, flujo de señal, menú contextual)
+**Última actualización:** 4 de marzo de 2026 (financiación pública, MIDI Learn, RCVG, knobs SVG, PWM CV, easter egg, undo/redo, notas post-it, flujo de señal, menú contextual)
 
 ## 🚀 Acceso Rápido
 
@@ -150,6 +150,20 @@ Este es un proyecto Open Source. Si quieres ver el código, compilarlo tú mismo
 👉 **[Grupo de Telegram: SynthiGME](https://t.me/synthigme)**
 
 Es un espacio para compartir parches, proponer mejoras, reportar errores y participar como tester en las versiones beta.
+
+---
+
+## Financiación
+
+Este proyecto ha sido desarrollado con financiación pública. Subvencionado por:
+
+<p align="center">
+  <img src="resources/funding/funding-logos.jpg" alt="Subvencionado por: Cofinanciado por la Unión Europea, Ministerio de Hacienda y Función Pública, Fondos Europeos, Castilla-La Mancha" width="700">
+</p>
+
+<p align="center">
+  <img src="resources/funding/uclm-fuzzygab.jpg" alt="Universidad de Castilla-La Mancha (UCLM) – Fuzzy Gab" width="700">
+</p>
 
 ---
 

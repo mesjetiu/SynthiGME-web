@@ -115,6 +115,8 @@ export default {
   "settings.about.credits.appIcons": "Ikony aplikace:",
   "settings.about.credits.uiIcons": "Ikony UI:",
   "settings.about.credits.inspiration": "Inspirováno:",
+  "settings.about.funding": "Veřejné financování",
+  "settings.about.funding.description": "Tento projekt byl vyvinut s veřejným financováním.",
   "settings.language": "Jazyk",
   "settings.scale": "Měřítko vykreslování",
   "settings.scale.description": "Vyšší měřítko = ostrější obraz, ale větší využití prostředků. Resetuje se na 1× při restartování, pokud není povolena možnost \"Zapamatovat\".",

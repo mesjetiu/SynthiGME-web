@@ -988,6 +988,24 @@ settings.about.credits.inspiration:
   pt: Inspirado por: 
   cs: Inspirováno: 
 
+settings.about.funding:
+  en: Public Funding
+  es: Financiación pública
+  fr: Financement public
+  de: Öffentliche Förderung
+  it: Finanziamento pubblico
+  pt: Financiamento público
+  cs: Veřejné financování
+
+settings.about.funding.description:
+  en: This project has been developed with public funding.
+  es: Este proyecto ha sido desarrollado con financiación pública.
+  fr: Ce projet a été développé avec un financement public.
+  de: Dieses Projekt wurde mit öffentlicher Förderung entwickelt.
+  it: Questo progetto è stato sviluppato con finanziamento pubblico.
+  pt: Este projeto foi desenvolvido com financiamento público.
+  cs: Tento projekt byl vyvinut s veřejným financováním.
+
 # Sección: Idioma
 settings.language:
   en: Language

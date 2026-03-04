@@ -8,6 +8,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Financiación pública**: Logos de financiación (UE, Fondos Europeos, JCCM, UCLM, Fuzzy Gab) en créditos de la app (Ajustes → Acerca de) y README. Imágenes en `src/assets/icons/funding/` y `resources/funding/`. Traducciones en 7 idiomas.
 - **Panel 4 blueprint v2**: Estructura visual del Panel 4 con 3 filas: 8 voltímetros (placeholder), Sequencer Event Time (placeholder) y Keyboard Output Range con 7 columnas. Implementadas columnas 1-3: Pitch Voltage Converter + Envelope Followers 1-2 (col 1, apilados), Upper Keyboard (col 2) y Lower Keyboard (col 3) con vernier dials, knobs de colores y selectores rotativos. Columnas 4-7 como placeholders vacíos. Método `_buildPanel4()` en app.js con creación dinámica de DOM desde blueprint.
 - **Selector rotativo (RotarySwitch)**: Nuevo componente UI para interruptores rotativos de 2 posiciones, fiel al hardware original del Synthi 100. SVG con base metálica, cuerpo cilíndrico oscuro e indicador que rota ±45°. Usado en Panel 4 para Retrigger Key Release (ON/KBD). Clase `RotarySwitch` con API idéntica a `Toggle`.
 - **knobColors en blueprints**: Declarados los colores originales de cada knob en los blueprints de paneles 2, 3 y 7. Centraliza la definición para futura refactorización de los archivos UI.

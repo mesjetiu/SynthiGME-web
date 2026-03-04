@@ -115,6 +115,8 @@ export default {
   "settings.about.credits.appIcons": "App-Symbole:",
   "settings.about.credits.uiIcons": "UI-Symbole:",
   "settings.about.credits.inspiration": "Inspiriert von:",
+  "settings.about.funding": "Öffentliche Förderung",
+  "settings.about.funding.description": "Dieses Projekt wurde mit öffentlicher Förderung entwickelt.",
   "settings.language": "Sprache",
   "settings.scale": "Rendering-Skalierung",
   "settings.scale.description": "Höhere Skalierung = schärferes Bild, aber mehr Ressourcennutzung. Setzt sich beim Neustart auf 1× zurück, es sei denn, \"Merken\" ist aktiviert.",

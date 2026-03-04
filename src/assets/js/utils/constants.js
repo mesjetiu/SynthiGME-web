@@ -250,7 +250,14 @@ export const STORAGE_KEYS = {
   SIGNAL_FLOW_ENABLED: `${STORAGE_PREFIX}signal-flow-enabled`,
 
   /** Requerir tecla modificadora para activar el resaltado de flujo de señal */
-  SIGNAL_FLOW_REQUIRE_MODIFIER: `${STORAGE_PREFIX}signal-flow-require-modifier`
+  SIGNAL_FLOW_REQUIRE_MODIFIER: `${STORAGE_PREFIX}signal-flow-require-modifier`,
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Teclados flotantes (Keyboard Window)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Estado de la ventana flotante de teclados (posición, tamaño, visibilidad) */
+  KEYBOARD_STATE: `${STORAGE_PREFIX}keyboard-state`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

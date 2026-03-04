@@ -66,6 +66,7 @@ let menuState = {
   singleFingerPan: true,
   multitouchControls: false,
   pipPanels: {},  // { 'panel-1': false, 'panel-2': false, ... }
+  keyboardVisible: false,
   // Avanzado
   debugGlobal: false,
   dormancy: true,
@@ -419,6 +420,17 @@ function buildMenuTemplate() {
       {
         label: t('menu.panels.attachAll', 'Return All'),
         click: () => sendAction('attachAllPips')
+      },
+      { type: 'separator' },
+      {
+        id: 'keyboardVisible',
+        label: t('menu.panels.keyboards', 'Keyboards'),
+        type: 'checkbox',
+        checked: menuState.keyboardVisible,
+        click: (menuItem) => {
+          menuState.keyboardVisible = menuItem.checked;
+          sendAction('toggleKeyboard');
+        }
       },
       { type: 'separator' },
       {

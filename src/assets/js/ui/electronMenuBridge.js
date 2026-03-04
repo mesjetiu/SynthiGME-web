@@ -251,6 +251,11 @@ function handleMenuAction({ action, data }) {
       if (closeAllPips) closeAllPips();
       break;
     }
+    case 'toggleKeyboard': {
+      const { toggleKeyboard: toggleKeyboardFn } = require_toggleKeyboard();
+      if (toggleKeyboardFn) toggleKeyboardFn();
+      break;
+    }
     case 'setRememberVisualLayout':
       localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, String(data.enabled));
       break;
@@ -467,6 +472,21 @@ function require_togglePip() {
     });
   }
   return _pipModule;
+}
+
+/**
+ * Lazy import para el módulo de teclados flotantes.
+ * Se carga una sola vez y se cachea.
+ */
+let _keyboardModule = null;
+function require_toggleKeyboard() {
+  if (!_keyboardModule) {
+    _keyboardModule = { toggleKeyboard: null };
+    import('./keyboardWindow.js').then(mod => {
+      _keyboardModule.toggleKeyboard = mod.toggleKeyboard;
+    });
+  }
+  return _keyboardModule;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

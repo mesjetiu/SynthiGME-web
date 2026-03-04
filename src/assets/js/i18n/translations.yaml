@@ -2158,6 +2158,15 @@ quickbar.pip:
   pt: Painéis flutuantes
   cs: Plovoucí panely
 
+quickbar.keyboard:
+  en: Keyboards
+  es: Teclados
+  fr: Claviers
+  de: Tastaturen
+  it: Tastiere
+  pt: Teclados
+  cs: Klávesnice
+
 quickbar.audio:
   en: Audio settings (A)
   es: Configuración de audio (A)
@@ -3270,6 +3279,15 @@ menu.panels.lockPan:
   it: Blocca panoramica
   pt: Bloquear panorâmica
   cs: Uzamknout posun
+
+menu.panels.keyboards:
+  en: Keyboards
+  es: Teclados
+  fr: Claviers
+  de: Tastaturen
+  it: Tastiere
+  pt: Teclados
+  cs: Klávesnice
 
 menu.panels.lockZoom:
   en: Lock Zoom
@@ -5021,3 +5039,12 @@ settings.midi.imported:
   it: "{count} assegnazione/i importata/e"
   pt: "{count} mapeamento(s) importado(s)"
   cs: "{count} mapování importováno"
+
+keyboard.close:
+  en: Close keyboard
+  es: Cerrar teclado
+  fr: Fermer le clavier
+  de: Tastatur schließen
+  it: Chiudi tastiera
+  pt: Fechar teclado
+  cs: Zavřít klávesnici

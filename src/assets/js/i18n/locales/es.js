@@ -242,6 +242,7 @@ export default {
   "quickbar.settings": "Ajustes (S)",
   "quickbar.patches": "Patches (P)",
   "quickbar.pip": "Paneles flotantes",
+  "quickbar.keyboard": "Teclados",
   "quickbar.audio": "Configuración de audio (A)",
   "quickbar.emergency": "Resetear escala a 1× (emergencia)",
   "quickbar.emergency.applied": "Escala reseteada a 1×",
@@ -361,6 +362,7 @@ export default {
   "menu.panels.detachAll": "Extraer todos",
   "menu.panels.attachAll": "Devolver todos",
   "menu.panels.lockPan": "Bloquear paneo",
+  "menu.panels.keyboards": "Teclados",
   "menu.panels.lockZoom": "Bloquear zoom",
   "menu.panels.rememberVisualLayout": "Recordar disposición visual",
   "menu.panels.singleFingerPan": "Paneo con un dedo",
@@ -549,5 +551,6 @@ export default {
   "settings.midi.clearConfirm": "¿Eliminar todas las asignaciones MIDI?",
   "settings.midi.cleared": "Asignaciones MIDI borradas",
   "settings.midi.exported": "Asignaciones MIDI exportadas",
-  "settings.midi.imported": "{count} asignación(es) importada(s)"
+  "settings.midi.imported": "{count} asignación(es) importada(s)",
+  "keyboard.close": "Cerrar teclado"
 };

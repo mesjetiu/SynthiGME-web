@@ -242,6 +242,7 @@ export default {
   "quickbar.settings": "Nastavení (S)",
   "quickbar.patches": "Patches (P)",
   "quickbar.pip": "Plovoucí panely",
+  "quickbar.keyboard": "Klávesnice",
   "quickbar.audio": "Nastavení zvuku (A)",
   "quickbar.emergency": "Resetovat měřítko na 1× (nouzový režim)",
   "quickbar.emergency.applied": "Měřítko resetováno na 1×",
@@ -361,6 +362,7 @@ export default {
   "menu.panels.detachAll": "Odpojit vše",
   "menu.panels.attachAll": "Vrátit vše",
   "menu.panels.lockPan": "Uzamknout posun",
+  "menu.panels.keyboards": "Klávesnice",
   "menu.panels.lockZoom": "Uzamknout přiblížení",
   "menu.panels.rememberVisualLayout": "Zapamatovat vizuální rozložení",
   "menu.panels.singleFingerPan": "Posun jedním prstem",
@@ -549,5 +551,6 @@ export default {
   "settings.midi.clearConfirm": "Odebrat všechna MIDI mapování?",
   "settings.midi.cleared": "MIDI mapování smazána",
   "settings.midi.exported": "MIDI mapování exportována",
-  "settings.midi.imported": "{count} mapování importováno"
+  "settings.midi.imported": "{count} mapování importováno",
+  "keyboard.close": "Zavřít klávesnici"
 };

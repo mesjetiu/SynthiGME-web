@@ -87,6 +87,7 @@ import { ConfirmDialog } from './ui/confirmDialog.js';
 import { triggerEasterEgg, initEasterEggTrigger } from './ui/easterEgg.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
 import { initPipManager, restorePipState } from './ui/pipManager.js';
+import { initKeyboardWindow } from './ui/keyboardWindow.js';
 import { initPanelNotes } from './ui/panelNotes.js';
 import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { showToast } from './ui/toast.js';
@@ -7257,6 +7258,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     // Restaurar paneles PiP de sesión anterior
     restorePipState();
+    
+    // Inicializar ventana flotante de teclados
+    initKeyboardWindow();
     
     // Inicializar notas post-it en paneles
     initPanelNotes();

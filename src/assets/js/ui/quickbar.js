@@ -10,6 +10,7 @@ import { togglePip, ALL_PANELS, getOpenPips, openAllPips, closeAllPips } from '.
 import { oscBridge } from '../osc/oscBridge.js';
 import { undoRedoManager } from '../state/undoRedoManager.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { toggleKeyboard, isKeyboardOpen } from './keyboardWindow.js';
 
 const log = createLogger('Quickbar');
 
@@ -619,12 +620,36 @@ export function setupMobileQuickActionsBar() {
     updateOscButton(e.detail?.enabled ?? false);
   });
 
+  // Botón Keyboard (teclados flotantes)
+  const btnKeyboard = document.createElement('button');
+  btnKeyboard.type = 'button';
+  btnKeyboard.className = 'mobile-quickbar__btn';
+  btnKeyboard.id = 'btnKeyboard';
+  setButtonTooltip(btnKeyboard, t('quickbar.keyboard', 'Teclados'));
+  btnKeyboard.innerHTML = iconSvg('ti-piano');
+
+  function updateKeyboardButton() {
+    const open = isKeyboardOpen();
+    btnKeyboard.setAttribute('aria-pressed', String(open));
+    btnKeyboard.classList.toggle('is-keyboard-active', open);
+  }
+
+  btnKeyboard.addEventListener('click', () => {
+    toggleKeyboard();
+    updateKeyboardButton();
+  });
+
+  document.addEventListener('synth:keyboardToggle', () => {
+    updateKeyboardButton();
+  });
+
   group.appendChild(btnPan);
   group.appendChild(btnZoom);
   group.appendChild(btnUndo);
   group.appendChild(btnRedo);
   group.appendChild(btnPatches);
   group.appendChild(btnPipContainer);
+  group.appendChild(btnKeyboard);
   group.appendChild(btnRecord);
   group.appendChild(btnReset);
   group.appendChild(btnOsc);
@@ -644,7 +669,7 @@ export function setupMobileQuickActionsBar() {
   // Configurar long-press para tooltips en móvil
   setupAllLongPressTooltips([
     btnMute, tab, btnPan, btnZoom, btnUndo, btnRedo, btnPatches, btnPip,
-    btnRecord, btnReset, btnOsc, btnFs, btnSettings
+    btnKeyboard, btnRecord, btnReset, btnOsc, btnFs, btnSettings
   ]);
 
   // Actualizar tooltips cuando cambie el idioma
@@ -655,6 +680,7 @@ export function setupMobileQuickActionsBar() {
     setButtonTooltip(btnRedo, t('quickbar.redo'));
     setButtonTooltip(btnPatches, t('quickbar.patches'));
     setButtonTooltip(btnPip, t('quickbar.pip', 'Paneles flotantes'));
+    setButtonTooltip(btnKeyboard, t('quickbar.keyboard', 'Teclados'));
     setButtonTooltip(btnRecord, t(isRecording ? 'quickbar.stopRecording' : 'quickbar.record'));
     setButtonTooltip(btnReset, t('quickbar.reset'));
     setButtonTooltip(btnOsc, t(oscEnabled ? 'quickbar.oscOn' : 'quickbar.oscOff'));

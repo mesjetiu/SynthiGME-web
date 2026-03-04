@@ -242,6 +242,7 @@ export default {
   "quickbar.settings": "Settings (S)",
   "quickbar.patches": "Patches (P)",
   "quickbar.pip": "Floating Panels",
+  "quickbar.keyboard": "Keyboards",
   "quickbar.audio": "Audio settings (A)",
   "quickbar.emergency": "Reset scale to 1× (emergency)",
   "quickbar.emergency.applied": "Scale reset to 1×",
@@ -361,6 +362,7 @@ export default {
   "menu.panels.detachAll": "Detach All",
   "menu.panels.attachAll": "Return All",
   "menu.panels.lockPan": "Lock Panning",
+  "menu.panels.keyboards": "Keyboards",
   "menu.panels.lockZoom": "Lock Zoom",
   "menu.panels.rememberVisualLayout": "Remember visual layout",
   "menu.panels.singleFingerPan": "Pan with one finger",
@@ -549,5 +551,6 @@ export default {
   "settings.midi.clearConfirm": "Remove all MIDI mappings?",
   "settings.midi.cleared": "MIDI mappings cleared",
   "settings.midi.exported": "MIDI mappings exported",
-  "settings.midi.imported": "{count} mapping(s) imported"
+  "settings.midi.imported": "{count} mapping(s) imported",
+  "keyboard.close": "Close keyboard"
 };

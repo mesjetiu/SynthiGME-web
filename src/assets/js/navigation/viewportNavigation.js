@@ -1310,6 +1310,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
     if (ev.target.closest?.('.pip-placeholder')) return;
     // Allow contextmenu on panel notes (header & body menus, including viewport notes)
     if (ev.target.closest?.('.panel-note')) return;
+    // Allow contextmenu on keyboard floating window
+    if (ev.target.closest?.('#keyboardWindow')) return;
     // Allow contextmenu on viewportInner empty space (for creating viewport notes)
     if (ev.target.id === 'viewportInner') return;
     ev.preventDefault();

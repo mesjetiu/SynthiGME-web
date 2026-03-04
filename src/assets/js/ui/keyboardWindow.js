@@ -23,13 +23,22 @@ import { midiAccess } from '../midi/midiAccess.js';
 /** Aspect ratio del SVG (viewBox 968 × 338) */
 const ASPECT_RATIO = 968 / 338;
 
-/** Tamaño por defecto (px) */
-const DEFAULT_WIDTH = 680;
-const DEFAULT_HEIGHT = Math.round(DEFAULT_WIDTH / ASPECT_RATIO);
+/** Fracción del ancho de pantalla para el tamaño por defecto (~2.5 paneles) */
+const DEFAULT_WIDTH_RATIO = 0.5;
 
-/** Tamaño mínimo (px) */
+/** Límites absolutos (px) */
+const MAX_DEFAULT_WIDTH = 1200;
 const MIN_WIDTH = 300;
 const MIN_HEIGHT = Math.round(MIN_WIDTH / ASPECT_RATIO);
+
+/**
+ * Calcula el ancho por defecto proporcional a la pantalla.
+ * @returns {number}
+ */
+function _computeDefaultWidth() {
+  const w = Math.round(window.innerWidth * DEFAULT_WIDTH_RATIO);
+  return Math.max(MIN_WIDTH, Math.min(MAX_DEFAULT_WIDTH, w));
+}
 
 /** Z-index base (por encima de PiP panels = 1200, debajo de quickbar = 1500) */
 const Z_INDEX = 1350;
@@ -87,11 +96,14 @@ let isOpen = false;
 
 /** Posición y tamaño actuales */
 let state = {
-  x: 100,
-  y: 100,
-  width: DEFAULT_WIDTH,
-  height: DEFAULT_HEIGHT
+  x: -1,   // -1 = sin posición guardada → centrar al abrir
+  y: -1,
+  width: 0,
+  height: 0
 };
+
+/** true si el usuario ha redimensionado manualmente (su tamaño se preserva) */
+let _userResized = false;
 
 /** Flag para evitar saves durante restore */
 let _isRestoring = false;
@@ -114,6 +126,12 @@ export function initKeyboardWindow() {
 export function openKeyboard() {
   if (isOpen) return;
   isOpen = true;
+
+  // Si no hay tamaño aún (primera apertura), calcular por defecto
+  if (state.width <= 0) {
+    _applyDefaults();
+  }
+
   container.style.display = '';
   _applyPosition();
   _saveState();
@@ -157,7 +175,8 @@ export function serializeKeyboardState() {
     x: state.x,
     y: state.y,
     width: state.width,
-    height: state.height
+    height: state.height,
+    userResized: _userResized
   };
 }
 
@@ -171,10 +190,19 @@ export function restoreKeyboardState(data) {
 
   if (typeof data.x === 'number') state.x = data.x;
   if (typeof data.y === 'number') state.y = data.y;
-  if (typeof data.width === 'number') {
+
+  _userResized = !!data.userResized;
+
+  if (_userResized && typeof data.width === 'number') {
+    // El usuario redimensionó — respetar su tamaño
     state.width = Math.max(MIN_WIDTH, data.width);
     state.height = Math.round(state.width / ASPECT_RATIO);
+  } else {
+    // Calcular proporcional a la pantalla actual
+    state.width = _computeDefaultWidth();
+    state.height = Math.round(state.width / ASPECT_RATIO);
   }
+
   _applyPosition();
 
   if (data.visible) openKeyboard();
@@ -680,6 +708,7 @@ function _setupResize() {
       const onUp = () => {
         handle.removeEventListener('pointermove', onMove);
         handle.removeEventListener('pointerup', onUp);
+        _userResized = true;
         _saveState();
       };
 
@@ -692,6 +721,19 @@ function _setupResize() {
 }
 
 // ─── Utilidades internas ────────────────────────────────────────────────────
+
+/**
+ * Calcula tamaño proporcional y posición centrada (parte inferior).
+ * Se usa cuando no hay tamaño guardado del usuario.
+ */
+function _applyDefaults() {
+  state.width = _computeDefaultWidth();
+  state.height = Math.round(state.width / ASPECT_RATIO);
+
+  // Centrar horizontalmente, colocar cerca del borde inferior
+  if (state.x < 0) state.x = Math.round((window.innerWidth - state.width) / 2);
+  if (state.y < 0) state.y = Math.max(0, window.innerHeight - state.height - 40);
+}
 
 function _applyPosition() {
   if (!container) return;
@@ -713,7 +755,8 @@ function _saveState() {
       x: state.x,
       y: state.y,
       width: state.width,
-      height: state.height
+      height: state.height,
+      userResized: _userResized
     }));
   } catch { /* quota exceeded — ignore */ }
 }

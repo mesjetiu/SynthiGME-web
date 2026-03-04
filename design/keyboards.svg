@@ -26,7 +26,7 @@
    height="338mm"
    version="1.1"
    id="svg92"
-   sodipodi:docname="keyboard_bg.svg"
+   sodipodi:docname="keyboards.svg"
    inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -42,9 +42,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="0.14330962"
-     inkscape:cx="2306.1955"
-     inkscape:cy="198.87011"
+     inkscape:zoom="1.1876959"
+     inkscape:cx="1764.3405"
+     inkscape:cy="1119.3943"
      inkscape:window-width="1920"
      inkscape:window-height="1005"
      inkscape:window-x="0"
@@ -128,7 +128,7 @@
   <!-- Left side rail (thick walnut upright) -->
   <g
      id="rail-left"
-     transform="matrix(1.0015736,0,0,0.80030659,1.7344471,-0.02893747)">
+     transform="matrix(0.39123001,0,0,0.80110365,0.195615,0.40055183)">
     <rect
        x="0"
        y="0"
@@ -151,7 +151,7 @@
   <!-- Right side rail -->
   <g
      id="rail-right"
-     transform="matrix(1.0015726,0,0,0.80037229,-2.9623871,-0.02865733)">
+     transform="matrix(0.3912288,0,0,0.80116938,589.09491,0.40058469)">
     <rect
        x="928"
        y="0"
@@ -160,7 +160,8 @@
        fill="url(#wood-pattern)"
        stroke="#3e2313"
        stroke-width="1"
-       id="rect6" />
+       id="rect6"
+       style="display:inline" />
     <!-- Inner bevel highlight -->
     <rect
        x="928"
@@ -169,12 +170,13 @@
        height="421"
        fill="#7d5233"
        opacity="0.25"
-       id="rect7" />
+       id="rect7"
+       style="display:inline" />
   </g>
   <!-- Black leather strip (top arm rest) -->
   <g
      id="leather-strip"
-     transform="scale(1,1.04)">
+     transform="matrix(1.0544037,0,0,1.04,-26.331331,0)">
     <rect
        x="40"
        y="0"
@@ -206,16 +208,16 @@
   <!-- Cheek blocks and step -->
   <g
      id="cheeks-and-step"
-     transform="matrix(0.99529541,0,0,0.85389141,2.3044251,7.306467)">
+     transform="matrix(0.99831792,0,0,0.85389141,0.46749145,7.306467)">
     <!-- Left cheek - upper keyboard -->
     <rect
-       x="40"
-       y="50"
-       width="18"
-       height="156"
+       x="15.544523"
+       y="50.143543"
+       width="42.307457"
+       height="155.71291"
        fill="#6b4226"
        stroke="#3e2313"
-       stroke-width="0.5"
+       stroke-width="0.765847"
        id="rect10" />
     <line
        x1="40"
@@ -392,11 +394,11 @@
     <rect
        x="910"
        y="50"
-       width="18"
+       width="43.291267"
        height="156"
        fill="#6b4226"
        stroke="#3e2313"
-       stroke-width="0.5"
+       stroke-width="0.775414"
        id="rect28" />
     <line
        x1="910"
@@ -572,21 +574,22 @@
     <!-- Step/ledge between keyboards (full width between rails) -->
     <rect
        id="step-top"
-       x="40"
-       y="206"
-       width="888"
-       height="14"
+       x="15.403234"
+       y="206.00728"
+       width="937.43451"
+       height="13.985425"
        fill="#5a3720"
        stroke="#3e2313"
-       stroke-width="0.5" />
+       stroke-width="0.513461" />
     <rect
        id="step-shadow"
-       x="40"
+       x="15.403234"
        y="214"
-       width="888"
+       width="937.43451"
        height="6"
        fill="#3e2313"
-       opacity="0.5" />
+       opacity="0.5"
+       style="stroke-width:1.02746" />
     <line
        x1="40"
        y1="213"
@@ -598,13 +601,13 @@
        id="line48" />
     <!-- Left cheek - lower keyboard -->
     <rect
-       x="40"
+       x="15.403234"
        y="220"
-       width="18"
+       width="42.596767"
        height="156"
        fill="#6b4226"
        stroke="#3e2313"
-       stroke-width="0.5"
+       stroke-width="0.76917"
        id="rect48" />
     <line
        x1="40"
@@ -781,11 +784,11 @@
     <rect
        x="910"
        y="220"
-       width="18"
+       width="42.837769"
        height="156"
        fill="#6b4226"
        stroke="#3e2313"
-       stroke-width="0.5"
+       stroke-width="0.771342"
        id="rect67" />
     <line
        x1="910"
@@ -962,7 +965,7 @@
   <!-- Upper keyboard -->
   <g
      id="keyboard-upper"
-     transform="matrix(1,0,0,0.86321087,0,7.1130349)">
+     transform="matrix(1.0027504,0,0,0.86321087,-1.5605866,7.1130349)">
     <!-- Key bed (recessed black area) -->
     <rect
        x="60"
@@ -1649,7 +1652,7 @@
   <!-- Lower keyboard -->
   <g
      id="keyboard-lower"
-     transform="matrix(1,0,0,0.86321087,0,3.6015061)">
+     transform="matrix(1.0030269,0,0,0.86321087,-1.8116852,3.6015061)">
     <!-- Key bed (recessed black area) -->
     <rect
        x="60"
@@ -2336,7 +2339,7 @@
   <!-- Front panel (walnut, below lower keyboard) -->
   <g
      id="front-panel"
-     transform="matrix(0.9978275,0,0,0.24796658,2.1419939,232.87446)">
+     transform="matrix(1.0527132,0,0,0.26415231,-26.263712,226.79188)">
     <rect
        x="40"
        y="376"

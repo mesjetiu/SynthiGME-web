@@ -963,7 +963,7 @@ class MIDILearnManagerClass {
     const ch = mapping.channel + 1; // Mostrar 1-based
     switch (mapping.type) {
       case 'keyboard':
-        return `${mapping.deviceName || 'MIDI'} (Ch ${ch})`;
+        return `Keyboard (Ch ${ch})`;
       case 'cc':
         return `CC ${mapping.number} (Ch ${ch})`;
       case 'noteon':

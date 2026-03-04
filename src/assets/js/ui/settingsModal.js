@@ -640,6 +640,12 @@ export class SettingsModal {
     if (tabId === 'audio' && this.audioSettingsModal) {
       this.audioSettingsModal.refreshDevices();
     }
+
+    // Refrescar tabla de mappings al entrar en la pestaña MIDI
+    if (tabId === 'midi') {
+      const tbl = document.getElementById('midi-mappings-table');
+      if (tbl) this._updateMIDIMappingsTable(tbl);
+    }
   }
   
   /**

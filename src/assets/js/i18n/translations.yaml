@@ -5048,3 +5048,21 @@ keyboard.close:
   it: Chiudi tastiera
   pt: Fechar teclado
   cs: Zavřít klávesnici
+
+keyboard.upper:
+  en: Upper Keyboard
+  es: Teclado superior
+  fr: Clavier supérieur
+  de: Obere Tastatur
+  it: Tastiera superiore
+  pt: Teclado superior
+  cs: Horní klávesnice
+
+keyboard.lower:
+  en: Lower Keyboard
+  es: Teclado inferior
+  fr: Clavier inférieur
+  de: Untere Tastatur
+  it: Tastiera inferiore
+  pt: Teclado inferior
+  cs: Dolní klávesnice

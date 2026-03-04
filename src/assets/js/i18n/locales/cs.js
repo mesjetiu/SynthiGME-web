@@ -552,5 +552,7 @@ export default {
   "settings.midi.cleared": "MIDI mapování smazána",
   "settings.midi.exported": "MIDI mapování exportována",
   "settings.midi.imported": "{count} mapování importováno",
-  "keyboard.close": "Zavřít klávesnici"
+  "keyboard.close": "Zavřít klávesnici",
+  "keyboard.upper": "Horní klávesnice",
+  "keyboard.lower": "Dolní klávesnice"
 };

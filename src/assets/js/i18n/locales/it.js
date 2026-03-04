@@ -552,5 +552,7 @@ export default {
   "settings.midi.cleared": "Assegnazioni MIDI cancellate",
   "settings.midi.exported": "Assegnazioni MIDI esportate",
   "settings.midi.imported": "{count} assegnazione/i importata/e",
-  "keyboard.close": "Chiudi tastiera"
+  "keyboard.close": "Chiudi tastiera",
+  "keyboard.upper": "Tastiera superiore",
+  "keyboard.lower": "Tastiera inferiore"
 };

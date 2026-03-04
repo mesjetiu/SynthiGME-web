@@ -2217,6 +2217,10 @@ class App {
     if (this._joystickUIs?.[moduleId]) {
       return { type: 'joystick', ui: this._joystickUIs[moduleId] };
     }
+    // Teclados flotantes (virtual — no tienen UI de módulo, solo MIDI mapping)
+    if (moduleId === 'keyboard-upper' || moduleId === 'keyboard-lower') {
+      return { type: 'keyboard', ui: {} };
+    }
     return null;
   }
   

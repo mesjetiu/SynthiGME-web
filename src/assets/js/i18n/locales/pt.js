@@ -552,5 +552,7 @@ export default {
   "settings.midi.cleared": "Mapeamentos MIDI limpos",
   "settings.midi.exported": "Mapeamentos MIDI exportados",
   "settings.midi.imported": "{count} mapeamento(s) importado(s)",
-  "keyboard.close": "Fechar teclado"
+  "keyboard.close": "Fechar teclado",
+  "keyboard.upper": "Teclado superior",
+  "keyboard.lower": "Teclado inferior"
 };

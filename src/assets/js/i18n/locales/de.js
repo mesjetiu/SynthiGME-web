@@ -552,5 +552,7 @@ export default {
   "settings.midi.cleared": "MIDI-Zuordnungen gelöscht",
   "settings.midi.exported": "MIDI-Zuordnungen exportiert",
   "settings.midi.imported": "{count} Zuordnung(en) importiert",
-  "keyboard.close": "Tastatur schließen"
+  "keyboard.close": "Tastatur schließen",
+  "keyboard.upper": "Obere Tastatur",
+  "keyboard.lower": "Untere Tastatur"
 };

@@ -7556,11 +7556,24 @@ small { color:#aaa; }
   color: #ddd;
   cursor: pointer;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keyboard-context-menu__item svg {
+  flex-shrink: 0;
 }
 
 .keyboard-context-menu__item:hover {
   background: #3a3a3a;
   color: #fff;
+}
+
+.keyboard-context-menu__separator {
+  height: 1px;
+  background: #444;
+  margin: 4px 0;
 }
 
 /* ─── Quickbar keyboard button active state ──────────────────────────────── */

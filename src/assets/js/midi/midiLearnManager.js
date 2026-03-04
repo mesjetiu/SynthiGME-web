@@ -533,10 +533,16 @@ class MIDILearnManagerClass {
     const target = this._learnTarget;
     if (!target) return;
 
+    // Para teclados: mapear todo el dispositivo+canal, no una nota concreta.
+    // Así todas las notas, CC y pitchbend del mismo device+channel se reenvían.
+    const isKeyboard = target.controlType === 'keyboard';
+
     // Construir clave MIDI
     const type = msg.type === 'noteoff' ? 'noteon' : msg.type;
     const number = type === 'cc' ? msg.cc : type === 'noteon' ? msg.note : 0;
-    const midiKey = buildMIDIKey(msg.deviceId, msg.channel, type, number);
+    const midiKey = isKeyboard
+      ? buildMIDIKey(msg.deviceId, msg.channel, 'keyboard', 0)
+      : buildMIDIKey(msg.deviceId, msg.channel, type, number);
 
     // Si ya existía un mapping con esta clave MIDI, eliminarlo
     if (this._mappings.has(midiKey)) {
@@ -560,8 +566,8 @@ class MIDILearnManagerClass {
       deviceId: msg.deviceId,
       deviceName: msg.deviceName,
       channel: msg.channel,
-      type,
-      number,
+      type: isKeyboard ? 'keyboard' : type,
+      number: isKeyboard ? 0 : number,
       target: { ...target }
     };
 
@@ -599,7 +605,16 @@ class MIDILearnManagerClass {
     const number = type === 'cc' ? msg.cc : type === 'noteon' ? msg.note : 0;
     const midiKey = buildMIDIKey(msg.deviceId, msg.channel, type, number);
 
-    const mapping = this._mappings.get(midiKey);
+    let mapping = this._mappings.get(midiKey);
+
+    // Si no hay mapping exacto, buscar mapping de keyboard (captura device+canal completo)
+    if (!mapping) {
+      const kbKey = buildMIDIKey(msg.deviceId, msg.channel, 'keyboard', 0);
+      const kbMapping = this._mappings.get(kbKey);
+      if (kbMapping && kbMapping.target.controlType === 'keyboard') {
+        mapping = kbMapping;
+      }
+    }
     if (!mapping) return;
 
     // Obtener instancia del control
@@ -708,6 +723,25 @@ class MIDILearnManagerClass {
         break;
       }
 
+      case 'keyboard': {
+        // Teclado flotante: despachar evento con datos MIDI para conversión a voltaje.
+        // Funciona independientemente de si la ventana de teclados está visible.
+        const keyboardId = control.keyboardId; // 'keyboard-upper' o 'keyboard-lower'
+        document.dispatchEvent(new CustomEvent('synth:keyboardMIDI', {
+          detail: {
+            keyboardId,
+            type: msg.type,           // 'noteon' | 'noteoff'
+            note: msg.note ?? 0,      // 0–127 (MIDI note number)
+            velocity: msg.velocity ?? 0,
+            channel: msg.channel,
+            // Para CC y PitchBend (modulación sobre el teclado)
+            cc: msg.cc,
+            value: msg.value
+          }
+        }));
+        break;
+      }
+
       default:
         log.warn(`Tipo de control no soportado para MIDI: ${controlType}`);
     }
@@ -787,6 +821,12 @@ class MIDILearnManagerClass {
         return null;
       }
 
+      case 'keyboard': {
+        // Teclados flotantes: el control es un objeto virtual
+        // que despacha eventos MIDI a document para conversión a voltaje
+        return { control: { keyboardId: target.moduleId }, controlType: 'keyboard' };
+      }
+
       case 'oscilloscope': {
         const scopeKnobs = [ui.timeKnob, ui.ampKnob, ui.levelKnob];
         if (target.controlType === 'switch' || target.controlType === 'toggle') {
@@ -832,6 +872,14 @@ class MIDILearnManagerClass {
     // Pad: el elemento del pad
     if (controlType === 'pad') {
       return control.element || null;
+    }
+
+    // Keyboard: el grupo SVG del teclado (puede no existir si ventana cerrada)
+    if (controlType === 'keyboard') {
+      const kbWin = document.getElementById('keyboardWindow');
+      if (!kbWin) return null;
+      const selector = target.moduleId === 'keyboard-upper' ? '#keyboard-upper' : '#keyboard-lower';
+      return kbWin.querySelector(selector) || null;
     }
 
     return null;
@@ -914,6 +962,8 @@ class MIDILearnManagerClass {
   _formatMIDISource(mapping) {
     const ch = mapping.channel + 1; // Mostrar 1-based
     switch (mapping.type) {
+      case 'keyboard':
+        return `${mapping.deviceName || 'MIDI'} (Ch ${ch})`;
       case 'cc':
         return `CC ${mapping.number} (Ch ${ch})`;
       case 'noteon':

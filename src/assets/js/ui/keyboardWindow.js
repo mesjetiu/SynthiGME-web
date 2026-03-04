@@ -15,6 +15,8 @@
 
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { t } from '../i18n/index.js';
+import { midiLearnManager } from '../midi/midiLearnManager.js';
+import { midiAccess } from '../midi/midiAccess.js';
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
@@ -44,6 +46,37 @@ const DRAG_SELECTORS = [
 /** Selectores de teclas (para feedback visual, NO arrastrables) */
 const KEY_SELECTOR = '.white-key, .black-key';
 
+/** Selectores de grupo de teclado superior/inferior */
+const UPPER_KB_SELECTOR = '#keyboard-upper';
+const LOWER_KB_SELECTOR = '#keyboard-lower';
+
+/** IDs lógicos para MIDI Learn */
+const KEYBOARD_UPPER_ID = 'keyboard-upper';
+const KEYBOARD_LOWER_ID = 'keyboard-lower';
+
+/**
+ * Nombres de notas MIDI → ID de tecla SVG.
+ * MIDI note 36 = C2, ... 96 = C7 (5 octavas + 1 nota).
+ * Sharps: Cs (C#), Ds (D#), Fs (F#), Gs (G#), As (A#).
+ */
+const NOTE_NAMES = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
+const MIDI_NOTE_MIN = 36; // C2
+const MIDI_NOTE_MAX = 96; // C7
+
+/**
+ * Convierte un número de nota MIDI al ID de tecla SVG.
+ * @param {'upper'|'lower'} side
+ * @param {number} midiNote 0–127
+ * @returns {string|null} Ej: 'upper-C4', 'lower-Fs3', o null si fuera de rango
+ */
+function midiNoteToKeyId(side, midiNote) {
+  if (midiNote < MIDI_NOTE_MIN || midiNote > MIDI_NOTE_MAX) return null;
+  const octave = Math.floor(midiNote / 12) - 1; // MIDI 36 → octava 2
+  const name = NOTE_NAMES[midiNote % 12];
+  const prefix = side === 'upper' ? 'upper' : 'lower';
+  return `${prefix}-${name}${octave}`;
+}
+
 // ─── Estado del módulo ──────────────────────────────────────────────────────
 
 /** @type {HTMLDivElement|null} */
@@ -72,6 +105,7 @@ let _isRestoring = false;
 export function initKeyboardWindow() {
   _createContainer();
   _restoreState();
+  _setupMIDIKeyListener();
 }
 
 /**
@@ -306,22 +340,107 @@ function _setupKeyFeedback() {
 
 // ─── Menú contextual ────────────────────────────────────────────────────────
 
+const ICON_MIDI = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+  <circle cx="12" cy="12" r="10"/>
+  <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="16" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="6" cy="13" r="1.2" fill="currentColor"/>
+  <circle cx="18" cy="13" r="1.2" fill="currentColor"/>
+  <circle cx="12" cy="15" r="1.2" fill="currentColor"/>
+</svg>`;
+
+const ICON_MIDI_UNLEARN = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+  <circle cx="12" cy="12" r="10"/>
+  <line x1="7" y1="7" x2="17" y2="17" stroke-width="2"/>
+  <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="16" cy="9" r="1.2" fill="currentColor"/>
+  <circle cx="12" cy="15" r="1.2" fill="currentColor"/>
+</svg>`;
+
+/**
+ * Detecta a qué teclado pertenece un elemento SVG.
+ * @param {Element} target
+ * @returns {'upper'|'lower'|null}
+ */
+function _detectKeyboard(target) {
+  if (target.closest(UPPER_KB_SELECTOR)) return 'upper';
+  if (target.closest(LOWER_KB_SELECTOR)) return 'lower';
+  return null;
+}
+
+/**
+ * Devuelve el controlInfo para MIDI Learn de un teclado.
+ * @param {'upper'|'lower'} which
+ */
+function _keyboardControlInfo(which) {
+  return {
+    moduleId: which === 'upper' ? KEYBOARD_UPPER_ID : KEYBOARD_LOWER_ID,
+    controlType: 'keyboard',
+    controlKey: which,
+    knobIndex: -1,
+    label: which === 'upper'
+      ? t('keyboard.upper', 'Upper Keyboard')
+      : t('keyboard.lower', 'Lower Keyboard')
+  };
+}
+
 function _setupContextMenu() {
   container.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    _showContextMenu(e.clientX, e.clientY);
+    const which = _detectKeyboard(e.target);
+    _showContextMenu(e.clientX, e.clientY, which);
   });
 }
 
 /** @type {HTMLDivElement|null} */
 let contextMenu = null;
 
-function _showContextMenu(x, y) {
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {'upper'|'lower'|null} keyboardSide - null si clic en housing
+ */
+function _showContextMenu(x, y, keyboardSide) {
   _hideContextMenu();
 
   contextMenu = document.createElement('div');
   contextMenu.className = 'keyboard-context-menu';
 
+  // ── MIDI Learn items (si estamos sobre un teclado) ──
+  if (keyboardSide && midiAccess.supported) {
+    const controlInfo = _keyboardControlInfo(keyboardSide);
+    const existingMapping = midiLearnManager.getMappingForControl(controlInfo);
+
+    // "MIDI Learn"
+    const learnItem = document.createElement('div');
+    learnItem.className = 'keyboard-context-menu__item';
+    learnItem.innerHTML = `${ICON_MIDI}<span>${t('contextMenu.midiLearn', 'MIDI Learn')}</span>`;
+    learnItem.addEventListener('click', () => {
+      _hideContextMenu();
+      midiLearnManager.startLearn(controlInfo);
+    });
+    contextMenu.appendChild(learnItem);
+
+    // "Quitar MIDI" (solo si ya tiene mapping)
+    if (existingMapping) {
+      const sourceLabel = midiLearnManager._formatMIDISource(existingMapping);
+      const unlearnItem = document.createElement('div');
+      unlearnItem.className = 'keyboard-context-menu__item';
+      unlearnItem.innerHTML = `${ICON_MIDI_UNLEARN}<span>${t('contextMenu.midiUnlearn', { source: sourceLabel })}</span>`;
+      unlearnItem.addEventListener('click', () => {
+        _hideContextMenu();
+        midiLearnManager.removeMappingForControl(controlInfo);
+      });
+      contextMenu.appendChild(unlearnItem);
+    }
+
+    // Separador antes de "Cerrar"
+    const sep = document.createElement('div');
+    sep.className = 'keyboard-context-menu__separator';
+    contextMenu.appendChild(sep);
+  }
+
+  // ── Cerrar teclado ──
   const closeItem = document.createElement('div');
   closeItem.className = 'keyboard-context-menu__item';
   closeItem.textContent = t('keyboard.close', 'Cerrar teclado');
@@ -336,6 +455,14 @@ function _showContextMenu(x, y) {
   contextMenu.style.top = `${y}px`;
   document.body.appendChild(contextMenu);
 
+  // Ajustar si se sale de pantalla
+  requestAnimationFrame(() => {
+    const rect = contextMenu?.getBoundingClientRect();
+    if (!rect) return;
+    if (rect.right > window.innerWidth) contextMenu.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) contextMenu.style.top = `${y - rect.height}px`;
+  });
+
   // Cerrar al hacer click fuera
   const onClickOut = (e) => {
     if (!contextMenu?.contains(e.target)) {
@@ -343,7 +470,6 @@ function _showContextMenu(x, y) {
       document.removeEventListener('pointerdown', onClickOut, true);
     }
   };
-  // Usar setTimeout para evitar que el mismo click cierre el menú
   setTimeout(() => document.addEventListener('pointerdown', onClickOut, true), 0);
 }
 
@@ -481,4 +607,41 @@ function _dispatchToggle() {
   document.dispatchEvent(new CustomEvent('synth:keyboardToggle', {
     detail: { visible: isOpen }
   }));
+}
+
+// ─── Feedback visual de teclas vía MIDI externo ─────────────────────────────
+
+/** @type {Map<string, Element>} noteKey → tecla SVG actualmente pulsada por MIDI */
+const _midiPressedKeys = new Map();
+
+/**
+ * Escucha eventos `synth:keyboardMIDI` despachados por midiLearnManager
+ * y baja/sube las teclas correspondientes del SVG.
+ */
+function _setupMIDIKeyListener() {
+  document.addEventListener('synth:keyboardMIDI', (/** @type {CustomEvent} */ e) => {
+    const { keyboardId, type, note } = e.detail;
+    if (type !== 'noteon' && type !== 'noteoff') return;
+    if (!container) return;
+
+    const side = keyboardId === KEYBOARD_UPPER_ID ? 'upper' : 'lower';
+    const keyId = midiNoteToKeyId(side, note);
+    if (!keyId) return;
+
+    const svg = container.querySelector('svg');
+    if (!svg) return;
+    const keyEl = svg.getElementById(keyId);
+    if (!keyEl) return;
+
+    const mapKey = `${side}:${note}`;
+
+    if (type === 'noteon' && e.detail.velocity > 0) {
+      keyEl.classList.add('key-pressed');
+      _midiPressedKeys.set(mapKey, keyEl);
+    } else {
+      // noteoff o noteon con velocity 0
+      keyEl.classList.remove('key-pressed');
+      _midiPressedKeys.delete(mapKey);
+    }
+  });
 }

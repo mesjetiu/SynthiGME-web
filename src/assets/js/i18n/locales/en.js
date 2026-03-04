@@ -552,5 +552,7 @@ export default {
   "settings.midi.cleared": "MIDI mappings cleared",
   "settings.midi.exported": "MIDI mappings exported",
   "settings.midi.imported": "{count} mapping(s) imported",
-  "keyboard.close": "Close keyboard"
+  "keyboard.close": "Close keyboard",
+  "keyboard.upper": "Upper Keyboard",
+  "keyboard.lower": "Lower Keyboard"
 };

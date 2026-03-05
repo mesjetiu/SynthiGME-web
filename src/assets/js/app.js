@@ -2945,7 +2945,6 @@ class App {
     bottomRow.className = 'panel1-bottom-row';
     bottomRow.style.cssText = `
       display: flex;
-      gap: ${bottomLayout.gap}px;
       height: ${bottomLayout.height}px;
       flex: 0 0 auto;
       width: 100%;
@@ -2957,6 +2956,7 @@ class App {
 
     // Ring Modulators 1-3 (1 knob cada uno: Level)
     const rmConfig = bottomLayout.ringModulator;
+    let isFirstBottomModule = true;
     for (let i = 1; i <= rmConfig.count; i++) {
       const rmId = `ringModulator${i}`;
       const frame = new ModuleFrame({
@@ -2966,9 +2966,12 @@ class App {
       });
       const el = frame.createElement();
       const rmModuleUI = blueprint.modules?.[rmId]?.ui || {};
-      el.style.cssText = rmConfig.width
+      const rmWidthCss = rmConfig.width
         ? `flex: 0 0 auto; width: ${rmConfig.width}px; height: 100%;`
         : `flex: 1 1 0; min-width: 0; height: 100%;`;
+      const rmGap = isFirstBottomModule ? 0 : toNum(rmConfig.gap, 3);
+      el.style.cssText = `${rmWidthCss} margin-left: ${rmGap}px;`;
+      isFirstBottomModule = false;
 
       const knobsContainer = document.createElement('div');
       knobsContainer.className = 'panel1-bottom-knobs';
@@ -2998,9 +3001,10 @@ class App {
     });
     const reverbEl = reverbFrame.createElement();
     const reverbUI = blueprint.modules?.reverberation1?.ui || {};
-    reverbEl.style.cssText = reverbConfig.width
+    const reverbWidthCss = reverbConfig.width
       ? `flex: 0 0 auto; width: ${reverbConfig.width}px; height: 100%;`
       : `flex: 1 1 0; min-width: 0; height: 100%;`;
+    reverbEl.style.cssText = `${reverbWidthCss} margin-left: ${toNum(reverbConfig.gap, 3)}px;`;
 
     const reverbKnobs = document.createElement('div');
     reverbKnobs.className = 'panel1-bottom-knobs';
@@ -3029,9 +3033,10 @@ class App {
     });
     const echoEl = echoFrame.createElement();
     const echoUI = blueprint.modules?.echoADL?.ui || {};
-    echoEl.style.cssText = echoConfig.width
+    const echoWidthCss = echoConfig.width
       ? `flex: 0 0 auto; width: ${echoConfig.width}px; height: 100%;`
       : `flex: 1 1 0; min-width: 0; height: 100%;`;
+    echoEl.style.cssText = `${echoWidthCss} margin-left: ${toNum(echoConfig.gap, 3)}px;`;
 
     const echoKnobs = document.createElement('div');
     echoKnobs.className = 'panel1-bottom-knobs';

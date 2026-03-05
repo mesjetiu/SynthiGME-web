@@ -111,7 +111,7 @@ export default {
       ringModulator: {
         count: 3,
         width: 107,
-        gap: 2,               // Gap entre ring modulators (y antes del primero si no es el 1º de la fila)
+        gap: 1,               // Gap entre ring modulators (y antes del primero si no es el 1º de la fila)
         knobs: ['Level'],
         knobSize: 'sm',
         knobInnerPct: 78,
@@ -122,7 +122,7 @@ export default {
       reverberation: {
         count: 1,
         width: 143,
-        gap: 2,               // Gap antes de Reverb
+        gap: 1,               // Gap antes de Reverb
         knobs: ['Mix', 'Level'],
         knobSize: 'sm',
         knobInnerPct: 78,
@@ -133,7 +133,7 @@ export default {
       echo: {
         count: 1,
         //width: 200,
-        gap: 2,               // Gap antes de Echo
+        gap: 1,               // Gap antes de Echo
         knobs: ['Delay', 'Mix', 'Feedback', 'Level'],
         knobSize: 'sm',
         knobInnerPct: 78,

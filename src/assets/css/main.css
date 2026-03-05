@@ -7574,6 +7574,34 @@ small { color:#aaa; }
   margin: 4px 0;
 }
 
+.keyboard-context-menu__header {
+  padding: 6px 16px 2px;
+  color: #888;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
+.keyboard-context-menu__radio {
+  padding-left: 12px;
+}
+
+.keyboard-context-menu__radio-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #888;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.keyboard-context-menu__radio--active .keyboard-context-menu__radio-dot {
+  border-color: #ffb63b;
+  background: #ffb63b;
+}
+
 /* ─── Quickbar keyboard button active state ──────────────────────────────── */
 
 .mobile-quickbar__btn.is-keyboard-active {

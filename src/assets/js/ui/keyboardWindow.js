@@ -127,6 +127,68 @@ let _userResized = false;
 /** Flag para evitar saves durante restore */
 let _isRestoring = false;
 
+// ─── Touch modes ────────────────────────────────────────────────────────────
+
+/**
+ * Modo de toque para interacción SVG (no afecta a MIDI externo).
+ * - 'normal': tecla pulsada mientras se mantiene el botón/dedo
+ * - 'latch':  toggle — cada clic alterna on/off, se pueden acumular varias
+ * - 'legato': una sola tecla activa — al pulsar otra se libera la anterior
+ * @type {'normal'|'latch'|'legato'}
+ */
+let touchMode = 'normal';
+
+/**
+ * Teclas actualmente retenidas por latch/legato (Set de Element SVG).
+ * Solo para interacciones SVG — MIDI externo no las modifica.
+ */
+const latchedKeys = new Set();
+
+/**
+ * Referencia interna a releaseKey (se asigna desde _setupKeyFeedback
+ * para que _releaseAllLatched pueda usarla sin estar en la misma closure).
+ * @type {((key: Element, fromMIDI?: boolean) => void)|null}
+ */
+let _releaseKeyFn = null;
+
+/**
+ * Libera todas las teclas retenidas por latch/legato.
+ * Se llama al cambiar modo o al cerrar el teclado.
+ */
+function _releaseAllLatched() {
+  if (_releaseKeyFn) {
+    for (const key of latchedKeys) {
+      _releaseKeyFn(key);
+    }
+  }
+  latchedKeys.clear();
+}
+
+/**
+ * Cambia el modo de toque. Si se pasa de latch/legato a otro modo,
+ * libera todas las teclas retenidas.
+ * @param {'normal'|'latch'|'legato'} mode
+ */
+function _setTouchMode(mode) {
+  if (mode === touchMode) return;
+  _releaseAllLatched();
+  touchMode = mode;
+  _saveTouchMode();
+}
+
+function _saveTouchMode() {
+  try {
+    localStorage.setItem('synthigme:keyboardTouchMode', touchMode);
+  } catch { /* ignore */ }
+}
+
+function _restoreTouchMode() {
+  try {
+    const saved = localStorage.getItem('synthigme:keyboardTouchMode');
+    if (saved === 'latch' || saved === 'legato') touchMode = saved;
+  } catch { /* ignore */ }
+}
+
 // ─── API pública ────────────────────────────────────────────────────────────
 
 /**
@@ -136,6 +198,7 @@ let _isRestoring = false;
 export function initKeyboardWindow() {
   _createContainer();
   _restoreState();
+  _restoreTouchMode();
   _setupMIDIKeyListener();
 }
 
@@ -162,6 +225,7 @@ export function openKeyboard() {
  */
 export function closeKeyboard() {
   if (!isOpen) return;
+  _releaseAllLatched();
   isOpen = false;
   container.style.display = 'none';
   _saveState();
@@ -450,8 +514,12 @@ function _setupKeyFeedback() {
     }
   }
 
+  // Exponer releaseKey para que _releaseAllLatched pueda usarla
+  _releaseKeyFn = releaseKey;
+
   /**
    * Procesa un punto: compara con la tecla previa y actualiza estado visual.
+   * Respeta el touchMode actual (normal, latch, legato).
    * @returns {Element|null} tecla resultante
    */
   function processPoint(pointerId, clientX, clientY) {
@@ -459,8 +527,27 @@ function _setupKeyFeedback() {
     const prevKey = info?.key || null;
     const newKey = hitTestKey(clientX, clientY);
     if (newKey !== prevKey) {
-      if (prevKey) releaseKey(prevKey);
-      if (newKey) pressKey(newKey);
+      if (touchMode === 'latch') {
+        // En glissando-latch: no liberar la anterior, acumular
+        if (newKey && !latchedKeys.has(newKey)) {
+          pressKey(newKey);
+          latchedKeys.add(newKey);
+        }
+      } else if (touchMode === 'legato') {
+        // En legato: liberar la tecla anterior latched, pulsar la nueva
+        if (prevKey && latchedKeys.has(prevKey)) {
+          releaseKey(prevKey);
+          latchedKeys.delete(prevKey);
+        }
+        if (newKey) {
+          pressKey(newKey);
+          latchedKeys.add(newKey);
+        }
+      } else {
+        // Normal
+        if (prevKey) releaseKey(prevKey);
+        if (newKey) pressKey(newKey);
+      }
     }
     return newKey;
   }
@@ -510,6 +597,36 @@ function _setupKeyFeedback() {
     const key = hitTestKey(e.clientX, e.clientY);
     if (!key) return;
     e.preventDefault();
+
+    if (touchMode === 'latch') {
+      // Toggle: si ya está retenida, liberarla
+      if (latchedKeys.has(key)) {
+        releaseKey(key);
+        latchedKeys.delete(key);
+        // No iniciar glissando tras un unlatch
+        return;
+      } else {
+        pressKey(key);
+        latchedKeys.add(key);
+      }
+      // Registrar para posible glissando (acumular teclas al arrastrar)
+      activePointers.set(e.pointerId, { key, x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    if (touchMode === 'legato') {
+      // Liberar todas las teclas retenidas antes de pulsar la nueva
+      for (const k of latchedKeys) {
+        releaseKey(k);
+      }
+      latchedKeys.clear();
+      pressKey(key);
+      latchedKeys.add(key);
+      activePointers.set(e.pointerId, { key, x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // Normal
     activePointers.set(e.pointerId, { key, x: e.clientX, y: e.clientY });
     pressKey(key);
   });
@@ -540,14 +657,19 @@ function _setupKeyFeedback() {
   document.addEventListener('pointerup', (e) => {
     const info = activePointers.get(e.pointerId);
     if (!info) return;
-    if (info.key) releaseKey(info.key);
+    // En latch/legato, no liberar al soltar — la tecla queda retenida
+    if (touchMode === 'normal' && info.key) {
+      releaseKey(info.key);
+    }
     activePointers.delete(e.pointerId);
   });
 
   document.addEventListener('pointercancel', (e) => {
     const info = activePointers.get(e.pointerId);
     if (!info) return;
-    if (info.key) releaseKey(info.key);
+    if (touchMode === 'normal' && info.key) {
+      releaseKey(info.key);
+    }
     activePointers.delete(e.pointerId);
   });
 
@@ -650,8 +772,42 @@ function _showContextMenu(x, y, keyboardSide) {
       });
       contextMenu.appendChild(unlearnItem);
     }
+  }
 
-    // Separador antes de "Cerrar"
+  // ── Modo de toque ──
+  {
+    // Separador antes del grupo de modos
+    const sep = document.createElement('div');
+    sep.className = 'keyboard-context-menu__separator';
+    contextMenu.appendChild(sep);
+
+    // Cabecera del grupo
+    const header = document.createElement('div');
+    header.className = 'keyboard-context-menu__header';
+    header.textContent = t('keyboard.touchMode', 'Touch mode');
+    contextMenu.appendChild(header);
+
+    const modes = [
+      { id: 'normal', label: t('keyboard.touchMode.normal', 'Normal') },
+      { id: 'latch',  label: t('keyboard.touchMode.latch', 'Latch') },
+      { id: 'legato', label: t('keyboard.touchMode.legato', 'Legato') }
+    ];
+
+    for (const mode of modes) {
+      const item = document.createElement('div');
+      item.className = 'keyboard-context-menu__item keyboard-context-menu__radio';
+      if (touchMode === mode.id) item.classList.add('keyboard-context-menu__radio--active');
+      item.innerHTML = `<span class="keyboard-context-menu__radio-dot"></span><span>${mode.label}</span>`;
+      item.addEventListener('click', () => {
+        _setTouchMode(mode.id);
+        _hideContextMenu();
+      });
+      contextMenu.appendChild(item);
+    }
+  }
+
+  // ── Separador antes de Cerrar ──
+  {
     const sep = document.createElement('div');
     sep.className = 'keyboard-context-menu__separator';
     contextMenu.appendChild(sep);

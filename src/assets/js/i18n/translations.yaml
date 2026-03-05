@@ -5120,3 +5120,39 @@ keyboard.lower:
   it: Tastiera inferiore
   pt: Teclado inferior
   cs: Dolní klávesnice
+
+keyboard.touchMode:
+  en: Touch mode
+  es: Modo de toque
+  fr: Mode tactile
+  de: Touch-Modus
+  it: Modalità tocco
+  pt: Modo de toque
+  cs: Dotykový režim
+
+keyboard.touchMode.normal:
+  en: Normal
+  es: Normal
+  fr: Normal
+  de: Normal
+  it: Normale
+  pt: Normal
+  cs: Normální
+
+keyboard.touchMode.latch:
+  en: Latch
+  es: Enclavar
+  fr: Verrouillage
+  de: Einrasten
+  it: Aggancio
+  pt: Travar
+  cs: Zajistit
+
+keyboard.touchMode.legato:
+  en: Legato
+  es: Legato
+  fr: Legato
+  de: Legato
+  it: Legato
+  pt: Legato
+  cs: Legato

@@ -367,3 +367,104 @@ export function getRandomCVKeyTooltipInfo(pulseWidthMs = 5) {
     return `${sign}${voltage.toFixed(1)}V · ${pulseWidthMs} ms`;
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KEYBOARD TOOLTIPS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Tooltip para el knob Pitch Spread del teclado.
+ *
+ * Muestra:
+ * - V/Oct a la posición actual del dial (a spread=9 → 1.00 V/Oct)
+ * - Span total sobre 5 octavas (a spread=9 → 5.00V)
+ *
+ * @param {number} [spreadUnity=9] - Valor del dial que da 1V/Oct
+ * @param {number} [octaves=5] - Número de octavas del teclado
+ * @returns {function(number, number): string|null}
+ */
+export function getKeyboardPitchSpreadTooltipInfo(spreadUnity = 9, octaves = 5) {
+  return (_value, scaleValue) => {
+    const parts = [];
+
+    // V/Oct
+    const vPerOct = spreadUnity > 0 ? scaleValue / spreadUnity : 0;
+
+    if (showVoltageTooltip()) {
+      parts.push(`${vPerOct.toFixed(2)} V/Oct`);
+      const span = vPerOct * octaves;
+      parts.push(`${span.toFixed(1)}V span`);
+    }
+
+    if (showAudioTooltip()) {
+      const centsPerSemitone = (vPerOct * 1200) / 12;
+      parts.push(`${centsPerSemitone.toFixed(0)} cents/st`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Tooltip para el knob Key Velocity del teclado.
+ *
+ * Muestra el voltaje máximo (vel=127): directo del dial.
+ * A dial=0 muestra "Sin efecto".
+ *
+ * @returns {function(number, number): string|null}
+ */
+export function getKeyboardVelocityTooltipInfo() {
+  return (_value, scaleValue) => {
+    if (!showVoltageTooltip() && !showAudioTooltip()) return null;
+
+    if (Math.abs(scaleValue) < 0.05) {
+      return 'Sin efecto';
+    }
+
+    const parts = [];
+
+    if (showVoltageTooltip()) {
+      const sign = scaleValue > 0 ? '+' : '';
+      parts.push(`Vmax ${sign}${scaleValue.toFixed(1)}V`);
+    }
+
+    if (showAudioTooltip()) {
+      const digital = scaleValue / 4; // DIGITAL_TO_VOLTAGE
+      parts.push(`${digital.toFixed(2)} dig`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Tooltip para el knob Env. Control (gate level) del teclado.
+ *
+ * Muestra el voltaje del pulso gate: directo del dial.
+ * A dial=0 muestra "Sin gate".
+ *
+ * @returns {function(number, number): string|null}
+ */
+export function getKeyboardGateTooltipInfo() {
+  return (_value, scaleValue) => {
+    if (!showVoltageTooltip() && !showAudioTooltip()) return null;
+
+    if (Math.abs(scaleValue) < 0.05) {
+      return 'Sin gate';
+    }
+
+    const parts = [];
+
+    if (showVoltageTooltip()) {
+      const sign = scaleValue > 0 ? '+' : '';
+      parts.push(`Gate ${sign}${scaleValue.toFixed(1)}V`);
+    }
+
+    if (showAudioTooltip()) {
+      const digital = scaleValue / 4; // DIGITAL_TO_VOLTAGE
+      parts.push(`${digital.toFixed(2)} dig`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}

@@ -101,7 +101,7 @@ import { WakeLockManager } from './utils/wakeLock.js';
 import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -3418,6 +3418,7 @@ class App {
             keyboardOSCSync.sendChange(side, 'pitchSpread', scaleValue);
           }
         };
+        vernierInst.getTooltipInfo = getKeyboardPitchSpreadTooltipInfo();
         vernierInst._updateVisual();
         knobRefs.pitchSpread = vernierInst;
       }
@@ -3436,6 +3437,7 @@ class App {
           scaleMin: vlMin,
           scaleMax: vlMax,
           scaleDecimals: 1,
+          getTooltipInfo: getKeyboardVelocityTooltipInfo(),
           onChange: (value) => {
             const scaleValue = toScale(value, vlMin, vlMax);
             mod.setVelocityLevel(scaleValue);
@@ -3461,6 +3463,7 @@ class App {
           scaleMin: glMin,
           scaleMax: glMax,
           scaleDecimals: 1,
+          getTooltipInfo: getKeyboardGateTooltipInfo(),
           onChange: (value) => {
             const scaleValue = toScale(value, glMin, glMax);
             mod.setGateLevel(scaleValue);

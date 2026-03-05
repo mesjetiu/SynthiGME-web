@@ -42,9 +42,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="1.1876959"
-     inkscape:cx="1764.3405"
-     inkscape:cy="1119.3943"
+     inkscape:zoom="0.47392837"
+     inkscape:cx="-401.95947"
+     inkscape:cy="999.09612"
      inkscape:window-width="1920"
      inkscape:window-height="1005"
      inkscape:window-x="0"
@@ -2339,7 +2339,7 @@
   <!-- Front panel (walnut, below lower keyboard) -->
   <g
      id="front-panel"
-     transform="matrix(1.0527132,0,0,0.26415231,-26.263712,226.79188)">
+     transform="matrix(1.0538865,0,0,0.26414905,-26.310424,226.79318)">
     <rect
        x="40"
        y="376"

@@ -94,7 +94,7 @@ export class KeyboardModule extends Module {
       invert: false,       // inverting buffer
       velocityLevel: 5,    // -5..+5
       gateLevel: 5,        // -5..+5
-      retrigger: 0         // 0=key release, 1=retrigger
+      retrigger: 0         // 0 = Kbd (key release only), 1 = On (retrigger on new pitch)
     };
 
     this.isStarted = false;
@@ -242,7 +242,7 @@ export class KeyboardModule extends Module {
 
   /**
    * Establece el modo de retrigger.
-   * @param {number} mode - 0 = key release, 1 = retrigger
+   * @param {number} mode - 0 = Kbd (key release only), 1 = On (retrigger on new pitch)
    */
   setRetrigger(mode) {
     this.values.retrigger = mode === 1 ? 1 : 0;

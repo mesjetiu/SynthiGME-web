@@ -139,10 +139,12 @@ export default {
       // El selector rotativo "Retrigger Key Release" controla cuándo
       // el envelope se redispara al tocar notas:
       //
-      //   ON  → retrigger siempre (cada nota dispara el envelope)
-      //   KBD → retrigger solo en key release o cambio de pitch
-      //         (en legato no redispara: mantener una nota y pulsar
-      //          otra del mismo pitch no genera nuevo ataque)
+      //   ON  → Retrigger activo (Key Release or New Pitch):
+      //         re-disparo automático al cambiar de pitch, aunque
+      //         mantengas la tecla anterior.  Ejecución legato.
+      //   KBD → Solo Key Release: debes soltar todas las teclas
+      //         antes de que un nuevo ataque dispare la envolvente.
+      //         Ejecución staccato clásica.
       //
       // En el hardware es un interruptor rotativo pequeño (no toggle
       // de palanca). Se implementa con el componente RotarySwitch.

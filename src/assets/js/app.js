@@ -3473,12 +3473,14 @@ class App {
       }
 
       // Switch 0: Retrigger (rotarySwitch)
+      //   State A (On)  = mode 1 (Key Release or New Pitch)
+      //   State B (Kbd)  = mode 0 (Retrigger Key Release)
       if (kbResult.switchElements[0]?.type === 'rotarySwitch') {
         const rsInst = kbResult.switchElements[0].instance;
         const rtrInitial = kbSwitches.retrigger?.initial ?? 0;
-        rsInst.setState(rtrInitial === 1 ? 'b' : 'a');
+        rsInst.setState(rtrInitial === 1 ? 'a' : 'b');
         rsInst.onChange = (state) => {
-          const mode = state === 'b' ? 1 : 0;
+          const mode = state === 'a' ? 1 : 0;
           mod.setRetrigger(mode);
           if (!keyboardOSCSync.shouldIgnoreOSC()) {
             keyboardOSCSync.sendChange(side, 'retrigger', mode);

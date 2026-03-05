@@ -560,5 +560,9 @@ export default {
   "settings.midi.imported": "{count} mapování importováno",
   "keyboard.close": "Zavřít klávesnici",
   "keyboard.upper": "Horní klávesnice",
-  "keyboard.lower": "Dolní klávesnice"
+  "keyboard.lower": "Dolní klávesnice",
+  "keyboard.touchMode": "Dotykový režim",
+  "keyboard.touchMode.normal": "Normální",
+  "keyboard.touchMode.latch": "Zajistit",
+  "keyboard.touchMode.legato": "Legato"
 };

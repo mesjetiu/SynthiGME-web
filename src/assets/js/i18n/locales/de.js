@@ -560,5 +560,9 @@ export default {
   "settings.midi.imported": "{count} Zuordnung(en) importiert",
   "keyboard.close": "Tastatur schließen",
   "keyboard.upper": "Obere Tastatur",
-  "keyboard.lower": "Untere Tastatur"
+  "keyboard.lower": "Untere Tastatur",
+  "keyboard.touchMode": "Touch-Modus",
+  "keyboard.touchMode.normal": "Normal",
+  "keyboard.touchMode.latch": "Einrasten",
+  "keyboard.touchMode.legato": "Legato"
 };

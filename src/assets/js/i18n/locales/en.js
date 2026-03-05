@@ -560,5 +560,9 @@ export default {
   "settings.midi.imported": "{count} mapping(s) imported",
   "keyboard.close": "Close keyboard",
   "keyboard.upper": "Upper Keyboard",
-  "keyboard.lower": "Lower Keyboard"
+  "keyboard.lower": "Lower Keyboard",
+  "keyboard.touchMode": "Touch mode",
+  "keyboard.touchMode.normal": "Normal",
+  "keyboard.touchMode.latch": "Latch",
+  "keyboard.touchMode.legato": "Legato"
 };

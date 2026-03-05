@@ -102,9 +102,9 @@ export default {
   // ─────────────────────────────────────────────────────────────────────────
   switches: {
     retrigger: {
-      initial: 0,        // 0=key release (Kbd), 1=retrigger (On)
-      labelA: 'Kbd',
-      labelB: 'On'
+      initial: 0,        // 0 = Retrigger Key Release (Kbd), 1 = Key Release or New Pitch (On)
+      labelA: 'On',      // izquierda (← hardware panel)
+      labelB: 'Kbd'      // derecha (← hardware panel)
     }
   }
 };

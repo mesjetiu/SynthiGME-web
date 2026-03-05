@@ -560,5 +560,9 @@ export default {
   "settings.midi.imported": "{count} asignación(es) importada(s)",
   "keyboard.close": "Cerrar teclado",
   "keyboard.upper": "Teclado superior",
-  "keyboard.lower": "Teclado inferior"
+  "keyboard.lower": "Teclado inferior",
+  "keyboard.touchMode": "Modo de toque",
+  "keyboard.touchMode.normal": "Normal",
+  "keyboard.touchMode.latch": "Enclavar",
+  "keyboard.touchMode.legato": "Legato"
 };

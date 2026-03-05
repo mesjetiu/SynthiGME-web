@@ -216,13 +216,13 @@ describe('Keyboard Config — Switches', () => {
     assert.ok(keyboardConfig.switches.retrigger);
   });
   
-  it('retrigger initial es 0 (key release / Kbd)', () => {
+  it('retrigger initial es 0 (Retrigger Key Release / Kbd)', () => {
     assert.strictEqual(keyboardConfig.switches.retrigger.initial, 0);
   });
   
-  it('retrigger labels son Kbd y On', () => {
-    assert.strictEqual(keyboardConfig.switches.retrigger.labelA, 'Kbd');
-    assert.strictEqual(keyboardConfig.switches.retrigger.labelB, 'On');
+  it('retrigger labels son On (izq) y Kbd (der), como en el panel', () => {
+    assert.strictEqual(keyboardConfig.switches.retrigger.labelA, 'On');
+    assert.strictEqual(keyboardConfig.switches.retrigger.labelB, 'Kbd');
   });
 });
 

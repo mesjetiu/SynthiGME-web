@@ -346,6 +346,147 @@ describe('Keyboard Worklet — Retrigger gap', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PARTE 6b: RETRIGGER MODES (lógica de disparo)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Simula la lógica del worklet para verificar cuándo se produce retrigger
+// según el modo seleccionado (0=Kbd: Key Release, 1=On: New Pitch).
+
+describe('Keyboard Worklet — Retrigger modes', () => {
+  let state;
+
+  beforeEach(() => {
+    state = {
+      keysPressed: new Set(),
+      currentPitch: null,
+      gateOn: false,
+      retrigger: 0,        // 0=Kbd, 1=On
+      retriggerFired: false // flag para detectar retrigger
+    };
+  });
+
+  /**
+   * Simula _handleNoteOn con la lógica corregida del worklet.
+   */
+  function noteOn(note, velocity = 100) {
+    const lastPitch = state.currentPitch;
+    state.keysPressed.add(note);
+    const maxNote = getHighestNote(state.keysPressed);
+    state.currentPitch = maxNote;
+    state.retriggerFired = false;
+
+    if (!state.gateOn) {
+      state.gateOn = true;
+    } else if (state.retrigger === 1 && maxNote !== lastPitch) {
+      state.retriggerFired = true;
+    }
+  }
+
+  /**
+   * Simula _handleNoteOff con la lógica corregida del worklet.
+   */
+  function noteOff(note) {
+    state.keysPressed.delete(note);
+    state.retriggerFired = false;
+
+    if (state.keysPressed.size === 0) {
+      state.gateOn = false;
+    } else {
+      const maxNote = getHighestNote(state.keysPressed);
+      if (maxNote !== state.currentPitch) {
+        state.currentPitch = maxNote;
+        if (state.retrigger === 1) {
+          state.retriggerFired = true;
+        }
+      }
+    }
+  }
+
+  // ── Mode 0 «Kbd» (Retrigger Key Release) ──
+
+  test('mode 0: primera nota activa gate', () => {
+    state.retrigger = 0;
+    noteOn(60);
+    assert.strictEqual(state.gateOn, true);
+    assert.strictEqual(state.retriggerFired, false);
+  });
+
+  test('mode 0: nueva nota más alta NO retrigger (legato)', () => {
+    state.retrigger = 0;
+    noteOn(60);
+    noteOn(72); // más alta, pero gate ya estaba ON
+    assert.strictEqual(state.gateOn, true);
+    assert.strictEqual(state.retriggerFired, false); // ← clave
+  });
+
+  test('mode 0: soltar nota alta con baja retenida NO retrigger', () => {
+    state.retrigger = 0;
+    noteOn(60);
+    noteOn(72);
+    noteOff(72); // pitch cambia a 60, pero no retrigger en mode 0
+    assert.strictEqual(state.gateOn, true);
+    assert.strictEqual(state.retriggerFired, false);
+  });
+
+  test('mode 0: soltar todas y volver a pulsar SÍ dispara gate', () => {
+    state.retrigger = 0;
+    noteOn(60);
+    noteOff(60); // gate OFF
+    assert.strictEqual(state.gateOn, false);
+    noteOn(72); // gate ON de nuevo (transición 0→1 tecla)
+    assert.strictEqual(state.gateOn, true);
+  });
+
+  // ── Mode 1 «On» (Key Release or New Pitch) ──
+
+  test('mode 1: primera nota activa gate sin retrigger', () => {
+    state.retrigger = 1;
+    noteOn(60);
+    assert.strictEqual(state.gateOn, true);
+    assert.strictEqual(state.retriggerFired, false); // gate se enciende, no es retrigger
+  });
+
+  test('mode 1: nueva nota más alta SÍ retrigger', () => {
+    state.retrigger = 1;
+    noteOn(60);
+    noteOn(72); // pitch cambia → retrigger
+    assert.strictEqual(state.retriggerFired, true);
+  });
+
+  test('mode 1: nota más baja NO retrigger (pitch no cambia)', () => {
+    state.retrigger = 1;
+    noteOn(72);
+    noteOn(60); // nota más baja, pitch sigue siendo 72 → sin retrigger
+    assert.strictEqual(state.retriggerFired, false);
+  });
+
+  test('mode 1: soltar nota alta con baja retenida SÍ retrigger', () => {
+    state.retrigger = 1;
+    noteOn(60);
+    noteOn(72);
+    noteOff(72); // pitch cambia de 72→60 → retrigger
+    assert.strictEqual(state.retriggerFired, true);
+    assert.strictEqual(state.gateOn, true);
+  });
+
+  test('mode 1: misma nota pulsada dos veces NO retrigger', () => {
+    state.retrigger = 1;
+    noteOn(60);
+    noteOn(60); // Set.add no cambia, pitch sigue igual
+    assert.strictEqual(state.retriggerFired, false);
+  });
+
+  test('mode 1: soltar nota que no era la más alta NO retrigger', () => {
+    state.retrigger = 1;
+    noteOn(60);
+    noteOn(72);
+    noteOff(60); // pitch sigue siendo 72, sin cambio
+    assert.strictEqual(state.retriggerFired, false);
+    assert.strictEqual(state.gateOn, true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PARTE 7: CONSTANTES
 // ═══════════════════════════════════════════════════════════════════════════
 

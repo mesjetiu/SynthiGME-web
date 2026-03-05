@@ -4618,6 +4618,60 @@ matrix.source.randomCV.voltage2:
   pt: "Random CV V2"
   cs: "Random CV V2"
 
+matrix.source.keyboardUpper.pitch:
+  en: "Upper KB Pitch"
+  es: "Teclado Sup. Pitch"
+  fr: "Clavier Sup. Pitch"
+  de: "Obere Tast. Pitch"
+  it: "Tast. Sup. Pitch"
+  pt: "Teclado Sup. Pitch"
+  cs: "Horní kláv. Pitch"
+
+matrix.source.keyboardUpper.velocity:
+  en: "Upper KB Velocity"
+  es: "Teclado Sup. Velocity"
+  fr: "Clavier Sup. Vélocité"
+  de: "Obere Tast. Velocity"
+  it: "Tast. Sup. Velocity"
+  pt: "Teclado Sup. Velocity"
+  cs: "Horní kláv. Velocity"
+
+matrix.source.keyboardUpper.gate:
+  en: "Upper KB Gate"
+  es: "Teclado Sup. Gate"
+  fr: "Clavier Sup. Gate"
+  de: "Obere Tast. Gate"
+  it: "Tast. Sup. Gate"
+  pt: "Teclado Sup. Gate"
+  cs: "Horní kláv. Gate"
+
+matrix.source.keyboardLower.pitch:
+  en: "Lower KB Pitch"
+  es: "Teclado Inf. Pitch"
+  fr: "Clavier Inf. Pitch"
+  de: "Untere Tast. Pitch"
+  it: "Tast. Inf. Pitch"
+  pt: "Teclado Inf. Pitch"
+  cs: "Dolní kláv. Pitch"
+
+matrix.source.keyboardLower.velocity:
+  en: "Lower KB Velocity"
+  es: "Teclado Inf. Velocity"
+  fr: "Clavier Inf. Vélocité"
+  de: "Untere Tast. Velocity"
+  it: "Tast. Inf. Velocity"
+  pt: "Teclado Inf. Velocity"
+  cs: "Dolní kláv. Velocity"
+
+matrix.source.keyboardLower.gate:
+  en: "Lower KB Gate"
+  es: "Teclado Inf. Gate"
+  fr: "Clavier Inf. Gate"
+  de: "Untere Tast. Gate"
+  it: "Tast. Inf. Gate"
+  pt: "Teclado Inf. Gate"
+  cs: "Dolní kláv. Gate"
+
 # Destinations (columns)
 matrix.dest.outputBus:
   en: "Out {bus}"

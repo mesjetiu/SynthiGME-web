@@ -17,11 +17,15 @@
  * - Prioridad de nota más alta (High-note priority)
  * - Memoria (Sample & Hold): pitch y velocity se mantienen al soltar
  * - Nota pivote: F#3 (MIDI 66) = 0V. El spread se expande desde este centro
- * - Retrigger:
- *     Mode 0 (Key Release): envelope solo se redispara si todas las teclas
- *         se sueltan primero, o si la nueva nota es más aguda que la actual
- *     Mode 1 (Retrigger): cada nueva nota más aguda fuerza un retrigger
- *         (gate baja y sube brevemente)
+ * - Retrigger (selector rotativo del Panel 4, ON / KBD):
+ *     Mode 0 «Kbd» (Retrigger Key Release): la envolvente solo se
+ *         redispara si TODAS las teclas se sueltan primero. Si tocas
+ *         legato (nueva nota sin soltar la anterior), el pitch cambia
+ *         pero el gate NO hace retrigger.  Modo staccato clásico.
+ *     Mode 1 «On» (Key Release or New Pitch): la envolvente se
+ *         redispara siempre que hay un cambio de pitch, tanto al
+ *         pulsar una nota más aguda como al soltar la más aguda.
+ *         Permite ejecución legato con re-ataque automático.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * CONVERSIONES
@@ -85,7 +89,7 @@ class KeyboardProcessor extends AudioWorkletProcessor {
     this._velocityLevel = 5;
     /** Gate/Envelope Trigger Level: -5..+5, normalmente +5V */
     this._gateLevel = 5;
-    /** Retrigger mode: 0 = key release, 1 = retrigger on new note */
+    /** Retrigger mode: 0 = Kbd (key release only), 1 = On (retrigger on new pitch) */
     this._retrigger = 0;
 
     // ── Retrigger timing ──
@@ -212,20 +216,20 @@ class KeyboardProcessor extends AudioWorkletProcessor {
       this._recalcVelocity();
     }
 
-    // Gate ON
+    // Gate ON / Retrigger
     if (!this._gateOn) {
-      // Primera tecla → gate ON
+      // Primera tecla (o tras soltar todas) → gate ON (ambos modos)
       this._gateOn = true;
       this._outGate = this._computeGateVoltage(true);
-    } else if (note === maxNote && this._retrigger === 1) {
-      // Retrigger mode: nueva nota más aguda → gap + re-gate
-      this._retriggerActive = true;
-      this._retriggerCounter = RETRIGGER_GAP_SAMPLES;
-    } else if (note === maxNote && maxNote > (lastPitch ?? 0)) {
-      // Key release mode con nota ascendente → retrigger
+    } else if (this._retrigger === 1 && maxNote !== lastPitch) {
+      // Mode 1 «On» (Key Release or New Pitch):
+      // El pitch ha cambiado → retrigger (gap + re-gate)
       this._retriggerActive = true;
       this._retriggerCounter = RETRIGGER_GAP_SAMPLES;
     }
+    // Mode 0 «Kbd» (Retrigger Key Release):
+    // NO retrigger mientras hay teclas pulsadas — solo al pasar
+    // de 0 teclas a 1+ (condición !this._gateOn, arriba).
   }
 
   /**
@@ -245,8 +249,14 @@ class KeyboardProcessor extends AudioWorkletProcessor {
       // Aún hay teclas — recalcular a la más alta
       const maxNote = this._getHighestNote();
       if (maxNote !== this._currentPitch) {
+        const oldPitch = this._currentPitch;
         this._currentPitch = maxNote;
         this._recalcPitch();
+        // Mode 1 «On»: el pitch ha cambiado al soltar → retrigger
+        if (this._retrigger === 1 && oldPitch !== null) {
+          this._retriggerActive = true;
+          this._retriggerCounter = RETRIGGER_GAP_SAMPLES;
+        }
       }
     }
   }

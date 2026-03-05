@@ -31,16 +31,22 @@
  * CONVERSIONES
  * ─────────────────────────────────────────────────────────────────────────
  *
- * Pitch:    (midiNote - 66) / 12 * pitchSpread/9
- *           → a spread=9: 1V/Oct exacto, centrado en F#3
+ * Pitch:    ((midiNote - 66) / 12 * pitchSpread/9 + offset) / DIGITAL_TO_VOLTAGE
+ *           → a spread=9: 1V/Oct exacto (0.25 digital/Oct), centrado en F#3
  *           → a spread=0: todas las notas dan ~0V
  *           → a spread=10: ~1.11V/Oct (intervalo expandido)
  *
- * Velocity: (midiVelocity / 127) * 7 - 3.5  → rango base [-3.5V, +3.5V]
- *           Multiplicado por factor velocityLevel/5 (dial -5..+5 → factor -1..+1)
+ * Velocity: (midiVelocity / 127) * velocityLevel
+ *           → dial +5: velocidad proporcional, hasta +5V (el estándar)
+ *           → dial  0: sin efecto (0V siempre)
+ *           → dial -5: inversión, pulsación rápida → -5V ("louder→softer")
+ *           Memoria: sample & hold hasta la siguiente pulsación
  *
- * Gate:     -gateLevel cuando no hay tecla, +gateLevel con tecla pulsada
- *           gateLevel = dial(-5..+5) → ±5V
+ * Gate:     key pulsada → +gateLevel, key soltada → 0V
+ *           gateLevel = dial(-5..+5). Sin memoria: desaparece al soltar
+ *           → dial +5: pulso +5V estándar para disparo de envolvente
+ *           → dial -5: pulso -5V invertido
+ *           → dial  0: sin gate (0V siempre)
  *
  * @module worklets/keyboard
  */
@@ -56,8 +62,15 @@ const SPREAD_UNITY = 9;
 /** Semitonos por octava */
 const SEMITONES_PER_OCTAVE = 12;
 
-/** Rango base de velocity en voltios (simétrico) */
-const VELOCITY_RANGE_V = 7;
+/**
+ * Factor de conversión voltaje → unidades digitales.
+ * El sistema CV del sintetizador usa 1 unidad digital = 4V reales.
+ * Todas las salidas del worklet deben emitir en unidades digitales
+ * para que los destinos (ej. freqCVInput ×4800 cents) las interpreten
+ * correctamente como 1V/Oct.
+ * @see voltageConstants.js — DIGITAL_TO_VOLTAGE
+ */
+const DIGITAL_TO_VOLTAGE = 4.0;
 
 /** Duración del retrigger gap en samples (~2ms @ 48kHz) */
 const RETRIGGER_GAP_SAMPLES = 96;
@@ -99,7 +112,7 @@ class KeyboardProcessor extends AudioWorkletProcessor {
     // ── Valores de salida calculados (sample & hold) ──
     this._outPitch = 0;
     this._outVelocity = 0;
-    this._outGate = -1; // gate off = voltaje negativo normalizado
+    this._outGate = 0; // gate off = 0V (sin memoria, desaparece al soltar)
 
     // ── Dormancy ──
     this._dormant = false;
@@ -266,29 +279,31 @@ class KeyboardProcessor extends AudioWorkletProcessor {
   /**
    * Recalcula el voltaje de pitch basado en la nota actual y parámetros.
    * Fórmula: ((note - PIVOT) / 12) * (spread / SPREAD_UNITY) + offset
-   * Opcionalmente invertido.
+   *          Todo dividido por DIGITAL_TO_VOLTAGE para convertir V → digital.
+   *
+   * Ejemplo con spread=9, F#4 (nota 78):
+   *   v = (78-66)/12 * 9/9 = 1.0V → /4.0 = 0.25 digital
+   *   → freqCVInput(×4800) = 1200 cents = 1 octava ✓
    */
   _recalcPitch() {
     if (this._currentPitch === null) {
-      this._outPitch = this._pitchOffset; // Solo offset, sin nota
+      this._outPitch = this._pitchOffset / DIGITAL_TO_VOLTAGE;
       return;
     }
     let v = ((this._currentPitch - PIVOT_NOTE) / SEMITONES_PER_OCTAVE)
             * (this._pitchSpread / SPREAD_UNITY);
     if (this._invert) v = -v;
     v += this._pitchOffset;
-    this._outPitch = v;
+    this._outPitch = v / DIGITAL_TO_VOLTAGE;
   }
 
   /**
    * Recalcula el voltaje de velocity.
-   * Base: (vel/127)*7 - 3.5 → [-3.5, +3.5]
-   * Factor: velocityLevel/5 → [-1, +1]
+   *   output = (midiVelocity / 127) * velocityLevel
+   * Dial +5 → hasta +5V, dial 0 → 0V, dial -5 → inversión hasta -5V.
    */
   _recalcVelocity() {
-    const base = (this._currentVelocity / 127) * VELOCITY_RANGE_V - (VELOCITY_RANGE_V / 2);
-    const factor = this._velocityLevel / 5;
-    this._outVelocity = base * factor;
+    this._outVelocity = (this._currentVelocity / 127) * this._velocityLevel;
   }
 
   /**
@@ -300,14 +315,13 @@ class KeyboardProcessor extends AudioWorkletProcessor {
 
   /**
    * Calcula el voltaje de gate.
-   * gate ON  → +(gateLevel / 5)  (normalizado, GainNode escala a voltios)
-   * gate OFF → -(gateLevel / 5)
+   * gate ON  → +gateLevel (voltaje del dial)
+   * gate OFF → 0V (sin memoria: desaparece al soltar la tecla)
    * @param {boolean} on
    * @returns {number}
    */
   _computeGateVoltage(on) {
-    const level = this._gateLevel / 5; // -1..+1
-    return on ? Math.abs(level) : -Math.abs(level);
+    return on ? this._gateLevel : 0;
   }
 
   /**

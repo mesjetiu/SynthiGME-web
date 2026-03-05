@@ -28,7 +28,7 @@ import assert from 'node:assert';
 const PIVOT_NOTE = 66;         // F#3
 const SPREAD_UNITY = 9;        // 1V/Oct
 const SEMITONES_PER_OCTAVE = 12;
-const VELOCITY_RANGE_V = 7;    // ±3.5V
+const DIGITAL_TO_VOLTAGE = 4.0; // 1 digital = 4V (coincide con voltageConstants.js)
 const RETRIGGER_GAP_SAMPLES = 96;
 const SAMPLE_RATE = 48000;
 
@@ -37,35 +37,33 @@ const SAMPLE_RATE = 48000;
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Calcula el voltaje de pitch.
+ * Calcula el voltaje de pitch en unidades digitales.
  * Fórmula: ((note - PIVOT) / 12) * (spread / SPREAD_UNITY) + offset
+ *          Todo dividido por DIGITAL_TO_VOLTAGE (4.0)
  */
 function recalcPitch(note, spread, offset = 0, invert = false) {
-  if (note === null) return offset;
+  if (note === null) return offset / DIGITAL_TO_VOLTAGE;
   let v = ((note - PIVOT_NOTE) / SEMITONES_PER_OCTAVE) * (spread / SPREAD_UNITY);
   if (invert) v = -v;
   v += offset;
-  return v;
+  return v / DIGITAL_TO_VOLTAGE;
 }
 
 /**
  * Calcula el voltaje de velocity.
- * Base: (vel/127)*7 - 3.5 → [-3.5, +3.5]
- * Factor: velocityLevel/5 → [-1, +1]
+ * Fórmula: (vel/127) * velocityLevel
+ * Dial +5 → hasta +5V, dial 0 → 0V, dial -5 → inversión hasta -5V.
  */
 function recalcVelocity(velocity, velocityLevel) {
-  const base = (velocity / 127) * VELOCITY_RANGE_V - (VELOCITY_RANGE_V / 2);
-  const factor = velocityLevel / 5;
-  return base * factor;
+  return (velocity / 127) * velocityLevel;
 }
 
 /**
  * Calcula el voltaje de gate.
- * gate ON → +|gateLevel/5|, gate OFF → -|gateLevel/5|
+ * gate ON → +gateLevel, gate OFF → 0V (sin memoria)
  */
 function computeGateVoltage(on, gateLevel) {
-  const level = gateLevel / 5;
-  return on ? Math.abs(level) : -Math.abs(level);
+  return on ? gateLevel : 0;
 }
 
 /**
@@ -90,14 +88,14 @@ describe('Keyboard Worklet — Pitch', () => {
     assert.strictEqual(v, 0);
   });
 
-  test('F#4 (78) → +1V a spread=9 (1V/Oct)', () => {
+  test('F#4 (78) → 0.25 digital a spread=9 (1V/Oct = 0.25 digital/Oct)', () => {
     const v = recalcPitch(78, 9);
-    assert.ok(Math.abs(v - 1) < 1e-10, `Expected 1V, got ${v}`);
+    assert.ok(Math.abs(v - 0.25) < 1e-10, `Expected 0.25 digital (1V), got ${v}`);
   });
   
-  test('F#2 (54) → -1V a spread=9 (1V/Oct)', () => {
+  test('F#2 (54) → -0.25 digital a spread=9 (1V/Oct)', () => {
     const v = recalcPitch(54, 9);
-    assert.ok(Math.abs(v - (-1)) < 1e-10, `Expected -1V, got ${v}`);
+    assert.ok(Math.abs(v - (-0.25)) < 1e-10, `Expected -0.25 digital (-1V), got ${v}`);
   });
   
   test('spread=0 → todas las notas dan ~0V', () => {
@@ -107,14 +105,14 @@ describe('Keyboard Worklet — Pitch', () => {
     assert.strictEqual(v2, 0);
   });
   
-  test('spread=10 → intervalo expandido (>1V/Oct)', () => {
+  test('spread=10 → intervalo expandido (>0.25 digital/Oct)', () => {
     const v = recalcPitch(78, 10);
-    assert.ok(v > 1, `Expected > 1V, got ${v}`);
+    assert.ok(v > 0.25, `Expected > 0.25 digital, got ${v}`);
   });
   
-  test('offset se suma al pitch', () => {
+  test('offset se suma al pitch (dividido por DIGITAL_TO_VOLTAGE)', () => {
     const v = recalcPitch(66, 9, 2.5);
-    assert.ok(Math.abs(v - 2.5) < 1e-10);
+    assert.ok(Math.abs(v - 2.5 / DIGITAL_TO_VOLTAGE) < 1e-10);
   });
   
   test('invert invierte la polaridad del pitch (sin offset)', () => {
@@ -123,14 +121,14 @@ describe('Keyboard Worklet — Pitch', () => {
     assert.ok(Math.abs(normal + inverted) < 1e-10);
   });
   
-  test('nota null con offset devuelve solo offset', () => {
+  test('nota null con offset devuelve solo offset / DIGITAL_TO_VOLTAGE', () => {
     const v = recalcPitch(null, 9, 3);
-    assert.strictEqual(v, 3);
+    assert.ok(Math.abs(v - 3 / DIGITAL_TO_VOLTAGE) < 1e-10);
   });
   
-  test('1 semitono → 1/12 V a spread=9', () => {
+  test('1 semitono → 1/48 digital a spread=9 (1/12 V / 4)', () => {
     const v = recalcPitch(67, 9); // F#3 + 1 semitono
-    const expected = 1 / SEMITONES_PER_OCTAVE;
+    const expected = 1 / SEMITONES_PER_OCTAVE / DIGITAL_TO_VOLTAGE;
     assert.ok(Math.abs(v - expected) < 1e-10);
   });
 });
@@ -141,22 +139,22 @@ describe('Keyboard Worklet — Pitch', () => {
 
 describe('Keyboard Worklet — Velocity', () => {
   
-  test('velocity 0 con level +5 → -3.5V', () => {
+  test('velocity 0 con level +5 → 0V (sin pulsación)', () => {
     const v = recalcVelocity(0, 5);
-    assert.ok(Math.abs(v - (-3.5)) < 1e-10);
+    assert.strictEqual(v, 0);
   });
   
-  test('velocity 127 con level +5 → +3.5V', () => {
+  test('velocity 127 con level +5 → +5V (máximo positivo)', () => {
     const v = recalcVelocity(127, 5);
-    assert.ok(Math.abs(v - 3.5) < 1e-10);
+    assert.ok(Math.abs(v - 5) < 1e-10);
   });
   
-  test('velocity ~64 con level +5 → ~0V', () => {
-    const v = recalcVelocity(63.5, 5);
-    assert.ok(Math.abs(v) < 0.05, `Expected ~0V, got ${v}`);
+  test('velocity 127 con level -5 → -5V (inversión: louder→softer)', () => {
+    const v = recalcVelocity(127, -5);
+    assert.ok(Math.abs(v - (-5)) < 1e-10);
   });
   
-  test('velocityLevel 0 → sin efecto de velocity', () => {
+  test('velocityLevel 0 → sin efecto de velocity (0V siempre)', () => {
     const v = recalcVelocity(127, 0);
     assert.strictEqual(v, 0);
   });
@@ -167,10 +165,9 @@ describe('Keyboard Worklet — Velocity', () => {
     assert.ok(Math.abs(vPos + vNeg) < 1e-10);
   });
   
-  test('rango total es ±3.5V (7V p-p) a level=5', () => {
-    const vMin = recalcVelocity(0, 5);
-    const vMax = recalcVelocity(127, 5);
-    assert.ok(Math.abs((vMax - vMin) - VELOCITY_RANGE_V) < 1e-10);
+  test('velocity media (64) con level +5 → ~2.52V', () => {
+    const v = recalcVelocity(64, 5);
+    assert.ok(Math.abs(v - (64/127)*5) < 1e-10);
   });
 });
 
@@ -180,35 +177,34 @@ describe('Keyboard Worklet — Velocity', () => {
 
 describe('Keyboard Worklet — Gate', () => {
   
-  test('gate ON con level +5 → +1 (normalizado)', () => {
+  test('gate ON con level +5 → +5V', () => {
     const v = computeGateVoltage(true, 5);
-    assert.strictEqual(v, 1);
+    assert.strictEqual(v, 5);
   });
   
-  test('gate OFF con level +5 → -1 (normalizado)', () => {
+  test('gate OFF con level +5 → 0V (sin memoria)', () => {
     const v = computeGateVoltage(false, 5);
-    assert.strictEqual(v, -1);
+    assert.strictEqual(v, 0);
   });
   
-  test('gate ON con level -5 → +1 (abs)', () => {
+  test('gate ON con level -5 → -5V (invertido)', () => {
     const v = computeGateVoltage(true, -5);
-    assert.strictEqual(v, 1);
+    assert.strictEqual(v, -5);
   });
   
-  test('gate OFF con level -5 → -1 (abs negativo)', () => {
+  test('gate OFF con level -5 → 0V', () => {
     const v = computeGateVoltage(false, -5);
-    assert.strictEqual(v, -1);
+    assert.strictEqual(v, 0);
   });
   
   test('gate level 0 → 0V en ambos estados', () => {
-    assert.ok(Object.is(computeGateVoltage(true, 0), 0) || computeGateVoltage(true, 0) === 0);
-    // -0 === 0 en JS, pero strictEqual distingue. Usar == o Math.abs
-    assert.strictEqual(Math.abs(computeGateVoltage(false, 0)), 0);
+    assert.strictEqual(computeGateVoltage(true, 0), 0);
+    assert.strictEqual(computeGateVoltage(false, 0), 0);
   });
   
-  test('gate level 2.5 → ±0.5V normalizado', () => {
-    assert.strictEqual(computeGateVoltage(true, 2.5), 0.5);
-    assert.strictEqual(computeGateVoltage(false, 2.5), -0.5);
+  test('gate level 2.5 → ON=+2.5V, OFF=0V', () => {
+    assert.strictEqual(computeGateVoltage(true, 2.5), 2.5);
+    assert.strictEqual(computeGateVoltage(false, 2.5), 0);
   });
 });
 
@@ -502,9 +498,5 @@ describe('Keyboard Worklet — Constantes', () => {
   
   test('SEMITONES_PER_OCTAVE es 12', () => {
     assert.strictEqual(SEMITONES_PER_OCTAVE, 12);
-  });
-  
-  test('VELOCITY_RANGE_V es 7 (±3.5V)', () => {
-    assert.strictEqual(VELOCITY_RANGE_V, 7);
   });
 });

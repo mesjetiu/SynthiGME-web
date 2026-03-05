@@ -4,7 +4,7 @@
  * Verifica la configuración del módulo de teclado:
  * - Estructura del esquema (schemaVersion, id, title)
  * - Filas de la matriz de control (Panel 6): upper 111-113, lower 114-116
- * - Parámetros de audio (pivotNote, spreadUnity, velocityRangeV, retriggerGapMs)
+ * - Parámetros de audio (pivotNote, spreadUnity, retriggerGapMs)
  * - Rangos y valores iniciales de los 4 knobs
  * - Configuración de switches (retrigger)
  * - Coherencia entre parámetros
@@ -126,10 +126,6 @@ describe('Keyboard Config — Audio params', () => {
   
   it('spreadUnity es 9 (1V/Oct)', () => {
     assert.strictEqual(keyboardConfig.audio.spreadUnity, 9);
-  });
-  
-  it('velocityRangeV es 7 (±3.5V)', () => {
-    assert.strictEqual(keyboardConfig.audio.velocityRangeV, 7);
   });
   
   it('retriggerGapMs es 2', () => {

@@ -47,8 +47,6 @@ export default {
     pivotNote: 66,
     /** Valor de Pitch Spread que da 1V/Oct exacto */
     spreadUnity: 9,
-    /** Rango de velocity en voltios (simétrico: -3.5V a +3.5V) */
-    velocityRangeV: 7,
     /** Duración del retrigger gap en ms */
     retriggerGapMs: 2
   },

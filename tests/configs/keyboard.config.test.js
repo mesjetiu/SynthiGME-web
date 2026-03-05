@@ -183,8 +183,8 @@ describe('Keyboard Config — Knobs', () => {
       assert.strictEqual(keyboardConfig.knobs.velocityLevel.max, 5);
     });
     
-    it('valor inicial 5 (pleno efecto positivo)', () => {
-      assert.strictEqual(keyboardConfig.knobs.velocityLevel.initial, 5);
+    it('valor inicial 0 (centro)', () => {
+      assert.strictEqual(keyboardConfig.knobs.velocityLevel.initial, 0);
     });
   });
   
@@ -195,8 +195,8 @@ describe('Keyboard Config — Knobs', () => {
       assert.strictEqual(keyboardConfig.knobs.gateLevel.max, 5);
     });
     
-    it('valor inicial 5 (+5V gate)', () => {
-      assert.strictEqual(keyboardConfig.knobs.gateLevel.initial, 5);
+    it('valor inicial 0 (centro)', () => {
+      assert.strictEqual(keyboardConfig.knobs.gateLevel.initial, 0);
     });
   });
 });

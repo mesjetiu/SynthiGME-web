@@ -82,14 +82,14 @@ export default {
     velocityLevel: {
       min: -5,
       max: 5,
-      initial: 5,       // pleno efecto positivo
+      initial: 0,       // centro (0V)
       curve: 'linear',
       label: 'Key Velocity'
     },
     gateLevel: {
       min: -5,
       max: 5,
-      initial: 5,       // +5V gate
+      initial: 0,       // centro (0V)
       curve: 'linear',
       label: 'Env. Control'
     }

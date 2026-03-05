@@ -92,8 +92,8 @@ export class KeyboardModule extends Module {
       pitchSpread: 9,      // 0-10, default 9 (1V/Oct)
       pitchOffset: 0,      // voltaje DC offset (-5..+5)
       invert: false,       // inverting buffer
-      velocityLevel: 5,    // -5..+5
-      gateLevel: 5,        // -5..+5
+      velocityLevel: 0,    // -5..+5, centro
+      gateLevel: 0,        // -5..+5, centro
       retrigger: 0         // 0 = Kbd (key release only), 1 = On (retrigger on new pitch)
     };
 

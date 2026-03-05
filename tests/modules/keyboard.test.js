@@ -49,8 +49,8 @@ class MockKeyboardModule {
       pitchSpread: 9,
       pitchOffset: 0,
       invert: false,
-      velocityLevel: 5,
-      gateLevel: 5,
+      velocityLevel: 0,
+      gateLevel: 0,
       retrigger: 0
     };
     
@@ -196,8 +196,8 @@ describe('KeyboardModule — Inicialización', () => {
     assert.strictEqual(mod.side, 'upper');
     assert.strictEqual(mod.values.pitchSpread, 9);
     assert.strictEqual(mod.values.pitchOffset, 0);
-    assert.strictEqual(mod.values.velocityLevel, 5);
-    assert.strictEqual(mod.values.gateLevel, 5);
+    assert.strictEqual(mod.values.velocityLevel, 0);
+    assert.strictEqual(mod.values.gateLevel, 0);
     assert.strictEqual(mod.values.retrigger, 0);
     assert.strictEqual(mod.isStarted, false);
   });

@@ -3187,10 +3187,12 @@ class App {
     // ── Helper: crear un knob estándar ───────────────────────────────────
     const createPanel4Knob = (knobDef) => {
       const colorHex = COLOR_MAP[knobDef.color] || '';
+      const svgSrc = knobDef.bipolar ? 'assets/knobs/knob-0-center.svg' : undefined;
       return createKnob({
         size: '',
         showValue: false,
-        centerColor: colorHex
+        centerColor: colorHex,
+        ...(svgSrc && { svgSrc })
       });
     };
 
@@ -3430,7 +3432,7 @@ class App {
         const vl = kbKnobs.velocityLevel || {};
         const vlMin = vl.min ?? -5;
         const vlMax = vl.max ?? 5;
-        const vlInitial = vl.initial ?? 5;
+        const vlInitial = vl.initial ?? 0;
         const vlKnob = new Knob(kbResult.knobElements[1].knobEl, {
           min: 0,
           max: 1,
@@ -3439,6 +3441,7 @@ class App {
           scaleMin: vlMin,
           scaleMax: vlMax,
           scaleDecimals: 1,
+          angleOffset: -150,
           getTooltipInfo: getKeyboardVelocityTooltipInfo(),
           onChange: (value) => {
             const scaleValue = toScale(value, vlMin, vlMax);
@@ -3456,7 +3459,7 @@ class App {
         const gl = kbKnobs.gateLevel || {};
         const glMin = gl.min ?? -5;
         const glMax = gl.max ?? 5;
-        const glInitial = gl.initial ?? 5;
+        const glInitial = gl.initial ?? 0;
         const glKnob = new Knob(kbResult.knobElements[2].knobEl, {
           min: 0,
           max: 1,
@@ -3465,6 +3468,7 @@ class App {
           scaleMin: glMin,
           scaleMax: glMax,
           scaleDecimals: 1,
+          angleOffset: -150,
           getTooltipInfo: getKeyboardGateTooltipInfo(),
           onChange: (value) => {
             const scaleValue = toScale(value, glMin, glMax);

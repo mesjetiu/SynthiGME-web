@@ -155,8 +155,8 @@ export default {
         id: 'upperKeyboard',
         knobs: [
           { name: 'Pitch', type: 'vernier' },
-          { name: 'Key Velocity', type: 'standard', color: 'yellow' },
-          { name: 'Env. Control', type: 'standard', color: 'white' }
+          { name: 'Key Velocity', type: 'standard', color: 'yellow', bipolar: true },
+          { name: 'Env. Control', type: 'standard', color: 'white', bipolar: true }
         ],
         switches: [
           { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
@@ -173,8 +173,8 @@ export default {
         id: 'lowerKeyboard',
         knobs: [
           { name: 'Pitch', type: 'vernier' },
-          { name: 'Key Velocity', type: 'standard', color: 'yellow' },
-          { name: 'Env. Control', type: 'standard', color: 'white' }
+          { name: 'Key Velocity', type: 'standard', color: 'yellow', bipolar: true },
+          { name: 'Env. Control', type: 'standard', color: 'white', bipolar: true }
         ],
         switches: [
           { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }

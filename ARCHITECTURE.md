@@ -113,6 +113,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `outputFilter.worklet.js` | Filtro RC pasivo de 1er orden (6 dB/oct) para Output Channels. Modela el circuito real del plano D100-08 C1: pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×). Transición continua LP→plano→HP con un único AudioParam `filterPosition` (k-rate). **Audio**: LP fc(-3dB) ≈ 677 Hz, pendiente -6 dB/oct; HP shelving +6 dB en HF; zona de transición 339-677 Hz (medios-bajos). Coeficientes IIR via transformada bilineal. Carácter musical suave (un solo polo), no corte brusco |
 | `cvSoftClip.worklet.js` | Saturación polinómica suave para limitar CV de frecuencia. Usa fórmula pura `y = x - x³·k` (sin condicionales) donde k es coeficiente configurable (rango 0.0001–1.0, por defecto 0.333). Se aplica después del thermal slew para recibir señal pre-suavizada. **Configuración**: coeficiente en `oscillator.config.js` → `softClip.coefficient`. **Limitación superada**: Web Audio API requiere aritmética pura en AudioWorklet para propagación a AudioParam |
 | `randomCV.worklet.js` | Generador de voltaje de control aleatorio (placa PC-21, D100-21 C1). Reloj interno 0.2–20 Hz con mapeo exponencial (`freq = 0.2 × 100^(norm)`), jitter temporal multiplicativo configurable (varianza 0–100%). 3 canales: V1 (DC aleatorio ±1), V2 (DC aleatorio ±1), Key (pulso 5ms, amplitud 1.0). **Dormancy**: el reloj sigue corriendo internamente durante dormancy (eventos fantasma actualizan V1/V2), la salida se silencia. Al despertar, la fase del ritmo se preserva y `_keySamplesRemaining` se resetea para evitar pulsos key espurios |
+| `keyboard.worklet.js` | Procesador de teclado polifónico del Synthi 100 (Panel 4). Gestiona lista de notas activas, cálculo de pitch (V/Oct), gate y velocity como señales de audio. 3 salidas: pitchSpread (0-10), gateLevel (-5..+5), velocityLevel (-5..+5). 2 modos de retrigger: **Kbd** (mode 0, staccato — solo retrigger al soltar todas y pulsar nueva) y **On** (mode 1, legato con retrigger al cambiar pitch). Mensajes: `noteOn [nota, vel]`, `noteOff nota`, `setDormant`, `stop`. Cada instancia upper/lower es independiente. **Dormancy**: soporta `setDormant` para early exit en `process()` |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -128,6 +129,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330 y filtro RC pasivo de corrección tonal (1er orden, 6 dB/oct, fc ≈ 677 Hz). Control tonal bipolar: LP (atenúa agudos) ↔ plano (0 dB) ↔ HP shelving (+6 dB en HF). Pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
 | `randomCV.js` | `RandomCVModule` | Generador de voltaje de control aleatorio. Cadena: `AudioWorkletNode(random-cv, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (voltage1, voltage2, key). Niveles V1/V2 con curva LOG (base 100, pot 10K audio taper), nivel Key lineal bipolar (±5V). Lazy start al primer pin en Panel 6. Dormancy: rampea ganancias y envía `setDormant` al worklet. Filas Panel 6: 89 (Key), 90 (V1), 91 (V2) |
+| `keyboard.js` | `KeyboardModule` | Teclado polifónico del Synthi 100 (Panel 4). Cadena: `AudioWorkletNode(keyboard, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (pitchSpread, gateLevel, velocityLevel). Knobs: pitchSpread (0-10), velocityLevel (-5..+5), gateLevel (-5..+5). Selector retrigger (RotarySwitch): On (mode 1, legato retrigger) / Kbd (mode 0, staccato). Lazy start al primer `noteOn()`. 2 instancias: upper y lower. Filas Panel 6: 92-97 (upper: pitch 92, gate 93, vel 94; lower: pitch 95, gate 96, vel 97) |
 
 **Patrón de módulo:**
 ```javascript
@@ -338,6 +340,7 @@ Componentes de interfaz reutilizables:
 | `confirmDialog.js` | `ConfirmDialog` | Modal de confirmación reutilizable (singleton): título, mensaje, botones personalizables, opción "no volver a preguntar" con persistencia localStorage. Métodos estáticos `show()`, `getRememberedChoice()`, `clearRememberedChoice()` |
 | `inputDialog.js` | `InputDialog` | Diálogo de entrada de texto personalizado (singleton): reemplaza `prompt()` nativo, título/placeholder/valor por defecto configurables, soporte i18n |
 | `keyboardShortcuts.js` | `KeyboardShortcutsManager` | Gestor centralizado de atajos de teclado (singleton): acciones configurables (mute, record, patches, settings, fullscreen, reset, navegación paneles), persistencia en localStorage, teclas reservadas (Tab, Enter, Escape) |
+| `keyboardWindow.js` | `KeyboardWindow` | Ventana emergente SVG para los teclados del Synthi 100 (Panel 4). Renderiza 5 octavas con teclas interactivas (pointer events), feedback visual, glissando, y 3 modos de toque: **Normal** (press/release), **Latch** (toggle, teclas se quedan pulsadas), **Legato** (una tecla a la vez). Menú contextual con radio buttons para selección de modo. Persistencia del modo en localStorage |
 | `patchBrowser.js` | `PatchBrowser` | Modal para gestionar patches: guardar, cargar, eliminar, renombrar, exportar/importar archivos `.sgme.json`, búsqueda por nombre |
 | `quickbar.js` | — | Barra de acciones rápidas para móvil (bloqueo zoom/pan, ajustes, configuración de audio, pantalla completa, **menú PiP**) |
 | `pipManager.js` | `initPipManager()`, `openPip()`, `closePip()`, `togglePip()` | Sistema de paneles flotantes (Picture-in-Picture). Permite extraer cualquier panel del layout principal a una ventana flotante independiente con zoom/scroll propios. Funciones: `openAllPips()`, `closeAllPips()`, `getOpenPips()`, `isPipped()`. Persistencia de estado (posición, tamaño, scroll) en localStorage. Constante `ALL_PANELS` define los 7 paneles disponibles |
@@ -618,6 +621,7 @@ src/assets/js/configs/
     ├── inputAmplifier.config.js
     ├── outputChannel.config.js
     ├── oscilloscope.config.js
+    ├── keyboard.config.js
     ├── audioMatrix.config.js
     └── controlMatrix.config.js
 ```
@@ -633,6 +637,7 @@ src/assets/js/configs/
 | `outputChannel.config.js` | Canales de salida | Rangos de filtros, niveles, pan, **rampas para knobs/faders** |
 | `audioMatrix.config.js` | Matriz de audio (Panel 5) | Ganancias por cruce, tipos de pin |
 | `controlMatrix.config.js` | Matriz de control (Panel 6) | Ganancias CV, tipos de pin |
+| `keyboard.config.js` | Teclados (Upper/Lower) | 3 knobs (pitchSpread 0-10, velocityLevel -5..+5, gateLevel -5..+5), selector retrigger (On/Kbd), rampas (10ms), filas de matriz Panel 6 (upper 92-94, lower 95-97) |
 
 **Importación centralizada:**
 ```javascript
@@ -667,7 +672,7 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 | `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos placeholder (filtros, envelopes, ring modulators, reverb, echo) con 57 knobs |
 | `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
-| `panel4.blueprint.js` | Blueprint | Layout del Panel 4: módulos placeholder para futuras funcionalidades |
+| `panel4.blueprint.js` | Blueprint | Layout del Panel 4: 2 teclados (upper/lower) con 3 knobs cada uno (pitchSpread, velocityLevel, gateLevel), selector retrigger (On/Kbd), filas de matriz de control 92-97 |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
 | `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
 | `panel7.blueprint.js` | Blueprint | Layout del Panel 7: 8 Output Channels (Filter, Pan, Switch, Level Fader por canal) |
@@ -2696,6 +2701,7 @@ src/assets/js/osc/
 ├── oscOutputChannelSync.js  # Sincronización de output channels
 ├── oscNoiseGeneratorSync.js # Sincronización de noise generators
 ├── oscJoystickSync.js       # Sincronización de joysticks
+├── oscKeyboardSync.js       # Sincronización de teclados (upper/lower)
 └── oscMatrixSync.js         # Sincronización de matrices audio/control (incluye PWM)
 ```
 
@@ -2950,6 +2956,7 @@ tests/
 │   └── dormancyManager.test.js  # Tests del sistema de dormancy
 ├── modules/
 │   ├── joystick.test.js         # Tests del módulo joystick
+│   ├── keyboard.test.js         # Tests del módulo teclado (noteOn/Off, knobs, retrigger switch)
 │   ├── noise.test.js            # Tests del generador de ruido
 │   ├── oscillator.test.js       # Tests del oscilador
 │   ├── oscilloscope.test.js     # Tests del osciloscopio
@@ -2957,6 +2964,7 @@ tests/
 │   ├── outputRouter.test.js     # Tests del router de salidas
 │   └── pulse.test.js            # Tests del oscilador pulse
 ├── configs/
+│   ├── keyboard.config.test.js      # Tests de config de teclados (knobs, retrigger, filas matriz)
 │   ├── knobColors.test.js       # Tests de colores de centro de knobs
 │   ├── matrix.config.test.js        # Tests de configs de matrices (audio/control)
 │   ├── oscillator.config.test.js    # Tests de config de osciladores
@@ -2998,7 +3006,8 @@ tests/
 │   ├── toggle.test.js               # Tests del interruptor Toggle
 │   └── tooltipManager.test.js       # Tests del gestor de tooltips
 ├── worklets/
-│   └── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
+│   ├── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
+│   └── keyboard.worklet.test.js # Tests del worklet de teclado (noteOn/Off, retrigger modes, polifonía)
 ├── panelBlueprints/             # Tests de blueprints de paneles
 │   ├── panel1Blueprint.test.js      # Tests de Panel 1 blueprint (placeholder)
 │   ├── panel2Blueprint.test.js      # Tests de Panel 2 blueprint (osciloscopio)
@@ -3013,6 +3022,7 @@ tests/
 │   ├── oscControlSync.test.js       # Tests de sincronización de control
 │   ├── oscMatrixSync.test.js        # Tests de sincronización de matrices (audio+control+PWM)
 │   ├── oscOscillatorSync.test.js    # Tests de sincronización de osciladores
+│   ├── oscKeyboardSync.test.js      # Tests de sincronización de teclados (upper/lower)
 │   └── oscServer.test.js            # Tests del servidor OSC
 ├── integration/
 │   └── knobOscillator.test.js       # Tests de integración knob-oscilador

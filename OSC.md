@@ -411,17 +411,21 @@ Módulo único.
 
 **Ejemplo:** `/SynthiGME/oscilloscope/mode 5.0`
 
-### 17. Teclados (`/keyboard/{1-2}/...`)
+### 17. Teclados (`/keyboard/{upper|lower}/...`)
+
+2 teclados: `upper` (superior, 5 octavas) y `lower` (inferior, 5 octavas).
 
 ```
-/keyboard/{n}/midiEvent # [midinote, velocity, on/off] (Int8Array)
-/keyboard/{n}/pitch     # 0 - 10
-/keyboard/{n}/velocity  # -5 - 5
-/keyboard/{n}/gate      # -5 - 5
-/keyboard/{n}/retrigger # valor específico
+/keyboard/{side}/pitchSpread    # 0 - 10  (rango de afinación)
+/keyboard/{side}/velocityLevel  # -5 - 5  (sensibilidad velocity)
+/keyboard/{side}/gateLevel      # -5 - 5  (nivel de envelope trigger)
+/keyboard/{side}/retrigger      # 0 o 1   (0=Kbd key release, 1=On retrigger)
+/keyboard/{side}/noteOn         # [nota, velocity] (Int array, nota MIDI 0-127)
+/keyboard/{side}/noteOff        # nota            (Int, nota MIDI 0-127)
 ```
 
-**Ejemplo:** `/SynthiGME/keyboard/1/pitch 5.0`
+**Ejemplo:** `/SynthiGME/keyboard/upper/pitchSpread 5.0`
+**Ejemplo nota:** `/SynthiGME/keyboard/lower/noteOn 60 100`
 
 ### 18. Inversor (`/invertor/...`)
 

@@ -90,6 +90,12 @@ function getModuleElementIds(descriptor) {
     case 'randomCV':
       return ['panel3-random-cv'];
     
+    case 'keyboardUpper':
+      return ['upperKeyboard-module'];
+    
+    case 'keyboardLower':
+      return ['lowerKeyboard-module'];
+    
     default:
       return [];
   }
@@ -102,7 +108,7 @@ function getModuleElementIds(descriptor) {
  * @returns {HTMLElement|null}
  */
 function findModuleElement(el) {
-  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel2-placeholder');
+  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
 }
 
 /**

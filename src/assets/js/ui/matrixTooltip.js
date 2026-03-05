@@ -97,6 +97,16 @@ export function getLabelForSource(source) {
       return t(`matrix.source.randomCV.${outputKey}`);
     }
     
+    case 'keyboardUpper': {
+      const kbOutput = source.output || 'pitch';
+      return t(`matrix.source.keyboardUpper.${kbOutput}`);
+    }
+    
+    case 'keyboardLower': {
+      const kbOutput = source.output || 'pitch';
+      return t(`matrix.source.keyboardLower.${kbOutput}`);
+    }
+    
     default:
       return null;
   }

@@ -251,6 +251,17 @@ export class DormancyManager {
       this._setModuleDormant('random-cv', !hasRCVOutput);
     }
     
+    // ─────────────────────────────────────────────────────────────────────────────
+    // KEYBOARDS - 2 teclados (upper, lower), cada uno con 3 salidas en Panel 6
+    // ─────────────────────────────────────────────────────────────────────────────
+    for (const side of ['upper', 'lower']) {
+      const kind = side === 'upper' ? 'keyboardUpper' : 'keyboardLower';
+      const hasKbOutput = panel6Connections.some(c =>
+        c.source?.kind === kind
+      );
+      this._setModuleDormant(`keyboard-${side}`, !hasKbOutput);
+    }
+    
     // ─────────────────────────────────────────────────────────────────────────────    // INPUT AMPLIFIERS - 8 canales
     // ─────────────────────────────────────────────────────────────────────────
     // Por ahora, todos los canales comparten estado (podría granularizarse)
@@ -439,6 +450,14 @@ export class DormancyManager {
     // Random Control Voltage Generator
     if (moduleId === 'random-cv') {
       return this.app._panel3LayoutData?.randomCVAudio;
+    }
+    
+    // Keyboards
+    if (moduleId === 'keyboard-upper') {
+      return this.app._keyboardModules?.upper;
+    }
+    if (moduleId === 'keyboard-lower') {
+      return this.app._keyboardModules?.lower;
     }
     
     // Oscilloscope

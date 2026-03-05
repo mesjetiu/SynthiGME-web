@@ -17,6 +17,9 @@ export { default as oscillatorConfig } from './modules/oscillator.config.js';
 export { default as noiseConfig } from './modules/noise.config.js';
 export { default as randomVoltageConfig } from './modules/randomVoltage.config.js';
 
+// Teclados
+export { default as keyboardConfig } from './modules/keyboard.config.js';
+
 // Módulos de control manual
 export { default as joystickConfig } from './modules/joystick.config.js';
 
@@ -38,6 +41,7 @@ export { default as controlMatrixConfig } from './modules/controlMatrix.config.j
 import oscillatorConfig from './modules/oscillator.config.js';
 import noiseConfig from './modules/noise.config.js';
 import randomVoltageConfig from './modules/randomVoltage.config.js';
+import keyboardConfig from './modules/keyboard.config.js';
 import joystickConfig from './modules/joystick.config.js';
 import inputAmplifierConfig from './modules/inputAmplifier.config.js';
 import outputChannelConfig from './modules/outputChannel.config.js';
@@ -49,6 +53,7 @@ export default {
   oscillator: oscillatorConfig,
   noise: noiseConfig,
   randomVoltage: randomVoltageConfig,
+  keyboard: keyboardConfig,
   inputAmplifier: inputAmplifierConfig,
   outputChannel: outputChannelConfig,
   oscilloscope: oscilloscopeConfig,

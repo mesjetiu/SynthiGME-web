@@ -1821,7 +1821,8 @@ export class AudioEngine {
           './assets/js/worklets/vcaProcessor.worklet.js',
           './assets/js/worklets/outputFilter.worklet.js',
           './assets/js/worklets/dcBlocker.worklet.js',
-          './assets/js/worklets/randomCV.worklet.js'
+          './assets/js/worklets/randomCV.worklet.js',
+          './assets/js/worklets/keyboard.worklet.js'
         ];
         
         await Promise.all(

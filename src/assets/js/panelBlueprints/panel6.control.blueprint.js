@@ -189,6 +189,34 @@ export default {
     { rowSynth: 91, source: { kind: 'randomCV', output: 'voltage2' } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // KEYBOARDS (filas 111-116) — Teclados duales de 5 octavas
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cada teclado genera 3 señales DC simultáneas:
+    //   Pitch:    voltaje 1V/Oct centrado en F#3 (MIDI 66 = 0V)
+    //   Velocity: voltaje proporcional a la velocidad de pulsación
+    //   Gate:     señal de puerta (envelope trigger)
+    //
+    // Upper Keyboard:
+    //   Fila 111: Pitch
+    //   Fila 112: Velocity
+    //   Fila 113: Gate
+    //
+    // Lower Keyboard:
+    //   Fila 114: Pitch
+    //   Fila 115: Velocity
+    //   Fila 116: Gate
+    //
+    // Prioridad de nota más alta. Pitch y Velocity con Sample & Hold.
+    // Referencia: Manual Datanomics 1982, teclados revisión microprocesador
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 111, source: { kind: 'keyboardUpper', output: 'pitch' } },
+    { rowSynth: 112, source: { kind: 'keyboardUpper', output: 'velocity' } },
+    { rowSynth: 113, source: { kind: 'keyboardUpper', output: 'gate' } },
+    { rowSynth: 114, source: { kind: 'keyboardLower', output: 'pitch' } },
+    { rowSynth: 115, source: { kind: 'keyboardLower', output: 'velocity' } },
+    { rowSynth: 116, source: { kind: 'keyboardLower', output: 'gate' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // JOYSTICKS (filas 117-120) — Fuentes de voltaje DC bipolar
     // ─────────────────────────────────────────────────────────────────────────
     // Cada joystick tiene 2 ejes (Y, X), cada eje produce ±8V DC

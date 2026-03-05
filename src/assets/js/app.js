@@ -3202,7 +3202,9 @@ class App {
       elements.knobEl.style.height = `${vernierSize}px`;
       const knobInstance = new VernierKnob(elements.knobEl, {
         min: 0, max: 1, initial: 0,
-        scaleMin: 0, scaleMax: 10
+        scaleMin: 0, scaleMax: 10,
+        pixelsForFullRange: 10000,
+        scaleDecimals: 3
       });
       return { wrapper: elements.wrapper, knobInstance };
     };

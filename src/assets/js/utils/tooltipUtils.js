@@ -391,9 +391,9 @@ export function getKeyboardPitchSpreadTooltipInfo(spreadUnity = 9, octaves = 5) 
     const vPerOct = spreadUnity > 0 ? scaleValue / spreadUnity : 0;
 
     if (showVoltageTooltip()) {
-      parts.push(`${vPerOct.toFixed(2)} V/Oct`);
+      parts.push(`${vPerOct.toFixed(3)} V/Oct`);
       const span = vPerOct * octaves;
-      parts.push(`${span.toFixed(1)}V span`);
+      parts.push(`${span.toFixed(2)}V span`);
     }
 
     if (showAudioTooltip()) {

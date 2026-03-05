@@ -68,14 +68,14 @@ describe('getKeyboardPitchSpreadTooltipInfo', () => {
 
   describe('con todos los tooltips habilitados', () => {
 
-    it('dial 9 (unity): muestra 1.00 V/Oct', () => {
+    it('dial 9 (unity): muestra 1.000 V/Oct', () => {
       const result = tooltipFn(0.9, 9);
-      assert.ok(result.includes('1.00 V/Oct'), `Resultado: "${result}"`);
+      assert.ok(result.includes('1.000 V/Oct'), `Resultado: "${result}"`);
     });
 
-    it('dial 9: muestra 5.0V span', () => {
+    it('dial 9: muestra 5.00V span', () => {
       const result = tooltipFn(0.9, 9);
-      assert.ok(result.includes('5.0V span'), `Resultado: "${result}"`);
+      assert.ok(result.includes('5.00V span'), `Resultado: "${result}"`);
     });
 
     it('dial 9: muestra 100 cents/st', () => {
@@ -83,24 +83,24 @@ describe('getKeyboardPitchSpreadTooltipInfo', () => {
       assert.ok(result.includes('100 cents/st'), `Resultado: "${result}"`);
     });
 
-    it('dial 0: muestra 0.00 V/Oct', () => {
+    it('dial 0: muestra 0.000 V/Oct', () => {
       const result = tooltipFn(0, 0);
-      assert.ok(result.includes('0.00 V/Oct'), `Resultado: "${result}"`);
+      assert.ok(result.includes('0.000 V/Oct'), `Resultado: "${result}"`);
     });
 
-    it('dial 4.5: muestra 0.50 V/Oct', () => {
+    it('dial 4.5: muestra 0.500 V/Oct', () => {
       const result = tooltipFn(0.45, 4.5);
-      assert.ok(result.includes('0.50 V/Oct'), `Resultado: "${result}"`);
+      assert.ok(result.includes('0.500 V/Oct'), `Resultado: "${result}"`);
     });
 
-    it('dial 10: muestra ~1.11 V/Oct', () => {
+    it('dial 10: muestra ~1.111 V/Oct', () => {
       const result = tooltipFn(1, 10);
-      assert.ok(result.includes('1.11 V/Oct'), `Resultado: "${result}"`);
+      assert.ok(result.includes('1.111 V/Oct'), `Resultado: "${result}"`);
     });
 
-    it('dial 10: muestra ~5.6V span', () => {
+    it('dial 10: muestra ~5.56V span', () => {
       const result = tooltipFn(1, 10);
-      assert.ok(result.includes('5.6V span'), `Resultado: "${result}"`);
+      assert.ok(result.includes('5.56V span'), `Resultado: "${result}"`);
     });
   });
 
@@ -144,10 +144,10 @@ describe('getKeyboardPitchSpreadTooltipInfo', () => {
 
   describe('spreadUnity personalizado', () => {
 
-    it('spreadUnity=5, dial=5 → 1.00 V/Oct', () => {
+    it('spreadUnity=5, dial=5 → 1.000 V/Oct', () => {
       tooltipFn = getKeyboardPitchSpreadTooltipInfo(5);
       const result = tooltipFn(1, 5);
-      assert.ok(result.includes('1.00 V/Oct'), `Resultado: "${result}"`);
+      assert.ok(result.includes('1.000 V/Oct'), `Resultado: "${result}"`);
     });
   });
 });

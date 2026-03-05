@@ -3113,6 +3113,23 @@ class App {
     this.panel4.appendElement(host);
 
     // ─────────────────────────────────────────────────────────────────────────
+    // FILA 0: LOGO (espacio reservado para SVG Synthi 100 / EMS)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const logoLayout = blueprint.layout.logoArea;
+    if (logoLayout) {
+      const logoArea = document.createElement('div');
+      logoArea.className = 'panel4-logo-area';
+      logoArea.style.cssText = `
+        flex: ${logoLayout.flex ?? 1} 1 0;
+        min-height: 0;
+        width: 100%;
+      `;
+      applyOffset(logoArea, logoLayout.offset);
+      host.appendChild(logoArea);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // FILA 1: 8 VOLTÍMETROS
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -3175,7 +3192,7 @@ class App {
     korRow.style.cssText = `
       display: flex;
       gap: ${korLayout.gap}px;
-      flex: 1 1 auto;
+      flex: ${korLayout.flex ?? 1} 1 0;
       width: 100%;
       min-height: 0;
     `;

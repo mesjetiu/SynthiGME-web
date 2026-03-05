@@ -28,8 +28,9 @@
 // CONTENIDO DEL PANEL 4 (Synthi 100)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// De arriba a abajo (3 filas):
+// De arriba a abajo (4 filas):
 //
+//   Fila 0: Logo (espacio reservado para SVG con logo Synthi 100 / EMS)
 //   Fila 1: 8 Voltímetros (Voltmeter 1-8, uno por output channel)
 //   Fila 2: Sequencer Event Time (display numérico centrado)
 //   Fila 3: Keyboard Output Range — 7 columnas iguales:
@@ -71,6 +72,15 @@ export default {
     // Gap vertical entre filas
     gap: 4,
 
+    // ── Fila 0: Logo Synthi 100 / EMS ──────────────────────────────────
+    // Espacio reservado para el SVG con el logo del sintetizador.
+    // No contiene módulos; el SVG se insertará como imagen de fondo o
+    // inline posteriormente. Ocupa ~1/5 del eje vertical del panel.
+    logoArea: {
+      flex: 1,              // proporción vertical (1 de 5 partes)
+      offset: { x: 0, y: 0 }
+    },
+
     // ── Fila 1: 8 Voltímetros ──────────────────────────────────────────
     voltmetersRow: {
       height: 120,
@@ -87,7 +97,7 @@ export default {
 
     // ── Fila 3: Keyboard Output Range (7 columnas) ─────────────────────
     keyboardOutputRange: {
-      height: 0,            // 0 = ocupar espacio restante (flex: 1)
+      flex: 4,              // proporción vertical (4 de 5 partes, logo ocupa 1)
       gap: 3,               // Gap horizontal entre columnas
       offset: { x: 0, y: 0 },
       columns: 7,

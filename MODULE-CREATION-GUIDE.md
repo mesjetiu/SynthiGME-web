@@ -1,6 +1,9 @@
 # Guía para crear un nuevo módulo de sintetizador en SynthiGME
 
-Checklist completo basado en el módulo **Random Control Voltage Generator** como implementación de referencia.
+Checklist completo basado en dos implementaciones de referencia:
+
+- **Random Control Voltage Generator** — Módulo estándar con ModuleUI (Panel 3). Patrón típico para módulos con knobs en panel.
+- **Keyboard** — Módulo dual con UI flotante, eventos de nota y MIDI (Panel 4). Patrón alternativo para módulos con interacción compleja o UI no-estándar.
 
 ---
 
@@ -23,6 +26,7 @@ Checklist completo basado en el módulo **Random Control Voltage Generator** com
 15. [Layout Helpers](#15-layout-helpers)
 16. [Tests](#16-tests)
 17. [Checklist rápido](#17-checklist-rápido)
+18. [Patrones alternativos (lecciones del Keyboard)](#18-patrones-alternativos-lecciones-del-keyboard)
 
 ---
 
@@ -36,7 +40,7 @@ Para un módulo nuevo llamado `myModule`, hay que crear o modificar estos archiv
 |---|---------|-----------|
 | 1 | `src/assets/js/worklets/myModule.worklet.js` | AudioWorkletProcessor (DSP) |
 | 2 | `src/assets/js/modules/myModule.js` | Clase de audio (main thread) |
-| 3 | `src/assets/js/ui/myModule.js` | Componente UI (extiende ModuleUI) |
+| 3 | `src/assets/js/ui/myModule.js` | Componente UI (extiende ModuleUI) **o** ventana flotante |
 | 4 | `src/assets/js/configs/modules/myModule.config.js` | Configuración de parámetros |
 | 5 | `src/assets/js/osc/oscMyModuleSync.js` | Sincronización OSC |
 | 6 | `tests/worklets/myModule.worklet.test.js` | Tests del worklet |
@@ -46,6 +50,10 @@ Para un módulo nuevo llamado `myModule`, hay que crear o modificar estos archiv
 | 10 | `tests/core/dormancyMyModule.test.js` | Tests de dormancy |
 | 11 | `tests/panelBlueprints/panelNMyModule.test.js` | Tests del blueprint |
 | 12 | `tests/utils/tooltipMyModule.test.js` | Tests de tooltip |
+
+> **Nota**: Módulos con UI interactiva compleja (como el Keyboard) pueden necesitar archivos
+> adicionales: un SVG interactivo (`src/assets/panels/`), atajos de teclado (`keyboardShortcuts.js`),
+> o integración MIDI directa. Ver [sección 18](#18-patrones-alternativos-lecciones-del-keyboard).
 
 ### Archivos a MODIFICAR
 
@@ -135,6 +143,14 @@ registerProcessor('random-cv', RandomCVProcessor);
 - **`return false`** en `process()` destruye el procesador (solo en `stop`)
 - Las conversiones dial→parámetro interno se hacen aquí (ej: exponencial, lineal, etc.)
 - La variable global `sampleRate` está disponible automáticamente en el contexto del worklet
+
+> **Patrón alt (Keyboard)**: Para módulos con eventos discretos (noteOn/noteOff) en lugar de
+> parámetros continuos, el worklet recibe mensajes `{ type: 'noteOn', note, velocity }` y
+> `{ type: 'noteOff', note }`. Internamente mantiene un `Set<number>` de teclas pulsadas
+> con prioridad de nota más alta, y usa sample & hold para pitch y velocity (el valor se
+> mantiene después de soltar). El `process()` genera señales DC constantes por frame
+> (pitch, velocity, gate = 3 canales) en lugar de señal de audio. También puede implementar
+> lógica de retrigger con un gap temporal en samples.
 
 ---
 
@@ -253,10 +269,19 @@ export class RandomCVModule extends Module {
 - `Module` proporciona: `engine`, `id`, `name`, `inputs[]`, `outputs[]`, `_isDormant`, `setDormant()`, `_onDormancyChange()`
 - **`this.outputs.push({...})`**: Registra salidas con `id`, `kind` (tipo del módulo para ruteo), `node` (AudioNode) y `label`
   - `kind` debe coincidir con el que se usa en el blueprint y en matrixTooltip, signalFlowHighlighter, dormancyManager
+  - Para **módulos con instancias múltiples** (Keyboard upper/lower), usar `kind` diferentes por instancia: `keyboardUpper`, `keyboardLower`
 - **Lazy init**: `_initAudioNodes()` se llama desde `start()` o desde getters de nodos
 - **`getOutputNode(outputId)`**: Interfaz estándar para que el router obtenga nodos por ID
 - **Clamp**: Los setters deben hacer clamp de valores al rango permitido
 - **Dormancy guard**: Los setters deben comprobar `if (this._isDormant) return;`
+
+> **Patrón alt (Keyboard)**: El módulo puede tener métodos `noteOn(note, velocity)` y
+> `noteOff(note)` que envían mensajes al worklet por `port.postMessage()` en lugar de
+> solo setters de parámetros continuos. También, si el módulo tiene un constructor con
+> parámetro `side` (`'upper'|'lower'`), debe usar el `side` para diferenciar las salidas
+> registradas (ej: `kind: 'keyboardUpper'` vs `kind: 'keyboardLower'`).
+> La serialización va en el módulo de audio (`serialize()`/`deserialize()`) en lugar de en
+> la UI, porque la UI flotante es independiente del estado de audio.
 
 ---
 
@@ -304,6 +329,17 @@ export class RandomVoltage extends ModuleUI {
 - **`cssClass`**: Clase CSS para el contenedor — usada en `findModuleElement()` del signalFlowHighlighter
 - **Parámetros visuales**: `knobSize`, `knobInnerPct`, `knobGap`, `knobRowOffsetX`, `knobRowOffsetY`, `knobOffsets` — vienen del blueprint
 - `serialize()` y `deserialize()` son heredados de `ModuleUI` y operan sobre los knobs
+
+> **Patrón alt (Keyboard)**: No todos los módulos usan `ModuleUI`. El Keyboard usa una
+> **ventana flotante** (`keyboardWindow.js`) con funciones exportadas (`initKeyboardWindow()`,
+> `openKeyboard()`, `closeKeyboard()`, `serializeKeyboardState()`, `restoreKeyboardState()`).
+> Los knobs del panel (Pitch Spread, Velocity, Gate) se crean directamente en el método
+> `_buildPanel4()` de app.js usando `createKnob()`, `VernierKnob` y `RotarySwitch`, sin
+> pasar por `ModuleUI`. Considerar este patrón cuando:
+> - El módulo tiene una interfaz visual separada del panel de knobs (ej: teclado SVG, pantalla)
+> - Se necesita arrastrar/redimensionar la ventana
+> - La ventana tiene modos de interacción (normal, latch, legato)
+> - Se necesita persistir posición/tamaño en localStorage + patches
 
 ---
 
@@ -370,6 +406,20 @@ export default {
   - Validar en tests
 - La config se exporta como `default export` e importa en `configs/index.js`
 
+> **Config del Keyboard**: Para módulos con **instancias múltiples**, `matrixRow` es un
+> objeto anidado por lado (ej: `{ upper: { pitch: 111, velocity: 112, gate: 113 }, lower: {...} }`).
+> Añade sección `switches` para parámetros binarios (toggles/rotary switches):
+> ```javascript
+> switches: {
+>   retrigger: {
+>     initial: 0,
+>     labelA: 'On',     // posición izquierda en hardware
+>     labelB: 'Kbd'     // posición derecha en hardware
+>   }
+> }
+> ```
+> También sección `audio` para constantes del DSP (pivotNote, spreadUnity, retriggerGapMs).
+
 ---
 
 ## 6. Panel Blueprint (Matriz)
@@ -395,6 +445,19 @@ export default {
   - `app.js` → `_handlePanel6AudioToggle()` (ruteo)
 - **`output`**: Identificador de la salida específica — debe coincidir con `getOutputNode(outputId)` del módulo
 - **`rowSynth`**: Fila en la matriz del Synthi 100 (coincide con `matrixRow` del config)
+
+> **Módulos con instancias múltiples (Keyboard)**: Usar un `kind` diferente por instancia.
+> El Keyboard usa `keyboardUpper` y `keyboardLower`:
+> ```javascript
+> // 6 filas en total: 3 salidas × 2 teclados
+> { rowSynth: 111, source: { kind: 'keyboardUpper', output: 'pitch' } },
+> { rowSynth: 112, source: { kind: 'keyboardUpper', output: 'velocity' } },
+> { rowSynth: 113, source: { kind: 'keyboardUpper', output: 'gate' } },
+> { rowSynth: 114, source: { kind: 'keyboardLower', output: 'pitch' } },
+> // ...
+> ```
+> Esto requiere un case separado por `kind` en matrixTooltip, signalFlowHighlighter,
+> dormancyManager y app.js routing.
 
 ---
 
@@ -604,6 +667,23 @@ En `_handlePanel6AudioToggle()` — el handler que conecta/desconecta fuentes de
 }
 ```
 
+> **Integración Keyboard en app.js**: El teclado sigue el mismo esquema de 14+ puntos
+> pero con diferencias significativas:
+>
+> - **Constructor**: `this._keyboardModules = {}` (objeto con claves `upper`/`lower`) +
+>   `this._keyboardKnobs = {}` para guardar referencias a las instancias de knob
+> - **Build**: Se crea en `_buildPanel4()` en lugar de `_buildOscillatorPanel()`. Los knobs
+>   se crean manualmente con `createKnob()` y `VernierKnob`, no via `ModuleUI`
+> - **Módulos de audio**: Se crean 2 instancias: `new KeyboardModule(engine, id, 'upper', config)`
+>   y `new KeyboardModule(engine, id, 'lower', config)`
+> - **Serialización**: Se serializa `this._keyboardModules[side].serialize()` (el módulo de
+>   audio, no la UI) bajo la clave `state.modules.keyboards`
+> - **Deserialización**: Itera `Object.entries(modules.keyboards)` y llama a `mod.deserialize(data)`
+> - **Reset**: Usa `mod.deserialize(defaults.keyboard)` en bucle
+> - **Ruteo multi-kind**: En `_handlePanel6AudioToggle()`, dos cases separados para
+>   `source.kind === 'keyboardUpper'` y `source.kind === 'keyboardLower'`
+> - **getModulesForPanel / findModuleById**: Usa `this._keyboardModules` con prefix `keyboard-`
+
 ---
 
 ## 9. OSC Sync
@@ -689,6 +769,16 @@ export default randomCVOSCSync;
 - **En app.js**: `randomCVOSCSync.init(this)` en constructor, `randomCVOSCSync.sendChange('param', value)` en callbacks de knobs
 - **Direcciones OSC**: Sin prefijo (se añade automáticamente por oscBridge)
 
+> **OSC del Keyboard**: Además de parámetros continuos (`sendChange(side, param, value)`),
+> implementa `sendNoteOn(side, note, velocity)` y `sendNoteOff(side, note)` para eventos
+> de nota. Las direcciones OSC incluyen sufijo por instancia:
+> `keyboard/upper/noteOn`, `keyboard/lower/pitchSpread`, etc.
+> Los noteOn envían un array `[note, velocity]` y los noteOff envían un número (`note`).
+> El listener de noteOn entrante incluye también **lazy start** del módulo:
+> ```javascript
+> if (!kbModule.isStarted) kbModule.start();
+> ```
+
 ---
 
 ## 10. Tooltips
@@ -755,6 +845,14 @@ case 'randomCV':
   el.closest('.synth-module, .noise-generator, .random-voltage, ...')
   ```
 
+> **Módulos multi-instancia (Keyboard)**: Un case por instancia, con IDs del DOM diferentes:
+> ```javascript
+> case 'keyboardUpper': return ['upperKeyboard-module'];
+> case 'keyboardLower': return ['lowerKeyboard-module'];
+> ```
+> Las clases CSS en `findModuleElement()` también deben incluir las de cada instancia:
+> `.panel4-upperKeyboard, .panel4-lowerKeyboard`
+
 ---
 
 ## 12. Matrix Tooltip
@@ -812,6 +910,18 @@ if (moduleId === 'random-cv') {
 - **El ID del módulo aquí** (`'random-cv'`) es el utilizado internamente por el dormancy — puede diferir del ID del módulo de audio (`'panel3-random-cv'`)
 - El módulo entero se duerme/despierta como unidad (las 3 salidas del RVG son atómicas)
 - Para módulos con múltiples instancias (ej: osciladores), se usan `osc-${index}`
+
+> **Dormancy del Keyboard**: Con 2 instancias independientes, cada una duerme/despierta
+> por separado. Se recorre un array `['upper', 'lower']` y se evalúa cada `kind` por separado:
+> ```javascript
+> for (const side of ['upper', 'lower']) {
+>   const kind = side === 'upper' ? 'keyboardUpper' : 'keyboardLower';
+>   const hasOutput = panel6Connections.some(c => c.source?.kind === kind);
+>   this._setModuleDormant(`keyboard-${side}`, !hasOutput);
+> }
+> ```
+> En `_findModule()`, dos cases separados devuelven `this.app._keyboardModules?.upper` y
+> `this.app._keyboardModules?.lower` respectivamente.
 
 ---
 
@@ -967,6 +1077,14 @@ Se usa un mock del `AudioContext` con `createGain()`, `createChannelSplitter()`,
 - [ ] **CHANGELOG.md**: Entrada en `Unreleased > Added`
 - [ ] **OSC.md**: Documentar las direcciones OSC del módulo (sección nueva)
 
+### Adicional (si aplica)
+
+- [ ] **Ventana flotante** (`ui/myModuleWindow.js`): init, open, close, serialize, restore (si no usa ModuleUI)
+- [ ] **SVG interactivo** (`src/assets/panels/myModule.svg`): Asset visual (si aplica)
+- [ ] **MIDI integration**: Listeners en midiLearnManager, IDs de zona MIDI Learn
+- [ ] **Switches en config**: Sección `switches` con `initial`, `labelA`, `labelB`
+- [ ] **Knob wiring manual**: Si usa `createKnob()`/`VernierKnob`/`RotarySwitch` directo (sin ModuleUI)
+
 ---
 
 ## Diagrama de dependencias
@@ -1029,3 +1147,161 @@ Se usa un mock del `AudioContext` con `createGain()`, `createChannelSplitter()`,
 | OSC addresses | `'random/mean'`, etc. | `oscRandomCVSync.js`, OSC.md |
 | i18n keys | `'matrix.source.randomCV.key'`, etc. | translations.yaml, matrixTooltip.js |
 | Tooltip type | `'randomVoltage'` | `_getModulesForPanel`, `_findModuleById` |
+
+### Identifiers cross-reference (Keyboard)
+
+| Concepto | Identificador | Usado en |
+|----------|---------------|----------|
+| Processor name | `'keyboard'` | `registerProcessor()`, `new AudioWorkletNode()` |
+| Module IDs | `'panel4-keyboard-upper'`, `'panel4-keyboard-lower'` | `new KeyboardModule(engine, id, side)` |
+| Source kinds | `'keyboardUpper'`, `'keyboardLower'` | Blueprint, matrixTooltip, signalFlowHighlighter, dormancyManager, routing |
+| Output IDs | `'pitch'`, `'velocity'`, `'gate'` | Blueprint `output`, `getOutputNode()`, OSC |
+| Dormancy IDs | `'keyboard-upper'`, `'keyboard-lower'` | `dormancyManager._setModuleDormant()`, `_findModule()` |
+| CSS classes | `'panel4-upperKeyboard'`, `'panel4-lowerKeyboard'` | `findModuleElement()` selector |
+| Config export name | `keyboardConfig` | `configs/index.js`, app.js imports |
+| Module store key | `_keyboardModules` | app.js `{ upper: KeyboardModule, lower: KeyboardModule }` |
+| Knob store key | `_keyboardKnobs` | app.js `{ upper: { pitchSpread, velocityLevel, gateLevel }, lower: ... }` |
+| State key | `modules.keyboards` | serialize/deserialize patches |
+| Blueprint module key | `'upperKeyboard'`, `'lowerKeyboard'` | `panel4Blueprint.modules`, `applyModuleVisibility()` |
+| DOM element IDs | `'upperKeyboard-module'`, `'lowerKeyboard-module'` | `signalFlowHighlighter.getModuleElementIds()` |
+| OSC addresses | `'keyboard/upper/pitchSpread'`, `'keyboard/lower/noteOn'`, etc. | `oscKeyboardSync.js`, OSC.md |
+| i18n keys | `'matrix.source.keyboardUpper.pitch'`, etc. | translations.yaml, matrixTooltip.js |
+| Window functions | `initKeyboardWindow()`, `toggleKeyboard()`, etc. | `keyboardWindow.js`, app.js |
+
+---
+
+## 18. Patrones alternativos (lecciones del Keyboard)
+
+El módulo Keyboard introdujo varios patrones que se apartan del modelo estándar (RandomCV/ModuleUI). Esta sección documenta cuándo y cómo aplicar cada patrón alternativo.
+
+### 18.1 Módulo sin ModuleUI (ventana flotante)
+
+**Cuándo**: El módulo necesita una interfaz visual separada de los knobs del panel (ej: teclado, pantalla gráfica, secuenciador visual).
+
+**Patrón**:
+- Crear un archivo de ventana (`ui/myModuleWindow.js`) con funciones exportadas:
+  - `initMyModuleWindow()` — crea el contenedor DOM (oculto)
+  - `openMyModule()` / `closeMyModule()` / `toggleMyModule()`
+  - `serializeMyModuleState()` / `restoreMyModuleState(data)`
+- Estado como variables de módulo (no clase): `container`, `isOpen`, `state = { x, y, width, height }`
+- Arrastrable desde zonas específicas (no toda la ventana) via `DRAG_SELECTORS`
+- Redimensionable con aspect-ratio fijo
+- Persistencia en `localStorage` + patches (serialización separada del módulo de audio)
+- Los knobs del panel se crean directamente en el método `_buildPanel4()` de app.js
+
+**Archivos adicionales**:
+- SVG interactivo: `src/assets/panels/myModule.svg`
+- Atajos de teclado (opcional): `src/assets/js/ui/myModuleShortcuts.js`
+
+### 18.2 Módulo con instancias múltiples (dual/N-plexado)
+
+**Cuándo**: El hardware tiene varias unidades del mismo módulo (ej: 2 teclados, 12 osciladores).
+
+**Patrón**:
+- Un solo worklet + una sola clase de módulo, instanciados N veces
+- Constructor con parámetro `side`/`index` para diferenciar instancias
+- `kind` diferenciado por instancia: `keyboardUpper` / `keyboardLower` (no genérico `keyboard`)
+- almacén en app.js como objeto/mapa: `this._keyboardModules = { upper: ..., lower: ... }`
+- Serialización iterativa: `for (const [side, mod] of Object.entries(...))`
+- Dormancy independiente por instancia
+- Config compartida (`matrixRow` anidado por side)
+
+### 18.3 Eventos discretos (noteOn/noteOff)
+
+**Cuándo**: El módulo genera señales en respuesta a eventos temporales (notas, triggers) en lugar de parámetros continuos.
+
+**Patrón**:
+- Worklet recibe mensajes `{ type: 'noteOn', note, velocity }` y `{ type: 'noteOff', note }`
+- Mantiene `Set<number>` de teclas/notas activas internamente
+- Prioridad de nota (alta/baja/última) determina qué nota suena
+- Sample & hold: pitch/velocity se mantienen al soltar todas las teclas
+- Gate: señal ON/OFF sin memoria (desaparece al soltar)
+- Retrigger: lógica temporal con gap en samples (~2ms) entre gate OFF → ON
+
+### 18.4 OSC con eventos de nota
+
+**Cuándo**: OSC debe transmitir no solo valores de dial sino también eventos discretos.
+
+**Patrón**:
+- Además de `sendChange(side, param, value)`, añadir `sendNoteOn(side, note, velocity)` y `sendNoteOff(side, note)`
+- noteOn envía array `[note, velocity]`, noteOff envía número simple
+- Listeners separados para `keyboard/${side}/noteOn` y `keyboard/${side}/noteOff`
+- El handler entrante incluye **lazy start** del módulo si no estaba iniciado  
+- Las direcciones de nota NO usan deduplicación (cada evento es único)
+
+### 18.5 Integración MIDI directa
+
+**Cuándo**: El módulo responde a entrada MIDI (teclado MIDI, controladores).
+
+**Patrón** (Keyboard):
+- Import de `midiLearnManager` y `midiAccess` en la ventana flotante
+- Registro de zona MIDI Learn por instancia: `keyboard-upper`, `keyboard-lower`
+- Listener global de MIDI noteOn/noteOff que:
+  1. Identifica a qué instancia va la nota (según MIDI Learn mapping)
+  2. Llama al módulo de audio (`mod.noteOn(note, velocity)`)
+  3. Actualiza feedback visual (pressed class en SVG)
+  4. Envía via OSC si conectado
+- Teclas SVG mapeadas por ID: `upper-C4`, `lower-Fs3` etc.
+
+### 18.6 Modos de interacción (touch modes)
+
+**Cuándo**: La interfaz visual soporta varios modos de interacción con ratón/touch.
+
+**Patrón** (Keyboard):
+- Estado `touchMode`: `'normal'` | `'latch'` | `'legato'`
+- **Normal**: Tecla activa mientras se mantiene pulsada (mousedown/touchstart → mouseup/touchend)
+- **Latch**: Toggle — cada clic alterna on/off, se pueden acumular varias teclas
+- **Legato**: Solo una tecla activa — al pulsar otra se libera la anterior
+- `latchedKeys = new Set()` para rastrear teclas retenidas
+- `_releaseAllLatched()` al cambiar modo o cerrar ventana
+- Persistencia del modo en `localStorage`
+
+### 18.7 Componentes UI disponibles
+
+Además de los knobs estándar, existen estos componentes de panel:
+
+| Componente | Archivo | Uso |
+|---|---|---|
+| `Knob` | `ui/knob.js` | Potenciómetro estándar (0-1, con escala configurable) |
+| `VernierKnob` | `ui/vernierKnob.js` | Potenciómetro de precisión multivuelta (Pitch Offset) |
+| `Toggle` | `ui/toggle.js` | Interruptor de palanca 2 estados (ON/OFF visual de palanca) |
+| `RotarySwitch` | `ui/rotarySwitch.js` | Selector rotativo 2 estados (indicador giratorio ±45°) |
+
+- `Toggle` y `RotarySwitch` comparten la misma API: `setValue('a'|'b')`, `getState()`, `onChange(state)`
+- En el blueprint, se definen en array `switches` con `type: 'toggle'` o `type: 'rotarySwitch'`
+- `RotarySwitch` se usa cuando el hardware original tiene un selector rotativo (no una palanca)
+
+### 18.8 Knobs en blueprint (knobColors)
+
+Los colores de knobs se definen en el blueprint del panel, no en el componente UI:
+
+```javascript
+// panel4.blueprint.js — column2.knobs
+knobs: [
+  { type: 'vernier' },                                    // Pitch (vernier, sin color)
+  { key: 'velocityLevel', type: 'knob', color: 'yellow', bipolar: true },
+  { key: 'gateLevel',     type: 'knob', color: 'white',  bipolar: true }
+]
+```
+
+Colores disponibles (de `configs/knobColors.js`): `KNOB_BLUE`, `KNOB_GREEN`, `KNOB_WHITE`, `KNOB_BLACK`, `KNOB_RED`, `KNOB_YELLOW`.
+
+El flag `bipolar: true` hace que se use el SVG `knob-0-center.svg` (marca central) en lugar del knob estándar.
+
+### 18.9 Gotchas y errores frecuentes
+
+Lecciones aprendidas de la implementación del Keyboard:
+
+1. **Escalado de voltaje**: Todas las salidas CV deben dividir por `DIGITAL_TO_VOLTAGE` (4.0) para convertir de voltios reales a unidades digitales del sistema. Olvidar esta conversión hace que los valores sean 4× mayores de lo esperado.
+
+2. **Retrigger gap en samples, no en ms**: El gap de retrigger debe calcularse en samples (`96 ≈ 2ms @ 48kHz`), no usar `setTimeout()`. El timing preciso solo es posible contando samples dentro del `process()`.
+
+3. **Prioridad de nota**: Si se implementa high-note priority, la velocity solo debe actualizarse cuando la nueva nota es más aguda que la actual (no en todas las pulsaciones).
+
+4. **Lazy start**: Los módulos solo deben arrancar (`start()`) cuando se necesitan por primera vez (conexión en la matriz o nota entrante). No arrancar en la construcción.
+
+5. **OSC note arrays**: `oscBridge.send()` con arrays `[note, velocity]` — verificar que el receptor puede manejar tanto arrays como valores simples (usar `Array.isArray()`).
+
+6. **Serialización split**: Cuando la UI y el audio son independientes (ventana flotante vs. módulo de audio), serializar ambos por separado. El estado del módulo de audio va en `state.modules.keyboards`, el de la ventana en `state.keyboardVisible` o similar.
+
+7. **Touch events + mouse events**: Para interacción SVG, manejar tanto `mousedown`/`mouseup` como `touchstart`/`touchend`. Usar `e.preventDefault()` en touch para evitar ghost clicks.

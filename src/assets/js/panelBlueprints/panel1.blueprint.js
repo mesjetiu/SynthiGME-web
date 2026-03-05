@@ -60,18 +60,18 @@ export default {
   layout: {
     // Offset general del panel (px) — desplaza todos los módulos
     // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 0 },
+    offset: { x: 0, y: 40 },
 
     // Padding general del panel
-    padding: { top: 8, right: 10, bottom: 8, left: 10 },
+    padding: { top: 8, right: 5, bottom: 8, left: 5 },
 
     // Gap vertical entre filas
-    gap: 4,
+    gap: 2,
 
     // ── Fila 1: Filtros FLP 1-4 + FHP 1-4 ──────────────────────────────
     filtersRow: {
-      height: 120,
-      gap: 3,               // Gap horizontal entre filtros
+      height: 290,
+      gap: 2,               // Gap horizontal entre filtros
       offset: { x: 0, y: 0 },
       // Cada filtro tiene 3 knobs en columna vertical:
       // Frequency, Response, Level
@@ -85,7 +85,7 @@ export default {
 
     // ── Filas 2-4: Envelope Shapers ─────────────────────────────────────
     envelopeShapers: {
-      height: 65,
+      height: 100,
       gap: 4,               // Gap vertical entre envelopes
       offset: { x: 0, y: 0 },
       // Cada envelope shaper tiene 8 knobs en fila horizontal:
@@ -101,7 +101,7 @@ export default {
 
     // ── Fila 5: Ring Modulators + Reverb + Echo ─────────────────────────
     bottomRow: {
-      height: 80,
+      height: 100,
       gap: 3,               // Gap horizontal entre módulos
       offset: { x: 0, y: 0 },
 
@@ -145,32 +145,32 @@ export default {
   modules: {
     // ── Filtros paso bajo (Low Pass) ────────────────────────────────────
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
-    flp1: { visible: false },
-    flp2: { visible: false },
-    flp3: { visible: false },
-    flp4: { visible: false },
+    flp1: { visible: true },
+    flp2: { visible: true },
+    flp3: { visible: true },
+    flp4: { visible: true },
 
     // ── Filtros paso alto (High Pass) ───────────────────────────────────
-    fhp1: { visible: false },
-    fhp2: { visible: false },
-    fhp3: { visible: false },
-    fhp4: { visible: false },
+    fhp1: { visible: true },
+    fhp2: { visible: true },
+    fhp3: { visible: true },
+    fhp4: { visible: true },
 
     // ── Envelope Shapers ────────────────────────────────────────────────
-    envelopeShaper1: { visible: false },
-    envelopeShaper2: { visible: false },
-    envelopeShaper3: { visible: false },
+    envelopeShaper1: { visible: true },
+    envelopeShaper2: { visible: true },
+    envelopeShaper3: { visible: true },
 
     // ── Ring Modulators ─────────────────────────────────────────────────
-    ringModulator1: { visible: false },
-    ringModulator2: { visible: false },
-    ringModulator3: { visible: false },
+    ringModulator1: { visible: true },
+    ringModulator2: { visible: true },
+    ringModulator3: { visible: true },
 
     // ── Reverberación ───────────────────────────────────────────────────
-    reverberation1: { visible: false },
+    reverberation1: { visible: true },
 
     // ── Echo A.D.L. ─────────────────────────────────────────────────────
-    echoADL: { visible: false }
+    echoADL: { visible: true }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

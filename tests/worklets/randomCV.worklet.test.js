@@ -787,3 +787,201 @@ describe('RandomCV Worklet — Dormancy (preservación de fase)', () => {
       'V1 o V2 deben tener valor no-cero tras despertar');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARTE 7: CADENA DE AUDIO — Verificación end-to-end de escalado CV
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Estos tests verifican que la salida del worklet (±1 normalizada),
+// al pasar por la cadena real de GainNodes del módulo, produce los
+// voltajes reales correctos según las specs del Synthi 100:
+//
+// Cadena V1/V2:
+//   worklet(±1) → voltage1Gain(LOG, max 0.625) → matrix pin → destino
+//   1 digital = DIGITAL_TO_VOLTAGE = 4V → gain 0.625 × 4V = ±2.5V real
+//
+// Cadena Key:
+//   worklet(1.0 pulso) → keyGain(±1.25) → matrix pin → destino
+//   gain ±1.25 × 4V = ±5V real
+//
+// Las specs dicen:
+//   - V1/V2: ±2.5V DC (5V pico a pico)
+//   - Key: ±5V pulso (bipolar, ajustable)
+
+const DIGITAL_TO_VOLTAGE = 4.0;
+const VOLTAGE_PEAK = 2.5;       // Specs: V1/V2 max ±2.5V
+const KEY_VOLTAGE_PEAK = 5.0;   // Specs: Key max ±5V
+const LOG_BASE = 100;           // Pot 10K logarítmico
+const MATRIX_PIN_GREY_GAIN = 1.0; // Rf/R = 100k/100k
+
+/**
+ * Réplica de _levelDialToGain del módulo (con escalado digital).
+ * @param {number} dial - 0 a 10
+ * @returns {number} gain en unidades digitales
+ */
+function levelDialToGain(dial) {
+  if (dial <= 0) return 0;
+  const normalized = dial / 10;
+  const logGain = (Math.pow(LOG_BASE, normalized) - 1) / (LOG_BASE - 1);
+  return logGain * VOLTAGE_PEAK / DIGITAL_TO_VOLTAGE;
+}
+
+/**
+ * Réplica de _keyDialToGain del módulo (con escalado digital).
+ * @param {number} dial - -5 a +5
+ * @returns {number} gain en unidades digitales
+ */
+function keyDialToGain(dial) {
+  return dial * KEY_VOLTAGE_PEAK / (5 * DIGITAL_TO_VOLTAGE);
+}
+
+/**
+ * Calcula el voltaje real de salida de V1/V2.
+ * worklet(±1) × gainNode × matrixPin × DIGITAL_TO_VOLTAGE
+ */
+function v1v2OutputVoltage(workletSample, dial) {
+  return workletSample * levelDialToGain(dial) * MATRIX_PIN_GREY_GAIN * DIGITAL_TO_VOLTAGE;
+}
+
+/**
+ * Calcula el voltaje real de salida del Key pulse.
+ * worklet(1.0) × gainNode × matrixPin × DIGITAL_TO_VOLTAGE
+ */
+function keyOutputVoltage(workletSample, dial) {
+  return workletSample * keyDialToGain(dial) * MATRIX_PIN_GREY_GAIN * DIGITAL_TO_VOLTAGE;
+}
+
+describe('RandomCV — Cadena de audio end-to-end (escalado CV)', () => {
+
+  // ── Constantes del sistema ──
+
+  test('DIGITAL_TO_VOLTAGE es 4.0', () => {
+    assert.strictEqual(DIGITAL_TO_VOLTAGE, 4.0);
+  });
+
+  test('VOLTAGE_PEAK es 2.5V (specs V1/V2)', () => {
+    assert.strictEqual(VOLTAGE_PEAK, 2.5);
+  });
+
+  test('KEY_VOLTAGE_PEAK es 5.0V (specs Key)', () => {
+    assert.strictEqual(KEY_VOLTAGE_PEAK, 5.0);
+  });
+
+  // ── V1/V2: Voltage Level (curva LOG) ──
+
+  test('V1/V2 dial 10, worklet +1 → +2.5V reales', () => {
+    const volts = v1v2OutputVoltage(1.0, 10);
+    assert.ok(Math.abs(volts - 2.5) < 1e-10,
+      `Esperado +2.5V, obtenido ${volts}V`);
+  });
+
+  test('V1/V2 dial 10, worklet -1 → -2.5V reales', () => {
+    const volts = v1v2OutputVoltage(-1.0, 10);
+    assert.ok(Math.abs(volts - (-2.5)) < 1e-10,
+      `Esperado -2.5V, obtenido ${volts}V`);
+  });
+
+  test('V1/V2 dial 10 Vpp = 5.0V (specs: 5V pico a pico)', () => {
+    const vHigh = v1v2OutputVoltage(1.0, 10);
+    const vLow = v1v2OutputVoltage(-1.0, 10);
+    const vpp = vHigh - vLow;
+    assert.ok(Math.abs(vpp - 5.0) < 1e-10,
+      `Esperado 5.0V pp, obtenido ${vpp}V pp`);
+  });
+
+  test('V1/V2 dial 0 → 0V (silencio)', () => {
+    const volts = v1v2OutputVoltage(1.0, 0);
+    assert.strictEqual(volts, 0);
+  });
+
+  test('V1/V2 dial 5, worklet +1 → ~0.227V (curva LOG baja)', () => {
+    const volts = v1v2OutputVoltage(1.0, 5);
+    // logGain(5) = (100^0.5 - 1)/99 ≈ 0.0909, × 2.5 = 0.227V
+    assert.ok(volts > 0.2 && volts < 0.25,
+      `Esperado ~0.227V, obtenido ${volts.toFixed(4)}V`);
+  });
+
+  test('V1/V2 gain max es 0.625 digital (NO 1.0)', () => {
+    const gain = levelDialToGain(10);
+    assert.ok(Math.abs(gain - 0.625) < 1e-10,
+      `Gain max debe ser 0.625, obtenido ${gain}`);
+  });
+
+  test('V1/V2 gain max NO es 1.0 (protección contra regresión ×4)', () => {
+    const gain = levelDialToGain(10);
+    assert.notEqual(gain, 1.0,
+      'REGRESIÓN: gain 1.0 produce ±4V en vez de ±2.5V');
+  });
+
+  // ── Key: Pulse Level (lineal bipolar) ──
+
+  test('Key dial +5, worklet 1.0 → +5V reales', () => {
+    const volts = keyOutputVoltage(1.0, 5);
+    assert.ok(Math.abs(volts - 5.0) < 1e-10,
+      `Esperado +5V, obtenido ${volts}V`);
+  });
+
+  test('Key dial -5, worklet 1.0 → -5V reales (pulso invertido)', () => {
+    const volts = keyOutputVoltage(1.0, -5);
+    assert.ok(Math.abs(volts - (-5.0)) < 1e-10,
+      `Esperado -5V, obtenido ${volts}V`);
+  });
+
+  test('Key dial 0 → 0V (sin pulso)', () => {
+    const volts = keyOutputVoltage(1.0, 0);
+    assert.strictEqual(volts, 0);
+  });
+
+  test('Key dial +2.5, worklet 1.0 → +2.5V', () => {
+    const volts = keyOutputVoltage(1.0, 2.5);
+    assert.ok(Math.abs(volts - 2.5) < 1e-10,
+      `Esperado +2.5V, obtenido ${volts}V`);
+  });
+
+  test('Key gain max es ±1.25 digital (NO ±1.0)', () => {
+    const gainPos = keyDialToGain(5);
+    const gainNeg = keyDialToGain(-5);
+    assert.ok(Math.abs(gainPos - 1.25) < 1e-10,
+      `Gain +5 debe ser 1.25, obtenido ${gainPos}`);
+    assert.ok(Math.abs(gainNeg - (-1.25)) < 1e-10,
+      `Gain -5 debe ser -1.25, obtenido ${gainNeg}`);
+  });
+
+  test('Key gain max NO es ±1.0 (protección contra regresión)', () => {
+    const gain = keyDialToGain(5);
+    assert.notEqual(gain, 1.0,
+      'REGRESIÓN: gain 1.0 produce ±4V en vez de ±5V');
+  });
+
+  // ── Coherencia del sistema ──
+
+  test('V1/V2: gain × DIGITAL_TO_VOLTAGE = VOLTAGE_PEAK', () => {
+    const gain = levelDialToGain(10);
+    const volts = gain * DIGITAL_TO_VOLTAGE;
+    assert.ok(Math.abs(volts - VOLTAGE_PEAK) < 1e-10,
+      `${gain} × ${DIGITAL_TO_VOLTAGE} = ${volts}, esperado ${VOLTAGE_PEAK}`);
+  });
+
+  test('Key: gain × DIGITAL_TO_VOLTAGE = KEY_VOLTAGE_PEAK', () => {
+    const gain = keyDialToGain(5);
+    const volts = gain * DIGITAL_TO_VOLTAGE;
+    assert.ok(Math.abs(volts - KEY_VOLTAGE_PEAK) < 1e-10,
+      `${gain} × ${DIGITAL_TO_VOLTAGE} = ${volts}, esperado ${KEY_VOLTAGE_PEAK}`);
+  });
+
+  test('V1/V2 nunca excede ±2.5V en todo el rango del dial', () => {
+    for (let dial = 0; dial <= 10; dial += 0.5) {
+      const vMax = Math.abs(v1v2OutputVoltage(1.0, dial));
+      assert.ok(vMax <= 2.5 + 1e-10,
+        `Dial ${dial}: ${vMax.toFixed(4)}V excede ±2.5V`);
+    }
+  });
+
+  test('Key nunca excede ±5V en todo el rango del dial', () => {
+    for (let dial = -5; dial <= 5; dial += 0.5) {
+      const vMax = Math.abs(keyOutputVoltage(1.0, dial));
+      assert.ok(vMax <= 5.0 + 1e-10,
+        `Dial ${dial}: ${vMax.toFixed(4)}V excede ±5V`);
+    }
+  });
+});

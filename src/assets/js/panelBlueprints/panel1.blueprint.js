@@ -106,8 +106,12 @@ export default {
       offset: { x: 0, y: 0 },
 
       // Definición individual de cada módulo de la fila inferior
+      // width (px): ancho fijo del módulo. Si no se indica, el módulo
+      //   reparte el espacio sobrante equitativamente con los demás sin width.
+
       ringModulator: {
         count: 3,
+        width: 80,          // sin width → reparte espacio sobrante
         knobs: ['Level'],
         knobSize: 'sm',
         knobInnerPct: 78,
@@ -117,6 +121,7 @@ export default {
 
       reverberation: {
         count: 1,
+        width: 100,
         knobs: ['Mix', 'Level'],
         knobSize: 'sm',
         knobInnerPct: 78,
@@ -126,6 +131,7 @@ export default {
 
       echo: {
         count: 1,
+        width: 200,
         knobs: ['Delay', 'Mix', 'Feedback', 'Level'],
         knobSize: 'sm',
         knobInnerPct: 78,

@@ -2966,7 +2966,9 @@ class App {
       });
       const el = frame.createElement();
       const rmModuleUI = blueprint.modules?.[rmId]?.ui || {};
-      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+      el.style.cssText = rmConfig.width
+        ? `flex: 0 0 auto; width: ${rmConfig.width}px; height: 100%;`
+        : `flex: 1 1 0; min-width: 0; height: 100%;`;
 
       const knobsContainer = document.createElement('div');
       knobsContainer.className = 'panel1-bottom-knobs';
@@ -2996,7 +2998,9 @@ class App {
     });
     const reverbEl = reverbFrame.createElement();
     const reverbUI = blueprint.modules?.reverberation1?.ui || {};
-    reverbEl.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+    reverbEl.style.cssText = reverbConfig.width
+      ? `flex: 0 0 auto; width: ${reverbConfig.width}px; height: 100%;`
+      : `flex: 1 1 0; min-width: 0; height: 100%;`;
 
     const reverbKnobs = document.createElement('div');
     reverbKnobs.className = 'panel1-bottom-knobs';
@@ -3025,7 +3029,9 @@ class App {
     });
     const echoEl = echoFrame.createElement();
     const echoUI = blueprint.modules?.echoADL?.ui || {};
-    echoEl.style.cssText = `flex: 2 1 0; min-width: 0; height: 100%;`;
+    echoEl.style.cssText = echoConfig.width
+      ? `flex: 0 0 auto; width: ${echoConfig.width}px; height: 100%;`
+      : `flex: 1 1 0; min-width: 0; height: 100%;`;
 
     const echoKnobs = document.createElement('div');
     echoKnobs.className = 'panel1-bottom-knobs';

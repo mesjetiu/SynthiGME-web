@@ -50,20 +50,20 @@ function recalcPitch(note, spread, offset = 0, invert = false) {
 }
 
 /**
- * Calcula el voltaje de velocity.
- * Fórmula: (vel/127) * velocityLevel
- * Dial +5 → hasta +5V, dial 0 → 0V, dial -5 → inversión hasta -5V.
+ * Calcula el voltaje de velocity en unidades digitales.
+ * Fórmula: (vel/127) * velocityLevel / DIGITAL_TO_VOLTAGE
+ * Dial +5 → hasta 1.25 digital (5V), dial 0 → 0, dial -5 → -1.25 digital.
  */
 function recalcVelocity(velocity, velocityLevel) {
-  return (velocity / 127) * velocityLevel;
+  return (velocity / 127) * velocityLevel / DIGITAL_TO_VOLTAGE;
 }
 
 /**
- * Calcula el voltaje de gate.
- * gate ON → +gateLevel, gate OFF → 0V (sin memoria)
+ * Calcula el voltaje de gate en unidades digitales.
+ * gate ON → +gateLevel / DIGITAL_TO_VOLTAGE, gate OFF → 0 (sin memoria)
  */
 function computeGateVoltage(on, gateLevel) {
-  return on ? gateLevel : 0;
+  return on ? gateLevel / DIGITAL_TO_VOLTAGE : 0;
 }
 
 /**
@@ -139,22 +139,22 @@ describe('Keyboard Worklet — Pitch', () => {
 
 describe('Keyboard Worklet — Velocity', () => {
   
-  test('velocity 0 con level +5 → 0V (sin pulsación)', () => {
+  test('velocity 0 con level +5 → 0 digital (sin pulsación)', () => {
     const v = recalcVelocity(0, 5);
     assert.strictEqual(v, 0);
   });
   
-  test('velocity 127 con level +5 → +5V (máximo positivo)', () => {
+  test('velocity 127 con level +5 → 1.25 digital (5V / 4)', () => {
     const v = recalcVelocity(127, 5);
-    assert.ok(Math.abs(v - 5) < 1e-10);
+    assert.ok(Math.abs(v - 5 / DIGITAL_TO_VOLTAGE) < 1e-10);
   });
   
-  test('velocity 127 con level -5 → -5V (inversión: louder→softer)', () => {
+  test('velocity 127 con level -5 → -1.25 digital (inversión)', () => {
     const v = recalcVelocity(127, -5);
-    assert.ok(Math.abs(v - (-5)) < 1e-10);
+    assert.ok(Math.abs(v - (-5 / DIGITAL_TO_VOLTAGE)) < 1e-10);
   });
   
-  test('velocityLevel 0 → sin efecto de velocity (0V siempre)', () => {
+  test('velocityLevel 0 → sin efecto (0 siempre)', () => {
     const v = recalcVelocity(127, 0);
     assert.strictEqual(v, 0);
   });
@@ -165,9 +165,9 @@ describe('Keyboard Worklet — Velocity', () => {
     assert.ok(Math.abs(vPos + vNeg) < 1e-10);
   });
   
-  test('velocity media (64) con level +5 → ~2.52V', () => {
+  test('velocity media (64) con level +5 → ~0.63 digital', () => {
     const v = recalcVelocity(64, 5);
-    assert.ok(Math.abs(v - (64/127)*5) < 1e-10);
+    assert.ok(Math.abs(v - (64/127)*5/DIGITAL_TO_VOLTAGE) < 1e-10);
   });
 });
 
@@ -177,33 +177,33 @@ describe('Keyboard Worklet — Velocity', () => {
 
 describe('Keyboard Worklet — Gate', () => {
   
-  test('gate ON con level +5 → +5V', () => {
+  test('gate ON con level +5 → 1.25 digital (5V / 4)', () => {
     const v = computeGateVoltage(true, 5);
-    assert.strictEqual(v, 5);
+    assert.ok(Math.abs(v - 5 / DIGITAL_TO_VOLTAGE) < 1e-10);
   });
   
-  test('gate OFF con level +5 → 0V (sin memoria)', () => {
+  test('gate OFF con level +5 → 0 (sin memoria)', () => {
     const v = computeGateVoltage(false, 5);
     assert.strictEqual(v, 0);
   });
   
-  test('gate ON con level -5 → -5V (invertido)', () => {
+  test('gate ON con level -5 → -1.25 digital (invertido)', () => {
     const v = computeGateVoltage(true, -5);
-    assert.strictEqual(v, -5);
+    assert.ok(Math.abs(v - (-5 / DIGITAL_TO_VOLTAGE)) < 1e-10);
   });
   
-  test('gate OFF con level -5 → 0V', () => {
+  test('gate OFF con level -5 → 0', () => {
     const v = computeGateVoltage(false, -5);
     assert.strictEqual(v, 0);
   });
   
-  test('gate level 0 → 0V en ambos estados', () => {
+  test('gate level 0 → 0 en ambos estados', () => {
     assert.strictEqual(computeGateVoltage(true, 0), 0);
     assert.strictEqual(computeGateVoltage(false, 0), 0);
   });
   
-  test('gate level 2.5 → ON=+2.5V, OFF=0V', () => {
-    assert.strictEqual(computeGateVoltage(true, 2.5), 2.5);
+  test('gate level 2.5 → ON=0.625 digital, OFF=0', () => {
+    assert.ok(Math.abs(computeGateVoltage(true, 2.5) - 2.5 / DIGITAL_TO_VOLTAGE) < 1e-10);
     assert.strictEqual(computeGateVoltage(false, 2.5), 0);
   });
 });
@@ -498,5 +498,129 @@ describe('Keyboard Worklet — Constantes', () => {
   
   test('SEMITONES_PER_OCTAVE es 12', () => {
     assert.strictEqual(SEMITONES_PER_OCTAVE, 12);
+  });
+
+  test('DIGITAL_TO_VOLTAGE es 4.0', () => {
+    assert.strictEqual(DIGITAL_TO_VOLTAGE, 4.0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARTE 8: CADENA DE AUDIO — Verificación end-to-end de escalado CV
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Estos tests verifican que la salida del worklet, al pasar por la cadena
+// real de audio (matrix pin → destino), produce los valores físicos correctos.
+//
+// Cadena para pitch → oscilador:
+//   worklet → GainNode(1) → matrix pin GREY(1) → freqCVInput(×4800) → detune
+//   donde freqCVInput.gain = CENTS_PER_OCTAVE × DIGITAL_TO_VOLTAGE = 4800
+//
+// Cadena para gate/velocity → cualquier destino:
+//   worklet → GainNode(1) → matrix pin GREY(1) → destNode
+//   1 digital = 4V real (DIGITAL_TO_VOLTAGE)
+
+describe('Keyboard Worklet — Cadena de audio (escalado CV)', () => {
+  
+  // Constantes del sistema (deben coincidir con app.js y voltageConstants.js)
+  const CENTS_PER_OCTAVE = 1200;
+  const FREQ_CV_GAIN = CENTS_PER_OCTAVE * DIGITAL_TO_VOLTAGE; // 4800
+  const MATRIX_PIN_GREY_GAIN = 1.0; // Rf/R = 100k/100k
+  const OUTPUT_GAIN_NODE = 1.0;     // GainNode pass-through
+
+  // Helper: simula la cadena completa source → matrix → freqCVInput
+  function pitchToDetuneCents(note, spread, offset = 0) {
+    const digital = recalcPitch(note, spread, offset);
+    return digital * OUTPUT_GAIN_NODE * MATRIX_PIN_GREY_GAIN * FREQ_CV_GAIN;
+  }
+
+  // Helper: convierte salida digital a voltios reales del Synthi
+  function digitalToVolts(digitalValue) {
+    return digitalValue * DIGITAL_TO_VOLTAGE;
+  }
+
+  // ── Pitch → Oscilador (1V/Oct) ──
+
+  test('F#4 a spread=9 → exactamente 1200 cents (1 octava)', () => {
+    const cents = pitchToDetuneCents(78, 9);
+    assert.ok(Math.abs(cents - 1200) < 1e-6, `Expected 1200 cents, got ${cents}`);
+  });
+
+  test('F#5 a spread=9 → 2400 cents (2 octavas)', () => {
+    const cents = pitchToDetuneCents(90, 9);
+    assert.ok(Math.abs(cents - 2400) < 1e-6, `Expected 2400 cents, got ${cents}`);
+  });
+
+  test('1 semitono a spread=9 → 100 cents', () => {
+    const cents = pitchToDetuneCents(67, 9);
+    assert.ok(Math.abs(cents - 100) < 1e-6, `Expected 100 cents, got ${cents}`);
+  });
+
+  test('5 octavas completas (MIDI 36→96) a spread=9 → 6000 cents', () => {
+    // 60 semitonos = 5 octavas desde la nota más baja del teclado
+    const centsHigh = pitchToDetuneCents(96, 9);
+    const centsLow = pitchToDetuneCents(36, 9);
+    const span = centsHigh - centsLow;
+    assert.ok(Math.abs(span - 6000) < 1e-6, `Expected 6000 cents span, got ${span}`);
+  });
+
+  test('pivote F#3 → 0 cents de desviación', () => {
+    const cents = pitchToDetuneCents(66, 9);
+    assert.strictEqual(cents, 0);
+  });
+
+  // ── Velocity → Voltaje real ──
+
+  test('velocity max (127) level +5 → 5V reales', () => {
+    const digital = recalcVelocity(127, 5);
+    const volts = digitalToVolts(digital);
+    assert.ok(Math.abs(volts - 5) < 1e-10, `Expected 5V, got ${volts}V`);
+  });
+
+  test('velocity max (127) level -5 → -5V reales', () => {
+    const digital = recalcVelocity(127, -5);
+    const volts = digitalToVolts(digital);
+    assert.ok(Math.abs(volts - (-5)) < 1e-10, `Expected -5V, got ${volts}V`);
+  });
+
+  test('velocity 0 → 0V independiente del level', () => {
+    const volts = digitalToVolts(recalcVelocity(0, 5));
+    assert.strictEqual(volts, 0);
+  });
+
+  // ── Gate → Voltaje real ──
+
+  test('gate ON level +5 → 5V reales', () => {
+    const digital = computeGateVoltage(true, 5);
+    const volts = digitalToVolts(digital);
+    assert.ok(Math.abs(volts - 5) < 1e-10, `Expected 5V, got ${volts}V`);
+  });
+
+  test('gate ON level -5 → -5V reales', () => {
+    const digital = computeGateVoltage(true, -5);
+    const volts = digitalToVolts(digital);
+    assert.ok(Math.abs(volts - (-5)) < 1e-10, `Expected -5V, got ${volts}V`);
+  });
+
+  test('gate OFF → 0V independiente del level', () => {
+    const volts = digitalToVolts(computeGateVoltage(false, 5));
+    assert.strictEqual(volts, 0);
+  });
+
+  // ── Coherencia del sistema ──
+
+  test('freqCVInput gain es 4800 (1200 × 4)', () => {
+    assert.strictEqual(FREQ_CV_GAIN, 4800);
+  });
+
+  test('pitch: 0.25 digital × 4800 = 1200 cents = 1 octava', () => {
+    const digital = 1 / DIGITAL_TO_VOLTAGE; // 1V = 0.25 digital
+    assert.ok(Math.abs(digital * FREQ_CV_GAIN - CENTS_PER_OCTAVE) < 1e-10);
+  });
+
+  test('gate/velocity: dial ±5 produce ±1.25 digital = ±5V reales', () => {
+    const gateDigital = computeGateVoltage(true, 5);
+    assert.ok(Math.abs(gateDigital - 1.25) < 1e-10);
+    assert.ok(Math.abs(gateDigital * DIGITAL_TO_VOLTAGE - 5) < 1e-10);
   });
 });

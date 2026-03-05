@@ -36,17 +36,17 @@
  *           → a spread=0: todas las notas dan ~0V
  *           → a spread=10: ~1.11V/Oct (intervalo expandido)
  *
- * Velocity: (midiVelocity / 127) * velocityLevel
- *           → dial +5: velocidad proporcional, hasta +5V (el estándar)
+ * Velocity: (midiVelocity / 127) * velocityLevel / DIGITAL_TO_VOLTAGE
+ *           → dial +5: hasta +5V = 1.25 digital (el estándar)
  *           → dial  0: sin efecto (0V siempre)
- *           → dial -5: inversión, pulsación rápida → -5V ("louder→softer")
+ *           → dial -5: inversión, pulsación rápida → -5V = -1.25 digital
  *           Memoria: sample & hold hasta la siguiente pulsación
  *
- * Gate:     key pulsada → +gateLevel, key soltada → 0V
+ * Gate:     key pulsada → +gateLevel/DTV, key soltada → 0
  *           gateLevel = dial(-5..+5). Sin memoria: desaparece al soltar
- *           → dial +5: pulso +5V estándar para disparo de envolvente
- *           → dial -5: pulso -5V invertido
- *           → dial  0: sin gate (0V siempre)
+ *           → dial +5: pulso +5V = 1.25 digital para disparo de envolvente
+ *           → dial -5: pulso -5V = -1.25 digital invertido
+ *           → dial  0: sin gate (0 siempre)
  *
  * @module worklets/keyboard
  */
@@ -298,12 +298,14 @@ class KeyboardProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Recalcula el voltaje de velocity.
-   *   output = (midiVelocity / 127) * velocityLevel
-   * Dial +5 → hasta +5V, dial 0 → 0V, dial -5 → inversión hasta -5V.
+   * Recalcula el voltaje de velocity en unidades digitales.
+   *   output = (midiVelocity / 127) * velocityLevel / DIGITAL_TO_VOLTAGE
+   *
+   * Ejemplo: vel=127, dial=+5 → 5V → /4.0 = 1.25 digital
+   * Dial +5 → hasta +5V (1.25 digital), dial 0 → 0V, dial -5 → -5V (-1.25 digital)
    */
   _recalcVelocity() {
-    this._outVelocity = (this._currentVelocity / 127) * this._velocityLevel;
+    this._outVelocity = (this._currentVelocity / 127) * this._velocityLevel / DIGITAL_TO_VOLTAGE;
   }
 
   /**
@@ -314,14 +316,16 @@ class KeyboardProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Calcula el voltaje de gate.
-   * gate ON  → +gateLevel (voltaje del dial)
-   * gate OFF → 0V (sin memoria: desaparece al soltar la tecla)
+   * Calcula el voltaje de gate en unidades digitales.
+   * gate ON  → +gateLevel / DIGITAL_TO_VOLTAGE
+   * gate OFF → 0 (sin memoria: desaparece al soltar la tecla)
+   *
+   * Ejemplo: dial=+5 → 5V → /4.0 = 1.25 digital
    * @param {boolean} on
    * @returns {number}
    */
   _computeGateVoltage(on) {
-    return on ? this._gateLevel : 0;
+    return on ? this._gateLevel / DIGITAL_TO_VOLTAGE : 0;
   }
 
   /**

@@ -15,8 +15,8 @@
  * La varianza aplica jitter temporal al período del reloj.
  *
  * Las amplitudes de salida se controlan externamente con GainNodes:
- *   - Voltage 1/2: curva LOG (10K pot), ±2.5V pico
- *   - Key: lineal bipolar, ±5V pico
+ *   - Voltage 1/2: curva LOG (10K pot), ±2.5V pico (gain 0→0.625 digital)
+ *   - Key: lineal bipolar, ±5V pico (gain -1.25→+1.25 digital)
  *
  * Fuente de aleatoriedad: Math.random() (distribución rectangular/uniforme),
  * equivalente funcional de la unión N-P del transistor Q1 en polarización inversa.

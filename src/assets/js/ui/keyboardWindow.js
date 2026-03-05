@@ -86,6 +86,25 @@ function midiNoteToKeyId(side, midiNote) {
   return `${prefix}-${name}${octave}`;
 }
 
+/**
+ * Convierte un ID de tecla SVG a número de nota MIDI y side.
+ * @param {string} keyId — Ej: 'upper-C4', 'lower-Fs3'
+ * @returns {{ side: 'upper'|'lower', midiNote: number }|null}
+ */
+function keyIdToMidiNote(keyId) {
+  if (!keyId) return null;
+  const match = keyId.match(/^(upper|lower)-([A-G]s?)(\d)$/);
+  if (!match) return null;
+  const side = match[1];
+  const noteName = match[2];
+  const octave = parseInt(match[3], 10);
+  const noteIndex = NOTE_NAMES.indexOf(noteName);
+  if (noteIndex < 0) return null;
+  const midiNote = (octave + 1) * 12 + noteIndex; // octava 2 → MIDI 36
+  if (midiNote < MIDI_NOTE_MIN || midiNote > MIDI_NOTE_MAX) return null;
+  return { side, midiNote };
+}
+
 // ─── Estado del módulo ──────────────────────────────────────────────────────
 
 /** @type {HTMLDivElement|null} */
@@ -367,15 +386,41 @@ function _setupKeyFeedback() {
   /** @type {Map<Element, number>} tecla → timerId del flash pendiente */
   const flashTimers = new Map();
 
-  function pressKey(key) {
+  /**
+   * @param {Element} key — Elemento SVG de la tecla
+   * @param {boolean} [fromMIDI=false] — true si la pulsación viene de MIDI externo (no re-emitir el evento)
+   */
+  function pressKey(key, fromMIDI = false) {
     // Si tenía un timer de release pendiente, cancelarlo (sigue pulsada)
     const prev = flashTimers.get(key);
     if (prev) clearTimeout(prev);
     flashTimers.delete(key);
     key.classList.add('key-pressed');
+
+    // Despachar evento MIDI solo para interacciones locales (mouse/touch), no eco de MIDI externo
+    if (!fromMIDI) {
+      const info = keyIdToMidiNote(key.id);
+      if (info) {
+        const keyboardId = info.side === 'upper' ? KEYBOARD_UPPER_ID : KEYBOARD_LOWER_ID;
+        document.dispatchEvent(new CustomEvent('synth:keyboardMIDI', {
+          detail: {
+            keyboardId,
+            type: 'noteon',
+            note: info.midiNote,
+            velocity: 100,
+            channel: 0,
+            source: 'svg'
+          }
+        }));
+      }
+    }
   }
 
-  function releaseKey(key) {
+  /**
+   * @param {Element} key — Elemento SVG de la tecla
+   * @param {boolean} [fromMIDI=false] — true si la liberación viene de MIDI externo
+   */
+  function releaseKey(key, fromMIDI = false) {
     // No quitar inmediatamente — dejar al menos FLASH_DURATION ms para que
     // el navegador tenga tiempo de renderizar el estado pulsado.
     const existing = flashTimers.get(key);
@@ -385,6 +430,24 @@ function _setupKeyFeedback() {
       flashTimers.delete(key);
     }, FLASH_DURATION);
     flashTimers.set(key, tid);
+
+    // Despachar evento MIDI solo para interacciones locales
+    if (!fromMIDI) {
+      const info = keyIdToMidiNote(key.id);
+      if (info) {
+        const keyboardId = info.side === 'upper' ? KEYBOARD_UPPER_ID : KEYBOARD_LOWER_ID;
+        document.dispatchEvent(new CustomEvent('synth:keyboardMIDI', {
+          detail: {
+            keyboardId,
+            type: 'noteoff',
+            note: info.midiNote,
+            velocity: 0,
+            channel: 0,
+            source: 'svg'
+          }
+        }));
+      }
+    }
   }
 
   /**
@@ -786,9 +849,13 @@ const _midiPressedKeys = new Map();
 /**
  * Escucha eventos `synth:keyboardMIDI` despachados por midiLearnManager
  * y baja/sube las teclas correspondientes del SVG.
+ * Ignora eventos originados en la propia interacción SVG (source: 'svg').
  */
 function _setupMIDIKeyListener() {
   document.addEventListener('synth:keyboardMIDI', (/** @type {CustomEvent} */ e) => {
+    // No reaccionar a eventos originados por el propio SVG (evitar doble manipulación)
+    if (e.detail.source === 'svg') return;
+
     const { keyboardId, type, note } = e.detail;
     if (type !== 'noteon' && type !== 'noteoff') return;
     if (!container) return;

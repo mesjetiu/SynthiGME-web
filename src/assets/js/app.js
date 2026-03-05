@@ -16,6 +16,7 @@ import { PanelManager } from './ui/panelManager.js';
 import { OutputChannelsPanel } from './modules/outputChannel.js';
 import { NoiseModule } from './modules/noise.js';
 import { RandomCVModule } from './modules/randomCV.js';
+import { KeyboardModule } from './modules/keyboard.js';
 import { JoystickModule } from './modules/joystick.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
@@ -40,6 +41,7 @@ import {
   oscillatorConfig,
   noiseConfig,
   randomVoltageConfig,
+  keyboardConfig,
   oscilloscopeConfig,
   inputAmplifierConfig,
   outputChannelConfig,
@@ -107,6 +109,7 @@ import { inputAmplifierOSCSync } from './osc/oscInputAmplifierSync.js';
 import { outputChannelOSCSync } from './osc/oscOutputChannelSync.js';
 import { noiseGeneratorOSCSync } from './osc/oscNoiseGeneratorSync.js';
 import { randomCVOSCSync } from './osc/oscRandomCVSync.js';
+import { keyboardOSCSync } from './osc/oscKeyboardSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
 import { midiAccess } from './midi/midiAccess.js';
@@ -223,6 +226,8 @@ class App {
     this._randomVoltageUIs = {};
     this._inputAmplifierUIs = {};
     this._outputFadersModule = null;
+    this._keyboardModules = {};    // { upper: KeyboardModule, lower: KeyboardModule }
+    this._keyboardKnobs = {};      // { upper: { pitchSpread, velocityLevel, gateLevel }, lower: ... }
     
     // Construir paneles
     this._buildPanel1();  // Filtros, Envelopes, RM, Reverb, Echo (placeholders)
@@ -245,6 +250,7 @@ class App {
     outputChannelOSCSync.init(this);
     noiseGeneratorOSCSync.init(this);
     randomCVOSCSync.init(this);
+    keyboardOSCSync.init(this);
     joystickOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
@@ -1722,6 +1728,16 @@ class App {
         }
       }
     }
+
+    // Serializar Keyboards
+    if (this._keyboardModules) {
+      state.modules.keyboards = {};
+      for (const [side, mod] of Object.entries(this._keyboardModules)) {
+        if (mod && typeof mod.serialize === 'function') {
+          state.modules.keyboards[side] = mod.serialize();
+        }
+      }
+    }
     
     // Serializar Output Faders
     if (this._outputFadersModule && typeof this._outputFadersModule.serialize === 'function') {
@@ -1831,6 +1847,16 @@ class App {
         const ui = this._randomVoltageUIs[id];
         if (ui && typeof ui.deserialize === 'function') {
           ui.deserialize(data);
+        }
+      }
+    }
+
+    // Restaurar Keyboards
+    if (modules.keyboards && this._keyboardModules) {
+      for (const [side, data] of Object.entries(modules.keyboards)) {
+        const mod = this._keyboardModules[side];
+        if (mod && typeof mod.deserialize === 'function') {
+          mod.deserialize(data);
         }
       }
     }
@@ -1961,6 +1987,15 @@ class App {
       for (const ui of Object.values(this._randomVoltageUIs)) {
         if (ui && typeof ui.deserialize === 'function') {
           ui.deserialize(defaults.randomVoltage);
+        }
+      }
+    }
+
+    // Resetear Keyboards
+    if (this._keyboardModules) {
+      for (const mod of Object.values(this._keyboardModules)) {
+        if (mod && typeof mod.deserialize === 'function') {
+          mod.deserialize(defaults.keyboard);
         }
       }
     }
@@ -2100,6 +2135,13 @@ class App {
         voltage2: rvKnobs.voltage2.initial,
         key: rvKnobs.key.initial
       },
+      keyboard: {
+        pitchSpread: keyboardConfig.knobs.pitchSpread.initial,
+        pitchOffset: keyboardConfig.knobs.pitchOffset.initial,
+        velocityLevel: keyboardConfig.knobs.velocityLevel.initial,
+        gateLevel: keyboardConfig.knobs.gateLevel.initial,
+        retrigger: keyboardConfig.switches.retrigger.initial
+      },
       inputAmplifiers: {
         levels: Array(iaCount).fill(iaKnobs.level.initial)
       },
@@ -2159,6 +2201,10 @@ class App {
         for (const [id, joyUI] of Object.entries(this._joystickUIs || {})) {
           modules.push({ type: 'joystick', id, ui: joyUI });
         }
+        // Keyboards
+        for (const [side, mod] of Object.entries(this._keyboardModules || {})) {
+          modules.push({ type: 'keyboard', id: `keyboard-${side}`, ui: mod });
+        }
         break;
       }
       case 'panel-5': {
@@ -2217,9 +2263,12 @@ class App {
     if (this._joystickUIs?.[moduleId]) {
       return { type: 'joystick', ui: this._joystickUIs[moduleId] };
     }
-    // Teclados flotantes (virtual — no tienen UI de módulo, solo MIDI mapping)
-    if (moduleId === 'keyboard-upper' || moduleId === 'keyboard-lower') {
-      return { type: 'keyboard', ui: {} };
+    // Teclados (módulo de audio con serialize/deserialize)
+    if (moduleId === 'keyboard-upper' && this._keyboardModules?.upper) {
+      return { type: 'keyboard', ui: this._keyboardModules.upper };
+    }
+    if (moduleId === 'keyboard-lower' && this._keyboardModules?.lower) {
+      return { type: 'keyboard', ui: this._keyboardModules.lower };
     }
     return null;
   }
@@ -3260,11 +3309,13 @@ class App {
         gap: ${colLayout.knobGap ?? 4}px;
       `;
 
-      // Knobs
+      // Knobs — guardar referencias para wiring posterior
+      const knobElements = [];
       for (const knobDef of colLayout.knobs) {
         if (knobDef.type === 'vernier') {
-          const { wrapper } = createPanel4Vernier();
+          const { wrapper, knobInstance } = createPanel4Vernier();
           content.appendChild(wrapper);
+          knobElements.push({ type: 'vernier', knobInstance });
         } else {
           const knob = createPanel4Knob(knobDef);
           const stdSize = toNum(knobUI.standardKnobSize, 45);
@@ -3277,10 +3328,12 @@ class App {
             inner.style.height = `${pct}%`;
           }
           content.appendChild(knob.wrapper);
+          knobElements.push({ type: 'standard', knobEl: knob.knobEl });
         }
       }
 
-      // Switches (selectores rotativos u otros controles de 2 estados)
+      // Switches — guardar referencias
+      const switchElements = [];
       if (colLayout.switches) {
         for (let i = 0; i < colLayout.switches.length; i++) {
           const switchDef = colLayout.switches[i];
@@ -3293,11 +3346,13 @@ class App {
           if (switchDef.type === 'rotarySwitch') {
             const rs = createPanel4RotarySwitch(switchDef, colId, i);
             switchWrapper.appendChild(rs.createElement());
+            switchElements.push({ type: 'rotarySwitch', instance: rs });
           } else {
             // Fallback: toggle clásico
             const toggle = createPanel4Toggle(switchDef, colId, i);
             switchWrapper.style.transform = `scale(${toNum(knobUI.toggleScale, 0.7)})`;
             switchWrapper.appendChild(toggle.createElement());
+            switchElements.push({ type: 'toggle', instance: toggle });
           }
           content.appendChild(switchWrapper);
         }
@@ -3305,7 +3360,7 @@ class App {
 
       frame.appendToContent(content);
       applyModuleVisibility(el, blueprint, colId);
-      return { el, frame };
+      return { el, frame, knobElements, switchElements };
     };
 
     // ── Columna 2: Upper Keyboard ───────────────────────────────────────
@@ -3317,6 +3372,151 @@ class App {
     const lowerKb = buildKeyboardColumn(korLayout.column3);
     korRow.appendChild(lowerKb.el);
     korFrames.lowerKeyboard = lowerKb.frame;
+
+    // ── Crear módulos de audio de los teclados ──────────────────────────
+    const kbCfg = keyboardConfig;
+    this._keyboardModules.upper = new KeyboardModule(
+      this.engine, 'panel4-keyboard-upper', 'upper',
+      { ramps: { level: kbCfg.ramps?.level || 0.06 } }
+    );
+    this._keyboardModules.lower = new KeyboardModule(
+      this.engine, 'panel4-keyboard-lower', 'lower',
+      { ramps: { level: kbCfg.ramps?.level || 0.06 } }
+    );
+
+    // ── Conectar knobs/switches del Panel 4 a los módulos de teclado ────
+    const kbKnobs = kbCfg.knobs || {};
+    const kbSwitches = kbCfg.switches || {};
+
+    const wireKeyboardColumn = (kbResult, side) => {
+      const mod = this._keyboardModules[side];
+      if (!mod) return;
+
+      const knobRefs = {};
+
+      // Helper: convertir posición interna (0..1) a escala del dial
+      const toScale = (internalVal, cfgMin, cfgMax) =>
+        cfgMin + internalVal * (cfgMax - cfgMin);
+      // Helper: convertir escala del dial a posición interna (0..1)
+      const toInternal = (scaleVal, cfgMin, cfgMax) =>
+        (scaleVal - cfgMin) / (cfgMax - cfgMin);
+
+      // Knob 0: Pitch Spread (vernier) — rango de afinación
+      if (kbResult.knobElements[0]?.type === 'vernier') {
+        const vernierInst = kbResult.knobElements[0].knobInstance;
+        const ps = kbKnobs.pitchSpread || {};
+        const psMin = ps.min ?? 0;
+        const psMax = ps.max ?? 10;
+        const psInitial = ps.initial ?? 9;
+        // Vernier ya tiene min=0, max=1, scaleMin=0, scaleMax=10
+        vernierInst.value = toInternal(psInitial, psMin, psMax);
+        vernierInst.initialValue = vernierInst.value;
+        vernierInst.onChange = (value) => {
+          const scaleValue = toScale(value, psMin, psMax);
+          mod.setPitchSpread(scaleValue);
+          if (!keyboardOSCSync.shouldIgnoreOSC()) {
+            keyboardOSCSync.sendChange(side, 'pitchSpread', scaleValue);
+          }
+        };
+        vernierInst._updateVisual();
+        knobRefs.pitchSpread = vernierInst;
+      }
+
+      // Knob 1: Key Velocity (amarillo) — nivel de velocidad
+      if (kbResult.knobElements[1]?.type === 'standard') {
+        const vl = kbKnobs.velocityLevel || {};
+        const vlMin = vl.min ?? -5;
+        const vlMax = vl.max ?? 5;
+        const vlInitial = vl.initial ?? 5;
+        const vlKnob = new Knob(kbResult.knobElements[1].knobEl, {
+          min: 0,
+          max: 1,
+          initial: toInternal(vlInitial, vlMin, vlMax),
+          pixelsForFullRange: 150,
+          scaleMin: vlMin,
+          scaleMax: vlMax,
+          scaleDecimals: 1,
+          onChange: (value) => {
+            const scaleValue = toScale(value, vlMin, vlMax);
+            mod.setVelocityLevel(scaleValue);
+            if (!keyboardOSCSync.shouldIgnoreOSC()) {
+              keyboardOSCSync.sendChange(side, 'velocityLevel', scaleValue);
+            }
+          }
+        });
+        knobRefs.velocityLevel = vlKnob;
+      }
+
+      // Knob 2: Env. Control (blanco) — nivel de gate
+      if (kbResult.knobElements[2]?.type === 'standard') {
+        const gl = kbKnobs.gateLevel || {};
+        const glMin = gl.min ?? -5;
+        const glMax = gl.max ?? 5;
+        const glInitial = gl.initial ?? 5;
+        const glKnob = new Knob(kbResult.knobElements[2].knobEl, {
+          min: 0,
+          max: 1,
+          initial: toInternal(glInitial, glMin, glMax),
+          pixelsForFullRange: 150,
+          scaleMin: glMin,
+          scaleMax: glMax,
+          scaleDecimals: 1,
+          onChange: (value) => {
+            const scaleValue = toScale(value, glMin, glMax);
+            mod.setGateLevel(scaleValue);
+            if (!keyboardOSCSync.shouldIgnoreOSC()) {
+              keyboardOSCSync.sendChange(side, 'gateLevel', scaleValue);
+            }
+          }
+        });
+        knobRefs.gateLevel = glKnob;
+      }
+
+      // Switch 0: Retrigger (rotarySwitch)
+      if (kbResult.switchElements[0]?.type === 'rotarySwitch') {
+        const rsInst = kbResult.switchElements[0].instance;
+        const rtrInitial = kbSwitches.retrigger?.initial ?? 0;
+        rsInst.setState(rtrInitial === 1 ? 'b' : 'a');
+        rsInst.onChange = (state) => {
+          const mode = state === 'b' ? 1 : 0;
+          mod.setRetrigger(mode);
+          if (!keyboardOSCSync.shouldIgnoreOSC()) {
+            keyboardOSCSync.sendChange(side, 'retrigger', mode);
+          }
+        };
+        knobRefs.retrigger = rsInst;
+      }
+
+      this._keyboardKnobs[side] = knobRefs;
+    };
+
+    wireKeyboardColumn(upperKb, 'upper');
+    wireKeyboardColumn(lowerKb, 'lower');
+
+    // ── Escuchar eventos MIDI de teclado (desde midiLearnManager) ───────
+    document.addEventListener('synth:keyboardMIDI', (e) => {
+      const { keyboardId, type, note, velocity } = e.detail;
+      const side = keyboardId === 'keyboard-upper' ? 'upper' : 'lower';
+      const kbModule = this._keyboardModules[side];
+      if (!kbModule) return;
+
+      // Evitar bucle: si el evento viene de OSC, no reenviar por OSC
+      if (keyboardOSCSync.shouldIgnoreOSC()) return;
+
+      // Lazy start: arranca el módulo solo si no está iniciado
+      if (!kbModule.isStarted) {
+        kbModule.start();
+      }
+
+      if (type === 'noteon' && velocity > 0) {
+        kbModule.noteOn(note, velocity);
+        keyboardOSCSync.sendNoteOn(side, note, velocity);
+      } else {
+        // noteoff o noteon con velocity 0
+        kbModule.noteOff(note);
+        keyboardOSCSync.sendNoteOff(side, note);
+      }
+    });
 
     // ── Columnas 4-7: placeholders vacíos ───────────────────────────────
     for (let i = 4; i <= korLayout.columns; i++) {
@@ -6603,6 +6803,28 @@ class App {
 
         if (!outNode) {
           log.warn(` Joystick ${side} output node not available for axis ${axis}`);
+          return false;
+        }
+      } else if (source.kind === 'keyboardUpper' || source.kind === 'keyboardLower') {
+        // Fuente: Keyboard (Upper o Lower)
+        const kbSide = source.kind === 'keyboardUpper' ? 'upper' : 'lower';
+        const kbOutput = source.output; // 'pitch', 'velocity' o 'gate'
+        const kbModule = this._keyboardModules?.[kbSide];
+
+        if (!kbModule) {
+          log.warn(` Keyboard module not found for side: ${kbSide}`);
+          return false;
+        }
+
+        // Lazy start: arranca el módulo solo al primer pin
+        if (!kbModule.isStarted) {
+          kbModule.start();
+        }
+
+        outNode = kbModule.getOutputNode(kbOutput);
+
+        if (!outNode) {
+          log.warn(` Keyboard ${kbSide} output node not available for: ${kbOutput}`);
           return false;
         }
       } else if (source.kind === 'randomCV') {

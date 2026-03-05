@@ -68,22 +68,25 @@ class MockRandomCVModule {
   }
 
   /**
-   * Dial nivel (0-10) → ganancia LOG.
+   * Dial nivel (0-10) → ganancia LOG escalada a unidades digitales.
    * Misma lógica que RandomCVModule._levelDialToGain()
+   * ±2.5V pico → gain [0, 0.625]
    */
   _levelDialToGain(dial) {
     if (dial <= 0) return 0;
     const base = this.config.levelCurve.logBase;
     const normalized = dial / 10;
-    return (Math.pow(base, normalized) - 1) / (base - 1);
+    const logGain = (Math.pow(base, normalized) - 1) / (base - 1);
+    return logGain * 2.5 / 4.0; // VOLTAGE_PEAK / DIGITAL_TO_VOLTAGE
   }
 
   /**
-   * Dial key (-5 a +5) → ganancia bipolar.
+   * Dial key (-5 a +5) → ganancia bipolar en unidades digitales.
    * Misma lógica que RandomCVModule._keyDialToGain()
+   * ±5V pico → gain [-1.25, +1.25]
    */
   _keyDialToGain(dial) {
-    return dial / 5;
+    return dial * 5.0 / (5 * 4.0); // KEY_VOLTAGE_PEAK / (5 * DIGITAL_TO_VOLTAGE)
   }
 
   _initAudioNodes() {
@@ -321,22 +324,22 @@ describe('RandomCVModule — Synthi 100 Cuenca (con AudioContext mock)', () => {
       assert.equal(rcv._levelDialToGain(0), 0);
     });
 
-    it('dial 10 → ganancia 1.0 (máximo)', () => {
+    it('dial 10 → ganancia 0.625 (máximo: ±2.5V = ±0.625 digital)', () => {
       const gain = rcv._levelDialToGain(10);
-      assert.ok(Math.abs(gain - 1.0) < 1e-10, `Esperado 1.0, obtenido ${gain}`);
+      assert.ok(Math.abs(gain - 0.625) < 1e-10, `Esperado 0.625, obtenido ${gain}`);
     });
 
-    it('dial 5 → ganancia ≈ 0.091 (audio taper)', () => {
+    it('dial 5 → ganancia ≈ 0.0568 (audio taper, escalada)', () => {
       const gain = rcv._levelDialToGain(5);
-      // (100^0.5 - 1) / 99 = 9/99 ≈ 0.0909
-      assert.ok(Math.abs(gain - 0.0909) < 0.002,
-        `Esperado ~0.091, obtenido ${gain.toFixed(5)}`);
+      // (100^0.5 - 1) / 99 × 0.625 ≈ 0.0909 × 0.625 ≈ 0.0568
+      assert.ok(Math.abs(gain - 0.0568) < 0.002,
+        `Esperado ~0.0568, obtenido ${gain.toFixed(5)}`);
     });
 
-    it('dial 8 → ganancia ≈ 0.392', () => {
+    it('dial 8 → ganancia ≈ 0.245', () => {
       const gain = rcv._levelDialToGain(8);
-      assert.ok(Math.abs(gain - 0.392) < 0.01,
-        `Esperado ~0.392, obtenido ${gain.toFixed(4)}`);
+      assert.ok(Math.abs(gain - 0.245) < 0.01,
+        `Esperado ~0.245, obtenido ${gain.toFixed(4)}`);
     });
 
     it('curva LOG: mitad del dial produce << mitad de ganancia', () => {
@@ -367,26 +370,26 @@ describe('RandomCVModule — Synthi 100 Cuenca (con AudioContext mock)', () => {
 
   describe('conversión key dial → ganancia bipolar', () => {
     
-    it('dial -5 → ganancia -1 (pulso invertido, -5V)', () => {
-      assert.equal(rcv._keyDialToGain(-5), -1);
+    it('dial -5 → ganancia -1.25 (pulso invertido, -5V)', () => {
+      assert.ok(Math.abs(rcv._keyDialToGain(-5) - (-1.25)) < 1e-10);
     });
 
     it('dial 0 → ganancia 0 (sin pulso)', () => {
       assert.equal(rcv._keyDialToGain(0), 0);
     });
 
-    it('dial +5 → ganancia +1 (pulso +5V)', () => {
-      assert.equal(rcv._keyDialToGain(5), 1);
+    it('dial +5 → ganancia +1.25 (pulso +5V)', () => {
+      assert.ok(Math.abs(rcv._keyDialToGain(5) - 1.25) < 1e-10);
     });
 
-    it('dial +2.5 → ganancia +0.5 (pulso +2.5V)', () => {
-      assert.equal(rcv._keyDialToGain(2.5), 0.5);
+    it('dial +2.5 → ganancia +0.625 (pulso +2.5V)', () => {
+      assert.ok(Math.abs(rcv._keyDialToGain(2.5) - 0.625) < 1e-10);
     });
 
     it('lineal y simétrico', () => {
       for (let dial = -5; dial <= 5; dial += 0.5) {
         const gain = rcv._keyDialToGain(dial);
-        const expected = dial / 5;
+        const expected = dial / 4; // dial * KEY_VOLTAGE_PEAK / (5 * DIGITAL_TO_VOLTAGE)
         assert.ok(Math.abs(gain - expected) < 1e-10,
           `dial ${dial}: gain ${gain} ≠ expected ${expected}`);
       }

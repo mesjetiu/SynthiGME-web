@@ -28,9 +28,9 @@
  *       └── canal 2 ───────────┘──→ keyGain ──→ [output Key]
  *
  * El worklet genera señales normalizadas (±1). Los GainNodes aplican
- * la amplitud final:
- *   - V1, V2: curva LOG (pot 10K), escalada a ±2.5V (gain 0→1)
- *   - Key: lineal bipolar, escalada a ±5V (gain -1→+1)
+ * la amplitud final, escalada a unidades digitales (1 digital = 4V):
+ *   - V1, V2: curva LOG (pot 10K), ±2.5V = ±0.625 digital (gain 0→0.625)
+ *   - Key: lineal bipolar, ±5V = ±1.25 digital (gain -1.25→+1.25)
  *
  * ─────────────────────────────────────────────────────────────────────────
  * SALIDAS EN MATRIZ DE CONTROL (Panel 6)
@@ -64,6 +64,19 @@ import { createLogger } from '../utils/logger.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
 
 const log = createLogger('RandomCVModule');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTES DE VOLTAJE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Conversión digital ↔ voltaje: 1 unidad digital = 4V @see voltageConstants.js */
+const DIGITAL_TO_VOLTAGE = 4.0;
+
+/** Voltaje pico de salida V1/V2 (±V) — plano D100-21 */
+const VOLTAGE_PEAK = 2.5;
+
+/** Voltaje pico del pulso Key (±V) — dial ±5 → ±5V */
+const KEY_VOLTAGE_PEAK = 5.0;
 
 export class RandomCVModule extends Module {
   
@@ -117,28 +130,35 @@ export class RandomCVModule extends Module {
    * Convierte valor de dial de nivel (0-10) a ganancia usando curva LOG.
    * Emula potenciómetro de 10K logarítmico (D100-21 W1).
    *
+   * La ganancia se escala a unidades digitales: dial 10 → ±2.5V = ±0.625 digital.
+   * (1 digital = DIGITAL_TO_VOLTAGE = 4V)
+   *
    * @param {number} dial - Valor del dial (0-10)
-   * @returns {number} Ganancia [0, 1]
+   * @returns {number} Ganancia [0, 0.625] en unidades digitales
    * @private
    */
   _levelDialToGain(dial) {
     if (dial <= 0) return 0;
     const base = this.config.levelCurve.logBase;
     const normalized = dial / 10;
-    return (Math.pow(base, normalized) - 1) / (base - 1);
+    const logGain = (Math.pow(base, normalized) - 1) / (base - 1);
+    return logGain * VOLTAGE_PEAK / DIGITAL_TO_VOLTAGE;
   }
   
   /**
    * Convierte valor de dial Key (-5 a +5) a ganancia bipolar.
-   * Dial -5 → gain -1 (pulso -5V), dial 0 → gain 0 (sin pulso),
-   * dial +5 → gain +1 (pulso +5V).
+   * Dial -5 → gain -1.25 (pulso -5V), dial 0 → gain 0 (sin pulso),
+   * dial +5 → gain +1.25 (pulso +5V).
+   *
+   * La ganancia se expresa en unidades digitales:
+   *   dial ±5 → ±5V / 4V = ±1.25 digital
    *
    * @param {number} dial - Valor del dial (-5 a +5)
-   * @returns {number} Ganancia [-1, +1]
+   * @returns {number} Ganancia [-1.25, +1.25] en unidades digitales
    * @private
    */
   _keyDialToGain(dial) {
-    return dial / 5;
+    return dial * KEY_VOLTAGE_PEAK / (5 * DIGITAL_TO_VOLTAGE);
   }
   
   // ─────────────────────────────────────────────────────────────────────────

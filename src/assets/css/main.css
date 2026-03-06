@@ -1076,7 +1076,8 @@ h1 {
   box-shadow: inset 0 0 6px rgba(0,0,0,0.7);
   position: relative;
   transform-origin: 50% 50%;
-  will-change: transform;
+  /* will-change: transform se activa dinámicamente solo durante drag (knob.js)
+     para evitar exceder el presupuesto de capas GPU en Firefox */
 }
 .knob-inner::after {
   content: "";
@@ -1252,7 +1253,8 @@ h1 {
 /* El grupo giratorio usa CSS transform para rotar */
 .vernier-svg-container #vd-rotor {
   transform-origin: 150px 150px;
-  will-change: transform;
+  /* will-change: transform se activa dinámicamente solo durante drag (knob.js)
+     para evitar exceder el presupuesto de capas GPU en Firefox */
 }
 /* En modo knob-style-css, ocultar el SVG vernier y mostrar knob CSS */
 .knob-style-css .knob.knob--vernier .vernier-svg-container {
@@ -6565,6 +6567,10 @@ small { color:#aaa; }
   transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+  /* will-change solo cuando el PiP está activo, para no consumir presupuesto GPU */
+}
+
+.pip-container .pip-viewport-inner {
   will-change: transform, width, height;
 }
 

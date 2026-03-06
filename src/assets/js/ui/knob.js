@@ -443,6 +443,9 @@ export class Knob {
       this.startX = ev.clientX;  // Guardar posición X inicial para precisión progresiva
       this.startValue = this.value;
       this.rootEl.setPointerCapture(ev.pointerId);
+      // Promover capa GPU solo durante drag (evita exceder presupuesto will-change en Firefox)
+      const rotEl = this._getRotatingEl();
+      if (rotEl) rotEl.style.willChange = 'transform';
       lastPointerType = ev.pointerType;
       
       // Mostrar tooltip durante drag
@@ -551,6 +554,9 @@ export class Knob {
       if (!this.dragging) return;
       this.dragging = false;
       this._setModifierVisual('none');
+      // Liberar capa GPU al terminar drag
+      const rotEl = this._getRotatingEl();
+      if (rotEl) rotEl.style.willChange = '';
       
       // Aplicar valor final si hay pendiente
       if (this._pendingValue !== null) {
@@ -633,5 +639,14 @@ export class Knob {
    */
   resetToDefault() {
     this.setValue(this.initialValue);
+  }
+
+  /**
+   * Retorna el elemento DOM que rota durante drag.
+   * Subclases (VernierKnob) pueden override para devolver su propio rotor.
+   * @returns {HTMLElement|null}
+   */
+  _getRotatingEl() {
+    return this.innerEl;
   }
 }

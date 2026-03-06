@@ -250,4 +250,12 @@ export class VernierKnob extends Knob {
   _updateVisual() {
     this._updateVisualFast();
   }
+
+  /**
+   * Override: el elemento que rota en VernierKnob es el grupo SVG #vd-rotor.
+   * @returns {SVGGElement|null}
+   */
+  _getRotatingEl() {
+    return this._svgRotor;
+  }
 }

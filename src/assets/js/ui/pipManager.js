@@ -296,6 +296,23 @@ function schedulePipPreviewRefresh(panelId, { immediate = false } = {}) {
   pipPreviewRefreshTimers.set(panelId, timerId);
 }
 
+function flushPendingPipDrag(panelId) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+
+  state.pendingDragRaf = null;
+
+  if (state.pendingDragX == null || state.pendingDragY == null) return;
+
+  state.pipContainer.style.transform = `translate3d(${state.pendingDragX - dragStartPosition.x}px, ${state.pendingDragY - dragStartPosition.y}px, 0)`;
+}
+
+function schedulePendingPipDrag(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || state.pendingDragRaf) return;
+  state.pendingDragRaf = requestAnimationFrame(() => flushPendingPipDrag(panelId));
+}
+
 /**
  * Calcula las dimensiones iniciales del PiP para que el panel se vea
  * como en el canvas principal a zoom mínimo.
@@ -426,6 +443,10 @@ function cancelPendingPipInteraction(state) {
     cancelAnimationFrame(state.pendingWheelRaf);
     state.pendingWheelRaf = null;
   }
+  if (state.pendingDragRaf) {
+    cancelAnimationFrame(state.pendingDragRaf);
+    state.pendingDragRaf = null;
+  }
   cancelPipRasterize(state);
   if (state.previewTimer) {
     clearTimeout(state.previewTimer);
@@ -469,11 +490,22 @@ function setPipPreviewMode(panelId, active = true) {
     return;
   }
 
+  if (state.previewMode) {
+    state.previewTimer = setTimeout(() => {
+      state.previewTimer = null;
+      state.previewMode = false;
+      state.panelEl?.classList?.remove('panel--pip-preview');
+      state.pipContainer?.classList?.remove('pip-container--preview');
+      schedulePipRasterize(panelId);
+    }, PIP_PREVIEW_IDLE_MS);
+    return;
+  }
+
   cancelPipRasterize(state);
   panelEl.style.zoom = '';
   updatePipScale(panelId, state.scale, false);
 
-  if (!state.previewReady || state.previewDirty) {
+  if (!state.previewReady) {
     schedulePipPreviewRefresh(panelId, { immediate: !state.previewReady });
   }
 
@@ -918,7 +950,9 @@ export function initPipManager() {
     if (!state) return;
 
     state.previewDirty = true;
-    schedulePipPreviewRefresh(panelId, { immediate: !state.previewReady && !state.previewMode });
+    if (!state.previewMode) {
+      schedulePipPreviewRefresh(panelId, { immediate: !state.previewReady });
+    }
   });
 
   document.addEventListener('synth:sharpRasterizeChange', (event) => {
@@ -1437,7 +1471,10 @@ export function openPip(panelId, restoredConfig = null) {
     pendingWheelMoveY: 0,
     pendingWheelZoomSteps: 0,
     pendingWheelClientX: null,
-    pendingWheelClientY: null
+    pendingWheelClientY: null,
+    pendingDragX: null,
+    pendingDragY: null,
+    pendingDragRaf: null
   };
 
   refreshPipViewportMetrics(state);
@@ -2116,7 +2153,7 @@ function handlePointerMove(e) {
 
     state.pendingDragX = newX;
     state.pendingDragY = newY;
-    state.pipContainer.style.transform = `translate3d(${newX - dragStartPosition.x}px, ${newY - dragStartPosition.y}px, 0)`;
+    schedulePendingPipDrag(draggingPip);
   }
   
   if (resizingPip) {
@@ -2221,6 +2258,10 @@ function handlePointerUp(e) {
       state.pipContainer.classList.remove('pip-container--dragging');
       const finalX = state.pendingDragX ?? state.x;
       const finalY = state.pendingDragY ?? state.y;
+      if (state.pendingDragRaf) {
+        cancelAnimationFrame(state.pendingDragRaf);
+        state.pendingDragRaf = null;
+      }
       state.x = finalX;
       state.y = finalY;
       state.pipContainer.style.left = `${finalX}px`;

@@ -33,13 +33,22 @@ export class NoiseGenerator extends ModuleUI {
    * @param {number} [options.knobSize=40] - Tamaño de los knobs en px
    */
   constructor(options = {}) {
+    // Si options.knobColors o options.knobTypes existen (pasados desde el blueprint a través de app.js layout)
+    const defColors = options.knobColors || ['blue', 'white'];
+    const defTypes = options.knobTypes || ['bipolar', 'normal'];
+
+    const getHexColor = (colorName, fallback) => {
+      const cmap = { blue: KNOB_BLUE, white: KNOB_WHITE, red: '#B54049', yellow: '#C8A638', green: '#467660', black: '#242227' };
+      return cmap[colorName] || fallback;
+    };
+
     super({
       id: options.id || 'noise-gen',
       title: options.title || 'Noise',
       cssClass: 'noise-generator',
       knobDefs: [
-        { key: 'colour', label: 'Colour', color: KNOB_BLUE },
-        { key: 'level', label: 'Level', color: KNOB_WHITE }
+        { key: 'colour', label: 'Colour', color: getHexColor(defColors[0], KNOB_BLUE), type: defTypes[0] },
+        { key: 'level', label: 'Level', color: getHexColor(defColors[1], KNOB_WHITE), type: defTypes[1] }
       ],
       knobOptions: options.knobOptions || {},
       knobSize: options.knobSize || 40,

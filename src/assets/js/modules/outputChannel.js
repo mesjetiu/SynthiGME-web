@@ -17,7 +17,16 @@ import { Module } from '../core/engine.js';
 import { ModuleFrame } from '../ui/moduleFrame.js';
 import { Knob } from '../ui/knob.js';
 import { createKnobElements } from '../ui/knobFactory.js';
-import { KNOB_BLUE, KNOB_WHITE } from '../configs/knobColors.js';
+import { KNOB_BLUE, KNOB_WHITE, KNOB_YELLOW, KNOB_RED, KNOB_GREEN, KNOB_BLACK } from '../configs/knobColors.js';
+
+const COLOR_MAP = {
+  blue: KNOB_BLUE,
+  red: KNOB_RED,
+  yellow: KNOB_YELLOW,
+  white: KNOB_WHITE,
+  green: KNOB_GREEN,
+  black: KNOB_BLACK
+};
 import { shouldBlockInteraction, isNavGestureActive } from '../utils/input.js';
 import { outputChannelConfig } from '../configs/index.js';
 import { 
@@ -164,13 +173,20 @@ export class OutputChannel extends Module {
    * @returns {HTMLElement}
    */
   _createFilterKnob() {
+    const colorName = this.options.knobColors?.[0] || 'blue';
+    const type = this.options.knobTypes?.[0] || 'bipolar';
+    
+    let svgSrc = 'assets/knobs/knob.svg';
+    if (type === 'bipolar') svgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (type === 'vernier') svgSrc = 'assets/knobs/vernier-dial.svg';
+
     const { wrapper, knobEl, valueEl } = createKnobElements({
       label: 'Filter',
       size: 'sm',
       className: 'output-channel__knob-wrap',
       showValue: true,
-      centerColor: KNOB_BLUE,
-      svgSrc: 'assets/knobs/knob-0-center.svg'
+      centerColor: COLOR_MAP[colorName] || KNOB_BLUE,
+      svgSrc: svgSrc
     });
     
     wrapper.dataset.knob = 'filter';
@@ -196,13 +212,20 @@ export class OutputChannel extends Module {
    * @returns {HTMLElement}
    */
   _createPanKnob() {
+    const colorName = this.options.knobColors?.[1] || 'white';
+    const type = this.options.knobTypes?.[1] || 'bipolar';
+    
+    let svgSrc = 'assets/knobs/knob.svg';
+    if (type === 'bipolar') svgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (type === 'vernier') svgSrc = 'assets/knobs/vernier-dial.svg';
+
     const { wrapper, knobEl, valueEl } = createKnobElements({
       label: 'Pan',
       size: 'sm',
       className: 'output-channel__knob-wrap',
       showValue: true,
-      centerColor: KNOB_WHITE,
-      svgSrc: 'assets/knobs/knob-0-center.svg'
+      centerColor: COLOR_MAP[colorName] || KNOB_WHITE,
+      svgSrc: svgSrc
     });
     
     wrapper.dataset.knob = 'pan';
@@ -817,10 +840,11 @@ export class OutputChannelsPanel {
    * @param {Object} engine - AudioEngine instance
    * @param {number} [channelCount] - Número de canales (default desde config)
    */
-  constructor(engine, channelCount) {
+  constructor(engine, channelCount, options = {}) {
     this.engine = engine;
     // Usar el count del config si no se especifica
     this.channelCount = channelCount ?? outputChannelConfig.count ?? 8;
+    this.options = options;
     this.channels = [];
   }
   
@@ -832,7 +856,7 @@ export class OutputChannelsPanel {
     container.classList.add('output-channels-row');
     
     for (let i = 0; i < this.channelCount; i++) {
-      const channel = new OutputChannel(this.engine, i);
+      const channel = new OutputChannel(this.engine, i, this.options);
       channel.createPanel(container);
       this.channels.push(channel);
     }

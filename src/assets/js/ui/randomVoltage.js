@@ -39,16 +39,24 @@ export class RandomVoltage extends ModuleUI {
    * @param {number} [options.knobSize=40] - Tamaño de los knobs en px
    */
   constructor(options = {}) {
+    const defColors = options.knobColors || ['red', 'red', 'white', 'white', 'white'];
+    const defTypes = options.knobTypes || ['bipolar', 'normal', 'bipolar', 'bipolar', 'normal'];
+    
+    const getHexColor = (colorName, fallback) => {
+      const cmap = { blue: '#547FA1', white: '#BEB7B1', red: KNOB_RED, yellow: '#C8A638', green: '#467660', black: '#242227' };
+      return cmap[colorName] || fallback;
+    };
+
     super({
       id: options.id || 'random-voltage',
       title: options.title || 'Random Control Voltage',
       cssClass: 'random-voltage',
       knobDefs: [
-        { key: 'mean', label: 'Mean', color: KNOB_RED },
-        { key: 'variance', label: 'Variance', color: KNOB_RED },
-        { key: 'voltage1', label: 'Voltage 1', color: KNOB_WHITE },
-        { key: 'voltage2', label: 'Voltage 2', color: KNOB_WHITE },
-        { key: 'key', label: 'Key', color: KNOB_WHITE }
+        { key: 'mean', label: 'Mean', color: getHexColor(defColors[0], KNOB_RED), type: defTypes[0] },
+        { key: 'variance', label: 'Variance', color: getHexColor(defColors[1], KNOB_RED), type: defTypes[1] },
+        { key: 'voltage1', label: 'Voltage 1', color: getHexColor(defColors[2], KNOB_WHITE), type: defTypes[2] },
+        { key: 'voltage2', label: 'Voltage 2', color: getHexColor(defColors[3], KNOB_WHITE), type: defTypes[3] },
+        { key: 'key', label: 'Key', color: getHexColor(defColors[4], KNOB_WHITE), type: defTypes[4] }
       ],
       knobOptions: options.knobOptions || {},
       knobSize: options.knobSize || 40,

@@ -84,6 +84,7 @@ export default {
       joystickLeft: {
         knobs: ['Range Horizontal', 'Range Vertical'],
         knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
+        knobTypes: ['normal', 'normal'],
         knobSize: 65,
         padSize: 120,
 
@@ -103,6 +104,7 @@ export default {
       joystickRight: {
         knobs: ['Range Horizontal', 'Range Vertical'],
         knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
+        knobTypes: ['normal', 'normal'],
         knobSize: 65,
         padSize: 120,
 
@@ -137,6 +139,8 @@ export default {
         buttonsOffset: { x: 0, y: 0 },    // offset de la fila de botones
         clockRateOffset: { x: 0, y: 0 },  // offset de la fila del knob Clock Rate
         clockRateKnobOffset: { x: 0, y: 0 }, // offset del knob Clock Rate
+        clockRateKnobColor: 'white',      // color del knob Clock Rate
+        clockRateKnobType: 'vernier',     // en el Synthi 100, Clock Rate es un vernier dial
 
         // Offsets individuales por control (8 + 8)
         switchOffsets: [
@@ -189,6 +193,12 @@ export default {
     knobColors: [
       'blue',    // 0: Filter
       'white'    // 1: Pan
+    ],
+
+    // Tipos de knob para Output Channels
+    knobTypes: [
+      'bipolar', // 0: Filter (-5 a +5)
+      'bipolar'  // 1: Pan (-5 a +5)
     ],
 
     // Slider (level) — tamaño visual del fader

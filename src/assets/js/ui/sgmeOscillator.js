@@ -11,7 +11,16 @@ import { Knob } from './knob.js';
 import { VernierKnob } from './vernierKnob.js';
 import { flashGlow } from './glowManager.js';
 import { loadSvgInline } from './svgInlineLoader.js';
-import { KNOB_BLUE, KNOB_GREEN, KNOB_WHITE, KNOB_BLACK } from '../configs/knobColors.js';
+import { KNOB_BLUE, KNOB_GREEN, KNOB_WHITE, KNOB_BLACK, KNOB_RED, KNOB_YELLOW } from '../configs/knobColors.js';
+
+const COLOR_MAP = {
+  blue: KNOB_BLUE,
+  green: KNOB_GREEN,
+  white: KNOB_WHITE,
+  black: KNOB_BLACK,
+  red: KNOB_RED,
+  yellow: KNOB_YELLOW
+};
 
 /** Índice del knob de frecuencia (usa Vernier dial) */
 const FREQ_KNOB_INDEX = 6;
@@ -65,6 +74,8 @@ export class SGME_Oscillator {
     this.knobRowOffsetX = options.knobRowOffsetX ?? 0;
     this.knobRowOffsetY = options.knobRowOffsetY || -6;
     this.knobOffsets = options.knobOffsets || [0, 0, 0, 0, 0, 0, 0]; // array de px por knob
+    this.knobColors = options.knobColors || [];
+    this.knobTypes = options.knobTypes || [];
     this.knobLabels = options.knobLabels || DEFAULT_KNOB_LABELS;
     this.knobOptions = options.knobOptions || [];
     this.knobs = [];
@@ -203,8 +214,10 @@ export class SGME_Oscillator {
         // Centro de color — fuera de inner para que NO gire
         const knobCenter = document.createElement('div');
         knobCenter.className = 'knob-center';
-        if (DEFAULT_KNOB_COLORS[idx]) {
-          knobCenter.style.setProperty('--knob-center-color', DEFAULT_KNOB_COLORS[idx]);
+        const colorKey = this.knobColors[idx] || undefined;
+        let colorHex = colorKey ? COLOR_MAP[colorKey] : DEFAULT_KNOB_COLORS[idx];
+        if (colorHex) {
+          knobCenter.style.setProperty('--knob-center-color', colorHex);
         }
         knob.appendChild(knobCenter);
 
@@ -213,7 +226,12 @@ export class SGME_Oscillator {
         knobsRow.appendChild(shell);
 
         // Cargar SVG inline (solo anillo/escala)
-        const svgSrc = (scale.min < 0) ? 'assets/knobs/knob-0-center.svg' : 'assets/knobs/knob.svg';
+        const defType = (scale.min < 0) ? 'bipolar' : 'normal';
+        const type = this.knobTypes[idx] || defType;
+        let svgSrc = 'assets/knobs/knob.svg';
+        if (type === 'bipolar') svgSrc = 'assets/knobs/knob-0-center.svg';
+        else if (type === 'vernier') svgSrc = 'assets/knobs/vernier-dial.svg';
+        
         loadSvgInline(svgSrc, inner);
 
         knobInstance = new Knob(knob, { ...baseOptions, ...perKnob });

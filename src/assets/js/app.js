@@ -25,7 +25,17 @@ import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
-import { KNOB_YELLOW, KNOB_WHITE } from './configs/knobColors.js';
+import { KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK } from './configs/knobColors.js';
+
+/** Mapa de nombre de color (string) → valor hex importado. Usado por todos los builders de panel. */
+const COLOR_MAP = {
+  blue: KNOB_BLUE,
+  red: KNOB_RED,
+  yellow: KNOB_YELLOW,
+  white: KNOB_WHITE,
+  green: KNOB_GREEN,
+  black: KNOB_BLACK
+};
 
 // Blueprints (estructura visual y ruteo)
 import panel1Blueprint from './panelBlueprints/panel1.blueprint.js';
@@ -586,9 +596,18 @@ class App {
 
     // Knob superior: Range Y
     const leftCfgY = joystickConfig.left.knobs.rangeY;
+    const leftRangeYColorName = joystickLeftUI.knobColors?.[0] || 'yellow';
+    const leftRangeYColor = COLOR_MAP[leftRangeYColorName] || KNOB_YELLOW;
+    const leftRangeYType = joystickLeftUI.knobTypes?.[0] || 'normal';
+    
+    let leftRangeYSvgSrc = 'assets/knobs/knob.svg';
+    if (leftRangeYType === 'bipolar') leftRangeYSvgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (leftRangeYType === 'vernier') leftRangeYSvgSrc = 'assets/knobs/vernier-dial.svg';
+
     const leftRangeYKnob = createKnob({
       size: joystickLeftUI.knobSize || 'sm',
-      centerColor: KNOB_YELLOW,
+      centerColor: leftRangeYColor,
+      svgSrc: leftRangeYSvgSrc,
       showValue: false,
       initial: leftCfgY.initial / leftCfgY.max,
       scaleMin: leftCfgY.min,
@@ -609,9 +628,18 @@ class App {
 
     // Knob inferior: Range X
     const leftCfgX = joystickConfig.left.knobs.rangeX;
+    const leftRangeXColorName = joystickLeftUI.knobColors?.[1] || 'yellow';
+    const leftRangeXColor = COLOR_MAP[leftRangeXColorName] || KNOB_YELLOW;
+    const leftRangeXType = joystickLeftUI.knobTypes?.[1] || 'normal';
+    
+    let leftRangeXSvgSrc = 'assets/knobs/knob.svg';
+    if (leftRangeXType === 'bipolar') leftRangeXSvgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (leftRangeXType === 'vernier') leftRangeXSvgSrc = 'assets/knobs/vernier-dial.svg';
+
     const leftRangeXKnob = createKnob({
       size: joystickLeftUI.knobSize || 'sm',
-      centerColor: KNOB_YELLOW,
+      centerColor: leftRangeXColor,
+      svgSrc: leftRangeXSvgSrc,
       showValue: false,
       initial: leftCfgX.initial / leftCfgX.max,
       scaleMin: leftCfgX.min,
@@ -699,9 +727,19 @@ class App {
     clockRow.className = 'panel7-sequencer-clock';
     applyOffset(clockRow, sequencerUI.clockRateOffset || sequencerUI.clockRate?.rowOffset);
 
+    const clockRateColorName = sequencerUI.clockRateKnobColor || 'black';
+    const clockRateColor = COLOR_MAP[clockRateColorName] || KNOB_BLACK;
+    const clockRateType = sequencerUI.clockRateKnobType || 'normal';
+
+    let clockRateSvgSrc = 'assets/knobs/knob.svg';
+    if (clockRateType === 'bipolar') clockRateSvgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (clockRateType === 'vernier') clockRateSvgSrc = 'assets/knobs/vernier-dial.svg';
+
     const clockRateKnob = createKnob({
       label: sequencerUI.clockRate?.label || 'Clock Rate',
       size: sequencerUI.clockRate?.knobSize || 'sm',
+      centerColor: clockRateColor,
+      svgSrc: clockRateSvgSrc,
       showValue: false,
       initial: 0.5,
       onChange: () => {}
@@ -738,9 +776,18 @@ class App {
 
     // Knob superior: Range Y
     const rightCfgY = joystickConfig.right.knobs.rangeY;
+    const rightRangeYColorName = joystickRightUI.knobColors?.[0] || 'yellow';
+    const rightRangeYColor = COLOR_MAP[rightRangeYColorName] || KNOB_YELLOW;
+    const rightRangeYType = joystickRightUI.knobTypes?.[0] || 'normal';
+    
+    let rightRangeYSvgSrc = 'assets/knobs/knob.svg';
+    if (rightRangeYType === 'bipolar') rightRangeYSvgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (rightRangeYType === 'vernier') rightRangeYSvgSrc = 'assets/knobs/vernier-dial.svg';
+
     const rightRangeYKnob = createKnob({
       size: joystickRightUI.knobSize || 'sm',
-      centerColor: KNOB_YELLOW,
+      centerColor: rightRangeYColor,
+      svgSrc: rightRangeYSvgSrc,
       showValue: false,
       initial: rightCfgY.initial / rightCfgY.max,
       scaleMin: rightCfgY.min,
@@ -761,9 +808,18 @@ class App {
 
     // Knob inferior: Range X
     const rightCfgX = joystickConfig.right.knobs.rangeX;
+    const rightRangeXColorName = joystickRightUI.knobColors?.[1] || 'yellow';
+    const rightRangeXColor = COLOR_MAP[rightRangeXColorName] || KNOB_YELLOW;
+    const rightRangeXType = joystickRightUI.knobTypes?.[1] || 'normal';
+    
+    let rightRangeXSvgSrc = 'assets/knobs/knob.svg';
+    if (rightRangeXType === 'bipolar') rightRangeXSvgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (rightRangeXType === 'vernier') rightRangeXSvgSrc = 'assets/knobs/vernier-dial.svg';
+
     const rightRangeXKnob = createKnob({
       size: joystickRightUI.knobSize || 'sm',
-      centerColor: KNOB_YELLOW,
+      centerColor: rightRangeXColor,
+      svgSrc: rightRangeXSvgSrc,
       showValue: false,
       initial: rightCfgX.initial / rightCfgX.max,
       scaleMin: rightCfgX.min,
@@ -866,7 +922,10 @@ class App {
     }
     
     // Crear panel de output channels (channelCount viene del config, no del blueprint)
-    this._outputChannelsPanel = new OutputChannelsPanel(this.engine);
+    this._outputChannelsPanel = new OutputChannelsPanel(this.engine, undefined, {
+      knobColors: channelUI.knobColors,
+      knobTypes: channelUI.knobTypes
+    });
     this._outputChannelsPanel.createPanel(this.outputChannelsSection);
     
     // Mantener referencia como _outputFadersModule para compatibilidad con serialización
@@ -2801,9 +2860,21 @@ class App {
         el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
       }
     };
-    const createPanel1Knob = ({ knobSize = 'sm', knobInnerPct = 78 }) => {
+    const createPanel1Knob = ({ knobSize = 'sm', knobInnerPct = 78, knobColor = '', knobType = 'normal' }) => {
       const sizePreset = typeof knobSize === 'string' ? knobSize : '';
-      const knob = createKnob({ size: sizePreset, showValue: false });
+      
+      const centerColor = COLOR_MAP[knobColor] || '';
+      
+      let svgSrc;
+      if (knobType === 'bipolar') {
+        svgSrc = 'assets/knobs/knob-0-center.svg';
+      } else if (knobType === 'vernier') {
+        svgSrc = 'assets/knobs/vernier-dial.svg'; 
+      }
+
+      // If it's a vernier type, you might use a specific Vernier constructor, 
+      // but if we are just creating standard UI knobs for placeholders:
+      const knob = createKnob({ size: sizePreset, showValue: false, centerColor, ...(svgSrc && { svgSrc }) });
       if (typeof knobSize === 'number' && Number.isFinite(knobSize) && knobSize > 0) {
         knob.knobEl.style.width = `${knobSize}px`;
         knob.knobEl.style.height = `${knobSize}px`;
@@ -2879,13 +2950,15 @@ class App {
       knobsContainer.className = 'panel1-filter-knobs';
       knobsContainer.style.gap = `${toNum(filterModuleUI.knobGap, toNum(filtersLayout.knobGap, 2))}px`;
       applyOffset(knobsContainer, filterModuleUI.knobsOffset, filtersLayout.knobsOffset || { x: 0, y: 0 });
-      for (const knobName of filtersLayout.knobs) {
+      filtersLayout.knobs.forEach((knobName, i) => {
         const knob = createPanel1Knob({
           knobSize: filterModuleUI.knobSize ?? filtersLayout.knobSize,
-          knobInnerPct: filterModuleUI.knobInnerPct ?? filtersLayout.knobInnerPct
+          knobInnerPct: filterModuleUI.knobInnerPct ?? filtersLayout.knobInnerPct,
+          knobColor: filterModuleUI.knobColors?.[i] ?? filtersLayout.knobColors?.[i],
+          knobType: filterModuleUI.knobTypes?.[i] ?? filtersLayout.knobTypes?.[i]
         });
         knobsContainer.appendChild(knob.wrapper);
-      }
+      });
       frame.appendToContent(knobsContainer);
       applyOffset(el, filterModuleUI.offset, filtersLayout.moduleOffset || { x: 0, y: 0 });
 
@@ -2921,13 +2994,15 @@ class App {
       knobsContainer.className = 'panel1-envelope-knobs';
       knobsContainer.style.gap = `${toNum(envModuleUI.knobGap, toNum(envLayout.knobGap, 2))}px`;
       applyOffset(knobsContainer, envModuleUI.knobsOffset, envLayout.knobsOffset || { x: 0, y: 0 });
-      for (const knobName of envLayout.knobs) {
+      envLayout.knobs.forEach((knobName, i) => {
         const knob = createPanel1Knob({
           knobSize: envModuleUI.knobSize ?? envLayout.knobSize,
-          knobInnerPct: envModuleUI.knobInnerPct ?? envLayout.knobInnerPct
+          knobInnerPct: envModuleUI.knobInnerPct ?? envLayout.knobInnerPct,
+          knobColor: envModuleUI.knobColors?.[i] ?? envLayout.knobColors?.[i],
+          knobType: envModuleUI.knobTypes?.[i] ?? envLayout.knobTypes?.[i]
         });
         knobsContainer.appendChild(knob.wrapper);
-      }
+      });
       frame.appendToContent(knobsContainer);
       applyOffset(el, envModuleUI.offset, envLayout.moduleOffset || { x: 0, y: 0 });
 
@@ -2977,13 +3052,15 @@ class App {
       knobsContainer.className = 'panel1-bottom-knobs';
       knobsContainer.style.gap = `${toNum(rmModuleUI.knobGap, toNum(rmConfig.knobGap, 6))}px`;
       applyOffset(knobsContainer, rmModuleUI.knobsOffset, rmConfig.knobsOffset || { x: 0, y: 0 });
-      for (const knobName of rmConfig.knobs) {
+      rmConfig.knobs.forEach((knobName, idx) => {
         const knob = createPanel1Knob({
           knobSize: rmModuleUI.knobSize ?? rmConfig.knobSize,
-          knobInnerPct: rmModuleUI.knobInnerPct ?? rmConfig.knobInnerPct
+          knobInnerPct: rmModuleUI.knobInnerPct ?? rmConfig.knobInnerPct,
+          knobColor: rmModuleUI.knobColors?.[idx] ?? rmConfig.knobColors?.[idx],
+          knobType: rmModuleUI.knobTypes?.[idx] ?? rmConfig.knobTypes?.[idx]
         });
         knobsContainer.appendChild(knob.wrapper);
-      }
+      });
       frame.appendToContent(knobsContainer);
       applyOffset(el, rmModuleUI.offset, rmConfig.moduleOffset || { x: 0, y: 0 });
 
@@ -3010,13 +3087,15 @@ class App {
     reverbKnobs.className = 'panel1-bottom-knobs';
     reverbKnobs.style.gap = `${toNum(reverbUI.knobGap, toNum(reverbConfig.knobGap, 6))}px`;
     applyOffset(reverbKnobs, reverbUI.knobsOffset, reverbConfig.knobsOffset || { x: 0, y: 0 });
-    for (const knobName of reverbConfig.knobs) {
+    reverbConfig.knobs.forEach((knobName, idx) => {
       const knob = createPanel1Knob({
         knobSize: reverbUI.knobSize ?? reverbConfig.knobSize,
-        knobInnerPct: reverbUI.knobInnerPct ?? reverbConfig.knobInnerPct
+        knobInnerPct: reverbUI.knobInnerPct ?? reverbConfig.knobInnerPct,
+        knobColor: reverbUI.knobColors?.[idx] ?? reverbConfig.knobColors?.[idx],
+        knobType: reverbUI.knobTypes?.[idx] ?? reverbConfig.knobTypes?.[idx]
       });
       reverbKnobs.appendChild(knob.wrapper);
-    }
+    });
     reverbFrame.appendToContent(reverbKnobs);
     applyOffset(reverbEl, reverbUI.offset, reverbConfig.moduleOffset || { x: 0, y: 0 });
 
@@ -3042,13 +3121,15 @@ class App {
     echoKnobs.className = 'panel1-bottom-knobs';
     echoKnobs.style.gap = `${toNum(echoUI.knobGap, toNum(echoConfig.knobGap, 6))}px`;
     applyOffset(echoKnobs, echoUI.knobsOffset, echoConfig.knobsOffset || { x: 0, y: 0 });
-    for (const knobName of echoConfig.knobs) {
+    echoConfig.knobs.forEach((knobName, idx) => {
       const knob = createPanel1Knob({
         knobSize: echoUI.knobSize ?? echoConfig.knobSize,
-        knobInnerPct: echoUI.knobInnerPct ?? echoConfig.knobInnerPct
+        knobInnerPct: echoUI.knobInnerPct ?? echoConfig.knobInnerPct,
+        knobColor: echoUI.knobColors?.[idx] ?? echoConfig.knobColors?.[idx],
+        knobType: echoUI.knobTypes?.[idx] ?? echoConfig.knobTypes?.[idx]
       });
       echoKnobs.appendChild(knob.wrapper);
-    }
+    });
     echoFrame.appendToContent(echoKnobs);
     applyOffset(echoEl, echoUI.offset, echoConfig.moduleOffset || { x: 0, y: 0 });
 
@@ -3095,7 +3176,6 @@ class App {
     };
 
     const knobUI = blueprint.panel4KnobUI || {};
-    const COLOR_MAP = { white: KNOB_WHITE, yellow: KNOB_YELLOW };
 
     // Visibilidad de marcos de módulos (desde blueprint)
     if (blueprint.showFrames === false) {
@@ -3214,12 +3294,19 @@ class App {
 
     // ── Helper: crear un knob estándar ───────────────────────────────────
     const createPanel4Knob = (knobDef) => {
-      const colorHex = COLOR_MAP[knobDef.color] || '';
-      const svgSrc = knobDef.bipolar ? 'assets/knobs/knob-0-center.svg' : undefined;
+      const centerColor = COLOR_MAP[knobDef.color] || '';
+      
+      let svgSrc;
+      if (knobDef.type === 'bipolar') {
+        svgSrc = 'assets/knobs/knob-0-center.svg';
+      } else if (knobDef.type === 'vernier') {
+        svgSrc = 'assets/knobs/vernier-dial.svg'; 
+      }
+      
       return createKnob({
         size: '',
         showValue: false,
-        centerColor: colorHex,
+        centerColor: centerColor,
         ...(svgSrc && { svgSrc })
       });
     };
@@ -3634,6 +3721,7 @@ class App {
     const scopeLayout = blueprint.layout.oscilloscope;
     const scopeSize = scopeLayout.size;
     const scopeOffset = scopeLayout.offset || { x: 0, y: 0 };
+    const oscUIConfig = blueprint.modules?.oscilloscope?.ui || {};
     
     const scopeSection = document.createElement('div');
     scopeSection.className = 'panel2-oscilloscope-section';
@@ -3737,10 +3825,27 @@ class App {
     knobsContainer.className = 'oscilloscope-knobs';
     mainContainer.appendChild(knobsContainer);
     
+    // Definir configuración visual desde el blueprint
+    const timeKnobColorName = oscUIConfig.knobColors?.[0] || 'black';
+    const ampKnobColorName = oscUIConfig.knobColors?.[1] || 'black';
+    const levelKnobColorName = oscUIConfig.knobColors?.[2] || 'black';
+    
+    const timeKnobType = oscUIConfig.knobTypes?.[0] || 'normal';
+    const ampKnobType = oscUIConfig.knobTypes?.[1] || 'normal';
+    const levelKnobType = oscUIConfig.knobTypes?.[2] || 'normal';
+
+    const getSvgSrc = (type) => {
+      if (type === 'bipolar') return 'assets/knobs/knob-0-center.svg';
+      if (type === 'vernier') return 'assets/knobs/vernier-dial.svg';
+      return 'assets/knobs/knob.svg';
+    };
+
     // Knob TIME (escala horizontal)
     const timeKnob = createKnob({
       label: 'TIME',
       size: 'sm',
+      centerColor: COLOR_MAP[timeKnobColorName] || KNOB_BLACK,
+      svgSrc: getSvgSrc(timeKnobType),
       ...knobsConfig.timeScale,
       onChange: (value) => display.setTimeScale(value)
     });
@@ -3750,6 +3855,8 @@ class App {
     const ampKnob = createKnob({
       label: 'AMP',
       size: 'sm',
+      centerColor: COLOR_MAP[ampKnobColorName] || KNOB_BLACK,
+      svgSrc: getSvgSrc(ampKnobType),
       ...knobsConfig.ampScale,
       onChange: (value) => display.setAmpScale(value)
     });
@@ -3759,6 +3866,8 @@ class App {
     const levelKnob = createKnob({
       label: 'LEVEL',
       size: 'sm',
+      centerColor: COLOR_MAP[levelKnobColorName] || KNOB_BLACK,
+      svgSrc: getSvgSrc(levelKnobType),
       ...knobsConfig.triggerLevel,
       onChange: (value) => scopeModule.setTriggerLevel(value)
     });
@@ -3858,7 +3967,9 @@ class App {
       knobsRowOffset: resolveOffset(inputAmpModuleUI.knobsRowOffset, inputAmpUIDefaults.knobsRowOffset),
       knobOffsets: Array.isArray(inputAmpModuleUI.knobOffsets)
         ? inputAmpModuleUI.knobOffsets
-        : inputAmpUIDefaults.knobOffsets
+        : inputAmpUIDefaults.knobOffsets,
+      knobColor: inputAmpModuleUI.knobColor ?? inputAmpLayout.knobColor ?? 'white',
+      knobType: inputAmpModuleUI.knobType ?? inputAmpLayout.knobType ?? 'normal'
     };
     
     // Crear sección para Input Amplifier Level
@@ -3894,7 +4005,9 @@ class App {
         knobSize: inputAmpUIConfig.knobSize,
         knobInnerPct: inputAmpUIConfig.knobInnerPct,
         knobsRowOffset: inputAmpUIConfig.knobsRowOffset,
-        knobOffsets: inputAmpUIConfig.knobOffsets
+        knobOffsets: inputAmpUIConfig.knobOffsets,
+        knobColor: inputAmpUIConfig.knobColor,
+        knobType: inputAmpUIConfig.knobType
       },
       onLevelChange: (channel, value) => {
         inputAmpModule.setLevel(channel, value);

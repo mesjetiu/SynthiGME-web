@@ -117,14 +117,14 @@ export default {
             id: 'envelopeFollower1',
             flex: 1,
             knobs: [
-              { name: 'Range', type: 'standard', color: 'white' }
+              { name: 'Range', type: 'normal', color: 'white' }
             ]
           },
           {
             id: 'envelopeFollower2',
             flex: 1,
             knobs: [
-              { name: 'Range', type: 'standard', color: 'white' }
+              { name: 'Range', type: 'normal', color: 'white' }
             ]
           }
         ],
@@ -165,8 +165,8 @@ export default {
         id: 'upperKeyboard',
         knobs: [
           { name: 'Pitch', type: 'vernier' },
-          { name: 'Key Velocity', type: 'standard', color: 'yellow', bipolar: true },
-          { name: 'Env. Control', type: 'standard', color: 'white', bipolar: true }
+          { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
+          { name: 'Env. Control', type: 'bipolar', color: 'white' }
         ],
         switches: [
           { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
@@ -183,8 +183,8 @@ export default {
         id: 'lowerKeyboard',
         knobs: [
           { name: 'Pitch', type: 'vernier' },
-          { name: 'Key Velocity', type: 'standard', color: 'yellow', bipolar: true },
-          { name: 'Env. Control', type: 'standard', color: 'white', bipolar: true }
+          { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
+          { name: 'Env. Control', type: 'bipolar', color: 'white' }
         ],
         switches: [
           { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }

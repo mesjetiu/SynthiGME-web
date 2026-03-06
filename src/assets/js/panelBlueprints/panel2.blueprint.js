@@ -134,6 +134,7 @@ export default {
       // Color del centro de los knobs (Synthi 100 original)
       // Los 8 knobs de input amplifier son blancos
       knobColor: 'white',
+      knobType: 'normal',
 
       // Offsets individuales por canal (1..8)
       knobOffsets: [

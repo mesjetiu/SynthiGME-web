@@ -131,6 +131,17 @@ export default {
       'white',   // 5: Sawtooth level
       'black'    // 6: Frequency (no visible, se usa vernier)
     ],
+
+    // Tipos de knob: 'normal' (rango 1-10), 'bipolar' (rango -5 a +5), 'vernier' (multivuelta)
+    knobTypes: [
+      'normal',  // 0: Pulse level
+      'bipolar', // 1: Pulse shape
+      'normal',  // 2: Sine level
+      'bipolar', // 3: Sine symmetry
+      'normal',  // 4: Triangle level
+      'normal',  // 5: Sawtooth level
+      'vernier'  // 6: Frequency
+    ],
     
     // Switch HI/LO — toggle SVG metálico
     buttonSize: { width: 18, height: 30, indicator: 8 },
@@ -162,6 +173,12 @@ export default {
       'blue',    // 0: Colour
       'white'    // 1: Level
     ],
+
+    // Tipos de knob para Noise Generator
+    knobTypes: [
+      'bipolar', // 0: Colour (-5 a +5)
+      'normal'   // 1: Level
+    ],
   },
   
   // ─────────────────────────────────────────────────────────────────────────
@@ -186,6 +203,15 @@ export default {
       'white',   // 2: Voltage 1
       'white',   // 3: Voltage 2
       'white'    // 4: Key
+    ],
+
+    // Tipos de knob para Random Control Voltage Generator
+    knobTypes: [
+      'bipolar', // 0: Mean (-5 a +5)
+      'normal',  // 1: Variance
+      'bipolar', // 2: Voltage 1
+      'bipolar', // 3: Voltage 2
+      'normal'   // 4: Key
     ],
   },
   

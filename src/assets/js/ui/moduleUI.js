@@ -159,7 +159,11 @@ export class ModuleUI {
     knobContainer.appendChild(knobCenter);
 
     // Cargar SVG inline (solo anillo/escala)
-    loadSvgInline('assets/knobs/knob.svg', knobInner);
+    const type = def?.type || 'normal';
+    let svgSrc = 'assets/knobs/knob.svg';
+    if (type === 'bipolar') svgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (type === 'vernier') svgSrc = 'assets/knobs/vernier-dial.svg';
+    loadSvgInline(svgSrc, knobInner);
 
     shell.appendChild(knobContainer);
 

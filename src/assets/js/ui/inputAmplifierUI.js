@@ -15,8 +15,17 @@
 
 import { ModuleFrame } from './moduleFrame.js';
 import { Knob } from './knob.js';
-import { KNOB_WHITE } from '../configs/knobColors.js';
+import { KNOB_BLUE, KNOB_RED, KNOB_YELLOW, KNOB_WHITE, KNOB_GREEN, KNOB_BLACK } from '../configs/knobColors.js';
 import { loadSvgInline } from './svgInlineLoader.js';
+
+const COLOR_MAP = {
+  blue: KNOB_BLUE,
+  red: KNOB_RED,
+  yellow: KNOB_YELLOW,
+  white: KNOB_WHITE,
+  green: KNOB_GREEN,
+  black: KNOB_BLACK
+};
 
 export class InputAmplifierUI {
   
@@ -148,13 +157,19 @@ export class InputAmplifierUI {
     // Centro de color — fuera de inner para que NO gire
     const knobCenter = document.createElement('div');
     knobCenter.className = 'knob-center';
-    knobCenter.style.setProperty('--knob-center-color', KNOB_WHITE);
+    const finalColor = COLOR_MAP[this.layout.knobColor] || KNOB_WHITE;
+    knobCenter.style.setProperty('--knob-center-color', finalColor);
     knobEl.appendChild(knobCenter);
 
     wrapper.appendChild(knobEl);
 
     // Cargar SVG inline (solo anillo/escala)
-    loadSvgInline('assets/knobs/knob.svg', inner);
+    let svgSrc = 'assets/knobs/knob.svg';
+    const type = this.layout.knobType;
+    if (type === 'bipolar') svgSrc = 'assets/knobs/knob-0-center.svg';
+    else if (type === 'vernier') svgSrc = 'assets/knobs/vernier-dial.svg';
+    
+    loadSvgInline(svgSrc, inner);
     
     // Valor debajo del knob
     const valueEl = document.createElement('div');

@@ -129,7 +129,9 @@ export function resolveOscillatorUI(defaults, slotUI) {
     },
     // Arrays: si el slot los redefine, ganan enteros (no se mezclan)
     knobOffsets: slotUI.knobOffsets || defaults.knobOffsets || FALLBACK_OSC_UI.knobOffsets,
-    knobGap: slotUI.knobGap || defaults.knobGap || FALLBACK_OSC_UI.knobGap
+    knobGap: slotUI.knobGap || defaults.knobGap || FALLBACK_OSC_UI.knobGap,
+    knobColors: slotUI.knobColors || defaults.knobColors || FALLBACK_OSC_UI.knobColors,
+    knobTypes: slotUI.knobTypes || defaults.knobTypes || FALLBACK_OSC_UI.knobTypes
   };
 }
 
@@ -170,6 +172,8 @@ export function resolveModuleUI(defaults, moduleUI) {
     ...defaults,
     ...moduleUI,
     knobOffsets: moduleUI.knobOffsets || defaults.knobOffsets || FALLBACK_MODULE_UI.knobOffsets,
-    knobGap: moduleUI.knobGap || defaults.knobGap || FALLBACK_MODULE_UI.knobGap
+    knobGap: moduleUI.knobGap || defaults.knobGap || FALLBACK_MODULE_UI.knobGap,
+    knobColors: moduleUI.knobColors || defaults.knobColors || FALLBACK_MODULE_UI.knobColors,
+    knobTypes: moduleUI.knobTypes || defaults.knobTypes || FALLBACK_MODULE_UI.knobTypes
   };
 }

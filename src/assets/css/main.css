@@ -6737,6 +6737,29 @@ small { color:#aaa; }
   /* El panel mantiene su tamaño pero está dentro del PiP */
 }
 
+.pip-panel-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+.pip-panel-preview > * {
+  pointer-events: none !important;
+}
+
+.pip-panel-preview__item {
+  position: absolute;
+  transform-origin: top left;
+}
+
+.pip-panel-preview__item > * {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .pip-container--preview {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), 0 1px 4px rgba(0, 0, 0, 0.16);
 }
@@ -6745,13 +6768,57 @@ small { color:#aaa; }
   box-shadow: none !important;
 }
 
-.panel--pipped.panel--pip-preview > :not(.panel-inline-bg) {
-  display: none !important;
-}
-
 .panel--pipped.panel--pip-preview > .panel-inline-bg {
   opacity: 1 !important;
   display: block !important;
+}
+
+.panel--pipped.panel--pip-preview > .pip-panel-preview {
+  display: none !important;
+}
+
+.panel--pipped.panel--pip-preview .routing-matrix-container,
+.panel--pipped.panel--pip-preview .recording-settings-matrix-container,
+.panel--pipped.panel--pip-preview .knob-label,
+.panel--pipped.panel--pip-preview .knob-value,
+.panel--pipped.panel--pip-preview .synth-toggle__label,
+.panel--pipped.panel--pip-preview .rotary-switch__label,
+.panel--pipped.panel--pip-preview .knob-tooltip,
+.panel--pipped.panel--pip-preview .tooltip,
+.panel--pipped.panel--pip-preview .pip-detach-btn,
+.panel--pipped.panel--pip-preview .panel-note,
+.panel--pipped.panel--pip-preview .panel-notes-layer,
+.panel--pipped.panel--pip-preview .scope-screen,
+.panel--pipped.panel--pip-preview .oscilloscope,
+.panel--pipped.panel--pip-preview canvas,
+.panel--pipped.panel--pip-preview video,
+.panel--pipped.panel--pip-preview iframe,
+.panel--pipped.panel--pip-preview .panel-build-version,
+.panel--pipped.panel--pip-preview .panel-shortcut-badge,
+.panel--pipped.panel--pip-preview .panel-zoom-btn {
+  display: none !important;
+}
+
+.panel--pipped.panel--pip-preview .knob,
+.panel--pipped.panel--pip-preview .knob-inner,
+.panel--pipped.panel--pip-preview .vernier-svg-container,
+.panel--pipped.panel--pip-preview .knob-center,
+.panel--pipped.panel--pip-preview .synth-toggle,
+.panel--pipped.panel--pip-preview .synth-toggle__track,
+.panel--pipped.panel--pip-preview .synth-toggle__svg-container,
+.panel--pipped.panel--pip-preview .rotary-switch,
+.panel--pipped.panel--pip-preview .rotary-switch__body,
+.panel--pipped.panel--pip-preview .rotary-switch__svg-container,
+.panel--pipped.panel--pip-preview .output-channel__slider-wrap,
+.panel--pipped.panel--pip-preview .output-channel__slider-shell,
+.panel--pipped.panel--pip-preview .output-channel__switch,
+.panel--pipped.panel--pip-preview .output-channel__switch-wrap,
+.panel--pipped.panel--pip-preview .pin-btn,
+.panel--pipped.panel--pip-preview .joystick-pad,
+.panel--pipped.panel--pip-preview .panel7-joystick-pad,
+.panel--pipped.panel--pip-preview .joystick-handle,
+.panel--pipped.panel--pip-preview .matrix-container {
+  pointer-events: none !important;
 }
 
 /* Dentro del PiP, el matrix-container no debe capturar scroll - lo hace pip-viewport */

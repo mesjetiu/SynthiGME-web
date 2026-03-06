@@ -57,6 +57,12 @@ const PIP_SAVE_DEBOUNCE_MS = 180;
 /** Tiempo sin interacción antes de restaurar el panel vivo en PiP */
 const PIP_PREVIEW_IDLE_MS = 220;
 
+/** Debounce antes de refrescar el snapshot visual del preview PiP */
+const PIP_PREVIEW_REFRESH_DEBOUNCE_MS = 120;
+
+/** Timeout máximo para tareas idle de prewarm/refresco del preview PiP */
+const PIP_PREVIEW_IDLE_TIMEOUT_MS = 800;
+
 /** Límites de zoom */
 const MIN_SCALE_ABSOLUTE = 0.1; // Mínimo absoluto de seguridad
 const MAX_SCALE = 3.0;
@@ -67,6 +73,199 @@ const PIP_MAX_ZOOM_DELTA = 0.12; // Cambio máximo de zoom por frame
 const PIP_PINCH_EPSILON = 0.002; // Cambio mínimo para aplicar zoom
 
 let _pipStateSaveTimer = null;
+const pipPreviewRefreshTimers = new Map();
+const pipPreviewIdleJobs = new Map();
+
+const PIP_PREVIEW_REMOVE_SELECTORS = [
+  '.knob-label',
+  '.knob-value',
+  '.synth-toggle__label',
+  '.rotary-switch__label',
+  '.matrix-container',
+  '.routing-matrix-container',
+  '.recording-settings-matrix-container',
+  '.pin-btn',
+  '.pip-detach-btn',
+  '.knob-tooltip',
+  '.tooltip',
+  '.joystick-pad',
+  '.panel7-joystick-pad',
+  '.joystick-handle',
+  '.panel-note',
+  '.panel-notes-layer',
+  '.note-editor-toolbar',
+  '.scope-screen',
+  '.oscilloscope',
+  'canvas',
+  'video',
+  'iframe',
+  '[contenteditable="true"]',
+  '[id="vd-counter"]'
+].join(', ');
+
+const PIP_PREVIEW_SNAPSHOT_SELECTORS = [
+  '.knob-wrapper',
+  '.synth-toggle',
+  '.rotary-switch',
+  '.output-channel__slider-wrap',
+  '.output-channel__switch-wrap'
+].join(', ');
+
+function runWhenBrowserIdle(callback, timeout = PIP_PREVIEW_IDLE_TIMEOUT_MS) {
+  if (typeof window.requestIdleCallback === 'function') {
+    return window.requestIdleCallback(callback, { timeout });
+  }
+  return window.setTimeout(() => callback({ didTimeout: true, timeRemaining: () => 0 }), 32);
+}
+
+function cancelBrowserIdleJob(id) {
+  if (!id) return;
+  if (typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(id);
+    return;
+  }
+  clearTimeout(id);
+}
+
+function clearScheduledPipPreviewRefresh(panelId) {
+  const timerId = pipPreviewRefreshTimers.get(panelId);
+  if (timerId) {
+    clearTimeout(timerId);
+    pipPreviewRefreshTimers.delete(panelId);
+  }
+
+  const idleJobId = pipPreviewIdleJobs.get(panelId);
+  if (idleJobId) {
+    cancelBrowserIdleJob(idleJobId);
+    pipPreviewIdleJobs.delete(panelId);
+  }
+}
+
+function ensurePipPreviewLayer(panelEl) {
+  if (!panelEl) return null;
+
+  let previewEl = panelEl.querySelector(':scope > .pip-panel-preview');
+  if (previewEl) return previewEl;
+
+  previewEl = document.createElement('div');
+  previewEl.className = 'pip-panel-preview';
+  previewEl.setAttribute('aria-hidden', 'true');
+
+  const inlineBg = panelEl.querySelector(':scope > .panel-inline-bg');
+  if (inlineBg?.nextSibling) {
+    panelEl.insertBefore(previewEl, inlineBg.nextSibling);
+  } else if (inlineBg) {
+    panelEl.appendChild(previewEl);
+  } else {
+    panelEl.insertBefore(previewEl, panelEl.firstChild);
+  }
+
+  return previewEl;
+}
+
+function sanitizePipPreviewTree(root) {
+  if (!root) return;
+
+  root.querySelectorAll(PIP_PREVIEW_REMOVE_SELECTORS).forEach(el => el.remove());
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let current = root;
+
+  while (current) {
+    if (current.namespaceURI === 'http://www.w3.org/1999/xhtml') {
+      current.removeAttribute('id');
+      current.removeAttribute('for');
+      current.removeAttribute('aria-labelledby');
+      current.removeAttribute('aria-describedby');
+      current.removeAttribute('tabindex');
+      current.removeAttribute('contenteditable');
+      current.removeAttribute('data-tooltip');
+      current.removeAttribute('title');
+      current.classList?.remove('is-tooltip-active', 'tooltip-visible', 'glow-flash', 'glow-flash-pin');
+      if (typeof current.style?.removeProperty === 'function') {
+        current.style.removeProperty('cursor');
+      }
+    }
+
+    if (current instanceof HTMLButtonElement || current instanceof HTMLInputElement || current instanceof HTMLSelectElement || current instanceof HTMLTextAreaElement) {
+      current.disabled = true;
+    }
+
+    current = walker.nextNode();
+  }
+}
+
+function destroyPipPreviewLayer(panelId) {
+  const panelEl = document.getElementById(panelId);
+  const previewEl = panelEl?.querySelector(':scope > .pip-panel-preview');
+  previewEl?.remove();
+}
+
+function rebuildPipPreviewLayer(panelId) {
+  const panelEl = document.getElementById(panelId);
+  if (!panelEl) return false;
+
+  const previewEl = ensurePipPreviewLayer(panelEl);
+  if (!previewEl) return false;
+
+  const state = activePips.get(panelId);
+  const panelScale = state?.scale || 1;
+  const invPanelScale = panelScale > 0 ? 1 / panelScale : 1;
+  const panelRect = panelEl.getBoundingClientRect();
+  const fragment = document.createDocumentFragment();
+  const controls = panelEl.querySelectorAll(PIP_PREVIEW_SNAPSHOT_SELECTORS);
+
+  for (const control of controls) {
+    if (control.closest('.pip-panel-preview')) continue;
+    if (control.closest('.matrix-container')) continue;
+
+    const rect = control.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
+
+    const item = document.createElement('div');
+    item.className = 'pip-panel-preview__item';
+    item.style.left = `${(rect.left - panelRect.left) * invPanelScale}px`;
+    item.style.top = `${(rect.top - panelRect.top) * invPanelScale}px`;
+    item.style.width = `${rect.width * invPanelScale}px`;
+    item.style.height = `${rect.height * invPanelScale}px`;
+
+    const clone = control.cloneNode(true);
+    sanitizePipPreviewTree(clone);
+    item.appendChild(clone);
+    fragment.appendChild(item);
+  }
+
+  previewEl.replaceChildren(fragment);
+
+  if (state) {
+    state.previewReady = true;
+    state.previewDirty = false;
+  }
+
+  return true;
+}
+
+function schedulePipPreviewRefresh(panelId, { immediate = false } = {}) {
+  clearScheduledPipPreviewRefresh(panelId);
+
+  const run = () => {
+    pipPreviewIdleJobs.delete(panelId);
+    rebuildPipPreviewLayer(panelId);
+  };
+
+  if (immediate) {
+    run();
+    return;
+  }
+
+  const timerId = setTimeout(() => {
+    pipPreviewRefreshTimers.delete(panelId);
+    const idleJobId = runWhenBrowserIdle(run);
+    pipPreviewIdleJobs.set(panelId, idleJobId);
+  }, PIP_PREVIEW_REFRESH_DEBOUNCE_MS);
+
+  pipPreviewRefreshTimers.set(panelId, timerId);
+}
 
 /**
  * Calcula las dimensiones iniciales del PiP para que el panel se vea
@@ -161,6 +360,7 @@ function cancelPendingPipInteraction(state) {
     state.previewTimer = null;
   }
   state.previewMode = false;
+  state.previewDirty = true;
   state.panelEl?.classList?.remove('panel--pip-preview');
   state.pipContainer?.classList?.remove('pip-container--preview');
   state.pendingWheelPanX = 0;
@@ -188,7 +388,14 @@ function setPipPreviewMode(panelId, active = true) {
     state.previewMode = false;
     panelEl.classList.remove('panel--pip-preview');
     state.pipContainer.classList.remove('pip-container--preview');
+    if (state.previewDirty) {
+      schedulePipPreviewRefresh(panelId);
+    }
     return;
+  }
+
+  if (!state.previewReady || state.previewDirty) {
+    schedulePipPreviewRefresh(panelId, { immediate: !state.previewReady });
   }
 
   state.previewMode = true;
@@ -475,6 +682,17 @@ export function initPipManager() {
   };
   document.addEventListener('synth:panLockChange', invalidateAutoLock);
   document.addEventListener('synth:zoomLockChange', invalidateAutoLock);
+
+  document.addEventListener('synth:userInteraction', () => {
+    for (const panelId of activePips.keys()) {
+      const state = activePips.get(panelId);
+      if (!state) continue;
+      state.previewDirty = true;
+      if (!state.previewMode) {
+        schedulePipPreviewRefresh(panelId);
+      }
+    }
+  });
   
   // Shortcut para cerrar todos los PiPs: Escape doble
   let lastEscapeTime = 0;
@@ -950,6 +1168,8 @@ export function openPip(panelId, restoredConfig = null) {
     viewportWidth: 0,
     viewportHeight: 0,
     previewMode: false,
+    previewReady: false,
+    previewDirty: true,
     previewTimer: null,
     defaultWidth: restoredConfig?.defaultWidth || initW,
     defaultHeight: restoredConfig?.defaultHeight || initH,
@@ -969,6 +1189,7 @@ export function openPip(panelId, restoredConfig = null) {
 
   refreshPipViewportMetrics(state);
   activePips.set(panelId, state);
+  schedulePipPreviewRefresh(panelId, { immediate: true });
   if (perfMonitor.isEnabled()) {
     perfMonitor.incrementCounter('pip.open');
     perfMonitor.mark('pip:open', { panelId, restored: !!restoredConfig });
@@ -1096,9 +1317,11 @@ export function closePip(panelId) {
   const state = activePips.get(panelId);
   if (!state) return;
   cancelPendingPipInteraction(state);
+  clearScheduledPipPreviewRefresh(panelId);
   
   const panelEl = document.getElementById(panelId);
   if (!panelEl) return;
+  destroyPipPreviewLayer(panelId);
   
   // Resetear escala del panel
   panelEl.style.transform = '';

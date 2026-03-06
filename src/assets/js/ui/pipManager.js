@@ -483,9 +483,6 @@ function setPipPreviewMode(panelId, active = true) {
     state.previewMode = false;
     panelEl.classList.remove('panel--pip-preview');
     state.pipContainer.classList.remove('pip-container--preview');
-    if (state.previewDirty) {
-      schedulePipPreviewRefresh(panelId);
-    }
     schedulePipRasterize(panelId);
     return;
   }
@@ -502,12 +499,6 @@ function setPipPreviewMode(panelId, active = true) {
   }
 
   cancelPipRasterize(state);
-  panelEl.style.zoom = '';
-  updatePipScale(panelId, state.scale, false);
-
-  if (!state.previewReady) {
-    schedulePipPreviewRefresh(panelId, { immediate: !state.previewReady });
-  }
 
   state.previewMode = true;
   panelEl.classList.add('panel--pip-preview');

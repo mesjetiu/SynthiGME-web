@@ -127,6 +127,95 @@ Opciones avanzadas:
 npm run test:all
 ```
 
+## Perfilado y medición de rendimiento UI
+
+Desde marzo de 2026 el proyecto incluye una primera infraestructura de perfilado reproducible para la interfaz web.
+
+### Activación en runtime
+
+La app expone un monitor de rendimiento global cuando se abre con:
+
+```bash
+http://localhost:xxxx/docs/index.html?perf=1
+```
+
+Esto habilita `window.__synthPerf`, que permite:
+
+- Capturar snapshots estructurales (`DOM`, `SVG`, memoria JS cuando el navegador la expone)
+- Medir escenarios reproducibles con `requestAnimationFrame`
+- Registrar `long tasks`
+- Exportar un informe JSON descargable
+
+APIs principales:
+
+- `window.__synthPerf.captureSnapshot(label)`
+- `window.__synthPerf.runIdleScenario(...)`
+- `window.__synthPerf.runMainViewportWheelScenario(...)`
+- `window.__synthPerf.runPipViewportWheelScenario(...)`
+- `window.__synthPerf.exportSummary(...)`
+
+Ayudas específicas para PiP:
+
+- `window.__synthPipDebug.open(panelId)`
+- `window.__synthPipDebug.close(panelId)`
+- `window.__synthPipDebug.openAll()`
+- `window.__synthPipDebug.closeAll()`
+- `window.__synthPipDebug.list()`
+
+### Script automatizado
+
+Para obtener una línea base reproducible en Chromium sobre Linux:
+
+```bash
+npm run perf:ui
+```
+
+El script:
+
+- levanta un servidor HTTP temporal sobre `docs/`
+- abre Chromium con Playwright
+- ejecuta escenarios de `idle`, `pan` y `zoom` en viewport principal y PiP
+- recoge métricas CDP (`TaskDuration`, `LayoutDuration`, `RecalcStyleDuration`, `Nodes`, `JSHeapUsedSize`, etc.)
+- guarda un informe JSON en `test-results/perf/`
+
+Archivo principal: [scripts/perf/measure-ui.mjs](scripts/perf/measure-ui.mjs)
+
+### Línea base inicial (Linux Chromium headless, 1600×1000)
+
+Informe de referencia: [test-results/perf/ui-perf-report-2026-03-06T11-44-59-229Z.json](test-results/perf/ui-perf-report-2026-03-06T11-44-59-229Z.json)
+
+Snapshot base:
+
+- ~45.057 nodos DOM
+- ~25.882 nodos SVG
+- 191 knobs
+- 15 `VernierKnob`
+- 8.442 pines
+
+Resultados resumidos:
+
+- `idle-3s`: ~33,5 FPS
+- `main-pan-wheel`: ~31,8 FPS
+- `main-zoom-wheel`: ~34,7 FPS
+- `main-zoom-idle-sharp`: ~56,3 FPS
+- `pip-pan-panel-1`: ~20,6 FPS
+- `pip-zoom-panel-1`: ~13,6 FPS
+
+Lectura inicial:
+
+- El árbol visual base ya es muy grande antes de interactuar.
+- El viewport principal parece estar más limitado por raster/compositor/paint que por JS puro.
+- El PiP sí muestra coste real de `layout/recalc`, especialmente en zoom.
+- El modo `sharp rasterize` mejora claramente el estado en reposo tras el zoom, pero no resuelve el coste durante la interacción continua.
+
+### Objetivo de esta infraestructura
+
+No está pensada para telemetría de usuarios finales, sino para:
+
+- comparar A/B de cambios estructurales de UI
+- detectar regresiones de fluidez
+- decidir si conviene mantener el zoom global, limitarlo o migrar a una navegación centrada en paneles/PiP
+
 ## Referencia rápida de comandos
 
 ### Desarrollo (sin tests, iteración rápida)

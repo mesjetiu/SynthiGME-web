@@ -94,6 +94,53 @@ src/
 | `recordingEngine.js` | `RecordingEngine` gestiona grabación de audio multitrack. Captura samples de buses de salida configurables, ruteo mediante matriz outputs→tracks, exportación a WAV 16-bit PCM. Persistencia de configuración en localStorage |
 | `dormancyManager.js` | `DormancyManager` orquesta el sistema de dormancy para optimización de rendimiento. Detecta módulos sin conexiones activas en **ambas matrices (Panel 5 audio y Panel 6 control)** y **suspende su procesamiento DSP** (no solo los silencia). Para osciladores y noise, envía mensaje `setDormant` al worklet que hace early exit en `process()`. Para Output Bus, desconecta el grafo si no tiene entrada de audio NI de Voltage Input. Para InputAmplifier, silencia GainNodes. Para Joystick, silencia GainNodes de rango cuando ningún eje tiene salida en Panel 6. Ahorra ~95% CPU por módulo inactivo. Configurable con opción de debug (toasts) |
 
+### 3.1.1 Instrumentación de rendimiento UI
+
+La app incorpora un monitor runtime en [src/assets/js/utils/perfMonitor.js](src/assets/js/utils/perfMonitor.js) orientado a investigación estructural de rendimiento visual.
+
+Funciones principales:
+
+- activación por query string `?perf=1`
+- exposición global como `window.__synthPerf`
+- snapshots de escena (`DOM`, `SVG`, `knobs`, `pins`, memoria JS si está disponible)
+- escenarios medidos por `requestAnimationFrame`
+- observación de `long tasks`
+- exportación JSON para análisis offline
+
+Hooks actuales:
+
+- bootstrap de app en [src/assets/js/app.js](src/assets/js/app.js#L7579-L7708)
+- navegación principal en [src/assets/js/navigation/viewportNavigation.js](src/assets/js/navigation/viewportNavigation.js#L147-L226) y [src/assets/js/navigation/viewportNavigation.js](src/assets/js/navigation/viewportNavigation.js#L487-L682)
+- PiP en [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L316-L335), [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L750-L753), [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L918-L921), [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L1184-L1216) y [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L1904-L1949)
+
+Objetivo: comparar arquitecturas de navegación/zoom y detectar si el cuello está en JS, layout, paint o compositor.
+
+### 3.1.2 Hallazgos iniciales de marzo de 2026
+
+Primera línea base automatizada en Linux Chromium headless:
+
+- escena base: ~45k nodos DOM, ~25,9k nodos SVG, 191 knobs, 15 verniers, 8.442 pines
+- `idle`: ~33,5 FPS
+- `pan` principal: ~31,8 FPS
+- `zoom` principal: ~34,7 FPS
+- `idle` tras `sharp rasterize`: ~56,3 FPS
+- `pan` en PiP: ~20,6 FPS
+- `zoom` en PiP: ~13,6 FPS
+
+Interpretación provisional:
+
+1. El coste del viewport principal parece dominado por tamaño de escena + raster/compositor + paint.
+2. El coste del PiP incluye además relayout/recalc significativo durante zoom (`LayoutDuration` y `LayoutCount` ya visibles en la primera batería).
+3. El `sharp rasterize` ayuda más en el estado estable tras la interacción que durante el gesto continuo.
+4. La arquitectura actual de zoom global sigue siendo útil como referencia, pero ya no debe considerarse incuestionable para el futuro de la UI.
+
+Dirección de investigación abierta:
+
+- degradación visual automática según escala/FPS
+- mover el detalle a PiP o paneles focalizados
+- reducir o eliminar dependencias de zoom global continuo
+- simplificar el árbol DOM/SVG por panel y por control
+
 > **Nota sobre dispositivos móviles:** El procesamiento de audio del sistema (Dolby Atmos, Audio Espacial, ecualizadores) puede interferir con la síntesis en tiempo real, causando cambios de volumen inesperados o distorsión. Ver sección "Solución de problemas" en README.md.
 
 ### 3.2 Worklets (`src/assets/js/worklets/`)

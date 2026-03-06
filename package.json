@@ -10,6 +10,7 @@
     "test:audio:ui": "npx playwright test --config=tests/audio/playwright.config.js --ui",
     "test:audio:headed": "npx playwright test --config=tests/audio/playwright.config.js --headed",
     "test:audio:debug": "npx playwright test --config=tests/audio/playwright.config.js --debug",
+    "perf:ui": "node scripts/perf/measure-ui.mjs",
     "test:all": "node scripts/test-all.mjs",
     "pretest:require": "node scripts/run-tests.mjs --require-pass",
     "dev": "npm run build:i18n && node scripts/build.mjs --outdir=dist-app && electron .",

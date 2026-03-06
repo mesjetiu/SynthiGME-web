@@ -53,6 +53,17 @@ debido a la saturación en los amplificadores de suma (I/C 6 e I/C 7).
 
 ## UI:
 
+### Auditoría de rendimiento UI (marzo 2026)
+
+- [x] Añadir instrumentación runtime (`window.__synthPerf`) para medir DOM/SVG/FPS/long tasks
+- [x] Añadir script reproducible `npm run perf:ui` con Chromium + CDP + informe JSON
+- [x] Obtener primera línea base en Linux (viewport principal + PiP)
+- [ ] Medir variantes A/B de PiP para reducir `layout` durante zoom
+- [ ] Medir impacto real de sombras/glows y desactivación visual agresiva
+- [ ] Medir variante con fondos raster/canvas también en desktop
+- [ ] Valorar transición de zoom global continuo a navegación centrada en paneles/PiP
+- [ ] Añadir batería equivalente manual para Firefox/Linux y comparar contra Chromium
+
 - ~~Crear menú contextual de cada mando, de cada módulo... para reiniciar, para poner un valor concreto...~~ ✅ Implementado (`contextMenuManager.js`)
 
 ## Sistema Dormancy:

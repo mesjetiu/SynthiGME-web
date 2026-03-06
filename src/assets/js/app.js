@@ -110,6 +110,7 @@ import { detectBuildVersion } from './utils/buildVersion.js';
 import { WakeLockManager } from './utils/wakeLock.js';
 import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
+import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
@@ -7578,6 +7579,9 @@ initTelemetry();
 
 window.addEventListener('DOMContentLoaded', async () => {
   const splashStartTime = Date.now();
+  const perfBootstrapId = perfMonitor.isEnabled()
+    ? await perfMonitor.beginScenario('bootstrap', { phase: 'DOMContentLoaded' })
+    : null;
   
   try {
     // Inicializar sistema de internacionalización antes de crear la UI
@@ -7654,6 +7658,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Inicializar puente de menú Electron (traducciones, estado, acciones IPC)
     // Solo se activa si estamos en Electron (window.menuAPI existe)
     initElectronMenuBridge();
+
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('app.bootstrap.success');
+      perfMonitor.mark('app:initialized', {
+        buildVersion: window.synthBuildVersion || null
+      });
+      await perfMonitor.captureSnapshot('post-app-init');
+    }
   } catch (err) {
     // ─── Error crítico en bootstrap: mostrar mensaje y ocultar splash ───
     log.error('Error crítico durante la inicialización:', err);
@@ -7665,6 +7677,11 @@ window.addEventListener('DOMContentLoaded', async () => {
       msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#c0392b;color:#fff;padding:24px;border-radius:8px;z-index:99999;font-size:18px;text-align:center;';
       msg.textContent = 'Error crítico al iniciar. Recarga la página.';
       document.body?.appendChild(msg);
+    }
+
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('app.bootstrap.error');
+      perfMonitor.mark('app:init-error', { message: err?.message || String(err) });
     }
   }
   
@@ -7680,5 +7697,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   } else {
     // Ya pasó el tiempo mínimo, ocultar inmediatamente
     hideSplashScreen();
+  }
+
+  if (perfBootstrapId) {
+    await perfMonitor.endScenario(perfBootstrapId, {
+      splashMinDisplayMs: SPLASH_MIN_DISPLAY_MS,
+      bootstrapWallClockMs: Date.now() - splashStartTime
+    });
   }
 });

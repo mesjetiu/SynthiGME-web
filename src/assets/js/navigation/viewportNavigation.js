@@ -4,6 +4,7 @@
 import { renderCanvasBgViewport, shouldUseCanvasBg, renderCanvasBgPanels } from '../utils/canvasBackground.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { keyboardShortcuts } from '../ui/keyboardShortcuts.js';
+import { perfMonitor } from '../utils/perfMonitor.js';
 
 /**
  * Inicializa el sistema de navegación del viewport.
@@ -146,6 +147,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
    * Si hay input pendiente, difiere al siguiente frame (hasta MAX_SHARP_DEFER_FRAMES).
    */
   function commitSharpMode() {
+    const t0 = perfMonitor.isEnabled() ? performance.now() : 0;
     sharpCommitRaf = null;
 
     // Si se canceló entre el schedule y el commit, abortar
@@ -157,12 +159,28 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
     if (hasPendingInput && sharpDeferCount < MAX_SHARP_DEFER_FRAMES) {
       sharpDeferCount++;
+      if (perfMonitor.isEnabled()) {
+        perfMonitor.incrementCounter('viewport.sharpCommit.deferred');
+      }
       sharpCommitRaf = requestAnimationFrame(commitSharpMode);
       return;
     }
 
     // Aplicar: activar sharp mode y renderizar con nuevo CSS zoom
     sharpMode = true;
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('viewport.sharpCommit.applied');
+      perfMonitor.recordDuration('viewport.sharpCommit', performance.now() - t0, {
+        sharpZoomFactor,
+        deferredFrames: sharpDeferCount,
+        hadPendingInput: !!hasPendingInput
+      });
+      perfMonitor.mark('viewport:sharp-commit', {
+        sharpZoomFactor,
+        deferredFrames: sharpDeferCount,
+        hadPendingInput: !!hasPendingInput
+      });
+    }
     render();
   }
 
@@ -179,6 +197,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
     cancelSharpCommit();
     sharpMode = false;
     sharpZoomFactor = 1;
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('viewport.rasterize.cancel');
+    }
     // NO requestRender(): el CSS zoom se mantiene como residual.
     // render() lo compensará vía activeZoom en el transform.
   }
@@ -199,6 +220,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
     if (!sharpRasterizeEnabled) return;
     if (currentResolutionFactor > 1) return; // resolución manual activa
     cancelRasterize();
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('viewport.rasterize.schedule');
+    }
     rasterizeTimer = setTimeout(() => {
       rasterizeTimer = null;
       enterSharpMode();
@@ -463,6 +487,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   }
 
   function refreshMetrics() {
+    const t0 = perfMonitor.isEnabled() ? performance.now() : 0;
     const rect = outer.getBoundingClientRect();
     const content = computeContentSizeFromPanels();
     metrics.contentWidth = content.width;
@@ -472,10 +497,25 @@ export function initViewportNavigation({ outer, inner } = {}) {
     metrics.outerLeft = rect.left;
     metrics.outerTop = rect.top;
     metricsDirty = false;
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('viewport.refreshMetrics');
+      perfMonitor.recordDuration('viewport.refreshMetrics', performance.now() - t0, {
+        contentWidth: metrics.contentWidth,
+        contentHeight: metrics.contentHeight,
+        outerWidth: metrics.outerWidth,
+        outerHeight: metrics.outerHeight
+      });
+    }
   }
 
   let renderRaf = null;
   function requestRender() {
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('viewport.requestRender');
+      if (renderRaf) {
+        perfMonitor.incrementCounter('viewport.requestRender.coalesced');
+      }
+    }
     if (renderRaf) return;
     renderRaf = requestAnimationFrame(() => {
       renderRaf = null;
@@ -584,6 +624,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   }
 
   function render() {
+    const t0 = perfMonitor.isEnabled() ? performance.now() : 0;
     if (metricsDirty) {
       refreshMetrics();
     }
@@ -630,6 +671,20 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
     if (isCoarsePointer) {
       scheduleLowZoomUpdate();
+    }
+
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('viewport.render');
+      perfMonitor.recordDuration('viewport.render', performance.now() - t0, {
+        scale,
+        activeZoom,
+        sharpMode,
+        sharpZoomFactor,
+        contentWidth: metrics.contentWidth,
+        contentHeight: metrics.contentHeight,
+        outerWidth: metrics.outerWidth,
+        outerHeight: metrics.outerHeight
+      });
     }
   }
 
@@ -1060,6 +1115,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
   outer.addEventListener('wheel', ev => {
     metricsDirty = true;
     if (ev.ctrlKey || ev.metaKey) {
+      if (perfMonitor.isEnabled()) {
+        perfMonitor.incrementCounter('viewport.wheel.zoom');
+      }
       ev.preventDefault();
       if (navLocks.zoomLocked) return;
       cancelRasterize();
@@ -1077,6 +1135,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
       return;
     }
 
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter('viewport.wheel.pan');
+    }
     ev.preventDefault();
     if (navLocks.panLocked) return;
     cancelRasterize();

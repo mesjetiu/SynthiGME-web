@@ -2,6 +2,7 @@
 // Permite extraer paneles del viewport principal para verlos de forma flotante
 
 import { createLogger } from '../utils/logger.js';
+import { perfMonitor } from '../utils/perfMonitor.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { showContextMenu, hideContextMenu } from './contextMenuManager.js';
@@ -314,6 +315,25 @@ export function initPipManager() {
     viewport.scrollLeft += dirX * stepX;
     viewport.scrollTop += dirY * stepY;
     return true;
+  };
+  
+  window.__synthPipDebug = {
+    open: openPip,
+    close: closePip,
+    openAll: openAllPips,
+    closeAll: closeAllPips,
+    focus: focusPip,
+    list() {
+      return Array.from(activePips.entries()).map(([panelId, pipState]) => ({
+        panelId,
+        scale: pipState.scale,
+        x: pipState.x,
+        y: pipState.y,
+        width: pipState.width,
+        height: pipState.height,
+        locked: pipState.locked
+      }));
+    }
   };
 
   document.addEventListener('keydown', (e) => {
@@ -730,6 +750,10 @@ export function openPip(panelId, restoredConfig = null) {
   };
   
   activePips.set(panelId, state);
+  if (perfMonitor.isEnabled()) {
+    perfMonitor.incrementCounter('pip.open');
+    perfMonitor.mark('pip:open', { panelId, restored: !!restoredConfig });
+  }
   
   if (restoredConfig) {
     // ── RESTAURACIÓN: aplicar escala guardada directamente ──
@@ -894,6 +918,10 @@ export function closePip(panelId) {
   pipContainer.remove();
   
   activePips.delete(panelId);
+  if (perfMonitor.isEnabled()) {
+    perfMonitor.incrementCounter('pip.close');
+    perfMonitor.mark('pip:close', { panelId });
+  }
   
   // Si el PiP cerrado tenía el foco, devolver foco al canvas principal
   if (focusedPipId === panelId) {
@@ -1156,6 +1184,9 @@ function setupPipEvents(pipContainer, panelId) {
     }
     
     if (e.ctrlKey) {
+      if (perfMonitor.isEnabled()) {
+        perfMonitor.incrementCounter(`pip.wheel.zoom.${panelId}`);
+      }
       // Zoom centrado en el cursor — necesita preventDefault
       e.preventDefault();
       
@@ -1182,6 +1213,9 @@ function setupPipEvents(pipContainer, panelId) {
         pipViewport.scrollTop = Math.max(0, newScrollY);
       }
     } else {
+      if (perfMonitor.isEnabled()) {
+        perfMonitor.incrementCounter(`pip.wheel.pan.${panelId}`);
+      }
       // Pan manual: scroll limitado al desbordamiento real del contenido
       const viewportW = pipViewport.clientWidth;
       const viewportH = pipViewport.clientHeight;
@@ -1870,6 +1904,7 @@ function bringToFront(panelId) {
  * @param {boolean} [persist=true] - Si se debe guardar el estado
  */
 function updatePipScale(panelId, newScale, persist = true) {
+  const t0 = perfMonitor.isEnabled() ? performance.now() : 0;
   const state = activePips.get(panelId);
   if (!state) return;
   
@@ -1907,6 +1942,17 @@ function updatePipScale(panelId, newScale, persist = true) {
   // Guardar estado después de cambiar zoom
   if (persist) {
     savePipState();
+  }
+
+  if (perfMonitor.isEnabled()) {
+    perfMonitor.incrementCounter('pip.updateScale');
+    perfMonitor.recordDuration('pip.updateScale', performance.now() - t0, {
+      panelId,
+      newScale,
+      scaledWidth,
+      scaledHeight,
+      persist
+    });
   }
 }
 

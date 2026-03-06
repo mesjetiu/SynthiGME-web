@@ -6737,6 +6737,23 @@ small { color:#aaa; }
   /* El panel mantiene su tamaño pero está dentro del PiP */
 }
 
+.pip-container--preview {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), 0 1px 4px rgba(0, 0, 0, 0.16);
+}
+
+.panel--pipped.panel--pip-preview {
+  box-shadow: none !important;
+}
+
+.panel--pipped.panel--pip-preview > :not(.panel-inline-bg) {
+  display: none !important;
+}
+
+.panel--pipped.panel--pip-preview > .panel-inline-bg {
+  opacity: 1 !important;
+  display: block !important;
+}
+
 /* Dentro del PiP, el matrix-container no debe capturar scroll - lo hace pip-viewport */
 .panel--pipped .matrix-container {
   overflow: visible;

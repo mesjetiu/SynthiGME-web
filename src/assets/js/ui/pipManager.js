@@ -54,6 +54,9 @@ const PIP_WHEEL_ZOOM_STEP = 0.05;
 /** Debounce para persistir estado PiP tras interacciones continuas */
 const PIP_SAVE_DEBOUNCE_MS = 180;
 
+/** Tiempo sin interacción antes de restaurar el panel vivo en PiP */
+const PIP_PREVIEW_IDLE_MS = 220;
+
 /** Límites de zoom */
 const MIN_SCALE_ABSOLUTE = 0.1; // Mínimo absoluto de seguridad
 const MAX_SCALE = 3.0;
@@ -153,11 +156,50 @@ function cancelPendingPipInteraction(state) {
     cancelAnimationFrame(state.pendingWheelRaf);
     state.pendingWheelRaf = null;
   }
+  if (state.previewTimer) {
+    clearTimeout(state.previewTimer);
+    state.previewTimer = null;
+  }
+  state.previewMode = false;
+  state.panelEl?.classList?.remove('panel--pip-preview');
+  state.pipContainer?.classList?.remove('pip-container--preview');
   state.pendingWheelPanX = 0;
   state.pendingWheelPanY = 0;
   state.pendingWheelZoomSteps = 0;
   state.pendingWheelClientX = null;
   state.pendingWheelClientY = null;
+}
+
+function setPipPreviewMode(panelId, active = true) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+
+  const panelEl = state.panelEl || document.getElementById(panelId);
+  if (panelEl) state.panelEl = panelEl;
+
+  if (!panelEl || !state.pipContainer) return;
+
+  if (state.previewTimer) {
+    clearTimeout(state.previewTimer);
+    state.previewTimer = null;
+  }
+
+  if (!active) {
+    state.previewMode = false;
+    panelEl.classList.remove('panel--pip-preview');
+    state.pipContainer.classList.remove('pip-container--preview');
+    return;
+  }
+
+  state.previewMode = true;
+  panelEl.classList.add('panel--pip-preview');
+  state.pipContainer.classList.add('pip-container--preview');
+  state.previewTimer = setTimeout(() => {
+    state.previewTimer = null;
+    state.previewMode = false;
+    state.panelEl?.classList?.remove('panel--pip-preview');
+    state.pipContainer?.classList?.remove('pip-container--preview');
+  }, PIP_PREVIEW_IDLE_MS);
 }
 
 function schedulePipStateSave() {
@@ -292,6 +334,7 @@ function flushPipWheelInteraction(panelId) {
     const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale + zoomSteps * PIP_WHEEL_ZOOM_STEP));
 
     if (newScale !== oldScale) {
+      setPipPreviewMode(panelId, true);
       const rect = viewport.getBoundingClientRect();
       const cursorX = clientX == null ? state.viewportWidth / 2 : clientX - rect.left;
       const cursorY = clientY == null ? state.viewportHeight / 2 : clientY - rect.top;
@@ -317,6 +360,7 @@ function flushPipWheelInteraction(panelId) {
     const deltaY = state.pendingWheelPanY;
     state.pendingWheelPanX = 0;
     state.pendingWheelPanY = 0;
+    setPipPreviewMode(panelId, true);
 
     const panFactor = state.scale * state.scale;
     const clampedScroll = clampPipScroll(
@@ -905,6 +949,8 @@ export function openPip(panelId, restoredConfig = null) {
     panelHeight: panelEl.offsetHeight || 760,
     viewportWidth: 0,
     viewportHeight: 0,
+    previewMode: false,
+    previewTimer: null,
     defaultWidth: restoredConfig?.defaultWidth || initW,
     defaultHeight: restoredConfig?.defaultHeight || initH,
     locked: false, // El lock se aplica después del scroll en restauración
@@ -1228,6 +1274,7 @@ function setupPipEvents(pipContainer, panelId) {
     if (state?.locked) return;
     e.preventDefault();
     e.stopPropagation();
+    setPipPreviewMode(panelId, true);
     resizingPip = panelId;
     resizeEdge = edge;
     resizePointerId = e.pointerId;
@@ -1409,6 +1456,7 @@ function setupPipEvents(pipContainer, panelId) {
       const state = activePips.get(panelId);
       if (state?.locked) return;
       e.preventDefault();
+      setPipPreviewMode(panelId, true);
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
       // Ocultar tooltips de controles interactivos (ej. joystick pad)
@@ -1452,6 +1500,7 @@ function setupPipEvents(pipContainer, panelId) {
       if (state?.locked) return;
       e.preventDefault();
       e.stopPropagation();
+      setPipPreviewMode(panelId, true);
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
@@ -1497,6 +1546,7 @@ function setupPipEvents(pipContainer, panelId) {
       const touch = Array.from(e.touches).find(t => t.identifier === touchPanId);
       if (!touch) return;
       e.preventDefault();
+      setPipPreviewMode(panelId, true);
       const dx = touch.clientX - touchPanStartX;
       const dy = touch.clientY - touchPanStartY;
       viewport.scrollLeft = touchPanScrollX - dx;
@@ -1507,6 +1557,7 @@ function setupPipEvents(pipContainer, panelId) {
   content.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
       lastPinchDist = 0;
+      setPipPreviewMode(panelId, false);
       // Desactivar flag con delay para que el momentum scroll termine
       setTimeout(() => {
         gestureInProgress = false;
@@ -1572,6 +1623,7 @@ function setupPipEvents(pipContainer, panelId) {
     if (isLeft && isInteractivePipTarget(e.target)) return;
     
     e.preventDefault();
+    setPipPreviewMode(panelId, true);
     panningPip = panelId;
     panPointerId = e.pointerId;
     content.setPointerCapture(e.pointerId);
@@ -1585,6 +1637,7 @@ function setupPipEvents(pipContainer, panelId) {
   content.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'touch') return;
     if (panningPip !== panelId || e.pointerId !== panPointerId) return;
+    setPipPreviewMode(panelId, true);
     const dx = e.clientX - panStart.x;
     const dy = e.clientY - panStart.y;
     viewport.scrollLeft = panStart.scrollX - dx;
@@ -1598,6 +1651,7 @@ function setupPipEvents(pipContainer, panelId) {
     panningPip = null;
     panPointerId = null;
     content.style.cursor = '';
+    setPipPreviewMode(panelId, false);
   };
   content.addEventListener('pointerup', endPan);
   content.addEventListener('pointercancel', endPan);
@@ -1624,6 +1678,7 @@ function handlePointerMove(e) {
   if (resizingPip) {
     const state = activePips.get(resizingPip);
     if (!state) return;
+    setPipPreviewMode(resizingPip, true);
     
     const dx = e.clientX - resizeStart.x;
     const dy = e.clientY - resizeStart.y;
@@ -1764,6 +1819,7 @@ function handlePointerUp(e) {
     const state = activePips.get(resizingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--resizing');
+      setPipPreviewMode(resizingPip, false);
       // Liberar pointer capture del handle activo (esquina o borde)
       if (resizePointerId !== null) {
         try {

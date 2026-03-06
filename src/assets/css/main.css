@@ -6352,6 +6352,8 @@ small { color:#aaa; }
   display: flex;
   flex-direction: column;
   overflow: visible;
+  contain: layout paint;
+  isolation: isolate;
   transition: box-shadow 150ms ease;
 }
 
@@ -6543,6 +6545,7 @@ small { color:#aaa; }
   overflow: hidden;
   position: relative;
   background: #111;
+  contain: layout paint;
 }
 
 /* Viewport interno para el panel */
@@ -6553,6 +6556,7 @@ small { color:#aaa; }
   overflow: auto;
   width: 100%;
   height: 100%;
+  contain: layout paint;
   /* Scroll suave en móviles pero controlado para evitar ciclos de layout */
   -webkit-overflow-scrolling: touch;
 }
@@ -6571,7 +6575,7 @@ small { color:#aaa; }
 }
 
 .pip-container .pip-viewport-inner {
-  will-change: transform, width, height;
+  will-change: transform;
 }
 
 /* El panel dentro del PiP */

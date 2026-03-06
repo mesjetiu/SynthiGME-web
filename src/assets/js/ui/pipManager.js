@@ -48,6 +48,12 @@ const PIP_HEADER_HEIGHT = 37;
 /** Espacio extra del contenedor PiP por bordes CSS (1px × 2 lados) */
 const PIP_BORDER_SIZE = 2;
 
+/** Paso de zoom aplicado por tick de rueda en PiP */
+const PIP_WHEEL_ZOOM_STEP = 0.05;
+
+/** Debounce para persistir estado PiP tras interacciones continuas */
+const PIP_SAVE_DEBOUNCE_MS = 180;
+
 /** Límites de zoom */
 const MIN_SCALE_ABSOLUTE = 0.1; // Mínimo absoluto de seguridad
 const MAX_SCALE = 3.0;
@@ -56,6 +62,8 @@ const MAX_SCALE = 3.0;
 const PIP_MIN_PINCH_DIST = 180;  // Distancia mínima para ratio estable
 const PIP_MAX_ZOOM_DELTA = 0.12; // Cambio máximo de zoom por frame
 const PIP_PINCH_EPSILON = 0.002; // Cambio mínimo para aplicar zoom
+
+let _pipStateSaveTimer = null;
 
 /**
  * Calcula las dimensiones iniciales del PiP para que el panel se vea
@@ -78,6 +86,87 @@ function getInitialPipDimensions() {
     height: contentSize + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE,
     scale: contentSize / panelSize
   };
+}
+
+function ensurePanelMetrics(state) {
+  if (!state) {
+    return { panelWidth: 760, panelHeight: 760 };
+  }
+
+  const panelEl = state.panelEl || document.getElementById(state.panelId);
+  if (panelEl) {
+    state.panelEl = panelEl;
+    state.panelWidth = panelEl.offsetWidth || state.panelWidth || 760;
+    state.panelHeight = panelEl.offsetHeight || state.panelHeight || 760;
+  }
+
+  return {
+    panelWidth: state.panelWidth || 760,
+    panelHeight: state.panelHeight || 760
+  };
+}
+
+function refreshPipViewportMetrics(state) {
+  if (!state) {
+    return { viewportWidth: 0, viewportHeight: 0 };
+  }
+
+  const viewport = state.viewportEl || state.pipContainer?.querySelector('.pip-viewport');
+  const viewportInner = state.viewportInnerEl || state.pipContainer?.querySelector('.pip-viewport-inner');
+
+  if (viewport) {
+    state.viewportEl = viewport;
+    state.viewportWidth = viewport.clientWidth || (state.width - PIP_BORDER_SIZE);
+    state.viewportHeight = viewport.clientHeight || (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
+  } else {
+    state.viewportWidth = state.width - PIP_BORDER_SIZE;
+    state.viewportHeight = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  }
+
+  if (viewportInner) {
+    state.viewportInnerEl = viewportInner;
+  }
+
+  return {
+    viewportWidth: state.viewportWidth,
+    viewportHeight: state.viewportHeight
+  };
+}
+
+function clampPipScroll(state, scrollLeft, scrollTop, scale = state?.scale || 1) {
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  const { viewportWidth, viewportHeight } = refreshPipViewportMetrics(state);
+  const maxScrollX = Math.max(0, panelWidth * scale - viewportWidth);
+  const maxScrollY = Math.max(0, panelHeight * scale - viewportHeight);
+
+  return {
+    scrollLeft: Math.max(0, Math.min(maxScrollX, scrollLeft)),
+    scrollTop: Math.max(0, Math.min(maxScrollY, scrollTop)),
+    maxScrollX,
+    maxScrollY
+  };
+}
+
+function cancelPendingPipInteraction(state) {
+  if (!state) return;
+  if (state.pendingWheelRaf) {
+    cancelAnimationFrame(state.pendingWheelRaf);
+    state.pendingWheelRaf = null;
+  }
+  state.pendingWheelPanX = 0;
+  state.pendingWheelPanY = 0;
+  state.pendingWheelZoomSteps = 0;
+  state.pendingWheelClientX = null;
+  state.pendingWheelClientY = null;
+}
+
+function schedulePipStateSave() {
+  if (_isRestoring) return;
+  if (_pipStateSaveTimer) clearTimeout(_pipStateSaveTimer);
+  _pipStateSaveTimer = setTimeout(() => {
+    _pipStateSaveTimer = null;
+    savePipState();
+  }, PIP_SAVE_DEBOUNCE_MS);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -165,14 +254,9 @@ function setupPipLongPressTooltips(pipContainer) {
 function getMinScale(panelId) {
   const state = activePips.get(panelId);
   if (!state) return MIN_SCALE_ABSOLUTE;
-  
-  const panelEl = document.getElementById(panelId);
-  const panelWidth = panelEl?.offsetWidth || 760;
-  const panelHeight = panelEl?.offsetHeight || 760;
-  
-  const viewport = state.pipContainer.querySelector('.pip-viewport');
-  const viewportWidth = viewport?.clientWidth || (state.width - PIP_BORDER_SIZE);
-  const viewportHeight = viewport?.clientHeight || (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
+
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  const { viewportWidth, viewportHeight } = refreshPipViewportMetrics(state);
   
   // El zoom mínimo es el MENOR de los ratios (contain): el panel cabe completo
   // Solo habrá margen en un eje (donde sobra espacio), nunca en ambos
@@ -182,6 +266,80 @@ function getMinScale(panelId) {
   
   // Usar el mayor entre el dinámico y el mínimo absoluto
   return Math.max(MIN_SCALE_ABSOLUTE, dynamicMin);
+}
+
+function flushPipWheelInteraction(panelId) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+
+  state.pendingWheelRaf = null;
+  refreshPipViewportMetrics(state);
+  const viewport = state.viewportEl;
+  if (!viewport) return;
+
+  let didChange = false;
+
+  if (state.pendingWheelZoomSteps !== 0) {
+    const zoomSteps = state.pendingWheelZoomSteps;
+    const clientX = state.pendingWheelClientX;
+    const clientY = state.pendingWheelClientY;
+    state.pendingWheelZoomSteps = 0;
+    state.pendingWheelClientX = null;
+    state.pendingWheelClientY = null;
+
+    const oldScale = state.scale;
+    const minScale = getMinScale(panelId);
+    const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale + zoomSteps * PIP_WHEEL_ZOOM_STEP));
+
+    if (newScale !== oldScale) {
+      const rect = viewport.getBoundingClientRect();
+      const cursorX = clientX == null ? state.viewportWidth / 2 : clientX - rect.left;
+      const cursorY = clientY == null ? state.viewportHeight / 2 : clientY - rect.top;
+      const panelPointX = (viewport.scrollLeft + cursorX) / oldScale;
+      const panelPointY = (viewport.scrollTop + cursorY) / oldScale;
+
+      updatePipScale(panelId, newScale, false);
+
+      const clampedScroll = clampPipScroll(
+        state,
+        panelPointX * newScale - cursorX,
+        panelPointY * newScale - cursorY,
+        newScale
+      );
+      viewport.scrollLeft = clampedScroll.scrollLeft;
+      viewport.scrollTop = clampedScroll.scrollTop;
+      didChange = true;
+    }
+  }
+
+  if (state.pendingWheelPanX !== 0 || state.pendingWheelPanY !== 0) {
+    const deltaX = state.pendingWheelPanX;
+    const deltaY = state.pendingWheelPanY;
+    state.pendingWheelPanX = 0;
+    state.pendingWheelPanY = 0;
+
+    const panFactor = state.scale * state.scale;
+    const clampedScroll = clampPipScroll(
+      state,
+      viewport.scrollLeft + deltaX * panFactor,
+      viewport.scrollTop + deltaY * panFactor
+    );
+    viewport.scrollLeft = clampedScroll.scrollLeft;
+    viewport.scrollTop = clampedScroll.scrollTop;
+    didChange = true;
+  }
+
+  if (didChange) {
+    state.lastScrollLeft = viewport.scrollLeft;
+    state.lastScrollTop = viewport.scrollTop;
+    schedulePipStateSave();
+  }
+}
+
+function schedulePipWheelInteraction(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || state.pendingWheelRaf) return;
+  state.pendingWheelRaf = requestAnimationFrame(() => flushPipWheelInteraction(panelId));
 }
 
 /**
@@ -734,11 +892,19 @@ export function openPip(panelId, restoredConfig = null) {
     originalParent,
     originalIndex,
     pipContainer,
+    panelEl,
+    contentEl: content,
+    viewportEl: viewport,
+    viewportInnerEl: viewportInner,
     x: initX,
     y: initY,
     width: initW,
     height: initH,
     scale: initScale,
+    panelWidth: panelEl.offsetWidth || 760,
+    panelHeight: panelEl.offsetHeight || 760,
+    viewportWidth: 0,
+    viewportHeight: 0,
     defaultWidth: restoredConfig?.defaultWidth || initW,
     defaultHeight: restoredConfig?.defaultHeight || initH,
     locked: false, // El lock se aplica después del scroll en restauración
@@ -746,9 +912,16 @@ export function openPip(panelId, restoredConfig = null) {
     // Última posición de scroll conocida (usada por el lock listener para revertir)
     // Pre-inicializar con valores guardados para que el lock no revierta a 0
     lastScrollLeft: restoredConfig?.scrollX || 0,
-    lastScrollTop: restoredConfig?.scrollY || 0
+    lastScrollTop: restoredConfig?.scrollY || 0,
+    pendingWheelRaf: null,
+    pendingWheelPanX: 0,
+    pendingWheelPanY: 0,
+    pendingWheelZoomSteps: 0,
+    pendingWheelClientX: null,
+    pendingWheelClientY: null
   };
-  
+
+  refreshPipViewportMetrics(state);
   activePips.set(panelId, state);
   if (perfMonitor.isEnabled()) {
     perfMonitor.incrementCounter('pip.open');
@@ -876,6 +1049,7 @@ export function openPip(panelId, restoredConfig = null) {
 export function closePip(panelId) {
   const state = activePips.get(panelId);
   if (!state) return;
+  cancelPendingPipInteraction(state);
   
   const panelEl = document.getElementById(panelId);
   if (!panelEl) return;
@@ -1189,51 +1363,18 @@ function setupPipEvents(pipContainer, panelId) {
       }
       // Zoom centrado en el cursor — necesita preventDefault
       e.preventDefault();
-      
-      const oldScale = state.scale;
-      const delta = e.deltaY > 0 ? -0.05 : 0.05;
-      const minScale = getMinScale(panelId);
-      const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale + delta));
-      
-      if (newScale !== oldScale) {
-        const rect = pipViewport.getBoundingClientRect();
-        const cursorX = e.clientX - rect.left;
-        const cursorY = e.clientY - rect.top;
-        
-        // Sin padding: el panel empieza en (0,0) del viewport-inner
-        const panelPointX = (pipViewport.scrollLeft + cursorX) / oldScale;
-        const panelPointY = (pipViewport.scrollTop + cursorY) / oldScale;
-        
-        updatePipScale(panelId, newScale);
-        
-        const newScrollX = panelPointX * newScale - cursorX;
-        const newScrollY = panelPointY * newScale - cursorY;
-        
-        pipViewport.scrollLeft = Math.max(0, newScrollX);
-        pipViewport.scrollTop = Math.max(0, newScrollY);
-      }
+
+      state.pendingWheelZoomSteps += e.deltaY > 0 ? -1 : 1;
+      state.pendingWheelClientX = e.clientX;
+      state.pendingWheelClientY = e.clientY;
+      schedulePipWheelInteraction(panelId);
     } else {
       if (perfMonitor.isEnabled()) {
         perfMonitor.incrementCounter(`pip.wheel.pan.${panelId}`);
       }
-      // Pan manual: scroll limitado al desbordamiento real del contenido
-      const viewportW = pipViewport.clientWidth;
-      const viewportH = pipViewport.clientHeight;
-      
-      const panelEl = document.getElementById(panelId);
-      const scaledW = (panelEl?.offsetWidth || 760) * state.scale;
-      const scaledH = (panelEl?.offsetHeight || 760) * state.scale;
-      
-      // Sin padding: scroll de 0 al máximo desbordamiento
-      const maxScrollX = Math.max(0, scaledW - viewportW);
-      const maxScrollY = Math.max(0, scaledH - viewportH);
-      
-      const panFactor = state.scale * state.scale;
-      const newScrollX = pipViewport.scrollLeft + (e.deltaX || 0) * panFactor;
-      const newScrollY = pipViewport.scrollTop + (e.deltaY || 0) * panFactor;
-      
-      pipViewport.scrollLeft = Math.max(0, Math.min(maxScrollX, newScrollX));
-      pipViewport.scrollTop = Math.max(0, Math.min(maxScrollY, newScrollY));
+      state.pendingWheelPanX += e.deltaX || 0;
+      state.pendingWheelPanY += e.deltaY || 0;
+      schedulePipWheelInteraction(panelId);
     }
   }, { passive: false });
   
@@ -1909,12 +2050,13 @@ function updatePipScale(panelId, newScale, persist = true) {
   if (!state) return;
   
   state.scale = newScale;
-  const panelEl = document.getElementById(panelId);
+  const panelEl = state.panelEl || document.getElementById(panelId);
   if (!panelEl) return;
-  
+
+  state.panelEl = panelEl;
+
   // Obtener tamaño real del panel (760x760 normalmente)
-  const panelWidth = panelEl.offsetWidth || 760;
-  const panelHeight = panelEl.offsetHeight || 760;
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
   
   // Tamaño escalado del panel
   const scaledWidth = panelWidth * newScale;
@@ -1925,14 +2067,13 @@ function updatePipScale(panelId, newScale, persist = true) {
   panelEl.style.transformOrigin = '0 0';
   
   // Obtener tamaño del viewport (contenido visible)
-  const viewport = state.pipContainer.querySelector('.pip-viewport');
-  const viewportWidth = viewport ? viewport.clientWidth : (state.width - PIP_BORDER_SIZE);
-  const viewportHeight = viewport ? viewport.clientHeight : (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
+  refreshPipViewportMetrics(state);
   
   // Sin padding: el panel se alinea al borde del viewport (cover behavior).
   // El eje más próximo queda a ras, el otro puede desbordar con scroll.
-  const viewportInner = state.pipContainer.querySelector('.pip-viewport-inner');
+  const viewportInner = state.viewportInnerEl || state.pipContainer.querySelector('.pip-viewport-inner');
   if (viewportInner) {
+    state.viewportInnerEl = viewportInner;
     viewportInner.style.width = `${scaledWidth}px`;
     viewportInner.style.height = `${scaledHeight}px`;
     viewportInner.style.padding = '0';
@@ -1941,7 +2082,7 @@ function updatePipScale(panelId, newScale, persist = true) {
   
   // Guardar estado después de cambiar zoom
   if (persist) {
-    savePipState();
+    schedulePipStateSave();
   }
 
   if (perfMonitor.isEnabled()) {
@@ -2031,6 +2172,10 @@ export function serializePipState() {
  * Guarda el estado de los PiPs en localStorage.
  */
 export function savePipState() {
+  if (_pipStateSaveTimer) {
+    clearTimeout(_pipStateSaveTimer);
+    _pipStateSaveTimer = null;
+  }
   // No guardar durante restauración (openPip llama a savePipState con datos iniciales)
   if (_isRestoring) return;
   

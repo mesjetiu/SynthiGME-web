@@ -51,6 +51,9 @@ const PIP_BORDER_SIZE = 2;
 /** Factor multiplicativo de zoom aplicado por tick de rueda en PiP */
 const PIP_WHEEL_ZOOM_FACTOR = 1.18;
 
+/** Factor de pan aplicado a deltas de rueda/touchpad normalizados a píxeles CSS */
+const PIP_WHEEL_PAN_FACTOR = 1;
+
 /** Debounce para persistir estado PiP tras interacciones continuas */
 const PIP_SAVE_DEBOUNCE_MS = 180;
 
@@ -672,11 +675,10 @@ function flushPipWheelInteraction(panelId) {
     state.pendingWheelPanY = 0;
     setPipPreviewMode(panelId, true);
 
-    const panFactor = state.scale * state.scale;
     const clampedScroll = clampPipScroll(
       state,
-      viewport.scrollLeft + deltaX * panFactor,
-      viewport.scrollTop + deltaY * panFactor
+      viewport.scrollLeft + deltaX * PIP_WHEEL_PAN_FACTOR,
+      viewport.scrollTop + deltaY * PIP_WHEEL_PAN_FACTOR
     );
     viewport.scrollLeft = clampedScroll.scrollLeft;
     viewport.scrollTop = clampedScroll.scrollTop;
@@ -705,6 +707,7 @@ let focusedPipId = null;
 /** Panel actualmente siendo arrastrado */
 let draggingPip = null;
 let dragOffset = { x: 0, y: 0 };
+let dragStartPosition = { x: 0, y: 0 };
 let dragPointerId = null;
 
 /** Panel actualmente siendo redimensionado */
@@ -1607,12 +1610,15 @@ function setupPipEvents(pipContainer, panelId) {
     if (e.target.closest('button')) return;
     e.preventDefault();
     e.stopPropagation();
+    setPipPreviewMode(panelId, true);
     draggingPip = panelId;
     dragPointerId = e.pointerId;
     header.setPointerCapture(e.pointerId);
     const rect = pipContainer.getBoundingClientRect();
     dragOffset.x = e.clientX - rect.left;
     dragOffset.y = e.clientY - rect.top;
+    dragStartPosition.x = rect.left;
+    dragStartPosition.y = rect.top;
     pipContainer.classList.add('pip-container--dragging');
     bringToFront(panelId);
   });
@@ -1768,8 +1774,12 @@ function setupPipEvents(pipContainer, panelId) {
       if (perfMonitor.isEnabled()) {
         perfMonitor.incrementCounter(`pip.wheel.pan.${panelId}`);
       }
-      state.pendingWheelPanX += e.deltaX || 0;
-      state.pendingWheelPanY += e.deltaY || 0;
+      const lineHeight = 16;
+      const deltaUnit = e.deltaMode === 1
+        ? lineHeight
+        : (e.deltaMode === 2 ? (pipViewport?.clientHeight || state.viewportHeight || 1) : 1);
+      state.pendingWheelPanX += (e.deltaX || 0) * deltaUnit;
+      state.pendingWheelPanY += (e.deltaY || 0) * deltaUnit;
       schedulePipWheelInteraction(panelId);
     }
   }, { passive: false });
@@ -2014,14 +2024,14 @@ function handlePointerMove(e) {
   if (draggingPip) {
     const state = activePips.get(draggingPip);
     if (!state) return;
+    setPipPreviewMode(draggingPip, true);
     
     const newX = Math.max(0, Math.min(window.innerWidth - state.width, e.clientX - dragOffset.x));
     const newY = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - dragOffset.y));
-    
-    state.x = newX;
-    state.y = newY;
-    state.pipContainer.style.left = `${newX}px`;
-    state.pipContainer.style.top = `${newY}px`;
+
+    state.pendingDragX = newX;
+    state.pendingDragY = newY;
+    state.pipContainer.style.transform = `translate3d(${newX - dragStartPosition.x}px, ${newY - dragStartPosition.y}px, 0)`;
   }
   
   if (resizingPip) {
@@ -2153,6 +2163,16 @@ function handlePointerUp(e) {
     const state = activePips.get(draggingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--dragging');
+      const finalX = state.pendingDragX ?? state.x;
+      const finalY = state.pendingDragY ?? state.y;
+      state.x = finalX;
+      state.y = finalY;
+      state.pipContainer.style.left = `${finalX}px`;
+      state.pipContainer.style.top = `${finalY}px`;
+      state.pipContainer.style.transform = '';
+      state.pendingDragX = null;
+      state.pendingDragY = null;
+      setPipPreviewMode(state.panelId, false);
       // Liberar pointer capture
       const header = state.pipContainer.querySelector('.pip-header');
       if (header && dragPointerId !== null) {

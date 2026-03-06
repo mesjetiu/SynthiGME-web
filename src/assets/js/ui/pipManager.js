@@ -72,11 +72,17 @@ const PIP_PREVIEW_IDLE_MS = 220;
 /** Delay antes de activar rasterización nítida en PiP tras quedar idle */
 const PIP_RASTERIZE_DELAY_MS = 200;
 
+/** En táctil se prioriza fluidez y se espera más antes de afilar la vista */
+const PIP_TOUCH_RASTERIZE_DELAY_MS = 420;
+
 /** Límite de zoom nítido seguro para PiP */
 const PIP_MAX_SHARP_ZOOM = 3;
 
 /** Escala mínima a partir de la que merece la pena re-rasterizar */
 const PIP_MIN_SHARP_SCALE = 1.05;
+
+/** En tablet solo merece la pena afilar cuando el zoom ya es claramente alto */
+const PIP_TOUCH_MIN_SHARP_SCALE = 1.45;
 
 /** Máxima dimensión de raster seguro para el compositor */
 const PIP_MAX_RASTER_DIMENSION = 16384;
@@ -141,6 +147,11 @@ const PIP_PREVIEW_SNAPSHOT_SELECTORS = [
 
 function isPipTouchOptimizedMode() {
   return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+}
+
+function shouldUseTouchSharpRasterize(state) {
+  if (!isPipTouchOptimizedMode()) return true;
+  return (state?.scale || 1) >= PIP_TOUCH_MIN_SHARP_SCALE;
 }
 
 function runWhenBrowserIdle(callback, timeout = PIP_PREVIEW_IDLE_TIMEOUT_MS) {
@@ -523,6 +534,9 @@ function setPipPreviewMode(panelId, active = true) {
     state.previewMode = false;
     panelEl.classList.remove('panel--pip-preview');
     state.pipContainer.classList.remove('pip-container--preview');
+    if (!active) {
+      schedulePipRasterize(panelId);
+    }
     return;
   }
 
@@ -586,6 +600,15 @@ function cancelPipRasterize(state) {
   state.sharpZoomFactor = 1;
 }
 
+function disablePipSharpMode(panelId) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+  cancelPipRasterize(state);
+  state.activeZoom = 1;
+  state.panelEl?.style?.setProperty('zoom', '');
+  updatePipScale(panelId, state.scale, false);
+}
+
 function requestPipSharpCommit(panelId) {
   const state = activePips.get(panelId);
   if (!state) return;
@@ -616,7 +639,8 @@ function commitPipSharpMode(panelId) {
 
 function enterPipSharpMode(panelId) {
   const state = activePips.get(panelId);
-  if (!state || !pipSharpRasterizeEnabled || isPipTouchOptimizedMode()) return;
+  if (!state || !pipSharpRasterizeEnabled) return;
+  if (!shouldUseTouchSharpRasterize(state)) return;
 
   const target = Math.min(state.scale, PIP_MAX_SHARP_ZOOM);
   if (target < PIP_MIN_SHARP_SCALE) {
@@ -640,12 +664,18 @@ function enterPipSharpMode(panelId) {
 
 function schedulePipRasterize(panelId) {
   const state = activePips.get(panelId);
-  if (!state || !pipSharpRasterizeEnabled || isPipTouchOptimizedMode()) return;
+  if (!state || !pipSharpRasterizeEnabled) return;
+  if (!shouldUseTouchSharpRasterize(state)) {
+    if (state.sharpMode) {
+      disablePipSharpMode(panelId);
+    }
+    return;
+  }
   cancelPipRasterize(state);
   state.rasterizeTimer = setTimeout(() => {
     state.rasterizeTimer = null;
     enterPipSharpMode(panelId);
-  }, PIP_RASTERIZE_DELAY_MS);
+  }, isPipTouchOptimizedMode() ? PIP_TOUCH_RASTERIZE_DELAY_MS : PIP_RASTERIZE_DELAY_MS);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

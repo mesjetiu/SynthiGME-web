@@ -6,6 +6,7 @@ import { perfMonitor } from '../utils/perfMonitor.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { showContextMenu, hideContextMenu } from './contextMenuManager.js';
+import { uniquifySvgTree } from './svgInlineLoader.js';
 
 const log = createLogger('PipManager');
 
@@ -42,6 +43,10 @@ const PIP_Z_INDEX_BASE = 1200;
 const MIN_PIP_SIZE = 150;
 // MAX_PIP_SIZE es dinámico: se calcula según el tamaño de la ventana
 
+/** Parte mínima visible de una PiP fuera del canvas principal */
+const PIP_MIN_VISIBLE_RATIO = 0.2;
+const PIP_MIN_VISIBLE_PX = 120;
+
 /** Tamaño de cabecera del PiP: modo sin marco, sin barra visible */
 const PIP_HEADER_HEIGHT = 0;
 
@@ -54,6 +59,9 @@ const PIP_WHEEL_ZOOM_OUT_FACTOR = 1.32;
 
 /** Factor de pan aplicado a deltas de rueda/touchpad normalizados a píxeles CSS */
 const PIP_WHEEL_PAN_FACTOR = 1;
+
+/** Ajuste fino para que el drag con dos dedos se sienta como un drag normal del ratón */
+const PIP_TOUCHPAD_MOVE_FACTOR = 0.5;
 
 /** Debounce para persistir estado PiP tras interacciones continuas */
 const PIP_SAVE_DEBOUNCE_MS = 180;
@@ -251,6 +259,7 @@ function rebuildPipPreviewLayer(panelId) {
 
     const clone = control.cloneNode(true);
     sanitizePipPreviewTree(clone);
+    uniquifySvgTree(clone);
     item.appendChild(clone);
     fragment.appendChild(item);
   }
@@ -352,6 +361,21 @@ function refreshPipViewportMetrics(state) {
   return {
     viewportWidth: state.viewportWidth,
     viewportHeight: state.viewportHeight
+  };
+}
+
+function clampPipPosition(x, y, width, height) {
+  const minVisibleX = Math.min(PIP_MIN_VISIBLE_PX, Math.max(1, width * PIP_MIN_VISIBLE_RATIO));
+  const minVisibleY = Math.min(PIP_MIN_VISIBLE_PX, Math.max(1, height * PIP_MIN_VISIBLE_RATIO));
+
+  const minX = minVisibleX - width;
+  const maxX = window.innerWidth - minVisibleX;
+  const minY = minVisibleY - height;
+  const maxY = window.innerHeight - minVisibleY;
+
+  return {
+    x: Math.max(minX, Math.min(maxX, x)),
+    y: Math.max(minY, Math.min(maxY, y))
   };
 }
 
@@ -680,6 +704,9 @@ function applyPipWheelZoom(panelId, targetScale, clientX = null, clientY = null)
 
   let newX = anchorClientX - anchorRatioX * newWidth;
   let newY = anchorClientY - anchorRatioY * newHeight;
+  const clampedPosition = clampPipPosition(newX, newY, newWidth, newHeight);
+  newX = clampedPosition.x;
+  newY = clampedPosition.y;
 
   state.width = newWidth;
   state.height = newHeight;
@@ -755,8 +782,9 @@ function flushPipWheelInteraction(panelId) {
     state.pendingWheelMoveY = 0;
     setPipPreviewMode(panelId, true);
 
-    state.x -= moveX;
-    state.y -= moveY;
+    const clampedPosition = clampPipPosition(state.x - moveX, state.y - moveY, state.width, state.height);
+    state.x = clampedPosition.x;
+    state.y = clampedPosition.y;
     state.pipContainer.style.left = `${state.x}px`;
     state.pipContainer.style.top = `${state.y}px`;
     didChange = true;
@@ -878,6 +906,21 @@ export function initPipManager() {
     }
   });
 
+  document.addEventListener('synth:svgInlineLoaded', (event) => {
+    const container = event.target;
+    if (!(container instanceof Element)) return;
+
+    const panelEl = container.closest('.panel--pipped');
+    const panelId = panelEl?.id;
+    if (!panelId || !activePips.has(panelId)) return;
+
+    const state = activePips.get(panelId);
+    if (!state) return;
+
+    state.previewDirty = true;
+    schedulePipPreviewRefresh(panelId, { immediate: !state.previewReady && !state.previewMode });
+  });
+
   document.addEventListener('synth:sharpRasterizeChange', (event) => {
     pipSharpRasterizeEnabled = Boolean(event.detail?.enabled);
     for (const [panelId, state] of activePips) {
@@ -931,8 +974,9 @@ export function initPipManager() {
     if (!state || state.locked) return true; // Absorber pero no actuar si bloqueado
     const stepX = state.width * 0.15;
     const stepY = state.height * 0.15;
-    state.x += dirX * stepX;
-    state.y += dirY * stepY;
+    const clampedPosition = clampPipPosition(state.x + dirX * stepX, state.y + dirY * stepY, state.width, state.height);
+    state.x = clampedPosition.x;
+    state.y = clampedPosition.y;
     state.pipContainer.style.left = `${state.x}px`;
     state.pipContainer.style.top = `${state.y}px`;
     schedulePipStateSave();
@@ -1852,9 +1896,10 @@ function setupPipEvents(pipContainer, panelId) {
       const deltaUnit = e.deltaMode === 1
         ? lineHeight
         : (e.deltaMode === 2 ? (pipViewport?.clientHeight || state.viewportHeight || 1) : 1);
+      const moveFactor = e.deltaMode === 0 ? PIP_TOUCHPAD_MOVE_FACTOR : 1;
       e.preventDefault();
-      state.pendingWheelMoveX += (e.deltaX || 0) * deltaUnit;
-      state.pendingWheelMoveY += (e.deltaY || 0) * deltaUnit;
+      state.pendingWheelMoveX += (e.deltaX || 0) * deltaUnit * moveFactor;
+      state.pendingWheelMoveY += (e.deltaY || 0) * deltaUnit * moveFactor;
       schedulePipWheelInteraction(panelId);
     }
   }, { passive: false });
@@ -1976,8 +2021,9 @@ function setupPipEvents(pipContainer, panelId) {
       setPipPreviewMode(panelId, true);
       const dx = touch.clientX - touchPanStartX;
       const dy = touch.clientY - touchPanStartY;
-      state.x = touchPanWindowX + dx;
-      state.y = touchPanWindowY + dy;
+      const clampedPosition = clampPipPosition(touchPanWindowX + dx, touchPanWindowY + dy, state.width, state.height);
+      state.x = clampedPosition.x;
+      state.y = clampedPosition.y;
       state.pipContainer.style.left = `${state.x}px`;
       state.pipContainer.style.top = `${state.y}px`;
       schedulePipStateSave();
@@ -2064,8 +2110,9 @@ function handlePointerMove(e) {
     if (!state) return;
     setPipPreviewMode(draggingPip, true);
 
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
+    const clampedPosition = clampPipPosition(e.clientX - dragOffset.x, e.clientY - dragOffset.y, state.width, state.height);
+    const newX = clampedPosition.x;
+    const newY = clampedPosition.y;
 
     state.pendingDragX = newX;
     state.pendingDragY = newY;
@@ -2132,12 +2179,13 @@ function handlePointerMove(e) {
     
     state.width = newW;
     state.height = newH;
-    state.x = newX;
-    state.y = newY;
+    const clampedPosition = clampPipPosition(newX, newY, newW, newH);
+    state.x = clampedPosition.x;
+    state.y = clampedPosition.y;
     state.pipContainer.style.width = `${newW}px`;
     state.pipContainer.style.height = `${newH}px`;
-    state.pipContainer.style.left = `${newX}px`;
-    state.pipContainer.style.top = `${newY}px`;
+    state.pipContainer.style.left = `${state.x}px`;
+    state.pipContainer.style.top = `${state.y}px`;
     
     const viewport = state.pipContainer.querySelector('.pip-viewport');
     if (viewport) {

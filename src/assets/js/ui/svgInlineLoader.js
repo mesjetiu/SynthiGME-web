@@ -20,6 +20,65 @@ const fetchPromises = new Map();
 let instanceCounter = 0;
 
 /**
+ * Reasigna IDs y referencias internas dentro de un subárbol SVG ya insertado en el DOM.
+ * Útil al clonar controles con SVG inline para evitar colisiones con la instancia original.
+ *
+ * @param {Element} root - Nodo raíz que contiene uno o varios SVG inline
+ * @returns {Element|null} El mismo nodo recibido
+ */
+export function uniquifySvgTree(root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return root;
+
+  const svgRoots = [];
+  if (root instanceof SVGElement) {
+    svgRoots.push(root);
+  }
+  svgRoots.push(...root.querySelectorAll('svg'));
+
+  for (const svg of svgRoots) {
+    const prefix = `k${instanceCounter++}_`;
+    const idMap = new Map();
+
+    svg.querySelectorAll('[id]').forEach(node => {
+      const oldId = node.getAttribute('id');
+      if (!oldId) return;
+      const newId = `${prefix}${oldId}`;
+      idMap.set(oldId, newId);
+      node.setAttribute('id', newId);
+    });
+
+    if (idMap.size === 0) continue;
+
+    const rewriteValue = (value) => {
+      if (!value) return value;
+
+      let nextValue = value;
+      for (const [oldId, newId] of idMap) {
+        if (nextValue === `#${oldId}`) {
+          nextValue = `#${newId}`;
+          continue;
+        }
+        nextValue = nextValue.replaceAll(`url(#${oldId})`, `url(#${newId})`);
+        nextValue = nextValue.replaceAll(`href="#${oldId}"`, `href="#${newId}"`);
+      }
+      return nextValue;
+    };
+
+    svg.querySelectorAll('*').forEach(node => {
+      for (const attr of node.getAttributeNames()) {
+        const value = node.getAttribute(attr);
+        const rewritten = rewriteValue(value);
+        if (rewritten !== value) {
+          node.setAttribute(attr, rewritten);
+        }
+      }
+    });
+  }
+
+  return root;
+}
+
+/**
  * Descarga y cachea el texto de un SVG.
  * @param {string} src - Ruta al SVG
  * @returns {Promise<string>} Texto SVG
@@ -74,6 +133,12 @@ export async function loadSvgInline(src, container) {
     const { html, prefix } = makeIdsUnique(text);
     container.innerHTML = html;
     const svg = container.querySelector('svg');
+    if (container?.dispatchEvent) {
+      container.dispatchEvent(new CustomEvent('synth:svgInlineLoaded', {
+        bubbles: true,
+        detail: { src, prefix, svg, container }
+      }));
+    }
     return { svg, prefix };
   } catch {
     return { svg: null, prefix: '' };

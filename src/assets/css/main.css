@@ -6564,12 +6564,10 @@ small { color:#aaa; }
   position: absolute;
   top: 0;
   left: 0;
-  overflow: auto;
+  overflow: hidden;
   width: 100%;
   height: 100%;
   contain: layout paint;
-  /* Scroll suave en móviles pero controlado para evitar ciclos de layout */
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Contenedor interno para mantener el tamaño original del panel y permitir scroll */

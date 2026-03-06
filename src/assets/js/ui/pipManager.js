@@ -139,6 +139,10 @@ const PIP_PREVIEW_SNAPSHOT_SELECTORS = [
   '.output-channel__switch-wrap'
 ].join(', ');
 
+function isPipTouchOptimizedMode() {
+  return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+}
+
 function runWhenBrowserIdle(callback, timeout = PIP_PREVIEW_IDLE_TIMEOUT_MS) {
   if (typeof window.requestIdleCallback === 'function') {
     return window.requestIdleCallback(callback, { timeout });
@@ -277,6 +281,15 @@ function rebuildPipPreviewLayer(panelId) {
 function schedulePipPreviewRefresh(panelId, { immediate = false } = {}) {
   clearScheduledPipPreviewRefresh(panelId);
 
+  if (isPipTouchOptimizedMode()) {
+    const state = activePips.get(panelId);
+    if (state) {
+      state.previewReady = false;
+      state.previewDirty = true;
+    }
+    return;
+  }
+
   const run = () => {
     pipPreviewIdleJobs.delete(panelId);
     rebuildPipPreviewLayer(panelId);
@@ -311,6 +324,32 @@ function schedulePendingPipDrag(panelId) {
   const state = activePips.get(panelId);
   if (!state || state.pendingDragRaf) return;
   state.pendingDragRaf = requestAnimationFrame(() => flushPendingPipDrag(panelId));
+}
+
+function finalizePendingPipDrag(state, { deactivatePreview = true } = {}) {
+  if (!state) return false;
+
+  const finalX = state.pendingDragX ?? state.x;
+  const finalY = state.pendingDragY ?? state.y;
+
+  if (state.pendingDragRaf) {
+    cancelAnimationFrame(state.pendingDragRaf);
+    state.pendingDragRaf = null;
+  }
+
+  state.x = finalX;
+  state.y = finalY;
+  state.pipContainer.style.left = `${finalX}px`;
+  state.pipContainer.style.top = `${finalY}px`;
+  state.pipContainer.style.transform = '';
+  state.pendingDragX = null;
+  state.pendingDragY = null;
+
+  if (deactivatePreview) {
+    setPipPreviewMode(state.panelId, false);
+  }
+
+  return true;
 }
 
 /**
@@ -479,6 +518,14 @@ function setPipPreviewMode(panelId, active = true) {
     state.previewTimer = null;
   }
 
+  if (isPipTouchOptimizedMode()) {
+    cancelPipRasterize(state);
+    state.previewMode = false;
+    panelEl.classList.remove('panel--pip-preview');
+    state.pipContainer.classList.remove('pip-container--preview');
+    return;
+  }
+
   if (!active) {
     state.previewMode = false;
     panelEl.classList.remove('panel--pip-preview');
@@ -569,7 +616,7 @@ function commitPipSharpMode(panelId) {
 
 function enterPipSharpMode(panelId) {
   const state = activePips.get(panelId);
-  if (!state || !pipSharpRasterizeEnabled) return;
+  if (!state || !pipSharpRasterizeEnabled || isPipTouchOptimizedMode()) return;
 
   const target = Math.min(state.scale, PIP_MAX_SHARP_ZOOM);
   if (target < PIP_MIN_SHARP_SCALE) {
@@ -593,7 +640,7 @@ function enterPipSharpMode(panelId) {
 
 function schedulePipRasterize(panelId) {
   const state = activePips.get(panelId);
-  if (!state || !pipSharpRasterizeEnabled) return;
+  if (!state || !pipSharpRasterizeEnabled || isPipTouchOptimizedMode()) return;
   cancelPipRasterize(state);
   state.rasterizeTimer = setTimeout(() => {
     state.rasterizeTimer = null;
@@ -922,6 +969,7 @@ export function initPipManager() {
     for (const panelId of activePips.keys()) {
       const state = activePips.get(panelId);
       if (!state) continue;
+      if (isPipTouchOptimizedMode()) continue;
       state.previewDirty = true;
       if (!state.previewMode) {
         schedulePipPreviewRefresh(panelId);
@@ -939,6 +987,7 @@ export function initPipManager() {
 
     const state = activePips.get(panelId);
     if (!state) return;
+    if (isPipTouchOptimizedMode()) return;
 
     state.previewDirty = true;
     if (!state.previewMode) {
@@ -2002,6 +2051,8 @@ function setupPipEvents(pipContainer, panelId) {
       touchPanStartY = e.touches[0].clientY;
       touchPanWindowX = state.x;
       touchPanWindowY = state.y;
+      dragStartPosition.x = state.x;
+      dragStartPosition.y = state.y;
     }
   }, { passive: false });
   
@@ -2050,10 +2101,9 @@ function setupPipEvents(pipContainer, panelId) {
       const dx = touch.clientX - touchPanStartX;
       const dy = touch.clientY - touchPanStartY;
       const clampedPosition = clampPipPosition(touchPanWindowX + dx, touchPanWindowY + dy, state.width, state.height);
-      state.x = clampedPosition.x;
-      state.y = clampedPosition.y;
-      state.pipContainer.style.left = `${state.x}px`;
-      state.pipContainer.style.top = `${state.y}px`;
+      state.pendingDragX = clampedPosition.x;
+      state.pendingDragY = clampedPosition.y;
+      schedulePendingPipDrag(panelId);
       schedulePipStateSave();
     }
   }, { passive: false });
@@ -2071,7 +2121,12 @@ function setupPipEvents(pipContainer, panelId) {
     // Resetear pan de 1 dedo si el touch que se levantó es el que estaba paneando
     if (touchPanId !== null) {
       const still = Array.from(e.touches).find(t => t.identifier === touchPanId);
-      if (!still) touchPanId = null;
+      if (!still) {
+        const state = activePips.get(panelId);
+        finalizePendingPipDrag(state, { deactivatePreview: false });
+        touchPanId = null;
+        savePipState();
+      }
     }
   }, { passive: true });
   
@@ -2247,20 +2302,7 @@ function handlePointerUp(e) {
     const state = activePips.get(draggingPip);
     if (state) {
       state.pipContainer.classList.remove('pip-container--dragging');
-      const finalX = state.pendingDragX ?? state.x;
-      const finalY = state.pendingDragY ?? state.y;
-      if (state.pendingDragRaf) {
-        cancelAnimationFrame(state.pendingDragRaf);
-        state.pendingDragRaf = null;
-      }
-      state.x = finalX;
-      state.y = finalY;
-      state.pipContainer.style.left = `${finalX}px`;
-      state.pipContainer.style.top = `${finalY}px`;
-      state.pipContainer.style.transform = '';
-      state.pendingDragX = null;
-      state.pendingDragY = null;
-      setPipPreviewMode(state.panelId, false);
+      finalizePendingPipDrag(state);
       // Liberar pointer capture
       if (dragPointerId !== null && dragCaptureEl) {
         try { dragCaptureEl.releasePointerCapture(dragPointerId); } catch (_) { /* ignore */ }

@@ -42,6 +42,30 @@ const ICON_ATTACH = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"
   <path d="M14 9l-3 3 3 3"/>
 </svg>`;
 
+const ICON_LOCK = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+  <rect x="4" y="11" width="16" height="10" rx="2"/>
+  <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+</svg>`;
+
+const ICON_MAXIMIZE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+  <path d="M8 3H3v5"/>
+  <path d="M16 3h5v5"/>
+  <path d="M21 16v5h-5"/>
+  <path d="M3 16v5h5"/>
+</svg>`;
+
+const ICON_RESTORE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+  <rect x="7" y="7" width="10" height="10" rx="2"/>
+  <path d="M5 12H3"/>
+  <path d="M21 12h-2"/>
+</svg>`;
+
+const ICON_FIT = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+  <rect x="4" y="4" width="16" height="16" rx="2"/>
+  <path d="M10 4v16"/>
+  <path d="M4 10h16"/>
+</svg>`;
+
 const ICON_RESET = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
   <path d="M3 12a9 9 0 1 1 3 6.74"/>
   <polyline points="3 22 3 16 9 16"/>
@@ -222,8 +246,9 @@ function detectPanelId(target) {
  * @param {HTMLElement} options.target - Elemento DOM clicado (para detectar módulo/control)
  * @param {Function} options.onDetach - Callback para extraer panel a PiP
  * @param {Function} options.onAttach - Callback para devolver panel de PiP
+ * @param {Object} [options.pipActions] - Acciones extra disponibles en PiP sin marco
  */
-export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onAttach }) {
+export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onAttach, pipActions }) {
   hideContextMenu();
   
   const moduleInfo = detectModule(target);
@@ -246,6 +271,46 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
       ICON_DETACH,
       t('pip.detach'),
       () => { hideContextMenu(); onDetach?.(panelId); }
+    ));
+  }
+
+  if (isPipped && pipActions) {
+    menu.appendChild(createSeparator());
+
+    menu.appendChild(createMenuItem(
+      ICON_LOCK,
+      pipActions.isLocked?.() ? t('pip.unlock', 'Desbloquear') : t('pip.lock', 'Bloquear'),
+      () => {
+        hideContextMenu();
+        pipActions.toggleLock?.();
+      }
+    ));
+
+    menu.appendChild(createMenuItem(
+      ICON_MAXIMIZE,
+      t('pip.maximize', 'Maximizar'),
+      () => {
+        hideContextMenu();
+        pipActions.maximize?.();
+      }
+    ));
+
+    menu.appendChild(createMenuItem(
+      ICON_RESTORE,
+      t('pip.minimize', 'Restaurar tamaño'),
+      () => {
+        hideContextMenu();
+        pipActions.restore?.();
+      }
+    ));
+
+    menu.appendChild(createMenuItem(
+      ICON_FIT,
+      t('pip.fitPanel', 'Ajustar panel'),
+      () => {
+        hideContextMenu();
+        pipActions.fit?.();
+      }
     ));
   }
   

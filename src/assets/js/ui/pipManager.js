@@ -42,11 +42,11 @@ const PIP_Z_INDEX_BASE = 1200;
 const MIN_PIP_SIZE = 150;
 // MAX_PIP_SIZE es dinámico: se calcula según el tamaño de la ventana
 
-/** Tamaño de cabecera del PiP (24px botones + 12px padding + 1px border-bottom) */
-const PIP_HEADER_HEIGHT = 37;
+/** Tamaño de cabecera del PiP: modo sin marco, sin barra visible */
+const PIP_HEADER_HEIGHT = 0;
 
-/** Espacio extra del contenedor PiP por bordes CSS (1px × 2 lados) */
-const PIP_BORDER_SIZE = 2;
+/** Espacio extra del contenedor PiP por bordes CSS en modo sin marco */
+const PIP_BORDER_SIZE = 0;
 
 /** Factor multiplicativo de zoom aplicado por tick de rueda en PiP */
 const PIP_WHEEL_ZOOM_FACTOR = 1.18;
@@ -354,6 +354,33 @@ function refreshPipViewportMetrics(state) {
   };
 }
 
+function startPipWindowDrag(panelId, pointerEvent, dragSurface) {
+  const state = activePips.get(panelId);
+  if (!state || state.locked) return false;
+
+  pointerEvent.preventDefault();
+  pointerEvent.stopPropagation();
+  setPipPreviewMode(panelId, true);
+  draggingPip = panelId;
+  dragPointerId = pointerEvent.pointerId;
+  dragCaptureEl = dragSurface || null;
+
+  if (dragSurface?.setPointerCapture) {
+    try {
+      dragSurface.setPointerCapture(pointerEvent.pointerId);
+    } catch (_) { /* ignore */ }
+  }
+
+  const rect = state.pipContainer.getBoundingClientRect();
+  dragOffset.x = pointerEvent.clientX - rect.left;
+  dragOffset.y = pointerEvent.clientY - rect.top;
+  dragStartPosition.x = rect.left;
+  dragStartPosition.y = rect.top;
+  state.pipContainer.classList.add('pip-container--dragging');
+  bringToFront(panelId);
+  return true;
+}
+
 function clampPipScroll(state, scrollLeft, scrollTop, scale = state?.scale || 1) {
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
   const { viewportWidth, viewportHeight } = refreshPipViewportMetrics(state);
@@ -600,9 +627,16 @@ function setupPipLongPressTooltips(pipContainer) {
   buttons.forEach(btn => setupPipBtnLongPress(btn));
 }
 
+function getPipCoverScale(viewportWidth, viewportHeight, panelWidth, panelHeight) {
+  const scaleX = viewportWidth / panelWidth;
+  const scaleY = viewportHeight / panelHeight;
+  return Math.max(MIN_SCALE_ABSOLUTE, Math.max(scaleX, scaleY));
+}
+
 /**
- * Calcula el zoom mínimo para que el panel quepa completo en el viewport (contain).
- * El panel se ve entero; solo habrá margen en un eje (el que sobra), nunca en ambos.
+ * Calcula la escala mínima para que el panel cubra por completo el viewport.
+ * Nunca debe quedar espacio en blanco dentro del PiP: si el marco crece,
+ * el panel crece con él y el exceso se resuelve con scroll.
  * @param {string} panelId - ID del panel
  * @returns {number} Escala mínima
  */
@@ -612,15 +646,8 @@ function getMinScale(panelId) {
 
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
   const { viewportWidth, viewportHeight } = refreshPipViewportMetrics(state);
-  
-  // El zoom mínimo es el MENOR de los ratios (contain): el panel cabe completo
-  // Solo habrá margen en un eje (donde sobra espacio), nunca en ambos
-  const minScaleX = viewportWidth / panelWidth;
-  const minScaleY = viewportHeight / panelHeight;
-  const dynamicMin = Math.min(minScaleX, minScaleY);
-  
-  // Usar el mayor entre el dinámico y el mínimo absoluto
-  return Math.max(MIN_SCALE_ABSOLUTE, dynamicMin);
+
+  return getPipCoverScale(viewportWidth, viewportHeight, panelWidth, panelHeight);
 }
 
 function flushPipWheelInteraction(panelId) {
@@ -709,6 +736,7 @@ let draggingPip = null;
 let dragOffset = { x: 0, y: 0 };
 let dragStartPosition = { x: 0, y: 0 };
 let dragPointerId = null;
+let dragCaptureEl = null;
 
 /** Panel actualmente siendo redimensionado */
 let resizingPip = null;
@@ -1173,7 +1201,7 @@ export function openPip(panelId, restoredConfig = null) {
   
   // Crear contenedor PiP
   const pipContainer = document.createElement('div');
-  pipContainer.className = 'pip-container';
+  pipContainer.className = 'pip-container pip-container--frameless';
   pipContainer.dataset.panelId = panelId;
   
   // ── Dimensiones y posición: usar config restaurada o calcular iniciales ──
@@ -1605,22 +1633,10 @@ function setupPipEvents(pipContainer, panelId) {
     savePipState();
   });
   
-  // Drag del header
+  // Fallback: si la cabecera reaparece en otro modo, sigue permitiendo arrastre.
   header.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setPipPreviewMode(panelId, true);
-    draggingPip = panelId;
-    dragPointerId = e.pointerId;
-    header.setPointerCapture(e.pointerId);
-    const rect = pipContainer.getBoundingClientRect();
-    dragOffset.x = e.clientX - rect.left;
-    dragOffset.y = e.clientY - rect.top;
-    dragStartPosition.x = rect.left;
-    dragStartPosition.y = rect.top;
-    pipContainer.classList.add('pip-container--dragging');
-    bringToFront(panelId);
+    startPipWindowDrag(panelId, e, header);
   });
   
   // Resize — función compartida para esquina y bordes
@@ -1710,7 +1726,23 @@ function setupPipEvents(pipContainer, panelId) {
       panelId,
       isPipped: true,
       target: e.target,
-      onAttach: closePip
+      onAttach: closePip,
+      pipActions: {
+        isLocked: () => Boolean(activePips.get(panelId)?.locked),
+        toggleLock: () => {
+          const state = activePips.get(panelId);
+          if (!state) return;
+          state.locked = !state.locked;
+          pipContainer.classList.toggle('pip-container--locked', state.locked);
+          const lockLabel = state.locked ? t('pip.unlock', 'Desbloquear') : t('pip.lock', 'Bloquear');
+          lockBtn.setAttribute('aria-label', lockLabel);
+          lockBtn.setAttribute('data-tooltip', lockLabel);
+          savePipState();
+        },
+        maximize: () => maximizePip(panelId),
+        restore: () => restorePipSize(panelId),
+        fit: () => fitPanelToSquare(panelId)
+      }
     });
   });
   
@@ -1787,7 +1819,28 @@ function setupPipEvents(pipContainer, panelId) {
   // Helper: detectar si un elemento es un control interactivo (knobs, pines, etc.)
   const isInteractivePipTarget = (el) => {
     if (!el) return false;
-    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .panel7-joystick-pad, .joystick-handle, .output-fader, .synth-toggle, button, input, select, textarea';
+    const selector = [
+      '.knob',
+      '.knob-inner',
+      '.knob-wrapper',
+      '.pin-btn',
+      '.joystick-pad',
+      '.panel7-joystick-pad',
+      '.joystick-handle',
+      '.output-fader',
+      '.output-channel__slider-wrap',
+      '.output-channel__switch-wrap',
+      '.synth-toggle',
+      '.rotary-switch',
+      '.toggle-svg-container',
+      '.panel-note',
+      '.note-editor-toolbar',
+      'button',
+      'input',
+      'select',
+      'textarea',
+      '[contenteditable="true"]'
+    ].join(', ');
     if (el.closest('[data-prevent-pan="true"]')) return true;
     return !!el.closest(selector);
   };
@@ -1966,20 +2019,31 @@ function setupPipEvents(pipContainer, panelId) {
     }, { passive: true });
   }
   
-  // ── Paneo con arrastre del ratón dentro del contenido ──
-  // Solo ratón: click izquierdo en fondo no interactivo o click central → pan
+  // ── Ratón/pen dentro del contenido ──
+  // Click izquierdo en fondo no interactivo → mover la ventana flotante
+  // Shift+click izquierdo o click central → pan interno del panel
   // El paneo táctil se gestiona con touch events (arriba) para evitar conflictos con pines y controles.
   
   content.addEventListener('pointerdown', (e) => {
-    // Solo ratón — el touch ya se gestiona con touchstart/touchmove
+    // Solo ratón/pen — el touch ya se gestiona con touchstart/touchmove
     if (e.pointerType === 'touch') return;
     const state = activePips.get(panelId);
     if (!state || state.locked) return;
-    // Botón central siempre panea; botón izquierdo solo si no es un control interactivo
+
+    const targetIsInteractive = isInteractivePipTarget(e.target);
     const isMiddle = e.button === 1;
     const isLeft = e.button === 0;
     if (!isMiddle && !isLeft) return;
-    if (isLeft && isInteractivePipTarget(e.target)) return;
+
+    const wantsMousePan = isMiddle || (isLeft && e.shiftKey);
+    const wantsWindowDrag = isLeft && !e.shiftKey && !targetIsInteractive;
+
+    if (!wantsMousePan && !wantsWindowDrag) return;
+    if (wantsWindowDrag) {
+      startPipWindowDrag(panelId, e, content);
+      return;
+    }
+    if (targetIsInteractive) return;
     
     e.preventDefault();
     setPipPreviewMode(panelId, true);
@@ -2174,14 +2238,14 @@ function handlePointerUp(e) {
       state.pendingDragY = null;
       setPipPreviewMode(state.panelId, false);
       // Liberar pointer capture
-      const header = state.pipContainer.querySelector('.pip-header');
-      if (header && dragPointerId !== null) {
-        try { header.releasePointerCapture(dragPointerId); } catch (_) { /* ignore */ }
+      if (dragPointerId !== null && dragCaptureEl) {
+        try { dragCaptureEl.releasePointerCapture(dragPointerId); } catch (_) { /* ignore */ }
       }
       stateChanged = true;
     }
     draggingPip = null;
     dragPointerId = null;
+    dragCaptureEl = null;
   }
   
   if (resizingPip) {
@@ -2264,10 +2328,9 @@ function maximizePip(panelId) {
   const panelHeight = panelEl?.offsetHeight || 760;
   const newViewportW = newW - PIP_BORDER_SIZE;
   const newViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
-  // Contain: el panel debe caber completamente visible (Math.min)
-  const containScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(newViewportW / panelWidth, newViewportH / panelHeight));
-  // La escala crece proporcionalmente, pero nunca por debajo del contain
-  const newScale = Math.max(containScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
+  // Cover: el marco nunca puede superar al panel visible sin que este crezca.
+  const coverScale = getPipCoverScale(newViewportW, newViewportH, panelWidth, panelHeight);
+  const newScale = Math.max(coverScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
   
   // Aplicar nuevo tamaño y posición
   state.width = newW;
@@ -2280,7 +2343,7 @@ function maximizePip(panelId) {
   state.pipContainer.style.left = `${newX}px`;
   state.pipContainer.style.top = `${newY}px`;
   
-  // Actualizar escala — usar contain para que se vea completo
+  // Actualizar escala — usar cover para evitar espacios en blanco
   updatePipScale(panelId, newScale, false);
   
   // Panel completo visible: centrar scroll
@@ -2346,9 +2409,8 @@ function restorePipSize(panelId) {
   const panelHeight = panelEl?.offsetHeight || 760;
   const newViewportW = newW - PIP_BORDER_SIZE;
   const newViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
-  // Contain: el panel debe caber completamente visible (Math.min)
-  const containScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(newViewportW / panelWidth, newViewportH / panelHeight));
-  const newScale = Math.max(containScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
+  const coverScale = getPipCoverScale(newViewportW, newViewportH, panelWidth, panelHeight);
+  const newScale = Math.max(coverScale, Math.min(MAX_SCALE, oldScale * sizeFactor));
   
   // Mantener posición pero ajustar si se sale de pantalla
   let newX = state.x;
@@ -2401,13 +2463,11 @@ function fitPanelToSquare(panelId) {
   const viewportH = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
   const smallestAxis = Math.min(viewportW, viewportH);
   
-  // El cuadrado tendrá lado = smallestAxis (para garantizar que cabe en pantalla)
-  // Pero necesitamos que el PANEL (que puede no ser cuadrado) quepa entero.
-  // Escala contain: el panel cabe completo dentro del cuadrado
-  const containScale = Math.min(smallestAxis / panelWidth, smallestAxis / panelHeight);
+  // El cuadrado usa el eje menor actual como referencia y el panel cubre completamente.
+  const coverScale = getPipCoverScale(smallestAxis, smallestAxis, panelWidth, panelHeight);
   
   // Tamaño de la ventana PiP: cuadrado basado en el panel escalado
-  const scaledSize = Math.max(panelWidth, panelHeight) * containScale;
+  const scaledSize = Math.max(panelWidth, panelHeight) * coverScale;
   const newW = Math.max(MIN_PIP_SIZE, Math.round(scaledSize) + PIP_BORDER_SIZE);
   const newH = Math.max(MIN_PIP_SIZE, Math.round(scaledSize) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
   
@@ -2430,10 +2490,10 @@ function fitPanelToSquare(panelId) {
   state.pipContainer.style.left = `${newX}px`;
   state.pipContainer.style.top = `${newY}px`;
   
-  // Escala: el panel debe caber completo (contain)
+  // Escala: el panel debe cubrir el viewport completo
   const finalViewportW = newW - PIP_BORDER_SIZE;
   const finalViewportH = newH - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
-  const fitScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(finalViewportW / panelWidth, finalViewportH / panelHeight));
+  const fitScale = getPipCoverScale(finalViewportW, finalViewportH, panelWidth, panelHeight);
   
   updatePipScale(panelId, fitScale, false);
   

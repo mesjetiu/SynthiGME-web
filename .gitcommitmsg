@@ -1,0 +1,8 @@
+feat(PiP): panel flotante sin marco, drag en fondo y acciones en menú contextual
+
+- Convertido el sistema PiP a shell flotante sin marco, similar a la ventana de teclado
+- El drag de la ventana ahora se realiza desde el fondo del panel, manteniendo gestos de pan/zoom
+- Cambiado el escalado de PiP de 'contain' a 'cover' para que nunca haya espacio en blanco: el panel siempre cubre el viewport
+- Acciones de PiP (lock, maximizar, restaurar, fit) ahora accesibles desde el menú contextual, ya que se eliminó la cabecera
+- Refactorizados los helpers de resize/maximize/fit para lógica de 'cover'
+- Actualizado el changelog y validado el build sin errores

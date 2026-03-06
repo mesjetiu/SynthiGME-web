@@ -6345,20 +6345,26 @@ small { color:#aaa; }
 .pip-container {
   position: absolute;
   pointer-events: auto;
-  background: #1a1a1a;
-  border: 1px solid #444;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   overflow: visible;
-  contain: layout paint;
+  user-select: none;
+  touch-action: none;
+  contain: layout style;
   isolation: isolate;
   transition: box-shadow 150ms ease;
 }
 
 .pip-container:hover {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.42);
+}
+
+.pip-container--frameless {
+  overflow: hidden;
 }
 
 .pip-container--dragging {
@@ -6384,6 +6390,10 @@ small { color:#aaa; }
   user-select: none;
   flex-shrink: 0;
   touch-action: none; /* Evitar interferencia con gestos táctiles */
+}
+
+.pip-container--frameless .pip-header {
+  display: none;
 }
 
 .pip-header:active {
@@ -6479,7 +6489,7 @@ small { color:#aaa; }
 
 /* Indicador visual de estado bloqueado en el borde */
 .pip-container--locked {
-  border-color: rgba(255, 182, 59, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 182, 59, 0.35);
 }
 
 /* Bloquear scroll interno cuando está bloqueado */
@@ -6545,7 +6555,7 @@ small { color:#aaa; }
   flex: 1;
   overflow: hidden;
   position: relative;
-  background: #111;
+  background: transparent;
   contain: layout paint;
 }
 
@@ -6590,11 +6600,16 @@ small { color:#aaa; }
   overflow: visible !important;
 }
 
+.pip-container--frameless .pip-viewport {
+  inset: 0;
+}
+
 /* Handles de resize (bordes y esquina) */
 .pip-resize-edge {
   position: absolute;
   touch-action: none;
   z-index: 2;
+  background: transparent;
 }
 
 .pip-resize-edge--right {
@@ -6667,6 +6682,14 @@ small { color:#aaa; }
   border-radius: 0 0 8px 0;
   touch-action: none;
   z-index: 3;
+}
+
+.pip-container--frameless .pip-resize-handle {
+  background: transparent;
+}
+
+.pip-container--frameless .pip-resize-handle:hover {
+  background: transparent;
 }
 
 .pip-resize-handle:hover {

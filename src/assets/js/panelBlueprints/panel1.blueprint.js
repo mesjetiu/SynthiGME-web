@@ -76,7 +76,7 @@ export default {
       // Cada filtro tiene 3 knobs en columna vertical:
       // Frequency, Response, Level
       knobs: ['Frequency', 'Response', 'Level'],
-      knobSize: 'sm',
+      knobSize: 65,
       knobInnerPct: 78,
       knobGap: 2,
       knobsOffset: { x: 0, y: 0 },
@@ -91,7 +91,7 @@ export default {
       // Cada envelope shaper tiene 8 knobs en fila horizontal:
       // Mode, Delay, Attack, Decay, Sustain, Release, Envelope Level, Signal Level
       knobs: ['Mode', 'Delay', 'Attack', 'Decay', 'Sustain', 'Release', 'Env Level', 'Sig Level'],
-      knobSize: 'sm',
+      knobSize: 65,
       knobInnerPct: 78,
       knobGap: 2,
       knobsOffset: { x: 0, y: 0 },
@@ -113,7 +113,7 @@ export default {
         width: 107,
         gap: 1,               // Gap entre ring modulators (y antes del primero si no es el 1º de la fila)
         knobs: ['Level'],
-        knobSize: 'sm',
+        knobSize: 65,
         knobInnerPct: 78,
         knobGap: 6,
         knobsOffset: { x: 0, y: 0 }
@@ -124,7 +124,7 @@ export default {
         width: 143,
         gap: 1,               // Gap antes de Reverb
         knobs: ['Mix', 'Level'],
-        knobSize: 'sm',
+        knobSize: 65,
         knobInnerPct: 78,
         knobGap: 6,
         knobsOffset: { x: 0, y: 0 }
@@ -135,7 +135,7 @@ export default {
         //width: 200,
         gap: 1,               // Gap antes de Echo
         knobs: ['Delay', 'Mix', 'Feedback', 'Level'],
-        knobSize: 'sm',
+        knobSize: 65,
         knobInnerPct: 78,
         knobGap: 6,
         knobsOffset: { x: 0, y: 0 }

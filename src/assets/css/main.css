@@ -6800,6 +6800,7 @@ small { color:#aaa; }
 }
 
 .panel--pipped.panel--pip-preview .knob,
+.panel--pipped.panel--pip-preview .knob-wrapper,
 .panel--pipped.panel--pip-preview .knob-inner,
 .panel--pipped.panel--pip-preview .vernier-svg-container,
 .panel--pipped.panel--pip-preview .knob-center,
@@ -6819,6 +6820,37 @@ small { color:#aaa; }
 .panel--pipped.panel--pip-preview .joystick-handle,
 .panel--pipped.panel--pip-preview .matrix-container {
   pointer-events: none !important;
+}
+
+.panel--pipped.panel--pip-preview .panel7-placeholder,
+.panel--pipped.panel--pip-preview .panel7-joystick-layout,
+.panel--pipped.panel--pip-preview .panel7-joystick-knobs,
+.panel--pipped.panel--pip-preview .panel7-sequencer-layout,
+.panel--pipped.panel--pip-preview .panel7-sequencer-switches,
+.panel--pipped.panel--pip-preview .panel7-seq-switch,
+.panel--pipped.panel--pip-preview .panel7-seq-switch-toggle,
+.panel--pipped.panel--pip-preview .panel7-seq-switch-toggle svg,
+.panel--pipped.panel--pip-preview .panel7-sequencer-clock,
+.panel--pipped.panel--pip-preview .panel7-seq-clock-knob,
+.panel--pipped.panel--pip-preview .output-channels-section,
+.panel--pipped.panel--pip-preview .output-channel__content,
+.panel--pipped.panel--pip-preview .output-channel__switch-wrap,
+.panel--pipped.panel--pip-preview .output-channel__switch,
+.panel--pipped.panel--pip-preview .toggle-svg-container,
+.panel--pipped.panel--pip-preview .toggle-svg-container svg,
+.panel--pipped.panel--pip-preview .output-channel__knob-wrap.knob-wrapper,
+.panel--pipped.panel--pip-preview .output-channel-module .synth-module__content {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.panel--pipped.panel--pip-preview .panel7-joystick-knobs,
+.panel--pipped.panel--pip-preview .panel7-sequencer-switches,
+.panel--pipped.panel--pip-preview .panel7-seq-switch,
+.panel--pipped.panel--pip-preview .panel7-seq-switch-toggle,
+.panel--pipped.panel--pip-preview .output-channel__switch-wrap,
+.panel--pipped.panel--pip-preview .output-channel__content {
+  display: flex !important;
 }
 
 /* Dentro del PiP, el matrix-container no debe capturar scroll - lo hace pip-viewport */

@@ -48,14 +48,29 @@ const PIP_HEADER_HEIGHT = 37;
 /** Espacio extra del contenedor PiP por bordes CSS (1px × 2 lados) */
 const PIP_BORDER_SIZE = 2;
 
-/** Paso de zoom aplicado por tick de rueda en PiP */
-const PIP_WHEEL_ZOOM_STEP = 0.05;
+/** Factor multiplicativo de zoom aplicado por tick de rueda en PiP */
+const PIP_WHEEL_ZOOM_FACTOR = 1.18;
 
 /** Debounce para persistir estado PiP tras interacciones continuas */
 const PIP_SAVE_DEBOUNCE_MS = 180;
 
 /** Tiempo sin interacción antes de restaurar el panel vivo en PiP */
 const PIP_PREVIEW_IDLE_MS = 220;
+
+/** Delay antes de activar rasterización nítida en PiP tras quedar idle */
+const PIP_RASTERIZE_DELAY_MS = 200;
+
+/** Límite de zoom nítido seguro para PiP */
+const PIP_MAX_SHARP_ZOOM = 3;
+
+/** Escala mínima a partir de la que merece la pena re-rasterizar */
+const PIP_MIN_SHARP_SCALE = 1.05;
+
+/** Máxima dimensión de raster seguro para el compositor */
+const PIP_MAX_RASTER_DIMENSION = 16384;
+
+/** Máx frames difiriendo el commit nítido si sigue entrando input */
+const PIP_MAX_SHARP_DEFER_FRAMES = 10;
 
 /** Debounce antes de refrescar el snapshot visual del preview PiP */
 const PIP_PREVIEW_REFRESH_DEBOUNCE_MS = 120;
@@ -75,6 +90,7 @@ const PIP_PINCH_EPSILON = 0.002; // Cambio mínimo para aplicar zoom
 let _pipStateSaveTimer = null;
 const pipPreviewRefreshTimers = new Map();
 const pipPreviewIdleJobs = new Map();
+let pipSharpRasterizeEnabled = localStorage.getItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED) === 'true';
 
 const PIP_PREVIEW_REMOVE_SELECTORS = [
   '.knob-label',
@@ -355,6 +371,7 @@ function cancelPendingPipInteraction(state) {
     cancelAnimationFrame(state.pendingWheelRaf);
     state.pendingWheelRaf = null;
   }
+  cancelPipRasterize(state);
   if (state.previewTimer) {
     clearTimeout(state.previewTimer);
     state.previewTimer = null;
@@ -391,8 +408,13 @@ function setPipPreviewMode(panelId, active = true) {
     if (state.previewDirty) {
       schedulePipPreviewRefresh(panelId);
     }
+    schedulePipRasterize(panelId);
     return;
   }
+
+  cancelPipRasterize(state);
+  panelEl.style.zoom = '';
+  updatePipScale(panelId, state.scale, false);
 
   if (!state.previewReady || state.previewDirty) {
     schedulePipPreviewRefresh(panelId, { immediate: !state.previewReady });
@@ -406,6 +428,7 @@ function setPipPreviewMode(panelId, active = true) {
     state.previewMode = false;
     state.panelEl?.classList?.remove('panel--pip-preview');
     state.pipContainer?.classList?.remove('pip-container--preview');
+    schedulePipRasterize(panelId);
   }, PIP_PREVIEW_IDLE_MS);
 }
 
@@ -416,6 +439,86 @@ function schedulePipStateSave() {
     _pipStateSaveTimer = null;
     savePipState();
   }, PIP_SAVE_DEBOUNCE_MS);
+}
+
+function cancelPipSharpCommit(state) {
+  if (!state?.sharpCommitRaf) return;
+  cancelAnimationFrame(state.sharpCommitRaf);
+  state.sharpCommitRaf = null;
+  state.sharpDeferCount = 0;
+}
+
+function cancelPipRasterize(state) {
+  if (!state) return;
+  if (state.rasterizeTimer) {
+    clearTimeout(state.rasterizeTimer);
+    state.rasterizeTimer = null;
+  }
+  cancelPipSharpCommit(state);
+  state.sharpMode = false;
+  state.sharpZoomFactor = 1;
+}
+
+function requestPipSharpCommit(panelId) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+  cancelPipSharpCommit(state);
+  state.sharpDeferCount = 0;
+  state.sharpCommitRaf = requestAnimationFrame(() => commitPipSharpMode(panelId));
+}
+
+function commitPipSharpMode(panelId) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+
+  state.sharpCommitRaf = null;
+  if (state.sharpZoomFactor <= 1) return;
+
+  const hasPendingInput = typeof navigator?.scheduling?.isInputPending === 'function'
+    && navigator.scheduling.isInputPending({ includeContinuous: true });
+
+  if (hasPendingInput && state.sharpDeferCount < PIP_MAX_SHARP_DEFER_FRAMES) {
+    state.sharpDeferCount++;
+    state.sharpCommitRaf = requestAnimationFrame(() => commitPipSharpMode(panelId));
+    return;
+  }
+
+  state.sharpMode = true;
+  updatePipScale(panelId, state.scale, false);
+}
+
+function enterPipSharpMode(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || !pipSharpRasterizeEnabled) return;
+
+  const target = Math.min(state.scale, PIP_MAX_SHARP_ZOOM);
+  if (target < PIP_MIN_SHARP_SCALE) {
+    if (state.activeZoom > 1) {
+      state.activeZoom = 1;
+      state.panelEl?.style?.setProperty('zoom', '');
+      updatePipScale(panelId, state.scale, false);
+    }
+    return;
+  }
+
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  const maxByW = PIP_MAX_RASTER_DIMENSION / Math.max(panelWidth, 1);
+  const maxByH = PIP_MAX_RASTER_DIMENSION / Math.max(panelHeight, 1);
+  const safeZoom = Math.min(target, maxByW, maxByH);
+  if (safeZoom < PIP_MIN_SHARP_SCALE) return;
+
+  state.sharpZoomFactor = Math.round(safeZoom * 100) / 100;
+  requestPipSharpCommit(panelId);
+}
+
+function schedulePipRasterize(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || !pipSharpRasterizeEnabled) return;
+  cancelPipRasterize(state);
+  state.rasterizeTimer = setTimeout(() => {
+    state.rasterizeTimer = null;
+    enterPipSharpMode(panelId);
+  }, PIP_RASTERIZE_DELAY_MS);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -538,7 +641,7 @@ function flushPipWheelInteraction(panelId) {
 
     const oldScale = state.scale;
     const minScale = getMinScale(panelId);
-    const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale + zoomSteps * PIP_WHEEL_ZOOM_STEP));
+    const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * (PIP_WHEEL_ZOOM_FACTOR ** zoomSteps)));
 
     if (newScale !== oldScale) {
       setPipPreviewMode(panelId, true);
@@ -690,6 +793,20 @@ export function initPipManager() {
       state.previewDirty = true;
       if (!state.previewMode) {
         schedulePipPreviewRefresh(panelId);
+      }
+    }
+  });
+
+  document.addEventListener('synth:sharpRasterizeChange', (event) => {
+    pipSharpRasterizeEnabled = Boolean(event.detail?.enabled);
+    for (const [panelId, state] of activePips) {
+      if (!pipSharpRasterizeEnabled) {
+        cancelPipRasterize(state);
+        state.panelEl?.style?.setProperty('zoom', '');
+      }
+      updatePipScale(panelId, state.scale, false);
+      if (pipSharpRasterizeEnabled && !state.previewMode && !state.locked) {
+        schedulePipRasterize(panelId);
       }
     }
   });
@@ -1170,6 +1287,12 @@ export function openPip(panelId, restoredConfig = null) {
     previewMode: false,
     previewReady: false,
     previewDirty: true,
+    activeZoom: 1,
+    sharpMode: false,
+    sharpZoomFactor: 1,
+    rasterizeTimer: null,
+    sharpCommitRaf: null,
+    sharpDeferCount: 0,
     previewTimer: null,
     defaultWidth: restoredConfig?.defaultWidth || initW,
     defaultHeight: restoredConfig?.defaultHeight || initH,
@@ -1190,6 +1313,7 @@ export function openPip(panelId, restoredConfig = null) {
   refreshPipViewportMetrics(state);
   activePips.set(panelId, state);
   schedulePipPreviewRefresh(panelId, { immediate: true });
+  schedulePipRasterize(panelId);
   if (perfMonitor.isEnabled()) {
     perfMonitor.incrementCounter('pip.open');
     perfMonitor.mark('pip:open', { panelId, restored: !!restoredConfig });
@@ -1317,6 +1441,7 @@ export function closePip(panelId) {
   const state = activePips.get(panelId);
   if (!state) return;
   cancelPendingPipInteraction(state);
+  cancelPipRasterize(state);
   clearScheduledPipPreviewRefresh(panelId);
   
   const panelEl = document.getElementById(panelId);
@@ -1324,6 +1449,7 @@ export function closePip(panelId) {
   destroyPipPreviewLayer(panelId);
   
   // Resetear escala del panel
+  panelEl.style.zoom = '';
   panelEl.style.transform = '';
   panelEl.classList.remove('panel--pipped');
   
@@ -2327,22 +2453,36 @@ function updatePipScale(panelId, newScale, persist = true) {
   const t0 = perfMonitor.isEnabled() ? performance.now() : 0;
   const state = activePips.get(panelId);
   if (!state) return;
-  
+
+  const previousScale = state.scale || 1;
   state.scale = newScale;
   const panelEl = state.panelEl || document.getElementById(panelId);
   if (!panelEl) return;
 
   state.panelEl = panelEl;
 
+  if (Math.abs(newScale - previousScale) > 0.0001) {
+    state.sharpMode = false;
+    state.activeZoom = 1;
+    panelEl.style.zoom = '';
+  }
+
   // Obtener tamaño real del panel (760x760 normalmente)
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+
+  let effectiveZoom = 1;
+  if (pipSharpRasterizeEnabled && state.sharpMode && !state.previewMode) {
+    effectiveZoom = Math.min(state.sharpZoomFactor || 1, Math.max(1, newScale));
+  }
+  const visualScale = newScale / effectiveZoom;
   
   // Tamaño escalado del panel
   const scaledWidth = panelWidth * newScale;
   const scaledHeight = panelHeight * newScale;
   
   // Aplicar escala al panel
-  panelEl.style.transform = `scale(${newScale})`;
+  panelEl.style.zoom = effectiveZoom > 1 ? String(effectiveZoom) : '';
+  panelEl.style.transform = `scale(${visualScale})`;
   panelEl.style.transformOrigin = '0 0';
   
   // Obtener tamaño del viewport (contenido visible)
@@ -2369,6 +2509,7 @@ function updatePipScale(panelId, newScale, persist = true) {
     perfMonitor.recordDuration('pip.updateScale', performance.now() - t0, {
       panelId,
       newScale,
+      effectiveZoom,
       scaledWidth,
       scaledHeight,
       persist

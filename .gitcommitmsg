@@ -1,9 +1,0 @@
-fix(pip): unificar las ventanas flotantes como paneles detached reales
-
-- El zoom de PiP ahora redimensiona la ventana completa en lugar de desplazar su contenido interno
-- Ctrl++/Ctrl+-/Ctrl+0 actúan sobre la PiP enfocada cuando existe una ventana flotante activa
-- El drag con ratón, touch y touchpad mueve la ventana completa, incluso fuera del viewport visible
-- Todos los handles de resize conservan la proporción del panel detached en ambos ejes
-- Corregido el tamaño inicial y restaurado de las PiP para que el panel no aparezca reducido en la esquina superior izquierda
-- Revertido el experimento de snapshots específicos para los toggles de output channels, que invertía la visualización en reposo
-- Actualizado CHANGELOG y regenerado docs/ con build:web validado

@@ -61,7 +61,7 @@ const PIP_WHEEL_ZOOM_OUT_FACTOR = 1.32;
 const PIP_WHEEL_PAN_FACTOR = 1;
 
 /** Ajuste fino para que el drag con dos dedos se sienta como un drag normal del ratón */
-const PIP_TOUCHPAD_MOVE_FACTOR = 0.5;
+const PIP_TOUCHPAD_MOVE_FACTOR = 0.22;
 
 /** Debounce para persistir estado PiP tras interacciones continuas */
 const PIP_SAVE_DEBOUNCE_MS = 180;

@@ -6581,9 +6581,22 @@ small { color:#aaa; }
   /* El tamaño se establece dinámicamente desde JS según la escala */
   position: relative;
   transform-origin: 0 0;
-  /* NO usar translateZ(0) ni will-change aquí: crean una capa GPU intermedia
+  /* En desktop NO usar translateZ(0) ni will-change: crean una capa GPU intermedia
      que captura el contenido a resolución fija e impide que CSS zoom del panel
      hijo aumente la calidad de rasterización (modo nítido borroso). */
+}
+
+/* En tablet/móvil, restaurar capa GPU dedicada: el contenido pesado (Panel 3)
+   necesita estar pre-rasterizado para evitar flashes blancos durante pinch-zoom.
+   El modo nítido en tablet ya está limitado por PIP_TOUCH_MIN_SHARP_SCALE. */
+@media (pointer: coarse) {
+  .pip-viewport-inner {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+  }
 }
 
 /* El panel dentro del PiP */

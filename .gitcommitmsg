@@ -1,7 +1,0 @@
-fix(PiP-tablet): pinch-zoom continuo y sin saltos ni mesetas
-
-- Eliminada la meseta dura de 180px en el pinch-zoom de PiP en tablet: ahora el zoom es completamente continuo y uniforme en todo el rango
-- El valor de zoom aplicado al soltar los dedos coincide exactamente con el mostrado en preview, evitando saltos o "pegotes" al finalizar el gesto
-- El modo nítido diferido del PiP se desactiva al iniciar el pinch para evitar interferencias visuales
-- Actualizado CHANGELOG con la explicación detallada
-- Build web regenerado y tests OK (3217/3217)

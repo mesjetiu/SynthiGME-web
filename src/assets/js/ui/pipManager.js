@@ -665,8 +665,9 @@ function flushPendingPinchZoom(_panelId) {
 }
 
 /**
- * Commitea el pinch-zoom acumulado: aplica el resize real al contenedor
- * y re-renderiza el panel a la nueva escala. Se llama solo en touchend.
+ * Commitea el pinch-zoom acumulado: redimensiona el contenedor PiP
+ * exactamente como lo hace el resize por handle/esquina.
+ * Se llama solo en touchend.
  */
 function commitPendingPinchZoom(panelId) {
   const state = activePips.get(panelId);
@@ -677,10 +678,9 @@ function commitPendingPinchZoom(panelId) {
     state.pendingPinchRaf = null;
   }
 
-  const factor = state.pinchPreviewScale || state.pendingPinchFactor;
+  const vs = state.pinchPreviewScale || 1;
   const ox = state.pinchPreviewOriginX || 0;
   const oy = state.pinchPreviewOriginY || 0;
-  const vs = state.pinchPreviewScale || 1;
   const tx = state.pinchPreviewTx || 0;
   const ty = state.pinchPreviewTy || 0;
 
@@ -700,72 +700,50 @@ function commitPendingPinchZoom(panelId) {
   state.pipContainer.style.transform = '';
   state.pipContainer.style.transformOrigin = '';
 
-  if (Math.abs(factor - 1) <= PIP_PINCH_EPSILON && Math.abs(tx) < 0.5 && Math.abs(ty) < 0.5) {
+  if (Math.abs(vs - 1) <= PIP_PINCH_EPSILON && Math.abs(tx) < 0.5 && Math.abs(ty) < 0.5) {
     return; // Sin cambio significativo
   }
 
-  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  // ── Mismo comportamiento que resize: cambiar tamaño del contenedor ──
+  const ar = state.width / state.height;
+  let newW = state.width * vs;
+  let newH = state.height * vs;
 
-  // ── Modo tablet: zoom interno sin resize del contenedor ──
-  // El contenedor actúa como viewport fijo (como Google Maps): el panel se
-  // amplía/reduce dentro del marco. Elimina el re-layout de 17k+ nodos
-  // que causaba flashes blancos en paneles pesados.
-  if (isPipTouchOptimizedMode()) {
-    // Escala mínima: el panel debe cubrir siempre el viewport del contenedor
-    const vpW = state.width - PIP_BORDER_SIZE;
-    const vpH = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
-    const coverMinScale = getPipCoverScale(vpW, vpH, panelWidth, panelHeight);
-    const oldScale = state.scale;
-    const finalScale = Math.max(coverMinScale, Math.min(MAX_SCALE, oldScale * factor));
-
-    // ── Posición del contenedor ──
-    // Durante el preview, transformOrigin era (ox, oy) y se aplicó
-    // scale(vs) + translate(tx, ty). La posición visual del top-left era:
-    //   visualX = state.x + ox*(1-vs) + tx
-    //   visualY = state.y + oy*(1-vs) + ty
-    // Aplicamos la misma fórmula (como desktop) para que no salte.
-    const visualX = state.x + (ox || 0) * (1 - vs) + tx;
-    const visualY = state.y + (oy || 0) * (1 - vs) + ty;
-    const clampedPosition = clampPipPosition(visualX, visualY, state.width, state.height);
-    state.x = clampedPosition.x;
-    state.y = clampedPosition.y;
-    state.pipContainer.style.left = `${state.x}px`;
-    state.pipContainer.style.top = `${state.y}px`;
-    // width/height del contenedor NO se tocan
-
-    updatePipScale(panelId, finalScale, false);
-
-    refreshPipViewportMetrics(state);
-    schedulePipStateSave();
-    return;
+  // Clamp mínimo (igual que resize)
+  if (newW < MIN_PIP_SIZE) {
+    newW = MIN_PIP_SIZE;
+    newH = newW / ar;
+  }
+  if (newH < MIN_PIP_SIZE) {
+    newH = MIN_PIP_SIZE;
+    newW = newH * ar;
   }
 
-  // ── Modo desktop: resize del contenedor al nuevo tamaño del panel ──
-  // Durante el preview, la posición visual del top-left del contenedor era:
-  //   visualX = state.x + ox*(1-vs) + tx
-  //   visualY = state.y + oy*(1-vs) + ty
-  // Usamos esa posición como nueva posición real del contenedor.
+  // Posición: el punto de pellizco queda en la misma posición de pantalla
   const visualX = state.x + ox * (1 - vs) + tx;
   const visualY = state.y + oy * (1 - vs) + ty;
-  const finalScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * factor));
-  const newWidth = Math.max(MIN_PIP_SIZE, Math.round(panelWidth * finalScale) + PIP_BORDER_SIZE);
-  const newHeight = Math.max(MIN_PIP_SIZE, Math.round(panelHeight * finalScale) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
+  const clampedPosition = clampPipPosition(visualX, visualY, newW, newH);
 
-  const clampedPosition = clampPipPosition(visualX, visualY, newWidth, newHeight);
+  // Escala del panel: misma fórmula que resize handler
+  const scaleFactor = newW / state.width;
+  const baseScale = state.scale;
+  const minScale = getMinScale(panelId);
+  const newScale = Math.max(minScale, Math.min(MAX_SCALE, baseScale * scaleFactor));
+
+  // Aplicar todo (idéntico a resize)
+  state.width = newW;
+  state.height = newH;
   state.x = clampedPosition.x;
   state.y = clampedPosition.y;
-  state.width = newWidth;
-  state.height = newHeight;
+  state.pipContainer.style.width = `${newW}px`;
+  state.pipContainer.style.height = `${newH}px`;
   state.pipContainer.style.left = `${state.x}px`;
   state.pipContainer.style.top = `${state.y}px`;
-  state.pipContainer.style.width = `${newWidth}px`;
-  state.pipContainer.style.height = `${newHeight}px`;
 
-  updatePipScale(panelId, finalScale, false);
+  updatePipScale(panelId, newScale, false);
 
-  // Resetear scroll residual
-  refreshPipViewportMetrics(state);
-  const viewport = state.viewportEl;
+  // Resetear scroll residual (como resize)
+  const viewport = state.viewportEl || state.pipContainer?.querySelector('.pip-viewport');
   if (viewport) {
     viewport.scrollLeft = 0;
     viewport.scrollTop = 0;
@@ -773,6 +751,7 @@ function commitPendingPinchZoom(panelId) {
     state.lastScrollTop = 0;
   }
 
+  refreshPipViewportMetrics(state);
   schedulePipStateSave();
 }
 
@@ -2678,18 +2657,13 @@ function setupPipEvents(pipContainer, panelId) {
         state.pinchPreviewOriginY = lastPinchCenterY - rect.top;
         state.pipContainer.style.transformOrigin =
           `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
-        // Pre-calcular límites de escala visual una vez (evita offsetWidth en touchmove)
-        // En tablet usamos coverMinScale (no getMinScale) para que el preview no
-        // muestre zooms que el commit revertirá por el constraint de cobertura.
-        const { panelWidth: pw, panelHeight: ph } = ensurePanelMetrics(state);
-        const touchCoverMin = isPipTouchOptimizedMode()
-          ? getPipCoverScale(
-              state.width - PIP_BORDER_SIZE,
-              state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
-              pw, ph
-            )
-          : getMinScale(panelId);
-        state._pinchVisMinScale = touchCoverMin / Math.max(state.scale, 0.01);
+        // Límites de escala visual: basados en tamaño del contenedor (misma
+        // lógica que resize). El contenedor no puede ser menor que MIN_PIP_SIZE.
+        state._pinchVisMinScale = Math.max(
+          MIN_PIP_SIZE / Math.max(state.width, 1),
+          MIN_PIP_SIZE / Math.max(state.height, 1)
+        );
+        // Máximo: la escala interna del panel no puede superar MAX_SCALE
         state._pinchVisMaxScale = MAX_SCALE / Math.max(state.scale, 0.01);
       }
     } else if (e.touches.length === 1 && touchPanId === null) {
@@ -2895,18 +2869,16 @@ function handlePointerMove(e) {
     const ar = resizeStart.aspectRatio;
     
     if (resizeEdge === 'corner') {
-      // Esquina: resize proporcional (aspect ratio bloqueado)
-      // Usar el eje con mayor desplazamiento para guiar la proporción
-      const candidateW = resizeStart.w + dx;
-      const candidateH = resizeStart.h + dy;
-      // Elegir la dimensión dominante
-      if (Math.abs(dx) * (resizeStart.h / resizeStart.w) >= Math.abs(dy)) {
-        newW = candidateW;
-        newH = newW / ar;
-      } else {
-        newH = candidateH;
-        newW = newH * ar;
-      }
+      // Esquina: resize proporcional proyectando el desplazamiento sobre la
+      // diagonal del aspect ratio. Esto da un movimiento continuo sin saltos.
+      // Vector diagonal unitario: (1, 1/ar) normalizado
+      const invAr = 1 / ar;
+      const diagLen = Math.hypot(1, invAr);
+      // Proyectar (dx, dy) sobre la dirección diagonal
+      const proj = (dx * 1 + dy * invAr) / diagLen;
+      // Convertir la proyección escalar a delta de ancho
+      newW = resizeStart.w + proj * (1 / diagLen);
+      newH = newW / ar;
     } else if (resizeEdge === 'right') {
       newW = resizeStart.w + dx;
       newH = newW / ar;

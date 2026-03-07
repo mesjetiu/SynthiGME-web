@@ -6357,6 +6357,9 @@ small { color:#aaa; }
   contain: layout style;
   isolation: isolate;
   transition: box-shadow 150ms ease;
+  /* Capa GPU permanente: pocos contenedores activos, coste despreciable.
+     Evita el lag del primer pinch-zoom al no necesitar promoción on-the-fly. */
+  will-change: transform;
 }
 
 .pip-container:hover {
@@ -6584,7 +6587,6 @@ small { color:#aaa; }
   transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  /* will-change solo cuando el PiP está activo, para no consumir presupuesto GPU */
 }
 
 .pip-container .pip-viewport-inner {

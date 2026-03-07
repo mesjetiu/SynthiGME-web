@@ -223,7 +223,6 @@ function runPipTransition(panelId, {
   const finish = () => {
     state?.pipContainer?.classList?.remove?.('pip-container--animating');
     if (state?.pipContainer?.style) {
-      state.pipContainer.style.willChange = '';
       state.pipContainer.style.pointerEvents = state.transitionPointerEvents || '';
     }
     if (state) {
@@ -259,7 +258,6 @@ function runPipTransition(panelId, {
   state.transitionPointerEvents = state.pipContainer.style.pointerEvents;
   state.pipContainer.style.pointerEvents = 'none';
   state.pipContainer.classList.add('pip-container--animating');
-  state.pipContainer.style.willChange = 'left, top, width, height';
   applyPipTransitionFrame(state, startRect, initialScale);
 
   let rafId = 0;
@@ -698,18 +696,9 @@ function commitPendingPinchZoom(panelId) {
   state.pinchPreviewOriginX = null;
   state.pinchPreviewOriginY = null;
 
-  // Quitar el transform de preview (mantener will-change para evitar
-  // re-promoverse en el siguiente gesto inmediato)
+  // Quitar el transform de preview
   state.pipContainer.style.transform = '';
   state.pipContainer.style.transformOrigin = '';
-
-  // Retirar will-change con delay para que Chrome no desmonte la capa
-  // GPU entre gestos rápidos consecutivos
-  if (state._willChangeTimer) clearTimeout(state._willChangeTimer);
-  state._willChangeTimer = setTimeout(() => {
-    state._willChangeTimer = null;
-    if (state.pipContainer) state.pipContainer.style.willChange = '';
-  }, 800);
 
   if (Math.abs(factor - 1) <= PIP_PINCH_EPSILON && Math.abs(tx) < 0.5 && Math.abs(ty) < 0.5) {
     return; // Sin cambio significativo
@@ -934,14 +923,9 @@ function cancelPendingPipInteraction(state) {
   state.pinchPreviewTy = 0;
   state.pinchPreviewOriginX = null;
   state.pinchPreviewOriginY = null;
-  if (state._willChangeTimer) {
-    clearTimeout(state._willChangeTimer);
-    state._willChangeTimer = null;
-  }
   if (state.pipContainer) {
     state.pipContainer.style.transform = '';
     state.pipContainer.style.transformOrigin = '';
-    state.pipContainer.style.willChange = '';
   }
   cancelPipRasterize(state);
   if (state.previewTimer) {
@@ -2546,14 +2530,7 @@ function setupPipEvents(pipContainer, panelId) {
       // Pre-promover la capa GPU del contenedor ANTES del primer transform.
       // Así el compositor ya tiene la textura lista y no necesita rasterizar
       // el subárbol entero en el primer touchmove.
-      if (state?.pipContainer) {
-        // Cancel any pending will-change removal from a previous gesture
-        if (state._willChangeTimer) {
-          clearTimeout(state._willChangeTimer);
-          state._willChangeTimer = null;
-        }
-        state.pipContainer.style.willChange = 'transform';
-      }
+      // will-change: transform ya está permanente en CSS — no necesita promoción dinámica
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
       // Ocultar tooltips de controles interactivos (ej. joystick pad)
@@ -2668,7 +2645,7 @@ function setupPipEvents(pipContainer, panelId) {
       lastPinchDist = 0;
       lastPinchCenterX = 0;
       lastPinchCenterY = 0;
-      // Programar rasterización nítida si procede (commit ya limpió will-change/transform)
+      // Programar rasterización nítida si procede (commit ya limpió transform)
       setPipPreviewMode(panelId, false);
       // Desactivar flag con delay para que el momentum scroll termine
       setTimeout(() => {

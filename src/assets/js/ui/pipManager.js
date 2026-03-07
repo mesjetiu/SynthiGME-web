@@ -943,6 +943,14 @@ function cancelPendingPipInteraction(state) {
   state.pendingWheelZoomSteps = 0;
   state.pendingWheelClientX = null;
   state.pendingWheelClientY = null;
+  // Reset wheel zoom preview
+  state.wheelPreviewActive = false;
+  state.wheelPreviewScale = 1;
+  state.wheelPreviewOriginX = null;
+  state.wheelPreviewOriginY = null;
+  state._wheelVisMinScale = null;
+  state._pinchVisMinScale = null;
+  state._pinchVisMaxScale = null;
 }
 
 function setPipPreviewMode(panelId, active = true) {
@@ -1266,38 +1274,60 @@ function flushPipWheelInteraction(panelId) {
   if (!state) return;
 
   state.pendingWheelRaf = null;
-  refreshPipViewportMetrics(state);
-  const viewport = state.viewportEl;
-  if (!viewport) return;
 
   let didChange = false;
 
+  // ── Zoom con Ctrl+rueda: acumular como transform preview (compositor-only) ──
   if (state.pendingWheelZoomSteps !== 0) {
     const zoomSteps = state.pendingWheelZoomSteps;
     const clientX = state.pendingWheelClientX;
     const clientY = state.pendingWheelClientY;
     state.pendingWheelZoomSteps = 0;
-    state.pendingWheelClientX = null;
-    state.pendingWheelClientY = null;
+    // Mantener clientX/Y para próximos frames
 
-    const oldScale = state.scale;
-    const minScale = getMinScale(panelId);
     const zoomFactor = zoomSteps > 0
       ? (PIP_WHEEL_ZOOM_IN_FACTOR ** zoomSteps)
       : (1 / (PIP_WHEEL_ZOOM_OUT_FACTOR ** Math.abs(zoomSteps)));
-    const newScale = Math.max(minScale, Math.min(MAX_SCALE, oldScale * zoomFactor));
 
-    if (newScale !== oldScale) {
-      setPipPreviewMode(panelId, true);
-      didChange = applyPipWheelZoom(panelId, newScale, clientX, clientY) || didChange;
+    // Inicializar preview en el primer frame del gesto
+    if (!state.wheelPreviewActive) {
+      const containerRect = state.pipContainer.getBoundingClientRect();
+      state.wheelPreviewActive = true;
+      state.wheelPreviewScale = 1;
+      state.wheelPreviewOriginX =
+        (clientX != null ? clientX : containerRect.left + state.width / 2) - containerRect.left;
+      state.wheelPreviewOriginY =
+        (clientY != null ? clientY : containerRect.top + state.height / 2) - containerRect.top;
+      state.pipContainer.style.transformOrigin =
+        `${state.wheelPreviewOriginX}px ${state.wheelPreviewOriginY}px`;
+      // Pre-calcular límites (evita offsetWidth en cada frame)
+      state._wheelVisMinScale = getMinScale(panelId);
     }
+
+    // Acumular escala
+    const newPreview = state.wheelPreviewScale * zoomFactor;
+    const currentEffective = state.scale * newPreview;
+    if (currentEffective < state._wheelVisMinScale) {
+      state.wheelPreviewScale = state._wheelVisMinScale / Math.max(state.scale, 0.01);
+    } else if (currentEffective > MAX_SCALE) {
+      state.wheelPreviewScale = MAX_SCALE / Math.max(state.scale, 0.01);
+    } else {
+      state.wheelPreviewScale = newPreview;
+    }
+
+    // Transform compositor-only — sin layout/paint
+    state.pipContainer.style.transform = `scale(${state.wheelPreviewScale})`;
+    didChange = true;
   }
 
   if (state.pendingWheelPanX !== 0 || state.pendingWheelPanY !== 0) {
+    // Si había un zoom preview activo, comitearlo antes de panear
+    if (state.wheelPreviewActive) commitPendingWheelZoom(panelId);
     const deltaX = state.pendingWheelPanX;
     const deltaY = state.pendingWheelPanY;
     state.pendingWheelPanX = 0;
     state.pendingWheelPanY = 0;
+    refreshPipViewportMetrics(state);
     setPipPreviewMode(panelId, true);
 
     const clampedScroll = clampPipScroll(
@@ -1311,6 +1341,8 @@ function flushPipWheelInteraction(panelId) {
   }
 
   if (state.pendingWheelMoveX !== 0 || state.pendingWheelMoveY !== 0) {
+    // Si había un zoom preview activo, comitearlo antes de mover
+    if (state.wheelPreviewActive) commitPendingWheelZoom(panelId);
     const moveX = state.pendingWheelMoveX;
     const moveY = state.pendingWheelMoveY;
     state.pendingWheelMoveX = 0;
@@ -1326,10 +1358,66 @@ function flushPipWheelInteraction(panelId) {
   }
 
   if (didChange) {
-    state.lastScrollLeft = viewport.scrollLeft;
-    state.lastScrollTop = viewport.scrollTop;
     schedulePipStateSave();
   }
+}
+
+/**
+ * Commitea el zoom preview acumulado con rueda/touchpad: aplica el resize real
+ * al contenedor y re-renderiza el panel. Se llama cuando acaba el gesto o
+ * cuando el usuario cambia de zoom a pan.
+ */
+function commitPendingWheelZoom(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || !state.wheelPreviewActive) return;
+
+  const vs = state.wheelPreviewScale || 1;
+  const ox = state.wheelPreviewOriginX || 0;
+  const oy = state.wheelPreviewOriginY || 0;
+
+  // Reset estado del preview
+  state.wheelPreviewActive = false;
+  state.wheelPreviewScale = 1;
+  state.wheelPreviewOriginX = null;
+  state.wheelPreviewOriginY = null;
+  state._wheelVisMinScale = null;
+  state.pipContainer.style.transform = '';
+  state.pipContainer.style.transformOrigin = '';
+
+  if (Math.abs(vs - 1) <= PIP_PINCH_EPSILON) return;
+
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  const finalScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * vs));
+  const newWidth = Math.max(MIN_PIP_SIZE, Math.round(panelWidth * finalScale) + PIP_BORDER_SIZE);
+  const newHeight = Math.max(MIN_PIP_SIZE, Math.round(panelHeight * finalScale) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
+
+  // Posición desde geometría del preview
+  const visualX = state.x + ox * (1 - vs);
+  const visualY = state.y + oy * (1 - vs);
+  const clampedPosition = clampPipPosition(visualX, visualY, newWidth, newHeight);
+
+  state.x = clampedPosition.x;
+  state.y = clampedPosition.y;
+  state.width = newWidth;
+  state.height = newHeight;
+  state.pipContainer.style.left = `${state.x}px`;
+  state.pipContainer.style.top = `${state.y}px`;
+  state.pipContainer.style.width = `${newWidth}px`;
+  state.pipContainer.style.height = `${newHeight}px`;
+
+  updatePipScale(panelId, finalScale, false);
+
+  refreshPipViewportMetrics(state);
+  const viewport = state.viewportEl;
+  if (viewport) {
+    viewport.scrollLeft = 0;
+    viewport.scrollTop = 0;
+    state.lastScrollLeft = 0;
+    state.lastScrollTop = 0;
+  }
+
+  schedulePipStateSave();
+  schedulePipRasterize(panelId);
 }
 
 function refreshActiveWheelGesture(panelId) {
@@ -1338,8 +1426,11 @@ function refreshActiveWheelGesture(panelId) {
     clearTimeout(activeWheelGestureTimer);
   }
   activeWheelGestureTimer = setTimeout(() => {
+    const commitId = activeWheelGesturePanelId;
     activeWheelGestureTimer = null;
     activeWheelGesturePanelId = null;
+    // Commitear zoom preview acumulado al final del gesto
+    if (commitId) commitPendingWheelZoom(commitId);
   }, 180);
 }
 
@@ -2527,10 +2618,6 @@ function setupPipEvents(pipContainer, panelId) {
       const state = activePips.get(panelId);
       if (state && isPipZoomLocked(state)) return;
       e.preventDefault();
-      // Pre-promover la capa GPU del contenedor ANTES del primer transform.
-      // Así el compositor ya tiene la textura lista y no necesita rasterizar
-      // el subárbol entero en el primer touchmove.
-      // will-change: transform ya está permanente en CSS — no necesita promoción dinámica
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
       // Ocultar tooltips de controles interactivos (ej. joystick pad)
@@ -2548,6 +2635,9 @@ function setupPipEvents(pipContainer, panelId) {
         state.pinchPreviewOriginY = lastPinchCenterY - rect.top;
         state.pipContainer.style.transformOrigin =
           `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
+        // Pre-calcular límites de escala visual una vez (evita offsetWidth en touchmove)
+        state._pinchVisMinScale = getMinScale(panelId) / Math.max(state.scale, 0.01);
+        state._pinchVisMaxScale = MAX_SCALE / Math.max(state.scale, 0.01);
       }
     } else if (e.touches.length === 1 && touchPanId === null) {
       // ── Drag de ventana con 1 dedo ──
@@ -2606,10 +2696,11 @@ function setupPipEvents(pipContainer, panelId) {
 
       // Escala visual acumulada
       state.pinchPreviewScale = (state.pinchPreviewScale || 1) * clampedFactor;
-      // Clamp visual a los mismos límites que el zoom real
-      const visMinScale = getMinScale(panelId) / Math.max(state.scale, 0.01);
-      const visMaxScale = MAX_SCALE / Math.max(state.scale, 0.01);
-      state.pinchPreviewScale = Math.max(visMinScale, Math.min(visMaxScale, state.pinchPreviewScale));
+      // Clamp visual (límites pre-calculados en touchstart — sin reads de layout)
+      state.pinchPreviewScale = Math.max(
+        state._pinchVisMinScale ?? 0.01,
+        Math.min(state._pinchVisMaxScale ?? MAX_SCALE, state.pinchPreviewScale)
+      );
 
       // Traslación acumulada
       state.pinchPreviewTx = (state.pinchPreviewTx || 0) + panDx;

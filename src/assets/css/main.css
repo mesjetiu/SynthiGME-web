@@ -6357,9 +6357,8 @@ small { color:#aaa; }
   contain: layout style;
   isolation: isolate;
   transition: box-shadow 150ms ease;
-  /* Capa GPU permanente: pocos contenedores activos, coste despreciable.
-     Evita el lag del primer pinch-zoom al no necesitar promoción on-the-fly. */
-  will-change: transform;
+  /* NO usar will-change: transform permanente — causa borrosidad en rasterización nítida.
+     La promoción GPU se activa bajo demanda cuando se escribe style.transform. */
 }
 
 .pip-container:hover {

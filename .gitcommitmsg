@@ -1,10 +1,7 @@
-fix(knobs,PiP): transparencia alfa en knobs y pinch PiP tablet sin saltos
+fix(PiP-tablet): pinch-zoom continuo y sin saltos ni mesetas
 
-- Regenerados los PNG de knobs estándar y bipolar con canal alpha real: fondo y cifras ahora son transparentes como en el SVG original
-- El anillo PNG respeta la opacidad de las cifras y el fondo exterior es 100% transparente
-- Copiados los nuevos PNG a docs/ para servir en la PWA
-- En PiP de tablet, corregidos dos bugs de zoom táctil:
-  - El commit del pinch-zoom ahora compensa correctamente el punto de pellizco, evitando saltos bruscos de posición al soltar
-  - El preview visual ya no permite hacer zoom-out más allá del límite real (coverMinScale), así nunca se "fija" el zoom tras varios pellizcos
-- Actualizado CHANGELOG con ambas correcciones
-- Todos los tests pasan (3217/3217)
+- Eliminada la meseta dura de 180px en el pinch-zoom de PiP en tablet: ahora el zoom es completamente continuo y uniforme en todo el rango
+- El valor de zoom aplicado al soltar los dedos coincide exactamente con el mostrado en preview, evitando saltos o "pegotes" al finalizar el gesto
+- El modo nítido diferido del PiP se desactiva al iniciar el pinch para evitar interferencias visuales
+- Actualizado CHANGELOG con la explicación detallada
+- Build web regenerado y tests OK (3217/3217)

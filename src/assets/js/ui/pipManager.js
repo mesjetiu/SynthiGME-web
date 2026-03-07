@@ -104,8 +104,8 @@ const PIP_PREVIEW_IDLE_TIMEOUT_MS = 800;
 const MIN_SCALE_ABSOLUTE = 0.1; // Mínimo absoluto de seguridad
 const MAX_SCALE = 3.0;
 
-/** Protección anti-zoom accidental en pinch (mismos valores que el canvas principal) */
-const PIP_MIN_PINCH_DIST = 180;  // Distancia mínima para ratio estable
+/** Protección anti-zoom accidental en pinch */
+const PIP_MIN_PINCH_DIST = 48;   // Distancia mínima para amortiguar, sin crear mesetas
 const PIP_MAX_ZOOM_DELTA = 0.12; // Cambio máximo de zoom por frame
 const PIP_PINCH_EPSILON = 0.002; // Cambio mínimo para aplicar zoom
 
@@ -677,7 +677,7 @@ function commitPendingPinchZoom(panelId) {
     state.pendingPinchRaf = null;
   }
 
-  const factor = state.pendingPinchFactor;
+  const factor = state.pinchPreviewScale || state.pendingPinchFactor;
   const ox = state.pinchPreviewOriginX || 0;
   const oy = state.pinchPreviewOriginY || 0;
   const vs = state.pinchPreviewScale || 1;
@@ -2656,6 +2656,7 @@ function setupPipEvents(pipContainer, panelId) {
       const state = activePips.get(panelId);
       if (state && isPipZoomLocked(state)) return;
       e.preventDefault();
+      setPipPreviewMode(panelId, true);
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
       // Ocultar tooltips de controles interactivos (ej. joystick pad)
@@ -2669,6 +2670,10 @@ function setupPipEvents(pipContainer, panelId) {
       // Cachear rect del contenedor para transformOrigin (evita layout flush en touchmove)
       if (state) {
         const rect = state.pipContainer.getBoundingClientRect();
+        state.pendingPinchFactor = 1;
+        state.pinchPreviewScale = 1;
+        state.pinchPreviewTx = 0;
+        state.pinchPreviewTy = 0;
         state.pinchPreviewOriginX = lastPinchCenterX - rect.left;
         state.pinchPreviewOriginY = lastPinchCenterY - rect.top;
         state.pipContainer.style.transformOrigin =
@@ -2720,11 +2725,10 @@ function setupPipEvents(pipContainer, panelId) {
       const panDx = pinchClientX - lastPinchCenterX;
       const panDy = pinchClientY - lastPinchCenterY;
       
-      // Protección: estabilizar ratio cuando los dedos están muy juntos
-      // (evita zoom aleatorio por micro-movimientos al hacer pan con dos dedos)
-      const effectiveLastDist = Math.max(lastPinchDist, PIP_MIN_PINCH_DIST);
-      const effectiveDist = Math.max(currentDist, PIP_MIN_PINCH_DIST);
-      const zoomFactor = effectiveDist / effectiveLastDist;
+      // Protección: amortiguar cuando los dedos están muy juntos, sin crear
+      // una meseta dura de zoom al cruzar un umbral fijo.
+      const stabilizedBase = Math.max((currentDist + lastPinchDist) * 0.5, PIP_MIN_PINCH_DIST);
+      const zoomFactor = 1 + ((currentDist - lastPinchDist) / stabilizedBase);
       
       // Limitar cambio máximo de zoom por frame
       const clampedFactor = Math.max(1 - PIP_MAX_ZOOM_DELTA, Math.min(1 + PIP_MAX_ZOOM_DELTA, zoomFactor));
@@ -2736,7 +2740,6 @@ function setupPipEvents(pipContainer, panelId) {
       if (!state) return;
       
       // Acumular factor de zoom y pan para preview GPU-only
-      state.pendingPinchFactor *= clampedFactor;
       state.pendingPinchClientX = pinchClientX;
       state.pendingPinchClientY = pinchClientY;
       state.pendingPinchPanDx += panDx;
@@ -2749,6 +2752,7 @@ function setupPipEvents(pipContainer, panelId) {
         state._pinchVisMinScale ?? 0.01,
         Math.min(state._pinchVisMaxScale ?? MAX_SCALE, state.pinchPreviewScale)
       );
+      state.pendingPinchFactor = state.pinchPreviewScale;
 
       // Traslación acumulada
       state.pinchPreviewTx = (state.pinchPreviewTx || 0) + panDx;

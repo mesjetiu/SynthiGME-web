@@ -704,16 +704,43 @@ function commitPendingPinchZoom(panelId) {
     return; // Sin cambio significativo
   }
 
-  // ── Calcular posición final directamente desde la geometría del preview ──
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+
+  // ── Modo tablet: zoom interno sin resize del contenedor ──
+  // El contenedor actúa como viewport fijo (como Google Maps): el panel se
+  // amplía/reduce dentro del marco. Elimina el re-layout de 17k+ nodos
+  // que causaba flashes blancos en paneles pesados.
+  if (isPipTouchOptimizedMode()) {
+    // Escala mínima: el panel debe cubrir siempre el viewport del contenedor
+    const coverMinScale = getPipCoverScale(
+      state.width - PIP_BORDER_SIZE,
+      state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
+      panelWidth, panelHeight
+    );
+    const finalScale = Math.max(coverMinScale, Math.min(MAX_SCALE, state.scale * factor));
+
+    // Mover el contenedor solo por el pan (tx, ty)
+    const clampedPosition = clampPipPosition(state.x + tx, state.y + ty, state.width, state.height);
+    state.x = clampedPosition.x;
+    state.y = clampedPosition.y;
+    state.pipContainer.style.left = `${state.x}px`;
+    state.pipContainer.style.top = `${state.y}px`;
+    // width/height del contenedor NO se tocan
+
+    updatePipScale(panelId, finalScale, false);
+
+    refreshPipViewportMetrics(state);
+    schedulePipStateSave();
+    return;
+  }
+
+  // ── Modo desktop: resize del contenedor al nuevo tamaño del panel ──
   // Durante el preview, la posición visual del top-left del contenedor era:
   //   visualX = state.x + ox*(1-vs) + tx
   //   visualY = state.y + oy*(1-vs) + ty
   // Usamos esa posición como nueva posición real del contenedor.
   const visualX = state.x + ox * (1 - vs) + tx;
   const visualY = state.y + oy * (1 - vs) + ty;
-
-  // Nueva escala real
-  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
   const finalScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * factor));
   const newWidth = Math.max(MIN_PIP_SIZE, Math.round(panelWidth * finalScale) + PIP_BORDER_SIZE);
   const newHeight = Math.max(MIN_PIP_SIZE, Math.round(panelHeight * finalScale) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
@@ -803,11 +830,16 @@ function ensurePanelMetrics(state) {
     return { panelWidth: 760, panelHeight: 760 };
   }
 
+  // Usar valores cacheados si ya se midieron (evita layout flush por offsetWidth)
+  if (state.panelWidth > 0 && state.panelHeight > 0) {
+    return { panelWidth: state.panelWidth, panelHeight: state.panelHeight };
+  }
+
   const panelEl = state.panelEl || document.getElementById(state.panelId);
   if (panelEl) {
     state.panelEl = panelEl;
-    state.panelWidth = panelEl.offsetWidth || state.panelWidth || 760;
-    state.panelHeight = panelEl.offsetHeight || state.panelHeight || 760;
+    state.panelWidth = panelEl.offsetWidth || 760;
+    state.panelHeight = panelEl.offsetHeight || 760;
   }
 
   return {

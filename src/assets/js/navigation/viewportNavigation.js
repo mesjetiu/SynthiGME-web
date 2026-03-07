@@ -21,8 +21,10 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
   // Flags de sesión para bloquear gestos de navegación.
   // Aplica a todas las plataformas: táctil (pinch/pan) y desktop (wheel/ratón).
-  window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
+  window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: true, panLocked: true };
   const navLocks = window.__synthNavLocks;
+  navLocks.zoomLocked = true;
+  navLocks.panLocked = true;
 
   // ─── Opciones de interacción táctil ────────────────────────────────────
   // Multitouch: permite mover varios knobs/faders simultáneamente (off por defecto)
@@ -764,21 +766,6 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
   requestAnimationFrame(() => {
     fitContentToViewport();
-    
-    // Restaurar viewport de sesión anterior (sobreescribe fit-to-content)
-    if (localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT) === 'true') {
-      try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.VIEWPORT_STATE));
-        if (saved && typeof saved.scale === 'number') {
-          scale = saved.scale;
-          offsetX = saved.offsetX || 0;
-          offsetY = saved.offsetY || 0;
-          focusedPanelId = saved.focusedPanelId || null;
-          userHasAdjustedView = true; // Evitar que handleNavResize resetee
-          requestRender();
-        }
-      } catch { /* estado corrupto, ignorar */ }
-    }
   });
 
   /**
@@ -871,13 +858,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
    * @param {{ scale: number, offsetX: number, offsetY: number, focusedPanelId?: string|null }} state
    */
   window.__synthRestoreViewportState = (state) => {
-    if (!state || typeof state.scale !== 'number') return;
-    scale = state.scale;
-    offsetX = state.offsetX || 0;
-    offsetY = state.offsetY || 0;
-    focusedPanelId = state.focusedPanelId || null;
-    userHasAdjustedView = true; // Evitar que handleNavResize resetee
-    requestRender();
+    focusedPanelId = null;
+    userHasAdjustedView = false;
+    fitContentToViewport();
   };
 
   /**
@@ -1739,7 +1722,7 @@ export function setupPanelShortcutBadges() {
 // }
 
 /**
- * Configura doble tap/click en paneles para alternar zoom.
+ * Configura doble tap/click en paneles para alternar detach/return vía PiP.
  */
 export function setupPanelDoubleTapZoom() {
   const PANEL_IDS = ['panel-1', 'panel-2', 'panel-3', 'panel-4', 'panel-5', 'panel-6', 'panel-output'];
@@ -1767,13 +1750,9 @@ export function setupPanelDoubleTapZoom() {
     const panel = document.getElementById(panelId);
     if (!panel) return;
 
-    // Estado separado para click (ratón) y touch (táctil).
-    // NO pueden compartir estado porque en táctil el navegador dispara
-    // touchend Y click sintético en secuencia, y el click vería el estado
-    // del touchend como "primer clic" provocando zoom con un solo tap.
-    let clickTime = 0;
-    let clickX = 0;
-    let clickY = 0;
+    // Estado separado para touch (táctil).
+    // El ratón usa `dblclick` nativo en captura para evitar carreras con
+    // listeners hijos que hagan stopPropagation() sobre clicks sueltos.
     let touchTime = 0;
     let touchX = 0;
     let touchY = 0;
@@ -1786,49 +1765,20 @@ export function setupPanelDoubleTapZoom() {
     }
 
     function handleZoomToggle() {
-      const animateFn = window.__synthAnimateToPanel;
-      const getFocused = window.__synthGetFocusedPanel;
-      if (!animateFn) return;
-
-      if (getFocused && getFocused() === panelId) {
-        animateFn(null);
-      } else {
-        animateFn(panelId);
-      }
+      window.__synthToggleRememberedPip?.(panelId);
     }
 
-    // Click handler solo para ratón; los taps táctiles van por touchend
-    panel.addEventListener('click', (ev) => {
-      // Ignorar si el panel está en PiP (tiene sus propios handlers)
-      if (panel.classList.contains('panel--pipped')) return;
-      if (isInteractiveElement(ev.target)) return;
-      // Descartar clicks sintéticos generados por el navegador tras un touch
-      if (Date.now() - lastTouchEndTime < 500) return;
-
-      const now = Date.now();
-      const dx = ev.clientX - clickX;
-      const dy = ev.clientY - clickY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if ((now - clickTime) < DOUBLE_TAP_DELAY && dist < MAX_DBLCLICK_DISTANCE) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        handleZoomToggle();
-        clickTime = 0;
-      } else {
-        clickTime = now;
-        clickX = ev.clientX;
-        clickY = ev.clientY;
-      }
-    });
-
-    // Anular dblclick nativo para que no dispare zoom sin validación de distancia
+    // Ratón: usar dblclick nativo en captura para que ningún hijo del panel
+    // pueda romper la detección con stopPropagation() en clicks individuales.
     panel.addEventListener('dblclick', (ev) => {
       if (panel.classList.contains('panel--pipped')) return;
       if (isInteractiveElement(ev.target)) return;
+      // Descartar dblclick sintético inmediatamente posterior a un gesto táctil.
+      if (Date.now() - lastTouchEndTime < 500) return;
+      handleZoomToggle();
       ev.preventDefault();
       ev.stopPropagation();
-    });
+    }, { capture: true });
 
     panel.addEventListener('touchend', (ev) => {
       // Ignorar si el panel está en PiP (tiene sus propios handlers)

@@ -6,7 +6,16 @@ import { t, onLocaleChange } from '../i18n/index.js';
 import { keyboardShortcuts } from './keyboardShortcuts.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
-import { togglePip, ALL_PANELS, getOpenPips, openAllPips, closeAllPips } from './pipManager.js';
+import {
+  toggleRememberedPip,
+  ALL_PANELS,
+  getOpenPips,
+  openAllPips,
+  closeAllPips,
+  getFocusedPipLockState,
+  setFocusedPipPanLocked,
+  setFocusedPipZoomLocked
+} from './pipManager.js';
 import { oscBridge } from '../osc/oscBridge.js';
 import { undoRedoManager } from '../state/undoRedoManager.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
@@ -138,9 +147,6 @@ export function setupMobileQuickActionsBar() {
 
   if (document.getElementById('mobileQuickbar')) return;
 
-  window.__synthNavLocks = window.__synthNavLocks || { zoomLocked: false, panLocked: false };
-  const navLocks = window.__synthNavLocks;
-
   const ICON_SPRITE = './assets/icons/ui-sprite.svg';
   const iconSvg = symbolId => `
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"
@@ -180,15 +186,15 @@ export function setupMobileQuickActionsBar() {
   const btnPan = document.createElement('button');
   btnPan.type = 'button';
   btnPan.className = 'mobile-quickbar__btn';
-  setButtonTooltip(btnPan, t(navLocks.panLocked ? 'quickbar.pan.unlock' : 'quickbar.pan.lock'));
-  btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
+  setButtonTooltip(btnPan, t('quickbar.pan.lock'));
+  btnPan.setAttribute('aria-pressed', 'false');
   btnPan.innerHTML = iconSvg('ti-hand-stop');
 
   const btnZoom = document.createElement('button');
   btnZoom.type = 'button';
   btnZoom.className = 'mobile-quickbar__btn';
-  setButtonTooltip(btnZoom, t(navLocks.zoomLocked ? 'quickbar.zoom.unlock' : 'quickbar.zoom.lock'));
-  btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
+  setButtonTooltip(btnZoom, t('quickbar.zoom.lock'));
+  btnZoom.setAttribute('aria-pressed', 'false');
   btnZoom.innerHTML = iconSvg('ti-zoom-cancel');
 
   // Botón de patches
@@ -276,7 +282,7 @@ export function setupMobileQuickActionsBar() {
     
     item.addEventListener('click', (e) => {
       e.stopPropagation();
-      togglePip(id);
+      toggleRememberedPip(id);
       updatePipMenuState();
     });
     
@@ -416,23 +422,24 @@ export function setupMobileQuickActionsBar() {
   const shouldHideFullscreen = () => !canFullscreen;
 
   const applyPressedState = () => {
-    btnPan.setAttribute('aria-pressed', String(Boolean(navLocks.panLocked)));
-    btnZoom.setAttribute('aria-pressed', String(Boolean(navLocks.zoomLocked)));
+    const pipLockState = getFocusedPipLockState();
+    btnPan.setAttribute('aria-pressed', String(Boolean(pipLockState.panLocked)));
+    btnZoom.setAttribute('aria-pressed', String(Boolean(pipLockState.zoomLocked)));
     btnFs.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
 
     // Actualizar tooltips dinámicos
-    setButtonTooltip(btnPan, t(navLocks.panLocked ? 'quickbar.pan.unlock' : 'quickbar.pan.lock'));
-    setButtonTooltip(btnZoom, t(navLocks.zoomLocked ? 'quickbar.zoom.unlock' : 'quickbar.zoom.lock'));
+    setButtonTooltip(btnPan, t(pipLockState.panLocked ? 'quickbar.pan.unlock' : 'quickbar.pan.lock'));
+    setButtonTooltip(btnZoom, t(pipLockState.zoomLocked ? 'quickbar.zoom.unlock' : 'quickbar.zoom.lock'));
     setButtonTooltip(btnFs, t(document.fullscreenElement ? 'quickbar.fullscreen.exit' : 'quickbar.fullscreen'));
 
-    btnPan.classList.toggle('is-active', Boolean(navLocks.panLocked));
-    btnZoom.classList.toggle('is-active', Boolean(navLocks.zoomLocked));
+    btnPan.classList.toggle('is-active', Boolean(pipLockState.panLocked));
+    btnZoom.classList.toggle('is-active', Boolean(pipLockState.zoomLocked));
     btnFs.classList.toggle('is-active', Boolean(document.fullscreenElement));
 
     btnPan.hidden = false;
-    btnPan.disabled = false;
+    btnPan.disabled = !pipLockState.hasFocusedPip;
     btnZoom.hidden = false;
-    btnZoom.disabled = false;
+    btnZoom.disabled = !pipLockState.hasFocusedPip;
 
     btnFs.hidden = shouldHideFullscreen();
     btnFs.disabled = btnFs.hidden;
@@ -452,19 +459,17 @@ export function setupMobileQuickActionsBar() {
   });
 
   btnPan.addEventListener('click', () => {
-    navLocks.panLocked = !navLocks.panLocked;
+    const pipLockState = getFocusedPipLockState();
+    if (!pipLockState.hasFocusedPip) return;
+    setFocusedPipPanLocked(!pipLockState.panLocked);
     applyPressedState();
-    document.dispatchEvent(new CustomEvent('synth:panLockChange', {
-      detail: { enabled: navLocks.panLocked }
-    }));
   });
 
   btnZoom.addEventListener('click', () => {
-    navLocks.zoomLocked = !navLocks.zoomLocked;
+    const pipLockState = getFocusedPipLockState();
+    if (!pipLockState.hasFocusedPip) return;
+    setFocusedPipZoomLocked(!pipLockState.zoomLocked);
     applyPressedState();
-    document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
-      detail: { enabled: navLocks.zoomLocked }
-    }));
   });
 
   btnFs.addEventListener('click', async () => {
@@ -490,15 +495,10 @@ export function setupMobileQuickActionsBar() {
     }
   });
 
-  // Escuchar cambios de lock desde fuentes externas (menú Electron, pipManager)
-  document.addEventListener('synth:panLockChange', (e) => {
-    navLocks.panLocked = e.detail?.enabled ?? false;
-    applyPressedState();
-  });
-  document.addEventListener('synth:zoomLockChange', (e) => {
-    navLocks.zoomLocked = e.detail?.enabled ?? false;
-    applyPressedState();
-  });
+  window.addEventListener('pip:focuschange', applyPressedState);
+  window.addEventListener('pip:lockchange', applyPressedState);
+  window.addEventListener('pip:open', applyPressedState);
+  window.addEventListener('pip:close', applyPressedState);
 
   document.addEventListener('fullscreenchange', applyPressedState);
   displayModeQueries.forEach(mq => mq.addEventListener('change', applyPressedState));

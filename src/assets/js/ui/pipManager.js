@@ -7,6 +7,7 @@ import { t, onLocaleChange } from '../i18n/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { showContextMenu, hideContextMenu } from './contextMenuManager.js';
 import { uniquifySvgTree } from './svgInlineLoader.js';
+import { hideAllTooltips } from './tooltipManager.js';
 
 const log = createLogger('PipManager');
 
@@ -26,15 +27,14 @@ const log = createLogger('PipManager');
 /** Mapa de paneles actualmente en modo PiP */
 const activePips = new Map();
 
+/** Última geometría/zoom recordada de cada panel detached durante la sesión actual */
+const rememberedPipConfigs = new Map();
+
 /** Contenedor de todos los PiPs */
 let pipLayer = null;
 
 /** Flag para evitar guardar estado durante la restauración */
 let _isRestoring = false;
-
-/** Flag: los locks del canvas fueron activados automáticamente al abrir la primera PiP.
- *  Se invalida si el usuario cambia los locks manualmente. */
-let _autoLockedByPip = false;
 
 /** Z-index base para PiPs (por encima del viewport pero debajo de modales) */
 const PIP_Z_INDEX_BASE = 1200;
@@ -109,6 +109,8 @@ let _pipStateSaveTimer = null;
 const pipPreviewRefreshTimers = new Map();
 const pipPreviewIdleJobs = new Map();
 let pipSharpRasterizeEnabled = localStorage.getItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED) === 'true';
+let activeWheelGesturePanelId = null;
+let activeWheelGestureTimer = null;
 
 const PIP_PREVIEW_REMOVE_SELECTORS = [
   '.knob-label',
@@ -125,8 +127,6 @@ const PIP_PREVIEW_REMOVE_SELECTORS = [
   '.joystick-pad',
   '.panel7-joystick-pad',
   '.joystick-handle',
-  '.panel-note',
-  '.panel-notes-layer',
   '.note-editor-toolbar',
   '.scope-screen',
   '.oscilloscope',
@@ -144,6 +144,163 @@ const PIP_PREVIEW_SNAPSHOT_SELECTORS = [
   '.output-channel__slider-wrap',
   '.output-channel__switch-wrap'
 ].join(', ');
+
+function ensurePipLockFlags(state) {
+  if (!state) return null;
+  if (typeof state.panLocked !== 'boolean') state.panLocked = Boolean(state.locked);
+  if (typeof state.zoomLocked !== 'boolean') state.zoomLocked = Boolean(state.locked);
+  state.locked = Boolean(state.panLocked && state.zoomLocked);
+  return state;
+}
+
+function isPipPanLocked(state) {
+  return Boolean(ensurePipLockFlags(state)?.panLocked);
+}
+
+function isPipZoomLocked(state) {
+  return Boolean(ensurePipLockFlags(state)?.zoomLocked);
+}
+
+function isPipFullyLocked(state) {
+  return Boolean(ensurePipLockFlags(state)?.locked);
+}
+
+function isPipAnyLocked(state) {
+  const normalized = ensurePipLockFlags(state);
+  return Boolean(normalized && (normalized.panLocked || normalized.zoomLocked));
+}
+
+function buildRememberedPipConfig(panelId, source) {
+  if (!source) return null;
+  const normalized = ensurePipLockFlags({ ...source });
+  const width = Number(normalized.width);
+  const height = Number(normalized.height);
+  const scale = Number(normalized.scale);
+  const x = Number(normalized.x);
+  const y = Number(normalized.y);
+  return {
+    panelId,
+    x: Number.isFinite(x) ? x : undefined,
+    y: Number.isFinite(y) ? y : undefined,
+    width: Number.isFinite(width) ? width : undefined,
+    height: Number.isFinite(height) ? height : undefined,
+    scale: Number.isFinite(scale) ? scale : undefined,
+    locked: Boolean(normalized.locked),
+    panLocked: Boolean(normalized.panLocked),
+    zoomLocked: Boolean(normalized.zoomLocked),
+    isMaximized: Boolean(normalized.isMaximized),
+    defaultWidth: Number.isFinite(Number(normalized.defaultWidth)) ? Number(normalized.defaultWidth) : undefined,
+    defaultHeight: Number.isFinite(Number(normalized.defaultHeight)) ? Number(normalized.defaultHeight) : undefined
+  };
+}
+
+function rememberPipConfig(panelId, source) {
+  const config = buildRememberedPipConfig(panelId, source);
+  if (!config) return null;
+  rememberedPipConfigs.set(panelId, config);
+  return config;
+}
+
+function getRememberedPipConfig(panelId) {
+  const config = rememberedPipConfigs.get(panelId);
+  return config ? { ...config } : null;
+}
+
+function dispatchPipFocusChange(panelId = focusedPipId) {
+  window.dispatchEvent(new CustomEvent('pip:focuschange', {
+    detail: { panelId: panelId || null }
+  }));
+}
+
+function dispatchPipLockChange(panelId, state) {
+  const normalized = ensurePipLockFlags(state);
+  window.dispatchEvent(new CustomEvent('pip:lockchange', {
+    detail: {
+      panelId,
+      panLocked: isPipPanLocked(normalized),
+      zoomLocked: isPipZoomLocked(normalized),
+      locked: isPipFullyLocked(normalized)
+    }
+  }));
+}
+
+function updatePipLockUi(state, lockBtn = null) {
+  const normalized = ensurePipLockFlags(state);
+  if (!normalized) return;
+  normalized.pipContainer?.classList.toggle('pip-container--locked', isPipAnyLocked(normalized));
+  const button = lockBtn || normalized.pipContainer?.querySelector('.pip-lock');
+  if (!button) return;
+  const label = isPipFullyLocked(normalized)
+    ? t('pip.unlock', 'Desbloquear')
+    : t('pip.lock', 'Bloquear');
+  button.setAttribute('aria-label', label);
+  button.setAttribute('data-tooltip', label);
+}
+
+function setPipPanLocked(panelId, enabled, { save = true, dispatch = true } = {}) {
+  const state = ensurePipLockFlags(activePips.get(panelId));
+  if (!state) return false;
+  const nextValue = Boolean(enabled);
+  if (state.panLocked === nextValue) return false;
+  state.panLocked = nextValue;
+  ensurePipLockFlags(state);
+  updatePipLockUi(state);
+  rememberPipConfig(panelId, state);
+  if (save) savePipState();
+  if (dispatch) dispatchPipLockChange(panelId, state);
+  return true;
+}
+
+function setPipZoomLocked(panelId, enabled, { save = true, dispatch = true } = {}) {
+  const state = ensurePipLockFlags(activePips.get(panelId));
+  if (!state) return false;
+  const nextValue = Boolean(enabled);
+  if (state.zoomLocked === nextValue) return false;
+  state.zoomLocked = nextValue;
+  ensurePipLockFlags(state);
+  updatePipLockUi(state);
+  rememberPipConfig(panelId, state);
+  if (save) savePipState();
+  if (dispatch) dispatchPipLockChange(panelId, state);
+  return true;
+}
+
+function setPipLock(panelId, enabled, { save = true, dispatch = true } = {}) {
+  const state = ensurePipLockFlags(activePips.get(panelId));
+  if (!state) return false;
+  const nextValue = Boolean(enabled);
+  if (state.panLocked === nextValue && state.zoomLocked === nextValue) return false;
+  state.panLocked = nextValue;
+  state.zoomLocked = nextValue;
+  ensurePipLockFlags(state);
+  updatePipLockUi(state);
+  rememberPipConfig(panelId, state);
+  if (save) savePipState();
+  if (dispatch) dispatchPipLockChange(panelId, state);
+  return true;
+}
+
+function focusTopmostPip() {
+  if (activePips.size === 0) {
+    focusedPipId = null;
+    window.__synthFocusedPip = null;
+    dispatchPipFocusChange(null);
+    return false;
+  }
+
+  let topmostPanelId = null;
+  let topmostZIndex = -Infinity;
+  for (const [panelId, state] of activePips.entries()) {
+    const zIndex = parseInt(state.pipContainer.style.zIndex, 10) || PIP_Z_INDEX_BASE;
+    if (zIndex >= topmostZIndex) {
+      topmostZIndex = zIndex;
+      topmostPanelId = panelId;
+    }
+  }
+
+  if (!topmostPanelId) return false;
+  return focusPip(topmostPanelId);
+}
 
 function isPipTouchOptimizedMode() {
   return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
@@ -363,6 +520,12 @@ function finalizePendingPipDrag(state, { deactivatePreview = true } = {}) {
   return true;
 }
 
+function dismissPipTransientUi() {
+  hidePipTooltip();
+  hideAllTooltips();
+  document.dispatchEvent(new Event('synth:dismissTooltips'));
+}
+
 /**
  * Calcula las dimensiones iniciales del PiP para que el panel se vea
  * como en el canvas principal a zoom mínimo.
@@ -448,7 +611,7 @@ function clampPipPosition(x, y, width, height) {
 
 function startPipWindowDrag(panelId, pointerEvent, dragSurface) {
   const state = activePips.get(panelId);
-  if (!state || state.locked) return false;
+  if (!state || isPipPanLocked(state)) return false;
 
   pointerEvent.preventDefault();
   pointerEvent.stopPropagation();
@@ -538,6 +701,10 @@ function setPipPreviewMode(panelId, active = true) {
       schedulePipRasterize(panelId);
     }
     return;
+  }
+
+  if (active) {
+    dismissPipTransientUi();
   }
 
   if (!active) {
@@ -782,6 +949,7 @@ function getMinScale(panelId) {
 function applyPipWheelZoom(panelId, targetScale, clientX = null, clientY = null) {
   const state = activePips.get(panelId);
   if (!state) return false;
+  dismissPipTransientUi();
 
   const oldScale = state.scale || 1;
   if (oldScale <= 0) return false;
@@ -897,6 +1065,56 @@ function flushPipWheelInteraction(panelId) {
   }
 }
 
+function refreshActiveWheelGesture(panelId) {
+  activeWheelGesturePanelId = panelId;
+  if (activeWheelGestureTimer) {
+    clearTimeout(activeWheelGestureTimer);
+  }
+  activeWheelGestureTimer = setTimeout(() => {
+    activeWheelGestureTimer = null;
+    activeWheelGesturePanelId = null;
+  }, 180);
+}
+
+function queuePipWheelInteraction(panelId, e) {
+  const state = activePips.get(panelId);
+  if (!state) return false;
+
+  bringToFront(panelId);
+  refreshActiveWheelGesture(panelId);
+
+  if ((e.ctrlKey && isPipZoomLocked(state)) || (!e.ctrlKey && isPipPanLocked(state))) {
+    e.preventDefault();
+    return true;
+  }
+
+  if (e.ctrlKey) {
+    if (perfMonitor.isEnabled()) {
+      perfMonitor.incrementCounter(`pip.wheel.zoom.${panelId}`);
+    }
+    e.preventDefault();
+    state.pendingWheelZoomSteps += e.deltaY > 0 ? -1 : 1;
+    state.pendingWheelClientX = e.clientX;
+    state.pendingWheelClientY = e.clientY;
+    schedulePipWheelInteraction(panelId);
+    return true;
+  }
+
+  if (perfMonitor.isEnabled()) {
+    perfMonitor.incrementCounter(`pip.wheel.pan.${panelId}`);
+  }
+  const lineHeight = 16;
+  const deltaUnit = e.deltaMode === 1
+    ? lineHeight
+    : (e.deltaMode === 2 ? (state.viewportEl?.clientHeight || state.viewportHeight || 1) : 1);
+  const moveFactor = e.deltaMode === 0 ? PIP_TOUCHPAD_MOVE_FACTOR : 1;
+  e.preventDefault();
+  state.pendingWheelMoveX += (e.deltaX || 0) * deltaUnit * moveFactor;
+  state.pendingWheelMoveY += (e.deltaY || 0) * deltaUnit * moveFactor;
+  schedulePipWheelInteraction(panelId);
+  return true;
+}
+
 function schedulePipWheelInteraction(panelId) {
   const state = activePips.get(panelId);
   if (!state || state.pendingWheelRaf) return;
@@ -984,16 +1202,19 @@ export function initPipManager() {
   document.addEventListener('pointermove', handlePointerMove);
   document.addEventListener('pointerup', handlePointerUp);
   document.addEventListener('pointercancel', handlePointerUp);
-  
-  // Invalidar auto-lock si el usuario cambia los locks manualmente
-  // (cualquier cambio que no venga del propio pipAutoLock)
-  const invalidateAutoLock = (e) => {
-    if (_autoLockedByPip && e.detail?.source !== 'pipAutoLock') {
-      _autoLockedByPip = false;
+  document.addEventListener('wheel', (e) => {
+    if (!activeWheelGesturePanelId) return;
+    const state = activePips.get(activeWheelGesturePanelId);
+    if (!state) {
+      activeWheelGesturePanelId = null;
+      return;
     }
-  };
-  document.addEventListener('synth:panLockChange', invalidateAutoLock);
-  document.addEventListener('synth:zoomLockChange', invalidateAutoLock);
+    const target = e.target instanceof Element ? e.target : null;
+    if (target && state.pipContainer.contains(target)) return;
+    if (queuePipWheelInteraction(activeWheelGesturePanelId, e)) {
+      e.stopPropagation();
+    }
+  }, { passive: false, capture: true });
 
   document.addEventListener('synth:userInteraction', () => {
     for (const panelId of activePips.keys()) {
@@ -1047,6 +1268,7 @@ export function initPipManager() {
     viewportOuter.addEventListener('pointerdown', () => {
       focusedPipId = null;
       window.__synthFocusedPip = null;
+      dispatchPipFocusChange(null);
     });
   }
 
@@ -1056,7 +1278,7 @@ export function initPipManager() {
     const state = activePips.get(focusedPipId);
     if (!state) return false;
     // Bloquear zoom externo cuando está bloqueado
-    if (state.locked) return true;
+    if (isPipZoomLocked(state)) return true;
     const minScale = getMinScale(focusedPipId);
     let nextScale = state.scale;
     if (direction === 'in') {
@@ -1075,7 +1297,7 @@ export function initPipManager() {
   window.__synthPanFocusedPip = (dirX, dirY) => {
     if (!focusedPipId || !activePips.has(focusedPipId)) return false;
     const state = activePips.get(focusedPipId);
-    if (!state || state.locked) return true; // Absorber pero no actuar si bloqueado
+    if (!state || isPipPanLocked(state)) return true; // Absorber pero no actuar si bloqueado
     const stepX = state.width * 0.15;
     const stepY = state.height * 0.15;
     const clampedPosition = clampPipPosition(state.x + dirX * stepX, state.y + dirY * stepY, state.width, state.height);
@@ -1101,10 +1323,15 @@ export function initPipManager() {
         y: pipState.y,
         width: pipState.width,
         height: pipState.height,
-        locked: pipState.locked
+        locked: isPipFullyLocked(pipState),
+        panLocked: isPipPanLocked(pipState),
+        zoomLocked: isPipZoomLocked(pipState)
       }));
     }
   };
+
+  window.__synthToggleRememberedPip = toggleRememberedPip;
+  window.__synthGetFocusedPipLockState = getFocusedPipLockState;
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && activePips.size > 0) {
@@ -1120,7 +1347,7 @@ export function initPipManager() {
     // Ctrl+/- se usa para zoom del contenido (viewportNavigation)
     if (focusedPipId && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const state = activePips.get(focusedPipId);
-      if (!state || state.locked) return;
+      if (!state || isPipPanLocked(state)) return;
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         maximizePip(focusedPipId);
@@ -1166,7 +1393,7 @@ function setupPanelContextMenus() {
         panelId: panelEl.id,
         isPipped: false,
         target: e.target,
-        onDetach: openPip
+        onDetach: toggleRememberedPip
       });
     });
     
@@ -1199,7 +1426,7 @@ function setupPanelContextMenus() {
           panelId: panelEl.id,
           isPipped: false,
           target: e.target,
-          onDetach: openPip
+          onDetach: toggleRememberedPip
         });
       }, LONG_PRESS_DURATION);
       
@@ -1276,10 +1503,18 @@ function getInitialPipPosition(panelId, pipWidth, pipHeight) {
  * @param {string} panelId - ID del panel
  */
 export function togglePip(panelId) {
+  toggleRememberedPip(panelId);
+}
+
+/**
+ * Alterna detach/return reutilizando la última geometría detached recordada en la sesión.
+ * @param {string} panelId - ID del panel
+ */
+export function toggleRememberedPip(panelId) {
   if (activePips.has(panelId)) {
     closePip(panelId);
   } else {
-    openPip(panelId);
+    openPip(panelId, getRememberedPipConfig(panelId));
   }
 }
 
@@ -1311,6 +1546,7 @@ export function focusPip(panelId) {
 export function openPip(panelId, restoredConfig = null) {
   const panelEl = document.getElementById(panelId);
   if (!panelEl || activePips.has(panelId)) return;
+  const pipConfig = restoredConfig || getRememberedPipConfig(panelId);
   
   const originalParent = panelEl.parentElement;
   const siblings = Array.from(originalParent.children);
@@ -1352,7 +1588,7 @@ export function openPip(panelId, restoredConfig = null) {
       panelId,
       isPipped: true,
       target: e.target,
-      onAttach: closePip
+      onAttach: toggleRememberedPip
     });
   });
 
@@ -1377,7 +1613,7 @@ export function openPip(panelId, restoredConfig = null) {
         panelId,
         isPipped: true,
         target: e.target,
-        onAttach: closePip
+        onAttach: toggleRememberedPip
       });
     }, LONG_PRESS_DURATION);
   }, { passive: true });
@@ -1409,18 +1645,18 @@ export function openPip(panelId, restoredConfig = null) {
   // ── Dimensiones y posición: usar config restaurada o calcular iniciales ──
   let initX, initY, initW, initH, initScale;
   
-  if (restoredConfig) {
+  if (pipConfig) {
     // Ajustar posición a los límites de la ventana actual
-    const maxX = window.innerWidth - restoredConfig.width;
+    const maxX = window.innerWidth - pipConfig.width;
     const maxY = window.innerHeight - 40;
-    const maxW = window.innerWidth - Math.max(0, restoredConfig.x);
-    const maxH = window.innerHeight - Math.max(0, restoredConfig.y);
-    initX = Math.max(0, Math.min(maxX, restoredConfig.x));
-    initY = Math.max(0, Math.min(maxY, restoredConfig.y));
-    initW = Math.max(MIN_PIP_SIZE, Math.min(maxW, restoredConfig.width));
-    initH = Math.max(MIN_PIP_SIZE, Math.min(maxH, restoredConfig.height));
-    initScale = restoredConfig.scale; // Se clampeará después del reflow
-    pipContainer.style.zIndex = restoredConfig.zIndex || PIP_Z_INDEX_BASE + activePips.size;
+    const maxW = window.innerWidth - Math.max(0, pipConfig.x);
+    const maxH = window.innerHeight - Math.max(0, pipConfig.y);
+    initX = Math.max(0, Math.min(maxX, pipConfig.x));
+    initY = Math.max(0, Math.min(maxY, pipConfig.y));
+    initW = Math.max(MIN_PIP_SIZE, Math.min(maxW, pipConfig.width));
+    initH = Math.max(MIN_PIP_SIZE, Math.min(maxH, pipConfig.height));
+    initScale = pipConfig.scale; // Se clampeará después del reflow
+    pipContainer.style.zIndex = pipConfig.zIndex || PIP_Z_INDEX_BASE + activePips.size;
   } else {
     const pipDims = getInitialPipDimensions();
     const initialPos = getInitialPipPosition(panelId, pipDims.width, pipDims.height);
@@ -1527,10 +1763,12 @@ export function openPip(panelId, restoredConfig = null) {
     sharpCommitRaf: null,
     sharpDeferCount: 0,
     previewTimer: null,
-    defaultWidth: restoredConfig?.defaultWidth || initW,
-    defaultHeight: restoredConfig?.defaultHeight || initH,
-    locked: false, // El lock se aplica después del scroll en restauración
-    isMaximized: restoredConfig?.isMaximized || false,
+    defaultWidth: pipConfig?.defaultWidth || initW,
+    defaultHeight: pipConfig?.defaultHeight || initH,
+    panLocked: Boolean(pipConfig?.panLocked ?? pipConfig?.locked),
+    zoomLocked: Boolean(pipConfig?.zoomLocked ?? pipConfig?.locked),
+    locked: Boolean(pipConfig?.locked),
+    isMaximized: pipConfig?.isMaximized || false,
     // El contenido del panel detached no debe desplazarse dentro del viewport.
     lastScrollLeft: 0,
     lastScrollTop: 0,
@@ -1549,6 +1787,8 @@ export function openPip(panelId, restoredConfig = null) {
 
   refreshPipViewportMetrics(state);
   activePips.set(panelId, state);
+  ensurePipLockFlags(state);
+  rememberPipConfig(panelId, state);
   schedulePipPreviewRefresh(panelId, { immediate: true });
   schedulePipRasterize(panelId);
   if (perfMonitor.isEnabled()) {
@@ -1556,7 +1796,7 @@ export function openPip(panelId, restoredConfig = null) {
     perfMonitor.mark('pip:open', { panelId, restored: !!restoredConfig });
   }
   
-  if (restoredConfig) {
+  if (pipConfig) {
     // ── RESTAURACIÓN: aplicar escala guardada directamente ──
     // Forzar reflow para que viewport tenga dimensiones correctas
     // eslint-disable-next-line no-unused-expressions
@@ -1570,7 +1810,8 @@ export function openPip(panelId, restoredConfig = null) {
     // Restaurar scroll y lock en rAF (necesita layout con el nuevo scale/padding)
     const savedScrollX = 0;
     const savedScrollY = 0;
-    const shouldLock = restoredConfig.locked || false;
+    const shouldPanLock = Boolean(pipConfig.panLocked ?? pipConfig.locked);
+    const shouldZoomLock = Boolean(pipConfig.zoomLocked ?? pipConfig.locked);
     const appliedScale = state.scale;
     
     requestAnimationFrame(() => {
@@ -1589,16 +1830,13 @@ export function openPip(panelId, restoredConfig = null) {
       // asignaciones anteriores se despachan asíncronamente. Si aplicamos
       // el lock aquí, el listener revertirá el scroll a lastScroll (viejo).
       // Con setTimeout(0), los scroll events ya habrán actualizado lastScroll.
-      if (shouldLock) {
+      if (shouldPanLock || shouldZoomLock) {
         setTimeout(() => {
-          state.locked = true;
-          pipContainer.classList.add('pip-container--locked');
-          const lockBtn = pipContainer.querySelector('.pip-lock');
-          if (lockBtn) {
-            const label = t('pip.unlock', 'Desbloquear');
-            lockBtn.setAttribute('aria-label', label);
-            lockBtn.setAttribute('data-tooltip', label);
-          }
+          state.panLocked = shouldPanLock;
+          state.zoomLocked = shouldZoomLock;
+          ensurePipLockFlags(state);
+          updatePipLockUi(state);
+          dispatchPipLockChange(panelId, state);
         }, 0);
       }
     });
@@ -1616,6 +1854,8 @@ export function openPip(panelId, restoredConfig = null) {
   
   // Event listeners del PiP
   setupPipEvents(pipContainer, panelId);
+  updatePipLockUi(state);
+  bringToFront(panelId);
   
   // Marcar panel como pipped para CSS
   panelEl.classList.add('panel--pipped');
@@ -1627,33 +1867,6 @@ export function openPip(panelId, restoredConfig = null) {
   
   // Emitir evento
   window.dispatchEvent(new CustomEvent('pip:open', { detail: { panelId } }));
-  
-  // ── Auto-lock al abrir la primera PiP ──
-  // Cuando se pasa de 0 a 1 PiP (y no es restauración),
-  // zoom out al mínimo y bloquear paneo+zoom del canvas principal.
-  // El usuario puede desbloquear manualmente después.
-  // Se omite si restoredConfig (restauración de patch) o _isRestoring (sesión).
-  if (activePips.size === 1 && !_isRestoring && !restoredConfig) {
-    // 1. Zoom out a vista general (animado)
-    if (typeof window.__synthAnimateToPanel === 'function') {
-      window.__synthAnimateToPanel(null, 600);
-    }
-    // 2. Bloquear paneo y zoom
-    const navLocks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
-    _autoLockedByPip = true;
-    if (!navLocks.panLocked) {
-      navLocks.panLocked = true;
-      document.dispatchEvent(new CustomEvent('synth:panLockChange', {
-        detail: { enabled: true, source: 'pipAutoLock' }
-      }));
-    }
-    if (!navLocks.zoomLocked) {
-      navLocks.zoomLocked = true;
-      document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
-        detail: { enabled: true, source: 'pipAutoLock' }
-      }));
-    }
-  }
 }
 
 /**
@@ -1663,6 +1876,7 @@ export function openPip(panelId, restoredConfig = null) {
 export function closePip(panelId) {
   const state = activePips.get(panelId);
   if (!state) return;
+  rememberPipConfig(panelId, state);
   cancelPendingPipInteraction(state);
   cancelPipRasterize(state);
   clearScheduledPipPreviewRefresh(panelId);
@@ -1717,8 +1931,7 @@ export function closePip(panelId) {
   
   // Si el PiP cerrado tenía el foco, devolver foco al canvas principal
   if (focusedPipId === panelId) {
-    focusedPipId = null;
-    window.__synthFocusedPip = null;
+    focusTopmostPip();
   }
   
   log.info(`Panel ${panelId} devuelto a viewport`);
@@ -1728,28 +1941,6 @@ export function closePip(panelId) {
   
   // Emitir evento
   window.dispatchEvent(new CustomEvent('pip:close', { detail: { panelId } }));
-  
-  // ── Auto-unlock al cerrar la última PiP ──
-  // Si los locks fueron activados por auto-lock y el usuario no los cambió
-  // manualmente, desbloquear al volver a 0 PiPs.
-  if (activePips.size === 0 && _autoLockedByPip) {
-    _autoLockedByPip = false;
-    const navLocks = window.__synthNavLocks;
-    if (navLocks) {
-      if (navLocks.panLocked) {
-        navLocks.panLocked = false;
-        document.dispatchEvent(new CustomEvent('synth:panLockChange', {
-          detail: { enabled: false, source: 'pipAutoLock' }
-        }));
-      }
-      if (navLocks.zoomLocked) {
-        navLocks.zoomLocked = false;
-        document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
-          detail: { enabled: false, source: 'pipAutoLock' }
-        }));
-      }
-    }
-  }
 }
 
 /**
@@ -1767,8 +1958,19 @@ export function closeAllPips() {
 export function openAllPips() {
   for (const panel of ALL_PANELS) {
     if (!activePips.has(panel.id)) {
-      openPip(panel.id);
+      openPip(panel.id, getRememberedPipConfig(panel.id));
     }
+  }
+}
+
+/**
+ * Alterna todos los paneles entre canvas y PiP reutilizando estados recordados.
+ */
+export function toggleAllRememberedPips() {
+  if (activePips.size > 0) {
+    closeAllPips();
+  } else {
+    openAllPips();
   }
 }
 
@@ -1795,21 +1997,21 @@ function setupPipEvents(pipContainer, panelId) {
   // Maximizar ventana (crece proporcionalmente hasta borde de pantalla)
   maximizeBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
-    if (!state || state.locked) return;
+    if (!state || isPipPanLocked(state)) return;
     maximizePip(panelId);
   });
   
   // Minimizar ventana (vuelve al tamaño por defecto manteniendo proporción)
   minimizeBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
-    if (!state || state.locked) return;
+    if (!state || isPipPanLocked(state)) return;
     restorePipSize(panelId);
   });
   
   // Ajustar a cuadrado mostrando panel completo
   fitBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
-    if (!state || state.locked) return;
+    if (!state || isPipPanLocked(state)) return;
     fitPanelToSquare(panelId);
   });
   
@@ -1817,12 +2019,7 @@ function setupPipEvents(pipContainer, panelId) {
   lockBtn.addEventListener('click', () => {
     const state = activePips.get(panelId);
     if (!state) return;
-    state.locked = !state.locked;
-    pipContainer.classList.toggle('pip-container--locked', state.locked);
-    const lockLabel = state.locked ? t('pip.unlock', 'Desbloquear') : t('pip.lock', 'Bloquear');
-    lockBtn.setAttribute('aria-label', lockLabel);
-    lockBtn.setAttribute('data-tooltip', lockLabel);
-    savePipState();
+    setPipLock(panelId, !isPipFullyLocked(state));
   });
   
   // Fallback: si la cabecera reaparece en otro modo, sigue permitiendo arrastre.
@@ -1834,7 +2031,7 @@ function setupPipEvents(pipContainer, panelId) {
   // Resize — todos los handles mantienen proporción del panel
   const startResize = (e, edge) => {
     const state = activePips.get(panelId);
-    if (state?.locked) return;
+    if (state && isPipPanLocked(state)) return;
     e.preventDefault();
     e.stopPropagation();
     setPipPreviewMode(panelId, true);
@@ -1918,19 +2115,10 @@ function setupPipEvents(pipContainer, panelId) {
       panelId,
       isPipped: true,
       target: e.target,
-      onAttach: closePip,
+      onAttach: toggleRememberedPip,
       pipActions: {
-        isLocked: () => Boolean(activePips.get(panelId)?.locked),
-        toggleLock: () => {
-          const state = activePips.get(panelId);
-          if (!state) return;
-          state.locked = !state.locked;
-          pipContainer.classList.toggle('pip-container--locked', state.locked);
-          const lockLabel = state.locked ? t('pip.unlock', 'Desbloquear') : t('pip.lock', 'Bloquear');
-          lockBtn.setAttribute('aria-label', lockLabel);
-          lockBtn.setAttribute('data-tooltip', lockLabel);
-          savePipState();
-        },
+        isLocked: () => Boolean(isPipFullyLocked(activePips.get(panelId))),
+        toggleLock: () => setPipLock(panelId, !isPipFullyLocked(activePips.get(panelId))),
         maximize: () => maximizePip(panelId),
         restore: () => restorePipSize(panelId),
         fit: () => fitPanelToSquare(panelId)
@@ -1940,6 +2128,9 @@ function setupPipEvents(pipContainer, panelId) {
   
   // dblclick y touch en fase de CAPTURA para interceptar antes que el viewport
   pipContainer.addEventListener('dblclick', (e) => {
+    if (!isInteractivePipTarget(e.target)) {
+      closePip(panelId);
+    }
     e.preventDefault();
     e.stopPropagation();
   }, { capture: true });
@@ -1956,13 +2147,22 @@ function setupPipEvents(pipContainer, panelId) {
   // IMPORTANTE: fase de BURBUJA (no captura) para que primero se ejecute
   // el touchend del content (que resetea gestureInProgress/__synthPipGestureActive)
   let lastTapTime = 0;
+  let lastTapX = 0;
+  let lastTapY = 0;
   pipContainer.addEventListener('touchend', (e) => {
     e.stopPropagation();
     const now = Date.now();
-    if (now - lastTapTime < 300) {
+    const touch = e.changedTouches?.[0];
+    const tapX = touch?.clientX ?? 0;
+    const tapY = touch?.clientY ?? 0;
+    const dist = Math.hypot(tapX - lastTapX, tapY - lastTapY);
+    if (now - lastTapTime < 300 && dist < 50 && !isInteractivePipTarget(e.target)) {
+      closePip(panelId);
       e.preventDefault();
     }
     lastTapTime = now;
+    lastTapX = tapX;
+    lastTapY = tapY;
   }, { passive: false });
   
   // wheel: bloquear propagación al viewport
@@ -1974,41 +2174,7 @@ function setupPipEvents(pipContainer, panelId) {
   // Chrome reporta Violation pero es intencional y necesario para evitar el zoom del navegador.
   const pipViewport = pipContainer.querySelector('.pip-viewport');
   pipContainer.querySelector('.pip-content').addEventListener('wheel', (e) => {
-    const state = activePips.get(panelId);
-    if (!state) return;
-    bringToFront(panelId);
-    
-    // Bloquear zoom y pan cuando está bloqueado
-    if (state.locked) {
-      if (e.ctrlKey) e.preventDefault();
-      return;
-    }
-    
-    if (e.ctrlKey) {
-      if (perfMonitor.isEnabled()) {
-        perfMonitor.incrementCounter(`pip.wheel.zoom.${panelId}`);
-      }
-      // Zoom centrado en el cursor — necesita preventDefault
-      e.preventDefault();
-
-      state.pendingWheelZoomSteps += e.deltaY > 0 ? -1 : 1;
-      state.pendingWheelClientX = e.clientX;
-      state.pendingWheelClientY = e.clientY;
-      schedulePipWheelInteraction(panelId);
-    } else {
-      if (perfMonitor.isEnabled()) {
-        perfMonitor.incrementCounter(`pip.wheel.pan.${panelId}`);
-      }
-      const lineHeight = 16;
-      const deltaUnit = e.deltaMode === 1
-        ? lineHeight
-        : (e.deltaMode === 2 ? (pipViewport?.clientHeight || state.viewportHeight || 1) : 1);
-      const moveFactor = e.deltaMode === 0 ? PIP_TOUCHPAD_MOVE_FACTOR : 1;
-      e.preventDefault();
-      state.pendingWheelMoveX += (e.deltaX || 0) * deltaUnit * moveFactor;
-      state.pendingWheelMoveY += (e.deltaY || 0) * deltaUnit * moveFactor;
-      schedulePipWheelInteraction(panelId);
-    }
+    queuePipWheelInteraction(panelId, e);
   }, { passive: false });
   
   // Helper: detectar si un elemento es un control interactivo (knobs, pines, etc.)
@@ -2047,6 +2213,8 @@ function setupPipEvents(pipContainer, panelId) {
   const content = pipContainer.querySelector('.pip-content');
   const viewport = pipContainer.querySelector('.pip-viewport');
   let lastPinchDist = 0;
+  let lastPinchCenterX = 0;
+  let lastPinchCenterY = 0;
   // Estado para drag táctil de 1 dedo
   let touchPanId = null;        // touch identifier activo
   let touchPanStartX = 0;
@@ -2059,7 +2227,7 @@ function setupPipEvents(pipContainer, panelId) {
       // ── Pinch con 2 dedos: cancelar pan de 1 dedo si estaba activo ──
       touchPanId = null;
       const state = activePips.get(panelId);
-      if (state?.locked) return;
+      if (state && isPipZoomLocked(state)) return;
       e.preventDefault();
       setPipPreviewMode(panelId, true);
       gestureInProgress = true;
@@ -2070,10 +2238,12 @@ function setupPipEvents(pipContainer, panelId) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       lastPinchDist = Math.hypot(dx, dy);
+      lastPinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      lastPinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     } else if (e.touches.length === 1 && touchPanId === null) {
       // ── Drag de ventana con 1 dedo ──
       const state = activePips.get(panelId);
-      if (state?.locked) return;
+      if (state && isPipPanLocked(state)) return;
       // No iniciar pan si el target es un control interactivo
       if (isInteractivePipTarget(e.touches[0].target)) return;
       touchPanId = e.touches[0].identifier;
@@ -2090,13 +2260,17 @@ function setupPipEvents(pipContainer, panelId) {
     if (e.touches.length === 2 && lastPinchDist > 0) {
       // ── Pinch-zoom con 2 dedos ──
       const state = activePips.get(panelId);
-      if (state?.locked) return;
+      if (state && isPipZoomLocked(state)) return;
       e.preventDefault();
       e.stopPropagation();
       setPipPreviewMode(panelId, true);
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
+      const pinchClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const pinchClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const panDx = pinchClientX - lastPinchCenterX;
+      const panDy = pinchClientY - lastPinchCenterY;
       
       // Protección: estabilizar ratio cuando los dedos están muy juntos
       // (evita zoom aleatorio por micro-movimientos al hacer pan con dos dedos)
@@ -2108,15 +2282,24 @@ function setupPipEvents(pipContainer, panelId) {
       const clampedFactor = Math.max(1 - PIP_MAX_ZOOM_DELTA, Math.min(1 + PIP_MAX_ZOOM_DELTA, zoomFactor));
       
       lastPinchDist = currentDist;
+      lastPinchCenterX = pinchClientX;
+      lastPinchCenterY = pinchClientY;
       
       if (!state) return;
       
       // Solo aplicar zoom si el cambio es significativo
       if (Math.abs(clampedFactor - 1) > PIP_PINCH_EPSILON) {
         const newScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * clampedFactor));
-        const pinchClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        const pinchClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         applyPipWheelZoom(panelId, newScale, pinchClientX, pinchClientY);
+        schedulePipStateSave();
+      }
+
+      if (Math.abs(panDx) > 0.5 || Math.abs(panDy) > 0.5) {
+        const clampedPosition = clampPipPosition(state.x + panDx, state.y + panDy, state.width, state.height);
+        state.x = clampedPosition.x;
+        state.y = clampedPosition.y;
+        state.pipContainer.style.left = `${state.x}px`;
+        state.pipContainer.style.top = `${state.y}px`;
         schedulePipStateSave();
       }
     } else if (e.touches.length === 1 && touchPanId !== null) {
@@ -2125,7 +2308,7 @@ function setupPipEvents(pipContainer, panelId) {
       const touch = Array.from(e.touches).find(t => t.identifier === touchPanId);
       if (!touch) return;
       const state = activePips.get(panelId);
-      if (!state || state.locked) return;
+      if (!state || isPipPanLocked(state)) return;
       e.preventDefault();
       setPipPreviewMode(panelId, true);
       const dx = touch.clientX - touchPanStartX;
@@ -2141,6 +2324,8 @@ function setupPipEvents(pipContainer, panelId) {
   content.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
       lastPinchDist = 0;
+      lastPinchCenterX = 0;
+      lastPinchCenterY = 0;
       setPipPreviewMode(panelId, false);
       // Desactivar flag con delay para que el momentum scroll termine
       setTimeout(() => {
@@ -2196,7 +2381,7 @@ function setupPipEvents(pipContainer, panelId) {
     // Solo ratón/pen — el touch ya se gestiona con touchstart/touchmove
     if (e.pointerType === 'touch') return;
     const state = activePips.get(panelId);
-    if (!state || state.locked) return;
+    if (!state || isPipPanLocked(state)) return;
 
     const targetIsInteractive = isInteractivePipTarget(e.target);
     const isMiddle = e.button === 1;
@@ -2220,7 +2405,7 @@ function setupPipEvents(pipContainer, panelId) {
 function handlePointerMove(e) {
   if (draggingPip) {
     const state = activePips.get(draggingPip);
-    if (!state) return;
+    if (!state || isPipPanLocked(state)) return;
     setPipPreviewMode(draggingPip, true);
 
     const clampedPosition = clampPipPosition(e.clientX - dragOffset.x, e.clientY - dragOffset.y, state.width, state.height);
@@ -2376,7 +2561,7 @@ function handlePointerUp(e) {
  */
 function maximizePip(panelId) {
   const state = activePips.get(panelId);
-  if (!state || state.locked) return;
+  if (!state || isPipPanLocked(state)) return;
   
   const margin = 20; // Margen en píxeles desde los bordes
   const maxW = window.innerWidth - margin * 2;
@@ -2459,7 +2644,7 @@ function maximizePip(panelId) {
  */
 function restorePipSize(panelId) {
   const state = activePips.get(panelId);
-  if (!state || state.locked) return;
+  if (!state || isPipPanLocked(state)) return;
   
   // Proporción del VIEWPORT (sin header ni bordes) para preservar la forma real
   const vpW = state.width - PIP_BORDER_SIZE;
@@ -2544,7 +2729,7 @@ function restorePipSize(panelId) {
  */
 function fitPanelToSquare(panelId) {
   const state = activePips.get(panelId);
-  if (!state || state.locked) return;
+  if (!state || isPipPanLocked(state)) return;
   
   const panelEl = document.getElementById(panelId);
   const panelWidth = panelEl?.offsetWidth || 760;
@@ -2613,6 +2798,7 @@ function bringToFront(panelId) {
   // Registrar como PiP con foco (para zoom global con Ctrl+/-)
   focusedPipId = panelId;
   window.__synthFocusedPip = panelId;
+  dispatchPipFocusChange(panelId);
 }
 
 /**
@@ -2718,6 +2904,41 @@ export function isPipped(panelId) {
 }
 
 /**
+ * Estado de locks del PiP enfocado.
+ * @returns {{panelId: string|null, hasFocusedPip: boolean, panLocked: boolean, zoomLocked: boolean, locked: boolean}}
+ */
+export function getFocusedPipLockState() {
+  if (!focusedPipId || !activePips.has(focusedPipId)) {
+    return {
+      panelId: null,
+      hasFocusedPip: false,
+      panLocked: false,
+      zoomLocked: false,
+      locked: false
+    };
+  }
+
+  const state = activePips.get(focusedPipId);
+  return {
+    panelId: focusedPipId,
+    hasFocusedPip: true,
+    panLocked: isPipPanLocked(state),
+    zoomLocked: isPipZoomLocked(state),
+    locked: isPipFullyLocked(state)
+  };
+}
+
+export function setFocusedPipPanLocked(enabled) {
+  if (!focusedPipId || !activePips.has(focusedPipId)) return false;
+  return setPipPanLocked(focusedPipId, enabled);
+}
+
+export function setFocusedPipZoomLocked(enabled) {
+  if (!focusedPipId || !activePips.has(focusedPipId)) return false;
+  return setPipZoomLocked(focusedPipId, enabled);
+}
+
+/**
  * Obtiene los IDs de todos los paneles en modo PiP.
  * @returns {string[]}
  */
@@ -2746,7 +2967,9 @@ export function serializePipState() {
       scrollX: 0,
       scrollY: 0,
       zIndex: parseInt(state.pipContainer.style.zIndex) || PIP_Z_INDEX_BASE,
-      locked: state.locked || false,
+      locked: isPipFullyLocked(state),
+      panLocked: isPipPanLocked(state),
+      zoomLocked: isPipZoomLocked(state),
       isMaximized: state.isMaximized || false,
       defaultWidth: state.defaultWidth,
       defaultHeight: state.defaultHeight
@@ -2801,6 +3024,7 @@ export function restorePipState() {
     _isRestoring = true;
     
     for (const savedState of states) {
+      rememberPipConfig(savedState.panelId, savedState);
       const panelEl = document.getElementById(savedState.panelId);
       if (!panelEl) {
         log.warn('Panel no encontrado para restaurar:', savedState.panelId);

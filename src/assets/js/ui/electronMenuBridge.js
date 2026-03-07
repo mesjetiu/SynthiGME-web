@@ -12,7 +12,15 @@
 
 import { t, onLocaleChange, getLocale, getSupportedLocales } from '../i18n/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
-import { getOpenPips } from './pipManager.js';
+import {
+  getOpenPips,
+  toggleRememberedPip,
+  openAllPips,
+  closeAllPips,
+  getFocusedPipLockState,
+  setFocusedPipPanLocked,
+  setFocusedPipZoomLocked
+} from './pipManager.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('MenuBridge');
@@ -102,8 +110,8 @@ function readCurrentState() {
     linearFaders: readBool(STORAGE_KEYS.FADER_LINEAR_RESPONSE, true),
     sharpRasterize: readBool(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED, false),
     // Paneles
-    lockPan: Boolean(window.__synthNavLocks?.panLocked),
-    lockZoom: Boolean(window.__synthNavLocks?.zoomLocked),
+    lockPan: Boolean(getFocusedPipLockState().panLocked),
+    lockZoom: Boolean(getFocusedPipLockState().zoomLocked),
     rememberVisualLayout: readBool(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, false),
     singleFingerPan: readBool(STORAGE_KEYS.SINGLE_FINGER_PAN, true),
     multitouchControls: readBool(STORAGE_KEYS.MULTITOUCH_CONTROLS, false),
@@ -244,18 +252,15 @@ function handleMenuAction({ action, data }) {
 
     // ─── Paneles ───
     case 'togglePip': {
-      const { togglePip: togglePipFn } = require_togglePip();
-      if (togglePipFn) togglePipFn(data.panelId);
+      toggleRememberedPip(data.panelId);
       break;
     }
     case 'detachAllPips': {
-      const { openAllPips } = require_togglePip();
-      if (openAllPips) openAllPips();
+      openAllPips();
       break;
     }
     case 'attachAllPips': {
-      const { closeAllPips } = require_togglePip();
-      if (closeAllPips) closeAllPips();
+      closeAllPips();
       break;
     }
     case 'toggleKeyboard':
@@ -276,19 +281,11 @@ function handleMenuAction({ action, data }) {
       localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, String(data.enabled));
       break;
     case 'setLockPan': {
-      const locks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
-      locks.panLocked = Boolean(data.enabled);
-      document.dispatchEvent(new CustomEvent('synth:panLockChange', {
-        detail: { enabled: locks.panLocked }
-      }));
+      setFocusedPipPanLocked(Boolean(data.enabled));
       break;
     }
     case 'setLockZoom': {
-      const locks = window.__synthNavLocks || (window.__synthNavLocks = { zoomLocked: false, panLocked: false });
-      locks.zoomLocked = Boolean(data.enabled);
-      document.dispatchEvent(new CustomEvent('synth:zoomLockChange', {
-        detail: { enabled: locks.zoomLocked }
-      }));
+      setFocusedPipZoomLocked(Boolean(data.enabled));
       break;
     }
     case 'setSingleFingerPan':
@@ -472,25 +469,6 @@ function handleMenuAction({ action, data }) {
 }
 
 /**
- * Lazy import para evitar dependencias circulares con pipManager.
- * Se carga una sola vez y se cachea.
- */
-let _pipModule = null;
-function require_togglePip() {
-  if (!_pipModule) {
-    // pipManager ya está importado arriba para getOpenPips
-    // Usamos import dinámico diferido para evitar problemas de circular
-    _pipModule = { togglePip: null, openAllPips: null, closeAllPips: null };
-    import('./pipManager.js').then(mod => {
-      _pipModule.togglePip = mod.togglePip;
-      _pipModule.openAllPips = mod.openAllPips;
-      _pipModule.closeAllPips = mod.closeAllPips;
-    });
-  }
-  return _pipModule;
-}
-
-/**
  * Lazy import para el módulo de teclados flotantes.
  * Se carga una sola vez y se cachea.
  */
@@ -578,8 +556,14 @@ function setupStateListeners() {
     'synth:voltagePinToleranceChange': (e) => ({ pinTolerance: e.detail?.enabled ?? true }),
     'synth:voltageThermalDriftChange': (e) => ({ thermalDrift: e.detail?.enabled ?? true }),
     'synth:telemetryEnabledChange':    (e) => ({ telemetryEnabled: e.detail?.enabled ?? false }),
-    'synth:panLockChange':             (e) => ({ lockPan: e.detail?.enabled ?? false }),
-    'synth:zoomLockChange':            (e) => ({ lockZoom: e.detail?.enabled ?? false }),
+    'pip:lockchange':                  (e) => ({
+      lockPan: e.detail?.panLocked ?? false,
+      lockZoom: e.detail?.zoomLocked ?? false
+    }),
+    'pip:focuschange':                 () => {
+      const state = getFocusedPipLockState();
+      return { lockPan: state.panLocked, lockZoom: state.zoomLocked };
+    },
     'synth:singleFingerPanChange':     (e) => ({ singleFingerPan: e.detail?.enabled ?? true }),
     'synth:multitouchControlsChange':  (e) => ({ multitouchControls: e.detail?.enabled ?? false }),
     'synth:wakeLockChange':            (e) => ({ preventSleep: e.detail?.enabled ?? true }),
@@ -649,7 +633,6 @@ export function initElectronMenuBridge() {
   log.info('Initializing Electron menu bridge');
 
   // Pre-cargar módulos lazy (evita que el primer clic falle por import async)
-  require_togglePip();
   require_toggleKeyboard();
 
   // 1. Enviar traducciones iniciales al menú

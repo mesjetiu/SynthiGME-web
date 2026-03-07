@@ -7,7 +7,7 @@ import { t } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
-import { isPipped, focusPip } from './pipManager.js';
+import { toggleRememberedPip, toggleAllRememberedPips } from './pipManager.js';
 
 const log = createLogger('KeyboardShortcuts');
 
@@ -62,16 +62,11 @@ const DEFAULT_SHORTCUTS = {
 };
 
 /**
- * Si el panel está en PiP, lo enfoca y trae al frente.
- * Si no, hace zoom/pan en el canvas principal.
+ * Alterna el panel entre canvas y PiP reutilizando la última geometría detached.
  * @param {string} panelId - ID del panel
  */
 function panelShortcutAction(panelId) {
-  if (isPipped(panelId)) {
-    focusPip(panelId);
-  } else {
-    window.__synthAnimateToPanel?.(panelId);
-  }
+  toggleRememberedPip(panelId);
 }
 
 // Mapeo de acciones a eventos/handlers
@@ -119,7 +114,7 @@ const SHORTCUT_ACTIONS = {
     }
     ConfirmDialog.clearRememberedChoice('skip-reset-confirm');
   },
-  // Navegación de paneles (si está en PiP, enfocar PiP; si no, zoom en canvas)
+  // Navegación de paneles (toggle canvas ↔ PiP con estado recordado)
   panel1: () => panelShortcutAction('panel-1'),
   panel2: () => panelShortcutAction('panel-2'),
   panel3: () => panelShortcutAction('panel-3'),
@@ -127,7 +122,7 @@ const SHORTCUT_ACTIONS = {
   panel5: () => panelShortcutAction('panel-5'),
   panel6: () => panelShortcutAction('panel-6'),
   panelOutput: () => panelShortcutAction('panel-output'),
-  overview: () => window.__synthAnimateToPanel?.(null)
+  overview: () => toggleAllRememberedPips()
 };
 
 /**

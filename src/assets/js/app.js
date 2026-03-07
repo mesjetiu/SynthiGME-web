@@ -7520,16 +7520,9 @@ function hideSplashScreen() {
   setTimeout(() => {
     splash.remove();
     
-    // Forzar recálculo del viewport a vista general para evitar zoom "congelado"
-    // Esto corrige un bug en móvil/tablet donde el viewport parece zoomeado hasta el primer toque
-    // PERO: si el usuario tiene la disposición visual guardada, no resetear
+    // Forzar siempre la vista general: el canvas principal queda fijo y auto-ajustado.
     if (typeof window.__synthAnimateToPanel === 'function') {
-      const hasRestoredViewport =
-        localStorage.getItem('synthigme-remember-visual-layout') === 'true' &&
-        localStorage.getItem('synthigme-viewport-state');
-      if (!hasRestoredViewport) {
-        window.__synthAnimateToPanel(null, 0);
-      }
+      window.__synthAnimateToPanel(null, 0);
     }
     
     // Disparar la pregunta de restaurar estado DESPUÉS de que el splash termine

@@ -6581,15 +6581,9 @@ small { color:#aaa; }
   /* El tamaño se establece dinámicamente desde JS según la escala */
   position: relative;
   transform-origin: 0 0;
-  /* Forzar capa GPU dedicada para evitar repaints durante scroll/zoom (Samsung fix) */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-.pip-container .pip-viewport-inner {
-  will-change: transform;
+  /* NO usar translateZ(0) ni will-change aquí: crean una capa GPU intermedia
+     que captura el contenido a resolución fija e impide que CSS zoom del panel
+     hijo aumente la calidad de rasterización (modo nítido borroso). */
 }
 
 /* El panel dentro del PiP */

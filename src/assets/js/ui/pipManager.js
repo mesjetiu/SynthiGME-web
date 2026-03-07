@@ -712,15 +712,21 @@ function commitPendingPinchZoom(panelId) {
   // que causaba flashes blancos en paneles pesados.
   if (isPipTouchOptimizedMode()) {
     // Escala mínima: el panel debe cubrir siempre el viewport del contenedor
-    const coverMinScale = getPipCoverScale(
-      state.width - PIP_BORDER_SIZE,
-      state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
-      panelWidth, panelHeight
-    );
-    const finalScale = Math.max(coverMinScale, Math.min(MAX_SCALE, state.scale * factor));
+    const vpW = state.width - PIP_BORDER_SIZE;
+    const vpH = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+    const coverMinScale = getPipCoverScale(vpW, vpH, panelWidth, panelHeight);
+    const oldScale = state.scale;
+    const finalScale = Math.max(coverMinScale, Math.min(MAX_SCALE, oldScale * factor));
 
-    // Mover el contenedor solo por el pan (tx, ty)
-    const clampedPosition = clampPipPosition(state.x + tx, state.y + ty, state.width, state.height);
+    // ── Posición del contenedor ──
+    // Durante el preview, transformOrigin era (ox, oy) y se aplicó
+    // scale(vs) + translate(tx, ty). La posición visual del top-left era:
+    //   visualX = state.x + ox*(1-vs) + tx
+    //   visualY = state.y + oy*(1-vs) + ty
+    // Aplicamos la misma fórmula (como desktop) para que no salte.
+    const visualX = state.x + (ox || 0) * (1 - vs) + tx;
+    const visualY = state.y + (oy || 0) * (1 - vs) + ty;
+    const clampedPosition = clampPipPosition(visualX, visualY, state.width, state.height);
     state.x = clampedPosition.x;
     state.y = clampedPosition.y;
     state.pipContainer.style.left = `${state.x}px`;
@@ -2668,7 +2674,17 @@ function setupPipEvents(pipContainer, panelId) {
         state.pipContainer.style.transformOrigin =
           `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
         // Pre-calcular límites de escala visual una vez (evita offsetWidth en touchmove)
-        state._pinchVisMinScale = getMinScale(panelId) / Math.max(state.scale, 0.01);
+        // En tablet usamos coverMinScale (no getMinScale) para que el preview no
+        // muestre zooms que el commit revertirá por el constraint de cobertura.
+        const { panelWidth: pw, panelHeight: ph } = ensurePanelMetrics(state);
+        const touchCoverMin = isPipTouchOptimizedMode()
+          ? getPipCoverScale(
+              state.width - PIP_BORDER_SIZE,
+              state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
+              pw, ph
+            )
+          : getMinScale(panelId);
+        state._pinchVisMinScale = touchCoverMin / Math.max(state.scale, 0.01);
         state._pinchVisMaxScale = MAX_SCALE / Math.max(state.scale, 0.01);
       }
     } else if (e.touches.length === 1 && touchPanId === null) {

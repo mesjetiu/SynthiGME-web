@@ -680,10 +680,11 @@ function commitPendingPinchZoom(panelId) {
   }
 
   const factor = state.pendingPinchFactor;
-  const clientX = state.pendingPinchClientX;
-  const clientY = state.pendingPinchClientY;
-  const panTx = state.pinchPreviewTx || 0;
-  const panTy = state.pinchPreviewTy || 0;
+  const ox = state.pinchPreviewOriginX || 0;
+  const oy = state.pinchPreviewOriginY || 0;
+  const vs = state.pinchPreviewScale || 1;
+  const tx = state.pinchPreviewTx || 0;
+  const ty = state.pinchPreviewTy || 0;
 
   // Reset acumuladores
   state.pendingPinchFactor = 1;
@@ -697,32 +698,60 @@ function commitPendingPinchZoom(panelId) {
   state.pinchPreviewOriginX = null;
   state.pinchPreviewOriginY = null;
 
-  // Quitar el transform de preview y la promoción de capa GPU
+  // Quitar el transform de preview (mantener will-change para evitar
+  // re-promoverse en el siguiente gesto inmediato)
   state.pipContainer.style.transform = '';
   state.pipContainer.style.transformOrigin = '';
-  state.pipContainer.style.willChange = '';
 
-  let didChange = false;
+  // Retirar will-change con delay para que Chrome no desmonte la capa
+  // GPU entre gestos rápidos consecutivos
+  if (state._willChangeTimer) clearTimeout(state._willChangeTimer);
+  state._willChangeTimer = setTimeout(() => {
+    state._willChangeTimer = null;
+    if (state.pipContainer) state.pipContainer.style.willChange = '';
+  }, 800);
 
-  // Aplicar zoom acumulado real
-  if (Math.abs(factor - 1) > PIP_PINCH_EPSILON) {
-    const newScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * factor));
-    didChange = applyPipWheelZoom(panelId, newScale, clientX, clientY) || didChange;
+  if (Math.abs(factor - 1) <= PIP_PINCH_EPSILON && Math.abs(tx) < 0.5 && Math.abs(ty) < 0.5) {
+    return; // Sin cambio significativo
   }
 
-  // Aplicar pan acumulado del centro del pinch
-  if (Math.abs(panTx) > 0.5 || Math.abs(panTy) > 0.5) {
-    const clampedPosition = clampPipPosition(state.x + panTx, state.y + panTy, state.width, state.height);
-    state.x = clampedPosition.x;
-    state.y = clampedPosition.y;
-    state.pipContainer.style.left = `${state.x}px`;
-    state.pipContainer.style.top = `${state.y}px`;
-    didChange = true;
+  // ── Calcular posición final directamente desde la geometría del preview ──
+  // Durante el preview, la posición visual del top-left del contenedor era:
+  //   visualX = state.x + ox*(1-vs) + tx
+  //   visualY = state.y + oy*(1-vs) + ty
+  // Usamos esa posición como nueva posición real del contenedor.
+  const visualX = state.x + ox * (1 - vs) + tx;
+  const visualY = state.y + oy * (1 - vs) + ty;
+
+  // Nueva escala real
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  const finalScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * factor));
+  const newWidth = Math.max(MIN_PIP_SIZE, Math.round(panelWidth * finalScale) + PIP_BORDER_SIZE);
+  const newHeight = Math.max(MIN_PIP_SIZE, Math.round(panelHeight * finalScale) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
+
+  const clampedPosition = clampPipPosition(visualX, visualY, newWidth, newHeight);
+  state.x = clampedPosition.x;
+  state.y = clampedPosition.y;
+  state.width = newWidth;
+  state.height = newHeight;
+  state.pipContainer.style.left = `${state.x}px`;
+  state.pipContainer.style.top = `${state.y}px`;
+  state.pipContainer.style.width = `${newWidth}px`;
+  state.pipContainer.style.height = `${newHeight}px`;
+
+  updatePipScale(panelId, finalScale, false);
+
+  // Resetear scroll residual
+  refreshPipViewportMetrics(state);
+  const viewport = state.viewportEl;
+  if (viewport) {
+    viewport.scrollLeft = 0;
+    viewport.scrollTop = 0;
+    state.lastScrollLeft = 0;
+    state.lastScrollTop = 0;
   }
 
-  if (didChange) {
-    schedulePipStateSave();
-  }
+  schedulePipStateSave();
 }
 
 function finalizePendingPipDrag(state, { deactivatePreview = true } = {}) {
@@ -905,6 +934,10 @@ function cancelPendingPipInteraction(state) {
   state.pinchPreviewTy = 0;
   state.pinchPreviewOriginX = null;
   state.pinchPreviewOriginY = null;
+  if (state._willChangeTimer) {
+    clearTimeout(state._willChangeTimer);
+    state._willChangeTimer = null;
+  }
   if (state.pipContainer) {
     state.pipContainer.style.transform = '';
     state.pipContainer.style.transformOrigin = '';
@@ -2514,6 +2547,11 @@ function setupPipEvents(pipContainer, panelId) {
       // Así el compositor ya tiene la textura lista y no necesita rasterizar
       // el subárbol entero en el primer touchmove.
       if (state?.pipContainer) {
+        // Cancel any pending will-change removal from a previous gesture
+        if (state._willChangeTimer) {
+          clearTimeout(state._willChangeTimer);
+          state._willChangeTimer = null;
+        }
         state.pipContainer.style.willChange = 'transform';
       }
       gestureInProgress = true;

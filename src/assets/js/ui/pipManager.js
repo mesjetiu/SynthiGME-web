@@ -66,6 +66,10 @@ const PIP_TOUCHPAD_MOVE_FACTOR = 0.22;
 /** Debounce para persistir estado PiP tras interacciones continuas */
 const PIP_SAVE_DEBOUNCE_MS = 180;
 
+/** Duración/easing de la animación al extraer/devolver un panel entre canvas y PiP */
+const PIP_TRANSITION_DURATION_MS = 380;
+const PIP_TRANSITION_EASING = (t) => 1 - ((1 - t) ** 4);
+
 /** Tiempo sin interacción antes de restaurar el panel vivo en PiP */
 const PIP_PREVIEW_IDLE_MS = 220;
 
@@ -108,6 +112,7 @@ const PIP_PINCH_EPSILON = 0.002; // Cambio mínimo para aplicar zoom
 let _pipStateSaveTimer = null;
 const pipPreviewRefreshTimers = new Map();
 const pipPreviewIdleJobs = new Map();
+const pipTransitionJobs = new Map();
 let pipSharpRasterizeEnabled = localStorage.getItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED) === 'true';
 let activeWheelGesturePanelId = null;
 let activeWheelGestureTimer = null;
@@ -144,6 +149,157 @@ const PIP_PREVIEW_SNAPSHOT_SELECTORS = [
   '.output-channel__slider-wrap',
   '.output-channel__switch-wrap'
 ].join(', ');
+
+function prefersReducedMotion() {
+  try {
+    return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  } catch (_) {
+    return false;
+  }
+}
+
+function normalizeRect(rect) {
+  if (!rect) return null;
+  const width = Number(rect.width ?? (rect.right - rect.left));
+  const height = Number(rect.height ?? (rect.bottom - rect.top));
+  const left = Number(rect.left);
+  const top = Number(rect.top);
+
+  if (![width, height, left, top].every(Number.isFinite)) return null;
+  if (width < 1 || height < 1) return null;
+
+  return { left, top, width, height };
+}
+
+function getElementRect(element) {
+  if (!(element instanceof Element)) return null;
+  return normalizeRect(element.getBoundingClientRect());
+}
+
+function resetDetachedPanelPresentation(panelEl) {
+  if (!panelEl?.style) return;
+  panelEl.style.zoom = '';
+  panelEl.style.transform = '';
+  panelEl.style.transformOrigin = '';
+}
+
+function applyPipTransitionFrame(state, rect, scale) {
+  if (!state?.pipContainer || !rect) return;
+
+  state.x = rect.left;
+  state.y = rect.top;
+  state.width = rect.width;
+  state.height = rect.height;
+  state.pipContainer.style.left = `${rect.left}px`;
+  state.pipContainer.style.top = `${rect.top}px`;
+  state.pipContainer.style.width = `${rect.width}px`;
+  state.pipContainer.style.height = `${rect.height}px`;
+  refreshPipViewportMetrics(state);
+  updatePipScale(state.panelId, scale, false);
+}
+
+function cancelPipTransition(panelId) {
+  const job = pipTransitionJobs.get(panelId);
+  if (!job) return;
+
+  pipTransitionJobs.delete(panelId);
+  try {
+    job.animation?.cancel?.();
+  } catch (_) {
+    // ignore
+  }
+  job.cleanup?.();
+}
+
+function runPipTransition(panelId, {
+  state,
+  fromRect,
+  toRect,
+  mode = 'enter',
+  onFinish = null
+} = {}) {
+  cancelPipTransition(panelId);
+
+  const finish = () => {
+    state?.pipContainer?.classList?.remove?.('pip-container--animating');
+    if (state?.pipContainer?.style) {
+      state.pipContainer.style.willChange = '';
+      state.pipContainer.style.pointerEvents = state.transitionPointerEvents || '';
+    }
+    if (state) {
+      state.isTransitioning = false;
+      state.transitionPointerEvents = null;
+    }
+    onFinish?.();
+  };
+
+  const startRect = normalizeRect(fromRect);
+  const endRect = normalizeRect(toRect);
+  if (_isRestoring || prefersReducedMotion() || !state?.pipContainer || !startRect || !endRect) {
+    finish();
+    return;
+  }
+
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  const scaleForRect = (rect) => getPipCoverScale(
+    Math.max(1, rect.width),
+    Math.max(1, rect.height),
+    panelWidth,
+    panelHeight
+  );
+  const initialScale = scaleForRect(startRect);
+  const finalScale = scaleForRect(endRect);
+
+  if (![initialScale, finalScale].every(Number.isFinite)) {
+    finish();
+    return;
+  }
+
+  state.isTransitioning = true;
+  state.transitionPointerEvents = state.pipContainer.style.pointerEvents;
+  state.pipContainer.style.pointerEvents = 'none';
+  state.pipContainer.classList.add('pip-container--animating');
+  state.pipContainer.style.willChange = 'left, top, width, height';
+  applyPipTransitionFrame(state, startRect, initialScale);
+
+  let rafId = 0;
+  let startTime = 0;
+  const job = {
+    cleanup: () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      finish();
+    }
+  };
+  pipTransitionJobs.set(panelId, job);
+
+  const step = (now) => {
+    if (pipTransitionJobs.get(panelId) !== job) return;
+
+    if (!startTime) startTime = now;
+    const rawProgress = Math.min(1, (now - startTime) / PIP_TRANSITION_DURATION_MS);
+    const eased = PIP_TRANSITION_EASING(rawProgress);
+
+    const rect = {
+      left: startRect.left + ((endRect.left - startRect.left) * eased),
+      top: startRect.top + ((endRect.top - startRect.top) * eased),
+      width: startRect.width + ((endRect.width - startRect.width) * eased),
+      height: startRect.height + ((endRect.height - startRect.height) * eased)
+    };
+    const scale = scaleForRect(rect);
+    applyPipTransitionFrame(state, rect, scale);
+
+    if (rawProgress >= 1) {
+      applyPipTransitionFrame(state, endRect, finalScale);
+      pipTransitionJobs.delete(panelId);
+      finish();
+      return;
+    }
+
+    rafId = requestAnimationFrame(step);
+  };
+
+  rafId = requestAnimationFrame(step);
+}
 
 function ensurePipLockFlags(state) {
   if (!state) return null;
@@ -291,6 +447,7 @@ function focusTopmostPip() {
   let topmostPanelId = null;
   let topmostZIndex = -Infinity;
   for (const [panelId, state] of activePips.entries()) {
+    if (state?.isClosing) continue;
     const zIndex = parseInt(state.pipContainer.style.zIndex, 10) || PIP_Z_INDEX_BASE;
     if (zIndex >= topmostZIndex) {
       topmostZIndex = zIndex;
@@ -1546,7 +1703,9 @@ export function focusPip(panelId) {
 export function openPip(panelId, restoredConfig = null) {
   const panelEl = document.getElementById(panelId);
   if (!panelEl || activePips.has(panelId)) return;
+  cancelPipTransition(panelId);
   const pipConfig = restoredConfig || getRememberedPipConfig(panelId);
+  const sourceRect = getElementRect(panelEl);
   
   const originalParent = panelEl.parentElement;
   const siblings = Array.from(originalParent.children);
@@ -1672,6 +1831,7 @@ export function openPip(panelId, restoredConfig = null) {
   pipContainer.style.top = `${initY}px`;
   pipContainer.style.width = `${initW}px`;
   pipContainer.style.height = `${initH}px`;
+  const targetRect = { left: initX, top: initY, width: initW, height: initH };
   
   // Barra de título
   const header = document.createElement('div');
@@ -1789,8 +1949,6 @@ export function openPip(panelId, restoredConfig = null) {
   activePips.set(panelId, state);
   ensurePipLockFlags(state);
   rememberPipConfig(panelId, state);
-  schedulePipPreviewRefresh(panelId, { immediate: true });
-  schedulePipRasterize(panelId);
   if (perfMonitor.isEnabled()) {
     perfMonitor.incrementCounter('pip.open');
     perfMonitor.mark('pip:open', { panelId, restored: !!restoredConfig });
@@ -1856,6 +2014,17 @@ export function openPip(panelId, restoredConfig = null) {
   setupPipEvents(pipContainer, panelId);
   updatePipLockUi(state);
   bringToFront(panelId);
+
+  runPipTransition(panelId, {
+    state,
+    fromRect: sourceRect,
+    toRect: targetRect,
+    mode: 'enter',
+    onFinish: () => {
+      schedulePipPreviewRefresh(panelId);
+      schedulePipRasterize(panelId);
+    }
+  });
   
   // Marcar panel como pipped para CSS
   panelEl.classList.add('panel--pipped');
@@ -1876,6 +2045,8 @@ export function openPip(panelId, restoredConfig = null) {
 export function closePip(panelId) {
   const state = activePips.get(panelId);
   if (!state) return;
+  cancelPipTransition(panelId);
+  const closeFromRect = getElementRect(state.pipContainer);
   rememberPipConfig(panelId, state);
   cancelPendingPipInteraction(state);
   cancelPipRasterize(state);
@@ -1886,61 +2057,67 @@ export function closePip(panelId) {
   destroyPipPreviewLayer(panelId);
   
   // Resetear escala del panel
-  panelEl.style.zoom = '';
-  panelEl.style.transform = '';
-  panelEl.classList.remove('panel--pipped');
+  resetDetachedPanelPresentation(panelEl);
   
-  // El placeholder está en la posición correcta - reemplazarlo por el panel
   const placeholder = document.getElementById(`pip-placeholder-${panelId}`);
-  if (placeholder && placeholder.parentElement) {
-    placeholder.parentElement.insertBefore(panelEl, placeholder);
-    placeholder.remove();
-  } else {
-    // Fallback: calcular posición si no hay placeholder
-    const { originalParent } = state;
-    const currentElements = Array.from(originalParent.children);
-    const targetIndex = PANEL_ORDER.indexOf(panelId);
-    
-    let insertBefore = null;
-    for (const existing of currentElements) {
-      // Considerar tanto paneles como placeholders
-      const existingId = existing.id.replace('pip-placeholder-', '');
-      const existingIndex = PANEL_ORDER.indexOf(existingId);
-      if (existingIndex > targetIndex) {
-        insertBefore = existing;
-        break;
-      }
-    }
-    
-    if (insertBefore) {
-      originalParent.insertBefore(panelEl, insertBefore);
-    } else {
-      originalParent.appendChild(panelEl);
-    }
-  }
-  
-  // Eliminar contenedor PiP
-  const { pipContainer } = state;
-  pipContainer.remove();
-  
-  activePips.delete(panelId);
-  if (perfMonitor.isEnabled()) {
-    perfMonitor.incrementCounter('pip.close');
-    perfMonitor.mark('pip:close', { panelId });
-  }
-  
-  // Si el PiP cerrado tenía el foco, devolver foco al canvas principal
+  const targetRect = getElementRect(placeholder) || getElementRect(panelEl);
+
+  state.isClosing = true;
+  state.pipContainer.style.pointerEvents = 'none';
   if (focusedPipId === panelId) {
-    focusTopmostPip();
+    focusedPipId = null;
+    window.__synthFocusedPip = null;
+    dispatchPipFocusChange(null);
   }
-  
-  log.info(`Panel ${panelId} devuelto a viewport`);
-  
-  // Guardar estado
-  savePipState();
-  
-  // Emitir evento
-  window.dispatchEvent(new CustomEvent('pip:close', { detail: { panelId } }));
+
+  runPipTransition(panelId, {
+    state,
+    fromRect: closeFromRect,
+    toRect: targetRect,
+    mode: 'exit',
+    onFinish: () => {
+      panelEl.classList.remove('panel--pipped');
+
+      if (placeholder && placeholder.parentElement) {
+        placeholder.parentElement.insertBefore(panelEl, placeholder);
+        placeholder.remove();
+      } else {
+        const { originalParent } = state;
+        const currentElements = Array.from(originalParent.children);
+        const targetIndex = PANEL_ORDER.indexOf(panelId);
+
+        let insertBefore = null;
+        for (const existing of currentElements) {
+          const existingId = existing.id.replace('pip-placeholder-', '');
+          const existingIndex = PANEL_ORDER.indexOf(existingId);
+          if (existingIndex > targetIndex) {
+            insertBefore = existing;
+            break;
+          }
+        }
+
+        if (insertBefore) {
+          originalParent.insertBefore(panelEl, insertBefore);
+        } else {
+          originalParent.appendChild(panelEl);
+        }
+      }
+
+      resetDetachedPanelPresentation(panelEl);
+
+      state.pipContainer.remove();
+      activePips.delete(panelId);
+      if (perfMonitor.isEnabled()) {
+        perfMonitor.incrementCounter('pip.close');
+        perfMonitor.mark('pip:close', { panelId });
+      }
+
+      focusTopmostPip();
+      log.info(`Panel ${panelId} devuelto a viewport`);
+      savePipState();
+      window.dispatchEvent(new CustomEvent('pip:close', { detail: { panelId } }));
+    }
+  });
 }
 
 /**

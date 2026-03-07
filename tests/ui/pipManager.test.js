@@ -65,6 +65,38 @@ describe('Toggle y memoria de geometría PiP', () => {
   });
 });
 
+describe('Animación visual canvas ↔ PiP', () => {
+  it('declara helpers de transición sobre la PiP real', () => {
+    assert.match(pipSource, /const PIP_TRANSITION_DURATION_MS = \d+;/);
+    assert.match(pipSource, /function resetDetachedPanelPresentation\(panelEl\)/);
+    assert.match(pipSource, /function applyPipTransitionFrame\(state, rect, scale\)/);
+    assert.match(pipSource, /function runPipTransition\(panelId, \{/);
+    assert.match(pipSource, /mode = 'enter'/);
+    assert.doesNotMatch(pipSource, /createPipTransitionClone/);
+    assert.doesNotMatch(pipSource, /pipTransitionSnapshots/);
+  });
+
+  it('anima interpolando geometría y escala de la propia ventana PiP', () => {
+    assert.match(pipSource, /state\.pipContainer\.classList\.add\('pip-container--animating'\)/);
+    assert.match(pipSource, /const rect = \{[\s\S]*?left: startRect\.left \+ \(\(endRect\.left - startRect\.left\) \* eased\),/);
+    assert.match(pipSource, /const scaleForRect = \(rect\) => getPipCoverScale\(/);
+    assert.match(pipSource, /const scale = scaleForRect\(rect\);/);
+    assert.match(pipSource, /rafId = requestAnimationFrame\(step\);/);
+  });
+
+  it('openPip anima desde el panel original hasta la geometría PiP', () => {
+    assert.match(pipSource, /export function openPip\(panelId, restoredConfig = null\) \{[\s\S]*?const sourceRect = getElementRect\(panelEl\);[\s\S]*?const targetRect = \{ left: initX, top: initY, width: initW, height: initH \};[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?state,[\s\S]*?fromRect: sourceRect,[\s\S]*?toRect: targetRect,[\s\S]*?mode: 'enter'/);
+  });
+
+  it('closePip anima desde la ventana PiP hasta su hueco en el canvas', () => {
+    assert.match(pipSource, /export function closePip\(panelId\) \{[\s\S]*?const closeFromRect = getElementRect\(state\.pipContainer\);[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?state,[\s\S]*?fromRect: closeFromRect,[\s\S]*?toRect: targetRect,[\s\S]*?mode: 'exit'/);
+  });
+
+  it('closePip limpia la presentación escalada al devolver el panel al canvas', () => {
+    assert.match(pipSource, /export function closePip\(panelId\) \{[\s\S]*?resetDetachedPanelPresentation\(panelEl\);[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?onFinish: \(\) => \{[\s\S]*?resetDetachedPanelPresentation\(panelEl\);/);
+  });
+});
+
 describe('Locks del PiP enfocado', () => {
   it('getFocusedPipLockState devuelve panelId, hasFocusedPip, panLocked, zoomLocked y locked', () => {
     assert.match(pipSource, /return \{[\s\S]*?panelId:[\s\S]*?hasFocusedPip:[\s\S]*?panLocked:[\s\S]*?zoomLocked:[\s\S]*?locked:/);

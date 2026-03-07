@@ -652,29 +652,18 @@ function schedulePendingPipDrag(panelId) {
 }
 
 /**
- * Aplica una previsualización CSS transform-only del pinch-zoom sobre
- * el contenedor PiP. Solo usa scale() + translate3d() → composición GPU
- * pura, sin layout ni paint. El resize real se commitea en touchend.
+ * El preview visual del pinch se aplica directamente en touchmove
+ * (style.transform es compositor-only, sin latencia de RAF).
+ * schedulePendingPinchZoom ya no programa nada — solo se mantiene
+ * por compatibilidad con cancelPendingPipInteraction.
+ * El resize real se commitea en touchend via commitPendingPinchZoom.
  */
-function schedulePendingPinchZoom(panelId) {
-  const state = activePips.get(panelId);
-  if (!state || state.pendingPinchRaf) return;
-  state.pendingPinchRaf = requestAnimationFrame(() => flushPendingPinchZoom(panelId));
+function schedulePendingPinchZoom(_panelId) {
+  // No-op: el transform se aplica directamente en touchmove
 }
 
-function flushPendingPinchZoom(panelId) {
-  const state = activePips.get(panelId);
-  if (!state) return;
-  state.pendingPinchRaf = null;
-
-  // Aplicar el transform acumulado como preview GPU-only (sin layout)
-  const tx = state.pinchPreviewTx || 0;
-  const ty = state.pinchPreviewTy || 0;
-  const vs = state.pinchPreviewScale || 1;
-
-  if (vs !== 1 || tx !== 0 || ty !== 0) {
-    state.pipContainer.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${vs})`;
-  }
+function flushPendingPinchZoom(_panelId) {
+  // No-op: solo se usa commitPendingPinchZoom en touchend
 }
 
 /**
@@ -2530,6 +2519,14 @@ function setupPipEvents(pipContainer, panelId) {
       lastPinchDist = Math.hypot(dx, dy);
       lastPinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       lastPinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      // Cachear rect del contenedor para transformOrigin (evita layout flush en touchmove)
+      if (state) {
+        const rect = state.pipContainer.getBoundingClientRect();
+        state.pinchPreviewOriginX = lastPinchCenterX - rect.left;
+        state.pinchPreviewOriginY = lastPinchCenterY - rect.top;
+        state.pipContainer.style.transformOrigin =
+          `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
+      }
     } else if (e.touches.length === 1 && touchPanId === null) {
       // ── Drag de ventana con 1 dedo ──
       const state = activePips.get(panelId);
@@ -2553,7 +2550,8 @@ function setupPipEvents(pipContainer, panelId) {
       if (state && isPipZoomLocked(state)) return;
       e.preventDefault();
       e.stopPropagation();
-      setPipPreviewMode(panelId, true);
+      // No llamar a setPipPreviewMode aquí: ya se activó en touchstart.
+      // Repetirlo en cada touchmove fuerza classList/cancelRasterize innecesarios.
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
@@ -2584,17 +2582,6 @@ function setupPipEvents(pipContainer, panelId) {
       state.pendingPinchPanDx += panDx;
       state.pendingPinchPanDy += panDy;
 
-      // Calcular transform de preview (composición GPU, sin layout)
-      // El primer touchstart que registró 2 dedos capturó el pinchCenter
-      // inicial; usamos el containerRect cacheado para el transformOrigin.
-      if (state.pinchPreviewOriginX == null) {
-        const rect = state.pipContainer.getBoundingClientRect();
-        state.pinchPreviewOriginX = pinchClientX - rect.left;
-        state.pinchPreviewOriginY = pinchClientY - rect.top;
-        state.pipContainer.style.transformOrigin =
-          `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
-      }
-
       // Escala visual acumulada
       state.pinchPreviewScale = (state.pinchPreviewScale || 1) * clampedFactor;
       // Clamp visual a los mismos límites que el zoom real
@@ -2606,7 +2593,10 @@ function setupPipEvents(pipContainer, panelId) {
       state.pinchPreviewTx = (state.pinchPreviewTx || 0) + panDx;
       state.pinchPreviewTy = (state.pinchPreviewTy || 0) + panDy;
 
-      schedulePendingPinchZoom(panelId);
+      // Aplicar transform directo (sin RAF): style.transform es compositor-only,
+      // no provoca layout/paint. Ir por RAF añadiría 1 frame de latencia (8-16ms).
+      state.pipContainer.style.transform =
+        `translate3d(${state.pinchPreviewTx}px, ${state.pinchPreviewTy}px, 0) scale(${state.pinchPreviewScale})`;
     } else if (e.touches.length === 1 && touchPanId !== null) {
       // ── Drag de ventana con 1 dedo ──
       // Buscar el touch activo por su identifier

@@ -7,7 +7,7 @@ import { t } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
-import { toggleRememberedPip, toggleAllRememberedPips } from './pipManager.js';
+import { focusPip, getFocusedPipLockState, isPipped, toggleRememberedPip, toggleAllRememberedPips } from './pipManager.js';
 
 const log = createLogger('KeyboardShortcuts');
 
@@ -62,10 +62,21 @@ const DEFAULT_SHORTCUTS = {
 };
 
 /**
- * Alterna el panel entre canvas y PiP reutilizando la última geometría detached.
+ * Si el panel está en canvas lo detached; si ya está en PiP, solo lo devuelve
+ * al canvas cuando esa PiP es la enfocada. En caso contrario, lo trae al frente.
  * @param {string} panelId - ID del panel
  */
 function panelShortcutAction(panelId) {
+  if (isPipped(panelId)) {
+    const { hasFocusedPip, panelId: focusedPanelId } = getFocusedPipLockState();
+    if (hasFocusedPip && focusedPanelId === panelId) {
+      toggleRememberedPip(panelId);
+      return;
+    }
+    focusPip(panelId);
+    return;
+  }
+
   toggleRememberedPip(panelId);
 }
 

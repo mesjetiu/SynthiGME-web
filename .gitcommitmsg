@@ -1,8 +1,0 @@
-feat(pip): optimización pinch-zoom sin resize en tablet
-
-- Implementada lógica para que el pinch-zoom en PiP no redimensione el contenedor en tablet, solo aplica escala interna
-- Se cachean las métricas del panel para evitar layout thrashing y mejorar el rendimiento
-- Eliminada la promoción permanente de GPU layer salvo en tablet, donde se mantiene vía media query
-- Se mantiene el resize del contenedor solo en desktop para máxima nitidez
-- Todos los tests de UI pasan tras los cambios
-- Actualizado CHANGELOG con la nueva lógica y optimización

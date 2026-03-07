@@ -16,8 +16,26 @@ const svgTextCache = new Map();
 /** Promesas de fetch en curso: ruta → Promise<string> */
 const fetchPromises = new Map();
 
+/** Assets raster usados para knobs estándar/bipolares sin inflar el DOM con SVG inline */
+const rasterImageBySrc = new Map([
+  ['assets/knobs/knob.svg', 'assets/knobs/knob-ring.png'],
+  ['assets/knobs/knob-0-center.svg', 'assets/knobs/knob-ring-bipolar.png']
+]);
+
 /** Contador global para prefijar IDs de cada instancia */
 let instanceCounter = 0;
+
+function normalizeAssetPath(src) {
+  if (typeof src !== 'string') return '';
+  return src.replace(/^\.\//, '');
+}
+
+function resolveRasterAssetPath(src) {
+  const normalized = normalizeAssetPath(src);
+  const rasterPath = rasterImageBySrc.get(normalized);
+  if (!rasterPath) return null;
+  return src.startsWith('./') ? `./${rasterPath}` : rasterPath;
+}
 
 /**
  * Reasigna IDs y referencias internas dentro de un subárbol SVG ya insertado en el DOM.
@@ -121,6 +139,8 @@ export function makeIdsUnique(svgText) {
 
 /**
  * Carga un SVG inline en un contenedor con IDs únicos.
+ * Para knobs estándar/bipolares usa una imagen raster externa equivalente,
+ * evitando meter decenas o cientos de SVGs repetidos en el DOM.
  * Si la carga falla (ej: en entorno de tests sin servidor), retorna svg=null.
  * 
  * @param {string} src - Ruta al SVG
@@ -128,6 +148,26 @@ export function makeIdsUnique(svgText) {
  * @returns {Promise<{ svg: SVGElement|null, prefix: string }>} El SVG insertado y su prefijo
  */
 export async function loadSvgInline(src, container) {
+  const rasterSrc = resolveRasterAssetPath(src);
+  if (rasterSrc) {
+    const img = document.createElement('img');
+    img.src = rasterSrc;
+    img.alt = '';
+    img.draggable = false;
+    img.decoding = 'async';
+    img.loading = 'eager';
+    img.className = 'knob-raster-graphic';
+    img.setAttribute('aria-hidden', 'true');
+    container.replaceChildren(img);
+    if (container?.dispatchEvent) {
+      container.dispatchEvent(new CustomEvent('synth:svgInlineLoaded', {
+        bubbles: true,
+        detail: { src, prefix: '', svg: null, img, container }
+      }));
+    }
+    return { svg: null, prefix: '' };
+  }
+
   try {
     const text = await fetchSvgText(src);
     const { html, prefix } = makeIdsUnique(text);

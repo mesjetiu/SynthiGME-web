@@ -1,10 +1,12 @@
-const CACHE_VERSION = '0.7.0-20260307.180249';
+const CACHE_VERSION = '0.7.0-20260307.182406';
 const CACHE_NAME = `synthigme-cache-v${CACHE_VERSION}`;
 const CORE_ASSETS = [
   './',
   './index.html',
   './assets/css/main.css',
   './assets/js/app.js',
+  './assets/knobs/knob-ring.png',
+  './assets/knobs/knob-ring-bipolar.png',
   './assets/icons/ui-sprite.svg',
   './assets/panels/panel1_bg.svg',
   './assets/panels/panel2_bg.svg',
@@ -14,7 +16,7 @@ const CORE_ASSETS = [
   './assets/panels/panel6_bg.svg',
   './assets/panels/panel_1.jpg',
   './assets/panels/panel_2.jpg',
-  './assets/panels/panel_3.svg',
+  './assets/panels/panel_3.webp',
   './assets/panels/panel_4.jpg',
   './assets/panels/panel_7.jpg',
   './manifest.webmanifest',

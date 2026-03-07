@@ -1141,13 +1141,17 @@ h1 {
 .knob.knob--svg .knob-inner::after {
   display: none;
 }
-/* SVG inline del knob */
-.knob-inner > svg {
+/* Gráfico del knob (SVG inline o raster externo) */
+.knob-inner > svg,
+.knob-inner > img {
   width: 100%;
   height: 100%;
   display: block;
   pointer-events: none;
   user-select: none;
+}
+.knob-inner > img {
+  -webkit-user-drag: none;
 }
 /* Centro de color — NO gira (está fuera de .knob-inner) */
 .knob-center {

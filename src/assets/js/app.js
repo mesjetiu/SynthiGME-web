@@ -196,16 +196,13 @@ class App {
     labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
 
     // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
-    // Paneles con fondo desactivado temporalmente: 1, 2, 3 y 4.
+    // Paneles con fondo inline desactivado: 1, 2, 3 y 4.
     // injectInlinePanelSvgBackground('panel-1', './assets/panels/panel1_bg.svg');
     // injectInlinePanelSvgBackground('panel-2', './assets/panels/panel2_bg.svg');
     // injectInlinePanelSvgBackground('panel-3', './assets/panels/panel3_bg.svg');
     // injectInlinePanelSvgBackground('panel-4', './assets/panels/panel4_bg.svg');
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
     injectInlinePanelSvgBackground('panel-6', './assets/panels/panel6_bg.svg');
-
-    // Panel 3: SVG inyectado inline para heredar @font-face del DOM (Microgramma WOFF2)
-    injectInlinePanelSvgBackground('panel-3', './assets/panels/panel_3.svg');
 
     // Canvas: pinta fondos de panel-1/2/3/4 para evitar lagunas en móvil.
     preloadCanvasBgImages();
@@ -216,7 +213,8 @@ class App {
     // Fondos JPG temporales (eliminar línea correspondiente al migrar a SVG).
     setPanelImageBackground('panel-1', './assets/panels/panel_1.jpg');
     setPanelImageBackground('panel-2', './assets/panels/panel_2.jpg');
-    // Panel 3: fondo inline (arriba), ya no necesita background-image
+    // Panel 3: fondo rasterizado para evitar ~17k nodos SVG inline en DOM.
+    setPanelImageBackground('panel-3', './assets/panels/panel_3.webp');
     setPanelImageBackground('panel-4', './assets/panels/panel_4.jpg');
     setPanelImageBackground('panel-output', './assets/panels/panel_7.jpg');
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });

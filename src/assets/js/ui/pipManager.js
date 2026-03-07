@@ -697,9 +697,10 @@ function commitPendingPinchZoom(panelId) {
   state.pinchPreviewOriginX = null;
   state.pinchPreviewOriginY = null;
 
-  // Quitar el transform de preview
+  // Quitar el transform de preview y la promoción de capa GPU
   state.pipContainer.style.transform = '';
   state.pipContainer.style.transformOrigin = '';
+  state.pipContainer.style.willChange = '';
 
   let didChange = false;
 
@@ -907,6 +908,7 @@ function cancelPendingPipInteraction(state) {
   if (state.pipContainer) {
     state.pipContainer.style.transform = '';
     state.pipContainer.style.transformOrigin = '';
+    state.pipContainer.style.willChange = '';
   }
   cancelPipRasterize(state);
   if (state.previewTimer) {
@@ -2508,7 +2510,12 @@ function setupPipEvents(pipContainer, panelId) {
       const state = activePips.get(panelId);
       if (state && isPipZoomLocked(state)) return;
       e.preventDefault();
-      setPipPreviewMode(panelId, true);
+      // Pre-promover la capa GPU del contenedor ANTES del primer transform.
+      // Así el compositor ya tiene la textura lista y no necesita rasterizar
+      // el subárbol entero en el primer touchmove.
+      if (state?.pipContainer) {
+        state.pipContainer.style.willChange = 'transform';
+      }
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
       // Ocultar tooltips de controles interactivos (ej. joystick pad)
@@ -2623,6 +2630,7 @@ function setupPipEvents(pipContainer, panelId) {
       lastPinchDist = 0;
       lastPinchCenterX = 0;
       lastPinchCenterY = 0;
+      // Programar rasterización nítida si procede (commit ya limpió will-change/transform)
       setPipPreviewMode(panelId, false);
       // Desactivar flag con delay para que el momentum scroll termine
       setTimeout(() => {

@@ -103,7 +103,7 @@ describe('Panel 1 Blueprint - Layout', () => {
 
     it('tiene knobSize definido', () => {
       assert.ok(fr.knobSize, 'debe tener knobSize');
-      assert.strictEqual(typeof fr.knobSize, 'string');
+      assert.strictEqual(typeof fr.knobSize, 'number');
     });
 
     it('tiene knobInnerPct entre 0 y 100', () => {
@@ -162,7 +162,7 @@ describe('Panel 1 Blueprint - Layout', () => {
 
     it('tiene knobSize definido', () => {
       assert.ok(es.knobSize, 'debe tener knobSize');
-      assert.strictEqual(typeof es.knobSize, 'string');
+      assert.strictEqual(typeof es.knobSize, 'number');
     });
 
     it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
@@ -192,8 +192,12 @@ describe('Panel 1 Blueprint - Layout', () => {
     });
 
     it('tiene gap horizontal entre módulos', () => {
-      assert.strictEqual(typeof br.gap, 'number');
-      assert.ok(br.gap >= 0, 'gap no puede ser negativo');
+      assert.strictEqual(typeof br.ringModulator.gap, 'number');
+      assert.strictEqual(typeof br.reverberation.gap, 'number');
+      assert.strictEqual(typeof br.echo.gap, 'number');
+      assert.ok(br.ringModulator.gap >= 0, 'ringModulator.gap no puede ser negativo');
+      assert.ok(br.reverberation.gap >= 0, 'reverberation.gap no puede ser negativo');
+      assert.ok(br.echo.gap >= 0, 'echo.gap no puede ser negativo');
     });
 
     it('tiene offset de fila con x e y numéricos', () => {

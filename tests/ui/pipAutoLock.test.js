@@ -1,17 +1,12 @@
 /**
- * Tests para la lógica de auto-lock/unlock de PiP
- * 
- * Verifica el contrato del sistema de bloqueo automático de paneo/zoom:
- * - Al abrir la primera PiP → auto-lock de paneo y zoom del canvas
- * - Al cerrar la última PiP → auto-unlock (si no se cambió manualmente)
- * - Si el usuario cambia los locks manualmente → se invalida el auto-lock
- * - El source 'pipAutoLock' se incluye en los eventos despachados
- * - La invalidación escucha eventos sin source 'pipAutoLock'
- * 
- * Método: análisis estático del código fuente de pipManager.js.
- * No requiere DOM ni Electron runtime.
+ * Tests para el nuevo contrato PiP-first de locks y foco.
+ *
+ * El canvas principal queda bloqueado/fijo y los locks visibles se aplican al
+ * PiP enfocado, sincronizados entre `pipManager`, `quickbar` y Electron.
+ *
+ * Método: análisis estático del código fuente.
  */
-import { describe, it, before } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -23,255 +18,82 @@ const ROOT = resolve(__dirname, '../..');
 const pipSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/pipManager.js'), 'utf-8');
 const quickbarSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/quickbar.js'), 'utf-8');
 const bridgeSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/electronMenuBridge.js'), 'utf-8');
+const navSource = readFileSync(resolve(ROOT, 'src/assets/js/navigation/viewportNavigation.js'), 'utf-8');
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 1. AUTO-LOCK AL ABRIR PRIMERA PiP
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('PiP auto-lock al abrir primera PiP', () => {
-
-  it('openPip() despacha synth:panLockChange con enabled:true', () => {
-    // Extraer la sección de auto-lock en openPip
-    const autoLockSection = pipSource.substring(
-      pipSource.indexOf('Auto-lock al abrir')
-    );
-    const panLock = autoLockSection.match(
-      /panLockChange[\s\S]*?enabled:\s*true/
-    );
-    assert.ok(panLock, 'openPip debe despachar synth:panLockChange enabled:true al abrir la primera PiP');
+describe('Canvas principal fijo', () => {
+  it('inicializa el viewport con paneo y zoom bloqueados', () => {
+    assert.match(navSource, /window\.__synthNavLocks = window\.__synthNavLocks \|\| \{ zoomLocked: true, panLocked: true \}/);
+    assert.match(navSource, /navLocks\.zoomLocked = true;/);
+    assert.match(navSource, /navLocks\.panLocked = true;/);
   });
 
-  it('openPip() despacha synth:zoomLockChange con enabled:true', () => {
-    const autoLockSection = pipSource.substring(
-      pipSource.indexOf('Auto-lock al abrir')
-    );
-    const zoomLock = autoLockSection.match(
-      /zoomLockChange[\s\S]*?enabled:\s*true/
-    );
-    assert.ok(zoomLock, 'openPip debe despachar synth:zoomLockChange enabled:true al abrir la primera PiP');
-  });
-
-  it('los eventos de auto-lock incluyen source: pipAutoLock', () => {
-    // Verificar que los eventos despachados tienen source: 'pipAutoLock'
-    const panLockWithSource = pipSource.match(
-      /panLockChange[\s\S]*?source:\s*'pipAutoLock'/
-    );
-    const zoomLockWithSource = pipSource.match(
-      /zoomLockChange[\s\S]*?source:\s*'pipAutoLock'/
-    );
-    assert.ok(panLockWithSource, 'synth:panLockChange debe incluir source: pipAutoLock');
-    assert.ok(zoomLockWithSource, 'synth:zoomLockChange debe incluir source: pipAutoLock');
-  });
-
-  it('solo hace auto-lock al pasar de 0 a 1 PiP (activePips.size === 1)', () => {
-    const sizeCheck = pipSource.match(/activePips\.size === 1 && !_isRestoring && !restoredConfig/);
-    assert.ok(sizeCheck, 'El auto-lock debe verificar activePips.size === 1, no restaurando sesión ni patch');
-  });
-
-  it('no hace auto-lock durante la restauración de sesión (_isRestoring)', () => {
-    const restoringGuard = pipSource.match(/!_isRestoring && !restoredConfig/);
-    assert.ok(restoringGuard, 'El auto-lock debe excluir restauración de sesión (_isRestoring)');
-  });
-
-  it('no hace auto-lock durante la restauración de patch (restoredConfig)', () => {
-    const restoredConfigGuard = pipSource.match(/!restoredConfig/);
-    assert.ok(restoredConfigGuard, 'El auto-lock debe excluir restauración de patch (restoredConfig)');
-    // Verificar que restoredConfig está en la misma condición que _isRestoring
-    const fullCondition = pipSource.match(/activePips\.size === 1 && !_isRestoring && !restoredConfig/);
-    assert.ok(fullCondition, 'restoredConfig debe estar en la misma guarda que _isRestoring');
-  });
-
-  it('hace zoom out a vista general al auto-lock', () => {
-    // Antes de bloquear, debe animar al zoom mínimo
-    const zoomOut = pipSource.match(
-      /auto-lock[\s\S]*?__synthAnimateToPanel[\s\S]*?null/
-    );
-    assert.ok(zoomOut, 'El auto-lock debe hacer zoom out a vista general (animateToPanel(null))');
+  it('restaurar viewportState vuelve siempre a overview', () => {
+    assert.match(navSource, /window\.__synthRestoreViewportState = \(state\) => \{/);
+    assert.match(navSource, /focusedPanelId = null;/);
+    assert.match(navSource, /userHasAdjustedView = false;/);
+    assert.match(navSource, /fitContentToViewport\(\);/);
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 2. AUTO-UNLOCK AL CERRAR ÚLTIMA PiP
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('PiP auto-unlock al cerrar última PiP', () => {
-
-  it('closePip() despacha synth:panLockChange con enabled:false', () => {
-    // Extraer la sección de auto-unlock en closePip
-    const closePipSection = pipSource.substring(
-      pipSource.indexOf('Auto-unlock al cerrar')
-    );
-    const panUnlock = closePipSection.match(
-      /panLockChange[\s\S]*?enabled:\s*false/
-    );
-    assert.ok(panUnlock, 'closePip debe despachar synth:panLockChange enabled:false al cerrar la última PiP');
+describe('pipManager expone foco y locks del PiP', () => {
+  it('despacha eventos pip:focuschange y pip:lockchange', () => {
+    assert.match(pipSource, /new CustomEvent\('pip:focuschange'/);
+    assert.match(pipSource, /new CustomEvent\('pip:lockchange'/);
   });
 
-  it('closePip() despacha synth:zoomLockChange con enabled:false', () => {
-    const closePipSection = pipSource.substring(
-      pipSource.indexOf('Auto-unlock al cerrar')
-    );
-    const zoomUnlock = closePipSection.match(
-      /zoomLockChange[\s\S]*?enabled:\s*false/
-    );
-    assert.ok(zoomUnlock, 'closePip debe despachar synth:zoomLockChange enabled:false al cerrar la última PiP');
+  it('expone helpers de estado para el PiP enfocado', () => {
+    assert.match(pipSource, /export function getFocusedPipLockState\(\)/);
+    assert.match(pipSource, /export function setFocusedPipPanLocked\(enabled\)/);
+    assert.match(pipSource, /export function setFocusedPipZoomLocked\(enabled\)/);
   });
 
-  it('solo hace auto-unlock si _autoLockedByPip es true', () => {
-    const guard = pipSource.match(/activePips\.size === 0 && _autoLockedByPip/);
-    assert.ok(guard, 'El auto-unlock debe verificar que _autoLockedByPip es true');
-  });
-
-  it('los eventos de auto-unlock incluyen source: pipAutoLock', () => {
-    // Buscar en la zona de closePip
-    const closePipSection = pipSource.substring(
-      pipSource.indexOf('function closePip(')
-    );
-    const panSource = closePipSection.match(
-      /panLockChange[\s\S]*?source:\s*'pipAutoLock'/
-    );
-    const zoomSource = closePipSection.match(
-      /zoomLockChange[\s\S]*?source:\s*'pipAutoLock'/
-    );
-    assert.ok(panSource, 'synth:panLockChange en closePip debe incluir source: pipAutoLock');
-    assert.ok(zoomSource, 'synth:zoomLockChange en closePip debe incluir source: pipAutoLock');
-  });
-
-  it('resetea _autoLockedByPip a false al hacer auto-unlock', () => {
-    const closePipSection = pipSource.substring(
-      pipSource.indexOf('function closePip(')
-    );
-    const resetFlag = closePipSection.match(
-      /activePips\.size === 0 && _autoLockedByPip[\s\S]*?_autoLockedByPip = false/
-    );
-    assert.ok(resetFlag, 'Debe resetear _autoLockedByPip a false al hacer auto-unlock');
+  it('publica toggleRememberedPip y getFocusedPipLockState en window', () => {
+    assert.match(pipSource, /window\.__synthToggleRememberedPip = toggleRememberedPip;/);
+    assert.match(pipSource, /window\.__synthGetFocusedPipLockState = getFocusedPipLockState;/);
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 3. INVALIDACIÓN DE AUTO-LOCK POR CAMBIO MANUAL
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('PiP auto-lock invalidación por cambio manual', () => {
-
-  it('escucha synth:panLockChange para invalidar auto-lock', () => {
-    const listener = pipSource.match(
-      /addEventListener\('synth:panLockChange',\s*invalidateAutoLock\)/
-    );
-    assert.ok(listener, 'Debe escuchar synth:panLockChange para invalidar');
+describe('Quickbar ligado al PiP enfocado', () => {
+  it('usa helpers del PiP enfocado en vez de locks globales del canvas', () => {
+    assert.match(quickbarSource, /getFocusedPipLockState/);
+    assert.match(quickbarSource, /setFocusedPipPanLocked/);
+    assert.match(quickbarSource, /setFocusedPipZoomLocked/);
+    assert.doesNotMatch(quickbarSource, /synth:panLockChange/);
+    assert.doesNotMatch(quickbarSource, /synth:zoomLockChange/);
   });
 
-  it('escucha synth:zoomLockChange para invalidar auto-lock', () => {
-    const listener = pipSource.match(
-      /addEventListener\('synth:zoomLockChange',\s*invalidateAutoLock\)/
-    );
-    assert.ok(listener, 'Debe escuchar synth:zoomLockChange para invalidar');
+  it('actualiza el estado visual con getFocusedPipLockState()', () => {
+    assert.match(quickbarSource, /const pipLockState = getFocusedPipLockState\(\);/);
+    assert.match(quickbarSource, /btnPan\.setAttribute\('aria-pressed', String\(Boolean\(pipLockState\.panLocked\)\)\)/);
+    assert.match(quickbarSource, /btnZoom\.setAttribute\('aria-pressed', String\(Boolean\(pipLockState\.zoomLocked\)\)\)/);
   });
 
-  it('invalidateAutoLock solo actúa si _autoLockedByPip es true', () => {
-    const guard = pipSource.match(/if \(_autoLockedByPip && e\.detail\?\.source !== 'pipAutoLock'\)/);
-    assert.ok(guard, 'invalidateAutoLock debe verificar _autoLockedByPip y filtrar por source');
+  it('deshabilita los botones de lock si no hay PiP enfocado', () => {
+    assert.match(quickbarSource, /btnPan\.disabled = !pipLockState\.hasFocusedPip;/);
+    assert.match(quickbarSource, /btnZoom\.disabled = !pipLockState\.hasFocusedPip;/);
   });
 
-  it('invalidateAutoLock ignora eventos con source pipAutoLock', () => {
-    const sourceFilter = pipSource.match(/source !== 'pipAutoLock'/);
-    assert.ok(sourceFilter, 'Debe ignorar eventos con source: pipAutoLock (propios)');
-  });
-
-  it('invalidateAutoLock pone _autoLockedByPip a false', () => {
-    // Buscar dentro de la función invalidateAutoLock
-    const invalidateBlock = pipSource.match(
-      /invalidateAutoLock[\s\S]*?_autoLockedByPip = false/
-    );
-    assert.ok(invalidateBlock, 'invalidateAutoLock debe poner _autoLockedByPip a false');
+  it('escucha eventos PiP para resincronizar el quickbar', () => {
+    ['pip:focuschange', 'pip:lockchange', 'pip:open', 'pip:close'].forEach(eventName => {
+      assert.match(quickbarSource, new RegExp(`window\\.addEventListener\\('${eventName}'`));
+    });
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 4. SINCRONIZACIÓN DE LOCKS ENTRE COMPONENTES
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('Sincronización de locks entre quickbar, pipManager y Electron', () => {
-
-  it('quickbar escucha synth:panLockChange de fuentes externas', () => {
-    const listener = quickbarSource.match(
-      /addEventListener\('synth:panLockChange'/
-    );
-    assert.ok(listener, 'Quickbar debe escuchar synth:panLockChange');
+describe('Electron bridge ligado al PiP enfocado', () => {
+  it('lee lockPan/lockZoom desde getFocusedPipLockState()', () => {
+    assert.match(bridgeSource, /lockPan: Boolean\(getFocusedPipLockState\(\)\.panLocked\)/);
+    assert.match(bridgeSource, /lockZoom: Boolean\(getFocusedPipLockState\(\)\.zoomLocked\)/);
   });
 
-  it('quickbar escucha synth:zoomLockChange de fuentes externas', () => {
-    const listener = quickbarSource.match(
-      /addEventListener\('synth:zoomLockChange'/
-    );
-    assert.ok(listener, 'Quickbar debe escuchar synth:zoomLockChange');
+  it('redirige setLockPan y setLockZoom al PiP enfocado', () => {
+    assert.match(bridgeSource, /case 'setLockPan':[\s\S]*?setFocusedPipPanLocked\(Boolean\(data\.enabled\)\);/);
+    assert.match(bridgeSource, /case 'setLockZoom':[\s\S]*?setFocusedPipZoomLocked\(Boolean\(data\.enabled\)\);/);
   });
 
-  it('quickbar actualiza navLocks.panLocked al recibir evento externo', () => {
-    const update = quickbarSource.match(
-      /synth:panLockChange[\s\S]*?navLocks\.panLocked = e\.detail/
-    );
-    assert.ok(update, 'Quickbar debe actualizar navLocks.panLocked con el valor del evento');
-  });
-
-  it('quickbar actualiza navLocks.zoomLocked al recibir evento externo', () => {
-    const update = quickbarSource.match(
-      /synth:zoomLockChange[\s\S]*?navLocks\.zoomLocked = e\.detail/
-    );
-    assert.ok(update, 'Quickbar debe actualizar navLocks.zoomLocked con el valor del evento');
-  });
-
-  it('electronMenuBridge tiene handler para setLockPan', () => {
-    const handler = bridgeSource.match(/case 'setLockPan'/);
-    assert.ok(handler, 'Bridge debe tener handler para setLockPan');
-  });
-
-  it('electronMenuBridge tiene handler para setLockZoom', () => {
-    const handler = bridgeSource.match(/case 'setLockZoom'/);
-    assert.ok(handler, 'Bridge debe tener handler para setLockZoom');
-  });
-
-  it('bridge despacha synth:panLockChange al recibir setLockPan', () => {
-    const bridgeLockSection = bridgeSource.substring(
-      bridgeSource.indexOf("case 'setLockPan'")
-    );
-    const dispatch = bridgeLockSection.match(
-      /panLockChange[\s\S]{0,200}?enabled:\s*locks\.panLocked/
-    );
-    assert.ok(dispatch, 'Bridge debe despachar synth:panLockChange al manejar setLockPan');
-  });
-
-  it('bridge despacha synth:zoomLockChange al recibir setLockZoom', () => {
-    const bridgeLockSection = bridgeSource.substring(
-      bridgeSource.indexOf("case 'setLockZoom'")
-    );
-    const dispatch = bridgeLockSection.match(
-      /zoomLockChange[\s\S]{0,200}?enabled:\s*locks\.zoomLocked/
-    );
-    assert.ok(dispatch, 'Bridge debe despachar synth:zoomLockChange al manejar setLockZoom');
-  });
-
-  it('el estado global __synthNavLocks se usa de forma consistente', () => {
-    // Todos los componentes deben usar el mismo objeto global para locks
-    assert.ok(
-      pipSource.includes('window.__synthNavLocks'),
-      'pipManager debe usar window.__synthNavLocks'
-    );
-    assert.ok(
-      quickbarSource.includes('window.__synthNavLocks'),
-      'quickbar debe usar window.__synthNavLocks'
-    );
-    assert.ok(
-      bridgeSource.includes('window.__synthNavLocks'),
-      'electronMenuBridge debe usar window.__synthNavLocks'
-    );
-  });
-
-  it('el objeto navLocks tiene las mismas propiedades en todos los componentes', () => {
-    // Todos deben inicializar con { zoomLocked: false, panLocked: false }
-    const pattern = /zoomLocked:\s*false,\s*panLocked:\s*false/;
-    assert.ok(pattern.test(pipSource), 'pipManager debe inicializar { zoomLocked: false, panLocked: false }');
-    assert.ok(pattern.test(quickbarSource), 'quickbar debe inicializar { zoomLocked: false, panLocked: false }');
-    assert.ok(pattern.test(bridgeSource), 'bridge debe inicializar { zoomLocked: false, panLocked: false }');
+  it('escucha pip:lockchange y pip:focuschange para sincronizar el menú', () => {
+    assert.match(bridgeSource, /'pip:lockchange':/);
+    assert.match(bridgeSource, /'pip:focuschange':/);
+    assert.match(bridgeSource, /const state = getFocusedPipLockState\(\);/);
   });
 });

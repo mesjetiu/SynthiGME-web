@@ -652,9 +652,9 @@ function schedulePendingPipDrag(panelId) {
 }
 
 /**
- * Acumula los deltas de pinch-zoom y programa su aplicación en el próximo
- * requestAnimationFrame. Así se evita layout-thrashing: múltiples touchmove
- * entre frames se fusionan en un solo ciclo de lectura+escritura de layout.
+ * Aplica una previsualización CSS transform-only del pinch-zoom sobre
+ * el contenedor PiP. Solo usa scale() + translate3d() → composición GPU
+ * pura, sin layout ni paint. El resize real se commitea en touchend.
  */
 function schedulePendingPinchZoom(panelId) {
   const state = activePips.get(panelId);
@@ -667,11 +667,34 @@ function flushPendingPinchZoom(panelId) {
   if (!state) return;
   state.pendingPinchRaf = null;
 
+  // Aplicar el transform acumulado como preview GPU-only (sin layout)
+  const tx = state.pinchPreviewTx || 0;
+  const ty = state.pinchPreviewTy || 0;
+  const vs = state.pinchPreviewScale || 1;
+
+  if (vs !== 1 || tx !== 0 || ty !== 0) {
+    state.pipContainer.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${vs})`;
+  }
+}
+
+/**
+ * Commitea el pinch-zoom acumulado: aplica el resize real al contenedor
+ * y re-renderiza el panel a la nueva escala. Se llama solo en touchend.
+ */
+function commitPendingPinchZoom(panelId) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+
+  if (state.pendingPinchRaf) {
+    cancelAnimationFrame(state.pendingPinchRaf);
+    state.pendingPinchRaf = null;
+  }
+
   const factor = state.pendingPinchFactor;
   const clientX = state.pendingPinchClientX;
   const clientY = state.pendingPinchClientY;
-  const panDx = state.pendingPinchPanDx;
-  const panDy = state.pendingPinchPanDy;
+  const panTx = state.pinchPreviewTx || 0;
+  const panTy = state.pinchPreviewTy || 0;
 
   // Reset acumuladores
   state.pendingPinchFactor = 1;
@@ -679,18 +702,27 @@ function flushPendingPinchZoom(panelId) {
   state.pendingPinchClientY = null;
   state.pendingPinchPanDx = 0;
   state.pendingPinchPanDy = 0;
+  state.pinchPreviewScale = 1;
+  state.pinchPreviewTx = 0;
+  state.pinchPreviewTy = 0;
+  state.pinchPreviewOriginX = null;
+  state.pinchPreviewOriginY = null;
+
+  // Quitar el transform de preview
+  state.pipContainer.style.transform = '';
+  state.pipContainer.style.transformOrigin = '';
 
   let didChange = false;
 
-  // Aplicar zoom acumulado
+  // Aplicar zoom acumulado real
   if (Math.abs(factor - 1) > PIP_PINCH_EPSILON) {
     const newScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * factor));
     didChange = applyPipWheelZoom(panelId, newScale, clientX, clientY) || didChange;
   }
 
   // Aplicar pan acumulado del centro del pinch
-  if (Math.abs(panDx) > 0.5 || Math.abs(panDy) > 0.5) {
-    const clampedPosition = clampPipPosition(state.x + panDx, state.y + panDy, state.width, state.height);
+  if (Math.abs(panTx) > 0.5 || Math.abs(panTy) > 0.5) {
+    const clampedPosition = clampPipPosition(state.x + panTx, state.y + panTy, state.width, state.height);
     state.x = clampedPosition.x;
     state.y = clampedPosition.y;
     state.pipContainer.style.left = `${state.x}px`;
@@ -878,6 +910,15 @@ function cancelPendingPipInteraction(state) {
   state.pendingPinchClientY = null;
   state.pendingPinchPanDx = 0;
   state.pendingPinchPanDy = 0;
+  state.pinchPreviewScale = 1;
+  state.pinchPreviewTx = 0;
+  state.pinchPreviewTy = 0;
+  state.pinchPreviewOriginX = null;
+  state.pinchPreviewOriginY = null;
+  if (state.pipContainer) {
+    state.pipContainer.style.transform = '';
+    state.pipContainer.style.transformOrigin = '';
+  }
   cancelPipRasterize(state);
   if (state.previewTimer) {
     clearTimeout(state.previewTimer);
@@ -2009,7 +2050,12 @@ export function openPip(panelId, restoredConfig = null) {
     pendingPinchClientY: null,
     pendingPinchPanDx: 0,
     pendingPinchPanDy: 0,
-    pendingPinchRaf: null
+    pendingPinchRaf: null,
+    pinchPreviewScale: 1,
+    pinchPreviewTx: 0,
+    pinchPreviewTy: 0,
+    pinchPreviewOriginX: null,
+    pinchPreviewOriginY: null
   };
 
   refreshPipViewportMetrics(state);
@@ -2531,13 +2577,35 @@ function setupPipEvents(pipContainer, panelId) {
       
       if (!state) return;
       
-      // Acumular zoom y pan para aplicar en el próximo rAF
-      // (evita layout-thrashing: un solo ciclo de lectura+escritura por frame)
+      // Acumular factor de zoom y pan para preview GPU-only
       state.pendingPinchFactor *= clampedFactor;
       state.pendingPinchClientX = pinchClientX;
       state.pendingPinchClientY = pinchClientY;
       state.pendingPinchPanDx += panDx;
       state.pendingPinchPanDy += panDy;
+
+      // Calcular transform de preview (composición GPU, sin layout)
+      // El primer touchstart que registró 2 dedos capturó el pinchCenter
+      // inicial; usamos el containerRect cacheado para el transformOrigin.
+      if (state.pinchPreviewOriginX == null) {
+        const rect = state.pipContainer.getBoundingClientRect();
+        state.pinchPreviewOriginX = pinchClientX - rect.left;
+        state.pinchPreviewOriginY = pinchClientY - rect.top;
+        state.pipContainer.style.transformOrigin =
+          `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
+      }
+
+      // Escala visual acumulada
+      state.pinchPreviewScale = (state.pinchPreviewScale || 1) * clampedFactor;
+      // Clamp visual a los mismos límites que el zoom real
+      const visMinScale = getMinScale(panelId) / Math.max(state.scale, 0.01);
+      const visMaxScale = MAX_SCALE / Math.max(state.scale, 0.01);
+      state.pinchPreviewScale = Math.max(visMinScale, Math.min(visMaxScale, state.pinchPreviewScale));
+
+      // Traslación acumulada
+      state.pinchPreviewTx = (state.pinchPreviewTx || 0) + panDx;
+      state.pinchPreviewTy = (state.pinchPreviewTy || 0) + panDy;
+
       schedulePendingPinchZoom(panelId);
     } else if (e.touches.length === 1 && touchPanId !== null) {
       // ── Drag de ventana con 1 dedo ──
@@ -2560,13 +2628,8 @@ function setupPipEvents(pipContainer, panelId) {
   
   content.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
-      // Flush cualquier pinch pendiente antes de finalizar el gesto
-      const endState = activePips.get(panelId);
-      if (endState?.pendingPinchRaf) {
-        cancelAnimationFrame(endState.pendingPinchRaf);
-        endState.pendingPinchRaf = null;
-        flushPendingPinchZoom(panelId);
-      }
+      // Commitear el pinch-zoom acumulado (resize real, una sola vez)
+      commitPendingPinchZoom(panelId);
       lastPinchDist = 0;
       lastPinchCenterX = 0;
       lastPinchCenterY = 0;

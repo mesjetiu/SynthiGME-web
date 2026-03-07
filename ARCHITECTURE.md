@@ -386,13 +386,13 @@ Componentes de interfaz reutilizables:
 | `recordingSettingsModal.js` | `RecordingSettingsModal` | Modal de configuración de grabación: selector de número de pistas (1-12), matriz de ruteo outputs→tracks adaptativa, configuración de qué buses del sintetizador van a qué pistas del archivo WAV |
 | `confirmDialog.js` | `ConfirmDialog` | Modal de confirmación reutilizable (singleton): título, mensaje, botones personalizables, opción "no volver a preguntar" con persistencia localStorage. Métodos estáticos `show()`, `getRememberedChoice()`, `clearRememberedChoice()` |
 | `inputDialog.js` | `InputDialog` | Diálogo de entrada de texto personalizado (singleton): reemplaza `prompt()` nativo, título/placeholder/valor por defecto configurables, soporte i18n |
-| `keyboardShortcuts.js` | `KeyboardShortcutsManager` | Gestor centralizado de atajos de teclado (singleton): acciones configurables (mute, record, patches, settings, fullscreen, reset, navegación paneles), persistencia en localStorage, teclas reservadas (Tab, Enter, Escape) |
+| `keyboardShortcuts.js` | `KeyboardShortcutsManager` | Gestor centralizado de atajos de teclado (singleton): acciones configurables (mute, record, patches, settings, fullscreen, reset, toggle PiP por panel y toggle global), persistencia en localStorage, hints visuales y teclas reservadas (Tab, Enter, Escape) |
 | `keyboardWindow.js` | `KeyboardWindow` | Ventana emergente SVG para los teclados del Synthi 100 (Panel 4). Renderiza 5 octavas con teclas interactivas (pointer events), feedback visual, glissando, y 3 modos de toque: **Normal** (press/release), **Latch** (toggle, teclas se quedan pulsadas), **Legato** (una tecla a la vez). Menú contextual con radio buttons para selección de modo. Persistencia del modo en localStorage |
 | `patchBrowser.js` | `PatchBrowser` | Modal para gestionar patches: guardar, cargar, eliminar, renombrar, exportar/importar archivos `.sgme.json`, búsqueda por nombre |
-| `quickbar.js` | — | Barra de acciones rápidas para móvil (bloqueo zoom/pan, ajustes, configuración de audio, pantalla completa, **menú PiP**) |
-| `pipManager.js` | `initPipManager()`, `openPip()`, `closePip()`, `togglePip()` | Sistema de paneles flotantes (Picture-in-Picture). Permite extraer cualquier panel del layout principal a una ventana flotante independiente con zoom/scroll propios. Funciones: `openAllPips()`, `closeAllPips()`, `getOpenPips()`, `isPipped()`. Persistencia de estado (posición, tamaño, scroll) en localStorage. Constante `ALL_PANELS` define los 7 paneles disponibles |
+| `quickbar.js` | — | Barra de acciones rápidas para móvil: mute, undo/redo, patches, ajustes, pantalla completa, menú PiP y bloqueos aplicados a la **PiP enfocada** |
+| `pipManager.js` | `initPipManager()`, `openPip()`, `closePip()`, `togglePip()` | Sistema PiP principal de la UI. Reparenta paneles del overview a ventanas flotantes frameless, recuerda geometría detached, expone foco y locks de la PiP activa (`getFocusedPipLockState()`), y centraliza `openAllPips()`, `closeAllPips()`, `toggleRememberedPip()`, `toggleAllRememberedPips()` e `isPipped()` |
 | `signalFlowHighlighter.js` | `SignalFlowHighlighter` | Resaltado visual de flujo de señal: al hacer hover/tap sobre un módulo o pin, resalta módulos conectados con glow cyan (fuente) y magenta (destino). Modo sin modificador (por defecto) o con tecla configurable. Ver [sección 20](#20-resaltado-de-flujo-de-señal) |
-| `electronMenuBridge.js` | `initElectronMenuBridge()` | Puente bidireccional entre menú nativo Electron y renderer. Recibe acciones del menú, envía estado y traducciones, sincroniza toggles (telemetría, OSC, PiP, etc.) |
+| `electronMenuBridge.js` | `initElectronMenuBridge()` | Puente bidireccional entre menú nativo Electron y renderer. Recibe acciones del menú, envía estado y traducciones, y sincroniza toggles de PiP, locks de la PiP enfocada, telemetría, OSC y demás estado global |
 
 ### 3.5 Navigation (`src/assets/js/navigation/`)
 
@@ -400,7 +400,7 @@ Sistema de navegación del viewport:
 
 | Archivo | Propósito |
 |---------|-----------|
-| `viewportNavigation.js` | Zoom/pan/pinch del viewport, animación a paneles, botones de enfoque |
+| `viewportNavigation.js` | Navegación del overview principal: el canvas arranca bloqueado en vista general, redirige pan/zoom al PiP enfocado cuando existe, y gestiona detach/return por doble clic o doble tap |
 
 #### Gestos Táctiles Soportados
 
@@ -410,14 +410,14 @@ Sistema de navegación del viewport:
 | **Dos dedos** | Pan + Zoom simultáneo | El centroide de los dos dedos controla el pan, la distancia controla el zoom |
 | **Pinch** | Zoom con ancla | El zoom se centra en el punto medio entre dedos |
 
-#### Sistema de Bloqueos (Móvil)
+#### Sistema de Bloqueos
 
-La quickbar permite bloquear gestos para evitar navegación accidental:
+El canvas principal permanece bloqueado en el modelo PiP-first. Los bloqueos visibles de la quickbar y del menú Electron actúan sobre la **PiP enfocada**:
 
 | Bloqueo | Efecto |
 |---------|--------|
-| `zoomLocked` | Ignora cambios de distancia en pinch |
-| `panLocked` | Ignora desplazamiento del centroide, ancla zoom en centro de viewport |
+| `zoomLocked` | Ignora zoom por pinch, rueda o atajos sobre la PiP enfocada |
+| `panLocked` | Impide mover o redimensionar la PiP enfocada |
 
 ### 3.6 Utils (`src/assets/js/utils/`)
 
@@ -1850,14 +1850,14 @@ El sistema usa un singleton `KeyboardShortcutsManager` que:
 | `settings` | `S` | Abrir/cerrar modal de ajustes |
 | `fullscreen` | `F` | Alternar pantalla completa |
 | `reset` | `Shift+I` | Reiniciar sintetizador a valores por defecto (con confirmación) |
-| `panel1` | `1` | Navegar al Panel 1 |
-| `panel2` | `2` | Navegar al Panel 2 |
-| `panel3` | `3` | Navegar al Panel 3 |
-| `panel4` | `4` | Navegar al Panel 4 |
-| `panel5` | `5` | Navegar al Panel 5 (Matriz Audio) |
-| `panel6` | `6` | Navegar al Panel 6 (Matriz Control) |
-| `panelOutput` | `7` | Navegar al Panel de Salida |
-| `overview` | `0` | Vista general (todos los paneles) |
+| `panel1` | `1` | Extraer/devolver el Panel 1 reutilizando su geometría PiP recordada |
+| `panel2` | `2` | Extraer/devolver el Panel 2 reutilizando su geometría PiP recordada |
+| `panel3` | `3` | Extraer/devolver el Panel 3 reutilizando su geometría PiP recordada |
+| `panel4` | `4` | Extraer/devolver el Panel 4 reutilizando su geometría PiP recordada |
+| `panel5` | `5` | Extraer/devolver el Panel 5 reutilizando su geometría PiP recordada |
+| `panel6` | `6` | Extraer/devolver el Panel 6 reutilizando su geometría PiP recordada |
+| `panelOutput` | `7` | Extraer/devolver el Panel de salida reutilizando su geometría PiP recordada |
+| `overview` | `0` | Extraer/devolver todos los paneles recordados |
 
 ### Teclas Reservadas
 
@@ -2555,7 +2555,7 @@ El proceso principal implementa:
 | **Archivo** | Patches, selector de idioma (7 idiomas como radio buttons), Recargar (con confirmación), Salir |
 | **Ver** | Quickbar (checkbox), Pantalla completa, Zoom +/-/Reset, pines inactivos, tooltips de voltaje, info de audio-rate, faders lineales, DevTools |
 | **Audio** | Mute/Unmute (etiqueta dinámica), Grabar/Detener (etiqueta dinámica), Ajustes de Audio, Ajustes de Grabación |
-| **Paneles** | Toggle PiP por panel (7 paneles como checkboxes), Extraer/Devolver todos, Bloquear pan, Bloquear zoom, Recordar paneles flotantes |
+| **Paneles** | Toggle PiP por panel (7 paneles como checkboxes), Extraer/Devolver todos, Keyboards, Bloquear pan/zoom de la PiP enfocada, Recordar layout visual |
 | **Avanzado** | Toasts de debug, Dormancy (+debug), Filter Bypass (+debug), Soft Clipping, Tolerancia de pines, Deriva térmica, Reset sintetizador, Todos los ajustes |
 | **MIDI** | Activar MIDI (checkbox), Mappings count (info), Devices count (info), Limpiar mappings, Exportar/Importar, Ajustes MIDI |
 | **OSC** | Activar OSC, Enviar/Recibir SuperCollider (desactivados sin OSC), Log OSC, Ajustes OSC |
@@ -3027,7 +3027,7 @@ tests/
 ├── ui/
 │   ├── audioSettingsModal.test.js    # Tests del modal de audio
 │   ├── contextMenuManager.test.js   # Tests del menú contextual jerárquico
-│   ├── doubleTapZoom.test.js        # Tests de doble tap para zoom a panel
+│   ├── doubleTapZoom.test.js        # Tests de detach/return por doble clic o doble tap
 │   ├── easterEgg.test.js            # Tests del easter egg
 │   ├── glowManager.test.js          # Tests del sistema de glow
 │   ├── inputAmplifierUI.test.js     # Tests de input amplifier UI
@@ -3042,9 +3042,9 @@ tests/
 │   ├── panelNotes.test.js           # Tests de notas post-it
 │   ├── patchBrowser.test.js         # Tests del navegador de patches
 │   ├── pinColorMenu.test.js         # Tests del menú de colores de pin
-│   ├── pipAutoLock.test.js          # Tests de auto-lock PiP
-│   ├── pipContainFit.test.js        # Tests de contain-fit PiP
-│   ├── pipManager.test.js           # Tests del sistema PiP
+│   ├── pipAutoLock.test.js          # Tests del contrato de foco y locks PiP-first
+│   ├── pipContainFit.test.js        # Tests del escalado frameless + cover de PiP
+│   ├── pipManager.test.js           # Tests del contrato público actual de PiP
 │   ├── recordingOverlay.test.js     # Tests del overlay de grabación
 │   ├── sgmeOscillator.test.js       # Tests del oscilador Synthi
 │   ├── signalFlowHighlighter.test.js  # Tests del resaltado de flujo de señal
@@ -3290,12 +3290,15 @@ Las variables de `process.env` tienen prioridad sobre `.env`. Sin `TELEMETRY_URL
 
 El sistema PiP usa **reparenting DOM**: el elemento `#panel-N` real se mueve del grid del canvas al contenedor PiP flotante. Un `<div class="pip-placeholder">` ocupa su lugar en el grid para preservar el layout.
 
+Desde la reestructuración PiP-first de marzo de 2026, este reparenting se integra con un **overview fijo**: el canvas principal ya no es el destino de foco/zoom fino, sino la vista general desde la que se desprenden y devuelven paneles.
+
 **Ventajas de este enfoque:**
 - Todos los event listeners existentes (knobs, sliders, pines, switches) sobreviven al movimiento.
 - Las conexiones de Web Audio (AudioNodes, AudioParams) permanecen intactas.
 - No se necesita sincronización visual ni event forwarding.
 - `contextMenuManager`, `tooltipManager` y todo el sistema de UI funciona sin cambios.
 - El código es simple: ~1700 líneas frente a las ~2700 de la alternativa.
+- Permite reutilizar la última geometría detached de cada panel y unificar double click/tap, quickbar, teclado y menú Electron en un único contrato PiP.
 
 ### 18.2 Rama `pip-refactor-wip`: modelo de clones (descartado)
 

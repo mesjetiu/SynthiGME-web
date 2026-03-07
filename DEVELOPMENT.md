@@ -156,6 +156,7 @@ APIs principales:
 
 Ayudas específicas para PiP:
 
+- El canvas principal se mantiene en overview; usa estas ayudas para abrir el foco de trabajo en PiP.
 - `window.__synthPipDebug.open(panelId)`
 - `window.__synthPipDebug.close(panelId)`
 - `window.__synthPipDebug.openAll()`
@@ -204,8 +205,8 @@ Resultados resumidos:
 Lectura inicial:
 
 - El árbol visual base ya es muy grande antes de interactuar.
-- El viewport principal parece estar más limitado por raster/compositor/paint que por JS puro.
-- El PiP sí muestra coste real de `layout/recalc`, especialmente en zoom.
+- El overview principal parece estar más limitado por raster/compositor/paint que por JS puro.
+- El PiP sigue mostrando coste real de `layout/recalc`, especialmente durante zoom y resize.
 - El modo `sharp rasterize` mejora claramente el estado en reposo tras el zoom, pero no resuelve el coste durante la interacción continua.
 
 ### Objetivo de esta infraestructura
@@ -214,7 +215,8 @@ No está pensada para telemetría de usuarios finales, sino para:
 
 - comparar A/B de cambios estructurales de UI
 - detectar regresiones de fluidez
-- decidir si conviene mantener el zoom global, limitarlo o migrar a una navegación centrada en paneles/PiP
+- validar regresiones del modelo actual de overview fijo + PiP como foco principal
+- medir el coste de previews, locks y redimensionado en paneles flotantes
 
 ## Referencia rápida de comandos
 

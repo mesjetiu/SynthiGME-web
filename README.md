@@ -4,7 +4,7 @@ SynthiGME-web es una emulación del sintetizador modular **Synthi 100** del Gabi
 
 Esta versión web permite explorar el sintetizador directamente desde tu navegador, sin necesidad de instalar nada.
 
-**Última actualización:** 4 de marzo de 2026 (financiación pública, MIDI Learn, RCVG, knobs SVG, PWM CV, easter egg, undo/redo, notas post-it, flujo de señal, menú contextual)
+**Última actualización:** 7 de marzo de 2026 (reestructuración PiP-first, financiación pública, MIDI Learn, RCVG, knobs SVG, PWM CV, easter egg, undo/redo, notas post-it, flujo de señal, menú contextual)
 
 ## 🚀 Acceso Rápido
 
@@ -63,6 +63,13 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 | **Easter egg** | Secuencia secreta en joysticks desencadena animación y pieza electroacústica. |
 | **Audio Multicanal** | 12 canales de salida + 8 de entrada independientes en Linux (PipeWire). [Más info](MULTICHANNEL.md). |
 
+### Navegación visual y PiP
+
+- **Canvas principal fijo**: la vista principal funciona como overview del sintetizador completo.
+- **PiP como foco principal**: haz **doble clic** o **doble tap** sobre un panel del canvas para extraerlo a una ventana flotante. Repite el gesto sobre la PiP para devolverlo.
+- **Geometría recordada**: al volver a extraer un panel, se recupera su última posición y tamaño detached.
+- **Controles coherentes**: quickbar, menú contextual, menú Electron y atajos de teclado usan el mismo modelo para extraer/devolver paneles y actuar sobre la **PiP enfocada**.
+
 ### Atajos de Teclado
 Usar el teclado hace la experiencia mucho más fluida:
 
@@ -76,11 +83,13 @@ Usar el teclado hace la experiencia mucho más fluida:
 | `Shift+I` | Reinicializar (Panic) |
 | `Ctrl+Z` | Deshacer |
 | `Ctrl+U` | Rehacer |
-| `1`-`7` | Navegar rápidamente entre paneles |
-| `0` | Vista general (todos los paneles) |
-| `←↑→↓` | Paneo del canvas |
-| `Ctrl+`/`Ctrl-` | Zoom in/out |
-| `Ctrl+0` | Restablecer zoom |
+| `1`-`7` | Extraer/devolver rápidamente cada panel usando su última geometría PiP |
+| `0` | Extraer/devolver todos los paneles; si una PiP está enfocada, ajustarla a formato cuadrado |
+| `←↑→↓` | Panear la PiP enfocada o, si no hay ninguna, el canvas principal |
+| `Ctrl+`/`Ctrl-` | Zoom in/out del contenido de la PiP enfocada o del canvas |
+| `Ctrl+0` | Restablecer el zoom del contenido de la PiP enfocada o del canvas |
+| `+` / `-` / `0` | Con una PiP enfocada: maximizar, restaurar tamaño o ajustar a cuadrado |
+| `Esc` (doble) | Cerrar todas las PiP abiertas |
 | `Ctrl` + Click | Mover knobs 10 veces más rápido |
 | `Shift` + Click | Mover knobs con precisión fina |
 

@@ -651,6 +651,58 @@ function schedulePendingPipDrag(panelId) {
   state.pendingDragRaf = requestAnimationFrame(() => flushPendingPipDrag(panelId));
 }
 
+/**
+ * Acumula los deltas de pinch-zoom y programa su aplicación en el próximo
+ * requestAnimationFrame. Así se evita layout-thrashing: múltiples touchmove
+ * entre frames se fusionan en un solo ciclo de lectura+escritura de layout.
+ */
+function schedulePendingPinchZoom(panelId) {
+  const state = activePips.get(panelId);
+  if (!state || state.pendingPinchRaf) return;
+  state.pendingPinchRaf = requestAnimationFrame(() => flushPendingPinchZoom(panelId));
+}
+
+function flushPendingPinchZoom(panelId) {
+  const state = activePips.get(panelId);
+  if (!state) return;
+  state.pendingPinchRaf = null;
+
+  const factor = state.pendingPinchFactor;
+  const clientX = state.pendingPinchClientX;
+  const clientY = state.pendingPinchClientY;
+  const panDx = state.pendingPinchPanDx;
+  const panDy = state.pendingPinchPanDy;
+
+  // Reset acumuladores
+  state.pendingPinchFactor = 1;
+  state.pendingPinchClientX = null;
+  state.pendingPinchClientY = null;
+  state.pendingPinchPanDx = 0;
+  state.pendingPinchPanDy = 0;
+
+  let didChange = false;
+
+  // Aplicar zoom acumulado
+  if (Math.abs(factor - 1) > PIP_PINCH_EPSILON) {
+    const newScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * factor));
+    didChange = applyPipWheelZoom(panelId, newScale, clientX, clientY) || didChange;
+  }
+
+  // Aplicar pan acumulado del centro del pinch
+  if (Math.abs(panDx) > 0.5 || Math.abs(panDy) > 0.5) {
+    const clampedPosition = clampPipPosition(state.x + panDx, state.y + panDy, state.width, state.height);
+    state.x = clampedPosition.x;
+    state.y = clampedPosition.y;
+    state.pipContainer.style.left = `${state.x}px`;
+    state.pipContainer.style.top = `${state.y}px`;
+    didChange = true;
+  }
+
+  if (didChange) {
+    schedulePipStateSave();
+  }
+}
+
 function finalizePendingPipDrag(state, { deactivatePreview = true } = {}) {
   if (!state) return false;
 
@@ -817,6 +869,15 @@ function cancelPendingPipInteraction(state) {
     cancelAnimationFrame(state.pendingDragRaf);
     state.pendingDragRaf = null;
   }
+  if (state.pendingPinchRaf) {
+    cancelAnimationFrame(state.pendingPinchRaf);
+    state.pendingPinchRaf = null;
+  }
+  state.pendingPinchFactor = 1;
+  state.pendingPinchClientX = null;
+  state.pendingPinchClientY = null;
+  state.pendingPinchPanDx = 0;
+  state.pendingPinchPanDy = 0;
   cancelPipRasterize(state);
   if (state.previewTimer) {
     clearTimeout(state.previewTimer);
@@ -1942,7 +2003,13 @@ export function openPip(panelId, restoredConfig = null) {
     pendingWheelClientY: null,
     pendingDragX: null,
     pendingDragY: null,
-    pendingDragRaf: null
+    pendingDragRaf: null,
+    pendingPinchFactor: 1,
+    pendingPinchClientX: null,
+    pendingPinchClientY: null,
+    pendingPinchPanDx: 0,
+    pendingPinchPanDy: 0,
+    pendingPinchRaf: null
   };
 
   refreshPipViewportMetrics(state);
@@ -2464,21 +2531,14 @@ function setupPipEvents(pipContainer, panelId) {
       
       if (!state) return;
       
-      // Solo aplicar zoom si el cambio es significativo
-      if (Math.abs(clampedFactor - 1) > PIP_PINCH_EPSILON) {
-        const newScale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, state.scale * clampedFactor));
-        applyPipWheelZoom(panelId, newScale, pinchClientX, pinchClientY);
-        schedulePipStateSave();
-      }
-
-      if (Math.abs(panDx) > 0.5 || Math.abs(panDy) > 0.5) {
-        const clampedPosition = clampPipPosition(state.x + panDx, state.y + panDy, state.width, state.height);
-        state.x = clampedPosition.x;
-        state.y = clampedPosition.y;
-        state.pipContainer.style.left = `${state.x}px`;
-        state.pipContainer.style.top = `${state.y}px`;
-        schedulePipStateSave();
-      }
+      // Acumular zoom y pan para aplicar en el próximo rAF
+      // (evita layout-thrashing: un solo ciclo de lectura+escritura por frame)
+      state.pendingPinchFactor *= clampedFactor;
+      state.pendingPinchClientX = pinchClientX;
+      state.pendingPinchClientY = pinchClientY;
+      state.pendingPinchPanDx += panDx;
+      state.pendingPinchPanDy += panDy;
+      schedulePendingPinchZoom(panelId);
     } else if (e.touches.length === 1 && touchPanId !== null) {
       // ── Drag de ventana con 1 dedo ──
       // Buscar el touch activo por su identifier
@@ -2500,6 +2560,13 @@ function setupPipEvents(pipContainer, panelId) {
   
   content.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
+      // Flush cualquier pinch pendiente antes de finalizar el gesto
+      const endState = activePips.get(panelId);
+      if (endState?.pendingPinchRaf) {
+        cancelAnimationFrame(endState.pendingPinchRaf);
+        endState.pendingPinchRaf = null;
+        flushPendingPinchZoom(panelId);
+      }
       lastPinchDist = 0;
       lastPinchCenterX = 0;
       lastPinchCenterY = 0;

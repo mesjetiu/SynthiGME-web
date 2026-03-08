@@ -7,7 +7,7 @@ tiene el indicador apuntando hacia arriba (0°).
   - Estado A: rotado a -45° (apunta izquierda)
   - Estado B: rotado a +45° (apunta derecha)
 
-Fuente SVG: src/assets/knobs/rotary-switch.svg  (no hay copia en design/)
+Fuente SVG preferida: design/knobs/rotary-switch.svg
 Salida:     src/assets/knobs/rotary-{a,b}.png
 
 viewBox="0 0 200 200"  →  200×200 SVG units
@@ -25,10 +25,11 @@ ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
 
 # ─── Rutas ───────────────────────────────────────────────────────────────
 ROOT    = Path(__file__).resolve().parents[2]
-SRC_SVG = ROOT / 'src' / 'assets' / 'knobs' / 'rotary-switch.svg'
-OUT_DIR = ROOT / 'src' / 'assets' / 'knobs'
+DESIGN_SVG = ROOT / 'design' / 'knobs' / 'rotary-switch.svg'
+SRC_SVG    = ROOT / 'src' / 'assets' / 'knobs' / 'rotary-switch.svg'
+OUT_DIR    = ROOT / 'src' / 'assets' / 'knobs'
 
-SVG_PATH = SRC_SVG
+SVG_PATH = DESIGN_SVG if DESIGN_SVG.exists() else SRC_SVG
 
 # viewBox: "0 0 200 200"
 VB_W, VB_H = 200, 200

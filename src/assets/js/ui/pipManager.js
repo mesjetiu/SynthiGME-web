@@ -704,7 +704,37 @@ function commitPendingPinchZoom(panelId) {
     return; // Sin cambio significativo
   }
 
-  // ── Mismo comportamiento que resize: cambiar tamaño del contenedor ──
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+
+  // ── Modo táctil: zoom interno sin resize del contenedor ──
+  // En dispositivos táctiles (móvil/tablet) redimensionar el contenedor fuerza
+  // un re-layout de ~17k nodos SVG que resulta inaceptablemente lento en móvil.
+  // El contenedor actúa como viewport fijo (como Google Maps) y el panel se
+  // amplía/reduce dentro del marco vía CSS transform (compositor-only, sin layout).
+  if (isPipTouchOptimizedMode()) {
+    const coverMinScale = getPipCoverScale(
+      state.width - PIP_BORDER_SIZE,
+      state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
+      panelWidth, panelHeight
+    );
+    const finalScale = Math.max(coverMinScale, Math.min(MAX_SCALE, state.scale * vs));
+
+    // Mover el contenedor solo por el pan (tx, ty)
+    const clampedPosition = clampPipPosition(state.x + tx, state.y + ty, state.width, state.height);
+    state.x = clampedPosition.x;
+    state.y = clampedPosition.y;
+    state.pipContainer.style.left = `${state.x}px`;
+    state.pipContainer.style.top = `${state.y}px`;
+    // width/height del contenedor NO se tocan
+
+    updatePipScale(panelId, finalScale, false);
+
+    refreshPipViewportMetrics(state);
+    schedulePipStateSave();
+    return;
+  }
+
+  // ── Modo desktop: resize del contenedor al nuevo tamaño del panel ──
   const ar = state.width / state.height;
   let newW = state.width * vs;
   let newH = state.height * vs;
@@ -2657,12 +2687,23 @@ function setupPipEvents(pipContainer, panelId) {
         state.pinchPreviewOriginY = lastPinchCenterY - rect.top;
         state.pipContainer.style.transformOrigin =
           `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
-        // Límites de escala visual: basados en tamaño del contenedor (misma
-        // lógica que resize). El contenedor no puede ser menor que MIN_PIP_SIZE.
-        state._pinchVisMinScale = Math.max(
-          MIN_PIP_SIZE / Math.max(state.width, 1),
-          MIN_PIP_SIZE / Math.max(state.height, 1)
-        );
+        // Límites de escala visual para el preview CSS transform.
+        // Touch: el panel debe cubrir el viewport (no resize → min por cover).
+        // Desktop: el contenedor no puede encogerse por debajo de MIN_PIP_SIZE.
+        if (isPipTouchOptimizedMode()) {
+          const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+          const coverMin = getPipCoverScale(
+            state.width - PIP_BORDER_SIZE,
+            state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
+            panelWidth, panelHeight
+          );
+          state._pinchVisMinScale = coverMin / Math.max(state.scale, 0.01);
+        } else {
+          state._pinchVisMinScale = Math.max(
+            MIN_PIP_SIZE / Math.max(state.width, 1),
+            MIN_PIP_SIZE / Math.max(state.height, 1)
+          );
+        }
         // Máximo: la escala interna del panel no puede superar MAX_SCALE
         state._pinchVisMaxScale = MAX_SCALE / Math.max(state.scale, 0.01);
       }

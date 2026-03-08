@@ -53,9 +53,13 @@ const PIP_HEADER_HEIGHT = 0;
 /** Espacio extra del contenedor PiP por bordes CSS en modo sin marco */
 const PIP_BORDER_SIZE = 0;
 
-/** Factores multiplicativos de zoom aplicados por tick de rueda en PiP */
-const PIP_WHEEL_ZOOM_IN_FACTOR = 1.18;
-const PIP_WHEEL_ZOOM_OUT_FACTOR = 1.32;
+/** Sensibilidad y suavizado del zoom con rueda/touchpad sobre PiP */
+const PIP_WHEEL_ZOOM_SENSITIVITY = 0.0014;
+const PIP_WHEEL_ZOOM_SMOOTHING = 0.28;
+
+/** Factores discretos de zoom PiP para atajos y acciones programáticas */
+const PIP_ZOOM_STEP_IN_FACTOR = 1.18;
+const PIP_ZOOM_STEP_OUT_FACTOR = 1.32;
 
 /** Factor de pan aplicado a deltas de rueda/touchpad normalizados a píxeles CSS */
 const PIP_WHEEL_PAN_FACTOR = 1;
@@ -981,12 +985,13 @@ function cancelPendingPipInteraction(state) {
   state.pendingWheelPanY = 0;
   state.pendingWheelMoveX = 0;
   state.pendingWheelMoveY = 0;
-  state.pendingWheelZoomSteps = 0;
+  state.pendingWheelZoomDelta = 0;
   state.pendingWheelClientX = null;
   state.pendingWheelClientY = null;
   // Reset wheel zoom preview
   state.wheelPreviewActive = false;
   state.wheelPreviewScale = 1;
+  state.wheelPreviewTargetScale = 1;
   state.wheelPreviewOriginX = null;
   state.wheelPreviewOriginY = null;
   state._wheelVisMinScale = null;
@@ -1331,24 +1336,22 @@ function flushPipWheelInteraction(panelId) {
   state.pendingWheelRaf = null;
 
   let didChange = false;
+  let shouldContinue = false;
 
   // ── Zoom con Ctrl+rueda: acumular como transform preview (compositor-only) ──
-  if (state.pendingWheelZoomSteps !== 0) {
-    const zoomSteps = state.pendingWheelZoomSteps;
+  if (state.pendingWheelZoomDelta !== 0 || state.wheelPreviewActive) {
+    const zoomDelta = state.pendingWheelZoomDelta;
     const clientX = state.pendingWheelClientX;
     const clientY = state.pendingWheelClientY;
-    state.pendingWheelZoomSteps = 0;
+    state.pendingWheelZoomDelta = 0;
     // Mantener clientX/Y para próximos frames
-
-    const zoomFactor = zoomSteps > 0
-      ? (PIP_WHEEL_ZOOM_IN_FACTOR ** zoomSteps)
-      : (1 / (PIP_WHEEL_ZOOM_OUT_FACTOR ** Math.abs(zoomSteps)));
 
     // Inicializar preview en el primer frame del gesto
     if (!state.wheelPreviewActive) {
       const containerRect = state.pipContainer.getBoundingClientRect();
       state.wheelPreviewActive = true;
       state.wheelPreviewScale = 1;
+      state.wheelPreviewTargetScale = 1;
       state.wheelPreviewOriginX =
         (clientX != null ? clientX : containerRect.left + state.width / 2) - containerRect.left;
       state.wheelPreviewOriginY =
@@ -1359,15 +1362,35 @@ function flushPipWheelInteraction(panelId) {
       state._wheelVisMinScale = getMinScale(panelId);
     }
 
-    // Acumular escala
-    const newPreview = state.wheelPreviewScale * zoomFactor;
-    const currentEffective = state.scale * newPreview;
+    if (zoomDelta !== 0) {
+      const zoomFactor = Math.exp((-zoomDelta) * PIP_WHEEL_ZOOM_SENSITIVITY);
+      const newTarget = state.wheelPreviewTargetScale * zoomFactor;
+      const effectiveTarget = state.scale * newTarget;
+      if (effectiveTarget < state._wheelVisMinScale) {
+        state.wheelPreviewTargetScale = state._wheelVisMinScale / Math.max(state.scale, 0.01);
+      } else if (effectiveTarget > MAX_SCALE) {
+        state.wheelPreviewTargetScale = MAX_SCALE / Math.max(state.scale, 0.01);
+      } else {
+        state.wheelPreviewTargetScale = newTarget;
+      }
+    }
+
+    // Acercarse al target de forma suave
+    const nextPreview = state.wheelPreviewScale
+      + ((state.wheelPreviewTargetScale - state.wheelPreviewScale) * PIP_WHEEL_ZOOM_SMOOTHING);
+    const currentEffective = state.scale * nextPreview;
     if (currentEffective < state._wheelVisMinScale) {
       state.wheelPreviewScale = state._wheelVisMinScale / Math.max(state.scale, 0.01);
     } else if (currentEffective > MAX_SCALE) {
       state.wheelPreviewScale = MAX_SCALE / Math.max(state.scale, 0.01);
     } else {
-      state.wheelPreviewScale = newPreview;
+      state.wheelPreviewScale = nextPreview;
+    }
+
+    if (Math.abs(state.wheelPreviewTargetScale - state.wheelPreviewScale) <= 0.0008) {
+      state.wheelPreviewScale = state.wheelPreviewTargetScale;
+    } else {
+      shouldContinue = true;
     }
 
     // Transform compositor-only — sin layout/paint
@@ -1415,6 +1438,9 @@ function flushPipWheelInteraction(panelId) {
   if (didChange) {
     schedulePipStateSave();
   }
+  if (shouldContinue) {
+    schedulePipWheelInteraction(panelId);
+  }
 }
 
 /**
@@ -1426,13 +1452,14 @@ function commitPendingWheelZoom(panelId) {
   const state = activePips.get(panelId);
   if (!state || !state.wheelPreviewActive) return;
 
-  const vs = state.wheelPreviewScale || 1;
+  const vs = state.wheelPreviewTargetScale || state.wheelPreviewScale || 1;
   const ox = state.wheelPreviewOriginX || 0;
   const oy = state.wheelPreviewOriginY || 0;
 
   // Reset estado del preview
   state.wheelPreviewActive = false;
   state.wheelPreviewScale = 1;
+  state.wheelPreviewTargetScale = 1;
   state.wheelPreviewOriginX = null;
   state.wheelPreviewOriginY = null;
   state._wheelVisMinScale = null;
@@ -1506,7 +1533,11 @@ function queuePipWheelInteraction(panelId, e) {
       perfMonitor.incrementCounter(`pip.wheel.zoom.${panelId}`);
     }
     e.preventDefault();
-    state.pendingWheelZoomSteps += e.deltaY > 0 ? -1 : 1;
+    const lineHeight = 16;
+    const deltaUnit = e.deltaMode === 1
+      ? lineHeight
+      : (e.deltaMode === 2 ? (state.viewportEl?.clientHeight || state.viewportHeight || 1) : 1);
+    state.pendingWheelZoomDelta += e.deltaY * deltaUnit;
     state.pendingWheelClientX = e.clientX;
     state.pendingWheelClientY = e.clientY;
     schedulePipWheelInteraction(panelId);
@@ -1910,9 +1941,9 @@ export function initPipManager() {
     const minScale = getMinScale(focusedPipId);
     let nextScale = state.scale;
     if (direction === 'in') {
-      nextScale = Math.min(state.scale * PIP_WHEEL_ZOOM_IN_FACTOR, MAX_SCALE);
+      nextScale = Math.min(state.scale * PIP_ZOOM_STEP_IN_FACTOR, MAX_SCALE);
     } else if (direction === 'out') {
-      nextScale = Math.max(state.scale / PIP_WHEEL_ZOOM_OUT_FACTOR, minScale);
+      nextScale = Math.max(state.scale / PIP_ZOOM_STEP_OUT_FACTOR, minScale);
     } else if (direction === 'reset') {
       nextScale = minScale;
     }
@@ -2421,7 +2452,7 @@ export function openPip(panelId, restoredConfig = null) {
     pendingWheelPanY: 0,
     pendingWheelMoveX: 0,
     pendingWheelMoveY: 0,
-    pendingWheelZoomSteps: 0,
+    pendingWheelZoomDelta: 0,
     pendingWheelClientX: null,
     pendingWheelClientY: null,
     pendingDragX: null,
@@ -2437,7 +2468,8 @@ export function openPip(panelId, restoredConfig = null) {
     pinchPreviewTx: 0,
     pinchPreviewTy: 0,
     pinchPreviewOriginX: null,
-    pinchPreviewOriginY: null
+    pinchPreviewOriginY: null,
+    wheelPreviewTargetScale: 1
   };
 
   refreshPipViewportMetrics(state);

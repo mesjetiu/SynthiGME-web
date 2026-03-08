@@ -129,4 +129,14 @@ describe('Gestos wheel/touchpad sobre PiP', () => {
     assert.match(pipSource, /function refreshActiveWheelGesture\(panelId\)/);
     assert.match(pipSource, /document\.addEventListener\('wheel',[\s\S]*?activeWheelGesturePanelId/);
   });
+
+  it('suaviza el zoom wheel con delta continuo y target scale interpolado por RAF', () => {
+    assert.match(pipSource, /const PIP_WHEEL_ZOOM_SENSITIVITY = 0\.0014;/);
+    assert.match(pipSource, /const PIP_WHEEL_ZOOM_SMOOTHING = 0\.28;/);
+    assert.match(pipSource, /state\.pendingWheelZoomDelta !== 0 \|\| state\.wheelPreviewActive/);
+    assert.match(pipSource, /const zoomFactor = Math\.exp\(\(-zoomDelta\) \* PIP_WHEEL_ZOOM_SENSITIVITY\)/);
+    assert.match(pipSource, /state\.wheelPreviewTargetScale = newTarget;/);
+    assert.match(pipSource, /const nextPreview = state\.wheelPreviewScale[\s\S]*?PIP_WHEEL_ZOOM_SMOOTHING/);
+    assert.match(pipSource, /state\.pendingWheelZoomDelta \+= e\.deltaY \* deltaUnit;/);
+  });
 });

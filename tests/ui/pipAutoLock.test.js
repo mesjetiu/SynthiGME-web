@@ -51,6 +51,17 @@ describe('Canvas principal fijo', () => {
     assert.match(navSource, /if \(k === '0'\) \{[\s\S]*?ACTIVE_ZOOM_KEYS\.clear\(\);[\s\S]*?syncContinuousKeyboardZoom\(\);/);
     assert.match(navSource, /if \(zoomDirection && ACTIVE_ZOOM_KEYS\.has\(zoomDirection\)\) \{[\s\S]*?ACTIVE_ZOOM_KEYS\.delete\(zoomDirection\);[\s\S]*?syncContinuousKeyboardZoom\(\);/);
   });
+
+  it('suaviza también Ctrl+rueda/touchpad del viewport con delta acumulado y RAF', () => {
+    assert.match(navSource, /const VIEWPORT_WHEEL_ZOOM_SENSITIVITY = 0\.00125;/);
+    assert.match(navSource, /const VIEWPORT_WHEEL_ZOOM_SMOOTHING = 0\.28;/);
+    assert.match(navSource, /const viewportWheelZoomState = \{/);
+    assert.match(navSource, /function stepViewportWheelZoom\(\) \{[\s\S]*?const zoomFactor = Math\.exp\(\(-viewportWheelZoomState\.pendingDelta\) \* VIEWPORT_WHEEL_ZOOM_SENSITIVITY\)/);
+    assert.match(navSource, /const nextScale = scale \+ \(diff \* VIEWPORT_WHEEL_ZOOM_SMOOTHING\);/);
+    assert.match(navSource, /viewportWheelZoomState\.pendingDelta \+= ev\.deltaY \* deltaUnit;/);
+    assert.match(navSource, /scheduleViewportWheelZoom\(\);/);
+    assert.match(navSource, /stopViewportWheelZoom\(\);/);
+  });
 });
 
 describe('pipManager expone foco y locks del PiP', () => {

@@ -922,6 +922,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
   const VIEWPORT_KEYBOARD_ZOOM_MAX_RATE = 3.6;
   const VIEWPORT_KEYBOARD_ZOOM_ACCELERATION_MS = 520;
   const VIEWPORT_KEYBOARD_ZOOM_FRAME_MS = 1000 / 60;
+  const VIEWPORT_WHEEL_ZOOM_SENSITIVITY = 0.00125;
+  const VIEWPORT_WHEEL_ZOOM_SMOOTHING = 0.28;
   const ACTIVE_ARROW_KEYS = new Set();
   const ACTIVE_ZOOM_KEYS = new Set();
   const viewportKeyboardZoomState = {
@@ -929,6 +931,13 @@ export function initViewportNavigation({ outer, inner } = {}) {
     rafId: null,
     lastTs: 0,
     startedAt: 0
+  };
+  const viewportWheelZoomState = {
+    pendingDelta: 0,
+    targetScale: 1,
+    rafId: null,
+    clientX: null,
+    clientY: null
   };
 
   function syncFocusedPipKeyboardPan() {
@@ -959,6 +968,19 @@ export function initViewportNavigation({ outer, inner } = {}) {
     viewportKeyboardZoomState.direction = null;
     viewportKeyboardZoomState.lastTs = 0;
     viewportKeyboardZoomState.startedAt = 0;
+  }
+
+  function stopViewportWheelZoom({ syncTarget = true } = {}) {
+    if (viewportWheelZoomState.rafId) {
+      cancelAnimationFrame(viewportWheelZoomState.rafId);
+      viewportWheelZoomState.rafId = null;
+    }
+    viewportWheelZoomState.pendingDelta = 0;
+    viewportWheelZoomState.clientX = null;
+    viewportWheelZoomState.clientY = null;
+    if (syncTarget) {
+      viewportWheelZoomState.targetScale = scale;
+    }
   }
 
   function stepViewportKeyboardZoom(timestamp) {
@@ -996,6 +1018,63 @@ export function initViewportNavigation({ outer, inner } = {}) {
     }
 
     viewportKeyboardZoomState.rafId = requestAnimationFrame(stepViewportKeyboardZoom);
+  }
+
+  function stepViewportWheelZoom() {
+    viewportWheelZoomState.rafId = null;
+
+    if (navLocks.zoomLocked) {
+      stopViewportWheelZoom();
+      return;
+    }
+
+    metricsDirty = true;
+    refreshMetrics();
+    cancelRasterize();
+
+    const outerLeft = metrics.outerLeft || 0;
+    const outerTop = metrics.outerTop || 0;
+    const cx = viewportWheelZoomState.clientX != null
+      ? (viewportWheelZoomState.clientX - outerLeft)
+      : ((metrics.outerWidth || outer.clientWidth) / 2);
+    const cy = viewportWheelZoomState.clientY != null
+      ? (viewportWheelZoomState.clientY - outerTop)
+      : ((metrics.outerHeight || outer.clientHeight) / 2);
+
+    if (viewportWheelZoomState.pendingDelta !== 0) {
+      const minScale = getMinScale();
+      const zoomFactor = Math.exp((-viewportWheelZoomState.pendingDelta) * VIEWPORT_WHEEL_ZOOM_SENSITIVITY);
+      viewportWheelZoomState.targetScale = Math.min(
+        maxScale,
+        Math.max(minScale, viewportWheelZoomState.targetScale * zoomFactor)
+      );
+      viewportWheelZoomState.pendingDelta = 0;
+    }
+
+    const diff = viewportWheelZoomState.targetScale - scale;
+    if (Math.abs(diff) <= 0.0008) {
+      viewportWheelZoomState.targetScale = scale;
+      scheduleRasterize();
+      if (!isCoarsePointer) {
+        scheduleLowZoomUpdate();
+      }
+      return;
+    }
+
+    const nextScale = scale + (diff * VIEWPORT_WHEEL_ZOOM_SMOOTHING);
+    adjustOffsetsForZoom(cx, cy, nextScale);
+    markUserAdjusted();
+    scheduleRasterize();
+    if (!isCoarsePointer) {
+      scheduleLowZoomUpdate();
+    }
+
+    viewportWheelZoomState.rafId = requestAnimationFrame(stepViewportWheelZoom);
+  }
+
+  function scheduleViewportWheelZoom() {
+    if (viewportWheelZoomState.rafId) return;
+    viewportWheelZoomState.rafId = requestAnimationFrame(stepViewportWheelZoom);
   }
 
   function syncContinuousKeyboardZoom() {
@@ -1125,6 +1204,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   window.addEventListener('blur', () => {
     ACTIVE_ZOOM_KEYS.clear();
     syncContinuousKeyboardZoom();
+    stopViewportWheelZoom();
     ACTIVE_ARROW_KEYS.clear();
     syncFocusedPipKeyboardPan();
     setClampDisabled(false);
@@ -1220,18 +1300,15 @@ export function initViewportNavigation({ outer, inner } = {}) {
       }
       ev.preventDefault();
       if (navLocks.zoomLocked) return;
-      cancelRasterize();
-      const cx = ev.clientX - (metrics.outerLeft || 0);
-      const cy = ev.clientY - (metrics.outerTop || 0);
-      const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
-      const minScale = getMinScale();
-      const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
-      adjustOffsetsForZoom(cx, cy, newScale);
-      markUserAdjusted();
-      scheduleRasterize();
-      if (!isCoarsePointer) {
-        scheduleLowZoomUpdate();
+      const lineHeight = 16;
+      const deltaUnit = ev.deltaMode === 1 ? lineHeight : (ev.deltaMode === 2 ? (metrics.outerHeight || outer.clientHeight) : 1);
+      viewportWheelZoomState.pendingDelta += ev.deltaY * deltaUnit;
+      viewportWheelZoomState.clientX = ev.clientX;
+      viewportWheelZoomState.clientY = ev.clientY;
+      if (!viewportWheelZoomState.rafId) {
+        viewportWheelZoomState.targetScale = scale;
       }
+      scheduleViewportWheelZoom();
       return;
     }
 
@@ -1611,6 +1688,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   // ─── Zoom programático (Ctrl+/Ctrl- desde menú Electron) ───
   // Permite hacer zoom centrado en el viewport desde eventos globales
   document.addEventListener('synth:zoomIn', () => {
+    stopViewportWheelZoom();
     metricsDirty = true;
     refreshMetrics();
     cancelRasterize();
@@ -1624,6 +1702,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   });
 
   document.addEventListener('synth:zoomOut', () => {
+    stopViewportWheelZoom();
     metricsDirty = true;
     refreshMetrics();
     cancelRasterize();
@@ -1637,6 +1716,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   });
 
   document.addEventListener('synth:zoomReset', () => {
+    stopViewportWheelZoom();
     cancelRasterize();
     metricsDirty = true;
     refreshMetrics();

@@ -4,7 +4,7 @@ SynthiGME-web es una emulación del sintetizador modular **Synthi 100** del Gabi
 
 Esta versión web permite explorar el sintetizador directamente desde tu navegador, sin necesidad de instalar nada.
 
-**Última actualización:** 7 de marzo de 2026 (reestructuración PiP-first, financiación pública, MIDI Learn, RCVG, knobs SVG, PWM CV, easter egg, undo/redo, notas post-it, flujo de señal, menú contextual)
+**Última actualización:** 8 de marzo de 2026 (PiP-first consolidado, knobs rasterizados, scripts SVG→PNG, cleanup de assets y ampliación de cobertura de tests)
 
 ## 🚀 Acceso Rápido
 

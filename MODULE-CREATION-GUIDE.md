@@ -1286,7 +1286,7 @@ knobs: [
 
 Colores disponibles (de `configs/knobColors.js`): `KNOB_BLUE`, `KNOB_GREEN`, `KNOB_WHITE`, `KNOB_BLACK`, `KNOB_RED`, `KNOB_YELLOW`.
 
-El flag `bipolar: true` hace que se use el SVG `knob-0-center.svg` (marca central) en lugar del knob estándar.
+El flag `bipolar: true` hace que se use la variante bipolar del knob (en runtime se resuelve al PNG `knob-ring-bipolar.png`; el SVG fuente editable sigue siendo `design/knobs/knob-0-center.svg`).
 
 ### 18.9 Gotchas y errores frecuentes
 

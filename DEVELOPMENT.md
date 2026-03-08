@@ -319,6 +319,40 @@ npm run optimize:svg -- design/panels/Panel3/panel3_source.svg src/assets/panels
 npm run optimize:svg -- src/assets/panels/panel_3.svg --keep-images
 ```
 
+### Pipeline de knobs rasterizados
+
+Desde marzo de 2026, los knobs y switches de la UI usan principalmente **PNGs rasterizados** en runtime para reducir nodos DOM y coste de render.
+
+SVGs fuente editables:
+
+- `design/knobs/knob.svg`
+- `design/knobs/knob-0-center.svg`
+- `design/knobs/toggle-switch.svg`
+- `design/knobs/rotary-switch.svg`
+- `design/knobs/knob multivuelta/spectrol-vernier-dial.svg`
+
+PNGs runtime generados:
+
+- `src/assets/knobs/knob-ring.png`
+- `src/assets/knobs/knob-ring-bipolar.png`
+- `src/assets/knobs/toggle-a.png`
+- `src/assets/knobs/toggle-b.png`
+- `src/assets/knobs/rotary-a.png`
+- `src/assets/knobs/rotary-b.png`
+- `src/assets/knobs/vernier-rotor.png`
+- `src/assets/knobs/vernier-ring.png`
+
+Regeneración:
+
+```bash
+./scripts/tools/gen-all-knob-pngs.sh
+```
+
+Notas:
+
+- En `src/assets/knobs/` solo permanecen como SVG runtime `toggle-switch.svg` y `vernier-dial.svg`, porque siguen cargándose inline en paths concretos.
+- `knob.svg`, `knob-0-center.svg` y `rotary-switch.svg` ya no se usan en runtime desde `src/`.
+
 El script realiza:
 - Eliminación de metadatos de Inkscape y atributos innecesarios
 - Eliminación de IDs no referenciados (preserva los usados por `url(#)`, `href`, `xlink:href`)
@@ -335,8 +369,9 @@ La estructura básica de código fuente en `src/`:
 - `src/assets/js/`: Código fuente JS modular.
 - `src/assets/css/`: Estilos.
 - `src/assets/fonts/`: Fuentes tipográficas (Microgramma, Eurostile, Univers).
-- `src/assets/knobs/`: SVGs de knobs (knob.svg, knob-0-center.svg).
+- `src/assets/knobs/`: PNGs raster de knobs/switches y los SVG runtime que siguen activos (`toggle-switch.svg`, `vernier-dial.svg`).
 - `src/assets/panels/`: SVG de paneles optimizados (producción).
+- `design/knobs/`: SVGs fuente editables de knobs y switches, usados para regenerar PNGs.
 - `design/panels/`: SVG de paneles fuente (Inkscape).
 - `scripts/`: Scripts de build y utilidades:
   - `build.mjs`: Build principal (esbuild, copia assets, inyecta versión). Lee `.env` automáticamente.
@@ -346,6 +381,6 @@ La estructura básica de código fuente en `src/`:
   - `test-all.mjs`: Resumen estructurado de todos los tests.
   - `telemetry/`: Backend de telemetría (Apps Script + guía de despliegue).
   - `release/`: Scripts de versionado y generación de requisitos.
-  - `tools/`: Herramientas de desarrollo (optimización SVG, etc.).
+   - `tools/`: Herramientas de desarrollo (optimización SVG, generadores SVG→PNG de knobs, etc.).
 - `.env.example`: Plantilla de variables de entorno (committed).
 - `.env`: Variables de entorno locales (gitignored).

@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 26 de febrero de 2026 (actualización general: UI, OSC, tests, configs)
+> Última actualización: 8 de marzo de 2026 (PiP-first, rasterización de knobs/switches, scripts de assets y ampliación de tests)
 
 ---
 
@@ -14,7 +14,7 @@ SynthiGME-web es una aplicación **vanilla JavaScript** (ES Modules) que reprodu
 |------|------------|
 | Audio | Web Audio API + AudioWorklet |
 | Audio Multicanal | SharedArrayBuffer + Addon C++ (PipeWire, solo Linux) |
-| UI | DOM nativo + SVG |
+| UI | DOM nativo + SVG + assets raster (PNG/WebP) |
 | Build | esbuild (bundler), svgo (optimización SVG) |
 | PWA | Service Worker + Web App Manifest |
 | Tests | Node.js test runner + Playwright |
@@ -40,7 +40,7 @@ SynthiGME-web es una aplicación **vanilla JavaScript** (ES Modules) que reprodu
 │   ├── electron-build.mjs  # Wrapper electron-builder con timestamp
 │   ├── telemetry/          # Backend de telemetría (Apps Script + guía)
 │   ├── release/            # Scripts de versionado
-│   └── tools/              # Herramientas (optimización SVG, etc.)
+│   └── tools/              # Herramientas (optimización SVG, generadores SVG→PNG, etc.)
 ├── docs/                   # ⚠️ GENERADO - PWA para GitHub Pages
 ├── dist-app/               # ⚠️ GENERADO - App compilada para Electron
 └── dist-electron/          # ⚠️ GENERADO - Instaladores (AppImage, exe)
@@ -54,7 +54,7 @@ src/
     │   └── main.css        # Estilos globales
     ├── fonts/              # Fuentes tipográficas (Microgramma, Eurostile, Univers)
     ├── icons/              # Iconos Tabler
-    ├── knobs/              # SVGs de knobs (knob.svg, knob-0-center.svg)
+    ├── knobs/              # PNGs runtime de knobs/switches + SVGs runtime mínimos (toggle-switch, vernier-dial)
     ├── panels/             # SVGs de paneles del sintetizador
     ├── pwa/icons/          # Iconos para PWA
     └── js/
@@ -78,6 +78,7 @@ src/
 | Iconos de interfaz (Tabler) | [tabler/tabler-icons](https://github.com/tabler/tabler-icons) | MIT (ver `assets/icons/LICENSE.tabler-icons.txt`) |
 | Iconos de paneles del sintetizador | Sylvia Molina Muro | — |
 | SVGs de paneles | Basados en el Synthi 100 original de EMS | — |
+| SVGs fuente de knobs/switches | Diseño propio basado en hardware EMS Synthi 100 | — |
 
 ---
 
@@ -3045,13 +3046,17 @@ tests/
 │   ├── pipAutoLock.test.js          # Tests del contrato de foco y locks PiP-first
 │   ├── pipContainFit.test.js        # Tests del escalado frameless + cover de PiP
 │   ├── pipManager.test.js           # Tests del contrato público actual de PiP
+│   ├── pipRuntime.test.js           # Tests funcionales JSDOM de detach/return, locks, restore y atajos PiP
 │   ├── recordingOverlay.test.js     # Tests del overlay de grabación
+│   ├── rotarySwitch.test.js         # Tests del selector rotativo rasterizado
 │   ├── sgmeOscillator.test.js       # Tests del oscilador Synthi
 │   ├── signalFlowHighlighter.test.js  # Tests del resaltado de flujo de señal
+│   ├── svgInlineLoader.test.js      # Tests de carga inline/raster y uniquify de SVGs
 │   ├── telemetryConsent.test.js     # Tests de consentimiento de telemetría
 │   ├── toast.test.js                # Tests de notificaciones toast
 │   ├── toggle.test.js               # Tests del interruptor Toggle
-│   └── tooltipManager.test.js       # Tests del gestor de tooltips
+│   ├── tooltipManager.test.js       # Tests del gestor de tooltips
+│   └── vernierKnob.test.js          # Tests del VernierKnob rasterizado
 ├── worklets/
 │   ├── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
 │   └── keyboard.worklet.test.js # Tests del worklet de teclado (noteOn/Off, retrigger modes, polifonía)

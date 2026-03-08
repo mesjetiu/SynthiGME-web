@@ -1,0 +1,10 @@
+feat(PiP): unificar zoom como resize de ventana en todos los dispositivos
+
+- Eliminada la rama táctil en commitPendingPinchZoom: ahora todo zoom (pinch, resize, Ctrl+/-, atajos) es resize del contenedor PiP, manteniendo el panel completo y sin cortes
+- Escala derivada siempre del tamaño del contenedor: scale = width / panelWidth, clampeada
+- viewportInner ahora usa solo CSS width:100%; height:100%; overflow:hidden; sin sizing JS
+- Eliminada la bifurcación touch/desktop en los límites de pinch: todos usan MIN_PIP_SIZE
+- updatePipScale simplificado: solo aplica transform/zoom al panel, sin tocar viewportInner
+- Tests actualizados: comprueban que no hay ramas touch/desktop y que viewportInner no se redimensiona por JS
+- CHANGELOG actualizado con la nueva arquitectura de zoom PiP
+- 3220 tests OK, build web regenerado

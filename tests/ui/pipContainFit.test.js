@@ -83,18 +83,39 @@ describe('Locks y resize de PiP', () => {
 });
 
 describe('updatePipScale', () => {
-  it('aplica transform scale, transformOrigin 0 0 y redimensiona viewportInner al tamaño visual', () => {
+  it('aplica transform scale y transformOrigin 0 0', () => {
     assert.match(pipSource, /panelEl\.style\.transform = `scale\(\$\{visualScale\}\)`;/);
     assert.match(pipSource, /panelEl\.style\.transformOrigin = '0 0';/);
-    // viewportInner se redimensiona a scaledWidth × scaledHeight para que la
-    // textura GPU sea proporcional al zoom (~3MB vs ~20MB en 3× DPR).
-    assert.match(pipSource, /viewportInner\.style\.width = `\$\{scaledWidth\}px`;/);
-    assert.match(pipSource, /viewportInner\.style\.height = `\$\{scaledHeight\}px`;/);
+  });
+
+  it('viewportInner usa CSS width:100% height:100% en vez de JS sizing', () => {
+    // viewportInner ya NO se redimensiona desde JS — usa CSS 100%.
+    assert.doesNotMatch(pipSource, /viewportInner\.style\.width\s*=/);
+    assert.doesNotMatch(pipSource, /viewportInner\.style\.height\s*=/);
   });
 
   it('persiste el cambio de escala de forma diferida y condicional', () => {
     assert.match(pipSource, /function updatePipScale\(panelId, newScale, persist = true\)/);
     assert.match(pipSource, /if \(persist\) \{[\s\S]*?schedulePipStateSave\(\);[\s\S]*?\}/);
+  });
+});
+
+describe('Zoom unificado en PiP', () => {
+  it('commitPendingPinchZoom NO tiene rama touch/desktop separada', () => {
+    // Todo zoom = resize del contenedor. No hay isPipTouchOptimizedMode en pinch commit.
+    const fnMatch = pipSource.match(/function commitPendingPinchZoom\([\s\S]*?^}/m);
+    assert.ok(fnMatch, 'commitPendingPinchZoom debe existir');
+    const fnBody = fnMatch[0];
+    assert.doesNotMatch(fnBody, /isPipTouchOptimizedMode/,
+      'commitPendingPinchZoom no debe usar isPipTouchOptimizedMode');
+  });
+
+  it('pinch touchstart NO usa isPipTouchOptimizedMode para los límites', () => {
+    // Los límites de pinch son iguales en todos los dispositivos
+    const pinchSection = pipSource.match(/Límites de escala visual para el preview[\s\S]*?_pinchVisMaxScale/);
+    assert.ok(pinchSection, 'Debe existir sección de límites de pinch');
+    assert.doesNotMatch(pinchSection[0], /isPipTouchOptimizedMode/,
+      'Los límites de pinch no deben diferenciar touch/desktop');
   });
 });
 

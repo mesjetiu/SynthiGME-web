@@ -706,61 +706,34 @@ function commitPendingPinchZoom(panelId) {
 
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
 
-  // ── Modo táctil: zoom interno sin resize del contenedor ──
-  // En dispositivos táctiles (móvil/tablet) redimensionar el contenedor fuerza
-  // un re-layout de ~17k nodos SVG que resulta inaceptablemente lento en móvil.
-  // El contenedor actúa como viewport fijo (como Google Maps) y el panel se
-  // amplía/reduce dentro del marco vía CSS transform (compositor-only, sin layout).
-  if (isPipTouchOptimizedMode()) {
-    const coverMinScale = getPipCoverScale(
-      state.width - PIP_BORDER_SIZE,
-      state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
-      panelWidth, panelHeight
-    );
-    const finalScale = Math.max(coverMinScale, Math.min(MAX_SCALE, state.scale * vs));
-
-    // Mover el contenedor solo por el pan (tx, ty)
-    const clampedPosition = clampPipPosition(state.x + tx, state.y + ty, state.width, state.height);
-    state.x = clampedPosition.x;
-    state.y = clampedPosition.y;
-    state.pipContainer.style.left = `${state.x}px`;
-    state.pipContainer.style.top = `${state.y}px`;
-    // width/height del contenedor NO se tocan
-
-    updatePipScale(panelId, finalScale, false);
-
-    refreshPipViewportMetrics(state);
-    schedulePipStateSave();
-    return;
-  }
-
-  // ── Modo desktop: resize del contenedor al nuevo tamaño del panel ──
+  // ── Todo zoom = resize del contenedor ──
+  // El panel siempre llena la ventana PiP completamente.
+  // La escala se deriva del tamaño del contenedor: scale = width / panelWidth.
+  // panelEl tiene width/height fijos → redimensionar el contenedor NO provoca
+  // re-layout del SVG (~17k nodos). transform:scale() es compositor-only.
   const ar = state.width / state.height;
   let newW = state.width * vs;
   let newH = state.height * vs;
 
-  // Clamp mínimo (igual que resize)
-  if (newW < MIN_PIP_SIZE) {
-    newW = MIN_PIP_SIZE;
-    newH = newW / ar;
-  }
-  if (newH < MIN_PIP_SIZE) {
-    newH = MIN_PIP_SIZE;
-    newW = newH * ar;
-  }
+  // Clamp mínimo
+  if (newW < MIN_PIP_SIZE) { newW = MIN_PIP_SIZE; newH = newW / ar; }
+  if (newH < MIN_PIP_SIZE) { newH = MIN_PIP_SIZE; newW = newH * ar; }
+
+  // Escala derivada del contenedor, clampeada
+  let newScale = Math.max(newW / panelWidth, newH / panelHeight);
+  const minScale = getMinScale(panelId);
+  newScale = Math.max(minScale, Math.min(MAX_SCALE, newScale));
+
+  // Si la escala fue clampeada, ajustar contenedor para ser coherente
+  newW = panelWidth * newScale;
+  newH = panelHeight * newScale;
+  const actualFactor = newW / state.width;
 
   // Posición: el punto de pellizco queda en la misma posición de pantalla
-  const visualX = state.x + ox * (1 - vs) + tx;
-  const visualY = state.y + oy * (1 - vs) + ty;
+  const visualX = state.x + ox * (1 - actualFactor) + tx;
+  const visualY = state.y + oy * (1 - actualFactor) + ty;
   const clampedPosition = clampPipPosition(visualX, visualY, newW, newH);
 
-  // Escala del panel: misma fórmula que resize handler
-  const scaleFactor = newW / state.width;
-  const baseScale = state.scale;
-  const minScale = getMinScale(panelId);
-  const newScale = Math.max(minScale, Math.min(MAX_SCALE, baseScale * scaleFactor));
-
-  // Aplicar todo (idéntico a resize)
   state.width = newW;
   state.height = newH;
   state.x = clampedPosition.x;
@@ -771,16 +744,6 @@ function commitPendingPinchZoom(panelId) {
   state.pipContainer.style.top = `${state.y}px`;
 
   updatePipScale(panelId, newScale, false);
-
-  // Resetear scroll residual (como resize)
-  const viewport = state.viewportEl || state.pipContainer?.querySelector('.pip-viewport');
-  if (viewport) {
-    viewport.scrollLeft = 0;
-    viewport.scrollTop = 0;
-    state.lastScrollLeft = 0;
-    state.lastScrollTop = 0;
-  }
-
   refreshPipViewportMetrics(state);
   schedulePipStateSave();
 }
@@ -2116,10 +2079,8 @@ export function openPip(panelId, restoredConfig = null) {
   const viewport = document.createElement('div');
   viewport.className = 'pip-viewport';
   
-  // Contenedor interno: su tamaño se ajusta a la escala visual del panel
-  // (panelWidth * scale). Así la textura GPU del compositing layer (translateZ(0)
-  // en CSS táctil) es proporcional al área visible, en vez de cubrir el tamaño
-  // natural completo del panel — ahorra ~6× de memoria GPU en móvil.
+  // Contenedor interno: 100% del viewport vía CSS. El panel lo llena con
+  // transform:scale(). overflow:hidden limita la textura GPU al área visible.
   const viewportInner = document.createElement('div');
   viewportInner.className = 'pip-viewport-inner';
   
@@ -2695,22 +2656,11 @@ function setupPipEvents(pipContainer, panelId) {
         state.pipContainer.style.transformOrigin =
           `${state.pinchPreviewOriginX}px ${state.pinchPreviewOriginY}px`;
         // Límites de escala visual para el preview CSS transform.
-        // Touch: el panel debe cubrir el viewport (no resize → min por cover).
-        // Desktop: el contenedor no puede encogerse por debajo de MIN_PIP_SIZE.
-        if (isPipTouchOptimizedMode()) {
-          const { panelWidth, panelHeight } = ensurePanelMetrics(state);
-          const coverMin = getPipCoverScale(
-            state.width - PIP_BORDER_SIZE,
-            state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE,
-            panelWidth, panelHeight
-          );
-          state._pinchVisMinScale = coverMin / Math.max(state.scale, 0.01);
-        } else {
-          state._pinchVisMinScale = Math.max(
-            MIN_PIP_SIZE / Math.max(state.width, 1),
-            MIN_PIP_SIZE / Math.max(state.height, 1)
-          );
-        }
+        // Mínimo: el contenedor no puede ser menor que MIN_PIP_SIZE.
+        state._pinchVisMinScale = Math.max(
+          MIN_PIP_SIZE / Math.max(state.width, 1),
+          MIN_PIP_SIZE / Math.max(state.height, 1)
+        );
         // Máximo: la escala interna del panel no puede superar MAX_SCALE
         state._pinchVisMaxScale = MAX_SCALE / Math.max(state.scale, 0.01);
       }
@@ -3310,26 +3260,12 @@ function updatePipScale(panelId, newScale, persist = true) {
   }
   const visualScale = newScale / effectiveZoom;
   
-  // Tamaño escalado del panel para la textura GPU de viewportInner
-  const scaledWidth = panelWidth * newScale;
-  const scaledHeight = panelHeight * newScale;
-  
   // Aplicar escala al panel: transform:scale() es compositor-only,
   // no cambia el layout del subtree SVG (~17k nodos).
+  // viewportInner usa width:100%;height:100% en CSS — no necesita JS.
   panelEl.style.zoom = effectiveZoom > 1 ? String(effectiveZoom) : '';
   panelEl.style.transform = `scale(${visualScale})`;
   panelEl.style.transformOrigin = '0 0';
-  
-  // Redimensionar viewportInner al tamaño visual escalado del panel.
-  // Esto mantiene la textura GPU proporcional (~3MB vs ~20MB en 3× DPR).
-  // panelEl tiene width/height fijos, así que este cambio no provoca
-  // re-layout del SVG (el panel no depende del tamaño del padre).
-  const viewportInner = state.viewportInnerEl || state.pipContainer.querySelector('.pip-viewport-inner');
-  if (viewportInner) {
-    state.viewportInnerEl = viewportInner;
-    viewportInner.style.width = `${scaledWidth}px`;
-    viewportInner.style.height = `${scaledHeight}px`;
-  }
   
   // Guardar estado después de cambiar zoom
   if (persist) {
@@ -3342,8 +3278,6 @@ function updatePipScale(panelId, newScale, persist = true) {
       panelId,
       newScale,
       effectiveZoom,
-      scaledWidth,
-      scaledHeight,
       persist
     });
   }

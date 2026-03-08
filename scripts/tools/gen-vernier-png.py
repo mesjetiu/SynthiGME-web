@@ -31,8 +31,13 @@ PX_CX = (SVG_CX - SVG_VB_X) * SCALE  # 280
 PX_CY = (SVG_CY - SVG_VB_Y) * SCALE  # 280
 MASK_R = 96 * SCALE                    # 192 px
 
-src = Path(__file__).resolve().parents[2] / 'src' / 'assets' / 'knobs'
-svg_path = src / SVG
+ROOT = Path(__file__).resolve().parents[2]
+src  = ROOT / 'src' / 'assets' / 'knobs'
+
+# Preferir SVG original en design/ (más legible), fallback a src/
+_design = ROOT / 'design' / 'knobs' / 'knob multivuelta' / 'spectrol-vernier-dial.svg'
+svg_path = _design if _design.exists() else src / SVG
+print(f'Fuente SVG: {svg_path}')
 
 ET.register_namespace('', NS)
 ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')

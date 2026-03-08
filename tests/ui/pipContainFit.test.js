@@ -83,13 +83,13 @@ describe('Locks y resize de PiP', () => {
 });
 
 describe('updatePipScale', () => {
-  it('aplica transform scale y transformOrigin 0 0 al panel (sin redimensionar viewportInner)', () => {
+  it('aplica transform scale, transformOrigin 0 0 y redimensiona viewportInner al tamaño visual', () => {
     assert.match(pipSource, /panelEl\.style\.transform = `scale\(\$\{visualScale\}\)`;/);
     assert.match(pipSource, /panelEl\.style\.transformOrigin = '0 0';/);
-    // viewportInner ya no se redimensiona dinámicamente: su tamaño se fija
-    // una sola vez al crear el PiP (tamaño natural del panel).
-    assert.ok(!pipSource.includes("viewportInner.style.width = `${scaledWidth}px`"),
-      'viewportInner no debe redimensionarse en updatePipScale');
+    // viewportInner se redimensiona a scaledWidth × scaledHeight para que la
+    // textura GPU sea proporcional al zoom (~3MB vs ~20MB en 3× DPR).
+    assert.match(pipSource, /viewportInner\.style\.width = `\$\{scaledWidth\}px`;/);
+    assert.match(pipSource, /viewportInner\.style\.height = `\$\{scaledHeight\}px`;/);
   });
 
   it('persiste el cambio de escala de forma diferida y condicional', () => {

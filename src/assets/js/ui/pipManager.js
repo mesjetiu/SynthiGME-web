@@ -2116,17 +2116,20 @@ export function openPip(panelId, restoredConfig = null) {
   const viewport = document.createElement('div');
   viewport.className = 'pip-viewport';
   
-  // Contenedor interno: tamaño fijo al natural del panel (760×760).
-  // La escala visual la maneja transform:scale() en el panelEl hijo,
-  // que es compositor-only (no provoca re-layout del SVG).
+  // Contenedor interno: su tamaño se ajusta a la escala visual del panel
+  // (panelWidth * scale). Así la textura GPU del compositing layer (translateZ(0)
+  // en CSS táctil) es proporcional al área visible, en vez de cubrir el tamaño
+  // natural completo del panel — ahorra ~6× de memoria GPU en móvil.
   const viewportInner = document.createElement('div');
   viewportInner.className = 'pip-viewport-inner';
+  
+  // Mover el panel al contenedor interno. Fijar ancho/alto del panelEl
+  // para que no dependa del layout del padre (viewportInner).
+  // Así, al redimensionar viewportInner, el panel NO re-layoutea.
   const naturalW = panelEl.offsetWidth || 760;
   const naturalH = panelEl.offsetHeight || 760;
-  viewportInner.style.width = `${naturalW}px`;
-  viewportInner.style.height = `${naturalH}px`;
-  
-  // Mover el panel al contenedor interno
+  panelEl.style.width = `${naturalW}px`;
+  panelEl.style.height = `${naturalH}px`;
   viewportInner.appendChild(panelEl);
   viewport.appendChild(viewportInner);
   content.appendChild(viewport);
@@ -2670,7 +2673,6 @@ function setupPipEvents(pipContainer, panelId) {
       const state = activePips.get(panelId);
       if (state && isPipZoomLocked(state)) return;
       e.preventDefault();
-      setPipPreviewMode(panelId, true);
       gestureInProgress = true;
       window.__synthPipGestureActive = true;
       // Ocultar tooltips de controles interactivos (ej. joystick pad)
@@ -3308,12 +3310,26 @@ function updatePipScale(panelId, newScale, persist = true) {
   }
   const visualScale = newScale / effectiveZoom;
   
-  // Aplicar escala al panel: transform:scale() es compositor-only, no cambia
-  // el layout del subtree SVG (~17k nodos). El viewportInner mantiene siempre
-  // el tamaño natural del panel; overflow:hidden en pip-viewport recorta.
+  // Tamaño escalado del panel para la textura GPU de viewportInner
+  const scaledWidth = panelWidth * newScale;
+  const scaledHeight = panelHeight * newScale;
+  
+  // Aplicar escala al panel: transform:scale() es compositor-only,
+  // no cambia el layout del subtree SVG (~17k nodos).
   panelEl.style.zoom = effectiveZoom > 1 ? String(effectiveZoom) : '';
   panelEl.style.transform = `scale(${visualScale})`;
   panelEl.style.transformOrigin = '0 0';
+  
+  // Redimensionar viewportInner al tamaño visual escalado del panel.
+  // Esto mantiene la textura GPU proporcional (~3MB vs ~20MB en 3× DPR).
+  // panelEl tiene width/height fijos, así que este cambio no provoca
+  // re-layout del SVG (el panel no depende del tamaño del padre).
+  const viewportInner = state.viewportInnerEl || state.pipContainer.querySelector('.pip-viewport-inner');
+  if (viewportInner) {
+    state.viewportInnerEl = viewportInner;
+    viewportInner.style.width = `${scaledWidth}px`;
+    viewportInner.style.height = `${scaledHeight}px`;
+  }
   
   // Guardar estado después de cambiar zoom
   if (persist) {
@@ -3326,6 +3342,8 @@ function updatePipScale(panelId, newScale, persist = true) {
       panelId,
       newScale,
       effectiveZoom,
+      scaledWidth,
+      scaledHeight,
       persist
     });
   }

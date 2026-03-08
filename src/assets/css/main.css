@@ -6589,14 +6589,16 @@ small { color:#aaa; }
 }
 
 /* En tablet/móvil se promueve a capa GPU para pre-rasterizar el SVG pesado
-   y evitar flashes blancos durante gestos de pinch-zoom. Como viewportInner
-   nunca cambia de tamaño, la textura GPU se sube una sola vez. */
+   y evitar flashes blancos durante gestos de pinch-zoom. viewportInner se
+   redimensiona al tamaño visual del panel (scaledWidth), manteniendo la
+   textura GPU proporcional al zoom (~3MB a scale 0.4 vs ~20MB a 760px fijo). */
 @media (pointer: coarse) {
   .pip-viewport-inner {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
+    will-change: transform;
   }
 }
 

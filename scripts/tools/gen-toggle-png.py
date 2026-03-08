@@ -18,6 +18,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 import sys
 
+from fontconfig_local import local_fontconfig
+
 NS  = 'http://www.w3.org/2000/svg'
 ET.register_namespace('', NS)
 ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
@@ -40,13 +42,14 @@ OUT_H = VB_H * SCALE   # 372
 
 def render(svg_file, png_file):
     """Renderiza SVG a PNG con cairosvg."""
-    import cairosvg
-    cairosvg.svg2png(
-        url=str(svg_file),
-        write_to=str(png_file),
-        output_width=OUT_W,
-        output_height=OUT_H,
-    )
+    with local_fontconfig():
+        import cairosvg
+        cairosvg.svg2png(
+            url=str(svg_file),
+            write_to=str(png_file),
+            output_width=OUT_W,
+            output_height=OUT_H,
+        )
 
 
 def generate_state_a():

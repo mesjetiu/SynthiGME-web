@@ -16,6 +16,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from PIL import Image, ImageDraw
 
+from fontconfig_local import local_fontconfig
+
 SVG = 'vernier-dial.svg'
 NS  = 'http://www.w3.org/2000/svg'
 
@@ -68,13 +70,14 @@ def make_svg(keep_indices, out_name):
 
 def render(svg_file, png_file):
     """Renderiza SVG a PNG con cairosvg."""
-    import cairosvg
-    cairosvg.svg2png(
-        url=str(svg_file),
-        write_to=str(png_file),
-        output_width=OUT_SIZE,
-        output_height=OUT_SIZE,
-    )
+    with local_fontconfig():
+        import cairosvg
+        cairosvg.svg2png(
+            url=str(svg_file),
+            write_to=str(png_file),
+            output_width=OUT_SIZE,
+            output_height=OUT_SIZE,
+        )
 
 
 def apply_ring_mask(png_path):
@@ -156,9 +159,9 @@ ring_svg.unlink()
 print('\n--- Verificación ---')
 for name in ['vernier-rotor.png', 'vernier-ring.png']:
     img = Image.open(src / name)
-    px = list(img.getdata())
-    transp = sum(1 for p in px if p[3] < 10)
-    total = len(px)
+    alpha = img.getchannel('A')
+    transp = sum(alpha.histogram()[:10])
+    total = img.size[0] * img.size[1]
     print(f'  {name}: {img.size} mode={img.mode} transparent={transp}/{total} ({100*transp/total:.1f}%)')
 
     # Sample center pixel

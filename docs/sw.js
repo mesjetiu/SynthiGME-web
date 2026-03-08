@@ -1,4 +1,4 @@
-const CACHE_VERSION = '0.7.0-20260308.153454';
+const CACHE_VERSION = '0.7.0-20260308.164517';
 const CACHE_NAME = `synthigme-cache-v${CACHE_VERSION}`;
 const CORE_ASSETS = [
   './',
@@ -10,13 +10,12 @@ const CORE_ASSETS = [
   './assets/icons/ui-sprite.svg',
   './assets/panels/panel1_bg.svg',
   './assets/panels/panel2_bg.svg',
-  './assets/panels/panel3_bg.svg',
+  './assets/panels/panel_3.svg',
   './assets/panels/panel4_bg.svg',
   './assets/panels/panel5_bg.svg',
   './assets/panels/panel6_bg.svg',
   './assets/panels/panel_1.jpg',
   './assets/panels/panel_2.jpg',
-  './assets/panels/panel_3.webp',
   './assets/panels/panel_4.jpg',
   './assets/panels/panel_7.jpg',
   './manifest.webmanifest',

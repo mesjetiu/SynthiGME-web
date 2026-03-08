@@ -18,6 +18,8 @@ Requisitos:  pip install cairosvg pillow
 """
 from pathlib import Path
 
+from fontconfig_local import local_fontconfig
+
 # ─── Rutas ───────────────────────────────────────────────────────────────
 ROOT    = Path(__file__).resolve().parents[2]
 DESIGN  = ROOT / 'design' / 'knobs'
@@ -34,13 +36,14 @@ ASSETS = [
 
 def render(svg_file, png_file):
     """Renderiza SVG a PNG con cairosvg."""
-    import cairosvg
-    cairosvg.svg2png(
-        url=str(svg_file),
-        write_to=str(png_file),
-        output_width=OUT_SIZE,
-        output_height=OUT_SIZE,
-    )
+    with local_fontconfig():
+        import cairosvg
+        cairosvg.svg2png(
+            url=str(svg_file),
+            write_to=str(png_file),
+            output_width=OUT_SIZE,
+            output_height=OUT_SIZE,
+        )
 
 
 # ─── Main ────────────────────────────────────────────────────────────────

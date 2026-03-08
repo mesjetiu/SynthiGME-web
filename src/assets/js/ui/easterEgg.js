@@ -712,6 +712,7 @@ const MAX_PINS = 50;   // pines simbólicos (hay cientos, solo unos pocos)
 function gatherGhosts() {
   const MIN_SIZE = 1;
   const candidates = [];
+  const seen = new Set();
 
   // ── Selector de módulos (frames) ──
   const MODULE_SEL = [
@@ -744,6 +745,23 @@ function gatherGhosts() {
     '.random-voltage__header',
   ].join(',');
 
+  const KEYBOARD_STRUCTURE_SEL = [
+    '#rail-left',
+    '#rail-right',
+    '#leather-strip',
+    '#cheeks-and-step',
+    '#step-top',
+    '#step-shadow',
+    '#front-panel',
+    '#keyboard-upper',
+    '#keyboard-lower',
+  ].join(',');
+
+  const KEYBOARD_KEY_SEL = [
+    '.white-key',
+    '.black-key',
+  ].join(',');
+
   // Tags a excluir siempre (SVG/canvas internals, infraestructura)
   const EXCLUDE_TAGS = new Set([
     'CANVAS', 'SVG', 'PATH', 'CIRCLE', 'RECT', 'LINE',
@@ -751,44 +769,59 @@ function gatherGhosts() {
     'BR', 'SCRIPT', 'STYLE', 'LINK',
   ]);
 
+  function tagNameOf(el) {
+    return String(el.tagName || '').toUpperCase();
+  }
+
+  function addCandidate(el, priority, { allowSvgInternals = false } = {}) {
+    if (!el || seen.has(el)) return;
+    if (!allowSvgInternals && EXCLUDE_TAGS.has(tagNameOf(el))) return;
+    if (el.closest('.tooltip, [role="tooltip"]')) return;
+
+    const r = el.getBoundingClientRect();
+    if (r.width <= MIN_SIZE || r.height <= MIN_SIZE) return;
+
+    seen.add(el);
+    candidates.push({ el, rect: r, priority });
+  }
+
   // 1. Paneles
   for (const el of document.querySelectorAll('.panel')) {
-    const r = el.getBoundingClientRect();
-    if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
-      candidates.push({ el, rect: r, priority: 0 });
-    }
+    addCandidate(el, 0);
   }
 
   // 2. Notas — pueden estar dentro de paneles O en #viewportInner
   for (const el of document.querySelectorAll('.panel-note')) {
-    const r = el.getBoundingClientRect();
-    if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
-      candidates.push({ el, rect: r, priority: 0 });
-    }
+    addCandidate(el, 0);
   }
 
   // 3. Módulos (frames)
   for (const el of document.querySelectorAll(MODULE_SEL)) {
-    const r = el.getBoundingClientRect();
-    if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
-      candidates.push({ el, rect: r, priority: 1 });
-    }
+    addCandidate(el, 1);
   }
 
   // 4. Controles internos (knobs, sliders, botones, headers...)
   for (const el of document.querySelectorAll(CONTROL_SEL)) {
-    if (EXCLUDE_TAGS.has(el.tagName)) continue;
-    // Excluir tooltips
-    if (el.closest('.tooltip, [role="tooltip"]')) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width > MIN_SIZE && r.height > MIN_SIZE) {
-      candidates.push({ el, rect: r, priority: 2 });
+    addCandidate(el, 2);
+  }
+
+  // 4b. Keyboard flotante (solo si está abierto/renderizado)
+  const keyboardWindow = document.querySelector('#keyboardWindow.keyboard-window');
+  if (keyboardWindow) {
+    addCandidate(keyboardWindow, 1);
+
+    for (const el of keyboardWindow.querySelectorAll(KEYBOARD_STRUCTURE_SEL)) {
+      addCandidate(el, 1, { allowSvgInternals: true });
+    }
+
+    for (const el of keyboardWindow.querySelectorAll(KEYBOARD_KEY_SEL)) {
+      addCandidate(el, 2, { allowSvgInternals: true });
     }
   }
 
   // 5. Pines simbólicos (solo un muestreo, no todos)
   const allPins = [...document.querySelectorAll('.pin-btn')].filter(el => {
-    if (EXCLUDE_TAGS.has(el.tagName)) return false;
+    if (EXCLUDE_TAGS.has(tagNameOf(el))) return false;
     if (el.closest('.tooltip, [role="tooltip"]')) return false;
     const r = el.getBoundingClientRect();
     return r.width > MIN_SIZE && r.height > MIN_SIZE;

@@ -610,6 +610,21 @@ describe('Easter Egg — Desintegración visual (análisis estático)', () => {
       'Debe animar cabeceras de módulos');
   });
 
+  it('incluye el keyboard flotante, su carcasa y sus teclas en gatherGhosts', () => {
+    assert.ok(easterEggSource.includes('#keyboardWindow.keyboard-window'),
+      'Debe detectar la ventana flotante del keyboard');
+    assert.ok(easterEggSource.includes('#keyboard-upper'),
+      'Debe incluir el grupo upper del keyboard');
+    assert.ok(easterEggSource.includes('#keyboard-lower'),
+      'Debe incluir el grupo lower del keyboard');
+    assert.ok(easterEggSource.includes('.white-key'),
+      'Debe incluir las teclas blancas del keyboard');
+    assert.ok(easterEggSource.includes('.black-key'),
+      'Debe incluir las teclas negras del keyboard');
+    assert.ok(easterEggSource.includes('allowSvgInternals: true'),
+      'Debe permitir SVG internos del keyboard sin abrir el filtro global');
+  });
+
   it('renderiza fantasmas en canvas (startCanvasAnimation)', () => {
     assert.ok(easterEggSource.includes('function startCanvasAnimation('),
       'Debe tener función startCanvasAnimation');

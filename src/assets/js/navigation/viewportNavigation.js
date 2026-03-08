@@ -918,6 +918,116 @@ export function initViewportNavigation({ outer, inner } = {}) {
   // Flechas: paneo del canvas (paso proporcional al viewport)
   // Ctrl+/Ctrl-/Ctrl+0: zoom (funciona tanto en navegador como en Electron)
   const ARROW_PAN_FACTOR = 0.15; // fracción del viewport por pulsación
+  const VIEWPORT_KEYBOARD_ZOOM_BASE_RATE = 1.25;
+  const VIEWPORT_KEYBOARD_ZOOM_MAX_RATE = 3.6;
+  const VIEWPORT_KEYBOARD_ZOOM_ACCELERATION_MS = 520;
+  const VIEWPORT_KEYBOARD_ZOOM_FRAME_MS = 1000 / 60;
+  const ACTIVE_ARROW_KEYS = new Set();
+  const ACTIVE_ZOOM_KEYS = new Set();
+  const viewportKeyboardZoomState = {
+    direction: null,
+    rafId: null,
+    lastTs: 0,
+    startedAt: 0
+  };
+
+  function syncFocusedPipKeyboardPan() {
+    if (!window.__synthPanFocusedPip) return false;
+    const dirX = (ACTIVE_ARROW_KEYS.has('ArrowRight') ? 1 : 0) - (ACTIVE_ARROW_KEYS.has('ArrowLeft') ? 1 : 0);
+    const dirY = (ACTIVE_ARROW_KEYS.has('ArrowDown') ? 1 : 0) - (ACTIVE_ARROW_KEYS.has('ArrowUp') ? 1 : 0);
+    return window.__synthPanFocusedPip(dirX, dirY, { continuous: true });
+  }
+
+  function getKeyboardZoomDirection(key) {
+    if (key === '+' || key === '=') return 'in';
+    if (key === '-' || key === '_') return 'out';
+    return null;
+  }
+
+  function getActiveKeyboardZoomDirection() {
+    const zoomIn = ACTIVE_ZOOM_KEYS.has('in');
+    const zoomOut = ACTIVE_ZOOM_KEYS.has('out');
+    if (zoomIn === zoomOut) return null;
+    return zoomIn ? 'in' : 'out';
+  }
+
+  function stopViewportKeyboardZoom() {
+    if (viewportKeyboardZoomState.rafId) {
+      cancelAnimationFrame(viewportKeyboardZoomState.rafId);
+      viewportKeyboardZoomState.rafId = null;
+    }
+    viewportKeyboardZoomState.direction = null;
+    viewportKeyboardZoomState.lastTs = 0;
+    viewportKeyboardZoomState.startedAt = 0;
+  }
+
+  function stepViewportKeyboardZoom(timestamp) {
+    const direction = viewportKeyboardZoomState.direction;
+    if ((direction !== 'in' && direction !== 'out') || navLocks.zoomLocked) {
+      stopViewportKeyboardZoom();
+      return;
+    }
+
+    const dtMs = viewportKeyboardZoomState.lastTs > 0
+      ? Math.max(8, Math.min(40, timestamp - viewportKeyboardZoomState.lastTs))
+      : VIEWPORT_KEYBOARD_ZOOM_FRAME_MS;
+    viewportKeyboardZoomState.lastTs = timestamp;
+
+    const heldMs = Math.max(0, timestamp - viewportKeyboardZoomState.startedAt);
+    const accel = Math.min(1, heldMs / VIEWPORT_KEYBOARD_ZOOM_ACCELERATION_MS);
+    const zoomRate = VIEWPORT_KEYBOARD_ZOOM_BASE_RATE
+      + ((VIEWPORT_KEYBOARD_ZOOM_MAX_RATE - VIEWPORT_KEYBOARD_ZOOM_BASE_RATE) * (1 - ((1 - accel) ** 4)));
+    const zoomFactor = Math.exp(zoomRate * (dtMs / 1000));
+
+    metricsDirty = true;
+    refreshMetrics();
+    cancelRasterize();
+    const cx = (metrics.outerWidth || outer.clientWidth) / 2;
+    const cy = (metrics.outerHeight || outer.clientHeight) / 2;
+    const minScale = getMinScale();
+    const newScale = direction === 'in'
+      ? Math.min(maxScale, Math.max(minScale, scale * zoomFactor))
+      : Math.min(maxScale, Math.max(minScale, scale / zoomFactor));
+    adjustOffsetsForZoom(cx, cy, newScale);
+    markUserAdjusted();
+    scheduleRasterize();
+    if (!isCoarsePointer) {
+      scheduleLowZoomUpdate();
+    }
+
+    viewportKeyboardZoomState.rafId = requestAnimationFrame(stepViewportKeyboardZoom);
+  }
+
+  function syncContinuousKeyboardZoom() {
+    const direction = getActiveKeyboardZoomDirection();
+
+    if (window.__synthFocusedPip && window.__synthZoomFocusedPip) {
+      stopViewportKeyboardZoom();
+      return window.__synthZoomFocusedPip(direction || 'stop', { continuous: true });
+    }
+
+    if (!direction) {
+      stopViewportKeyboardZoom();
+      return false;
+    }
+
+    if (navLocks.zoomLocked) {
+      stopViewportKeyboardZoom();
+      return true;
+    }
+
+    const now = globalThis.performance?.now?.() ?? Date.now();
+    const directionChanged = viewportKeyboardZoomState.direction !== direction;
+    viewportKeyboardZoomState.direction = direction;
+    if (directionChanged) {
+      viewportKeyboardZoomState.startedAt = now;
+      viewportKeyboardZoomState.lastTs = now - VIEWPORT_KEYBOARD_ZOOM_FRAME_MS;
+    }
+    if (!viewportKeyboardZoomState.rafId) {
+      viewportKeyboardZoomState.rafId = requestAnimationFrame(stepViewportKeyboardZoom);
+    }
+    return true;
+  }
 
   /**
    * Comprueba si el usuario está escribiendo en un campo de texto.
@@ -943,26 +1053,17 @@ export function initViewportNavigation({ outer, inner } = {}) {
     // el navegador web, previniendo el zoom nativo de la página.
     if ((ev.ctrlKey || ev.metaKey) && !ev.altKey) {
       const k = ev.key;
-      if (k === '+' || k === '=') {
+      const zoomDirection = getKeyboardZoomDirection(k);
+      if (zoomDirection) {
         ev.preventDefault();
-        if (window.__synthFocusedPip && window.__synthZoomFocusedPip) {
-          window.__synthZoomFocusedPip('in');
-        } else {
-          document.dispatchEvent(new CustomEvent('synth:zoomIn'));
-        }
-        return;
-      }
-      if (k === '-' || k === '_') {
-        ev.preventDefault();
-        if (window.__synthFocusedPip && window.__synthZoomFocusedPip) {
-          window.__synthZoomFocusedPip('out');
-        } else {
-          document.dispatchEvent(new CustomEvent('synth:zoomOut'));
-        }
+        ACTIVE_ZOOM_KEYS.add(zoomDirection);
+        syncContinuousKeyboardZoom();
         return;
       }
       if (k === '0') {
         ev.preventDefault();
+        ACTIVE_ZOOM_KEYS.clear();
+        syncContinuousKeyboardZoom();
         if (window.__synthFocusedPip && window.__synthZoomFocusedPip) {
           window.__synthZoomFocusedPip('reset');
         } else {
@@ -988,8 +1089,8 @@ export function initViewportNavigation({ outer, inner } = {}) {
       ev.preventDefault();
       // Si hay un PiP en foco, redirigir paneo a su viewport
       if (window.__synthFocusedPip && window.__synthPanFocusedPip) {
-        // Invertir signos: ArrowLeft → scroll derecha (-), ArrowRight → scroll izquierda (+)
-        window.__synthPanFocusedPip(-arrowDir[0], -arrowDir[1]);
+        ACTIVE_ARROW_KEYS.add(ev.key);
+        syncFocusedPipKeyboardPan();
         return;
       }
       cancelRasterize();
@@ -1004,12 +1105,28 @@ export function initViewportNavigation({ outer, inner } = {}) {
   });
 
   window.addEventListener('keyup', ev => {
+    const zoomDirection = getKeyboardZoomDirection(ev.key);
+    if (zoomDirection && ACTIVE_ZOOM_KEYS.has(zoomDirection)) {
+      ACTIVE_ZOOM_KEYS.delete(zoomDirection);
+      syncContinuousKeyboardZoom();
+    } else if (ev.key === 'Control' || ev.key === 'Meta') {
+      ACTIVE_ZOOM_KEYS.clear();
+      syncContinuousKeyboardZoom();
+    }
+    if (ACTIVE_ARROW_KEYS.has(ev.key)) {
+      ACTIVE_ARROW_KEYS.delete(ev.key);
+      syncFocusedPipKeyboardPan();
+    }
     if (ev.key === 'Shift') {
       setClampDisabled(false);
     }
   });
 
   window.addEventListener('blur', () => {
+    ACTIVE_ZOOM_KEYS.clear();
+    syncContinuousKeyboardZoom();
+    ACTIVE_ARROW_KEYS.clear();
+    syncFocusedPipKeyboardPan();
     setClampDisabled(false);
   });
 

@@ -111,6 +111,39 @@ describe('Animación visual canvas ↔ PiP', () => {
   });
 });
 
+describe('Paneo continuo de PiP con teclado', () => {
+  it('declara un controlador RAF con aceleración temporal para flechas mantenidas', () => {
+    assert.match(pipSource, /const PIP_KEYBOARD_PAN_BASE_SPEED = 0\.55;/);
+    assert.match(pipSource, /const PIP_KEYBOARD_PAN_MAX_SPEED = 1\.8;/);
+    assert.match(pipSource, /const PIP_KEYBOARD_PAN_ACCELERATION_MS = 520;/);
+    assert.match(pipSource, /function stepFocusedPipKeyboardPan\(timestamp\) \{[\s\S]*?const heldMs = Math\.max\(0, timestamp - pipKeyboardPanState\.startedAt\);[\s\S]*?const speedFactor = PIP_KEYBOARD_PAN_BASE_SPEED[\s\S]*?PIP_TRANSITION_EASING\(accel\)/);
+    assert.match(pipSource, /state\.pipContainer\.classList\.add\('pip-container--keyboard-panning'\)/);
+    assert.match(pipSource, /pipKeyboardPanState\.rafId = requestAnimationFrame\(stepFocusedPipKeyboardPan\);/);
+  });
+
+  it('window.__synthPanFocusedPip soporta modo continuo sin romper el paso discreto existente', () => {
+    assert.match(pipSource, /window\.__synthPanFocusedPip = \(dirX, dirY, \{ continuous = false \} = \{\}\) => \{/);
+    assert.match(pipSource, /if \(continuous\) \{[\s\S]*?startFocusedPipKeyboardPan\(focusedPipId, dirX, dirY\);/);
+    assert.match(pipSource, /const stepX = state\.width \* 0\.15;/);
+    assert.match(pipSource, /const stepY = state\.height \* 0\.15;/);
+  });
+
+  it('declara también zoom continuo con aceleración temporal para Ctrl+ y Ctrl-', () => {
+    assert.match(pipSource, /const PIP_KEYBOARD_ZOOM_BASE_RATE = 1\.35;/);
+    assert.match(pipSource, /const PIP_KEYBOARD_ZOOM_MAX_RATE = 4\.2;/);
+    assert.match(pipSource, /function stepFocusedPipKeyboardZoom\(timestamp\) \{[\s\S]*?const zoomRate = PIP_KEYBOARD_ZOOM_BASE_RATE[\s\S]*?Math\.exp\(zoomRate \* \(dtMs \/ 1000\)\)/);
+    assert.match(pipSource, /state\.pipContainer\.classList\.add\('pip-container--keyboard-zooming'\)/);
+    assert.match(pipSource, /function stopFocusedPipKeyboardZoom\(\{ scheduleSave = true, deactivatePreview = true \} = \{\}\)/);
+  });
+
+  it('window.__synthZoomFocusedPip soporta modo continuo y parada explícita', () => {
+    assert.match(pipSource, /window\.__synthZoomFocusedPip = \(direction, \{ continuous = false \} = \{\}\) => \{/);
+    assert.match(pipSource, /if \(continuous\) \{[\s\S]*?if \(direction === 'stop'\) \{[\s\S]*?stopFocusedPipKeyboardZoom/);
+    assert.match(pipSource, /return startFocusedPipKeyboardZoom\(focusedPipId, direction\);/);
+    assert.match(pipSource, /if \(direction === 'reset'\) \{[\s\S]*?nextScale = minScale;/);
+  });
+});
+
 describe('Locks del PiP enfocado', () => {
   it('getFocusedPipLockState devuelve panelId, hasFocusedPip, panLocked, zoomLocked y locked', () => {
     assert.match(pipSource, /return \{[\s\S]*?panelId:[\s\S]*?hasFocusedPip:[\s\S]*?panLocked:[\s\S]*?zoomLocked:[\s\S]*?locked:/);

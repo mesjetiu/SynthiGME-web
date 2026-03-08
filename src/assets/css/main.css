@@ -6411,6 +6411,14 @@ small { color:#aaa; }
   will-change: transform;
 }
 
+.pip-container--keyboard-panning {
+  will-change: left, top;
+}
+
+.pip-container--keyboard-zooming {
+  will-change: left, top, width, height;
+}
+
 .pip-container--frameless {
   overflow: hidden;
 }

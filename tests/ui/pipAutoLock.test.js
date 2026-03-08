@@ -33,6 +33,24 @@ describe('Canvas principal fijo', () => {
     assert.match(navSource, /userHasAdjustedView = false;/);
     assert.match(navSource, /fitContentToViewport\(\);/);
   });
+
+  it('redirige las flechas del teclado a un paneo continuo del PiP enfocado y lo detiene en keyup/blur', () => {
+    assert.match(navSource, /const ACTIVE_ARROW_KEYS = new Set\(\);/);
+    assert.match(navSource, /function syncFocusedPipKeyboardPan\(\) \{[\s\S]*?window\.__synthPanFocusedPip\(dirX, dirY, \{ continuous: true \}\);/);
+    assert.match(navSource, /if \(window\.__synthFocusedPip && window\.__synthPanFocusedPip\) \{[\s\S]*?ACTIVE_ARROW_KEYS\.add\(ev\.key\);[\s\S]*?syncFocusedPipKeyboardPan\(\);[\s\S]*?return;/);
+    assert.match(navSource, /window\.addEventListener\('keyup', ev => \{[\s\S]*?ACTIVE_ARROW_KEYS\.delete\(ev\.key\);[\s\S]*?syncFocusedPipKeyboardPan\(\);/);
+    assert.match(navSource, /window\.addEventListener\('blur', \(\) => \{[\s\S]*?ACTIVE_ARROW_KEYS\.clear\(\);[\s\S]*?syncFocusedPipKeyboardPan\(\);/);
+  });
+
+  it('redirige Ctrl+ y Ctrl- a zoom continuo del PiP enfocado o del viewport y lo detiene al soltar', () => {
+    assert.match(navSource, /const ACTIVE_ZOOM_KEYS = new Set\(\);/);
+    assert.match(navSource, /function getKeyboardZoomDirection\(key\) \{/);
+    assert.match(navSource, /function syncContinuousKeyboardZoom\(\) \{[\s\S]*?window\.__synthZoomFocusedPip\(direction \|\| 'stop', \{ continuous: true \}\);/);
+    assert.match(navSource, /function stepViewportKeyboardZoom\(timestamp\) \{[\s\S]*?const zoomRate = VIEWPORT_KEYBOARD_ZOOM_BASE_RATE[\s\S]*?Math\.exp\(zoomRate \* \(dtMs \/ 1000\)\)/);
+    assert.match(navSource, /if \(zoomDirection\) \{[\s\S]*?ACTIVE_ZOOM_KEYS\.add\(zoomDirection\);[\s\S]*?syncContinuousKeyboardZoom\(\);[\s\S]*?return;/);
+    assert.match(navSource, /if \(k === '0'\) \{[\s\S]*?ACTIVE_ZOOM_KEYS\.clear\(\);[\s\S]*?syncContinuousKeyboardZoom\(\);/);
+    assert.match(navSource, /if \(zoomDirection && ACTIVE_ZOOM_KEYS\.has\(zoomDirection\)\) \{[\s\S]*?ACTIVE_ZOOM_KEYS\.delete\(zoomDirection\);[\s\S]*?syncContinuousKeyboardZoom\(\);/);
+  });
 });
 
 describe('pipManager expone foco y locks del PiP', () => {

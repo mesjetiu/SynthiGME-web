@@ -70,6 +70,17 @@ const PIP_SAVE_DEBOUNCE_MS = 180;
 const PIP_TRANSITION_DURATION_MS = 380;
 const PIP_TRANSITION_EASING = (t) => 1 - ((1 - t) ** 4);
 
+/** Velocidad del paneo por teclado sobre PiPs (en anchos/altos por segundo) */
+const PIP_KEYBOARD_PAN_BASE_SPEED = 0.55;
+const PIP_KEYBOARD_PAN_MAX_SPEED = 1.8;
+const PIP_KEYBOARD_PAN_ACCELERATION_MS = 520;
+const PIP_KEYBOARD_PAN_FRAME_MS = 1000 / 60;
+
+/** Velocidad del zoom por teclado sobre PiPs (factor exponencial por segundo) */
+const PIP_KEYBOARD_ZOOM_BASE_RATE = 1.35;
+const PIP_KEYBOARD_ZOOM_MAX_RATE = 4.2;
+const PIP_KEYBOARD_ZOOM_ACCELERATION_MS = 520;
+
 /** Tiempo sin interacción antes de restaurar el panel vivo en PiP */
 const PIP_PREVIEW_IDLE_MS = 220;
 
@@ -116,6 +127,21 @@ const pipTransitionJobs = new Map();
 let pipSharpRasterizeEnabled = localStorage.getItem(STORAGE_KEYS.SHARP_RASTERIZE_ENABLED) === 'true';
 let activeWheelGesturePanelId = null;
 let activeWheelGestureTimer = null;
+const pipKeyboardPanState = {
+  panelId: null,
+  dirX: 0,
+  dirY: 0,
+  rafId: null,
+  lastTs: 0,
+  startedAt: 0
+};
+const pipKeyboardZoomState = {
+  panelId: null,
+  direction: null,
+  rafId: null,
+  lastTs: 0,
+  startedAt: 0
+};
 
 const PIP_PREVIEW_REMOVE_SELECTORS = [
   '.knob-label',
@@ -910,6 +936,12 @@ function clampPipScroll(state, scrollLeft, scrollTop, scale = state?.scale || 1)
 
 function cancelPendingPipInteraction(state) {
   if (!state) return;
+  if (state.panelId && pipKeyboardPanState.panelId === state.panelId) {
+    stopFocusedPipKeyboardPan({ scheduleSave: false, deactivatePreview: false });
+  }
+  if (state.panelId && pipKeyboardZoomState.panelId === state.panelId) {
+    stopFocusedPipKeyboardZoom({ scheduleSave: false, deactivatePreview: false });
+  }
   if (state.pendingWheelRaf) {
     cancelAnimationFrame(state.pendingWheelRaf);
     state.pendingWheelRaf = null;
@@ -1502,6 +1534,210 @@ function schedulePipWheelInteraction(panelId) {
   state.pendingWheelRaf = requestAnimationFrame(() => flushPipWheelInteraction(panelId));
 }
 
+function stopFocusedPipKeyboardPan({ scheduleSave = true, deactivatePreview = true } = {}) {
+  const activePanelId = pipKeyboardPanState.panelId;
+  const activeState = activePanelId ? activePips.get(activePanelId) : null;
+
+  if (pipKeyboardPanState.rafId) {
+    cancelAnimationFrame(pipKeyboardPanState.rafId);
+    pipKeyboardPanState.rafId = null;
+  }
+
+  pipKeyboardPanState.panelId = null;
+  pipKeyboardPanState.dirX = 0;
+  pipKeyboardPanState.dirY = 0;
+  pipKeyboardPanState.lastTs = 0;
+  pipKeyboardPanState.startedAt = 0;
+
+  if (!activeState?.pipContainer) return;
+
+  activeState.pipContainer.classList.remove('pip-container--keyboard-panning');
+  if (deactivatePreview) {
+    setPipPreviewMode(activeState.panelId, false);
+  }
+  if (scheduleSave) {
+    schedulePipStateSave();
+  }
+}
+
+function stopFocusedPipKeyboardZoom({ scheduleSave = true, deactivatePreview = true } = {}) {
+  const activePanelId = pipKeyboardZoomState.panelId;
+  const activeState = activePanelId ? activePips.get(activePanelId) : null;
+
+  if (pipKeyboardZoomState.rafId) {
+    cancelAnimationFrame(pipKeyboardZoomState.rafId);
+    pipKeyboardZoomState.rafId = null;
+  }
+
+  pipKeyboardZoomState.panelId = null;
+  pipKeyboardZoomState.direction = null;
+  pipKeyboardZoomState.lastTs = 0;
+  pipKeyboardZoomState.startedAt = 0;
+
+  if (!activeState?.pipContainer) return;
+
+  activeState.pipContainer.classList.remove('pip-container--keyboard-zooming');
+  if (deactivatePreview) {
+    setPipPreviewMode(activeState.panelId, false);
+  }
+  if (scheduleSave) {
+    schedulePipStateSave();
+  }
+}
+
+function stepFocusedPipKeyboardPan(timestamp) {
+  const panelId = pipKeyboardPanState.panelId;
+  const state = panelId ? activePips.get(panelId) : null;
+
+  if (!panelId || !state || focusedPipId !== panelId || !state.pipContainer || isPipPanLocked(state)) {
+    stopFocusedPipKeyboardPan({ scheduleSave: false, deactivatePreview: true });
+    return;
+  }
+
+  const dtMs = pipKeyboardPanState.lastTs > 0
+    ? Math.max(8, Math.min(40, timestamp - pipKeyboardPanState.lastTs))
+    : PIP_KEYBOARD_PAN_FRAME_MS;
+  pipKeyboardPanState.lastTs = timestamp;
+
+  const heldMs = Math.max(0, timestamp - pipKeyboardPanState.startedAt);
+  const accel = Math.min(1, heldMs / PIP_KEYBOARD_PAN_ACCELERATION_MS);
+  const speedFactor = PIP_KEYBOARD_PAN_BASE_SPEED
+    + ((PIP_KEYBOARD_PAN_MAX_SPEED - PIP_KEYBOARD_PAN_BASE_SPEED) * PIP_TRANSITION_EASING(accel));
+
+  const deltaX = pipKeyboardPanState.dirX * state.width * speedFactor * (dtMs / 1000);
+  const deltaY = pipKeyboardPanState.dirY * state.height * speedFactor * (dtMs / 1000);
+
+  if (Math.abs(deltaX) > 0.001 || Math.abs(deltaY) > 0.001) {
+    setPipPreviewMode(panelId, true);
+    const clampedPosition = clampPipPosition(state.x + deltaX, state.y + deltaY, state.width, state.height);
+    state.x = clampedPosition.x;
+    state.y = clampedPosition.y;
+    state.pipContainer.style.left = `${state.x}px`;
+    state.pipContainer.style.top = `${state.y}px`;
+    schedulePipStateSave();
+  }
+
+  if (pipKeyboardPanState.dirX === 0 && pipKeyboardPanState.dirY === 0) {
+    stopFocusedPipKeyboardPan({ scheduleSave: false, deactivatePreview: true });
+    return;
+  }
+
+  pipKeyboardPanState.rafId = requestAnimationFrame(stepFocusedPipKeyboardPan);
+}
+
+function stepFocusedPipKeyboardZoom(timestamp) {
+  const panelId = pipKeyboardZoomState.panelId;
+  const state = panelId ? activePips.get(panelId) : null;
+
+  if (!panelId || !state || focusedPipId !== panelId || !state.pipContainer || isPipZoomLocked(state)) {
+    stopFocusedPipKeyboardZoom({ scheduleSave: false, deactivatePreview: true });
+    return;
+  }
+
+  const direction = pipKeyboardZoomState.direction;
+  if (direction !== 'in' && direction !== 'out') {
+    stopFocusedPipKeyboardZoom({ scheduleSave: false, deactivatePreview: true });
+    return;
+  }
+
+  const dtMs = pipKeyboardZoomState.lastTs > 0
+    ? Math.max(8, Math.min(40, timestamp - pipKeyboardZoomState.lastTs))
+    : PIP_KEYBOARD_PAN_FRAME_MS;
+  pipKeyboardZoomState.lastTs = timestamp;
+
+  const heldMs = Math.max(0, timestamp - pipKeyboardZoomState.startedAt);
+  const accel = Math.min(1, heldMs / PIP_KEYBOARD_ZOOM_ACCELERATION_MS);
+  const zoomRate = PIP_KEYBOARD_ZOOM_BASE_RATE
+    + ((PIP_KEYBOARD_ZOOM_MAX_RATE - PIP_KEYBOARD_ZOOM_BASE_RATE) * PIP_TRANSITION_EASING(accel));
+  const zoomFactor = Math.exp(zoomRate * (dtMs / 1000));
+  const minScale = getMinScale(panelId);
+
+  let nextScale = state.scale;
+  if (direction === 'in') {
+    nextScale = Math.min(MAX_SCALE, state.scale * zoomFactor);
+  } else if (direction === 'out') {
+    nextScale = Math.max(minScale, state.scale / zoomFactor);
+  }
+
+  if (Math.abs(nextScale - state.scale) > 0.0005) {
+    setPipPreviewMode(panelId, true);
+    applyPipWheelZoom(panelId, nextScale);
+    schedulePipStateSave();
+  }
+
+  pipKeyboardZoomState.rafId = requestAnimationFrame(stepFocusedPipKeyboardZoom);
+}
+
+function startFocusedPipKeyboardPan(panelId, dirX, dirY) {
+  const state = panelId ? activePips.get(panelId) : null;
+  const magnitude = Math.hypot(dirX, dirY) || 1;
+  const nextDirX = magnitude > 0 ? (dirX / magnitude) : 0;
+  const nextDirY = magnitude > 0 ? (dirY / magnitude) : 0;
+
+  if (!panelId || !state || (nextDirX === 0 && nextDirY === 0)) {
+    stopFocusedPipKeyboardPan({ scheduleSave: true, deactivatePreview: true });
+    return Boolean(panelId ? activePips.has(panelId) : true);
+  }
+
+  if (isPipPanLocked(state)) {
+    stopFocusedPipKeyboardPan({ scheduleSave: false, deactivatePreview: true });
+    return true;
+  }
+
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  const isSamePanel = pipKeyboardPanState.panelId === panelId;
+  const directionChanged = pipKeyboardPanState.dirX !== nextDirX || pipKeyboardPanState.dirY !== nextDirY;
+
+  pipKeyboardPanState.panelId = panelId;
+  pipKeyboardPanState.dirX = nextDirX;
+  pipKeyboardPanState.dirY = nextDirY;
+  state.pipContainer.classList.add('pip-container--keyboard-panning');
+
+  if (!isSamePanel || directionChanged) {
+    pipKeyboardPanState.startedAt = now;
+    pipKeyboardPanState.lastTs = now - PIP_KEYBOARD_PAN_FRAME_MS;
+  }
+
+  if (!pipKeyboardPanState.rafId) {
+    pipKeyboardPanState.rafId = requestAnimationFrame(stepFocusedPipKeyboardPan);
+  }
+
+  return true;
+}
+
+function startFocusedPipKeyboardZoom(panelId, direction) {
+  const state = panelId ? activePips.get(panelId) : null;
+
+  if (!panelId || !state || (direction !== 'in' && direction !== 'out')) {
+    stopFocusedPipKeyboardZoom({ scheduleSave: true, deactivatePreview: true });
+    return Boolean(panelId ? activePips.has(panelId) : true);
+  }
+
+  if (isPipZoomLocked(state)) {
+    stopFocusedPipKeyboardZoom({ scheduleSave: false, deactivatePreview: true });
+    return true;
+  }
+
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  const isSamePanel = pipKeyboardZoomState.panelId === panelId;
+  const directionChanged = pipKeyboardZoomState.direction !== direction;
+
+  pipKeyboardZoomState.panelId = panelId;
+  pipKeyboardZoomState.direction = direction;
+  state.pipContainer.classList.add('pip-container--keyboard-zooming');
+
+  if (!isSamePanel || directionChanged) {
+    pipKeyboardZoomState.startedAt = now;
+    pipKeyboardZoomState.lastTs = now - PIP_KEYBOARD_PAN_FRAME_MS;
+  }
+
+  if (!pipKeyboardZoomState.rafId) {
+    pipKeyboardZoomState.rafId = requestAnimationFrame(stepFocusedPipKeyboardZoom);
+  }
+
+  return true;
+}
+
 /**
  * ID del PiP con foco (último interactuado). null = foco en canvas principal.
  * Se expone como window.__synthFocusedPip para que el bridge de zoom lo consulte.
@@ -1647,6 +1883,8 @@ export function initPipManager() {
   const viewportOuter = document.getElementById('viewportOuter');
   if (viewportOuter) {
     viewportOuter.addEventListener('pointerdown', () => {
+      stopFocusedPipKeyboardPan({ scheduleSave: true, deactivatePreview: true });
+      stopFocusedPipKeyboardZoom({ scheduleSave: true, deactivatePreview: true });
       focusedPipId = null;
       window.__synthFocusedPip = null;
       dispatchPipFocusChange(null);
@@ -1654,7 +1892,16 @@ export function initPipManager() {
   }
 
   // Exponer función de zoom para PiP enfocado (usada por electronMenuBridge)
-  window.__synthZoomFocusedPip = (direction) => {
+  window.__synthZoomFocusedPip = (direction, { continuous = false } = {}) => {
+    if (continuous) {
+      if (direction === 'stop') {
+        stopFocusedPipKeyboardZoom({ scheduleSave: true, deactivatePreview: true });
+        return true;
+      }
+      return startFocusedPipKeyboardZoom(focusedPipId, direction);
+    }
+
+    stopFocusedPipKeyboardZoom({ scheduleSave: false, deactivatePreview: false });
     if (!focusedPipId || !activePips.has(focusedPipId)) return false;
     const state = activePips.get(focusedPipId);
     if (!state) return false;
@@ -1675,7 +1922,10 @@ export function initPipManager() {
   };
 
   // Exponer función de paneo con flechas para PiP enfocado
-  window.__synthPanFocusedPip = (dirX, dirY) => {
+  window.__synthPanFocusedPip = (dirX, dirY, { continuous = false } = {}) => {
+    if (continuous) {
+      return startFocusedPipKeyboardPan(focusedPipId, dirX, dirY);
+    }
     if (!focusedPipId || !activePips.has(focusedPipId)) return false;
     const state = activePips.get(focusedPipId);
     if (!state || isPipPanLocked(state)) return true; // Absorber pero no actuar si bloqueado

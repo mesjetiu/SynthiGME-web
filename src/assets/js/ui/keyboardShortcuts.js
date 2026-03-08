@@ -7,7 +7,8 @@ import { t } from '../i18n/index.js';
 import { ConfirmDialog } from './confirmDialog.js';
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
-import { focusPip, getFocusedPipLockState, isPipped, toggleRememberedPip, toggleAllRememberedPips } from './pipManager.js';
+import { focusPip, getFocusedPipLockState, isPipped, toggleRememberedPip, closeAllPips, openAllPips } from './pipManager.js';
+import { toggleKeyboard } from './keyboardWindow.js';
 
 const log = createLogger('KeyboardShortcuts');
 
@@ -58,7 +59,9 @@ const DEFAULT_SHORTCUTS = {
   panel5: { key: '5', shift: false, ctrl: false, alt: false },
   panel6: { key: '6', shift: false, ctrl: false, alt: false },
   panelOutput: { key: '7', shift: false, ctrl: false, alt: false },
-  overview: { key: '0', shift: false, ctrl: false, alt: false }
+  closeAllPips: { key: '0', shift: false, ctrl: false, alt: false },
+  toggleKeyboard: { key: '8', shift: false, ctrl: false, alt: false },
+  openAllPips: { key: '9', shift: false, ctrl: false, alt: false }
 };
 
 /**
@@ -133,7 +136,9 @@ const SHORTCUT_ACTIONS = {
   panel5: () => panelShortcutAction('panel-5'),
   panel6: () => panelShortcutAction('panel-6'),
   panelOutput: () => panelShortcutAction('panel-output'),
-  overview: () => toggleAllRememberedPips()
+  closeAllPips: () => closeAllPips(),
+  toggleKeyboard: () => toggleKeyboard(),
+  openAllPips: () => openAllPips()
 };
 
 /**
@@ -143,7 +148,11 @@ class KeyboardShortcutsManager {
   constructor() {
     this.shortcuts = this._load();
     this._boundHandler = this._handleKeyDown.bind(this);
+    this._boundHintsKeyDown = this._handleHintsKeyDown.bind(this);
+    this._boundHintsKeyUp = this._handleHintsKeyUp.bind(this);
+    this._boundWindowBlur = this._handleWindowBlur.bind(this);
     this._listeners = new Set();
+    this._initialized = false;
   }
 
   /**
@@ -154,8 +163,15 @@ class KeyboardShortcutsManager {
       const saved = localStorage.getItem(STORAGE_KEYS.KEYBOARD_SHORTCUTS);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const migrated = { ...parsed };
+        if (!migrated.closeAllPips && migrated.overview) {
+          migrated.closeAllPips = migrated.overview;
+        }
+        const knownEntries = Object.fromEntries(
+          Object.entries(migrated).filter(([actionId]) => Object.hasOwn(DEFAULT_SHORTCUTS, actionId))
+        );
         // Merge con defaults por si hay nuevas acciones
-        return { ...DEFAULT_SHORTCUTS, ...parsed };
+        return { ...DEFAULT_SHORTCUTS, ...knownEntries };
       }
     } catch (e) {
       log.warn(' Error loading:', e);
@@ -178,36 +194,56 @@ class KeyboardShortcutsManager {
    * Inicia la escucha de eventos de teclado
    */
   init() {
-    document.addEventListener('keydown', this._boundHandler);
-    
-    // Mostrar badges de panel al pulsar la tecla configurada (Alt o Ctrl)
-    document.addEventListener('keydown', (e) => {
-      // Ignorar si el usuario está escribiendo
-      if (isUserTyping(e)) return;
-      
-      const hintKey = this.shortcuts.showPanelHints?.key || 'Alt';
-      if (e.key === hintKey && !e.repeat) {
-        e.preventDefault(); // Evitar que Alt active el menú del navegador
-        document.body.classList.add('show-panel-shortcuts');
-      }
-    });
-    document.addEventListener('keyup', (e) => {
-      const hintKey = this.shortcuts.showPanelHints?.key || 'Alt';
-      if (e.key === hintKey) {
-        document.body.classList.remove('show-panel-shortcuts');
-      }
-    });
-    // Ocultar si se pierde el foco de la ventana
-    window.addEventListener('blur', () => {
-      document.body.classList.remove('show-panel-shortcuts');
-    });
+    if (this._initialized) return;
+
+    document.addEventListener('keydown', this._boundHandler, true);
+    document.addEventListener('keydown', this._boundHintsKeyDown);
+    document.addEventListener('keyup', this._boundHintsKeyUp);
+    window.addEventListener('blur', this._boundWindowBlur);
+    this._initialized = true;
   }
 
   /**
    * Detiene la escucha (para cleanup)
    */
   destroy() {
-    document.removeEventListener('keydown', this._boundHandler);
+    if (!this._initialized) return;
+
+    document.removeEventListener('keydown', this._boundHandler, true);
+    document.removeEventListener('keydown', this._boundHintsKeyDown);
+    document.removeEventListener('keyup', this._boundHintsKeyUp);
+    window.removeEventListener('blur', this._boundWindowBlur);
+    this._initialized = false;
+  }
+
+  /**
+   * Muestra badges de panel mientras se mantiene la tecla configurada.
+   */
+  _handleHintsKeyDown(e) {
+    if (isUserTyping(e)) return;
+
+    const hintKey = this.shortcuts.showPanelHints?.key || 'Alt';
+    if (e.key === hintKey && !e.repeat) {
+      e.preventDefault();
+      document.body.classList.add('show-panel-shortcuts');
+    }
+  }
+
+  /**
+   * Oculta badges de panel al soltar la tecla configurada.
+   */
+  _handleHintsKeyUp(e) {
+    const hintKey = this.shortcuts.showPanelHints?.key || 'Alt';
+    if (e.key === hintKey) {
+      document.body.classList.remove('show-panel-shortcuts');
+    }
+  }
+
+  /**
+   * Oculta badges de panel si la ventana pierde el foco.
+   */
+  _handleWindowBlur() {
+    document.body.classList.remove('show-panel-shortcuts');
   }
 
   /**
@@ -221,7 +257,8 @@ class KeyboardShortcutsManager {
     if (RESERVED_KEYS.includes(e.key)) return;
 
     // Buscar si algún shortcut coincide
-    for (const [actionId, binding] of Object.entries(this.shortcuts)) {
+    for (const actionId of this.getActionIds()) {
+      const binding = this.shortcuts[actionId];
       if (this._matchesBinding(e, binding)) {
         e.preventDefault();
         // Quitar focus visual de sliders/pines antes de ejecutar el shortcut

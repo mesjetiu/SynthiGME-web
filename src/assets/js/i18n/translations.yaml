@@ -1474,14 +1474,32 @@ settings.shortcuts.panelOutput:
   pt: Painel de saída
   cs: Výstupní panel
 
-settings.shortcuts.overview:
-  en: Overview (all panels)
-  es: Vista general
-  fr: Aperçu (tous les panneaux)
-  de: Übersicht (alle Bedienfelder)
-  it: Panoramica (tutti i pannelli)
-  pt: Visão geral (todos os painéis)
-  cs: Přehled (všechny panely)
+settings.shortcuts.closeAllPips:
+  en: Close all floating panels
+  es: Cerrar todos los paneles flotantes
+  fr: Fermer tous les panneaux flottants
+  de: Alle schwebenden Bedienfelder schließen
+  it: Chiudi tutti i pannelli flottanti
+  pt: Fechar todos os painéis flutuantes
+  cs: Zavřít všechny plovoucí panely
+
+settings.shortcuts.toggleKeyboard:
+  en: Toggle keyboards
+  es: Mostrar/ocultar teclados
+  fr: Afficher/masquer les claviers
+  de: Tastaturen ein-/ausblenden
+  it: Mostra/nascondi tastiere
+  pt: Mostrar/ocultar teclados
+  cs: Zobrazit/skrýt klaviatury
+
+settings.shortcuts.openAllPips:
+  en: Open all floating panels
+  es: Abrir todos los paneles flotantes
+  fr: Ouvrir tous les panneaux flottants
+  de: Alle schwebenden Bedienfelder öffnen
+  it: Apri tutti i pannelli flottanti
+  pt: Abrir todos os painéis flutuantes
+  cs: Otevřít všechny plovoucí panely
 
 settings.shortcuts.press:
   en: Press a key...

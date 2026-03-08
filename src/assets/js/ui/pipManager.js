@@ -1715,6 +1715,8 @@ export function initPipManager() {
   window.__synthGetFocusedPipLockState = getFocusedPipLockState;
 
   document.addEventListener('keydown', (e) => {
+    if (e.defaultPrevented) return;
+
     if (e.key === 'Escape' && activePips.size > 0) {
       const now = Date.now();
       if (now - lastEscapeTime < 400) {

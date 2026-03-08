@@ -71,6 +71,10 @@ describe('Locks y resize de PiP', () => {
     assert.match(pipSource, /function fitPanelToSquare\([\s\S]*?!state \|\| isPipPanLocked\(state\)\) return;/);
   });
 
+  it('ignora el atajo 0 del PiP cuando otro manejador ya consumió el evento', () => {
+    assert.match(pipSource, /document\.addEventListener\('keydown', \(e\) => \{[\s\S]*?if \(e\.defaultPrevented\) return;[\s\S]*?if \(e\.key === 'Escape'/);
+  });
+
   it('usa atajos +/=, -/_ y 0 sin Ctrl para el PiP enfocado', () => {
     assert.match(pipSource, /if \(focusedPipId && !e\.ctrlKey && !e\.metaKey && !e\.altKey\)/);
     assert.ok(pipSource.includes("if (e.key === '+' || e.key === '=')"));

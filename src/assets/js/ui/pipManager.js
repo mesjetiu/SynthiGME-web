@@ -868,20 +868,19 @@ function refreshPipViewportMetrics(state) {
     return { viewportWidth: 0, viewportHeight: 0 };
   }
 
-  const viewport = state.viewportEl || state.pipContainer?.querySelector('.pip-viewport');
-  const viewportInner = state.viewportInnerEl || state.pipContainer?.querySelector('.pip-viewport-inner');
+  // Calcular desde state.width/height en vez de leer clientWidth/clientHeight.
+  // Leer el DOM forzaría un reflow si se acaba de escribir algún estilo.
+  // Como PIP_BORDER_SIZE=0 y PIP_HEADER_HEIGHT=0 (frameless), el viewport
+  // cubre el 100% del contenedor: state.width/height ya es el valor correcto.
+  state.viewportWidth = state.width - PIP_BORDER_SIZE;
+  state.viewportHeight = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
 
-  if (viewport) {
-    state.viewportEl = viewport;
-    state.viewportWidth = viewport.clientWidth || (state.width - PIP_BORDER_SIZE);
-    state.viewportHeight = viewport.clientHeight || (state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
-  } else {
-    state.viewportWidth = state.width - PIP_BORDER_SIZE;
-    state.viewportHeight = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  // Cachear referencias DOM si aún no están
+  if (!state.viewportEl) {
+    state.viewportEl = state.pipContainer?.querySelector('.pip-viewport');
   }
-
-  if (viewportInner) {
-    state.viewportInnerEl = viewportInner;
+  if (!state.viewportInnerEl) {
+    state.viewportInnerEl = state.pipContainer?.querySelector('.pip-viewport-inner');
   }
 
   return {
@@ -2117,9 +2116,15 @@ export function openPip(panelId, restoredConfig = null) {
   const viewport = document.createElement('div');
   viewport.className = 'pip-viewport';
   
-  // Contenedor interno que mantiene el tamaño escalado del panel
+  // Contenedor interno: tamaño fijo al natural del panel (760×760).
+  // La escala visual la maneja transform:scale() en el panelEl hijo,
+  // que es compositor-only (no provoca re-layout del SVG).
   const viewportInner = document.createElement('div');
   viewportInner.className = 'pip-viewport-inner';
+  const naturalW = panelEl.offsetWidth || 760;
+  const naturalH = panelEl.offsetHeight || 760;
+  viewportInner.style.width = `${naturalW}px`;
+  viewportInner.style.height = `${naturalH}px`;
   
   // Mover el panel al contenedor interno
   viewportInner.appendChild(panelEl);
@@ -2823,24 +2828,16 @@ function setupPipEvents(pipContainer, panelId) {
     }
   }, { passive: true });
   
-  // Neutralizar cualquier scroll interno residual
-  if (viewport) {
-    viewport.addEventListener('scroll', () => {
-      const state = activePips.get(panelId);
-      viewport.scrollLeft = 0;
-      viewport.scrollTop = 0;
-      if (!state) return;
-      state.lastScrollLeft = 0;
-      state.lastScrollTop = 0;
-    }, { passive: true });
-  }
-  
-  // Guardar estado cuando el usuario arrastra la ventana en táctil
+  // Neutralizar cualquier scroll interno residual y guardar estado
   if (viewport) {
     let scrollSaveTimeout = null;
     viewport.addEventListener('scroll', () => {
       viewport.scrollLeft = 0;
       viewport.scrollTop = 0;
+      const state = activePips.get(panelId);
+      if (!state) return;
+      state.lastScrollLeft = 0;
+      state.lastScrollTop = 0;
       if (_isRestoring || gestureInProgress) return;
       if (scrollSaveTimeout) clearTimeout(scrollSaveTimeout);
       scrollSaveTimeout = setTimeout(() => {
@@ -2973,6 +2970,7 @@ function handlePointerMove(e) {
     const newScale = Math.max(minScale, Math.min(MAX_SCALE, baseScale * scaleFactor));
 
     updatePipScale(resizingPip, newScale, false);
+    refreshPipViewportMetrics(state);
 
     // El panel detached se reescala completo; sin paneo interno.
     if (viewport) {
@@ -3310,28 +3308,12 @@ function updatePipScale(panelId, newScale, persist = true) {
   }
   const visualScale = newScale / effectiveZoom;
   
-  // Tamaño escalado del panel
-  const scaledWidth = panelWidth * newScale;
-  const scaledHeight = panelHeight * newScale;
-  
-  // Aplicar escala al panel
+  // Aplicar escala al panel: transform:scale() es compositor-only, no cambia
+  // el layout del subtree SVG (~17k nodos). El viewportInner mantiene siempre
+  // el tamaño natural del panel; overflow:hidden en pip-viewport recorta.
   panelEl.style.zoom = effectiveZoom > 1 ? String(effectiveZoom) : '';
   panelEl.style.transform = `scale(${visualScale})`;
   panelEl.style.transformOrigin = '0 0';
-  
-  // Obtener tamaño del viewport (contenido visible)
-  refreshPipViewportMetrics(state);
-  
-  // Sin padding: el panel se alinea al borde del viewport (cover behavior).
-  // El eje más próximo queda a ras, el otro puede desbordar con scroll.
-  const viewportInner = state.viewportInnerEl || state.pipContainer.querySelector('.pip-viewport-inner');
-  if (viewportInner) {
-    state.viewportInnerEl = viewportInner;
-    viewportInner.style.width = `${scaledWidth}px`;
-    viewportInner.style.height = `${scaledHeight}px`;
-    viewportInner.style.padding = '0';
-    viewportInner.style.boxSizing = 'border-box';
-  }
   
   // Guardar estado después de cambiar zoom
   if (persist) {
@@ -3344,8 +3326,6 @@ function updatePipScale(panelId, newScale, persist = true) {
       panelId,
       newScale,
       effectiveZoom,
-      scaledWidth,
-      scaledHeight,
       persist
     });
   }

@@ -6580,26 +6580,23 @@ small { color:#aaa; }
   contain: layout paint;
 }
 
-/* Contenedor interno para mantener el tamaño original del panel y permitir scroll */
+/* Contenedor interno: tamaño fijo al natural del panel (760×760).
+   La escala visual la aplica transform:scale() en el panelEl hijo.
+   NO se redimensiona dinámicamente: su tamaño no cambia con el zoom. */
 .pip-viewport-inner {
-  /* El tamaño se establece dinámicamente desde JS según la escala */
   position: relative;
   transform-origin: 0 0;
-  /* En desktop NO usar translateZ(0) ni will-change: crean una capa GPU intermedia
-     que captura el contenido a resolución fija e impide que CSS zoom del panel
-     hijo aumente la calidad de rasterización (modo nítido borroso). */
 }
 
-/* En tablet/móvil, restaurar capa GPU dedicada: el contenido pesado (Panel 3)
-   necesita estar pre-rasterizado para evitar flashes blancos durante pinch-zoom.
-   El modo nítido en tablet ya está limitado por PIP_TOUCH_MIN_SHARP_SCALE. */
+/* En tablet/móvil se promueve a capa GPU para pre-rasterizar el SVG pesado
+   y evitar flashes blancos durante gestos de pinch-zoom. Como viewportInner
+   nunca cambia de tamaño, la textura GPU se sube una sola vez. */
 @media (pointer: coarse) {
   .pip-viewport-inner {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    will-change: transform;
   }
 }
 

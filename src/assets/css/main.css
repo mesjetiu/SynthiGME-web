@@ -1243,24 +1243,53 @@ h1 {
   cursor: pointer;
   border-radius: 50%;
 }
+/* Contenedor del vernier: posición relativa para apilar rotor/ring/counter */
 .vernier-svg-container {
   width: 100%;
   height: 100%;
   pointer-events: none;
   user-select: none;
+  position: relative;
+  container-type: inline-size;  /* permite usar cqi en hijos para escalar con el knob */
 }
-.vernier-svg-container svg {
+/* Rotor (gira con CSS transform) y anillo (fijo): apilados con position absolute */
+.vernier-rotor,
+.vernier-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
-/* El grupo giratorio usa CSS transform para rotar */
-.vernier-svg-container #vd-rotor {
-  transform-origin: 150px 150px;
-  /* will-change: transform se activa dinámicamente solo durante drag (knob.js)
-     para evitar exceder el presupuesto de capas GPU en Firefox */
+.vernier-rotor {
+  transform-origin: 50% 50%;
+  /* will-change: transform se activa dinámicamente solo durante drag (knob.js) */
 }
-/* En modo knob-style-css, ocultar el SVG vernier y mostrar knob CSS */
+/* Contador de vueltas: superpuesto en la ventana del anillo */
+.vernier-counter {
+  position: absolute;
+  /* Coordenadas exactas del SVG original (viewBox 10,10,280,280):
+     <text x="150" y="29.65" text-anchor="middle" dominant-baseline="central" font-size="19px">
+     top  = (29.65 - 10) / 280 × 100 = 7.018%   (centro Y del texto)
+     left = (150   - 10) / 280 × 100 = 50%       (centro X del texto)
+     font = 19 / 280 × 100           = 6.786 cqi (proporcional al contenedor) */
+  top: 7.018%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'DIN Bold', 'Futura Bold', Futura, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 6.786cqi;
+  font-weight: bold;
+  color: #ffffff;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+/* En modo knob-style-css, ocultar las imágenes vernier y mostrar knob CSS */
 .knob-style-css .knob.knob--vernier .vernier-svg-container {
   display: none;
 }
@@ -2718,7 +2747,7 @@ small { color:#aaa; }
   display: none;
 }
 
-/* ─── SVG Toggle Container (synth-toggle) ─── */
+/* ─── Raster Toggle Image (synth-toggle) ─── */
 .synth-toggle__svg-container {
   width: 22px;
   height: 36px;
@@ -2727,10 +2756,17 @@ small { color:#aaa; }
   justify-content: center;
 }
 
-.synth-toggle__svg-container svg {
+.synth-toggle__svg-container svg,
+.synth-toggle__svg-container img {
   width: 100%;
   height: 100%;
   display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.synth-toggle__svg-container img {
+  -webkit-user-drag: none;
 }
 
 /* Synth-toggle glow effect */
@@ -2812,10 +2848,12 @@ small { color:#aaa; }
   justify-content: center;
 }
 
-.rotary-switch__svg-container svg {
+.rotary-switch__svg-container svg,
+.rotary-switch__svg-container img {
   width: 100%;
   height: 100%;
   display: block;
+  -webkit-user-drag: none;
 }
 
 /* Rotary-switch glow effect */

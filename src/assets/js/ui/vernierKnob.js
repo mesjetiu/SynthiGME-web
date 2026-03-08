@@ -1,20 +1,23 @@
 /**
- * Knob multivuelta Spectrol Vernier Dial.
+ * Knob multivuelta Spectrol Vernier Dial — versión raster.
  * 
  * Extiende Knob para representar un dial de 10 vueltas completas con:
- * - Parte giratoria (disco negro + hexágono central) que rota con CSS transform
- * - Parte fija (anillo plateado, ventana contador, indicador, freno)
- * - Contador digital (0-10) en la ventana que indica la vuelta actual
+ * - Imagen raster del rotor (disco negro + hexágono) que rota con CSS transform
+ * - Imagen raster del anillo fijo (plateado, ventana, indicador, freno)
+ * - Contador digital (0-10) como texto DOM superpuesto en la ventana
  * 
- * El SVG se inserta inline para acceso directo al DOM interno.
+ * Sustituye el SVG inline (~150 nodos por instancia) por dos <img> PNG
+ * pre-rasterizadas, reduciendo drásticamente el conteo de nodos DOM y
+ * evitando el coste de re-layout SVG en paneles con múltiples verniers.
  * 
  * @module ui/vernierKnob
  */
 
 import { Knob } from './knob.js';
 
-/** Ruta al SVG optimizado del dial Vernier */
-const VERNIER_SVG_SRC = 'assets/knobs/vernier-dial.svg';
+/** Imágenes raster del dial Vernier */
+const VERNIER_ROTOR_SRC = 'assets/knobs/vernier-rotor.png';
+const VERNIER_RING_SRC = 'assets/knobs/vernier-ring.png';
 
 /** Número total de vueltas (0 a 10) */
 const TOTAL_TURNS = 10;
@@ -22,39 +25,14 @@ const TOTAL_TURNS = 10;
 /** Grados por vuelta completa */
 const DEG_PER_TURN = 360;
 
-/** Caché del SVG descargado (compartido entre instancias) */
-let svgCache = null;
-let svgFetchPromise = null;
-
-/**
- * Descarga y cachea el SVG del dial Vernier.
- * @returns {Promise<string>} Contenido SVG como string
- */
-async function fetchVernierSvg() {
-  if (svgCache) return svgCache;
-  if (!svgFetchPromise) {
-    svgFetchPromise = fetch(VERNIER_SVG_SRC)
-      .then(r => r.text())
-      .then(text => {
-        svgCache = text;
-        return text;
-      })
-      .catch(err => {
-        svgFetchPromise = null;
-        throw err;
-      });
-  }
-  return svgFetchPromise;
-}
-
 /**
  * Crea los elementos DOM para un knob Vernier.
- * Se inserta el SVG inline y se referencian los grupos clave por ID.
+ * Estructura: rotor <img> (gira) + ring <img> (fijo) + counter <span> (texto).
  * 
  * @param {Object} [options] - Opciones de configuración
  * @param {string} [options.label] - Texto del label
  * @param {boolean} [options.showValue=true] - Mostrar elemento de valor
- * @returns {Object} { wrapper, knobEl, rotor, counter, valueEl? }
+ * @returns {Object} { wrapper, knobEl, svgContainer, valueEl? }
  */
 export function createVernierElements(options = {}) {
   const {
@@ -68,11 +46,39 @@ export function createVernierElements(options = {}) {
   const knobEl = document.createElement('div');
   knobEl.className = 'knob knob--vernier';
 
-  // Contenedor para el SVG inline (se llenará con el fetch)
+  // Contenedor que sustituye al antiguo vernier-svg-container
   const svgContainer = document.createElement('div');
   svgContainer.className = 'vernier-svg-container';
-  knobEl.appendChild(svgContainer);
 
+  // Rotor (gira con CSS transform)
+  const rotorImg = document.createElement('img');
+  rotorImg.src = VERNIER_ROTOR_SRC;
+  rotorImg.alt = '';
+  rotorImg.draggable = false;
+  rotorImg.decoding = 'async';
+  rotorImg.loading = 'eager';
+  rotorImg.className = 'vernier-rotor';
+  rotorImg.setAttribute('aria-hidden', 'true');
+
+  // Anillo fijo (no gira)
+  const ringImg = document.createElement('img');
+  ringImg.src = VERNIER_RING_SRC;
+  ringImg.alt = '';
+  ringImg.draggable = false;
+  ringImg.decoding = 'async';
+  ringImg.loading = 'eager';
+  ringImg.className = 'vernier-ring';
+  ringImg.setAttribute('aria-hidden', 'true');
+
+  // Contador de vueltas (texto DOM superpuesto)
+  const counter = document.createElement('span');
+  counter.className = 'vernier-counter';
+  counter.textContent = '0';
+
+  svgContainer.appendChild(rotorImg);
+  svgContainer.appendChild(ringImg);
+  svgContainer.appendChild(counter);
+  knobEl.appendChild(svgContainer);
   wrapper.appendChild(knobEl);
 
   const result = { wrapper, knobEl, svgContainer };
@@ -96,17 +102,61 @@ export function createVernierElements(options = {}) {
 }
 
 /**
- * Knob multivuelta Spectrol Vernier Dial.
+ * Puebla un contenedor `.vernier-svg-container` con rotor img, ring img
+ * y counter span si están ausentes.  Esto cubre los paths de creación
+ * que montan el DOM manualmente (ej. sgmeOscillator.js) sin pasar por
+ * `createVernierElements()`.
+ *
+ * @param {HTMLElement} rootEl - Elemento root (.knob--vernier)
+ * @private
+ */
+function _ensureVernierContent(rootEl) {
+  const container = rootEl.querySelector('.vernier-svg-container');
+  if (!container) return;                      // Sin contenedor, nada que hacer
+  if (container.querySelector('.vernier-rotor')) return; // Ya poblado
+
+  // Rotor (gira)
+  const rotorImg = document.createElement('img');
+  rotorImg.src = VERNIER_ROTOR_SRC;
+  rotorImg.alt = '';
+  rotorImg.draggable = false;
+  rotorImg.decoding = 'async';
+  rotorImg.loading = 'eager';
+  rotorImg.className = 'vernier-rotor';
+  rotorImg.setAttribute('aria-hidden', 'true');
+
+  // Anillo fijo
+  const ringImg = document.createElement('img');
+  ringImg.src = VERNIER_RING_SRC;
+  ringImg.alt = '';
+  ringImg.draggable = false;
+  ringImg.decoding = 'async';
+  ringImg.loading = 'eager';
+  ringImg.className = 'vernier-ring';
+  ringImg.setAttribute('aria-hidden', 'true');
+
+  // Contador de vueltas
+  const counter = document.createElement('span');
+  counter.className = 'vernier-counter';
+  counter.textContent = '0';
+
+  container.appendChild(rotorImg);
+  container.appendChild(ringImg);
+  container.appendChild(counter);
+}
+
+/**
+ * Knob multivuelta Spectrol Vernier Dial — versión raster.
  * 
  * Hereda toda la lógica de interacción de Knob (drag, tooltips, precisión
- * progresiva, modificadores, serialización) pero reemplaza la representación
- * visual con el SVG inline del dial Spectrol de 10 vueltas.
+ * progresiva, modificadores, serialización) pero usa imágenes PNG en vez
+ * de SVG inline. El rotor rota vía CSS transform (compositor-only).
  * 
  * Diferencias clave con Knob normal:
  * - 10 vueltas completas (3600° de rotación total)
- * - innerEl es el grupo SVG #vd-rotor (no un div con img)
- * - Actualiza el texto del contador #vd-counter con la vuelta actual (0-10)
- * - No tiene knob-center (el hexágono central es parte del SVG)
+ * - innerEl es la <img> del rotor (no un div con SVG)
+ * - Actualiza el texto del contador DOM con la vuelta actual (0-10)
+ * - No tiene knob-center (el hexágono central es parte de la imagen)
  * 
  * @extends Knob
  */
@@ -116,23 +166,9 @@ export class VernierKnob extends Knob {
    * @param {Object} options - Opciones (mismas que Knob + extensiones)
    */
   constructor(rootEl, options = {}) {
-    // Para el vernier el ángulo cubre 10 vueltas completas (3600°)
-    // En la orientación del SVG, 0° = indicador arriba (posición 0 del dial)
-    // Override de ángulos para multivuelta
-    const vernierOptions = {
-      ...options,
-      // Temporalmente usamos innerEl falso; lo conectamos tras fetch
-    };
+    const vernierOptions = { ...options };
 
-    // Crear un innerEl temporal para que el constructor de Knob no falle
-    let innerEl = rootEl.querySelector('.vernier-svg-container');
-    if (!innerEl) {
-      innerEl = document.createElement('div');
-      rootEl.appendChild(innerEl);
-    }
-
-    // Hack: setear innerEl manualmente antes de super
-    // Knob busca .knob-inner, así que creamos uno temporal
+    // Knob busca .knob-inner — crear uno temporal que envuelve al rotor
     const tempInner = document.createElement('div');
     tempInner.className = 'knob-inner';
     tempInner.style.display = 'none';
@@ -145,53 +181,22 @@ export class VernierKnob extends Knob {
     this.maxAngle = TOTAL_TURNS * DEG_PER_TURN;
     this.totalTurns = TOTAL_TURNS;
 
-    /** @type {SVGGElement|null} Grupo SVG giratorio */
-    this._svgRotor = null;
-    /** @type {SVGTextElement|null} Texto del contador de vueltas */
-    this._svgCounter = null;
-    /** @type {HTMLDivElement} Contenedor del SVG inline */
-    this._svgContainer = rootEl.querySelector('.vernier-svg-container');
+    // Asegurar que el contenedor tiene las imágenes raster.
+    // Si el DOM fue creado externamente (ej. sgmeOscillator) sin poblar
+    // el contenedor, lo hacemos aquí para que todos los paths funcionen.
+    _ensureVernierContent(rootEl);
+
+    /** @type {HTMLImageElement|null} Imagen raster del rotor (gira) */
+    this._rotorImg = rootEl.querySelector('.vernier-rotor') || null;
+    /** @type {HTMLSpanElement|null} Texto del contador de vueltas */
+    this._counterEl = rootEl.querySelector('.vernier-counter') || null;
     /** @type {number} Último dígito del contador (para evitar writes redundantes) */
     this._lastCounterDigit = -1;
     /** @type {string} Último valor formateado (para evitar writes redundantes) */
     this._lastFormattedValue = '';
 
-    // Cargar y montar el SVG inline
-    this._loadSvg();
-  }
-
-  /**
-   * Carga el SVG y lo monta inline en el contenedor.
-   * @private
-   */
-  async _loadSvg() {
-    let svgText;
-    try {
-      svgText = await fetchVernierSvg();
-    } catch {
-      return; // Falla silenciosamente (ej: entorno de tests sin servidor)
-    }
-    if (!this._svgContainer) return;
-
-    this._svgContainer.innerHTML = svgText;
-
-    // Localizar elementos clave por ID
-    const svg = this._svgContainer.querySelector('svg');
-    if (svg) {
-      this._svgRotor = svg.querySelector('#vd-rotor');
-      this._svgCounter = svg.querySelector('#vd-counter');
-
-      // Configurar transform-origin en el rotor
-      if (this._svgRotor) {
-        this._svgRotor.style.transformOrigin = '150px 150px';
-      }
-    }
-
     // Eliminar el innerEl temporal
-    const tempInner = this.rootEl.querySelector('.knob-inner');
-    if (tempInner) {
-      tempInner.remove();
-    }
+    tempInner.remove();
 
     // Aplicar estado visual inicial
     this._updateVisual();
@@ -216,19 +221,19 @@ export class VernierKnob extends Knob {
    * 
    * Optimizado para rendimiento durante drag:
    * - Solo escribe textContent cuando el valor realmente cambia
-   * - Evita getBoundingClientRect (badge) a menos que sea necesario
+   * - CSS transform en <img> es compositor-only (sin layout)
    */
   _updateVisualFast() {
     const { angle, counterDigit } = this._calcVisualState();
 
-    // Rotar el grupo giratorio del SVG
-    if (this._svgRotor) {
-      this._svgRotor.style.transform = `rotate(${angle}deg)`;
+    // Rotar la imagen del rotor
+    if (this._rotorImg) {
+      this._rotorImg.style.transform = `rotate(${angle}deg)`;
     }
 
     // Actualizar el dígito del contador solo si cambió
-    if (this._svgCounter && counterDigit !== this._lastCounterDigit) {
-      this._svgCounter.textContent = String(counterDigit);
+    if (this._counterEl && counterDigit !== this._lastCounterDigit) {
+      this._counterEl.textContent = String(counterDigit);
       this._lastCounterDigit = counterDigit;
     }
 
@@ -252,10 +257,10 @@ export class VernierKnob extends Knob {
   }
 
   /**
-   * Override: el elemento que rota en VernierKnob es el grupo SVG #vd-rotor.
-   * @returns {SVGGElement|null}
+   * Override: el elemento que rota en VernierKnob es la imagen del rotor.
+   * @returns {HTMLImageElement|null}
    */
   _getRotatingEl() {
-    return this._svgRotor;
+    return this._rotorImg;
   }
 }

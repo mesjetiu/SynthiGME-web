@@ -1,26 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// RotarySwitch - Selector rotativo de 2 posiciones (SVG)
+// RotarySwitch - Selector rotativo de 2 posiciones (imágenes PNG)
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Selector de dos estados con aspecto de interruptor rotativo pequeño.
 // Basado en el hardware original EMS Synthi 100 (ej: Retrigger Key Release).
-// Usa el SVG rotary-switch.svg con rotación del grupo #rotary-switch-knob.
+// Usa imágenes PNG pre-rasterizadas en vez de SVG inline.
 //
-// Estado 'a' → knob rotado a -45° (apunta hacia label izquierdo)
-// Estado 'b' → knob rotado a +45° (apunta hacia label derecho)
+// Estado 'a' → knob rotado a -45° (apunta hacia label izquierdo) — rotary-a.png
+// Estado 'b' → knob rotado a +45° (apunta hacia label derecho) — rotary-b.png
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { flashGlow } from './glowManager.js';
-import { loadSvgInline } from './svgInlineLoader.js';
 
-/** Ángulo de rotación para cada estado (grados). */
-const ANGLE_A = -45;
-const ANGLE_B = 45;
-
-/** Centro del SVG (transform-origin). */
-const CX = 100;
-const CY = 100;
+/** Imágenes raster del selector en sus dos estados */
+const ROTARY_IMG_A = 'assets/knobs/rotary-a.png';
+const ROTARY_IMG_B = 'assets/knobs/rotary-b.png';
 
 export class RotarySwitch {
   /**
@@ -38,7 +33,8 @@ export class RotarySwitch {
     this.state = options.initial || 'a';
     this.onChange = options.onChange || null;
     this.element = null;
-    /** @private */ this._knobGroup = null;
+    /** @type {HTMLImageElement|null} @private */
+    this._switchImg = null;
   }
 
   /**
@@ -61,17 +57,21 @@ export class RotarySwitch {
     root.addEventListener('click', () => this.toggle());
 
     this.element = root;
-    this._render();
 
-    // Cargar SVG inline del selector rotativo
+    // Crear imagen raster del selector rotativo
     const svgContainer = root.querySelector('.rotary-switch__svg-container');
-    loadSvgInline('assets/knobs/rotary-switch.svg', svgContainer).then(({ svg, prefix }) => {
-      if (svg) {
-        this._svgPrefix = prefix;
-        this._knobGroup = svg.getElementById(`${prefix}rotary-switch-knob`);
-        this._updateRotation();
-      }
-    });
+    const img = document.createElement('img');
+    img.src = this.state === 'b' ? ROTARY_IMG_B : ROTARY_IMG_A;
+    img.alt = '';
+    img.draggable = false;
+    img.decoding = 'async';
+    img.loading = 'eager';
+    img.className = 'rotary-raster-graphic';
+    img.setAttribute('aria-hidden', 'true');
+    svgContainer.replaceChildren(img);
+    this._switchImg = img;
+
+    this._render();
 
     return root;
   }
@@ -124,16 +124,15 @@ export class RotarySwitch {
     if (!this.element) return;
     this.element.classList.toggle('is-b', this.state === 'b');
     this.element.setAttribute('data-state', this.state);
-    this._updateRotation();
+    this._updateImage();
   }
 
   /**
-   * Actualiza la rotación del grupo SVG del knob.
+   * Actualiza la imagen del selector rotativo según el estado.
    * @private
    */
-  _updateRotation() {
-    if (!this._knobGroup) return;
-    const angle = this.state === 'a' ? ANGLE_A : ANGLE_B;
-    this._knobGroup.setAttribute('transform', `rotate(${angle} ${CX} ${CY})`);
+  _updateImage() {
+    if (!this._switchImg) return;
+    this._switchImg.src = this.state === 'b' ? ROTARY_IMG_B : ROTARY_IMG_A;
   }
 }

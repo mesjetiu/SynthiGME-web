@@ -1,15 +1,19 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Toggle - Switch de dos estados reutilizable (SVG toggle metálico)
+// Toggle - Switch de dos estados reutilizable (imágenes PNG rasterizadas)
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Toggle visual tipo switch para alternar entre dos modos/estados.
-// Usa el SVG del toggle-switch.svg con animación vertical de la palanca.
+// Usa imágenes PNG pre-rasterizadas del toggle-switch en vez de SVG inline,
+// reduciendo nodos DOM y evitando re-layout en paneles con múltiples toggles.
 // Usa la clase CSS .synth-toggle para estilos.
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { flashGlow } from './glowManager.js';
-import { loadSvgInline } from './svgInlineLoader.js';
+
+/** Imágenes raster del toggle en sus dos estados */
+const TOGGLE_IMG_A = 'assets/knobs/toggle-a.png';
+const TOGGLE_IMG_B = 'assets/knobs/toggle-b.png';
 
 export class Toggle {
   /**
@@ -27,6 +31,8 @@ export class Toggle {
     this.state = options.initial || 'a';
     this.onChange = options.onChange || null;
     this.element = null;
+    /** @type {HTMLImageElement|null} */
+    this._toggleImg = null;
   }
 
   /**
@@ -49,17 +55,21 @@ export class Toggle {
     root.addEventListener('click', () => this.toggle());
     
     this.element = root;
-    this._render();
-    
-    // Cargar SVG inline del toggle
+
+    // Crear imagen raster del toggle
     const svgContainer = root.querySelector('.synth-toggle__svg-container');
-    loadSvgInline('assets/knobs/toggle-switch.svg', svgContainer).then(({ svg, prefix }) => {
-      if (svg) {
-        this._svgPrefix = prefix;
-        this._leverGroup = svg.getElementById(`${prefix}toggle-lever`);
-        this._updateLever();
-      }
-    });
+    const img = document.createElement('img');
+    img.src = this.state === 'b' ? TOGGLE_IMG_B : TOGGLE_IMG_A;
+    img.alt = '';
+    img.draggable = false;
+    img.decoding = 'async';
+    img.loading = 'eager';
+    img.className = 'toggle-raster-graphic';
+    img.setAttribute('aria-hidden', 'true');
+    svgContainer.replaceChildren(img);
+    this._toggleImg = img;
+
+    this._render();
     
     return root;
   }
@@ -112,20 +122,16 @@ export class Toggle {
     if (!this.element) return;
     this.element.classList.toggle('is-b', this.state === 'b');
     this.element.setAttribute('data-state', this.state);
-    this._updateLever();
+    this._updateImage();
   }
 
   /**
-   * Actualiza la posición de la palanca SVG.
-   * Estado 'a' = palanca arriba (sin transform).
-   * Estado 'b' = palanca abajo (flip vertical).
+   * Actualiza la imagen del toggle según el estado actual.
+   * Estado 'a' = palanca arriba (toggle-a.png).
+   * Estado 'b' = palanca abajo (toggle-b.png).
    */
-  _updateLever() {
-    if (!this._leverGroup) return;
-    if (this.state === 'b') {
-      this._leverGroup.setAttribute('transform', 'translate(0,200) scale(1,-1)');
-    } else {
-      this._leverGroup.removeAttribute('transform');
-    }
+  _updateImage() {
+    if (!this._toggleImg) return;
+    this._toggleImg.src = this.state === 'b' ? TOGGLE_IMG_B : TOGGLE_IMG_A;
   }
 }

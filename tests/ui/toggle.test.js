@@ -152,6 +152,14 @@ describe('Toggle - createElement()', () => {
     assert.ok(el.querySelector('.synth-toggle__svg-container'), 'debe tener SVG container');
   });
 
+  it('crea imagen raster y usa toggle-a.png en estado inicial "a"', () => {
+    const t = new Toggle({ labelA: 'HI', labelB: 'LO', initial: 'a' });
+    const el = t.createElement();
+    const img = el.querySelector('.toggle-raster-graphic');
+    assert.ok(img, 'debe crear imagen raster');
+    assert.match(img.src, /assets\/knobs\/toggle-a\.png$/);
+  });
+
   it('aplica data-state según estado inicial', () => {
     const t = new Toggle({ labelA: 'HI', labelB: 'LO', initial: 'b' });
     const el = t.createElement();
@@ -164,5 +172,27 @@ describe('Toggle - createElement()', () => {
     const el = t.createElement();
     assert.ok(!el.classList.contains('is-b'));
     assert.strictEqual(el.getAttribute('data-state'), 'a');
+  });
+});
+
+describe('Toggle - comportamiento raster y eventos', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('actualiza la imagen a toggle-b.png al alternar', () => {
+    const t = new Toggle({ labelA: 'HI', labelB: 'LO' });
+    const el = t.createElement();
+    t.toggle();
+    assert.match(el.querySelector('.toggle-raster-graphic').src, /assets\/knobs\/toggle-b\.png$/);
+  });
+
+  it('emite synth:userInteraction al hacer toggle', () => {
+    const events = [];
+    document.addEventListener('synth:userInteraction', () => events.push('interaction'), { once: true });
+    const t = new Toggle({ labelA: 'HI', labelB: 'LO' });
+    t.createElement();
+    t.toggle();
+    assert.deepEqual(events, ['interaction']);
   });
 });

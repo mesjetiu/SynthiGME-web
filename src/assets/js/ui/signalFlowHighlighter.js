@@ -66,6 +66,16 @@ function getModuleElementIds(descriptor) {
     
     case 'outputBus':
       return [`output-channel-${descriptor.bus ?? 1}`];
+
+    case 'filterLP':
+    case 'filterLPInput':
+    case 'filterLPCutoffCV':
+      return [`flp${(descriptor.index ?? 0) + 1}-module`];
+
+    case 'filterHP':
+    case 'filterHPInput':
+    case 'filterHPCutoffCV':
+      return [`fhp${(descriptor.index ?? 0) + 1}-module`];
     
     case 'joystick': {
       const side = descriptor.side === 'right' ? 'right' : 'left';
@@ -108,7 +118,7 @@ function getModuleElementIds(descriptor) {
  * @returns {HTMLElement|null}
  */
 function findModuleElement(el) {
-  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
+  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel1-filter-live, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
 }
 
 /**

@@ -1816,6 +1816,7 @@ export class AudioEngine {
           './assets/js/worklets/synthOscillator.worklet.js',
           './assets/js/worklets/scopeCapture.worklet.js',
           './assets/js/worklets/noiseGenerator.worklet.js',
+          './assets/js/worklets/synthiFilter.worklet.js',
           './assets/js/worklets/cvThermalSlew.worklet.js',
           './assets/js/worklets/cvSoftClip.worklet.js',
           './assets/js/worklets/vcaProcessor.worklet.js',

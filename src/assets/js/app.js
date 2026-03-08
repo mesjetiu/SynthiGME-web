@@ -19,12 +19,14 @@ import { RandomCVModule } from './modules/randomCV.js';
 import { KeyboardModule } from './modules/keyboard.js';
 import { JoystickModule } from './modules/joystick.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
+import { SynthiFilterModule } from './modules/synthiFilter.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
+import { Panel1FilterUI } from './ui/panel1Filter.js';
 import { KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK } from './configs/knobColors.js';
 
 /** Mapa de nombre de color (string) → valor hex importado. Usado por todos los builders de panel. */
@@ -51,6 +53,7 @@ import {
   oscillatorConfig,
   noiseConfig,
   randomVoltageConfig,
+  filterConfig,
   keyboardConfig,
   oscilloscopeConfig,
   inputAmplifierConfig,
@@ -112,7 +115,7 @@ import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -232,13 +235,15 @@ class App {
     this._oscillatorUIs = {};
     this._noiseUIs = {};
     this._randomVoltageUIs = {};
+    this._panel1FilterUIs = {};
+    this._panel1FilterModules = {};
     this._inputAmplifierUIs = {};
     this._outputFadersModule = null;
     this._keyboardModules = {};    // { upper: KeyboardModule, lower: KeyboardModule }
     this._keyboardKnobs = {};      // { upper: { pitchSpread, velocityLevel, gateLevel }, lower: ... }
     
     // Construir paneles
-    this._buildPanel1();  // Filtros, Envelopes, RM, Reverb, Echo (placeholders)
+    this._buildPanel1();  // Filtros, Envelopes, RM, Reverb, Echo
     this._buildPanel2();  // Osciloscopio
     this._buildOscillatorPanel(3, this.panel3, this._panel3Audio);
     this._buildPanel4();  // Voltímetros, Sequencer Display, Keyboard Output Range
@@ -1786,6 +1791,16 @@ class App {
       }
     }
 
+    // Serializar filtros del Panel 1
+    if (this._panel1FilterUIs) {
+      state.modules.filters = {};
+      for (const [id, ui] of Object.entries(this._panel1FilterUIs)) {
+        if (ui && typeof ui.serialize === 'function') {
+          state.modules.filters[id.replace(/-module$/, '')] = ui.serialize();
+        }
+      }
+    }
+
     // Serializar Keyboards
     if (this._keyboardModules) {
       state.modules.keyboards = {};
@@ -1902,6 +1917,16 @@ class App {
     if (modules.randomVoltage && this._randomVoltageUIs) {
       for (const [id, data] of Object.entries(modules.randomVoltage)) {
         const ui = this._randomVoltageUIs[id];
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(data);
+        }
+      }
+    }
+
+    // Restaurar filtros Panel 1
+    if (modules.filters && this._panel1FilterUIs) {
+      for (const [id, data] of Object.entries(modules.filters)) {
+        const ui = this._panel1FilterUIs[`${id}-module`];
         if (ui && typeof ui.deserialize === 'function') {
           ui.deserialize(data);
         }
@@ -2048,6 +2073,15 @@ class App {
       }
     }
 
+    // Resetear filtros Panel 1
+    if (this._panel1FilterUIs) {
+      for (const ui of Object.values(this._panel1FilterUIs)) {
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(defaults.filters);
+        }
+      }
+    }
+
     // Resetear Keyboards
     if (this._keyboardModules) {
       for (const mod of Object.values(this._keyboardModules)) {
@@ -2156,6 +2190,9 @@ class App {
     // Random voltage
     const rvKnobs = randomVoltageConfig.knobs;
 
+    // Filters
+    const filterKnobs = filterConfig.knobs;
+
     // Input amplifiers
     const iaKnobs = inputAmplifierConfig.knobs;
     const iaCount = inputAmplifierConfig.count;
@@ -2192,6 +2229,11 @@ class App {
         voltage2: rvKnobs.voltage2.initial,
         key: rvKnobs.key.initial
       },
+      filters: {
+        frequency: filterKnobs.frequency.initial,
+        response: filterKnobs.response.initial,
+        level: filterKnobs.level.initial
+      },
       keyboard: {
         pitchSpread: keyboardConfig.knobs.pitchSpread.initial,
         pitchOffset: keyboardConfig.knobs.pitchOffset.initial,
@@ -2223,6 +2265,12 @@ class App {
     const modules = [];
     
     switch (panelId) {
+      case 'panel-1': {
+        for (const [id, ui] of Object.entries(this._panel1FilterUIs || {})) {
+          modules.push({ type: 'filter', id, ui });
+        }
+        break;
+      }
       case 'panel-3': {
         // Osciladores
         for (const [id, ui] of Object.entries(this._oscillatorUIs)) {
@@ -2299,6 +2347,10 @@ class App {
     // Random voltage
     if (this._randomVoltageUIs[moduleId]) {
       return { type: 'randomVoltage', ui: this._randomVoltageUIs[moduleId] };
+    }
+    // Panel 1 filters
+    if (this._panel1FilterUIs[moduleId]) {
+      return { type: 'filter', ui: this._panel1FilterUIs[moduleId] };
     }
     // Oscilloscope
     if (moduleId === 'oscilloscope-module' && this._panel2Data) {
@@ -2387,6 +2439,9 @@ class App {
         break;
       case 'randomVoltage':
         ui.deserialize(defaults.randomVoltage);
+        break;
+      case 'filter':
+        ui.deserialize(defaults.filters);
         break;
       case 'inputAmplifiers':
         ui.deserialize(defaults.inputAmplifiers);
@@ -2929,40 +2984,92 @@ class App {
     applyOffset(filtersRow, filtersLayout.offset);
     host.appendChild(filtersRow);
 
-    // Crear los 8 filtros (FLP1-4 + FHP1-4)
-    const filterIds = ['flp1', 'flp2', 'flp3', 'flp4', 'fhp1', 'fhp2', 'fhp3', 'fhp4'];
-    const filterFrames = {};
+    const filterBanks = [
+      {
+        ids: filterConfig.lowPass.ids,
+        mode: filterConfig.lowPass.mode,
+        sourceKind: filterConfig.lowPass.sourceKind,
+        modulePrefix: 'filter-lp'
+      },
+      {
+        ids: filterConfig.highPass.ids,
+        mode: filterConfig.highPass.mode,
+        sourceKind: filterConfig.highPass.sourceKind,
+        modulePrefix: 'filter-hp'
+      }
+    ];
 
-    for (const filterId of filterIds) {
-      const filterModuleUI = blueprint.modules?.[filterId]?.ui || {};
-      const frame = new ModuleFrame({
-        id: `${filterId}-module`,
-        title: null,
-        className: 'panel1-placeholder panel1-filter'
-      });
-      const el = frame.createElement();
-      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+    const filterFrequencyTooltip = getFilterFrequencyTooltipInfo({
+      referenceCutoffHz: filterConfig.audio.referenceCutoffHz,
+      referenceDial: filterConfig.audio.referenceDial,
+      octaveDialSpan: filterConfig.audio.octaveDialSpan,
+      minCutoffHz: filterConfig.audio.minCutoffHz,
+      maxCutoffHz: filterConfig.audio.maxCutoffHz
+    });
+    const filterResponseTooltip = getFilterResponseTooltipInfo(
+      filterConfig.audio.maxQ,
+      filterConfig.audio.selfOscillationThresholdDial
+    );
+    const filterLevelTooltip = getFilterLevelTooltipInfo(filterConfig.audio.maxSelfOscillationVoltsPP);
 
-      // Crear knobs verticales: Frequency, Response, Level
-      const knobsContainer = document.createElement('div');
-      knobsContainer.className = 'panel1-filter-knobs';
-      knobsContainer.style.gap = `${toNum(filterModuleUI.knobGap, toNum(filtersLayout.knobGap, 2))}px`;
-      applyOffset(knobsContainer, filterModuleUI.knobsOffset, filtersLayout.knobsOffset || { x: 0, y: 0 });
-      filtersLayout.knobs.forEach((knobName, i) => {
-        const knob = createPanel1Knob({
+    this._panel1FilterUIs = {};
+    this._panel1FilterModules = {};
+
+    for (const bank of filterBanks) {
+      bank.ids.forEach((filterId, bankIndex) => {
+        const moduleIndex = bankIndex + 1;
+        const filterModuleUI = blueprint.modules?.[filterId]?.ui || {};
+        const filterModule = new SynthiFilterModule(this.engine, `${bank.modulePrefix}-${moduleIndex}`, {
+          mode: bank.mode,
+          index: moduleIndex,
+          sourceKind: bank.sourceKind,
+          audio: filterConfig.audio,
+          ramps: filterConfig.ramps,
+          initialValues: {
+            frequency: filterConfig.knobs.frequency.initial,
+            response: filterConfig.knobs.response.initial,
+            level: filterConfig.knobs.level.initial
+          }
+        });
+        // NO llamar engine.addModule() — start() se hace lazy en _handlePanel5AudioToggle
+        // cuando el usuario conecta un pin (después del user gesture que activa AudioContext)
+        this._panel1FilterModules[filterId] = filterModule;
+
+        const ui = new Panel1FilterUI({
+          id: `${filterId}-module`,
+          knobGap: filterModuleUI.knobGap ?? filtersLayout.knobGap,
           knobSize: filterModuleUI.knobSize ?? filtersLayout.knobSize,
           knobInnerPct: filterModuleUI.knobInnerPct ?? filtersLayout.knobInnerPct,
-          knobColor: filterModuleUI.knobColors?.[i] ?? filtersLayout.knobColors?.[i],
-          knobType: filterModuleUI.knobTypes?.[i] ?? filtersLayout.knobTypes?.[i]
+          knobColors: filterModuleUI.knobColors ?? filtersLayout.knobColors,
+          knobTypes: filterModuleUI.knobTypes ?? filtersLayout.knobTypes,
+          knobsOffset: filterModuleUI.knobsOffset ?? filtersLayout.knobsOffset,
+          offset: filterModuleUI.offset ?? filtersLayout.moduleOffset,
+          knobOptions: {
+            frequency: {
+              ...filterConfig.knobs.frequency,
+              onChange: (value) => filterModule.setFrequency(value),
+              getTooltipInfo: filterFrequencyTooltip
+            },
+            response: {
+              ...filterConfig.knobs.response,
+              onChange: (value) => filterModule.setResponse(value),
+              getTooltipInfo: filterResponseTooltip
+            },
+            level: {
+              ...filterConfig.knobs.level,
+              onChange: (value) => filterModule.setLevel(value),
+              getTooltipInfo: filterLevelTooltip
+            }
+          }
         });
-        knobsContainer.appendChild(knob.wrapper);
-      });
-      frame.appendToContent(knobsContainer);
-      applyOffset(el, filterModuleUI.offset, filtersLayout.moduleOffset || { x: 0, y: 0 });
 
-      applyModuleVisibility(el, blueprint, filterId);
-      filtersRow.appendChild(el);
-      filterFrames[filterId] = frame;
+        const el = ui.createElement();
+        el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+
+        applyModuleVisibility(el, blueprint, filterId);
+        filtersRow.appendChild(el);
+        this._panel1FilterUIs[ui.id] = ui;
+      });
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -3142,7 +3249,6 @@ class App {
     this._panel1Data = {
       host,
       filtersRow,
-      filterFrames,
       envFrames,
       bottomRow,
       bottomFrames
@@ -6424,6 +6530,12 @@ class App {
         }
         
         outNode = busData.postVcaNode;
+      } else if (source.kind === 'filterLP' || source.kind === 'filterHP') {
+        const filterId = source.kind === 'filterLP'
+          ? `flp${(source.index ?? 0) + 1}`
+          : `fhp${(source.index ?? 0) + 1}`;
+        const filterModule = this._panel1FilterModules?.[filterId];
+        outNode = filterModule?.getOutputNode?.() ?? null;
       }
       
       if (!outNode) {
@@ -6561,6 +6673,12 @@ class App {
         }
         
         return true;
+      } else if (dest.kind === 'filterLPInput' || dest.kind === 'filterHPInput') {
+        const filterId = dest.kind === 'filterLPInput'
+          ? `flp${(dest.index ?? 0) + 1}`
+          : `fhp${(dest.index ?? 0) + 1}`;
+        const filterModule = this._panel1FilterModules?.[filterId];
+        destNode = filterModule?.getInputNode?.() ?? null;
       }
       
       if (!destNode) {
@@ -7131,6 +7249,12 @@ class App {
         }
         
         log.info(` Panel 6: Voltage input connected to output channel ${dest.bus}`);
+      } else if (dest.kind === 'filterLPCutoffCV' || dest.kind === 'filterHPCutoffCV') {
+        const filterId = dest.kind === 'filterLPCutoffCV'
+          ? `flp${(dest.index ?? 0) + 1}`
+          : `fhp${(dest.index ?? 0) + 1}`;
+        const filterModule = this._panel1FilterModules?.[filterId];
+        destNode = filterModule?.getCutoffCVParam?.() ?? null;
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud

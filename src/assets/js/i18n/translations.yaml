@@ -4690,6 +4690,24 @@ matrix.source.keyboardLower.gate:
   pt: "Teclado Inf. Gate"
   cs: "Dolní kláv. Gate"
 
+matrix.source.filterLP:
+  en: "Filter LP {index}"
+  es: "Filtro LP {index}"
+  fr: "Filtre LP {index}"
+  de: "Filter LP {index}"
+  it: "Filtro LP {index}"
+  pt: "Filtro LP {index}"
+  cs: "Filtr LP {index}"
+
+matrix.source.filterHP:
+  en: "Filter HP {index}"
+  es: "Filtro HP {index}"
+  fr: "Filtre HP {index}"
+  de: "Filter HP {index}"
+  it: "Filtro HP {index}"
+  pt: "Filtro HP {index}"
+  cs: "Filtr HP {index}"
+
 # Destinations (columns)
 matrix.dest.outputBus:
   en: "Out {bus}"
@@ -4748,6 +4766,42 @@ matrix.dest.outputLevelCV:
   it: Uscita {bus} Level CV
   pt: Saída {bus} Level CV
   cs: Výstup {bus} Level CV
+
+matrix.dest.filterLPInput:
+  en: "Filter LP {index} In"
+  es: "Filtro LP {index} In"
+  fr: "Filtre LP {index} In"
+  de: "Filter LP {index} In"
+  it: "Filtro LP {index} In"
+  pt: "Filtro LP {index} In"
+  cs: "Filtr LP {index} In"
+
+matrix.dest.filterHPInput:
+  en: "Filter HP {index} In"
+  es: "Filtro HP {index} In"
+  fr: "Filtre HP {index} In"
+  de: "Filter HP {index} In"
+  it: "Filtro HP {index} In"
+  pt: "Filtro HP {index} In"
+  cs: "Filtr HP {index} In"
+
+matrix.dest.filterLPCutoffCV:
+  en: "Filter LP {index} Cutoff CV"
+  es: "Filtro LP {index} Cutoff CV"
+  fr: "Filtre LP {index} Cutoff CV"
+  de: "Filter LP {index} Cutoff CV"
+  it: "Filtro LP {index} Cutoff CV"
+  pt: "Filtro LP {index} Cutoff CV"
+  cs: "Filtr LP {index} Cutoff CV"
+
+matrix.dest.filterHPCutoffCV:
+  en: "Filter HP {index} Cutoff CV"
+  es: "Filtro HP {index} Cutoff CV"
+  fr: "Filtre HP {index} Cutoff CV"
+  de: "Filter HP {index} Cutoff CV"
+  it: "Filtro HP {index} Cutoff CV"
+  pt: "Filtro HP {index} Cutoff CV"
+  cs: "Filtr HP {index} Cutoff CV"
 
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:

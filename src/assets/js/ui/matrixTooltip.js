@@ -106,6 +106,12 @@ export function getLabelForSource(source) {
       const kbOutput = source.output || 'pitch';
       return t(`matrix.source.keyboardLower.${kbOutput}`);
     }
+
+    case 'filterLP':
+      return t('matrix.source.filterLP', { index: (source.index ?? 0) + 1 });
+
+    case 'filterHP':
+      return t('matrix.source.filterHP', { index: (source.index ?? 0) + 1 });
     
     default:
       return null;
@@ -154,6 +160,18 @@ export function getLabelForDest(dest) {
     case 'outputLevelCV':
       // busIndex is 0-indexed, display as 1-indexed
       return t('matrix.dest.outputLevelCV', { bus: (dest.busIndex ?? 0) + 1 });
+
+    case 'filterLPInput':
+      return t('matrix.dest.filterLPInput', { index: (dest.index ?? 0) + 1 });
+
+    case 'filterHPInput':
+      return t('matrix.dest.filterHPInput', { index: (dest.index ?? 0) + 1 });
+
+    case 'filterLPCutoffCV':
+      return t('matrix.dest.filterLPCutoffCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'filterHPCutoffCV':
+      return t('matrix.dest.filterHPCutoffCV', { index: (dest.index ?? 0) + 1 });
     
     default:
       return null;

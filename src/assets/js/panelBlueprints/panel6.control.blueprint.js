@@ -70,6 +70,8 @@
 // Tipos de destinos disponibles:
 // | kind          | Descripción                               | Parámetros           |
 // |---------------|-------------------------------------------|----------------------|
+// | 'filterLPCutoffCV' | Entrada CV de cutoff LP               | index (0-3)          |
+// | 'filterHPCutoffCV' | Entrada CV de cutoff HP               | index (0-3)          |
 // | 'oscFreqCV'   | Entrada CV de frecuencia de oscilador     | oscIndex (0-11)      |
 // | 'outputLevelCV'| Control CV del nivel de salida           | busIndex (0-7)       |
 //
@@ -260,6 +262,18 @@ export default {
   // para cada oscilador.
   //
   destinations: [
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 FILTER CUTOFF CV (columnas 22-29)
+    // ─────────────────────────────────────────────────────────────────────────
+    { colSynth: 22, dest: { kind: 'filterLPCutoffCV', index: 0 } },
+    { colSynth: 23, dest: { kind: 'filterLPCutoffCV', index: 1 } },
+    { colSynth: 24, dest: { kind: 'filterLPCutoffCV', index: 2 } },
+    { colSynth: 25, dest: { kind: 'filterLPCutoffCV', index: 3 } },
+    { colSynth: 26, dest: { kind: 'filterHPCutoffCV', index: 0 } },
+    { colSynth: 27, dest: { kind: 'filterHPCutoffCV', index: 1 } },
+    { colSynth: 28, dest: { kind: 'filterHPCutoffCV', index: 2 } },
+    { colSynth: 29, dest: { kind: 'filterHPCutoffCV', index: 3 } },
+
     // ─────────────────────────────────────────────────────────────────────────
     // OSCILLATORS FREQUENCY CONTROL (columnas 30-41) - Synthi 100 nomenclature
     // ─────────────────────────────────────────────────────────────────────────

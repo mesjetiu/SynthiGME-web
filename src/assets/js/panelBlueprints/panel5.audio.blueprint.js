@@ -91,6 +91,7 @@ export default {
   // - 8 amplificadores de entrada (filas 67-74)
   // - 2 generadores de ruido (filas 89-90)
   // - 9 osciladores (del panel 3), cada uno con 2 canales (filas 91-108)
+  // - 8 filtros del Panel 1: 4 LP + 4 HP (filas 110-117)
   //
   // Filas impares de osciladores: sineSaw (sine + sawtooth)
   // Filas pares de osciladores: triPulse (triangle + pulse)
@@ -157,7 +158,19 @@ export default {
     { rowSynth: 106, source: { kind: 'panel3Osc', oscIndex: 7, channelId: 'triPulse' } },
     // Osc 9
     { rowSynth: 107, source: { kind: 'panel3Osc', oscIndex: 8, channelId: 'sineSaw' } },
-    { rowSynth: 108, source: { kind: 'panel3Osc', oscIndex: 8, channelId: 'triPulse' } }
+    { rowSynth: 108, source: { kind: 'panel3Osc', oscIndex: 8, channelId: 'triPulse' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 FILTERS (filas 110-117)
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 110, source: { kind: 'filterLP', index: 0 } },
+    { rowSynth: 111, source: { kind: 'filterLP', index: 1 } },
+    { rowSynth: 112, source: { kind: 'filterLP', index: 2 } },
+    { rowSynth: 113, source: { kind: 'filterLP', index: 3 } },
+    { rowSynth: 114, source: { kind: 'filterHP', index: 0 } },
+    { rowSynth: 115, source: { kind: 'filterHP', index: 1 } },
+    { rowSynth: 116, source: { kind: 'filterHP', index: 2 } },
+    { rowSynth: 117, source: { kind: 'filterHP', index: 3 } }
   ],
 
   // Destinos (salidas del router): columna -> destino
@@ -168,6 +181,18 @@ export default {
   // Los huecos (hiddenCols0) tienen número pero están deshabilitados en la UI.
   //
   destinations: [
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 FILTER INPUTS (columnas 15-22)
+    // ─────────────────────────────────────────────────────────────────────────
+    { colSynth: 15, dest: { kind: 'filterLPInput', index: 0 } },
+    { colSynth: 16, dest: { kind: 'filterLPInput', index: 1 } },
+    { colSynth: 17, dest: { kind: 'filterLPInput', index: 2 } },
+    { colSynth: 18, dest: { kind: 'filterLPInput', index: 3 } },
+    { colSynth: 19, dest: { kind: 'filterHPInput', index: 0 } },
+    { colSynth: 20, dest: { kind: 'filterHPInput', index: 1 } },
+    { colSynth: 21, dest: { kind: 'filterHPInput', index: 2 } },
+    { colSynth: 22, dest: { kind: 'filterHPInput', index: 3 } },
+
     // ─────────────────────────────────────────────────────────────────────────
     // HARD SYNC INPUTS (columnas 24-35 → Osc 1-12 sync input)
     // ─────────────────────────────────────────────────────────────────────────

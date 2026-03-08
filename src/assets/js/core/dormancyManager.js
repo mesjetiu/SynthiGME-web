@@ -261,6 +261,27 @@ export class DormancyManager {
       );
       this._setModuleDormant(`keyboard-${side}`, !hasKbOutput);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 FILTERS - 4 LP + 4 HP
+    // ─────────────────────────────────────────────────────────────────────────
+    for (let index = 0; index < 4; index++) {
+      const hasLPUsage = panel5Connections.some(c =>
+        (c.source?.kind === 'filterLP' && c.source?.index === index)
+        || (c.dest?.kind === 'filterLPInput' && c.dest?.index === index)
+      ) || panel6Connections.some(c =>
+        c.dest?.kind === 'filterLPCutoffCV' && c.dest?.index === index
+      );
+      this._setModuleDormant(`filter-lp-${index + 1}`, !hasLPUsage);
+
+      const hasHPUsage = panel5Connections.some(c =>
+        (c.source?.kind === 'filterHP' && c.source?.index === index)
+        || (c.dest?.kind === 'filterHPInput' && c.dest?.index === index)
+      ) || panel6Connections.some(c =>
+        c.dest?.kind === 'filterHPCutoffCV' && c.dest?.index === index
+      );
+      this._setModuleDormant(`filter-hp-${index + 1}`, !hasHPUsage);
+    }
     
     // ─────────────────────────────────────────────────────────────────────────────    // INPUT AMPLIFIERS - 8 canales
     // ─────────────────────────────────────────────────────────────────────────
@@ -458,6 +479,16 @@ export class DormancyManager {
     }
     if (moduleId === 'keyboard-lower') {
       return this.app._keyboardModules?.lower;
+    }
+
+    // Panel 1 filters
+    if (moduleId.startsWith('filter-lp-')) {
+      const index = moduleId.split('-').pop();
+      return this.app._panel1FilterModules?.[`flp${index}`] ?? null;
+    }
+    if (moduleId.startsWith('filter-hp-')) {
+      const index = moduleId.split('-').pop();
+      return this.app._panel1FilterModules?.[`fhp${index}`] ?? null;
     }
     
     // Oscilloscope

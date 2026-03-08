@@ -78,6 +78,18 @@ export function formatVoltage(voltage, decimals = 1) {
   return `${voltage.toFixed(decimals)} V`;
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function formatFrequencyHz(hz) {
+  if (hz >= 1000) {
+    const scaled = hz >= 10000 ? (hz / 1000).toFixed(1) : (hz / 1000).toFixed(2);
+    return `${Number(scaled)} kHz`;
+  }
+  return `${Math.round(hz)} Hz`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GENERADORES DE TOOLTIPS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,6 +121,68 @@ export function getLevelTooltipInfo(maxVpp) {
     
     return parts.length > 0 ? parts.join(' · ') : null;
   };
+}
+
+/**
+ * Genera tooltip técnico para cutoff de filtros 1982 (CEM3320).
+ * @param {Object} options
+ * @param {number} [options.referenceCutoffHz=320]
+ * @param {number} [options.referenceDial=5]
+ * @param {number} [options.octaveDialSpan=0.7]
+ * @param {number} [options.minCutoffHz=5]
+ * @param {number} [options.maxCutoffHz=20000]
+ * @returns {function(number): string|null}
+ */
+export function getFilterFrequencyTooltipInfo({
+  referenceCutoffHz = 320,
+  referenceDial = 5,
+  octaveDialSpan = 0.7,
+  minCutoffHz = 5,
+  maxCutoffHz = 20000
+} = {}) {
+  return (dialValue) => {
+    const parts = [];
+    const octaves = (dialValue - referenceDial) / octaveDialSpan;
+    const cutoffHz = clamp(referenceCutoffHz * Math.pow(2, octaves), minCutoffHz, maxCutoffHz);
+
+    if (showAudioTooltip()) {
+      parts.push(`fc ≈ ${formatFrequencyHz(cutoffHz)}`);
+    }
+
+    if (showVoltageTooltip()) {
+      parts.push(`ΣCV ${formatVoltage(octaves, 2)}`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera tooltip técnico para resonancia/response de filtros 1982.
+ * @param {number} [maxQ=20]
+ * @param {number} [selfOscillationThreshold=5.5]
+ * @returns {function(number): string|null}
+ */
+export function getFilterResponseTooltipInfo(maxQ = 20, selfOscillationThreshold = 5.5) {
+  return (dialValue) => {
+    if (!showAudioTooltip()) return null;
+
+    const q = 0.7 + (clamp(dialValue, 0, 10) / 10) * (maxQ - 0.7);
+    const parts = [`Q ≈ ${q.toFixed(q >= 10 ? 0 : 1)}`];
+    if (dialValue >= selfOscillationThreshold) {
+      parts.push('self-osc');
+    }
+    return parts.join(' · ');
+  };
+}
+
+/**
+ * Genera tooltip técnico para nivel de salida de filtros.
+ * @param {number} [maxVpp=5]
+ * @returns {function(number): string|null}
+ */
+export function getFilterLevelTooltipInfo(maxVpp = 5) {
+  return getLevelTooltipInfo(maxVpp);
 }
 
 /**

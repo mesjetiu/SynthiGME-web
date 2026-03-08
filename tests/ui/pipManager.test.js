@@ -63,6 +63,20 @@ describe('Toggle y memoria de geometría PiP', () => {
   it('openAllPips también reutiliza la geometría recordada', () => {
     assert.match(pipSource, /export function openAllPips\(\) \{[\s\S]*?openPip\(panel\.id, getRememberedPipConfig\(panel\.id\)\);/);
   });
+
+  it('preserva un tamaño por defecto separado de la geometría restaurada', () => {
+    assert.match(pipSource, /const defaultPipDims = getInitialPipDimensions\(\);/);
+    assert.match(pipSource, /defaultWidth: pipConfig\?\.defaultWidth \|\| defaultPipDims\.width,/);
+    assert.match(pipSource, /defaultHeight: pipConfig\?\.defaultHeight \|\| defaultPipDims\.height,/);
+  });
+});
+
+describe('Límite inferior de zoom PiP', () => {
+  it('usa la escala por defecto del PiP como mínimo para el zoom negativo', () => {
+    assert.match(pipSource, /function getDefaultPipScale\(state\)/);
+    assert.match(pipSource, /return getPipCoverScale\(defaultViewportWidth, defaultViewportHeight, panelWidth, panelHeight\);/);
+    assert.match(pipSource, /return Math\.max\([\s\S]*?getDefaultPipScale\(state\),[\s\S]*?MIN_PIP_SIZE \/ Math\.max\(panelWidth, 1\),/);
+  });
 });
 
 describe('Animación visual canvas ↔ PiP', () => {

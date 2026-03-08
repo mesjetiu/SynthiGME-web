@@ -1211,10 +1211,23 @@ function getPipCoverScale(viewportWidth, viewportHeight, panelWidth, panelHeight
   return Math.max(MIN_SCALE_ABSOLUTE, Math.max(scaleX, scaleY));
 }
 
+function getDefaultPipScale(state) {
+  if (!state) return MIN_SCALE_ABSOLUTE;
+
+  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
+  const defaultViewportWidth = Math.max(1, (Number(state.defaultWidth) || 0) - PIP_BORDER_SIZE);
+  const defaultViewportHeight = Math.max(1, (Number(state.defaultHeight) || 0) - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
+
+  return getPipCoverScale(defaultViewportWidth, defaultViewportHeight, panelWidth, panelHeight);
+}
+
 /**
- * Calcula la escala mínima para que el panel cubra por completo el viewport.
- * Nunca debe quedar espacio en blanco dentro del PiP: si el marco crece,
- * el panel crece con él y el exceso se resuelve con scroll.
+ * Calcula la escala mínima permitida para un PiP.
+ *
+ * Además de cubrir completamente el viewport, el zoom negativo nunca debe
+ * encoger la ventana por debajo de su tamaño de origen (la geometría
+ * por defecto con la que se abrió el PiP). Así el usuario puede volver al
+ * tamaño inicial, pero no reducir el panel a una miniatura excesiva.
  * @param {string} panelId - ID del panel
  * @returns {number} Escala mínima
  */
@@ -1225,6 +1238,7 @@ function getMinScale(panelId) {
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
   return Math.max(
     MIN_SCALE_ABSOLUTE,
+    getDefaultPipScale(state),
     MIN_PIP_SIZE / Math.max(panelWidth, 1),
     MIN_PIP_SIZE / Math.max(panelHeight, 1)
   );
@@ -2010,6 +2024,7 @@ export function openPip(panelId, restoredConfig = null) {
   const pipContainer = document.createElement('div');
   pipContainer.className = 'pip-container pip-container--frameless';
   pipContainer.dataset.panelId = panelId;
+  const defaultPipDims = getInitialPipDimensions();
   
   // ── Dimensiones y posición: usar config restaurada o calcular iniciales ──
   let initX, initY, initW, initH, initScale;
@@ -2027,7 +2042,7 @@ export function openPip(panelId, restoredConfig = null) {
     initScale = pipConfig.scale; // Se clampeará después del reflow
     pipContainer.style.zIndex = pipConfig.zIndex || PIP_Z_INDEX_BASE + activePips.size;
   } else {
-    const pipDims = getInitialPipDimensions();
+    const pipDims = defaultPipDims;
     const initialPos = getInitialPipPosition(panelId, pipDims.width, pipDims.height);
     initX = initialPos.x;
     initY = initialPos.y;
@@ -2140,8 +2155,8 @@ export function openPip(panelId, restoredConfig = null) {
     sharpCommitRaf: null,
     sharpDeferCount: 0,
     previewTimer: null,
-    defaultWidth: pipConfig?.defaultWidth || initW,
-    defaultHeight: pipConfig?.defaultHeight || initH,
+    defaultWidth: pipConfig?.defaultWidth || defaultPipDims.width,
+    defaultHeight: pipConfig?.defaultHeight || defaultPipDims.height,
     panLocked: Boolean(pipConfig?.panLocked ?? pipConfig?.locked),
     zoomLocked: Boolean(pipConfig?.zoomLocked ?? pipConfig?.locked),
     locked: Boolean(pipConfig?.locked),

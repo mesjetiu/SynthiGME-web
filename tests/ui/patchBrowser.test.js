@@ -520,7 +520,7 @@ describe('PatchBrowser — configuración visual en patches', () => {
     );
   });
   
-  it('patchBrowser importa serializePipState y closeAllPips de pipManager', async () => {
+  it('patchBrowser importa helpers visuales de PiP y keyboard window', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const fileURL = await import('url');
@@ -544,19 +544,29 @@ describe('PatchBrowser — configuración visual en patches', () => {
       code.includes('openPip'),
       'patchBrowser debe importar openPip'
     );
+    assert.ok(
+      code.includes('serializeKeyboardState'),
+      'patchBrowser debe importar serializeKeyboardState'
+    );
+    assert.ok(
+      code.includes('restoreKeyboardState'),
+      'patchBrowser debe importar restoreKeyboardState'
+    );
   });
   
-  it('_maybeAddVisualState añade pipState y viewportState si checkbox activo', () => {
+  it('_maybeAddVisualState añade pipState, keyboardState y viewportState si checkbox activo', () => {
     // Simular la lógica de _maybeAddVisualState
     const mockPipState = [
       { panelId: 'panel-1', x: 100, y: 200, width: 400, height: 300, scale: 0.5 },
       { panelId: 'panel-3', x: 500, y: 100, width: 350, height: 280, scale: 0.6 }
     ];
+    const mockKeyboardState = { visible: true, x: 20, y: 30, width: 640, height: 220, userResized: true };
     const mockViewportState = { scale: 0.35, offsetX: 50, offsetY: 30, focusedPanelId: null };
     
-    function maybeAddVisualState(patch, checkboxChecked, serializePipFn, serializeViewportFn) {
+    function maybeAddVisualState(patch, checkboxChecked, serializePipFn, serializeKeyboardFn, serializeViewportFn) {
       if (checkboxChecked) {
         patch.pipState = serializePipFn();
+        patch.keyboardState = serializeKeyboardFn();
         if (serializeViewportFn) {
           patch.viewportState = serializeViewportFn();
         }
@@ -567,42 +577,51 @@ describe('PatchBrowser — configuración visual en patches', () => {
     const patch = { name: 'Test', modules: {} };
     
     // Con checkbox activo
-    const result = maybeAddVisualState(patch, true, () => mockPipState, () => mockViewportState);
+    const result = maybeAddVisualState(patch, true, () => mockPipState, () => mockKeyboardState, () => mockViewportState);
     assert.ok(Array.isArray(result.pipState), 'pipState debe ser un array');
     assert.strictEqual(result.pipState.length, 2, 'debe tener 2 PiPs');
     assert.strictEqual(result.pipState[0].panelId, 'panel-1');
     assert.strictEqual(result.pipState[1].x, 500);
+    assert.ok(result.keyboardState, 'keyboardState debe existir');
+    assert.strictEqual(result.keyboardState.visible, true);
+    assert.strictEqual(result.keyboardState.width, 640);
     assert.ok(result.viewportState, 'viewportState debe existir');
     assert.strictEqual(result.viewportState.scale, 0.35);
     assert.strictEqual(result.viewportState.offsetX, 50);
   });
   
   it('_maybeAddVisualState no añade estado visual si checkbox inactivo', () => {
-    function maybeAddVisualState(patch, checkboxChecked, serializePipFn, serializeViewportFn) {
+    function maybeAddVisualState(patch, checkboxChecked, serializePipFn, serializeKeyboardFn, serializeViewportFn) {
       if (checkboxChecked) {
         patch.pipState = serializePipFn();
+        patch.keyboardState = serializeKeyboardFn();
         if (serializeViewportFn) patch.viewportState = serializeViewportFn();
       }
       return patch;
     }
     
     const patch = { name: 'Test', modules: {} };
-    const result = maybeAddVisualState(patch, false, () => [], () => ({}));
+    const result = maybeAddVisualState(patch, false, () => [], () => ({}), () => ({}));
     assert.strictEqual(result.pipState, undefined, 'no debe tener pipState');
+    assert.strictEqual(result.keyboardState, undefined, 'no debe tener keyboardState');
     assert.strictEqual(result.viewportState, undefined, 'no debe tener viewportState');
   });
   
-  it('_maybeRestoreVisualState restaura PIPs y viewport si checkbox activo', () => {
+  it('_maybeRestoreVisualState restaura PIPs, keyboard y viewport si checkbox activo', () => {
     const openedPanels = [];
+    let restoredKeyboard = null;
     let viewportRestored = null;
     
-    function maybeRestoreVisualState(patchData, checked, closeFn, openFn, restoreViewportFn) {
+    function maybeRestoreVisualState(patchData, checked, closeFn, openFn, restoreKeyboardFn, restoreViewportFn) {
       if (!checked) return;
       if (patchData?.pipState && Array.isArray(patchData.pipState)) {
         closeFn();
         for (const state of patchData.pipState) {
           openFn(state.panelId, state);
         }
+      }
+      if (patchData?.keyboardState && restoreKeyboardFn) {
+        restoreKeyboardFn(patchData.keyboardState);
       }
       if (patchData?.viewportState && restoreViewportFn) {
         restoreViewportFn(patchData.viewportState);
@@ -614,6 +633,7 @@ describe('PatchBrowser — configuración visual en patches', () => {
         { panelId: 'panel-1', x: 100, y: 200 },
         { panelId: 'panel-5', x: 300, y: 400 }
       ],
+      keyboardState: { visible: true, x: 10, y: 20, width: 640, height: 220 },
       viewportState: { scale: 0.5, offsetX: 100, offsetY: 50, focusedPanelId: 'panel-1' }
     };
     
@@ -623,6 +643,7 @@ describe('PatchBrowser — configuración visual en patches', () => {
       true,
       () => { allClosed = true; },
       (id, state) => { openedPanels.push({ id, state }); },
+      (state) => { restoredKeyboard = state; },
       (state) => { viewportRestored = state; }
     );
     
@@ -630,6 +651,9 @@ describe('PatchBrowser — configuración visual en patches', () => {
     assert.strictEqual(openedPanels.length, 2, 'debe abrir 2 PiPs');
     assert.strictEqual(openedPanels[0].id, 'panel-1');
     assert.strictEqual(openedPanels[1].id, 'panel-5');
+    assert.ok(restoredKeyboard, 'debe restaurar keyboardState');
+    assert.strictEqual(restoredKeyboard.visible, true);
+    assert.strictEqual(restoredKeyboard.width, 640);
     assert.ok(viewportRestored, 'debe restaurar viewport');
     assert.strictEqual(viewportRestored.scale, 0.5);
     assert.strictEqual(viewportRestored.focusedPanelId, 'panel-1');
@@ -777,6 +801,7 @@ describe('PatchBrowser — traducciones de configuración visual', () => {
     const code = fs.readFileSync(pbPath, 'utf-8');
     
     assert.ok(code.includes('viewportState'), 'patchBrowser debe manejar viewportState');
+    assert.ok(code.includes('keyboardState'), 'patchBrowser debe manejar keyboardState');
     assert.ok(code.includes('__synthSerializeViewportState'), 'debe usar __synthSerializeViewportState');
     assert.ok(code.includes('__synthRestoreViewportState'), 'debe usar __synthRestoreViewportState');
   });

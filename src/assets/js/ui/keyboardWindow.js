@@ -966,8 +966,16 @@ function _clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
 }
 
+function _shouldRememberVisualLayout() {
+  return localStorage.getItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT) === 'true';
+}
+
 function _saveState() {
   if (_isRestoring) return;
+  if (!_shouldRememberVisualLayout()) {
+    localStorage.removeItem(STORAGE_KEYS.KEYBOARD_STATE);
+    return;
+  }
   try {
     localStorage.setItem(STORAGE_KEYS.KEYBOARD_STATE, JSON.stringify({
       visible: isOpen,
@@ -981,6 +989,7 @@ function _saveState() {
 }
 
 function _restoreState() {
+  if (!_shouldRememberVisualLayout()) return;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.KEYBOARD_STATE);
     if (!raw) return;

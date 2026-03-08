@@ -2515,6 +2515,7 @@ export class SettingsModal {
     if (!remember) {
       localStorage.removeItem(STORAGE_KEYS.PIP_STATE);
       localStorage.removeItem(STORAGE_KEYS.VIEWPORT_STATE);
+      localStorage.removeItem(STORAGE_KEYS.KEYBOARD_STATE);
     }
   }
 

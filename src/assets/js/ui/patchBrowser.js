@@ -35,6 +35,7 @@ import { showToast } from './toast.js';
 import { createLogger } from '../utils/logger.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { serializePipState, closeAllPips, openPip } from './pipManager.js';
+import { serializeKeyboardState, restoreKeyboardState } from './keyboardWindow.js';
 import { serializeNotes, deserializeNotes } from './panelNotes.js';
 
 const log = createLogger('PatchBrowser');
@@ -630,6 +631,7 @@ export class PatchBrowser {
   _maybeAddVisualState(patch) {
     if (this.includeVisualCheckbox?.checked) {
       patch.pipState = serializePipState();
+      patch.keyboardState = serializeKeyboardState();
       if (typeof window.__synthSerializeViewportState === 'function') {
         patch.viewportState = window.__synthSerializeViewportState();
       }
@@ -655,6 +657,11 @@ export class PatchBrowser {
         }
       }
       log.info('Visual layout restored:', patchData.pipState.length, 'PIPs');
+    }
+
+    if (patchData?.keyboardState) {
+      restoreKeyboardState(patchData.keyboardState);
+      log.info('Keyboard visual layout restored');
     }
     
     // Restaurar notas post-it

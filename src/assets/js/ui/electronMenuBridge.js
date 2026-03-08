@@ -118,6 +118,7 @@ function readCurrentState() {
     pipPanels,
     // Teclados flotantes
     keyboardVisible: (() => {
+      if (!readBool(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, false)) return false;
       try {
         const raw = localStorage.getItem(STORAGE_KEYS.KEYBOARD_STATE);
         return raw ? (JSON.parse(raw).visible === true) : false;
@@ -279,6 +280,11 @@ function handleMenuAction({ action, data }) {
     }
     case 'setRememberVisualLayout':
       localStorage.setItem(STORAGE_KEYS.REMEMBER_VISUAL_LAYOUT, String(data.enabled));
+      if (!data.enabled) {
+        localStorage.removeItem(STORAGE_KEYS.PIP_STATE);
+        localStorage.removeItem(STORAGE_KEYS.VIEWPORT_STATE);
+        localStorage.removeItem(STORAGE_KEYS.KEYBOARD_STATE);
+      }
       break;
     case 'setLockPan': {
       setFocusedPipPanLocked(Boolean(data.enabled));

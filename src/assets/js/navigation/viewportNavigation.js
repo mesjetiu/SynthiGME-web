@@ -380,7 +380,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     cancelRasterize();
     // Ocultar tooltips de knobs/sliders: el contenido se mueve bajo el puntero
     // y no se dispara pointerleave, dejando el tooltip activo indefinidamente.
-    document.dispatchEvent(new Event('synth:dismissTooltips'));
+    dismissViewportTransientUi();
     requestAnimationFrame(animateStep);
   }
   
@@ -442,7 +442,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     outer.classList.toggle('is-gesturing', navActive);
     // Al iniciar gesto de navegación, ocultar tooltips de todos los controles
     if (navActive && !wasActive) {
-      document.dispatchEvent(new Event('synth:dismissTooltips'));
+      dismissViewportTransientUi();
     }
   }
 
@@ -913,6 +913,15 @@ export function initViewportNavigation({ outer, inner } = {}) {
     scheduleViewportSave();
   }
 
+  let lastViewportTooltipDismissTs = 0;
+
+  function dismissViewportTransientUi() {
+    const now = globalThis.performance?.now?.() ?? Date.now();
+    if (now - lastViewportTooltipDismissTs < 16) return;
+    lastViewportTooltipDismissTs = now;
+    document.dispatchEvent(new Event('synth:dismissTooltips'));
+  }
+
   // ─── Atajos de teclado para navegación del viewport ───
   // Shift: deshabilitar clamp de bordes
   // Flechas: paneo del canvas (paso proporcional al viewport)
@@ -1175,6 +1184,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
       cancelRasterize();
       const stepX = (metrics.outerWidth || outer.clientWidth) * ARROW_PAN_FACTOR;
       const stepY = (metrics.outerHeight || outer.clientHeight) * ARROW_PAN_FACTOR;
+      dismissViewportTransientUi();
       offsetX += arrowDir[0] * stepX;
       offsetY += arrowDir[1] * stepY;
       requestRender();
@@ -1288,6 +1298,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     scale = snap ? snapScale(clamped) : clamped;
     offsetX = cx - worldX * scale;
     offsetY = cy - worldY * scale;
+    dismissViewportTransientUi();
     requestRender();
   }
 
@@ -1322,6 +1333,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const deltaUnit = ev.deltaMode === 1 ? lineHeight : (ev.deltaMode === 2 ? (metrics.outerHeight || outer.clientHeight) : 1);
     const moveX = ev.deltaX * deltaUnit * wheelPanFactor * wheelPanSmoothing;
     const moveY = ev.deltaY * deltaUnit * wheelPanFactor * wheelPanSmoothing;
+    dismissViewportTransientUi();
     offsetX -= moveX;
     offsetY -= moveY;
     requestRender();
@@ -1452,6 +1464,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
       lastCentroid = { x: centroidClientX, y: centroidClientY };
 
       if (didZoom || transformDirty) {
+        dismissViewportTransientUi();
         if (didZoom) didPinchZoom = true;
         requestRender();
         markUserAdjusted();
@@ -1474,6 +1487,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
       lastY = ev.clientY;
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
         didMove = true;
+        dismissViewportTransientUi();
         offsetX += dx;
         offsetY += dy;
         requestRender();

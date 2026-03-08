@@ -903,6 +903,7 @@ function startPipWindowDrag(panelId, pointerEvent, dragSurface) {
 
   pointerEvent.preventDefault();
   pointerEvent.stopPropagation();
+  dismissPipTransientUi();
   setPipPreviewMode(panelId, true);
   draggingPip = panelId;
   dragPointerId = pointerEvent.pointerId;
@@ -1722,6 +1723,7 @@ function startFocusedPipKeyboardPan(panelId, dirX, dirY) {
   pipKeyboardPanState.panelId = panelId;
   pipKeyboardPanState.dirX = nextDirX;
   pipKeyboardPanState.dirY = nextDirY;
+  dismissPipTransientUi();
   state.pipContainer.classList.add('pip-container--keyboard-panning');
 
   if (!isSamePanel || directionChanged) {
@@ -1755,6 +1757,7 @@ function startFocusedPipKeyboardZoom(panelId, direction) {
 
   pipKeyboardZoomState.panelId = panelId;
   pipKeyboardZoomState.direction = direction;
+  dismissPipTransientUi();
   state.pipContainer.classList.add('pip-container--keyboard-zooming');
 
   if (!isSamePanel || directionChanged) {
@@ -2738,6 +2741,7 @@ function setupPipEvents(pipContainer, panelId) {
     if (state && isPipPanLocked(state)) return;
     e.preventDefault();
     e.stopPropagation();
+    dismissPipTransientUi();
     setPipPreviewMode(panelId, true);
     resizingPip = panelId;
     resizeEdge = edge;

@@ -128,6 +128,13 @@ describe('Paneo continuo de PiP con teclado', () => {
     assert.match(pipSource, /const stepY = state\.height \* 0\.15;/);
   });
 
+  it('oculta tooltips fantasma al empezar a mover o escalar una PiP', () => {
+    assert.match(pipSource, /function startPipWindowDrag\(panelId, pointerEvent, dragSurface\) \{[\s\S]*?dismissPipTransientUi\(\);[\s\S]*?setPipPreviewMode\(panelId, true\);/);
+    assert.match(pipSource, /function startFocusedPipKeyboardPan\(panelId, dirX, dirY\) \{[\s\S]*?dismissPipTransientUi\(\);[\s\S]*?state\.pipContainer\.classList\.add\('pip-container--keyboard-panning'\);/);
+    assert.match(pipSource, /function startFocusedPipKeyboardZoom\(panelId, direction\) \{[\s\S]*?dismissPipTransientUi\(\);[\s\S]*?state\.pipContainer\.classList\.add\('pip-container--keyboard-zooming'\);/);
+    assert.match(pipSource, /const startResize = \(e, edge\) => \{[\s\S]*?dismissPipTransientUi\(\);[\s\S]*?setPipPreviewMode\(panelId, true\);/);
+  });
+
   it('declara también zoom continuo con aceleración temporal para Ctrl+ y Ctrl-', () => {
     assert.match(pipSource, /const PIP_KEYBOARD_ZOOM_BASE_RATE = 1\.35;/);
     assert.match(pipSource, /const PIP_KEYBOARD_ZOOM_MAX_RATE = 4\.2;/);

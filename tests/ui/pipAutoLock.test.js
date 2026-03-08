@@ -19,6 +19,7 @@ const pipSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/pipManager.js'), 
 const quickbarSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/quickbar.js'), 'utf-8');
 const bridgeSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/electronMenuBridge.js'), 'utf-8');
 const navSource = readFileSync(resolve(ROOT, 'src/assets/js/navigation/viewportNavigation.js'), 'utf-8');
+const tooltipManagerSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/tooltipManager.js'), 'utf-8');
 
 describe('Canvas principal fijo', () => {
   it('inicializa el viewport con paneo y zoom bloqueados', () => {
@@ -61,6 +62,16 @@ describe('Canvas principal fijo', () => {
     assert.match(navSource, /viewportWheelZoomState\.pendingDelta \+= ev\.deltaY \* deltaUnit;/);
     assert.match(navSource, /scheduleViewportWheelZoom\(\);/);
     assert.match(navSource, /stopViewportWheelZoom\(\);/);
+  });
+
+  it('descarta tooltips al mover o escalar el viewport', () => {
+    assert.match(navSource, /function dismissViewportTransientUi\(\) \{[\s\S]*?document\.dispatchEvent\(new Event\('synth:dismissTooltips'\)\);/);
+    assert.match(navSource, /function adjustOffsetsForZoom\(cx, cy, newScale, \{ snap = false \} = \{\}\) \{[\s\S]*?dismissViewportTransientUi\(\);[\s\S]*?requestRender\(\);/);
+    assert.match(navSource, /const moveX = ev\.deltaX \* deltaUnit \* wheelPanFactor \* wheelPanSmoothing;[\s\S]*?dismissViewportTransientUi\(\);[\s\S]*?offsetX -= moveX;/);
+    assert.match(navSource, /const stepX = \(metrics\.outerWidth \|\| outer\.clientWidth\) \* ARROW_PAN_FACTOR;[\s\S]*?dismissViewportTransientUi\(\);[\s\S]*?offsetX \+= arrowDir\[0\] \* stepX;/);
+    assert.match(navSource, /if \(didZoom \|\| transformDirty\) \{[\s\S]*?dismissViewportTransientUi\(\);[\s\S]*?requestRender\(\);/);
+    assert.match(navSource, /if \(Math\.abs\(dx\) > 1 \|\| Math\.abs\(dy\) > 1\) \{[\s\S]*?dismissViewportTransientUi\(\);[\s\S]*?offsetX \+= dx;/);
+    assert.match(tooltipManagerSource, /document\.addEventListener\('synth:dismissTooltips', \(\) => \{[\s\S]*?hideAllTooltips\(\);[\s\S]*?\}\);/);
   });
 });
 

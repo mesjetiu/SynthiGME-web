@@ -67,6 +67,11 @@ function _ensureInitialized() {
   if (_initialized) return;
   if (typeof document === 'undefined') return; // SSR/tests safety
   _initialized = true;
+
+  // Permitir cierres globales explícitos desde otros subsistemas (viewport, PiP, etc.)
+  document.addEventListener('synth:dismissTooltips', () => {
+    hideAllTooltips();
+  });
   
   // Ocultar tooltips cuando se inicia un gesto de navegación (zoom/pan)
   // Usamos pointerdown con múltiples touches como indicador de gesto

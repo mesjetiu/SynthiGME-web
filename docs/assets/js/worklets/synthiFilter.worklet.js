@@ -23,12 +23,11 @@ function responseDialToFeedback(dial, threshold = RESPONSE_SELF_OSC_THRESHOLD) {
   const value = clamp(dial, 0, 10);
 
   if (value <= threshold) {
-    const normalized = value / threshold;
-    return normalized * 3.82;
+    return (value / threshold) * 3.95;
   }
 
-  const tail = (value - threshold) / (10 - threshold);
-  return 3.82 + tail * 0.55;
+  const t = (value - threshold) / (10 - threshold);
+  return 3.95 + t * 1.05;
 }
 
 class SynthiFilterProcessor extends AudioWorkletProcessor {
@@ -89,10 +88,6 @@ class SynthiFilterProcessor extends AudioWorkletProcessor {
   _ensureState(index) {
     if (!this._states[index]) {
       this._states[index] = {
-        in1: 0,
-        in2: 0,
-        in3: 0,
-        in4: 0,
         out1: 0,
         out2: 0,
         out3: 0,
@@ -100,8 +95,7 @@ class SynthiFilterProcessor extends AudioWorkletProcessor {
         hp1: 0,
         hp2: 0,
         hp3: 0,
-        hp4: 0,
-        selfPhase: 0
+        hp4: 0
       };
     }
     return this._states[index];
@@ -135,51 +129,31 @@ class SynthiFilterProcessor extends AudioWorkletProcessor {
         const cutoffControl = cutoffValues.length > 1 ? cutoffValues[i] : (cutoffValues[0] ?? 0);
         const cutoffHz = controlToCutoffHz(cutoffControl, this._config);
 
-        let f = (cutoffHz / sampleRate) * 1.16;
-        f = clamp(f, 0.0001, 0.98);
+        // OTA integrator coefficient (CEM3320 exponential model)
+        const g = 1.0 - Math.exp(-2.0 * Math.PI * cutoffHz / sampleRate);
 
-        const feedback = feedbackBase * (1 - 0.15 * f * f);
-        const inputSample = inChannel ? inChannel[i] || 0 : 0;
-        const resonanceDrive = 1 + (feedbackBase / 4.37) * this._config.inputDriveBoost;
+        const rawInput = inChannel ? inChannel[i] || 0 : 0;
 
-        let x = Math.tanh(inputSample * resonanceDrive);
-        if (feedbackBase > 3.8 && Math.abs(x) < 1e-9 && Math.abs(state.out4) < 1e-8) {
-          x = 0.02;
-        }
+        // Inaudible white noise at the input (~-60 dBFS).
+        // At high Q the ladder's resonance amplifies the cutoff
+        // frequency naturally, producing stable self-oscillation
+        // without any special-case logic.
+        const inputSample = rawInput + (Math.random() * 2 - 1) * 0.001;
 
-        x -= state.out4 * feedback;
-        x *= 0.35013 * f * f * f * f;
+        const resonanceDrive = 1 + (feedbackBase / 5.0) * this._config.inputDriveBoost;
 
-        state.out1 = x + 0.3 * state.in1 + (1 - f) * state.out1;
-        state.in1 = x;
-        state.out2 = state.out1 + 0.3 * state.in2 + (1 - f) * state.out2;
-        state.in2 = state.out1;
-        state.out3 = state.out2 + 0.3 * state.in3 + (1 - f) * state.out3;
-        state.in3 = state.out2;
-        state.out4 = state.out3 + 0.3 * state.in4 + (1 - f) * state.out4;
-        state.in4 = state.out3;
+        // Huovilainen Moog ladder: per-stage OTA saturation (CEM3320).
+        // Each tanh models the differential-pair soft clipping of
+        // the OTA, ensuring amplitude-limited self-oscillation.
+        let x = Math.tanh(inputSample * resonanceDrive - feedbackBase * state.out4);
 
-        const isSelfOscillating = responseDial >= this._config.selfOscillationThresholdDial && Math.abs(inputSample) < 1e-6;
+        state.out1 += g * (x                        - Math.tanh(state.out1));
+        state.out2 += g * (Math.tanh(state.out1) - Math.tanh(state.out2));
+        state.out3 += g * (Math.tanh(state.out2) - Math.tanh(state.out3));
+        state.out4 += g * (Math.tanh(state.out3) - Math.tanh(state.out4));
+
         let y;
-        if (isSelfOscillating) {
-          const phaseStep = (2 * Math.PI * cutoffHz) / sampleRate;
-          state.selfPhase += phaseStep;
-          if (state.selfPhase > Math.PI * 2) {
-            state.selfPhase -= Math.PI * 2;
-          }
-
-          const oscLevel = 0.05 + ((responseDial - this._config.selfOscillationThresholdDial) / (10 - this._config.selfOscillationThresholdDial)) * 0.08;
-          const baseSine = Math.sin(state.selfPhase) * oscLevel;
-
-          if (this._config.mode === 'highpass') {
-            const dirty = baseSine
-              + Math.sin(state.selfPhase * 2) * oscLevel * 0.42
-              + Math.sin(state.selfPhase * 3) * oscLevel * this._config.hpDirtyEvenHarmonics;
-            y = Math.tanh(dirty * this._config.hpDirtyDrive);
-          } else {
-            y = Math.tanh(baseSine * this._config.lpDrive);
-          }
-        } else if (this._config.mode === 'highpass') {
+        if (this._config.mode === 'highpass') {
           const hpAlpha = clamp((2 * Math.PI * cutoffHz) / sampleRate, 0.0001, 0.99);
           state.hp1 += (inputSample - state.hp1) * hpAlpha;
           let hp = inputSample - state.hp1;

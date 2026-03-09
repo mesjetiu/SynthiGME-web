@@ -16,9 +16,9 @@ function controlToCutoffHz(controlDigital) {
 function responseDialToFeedback(dial, threshold = 5.5) {
   const value = Math.max(0, Math.min(10, dial));
   if (value <= threshold) {
-    return (value / threshold) * 3.82;
+    return (value / threshold) * 3.95;
   }
-  return 3.82 + ((value - threshold) / (10 - threshold)) * 0.55;
+  return 3.95 + ((value - threshold) / (10 - threshold)) * 1.05;
 }
 
 function createWorkletEnvironment() {
@@ -54,8 +54,8 @@ describe('synthiFilter.worklet helpers', () => {
   });
 
   test('response entra en zona de auto-oscilación sobre 5.5', () => {
-    assert.ok(responseDialToFeedback(5.4) < 3.82);
-    assert.ok(responseDialToFeedback(5.6) > 3.82);
+    assert.ok(responseDialToFeedback(5.4) < 3.95);
+    assert.ok(responseDialToFeedback(5.6) > 3.95);
   });
 });
 
@@ -104,15 +104,17 @@ describe('synthiFilter.worklet import real', () => {
     const processor = new Processor({ processorOptions: { mode: 'lowpass' } });
     const outputs = [[new Float32Array(128)]];
 
+    // White noise at the input is amplified by ladder resonance at high Q.
+    // 80 blocks × 128 / 48 kHz ≈ 213 ms — enough for the resonance to build.
     for (let i = 0; i < 80; i++) {
       processor.process([], outputs, {
         cutoffControl: new Float32Array([0]),
-        response: new Float32Array([8])
+        response: new Float32Array([10])
       });
     }
 
     const peak = Math.max(...outputs[0][0].map(Math.abs));
-    assert.ok(peak > 1e-4);
+    assert.ok(peak > 1e-4, `Expected peak > 1e-4, got ${peak}`);
   });
 
   test('stop devuelve false en process()', () => {

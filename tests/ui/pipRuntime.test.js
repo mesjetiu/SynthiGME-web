@@ -5,7 +5,7 @@
  * apertura/cierre, foco, locks, serialización, restauración y atajos básicos.
  */
 
-import { describe, it, before, beforeEach } from 'node:test';
+import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 
@@ -126,6 +126,16 @@ beforeEach(async () => {
   pip.clearPipState();
   localStorage.clear();
   resetDom();
+});
+
+after(async () => {
+  if (pip) {
+    pip.closeAllPips();
+    await tick(250);
+    pip.clearPipState();
+  }
+  localStorage.clear();
+  dom.window.close();
 });
 
 describe('PipManager runtime funcional', () => {

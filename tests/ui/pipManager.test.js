@@ -83,18 +83,21 @@ describe('Animación visual canvas ↔ PiP', () => {
   it('declara helpers de transición sobre la PiP real', () => {
     assert.match(pipSource, /const PIP_TRANSITION_DURATION_MS = \d+;/);
     assert.match(pipSource, /function resetDetachedPanelPresentation\(panelEl\)/);
-    assert.match(pipSource, /function applyPipTransitionFrame\(state, rect, scale\)/);
+    assert.match(pipSource, /function applyPipTransitionRect\(state, rect\)/);
     assert.match(pipSource, /function runPipTransition\(panelId, \{/);
     assert.match(pipSource, /mode = 'enter'/);
     assert.doesNotMatch(pipSource, /createPipTransitionClone/);
     assert.doesNotMatch(pipSource, /pipTransitionSnapshots/);
   });
 
-  it('anima interpolando geometría y escala de la propia ventana PiP', () => {
+  it('anima la PiP real con transform sobre una geometría base fija', () => {
     assert.match(pipSource, /state\.pipContainer\.classList\.add\('pip-container--animating'\)/);
-    assert.match(pipSource, /const rect = \{[\s\S]*?left: startRect\.left \+ \(\(endRect\.left - startRect\.left\) \* eased\),/);
-    assert.match(pipSource, /const scaleForRect = \(rect\) => getPipCoverScale\(/);
-    assert.match(pipSource, /const scale = scaleForRect\(rect\);/);
+    assert.match(pipSource, /const baseRect = mode === 'exit' \? startRect : endRect;/);
+    assert.match(pipSource, /const startTranslateX = mode === 'exit' \? 0 : startRect\.left - endRect\.left;/);
+    assert.match(pipSource, /const endTranslateX = mode === 'exit' \? endRect\.left - startRect\.left : 0;/);
+    assert.match(pipSource, /const startScaleX = mode === 'exit' \? 1 : startRect\.width \/ Math\.max\(1, endRect\.width\);/);
+    assert.match(pipSource, /applyPipTransitionRect\(state, baseRect\);/);
+    assert.match(pipSource, /state\.pipContainer\.style\.transform = `translate3d\(\$\{translateX\}px, \$\{translateY\}px, 0\) scale\(\$\{scaleX\}, \$\{scaleY\}\)`;/);
     assert.match(pipSource, /rafId = requestAnimationFrame\(step\);/);
   });
 
@@ -103,7 +106,7 @@ describe('Animación visual canvas ↔ PiP', () => {
   });
 
   it('closePip anima desde la ventana PiP hasta su hueco en el canvas', () => {
-    assert.match(pipSource, /export function closePip\(panelId\) \{[\s\S]*?const closeFromRect = getElementRect\(state\.pipContainer\);[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?state,[\s\S]*?fromRect: closeFromRect,[\s\S]*?toRect: targetRect,[\s\S]*?mode: 'exit'/);
+    assert.match(pipSource, /export function closePip\(panelId\) \{[\s\S]*?const closeFromRect = \{ left: state\.x, top: state\.y, width: state\.width, height: state\.height \};[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?state,[\s\S]*?fromRect: closeFromRect,[\s\S]*?toRect: targetRect,[\s\S]*?mode: 'exit'/);
   });
 
   it('closePip limpia la presentación escalada al devolver el panel al canvas', () => {

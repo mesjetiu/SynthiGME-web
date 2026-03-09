@@ -77,6 +77,16 @@ describe('Límite inferior de zoom PiP', () => {
     assert.match(pipSource, /return getPipCoverScale\(defaultViewportWidth, defaultViewportHeight, panelWidth, panelHeight\);/);
     assert.match(pipSource, /return Math\.max\([\s\S]*?getDefaultPipScale\(state\),[\s\S]*?MIN_PIP_SIZE \/ Math\.max\(panelWidth, 1\),/);
   });
+
+  it('el resize por arrastre aplica el mismo límite mínimo que Ctrl+rueda', () => {
+    // El handler de resize debe computar minW/minH desde getMinScale(),
+    // no solo clampar a MIN_PIP_SIZE. Así el fondo nunca se recorta.
+    assert.match(pipSource, /const minScale = getMinScale\(resizingPip\);/);
+    assert.match(pipSource, /const minW = Math\.max\(MIN_PIP_SIZE, Math\.round\(rPW \* minScale\) \+ PIP_BORDER_SIZE\);/);
+    assert.match(pipSource, /const minH = Math\.max\(MIN_PIP_SIZE, Math\.round\(rPH \* minScale\) \+ PIP_HEADER_HEIGHT \+ PIP_BORDER_SIZE\);/);
+    assert.match(pipSource, /if \(newW < minW\)/);
+    assert.match(pipSource, /if \(newH < minH\)/);
+  });
 });
 
 describe('Animación visual canvas ↔ PiP', () => {

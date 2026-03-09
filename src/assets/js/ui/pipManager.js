@@ -3236,15 +3236,23 @@ function handlePointerMove(e) {
       newY = resizeStart.pipY + resizeStart.h - newH;
     }
     
-    if (newW < MIN_PIP_SIZE) {
-      newW = MIN_PIP_SIZE;
+    // ── Límite mínimo de tamaño ──
+    // El contenedor no puede ser más pequeño que lo que getMinScale() requiere,
+    // igual que con Ctrl+rueda / Ctrl+-. Así el fondo nunca se recorta.
+    const { panelWidth: rPW, panelHeight: rPH } = ensurePanelMetrics(state);
+    const minScale = getMinScale(resizingPip);
+    const minW = Math.max(MIN_PIP_SIZE, Math.round(rPW * minScale) + PIP_BORDER_SIZE);
+    const minH = Math.max(MIN_PIP_SIZE, Math.round(rPH * minScale) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
+
+    if (newW < minW) {
+      newW = minW;
       newH = newW / ar;
       if (resizeEdge === 'left') {
         newX = resizeStart.pipX + resizeStart.w - newW;
       }
     }
-    if (newH < MIN_PIP_SIZE) {
-      newH = MIN_PIP_SIZE;
+    if (newH < minH) {
+      newH = minH;
       newW = newH * ar;
       if (resizeEdge === 'top') {
         newY = resizeStart.pipY + resizeStart.h - newH;
@@ -3261,25 +3269,14 @@ function handlePointerMove(e) {
     state.pipContainer.style.left = `${state.x}px`;
     state.pipContainer.style.top = `${state.y}px`;
     
-    const viewport = state.pipContainer.querySelector('.pip-viewport');
-    if (viewport) {
-      viewport.scrollLeft = 0;
-      viewport.scrollTop = 0;
-    }
-    
     const scaleFactor = newW / resizeStart.w;
     const baseScale = resizeStart.scale || state.scale;
-    const minScale = getMinScale(resizingPip);
     const newScale = Math.max(minScale, Math.min(MAX_SCALE, baseScale * scaleFactor));
 
     updatePipScale(resizingPip, newScale, false);
     refreshPipViewportMetrics(state);
-
-    // El panel detached se reescala completo; sin paneo interno.
-    if (viewport) {
-      viewport.scrollLeft = 0;
-      viewport.scrollTop = 0;
-    }
+    // No resetear scrollLeft/scrollTop: el paneo interno está
+    // permanentemente deshabilitado y asignar scroll fuerza reflow.
   }
 }
 

@@ -69,8 +69,8 @@ describe('SynthiFilterModule', () => {
     assert.ok(module.inputGain);
     assert.ok(module.workletNode);
     assert.ok(module.outputGain);
-    assert.equal(module.inputGain.gain.value, 0);
-    assert.equal(module.outputGain.gain.value, 1);
+    assert.equal(module.inputGain.gain.value, 1);
+    assert.equal(module.outputGain.gain.value, 0);
     assert.equal(module.outputs.length, 1);
   });
 
@@ -93,11 +93,11 @@ describe('SynthiFilterModule', () => {
     assert.equal(param.value, 7.5);
   });
 
-  it('setLevel actualiza la ganancia de entrada', () => {
+  it('setLevel actualiza la ganancia de salida', () => {
     module.start();
     module.setLevel(4);
-    assert.ok(module.inputGain.gain.value > 0);
-    assert.ok(module.inputGain.gain.value < 0.1);
+    assert.ok(module.outputGain.gain.value > 0);
+    assert.ok(module.outputGain.gain.value < 0.1);
   });
 
   it('getInputNode y getOutputNode hacen lazy init', () => {
@@ -111,7 +111,26 @@ describe('SynthiFilterModule', () => {
     module.setDormant(true);
     assert.equal(module.outputGain.gain.value, 0);
     module.setDormant(false);
-    assert.equal(module.outputGain.gain.value, 1);
-    assert.ok(module.inputGain.gain.value > 0.3);
+    assert.ok(module.outputGain.gain.value > 0.3);
+  });
+
+  it('level controla outputGain, no inputGain (pot a la salida del filtro)', () => {
+    module.start();
+    module.setLevel(0);
+    assert.equal(module.inputGain.gain.value, 1, 'inputGain debe ser siempre 1');
+    assert.equal(module.outputGain.gain.value, 0, 'outputGain debe ser 0 con level=0');
+
+    module.setLevel(10);
+    assert.equal(module.inputGain.gain.value, 1, 'inputGain sigue en 1 tras cambiar level');
+    assert.equal(module.outputGain.gain.value, 1, 'outputGain debe ser 1 con level=10');
+  });
+
+  it('inputGain permanece en 1 independientemente del level', () => {
+    module.start();
+    for (const level of [0, 2, 5, 8, 10]) {
+      module.setLevel(level);
+      assert.equal(module.inputGain.gain.value, 1,
+        `inputGain debe ser 1 con level=${level}`);
+    }
   });
 });

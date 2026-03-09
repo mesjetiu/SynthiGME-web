@@ -74,7 +74,7 @@ export class SynthiFilterModule extends Module {
     }
 
     this.inputGain = ctx.createGain();
-    this.inputGain.gain.value = this._levelDialToGain(this.values.level);
+    this.inputGain.gain.value = 1;
 
     this.workletNode = new AudioWorkletNode(ctx, 'synthi-filter', {
       numberOfInputs: 1,
@@ -100,7 +100,7 @@ export class SynthiFilterModule extends Module {
     attachProcessorErrorHandler(this.workletNode, `synthi-filter[${this.id}]`);
 
     this.outputGain = ctx.createGain();
-    this.outputGain.gain.value = 1;
+    this.outputGain.gain.value = this._levelDialToGain(this.values.level);
 
     this.inputGain.connect(this.workletNode);
     this.workletNode.connect(this.outputGain);
@@ -184,11 +184,11 @@ export class SynthiFilterModule extends Module {
 
   _applyLevel(targetValue = this.values.level) {
     const ctx = this.getAudioCtx();
-    if (!ctx || !this.inputGain) {
+    if (!ctx || !this.outputGain) {
       return;
     }
 
-    setParamSmooth(this.inputGain.gain, this._levelDialToGain(targetValue), ctx, {
+    setParamSmooth(this.outputGain.gain, this._levelDialToGain(targetValue), ctx, {
       ramp: this.ramps.level
     });
   }
@@ -229,7 +229,6 @@ export class SynthiFilterModule extends Module {
       return;
     }
 
-    setParamSmooth(this.outputGain.gain, 1, ctx, { ramp: this.ramps.level });
     this._applyLevel(this.values.level);
 
     const cutoffParam = this.workletNode?.parameters?.get('cutoffControl');

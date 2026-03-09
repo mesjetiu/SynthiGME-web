@@ -128,4 +128,39 @@ describe('synthiFilter.worklet import real', () => {
 
     assert.equal(result, false);
   });
+
+  test('autooscilación sale por el worklet incluso sin entrada (level es externo)', () => {
+    // El worklet siempre produce salida cuando hay Q alto.
+    // El silenciamiento por level=0 ocurre en el GainNode de salida
+    // del módulo, no dentro del worklet.
+    const processor = new Processor({ processorOptions: { mode: 'lowpass' } });
+    const outputs = [[new Float32Array(128)]];
+
+    for (let i = 0; i < 80; i++) {
+      processor.process([], outputs, {
+        cutoffControl: new Float32Array([0]),
+        response: new Float32Array([10])
+      });
+    }
+
+    const peak = Math.max(...outputs[0][0].map(Math.abs));
+    assert.ok(peak > 0.01,
+      `Worklet debe producir señal con Q alto (peak=${peak})`);
+  });
+
+  test('HP también autooscila con response alto', () => {
+    const processor = new Processor({ processorOptions: { mode: 'highpass' } });
+    const outputs = [[new Float32Array(128)]];
+
+    for (let i = 0; i < 80; i++) {
+      processor.process([], outputs, {
+        cutoffControl: new Float32Array([0]),
+        response: new Float32Array([10])
+      });
+    }
+
+    const peak = Math.max(...outputs[0][0].map(Math.abs));
+    assert.ok(peak > 0.01,
+      `HP worklet debe producir señal con Q alto (peak=${peak})`);
+  });
 });

@@ -211,6 +211,10 @@ function resetDetachedPanelPresentation(panelEl) {
   panelEl.style.zoom = '';
   panelEl.style.transform = '';
   panelEl.style.transformOrigin = '';
+  // Limpiar dimensiones fijas que openPip asignó (naturalW/naturalH)
+  // para que el panel vuelva a usar el sizing de CSS.
+  panelEl.style.width = '';
+  panelEl.style.height = '';
 }
 
 function applyPipTransitionRect(state, rect) {
@@ -1281,8 +1285,12 @@ function getDefaultPipScale(state) {
   if (!state) return MIN_SCALE_ABSOLUTE;
 
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
-  const defaultViewportWidth = Math.max(1, (Number(state.defaultWidth) || 0) - PIP_BORDER_SIZE);
-  const defaultViewportHeight = Math.max(1, (Number(state.defaultHeight) || 0) - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
+  // Calcular dimensiones por defecto ACTUALES (basadas en el tamaño de
+  // ventana vigente), no las cacheadas en state.defaultWidth/defaultHeight.
+  // Así, si el usuario reduce la pestaña, el mínimo de zoom se adapta.
+  const currentDefaults = getInitialPipDimensions();
+  const defaultViewportWidth = Math.max(1, currentDefaults.width - PIP_BORDER_SIZE);
+  const defaultViewportHeight = Math.max(1, currentDefaults.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE);
 
   return getPipCoverScale(defaultViewportWidth, defaultViewportHeight, panelWidth, panelHeight);
 }
@@ -2628,7 +2636,9 @@ export function closePip(panelId) {
   cancelPipRasterize(state);
   clearScheduledPipPreviewRefresh(panelId);
   destroyPipPreviewLayer(panelId);
-  resetDetachedPanelPresentation(panelEl);
+  // NO resetear zoom/transform del panel aquí: la escala interna debe
+  // mantenerse durante la animación de salida para que el contenido no
+  // aparezca grande/cortado. Se resetea en onFinish, tras la animación.
 
   state.isClosing = true;
   state.pipContainer.style.pointerEvents = 'none';
@@ -3418,9 +3428,10 @@ function restorePipSize(panelId) {
   const vpH = state.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
   const vpRatio = vpW / vpH; // 1.0 si es cuadrado
   
-  // Dimensiones por defecto del viewport
-  const defVpW = state.defaultWidth - PIP_BORDER_SIZE;
-  const defVpH = state.defaultHeight - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
+  // Dimensiones por defecto del viewport (basadas en el tamaño actual de ventana)
+  const currentDefaults = getInitialPipDimensions();
+  const defVpW = currentDefaults.width - PIP_BORDER_SIZE;
+  const defVpH = currentDefaults.height - PIP_HEADER_HEIGHT - PIP_BORDER_SIZE;
   const defVpRatio = defVpW / defVpH;
   
   // Ajustar viewport por defecto a la proporción actual

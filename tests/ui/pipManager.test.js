@@ -109,8 +109,11 @@ describe('Animación visual canvas ↔ PiP', () => {
     assert.match(pipSource, /export function closePip\(panelId\) \{[\s\S]*?const closeFromRect = \{ left: state\.x, top: state\.y, width: state\.width, height: state\.height \};[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?state,[\s\S]*?fromRect: closeFromRect,[\s\S]*?toRect: targetRect,[\s\S]*?mode: 'exit'/);
   });
 
-  it('closePip limpia la presentación escalada al devolver el panel al canvas', () => {
-    assert.match(pipSource, /export function closePip\(panelId\) \{[\s\S]*?resetDetachedPanelPresentation\(panelEl\);[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?onFinish: \(\) => \{[\s\S]*?resetDetachedPanelPresentation\(panelEl\);/);
+  it('closePip limpia la presentación escalada solo tras la animación de salida', () => {
+    // resetDetachedPanelPresentation NO debe ejecutarse antes de runPipTransition
+    // (causaría contenido grande/cortado durante la animación). Solo en onFinish.
+    assert.doesNotMatch(pipSource, /export function closePip\(panelId\) \{[\s\S]*?resetDetachedPanelPresentation\(panelEl\);[\s\S]*?runPipTransition\(panelId, \{/);
+    assert.match(pipSource, /export function closePip\(panelId\) \{[\s\S]*?runPipTransition\(panelId, \{[\s\S]*?onFinish: \(\) => \{[\s\S]*?resetDetachedPanelPresentation\(panelEl\);/);
   });
 });
 

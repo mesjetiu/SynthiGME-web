@@ -209,7 +209,8 @@ class App {
 
     // Canvas: pinta fondos de panel-1/2/3/4 para evitar lagunas en móvil.
     preloadCanvasBgImages();
-    renderCanvasBgPanels();
+    this._canvasBgRenderScheduled = false;
+    this._scheduleCanvasBackgroundRender();
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
 
@@ -2988,29 +2989,26 @@ class App {
       {
         ids: filterConfig.lowPass.ids,
         mode: filterConfig.lowPass.mode,
+        minCutoffHz: filterConfig.lowPass.minCutoffHz,
         sourceKind: filterConfig.lowPass.sourceKind,
         modulePrefix: 'filter-lp'
       },
       {
         ids: filterConfig.highPass.ids,
         mode: filterConfig.highPass.mode,
+        minCutoffHz: filterConfig.highPass.minCutoffHz,
         sourceKind: filterConfig.highPass.sourceKind,
         modulePrefix: 'filter-hp'
       }
     ];
-
-    const filterFrequencyTooltip = getFilterFrequencyTooltipInfo({
-      referenceCutoffHz: filterConfig.audio.referenceCutoffHz,
-      referenceDial: filterConfig.audio.referenceDial,
-      octaveDialSpan: filterConfig.audio.octaveDialSpan,
-      minCutoffHz: filterConfig.audio.minCutoffHz,
-      maxCutoffHz: filterConfig.audio.maxCutoffHz
-    });
     const filterResponseTooltip = getFilterResponseTooltipInfo(
       filterConfig.audio.maxQ,
       filterConfig.audio.selfOscillationThresholdDial
     );
-    const filterLevelTooltip = getFilterLevelTooltipInfo(filterConfig.audio.maxSelfOscillationVoltsPP);
+    const filterLevelTooltip = getFilterLevelTooltipInfo(
+      filterConfig.audio.maxSelfOscillationVoltsPP,
+      filterConfig.audio.levelLogBase
+    );
 
     this._panel1FilterUIs = {};
     this._panel1FilterModules = {};
@@ -3023,7 +3021,10 @@ class App {
           mode: bank.mode,
           index: moduleIndex,
           sourceKind: bank.sourceKind,
-          audio: filterConfig.audio,
+          audio: {
+            ...filterConfig.audio,
+            minCutoffHz: bank.minCutoffHz ?? filterConfig.audio.minCutoffHz
+          },
           ramps: filterConfig.ramps,
           initialValues: {
             frequency: filterConfig.knobs.frequency.initial,
@@ -3048,7 +3049,14 @@ class App {
             frequency: {
               ...filterConfig.knobs.frequency,
               onChange: (value) => filterModule.setFrequency(value),
-              getTooltipInfo: filterFrequencyTooltip
+              getTooltipInfo: getFilterFrequencyTooltipInfo({
+                referenceCutoffHz: filterConfig.audio.referenceCutoffHz,
+                referenceDial: filterConfig.audio.referenceDial,
+                octaveDialSpan: filterConfig.audio.octaveDialSpan,
+                voltsPerOctave: filterConfig.audio.voltsPerOctave,
+                minCutoffHz: bank.minCutoffHz ?? filterConfig.audio.minCutoffHz,
+                maxCutoffHz: filterConfig.audio.maxCutoffHz
+              })
             },
             response: {
               ...filterConfig.knobs.response,
@@ -5276,12 +5284,16 @@ class App {
   _reflowOscillatorPanel(panelIndex) {
     const layoutDataKey = `_panel${panelIndex}LayoutData`;
     const rafKey = `_panel${panelIndex}LayoutRaf`;
+    const writeRafKey = `_panel${panelIndex}LayoutWriteRaf`;
     
     const data = this[layoutDataKey];
     if (!data) return;
 
     if (this[rafKey]) {
       cancelAnimationFrame(this[rafKey]);
+    }
+    if (this[writeRafKey]) {
+      cancelAnimationFrame(this[writeRafKey]);
     }
 
     this[rafKey] = requestAnimationFrame(() => {
@@ -5303,64 +5315,68 @@ class App {
       const totalHeight = blockHeight + layout.reservedHeight + gap.y;
       const usableHeight = availableHeight - airOuterY * 2;
       const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
-      
-      oscComponents.forEach(({ element, slot }) => {
+
+      const oscillatorTransforms = oscComponents.map(({ element, slot }) => {
         const col = slot.col;
         const row = slot.row;
-        // Aplicar slotOffset del blueprint (permite ajuste fino por oscilador)
         const slotOffset = slot.slotUI?.slotOffset || layout.oscUIDefaults?.slotOffset || { x: 0, y: 0 };
         const x = baseLeft + col * (columnWidth + gap.x) + (slotOffset.x || 0);
         const y = baseTop + row * (oscSize.height + gap.y) + (slotOffset.y || 0);
-        element.style.transform = `translate(${x}px, ${y}px)`;
+        return { element, transform: `translate(${x}px, ${y}px)` };
       });
 
-      if (reserved) {
-        const reservedTop = baseTop + blockHeight + gap.y;
-        reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
-        reserved.style.width = `${columnWidth * 2 + gap.x}px`;
+      const reservedTop = reserved ? baseTop + blockHeight + gap.y : 0;
+      const reservedWidth = columnWidth * 2 + gap.x;
+
+      this[writeRafKey] = requestAnimationFrame(() => {
+        this[writeRafKey] = null;
+        if (!host || !host.isConnected) return;
+      
+        oscillatorTransforms.forEach(({ element, transform }) => {
+          element.style.transform = transform;
+        });
+
+        if (reserved) {
+          reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
+          reserved.style.width = `${reservedWidth}px`;
         
-        // Aplicar altura y proporciones del blueprint si es Panel 3
-        if (panelIndex === 3) {
-          // Leer del BLUEPRINT (estructura visual)
-          const blueprintModulesRow = panel3Blueprint?.layout?.modulesRow || {};
-          
-          // Gap entre marcos de módulos (desde blueprint)
-          const modulesGap = blueprintModulesRow.gap ?? 4;
-          reserved.style.setProperty('--modules-row-gap', `${modulesGap}px`);
-          
-          // Aplicar tamaños fijos y padding desde el blueprint
-          if (noiseModules) {
-            const noiseSize = blueprintModulesRow.noiseSize || { width: 80, height: 110 };
-            const randomCVSize = blueprintModulesRow.randomCVSize || { width: 210, height: 110 };
-            const pad = blueprintModulesRow.padding || { top: 0, right: 4, bottom: 0, left: 4 };
-            const padStyle = `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px`;
+          // Aplicar altura y proporciones del blueprint si es Panel 3
+          if (panelIndex === 3) {
+            const blueprintModulesRow = panel3Blueprint?.layout?.modulesRow || {};
+            const modulesGap = blueprintModulesRow.gap ?? 4;
+            reserved.style.setProperty('--modules-row-gap', `${modulesGap}px`);
             
-            // Noise generators — tamaño fijo
-            for (const mod of [noiseModules.noise1, noiseModules.noise2]) {
-              if (mod?.element) {
-                mod.element.style.width = `${noiseSize.width}px`;
-                mod.element.style.height = `${noiseSize.height}px`;
-                mod.element.style.padding = padStyle;
-                mod.element.style.flex = 'none';
+            // Aplicar tamaños fijos y padding desde el blueprint
+            if (noiseModules) {
+              const noiseSize = blueprintModulesRow.noiseSize || { width: 80, height: 110 };
+              const randomCVSize = blueprintModulesRow.randomCVSize || { width: 210, height: 110 };
+              const pad = blueprintModulesRow.padding || { top: 0, right: 4, bottom: 0, left: 4 };
+              const padStyle = `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px`;
+              
+              for (const mod of [noiseModules.noise1, noiseModules.noise2]) {
+                if (mod?.element) {
+                  mod.element.style.width = `${noiseSize.width}px`;
+                  mod.element.style.height = `${noiseSize.height}px`;
+                  mod.element.style.padding = padStyle;
+                  mod.element.style.flex = 'none';
+                }
               }
+              
+              if (noiseModules.randomCV?.element) {
+                noiseModules.randomCV.element.style.width = `${randomCVSize.width}px`;
+                noiseModules.randomCV.element.style.height = `${randomCVSize.height}px`;
+                noiseModules.randomCV.element.style.padding = padStyle;
+                noiseModules.randomCV.element.style.flex = 'none';
+              }
+              
+              const rowHeight = Math.max(noiseSize.height, randomCVSize.height);
+              reserved.style.height = `${rowHeight}px`;
             }
-            
-            // Random CV — tamaño fijo
-            if (noiseModules.randomCV?.element) {
-              noiseModules.randomCV.element.style.width = `${randomCVSize.width}px`;
-              noiseModules.randomCV.element.style.height = `${randomCVSize.height}px`;
-              noiseModules.randomCV.element.style.padding = padStyle;
-              noiseModules.randomCV.element.style.flex = 'none';
-            }
-            
-            // Altura de la fila = la mayor de los módulos
-            const rowHeight = Math.max(noiseSize.height, randomCVSize.height);
-            reserved.style.height = `${rowHeight}px`;
+          } else {
+            reserved.style.height = `${layout.reservedHeight}px`;
           }
-        } else {
-          reserved.style.height = `${layout.reservedHeight}px`;
         }
-      }
+      });
     });
   }
 
@@ -7584,7 +7600,18 @@ class App {
       this._reflowOscillatorPanel(3);
       this._reflowOscillatorPanel(4);
       this._syncPanelHeights();
-      renderCanvasBgPanels();
+      this._scheduleCanvasBackgroundRender();
+    });
+  }
+
+  _scheduleCanvasBackgroundRender() {
+    if (this._canvasBgRenderScheduled) return;
+    this._canvasBgRenderScheduled = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this._canvasBgRenderScheduled = false;
+        renderCanvasBgPanels();
+      });
     });
   }
 

@@ -7,9 +7,10 @@
 //   - 4 filtros Low-Pass (FLP 1-4)
 //   - 4 filtros High-Pass (FHP 1-4)
 //   - 4 polos / 24 dB por octava
-//   - Frecuencia de corte: 5 Hz – 20 kHz
+//   - Frecuencia de corte: LP ≈ 3 Hz – 20 kHz, HP ≈ 4 Hz – 20 kHz
 //   - Dial de frecuencia 0-10 con punto medio ≈ 320 Hz en posición 5
 //   - ~0.7 divisiones de dial por octava
+//   - Sensibilidad de control: 0.55 V/octava
 //   - Resonancia (Response) con auto-oscilación a partir de ~5.5
 //
 // Matrices:
@@ -37,18 +38,19 @@ export default {
     chip: 'CEM3320',
     topology: '4-pole',
     slopeDbPerOctave: 24,
-    minCutoffHz: 5,
+    minCutoffHz: 3,
     maxCutoffHz: 20000,
     referenceCutoffHz: 320,
     referenceDial: 5,
     octaveDialSpan: 0.7,
-    voltsPerOctave: 1.0,
+    voltsPerOctave: 0.55,
     maxQ: 20,
     selfOscillationThresholdDial: 5.5,
     preciseTrackingOctaves: 4,
     acceptableTrackingOctaves: 5,
     nominalSelfOscillationVoltsPP: 2,
     maxSelfOscillationVoltsPP: 5,
+    levelLogBase: 100,
     inputDriveBoost: 1.4,
     hpDirtyEvenHarmonics: 0.12,
     hpDirtyDrive: 1.55,
@@ -79,7 +81,7 @@ export default {
     level: {
       min: 0,
       max: 10,
-      initial: 10,
+      initial: 0,
       curve: 'linear',
       pixelsForFullRange: 900
     }
@@ -88,6 +90,7 @@ export default {
   lowPass: {
     title: 'Filter Low Pass',
     mode: 'lowpass',
+    minCutoffHz: 3,
     count: 4,
     ids: buildIds('flp'),
     sourceKind: 'filterLP',
@@ -103,6 +106,7 @@ export default {
   highPass: {
     title: 'Filter High Pass',
     mode: 'highpass',
+    minCutoffHz: 4,
     count: 4,
     ids: buildIds('fhp'),
     sourceKind: 'filterHP',

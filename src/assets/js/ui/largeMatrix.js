@@ -22,6 +22,7 @@ export class LargeMatrix {
     this.sourceMap = sourceMap instanceof Map ? sourceMap : new Map();
     this.destMap = destMap instanceof Map ? destMap : new Map();
     this._layoutRaf = null;
+    this._baseTableSize = null;
     this._built = false;
     this._onTableClick = null;
     this._onContextMenu = null;
@@ -509,16 +510,21 @@ export class LargeMatrix {
     this._layoutRaf = requestAnimationFrame(() => {
       this._layoutRaf = null;
 
-      // Restablecemos cualquier escala previa para obtener el tamaño base
-      table.style.transform = 'none';
-
       const containerRect = container.getBoundingClientRect();
-      const tableRect = table.getBoundingClientRect();
 
       const availableWidth = containerRect.width;
       const availableHeight = containerRect.height;
-      const baseWidth = tableRect.width;
-      const baseHeight = tableRect.height;
+      let baseWidth = this._baseTableSize?.width || 0;
+      let baseHeight = this._baseTableSize?.height || 0;
+
+      if (!baseWidth || !baseHeight) {
+        const tableRect = table.getBoundingClientRect();
+        baseWidth = tableRect.width;
+        baseHeight = tableRect.height;
+        if (baseWidth && baseHeight) {
+          this._baseTableSize = { width: baseWidth, height: baseHeight };
+        }
+      }
 
       if (!availableWidth || !availableHeight || !baseWidth || !baseHeight) return;
 

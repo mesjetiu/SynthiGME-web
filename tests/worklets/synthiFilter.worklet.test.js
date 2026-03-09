@@ -2,14 +2,15 @@ import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 const DIGITAL_TO_VOLTAGE = 4.0;
+const VOLTS_PER_OCTAVE = 0.55;
 const REFERENCE_CUTOFF_HZ = 320;
-const MIN_CUTOFF_HZ = 5;
+const MIN_CUTOFF_HZ = 3;
 const MAX_CUTOFF_HZ = 20000;
 const SAMPLE_RATE = 48000;
 
 function controlToCutoffHz(controlDigital) {
   const controlVolts = controlDigital * DIGITAL_TO_VOLTAGE;
-  return Math.max(MIN_CUTOFF_HZ, Math.min(MAX_CUTOFF_HZ, REFERENCE_CUTOFF_HZ * Math.pow(2, controlVolts)));
+  return Math.max(MIN_CUTOFF_HZ, Math.min(MAX_CUTOFF_HZ, REFERENCE_CUTOFF_HZ * Math.pow(2, controlVolts / VOLTS_PER_OCTAVE)));
 }
 
 function responseDialToFeedback(dial, threshold = 5.5) {
@@ -43,12 +44,12 @@ describe('synthiFilter.worklet helpers', () => {
     assert.equal(controlToCutoffHz(0), 320);
   });
 
-  test('0.25 unidades digitales suben una octava', () => {
-    assert.ok(Math.abs(controlToCutoffHz(0.25) - 640) < 1e-9);
+  test('0.1375 unidades digitales suben una octava', () => {
+    assert.ok(Math.abs(controlToCutoffHz(0.1375) - 640) < 1e-9);
   });
 
   test('clamp del rango 5 Hz – 20 kHz', () => {
-    assert.equal(controlToCutoffHz(-3), 5);
+    assert.equal(controlToCutoffHz(-3), 3);
     assert.equal(controlToCutoffHz(3), 20000);
   });
 

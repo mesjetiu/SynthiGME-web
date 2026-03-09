@@ -213,7 +213,7 @@ function resetDetachedPanelPresentation(panelEl) {
   panelEl.style.transformOrigin = '';
 }
 
-function applyPipTransitionFrame(state, rect, scale) {
+function applyPipTransitionRect(state, rect) {
   if (!state?.pipContainer || !rect) return;
 
   state.x = rect.left;
@@ -225,7 +225,6 @@ function applyPipTransitionFrame(state, rect, scale) {
   state.pipContainer.style.width = `${rect.width}px`;
   state.pipContainer.style.height = `${rect.height}px`;
   refreshPipViewportMetrics(state);
-  updatePipScale(state.panelId, scale, false);
 }
 
 function cancelPipTransition(panelId) {
@@ -254,6 +253,8 @@ function runPipTransition(panelId, {
     state?.pipContainer?.classList?.remove?.('pip-container--animating');
     if (state?.pipContainer?.style) {
       state.pipContainer.style.pointerEvents = state.transitionPointerEvents || '';
+      state.pipContainer.style.transform = '';
+      state.pipContainer.style.transformOrigin = '';
     }
     if (state) {
       state.isTransitioning = false;
@@ -269,17 +270,17 @@ function runPipTransition(panelId, {
     return;
   }
 
-  const { panelWidth, panelHeight } = ensurePanelMetrics(state);
-  const scaleForRect = (rect) => getPipCoverScale(
-    Math.max(1, rect.width),
-    Math.max(1, rect.height),
-    panelWidth,
-    panelHeight
-  );
-  const initialScale = scaleForRect(startRect);
-  const finalScale = scaleForRect(endRect);
+  const baseRect = mode === 'exit' ? startRect : endRect;
+  const startTranslateX = mode === 'exit' ? 0 : startRect.left - endRect.left;
+  const startTranslateY = mode === 'exit' ? 0 : startRect.top - endRect.top;
+  const endTranslateX = mode === 'exit' ? endRect.left - startRect.left : 0;
+  const endTranslateY = mode === 'exit' ? endRect.top - startRect.top : 0;
+  const startScaleX = mode === 'exit' ? 1 : startRect.width / Math.max(1, endRect.width);
+  const startScaleY = mode === 'exit' ? 1 : startRect.height / Math.max(1, endRect.height);
+  const endScaleX = mode === 'exit' ? endRect.width / Math.max(1, startRect.width) : 1;
+  const endScaleY = mode === 'exit' ? endRect.height / Math.max(1, startRect.height) : 1;
 
-  if (![initialScale, finalScale].every(Number.isFinite)) {
+  if (![startScaleX, startScaleY, endScaleX, endScaleY].every(Number.isFinite)) {
     finish();
     return;
   }
@@ -288,7 +289,8 @@ function runPipTransition(panelId, {
   state.transitionPointerEvents = state.pipContainer.style.pointerEvents;
   state.pipContainer.style.pointerEvents = 'none';
   state.pipContainer.classList.add('pip-container--animating');
-  applyPipTransitionFrame(state, startRect, initialScale);
+  applyPipTransitionRect(state, baseRect);
+  state.pipContainer.style.transformOrigin = 'top left';
 
   let rafId = 0;
   let startTime = 0;
@@ -307,17 +309,14 @@ function runPipTransition(panelId, {
     const rawProgress = Math.min(1, (now - startTime) / PIP_TRANSITION_DURATION_MS);
     const eased = PIP_TRANSITION_EASING(rawProgress);
 
-    const rect = {
-      left: startRect.left + ((endRect.left - startRect.left) * eased),
-      top: startRect.top + ((endRect.top - startRect.top) * eased),
-      width: startRect.width + ((endRect.width - startRect.width) * eased),
-      height: startRect.height + ((endRect.height - startRect.height) * eased)
-    };
-    const scale = scaleForRect(rect);
-    applyPipTransitionFrame(state, rect, scale);
+    const translateX = startTranslateX + ((endTranslateX - startTranslateX) * eased);
+    const translateY = startTranslateY + ((endTranslateY - startTranslateY) * eased);
+    const scaleX = startScaleX + ((endScaleX - startScaleX) * eased);
+    const scaleY = startScaleY + ((endScaleY - startScaleY) * eased);
+    state.pipContainer.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scaleX}, ${scaleY})`;
 
     if (rawProgress >= 1) {
-      applyPipTransitionFrame(state, endRect, finalScale);
+      state.pipContainer.style.transform = '';
       pipTransitionJobs.delete(panelId);
       finish();
       return;
@@ -586,7 +585,7 @@ function destroyPipPreviewLayer(panelId) {
   previewEl?.remove();
 }
 
-function rebuildPipPreviewLayer(panelId) {
+function rebuildPipPreviewLayer(panelId, idleDeadline = null) {
   const panelEl = document.getElementById(panelId);
   if (!panelEl) return false;
 
@@ -596,16 +595,39 @@ function rebuildPipPreviewLayer(panelId) {
   const state = activePips.get(panelId);
   const panelScale = state?.scale || 1;
   const invPanelScale = panelScale > 0 ? 1 / panelScale : 1;
+
+  // ── Fase de lectura ──
+  // Comprobar deadline ANTES de forzar layout con getBoundingClientRect.
+  // Si queda poco presupuesto, reprogramar para el siguiente idle.
+  const HAS_DEADLINE = idleDeadline && typeof idleDeadline.timeRemaining === 'function';
+  if (HAS_DEADLINE && idleDeadline.timeRemaining() < 8) {
+    schedulePipPreviewRefresh(panelId);
+    return false;
+  }
+
   const panelRect = panelEl.getBoundingClientRect();
-  const fragment = document.createDocumentFragment();
   const controls = panelEl.querySelectorAll(PIP_PREVIEW_SNAPSHOT_SELECTORS);
 
+  // Batch de lecturas: leer todos los rects de golpe antes de mutar DOM.
+  // Así el browser solo hace un reflow en vez de uno por control.
+  const rects = [];
   for (const control of controls) {
     if (control.closest('.pip-panel-preview')) continue;
     if (control.closest('.matrix-container')) continue;
+    rects.push({ control, rect: control.getBoundingClientRect() });
+  }
 
-    const rect = control.getBoundingClientRect();
+  // Fase de escritura: clonar y construir fragment sin leer layout.
+  const fragment = document.createDocumentFragment();
+  for (const { control, rect } of rects) {
     if (rect.width <= 0 || rect.height <= 0) continue;
+
+    // Comprobar si debemos ceder al browser (idle deadline agotado)
+    if (HAS_DEADLINE && idleDeadline.timeRemaining() < 2) {
+      // Reprogramar el trabajo restante para el próximo idle
+      schedulePipPreviewRefresh(panelId);
+      return false;
+    }
 
     const item = document.createElement('div');
     item.className = 'pip-panel-preview__item';
@@ -643,9 +665,9 @@ function schedulePipPreviewRefresh(panelId, { immediate = false } = {}) {
     return;
   }
 
-  const run = () => {
+  const run = (deadline) => {
     pipPreviewIdleJobs.delete(panelId);
-    rebuildPipPreviewLayer(panelId);
+    rebuildPipPreviewLayer(panelId, deadline);
   };
 
   if (immediate) {
@@ -655,8 +677,14 @@ function schedulePipPreviewRefresh(panelId, { immediate = false } = {}) {
 
   const timerId = setTimeout(() => {
     pipPreviewRefreshTimers.delete(panelId);
-    const idleJobId = runWhenBrowserIdle(run);
-    pipPreviewIdleJobs.set(panelId, idleJobId);
+    // Esperar al menos un frame de pintura antes de leer layout.
+    // requestIdleCallback puede dispararse al final del mismo frame
+    // antes de que el browser haya calculado layout, provocando un
+    // forced reflow costoso en paneles con muchos controles (P3, P7).
+    requestAnimationFrame(() => {
+      const idleJobId = runWhenBrowserIdle(run);
+      pipPreviewIdleJobs.set(panelId, idleJobId);
+    });
   }, PIP_PREVIEW_REFRESH_DEBOUNCE_MS);
 
   pipPreviewRefreshTimers.set(panelId, timerId);
@@ -1296,18 +1324,34 @@ function applyPipWheelZoom(panelId, targetScale, clientX = null, clientY = null)
 
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
   const requestedScale = Math.max(MIN_SCALE_ABSOLUTE, Math.min(MAX_SCALE, targetScale));
-  const containerRect = state.pipContainer.getBoundingClientRect();
 
-  const anchorClientX = clientX == null ? (containerRect.left + state.width / 2) : clientX;
-  const anchorClientY = clientY == null ? (containerRect.top + state.height / 2) : clientY;
-  const anchorRatioX = state.width > 0 ? (anchorClientX - containerRect.left) / state.width : 0.5;
-  const anchorRatioY = state.height > 0 ? (anchorClientY - containerRect.top) / state.height : 0.5;
+  // Si el zoom es centrado (sin coordenadas de ratón), el ratio es 0.5
+  // en ambos ejes y no necesitamos getBoundingClientRect() (evita reflow).
+  let anchorRatioX = 0.5;
+  let anchorRatioY = 0.5;
+  if (clientX != null || clientY != null) {
+    const containerRect = state.pipContainer.getBoundingClientRect();
+    if (clientX != null) {
+      anchorRatioX = state.width > 0 ? (clientX - containerRect.left) / state.width : 0.5;
+    }
+    if (clientY != null) {
+      anchorRatioY = state.height > 0 ? (clientY - containerRect.top) / state.height : 0.5;
+    }
+  }
   const finalScale = Math.max(getMinScale(panelId), requestedScale);
   const newWidth = Math.max(MIN_PIP_SIZE, Math.round(panelWidth * finalScale) + PIP_BORDER_SIZE);
   const newHeight = Math.max(MIN_PIP_SIZE, Math.round(panelHeight * finalScale) + PIP_HEADER_HEIGHT + PIP_BORDER_SIZE);
 
-  let newX = anchorClientX - anchorRatioX * newWidth;
-  let newY = anchorClientY - anchorRatioY * newHeight;
+  // Guardar dimensiones antiguas para detectar cambio
+  const prevWidth = state.width;
+  const prevHeight = state.height;
+
+  // Calcular nueva posición: si el zoom es centrado, mantener centro en su sitio.
+  // Si hay coordenadas de ratón, anclar al punto del cursor.
+  const anchorAbsX = state.x + anchorRatioX * state.width;
+  const anchorAbsY = state.y + anchorRatioY * state.height;
+  let newX = anchorAbsX - anchorRatioX * newWidth;
+  let newY = anchorAbsY - anchorRatioY * newHeight;
   const clampedPosition = clampPipPosition(newX, newY, newWidth, newHeight);
   newX = clampedPosition.x;
   newY = clampedPosition.y;
@@ -1322,12 +1366,11 @@ function applyPipWheelZoom(panelId, targetScale, clientX = null, clientY = null)
   state.pipContainer.style.top = `${newY}px`;
 
   updatePipScale(panelId, finalScale, false);
-  viewport.scrollLeft = 0;
-  viewport.scrollTop = 0;
-  state.lastScrollLeft = 0;
-  state.lastScrollTop = 0;
+  // No resetear scrollLeft/scrollTop aquí: el scroll del viewport PiP
+  // está permanentemente deshabilitado (el listener siempre lo resetea a 0).
+  // Asignar scrollLeft = 0 fuerza un layout/reflow costoso sin efecto.
 
-  return finalScale !== oldScale || newWidth !== containerRect.width || newHeight !== containerRect.height;
+  return finalScale !== oldScale || newWidth !== prevWidth || newHeight !== prevHeight;
 }
 
 function flushPipWheelInteraction(panelId) {
@@ -2213,9 +2256,19 @@ export function focusPip(panelId) {
 export function openPip(panelId, restoredConfig = null) {
   const panelEl = document.getElementById(panelId);
   if (!panelEl || activePips.has(panelId)) return;
-  cancelPipTransition(panelId);
   const pipConfig = restoredConfig || getRememberedPipConfig(panelId);
+
+  // ── Batch de lecturas ANTES de cualquier mutación DOM ──
+  // Leer todas las propiedades de layout de una sola vez para evitar
+  // forced reflows intercalados con escrituras.
+  // IMPORTANTE: antes de cancelPipTransition, que puede escribir estilos
+  // si hay una transición activa (doble-clic rápido).
   const sourceRect = getElementRect(panelEl);
+  const naturalW = panelEl.offsetWidth || 760;
+  const naturalH = panelEl.offsetHeight || 760;
+  
+  // ── Fase de escritura ──
+  cancelPipTransition(panelId);
   
   const originalParent = panelEl.parentElement;
   const siblings = Array.from(originalParent.children);
@@ -2388,8 +2441,7 @@ export function openPip(panelId, restoredConfig = null) {
   // Mover el panel al contenedor interno. Fijar ancho/alto del panelEl
   // para que no dependa del layout del padre (viewportInner).
   // Así, al redimensionar viewportInner, el panel NO re-layoutea.
-  const naturalW = panelEl.offsetWidth || 760;
-  const naturalH = panelEl.offsetHeight || 760;
+  // naturalW / naturalH se leyeron al inicio de openPip (antes de mutar el DOM).
   panelEl.style.width = `${naturalW}px`;
   panelEl.style.height = `${naturalH}px`;
   viewportInner.appendChild(panelEl);
@@ -2427,8 +2479,8 @@ export function openPip(panelId, restoredConfig = null) {
     width: initW,
     height: initH,
     scale: initScale,
-    panelWidth: panelEl.offsetWidth || 760,
-    panelHeight: panelEl.offsetHeight || 760,
+    panelWidth: naturalW,
+    panelHeight: naturalH,
     viewportWidth: 0,
     viewportHeight: 0,
     previewMode: false,
@@ -2486,39 +2538,27 @@ export function openPip(panelId, restoredConfig = null) {
   
   if (pipConfig) {
     // ── RESTAURACIÓN: aplicar escala guardada directamente ──
-    // Forzar reflow para que viewport tenga dimensiones correctas
-    // eslint-disable-next-line no-unused-expressions
-    pipContainer.offsetHeight;
-    
+    // refreshPipViewportMetrics ya calcula desde state (sin DOM),
+    // así que no necesitamos forzar reflow con offsetHeight.
     state.scale = Math.max(getMinScale(panelId), Math.min(MAX_SCALE, initScale));
     applyPipWheelZoom(panelId, state.scale);
     
     log.debug(`PiP ${panelId} restaurado: scale=${state.scale.toFixed(3)} (saved=${initScale}), size=${initW}x${initH}`);
     
-    // Restaurar scroll y lock en rAF (necesita layout con el nuevo scale/padding)
-    const savedScrollX = 0;
-    const savedScrollY = 0;
+    // Restaurar lock en rAF (tras primer frame de pintura)
     const shouldPanLock = Boolean(pipConfig.panLocked ?? pipConfig.locked);
     const shouldZoomLock = Boolean(pipConfig.zoomLocked ?? pipConfig.locked);
     const appliedScale = state.scale;
     
     requestAnimationFrame(() => {
-      // Re-aplicar escala/tamaño con layout definitivo
+      // Re-aplicar escala/tamaño con layout definitivo.
+      // No leer viewport.scrollLeft (fuerza reflow); el scroll está
+      // permanentemente deshabilitado por el listener del viewport.
       applyPipWheelZoom(panelId, appliedScale);
       
-      // Restaurar scroll y actualizar referencia de lock directamente
-      viewport.scrollLeft = savedScrollX;
-      viewport.scrollTop = savedScrollY;
-      state.lastScrollLeft = savedScrollX;
-      state.lastScrollTop = savedScrollY;
-      
-      log.debug(`PiP ${panelId} rAF: scroll=${viewport.scrollLeft},${viewport.scrollTop} (target=${savedScrollX},${savedScrollY})`);
-      
-      // Diferir el lock al siguiente macrotask: los scroll events de las
-      // asignaciones anteriores se despachan asíncronamente. Si aplicamos
-      // el lock aquí, el listener revertirá el scroll a lastScroll (viejo).
-      // Con setTimeout(0), los scroll events ya habrán actualizado lastScroll.
       if (shouldPanLock || shouldZoomLock) {
+        // Diferir lock al macrotask: eventuales scroll events asíncronos
+        // del layout inicial deben resolverse antes de activar el lock.
         setTimeout(() => {
           state.panLocked = shouldPanLock;
           state.zoomLocked = shouldZoomLock;
@@ -2530,14 +2570,9 @@ export function openPip(panelId, restoredConfig = null) {
     });
   } else {
     // ── NUEVO PIP: calcular escala y centrar ──
+    // No asignar scrollLeft/scrollTop = 0: el viewport acaba de crearse
+    // (ya es 0) y el listener de scroll lo mantiene neutralizado.
     applyPipWheelZoom(panelId, state.scale);
-    
-    // Mantener scroll interno neutralizado
-    const pipViewport = pipContainer.querySelector('.pip-viewport');
-    if (pipViewport) {
-      pipViewport.scrollLeft = 0;
-      pipViewport.scrollTop = 0;
-    }
   }
   
   // Event listeners del PiP
@@ -2575,22 +2610,25 @@ export function openPip(panelId, restoredConfig = null) {
 export function closePip(panelId) {
   const state = activePips.get(panelId);
   if (!state) return;
+
+  // ── Batch de lecturas ANTES de cualquier escritura DOM/estilos ──
+  // Leer rects y cachear estado antes de que cancelPipTransition,
+  // cancelPendingPipInteraction o resetDetachedPanelPresentation
+  // escriban estilos (lo que invalidaría layout).
+  const closeFromRect = { left: state.x, top: state.y, width: state.width, height: state.height };
+  const panelEl = document.getElementById(panelId);
+  if (!panelEl) return;
+  const placeholder = document.getElementById(`pip-placeholder-${panelId}`);
+  const targetRect = getElementRect(placeholder) || getElementRect(panelEl);
+
+  // ── Fase de escritura ──
   cancelPipTransition(panelId);
-  const closeFromRect = getElementRect(state.pipContainer);
   rememberPipConfig(panelId, state);
   cancelPendingPipInteraction(state);
   cancelPipRasterize(state);
   clearScheduledPipPreviewRefresh(panelId);
-  
-  const panelEl = document.getElementById(panelId);
-  if (!panelEl) return;
   destroyPipPreviewLayer(panelId);
-  
-  // Resetear escala del panel
   resetDetachedPanelPresentation(panelEl);
-  
-  const placeholder = document.getElementById(`pip-placeholder-${panelId}`);
-  const targetRect = getElementRect(placeholder) || getElementRect(panelEl);
 
   state.isClosing = true;
   state.pipContainer.style.pointerEvents = 'none';

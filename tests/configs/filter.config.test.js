@@ -15,8 +15,8 @@ describe('Filter Config — estructura 1982', () => {
     assert.equal(filterConfig.audio.slopeDbPerOctave, 24);
   });
 
-  it('rango de corte 5 Hz – 20 kHz', () => {
-    assert.equal(filterConfig.audio.minCutoffHz, 5);
+  it('rango general de corte llega hasta 20 kHz', () => {
+    assert.equal(filterConfig.audio.minCutoffHz, 3);
     assert.equal(filterConfig.audio.maxCutoffHz, 20000);
   });
 
@@ -27,6 +27,10 @@ describe('Filter Config — estructura 1982', () => {
 
   it('cada 0.7 divisiones equivale a una octava', () => {
     assert.equal(filterConfig.audio.octaveDialSpan, 0.7);
+  });
+
+  it('tracking de frecuencia usa 0.55 V por octava', () => {
+    assert.equal(filterConfig.audio.voltsPerOctave, 0.55);
   });
 
   it('tracking por teclado: 4 octavas precisas, 5 aceptables', () => {
@@ -59,10 +63,10 @@ describe('Filter Config — knobs', () => {
     assert.equal(knobs.response.initial, 0);
   });
 
-  it('level usa escala 0-10 con valor inicial 10', () => {
+  it('level usa escala 0-10 con valor inicial 0', () => {
     assert.equal(knobs.level.min, 0);
     assert.equal(knobs.level.max, 10);
-    assert.equal(knobs.level.initial, 10);
+    assert.equal(knobs.level.initial, 0);
   });
 });
 
@@ -71,12 +75,14 @@ describe('Filter Config — matrices', () => {
     assert.deepEqual(filterConfig.lowPass.matrix.audioInputs, [15, 16, 17, 18]);
     assert.deepEqual(filterConfig.lowPass.matrix.audioOutputs, [110, 111, 112, 113]);
     assert.deepEqual(filterConfig.lowPass.matrix.controlInputs, [22, 23, 24, 25]);
+    assert.equal(filterConfig.lowPass.minCutoffHz, 3);
   });
 
   it('HP usa columnas 19-22, filas 114-117 y CV 26-29', () => {
     assert.deepEqual(filterConfig.highPass.matrix.audioInputs, [19, 20, 21, 22]);
     assert.deepEqual(filterConfig.highPass.matrix.audioOutputs, [114, 115, 116, 117]);
     assert.deepEqual(filterConfig.highPass.matrix.controlInputs, [26, 27, 28, 29]);
+    assert.equal(filterConfig.highPass.minCutoffHz, 4);
   });
 
   it('define 4 filtros LP y 4 HP', () => {

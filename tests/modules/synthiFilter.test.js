@@ -43,7 +43,7 @@ describe('SynthiFilterModule', () => {
     assert.deepEqual(module.values, {
       frequency: 5,
       response: 0,
-      level: 10
+      level: 0
     });
   });
 
@@ -51,13 +51,17 @@ describe('SynthiFilterModule', () => {
     assert.equal(module._frequencyDialToControl(5), 0);
   });
 
-  it('cada 0.7 divisiones equivalen a un cuarto de unidad digital (1 octava)', () => {
+  it('cada 0.7 divisiones equivalen a 0.1375 unidades digitales (0.55 V/oct)', () => {
     const step = module._frequencyDialToControl(5.7) - module._frequencyDialToControl(5);
-    assert.ok(Math.abs(step - 0.25) < 1e-9);
+    assert.ok(Math.abs(step - 0.1375) < 1e-9);
   });
 
   it('dial de nivel 10 equivale a ganancia unitaria', () => {
     assert.equal(module._levelDialToGain(10), 1);
+  });
+
+  it('el nivel usa ley logarítmica de entrada', () => {
+    assert.ok(module._levelDialToGain(5) < 0.1);
   });
 
   it('start() crea input, worklet y output', () => {
@@ -87,10 +91,11 @@ describe('SynthiFilterModule', () => {
     assert.equal(param.value, 7.5);
   });
 
-  it('setLevel actualiza la ganancia de salida', () => {
+  it('setLevel actualiza la ganancia de entrada', () => {
     module.start();
     module.setLevel(4);
-    assert.equal(module.outputGain.gain.value, 0.4);
+    assert.ok(module.inputGain.gain.value > 0);
+    assert.ok(module.inputGain.gain.value < 0.1);
   });
 
   it('getInputNode y getOutputNode hacen lazy init', () => {
@@ -104,6 +109,7 @@ describe('SynthiFilterModule', () => {
     module.setDormant(true);
     assert.equal(module.outputGain.gain.value, 0);
     module.setDormant(false);
-    assert.equal(module.outputGain.gain.value, 0.8);
+    assert.equal(module.outputGain.gain.value, 1);
+    assert.ok(module.inputGain.gain.value > 0.3);
   });
 });

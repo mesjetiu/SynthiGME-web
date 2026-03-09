@@ -1,7 +1,8 @@
 const DIGITAL_TO_VOLTAGE = 4.0;
-const MIN_CUTOFF_HZ = 5;
+const MIN_CUTOFF_HZ = 3;
 const MAX_CUTOFF_HZ = 20000;
 const REFERENCE_CUTOFF_HZ = 320;
+const VOLTS_PER_OCTAVE = 0.55;
 const RESPONSE_SELF_OSC_THRESHOLD = 5.5;
 const DEFAULT_INPUT_DRIVE_BOOST = 1.4;
 const DEFAULT_HP_DIRTY_EVEN = 0.12;
@@ -14,7 +15,7 @@ function clamp(value, min, max) {
 
 function controlToCutoffHz(controlDigital, config) {
   const controlVolts = controlDigital * DIGITAL_TO_VOLTAGE;
-  const cutoff = config.referenceCutoffHz * Math.pow(2, controlVolts);
+  const cutoff = config.referenceCutoffHz * Math.pow(2, controlVolts / config.voltsPerOctave);
   return clamp(cutoff, config.minCutoffHz, config.maxCutoffHz);
 }
 
@@ -60,6 +61,7 @@ class SynthiFilterProcessor extends AudioWorkletProcessor {
       minCutoffHz: processorOptions.minCutoffHz ?? MIN_CUTOFF_HZ,
       maxCutoffHz: processorOptions.maxCutoffHz ?? MAX_CUTOFF_HZ,
       referenceCutoffHz: processorOptions.referenceCutoffHz ?? REFERENCE_CUTOFF_HZ,
+      voltsPerOctave: processorOptions.voltsPerOctave ?? VOLTS_PER_OCTAVE,
       selfOscillationThresholdDial: processorOptions.selfOscillationThresholdDial ?? RESPONSE_SELF_OSC_THRESHOLD,
       inputDriveBoost: processorOptions.inputDriveBoost ?? DEFAULT_INPUT_DRIVE_BOOST,
       hpDirtyEvenHarmonics: processorOptions.hpDirtyEvenHarmonics ?? DEFAULT_HP_DIRTY_EVEN,

@@ -137,6 +137,7 @@ export function getFilterFrequencyTooltipInfo({
   referenceCutoffHz = 320,
   referenceDial = 5,
   octaveDialSpan = 0.7,
+  voltsPerOctave = 0.55,
   minCutoffHz = 5,
   maxCutoffHz = 20000
 } = {}) {
@@ -144,13 +145,14 @@ export function getFilterFrequencyTooltipInfo({
     const parts = [];
     const octaves = (dialValue - referenceDial) / octaveDialSpan;
     const cutoffHz = clamp(referenceCutoffHz * Math.pow(2, octaves), minCutoffHz, maxCutoffHz);
+    const controlVoltage = octaves * voltsPerOctave;
 
     if (showAudioTooltip()) {
       parts.push(`fc ≈ ${formatFrequencyHz(cutoffHz)}`);
     }
 
     if (showVoltageTooltip()) {
-      parts.push(`ΣCV ${formatVoltage(octaves, 2)}`);
+      parts.push(`ΣCV ${formatVoltage(controlVoltage, 2)}`);
     }
 
     return parts.length > 0 ? parts.join(' · ') : null;
@@ -177,12 +179,36 @@ export function getFilterResponseTooltipInfo(maxQ = 20, selfOscillationThreshold
 }
 
 /**
- * Genera tooltip técnico para nivel de salida de filtros.
+ * Genera tooltip técnico para el mando Signal Level de filtros.
+ * Potenciómetro LOG 10k: muestra la ganancia efectiva y el techo equivalente
+ * de oscilación (hasta 5 Vp-p a ganancia máxima).
  * @param {number} [maxVpp=5]
+ * @param {number} [logBase=100]
  * @returns {function(number): string|null}
  */
-export function getFilterLevelTooltipInfo(maxVpp = 5) {
-  return getLevelTooltipInfo(maxVpp);
+export function getFilterLevelTooltipInfo(maxVpp = 5, logBase = 100) {
+  return (dialValue) => {
+    const parts = [];
+
+    let gain;
+    if (dialValue <= 0) {
+      gain = 0;
+    } else {
+      const normalized = clamp(dialValue, 0, 10) / 10;
+      gain = (Math.pow(logBase, normalized) - 1) / (logBase - 1);
+    }
+
+    if (showVoltageTooltip()) {
+      parts.push(`${(gain * maxVpp).toFixed(2)} Vp-p max`);
+    }
+
+    if (showAudioTooltip()) {
+      parts.push(formatGain(gain));
+      parts.push(gainToDb(gain));
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
 }
 
 /**

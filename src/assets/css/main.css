@@ -6381,6 +6381,7 @@ small { color:#aaa; }
   inset: 0;
   pointer-events: none;
   z-index: 1200;
+  contain: layout style;
 }
 
 /* Contenedor individual de PiP */
@@ -6955,6 +6956,9 @@ small { color:#aaa; }
   transition: border-color 150ms ease, background-color 150ms ease;
   /* Usar la misma columna de grid que el panel original */
   grid-column: var(--panel-col, auto);
+  box-sizing: border-box;
+  overflow: hidden;
+  contain: layout style paint size;
 }
 
 .pip-placeholder:hover {

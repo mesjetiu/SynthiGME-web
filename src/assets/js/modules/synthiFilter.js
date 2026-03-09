@@ -19,10 +19,12 @@ export class SynthiFilterModule extends Module {
     this.index = index;
     this.sourceKind = options.sourceKind || (mode === 'lowpass' ? 'filterLP' : 'filterHP');
     this.audioConfig = {
-      minCutoffHz: options.audio?.minCutoffHz ?? 5,
+      minCutoffHz: options.audio?.minCutoffHz ?? 3,
       maxCutoffHz: options.audio?.maxCutoffHz ?? 20000,
       referenceCutoffHz: options.audio?.referenceCutoffHz ?? 320,
       octaveDialSpan: options.audio?.octaveDialSpan ?? 0.7,
+      voltsPerOctave: options.audio?.voltsPerOctave ?? 0.55,
+      levelLogBase: options.audio?.levelLogBase ?? 100,
       selfOscillationThresholdDial: options.audio?.selfOscillationThresholdDial ?? 5.5,
       inputDriveBoost: options.audio?.inputDriveBoost ?? 1.4,
       hpDirtyEvenHarmonics: options.audio?.hpDirtyEvenHarmonics ?? 0.12,
@@ -38,7 +40,7 @@ export class SynthiFilterModule extends Module {
     this.values = {
       frequency: options.initialValues?.frequency ?? 5,
       response: options.initialValues?.response ?? 0,
-      level: options.initialValues?.level ?? 10
+      level: options.initialValues?.level ?? 0
     };
 
     this.inputGain = null;
@@ -49,12 +51,20 @@ export class SynthiFilterModule extends Module {
 
   _frequencyDialToControl(dialValue) {
     const clamped = clamp(dialValue, 0, 10);
-    const volts = (clamped - 5) / this.audioConfig.octaveDialSpan;
+    const octaves = (clamped - 5) / this.audioConfig.octaveDialSpan;
+    const volts = octaves * this.audioConfig.voltsPerOctave;
     return volts / DIGITAL_TO_VOLTAGE;
   }
 
   _levelDialToGain(dialValue) {
-    return clamp(dialValue, 0, 10) / 10;
+    const clamped = clamp(dialValue, 0, 10);
+    if (clamped <= 0) {
+      return 0;
+    }
+
+    const normalized = clamped / 10;
+    const base = this.audioConfig.levelLogBase;
+    return (Math.pow(base, normalized) - 1) / (base - 1);
   }
 
   _initAudioNodes() {
@@ -64,7 +74,7 @@ export class SynthiFilterModule extends Module {
     }
 
     this.inputGain = ctx.createGain();
-    this.inputGain.gain.value = 1;
+    this.inputGain.gain.value = this._levelDialToGain(this.values.level);
 
     this.workletNode = new AudioWorkletNode(ctx, 'synthi-filter', {
       numberOfInputs: 1,
@@ -79,6 +89,7 @@ export class SynthiFilterModule extends Module {
         minCutoffHz: this.audioConfig.minCutoffHz,
         maxCutoffHz: this.audioConfig.maxCutoffHz,
         referenceCutoffHz: this.audioConfig.referenceCutoffHz,
+        voltsPerOctave: this.audioConfig.voltsPerOctave,
         selfOscillationThresholdDial: this.audioConfig.selfOscillationThresholdDial,
         inputDriveBoost: this.audioConfig.inputDriveBoost,
         hpDirtyEvenHarmonics: this.audioConfig.hpDirtyEvenHarmonics,
@@ -89,7 +100,7 @@ export class SynthiFilterModule extends Module {
     attachProcessorErrorHandler(this.workletNode, `synthi-filter[${this.id}]`);
 
     this.outputGain = ctx.createGain();
-    this.outputGain.gain.value = this._levelDialToGain(this.values.level);
+    this.outputGain.gain.value = 1;
 
     this.inputGain.connect(this.workletNode);
     this.workletNode.connect(this.outputGain);
@@ -173,11 +184,11 @@ export class SynthiFilterModule extends Module {
 
   _applyLevel(targetValue = this.values.level) {
     const ctx = this.getAudioCtx();
-    if (!ctx || !this.outputGain) {
+    if (!ctx || !this.inputGain) {
       return;
     }
 
-    setParamSmooth(this.outputGain.gain, this._levelDialToGain(targetValue), ctx, {
+    setParamSmooth(this.inputGain.gain, this._levelDialToGain(targetValue), ctx, {
       ramp: this.ramps.level
     });
   }
@@ -218,6 +229,7 @@ export class SynthiFilterModule extends Module {
       return;
     }
 
+    setParamSmooth(this.outputGain.gain, 1, ctx, { ramp: this.ramps.level });
     this._applyLevel(this.values.level);
 
     const cutoffParam = this.workletNode?.parameters?.get('cutoffControl');

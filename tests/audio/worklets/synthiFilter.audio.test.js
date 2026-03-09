@@ -136,6 +136,55 @@ test.describe('Synthi Filter AudioWorklet — audio real', () => {
     expect(result.frequency).toBeLessThan(450);
   });
 
+  test('cutoffControl sigue 0.55 V/oct: +0.1375 digital sube aproximadamente una octava', async ({ page }) => {
+    const result = await page.evaluate(async (workletPath) => {
+      async function renderFrequency(cutoffControl) {
+        const sampleRate = 44100;
+        const offline = new OfflineAudioContext(1, sampleRate * 1.2, sampleRate);
+        await offline.audioWorklet.addModule(workletPath);
+
+        const filter = new AudioWorkletNode(offline, 'synthi-filter', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          parameterData: {
+            cutoffControl,
+            response: 8
+          },
+          processorOptions: { mode: 'lowpass' }
+        });
+
+        filter.connect(offline.destination);
+        const buffer = await offline.startRendering();
+        const samples = buffer.getChannelData(0).slice(sampleRate * 0.2);
+
+        let zeroCrossings = 0;
+        for (let i = 1; i < samples.length; i++) {
+          if (samples[i - 1] < 0 && samples[i] >= 0) {
+            zeroCrossings++;
+          }
+        }
+
+        return zeroCrossings / (samples.length / sampleRate);
+      }
+
+      const base = await renderFrequency(0);
+      const octaveUp = await renderFrequency(0.1375);
+      return {
+        base,
+        octaveUp,
+        ratio: octaveUp / base
+      };
+    }, FILTER_WORKLET_PATH);
+
+    expect(result.base).toBeGreaterThan(220);
+    expect(result.base).toBeLessThan(450);
+    expect(result.octaveUp).toBeGreaterThan(430);
+    expect(result.octaveUp).toBeLessThan(900);
+    expect(result.ratio).toBeGreaterThan(1.75);
+    expect(result.ratio).toBeLessThan(2.25);
+  });
+
   test('high-pass auto-oscilado es armónicamente más rugoso que low-pass', async ({ page }) => {
     const result = await page.evaluate(async (workletPath) => {
       async function render(mode) {

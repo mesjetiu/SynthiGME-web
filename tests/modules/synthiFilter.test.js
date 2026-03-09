@@ -69,6 +69,8 @@ describe('SynthiFilterModule', () => {
     assert.ok(module.inputGain);
     assert.ok(module.workletNode);
     assert.ok(module.outputGain);
+    assert.equal(module.inputGain.gain.value, 0);
+    assert.equal(module.outputGain.gain.value, 1);
     assert.equal(module.outputs.length, 1);
   });
 

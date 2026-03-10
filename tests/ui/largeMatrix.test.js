@@ -548,3 +548,84 @@ describe('Roundtrip serialize/deserialize', () => {
     assert.equal(matrix2._pinColors.get('40:50'), undefined);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RESIZETOFIT — INMUNIDAD A CSS TRANSFORMS
+// ═══════════════════════════════════════════════════════════════════════════
+// getBoundingClientRect() incluye los CSS transforms de padres (zoom del
+// canvas, PiP scale…). Si se usa para medir _baseTableSize o el contenedor,
+// el ratio queda contaminado cuando el zoom cambia (fullscreen, detach PiP)
+// entre la primera medición y las siguientes → las matrices P5/P6 se encogen.
+// offsetWidth/offsetHeight son inmunes a transforms y reportan dimensiones
+// de layout, que es lo que resizeToFit necesita.
+
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename2 = fileURLToPath(import.meta.url);
+const __dirname2 = dirname(__filename2);
+const matrixRoot = resolve(__dirname2, '../..');
+const matrixSource = readFileSync(
+  resolve(matrixRoot, 'src/assets/js/ui/largeMatrix.js'), 'utf-8'
+);
+
+describe('LargeMatrix.resizeToFit — inmunidad a CSS transforms', () => {
+  // Extraer el cuerpo de resizeToFit para analizar solo ese método.
+  // Buscamos la definición "resizeToFit() {" (con llave) para evitar
+  // llamadas sueltas como "this.resizeToFit();" en build().
+  const resizeBlock = (() => {
+    const defRegex = /resizeToFit\(\)\s*\{/;
+    const match = defRegex.exec(matrixSource);
+    if (!match) return '';
+    const start = match.index;
+    // Buscar la siguiente definición de método de clase (ej.: "  setToggleHandler(")
+    const rest = matrixSource.slice(start);
+    const nextMethod = rest.search(/\n  \w+\s*\(/);
+    if (nextMethod > 0) return rest.slice(0, nextMethod);
+    return rest;
+  })();
+
+  it('resizeToFit existe en el código fuente', () => {
+    assert.ok(resizeBlock.length > 50,
+      'No se encontró resizeToFit() en largeMatrix.js');
+  });
+
+  // Extraer solo las líneas de código (sin comentarios) para buscar llamadas reales
+  const codeLines = resizeBlock
+    .split('\n')
+    .filter(l => !l.trim().startsWith('//') && !l.trim().startsWith('*'))
+    .join('\n');
+
+  it('NO llama a getBoundingClientRect en código ejecutable', () => {
+    // getBCR incluye transforms de padres → contamina la medición
+    assert.doesNotMatch(codeLines, /\.getBoundingClientRect\(\)/,
+      'resizeToFit no debe llamar a getBoundingClientRect() — ' +
+      'incluye CSS transforms de padres (zoom canvas, PiP scale). ' +
+      'Usar offsetWidth/offsetHeight que reportan dimensiones de layout.');
+  });
+
+  it('usa offsetWidth/offsetHeight para medir el contenedor', () => {
+    assert.match(resizeBlock, /container\.offsetWidth/,
+      'Debe medir el ancho disponible con container.offsetWidth');
+    assert.match(resizeBlock, /container\.offsetHeight/,
+      'Debe medir el alto disponible con container.offsetHeight');
+  });
+
+  it('usa offsetWidth/offsetHeight para la tabla base (no BCR)', () => {
+    assert.match(resizeBlock, /table\.offsetWidth/,
+      'Debe medir el ancho de la tabla base con table.offsetWidth');
+    assert.match(resizeBlock, /table\.offsetHeight/,
+      'Debe medir el alto de la tabla base con table.offsetHeight');
+  });
+
+  it('cachea _baseTableSize para evitar lecturas repetidas de layout', () => {
+    assert.match(resizeBlock, /_baseTableSize/,
+      'Debe cachear la medición base en _baseTableSize');
+  });
+
+  it('aplica escalado uniforme (no deforma pines)', () => {
+    assert.match(resizeBlock, /Math\.min\(widthScale, heightScale\)/,
+      'Debe usar min(widthScale, heightScale) para escalado uniforme');
+  });
+});

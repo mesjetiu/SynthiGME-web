@@ -70,7 +70,9 @@ export default {
       min: -5,
       max: 5,
       initial: 0,
-      curve: 'linear'
+      curve: 'linear',
+      scaleMin: -5,
+      scaleMax: 5
     },
     voltage1: {
       min: 0,

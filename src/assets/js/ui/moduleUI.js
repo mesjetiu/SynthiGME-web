@@ -186,6 +186,10 @@ export class ModuleUI {
       scaleMax: opts.scaleMax ?? 10,
       scaleDecimals: opts.scaleDecimals ?? 1
     };
+    // Compensar rotación interna del SVG bipolar (knob-0-center.svg = 150°)
+    if (type === 'bipolar') {
+      knobConfig.angleOffset = -150;
+    }
     // Tooltip técnico (si lo proporciona el caller)
     if (opts.getTooltipInfo) {
       knobConfig.getTooltipInfo = opts.getTooltipInfo;

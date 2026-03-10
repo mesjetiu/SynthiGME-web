@@ -258,9 +258,9 @@ describe('Panel 3 Blueprint - randomCVUI', () => {
   it('knobTypes es array de 5 con tipos correctos', () => {
     assert.ok(Array.isArray(ui.knobTypes));
     assert.strictEqual(ui.knobTypes.length, 5);
-    // Mean y Key son bipolares (-5 a +5), el resto unipolar (0-10)
+    // Mean, Variance y Key son bipolares (-5 a +5), Voltage 1/2 unipolares (0-10)
     assert.strictEqual(ui.knobTypes[0], 'bipolar', 'Mean debe ser bipolar (-5 a +5)');
-    assert.strictEqual(ui.knobTypes[1], 'normal', 'Variance debe ser normal (0-10)');
+    assert.strictEqual(ui.knobTypes[1], 'bipolar', 'Variance debe ser bipolar (-5 a +5)');
     assert.strictEqual(ui.knobTypes[2], 'normal', 'Voltage 1 debe ser normal (0-10)');
     assert.strictEqual(ui.knobTypes[3], 'normal', 'Voltage 2 debe ser normal (0-10)');
     assert.strictEqual(ui.knobTypes[4], 'bipolar', 'Key debe ser bipolar (-5 a +5)');

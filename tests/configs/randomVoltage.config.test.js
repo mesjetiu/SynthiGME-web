@@ -206,6 +206,11 @@ describe('RandomVoltage Config — Knobs', () => {
     it('curva lineal', () => {
       assert.strictEqual(knobs.variance.curve, 'linear');
     });
+
+    it('escala de display bipolar (-5 a +5)', () => {
+      assert.strictEqual(knobs.variance.scaleMin, -5);
+      assert.strictEqual(knobs.variance.scaleMax, 5);
+    });
   });
   
   describe('voltage1 (nivel de salida V1, 0 a 10)', () => {

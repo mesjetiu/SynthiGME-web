@@ -208,7 +208,7 @@ export default {
     // Tipos de knob para Random Control Voltage Generator
     knobTypes: [
       'bipolar', // 0: Mean (-5 a +5)
-      'normal',  // 1: Variance (0 a 10)
+      'bipolar', // 1: Variance (-5 a +5)
       'normal',  // 2: Voltage 1 (0 a 10)
       'normal',  // 3: Voltage 2 (0 a 10)
       'bipolar'  // 4: Key (-5 a +5)

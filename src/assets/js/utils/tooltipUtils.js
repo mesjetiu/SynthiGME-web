@@ -631,3 +631,37 @@ export function getReverbLevelTooltipInfo(maxVpp = 5, logBase = 100) {
     return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
+
+/**
+ * Genera tooltip para el knob Level del Ring Modulator.
+ * Muestra ganancia y dB (curva log base 100).
+ * Misma curva logarítmica que el Level de la reverb (10K LOG pot).
+ *
+ * @param {number} [maxVpp=8] - Voltaje pico a pico máximo de entrada
+ * @param {number} [logBase=100] - Base logarítmica de la curva
+ * @returns {function(number): string|null}
+ */
+export function getRingModLevelTooltipInfo(maxVpp = 8, logBase = 100) {
+  return (dialValue) => {
+    const parts = [];
+
+    let gain;
+    if (dialValue <= 0) {
+      gain = 0;
+    } else {
+      const normalized = clamp(dialValue, 0, 10) / 10;
+      gain = (Math.pow(logBase, normalized) - 1) / (logBase - 1);
+    }
+
+    if (showVoltageTooltip()) {
+      parts.push(`${(gain * maxVpp).toFixed(2)} Vp-p max`);
+    }
+
+    if (showAudioTooltip()) {
+      parts.push(formatGain(gain));
+      parts.push(gainToDb(gain));
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}

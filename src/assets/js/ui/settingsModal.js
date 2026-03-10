@@ -21,6 +21,7 @@ import { setEnabled as telemetrySetEnabled } from '../utils/telemetry.js';
 import { getGlowPreset, setGlowPreset, getGlowPresetIds } from './glowManager.js';
 import { midiAccess } from '../midi/midiAccess.js';
 import { midiLearnManager } from '../midi/midiLearnManager.js';
+import { getSavedRenderMode, setRenderMode, getCachedGpuTier } from '../utils/gpuDetect.js';
 
 /**
  * Modal de configuración general con pestañas
@@ -711,6 +712,9 @@ export class SettingsModal {
     
     // Estilo visual de knobs (SVG auténtico vs CSS simplificado)
     container.appendChild(this._createKnobStyleSection());
+    
+    // Modo de renderizado (auto / calidad / rendimiento)
+    container.appendChild(this._createRenderModeSection());
     
     // Rasterización adaptativa (nitidez de zoom)
     container.appendChild(this._createSharpRasterizeSection());
@@ -2885,6 +2889,76 @@ export class SettingsModal {
   }
   
   /**
+   * Crea la sección de modo de renderizado (auto / calidad / rendimiento).
+   * En modo auto, detecta la GPU y aplica optimizaciones automaticamente.
+   * @returns {HTMLElement}
+   */
+  _createRenderModeSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.renderModeTitleElement = document.createElement('h3');
+    this.renderModeTitleElement.className = 'settings-section__title';
+    this.renderModeTitleElement.textContent = t('settings.display.renderMode');
+    section.appendChild(this.renderModeTitleElement);
+    
+    this.renderModeDescElement = document.createElement('p');
+    this.renderModeDescElement.className = 'settings-section__description';
+    this.renderModeDescElement.textContent = t('settings.display.renderMode.description');
+    section.appendChild(this.renderModeDescElement);
+    
+    // Badge con GPU detectada
+    const gpuInfo = getCachedGpuTier();
+    if (gpuInfo && gpuInfo.renderer) {
+      this.renderModeGpuBadge = document.createElement('p');
+      this.renderModeGpuBadge.className = 'settings-section__description';
+      this.renderModeGpuBadge.style.fontSize = '0.8em';
+      this.renderModeGpuBadge.style.opacity = '0.7';
+      this.renderModeGpuBadge.style.marginTop = '-0.3rem';
+      const tierLabel = gpuInfo.tier === 'weak' ? '⚠ performance' : '✓ quality';
+      this.renderModeGpuBadge.textContent = `GPU: ${gpuInfo.renderer} → ${tierLabel}`;
+      section.appendChild(this.renderModeGpuBadge);
+    }
+    
+    // Radio buttons: auto (default), quality, performance
+    const savedMode = getSavedRenderMode();
+    
+    const createRadio = (value, labelKey, descKey) => {
+      const row = document.createElement('div');
+      row.className = 'settings-row settings-row--checkbox';
+      
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'renderMode';
+      radio.id = `renderMode-${value}`;
+      radio.value = value;
+      radio.className = 'settings-checkbox';
+      radio.checked = savedMode === value;
+      
+      const label = document.createElement('label');
+      label.className = 'settings-checkbox-label';
+      label.htmlFor = `renderMode-${value}`;
+      label.textContent = t(labelKey);
+      
+      radio.addEventListener('change', () => {
+        if (radio.checked) {
+          setRenderMode(value);
+        }
+      });
+      
+      row.appendChild(radio);
+      row.appendChild(label);
+      return row;
+    };
+    
+    section.appendChild(createRadio('auto', 'settings.display.renderMode.auto'));
+    section.appendChild(createRadio('quality', 'settings.display.renderMode.quality'));
+    section.appendChild(createRadio('performance', 'settings.display.renderMode.performance'));
+    
+    return section;
+  }
+  
+  /**
    * Crea la sección de optimizaciones de rendimiento.
    * Agrupa todas las optimizaciones: dormancy, filter bypass, etc.
    * @returns {HTMLElement}
@@ -4591,6 +4665,14 @@ export class SettingsModal {
     }
     if (this.sharpRasterizeLabelElement) {
       this.sharpRasterizeLabelElement.textContent = t('settings.display.sharpRasterize.enable');
+    }
+    
+    // Actualizar sección de modo de renderizado
+    if (this.renderModeTitleElement) {
+      this.renderModeTitleElement.textContent = t('settings.display.renderMode');
+    }
+    if (this.renderModeDescElement) {
+      this.renderModeDescElement.textContent = t('settings.display.renderMode.description');
     }
     
     // Actualizar sección de paneles flotantes (PiP)

@@ -398,6 +398,52 @@ settings.display.glow.off:
   pt: "Desligado: sem efeito de brilho"
   cs: "Vypnuto: žádný efekt záře"
 
+# Sección: Modo de renderizado (GPU/CPU)
+settings.display.renderMode:
+  en: Render Mode
+  es: Modo de renderizado
+  fr: Mode de rendu
+  de: Render-Modus
+  it: Modalità di rendering
+  pt: Modo de renderização
+  cs: Režim vykreslování
+
+settings.display.renderMode.description:
+  en: Adjusts visual effects based on graphics hardware capability. In auto mode, the GPU is detected and optimizations are applied if needed. Use 'Quality' to force full effects, or 'Performance' to disable expensive effects (shadows, blur, transitions) for smoother navigation on systems without a dedicated GPU.
+  es: Ajusta los efectos visuales según la capacidad del hardware gráfico. En modo automático, se detecta la GPU y se aplican optimizaciones si es necesario. Usa 'Calidad' para forzar todos los efectos, o 'Rendimiento' para desactivar efectos costosos (sombras, desenfoque, transiciones) y lograr una navegación más fluida en equipos sin GPU dedicada.
+  fr: Ajuste les effets visuels selon la capacité du matériel graphique. En mode automatique, le GPU est détecté et les optimisations sont appliquées si nécessaire. Utilisez « Qualité » pour forcer tous les effets, ou « Performance » pour désactiver les effets coûteux (ombres, flou, transitions) pour une navigation plus fluide sur les systèmes sans GPU dédié.
+  de: Passt visuelle Effekte an die Leistungsfähigkeit der Grafikhardware an. Im Auto-Modus wird die GPU erkannt und Optimierungen werden bei Bedarf angewendet. Verwenden Sie „Qualität", um alle Effekte zu erzwingen, oder „Leistung", um aufwändige Effekte (Schatten, Unschärfe, Übergänge) für eine flüssigere Navigation auf Systemen ohne dedizierte GPU zu deaktivieren.
+  it: Regola gli effetti visivi in base alla capacità dell'hardware grafico. In modalità automatica, la GPU viene rilevata e le ottimizzazioni vengono applicate se necessario. Usa "Qualità" per forzare tutti gli effetti, o "Prestazioni" per disattivare effetti costosi (ombre, sfocatura, transizioni) per una navigazione più fluida su sistemi senza GPU dedicata.
+  pt: Ajusta os efeitos visuais com base na capacidade do hardware gráfico. No modo automático, a GPU é detectada e otimizações são aplicadas se necessário. Use "Qualidade" para forçar todos os efeitos, ou "Desempenho" para desativar efeitos custosos (sombras, desfoque, transições) para uma navegação mais suave em sistemas sem GPU dedicada.
+  cs: Přizpůsobí vizuální efekty podle schopností grafického hardwaru. V automatickém režimu se detekuje GPU a optimalizace se aplikují dle potřeby. Použijte „Kvalita" pro vynucení všech efektů, nebo „Výkon" pro vypnutí náročných efektů (stíny, rozmazání, přechody) pro plynulejší navigaci na systémech bez dedikované GPU.
+
+settings.display.renderMode.auto:
+  en: "Auto (recommended)"
+  es: "Automático (recomendado)"
+  fr: "Automatique (recommandé)"
+  de: "Automatisch (empfohlen)"
+  it: "Automatico (consigliato)"
+  pt: "Automático (recomendado)"
+  cs: "Automatický (doporučeno)"
+
+settings.display.renderMode.quality:
+  en: "Quality — full visual effects"
+  es: "Calidad — todos los efectos visuales"
+  fr: "Qualité — tous les effets visuels"
+  de: "Qualität — alle visuellen Effekte"
+  it: "Qualità — tutti gli effetti visivi"
+  pt: "Qualidade — todos os efeitos visuais"
+  cs: "Kvalita — všechny vizuální efekty"
+
+settings.display.renderMode.performance:
+  en: "Performance — reduced effects, smoother navigation"
+  es: "Rendimiento — efectos reducidos, navegación más fluida"
+  fr: "Performance — effets réduits, navigation plus fluide"
+  de: "Leistung — reduzierte Effekte, flüssigere Navigation"
+  it: "Prestazioni — effetti ridotti, navigazione più fluida"
+  pt: "Desempenho — efeitos reduzidos, navegação mais suave"
+  cs: "Výkon — snížené efekty, plynulejší navigace"
+
 # Sección: Rasterización adaptativa (nitidez de zoom)
 settings.display.sharpRasterize:
   en: Zoom Sharpness

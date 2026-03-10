@@ -2182,6 +2182,69 @@ small { color:#aaa; }
   }
 }
 
+/* ─── Modo rendimiento (GPU débil / CPU-friendly) ─────────────────────────
+   Clase .render-performance en <body> activa las mismas optimizaciones que
+   @media (pointer: coarse) pero en escritorios con GPU antigua/software.
+   El usuario lo controla desde Ajustes > Interfaz > Modo de renderizado.
+   En modo 'auto', se detecta la GPU vía WebGL y se aplica automáticamente. */
+
+body.render-performance .panel {
+  box-shadow: none;
+}
+
+body.render-performance .pin-btn,
+body.render-performance .pin-btn.active {
+  box-shadow: none;
+}
+
+body.render-performance .knob,
+body.render-performance .knob-inner,
+body.render-performance .joystick-block,
+body.render-performance .joystick-handle {
+  box-shadow: none;
+  transition: none;
+}
+
+body.render-performance .panel3-layout .sgme-osc {
+  box-shadow: none;
+}
+
+/* Eliminar will-change permanente en modo rendimiento: se activa dinámicamente
+   solo durante interacción (pointerdown/wheel) para reducir consumo de VRAM */
+body.render-performance #viewportInner {
+  will-change: auto;
+}
+
+/* Desactivar backdrop-filter en overlays/modals (coste alto de composición) */
+body.render-performance .settings-overlay,
+body.render-performance .audio-settings-overlay,
+body.render-performance .confirm-dialog-overlay,
+body.render-performance .input-dialog-overlay,
+body.render-performance .recording-settings-overlay,
+body.render-performance .portrait-blocker,
+body.render-performance .floating-mute-btn,
+body.render-performance .orientation-hint,
+body.render-performance .recording-overlay__indicator,
+body.render-performance .midi-learn-overlay__indicator,
+body.render-performance .pip-detach-btn {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Reducir transiciones costosas */
+body.render-performance .panel {
+  transition-duration: 0ms;
+}
+
+body.render-performance .fullscreen-toggle {
+  transition: none;
+}
+
+/* Panel SVG/backgrounds: reducir resolución de rasterización */
+body.render-performance .panel-inline-bg {
+  image-rendering: auto;
+}
+
 #viewportInner.is-low-zoom .panel-build-version {
   opacity: 0.15;
 }

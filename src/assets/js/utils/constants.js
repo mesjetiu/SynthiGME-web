@@ -95,6 +95,9 @@ export const STORAGE_KEYS = {
   // Visualización de matriz
   SHOW_INACTIVE_PINS: `${STORAGE_PREFIX}show-inactive-pins`,
   
+  // Modo de renderizado: 'auto' (detectar GPU), 'quality' (máxima calidad), 'performance' (CPU-friendly)
+  RENDER_MODE: `${STORAGE_PREFIX}render-mode`,
+
   // Rasterización adaptativa (nitidez de zoom)
   SHARP_RASTERIZE_ENABLED: `${STORAGE_PREFIX}sharp-rasterize-enabled`,
   

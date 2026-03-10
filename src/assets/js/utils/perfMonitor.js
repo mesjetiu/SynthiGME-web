@@ -186,6 +186,8 @@ async function captureSnapshot(label = 'snapshot') {
       pending: !!window.__synthSharpMode.pending
     } : null,
     navLocks: cloneJsonSafe(window.__synthNavLocks || null),
+    gpuTier: cloneJsonSafe(window.__synthGpuTier || null),
+    renderMode: window.__synthRenderMode || null,
     browser: {
       userAgent: navigator.userAgent,
       platform: navigator.platform,

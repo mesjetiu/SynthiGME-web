@@ -1,4 +1,5 @@
 import { createLogger } from './logger.js';
+import { isPerformanceMode } from './gpuDetect.js';
 
 const log = createLogger('CanvasBackground');
 
@@ -25,11 +26,12 @@ const CANVAS_BG_SVG_BY_PANEL = {
 };
 
 /**
- * Detecta si el dispositivo tiene pointer coarse (táctil).
- * En estos dispositivos usamos canvas para evitar lagunas al hacer zoom.
+ * Detecta si el dispositivo tiene pointer coarse (táctil) o modo rendimiento activo.
+ * En estos dispositivos/modos usamos canvas para evitar lagunas al hacer zoom.
  */
 export function shouldUseCanvasBg() {
   try {
+    if (isPerformanceMode()) return true;
     return window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   } catch {
     return false;

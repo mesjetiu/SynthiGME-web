@@ -5,6 +5,7 @@ import { renderCanvasBgViewport, shouldUseCanvasBg, renderCanvasBgPanels } from 
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { keyboardShortcuts } from '../ui/keyboardShortcuts.js';
 import { perfMonitor } from '../utils/perfMonitor.js';
+import { isPerformanceMode } from '../utils/gpuDetect.js';
 
 /**
  * Inicializa el sistema de navegación del viewport.
@@ -638,6 +639,9 @@ export function initViewportNavigation({ outer, inner } = {}) {
       offsetY = Math.round(offsetY * dpr) / dpr;
     }
 
+    // En modo performance, usar translate() en vez de translate3d()
+    // para evitar forzar composición GPU (más rápido en software rendering)
+    const perfMode = isPerformanceMode();
     const canvasOk = renderCanvasBgViewport(scale, offsetX, offsetY);
     if (!shouldUseCanvasBg() || canvasOk) {
       // Determinar zoom efectivo:
@@ -646,11 +650,12 @@ export function initViewportNavigation({ outer, inner } = {}) {
       // 3. Zoom residual → mantener CSS zoom existente para evitar
       //    re-rasterización costosa al empezar a interactuar
       let effectiveZoom = 1;
-      if (sharpMode && sharpZoomFactor > 1) {
+      // En modo performance, desactivar sharp mode (no tiene sentido sin GPU compositing)
+      if (!perfMode && sharpMode && sharpZoomFactor > 1) {
         effectiveZoom = sharpZoomFactor;
-      } else if (currentResolutionFactor > 1) {
+      } else if (!perfMode && currentResolutionFactor > 1) {
         effectiveZoom = currentResolutionFactor;
-      } else if (activeZoom > 1) {
+      } else if (!perfMode && activeZoom > 1) {
         effectiveZoom = activeZoom;
       }
 
@@ -665,7 +670,12 @@ export function initViewportNavigation({ outer, inner } = {}) {
         if (activeZoom > 1) {
           inner.style.zoom = '';
         }
-        inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+        if (perfMode) {
+          // translate() sin Z: evita forzar capa GPU; el navegador usa rasterización CPU
+          inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+        } else {
+          inner.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+        }
       }
       activeZoom = effectiveZoom;
       window.__synthViewTransform = { scale, offsetX, offsetY };
@@ -693,6 +703,43 @@ export function initViewportNavigation({ outer, inner } = {}) {
   refreshMetrics();
   lastViewportWidth = metrics.outerWidth;
   render();
+
+  // ─── will-change dinámico en modo performance ───────────────────────────
+  // En modo performance, will-change:transform está desactivado (CSS: auto).
+  // Lo activamos temporalmente solo durante interacciones (wheel/pointer) y
+  // lo quitamos 300ms después para reducir consumo de VRAM en reposo.
+  let willChangeTimer = null;
+
+  function promoteWillChange() {
+    if (!isPerformanceMode()) return;
+    if (willChangeTimer) {
+      clearTimeout(willChangeTimer);
+      willChangeTimer = null;
+    }
+    inner.style.willChange = 'transform';
+  }
+
+  function demoteWillChange() {
+    if (!isPerformanceMode()) return;
+    if (willChangeTimer) clearTimeout(willChangeTimer);
+    willChangeTimer = setTimeout(() => {
+      willChangeTimer = null;
+      inner.style.willChange = '';
+    }, 300);
+  }
+
+  // Escuchar cambios de modo de renderizado en tiempo real
+  document.addEventListener('synth:renderModeChange', () => {
+    if (!isPerformanceMode()) {
+      // Al volver a quality, restaurar will-change permanente
+      if (willChangeTimer) {
+        clearTimeout(willChangeTimer);
+        willChangeTimer = null;
+      }
+      inner.style.willChange = '';
+    }
+    render();
+  });
 
   // ─── Estabilización de viewport en móvil/tablet ───
   // En dispositivos móviles, el viewport puede cambiar varias veces durante la carga
@@ -1305,6 +1352,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
   // Zoom con rueda (desktop)
   outer.addEventListener('wheel', ev => {
     metricsDirty = true;
+    promoteWillChange();
     if (ev.ctrlKey || ev.metaKey) {
       if (perfMonitor.isEnabled()) {
         perfMonitor.incrementCounter('viewport.wheel.zoom');
@@ -1339,6 +1387,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     requestRender();
     markUserAdjusted();
     scheduleRasterize();
+    demoteWillChange();
   }, { passive: false });
 
   // Estado para pan con un dedo
@@ -1390,6 +1439,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
     const isInteractive = isInteractiveTarget(ev.target);
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, pointerType: ev.pointerType, isInteractive });
     recomputeNavGestureState();
+    promoteWillChange();
     const isMouseLike = ev.pointerType === 'mouse' || ev.pointerType === 'pen';
     const isTouchPan = ev.pointerType === 'touch' && singleFingerPanEnabled && !navLocks.panLocked;
 
@@ -1518,6 +1568,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
       scheduleLowZoomUpdate('pinch');
       scheduleRasterize(); // Siempre programar sharp mode al soltar
       requestRender();
+      demoteWillChange();
 
       if (ev.pointerType === 'touch') {
         requestAnimationFrame(() => renderCanvasBgPanels());
@@ -1543,6 +1594,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
       scheduleLowZoomUpdate('pinch');
       scheduleRasterize(); // Programar sharp mode al soltar
       requestRender();
+      demoteWillChange();
 
       if (ev.pointerType === 'touch') {
         requestAnimationFrame(() => renderCanvasBgPanels());

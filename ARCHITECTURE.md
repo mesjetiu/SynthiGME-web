@@ -116,7 +116,53 @@ Hooks actuales:
 
 Objetivo: comparar arquitecturas de navegación/zoom y detectar si el cuello está en JS, layout, paint o compositor.
 
-### 3.1.2 Hallazgos iniciales de marzo de 2026
+### 3.1.2 Modo de renderizado (GPU/CPU Fallback)
+
+El sistema de modo de renderizado en [src/assets/js/utils/gpuDetect.js](src/assets/js/utils/gpuDetect.js) detecta GPUs débiles y aplica optimizaciones automáticas para equipos sin GPU dedicada.
+
+**Arquitectura:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  gpuDetect.js                                            │
+│                                                          │
+│  detectGpuTier()                                         │
+│    ├─ WebGL canvas → WEBGL_debug_renderer_info           │
+│    ├─ UNMASKED_RENDERER_WEBGL → regex patterns           │
+│    └─ tier: 'strong' | 'weak' | 'unknown'               │
+│                                                          │
+│  resolveRenderMode()                                     │
+│    ├─ pref 'quality'     → quality (backward compatible) │
+│    ├─ pref 'performance' → performance                   │
+│    └─ pref 'auto'        → GPU tier + reduced-motion     │
+│                                                          │
+│  applyRenderMode()                                       │
+│    └─ body.classList.add/remove('render-performance')     │
+└──────────────────────────────────────────────────────────┘
+```
+
+**3 modos:**
+
+| Modo | Descripción | Clase CSS |
+|------|-------------|-----------|
+| `auto` (defecto) | Detecta GPU; si es débil o `prefers-reduced-motion`, aplica performance | Condicional |
+| `quality` | Todos los efectos visuales (comportamiento original) | Sin clase |
+| `performance` | Desactiva box-shadow, backdrop-filter, transiciones, will-change permanente | `.render-performance` |
+
+**Optimizaciones en modo performance:**
+- `translate()` en vez de `translate3d()` (evita forzar capa GPU, más rápido en software rendering)
+- `will-change: auto` permanente, se activa solo durante interacción (300ms timeout)
+- Sharp mode desactivado (sin beneficio sin GPU compositing)
+- `backdrop-filter: none` en overlays/modals
+- `box-shadow: none` en paneles, pines, knobs, joysticks
+- `transition: none` en knobs
+- `canvasBackground` activado también en desktop
+
+**GPUs clasificadas como débiles:** SwiftShader, llvmpipe, Mesa Software, Microsoft Basic Render Driver, Intel HD 2000-4999, Intel GMA, chipsets G41/G45/Q45/B43, Mesa DRI Sandybridge/Ivybridge/Haswell/Bay Trail.
+
+**Debug:** `window.__synthGpuTier`, `window.__synthRenderMode`, integrado en `perfMonitor.captureSnapshot()`.
+
+### 3.1.3 Hallazgos iniciales de marzo de 2026
 
 Primera línea base automatizada en Linux Chromium headless:
 
@@ -435,7 +481,8 @@ Utilidades compartidas:
 | `audio.js` | Utilidades de audio: `safeDisconnect()` para desconexión segura de nodos |
 | `constants.js` | Constantes globales centralizadas (ver sección Constantes) |
 | `logger.js` | Sistema de logging con niveles (ver sección de Logging) |
-| `canvasBackground.js` | Renderizado de fondos SVG en canvas para móviles |
+| `canvasBackground.js` | Renderizado de fondos SVG en canvas para móviles y modo rendimiento |
+| `gpuDetect.js` | Detección de GPU tier via WebGL, resolución de modo de renderizado (auto/quality/performance), toggle de clase CSS `.render-performance`. Ver [sección 3.1.2](#312-modo-de-renderizado-gpucpu-fallback) |
 | `serviceWorker.js` | Registro y actualización del Service Worker |
 | `buildVersion.js` | Detección e inyección de versión de build |
 | `input.js` | Guardas de interacción: `shouldBlockInteraction()` e `isNavGestureActive()` para evitar conflictos táctiles durante navegación |
@@ -470,6 +517,7 @@ Centraliza valores que se reutilizan en múltiples archivos:
 | Ajustes | `RESOLUTION`, `REMEMBER_RESOLUTION`, `AUTOSAVE_INTERVAL`, `KEYBOARD_SHORTCUTS` |
 | Pantalla | `WAKE_LOCK_ENABLED`, `SHOW_INACTIVE_PINS` |
 | PiP/Viewport | `PIP_STATE`, `VIEWPORT_STATE`, `REMEMBER_VISUAL_LAYOUT` |
+| Renderizado | `RENDER_MODE`, `SHARP_RASTERIZE_ENABLED`, `KNOB_STYLE` |
 | Optimizaciones | `OPTIMIZATIONS_DEBUG`, `DORMANCY_ENABLED`, `DORMANCY_DEBUG`, `FILTER_BYPASS_ENABLED`, `FILTER_BYPASS_DEBUG`, `LATENCY_MODE` |
 | Emulación voltajes | `VOLTAGE_SOFT_CLIP_ENABLED`, `VOLTAGE_PIN_TOLERANCE_ENABLED`, `VOLTAGE_THERMAL_DRIFT_ENABLED` |
 | Telemetría | `TELEMETRY_ENABLED`, `TELEMETRY_ID`, `TELEMETRY_QUEUE` |

@@ -121,6 +121,7 @@ import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
+import { initRenderMode } from './utils/gpuDetect.js';
 import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
@@ -7934,6 +7935,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Si el synth tiene parámetros modificados → solo visual, sin sonido
     initEasterEggTrigger({ isDirtyFn: () => sessionManager.isDirty(), markCleanFn: () => sessionManager.markClean() });
     window.egg = triggerEasterEgg; // debug: consola
+    
+    // Inicializar modo de renderizado (detección GPU + clase CSS)
+    initRenderMode();
     
     // Inicializar navegación del viewport
     initViewportNavigation();

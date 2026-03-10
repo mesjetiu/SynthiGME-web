@@ -293,6 +293,18 @@ export class DormancyManager {
       c.dest?.kind === 'reverbMixCV' && c.dest?.index === 0
     );
     this._setModuleDormant('spring-reverb', !hasReverbUsage);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 RING MODULATORS (3 instancias)
+    // ─────────────────────────────────────────────────────────────────────────
+    for (let rmIdx = 0; rmIdx < 3; rmIdx++) {
+      const hasRMUsage = panel5Connections.some(c =>
+        (c.source?.kind === 'ringModulator' && c.source?.index === rmIdx)
+        || (c.dest?.kind === 'ringModInputA' && c.dest?.index === rmIdx)
+        || (c.dest?.kind === 'ringModInputB' && c.dest?.index === rmIdx)
+      );
+      this._setModuleDormant(`ring-mod-${rmIdx + 1}`, !hasRMUsage);
+    }
     
     // ─────────────────────────────────────────────────────────────────────────────    // INPUT AMPLIFIERS - 8 canales
     // ─────────────────────────────────────────────────────────────────────────
@@ -505,6 +517,12 @@ export class DormancyManager {
     // Panel 1 reverberation
     if (moduleId === 'spring-reverb') {
       return this.app._panel1ReverbModule ?? null;
+    }
+
+    // Panel 1 ring modulators
+    if (moduleId.startsWith('ring-mod-')) {
+      const index = parseInt(moduleId.split('-').pop(), 10) - 1;
+      return this.app._panel1RingModModules?.[index] ?? null;
     }
     
     // Oscilloscope

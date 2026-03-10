@@ -81,6 +81,11 @@ function getModuleElementIds(descriptor) {
     case 'reverbInput':
     case 'reverbMixCV':
       return ['reverberation1-module'];
+
+    case 'ringModulator':
+    case 'ringModInputA':
+    case 'ringModInputB':
+      return [`ringModulator${(descriptor.index ?? 0) + 1}-module`];
     
     case 'joystick': {
       const side = descriptor.side === 'right' ? 'right' : 'left';
@@ -123,7 +128,7 @@ function getModuleElementIds(descriptor) {
  * @returns {HTMLElement|null}
  */
 function findModuleElement(el) {
-  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel1-filter-live, .panel1-reverb-live, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
+  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel1-filter-live, .panel1-reverb-live, .panel1-ringmod-live, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
 }
 
 /**

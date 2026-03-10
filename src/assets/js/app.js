@@ -21,6 +21,7 @@ import { JoystickModule } from './modules/joystick.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { SynthiFilterModule } from './modules/synthiFilter.js';
 import { SpringReverbModule } from './modules/springReverb.js';
+import { RingModulatorModule } from './modules/ringModulator.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
@@ -29,6 +30,7 @@ import { RandomVoltage } from './ui/randomVoltage.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
 import { Panel1FilterUI } from './ui/panel1Filter.js';
 import { Panel1ReverbUI } from './ui/panel1Reverb.js';
+import { Panel1RingModUI } from './ui/panel1RingMod.js';
 import { KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK } from './configs/knobColors.js';
 
 /** Mapa de nombre de color (string) → valor hex importado. Usado por todos los builders de panel. */
@@ -63,7 +65,8 @@ import {
   audioMatrixConfig,
   controlMatrixConfig,
   joystickConfig,
-  reverberationConfig
+  reverberationConfig,
+  ringModulatorConfig
 } from './configs/index.js';
 
 // Osciloscopio
@@ -118,7 +121,7 @@ import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -130,6 +133,7 @@ import { keyboardOSCSync } from './osc/oscKeyboardSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
 import { reverbOSCSync } from './osc/oscReverbSync.js';
+import { ringModOSCSync } from './osc/oscRingModSync.js';
 import { midiAccess } from './midi/midiAccess.js';
 import { midiLearnManager } from './midi/midiLearnManager.js';
 import { initMIDILearnOverlay } from './midi/midiLearnOverlay.js';
@@ -244,6 +248,8 @@ class App {
     this._panel1FilterModules = {};
     this._panel1ReverbUI = null;
     this._panel1ReverbModule = null;
+    this._panel1RingModUIs = {};
+    this._panel1RingModModules = [];
     this._inputAmplifierUIs = {};
     this._outputFadersModule = null;
     this._keyboardModules = {};    // { upper: KeyboardModule, lower: KeyboardModule }
@@ -273,6 +279,7 @@ class App {
     keyboardOSCSync.init(this);
     joystickOSCSync.init(this);
     reverbOSCSync.init(this);
+    ringModOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
 
@@ -1814,6 +1821,16 @@ class App {
       state.modules.reverberation = this._panel1ReverbUI.serialize();
     }
 
+    // Serializar Ring Modulators
+    if (this._panel1RingModUIs) {
+      state.modules.ringModulators = {};
+      for (const [id, ui] of Object.entries(this._panel1RingModUIs)) {
+        if (ui && typeof ui.serialize === 'function') {
+          state.modules.ringModulators[id] = ui.serialize();
+        }
+      }
+    }
+
     // Serializar Keyboards
     if (this._keyboardModules) {
       state.modules.keyboards = {};
@@ -1949,6 +1966,16 @@ class App {
     // Restaurar Reverberation
     if (modules.reverberation && this._panel1ReverbUI) {
       this._panel1ReverbUI.deserialize(modules.reverberation);
+    }
+
+    // Restaurar Ring Modulators
+    if (modules.ringModulators && this._panel1RingModUIs) {
+      for (const [id, data] of Object.entries(modules.ringModulators)) {
+        const ui = this._panel1RingModUIs[id];
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(data);
+        }
+      }
     }
 
     // Restaurar Keyboards
@@ -2106,6 +2133,17 @@ class App {
         mix: reverberationConfig.knobs.mix.initial,
         level: reverberationConfig.knobs.level.initial
       });
+    }
+
+    // Resetear Ring Modulators
+    if (this._panel1RingModUIs) {
+      for (const ui of Object.values(this._panel1RingModUIs)) {
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize({
+            level: ringModulatorConfig.knobs.level.initial
+          });
+        }
+      }
     }
 
     // Resetear Keyboards
@@ -2381,6 +2419,10 @@ class App {
     // Panel 1 reverberation
     if (moduleId === 'reverberation1-module' && this._panel1ReverbUI) {
       return { type: 'reverberation', ui: this._panel1ReverbUI };
+    }
+    // Panel 1 ring modulators
+    if (this._panel1RingModUIs[moduleId]) {
+      return { type: 'ringModulator', ui: this._panel1RingModUIs[moduleId] };
     }
     // Oscilloscope
     if (moduleId === 'oscilloscope-module' && this._panel2Data) {
@@ -3171,18 +3213,57 @@ class App {
 
     const bottomFrames = {};
 
-    // Ring Modulators 1-3 (1 knob cada uno: Level)
+    // Ring Modulators 1-3 (1 knob cada uno: Level) — módulo funcional
     const rmConfig = bottomLayout.ringModulator;
     let isFirstBottomModule = true;
+
+    const rmLevelTooltip = getRingModLevelTooltipInfo(
+      ringModulatorConfig.audio.maxInputVpp,
+      ringModulatorConfig.audio.levelLogBase
+    );
+
     for (let i = 1; i <= rmConfig.count; i++) {
       const rmId = `ringModulator${i}`;
-      const frame = new ModuleFrame({
-        id: `${rmId}-module`,
-        title: null,
-        className: 'panel1-placeholder panel1-ring-mod'
-      });
-      const el = frame.createElement();
       const rmModuleUI = blueprint.modules?.[rmId]?.ui || {};
+
+      // Crear módulo de audio
+      const rmModule = new RingModulatorModule(this.engine, `ring-mod-${i}`, {
+        index: i,
+        sourceKind: ringModulatorConfig.sourceKind,
+        audio: ringModulatorConfig.audio,
+        ramps: ringModulatorConfig.ramps,
+        initialValues: {
+          level: ringModulatorConfig.knobs.level.initial
+        }
+      });
+      this._panel1RingModModules.push(rmModule);
+
+      // Crear UI funcional
+      const ringModUI = new Panel1RingModUI({
+        id: `${rmId}-module`,
+        knobGap: rmModuleUI.knobGap ?? rmConfig.knobGap,
+        knobSize: rmModuleUI.knobSize ?? rmConfig.knobSize,
+        knobInnerPct: rmModuleUI.knobInnerPct ?? rmConfig.knobInnerPct,
+        knobColors: rmModuleUI.knobColors ?? rmConfig.knobColors,
+        knobTypes: rmModuleUI.knobTypes ?? rmConfig.knobTypes,
+        knobsOffset: rmModuleUI.knobsOffset ?? rmConfig.knobsOffset,
+        offset: rmModuleUI.offset ?? rmConfig.moduleOffset,
+        knobOptions: {
+          level: {
+            ...ringModulatorConfig.knobs.level,
+            onChange: (value) => {
+              rmModule.setLevel(value);
+              if (!ringModOSCSync.shouldIgnoreOSC()) {
+                ringModOSCSync.sendChange(i, 'level', value);
+              }
+            },
+            getTooltipInfo: rmLevelTooltip
+          }
+        }
+      });
+      this._panel1RingModUIs[rmId] = ringModUI;
+
+      const el = ringModUI.createElement();
       const rmWidthCss = rmConfig.width
         ? `flex: 0 0 auto; width: ${rmConfig.width}px; height: 100%;`
         : `flex: 1 1 0; min-width: 0; height: 100%;`;
@@ -3190,25 +3271,9 @@ class App {
       el.style.cssText = `${rmWidthCss} margin-left: ${rmGap}px;`;
       isFirstBottomModule = false;
 
-      const knobsContainer = document.createElement('div');
-      knobsContainer.className = 'panel1-bottom-knobs';
-      knobsContainer.style.gap = `${toNum(rmModuleUI.knobGap, toNum(rmConfig.knobGap, 6))}px`;
-      applyOffset(knobsContainer, rmModuleUI.knobsOffset, rmConfig.knobsOffset || { x: 0, y: 0 });
-      rmConfig.knobs.forEach((knobName, idx) => {
-        const knob = createPanel1Knob({
-          knobSize: rmModuleUI.knobSize ?? rmConfig.knobSize,
-          knobInnerPct: rmModuleUI.knobInnerPct ?? rmConfig.knobInnerPct,
-          knobColor: rmModuleUI.knobColors?.[idx] ?? rmConfig.knobColors?.[idx],
-          knobType: rmModuleUI.knobTypes?.[idx] ?? rmConfig.knobTypes?.[idx]
-        });
-        knobsContainer.appendChild(knob.wrapper);
-      });
-      frame.appendToContent(knobsContainer);
-      applyOffset(el, rmModuleUI.offset, rmConfig.moduleOffset || { x: 0, y: 0 });
-
       applyModuleVisibility(el, blueprint, rmId);
       bottomRow.appendChild(el);
-      bottomFrames[rmId] = frame;
+      bottomFrames[rmId] = ringModUI.frame;
     }
 
     // Reverberation 1 (2 knobs: Mix, Level) — módulo funcional
@@ -6619,6 +6684,13 @@ class App {
           reverbModule.start();
         }
         outNode = reverbModule?.getOutputNode?.() ?? null;
+      } else if (source.kind === 'ringModulator') {
+        const rmIndex = source.index ?? 0;
+        const rmModule = this._panel1RingModModules[rmIndex];
+        if (rmModule && !rmModule.isStarted) {
+          rmModule.start();
+        }
+        outNode = rmModule?.getOutputNode?.() ?? null;
       }
       
       if (!outNode) {
@@ -6768,6 +6840,14 @@ class App {
           reverbModule.start();
         }
         destNode = reverbModule?.getInputNode?.() ?? null;
+      } else if (dest.kind === 'ringModInputA' || dest.kind === 'ringModInputB') {
+        const rmIndex = dest.index ?? 0;
+        const rmModule = this._panel1RingModModules[rmIndex];
+        if (rmModule && !rmModule.isStarted) {
+          rmModule.start();
+        }
+        const inputId = dest.kind === 'ringModInputA' ? 'A' : 'B';
+        destNode = rmModule?.getInputNode?.(inputId) ?? null;
       }
       
       if (!destNode) {

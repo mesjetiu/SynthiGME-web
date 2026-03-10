@@ -115,6 +115,9 @@ export function getLabelForSource(source) {
 
     case 'reverberation':
       return t('matrix.source.reverberation');
+
+    case 'ringModulator':
+      return t('matrix.source.ringModulator', { index: (source.index ?? 0) + 1 });
     
     default:
       return null;
@@ -181,6 +184,12 @@ export function getLabelForDest(dest) {
 
     case 'reverbMixCV':
       return t('matrix.dest.reverbMixCV');
+
+    case 'ringModInputA':
+      return t('matrix.dest.ringModInputA', { index: (dest.index ?? 0) + 1 });
+
+    case 'ringModInputB':
+      return t('matrix.dest.ringModInputB', { index: (dest.index ?? 0) + 1 });
     
     default:
       return null;

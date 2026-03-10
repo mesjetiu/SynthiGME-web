@@ -163,6 +163,8 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `randomCV.worklet.js` | Generador de voltaje de control aleatorio (placa PC-21, D100-21 C1). Reloj interno 0.2–20 Hz con mapeo exponencial (`freq = 0.2 × 100^(norm)`), jitter temporal multiplicativo configurable (varianza 0–100%). 3 canales: V1 (DC aleatorio ±1), V2 (DC aleatorio ±1), Key (pulso 5ms, amplitud 1.0). **Dormancy**: el reloj sigue corriendo internamente durante dormancy (eventos fantasma actualizan V1/V2), la salida se silencia. Al despertar, la fase del ritmo se preserva y `_keySamplesRemaining` se resetea para evitar pulsos key espurios |
 | `keyboard.worklet.js` | Procesador de teclado polifónico del Synthi 100 (Panel 4). Gestiona lista de notas activas, cálculo de pitch (V/Oct), gate y velocity como señales de audio. 3 salidas: pitchSpread (0-10), gateLevel (-5..+5), velocityLevel (-5..+5). 2 modos de retrigger: **Kbd** (mode 0, staccato — solo retrigger al soltar todas y pulsar nueva) y **On** (mode 1, legato con retrigger al cambiar pitch). Mensajes: `noteOn [nota, vel]`, `noteOff nota`, `setDormant`, `stop`. Cada instancia upper/lower es independiente. **Dormancy**: soporta `setDormant` para early exit en `process()` |
 | `synthiFilter.worklet.js` | Filtro ladder CEM3320 de 4 polos (24 dB/oct) con integrador TPT (Topology-Preserving Transform, Zavalishin): `g = tan(π·fc/fs)`, `G = g/(1+g)`. Saturación `tanh` por etapa modela los pares diferenciales OTA. 2× oversampling para reducir delay de feedback. Modo LP directo de la salida de la 4ª etapa; modo HP por sustracción binomial `[1,−4,6,−4,1]` sobre las 4 etapas. AudioParams: `cutoffControl` (V/Oct), `response` (resonancia, autooscilación ≥ 5.5). Ruido blanco inaudible (0.001) como semilla de autooscilación. Curva de realimentación: 3.95 + t·1.05 (máx 5.0). **Dormancy**: soporta `setDormant` para early exit en `process()` |
+| `ringModulator.worklet.js` | Modulador de anillo de precisión del Synthi 100 (placa PC-05, D100-05 C1, chip 4214AP). Multiplicador activo sin transformador: `out = softClip(A) × softClip(B)`. Soft-clip `tanh` transparente bajo umbral ±0.8 (~8V p-p), satura por encima emulando op-amp. 2 entradas mono (Signal A, Signal B), 1 salida mono (producto). Breakthrough −64 dB. Sin AudioParams propios — level externo vía GainNode. Mensajes: `setDormant`, `stop`. **Dormancy**: soporta `setDormant` para early exit en `process()` |
+| `springReverb.worklet.js` | Reverberación de muelle del Synthi 100 (placa PC-16, D100-16 C1). DSP: `input → softClip(drive=1.5) → allpass1(35ms) → allpass2(40ms) → dampingLPF(4500Hz, 1-polo) → feedback(gain≈0.805, RT60=2.4s)`. Crossfader mix lineal: `out = (1−mix)·dry + mix·wet`. AudioParam `mixControl` (a-rate, −10..+10, MIX_CV_SCALE=5). Coeficiente allpass 0.65. Mensajes: `setMix`, `setDormant`, `stop`. **Dormancy**: soporta `setDormant` para early exit en `process()` |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -180,6 +182,8 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `randomCV.js` | `RandomCVModule` | Generador de voltaje de control aleatorio. Cadena: `AudioWorkletNode(random-cv, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (voltage1, voltage2, key). Niveles V1/V2 con curva LOG (base 100, pot 10K audio taper), nivel Key lineal bipolar (±5V). Lazy start al primer pin en Panel 6. Dormancy: rampea ganancias y envía `setDormant` al worklet. Filas Panel 6: 89 (Key), 90 (V1), 91 (V2) |
 | `keyboard.js` | `KeyboardModule` | Teclado polifónico del Synthi 100 (Panel 4). Cadena: `AudioWorkletNode(keyboard, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (pitchSpread, gateLevel, velocityLevel). Knobs: pitchSpread (0-10), velocityLevel (-5..+5), gateLevel (-5..+5). Selector retrigger (RotarySwitch): On (mode 1, legato retrigger) / Kbd (mode 0, staccato). Lazy start al primer `noteOn()`. 2 instancias: upper y lower. Filas Panel 6: 92-97 (upper: pitch 92, gate 93, vel 94; lower: pitch 95, gate 96, vel 97) |
 | `synthiFilter.js` | `SynthiFilterModule` | Filtro CEM3320 del Panel 1 (4 polos, 24 dB/oct). 8 instancias: 4 LP + 4 HP. Cadena: `inputGain(=1)` → `AudioWorkletNode(synthi-filter)` → `outputGain(=level)`. Knobs: frequency (0-10, centro 320 Hz), response (0-10, autooscilación ≥ 5.5), level (0-10, curva LOG base 100). Cutoff CV desde Panel 6 (LP cols 22-25, HP cols 26-29). Entradas/salidas audio en Panel 5 (LP in 15-18 / out 110-113, HP in 19-22 / out 114-117). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
+| `ringModulator.js` | `RingModulatorModule` | Modulador de anillo del Synthi 100 (placa PC-05, chip 4214AP). 3 instancias en Panel 1, fila inferior. Cadena: `inputGainA + inputGainB → AudioWorkletNode(ring-modulator, 2in/1out) → outputGain(=level)`. Knob Level (0-10, curva LOG base 100). Entradas A/B en Panel 5 (cols 3-8), salidas en filas 121-123. Sin conexiones en Panel 6. Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
+| `springReverb.js` | `SpringReverbModule` | Reverberación de muelle del Synthi 100 (placa PC-16). 1 instancia en Panel 1, fila 5. Cadena: `inputGain(=1) → AudioWorkletNode(spring-reverb) → outputGain(=level)`. Knobs: Mix (0-10, dry/wet, CV-controllable via AudioParam `mixControl`), Level (0-10, curva LOG base 100). Entrada/salida audio en Panel 5 (col 1 / fila 124), entrada CV de mix en Panel 6 (col 1). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
 
 **Patrón de módulo:**
 ```javascript
@@ -719,7 +723,7 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 
 | Archivo | Tipo | Contenido |
 |---------|------|-----------|
-| `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos (8 filtros CEM3320 implementados — 4 LP + 4 HP con 3 knobs cada uno: frequency, response, level — más 8 módulos placeholder: envelopes, ring modulators, reverb, echo) con 57 knobs |
+| `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos — 8 filtros CEM3320 (4 LP + 4 HP, 3 knobs: frequency, response, level), 3 Ring Modulators (1 knob: level), 1 Spring Reverb (2 knobs: mix, level), más 4 módulos placeholder (3 envelope shapers, 1 echo) — con 61 knobs |
 | `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
 | `panel4.blueprint.js` | Blueprint | Layout del Panel 4: 2 teclados (upper/lower) con 3 knobs cada uno (pitchSpread, velocityLevel, gateLevel), selector retrigger (On/Kbd), filas de matriz de control 92-97 |
@@ -3001,10 +3005,14 @@ tests/
 ├── mocks/
 │   └── audioContext.mock.js     # Mock de AudioContext y AudioWorklet para tests unitarios
 ├── core/
+│   ├── dcBlockerRemoval.test.js  # Tests de eliminación de DC blocker
+│   ├── dormancyFilters.test.js  # Tests de dormancy de filtros CEM3320
+│   ├── dormancyKeyboard.test.js # Tests de dormancy de teclados
+│   ├── dormancyManager.test.js  # Tests del sistema de dormancy
+│   ├── dormancyRandomCV.test.js # Tests de dormancy de random CV
 │   ├── engine.test.js           # Tests de AudioEngine con mocks
 │   ├── oscillatorState.test.js  # Tests de estado de osciladores
-│   ├── recordingEngine.test.js  # Tests de grabación multitrack
-│   └── dormancyManager.test.js  # Tests del sistema de dormancy
+│   └── recordingEngine.test.js  # Tests de grabación multitrack
 ├── modules/
 │   ├── joystick.test.js         # Tests del módulo joystick
 │   ├── keyboard.test.js         # Tests del módulo teclado (noteOn/Off, knobs, retrigger switch)
@@ -3013,13 +3021,21 @@ tests/
 │   ├── oscilloscope.test.js     # Tests del osciloscopio
 │   ├── outputChannel.test.js    # Tests del canal de salida
 │   ├── outputRouter.test.js     # Tests del router de salidas
-│   └── pulse.test.js            # Tests del oscilador pulse
+│   ├── pulse.test.js            # Tests del oscilador pulse
+│   ├── randomCV.test.js         # Tests del random CV (gain LOG, key bipolar, clamping)
+│   ├── ringModulator.test.js    # Tests del ring modulator (soft-clip, gain, dormancy)
+│   ├── springReverb.test.js     # Tests del spring reverb (mix, level, dormancy)
+│   └── synthiFilter.test.js     # Tests del filtro CEM3320 (LP/HP, cutoff, resonance)
 ├── configs/
+│   ├── filter.config.test.js        # Tests de config de filtros CEM3320
 │   ├── keyboard.config.test.js      # Tests de config de teclados (knobs, retrigger, filas matriz)
-│   ├── knobColors.test.js       # Tests de colores de centro de knobs
+│   ├── knobColors.test.js           # Tests de colores de centro de knobs
 │   ├── matrix.config.test.js        # Tests de configs de matrices (audio/control)
 │   ├── oscillator.config.test.js    # Tests de config de osciladores
-│   └── outputChannel.config.test.js # Tests de config de canales de salida
+│   ├── outputChannel.config.test.js # Tests de config de canales de salida
+│   ├── randomVoltage.config.test.js # Tests de config de random CV (knobs, rangos, coherencia)
+│   ├── reverberation.config.test.js # Tests de config de reverb (mix, level, DSP params)
+│   └── ringModulator.config.test.js # Tests de config de ring modulator (level, matrix rows)
 ├── state/
 │   ├── conversions.test.js      # Tests de conversiones knob ↔ valores
 │   ├── index.test.js            # Tests del índice de estado
@@ -3062,13 +3078,23 @@ tests/
 │   └── vernierKnob.test.js          # Tests del VernierKnob rasterizado
 ├── worklets/
 │   ├── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
-│   └── keyboard.worklet.test.js # Tests del worklet de teclado (noteOn/Off, retrigger modes, polifonía)
+│   ├── keyboard.worklet.test.js # Tests del worklet de teclado (noteOn/Off, retrigger modes, polifonía)
+│   ├── noiseGenerator.worklet.test.js # Tests del worklet de ruido (filtro IIR, colour position)
+│   ├── randomCV.worklet.test.js # Tests del worklet de random CV (frecuencia, jitter, 3 canales)
+│   ├── ringModulator.worklet.test.js # Tests del worklet de ring modulator (multiplicación, soft-clip)
+│   ├── springReverb.worklet.test.js # Tests del worklet de spring reverb (allpass, feedback, mix)
+│   ├── synthiFilter.worklet.test.js # Tests del worklet de filtro CEM3320 (TPT, LP/HP, resonancia)
+│   └── vcaProcessor.test.js     # Tests del worklet de VCA CEM3330
 ├── panelBlueprints/             # Tests de blueprints de paneles
-│   ├── panel1Blueprint.test.js      # Tests de Panel 1 blueprint (placeholder)
+│   ├── panel1Blueprint.test.js      # Tests de Panel 1 blueprint (filtros, ring mod, reverb)
 │   ├── panel2Blueprint.test.js      # Tests de Panel 2 blueprint (osciloscopio)
-│   ├── panel3Blueprint.test.js      # Tests de Panel 3 blueprint (osciladores)
+│   ├── panel3Blueprint.test.js      # Tests de Panel 3 blueprint (osciladores, noise, random CV)
 │   ├── panel5Blueprint.test.js      # Tests de Panel 5 blueprint (matriz audio)
+│   ├── panel5Filters.test.js        # Tests de entradas/salidas de filtros en Panel 5
 │   ├── panel6Blueprint.test.js      # Tests de Panel 6 blueprint (matriz control)
+│   ├── panel6Filters.test.js        # Tests de entradas CV de filtros en Panel 6
+│   ├── panel6Keyboard.test.js       # Tests de salidas CV de teclados en Panel 6
+│   ├── panel6RandomCV.test.js       # Tests de salidas CV de random CV en Panel 6
 │   └── panel7Blueprint.test.js      # Tests de Panel 7 blueprint (output channels)
 ├── midi/
 │   └── midiLearn.test.js             # Tests de MIDI Learn (parsing, mappings, rangos, anti-feedback)
@@ -3078,6 +3104,9 @@ tests/
 │   ├── oscMatrixSync.test.js        # Tests de sincronización de matrices (audio+control+PWM)
 │   ├── oscOscillatorSync.test.js    # Tests de sincronización de osciladores
 │   ├── oscKeyboardSync.test.js      # Tests de sincronización de teclados (upper/lower)
+│   ├── oscRandomCVSync.test.js      # Tests de sincronización de random CV
+│   ├── oscRingModSync.test.js       # Tests de sincronización de ring modulator
+│   ├── oscReverbSync.test.js        # Tests de sincronización de reverb
 │   └── oscServer.test.js            # Tests del servidor OSC
 ├── integration/
 │   └── knobOscillator.test.js       # Tests de integración knob-oscilador
@@ -3090,6 +3119,9 @@ tests/
     ├── objects.test.js          # Tests de utilidades de objetos
     ├── telemetry.test.js        # Tests del módulo de telemetría
     ├── telemetryEvents.test.js  # Tests de eventos instrumentados
+    ├── tooltipFilter.test.js    # Tests de tooltips de filtros
+    ├── tooltipKeyboard.test.js  # Tests de tooltips de teclados
+    ├── tooltipRandomCV.test.js  # Tests de tooltips de random CV
     └── voltageConstants.test.js # Tests del sistema de voltajes
 ```
 

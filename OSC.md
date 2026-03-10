@@ -654,22 +654,30 @@ electron/
 
 src/assets/js/
 └── osc/
-    ├── index.js                # Re-exportaciones del módulo OSC
-    ├── oscBridge.js            # API unificada para renderer
-    ├── oscAddressMap.js        # Mapeo de direcciones OSC a controles
-    ├── oscOscillatorSync.js    # Sincronización de osciladores (Panel 3)
+    ├── index.js                 # Re-exportaciones del módulo OSC
+    ├── oscBridge.js             # API unificada para renderer
+    ├── oscAddressMap.js         # Mapeo de direcciones OSC a controles
+    ├── oscOscillatorSync.js     # Sincronización de osciladores (Panel 3)
     ├── oscInputAmplifierSync.js # Sincronización de input amplifiers (Panel 2)
-    ├── oscOutputChannelSync.js # Sincronización de output channels (Panel 7)
+    ├── oscOutputChannelSync.js  # Sincronización de output channels (Panel 7)
     ├── oscNoiseGeneratorSync.js # Sincronización de noise generators (Panel 3)
-    ├── oscJoystickSync.js      # Sincronización de joysticks (Panel 7)
-    └── oscMatrixSync.js        # Sincronización de matrices audio/control + PWM
+    ├── oscJoystickSync.js       # Sincronización de joysticks (Panel 7)
+    ├── oscKeyboardSync.js       # Sincronización de teclados (Panel 4)
+    ├── oscRandomCVSync.js       # Sincronización de random CV generator (Panel 3)
+    ├── oscRingModSync.js        # Sincronización de ring modulators (Panel 1)
+    ├── oscReverbSync.js         # Sincronización de spring reverb (Panel 1)
+    └── oscMatrixSync.js         # Sincronización de matrices audio/control + PWM
 
 tests/
 └── osc/
     ├── oscAddressMap.test.js
     ├── oscControlSync.test.js
+    ├── oscKeyboardSync.test.js
     ├── oscMatrixSync.test.js
     ├── oscOscillatorSync.test.js
+    ├── oscRandomCVSync.test.js
+    ├── oscReverbSync.test.js
+    ├── oscRingModSync.test.js
     └── oscServer.test.js
 ```
 

@@ -71,8 +71,8 @@ describe('Panel 5 Blueprint - Estructura básica', () => {
 
 describe('Panel 5 Blueprint - Sources', () => {
 
-  it('tiene 45 fuentes en total (8 inputAmp + 8 outputBus + 2 noise + 18 osc + 8 filtros + 1 reverb)', () => {
-    assert.strictEqual(blueprint.sources.length, 45);
+  it('tiene 48 fuentes en total (8 inputAmp + 8 outputBus + 2 noise + 18 osc + 8 filtros + 3 ringMod + 1 reverb)', () => {
+    assert.strictEqual(blueprint.sources.length, 48);
   });
 
   it('tiene 8 inputAmp', () => {
@@ -143,8 +143,8 @@ describe('Panel 5 Blueprint - Sources', () => {
 
 describe('Panel 5 Blueprint - Destinations', () => {
 
-  it('tiene 37 destinos en total', () => {
-    assert.strictEqual(blueprint.destinations.length, 37);
+  it('tiene 43 destinos en total', () => {
+    assert.strictEqual(blueprint.destinations.length, 43);
   });
 
   it('tiene 12 oscSync', () => {
@@ -253,7 +253,8 @@ describe('Panel 5 Blueprint - Coherencia', () => {
 
   it('todos los dest kinds son válidos', () => {
     const validKinds = new Set(['oscSync', 'outputBus', 'oscilloscope', 'oscPWM',
-      'oscFreqCV', 'outputLevelCV', 'filterLPInput', 'filterHPInput', 'reverbInput']);
+      'oscFreqCV', 'outputLevelCV', 'filterLPInput', 'filterHPInput', 'reverbInput',
+      'ringModInputA', 'ringModInputB']);
     for (const d of blueprint.destinations) {
       assert.ok(validKinds.has(d.dest.kind), `Kind inválido: ${d.dest.kind}`);
     }
@@ -261,7 +262,8 @@ describe('Panel 5 Blueprint - Coherencia', () => {
 
   it('todos los source kinds son válidos', () => {
     const validKinds = new Set(['inputAmp', 'outputBus', 'noiseGen', 'panel3Osc',
-      'joystick', 'randomVoltage', 'envelope', 'filterLP', 'filterHP', 'reverberation']);
+      'joystick', 'randomVoltage', 'envelope', 'filterLP', 'filterHP', 'reverberation',
+      'ringModulator']);
     for (const s of blueprint.sources) {
       assert.ok(validKinds.has(s.source.kind), `Kind inválido: ${s.source.kind}`);
     }

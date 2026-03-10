@@ -173,6 +173,14 @@ export default {
     { rowSynth: 117, source: { kind: 'filterHP', index: 3 } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 RING MODULATORS (filas 121-123)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3 moduladores de anillo (PC-05, 4214AP). Salida post-level.
+    { rowSynth: 121, source: { kind: 'ringModulator', index: 0 } },
+    { rowSynth: 122, source: { kind: 'ringModulator', index: 1 } },
+    { rowSynth: 123, source: { kind: 'ringModulator', index: 2 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 REVERBERATION (fila 124)
     // ─────────────────────────────────────────────────────────────────────────
     { rowSynth: 124, source: { kind: 'reverberation', index: 0 } }
@@ -190,6 +198,18 @@ export default {
     // PANEL 1 REVERBERATION INPUT (columna 1)
     // ─────────────────────────────────────────────────────────────────────────
     { colSynth: 1, dest: { kind: 'reverbInput', index: 0 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 RING MODULATOR INPUTS (columnas 3-8)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cada RM tiene 2 entradas (A y B) al multiplicador.
+    // Placa PC-05, chip 4214AP, entrada máxima 8V p-p sin distorsión.
+    { colSynth: 3, dest: { kind: 'ringModInputA', index: 0 } },
+    { colSynth: 4, dest: { kind: 'ringModInputB', index: 0 } },
+    { colSynth: 5, dest: { kind: 'ringModInputA', index: 1 } },
+    { colSynth: 6, dest: { kind: 'ringModInputB', index: 1 } },
+    { colSynth: 7, dest: { kind: 'ringModInputA', index: 2 } },
+    { colSynth: 8, dest: { kind: 'ringModInputB', index: 2 } },
 
     // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 FILTER INPUTS (columnas 15-22)

@@ -60,7 +60,7 @@ export default {
 
   grid: {
     rows: 63,
-    cols: 67,
+    cols: 69,
     coordSystem: {
       rowBase: 67,
       colBase: 1
@@ -82,7 +82,7 @@ export default {
     // Pines que no existen / huecos del panel (NO cuentan en numeración Synth).
     // Para evitar ambigüedades, aquí se definen en índices físicos 0-based
     // (los que usa internamente LargeMatrix para deshabilitar botones).
-    hiddenCols0: [33, 65, 66],
+    hiddenCols0: [33, 67, 68],
     hiddenRows0: [30, 31, 32, 62]
   },
 
@@ -293,5 +293,12 @@ export default {
     { colSynth: 62, dest: { kind: 'oscPWM', oscIndex: 3 } },
     { colSynth: 63, dest: { kind: 'oscPWM', oscIndex: 4 } },
     { colSynth: 64, dest: { kind: 'oscPWM', oscIndex: 5 } }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // COLUMNAS RESERVADAS (65-66) - Vacías, para uso futuro configurable
+    // ─────────────────────────────────────────────────────────────────────────
+    // Estas columnas no están conectadas en el Synthi 100 original.
+    // Se reservan para que en el futuro el usuario pueda asignarlas
+    // a destinos personalizados.
   ]
 };

@@ -160,6 +160,8 @@ export class LargeMatrix {
     container.style.top = `${topPercent}%`;
     container.style.width = `${widthPercent}%`;
     container.style.height = `${heightPercent}%`;
+    container.style.maxWidth = 'none';
+    container.style.maxHeight = 'none';
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.justifyContent = 'center';

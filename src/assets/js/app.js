@@ -6548,6 +6548,8 @@ class App {
     this._panel3Routing.channelMap = mappings.channelMap;
     this._panel3Routing.sourceMap = mappings.sourceMap;
     this._panel3Routing.hiddenCols = mappings.hiddenCols;
+    this._panel3Routing.rows = mappings.rows;
+    this._panel3Routing.cols = mappings.cols;
 
     if (this.largeMatrixAudio && this.largeMatrixAudio.setToggleHandler) {
       this.largeMatrixAudio.setToggleHandler((rowIndex, colIndex, nextActive, btn, pinColor) =>
@@ -7033,6 +7035,8 @@ class App {
     this._panel6Routing.channelMap = mappings.channelMap;
     this._panel6Routing.sourceMap = mappings.sourceMap;
     this._panel6Routing.hiddenCols = mappings.hiddenCols;
+    this._panel6Routing.rows = mappings.rows;
+    this._panel6Routing.cols = mappings.cols;
 
     if (this.largeMatrixControl && this.largeMatrixControl.setToggleHandler) {
       this.largeMatrixControl.setToggleHandler((rowIndex, colIndex, nextActive, btn, pinColor) =>
@@ -7605,8 +7609,8 @@ class App {
     };
 
     this.largeMatrixAudio = new LargeMatrix(this.panel5MatrixEl, {
-      rows: 63,
-      cols: 67,
+      rows: panel5AudioBlueprint.grid.rows,
+      cols: panel5AudioBlueprint.grid.cols,
       frame: LARGE_MATRIX_FRAME_PANEL5,
       hiddenCols: HIDDEN_COLS_PANEL5,
       hiddenRows: HIDDEN_ROWS_PANEL5,
@@ -7618,8 +7622,8 @@ class App {
     });
 
     this.largeMatrixControl = new LargeMatrix(this.panel6MatrixEl, {
-      rows: 63,
-      cols: 67,
+      rows: panel6ControlBlueprint.grid.rows,
+      cols: panel6ControlBlueprint.grid.cols,
       frame: LARGE_MATRIX_FRAME_PANEL6,
       hiddenCols: HIDDEN_COLS_PANEL6,
       hiddenRows: HIDDEN_ROWS_PANEL6,

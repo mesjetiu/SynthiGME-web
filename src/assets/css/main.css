@@ -1626,8 +1626,9 @@ h1 {
 #panel-6 .matrix-container {
   margin-top: 0;
   padding-bottom: 0;
-  max-width: 100%;
-  max-height: 100%;
+  /* max-width/max-height eliminados: el frame system de LargeMatrix
+     controla el tamaño del contenedor via inline styles.
+     Con max-width:100%, widthPercent>100% quedaba clampeado. */
   background: transparent;
 }
 table.matrix {

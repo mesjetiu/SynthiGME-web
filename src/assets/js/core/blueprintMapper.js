@@ -159,5 +159,5 @@ export function compilePanelBlueprintMappings(blueprint) {
     }
   }
 
-  return { rowMap, colMap, destMap, channelMap, sourceMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase };
+  return { rowMap, colMap, destMap, channelMap, sourceMap, hiddenRows: hiddenRows0, hiddenCols: hiddenCols0, rowBase, colBase, rows, cols };
 }

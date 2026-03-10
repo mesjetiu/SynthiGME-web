@@ -648,9 +648,9 @@ class MatrixOSCSync {
     const hiddenRowSet = new Set(hiddenRows);
     const hiddenColSet = new Set(hiddenCols);
 
-    // Asumimos 63 filas y 67 columnas (estándar del Synthi 100)
-    const rows = 63;
-    const cols = 67;
+    // Usar dimensiones del blueprint (pueden variar entre paneles)
+    const rows = routing.rows ?? 63;
+    const cols = routing.cols ?? 67;
 
     const visibleRowIndices = [];
     for (let r = 0; r < rows; r++) {

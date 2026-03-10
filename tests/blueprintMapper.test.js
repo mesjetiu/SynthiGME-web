@@ -293,7 +293,7 @@ describe('compilePanelBlueprintMappings – Panel 5', () => {
   // - Respuesta lineal del duty cycle
   // - Solo los 6 primeros osciladores tienen entrada PWM en la matriz de audio
   //
-  // Mapeo (colBase=1, hiddenCols0=[33,65,66]):
+  // Mapeo (colBase=1, hiddenCols0=[33,67,68]):
   //   colSynth 59 → ordinal 58 → col física 59 → oscIndex 0 (Osc 1)
   //   colSynth 64 → ordinal 63 → col física 64 → oscIndex 5 (Osc 6)
 

@@ -176,7 +176,7 @@ export default {
 
     // Tipos de knob para Noise Generator
     knobTypes: [
-      'bipolar', // 0: Colour (-5 a +5)
+      'normal',  // 0: Colour (0 a 10)
       'normal'   // 1: Level
     ],
   },
@@ -208,10 +208,10 @@ export default {
     // Tipos de knob para Random Control Voltage Generator
     knobTypes: [
       'bipolar', // 0: Mean (-5 a +5)
-      'normal',  // 1: Variance
-      'bipolar', // 2: Voltage 1
-      'bipolar', // 3: Voltage 2
-      'normal'   // 4: Key
+      'normal',  // 1: Variance (0 a 10)
+      'normal',  // 2: Voltage 1 (0 a 10)
+      'normal',  // 3: Voltage 2 (0 a 10)
+      'bipolar'  // 4: Key (-5 a +5)
     ],
   },
   

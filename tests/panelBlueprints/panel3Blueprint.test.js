@@ -217,6 +217,19 @@ describe('Panel 3 Blueprint - noiseUI', () => {
     assert.strictEqual(typeof ui.knobRowOffsetX, 'number');
     assert.strictEqual(typeof ui.knobRowOffsetY, 'number');
   });
+
+  it('knobTypes es array de 2 con tipos correctos', () => {
+    assert.ok(Array.isArray(ui.knobTypes));
+    assert.strictEqual(ui.knobTypes.length, 2);
+    // Colour es unipolar (0-10), Level también
+    assert.strictEqual(ui.knobTypes[0], 'normal', 'Colour debe ser normal (0-10)');
+    assert.strictEqual(ui.knobTypes[1], 'normal', 'Level debe ser normal (0-10)');
+  });
+
+  it('knobColors es array de 2', () => {
+    assert.ok(Array.isArray(ui.knobColors));
+    assert.strictEqual(ui.knobColors.length, 2);
+  });
 });
 
 describe('Panel 3 Blueprint - randomCVUI', () => {
@@ -240,6 +253,22 @@ describe('Panel 3 Blueprint - randomCVUI', () => {
   it('tiene knobRowOffsetX y knobRowOffsetY', () => {
     assert.strictEqual(typeof ui.knobRowOffsetX, 'number');
     assert.strictEqual(typeof ui.knobRowOffsetY, 'number');
+  });
+
+  it('knobTypes es array de 5 con tipos correctos', () => {
+    assert.ok(Array.isArray(ui.knobTypes));
+    assert.strictEqual(ui.knobTypes.length, 5);
+    // Mean y Key son bipolares (-5 a +5), el resto unipolar (0-10)
+    assert.strictEqual(ui.knobTypes[0], 'bipolar', 'Mean debe ser bipolar (-5 a +5)');
+    assert.strictEqual(ui.knobTypes[1], 'normal', 'Variance debe ser normal (0-10)');
+    assert.strictEqual(ui.knobTypes[2], 'normal', 'Voltage 1 debe ser normal (0-10)');
+    assert.strictEqual(ui.knobTypes[3], 'normal', 'Voltage 2 debe ser normal (0-10)');
+    assert.strictEqual(ui.knobTypes[4], 'bipolar', 'Key debe ser bipolar (-5 a +5)');
+  });
+
+  it('knobColors es array de 5', () => {
+    assert.ok(Array.isArray(ui.knobColors));
+    assert.strictEqual(ui.knobColors.length, 5);
   });
 });
 

@@ -186,6 +186,11 @@ describe('RandomVoltage Config — Knobs', () => {
     it('curva lineal', () => {
       assert.strictEqual(knobs.mean.curve, 'linear');
     });
+
+    it('escala de display bipolar (-5 a +5)', () => {
+      assert.strictEqual(knobs.mean.scaleMin, -5);
+      assert.strictEqual(knobs.mean.scaleMax, 5);
+    });
   });
   
   describe('variance (varianza temporal, -5 a +5)', () => {
@@ -233,6 +238,11 @@ describe('RandomVoltage Config — Knobs', () => {
     
     it('valor inicial = 0 (sin pulso)', () => {
       assert.strictEqual(knobs.key.initial, 0);
+    });
+
+    it('escala de display bipolar (-5 a +5)', () => {
+      assert.strictEqual(knobs.key.scaleMin, -5);
+      assert.strictEqual(knobs.key.scaleMax, 5);
     });
   });
   

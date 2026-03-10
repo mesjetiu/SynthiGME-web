@@ -282,6 +282,17 @@ export class DormancyManager {
       );
       this._setModuleDormant(`filter-hp-${index + 1}`, !hasHPUsage);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 REVERBERATION
+    // ─────────────────────────────────────────────────────────────────────────
+    const hasReverbUsage = panel5Connections.some(c =>
+      (c.source?.kind === 'reverberation' && c.source?.index === 0)
+      || (c.dest?.kind === 'reverbInput' && c.dest?.index === 0)
+    ) || panel6Connections.some(c =>
+      c.dest?.kind === 'reverbMixCV' && c.dest?.index === 0
+    );
+    this._setModuleDormant('spring-reverb', !hasReverbUsage);
     
     // ─────────────────────────────────────────────────────────────────────────────    // INPUT AMPLIFIERS - 8 canales
     // ─────────────────────────────────────────────────────────────────────────
@@ -489,6 +500,11 @@ export class DormancyManager {
     if (moduleId.startsWith('filter-hp-')) {
       const index = moduleId.split('-').pop();
       return this.app._panel1FilterModules?.[`fhp${index}`] ?? null;
+    }
+
+    // Panel 1 reverberation
+    if (moduleId === 'spring-reverb') {
+      return this.app._panel1ReverbModule ?? null;
     }
     
     // Oscilloscope

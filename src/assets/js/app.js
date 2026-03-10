@@ -20,6 +20,7 @@ import { KeyboardModule } from './modules/keyboard.js';
 import { JoystickModule } from './modules/joystick.js';
 import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { SynthiFilterModule } from './modules/synthiFilter.js';
+import { SpringReverbModule } from './modules/springReverb.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
@@ -27,6 +28,7 @@ import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
 import { Panel1FilterUI } from './ui/panel1Filter.js';
+import { Panel1ReverbUI } from './ui/panel1Reverb.js';
 import { KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK } from './configs/knobColors.js';
 
 /** Mapa de nombre de color (string) → valor hex importado. Usado por todos los builders de panel. */
@@ -60,7 +62,8 @@ import {
   outputChannelConfig,
   audioMatrixConfig,
   controlMatrixConfig,
-  joystickConfig
+  joystickConfig,
+  reverberationConfig
 } from './configs/index.js';
 
 // Osciloscopio
@@ -115,7 +118,7 @@ import { initErrorHandler } from './utils/errorHandler.js';
 import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as telemetrySetEnabled } from './utils/telemetry.js';
 import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -126,6 +129,7 @@ import { randomCVOSCSync } from './osc/oscRandomCVSync.js';
 import { keyboardOSCSync } from './osc/oscKeyboardSync.js';
 import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
+import { reverbOSCSync } from './osc/oscReverbSync.js';
 import { midiAccess } from './midi/midiAccess.js';
 import { midiLearnManager } from './midi/midiLearnManager.js';
 import { initMIDILearnOverlay } from './midi/midiLearnOverlay.js';
@@ -238,6 +242,8 @@ class App {
     this._randomVoltageUIs = {};
     this._panel1FilterUIs = {};
     this._panel1FilterModules = {};
+    this._panel1ReverbUI = null;
+    this._panel1ReverbModule = null;
     this._inputAmplifierUIs = {};
     this._outputFadersModule = null;
     this._keyboardModules = {};    // { upper: KeyboardModule, lower: KeyboardModule }
@@ -266,6 +272,7 @@ class App {
     randomCVOSCSync.init(this);
     keyboardOSCSync.init(this);
     joystickOSCSync.init(this);
+    reverbOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
 
@@ -1802,6 +1809,11 @@ class App {
       }
     }
 
+    // Serializar Reverberation
+    if (this._panel1ReverbUI) {
+      state.modules.reverberation = this._panel1ReverbUI.serialize();
+    }
+
     // Serializar Keyboards
     if (this._keyboardModules) {
       state.modules.keyboards = {};
@@ -1932,6 +1944,11 @@ class App {
           ui.deserialize(data);
         }
       }
+    }
+
+    // Restaurar Reverberation
+    if (modules.reverberation && this._panel1ReverbUI) {
+      this._panel1ReverbUI.deserialize(modules.reverberation);
     }
 
     // Restaurar Keyboards
@@ -2081,6 +2098,14 @@ class App {
           ui.deserialize(defaults.filters);
         }
       }
+    }
+
+    // Resetear Reverberation
+    if (this._panel1ReverbUI) {
+      this._panel1ReverbUI.deserialize({
+        mix: reverberationConfig.knobs.mix.initial,
+        level: reverberationConfig.knobs.level.initial
+      });
     }
 
     // Resetear Keyboards
@@ -2352,6 +2377,10 @@ class App {
     // Panel 1 filters
     if (this._panel1FilterUIs[moduleId]) {
       return { type: 'filter', ui: this._panel1FilterUIs[moduleId] };
+    }
+    // Panel 1 reverberation
+    if (moduleId === 'reverberation1-module' && this._panel1ReverbUI) {
+      return { type: 'reverberation', ui: this._panel1ReverbUI };
     }
     // Oscilloscope
     if (moduleId === 'oscilloscope-module' && this._panel2Data) {
@@ -3182,39 +3211,71 @@ class App {
       bottomFrames[rmId] = frame;
     }
 
-    // Reverberation 1 (2 knobs: Mix, Level)
-    const reverbConfig = bottomLayout.reverberation;
-    const reverbFrame = new ModuleFrame({
-      id: 'reverberation1-module',
-      title: null,
-      className: 'panel1-placeholder panel1-reverb'
-    });
-    const reverbEl = reverbFrame.createElement();
-    const reverbUI = blueprint.modules?.reverberation1?.ui || {};
-    const reverbWidthCss = reverbConfig.width
-      ? `flex: 0 0 auto; width: ${reverbConfig.width}px; height: 100%;`
-      : `flex: 1 1 0; min-width: 0; height: 100%;`;
-    reverbEl.style.cssText = `${reverbWidthCss} margin-left: ${toNum(reverbConfig.gap, 3)}px;`;
+    // Reverberation 1 (2 knobs: Mix, Level) — módulo funcional
+    const reverbBlueprintConfig = bottomLayout.reverberation;
+    const reverbModuleUI = blueprint.modules?.reverberation1?.ui || {};
 
-    const reverbKnobs = document.createElement('div');
-    reverbKnobs.className = 'panel1-bottom-knobs';
-    reverbKnobs.style.gap = `${toNum(reverbUI.knobGap, toNum(reverbConfig.knobGap, 6))}px`;
-    applyOffset(reverbKnobs, reverbUI.knobsOffset, reverbConfig.knobsOffset || { x: 0, y: 0 });
-    reverbConfig.knobs.forEach((knobName, idx) => {
-      const knob = createPanel1Knob({
-        knobSize: reverbUI.knobSize ?? reverbConfig.knobSize,
-        knobInnerPct: reverbUI.knobInnerPct ?? reverbConfig.knobInnerPct,
-        knobColor: reverbUI.knobColors?.[idx] ?? reverbConfig.knobColors?.[idx],
-        knobType: reverbUI.knobTypes?.[idx] ?? reverbConfig.knobTypes?.[idx]
-      });
-      reverbKnobs.appendChild(knob.wrapper);
+    const reverbModule = new SpringReverbModule(this.engine, 'reverb-1', {
+      index: 1,
+      sourceKind: reverberationConfig.sourceKind,
+      audio: reverberationConfig.audio,
+      ramps: reverberationConfig.ramps,
+      initialValues: {
+        mix: reverberationConfig.knobs.mix.initial,
+        level: reverberationConfig.knobs.level.initial
+      }
     });
-    reverbFrame.appendToContent(reverbKnobs);
-    applyOffset(reverbEl, reverbUI.offset, reverbConfig.moduleOffset || { x: 0, y: 0 });
+    this._panel1ReverbModule = reverbModule;
+
+    const reverbMixTooltip = getReverbMixTooltipInfo();
+    const reverbLevelTooltip = getReverbLevelTooltipInfo(
+      reverberationConfig.audio.maxInputVpp,
+      reverberationConfig.audio.levelLogBase
+    );
+
+    const reverbUI = new Panel1ReverbUI({
+      id: 'reverberation1-module',
+      knobGap: reverbModuleUI.knobGap ?? reverbBlueprintConfig.knobGap,
+      knobSize: reverbModuleUI.knobSize ?? reverbBlueprintConfig.knobSize,
+      knobInnerPct: reverbModuleUI.knobInnerPct ?? reverbBlueprintConfig.knobInnerPct,
+      knobColors: reverbModuleUI.knobColors ?? reverbBlueprintConfig.knobColors,
+      knobTypes: reverbModuleUI.knobTypes ?? reverbBlueprintConfig.knobTypes,
+      knobsOffset: reverbModuleUI.knobsOffset ?? reverbBlueprintConfig.knobsOffset,
+      offset: reverbModuleUI.offset ?? reverbBlueprintConfig.moduleOffset,
+      knobOptions: {
+        mix: {
+          ...reverberationConfig.knobs.mix,
+          onChange: (value) => {
+            reverbModule.setMix(value);
+            if (!reverbOSCSync.shouldIgnoreOSC()) {
+              reverbOSCSync.sendChange('mix', value);
+            }
+          },
+          getTooltipInfo: reverbMixTooltip
+        },
+        level: {
+          ...reverberationConfig.knobs.level,
+          onChange: (value) => {
+            reverbModule.setLevel(value);
+            if (!reverbOSCSync.shouldIgnoreOSC()) {
+              reverbOSCSync.sendChange('level', value);
+            }
+          },
+          getTooltipInfo: reverbLevelTooltip
+        }
+      }
+    });
+    this._panel1ReverbUI = reverbUI;
+
+    const reverbEl = reverbUI.createElement();
+    const reverbWidthCss = reverbBlueprintConfig.width
+      ? `flex: 0 0 auto; width: ${reverbBlueprintConfig.width}px; height: 100%;`
+      : `flex: 1 1 0; min-width: 0; height: 100%;`;
+    reverbEl.style.cssText = `${reverbWidthCss} margin-left: ${toNum(reverbBlueprintConfig.gap, 3)}px;`;
 
     applyModuleVisibility(reverbEl, blueprint, 'reverberation1');
     bottomRow.appendChild(reverbEl);
-    bottomFrames.reverberation1 = reverbFrame;
+    bottomFrames.reverberation1 = reverbUI.frame;
 
     // Echo A.D.L. (4 knobs: Delay, Mix, Feedback, Level)
     const echoConfig = bottomLayout.echo;
@@ -6552,6 +6613,12 @@ class App {
           : `fhp${(source.index ?? 0) + 1}`;
         const filterModule = this._panel1FilterModules?.[filterId];
         outNode = filterModule?.getOutputNode?.() ?? null;
+      } else if (source.kind === 'reverberation') {
+        const reverbModule = this._panel1ReverbModule;
+        if (reverbModule && !reverbModule.isStarted) {
+          reverbModule.start();
+        }
+        outNode = reverbModule?.getOutputNode?.() ?? null;
       }
       
       if (!outNode) {
@@ -6695,6 +6762,12 @@ class App {
           : `fhp${(dest.index ?? 0) + 1}`;
         const filterModule = this._panel1FilterModules?.[filterId];
         destNode = filterModule?.getInputNode?.() ?? null;
+      } else if (dest.kind === 'reverbInput') {
+        const reverbModule = this._panel1ReverbModule;
+        if (reverbModule && !reverbModule.isStarted) {
+          reverbModule.start();
+        }
+        destNode = reverbModule?.getInputNode?.() ?? null;
       }
       
       if (!destNode) {
@@ -7271,6 +7344,12 @@ class App {
           : `fhp${(dest.index ?? 0) + 1}`;
         const filterModule = this._panel1FilterModules?.[filterId];
         destNode = filterModule?.getCutoffCVParam?.() ?? null;
+      } else if (dest.kind === 'reverbMixCV') {
+        const reverbModule = this._panel1ReverbModule;
+        if (reverbModule && !reverbModule.isStarted) {
+          reverbModule.start();
+        }
+        destNode = reverbModule?.getMixCVParam?.() ?? null;
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud

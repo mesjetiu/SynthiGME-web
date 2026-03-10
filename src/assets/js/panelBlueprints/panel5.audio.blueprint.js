@@ -170,7 +170,12 @@ export default {
     { rowSynth: 114, source: { kind: 'filterHP', index: 0 } },
     { rowSynth: 115, source: { kind: 'filterHP', index: 1 } },
     { rowSynth: 116, source: { kind: 'filterHP', index: 2 } },
-    { rowSynth: 117, source: { kind: 'filterHP', index: 3 } }
+    { rowSynth: 117, source: { kind: 'filterHP', index: 3 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 REVERBERATION (fila 124)
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 124, source: { kind: 'reverberation', index: 0 } }
   ],
 
   // Destinos (salidas del router): columna -> destino
@@ -181,6 +186,11 @@ export default {
   // Los huecos (hiddenCols0) tienen número pero están deshabilitados en la UI.
   //
   destinations: [
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 REVERBERATION INPUT (columna 1)
+    // ─────────────────────────────────────────────────────────────────────────
+    { colSynth: 1, dest: { kind: 'reverbInput', index: 0 } },
+
     // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 FILTER INPUTS (columnas 15-22)
     // ─────────────────────────────────────────────────────────────────────────

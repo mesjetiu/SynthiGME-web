@@ -1823,7 +1823,8 @@ export class AudioEngine {
           './assets/js/worklets/outputFilter.worklet.js',
           './assets/js/worklets/dcBlocker.worklet.js',
           './assets/js/worklets/randomCV.worklet.js',
-          './assets/js/worklets/keyboard.worklet.js'
+          './assets/js/worklets/keyboard.worklet.js',
+          './assets/js/worklets/springReverb.worklet.js'
         ];
         
         await Promise.all(

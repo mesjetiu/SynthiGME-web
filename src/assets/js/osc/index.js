@@ -59,3 +59,6 @@ export { matrixOSCSync } from './oscMatrixSync.js';
 
 // Re-exportar oscBridge como default para uso simplificado
 export { default } from './oscBridge.js';
+
+// Sincronización del módulo de reverberación
+export { reverbOSCSync } from './oscReverbSync.js';

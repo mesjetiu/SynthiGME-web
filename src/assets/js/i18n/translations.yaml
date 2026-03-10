@@ -4830,6 +4830,33 @@ matrix.dest.reverbMixCV:
   pt: "Reverb Mix CV"
   cs: "Reverb Mix CV"
 
+matrix.source.ringModulator:
+  en: "Ring Mod {index}"
+  es: "Ring Mod {index}"
+  fr: "Ring Mod {index}"
+  de: "Ring Mod {index}"
+  it: "Ring Mod {index}"
+  pt: "Ring Mod {index}"
+  cs: "Ring Mod {index}"
+
+matrix.dest.ringModInputA:
+  en: "Ring Mod {index} In A"
+  es: "Ring Mod {index} In A"
+  fr: "Ring Mod {index} In A"
+  de: "Ring Mod {index} In A"
+  it: "Ring Mod {index} In A"
+  pt: "Ring Mod {index} In A"
+  cs: "Ring Mod {index} In A"
+
+matrix.dest.ringModInputB:
+  en: "Ring Mod {index} In B"
+  es: "Ring Mod {index} In B"
+  fr: "Ring Mod {index} In B"
+  de: "Ring Mod {index} In B"
+  it: "Ring Mod {index} In B"
+  pt: "Ring Mod {index} In B"
+  cs: "Ring Mod {index} In B"
+
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"

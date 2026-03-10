@@ -510,17 +510,20 @@ export class LargeMatrix {
     this._layoutRaf = requestAnimationFrame(() => {
       this._layoutRaf = null;
 
-      const containerRect = container.getBoundingClientRect();
-
-      const availableWidth = containerRect.width;
-      const availableHeight = containerRect.height;
+      // offsetWidth/Height son inmunes a CSS transforms (canvas zoom,
+      // PiP scale…). getBoundingClientRect() incluye los transforms de
+      // padres, lo que contamina _baseTableSize si el zoom del canvas
+      // cambia entre la primera medición y una posterior (fullscreen, PiP).
+      const availableWidth = container.offsetWidth;
+      const availableHeight = container.offsetHeight;
       let baseWidth = this._baseTableSize?.width || 0;
       let baseHeight = this._baseTableSize?.height || 0;
 
       if (!baseWidth || !baseHeight) {
-        const tableRect = table.getBoundingClientRect();
-        baseWidth = tableRect.width;
-        baseHeight = tableRect.height;
+        // offsetWidth no incluye el propio transform:scale() de la tabla,
+        // así que siempre refleja el tamaño natural del layout.
+        baseWidth = table.offsetWidth;
+        baseHeight = table.offsetHeight;
         if (baseWidth && baseHeight) {
           this._baseTableSize = { width: baseWidth, height: baseHeight };
         }

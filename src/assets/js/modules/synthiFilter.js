@@ -27,8 +27,6 @@ export class SynthiFilterModule extends Module {
       levelLogBase: options.audio?.levelLogBase ?? 100,
       selfOscillationThresholdDial: options.audio?.selfOscillationThresholdDial ?? 5.5,
       inputDriveBoost: options.audio?.inputDriveBoost ?? 1.4,
-      hpDirtyEvenHarmonics: options.audio?.hpDirtyEvenHarmonics ?? 0.12,
-      hpDirtyDrive: options.audio?.hpDirtyDrive ?? 1.55,
       lpDrive: options.audio?.lpDrive ?? 1.15
     };
     this.ramps = {
@@ -92,8 +90,6 @@ export class SynthiFilterModule extends Module {
         voltsPerOctave: this.audioConfig.voltsPerOctave,
         selfOscillationThresholdDial: this.audioConfig.selfOscillationThresholdDial,
         inputDriveBoost: this.audioConfig.inputDriveBoost,
-        hpDirtyEvenHarmonics: this.audioConfig.hpDirtyEvenHarmonics,
-        hpDirtyDrive: this.audioConfig.hpDirtyDrive,
         lpDrive: this.audioConfig.lpDrive
       }
     });

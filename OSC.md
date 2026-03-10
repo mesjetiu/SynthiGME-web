@@ -352,6 +352,8 @@ Módulo único (sin índice).
 
 ### 12. Filtros (`/filter/{1-3}/...`)
 
+> **Nota:** El mapa OSC define 3 filtros genéricos como placeholder del diseño original del Synthi 100. La implementación actual tiene 8 filtros CEM3320 en el Panel 1 (4 LP + 4 HP), pero la sincronización OSC de estos módulos aún no está implementada.
+
 ```
 /filter/{n}/frequency   # 0 - 10
 /filter/{n}/response    # 0 - 10

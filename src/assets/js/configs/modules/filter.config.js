@@ -52,8 +52,6 @@ export default {
     maxSelfOscillationVoltsPP: 5,
     levelLogBase: 100,
     inputDriveBoost: 1.4,
-    hpDirtyEvenHarmonics: 0.12,
-    hpDirtyDrive: 1.55,
     lpDrive: 1.15
   },
 

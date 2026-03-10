@@ -162,6 +162,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `cvSoftClip.worklet.js` | Saturación polinómica suave para limitar CV de frecuencia. Usa fórmula pura `y = x - x³·k` (sin condicionales) donde k es coeficiente configurable (rango 0.0001–1.0, por defecto 0.333). Se aplica después del thermal slew para recibir señal pre-suavizada. **Configuración**: coeficiente en `oscillator.config.js` → `softClip.coefficient`. **Limitación superada**: Web Audio API requiere aritmética pura en AudioWorklet para propagación a AudioParam |
 | `randomCV.worklet.js` | Generador de voltaje de control aleatorio (placa PC-21, D100-21 C1). Reloj interno 0.2–20 Hz con mapeo exponencial (`freq = 0.2 × 100^(norm)`), jitter temporal multiplicativo configurable (varianza 0–100%). 3 canales: V1 (DC aleatorio ±1), V2 (DC aleatorio ±1), Key (pulso 5ms, amplitud 1.0). **Dormancy**: el reloj sigue corriendo internamente durante dormancy (eventos fantasma actualizan V1/V2), la salida se silencia. Al despertar, la fase del ritmo se preserva y `_keySamplesRemaining` se resetea para evitar pulsos key espurios |
 | `keyboard.worklet.js` | Procesador de teclado polifónico del Synthi 100 (Panel 4). Gestiona lista de notas activas, cálculo de pitch (V/Oct), gate y velocity como señales de audio. 3 salidas: pitchSpread (0-10), gateLevel (-5..+5), velocityLevel (-5..+5). 2 modos de retrigger: **Kbd** (mode 0, staccato — solo retrigger al soltar todas y pulsar nueva) y **On** (mode 1, legato con retrigger al cambiar pitch). Mensajes: `noteOn [nota, vel]`, `noteOff nota`, `setDormant`, `stop`. Cada instancia upper/lower es independiente. **Dormancy**: soporta `setDormant` para early exit en `process()` |
+| `synthiFilter.worklet.js` | Filtro ladder CEM3320 de 4 polos (24 dB/oct) con integrador TPT (Topology-Preserving Transform, Zavalishin): `g = tan(π·fc/fs)`, `G = g/(1+g)`. Saturación `tanh` por etapa modela los pares diferenciales OTA. 2× oversampling para reducir delay de feedback. Modo LP directo de la salida de la 4ª etapa; modo HP por sustracción binomial `[1,−4,6,−4,1]` sobre las 4 etapas. AudioParams: `cutoffControl` (V/Oct), `response` (resonancia, autooscilación ≥ 5.5). Ruido blanco inaudible (0.001) como semilla de autooscilación. Curva de realimentación: 3.95 + t·1.05 (máx 5.0). **Dormancy**: soporta `setDormant` para early exit en `process()` |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -178,6 +179,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
 | `randomCV.js` | `RandomCVModule` | Generador de voltaje de control aleatorio. Cadena: `AudioWorkletNode(random-cv, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (voltage1, voltage2, key). Niveles V1/V2 con curva LOG (base 100, pot 10K audio taper), nivel Key lineal bipolar (±5V). Lazy start al primer pin en Panel 6. Dormancy: rampea ganancias y envía `setDormant` al worklet. Filas Panel 6: 89 (Key), 90 (V1), 91 (V2) |
 | `keyboard.js` | `KeyboardModule` | Teclado polifónico del Synthi 100 (Panel 4). Cadena: `AudioWorkletNode(keyboard, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (pitchSpread, gateLevel, velocityLevel). Knobs: pitchSpread (0-10), velocityLevel (-5..+5), gateLevel (-5..+5). Selector retrigger (RotarySwitch): On (mode 1, legato retrigger) / Kbd (mode 0, staccato). Lazy start al primer `noteOn()`. 2 instancias: upper y lower. Filas Panel 6: 92-97 (upper: pitch 92, gate 93, vel 94; lower: pitch 95, gate 96, vel 97) |
+| `synthiFilter.js` | `SynthiFilterModule` | Filtro CEM3320 del Panel 1 (4 polos, 24 dB/oct). 8 instancias: 4 LP + 4 HP. Cadena: `inputGain(=1)` → `AudioWorkletNode(synthi-filter)` → `outputGain(=level)`. Knobs: frequency (0-10, centro 320 Hz), response (0-10, autooscilación ≥ 5.5), level (0-10, curva LOG base 100). Cutoff CV desde Panel 6 (LP cols 22-25, HP cols 26-29). Entradas/salidas audio en Panel 5 (LP in 15-18 / out 110-113, HP in 19-22 / out 114-117). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
 
 **Patrón de módulo:**
 ```javascript
@@ -717,7 +719,7 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 
 | Archivo | Tipo | Contenido |
 |---------|------|-----------|
-| `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos placeholder (filtros, envelopes, ring modulators, reverb, echo) con 57 knobs |
+| `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos (8 filtros CEM3320 implementados — 4 LP + 4 HP con 3 knobs cada uno: frequency, response, level — más 8 módulos placeholder: envelopes, ring modulators, reverb, echo) con 57 knobs |
 | `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
 | `panel4.blueprint.js` | Blueprint | Layout del Panel 4: 2 teclados (upper/lower) con 3 knobs cada uno (pitchSpread, velocityLevel, gateLevel), selector retrigger (On/Kbd), filas de matriz de control 92-97 |
@@ -1369,7 +1371,7 @@ Donde `softRange = softThreshold - linearThreshold`.
 El `hybridClipShaper` se inserta en cada bus de salida de la matriz, justo después de `busInput`:
 
 ```
-[Señales mezcladas] → [busInput] → [hybridClipShaper] → [filterLP] → [filterHP] → [levelNode]
+[Señales mezcladas] → [busInput] → [hybridClipShaper] → [filterGain] → [filterNode (RC worklet)] → [muteNode]
 ```
 
 **Características:**
@@ -1969,7 +1971,7 @@ El `DormancyManager` detecta módulos de audio sin conexiones activas en las mat
 - Módulos sin conexiones relevantes → marcados como dormant
 - **Osciladores dormant**: mensaje `setDormant` al worklet → `process()` hace early exit (llena buffers con ceros sin calcular ondas). Ahorra ~95% CPU del worklet. La fase se mantiene para coherencia al despertar.
 - **NoiseModule dormant**: mensaje `setDormant` al worklet noiseGenerator → early exit sin generar ruido. Silencia levelNode.
-- **Output Bus dormant**: desconecta `busInput` del grafo (de `filterLP` si filtros activos, o de `levelNode` si bypass). Los filtros LP/HP no reciben audio y no consumen CPU. Un Output Bus está **activo** si tiene entrada desde Panel 5 (audio) **O** desde Panel 6 (Voltage Input en columnas 42-45).
+- **Output Bus dormant**: desconecta `busInput` del grafo (de `filterGain` si filtros activos, o de `muteNode` si bypass). El filtro RC no recibe audio y no consume CPU. Un Output Bus está **activo** si tiene entrada desde Panel 5 (audio) **O** desde Panel 6 (Voltage Input en columnas 42-45).
 - **InputAmplifier dormant**: silencia los 8 GainNodes. Guarda y restaura niveles al despertar.
 - **Oscilloscope dormant**: mensaje `setDormant` al worklet scopeCapture → pausa captura de señal y procesamiento de trigger Schmitt.
 
@@ -1989,28 +1991,29 @@ app.js: entry.setDormant(dormant)
 ```
 DormancyManager → bus.setDormant(true)
        │
-       ├──▶ if (bypassed) bus.input.disconnect(bus.levelNode)
-       │    else bus.input.disconnect(bus.filterLP)
+       ├──▶ if (bypassed) bus.input.disconnect(bus.muteNode)
+       │    else bus.input.disconnect(bus.filterGain)
        │
-       └──▶ Filtros LP/HP no reciben audio → 0 CPU
+       └──▶ Filtro RC no recibe audio → 0 CPU
 ```
 
 **Configuración:** Ajustes → Avanzado → Optimizaciones → Dormancy
 
 ### Filter Bypass (Desconexión de Filtros)
 
-Cada output bus tiene filtros LP/HP en serie. Cuando el filtro está en posición neutral (|valor| < 0.02), los nodos `BiquadFilterNode` se desconectan del grafo de audio.
+Cada output bus tiene un filtro RC pasivo de 1er orden (AudioWorklet `outputFilter.worklet.js`). Cuando el knob Filter está en posición neutral (|valor| < 0.02), se usa un crossfade suave entre la ruta de filtro y la ruta bypass.
 
 ```
 FILTROS ACTIVOS (valor ≠ 0):
-busInput → filterLP → filterHP → levelNode → ...
+postVcaNode → filterGain(=1) → filterNode (RC worklet) → muteNode → ...
+              bypassGain(=0) ──────────────────────────┘
 
 BYPASS (valor ≈ 0):
-busInput ─────────────────────▶ levelNode → ...
-           (filtros desconectados)
+postVcaNode → filterGain(=0)          (silenciado)
+              bypassGain(=1) → muteNode → ...
 ```
 
-**Beneficio:** Los BiquadFilter desconectados no consumen CPU.
+**Beneficio:** El crossfade evita clicks y la ruta de filtro silenciada no consume CPU significativa.
 
 **Umbral:** `AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD = 0.02`
 

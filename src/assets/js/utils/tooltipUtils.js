@@ -568,3 +568,66 @@ export function getKeyboardGateTooltipInfo() {
     return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVERB TOOLTIPS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Genera tooltip para el knob Mix de la reverb.
+ * Muestra porcentaje wet y voltaje equivalente.
+ *
+ * @returns {function(number): string|null}
+ */
+export function getReverbMixTooltipInfo() {
+  return (dialValue) => {
+    const parts = [];
+    const mixNorm = clamp(dialValue, 0, 10) / 10;
+
+    if (showAudioTooltip()) {
+      const pct = (mixNorm * 100).toFixed(0);
+      parts.push(`${pct}% wet`);
+    }
+
+    if (showVoltageTooltip()) {
+      // ±2V cubre rango completo, dial 5 = 0V
+      const voltage = (dialValue - 5) * 0.4;
+      parts.push(`${voltage >= 0 ? '+' : ''}${voltage.toFixed(1)} V`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera tooltip para el knob Level de la reverb.
+ * Muestra ganancia y dB (curva log base 100).
+ *
+ * @param {number} [maxVpp=5] - Voltaje pico a pico máximo
+ * @param {number} [logBase=100] - Base logarítmica de la curva
+ * @returns {function(number): string|null}
+ */
+export function getReverbLevelTooltipInfo(maxVpp = 5, logBase = 100) {
+  return (dialValue) => {
+    const parts = [];
+
+    let gain;
+    if (dialValue <= 0) {
+      gain = 0;
+    } else {
+      const normalized = clamp(dialValue, 0, 10) / 10;
+      gain = (Math.pow(logBase, normalized) - 1) / (logBase - 1);
+    }
+
+    if (showVoltageTooltip()) {
+      parts.push(`${(gain * maxVpp).toFixed(2)} Vp-p max`);
+    }
+
+    if (showAudioTooltip()) {
+      parts.push(formatGain(gain));
+      parts.push(gainToDb(gain));
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}

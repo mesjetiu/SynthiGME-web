@@ -112,6 +112,9 @@ export function getLabelForSource(source) {
 
     case 'filterHP':
       return t('matrix.source.filterHP', { index: (source.index ?? 0) + 1 });
+
+    case 'reverberation':
+      return t('matrix.source.reverberation');
     
     default:
       return null;
@@ -172,6 +175,12 @@ export function getLabelForDest(dest) {
 
     case 'filterHPCutoffCV':
       return t('matrix.dest.filterHPCutoffCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'reverbInput':
+      return t('matrix.dest.reverbInput');
+
+    case 'reverbMixCV':
+      return t('matrix.dest.reverbMixCV');
     
     default:
       return null;

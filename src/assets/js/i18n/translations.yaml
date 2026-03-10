@@ -4803,6 +4803,33 @@ matrix.dest.filterHPCutoffCV:
   pt: "Filtro HP {index} Cutoff CV"
   cs: "Filtr HP {index} Cutoff CV"
 
+matrix.source.reverberation:
+  en: "Reverb"
+  es: "Reverb"
+  fr: "Réverb"
+  de: "Reverb"
+  it: "Riverbero"
+  pt: "Reverb"
+  cs: "Reverb"
+
+matrix.dest.reverbInput:
+  en: "Reverb In"
+  es: "Reverb In"
+  fr: "Réverb In"
+  de: "Reverb In"
+  it: "Riverbero In"
+  pt: "Reverb In"
+  cs: "Reverb In"
+
+matrix.dest.reverbMixCV:
+  en: "Reverb Mix CV"
+  es: "Reverb Mix CV"
+  fr: "Réverb Mix CV"
+  de: "Reverb Mix CV"
+  it: "Riverbero Mix CV"
+  pt: "Reverb Mix CV"
+  cs: "Reverb Mix CV"
+
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"

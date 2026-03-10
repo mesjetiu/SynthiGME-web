@@ -91,11 +91,7 @@ class SynthiFilterProcessor extends AudioWorkletProcessor {
         out1: 0,
         out2: 0,
         out3: 0,
-        out4: 0,
-        hp1: 0,
-        hp2: 0,
-        hp3: 0,
-        hp4: 0
+        out4: 0
       };
     }
     return this._states[index];
@@ -129,8 +125,10 @@ class SynthiFilterProcessor extends AudioWorkletProcessor {
         const cutoffControl = cutoffValues.length > 1 ? cutoffValues[i] : (cutoffValues[0] ?? 0);
         const cutoffHz = controlToCutoffHz(cutoffControl, this._config);
 
-        // OTA integrator coefficient (CEM3320 exponential model)
-        const g = 1.0 - Math.exp(-2.0 * Math.PI * cutoffHz / sampleRate);
+        // OTA integrator coefficient at 2x sample rate (Huovilainen).
+        // 2x oversampling preserves resonance sharpness at high cutoff;
+        // without it, g → 1 above ~5 kHz and the Q collapses.
+        const g = 1.0 - Math.exp(-2.0 * Math.PI * cutoffHz / (sampleRate * 2));
 
         const rawInput = inChannel ? inChannel[i] || 0 : 0;
 
@@ -142,28 +140,24 @@ class SynthiFilterProcessor extends AudioWorkletProcessor {
 
         const resonanceDrive = 1 + (feedbackBase / 5.0) * this._config.inputDriveBoost;
 
-        // Huovilainen Moog ladder: per-stage OTA saturation (CEM3320).
-        // Each tanh models the differential-pair soft clipping of
-        // the OTA, ensuring amplitude-limited self-oscillation.
-        let x = Math.tanh(inputSample * resonanceDrive - feedbackBase * state.out4);
-
-        state.out1 += g * (x                        - Math.tanh(state.out1));
-        state.out2 += g * (Math.tanh(state.out1) - Math.tanh(state.out2));
-        state.out3 += g * (Math.tanh(state.out2) - Math.tanh(state.out3));
-        state.out4 += g * (Math.tanh(state.out3) - Math.tanh(state.out4));
+        // Huovilainen Moog ladder with 2x oversampling.
+        // Per-stage tanh models OTA differential-pair saturation (CEM3320).
+        let x;
+        for (let os = 0; os < 2; os++) {
+          x = Math.tanh(inputSample * resonanceDrive - feedbackBase * state.out4);
+          state.out1 += g * (x                        - Math.tanh(state.out1));
+          state.out2 += g * (Math.tanh(state.out1) - Math.tanh(state.out2));
+          state.out3 += g * (Math.tanh(state.out2) - Math.tanh(state.out3));
+          state.out4 += g * (Math.tanh(state.out3) - Math.tanh(state.out4));
+        }
 
         let y;
         if (this._config.mode === 'highpass') {
-          const hpAlpha = clamp((2 * Math.PI * cutoffHz) / sampleRate, 0.0001, 0.99);
-          state.hp1 += (inputSample - state.hp1) * hpAlpha;
-          let hp = inputSample - state.hp1;
-          state.hp2 += (hp - state.hp2) * hpAlpha;
-          hp -= state.hp2;
-          state.hp3 += (hp - state.hp3) * hpAlpha;
-          hp -= state.hp3;
-          state.hp4 += (hp - state.hp4) * hpAlpha;
-          hp -= state.hp4;
-          y = Math.tanh((hp + this._config.hpDirtyEvenHarmonics * state.out2) * this._config.hpDirtyDrive);
+          // 4-pole HP from generalized ladder (binomial subtraction).
+          // Same resonance and self-oscillation as LP, complementary
+          // frequency response.  Coefficients [1, -4, 6, -4, 1].
+          y = x - 4 * state.out1 + 6 * state.out2 - 4 * state.out3 + state.out4;
+          y = Math.tanh(y);
         } else {
           y = Math.tanh(state.out4 * this._config.lpDrive);
         }

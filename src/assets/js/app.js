@@ -107,7 +107,7 @@ import { PatchBrowser } from './ui/patchBrowser.js';
 import { ConfirmDialog } from './ui/confirmDialog.js';
 import { triggerEasterEgg, initEasterEggTrigger } from './ui/easterEgg.js';
 import { initPortraitBlocker } from './ui/portraitBlocker.js';
-import { initPipManager, restorePipState } from './ui/pipManager.js';
+import { initPipManager, restorePipState, clearRememberedPipConfigs } from './ui/pipManager.js';
 import { initKeyboardWindow } from './ui/keyboardWindow.js';
 import { initPanelNotes } from './ui/panelNotes.js';
 import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
@@ -2227,6 +2227,9 @@ class App {
     
     // Limpiar estado guardado (no preguntar al reiniciar si no hay cambios)
     sessionManager.clearLastState();
+    
+    // Limpiar memoria de posiciones PiP (se reabrirán en posición default)
+    clearRememberedPipConfigs();
     
     // Limpiar historial de undo (nuevo punto de partida)
     undoRedoManager.clear();

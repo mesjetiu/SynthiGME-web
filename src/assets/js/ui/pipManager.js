@@ -3818,6 +3818,15 @@ export function clearPipState() {
 }
 
 /**
+ * Limpia la memoria de geometrías recordadas de PiPs (posiciones, tamaños, zoom).
+ * Al reabrir un PiP tras llamar esta función se usarán los valores por defecto.
+ */
+export function clearRememberedPipConfigs() {
+  rememberedPipConfigs.clear();
+  log.debug('Remembered PiP configs cleared');
+}
+
+/**
  * Verifica si está habilitado recordar la disposición visual entre sesiones.
  * @returns {boolean}
  */

@@ -96,8 +96,10 @@ export default {
     // Si necesitas retocar alineación, edita aquí.
     frame: {
       squarePercent: 90,
+      referenceSteps: 67,  // Referencia de pasos fija (cols originales) para que
+                           // añadir columnas reservadas no desplace el frame.
       translateSteps: { x: 5.1, y: 0 },
-      marginsSteps: { left: -7.47, right: -3, top: 4.7, bottom: 2.7 },
+      marginsSteps: { left: -7.4, right: 0.1, top: 4.7, bottom: 2.6 },
       clip: true,
       overflowPercent: { left: 25, top: 25, right: 200, bottom: 80 },
       maxSizePercent: 300

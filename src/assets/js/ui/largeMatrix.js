@@ -122,8 +122,13 @@ export class LargeMatrix {
     const squarePercent = this.frame.squarePercent;
     const outerMargin = (100 - squarePercent) / 2;
 
-    // Definimos 1 paso como 1/cols del cuadrado (1 paso ~= 1 columna/pin).
-    const steps = this.cols;
+    // 1 paso = 1/referenceSteps del cuadrado (~1 columna/pin).
+    // referenceSteps permite fijar la referencia de pasos independientemente
+    // del número real de columnas del grid, para que añadir columnas
+    // reservadas no desplace el frame calibrado.
+    const steps = typeof this.frame.referenceSteps === 'number'
+      ? this.frame.referenceSteps
+      : this.cols;
     const stepPercent = squarePercent / steps;
 
     const m = this.frame.marginsSteps;

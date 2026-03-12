@@ -80,19 +80,14 @@ export class EnvelopeShaperModule extends Module {
     // Callback para notificar actividad (LED)
     this.onActiveChange = null;
 
-    // ─── Dormancy autogestionada ───────────────────────────────────────
-    // El ES gestiona su propia dormancia combinando:
-    //   1. Conexiones críticas (trigger P5, CV dest P6) — vía DormancyManager
-    //   2. Modo FREE_RUN → siempre despierto
-    //   3. Gate manual activo → despierto
-    //   4. Worklet en ciclo activo (fase ≠ IDLE) → despierto hasta fin de ciclo
+    // ─── Dormancy (DESACTIVADA) ─────────────────────────────────────────
+    // La infraestructura de dormancia autogestionada está desactivada.
+    // Los ES se mantienen siempre despiertos (coste ~0 CPU en IDLE).
+    // Para reactivar: quitar el return temprano en _evaluateDormancy().
     this._hasCriticalConnections = false;
     this._manualGateActive = false;
     this._workletCycling = false;
-
-    // Iniciar como dormido para que _evaluateDormancy() en start()
-    // pueda transitar correctamente al estado despierto si corresponde
-    this._isDormant = true;
+    this._isDormant = false;
 
     // Valores actuales de los diales
     this.values = {
@@ -244,11 +239,6 @@ export class EnvelopeShaperModule extends Module {
   setGate(active) {
     this._manualGateActive = !!active;
     this._sendToWorklet('gate', active);
-    // Solo despertar al pulsar gate. Al soltar, el worklet seguirá ciclando
-    // y notificará cycling=false cuando termine, que ejecutará _evaluateDormancy().
-    if (active) {
-      this._evaluateDormancy();
-    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -309,15 +299,8 @@ export class EnvelopeShaperModule extends Module {
     this._initAudioNodes();
     if (!this.workletNode) return; // AudioContext no disponible aún
     this.isStarted = true;
-    // Forzar evaluación inicial: como _isDormant empieza en true,
-    // _evaluateDormancy() transitará si hay razón para estar despierto.
-    // Si no, sincronizamos el worklet con el estado dormido.
-    this._isDormant = true;  // reset para forzar transición limpia
-    this._evaluateDormancy();
-    // Si tras evaluar sigue dormido, sincronizar worklet
-    if (this._isDormant) {
-      this._applyDormancy(true);
-    }
+    // Dormancia desactivada: ES arranca despierto directamente
+    this._isDormant = false;
     log.info(`${this.id}] Started`);
   }
 
@@ -379,8 +362,14 @@ export class EnvelopeShaperModule extends Module {
   /**
    * Evalúa si el módulo debe estar realmente dormido o despierto,
    * combinando el estado externo (conexiones) con el interno (modo, gate, ciclo).
+   *
+   * DESACTIVADA: Los ES se mantienen siempre despiertos (coste ~0 CPU en IDLE).
+   * Para reactivar, quitar el return temprano y restaurar las llamadas
+   * en setGate() y start().
    */
   _evaluateDormancy() {
+    return; // Dormancia desactivada
+    // eslint-disable-next-line no-unreachable
     if (!this.isStarted) return;
 
     const shouldBeAwake =

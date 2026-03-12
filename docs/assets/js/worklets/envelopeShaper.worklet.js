@@ -89,6 +89,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     this._stopped = false;
     this._reportedActive = false; // Último estado de actividad reportado al hilo principal
     this._reportCounter = 0;     // Throttle: solo reportar cada N bloques
+    this._reportedCycling = false; // Último estado de ciclo reportado (para dormancy)
 
     this.port.onmessage = (e) => this._handleMessage(e.data);
   }
@@ -178,13 +179,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
       case PHASE_IDLE:
         this._level = 0;
         if (this._shouldStart(rising)) {
-          if (this._delaySamples > 0) {
-            this._phase = PHASE_DELAY;
-            this._counter = this._delaySamples;
-          } else {
-            this._phase = PHASE_ATTACK;
-            this._counter = this._attackSamples;
-          }
+          this._startEnvelope();
         }
         break;
 
@@ -263,12 +258,12 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
           // Auto-retrigger for cycling modes
           if (this._mode === MODE_FREE_RUN ||
               (this._mode === MODE_GATED_FR && this._prevGate)) {
-            if (this._delaySamples > 0) {
-              this._phase = PHASE_DELAY;
-              this._counter = this._delaySamples;
-            } else {
-              this._phase = PHASE_ATTACK;
-              this._counter = this._attackSamples;
+            this._startEnvelope();
+          } else {
+            // Ciclo terminado sin retrigger → notificar al módulo
+            if (this._reportedCycling) {
+              this._reportedCycling = false;
+              this.port.postMessage({ type: 'cycling', value: false });
             }
           }
         }
@@ -375,9 +370,18 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
         this._signalGain = this._signalLevelDialToGain(data.value);
         break;
 
-      case 'gate':
+      case 'gate': {
+        const prev = this._manualGate;
         this._manualGate = !!data.value;
+        // Si el gate sube mientras estamos en IDLE, arrancar envolvente
+        // inmediatamente en el handler de mensajes. Esto cubre el caso
+        // donde gate on+off llegan entre dos llamadas a process()
+        // (ej: AudioContext estaba suspendido al pulsar gate).
+        if (this._manualGate && !prev && this._phase === PHASE_IDLE) {
+          this._startEnvelope();
+        }
         break;
+      }
 
       case 'setDormant':
         this._dormant = !!data.dormant;
@@ -399,6 +403,11 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     } else {
       this._phase = PHASE_ATTACK;
       this._counter = this._attackSamples;
+    }
+    // Notificar al módulo que ha comenzado un ciclo (para dormancy)
+    if (!this._reportedCycling) {
+      this._reportedCycling = true;
+      this.port.postMessage({ type: 'cycling', value: true });
     }
   }
 }

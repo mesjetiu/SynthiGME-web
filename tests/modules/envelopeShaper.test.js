@@ -1,9 +1,9 @@
 /**
- * Tests para modules/envelopeShaper.js — Always-awake & Gate
+ * Tests para modules/envelopeShaper.js — Dormancy autogestionada & Gate
  *
- * Verifica que los Envelope Shapers funcionan siempre despiertos
- * (dormancia desactivada) y que el gate envía mensajes directamente
- * al worklet sin intermediarios de dormancia.
+ * Verifica la lógica de dormancia autogestionada y el flujo gate→ciclo.
+ * Con keepalive GainNode, process() siempre corre y la FSM puede
+ * notificar cycling:true/false para despertar/dormir automáticamente.
  */
 
 import { describe, it, beforeEach } from 'node:test';
@@ -42,11 +42,11 @@ class TestEnvelopeShaperModule {
 
     this.onActiveChange = null;
 
-    // — Dormancy desactivada (idéntica al módulo real) —
+    // — Dormancy autogestionada (idéntica al módulo real) —
     this._hasCriticalConnections = false;
     this._manualGateActive = false;
     this._workletCycling = false;
-    this._isDormant = false;   // siempre despierto
+    this._isDormant = true;
 
     this.values = {
       mode: 2,          // GATED
@@ -129,6 +129,7 @@ class TestEnvelopeShaperModule {
   setGate(active) {
     this._manualGateActive = !!active;
     this._sendToWorklet('gate', active);
+    this._evaluateDormancy();
   }
 
   // ——— Ciclo de vida (idéntico al módulo real) ———
@@ -138,7 +139,11 @@ class TestEnvelopeShaperModule {
     this._initAudioNodes();
     if (!this.workletNode) return;
     this.isStarted = true;
-    this._isDormant = false;
+    this._isDormant = true;
+    this._evaluateDormancy();
+    if (this._isDormant) {
+      this._applyDormancy(true);
+    }
   }
 
   // ——— Dormancy (idéntica al módulo real) ———
@@ -149,8 +154,6 @@ class TestEnvelopeShaperModule {
   }
 
   _evaluateDormancy() {
-    return; // Dormancia desactivada
-    // eslint-disable-next-line no-unreachable
     if (!this.isStarted) return;
 
     const shouldBeAwake =
@@ -241,7 +244,7 @@ function simulateWorkletMessage(module, data) {
 // TESTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('EnvelopeShaperModule — Always-awake & Gate', () => {
+describe('EnvelopeShaperModule — Dormancy autogestionada & Gate', () => {
   let mockCtx;
   let mockEngine;
   let esModule;
@@ -253,12 +256,12 @@ describe('EnvelopeShaperModule — Always-awake & Gate', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 1. Inicialización — siempre despierto
+  // 1. Inicialización — arranca dormido
   // ─────────────────────────────────────────────────────────────────────────
 
   describe('inicialización', () => {
-    it('empieza con _isDormant=false (siempre despierto)', () => {
-      assert.equal(esModule._isDormant, false);
+    it('empieza como dormido (_isDormant=true)', () => {
+      assert.equal(esModule._isDormant, true);
     });
 
     it('empieza con gate desactivado', () => {
@@ -275,29 +278,30 @@ describe('EnvelopeShaperModule — Always-awake & Gate', () => {
       assert.equal(esModule.isStarted, true);
     });
 
-    it('tras start() permanece despierto (_isDormant=false)', () => {
+    it('tras start() sin condiciones de wake, permanece dormido', () => {
       esModule.start();
-      assert.equal(esModule._isDormant, false);
+      assert.equal(esModule._isDormant, true);
     });
 
-    it('tras start() NO envía setDormant al worklet', () => {
+    it('tras start() dormido, envía setDormant:true al worklet', () => {
       esModule.start();
       const dormantMsgs = getMessagesByType(esModule, 'setDormant');
-      assert.equal(dormantMsgs.length, 0, 'no debe enviar setDormant');
+      assert.ok(dormantMsgs.length >= 1, 'debe enviar al menos un setDormant');
+      assert.equal(dormantMsgs[dormantMsgs.length - 1].dormant, true);
     });
 
-    it('tras start() ganancias permanecen en 1', () => {
+    it('tras start() dormido, rampas de ganancia a 0', () => {
       esModule.start();
-      assert.equal(esModule.envGain.gain.value, 1);
-      assert.equal(esModule.audioGain.gain.value, 1);
+      assert.equal(esModule.envGain.gain.value, 0);
+      assert.equal(esModule.audioGain.gain.value, 0);
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 2. Gate → directo al worklet
+  // 2. Gate despierta el módulo
   // ─────────────────────────────────────────────────────────────────────────
 
-  describe('gate → directo al worklet', () => {
+  describe('gate → despertar módulo', () => {
     beforeEach(() => {
       esModule.start();
       clearMessages(esModule);
@@ -308,80 +312,145 @@ describe('EnvelopeShaperModule — Always-awake & Gate', () => {
       assert.equal(esModule._manualGateActive, true);
     });
 
+    it('setGate(true) despierta módulo dormido', () => {
+      assert.equal(esModule._isDormant, true, 'precondición: dormido');
+      esModule.setGate(true);
+      assert.equal(esModule._isDormant, false, 'debe despertar');
+    });
+
     it('setGate(true) envía gate:true al worklet', () => {
       esModule.setGate(true);
       const gateMsgs = getMessages(esModule).filter(m => m.type === 'gate');
-      assert.equal(gateMsgs.length, 1, 'exactamente 1 gate message');
-      assert.equal(gateMsgs[0].value, true);
+      assert.ok(gateMsgs.some(m => m.value === true), 'debe enviar gate:true');
     });
 
-    it('setGate(false) envía gate:false al worklet', () => {
+    it('setGate(true) envía setDormant:false al worklet', () => {
+      esModule.setGate(true);
+      const dormantMsgs = getMessagesByType(esModule, 'setDormant');
+      assert.ok(dormantMsgs.some(m => m.dormant === false), 'debe enviar setDormant:false');
+    });
+
+    it('setGate(true) rampa ganancias a 1', () => {
+      esModule.setGate(true);
+      assert.equal(esModule.envGain.gain.value, 1);
+      assert.equal(esModule.audioGain.gain.value, 1);
+    });
+
+    it('setGate(false) sin cycling → duerme', () => {
       esModule.setGate(true);
       clearMessages(esModule);
       esModule.setGate(false);
-      const gateMsgs = getMessages(esModule).filter(m => m.type === 'gate');
-      assert.equal(gateMsgs.length, 1, 'exactamente 1 gate message');
-      assert.equal(gateMsgs[0].value, false);
+      // Sin _workletCycling, no hay razón de wake → duerme
+      assert.equal(esModule._isDormant, true);
     });
 
-    it('gate NO genera mensajes de dormancy', () => {
+    it('setGate(false) con cycling → sigue despierto', () => {
       esModule.setGate(true);
+      simulateWorkletMessage(esModule, { type: 'cycling', value: true });
+      clearMessages(esModule);
       esModule.setGate(false);
-      const dormantMsgs = getMessagesByType(esModule, 'setDormant');
-      assert.equal(dormantMsgs.length, 0, 'no debe enviar setDormant');
-    });
-
-    it('módulo permanece despierto durante todo el ciclo gate', () => {
-      esModule.setGate(true);
-      assert.equal(esModule._isDormant, false);
-      esModule.setGate(false);
-      assert.equal(esModule._isDormant, false);
+      assert.equal(esModule._isDormant, false, 'cycling mantiene despierto');
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 3. Dormancy desactivada — infraestructura intacta pero inerte
+  // 3. Cycling del worklet controla dormancia
   // ─────────────────────────────────────────────────────────────────────────
 
-  describe('dormancy desactivada', () => {
+  describe('cycling → control de dormancia', () => {
     beforeEach(() => {
       esModule.start();
       clearMessages(esModule);
     });
 
-    it('setDormant() del DormancyManager es no-op', () => {
-      esModule.setDormant(true);
-      assert.equal(esModule._isDormant, false, 'sigue despierto');
-      assert.equal(esModule._hasCriticalConnections, false, 'registra el estado');
-    });
-
-    it('setDormant(false) registra conexiones pero no transita', () => {
-      esModule.setDormant(false);
-      assert.equal(esModule._hasCriticalConnections, true);
-      assert.equal(esModule._isDormant, false, 'ya estaba despierto');
-      const dormantMsgs = getMessagesByType(esModule, 'setDormant');
-      assert.equal(dormantMsgs.length, 0, 'no envía setDormant al worklet');
-    });
-
-    it('cycling:false del worklet no causa transición', () => {
+    it('cycling:true despierta módulo sin gate', () => {
+      // Simula que un trigger externo inició el ciclo
       simulateWorkletMessage(esModule, { type: 'cycling', value: true });
-      simulateWorkletMessage(esModule, { type: 'cycling', value: false });
-      assert.equal(esModule._isDormant, false, 'sigue despierto');
-      const dormantMsgs = getMessagesByType(esModule, 'setDormant');
-      assert.equal(dormantMsgs.length, 0);
+      assert.equal(esModule._isDormant, false);
     });
 
-    it('setMode no causa transición de dormancy', () => {
-      esModule.setMode(1); // FREE_RUN
-      esModule.setMode(2); // GATED
-      assert.equal(esModule._isDormant, false, 'sigue despierto');
+    it('cycling:false duerme módulo si no hay otra razón', () => {
+      simulateWorkletMessage(esModule, { type: 'cycling', value: true });
+      clearMessages(esModule);
+      simulateWorkletMessage(esModule, { type: 'cycling', value: false });
+      assert.equal(esModule._isDormant, true);
       const dormantMsgs = getMessagesByType(esModule, 'setDormant');
-      assert.equal(dormantMsgs.length, 0);
+      assert.ok(dormantMsgs.some(m => m.dormant === true));
+    });
+
+    it('cycling:false NO duerme si gate sigue activo', () => {
+      esModule.setGate(true);
+      simulateWorkletMessage(esModule, { type: 'cycling', value: true });
+      clearMessages(esModule);
+      simulateWorkletMessage(esModule, { type: 'cycling', value: false });
+      assert.equal(esModule._isDormant, false, 'gate impide dormir');
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 4. LED (onActiveChange)
+  // 4. DormancyManager (conexiones críticas)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('DormancyManager → setDormant()', () => {
+    beforeEach(() => {
+      esModule.start();
+      clearMessages(esModule);
+    });
+
+    it('setDormant(false) despierta módulo (conexión crítica)', () => {
+      esModule.setDormant(false);
+      assert.equal(esModule._hasCriticalConnections, true);
+      assert.equal(esModule._isDormant, false);
+    });
+
+    it('setDormant(true) duerme módulo si no hay otras razones', () => {
+      esModule.setDormant(false);
+      clearMessages(esModule);
+      esModule.setDormant(true);
+      assert.equal(esModule._isDormant, true);
+    });
+
+    it('setDormant(true) no duerme si gate está activo', () => {
+      esModule.setGate(true);
+      esModule.setDormant(false);
+      clearMessages(esModule);
+      esModule.setDormant(true);
+      assert.equal(esModule._isDormant, false, 'gate impide dormir');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 5. Modo FREE_RUN
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('modo FREE_RUN', () => {
+    beforeEach(() => {
+      esModule.start();
+      clearMessages(esModule);
+    });
+
+    it('cambiar a FREE_RUN (mode=1) despierta módulo', () => {
+      esModule.setMode(1);
+      assert.equal(esModule._isDormant, false);
+    });
+
+    it('FREE_RUN mantiene despierto sin gate ni conexiones', () => {
+      esModule.setMode(1);
+      assert.equal(esModule._manualGateActive, false);
+      assert.equal(esModule._hasCriticalConnections, false);
+      assert.equal(esModule._isDormant, false);
+    });
+
+    it('salir de FREE_RUN duerme si no hay otra razón', () => {
+      esModule.setMode(1);
+      clearMessages(esModule);
+      esModule.setMode(2);
+      assert.equal(esModule._isDormant, true);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 6. LED (onActiveChange)
   // ─────────────────────────────────────────────────────────────────────────
 
   describe('LED — onActiveChange', () => {
@@ -389,7 +458,6 @@ describe('EnvelopeShaperModule — Always-awake & Gate', () => {
       esModule.start();
       let ledState = null;
       esModule.onActiveChange = (active) => { ledState = active; };
-
       simulateWorkletMessage(esModule, { type: 'active', value: true });
       assert.equal(ledState, true);
     });
@@ -398,7 +466,6 @@ describe('EnvelopeShaperModule — Always-awake & Gate', () => {
       esModule.start();
       let ledState = null;
       esModule.onActiveChange = (active) => { ledState = active; };
-
       simulateWorkletMessage(esModule, { type: 'active', value: true });
       simulateWorkletMessage(esModule, { type: 'active', value: false });
       assert.equal(ledState, false);
@@ -406,83 +473,76 @@ describe('EnvelopeShaperModule — Always-awake & Gate', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 5. Escenario: "abro la app, pulso gate"
+  // 7. Escenario: "abro la app, pulso gate"
   // ─────────────────────────────────────────────────────────────────────────
 
   describe('escenario: app fresh + pulso gate', () => {
-    it('start → setGate(true) → worklet recibe gate:true directamente', () => {
-      // 1. ensureAudio() inicia el módulo
+    it('start → gate → despierta → worklet recibe gate + wake', () => {
       esModule.start();
-      assert.equal(esModule.isStarted, true);
-      assert.equal(esModule._isDormant, false, 'tras start: despierto');
-
-      // 2. NO debe haber setDormant en init
-      const initMsgs = getMessages(esModule);
-      const dormantInInit = initMsgs.filter(m => m.type === 'setDormant');
-      assert.equal(dormantInInit.length, 0, 'sin dormancy en init');
-
+      assert.equal(esModule._isDormant, true, 'tras start: dormido');
       clearMessages(esModule);
 
-      // 3. setGate(true) — usuario pulsa gate
       esModule.setGate(true);
+      assert.equal(esModule._isDormant, false, 'tras gate: despierto');
 
-      // 4. Worklet recibe exactamente gate:true, sin setDormant
       const msgs = getMessages(esModule);
-      const gateMsgs = msgs.filter(m => m.type === 'gate');
-      const dormantMsgs = msgs.filter(m => m.type === 'setDormant');
-      assert.equal(gateMsgs.length, 1, 'exactamente 1 gate');
-      assert.equal(gateMsgs[0].value, true);
-      assert.equal(dormantMsgs.length, 0, 'sin dormancy');
-
-      // 5. Ganancias a 1
+      assert.ok(msgs.some(m => m.type === 'gate' && m.value === true));
+      assert.ok(msgs.some(m => m.type === 'setDormant' && m.dormant === false));
       assert.equal(esModule.envGain.gain.value, 1);
       assert.equal(esModule.audioGain.gain.value, 1);
     });
 
-    it('gate press + release → no dormancy, solo gate on/off', () => {
+    it('gate press + cycling + release + cycling:false → ciclo completo', () => {
       esModule.start();
       clearMessages(esModule);
 
       esModule.setGate(true);
+      assert.equal(esModule._isDormant, false);
+
+      simulateWorkletMessage(esModule, { type: 'cycling', value: true });
+
       esModule.setGate(false);
+      assert.equal(esModule._isDormant, false, 'cycling mantiene despierto');
 
-      const msgs = getMessages(esModule);
-      const gateMsgs = msgs.filter(m => m.type === 'gate');
-      const dormantMsgs = msgs.filter(m => m.type === 'setDormant');
-
-      assert.equal(gateMsgs.length, 2, 'gate on + gate off');
-      assert.equal(gateMsgs[0].value, true);
-      assert.equal(gateMsgs[1].value, false);
-      assert.equal(dormantMsgs.length, 0, 'sin dormancy');
-      assert.equal(esModule._isDormant, false, 'sigue despierto');
+      clearMessages(esModule);
+      simulateWorkletMessage(esModule, { type: 'cycling', value: false });
+      assert.equal(esModule._isDormant, true, 'duerme al terminar ciclo');
+      assert.equal(esModule.envGain.gain.value, 0);
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 6. Guards y edge cases
+  // 8. Guards y edge cases
   // ─────────────────────────────────────────────────────────────────────────
 
   describe('guards y edge cases', () => {
-    it('setGate antes de start → manualGateActive se registra', () => {
+    it('setGate antes de start → no evalúa dormancy', () => {
       esModule.setGate(true);
       assert.equal(esModule._manualGateActive, true);
+      assert.equal(esModule._isDormant, true, 'sin start, no transita');
     });
 
     it('start() no re-ejecuta si ya está iniciado', () => {
       esModule.start();
       const msgCount = getMessages(esModule).length;
-      esModule.start(); // segunda llamada
-      assert.equal(getMessages(esModule).length, msgCount, 'no debe enviar más mensajes');
+      esModule.start();
+      assert.equal(getMessages(esModule).length, msgCount);
     });
 
-    it('múltiples setGate(true) envían cada uno su mensaje', () => {
+    it('gate pre-activo + start() → despierta al start', () => {
+      esModule._manualGateActive = true;
+      esModule.start();
+      assert.equal(esModule._isDormant, false);
+    });
+
+    it('múltiples setGate(true) no acumulan transiciones extras', () => {
       esModule.start();
       clearMessages(esModule);
       esModule.setGate(true);
+      const firstDormant = getMessagesByType(esModule, 'setDormant').length;
       esModule.setGate(true);
-      const gateMsgs = getMessages(esModule).filter(m => m.type === 'gate');
-      assert.equal(gateMsgs.length, 2, 'un gate por cada llamada');
-      assert.ok(gateMsgs.every(m => m.value === true));
+      const secondDormant = getMessagesByType(esModule, 'setDormant').length;
+      assert.equal(firstDormant, secondDormant, 'sin transición extra');
     });
   });
 });

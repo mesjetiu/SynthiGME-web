@@ -81,14 +81,18 @@ export class EnvelopeShaperModule extends Module {
     // Callback para notificar actividad (LED)
     this.onActiveChange = null;
 
-    // ─── Dormancy (DESACTIVADA) ─────────────────────────────────────────
-    // La infraestructura de dormancia autogestionada está desactivada.
-    // Los ES se mantienen siempre despiertos (coste ~0 CPU en IDLE).
-    // Para reactivar: quitar el return temprano en _evaluateDormancy().
+    // ─── Dormancy autogestionada ───────────────────────────────────────
+    // El ES gestiona su propia dormancia combinando:
+    //   1. Conexiones críticas (trigger P5, CV dest P6) — vía DormancyManager
+    //   2. Modo FREE_RUN → siempre despierto
+    //   3. Gate manual activo → despierto
+    //   4. Worklet en ciclo activo (fase ≠ IDLE) → despierto hasta fin de ciclo
+    // El keepalive GainNode (ganancia 0) garantiza que process() siempre
+    // se ejecute, incluso dormido, permitiendo que la FSM avance y notifique.
     this._hasCriticalConnections = false;
     this._manualGateActive = false;
     this._workletCycling = false;
-    this._isDormant = false;
+    this._isDormant = true;
 
     // Valores actuales de los diales
     this.values = {
@@ -248,6 +252,9 @@ export class EnvelopeShaperModule extends Module {
   setGate(active) {
     this._manualGateActive = !!active;
     this._sendToWorklet('gate', active);
+    // Evaluar dormancia: gate activo despierta, gate suelto permite
+    // que el worklet decida (cycling:true/false notifica fin de ciclo).
+    this._evaluateDormancy();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -308,8 +315,13 @@ export class EnvelopeShaperModule extends Module {
     this._initAudioNodes();
     if (!this.workletNode) return; // AudioContext no disponible aún
     this.isStarted = true;
-    // Dormancia desactivada: ES arranca despierto directamente
-    this._isDormant = false;
+    // Evaluar dormancia inicial: arranca dormido salvo que haya
+    // razón para estar despierto (FREE_RUN, gate pre-activo, etc.).
+    this._isDormant = true;
+    this._evaluateDormancy();
+    if (this._isDormant) {
+      this._applyDormancy(true);
+    }
     log.info(`${this.id}] Started`);
   }
 
@@ -373,14 +385,10 @@ export class EnvelopeShaperModule extends Module {
   /**
    * Evalúa si el módulo debe estar realmente dormido o despierto,
    * combinando el estado externo (conexiones) con el interno (modo, gate, ciclo).
-   *
-   * DESACTIVADA: Los ES se mantienen siempre despiertos (coste ~0 CPU en IDLE).
-   * Para reactivar, quitar el return temprano y restaurar las llamadas
-   * en setGate() y start().
+   * Gracias al keepalive GainNode, process() siempre corre y la FSM puede
+   * notificar cycling:true/false para despertar/dormir automáticamente.
    */
   _evaluateDormancy() {
-    return; // Dormancia desactivada
-    // eslint-disable-next-line no-unreachable
     if (!this.isStarted) return;
 
     const shouldBeAwake =

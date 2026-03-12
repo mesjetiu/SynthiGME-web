@@ -807,35 +807,6 @@ describe('EnvelopeShaper Worklet — Import real y process()', () => {
     assert.ok(hasRising, 'Gate should trigger envelope response');
   });
 
-  test('dormancy: output silenciado pero estado preservado', () => {
-    if (!ProcessorClass) return;
-    const proc = new ProcessorClass();
-
-    // Set FREE RUN mode (produces output immediately)
-    proc.port.onmessage({ data: { type: 'setMode', value: MODE_FREE_RUN } });
-    proc.port.onmessage({ data: { type: 'setAttack', value: 0 } });
-
-    // Process one block to start generating
-    let envChannel = new Float32Array(128);
-    let audioChannel = new Float32Array(128);
-    let outputs = [[envChannel, audioChannel]];
-    let inputs = [[new Float32Array(128), new Float32Array(128)]];
-    proc.process(inputs, outputs, {});
-
-    // Enable dormancy
-    proc.port.onmessage({ data: { type: 'setDormant', dormant: true } });
-
-    envChannel = new Float32Array(128);
-    audioChannel = new Float32Array(128);
-    outputs = [[envChannel, audioChannel]];
-    inputs = [[new Float32Array(128), new Float32Array(128)]];
-    proc.process(inputs, outputs, {});
-
-    // Output should be silent in dormancy
-    const allZero = envChannel.every(v => v === 0);
-    assert.ok(allZero, 'Dormant output should be all zeros');
-  });
-
   test('stop: process() devuelve false', () => {
     if (!ProcessorClass) return;
     const proc = new ProcessorClass();

@@ -175,6 +175,16 @@ export default {
     { rowSynth: 117, source: { kind: 'filterHP', index: 3 } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 ENVELOPE SHAPERS (filas 118-120)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3 Envelope Shapers (CEM 3310). Salida de audio post-VCA.
+    // Audio entra por Signal Inputs (cols 9-11), se procesa por el VCA
+    // cuya ganancia sigue la envolvente, y sale aquí.
+    { rowSynth: 118, source: { kind: 'envelopeShaper', index: 0 } },
+    { rowSynth: 119, source: { kind: 'envelopeShaper', index: 1 } },
+    { rowSynth: 120, source: { kind: 'envelopeShaper', index: 2 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 RING MODULATORS (filas 121-123)
     // ─────────────────────────────────────────────────────────────────────────
     // 3 moduladores de anillo (PC-05, 4214AP). Salida post-level.
@@ -212,6 +222,19 @@ export default {
     { colSynth: 6, dest: { kind: 'ringModInputB', index: 1 } },
     { colSynth: 7, dest: { kind: 'ringModInputA', index: 2 } },
     { colSynth: 8, dest: { kind: 'ringModInputB', index: 2 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 ENVELOPE SHAPER INPUTS (columnas 9-14)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Signal Inputs (9-11): audio entra al VCA del envelope shaper.
+    // Signal Triggers (12-14): señal de disparo/gate para iniciar la envolvente.
+    // Trigger >1V (0.25 normalizado) inicia el ciclo ADSR.
+    { colSynth: 9, dest: { kind: 'envelopeShaperSignalInput', index: 0 } },
+    { colSynth: 10, dest: { kind: 'envelopeShaperSignalInput', index: 1 } },
+    { colSynth: 11, dest: { kind: 'envelopeShaperSignalInput', index: 2 } },
+    { colSynth: 12, dest: { kind: 'envelopeShaperTriggerInput', index: 0 } },
+    { colSynth: 13, dest: { kind: 'envelopeShaperTriggerInput', index: 1 } },
+    { colSynth: 14, dest: { kind: 'envelopeShaperTriggerInput', index: 2 } },
 
     // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 FILTER INPUTS (columnas 15-22)

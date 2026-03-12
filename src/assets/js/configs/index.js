@@ -19,6 +19,7 @@ export { default as randomVoltageConfig } from './modules/randomVoltage.config.j
 export { default as filterConfig } from './modules/filter.config.js';
 export { default as reverberationConfig } from './modules/reverberation.config.js';
 export { default as ringModulatorConfig } from './modules/ringModulator.config.js';
+export { default as envelopeShaperConfig } from './modules/envelopeShaper.config.js';
 
 // Teclados
 export { default as keyboardConfig } from './modules/keyboard.config.js';
@@ -54,6 +55,7 @@ import audioMatrixConfig from './modules/audioMatrix.config.js';
 import controlMatrixConfig from './modules/controlMatrix.config.js';
 import reverberationConfig from './modules/reverberation.config.js';
 import ringModulatorConfig from './modules/ringModulator.config.js';
+import envelopeShaperConfig from './modules/envelopeShaper.config.js';
 
 export default {
   oscillator: oscillatorConfig,
@@ -68,5 +70,6 @@ export default {
   controlMatrix: controlMatrixConfig,
   joystick: joystickConfig,
   reverberation: reverberationConfig,
-  ringModulator: ringModulatorConfig
+  ringModulator: ringModulatorConfig,
+  envelopeShaper: envelopeShaperConfig
 };

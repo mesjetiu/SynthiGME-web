@@ -22,11 +22,13 @@ import { InputAmplifierModule } from './modules/inputAmplifier.js';
 import { SynthiFilterModule } from './modules/synthiFilter.js';
 import { SpringReverbModule } from './modules/springReverb.js';
 import { RingModulatorModule } from './modules/ringModulator.js';
+import { EnvelopeShaperModule } from './modules/envelopeShaper.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
+import { EnvelopeShaper } from './ui/envelopeShaper.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
 import { Panel1FilterUI } from './ui/panel1Filter.js';
 import { Panel1ReverbUI } from './ui/panel1Reverb.js';
@@ -66,7 +68,8 @@ import {
   controlMatrixConfig,
   joystickConfig,
   reverberationConfig,
-  ringModulatorConfig
+  ringModulatorConfig,
+  envelopeShaperConfig
 } from './configs/index.js';
 
 // Osciloscopio
@@ -122,7 +125,7 @@ import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as
 import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { initRenderMode } from './utils/gpuDetect.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, getEnvelopeShaperTimeTooltipInfo, getEnvelopeShaperSustainTooltipInfo, getEnvelopeShaperEnvLevelTooltipInfo, getEnvelopeShaperSignalLevelTooltipInfo, getEnvelopeShaperModeTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -135,6 +138,7 @@ import { joystickOSCSync } from './osc/oscJoystickSync.js';
 import { matrixOSCSync } from './osc/oscMatrixSync.js';
 import { reverbOSCSync } from './osc/oscReverbSync.js';
 import { ringModOSCSync } from './osc/oscRingModSync.js';
+import { envelopeShaperOSCSync } from './osc/oscEnvelopeShaperSync.js';
 import { midiAccess } from './midi/midiAccess.js';
 import { midiLearnManager } from './midi/midiLearnManager.js';
 import { initMIDILearnOverlay } from './midi/midiLearnOverlay.js';
@@ -245,6 +249,8 @@ class App {
     this._oscillatorUIs = {};
     this._noiseUIs = {};
     this._randomVoltageUIs = {};
+    this._envelopeShaperUIs = {};
+    this._envelopeShaperModules = [];
     this._panel1FilterUIs = {};
     this._panel1FilterModules = {};
     this._panel1ReverbUI = null;
@@ -281,6 +287,7 @@ class App {
     joystickOSCSync.init(this);
     reverbOSCSync.init(this);
     ringModOSCSync.init(this);
+    envelopeShaperOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
 
@@ -1807,6 +1814,16 @@ class App {
       }
     }
 
+    // Serializar Envelope Shapers
+    if (this._envelopeShaperUIs) {
+      state.modules.envelopeShaper = {};
+      for (const [id, ui] of Object.entries(this._envelopeShaperUIs)) {
+        if (ui && typeof ui.serialize === 'function') {
+          state.modules.envelopeShaper[id] = ui.serialize();
+        }
+      }
+    }
+
     // Serializar filtros del Panel 1
     if (this._panel1FilterUIs) {
       state.modules.filters = {};
@@ -1948,6 +1965,16 @@ class App {
     if (modules.randomVoltage && this._randomVoltageUIs) {
       for (const [id, data] of Object.entries(modules.randomVoltage)) {
         const ui = this._randomVoltageUIs[id];
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(data);
+        }
+      }
+    }
+
+    // Restaurar Envelope Shapers
+    if (modules.envelopeShaper && this._envelopeShaperUIs) {
+      for (const [id, data] of Object.entries(modules.envelopeShaper)) {
+        const ui = this._envelopeShaperUIs[id];
         if (ui && typeof ui.deserialize === 'function') {
           ui.deserialize(data);
         }
@@ -2115,6 +2142,15 @@ class App {
       for (const ui of Object.values(this._randomVoltageUIs)) {
         if (ui && typeof ui.deserialize === 'function') {
           ui.deserialize(defaults.randomVoltage);
+        }
+      }
+    }
+
+    // Resetear Envelope Shapers
+    if (this._envelopeShaperUIs) {
+      for (const ui of Object.values(this._envelopeShaperUIs)) {
+        if (ui && typeof ui.deserialize === 'function') {
+          ui.deserialize(defaults.envelopeShaper);
         }
       }
     }
@@ -2297,6 +2333,16 @@ class App {
         voltage2: rvKnobs.voltage2.initial,
         key: rvKnobs.key.initial
       },
+      envelopeShaper: {
+        mode: envelopeShaperConfig.knobs.mode.initial,
+        delay: envelopeShaperConfig.knobs.delay.initial,
+        attack: envelopeShaperConfig.knobs.attack.initial,
+        decay: envelopeShaperConfig.knobs.decay.initial,
+        sustain: envelopeShaperConfig.knobs.sustain.initial,
+        release: envelopeShaperConfig.knobs.release.initial,
+        envelopeLevel: envelopeShaperConfig.knobs.envelopeLevel.initial,
+        signalLevel: envelopeShaperConfig.knobs.signalLevel.initial
+      },
       filters: {
         frequency: filterKnobs.frequency.initial,
         response: filterKnobs.response.initial,
@@ -2351,6 +2397,10 @@ class App {
         // Random voltage
         for (const [id, ui] of Object.entries(this._randomVoltageUIs)) {
           if (id.startsWith('panel3-random')) modules.push({ type: 'randomVoltage', id, ui });
+        }
+        // Envelope Shapers
+        for (const [id, ui] of Object.entries(this._envelopeShaperUIs)) {
+          if (id.startsWith('panel3-es')) modules.push({ type: 'envelopeShaper', id, ui });
         }
         break;
       }
@@ -2415,6 +2465,10 @@ class App {
     // Random voltage
     if (this._randomVoltageUIs[moduleId]) {
       return { type: 'randomVoltage', ui: this._randomVoltageUIs[moduleId] };
+    }
+    // Envelope Shapers
+    if (this._envelopeShaperUIs[moduleId]) {
+      return { type: 'envelopeShaper', ui: this._envelopeShaperUIs[moduleId] };
     }
     // Panel 1 filters
     if (this._panel1FilterUIs[moduleId]) {
@@ -2515,6 +2569,9 @@ class App {
         break;
       case 'randomVoltage':
         ui.deserialize(defaults.randomVoltage);
+        break;
+      case 'envelopeShaper':
+        ui.deserialize(defaults.envelopeShaper);
         break;
       case 'filter':
         ui.deserialize(defaults.filters);
@@ -3160,43 +3217,149 @@ class App {
     // ─────────────────────────────────────────────────────────────────────────
 
     const envLayout = blueprint.layout.envelopeShapers;
-    const envFrames = {};
+
+    const esTimeTooltip = getEnvelopeShaperTimeTooltipInfo(
+      envelopeShaperConfig.audio.minTimeMs,
+      envelopeShaperConfig.audio.maxTimeMs
+    );
+    const esSustainTooltip = getEnvelopeShaperSustainTooltipInfo();
+    const esEnvLevelTooltip = getEnvelopeShaperEnvLevelTooltipInfo();
+    const esSignalLevelTooltip = getEnvelopeShaperSignalLevelTooltipInfo(
+      envelopeShaperConfig.audio.audioMaxVpp,
+      envelopeShaperConfig.signalLevelCurve.logBase
+    );
+    const esModeTooltip = getEnvelopeShaperModeTooltipInfo(
+      envelopeShaperConfig.knobs.mode.labels
+    );
 
     for (let i = 1; i <= envLayout.count; i++) {
       const envId = `envelopeShaper${i}`;
-      const frame = new ModuleFrame({
+      const envModuleUI = blueprint.modules?.[envId]?.ui || {};
+
+      // Crear módulo de audio
+      const esModule = new EnvelopeShaperModule(this.engine, `envelope-shaper-${i}`, {
+        ramps: envelopeShaperConfig.ramps
+      });
+      this._envelopeShaperModules.push(esModule);
+
+      // Crear UI funcional con knobs + gate + LED
+      const knobsOff = envModuleUI.knobsOffset ?? envLayout.knobsOffset ?? {};
+      const esUI = new EnvelopeShaper({
         id: `${envId}-module`,
         title: null,
-        className: 'panel1-placeholder panel1-envelope'
+        knobSize: envModuleUI.knobSize ?? envLayout.knobSize,
+        knobInnerPct: envModuleUI.knobInnerPct ?? envLayout.knobInnerPct,
+        knobGap: envModuleUI.knobGap ?? envLayout.knobGap,
+        knobRowOffsetX: knobsOff.x ?? 0,
+        knobRowOffsetY: knobsOff.y ?? 0,
+        knobOptions: {
+          mode: {
+            ...envelopeShaperConfig.knobs.mode,
+            onChange: (value) => {
+              esModule.setMode(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'mode', value);
+              }
+            },
+            getTooltipInfo: esModeTooltip
+          },
+          delay: {
+            ...envelopeShaperConfig.knobs.delay,
+            onChange: (value) => {
+              esModule.setDelay(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'delay', value);
+              }
+            },
+            getTooltipInfo: esTimeTooltip
+          },
+          attack: {
+            ...envelopeShaperConfig.knobs.attack,
+            onChange: (value) => {
+              esModule.setAttack(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'attack', value);
+              }
+            },
+            getTooltipInfo: esTimeTooltip
+          },
+          decay: {
+            ...envelopeShaperConfig.knobs.decay,
+            onChange: (value) => {
+              esModule.setDecay(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'decay', value);
+              }
+            },
+            getTooltipInfo: esTimeTooltip
+          },
+          sustain: {
+            ...envelopeShaperConfig.knobs.sustain,
+            onChange: (value) => {
+              esModule.setSustain(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'sustain', value);
+              }
+            },
+            getTooltipInfo: esSustainTooltip
+          },
+          release: {
+            ...envelopeShaperConfig.knobs.release,
+            onChange: (value) => {
+              esModule.setRelease(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'release', value);
+              }
+            },
+            getTooltipInfo: esTimeTooltip
+          },
+          envelopeLevel: {
+            ...envelopeShaperConfig.knobs.envelopeLevel,
+            onChange: (value) => {
+              esModule.setEnvelopeLevel(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'envelopeLevel', value);
+              }
+            },
+            getTooltipInfo: esEnvLevelTooltip
+          },
+          signalLevel: {
+            ...envelopeShaperConfig.knobs.signalLevel,
+            onChange: (value) => {
+              esModule.setSignalLevel(value);
+              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+                envelopeShaperOSCSync.sendChange(i, 'signalLevel', value);
+              }
+            },
+            getTooltipInfo: esSignalLevelTooltip
+          }
+        },
+        onGatePress: () => {
+          esModule.setGate(true);
+          if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+            envelopeShaperOSCSync.sendGate(i, true);
+          }
+        },
+        onGateRelease: () => {
+          esModule.setGate(false);
+          if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+            envelopeShaperOSCSync.sendGate(i, false);
+          }
+        }
       });
-      const el = frame.createElement();
-      const envModuleUI = blueprint.modules?.[envId]?.ui || {};
+      this._envelopeShaperUIs[envId] = esUI;
+
+      const el = esUI.createElement();
+      el.classList.add('panel1-envelope');
       el.style.cssText = `
         width: 100%;
         height: ${envLayout.height}px;
         flex: 0 0 auto;
       `;
-
-      // Crear knobs horizontales
-      const knobsContainer = document.createElement('div');
-      knobsContainer.className = 'panel1-envelope-knobs';
-      knobsContainer.style.gap = `${toNum(envModuleUI.knobGap, toNum(envLayout.knobGap, 2))}px`;
-      applyOffset(knobsContainer, envModuleUI.knobsOffset, envLayout.knobsOffset || { x: 0, y: 0 });
-      envLayout.knobs.forEach((knobName, i) => {
-        const knob = createPanel1Knob({
-          knobSize: envModuleUI.knobSize ?? envLayout.knobSize,
-          knobInnerPct: envModuleUI.knobInnerPct ?? envLayout.knobInnerPct,
-          knobColor: envModuleUI.knobColors?.[i] ?? envLayout.knobColors?.[i],
-          knobType: envModuleUI.knobTypes?.[i] ?? envLayout.knobTypes?.[i]
-        });
-        knobsContainer.appendChild(knob.wrapper);
-      });
-      frame.appendToContent(knobsContainer);
       applyOffset(el, envModuleUI.offset, envLayout.moduleOffset || { x: 0, y: 0 });
 
       applyModuleVisibility(el, blueprint, envId);
       host.appendChild(el);
-      envFrames[envId] = frame;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -3387,7 +3550,6 @@ class App {
     this._panel1Data = {
       host,
       filtersRow,
-      envFrames,
       bottomRow,
       bottomFrames
     };

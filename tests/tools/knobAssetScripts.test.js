@@ -56,13 +56,13 @@ describe('Inventario de assets de knobs tras la limpieza SVG', () => {
   it('src/assets/knobs conserva solo los SVGs que siguen siendo necesarios en runtime', () => {
     const knobDir = resolve(ROOT, 'src/assets/knobs');
     const svgs = readdirSync(knobDir).filter(name => name.endsWith('.svg')).sort();
-    assert.deepEqual(svgs, ['toggle-switch.svg', 'vernier-dial.svg']);
+    assert.deepEqual(svgs, ['knob-selector.svg', 'toggle-switch.svg', 'vernier-dial.svg']);
   });
 
   it('docs/assets/knobs refleja la misma limpieza de SVGs tras el build', () => {
     const knobDir = resolve(ROOT, 'docs/assets/knobs');
     const svgs = readdirSync(knobDir).filter(name => name.endsWith('.svg')).sort();
-    assert.deepEqual(svgs, ['toggle-switch.svg', 'vernier-dial.svg']);
+    assert.deepEqual(svgs, ['knob-selector.svg', 'toggle-switch.svg', 'vernier-dial.svg']);
   });
 
   it('design/knobs mantiene los SVGs fuente editables necesarios para regenerar PNGs', () => {

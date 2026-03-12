@@ -4903,6 +4903,87 @@ matrix.dest.ringModInputB:
   pt: "Ring Mod {index} In B"
   cs: "Ring Mod {index} In B"
 
+matrix.source.envelopeShaper:
+  en: "Env Shaper {index}"
+  es: "Env Shaper {index}"
+  fr: "Env Shaper {index}"
+  de: "Env Shaper {index}"
+  it: "Env Shaper {index}"
+  pt: "Env Shaper {index}"
+  cs: "Env Shaper {index}"
+
+matrix.dest.envelopeShaperSignalInput:
+  en: "ES {index} Signal In"
+  es: "ES {index} Signal In"
+  fr: "ES {index} Signal In"
+  de: "ES {index} Signal In"
+  it: "ES {index} Signal In"
+  pt: "ES {index} Signal In"
+  cs: "ES {index} Signal In"
+
+matrix.dest.envelopeShaperTriggerInput:
+  en: "ES {index} Trigger In"
+  es: "ES {index} Trigger In"
+  fr: "ES {index} Trigger In"
+  de: "ES {index} Trigger In"
+  it: "ES {index} Trigger In"
+  pt: "ES {index} Trigger In"
+  cs: "ES {index} Trigger In"
+
+matrix.dest.envelopeShaperKeyCV:
+  en: "ES {index} Key CV"
+  es: "ES {index} Key CV"
+  fr: "ES {index} Key CV"
+  de: "ES {index} Key CV"
+  it: "ES {index} Key CV"
+  pt: "ES {index} Key CV"
+  cs: "ES {index} Key CV"
+
+matrix.dest.envelopeShaperDelayCV:
+  en: "ES {index} Delay CV"
+  es: "ES {index} Delay CV"
+  fr: "ES {index} Delay CV"
+  de: "ES {index} Delay CV"
+  it: "ES {index} Delay CV"
+  pt: "ES {index} Delay CV"
+  cs: "ES {index} Delay CV"
+
+matrix.dest.envelopeShaperAttackCV:
+  en: "ES {index} Attack CV"
+  es: "ES {index} Attack CV"
+  fr: "ES {index} Attack CV"
+  de: "ES {index} Attack CV"
+  it: "ES {index} Attack CV"
+  pt: "ES {index} Attack CV"
+  cs: "ES {index} Attack CV"
+
+matrix.dest.envelopeShaperDecayCV:
+  en: "ES {index} Decay CV"
+  es: "ES {index} Decay CV"
+  fr: "ES {index} Decay CV"
+  de: "ES {index} Decay CV"
+  it: "ES {index} Decay CV"
+  pt: "ES {index} Decay CV"
+  cs: "ES {index} Decay CV"
+
+matrix.dest.envelopeShaperSustainCV:
+  en: "ES {index} Sustain CV"
+  es: "ES {index} Sustain CV"
+  fr: "ES {index} Sustain CV"
+  de: "ES {index} Sustain CV"
+  it: "ES {index} Sustain CV"
+  pt: "ES {index} Sustain CV"
+  cs: "ES {index} Sustain CV"
+
+matrix.dest.envelopeShaperReleaseCV:
+  en: "ES {index} Release CV"
+  es: "ES {index} Release CV"
+  fr: "ES {index} Release CV"
+  de: "ES {index} Release CV"
+  it: "ES {index} Release CV"
+  pt: "ES {index} Release CV"
+  cs: "ES {index} Release CV"
+
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"

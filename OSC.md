@@ -304,9 +304,9 @@ por defecto (configurable para enviar coordenadas si se desea compatibilidad SC)
 /env/{n}/sustain        # 0 - 10
 /env/{n}/release        # 0 - 10
 /env/{n}/envelopeLevel  # -5 - 5
-/env/{n}/signalLevel    # -5 - 5
-/env/{n}/gate           # trigger (cualquier valor)
-/env/{n}/selector       # valor específico del selector
+/env/{n}/signalLevel    # 0 - 10
+/env/{n}/gate           # >0 = gate on, 0 = gate off
+/env/{n}/selector       # 0-4 (Gated F/R, Free Run, Gated, Triggered, Hold)
 ```
 
 **Ejemplo:** `/SynthiGME/env/1/attack 3.2`

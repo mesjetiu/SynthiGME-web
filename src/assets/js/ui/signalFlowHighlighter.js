@@ -115,6 +115,17 @@ function getModuleElementIds(descriptor) {
     
     case 'keyboardLower':
       return ['lowerKeyboard-module'];
+
+    case 'envelopeShaper':
+    case 'envelopeShaperSignalInput':
+    case 'envelopeShaperTriggerInput':
+    case 'envelopeShaperKeyCV':
+    case 'envelopeShaperDelayCV':
+    case 'envelopeShaperAttackCV':
+    case 'envelopeShaperDecayCV':
+    case 'envelopeShaperSustainCV':
+    case 'envelopeShaperReleaseCV':
+      return [`envelopeShaper${(descriptor.index ?? 0) + 1}-module`];
     
     default:
       return [];
@@ -128,7 +139,7 @@ function getModuleElementIds(descriptor) {
  * @returns {HTMLElement|null}
  */
 function findModuleElement(el) {
-  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel1-filter-live, .panel1-reverb-live, .panel1-ringmod-live, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
+  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel1-envelope, .envelope-shaper, .panel1-filter-live, .panel1-reverb-live, .panel1-ringmod-live, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
 }
 
 /**

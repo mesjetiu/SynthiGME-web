@@ -193,6 +193,15 @@ export default {
     { rowSynth: 91, source: { kind: 'randomCV', output: 'voltage2' } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 ENVELOPE SHAPERS (filas 97-99)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3 Envelope Shapers (CEM 3310). Salida de voltaje de envolvente (CV).
+    // Rango ±5V hardware → ±1.25 normalizado (controlado por Envelope Level).
+    { rowSynth: 97, source: { kind: 'envelopeShaper', index: 0, output: 'envelope' } },
+    { rowSynth: 98, source: { kind: 'envelopeShaper', index: 1, output: 'envelope' } },
+    { rowSynth: 99, source: { kind: 'envelopeShaper', index: 2, output: 'envelope' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // KEYBOARDS (filas 111-116) — Teclados duales de 5 octavas
     // ─────────────────────────────────────────────────────────────────────────
     // Cada teclado genera 3 señales DC simultáneas:
@@ -268,6 +277,39 @@ export default {
     // PANEL 1 REVERBERATION MIX CV (columna 1)
     // ─────────────────────────────────────────────────────────────────────────
     { colSynth: 1, dest: { kind: 'reverbMixCV', index: 0 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 ENVELOPE SHAPER PARAMETER CV (columnas 4-21)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cada ES tiene 6 parámetros modulables por CV:
+    //   KEY, DELAY, ATTACK, DECAY, SUSTAIN, RELEASE
+    // ES1: cols 4-9, ES2: cols 10-15, ES3: cols 16-21
+    //
+    // KEY: trigger/gate externo (equivalente al botón GATE del panel)
+    // DELAY/ATTACK/DECAY/RELEASE: CV suma al valor del knob (exponencial)
+    // SUSTAIN: CV suma al nivel de sustain configurado
+    //
+    // Envelope Shaper 1
+    { colSynth: 4, dest: { kind: 'envelopeShaperKeyCV', index: 0 } },
+    { colSynth: 5, dest: { kind: 'envelopeShaperDelayCV', index: 0 } },
+    { colSynth: 6, dest: { kind: 'envelopeShaperAttackCV', index: 0 } },
+    { colSynth: 7, dest: { kind: 'envelopeShaperDecayCV', index: 0 } },
+    { colSynth: 8, dest: { kind: 'envelopeShaperSustainCV', index: 0 } },
+    { colSynth: 9, dest: { kind: 'envelopeShaperReleaseCV', index: 0 } },
+    // Envelope Shaper 2
+    { colSynth: 10, dest: { kind: 'envelopeShaperKeyCV', index: 1 } },
+    { colSynth: 11, dest: { kind: 'envelopeShaperDelayCV', index: 1 } },
+    { colSynth: 12, dest: { kind: 'envelopeShaperAttackCV', index: 1 } },
+    { colSynth: 13, dest: { kind: 'envelopeShaperDecayCV', index: 1 } },
+    { colSynth: 14, dest: { kind: 'envelopeShaperSustainCV', index: 1 } },
+    { colSynth: 15, dest: { kind: 'envelopeShaperReleaseCV', index: 1 } },
+    // Envelope Shaper 3
+    { colSynth: 16, dest: { kind: 'envelopeShaperKeyCV', index: 2 } },
+    { colSynth: 17, dest: { kind: 'envelopeShaperDelayCV', index: 2 } },
+    { colSynth: 18, dest: { kind: 'envelopeShaperAttackCV', index: 2 } },
+    { colSynth: 19, dest: { kind: 'envelopeShaperDecayCV', index: 2 } },
+    { colSynth: 20, dest: { kind: 'envelopeShaperSustainCV', index: 2 } },
+    { colSynth: 21, dest: { kind: 'envelopeShaperReleaseCV', index: 2 } },
 
     // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 FILTER CUTOFF CV (columnas 22-29)

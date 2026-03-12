@@ -163,6 +163,7 @@ export class ModuleUI {
     let svgSrc = 'assets/knobs/knob.svg';
     if (type === 'bipolar') svgSrc = 'assets/knobs/knob-0-center.svg';
     else if (type === 'vernier') svgSrc = 'assets/knobs/vernier-dial.svg';
+    else if (type === 'selector') svgSrc = 'assets/knobs/knob-selector.svg';
     loadSvgInline(svgSrc, knobInner);
 
     shell.appendChild(knobContainer);

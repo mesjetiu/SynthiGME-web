@@ -167,7 +167,7 @@ export const MODULE_PARAMETERS = {
       sustain: { type: 'float', min: 0, max: 10 },
       release: { type: 'float', min: 0, max: 10 },
       envelopeLevel: { type: 'float', min: -5, max: 5 },
-      signalLevel: { type: 'float', min: -5, max: 5 },
+      signalLevel: { type: 'float', min: 0, max: 10 },
       gate: { type: 'trigger' },
       selector: { type: 'enum' }
     }

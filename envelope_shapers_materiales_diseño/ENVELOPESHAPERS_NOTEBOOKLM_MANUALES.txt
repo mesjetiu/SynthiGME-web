@@ -1,0 +1,136 @@
+CONVERSACIÓN CON NOTEBOOKLM SOBRE LOS ENVELOPE SHAPERS, CON CONTEXTO DE LOS MANUALES TÉCNICOS DE 1982
+
+
+
+Vamos a por los envelope shapers de 1982. La unidad que tengo yo tiene 3 instancias, las cuales tienen los siguientes mandos, de izquierda a derecha:
+
+
+    knob selector, con las posiciones: GATED F/R, FREE RUN, GATED, TRIGGERED, HOLD
+
+    Botón GATE
+
+    knob DELAY, de 0 a 10.
+
+    Luz (quizás indicador de gates, inicio de ciclos...)
+
+    knob ATTACK, de 0 a 10.
+
+    knob DECAY, de 0 a 10.
+
+    knob SUSTAIN, de 0 a 10.
+
+    knob RELEASE, de 0 a 10.
+
+    knob ENVELOPE LEVEL, de -5 a +5.
+
+    knob SIGNAL LEVEL, de 0 a 10.
+
+
+Entradas y salidas en panel de audio (los números concretos de la matriz no te importan, pero los pongo para mí. Interesa solo que entiendas que conexiones son posibles):
+salidas ENVELOPE SHAPERS 1, 2 y 3:  118, 119 y 120
+entradas: SIGNAL INPUTS: 9, 10 y 11. SIGNAL TRIGGERS: 12, 13 y 14.
+
+Entradas y salidas en panel de control:
+salidas ENVELOPE SHAPER CONTROL OUTPUTS 1 2 y 3: 97, 98 y 99.
+entradas: KEY, DELAY, ATTACK, DECAY, SUSTAIN, RELEASE: 4-9, 10-15, 16-21 (cada rango corresponde a cada uno de los ES).
+Para la implementación de los Envelope Shapers (ES) de tu Synthi 100 de 1982, aquí tienes la lógica de funcionamiento, los rangos técnicos y la justificación basada en los planos y manuales:
+1. Base Tecnológica y Arquitectura
+
+    Chip Núcleo: Cada una de las 3 instancias se basa en el integrado Curtis CEM 3310. Este chip genera una envolvente ADSR (Attack, Decay, Sustain, Release) con tiempos controlables exponencialmente.
+    Señal vs. Control: El ES es un dispositivo dual. Funciona como un VCA (amplificador) para señales de audio (entradas 9-11) y simultáneamente como una fuente de control que entrega su voltaje de envolvente (salidas 97-99).
+    Luz Indicadora: Es una lámpara (o LED en 1982) que parpadea reflejando físicamente el ciclo de la envolvente; se ilumina durante las fases activas y se apaga en los periodos de silencio (quiescentes).
+
+2. Lógica de los 5 Modos de Operación
+El selector de modo define cómo responde el generador al disparador (trigger) o puerta (gate):
+
+    FREE RUN: El ciclo se repite continuamente de forma autónoma (A-D-S-R) sin necesidad de entrada externa.
+    GATED F/R (Gated Free Run): El ciclo se repite continuamente solo mientras haya un voltaje de puerta presente en la entrada KEY.
+    GATED: Es el modo estándar de teclado. La fase de Sustain se mantiene mientras la tecla esté pulsada. Si se suelta la tecla antes de llegar al Sustain, el ciclo aborta y pasa inmediatamente a la fase de Decay.
+    TRIGGERED: Modo "One-shot". Un pulso dispara el ciclo completo (A-D-S-R) hasta el final, independientemente de cuánto dure el pulso de entrada.
+    HOLD: Una vez disparado, el generador entra en la fase de Sustain y se queda ahí indefinidamente hasta que se cambie el modo manualmente.
+
+3. Rangos de Tiempo y Voltaje
+
+    Tiempos (Attack, Decay, Release): El rango es extremadamente amplio, superior a 10,000:1.
+        Mínimo: ~1 ms por sección (permite usar el ES como oscilador de audio hasta ~250 Hz).
+        Máximo: Típicamente 10-20 segundos manualmente, pero con voltajes de control externos puede extenderse a 50 segundos o más.
+    Delay: Es el tiempo que el generador permanece en reposo después de recibir el disparo antes de iniciar el Attack. En modo Free Run, define la duración de la pausa entre repeticiones.
+    Sustain: Controla el nivel de voltaje mantenido después del Decay, desde 0 hasta el 100% del pico de la envolvente.
+
+4. Especificaciones de los Knobs de Salida
+
+    Envelope Level (-5 a +5): Controla la amplitud y polaridad de la envolvente enviada a la matriz de control. En el centro (0) no hay salida; hacia +5 es una envolvente positiva y hacia -5 es invertida.
+    Signal Level (0 a 10): Controla el volumen del audio que atraviesa el VCA interno del módulo. El plano de cableado confirma el uso de potenciómetros de 10K Logarítmicos (LOG) para una respuesta de volumen musical.
+
+Resumen para tu Implementación:
+
+    Entradas de Control: DELAY, ATTACK, DECAY, SUSTAIN y RELEASE responden exponencialmente a voltajes externos. Una variación de 0.5V dobla o reduce a la mitad el tiempo configurado.
+    Audio: El audio entra por los Signal Inputs (9-11) y sale por los Shaper Outputs (118-120), procesado por un multiplicador (VCA) cuya ganancia es dictada por la envolvente.
+    Matriz de Control: Las salidas de control (97-99) entregan el voltaje de la envolvente pura para modular otros módulos.
+    Botón GATE: Envía un disparo manual equivalente a una entrada KEY de máximo voltaje.
+
+¿Cómo se comporta el Envelope Shaper en el modo HOLD?
+¿Qué función cumple el botón GATE durante un ciclo?
+¿Cuál es la relación técnica entre el CEM 3310 y el VCA?
+
+Dices que el tiempo es "Mínimo: ~1 ms por sección (permite usar el ES como oscilador de audio hasta ~250 Hz", pero... si es 1ms sería 1KHz, no?
+dame voltajes máximos de salida de cada salida para implementarlo correctamente.
+dame información de cómo ha de ser una señal para ser considerada gate o trigger (nivel de voltaje mínimo, duración, según el caso...)
+Define cuál es el comportamiento cuando dentro de un ciclo se cambia el selector. ¿se para todo como reiniciado?
+Todo justifícalo con los planos de circuitos y espec. técnicas.
+Para tu implementación del Envelope Shaper (ES) de 1982, aquí tienes la resolución a tus dudas técnicas, justificadas con los manuales y planos de circuitería:
+1. Aclaración sobre el tiempo y la frecuencia (250 Hz vs 1 kHz)
+Tienes razón en que 1 ms equivale a 1 kHz, pero el manual se refiere a la duración del ciclo completo del trapezoide, no a una sola sección:
+
+    Ciclo completo: Una envolvente completa consta de cuatro secciones principales (Attack, Decay, Sustain/On y Release/Off).
+    Cálculo: El manual especifica que el rango mínimo es de aproximadamente 1 ms por sección, lo que suma un ciclo total de 4 ms (1 ms×4).
+    Frecuencia: Un ciclo de 4 ms resulta exactamente en 250 Hz (1/0.004 s=250 Hz), que es el límite superior mencionado para usar el ES como oscilador de audio, situándose en el área del Do central (Middle-C).
+
+2. Voltajes máximos de salida
+Para una implementación fiel al hardware de Cuenca:
+
+    Salida de Control (Control Output / Trapezoid): El nivel es ajustable mediante el mando "Envelope Level" en un rango de -5V a +5V. El manual indica que para propósitos internos normales, el disparo debe estar en +5V.
+    Salida de Señal (Audio Output): Al pasar audio por el VCA interno, el manual técnico advierte que para evitar distorsión y recortes (clipping), la señal de salida debe mantenerse en menos de 3V p-p.
+    Rango Dinámico: El dispositivo tiene un rango de amplitud de 80 dB.
+
+3. Especificaciones de la señal Gate/Trigger
+El sistema es muy versátil en cuanto a qué considera un disparo:
+
+    Nivel de Voltaje: Una señal positiva mayor a 1 voltio activará las funciones de disparo. Internamente, los convertidores del sistema utilizan una referencia de 0.6V (fijada por un diodo de silicio) para detectar disparos.
+    Duración (Trigger): En modo Triggered, la duración del pulso es indiferente siempre que sea suficiente para iniciar el ciclo; el ES completará toda la fase A-D-S-R de forma autónoma.
+    Duración (Gate): En modo Gated, la longitud del voltaje es crítica. El generador permanecerá en la fase de Sustain mientras el voltaje esté presente y pasará a Decay inmediatamente cuando el voltaje sea removido.
+
+4. Comportamiento al cambiar el selector mid-ciclo
+El selector de modo se puede cambiar en cualquier momento durante un pasaje. Su comportamiento es el siguiente:
+
+    Lógica de Bistables: El circuito utiliza "bistables" de retardo y control de puerta para tomar decisiones.
+    Cambio a Gated: Si cambias a este modo mientras hay una señal de entrada, el ciclo se ajustará a la lógica de puerta; si la señal de entrada desaparece, el ciclo se abortará inmediatamente, saltando a la fase de caída (Decay) sin alcanzar el máximo de amplitud si aún estaba en Attack.
+    Cambio a Hold: El generador se forzará a permanecer en la fase de Sustain indefinidamente hasta que se mueva de nuevo el selector.
+    No es un reinicio total: El cambio de selector altera la "lógica de decisión" del circuito de estado sólido (basado en el chip CEM 3310 y lógica de diodos asociada), pero la carga del condensador de tiempo no se descarga instantáneamente a cero a menos que la nueva configuración lógica lo fuerce por diseño de fase.
+
+Resumen para implementación: Implementa el disparo con un umbral de 1V, limita el audio a 3V p-p y asegúrate de que el ciclo total (4 fases mínimas de 1ms) resulte en los 250 Hz que describe el fabricante.
+¿Cómo se comporta el CEM 3310 en modo FREE RUN?
+Explica la diferencia entre GATED F/R y el modo GATED.
+¿Cómo afecta el mando Envelope Level a la señal?
+
+dices: "Duración (Trigger): En modo Triggered, la duración del pulso es indiferente siempre que sea suficiente para iniciar el ciclo; ". De acuerdo! pero necesito saber cuál es esa duración suficiente...
+Para que una señal sea considerada un Trigger válido y suficiente para iniciar el ciclo en el Envelope Shaper (ES) de tu Synthi 100, debes seguir estas especificaciones técnicas:
+1. Duración del Pulso (Trigger)
+Aunque el manual describe que en modo Triggered la duración es "indiferente", para tu implementación debes considerar los siguientes límites físicos del sistema:
+
+    El "Estándar de EMS": El Random Voltage Generator (RVG) del sistema está diseñado para emitir pulsos de menos de 20 ms. El manual especifica que esta duración es "lo suficientemente corta" para asegurar que incluso los eventos más rápidos generen un disparo discreto y efectivo.
+    Límite de Frecuencia: Dado que el ES puede ciclar a una frecuencia de hasta 250 Hz (lo que implica un ciclo total de 4 ms o secciones de 1 ms), un pulso de 1 a 2 ms es el mínimo técnico que la lógica del circuito debería ser capaz de detectar de forma fiable.
+    La "Paradoja del Delay": Existe una mención en el manual que indica que el pulso debe ser "más largo que el tiempo de Delay". Sin embargo, el mismo párrafo aclara inmediatamente que, en una configuración de ataque y retraso largos (p. ej. 20 segundos), el sonido aparecerá "aunque el trigger haya sido retirado mucho tiempo antes". Esto confirma que, una vez que el pulso supera el umbral inicial, la lógica del chip CEM 3310 "se engancha" y completa el ciclo ADSR de forma autónoma.
+
+2. Nivel de Voltaje (Umbral)
+Para que el circuito identifique la señal como un disparo:
+
+    Umbral de Activación: El manual del secuenciador especifica que un voltaje positivo mayor a 1 voltio activará la función de disparo.
+    Referencia Técnica Interna: La circuitería interna (específicamente el convertidor Linear/TTL) utiliza una referencia de 0.6V, fijada por un diodo de silicio, para detectar el flanco de subida de la señal de disparo.
+    Recomendación de Uso: Para una respuesta óptima del teclado y otros módulos, el control de salida de envolvente se suele dejar en +5V.
+
+Resumen para tu Implementación:
+
+    Duración Sugerida: Usa un pulso de 20 ms como tu estándar para "Trigger corto" (emulando al RVG).
+    Umbral de Detección: Implementa un comparador que dispare la envolvente cuando la entrada supere los +1V.
+    Independencia: En modo Triggered, una vez detectado ese pulso de >1V y ~20ms, el código debe ejecutar las fases de Delay, Attack, Decay, Sustain y Release completas, sin importar si la señal de entrada vuelve a 0V antes de que termine el ataque.

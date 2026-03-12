@@ -118,6 +118,9 @@ export function getLabelForSource(source) {
 
     case 'ringModulator':
       return t('matrix.source.ringModulator', { index: (source.index ?? 0) + 1 });
+
+    case 'envelopeShaper':
+      return t('matrix.source.envelopeShaper', { index: (source.index ?? 0) + 1 });
     
     default:
       return null;
@@ -190,6 +193,30 @@ export function getLabelForDest(dest) {
 
     case 'ringModInputB':
       return t('matrix.dest.ringModInputB', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperSignalInput':
+      return t('matrix.dest.envelopeShaperSignalInput', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperTriggerInput':
+      return t('matrix.dest.envelopeShaperTriggerInput', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperKeyCV':
+      return t('matrix.dest.envelopeShaperKeyCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperDelayCV':
+      return t('matrix.dest.envelopeShaperDelayCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperAttackCV':
+      return t('matrix.dest.envelopeShaperAttackCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperDecayCV':
+      return t('matrix.dest.envelopeShaperDecayCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperSustainCV':
+      return t('matrix.dest.envelopeShaperSustainCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'envelopeShaperReleaseCV':
+      return t('matrix.dest.envelopeShaperReleaseCV', { index: (dest.index ?? 0) + 1 });
     
     default:
       return null;

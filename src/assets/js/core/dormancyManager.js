@@ -305,6 +305,26 @@ export class DormancyManager {
       );
       this._setModuleDormant(`ring-mod-${rmIdx + 1}`, !hasRMUsage);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 1 ENVELOPE SHAPERS (3 instancias)
+    // ─────────────────────────────────────────────────────────────────────────
+    for (let esIdx = 0; esIdx < 3; esIdx++) {
+      const hasESUsage = panel5Connections.some(c =>
+        (c.source?.kind === 'envelopeShaper' && c.source?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperSignalInput' && c.dest?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperTriggerInput' && c.dest?.index === esIdx)
+      ) || panel6Connections.some(c =>
+        (c.source?.kind === 'envelopeShaper' && c.source?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperKeyCV' && c.dest?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperDelayCV' && c.dest?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperAttackCV' && c.dest?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperDecayCV' && c.dest?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperSustainCV' && c.dest?.index === esIdx)
+        || (c.dest?.kind === 'envelopeShaperReleaseCV' && c.dest?.index === esIdx)
+      );
+      this._setModuleDormant(`envelope-shaper-${esIdx + 1}`, !hasESUsage);
+    }
     
     // ─────────────────────────────────────────────────────────────────────────────    // INPUT AMPLIFIERS - 8 canales
     // ─────────────────────────────────────────────────────────────────────────
@@ -523,6 +543,12 @@ export class DormancyManager {
     if (moduleId.startsWith('ring-mod-')) {
       const index = parseInt(moduleId.split('-').pop(), 10) - 1;
       return this.app._panel1RingModModules?.[index] ?? null;
+    }
+
+    // Panel 1 envelope shapers
+    if (moduleId.startsWith('envelope-shaper-')) {
+      const index = parseInt(moduleId.split('-').pop(), 10) - 1;
+      return this.app._envelopeShaperModules?.[index] ?? null;
     }
     
     // Oscilloscope

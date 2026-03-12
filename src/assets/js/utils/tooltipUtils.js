@@ -665,3 +665,107 @@ export function getRingModLevelTooltipInfo(maxVpp = 8, logBase = 100) {
     return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOOLTIPS PARA ENVELOPE SHAPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Genera tooltip para knobs de tiempo (Delay, Attack, Decay, Release)
+ * del Envelope Shaper. Conversión exponencial dial 0-10 → 1ms-20s.
+ *
+ * @param {number} [minMs=1] - Tiempo mínimo en ms
+ * @param {number} [maxMs=20000] - Tiempo máximo en ms
+ * @returns {function(number): string|null}
+ */
+export function getEnvelopeShaperTimeTooltipInfo(minMs = 1, maxMs = 20000) {
+  const ratio = maxMs / minMs;
+  return (dialValue) => {
+    if (!showAudioTooltip()) return null;
+    const normalized = clamp(dialValue, 0, 10) / 10;
+    const timeMs = minMs * Math.pow(ratio, normalized);
+    if (timeMs >= 1000) {
+      return `${(timeMs / 1000).toFixed(2)} s`;
+    }
+    return `${timeMs.toFixed(1)} ms`;
+  };
+}
+
+/**
+ * Genera tooltip para el knob Sustain del Envelope Shaper.
+ * Muestra porcentaje del nivel pico.
+ *
+ * @returns {function(number): string|null}
+ */
+export function getEnvelopeShaperSustainTooltipInfo() {
+  return (dialValue) => {
+    if (!showAudioTooltip()) return null;
+    const pct = clamp(dialValue, 0, 10) * 10;
+    return `${pct.toFixed(0)}%`;
+  };
+}
+
+/**
+ * Genera tooltip para el knob Envelope Level (bipolar ±5V).
+ * Muestra voltaje y polaridad.
+ *
+ * @returns {function(number): string|null}
+ */
+export function getEnvelopeShaperEnvLevelTooltipInfo() {
+  return (dialValue) => {
+    const parts = [];
+    if (showVoltageTooltip()) {
+      parts.push(`${dialValue >= 0 ? '+' : ''}${dialValue.toFixed(1)} V`);
+    }
+    if (showAudioTooltip()) {
+      if (Math.abs(dialValue) < 0.01) {
+        parts.push('off');
+      } else {
+        parts.push(dialValue > 0 ? 'normal' : 'inverted');
+      }
+    }
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera tooltip para el knob Signal Level del Envelope Shaper.
+ * Potenciómetro LOG 10K: ganancia y dB.
+ *
+ * @param {number} [maxVpp=3] - Voltaje pico a pico máximo de la señal
+ * @param {number} [logBase=100] - Base de la curva logarítmica
+ * @returns {function(number): string|null}
+ */
+export function getEnvelopeShaperSignalLevelTooltipInfo(maxVpp = 3, logBase = 100) {
+  return (dialValue) => {
+    const parts = [];
+    let gain;
+    if (dialValue <= 0) {
+      gain = 0;
+    } else {
+      const normalized = clamp(dialValue, 0, 10) / 10;
+      gain = (Math.pow(logBase, normalized) - 1) / (logBase - 1);
+    }
+    if (showVoltageTooltip()) {
+      parts.push(`${(gain * maxVpp).toFixed(2)} Vp-p`);
+    }
+    if (showAudioTooltip()) {
+      parts.push(formatGain(gain));
+      parts.push(gainToDb(gain));
+    }
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera tooltip para el selector de modo del Envelope Shaper.
+ *
+ * @param {string[]} modeNames - Array con los nombres de los 5 modos
+ * @returns {function(number): string|null}
+ */
+export function getEnvelopeShaperModeTooltipInfo(modeNames) {
+  return (dialValue) => {
+    const index = clamp(Math.round(dialValue), 0, modeNames.length - 1);
+    return modeNames[index];
+  };
+}

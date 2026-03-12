@@ -6902,6 +6902,13 @@ class App {
           rmModule.start();
         }
         outNode = rmModule?.getOutputNode?.() ?? null;
+      } else if (source.kind === 'envelopeShaper') {
+        const esIndex = source.index ?? 0;
+        const esModule = this._envelopeShaperModules[esIndex];
+        if (esModule && !esModule.isStarted) {
+          esModule.start();
+        }
+        outNode = esModule?.getOutputNode?.('audio') ?? null;
       }
       
       if (!outNode) {
@@ -7059,6 +7066,14 @@ class App {
         }
         const inputId = dest.kind === 'ringModInputA' ? 'A' : 'B';
         destNode = rmModule?.getInputNode?.(inputId) ?? null;
+      } else if (dest.kind === 'envelopeShaperSignalInput' || dest.kind === 'envelopeShaperTriggerInput') {
+        const esIndex = dest.index ?? 0;
+        const esModule = this._envelopeShaperModules[esIndex];
+        if (esModule && !esModule.isStarted) {
+          esModule.start();
+        }
+        const inputId = dest.kind === 'envelopeShaperSignalInput' ? 'signal' : 'trigger';
+        destNode = esModule?.getInputNode?.(inputId) ?? null;
       }
       
       if (!destNode) {
@@ -7499,6 +7514,27 @@ class App {
           log.warn(` Random CV output node not available for: ${rvgOutput}`);
           return false;
         }
+      } else if (source.kind === 'envelopeShaper') {
+        // Fuente: Envelope Shaper (CV de envolvente ADSR)
+        const esIndex = source.index ?? 0;
+        const esOutput = source.output || 'envelope';
+        const esModule = this._envelopeShaperModules[esIndex];
+
+        if (!esModule) {
+          log.warn(' Envelope Shaper module not initialized, index:', esIndex);
+          return false;
+        }
+
+        if (!esModule.isStarted) {
+          esModule.start();
+        }
+
+        outNode = esModule.getOutputNode(esOutput);
+
+        if (!outNode) {
+          log.warn(` Envelope Shaper ${esIndex} output not available for: ${esOutput}`);
+          return false;
+        }
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
       // - 'envelope': generador de envolventes
@@ -7643,6 +7679,27 @@ class App {
           reverbModule.start();
         }
         destNode = reverbModule?.getMixCVParam?.() ?? null;
+      } else if (
+        dest.kind === 'envelopeShaperKeyCV' ||
+        dest.kind === 'envelopeShaperDelayCV' ||
+        dest.kind === 'envelopeShaperAttackCV' ||
+        dest.kind === 'envelopeShaperDecayCV' ||
+        dest.kind === 'envelopeShaperSustainCV' ||
+        dest.kind === 'envelopeShaperReleaseCV'
+      ) {
+        // Destino: CV para parámetros ADSR del Envelope Shaper
+        // El worklet usa parámetros por mensaje (no AudioParam), así que
+        // la señal conectada se registra pero no modula a audio rate.
+        // TODO: Añadir AudioParams al worklet para modulación CV real.
+        const esIndex = dest.index ?? 0;
+        const esModule = this._envelopeShaperModules[esIndex];
+        if (esModule && !esModule.isStarted) {
+          esModule.start();
+        }
+        // Crear nodo sink para que la conexión de matriz se registre
+        // y dormancy/signal-flow funcionen correctamente
+        destNode = ctx.createGain();
+        destNode.gain.value = 0;
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud

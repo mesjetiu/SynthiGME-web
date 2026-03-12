@@ -676,38 +676,60 @@ export function getRingModLevelTooltipInfo(maxVpp = 8, logBase = 100) {
  *
  * @param {number} [minMs=1] - Tiempo mínimo en ms
  * @param {number} [maxMs=20000] - Tiempo máximo en ms
+ * @param {Object} [options] - Opciones mode-aware
+ * @param {function(): number} [options.getMode] - Getter del modo actual (0-4)
+ * @param {number[]} [options.inactiveModes] - Modos en los que este parámetro no tiene efecto
  * @returns {function(number): string|null}
  */
-export function getEnvelopeShaperTimeTooltipInfo(minMs = 1, maxMs = 20000) {
+export function getEnvelopeShaperTimeTooltipInfo(minMs = 1, maxMs = 20000, { getMode, inactiveModes } = {}) {
   const ratio = maxMs / minMs;
   return (dialValue) => {
-    if (!showAudioTooltip()) return null;
-    const normalized = clamp(dialValue, 0, 10) / 10;
-    const timeMs = minMs * Math.pow(ratio, normalized);
-    if (timeMs >= 1000) {
-      return `${(timeMs / 1000).toFixed(2)} s`;
+    const parts = [];
+    if (showVoltageTooltip()) {
+      parts.push(`ΣCV ${dialValue.toFixed(1)} V`);
     }
-    return `${timeMs.toFixed(1)} ms`;
+    if (showAudioTooltip()) {
+      const normalized = clamp(dialValue, 0, 10) / 10;
+      const timeMs = minMs * Math.pow(ratio, normalized);
+      parts.push(timeMs >= 1000 ? `${(timeMs / 1000).toFixed(2)} s` : `${timeMs.toFixed(1)} ms`);
+    }
+    if (getMode && inactiveModes?.includes(getMode())) {
+      parts.push('(inactivo)');
+    }
+    return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
 
 /**
  * Genera tooltip para el knob Sustain del Envelope Shaper.
- * Muestra porcentaje del nivel pico.
+ * Muestra voltaje ΣCV + porcentaje del nivel pico.
+ * En modos que saltan la fase de sustain, indica inactividad.
  *
+ * @param {Object} [options] - Opciones mode-aware
+ * @param {function(): number} [options.getMode] - Getter del modo actual (0-4)
+ * @param {number[]} [options.inactiveModes] - Modos en los que sustain se salta
  * @returns {function(number): string|null}
  */
-export function getEnvelopeShaperSustainTooltipInfo() {
+export function getEnvelopeShaperSustainTooltipInfo({ getMode, inactiveModes } = {}) {
   return (dialValue) => {
-    if (!showAudioTooltip()) return null;
-    const pct = clamp(dialValue, 0, 10) * 10;
-    return `${pct.toFixed(0)}%`;
+    const parts = [];
+    if (showVoltageTooltip()) {
+      parts.push(`ΣCV ${dialValue.toFixed(1)} V`);
+    }
+    if (showAudioTooltip()) {
+      const pct = clamp(dialValue, 0, 10) * 10;
+      parts.push(`${pct.toFixed(0)}% nivel`);
+    }
+    if (getMode && inactiveModes?.includes(getMode())) {
+      parts.push('(inactivo)');
+    }
+    return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
 
 /**
  * Genera tooltip para el knob Envelope Level (bipolar ±5V).
- * Muestra voltaje y polaridad.
+ * Muestra voltaje ΣCV y polaridad de la envolvente.
  *
  * @returns {function(number): string|null}
  */
@@ -715,7 +737,7 @@ export function getEnvelopeShaperEnvLevelTooltipInfo() {
   return (dialValue) => {
     const parts = [];
     if (showVoltageTooltip()) {
-      parts.push(`${dialValue >= 0 ? '+' : ''}${dialValue.toFixed(1)} V`);
+      parts.push(`ΣCV ${dialValue >= 0 ? '+' : ''}${dialValue.toFixed(1)} V`);
     }
     if (showAudioTooltip()) {
       if (Math.abs(dialValue) < 0.01) {

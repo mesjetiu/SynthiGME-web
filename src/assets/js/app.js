@@ -3232,11 +3232,7 @@ class App {
 
     const envLayout = blueprint.layout.envelopeShapers;
 
-    const esTimeTooltip = getEnvelopeShaperTimeTooltipInfo(
-      envelopeShaperConfig.audio.minTimeMs,
-      envelopeShaperConfig.audio.maxTimeMs
-    );
-    const esSustainTooltip = getEnvelopeShaperSustainTooltipInfo();
+    // Tooltips sin dependencia de modo (compartidos por las 3 instancias)
     const esEnvLevelTooltip = getEnvelopeShaperEnvLevelTooltipInfo();
     const esSignalLevelTooltip = getEnvelopeShaperSignalLevelTooltipInfo(
       envelopeShaperConfig.audio.audioMaxVpp,
@@ -3246,21 +3242,39 @@ class App {
       envelopeShaperConfig.knobs.mode.labels
     );
 
-    // Definiciones de knobs del envelope shaper (orden horizontal)
-    const esKnobDefs = [
-      { key: 'mode',          config: envelopeShaperConfig.knobs.mode,          tooltip: esModeTooltip,          type: 'selector' },
-      { key: 'delay',         config: envelopeShaperConfig.knobs.delay,         tooltip: esTimeTooltip,          type: 'normal' },
-      { key: 'attack',        config: envelopeShaperConfig.knobs.attack,        tooltip: esTimeTooltip,          type: 'normal' },
-      { key: 'decay',         config: envelopeShaperConfig.knobs.decay,         tooltip: esTimeTooltip,          type: 'normal' },
-      { key: 'sustain',       config: envelopeShaperConfig.knobs.sustain,       tooltip: esSustainTooltip,       type: 'normal' },
-      { key: 'release',       config: envelopeShaperConfig.knobs.release,       tooltip: esTimeTooltip,          type: 'normal' },
-      { key: 'envelopeLevel', config: envelopeShaperConfig.knobs.envelopeLevel, tooltip: esEnvLevelTooltip,      type: 'bipolar' },
-      { key: 'signalLevel',   config: envelopeShaperConfig.knobs.signalLevel,   tooltip: esSignalLevelTooltip,   type: 'normal' }
-    ];
-
     for (let i = 1; i <= envLayout.count; i++) {
       const envId = `envelopeShaper${i}`;
       const envModuleUI = blueprint.modules?.[envId]?.ui || {};
+
+      // Knobs se acumulan aquí — el getter de modo los referencia lazy
+      const esKnobs = {};
+      const getMode = () => esKnobs.mode?.getValue() ?? 2;
+
+      // Tooltips mode-aware (creados por instancia porque dependen del modo actual)
+      const esTimeTooltip = getEnvelopeShaperTimeTooltipInfo(
+        envelopeShaperConfig.audio.minTimeMs,
+        envelopeShaperConfig.audio.maxTimeMs
+      );
+      const esSustainTooltip = getEnvelopeShaperSustainTooltipInfo({
+        getMode, inactiveModes: [0, 1, 3]  // GATED_FR, FREE_RUN, TRIGGERED
+      });
+      const esReleaseTooltip = getEnvelopeShaperTimeTooltipInfo(
+        envelopeShaperConfig.audio.minTimeMs,
+        envelopeShaperConfig.audio.maxTimeMs,
+        { getMode, inactiveModes: [4] }     // HOLD: sustain indefinido, release nunca ejecuta
+      );
+
+      // Definiciones de knobs del envelope shaper (orden horizontal)
+      const esKnobDefs = [
+        { key: 'mode',          config: envelopeShaperConfig.knobs.mode,          tooltip: esModeTooltip,          type: 'selector' },
+        { key: 'delay',         config: envelopeShaperConfig.knobs.delay,         tooltip: esTimeTooltip,          type: 'normal' },
+        { key: 'attack',        config: envelopeShaperConfig.knobs.attack,        tooltip: esTimeTooltip,          type: 'normal' },
+        { key: 'decay',         config: envelopeShaperConfig.knobs.decay,         tooltip: esTimeTooltip,          type: 'normal' },
+        { key: 'sustain',       config: envelopeShaperConfig.knobs.sustain,       tooltip: esSustainTooltip,       type: 'normal' },
+        { key: 'release',       config: envelopeShaperConfig.knobs.release,       tooltip: esReleaseTooltip,       type: 'normal' },
+        { key: 'envelopeLevel', config: envelopeShaperConfig.knobs.envelopeLevel, tooltip: esEnvLevelTooltip,      type: 'bipolar' },
+        { key: 'signalLevel',   config: envelopeShaperConfig.knobs.signalLevel,   tooltip: esSignalLevelTooltip,   type: 'normal' }
+      ];
 
       // Crear módulo de audio
       const esModule = new EnvelopeShaperModule(this.engine, `envelope-shaper-${i}`, {
@@ -3288,7 +3302,6 @@ class App {
       applyOffset(knobsContainer, envModuleUI.knobsOffset, envLayout.knobsOffset || { x: 0, y: 0 });
 
       // Knobs funcionales (con Knob instance para interacción + audio)
-      const esKnobs = {};
       esKnobDefs.forEach((def, idx) => {
         const knobColor = envModuleUI.knobColors?.[idx] ?? envLayout.knobColors?.[idx] ?? '';
         const knobType = def.type;

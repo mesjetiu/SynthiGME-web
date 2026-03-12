@@ -81,18 +81,8 @@ export class EnvelopeShaperModule extends Module {
     // Callback para notificar actividad (LED)
     this.onActiveChange = null;
 
-    // ─── Dormancy autogestionada ───────────────────────────────────────
-    // El ES gestiona su propia dormancia combinando:
-    //   1. Conexiones críticas (trigger P5, CV dest P6) — vía DormancyManager
-    //   2. Modo FREE_RUN → siempre despierto
-    //   3. Gate manual activo → despierto
-    //   4. Worklet en ciclo activo (fase ≠ IDLE) → despierto hasta fin de ciclo
-    // El keepalive GainNode (ganancia 0) garantiza que process() siempre
-    // se ejecute, incluso dormido, permitiendo que la FSM avance y notifique.
-    this._hasCriticalConnections = false;
+    // Gate manual (botón en panel)
     this._manualGateActive = false;
-    this._workletCycling = false;
-    this._isDormant = true;
 
     // Valores actuales de los diales
     this.values = {
@@ -133,9 +123,6 @@ export class EnvelopeShaperModule extends Module {
         const msg = e.data;
         if (msg?.type === 'active' && this.onActiveChange) {
           this.onActiveChange(msg.value);
-        } else if (msg?.type === 'cycling') {
-          this._workletCycling = !!msg.value;
-          this._evaluateDormancy();
         }
       };
 
@@ -211,7 +198,6 @@ export class EnvelopeShaperModule extends Module {
   setMode(value) {
     this.values.mode = Math.max(0, Math.min(4, Math.round(value)));
     this._sendToWorklet('setMode', this.values.mode);
-    this._evaluateDormancy();
   }
 
   setDelay(value) {
@@ -252,9 +238,6 @@ export class EnvelopeShaperModule extends Module {
   setGate(active) {
     this._manualGateActive = !!active;
     this._sendToWorklet('gate', active);
-    // Evaluar dormancia: gate activo despierta, gate suelto permite
-    // que el worklet decida (cycling:true/false notifica fin de ciclo).
-    this._evaluateDormancy();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -315,13 +298,6 @@ export class EnvelopeShaperModule extends Module {
     this._initAudioNodes();
     if (!this.workletNode) return; // AudioContext no disponible aún
     this.isStarted = true;
-    // Evaluar dormancia inicial: arranca dormido salvo que haya
-    // razón para estar despierto (FREE_RUN, gate pre-activo, etc.).
-    this._isDormant = true;
-    this._evaluateDormancy();
-    if (this._isDormant) {
-      this._applyDormancy(true);
-    }
     log.info(`${this.id}] Started`);
   }
 
@@ -357,88 +333,6 @@ export class EnvelopeShaperModule extends Module {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // DORMANCY — autogestionada
-  // ─────────────────────────────────────────────────────────────────────────
-  //
-  // El DormancyManager solo informa sobre conexiones críticas (trigger, CV).
-  // El módulo combina esa información con su estado interno para tomar
-  // la decisión final de dormancy.
-  //
-  // Despierto si:
-  //   - Tiene conexiones críticas (trigger P5 o CV dest P6)
-  //   - Modo FREE_RUN (cicla indefinidamente)
-  //   - Gate manual activo
-  //   - Worklet en ciclo activo (fase ≠ IDLE)
-  //
-  // Dormido si ninguna de las anteriores.
-  // ─────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Llamado por DormancyManager. Registra el estado externo y re-evalúa.
-   * @override
-   */
-  setDormant(dormant) {
-    this._hasCriticalConnections = !dormant;
-    this._evaluateDormancy();
-  }
-
-  /**
-   * Evalúa si el módulo debe estar realmente dormido o despierto,
-   * combinando el estado externo (conexiones) con el interno (modo, gate, ciclo).
-   * Gracias al keepalive GainNode, process() siempre corre y la FSM puede
-   * notificar cycling:true/false para despertar/dormir automáticamente.
-   */
-  _evaluateDormancy() {
-    if (!this.isStarted) return;
-
-    const shouldBeAwake =
-      this._hasCriticalConnections ||
-      this.values.mode === 1 ||     // MODE_FREE_RUN
-      this._manualGateActive ||
-      this._workletCycling;
-
-    const shouldBeDormant = !shouldBeAwake;
-    if (this._isDormant === shouldBeDormant) return;
-    this._isDormant = shouldBeDormant;
-    this._applyDormancy(shouldBeDormant);
-  }
-
-  /**
-   * Aplica el cambio real de dormancy (worklet + gain ramps).
-   */
-  _applyDormancy(dormant) {
-    if (this.workletNode) {
-      try {
-        this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-      } catch (e) { /* ignore */ }
-    }
-
-    const ctx = this.getAudioCtx();
-    if (!ctx) return;
-
-    const rampTime = 0.01;
-    const now = ctx.currentTime;
-
-    if (dormant) {
-      this._rampGain(this.envGain, 0, now, rampTime);
-      this._rampGain(this.audioGain, 0, now, rampTime);
-    } else {
-      this._rampGain(this.envGain, 1, now, rampTime);
-      this._rampGain(this.audioGain, 1, now, rampTime);
-      // Restaurar parámetros del worklet
-      this._sendToWorklet('setMode', this.values.mode);
-      this._sendToWorklet('setDelay', this.values.delay);
-      this._sendToWorklet('setAttack', this.values.attack);
-      this._sendToWorklet('setDecay', this.values.decay);
-      this._sendToWorklet('setSustain', this.values.sustain);
-      this._sendToWorklet('setRelease', this.values.release);
-      this._sendToWorklet('setEnvelopeLevel', this.values.envelopeLevel);
-      this._sendToWorklet('setSignalLevel', this.values.signalLevel);
-      this._sendToWorklet('gate', this._manualGateActive);
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
   // HELPERS
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -446,14 +340,6 @@ export class EnvelopeShaperModule extends Module {
     if (!this.workletNode) return;
     try {
       this.workletNode.port.postMessage({ type, value });
-    } catch (e) { /* ignore */ }
-  }
-
-  _rampGain(gainNode, targetGain, now, rampTime) {
-    if (!gainNode) return;
-    try {
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setTargetAtTime(targetGain, now, rampTime);
     } catch (e) { /* ignore */ }
   }
 }

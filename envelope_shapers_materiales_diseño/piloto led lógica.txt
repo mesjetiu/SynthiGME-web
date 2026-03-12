@@ -1,0 +1,27 @@
+Para tu implementación de los **Envelope Shapers** del Synthi 100 (1982), el comportamiento del piloto (identificado en los planos como **Gate LED** o **"ON" lamp**) es fundamental para dar el *feedback* visual correcto al usuario.
+
+Basado en el manual técnico y los esquemas de circuitería (Plano D100-17 C1), aquí tienes el detalle exacto de cuándo debe encenderse y apagarse:
+
+### **1. Lógica General: El Ciclo Activo vs. Reposo**
+El piloto no indica simplemente la presencia de un voltaje de entrada (*trigger*), sino el estado interno del generador de envolvente. Funciona siguiendo el estado del **Gate Control Bistable** del chip CEM 3310.
+
+*   **Se ENCIENDE al inicio de la fase de ATTACK:** En el momento en que termina el tiempo de *Delay* y comienza el ascenso del voltaje de la envolvente, el piloto debe iluminarse.
+*   **Permanece ENCENDIDO durante DECAY y SUSTAIN:** Mientras la envolvente esté en sus fases activas de caída o mantenimiento (en los modos que lo permitan), la luz sigue encendida.
+*   **Se APAGA al finalizar la fase de RELEASE:** El piloto debe apagarse exactamente cuando el voltaje de la envolvente vuelve a cero (reposo).
+
+### **2. Comportamiento según el Modo de Operación**
+*   **FREE RUN:** El piloto parpadeará rítmicamente. Permanecerá **apagado durante el tiempo de DELAY** (fase quiescente) y se **encenderá durante la ejecución del trapezoide** (A-D-S-R). Si el *Delay* es corto y los tiempos de envolvente largos, la luz pasará más tiempo encendida que apagada.
+*   **GATED / TRIGGERED:** 
+    *   Al recibir el disparo, el piloto **permanece APAGADO durante el conteo del DELAY**.
+    *   Se enciende en cuanto el sonido comienza a "aparecer" (fase de Attack).
+    *   Se apaga cuando el sonido desaparece por completo tras el Release.
+*   **HOLD:** En este modo, una vez que el ciclo alcanza la fase de Sustain, el piloto **permanecerá ENCENDIDO indefinidamente** hasta que se cambie el modo del selector, ya que la envolvente nunca llega a la fase de reposo.
+
+### **3. Especificaciones Técnicas para tu Código**
+*   **Origen de la señal:** En el plano **D100-17 C1**, el componente **2-10 (GATE LED)** está conectado a la lógica de disparo que activa el pin de "Gate" del CEM 3310.
+*   **Umbral visual:** Para una implementación fiel, la intensidad del piloto en el hardware original es binaria (encendido/apagado), alimentada por la línea de **+5V no regulada** dedicada a los L.E.D.S. de puerta.
+*   **Diagnóstico:** El manual sugiere usar el parpadeo de estas lámparas en modo *Free Run* como una de las primeras pruebas para verificar que la máquina está funcionando correctamente tras el encendido.
+
+**Resumen para implementación:**
+*   `Luz = OFF` durante **Delay** y **Off period** (esperando trigger).
+*   `Luz = ON` durante **Attack**, **Decay**, **Sustain** y **Release**.

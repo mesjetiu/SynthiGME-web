@@ -28,7 +28,6 @@ import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
 import { NoiseGenerator } from './ui/noiseGenerator.js';
 import { RandomVoltage } from './ui/randomVoltage.js';
-import { EnvelopeShaper } from './ui/envelopeShaper.js';
 import { InputAmplifierUI } from './ui/inputAmplifierUI.js';
 import { Panel1FilterUI } from './ui/panel1Filter.js';
 import { Panel1ReverbUI } from './ui/panel1Reverb.js';
@@ -3056,6 +3055,8 @@ class App {
         svgSrc = 'assets/knobs/knob-0-center.svg';
       } else if (knobType === 'vernier') {
         svgSrc = 'assets/knobs/vernier-dial.svg'; 
+      } else if (knobType === 'selector') {
+        svgSrc = 'assets/knobs/knob-selector.svg';
       }
 
       // If it's a vernier type, you might use a specific Vernier constructor, 
@@ -3232,6 +3233,18 @@ class App {
       envelopeShaperConfig.knobs.mode.labels
     );
 
+    // Definiciones de knobs del envelope shaper (orden horizontal)
+    const esKnobDefs = [
+      { key: 'mode',          config: envelopeShaperConfig.knobs.mode,          tooltip: esModeTooltip,          type: 'selector' },
+      { key: 'delay',         config: envelopeShaperConfig.knobs.delay,         tooltip: esTimeTooltip,          type: 'normal' },
+      { key: 'attack',        config: envelopeShaperConfig.knobs.attack,        tooltip: esTimeTooltip,          type: 'normal' },
+      { key: 'decay',         config: envelopeShaperConfig.knobs.decay,         tooltip: esTimeTooltip,          type: 'normal' },
+      { key: 'sustain',       config: envelopeShaperConfig.knobs.sustain,       tooltip: esSustainTooltip,       type: 'normal' },
+      { key: 'release',       config: envelopeShaperConfig.knobs.release,       tooltip: esTimeTooltip,          type: 'normal' },
+      { key: 'envelopeLevel', config: envelopeShaperConfig.knobs.envelopeLevel, tooltip: esEnvLevelTooltip,      type: 'bipolar' },
+      { key: 'signalLevel',   config: envelopeShaperConfig.knobs.signalLevel,   tooltip: esSignalLevelTooltip,   type: 'normal' }
+    ];
+
     for (let i = 1; i <= envLayout.count; i++) {
       const envId = `envelopeShaper${i}`;
       const envModuleUI = blueprint.modules?.[envId]?.ui || {};
@@ -3242,124 +3255,154 @@ class App {
       });
       this._envelopeShaperModules.push(esModule);
 
-      // Crear UI funcional con knobs + gate + LED
-      const knobsOff = envModuleUI.knobsOffset ?? envLayout.knobsOffset ?? {};
-      const esUI = new EnvelopeShaper({
+      // Crear frame con la misma estructura del layout calibrado
+      const frame = new ModuleFrame({
         id: `${envId}-module`,
         title: null,
-        knobSize: envModuleUI.knobSize ?? envLayout.knobSize,
-        knobInnerPct: envModuleUI.knobInnerPct ?? envLayout.knobInnerPct,
-        knobGap: envModuleUI.knobGap ?? envLayout.knobGap,
-        knobRowOffsetX: knobsOff.x ?? 0,
-        knobRowOffsetY: knobsOff.y ?? 0,
-        knobOptions: {
-          mode: {
-            ...envelopeShaperConfig.knobs.mode,
-            onChange: (value) => {
-              esModule.setMode(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'mode', value);
-              }
-            },
-            getTooltipInfo: esModeTooltip
-          },
-          delay: {
-            ...envelopeShaperConfig.knobs.delay,
-            onChange: (value) => {
-              esModule.setDelay(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'delay', value);
-              }
-            },
-            getTooltipInfo: esTimeTooltip
-          },
-          attack: {
-            ...envelopeShaperConfig.knobs.attack,
-            onChange: (value) => {
-              esModule.setAttack(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'attack', value);
-              }
-            },
-            getTooltipInfo: esTimeTooltip
-          },
-          decay: {
-            ...envelopeShaperConfig.knobs.decay,
-            onChange: (value) => {
-              esModule.setDecay(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'decay', value);
-              }
-            },
-            getTooltipInfo: esTimeTooltip
-          },
-          sustain: {
-            ...envelopeShaperConfig.knobs.sustain,
-            onChange: (value) => {
-              esModule.setSustain(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'sustain', value);
-              }
-            },
-            getTooltipInfo: esSustainTooltip
-          },
-          release: {
-            ...envelopeShaperConfig.knobs.release,
-            onChange: (value) => {
-              esModule.setRelease(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'release', value);
-              }
-            },
-            getTooltipInfo: esTimeTooltip
-          },
-          envelopeLevel: {
-            ...envelopeShaperConfig.knobs.envelopeLevel,
-            onChange: (value) => {
-              esModule.setEnvelopeLevel(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'envelopeLevel', value);
-              }
-            },
-            getTooltipInfo: esEnvLevelTooltip
-          },
-          signalLevel: {
-            ...envelopeShaperConfig.knobs.signalLevel,
-            onChange: (value) => {
-              esModule.setSignalLevel(value);
-              if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-                envelopeShaperOSCSync.sendChange(i, 'signalLevel', value);
-              }
-            },
-            getTooltipInfo: esSignalLevelTooltip
-          }
-        },
-        onGatePress: () => {
-          esModule.setGate(true);
-          if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-            envelopeShaperOSCSync.sendGate(i, true);
-          }
-        },
-        onGateRelease: () => {
-          esModule.setGate(false);
-          if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
-            envelopeShaperOSCSync.sendGate(i, false);
-          }
-        }
+        className: 'panel1-placeholder panel1-envelope'
       });
-      this._envelopeShaperUIs[envId] = esUI;
-
-      const el = esUI.createElement();
-      el.classList.add('panel1-envelope');
+      const el = frame.createElement();
       el.style.cssText = `
         width: 100%;
         height: ${envLayout.height}px;
         flex: 0 0 auto;
       `;
+
+      // Crear knobs horizontales en panel1-envelope-knobs (estructura CSS existente)
+      const knobsContainer = document.createElement('div');
+      knobsContainer.className = 'panel1-envelope-knobs';
+      knobsContainer.style.gap = `${toNum(envModuleUI.knobGap, toNum(envLayout.knobGap, 2))}px`;
+      applyOffset(knobsContainer, envModuleUI.knobsOffset, envLayout.knobsOffset || { x: 0, y: 0 });
+
+      // Knobs funcionales (con Knob instance para interacción + audio)
+      const esKnobs = {};
+      esKnobDefs.forEach((def, idx) => {
+        const knobColor = envModuleUI.knobColors?.[idx] ?? envLayout.knobColors?.[idx] ?? '';
+        const knobType = def.type;
+        const knobSize = envModuleUI.knobSize ?? envLayout.knobSize;
+
+        let svgSrc = 'assets/knobs/knob.svg';
+        if (knobType === 'bipolar') svgSrc = 'assets/knobs/knob-0-center.svg';
+        else if (knobType === 'selector') svgSrc = 'assets/knobs/knob-selector.svg';
+
+        const centerColor = COLOR_MAP[knobColor] || '';
+
+        const knob = createKnob({
+          showValue: false,
+          centerColor,
+          svgSrc,
+          min: def.config.min ?? 0,
+          max: def.config.max ?? 1,
+          initial: def.config.initial ?? 0,
+          pixelsForFullRange: def.config.pixelsForFullRange ?? 150,
+          scaleMin: def.config.scaleMin ?? 0,
+          scaleMax: def.config.scaleMax ?? 10,
+          scaleDecimals: def.config.scaleDecimals ?? 1,
+          onChange: (value) => {
+            esModule[`set${def.key.charAt(0).toUpperCase() + def.key.slice(1)}`](value);
+            if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+              envelopeShaperOSCSync.sendChange(i, def.key, value);
+            }
+          },
+          getTooltipInfo: def.tooltip
+        });
+
+        // Aplicar tamaño del blueprint
+        if (typeof knobSize === 'number' && Number.isFinite(knobSize) && knobSize > 0) {
+          knob.knobEl.style.width = `${knobSize}px`;
+          knob.knobEl.style.height = `${knobSize}px`;
+        }
+        const inner = knob.knobEl.querySelector('.knob-inner');
+        if (inner) {
+          const pct = toNum(envModuleUI.knobInnerPct ?? envLayout.knobInnerPct, 78);
+          inner.style.width = `${pct}%`;
+          inner.style.height = `${pct}%`;
+        }
+
+        // Compensar rotación para knob bipolar
+        if (knobType === 'bipolar') {
+          knob.knobInstance._angleOffset = -150;
+        }
+
+        knobsContainer.appendChild(knob.wrapper);
+        esKnobs[def.key] = knob.knobInstance;
+      });
+      frame.appendToContent(knobsContainer);
+
+      // LED piloto — posición absoluta (arriba a la derecha de delay, según blueprint)
+      const ledX = toNum(envModuleUI.ledOffset?.x ?? envLayout.ledOffset?.x, 130);
+      const ledY = toNum(envModuleUI.ledOffset?.y ?? envLayout.ledOffset?.y, 8);
+      const ledSz = toNum(envModuleUI.ledSize ?? envLayout.ledSize, 10);
+      const gateLed = document.createElement('div');
+      gateLed.className = 'envelope-shaper__led';
+      gateLed.style.cssText = `position:absolute;left:${ledX}px;top:${ledY}px;width:${ledSz}px;height:${ledSz}px;`;
+      el.appendChild(gateLed);
+
+      // Gate button — posición absoluta (abajo a la derecha del selector, según blueprint)
+      const gateX = toNum(envModuleUI.gateOffset?.x ?? envLayout.gateOffset?.x, 52);
+      const gateY = toNum(envModuleUI.gateOffset?.y ?? envLayout.gateOffset?.y, 68);
+      const gateSz = toNum(envModuleUI.gateSize ?? envLayout.gateSize, 16);
+      const gateBtn = document.createElement('button');
+      gateBtn.type = 'button';
+      gateBtn.className = 'envelope-shaper__gate-btn';
+      gateBtn.textContent = 'GATE';
+      gateBtn.style.cssText = `position:absolute;left:${gateX}px;top:${gateY}px;width:${gateSz}px;height:${gateSz}px;`;
+
+      let gateActive = false;
+      const setGateActive = (active) => {
+        gateActive = active;
+        gateLed.classList.toggle('envelope-shaper__led--active', active);
+        gateBtn.classList.toggle('envelope-shaper__gate-btn--active', active);
+        if (active) {
+          esModule.setGate(true);
+          if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+            envelopeShaperOSCSync.sendGate(i, true);
+          }
+        } else {
+          esModule.setGate(false);
+          if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
+            envelopeShaperOSCSync.sendGate(i, false);
+          }
+        }
+      };
+      gateBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); setGateActive(true); });
+      gateBtn.addEventListener('pointerup', () => setGateActive(false));
+      gateBtn.addEventListener('pointerleave', () => { if (gateActive) setGateActive(false); });
+
+      el.appendChild(gateBtn);
+
+      // El frame necesita position:relative para los hijos absolutos
+      el.style.position = 'relative';
+
       applyOffset(el, envModuleUI.offset, envLayout.moduleOffset || { x: 0, y: 0 });
 
       applyModuleVisibility(el, blueprint, envId);
       host.appendChild(el);
+
+      // Wrapper UI ligero para serialize/deserialize (compatible con el sistema de estado)
+      this._envelopeShaperUIs[envId] = {
+        id: `${envId}-module`,
+        knobs: esKnobs,
+        gateLed,
+        serialize() {
+          const data = {};
+          for (const [key, knob] of Object.entries(esKnobs)) {
+            data[key] = knob.getValue();
+          }
+          return data;
+        },
+        deserialize(data) {
+          if (!data) return;
+          for (const [key, val] of Object.entries(data)) {
+            if (esKnobs[key] && typeof val === 'number') {
+              esKnobs[key].setValue(val);
+            }
+          }
+        },
+        getValue(key) { return esKnobs[key]?.getValue() ?? 0; },
+        setValue(key, value) { esKnobs[key]?.setValue(value); },
+        setLedState(active) { gateLed.classList.toggle('envelope-shaper__led--active', active); }
+      };
     }
 
     // ─────────────────────────────────────────────────────────────────────────

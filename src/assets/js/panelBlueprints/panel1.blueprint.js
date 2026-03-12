@@ -94,13 +94,19 @@ export default {
       // Mode, Delay, Attack, Decay, Sustain, Release, Envelope Level, Signal Level
       knobs: ['Mode', 'Delay', 'Attack', 'Decay', 'Sustain', 'Release', 'Env Level', 'Sig Level'],
       knobColors: ['yellow', 'red', 'red', 'red', 'red', 'red', 'white', 'white'],
-      knobTypes: ['normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'bipolar', 'normal'],
+      knobTypes: ['selector', 'normal', 'normal', 'normal', 'normal', 'normal', 'bipolar', 'normal'],
       knobSize: 65,
       knobInnerPct: 78,
       knobGap: 2,
       knobsOffset: { x: 0, y: 0 },
       knobDirection: 'horizontal',
-      count: 3
+      count: 3,
+      // Gate button: posición absoluta relativa al frame (abajo a la derecha del selector)
+      gateOffset: { x: 52, y: 68 },
+      gateSize: 16,
+      // LED piloto: posición absoluta relativa al frame (arriba a la derecha de delay)
+      ledOffset: { x: 130, y: 8 },
+      ledSize: 10
     },
 
     // ── Fila 5: Ring Modulators + Reverb + Echo ─────────────────────────

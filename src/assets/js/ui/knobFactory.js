@@ -147,7 +147,12 @@ export function createKnob(options = {}) {
     scaleDecimals = 1,
     onChange,
     format,
-    getTooltipInfo
+    getTooltipInfo,
+    // Selector: ángulos y cuantización
+    minAngle,
+    maxAngle,
+    steps,
+    stepLabels
   } = options;
 
   // Crear elementos DOM
@@ -168,6 +173,10 @@ export function createKnob(options = {}) {
   if (format) knobOptions.format = format;
   if (getTooltipInfo) knobOptions.getTooltipInfo = getTooltipInfo;
   if (elements.valueEl) knobOptions.valueElement = elements.valueEl;
+  if (minAngle != null) knobOptions.minAngle = minAngle;
+  if (maxAngle != null) knobOptions.maxAngle = maxAngle;
+  if (steps) knobOptions.steps = steps;
+  if (stepLabels) knobOptions.stepLabels = stepLabels;
 
   // Crear instancia
   const knobInstance = new Knob(elements.knobEl, knobOptions);

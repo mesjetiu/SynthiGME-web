@@ -196,6 +196,17 @@ export class ModuleUI {
     if (type === 'selector') {
       knobConfig.minAngle = 300;  // 10 o'clock
       knobConfig.maxAngle = 420;  // 2 o'clock
+      // Escala de display = rango real (para que stepLabels mapee correcto)
+      knobConfig.scaleMin = opts.min ?? 0;
+      knobConfig.scaleMax = opts.max ?? 4;
+      knobConfig.scaleDecimals = 0;
+      // Cuantización discreta: número de posiciones = (max - min + 1)
+      const numSteps = (opts.max ?? 4) - (opts.min ?? 0) + 1;
+      knobConfig.steps = numSteps;
+      // Labels opcionales para mostrar nombres en vez de números
+      if (opts.labels) {
+        knobConfig.stepLabels = opts.labels;
+      }
     }
     // Tooltip técnico (si lo proporciona el caller)
     if (opts.getTooltipInfo) {

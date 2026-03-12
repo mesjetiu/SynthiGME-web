@@ -3300,6 +3300,17 @@ class App {
 
         const centerColor = COLOR_MAP[knobColor] || '';
 
+        // Selector: arco reducido (10→2 o'clock) con cuantización discreta
+        const selectorOpts = knobType === 'selector' ? {
+          minAngle: 300,
+          maxAngle: 420,
+          scaleMin: def.config.min ?? 0,
+          scaleMax: def.config.max ?? 4,
+          scaleDecimals: 0,
+          steps: (def.config.max ?? 4) - (def.config.min ?? 0) + 1,
+          stepLabels: def.config.labels
+        } : {};
+
         const knob = createKnob({
           showValue: false,
           centerColor,
@@ -3311,6 +3322,7 @@ class App {
           scaleMin: def.config.scaleMin ?? 0,
           scaleMax: def.config.scaleMax ?? 10,
           scaleDecimals: def.config.scaleDecimals ?? 1,
+          ...selectorOpts,
           onChange: (value) => {
             this.ensureAudio();
             esModule[`set${def.key.charAt(0).toUpperCase() + def.key.slice(1)}`](value);

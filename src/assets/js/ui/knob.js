@@ -32,7 +32,12 @@ export class Knob {
       angleOffset = 0,
       // Ángulos explícitos opcionales (selector: arco reducido 120° en vez de 300°)
       minAngle: optMinAngle,
-      maxAngle: optMaxAngle
+      maxAngle: optMaxAngle,
+      // Cuantización: número de posiciones discretas (ej: 5 para selector de modos)
+      // Si se define, el knob «snap» entre N posiciones equidistantes.
+      steps = 0,
+      // Labels para cada posición (ej: ['Gated F/R', 'Free Run', ...])
+      stepLabels = null
     } = options;
 
     this.valueEl = valueElement;
@@ -88,6 +93,10 @@ export class Knob {
     // minAngle/maxAngle opcionales permiten arcos personalizados (ej: selector 120°).
     this.minAngle = optMinAngle ?? (150 + angleOffset);
     this.maxAngle = optMaxAngle ?? (450 + angleOffset);
+
+    // Cuantización para selectores discretos
+    this.steps = steps;
+    this.stepLabels = stepLabels;
     
     // Registrar callback de ocultación de tooltip para eventos globales (zoom/pan, tap fuera)
     this._tooltipHideCallback = () => {
@@ -115,6 +124,10 @@ export class Knob {
    * @returns {string}
    */
   _formatScaleValue() {
+    if (this.stepLabels) {
+      const idx = Math.round(this._getScaleValue());
+      return this.stepLabels[idx] ?? `${idx}`;
+    }
     return this._getScaleValue().toFixed(this.scaleDecimals);
   }
   
@@ -124,7 +137,7 @@ export class Knob {
    */
   _generateTooltipContent() {
     const scaleValue = this._getScaleValue();
-    const mainText = scaleValue.toFixed(this.scaleDecimals);
+    const mainText = this._formatScaleValue();
     
     // Si hay función de info adicional, usarla
     if (this.getTooltipInfo) {
@@ -533,7 +546,12 @@ export class Knob {
       const sens = baseSens * effectiveSpeedFactor;
       
       // Aplicar delta incremental al valor actual
-      const newValue = Math.min(this.max, Math.max(this.min, this.value + deltaY * sens));
+      let newValue = Math.min(this.max, Math.max(this.min, this.value + deltaY * sens));
+      
+      // Cuantizar a posiciones discretas si es un selector
+      if (this.steps > 1) {
+        newValue = this._quantize(newValue);
+      }
       
       // Solo actualizar si el valor realmente cambia
       if (newValue === this.value) return;
@@ -621,7 +639,10 @@ export class Knob {
   }
 
   setValue(value) {
-    const newValue = Math.min(this.max, Math.max(this.min, value));
+    let newValue = Math.min(this.max, Math.max(this.min, value));
+    if (this.steps > 1) {
+      newValue = this._quantize(newValue);
+    }
     if (newValue === this.value) return;
     
     this.value = newValue;
@@ -643,6 +664,17 @@ export class Knob {
    */
   resetToDefault() {
     this.setValue(this.initialValue);
+  }
+
+  /**
+   * Cuantiza un valor a la posición discreta más cercana.
+   * @param {number} value - Valor continuo
+   * @returns {number} Valor discreto
+   */
+  _quantize(value) {
+    const t = (value - this.min) / (this.max - this.min);
+    const step = Math.round(t * (this.steps - 1));
+    return this.min + step * (this.max - this.min) / (this.steps - 1);
   }
 
   /**

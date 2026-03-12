@@ -233,6 +233,151 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `springReverb.js` | `SpringReverbModule` | Reverberación de muelle del Synthi 100 (placa PC-16). 1 instancia en Panel 1, fila 5. Cadena: `inputGain(=1) → AudioWorkletNode(spring-reverb) → outputGain(=level)`. Knobs: Mix (0-10, dry/wet, CV-controllable via AudioParam `mixControl`), Level (0-10, curva LOG base 100). Entrada/salida audio en Panel 5 (col 1 / fila 124), entrada CV de mix en Panel 6 (col 1). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
 | `envelopeShaper.js` | `EnvelopeShaperModule` | Generador de envolvente del Synthi 100 (CEM 3310). 3 instancias en Panel 1 (filas 2–4). Cadena: `audioInputGain + triggerInputGain → ChannelMerger(2) → AudioWorkletNode(envelope-shaper, 2in/2out) → ChannelSplitter(2) → envGain + audioGain`. Keepalive GainNode (gain=0) al destination para que `process()` siempre se ejecute. Sin dormancy. 8 knobs: mode (selector 0–4), delay/attack/decay/sustain/release (0–10, tiempos exponenciales), envelopeLevel (−5..+5, bipolar), signalLevel (0–10, LOG). Botón GATE momentáneo + LED indicador de ciclo. Entradas audio Panel 5 (cols 9–14: signal + trigger), salidas audio filas 118–120. Salidas CV Panel 6 filas 97–99, destinos CV cols 4–21 (KEY, DELAY, ATTACK, DECAY, SUSTAIN, RELEASE × 3 ES) |
 
+#### Envelope Shaper — Modos de operación
+
+El selector MODE del Envelope Shaper tiene 5 posiciones (0–4). Cada modo define qué fases de la envolvente se ejecutan, cuáles se omiten, y cómo responde el módulo al gate (tecla, CV, o botón manual).
+
+**Fases de la envolvente (FSM):**
+
+```
+IDLE → DELAY → ATTACK → DECAY → SUSTAIN → RELEASE → IDLE
+                                    ↑           ↑
+                                    │           │
+                           (puede omitirse) (puede omitirse)
+```
+
+##### Modo 0 — Gated F/R (Gated Free-Run)
+
+Ciclo continuo mientras el gate esté activo. **Sustain omitido**. Al terminar release, si el gate sigue presente, el ciclo reinicia automáticamente.
+
+```
+Gate ON ─────────────────────────────────────────── Gate OFF
+        ┌─╲      ╱╲      ╱╲      ╱╲               │
+        │D ╲A  D╱  ╲R  D╱A ╲D  ╱  ╲R              │
+  0V ───┘   ╲  ╱    ╲──╱    ╲╱    ╲──── 0V ────────
+             ╲╱      ╲╱            end→IDLE
+        └──── ciclo ──┘└── ciclo ──┘
+              repite mientras gate ON
+```
+
+- **Trigger**: flanco positivo (rising edge)
+- **Sustain**: omitido → Decay pasa directo a Release
+- **Release**: se ejecuta siempre
+- **Auto-retrigger**: sí, si gate sigue ON al terminar release
+- **Gate OFF**: completa el release actual, luego para
+
+##### Modo 1 — Free Run
+
+Ciclo continuo autónomo, sin necesidad de gate externo. **Sustain omitido**. Funciona como LFO cuando los tiempos son cortos.
+
+```
+  (automático, sin gate necesario)
+        ┌─╲      ╱╲      ╱╲      ╱╲      ╱─ ...
+        │D ╲A  D╱  ╲R  D╱A ╲D  ╱  ╲R  D╱A
+  0V ───┘   ╲  ╱    ╲──╱    ╲╱    ╲──╱
+             ╲╱      ╲╱            ╲╱
+        └──── ciclo ──┘└── ciclo ──┘└── ciclo ──
+              repite indefinidamente
+```
+
+- **Trigger**: automático (se auto-dispara al llegar a IDLE)
+- **Sustain**: omitido → Decay pasa directo a Release
+- **Release**: se ejecuta siempre
+- **Auto-retrigger**: sí, siempre
+- **Gate**: ignorado (el ciclo es autónomo)
+
+##### Modo 2 — Gated (estándar de teclado)
+
+Modo clásico ADSR. El sustain se mantiene mientras la tecla esté pulsada. Al soltar la tecla, se inicia el release desde el nivel actual.
+
+```
+Gate ON ──────────────────────── Gate OFF
+        ┌─╲                      │
+        │D ╲A                    │
+        │   ╲  D╲                │
+        │    ╲    ╲___SUSTAIN____╱╲R
+  0V ───┘     ╲                    ╲──── 0V
+               peak               release
+                                   al soltar
+```
+
+Si el gate se suelta **durante Attack o Decay**, salta directamente a Release:
+
+```
+Gate ON ──── Gate OFF (temprano)
+        ┌─╲    │
+        │D ╲A  │
+        │   ╲  ╱╲R
+  0V ───┘    ╲╱   ╲──── 0V
+           salta a Release
+```
+
+- **Trigger**: flanco positivo
+- **Sustain**: se mantiene mientras gate ON (nivel configurable 0–100%)
+- **Release**: solo al soltar gate (desde Attack, Decay o Sustain)
+- **Auto-retrigger**: no
+- **Gate OFF durante A/D**: aborta → salta a Release inmediatamente
+
+##### Modo 3 — Triggered (one-shot)
+
+Un pulso dispara el ciclo completo A→D→R. **Sustain omitido**. El gate se ignora una vez iniciado el ciclo.
+
+```
+Pulso ─┐
+       │
+       ┌─╲
+       │D ╲A
+       │   ╲  D╲
+       │    ╲    ╲
+  0V ──┘     ╲    ╲R
+              ╲    ╲──── 0V
+               peak
+        ciclo completo independiente del gate
+```
+
+- **Trigger**: flanco positivo (solo para iniciar)
+- **Sustain**: omitido → Decay pasa directo a Release
+- **Release**: se ejecuta siempre (ciclo completo)
+- **Auto-retrigger**: no
+- **Gate**: ignorado después del disparo inicial
+
+##### Modo 4 — Hold
+
+Una vez disparado, la envolvente sube hasta el nivel de sustain y se **congela indefinidamente**. **Release nunca se ejecuta**. Solo un cambio de modo puede liberar la envolvente.
+
+```
+Pulso ─┐
+       │
+       ┌─╲
+       │D ╲A
+       │   ╲  D╲
+       │    ╲    ╲_____SUSTAIN_____________ ∞
+  0V ──┘     ╲
+              peak    nivel sostenido para siempre
+                      (release no se ejecuta)
+```
+
+- **Trigger**: flanco positivo (solo para iniciar)
+- **Sustain**: se mantiene indefinidamente
+- **Release**: nunca se ejecuta
+- **Auto-retrigger**: no
+- **Gate OFF**: ignorado
+- **LED**: queda encendido permanentemente
+
+##### Tabla resumen de modos
+
+| Aspecto | Modo 0 (Gated F/R) | Modo 1 (Free Run) | Modo 2 (Gated) | Modo 3 (Triggered) | Modo 4 (Hold) |
+|---|---|---|---|---|---|
+| **Trigger** | Rising edge | Automático | Rising edge | Rising edge | Rising edge |
+| **Delay** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Attack** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Decay** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Sustain** | ❌ omitido | ❌ omitido | ✅ mientras gate | ❌ omitido | ✅ indefinido |
+| **Release** | ✅ tras Decay | ✅ tras Decay | ✅ al soltar gate | ✅ tras Decay | ❌ nunca |
+| **Gate OFF** | Para al fin del ciclo | Ignorado | → Release | Ignorado | Ignorado |
+| **Auto-repite** | Sí, si gate ON | Sí, siempre | No | No | No |
+| **Uso típico** | Trémolo gated | LFO / trémolo | Teclado ADSR | Percusión, SFX | Drones, órgano |
+
 **Patrón de módulo:**
 ```javascript
 export class MiModulo extends Module {

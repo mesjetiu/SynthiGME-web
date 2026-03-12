@@ -386,6 +386,14 @@ class App {
         // Esperar a que el worklet esté listo (crucial para móviles)
         await this.engine.ensureWorkletReady();
 
+        // Reanudar AudioContext si está suspendido (política autoplay de Chrome)
+        // Requiere gesto del usuario para tener efecto
+        if (this.engine.audioCtx?.state === 'suspended') {
+          try {
+            await this.engine.audioCtx.resume();
+          } catch (e) { /* ignore — resume sin gesto no tiene efecto */ }
+        }
+
         // Prevenir suspensión del sistema mientras hay audio activo (Electron)
         // Respeta la preferencia del usuario (misma que Wake Lock web)
         const sleepPref = localStorage.getItem(STORAGE_KEYS.WAKE_LOCK_ENABLED);
@@ -398,6 +406,11 @@ class App {
         
         // Iniciar osciloscopio cuando haya audio
         this._ensurePanel2ScopeStarted();
+        
+        // Iniciar envelope shapers (siempre activos, como el hardware real)
+        for (const esModule of this._envelopeShaperModules) {
+          if (!esModule.isStarted) esModule.start();
+        }
         
         return this.engine.workletReady;
       } finally {
@@ -3299,6 +3312,7 @@ class App {
           scaleMax: def.config.scaleMax ?? 10,
           scaleDecimals: def.config.scaleDecimals ?? 1,
           onChange: (value) => {
+            this.ensureAudio();
             esModule[`set${def.key.charAt(0).toUpperCase() + def.key.slice(1)}`](value);
             if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
               envelopeShaperOSCSync.sendChange(i, def.key, value);
@@ -3349,12 +3363,17 @@ class App {
       gateBtn.style.cssText = `position:absolute;left:${gateX}px;top:${gateY}px;width:${gateSz}px;height:${gateSz}px;`;
 
       let gateActive = false;
-      const setGateActive = (active) => {
+      const setGateActive = async (active) => {
         gateActive = active;
-        gateLed.classList.toggle('envelope-shaper__led--active', active);
         gateBtn.classList.toggle('envelope-shaper__gate-btn--active', active);
         if (active) {
+          await this.ensureAudio();
+          // Tras init, enviar gate solo si el usuario sigue pulsando
           esModule.setGate(true);
+          if (!gateActive) {
+            // El usuario soltó durante la inicialización: enviar release
+            esModule.setGate(false);
+          }
           if (!envelopeShaperOSCSync.shouldIgnoreOSC()) {
             envelopeShaperOSCSync.sendGate(i, true);
           }

@@ -307,23 +307,27 @@ export class DormancyManager {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PANEL 1 ENVELOPE SHAPERS (3 instancias)
+    // PANEL 1 ENVELOPE SHAPERS (3 instancias) — dormancy autogestionada
+    // ─────────────────────────────────────────────────────────────────────────
+    // Solo se consideran conexiones CRÍTICAS que pueden activar un ciclo:
+    //   - Trigger input (Panel 5): puede recibir gate/trigger en cualquier momento
+    //   - CV destinations (Panel 6): modulación de parámetros ADSR
+    // NO se consideran: audio signal input, audio/CV output (no activan ciclos)
+    // El módulo ES combina esta info con su estado interno (modo, gate, ciclo)
+    // para tomar la decisión final de dormancy.
     // ─────────────────────────────────────────────────────────────────────────
     for (let esIdx = 0; esIdx < 3; esIdx++) {
-      const hasESUsage = panel5Connections.some(c =>
-        (c.source?.kind === 'envelopeShaper' && c.source?.index === esIdx)
-        || (c.dest?.kind === 'envelopeShaperSignalInput' && c.dest?.index === esIdx)
-        || (c.dest?.kind === 'envelopeShaperTriggerInput' && c.dest?.index === esIdx)
+      const hasCriticalConnection = panel5Connections.some(c =>
+        c.dest?.kind === 'envelopeShaperTriggerInput' && c.dest?.index === esIdx
       ) || panel6Connections.some(c =>
-        (c.source?.kind === 'envelopeShaper' && c.source?.index === esIdx)
-        || (c.dest?.kind === 'envelopeShaperKeyCV' && c.dest?.index === esIdx)
+        (c.dest?.kind === 'envelopeShaperKeyCV' && c.dest?.index === esIdx)
         || (c.dest?.kind === 'envelopeShaperDelayCV' && c.dest?.index === esIdx)
         || (c.dest?.kind === 'envelopeShaperAttackCV' && c.dest?.index === esIdx)
         || (c.dest?.kind === 'envelopeShaperDecayCV' && c.dest?.index === esIdx)
         || (c.dest?.kind === 'envelopeShaperSustainCV' && c.dest?.index === esIdx)
         || (c.dest?.kind === 'envelopeShaperReleaseCV' && c.dest?.index === esIdx)
       );
-      this._setModuleDormant(`envelope-shaper-${esIdx + 1}`, !hasESUsage);
+      this._setModuleDormant(`envelope-shaper-${esIdx + 1}`, !hasCriticalConnection);
     }
     
     // ─────────────────────────────────────────────────────────────────────────────    // INPUT AMPLIFIERS - 8 canales

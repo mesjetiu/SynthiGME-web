@@ -80,6 +80,20 @@ export class EnvelopeShaperModule extends Module {
     // Callback para notificar actividad (LED)
     this.onActiveChange = null;
 
+    // ─── Dormancy autogestionada ───────────────────────────────────────
+    // El ES gestiona su propia dormancia combinando:
+    //   1. Conexiones críticas (trigger P5, CV dest P6) — vía DormancyManager
+    //   2. Modo FREE_RUN → siempre despierto
+    //   3. Gate manual activo → despierto
+    //   4. Worklet en ciclo activo (fase ≠ IDLE) → despierto hasta fin de ciclo
+    this._hasCriticalConnections = false;
+    this._manualGateActive = false;
+    this._workletCycling = false;
+
+    // Iniciar como dormido para que _evaluateDormancy() en start()
+    // pueda transitar correctamente al estado despierto si corresponde
+    this._isDormant = true;
+
     // Valores actuales de los diales
     this.values = {
       mode: 2,          // GATED
@@ -116,8 +130,12 @@ export class EnvelopeShaperModule extends Module {
 
       // Escuchar mensajes del worklet (estado de actividad para LED)
       this.workletNode.port.onmessage = (e) => {
-        if (e.data?.type === 'active' && this.onActiveChange) {
-          this.onActiveChange(e.data.value);
+        const msg = e.data;
+        if (msg?.type === 'active' && this.onActiveChange) {
+          this.onActiveChange(msg.value);
+        } else if (msg?.type === 'cycling') {
+          this._workletCycling = !!msg.value;
+          this._evaluateDormancy();
         }
       };
 
@@ -169,6 +187,7 @@ export class EnvelopeShaperModule extends Module {
       this._sendToWorklet('setRelease', this.values.release);
       this._sendToWorklet('setEnvelopeLevel', this.values.envelopeLevel);
       this._sendToWorklet('setSignalLevel', this.values.signalLevel);
+      this._sendToWorklet('gate', this._manualGateActive);
 
       log.info(`${this.id}] Audio nodes initialized (2 inputs, 2 outputs)`);
 
@@ -184,6 +203,7 @@ export class EnvelopeShaperModule extends Module {
   setMode(value) {
     this.values.mode = Math.max(0, Math.min(4, Math.round(value)));
     this._sendToWorklet('setMode', this.values.mode);
+    this._evaluateDormancy();
   }
 
   setDelay(value) {
@@ -222,7 +242,13 @@ export class EnvelopeShaperModule extends Module {
   }
 
   setGate(active) {
+    this._manualGateActive = !!active;
     this._sendToWorklet('gate', active);
+    // Solo despertar al pulsar gate. Al soltar, el worklet seguirá ciclando
+    // y notificará cycling=false cuando termine, que ejecutará _evaluateDormancy().
+    if (active) {
+      this._evaluateDormancy();
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -283,6 +309,15 @@ export class EnvelopeShaperModule extends Module {
     this._initAudioNodes();
     if (!this.workletNode) return; // AudioContext no disponible aún
     this.isStarted = true;
+    // Forzar evaluación inicial: como _isDormant empieza en true,
+    // _evaluateDormancy() transitará si hay razón para estar despierto.
+    // Si no, sincronizamos el worklet con el estado dormido.
+    this._isDormant = true;  // reset para forzar transición limpia
+    this._evaluateDormancy();
+    // Si tras evaluar sigue dormido, sincronizar worklet
+    if (this._isDormant) {
+      this._applyDormancy(true);
+    }
     log.info(`${this.id}] Started`);
   }
 
@@ -316,10 +351,54 @@ export class EnvelopeShaperModule extends Module {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // DORMANCY
+  // DORMANCY — autogestionada
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // El DormancyManager solo informa sobre conexiones críticas (trigger, CV).
+  // El módulo combina esa información con su estado interno para tomar
+  // la decisión final de dormancy.
+  //
+  // Despierto si:
+  //   - Tiene conexiones críticas (trigger P5 o CV dest P6)
+  //   - Modo FREE_RUN (cicla indefinidamente)
+  //   - Gate manual activo
+  //   - Worklet en ciclo activo (fase ≠ IDLE)
+  //
+  // Dormido si ninguna de las anteriores.
   // ─────────────────────────────────────────────────────────────────────────
 
-  _onDormancyChange(dormant) {
+  /**
+   * Llamado por DormancyManager. Registra el estado externo y re-evalúa.
+   * @override
+   */
+  setDormant(dormant) {
+    this._hasCriticalConnections = !dormant;
+    this._evaluateDormancy();
+  }
+
+  /**
+   * Evalúa si el módulo debe estar realmente dormido o despierto,
+   * combinando el estado externo (conexiones) con el interno (modo, gate, ciclo).
+   */
+  _evaluateDormancy() {
+    if (!this.isStarted) return;
+
+    const shouldBeAwake =
+      this._hasCriticalConnections ||
+      this.values.mode === 1 ||     // MODE_FREE_RUN
+      this._manualGateActive ||
+      this._workletCycling;
+
+    const shouldBeDormant = !shouldBeAwake;
+    if (this._isDormant === shouldBeDormant) return;
+    this._isDormant = shouldBeDormant;
+    this._applyDormancy(shouldBeDormant);
+  }
+
+  /**
+   * Aplica el cambio real de dormancy (worklet + gain ramps).
+   */
+  _applyDormancy(dormant) {
     if (this.workletNode) {
       try {
         this.workletNode.port.postMessage({ type: 'setDormant', dormant });
@@ -347,6 +426,7 @@ export class EnvelopeShaperModule extends Module {
       this._sendToWorklet('setRelease', this.values.release);
       this._sendToWorklet('setEnvelopeLevel', this.values.envelopeLevel);
       this._sendToWorklet('setSignalLevel', this.values.signalLevel);
+      this._sendToWorklet('gate', this._manualGateActive);
     }
   }
 

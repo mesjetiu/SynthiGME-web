@@ -454,6 +454,55 @@ export class Knob {
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }
+      
+      // ─────────────────────────────────────────────────────────────────
+      // SELECTOR: click-to-select por posición angular
+      // En vez de arrastrar, el usuario clica en la posición deseada
+      // del disco y el knob gira a la posición discreta más cercana.
+      // ─────────────────────────────────────────────────────────────────
+      if (this.steps > 1) {
+        const rect = this.rootEl.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = ev.clientX - cx;
+        const dy = ev.clientY - cy;
+        
+        // Ángulo CSS: 0° = 12 en punto, sentido horario
+        const clickAngle = ((Math.atan2(dx, -dy) * 180 / Math.PI) + 360) % 360;
+        
+        // Mapear al arco del selector [minAngle, maxAngle]
+        const arcSpan = this.maxAngle - this.minAngle;
+        const minAngleNorm = ((this.minAngle % 360) + 360) % 360;
+        let relAngle = ((clickAngle - minAngleNorm) + 360) % 360;
+        
+        // Si fuera del arco, clampear al extremo más cercano
+        if (relAngle > arcSpan) {
+          const deadZone = 360 - arcSpan;
+          relAngle = (relAngle - arcSpan) <= deadZone / 2 ? arcSpan : 0;
+        }
+        
+        // Calcular t [0,1] → valor → cuantizar a step discreto
+        const t = relAngle / arcSpan;
+        const rawValue = this.min + t * (this.max - this.min);
+        const newValue = this._quantize(rawValue);
+        
+        if (newValue !== this.value) {
+          this.value = newValue;
+          this._updateVisual();
+          if (this.onChange) this.onChange(this.value);
+          flashGlow(this.rootEl);
+          document.dispatchEvent(new CustomEvent('synth:userInteraction'));
+        }
+        
+        // Tooltip: mostrar brevemente
+        this._showTooltip();
+        if (ev.pointerType === 'touch') {
+          this._showTooltipWithAutoHide();
+        }
+        lastPointerType = ev.pointerType;
+        return; // No iniciar drag
+      }
+      
       this.dragging = true;
       this.startY = ev.clientY;
       this.lastY = ev.clientY;  // Inicializar lastY para cálculo incremental

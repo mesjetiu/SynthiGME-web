@@ -211,6 +211,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `synthiFilter.worklet.js` | Filtro ladder CEM3320 de 4 polos (24 dB/oct) con integrador TPT (Topology-Preserving Transform, Zavalishin): `g = tan(π·fc/fs)`, `G = g/(1+g)`. Saturación `tanh` por etapa modela los pares diferenciales OTA. 2× oversampling para reducir delay de feedback. Modo LP directo de la salida de la 4ª etapa; modo HP por sustracción binomial `[1,−4,6,−4,1]` sobre las 4 etapas. AudioParams: `cutoffControl` (V/Oct), `response` (resonancia, autooscilación ≥ 5.5). Ruido blanco inaudible (0.001) como semilla de autooscilación. Curva de realimentación: 3.95 + t·1.05 (máx 5.0). **Dormancy**: soporta `setDormant` para early exit en `process()` |
 | `ringModulator.worklet.js` | Modulador de anillo de precisión del Synthi 100 (placa PC-05, D100-05 C1, chip 4214AP). Multiplicador activo sin transformador: `out = softClip(A) × softClip(B)`. Soft-clip `tanh` transparente bajo umbral ±0.8 (~8V p-p), satura por encima emulando op-amp. 2 entradas mono (Signal A, Signal B), 1 salida mono (producto). Breakthrough −64 dB. Sin AudioParams propios — level externo vía GainNode. Mensajes: `setDormant`, `stop`. **Dormancy**: soporta `setDormant` para early exit en `process()` |
 | `springReverb.worklet.js` | Reverberación de muelle del Synthi 100 (placa PC-16, D100-16 C1). DSP: `input → softClip(drive=1.5) → allpass1(35ms) → allpass2(40ms) → dampingLPF(4500Hz, 1-polo) → feedback(gain≈0.805, RT60=2.4s)`. Crossfader mix lineal: `out = (1−mix)·dry + mix·wet`. AudioParam `mixControl` (a-rate, −10..+10, MIX_CV_SCALE=5). Coeficiente allpass 0.65. Mensajes: `setMix`, `setDormant`, `stop`. **Dormancy**: soporta `setDormant` para early exit en `process()` |
+| `envelopeShaper.worklet.js` | Generador de envolvente ADSR+Delay del Synthi 100 (CEM 3310). FSM de 6 estados (IDLE, DELAY, ATTACK, DECAY, SUSTAIN, RELEASE) con 5 modos (GATED_FR, FREE_RUN, GATED, TRIGGERED, HOLD). 2 entradas (audio + trigger/gate) y 2 salidas (envelope CV ±5V, audio VCA <3V p-p). Tiempos exponenciales 1ms–20s (ratio 20000:1, `Math.pow(TIME_RATIO, normalized)`). Trigger >1V (0.25 normalizado). Sustain lineal 0–100%. Signal Level LOG base 100 (pot 10K). Envelope Level bipolar ±1.25 digital (±5V). LED: activo durante fases ATTACK+ (reportado cada 8 bloques). Auto-retrigger en FREE_RUN y GATED_FR. Sin dormancy — siempre activo vía keepalive GainNode. Mensajes: `setMode`, `setDelay`, `setAttack`, `setDecay`, `setSustain`, `setRelease`, `setEnvelopeLevel`, `setSignalLevel`, `gate`, `stop` |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -230,6 +231,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `synthiFilter.js` | `SynthiFilterModule` | Filtro CEM3320 del Panel 1 (4 polos, 24 dB/oct). 8 instancias: 4 LP + 4 HP. Cadena: `inputGain(=1)` → `AudioWorkletNode(synthi-filter)` → `outputGain(=level)`. Knobs: frequency (0-10, centro 320 Hz), response (0-10, autooscilación ≥ 5.5), level (0-10, curva LOG base 100). Cutoff CV desde Panel 6 (LP cols 22-25, HP cols 26-29). Entradas/salidas audio en Panel 5 (LP in 15-18 / out 110-113, HP in 19-22 / out 114-117). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
 | `ringModulator.js` | `RingModulatorModule` | Modulador de anillo del Synthi 100 (placa PC-05, chip 4214AP). 3 instancias en Panel 1, fila inferior. Cadena: `inputGainA + inputGainB → AudioWorkletNode(ring-modulator, 2in/1out) → outputGain(=level)`. Knob Level (0-10, curva LOG base 100). Entradas A/B en Panel 5 (cols 3-8), salidas en filas 121-123. Sin conexiones en Panel 6. Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
 | `springReverb.js` | `SpringReverbModule` | Reverberación de muelle del Synthi 100 (placa PC-16). 1 instancia en Panel 1, fila 5. Cadena: `inputGain(=1) → AudioWorkletNode(spring-reverb) → outputGain(=level)`. Knobs: Mix (0-10, dry/wet, CV-controllable via AudioParam `mixControl`), Level (0-10, curva LOG base 100). Entrada/salida audio en Panel 5 (col 1 / fila 124), entrada CV de mix en Panel 6 (col 1). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
+| `envelopeShaper.js` | `EnvelopeShaperModule` | Generador de envolvente del Synthi 100 (CEM 3310). 3 instancias en Panel 1 (filas 2–4). Cadena: `audioInputGain + triggerInputGain → ChannelMerger(2) → AudioWorkletNode(envelope-shaper, 2in/2out) → ChannelSplitter(2) → envGain + audioGain`. Keepalive GainNode (gain=0) al destination para que `process()` siempre se ejecute. Sin dormancy. 8 knobs: mode (selector 0–4), delay/attack/decay/sustain/release (0–10, tiempos exponenciales), envelopeLevel (−5..+5, bipolar), signalLevel (0–10, LOG). Botón GATE momentáneo + LED indicador de ciclo. Entradas audio Panel 5 (cols 9–14: signal + trigger), salidas audio filas 118–120. Salidas CV Panel 6 filas 97–99, destinos CV cols 4–21 (KEY, DELAY, ATTACK, DECAY, SUSTAIN, RELEASE × 3 ES) |
 
 **Patrón de módulo:**
 ```javascript
@@ -740,6 +742,7 @@ src/assets/js/configs/
 | `audioMatrix.config.js` | Matriz de audio (Panel 5) | Ganancias por cruce, tipos de pin |
 | `controlMatrix.config.js` | Matriz de control (Panel 6) | Ganancias CV, tipos de pin |
 | `keyboard.config.js` | Teclados (Upper/Lower) | 3 knobs (pitchSpread 0-10, velocityLevel -5..+5, gateLevel -5..+5), selector retrigger (On/Kbd), rampas (10ms), filas de matriz Panel 6 (upper 92-94, lower 95-97) |
+| `envelopeShaper.config.js` | Envelope Shapers | 3 instancias, 8 knobs (mode selector 0–4, delay/attack/decay/sustain/release 0–10, envelopeLevel −5..+5, signalLevel 0–10). Tiempos 1ms–20s (ratio 20000:1). Voltajes: ±5V CV, <3V p-p audio, trigger >1V. Filas Panel 6: 97–99 (fuentes CV), cols 4–21 (destinos CV: KEY/DELAY/ATTACK/DECAY/SUSTAIN/RELEASE × 3). Panel 5 audio: inputs 9–11 (signal), 12–14 (trigger), outputs 118–120 |
 
 **Importación centralizada:**
 ```javascript
@@ -771,7 +774,7 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 
 | Archivo | Tipo | Contenido |
 |---------|------|-----------|
-| `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos — 8 filtros CEM3320 (4 LP + 4 HP, 3 knobs: frequency, response, level), 3 Ring Modulators (1 knob: level), 1 Spring Reverb (2 knobs: mix, level), más 4 módulos placeholder (3 envelope shapers, 1 echo) — con 61 knobs |
+| `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos — 8 filtros CEM3320 (4 LP + 4 HP, 3 knobs: frequency, response, level), 3 Envelope Shapers CEM3310 (8 knobs: mode/delay/attack/decay/sustain/release/envelopeLevel/signalLevel + gate + LED), 3 Ring Modulators (1 knob: level), 1 Spring Reverb (2 knobs: mix, level), más 1 módulo placeholder (echo) — con 61 knobs |
 | `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
 | `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
 | `panel4.blueprint.js` | Blueprint | Layout del Panel 4: 2 teclados (upper/lower) con 3 knobs cada uno (pitchSpread, velocityLevel, gateLevel), selector retrigger (On/Kbd), filas de matriz de control 92-97 |
@@ -2852,8 +2855,12 @@ src/assets/js/osc/
 | **Joysticks (2)** | posición X/Y, range X/Y | ✅ Implementado |
 | **Matriz Audio** | conexiones source→dest con tipo de pin | ✅ Implementado |
 | **Matriz Control** | conexiones source→dest con tipo de pin | ✅ Implementado |
-| Filtros | — | ⏳ Planificado |
-| Envelopes | — | ⏳ Planificado |
+| Filtros | frequency, response, level | ✅ Implementado |
+| Envelope Shapers (3) | mode, delay, attack, decay, sustain, release, envelopeLevel, signalLevel, gate | ✅ Implementado |
+| Ring Modulators (3) | level | ✅ Implementado |
+| Random CV | mean, variance, voltage1, voltage2, key | ✅ Implementado |
+| Reverb | mix, level | ✅ Implementado |
+| Keyboards (2) | noteOn, noteOff, pitchSpread, velocityLevel, gateLevel, retrigger | ✅ Implementado |
 
 ### Configuración en UI
 

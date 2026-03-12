@@ -85,11 +85,9 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     this._manualGate = false;
 
     // ─── Control ───────────────────────────────────────────────────────
-    this._dormant = false;
     this._stopped = false;
     this._reportedActive = false; // Último estado de actividad reportado al hilo principal
     this._reportCounter = 0;     // Throttle: solo reportar cada N bloques
-    this._reportedCycling = false; // Último estado de ciclo reportado (para dormancy)
 
     this.port.onmessage = (e) => this._handleMessage(e.data);
   }
@@ -114,18 +112,6 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     const audioIn = input && input[0] ? input[0] : null;
     const gateIn = input && input[1] ? input[1] : null;
-
-    if (this._dormant) {
-      // FSM sigue avanzando internamente
-      for (let i = 0; i < blockSize; i++) {
-        const gateActive = this._isGateActive(gateIn, i);
-        this._tick(gateActive);
-      }
-      envChannel.fill(0);
-      audioChannel.fill(0);
-      this._reportActivity();
-      return true;
-    }
 
     for (let i = 0; i < blockSize; i++) {
       const gateActive = this._isGateActive(gateIn, i);
@@ -259,12 +245,6 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
           if (this._mode === MODE_FREE_RUN ||
               (this._mode === MODE_GATED_FR && this._prevGate)) {
             this._startEnvelope();
-          } else {
-            // Ciclo terminado sin retrigger → notificar al módulo
-            if (this._reportedCycling) {
-              this._reportedCycling = false;
-              this.port.postMessage({ type: 'cycling', value: false });
-            }
           }
         }
         break;
@@ -383,10 +363,6 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
         break;
       }
 
-      case 'setDormant':
-        this._dormant = !!data.dormant;
-        break;
-
       case 'stop':
         this._stopped = true;
         break;
@@ -403,11 +379,6 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     } else {
       this._phase = PHASE_ATTACK;
       this._counter = this._attackSamples;
-    }
-    // Notificar al módulo que ha comenzado un ciclo (para dormancy)
-    if (!this._reportedCycling) {
-      this._reportedCycling = true;
-      this.port.postMessage({ type: 'cycling', value: true });
     }
   }
 }

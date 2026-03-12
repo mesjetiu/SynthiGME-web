@@ -76,6 +76,7 @@ export class EnvelopeShaperModule extends Module {
     this.audioGain = null;    // Salida de audio VCA
     this.audioInputGain = null;   // Entrada de audio
     this.triggerInputGain = null; // Entrada de trigger
+    this._keepaliveGain = null;   // Conexión silenciosa al destination (mantiene process() vivo)
 
     // Callback para notificar actividad (LED)
     this.onActiveChange = null;
@@ -160,6 +161,14 @@ export class EnvelopeShaperModule extends Module {
       this.audioGain = ctx.createGain();
       this.audioGain.gain.value = 1;
       this.splitter.connect(this.audioGain, 1);
+
+      // Keepalive: conectar worklet al destination con ganancia 0.
+      // Sin esto, Chrome no ejecuta process() si no hay conexiones
+      // downstream (ningún pin de matriz conectado).
+      this._keepaliveGain = ctx.createGain();
+      this._keepaliveGain.gain.value = 0;
+      this.workletNode.connect(this._keepaliveGain);
+      this._keepaliveGain.connect(ctx.destination);
 
       // Registrar salidas para el sistema de ruteo
       this.outputs.push(
@@ -315,6 +324,7 @@ export class EnvelopeShaperModule extends Module {
       if (this.audioGain) this.audioGain.disconnect();
       if (this.audioInputGain) this.audioInputGain.disconnect();
       if (this.triggerInputGain) this.triggerInputGain.disconnect();
+      if (this._keepaliveGain) this._keepaliveGain.disconnect();
 
       this.workletNode = null;
       this.merger = null;
@@ -323,6 +333,7 @@ export class EnvelopeShaperModule extends Module {
       this.audioGain = null;
       this.audioInputGain = null;
       this.triggerInputGain = null;
+      this._keepaliveGain = null;
       this.outputs.length = 0;
       this.inputs.length = 0;
       this.isStarted = false;

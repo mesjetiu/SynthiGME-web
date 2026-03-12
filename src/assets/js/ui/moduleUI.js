@@ -191,6 +191,12 @@ export class ModuleUI {
     if (type === 'bipolar') {
       knobConfig.angleOffset = -150;
     }
+    // Selector: arco reducido de 120° (10 o'clock → 2 o'clock)
+    // Las 5 posiciones se distribuyen uniformemente en el arco superior
+    if (type === 'selector') {
+      knobConfig.minAngle = 300;  // 10 o'clock
+      knobConfig.maxAngle = 420;  // 2 o'clock
+    }
     // Tooltip técnico (si lo proporciona el caller)
     if (opts.getTooltipInfo) {
       knobConfig.getTooltipInfo = opts.getTooltipInfo;

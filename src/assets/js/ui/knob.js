@@ -494,8 +494,9 @@ export class Knob {
           document.dispatchEvent(new CustomEvent('synth:userInteraction'));
         }
         
-        // Tooltip: mostrar brevemente
+        // Tooltip: mostrar o actualizar instantáneamente
         this._showTooltip();
+        this._updateTooltip();
         if (ev.pointerType === 'touch') {
           this._showTooltipWithAutoHide();
         }

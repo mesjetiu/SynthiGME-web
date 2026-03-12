@@ -77,6 +77,9 @@ export class EnvelopeShaperModule extends Module {
     this.audioInputGain = null;   // Entrada de audio
     this.triggerInputGain = null; // Entrada de trigger
 
+    // Callback para notificar actividad (LED)
+    this.onActiveChange = null;
+
     // Valores actuales de los diales
     this.values = {
       mode: 2,          // GATED
@@ -110,6 +113,13 @@ export class EnvelopeShaperModule extends Module {
         channelCountMode: 'explicit'
       });
       attachProcessorErrorHandler(this.workletNode, 'envelope-shaper');
+
+      // Escuchar mensajes del worklet (estado de actividad para LED)
+      this.workletNode.port.onmessage = (e) => {
+        if (e.data?.type === 'active' && this.onActiveChange) {
+          this.onActiveChange(e.data.value);
+        }
+      };
 
       // ChannelMerger para las 2 entradas
       this.merger = ctx.createChannelMerger(2);
@@ -271,6 +281,7 @@ export class EnvelopeShaperModule extends Module {
   start() {
     if (this.isStarted) return;
     this._initAudioNodes();
+    if (!this.workletNode) return; // AudioContext no disponible aún
     this.isStarted = true;
     log.info(`${this.id}] Started`);
   }

@@ -3379,6 +3379,11 @@ class App {
       applyModuleVisibility(el, blueprint, envId);
       host.appendChild(el);
 
+      // Conectar LED al estado de actividad del worklet
+      esModule.onActiveChange = (active) => {
+        gateLed.classList.toggle('envelope-shaper__led--active', active);
+      };
+
       // Wrapper UI ligero para serialize/deserialize (compatible con el sistema de estado)
       this._envelopeShaperUIs[envId] = {
         id: `${envId}-module`,

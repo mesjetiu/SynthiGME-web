@@ -87,6 +87,8 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     // ─── Control ───────────────────────────────────────────────────────
     this._dormant = false;
     this._stopped = false;
+    this._reportedActive = false; // Último estado de actividad reportado al hilo principal
+    this._reportCounter = 0;     // Throttle: solo reportar cada N bloques
 
     this.port.onmessage = (e) => this._handleMessage(e.data);
   }
@@ -120,6 +122,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
       }
       envChannel.fill(0);
       audioChannel.fill(0);
+      this._reportActivity();
       return true;
     }
 
@@ -135,7 +138,27 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
       audioChannel[i] = audioSample * this._level * this._signalGain;
     }
 
+    this._reportActivity();
+
     return true;
+  }
+
+  /**
+   * Reporta estado de actividad al hilo principal para el LED.
+   * Según plano D100-17 C1 del CEM 3310:
+   *   LED ON  durante ATTACK, DECAY, SUSTAIN, RELEASE
+   *   LED OFF durante IDLE y DELAY
+   * Throttle: cada 8 bloques (~23ms) para no saturar el MessagePort.
+   */
+  _reportActivity() {
+    if (++this._reportCounter >= 8) {
+      this._reportCounter = 0;
+      const isActive = this._phase >= PHASE_ATTACK; // ATTACK=2, DECAY=3, SUSTAIN=4, RELEASE=5
+      if (isActive !== this._reportedActive) {
+        this._reportedActive = isActive;
+        this.port.postMessage({ type: 'active', value: isActive });
+      }
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

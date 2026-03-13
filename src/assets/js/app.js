@@ -23,6 +23,7 @@ import { SynthiFilterModule } from './modules/synthiFilter.js';
 import { SpringReverbModule } from './modules/springReverb.js';
 import { RingModulatorModule } from './modules/ringModulator.js';
 import { EnvelopeShaperModule } from './modules/envelopeShaper.js';
+import { SequencerModule } from './modules/sequencerModule.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
@@ -68,7 +69,8 @@ import {
   joystickConfig,
   reverberationConfig,
   ringModulatorConfig,
-  envelopeShaperConfig
+  envelopeShaperConfig,
+  sequencerConfig as sequencerModuleConfig
 } from './configs/index.js';
 
 // Osciloscopio
@@ -258,6 +260,9 @@ class App {
     this._panel1RingModModules = [];
     this._inputAmplifierUIs = {};
     this._outputFadersModule = null;
+    this._sequencerModule = null;       // Single SequencerModule instance
+    this._sequencerKnobs = {};          // { voltageA: knobInstance, ..., key4: knobInstance }
+    this._sequencerDisplay = null;      // LED hex display digit elements
     this._keyboardModules = {};    // { upper: KeyboardModule, lower: KeyboardModule }
     this._keyboardKnobs = {};      // { upper: { pitchSpread, velocityLevel, gateLevel }, lower: ... }
     
@@ -410,6 +415,11 @@ class App {
         // Iniciar envelope shapers (siempre activos, como el hardware real)
         for (const esModule of this._envelopeShaperModules) {
           if (!esModule.isStarted) esModule.start();
+        }
+        
+        // Iniciar secuenciador digital (siempre activo para recibir transport)
+        if (this._sequencerModule && !this._sequencerModule.isStarted) {
+          this._sequencerModule.start();
         }
         
         return this.engine.workletReady;
@@ -613,6 +623,13 @@ class App {
       right: new JoystickModule(this.engine, 'joystick-right', { ramps: joyRamps })
     };
 
+    // ── Inicializar módulo de audio del secuenciador ──────────────────────
+    this._sequencerModule = new SequencerModule(this.engine, 'sequencer');
+
+    // Switch names → worklet switch IDs mapping
+    const seqSwitchNames = ['abKey1', 'b', 'cdKey2', 'd', 'efKey3', 'f', 'key4', 'runClock'];
+    const seqButtonNames = ['masterReset', 'runForward', 'runReverse', 'stop', 'resetSequence', 'stepForward', 'stepReverse', 'testOP'];
+
     // Joystick Left (knobs + pad conectados al módulo de audio)
     const joystickLeftFrame = new ModuleFrame({
       id: 'joystick-left',
@@ -741,6 +758,15 @@ class App {
       const toggle = document.createElement('div');
       toggle.className = 'panel7-seq-switch-toggle';
       loadSvgInline('assets/knobs/toggle-switch.svg', toggle);
+      // Wire toggle click → sequencer module
+      const switchName = seqSwitchNames[idx];
+      let switchState = switchName === 'runClock';  // runClock starts true
+      toggle.addEventListener('click', () => {
+        switchState = !switchState;
+        toggle.classList.toggle('active', switchState);
+        this._sequencerModule?.setSwitch(switchName, switchState);
+      });
+      toggle.dataset.switchName = switchName;
       sw.appendChild(toggle);
       switchRow.appendChild(sw);
     }
@@ -756,6 +782,12 @@ class App {
       btn.className = 'panel7-seq-button';
       btn.type = 'button';
       applyOffset(btn, sequencerUI.buttonOffsets?.[idx]);
+      // Wire button click → sequencer module
+      const buttonName = seqButtonNames[idx];
+      btn.addEventListener('click', () => {
+        this._sequencerModule?.pressButton(buttonName);
+      });
+      btn.dataset.buttonName = buttonName;
       buttonRow.appendChild(btn);
     }
     seqContent.appendChild(buttonRow);
@@ -780,7 +812,10 @@ class App {
       svgSrc: clockRateSvgSrc,
       showValue: false,
       initial: 0.5,
-      onChange: () => {}
+      onChange: (v) => {
+        const dial = v * 10;
+        this._sequencerModule?.setClockRate(dial);
+      }
     });
     clockRateKnob.wrapper.classList.add('panel7-seq-clock-knob');
     clockRateKnob.wrapper.dataset.knob = 'clockRate';
@@ -1909,6 +1944,14 @@ class App {
       }
     }
     
+    // Serializar secuenciador digital (knobs + switches)
+    if (this._sequencerModule) {
+      state.modules.sequencer = {
+        values: { ...this._sequencerModule.values },
+        switches: { ...this._sequencerModule.switches }
+      };
+    }
+    
     // Serializar osciloscopio (knobs + modo)
     if (this._panel2Data) {
       const { timeKnob, ampKnob, levelKnob, modeToggle } = this._panel2Data;
@@ -2106,6 +2149,32 @@ class App {
       }
     }
     
+    // Restaurar secuenciador digital
+    if (modules.sequencer && this._sequencerModule) {
+      const seqData = modules.sequencer;
+      // Restaurar switches
+      if (seqData.switches) {
+        for (const [name, value] of Object.entries(seqData.switches)) {
+          this._sequencerModule.setSwitch(name, value);
+        }
+      }
+      // Restaurar knobs (valores normalizados)
+      if (seqData.values) {
+        for (const [name, dial] of Object.entries(seqData.values)) {
+          if (name === 'clockRate') {
+            this._sequencerModule.setClockRate(dial);
+          } else {
+            this._sequencerModule.setKnob(name, dial);
+          }
+          // Actualizar knob UI
+          const knobInstance = this._sequencerKnobs[name];
+          if (knobInstance) {
+            knobInstance.setValue(dial / 10);
+          }
+        }
+      }
+    }
+    
     // Rehabilitar tracking de cambios
     sessionManager.applyingPatch(false);
     
@@ -2265,6 +2334,24 @@ class App {
           padEl._joystickUpdateHandle(0, 0);
           if (!wasAtOrigin) flashGlow(padEl);
         }
+      }
+    }
+    
+    // Resetear secuenciador digital
+    if (this._sequencerModule) {
+      const seqKnobs = sequencerModuleConfig.knobs;
+      for (const [name, cfg] of Object.entries(seqKnobs)) {
+        if (name === 'clockRate') {
+          this._sequencerModule.setClockRate(cfg.initial);
+        } else {
+          this._sequencerModule.setKnob(name, cfg.initial);
+        }
+        const knobInstance = this._sequencerKnobs[name];
+        if (knobInstance) knobInstance.setValue(cfg.initial / 10);
+      }
+      const seqSwitches = sequencerModuleConfig.switches;
+      for (const [name, cfg] of Object.entries(seqSwitches)) {
+        this._sequencerModule.setSwitch(name, cfg.initial);
       }
     }
     
@@ -2456,6 +2543,13 @@ class App {
         }
         break;
       }
+      case 'panel-4':
+      case 'panel-7': {
+        if (this._sequencerModule) {
+          modules.push({ type: 'sequencer', id: 'sequencer', ui: this._sequencerModule });
+        }
+        break;
+      }
     }
     return modules;
   }
@@ -2520,6 +2614,10 @@ class App {
     }
     if (moduleId === 'keyboard-lower' && this._keyboardModules?.lower) {
       return { type: 'keyboard', ui: this._keyboardModules.lower };
+    }
+    // Sequencer
+    if (moduleId === 'sequencer' && this._sequencerModule) {
+      return { type: 'sequencer', ui: this._sequencerModule };
     }
     return null;
   }
@@ -3788,6 +3886,26 @@ class App {
     displayContainer.appendChild(bezel);
     seqFrame.appendToContent(displayContainer);
 
+    // Store display digits for sequencer counter updates
+    this._sequencerDisplay = bezel.querySelectorAll('.seq-event-time-display__value');
+    if (this._sequencerModule) {
+      const digits = this._sequencerDisplay;
+      const updateDisplay = (text) => {
+        const padded = (text || '0000').padStart(4, '0').slice(-4);
+        for (let i = 0; i < 4 && i < digits.length; i++) {
+          digits[i].textContent = padded[i];
+        }
+      };
+      this._sequencerModule.onCounterChange = (_value, text) => updateDisplay(text);
+      this._sequencerModule.onReset = (_value, text) => updateDisplay(text);
+      this._sequencerModule.onOverflow = (isOverflow) => {
+        if (isOverflow) updateDisplay('ofof');
+      };
+      this._sequencerModule.onTestMode = (active) => {
+        if (active) updateDisplay('CAll');
+      };
+    }
+
     applyModuleVisibility(seqEl, blueprint, 'sequencerEventTime');
     host.appendChild(seqEl);
 
@@ -4175,6 +4293,13 @@ class App {
         gap: ${seqSection.gap ?? 3}px;
       `;
 
+      // ── Helper: map knob name → sequencer param name ───────────────
+      const seqKnobNameMap = {
+        'Voltage A': 'voltageA', 'Voltage B': 'voltageB', 'Voltage C': 'voltageC',
+        'Voltage D': 'voltageD', 'Voltage E': 'voltageE', 'Voltage F': 'voltageF',
+        'Key 1': 'key1', 'Key 2': 'key2', 'Key 3': 'key3', 'Key 4': 'key4'
+      };
+
       // ── Helper: construir una columna con knobs apilados verticalmente
       const buildKnobColumn = (colDef) => {
         const colId = colDef.id;
@@ -4198,11 +4323,35 @@ class App {
         `;
 
         for (const knobDef of colDef.knobs) {
+          const paramName = seqKnobNameMap[knobDef.name];
           if (knobDef.type === 'vernier') {
-            const { wrapper } = createPanel4Vernier();
+            const { wrapper, knobInstance } = createPanel4Vernier();
+            if (paramName && knobInstance) {
+              this._sequencerKnobs[paramName] = knobInstance;
+              knobInstance.onChange = (v) => {
+                const dial = v * 10;
+                this._sequencerModule?.setKnob(paramName, dial);
+              };
+            }
             knobsContainer.appendChild(wrapper);
           } else {
-            const knob = createPanel4Knob(knobDef);
+            const isBipolar = knobDef.type === 'bipolar';
+            const knob = createKnob({
+              size: '',
+              showValue: false,
+              centerColor: COLOR_MAP[knobDef.color] || '',
+              svgSrc: isBipolar ? 'assets/knobs/knob-0-center.svg' : undefined,
+              min: 0,
+              max: 1,
+              initial: isBipolar ? 0.5 : 0,
+              onChange: paramName ? (v) => {
+                const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
+                this._sequencerModule?.setKnob(paramName, dial);
+              } : undefined
+            });
+            if (paramName && knob.knobInstance) {
+              this._sequencerKnobs[paramName] = knob.knobInstance;
+            }
             const stdSize = toNum(knobUI.standardKnobSize, 45);
             knob.knobEl.style.width = `${stdSize}px`;
             knob.knobEl.style.height = `${stdSize}px`;
@@ -4255,11 +4404,35 @@ class App {
           `;
 
           for (const knobDef of subDef.knobs) {
+            const paramName = seqKnobNameMap[knobDef.name];
             if (knobDef.type === 'vernier') {
-              const { wrapper } = createPanel4Vernier();
+              const { wrapper, knobInstance } = createPanel4Vernier();
+              if (paramName && knobInstance) {
+                this._sequencerKnobs[paramName] = knobInstance;
+                knobInstance.onChange = (v) => {
+                  const dial = v * 10;
+                  this._sequencerModule?.setKnob(paramName, dial);
+                };
+              }
               knobsContainer.appendChild(wrapper);
             } else {
-              const knob = createPanel4Knob(knobDef);
+              const isBipolar = knobDef.type === 'bipolar';
+              const knob = createKnob({
+                size: '',
+                showValue: false,
+                centerColor: COLOR_MAP[knobDef.color] || '',
+                svgSrc: isBipolar ? 'assets/knobs/knob-0-center.svg' : undefined,
+                min: 0,
+                max: 1,
+                initial: isBipolar ? 0.5 : 0,
+                onChange: paramName ? (v) => {
+                  const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
+                  this._sequencerModule?.setKnob(paramName, dial);
+                } : undefined
+              });
+              if (paramName && knob.knobInstance) {
+                this._sequencerKnobs[paramName] = knob.knobInstance;
+              }
               const stdSize = toNum(knobUI.standardKnobSize, 45);
               knob.knobEl.style.width = `${stdSize}px`;
               knob.knobEl.style.height = `${stdSize}px`;

@@ -1353,3 +1353,644 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARTE 5: GRABACIÓN Y REPRODUCCIÓN (Fase 4)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Constantes de grabación
+const ANALOG_VOLTAGE_RANGE = 7;         // 0-7V
+const ANALOG_RESOLUTION = 256;          // 8-bit → 0-255
+const KEY_ON_VOLTAGE = 5;               // +5V active state
+const KEY_THRESHOLD = 0.6;              // Schmitt trigger
+
+// Índices de canales de salida
+const CH_VOLTAGE_B = 3;
+const CH_KEY1 = 4;
+const CH_VOLTAGE_C = 5;
+const CH_VOLTAGE_D = 6;
+const CH_KEY2 = 7;
+const CH_VOLTAGE_E = 8;
+const CH_VOLTAGE_F = 9;
+const CH_KEY3 = 10;
+const CH_KEY4 = 11;
+
+// Índices de entradas de conversión
+const INPUT_VOLTAGE_ACE = 5;
+const INPUT_VOLTAGE_BDF = 6;
+const INPUT_KEY = 7;
+
+describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
+  let SequencerProcessor;
+
+  beforeEach(async () => {
+    const registered = createWorkletEnvironment();
+    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}`);
+    SequencerProcessor = registered['sequencer'];
+  });
+
+  function collectMessages(proc) {
+    const messages = [];
+    proc.port.postMessage = (msg) => messages.push(msg);
+    return messages;
+  }
+
+  function processBlocks(proc, n, inputs) {
+    for (let i = 0; i < n; i++) {
+      const inp = inputs || createInputs(8, 128);
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inp, outputs, {});
+    }
+  }
+
+  /**
+   * Crea inputs con un voltaje DC constante en el canal ACE y/o BDF.
+   */
+  function createInputsWithVoltage(aceVoltage, bdfVoltage, keyVoltage) {
+    const inputs = createInputs(8, 128);
+    if (aceVoltage !== undefined) inputs[INPUT_VOLTAGE_ACE][0].fill(aceVoltage);
+    if (bdfVoltage !== undefined) inputs[INPUT_VOLTAGE_BDF][0].fill(bdfVoltage);
+    if (keyVoltage !== undefined) inputs[INPUT_KEY][0].fill(keyVoltage);
+    return inputs;
+  }
+
+  /**
+   * Procesa un bloque con voltaje DC constante y devuelve las salidas.
+   */
+  function processWithVoltageAndCapture(proc, aceV, bdfV, keyV) {
+    const inputs = createInputsWithVoltage(aceV, bdfV, keyV);
+    const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+    proc.process(inputs, outputs, {});
+    return outputs;
+  }
+
+  /**
+   * Hace que el procesador avance rápido N ticks para grabación.
+   * Usa clock muy rápido y procesa suficientes bloques.
+   */
+  function advanceTicksWithInput(proc, numTicks, aceV, bdfV, keyV) {
+    // Clock a ~500Hz → ~93 samples/tick → ~1.4 bloques/tick
+    proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+    const msgs = [];
+    proc.port.postMessage = (msg) => msgs.push(msg);
+
+    let tickCount = 0;
+    while (tickCount < numTicks) {
+      const inputs = createInputsWithVoltage(aceV, bdfV, keyV);
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs, outputs, {});
+      tickCount = msgs.filter(m => m.type === 'tick').length;
+    }
+    return msgs;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // MEMORIA DE EVENTOS
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Memoria de eventos', () => {
+
+    test('la memoria se inicializa a 0 (1024 eventos vacíos)', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Step forward sin haber grabado nada → debe leer evento vacío
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      // Procesar un bloque para que las salidas reflejen la posición
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      // Todos los canales de voltaje deben ser 0 (nada grabado)
+      for (let ch = CH_VOLTAGE_A; ch <= CH_KEY4; ch++) {
+        assert.strictEqual(outputs[0][ch][0], 0,
+          `Canal ${ch} debe ser 0 sin grabación`);
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GRABACIÓN BÁSICA
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Grabación básica', () => {
+
+    test('con switch abKey1 activo, graba voltaje A y B en la posición actual', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Activar switch de grabación A/B + Key1
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+
+      // Ir a posición 1 con runForward + input de voltaje
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      // Procesar con 3.5V en ACE y 2.0V en BDF
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+      const tickMsgs = advanceTicksWithInput(proc, 1, 3.5, 2.0, 0);
+
+      // Ahora stop y leer la posición 1
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Volver a posición 1 y leer las salidas
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      // Voltage A (canal 2) debe tener el valor grabado
+      // 3.5V / 7V * 255 = ~127.5 → cuantizado → restituido como ~3.5V normalizado
+      const voltA = outputs[0][CH_VOLTAGE_A][64]; // mid-block sample
+      assert.ok(voltA > 0, `Voltage A debe tener valor grabado: ${voltA}`);
+
+      // Voltage B (canal 3) debe tener el valor de BDF
+      const voltB = outputs[0][CH_VOLTAGE_B][64];
+      assert.ok(voltB > 0, `Voltage B debe tener valor grabado: ${voltB}`);
+    });
+
+    test('sin switches activos, no graba nada', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Todos los switches OFF (default)
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 3, 5.0, 5.0, 5.0);
+
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      for (let ch = CH_VOLTAGE_A; ch <= CH_KEY4; ch++) {
+        assert.strictEqual(outputs[0][ch][64], 0,
+          `Canal ${ch} debe ser 0 sin switches activos`);
+      }
+    });
+
+    test('converter sharing: A, C, E comparten input ACE', () => {
+      const proc = new SequencerProcessor();
+
+      // Activar switches para A/B+Key1 y E/F+Key3
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'efKey3', value: true } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 5.0, 3.0, 0);
+
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const voltA = outputs[0][CH_VOLTAGE_A][64];
+      const voltE = outputs[0][CH_VOLTAGE_E][64];
+
+      // A y E deben tener el mismo valor (comparten input ACE = 5.0V)
+      assert.ok(Math.abs(voltA - voltE) < 0.01,
+        `A (${voltA}) y E (${voltE}) deben estar al mismo valor (comparten converter)`);
+
+      const voltB = outputs[0][CH_VOLTAGE_B][64];
+      const voltF = outputs[0][CH_VOLTAGE_F][64];
+
+      // B y F deben tener el mismo valor (comparten input BDF = 3.0V)
+      assert.ok(Math.abs(voltB - voltF) < 0.01,
+        `B (${voltB}) y F (${voltF}) deben estar al mismo valor (comparten converter)`);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // CUANTIZACIÓN 8-BIT
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Cuantización 8-bit', () => {
+
+    test('round-trip 8-bit preserva resolución', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      // Grabar 3.5V (exactamente la mitad de 7V → byte 128)
+      advanceTicksWithInput(proc, 1, 3.5, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Leer de vuelta
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const restored = outputs[0][CH_VOLTAGE_A][64];
+      // 3.5V → byte 128 → restored = 128/255 * 7 ≈ 3.514V
+      // Error máximo = 7/255 ≈ 0.0275V
+      assert.ok(Math.abs(restored - 3.5) < 0.03,
+        `Round-trip debe preservar: esperado ~3.5V, obtenido ${restored}`);
+    });
+
+    test('valores extremos: 0V y 7V', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'cdKey2', value: true } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      // Posición 1: 0V
+      advanceTicksWithInput(proc, 1, 0, 0, 0);
+
+      // Posición 2: 7V (máximo)
+      advanceTicksWithInput(proc, 1, 7.0, 7.0, 0);
+
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Leer posición 1 (0V)
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      let outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+      assert.strictEqual(outputs[0][CH_VOLTAGE_A][64], 0, '0V debe restaurarse exacto');
+
+      // Leer posición 2 (7V)
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const maxV = outputs[0][CH_VOLTAGE_A][64];
+      assert.ok(Math.abs(maxV - 7.0) < 0.03,
+        `7V debe restaurarse cercano: ${maxV}`);
+    });
+
+    test('clamp: voltaje >7V se satura a 255', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      // Grabar 10V (fuera de rango)
+      advanceTicksWithInput(proc, 1, 10.0, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const restored = outputs[0][CH_VOLTAGE_A][64];
+      // Saturado a 255 → 7V
+      assert.ok(Math.abs(restored - 7.0) < 0.03,
+        `Voltaje >7V debe saturar a 7V: ${restored}`);
+    });
+
+    test('clamp: voltaje negativo se satura a 0', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      advanceTicksWithInput(proc, 1, -2.0, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      assert.strictEqual(outputs[0][CH_VOLTAGE_A][64], 0, 'Voltaje negativo → 0');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GRABACIÓN DE KEYS (DIGITAL)
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Grabación de keys', () => {
+
+    test('key activo (>0.6V) se graba como 1, inactivo como 0', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: 5 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      // Key1 activo (>0.6V threshold)
+      advanceTicksWithInput(proc, 1, 0, 0, 2.0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      // Key 1 debe estar activo (knob=5 → 5V output)
+      const key1 = outputs[0][CH_KEY1][64];
+      assert.ok(key1 > 0, `Key 1 debe estar activo: ${key1}`);
+    });
+
+    test('key debajo del umbral (<=0.6V) no se graba', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: 5 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      // Key por debajo del umbral
+      advanceTicksWithInput(proc, 1, 0, 0, 0.5);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      assert.strictEqual(outputs[0][CH_KEY1][64], 0, 'Key debajo de 0.6V → 0');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // SWITCHES SELECTIVOS (SAFE vs RECORD)
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Selectividad de switches', () => {
+
+    test('switch b graba solo B (no A)', () => {
+      const proc = new SequencerProcessor();
+
+      // Solo switch B activo
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'b', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      advanceTicksWithInput(proc, 1, 5.0, 3.0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      // B debe tener valor (de BDF input)
+      const voltB = outputs[0][CH_VOLTAGE_B][64];
+      assert.ok(voltB > 0, `B debe tener valor: ${voltB}`);
+
+      // A NO debe tener valor (switch abKey1 está OFF)
+      assert.strictEqual(outputs[0][CH_VOLTAGE_A][64], 0,
+        'A no debe grabarse con solo switch b');
+    });
+
+    test('overdubbing: grabar B sin afectar A previamente grabado', () => {
+      const proc = new SequencerProcessor();
+
+      // Primera pasada: grabar A+B con switch abKey1
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 5.0, 2.0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Segunda pasada: solo grabar B con valores diferentes
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: false } });
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'b', value: true } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 1.0, 6.0, 0); // BDF = 6V, ACE cambia pero A protegido
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Leer posición 0 (siempre grabada por el primer tick de cada pasada)
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      // A debe mantener valor original (~5V) porque estaba protegido
+      const voltA = outputs[0][CH_VOLTAGE_A][64];
+      assert.ok(Math.abs(voltA - 5.0) < 0.1,
+        `A debe mantener valor original ~5V: ${voltA}`);
+
+      // B debe tener el nuevo valor (~6V)
+      const voltB = outputs[0][CH_VOLTAGE_B][64];
+      assert.ok(Math.abs(voltB - 6.0) < 0.1,
+        `B debe tener nuevo valor ~6V: ${voltB}`);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // PLAYBACK DC (sample constante entre ticks)
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Playback DC', () => {
+
+    test('la salida es DC constante dentro de un bloque (sample & hold)', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 4.0, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Leer
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      // El valor debe ser constante en todo el bloque
+      const firstSample = outputs[0][CH_VOLTAGE_A][0];
+      for (let i = 1; i < 128; i++) {
+        assert.strictEqual(outputs[0][CH_VOLTAGE_A][i], firstSample,
+          `Sample ${i} debe ser igual al primero (DC constante)`);
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // KNOB SCALING
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Knob scaling', () => {
+
+    test('voltageA knob escala la salida', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 7.0, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Knob a 5 (centro / unity) → salida ≈ 7V * (5/10) = 3.5V
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageA', value: 5 } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const scaled = outputs[0][CH_VOLTAGE_A][64];
+      assert.ok(Math.abs(scaled - 3.5) < 0.1,
+        `Con knob=5 (half): esperado ~3.5V, obtenido ${scaled}`);
+    });
+
+    test('knob a 0 silencia la salida', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 7.0, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageA', value: 0 } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      assert.strictEqual(outputs[0][CH_VOLTAGE_A][64], 0,
+        'Con knob=0, salida debe ser 0');
+    });
+
+    test('key knob bipolar: valor positivo da gate positivo', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 0, 0, 2.0); // key activo
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Key1 knob = +5
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: 5 } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const key1out = outputs[0][CH_KEY1][64];
+      assert.ok(key1out > 0, `Key1 con knob +5 debe ser positivo: ${key1out}`);
+    });
+
+    test('key knob bipolar: valor negativo da gate negativo', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 0, 0, 2.0); // key activo
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Key1 knob = -5
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: -5 } });
+
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const key1out = outputs[0][CH_KEY1][64];
+      assert.ok(key1out < 0, `Key1 con knob -5 debe ser negativo: ${key1out}`);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // TEST O/P — SALIDAS MÁXIMAS
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Test O/P — salidas', () => {
+
+    test('en testOP, todos los canales de voltaje salen a máximo', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      // Voltajes A-F deben estar al máximo (7V)
+      for (const ch of [CH_VOLTAGE_A, CH_VOLTAGE_B, CH_VOLTAGE_C,
+                         CH_VOLTAGE_D, CH_VOLTAGE_E, CH_VOLTAGE_F]) {
+        assert.ok(outputs[0][ch][64] > 0,
+          `Canal de voltaje ${ch} debe tener valor máximo en testOP`);
+      }
+
+      // Keys 1-4 deben estar activos (5V)
+      for (const ch of [CH_KEY1, CH_KEY2, CH_KEY3, CH_KEY4]) {
+        assert.ok(outputs[0][ch][64] > 0,
+          `Canal de key ${ch} debe estar activo en testOP`);
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // MASTER RESET LIMPIA OUTPUTS
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Master Reset limpia outputs', () => {
+
+    test('tras masterReset, todas las salidas vuelven a 0', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      advanceTicksWithInput(proc, 3, 5.0, 3.0, 2.0);
+
+      proc.port.onmessage({ data: { type: 'button', button: 'masterReset' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      for (let ch = CH_VOLTAGE_A; ch <= CH_KEY4; ch++) {
+        assert.strictEqual(outputs[0][ch][64], 0,
+          `Canal ${ch} debe ser 0 tras masterReset`);
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GRABACIÓN EN REVERSE
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Grabación en reverse', () => {
+
+    test('run reverse graba en posiciones decrecientes', () => {
+      const proc = new SequencerProcessor();
+
+      // Avanzar a posición 5
+      for (let i = 0; i < 5; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runReverse' } });
+
+      // Grabar con 4V en las posiciones 5→4→3
+      advanceTicksWithInput(proc, 3, 4.0, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+
+      // Leer posición 3 (debería tener valor)
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      for (let i = 0; i < 3; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), outputs, {});
+
+      const voltA = outputs[0][CH_VOLTAGE_A][64];
+      assert.ok(voltA > 0, `Posición 3 debe tener valor grabado en reverse: ${voltA}`);
+    });
+  });
+});

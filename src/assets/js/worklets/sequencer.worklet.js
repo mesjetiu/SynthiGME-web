@@ -28,7 +28,8 @@
  *
  * Fase 2: Clock interno + estructura base.
  * Fase 3: FSM de transporte (counter, botones, entradas externas).
- * Fase 4 añadirá grabación y reproducción.
+ * Fase 4: Grabación y reproducción (memoria 8K, switches, knobs, 8-bit DAC).
+ * Siguiente: Fase 5 (Módulo de audio main thread).
  *
  * @see sequencer.config.js — Parámetros de configuración
  * @see modules/sequencerModule.js — Módulo de audio (main thread)
@@ -58,6 +59,41 @@ const CH_CLOCK = 12;
 
 /** Total de canales de salida */
 const TOTAL_CHANNELS = 13;
+
+// ─── Canales de salida individuales ───────────────────────────────────────
+const CH_DAC1 = 0;
+const CH_DAC2 = 1;
+const CH_VOLTAGE_A = 2;
+const CH_VOLTAGE_B = 3;
+const CH_KEY1 = 4;
+const CH_VOLTAGE_C = 5;
+const CH_VOLTAGE_D = 6;
+const CH_KEY2 = 7;
+const CH_VOLTAGE_E = 8;
+const CH_VOLTAGE_F = 9;
+const CH_KEY3 = 10;
+const CH_KEY4 = 11;
+
+// ─── Parámetros de conversión analógica ───────────────────────────────────
+const ANALOG_VOLTAGE_RANGE = 7;     // 0-7V DC
+const ANALOG_RESOLUTION = 256;      // 8-bit → 0-255
+const KEY_ON_VOLTAGE = 5;           // +5V active state
+const KEY_THRESHOLD = 0.6;          // Schmitt trigger (V)
+
+// ─── Índices de entradas de conversión ────────────────────────────────────
+const INPUT_VOLTAGE_ACE = 5;
+const INPUT_VOLTAGE_BDF = 6;
+const INPUT_KEY = 7;
+
+// ─── Índices de bytes en un evento (8 bytes por evento) ──────────────────
+const BYTE_VOLTAGE_A = 0;
+const BYTE_VOLTAGE_B = 1;
+const BYTE_VOLTAGE_C = 2;
+const BYTE_VOLTAGE_D = 3;
+const BYTE_VOLTAGE_E = 4;
+const BYTE_VOLTAGE_F = 5;
+const BYTE_KEYS = 6;
+// Byte 7 = padding (Z80 alignment)
 
 // ─── Estados de transporte ────────────────────────────────────────────────
 const STATE_STOPPED = 0;
@@ -102,6 +138,38 @@ class SequencerProcessor extends AudioWorkletProcessor {
     // ─── Detección de flancos para entradas externas de transporte ─────
     this._extTransportPrev = [0, 0, 0, 0, 0]; // inputs 0-4
 
+    // ─── Memoria de eventos (1024 × 8 bytes) ─────────────────────────
+    this._eventMemory = new Uint8Array(MAX_EVENTS * 8);
+
+    // ─── Switches de grabación ───────────────────────────────────────
+    // Cada switch tiene { analog: ['A','B',...], digital: ['key1',...] }
+    this._recordSwitches = {
+      abKey1: false, b: false,
+      cdKey2: false, d: false,
+      efKey3: false, f: false,
+      key4: false
+    };
+
+    // ─── Knobs de salida (Panel 4) ───────────────────────────────────
+    this._knobVoltageA = 10;  // 0-10 linear, initial = 10 (full)
+    this._knobVoltageB = 10;
+    this._knobVoltageC = 10;
+    this._knobVoltageD = 10;
+    this._knobVoltageE = 10;
+    this._knobVoltageF = 10;
+    this._knobKey1 = 0;       // -5 to +5 bipolar, initial = 0
+    this._knobKey2 = 0;
+    this._knobKey3 = 0;
+    this._knobKey4 = 0;
+
+    // ─── Valores DC actuales de playback (sample & hold) ─────────────
+    this._currentOutputs = new Float32Array(CH_CLOCK); // 12 canales
+
+    // ─── Últimos valores muestreados de inputs analógicos ────────────
+    this._lastInputACE = 0;
+    this._lastInputBDF = 0;
+    this._lastInputKey = 0;
+
     // ─── Control ──────────────────────────────────────────────────────
     this._dormant = false;
     this._stopped = false;
@@ -142,6 +210,18 @@ class SequencerProcessor extends AudioWorkletProcessor {
     // ─── Generación sample a sample ──────────────────────────────────
     const clockChannel = output[CH_CLOCK];
 
+    // Muestrear inputs analógicos antes del loop (disponible para grabación)
+    const lastSample = blockSize - 1;
+    if (inputs[INPUT_VOLTAGE_ACE] && inputs[INPUT_VOLTAGE_ACE][0]) {
+      this._lastInputACE = inputs[INPUT_VOLTAGE_ACE][0][lastSample];
+    }
+    if (inputs[INPUT_VOLTAGE_BDF] && inputs[INPUT_VOLTAGE_BDF][0]) {
+      this._lastInputBDF = inputs[INPUT_VOLTAGE_BDF][0][lastSample];
+    }
+    if (inputs[INPUT_KEY] && inputs[INPUT_KEY][0]) {
+      this._lastInputKey = inputs[INPUT_KEY][0][lastSample];
+    }
+
     for (let i = 0; i < blockSize; i++) {
       // Avanzar clock (interno + externo)
       this._advanceClock(i, inputs);
@@ -158,9 +238,9 @@ class SequencerProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // Canales 0-11 en silencio (stub para fases 3-4)
+    // ─── Canales 0-11: playback DC (sample & hold) ───────────────────
     for (let ch = 0; ch < CH_CLOCK; ch++) {
-      output[ch].fill(0);
+      output[ch].fill(this._currentOutputs[ch]);
     }
 
     return true;
@@ -205,6 +285,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
   /**
    * Procesa un tick del clock (interno o externo).
    * Avanza el counter según el estado de transporte.
+   * Graba inputs si hay switches activos. Actualiza playback.
    * @private
    */
   _onTick() {
@@ -217,9 +298,11 @@ class SequencerProcessor extends AudioWorkletProcessor {
     // Avanzar counter según FSM
     switch (this._transportState) {
       case STATE_RUNNING_FORWARD:
+        this._recordCurrentInputs();
         this._stepCounter(1);
         break;
       case STATE_RUNNING_REVERSE:
+        this._recordCurrentInputs();
         this._stepCounter(-1);
         break;
       // STOPPED y TEST_MODE: no avanza
@@ -251,6 +334,9 @@ class SequencerProcessor extends AudioWorkletProcessor {
         this._counter--;
       }
     }
+
+    // Actualizar salidas DC con el evento en la posición actual
+    this._updateOutputsFromEvent(this._counter);
 
     this.port.postMessage({
       type: 'counter',
@@ -321,18 +407,174 @@ class SequencerProcessor extends AudioWorkletProcessor {
   _doResetSequence() {
     this._counter = 0;
     this._overflow = false;
+    this._updateOutputsFromEvent(0);
     this.port.postMessage({ type: 'reset', value: 0, text: '0000' });
   }
 
   /**
-   * Master reset: counter a 0, estado a STOPPED, limpia overflow.
+   * Master reset: counter a 0, estado a STOPPED, limpia overflow y outputs.
    * @private
    */
   _doMasterReset() {
     this._counter = 0;
     this._overflow = false;
     this._transportState = STATE_STOPPED;
+    this._currentOutputs.fill(0);
     this.port.postMessage({ type: 'reset', value: 0, text: '0000' });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GRABACIÓN Y REPRODUCCIÓN
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Graba los inputs actuales en la posición del counter, según switches activos.
+   * Se almacena el último sample muestreado del bloque anterior.
+   * @private
+   */
+  _recordCurrentInputs() {
+    const pos = this._counter;
+    const offset = pos * 8;
+
+    // Muestrear inputs (último valor conocido)
+    const aceV = this._lastInputACE;
+    const bdfV = this._lastInputBDF;
+    const keyV = this._lastInputKey;
+
+    // Cuantizar voltajes a 8-bit
+    const aceByte = this._voltageToByte(aceV);
+    const bdfByte = this._voltageToByte(bdfV);
+    const keyBits = (keyV > KEY_THRESHOLD) ? 0x0F : 0x00; // 4 keys simultáneos
+
+    // Grabar según switches activos
+    const sw = this._recordSwitches;
+
+    // abKey1: graba A (ACE), B (BDF), Key1
+    if (sw.abKey1) {
+      this._eventMemory[offset + BYTE_VOLTAGE_A] = aceByte;
+      this._eventMemory[offset + BYTE_VOLTAGE_B] = bdfByte;
+      this._eventMemory[offset + BYTE_KEYS] =
+        (this._eventMemory[offset + BYTE_KEYS] & 0x0E) | (keyBits & 0x01);
+    }
+
+    // b: graba solo B (BDF)
+    if (sw.b) {
+      this._eventMemory[offset + BYTE_VOLTAGE_B] = bdfByte;
+    }
+
+    // cdKey2: graba C (ACE), D (BDF), Key2
+    if (sw.cdKey2) {
+      this._eventMemory[offset + BYTE_VOLTAGE_C] = aceByte;
+      this._eventMemory[offset + BYTE_VOLTAGE_D] = bdfByte;
+      this._eventMemory[offset + BYTE_KEYS] =
+        (this._eventMemory[offset + BYTE_KEYS] & 0x0D) | (keyBits & 0x02);
+    }
+
+    // d: graba solo D (BDF)
+    if (sw.d) {
+      this._eventMemory[offset + BYTE_VOLTAGE_D] = bdfByte;
+    }
+
+    // efKey3: graba E (ACE), F (BDF), Key3
+    if (sw.efKey3) {
+      this._eventMemory[offset + BYTE_VOLTAGE_E] = aceByte;
+      this._eventMemory[offset + BYTE_VOLTAGE_F] = bdfByte;
+      this._eventMemory[offset + BYTE_KEYS] =
+        (this._eventMemory[offset + BYTE_KEYS] & 0x0B) | (keyBits & 0x04);
+    }
+
+    // f: graba solo F (BDF)
+    if (sw.f) {
+      this._eventMemory[offset + BYTE_VOLTAGE_F] = bdfByte;
+    }
+
+    // key4: graba solo Key4
+    if (sw.key4) {
+      this._eventMemory[offset + BYTE_KEYS] =
+        (this._eventMemory[offset + BYTE_KEYS] & 0x07) | (keyBits & 0x08);
+    }
+  }
+
+  /**
+   * Convierte un voltaje analógico (0-7V) a byte (0-255) con clamp.
+   * @param {number} voltage
+   * @returns {number} Byte 0-255
+   * @private
+   */
+  _voltageToByte(voltage) {
+    if (voltage <= 0) return 0;
+    if (voltage >= ANALOG_VOLTAGE_RANGE) return 255;
+    return Math.round((voltage / ANALOG_VOLTAGE_RANGE) * 255);
+  }
+
+  /**
+   * Convierte un byte (0-255) a voltaje analógico (0-7V).
+   * @param {number} byte8
+   * @returns {number} Voltaje
+   * @private
+   */
+  _byteToVoltage(byte8) {
+    return (byte8 / 255) * ANALOG_VOLTAGE_RANGE;
+  }
+
+  /**
+   * Lee el evento en la posición dada y actualiza _currentOutputs.
+   * Aplica knob scaling.
+   * @param {number} pos - Posición del evento (0-1023)
+   * @private
+   */
+  _updateOutputsFromEvent(pos) {
+    const offset = pos * 8;
+
+    // Voltajes A-F → canales 2-9 (con huecos para keys)
+    this._currentOutputs[CH_VOLTAGE_A] =
+      this._byteToVoltage(this._eventMemory[offset + BYTE_VOLTAGE_A]) *
+      (this._knobVoltageA / 10);
+    this._currentOutputs[CH_VOLTAGE_B] =
+      this._byteToVoltage(this._eventMemory[offset + BYTE_VOLTAGE_B]) *
+      (this._knobVoltageB / 10);
+    this._currentOutputs[CH_VOLTAGE_C] =
+      this._byteToVoltage(this._eventMemory[offset + BYTE_VOLTAGE_C]) *
+      (this._knobVoltageC / 10);
+    this._currentOutputs[CH_VOLTAGE_D] =
+      this._byteToVoltage(this._eventMemory[offset + BYTE_VOLTAGE_D]) *
+      (this._knobVoltageD / 10);
+    this._currentOutputs[CH_VOLTAGE_E] =
+      this._byteToVoltage(this._eventMemory[offset + BYTE_VOLTAGE_E]) *
+      (this._knobVoltageE / 10);
+    this._currentOutputs[CH_VOLTAGE_F] =
+      this._byteToVoltage(this._eventMemory[offset + BYTE_VOLTAGE_F]) *
+      (this._knobVoltageF / 10);
+
+    // Keys 1-4 → canales 4, 7, 10, 11
+    const keys = this._eventMemory[offset + BYTE_KEYS];
+    this._currentOutputs[CH_KEY1] = (keys & 0x01) ? this._knobKey1 : 0;
+    this._currentOutputs[CH_KEY2] = (keys & 0x02) ? this._knobKey2 : 0;
+    this._currentOutputs[CH_KEY3] = (keys & 0x04) ? this._knobKey3 : 0;
+    this._currentOutputs[CH_KEY4] = (keys & 0x08) ? this._knobKey4 : 0;
+
+    // DAC channels (stub — sin audio recording por ahora)
+    this._currentOutputs[CH_DAC1] = 0;
+    this._currentOutputs[CH_DAC2] = 0;
+  }
+
+  /**
+   * Activa las salidas de test: todos los canales al máximo.
+   * @private
+   */
+  _setTestOutputs() {
+    // Voltajes A-F al máximo (7V)
+    this._currentOutputs[CH_VOLTAGE_A] = ANALOG_VOLTAGE_RANGE;
+    this._currentOutputs[CH_VOLTAGE_B] = ANALOG_VOLTAGE_RANGE;
+    this._currentOutputs[CH_VOLTAGE_C] = ANALOG_VOLTAGE_RANGE;
+    this._currentOutputs[CH_VOLTAGE_D] = ANALOG_VOLTAGE_RANGE;
+    this._currentOutputs[CH_VOLTAGE_E] = ANALOG_VOLTAGE_RANGE;
+    this._currentOutputs[CH_VOLTAGE_F] = ANALOG_VOLTAGE_RANGE;
+    // Keys activos (5V)
+    this._currentOutputs[CH_KEY1] = KEY_ON_VOLTAGE;
+    this._currentOutputs[CH_KEY2] = KEY_ON_VOLTAGE;
+    this._currentOutputs[CH_KEY3] = KEY_ON_VOLTAGE;
+    this._currentOutputs[CH_KEY4] = KEY_ON_VOLTAGE;
   }
 
   /**
@@ -400,6 +642,16 @@ class SequencerProcessor extends AudioWorkletProcessor {
         this._handleButton(data.button);
         break;
 
+      case 'setSwitch':
+        if (data.switch in this._recordSwitches) {
+          this._recordSwitches[data.switch] = !!data.value;
+        }
+        break;
+
+      case 'setKnob':
+        this._handleKnob(data.knob, data.value);
+        break;
+
       case 'setDormant':
         this._dormant = !!data.dormant;
         if (!this._dormant) {
@@ -412,6 +664,29 @@ class SequencerProcessor extends AudioWorkletProcessor {
         this._stopped = true;
         break;
     }
+  }
+
+  /**
+   * Procesa cambios de knobs de salida del Panel 4.
+   * @param {string} knob - Nombre del knob
+   * @param {number} value - Valor del knob
+   * @private
+   */
+  _handleKnob(knob, value) {
+    switch (knob) {
+      case 'voltageA': this._knobVoltageA = value; break;
+      case 'voltageB': this._knobVoltageB = value; break;
+      case 'voltageC': this._knobVoltageC = value; break;
+      case 'voltageD': this._knobVoltageD = value; break;
+      case 'voltageE': this._knobVoltageE = value; break;
+      case 'voltageF': this._knobVoltageF = value; break;
+      case 'key1': this._knobKey1 = value; break;
+      case 'key2': this._knobKey2 = value; break;
+      case 'key3': this._knobKey3 = value; break;
+      case 'key4': this._knobKey4 = value; break;
+    }
+    // Re-calcular outputs con nuevos knob values
+    this._updateOutputsFromEvent(this._counter);
   }
 
   /**
@@ -451,6 +726,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
       case 'testOP':
         this._transportState = STATE_TEST_MODE;
+        this._setTestOutputs();
         this.port.postMessage({ type: 'testMode', text: 'CAll' });
         break;
     }

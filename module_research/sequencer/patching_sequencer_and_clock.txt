@@ -1,0 +1,37 @@
+Conexiones en matrices del secuenciador y el clock:
+
+Panel 5 (audio):
+    Salidas:
+        Sequencer 1 y 2: filas 87 y 88.
+    Entradas: 
+        Sequencer Control:
+           Clock: columna 51
+           Reset: col 52
+           Forward: col 53
+           Reverse: col 54
+           Stop: col 55
+
+Panel 6 (CV):
+    Salidas:
+        Sequencer Layer 1:
+           Voltage A: fila 100
+           Voltage B: fila 101
+           Key: fila 105
+        Sequencer Layer 2:
+           Voltage C: fila 106
+           Voltage D: fila 107
+           Key: fila 108
+        Sequencer Layer 3:
+           Voltage E: fila 109
+           Voltage F: fila 110
+           Key: fila 111
+        Sequencer Key 4: fila 109
+        Clock Rate Knob: fila 110
+    
+    Entradas:
+        Sequencer Voltage Input:
+            A·C·E: col 60
+            B·D·F: col 61
+            Key: col 62
+
+

@@ -171,10 +171,10 @@ describe('Panel 7 Blueprint - Layout', () => {
         assert.strictEqual(seq.switches.length, 8);
       });
 
-      it('los switches son: A/B+ Dey 1, B, C+ Key 2, D, E+ Key 3, F, Key 4, Stop Clock', () => {
+      it('los switches son: A/B+ Key 1, B, C+ Key 2, D, E+ Key 3, F, Key 4, Run Clock / Stop Clock', () => {
         assert.deepStrictEqual(seq.switches, [
-          'A/B+ Dey 1', 'B', 'C+ Key 2', 'D',
-          'E+ Key 3', 'F', 'Key 4', 'Stop Clock'
+          'A/B+ Key 1', 'B', 'C+ Key 2', 'D',
+          'E+ Key 3', 'F', 'Key 4', 'Run Clock / Stop Clock'
         ]);
       });
 

@@ -248,7 +248,30 @@ export default {
     { rowSynth: 117, source: { kind: 'joystick', side: 'left', axis: 'y' } },
     { rowSynth: 118, source: { kind: 'joystick', side: 'left', axis: 'x' } },
     { rowSynth: 119, source: { kind: 'joystick', side: 'right', axis: 'y' } },
-    { rowSynth: 120, source: { kind: 'joystick', side: 'right', axis: 'x' } }
+    { rowSynth: 120, source: { kind: 'joystick', side: 'right', axis: 'x' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DIGITAL SEQUENCER 1000 (filas 100-110)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6 pistas analógicas (A-F, 0-7V DC, resolución 8-bit) agrupadas en
+    // 3 layers de 2 voltajes + 1 key digital cada uno.
+    // Key 4 adicional (fila 109) y Clock Rate (fila 110).
+    //
+    // Layer 1: Voltage A, Voltage B, Key 1
+    { rowSynth: 100, source: { kind: 'sequencer', output: 'voltageA' } },
+    { rowSynth: 101, source: { kind: 'sequencer', output: 'voltageB' } },
+    { rowSynth: 102, source: { kind: 'sequencer', output: 'key1' } },
+    // Layer 2: Voltage C, Voltage D, Key 2
+    { rowSynth: 103, source: { kind: 'sequencer', output: 'voltageC' } },
+    { rowSynth: 104, source: { kind: 'sequencer', output: 'voltageD' } },
+    { rowSynth: 105, source: { kind: 'sequencer', output: 'key2' } },
+    // Layer 3: Voltage E, Voltage F, Key 3
+    { rowSynth: 106, source: { kind: 'sequencer', output: 'voltageE' } },
+    { rowSynth: 107, source: { kind: 'sequencer', output: 'voltageF' } },
+    { rowSynth: 108, source: { kind: 'sequencer', output: 'key3' } },
+    // Key 4 + Clock Rate
+    { rowSynth: 109, source: { kind: 'sequencer', output: 'key4' } },
+    { rowSynth: 110, source: { kind: 'sequencer', output: 'clockRate' } }
   ],
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -388,6 +411,17 @@ export default {
     // Columna 64: entrada X (horizontal / modo Lissajous)
     //
     { colSynth: 63, dest: { kind: 'oscilloscope', channel: 'Y' } },
-    { colSynth: 64, dest: { kind: 'oscilloscope', channel: 'X' } }
+    { colSynth: 64, dest: { kind: 'oscilloscope', channel: 'X' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SEQUENCER VOLTAGE INPUTS (columnas 60-62)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Entradas de voltaje al secuenciador para grabación.
+    // A·C·E comparten Converter 1 (IC 6): la misma fuente se graba en A, C y E.
+    // B·D·F comparten Converter 2 (IC 7): la misma fuente se graba en B, D y F.
+    // Key: entrada digital compartida por las 4 keys.
+    { colSynth: 60, dest: { kind: 'sequencerInput', inputType: 'voltageACE' } },
+    { colSynth: 61, dest: { kind: 'sequencerInput', inputType: 'voltageBDF' } },
+    { colSynth: 62, dest: { kind: 'sequencerInput', inputType: 'key' } }
   ]
 };

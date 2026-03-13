@@ -124,7 +124,15 @@ export default {
     { rowSynth: 80, source: { kind: 'outputBus', bus: 6 } },
     { rowSynth: 81, source: { kind: 'outputBus', bus: 7 } },
     { rowSynth: 82, source: { kind: 'outputBus', bus: 8 } },
-    
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SEQUENCER DAC OUTPUTS (filas 87-88)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2 convertidores D/A del Digital Sequencer 1000.
+    // Salidas de audio del secuenciador para ruteo a filtros, ring mods, etc.
+    { rowSynth: 87, source: { kind: 'sequencer', channel: 0 } },
+    { rowSynth: 88, source: { kind: 'sequencer', channel: 1 } },
+
     // ─────────────────────────────────────────────────────────────────────────
     // NOISE GENERATORS (filas 89-90)
     // ─────────────────────────────────────────────────────────────────────────
@@ -317,7 +325,20 @@ export default {
     { colSynth: 61, dest: { kind: 'oscPWM', oscIndex: 2 } },
     { colSynth: 62, dest: { kind: 'oscPWM', oscIndex: 3 } },
     { colSynth: 63, dest: { kind: 'oscPWM', oscIndex: 4 } },
-    { colSynth: 64, dest: { kind: 'oscPWM', oscIndex: 5 } }
+    { colSynth: 64, dest: { kind: 'oscPWM', oscIndex: 5 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SEQUENCER CONTROL INPUTS (columnas 51-55)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Entradas de control externo al secuenciador via señales de audio.
+    // Pulso >1V en cualquiera de estos inputs dispara la acción correspondiente.
+    // Clock: avanza el contador un paso por cada pulso.
+    // Reset/Forward/Reverse/Stop: controles de transporte remotos.
+    { colSynth: 51, dest: { kind: 'sequencerControl', controlType: 'clock' } },
+    { colSynth: 52, dest: { kind: 'sequencerControl', controlType: 'reset' } },
+    { colSynth: 53, dest: { kind: 'sequencerControl', controlType: 'forward' } },
+    { colSynth: 54, dest: { kind: 'sequencerControl', controlType: 'reverse' } },
+    { colSynth: 55, dest: { kind: 'sequencerControl', controlType: 'stop' } }
 
     // ─────────────────────────────────────────────────────────────────────────
     // COLUMNAS RESERVADAS (65-66) - Vacías, para uso futuro configurable

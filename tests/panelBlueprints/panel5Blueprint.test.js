@@ -71,8 +71,8 @@ describe('Panel 5 Blueprint - Estructura básica', () => {
 
 describe('Panel 5 Blueprint - Sources', () => {
 
-  it('tiene 51 fuentes en total (8 inputAmp + 8 outputBus + 2 noise + 18 osc + 8 filtros + 3 envShaper + 3 ringMod + 1 reverb)', () => {
-    assert.strictEqual(blueprint.sources.length, 51);
+  it('tiene 53 fuentes en total (8 inputAmp + 8 outputBus + 2 noise + 18 osc + 8 filtros + 3 envShaper + 3 ringMod + 1 reverb + 2 sequencer)', () => {
+    assert.strictEqual(blueprint.sources.length, 53);
   });
 
   it('tiene 8 inputAmp', () => {
@@ -143,8 +143,8 @@ describe('Panel 5 Blueprint - Sources', () => {
 
 describe('Panel 5 Blueprint - Destinations', () => {
 
-  it('tiene 49 destinos en total', () => {
-    assert.strictEqual(blueprint.destinations.length, 49);
+  it('tiene 54 destinos en total', () => {
+    assert.strictEqual(blueprint.destinations.length, 54);
   });
 
   it('tiene 12 oscSync', () => {
@@ -254,7 +254,8 @@ describe('Panel 5 Blueprint - Coherencia', () => {
   it('todos los dest kinds son válidos', () => {
     const validKinds = new Set(['oscSync', 'outputBus', 'oscilloscope', 'oscPWM',
       'oscFreqCV', 'outputLevelCV', 'filterLPInput', 'filterHPInput', 'reverbInput',
-      'ringModInputA', 'ringModInputB', 'envelopeShaperSignalInput', 'envelopeShaperTriggerInput']);
+      'ringModInputA', 'ringModInputB', 'envelopeShaperSignalInput', 'envelopeShaperTriggerInput',
+      'sequencerControl']);
     for (const d of blueprint.destinations) {
       assert.ok(validKinds.has(d.dest.kind), `Kind inválido: ${d.dest.kind}`);
     }
@@ -263,7 +264,7 @@ describe('Panel 5 Blueprint - Coherencia', () => {
   it('todos los source kinds son válidos', () => {
     const validKinds = new Set(['inputAmp', 'outputBus', 'noiseGen', 'panel3Osc',
       'joystick', 'randomVoltage', 'envelope', 'filterLP', 'filterHP', 'reverberation',
-      'ringModulator', 'envelopeShaper']);
+      'ringModulator', 'envelopeShaper', 'sequencer']);
     for (const s of blueprint.sources) {
       assert.ok(validKinds.has(s.source.kind), `Kind inválido: ${s.source.kind}`);
     }

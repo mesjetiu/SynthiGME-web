@@ -21,6 +21,9 @@ export { default as reverberationConfig } from './modules/reverberation.config.j
 export { default as ringModulatorConfig } from './modules/ringModulator.config.js';
 export { default as envelopeShaperConfig } from './modules/envelopeShaper.config.js';
 
+// Secuenciador
+export { default as sequencerConfig } from './modules/sequencer.config.js';
+
 // Teclados
 export { default as keyboardConfig } from './modules/keyboard.config.js';
 
@@ -56,6 +59,7 @@ import controlMatrixConfig from './modules/controlMatrix.config.js';
 import reverberationConfig from './modules/reverberation.config.js';
 import ringModulatorConfig from './modules/ringModulator.config.js';
 import envelopeShaperConfig from './modules/envelopeShaper.config.js';
+import sequencerConfig from './modules/sequencer.config.js';
 
 export default {
   oscillator: oscillatorConfig,
@@ -71,5 +75,6 @@ export default {
   joystick: joystickConfig,
   reverberation: reverberationConfig,
   ringModulator: ringModulatorConfig,
-  envelopeShaper: envelopeShaperConfig
+  envelopeShaper: envelopeShaperConfig,
+  sequencer: sequencerConfig
 };

@@ -16,15 +16,15 @@ Panel 6 (CV):
         Sequencer Layer 1:
            Voltage A: fila 100
            Voltage B: fila 101
-           Key: fila 105
+           Key: fila 102
         Sequencer Layer 2:
-           Voltage C: fila 106
-           Voltage D: fila 107
-           Key: fila 108
+           Voltage C: fila 103
+           Voltage D: fila 104
+           Key: fila 105
         Sequencer Layer 3:
-           Voltage E: fila 109
-           Voltage F: fila 110
-           Key: fila 111
+           Voltage E: fila 106
+           Voltage F: fila 107
+           Key: fila 108
         Sequencer Key 4: fila 109
         Clock Rate Knob: fila 110
     

@@ -18,6 +18,19 @@ Este documento contiene toda la información necesaria para desarrolladores que 
 
 `docs/` **NUNCA** es un paso intermedio para Electron. Ambos flujos compilan directamente desde `src/`.
 
+## Materiales previos por módulo
+
+La carpeta `module_research/` agrupa notas, manuales, imágenes de referencia y materiales de investigación usados antes de implementar cada módulo.
+
+- `module_research/envelope_shapers/`: documentación técnica y material visual del Envelope Shaper
+- `module_research/sequencer/`: notas iniciales y material de investigación del secuenciador
+
+Convención de uso:
+
+- Crear una subcarpeta por módulo o subsistema
+- Guardar aquí solo materiales previos a la implementación, no código fuente ni builds
+- Mantener los nombres orientados al módulo para que la investigación sea localizable
+
 ## Requisitos previos
 
 - **Node.js**: v18 o superior

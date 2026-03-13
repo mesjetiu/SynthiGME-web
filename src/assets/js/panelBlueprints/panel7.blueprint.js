@@ -121,9 +121,9 @@ export default {
 
       // Sequencer Operational Control
       sequencer: {
-        switches: [
-          'A/B+ Dey 1', 'B', 'C+ Key 2', 'D',
-          'E+ Key 3', 'F', 'Key 4', 'Stop Clock'
+        switches: [// 'Record when down' serigrafiado en Synthi 100
+          'A/B+ Key 1', 'B', 'C+ Key 2', 'D',
+          'E+ Key 3', 'F', 'Key 4', 'Run Clock / Stop Clock' 
         ],
         buttons: [
           'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',

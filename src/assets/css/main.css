@@ -7919,3 +7919,85 @@ body.render-performance .panel-inline-bg {
 .mobile-quickbar__btn.is-keyboard-active {
   color: #ffb63b;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEQUENCER EVENT TIME — Retro 7-segment LED display
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.seq-event-time-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.seq-event-time-display__bezel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 18px;
+  background: #1a0a0a;
+  border-radius: 4px;
+  border: 2px solid #2a1a1a;
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.8),
+    inset 0 0 20px rgba(0, 0, 0, 0.5),
+    0 1px 3px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+/* Tinted glass overlay */
+.seq-event-time-display__bezel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(80, 0, 0, 0.08) 0%,
+    transparent 40%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.seq-event-time-display__digit {
+  position: relative;
+  width: 28px;
+  height: 46px;
+}
+
+/* Ghost segments — unlit background */
+.seq-event-time-display__ghost {
+  position: absolute;
+  inset: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 46px;
+  text-align: center;
+  color: rgba(60, 10, 10, 0.35);
+  user-select: none;
+}
+
+/* Active digit — lit segments */
+.seq-event-time-display__value {
+  position: absolute;
+  inset: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 46px;
+  text-align: center;
+  color: #e02020;
+  text-shadow:
+    0 0 6px rgba(255, 40, 40, 0.7),
+    0 0 14px rgba(255, 20, 20, 0.35),
+    0 0 2px rgba(255, 80, 80, 0.9);
+  user-select: none;
+}

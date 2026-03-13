@@ -3766,6 +3766,28 @@ class App {
       flex: 0 0 auto;
     `;
     applyOffset(seqEl, seqLayout.offset);
+
+    // ── LED display retro de 4 dígitos ──────────────────────────────────
+    const displayContainer = document.createElement('div');
+    displayContainer.className = 'seq-event-time-display';
+    const bezel = document.createElement('div');
+    bezel.className = 'seq-event-time-display__bezel';
+    for (let i = 0; i < 4; i++) {
+      const digitBox = document.createElement('div');
+      digitBox.className = 'seq-event-time-display__digit';
+      const ghost = document.createElement('span');
+      ghost.className = 'seq-event-time-display__ghost';
+      ghost.textContent = '8';
+      const value = document.createElement('span');
+      value.className = 'seq-event-time-display__value';
+      value.textContent = '0';
+      digitBox.appendChild(ghost);
+      digitBox.appendChild(value);
+      bezel.appendChild(digitBox);
+    }
+    displayContainer.appendChild(bezel);
+    seqFrame.appendToContent(displayContainer);
+
     applyModuleVisibility(seqEl, blueprint, 'sequencerEventTime');
     host.appendChild(seqEl);
 
@@ -4140,12 +4162,208 @@ class App {
       }
     });
 
-    // ── Columnas 4-7: placeholders vacíos ───────────────────────────────
-    for (let i = 4; i <= korLayout.columns; i++) {
-      const placeholder = document.createElement('div');
-      placeholder.className = 'panel4-kor-column panel4-kor-column--empty';
-      placeholder.style.cssText = `flex: 1 1 0; min-width: 0;`;
-      korRow.appendChild(placeholder);
+    // ── Columnas 4-7: Sequencer Section ────────────────────────────────
+    const seqSection = korLayout.sequencerSection;
+    if (seqSection) {
+      const seqContainer = document.createElement('div');
+      seqContainer.className = 'panel4-sequencer-section';
+      seqContainer.style.cssText = `
+        flex: 4 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: ${seqSection.gap ?? 3}px;
+      `;
+
+      // ── Helper: construir una columna con knobs apilados verticalmente
+      const buildKnobColumn = (colDef) => {
+        const colId = colDef.id;
+        const frame = new ModuleFrame({
+          id: `${colId}-module`,
+          title: null,
+          className: `panel4-placeholder panel4-${colId}`
+        });
+        const el = frame.createElement();
+        el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+
+        const knobsContainer = document.createElement('div');
+        knobsContainer.className = 'panel4-column-knobs';
+        knobsContainer.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          gap: ${colDef.knobGap ?? 4}px;
+        `;
+
+        for (const knobDef of colDef.knobs) {
+          if (knobDef.type === 'vernier') {
+            const { wrapper } = createPanel4Vernier();
+            knobsContainer.appendChild(wrapper);
+          } else {
+            const knob = createPanel4Knob(knobDef);
+            const stdSize = toNum(knobUI.standardKnobSize, 45);
+            knob.knobEl.style.width = `${stdSize}px`;
+            knob.knobEl.style.height = `${stdSize}px`;
+            const inner = knob.knobEl.querySelector('.knob-inner');
+            if (inner) {
+              const pct = toNum(knobUI.knobInnerPct, 76);
+              inner.style.width = `${pct}%`;
+              inner.style.height = `${pct}%`;
+            }
+            knobsContainer.appendChild(knob.wrapper);
+          }
+        }
+
+        frame.appendToContent(knobsContainer);
+        applyModuleVisibility(el, blueprint, colId);
+        korFrames[colId] = frame;
+        return el;
+      };
+
+      // ── Helper: construir columna con submódulos apilados (como col 7)
+      const buildStackedColumn = (colDef) => {
+        const container = document.createElement('div');
+        container.className = 'panel4-kor-column panel4-kor-column--stacked';
+        container.style.cssText = `
+          flex: 1 1 0;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: ${colDef.gap ?? 2}px;
+        `;
+
+        for (const subDef of colDef.subModules) {
+          const subFrame = new ModuleFrame({
+            id: `${subDef.id}-module`,
+            title: null,
+            className: `panel4-placeholder panel4-${subDef.id}`
+          });
+          const subEl = subFrame.createElement();
+          subEl.style.cssText = `flex: ${subDef.flex ?? 1} 1 0; min-height: 0;`;
+
+          const knobsContainer = document.createElement('div');
+          knobsContainer.className = 'panel4-column-knobs';
+          knobsContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: ${subDef.knobGap ?? 4}px;
+          `;
+
+          for (const knobDef of subDef.knobs) {
+            if (knobDef.type === 'vernier') {
+              const { wrapper } = createPanel4Vernier();
+              knobsContainer.appendChild(wrapper);
+            } else {
+              const knob = createPanel4Knob(knobDef);
+              const stdSize = toNum(knobUI.standardKnobSize, 45);
+              knob.knobEl.style.width = `${stdSize}px`;
+              knob.knobEl.style.height = `${stdSize}px`;
+              const inner = knob.knobEl.querySelector('.knob-inner');
+              if (inner) {
+                const pct = toNum(knobUI.knobInnerPct, 76);
+                inner.style.width = `${pct}%`;
+                inner.style.height = `${pct}%`;
+              }
+              knobsContainer.appendChild(knob.wrapper);
+            }
+          }
+
+          subFrame.appendToContent(knobsContainer);
+          applyModuleVisibility(subEl, blueprint, subDef.id);
+          container.appendChild(subEl);
+          korFrames[subDef.id] = subFrame;
+        }
+
+        return container;
+      };
+
+      // ── Fila 1: Seq Output Range × 3 + Invertor/Buffer + Key 4 ───────
+      const row1Layout = seqSection.row1;
+      if (row1Layout) {
+        const row1 = document.createElement('div');
+        row1.className = 'panel4-seq-row1';
+        row1.style.cssText = `
+          display: flex;
+          gap: ${row1Layout.gap ?? 3}px;
+          flex: 1 1 0;
+          min-height: 0;
+        `;
+
+        // Columnas 4-6: knobs apilados
+        if (row1Layout.column4) row1.appendChild(buildKnobColumn(row1Layout.column4));
+        if (row1Layout.column5) row1.appendChild(buildKnobColumn(row1Layout.column5));
+        if (row1Layout.column6) row1.appendChild(buildKnobColumn(row1Layout.column6));
+
+        // Columna 7: submódulos apilados (Invertor/Buffer + Key 4)
+        if (row1Layout.column7) row1.appendChild(buildStackedColumn(row1Layout.column7));
+
+        seqContainer.appendChild(row1);
+      }
+
+      // ── Fila 2: Slew Limiters × 3 + Option 1 (frames de un solo knob)
+      const row2Layout = seqSection.row2;
+      if (row2Layout) {
+        const row2 = document.createElement('div');
+        row2.className = 'panel4-seq-row2';
+        row2.style.cssText = `
+          display: flex;
+          gap: ${row2Layout.gap ?? 3}px;
+          flex: 0 0 auto;
+        `;
+
+        const singleKnobModules = ['slewLimiter1', 'slewLimiter2', 'slewLimiter3', 'option1'];
+        for (const key of singleKnobModules) {
+          const modDef = row2Layout[key];
+          if (!modDef) continue;
+
+          const modId = modDef.id;
+          const frame = new ModuleFrame({
+            id: `${modId}-module`,
+            title: null,
+            className: `panel4-placeholder panel4-${modId}`
+          });
+          const el = frame.createElement();
+          el.style.cssText = `flex: 1 1 0; min-width: 0;`;
+
+          const knobsContainer = document.createElement('div');
+          knobsContainer.className = 'panel4-column-knobs';
+          knobsContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 8px 0;
+          `;
+
+          for (const knobDef of modDef.knobs) {
+            const knob = createPanel4Knob(knobDef);
+            const stdSize = toNum(knobUI.standardKnobSize, 45);
+            knob.knobEl.style.width = `${stdSize}px`;
+            knob.knobEl.style.height = `${stdSize}px`;
+            const inner = knob.knobEl.querySelector('.knob-inner');
+            if (inner) {
+              const pct = toNum(knobUI.knobInnerPct, 76);
+              inner.style.width = `${pct}%`;
+              inner.style.height = `${pct}%`;
+            }
+            knobsContainer.appendChild(knob.wrapper);
+          }
+
+          frame.appendToContent(knobsContainer);
+          applyModuleVisibility(el, blueprint, modId);
+          row2.appendChild(el);
+          korFrames[modId] = frame;
+        }
+
+        seqContainer.appendChild(row2);
+      }
+
+      korRow.appendChild(seqContainer);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -41,7 +41,13 @@
 //            Env. Control (blanco), Retrigger Key Release (selector rotativo ON/KBD)
 //     Col 3: Lower Keyboard — Pitch (vernier), Key Velocity (amarillo),
 //            Env. Control (blanco), Retrigger Key Release (selector rotativo ON/KBD)
-//     Col 4-7: pendientes de definición
+//     Col 4: Sequencer Output Range Layer 1 (Voltage A vernier, Voltage B, Key 1)
+//     Col 5: Sequencer Output Range Layer 2 (Voltage C vernier, Voltage D, Key 2)
+//     Col 6: Sequencer Output Range Layer 3 (Voltage E vernier, Voltage F, Key 3)
+//     Col 7: Invertor/Buffer (Gain, Offset) + Key 4
+//   Fila 4 (bajo fila 3, cols 4-7): 4 frames de knob único:
+//     Slew Limiter 1 (Slew Rate), Slew Limiter 2 (Slew Rate),
+//     Slew Limiter 3 (Slew Rate), Option 1
 //
 // Para conexiones a matrices de audio (Panel 5) y control (Panel 6),
 // ver la referencia cruzada al final de este archivo.
@@ -191,9 +197,120 @@ export default {
         ],
         knobGap: 4,
         switchGap: 4
-      }
+      },
 
-      // Columnas 4-7: pendientes de definición
+      // ── Columnas 4-7: Sequencer Section ─────────────────────────────
+      //
+      // Ocupa el espacio restante a la derecha de los keyboards.
+      // Se organiza internamente en 2 filas horizontales:
+      //
+      //   Fila 1: 4 módulos en columna (Seq Output Range × 3 + Invertor/Buffer + Key 4)
+      //   Fila 2: 4 frames de un solo knob (Slew Limiters × 3 + Option 1)
+      //
+      // Todos los knobs por defecto a 0.
+      //
+      sequencerSection: {
+        gap: 3,              // Gap entre fila 1 y fila 2
+
+        // ── Fila 1: 4 módulos con forma de columna ────────────────────
+        row1: {
+          gap: 3,            // Gap horizontal entre columnas
+
+          // ── Columna 4: Sequencer Output Range Layer 1 ───────────────
+          column4: {
+            id: 'seqOutputRangeL1',
+            knobs: [
+              { name: 'Voltage A', type: 'vernier', min: 0, max: 10, default: 0 },
+              { name: 'Voltage B', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
+              { name: 'Key 1', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+            ],
+            knobGap: 4
+          },
+
+          // ── Columna 5: Sequencer Output Range Layer 2 ───────────────
+          column5: {
+            id: 'seqOutputRangeL2',
+            knobs: [
+              { name: 'Voltage C', type: 'vernier', min: 0, max: 10, default: 0 },
+              { name: 'Voltage D', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
+              { name: 'Key 2', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+            ],
+            knobGap: 4
+          },
+
+          // ── Columna 6: Sequencer Output Range Layer 3 ───────────────
+          column6: {
+            id: 'seqOutputRangeL3',
+            knobs: [
+              { name: 'Voltage E', type: 'vernier', min: 0, max: 10, default: 0 },
+              { name: 'Voltage F', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
+              { name: 'Key 3', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+            ],
+            knobGap: 4
+          },
+
+          // ── Columna 7: Invertor/Buffer + Key 4 ──────────────────────
+          //
+          // Subdivida verticalmente en dos submódulos:
+          //   - Invertor/Buffer (2/3 del alto): Gain + Offset
+          //   - Key 4 (1/3 del alto): un solo knob
+          //
+          column7: {
+            subModules: [
+              {
+                id: 'invertorBuffer',
+                flex: 2,
+                knobs: [
+                  { name: 'Gain', type: 'bipolar', color: 'blue', min: -5, max: 5, default: 0 },
+                  { name: 'Offset', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+                ],
+                knobGap: 4
+              },
+              {
+                id: 'key4',
+                flex: 1,
+                knobs: [
+                  { name: 'Key 4', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+                ]
+              }
+            ],
+            gap: 2
+          }
+        },
+
+        // ── Fila 2: 4 frames de un solo knob ──────────────────────────
+        row2: {
+          gap: 3,            // Gap horizontal entre frames
+
+          slewLimiter1: {
+            id: 'slewLimiter1',
+            knobs: [
+              { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+            ]
+          },
+
+          slewLimiter2: {
+            id: 'slewLimiter2',
+            knobs: [
+              { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+            ]
+          },
+
+          slewLimiter3: {
+            id: 'slewLimiter3',
+            knobs: [
+              { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+            ]
+          },
+
+          option1: {
+            id: 'option1',
+            knobs: [
+              { type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+            ]
+          }
+        }
+      }
     }
   },
 
@@ -240,9 +357,18 @@ export default {
     upperKeyboard: { visible: true },
 
     // ── Fila 3, Col 3: Lower Keyboard ───────────────────────────────────
-    lowerKeyboard: { visible: true }
+    lowerKeyboard: { visible: true },
 
-    // Columnas 4-7: se añadirán cuando se definan
+    // ── Fila 3, Cols 4-7: Sequencer Section ─────────────────────────────
+    seqOutputRangeL1: { visible: true },
+    seqOutputRangeL2: { visible: true },
+    seqOutputRangeL3: { visible: true },
+    invertorBuffer: { visible: true },
+    key4: { visible: true },
+    slewLimiter1: { visible: true },
+    slewLimiter2: { visible: true },
+    slewLimiter3: { visible: true },
+    option1: { visible: true }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

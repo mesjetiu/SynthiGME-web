@@ -1826,7 +1826,8 @@ export class AudioEngine {
           './assets/js/worklets/keyboard.worklet.js',
           './assets/js/worklets/springReverb.worklet.js',
           './assets/js/worklets/ringModulator.worklet.js',
-          './assets/js/worklets/envelopeShaper.worklet.js'
+          './assets/js/worklets/envelopeShaper.worklet.js',
+          './assets/js/worklets/sequencer.worklet.js'
         ];
         
         await Promise.all(

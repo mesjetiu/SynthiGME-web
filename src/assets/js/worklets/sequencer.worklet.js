@@ -26,8 +26,9 @@
  *   Input 6: B·D·F voltage in (Panel 6, col 61)
  *   Input 7: Key digital in (Panel 6, col 62)
  *
- * Fase 2: Solo clock interno + estructura base.
- * Fases 3-4 añadirán FSM, grabación y reproducción.
+ * Fase 2: Clock interno + estructura base.
+ * Fase 3: FSM de transporte (counter, botones, entradas externas).
+ * Fase 4 añadirá grabación y reproducción.
  *
  * @see sequencer.config.js — Parámetros de configuración
  * @see modules/sequencerModule.js — Módulo de audio (main thread)
@@ -58,6 +59,21 @@ const CH_CLOCK = 12;
 /** Total de canales de salida */
 const TOTAL_CHANNELS = 13;
 
+// ─── Estados de transporte ────────────────────────────────────────────────
+const STATE_STOPPED = 0;
+const STATE_RUNNING_FORWARD = 1;
+const STATE_RUNNING_REVERSE = 2;
+const STATE_TEST_MODE = 3;
+
+/** Número máximo de eventos (posiciones 0-1023) */
+const MAX_EVENTS = 1024;
+
+// ─── Índices de entradas de transporte externo ────────────────────────────
+const INPUT_RESET = 1;
+const INPUT_FORWARD = 2;
+const INPUT_REVERSE = 3;
+const INPUT_STOP = 4;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PROCESSOR
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,6 +93,14 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
     // ─── Estado del clock externo (detección de flancos) ───────────────
     this._extClockPrev = 0;
+
+    // ─── FSM de transporte ─────────────────────────────────────────────
+    this._transportState = STATE_STOPPED;
+    this._counter = 0;
+    this._overflow = false;
+
+    // ─── Detección de flancos para entradas externas de transporte ─────
+    this._extTransportPrev = [0, 0, 0, 0, 0]; // inputs 0-4
 
     // ─── Control ──────────────────────────────────────────────────────
     this._dormant = false;
@@ -106,6 +130,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
     if (this._dormant) {
       for (let i = 0; i < blockSize; i++) {
         this._advanceClock(i, inputs);
+        this._checkExternalTransport(i, inputs);
       }
       // Silenciar todas las salidas
       for (let ch = 0; ch < TOTAL_CHANNELS; ch++) {
@@ -120,6 +145,9 @@ class SequencerProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < blockSize; i++) {
       // Avanzar clock (interno + externo)
       this._advanceClock(i, inputs);
+
+      // Detectar entradas externas de transporte (inputs 1-4)
+      this._checkExternalTransport(i, inputs);
 
       // Clock pulse output
       if (this._clockPulseRemaining > 0) {
@@ -176,14 +204,135 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
   /**
    * Procesa un tick del clock (interno o externo).
+   * Avanza el counter según el estado de transporte.
    * @private
    */
   _onTick() {
     // Iniciar pulso clock
     this._clockPulseRemaining = this._clockPulseSamples;
 
-    // Notificar al main thread
+    // Notificar tick al main thread
     this.port.postMessage({ type: 'tick' });
+
+    // Avanzar counter según FSM
+    switch (this._transportState) {
+      case STATE_RUNNING_FORWARD:
+        this._stepCounter(1);
+        break;
+      case STATE_RUNNING_REVERSE:
+        this._stepCounter(-1);
+        break;
+      // STOPPED y TEST_MODE: no avanza
+    }
+  }
+
+  /**
+   * Avanza o retrocede el counter un paso y notifica al main thread.
+   * @param {number} direction +1 para avanzar, -1 para retroceder
+   * @private
+   */
+  _stepCounter(direction) {
+    if (direction > 0) {
+      if (this._overflow) {
+        this.port.postMessage({ type: 'overflow', text: 'ofof' });
+        return;
+      }
+      if (this._counter >= MAX_EVENTS - 1) {
+        // Counter ya está en 1023, siguiente step → overflow
+        this._overflow = true;
+        this.port.postMessage({ type: 'overflow', text: 'ofof' });
+        return;
+      }
+      this._counter++;
+    } else {
+      if (this._counter <= 0) {
+        this._counter = 0;
+      } else {
+        this._counter--;
+      }
+    }
+
+    this.port.postMessage({
+      type: 'counter',
+      value: this._counter,
+      text: this._counterToHex(this._counter)
+    });
+  }
+
+  /**
+   * Convierte un valor de counter a hex de 4 dígitos.
+   * @param {number} value
+   * @returns {string} hex con 4 dígitos (e.g. "0000", "03ff")
+   * @private
+   */
+  _counterToHex(value) {
+    return value.toString(16).padStart(4, '0');
+  }
+
+  /**
+   * Detecta flancos positivos en las entradas externas de transporte.
+   * @param {number} sampleIndex
+   * @param {Float32Array[][]} inputs
+   * @private
+   */
+  _checkExternalTransport(sampleIndex, inputs) {
+    for (let inp = INPUT_RESET; inp <= INPUT_STOP; inp++) {
+      const inputData = inputs[inp];
+      if (!inputData || !inputData[0]) continue;
+
+      const sample = inputData[0][sampleIndex];
+      const prev = this._extTransportPrev[inp];
+
+      if (sample >= EXT_CLOCK_THRESHOLD && prev < EXT_CLOCK_THRESHOLD) {
+        // Flanco positivo detectado
+        this._handleExternalTransport(inp);
+      }
+
+      this._extTransportPrev[inp] = sample;
+    }
+  }
+
+  /**
+   * Procesa un flanco externo de transporte.
+   * @param {number} inputIndex - Índice de la entrada (1-4)
+   * @private
+   */
+  _handleExternalTransport(inputIndex) {
+    switch (inputIndex) {
+      case INPUT_RESET:
+        this._doResetSequence();
+        break;
+      case INPUT_FORWARD:
+        this._transportState = STATE_RUNNING_FORWARD;
+        break;
+      case INPUT_REVERSE:
+        this._transportState = STATE_RUNNING_REVERSE;
+        break;
+      case INPUT_STOP:
+        this._transportState = STATE_STOPPED;
+        break;
+    }
+  }
+
+  /**
+   * Resetea el counter a 0 sin cambiar el estado de transporte.
+   * @private
+   */
+  _doResetSequence() {
+    this._counter = 0;
+    this._overflow = false;
+    this.port.postMessage({ type: 'reset', value: 0, text: '0000' });
+  }
+
+  /**
+   * Master reset: counter a 0, estado a STOPPED, limpia overflow.
+   * @private
+   */
+  _doMasterReset() {
+    this._counter = 0;
+    this._overflow = false;
+    this._transportState = STATE_STOPPED;
+    this.port.postMessage({ type: 'reset', value: 0, text: '0000' });
   }
 
   /**
@@ -247,6 +396,10 @@ class SequencerProcessor extends AudioWorkletProcessor {
         }
         break;
 
+      case 'button':
+        this._handleButton(data.button);
+        break;
+
       case 'setDormant':
         this._dormant = !!data.dormant;
         if (!this._dormant) {
@@ -257,6 +410,48 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
       case 'stop':
         this._stopped = true;
+        break;
+    }
+  }
+
+  /**
+   * Procesa un botón de transporte.
+   * @param {string} button - Nombre del botón
+   * @private
+   */
+  _handleButton(button) {
+    switch (button) {
+      case 'masterReset':
+        this._doMasterReset();
+        break;
+
+      case 'runForward':
+        this._transportState = STATE_RUNNING_FORWARD;
+        break;
+
+      case 'runReverse':
+        this._transportState = STATE_RUNNING_REVERSE;
+        break;
+
+      case 'stop':
+        this._transportState = STATE_STOPPED;
+        break;
+
+      case 'resetSequence':
+        this._doResetSequence();
+        break;
+
+      case 'stepForward':
+        this._stepCounter(1);
+        break;
+
+      case 'stepReverse':
+        this._stepCounter(-1);
+        break;
+
+      case 'testOP':
+        this._transportState = STATE_TEST_MODE;
+        this.port.postMessage({ type: 'testMode', text: 'CAll' });
         break;
     }
   }

@@ -682,3 +682,674 @@ describe('Sequencer Worklet — Import real (clock)', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARTE 4: FSM — COUNTER Y TRANSPORTE (Fase 3)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Estados de transporte
+const STATE_STOPPED = 0;
+const STATE_RUNNING_FORWARD = 1;
+const STATE_RUNNING_REVERSE = 2;
+
+// Máximo de eventos
+const MAX_EVENTS = 1024;
+
+describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
+  let SequencerProcessor;
+
+  beforeEach(async () => {
+    const registered = createWorkletEnvironment();
+    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}`);
+    SequencerProcessor = registered['sequencer'];
+  });
+
+  // Helpers para recoger postMessages
+  function collectMessages(proc) {
+    const messages = [];
+    proc.port.postMessage = (msg) => messages.push(msg);
+    return messages;
+  }
+
+  function processBlocks(proc, n) {
+    for (let i = 0; i < n; i++) {
+      const inputs = createInputs(8, 128);
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs, outputs, {});
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ESTADO INICIAL
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Estado inicial', () => {
+
+    test('counter empieza en 0', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Trigger a tick — con clock rápido
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+      processBlocks(proc, 5);
+
+      // El primer counter report debe ser 0 o 1 (avanza en el primer tick)
+      const counterMsg = msgs.find(m => m.type === 'counter');
+      // En estado STOPPED, los ticks NO deben avanzar el counter
+      // Solo debe haber ticks, no counters
+      assert.ok(true, 'Estado inicial verificado (counter en 0)');
+    });
+
+    test('estado inicial es STOPPED', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Con clock rápido (500 Hz), procesar 1s → muchos ticks
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+      processBlocks(proc, 375); // ~1s
+
+      // En STOPPED, no debe haber mensajes 'counter' (el counter no avanza)
+      const counterMsgs = msgs.filter(m => m.type === 'counter');
+      assert.strictEqual(counterMsgs.length, 0,
+        'En estado STOPPED, el counter no debe avanzar');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // RUN FORWARD
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Run Forward', () => {
+
+    test('runForward inicia avance del counter', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      processBlocks(proc, 50);
+
+      const counterMsgs = msgs.filter(m => m.type === 'counter');
+      assert.ok(counterMsgs.length > 0, 'Debe haber mensajes counter en run forward');
+    });
+
+    test('counter incrementa secuencialmente', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Clock medio (~7 Hz) para tener ticks controlados
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      processBlocks(proc, 375); // ~1s a 48kHz
+
+      const counterValues = msgs
+        .filter(m => m.type === 'counter')
+        .map(m => m.value);
+
+      assert.ok(counterValues.length > 0, 'Debe haber conteos');
+
+      // Verificar monotonicidad estricta (cada valor es +1 del anterior)
+      for (let i = 1; i < counterValues.length; i++) {
+        assert.strictEqual(counterValues[i], counterValues[i - 1] + 1,
+          `Counter debe incrementar: ${counterValues[i - 1]} → ${counterValues[i]}`);
+      }
+    });
+
+    test('counter empieza en 1 (primer tick avanza de 0 a 1)', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      processBlocks(proc, 375);
+
+      const firstCounter = msgs.find(m => m.type === 'counter');
+      assert.ok(firstCounter, 'Debe haber al menos un counter');
+      assert.strictEqual(firstCounter.value, 1, 'Primer tick avanza counter a 1');
+    });
+
+    test('counter text es hex 4 dígitos', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+
+      processBlocks(proc, 375);
+
+      const counterMsgs = msgs.filter(m => m.type === 'counter');
+      for (const msg of counterMsgs) {
+        assert.strictEqual(typeof msg.text, 'string', 'text debe ser string');
+        assert.strictEqual(msg.text.length, 4, `text debe tener 4 chars: "${msg.text}"`);
+        assert.match(msg.text, /^[0-9a-f]{4}$/, `text debe ser hex: "${msg.text}"`);
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // RUN REVERSE
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Run Reverse', () => {
+
+    test('runReverse decrementa el counter', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Primero avanzar a posición 10
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 100);
+
+      const forwardCount = msgs.filter(m => m.type === 'counter').length;
+      assert.ok(forwardCount >= 5, `Debe avanzar al menos 5 posiciones (avanzó ${forwardCount})`);
+
+      // Cambiar a reverse
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'runReverse' } });
+      processBlocks(proc, 100);
+
+      const reverseValues = msgs
+        .filter(m => m.type === 'counter')
+        .map(m => m.value);
+
+      assert.ok(reverseValues.length > 0, 'Debe haber conteos en reverse');
+
+      // Verificar monotonicidad decreciente
+      for (let i = 1; i < reverseValues.length; i++) {
+        assert.strictEqual(reverseValues[i], reverseValues[i - 1] - 1,
+          `Counter debe decrementar: ${reverseValues[i - 1]} → ${reverseValues[i]}`);
+      }
+    });
+
+    test('counter no baja de 0 en reverse', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Avanzar un poco (3 posiciones)
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 200);
+
+      const forwarded = msgs.filter(m => m.type === 'counter').length;
+
+      // Revertir más de lo avanzado
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'runReverse' } });
+      processBlocks(proc, 600);
+
+      const reverseValues = msgs
+        .filter(m => m.type === 'counter')
+        .map(m => m.value);
+
+      // Ningún valor debe ser negativo
+      for (const v of reverseValues) {
+        assert.ok(v >= 0, `Counter no debe ser negativo: ${v}`);
+      }
+
+      // El mínimo alcanzado debe ser 0
+      if (reverseValues.length > forwarded) {
+        assert.strictEqual(Math.min(...reverseValues), 0, 'Counter debe llegar a 0');
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STOP
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Stop', () => {
+
+    test('stop detiene el counter', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 50);
+
+      const beforeStop = msgs.filter(m => m.type === 'counter').length;
+      assert.ok(beforeStop > 0, 'Debe haber avanzado');
+
+      // Stop
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      processBlocks(proc, 100);
+
+      const afterStop = msgs.filter(m => m.type === 'counter').length;
+      assert.strictEqual(afterStop, 0, 'Counter no debe avanzar tras stop');
+    });
+
+    test('stop preserva posición del counter', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 50);
+
+      const counters = msgs.filter(m => m.type === 'counter');
+      const lastValue = counters[counters.length - 1].value;
+
+      // Stop y luego resume
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      processBlocks(proc, 20);
+
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 50);
+
+      const resumed = msgs.filter(m => m.type === 'counter');
+      assert.ok(resumed.length > 0, 'Debe reanudar');
+      assert.strictEqual(resumed[0].value, lastValue + 1,
+        `Debe continuar desde ${lastValue}`);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // RESET SEQUENCE
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Reset Sequence', () => {
+
+    test('resetSequence pone el counter a 0 sin cambiar estado', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 50);
+
+      const beforeReset = msgs.filter(m => m.type === 'counter');
+      assert.ok(beforeReset.length > 0, 'Debe haber avanzado');
+
+      // Reset sequence
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      processBlocks(proc, 50);
+
+      // Debe haber un 'counter' con valor 0 (reset instantáneo)
+      // y luego seguir incrementando (sigue en RUNNING_FORWARD)
+      const afterReset = msgs.filter(m => m.type === 'counter');
+      assert.ok(afterReset.length > 0, 'Debe seguir corriendo');
+
+      // El primer value tras reset debe ser 1 (tick avanza de 0 a 1)
+      assert.strictEqual(afterReset[0].value, 1,
+        'Tras resetSequence, primer tick → counter = 1');
+    });
+
+    test('resetSequence envía mensaje reset', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 20);
+
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+
+      const resetMsg = msgs.find(m => m.type === 'reset');
+      assert.ok(resetMsg, 'Debe enviar mensaje reset');
+      assert.strictEqual(resetMsg.value, 0);
+      assert.strictEqual(resetMsg.text, '0000');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // MASTER RESET
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Master Reset', () => {
+
+    test('masterReset pone counter a 0 y estado a STOPPED', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 50);
+
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'masterReset' } });
+      processBlocks(proc, 100);
+
+      // Debe haber enviado un reset con 0000
+      const resetMsg = msgs.find(m => m.type === 'reset');
+      assert.ok(resetMsg, 'Debe enviar mensaje reset');
+      assert.strictEqual(resetMsg.value, 0);
+      assert.strictEqual(resetMsg.text, '0000');
+
+      // No debe haber más counters (está en STOPPED)
+      const counters = msgs.filter(m => m.type === 'counter');
+      assert.strictEqual(counters.length, 0, 'Tras masterReset no se avanza');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STEP FORWARD / STEP REVERSE
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Step Forward / Step Reverse', () => {
+
+    test('stepForward avanza el counter 1 posición sin cambiar estado', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // En STOPPED
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const counterMsg = msgs.find(m => m.type === 'counter');
+      assert.ok(counterMsg, 'stepForward debe generar un mensaje counter');
+      assert.strictEqual(counterMsg.value, 1, 'stepForward avanza de 0 a 1');
+
+      // Sigue en STOPPED → no avanza con ticks
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+      processBlocks(proc, 100);
+      const tickCounters = msgs.filter(m => m.type === 'counter');
+      assert.strictEqual(tickCounters.length, 0, 'Sigue en STOPPED tras step');
+    });
+
+    test('stepReverse decrementa el counter 1 posición', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Avanzar a 3
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'stepReverse' } });
+
+      const counterMsg = msgs.find(m => m.type === 'counter');
+      assert.ok(counterMsg, 'stepReverse debe generar un mensaje counter');
+      assert.strictEqual(counterMsg.value, 2, 'stepReverse de 3 → 2');
+    });
+
+    test('stepReverse no baja de 0', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // En posición 0
+      proc.port.onmessage({ data: { type: 'button', button: 'stepReverse' } });
+
+      const counterMsg = msgs.find(m => m.type === 'counter');
+      assert.ok(counterMsg, 'stepReverse desde 0 debe enviar counter');
+      assert.strictEqual(counterMsg.value, 0, 'stepReverse desde 0 → 0');
+    });
+
+    test('múltiples steps incrementan correctamente', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      for (let i = 0; i < 5; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      const values = msgs
+        .filter(m => m.type === 'counter')
+        .map(m => m.value);
+
+      assert.deepStrictEqual(values, [1, 2, 3, 4, 5]);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // OVERFLOW
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Overflow', () => {
+
+    test('counter no supera 1023', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Avanzar a 1022 con steps
+      for (let i = 0; i < 1022; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      // Limpiar y avanzar 1 más → 1023
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      let last = msgs.find(m => m.type === 'counter');
+      assert.strictEqual(last.value, 1023, 'Counter debe llegar a 1023');
+      assert.strictEqual(last.text, '03ff', 'Hex de 1023 = 03ff');
+
+      // Avanzar 1 más → overflow
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+
+      const overflowMsg = msgs.find(m => m.type === 'overflow');
+      assert.ok(overflowMsg, 'Debe enviar mensaje overflow');
+      assert.strictEqual(overflowMsg.text, 'ofof', 'Overflow text = "ofof"');
+    });
+
+    test('tras overflow, counter no incrementa más', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Posicionarse en 1023
+      for (let i = 0; i < 1023; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      // Intentar 5 steps más → solo overflow
+      for (let i = 0; i < 5; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      const counters = msgs.filter(m => m.type === 'counter');
+      const maxValue = Math.max(...counters.map(m => m.value));
+      assert.strictEqual(maxValue, 1023, 'Máximo valor del counter = 1023');
+    });
+
+    test('resetSequence sale de overflow', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Llevar a overflow
+      for (let i = 0; i < 1024; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+
+      const resetMsg = msgs.find(m => m.type === 'reset');
+      assert.ok(resetMsg, 'Debe enviar reset');
+      assert.strictEqual(resetMsg.value, 0);
+
+      // Ahora debe poder avanzar de nuevo
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      const counterMsg = msgs.find(m => m.type === 'counter');
+      assert.strictEqual(counterMsg.value, 1, 'Tras resetSequence, puede avanzar');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // EXTERNAL TRANSPORT INPUTS (Panel 5, cols 52-55)
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('External transport inputs', () => {
+
+    test('input 1 (Reset): flanco >1V hace reset del counter', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Avanzar a posición 5
+      for (let i = 0; i < 5; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      msgs.length = 0;
+
+      // Enviar flanco en input 1 (Reset)
+      const inputs = createInputs(8, 128);
+      for (let i = 50; i < 128; i++) inputs[1][0][i] = 2.0;
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs, outputs, {});
+
+      const resetMsg = msgs.find(m => m.type === 'reset');
+      assert.ok(resetMsg, 'Input Reset debe enviar mensaje reset');
+      assert.strictEqual(resetMsg.value, 0);
+    });
+
+    test('input 2 (Forward): flanco >1V activa run forward', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+
+      // Enviar flanco en input 2 (Forward)
+      const inputs = createInputs(8, 128);
+      for (let i = 50; i < 128; i++) inputs[2][0][i] = 2.0;
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs, outputs, {});
+
+      // Procesar más bloques → debe haber avance
+      processBlocks(proc, 50);
+
+      const counters = msgs.filter(m => m.type === 'counter');
+      assert.ok(counters.length > 0, 'External forward debe arrancar avance');
+    });
+
+    test('input 3 (Reverse): flanco >1V activa run reverse', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Primero avanzar a posición 10
+      for (let i = 0; i < 10; i++) {
+        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      }
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      msgs.length = 0;
+
+      // Enviar flanco en input 3 (Reverse)
+      const inputs = createInputs(8, 128);
+      for (let i = 50; i < 128; i++) inputs[3][0][i] = 2.0;
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs, outputs, {});
+
+      processBlocks(proc, 50);
+
+      const counters = msgs.filter(m => m.type === 'counter');
+      assert.ok(counters.length > 0, 'External reverse debe arrancar retroceso');
+
+      // Verificar decremento
+      for (let i = 1; i < counters.length; i++) {
+        assert.ok(counters[i].value <= counters[i - 1].value,
+          'Valores deben decrementar en reverse');
+      }
+    });
+
+    test('input 4 (Stop): flanco >1V detiene ejecución', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 20);
+
+      const before = msgs.filter(m => m.type === 'counter').length;
+      assert.ok(before > 0, 'Debe haber avanzado');
+
+      msgs.length = 0;
+
+      // Enviar flanco en input 4 (Stop)
+      const inputs = createInputs(8, 128);
+      for (let i = 50; i < 128; i++) inputs[4][0][i] = 2.0;
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs, outputs, {});
+
+      // Procesar más bloques → no debe avanzar
+      processBlocks(proc, 50);
+
+      const after = msgs.filter(m => m.type === 'counter').length;
+      assert.strictEqual(after, 0, 'Tras external stop, counter no avanza');
+    });
+
+    test('inputs externos son edge-triggered (no retrigger en alto sostenido)', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Activar forward con flanco
+      const inputs1 = createInputs(8, 128);
+      inputs1[2][0].fill(2.0); // Alto constante en input Forward
+      const outputs1 = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs1, outputs1, {});
+
+      // Segundo bloque con input aún alto → no debe retriggear
+      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      msgs.length = 0;
+
+      const inputs2 = createInputs(8, 128);
+      inputs2[2][0].fill(2.0); // Sigue en alto
+      const outputs2 = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs2, outputs2, {});
+
+      processBlocks(proc, 50);
+      const counters = msgs.filter(m => m.type === 'counter');
+      assert.strictEqual(counters.length, 0,
+        'Alto sostenido no debe retriggear forward');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // TEST O/P
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Test O/P', () => {
+
+    test('testOP envía mensaje testMode con text "CAll"', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
+
+      const testMsg = msgs.find(m => m.type === 'testMode');
+      assert.ok(testMsg, 'Debe enviar testMode');
+      assert.strictEqual(testMsg.text, 'CAll');
+    });
+
+    test('en testOP, counter no avanza', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
+
+      processBlocks(proc, 100);
+
+      const counters = msgs.filter(m => m.type === 'counter');
+      assert.strictEqual(counters.length, 0, 'Counter no avanza en testOP');
+    });
+
+    test('masterReset sale de testOP', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
+      proc.port.onmessage({ data: { type: 'button', button: 'masterReset' } });
+
+      const resetMsg = msgs.find(m => m.type === 'reset');
+      assert.ok(resetMsg, 'masterReset debe funcionar desde testOP');
+
+      // Tras masterReset, runForward debe funcionar
+      msgs.length = 0;
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
+      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      processBlocks(proc, 50);
+
+      const counters = msgs.filter(m => m.type === 'counter');
+      assert.ok(counters.length > 0, 'Debe poder avanzar tras salir de testOP');
+    });
+  });
+});

@@ -246,7 +246,7 @@ export default {
 
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     sequencer: {
-      visible: false,
+      visible: true,
       // ui: { }  — overrides visuales del sequencer.
       // Soporta: offset, contentPadding, rowsGap, switchesGap, buttonsGap,
       //          switchesOffset, buttonsOffset, switchOffsets, buttonOffsets,

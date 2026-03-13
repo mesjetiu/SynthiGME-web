@@ -7349,6 +7349,13 @@ class App {
           esModule.start();
         }
         outNode = esModule?.getOutputNode?.('audio') ?? null;
+      } else if (source.kind === 'sequencer') {
+        const seqModule = this._sequencerModule;
+        if (seqModule && !seqModule.isStarted) {
+          seqModule.start();
+        }
+        const outputId = source.channel === 0 ? 'dac1' : 'dac2';
+        outNode = seqModule?.getOutputNode?.(outputId) ?? null;
       }
       
       if (!outNode) {
@@ -7514,6 +7521,12 @@ class App {
         }
         const inputId = dest.kind === 'envelopeShaperSignalInput' ? 'signal' : 'trigger';
         destNode = esModule?.getInputNode?.(inputId) ?? null;
+      } else if (dest.kind === 'sequencerControl') {
+        const seqModule = this._sequencerModule;
+        if (seqModule && !seqModule.isStarted) {
+          seqModule.start();
+        }
+        destNode = seqModule?.getInputNode?.(dest.controlType) ?? null;
       }
       
       if (!destNode) {
@@ -7975,11 +7988,24 @@ class App {
           log.warn(` Envelope Shaper ${esIndex} output not available for: ${esOutput}`);
           return false;
         }
+      } else if (source.kind === 'sequencer') {
+        // Fuente: Sequencer CV output (voltageA-F, key1-4, clockRate)
+        const seqModule = this._sequencerModule;
+        if (!seqModule) {
+          log.warn(' Sequencer module not initialized');
+          return false;
+        }
+        if (!seqModule.isStarted) {
+          seqModule.start();
+        }
+        outNode = seqModule.getOutputNode(source.output);
+        if (!outNode) {
+          log.warn(` Sequencer output not available for: ${source.output}`);
+          return false;
+        }
       }
       // Aquí se añadirán más tipos de fuentes en el futuro:
-      // - 'envelope': generador de envolventes
       // - 'lfo': LFO dedicado
-      // - 'sequencer': secuenciador de voltaje
       
       if (!outNode) {
         log.warn(' No output node for control source', source);
@@ -8140,6 +8166,13 @@ class App {
         // y dormancy/signal-flow funcionen correctamente
         destNode = ctx.createGain();
         destNode.gain.value = 0;
+      } else if (dest.kind === 'sequencerInput') {
+        // Destino: Entrada de voltaje al secuenciador para grabación
+        const seqModule = this._sequencerModule;
+        if (seqModule && !seqModule.isStarted) {
+          seqModule.start();
+        }
+        destNode = seqModule?.getInputNode?.(dest.inputType) ?? null;
       }
       // Aquí se añadirán más tipos de destinos en el futuro:
       // - 'oscAmpCV': modulación de amplitud

@@ -126,6 +126,11 @@ function getModuleElementIds(descriptor) {
     case 'envelopeShaperSustainCV':
     case 'envelopeShaperReleaseCV':
       return [`envelopeShaper${(descriptor.index ?? 0) + 1}-module`];
+
+    case 'sequencer':
+    case 'sequencerControl':
+    case 'sequencerInput':
+      return ['panel7-sequencer'];
     
     default:
       return [];

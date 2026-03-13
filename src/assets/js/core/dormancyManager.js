@@ -363,6 +363,22 @@ export class DormancyManager {
       this._setModuleDormant(`joystick-${side}`, !hasAnyAxisConnected);
     }
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // DIGITAL SEQUENCER 1000
+    // ─────────────────────────────────────────────────────────────────────────
+    // Activo si tiene cualquier conexión en Panel 5 (DAC audio, control inputs)
+    // o Panel 6 (CV outputs, voltage inputs para grabación).
+    {
+      const hasSequencerUsage = panel5Connections.some(c =>
+        c.source?.kind === 'sequencer'
+        || c.dest?.kind === 'sequencerControl'
+      ) || panel6Connections.some(c =>
+        c.source?.kind === 'sequencer'
+        || c.dest?.kind === 'sequencerInput'
+      );
+      this._setModuleDormant('sequencer', !hasSequencerUsage);
+    }
+    
     // Mostrar toast consolidado si debug está activo
     this._showConsolidatedToast();
   }
@@ -547,6 +563,11 @@ export class DormancyManager {
     }
     if (moduleId === 'joystick-right') {
       return this.app._joystickModules?.right;
+    }
+
+    // Digital Sequencer
+    if (moduleId === 'sequencer') {
+      return this.app._sequencerModule ?? null;
     }
     
     // Módulos registrados en engine

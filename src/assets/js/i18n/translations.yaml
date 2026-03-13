@@ -4984,6 +4984,188 @@ matrix.dest.envelopeShaperReleaseCV:
   pt: "ES {index} Release CV"
   cs: "ES {index} Release CV"
 
+# ─── Digital Sequencer 1000 ───────────────────────────────────────────────────
+
+matrix.source.sequencerDAC:
+  en: "Seq DAC {channel}"
+  es: "Seq DAC {channel}"
+  fr: "Seq DAC {channel}"
+  de: "Seq DAC {channel}"
+  it: "Seq DAC {channel}"
+  pt: "Seq DAC {channel}"
+  cs: "Seq DAC {channel}"
+
+matrix.source.sequencer.voltageA:
+  en: "Seq Voltage A"
+  es: "Seq Voltage A"
+  fr: "Seq Voltage A"
+  de: "Seq Voltage A"
+  it: "Seq Voltage A"
+  pt: "Seq Voltage A"
+  cs: "Seq Voltage A"
+
+matrix.source.sequencer.voltageB:
+  en: "Seq Voltage B"
+  es: "Seq Voltage B"
+  fr: "Seq Voltage B"
+  de: "Seq Voltage B"
+  it: "Seq Voltage B"
+  pt: "Seq Voltage B"
+  cs: "Seq Voltage B"
+
+matrix.source.sequencer.voltageC:
+  en: "Seq Voltage C"
+  es: "Seq Voltage C"
+  fr: "Seq Voltage C"
+  de: "Seq Voltage C"
+  it: "Seq Voltage C"
+  pt: "Seq Voltage C"
+  cs: "Seq Voltage C"
+
+matrix.source.sequencer.voltageD:
+  en: "Seq Voltage D"
+  es: "Seq Voltage D"
+  fr: "Seq Voltage D"
+  de: "Seq Voltage D"
+  it: "Seq Voltage D"
+  pt: "Seq Voltage D"
+  cs: "Seq Voltage D"
+
+matrix.source.sequencer.voltageE:
+  en: "Seq Voltage E"
+  es: "Seq Voltage E"
+  fr: "Seq Voltage E"
+  de: "Seq Voltage E"
+  it: "Seq Voltage E"
+  pt: "Seq Voltage E"
+  cs: "Seq Voltage E"
+
+matrix.source.sequencer.voltageF:
+  en: "Seq Voltage F"
+  es: "Seq Voltage F"
+  fr: "Seq Voltage F"
+  de: "Seq Voltage F"
+  it: "Seq Voltage F"
+  pt: "Seq Voltage F"
+  cs: "Seq Voltage F"
+
+matrix.source.sequencer.key1:
+  en: "Seq Key 1"
+  es: "Seq Key 1"
+  fr: "Seq Key 1"
+  de: "Seq Key 1"
+  it: "Seq Key 1"
+  pt: "Seq Key 1"
+  cs: "Seq Key 1"
+
+matrix.source.sequencer.key2:
+  en: "Seq Key 2"
+  es: "Seq Key 2"
+  fr: "Seq Key 2"
+  de: "Seq Key 2"
+  it: "Seq Key 2"
+  pt: "Seq Key 2"
+  cs: "Seq Key 2"
+
+matrix.source.sequencer.key3:
+  en: "Seq Key 3"
+  es: "Seq Key 3"
+  fr: "Seq Key 3"
+  de: "Seq Key 3"
+  it: "Seq Key 3"
+  pt: "Seq Key 3"
+  cs: "Seq Key 3"
+
+matrix.source.sequencer.key4:
+  en: "Seq Key 4"
+  es: "Seq Key 4"
+  fr: "Seq Key 4"
+  de: "Seq Key 4"
+  it: "Seq Key 4"
+  pt: "Seq Key 4"
+  cs: "Seq Key 4"
+
+matrix.source.sequencer.clockRate:
+  en: "Seq Clock"
+  es: "Seq Clock"
+  fr: "Seq Clock"
+  de: "Seq Clock"
+  it: "Seq Clock"
+  pt: "Seq Clock"
+  cs: "Seq Clock"
+
+matrix.dest.sequencerControl.clock:
+  en: "Seq Clock In"
+  es: "Seq Clock In"
+  fr: "Seq Clock In"
+  de: "Seq Clock In"
+  it: "Seq Clock In"
+  pt: "Seq Clock In"
+  cs: "Seq Clock In"
+
+matrix.dest.sequencerControl.reset:
+  en: "Seq Reset In"
+  es: "Seq Reset In"
+  fr: "Seq Reset In"
+  de: "Seq Reset In"
+  it: "Seq Reset In"
+  pt: "Seq Reset In"
+  cs: "Seq Reset In"
+
+matrix.dest.sequencerControl.forward:
+  en: "Seq Forward In"
+  es: "Seq Forward In"
+  fr: "Seq Forward In"
+  de: "Seq Forward In"
+  it: "Seq Forward In"
+  pt: "Seq Forward In"
+  cs: "Seq Forward In"
+
+matrix.dest.sequencerControl.reverse:
+  en: "Seq Reverse In"
+  es: "Seq Reverse In"
+  fr: "Seq Reverse In"
+  de: "Seq Reverse In"
+  it: "Seq Reverse In"
+  pt: "Seq Reverse In"
+  cs: "Seq Reverse In"
+
+matrix.dest.sequencerControl.stop:
+  en: "Seq Stop In"
+  es: "Seq Stop In"
+  fr: "Seq Stop In"
+  de: "Seq Stop In"
+  it: "Seq Stop In"
+  pt: "Seq Stop In"
+  cs: "Seq Stop In"
+
+matrix.dest.sequencerInput.voltageACE:
+  en: "Seq V In A·C·E"
+  es: "Seq V In A·C·E"
+  fr: "Seq V In A·C·E"
+  de: "Seq V In A·C·E"
+  it: "Seq V In A·C·E"
+  pt: "Seq V In A·C·E"
+  cs: "Seq V In A·C·E"
+
+matrix.dest.sequencerInput.voltageBDF:
+  en: "Seq V In B·D·F"
+  es: "Seq V In B·D·F"
+  fr: "Seq V In B·D·F"
+  de: "Seq V In B·D·F"
+  it: "Seq V In B·D·F"
+  pt: "Seq V In B·D·F"
+  cs: "Seq V In B·D·F"
+
+matrix.dest.sequencerInput.key:
+  en: "Seq Key In"
+  es: "Seq Key In"
+  fr: "Seq Key In"
+  de: "Seq Key In"
+  it: "Seq Key In"
+  pt: "Seq Key In"
+  cs: "Seq Key In"
+
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"

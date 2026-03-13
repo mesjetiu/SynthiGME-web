@@ -121,6 +121,14 @@ export function getLabelForSource(source) {
 
     case 'envelopeShaper':
       return t('matrix.source.envelopeShaper', { index: (source.index ?? 0) + 1 });
+
+    case 'sequencer': {
+      // Panel 5: channel 0/1 (DAC), Panel 6: output name (voltageA, key1, etc.)
+      if (source.channel !== undefined) {
+        return t('matrix.source.sequencerDAC', { channel: source.channel + 1 });
+      }
+      return t(`matrix.source.sequencer.${source.output || 'voltageA'}`);
+    }
     
     default:
       return null;
@@ -217,6 +225,12 @@ export function getLabelForDest(dest) {
 
     case 'envelopeShaperReleaseCV':
       return t('matrix.dest.envelopeShaperReleaseCV', { index: (dest.index ?? 0) + 1 });
+
+    case 'sequencerControl':
+      return t(`matrix.dest.sequencerControl.${dest.controlType || 'clock'}`);
+
+    case 'sequencerInput':
+      return t(`matrix.dest.sequencerInput.${dest.inputType || 'voltageACE'}`);
     
     default:
       return null;

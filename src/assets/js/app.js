@@ -754,6 +754,7 @@ class App {
       size: sequencerSize
     });
     const sequencerEl = sequencerFrame.createElement();
+    sequencerEl.dataset.moduleName = 'Sequencer';
     
     const seqContent = document.createElement('div');
     seqContent.className = 'panel7-sequencer-layout';
@@ -2721,6 +2722,22 @@ class App {
     if (moduleId === 'sequencer' && this._sequencerModule) {
       return { type: 'sequencer', ui: this._sequencerModule };
     }
+    // Panel 4 keyboard frames (DOM IDs: upperKeyboard-module, lowerKeyboard-module)
+    if (moduleId === 'upperKeyboard-module' && this._keyboardModules?.upper) {
+      return { type: 'keyboard', ui: this._keyboardModules.upper };
+    }
+    if (moduleId === 'lowerKeyboard-module' && this._keyboardModules?.lower) {
+      return { type: 'keyboard', ui: this._keyboardModules.lower };
+    }
+    // Panel 4/7 sequencer frames (DOM IDs from ModuleFrame)
+    const seqFrameIds = [
+      'sequencer-control',
+      'seqOutputRangeL1-module', 'seqOutputRangeL2-module', 'seqOutputRangeL3-module',
+      'key4-module'
+    ];
+    if (seqFrameIds.includes(moduleId) && this._sequencerModule) {
+      return { type: 'sequencer', ui: this._sequencerModule };
+    }
     return null;
   }
   
@@ -2942,6 +2959,30 @@ class App {
       const knob = ui.knobs[knobIndex];
       if (knob && typeof knob.resetToDefault === 'function') {
         knob.resetToDefault();
+      }
+      return;
+    }
+
+    // Sequencer: knob o switch individual
+    if (type === 'sequencer') {
+      if (controlType === 'knob' && controlKey && this._sequencerKnobs[controlKey]) {
+        this._sequencerKnobs[controlKey].resetToDefault();
+      } else if (controlType === 'switch' && controlKey) {
+        const defaultState = controlKey === 'runClock';
+        this._sequencerSwitchUIs?.[controlKey]?.setState(defaultState);
+        this._sequencerModule?.setSwitch(controlKey, defaultState);
+      }
+      return;
+    }
+
+    // Keyboard: knob individual
+    if (type === 'keyboard') {
+      if (controlType === 'knob' && controlKey) {
+        const side = moduleId.includes('upper') || moduleId === 'keyboard-upper' ? 'upper' : 'lower';
+        const knobRef = this._keyboardKnobs[side]?.[controlKey];
+        if (knobRef && typeof knobRef.resetToDefault === 'function') {
+          knobRef.resetToDefault();
+        }
       }
       return;
     }
@@ -4261,6 +4302,7 @@ class App {
         className: `panel4-placeholder panel4-${colId}`
       });
       const el = frame.createElement();
+      el.dataset.moduleName = colId === 'upperKeyboard' ? 'Upper Keyboard' : 'Lower Keyboard';
       el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
 
       const content = document.createElement('div');
@@ -4280,7 +4322,7 @@ class App {
         if (knobDef.type === 'vernier') {
           const { wrapper, knobInstance } = createPanel4Vernier();
           content.appendChild(wrapper);
-          knobElements.push({ type: 'vernier', knobInstance });
+          knobElements.push({ type: 'vernier', knobInstance, wrapper });
         } else {
           const knob = createPanel4Knob(knobDef);
           const stdSize = toNum(knobUI.standardKnobSize, 45);
@@ -4293,7 +4335,7 @@ class App {
             inner.style.height = `${pct}%`;
           }
           content.appendChild(knob.wrapper);
-          knobElements.push({ type: 'standard', knobEl: knob.knobEl });
+          knobElements.push({ type: 'standard', knobEl: knob.knobEl, wrapper: knob.wrapper });
         }
       }
 
@@ -4386,6 +4428,7 @@ class App {
         vernierInst.getTooltipInfo = getKeyboardPitchSpreadTooltipInfo();
         vernierInst._updateVisual();
         knobRefs.pitchSpread = vernierInst;
+        if (kbResult.knobElements[0]?.wrapper) kbResult.knobElements[0].wrapper.dataset.knob = 'pitchSpread';
       }
 
       // Knob 1: Key Velocity (amarillo) — nivel de velocidad
@@ -4413,6 +4456,7 @@ class App {
           }
         });
         knobRefs.velocityLevel = vlKnob;
+        if (kbResult.knobElements[1]?.wrapper) kbResult.knobElements[1].wrapper.dataset.knob = 'velocityLevel';
       }
 
       // Knob 2: Env. Control (blanco) — nivel de gate
@@ -4440,6 +4484,7 @@ class App {
           }
         });
         knobRefs.gateLevel = glKnob;
+        if (kbResult.knobElements[2]?.wrapper) kbResult.knobElements[2].wrapper.dataset.knob = 'gateLevel';
       }
 
       // Switch 0: Retrigger (rotarySwitch)
@@ -4522,6 +4567,7 @@ class App {
           className: `panel4-placeholder panel4-${colId}`
         });
         const el = frame.createElement();
+        el.dataset.moduleName = 'Sequencer';
         el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
 
         const knobsContainer = document.createElement('div');
@@ -4548,6 +4594,7 @@ class App {
               };
               knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
             }
+            if (paramName) wrapper.dataset.knob = paramName;
             knobsContainer.appendChild(wrapper);
           } else {
             const isBipolar = knobDef.type === 'bipolar';
@@ -4580,6 +4627,7 @@ class App {
               inner.style.width = `${pct}%`;
               inner.style.height = `${pct}%`;
             }
+            if (paramName) knob.wrapper.dataset.knob = paramName;
             knobsContainer.appendChild(knob.wrapper);
           }
         }
@@ -4610,6 +4658,8 @@ class App {
           });
           const subEl = subFrame.createElement();
           subEl.style.cssText = `flex: ${subDef.flex ?? 1} 1 0; min-height: 0;`;
+          const hasSeqKnobs = subDef.knobs.some(k => seqKnobNameMap[k.name]);
+          if (hasSeqKnobs) subEl.dataset.moduleName = 'Sequencer';
 
           const knobsContainer = document.createElement('div');
           knobsContainer.className = 'panel4-column-knobs';
@@ -4635,6 +4685,7 @@ class App {
                 };
                 knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
               }
+              if (paramName) wrapper.dataset.knob = paramName;
               knobsContainer.appendChild(wrapper);
             } else {
               const isBipolar = knobDef.type === 'bipolar';
@@ -4665,6 +4716,7 @@ class App {
                 inner.style.width = `${pct}%`;
                 inner.style.height = `${pct}%`;
               }
+              if (paramName) knob.wrapper.dataset.knob = paramName;
               knobsContainer.appendChild(knob.wrapper);
             }
           }

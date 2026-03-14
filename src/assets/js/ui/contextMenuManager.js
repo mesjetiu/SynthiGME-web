@@ -181,7 +181,31 @@ function detectControl(target, moduleInfo) {
     }
     return null;
   }
-  
+
+  // ── Generic: controles con data-knob (Panel 4 seq/keyboard, Panel 7 seq) ──
+  const genericKnob = target.closest('[data-knob]');
+  if (genericKnob && moduleEl.contains(genericKnob)) {
+    const controlKey = genericKnob.dataset.knob;
+    const label = controlKey
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/([a-z])(\d)/g, '$1 $2')
+      .replace(/^./, c => c.toUpperCase())
+      .trim();
+    return { label, knobIndex: -1, controlType: 'knob', controlKey, moduleId: moduleInfo.id };
+  }
+
+  // ── Generic: switches con data-switch-name (Panel 7 secuenciador) ──
+  const switchBtn = target.closest('[data-switch-name]');
+  if (switchBtn && moduleEl.contains(switchBtn)) {
+    const controlKey = switchBtn.dataset.switchName;
+    const label = controlKey
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/([a-z])(\d)/g, '$1 $2')
+      .replace(/^./, c => c.toUpperCase())
+      .trim();
+    return { label, knobIndex: -1, controlType: 'switch', controlKey, moduleId: moduleInfo.id };
+  }
+
   // ── Osciladores: knobs en array por índice ──
   // Buscar el knob-shell más cercano
   const shellSelectors = '.sgme-osc__knob-shell, .noise-generator__knob-shell, .random-voltage__knob-shell';

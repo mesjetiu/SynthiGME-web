@@ -807,6 +807,15 @@ class App {
         sequencerOSCSync.sendSwitchChange(switchName, switchState);
       });
       btn.dataset.switchName = switchName;
+      // Store switch UI reference for programmatic state updates
+      if (!this._sequencerSwitchUIs) this._sequencerSwitchUIs = {};
+      this._sequencerSwitchUIs[switchName] = {
+        setState: (newState) => {
+          switchState = newState;
+          btn.classList.toggle('is-on', switchState);
+          updateLever();
+        }
+      };
       sw.appendChild(btn);
       switchRow.appendChild(sw);
     }
@@ -2133,6 +2142,25 @@ class App {
         if (mod && typeof mod.deserialize === 'function') {
           mod.deserialize(data);
         }
+        // Update UI knobs
+        const knobRefs = this._keyboardKnobs?.[side];
+        if (knobRefs && data) {
+          const kbKnobs = keyboardConfig.knobs;
+          if (data.pitchSpread !== undefined && knobRefs.pitchSpread) {
+            knobRefs.pitchSpread.setValue(data.pitchSpread / (kbKnobs.pitchSpread.max ?? 10));
+          }
+          if (data.velocityLevel !== undefined && knobRefs.velocityLevel) {
+            const vl = kbKnobs.velocityLevel;
+            knobRefs.velocityLevel.setValue((data.velocityLevel - (vl.min ?? -5)) / ((vl.max ?? 5) - (vl.min ?? -5)));
+          }
+          if (data.gateLevel !== undefined && knobRefs.gateLevel) {
+            const gl = kbKnobs.gateLevel;
+            knobRefs.gateLevel.setValue((data.gateLevel - (gl.min ?? -5)) / ((gl.max ?? 5) - (gl.min ?? -5)));
+          }
+          if (data.retrigger !== undefined && knobRefs.retrigger) {
+            knobRefs.retrigger.setState(data.retrigger === 1 ? 'a' : 'b');
+          }
+        }
       }
     }
     
@@ -2221,6 +2249,7 @@ class App {
       if (seqData.switches) {
         for (const [name, value] of Object.entries(seqData.switches)) {
           this._sequencerModule.setSwitch(name, value);
+          this._sequencerSwitchUIs?.[name]?.setState(value);
         }
       }
       // Restaurar knobs (valores normalizados)
@@ -2331,10 +2360,11 @@ class App {
 
     // Resetear Keyboards
     if (this._keyboardModules) {
-      for (const mod of Object.values(this._keyboardModules)) {
+      for (const [side, mod] of Object.entries(this._keyboardModules)) {
         if (mod && typeof mod.deserialize === 'function') {
           mod.deserialize(defaults.keyboard);
         }
+        this._resetKeyboardKnobs(side);
       }
     }
     
@@ -2417,6 +2447,7 @@ class App {
       const seqSwitches = sequencerModuleConfig.switches;
       for (const [name, cfg] of Object.entries(seqSwitches)) {
         this._sequencerModule.setSwitch(name, cfg.initial);
+        this._sequencerSwitchUIs?.[name]?.setState(cfg.initial);
       }
     }
     
@@ -2733,6 +2764,40 @@ class App {
       return;
     }
 
+    // Sequencer: reset audio module + knob UI + switch visuals + counter
+    if (type === 'sequencer') {
+      const seqKnobs = sequencerModuleConfig.knobs;
+      for (const [name, cfg] of Object.entries(seqKnobs)) {
+        if (name === 'clockRate') {
+          ui.setClockRate(cfg.initial);
+        } else {
+          ui.setKnob(name, cfg.initial);
+        }
+        const knobInstance = this._sequencerKnobs[name];
+        if (knobInstance) knobInstance.setValue(cfg.initial / 10);
+      }
+      const seqSwitches = sequencerModuleConfig.switches;
+      for (const [name, cfg] of Object.entries(seqSwitches)) {
+        ui.setSwitch(name, cfg.initial);
+        this._sequencerSwitchUIs?.[name]?.setState(cfg.initial);
+      }
+      if (this._sequencerDisplay) {
+        for (let i = 0; i < this._sequencerDisplay.length; i++) {
+          this._sequencerDisplay[i].textContent = '0';
+        }
+      }
+      return;
+    }
+
+    // Keyboard: reset audio module + UI knobs
+    if (type === 'keyboard') {
+      const kbDefaults = defaults.keyboard;
+      if (typeof ui.deserialize === 'function') ui.deserialize(kbDefaults);
+      const side = ui === this._keyboardModules?.upper ? 'upper' : 'lower';
+      this._resetKeyboardKnobs(side);
+      return;
+    }
+
     if (typeof ui.deserialize !== 'function') return;
     
     switch (type) {
@@ -2769,6 +2834,31 @@ class App {
       case 'matrixControl':
         ui.deserialize({ connections: [] });
         break;
+    }
+  }
+
+  /**
+   * Resetea los knobs y switches del teclado UI a sus valores por defecto.
+   * @param {string} side - 'upper' o 'lower'
+   */
+  _resetKeyboardKnobs(side) {
+    const knobRefs = this._keyboardKnobs?.[side];
+    if (!knobRefs) return;
+    const kbKnobs = keyboardConfig.knobs;
+    if (knobRefs.pitchSpread) {
+      knobRefs.pitchSpread.setValue(kbKnobs.pitchSpread.initial / (kbKnobs.pitchSpread.max ?? 10));
+    }
+    if (knobRefs.velocityLevel) {
+      const vl = kbKnobs.velocityLevel;
+      knobRefs.velocityLevel.setValue((vl.initial - (vl.min ?? -5)) / ((vl.max ?? 5) - (vl.min ?? -5)));
+    }
+    if (knobRefs.gateLevel) {
+      const gl = kbKnobs.gateLevel;
+      knobRefs.gateLevel.setValue((gl.initial - (gl.min ?? -5)) / ((gl.max ?? 5) - (gl.min ?? -5)));
+    }
+    if (knobRefs.retrigger) {
+      const rtrInitial = keyboardConfig.switches?.retrigger?.initial ?? 0;
+      knobRefs.retrigger.setState(rtrInitial === 1 ? 'a' : 'b');
     }
   }
   
@@ -4398,6 +4488,8 @@ class App {
               min: 0,
               max: 1,
               initial: isBipolar ? 0.5 : 0,
+              scaleMin: isBipolar ? -5 : 0,
+              scaleMax: isBipolar ? 5 : 10,
               getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
               onChange: paramName ? (v) => {
                 const dial = isBipolar ? (v - 0.5) * 10 : v * 10;

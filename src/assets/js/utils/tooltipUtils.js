@@ -809,9 +809,10 @@ const SEQ_CLOCK_FREQ_RATIO = SEQ_CLOCK_MAX_FREQ / SEQ_CLOCK_MIN_FREQ;
  * @returns {function(number): string|null}
  */
 export function getSequencerClockRateTooltipInfo() {
-  return (dialValue) => {
+  return (_rawValue, scaleValue) => {
     const parts = [];
-    const normalized = clamp(dialValue, 0, 10) / 10;
+    const dial = scaleValue ?? (_rawValue * 10);
+    const normalized = clamp(dial, 0, 10) / 10;
     const freq = SEQ_CLOCK_MIN_FREQ * Math.pow(SEQ_CLOCK_FREQ_RATIO, normalized);
 
     if (showAudioTooltip()) {
@@ -833,8 +834,7 @@ export function getSequencerClockRateTooltipInfo() {
     }
 
     if (showVoltageTooltip()) {
-      const voltage = dialValue;
-      parts.push(`${voltage.toFixed(1)} V`);
+      parts.push(`${dial.toFixed(1)} V`);
     }
 
     return parts.length > 0 ? parts.join(' · ') : null;
@@ -848,9 +848,10 @@ export function getSequencerClockRateTooltipInfo() {
  * @returns {function(number): string|null}
  */
 export function getSequencerVoltageLevelTooltipInfo() {
-  return (dialValue) => {
+  return (_rawValue, scaleValue) => {
     const parts = [];
-    const normalized = clamp(dialValue, 0, 10) / 10;
+    const dial = scaleValue ?? (_rawValue * 10);
+    const normalized = clamp(dial, 0, 10) / 10;
 
     if (showVoltageTooltip()) {
       const maxV = 7; // 0-7V DAC range
@@ -874,16 +875,17 @@ export function getSequencerVoltageLevelTooltipInfo() {
  * @returns {function(number): string|null}
  */
 export function getSequencerKeyLevelTooltipInfo() {
-  return (dialValue) => {
+  return (_rawValue, scaleValue) => {
     const parts = [];
+    const dial = scaleValue ?? ((_rawValue - 0.5) * 10);
 
     if (showVoltageTooltip()) {
-      const voltage = clamp(dialValue, -5, 5);
+      const voltage = clamp(dial, -5, 5);
       parts.push(`${voltage >= 0 ? '+' : ''}${voltage.toFixed(1)} V`);
     }
 
     if (showAudioTooltip()) {
-      const normalized = (clamp(dialValue, -5, 5) + 5) / 10;
+      const normalized = (clamp(dial, -5, 5) + 5) / 10;
       const pct = (normalized * 100).toFixed(0);
       parts.push(`${pct}%`);
     }

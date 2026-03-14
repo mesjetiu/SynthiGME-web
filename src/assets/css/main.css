@@ -6272,6 +6272,10 @@ body.render-performance .panel-inline-bg {
   padding: 0;
 }
 
+.panel7-seq-button:focus {
+  outline: none;
+}
+
 .panel7-seq-button:active {
   background: radial-gradient(circle at 40% 35%, #aaa, #555);
   box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);

@@ -58,19 +58,19 @@ describe('getSequencerClockRateTooltipInfo', () => {
   describe('con todos los tooltips habilitados', () => {
 
     it('dial 0: frecuencia mínima ~0.1 Hz', () => {
-      const result = tooltipFn(0);
+      const result = tooltipFn(0, 0);
       assert.ok(result.includes('0.1'), `Resultado: "${result}"`);
       assert.ok(result.includes('Hz'), `Resultado: "${result}"`);
     });
 
     it('dial 10: frecuencia máxima ~500 Hz', () => {
-      const result = tooltipFn(10);
+      const result = tooltipFn(1, 10);
       assert.ok(result.includes('500'), `Resultado: "${result}"`);
       assert.ok(result.includes('Hz'), `Resultado: "${result}"`);
     });
 
     it('dial 5: frecuencia intermedia (~7 Hz)', () => {
-      const result = tooltipFn(5);
+      const result = tooltipFn(0.5, 5);
       assert.ok(result.includes('Hz'), `Resultado: "${result}"`);
       // 0.1 * 5000^0.5 ≈ 7.07 Hz
       const match = result.match(/([\d.]+)\s*Hz/);
@@ -80,7 +80,7 @@ describe('getSequencerClockRateTooltipInfo', () => {
     });
 
     it('incluye período para frecuencias bajas', () => {
-      const result = tooltipFn(0);
+      const result = tooltipFn(0, 0);
       // A 0.1 Hz, período = 10s
       assert.ok(result.includes('s'), `Debe incluir período: "${result}"`);
     });
@@ -91,7 +91,7 @@ describe('getSequencerClockRateTooltipInfo', () => {
     it('devuelve null con ambos deshabilitados', () => {
       disableAllTooltips();
       tooltipFn = getSequencerClockRateTooltipInfo();
-      const result = tooltipFn(5);
+      const result = tooltipFn(0.5, 5);
       assert.strictEqual(result, null);
     });
   });
@@ -117,24 +117,24 @@ describe('getSequencerVoltageLevelTooltipInfo', () => {
   describe('con todos los tooltips habilitados', () => {
 
     it('dial 5 (centro): muestra voltage', () => {
-      const result = tooltipFn(5);
+      const result = tooltipFn(0.5, 5);
       assert.ok(result, 'Debe devolver resultado');
       assert.ok(result.includes('V'), `Debe incluir voltaje: "${result}"`);
     });
 
     it('dial 0 (mínimo): salida 0V', () => {
-      const result = tooltipFn(0);
+      const result = tooltipFn(0, 0);
       assert.ok(result.includes('0'), `Resultado: "${result}"`);
     });
 
     it('dial 10 (máximo): salida mayor escala', () => {
-      const result = tooltipFn(10);
+      const result = tooltipFn(1, 10);
       assert.ok(result.includes('V'), `Resultado: "${result}"`);
     });
 
     it('escala es lineal (proporcional al dial)', () => {
-      const r5 = tooltipFn(5);
-      const r10 = tooltipFn(10);
+      const r5 = tooltipFn(0.5, 5);
+      const r10 = tooltipFn(1, 10);
       // Extraer valores numéricos
       const v5 = parseFloat(r5.match(/([\d.]+)/)?.[1] || '0');
       const v10 = parseFloat(r10.match(/([\d.]+)/)?.[1] || '0');
@@ -148,7 +148,7 @@ describe('getSequencerVoltageLevelTooltipInfo', () => {
     it('devuelve null con ambos deshabilitados', () => {
       disableAllTooltips();
       tooltipFn = getSequencerVoltageLevelTooltipInfo();
-      const result = tooltipFn(5);
+      const result = tooltipFn(0.5, 5);
       assert.strictEqual(result, null);
     });
   });
@@ -174,24 +174,24 @@ describe('getSequencerKeyLevelTooltipInfo', () => {
   describe('con todos los tooltips habilitados', () => {
 
     it('dial 0 (centro): muestra ~0V', () => {
-      const result = tooltipFn(0);
+      const result = tooltipFn(0.5, 0);
       assert.ok(result, 'Debe devolver resultado');
       assert.ok(result.includes('V'), `Debe incluir voltaje: "${result}"`);
     });
 
     it('dial -5 (mínimo): muestra voltaje negativo', () => {
-      const result = tooltipFn(-5);
+      const result = tooltipFn(0, -5);
       assert.ok(result.includes('-'), `Debe incluir signo negativo: "${result}"`);
     });
 
     it('dial +5 (máximo): muestra voltaje positivo', () => {
-      const result = tooltipFn(5);
+      const result = tooltipFn(1, 5);
       assert.ok(result.includes('V'), `Resultado: "${result}"`);
     });
 
     it('rango bipolar simétrico', () => {
-      const rNeg = tooltipFn(-5);
-      const rPos = tooltipFn(5);
+      const rNeg = tooltipFn(0, -5);
+      const rPos = tooltipFn(1, 5);
       // Ambos deben tener voltaje
       assert.ok(rNeg.includes('V'), `Neg: "${rNeg}"`);
       assert.ok(rPos.includes('V'), `Pos: "${rPos}"`);
@@ -203,7 +203,7 @@ describe('getSequencerKeyLevelTooltipInfo', () => {
     it('devuelve null con ambos deshabilitados', () => {
       disableAllTooltips();
       tooltipFn = getSequencerKeyLevelTooltipInfo();
-      const result = tooltipFn(0);
+      const result = tooltipFn(0.5, 0);
       assert.strictEqual(result, null);
     });
   });

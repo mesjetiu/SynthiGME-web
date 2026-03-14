@@ -212,6 +212,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 | `ringModulator.worklet.js` | Modulador de anillo de precisión del Synthi 100 (placa PC-05, D100-05 C1, chip 4214AP). Multiplicador activo sin transformador: `out = softClip(A) × softClip(B)`. Soft-clip `tanh` transparente bajo umbral ±0.8 (~8V p-p), satura por encima emulando op-amp. 2 entradas mono (Signal A, Signal B), 1 salida mono (producto). Breakthrough −64 dB. Sin AudioParams propios — level externo vía GainNode. Mensajes: `setDormant`, `stop`. **Dormancy**: soporta `setDormant` para early exit en `process()` |
 | `springReverb.worklet.js` | Reverberación de muelle del Synthi 100 (placa PC-16, D100-16 C1). DSP: `input → softClip(drive=1.5) → allpass1(35ms) → allpass2(40ms) → dampingLPF(4500Hz, 1-polo) → feedback(gain≈0.805, RT60=2.4s)`. Crossfader mix lineal: `out = (1−mix)·dry + mix·wet`. AudioParam `mixControl` (a-rate, −10..+10, MIX_CV_SCALE=5). Coeficiente allpass 0.65. Mensajes: `setMix`, `setDormant`, `stop`. **Dormancy**: soporta `setDormant` para early exit en `process()` |
 | `envelopeShaper.worklet.js` | Generador de envolvente ADSR+Delay del Synthi 100 (CEM 3310). FSM de 6 estados (IDLE, DELAY, ATTACK, DECAY, SUSTAIN, RELEASE) con 5 modos (GATED_FR, FREE_RUN, GATED, TRIGGERED, HOLD). 2 entradas (audio + trigger/gate) y 2 salidas (envelope CV ±5V, audio VCA <3V p-p). Tiempos exponenciales 1ms–20s (ratio 20000:1, `Math.pow(TIME_RATIO, normalized)`). Trigger >1V (0.25 normalizado). Sustain lineal 0–100%. Signal Level LOG base 100 (pot 10K). Envelope Level bipolar ±1.25 digital (±5V). LED: activo durante fases ATTACK+ (reportado cada 8 bloques). Auto-retrigger en FREE_RUN y GATED_FR. Sin dormancy — siempre activo vía keepalive GainNode. Mensajes: `setMode`, `setDelay`, `setAttack`, `setDecay`, `setSustain`, `setRelease`, `setEnvelopeLevel`, `setSignalLevel`, `gate`, `stop` |
+| `sequencer.worklet.js` | Digital Sequencer 1000 del Synthi 100 (basado en Z80). FSM de 4 estados (STOPPED, RUNNING_FORWARD, RUNNING_REVERSE, TEST_MODE) con counter 0-1023 (hex 4 dígitos). 13 canales de salida (DAC1, DAC2, voltageA-F, key1-4, clock) y 8 entradas (clock, reset, forward, reverse, stop, voltageACE, voltageBDF, key). Memoria de eventos de 8KB (1024 posiciones × 8 bytes: 6 voltajes + 1 byte keys + 1 padding). DAC 8-bit (0-255 ↔ 0-7V lineal). Reloj interno exponencial 0.1-500 Hz con pulso de 5ms/5V (TTL). Clock externo vía entrada con Schmitt trigger (umbral 1V, histéresis, blanking 0.5ms). Grabación: A/D muestrea inputs analógicos, el counter avanza **antes** de grabar (orden Z80: advance → record → D/A read). 7 switches selectivos de grabación (abKey1, b, cdKey2, d, efKey3, f, key4). 8 botones de transporte. Overdubbing selectivo (grabar pistas individuales sin afectar las demás). Las 4 entradas de transporte externo (reset, forward, reverse, stop) usan Schmitt trigger con blanking. **Dormancy**: soporta `setDormant` para early exit en `process()`, el clock sigue activo |
 
 ### 3.3 Modules (`src/assets/js/modules/`)
 
@@ -232,6 +233,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `ringModulator.js` | `RingModulatorModule` | Modulador de anillo del Synthi 100 (placa PC-05, chip 4214AP). 3 instancias en Panel 1, fila inferior. Cadena: `inputGainA + inputGainB → AudioWorkletNode(ring-modulator, 2in/1out) → outputGain(=level)`. Knob Level (0-10, curva LOG base 100). Entradas A/B en Panel 5 (cols 3-8), salidas en filas 121-123. Sin conexiones en Panel 6. Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
 | `springReverb.js` | `SpringReverbModule` | Reverberación de muelle del Synthi 100 (placa PC-16). 1 instancia en Panel 1, fila 5. Cadena: `inputGain(=1) → AudioWorkletNode(spring-reverb) → outputGain(=level)`. Knobs: Mix (0-10, dry/wet, CV-controllable via AudioParam `mixControl`), Level (0-10, curva LOG base 100). Entrada/salida audio en Panel 5 (col 1 / fila 124), entrada CV de mix en Panel 6 (col 1). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
 | `envelopeShaper.js` | `EnvelopeShaperModule` | Generador de envolvente del Synthi 100 (CEM 3310). 3 instancias en Panel 1 (filas 2–4). Cadena: `audioInputGain + triggerInputGain → ChannelMerger(2) → AudioWorkletNode(envelope-shaper, 2in/2out) → ChannelSplitter(2) → envGain + audioGain`. Keepalive GainNode (gain=0) al destination para que `process()` siempre se ejecute. Sin dormancy. 8 knobs: mode (selector 0–4), delay/attack/decay/sustain/release (0–10, tiempos exponenciales), envelopeLevel (−5..+5, bipolar), signalLevel (0–10, LOG). Botón GATE momentáneo + LED indicador de ciclo. Entradas audio Panel 5 (cols 9–14: signal + trigger), salidas audio filas 118–120. Salidas CV Panel 6 filas 97–99, destinos CV cols 4–21 (KEY, DELAY, ATTACK, DECAY, SUSTAIN, RELEASE × 3 ES) |
+| `sequencer.js` | `SequencerModule` | Digital Sequencer 1000 del Synthi 100. Cadena: `ChannelMerger(8) → AudioWorkletNode(sequencer, 8in/13out) → ChannelSplitter(13) → 13× GainNode`. 8 entradas (clock, reset, forward, reverse, stop, voltageACE, voltageBDF, key) y 13 salidas (dac1, dac2, voltageA-F, key1-4, clock). 11 knobs: clockRate (0-10, vernier, exponencial 0.1-500 Hz), voltageA-F (0-10, lineal, escala de salida), key1-4 (-5..+5, bipolar). 8 switches de grabación: abKey1, b, cdKey2, d, efKey3, f, key4, runClock. 8 botones de transporte: masterReset, runForward, runReverse, stop, resetSequence, stepForward, stepReverse, testOP. Callbacks worklet→UI: counter (hex), overflow ("ofof"), reset, testMode ("CAll"). Display hex retro de 4 dígitos rojos en Panel 4. Keepalive GainNode (gain=0→destination). Panel 5: salidas audio filas 87-88 (DAC1, clock), entradas cols 51-55 (clock, reset, forward, reverse, stop). Panel 6: salidas CV filas 100-110 (voltageA-F, key1-4, clockRate), entradas cols 60-62 (voltageACE, voltageBDF, key). Dormancy automático |
 
 #### Envelope Shaper — Modos de operación
 
@@ -387,6 +389,112 @@ export class MiModulo extends Module {
   createUI(container) { /* generar controles */ }
 }
 ```
+
+#### Digital Sequencer 1000 — Arquitectura
+
+El Digital Sequencer 1000 es el módulo más complejo del Synthi 100, basado en un microprocesador Z80. Combina grabación/reproducción de secuencias de control voltaje con un sistema de memoria de eventos digital.
+
+**Cadena de audio:**
+
+```
+8 GainNodes entrada ─→ ChannelMerger(8) ─→ AudioWorkletNode(sequencer, 8in/13out) ─→ ChannelSplitter(13) ─→ 13 GainNodes salida
+```
+
+**Entradas (8 canales):**
+
+| Canal | ID | Panel 5 columna | Función |
+|-------|----|-----------------|---------|
+| 0 | clock | 51 | Clock externo (Schmitt trigger >1V, blanking 0.5ms) |
+| 1 | reset | 52 | Reset externo (edge-triggered, Schmitt) |
+| 2 | forward | 53 | Run Forward externo |
+| 3 | reverse | 54 | Run Reverse externo |
+| 4 | stop | 55 | Stop externo |
+| 5 | voltageACE | 60 (Panel 6) | Voltaje analógico para pistas A, C, E (comparten IC6) |
+| 6 | voltageBDF | 61 (Panel 6) | Voltaje analógico para pistas B, D, F (comparten IC7) |
+| 7 | key | 62 (Panel 6) | Señal de key/gate para las 4 pistas key |
+
+**Salidas (13 canales):**
+
+| Canal | ID | Panel | Fila | Función |
+|-------|----|-------|------|---------|
+| 0-1 | dac1, dac2 | 5 | 87 | Reservados (DAC audio, stub) |
+| 2-9 | voltageA-F | 6 | 100-107 | 6 pistas de voltaje CV (0-7V, DAC 8-bit) |
+| 4,7,10,11 | key1-4 | 6 | 102,105,108,109 | 4 pistas de key/gate (±5V bipolar) |
+| 12 | clock | 5 | 88 | Pulso de clock de salida (5ms, 5V TTL) |
+
+**FSM de transporte:**
+
+```
+                masterReset
+                    │
+                    ▼
+ ┌──────────── STOPPED ◄────────── stop
+ │                 │ │
+ │    runForward   │ │  runReverse
+ │        ┌────────┘ └────────┐
+ │        ▼                   ▼
+ │  RUNNING_FORWARD    RUNNING_REVERSE
+ │        │                   │
+ │        └───────┬───────────┘
+ │                │ testOP
+ │                ▼
+ │          TEST_MODE ──→ display "CAll"
+ │                │
+ │         stop   │
+ │                ▼
+ └────────── STOPPED
+```
+
+**Memoria de eventos (8KB):**
+
+```
+Posición 0    Posición 1    ...    Posición 1023
+┌─────────┐  ┌─────────┐         ┌─────────┐
+│ VoltA   │  │ VoltA   │         │ VoltA   │    byte 0
+│ VoltB   │  │ VoltB   │         │ VoltB   │    byte 1
+│ VoltC   │  │ VoltC   │         │ VoltC   │    byte 2
+│ VoltD   │  │ VoltD   │         │ VoltD   │    byte 3
+│ VoltE   │  │ VoltE   │         │ VoltE   │    byte 4
+│ VoltF   │  │ VoltF   │         │ VoltF   │    byte 5
+│ Keys    │  │ Keys    │         │ Keys    │    byte 6 (4 bits: key1-4)
+│ padding │  │ padding │         │ padding │    byte 7
+└─────────┘  └─────────┘         └─────────┘
+```
+
+- Resolución DAC: 8-bit (0-255 ↔ 0-7V lineal). `byte = clamp(voltage × 255/7, 0, 255)`
+- Keys: umbral Schmitt >0.6V → bit ON/OFF (4 keys en 1 byte)
+- Counter: 0-1023, display hex 4 dígitos ("0000"–"03ff"), overflow → "ofof"
+
+**Orden de operación en cada tick (replica Z80):**
+
+```
+_onTick() → _stepCounter(±1)           ← counter avanza PRIMERO
+          → _recordCurrentInputs()      ← A/D graba en la nueva posición
+          → _updateOutputsFromEvent()   ← D/A lee de la misma posición
+```
+
+Las salidas reflejan siempre el valor recién grabado. Entre ticks, las salidas mantienen DC constante (sample & hold).
+
+**Grabación selectiva:**
+
+2 conversores A/D compartidos: IC6 (entrada voltageACE → pistas A, C, E) e IC7 (entrada voltageBDF → pistas B, D, F). Los switches de grabación determinan qué pistas se escriben:
+
+| Switch | Graba pistas |
+|--------|-------------|
+| abKey1 | A + B + Key1 |
+| b | solo B |
+| cdKey2 | C + D + Key2 |
+| d | solo D |
+| efKey3 | E + F + Key3 |
+| f | solo F |
+| key4 | solo Key4 |
+
+Overdubbing: con switches selectivos se pueden grabar pistas individuales sin afectar las demás.
+
+**Clock:**
+- Interno: 0.1–500 Hz, mapeo exponencial del dial (`CLOCK_MIN × RATIO^(dial/10)`). Pulso de 5ms a 5V (TTL). Ancho limitado a ≤50% del periodo a frecuencias altas.
+- Externo: entrada por canal 0 (col 51 en Panel 5). El usuario debe parchear la salida de clock (fila 88) a la entrada de clock (col 51) para que el reloj interno avance el counter — igual que en el hardware real.
+- Detección: Schmitt trigger con histéresis (>1V arma, <0.5V rearma) y blanking de 0.5ms tras cada flanco para rechazar ringing de WaveShaper.
 
 #### Output Channel Signal Chain (Cuenca/Datanomics 1982)
 

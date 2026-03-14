@@ -48,6 +48,12 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 | **12 Osciladores** | Formas de onda: pulso, seno, triángulo, diente de sierra. Rango 1Hz–10kHz. Incluye *Hard Sync* y *PWM CV desde matriz*. |
 | **Generadores de Ruido** | 2 Generadores con filtro COLOUR auténtico IIR 6dB/oct (circuito Synthi 100 Cuenca). Transición continua LP↔white↔HP. |
 | **Filtros CEM3320** | 8 filtros del Panel 1 (4 LP + 4 HP), 4 polos, 24 dB/oct. Integrador TPT con saturación OTA por etapa. Autooscilación real. Entradas de audio y CV de cutoff en matrices. |
+| **3 Envelope Shapers** | Generador de envolvente ADSR+Delay con 5 modos (Gated F/R, Free Run, Gated, Triggered, Hold). Tiempos 1ms–20s. Salida CV ±5V para modulación vía matrices. |
+| **3 Ring Modulators** | Multiplicador de señales de precisión (chip 4214AP). Soft-clip tanh, breakthrough −64dB. |
+| **Spring Reverb** | Reverberación de muelle con allpass + feedback loop (RT60=2.4s). Mix wet/dry con control CV. |
+| **Secuenciador Digital** | Digital Sequencer 1000: memoria de 1024 eventos, 6 pistas de voltaje (0-7V, DAC 8-bit), 4 pistas de key/gate. Grabación selectiva con overdubbing. Clock interno 0.1-500 Hz. Display hex. |
+| **Teclados duales** | Upper y Lower keyboard con Pitch (1V/Oct), Gate y Velocity. Modos Normal/Latch/Legato. MIDI Learn. Ventana flotante PiP. |
+| **Random CV Generator** | Generador de voltaje aleatorio con reloj 0.2-20 Hz y jitter configurable. 2 salidas DC ±2.5V + pulso Key. |
 | **Joysticks** | 2 joysticks XY con voltaje DC bipolar (±8V), knobs Range X/Y independientes. Control en tiempo real para modulación de parámetros vía matriz de control. |
 | **Filtros de salida** | Filtro RC pasivo de 1er orden (6 dB/oct, fc ≈ 677 Hz) en cada canal de salida. Corrección tonal suave y musical. |
 | **VCA de salida** | Curva CEM 3330 (10 dB/V), saturación suave y filtro anti-click de 1 polo (τ=5ms) tras la suma fader+CV. |

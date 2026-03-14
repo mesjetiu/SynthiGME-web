@@ -455,9 +455,11 @@ Módulo único.
 
 ### 20. Digital Sequencer 1000 (`/seq/...`)
 
-Secuenciador digital único. 11 knobs, 8 switches de grabación y 8 botones de transporte.
+Secuenciador digital único (basado en Z80). Memoria de 1024 eventos con 6 pistas de voltaje (A-F, 0-7V, DAC 8-bit) y 4 pistas de key/gate. 11 knobs, 8 switches de grabación y 8 botones de transporte.
 
 **Knobs (float, continuo):**
+
+Los knobs de voltaje (A-F) escalan la salida de cada pista: `output = memoryValue × knob/10`. Los knobs de key son bipolares: `output = keyState × knobValue`.
 
 ```
 /seq/clockRate          # 0 - 10 (frecuencia del clock interno, exponencial 0.1-500 Hz)
@@ -475,6 +477,8 @@ Secuenciador digital único. 11 knobs, 8 switches de grabación y 8 botones de t
 
 **Switches (int, 0|1):**
 
+Controlan qué pistas se graban. Dos conversores A/D compartidos: los switches impares (abKey1, cdKey2, efKey3) graban desde ambas entradas (voltageACE + voltageBDF), los pares (b, d, f) solo desde voltageBDF. Activar varios permite overdubbing selectivo.
+
 ```
 /seq/abKey1             # 0|1 (graba pistas A, B y Key 1)
 /seq/b                  # 0|1 (graba solo pista B)
@@ -482,7 +486,7 @@ Secuenciador digital único. 11 knobs, 8 switches de grabación y 8 botones de t
 /seq/d                  # 0|1 (graba solo pista D)
 /seq/efKey3             # 0|1 (graba pistas E, F y Key 3)
 /seq/f                  # 0|1 (graba solo pista F)
-/seq/key4Sw             # 0|1 (graba Key 4; dirección con sufijo Sw para evitar colisión con knob key4)
+/seq/key4Sw             # 0|1 (graba Key 4; sufijo Sw para evitar colisión con knob key4)
 /seq/runClock           # 0|1 (activa/desactiva el clock interno)
 ```
 
@@ -494,12 +498,25 @@ Secuenciador digital único. 11 knobs, 8 switches de grabación y 8 botones de t
 /seq/runReverse         # trigger (inicia retroceso automático)
 /seq/stop               # trigger (detiene el transporte)
 /seq/resetSequence      # trigger (counter a 0 sin cambiar estado de transporte)
-/seq/stepForward        # trigger (avanza 1 posición)
-/seq/stepReverse        # trigger (retrocede 1 posición)
-/seq/testOP             # trigger (modo test: todas las salidas analógicas a máximo)
+/seq/stepForward        # trigger (avanza 1 posición, graba si switches activos)
+/seq/stepReverse        # trigger (retrocede 1 posición, graba si switches activos)
+/seq/testOP             # trigger (modo test: todas las salidas al máximo, display "CAll")
 ```
 
-**Ejemplo:** `/SynthiGME/seq/clockRate 7.5`
+**Routing en matrices:**
+
+El secuenciador requiere parcheo explícito entre su salida de clock y su entrada de clock para que funcione, igual que en el hardware real.
+
+| Matriz | Función | Filas/Columnas |
+|--------|---------|----------------|
+| Panel 5 (Audio) | Salidas DAC | Filas 87 (DAC1), 88 (clock pulse) |
+| Panel 5 (Audio) | Entradas transporte | Cols 51 (clock), 52 (reset), 53 (forward), 54 (reverse), 55 (stop) |
+| Panel 6 (Control) | Salidas CV | Filas 100-110 (voltageA-F, key1-4, clockRate) |
+| Panel 6 (Control) | Entradas grabación | Cols 60 (voltageACE), 61 (voltageBDF), 62 (key) |
+
+**Ejemplo patching:** Para que el clock interno avance el secuenciador, parchear pin fila 88 × col 51 en Panel 5.
+
+**Ejemplo OSC:** `/SynthiGME/seq/clockRate 7.5`
 
 ---
 

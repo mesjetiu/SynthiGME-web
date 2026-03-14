@@ -20,25 +20,25 @@ import blueprint from '../../src/assets/js/panelBlueprints/panel5.audio.blueprin
 
 describe('Panel 5 Blueprint — Sequencer sources', () => {
 
-  it('tiene 2 fuentes sequencer (DAC 1, DAC 2)', () => {
+  it('tiene 2 fuentes sequencer (DAC 1, Clock)', () => {
     const seqSources = blueprint.sources.filter(s => s.source.kind === 'sequencer');
     assert.strictEqual(seqSources.length, 2);
   });
 
   it('DAC 1 está en fila 87', () => {
     const dac1 = blueprint.sources.find(
-      s => s.source.kind === 'sequencer' && s.source.channel === 0
+      s => s.source.kind === 'sequencer' && s.source.output === 'dac1'
     );
-    assert.ok(dac1, 'DAC 1 (channel 0) debe existir');
+    assert.ok(dac1, 'DAC 1 (output dac1) debe existir');
     assert.strictEqual(dac1.rowSynth, 87);
   });
 
-  it('DAC 2 está en fila 88', () => {
-    const dac2 = blueprint.sources.find(
-      s => s.source.kind === 'sequencer' && s.source.channel === 1
+  it('Clock está en fila 88', () => {
+    const clock = blueprint.sources.find(
+      s => s.source.kind === 'sequencer' && s.source.output === 'clock'
     );
-    assert.ok(dac2, 'DAC 2 (channel 1) debe existir');
-    assert.strictEqual(dac2.rowSynth, 88);
+    assert.ok(clock, 'Clock (output clock) debe existir');
+    assert.strictEqual(clock.rowSynth, 88);
   });
 
   it('filas 87-88 no colisionan con otras fuentes', () => {

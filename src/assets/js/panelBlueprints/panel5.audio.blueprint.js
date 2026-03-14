@@ -126,12 +126,12 @@ export default {
     { rowSynth: 82, source: { kind: 'outputBus', bus: 8 } },
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SEQUENCER DAC OUTPUTS (filas 87-88)
+    // SEQUENCER OUTPUTS (filas 87-88)
     // ─────────────────────────────────────────────────────────────────────────
-    // 2 convertidores D/A del Digital Sequencer 1000.
-    // Salidas de audio del secuenciador para ruteo a filtros, ring mods, etc.
-    { rowSynth: 87, source: { kind: 'sequencer', channel: 0 } },
-    { rowSynth: 88, source: { kind: 'sequencer', channel: 1 } },
+    // Fila 87: DAC compartido del Digital Sequencer 1000.
+    // Fila 88: Clock pulse (~5ms, 1V) — parchear a col 51 para avanzar el counter.
+    { rowSynth: 87, source: { kind: 'sequencer', output: 'dac1' } },
+    { rowSynth: 88, source: { kind: 'sequencer', output: 'clock' } },
 
     // ─────────────────────────────────────────────────────────────────────────
     // NOISE GENERATORS (filas 89-90)

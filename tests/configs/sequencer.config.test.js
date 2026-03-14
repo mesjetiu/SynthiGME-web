@@ -47,7 +47,7 @@ describe('Sequencer Config — Estructura', () => {
 
 describe('Sequencer Config — Audio matrix rows (Panel 5)', () => {
 
-  it('tiene audioMatrixRow con 2 DACs', () => {
+  it('tiene audioMatrixRow con DAC1 y Clock', () => {
     assert.ok(sequencerConfig.audioMatrixRow);
     assert.strictEqual(Object.keys(sequencerConfig.audioMatrixRow).length, 2);
   });
@@ -56,8 +56,8 @@ describe('Sequencer Config — Audio matrix rows (Panel 5)', () => {
     assert.strictEqual(sequencerConfig.audioMatrixRow.dac1, 87);
   });
 
-  it('DAC 2 en fila 88', () => {
-    assert.strictEqual(sequencerConfig.audioMatrixRow.dac2, 88);
+  it('Clock en fila 88', () => {
+    assert.strictEqual(sequencerConfig.audioMatrixRow.clock, 88);
   });
 
   it('las filas de audio son consecutivas (87-88)', () => {
@@ -224,8 +224,8 @@ describe('Sequencer Config — Audio params', () => {
     assert.strictEqual(sequencerConfig.audio.externalClockMaxHz, 500);
   });
 
-  it('umbral de detección clock externo 1V', () => {
-    assert.strictEqual(sequencerConfig.audio.externalClockThreshold, 1.0);
+  it('umbral de detección clock externo 0.1V', () => {
+    assert.strictEqual(sequencerConfig.audio.externalClockThreshold, 0.1);
   });
 
   it('memoria total coherente: maxEvents × bytesPerEvent <= 8192', () => {

@@ -7529,7 +7529,7 @@ class App {
         if (seqModule && !seqModule.isStarted) {
           seqModule.start();
         }
-        const outputId = source.channel === 0 ? 'dac1' : 'dac2';
+        const outputId = source.output || (source.channel === 0 ? 'dac1' : 'dac2');
         outNode = seqModule?.getOutputNode?.(outputId) ?? null;
       }
       

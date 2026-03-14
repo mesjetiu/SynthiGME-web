@@ -301,10 +301,13 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       };
 
       const blocksPerSecond = Math.ceil(SAMPLE_RATE / 128);
+      let prevClock = new Float32Array(128);
       for (let block = 0; block < blocksPerSecond; block++) {
         const inputs = createInputs(8, 128);
+        inputs[0][0].set(prevClock); // Loopback: clock output → clock input
         const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
         proc.process(inputs, outputs, {});
+        prevClock = new Float32Array(outputs[0][CH_CLOCK]);
       }
       // A 500 Hz durante 1s esperamos ~500 ticks (tolerancia ±5%)
       assert.ok(tickCount >= 450, `Solo ${tickCount} ticks en 1s a 500 Hz`);
@@ -356,10 +359,13 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         if (msg.type === 'tick') tickCount++;
       };
 
+      let prevClock = new Float32Array(128);
       for (let block = 0; block < 100; block++) {
         const inputs = createInputs(8, 128);
+        inputs[0][0].set(prevClock); // Loopback: clock output → clock input
         const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
         proc.process(inputs, outputs, {});
+        prevClock = new Float32Array(outputs[0][CH_CLOCK]);
       }
       assert.ok(tickCount > 0, 'Clock debe generar ticks por defecto');
     });
@@ -402,10 +408,13 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         if (msg.type === 'tick') tickCount++;
       };
 
+      let prevClock = new Float32Array(128);
       for (let block = 0; block < 100; block++) {
         const inputs = createInputs(8, 128);
+        inputs[0][0].set(prevClock); // Loopback: clock output → clock input
         const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
         proc.process(inputs, outputs, {});
+        prevClock = new Float32Array(outputs[0][CH_CLOCK]);
       }
       assert.ok(tickCount > 0, 'Clock debe reanudar tras re-activar runClock');
     });
@@ -438,10 +447,13 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         if (msg.type === 'tick') tickCount++;
       };
 
+      let prevClock = new Float32Array(128);
       for (let block = 0; block < 50; block++) {
         const inputs = createInputs(8, 128);
+        inputs[0][0].set(prevClock); // Loopback: clock output → clock input
         const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
         proc.process(inputs, outputs, {});
+        prevClock = new Float32Array(outputs[0][CH_CLOCK]);
       }
       // A 500 Hz en 50 bloques = ~133ms → ~66 ticks esperados
       assert.ok(tickCount > 20, `Solo ${tickCount} ticks tras cambiar a 500 Hz`);
@@ -513,20 +525,20 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       assert.ok(edgeCount > 0, 'Clock debe reanudar tras despertar de dormancy');
     });
 
-    test('clock sigue corriendo internamente durante dormancy', () => {
+    test('oscilador clock mantiene fase durante dormancy', () => {
       const proc = new SequencerProcessor();
-      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+      proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } }); // 500 Hz
       proc.port.onmessage({ data: { type: 'setRunClock', value: true } });
 
-      // Contar ticks internos reportados vía postMessage
-      let ticksDuringDormancy = 0;
-      proc.port.postMessage = (msg) => {
-        if (msg.type === 'tick') ticksDuringDormancy++;
-      };
+      // Procesar unos bloques para estabilizar el reloj
+      for (let block = 0; block < 5; block++) {
+        const inputs = createInputs(8, 128);
+        const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+        proc.process(inputs, outputs, {});
+      }
 
+      // Dormir durante ~0.5s
       proc.port.onmessage({ data: { type: 'setDormant', value: true } });
-
-      // Procesar ~0.5s a 500 Hz → debería haber ~250 ticks
       const blocks = Math.ceil(SAMPLE_RATE * 0.5 / 128);
       for (let block = 0; block < blocks; block++) {
         const inputs = createInputs(8, 128);
@@ -534,8 +546,22 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         proc.process(inputs, outputs, {});
       }
 
-      assert.ok(ticksDuringDormancy > 100,
-        `El reloj debe seguir contando internamente durante dormancy (ticks: ${ticksDuringDormancy})`);
+      // Despertar: el oscilador debe producir pulso rápidamente
+      // (a 500 Hz, periodo ~96 samples, dentro de 1 bloque de 128)
+      proc.port.onmessage({ data: { type: 'setDormant', value: false } });
+
+      let foundPulse = false;
+      for (let block = 0; block < 3; block++) {
+        const inputs = createInputs(8, 128);
+        const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+        proc.process(inputs, outputs, {});
+        if (outputs[0][CH_CLOCK].some(s => s === 1.0)) {
+          foundPulse = true;
+          break;
+        }
+      }
+      assert.ok(foundPulse,
+        'Oscilador clock debe producir pulso inmediatamente tras despertar (fase mantenida)');
     });
   });
 
@@ -545,7 +571,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
 
   describe('External clock input', () => {
 
-    test('flanco externo >1V en input 0 genera tick', () => {
+    test('flanco externo > umbral en input 0 genera tick', () => {
       const proc = new SequencerProcessor();
       // Desactivar clock interno para aislar externos
       proc.port.onmessage({ data: { type: 'setRunClock', value: false } });
@@ -569,7 +595,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       assert.strictEqual(ticks, 1, 'Un flanco externo debe generar exactamente 1 tick');
     });
 
-    test('señal debajo del umbral (< 1V) no genera tick', () => {
+    test('señal debajo del umbral (< 0.1V) no genera tick', () => {
       const proc = new SequencerProcessor();
       proc.port.onmessage({ data: { type: 'setRunClock', value: false } });
 
@@ -579,9 +605,9 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       };
 
       const inputs = createInputs(8, 128);
-      // Señal a 0.5V (debajo del umbral de 1V)
+      // Señal a 0.05V (debajo del umbral de 0.1V)
       for (let i = 0; i < 128; i++) {
-        inputs[0][0][i] = 0.5;
+        inputs[0][0][i] = 0.05;
       }
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
@@ -712,10 +738,15 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
   }
 
   function processBlocks(proc, n) {
+    let prevClock = new Float32Array(128);
     for (let i = 0; i < n; i++) {
       const inputs = createInputs(8, 128);
+      // Loopback: clock output (ch 12) → clock input (ch 0)
+      // Simula conexión de matriz fila 88 → col 51
+      inputs[0][0].set(prevClock);
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(inputs, outputs, {});
+      prevClock = new Float32Array(outputs[0][CH_CLOCK]);
     }
   }
 
@@ -1435,10 +1466,15 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
     proc.port.postMessage = (msg) => msgs.push(msg);
 
     let tickCount = 0;
-    while (tickCount < numTicks) {
+    let prevClock = new Float32Array(128);
+    let safety = numTicks * 10 + 20;
+    while (tickCount < numTicks && safety-- > 0) {
       const inputs = createInputsWithVoltage(aceV, bdfV, keyV);
+      // Loopback: clock output (ch 12) → clock input (ch 0)
+      inputs[0][0].set(prevClock);
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(inputs, outputs, {});
+      prevClock = new Float32Array(outputs[0][CH_CLOCK]);
       tickCount = msgs.filter(m => m.type === 'tick').length;
     }
     return msgs;

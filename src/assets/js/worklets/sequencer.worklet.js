@@ -6,7 +6,8 @@
  * Emulación del secuenciador digital del Synthi 100 (modelo Cuenca 1982).
  *
  * Genera 13 canales de salida simultáneos:
- *   Canal 0-1:  Audio DAC 1 & 2 (Panel 5, filas 87-88)
+ *   Canal 0:    Audio DAC 1 (Panel 5, fila 87)
+ *   Canal 1:    (reservado — DAC 2)
  *   Canal 2-3:  Voltage A, Voltage B
  *   Canal 4:    Key 1
  *   Canal 5-6:  Voltage C, Voltage D
@@ -14,7 +15,7 @@
  *   Canal 8-9:  Voltage E, Voltage F
  *   Canal 10:   Key 3
  *   Canal 11:   Key 4
- *   Canal 12:   Clock pulse (Panel 6, fila 110)
+ *   Canal 12:   Clock pulse (Panel 5, fila 88)
  *
  * Acepta 8 entradas:
  *   Input 0: Clock externo (Panel 5, col 51)
@@ -52,7 +53,7 @@ const CLOCK_FREQ_RATIO = CLOCK_MAX_FREQ / CLOCK_MIN_FREQ; // 5000
 const CLOCK_PULSE_WIDTH = 0.005; // 5 ms
 
 /** Umbral de voltaje para detección de clock externo (Schmitt trigger) */
-const EXT_CLOCK_THRESHOLD = 1.0;
+const EXT_CLOCK_THRESHOLD = 0.1;
 
 /** Índice del canal de salida del clock */
 const CH_CLOCK = 12;
@@ -247,51 +248,50 @@ class SequencerProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Avanza el reloj un sample. Combina clock interno y externo.
+   * Avanza el reloj un sample.
+   * El clock interno SOLO genera el pulso de salida (ch 12, fila 88).
+   * El counter avanza SOLO por señal en la entrada de clock (ch 0, col 51).
+   * El usuario debe parchear fila 88 → col 51 para que el clock interno
+   * avance el secuenciador, tal como en el hardware real.
    * @param {number} sampleIndex - Índice del sample en el bloque actual
    * @param {Float32Array[][]} inputs - Entradas del worklet
    * @private
    */
   _advanceClock(sampleIndex, inputs) {
-    let tick = false;
-
-    // ── Clock interno ────────────────────────────────────────────────
+    // ── Clock interno: solo genera pulso de salida ───────────────────
     if (this._runClock) {
       if (this._clockSamplesUntilNext <= 0) {
-        tick = true;
         const interval = this._calculateClockInterval();
         this._clockSamplesUntilNext = interval;
         this._clockIntervalLength = interval;
+        // Limitar ancho de pulso a ≤50% del periodo para garantizar
+        // flanco de caída entre pulsos (necesario para detección vía matriz)
+        this._clockPulseRemaining = Math.min(
+          this._clockPulseSamples,
+          Math.max(1, Math.floor(interval / 2))
+        );
       }
       this._clockSamplesUntilNext--;
     }
 
-    // ── Clock externo (input 0): detección de flanco positivo ────────
+    // ── Entrada de clock (input 0, col 51): detección de flanco ─────
     const extInput = inputs[0];
     if (extInput && extInput[0]) {
       const extSample = extInput[0][sampleIndex];
       if (extSample >= EXT_CLOCK_THRESHOLD && this._extClockPrev < EXT_CLOCK_THRESHOLD) {
-        tick = true;
+        this._onTick();
       }
       this._extClockPrev = extSample;
-    }
-
-    // ── Procesar tick ────────────────────────────────────────────────
-    if (tick) {
-      this._onTick();
     }
   }
 
   /**
-   * Procesa un tick del clock (interno o externo).
+   * Procesa un tick del clock recibido por la entrada (col 51).
    * Avanza el counter según el estado de transporte.
    * Graba inputs si hay switches activos. Actualiza playback.
    * @private
    */
   _onTick() {
-    // Iniciar pulso clock
-    this._clockPulseRemaining = this._clockPulseSamples;
-
     // Notificar tick al main thread
     this.port.postMessage({ type: 'tick' });
 

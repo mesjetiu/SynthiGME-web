@@ -39,8 +39,8 @@ export default {
 
   // Filas de salida en Panel 5 (audio)
   audioMatrixRow: {
-    dac1: 87,           // DAC 1 — audio output 1
-    dac2: 88            // DAC 2 — audio output 2
+    dac1: 87,           // DAC 1 — audio output (shared, all channels)
+    clock: 88           // Clock pulse output (~5ms, 1V)
   },
 
   // Columnas de entrada de control en Panel 5 (audio)
@@ -85,7 +85,7 @@ export default {
     keyOnVoltage: 5,             // +5V cuando key está activa
     keyThreshold: 0.6,           // Umbral Schmitt trigger para grabar key
     externalClockMaxHz: 500,     // Máxima frecuencia clock externo (Z80)
-    externalClockThreshold: 1.0, // Voltaje mínimo para detectar pulso externo
+    externalClockThreshold: 0.1, // Voltaje normalizado mínimo para detectar pulso externo (≈1V real / 10V max)
     clockPulseWidth: 0.005       // 5ms de ancho de pulso del clock
   },
 

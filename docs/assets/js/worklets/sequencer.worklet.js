@@ -52,8 +52,27 @@ const CLOCK_FREQ_RATIO = CLOCK_MAX_FREQ / CLOCK_MIN_FREQ; // 5000
 /** Ancho del pulso clock en segundos */
 const CLOCK_PULSE_WIDTH = 0.005; // 5 ms
 
-/** Umbral de voltaje para detección de clock externo — 1V (Schmitt trigger del Z80) */
+/** Umbral ALTO de Schmitt trigger — flanco de subida detectado al cruzar este nivel */
 const EXT_CLOCK_THRESHOLD = 1.0;
+
+/**
+ * Umbral BAJO de Schmitt trigger — la señal debe caer bajo este nivel para re-armar.
+ * Emula la histéresis del Z80 CTC: una vez disparado, ignora oscilaciones
+ * de alta frecuencia (ringing de WaveShaper oversample, etc.) hasta que
+ * la señal cae claramente a un nivel bajo.
+ * Valor 0.5 = 2V real (0.5 × 4V/unidad digital).
+ */
+const EXT_CLOCK_LOW_THRESHOLD = 0.5;
+
+/**
+ * Período de blanking tras cada transición del Schmitt trigger (en segundos).
+ * Se activa tanto al disparar (flanco de subida) como al re-armar (flanco de
+ * bajada). Protege contra ringing de alta frecuencia del WaveShaper
+ * oversample=2x del Output Channel, que dura típicamente 3-8 samples.
+ * 0.5ms = 24 samples a 48kHz. Permite clocks externos hasta 2000 Hz
+ * (4× el máximo interno de 500 Hz).
+ */
+const EXT_CLOCK_BLANKING_TIME = 0.0005; // 0.5ms
 
 /** Índice del canal de salida del clock */
 const CH_CLOCK = 12;
@@ -128,8 +147,10 @@ class SequencerProcessor extends AudioWorkletProcessor {
     this._clockPulseRemaining = 0;
     this._runClock = true;        // switch initial = true
 
-    // ─── Estado del clock externo (detección de flancos) ───────────────
-    this._extClockPrev = 0;
+    // ─── Estado del clock externo (Schmitt trigger con histéresis + blanking) ─
+    this._extClockArmed = true;    // Armado: listo para detectar flanco de subida
+    this._extClockBlanking = 0;    // Contador de blanking (samples restantes)
+    this._extClockBlankingSamples = 0; // Calculado al primer process()
 
     // ─── FSM de transporte ─────────────────────────────────────────────
     this._transportState = STATE_STOPPED;
@@ -137,7 +158,9 @@ class SequencerProcessor extends AudioWorkletProcessor {
     this._overflow = false;
 
     // ─── Detección de flancos para entradas externas de transporte ─────
-    this._extTransportPrev = [0, 0, 0, 0, 0]; // inputs 0-4
+    // Schmitt trigger independiente por cada entrada (Reset, Forward, Reverse, Stop)
+    this._extTransportArmed = [true, true, true, true, true]; // inputs 0-4
+    this._extTransportBlanking = [0, 0, 0, 0, 0]; // blanking counters
 
     // ─── Memoria de eventos (1024 × 8 bytes) ─────────────────────────
     this._eventMemory = new Uint8Array(MAX_EVENTS * 8);
@@ -193,6 +216,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
     // Calcular ancho de pulso clock en samples (una sola vez)
     if (this._clockPulseSamples === 0) {
       this._clockPulseSamples = Math.round(CLOCK_PULSE_WIDTH * sampleRate);
+      this._extClockBlankingSamples = Math.round(EXT_CLOCK_BLANKING_TIME * sampleRate);
     }
 
     // ─── Dormancy: silencio pero el clock sigue corriendo ─────────────
@@ -274,14 +298,28 @@ class SequencerProcessor extends AudioWorkletProcessor {
       this._clockSamplesUntilNext--;
     }
 
-    // ── Entrada de clock (input 0, col 51): detección de flanco ─────
+    // ── Entrada de clock (input 0, col 51): Schmitt trigger + blanking ───
+    // Histéresis: el trigger se dispara al cruzar EXT_CLOCK_THRESHOLD (HIGH)
+    // y se re-arma solo cuando la señal cae bajo EXT_CLOCK_LOW_THRESHOLD (LOW)
+    // DESPUÉS del período de blanking. El blanking se activa tanto al disparar
+    // como al re-armar, protegiendo contra ringing en ambos flancos.
     const extInput = inputs[0];
     if (extInput && extInput[0]) {
       const extSample = extInput[0][sampleIndex];
-      if (extSample >= EXT_CLOCK_THRESHOLD && this._extClockPrev < EXT_CLOCK_THRESHOLD) {
-        this._onTick();
+      if (this._extClockBlanking > 0) {
+        this._extClockBlanking--;
+      } else if (this._extClockArmed) {
+        if (extSample >= EXT_CLOCK_THRESHOLD) {
+          this._extClockArmed = false;
+          this._extClockBlanking = this._extClockBlankingSamples;
+          this._onTick();
+        }
+      } else {
+        if (extSample < EXT_CLOCK_LOW_THRESHOLD) {
+          this._extClockArmed = true;
+          this._extClockBlanking = this._extClockBlankingSamples;
+        }
       }
-      this._extClockPrev = extSample;
     }
   }
 
@@ -367,14 +405,21 @@ class SequencerProcessor extends AudioWorkletProcessor {
       if (!inputData || !inputData[0]) continue;
 
       const sample = inputData[0][sampleIndex];
-      const prev = this._extTransportPrev[inp];
 
-      if (sample >= EXT_CLOCK_THRESHOLD && prev < EXT_CLOCK_THRESHOLD) {
-        // Flanco positivo detectado
-        this._handleExternalTransport(inp);
+      if (this._extTransportBlanking[inp] > 0) {
+        this._extTransportBlanking[inp]--;
+      } else if (this._extTransportArmed[inp]) {
+        if (sample >= EXT_CLOCK_THRESHOLD) {
+          this._extTransportArmed[inp] = false;
+          this._extTransportBlanking[inp] = this._extClockBlankingSamples;
+          this._handleExternalTransport(inp);
+        }
+      } else {
+        if (sample < EXT_CLOCK_LOW_THRESHOLD) {
+          this._extTransportArmed[inp] = true;
+          this._extTransportBlanking[inp] = this._extClockBlankingSamples;
+        }
       }
-
-      this._extTransportPrev[inp] = sample;
     }
   }
 

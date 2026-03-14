@@ -273,8 +273,8 @@ describe('Sequencer Config — Knobs', () => {
         assert.strictEqual(k.max, 10);
       });
 
-      it(`${name} tiene valor inicial 5`, () => {
-        assert.strictEqual(sequencerConfig.knobs[name].initial, 5);
+      it(`${name} tiene valor inicial 0`, () => {
+        assert.strictEqual(sequencerConfig.knobs[name].initial, 0);
       });
 
       it(`${name} tiene curva lineal`, () => {

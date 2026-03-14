@@ -33,8 +33,23 @@ const MIN_TIME_MS = 1;
 const MAX_TIME_MS = 20000;
 const TIME_RATIO = MAX_TIME_MS / MIN_TIME_MS; // 20000
 
-/** Umbral de gate/trigger: >1V → 0.25 normalizado (1V / 4V digital) */
+/** Umbral ALTO de gate/trigger: >1V → 0.25 normalizado (1V / 4V digital) */
 const GATE_THRESHOLD = 0.25;
+
+/**
+ * Umbral BAJO de Schmitt trigger para gate: señal debe caer bajo este nivel
+ * para considerar gate OFF. Emula histéresis del comparador TTL.
+ * 0.125 = 0.5V real (0.125 × 4V/unidad digital).
+ */
+const GATE_LOW_THRESHOLD = 0.125;
+
+/**
+ * Período de blanking para Schmitt trigger de gate (segundos).
+ * Protege contra ringing de alta frecuencia (WaveShaper oversample=2x)
+ * en señales de gate que pasan por Output Channels.
+ * 0.5ms = 24 samples a 48kHz.
+ */
+const GATE_BLANKING_TIME = 0.0005; // 0.5ms
 
 // Modos de operación
 const MODE_GATED_FR  = 0;
@@ -80,9 +95,13 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     this._envelopeGain = 1.25; // dial +5 → +1.25
     this._signalGain = 0;      // dial 0 → VCA cerrado
 
-    // ─── Gate/trigger ──────────────────────────────────────────────────
+    // ─── Gate/trigger (Schmitt trigger con histéresis + blanking) ─────
     this._prevGate = false;
     this._manualGate = false;
+    this._gateArmed = true;      // Armado para detectar gate ON
+    this._gateHigh = false;      // Estado actual del Schmitt trigger
+    this._gateBlanking = 0;      // Contador de blanking (samples)
+    this._gateBlankingSamples = 0; // Calculado al primer process()
 
     // ─── Control ───────────────────────────────────────────────────────
     this._stopped = false;
@@ -107,6 +126,11 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     const envChannel = output[0];
     const audioChannel = output[1];
     const blockSize = envChannel.length;
+
+    // Calcular blanking samples (una sola vez)
+    if (this._gateBlankingSamples === 0) {
+      this._gateBlankingSamples = Math.round(GATE_BLANKING_TIME * sampleRate);
+    }
 
     // Entrada de audio y gate externo
     const input = inputs[0];
@@ -263,15 +287,39 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Determina si hay gate activo por trigger externo o manual.
+   * Determina si hay gate activo con histéresis Schmitt trigger + blanking.
+   * Protege contra ringing de alta frecuencia (WaveShaper oversample=2x)
+   * que podría causar múltiples re-triggers espurios.
    * @param {Float32Array|null} gateIn - Canal de trigger externo
    * @param {number} i - Índice del sample
    * @returns {boolean}
    */
   _isGateActive(gateIn, i) {
     if (this._manualGate) return true;
-    if (gateIn && Math.abs(gateIn[i]) > GATE_THRESHOLD) return true;
-    return false;
+    if (!gateIn) return false;
+
+    const sample = Math.abs(gateIn[i]);
+
+    if (this._gateBlanking > 0) {
+      this._gateBlanking--;
+      return this._gateHigh;
+    }
+
+    if (this._gateHigh) {
+      // Gate está HIGH: necesita caer bajo LOW threshold para apagar
+      if (sample < GATE_LOW_THRESHOLD) {
+        this._gateHigh = false;
+        this._gateBlanking = this._gateBlankingSamples;
+      }
+    } else {
+      // Gate está LOW: necesita superar HIGH threshold para encender
+      if (sample > GATE_THRESHOLD) {
+        this._gateHigh = true;
+        this._gateBlanking = this._gateBlankingSamples;
+      }
+    }
+
+    return this._gateHigh;
   }
 
   // ─────────────────────────────────────────────────────────────────────────

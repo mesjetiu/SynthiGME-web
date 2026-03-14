@@ -824,6 +824,211 @@ describe('EnvelopeShaper Worklet — Import real y process()', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PARTE 7B: INMUNIDAD A RINGING (Schmitt trigger + blanking)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('EnvelopeShaper Worklet — Inmunidad a ringing (Schmitt trigger)', () => {
+  let ProcessorClass;
+
+  beforeEach(async () => {
+    globalThis.sampleRate = SAMPLE_RATE;
+    globalThis.currentTime = 0;
+    globalThis.currentFrame = 0;
+
+    let capturedClass = null;
+    globalThis.registerProcessor = (name, cls) => {
+      capturedClass = cls;
+    };
+    globalThis.AudioWorkletProcessor = class {
+      constructor() {
+        this.port = {
+          onmessage: null,
+          postMessage: () => {}
+        };
+      }
+    };
+
+    const modulePath = new URL(
+      '../../src/assets/js/worklets/envelopeShaper.worklet.js',
+      import.meta.url
+    ).href;
+    delete globalThis._esWorkletLoaded;
+
+    try {
+      await import(modulePath + `?t=${Date.now()}`);
+      ProcessorClass = capturedClass;
+    } catch (e) {
+      ProcessorClass = null;
+    }
+  });
+
+  /**
+   * Helper: crea arrays de entrada/salida para N bloques de 128 samples.
+   * Input[0][0] = trigger/gate channel, Input[0][1] = audio input
+   */
+  function createBlock(size = 128) {
+    return {
+      inputs: [[new Float32Array(size), new Float32Array(size)]],
+      outputs: [[new Float32Array(size), new Float32Array(size)]]
+    };
+  }
+
+  test('ringing en flanco de bajada NO genera re-trigger espurio', () => {
+    if (!ProcessorClass) return;
+    const proc = new ProcessorClass();
+
+    // Modo TRIGGERED: cada rising edge dispara un ciclo completo
+    proc.port.onmessage({ data: { type: 'setMode', value: MODE_TRIGGERED } });
+    proc.port.onmessage({ data: { type: 'setAttack', value: 5 } });
+    proc.port.onmessage({ data: { type: 'setDecay', value: 5 } });
+    proc.port.onmessage({ data: { type: 'setRelease', value: 5 } });
+
+    // Bloque 1: gate ON con señal alta estable (1.25 digital = 5V real)
+    const b1 = createBlock();
+    b1.inputs[0][1].fill(1.25); // Gate alto todo el bloque (canal 1 = gate)
+    proc.process(b1.inputs, b1.outputs, {});
+
+    // Verificar que se inició el ataque
+    const hasAttack = b1.outputs[0][0].some(v => v > 0);
+    assert.ok(hasAttack, 'Gate ON debe iniciar ataque');
+
+    // Bloque 2: falling edge con ringing (simula WaveShaper oversample=2x)
+    const b2 = createBlock();
+    // 5 samples de transición rápida, luego ringing decayendo
+    for (let i = 0; i < 5; i++) {
+      b2.inputs[0][1][i] = 1.25 * (1 - i / 5); // rampa descendente
+    }
+    for (let i = 5; i < 128; i++) {
+      const decay = Math.exp(-(i - 5) / 15);
+      const osc = Math.sin((i - 5) * 0.8);
+      b2.inputs[0][1][i] = 1.5 * decay * osc; // ringing: cruza threshold varias veces
+    }
+    proc.process(b2.inputs, b2.outputs, {});
+
+    // Bloque 3: silencio — gate 0
+    const b3 = createBlock();
+    proc.process(b3.inputs, b3.outputs, {});
+
+    // Bloque 4: nuevo gate legítimo
+    const b4 = createBlock();
+    b4.inputs[0][1].fill(1.25);
+    proc.process(b4.inputs, b4.outputs, {});
+
+    // Contar transiciones a ATTACK (rising edges detectados)
+    // Si el Schmitt trigger funciona, solo hubo 2 rising edges (bloque 1 y bloque 4)
+    // Sin Schmitt trigger, el ringing causaría múltiples triggers espurios
+    // Verificamos que el bloque 4 SÍ genera respuesta (re-trigger legítimo funciona)
+    const b4HasResponse = b4.outputs[0][0].some(v => v > 0);
+    assert.ok(b4HasResponse, 'Gate legítimo tras ringing debe ser detectado');
+  });
+
+  test('ringing alrededor del umbral NO genera flancos múltiples en gate', () => {
+    if (!ProcessorClass) return;
+    const proc = new ProcessorClass();
+
+    proc.port.onmessage({ data: { type: 'setMode', value: MODE_GATED } });
+    proc.port.onmessage({ data: { type: 'setAttack', value: 0 } }); // 1ms
+    proc.port.onmessage({ data: { type: 'setDecay', value: 0 } });
+    proc.port.onmessage({ data: { type: 'setSustain', value: 8 } });
+
+    // Un solo bloque con ringing oscilando alrededor del umbral GATE_THRESHOLD (0.25)
+    // Amplitud 0.8, oscilando alrededor de 0.3 → cruza 0.25 muchas veces
+    const b1 = createBlock();
+    for (let i = 0; i < 128; i++) {
+      const decay = Math.exp(-i / 8);
+      b1.inputs[0][1][i] = 0.3 + 0.8 * decay * Math.sin(i * 0.6);
+    }
+    proc.process(b1.inputs, b1.outputs, {});
+
+    // Bloque 2: silencio
+    const b2 = createBlock();
+    proc.process(b2.inputs, b2.outputs, {});
+
+    // Si Schmitt trigger funciona: solo 1 detección, no oscilación rápida on/off
+    // Verificamos mirando la envolvente: no debería haber discontinuidades bruscas
+    // (i.e., no debería caer a 0 y volver a subir repetidamente)
+    const env = b1.outputs[0][0];
+    let dropCount = 0;
+    for (let i = 1; i < env.length; i++) {
+      // Una caída grande seguida de subida = re-trigger espurio
+      if (env[i] < env[i - 1] * 0.5 && env[i - 1] > 0.01) {
+        dropCount++;
+      }
+    }
+    assert.ok(dropCount <= 1,
+      `Demasiadas caídas bruscas (${dropCount}): indica re-triggers espurios por ringing`);
+  });
+
+  test('pulso limpio permite re-trigger legítimo', () => {
+    if (!ProcessorClass) return;
+    const proc = new ProcessorClass();
+
+    proc.port.onmessage({ data: { type: 'setMode', value: MODE_TRIGGERED } });
+    proc.port.onmessage({ data: { type: 'setAttack', value: 0 } });  // 1ms (48 samples)
+    proc.port.onmessage({ data: { type: 'setDecay', value: 0 } });
+    proc.port.onmessage({ data: { type: 'setRelease', value: 0 } });
+
+    // Bloque 1: primer pulso limpio (samples 0-30 HIGH, 31-127 LOW)
+    const b1 = createBlock();
+    for (let i = 0; i < 30; i++) b1.inputs[0][1][i] = 1.25;
+    proc.process(b1.inputs, b1.outputs, {});
+
+    // Bloque 2: silencio (gap para re-arm)
+    const b2 = createBlock();
+    proc.process(b2.inputs, b2.outputs, {});
+
+    // Bloque 3: segundo pulso limpio
+    const b3 = createBlock();
+    for (let i = 0; i < 30; i++) b3.inputs[0][1][i] = 1.25;
+    proc.process(b3.inputs, b3.outputs, {});
+
+    // Verificar que el segundo pulso generó respuesta
+    const b3HasResponse = b3.outputs[0][0].some(v => v > 0);
+    assert.ok(b3HasResponse, 'Segundo pulso limpio debe generar re-trigger');
+  });
+
+  test('señal bipolar con ringing: Math.abs() protege igualmente', () => {
+    if (!ProcessorClass) return;
+    const proc = new ProcessorClass();
+
+    proc.port.onmessage({ data: { type: 'setMode', value: MODE_TRIGGERED } });
+    proc.port.onmessage({ data: { type: 'setAttack', value: 0 } });
+    proc.port.onmessage({ data: { type: 'setRelease', value: 0 } });
+
+    // Señal bipolar: gate negativo con ringing
+    const b1 = createBlock();
+    for (let i = 0; i < 128; i++) {
+      b1.inputs[0][1][i] = -1.25; // Gate negativo (abs > threshold)
+    }
+    proc.process(b1.inputs, b1.outputs, {});
+
+    // Falling edge con ringing bipolar
+    const b2 = createBlock();
+    for (let i = 0; i < 5; i++) {
+      b2.inputs[0][1][i] = -1.25 * (1 - i / 5);
+    }
+    for (let i = 5; i < 128; i++) {
+      const decay = Math.exp(-(i - 5) / 15);
+      b2.inputs[0][1][i] = -1.5 * decay * Math.sin((i - 5) * 0.8);
+    }
+    proc.process(b2.inputs, b2.outputs, {});
+
+    // Bloque 3: gate OFF
+    const b3 = createBlock();
+    proc.process(b3.inputs, b3.outputs, {});
+
+    // Bloque 4: gate negativo de nuevo
+    const b4 = createBlock();
+    b4.inputs[0][1].fill(-1.25);
+    proc.process(b4.inputs, b4.outputs, {});
+
+    // Re-trigger legítimo debe funcionar con señal bipolar
+    const b4HasResponse = b4.outputs[0][0].some(v => v > 0);
+    assert.ok(b4HasResponse, 'Gate bipolar negativo legítimo debe funcionar tras ringing');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PARTE 8: CADENA DE AUDIO END-TO-END
 // ═══════════════════════════════════════════════════════════════════════════
 

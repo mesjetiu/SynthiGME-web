@@ -664,6 +664,127 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       assert.strictEqual(ticks, ticksAfterFirst,
         'Señal sostenida no debe generar ticks adicionales');
     });
+
+    test('ringing tras flanco de bajada NO genera ticks espurios (Schmitt trigger)', () => {
+      // Reproduce el bug: señal que pasa por WaveShaper(oversample=2x)
+      // del Output Channel introduce ringing (Gibbs) al caer de HIGH a LOW.
+      // Con VCA gain=10, el ringing se amplifica y cruza el umbral múltiples veces.
+      const proc = new SequencerProcessor();
+      proc.port.onmessage({ data: { type: 'setRunClock', value: false } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
+
+      let ticks = 0;
+      proc.port.postMessage = (msg) => {
+        if (msg.type === 'tick') ticks++;
+      };
+
+      // Bloque 1: flanco 0 → 12.5 (gate 1.25 × VCA gain 10)
+      const inputs1 = createInputs(8, 128);
+      inputs1[0][0].fill(12.5);
+      proc.process(inputs1, createOutputs(TOTAL_OUTPUT_CHANNELS, 128), {});
+      assert.strictEqual(ticks, 1, 'Flanco de subida debe generar exactamente 1 tick');
+
+      // Bloque 2: flanco de bajada con ringing (simula WaveShaper oversample + VCA ×10)
+      // La señal baja a 0 pero oscila: +1.1, -0.8, +0.6, -0.4, +0.2, ...
+      const inputs2 = createInputs(8, 128);
+      const ringing = inputs2[0][0];
+      // Primeros samples: caída de 12.5 a 0 con ringing
+      for (let i = 0; i < 128; i++) {
+        if (i < 5) {
+          ringing[i] = 12.5 * (1 - i / 5); // Caída rápida
+        } else {
+          // Ringing amortiguado: oscila alrededor de 0
+          const decay = Math.exp(-(i - 5) / 15);
+          ringing[i] = 1.5 * decay * Math.sin((i - 5) * 0.8);
+        }
+      }
+      proc.process(inputs2, createOutputs(TOTAL_OUTPUT_CHANNELS, 128), {});
+
+      // CON Schmitt trigger: solo 1 tick del bloque 1, ninguno del ringing
+      assert.strictEqual(ticks, 1,
+        'Ringing tras bajada NO debe generar ticks adicionales (histéresis Schmitt)');
+    });
+
+    test('ringing alrededor del umbral NO genera ticks múltiples (Schmitt trigger)', () => {
+      // Señal que sube sobre el umbral y luego oscila con ringing amortiguado
+      // alrededor de 1.0V (transición entre regiones del WaveShaper + amplificación VCA)
+      const proc = new SequencerProcessor();
+      proc.port.onmessage({ data: { type: 'setRunClock', value: false } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
+
+      let ticks = 0;
+      proc.port.postMessage = (msg) => {
+        if (msg.type === 'tick') ticks++;
+      };
+
+      const inputs = createInputs(8, 128);
+      const signal = inputs[0][0];
+      // Señal sube hasta 1.5 y luego ringing amortiguado alrededor de 1.2
+      for (let i = 0; i < 20; i++) signal[i] = 0;
+      for (let i = 20; i < 30; i++) signal[i] = 1.5;  // Sube sobre umbral
+      for (let i = 30; i < 128; i++) {
+        // Ringing amortiguado que cruza el umbral 1.0V arriba y abajo
+        const decay = Math.exp(-(i - 30) / 8);
+        signal[i] = 1.2 + 0.8 * decay * Math.sin((i - 30) * 1.5);
+      }
+
+      proc.process(inputs, createOutputs(TOTAL_OUTPUT_CHANNELS, 128), {});
+
+      assert.strictEqual(ticks, 1,
+        'Ringing amortiguado alrededor del umbral debe generar solo 1 tick');
+    });
+
+    test('pulso limpio que baja a 0V permite re-trigger correcto', () => {
+      // Verifica que la histéresis NO impide re-triggers legítimos:
+      // señal sube (tick 1), baja a 0V, sube de nuevo (tick 2)
+      const proc = new SequencerProcessor();
+      proc.port.onmessage({ data: { type: 'setRunClock', value: false } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
+
+      let ticks = 0;
+      proc.port.postMessage = (msg) => {
+        if (msg.type === 'tick') ticks++;
+      };
+
+      const inputs = createInputs(8, 128);
+      const signal = inputs[0][0];
+      // Pulso 1: samples 10-40 a 2V
+      for (let i = 10; i < 40; i++) signal[i] = 2.0;
+      // Gap limpio: samples 40-79 a 0V (default)
+      // Pulso 2: samples 80-110 a 2V
+      for (let i = 80; i < 110; i++) signal[i] = 2.0;
+
+      proc.process(inputs, createOutputs(TOTAL_OUTPUT_CHANNELS, 128), {});
+
+      assert.strictEqual(ticks, 2,
+        'Dos pulsos limpios separados por 0V deben generar 2 ticks');
+    });
+
+    test('ringing en entrada de transporte (ej. Reset) no genera eventos múltiples', () => {
+      const proc = new SequencerProcessor();
+      proc.port.onmessage({ data: { type: 'setRunClock', value: false } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
+
+      let resets = 0;
+      proc.port.postMessage = (msg) => {
+        if (msg.type === 'reset') resets++;
+      };
+
+      // Enviar señal con ringing en Input 1 (Reset)
+      const inputs = createInputs(8, 128);
+      const signal = inputs[1][0]; // Input 1 = Reset
+      for (let i = 0; i < 20; i++) signal[i] = 2.0; // Pulso alto
+      for (let i = 20; i < 128; i++) {
+        // Ringing al caer
+        const decay = Math.exp(-(i - 20) / 10);
+        signal[i] = 1.5 * decay * Math.sin((i - 20) * 1.0);
+      }
+
+      proc.process(inputs, createOutputs(TOTAL_OUTPUT_CHANNELS, 128), {});
+
+      assert.strictEqual(resets, 1,
+        'Ringing en entrada Reset debe generar solo 1 reset (histéresis Schmitt)');
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────

@@ -301,6 +301,40 @@ export const MODULE_PARAMETERS = {
       rangeX: { type: 'float', min: 0, max: 10 },
       rangeY: { type: 'float', min: 0, max: 10 }
     }
+  },
+
+  // Digital Sequencer 1000 (único)
+  seq: {
+    indexed: false,
+    parameters: {
+      clockRate: { type: 'float', min: 0, max: 10 },
+      voltageA: { type: 'float', min: 0, max: 10 },
+      voltageB: { type: 'float', min: 0, max: 10 },
+      voltageC: { type: 'float', min: 0, max: 10 },
+      voltageD: { type: 'float', min: 0, max: 10 },
+      voltageE: { type: 'float', min: 0, max: 10 },
+      voltageF: { type: 'float', min: 0, max: 10 },
+      key1: { type: 'float', min: -5, max: 5 },
+      key2: { type: 'float', min: -5, max: 5 },
+      key3: { type: 'float', min: -5, max: 5 },
+      key4: { type: 'float', min: -5, max: 5 },
+      abKey1: { type: 'int', values: [0, 1] },
+      b: { type: 'int', values: [0, 1] },
+      cdKey2: { type: 'int', values: [0, 1] },
+      d: { type: 'int', values: [0, 1] },
+      efKey3: { type: 'int', values: [0, 1] },
+      f: { type: 'int', values: [0, 1] },
+      key4Sw: { type: 'int', values: [0, 1] },
+      runClock: { type: 'int', values: [0, 1] },
+      masterReset: { type: 'trigger' },
+      runForward: { type: 'trigger' },
+      runReverse: { type: 'trigger' },
+      stop: { type: 'trigger' },
+      resetSequence: { type: 'trigger' },
+      stepForward: { type: 'trigger' },
+      stepReverse: { type: 'trigger' },
+      testOP: { type: 'trigger' }
+    }
   }
 };
 

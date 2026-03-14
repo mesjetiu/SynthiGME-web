@@ -140,6 +140,7 @@ import { matrixOSCSync } from './osc/oscMatrixSync.js';
 import { reverbOSCSync } from './osc/oscReverbSync.js';
 import { ringModOSCSync } from './osc/oscRingModSync.js';
 import { envelopeShaperOSCSync } from './osc/oscEnvelopeShaperSync.js';
+import { sequencerOSCSync } from './osc/oscSequencerSync.js';
 import { midiAccess } from './midi/midiAccess.js';
 import { midiLearnManager } from './midi/midiLearnManager.js';
 import { initMIDILearnOverlay } from './midi/midiLearnOverlay.js';
@@ -292,6 +293,7 @@ class App {
     reverbOSCSync.init(this);
     ringModOSCSync.init(this);
     envelopeShaperOSCSync.init(this);
+    sequencerOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
 
@@ -765,6 +767,7 @@ class App {
         switchState = !switchState;
         toggle.classList.toggle('active', switchState);
         this._sequencerModule?.setSwitch(switchName, switchState);
+        sequencerOSCSync.sendSwitchChange(switchName, switchState);
       });
       toggle.dataset.switchName = switchName;
       sw.appendChild(toggle);
@@ -786,6 +789,7 @@ class App {
       const buttonName = seqButtonNames[idx];
       btn.addEventListener('click', () => {
         this._sequencerModule?.pressButton(buttonName);
+        sequencerOSCSync.sendButtonPress(buttonName);
       });
       btn.dataset.buttonName = buttonName;
       buttonRow.appendChild(btn);
@@ -815,6 +819,7 @@ class App {
       onChange: (v) => {
         const dial = v * 10;
         this._sequencerModule?.setClockRate(dial);
+        sequencerOSCSync.sendKnobChange('clockRate', dial);
       }
     });
     clockRateKnob.wrapper.classList.add('panel7-seq-clock-knob');
@@ -4331,6 +4336,7 @@ class App {
               knobInstance.onChange = (v) => {
                 const dial = v * 10;
                 this._sequencerModule?.setKnob(paramName, dial);
+                sequencerOSCSync.sendKnobChange(paramName, dial);
               };
             }
             knobsContainer.appendChild(wrapper);
@@ -4347,6 +4353,7 @@ class App {
               onChange: paramName ? (v) => {
                 const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
                 this._sequencerModule?.setKnob(paramName, dial);
+                sequencerOSCSync.sendKnobChange(paramName, dial);
               } : undefined
             });
             if (paramName && knob.knobInstance) {
@@ -4412,6 +4419,7 @@ class App {
                 knobInstance.onChange = (v) => {
                   const dial = v * 10;
                   this._sequencerModule?.setKnob(paramName, dial);
+                  sequencerOSCSync.sendKnobChange(paramName, dial);
                 };
               }
               knobsContainer.appendChild(wrapper);
@@ -4428,6 +4436,7 @@ class App {
                 onChange: paramName ? (v) => {
                   const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
                   this._sequencerModule?.setKnob(paramName, dial);
+                  sequencerOSCSync.sendKnobChange(paramName, dial);
                 } : undefined
               });
               if (paramName && knob.knobInstance) {

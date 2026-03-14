@@ -791,3 +791,103 @@ export function getEnvelopeShaperModeTooltipInfo(modeNames) {
     return modeNames[index];
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DIGITAL SEQUENCER 1000
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SEQ_CLOCK_MIN_FREQ = 0.1;
+const SEQ_CLOCK_MAX_FREQ = 500;
+const SEQ_CLOCK_FREQ_RATIO = SEQ_CLOCK_MAX_FREQ / SEQ_CLOCK_MIN_FREQ;
+
+/**
+ * Genera tooltip para el knob Clock Rate del secuenciador.
+ * Muestra frecuencia Hz y período (para frecuencias bajas).
+ *
+ * Curva exponencial: f = 0.1 × 5000^(dial/10)
+ *
+ * @returns {function(number): string|null}
+ */
+export function getSequencerClockRateTooltipInfo() {
+  return (dialValue) => {
+    const parts = [];
+    const normalized = clamp(dialValue, 0, 10) / 10;
+    const freq = SEQ_CLOCK_MIN_FREQ * Math.pow(SEQ_CLOCK_FREQ_RATIO, normalized);
+
+    if (showAudioTooltip()) {
+      if (freq < 10) {
+        parts.push(`${freq.toFixed(1)} Hz`);
+      } else {
+        parts.push(`${freq.toFixed(0)} Hz`);
+      }
+
+      // Período para frecuencias bajas (< 10 Hz)
+      if (freq < 10) {
+        const period = 1 / freq;
+        if (period >= 1) {
+          parts.push(`${period.toFixed(1)} s`);
+        } else {
+          parts.push(`${(period * 1000).toFixed(0)} ms`);
+        }
+      }
+    }
+
+    if (showVoltageTooltip()) {
+      const voltage = dialValue;
+      parts.push(`${voltage.toFixed(1)} V`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera tooltip para los knobs de Voltage A-F del secuenciador.
+ * Escala lineal del nivel de salida (gain sobre 0-7V del DAC).
+ *
+ * @returns {function(number): string|null}
+ */
+export function getSequencerVoltageLevelTooltipInfo() {
+  return (dialValue) => {
+    const parts = [];
+    const normalized = clamp(dialValue, 0, 10) / 10;
+
+    if (showVoltageTooltip()) {
+      const maxV = 7; // 0-7V DAC range
+      const voltage = normalized * maxV;
+      parts.push(`${voltage.toFixed(1)} V max`);
+    }
+
+    if (showAudioTooltip()) {
+      const pct = (normalized * 100).toFixed(0);
+      parts.push(`${pct}%`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+/**
+ * Genera tooltip para los knobs de Key 1-4 del secuenciador.
+ * Rango bipolar -5V a +5V (offset del nivel de key digital).
+ *
+ * @returns {function(number): string|null}
+ */
+export function getSequencerKeyLevelTooltipInfo() {
+  return (dialValue) => {
+    const parts = [];
+
+    if (showVoltageTooltip()) {
+      const voltage = clamp(dialValue, -5, 5);
+      parts.push(`${voltage >= 0 ? '+' : ''}${voltage.toFixed(1)} V`);
+    }
+
+    if (showAudioTooltip()) {
+      const normalized = (clamp(dialValue, -5, 5) + 5) / 10;
+      const pct = (normalized * 100).toFixed(0);
+      parts.push(`${pct}%`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}

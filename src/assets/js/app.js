@@ -126,7 +126,7 @@ import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as
 import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { initRenderMode } from './utils/gpuDetect.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, getEnvelopeShaperTimeTooltipInfo, getEnvelopeShaperSustainTooltipInfo, getEnvelopeShaperEnvLevelTooltipInfo, getEnvelopeShaperSignalLevelTooltipInfo, getEnvelopeShaperModeTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, getEnvelopeShaperTimeTooltipInfo, getEnvelopeShaperSustainTooltipInfo, getEnvelopeShaperEnvLevelTooltipInfo, getEnvelopeShaperSignalLevelTooltipInfo, getEnvelopeShaperModeTooltipInfo, getSequencerClockRateTooltipInfo, getSequencerVoltageLevelTooltipInfo, getSequencerKeyLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -860,6 +860,7 @@ class App {
         this._sequencerModule?.setClockRate(dial);
         sequencerOSCSync.sendKnobChange('clockRate', dial);
       };
+      knobInstance.getTooltipInfo = getSequencerClockRateTooltipInfo();
       clockRateKnob = { wrapper: elements.wrapper, knobInstance };
     } else {
       let clockRateSvgSrc = 'assets/knobs/knob.svg';
@@ -872,6 +873,7 @@ class App {
         svgSrc: clockRateSvgSrc,
         showValue: false,
         initial: 0.5,
+        getTooltipInfo: getSequencerClockRateTooltipInfo(),
         onChange: (v) => {
           const dial = v * 10;
           this._sequencerModule?.setClockRate(dial);
@@ -4346,6 +4348,9 @@ class App {
         'Voltage D': 'voltageD', 'Voltage E': 'voltageE', 'Voltage F': 'voltageF',
         'Key 1': 'key1', 'Key 2': 'key2', 'Key 3': 'key3', 'Key 4': 'key4'
       };
+      const seqVoltageTooltip = getSequencerVoltageLevelTooltipInfo();
+      const seqKeyTooltip = getSequencerKeyLevelTooltipInfo();
+      const getSeqKnobTooltip = (pName) => pName?.startsWith('key') ? seqKeyTooltip : seqVoltageTooltip;
 
       // ── Helper: construir una columna con knobs apilados verticalmente
       const buildKnobColumn = (colDef) => {
@@ -4380,6 +4385,7 @@ class App {
                 this._sequencerModule?.setKnob(paramName, dial);
                 sequencerOSCSync.sendKnobChange(paramName, dial);
               };
+              knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
             }
             knobsContainer.appendChild(wrapper);
           } else {
@@ -4392,6 +4398,7 @@ class App {
               min: 0,
               max: 1,
               initial: isBipolar ? 0.5 : 0,
+              getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
               onChange: paramName ? (v) => {
                 const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
                 this._sequencerModule?.setKnob(paramName, dial);
@@ -4463,6 +4470,7 @@ class App {
                   this._sequencerModule?.setKnob(paramName, dial);
                   sequencerOSCSync.sendKnobChange(paramName, dial);
                 };
+                knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
               }
               knobsContainer.appendChild(wrapper);
             } else {
@@ -4475,6 +4483,7 @@ class App {
                 min: 0,
                 max: 1,
                 initial: isBipolar ? 0.5 : 0,
+                getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
                 onChange: paramName ? (v) => {
                   const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
                   this._sequencerModule?.setKnob(paramName, dial);

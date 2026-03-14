@@ -4071,7 +4071,8 @@ class App {
       '8': 'abcdefg','9': 'abcdfg',
       'a': 'abcefg', 'b': 'cdefg',  'c': 'adeg',  'd': 'bcdeg',
       'e': 'adefg',  'f': 'aefg',
-      'A': 'abcefg', 'C': 'adef',   'l': 'def',   'o': 'cdeg',
+      'A': 'abcefg', 'B': 'cdefg',  'C': 'adef',  'D': 'bcdeg',
+      'E': 'adefg',  'F': 'aefg',   'l': 'def',   'o': 'cdeg',
       ' ': ''
     };
 
@@ -4088,17 +4089,19 @@ class App {
       const padded = (text || '0000').padStart(4, ' ').slice(-4);
       // Special strings shown as-is (no suppression)
       const isSpecial = padded === 'ofof' || padded === 'CAll';
-      // Leading zero suppression: replace leading '0' with ' '
+      // Leading zero suppression + uppercase hex (A,C,E,F upper; b,d stay lower)
       let display = padded;
       if (!isSpecial) {
+        const upper = padded.toUpperCase();
         display = '';
         let leadingZero = true;
         for (let i = 0; i < 4; i++) {
-          if (leadingZero && padded[i] === '0' && i < 3) {
+          const ch = upper[i];
+          if (leadingZero && ch === '0' && i < 3) {
             display += ' ';
           } else {
             leadingZero = false;
-            display += padded[i];
+            display += ch;
           }
         }
       }

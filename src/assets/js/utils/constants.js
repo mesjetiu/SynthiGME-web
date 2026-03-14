@@ -112,6 +112,9 @@ export const STORAGE_KEYS = {
   // Notas post-it en paneles
   PANEL_NOTES: `${STORAGE_PREFIX}panel-notes`,
   
+  /** Formato del display del secuenciador: 'decimal' (por defecto) o 'hex' */
+  SEQUENCER_DISPLAY_FORMAT: `${STORAGE_PREFIX}sequencer-display-format`,
+  
   // ─────────────────────────────────────────────────────────────────────────
   // Optimización de rendimiento
   // Cada optimización tiene un toggle enabled + un toggle debug opcional

@@ -213,6 +213,43 @@ settings.display.inactivePins.show:
   pt: Mostrar pinos inativos como ativos
   cs: Zobrazit neaktivní kolíky jako aktivní
 
+# Sección: Formato del display del secuenciador
+settings.display.seqDisplayFormat:
+  en: Sequencer Display
+  es: Display del secuenciador
+  fr: Affichage du séquenceur
+  de: Sequencer-Anzeige
+  it: Display del sequencer
+  pt: Display do sequenciador
+  cs: Displej sekvenceru
+
+settings.display.seqDisplayFormat.description:
+  en: Choose whether the sequencer event timer shows the step position in decimal (0–1023) or hexadecimal (0000–03FF).
+  es: Elige si el display del secuenciador muestra la posición del paso en decimal (0–1023) o hexadecimal (0000–03FF).
+  fr: Choisissez si l'affichage du séquenceur montre la position du pas en décimal (0–1023) ou hexadécimal (0000–03FF).
+  de: Wählen Sie, ob die Sequencer-Anzeige die Schrittposition dezimal (0–1023) oder hexadezimal (0000–03FF) anzeigt.
+  it: Scegli se il display del sequencer mostra la posizione del passo in decimale (0–1023) o esadecimale (0000–03FF).
+  pt: Escolha se o display do sequenciador mostra a posição do passo em decimal (0–1023) ou hexadecimal (0000–03FF).
+  cs: Zvolte, zda displej sekvenceru zobrazuje pozici kroku v desítkové (0–1023) nebo šestnáctkové soustavě (0000–03FF).
+
+settings.display.seqDisplayFormat.decimal:
+  en: Decimal (0–1023)
+  es: Decimal (0–1023)
+  fr: Décimal (0–1023)
+  de: Dezimal (0–1023)
+  it: Decimale (0–1023)
+  pt: Decimal (0–1023)
+  cs: Desítkový (0–1023)
+
+settings.display.seqDisplayFormat.hex:
+  en: Hexadecimal (0000–03FF)
+  es: Hexadecimal (0000–03FF)
+  fr: Hexadécimal (0000–03FF)
+  de: Hexadezimal (0000–03FF)
+  it: Esadecimale (0000–03FF)
+  pt: Hexadecimal (0000–03FF)
+  cs: Šestnáctkový (0000–03FF)
+
 # Sección: Disposición visual (paneles flotantes + vista del canvas)
 settings.display.pip:
   en: Visual Layout

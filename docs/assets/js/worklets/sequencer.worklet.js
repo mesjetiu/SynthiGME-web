@@ -325,8 +325,8 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
   /**
    * Procesa un tick del clock recibido por la entrada (col 51).
-   * Avanza el counter según el estado de transporte.
-   * Graba inputs si hay switches activos. Actualiza playback.
+   * Orden del hardware real (Z80): avanza counter → graba A/D → lee D/A.
+   * Las salidas reflejan lo recién grabado en la nueva posición.
    * @private
    */
   _onTick() {
@@ -336,12 +336,14 @@ class SequencerProcessor extends AudioWorkletProcessor {
     // Avanzar counter según FSM
     switch (this._transportState) {
       case STATE_RUNNING_FORWARD:
-        this._recordCurrentInputs();
         this._stepCounter(1);
+        this._recordCurrentInputs();
+        this._updateOutputsFromEvent(this._counter);
         break;
       case STATE_RUNNING_REVERSE:
-        this._recordCurrentInputs();
         this._stepCounter(-1);
+        this._recordCurrentInputs();
+        this._updateOutputsFromEvent(this._counter);
         break;
       // STOPPED y TEST_MODE: no avanza
     }
@@ -349,20 +351,23 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
   /**
    * Avanza o retrocede el counter un paso y notifica al main thread.
+   * No actualiza salidas — el caller es responsable de llamar
+   * _updateOutputsFromEvent() después de grabar (si aplica).
    * @param {number} direction +1 para avanzar, -1 para retroceder
+   * @returns {boolean} true si el counter se movió, false si overflow/límite
    * @private
    */
   _stepCounter(direction) {
     if (direction > 0) {
       if (this._overflow) {
         this.port.postMessage({ type: 'overflow', value: true });
-        return;
+        return false;
       }
       if (this._counter >= MAX_EVENTS - 1) {
         // Counter ya está en 1023, siguiente step → overflow
         this._overflow = true;
         this.port.postMessage({ type: 'overflow', value: true });
-        return;
+        return false;
       }
       this._counter++;
     } else {
@@ -373,14 +378,13 @@ class SequencerProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // Actualizar salidas DC con el evento en la posición actual
-    this._updateOutputsFromEvent(this._counter);
-
     this.port.postMessage({
       type: 'counter',
       value: this._counter,
       text: this._counterToHex(this._counter)
     });
+
+    return true;
   }
 
   /**
@@ -762,11 +766,17 @@ class SequencerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'stepForward':
-        this._stepCounter(1);
+        if (this._stepCounter(1)) {
+          this._recordCurrentInputs();
+          this._updateOutputsFromEvent(this._counter);
+        }
         break;
 
       case 'stepReverse':
-        this._stepCounter(-1);
+        if (this._stepCounter(-1)) {
+          this._recordCurrentInputs();
+          this._updateOutputsFromEvent(this._counter);
+        }
         break;
 
       case 'testOP':

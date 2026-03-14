@@ -631,15 +631,23 @@ class App {
     // Wire sequencer display callbacks (display update function stored by _buildPanel4)
     if (this._sequencerDisplayUpdate) {
       const update = this._sequencerDisplayUpdate;
-      this._sequencerModule.onCounterChange = (_value, text) => update(text);
-      this._sequencerModule.onReset = (_value, text) => update(text);
+      const render = this._sequencerDisplayRender;
+      this._sequencerModule.onCounterChange = (value, text) => update(value, text);
+      this._sequencerModule.onReset = (value, text) => update(value, text);
       this._sequencerModule.onOverflow = (isOverflow) => {
-        if (isOverflow) update('ofof');
+        if (isOverflow) render('ofof');
       };
       this._sequencerModule.onTestMode = (active) => {
-        if (active) update('CAll');
+        if (active) render('CAll');
       };
     }
+
+    // Escuchar cambio de formato del display del secuenciador desde Settings
+    document.addEventListener('synth:seqDisplayFormatChange', (e) => {
+      if (this._setSeqDisplayFormat) {
+        this._setSeqDisplayFormat(e.detail.format);
+      }
+    });
 
     // Switch names → worklet switch IDs mapping
     const seqSwitchNames = ['abKey1', 'b', 'cdKey2', 'd', 'efKey3', 'f', 'key4', 'runClock'];
@@ -4125,8 +4133,10 @@ class App {
       }
     };
 
-    /** Update display with leading zero suppression */
-    const updateSeqDisplay = (text) => {
+    /** Update display with leading zero suppression.
+     *  @param {string} text - 4-char string to display (hex, decimal, or special)
+     */
+    const renderSeqDisplay = (text) => {
       const padded = (text || '0000').padStart(4, ' ').slice(-4);
       // Special strings shown as-is (no suppression)
       const isSpecial = padded === 'ofof' || padded === 'CAll';
@@ -4151,11 +4161,33 @@ class App {
       }
     };
 
+    // Formato actual del display: 'decimal' (por defecto) o 'hex'
+    let seqDisplayFormat = localStorage.getItem(STORAGE_KEYS.SEQUENCER_DISPLAY_FORMAT) || 'decimal';
+    let lastCounterValue = 0;
+
+    /** Formatea y muestra el counter según el formato actual */
+    const updateSeqDisplay = (value, text) => {
+      lastCounterValue = value;
+      if (seqDisplayFormat === 'hex') {
+        renderSeqDisplay(text);
+      } else {
+        renderSeqDisplay(String(value));
+      }
+    };
+
+    /** Permite cambiar el formato en caliente desde ajustes */
+    this._setSeqDisplayFormat = (format) => {
+      seqDisplayFormat = format;
+      const hex = lastCounterValue.toString(16).padStart(4, '0');
+      updateSeqDisplay(lastCounterValue, hex);
+    };
+
     // Initialize display
-    updateSeqDisplay('0000');
+    renderSeqDisplay('   0');
 
     // Store for callback wiring
     this._sequencerDisplayUpdate = updateSeqDisplay;
+    this._sequencerDisplayRender = renderSeqDisplay;
 
     applyModuleVisibility(seqEl, blueprint, 'sequencerEventTime');
     host.appendChild(seqEl);

@@ -251,6 +251,11 @@ export class SettingsModal {
     if (knobStyleRadio) knobStyleRadio.checked = true;
     this._applyKnobStyle(savedKnobStyle);
     
+    // Sequencer display format (radio buttons)
+    const savedSeqFormat = localStorage.getItem(STORAGE_KEYS.SEQUENCER_DISPLAY_FORMAT) || 'decimal';
+    const seqFormatRadio = this.modal?.querySelector(`input[name="seqDisplayFormat"][value="${savedSeqFormat}"]`);
+    if (seqFormatRadio) seqFormatRadio.checked = true;
+    
     // Avanzado - Optimizaciones
     if (this.optimizationsDebugCheckbox) {
       this.optimizationsDebug = readBool(STORAGE_KEYS.OPTIMIZATIONS_DEBUG, false);
@@ -718,6 +723,9 @@ export class SettingsModal {
     
     // Rasterización adaptativa (nitidez de zoom)
     container.appendChild(this._createSharpRasterizeSection());
+    
+    // Formato del display del secuenciador (decimal / hexadecimal)
+    container.appendChild(this._createSeqDisplayFormatSection());
     
     // Interacción táctil (multitouch, pan con un dedo)
     container.appendChild(this._createTouchInteractionSection());
@@ -2334,6 +2342,67 @@ export class SettingsModal {
     
     document.dispatchEvent(new CustomEvent('synth:sharpRasterizeChange', { 
       detail: { enabled } 
+    }));
+  }
+  
+  /**
+   * Crea la sección de formato del display del secuenciador (decimal / hex)
+   * @returns {HTMLElement}
+   */
+  _createSeqDisplayFormatSection() {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+    
+    this.seqDisplayFormatTitleElement = document.createElement('h3');
+    this.seqDisplayFormatTitleElement.className = 'settings-section__title';
+    this.seqDisplayFormatTitleElement.textContent = t('settings.display.seqDisplayFormat');
+    section.appendChild(this.seqDisplayFormatTitleElement);
+    
+    this.seqDisplayFormatDescElement = document.createElement('p');
+    this.seqDisplayFormatDescElement.className = 'settings-section__description';
+    this.seqDisplayFormatDescElement.textContent = t('settings.display.seqDisplayFormat.description');
+    section.appendChild(this.seqDisplayFormatDescElement);
+    
+    const row = document.createElement('div');
+    row.className = 'settings-row settings-row--radio';
+    
+    const savedFormat = localStorage.getItem(STORAGE_KEYS.SEQUENCER_DISPLAY_FORMAT) || 'decimal';
+    
+    for (const fmt of ['decimal', 'hex']) {
+      const label = document.createElement('label');
+      label.className = 'settings-radio-label';
+      
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'seqDisplayFormat';
+      radio.value = fmt;
+      radio.className = 'settings-radio';
+      radio.checked = savedFormat === fmt;
+      
+      radio.addEventListener('change', () => {
+        if (radio.checked) this._setSeqDisplayFormat(fmt);
+      });
+      
+      const span = document.createElement('span');
+      span.textContent = t(`settings.display.seqDisplayFormat.${fmt}`);
+      
+      label.appendChild(radio);
+      label.appendChild(span);
+      row.appendChild(label);
+    }
+    
+    section.appendChild(row);
+    return section;
+  }
+  
+  /**
+   * Establece el formato del display del secuenciador
+   * @param {'decimal'|'hex'} format
+   */
+  _setSeqDisplayFormat(format) {
+    localStorage.setItem(STORAGE_KEYS.SEQUENCER_DISPLAY_FORMAT, format);
+    document.dispatchEvent(new CustomEvent('synth:seqDisplayFormatChange', {
+      detail: { format }
     }));
   }
   
@@ -4665,6 +4734,14 @@ export class SettingsModal {
     }
     if (this.sharpRasterizeLabelElement) {
       this.sharpRasterizeLabelElement.textContent = t('settings.display.sharpRasterize.enable');
+    }
+    
+    // Actualizar sección de formato del display del secuenciador
+    if (this.seqDisplayFormatTitleElement) {
+      this.seqDisplayFormatTitleElement.textContent = t('settings.display.seqDisplayFormat');
+    }
+    if (this.seqDisplayFormatDescElement) {
+      this.seqDisplayFormatDescElement.textContent = t('settings.display.seqDisplayFormat.description');
     }
     
     // Actualizar sección de modo de renderizado

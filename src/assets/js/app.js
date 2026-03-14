@@ -263,7 +263,7 @@ class App {
     this._outputFadersModule = null;
     this._sequencerModule = null;       // Single SequencerModule instance
     this._sequencerKnobs = {};          // { voltageA: knobInstance, ..., key4: knobInstance }
-    this._sequencerDisplay = null;      // LED hex display digit elements
+    this._sequencerDisplayUpdate = null; // 7-segment display update function
     this._keyboardModules = {};    // { upper: KeyboardModule, lower: KeyboardModule }
     this._keyboardKnobs = {};      // { upper: { pitchSpread, velocityLevel, gateLevel }, lower: ... }
     
@@ -628,22 +628,16 @@ class App {
     // ── Inicializar módulo de audio del secuenciador ──────────────────────
     this._sequencerModule = new SequencerModule(this.engine, 'sequencer');
 
-    // Wire sequencer display callbacks (display digits were stored by _buildPanel4)
-    if (this._sequencerDisplay) {
-      const digits = this._sequencerDisplay;
-      const updateDisplay = (text) => {
-        const padded = (text || '0000').padStart(4, '0').slice(-4);
-        for (let i = 0; i < 4 && i < digits.length; i++) {
-          digits[i].textContent = padded[i];
-        }
-      };
-      this._sequencerModule.onCounterChange = (_value, text) => updateDisplay(text);
-      this._sequencerModule.onReset = (_value, text) => updateDisplay(text);
+    // Wire sequencer display callbacks (display update function stored by _buildPanel4)
+    if (this._sequencerDisplayUpdate) {
+      const update = this._sequencerDisplayUpdate;
+      this._sequencerModule.onCounterChange = (_value, text) => update(text);
+      this._sequencerModule.onReset = (_value, text) => update(text);
       this._sequencerModule.onOverflow = (isOverflow) => {
-        if (isOverflow) updateDisplay('ofof');
+        if (isOverflow) update('ofof');
       };
       this._sequencerModule.onTestMode = (active) => {
-        if (active) updateDisplay('CAll');
+        if (active) update('CAll');
       };
     }
 
@@ -2797,10 +2791,8 @@ class App {
         ui.setSwitch(name, cfg.initial);
         this._sequencerSwitchUIs?.[name]?.setState(cfg.initial);
       }
-      if (this._sequencerDisplay) {
-        for (let i = 0; i < this._sequencerDisplay.length; i++) {
-          this._sequencerDisplay[i].textContent = '0';
-        }
+      if (this._sequencerDisplayUpdate) {
+        this._sequencerDisplayUpdate('0000');
       }
       return;
     }
@@ -4043,30 +4035,83 @@ class App {
     `;
     applyOffset(seqEl, seqLayout.offset);
 
-    // ── LED display retro de 4 dígitos ──────────────────────────────────
+    // ── LED display retro de 4 dígitos (7-segment real) ────────────────────
     const displayContainer = document.createElement('div');
     displayContainer.className = 'seq-event-time-display';
     const bezel = document.createElement('div');
     bezel.className = 'seq-event-time-display__bezel';
+
+    const SEG_NAMES = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    const segDigits = [];
     for (let i = 0; i < 4; i++) {
-      const digitBox = document.createElement('div');
-      digitBox.className = 'seq-event-time-display__digit';
-      const ghost = document.createElement('span');
-      ghost.className = 'seq-event-time-display__ghost';
-      ghost.textContent = '8';
-      const value = document.createElement('span');
-      value.className = 'seq-event-time-display__value';
-      value.textContent = '0';
-      digitBox.appendChild(ghost);
-      digitBox.appendChild(value);
-      bezel.appendChild(digitBox);
+      const digitEl = document.createElement('div');
+      digitEl.className = 'seq-7seg';
+      const segs = {};
+      for (const name of SEG_NAMES) {
+        const seg = document.createElement('div');
+        seg.className = `seq-7seg__seg --${name}`;
+        digitEl.appendChild(seg);
+        segs[name] = seg;
+      }
+      bezel.appendChild(digitEl);
+      segDigits.push(segs);
     }
     displayContainer.appendChild(bezel);
     seqFrame.appendToContent(displayContainer);
 
-    // Store display digits for sequencer counter updates
-    // NOTE: Callbacks are wired in _setupOutputFaders() after SequencerModule is created
-    this._sequencerDisplay = bezel.querySelectorAll('.seq-event-time-display__value');
+    // 7-segment character map: which segments are ON for each character
+    //   a
+    //  f b
+    //   g
+    //  e c
+    //   d
+    const SEG_MAP = {
+      '0': 'abcdef', '1': 'bc',     '2': 'abdeg', '3': 'abcdg',
+      '4': 'bcfg',   '5': 'acdfg',  '6': 'acdefg','7': 'abc',
+      '8': 'abcdefg','9': 'abcdfg',
+      'a': 'abcefg', 'b': 'cdefg',  'c': 'adeg',  'd': 'bcdeg',
+      'e': 'adefg',  'f': 'aefg',
+      'A': 'abcefg', 'C': 'adef',   'l': 'def',   'o': 'cdeg',
+      ' ': ''
+    };
+
+    /** Set a single digit's segments ON/OFF */
+    const setDigitChar = (segs, ch) => {
+      const onSegs = SEG_MAP[ch] || '';
+      for (const name of SEG_NAMES) {
+        segs[name].classList.toggle('--on', onSegs.includes(name));
+      }
+    };
+
+    /** Update display with leading zero suppression */
+    const updateSeqDisplay = (text) => {
+      const padded = (text || '0000').padStart(4, ' ').slice(-4);
+      // Special strings shown as-is (no suppression)
+      const isSpecial = padded === 'ofof' || padded === 'CAll';
+      // Leading zero suppression: replace leading '0' with ' '
+      let display = padded;
+      if (!isSpecial) {
+        display = '';
+        let leadingZero = true;
+        for (let i = 0; i < 4; i++) {
+          if (leadingZero && padded[i] === '0' && i < 3) {
+            display += ' ';
+          } else {
+            leadingZero = false;
+            display += padded[i];
+          }
+        }
+      }
+      for (let i = 0; i < 4; i++) {
+        setDigitChar(segDigits[i], display[i]);
+      }
+    };
+
+    // Initialize display
+    updateSeqDisplay('0000');
+
+    // Store for callback wiring
+    this._sequencerDisplayUpdate = updateSeqDisplay;
 
     applyModuleVisibility(seqEl, blueprint, 'sequencerEventTime');
     host.appendChild(seqEl);

@@ -2442,7 +2442,11 @@ class App {
           this._sequencerModule.setKnob(name, cfg.initial);
         }
         const knobInstance = this._sequencerKnobs[name];
-        if (knobInstance) knobInstance.setValue(cfg.initial / 10);
+        if (knobInstance) {
+          const min = cfg.min ?? 0;
+          const max = cfg.max ?? 10;
+          knobInstance.setValue((cfg.initial - min) / (max - min));
+        }
       }
       const seqSwitches = sequencerModuleConfig.switches;
       for (const [name, cfg] of Object.entries(seqSwitches)) {
@@ -2623,6 +2627,10 @@ class App {
         for (const [side, mod] of Object.entries(this._keyboardModules || {})) {
           modules.push({ type: 'keyboard', id: `keyboard-${side}`, ui: mod });
         }
+        // Sequencer (controles en Panel 7: clock rate, switches, botones)
+        if (this._sequencerModule) {
+          modules.push({ type: 'sequencer', id: 'sequencer', ui: this._sequencerModule });
+        }
         break;
       }
       case 'panel-5': {
@@ -2639,10 +2647,14 @@ class App {
         }
         break;
       }
-      case 'panel-4':
-      case 'panel-7': {
+      case 'panel-4': {
+        // Sequencer (knobs de output range en Panel 4)
         if (this._sequencerModule) {
           modules.push({ type: 'sequencer', id: 'sequencer', ui: this._sequencerModule });
+        }
+        // Keyboards (knobs en Panel 4, columnas 2 y 3)
+        for (const [side, mod] of Object.entries(this._keyboardModules || {})) {
+          modules.push({ type: 'keyboard', id: `keyboard-${side}`, ui: mod });
         }
         break;
       }
@@ -2774,7 +2786,11 @@ class App {
           ui.setKnob(name, cfg.initial);
         }
         const knobInstance = this._sequencerKnobs[name];
-        if (knobInstance) knobInstance.setValue(cfg.initial / 10);
+        if (knobInstance) {
+          const min = cfg.min ?? 0;
+          const max = cfg.max ?? 10;
+          knobInstance.setValue((cfg.initial - min) / (max - min));
+        }
       }
       const seqSwitches = sequencerModuleConfig.switches;
       for (const [name, cfg] of Object.entries(seqSwitches)) {
@@ -2968,8 +2984,13 @@ class App {
       switch (level) {
         case 'panel': {
           const modules = this._getModulesForPanel(panelId);
+          log.info(`Context reset panel '${panelId}': ${modules.length} modules [${modules.map(m => m.type).join(', ')}]`);
           for (const mod of modules) {
-            this._resetModule(mod.type, mod.ui);
+            try {
+              this._resetModule(mod.type, mod.ui);
+            } catch (err) {
+              log.error(`Error resetting module ${mod.type} (${mod.id}):`, err);
+            }
           }
           break;
         }
@@ -2985,6 +3006,8 @@ class App {
           break;
         }
       }
+    } catch (err) {
+      log.error('Error in context reset:', err);
     } finally {
       // Rehabilitar tracking de cambios
       sessionManager.applyingPatch(false);

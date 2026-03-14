@@ -6243,25 +6243,14 @@ body.render-performance .panel-inline-bg {
   height: 28px;
 }
 
-.panel7-seq-switch-toggle {
+.panel7-seq-switch .output-channel__switch--svg {
+  width: auto;
+  height: auto;
+}
+
+.panel7-seq-switch .toggle-svg-container {
   width: 10px;
   height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.panel7-seq-switch-toggle svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-  transition: transform 0.15s ease;
-}
-
-.panel7-seq-switch-toggle.active svg {
-  transform: rotate(180deg);
 }
 
 .panel7-sequencer-buttons {
@@ -7017,8 +7006,9 @@ body.render-performance .panel-inline-bg {
 .panel--pipped.panel--pip-preview .panel7-sequencer-layout,
 .panel--pipped.panel--pip-preview .panel7-sequencer-switches,
 .panel--pipped.panel--pip-preview .panel7-seq-switch,
-.panel--pipped.panel--pip-preview .panel7-seq-switch-toggle,
-.panel--pipped.panel--pip-preview .panel7-seq-switch-toggle svg,
+.panel--pipped.panel--pip-preview .panel7-seq-switch .output-channel__switch,
+.panel--pipped.panel--pip-preview .panel7-seq-switch .toggle-svg-container,
+.panel--pipped.panel--pip-preview .panel7-seq-switch .toggle-svg-container svg,
 .panel--pipped.panel--pip-preview .panel7-sequencer-clock,
 .panel--pipped.panel--pip-preview .panel7-seq-clock-knob,
 .panel--pipped.panel--pip-preview .output-channels-section,
@@ -7036,7 +7026,7 @@ body.render-performance .panel-inline-bg {
 .panel--pipped.panel--pip-preview .panel7-joystick-knobs,
 .panel--pipped.panel--pip-preview .panel7-sequencer-switches,
 .panel--pipped.panel--pip-preview .panel7-seq-switch,
-.panel--pipped.panel--pip-preview .panel7-seq-switch-toggle,
+.panel--pipped.panel--pip-preview .panel7-seq-switch .output-channel__switch,
 .panel--pipped.panel--pip-preview .output-channel__switch-wrap,
 .panel--pipped.panel--pip-preview .output-channel__content {
   display: flex !important;

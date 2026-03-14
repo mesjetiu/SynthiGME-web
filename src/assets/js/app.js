@@ -776,22 +776,38 @@ class App {
       const sw = document.createElement('div');
       sw.className = 'panel7-seq-switch';
       applyOffset(sw, sequencerUI.switchOffsets?.[idx]);
-      const toggle = document.createElement('div');
-      toggle.className = 'panel7-seq-switch-toggle toggle';
-      toggle.dataset.preventPan = 'true';
-      loadSvgInline('assets/knobs/toggle-switch.svg', toggle);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'output-channel__switch output-channel__switch--svg';
+      btn.dataset.preventPan = 'true';
+      const svgContainer = document.createElement('div');
+      svgContainer.className = 'toggle-svg-container';
+      btn.appendChild(svgContainer);
       // Wire toggle click → sequencer module
       const switchName = seqSwitchNames[idx];
       let switchState = switchName === 'runClock';  // runClock starts true
-      if (switchState) toggle.classList.add('active');
-      toggle.addEventListener('click', () => {
+      let leverGroup = null;
+      const updateLever = () => {
+        if (!leverGroup) return;
+        leverGroup.setAttribute('transform', switchState ? '' : 'translate(0,200) scale(1,-1)');
+      };
+      loadSvgInline('assets/knobs/toggle-switch.svg', svgContainer).then(({ svg, prefix }) => {
+        if (svg) {
+          leverGroup = svg.getElementById(`${prefix}toggle-lever`);
+          updateLever();
+        }
+      });
+      if (switchState) btn.classList.add('is-on');
+      btn.addEventListener('click', () => {
         switchState = !switchState;
-        toggle.classList.toggle('active', switchState);
+        btn.classList.toggle('is-on', switchState);
+        updateLever();
+        flashGlow(btn);
         this._sequencerModule?.setSwitch(switchName, switchState);
         sequencerOSCSync.sendSwitchChange(switchName, switchState);
       });
-      toggle.dataset.switchName = switchName;
-      sw.appendChild(toggle);
+      btn.dataset.switchName = switchName;
+      sw.appendChild(btn);
       switchRow.appendChild(sw);
     }
     seqContent.appendChild(switchRow);

@@ -6256,6 +6256,11 @@ body.render-performance .panel-inline-bg {
   width: 100%;
   height: 100%;
   display: block;
+  transition: transform 0.15s ease;
+}
+
+.panel7-seq-switch-toggle.active svg {
+  transform: rotate(180deg);
 }
 
 .panel7-sequencer-buttons {

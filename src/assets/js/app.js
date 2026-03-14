@@ -763,6 +763,7 @@ class App {
       // Wire toggle click → sequencer module
       const switchName = seqSwitchNames[idx];
       let switchState = switchName === 'runClock';  // runClock starts true
+      if (switchState) toggle.classList.add('active');
       toggle.addEventListener('click', () => {
         switchState = !switchState;
         toggle.classList.toggle('active', switchState);

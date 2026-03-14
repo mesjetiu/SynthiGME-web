@@ -317,13 +317,13 @@ class SequencerProcessor extends AudioWorkletProcessor {
   _stepCounter(direction) {
     if (direction > 0) {
       if (this._overflow) {
-        this.port.postMessage({ type: 'overflow', text: 'ofof' });
+        this.port.postMessage({ type: 'overflow', value: true });
         return;
       }
       if (this._counter >= MAX_EVENTS - 1) {
         // Counter ya está en 1023, siguiente step → overflow
         this._overflow = true;
-        this.port.postMessage({ type: 'overflow', text: 'ofof' });
+        this.port.postMessage({ type: 'overflow', value: true });
         return;
       }
       this._counter++;
@@ -639,7 +639,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'button':
-        this._handleButton(data.button);
+        this._handleButton(data.value);
         break;
 
       case 'setSwitch':
@@ -653,7 +653,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'setDormant':
-        this._dormant = !!data.dormant;
+        this._dormant = !!data.value;
         if (!this._dormant) {
           // Limpiar pulso residual de eventos fantasma durante dormancy
           this._clockPulseRemaining = 0;
@@ -727,7 +727,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
       case 'testOP':
         this._transportState = STATE_TEST_MODE;
         this._setTestOutputs();
-        this.port.postMessage({ type: 'testMode', text: 'CAll' });
+        this.port.postMessage({ type: 'testMode', value: true });
         break;
     }
   }

@@ -458,7 +458,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       const proc = new SequencerProcessor();
       proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
       proc.port.onmessage({ data: { type: 'setRunClock', value: true } });
-      proc.port.onmessage({ data: { type: 'setDormant', dormant: true } });
+      proc.port.onmessage({ data: { type: 'setDormant', value: true } });
 
       for (let block = 0; block < 20; block++) {
         const inputs = createInputs(8, 128);
@@ -476,7 +476,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
 
     test('process() retorna true durante dormancy', () => {
       const proc = new SequencerProcessor();
-      proc.port.onmessage({ data: { type: 'setDormant', dormant: true } });
+      proc.port.onmessage({ data: { type: 'setDormant', value: true } });
       const inputs = createInputs(8, 128);
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       assert.strictEqual(proc.process(inputs, outputs, {}), true);
@@ -486,7 +486,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       const proc = new SequencerProcessor();
       proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
       proc.port.onmessage({ data: { type: 'setRunClock', value: true } });
-      proc.port.onmessage({ data: { type: 'setDormant', dormant: true } });
+      proc.port.onmessage({ data: { type: 'setDormant', value: true } });
 
       // Avanzar el reloj internamente durante dormancy
       for (let block = 0; block < 50; block++) {
@@ -496,7 +496,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       }
 
       // Despertar
-      proc.port.onmessage({ data: { type: 'setDormant', dormant: false } });
+      proc.port.onmessage({ data: { type: 'setDormant', value: false } });
 
       let edgeCount = 0;
       for (let block = 0; block < 100; block++) {
@@ -524,7 +524,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         if (msg.type === 'tick') ticksDuringDormancy++;
       };
 
-      proc.port.onmessage({ data: { type: 'setDormant', dormant: true } });
+      proc.port.onmessage({ data: { type: 'setDormant', value: true } });
 
       // Procesar ~0.5s a 500 Hz → debería haber ~250 ticks
       const blocks = Math.ceil(SAMPLE_RATE * 0.5 / 128);
@@ -766,7 +766,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       processBlocks(proc, 50);
 
@@ -780,7 +780,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Clock medio (~7 Hz) para tener ticks controlados
       proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       processBlocks(proc, 375); // ~1s a 48kHz
 
@@ -802,7 +802,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       processBlocks(proc, 375);
 
@@ -816,7 +816,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       processBlocks(proc, 375);
 
@@ -841,7 +841,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Primero avanzar a posición 10
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 100);
 
       const forwardCount = msgs.filter(m => m.type === 'counter').length;
@@ -849,7 +849,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Cambiar a reverse
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'runReverse' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runReverse' } });
       processBlocks(proc, 100);
 
       const reverseValues = msgs
@@ -871,14 +871,14 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Avanzar un poco (3 posiciones)
       proc.port.onmessage({ data: { type: 'setClockRate', value: 5 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 200);
 
       const forwarded = msgs.filter(m => m.type === 'counter').length;
 
       // Revertir más de lo avanzado
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'runReverse' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runReverse' } });
       processBlocks(proc, 600);
 
       const reverseValues = msgs
@@ -908,7 +908,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 50);
 
       const beforeStop = msgs.filter(m => m.type === 'counter').length;
@@ -916,7 +916,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Stop
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
       processBlocks(proc, 100);
 
       const afterStop = msgs.filter(m => m.type === 'counter').length;
@@ -928,18 +928,18 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 50);
 
       const counters = msgs.filter(m => m.type === 'counter');
       const lastValue = counters[counters.length - 1].value;
 
       // Stop y luego resume
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
       processBlocks(proc, 20);
 
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 50);
 
       const resumed = msgs.filter(m => m.type === 'counter');
@@ -960,7 +960,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 50);
 
       const beforeReset = msgs.filter(m => m.type === 'counter');
@@ -968,7 +968,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Reset sequence
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
       processBlocks(proc, 50);
 
       // Debe haber un 'counter' con valor 0 (reset instantáneo)
@@ -986,11 +986,11 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 20);
 
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
 
       const resetMsg = msgs.find(m => m.type === 'reset');
       assert.ok(resetMsg, 'Debe enviar mensaje reset');
@@ -1010,11 +1010,11 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 50);
 
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'masterReset' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'masterReset' } });
       processBlocks(proc, 100);
 
       // Debe haber enviado un reset con 0000
@@ -1040,7 +1040,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       // En STOPPED
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const counterMsg = msgs.find(m => m.type === 'counter');
       assert.ok(counterMsg, 'stepForward debe generar un mensaje counter');
@@ -1059,12 +1059,12 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       // Avanzar a 3
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'stepReverse' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepReverse' } });
 
       const counterMsg = msgs.find(m => m.type === 'counter');
       assert.ok(counterMsg, 'stepReverse debe generar un mensaje counter');
@@ -1076,7 +1076,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       // En posición 0
-      proc.port.onmessage({ data: { type: 'button', button: 'stepReverse' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepReverse' } });
 
       const counterMsg = msgs.find(m => m.type === 'counter');
       assert.ok(counterMsg, 'stepReverse desde 0 debe enviar counter');
@@ -1088,7 +1088,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       for (let i = 0; i < 5; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       const values = msgs
@@ -1111,23 +1111,23 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Avanzar a 1022 con steps
       for (let i = 0; i < 1022; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       // Limpiar y avanzar 1 más → 1023
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       let last = msgs.find(m => m.type === 'counter');
       assert.strictEqual(last.value, 1023, 'Counter debe llegar a 1023');
       assert.strictEqual(last.text, '03ff', 'Hex de 1023 = 03ff');
 
       // Avanzar 1 más → overflow
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const overflowMsg = msgs.find(m => m.type === 'overflow');
       assert.ok(overflowMsg, 'Debe enviar mensaje overflow');
-      assert.strictEqual(overflowMsg.text, 'ofof', 'Overflow text = "ofof"');
+      assert.strictEqual(overflowMsg.value, true, 'Overflow value = true');
     });
 
     test('tras overflow, counter no incrementa más', () => {
@@ -1136,12 +1136,12 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Posicionarse en 1023
       for (let i = 0; i < 1023; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       // Intentar 5 steps más → solo overflow
       for (let i = 0; i < 5; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       const counters = msgs.filter(m => m.type === 'counter');
@@ -1155,11 +1155,11 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Llevar a overflow
       for (let i = 0; i < 1024; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
 
       const resetMsg = msgs.find(m => m.type === 'reset');
       assert.ok(resetMsg, 'Debe enviar reset');
@@ -1167,7 +1167,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Ahora debe poder avanzar de nuevo
       msgs.length = 0;
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       const counterMsg = msgs.find(m => m.type === 'counter');
       assert.strictEqual(counterMsg.value, 1, 'Tras resetSequence, puede avanzar');
     });
@@ -1185,7 +1185,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Avanzar a posición 5
       for (let i = 0; i < 5; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       msgs.length = 0;
@@ -1226,7 +1226,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
       // Primero avanzar a posición 10
       for (let i = 0; i < 10; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
@@ -1255,7 +1255,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 20);
 
       const before = msgs.filter(m => m.type === 'counter').length;
@@ -1287,7 +1287,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       proc.process(inputs1, outputs1, {});
 
       // Segundo bloque con input aún alto → no debe retriggear
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
       msgs.length = 0;
 
       const inputs2 = createInputs(8, 128);
@@ -1308,15 +1308,15 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
   describe('Test O/P', () => {
 
-    test('testOP envía mensaje testMode con text "CAll"', () => {
+    test('testOP envía mensaje testMode con value true', () => {
       const proc = new SequencerProcessor();
       const msgs = collectMessages(proc);
 
-      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'testOP' } });
 
       const testMsg = msgs.find(m => m.type === 'testMode');
       assert.ok(testMsg, 'Debe enviar testMode');
-      assert.strictEqual(testMsg.text, 'CAll');
+      assert.strictEqual(testMsg.value, true);
     });
 
     test('en testOP, counter no avanza', () => {
@@ -1324,7 +1324,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const msgs = collectMessages(proc);
 
       proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'testOP' } });
 
       processBlocks(proc, 100);
 
@@ -1336,8 +1336,8 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       const proc = new SequencerProcessor();
       const msgs = collectMessages(proc);
 
-      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'masterReset' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'testOP' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'masterReset' } });
 
       const resetMsg = msgs.find(m => m.type === 'reset');
       assert.ok(resetMsg, 'masterReset debe funcionar desde testOP');
@@ -1345,7 +1345,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
       // Tras masterReset, runForward debe funcionar
       msgs.length = 0;
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       processBlocks(proc, 50);
 
       const counters = msgs.filter(m => m.type === 'counter');
@@ -1455,7 +1455,7 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const msgs = collectMessages(proc);
 
       // Step forward sin haber grabado nada → debe leer evento vacío
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       // Procesar un bloque para que las salidas reflejen la posición
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
@@ -1483,18 +1483,18 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
 
       // Ir a posición 1 con runForward + input de voltaje
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       // Procesar con 3.5V en ACE y 2.0V en BDF
       proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
       const tickMsgs = advanceTicksWithInput(proc, 1, 3.5, 2.0, 0);
 
       // Ahora stop y leer la posición 1
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Volver a posición 1 y leer las salidas
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1514,12 +1514,12 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const msgs = collectMessages(proc);
 
       // Todos los switches OFF (default)
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 3, 5.0, 5.0, 5.0);
 
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1537,12 +1537,12 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'efKey3', value: true } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 5.0, 3.0, 0);
 
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1573,15 +1573,15 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       // Grabar 3.5V (exactamente la mitad de 7V → byte 128)
       advanceTicksWithInput(proc, 1, 3.5, 0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Leer de vuelta
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1599,7 +1599,7 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'cdKey2', value: true } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       // Posición 1: 0V
       advanceTicksWithInput(proc, 1, 0, 0, 0);
@@ -1607,18 +1607,18 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       // Posición 2: 7V (máximo)
       advanceTicksWithInput(proc, 1, 7.0, 7.0, 0);
 
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Leer posición 1 (0V)
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       let outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
       assert.strictEqual(outputs[0][CH_VOLTAGE_A][64], 0, '0V debe restaurarse exacto');
 
       // Leer posición 2 (7V)
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
 
@@ -1631,14 +1631,14 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       // Grabar 10V (fuera de rango)
       advanceTicksWithInput(proc, 1, 10.0, 0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1653,13 +1653,13 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       advanceTicksWithInput(proc, 1, -2.0, 0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1679,14 +1679,14 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
       proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: 5 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       // Key1 activo (>0.6V threshold)
       advanceTicksWithInput(proc, 1, 0, 0, 2.0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1701,14 +1701,14 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
       proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: 5 } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       // Key por debajo del umbral
       advanceTicksWithInput(proc, 1, 0, 0, 0.5);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1728,13 +1728,13 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
       // Solo switch B activo
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'b', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
 
       advanceTicksWithInput(proc, 1, 5.0, 3.0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1753,21 +1753,21 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
       // Primera pasada: grabar A+B con switch abKey1
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 5.0, 2.0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Segunda pasada: solo grabar B con valores diferentes
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: false } });
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'b', value: true } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 1.0, 6.0, 0); // BDF = 6V, ACE cambia pero A protegido
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Leer posición 0 (siempre grabada por el primer tick de cada pasada)
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1794,13 +1794,13 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 4.0, 0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Leer
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1824,15 +1824,15 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 7.0, 0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Knob a 5 (centro / unity) → salida ≈ 7V * (5/10) = 3.5V
       proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageA', value: 5 } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1846,14 +1846,14 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 7.0, 0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageA', value: 0 } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1866,15 +1866,15 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 0, 0, 2.0); // key activo
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Key1 knob = +5
       proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: 5 } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1887,15 +1887,15 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 1, 0, 0, 2.0); // key activo
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Key1 knob = -5
       proc.port.onmessage({ data: { type: 'setKnob', knob: 'key1', value: -5 } });
 
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
-      proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1914,7 +1914,7 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
     test('en testOP, todos los canales de voltaje salen a máximo', () => {
       const proc = new SequencerProcessor();
 
-      proc.port.onmessage({ data: { type: 'button', button: 'testOP' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'testOP' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1944,10 +1944,10 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       const proc = new SequencerProcessor();
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runForward' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
       advanceTicksWithInput(proc, 3, 5.0, 3.0, 2.0);
 
-      proc.port.onmessage({ data: { type: 'button', button: 'masterReset' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'masterReset' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -1970,20 +1970,20 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
       // Avanzar a posición 5
       for (let i = 0; i < 5; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
-      proc.port.onmessage({ data: { type: 'button', button: 'runReverse' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'runReverse' } });
 
       // Grabar con 4V en las posiciones 5→4→3
       advanceTicksWithInput(proc, 3, 4.0, 0, 0);
-      proc.port.onmessage({ data: { type: 'button', button: 'stop' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
       // Leer posición 3 (debería tener valor)
-      proc.port.onmessage({ data: { type: 'button', button: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
       for (let i = 0; i < 3; i++) {
-        proc.port.onmessage({ data: { type: 'button', button: 'stepForward' } });
+        proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
       }
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);

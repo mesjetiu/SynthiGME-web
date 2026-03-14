@@ -453,6 +453,54 @@ Módulo único.
 
 **Ejemplo:** `/SynthiGME/joy/1/positionX 0.5`
 
+### 20. Digital Sequencer 1000 (`/seq/...`)
+
+Secuenciador digital único. 11 knobs, 8 switches de grabación y 8 botones de transporte.
+
+**Knobs (float, continuo):**
+
+```
+/seq/clockRate          # 0 - 10 (frecuencia del clock interno, exponencial 0.1-500 Hz)
+/seq/voltageA           # 0 - 10 (nivel de salida pista A)
+/seq/voltageB           # 0 - 10 (nivel de salida pista B)
+/seq/voltageC           # 0 - 10 (nivel de salida pista C)
+/seq/voltageD           # 0 - 10 (nivel de salida pista D)
+/seq/voltageE           # 0 - 10 (nivel de salida pista E)
+/seq/voltageF           # 0 - 10 (nivel de salida pista F)
+/seq/key1               # -5 - 5 (nivel de salida key 1, bipolar)
+/seq/key2               # -5 - 5 (nivel de salida key 2, bipolar)
+/seq/key3               # -5 - 5 (nivel de salida key 3, bipolar)
+/seq/key4               # -5 - 5 (nivel de salida key 4, bipolar)
+```
+
+**Switches (int, 0|1):**
+
+```
+/seq/abKey1             # 0|1 (graba pistas A, B y Key 1)
+/seq/b                  # 0|1 (graba solo pista B)
+/seq/cdKey2             # 0|1 (graba pistas C, D y Key 2)
+/seq/d                  # 0|1 (graba solo pista D)
+/seq/efKey3             # 0|1 (graba pistas E, F y Key 3)
+/seq/f                  # 0|1 (graba solo pista F)
+/seq/key4Sw             # 0|1 (graba Key 4; dirección con sufijo Sw para evitar colisión con knob key4)
+/seq/runClock           # 0|1 (activa/desactiva el clock interno)
+```
+
+**Botones (trigger, sin valor):**
+
+```
+/seq/masterReset        # trigger (reset total: counter a 0, stop, limpia outputs)
+/seq/runForward         # trigger (inicia avance automático)
+/seq/runReverse         # trigger (inicia retroceso automático)
+/seq/stop               # trigger (detiene el transporte)
+/seq/resetSequence      # trigger (counter a 0 sin cambiar estado de transporte)
+/seq/stepForward        # trigger (avanza 1 posición)
+/seq/stepReverse        # trigger (retrocede 1 posición)
+/seq/testOP             # trigger (modo test: todas las salidas analógicas a máximo)
+```
+
+**Ejemplo:** `/SynthiGME/seq/clockRate 7.5`
+
 ---
 
 ## Mecanismo Anti-Loop

@@ -113,42 +113,42 @@ export default {
     voltageA: {
       min: 0,
       max: 10,
-      initial: 5,
+      initial: 0,
       curve: 'linear',
       label: 'Voltage A'
     },
     voltageB: {
       min: 0,
       max: 10,
-      initial: 5,
+      initial: 0,
       curve: 'linear',
       label: 'Voltage B'
     },
     voltageC: {
       min: 0,
       max: 10,
-      initial: 5,
+      initial: 0,
       curve: 'linear',
       label: 'Voltage C'
     },
     voltageD: {
       min: 0,
       max: 10,
-      initial: 5,
+      initial: 0,
       curve: 'linear',
       label: 'Voltage D'
     },
     voltageE: {
       min: 0,
       max: 10,
-      initial: 5,
+      initial: 0,
       curve: 'linear',
       label: 'Voltage E'
     },
     voltageF: {
       min: 0,
       max: 10,
-      initial: 5,
+      initial: 0,
       curve: 'linear',
       label: 'Voltage F'
     },

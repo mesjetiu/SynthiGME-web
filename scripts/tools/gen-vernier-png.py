@@ -114,9 +114,10 @@ def remove_counter_text(svg_file):
     """Elimina el texto del contador (se renderiza como DOM)."""
     tree = ET.parse(svg_file)
     root = tree.getroot()
-    # Buscar <text id="vd-counter"> en cualquier profundidad
+    # Buscar <text> con id que contenga 'counter' (vd-counter o counterDigit)
     for elem in root.iter(f'{{{NS}}}text'):
-        if elem.get('id', '').endswith('vd-counter'):
+        eid = elem.get('id', '')
+        if 'counter' in eid.lower():
             parent = None
             for p in root.iter():
                 if elem in list(p):

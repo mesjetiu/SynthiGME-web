@@ -152,7 +152,8 @@ export function createKnob(options = {}) {
     minAngle,
     maxAngle,
     steps,
-    stepLabels
+    stepLabels,
+    angleOffset
   } = options;
 
   // Crear elementos DOM
@@ -177,6 +178,7 @@ export function createKnob(options = {}) {
   if (maxAngle != null) knobOptions.maxAngle = maxAngle;
   if (steps) knobOptions.steps = steps;
   if (stepLabels) knobOptions.stepLabels = stepLabels;
+  if (angleOffset != null) knobOptions.angleOffset = angleOffset;
 
   // Crear instancia
   const knobInstance = new Knob(elements.knobEl, knobOptions);

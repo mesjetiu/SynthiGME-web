@@ -87,8 +87,8 @@ export class SequencerModule extends Module {
     // Valores actuales de controles
     this.values = {
       clockRate: 5,
-      voltageA: 5, voltageB: 5, voltageC: 5,
-      voltageD: 5, voltageE: 5, voltageF: 5,
+      voltageA: 0, voltageB: 0, voltageC: 0,
+      voltageD: 0, voltageE: 0, voltageF: 0,
       key1: 0, key2: 0, key3: 0, key4: 0
     };
 

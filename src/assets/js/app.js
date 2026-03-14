@@ -4608,6 +4608,7 @@ class App {
               initial: isBipolar ? 0.5 : 0,
               scaleMin: isBipolar ? -5 : 0,
               scaleMax: isBipolar ? 5 : 10,
+              angleOffset: isBipolar ? -150 : undefined,
               getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
               onChange: paramName ? (v) => {
                 const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
@@ -4697,6 +4698,9 @@ class App {
                 min: 0,
                 max: 1,
                 initial: isBipolar ? 0.5 : 0,
+                scaleMin: isBipolar ? -5 : 0,
+                scaleMax: isBipolar ? 5 : 10,
+                angleOffset: isBipolar ? -150 : undefined,
                 getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
                 onChange: paramName ? (v) => {
                   const dial = isBipolar ? (v - 0.5) * 10 : v * 10;

@@ -1582,8 +1582,10 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
    * Usa clock muy rápido y procesa suficientes bloques.
    */
   function advanceTicksWithInput(proc, numTicks, aceV, bdfV, keyV) {
-    // Clock a ~500Hz → ~93 samples/tick → ~1.4 bloques/tick
-    proc.port.onmessage({ data: { type: 'setClockRate', value: 10 } });
+    // Clock a ~91Hz → periodo ~527 samples → >4 bloques/tick.
+    // Rate 8 (no 10) para evitar que un solo bloque de 128 muestras
+    // contenga dos flancos de subida y produzca doble tick.
+    proc.port.onmessage({ data: { type: 'setClockRate', value: 8 } });
     const msgs = [];
     proc.port.postMessage = (msg) => msgs.push(msg);
 
@@ -1767,6 +1769,10 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
       proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
+      // Desactivar switches antes de navegar (stepForward graba si están activos)
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: false } });
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'cdKey2', value: false } });
+
       // Leer posición 1 (0V)
       proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
       proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
@@ -1924,8 +1930,12 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
       advanceTicksWithInput(proc, 1, 1.0, 6.0, 0); // BDF = 6V, ACE cambia pero A protegido
       proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
 
-      // Leer posición 0 (siempre grabada por el primer tick de cada pasada)
+      // Desactivar switches antes de navegar (stepForward graba si están activos)
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'b', value: false } });
+
+      // Leer posición 1 (counter avanza antes de grabar → datos en pos 1)
       proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
       proc.process(createInputs(8, 128), outputs, {});
@@ -2149,6 +2159,101 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
       const voltA = outputs[0][CH_VOLTAGE_A][64];
       assert.ok(voltA > 0, `Posición 3 debe tener valor grabado en reverse: ${voltA}`);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // SALIDA EN VIVO DURANTE GRABACIÓN (hardware: A/D → RAM → D/A en mismo tick)
+  // ─────────────────────────────────────────────────────────────────────
+
+  describe('Salida en vivo durante grabación', () => {
+
+    test('al grabar en run forward, la salida refleja el valor recién grabado', () => {
+      const proc = new SequencerProcessor();
+      const msgs = collectMessages(proc);
+
+      // Activar grabación A/B+Key1, knob voltageA al máximo (10)
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageA', value: 10 } });
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageB', value: 10 } });
+
+      // Run forward
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
+
+      // Grabar 1 tick con 3.5V en ACE, 2.0V en BDF
+      advanceTicksWithInput(proc, 1, 3.5, 2.0, 0);
+
+      // Capturar salidas del siguiente process (sin más ticks)
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      const inputs = createInputsWithVoltage(3.5, 2.0, 0);
+      proc.process(inputs, outputs, {});
+
+      // Las salidas deben reflejar el valor grabado (cuantizado DAC 8-bit)
+      // 3.5V → byte ~127 → ~3.49V. Con knob=10 → factor=1.0
+      const voltA = outputs[0][CH_VOLTAGE_A][64];
+      assert.ok(voltA > 3.0, `Voltage A salida debe reflejar ~3.5V grabado, obtenido: ${voltA}`);
+
+      const voltB = outputs[0][CH_VOLTAGE_B][64];
+      assert.ok(voltB > 1.5, `Voltage B salida debe reflejar ~2.0V grabado, obtenido: ${voltB}`);
+    });
+
+    test('step forward con grabación: graba en la nueva posición Y la salida lo refleja', () => {
+      const proc = new SequencerProcessor();
+
+      // Activar grabación, knobs al máximo
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageA', value: 10 } });
+
+      // Cargar input con 5V en ACE
+      const inputs5V = createInputsWithVoltage(5.0, 0, 0);
+      proc.process(inputs5V, createOutputs(TOTAL_OUTPUT_CHANNELS, 128), {});
+
+      // Step forward → debe avanzar a pos 1, grabar 5V allí, y salida = 5V
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
+
+      const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(inputs5V, outputs, {});
+
+      const voltA = outputs[0][CH_VOLTAGE_A][64];
+      assert.ok(voltA > 4.0, `Step forward debe grabar y reflejar ~5V, obtenido: ${voltA}`);
+    });
+
+    test('grabación en posición nueva, NO en posición antigua', () => {
+      const proc = new SequencerProcessor();
+
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: true } });
+      proc.port.onmessage({ data: { type: 'setKnob', knob: 'voltageA', value: 10 } });
+
+      // Procesar con 5V — aún no hay tick, counter en 0
+      const inputs5V = createInputsWithVoltage(5.0, 0, 0);
+      proc.process(inputs5V, createOutputs(TOTAL_OUTPUT_CHANNELS, 128), {});
+
+      // Run forward, hacer 1 tick con un voltage distinto (2V)
+      proc.port.onmessage({ data: { type: 'button', value: 'runForward' } });
+      advanceTicksWithInput(proc, 1, 2.0, 0, 0);
+      proc.port.onmessage({ data: { type: 'button', value: 'stop' } });
+
+      // Desactivar grabación antes de navegar (stepForward graba si switches activos)
+      proc.port.onmessage({ data: { type: 'setSwitch', switch: 'abKey1', value: false } });
+
+      // Ir a posición 0 y leer — NO debe tener el valor 5V ni el 2V
+      // (posición 0 no fue grabada durante run, solo la posición 1)
+      proc.port.onmessage({ data: { type: 'button', value: 'resetSequence' } });
+      const out0 = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), out0, {});
+      const voltA_pos0 = out0[0][CH_VOLTAGE_A][64];
+
+      // Ir a posición 1 y leer — SÍ debe tener ~2V
+      proc.port.onmessage({ data: { type: 'button', value: 'stepForward' } });
+      const out1 = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
+      proc.process(createInputs(8, 128), out1, {});
+      const voltA_pos1 = out1[0][CH_VOLTAGE_A][64];
+
+      assert.strictEqual(voltA_pos0, 0,
+        `Posición 0 no debe tener grabación (counter avanza ANTES de grabar)`);
+      assert.ok(voltA_pos1 > 1.5,
+        `Posición 1 debe tener ~2V grabado, obtenido: ${voltA_pos1}`);
     });
   });
 });

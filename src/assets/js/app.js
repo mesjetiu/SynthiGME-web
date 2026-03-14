@@ -843,23 +843,43 @@ class App {
     const clockRateColor = COLOR_MAP[clockRateColorName] || KNOB_BLACK;
     const clockRateType = sequencerUI.clockRateKnobType || 'normal';
 
-    let clockRateSvgSrc = 'assets/knobs/knob.svg';
-    if (clockRateType === 'bipolar') clockRateSvgSrc = 'assets/knobs/knob-0-center.svg';
-    else if (clockRateType === 'vernier') clockRateSvgSrc = 'assets/knobs/vernier-dial.svg';
-
-    const clockRateKnob = createKnob({
-      label: sequencerUI.clockRate?.label || 'Clock Rate',
-      size: sequencerUI.clockRate?.knobSize || 'sm',
-      centerColor: clockRateColor,
-      svgSrc: clockRateSvgSrc,
-      showValue: false,
-      initial: 0.5,
-      onChange: (v) => {
+    let clockRateKnob;
+    if (clockRateType === 'vernier') {
+      const elements = createVernierElements({ showValue: false });
+      const vernierSize = toNum(sequencerUI.clockRate?.knobSize === 'sm' ? 30 : 55, 30);
+      elements.knobEl.style.width = `${vernierSize}px`;
+      elements.knobEl.style.height = `${vernierSize}px`;
+      const knobInstance = new VernierKnob(elements.knobEl, {
+        min: 0, max: 1, initial: 0.5,
+        scaleMin: 0, scaleMax: 10,
+        pixelsForFullRange: 10000,
+        scaleDecimals: 1
+      });
+      knobInstance.onChange = (v) => {
         const dial = v * 10;
         this._sequencerModule?.setClockRate(dial);
         sequencerOSCSync.sendKnobChange('clockRate', dial);
-      }
-    });
+      };
+      clockRateKnob = { wrapper: elements.wrapper, knobInstance };
+    } else {
+      let clockRateSvgSrc = 'assets/knobs/knob.svg';
+      if (clockRateType === 'bipolar') clockRateSvgSrc = 'assets/knobs/knob-0-center.svg';
+
+      clockRateKnob = createKnob({
+        label: sequencerUI.clockRate?.label || 'Clock Rate',
+        size: sequencerUI.clockRate?.knobSize || 'sm',
+        centerColor: clockRateColor,
+        svgSrc: clockRateSvgSrc,
+        showValue: false,
+        initial: 0.5,
+        onChange: (v) => {
+          const dial = v * 10;
+          this._sequencerModule?.setClockRate(dial);
+          sequencerOSCSync.sendKnobChange('clockRate', dial);
+        }
+      });
+    }
+    this._sequencerKnobs.clockRate = clockRateKnob.knobInstance;
     clockRateKnob.wrapper.classList.add('panel7-seq-clock-knob');
     clockRateKnob.wrapper.dataset.knob = 'clockRate';
     applyOffset(clockRateKnob.wrapper, sequencerUI.clockRateKnobOffset || sequencerUI.clockRate?.knobOffset);

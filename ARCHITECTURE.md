@@ -496,6 +496,154 @@ Overdubbing: con switches selectivos se pueden grabar pistas individuales sin af
 - Externo: entrada por canal 0 (col 51 en Panel 5). El usuario debe parchear la salida de clock (fila 88) a la entrada de clock (col 51) para que el reloj interno avance el counter — igual que en el hardware real.
 - Detección: Schmitt trigger con histéresis (>1V arma, <0.5V rearma) y blanking de 0.5ms tras cada flanco para rechazar ringing de WaveShaper.
 
+#### Digital Sequencer 1000 — Funcionamiento
+
+Esta sección explica el comportamiento operativo del secuenciador paso a paso: cómo interactúan el reloj, el transporte, la grabación y la reproducción.
+
+##### Ciclo principal (por bloque de 128 muestras)
+
+El worklet ejecuta este ciclo en cada llamada a `process()`:
+
+```
+BLOQUE (128 muestras)
+│
+├─ Capturar entradas analógicas (muestra 127, última del bloque)
+│  └─ _lastInputACE, _lastInputBDF, _lastInputKey
+│
+├─ Para CADA una de las 128 muestras:
+│  ├─ _advanceClock(i)
+│  │  ├─ Decrementar contador interno del generador de reloj
+│  │  ├─ Si llega a 0 → generar pulso en canal 12 (5V, 5ms)
+│  │  └─ Detectar flanco en entrada de clock externo (col 51)
+│  │     └─ Si flanco detectado → _onTick()
+│  │
+│  ├─ _checkExternalTransport(i)
+│  │  └─ Detectar flancos en cols 52-55 (reset, forward, reverse, stop)
+│  │     └─ Cambiar estado de transporte según entrada
+│  │
+│  └─ Escribir pulso de clock en canal 12
+│     └─ output[12][i] = pulso > 0 ? 5.0V : 0.0V
+│
+├─ Rellenar canales de salida 0-11 con DC constante
+│  └─ output[ch].fill(_currentOutputs[ch])
+│
+└─ FIN BLOQUE
+```
+
+Latencia inherente: 128 muestras ÷ 48000 Hz = 2.67 ms por bloque.
+
+##### Qué ocurre en cada tick de reloj
+
+Cuando se detecta un flanco positivo en la entrada de clock (col 51), `_onTick()` ejecuta:
+
+```
+_onTick()
+├─ Si estado = RUNNING_FORWARD:
+│  ├─ 1. _stepCounter(+1)         ← counter avanza
+│  ├─ 2. _recordCurrentInputs()   ← A/D graba en nueva posición
+│  └─ 3. _updateOutputsFromEvent()← D/A lee de esa posición
+│
+├─ Si estado = RUNNING_REVERSE:
+│  ├─ 1. _stepCounter(-1)
+│  ├─ 2. _recordCurrentInputs()
+│  └─ 3. _updateOutputsFromEvent()
+│
+└─ Si estado = STOPPED o TEST_MODE:
+   └─ Sin acción (counter congelado)
+```
+
+El orden 1→2→3 replica el hardware Z80: el counter avanza **antes** de grabar, y las salidas reflejan inmediatamente el valor recién grabado (no el de la posición anterior).
+
+##### Counter y desbordamiento
+
+- **Rango**: 0–1023 (1024 posiciones).
+- **Avance adelante**: al llegar a 1023, se activa flag `overflow` y no avanza más.
+- **Avance atrás**: se clampea a 0 (nunca negativo).
+- **Display**: hexadecimal de 4 dígitos ("0000"–"03ff"). Si overflow → "ofof".
+- **Reset**: `masterReset` y `resetSequence` ponen counter=0 y borran overflow.
+
+##### Reloj: interno vs externo
+
+**Diseño clave**: el generador de reloj interno **solo produce pulsos** en el canal 12 (fila 88). No avanza el counter directamente. Para que el counter avance, el pulso debe llegar a la entrada de clock (col 51) — normalmente parcheando fila 88 × col 51 en la matriz.
+
+**Reloj interno:**
+```
+Frecuencia = 0.1 × 5000^(dial/10) Hz
+
+  dial 0  → 0.1 Hz   (1 pulso cada 10 seg)
+  dial 5  → 7.07 Hz  (~141 ms entre pulsos)
+  dial 10 → 500 Hz   (2 ms entre pulsos, máximo)
+```
+
+Pulso de 5V durante 5ms (o 50% del periodo si este es menor que 10ms). Controlado por el switch `runClock` — si está OFF, el generador de reloj se detiene pero el sequencer sigue respondiendo a clock externo.
+
+**Reloj externo:** cualquier señal parcheada a col 51. No necesita ser el reloj interno — puede ser un LFO, un envelope, la salida de otro secuenciador, etc.
+
+##### Detección de flancos: Schmitt trigger + blanking
+
+Todas las entradas externas (clock + 4 transportes) usan el mismo mecanismo:
+
+```
+Schmitt trigger con histéresis:
+  - Umbral alto: ≥1.0V → flanco detectado (trigger)
+  - Umbral bajo: <0.5V → rearme (se puede volver a detectar)
+  - Blanking: 0.5ms (24 muestras @ 48kHz) tras cada transición
+
+Ejemplo temporal:
+  │ señal
+  │     ╭──────╮
+  │    ╱│      │╲       ← flanco detectado aquí (≥1V)
+  │───╱─│──────│─╲──── 1.0V umbral alto
+  │  ╱  │      │  ╲
+  │─╱───│──────│───╲── 0.5V umbral bajo
+  │╱    │blanking │     ← rearme aquí (<0.5V)
+  └─────┴──────┴────── tiempo
+```
+
+El blanking de 0.5ms rechaza ringing de WaveShaper (típicamente 3-8 muestras) y evita falsos triggers.
+
+##### Botones de transporte
+
+| Botón | Acción | Efecto |
+|-------|--------|--------|
+| `runForward` | Estado → RUNNING_FORWARD | Counter avanza +1 por tick |
+| `runReverse` | Estado → RUNNING_REVERSE | Counter avanza −1 por tick |
+| `stop` | Estado → STOPPED | Counter congelado, salidas mantienen DC |
+| `masterReset` | Reset completo | Counter=0, estado=STOPPED, todas las salidas=0V |
+| `resetSequence` | Solo counter | Counter=0, estado sin cambiar (puede seguir corriendo) |
+| `stepForward` | Avance manual +1 | Funciona en cualquier estado, **graba** si switches activos |
+| `stepReverse` | Avance manual −1 | Funciona en cualquier estado, **graba** si switches activos |
+| `testOP` | Estado → TEST_MODE | Todas las salidas al máximo (7V / 5V keys), display "CAll" |
+
+Los botones `stepForward`/`stepReverse` ejecutan exactamente la misma secuencia que un tick de reloj: avanzar counter → grabar → actualizar salidas. Son independientes del estado de transporte.
+
+##### Sample & hold
+
+**Entradas**: se captura un único snapshot al final de cada bloque (muestra 127). Esto da una latencia máxima de un bloque (2.67ms) entre la entrada analógica y su grabación. El snapshot capturado se usa cuando el siguiente tick de reloj ejecuta `_recordCurrentInputs()`.
+
+**Salidas**: se mantienen como DC constante durante todo el bloque. Solo cambian cuando `_updateOutputsFromEvent()` las actualiza (en un tick o en un step). No hay interpolación entre posiciones — las transiciones son escalones instantáneos.
+
+##### Modo test (testOP)
+
+Al pulsar `testOP`:
+- Estado → TEST_MODE
+- Todas las salidas de voltaje (A–F) → 7.0V (máximo DAC)
+- Todas las salidas de key (1–4) → 5.0V (activas)
+- Display muestra "CAll"
+- Cualquier botón de transporte sale de TEST_MODE
+
+Se usa para diagnóstico: verificar que todas las salidas y conexiones funcionan.
+
+##### Dormancy (ahorro de CPU)
+
+Cuando el módulo entra en modo dormant:
+- El generador de reloj **sigue funcionando** internamente
+- Las entradas externas **siguen procesándose** (clock y transporte)
+- La grabación **sigue ocurriendo** si hay switches activos
+- Todas las **salidas se silencian** (0V en los 13 canales)
+
+Esto permite que el secuenciador mantenga su estado interno sin contribuir audio. Al despertar, las salidas reflejan inmediatamente la posición actual del counter.
+
 #### Output Channel Signal Chain (Cuenca/Datanomics 1982)
 
 La cadena de señal de los Output Channels sigue el diagrama técnico de la versión Cuenca/Datanomics 1982 del Synthi 100. El VCA se posiciona **antes** de los filtros, permitiendo re-entrada POST-fader a la matriz.

@@ -628,6 +628,25 @@ class App {
     // ── Inicializar módulo de audio del secuenciador ──────────────────────
     this._sequencerModule = new SequencerModule(this.engine, 'sequencer');
 
+    // Wire sequencer display callbacks (display digits were stored by _buildPanel4)
+    if (this._sequencerDisplay) {
+      const digits = this._sequencerDisplay;
+      const updateDisplay = (text) => {
+        const padded = (text || '0000').padStart(4, '0').slice(-4);
+        for (let i = 0; i < 4 && i < digits.length; i++) {
+          digits[i].textContent = padded[i];
+        }
+      };
+      this._sequencerModule.onCounterChange = (_value, text) => updateDisplay(text);
+      this._sequencerModule.onReset = (_value, text) => updateDisplay(text);
+      this._sequencerModule.onOverflow = (isOverflow) => {
+        if (isOverflow) updateDisplay('ofof');
+      };
+      this._sequencerModule.onTestMode = (active) => {
+        if (active) updateDisplay('CAll');
+      };
+    }
+
     // Switch names → worklet switch IDs mapping
     const seqSwitchNames = ['abKey1', 'b', 'cdKey2', 'd', 'efKey3', 'f', 'key4', 'runClock'];
     const seqButtonNames = ['masterReset', 'runForward', 'runReverse', 'stop', 'resetSequence', 'stepForward', 'stepReverse', 'testOP'];
@@ -3893,24 +3912,8 @@ class App {
     seqFrame.appendToContent(displayContainer);
 
     // Store display digits for sequencer counter updates
+    // NOTE: Callbacks are wired in _setupOutputFaders() after SequencerModule is created
     this._sequencerDisplay = bezel.querySelectorAll('.seq-event-time-display__value');
-    if (this._sequencerModule) {
-      const digits = this._sequencerDisplay;
-      const updateDisplay = (text) => {
-        const padded = (text || '0000').padStart(4, '0').slice(-4);
-        for (let i = 0; i < 4 && i < digits.length; i++) {
-          digits[i].textContent = padded[i];
-        }
-      };
-      this._sequencerModule.onCounterChange = (_value, text) => updateDisplay(text);
-      this._sequencerModule.onReset = (_value, text) => updateDisplay(text);
-      this._sequencerModule.onOverflow = (isOverflow) => {
-        if (isOverflow) updateDisplay('ofof');
-      };
-      this._sequencerModule.onTestMode = (active) => {
-        if (active) updateDisplay('CAll');
-      };
-    }
 
     applyModuleVisibility(seqEl, blueprint, 'sequencerEventTime');
     host.appendChild(seqEl);

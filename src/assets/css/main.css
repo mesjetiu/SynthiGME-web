@@ -6250,6 +6250,7 @@ body.render-performance .panel-inline-bg {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .panel7-seq-switch-toggle svg {

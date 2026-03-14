@@ -1332,8 +1332,7 @@ export function initViewportNavigation({ outer, inner } = {}) {
 
   function isInteractiveTarget(el) {
     if (!el) return false;
-    const selector = '.knob, .knob-inner, .pin-btn, .joystick-pad, .panel7-joystick-pad, .joystick-handle, .output-fader';
-    if (el.closest('[data-prevent-pan="true"]')) return true;
+    const selector = '.knob, .knob-inner, .knob-cap, .pin-btn, .joystick-pad, .panel7-joystick-pad, .joystick-handle, .output-fader, .slider, .fader, .switch, .toggle, [data-prevent-pan="true"]';
     return !!el.closest(selector);
   }
 

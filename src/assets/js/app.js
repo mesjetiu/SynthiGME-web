@@ -777,7 +777,8 @@ class App {
       sw.className = 'panel7-seq-switch';
       applyOffset(sw, sequencerUI.switchOffsets?.[idx]);
       const toggle = document.createElement('div');
-      toggle.className = 'panel7-seq-switch-toggle';
+      toggle.className = 'panel7-seq-switch-toggle toggle';
+      toggle.dataset.preventPan = 'true';
       loadSvgInline('assets/knobs/toggle-switch.svg', toggle);
       // Wire toggle click → sequencer module
       const switchName = seqSwitchNames[idx];
@@ -804,6 +805,7 @@ class App {
       const btn = document.createElement('button');
       btn.className = 'panel7-seq-button';
       btn.type = 'button';
+      btn.dataset.preventPan = 'true';
       applyOffset(btn, sequencerUI.buttonOffsets?.[idx]);
       // Wire button click → sequencer module
       const buttonName = seqButtonNames[idx];

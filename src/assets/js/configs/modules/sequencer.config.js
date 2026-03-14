@@ -85,7 +85,7 @@ export default {
     keyOnVoltage: 5,             // +5V cuando key está activa
     keyThreshold: 0.6,           // Umbral Schmitt trigger para grabar key
     externalClockMaxHz: 500,     // Máxima frecuencia clock externo (Z80)
-    externalClockThreshold: 0.1, // Voltaje normalizado mínimo para detectar pulso externo (≈1V real / 10V max)
+    externalClockThreshold: 1.0, // Umbral 1V (Schmitt trigger Z80, manual Synthi 100)
     clockPulseWidth: 0.005       // 5ms de ancho de pulso del clock
   },
 

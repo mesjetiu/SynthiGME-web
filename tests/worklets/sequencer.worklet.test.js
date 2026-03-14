@@ -28,6 +28,7 @@ const CH_DAC1 = 0;
 const CH_DAC2 = 1;
 const CH_VOLTAGE_A = 2;
 const CH_CLOCK = 12;              // Último canal: clock pulse
+const KEY_ON_VOLTAGE = 5;         // Amplitud TTL del pulso clock (5V)
 
 // Total de canales de salida
 const TOTAL_OUTPUT_CHANNELS = 13;
@@ -225,7 +226,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
 
   describe('Clock pulse generation', () => {
 
-    test('clock en canal 12, amplitud 1.0 durante ~5ms', () => {
+    test('clock en canal 12, amplitud 5V (TTL) durante ~5ms', () => {
       const proc = new SequencerProcessor();
       // Usar dial 7 (~50 Hz, periodo ~960 samples > pulse 240 samples)
       proc.port.onmessage({ data: { type: 'setClockRate', value: 7 } });
@@ -246,13 +247,13 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       // Buscar el primer flanco de subida
       let pulseStart = -1;
       for (let i = 1; i < allClock.length; i++) {
-        if (allClock[i] === 1.0 && allClock[i - 1] === 0.0) {
+        if (allClock[i] === KEY_ON_VOLTAGE && allClock[i - 1] === 0.0) {
           pulseStart = i;
           break;
         }
       }
       // Si empieza en sample 0, el pulso comienza ahí
-      if (pulseStart === -1 && allClock[0] === 1.0) {
+      if (pulseStart === -1 && allClock[0] === KEY_ON_VOLTAGE) {
         pulseStart = 0;
       }
 
@@ -261,7 +262,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       // Medir ancho del pulso
       let pulseWidth = 0;
       for (let i = pulseStart; i < allClock.length; i++) {
-        if (allClock[i] === 1.0) {
+        if (allClock[i] === KEY_ON_VOLTAGE) {
           pulseWidth++;
         } else {
           break;
@@ -272,7 +273,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         `Pulso clock debe tener ${expectedPulseSamples} samples, tiene ${pulseWidth}`);
     });
 
-    test('clock pulse valores solo {0.0, 1.0}', () => {
+    test('clock pulse valores solo {0.0, 5.0}', () => {
       const proc = new SequencerProcessor();
       proc.port.onmessage({ data: { type: 'setClockRate', value: 8 } });
       proc.port.onmessage({ data: { type: 'setRunClock', value: true } });
@@ -283,8 +284,8 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         proc.process(inputs, outputs, {});
 
         for (const sample of outputs[0][CH_CLOCK]) {
-          assert.ok(sample === 0.0 || sample === 1.0,
-            `Clock sample ${sample} debe ser 0.0 o 1.0`);
+          assert.ok(sample === 0.0 || sample === KEY_ON_VOLTAGE,
+            `Clock sample ${sample} debe ser 0.0 o ${KEY_ON_VOLTAGE}`);
         }
       }
     });
@@ -335,7 +336,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         proc.process(inputs, outputs, {});
         const clock = outputs[0][CH_CLOCK];
         for (let i = 1; i < 128; i++) {
-          if (clock[i] === 1.0 && clock[i - 1] === 0.0) {
+          if (clock[i] === KEY_ON_VOLTAGE && clock[i - 1] === 0.0) {
             edgeCount++;
           }
         }
@@ -517,7 +518,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         proc.process(inputs, outputs, {});
         const clock = outputs[0][CH_CLOCK];
         for (let i = 1; i < 128; i++) {
-          if (clock[i] === 1.0 && clock[i - 1] === 0.0) {
+          if (clock[i] === KEY_ON_VOLTAGE && clock[i - 1] === 0.0) {
             edgeCount++;
           }
         }
@@ -555,7 +556,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
         const inputs = createInputs(8, 128);
         const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
         proc.process(inputs, outputs, {});
-        if (outputs[0][CH_CLOCK].some(s => s === 1.0)) {
+        if (outputs[0][CH_CLOCK].some(s => s === KEY_ON_VOLTAGE)) {
           foundPulse = true;
           break;
         }
@@ -595,7 +596,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       assert.strictEqual(ticks, 1, 'Un flanco externo debe generar exactamente 1 tick');
     });
 
-    test('señal debajo del umbral (< 0.1V) no genera tick', () => {
+    test('señal debajo del umbral (< 1V) no genera tick', () => {
       const proc = new SequencerProcessor();
       proc.port.onmessage({ data: { type: 'setRunClock', value: false } });
 
@@ -605,9 +606,9 @@ describe('Sequencer Worklet — Import real (clock)', () => {
       };
 
       const inputs = createInputs(8, 128);
-      // Señal a 0.05V (debajo del umbral de 0.1V)
+      // Señal a 0.5V (debajo del umbral de 1V del Schmitt trigger Z80)
       for (let i = 0; i < 128; i++) {
-        inputs[0][0][i] = 0.05;
+        inputs[0][0][i] = 0.5;
       }
 
       const outputs = createOutputs(TOTAL_OUTPUT_CHANNELS, 128);
@@ -1392,7 +1393,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 // Constantes de grabación
 const ANALOG_VOLTAGE_RANGE = 7;         // 0-7V
 const ANALOG_RESOLUTION = 256;          // 8-bit → 0-255
-const KEY_ON_VOLTAGE = 5;               // +5V active state
+// KEY_ON_VOLTAGE ya definido al inicio del archivo (línea 31)
 const KEY_THRESHOLD = 0.6;              // Schmitt trigger
 
 // Índices de canales de salida

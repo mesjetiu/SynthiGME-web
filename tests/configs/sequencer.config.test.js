@@ -224,8 +224,8 @@ describe('Sequencer Config — Audio params', () => {
     assert.strictEqual(sequencerConfig.audio.externalClockMaxHz, 500);
   });
 
-  it('umbral de detección clock externo 0.1V', () => {
-    assert.strictEqual(sequencerConfig.audio.externalClockThreshold, 0.1);
+  it('umbral de detección clock externo 1V (Schmitt trigger Z80)', () => {
+    assert.strictEqual(sequencerConfig.audio.externalClockThreshold, 1.0);
   });
 
   it('memoria total coherente: maxEvents × bytesPerEvent <= 8192', () => {

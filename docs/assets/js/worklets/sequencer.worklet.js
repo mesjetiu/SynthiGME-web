@@ -52,8 +52,8 @@ const CLOCK_FREQ_RATIO = CLOCK_MAX_FREQ / CLOCK_MIN_FREQ; // 5000
 /** Ancho del pulso clock en segundos */
 const CLOCK_PULSE_WIDTH = 0.005; // 5 ms
 
-/** Umbral de voltaje para detección de clock externo (Schmitt trigger) */
-const EXT_CLOCK_THRESHOLD = 0.1;
+/** Umbral de voltaje para detección de clock externo — 1V (Schmitt trigger del Z80) */
+const EXT_CLOCK_THRESHOLD = 1.0;
 
 /** Índice del canal de salida del clock */
 const CH_CLOCK = 12;
@@ -232,7 +232,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
       // Clock pulse output
       if (this._clockPulseRemaining > 0) {
-        clockChannel[i] = 1.0;
+        clockChannel[i] = KEY_ON_VOLTAGE;
         this._clockPulseRemaining--;
       } else {
         clockChannel[i] = 0.0;

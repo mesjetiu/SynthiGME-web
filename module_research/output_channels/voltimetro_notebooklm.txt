@@ -1,0 +1,31 @@
+Para implementar digitalmente los voltímetros de los canales de salida (*Output Channels*) de tu Synthi 100, aquí tienes el desglose técnico basado en los manuales y planos (especialmente el plano **D100-13 C1** de la placa *Quad Meter Amplifier* y el **D100-08 W1** de cableado de VCAs):
+
+### **1. Flujo de Señal y Punto de Toma**
+El voltímetro monitoriza la señal que sale de los **Output V.C.A.s (CEM 3330)**. Respecto a los controles del panel, el flujo es el siguiente:
+
+*   **Post-Fader:** El medidor está conectado directamente a la salida del VCA. Dado que el fader de 10K controla la ganancia de este VCA, el voltímetro **refleja la posición del fader** y la intensidad de la señal procesada.
+*   **Pre-Filter:** Según el diagrama de cableado, la toma para el medidor (Pin 27/14) se realiza **antes** de que la señal pase por el filtro de salida (el control *Output Filter* que va de *Low Pass* a *High Pass*). Por tanto, cambiar el timbre con el filtro no afectará a la lectura del medidor.
+*   **Pre-Mute:** La señal se envía a la placa del medidor (*Quad Meter PCB*) antes de llegar al interruptor de *Mute* (*OFF switch*). Esto permite monitorizar visualmente si hay señal en el canal incluso cuando está silenciado para el exterior.
+
+### **2. Modos de Operación (El Interruptor)**
+Como se ve en tu foto, el interruptor conmuta entre dos comportamientos lógicos distintos:
+
+#### **Posición "Signal Levels" (Hacia abajo)**
+*   **Función:** Mide señales de audio (A.C.).
+*   **Comportamiento:** El voltímetro actúa como un medidor de nivel convencional con el **cero a la izquierda**.
+*   **Procesamiento:** La señal pasa por un **circuito rectificador** dentro de la placa *Quad Meter Amp* (PC-13) para convertir la onda de audio en un voltaje variable positivo que el medidor pueda promediar.
+*   **Escala:** Se lee en la escala inferior de **0 a 10**. El nivel máximo de salida está calibrado para **+16 dBm**.
+
+#### **Posición "Control Voltages" (Hacia arriba)**
+*   **Función:** Mide voltajes de control lentos o estáticos (D.C.).
+*   **Comportamiento:** Se convierte en un medidor de **centro-cero**.
+*   **Procesamiento:** Se anula el rectificador y se aplica un sesgo (*bias*) para que, sin señal, la aguja se sitúe exactamente en la mitad de la escala (marcada como **0** en la escala superior).
+*   **Escala:** Se lee en la escala superior de **-5 a +5**. Es ideal para monitorizar voltajes bipolares provenientes del joystick, el generador aleatorio o el secuenciador.
+
+### **3. Notas para la Implementación Digital**
+Para que el comportamiento sea auténtico en tu simulación, considera estos detalles técnicos:
+
+*   **Balística de la aguja:** Los medidores originales son analógicos y tienen inercia física. Debes implementar un **suavizado (damping)** en el movimiento de la aguja para que no reaccione instantáneamente a los picos de audio, sino que tenga un ligero "arrastre" tanto al subir como al bajar.
+*   **Calibración D.C.:** En el código, cuando el interruptor esté en *Control*, el valor de entrada 0V debe mapearse al píxel central de la escala. El rango detectado suele ser de **±5V** o **±10V**, dependiendo de la calibración interna (el DVM del sistema lee hasta ±9.999V).
+*   **Rectificación A.C.:** En modo *Signal*, debes calcular el valor absoluto de la señal (`abs(signal)`) y aplicarle un filtro de paso bajo muy agresivo para obtener la **envolvente de amplitud** que moverá la aguja.
+*   **Componentes:** El circuito físico utiliza seguidores de voltaje para no cargar la señal de audio y asegurar que el medidor no introduzca distorsión en la salida.

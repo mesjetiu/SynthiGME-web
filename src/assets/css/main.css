@@ -2936,6 +2936,61 @@ body.render-performance .panel-inline-bg {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   VOLTMETER — Medidor analógico de aguja para Output Channels
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.voltmeter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.voltmeter__dial {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: block;
+}
+
+.voltmeter__needle {
+  transition: none;
+  filter: drop-shadow(0 0 2px rgba(255, 50, 0, 0.6));
+}
+
+.voltmeter__scale-text {
+  font-family: var(--font-synthi, 'Eurostile', monospace);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Toggle dentro del voltímetro: más compacto */
+.voltmeter .synth-toggle {
+  gap: 3px;
+  font-size: 8px;
+}
+
+.voltmeter .synth-toggle__svg-container {
+  width: 16px;
+  height: 26px;
+}
+
+/* Panel 4 voltmeter: contenido a toda altura */
+.panel4-voltmeter .synth-module__content {
+  padding: 2px;
+  flex-direction: column;
+}
+
+.panel4-voltmeter .synth-module__controls {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    OSCILLOSCOPE MODULE — Estilos específicos del osciloscopio
    ═══════════════════════════════════════════════════════════════════════════ */
 

@@ -81,6 +81,7 @@ import { OscilloscopeDisplay } from './ui/oscilloscopeDisplay.js';
 import { ModuleFrame } from './ui/moduleFrame.js';
 import { Toggle } from './ui/toggle.js';
 import { RotarySwitch } from './ui/rotarySwitch.js';
+import { Voltmeter } from './ui/voltmeter.js';
 import { Knob } from './ui/knob.js';
 import { createKnob } from './ui/knobFactory.js';
 import { createVernierElements, VernierKnob } from './ui/vernierKnob.js';
@@ -1763,6 +1764,24 @@ class App {
         });
       }
       
+      // ─────────────────────────────────────────────────────────────────────
+      // CONECTAR VOLTÍMETROS A NODOS POST-VCA DE OUTPUT CHANNELS
+      // ─────────────────────────────────────────────────────────────────────
+      // Cada voltímetro monitoriza la señal post-VCA, pre-filtro, pre-mute
+      // del bus de salida correspondiente (fiel al circuito Quad Meter Amp).
+      // ─────────────────────────────────────────────────────────────────────
+      if (this._panel4Data?.voltmeters) {
+        const vms = this._panel4Data.voltmeters;
+        for (let i = 0; i < 8; i++) {
+          const vm = vms[`voltmeter${i + 1}`];
+          const bus = this.engine.outputBuses[i];
+          if (vm && bus?.postVcaNode) {
+            vm.connect(bus.postVcaNode);
+          }
+        }
+        log.info(' Voltmeters connected to output bus postVCA nodes');
+      }
+      
       // Aplicar ruteo inicial después de start
       log.info(' Applying saved audio routing to engine...');
       const result = this.audioSettingsModal.applyRoutingToEngine((busIndex, channelGains) => {
@@ -2040,6 +2059,14 @@ class App {
       };
     }
     
+    // Serializar voltímetros (modo signal/control)
+    if (this._panel4Data?.voltmeters) {
+      state.modules.voltmeters = {};
+      for (const [id, vm] of Object.entries(this._panel4Data.voltmeters)) {
+        state.modules.voltmeters[id] = vm.serialize();
+      }
+    }
+    
     return state;
   }
   
@@ -2210,6 +2237,14 @@ class App {
         const mode = data.mode === 'a' ? 'yt' : 'xy';
         if (display) display.setMode(mode);
         if (scopeModule?.setMode) scopeModule.setMode(mode);
+      }
+    }
+    
+    // Restaurar voltímetros (modo signal/control)
+    if (modules.voltmeters && this._panel4Data?.voltmeters) {
+      for (const [id, data] of Object.entries(modules.voltmeters)) {
+        const vm = this._panel4Data.voltmeters[id];
+        if (vm) vm.deserialize(data);
       }
     }
     
@@ -2406,6 +2441,13 @@ class App {
         const mode = scopeDefaults.mode === 'a' ? 'yt' : 'xy';
         if (display) display.setMode(mode);
         if (scopeModule?.setMode) scopeModule.setMode(mode);
+      }
+    }
+    
+    // Resetear voltímetros a modo Signal (por defecto)
+    if (this._panel4Data?.voltmeters) {
+      for (const vm of Object.values(this._panel4Data.voltmeters)) {
+        vm.deserialize({ mode: 'signal' });
       }
     }
     
@@ -4051,6 +4093,7 @@ class App {
     host.appendChild(voltmetersRow);
 
     const voltmeterFrames = {};
+    const voltmeters = {};
     for (let i = 1; i <= vmLayout.count; i++) {
       const vmId = `voltmeter${i}`;
       const frame = new ModuleFrame({
@@ -4061,9 +4104,17 @@ class App {
       const el = frame.createElement();
       el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
 
+      // Crear voltímetro funcional dentro del frame
+      const vm = new Voltmeter({
+        id: vmId,
+        channelIndex: i - 1
+      });
+      frame.appendToContent(vm.createElement());
+
       applyModuleVisibility(el, blueprint, vmId);
       voltmetersRow.appendChild(el);
       voltmeterFrames[vmId] = frame;
+      voltmeters[vmId] = vm;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -4858,6 +4909,7 @@ class App {
       host,
       voltmetersRow,
       voltmeterFrames,
+      voltmeters,
       seqFrame,
       korRow,
       korFrames

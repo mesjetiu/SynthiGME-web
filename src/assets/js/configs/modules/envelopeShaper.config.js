@@ -102,6 +102,14 @@ export default {
     // ─── Trigger/Gate ─────────────────────────────────────────────────
     // Umbral de detección de gate/trigger: >1V
     triggerThresholdV: 1.0,
+    // Umbral ALTO normalizado: 1V / 4V = 0.25 digital
+    gateThreshold: 0.25,
+    // Umbral BAJO Schmitt trigger (histéresis): 0.5V → 0.125 digital
+    gateLowThreshold: 0.125,
+    // Blanking de Schmitt trigger (s): protección contra ringing
+    gateBlankingTime: 0.0005,
+    // Base logarítmica para curva de Signal Level (10K LOG pot)
+    logBase: 100,
     // Duración mínima recomendada de trigger: 20ms
     triggerMinPulseMs: 20,
 

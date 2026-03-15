@@ -57,6 +57,7 @@
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { keyboardConfig } from '../configs/index.js';
 
 const log = createLogger('KeyboardModule');
 
@@ -117,7 +118,13 @@ export class KeyboardModule extends Module {
       this.workletNode = new AudioWorkletNode(ctx, 'keyboard', {
         numberOfInputs: 0,
         numberOfOutputs: 1,
-        outputChannelCount: [3]
+        outputChannelCount: [3],
+        processorOptions: {
+          pivotNote:          keyboardConfig.audio?.pivotNote,
+          spreadUnity:        keyboardConfig.audio?.spreadUnity,
+          semitonesPerOctave: keyboardConfig.audio?.semitonesPerOctave,
+          retriggerGapMs:     keyboardConfig.audio?.retriggerGapMs
+        }
       });
       attachProcessorErrorHandler(this.workletNode, 'keyboard');
 

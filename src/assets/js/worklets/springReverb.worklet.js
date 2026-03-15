@@ -17,17 +17,18 @@
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CONSTANTES (según mediciones del hardware PC-16)
+// DEFAULTS (overridable via processorOptions from reverberation.config.js)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const SPRING1_DELAY_MS = 35;
-const SPRING2_DELAY_MS = 40;
-const TOTAL_DELAY_S = (SPRING1_DELAY_MS + SPRING2_DELAY_MS) / 1000;
-const MAX_REVERB_TIME_S = 2.4;
-const DAMPING_FREQ_HZ = 4500;
-const ALLPASS_COEFF = 0.65;
-const INPUT_CLIP_DRIVE = 1.5;
-const MIX_CV_SCALE = 5;   // ±2V cubre rango completo → 2 * 5 = 10 dial units
+const DEFAULTS = {
+  spring1DelayMs:  35,
+  spring2DelayMs:  40,
+  maxReverbTimeS:  2.4,
+  dampingFreqHz:   4500,
+  allpassCoeff:    0.65,
+  inputClipDrive:  1.5,
+  mixCVScale:      5     // ±2V cubre rango completo → 2 * 5 = 10 dial units
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -44,16 +45,16 @@ function delaySamples(delayMs) {
  * Calcula el feedback gain para RT60 dado.
  * @returns {number} gain < 1 garantizado
  */
-function calcFeedbackGain() {
-  return Math.pow(10, -3 * TOTAL_DELAY_S / MAX_REVERB_TIME_S);
+function calcFeedbackGain(totalDelayS, maxReverbTimeS) {
+  return Math.pow(10, -3 * totalDelayS / maxReverbTimeS);
 }
 
 /**
  * Calcula coeficiente de damping LPF de 1 polo.
  * @returns {number} coeff ∈ (0, 1)
  */
-function calcDampingCoeff() {
-  return 1 - Math.exp(-2 * Math.PI * DAMPING_FREQ_HZ / sampleRate);
+function calcDampingCoeff(dampingFreqHz) {
+  return 1 - Math.exp(-2 * Math.PI * dampingFreqHz / sampleRate);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -74,20 +75,31 @@ class SpringReverbProcessor extends AudioWorkletProcessor {
     ];
   }
 
-  constructor() {
+  constructor(options) {
     super();
 
-    // Estado DSP
-    this._feedbackGain = calcFeedbackGain();
-    this._dampCoeff = calcDampingCoeff();
+    // Config from processorOptions (reverberation.config.js)
+    const opts = options?.processorOptions ?? {};
+    const spring1DelayMs = opts.spring1DelayMs ?? DEFAULTS.spring1DelayMs;
+    const spring2DelayMs = opts.spring2DelayMs ?? DEFAULTS.spring2DelayMs;
+    const maxReverbTimeS = opts.maxReverbTimeS ?? DEFAULTS.maxReverbTimeS;
+    const dampingFreqHz  = opts.dampingFreqHz  ?? DEFAULTS.dampingFreqHz;
+    this._allpassCoeff   = opts.allpassCoeff   ?? DEFAULTS.allpassCoeff;
+    this._inputClipDrive = opts.inputClipDrive  ?? DEFAULTS.inputClipDrive;
+    this._mixCVScale     = opts.mixCVScale      ?? DEFAULTS.mixCVScale;
 
-    // Allpass 1 (muelle 35ms)
-    const len1 = delaySamples(SPRING1_DELAY_MS);
+    // Estado DSP
+    const totalDelayS = (spring1DelayMs + spring2DelayMs) / 1000;
+    this._feedbackGain = calcFeedbackGain(totalDelayS, maxReverbTimeS);
+    this._dampCoeff = calcDampingCoeff(dampingFreqHz);
+
+    // Allpass 1
+    const len1 = delaySamples(spring1DelayMs);
     this._ap1Buffer = new Float32Array(len1);
     this._ap1Index = 0;
 
-    // Allpass 2 (muelle 40ms)
-    const len2 = delaySamples(SPRING2_DELAY_MS);
+    // Allpass 2
+    const len2 = delaySamples(spring2DelayMs);
     this._ap2Buffer = new Float32Array(len2);
     this._ap2Index = 0;
 
@@ -147,24 +159,24 @@ class SpringReverbProcessor extends AudioWorkletProcessor {
         const rawInput = inChannel ? (inChannel[i] || 0) : 0;
 
         // Soft clip input (saturación del muelle)
-        const dryClipped = Math.tanh(rawInput * INPUT_CLIP_DRIVE);
+        const dryClipped = Math.tanh(rawInput * this._inputClipDrive);
 
         // Mix: dial + CV → normalizado [0, 1]
         const cv = mixCVValues.length > 1 ? mixCVValues[i] : (mixCVValues[0] ?? 0);
-        const combined = this._mixDial + cv * MIX_CV_SCALE;
+        const combined = this._mixDial + cv * this._mixCVScale;
         const mixNorm = Math.max(0, Math.min(1, combined / 10));
 
         // Allpass 1: input + feedback → delay
         const ap1Input = dryClipped + this._feedbackSample;
         const delayed1 = this._ap1Buffer[this._ap1Index];
-        const ap1Out = -ALLPASS_COEFF * ap1Input + delayed1;
-        this._ap1Buffer[this._ap1Index] = ap1Input + ALLPASS_COEFF * ap1Out;
+        const ap1Out = -this._allpassCoeff * ap1Input + delayed1;
+        this._ap1Buffer[this._ap1Index] = ap1Input + this._allpassCoeff * ap1Out;
         this._ap1Index = (this._ap1Index + 1) % this._ap1Buffer.length;
 
         // Allpass 2: cascada
         const delayed2 = this._ap2Buffer[this._ap2Index];
-        const ap2Out = -ALLPASS_COEFF * ap1Out + delayed2;
-        this._ap2Buffer[this._ap2Index] = ap1Out + ALLPASS_COEFF * ap2Out;
+        const ap2Out = -this._allpassCoeff * ap1Out + delayed2;
+        this._ap2Buffer[this._ap2Index] = ap1Out + this._allpassCoeff * ap2Out;
         this._ap2Index = (this._ap2Index + 1) % this._ap2Buffer.length;
 
         // Damping LPF de 1 polo

@@ -46,6 +46,7 @@
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { sequencerConfig } from '../configs/index.js';
 
 const log = createLogger('SequencerModule');
 
@@ -114,7 +115,18 @@ export class SequencerModule extends Module {
         numberOfOutputs: 1,
         outputChannelCount: [TOTAL_OUTPUT_CHANNELS],
         channelCount: TOTAL_INPUT_CHANNELS,
-        channelCountMode: 'explicit'
+        channelCountMode: 'explicit',
+        processorOptions: {
+          clockMinFreq:        sequencerConfig.audio?.clockMinFreq,
+          clockMaxFreq:        sequencerConfig.audio?.clockMaxFreq,
+          clockPulseWidth:     sequencerConfig.audio?.clockPulseWidth,
+          extClockThreshold:   sequencerConfig.audio?.extClockThreshold,
+          extClockLowThreshold: sequencerConfig.audio?.extClockLowThreshold,
+          extClockBlankingTime: sequencerConfig.audio?.extClockBlankingTime,
+          analogVoltageRange:  sequencerConfig.audio?.analogVoltageRange,
+          keyOnVoltage:        sequencerConfig.audio?.keyOnVoltage,
+          keyThreshold:        sequencerConfig.audio?.keyThreshold
+        }
       });
       attachProcessorErrorHandler(this.workletNode, 'sequencer');
 

@@ -62,6 +62,7 @@
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { randomVoltageConfig } from '../configs/index.js';
 
 const log = createLogger('RandomCVModule');
 
@@ -73,10 +74,10 @@ const log = createLogger('RandomCVModule');
 const DIGITAL_TO_VOLTAGE = 4.0;
 
 /** Voltaje pico de salida V1/V2 (±V) — plano D100-21 */
-const VOLTAGE_PEAK = 2.5;
+const VOLTAGE_PEAK = randomVoltageConfig.audio?.maxVoltage ?? 2.5;
 
 /** Voltaje pico del pulso Key (±V) — dial ±5 → ±5V */
-const KEY_VOLTAGE_PEAK = 5.0;
+const KEY_VOLTAGE_PEAK = randomVoltageConfig.audio?.keyMaxVoltage ?? 5.0;
 
 export class RandomCVModule extends Module {
   
@@ -178,7 +179,12 @@ export class RandomCVModule extends Module {
       this.workletNode = new AudioWorkletNode(ctx, 'random-cv', {
         numberOfInputs: 0,
         numberOfOutputs: 1,
-        outputChannelCount: [3]
+        outputChannelCount: [3],
+        processorOptions: {
+          minFreq:       randomVoltageConfig.audio?.minFreq,
+          maxFreq:       randomVoltageConfig.audio?.maxFreq,
+          keyPulseWidth: randomVoltageConfig.audio?.keyPulseWidth
+        }
       });
       attachProcessorErrorHandler(this.workletNode, 'random-cv');
       

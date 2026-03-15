@@ -84,9 +84,12 @@ export default {
     analogVoltageRange: 7,       // 0-7V DC por canal analógico
     keyOnVoltage: 5,             // +5V cuando key está activa
     keyThreshold: 0.6,           // Umbral Schmitt trigger para grabar key
-    externalClockMaxHz: 500,     // Máxima frecuencia clock externo (Z80)
-    externalClockThreshold: 1.0, // Umbral 1V (Schmitt trigger Z80, manual Synthi 100)
-    clockPulseWidth: 0.005       // 5ms de ancho de pulso del clock
+    clockMinFreq: 0.1,           // Frecuencia mínima del clock interno (Hz)
+    clockMaxFreq: 500,           // Frecuencia máxima del clock interno (Hz) — compatible Z80
+    clockPulseWidth: 0.005,      // 5ms de ancho de pulso del clock
+    extClockThreshold: 1.0,      // Umbral ALTO Schmitt trigger (V, 1V = 0.25 digital)
+    extClockLowThreshold: 0.5,   // Umbral BAJO Schmitt trigger (histéresis, unidades digitales)
+    extClockBlankingTime: 0.0005 // 0.5ms — protección contra ringing (s)
   },
 
   // ─────────────────────────────────────────────────────────────────────────

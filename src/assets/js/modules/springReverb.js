@@ -16,6 +16,7 @@
 import { Module, setParamSmooth } from '../core/engine.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
+import { reverberationConfig } from '../configs/index.js';
 
 const log = createLogger('SpringReverbModule');
 
@@ -74,6 +75,14 @@ export class SpringReverbModule extends Module {
       outputChannelCount: [1],
       parameterData: {
         mixControl: 0
+      },
+      processorOptions: {
+        spring1DelayMs: reverberationConfig.audio?.spring1DelayMs,
+        spring2DelayMs: reverberationConfig.audio?.spring2DelayMs,
+        maxReverbTimeS: reverberationConfig.audio?.maxReverbTimeS,
+        dampingFreqHz:  reverberationConfig.audio?.dampingFreqHz,
+        allpassCoeff:   reverberationConfig.audio?.allpassCoeff,
+        inputClipDrive: reverberationConfig.audio?.inputClipDrive
       }
     });
     attachProcessorErrorHandler(this.workletNode, `spring-reverb[${this.id}]`);

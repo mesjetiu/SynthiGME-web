@@ -26,30 +26,17 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES
+// DEFAULTS (overridable via processorOptions from envelopeShaper.config.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MIN_TIME_MS = 1;
-const MAX_TIME_MS = 20000;
-const TIME_RATIO = MAX_TIME_MS / MIN_TIME_MS; // 20000
-
-/** Umbral ALTO de gate/trigger: >1V → 0.25 normalizado (1V / 4V digital) */
-const GATE_THRESHOLD = 0.25;
-
-/**
- * Umbral BAJO de Schmitt trigger para gate: señal debe caer bajo este nivel
- * para considerar gate OFF. Emula histéresis del comparador TTL.
- * 0.125 = 0.5V real (0.125 × 4V/unidad digital).
- */
-const GATE_LOW_THRESHOLD = 0.125;
-
-/**
- * Período de blanking para Schmitt trigger de gate (segundos).
- * Protege contra ringing de alta frecuencia (WaveShaper oversample=2x)
- * en señales de gate que pasan por Output Channels.
- * 0.5ms = 24 samples a 48kHz.
- */
-const GATE_BLANKING_TIME = 0.0005; // 0.5ms
+const DEFAULTS = {
+  minTimeMs:        1,
+  maxTimeMs:        20000,
+  gateThreshold:    0.25,       // 1V / 4V digital
+  gateLowThreshold: 0.125,      // 0.5V / 4V digital
+  gateBlankingTime: 0.0005,     // 0.5ms
+  logBase:          100         // Signal Level curve (10K LOG pot)
+};
 
 // Modos de operación
 const MODE_GATED_FR  = 0;
@@ -66,17 +53,24 @@ const PHASE_DECAY   = 3;
 const PHASE_SUSTAIN = 4;
 const PHASE_RELEASE = 5;
 
-/** Base logarítmica para curva de Signal Level (10K LOG pot) */
-const LOG_BASE = 100;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // PROCESSOR
 // ─────────────────────────────────────────────────────────────────────────────
 
 class EnvelopeShaperProcessor extends AudioWorkletProcessor {
 
-  constructor() {
+  constructor(options) {
     super();
+
+    // ─── Config from processorOptions (envelopeShaper.config.js) ─────
+    const opts = options?.processorOptions ?? {};
+    this._minTimeMs        = opts.minTimeMs        ?? DEFAULTS.minTimeMs;
+    this._maxTimeMs        = opts.maxTimeMs        ?? DEFAULTS.maxTimeMs;
+    this._timeRatio        = this._maxTimeMs / this._minTimeMs;
+    this._gateThreshold    = opts.gateThreshold    ?? DEFAULTS.gateThreshold;
+    this._gateLowThreshold = opts.gateLowThreshold ?? DEFAULTS.gateLowThreshold;
+    this._gateBlankingTime = opts.gateBlankingTime ?? DEFAULTS.gateBlankingTime;
+    this._logBase          = opts.logBase          ?? DEFAULTS.logBase;
 
     // ─── Estado de la envolvente ────────────────────────────────────────
     this._phase = PHASE_IDLE;
@@ -131,7 +125,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
 
     // Calcular blanking samples (una sola vez)
     if (this._gateBlankingSamples === 0) {
-      this._gateBlankingSamples = Math.round(GATE_BLANKING_TIME * sampleRate);
+      this._gateBlankingSamples = Math.round(this._gateBlankingTime * sampleRate);
     }
 
     // Entrada de audio y gate externo
@@ -319,13 +313,13 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
 
     if (this._gateHigh) {
       // Gate está HIGH: necesita caer bajo LOW threshold para apagar
-      if (sample < GATE_LOW_THRESHOLD) {
+      if (sample < this._gateLowThreshold) {
         this._gateHigh = false;
         this._gateBlanking = this._gateBlankingSamples;
       }
     } else {
       // Gate está LOW: necesita superar HIGH threshold para encender
-      if (sample > GATE_THRESHOLD) {
+      if (sample > this._gateThreshold) {
         this._gateHigh = true;
         this._gateBlanking = this._gateBlankingSamples;
       }
@@ -345,7 +339,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
   _timeDialToSamples(dialValue) {
     const d = dialValue <= 0 ? 0 : dialValue;
     const normalized = d / 10;
-    const ms = MIN_TIME_MS * Math.pow(TIME_RATIO, normalized);
+    const ms = this._minTimeMs * Math.pow(this._timeRatio, normalized);
     return Math.round(ms * sampleRate / 1000);
   }
 
@@ -364,7 +358,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
   _signalLevelDialToGain(dialValue) {
     if (dialValue <= 0) return 0;
     const normalized = dialValue / 10;
-    const logGain = (Math.pow(LOG_BASE, normalized) - 1) / (LOG_BASE - 1);
+    const logGain = (Math.pow(this._logBase, normalized) - 1) / (this._logBase - 1);
     return logGain * 0.75 / 4.0;
   }
 

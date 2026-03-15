@@ -45,6 +45,7 @@
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { envelopeShaperConfig } from '../configs/index.js';
 
 const log = createLogger('EnvelopeShaperModule');
 
@@ -114,7 +115,15 @@ export class EnvelopeShaperModule extends Module {
         numberOfOutputs: 1,
         outputChannelCount: [2],
         channelCount: 2,
-        channelCountMode: 'explicit'
+        channelCountMode: 'explicit',
+        processorOptions: {
+          minTimeMs:        envelopeShaperConfig.audio?.minTimeMs,
+          maxTimeMs:        envelopeShaperConfig.audio?.maxTimeMs,
+          gateThreshold:    envelopeShaperConfig.audio?.gateThreshold,
+          gateLowThreshold: envelopeShaperConfig.audio?.gateLowThreshold,
+          gateBlankingTime: envelopeShaperConfig.audio?.gateBlankingTime,
+          logBase:          envelopeShaperConfig.audio?.logBase
+        }
       });
       attachProcessorErrorHandler(this.workletNode, 'envelope-shaper');
 

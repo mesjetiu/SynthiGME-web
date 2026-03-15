@@ -18,6 +18,7 @@
 import { Module, setParamSmooth } from '../core/engine.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
+import { ringModulatorConfig } from '../configs/index.js';
 
 const log = createLogger('RingModulatorModule');
 
@@ -82,7 +83,10 @@ export class RingModulatorModule extends Module {
     this.workletNode = new AudioWorkletNode(ctx, 'ring-modulator', {
       numberOfInputs: 2,
       numberOfOutputs: 1,
-      outputChannelCount: [1]
+      outputChannelCount: [1],
+      processorOptions: {
+        softClipThreshold: ringModulatorConfig.audio?.softClipThreshold
+      }
     });
     attachProcessorErrorHandler(this.workletNode, `ring-modulator[${this.id}]`);
 

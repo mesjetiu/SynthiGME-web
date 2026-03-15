@@ -26,23 +26,14 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES
+// DEFAULTS (overridable via processorOptions from randomVoltage.config.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Frecuencia mínima del reloj (Hz) — un evento cada 5 segundos */
-const MIN_FREQ = 0.2;
-
-/** Frecuencia máxima del reloj (Hz) — 50ms por evento */
-const MAX_FREQ = 20;
-
-/** Ratio entre max y min frecuencia (100x = ~6.6 octavas) */
-const FREQ_RATIO = MAX_FREQ / MIN_FREQ; // 100
-
-/** Ancho del pulso key en segundos */
-const KEY_PULSE_WIDTH = 0.005; // 5 ms
-
-/** Período mínimo absoluto (protección contra períodos negativos/cero) */
-const MIN_PERIOD = 1 / MAX_FREQ; // 0.05s
+const DEFAULTS = {
+  minFreq:       0.2,     // Hz — un evento cada 5 segundos
+  maxFreq:       20,      // Hz — 50ms por evento
+  keyPulseWidth: 0.005    // 5 ms
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROCESSOR
@@ -50,8 +41,16 @@ const MIN_PERIOD = 1 / MAX_FREQ; // 0.05s
 
 class RandomCVProcessor extends AudioWorkletProcessor {
   
-  constructor() {
+  constructor(options) {
     super();
+    
+    // ─── Config from processorOptions (randomVoltage.config.js) ────────
+    const opts = options?.processorOptions ?? {};
+    this._minFreq       = opts.minFreq       ?? DEFAULTS.minFreq;
+    this._maxFreq       = opts.maxFreq       ?? DEFAULTS.maxFreq;
+    this._freqRatio     = this._maxFreq / this._minFreq;
+    this._keyPulseWidth = opts.keyPulseWidth  ?? DEFAULTS.keyPulseWidth;
+    this._minPeriod     = 1 / this._maxFreq;
     
     // ─── Estado del reloj ──────────────────────────────────────────────
     
@@ -119,7 +118,7 @@ class RandomCVProcessor extends AudioWorkletProcessor {
     if (this._dormant) {
       // Calcular ancho de pulso key en samples (una sola vez)
       if (this._keyPulseSamples === 0) {
-        this._keyPulseSamples = Math.round(KEY_PULSE_WIDTH * sampleRate);
+        this._keyPulseSamples = Math.round(this._keyPulseWidth * sampleRate);
       }
       
       // El reloj avanza internamente, generando eventos "fantasma"
@@ -139,7 +138,7 @@ class RandomCVProcessor extends AudioWorkletProcessor {
     
     // Calcular ancho de pulso key en samples (una sola vez)
     if (this._keyPulseSamples === 0) {
-      this._keyPulseSamples = Math.round(KEY_PULSE_WIDTH * sampleRate);
+      this._keyPulseSamples = Math.round(this._keyPulseWidth * sampleRate);
     }
     
     // ─── Generación sample a sample ─────────────────────────────────
@@ -217,8 +216,8 @@ class RandomCVProcessor extends AudioWorkletProcessor {
     }
     
     // Clamp a período mínimo (protección contra períodos negativos)
-    if (jitteredPeriod < MIN_PERIOD) {
-      jitteredPeriod = MIN_PERIOD;
+    if (jitteredPeriod < this._minPeriod) {
+      jitteredPeriod = this._minPeriod;
     }
     
     return Math.round(jitteredPeriod * sampleRate);
@@ -241,7 +240,7 @@ class RandomCVProcessor extends AudioWorkletProcessor {
    */
   _meanDialToFreq(dialValue) {
     const normalized = (dialValue + 5) / 10; // 0..1
-    return MIN_FREQ * Math.pow(FREQ_RATIO, normalized);
+    return this._minFreq * Math.pow(this._freqRatio, normalized);
   }
   
   /**
@@ -282,7 +281,7 @@ class RandomCVProcessor extends AudioWorkletProcessor {
           // ya fue decidido por el umbral de disparo del UJT)
           const newBasePeriod = Math.max(
             Math.round(sampleRate / this._meanFreq),
-            Math.round(MIN_PERIOD * sampleRate)
+            Math.round(this._minPeriod * sampleRate)
           );
           const newRemaining = Math.round(newBasePeriod * (1 - fraction));
           this._samplesUntilNext = Math.max(0, newRemaining);

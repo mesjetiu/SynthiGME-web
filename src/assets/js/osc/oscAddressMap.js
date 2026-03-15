@@ -303,6 +303,14 @@ export const MODULE_PARAMETERS = {
     }
   },
 
+  // Pitch to Voltage Converter (único)
+  pvc: {
+    indexed: false,
+    parameters: {
+      range: { type: 'float', min: 0, max: 10 }
+    }
+  },
+
   // Digital Sequencer 1000 (único)
   seq: {
     indexed: false,

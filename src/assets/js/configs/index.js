@@ -27,6 +27,9 @@ export { default as sequencerConfig } from './modules/sequencer.config.js';
 // Teclados
 export { default as keyboardConfig } from './modules/keyboard.config.js';
 
+// Conversores
+export { default as pitchToVoltageConverterConfig } from './modules/pitchToVoltageConverter.config.js';
+
 // Módulos de control manual
 export { default as joystickConfig } from './modules/joystick.config.js';
 
@@ -60,6 +63,7 @@ import reverberationConfig from './modules/reverberation.config.js';
 import ringModulatorConfig from './modules/ringModulator.config.js';
 import envelopeShaperConfig from './modules/envelopeShaper.config.js';
 import sequencerConfig from './modules/sequencer.config.js';
+import pitchToVoltageConverterConfig from './modules/pitchToVoltageConverter.config.js';
 
 export default {
   oscillator: oscillatorConfig,
@@ -76,5 +80,6 @@ export default {
   reverberation: reverberationConfig,
   ringModulator: ringModulatorConfig,
   envelopeShaper: envelopeShaperConfig,
-  sequencer: sequencerConfig
+  sequencer: sequencerConfig,
+  pitchToVoltageConverter: pitchToVoltageConverterConfig
 };

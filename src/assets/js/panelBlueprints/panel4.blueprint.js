@@ -105,40 +105,25 @@ export default {
     // en la imagen de fondo del panel, no en el SVG. Por eso los
     // elementos de escala y ticks se ocultan por defecto.
     voltmeter: {
-      // ── Caja del voltímetro dentro del ModuleFrame ────────────────
-      // Esta es la caja que debes alinear contra la serigrafía del panel.
-      // Se posiciona de forma absoluta dentro del contenido del frame.
-      frame: {
-        left: 0,
-        top: 0,
-        width: '100%',
-        height: '100%',
-        overflow: 'visible',
-        debugBorderVisible: true,
-        debugBorderColor: 'rgba(255, 210, 0, 0.9)',
-        debugBorderWidth: 1,
-        debugBackground: 'transparent'
-      },
-
-      // ── Ventana visible del medidor ───────────────────────────────
-      // Permite mover y redimensionar la ventana interna que recorta
-      // la aguja. Puedes desplazarla y escalarla sin mover el toggle.
+      // ── Ventana visible del medidor (px absolutos) ────────────────
+      // Recorta y muestra la aguja. Posición absoluta dentro del
+      // contenido del ModuleFrame. Todos los valores en píxeles.
+      // Para mover el contenido (aguja, escala): ajustar viewBox.
+      // Para redimensionar la ventana: ajustar width/height.
       window: {
-        left: 0,
-        top: 0,
-        width: '100%',
-        height: 'calc(100% - 28px)',
+        left: 2,
+        top: 2,
+        width: 90,
+        height: 70,
         overflow: 'hidden',
-        debugBorderVisible: true,
-        debugBorderColor: 'rgba(0, 220, 255, 0.95)',
-        debugBorderWidth: 1,
-        debugBackground: 'transparent'
+        debugBorder: true,
+        debugBorderColor: 'cyan',
+        debugBorderWidth: 1
       },
 
-      // ── ViewBox y zoom ─────────────────────────────────────────────
-      // El viewBox define qué porción del SVG se ve en la ventana.
+      // ── ViewBox SVG — controla zoom y pan del contenido ────────────
       // Reducir width/height = zoom in; aumentar = zoom out.
-      // Mover x/y desplaza la vista (crop).
+      // Mover x/y = desplazar la vista (pan).
       viewBox: { x: 0, y: 0, width: 120, height: 75 },
 
       // ── Eje de la aguja (pivot) ────────────────────────────────────
@@ -205,13 +190,11 @@ export default {
         fill: '#8cf'
       },
 
-      // ── Toggle (interruptor de modo) ───────────────────────────────
+      // ── Toggle (interruptor de modo) ─────────────────────────────
+      // Centrado horizontalmente automático. top en px.
       toggle: {
-        left: '50%',
-        bottom: 0,
-        translateX: '-50%',
-        scale: 1,
-        offset: { x: 0, y: 0 }   // Ajuste fino adicional
+        top: 86,
+        scale: 1
       }
     },
 

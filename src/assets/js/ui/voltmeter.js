@@ -66,10 +66,6 @@ const TOOLTIP_AUTO_HIDE_MS = VM.tooltipAutoHideMs;
 const REFRESH_INTERVAL = VM.refreshInterval;
 const FFT_SIZE = VM.fftSize;
 
-function asCssLength(value) {
-  return typeof value === 'number' ? `${value}px` : String(value);
-}
-
 export class Voltmeter {
   /**
    * @param {Object} options
@@ -114,7 +110,6 @@ export class Voltmeter {
     const root = document.createElement('div');
     root.className = 'voltmeter';
     root.id = this.id;
-    this._applyFrameLayout(root);
 
     // ── SVG del medidor ──────────────────────────────────────────────
     const meterWindow = document.createElement('div');
@@ -156,52 +151,31 @@ export class Voltmeter {
     return root;
   }
 
-  _applyFrameLayout(root) {
-    const frame = BP.frame || {};
-    root.style.position = 'absolute';
-    root.style.left = asCssLength(frame.left ?? 0);
-    root.style.top = asCssLength(frame.top ?? 0);
-    root.style.width = asCssLength(frame.width ?? '100%');
-    root.style.height = asCssLength(frame.height ?? '100%');
-    root.style.overflow = frame.overflow ?? 'visible';
-    root.style.background = frame.debugBackground ?? 'transparent';
-    root.style.boxSizing = 'border-box';
-    root.style.border = frame.debugBorderVisible
-      ? `${frame.debugBorderWidth ?? 1}px dashed ${frame.debugBorderColor ?? 'rgba(255,255,0,0.7)'}`
-      : 'none';
-  }
-
   _applyWindowLayout(windowEl) {
     const win = BP.window || {};
     windowEl.style.position = 'absolute';
-    windowEl.style.left = asCssLength(win.left ?? 0);
-    windowEl.style.top = asCssLength(win.top ?? 0);
-    windowEl.style.width = asCssLength(win.width ?? '100%');
-    windowEl.style.height = asCssLength(win.height ?? '100%');
+    windowEl.style.left = `${win.left ?? 0}px`;
+    windowEl.style.top = `${win.top ?? 0}px`;
+    windowEl.style.width = `${win.width ?? 90}px`;
+    windowEl.style.height = `${win.height ?? 82}px`;
     windowEl.style.overflow = win.overflow ?? 'hidden';
-    windowEl.style.background = win.debugBackground ?? 'transparent';
-    windowEl.style.border = win.debugBorderVisible
-      ? `${win.debugBorderWidth ?? 1}px dashed ${win.debugBorderColor ?? 'rgba(0,220,255,0.95)'}`
+    windowEl.style.boxSizing = 'border-box';
+    windowEl.style.border = win.debugBorder
+      ? `${win.debugBorderWidth ?? 1}px solid ${win.debugBorderColor ?? 'cyan'}`
       : 'none';
-    windowEl.style.pointerEvents = 'none';
   }
 
   _applyToggleLayout(toggleEl) {
     const toggle = BP.toggle || {};
-    const offset = toggle.offset || { x: 0, y: 0 };
     toggleEl.style.position = 'absolute';
-    if (toggle.left != null) toggleEl.style.left = asCssLength(toggle.left);
-    if (toggle.right != null) toggleEl.style.right = asCssLength(toggle.right);
-    if (toggle.top != null) toggleEl.style.top = asCssLength(toggle.top);
-    if (toggle.bottom != null) toggleEl.style.bottom = asCssLength(toggle.bottom);
-
-    const transforms = [];
-    if (toggle.translateX) transforms.push(`translateX(${toggle.translateX})`);
-    if (toggle.translateY) transforms.push(`translateY(${toggle.translateY})`);
-    if (offset.x || offset.y) transforms.push(`translate(${offset.x}px, ${offset.y}px)`);
-    if (toggle.scale != null) transforms.push(`scale(${toggle.scale})`);
-    if (transforms.length > 0) toggleEl.style.transform = transforms.join(' ');
-    toggleEl.style.transformOrigin = 'center center';
+    toggleEl.style.left = '50%';
+    toggleEl.style.top = `${toggle.top ?? 0}px`;
+    const transforms = ['translateX(-50%)'];
+    if (toggle.scale != null && toggle.scale !== 1) {
+      transforms.push(`scale(${toggle.scale})`);
+    }
+    toggleEl.style.transform = transforms.join(' ');
+    toggleEl.style.transformOrigin = 'top center';
   }
 
   /**

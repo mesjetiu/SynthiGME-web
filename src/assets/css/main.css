@@ -2940,7 +2940,9 @@ body.render-performance .panel-inline-bg {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .voltmeter {
-  position: absolute;
+  position: relative;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
 }
 
@@ -2951,7 +2953,6 @@ body.render-performance .panel-inline-bg {
 
 .voltmeter__dial {
   width: 100%;
-  height: 100%;
   display: block;
 }
 

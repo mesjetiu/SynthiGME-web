@@ -328,6 +328,14 @@ export default {
     { colSynth: 64, dest: { kind: 'oscPWM', oscIndex: 5 } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PITCH TO VOLTAGE CONVERTER INPUT (columna 50)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Entrada de audio al convertidor pitch-a-voltaje (PC-25).
+    // La señal de audio se analiza para extraer la frecuencia fundamental
+    // y convertirla en voltaje de control DC (1V/Oct).
+    { colSynth: 50, dest: { kind: 'pitchToVoltageConverterInput' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // SEQUENCER CONTROL INPUTS (columnas 51-55)
     // ─────────────────────────────────────────────────────────────────────────
     // Entradas de control externo al secuenciador via señales de audio.

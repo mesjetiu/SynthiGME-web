@@ -143,8 +143,8 @@ describe('Panel 5 Blueprint - Sources', () => {
 
 describe('Panel 5 Blueprint - Destinations', () => {
 
-  it('tiene 54 destinos en total', () => {
-    assert.strictEqual(blueprint.destinations.length, 54);
+  it('tiene 55 destinos en total', () => {
+    assert.strictEqual(blueprint.destinations.length, 55);
   });
 
   it('tiene 12 oscSync', () => {
@@ -255,7 +255,7 @@ describe('Panel 5 Blueprint - Coherencia', () => {
     const validKinds = new Set(['oscSync', 'outputBus', 'oscilloscope', 'oscPWM',
       'oscFreqCV', 'outputLevelCV', 'filterLPInput', 'filterHPInput', 'reverbInput',
       'ringModInputA', 'ringModInputB', 'envelopeShaperSignalInput', 'envelopeShaperTriggerInput',
-      'sequencerControl']);
+      'sequencerControl', 'pitchToVoltageConverterInput']);
     for (const d of blueprint.destinations) {
       assert.ok(validKinds.has(d.dest.kind), `Kind inválido: ${d.dest.kind}`);
     }

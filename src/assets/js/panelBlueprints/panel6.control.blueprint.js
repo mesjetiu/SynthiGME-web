@@ -251,6 +251,13 @@ export default {
     { rowSynth: 120, source: { kind: 'joystick', side: 'right', axis: 'x' } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PITCH TO VOLTAGE CONVERTER (fila 121)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Salida de voltaje DC proporcional a la frecuencia fundamental detectada.
+    // 1V/Octava, referencia 440 Hz. Placa PC-25 (D100-25 C1).
+    { rowSynth: 121, source: { kind: 'pitchToVoltageConverter', output: 'voltage' } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // DIGITAL SEQUENCER 1000 (filas 100-110)
     // ─────────────────────────────────────────────────────────────────────────
     // 6 pistas analógicas (A-F, 0-7V DC, resolución 8-bit) agrupadas en

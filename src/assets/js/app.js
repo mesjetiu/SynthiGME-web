@@ -24,6 +24,7 @@ import { SpringReverbModule } from './modules/springReverb.js';
 import { RingModulatorModule } from './modules/ringModulator.js';
 import { EnvelopeShaperModule } from './modules/envelopeShaper.js';
 import { SequencerModule } from './modules/sequencerModule.js';
+import { PitchToVoltageConverterModule } from './modules/pitchToVoltageConverter.js';
 import { LargeMatrix } from './ui/largeMatrix.js';
 import { getSharedTooltip } from './ui/matrixTooltip.js';
 import { SGME_Oscillator } from './ui/sgmeOscillator.js';
@@ -70,7 +71,8 @@ import {
   reverberationConfig,
   ringModulatorConfig,
   envelopeShaperConfig,
-  sequencerConfig as sequencerModuleConfig
+  sequencerConfig as sequencerModuleConfig,
+  pitchToVoltageConverterConfig
 } from './configs/index.js';
 
 // Osciloscopio
@@ -127,7 +129,7 @@ import { init as initTelemetry, trackEvent as telemetryTrackEvent, setEnabled as
 import { perfMonitor } from './utils/perfMonitor.js';
 import { STORAGE_KEYS, isMobileDevice } from './utils/constants.js';
 import { initRenderMode } from './utils/gpuDetect.js';
-import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, getEnvelopeShaperTimeTooltipInfo, getEnvelopeShaperSustainTooltipInfo, getEnvelopeShaperEnvLevelTooltipInfo, getEnvelopeShaperSignalLevelTooltipInfo, getEnvelopeShaperModeTooltipInfo, getSequencerClockRateTooltipInfo, getSequencerVoltageLevelTooltipInfo, getSequencerKeyLevelTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
+import { getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo, getRandomCVMeanTooltipInfo, getRandomCVVarianceTooltipInfo, getRandomCVVoltageLevelTooltipInfo, getRandomCVKeyTooltipInfo, getKeyboardPitchSpreadTooltipInfo, getKeyboardVelocityTooltipInfo, getKeyboardGateTooltipInfo, getFilterFrequencyTooltipInfo, getFilterResponseTooltipInfo, getFilterLevelTooltipInfo, getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo, getEnvelopeShaperTimeTooltipInfo, getEnvelopeShaperSustainTooltipInfo, getEnvelopeShaperEnvLevelTooltipInfo, getEnvelopeShaperSignalLevelTooltipInfo, getEnvelopeShaperModeTooltipInfo, getSequencerClockRateTooltipInfo, getSequencerVoltageLevelTooltipInfo, getSequencerKeyLevelTooltipInfo, getPVCRangeTooltipInfo, showVoltageTooltip, showAudioTooltip, formatGain, formatVoltage } from './utils/tooltipUtils.js';
 import { initOSCLogWindow } from './ui/oscLogWindow.js';
 import { oscBridge } from './osc/oscBridge.js';
 import { oscillatorOSCSync } from './osc/oscOscillatorSync.js';
@@ -142,6 +144,7 @@ import { reverbOSCSync } from './osc/oscReverbSync.js';
 import { ringModOSCSync } from './osc/oscRingModSync.js';
 import { envelopeShaperOSCSync } from './osc/oscEnvelopeShaperSync.js';
 import { sequencerOSCSync } from './osc/oscSequencerSync.js';
+import pvcOSCSync from './osc/oscPitchToVoltageConverterSync.js';
 import { midiAccess } from './midi/midiAccess.js';
 import { midiLearnManager } from './midi/midiLearnManager.js';
 import { initMIDILearnOverlay } from './midi/midiLearnOverlay.js';
@@ -267,6 +270,8 @@ class App {
     this._sequencerDisplayUpdate = null; // 7-segment display update function
     this._keyboardModules = {};    // { upper: KeyboardModule, lower: KeyboardModule }
     this._keyboardKnobs = {};      // { upper: { pitchSpread, velocityLevel, gateLevel }, lower: ... }
+    this._pvcModule = null;        // PitchToVoltageConverterModule instance
+    this._pvcKnobs = {};           // { range: knobInstance }
     
     // Construir paneles
     this._buildPanel1();  // Filtros, Envelopes, RM, Reverb, Echo
@@ -295,6 +300,7 @@ class App {
     ringModOSCSync.init(this);
     envelopeShaperOSCSync.init(this);
     sequencerOSCSync.init(this);
+    pvcOSCSync.init(this);
     // Inicializar sincronización OSC para matrices (Panel 5 audio + Panel 6 control)
     matrixOSCSync.init(this);
 
@@ -2015,6 +2021,11 @@ class App {
         }
       }
     }
+
+    // Serializar PVC
+    if (this._pvcModule && typeof this._pvcModule.serialize === 'function') {
+      state.modules.pitchToVoltageConverter = this._pvcModule.serialize();
+    }
     
     // Serializar Output Faders
     if (this._outputFadersModule && typeof this._outputFadersModule.serialize === 'function') {
@@ -2208,6 +2219,18 @@ class App {
       }
     }
     
+    // Restaurar PVC
+    if (modules.pitchToVoltageConverter && this._pvcModule) {
+      this._pvcModule.deserialize(modules.pitchToVoltageConverter);
+      const pvcData = modules.pitchToVoltageConverter;
+      if (pvcData.range !== undefined && this._pvcKnobs.range) {
+        const rCfg = pitchToVoltageConverterConfig.knobs?.range || {};
+        const rMin = rCfg.min ?? 0;
+        const rMax = rCfg.max ?? 10;
+        this._pvcKnobs.range.setValue((pvcData.range - rMin) / (rMax - rMin));
+      }
+    }
+
     // Restaurar Output Faders
     if (modules.outputFaders && this._outputFadersModule && typeof this._outputFadersModule.deserialize === 'function') {
       this._outputFadersModule.deserialize(modules.outputFaders);
@@ -2419,6 +2442,14 @@ class App {
         this._resetKeyboardKnobs(side);
       }
     }
+
+    // Resetear PVC
+    if (this._pvcModule && typeof this._pvcModule.deserialize === 'function') {
+      this._pvcModule.deserialize(defaults.pitchToVoltageConverter);
+      if (this._pvcKnobs.range) {
+        this._pvcKnobs.range.resetToDefault();
+      }
+    }
     
     // Resetear Input Amplifiers
     if (this._inputAmplifierUIs) {
@@ -2613,6 +2644,9 @@ class App {
         gateLevel: keyboardConfig.knobs.gateLevel.initial,
         retrigger: keyboardConfig.switches.retrigger.initial
       },
+      pitchToVoltageConverter: {
+        range: pitchToVoltageConverterConfig.knobs.range.initial
+      },
       inputAmplifiers: {
         levels: Array(iaCount).fill(iaKnobs.level.initial)
       },
@@ -2715,6 +2749,10 @@ class App {
         for (const [side, mod] of Object.entries(this._keyboardModules || {})) {
           modules.push({ type: 'keyboard', id: `keyboard-${side}`, ui: mod });
         }
+        // PVC (knob en Panel 4, columna 1)
+        if (this._pvcModule) {
+          modules.push({ type: 'pitchToVoltageConverter', id: 'pvc', ui: this._pvcModule });
+        }
         break;
       }
     }
@@ -2792,6 +2830,10 @@ class App {
     }
     if (moduleId === 'lowerKeyboard-module' && this._keyboardModules?.lower) {
       return { type: 'keyboard', ui: this._keyboardModules.lower };
+    }
+    // Panel 4 PVC frame (DOM ID: pitchVoltageConverter-module)
+    if (moduleId === 'pitchVoltageConverter-module' && this._pvcModule) {
+      return { type: 'pitchToVoltageConverter', ui: this._pvcModule };
     }
     // Panel 4/7 sequencer frames (DOM IDs from ModuleFrame)
     const seqFrameIds = [
@@ -2884,6 +2926,16 @@ class App {
       if (typeof ui.deserialize === 'function') ui.deserialize(kbDefaults);
       const side = ui === this._keyboardModules?.upper ? 'upper' : 'lower';
       this._resetKeyboardKnobs(side);
+      return;
+    }
+
+    // PVC: reset audio module + UI knob
+    if (type === 'pitchToVoltageConverter') {
+      const pvcDefaults = defaults.pitchToVoltageConverter;
+      if (typeof ui.deserialize === 'function') ui.deserialize(pvcDefaults);
+      if (this._pvcKnobs.range) {
+        this._pvcKnobs.range.resetToDefault();
+      }
       return;
     }
 
@@ -3044,6 +3096,17 @@ class App {
       if (controlType === 'knob' && controlKey) {
         const side = moduleId.includes('upper') || moduleId === 'keyboard-upper' ? 'upper' : 'lower';
         const knobRef = this._keyboardKnobs[side]?.[controlKey];
+        if (knobRef && typeof knobRef.resetToDefault === 'function') {
+          knobRef.resetToDefault();
+        }
+      }
+      return;
+    }
+
+    // PVC: knob individual
+    if (type === 'pitchToVoltageConverter') {
+      if (controlType === 'knob' && controlKey) {
+        const knobRef = this._pvcKnobs[controlKey];
         if (knobRef && typeof knobRef.resetToDefault === 'function') {
           knobRef.resetToDefault();
         }
@@ -4369,8 +4432,12 @@ class App {
 
       for (const knobDef of subDef.knobs) {
         if (knobDef.type === 'vernier') {
-          const { wrapper } = createPanel4Vernier();
+          const { wrapper, knobInstance } = createPanel4Vernier();
           knobsContainer.appendChild(wrapper);
+          // Capturar vernier del PVC para wiring posterior
+          if (subDef.id === 'pitchVoltageConverter') {
+            this._pvcVernierInstance = knobInstance;
+          }
         } else {
           const knob = createPanel4Knob(knobDef);
           const stdSize = toNum(knobUI.standardKnobSize, 45);
@@ -4490,6 +4557,37 @@ class App {
       this.engine, 'panel4-keyboard-lower', 'lower',
       { ramps: { level: kbCfg.ramps?.level || 0.06 } }
     );
+
+    // ── Crear módulo de audio del PVC ───────────────────────────────────
+    const pvcCfg = pitchToVoltageConverterConfig;
+    this._pvcModule = new PitchToVoltageConverterModule(
+      this.engine, 'panel4-pvc',
+      { ramps: { level: pvcCfg.ramps?.level || 0.06 } }
+    );
+
+    // ── Conectar vernier del PVC al módulo de audio ─────────────────────
+    if (this._pvcVernierInstance) {
+      const pvcRangeCfg = pvcCfg.knobs?.range || {};
+      const rMin = pvcRangeCfg.min ?? 0;
+      const rMax = pvcRangeCfg.max ?? 10;
+      const rInitial = pvcRangeCfg.initial ?? 7;
+      const vernierInst = this._pvcVernierInstance;
+      const toScale = (v, mn, mx) => mn + v * (mx - mn);
+
+      vernierInst.value = (rInitial - rMin) / (rMax - rMin);
+      vernierInst.initialValue = vernierInst.value;
+      vernierInst.onChange = (value) => {
+        const scaleValue = toScale(value, rMin, rMax);
+        this._pvcModule.setRange(scaleValue);
+        if (!pvcOSCSync.isIgnoring) {
+          pvcOSCSync.sendChange('range', scaleValue);
+        }
+      };
+      vernierInst.tooltipLabel = 'Range';
+      vernierInst.getTooltipInfo = getPVCRangeTooltipInfo();
+      vernierInst._updateVisual();
+      this._pvcKnobs.range = vernierInst;
+    }
 
     // ── Conectar knobs/switches del Panel 4 a los módulos de teclado ────
     const kbKnobs = kbCfg.knobs || {};
@@ -7915,6 +8013,12 @@ class App {
           seqModule.start();
         }
         destNode = seqModule?.getInputNode?.(dest.controlType) ?? null;
+      } else if (dest.kind === 'pitchToVoltageConverterInput') {
+        const pvcModule = this._pvcModule;
+        if (pvcModule && !pvcModule.isStarted) {
+          pvcModule.start();
+        }
+        destNode = pvcModule?.getInputNode?.('audio') ?? null;
       }
       
       if (!destNode) {
@@ -8389,6 +8493,21 @@ class App {
         outNode = seqModule.getOutputNode(source.output);
         if (!outNode) {
           log.warn(` Sequencer output not available for: ${source.output}`);
+          return false;
+        }
+      } else if (source.kind === 'pitchToVoltageConverter') {
+        // Fuente: Pitch to Voltage Converter (voltage output)
+        const pvcModule = this._pvcModule;
+        if (!pvcModule) {
+          log.warn(' PVC module not initialized');
+          return false;
+        }
+        if (!pvcModule.isStarted) {
+          pvcModule.start();
+        }
+        outNode = pvcModule.getOutputNode(source.output);
+        if (!outNode) {
+          log.warn(` PVC output not available for: ${source.output}`);
           return false;
         }
       }

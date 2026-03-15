@@ -14,10 +14,34 @@
 //   Control Voltages (DC) — Escala -5..+5, centro-cero.
 //     Muestra voltaje DC bipolar directo (sin rectificación).
 //
+// ── Equivalencia de unidades (ref: D100-13 C1, D100-08 W1) ────────────
+//
+// Conversión fundamental: 1.0 unidad Web Audio ≡ 5.0V del Synthi 100.
+// Osciladores, LFOs, envelopes y CVs operan en rango ±1.0 float = ±5V.
+//
+// MODO SIGNAL LEVELS (AC):
+//   La aguja muestra el valor absoluto medio rectificado (0..1 → 0..10).
+//   El tooltip muestra valores INSTANTÁNEOS (sin inercia de aguja):
+//     Vp-p = peak_medido × 2 × 5V    (pico real del buffer × factor)
+//     dBm  = 10·log₁₀(Vrms² / 0.6)   (RMS real ref 600Ω)
+//     dBFS = 20·log₁₀(amplitud)       (ref digital: 1.0 = 0 dBFS)
+//
+// MODO CONTROL VOLTAGES (DC):
+//   Escala      Web Audio (float)    Hardware (Synthi 100)
+//   ──────      ─────────────────    ─────────────────────
+//   -5          -1.000               -5.000 V
+//   0            0.000                0.000 V (centro-cero)
+//   +5          +1.000               +5.000 V
+//
+//   Web Audio ±1.0 ya representa ±5V. Sin factor de conversión adicional.
+//   Los CV del Synthi 100 operan en rango ±5V (joystick, random,
+//   secuenciador, envelope shapers).
+//
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { Toggle } from './toggle.js';
 import { flashGlow } from './glowManager.js';
+import { showVoltageTooltip, showAudioTooltip, gainToDb } from '../utils/tooltipUtils.js';
 
 // ── Constantes ─────────────────────────────────────────────────────────────
 
@@ -33,10 +57,22 @@ const SMOOTHING_AC = 0.92;
 /** Smoothing para modo DC (respuesta más rápida) */
 const SMOOTHING_DC = 0.85;
 
-/** Voltaje máximo en modo DC (±5V) */
+/** Voltaje máximo en modo DC (±5V) — rango útil CV del Synthi 100 */
 const DC_MAX_VOLTAGE = 5.0;
 /** Nivel máximo en modo AC (escala 0-10, normalizado a 0-1) */
 const AC_MAX_LEVEL = 1.0;
+
+/**
+ * Factor de conversión: 1.0 unidad Web Audio = 5.0V del Synthi 100.
+ * Los osciladores, LFOs, envelopes y CVs operan en ±1.0 float = ±5V.
+ */
+const VOLTS_PER_UNIT = 5.0;
+
+/** Impedancia de referencia para dBm (600Ω, estándar de audio pro) */
+const DBM_REF_IMPEDANCE = 600;
+
+/** Autoocultado del tooltip (ms) */
+const TOOLTIP_AUTO_HIDE_MS = 4000;
 
 /** Intervalo de refresco del medidor (ms) ~30 FPS */
 const REFRESH_INTERVAL = 33;
@@ -59,6 +95,9 @@ export class Voltmeter {
     // Estado
     this._mode = 'signal';  // 'signal' (AC) o 'control' (DC)
     this._smoothedValue = 0;
+    this._rawValue = 0;
+    this._rawPeak = 0;
+    this._rawRms = 0;
     this._currentAngle = NEEDLE_ANGLE_MIN;
     this._animFrameId = null;
     this._intervalId = null;
@@ -73,6 +112,8 @@ export class Voltmeter {
     this._toggle = null;
     this._scaleSignal = null;
     this._scaleControl = null;
+    this._tooltip = null;
+    this._tooltipTimer = null;
   }
 
   /**
@@ -98,11 +139,19 @@ export class Voltmeter {
         this._mode = state === 'a' ? 'signal' : 'control';
         this._updateScaleVisibility();
         this._smoothedValue = 0;
+        this._rawValue = 0;
+        this._rawPeak = 0;
+        this._rawRms = 0;
         if (this.onChange) this.onChange(this._mode);
       }
     });
     const toggleEl = this._toggle.createElement();
     root.appendChild(toggleEl);
+
+    // ── Eventos de tooltip ────────────────────────────────────────────
+    root.addEventListener('pointerenter', () => this._showTooltip());
+    root.addEventListener('pointerleave', () => this._hideTooltip());
+    root.addEventListener('pointerdown', () => this._showTooltipWithAutoHide());
 
     this.element = root;
     return root;
@@ -352,6 +401,9 @@ export class Voltmeter {
     }
     this._timeDomainData = null;
     this._smoothedValue = 0;
+    this._rawValue = 0;
+    this._rawPeak = 0;
+    this._rawRms = 0;
     this._setNeedleAngle(this._mode === 'signal' ? NEEDLE_ANGLE_MIN : 0);
   }
 
@@ -381,29 +433,37 @@ export class Voltmeter {
 
     this._analyser.getFloatTimeDomainData(this._timeDomainData);
 
-    let targetValue;
-
-    if (this._mode === 'signal') {
-      // Modo AC: rectificador + envolvente (valor absoluto medio)
-      let sum = 0;
-      for (let i = 0; i < this._timeDomainData.length; i++) {
-        sum += Math.abs(this._timeDomainData[i]);
-      }
-      const avgAbs = sum / this._timeDomainData.length;
-      // Normalizar: escala 0-1 donde 1 = fondo de escala
-      targetValue = Math.min(avgAbs / AC_MAX_LEVEL, 1);
-    } else {
-      // Modo DC: voltaje medio bipolar
-      let sum = 0;
-      for (let i = 0; i < this._timeDomainData.length; i++) {
-        sum += this._timeDomainData[i];
-      }
-      const avgDC = sum / this._timeDomainData.length;
-      // Normalizar: -1 a +1 donde ±1 = ±5V
-      targetValue = Math.max(-1, Math.min(1, avgDC / DC_MAX_VOLTAGE));
+    // Recorrer buffer una sola vez para todas las métricas
+    const N = this._timeDomainData.length;
+    let sumAbs = 0;
+    let sumDC = 0;
+    let sumSq = 0;
+    let peak = 0;
+    for (let i = 0; i < N; i++) {
+      const s = this._timeDomainData[i];
+      const a = s < 0 ? -s : s;
+      sumAbs += a;
+      sumDC += s;
+      sumSq += s * s;
+      if (a > peak) peak = a;
     }
 
-    // Aplicar suavizado (balística de la aguja)
+    // Valores instantáneos para tooltip (sin smoothing de aguja)
+    this._rawPeak = peak;
+    this._rawRms = Math.sqrt(sumSq / N);
+
+    let targetValue;
+    if (this._mode === 'signal') {
+      // Modo AC: rectificador + envolvente (valor absoluto medio)
+      targetValue = Math.min(sumAbs / N / AC_MAX_LEVEL, 1);
+    } else {
+      // Modo DC: voltaje medio bipolar
+      // Web Audio ±1.0 ya representa ±5V del Synthi 100 — sin dividir
+      targetValue = Math.max(-1, Math.min(1, sumDC / N));
+    }
+    this._rawValue = targetValue;
+
+    // Balística de la aguja (smoothing para inercia visual)
     const smoothing = this._mode === 'signal' ? SMOOTHING_AC : SMOOTHING_DC;
     this._smoothedValue = this._smoothedValue * smoothing + targetValue * (1 - smoothing);
 
@@ -419,6 +479,156 @@ export class Voltmeter {
     }
 
     this._setNeedleAngle(angle);
+
+    // Actualizar tooltip si visible (lectura en tiempo real)
+    this._updateTooltip();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // TOOLTIP CON EQUIVALENCIAS DE UNIDADES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Calcula las equivalencias de unidades reales del valor actual.
+   *
+   * Usa valores instantáneos (_rawValue, _rawPeak, _rawRms), NO el valor
+   * suavizado de la aguja. La aguja tiene inercia (smoothing), pero el
+   * tooltip muestra la medición real sin inercia.
+   *
+   * Modo Signal (AC) — Referencia: Quad Meter Amplifier D100-13 C1
+   *   - Escala 0-10 del panel (lineal, rectificada)
+   *   - Vp-p: peak medido × 2 × VOLTS_PER_UNIT (pico real del buffer)
+   *   - dBm: 10·log₁₀(Vrms²/(600·0.001)) desde RMS real
+   *   - gain/dBFS: ganancia digital (0=silencio, 1=0 dBFS)
+   *
+   * Modo Control (DC) — Referencia: DVM sistema, rango ±5V
+   *   - Escala -5..+5 del panel (bipolar, centro-cero)
+   *   - V: voltaje real en la salida del bus (±5V)
+   *
+   * @returns {{ scaleValue: number, parts: string[] }}
+   */
+  getReadingInfo() {
+    const parts = [];
+    // Usar valores instantáneos (sin inercia de aguja) para tooltip
+    const raw = this._rawValue;
+
+    if (this._mode === 'signal') {
+      const scaleValue = raw * 10;
+
+      if (showAudioTooltip()) {
+        parts.push(gainToDb(raw));
+      }
+
+      if (showVoltageTooltip()) {
+        // Vp-p desde pico medido: peak × 2 × 5V/unidad
+        const vpp = (this._rawPeak * 2 * VOLTS_PER_UNIT).toFixed(1);
+        parts.push(`${vpp} Vp-p`);
+        // dBm desde RMS real (ref 600Ω)
+        if (this._rawRms > 0.001) {
+          const vrms = this._rawRms * VOLTS_PER_UNIT;
+          const dBm = 10 * Math.log10(vrms * vrms / (DBM_REF_IMPEDANCE * 0.001));
+          parts.push(`${dBm.toFixed(1)} dBm`);
+        }
+      }
+
+      return { scaleValue, parts };
+    } else {
+      const scaleValue = raw * DC_MAX_VOLTAGE;
+
+      if (showVoltageTooltip()) {
+        const sign = scaleValue >= 0 ? '+' : '';
+        parts.push(`${sign}${scaleValue.toFixed(2)} V`);
+      }
+
+      return { scaleValue, parts };
+    }
+  }
+
+  /**
+   * Genera el HTML del tooltip.
+   * @returns {string}
+   */
+  _generateTooltipContent() {
+    const { scaleValue, parts } = this.getReadingInfo();
+
+    // Línea principal: valor de escala
+    let mainText;
+    if (this._mode === 'signal') {
+      mainText = `${scaleValue.toFixed(1)} / 10`;
+    } else {
+      const sign = scaleValue >= 0 ? '+' : '';
+      mainText = `${sign}${scaleValue.toFixed(1)} / ±5`;
+    }
+
+    const extraInfo = parts.length > 0 ? parts.join(' · ') : null;
+    if (extraInfo) {
+      return `<div class="knob-tooltip__main">${mainText}</div>` +
+             `<div class="knob-tooltip__info">${extraInfo}</div>`;
+    }
+    return mainText;
+  }
+
+  /**
+   * Muestra el tooltip sobre el voltímetro.
+   */
+  _showTooltip() {
+    if (this._tooltip) return;
+    this._tooltip = document.createElement('div');
+    this._tooltip.className = 'knob-tooltip';
+    this._tooltip.innerHTML = this._generateTooltipContent();
+    document.body.appendChild(this._tooltip);
+    this._positionTooltip();
+    this._tooltip.offsetHeight; // reflow
+    this._tooltip.classList.add('is-visible');
+  }
+
+  /**
+   * Posiciona el tooltip encima del voltímetro.
+   */
+  _positionTooltip() {
+    if (!this._tooltip || !this.element) return;
+    const rect = this.element.getBoundingClientRect();
+    const tooltipRect = this._tooltip.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+    let top = rect.top - tooltipRect.height - 8;
+    if (left < 4) left = 4;
+    if (left + tooltipRect.width > window.innerWidth - 4) {
+      left = window.innerWidth - tooltipRect.width - 4;
+    }
+    if (top < 4) top = rect.bottom + 8;
+    this._tooltip.style.left = `${left}px`;
+    this._tooltip.style.top = `${top}px`;
+  }
+
+  /**
+   * Actualiza el contenido del tooltip si está visible.
+   */
+  _updateTooltip() {
+    if (this._tooltip) {
+      this._tooltip.innerHTML = this._generateTooltipContent();
+    }
+  }
+
+  /**
+   * Oculta y elimina el tooltip.
+   */
+  _hideTooltip() {
+    if (this._tooltipTimer) {
+      clearTimeout(this._tooltipTimer);
+      this._tooltipTimer = null;
+    }
+    if (!this._tooltip) return;
+    this._tooltip.remove();
+    this._tooltip = null;
+  }
+
+  /**
+   * Muestra tooltip con auto-encubierto (para interacciones táctiles).
+   */
+  _showTooltipWithAutoHide() {
+    this._showTooltip();
+    if (this._tooltipTimer) clearTimeout(this._tooltipTimer);
+    this._tooltipTimer = setTimeout(() => this._hideTooltip(), TOOLTIP_AUTO_HIDE_MS);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -454,6 +664,7 @@ export class Voltmeter {
    */
   dispose() {
     this.disconnect();
+    this._hideTooltip();
     this._toggle = null;
     this._needle = null;
     this.element = null;

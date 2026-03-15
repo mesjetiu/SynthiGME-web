@@ -122,7 +122,8 @@ export class Voltmeter {
     // ── Toggle CV/Signal ─────────────────────────────────────────────
     // Posición A (arriba) = CV (Control Voltages)
     // Posición B (abajo)  = Signal Levels
-    // Sin labels: están serigrafiados en el panel de fondo.
+    // Labels visuales vacíos (están serigrafiados en el panel de fondo).
+    // El tooltip se actualiza manualmente vía _updateToggleTitle().
     this._toggle = new Toggle({
       id: `${this.id}-toggle`,
       labelA: ' ',
@@ -403,10 +404,10 @@ export class Voltmeter {
    * Actualiza el title del toggle para mostrar el modo actual.
    */
   _updateToggleTitle() {
-    if (this._toggle?.element) {
-      this._toggle.element.title = this._mode === 'control'
-        ? 'Mode: CV'
-        : 'Mode: Signal';
+    if (this._toggle?._tooltip) {
+      this._toggle._tooltip.update(
+        this._mode === 'control' ? 'Mode: CV' : 'Mode: Signal'
+      );
     }
   }
 
@@ -714,6 +715,7 @@ export class Voltmeter {
       const toggleState = this._mode === 'control' ? 'a' : 'b';
       if (this._toggle) this._toggle.setState(toggleState);
       this._updateScaleVisibility();
+      this._updateToggleTitle();
     }
   }
 

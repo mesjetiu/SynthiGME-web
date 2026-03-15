@@ -12,6 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { flashGlow } from './glowManager.js';
+import { attachControlTooltip } from './tooltipManager.js';
 
 /** Imágenes raster del selector en sus dos estados */
 const ROTARY_IMG_A = 'assets/knobs/rotary-a.png';
@@ -36,6 +37,8 @@ export class RotarySwitch {
     this.element = null;
     /** @type {HTMLImageElement|null} @private */
     this._switchImg = null;
+    /** @type {{ update: (content: string) => void }|null} @private */
+    this._tooltip = null;
   }
 
   /**
@@ -127,9 +130,14 @@ export class RotarySwitch {
     this.element.setAttribute('data-state', this.state);
     this._updateImage();
     const currentLabel = this.state === 'a' ? this.labelA : this.labelB;
-    this.element.title = this.name
+    const tooltipText = this.name
       ? `${this.name}: ${currentLabel}`
       : currentLabel;
+    if (this._tooltip) {
+      this._tooltip.update(tooltipText);
+    } else {
+      this._tooltip = attachControlTooltip(this.element, tooltipText);
+    }
   }
 
   /**

@@ -85,7 +85,7 @@ import { Voltmeter } from './ui/voltmeter.js';
 import { Knob } from './ui/knob.js';
 import { createKnob } from './ui/knobFactory.js';
 import { createVernierElements, VernierKnob } from './ui/vernierKnob.js';
-import { registerTooltipHideCallback, hideOtherTooltips } from './ui/tooltipManager.js';
+import { registerTooltipHideCallback, hideOtherTooltips, attachControlTooltip } from './ui/tooltipManager.js';
 
 // Utilidades de audio
 import { createPulseWave, createAsymmetricSineWave } from './utils/waveforms.js';
@@ -801,7 +801,8 @@ class App {
         if (!leverGroup) return;
         leverGroup.setAttribute('transform', switchState ? '' : 'translate(0,200) scale(1,-1)');
       };
-      btn.title = getSwitchTitle();
+      btn.title = '';
+      const switchTooltip = attachControlTooltip(btn, getSwitchTitle());
       loadSvgInline('assets/knobs/toggle-switch.svg', svgContainer).then(({ svg, prefix }) => {
         if (svg) {
           leverGroup = svg.getElementById(`${prefix}toggle-lever`);
@@ -813,7 +814,7 @@ class App {
         switchState = !switchState;
         btn.classList.toggle('is-on', switchState);
         updateLever();
-        btn.title = getSwitchTitle();
+        switchTooltip.update(getSwitchTitle());
         flashGlow(btn);
         this._sequencerModule?.setSwitch(switchName, switchState);
         sequencerOSCSync.sendSwitchChange(switchName, switchState);
@@ -826,7 +827,7 @@ class App {
           switchState = newState;
           btn.classList.toggle('is-on', switchState);
           updateLever();
-          btn.title = getSwitchTitle();
+          switchTooltip.update(getSwitchTitle());
         }
       };
       sw.appendChild(btn);
@@ -845,7 +846,7 @@ class App {
       btn.type = 'button';
       btn.dataset.preventPan = 'true';
       applyOffset(btn, sequencerUI.buttonOffsets?.[idx]);
-      btn.title = label;
+      attachControlTooltip(btn, label);
       // Wire button click → sequencer module
       const buttonName = seqButtonNames[idx];
       btn.addEventListener('click', () => {

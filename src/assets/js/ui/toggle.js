@@ -10,6 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { flashGlow } from './glowManager.js';
+import { attachControlTooltip } from './tooltipManager.js';
 
 /** Imágenes raster del toggle en sus dos estados */
 const TOGGLE_IMG_A = 'assets/knobs/toggle-a.png';
@@ -34,6 +35,8 @@ export class Toggle {
     this.element = null;
     /** @type {HTMLImageElement|null} */
     this._toggleImg = null;
+    /** @type {{ update: (content: string) => void }|null} */
+    this._tooltip = null;
   }
 
   /**
@@ -125,9 +128,14 @@ export class Toggle {
     this.element.setAttribute('data-state', this.state);
     this._updateImage();
     const currentLabel = this.state === 'a' ? this.labelA : this.labelB;
-    this.element.title = this.name
+    const tooltipText = this.name
       ? `${this.name}: ${currentLabel.trim()}`
       : currentLabel.trim();
+    if (this._tooltip) {
+      this._tooltip.update(tooltipText);
+    } else {
+      this._tooltip = attachControlTooltip(this.element, tooltipText);
+    }
   }
 
   /**

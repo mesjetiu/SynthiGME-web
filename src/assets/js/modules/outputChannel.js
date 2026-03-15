@@ -41,6 +41,7 @@ import { getVCATooltipInfo } from '../utils/tooltipUtils.js';
 import { outputChannelOSCSync } from '../osc/oscOutputChannelSync.js';
 import { flashGlow } from '../ui/glowManager.js';
 import { loadSvgInline } from '../ui/svgInlineLoader.js';
+import { attachControlTooltip } from '../ui/tooltipManager.js';
 
 // Detectar si el dispositivo tiene capacidad táctil
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -316,7 +317,7 @@ export class OutputChannel extends Module {
     switchEl.classList.toggle('is-on', this.values.power);
     switchEl.setAttribute('aria-pressed', String(this.values.power));
     switchEl.setAttribute('aria-label', `Channel ${this.channelIndex + 1} power`);
-    switchEl.title = this.values.power ? 'Power: ON' : 'Power: OFF';
+    this._powerTooltip = attachControlTooltip(switchEl, this.values.power ? 'Power: ON' : 'Power: OFF');
     
     // Contenedor para SVG del toggle
     const svgContainer = document.createElement('div');
@@ -337,7 +338,7 @@ export class OutputChannel extends Module {
       this.values.power = !this.values.power;
       switchEl.classList.toggle('is-on', this.values.power);
       switchEl.setAttribute('aria-pressed', String(this.values.power));
-      switchEl.title = this.values.power ? 'Power: ON' : 'Power: OFF';
+      this._powerTooltip.update(this.values.power ? 'Power: ON' : 'Power: OFF');
       this._updatePowerLever();
       // Mutear/desmutear el canal (power=true → muted=false)
       this.engine.setOutputMute(this.channelIndex, !this.values.power);
@@ -773,7 +774,7 @@ export class OutputChannel extends Module {
       if (this.powerSwitch) {
         this.powerSwitch.classList.toggle('is-on', data.power);
         this.powerSwitch.setAttribute('aria-pressed', String(data.power));
-        this.powerSwitch.title = data.power ? 'Power: ON' : 'Power: OFF';
+        this._powerTooltip?.update(data.power ? 'Power: ON' : 'Power: OFF');
         this._updatePowerLever();
         if (powerChanged) flashGlow(this.powerSwitch);
       }

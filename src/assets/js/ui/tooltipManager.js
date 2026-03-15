@@ -5,8 +5,8 @@
  * - Zoom/pan del viewport (gesto de navegación)
  * - Toque/click fuera del tooltip actual
  * 
- * Los tooltips se registran aquí para ser ocultados automáticamente
- * cuando ocurren estos eventos globales.
+ * También proporciona una API para mostrar tooltips estilizados (knob-tooltip)
+ * en cualquier elemento (switches, botones, toggles) con hover.
  * 
  * @module ui/tooltipManager
  */
@@ -97,8 +97,8 @@ function _ensureInitialized() {
       return;
     }
     
-    // Si el toque es en un knob, pin, slider o pad de joystick, dejar que su propio handler decida
-    if (target?.closest?.('.knob, .knob-inner, .pin-btn, .output-channel__slider, .panel7-joystick-pad')) {
+    // Si el toque es en un knob, pin, slider, toggle, switch o pad de joystick, dejar que su propio handler decida
+    if (target?.closest?.('.knob, .knob-inner, .pin-btn, .output-channel__slider, .panel7-joystick-pad, .synth-toggle, .rotary-switch, .output-channel__switch, .panel7-seq-switch-toggle, .panel7-seq-button')) {
       return;
     }
     
@@ -115,4 +115,96 @@ function _ensureInitialized() {
   document.addEventListener('wheel', () => {
     hideAllTooltips();
   }, { passive: true });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTROL TOOLTIP — tooltip estilizado para switches, toggles, botones
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _controlTooltipMap = new WeakMap();
+
+/**
+ * Muestra un tooltip estilizado (knob-tooltip) sobre un elemento.
+ * @param {HTMLElement} element - Elemento al que anclar el tooltip
+ * @param {string} content - Texto del tooltip (se escapa como texto)
+ */
+export function showControlTooltip(element, content) {
+  hideControlTooltip(element);
+  hideOtherTooltips(_getControlHideCallback(element));
+
+  const tip = document.createElement('div');
+  tip.className = 'knob-tooltip';
+  tip.textContent = content;
+  document.body.appendChild(tip);
+  _controlTooltipMap.set(element, tip);
+
+  _positionControlTooltip(element, tip);
+  tip.offsetHeight; // reflow
+  tip.classList.add('is-visible');
+}
+
+/**
+ * Oculta el tooltip estilizado de un elemento.
+ * @param {HTMLElement} element
+ */
+export function hideControlTooltip(element) {
+  const tip = _controlTooltipMap.get(element);
+  if (!tip) return;
+  tip.classList.remove('is-visible');
+  setTimeout(() => { tip.remove(); }, 150);
+  _controlTooltipMap.delete(element);
+}
+
+function _positionControlTooltip(element, tip) {
+  const rect = element.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - tipRect.width / 2;
+  let top = rect.top - tipRect.height - 8;
+  if (left < 4) left = 4;
+  if (left + tipRect.width > window.innerWidth - 4) left = window.innerWidth - tipRect.width - 4;
+  if (top < 4) top = rect.bottom + 8;
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+}
+
+// Callback de hide por elemento, cacheado para que hideOtherTooltips lo pueda excluir
+const _controlHideCallbackMap = new WeakMap();
+function _getControlHideCallback(element) {
+  let cb = _controlHideCallbackMap.get(element);
+  if (!cb) {
+    cb = () => hideControlTooltip(element);
+    _controlHideCallbackMap.set(element, cb);
+    registerTooltipHideCallback(cb);
+  }
+  return cb;
+}
+
+/**
+ * Conecta hover tooltip estilizado a un elemento.
+ * Devuelve una función update(content) para actualizar el texto.
+ * @param {HTMLElement} element - Elemento al que conectar
+ * @param {string} initialContent - Texto inicial del tooltip
+ * @returns {{ update: (content: string) => void }}
+ */
+export function attachControlTooltip(element, initialContent) {
+  let content = initialContent;
+  let hovered = false;
+
+  element.addEventListener('pointerenter', () => {
+    hovered = true;
+    showControlTooltip(element, content);
+  });
+  element.addEventListener('pointerleave', () => {
+    hovered = false;
+    hideControlTooltip(element);
+  });
+
+  return {
+    update(newContent) {
+      content = newContent;
+      if (hovered) {
+        showControlTooltip(element, content);
+      }
+    }
+  };
 }

@@ -11,6 +11,7 @@ import { Knob } from './knob.js';
 import { VernierKnob } from './vernierKnob.js';
 import { flashGlow } from './glowManager.js';
 import { loadSvgInline } from './svgInlineLoader.js';
+import { attachControlTooltip } from './tooltipManager.js';
 import { KNOB_BLUE, KNOB_GREEN, KNOB_WHITE, KNOB_BLACK, KNOB_RED, KNOB_YELLOW } from '../configs/knobColors.js';
 
 const COLOR_MAP = {
@@ -142,11 +143,12 @@ export class SGME_Oscillator {
       }
     });
     
-    range.title = 'Range: HI';
+    range.title = '';
+    this._rangeTooltip = attachControlTooltip(range, 'Range: HI');
     range.addEventListener('click', () => {
       this.rangeState = this.rangeState === 'hi' ? 'lo' : 'hi';
       this._renderRange(range);
-      range.title = `Range: ${this.rangeState.toUpperCase()}`;
+      this._rangeTooltip.update(`Range: ${this.rangeState.toUpperCase()}`);
       // Notificar cambio de rango para recalcular frecuencia
       if (typeof this.onRangeChange === 'function') {
         this.onRangeChange(this.rangeState);
@@ -297,7 +299,7 @@ export class SGME_Oscillator {
       const rangeEl = document.querySelector(`#${this.id} .output-channel__switch`);
       if (rangeEl) {
         this._renderRange(rangeEl);
-        rangeEl.title = `Range: ${this.rangeState.toUpperCase()}`;
+        this._rangeTooltip?.update(`Range: ${this.rangeState.toUpperCase()}`);
         if (rangeChanged) flashGlow(rangeEl);
       }
     }

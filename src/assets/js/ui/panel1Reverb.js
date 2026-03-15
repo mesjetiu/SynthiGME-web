@@ -86,7 +86,8 @@ export class Panel1ReverbUI {
         scaleMax: this.knobOptions[key]?.scaleMax ?? 10,
         scaleDecimals: this.knobOptions[key]?.scaleDecimals ?? 1,
         onChange: this.knobOptions[key]?.onChange,
-        getTooltipInfo: this.knobOptions[key]?.getTooltipInfo
+        getTooltipInfo: this.knobOptions[key]?.getTooltipInfo,
+        tooltipLabel: this.knobOptions[key]?.tooltipLabel || key.charAt(0).toUpperCase() + key.slice(1)
       });
 
       if (typeof this.layout.knobSize === 'number' && this.layout.knobSize > 0) {

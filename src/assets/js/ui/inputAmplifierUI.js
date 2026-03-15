@@ -186,6 +186,7 @@ export class InputAmplifierUI {
       scaleMax: 10,
       scaleDecimals: 1,
       valueElement: valueEl,
+      tooltipLabel: `Ch. ${channel + 1}`,
       onChange: (value) => {
         if (this.onLevelChange) {
           this.onLevelChange(channel, value);

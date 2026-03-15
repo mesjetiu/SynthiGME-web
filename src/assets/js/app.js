@@ -3638,14 +3638,14 @@ class App {
 
       // Definiciones de knobs del envelope shaper (orden horizontal)
       const esKnobDefs = [
-        { key: 'mode',          config: envelopeShaperConfig.knobs.mode,          tooltip: esModeTooltip,          type: 'selector' },
-        { key: 'delay',         config: envelopeShaperConfig.knobs.delay,         tooltip: esTimeTooltip,          type: 'normal' },
-        { key: 'attack',        config: envelopeShaperConfig.knobs.attack,        tooltip: esTimeTooltip,          type: 'normal' },
-        { key: 'decay',         config: envelopeShaperConfig.knobs.decay,         tooltip: esTimeTooltip,          type: 'normal' },
-        { key: 'sustain',       config: envelopeShaperConfig.knobs.sustain,       tooltip: esSustainTooltip,       type: 'normal' },
-        { key: 'release',       config: envelopeShaperConfig.knobs.release,       tooltip: esReleaseTooltip,       type: 'normal' },
-        { key: 'envelopeLevel', config: envelopeShaperConfig.knobs.envelopeLevel, tooltip: esEnvLevelTooltip,      type: 'bipolar' },
-        { key: 'signalLevel',   config: envelopeShaperConfig.knobs.signalLevel,   tooltip: esSignalLevelTooltip,   type: 'normal' }
+        { key: 'mode',          label: 'Mode',       config: envelopeShaperConfig.knobs.mode,          tooltip: esModeTooltip,          type: 'selector' },
+        { key: 'delay',         label: 'Delay',      config: envelopeShaperConfig.knobs.delay,         tooltip: esTimeTooltip,          type: 'normal' },
+        { key: 'attack',        label: 'Attack',     config: envelopeShaperConfig.knobs.attack,        tooltip: esTimeTooltip,          type: 'normal' },
+        { key: 'decay',         label: 'Decay',      config: envelopeShaperConfig.knobs.decay,         tooltip: esTimeTooltip,          type: 'normal' },
+        { key: 'sustain',       label: 'Sustain',    config: envelopeShaperConfig.knobs.sustain,       tooltip: esSustainTooltip,       type: 'normal' },
+        { key: 'release',       label: 'Release',    config: envelopeShaperConfig.knobs.release,       tooltip: esReleaseTooltip,       type: 'normal' },
+        { key: 'envelopeLevel', label: 'Env. Level', config: envelopeShaperConfig.knobs.envelopeLevel, tooltip: esEnvLevelTooltip,      type: 'bipolar' },
+        { key: 'signalLevel',   label: 'Sig. Level', config: envelopeShaperConfig.knobs.signalLevel,   tooltip: esSignalLevelTooltip,   type: 'normal' }
       ];
 
       // Crear módulo de audio
@@ -3715,7 +3715,8 @@ class App {
               envelopeShaperOSCSync.sendChange(i, def.key, value);
             }
           },
-          getTooltipInfo: def.tooltip
+          getTooltipInfo: def.tooltip,
+          tooltipLabel: def.label
         });
 
         // Aplicar tamaño del blueprint

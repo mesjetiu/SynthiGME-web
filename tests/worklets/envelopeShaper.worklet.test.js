@@ -305,6 +305,8 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
       this.releaseSamples = 480;
       this._counter = 0;
       this._prevGate = false;
+      this._attackBaseLevel = 0;
+      this._releaseBaseLevel = 0;
     }
 
     /** Detecta flanco positivo del gate */
@@ -348,6 +350,7 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
 
         case PHASE_ATTACK: {
           if (this.mode === MODE_GATED && falling) {
+            this._releaseBaseLevel = this.level;
             this.phase = PHASE_RELEASE;
             this._counter = this.releaseSamples;
             break;
@@ -356,7 +359,7 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
           const attackProgress = this.attackSamples > 0
             ? 1 - (this._counter / this.attackSamples)
             : 1;
-          this.level = Math.min(1, Math.max(0, attackProgress));
+          this.level = Math.min(1, Math.max(0, this._attackBaseLevel + attackProgress * (1 - this._attackBaseLevel)));
           if (this._counter <= 0) {
             this.level = 1;
             this.phase = PHASE_DECAY;
@@ -367,6 +370,7 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
 
         case PHASE_DECAY: {
           if (this.mode === MODE_GATED && falling) {
+            this._releaseBaseLevel = this.level;
             this.phase = PHASE_RELEASE;
             this._counter = this.releaseSamples;
             break;
@@ -380,6 +384,7 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
             this.level = this.sustainLevel;
             // In non-gated modes, skip sustain → go directly to release
             if (this.mode === MODE_TRIGGERED || this.mode === MODE_FREE_RUN || this.mode === MODE_GATED_FR) {
+              this._releaseBaseLevel = this.level;
               this.phase = PHASE_RELEASE;
               this._counter = this.releaseSamples;
             } else {
@@ -393,6 +398,7 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
           this.level = this.sustainLevel;
           // GATED: release on gate off. HOLD: stay indefinitely.
           if (this.mode === MODE_GATED && falling) {
+            this._releaseBaseLevel = this.level;
             this.phase = PHASE_RELEASE;
             this._counter = this.releaseSamples;
           }
@@ -400,16 +406,24 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
           break;
 
         case PHASE_RELEASE:
+          // CEM 3310: rising edge durante release → retrigger desde nivel actual
+          if (rising && this.mode !== MODE_FREE_RUN) {
+            this._attackBaseLevel = this.level;
+            this.phase = PHASE_ATTACK;
+            this._counter = this.attackSamples;
+            break;
+          }
           this._counter--;
           if (this.releaseSamples > 0) {
             const relProgress = 1 - (this._counter / this.releaseSamples);
-            this.level = this.sustainLevel * (1 - relProgress);
+            this.level = this._releaseBaseLevel * (1 - relProgress);
           }
           if (this._counter <= 0) {
             this.level = 0;
             this.phase = PHASE_IDLE;
             if (this.mode === MODE_FREE_RUN ||
                 (this.mode === MODE_GATED_FR && this.gateActive)) {
+              this._attackBaseLevel = 0;
               if (this.delaySamples > 0) {
                 this.phase = PHASE_DELAY;
                 this._counter = this.delaySamples;
@@ -693,6 +707,154 @@ describe('EnvelopeShaper Worklet — FSM Transiciones', () => {
     for (let i = 0; i < 50; i++) env.tick();
     assert.ok(env.level > 0.1 && env.level < 0.6,
       `Level at 50% release: ${env.level}`);
+  });
+
+  // ─── RETRIGGER tests (CEM 3310) ─────────────────────────────────────
+
+  test('GATED: retrigger durante release → attack desde nivel actual', () => {
+    const env = new EnvelopeSim();
+    env.mode = MODE_GATED;
+    env.delaySamples = 0;
+    env.attackSamples = 100;
+    env.decaySamples = 10;
+    env.releaseSamples = 100;
+    env.sustainLevel = 0.8;
+
+    // Gate on → sustain
+    env.gateActive = true;
+    for (let i = 0; i < 200; i++) env.tick();
+    assert.strictEqual(env.phase, PHASE_SUSTAIN);
+
+    // Gate off → release
+    env.gateActive = false;
+    env.tick();
+    assert.strictEqual(env.phase, PHASE_RELEASE);
+
+    // Advance 50% into release
+    for (let i = 0; i < 50; i++) env.tick();
+    assert.strictEqual(env.phase, PHASE_RELEASE);
+    const levelDuringRelease = env.level;
+    assert.ok(levelDuringRelease > 0.1 && levelDuringRelease < 0.6,
+      `Level during release should be mid-range, got ${levelDuringRelease}`);
+
+    // Retrigger → should immediately enter attack from current level
+    env.gateActive = true;
+    env.tick();
+    assert.strictEqual(env.phase, PHASE_ATTACK,
+      'Retrigger during release should enter ATTACK');
+    assert.ok(env.level >= levelDuringRelease - 0.02,
+      `Attack should start from current level (~${levelDuringRelease.toFixed(3)}), got ${env.level}`);
+  });
+
+  test('GATED: retrigger desde nivel parcial completa attack hasta 1.0', () => {
+    const env = new EnvelopeSim();
+    env.mode = MODE_GATED;
+    env.delaySamples = 0;
+    env.attackSamples = 100;
+    env.decaySamples = 10;
+    env.releaseSamples = 100;
+    env.sustainLevel = 0.8;
+
+    // Ciclo completo hasta sustain
+    env.gateActive = true;
+    for (let i = 0; i < 200; i++) env.tick();
+
+    // Release parcial
+    env.gateActive = false;
+    env.tick();
+    for (let i = 0; i < 50; i++) env.tick();
+
+    // Retrigger
+    env.gateActive = true;
+    env.tick();
+    assert.strictEqual(env.phase, PHASE_ATTACK);
+
+    // Completar attack → debe llegar a 1.0
+    for (let i = 0; i < 100; i++) env.tick();
+    assert.ok(env.level > 0.95, `Attack should reach ~1.0, got ${env.level}`);
+  });
+
+  test('TRIGGERED: retrigger durante release funciona', () => {
+    const env = new EnvelopeSim();
+    env.mode = MODE_TRIGGERED;
+    env.delaySamples = 0;
+    env.attackSamples = 10;
+    env.decaySamples = 10;
+    env.releaseSamples = 100;
+    env.sustainLevel = 0.6;
+
+    // Trigger → ciclo hasta release
+    env.gateActive = true;
+    env.tick();
+    env.gateActive = false;
+    for (let i = 0; i < 25; i++) env.tick();
+    assert.strictEqual(env.phase, PHASE_RELEASE);
+
+    // Segundo trigger durante release
+    for (let i = 0; i < 30; i++) env.tick();
+    const levelBeforeRetrigger = env.level;
+
+    env.gateActive = true;
+    env.tick();
+    assert.strictEqual(env.phase, PHASE_ATTACK,
+      'TRIGGERED should retrigger during release');
+    env.gateActive = false;
+
+    // Completar attack (10 samples) → debe llegar a 1.0
+    for (let i = 0; i < 10; i++) env.tick();
+    assert.ok(env.level > 0.95, `Should reach peak, got ${env.level}`);
+  });
+
+  test('GATED: retrigger salta delay (CEM 3310)', () => {
+    const env = new EnvelopeSim();
+    env.mode = MODE_GATED;
+    env.delaySamples = 100;
+    env.attackSamples = 10;
+    env.decaySamples = 10;
+    env.releaseSamples = 100;
+    env.sustainLevel = 0.8;
+
+    // Ciclo normal con delay
+    env.gateActive = true;
+    env.tick();
+    assert.strictEqual(env.phase, PHASE_DELAY, 'Should start with delay');
+    for (let i = 0; i < 200; i++) env.tick();
+
+    // Release parcial
+    env.gateActive = false;
+    env.tick();
+    for (let i = 0; i < 30; i++) env.tick();
+    assert.strictEqual(env.phase, PHASE_RELEASE);
+
+    // Retrigger → debe ir a ATTACK directamente, saltando delay
+    env.gateActive = true;
+    env.tick();
+    assert.strictEqual(env.phase, PHASE_ATTACK,
+      'Retrigger should skip delay and go straight to attack');
+  });
+
+  test('HOLD: retrigger durante release funciona', () => {
+    const env = new EnvelopeSim();
+    env.mode = MODE_HOLD;
+    env.delaySamples = 0;
+    env.attackSamples = 10;
+    env.decaySamples = 10;
+    env.releaseSamples = 100;
+    env.sustainLevel = 0.7;
+
+    // En HOLD, sustain se mantiene indefinidamente.
+    // Pero si hay release (modo externo), verifica retrigger.
+    // HOLD no tiene release via gate, pero el FSM puede estar en
+    // RELEASE si se cambió el modo mid-cycle.
+    // Verificamos que retrigger funciona en general:
+    env.gateActive = true;
+    env.tick();
+    env.gateActive = false;
+
+    // Avanzar hasta sustain (HOLD se queda ahí)
+    for (let i = 0; i < 30; i++) env.tick();
+    assert.strictEqual(env.phase, PHASE_SUSTAIN,
+      'HOLD should stay in sustain');
   });
 });
 

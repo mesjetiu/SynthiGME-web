@@ -94,6 +94,8 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
     this._sustainLevel = 0.7;  // dial 7 → 0.7
     this._envelopeGain = 1.25; // dial +5 → +1.25
     this._signalGain = 0;      // dial 0 → VCA cerrado
+    this._attackBaseLevel = 0;  // Nivel desde el que comienza el ataque (retrigger CEM 3310)
+    this._releaseBaseLevel = 0; // Nivel desde el que comienza el release (CEM 3310)
 
     // ─── Gate/trigger (Schmitt trigger con histéresis + blanking) ─────
     this._prevGate = false;
@@ -204,6 +206,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
 
       case PHASE_ATTACK:
         if (this._mode === MODE_GATED && falling) {
+          this._releaseBaseLevel = this._level;
           this._phase = PHASE_RELEASE;
           this._counter = this._releaseSamples;
           break;
@@ -211,7 +214,8 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
         this._counter--;
         if (this._attackSamples > 0) {
           const progress = 1 - (this._counter / this._attackSamples);
-          this._level = Math.min(1, Math.max(0, progress));
+          // Rampa desde _attackBaseLevel hasta 1.0 (CEM 3310: retrigger desde nivel actual)
+          this._level = Math.min(1, Math.max(0, this._attackBaseLevel + progress * (1 - this._attackBaseLevel)));
         } else {
           this._level = 1;
         }
@@ -224,6 +228,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
 
       case PHASE_DECAY:
         if (this._mode === MODE_GATED && falling) {
+          this._releaseBaseLevel = this._level;
           this._phase = PHASE_RELEASE;
           this._counter = this._releaseSamples;
           break;
@@ -239,6 +244,7 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
           this._level = this._sustainLevel;
           // Modes that skip sustain → go directly to release
           if (this._mode === MODE_TRIGGERED || this._mode === MODE_FREE_RUN || this._mode === MODE_GATED_FR) {
+            this._releaseBaseLevel = this._level;
             this._phase = PHASE_RELEASE;
             this._counter = this._releaseSamples;
           } else {
@@ -251,16 +257,22 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
         this._level = this._sustainLevel;
         // GATED: release on gate off. HOLD: stay indefinitely.
         if (this._mode === MODE_GATED && falling) {
+          this._releaseBaseLevel = this._level;
           this._phase = PHASE_RELEASE;
           this._counter = this._releaseSamples;
         }
         break;
 
       case PHASE_RELEASE:
+        // CEM 3310: rising edge durante release → retrigger desde nivel actual
+        if (rising && this._mode !== MODE_FREE_RUN) {
+          this._startEnvelope(this._level);
+          break;
+        }
         this._counter--;
         if (this._releaseSamples > 0) {
           const progress = 1 - (this._counter / this._releaseSamples);
-          this._level = this._sustainLevel * (1 - progress);
+          this._level = this._releaseBaseLevel * (1 - progress);
         }
         if (this._counter <= 0) {
           this._level = 0;
@@ -418,10 +430,16 @@ class EnvelopeShaperProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Inicia la envolvente desde idle.
+   * Inicia la envolvente.
+   * CEM 3310: al retrigger, el ataque comienza desde el nivel actual
+   * del condensador, no desde cero.
+   * @param {number} [baseLevel=0] - Nivel desde el que iniciar el ataque
    */
-  _startEnvelope() {
-    if (this._delaySamples > 0) {
+  _startEnvelope(baseLevel = 0) {
+    this._attackBaseLevel = baseLevel;
+    if (this._delaySamples > 0 && baseLevel === 0) {
+      // Solo aplicar delay al iniciar desde cero (idle)
+      // Un retrigger (baseLevel > 0) salta el delay
       this._phase = PHASE_DELAY;
       this._counter = this._delaySamples;
     } else {

@@ -131,6 +131,10 @@ function getModuleElementIds(descriptor) {
     case 'sequencerControl':
     case 'sequencerInput':
       return ['panel7-sequencer'];
+
+    case 'pitchToVoltageConverter':
+    case 'pitchToVoltageConverterInput':
+      return ['pitchVoltageConverter-module'];
     
     default:
       return [];
@@ -144,7 +148,7 @@ function getModuleElementIds(descriptor) {
  * @returns {HTMLElement|null}
  */
 function findModuleElement(el) {
-  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel1-envelope, .envelope-shaper, .panel1-filter-live, .panel1-reverb-live, .panel1-ringmod-live, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard');
+  return el.closest('.synth-module, .sgme-osc, .noise-generator, .random-voltage, .output-channel-module, .panel7-joystick, .panel7-sequencer, .input-amplifier-module, .panel1-placeholder, .panel1-envelope, .envelope-shaper, .panel1-filter-live, .panel1-reverb-live, .panel1-ringmod-live, .panel2-placeholder, .panel4-upperKeyboard, .panel4-lowerKeyboard, .panel4-pitchToVoltageConverter');
 }
 
 /**

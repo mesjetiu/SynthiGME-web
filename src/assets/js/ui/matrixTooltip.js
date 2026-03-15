@@ -129,6 +129,9 @@ export function getLabelForSource(source) {
       }
       return t(`matrix.source.sequencer.${source.output || 'voltageA'}`);
     }
+
+    case 'pitchToVoltageConverter':
+      return t('matrix.source.pitchToVoltageConverter');
     
     default:
       return null;
@@ -231,6 +234,9 @@ export function getLabelForDest(dest) {
 
     case 'sequencerInput':
       return t(`matrix.dest.sequencerInput.${dest.inputType || 'voltageACE'}`);
+
+    case 'pitchToVoltageConverterInput':
+      return t('matrix.dest.pitchToVoltageConverterInput');
     
     default:
       return null;

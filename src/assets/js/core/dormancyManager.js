@@ -378,6 +378,19 @@ export class DormancyManager {
       );
       this._setModuleDormant('sequencer', !hasSequencerUsage);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PITCH TO VOLTAGE CONVERTER
+    // ─────────────────────────────────────────────────────────────────────────
+    // Activo si tiene entrada de audio en Panel 5 o salida de voltaje en Panel 6.
+    {
+      const hasPVCUsage = panel5Connections.some(c =>
+        c.dest?.kind === 'pitchToVoltageConverterInput'
+      ) || panel6Connections.some(c =>
+        c.source?.kind === 'pitchToVoltageConverter'
+      );
+      this._setModuleDormant('pitch-to-voltage-converter', !hasPVCUsage);
+    }
     
     // Mostrar toast consolidado si debug está activo
     this._showConsolidatedToast();
@@ -568,6 +581,11 @@ export class DormancyManager {
     // Digital Sequencer
     if (moduleId === 'sequencer') {
       return this.app._sequencerModule ?? null;
+    }
+
+    // Pitch to Voltage Converter
+    if (moduleId === 'pitch-to-voltage-converter') {
+      return this.app._pvcModule ?? null;
     }
     
     // Módulos registrados en engine

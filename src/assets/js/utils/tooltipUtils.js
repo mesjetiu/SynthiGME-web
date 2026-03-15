@@ -893,3 +893,45 @@ export function getSequencerKeyLevelTooltipInfo() {
     return parts.length > 0 ? parts.join(' · ') : null;
   };
 }
+
+/**
+ * Tooltip para el knob RANGE del Pitch to Voltage Converter.
+ *
+ * Muestra el spread (octavas de rango) calculado con la misma fórmula
+ * piecewise de 3 segmentos que usa el worklet:
+ *   [0, 3.5] → [-2, 0]  (invertido)
+ *   [3.5, 7] → [0, 1]   (normal, unity a dial 7)
+ *   [7, 10]  → [1, 2]   (expandido)
+ *
+ * @returns {function(number, number): string|null}
+ */
+export function getPVCRangeTooltipInfo() {
+  function rangeDialToSpread(dial) {
+    if (dial <= 3.5) return -2 + (dial / 3.5) * 2;
+    if (dial <= 7) return (dial - 3.5) / 3.5;
+    return 1 + (dial - 7) / 3;
+  }
+
+  return (_rawValue, scaleValue) => {
+    if (!showVoltageTooltip() && !showAudioTooltip()) return null;
+    const dial = scaleValue;
+    const spread = rangeDialToSpread(dial);
+    const parts = [];
+
+    if (showVoltageTooltip()) {
+      parts.push(`${spread >= 0 ? '+' : ''}${spread.toFixed(2)} oct`);
+    }
+
+    if (showAudioTooltip()) {
+      if (Math.abs(spread - 1) < 0.01) {
+        parts.push('1V/Oct (unity)');
+      } else if (spread < 0) {
+        parts.push('invertido');
+      } else if (Math.abs(spread) < 0.01) {
+        parts.push('sin tracking');
+      }
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}

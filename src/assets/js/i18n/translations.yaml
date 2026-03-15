@@ -5203,6 +5203,25 @@ matrix.dest.sequencerInput.key:
   pt: "Seq Key In"
   cs: "Seq Key In"
 
+# Pitch to Voltage Converter
+matrix.source.pitchToVoltageConverter:
+  en: "PVC Voltage"
+  es: "PVC Voltaje"
+  fr: "PVC Tension"
+  de: "PVC Spannung"
+  it: "PVC Tensione"
+  pt: "PVC Tensão"
+  cs: "PVC Napětí"
+
+matrix.dest.pitchToVoltageConverterInput:
+  en: "PVC Audio In"
+  es: "PVC Audio In"
+  fr: "PVC Audio In"
+  de: "PVC Audio In"
+  it: "PVC Audio In"
+  pt: "PVC Audio In"
+  cs: "PVC Audio In"
+
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"

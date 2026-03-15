@@ -571,6 +571,8 @@ export default {
   "matrix.dest.sequencerInput.voltageACE": "Seq V In A·C·E",
   "matrix.dest.sequencerInput.voltageBDF": "Seq V In B·D·F",
   "matrix.dest.sequencerInput.key": "Seq Key In",
+  "matrix.source.pitchToVoltageConverter": "PVC Napětí",
+  "matrix.dest.pitchToVoltageConverterInput": "PVC Audio In",
   "matrix.tooltip.format": "{source} → {dest}",
   "matrix.tooltip.unknownSource": "Řádek {row}",
   "matrix.tooltip.unknownDest": "Sloupec {col}",

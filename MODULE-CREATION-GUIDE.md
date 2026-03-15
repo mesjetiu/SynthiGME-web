@@ -1,9 +1,10 @@
 # Guía para crear un nuevo módulo de sintetizador en SynthiGME
 
-Checklist completo basado en dos implementaciones de referencia:
+Checklist completo basado en tres implementaciones de referencia:
 
 - **Random Control Voltage Generator** — Módulo estándar con ModuleUI (Panel 3). Patrón típico para módulos con knobs en panel.
 - **Keyboard** — Módulo dual con UI flotante, eventos de nota y MIDI (Panel 4). Patrón alternativo para módulos con interacción compleja o UI no-estándar.
+- **Digital Sequencer 1000** — Módulo complejo con FSM, memoria, múltiples I/O, UI directa en dos paneles (Panel 4 + Panel 7), y conexiones simultáneas en Panel 5 y Panel 6. Patrón para módulos con lógica de estado compleja y presencia distribuida.
 
 ---
 
@@ -27,6 +28,7 @@ Checklist completo basado en dos implementaciones de referencia:
 16. [Tests](#16-tests)
 17. [Checklist rápido](#17-checklist-rápido)
 18. [Patrones alternativos (lecciones del Keyboard)](#18-patrones-alternativos-lecciones-del-keyboard)
+19. [Patrones del Sequencer](#19-patrones-del-sequencer)
 
 ---
 
@@ -63,7 +65,7 @@ Para un módulo nuevo llamado `myModule`, hay que crear o modificar estos archiv
 | 14 | `src/assets/js/configs/index.js` | Exportar/importar config |
 | 15 | `src/assets/js/panelBlueprints/panel6.control.blueprint.js` | Añadir filas source/dest |
 | 16 | `src/assets/js/panelBlueprints/panel3.blueprint.js` | Añadir UI defaults + módulo en `modules` |
-| 17 | `src/assets/js/app.js` | ~10 puntos de integración (ver sección 8) |
+| 17 | `src/assets/js/app.js` | ~14-16 puntos de integración (ver sección 8) |
 | 18 | `src/assets/js/ui/matrixTooltip.js` | Añadir case en `getLabelForSource()` |
 | 19 | `src/assets/js/ui/signalFlowHighlighter.js` | Añadir case en `getModuleElementIds()` |
 | 20 | `src/assets/js/core/dormancyManager.js` | Añadir lógica de dormancy |
@@ -151,6 +153,22 @@ registerProcessor('random-cv', RandomCVProcessor);
 > mantiene después de soltar). El `process()` genera señales DC constantes por frame
 > (pitch, velocity, gate = 3 canales) en lugar de señal de audio. También puede implementar
 > lógica de retrigger con un gap temporal en samples.
+
+> **Patrón alt (Sequencer)**: Para módulos con máquina de estados (FSM), memoria interna
+> y reloj propio. El worklet del sequencer implementa:
+> - **FSM de transporte**: estados `stopped`/`running-forward`/`running-reverse` con
+>   transiciones via mensajes `pressButton` (masterReset, runForward, runReverse, stop, etc.)
+> - **Memoria**: array de 256 eventos × 4 grupos (voltages + keys), escritos/leídos por step
+> - **Reloj interno**: genera ticks cada N samples (configurable via `clockRate`); opcionalmente
+>   acepta reloj externo vía input de audio con **Schmitt trigger + blanking** para detección
+>   de flanco robusta
+> - **Múltiples canales**: 13 canales de salida (6 voltages + 4 keys + 2 DAC + clock) y
+>   8 canales de entrada (5 control + 3 voltage recording) multiplexados via ChannelSplitter/Merger
+> - **Callbacks al main thread**: `port.postMessage({ type: 'counter', value, text })` y
+>   `{ type: 'overflow' }` para actualizar display y feedback visual
+> - **Dual `process()` path**: un bloque común de tick + counter, con ramas para dormant
+>   (silencia salidas pero mantiene estado) y activo (escribe canales de salida)
+> Ver [sección 19](#19-patrones-del-sequencer) para patrones detallados.
 
 ---
 
@@ -283,6 +301,29 @@ export class RandomCVModule extends Module {
 > La serialización va en el módulo de audio (`serialize()`/`deserialize()`) en lugar de en
 > la UI, porque la UI flotante es independiente del estado de audio.
 
+> **Patrón alt (Sequencer)**: Para módulos con múltiples canales de I/O, usar
+> `ChannelSplitter` y `ChannelMerger` para multiplexar un solo `AudioWorkletNode`:
+> ```javascript
+> // 13 canales de salida multiplexados
+> this.workletNode = new AudioWorkletNode(ctx, 'sequencer', {
+>   numberOfInputs: 1, numberOfOutputs: 1,
+>   outputChannelCount: [13]
+> });
+> this._splitter = ctx.createChannelSplitter(13);
+> this.workletNode.connect(this._splitter);
+> // Cada canal → GainNode individual → outputs.push(...)
+>
+> // 8 canales de entrada multiplexados
+> this._merger = ctx.createChannelMerger(8);
+> this._merger.connect(this.workletNode);
+> // Cada input → GainNode → merger.connect(merger, 0, channelIndex)
+> ```
+> El módulo registra **tanto outputs como inputs** en `this.outputs` y `this.inputs`,
+> usando un solo `kind` (`'sequencer'`) para outputs pero kinds diferenciados para
+> inputs (`'sequencerControl'` para Panel 5, `'sequencerInput'` para Panel 6).
+> También soporta **callbacks del worklet** (`onCounterChange`, `onOverflow`) que
+> el main thread usa para actualizar la UI (display, indicadores).
+
 ---
 
 ## 4. Componente UI
@@ -340,6 +381,22 @@ export class RandomVoltage extends ModuleUI {
 > - Se necesita arrastrar/redimensionar la ventana
 > - La ventana tiene modos de interacción (normal, latch, legato)
 > - Se necesita persistir posición/tamaño en localStorage + patches
+
+> **Patrón alt (Sequencer)**: El tercer patrón de UI: **DOM directo en múltiples paneles**
+> sin ModuleUI ni ventana flotante. El sequencer construye su interfaz repartida en dos
+> métodos de app.js:
+> - **`_buildPanel4()`**: Crea el display de 7 segmentos CSS LED (`seq-event-time-display`)
+>   con 4 dígitos y supresión de ceros iniciales. Recibe actualizaciones via callback
+>   `onCounterChange(value, text)` desde el módulo de audio.
+> - **`_buildPanel7()`**: Crea switches (Toggle/RotarySwitch), botones de transporte
+>   (step buttons con dual función: navegar + grabar), y knob de clock rate.
+>   Los botones usan `mousedown`/`mouseup` (momentary) y `pressButton()`/`releaseButton()`.
+>
+> Considerar este patrón cuando:
+> - El módulo no necesita ventana flotante independiente
+> - La UI está visualmente integrada en los paneles del sintetizador
+> - Elementos en dos o más paneles (display en uno, controles en otro)
+> - Se necesita feedback en tiempo real desde el worklet (callbacks)
 
 ---
 
@@ -458,6 +515,29 @@ export default {
 > ```
 > Esto requiere un case separado por `kind` en matrixTooltip, signalFlowHighlighter,
 > dormancyManager y app.js routing.
+
+> **Módulos en dos matrices (Sequencer)**: El sequencer tiene presencia simultánea en
+> Panel 5 (audio) y Panel 6 (control), con filas source Y columnas dest en ambos:
+> ```javascript
+> // Panel 5 (audio) — sources
+> { rowSynth: 87, source: { kind: 'sequencer', output: 'dac1' } },
+> { rowSynth: 88, source: { kind: 'sequencer', output: 'clock' } },
+> // Panel 5 (audio) — destinations (control inputs)
+> { colSynth: 51, dest: { kind: 'sequencerControl', controlType: 'clock' } },
+> { colSynth: 52, dest: { kind: 'sequencerControl', controlType: 'reset' } },
+> // ... 5 control inputs total
+>
+> // Panel 6 (control) — sources (11 salidas: 6V + 4K + clock)
+> { rowSynth: 100, source: { kind: 'sequencer', output: 'voltageA' } },
+> // ... 11 output rows total
+> // Panel 6 (control) — destinations (voltage inputs para grabación)
+> { colSynth: 60, dest: { kind: 'sequencerInput', inputType: 'voltageACE' } },
+> { colSynth: 61, dest: { kind: 'sequencerInput', inputType: 'voltageBDF' } },
+> { colSynth: 62, dest: { kind: 'sequencerInput', inputType: 'key' } }
+> ```
+> Nota: el `kind` de las sources es el mismo (`'sequencer'`) en ambas matrices, pero
+> las destinations usan kinds diferenciados (`'sequencerControl'` vs `'sequencerInput'`)
+> porque se rutean a nodos de audio distintos (control inputs vs voltage recording inputs).
 
 ---
 
@@ -779,6 +859,35 @@ export default randomCVOSCSync;
 > if (!kbModule.isStarted) kbModule.start();
 > ```
 
+> **OSC del Sequencer**: Tres categorías de parámetros con patrones distintos:
+> ```javascript
+> // 1. Continuos (knobs) — patrón estándar sendChange
+> const KNOB_PARAMETERS = {
+>   clockRate: { address: 'seq/clockRate', audioMethod: 'setClockRate' },
+>   voltageA:  { address: 'seq/voltageA',  audioMethod: 'setKnob' },
+>   // ... 10 knobs más (voltageB-F, key1-4)
+> };
+>
+> // 2. Switches (binarios) — envían 0/1, método setSwitch
+> const SWITCH_PARAMETERS = {
+>   abKey1:   { address: 'seq/abKey1',   audioMethod: 'setSwitch' },
+>   runClock: { address: 'seq/runClock', audioMethod: 'setSwitch' },
+>   // ... 8 switches total
+> };
+>
+> // 3. Buttons (triggers momentáneos) — envían 1 al pulsar, 0 al soltar
+> const BUTTON_PARAMETERS = {
+>   masterReset: { address: 'seq/masterReset', audioMethod: 'pressButton' },
+>   runForward:  { address: 'seq/runForward',  audioMethod: 'pressButton' },
+>   // ... 8 buttons total (incluye stepForward, stepReverse)
+> };
+> ```
+> Los **knobs** reciben y actualizan UI; los **switches** sincronizan Toggle/RotarySwitch;
+> los **buttons** usan `pressButton()`/`releaseButton()` con semántica momentánea.
+> El OSC sync del sequencer también sincroniza **step buttons** para navegación y
+> grabación remotas.
+> Las direcciones OSC no usan deduplicación para buttons (cada evento es único).
+
 ---
 
 ## 10. Tooltips
@@ -853,6 +962,16 @@ case 'randomCV':
 > Las clases CSS en `findModuleElement()` también deben incluir las de cada instancia:
 > `.panel4-upperKeyboard, .panel4-lowerKeyboard`
 
+> **Módulos multi-kind (Sequencer)**: Cuando un módulo usa varios `kind` (para sources
+> y destinations en distintas matrices), todos deben apuntar al mismo elemento DOM:
+> ```javascript
+> case 'sequencer':
+> case 'sequencerControl':
+> case 'sequencerInput':
+>   return ['panel7-sequencer'];
+> ```
+> La clase CSS `.panel7-sequencer` debe estar en el selector de `findModuleElement()`.
+
 ---
 
 ## 12. Matrix Tooltip
@@ -875,6 +994,19 @@ case 'randomCV': {
 - `source.output` viene del blueprint (ej: `'voltage1'`, `'voltage2'`, `'key'`)
 - Las claves de traducción deben existir en `translations.yaml`
 - Patron: `matrix.source.{kind}.{output}`
+
+> **Tooltip del Sequencer**: Cuando un módulo tiene salidas en Panel 5 con canales
+> (DAC sin `output` explícito) y en Panel 6 con outputs nombrados, el tooltip debe
+> manejar ambos casos:
+> ```javascript
+> case 'sequencer': {
+>   if (source.channel !== undefined) {
+>     return t('matrix.source.sequencerDAC', { channel: source.channel + 1 });
+>   }
+>   return t(`matrix.source.sequencer.${source.output || 'voltageA'}`);
+> }
+> ```
+> Esto requiere claves i18n con interpolación (`{channel}`) además de las habituales.
 
 ---
 
@@ -922,6 +1054,23 @@ if (moduleId === 'random-cv') {
 > ```
 > En `_findModule()`, dos cases separados devuelven `this.app._keyboardModules?.upper` y
 > `this.app._keyboardModules?.lower` respectivamente.
+
+> **Dormancy del Sequencer**: Para módulos con conexiones en dos matrices (Panel 5 +
+> Panel 6) y múltiples `kind`s, la comprobación debe cubrir todos los tipos:
+> ```javascript
+> {
+>   const hasSequencerUsage = panel5Connections.some(c =>
+>     c.source?.kind === 'sequencer'
+>     || c.dest?.kind === 'sequencerControl'
+>   ) || panel6Connections.some(c =>
+>     c.source?.kind === 'sequencer'
+>     || c.dest?.kind === 'sequencerInput'
+>   );
+>   this._setModuleDormant('sequencer', !hasSequencerUsage);
+> }
+> ```
+> El módulo completo duerme/despierta como una unidad (todas las I/O son atómicas).
+> En `_findModule()`: `return this.app._sequencerModule ?? null;`
 
 ---
 
@@ -1168,6 +1317,34 @@ Se usa un mock del `AudioContext` con `createGain()`, `createChannelSplitter()`,
 | i18n keys | `'matrix.source.keyboardUpper.pitch'`, etc. | translations.yaml, matrixTooltip.js |
 | Window functions | `initKeyboardWindow()`, `toggleKeyboard()`, etc. | `keyboardWindow.js`, app.js |
 
+### Identifiers cross-reference (Sequencer)
+
+| Concepto | Identificador | Usado en |
+|----------|---------------|----------|
+| Processor name | `'sequencer'` | `registerProcessor()`, `new AudioWorkletNode()` |
+| Module ID | `'sequencer'` | `new SequencerModule(engine, 'sequencer')` |
+| Source kind (outputs) | `'sequencer'` | Blueprint (Panel 5 + 6), matrixTooltip, signalFlowHighlighter, dormancyManager, routing |
+| Dest kind (Panel 5 inputs) | `'sequencerControl'` | Blueprint, signalFlowHighlighter, dormancyManager, routing |
+| Dest kind (Panel 6 inputs) | `'sequencerInput'` | Blueprint, signalFlowHighlighter, dormancyManager, routing |
+| Output IDs (Panel 5) | `'dac1'`, `'clock'` | Blueprint `output`, `getOutputNode()` |
+| Output IDs (Panel 6) | `'voltageA'`–`'voltageF'`, `'key1'`–`'key4'`, `'clockRate'` | Blueprint `output`, `getOutputNode()`, OSC |
+| Input types (Panel 5) | `'clock'`, `'reset'`, `'forward'`, `'reverse'`, `'stop'` | Blueprint `controlType`, `getInputNode()` |
+| Input types (Panel 6) | `'voltageACE'`, `'voltageBDF'`, `'key'` | Blueprint `inputType`, `getInputNode()` |
+| Dormancy ID | `'sequencer'` | `dormancyManager._setModuleDormant()`, `_findModule()` |
+| CSS class | `'panel7-sequencer'` | `findModuleElement()` selector |
+| Config export name | `sequencerConfig` | `configs/index.js`, app.js imports (alias `sequencerModuleConfig`) |
+| Module store key | `_sequencerModule` | app.js (single instance, no mapa) |
+| Knob store key | `_sequencerKnobs` | app.js `{ voltageA: knobInstance, ..., key4: knobInstance }` |
+| Display update ref | `_sequencerDisplayUpdate` | app.js (closure para actualizar 7-segment display) |
+| State key | `modules.sequencer` | serialize/deserialize patches `{ values, switches }` |
+| DOM element ID | `'panel7-sequencer'` | `signalFlowHighlighter.getModuleElementIds()` |
+| Display element | `'seq-event-time-display'` | Panel 4, `_buildPanel4()` |
+| OSC addresses (knobs) | `'seq/clockRate'`, `'seq/voltageA'`, etc. | `oscSequencerSync.js`, OSC.md |
+| OSC addresses (switches) | `'seq/abKey1'`, `'seq/runClock'`, etc. | `oscSequencerSync.js`, OSC.md |
+| OSC addresses (buttons) | `'seq/masterReset'`, `'seq/runForward'`, etc. | `oscSequencerSync.js`, OSC.md |
+| i18n keys | `'matrix.source.sequencer.voltageA'`, `'matrix.source.sequencerDAC'`, etc. | translations.yaml, matrixTooltip.js |
+| Settings key | `STORAGE_KEYS.SEQUENCER_DISPLAY_FORMAT` | constants.js, settingsModal.js, app.js |
+
 ---
 
 ## 18. Patrones alternativos (lecciones del Keyboard)
@@ -1305,3 +1482,213 @@ Lecciones aprendidas de la implementación del Keyboard:
 6. **Serialización split**: Cuando la UI y el audio son independientes (ventana flotante vs. módulo de audio), serializar ambos por separado. El estado del módulo de audio va en `state.modules.keyboards`, el de la ventana en `state.keyboardVisible` o similar.
 
 7. **Touch events + mouse events**: Para interacción SVG, manejar tanto `mousedown`/`mouseup` como `touchstart`/`touchend`. Usar `e.preventDefault()` en touch para evitar ghost clicks.
+
+---
+
+## 19. Patrones del Sequencer
+
+El Digital Sequencer 1000 introduce patrones que van más allá de los modelos estándar (RandomCV/ModuleUI) y alternativo (Keyboard/ventana flotante). Esta sección documenta los patrones específicos del sequencer, aplicables a módulos con lógica de estado compleja, memoria interna, múltiples I/O y presencia en múltiples paneles.
+
+### 19.1 UI distribuida en múltiples paneles (sin ModuleUI)
+
+**Cuándo**: El módulo necesita elementos visuales en dos o más paneles del sintetizador, sin ventana flotante.
+
+**Patrón**:
+- No se crea clase UI ni archivo de ventana — toda la construcción DOM se hace en métodos `_buildPanelN()` de app.js
+- **Panel 4** (`_buildPanel4()`): Display de 7 segmentos CSS LED para feedback visual del counter
+- **Panel 7** (`_buildPanel7()`): Switches (Toggle/RotarySwitch), botones de transporte, knob de clock rate
+- Los knobs se almacenan en `this._sequencerKnobs = {}` (mapa `nombre → instancia`)
+- Las closures de display update se almacenan en `this._sequencerDisplayUpdate`
+- Serialización del módulo de audio (no de UI): `{ values: {...}, switches: {...} }`
+
+**Diferencias con Keyboard**:
+| Aspecto | Keyboard | Sequencer |
+|---------|----------|-----------|
+| UI principal | Ventana flotante (`keyboardWindow.js`) | DOM directo en paneles |
+| Archivo UI | `ui/keyboardWindow.js` | Ninguno — todo en `app.js` |
+| Paneles | Panel 4 (knobs) | Panel 4 (display) + Panel 7 (controles) |
+| Serialización UI | `serializeKeyboardState()` separado | No hay estado de UI, solo de audio |
+
+### 19.2 Worklet con FSM y memoria
+
+**Cuándo**: El módulo tiene estados de operación distintos (stopped/running/etc.) y almacena datos internos (memoria de eventos, secuencias, buffers).
+
+**Patrón del Sequencer**:
+```javascript
+// Estados de la FSM de transporte
+// stopped → running-forward (via runForward)
+// stopped → running-reverse (via runReverse)
+// running-* → stopped (via stop)
+// cualquiera → counter=0 (via masterReset)
+
+_handleMessage(data) {
+  switch (data.type) {
+    case 'pressButton':
+      this._handleButton(data.button);  // FSM transition
+      break;
+    case 'releaseButton':
+      this._releaseButton(data.button);
+      break;
+    case 'setSwitch':
+      this._switches[data.name] = data.value;
+      break;
+    // ...
+  }
+}
+```
+
+**Memoria interna**:
+- Array de 256 eventos × 4 grupos (voltages A-F + keys 1-4)
+- Lectura y escritura por step index dentro de `process()`
+- Los eventos grabados persisten entre ticks hasta ser sobrescritos
+- La memoria se resetea solo con `masterReset`
+
+**Reloj interno**:
+- Genera ticks cada N samples según `clockRate` (dial 0-10 → frecuencia)
+- Tick = avance de counter + lectura de memoria + actualización de salidas
+- El orden es crítico (Z80): advance counter → record → read outputs
+
+### 19.3 Schmitt trigger para entrada externa
+
+**Cuándo**: El módulo acepta señales de audio como triggers/clocks y necesita detección de flanco robusta.
+
+**Patrón**:
+```javascript
+// En process(), para cada sample del input de clock externo:
+if (!this._lastClockHigh && sample > THRESHOLD_HIGH) {
+  // Flanco positivo detectado
+  this._lastClockHigh = true;
+  this._blankingCounter = BLANKING_SAMPLES;  // ~2ms anti-bounce
+  this._doTick();
+} else if (this._lastClockHigh && sample < THRESHOLD_LOW) {
+  this._lastClockHigh = false;
+}
+if (this._blankingCounter > 0) this._blankingCounter--;
+```
+
+**Puntos clave**:
+- **Schmitt trigger**: Dos umbrales (alto/bajo) para evitar rebotes en señales ruidosas
+- **Blanking**: Periodo de ignorancia post-trigger (~96 samples ≈ 2ms @ 48kHz) para evitar doble trigger
+- Se aplica a cada tipo de control input: clock, reset, forward, reverse, stop
+- El switch `runClock` determina si se usa reloj interno o externo
+
+### 19.4 Callbacks worklet → main thread
+
+**Cuándo**: El módulo necesita enviar feedback al main thread (actualizar displays, indicadores LED, estados visuales).
+
+**Patrón**:
+```javascript
+// En el worklet (dentro de process() o tick handler):
+this.port.postMessage({ type: 'counter', value: this._counter, text: this._counterToHex(this._counter) });
+this.port.postMessage({ type: 'overflow' });
+
+// En el módulo de audio (main thread):
+this.workletNode.port.onmessage = (e) => {
+  const data = e.data;
+  if (data.type === 'counter' && this.onCounterChange) {
+    this.onCounterChange(data.value, data.text);
+  } else if (data.type === 'overflow' && this.onOverflow) {
+    this.onOverflow();
+  }
+};
+
+// En app.js (al crear el módulo):
+this._sequencerModule.onCounterChange = (value, text) => update(value, text);
+this._sequencerModule.onOverflow = () => render('ofof');
+```
+
+**Puntos clave**:
+- Los callbacks son propiedades del módulo de audio, no eventos DOM
+- El worklet envía `value` (numérico) y `text` (hex formateado) — el main thread elige el formato
+- La frecuencia de mensajes debe ser razonable (no por cada sample, sino por cada tick/evento)
+- Para el display, se soportan formatos alternativos (decimal/hex) via `STORAGE_KEYS` en settings
+
+### 19.5 Botones momentáneos (press/release)
+
+**Cuándo**: El módulo tiene botones de transporte o triggers que deben mantener estado mientras se pulsan.
+
+**Patrón**:
+```javascript
+// En app.js — creación del botón:
+button.addEventListener('mousedown', () => {
+  seqModule.pressButton(btnName);
+  if (!sequencerOSCSync.shouldIgnoreOSC()) {
+    sequencerOSCSync.sendButton(btnName, 1);
+  }
+});
+button.addEventListener('mouseup', () => {
+  seqModule.releaseButton(btnName);
+  if (!sequencerOSCSync.shouldIgnoreOSC()) {
+    sequencerOSCSync.sendButton(btnName, 0);
+  }
+});
+
+// En el módulo de audio:
+pressButton(name) {
+  this._sendToWorklet('pressButton', undefined, name);
+}
+releaseButton(name) {
+  this._sendToWorklet('releaseButton', undefined, name);
+}
+```
+
+**Puntos clave**:
+- `mousedown` → `pressButton` (acción), `mouseup` → `releaseButton` (liberación)
+- Los step buttons tienen **doble función**: navegar (mueven el counter) y grabar (registran valores actuales de los knobs)
+- En OSC, se envía `1` al pulsar y `0` al soltar — el receptor trata el `1` como trigger
+
+### 19.6 Settings de aplicación (STORAGE_KEYS + SettingsModal + CustomEvent)
+
+**Cuándo**: El módulo tiene opciones de visualización o comportamiento que el usuario configura globalmente (no por patch).
+
+**Patrón**:
+```javascript
+// 1. constants.js — registrar la clave de localStorage
+export const STORAGE_KEYS = {
+  // ...
+  SEQUENCER_DISPLAY_FORMAT: `${STORAGE_PREFIX}sequencer-display-format`,
+};
+
+// 2. settingsModal.js — crear sección en la tab correspondiente
+_createSeqDisplayFormatSection() {
+  // Radio buttons: decimal / hex
+  // onChange → localStorage.setItem() + dispatchEvent()
+}
+
+_setSeqDisplayFormat(format) {
+  localStorage.setItem(STORAGE_KEYS.SEQUENCER_DISPLAY_FORMAT, format);
+  document.dispatchEvent(new CustomEvent('synth:seqDisplayFormatChange', { detail: { format } }));
+}
+
+// 3. app.js — escuchar el evento y actualizar
+document.addEventListener('synth:seqDisplayFormatChange', (e) => {
+  this._setSeqDisplayFormat(e.detail.format);
+});
+```
+
+**Puntos clave**:
+- El setting NO va en el patch (serialización) — es una preferencia global del usuario
+- Se persiste en `localStorage` via `STORAGE_KEYS`
+- Se comunica via `CustomEvent` (no via callback directo, para desacoplar settings de app)
+- Se necesitan traducciones i18n para los textos del setting
+- La pestaña "Interfaz" del modal de settings es la ubicación típica para opciones de visualización
+
+### 19.7 Gotchas del Sequencer
+
+Lecciones aprendidas de la implementación del Digital Sequencer 1000:
+
+1. **Orden de operaciones Z80**: advance counter → record at new position → update outputs from same position. Cambiar el orden produce bugs donde se graba en la posición anterior o se leen valores desfasados.
+
+2. **Counter hex vs decimal**: El worklet siempre genera el counter en hexadecimal (como el hardware original). La conversión a decimal se hace en el main thread. Enviar ambos (`value` numérico + `text` hex) permite al main thread elegir el formato sin recalcular.
+
+3. **Leading zero suppression**: El display de 7 segmentos debe suprimir ceros iniciales: `0042` → ` 042`, `0001` → `   1`, pero `0000` → `   0` (no string vacío).
+
+4. **Strings especiales del display**: Algunos textos bypass el formateo numérico: `"ofof"` (overflow), `"CAll"` (calibración). Estos se envían directamente a `renderSeqDisplay()`, no a `updateSeqDisplay()`.
+
+5. **Múltiples kinds en un solo módulo**: El sequencer usa 3 kinds (`'sequencer'`, `'sequencerControl'`, `'sequencerInput'`) que apuntan al mismo módulo de audio. El dormancy, signal flow y routing deben cubrir los tres.
+
+6. **Input de voltaje para grabación**: Los voltage inputs (Panel 6, columnas 60-62) son para grabar valores desde fuentes externas. La señal llega al worklet via ChannelMerger y se samplea en el tick. Esto es diferente de inputs de control (Panel 5) que son triggers.
+
+7. **Clock rate vs clock input**: La frecuencia de reloj interna (`clockRate`) es un dial que genera ticks internamente. El clock input externo (Panel 5, col 51) es una entrada de audio que se procesa con Schmitt trigger. El switch `runClock` selecciona cuál se usa. Ambos pueden coexistir si el patching lo requiere.
+
+8. **Lazy start en routing bidireccional**: Como el sequencer tiene tanto outputs (fuentes) como inputs (destinos), el lazy start en `_handlePanel6AudioToggle()` se aplica tanto al conectar una fuente como un destino.

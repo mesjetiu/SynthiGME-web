@@ -51,16 +51,14 @@
  * @module worklets/keyboard
  */
 
-// ─── Constantes ─────────────────────────────────────────────────────────────
+// ─── Defaults (overridable via processorOptions from keyboard.config.js) ─────
 
-/** Nota MIDI del pivote central (F#3) */
-const PIVOT_NOTE = 66;
-
-/** Valor de spread del dial que da 1V/Oct exacto */
-const SPREAD_UNITY = 9;
-
-/** Semitonos por octava */
-const SEMITONES_PER_OCTAVE = 12;
+const DEFAULTS = {
+  pivotNote:          66,    // F#3 — 0V
+  spreadUnity:        9,     // dial value for 1V/Oct
+  semitonesPerOctave: 12,
+  retriggerGapMs:     2      // ∼2ms retrigger gap
+};
 
 /**
  * Factor de conversión voltaje → unidades digitales.
@@ -72,14 +70,20 @@ const SEMITONES_PER_OCTAVE = 12;
  */
 const DIGITAL_TO_VOLTAGE = 4.0;
 
-/** Duración del retrigger gap en samples (~2ms @ 48kHz) */
-const RETRIGGER_GAP_SAMPLES = 96;
-
 // ─── Processor ──────────────────────────────────────────────────────────────
 
 class KeyboardProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
+
+    // ── Config from processorOptions (keyboard.config.js) ──
+    const opts = options?.processorOptions ?? {};
+    this._pivotNote          = opts.pivotNote          ?? DEFAULTS.pivotNote;
+    this._spreadUnity        = opts.spreadUnity        ?? DEFAULTS.spreadUnity;
+    this._semitonesPerOctave = opts.semitonesPerOctave ?? DEFAULTS.semitonesPerOctave;
+    this._retriggerGapSamples = Math.round(
+      (opts.retriggerGapMs ?? DEFAULTS.retriggerGapMs) * sampleRate / 1000
+    );
 
     // ── Estado de teclas ──
     /** @type {Set<number>} MIDI notes actualmente pulsadas */
@@ -238,7 +242,7 @@ class KeyboardProcessor extends AudioWorkletProcessor {
       // Mode 1 «On» (Key Release or New Pitch):
       // El pitch ha cambiado → retrigger (gap + re-gate)
       this._retriggerActive = true;
-      this._retriggerCounter = RETRIGGER_GAP_SAMPLES;
+      this._retriggerCounter = this._retriggerGapSamples;
     }
     // Mode 0 «Kbd» (Retrigger Key Release):
     // NO retrigger mientras hay teclas pulsadas — solo al pasar
@@ -268,7 +272,7 @@ class KeyboardProcessor extends AudioWorkletProcessor {
         // Mode 1 «On»: el pitch ha cambiado al soltar → retrigger
         if (this._retrigger === 1 && oldPitch !== null) {
           this._retriggerActive = true;
-          this._retriggerCounter = RETRIGGER_GAP_SAMPLES;
+          this._retriggerCounter = this._retriggerGapSamples;
         }
       }
     }
@@ -290,8 +294,8 @@ class KeyboardProcessor extends AudioWorkletProcessor {
       this._outPitch = this._pitchOffset / DIGITAL_TO_VOLTAGE;
       return;
     }
-    let v = ((this._currentPitch - PIVOT_NOTE) / SEMITONES_PER_OCTAVE)
-            * (this._pitchSpread / SPREAD_UNITY);
+    let v = ((this._currentPitch - this._pivotNote) / this._semitonesPerOctave)
+            * (this._pitchSpread / this._spreadUnity);
     if (this._invert) v = -v;
     v += this._pitchOffset;
     this._outPitch = v / DIGITAL_TO_VOLTAGE;

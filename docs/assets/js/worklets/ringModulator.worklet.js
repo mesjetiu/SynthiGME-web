@@ -32,11 +32,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES
+// DEFAULTS (overridable via processorOptions from ringModulator.config.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Umbral de soft-clip normalizado: 8V p-p sobre ~10V p-p de rango total del sistema
-const SOFT_CLIP_THRESHOLD = 0.8;
+// Umbral de soft-clip normalizado: 8V p-p sobre ~10V p-p de rango total
+const DEFAULT_SOFT_CLIP_THRESHOLD = 0.8;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FUNCIONES DSP
@@ -48,18 +48,19 @@ const SOFT_CLIP_THRESHOLD = 0.8;
  * Simétrico para señales positivas y negativas.
  *
  * @param {number} x - Muestra de entrada
+ * @param {number} threshold - Umbral de soft-clip
  * @returns {number} Muestra limitada
  */
-function softClip(x) {
-  if (x >= -SOFT_CLIP_THRESHOLD && x <= SOFT_CLIP_THRESHOLD) {
+function softClip(x, threshold) {
+  if (x >= -threshold && x <= threshold) {
     return x;
   }
   // Saturación suave por encima del umbral
   const sign = x > 0 ? 1 : -1;
   const ax = Math.abs(x);
-  const excess = ax - SOFT_CLIP_THRESHOLD;
-  const range = 1.0 - SOFT_CLIP_THRESHOLD;
-  return sign * (SOFT_CLIP_THRESHOLD + range * Math.tanh(excess / range));
+  const excess = ax - threshold;
+  const range = 1.0 - threshold;
+  return sign * (threshold + range * Math.tanh(excess / range));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,8 +68,10 @@ function softClip(x) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class RingModulatorProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
+    const opts = options?.processorOptions ?? {};
+    this._softClipThreshold = opts.softClipThreshold ?? DEFAULT_SOFT_CLIP_THRESHOLD;
     this._isDormant = false;
     this._isStopped = false;
     this.port.onmessage = (e) => this._handleMessage(e.data);
@@ -109,7 +112,7 @@ class RingModulatorProcessor extends AudioWorkletProcessor {
 
     // Multiplicación pura con soft-clip en las entradas
     for (let i = 0; i < output.length; i++) {
-      output[i] = softClip(inputA[i]) * softClip(inputB[i]);
+      output[i] = softClip(inputA[i], this._softClipThreshold) * softClip(inputB[i], this._softClipThreshold);
     }
 
     return true;

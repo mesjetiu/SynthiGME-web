@@ -37,42 +37,20 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES
+// DEFAULTS (overridable via processorOptions from sequencer.config.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Frecuencia mínima del reloj interno (Hz) */
-const CLOCK_MIN_FREQ = 0.1;
-
-/** Frecuencia máxima del reloj interno (Hz) — compatible con Z80 */
-const CLOCK_MAX_FREQ = 500;
-
-/** Ratio entre max y min frecuencia */
-const CLOCK_FREQ_RATIO = CLOCK_MAX_FREQ / CLOCK_MIN_FREQ; // 5000
-
-/** Ancho del pulso clock en segundos */
-const CLOCK_PULSE_WIDTH = 0.005; // 5 ms
-
-/** Umbral ALTO de Schmitt trigger — flanco de subida detectado al cruzar este nivel */
-const EXT_CLOCK_THRESHOLD = 1.0;
-
-/**
- * Umbral BAJO de Schmitt trigger — la señal debe caer bajo este nivel para re-armar.
- * Emula la histéresis del Z80 CTC: una vez disparado, ignora oscilaciones
- * de alta frecuencia (ringing de WaveShaper oversample, etc.) hasta que
- * la señal cae claramente a un nivel bajo.
- * Valor 0.5 = 2V real (0.5 × 4V/unidad digital).
- */
-const EXT_CLOCK_LOW_THRESHOLD = 0.5;
-
-/**
- * Período de blanking tras cada transición del Schmitt trigger (en segundos).
- * Se activa tanto al disparar (flanco de subida) como al re-armar (flanco de
- * bajada). Protege contra ringing de alta frecuencia del WaveShaper
- * oversample=2x del Output Channel, que dura típicamente 3-8 samples.
- * 0.5ms = 24 samples a 48kHz. Permite clocks externos hasta 2000 Hz
- * (4× el máximo interno de 500 Hz).
- */
-const EXT_CLOCK_BLANKING_TIME = 0.0005; // 0.5ms
+const DEFAULTS = {
+  clockMinFreq:        0.1,      // Hz — frecuencia mínima del reloj interno
+  clockMaxFreq:        500,      // Hz — frecuencia máxima (compatible Z80)
+  clockPulseWidth:     0.005,    // 5 ms — ancho del pulso clock
+  extClockThreshold:   1.0,      // Umbral ALTO Schmitt trigger
+  extClockLowThreshold: 0.5,     // Umbral BAJO Schmitt trigger (histéresis)
+  extClockBlankingTime: 0.0005,  // 0.5 ms — blanking anti-ringing
+  analogVoltageRange:  7,        // 0-7V DC por canal analógico
+  keyOnVoltage:        5,        // +5V cuando key activa
+  keyThreshold:        0.6       // Umbral Schmitt trigger para grabar key
+};
 
 /** Índice del canal de salida del clock */
 const CH_CLOCK = 12;
@@ -94,11 +72,7 @@ const CH_VOLTAGE_F = 9;
 const CH_KEY3 = 10;
 const CH_KEY4 = 11;
 
-// ─── Parámetros de conversión analógica ───────────────────────────────────
-const ANALOG_VOLTAGE_RANGE = 7;     // 0-7V DC
-const ANALOG_RESOLUTION = 256;      // 8-bit → 0-255
-const KEY_ON_VOLTAGE = 5;           // +5V active state
-const KEY_THRESHOLD = 0.6;          // Schmitt trigger (V)
+const ANALOG_RESOLUTION = 256;      // 8-bit → 0-255 (structural, not tunable)
 
 // ─── Índices de entradas de conversión ────────────────────────────────────
 const INPUT_VOLTAGE_ACE = 5;
@@ -136,8 +110,21 @@ const INPUT_STOP = 4;
 
 class SequencerProcessor extends AudioWorkletProcessor {
 
-  constructor() {
+  constructor(options) {
     super();
+
+    // ─── Config from processorOptions (sequencer.config.js) ────────────
+    const opts = options?.processorOptions ?? {};
+    this._clockMinFreq       = opts.clockMinFreq       ?? DEFAULTS.clockMinFreq;
+    this._clockMaxFreq       = opts.clockMaxFreq       ?? DEFAULTS.clockMaxFreq;
+    this._clockFreqRatio     = this._clockMaxFreq / this._clockMinFreq;
+    this._clockPulseWidth    = opts.clockPulseWidth     ?? DEFAULTS.clockPulseWidth;
+    this._extClockThreshold  = opts.extClockThreshold   ?? DEFAULTS.extClockThreshold;
+    this._extClockLowThreshold = opts.extClockLowThreshold ?? DEFAULTS.extClockLowThreshold;
+    this._extClockBlankingTime = opts.extClockBlankingTime ?? DEFAULTS.extClockBlankingTime;
+    this._analogVoltageRange = opts.analogVoltageRange   ?? DEFAULTS.analogVoltageRange;
+    this._keyOnVoltage       = opts.keyOnVoltage         ?? DEFAULTS.keyOnVoltage;
+    this._keyThreshold       = opts.keyThreshold         ?? DEFAULTS.keyThreshold;
 
     // ─── Estado del reloj interno ──────────────────────────────────────
     this._clockFreq = this._clockRateDialToFreq(5); // dial inicial = 5
@@ -215,8 +202,8 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
     // Calcular ancho de pulso clock en samples (una sola vez)
     if (this._clockPulseSamples === 0) {
-      this._clockPulseSamples = Math.round(CLOCK_PULSE_WIDTH * sampleRate);
-      this._extClockBlankingSamples = Math.round(EXT_CLOCK_BLANKING_TIME * sampleRate);
+      this._clockPulseSamples = Math.round(this._clockPulseWidth * sampleRate);
+      this._extClockBlankingSamples = Math.round(this._extClockBlankingTime * sampleRate);
     }
 
     // ─── Dormancy: silencio pero el clock sigue corriendo ─────────────
@@ -256,7 +243,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
 
       // Clock pulse output
       if (this._clockPulseRemaining > 0) {
-        clockChannel[i] = KEY_ON_VOLTAGE;
+        clockChannel[i] = this._keyOnVoltage;
         this._clockPulseRemaining--;
       } else {
         clockChannel[i] = 0.0;
@@ -309,13 +296,13 @@ class SequencerProcessor extends AudioWorkletProcessor {
       if (this._extClockBlanking > 0) {
         this._extClockBlanking--;
       } else if (this._extClockArmed) {
-        if (extSample >= EXT_CLOCK_THRESHOLD) {
+        if (extSample >= this._extClockThreshold) {
           this._extClockArmed = false;
           this._extClockBlanking = this._extClockBlankingSamples;
           this._onTick();
         }
       } else {
-        if (extSample < EXT_CLOCK_LOW_THRESHOLD) {
+        if (extSample < this._extClockLowThreshold) {
           this._extClockArmed = true;
           this._extClockBlanking = this._extClockBlankingSamples;
         }
@@ -413,13 +400,13 @@ class SequencerProcessor extends AudioWorkletProcessor {
       if (this._extTransportBlanking[inp] > 0) {
         this._extTransportBlanking[inp]--;
       } else if (this._extTransportArmed[inp]) {
-        if (sample >= EXT_CLOCK_THRESHOLD) {
+        if (sample >= this._extClockThreshold) {
           this._extTransportArmed[inp] = false;
           this._extTransportBlanking[inp] = this._extClockBlankingSamples;
           this._handleExternalTransport(inp);
         }
       } else {
-        if (sample < EXT_CLOCK_LOW_THRESHOLD) {
+        if (sample < this._extClockLowThreshold) {
           this._extTransportArmed[inp] = true;
           this._extTransportBlanking[inp] = this._extClockBlankingSamples;
         }
@@ -493,7 +480,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
     // Cuantizar voltajes a 8-bit
     const aceByte = this._voltageToByte(aceV);
     const bdfByte = this._voltageToByte(bdfV);
-    const keyBits = (keyV > KEY_THRESHOLD) ? 0x0F : 0x00; // 4 keys simultáneos
+    const keyBits = (keyV > this._keyThreshold) ? 0x0F : 0x00; // 4 keys simultáneos
 
     // Grabar según switches activos
     const sw = this._recordSwitches;
@@ -552,8 +539,8 @@ class SequencerProcessor extends AudioWorkletProcessor {
    */
   _voltageToByte(voltage) {
     if (voltage <= 0) return 0;
-    if (voltage >= ANALOG_VOLTAGE_RANGE) return 255;
-    return Math.round((voltage / ANALOG_VOLTAGE_RANGE) * 255);
+    if (voltage >= this._analogVoltageRange) return 255;
+    return Math.round((voltage / this._analogVoltageRange) * 255);
   }
 
   /**
@@ -563,7 +550,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
    * @private
    */
   _byteToVoltage(byte8) {
-    return (byte8 / 255) * ANALOG_VOLTAGE_RANGE;
+    return (byte8 / 255) * this._analogVoltageRange;
   }
 
   /**
@@ -613,17 +600,17 @@ class SequencerProcessor extends AudioWorkletProcessor {
    */
   _setTestOutputs() {
     // Voltajes A-F al máximo (7V)
-    this._currentOutputs[CH_VOLTAGE_A] = ANALOG_VOLTAGE_RANGE;
-    this._currentOutputs[CH_VOLTAGE_B] = ANALOG_VOLTAGE_RANGE;
-    this._currentOutputs[CH_VOLTAGE_C] = ANALOG_VOLTAGE_RANGE;
-    this._currentOutputs[CH_VOLTAGE_D] = ANALOG_VOLTAGE_RANGE;
-    this._currentOutputs[CH_VOLTAGE_E] = ANALOG_VOLTAGE_RANGE;
-    this._currentOutputs[CH_VOLTAGE_F] = ANALOG_VOLTAGE_RANGE;
+    this._currentOutputs[CH_VOLTAGE_A] = this._analogVoltageRange;
+    this._currentOutputs[CH_VOLTAGE_B] = this._analogVoltageRange;
+    this._currentOutputs[CH_VOLTAGE_C] = this._analogVoltageRange;
+    this._currentOutputs[CH_VOLTAGE_D] = this._analogVoltageRange;
+    this._currentOutputs[CH_VOLTAGE_E] = this._analogVoltageRange;
+    this._currentOutputs[CH_VOLTAGE_F] = this._analogVoltageRange;
     // Keys activos (5V)
-    this._currentOutputs[CH_KEY1] = KEY_ON_VOLTAGE;
-    this._currentOutputs[CH_KEY2] = KEY_ON_VOLTAGE;
-    this._currentOutputs[CH_KEY3] = KEY_ON_VOLTAGE;
-    this._currentOutputs[CH_KEY4] = KEY_ON_VOLTAGE;
+    this._currentOutputs[CH_KEY1] = this._keyOnVoltage;
+    this._currentOutputs[CH_KEY2] = this._keyOnVoltage;
+    this._currentOutputs[CH_KEY3] = this._keyOnVoltage;
+    this._currentOutputs[CH_KEY4] = this._keyOnVoltage;
   }
 
   /**
@@ -650,7 +637,7 @@ class SequencerProcessor extends AudioWorkletProcessor {
    */
   _clockRateDialToFreq(dialValue) {
     const normalized = dialValue / 10; // 0..1
-    return CLOCK_MIN_FREQ * Math.pow(CLOCK_FREQ_RATIO, normalized);
+    return this._clockMinFreq * Math.pow(this._clockFreqRatio, normalized);
   }
 
   /**

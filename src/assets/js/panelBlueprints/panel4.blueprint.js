@@ -105,6 +105,36 @@ export default {
     // en la imagen de fondo del panel, no en el SVG. Por eso los
     // elementos de escala y ticks se ocultan por defecto.
     voltmeter: {
+      // ── Caja del voltímetro dentro del ModuleFrame ────────────────
+      // Esta es la caja que debes alinear contra la serigrafía del panel.
+      // Se posiciona de forma absoluta dentro del contenido del frame.
+      frame: {
+        left: 0,
+        top: 0,
+        width: '100%',
+        height: '100%',
+        overflow: 'visible',
+        debugBorderVisible: true,
+        debugBorderColor: 'rgba(255, 210, 0, 0.9)',
+        debugBorderWidth: 1,
+        debugBackground: 'transparent'
+      },
+
+      // ── Ventana visible del medidor ───────────────────────────────
+      // Permite mover y redimensionar la ventana interna que recorta
+      // la aguja. Puedes desplazarla y escalarla sin mover el toggle.
+      window: {
+        left: 0,
+        top: 0,
+        width: '100%',
+        height: 'calc(100% - 28px)',
+        overflow: 'hidden',
+        debugBorderVisible: true,
+        debugBorderColor: 'rgba(0, 220, 255, 0.95)',
+        debugBorderWidth: 1,
+        debugBackground: 'transparent'
+      },
+
       // ── ViewBox y zoom ─────────────────────────────────────────────
       // El viewBox define qué porción del SVG se ve en la ventana.
       // Reducir width/height = zoom in; aumentar = zoom out.
@@ -134,9 +164,9 @@ export default {
 
       // ── Fondo del medidor ──────────────────────────────────────────
       background: {
-        visible: false,       // Ocultar: el fondo es la imagen del panel
-        fill: '#0a0a0a',
-        stroke: '#333',
+        visible: false,      // Por defecto transparente para ver el PNG del panel
+        fill: 'transparent',
+        stroke: 'transparent',
         strokeWidth: 0.5,
         rx: 4
       },
@@ -177,7 +207,11 @@ export default {
 
       // ── Toggle (interruptor de modo) ───────────────────────────────
       toggle: {
-        offset: { x: 0, y: 0 }   // Desplazamiento respecto a posición natural
+        left: '50%',
+        bottom: 0,
+        translateX: '-50%',
+        scale: 1,
+        offset: { x: 0, y: 0 }   // Ajuste fino adicional
       }
     },
 

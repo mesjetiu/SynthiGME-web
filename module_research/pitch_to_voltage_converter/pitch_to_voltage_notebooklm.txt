@@ -1,0 +1,32 @@
+Para la implementación digital del **Pitch-to-Voltage Converter (PVC)** del Synthi 100, basándome en los manuales técnicos y esquemas de 1982 (específicamente la placa **PC-25**), aquí tienes los datos técnicos clave:
+
+### **1. Principio de Conversión y Estructura Lógica**
+El dispositivo no mide la frecuencia contando ciclos por unidad de tiempo (como el medidor de frecuencia), ya que ese método sería demasiado lento para seguir cambios rápidos en una interpretación musical. En su lugar, utiliza un método de **medición de periodo de medio ciclo**:
+
+*   **Detección de cruce por cero:** El sistema comienza a "adivinar" la frecuencia tan pronto como pasa el primer medio ciclo entre cruces por cero y mejora la precisión en los siguientes ciclos.
+*   **Monostable de periodo fijo:** La señal de entrada se acopla al disparador de un monostable (chip **74121**) de periodo constante.
+*   **Relación Marca-Espacio:** Al tener un periodo de disparo variable (la señal de entrada) frente a uno constante (el monostable), se genera una relación marca-espacio que produce un nivel de **D.C. medio** en la salida 'Q' proporcional a la frecuencia.
+*   **Conversión Logarítmica:** Dado que la respuesta inicial es lineal respecto a la frecuencia, el circuito incluye una etapa para alterar la escala a **logarítmica**, permitiendo obtener el estándar de **1 V/Octava**.
+
+### **2. Procesamiento de Señal y Filtro Adaptativo**
+Dada la complejidad de los sonidos instrumentales (ricos en armónicos), el PVC incluye un **filtro adaptativo**:
+*   **Extracción del Fundamental:** La entrada pasa por un oscilador/filtro de seguimiento (*Tracking Oscillator/Filter*) para eliminar armónicos y formantes en la medida de lo posible.
+*   **Requisito de Energía:** Para un seguimiento fiable, el fundamental debe contener al menos el **10% de la energía total** de la señal. Si no se cumple, el dispositivo "cazará" de forma errática o elegirá la parte más fuerte del espectro.
+
+### **3. Gestión de Memoria: Track and Hold**
+Una característica crítica para la implementación es el circuito de **Track and Hold** (Mantenimiento de pista):
+*   **Prevención de fluctuaciones:** Cuando una señal decae (por ejemplo, al final de una nota de piano o cuerda), el PVC detecta que la amplitud ha caído por debajo de un umbral crítico.
+*   **Retención de voltaje:** En lugar de caer a 0V, el circuito mantiene el **último voltaje de conversión válido** hasta que recibe una nueva señal que supere el umbral de detección. Esto evita que el oscilador controlado por el PVC caiga repentinamente de tono entre notas.
+
+### **4. Especificaciones y Límites Técnicos**
+*   **Rango de Seguimiento:** El convertidor no está diseñado para seguir frecuencias muy por debajo de los **250 Hz**.
+*   **Umbral de Amplitud:** Existe un nivel crítico (ajustable con PR 4 en la placa) por debajo del cual el PVC no puede leer la señal y comienza a oscilar o "dudar". Este umbral se suele calibrar para señales que excedan **1 V P/P a 500 Hz**.
+*   **Control de "Pitch Spread":** Es un mando bipolar en el panel frontal:
+    *   **Posición ~7:** El seguimiento es de una octava de salida por cada octava de entrada (1:1).
+    *   **Posición ~10:** Dobla el rango (aprox. dos octavas de salida por cada octava de entrada).
+    *   **Posiciones 3 y 0:** Ofrecen los mismos rangos pero con polaridad invertida.
+
+### **5. Notas para la Implementación Digital**
+*   **Latencia:** Debes emular un pequeño retraso de unos pocos milisegundos (el tiempo que tarda el circuito en "atrapar" la nueva frecuencia tras un cambio brusco).
+*   **Entradas/Salidas:** En el sistema físico, las entradas están en el *Signal Board* (matriz izquierda) y las salidas en el *Control Board* (matriz derecha).
+*   **Componentes Clave (Esquema D100-25 C1):** El diseño utiliza amplificadores operacionales **3140** y **741**, lógica **74121** y transistores de precisión para la etapa logarítmica.

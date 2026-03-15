@@ -309,5 +309,64 @@ export default {
       // - 0.010:   Doble τ (10 ms, fc ≈ 16 Hz) - más suave aún
       // - 0.001:   Más rápido (1 ms, fc ≈ 159 Hz) - para efectos AM suaves
     }
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // VOLTÍMETRO — Parámetros del medidor de aguja (Panel 4)
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Implementación digital del Quad Meter Amplifier (PC-13, plano D100-13 C1).
+  // Cada output channel tiene un voltímetro analógico de aguja que lee
+  // la señal post-VCA (pre-filtro, pre-mute).
+  //
+  // Dos modos seleccionables por toggle:
+  //   Signal Levels (AC) — rectificador + LPF envolvente
+  //   Control Voltages (DC) — voltaje DC bipolar directo
+  //
+  // Conversión fundamental: 1.0 unidad Web Audio ≡ 5.0V del Synthi 100.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  voltmeter: {
+    // ── Parámetros de medición ─────────────────────────────────────────
+
+    /** Factor de conversión: 1.0 Web Audio = 5.0V hardware */
+    voltsPerUnit: 5.0,
+    /** Voltaje máximo en modo DC (±5V) — rango útil CV del Synthi 100 */
+    dcMaxVoltage: 5.0,
+    /** Nivel máximo en modo AC (escala 0-10, normalizado a 0-1) */
+    acMaxLevel: 1.0,
+    /** Impedancia de referencia para dBm (600Ω, estándar audio pro) */
+    dbmRefImpedance: 600,
+
+    // ── Balística de la aguja ──────────────────────────────────────────
+    // Smoothing exponencial: 0 = instantáneo, 1 = fijo.
+    // La aguja real del Synthi tiene inercia mecánica. Valores más bajos
+    // dan respuesta más rápida.
+
+    /** Smoothing modo AC (rectificado) */
+    smoothingAC: 0.85,
+    /** Smoothing modo DC */
+    smoothingDC: 0.75,
+
+    // ── Rango angular de la aguja ──────────────────────────────────────
+    // Grados respecto al eje vertical. Negativo = izquierda, positivo = derecha.
+    // Un rango de 100° (±50°) cubre el arco típico de un VU-meter analógico.
+
+    /** Ángulo mínimo (cero de escala o extremo negativo DC) */
+    needleAngleMin: -50,
+    /** Ángulo máximo (fondo de escala o extremo positivo DC) */
+    needleAngleMax: 50,
+
+    // ── Lectura y buffer ───────────────────────────────────────────────
+
+    /** Tamaño del buffer FFT del AnalyserNode (potencia de 2) */
+    fftSize: 256,
+    /** Intervalo de refresco del medidor (ms), ~30 FPS */
+    refreshInterval: 33,
+
+    // ── Tooltip ────────────────────────────────────────────────────────
+
+    /** Tiempo de auto-ocultado del tooltip (ms) */
+    tooltipAutoHideMs: 4000
   }
 };

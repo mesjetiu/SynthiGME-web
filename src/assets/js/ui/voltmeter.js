@@ -42,43 +42,29 @@
 import { Toggle } from './toggle.js';
 import { flashGlow } from './glowManager.js';
 import { showVoltageTooltip, showAudioTooltip, gainToDb } from '../utils/tooltipUtils.js';
+import outputChannelConfig from '../configs/modules/outputChannel.config.js';
+import panel4Blueprint from '../panelBlueprints/panel4.blueprint.js';
 
-// ── Constantes ─────────────────────────────────────────────────────────────
+// ── Constantes desde config ────────────────────────────────────────────────
 
-/** Ángulo mínimo de la aguja (grados, cero de la escala) */
-const NEEDLE_ANGLE_MIN = -50;
-/** Ángulo máximo de la aguja (grados, fondo de escala) */
-const NEEDLE_ANGLE_MAX = 50;
-/** Rango total de ángulo */
+const VM = outputChannelConfig.voltmeter;
+const BP = panel4Blueprint.layout.voltmeter;
+
+const NEEDLE_ANGLE_MIN = VM.needleAngleMin;
+const NEEDLE_ANGLE_MAX = VM.needleAngleMax;
 const NEEDLE_ANGLE_RANGE = NEEDLE_ANGLE_MAX - NEEDLE_ANGLE_MIN;
 
-/** Smoothing para modo AC (rectificado, más lento para simular inercia) */
-const SMOOTHING_AC = 0.92;
-/** Smoothing para modo DC (respuesta más rápida) */
-const SMOOTHING_DC = 0.85;
+const SMOOTHING_AC = VM.smoothingAC;
+const SMOOTHING_DC = VM.smoothingDC;
 
-/** Voltaje máximo en modo DC (±5V) — rango útil CV del Synthi 100 */
-const DC_MAX_VOLTAGE = 5.0;
-/** Nivel máximo en modo AC (escala 0-10, normalizado a 0-1) */
-const AC_MAX_LEVEL = 1.0;
+const DC_MAX_VOLTAGE = VM.dcMaxVoltage;
+const AC_MAX_LEVEL = VM.acMaxLevel;
+const VOLTS_PER_UNIT = VM.voltsPerUnit;
+const DBM_REF_IMPEDANCE = VM.dbmRefImpedance;
 
-/**
- * Factor de conversión: 1.0 unidad Web Audio = 5.0V del Synthi 100.
- * Los osciladores, LFOs, envelopes y CVs operan en ±1.0 float = ±5V.
- */
-const VOLTS_PER_UNIT = 5.0;
-
-/** Impedancia de referencia para dBm (600Ω, estándar de audio pro) */
-const DBM_REF_IMPEDANCE = 600;
-
-/** Autoocultado del tooltip (ms) */
-const TOOLTIP_AUTO_HIDE_MS = 4000;
-
-/** Intervalo de refresco del medidor (ms) ~30 FPS */
-const REFRESH_INTERVAL = 33;
-
-/** Tamaño del buffer para AnalyserNode */
-const FFT_SIZE = 256;
+const TOOLTIP_AUTO_HIDE_MS = VM.tooltipAutoHideMs;
+const REFRESH_INTERVAL = VM.refreshInterval;
+const FFT_SIZE = VM.fftSize;
 
 export class Voltmeter {
   /**
@@ -129,14 +115,17 @@ export class Voltmeter {
     const meterSvg = this._createMeterSVG();
     root.appendChild(meterSvg);
 
-    // ── Toggle Signal/Control ────────────────────────────────────────
+    // ── Toggle CV/Signal ─────────────────────────────────────────────
+    // Posición A (arriba) = CV (Control Voltages)
+    // Posición B (abajo)  = Signal Levels
+    // Sin labels: están serigrafiados en el panel de fondo.
     this._toggle = new Toggle({
       id: `${this.id}-toggle`,
-      labelA: 'Sig',
-      labelB: 'CV',
-      initial: 'a',
+      labelA: ' ',
+      labelB: ' ',
+      initial: 'b',
       onChange: (state) => {
-        this._mode = state === 'a' ? 'signal' : 'control';
+        this._mode = state === 'a' ? 'control' : 'signal';
         this._updateScaleVisibility();
         this._smoothedValue = 0;
         this._rawValue = 0;
@@ -164,71 +153,89 @@ export class Voltmeter {
   _createMeterSVG() {
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 120 75');
+    const vb = BP.viewBox;
+    svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.width} ${vb.height}`);
     svg.setAttribute('class', 'voltmeter__dial');
     svg.setAttribute('aria-hidden', 'true');
 
     // ── Fondo del medidor ───────────────────────────────────────────
-    const bg = document.createElementNS(ns, 'rect');
-    bg.setAttribute('x', '2');
-    bg.setAttribute('y', '2');
-    bg.setAttribute('width', '116');
-    bg.setAttribute('height', '71');
-    bg.setAttribute('rx', '4');
-    bg.setAttribute('fill', '#0a0a0a');
-    bg.setAttribute('stroke', '#333');
-    bg.setAttribute('stroke-width', '0.5');
-    svg.appendChild(bg);
+    if (BP.background.visible) {
+      const bg = document.createElementNS(ns, 'rect');
+      bg.setAttribute('x', '2');
+      bg.setAttribute('y', '2');
+      bg.setAttribute('width', String(vb.width - 4));
+      bg.setAttribute('height', String(vb.height - 4));
+      bg.setAttribute('rx', String(BP.background.rx));
+      bg.setAttribute('fill', BP.background.fill);
+      bg.setAttribute('stroke', BP.background.stroke);
+      bg.setAttribute('stroke-width', String(BP.background.strokeWidth));
+      svg.appendChild(bg);
+    }
 
     // ── Arco de fondo (área de lectura) ─────────────────────────────
-    const arcBg = document.createElementNS(ns, 'path');
-    const arcPath = this._describeArc(60, 68, 42, -50, 50);
-    arcBg.setAttribute('d', arcPath);
-    arcBg.setAttribute('fill', 'none');
-    arcBg.setAttribute('stroke', '#1a1a1a');
-    arcBg.setAttribute('stroke-width', '18');
-    svg.appendChild(arcBg);
+    if (BP.arc.visible) {
+      const arcBg = document.createElementNS(ns, 'path');
+      const { cx, cy } = BP.pivot;
+      const arcPath = this._describeArc(cx, cy, BP.arc.radius, NEEDLE_ANGLE_MIN, NEEDLE_ANGLE_MAX);
+      arcBg.setAttribute('d', arcPath);
+      arcBg.setAttribute('fill', 'none');
+      arcBg.setAttribute('stroke', BP.arc.stroke);
+      arcBg.setAttribute('stroke-width', String(BP.arc.strokeWidth));
+      svg.appendChild(arcBg);
+    }
 
     // ── Escala Signal Levels (AC) ───────────────────────────────────
     this._scaleSignal = document.createElementNS(ns, 'g');
     this._scaleSignal.setAttribute('class', 'voltmeter__scale-signal');
-    this._createACScale(this._scaleSignal, ns);
+    if (BP.scaleAC.visible) {
+      this._createACScale(this._scaleSignal, ns);
+    }
+    this._scaleSignal.style.display = this._mode === 'signal' && BP.scaleAC.visible ? '' : 'none';
     svg.appendChild(this._scaleSignal);
 
     // ── Escala Control Voltages (DC) ────────────────────────────────
     this._scaleControl = document.createElementNS(ns, 'g');
     this._scaleControl.setAttribute('class', 'voltmeter__scale-control');
-    this._scaleControl.style.display = 'none';
-    this._createDCScale(this._scaleControl, ns);
+    if (BP.scaleDC.visible) {
+      this._createDCScale(this._scaleControl, ns);
+    }
+    this._scaleControl.style.display = this._mode === 'control' && BP.scaleDC.visible ? '' : 'none';
     svg.appendChild(this._scaleControl);
 
     // ── Marcas de graduación ────────────────────────────────────────
-    this._createTicks(svg, ns);
+    if (BP.ticks.visible) {
+      this._createTicks(svg, ns);
+    }
 
     // ── Aguja ───────────────────────────────────────────────────────
     const needleGroup = document.createElementNS(ns, 'g');
     needleGroup.setAttribute('class', 'voltmeter__needle-group');
 
+    const { cx, cy } = BP.pivot;
+    const needleLen = BP.needle.length;
+
     this._needle = document.createElementNS(ns, 'line');
-    this._needle.setAttribute('x1', '60');
-    this._needle.setAttribute('y1', '68');
-    this._needle.setAttribute('x2', '60');
-    this._needle.setAttribute('y2', '22');
+    this._needle.setAttribute('x1', String(cx));
+    this._needle.setAttribute('y1', String(cy));
+    this._needle.setAttribute('x2', String(cx));
+    this._needle.setAttribute('y2', String(cy - needleLen));
     this._needle.setAttribute('class', 'voltmeter__needle');
-    this._needle.setAttribute('stroke', '#ff3300');
-    this._needle.setAttribute('stroke-width', '1');
-    this._needle.setAttribute('stroke-linecap', 'round');
+    this._needle.setAttribute('stroke', BP.needle.color);
+    this._needle.setAttribute('stroke-width', String(BP.needle.strokeWidth));
+    this._needle.setAttribute('stroke-linecap', BP.needle.lineCap);
     needleGroup.appendChild(this._needle);
 
     // Pivote central
-    const pivot = document.createElementNS(ns, 'circle');
-    pivot.setAttribute('cx', '60');
-    pivot.setAttribute('cy', '68');
-    pivot.setAttribute('r', '3');
-    pivot.setAttribute('fill', '#444');
-    pivot.setAttribute('stroke', '#666');
-    pivot.setAttribute('stroke-width', '0.5');
-    needleGroup.appendChild(pivot);
+    if (BP.pivotDot.visible) {
+      const pivot = document.createElementNS(ns, 'circle');
+      pivot.setAttribute('cx', String(cx));
+      pivot.setAttribute('cy', String(cy));
+      pivot.setAttribute('r', String(BP.pivotDot.radius));
+      pivot.setAttribute('fill', BP.pivotDot.fill);
+      pivot.setAttribute('stroke', BP.pivotDot.stroke);
+      pivot.setAttribute('stroke-width', String(BP.pivotDot.strokeWidth));
+      needleGroup.appendChild(pivot);
+    }
 
     svg.appendChild(needleGroup);
 
@@ -242,17 +249,18 @@ export class Voltmeter {
    * Crea las marcas de graduación del medidor.
    */
   _createTicks(svg, ns) {
-    const cx = 60, cy = 68, r = 42;
-    const tickCount = 11;  // 0 a 10
+    const { cx, cy } = BP.pivot;
+    const t = BP.ticks;
+    const r = t.radius;
+    const tickCount = t.count;
 
     for (let i = 0; i <= tickCount - 1; i++) {
       const fraction = i / (tickCount - 1);
       const angle = NEEDLE_ANGLE_MIN + fraction * NEEDLE_ANGLE_RANGE;
       const rad = (angle - 90) * Math.PI / 180;
 
-      // Marcas principales cada 2 unidades, menores en las intermedias
       const isMajor = i % 2 === 0;
-      const innerR = isMajor ? r - 5 : r - 3;
+      const innerR = isMajor ? r - t.majorLength : r - t.minorLength;
       const outerR = r;
 
       const x1 = cx + innerR * Math.cos(rad);
@@ -265,8 +273,8 @@ export class Voltmeter {
       tick.setAttribute('y1', String(y1));
       tick.setAttribute('x2', String(x2));
       tick.setAttribute('y2', String(y2));
-      tick.setAttribute('stroke', '#888');
-      tick.setAttribute('stroke-width', isMajor ? '1' : '0.5');
+      tick.setAttribute('stroke', t.stroke);
+      tick.setAttribute('stroke-width', isMajor ? String(t.majorStrokeWidth) : String(t.minorStrokeWidth));
       svg.appendChild(tick);
     }
   }
@@ -275,7 +283,8 @@ export class Voltmeter {
    * Crea numeración de la escala AC (0-10).
    */
   _createACScale(group, ns) {
-    const cx = 60, cy = 68, r = 30;
+    const { cx, cy } = BP.pivot;
+    const r = BP.scaleAC.radius;
     const labels = ['0', '', '2', '', '4', '', '6', '', '8', '', '10'];
 
     for (let i = 0; i < labels.length; i++) {
@@ -293,8 +302,8 @@ export class Voltmeter {
       text.setAttribute('class', 'voltmeter__scale-text');
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('dominant-baseline', 'middle');
-      text.setAttribute('fill', '#ccc');
-      text.setAttribute('font-size', '6');
+      text.setAttribute('fill', BP.scaleAC.fill);
+      text.setAttribute('font-size', String(BP.scaleAC.fontSize));
       text.textContent = labels[i];
       group.appendChild(text);
     }
@@ -304,7 +313,8 @@ export class Voltmeter {
    * Crea numeración de la escala DC (-5..+5, centro-cero).
    */
   _createDCScale(group, ns) {
-    const cx = 60, cy = 68, r = 30;
+    const { cx, cy } = BP.pivot;
+    const r = BP.scaleDC.radius;
     const labels = ['-5', '', '-3', '', '-1', '0', '+1', '', '+3', '', '+5'];
 
     for (let i = 0; i < labels.length; i++) {
@@ -322,8 +332,8 @@ export class Voltmeter {
       text.setAttribute('class', 'voltmeter__scale-text');
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('dominant-baseline', 'middle');
-      text.setAttribute('fill', '#8cf');
-      text.setAttribute('font-size', '6');
+      text.setAttribute('fill', BP.scaleDC.fill);
+      text.setAttribute('font-size', String(BP.scaleDC.fontSize));
       text.textContent = labels[i];
       group.appendChild(text);
     }
@@ -348,10 +358,10 @@ export class Voltmeter {
    */
   _updateScaleVisibility() {
     if (this._scaleSignal) {
-      this._scaleSignal.style.display = this._mode === 'signal' ? '' : 'none';
+      this._scaleSignal.style.display = this._mode === 'signal' && BP.scaleAC.visible ? '' : 'none';
     }
     if (this._scaleControl) {
-      this._scaleControl.style.display = this._mode === 'control' ? '' : 'none';
+      this._scaleControl.style.display = this._mode === 'control' && BP.scaleDC.visible ? '' : 'none';
     }
   }
 
@@ -362,9 +372,10 @@ export class Voltmeter {
   _setNeedleAngle(angle) {
     if (!this._needle) return;
     this._currentAngle = angle;
+    const { cx, cy } = BP.pivot;
     this._needle.setAttribute(
       'transform',
-      `rotate(${angle}, 60, 68)`
+      `rotate(${angle}, ${cx}, ${cy})`
     );
   }
 
@@ -653,7 +664,7 @@ export class Voltmeter {
     if (!data) return;
     if (data.mode === 'signal' || data.mode === 'control') {
       this._mode = data.mode;
-      const toggleState = this._mode === 'signal' ? 'a' : 'b';
+      const toggleState = this._mode === 'control' ? 'a' : 'b';
       if (this._toggle) this._toggle.setState(toggleState);
       this._updateScaleVisibility();
     }

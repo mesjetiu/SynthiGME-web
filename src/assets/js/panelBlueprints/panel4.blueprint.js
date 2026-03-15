@@ -95,6 +95,92 @@ export default {
       count: 8
     },
 
+    // ── Configuración visual del voltímetro individual ─────────────────
+    // Controla geometría SVG, posición de elementos y visibilidad.
+    // La ventana del voltímetro recorta parte de la aguja, por lo que
+    // estos parámetros permiten ajustar zoom, rango y posición del eje
+    // para que la aguja encaje con la imagen de fondo del panel.
+    //
+    // Nota: la graduación (escala numérica, marcas) estará serigrafiada
+    // en la imagen de fondo del panel, no en el SVG. Por eso los
+    // elementos de escala y ticks se ocultan por defecto.
+    voltmeter: {
+      // ── ViewBox y zoom ─────────────────────────────────────────────
+      // El viewBox define qué porción del SVG se ve en la ventana.
+      // Reducir width/height = zoom in; aumentar = zoom out.
+      // Mover x/y desplaza la vista (crop).
+      viewBox: { x: 0, y: 0, width: 120, height: 75 },
+
+      // ── Eje de la aguja (pivot) ────────────────────────────────────
+      // Centro de rotación de la aguja en coordenadas SVG.
+      pivot: { cx: 60, cy: 68 },
+
+      // ── Aguja ──────────────────────────────────────────────────────
+      needle: {
+        length: 46,           // Longitud en unidades SVG (desde pivot hacia arriba)
+        strokeWidth: 1,       // Grosor
+        color: '#000000',     // Negro (sobre fondo del panel)
+        lineCap: 'round'
+      },
+
+      // ── Pivote visual (círculo decorativo) ─────────────────────────
+      pivotDot: {
+        visible: false,       // Ocultar: no se ve en el panel real
+        radius: 3,
+        fill: '#444',
+        stroke: '#666',
+        strokeWidth: 0.5
+      },
+
+      // ── Fondo del medidor ──────────────────────────────────────────
+      background: {
+        visible: false,       // Ocultar: el fondo es la imagen del panel
+        fill: '#0a0a0a',
+        stroke: '#333',
+        strokeWidth: 0.5,
+        rx: 4
+      },
+
+      // ── Arco de fondo (banda detrás de la aguja) ───────────────────
+      arc: {
+        visible: false,       // Ocultar: serigrafiado en panel
+        radius: 42,
+        strokeWidth: 18,
+        stroke: '#1a1a1a'
+      },
+
+      // ── Marcas de graduación (ticks) ───────────────────────────────
+      ticks: {
+        visible: false,       // Ocultar: serigrafiadas en panel
+        count: 11,            // 0 a 10
+        radius: 42,           // Radio del arco donde se colocan
+        majorLength: 5,       // Longitud de marcas principales
+        minorLength: 3,       // Longitud de marcas intermedias
+        stroke: '#888',
+        majorStrokeWidth: 1,
+        minorStrokeWidth: 0.5
+      },
+
+      // ── Escalas numéricas ──────────────────────────────────────────
+      scaleAC: {
+        visible: false,       // Ocultar: serigrafiada en panel
+        radius: 30,           // Radio del arco de texto
+        fontSize: 6,
+        fill: '#ccc'
+      },
+      scaleDC: {
+        visible: false,       // Ocultar: serigrafiada en panel
+        radius: 30,
+        fontSize: 6,
+        fill: '#8cf'
+      },
+
+      // ── Toggle (interruptor de modo) ───────────────────────────────
+      toggle: {
+        offset: { x: 0, y: 0 }   // Desplazamiento respecto a posición natural
+      }
+    },
+
     // ── Fila 2: Sequencer Event Time (display numérico centrado) ───────
     sequencerEventTime: {
       height: 80,

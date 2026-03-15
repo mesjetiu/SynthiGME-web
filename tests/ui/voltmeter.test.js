@@ -166,10 +166,11 @@ describe('Voltmeter - createElement()', () => {
     assert.strictEqual(needle.getAttribute('y1'), '68');
   });
 
-  it('contiene un pivote central (circle)', () => {
+  it('pivote visual oculto por defecto (blueprint)', () => {
     const el = vm.createElement();
-    const circles = el.querySelectorAll('circle');
-    assert.ok(circles.length > 0, 'debe contener al menos un circle (pivote)');
+    const svg = el.querySelector('svg');
+    const circles = svg.querySelectorAll('circle');
+    assert.strictEqual(circles.length, 0, 'pivote oculto por blueprint');
   });
 
   it('contiene escala Signal (AC)', () => {
@@ -184,15 +185,11 @@ describe('Voltmeter - createElement()', () => {
     assert.ok(scaleControl, 'debe contener grupo de escala Control');
   });
 
-  it('escala Signal visible por defecto', () => {
+  it('escalas ocultas por defecto (blueprint visible=false)', () => {
     const el = vm.createElement();
     const scaleSignal = el.querySelector('.voltmeter__scale-signal');
-    assert.notStrictEqual(scaleSignal.style.display, 'none');
-  });
-
-  it('escala Control oculta por defecto', () => {
-    const el = vm.createElement();
     const scaleControl = el.querySelector('.voltmeter__scale-control');
+    assert.strictEqual(scaleSignal.style.display, 'none');
     assert.strictEqual(scaleControl.style.display, 'none');
   });
 
@@ -202,72 +199,42 @@ describe('Voltmeter - createElement()', () => {
     assert.ok(toggle, 'debe contener un Toggle Switch');
   });
 
-  it('toggle tiene labels Sig/CV', () => {
+  it('toggle sin labels visibles (serigrafiados en panel)', () => {
     const el = vm.createElement();
     const labels = el.querySelectorAll('.synth-toggle__label');
-    const texts = Array.from(labels).map(l => l.textContent);
-    assert.ok(texts.includes('Sig'), 'debe incluir label "Sig"');
-    assert.ok(texts.includes('CV'), 'debe incluir label "CV"');
+    for (const label of labels) {
+      assert.strictEqual(label.textContent.trim(), '', 'label debe ser invisible (espacio)');
+    }
+  });
+
+  it('aguja color negro (blueprint)', () => {
+    const el = vm.createElement();
+    const needle = el.querySelector('.voltmeter__needle');
+    assert.strictEqual(needle.getAttribute('stroke'), '#000000');
   });
 });
 
 describe('Voltmeter - Escala AC (Signal Levels)', () => {
 
-  it('incluye texto "0" en la escala Signal', () => {
+  it('grupo de escala Signal existe pero sin contenido (blueprint visible=false)', () => {
     const vm = createTestVoltmeter();
     const el = vm.createElement();
-    const texts = el.querySelectorAll('.voltmeter__scale-signal text');
-    const values = Array.from(texts).map(t => t.textContent);
-    assert.ok(values.includes('0'), 'escala debe incluir "0"');
-  });
-
-  it('incluye texto "10" en la escala Signal', () => {
-    const vm = createTestVoltmeter();
-    const el = vm.createElement();
-    const texts = el.querySelectorAll('.voltmeter__scale-signal text');
-    const values = Array.from(texts).map(t => t.textContent);
-    assert.ok(values.includes('10'), 'escala debe incluir "10"');
-  });
-
-  it('muestra solo valores pares (0, 2, 4, 6, 8, 10)', () => {
-    const vm = createTestVoltmeter();
-    const el = vm.createElement();
-    const texts = el.querySelectorAll('.voltmeter__scale-signal text');
-    const values = Array.from(texts).map(t => t.textContent);
-    const expected = ['0', '2', '4', '6', '8', '10'];
-    for (const v of expected) {
-      assert.ok(values.includes(v), `escala debe incluir "${v}"`);
-    }
+    const scaleGroup = el.querySelector('.voltmeter__scale-signal');
+    assert.ok(scaleGroup, 'grupo de escala Signal debe existir');
+    const texts = scaleGroup.querySelectorAll('text');
+    assert.strictEqual(texts.length, 0, 'sin textos cuando blueprint.scaleAC.visible=false');
   });
 });
 
 describe('Voltmeter - Escala DC (Control Voltages)', () => {
 
-  it('incluye texto "0" como centro-cero', () => {
+  it('grupo de escala Control existe pero sin contenido (blueprint visible=false)', () => {
     const vm = createTestVoltmeter();
     const el = vm.createElement();
-    const texts = el.querySelectorAll('.voltmeter__scale-control text');
-    const values = Array.from(texts).map(t => t.textContent);
-    assert.ok(values.includes('0'), 'escala DC debe incluir "0" (centro)');
-  });
-
-  it('incluye "-5" y "+5" como extremos', () => {
-    const vm = createTestVoltmeter();
-    const el = vm.createElement();
-    const texts = el.querySelectorAll('.voltmeter__scale-control text');
-    const values = Array.from(texts).map(t => t.textContent);
-    assert.ok(values.includes('-5'), 'escala DC debe incluir "-5"');
-    assert.ok(values.includes('+5'), 'escala DC debe incluir "+5"');
-  });
-
-  it('incluye valores impares intermedios (-3, -1, +1, +3)', () => {
-    const vm = createTestVoltmeter();
-    const el = vm.createElement();
-    const texts = el.querySelectorAll('.voltmeter__scale-control text');
-    const values = Array.from(texts).map(t => t.textContent);
-    for (const v of ['-3', '-1', '+1', '+3']) {
-      assert.ok(values.includes(v), `escala DC debe incluir "${v}"`);
-    }
+    const scaleGroup = el.querySelector('.voltmeter__scale-control');
+    assert.ok(scaleGroup, 'grupo de escala Control debe existir');
+    const texts = scaleGroup.querySelectorAll('text');
+    assert.strictEqual(texts.length, 0, 'sin textos cuando blueprint.scaleDC.visible=false');
   });
 });
 
@@ -281,21 +248,21 @@ describe('Voltmeter - Cambio de modo (Toggle)', () => {
     vm.createElement();
   });
 
-  it('al cambiar toggle a "b", modo pasa a "control"', () => {
-    vm._toggle.toggle(); // a → b
+  it('al cambiar toggle a "a" (arriba), modo pasa a "control" (CV)', () => {
+    vm._toggle.toggle(); // b → a
     assert.strictEqual(vm._mode, 'control');
   });
 
-  it('al cambiar toggle a "a", modo vuelve a "signal"', () => {
-    vm._toggle.toggle(); // a → b
+  it('al cambiar toggle a "b" (abajo), modo vuelve a "signal"', () => {
     vm._toggle.toggle(); // b → a
+    vm._toggle.toggle(); // a → b
     assert.strictEqual(vm._mode, 'signal');
   });
 
-  it('en modo control, escala DC visible y escala AC oculta', () => {
+  it('en modo control, ambas escalas ocultas (blueprint visible=false)', () => {
     vm._toggle.toggle(); // → control
     assert.strictEqual(vm._scaleSignal.style.display, 'none');
-    assert.notStrictEqual(vm._scaleControl.style.display, 'none');
+    assert.strictEqual(vm._scaleControl.style.display, 'none');
   });
 
   it('reset smoothedValue al cambiar de modo', () => {
@@ -311,7 +278,7 @@ describe('Voltmeter - Cambio de modo (Toggle)', () => {
       onChange: (mode) => { receivedMode = mode; }
     });
     vm2.createElement();
-    vm2._toggle.toggle();
+    vm2._toggle.toggle(); // b→a = control
     assert.strictEqual(receivedMode, 'control');
   });
 });
@@ -545,8 +512,7 @@ describe('Voltmeter - _readAndUpdate() modo Control (DC)', () => {
 
 describe('Voltmeter - Balística de la aguja (smoothing)', () => {
 
-  it('smoothing AC (0.92) es mayor que DC (0.85) → AC más lento', () => {
-    // No accedemos a constantes directamente, pero verificamos el efecto:
+  it('smoothing AC (0.85) es mayor que DC (0.75) → AC más lento', () => {
     // Con la misma señal, en modo AC la aguja se mueve más lento que en DC
     const vmAC = createTestVoltmeter({ id: 'vm-ac' });
     vmAC.createElement();
@@ -564,7 +530,7 @@ describe('Voltmeter - Balística de la aguja (smoothing)', () => {
     vmDC.connect(sourceDC);
     vmDC._analyser.getFloatTimeDomainData = (arr) => {
       vmDC._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(1.0); // En DC, ±1.0 Web Audio = ±5V (se clampa sin dividir)
+      arr.fill(1.0);
     };
 
     // Una sola iteración
@@ -572,11 +538,10 @@ describe('Voltmeter - Balística de la aguja (smoothing)', () => {
     vmDC._readAndUpdate();
 
     // DC debe responder más rápido (smoothing menor → más peso al nuevo valor)
-    // AC: new = 0 * 0.92 + 1.0 * 0.08 = 0.08
-    // DC: clamp(1.0)=1.0, new = 0 * 0.85 + 1.0 * 0.15 = 0.15
-    // Comparar % del target alcanzado en un paso
-    const acPctTarget = vmAC._smoothedValue / 1.0;  // % del target AC
-    const dcPctTarget = vmDC._smoothedValue / 1.0;   // % del target DC (ya es 1.0)
+    // AC: new = 0 * 0.85 + 1.0 * 0.15 = 0.15
+    // DC: clamp(1.0)=1.0, new = 0 * 0.75 + 1.0 * 0.25 = 0.25
+    const acPctTarget = vmAC._smoothedValue / 1.0;
+    const dcPctTarget = vmDC._smoothedValue / 1.0;
 
     assert.ok(dcPctTarget > acPctTarget,
       `DC debe alcanzar mayor % del target que AC tras un paso: DC=${dcPctTarget.toFixed(3)}, AC=${acPctTarget.toFixed(3)}`);
@@ -626,7 +591,7 @@ describe('Voltmeter - serialize()', () => {
   it('serializa modo "control" correctamente', () => {
     const vm = createTestVoltmeter();
     vm.createElement();
-    vm._toggle.toggle(); // → control
+    vm._toggle.toggle(); // b→a = control
     const data = vm.serialize();
     assert.deepStrictEqual(data, { mode: 'control' });
   });
@@ -655,13 +620,14 @@ describe('Voltmeter - deserialize()', () => {
 
   it('actualiza visibilidad de escalas al deserializar', () => {
     vm.deserialize({ mode: 'control' });
+    // Con blueprint visible=false, ambas escalas permanecen ocultas
     assert.strictEqual(vm._scaleSignal.style.display, 'none');
-    assert.notStrictEqual(vm._scaleControl.style.display, 'none');
+    assert.strictEqual(vm._scaleControl.style.display, 'none');
   });
 
-  it('actualiza estado del toggle al deserializar', () => {
+  it('actualiza estado del toggle al deserializar (control=a)', () => {
     vm.deserialize({ mode: 'control' });
-    assert.strictEqual(vm._toggle.getState(), 'b');
+    assert.strictEqual(vm._toggle.getState(), 'a');
   });
 
   it('ignora datos null', () => {
@@ -711,14 +677,13 @@ describe('Voltmeter - dispose()', () => {
 
 describe('Voltmeter - Marcas de graduación (ticks)', () => {
 
-  it('tiene al menos 10 marcas de graduación', () => {
+  it('ticks ocultos por defecto (blueprint visible=false)', () => {
     const vm = createTestVoltmeter();
     const el = vm.createElement();
-    // Cada tick es un <line> dentro del SVG (fuera de los grupos de escala)
     const svg = el.querySelector('svg');
     const allLines = svg.querySelectorAll('line');
-    // Hay al menos 10 ticks + la aguja (1 line)
-    assert.ok(allLines.length >= 11, `debe tener al menos 11 lines (10 ticks + aguja), tiene ${allLines.length}`);
+    // Solo la aguja (1 line), sin ticks
+    assert.strictEqual(allLines.length, 1, `solo la aguja, sin ticks: tiene ${allLines.length}`);
   });
 });
 
@@ -733,7 +698,7 @@ describe('Voltmeter - Múltiples instancias', () => {
     }
     
     // Verificar que cada uno tiene su propio estado
-    voltmeters[0]._toggle.toggle(); // → control
+    voltmeters[0]._toggle.toggle(); // b→a = control
     assert.strictEqual(voltmeters[0]._mode, 'control');
     assert.strictEqual(voltmeters[1]._mode, 'signal'); // no afectado
     

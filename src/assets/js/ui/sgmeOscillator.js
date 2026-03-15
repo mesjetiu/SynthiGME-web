@@ -142,9 +142,11 @@ export class SGME_Oscillator {
       }
     });
     
+    range.title = 'Range: HI';
     range.addEventListener('click', () => {
       this.rangeState = this.rangeState === 'hi' ? 'lo' : 'hi';
       this._renderRange(range);
+      range.title = `Range: ${this.rangeState.toUpperCase()}`;
       // Notificar cambio de rango para recalcular frecuencia
       if (typeof this.onRangeChange === 'function') {
         this.onRangeChange(this.rangeState);
@@ -237,6 +239,7 @@ export class SGME_Oscillator {
         knobInstance = new Knob(knob, { ...baseOptions, ...perKnob });
       }
 
+      knobInstance.tooltipLabel = label;
       this.knobs.push(knobInstance);
     });
     bottom.appendChild(knobsRow);
@@ -294,6 +297,7 @@ export class SGME_Oscillator {
       const rangeEl = document.querySelector(`#${this.id} .output-channel__switch`);
       if (rangeEl) {
         this._renderRange(rangeEl);
+        rangeEl.title = `Range: ${this.rangeState.toUpperCase()}`;
         if (rangeChanged) flashGlow(rangeEl);
       }
     }

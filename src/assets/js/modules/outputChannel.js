@@ -316,6 +316,7 @@ export class OutputChannel extends Module {
     switchEl.classList.toggle('is-on', this.values.power);
     switchEl.setAttribute('aria-pressed', String(this.values.power));
     switchEl.setAttribute('aria-label', `Channel ${this.channelIndex + 1} power`);
+    switchEl.title = this.values.power ? 'Power: ON' : 'Power: OFF';
     
     // Contenedor para SVG del toggle
     const svgContainer = document.createElement('div');
@@ -336,6 +337,7 @@ export class OutputChannel extends Module {
       this.values.power = !this.values.power;
       switchEl.classList.toggle('is-on', this.values.power);
       switchEl.setAttribute('aria-pressed', String(this.values.power));
+      switchEl.title = this.values.power ? 'Power: ON' : 'Power: OFF';
       this._updatePowerLever();
       // Mutear/desmutear el canal (power=true → muted=false)
       this.engine.setOutputMute(this.channelIndex, !this.values.power);
@@ -574,7 +576,7 @@ export class OutputChannel extends Module {
    */
   _generateSliderTooltipContent(getTooltipInfo, currentValue) {
     const dialValue = currentValue ?? this.values.level;
-    const mainText = dialValue.toFixed(2);
+    const mainText = `Level: ${dialValue.toFixed(2)}`;
     const extraInfo = getTooltipInfo(dialValue);
     
     if (extraInfo) {
@@ -771,6 +773,7 @@ export class OutputChannel extends Module {
       if (this.powerSwitch) {
         this.powerSwitch.classList.toggle('is-on', data.power);
         this.powerSwitch.setAttribute('aria-pressed', String(data.power));
+        this.powerSwitch.title = data.power ? 'Power: ON' : 'Power: OFF';
         this._updatePowerLever();
         if (powerChanged) flashGlow(this.powerSwitch);
       }

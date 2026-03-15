@@ -49,6 +49,8 @@ export class Panel1FilterUI {
   }
 
   createElement() {
+    const KNOB_LABELS = { frequency: 'Frequency', response: 'Response', level: 'Level' };
+
     this.frame = new ModuleFrame({
       id: this.id,
       title: null,
@@ -78,7 +80,8 @@ export class Panel1FilterUI {
         scaleMax: this.knobOptions[key]?.scaleMax ?? 10,
         scaleDecimals: this.knobOptions[key]?.scaleDecimals ?? 1,
         onChange: this.knobOptions[key]?.onChange,
-        getTooltipInfo: this.knobOptions[key]?.getTooltipInfo
+        getTooltipInfo: this.knobOptions[key]?.getTooltipInfo,
+        tooltipLabel: KNOB_LABELS[key] || key
       });
 
       if (typeof this.layout.knobSize === 'number' && this.layout.knobSize > 0) {

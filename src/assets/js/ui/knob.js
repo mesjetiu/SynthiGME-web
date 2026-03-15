@@ -56,6 +56,10 @@ export class Knob {
     
     // Función para info adicional en tooltip
     this.getTooltipInfo = getTooltipInfo;
+
+    // Label para mostrar en tooltip (ej: "LEVEL: 4.09")
+    // Si no se proporciona, se intenta leer del DOM automáticamente.
+    this.tooltipLabel = options.tooltipLabel || null;
     
     // Configuración de tooltip táctil
     this.tooltipAutoHideDelay = tooltipAutoHideDelay;
@@ -137,7 +141,9 @@ export class Knob {
    */
   _generateTooltipContent() {
     const scaleValue = this._getScaleValue();
-    const mainText = this._formatScaleValue();
+    const rawValue = this._formatScaleValue();
+    const label = this._getTooltipLabel();
+    const mainText = label ? `${label}: ${rawValue}` : rawValue;
     
     // Si hay función de info adicional, usarla
     if (this.getTooltipInfo) {
@@ -149,6 +155,20 @@ export class Knob {
     }
     
     return mainText;
+  }
+
+  /**
+   * Obtiene el label para el tooltip. Prioridad:
+   * 1. tooltipLabel explícito
+   * 2. Lectura automática del DOM (.knob-label o *__knob-label)
+   * @returns {string|null}
+   */
+  _getTooltipLabel() {
+    if (this.tooltipLabel) return this.tooltipLabel;
+    const parent = this.rootEl.parentElement;
+    if (!parent) return null;
+    const labelEl = parent.querySelector('.knob-label, [class*="__knob-label"]');
+    return labelEl?.textContent?.trim() || null;
   }
   
   /**

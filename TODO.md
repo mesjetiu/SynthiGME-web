@@ -144,3 +144,7 @@ podría ser significativo en dispositivos móviles.
 ## Después...
 
 - Parámetros no modificables por VC pasarlos a control rate.
+- los filtros muestran aliasing cuando pongo una señal estrecha, sinusoidal por el Q alto. Parece que sus armónicos pronto se reflejan creando el efecto clarísimo de aliasing... podemos filtrarlo o hacer algo para evitarlo?
+
+
+- crear sistema de capas en pip.

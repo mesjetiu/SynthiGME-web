@@ -701,6 +701,7 @@ class App {
         }
       }
     });
+    leftRangeYKnob.knobInstance.tooltipLabel = 'Range Y';
     leftRangeYKnob.wrapper.dataset.knob = 'rangeY';
     applyOffset(leftRangeYKnob.wrapper, joystickLeftUI.knobOffsets?.[0]);
     joyLeftKnobs.appendChild(leftRangeYKnob.wrapper);
@@ -733,6 +734,7 @@ class App {
         }
       }
     });
+    leftRangeXKnob.knobInstance.tooltipLabel = 'Range X';
     leftRangeXKnob.wrapper.dataset.knob = 'rangeX';
     applyOffset(leftRangeXKnob.wrapper, joystickLeftUI.knobOffsets?.[1]);
     joyLeftKnobs.appendChild(leftRangeXKnob.wrapper);
@@ -791,10 +793,15 @@ class App {
       const switchName = seqSwitchNames[idx];
       let switchState = switchName === 'runClock';  // runClock starts true
       let leverGroup = null;
+      const getSwitchTitle = () => {
+        if (switchName === 'runClock') return switchState ? 'Run Clock' : 'Stop Clock';
+        return switchState ? `${label}: Play` : `${label}: Record`;
+      };
       const updateLever = () => {
         if (!leverGroup) return;
         leverGroup.setAttribute('transform', switchState ? '' : 'translate(0,200) scale(1,-1)');
       };
+      btn.title = getSwitchTitle();
       loadSvgInline('assets/knobs/toggle-switch.svg', svgContainer).then(({ svg, prefix }) => {
         if (svg) {
           leverGroup = svg.getElementById(`${prefix}toggle-lever`);
@@ -806,6 +813,7 @@ class App {
         switchState = !switchState;
         btn.classList.toggle('is-on', switchState);
         updateLever();
+        btn.title = getSwitchTitle();
         flashGlow(btn);
         this._sequencerModule?.setSwitch(switchName, switchState);
         sequencerOSCSync.sendSwitchChange(switchName, switchState);
@@ -818,6 +826,7 @@ class App {
           switchState = newState;
           btn.classList.toggle('is-on', switchState);
           updateLever();
+          btn.title = getSwitchTitle();
         }
       };
       sw.appendChild(btn);
@@ -836,6 +845,7 @@ class App {
       btn.type = 'button';
       btn.dataset.preventPan = 'true';
       applyOffset(btn, sequencerUI.buttonOffsets?.[idx]);
+      btn.title = label;
       // Wire button click → sequencer module
       const buttonName = seqButtonNames[idx];
       btn.addEventListener('click', () => {
@@ -874,6 +884,7 @@ class App {
         sequencerOSCSync.sendKnobChange('clockRate', dial);
       };
       knobInstance.getTooltipInfo = getSequencerClockRateTooltipInfo();
+      knobInstance.tooltipLabel = 'Clock Rate';
       clockRateKnob = { wrapper: elements.wrapper, knobInstance };
     } else {
       let clockRateSvgSrc = 'assets/knobs/knob.svg';
@@ -953,6 +964,7 @@ class App {
         }
       }
     });
+    rightRangeYKnob.knobInstance.tooltipLabel = 'Range Y';
     rightRangeYKnob.wrapper.dataset.knob = 'rangeY';
     applyOffset(rightRangeYKnob.wrapper, joystickRightUI.knobOffsets?.[0]);
     joyRightKnobs.appendChild(rightRangeYKnob.wrapper);
@@ -985,6 +997,7 @@ class App {
         }
       }
     });
+    rightRangeXKnob.knobInstance.tooltipLabel = 'Range X';
     rightRangeXKnob.wrapper.dataset.knob = 'rangeX';
     applyOffset(rightRangeXKnob.wrapper, joystickRightUI.knobOffsets?.[1]);
     joyRightKnobs.appendChild(rightRangeXKnob.wrapper);
@@ -4302,6 +4315,7 @@ class App {
         id: `${moduleId}-toggle-${idx}`,
         labelA: toggleDef.labelA || 'Off',
         labelB: toggleDef.labelB || 'On',
+        name: toggleDef.name || '',
         initial: 'a'
       });
       return toggle;
@@ -4313,6 +4327,7 @@ class App {
         id: `${moduleId}-rotary-switch-${idx}`,
         labelA: switchDef.labelA || 'A',
         labelB: switchDef.labelB || 'B',
+        name: switchDef.name || '',
         initial: 'a'
       });
     };
@@ -4509,6 +4524,7 @@ class App {
           }
         };
         vernierInst.getTooltipInfo = getKeyboardPitchSpreadTooltipInfo();
+        vernierInst.tooltipLabel = 'Pitch Spread';
         vernierInst._updateVisual();
         knobRefs.pitchSpread = vernierInst;
         if (kbResult.knobElements[0]?.wrapper) kbResult.knobElements[0].wrapper.dataset.knob = 'pitchSpread';
@@ -4530,6 +4546,7 @@ class App {
           scaleDecimals: 1,
           angleOffset: -150,
           getTooltipInfo: getKeyboardVelocityTooltipInfo(),
+          tooltipLabel: 'Key Velocity',
           onChange: (value) => {
             const scaleValue = toScale(value, vlMin, vlMax);
             mod.setVelocityLevel(scaleValue);
@@ -4558,6 +4575,7 @@ class App {
           scaleDecimals: 1,
           angleOffset: -150,
           getTooltipInfo: getKeyboardGateTooltipInfo(),
+          tooltipLabel: 'Env. Control',
           onChange: (value) => {
             const scaleValue = toScale(value, glMin, glMax);
             mod.setGateLevel(scaleValue);
@@ -4676,6 +4694,7 @@ class App {
                 sequencerOSCSync.sendKnobChange(paramName, dial);
               };
               knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
+              knobInstance.tooltipLabel = knobDef.name;
             }
             if (paramName) wrapper.dataset.knob = paramName;
             knobsContainer.appendChild(wrapper);
@@ -4701,6 +4720,7 @@ class App {
             });
             if (paramName && knob.knobInstance) {
               this._sequencerKnobs[paramName] = knob.knobInstance;
+              knob.knobInstance.tooltipLabel = knobDef.name;
             }
             const stdSize = toNum(knobUI.standardKnobSize, 45);
             knob.knobEl.style.width = `${stdSize}px`;
@@ -4768,6 +4788,7 @@ class App {
                   sequencerOSCSync.sendKnobChange(paramName, dial);
                 };
                 knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
+                knobInstance.tooltipLabel = knobDef.name;
               }
               if (paramName) wrapper.dataset.knob = paramName;
               knobsContainer.appendChild(wrapper);
@@ -4793,6 +4814,7 @@ class App {
               });
               if (paramName && knob.knobInstance) {
                 this._sequencerKnobs[paramName] = knob.knobInstance;
+                knob.knobInstance.tooltipLabel = knobDef.name;
               }
               const stdSize = toNum(knobUI.standardKnobSize, 45);
               knob.knobEl.style.width = `${stdSize}px`;
@@ -5128,6 +5150,7 @@ class App {
       id: 'scope-mode-toggle',
       labelA: 'Y-T',
       labelB: 'X-Y',
+      name: 'Mode',
       initial: oscilloscopeConfig.audio.mode === 'xy' ? 'b' : 'a',
       onChange: (state) => {
         const mode = state === 'a' ? 'yt' : 'xy';

@@ -136,9 +136,11 @@ export class Voltmeter {
         this._rawPeak = 0;
         this._rawRms = 0;
         if (this.onChange) this.onChange(this._mode);
+        this._updateToggleTitle();
       }
     });
     const toggleEl = this._toggle.createElement();
+    this._updateToggleTitle();
     this._applyToggleLayout(toggleEl);
     root.appendChild(toggleEl);
 
@@ -398,6 +400,17 @@ export class Voltmeter {
   }
 
   /**
+   * Actualiza el title del toggle para mostrar el modo actual.
+   */
+  _updateToggleTitle() {
+    if (this._toggle?.element) {
+      this._toggle.element.title = this._mode === 'control'
+        ? 'Mode: CV'
+        : 'Mode: Signal';
+    }
+  }
+
+  /**
    * Establece el ángulo de la aguja (grados).
    * @param {number} angle - Ángulo en grados
    */
@@ -593,14 +606,16 @@ export class Voltmeter {
    */
   _generateTooltipContent() {
     const { scaleValue, parts } = this.getReadingInfo();
+    const vmNumber = (this.channelIndex ?? 0) + 1;
+    const modeLabel = this._mode === 'signal' ? 'Signal' : 'CV';
 
-    // Línea principal: valor de escala
+    // Línea principal: valor de escala con nombre del voltímetro
     let mainText;
     if (this._mode === 'signal') {
-      mainText = `${scaleValue.toFixed(1)} / 10`;
+      mainText = `Voltmeter ${vmNumber} (${modeLabel}): ${scaleValue.toFixed(1)} / 10`;
     } else {
       const sign = scaleValue >= 0 ? '+' : '';
-      mainText = `${sign}${scaleValue.toFixed(1)} / ±5`;
+      mainText = `Voltmeter ${vmNumber} (${modeLabel}): ${sign}${scaleValue.toFixed(1)} / \u00b15`;
     }
 
     const extraInfo = parts.length > 0 ? parts.join(' · ') : null;

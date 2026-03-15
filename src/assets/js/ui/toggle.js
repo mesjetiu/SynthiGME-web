@@ -28,6 +28,7 @@ export class Toggle {
     this.id = options.id || `toggle-${Date.now()}`;
     this.labelA = options.labelA || 'A';
     this.labelB = options.labelB || 'B';
+    this.name = options.name || '';
     this.state = options.initial || 'a';
     this.onChange = options.onChange || null;
     this.element = null;
@@ -123,6 +124,10 @@ export class Toggle {
     this.element.classList.toggle('is-b', this.state === 'b');
     this.element.setAttribute('data-state', this.state);
     this._updateImage();
+    const currentLabel = this.state === 'a' ? this.labelA : this.labelB;
+    this.element.title = this.name
+      ? `${this.name}: ${currentLabel.trim()}`
+      : currentLabel.trim();
   }
 
   /**

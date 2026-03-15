@@ -148,6 +148,7 @@ export function createKnob(options = {}) {
     onChange,
     format,
     getTooltipInfo,
+    tooltipLabel,
     // Selector: ángulos y cuantización
     minAngle,
     maxAngle,
@@ -179,6 +180,7 @@ export function createKnob(options = {}) {
   if (steps) knobOptions.steps = steps;
   if (stepLabels) knobOptions.stepLabels = stepLabels;
   if (angleOffset != null) knobOptions.angleOffset = angleOffset;
+  if (tooltipLabel) knobOptions.tooltipLabel = tooltipLabel;
 
   // Crear instancia
   const knobInstance = new Knob(elements.knobEl, knobOptions);

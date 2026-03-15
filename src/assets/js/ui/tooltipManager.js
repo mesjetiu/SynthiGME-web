@@ -134,7 +134,10 @@ export function showControlTooltip(element, content) {
 
   const tip = document.createElement('div');
   tip.className = 'knob-tooltip';
-  tip.textContent = content;
+  const main = document.createElement('div');
+  main.className = 'knob-tooltip__main';
+  main.textContent = content;
+  tip.appendChild(main);
   document.body.appendChild(tip);
   _controlTooltipMap.set(element, tip);
 

@@ -8456,8 +8456,18 @@ class App {
           reverbModule.start();
         }
         destNode = reverbModule?.getMixCVParam?.() ?? null;
+      } else if (dest.kind === 'envelopeShaperKeyCV') {
+        // Destino: KEY/Gate del Envelope Shaper (Panel 6)
+        // Conectar directamente al nodo de trigger del envelope shaper,
+        // igual que envelopeShaperTriggerInput en Panel 5.
+        // El worklet detecta gate >1V (0.25 normalizado) vía Schmitt trigger.
+        const esIndex = dest.index ?? 0;
+        const esModule = this._envelopeShaperModules[esIndex];
+        if (esModule && !esModule.isStarted) {
+          esModule.start();
+        }
+        destNode = esModule?.getInputNode?.('trigger') ?? null;
       } else if (
-        dest.kind === 'envelopeShaperKeyCV' ||
         dest.kind === 'envelopeShaperDelayCV' ||
         dest.kind === 'envelopeShaperAttackCV' ||
         dest.kind === 'envelopeShaperDecayCV' ||

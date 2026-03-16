@@ -133,6 +133,25 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     
     // Flag para habilitar/deshabilitar el suavizado (para A/B testing)
     this.moduleSlewEnabled = options?.processorOptions?.moduleSlewEnabled ?? true;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUAVIZADO DE FRECUENCIA PER-SAMPLE (anti-zipper)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Firefox resuelve AudioParam custom por bloque (128 samples = k-rate),
+    // aunque se declare a-rate. Esto produce escalones audibles al girar knobs.
+    //
+    // Solución: filtro one-pole IIR per-sample sobre el valor del AudioParam.
+    // A diferencia de la interpolación lineal (que crea segmentos rectos con
+    // esquinas audibles en las fronteras de bloque), el one-pole produce una
+    // curva exponencial con derivada siempre continua → transición inaudible.
+    //
+    // Cutoff ~15Hz (τ≈10.6ms): suaviza agresivamente el staircase de 375Hz
+    // (48000/128). Cada bloque converge solo ~22% → curva muy suave.
+    // En Chrome (a-rate nativo), α≈0.002 per-sample → transparente.
+    // ─────────────────────────────────────────────────────────────────────────
+    this._smoothedFreq = options?.processorOptions?.frequency ?? 440;
+    this._freqSmoothAlpha = this._computeOnePoleAlpha(15, sampleRate);
+    
     this.mode = options?.processorOptions?.mode || 'single';
     
     // Tipo de onda para modo single: 'pulse', 'sine', 'triangle', 'sawtooth'
@@ -401,10 +420,14 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const symmetryParam = parameters.symmetry;
     const gainParam = parameters.gain;
 
+    const alpha = this._freqSmoothAlpha;
+
     for (let i = 0; i < numSamples; i++) {
-      const baseFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
+      // One-pole IIR per-sample: curva exponencial sin esquinas
+      const paramFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
+      this._smoothedFreq += alpha * (paramFreq - this._smoothedFreq);
       const detuneCents = detuneParam.length > 1 ? detuneParam[i] : detuneParam[0];
-      const freq = baseFreq * Math.pow(2, detuneCents / 1200);
+      const freq = this._smoothedFreq * Math.pow(2, detuneCents / 1200);
       const width = widthParam.length > 1 ? widthParam[i] : widthParam[0];
       const symmetry = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
       const gain = gainParam.length > 1 ? gainParam[i] : gainParam[0];
@@ -485,10 +508,14 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const triLevelParam = parameters.triLevel;
     const pulseLevelParam = parameters.pulseLevel;
 
+    const alpha = this._freqSmoothAlpha;
+
     for (let i = 0; i < numSamples; i++) {
-      const baseFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
+      // One-pole IIR per-sample: curva exponencial sin esquinas
+      const paramFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
+      this._smoothedFreq += alpha * (paramFreq - this._smoothedFreq);
       const detuneCents = detuneParam.length > 1 ? detuneParam[i] : detuneParam[0];
-      const freq = baseFreq * Math.pow(2, detuneCents / 1200);
+      const freq = this._smoothedFreq * Math.pow(2, detuneCents / 1200);
       const width = widthParam.length > 1 ? widthParam[i] : widthParam[0];
       const symmetry = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
       const sineLevel = sineLevelParam.length > 1 ? sineLevelParam[i] : sineLevelParam[0];

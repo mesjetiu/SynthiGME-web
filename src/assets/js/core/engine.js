@@ -1991,7 +1991,7 @@ export class AudioEngine {
       outputChannelCount: [1],
       channelCount: 1,             // Importante para que el input reciba señal mono
       channelCountMode: 'explicit', // No cambiar automáticamente el channel count
-      processorOptions: { waveform }
+      processorOptions: { waveform, frequency }
     });
     attachProcessorErrorHandler(node, 'synth-oscillator[single]');
 
@@ -2002,22 +2002,19 @@ export class AudioEngine {
     node.parameters.get('gain').value = gain;
 
     // Métodos de conveniencia
-    // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → rampa suave (knob manual)
-    let _lastFreqTargetSingle = frequency;
+    // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → setTargetAtTime con τ
+    // El worklet interpola per-sample entre bloques para evitar zipper noise
     node.setFrequency = (value, ramp = 0) => {
       const param = node.parameters.get('frequency');
+      const now = this.audioCtx.currentTime;
       if (ramp > 0) {
-        // Rampa micro con τ=5ms para suavizar sin cancelScheduledValues cada frame
-        const relChange = Math.abs(value - _lastFreqTargetSingle) / (Math.abs(_lastFreqTargetSingle) + 1);
-        if (relChange > 0.01) {
-          param.cancelScheduledValues(this.audioCtx.currentTime);
-        }
-        param.setTargetAtTime(value, this.audioCtx.currentTime, 0.005);
-        _lastFreqTargetSingle = value;
+        // Knob: setTargetAtTime para que el AudioParam cambie gradualmente
+        param.cancelScheduledValues(now);
+        param.setTargetAtTime(value, now, ramp / 3);
       } else {
-        param.cancelScheduledValues(this.audioCtx.currentTime);
-        param.setValueAtTime(value, this.audioCtx.currentTime);
-        _lastFreqTargetSingle = value;
+        // CV/programático: salto instantáneo
+        param.cancelScheduledValues(now);
+        param.setValueAtTime(value, now);
       }
     };
 
@@ -2101,7 +2098,7 @@ export class AudioEngine {
       // Frecuencia de corte del filtro one-pole que suaviza pulse y sawtooth
       moduleSlewCutoff = 20000,
       // Flag para habilitar/deshabilitar el suavizado (para A/B testing)
-      moduleSlewEnabled = true
+      moduleSlewEnabled = true,
     } = options;
 
     const node = new AudioWorkletNode(this.audioCtx, 'synth-oscillator', {
@@ -2118,7 +2115,8 @@ export class AudioEngine {
         maxOffset,
         // Suavizado inherente del módulo (emula slew rate del CA3140)
         moduleSlewCutoff,
-        moduleSlewEnabled
+        moduleSlewEnabled,
+        frequency
       }
     });
     attachProcessorErrorHandler(node, 'synth-oscillator[multi]');
@@ -2135,26 +2133,23 @@ export class AudioEngine {
     const ctx = this.audioCtx;
 
     // Métodos de conveniencia
-    // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → rampa suave (knob manual)
-    // Cache del último target de frecuencia para evitar cancel+reschedule redundantes
+    // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → setTargetAtTime con τ
+    // El worklet interpola per-sample entre bloques para evitar zipper noise
+    // Cache del último target de frecuencia para evitar postMessage redundantes
     let _lastFreqTarget = frequency;
     node.setFrequency = (value, ramp = 0) => {
       const param = node.parameters.get('frequency');
+      const now = ctx.currentTime;
       if (ramp > 0) {
-        // Rampa micro: setTargetAtTime con τ corto (~5ms) para suavizar
-        // sin llamar cancelScheduledValues en cada frame (costoso en Firefox).
-        // Solo cancelar si el salto es >1% del rango para evitar IPC excesivo.
-        const relChange = Math.abs(value - _lastFreqTarget) / (Math.abs(_lastFreqTarget) + 1);
-        if (relChange > 0.01) {
-          param.cancelScheduledValues(ctx.currentTime);
-        }
-        param.setTargetAtTime(value, ctx.currentTime, 0.005);
-        _lastFreqTarget = value;
+        // Knob: setTargetAtTime para que el AudioParam cambie gradualmente
+        param.cancelScheduledValues(now);
+        param.setTargetAtTime(value, now, ramp / 3);
       } else {
-        param.cancelScheduledValues(ctx.currentTime);
-        param.setValueAtTime(value, ctx.currentTime);
-        _lastFreqTarget = value;
+        // CV/programático: salto instantáneo
+        param.cancelScheduledValues(now);
+        param.setValueAtTime(value, now);
       }
+      _lastFreqTarget = value;
     };
 
     node.setPulseWidth = (value, ramp = smoothingTime) => {

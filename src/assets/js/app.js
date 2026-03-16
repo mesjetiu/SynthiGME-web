@@ -1785,21 +1785,28 @@ class App {
       }
       
       // ─────────────────────────────────────────────────────────────────────
-      // CONECTAR VOLTÍMETROS A NODOS POST-VCA DE OUTPUT CHANNELS
+      // CONECTAR VOLTÍMETROS A METERING DEL OUTPUT-FILTER WORKLET
       // ─────────────────────────────────────────────────────────────────────
-      // Cada voltímetro monitoriza la señal post-VCA, pre-filtro, pre-mute
-      // del bus de salida correspondiente (fiel al circuito Quad Meter Amp).
+      // Zero-node approach: el metering se calcula DENTRO del output-filter
+      // worklet que ya existe en la cadena. No se añaden nodos ni conexiones.
+      // filterGain se mantiene siempre en 1; con filterPosition=0 el worklet
+      // da H(z)=1 (pass-through perfecto = bypass matemático).
       // ─────────────────────────────────────────────────────────────────────
       if (this._panel4Data?.voltmeters) {
         const vms = this._panel4Data.voltmeters;
         for (let i = 0; i < 8; i++) {
-          const vm = vms[`voltmeter${i + 1}`];
           const bus = this.engine.outputBuses[i];
-          if (vm && bus?.postVcaNode) {
-            vm.connect(bus.postVcaNode);
+          const vm = vms[`voltmeter${i + 1}`];
+          if (bus?.filterNode && vm) {
+            bus.filterNode.port.onmessage = (e) => {
+              if (e.data?.type === 'meter') {
+                vm.updateMeter(e.data);
+              }
+            };
+            bus.filterNode.port.postMessage({ type: 'enableMeter' });
           }
         }
-        log.info(' Voltmeters connected to output bus postVCA nodes');
+        log.info(' Voltmeters connected via output-filter worklet metering (zero new nodes)');
       }
       
       // Aplicar ruteo inicial después de start

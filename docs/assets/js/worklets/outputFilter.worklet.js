@@ -150,6 +150,25 @@ class OutputFilterProcessor extends AudioWorkletProcessor {
     /** @private */ this._b1 = 0;
     /** @private */ this._a1 = 0;
     /** @private */ this._lastPosition = NaN;  // Forzar cálculo en primer bloque
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Metering integrado (zero-node: no añade nodos al grafo de audio)
+    // Se activa vía port.postMessage({ type: 'enableMeter' }).
+    // Mide la señal de ENTRADA (pre-filtro) = señal en postVcaNode.
+    // ─────────────────────────────────────────────────────────────────────
+    /** @private */ this._meterEnabled = false;
+    /** @private */ this._meterSumAbs = 0;
+    /** @private */ this._meterSumDC = 0;
+    /** @private */ this._meterSumSq = 0;
+    /** @private */ this._meterPeak = 0;
+    /** @private */ this._meterCount = 0;
+    /** @private */ this._meterInterval = Math.round(sampleRate * 0.1); // 100ms
+
+    this.port.onmessage = (e) => {
+      if (e.data?.type === 'enableMeter') {
+        this._meterEnabled = true;
+      }
+    };
   }
 
   /**
@@ -201,6 +220,47 @@ class OutputFilterProcessor extends AudioWorkletProcessor {
       this._updateCoefficients(position);
     }
     
+    // ── Metering PRE-filtro (señal de entrada = postVcaNode) ───────────
+    if (this._meterEnabled) {
+      const mData = input[0];
+      if (mData) {
+        const len = mData.length;
+        let sumAbs = this._meterSumAbs;
+        let sumDC = this._meterSumDC;
+        let sumSq = this._meterSumSq;
+        let peak = this._meterPeak;
+        for (let i = 0; i < len; i++) {
+          const s = mData[i];
+          const a = s < 0 ? -s : s;
+          sumAbs += a;
+          sumDC += s;
+          sumSq += s * s;
+          if (a > peak) peak = a;
+        }
+        this._meterSumAbs = sumAbs;
+        this._meterSumDC = sumDC;
+        this._meterSumSq = sumSq;
+        this._meterPeak = peak;
+        this._meterCount += len;
+
+        if (this._meterCount >= this._meterInterval) {
+          const c = this._meterCount;
+          this.port.postMessage({
+            type: 'meter',
+            peak,
+            rms: Math.sqrt(sumSq / c),
+            meanAbs: sumAbs / c,
+            meanDC: sumDC / c
+          });
+          this._meterSumAbs = 0;
+          this._meterSumDC = 0;
+          this._meterSumSq = 0;
+          this._meterPeak = 0;
+          this._meterCount = 0;
+        }
+      }
+    }
+
     const b0 = this._b0;
     const b1 = this._b1;
     const a1 = this._a1;

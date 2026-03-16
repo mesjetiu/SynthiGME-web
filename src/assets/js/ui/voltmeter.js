@@ -64,7 +64,6 @@ const DBM_REF_IMPEDANCE = VM.dbmRefImpedance;
 
 const TOOLTIP_AUTO_HIDE_MS = VM.tooltipAutoHideMs;
 const REFRESH_INTERVAL = VM.refreshInterval;
-const FFT_SIZE = VM.fftSize;
 
 export class Voltmeter {
   /**
@@ -86,11 +85,6 @@ export class Voltmeter {
     this._rawRms = 0;
     this._currentAngle = NEEDLE_ANGLE_MIN;
     this._animFrameId = null;
-    this._intervalId = null;
-
-    // Audio nodes
-    this._analyser = null;
-    this._timeDomainData = null;
 
     // DOM
     this.element = null;
@@ -431,32 +425,20 @@ export class Voltmeter {
 
   /**
    * Conecta el voltímetro a un nodo de audio del engine.
-   * Crea un AnalyserNode y comienza a leer datos.
-   * @param {AudioNode} sourceNode - Nodo fuente (postVcaNode del bus)
+   * NOTA: La conexión real al grafo de audio la gestiona app.js
+   * con un único ChannelMerger + MeterProcessor compartido.
+   * Este método solo marca el voltímetro como activo.
+   * @param {AudioNode} _sourceNode - No se usa (compatibilidad)
    */
-  connect(sourceNode) {
-    if (!sourceNode || !sourceNode.context) return;
-
-    const ctx = sourceNode.context;
-    this._analyser = ctx.createAnalyser();
-    this._analyser.fftSize = FFT_SIZE;
-    this._analyser.smoothingTimeConstant = 0;
-    this._timeDomainData = new Float32Array(this._analyser.fftSize);
-
-    sourceNode.connect(this._analyser);
-    this._startReading();
+  connect(_sourceNode) {
+    // No-op: la conexión al grafo la hace app.js con un merger compartido.
+    // El voltímetro recibe datos vía updateMeter().
   }
 
   /**
    * Desconecta el voltímetro del audio.
    */
   disconnect() {
-    this._stopReading();
-    if (this._analyser) {
-      try { this._analyser.disconnect(); } catch (_) { /* ya desconectado */ }
-      this._analyser = null;
-    }
-    this._timeDomainData = null;
     this._smoothedValue = 0;
     this._rawValue = 0;
     this._rawPeak = 0;
@@ -465,58 +447,20 @@ export class Voltmeter {
   }
 
   /**
-   * Inicia la lectura periódica del AnalyserNode.
+   * Recibe datos de metering desde el MeterProcessor compartido.
+   * Llamado por app.js cuando llega un postMessage del worklet.
+   * @param {{ peak: number, rms: number, meanAbs: number, meanDC: number }} data
    */
-  _startReading() {
-    if (this._intervalId) return;
-    this._intervalId = setInterval(() => this._readAndUpdate(), REFRESH_INTERVAL);
-  }
-
-  /**
-   * Detiene la lectura periódica.
-   */
-  _stopReading() {
-    if (this._intervalId) {
-      clearInterval(this._intervalId);
-      this._intervalId = null;
-    }
-  }
-
-  /**
-   * Lee datos del AnalyserNode y actualiza la aguja.
-   */
-  _readAndUpdate() {
-    if (!this._analyser || !this._timeDomainData) return;
-
-    this._analyser.getFloatTimeDomainData(this._timeDomainData);
-
-    // Recorrer buffer una sola vez para todas las métricas
-    const N = this._timeDomainData.length;
-    let sumAbs = 0;
-    let sumDC = 0;
-    let sumSq = 0;
-    let peak = 0;
-    for (let i = 0; i < N; i++) {
-      const s = this._timeDomainData[i];
-      const a = s < 0 ? -s : s;
-      sumAbs += a;
-      sumDC += s;
-      sumSq += s * s;
-      if (a > peak) peak = a;
-    }
-
-    // Valores instantáneos para tooltip (sin smoothing de aguja)
+  updateMeter(data) {
+    const { peak, rms, meanAbs, meanDC } = data;
     this._rawPeak = peak;
-    this._rawRms = Math.sqrt(sumSq / N);
+    this._rawRms = rms;
 
     let targetValue;
     if (this._mode === 'signal') {
-      // Modo AC: rectificador + envolvente (valor absoluto medio)
-      targetValue = Math.min(sumAbs / N / AC_MAX_LEVEL, 1);
+      targetValue = Math.min(meanAbs / AC_MAX_LEVEL, 1);
     } else {
-      // Modo DC: voltaje medio bipolar
-      // Web Audio ±1.0 ya representa ±5V del Synthi 100 — sin dividir
-      targetValue = Math.max(-1, Math.min(1, sumDC / N));
+      targetValue = Math.max(-1, Math.min(1, meanDC));
     }
     this._rawValue = targetValue;
 
@@ -527,19 +471,18 @@ export class Voltmeter {
     // Convertir valor a ángulo
     let angle;
     if (this._mode === 'signal') {
-      // 0 → ángulo mínimo (izquierda), 1 → ángulo máximo (derecha)
       angle = NEEDLE_ANGLE_MIN + this._smoothedValue * NEEDLE_ANGLE_RANGE;
     } else {
-      // -1 → ángulo mínimo, 0 → centro, +1 → ángulo máximo
       const normalized = (this._smoothedValue + 1) / 2;
       angle = NEEDLE_ANGLE_MIN + normalized * NEEDLE_ANGLE_RANGE;
     }
 
     this._setNeedleAngle(angle);
-
-    // Actualizar tooltip si visible (lectura en tiempo real)
     this._updateTooltip();
   }
+
+  // La aguja se actualiza directamente desde el callback de postMessage
+  // del MeterProcessor worklet. No se necesita rAF ni setInterval.
 
   // ══════════════════════════════════════════════════════════════════════════
   // TOOLTIP CON EQUIVALENCIAS DE UNIDADES

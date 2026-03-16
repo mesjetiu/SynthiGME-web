@@ -349,16 +349,13 @@ export class AudioEngine {
       const isNeutral = Math.abs(filterBipolar) < AUDIO_CONSTANTS.FILTER_BYPASS_THRESHOLD;
       const shouldBypass = this._filterBypassEnabled && isNeutral;
       
-      // Establecer ganancias iniciales según estado de bypass
-      if (shouldBypass) {
-        filterGain.gain.value = 0;
-        bypassGain.gain.value = 1;
-        this._filterBypassState[i] = true;
-      } else {
-        filterGain.gain.value = 1;
-        bypassGain.gain.value = 0;
-        this._filterBypassState[i] = false;
-      }
+      // filterGain SIEMPRE activo: el metering del voltímetro lee la
+      // entrada del output-filter worklet. Con filterPosition=0 el
+      // worklet da H(z)=1 (pass-through perfecto), así que no necesitamos
+      // crossfade externo — el "bypass" es matemático dentro del worklet.
+      filterGain.gain.value = 1;
+      bypassGain.gain.value = 0;
+      this._filterBypassState[i] = isNeutral;
       
       // PASO 1: Conectar entrada → [clipper] → levelNode (VCA)
       if (hybridClipShaper) {
@@ -916,27 +913,17 @@ export class AudioEngine {
     const hardSetDelay = 5 * crossfadeTime;
     const now = ctx.currentTime;
     
+    // El bypass ya no crossfadea filterGain/bypassGain.
+    // filterGain permanece SIEMPRE en 1 para que el output-filter worklet
+    // reciba señal y el metering integrado funcione correctamente.
+    // Con filterPosition=0, H(z)=1 → bypass matemático sin crossfade.
     if (isNeutral && !currentlyBypassed) {
-      // Activar bypass: crossfade a ruta directa
-      setParamSmooth(bus.filterGain.gain, 0, ctx, { ramp: crossfadeTime });
-      setParamSmooth(bus.bypassGain.gain, 1, ctx, { ramp: crossfadeTime });
-      // Hard-set: forzar valores exactos tras 5τ
-      bus.filterGain.gain.setValueAtTime(0, now + hardSetDelay);
-      bus.bypassGain.gain.setValueAtTime(1, now + hardSetDelay);
       this._filterBypassState[busIndex] = true;
-      
       if (this._filterBypassDebug) {
         this._logFilterBypassChange(busIndex, true);
       }
     } else if (!isNeutral && currentlyBypassed) {
-      // Desactivar bypass: crossfade a ruta de filtros
-      setParamSmooth(bus.filterGain.gain, 1, ctx, { ramp: crossfadeTime });
-      setParamSmooth(bus.bypassGain.gain, 0, ctx, { ramp: crossfadeTime });
-      // Hard-set: forzar valores exactos tras 5τ
-      bus.filterGain.gain.setValueAtTime(1, now + hardSetDelay);
-      bus.bypassGain.gain.setValueAtTime(0, now + hardSetDelay);
       this._filterBypassState[busIndex] = false;
-      
       if (this._filterBypassDebug) {
         this._logFilterBypassChange(busIndex, false);
       }
@@ -1015,25 +1002,13 @@ export class AudioEngine {
         this._updateFilterBypass(i, bipolar);
       }
     } else {
-      // Al deshabilitar, forzar ruta de filtros en todos los buses
+      // Al deshabilitar, marcar todos como no bypaseados
+      // filterGain permanece en 1 siempre (metering integrado)
       for (let i = 0; i < this.outputChannels; i++) {
         if (this._filterBypassState[i]) {
-          const bus = this.outputBuses[i];
-          if (bus) {
-            // Crossfade a ruta de filtros
-            const crossfadeTime = AUDIO_CONSTANTS.FILTER_BYPASS_CROSSFADE;
-            const now = ctx.currentTime;
-            setParamSmooth(bus.filterGain.gain, 1, ctx, { ramp: crossfadeTime });
-            setParamSmooth(bus.bypassGain.gain, 0, ctx, { ramp: crossfadeTime });
-            // Hard-set tras 5τ para forzar valores exactos
-            const hardSetDelay = 5 * crossfadeTime;
-            bus.filterGain.gain.setValueAtTime(1, now + hardSetDelay);
-            bus.bypassGain.gain.setValueAtTime(0, now + hardSetDelay);
-            this._filterBypassState[i] = false;
-            // Aplicar valores actuales de frecuencia (convertir dial → bipolar)
-            const bipolar = this.outputFilters[i] / 5;  // dial (-5 a 5) → bipolar (-1 a +1)
-            this._applyFilterValue(i, bipolar);
-          }
+          this._filterBypassState[i] = false;
+          const bipolar = this.outputFilters[i] / 5;
+          this._applyFilterValue(i, bipolar);
         }
       }
     }

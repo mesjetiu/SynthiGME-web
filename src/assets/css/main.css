@@ -2241,6 +2241,105 @@ body.render-performance .fullscreen-toggle {
   transition: none;
 }
 
+/* ── Desactivar TODAS las animaciones CSS costosas ──────────────────────
+   Las animaciones infinite con box-shadow son especialmente caras: el
+   navegador repinta cada frame aunque el elemento no sea visible. */
+body.render-performance .knob.is-tooltip-active,
+body.render-performance .knob.glow-flash,
+body.render-performance .output-channel__slider-wrap.is-tooltip-active .output-channel__slider-shell,
+body.render-performance .output-channel__slider-wrap.glow-flash .output-channel__slider-shell,
+body.render-performance .output-channel__switch.glow-flash,
+body.render-performance .synth-toggle.glow-flash .synth-toggle__track,
+body.render-performance .rotary-switch.glow-flash .rotary-switch__body,
+body.render-performance .matrix.matrix-large .pin-btn.is-tooltip-target,
+body.render-performance .matrix.matrix-large .pin-btn.glow-flash-pin,
+body.render-performance .panel7-joystick-pad.is-tooltip-active,
+body.render-performance .panel7-joystick-pad.glow-flash,
+body.render-performance .signal-flow-source,
+body.render-performance .signal-flow-dest,
+body.render-performance .signal-flow-both,
+body.render-performance .floating-mute-btn--muted,
+body.render-performance .osc-badge--active {
+  animation: none !important;
+}
+
+/* ── Sombras en elementos que no se cubrían ─────────────────────────────
+   Cubrir toggles, knob-blocks, sliders, LEDs, controles del secuenciador,
+   tooltips, PiP containers y demás elementos con box-shadow. */
+body.render-performance .knob-center,
+body.render-performance .knob-block,
+body.render-performance .knob-block-inner,
+body.render-performance .toggle-knob-block,
+body.render-performance .toggle-knob-block-inner,
+body.render-performance .knob-tooltip,
+body.render-performance .slider-tooltip,
+body.render-performance .matrix-cell,
+body.render-performance .osc-badge,
+body.render-performance .floating-mute-btn,
+body.render-performance .context-menu,
+body.render-performance .led,
+body.render-performance .led-glow,
+body.render-performance .sgme-osc,
+body.render-performance .pip-container,
+body.render-performance .pip-container:hover,
+body.render-performance .pip-container--dragging,
+body.render-performance .signal-flow-source,
+body.render-performance .signal-flow-dest,
+body.render-performance .signal-flow-pin-source,
+body.render-performance .signal-flow-pin-dest {
+  box-shadow: none !important;
+}
+
+/* ── Transiciones costosas (box-shadow, filter) ─────────────────────── */
+body.render-performance .floating-mute-btn,
+body.render-performance .matrix-cell,
+body.render-performance .signal-flow-source,
+body.render-performance .signal-flow-dest,
+body.render-performance .signal-flow-pin-source,
+body.render-performance .signal-flow-pin-dest,
+body.render-performance .pip-container,
+body.render-performance .panel7-seq-switch-toggle,
+body.render-performance .recording-btn,
+body.render-performance .output-channel__slider-shell {
+  transition: none !important;
+}
+
+/* ── Filtros (drop-shadow, brightness, blur) ────────────────────────── */
+body.render-performance .synth-toggle__indicator--active,
+body.render-performance .rotary-switch__indicator--active,
+body.render-performance .toggle-raster-graphic,
+body.render-performance .rotary-raster-graphic {
+  filter: none !important;
+}
+
+/* ── backdrop-filter adicionales (overlays creados después del bloque original) */
+body.render-performance .pip-panel-controls,
+body.render-performance .multichannel-overlay,
+body.render-performance .recording-overlay,
+body.render-performance .midi-learn-overlay {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Gradientes radiales en knobs: simplificar a fondo sólido ───────── */
+body.render-performance .knob-block {
+  background: #333;
+}
+body.render-performance .knob-block-inner {
+  background: #444;
+}
+body.render-performance .toggle-knob-block {
+  background: #333;
+}
+body.render-performance .toggle-knob-block-inner {
+  background: #555;
+}
+
+/* ── PiP containers: eliminar isolation (reduce coste de compositor) ── */
+body.render-performance .pip-container {
+  isolation: auto;
+}
+
 /* Panel SVG/backgrounds: reducir resolución de rasterización */
 body.render-performance .panel-inline-bg {
   image-rendering: auto;

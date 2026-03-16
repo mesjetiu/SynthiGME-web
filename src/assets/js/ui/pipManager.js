@@ -8,6 +8,7 @@ import { STORAGE_KEYS } from '../utils/constants.js';
 import { showContextMenu, hideContextMenu } from './contextMenuManager.js';
 import { uniquifySvgTree } from './svgInlineLoader.js';
 import { hideAllTooltips } from './tooltipManager.js';
+import { isPerformanceMode } from '../utils/gpuDetect.js';
 
 const log = createLogger('PipManager');
 
@@ -590,6 +591,7 @@ function destroyPipPreviewLayer(panelId) {
 }
 
 function rebuildPipPreviewLayer(panelId, idleDeadline = null) {
+  if (isPerformanceMode()) return false;
   const panelEl = document.getElementById(panelId);
   if (!panelEl) return false;
 
@@ -1160,7 +1162,7 @@ function commitPipSharpMode(panelId) {
 
 function enterPipSharpMode(panelId) {
   const state = activePips.get(panelId);
-  if (!state || !pipSharpRasterizeEnabled) return;
+  if (!state || !pipSharpRasterizeEnabled || isPerformanceMode()) return;
   if (!shouldUseTouchSharpRasterize(state)) return;
 
   const target = Math.min(state.scale, PIP_MAX_SHARP_ZOOM);
@@ -1185,7 +1187,7 @@ function enterPipSharpMode(panelId) {
 
 function schedulePipRasterize(panelId) {
   const state = activePips.get(panelId);
-  if (!state || !pipSharpRasterizeEnabled) return;
+  if (!state || !pipSharpRasterizeEnabled || isPerformanceMode()) return;
   if (!shouldUseTouchSharpRasterize(state)) {
     if (state.sharpMode) {
       disablePipSharpMode(panelId);
@@ -3604,7 +3606,9 @@ function updatePipScale(panelId, newScale, persist = true) {
   const { panelWidth, panelHeight } = ensurePanelMetrics(state);
 
   let effectiveZoom = 1;
-  if (pipSharpRasterizeEnabled && state.sharpMode && !state.previewMode) {
+  // Firefox no soporta CSS zoom correctamente — desactivar sharp rasterize
+  const isFirefox = window.__synthIsFirefox;
+  if (pipSharpRasterizeEnabled && !isFirefox && state.sharpMode && !state.previewMode) {
     effectiveZoom = Math.min(state.sharpZoomFactor || 1, Math.max(1, newScale));
   }
   const visualScale = newScale / effectiveZoom;

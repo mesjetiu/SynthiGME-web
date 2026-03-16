@@ -5,8 +5,8 @@
  * - Constructor y valores por defecto
  * - Creación de DOM (SVG, escalas, aguja, toggle)
  * - Modos de operación (Signal/Control)
- * - Conexión/desconexión de audio (AnalyserNode)
- * - Lectura y procesado de datos de audio (AC rectificado, DC directo)
+ * - Conexión/desconexión (no-op / reset)
+ * - Recepción de datos de metering vía updateMeter()
  * - Balística de la aguja (smoothing)
  * - Equivalencias de unidades reales (Vp-p, dBm, V)
  * - Tooltips con información técnica
@@ -19,7 +19,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { createMockAudioContext, createMockAnalyserNode } from '../mocks/audioContext.mock.js';
+import { createMockAudioContext } from '../mocks/audioContext.mock.js';
 import '../mocks/localStorage.mock.js';
 
 // ── Configurar JSDOM antes de importar el componente ───────────────────────
@@ -95,9 +95,11 @@ describe('Voltmeter - Constructor y valores por defecto', () => {
     assert.strictEqual(vm._smoothedValue, 0);
   });
 
-  it('no tiene AnalyserNode sin conectar', () => {
+  it('no tiene propiedades de audio legacy', () => {
     const vm = createTestVoltmeter();
-    assert.strictEqual(vm._analyser, null);
+    assert.strictEqual(vm._analyser, undefined);
+    assert.strictEqual(vm._timeDomainData, undefined);
+    assert.strictEqual(vm._intervalId, undefined);
   });
 
   it('no tiene elemento DOM antes de createElement', () => {
@@ -293,43 +295,18 @@ describe('Voltmeter - connect()', () => {
     vm.createElement();
   });
 
-  afterEach(() => {
-    vm.disconnect();
-  });
-
-  it('crea un AnalyserNode al conectar', () => {
+  it('connect() es un no-op (no crea nodos de audio)', () => {
     const source = createMockSourceNode();
     vm.connect(source);
-    assert.ok(vm._analyser !== null, 'debe crear un AnalyserNode');
+    assert.strictEqual(vm._analyser, undefined);
   });
 
-  it('configura fftSize del AnalyserNode', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    assert.strictEqual(vm._analyser.fftSize, 256);
+  it('connect(null) no falla', () => {
+    assert.doesNotThrow(() => vm.connect(null));
   });
 
-  it('crea buffer de datos de tamaño correcto', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    assert.ok(vm._timeDomainData instanceof Float32Array);
-    assert.strictEqual(vm._timeDomainData.length, 256);
-  });
-
-  it('inicia la lectura periódica', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    assert.ok(vm._intervalId !== null, 'debe iniciar un setInterval');
-  });
-
-  it('ignora si sourceNode es null', () => {
-    vm.connect(null);
-    assert.strictEqual(vm._analyser, null);
-  });
-
-  it('ignora si sourceNode no tiene context', () => {
-    vm.connect({ connect() {} });
-    assert.strictEqual(vm._analyser, null);
+  it('connect({}) no falla', () => {
+    assert.doesNotThrow(() => vm.connect({ connect() {} }));
   });
 });
 
@@ -343,33 +320,24 @@ describe('Voltmeter - disconnect()', () => {
     vm.createElement();
   });
 
-  it('limpia el AnalyserNode', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm.disconnect();
-    assert.strictEqual(vm._analyser, null);
-  });
-
-  it('limpia el buffer de datos', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm.disconnect();
-    assert.strictEqual(vm._timeDomainData, null);
-  });
-
-  it('detiene la lectura periódica', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm.disconnect();
-    assert.strictEqual(vm._intervalId, null);
-  });
-
-  it('resetea el valor suavizado', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
+  it('resetea _smoothedValue a 0', () => {
     vm._smoothedValue = 0.8;
     vm.disconnect();
     assert.strictEqual(vm._smoothedValue, 0);
+  });
+
+  it('resetea _rawValue a 0', () => {
+    vm._rawValue = 0.5;
+    vm.disconnect();
+    assert.strictEqual(vm._rawValue, 0);
+  });
+
+  it('resetea _rawPeak y _rawRms a 0', () => {
+    vm._rawPeak = 0.9;
+    vm._rawRms = 0.7;
+    vm.disconnect();
+    assert.strictEqual(vm._rawPeak, 0);
+    assert.strictEqual(vm._rawRms, 0);
   });
 
   it('es seguro llamar sin haber conectado', () => {
@@ -377,8 +345,6 @@ describe('Voltmeter - disconnect()', () => {
   });
 
   it('es seguro llamar múltiples veces', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
     assert.doesNotThrow(() => {
       vm.disconnect();
       vm.disconnect();
@@ -386,7 +352,7 @@ describe('Voltmeter - disconnect()', () => {
   });
 });
 
-describe('Voltmeter - _readAndUpdate() modo Signal (AC)', () => {
+describe('Voltmeter - updateMeter() modo Signal (AC)', () => {
 
   let vm;
 
@@ -396,64 +362,32 @@ describe('Voltmeter - _readAndUpdate() modo Signal (AC)', () => {
     vm.createElement();
   });
 
-  afterEach(() => {
-    vm.disconnect();
-  });
-
-  it('no falla si no hay analyser conectado', () => {
-    assert.doesNotThrow(() => vm._readAndUpdate());
-  });
-
-  it('lee datos del AnalyserNode', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    const callsBefore = vm._analyser._calls.getFloatTimeDomainData;
-    vm._readAndUpdate();
-    assert.strictEqual(
-      vm._analyser._calls.getFloatTimeDomainData,
-      callsBefore + 1,
-      'debe llamar a getFloatTimeDomainData'
-    );
-  });
-
   it('con señal silenciosa (todo ceros), valor suavizado tiende a 0', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    // El mock rellena con 0 por defecto
-    vm._readAndUpdate();
+    vm.updateMeter({ peak: 0, rms: 0, meanAbs: 0, meanDC: 0 });
     assert.ok(vm._smoothedValue >= 0, 'valor debe ser no negativo en modo AC');
     assert.ok(vm._smoothedValue < 0.01, 'valor debe tender a 0 en silencio');
   });
 
   it('con señal máxima, valor suavizado crece', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    // Simular señal con amplitud 1.0
-    const mockAnalyser = vm._analyser;
-    const originalGet = mockAnalyser.getFloatTimeDomainData.bind(mockAnalyser);
-    mockAnalyser.getFloatTimeDomainData = (arr) => {
-      mockAnalyser._calls.getFloatTimeDomainData++;
-      arr.fill(1.0);
-    };
-    // Varias iteraciones para que el smoothing converja
-    for (let i = 0; i < 50; i++) vm._readAndUpdate();
+    for (let i = 0; i < 50; i++) {
+      vm.updateMeter({ peak: 1.0, rms: 1.0, meanAbs: 1.0, meanDC: 0 });
+    }
     assert.ok(vm._smoothedValue > 0.5, `valor suavizado debe crecer con señal fuerte, got ${vm._smoothedValue}`);
   });
 
   it('en modo AC, valor suavizado es siempre >= 0 (rectificado)', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    // Señal negativa
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(-0.5);
-    };
-    vm._readAndUpdate();
+    vm.updateMeter({ peak: 0.5, rms: 0.5, meanAbs: 0.5, meanDC: -0.5 });
     assert.ok(vm._smoothedValue >= 0, 'rectificador debe producir valores positivos');
+  });
+
+  it('establece _rawPeak y _rawRms', () => {
+    vm.updateMeter({ peak: 0.8, rms: 0.6, meanAbs: 0.5, meanDC: 0 });
+    assert.strictEqual(vm._rawPeak, 0.8);
+    assert.strictEqual(vm._rawRms, 0.6);
   });
 });
 
-describe('Voltmeter - _readAndUpdate() modo Control (DC)', () => {
+describe('Voltmeter - updateMeter() modo Control (DC)', () => {
 
   let vm;
 
@@ -464,48 +398,31 @@ describe('Voltmeter - _readAndUpdate() modo Control (DC)', () => {
     vm._toggle.toggle(); // → modo control
   });
 
-  afterEach(() => {
-    vm.disconnect();
-  });
-
   it('con voltaje DC positivo, valor suavizado es positivo', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(3.0); // +3V DC
-    };
-    for (let i = 0; i < 50; i++) vm._readAndUpdate();
+    for (let i = 0; i < 50; i++) {
+      vm.updateMeter({ peak: 0.6, rms: 0.6, meanAbs: 0.6, meanDC: 0.6 });
+    }
     assert.ok(vm._smoothedValue > 0, 'voltaje positivo debe dar valor positivo');
   });
 
   it('con voltaje DC negativo, valor suavizado es negativo', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(-3.0); // -3V DC
-    };
-    for (let i = 0; i < 50; i++) vm._readAndUpdate();
+    for (let i = 0; i < 50; i++) {
+      vm.updateMeter({ peak: 0.6, rms: 0.6, meanAbs: 0.6, meanDC: -0.6 });
+    }
     assert.ok(vm._smoothedValue < 0, 'voltaje negativo debe dar valor negativo');
   });
 
   it('voltaje DC se clamp a rango ±1 normalizado', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(20.0); // muy por encima del rango ±5V
-    };
-    for (let i = 0; i < 100; i++) vm._readAndUpdate();
+    for (let i = 0; i < 100; i++) {
+      vm.updateMeter({ peak: 20, rms: 20, meanAbs: 20, meanDC: 20 });
+    }
     assert.ok(vm._smoothedValue <= 1.0, `valor debe estar clampeado a 1, got ${vm._smoothedValue}`);
   });
 
   it('voltaje DC de 0V da valor suavizado cercano a 0 (centro)', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    // Mock default: fill(0)
-    for (let i = 0; i < 50; i++) vm._readAndUpdate();
+    for (let i = 0; i < 50; i++) {
+      vm.updateMeter({ peak: 0, rms: 0, meanAbs: 0, meanDC: 0 });
+    }
     assert.ok(Math.abs(vm._smoothedValue) < 0.01, 'sin voltaje, centro-cero');
   });
 });
@@ -513,33 +430,18 @@ describe('Voltmeter - _readAndUpdate() modo Control (DC)', () => {
 describe('Voltmeter - Balística de la aguja (smoothing)', () => {
 
   it('smoothing AC (0.85) es mayor que DC (0.75) → AC más lento', () => {
-    // Con la misma señal, en modo AC la aguja se mueve más lento que en DC
     const vmAC = createTestVoltmeter({ id: 'vm-ac' });
     vmAC.createElement();
-    const sourceAC = createMockSourceNode();
-    vmAC.connect(sourceAC);
-    vmAC._analyser.getFloatTimeDomainData = (arr) => {
-      vmAC._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(1.0);
-    };
 
     const vmDC = createTestVoltmeter({ id: 'vm-dc' });
     vmDC.createElement();
     vmDC._toggle.toggle(); // → control
-    const sourceDC = createMockSourceNode();
-    vmDC.connect(sourceDC);
-    vmDC._analyser.getFloatTimeDomainData = (arr) => {
-      vmDC._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(1.0);
-    };
 
-    // Una sola iteración
-    vmAC._readAndUpdate();
-    vmDC._readAndUpdate();
+    const data = { peak: 1.0, rms: 1.0, meanAbs: 1.0, meanDC: 1.0 };
+    vmAC.updateMeter(data);
+    vmDC.updateMeter(data);
 
     // DC debe responder más rápido (smoothing menor → más peso al nuevo valor)
-    // AC: new = 0 * 0.85 + 1.0 * 0.15 = 0.15
-    // DC: clamp(1.0)=1.0, new = 0 * 0.75 + 1.0 * 0.25 = 0.25
     const acPctTarget = vmAC._smoothedValue / 1.0;
     const dcPctTarget = vmDC._smoothedValue / 1.0;
 
@@ -651,22 +553,20 @@ describe('Voltmeter - dispose()', () => {
   it('limpia todas las referencias', () => {
     const vm = createTestVoltmeter();
     vm.createElement();
-    const source = createMockSourceNode();
-    vm.connect(source);
     vm.dispose();
-    assert.strictEqual(vm._analyser, null);
     assert.strictEqual(vm._toggle, null);
     assert.strictEqual(vm._needle, null);
     assert.strictEqual(vm.element, null);
   });
 
-  it('detiene la lectura periódica', () => {
+  it('resetea valores raw tras dispose', () => {
     const vm = createTestVoltmeter();
     vm.createElement();
-    const source = createMockSourceNode();
-    vm.connect(source);
+    vm.updateMeter({ peak: 0.5, rms: 0.4, meanAbs: 0.3, meanDC: 0.1 });
     vm.dispose();
-    assert.strictEqual(vm._intervalId, null);
+    assert.strictEqual(vm._rawValue, 0);
+    assert.strictEqual(vm._rawPeak, 0);
+    assert.strictEqual(vm._rawRms, 0);
   });
 
   it('es seguro llamar sin haber creado el elemento', () => {
@@ -1104,42 +1004,22 @@ describe('Voltmeter - Valores raw (instantáneos) vs smoothed (aguja)', () => {
     assert.strictEqual(v._rawRms, 0);
   });
 
-  it('_readAndUpdate establece _rawValue, _rawPeak y _rawRms', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(0.8); // señal constante
-    };
-    vm._readAndUpdate();
-    assert.ok(Math.abs(vm._rawValue - 0.8) < 0.001, 'rawValue ≈ avgAbs ≈ 0.8');
-    assert.ok(Math.abs(vm._rawPeak - 0.8) < 0.001, 'rawPeak ≈ 0.8');
-    assert.ok(Math.abs(vm._rawRms - 0.8) < 0.001, 'rawRms ≈ 0.8 para señal constante');
-    vm.disconnect();
+  it('updateMeter establece _rawPeak y _rawRms', () => {
+    vm.updateMeter({ peak: 0.8, rms: 0.8, meanAbs: 0.8, meanDC: 0 });
+    assert.strictEqual(vm._rawPeak, 0.8, 'rawPeak = 0.8');
+    assert.strictEqual(vm._rawRms, 0.8, 'rawRms = 0.8');
   });
 
-  it('_rawValue es instantáneo, _smoothedValue tiene inercia', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(1.0);
-    };
-    vm._readAndUpdate();
-    // Tras un paso: rawValue = 1.0 (instantáneo), smoothed tiene inercia
-    assert.strictEqual(vm._rawValue, 1.0, 'rawValue=1.0 instantáneo');
+  it('_rawValue refleja último updateMeter, _smoothedValue tiene inercia', () => {
+    vm.updateMeter({ peak: 1.0, rms: 1.0, meanAbs: 1.0, meanDC: 0 });
+    // En modo signal, rawValue = min(meanAbs / AC_MAX_LEVEL, 1)
+    // AC_MAX_LEVEL = 1.0, así que rawValue = 1.0
+    assert.ok(vm._rawValue > 0, 'rawValue > 0 tras updateMeter');
     assert.ok(vm._smoothedValue < 0.5, `smoothedValue debe tener inercia: ${vm._smoothedValue}`);
-    vm.disconnect();
   });
 
   it('disconnect() resetea valores raw a 0', () => {
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(0.7);
-    };
-    vm._readAndUpdate();
+    vm.updateMeter({ peak: 0.7, rms: 0.7, meanAbs: 0.7, meanDC: 0 });
     vm.disconnect();
     assert.strictEqual(vm._rawValue, 0);
     assert.strictEqual(vm._rawPeak, 0);
@@ -1168,18 +1048,13 @@ describe('Voltmeter - Valores raw (instantáneos) vs smoothed (aguja)', () => {
 
   it('DC mode: Web Audio ±1.0 mapea directamente sin dividir por 5', () => {
     vm._toggle.toggle(); // → control
-    const source = createMockSourceNode();
-    vm.connect(source);
-    vm._analyser.getFloatTimeDomainData = (arr) => {
-      vm._analyser._calls.getFloatTimeDomainData++;
-      arr.fill(1.0); // señal DC a máximo
-    };
-    for (let i = 0; i < 100; i++) vm._readAndUpdate();
-    // rawValue debe ser 1.0 (no 0.2 como con el antiguo /5)
+    for (let i = 0; i < 100; i++) {
+      vm.updateMeter({ peak: 1.0, rms: 1.0, meanAbs: 1.0, meanDC: 1.0 });
+    }
+    // rawValue debe ser 1.0 (clamp a ±1)
     assert.strictEqual(vm._rawValue, 1.0, 'DC sin dividir: rawValue=1.0');
     // smoothed debe converger a 1.0
     assert.ok(vm._smoothedValue > 0.95, `smoothed debe converger a ~1.0, got ${vm._smoothedValue}`);
-    vm.disconnect();
   });
 
   it('Vp-p se calcula desde _rawPeak (pico real), no desde average', () => {

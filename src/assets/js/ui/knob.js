@@ -200,7 +200,8 @@ export class Knob {
   _positionTooltip() {
     if (!this.tooltip) return;
     
-    const rect = this.rootEl.getBoundingClientRect();
+    // Usar rect cacheado durante drag para evitar forced layout
+    const rect = this._cachedRect || this.rootEl.getBoundingClientRect();
     const tooltipRect = this.tooltip.getBoundingClientRect();
     
     let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
@@ -223,11 +224,36 @@ export class Knob {
    * Actualiza el contenido del tooltip
    */
   _updateTooltip() {
-    if (this.tooltip) {
-      this.tooltip.innerHTML = this._generateTooltipContent();
-      // Reposicionar por si cambió el tamaño
-      this._positionTooltip();
+    if (!this.tooltip) return;
+    
+    const scaleValue = this._getScaleValue();
+    const rawValue = this._formatScaleValue();
+    const label = this._getTooltipLabel();
+    const mainText = label ? `${label}: ${rawValue}` : rawValue;
+    
+    // Ruta rápida: si el tooltip ya tiene la estructura de 2 divs,
+    // actualizar textContent directamente (evita innerHTML + reflow)
+    const mainEl = this.tooltip.querySelector('.knob-tooltip__main');
+    const infoEl = this.tooltip.querySelector('.knob-tooltip__info');
+    
+    if (mainEl && this.getTooltipInfo) {
+      const extraInfo = this.getTooltipInfo(this.value, scaleValue);
+      if (extraInfo) {
+        mainEl.textContent = mainText;
+        if (infoEl) infoEl.textContent = extraInfo;
+        return; // Sin reposicionar: el tamaño no cambia significativamente
+      }
     }
+    
+    // Ruta rápida para tooltips simples (sin sub-divs)
+    if (!mainEl && !this.getTooltipInfo) {
+      this.tooltip.textContent = mainText;
+      return;
+    }
+    
+    // Fallback: reconstruir con innerHTML (solo si la estructura cambió)
+    this.tooltip.innerHTML = this._generateTooltipContent();
+    this._positionTooltip();
   }
   
   /**
@@ -294,7 +320,8 @@ export class Knob {
 
   _positionModifierBadge() {
     if (!this.modBadge) return;
-    const rect = this.rootEl.getBoundingClientRect();
+    // Usar rect cacheado del pointerdown para evitar forced layout durante drag
+    const rect = this._cachedRect || this.rootEl.getBoundingClientRect();
     const left = rect.right - 8;
     const top = rect.top + rect.height / 2;
     this.modBadge.style.left = `${left}px`;
@@ -387,8 +414,8 @@ export class Knob {
 
   _attach() {
     const hasTouch = hasTouchCapability();
-    this._ensureModifierBadge();
-    this._setModifierVisual('none');
+    // Badge se crea bajo demanda en el primer drag (no en construcción)
+    // para evitar 150+ divs huérfanos en document.body
     
     // ─────────────────────────────────────────────────────────────────────
     // Prevenir menú contextual nativo del navegador pero permitir propagación
@@ -417,11 +444,9 @@ export class Knob {
       }
     });
 
-    // Forzar cierre del tooltip cuando el viewport se anima (zoom a panel vía teclado):
-    // El contenido se desplaza bajo el puntero sin generar pointerleave.
-    document.addEventListener('synth:dismissTooltips', () => {
-      this._hideTooltip();
-    });
+    // El cierre de tooltip por viewport animation/zoom se gestiona via
+    // tooltipManager (registerTooltipHideCallback en constructor), que ya
+    // escucha synth:dismissTooltips. No añadir listener directo aquí.
     
     // ─────────────────────────────────────────────────────────────────────
     // TÁCTIL: tap para mostrar tooltip con auto-hide
@@ -529,6 +554,8 @@ export class Knob {
       this.lastY = ev.clientY;  // Inicializar lastY para cálculo incremental
       this.startX = ev.clientX;  // Guardar posición X inicial para precisión progresiva
       this.startValue = this.value;
+      // Cachear rect al inicio del drag para evitar forced layout en pointermove
+      this._cachedRect = this.rootEl.getBoundingClientRect();
       this.rootEl.setPointerCapture(ev.pointerId);
       // Promover capa GPU solo durante drag (evita exceder presupuesto will-change en Firefox)
       const rotEl = this._getRotatingEl();
@@ -606,8 +633,10 @@ export class Knob {
         modifierState = 'slow';
       }
       
-      // Actualizar badge visual
-      this._setModifierVisual(modifierState, effectiveSpeedFactor);
+      // Aplazar actualización del badge al RAF (evita getBoundingClientRect sincrónico
+      // en cada pointermove — Firefox no coalesciona como Chrome y dispara 100-125Hz)
+      this._pendingModState = modifierState;
+      this._pendingModFactor = effectiveSpeedFactor;
       
       // Calcular sensibilidad basada en el factor
       // factor > 1 = más rápido = más sensible
@@ -624,13 +653,31 @@ export class Knob {
       }
       
       // Solo actualizar si el valor realmente cambia
-      if (newValue === this.value) return;
+      if (newValue === this.value) {
+        // Aun sin cambio de valor, la posición horizontal puede haber cambiado:
+        // programar RAF solo para el badge si hay uno pendiente
+        if (this._pendingModState !== undefined && !this._rafId) {
+          this._rafId = requestAnimationFrame(() => {
+            this._rafId = null;
+            if (this._pendingModState !== undefined) {
+              this._setModifierVisual(this._pendingModState, this._pendingModFactor);
+              this._pendingModState = undefined;
+            }
+          });
+        }
+        return;
+      }
       
       // Programar actualización visual con RAF para fluidez
       this._pendingValue = newValue;
       if (!this._rafId) {
         this._rafId = requestAnimationFrame(() => {
           this._rafId = null;
+          // Actualizar badge visual en el RAF (no en pointermove)
+          if (this._pendingModState !== undefined) {
+            this._setModifierVisual(this._pendingModState, this._pendingModFactor);
+            this._pendingModState = undefined;
+          }
           if (this._pendingValue !== null && this._pendingValue !== this.value) {
             this.value = this._pendingValue;
             this._pendingValue = null;
@@ -645,6 +692,7 @@ export class Knob {
     const end = ev => {
       if (!this.dragging) return;
       this.dragging = false;
+      this._cachedRect = null;
       this._setModifierVisual('none');
       // Liberar capa GPU al terminar drag
       const rotEl = this._getRotatingEl();

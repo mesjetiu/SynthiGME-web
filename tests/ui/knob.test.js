@@ -466,14 +466,19 @@ describe('Knob - Indicador de modificadores (badge)', () => {
     assert.strictEqual(knob.modifierState, 'none');
   });
 
-  it('crea modBadge element', () => {
+  it('crea modBadge element bajo demanda (no en constructor)', () => {
     const knob = new Knob(knobEl, {
       min: 0,
       max: 1,
       initial: 0.5
     });
     
-    assert.ok(knob.modBadge, 'modBadge debería existir');
+    // Badge no existe aún (lazy)
+    assert.ok(!knob.modBadge, 'modBadge no debería existir al construir');
+    
+    // Se crea al primer uso de _setModifierVisual
+    knob._setModifierVisual('fast');
+    assert.ok(knob.modBadge, 'modBadge debería existir tras _setModifierVisual');
     assert.ok(knob.modBadge.classList.contains('knob-mod-badge'), 'Tiene clase correcta');
   });
 

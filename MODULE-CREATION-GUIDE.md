@@ -143,6 +143,25 @@ registerProcessor('random-cv', RandomCVProcessor);
 - **Mensajes obligatorios**: `setDormant` y `stop`
 - **Dormancy**: El DSP debe manejar silencio (`.fill(0)`) pero mantener el estado interno (reloj, fase, etc.) para preservar la coherencia al despertar
 - **`return false`** en `process()` destruye el procesador (solo en `stop`)
+
+### ⚠️ Suavizado anti-zipper en AudioParam custom (Firefox)
+
+Firefox resuelve los AudioParam de worklets custom a **k-rate** (1 valor por bloque de 128 muestras) aunque se declare `automationRate: 'a-rate'`. Esto produce escalones audibles (zipper noise) cuando el usuario gira un knob.
+
+**Solución**: Para cada AudioParam que el usuario pueda mover, aplicar un filtro one-pole IIR **per-sample** dentro de `process()`:
+
+```javascript
+// En el constructor:
+this._smoothAlpha = this._computeOnePoleAlpha(5, sampleRate); // 5Hz cutoff
+this._smoothedMyParam = defaultValue;
+
+// En process(), dentro del bucle per-sample:
+const rawParam = myParam.length > 1 ? myParam[i] : myParam[0];
+this._smoothedMyParam += this._smoothAlpha * (rawParam - this._smoothedMyParam);
+// Usar this._smoothedMyParam en lugar de rawParam
+```
+
+Ver `synthOscillator.worklet.js` como referencia (suaviza 8 parámetros). Coste: 1 mul + 1 add por muestra por parámetro → despreciable. En Chrome (a-rate nativo), α≈0.00065 es transparente.
 - Las conversiones dial→parámetro interno se hacen aquí (ej: exponencial, lineal, etc.)
 - La variable global `sampleRate` está disponible automáticamente en el contexto del worklet
 

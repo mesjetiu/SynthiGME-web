@@ -59,6 +59,18 @@ La documentación del proyecto va en la **raíz**:
 
 Esto se aplica también a futuros módulos con visualización (visor de frecuencia, osciloscopio, etc.).
 
+### ⚠️ OBLIGATORIO: Suavizado anti-zipper en AudioParam de worklets custom
+
+Firefox resuelve los AudioParam de `AudioWorkletProcessor` custom a **k-rate** (1 valor por bloque de 128 muestras) aunque se declare `automationRate: 'a-rate'`. Esto causa **zipper noise** (escalones audibles cada 2.67ms) al mover knobs.
+
+**Patrón obligatorio (one-pole IIR per-sample)**:
+- Para cada AudioParam que el usuario pueda modificar vía knob/slider, aplicar filtro one-pole IIR **per-sample** dentro de `process()`
+- Cutoff 5 Hz: `α = 1 - exp(-2π·5/sampleRate)` ≈ 0.00065 → τ ≈ 32ms
+- `this._smoothedParam += α * (rawParam - this._smoothedParam)` en cada muestra
+- Los AudioParam **nativos** de Web Audio (`GainNode.gain`, etc.) NO necesitan esto — el browser los interpola internamente
+- Ejemplo completo: `synthOscillator.worklet.js` suaviza 8 params con un único `_smoothAlpha`
+- Coste: despreciable (1 mul + 1 add por muestra por parámetro)
+
 ## Commits
 
 Cuando el usuario pida hacer commits:

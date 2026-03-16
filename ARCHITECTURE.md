@@ -196,7 +196,7 @@ Procesadores de audio que corren en el hilo de audio para síntesis de alta prec
 
 | Archivo | Propósito |
 |---------|----------|
-| `synthOscillator.worklet.js` | Oscilador multi-waveform con **fase maestra unificada**. Modo `single` (1 forma de onda, 1 salida) o modo `multi` (4 formas de onda, 2 salidas). Todas las ondas derivan de una única fase (rampa 0→1 = sawtooth), garantizando coherencia perfecta. Anti-aliasing PolyBLEP, entrada para hard sync, parámetro `detune` para V/Oct, AudioParams individuales para niveles de cada onda. **Dormancy**: soporta mensaje `setDormant` para early exit en `process()`, ahorrando ~95% CPU cuando está inactivo |
+| `synthOscillator.worklet.js` | Oscilador multi-waveform con **fase maestra unificada**. Modo `single` (1 forma de onda, 1 salida) o modo `multi` (4 formas de onda, 2 salidas). Todas las ondas derivan de una única fase (rampa 0→1 = sawtooth), garantizando coherencia perfecta. Anti-aliasing PolyBLEP, entrada para hard sync, parámetro `detune` para V/Oct, AudioParams individuales para niveles de cada onda. **Anti-zipper**: suavizado one-pole IIR per-sample en todos los AudioParam (frequency, gain, pulseWidth, symmetry, sineLevel, sawLevel, triLevel, pulseLevel) con cutoff 5 Hz para compensar la resolución k-rate de Firefox (ver §3.8.7). **Dormancy**: soporta mensaje `setDormant` para early exit en `process()`, ahorrando ~95% CPU cuando está inactivo |
 | `noiseGenerator.worklet.js` | Generador de ruido blanco con filtro COLOUR IIR de 1er orden (6 dB/oct), misma topología que `outputFilter.worklet.js`. Fuente: white noise (emulación del transistor BC169C). Filtro RC con pot 10K LIN + C 33nF, τ = 3.3×10⁻⁴ s, fc ≈ 965 Hz. AudioParam `colourPosition` (a-rate, -1..+1): -1 = LP dark/pink (atenúa HF), 0 = flat white, +1 = HP bright/blue (+6dB shelf). Coeficientes optimizados: a1 y Kinv constantes, solo δ = p·Kinv varía per-sample. DC-coupled (fmin ≈ 2-3 Hz) para uso dual audio/CV. **Dormancy**: soporta `setDormant` para early exit |
 | `scopeCapture.worklet.js` | Captura sincronizada de dos canales para osciloscopio con trigger Schmitt, histéresis temporal, anclaje predictivo y detección de período. **Dormancy**: soporta mensaje `setDormant` para pausar captura |
 | `recordingCapture.worklet.js` | Captura de samples de audio multicanal para grabación WAV. Recibe N canales y envía bloques Float32 al hilo principal para acumulación |
@@ -1503,7 +1503,47 @@ Los osciladores aplican suavizado térmico y saturación a la entrada de CV de f
 
 ### 3.8.7 Rampas para Controles Manuales (Knobs/Sliders)
 
-Los controles manuales (knobs y sliders) aplican **rampas de audio** para evitar "zipper noise" — saltos audibles cuando el usuario gira un knob rápidamente. Estas rampas usan `setTargetAtTime()` de Web Audio API que interpola exponencialmente a nivel de sample rate.
+Los controles manuales (knobs y sliders) aplican **rampas de audio** para evitar "zipper noise" — saltos audibles cuando el usuario gira un knob rápidamente.
+
+#### Problema: Firefox y k-rate en AudioWorklet custom
+
+Firefox resuelve los AudioParam de `AudioWorkletProcessor` custom a **k-rate** (1 valor por bloque de 128 muestras) independientemente de que se declare `automationRate: 'a-rate'` en `parameterDescriptors`. Esto produce **escalones discretos** de valor cada 2.67 ms (128/48000), audibles como zipper noise.
+
+Los AudioParam **nativos** del Web Audio API (`GainNode.gain`, `BiquadFilterNode.frequency`, etc.) sí se interpolan correctamente a a-rate incluso en Firefox. El problema afecta **solo** a parámetros de worklets custom.
+
+#### Solución: Suavizado one-pole IIR per-sample en worklet
+
+Cada AudioParam del oscilador se suaviza con un filtro one-pole IIR **dentro** del worklet, muestra a muestra:
+
+$$\texttt{smoothed} \mathrel{+}= \alpha \cdot (\texttt{target} - \texttt{smoothed})$$
+
+Donde $\alpha = 1 - e^{-2\pi \cdot f_c / f_s}$ con $f_c = 5\text{ Hz}$ a $f_s = 48\text{ kHz}$:
+- $\alpha \approx 0.00065$
+- $\tau \approx 32\text{ ms}$
+- ~8% convergencia por bloque de 128 muestras
+
+La curva exponencial tiene derivada continua ($C^\infty$), sin artefactos en fronteras de bloque. En Chrome (donde los params ya son a-rate), el suavizado es transparente.
+
+**Parámetros suavizados en el oscilador:**
+
+| Variable | AudioParam | Modo |
+|----------|------------|------|
+| `_smoothedFreq` | `frequency` | single + multi |
+| `_smoothedGain` | `gain` | single |
+| `_smoothedPulseWidth` | `pulseWidth` | single + multi |
+| `_smoothedSymmetry` | `symmetry` | single + multi |
+| `_smoothedSineLevel` | `sineLevel` | multi |
+| `_smoothedSawLevel` | `sawLevel` | multi |
+| `_smoothedTriLevel` | `triLevel` | multi |
+| `_smoothedPulseLevel` | `pulseLevel` | multi |
+
+Todos comparten un único `_smoothAlpha` calculado una vez en el constructor.
+
+**Coste computacional:** 1 multiplicación + 1 suma por muestra por parámetro → despreciable.
+
+#### Rampas del engine (capa superior)
+
+Además del suavizado en worklet, los métodos del engine (`setFrequency()`, `setOutputLevel()`, etc.) usan `setTargetAtTime()` de Web Audio API para controles manuales:
 
 **Comportamiento diferenciado por fuente de control:**
 
@@ -1513,19 +1553,6 @@ Los controles manuales (knobs y sliders) aplican **rampas de audio** para evitar
 | **CV de matriz** | ❌ Instantáneo | Modulación precisa, FM/PWM sin latencia |
 | **OSC externo** | ❌ Instantáneo | Sincronización remota precisa |
 | **Carga de patch** | ❌ Instantáneo | Restaurar estado sin glissando |
-
-**Configuración en `oscillator.config.js`:**
-
-```javascript
-audio: {
-  // Rampa de frecuencia para knob manual (en segundos)
-  // τ = frequencyRampTime/3 para alcanzar ~95% del objetivo
-  frequencyRampTime: 0.2,  // 200ms default
-  
-  // Otros parámetros del oscilador...
-  smoothingTime: 0.01      // Para pulseWidth, symmetry, etc.
-}
-```
 
 **Configuración en `outputChannel.config.js`:**
 
@@ -1557,6 +1584,8 @@ audio: {
      this._updatePanelOscFreq(panelIndex, oscIndex, value, undefined, { ramp });
    }
    ```
+
+> **Nota**: Para worklets custom con AudioParam que el usuario pueda mover, el suavizado one-pole IIR per-sample dentro del worklet es imprescindible en Firefox. Aplicar solo `setTargetAtTime()` desde el engine no es suficiente porque Firefox entrega el valor resultante como un único escalar por bloque.
 
 ### 3.8.8 Clase Module (core/engine.js)
 

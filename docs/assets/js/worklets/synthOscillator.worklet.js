@@ -135,22 +135,29 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     this.moduleSlewEnabled = options?.processorOptions?.moduleSlewEnabled ?? true;
     
     // ─────────────────────────────────────────────────────────────────────────
-    // SUAVIZADO DE FRECUENCIA PER-SAMPLE (anti-zipper)
+    // SUAVIZADO PER-SAMPLE DE TODOS LOS AudioParam (anti-zipper)
     // ─────────────────────────────────────────────────────────────────────────
     // Firefox resuelve AudioParam custom por bloque (128 samples = k-rate),
     // aunque se declare a-rate. Esto produce escalones audibles al girar knobs.
     //
-    // Solución: filtro one-pole IIR per-sample sobre el valor del AudioParam.
-    // A diferencia de la interpolación lineal (que crea segmentos rectos con
-    // esquinas audibles en las fronteras de bloque), el one-pole produce una
-    // curva exponencial con derivada siempre continua → transición inaudible.
+    // Solución: filtro one-pole IIR per-sample sobre cada AudioParam.
+    // Curva exponencial con derivada siempre continua → transición inaudible.
     //
-    // Cutoff ~15Hz (τ≈10.6ms): suaviza agresivamente el staircase de 375Hz
-    // (48000/128). Cada bloque converge solo ~22% → curva muy suave.
-    // En Chrome (a-rate nativo), α≈0.002 per-sample → transparente.
+    // Cutoff ~5Hz (τ≈32ms): suaviza muy agresivamente el staircase de 375Hz
+    // (48000/128). Cada bloque converge solo ~8% → curva extremadamente suave.
+    // En Chrome (a-rate nativo), α≈0.00065 per-sample → transparente.
+    //
+    // Coste: 1 mul + 1 add per-sample por parámetro → despreciable.
     // ─────────────────────────────────────────────────────────────────────────
+    this._smoothAlpha = this._computeOnePoleAlpha(5, sampleRate);
     this._smoothedFreq = options?.processorOptions?.frequency ?? 440;
-    this._freqSmoothAlpha = this._computeOnePoleAlpha(15, sampleRate);
+    this._smoothedGain = 1.0;
+    this._smoothedPulseWidth = 0.5;
+    this._smoothedSymmetry = 0.5;
+    this._smoothedSineLevel = 0;
+    this._smoothedSawLevel = 0;
+    this._smoothedTriLevel = 0;
+    this._smoothedPulseLevel = 0;
     
     this.mode = options?.processorOptions?.mode || 'single';
     
@@ -420,17 +427,23 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const symmetryParam = parameters.symmetry;
     const gainParam = parameters.gain;
 
-    const alpha = this._freqSmoothAlpha;
+    const alpha = this._smoothAlpha;
 
     for (let i = 0; i < numSamples; i++) {
-      // One-pole IIR per-sample: curva exponencial sin esquinas
+      // One-pole IIR per-sample en todos los params: curva exponencial sin esquinas
       const paramFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
       this._smoothedFreq += alpha * (paramFreq - this._smoothedFreq);
       const detuneCents = detuneParam.length > 1 ? detuneParam[i] : detuneParam[0];
       const freq = this._smoothedFreq * Math.pow(2, detuneCents / 1200);
-      const width = widthParam.length > 1 ? widthParam[i] : widthParam[0];
-      const symmetry = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
-      const gain = gainParam.length > 1 ? gainParam[i] : gainParam[0];
+      const rawWidth = widthParam.length > 1 ? widthParam[i] : widthParam[0];
+      this._smoothedPulseWidth += alpha * (rawWidth - this._smoothedPulseWidth);
+      const width = this._smoothedPulseWidth;
+      const rawSym = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
+      this._smoothedSymmetry += alpha * (rawSym - this._smoothedSymmetry);
+      const symmetry = this._smoothedSymmetry;
+      const rawGain = gainParam.length > 1 ? gainParam[i] : gainParam[0];
+      this._smoothedGain += alpha * (rawGain - this._smoothedGain);
+      const gain = this._smoothedGain;
 
       // Hard sync
       if (syncInput && syncInput.length > i) {
@@ -508,20 +521,32 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     const triLevelParam = parameters.triLevel;
     const pulseLevelParam = parameters.pulseLevel;
 
-    const alpha = this._freqSmoothAlpha;
+    const alpha = this._smoothAlpha;
 
     for (let i = 0; i < numSamples; i++) {
-      // One-pole IIR per-sample: curva exponencial sin esquinas
+      // One-pole IIR per-sample en todos los params: curva exponencial sin esquinas
       const paramFreq = freqParam.length > 1 ? freqParam[i] : freqParam[0];
       this._smoothedFreq += alpha * (paramFreq - this._smoothedFreq);
       const detuneCents = detuneParam.length > 1 ? detuneParam[i] : detuneParam[0];
       const freq = this._smoothedFreq * Math.pow(2, detuneCents / 1200);
-      const width = widthParam.length > 1 ? widthParam[i] : widthParam[0];
-      const symmetry = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
-      const sineLevel = sineLevelParam.length > 1 ? sineLevelParam[i] : sineLevelParam[0];
-      const sawLevel = sawLevelParam.length > 1 ? sawLevelParam[i] : sawLevelParam[0];
-      const triLevel = triLevelParam.length > 1 ? triLevelParam[i] : triLevelParam[0];
-      const pulseLevel = pulseLevelParam.length > 1 ? pulseLevelParam[i] : pulseLevelParam[0];
+      const rawWidth = widthParam.length > 1 ? widthParam[i] : widthParam[0];
+      this._smoothedPulseWidth += alpha * (rawWidth - this._smoothedPulseWidth);
+      const width = this._smoothedPulseWidth;
+      const rawSym = symmetryParam.length > 1 ? symmetryParam[i] : symmetryParam[0];
+      this._smoothedSymmetry += alpha * (rawSym - this._smoothedSymmetry);
+      const symmetry = this._smoothedSymmetry;
+      const rawSine = sineLevelParam.length > 1 ? sineLevelParam[i] : sineLevelParam[0];
+      this._smoothedSineLevel += alpha * (rawSine - this._smoothedSineLevel);
+      const sineLevel = this._smoothedSineLevel;
+      const rawSaw = sawLevelParam.length > 1 ? sawLevelParam[i] : sawLevelParam[0];
+      this._smoothedSawLevel += alpha * (rawSaw - this._smoothedSawLevel);
+      const sawLevel = this._smoothedSawLevel;
+      const rawTriLvl = triLevelParam.length > 1 ? triLevelParam[i] : triLevelParam[0];
+      this._smoothedTriLevel += alpha * (rawTriLvl - this._smoothedTriLevel);
+      const triLevel = this._smoothedTriLevel;
+      const rawPulse = pulseLevelParam.length > 1 ? pulseLevelParam[i] : pulseLevelParam[0];
+      this._smoothedPulseLevel += alpha * (rawPulse - this._smoothedPulseLevel);
+      const pulseLevel = this._smoothedPulseLevel;
 
       // Hard sync: flanco positivo resetea fase
       if (syncInput && syncInput.length > i) {

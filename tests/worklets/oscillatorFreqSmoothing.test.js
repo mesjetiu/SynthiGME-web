@@ -1,11 +1,13 @@
 /**
- * Tests para el suavizado de frecuencia per-sample (one-pole IIR) en synthOscillator.worklet.js
+ * Tests para el suavizado per-sample (one-pole IIR) de TODOS los AudioParam
+ * en synthOscillator.worklet.js
  * 
  * Verifica que:
- * 1. _smoothedFreq se inicializa correctamente
- * 2. _freqSmoothAlpha se calcula con cutoff ~60Hz
+ * 1. Todos los _smoothed* se inicializan correctamente
+ * 2. _smoothAlpha se calcula con cutoff ~15Hz
  * 3. El one-pole produce convergencia exponencial (sin esquinas)
  * 4. Funciona en ambos modos: single y multi
+ * 5. Gain, pulseWidth, symmetry, sineLevel, sawLevel, triLevel, pulseLevel se suavizan
  */
 
 import { describe, it } from 'node:test';
@@ -106,17 +108,28 @@ describe('Frequency One-Pole IIR Smoothing', () => {
       assert.equal(proc._smoothedFreq, 440);
     });
     
-    it('_freqSmoothAlpha existe y es un número positivo pequeño', () => {
+    it('_smoothAlpha existe y es un número positivo pequeño', () => {
       const proc = new SynthOscillatorProcessor();
-      assert.ok(typeof proc._freqSmoothAlpha === 'number');
-      assert.ok(proc._freqSmoothAlpha > 0, 'alpha debe ser positivo');
-      assert.ok(proc._freqSmoothAlpha < 0.1, 'alpha debe ser pequeño (~0.008 para 60Hz)');
+      assert.ok(typeof proc._smoothAlpha === 'number');
+      assert.ok(proc._smoothAlpha > 0, 'alpha debe ser positivo');
+      assert.ok(proc._smoothAlpha < 0.01, 'alpha debe ser pequeño (~0.00065 para 5Hz)');
     });
     
-    it('_freqSmoothAlpha corresponde a un cutoff de ~15Hz', () => {
+    it('_smoothAlpha corresponde a un cutoff de ~5Hz', () => {
       const proc = new SynthOscillatorProcessor();
-      const expected = 1 - Math.exp(-2 * Math.PI * 15 / sampleRate);
-      assert.ok(Math.abs(proc._freqSmoothAlpha - expected) < 1e-10);
+      const expected = 1 - Math.exp(-2 * Math.PI * 5 / sampleRate);
+      assert.ok(Math.abs(proc._smoothAlpha - expected) < 1e-10);
+    });
+    
+    it('Todos los _smoothed* de nivel se inicializan en sus defaults', () => {
+      const proc = new SynthOscillatorProcessor();
+      assert.equal(proc._smoothedGain, 1.0);
+      assert.equal(proc._smoothedPulseWidth, 0.5);
+      assert.equal(proc._smoothedSymmetry, 0.5);
+      assert.equal(proc._smoothedSineLevel, 0);
+      assert.equal(proc._smoothedSawLevel, 0);
+      assert.equal(proc._smoothedTriLevel, 0);
+      assert.equal(proc._smoothedPulseLevel, 0);
     });
   });
   
@@ -173,10 +186,10 @@ describe('Frequency One-Pole IIR Smoothing', () => {
         processorOptions: { frequency: 440, waveform: 'sine' }
       });
       
-      const freqs = processBlocks(proc, 50, 880);
+      const freqs = processBlocks(proc, 200, 880);
       const last = freqs[freqs.length - 1];
       assert.ok(Math.abs(last - 880) < 0.1,
-        `Tras 50 bloques: ${last.toFixed(4)} ≈ 880`);
+        `Tras 200 bloques: ${last.toFixed(4)} ≈ 880`);
     });
   });
   
@@ -296,6 +309,100 @@ describe('Frequency One-Pole IIR Smoothing', () => {
       const speed2 = smoothAfter2 - smoothAfter1;
       assert.ok(speed2 < speed1,
         `Velocidad decreciente: bloque2=${speed1.toFixed(2)}, bloque3=${speed2.toFixed(2)}`);
+    });
+  });
+
+  describe('Suavizado de gain (modo single)', () => {
+    
+    it('_smoothedGain converge exponencialmente al cambiar gain', () => {
+      const proc = new SynthOscillatorProcessor({
+        processorOptions: { frequency: 440, waveform: 'sine' }
+      });
+      // Estabilizar gain en 1.0
+      processBlocks(proc, 3, 440);
+      assert.ok(Math.abs(proc._smoothedGain - 1.0) < 0.01);
+      
+      // Cambiar gain a 0.0
+      const blockSize = 128;
+      const gains = [];
+      for (let b = 0; b < 10; b++) {
+        const output = [new Float32Array(blockSize)];
+        proc.processSingle([output], [[]], {
+          frequency: new Float32Array([440]),
+          detune: new Float32Array([0]),
+          pulseWidth: new Float32Array([0.5]),
+          symmetry: new Float32Array([0.5]),
+          gain: new Float32Array([0.0])
+        }, blockSize);
+        gains.push(proc._smoothedGain);
+      }
+      // Monótonamente decreciente
+      for (let i = 1; i < gains.length; i++) {
+        assert.ok(gains[i] < gains[i - 1],
+          `Gain bloque ${i + 1} (${gains[i].toFixed(4)}) debe ser < bloque ${i} (${gains[i - 1].toFixed(4)})`);
+      }
+    });
+  });
+
+  describe('Suavizado de niveles (modo multi)', () => {
+    
+    it('_smoothedSineLevel converge exponencialmente', () => {
+      const proc = new SynthOscillatorProcessor({
+        processorOptions: { frequency: 440, mode: 'multi' }
+      });
+      // sineLevel empieza en 0, cambiar a 1
+      const blockSize = 128;
+      const levels = [];
+      for (let b = 0; b < 10; b++) {
+        const output0 = [new Float32Array(blockSize)];
+        const output1 = [new Float32Array(blockSize)];
+        proc.processMulti([output0, output1], [[]], {
+          frequency: new Float32Array([440]),
+          detune: new Float32Array([0]),
+          pulseWidth: new Float32Array([0.5]),
+          symmetry: new Float32Array([0.5]),
+          sineLevel: new Float32Array([1]),
+          sawLevel: new Float32Array([0]),
+          triLevel: new Float32Array([0]),
+          pulseLevel: new Float32Array([0])
+        }, blockSize);
+        levels.push(proc._smoothedSineLevel);
+      }
+      // Monótonamente creciente hacia 1
+      for (let i = 1; i < levels.length; i++) {
+        assert.ok(levels[i] > levels[i - 1],
+          `SineLevel bloque ${i + 1} (${levels[i].toFixed(4)}) debe ser > bloque ${i}`);
+      }
+      assert.ok(levels[0] > 0 && levels[0] < 1, 'No salto instantáneo');
+    });
+    
+    it('_smoothedPulseWidth converge exponencialmente en modo multi', () => {
+      const proc = new SynthOscillatorProcessor({
+        processorOptions: { frequency: 440, mode: 'multi' }
+      });
+      // pulseWidth empieza en 0.5, cambiar a 0.9
+      const blockSize = 128;
+      const widths = [];
+      for (let b = 0; b < 10; b++) {
+        const output0 = [new Float32Array(blockSize)];
+        const output1 = [new Float32Array(blockSize)];
+        proc.processMulti([output0, output1], [[]], {
+          frequency: new Float32Array([440]),
+          detune: new Float32Array([0]),
+          pulseWidth: new Float32Array([0.9]),
+          symmetry: new Float32Array([0.5]),
+          sineLevel: new Float32Array([0]),
+          sawLevel: new Float32Array([0]),
+          triLevel: new Float32Array([0]),
+          pulseLevel: new Float32Array([1])
+        }, blockSize);
+        widths.push(proc._smoothedPulseWidth);
+      }
+      for (let i = 1; i < widths.length; i++) {
+        assert.ok(widths[i] > widths[i - 1],
+          `PulseWidth bloque ${i + 1} (${widths[i].toFixed(4)}) debe ser > bloque ${i}`);
+      }
+      assert.ok(widths[0] > 0.5 && widths[0] < 0.9, 'No salto instantáneo');
     });
   });
 });

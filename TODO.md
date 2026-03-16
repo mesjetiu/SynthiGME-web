@@ -8,6 +8,19 @@
   - Implementado como AudioWorklet con filtro RC pasivo (plano D100-08 C1)
   - Bypass automático cuando |valor| < 0.02
 
+## Pitch to Voltage Converter (placa PC-25)
+
+#### ✅ COMPLETADO
+
+- [x] **PVC completo**
+  - Detección de frecuencia por cruce por cero de medio ciclo
+  - Conversión logarítmica 1V/Oct (ref A4=440Hz)
+  - Track & Hold: mantiene último voltaje cuando señal cae bajo umbral
+  - Knob Range vernier con curva piecewise de 3 segmentos
+  - Entrada audio Panel 5 col 50, salida CV Panel 6 fila 121
+  - Keepalive GainNode, lazy start, dormancy automática
+  - Sincronización OSC (/pvc/range), 95 tests
+
 #### ⏳ PENDIENTES
 
 ## Joystick Module

@@ -520,6 +520,32 @@ El secuenciador requiere parcheo explícito entre su salida de clock y su entrad
 
 ---
 
+### 21. Pitch to Voltage Converter (`/pvc/...`)
+
+Convertidor Pitch-a-Voltaje (placa PC-25). Detecta la frecuencia fundamental de una señal de audio y genera un voltaje de control proporcional (1V/Octava).
+
+**Knobs (float, continuo):**
+
+```
+/pvc/range              # 0 - 10 (rango de frecuencia, piecewise 3 segmentos)
+```
+
+El dial Range usa una curva piecewise de 3 segmentos:
+- `[0, 3.5]` → octavas `[-2, 0]` (rango grave)
+- `[3.5, 7]` → octavas `[0, 1]` (rango medio)
+- `[7, 10]` → octavas `[1, 2]` (rango agudo)
+
+**Routing en matrices:**
+
+| Matriz | Función | Fila/Columna |
+|--------|---------|--------------|
+| Panel 5 (Audio) | Entrada audio | Col 50 |
+| Panel 6 (Control) | Salida CV (1V/Oct) | Fila 121 |
+
+**Ejemplo OSC:** `/SynthiGME/pvc/range 5.0`
+
+---
+
 ## Mecanismo Anti-Loop
 
 Para evitar bucles infinitos cuando un mensaje OSC recibido dispara un nuevo envío:

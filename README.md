@@ -52,6 +52,7 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 | **3 Ring Modulators** | Multiplicador de señales de precisión (chip 4214AP). Soft-clip tanh, breakthrough −64dB. |
 | **Spring Reverb** | Reverberación de muelle con allpass + feedback loop (RT60=2.4s). Mix wet/dry con control CV. |
 | **Secuenciador Digital** | Digital Sequencer 1000: memoria de 1024 eventos, 6 pistas de voltaje (0-7V, DAC 8-bit), 4 pistas de key/gate. Grabación selectiva con overdubbing. Clock interno 0.1-500 Hz. Display hex. |
+| **Pitch to Voltage** | Convertidor de frecuencia a voltaje 1V/Oct con track & hold. Detecta el pitch de señales de audio y genera CV proporcional. |
 | **Teclados duales** | Upper y Lower keyboard con Pitch (1V/Oct), Gate y Velocity. Modos Normal/Latch/Legato. MIDI Learn. Ventana flotante PiP. |
 | **Random CV Generator** | Generador de voltaje aleatorio con reloj 0.2-20 Hz y jitter configurable. 2 salidas DC ±2.5V + pulso Key. |
 | **Joysticks** | 2 joysticks XY con voltaje DC bipolar (±8V), knobs Range X/Y independientes. Control en tiempo real para modulación de parámetros vía matriz de control. |

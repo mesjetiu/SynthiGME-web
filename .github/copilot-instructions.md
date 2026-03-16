@@ -47,6 +47,18 @@ La documentación del proyecto va en la **raíz**:
 - Web Audio API + AudioWorklet para síntesis
 - JSDoc para documentación inline
 
+### ⚠️ PROHIBIDO: AnalyserNode y lecturas síncronas del audio thread
+
+**NUNCA usar `AnalyserNode`**, `getFloatTimeDomainData()`, `getByteFrequencyData()` ni cualquier API que lea datos del hilo de audio de forma síncrona desde el hilo principal. Estas llamadas adquieren un mutex en el buffer del audio thread y causan **lock contention** que corta el audio bajo carga (movimiento de knobs, modulación CV, etc.).
+
+**Patrón correcto (zero-node metering)**:
+- Calcular métricas (peak, RMS, FFT…) **dentro** de un `AudioWorkletProcessor` que ya exista en la cadena
+- Enviar resultados al hilo principal vía `port.postMessage()` (asíncrono, sin locks)
+- Activar el metering con `port.postMessage({ type: 'enableMeter' })` desde el main thread
+- Ejemplo real: el metering de los voltímetros está integrado en `outputFilter.worklet.js`
+
+Esto se aplica también a futuros módulos con visualización (visor de frecuencia, osciloscopio, etc.).
+
 ## Commits
 
 Cuando el usuario pida hacer commits:

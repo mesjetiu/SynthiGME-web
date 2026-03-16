@@ -49,9 +49,9 @@ export const AUDIO_CONSTANTS = {
  */
 export function setParamSmooth(param, value, ctx, { ramp = AUDIO_CONSTANTS.DEFAULT_RAMP_TIME } = {}) {
   if (!param || !ctx) return;
-  const now = ctx.currentTime;
-  param.cancelScheduledValues(now);
-  param.setTargetAtTime(value, now, ramp);
+  // setTargetAtTime sin cancelScheduledValues: el nuevo target reemplaza
+  // naturalmente al anterior. Evita IPC costoso en Firefox (~60x/s durante drag).
+  param.setTargetAtTime(value, ctx.currentTime, ramp);
 }
 
 export class AudioEngine {
@@ -585,10 +585,15 @@ export class AudioEngine {
         const dialVoltage = this._gainToDialVoltage(value);
         const param = bus.vcaWorklet.parameters.get('dialVoltage');
         if (param) {
-          // Usar linearRampToValueAtTime para transición suave
-          param.cancelScheduledValues(ctx.currentTime);
-          param.setValueAtTime(param.value, ctx.currentTime);
-          param.linearRampToValueAtTime(dialVoltage, ctx.currentTime + ramp);
+          if (ramp > 0.02) {
+            // Rampa larga (patch load, reset): usar scheduling formal
+            param.cancelScheduledValues(ctx.currentTime);
+            param.setValueAtTime(param.value, ctx.currentTime);
+            param.linearRampToValueAtTime(dialVoltage, ctx.currentTime + ramp);
+          } else {
+            // Drag continuo: asignación directa (evita cancel+schedule spam)
+            param.value = dialVoltage;
+          }
         }
         // Actualizar cutoffEnabled (corte mecánico cuando dial=0)
         const cutoffParam = bus.vcaWorklet.parameters.get('cutoffEnabled');
@@ -1998,37 +2003,37 @@ export class AudioEngine {
 
     // Métodos de conveniencia
     // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → rampa suave (knob manual)
+    let _lastFreqTargetSingle = frequency;
     node.setFrequency = (value, ramp = 0) => {
       const param = node.parameters.get('frequency');
-      const now = this.audioCtx.currentTime;
-      param.cancelScheduledValues(now);
       if (ramp > 0) {
-        // Rampa exponencial para frecuencia (más natural musicalmente)
-        param.setTargetAtTime(value, now, ramp / 3); // τ = ramp/3 para alcanzar ~95% en 'ramp' segundos
+        // Rampa micro con τ=5ms para suavizar sin cancelScheduledValues cada frame
+        const relChange = Math.abs(value - _lastFreqTargetSingle) / (Math.abs(_lastFreqTargetSingle) + 1);
+        if (relChange > 0.01) {
+          param.cancelScheduledValues(this.audioCtx.currentTime);
+        }
+        param.setTargetAtTime(value, this.audioCtx.currentTime, 0.005);
+        _lastFreqTargetSingle = value;
       } else {
-        param.setValueAtTime(value, now);
+        param.cancelScheduledValues(this.audioCtx.currentTime);
+        param.setValueAtTime(value, this.audioCtx.currentTime);
+        _lastFreqTargetSingle = value;
       }
     };
 
     node.setPulseWidth = (value, ramp = 0.01) => {
       const param = node.parameters.get('pulseWidth');
-      const now = this.audioCtx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), this.audioCtx.currentTime, ramp);
     };
 
     node.setSymmetry = (value, ramp = 0.01) => {
       const param = node.parameters.get('symmetry');
-      const now = this.audioCtx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), this.audioCtx.currentTime, ramp);
     };
 
     node.setGain = (value, ramp = 0.01) => {
       const param = node.parameters.get('gain');
-      const now = this.audioCtx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(value, now, ramp);
+      param.setTargetAtTime(value, this.audioCtx.currentTime, ramp);
     };
 
     node.setWaveform = (wf) => {
@@ -2131,58 +2136,55 @@ export class AudioEngine {
 
     // Métodos de conveniencia
     // ramp = 0 → instantáneo (CV de matriz), ramp > 0 → rampa suave (knob manual)
+    // Cache del último target de frecuencia para evitar cancel+reschedule redundantes
+    let _lastFreqTarget = frequency;
     node.setFrequency = (value, ramp = 0) => {
       const param = node.parameters.get('frequency');
-      const now = ctx.currentTime;
-      param.cancelScheduledValues(now);
       if (ramp > 0) {
-        // Rampa exponencial para frecuencia (más natural musicalmente)
-        param.setTargetAtTime(value, now, ramp / 3); // τ = ramp/3 para alcanzar ~95% en 'ramp' segundos
+        // Rampa micro: setTargetAtTime con τ corto (~5ms) para suavizar
+        // sin llamar cancelScheduledValues en cada frame (costoso en Firefox).
+        // Solo cancelar si el salto es >1% del rango para evitar IPC excesivo.
+        const relChange = Math.abs(value - _lastFreqTarget) / (Math.abs(_lastFreqTarget) + 1);
+        if (relChange > 0.01) {
+          param.cancelScheduledValues(ctx.currentTime);
+        }
+        param.setTargetAtTime(value, ctx.currentTime, 0.005);
+        _lastFreqTarget = value;
       } else {
-        param.setValueAtTime(value, now);
+        param.cancelScheduledValues(ctx.currentTime);
+        param.setValueAtTime(value, ctx.currentTime);
+        _lastFreqTarget = value;
       }
     };
 
     node.setPulseWidth = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('pulseWidth');
-      const now = ctx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), ctx.currentTime, ramp);
     };
 
     node.setSymmetry = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('symmetry');
-      const now = ctx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), now, ramp);
+      param.setTargetAtTime(Math.max(0.01, Math.min(0.99, value)), ctx.currentTime, ramp);
     };
 
     node.setSineLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('sineLevel');
-      const now = ctx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(value, now, ramp);
+      param.setTargetAtTime(value, ctx.currentTime, ramp);
     };
 
     node.setSawLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('sawLevel');
-      const now = ctx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(value, now, ramp);
+      param.setTargetAtTime(value, ctx.currentTime, ramp);
     };
 
     node.setTriLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('triLevel');
-      const now = ctx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(value, now, ramp);
+      param.setTargetAtTime(value, ctx.currentTime, ramp);
     };
 
     node.setPulseLevel = (value, ramp = smoothingTime) => {
       const param = node.parameters.get('pulseLevel');
-      const now = ctx.currentTime;
-      param.cancelScheduledValues(now);
-      param.setTargetAtTime(value, now, ramp);
+      param.setTargetAtTime(value, ctx.currentTime, ramp);
     };
 
     node.resetPhase = () => {

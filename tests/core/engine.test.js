@@ -488,13 +488,13 @@ import {
 
 describe('setParamSmooth (con AudioContext mock)', () => {
   
-  it('llama a cancelScheduledValues antes de setTargetAtTime', () => {
+  it('llama setTargetAtTime sin cancelScheduledValues (optimización Firefox)', () => {
     const ctx = createMockAudioContext();
     const param = createMockAudioParam(0);
     
     setParamSmooth(param, 0.5, ctx);
     
-    assert.equal(param._calls.cancelScheduledValues, 1);
+    assert.equal(param._calls.cancelScheduledValues, 0);
     assert.equal(param._calls.setTargetAtTime, 1);
   });
 

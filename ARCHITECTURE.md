@@ -808,6 +808,27 @@ busInput → [clipper] → VCA → postVcaNode ──→ filterGain → filterNo
 - Los switches On/Off se sincronizan con el engine en `app.js → engine.start()` wrapper
 - Esto garantiza que los `outputBuses[]` existan antes de aplicar el estado de mute
 
+#### Metering Zero-Node (Voltímetros)
+
+Los 8 voltímetros de Panel 4 obtienen datos de señal **sin añadir nodos al grafo de audio**. El metering se calcula dentro del `OutputFilterProcessor` (`outputFilter.worklet.js`) que ya existe en la cadena de cada bus, eliminando `AnalyserNode` y su lock contention con el hilo principal.
+
+**Protocolo:**
+1. El main thread activa la medición: `filterNode.port.postMessage({ type: 'enableMeter' })`
+2. El worklet acumula métricas per-sample sobre la señal **post-VCA** (pre-filtro, pre-mute) en ventanas de ~100 ms (`Math.round(sampleRate * 0.1)` samples)
+3. Al final de cada ventana envía `port.postMessage({ type: 'meter', peak, rms, meanAbs, meanDC })`
+4. El componente `Voltmeter` recibe los datos en `updateMeter()` y aplica balística de aguja (smoothing exponencial)
+
+**Campos enviados por ventana:**
+
+| Campo | Cálculo | Uso |
+|-------|---------|-----|
+| `peak` | Máximo valor absoluto | Vp-p en tooltip |
+| `rms` | `√(Σs²/N)` | Referencia dBFS |
+| `meanAbs` | `Σ|s|/N` (rectificado) | Modo Signal (AC): nivel 0-10 |
+| `meanDC` | `Σs/N` (con signo) | Modo Control (DC): voltaje ±5V |
+
+**Principio de diseño:** Nunca usar `AnalyserNode`, `getFloatTimeDomainData()` ni ninguna API que lea el buffer de audio síncronamente desde el hilo principal. Estas llamadas adquieren un mutex que causa cortes de audio bajo carga. El patrón `postMessage` es asíncrono y libre de locks. Este mismo patrón debe aplicarse a futuros módulos con visualización (osciloscopio, analizador de espectro, etc.).
+
 ### 3.4 UI (`src/assets/js/ui/`)
 
 Componentes de interfaz reutilizables:

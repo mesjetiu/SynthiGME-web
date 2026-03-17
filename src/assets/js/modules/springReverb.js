@@ -17,12 +17,9 @@ import { Module, setParamSmooth } from '../core/engine.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
 import { reverberationConfig } from '../configs/index.js';
+import { clamp } from '../utils/math.js';
 
 const log = createLogger('SpringReverbModule');
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
 
 export class SpringReverbModule extends Module {
   constructor(engine, id, options = {}) {

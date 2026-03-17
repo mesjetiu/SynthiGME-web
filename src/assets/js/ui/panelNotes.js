@@ -30,6 +30,7 @@
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
+import { clamp } from '../utils/math.js';
 
 const log = createLogger('PanelNotes');
 
@@ -1293,17 +1294,6 @@ export function getNoteColors() {
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Limita un valor a un rango.
- * @param {number} val
- * @param {number} min
- * @param {number} max
- * @returns {number}
- */
-function clamp(val, min, max) {
-  return Math.min(max, Math.max(min, val));
-}
 
 /**
  * Sanitiza HTML de nota, permitiendo solo tags seguros (b, i, strong, em, br, span).

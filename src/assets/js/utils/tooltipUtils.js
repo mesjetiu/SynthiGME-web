@@ -10,6 +10,7 @@
  */
 
 import { STORAGE_KEYS } from './constants.js';
+import { clamp } from './math.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS DE PREFERENCIAS
@@ -76,10 +77,6 @@ export function formatGain(gain) {
  */
 export function formatVoltage(voltage, decimals = 1) {
   return `${voltage.toFixed(decimals)} V`;
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function formatFrequencyHz(hz) {

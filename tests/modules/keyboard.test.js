@@ -469,3 +469,59 @@ describe('KeyboardModule — Dormancy', () => {
     assert.ok(mod._workletMessages.length > 0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REAL MODULE — Tests de dormancy usando la implementación real de KeyboardModule
+// ═══════════════════════════════════════════════════════════════════════════
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true, writable: true,
+  value: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+});
+
+const { KeyboardModule } = await import('../../src/assets/js/modules/keyboard.js');
+
+describe('KeyboardModule (real) — dormancy', () => {
+  let ctx;
+  let engine;
+  let kb;
+
+  beforeEach(() => {
+    ctx = createMockAudioContext();
+    engine = { audioCtx: ctx };
+    kb = new KeyboardModule(engine, 'kb-upper', 'upper');
+    kb.start();
+  });
+
+  it('setDormant(true) envía setDormant=true al worklet', () => {
+    kb.setDormant(true);
+    const msgs = kb.workletNode.port._messages.filter(m => m.type === 'setDormant');
+    assert.equal(msgs.length, 1);
+    assert.equal(msgs[0].dormant, true);
+  });
+
+  it('setDormant(true) silencia las 3 salidas', () => {
+    kb.setDormant(true);
+    assert.equal(kb.pitchGain.gain.value, 0);
+    assert.equal(kb.velocityGain.gain.value, 0);
+    assert.equal(kb.gateGain.gain.value, 0);
+  });
+
+  it('setDormant(false) restaura las 3 salidas a 1', () => {
+    kb.setDormant(true);
+    kb.setDormant(false);
+    assert.equal(kb.pitchGain.gain.value, 1);
+    assert.equal(kb.velocityGain.gain.value, 1);
+    assert.equal(kb.gateGain.gain.value, 1);
+  });
+
+  it('setDormant(false) re-envía parámetros al worklet', () => {
+    kb.setPitchSpread(5);
+    kb.setDormant(true);
+    kb.workletNode.port._messages.length = 0;
+    kb.setDormant(false);
+    const msgs = kb.workletNode.port._messages;
+    assert.ok(msgs.some(m => m.type === 'setPitchSpread' && m.value === 5),
+      'wake debe re-enviar setPitchSpread');
+  });
+});

@@ -15,8 +15,7 @@ import assert from 'node:assert/strict';
 
 import {
   createMockAudioContext,
-  createMockAudioWorkletNode,
-  createMockGainNode
+  createMockAudioWorkletNode
 } from '../mocks/audioContext.mock.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -435,5 +434,59 @@ describe('PitchToVoltageConverterModule', () => {
       const custom = new TestPVCModule(mockEngine, 'pvc2', { range: 5 });
       assert.equal(custom.values.range, 5);
     });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REAL MODULE — Tests de dormancy usando la implementación real
+// ═══════════════════════════════════════════════════════════════════════════
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true, writable: true,
+  value: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+});
+
+const { PitchToVoltageConverterModule } = await import('../../src/assets/js/modules/pitchToVoltageConverter.js');
+
+describe('PitchToVoltageConverterModule (real) — dormancy', () => {
+  let ctx;
+  let engine;
+  let pvc;
+
+  beforeEach(() => {
+    ctx = createMockAudioContext();
+    engine = { audioCtx: ctx };
+    pvc = new PitchToVoltageConverterModule(engine, 'panel4-pvc');
+    pvc.start();
+  });
+
+  it('setDormant(true) envía setDormant=true al worklet', () => {
+    pvc.setDormant(true);
+    const msgs = pvc.workletNode.port._messages.filter(m => m.type === 'setDormant');
+    assert.equal(msgs.length, 1);
+    assert.equal(msgs[0].dormant, true);
+  });
+
+  it('setDormant(true) silencia inputGain y outputGain', () => {
+    pvc.setDormant(true);
+    assert.equal(pvc.inputGain.gain.value, 0);
+    assert.equal(pvc.outputGain.gain.value, 0);
+  });
+
+  it('setDormant(false) restaura inputGain y outputGain a 1', () => {
+    pvc.setDormant(true);
+    pvc.setDormant(false);
+    assert.equal(pvc.inputGain.gain.value, 1);
+    assert.equal(pvc.outputGain.gain.value, 1);
+  });
+
+  it('setDormant(false) re-envía setRange al worklet', () => {
+    pvc.setRange(4);
+    pvc.setDormant(true);
+    pvc.workletNode.port._messages.length = 0;
+    pvc.setDormant(false);
+    const msgs = pvc.workletNode.port._messages.filter(m => m.type === 'setRange');
+    assert.equal(msgs.length, 1);
+    assert.equal(msgs[0].value, 4);
   });
 });

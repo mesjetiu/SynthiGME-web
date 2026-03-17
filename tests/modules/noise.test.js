@@ -436,3 +436,83 @@ describe('NoiseModule — Synthi 100 Cuenca (con AudioContext mock)', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REAL MODULE — Tests de dormancy usando la implementación real de NoiseModule
+// ═══════════════════════════════════════════════════════════════════════════
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true, writable: true,
+  value: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+});
+
+// Override AudioWorkletNode para que parameters.get() devuelva un AudioParam
+// aunque no se hayan declarado descriptores (noise.js accede a 'colourPosition')
+globalThis.AudioWorkletNode = class {
+  constructor(ctx, name, options) {
+    const node = createMockAudioWorkletNode(name, options);
+    const origGet = node.parameters.get.bind(node.parameters);
+    node.parameters.get = (key) => {
+      let param = origGet(key);
+      if (param === undefined) {
+        param = createMockAudioParam(0);
+        node.parameters.set(key, param);
+      }
+      return param;
+    };
+    return node;
+  }
+};
+
+const { NoiseModule } = await import('../../src/assets/js/modules/noise.js');
+
+describe('NoiseModule (real) — dormancy', () => {
+  let ctx;
+  let engine;
+  let noise;
+
+  beforeEach(() => {
+    ctx = createMockAudioContext();
+    engine = { audioCtx: ctx };
+    noise = new NoiseModule(engine, 'noise-1');
+    noise.start();
+  });
+
+  it('setDormant(true) envía setDormant=true al worklet', () => {
+    noise.setDormant(true);
+    const msgs = noise.workletNode.port._messages.filter(m => m.type === 'setDormant');
+    assert.equal(msgs.length, 1);
+    assert.equal(msgs[0].dormant, true);
+  });
+
+  it('setDormant(true) silencia levelNode', () => {
+    noise.setLevel(8);
+    noise.setDormant(true);
+    assert.equal(noise.levelNode.gain.value, 0);
+  });
+
+  it('setDormant(false) restaura ganancia del levelNode', () => {
+    noise.setLevel(8);
+    noise.setDormant(true);
+    noise.setDormant(false);
+    assert.ok(noise.levelNode.gain.value > 0,
+      `levelNode.gain tras wake debe ser > 0, fue ${noise.levelNode.gain.value}`);
+  });
+
+  it('setDormant(false) envía setDormant=false al worklet', () => {
+    noise.setDormant(true);
+    noise.setDormant(false);
+    const msgs = noise.workletNode.port._messages.filter(m => m.type === 'setDormant');
+    assert.equal(msgs.length, 2);
+    assert.equal(msgs[1].dormant, false);
+  });
+
+  it('setDormant(false) resincroniza colourParam', () => {
+    noise.setColour(7);
+    noise.setDormant(true);
+    const callsBefore = noise.colourParam._calls.setTargetAtTime;
+    noise.setDormant(false);
+    assert.ok(noise.colourParam._calls.setTargetAtTime > callsBefore,
+      'colourParam.setTargetAtTime debe llamarse en wake');
+  });
+});

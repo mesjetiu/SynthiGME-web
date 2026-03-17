@@ -307,26 +307,26 @@ describe('OscilloscopeModule (con AudioContext mock)', () => {
   });
 
   describe('callbacks de datos', () => {
-    
+
     it('onData registra callback', async () => {
       await scope.start();
-      
+
       let called = false;
       scope.onData(() => { called = true; });
-      
+
       scope._simulateData([0, 0.5, 1], [0, 0, 0]);
-      
+
       assert.equal(called, true);
     });
 
     it('callback recibe los datos correctos', async () => {
       await scope.start();
-      
+
       let receivedData = null;
       scope.onData(data => { receivedData = data; });
-      
+
       scope._simulateData([0.1, 0.2], [0.3, 0.4], true);
-      
+
       assert.deepEqual(receivedData.bufferY, [0.1, 0.2]);
       assert.deepEqual(receivedData.bufferX, [0.3, 0.4]);
       assert.equal(receivedData.triggered, true);
@@ -334,15 +334,59 @@ describe('OscilloscopeModule (con AudioContext mock)', () => {
 
     it('múltiples callbacks son notificados', async () => {
       await scope.start();
-      
+
       let count = 0;
       scope.onData(() => { count++; });
       scope.onData(() => { count++; });
       scope.onData(() => { count++; });
-      
+
       scope._simulateData([], []);
-      
+
       assert.equal(count, 3);
     });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REAL MODULE — Tests de dormancy usando la implementación real de OscilloscopeModule
+// ═══════════════════════════════════════════════════════════════════════════
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true, writable: true,
+  value: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+});
+
+const { OscilloscopeModule } = await import('../../src/assets/js/modules/oscilloscope.js');
+
+describe('OscilloscopeModule (real) — dormancy', () => {
+  let ctx;
+  let engine;
+  let scope;
+
+  beforeEach(async () => {
+    ctx = createMockAudioContext();
+    engine = { audioCtx: ctx };
+    scope = new OscilloscopeModule(engine, 'scope-real');
+    await scope.start();
+  });
+
+  it('setDormant(true) envía setDormant=true al captureNode', () => {
+    scope.setDormant(true);
+    const msgs = scope.captureNode.port._messages.filter(m => m.type === 'setDormant');
+    assert.equal(msgs.length, 1);
+    assert.equal(msgs[0].dormant, true);
+  });
+
+  it('setDormant(false) envía setDormant=false al captureNode', () => {
+    scope.setDormant(true);
+    scope.setDormant(false);
+    const msgs = scope.captureNode.port._messages.filter(m => m.type === 'setDormant');
+    assert.equal(msgs.length, 2);
+    assert.equal(msgs[1].dormant, false);
+  });
+
+  it('_onDormancyChange no lanza si captureNode es null', () => {
+    scope.captureNode = null;
+    assert.doesNotThrow(() => scope._onDormancyChange(true));
   });
 });

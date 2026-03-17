@@ -560,3 +560,64 @@ describe('RandomCVModule — Synthi 100 Cuenca (con AudioContext mock)', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REAL MODULE — Tests de dormancy usando la implementación real de RandomCVModule
+// ═══════════════════════════════════════════════════════════════════════════
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true, writable: true,
+  value: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+});
+
+const { RandomCVModule } = await import('../../src/assets/js/modules/randomCV.js');
+
+describe('RandomCVModule (real) — dormancy', () => {
+  let ctx;
+  let engine;
+  let rcv;
+
+  beforeEach(() => {
+    ctx = createMockAudioContext();
+    engine = { audioCtx: ctx };
+    rcv = new RandomCVModule(engine, 'rcv-1');
+    rcv.start();
+  });
+
+  it('setDormant(true) envía setDormant=true al worklet', () => {
+    rcv.setDormant(true);
+    const msgs = rcv.workletNode.port._messages.filter(m => m.type === 'setDormant');
+    assert.equal(msgs.length, 1);
+    assert.equal(msgs[0].dormant, true);
+  });
+
+  it('setDormant(true) silencia las 3 salidas', () => {
+    rcv.setVoltage1Level(8);
+    rcv.setVoltage2Level(8);
+    rcv.setDormant(true);
+    assert.equal(rcv.voltage1Gain.gain.value, 0);
+    assert.equal(rcv.voltage2Gain.gain.value, 0);
+    assert.equal(rcv.keyGain.gain.value, 0);
+  });
+
+  it('setDormant(false) restaura ganancias desde values', () => {
+    rcv.setVoltage1Level(10);
+    rcv.setDormant(true);
+    rcv.setDormant(false);
+    assert.ok(rcv.voltage1Gain.gain.value > 0,
+      `voltage1Gain.gain tras wake debe ser > 0, fue ${rcv.voltage1Gain.gain.value}`);
+  });
+
+  it('setDormant(false) re-envía setMean y setVariance al worklet', () => {
+    rcv.setMean(3);
+    rcv.setVariance(2);
+    rcv.setDormant(true);
+    rcv.workletNode.port._messages.length = 0;
+    rcv.setDormant(false);
+    const msgs = rcv.workletNode.port._messages;
+    assert.ok(msgs.some(m => m.type === 'setMean' && m.value === 3),
+      'wake debe re-enviar setMean');
+    assert.ok(msgs.some(m => m.type === 'setVariance' && m.value === 2),
+      'wake debe re-enviar setVariance');
+  });
+});

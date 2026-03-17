@@ -248,7 +248,7 @@ npm run build:web       # Verifica que el bundle no se rompe
 | R4 | `disconnectNodes()` helper en `utils/audio.js` | pequeño | ✅ hecho |
 | R5 | Dormancy/applyLevel en clase base `Module` | medio | ✅ hecho |
 | R6 | Centralizar `localStorage` en `storage.js` | medio | ✅ hecho |
-| R7 | Split de `app.js` (9.278 → ~500 + 4 nuevos) | grande | 🔄 parcial (stateSerializer.js ✅, panelAssembler.js ✅, routingSetup.js ✅) |
+| R7 | Split de `app.js` (9.278 → ~500 + 4 nuevos) | grande | 🔄 parcial (stateSerializer.js ✅, panelAssembler.js ✅, routingSetup.js ✅, uiInitializer.js ✅) |
 | R8 | Split de `settingsModal.js` (4.963 → ~2.000 + 3) | grande | ⬜ pendiente |
 | R9 | Split de `pipManager.js` (3.852 → ~1.500 + 3) | grande | ⬜ pendiente |
 | R10 | Split de `engine.js` (2.444 → ~900 + 2) | grande | ⬜ pendiente |

@@ -28,6 +28,10 @@ const BUILD_SCRIPT_PATH = resolve(ROOT, 'scripts/build.mjs');
 // ─── Leer código fuente para análisis estático ───────────────────────────────
 const easterEggSource = readFileSync(EASTER_EGG_PATH, 'utf-8');
 const appSource = readFileSync(APP_PATH, 'utf-8');
+// Desde R7, algunos listeners se extraen a uiInitializer.js — buscar en ambos
+const UI_INITIALIZER_PATH = resolve(ROOT, 'src/assets/js/uiInitializer.js');
+const uiInitializerSource = readFileSync(UI_INITIALIZER_PATH, 'utf-8');
+const appOrUiSource = appSource + uiInitializerSource;
 
 // ─── JSDOM setup ─────────────────────────────────────────────────────────────
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
@@ -993,20 +997,20 @@ describe('Easter Egg — Seguridad: sessionManager integrado en app.js', () => {
   });
 
   it('synth:userInteraction → markDirty() en app.js (cadena de eventos)', () => {
-    assert.ok(appSource.includes('synth:userInteraction'),
-      'app.js debe escuchar synth:userInteraction');
-    assert.ok(appSource.includes('sessionManager.markDirty()'),
-      'app.js debe llamar markDirty al recibir interacción');
+    assert.ok(appOrUiSource.includes('synth:userInteraction'),
+      'app.js o uiInitializer.js debe escuchar synth:userInteraction');
+    assert.ok(appOrUiSource.includes('sessionManager.markDirty()'),
+      'app.js o uiInitializer.js debe llamar markDirty al recibir interacción');
   });
 
   it('la cadena completa es: knob/toggle → synth:userInteraction → markDirty → isDirty=true → visualOnly', () => {
     const knobSource = readFileSync(resolve(ROOT, 'src/assets/js/ui/knob.js'), 'utf-8');
     assert.ok(knobSource.includes('synth:userInteraction'),
       'knob.js debe despachar synth:userInteraction');
-    assert.ok(appSource.includes("'synth:userInteraction'"),
-      'app.js escucha el evento');
-    assert.ok(appSource.includes('sessionManager.markDirty()'),
-      'app.js marca dirty');
+    assert.ok(appOrUiSource.includes("'synth:userInteraction'"),
+      'app.js o uiInitializer.js escucha el evento');
+    assert.ok(appOrUiSource.includes('sessionManager.markDirty()'),
+      'app.js o uiInitializer.js marca dirty');
     assert.ok(appSource.includes('sessionManager.isDirty()'),
       'isDirtyFn usa sessionManager.isDirty()');
     assert.ok(appSource.includes('sessionManager.markClean'),

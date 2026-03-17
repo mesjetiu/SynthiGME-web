@@ -44,7 +44,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnectAll } from '../utils/audio.js';
 import { envelopeShaperConfig } from '../configs/index.js';
 
 const log = createLogger('EnvelopeShaperModule');
@@ -314,14 +314,7 @@ export class EnvelopeShaperModule extends Module {
     if (!this.isStarted || !this.workletNode) return;
     try {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
-      this.workletNode.disconnect();
-      if (this.merger) this.merger.disconnect();
-      if (this.splitter) this.splitter.disconnect();
-      if (this.envGain) this.envGain.disconnect();
-      if (this.audioGain) this.audioGain.disconnect();
-      if (this.audioInputGain) this.audioInputGain.disconnect();
-      if (this.triggerInputGain) this.triggerInputGain.disconnect();
-      if (this._keepaliveGain) this._keepaliveGain.disconnect();
+      safeDisconnectAll(this.workletNode, this.merger, this.splitter, this.envGain, this.audioGain, this.audioInputGain, this.triggerInputGain, this._keepaliveGain);
 
       this.workletNode = null;
       this.merger = null;

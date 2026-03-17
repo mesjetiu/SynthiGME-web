@@ -1,5 +1,5 @@
 import { Module, setParamSmooth } from '../core/engine.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnectAll } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
 import { clamp } from '../utils/math.js';
 import { dialToLogGain } from '../utils/audioConversions.js';
@@ -117,9 +117,7 @@ export class SynthiFilterModule extends Module {
 
     try {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
-      this.inputGain?.disconnect();
-      this.workletNode?.disconnect();
-      this.outputGain?.disconnect();
+      safeDisconnectAll(this.inputGain, this.workletNode, this.outputGain);
     } catch (error) {
       log.warn(`[${this.id}] stop error`, error);
     }

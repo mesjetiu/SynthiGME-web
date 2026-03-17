@@ -56,7 +56,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnectAll } from '../utils/audio.js';
 import { keyboardConfig } from '../configs/index.js';
 
 const log = createLogger('KeyboardModule');
@@ -341,11 +341,7 @@ export class KeyboardModule extends Module {
     if (!this.isStarted || !this.workletNode) return;
     try {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
-      this.workletNode.disconnect();
-      if (this.splitter) this.splitter.disconnect();
-      if (this.pitchGain) this.pitchGain.disconnect();
-      if (this.velocityGain) this.velocityGain.disconnect();
-      if (this.gateGain) this.gateGain.disconnect();
+      safeDisconnectAll(this.workletNode, this.splitter, this.pitchGain, this.velocityGain, this.gateGain);
 
       this.workletNode = null;
       this.splitter = null;

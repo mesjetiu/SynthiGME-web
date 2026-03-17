@@ -59,6 +59,7 @@
 
 import { Module, setParamSmooth } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
+import { safeDisconnectAll } from '../utils/audio.js';
 
 const log = createLogger('JoystickModule');
 
@@ -192,10 +193,7 @@ export class JoystickModule extends Module {
     try {
       this.xConst.stop(time);
       this.yConst.stop(time);
-      this.xConst.disconnect();
-      this.yConst.disconnect();
-      if (this.xGain) this.xGain.disconnect();
-      if (this.yGain) this.yGain.disconnect();
+      safeDisconnectAll(this.xConst, this.yConst, this.xGain, this.yGain);
     } catch (error) {
       log.error(`${this.id}] Error deteniendo:`, error);
     }

@@ -45,7 +45,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnect, safeDisconnectAll } from '../utils/audio.js';
 import { sequencerConfig } from '../configs/index.js';
 
 const log = createLogger('SequencerModule');
@@ -284,12 +284,9 @@ export class SequencerModule extends Module {
     if (!this.isStarted || !this.workletNode) return;
     try {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
-      this.workletNode.disconnect();
-      if (this.merger) this.merger.disconnect();
-      if (this.splitter) this.splitter.disconnect();
-      for (const g of this._outputGains) g.disconnect();
-      for (const g of this._inputGains) g.disconnect();
-      if (this._keepaliveGain) this._keepaliveGain.disconnect();
+      safeDisconnectAll(this.workletNode, this.merger, this.splitter, this._keepaliveGain);
+      this._outputGains.forEach(g => safeDisconnect(g));
+      this._inputGains.forEach(g => safeDisconnect(g));
 
       this.workletNode = null;
       this.merger = null;

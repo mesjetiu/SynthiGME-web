@@ -61,7 +61,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnectAll } from '../utils/audio.js';
 import { randomVoltageConfig } from '../configs/index.js';
 import { dialToLogGain } from '../utils/audioConversions.js';
 
@@ -332,11 +332,7 @@ export class RandomCVModule extends Module {
     if (!this.isStarted || !this.workletNode) return;
     try {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
-      this.workletNode.disconnect();
-      if (this.splitter) this.splitter.disconnect();
-      if (this.voltage1Gain) this.voltage1Gain.disconnect();
-      if (this.voltage2Gain) this.voltage2Gain.disconnect();
-      if (this.keyGain) this.keyGain.disconnect();
+      safeDisconnectAll(this.workletNode, this.splitter, this.voltage1Gain, this.voltage2Gain, this.keyGain);
       
       this.workletNode = null;
       this.splitter = null;

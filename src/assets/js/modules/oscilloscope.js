@@ -21,7 +21,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnect } from '../utils/audio.js';
 
 const log = createLogger('OscilloscopeModule');
 
@@ -369,20 +369,12 @@ export class OscilloscopeModule extends Module {
       this._fallbackInterval = null;
     }
     
-    if (this._analyser) {
-      this._analyser.disconnect();
-      this._analyser = null;
-    }
-    
-    if (this.inputY) {
-      this.inputY.disconnect();
-      this.inputY = null;
-    }
-    
-    if (this.inputX) {
-      this.inputX.disconnect();
-      this.inputX = null;
-    }
+    safeDisconnect(this._analyser);
+    this._analyser = null;
+    safeDisconnect(this.inputY);
+    this.inputY = null;
+    safeDisconnect(this.inputX);
+    this.inputX = null;
     
     // Resetear estado del worklet para que se recargue en el nuevo contexto
     this.workletReady = false;

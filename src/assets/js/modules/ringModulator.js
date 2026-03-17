@@ -16,7 +16,7 @@
  */
 
 import { Module, setParamSmooth } from '../core/engine.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnectAll } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
 import { ringModulatorConfig } from '../configs/index.js';
 import { clamp } from '../utils/math.js';
@@ -117,10 +117,7 @@ export class RingModulatorModule extends Module {
 
     try {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
-      this.inputGainA?.disconnect();
-      this.inputGainB?.disconnect();
-      this.workletNode?.disconnect();
-      this.outputGain?.disconnect();
+      safeDisconnectAll(this.inputGainA, this.inputGainB, this.workletNode, this.outputGain);
     } catch (error) {
       log.warn(`[${this.id}] stop error`, error);
     }

@@ -67,7 +67,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnectAll } from '../utils/audio.js';
 import { dialToLogGain } from '../utils/audioConversions.js';
 
 const log = createLogger('NoiseModule');
@@ -275,10 +275,7 @@ export class NoiseModule extends Module {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
       
       // Desconectar nodos
-      this.workletNode.disconnect();
-      if (this.levelNode) {
-        this.levelNode.disconnect();
-      }
+      safeDisconnectAll(this.workletNode, this.levelNode);
       
       this.workletNode = null;
       this.levelNode = null;

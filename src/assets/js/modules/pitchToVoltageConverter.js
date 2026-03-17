@@ -37,7 +37,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage, safeDisconnectAll } from '../utils/audio.js';
 import { pitchToVoltageConverterConfig } from '../configs/index.js';
 
 const log = createLogger('PVCModule');
@@ -226,10 +226,7 @@ export class PitchToVoltageConverterModule extends Module {
     if (!this.isStarted || !this.workletNode) return;
     try {
       sendWorkletMessage(this.workletNode, { type: 'stop' });
-      this.workletNode.disconnect();
-      if (this.inputGain) this.inputGain.disconnect();
-      if (this.outputGain) this.outputGain.disconnect();
-      if (this._keepaliveGain) this._keepaliveGain.disconnect();
+      safeDisconnectAll(this.workletNode, this.inputGain, this.outputGain, this._keepaliveGain);
 
       this.workletNode = null;
       this.inputGain = null;

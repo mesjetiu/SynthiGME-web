@@ -1,5 +1,5 @@
 import { Module, setParamSmooth } from '../core/engine.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
 import { clamp } from '../utils/math.js';
 import { dialToLogGain } from '../utils/audioConversions.js';
@@ -116,7 +116,7 @@ export class SynthiFilterModule extends Module {
     }
 
     try {
-      this.workletNode?.port?.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       this.inputGain?.disconnect();
       this.workletNode?.disconnect();
       this.outputGain?.disconnect();
@@ -202,9 +202,7 @@ export class SynthiFilterModule extends Module {
   }
 
   _onDormancyChange(dormant) {
-    if (this.workletNode?.port) {
-      this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-    }
+    sendWorkletMessage(this.workletNode, { type: 'setDormant', dormant });
 
     const ctx = this.getAudioCtx();
     if (!ctx || !this.outputGain) {

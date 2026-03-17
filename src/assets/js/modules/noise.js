@@ -67,7 +67,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { dialToLogGain } from '../utils/audioConversions.js';
 
 const log = createLogger('NoiseModule');
@@ -272,7 +272,7 @@ export class NoiseModule extends Module {
     
     try {
       // Enviar mensaje al worklet para que detenga el procesamiento
-      this.workletNode.port.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       
       // Desconectar nodos
       this.workletNode.disconnect();
@@ -414,7 +414,7 @@ export class NoiseModule extends Module {
       try {
         // Si se deshabilita, forzar desactivación del bypass
         const bypassed = enabled && Math.abs(this._colourDialToPosition(this.values.colour)) < this._bypassThreshold;
-        this.workletNode.port.postMessage({ type: 'setFilterBypassed', bypassed });
+        sendWorkletMessage(this.workletNode, { type: 'setFilterBypassed', bypassed });
         this._colourBypassed = bypassed;
       } catch (e) {
         // Ignorar errores si el worklet no está listo
@@ -436,7 +436,7 @@ export class NoiseModule extends Module {
     
     if (isNeutral !== this._colourBypassed) {
       try {
-        this.workletNode.port.postMessage({ type: 'setFilterBypassed', bypassed: isNeutral });
+        sendWorkletMessage(this.workletNode, { type: 'setFilterBypassed', bypassed: isNeutral });
         this._colourBypassed = isNeutral;
       } catch (e) {
         // Ignorar errores si el worklet no está listo
@@ -452,13 +452,7 @@ export class NoiseModule extends Module {
    */
   _onDormancyChange(dormant) {
     // Enviar mensaje al worklet para early exit (ahorra CPU)
-    if (this.workletNode) {
-      try {
-        this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-      } catch (e) {
-        // Ignorar errores si el worklet no está listo
-      }
-    }
+    sendWorkletMessage(this.workletNode, { type: 'setDormant', dormant });
     
     if (!this.levelNode) return;
     

@@ -44,7 +44,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { envelopeShaperConfig } from '../configs/index.js';
 
 const log = createLogger('EnvelopeShaperModule');
@@ -313,7 +313,7 @@ export class EnvelopeShaperModule extends Module {
   stop() {
     if (!this.isStarted || !this.workletNode) return;
     try {
-      this.workletNode.port.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       this.workletNode.disconnect();
       if (this.merger) this.merger.disconnect();
       if (this.splitter) this.splitter.disconnect();
@@ -346,9 +346,6 @@ export class EnvelopeShaperModule extends Module {
   // ─────────────────────────────────────────────────────────────────────────
 
   _sendToWorklet(type, value) {
-    if (!this.workletNode) return;
-    try {
-      this.workletNode.port.postMessage({ type, value });
-    } catch (e) { /* ignore */ }
+    sendWorkletMessage(this.workletNode, { type, value });
   }
 }

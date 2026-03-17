@@ -56,7 +56,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { keyboardConfig } from '../configs/index.js';
 
 const log = createLogger('KeyboardModule');
@@ -181,7 +181,7 @@ export class KeyboardModule extends Module {
    */
   noteOn(note, velocity) {
     if (!this.workletNode) return;
-    this.workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+    sendWorkletMessage(this.workletNode, { type: 'noteOn', note, velocity });
   }
 
   /**
@@ -190,7 +190,7 @@ export class KeyboardModule extends Module {
    */
   noteOff(note) {
     if (!this.workletNode) return;
-    this.workletNode.port.postMessage({ type: 'noteOff', note });
+    sendWorkletMessage(this.workletNode, { type: 'noteOff', note });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -340,7 +340,7 @@ export class KeyboardModule extends Module {
   stop() {
     if (!this.isStarted || !this.workletNode) return;
     try {
-      this.workletNode.port.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       this.workletNode.disconnect();
       if (this.splitter) this.splitter.disconnect();
       if (this.pitchGain) this.pitchGain.disconnect();
@@ -373,12 +373,7 @@ export class KeyboardModule extends Module {
    * @protected
    */
   _onDormancyChange(dormant) {
-    // Notificar al worklet
-    if (this.workletNode) {
-      try {
-        this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-      } catch { /* ignore */ }
-    }
+    sendWorkletMessage(this.workletNode, { type: 'setDormant', dormant });
 
     const ctx = this.getAudioCtx();
     if (!ctx) return;
@@ -417,10 +412,7 @@ export class KeyboardModule extends Module {
    * @private
    */
   _sendToWorklet(type, value) {
-    if (!this.workletNode) return;
-    try {
-      this.workletNode.port.postMessage({ type, value });
-    } catch { /* ignore */ }
+    sendWorkletMessage(this.workletNode, { type, value });
   }
 
   /**

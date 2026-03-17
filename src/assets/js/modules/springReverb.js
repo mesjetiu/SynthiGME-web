@@ -14,7 +14,7 @@
  */
 
 import { Module, setParamSmooth } from '../core/engine.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
 import { reverberationConfig } from '../configs/index.js';
 import { clamp } from '../utils/math.js';
@@ -80,7 +80,7 @@ export class SpringReverbModule extends Module {
     attachProcessorErrorHandler(this.workletNode, `spring-reverb[${this.id}]`);
 
     // Enviar mix inicial al worklet
-    this.workletNode.port.postMessage({ type: 'setMix', value: this.values.mix });
+    sendWorkletMessage(this.workletNode, { type: 'setMix', value: this.values.mix });
 
     this.outputGain = ctx.createGain();
     this.outputGain.gain.value = this._levelDialToGain(this.values.level);
@@ -112,7 +112,7 @@ export class SpringReverbModule extends Module {
     }
 
     try {
-      this.workletNode?.port?.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       this.inputGain?.disconnect();
       this.workletNode?.disconnect();
       this.outputGain?.disconnect();
@@ -132,7 +132,7 @@ export class SpringReverbModule extends Module {
     if (this._isDormant) {
       return;
     }
-    this.workletNode?.port?.postMessage({ type: 'setMix', value: this.values.mix });
+    sendWorkletMessage(this.workletNode, { type: 'setMix', value: this.values.mix });
   }
 
   setLevel(value) {
@@ -175,9 +175,7 @@ export class SpringReverbModule extends Module {
   }
 
   _onDormancyChange(dormant) {
-    if (this.workletNode?.port) {
-      this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-    }
+    sendWorkletMessage(this.workletNode, { type: 'setDormant', dormant });
 
     const ctx = this.getAudioCtx();
     if (!ctx || !this.outputGain) {
@@ -191,7 +189,7 @@ export class SpringReverbModule extends Module {
 
     // Restaurar level y mix al despertar
     this._applyLevel(this.values.level);
-    this.workletNode?.port?.postMessage({ type: 'setMix', value: this.values.mix });
+    sendWorkletMessage(this.workletNode, { type: 'setMix', value: this.values.mix });
   }
 }
 

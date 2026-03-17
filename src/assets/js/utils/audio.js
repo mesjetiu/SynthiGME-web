@@ -40,6 +40,17 @@ export function safeDisconnectAll(...nodes) {
 }
 
 /**
+ * Envía un mensaje al port de un AudioWorkletNode de forma segura.
+ * No hace nada si el nodo o su port no están disponibles.
+ *
+ * @param {AudioWorkletNode|null|undefined} node    - Nodo worklet destino
+ * @param {object}                          message - Mensaje a enviar
+ */
+export function sendWorkletMessage(node, message) {
+  node?.port?.postMessage(message);
+}
+
+/**
  * Añade un handler `processorerror` a un AudioWorkletNode para detectar
  * fallos en tiempo de ejecución del worklet processor.
  * 

@@ -37,7 +37,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { pitchToVoltageConverterConfig } from '../configs/index.js';
 
 const log = createLogger('PVCModule');
@@ -225,7 +225,7 @@ export class PitchToVoltageConverterModule extends Module {
   stop() {
     if (!this.isStarted || !this.workletNode) return;
     try {
-      this.workletNode.port.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       this.workletNode.disconnect();
       if (this.inputGain) this.inputGain.disconnect();
       if (this.outputGain) this.outputGain.disconnect();
@@ -257,12 +257,7 @@ export class PitchToVoltageConverterModule extends Module {
    * @protected
    */
   _onDormancyChange(dormant) {
-    // Notificar al worklet
-    if (this.workletNode) {
-      try {
-        this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-      } catch { /* ignore */ }
-    }
+    sendWorkletMessage(this.workletNode, { type: 'setDormant', dormant });
 
     const ctx = this.getAudioCtx();
     if (!ctx) return;
@@ -293,10 +288,7 @@ export class PitchToVoltageConverterModule extends Module {
    * @private
    */
   _sendToWorklet(type, value) {
-    if (!this.workletNode) return;
-    try {
-      this.workletNode.port.postMessage({ type, value });
-    } catch { /* ignore */ }
+    sendWorkletMessage(this.workletNode, { type, value });
   }
 
   /**

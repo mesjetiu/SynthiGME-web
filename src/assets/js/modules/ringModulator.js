@@ -16,7 +16,7 @@
  */
 
 import { Module, setParamSmooth } from '../core/engine.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
 import { ringModulatorConfig } from '../configs/index.js';
 import { clamp } from '../utils/math.js';
@@ -116,7 +116,7 @@ export class RingModulatorModule extends Module {
     }
 
     try {
-      this.workletNode?.port?.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       this.inputGainA?.disconnect();
       this.inputGainB?.disconnect();
       this.workletNode?.disconnect();
@@ -173,9 +173,7 @@ export class RingModulatorModule extends Module {
   }
 
   _onDormancyChange(dormant) {
-    if (this.workletNode?.port) {
-      this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-    }
+    sendWorkletMessage(this.workletNode, { type: 'setDormant', dormant });
 
     const ctx = this.getAudioCtx();
     if (!ctx || !this.outputGain) {

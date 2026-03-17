@@ -61,7 +61,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 import { randomVoltageConfig } from '../configs/index.js';
 import { dialToLogGain } from '../utils/audioConversions.js';
 
@@ -331,7 +331,7 @@ export class RandomCVModule extends Module {
   stop() {
     if (!this.isStarted || !this.workletNode) return;
     try {
-      this.workletNode.port.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.workletNode, { type: 'stop' });
       this.workletNode.disconnect();
       if (this.splitter) this.splitter.disconnect();
       if (this.voltage1Gain) this.voltage1Gain.disconnect();
@@ -366,12 +366,7 @@ export class RandomCVModule extends Module {
    * @protected
    */
   _onDormancyChange(dormant) {
-    // Notificar al worklet
-    if (this.workletNode) {
-      try {
-        this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-      } catch (e) { /* ignore */ }
-    }
+    sendWorkletMessage(this.workletNode, { type: 'setDormant', dormant });
     
     const ctx = this.getAudioCtx();
     if (!ctx) return;
@@ -407,10 +402,7 @@ export class RandomCVModule extends Module {
    * @private
    */
   _sendToWorklet(type, value) {
-    if (!this.workletNode) return;
-    try {
-      this.workletNode.port.postMessage({ type, value });
-    } catch (e) { /* ignore */ }
+    sendWorkletMessage(this.workletNode, { type, value });
   }
   
   /**

@@ -21,7 +21,7 @@
 
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
-import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { attachProcessorErrorHandler, sendWorkletMessage } from '../utils/audio.js';
 
 const log = createLogger('OscilloscopeModule');
 
@@ -202,12 +202,12 @@ export class OscilloscopeModule extends Module {
   _sendConfig() {
     if (!this.captureNode) return;
     
-    this.captureNode.port.postMessage({
+    sendWorkletMessage(this.captureNode, {
       type: 'setTriggerEnabled',
       enabled: this.triggerEnabled
     });
     
-    this.captureNode.port.postMessage({
+    sendWorkletMessage(this.captureNode, {
       type: 'setTriggerLevel',
       level: this.triggerLevel
     });
@@ -269,7 +269,7 @@ export class OscilloscopeModule extends Module {
   setTriggerEnabled(enabled) {
     this.triggerEnabled = enabled;
     if (this.captureNode) {
-      this.captureNode.port.postMessage({
+      sendWorkletMessage(this.captureNode, {
         type: 'setTriggerEnabled',
         enabled
       });
@@ -283,7 +283,7 @@ export class OscilloscopeModule extends Module {
   setTriggerLevel(level) {
     this.triggerLevel = Math.max(-1, Math.min(1, level));
     if (this.captureNode) {
-      this.captureNode.port.postMessage({
+      sendWorkletMessage(this.captureNode, {
         type: 'setTriggerLevel',
         level: this.triggerLevel
       });
@@ -298,7 +298,7 @@ export class OscilloscopeModule extends Module {
     if ([512, 1024, 2048, 4096].includes(size)) {
       this.bufferSize = size;
       if (this.captureNode) {
-        this.captureNode.port.postMessage({
+        sendWorkletMessage(this.captureNode, {
           type: 'setBufferSize',
           size
         });
@@ -314,7 +314,7 @@ export class OscilloscopeModule extends Module {
   setTriggerHysteresis(samples) {
     this.triggerHysteresis = Math.max(0, Math.floor(samples));
     if (this.captureNode) {
-      this.captureNode.port.postMessage({
+      sendWorkletMessage(this.captureNode, {
         type: 'setTriggerHysteresis',
         samples: this.triggerHysteresis
       });
@@ -330,7 +330,7 @@ export class OscilloscopeModule extends Module {
   setSchmittHysteresis(value) {
     this.schmittHysteresis = Math.max(0, Math.min(0.5, value));
     if (this.captureNode) {
-      this.captureNode.port.postMessage({
+      sendWorkletMessage(this.captureNode, {
         type: 'setSchmittHysteresis',
         value: this.schmittHysteresis
       });
@@ -359,7 +359,7 @@ export class OscilloscopeModule extends Module {
    */
   stop() {
     if (this.captureNode) {
-      this.captureNode.port.postMessage({ type: 'stop' });
+      sendWorkletMessage(this.captureNode, { type: 'stop' });
       this.captureNode.disconnect();
       this.captureNode = null;
     }
@@ -400,7 +400,7 @@ export class OscilloscopeModule extends Module {
   _onDormancyChange(dormant) {
     if (this.captureNode) {
       try {
-        this.captureNode.port.postMessage({ type: 'setDormant', dormant });
+        sendWorkletMessage(this.captureNode, { type: 'setDormant', dormant });
         console.log(`[Dormancy] Oscilloscope: ${dormant ? 'DORMANT' : 'ACTIVE'}`);
       } catch (e) {
         // Ignorar errores si el worklet no está listo

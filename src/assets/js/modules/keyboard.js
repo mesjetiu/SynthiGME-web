@@ -411,19 +411,5 @@ export class KeyboardModule extends Module {
     sendWorkletMessage(this.workletNode, { type, value });
   }
 
-  /**
-   * Rampa de ganancia para dormancy.
-   * @param {GainNode} gainNode
-   * @param {number} targetGain
-   * @param {number} now
-   * @param {number} rampTime
-   * @private
-   */
-  _rampGain(gainNode, targetGain, now, rampTime) {
-    if (!gainNode) return;
-    try {
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setTargetAtTime(targetGain, now, rampTime);
-    } catch { /* ignore */ }
-  }
 }
+

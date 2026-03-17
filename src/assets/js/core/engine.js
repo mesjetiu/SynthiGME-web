@@ -2441,4 +2441,23 @@ export class Module {
   _onDormancyChange(dormant) {
     // Override en subclases
   }
+
+  /**
+   * Aplica una rampa suave de ganancia a un GainNode.
+   * Cancela valores pendientes y rampa al objetivo con setTargetAtTime.
+   * Usado en _onDormancyChange para silenciar/restaurar sin clicks.
+   *
+   * @param {GainNode|null} gainNode - Nodo de ganancia a modificar
+   * @param {number} targetGain - Valor objetivo de ganancia
+   * @param {number} now - AudioContext.currentTime
+   * @param {number} rampTime - Constante de tiempo de la rampa en segundos
+   * @protected
+   */
+  _rampGain(gainNode, targetGain, now, rampTime) {
+    if (!gainNode) return;
+    try {
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setTargetAtTime(targetGain, now, rampTime);
+    } catch { /* Ignorar errores de AudioParam */ }
+  }
 }

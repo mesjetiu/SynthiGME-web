@@ -340,25 +340,17 @@ export class JoystickModule extends Module {
       this._preDormantRangeX = this._rangeX;
       this._preDormantRangeY = this._rangeY;
 
-      try {
-        const now = ctx.currentTime;
-        this.xGain.gain.cancelScheduledValues(now);
-        this.xGain.gain.setTargetAtTime(0, now, rampTime);
-        this.yGain.gain.cancelScheduledValues(now);
-        this.yGain.gain.setTargetAtTime(0, now, rampTime);
-      } catch { /* Ignorar errores de AudioParam */ }
+      const now = ctx.currentTime;
+      this._rampGain(this.xGain, 0, now, rampTime);
+      this._rampGain(this.yGain, 0, now, rampTime);
     } else {
       // Restaurar rangos (pueden haber cambiado durante dormancy por patch load)
       const targetGainX = this._rangeDialToGain(this._rangeX);
       const targetGainY = this._rangeDialToGain(this._rangeY);
 
-      try {
-        const now = ctx.currentTime;
-        this.xGain.gain.cancelScheduledValues(now);
-        this.xGain.gain.setTargetAtTime(targetGainX, now, rampTime);
-        this.yGain.gain.cancelScheduledValues(now);
-        this.yGain.gain.setTargetAtTime(targetGainY, now, rampTime);
-      } catch { /* Ignorar errores de AudioParam */ }
+      const now = ctx.currentTime;
+      this._rampGain(this.xGain, targetGainX, now, rampTime);
+      this._rampGain(this.yGain, targetGainY, now, rampTime);
 
       // Resincronizar posiciones (pueden haber cambiado durante dormancy)
       if (this.xConst && this.yConst) {

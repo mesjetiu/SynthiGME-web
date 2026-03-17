@@ -201,25 +201,14 @@ export class InputAmplifierModule extends Module {
       // Guardar niveles y silenciar todos los canales
       this._preDormantLevels = [...this.levels];
       for (const gain of this.gainNodes) {
-        if (gain) {
-          try {
-            gain.gain.cancelScheduledValues(now);
-            gain.gain.setTargetAtTime(0, now, rampTime);
-          } catch { /* Ignorar */ }
-        }
+        this._rampGain(gain, 0, now, rampTime);
       }
       console.log(`[Dormancy] InputAmplifiers: DORMANT`);
     } else {
       // Restaurar niveles actuales (pueden haber cambiado durante dormancy
       // por patch load, por lo que usamos this.levels en vez del snapshot)
       for (let i = 0; i < this.gainNodes.length; i++) {
-        const gain = this.gainNodes[i];
-        if (gain) {
-          try {
-            gain.gain.cancelScheduledValues(now);
-            gain.gain.setTargetAtTime(this.levels[i] || 0, now, rampTime);
-          } catch { /* Ignorar */ }
-        }
+        this._rampGain(this.gainNodes[i], this.levels[i] || 0, now, rampTime);
       }
       console.log(`[Dormancy] InputAmplifiers: ACTIVE`);
     }

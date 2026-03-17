@@ -416,19 +416,5 @@ export class RandomCVModule extends Module {
     gainNode.gain.setTargetAtTime(targetGain, now, this.config.ramps.level / 3);
   }
   
-  /**
-   * Rampa de ganancia para dormancy (tiempo fijo).
-   * @param {GainNode} gainNode
-   * @param {number} targetGain
-   * @param {number} now
-   * @param {number} rampTime
-   * @private
-   */
-  _rampGain(gainNode, targetGain, now, rampTime) {
-    if (!gainNode) return;
-    try {
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setTargetAtTime(targetGain, now, rampTime);
-    } catch (e) { /* ignore */ }
-  }
 }
+

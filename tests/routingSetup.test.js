@@ -69,12 +69,12 @@ describe('setupAudioRouting — estructura de _panel3Routing', () => {
     assert.ok(app._panel3Routing.channelMap instanceof Map);
   });
 
-  it('rows es un array', () => {
-    assert.ok(Array.isArray(app._panel3Routing.rows));
+  it('rows es un número positivo (total de filas del blueprint)', () => {
+    assert.ok(typeof app._panel3Routing.rows === 'number' && app._panel3Routing.rows > 0);
   });
 
-  it('cols es un array', () => {
-    assert.ok(Array.isArray(app._panel3Routing.cols));
+  it('cols es un número positivo (total de columnas del blueprint)', () => {
+    assert.ok(typeof app._panel3Routing.cols === 'number' && app._panel3Routing.cols > 0);
   });
 
   it('rowMap no está vacío (hay filas en el blueprint)', () => {
@@ -146,9 +146,9 @@ describe('setupControlRouting — estructura de _panel6Routing', () => {
     assert.ok(app._panel6Routing.sourceMap instanceof Map);
   });
 
-  it('rows y cols son arrays', () => {
-    assert.ok(Array.isArray(app._panel6Routing.rows));
-    assert.ok(Array.isArray(app._panel6Routing.cols));
+  it('rows y cols son números positivos', () => {
+    assert.ok(typeof app._panel6Routing.rows === 'number' && app._panel6Routing.rows > 0);
+    assert.ok(typeof app._panel6Routing.cols === 'number' && app._panel6Routing.cols > 0);
   });
 });
 

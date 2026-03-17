@@ -37,6 +37,41 @@ global.AudioWorkletNode = function(ctx, name, opts) {
 };
 global.AudioContext = function() { return createMockAudioContext(); };
 
+// Mock canvas.getContext('2d') — JSDOM no implementa canvas nativamente
+dom.window.HTMLCanvasElement.prototype.getContext = function(type) {
+  if (type === '2d') {
+    return {
+      canvas: this,
+      clearRect:   () => {},
+      fillRect:    () => {},
+      strokeRect:  () => {},
+      beginPath:   () => {},
+      closePath:   () => {},
+      moveTo:      () => {},
+      lineTo:      () => {},
+      arc:         () => {},
+      fill:        () => {},
+      stroke:      () => {},
+      save:        () => {},
+      restore:     () => {},
+      translate:   () => {},
+      scale:       () => {},
+      rotate:      () => {},
+      drawImage:   () => {},
+      setTransform: () => {},
+      measureText: () => ({ width: 0 }),
+      fillText:    () => {},
+      strokeText:  () => {},
+      createLinearGradient: () => ({
+        addColorStop: () => {}
+      }),
+      getImageData: () => ({ data: new Uint8ClampedArray(4) }),
+      putImageData: () => {}
+    };
+  }
+  return null;
+};
+
 // Mock de window con listeners (requerido por algunos módulos)
 if (!global.window.addEventListener) {
   global.window.addEventListener    = () => {};

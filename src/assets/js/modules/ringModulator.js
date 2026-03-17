@@ -20,6 +20,7 @@ import { attachProcessorErrorHandler } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
 import { ringModulatorConfig } from '../configs/index.js';
 import { clamp } from '../utils/math.js';
+import { dialToLogGain } from '../utils/audioConversions.js';
 
 const log = createLogger('RingModulatorModule');
 
@@ -54,13 +55,7 @@ export class RingModulatorModule extends Module {
    * Emula el potenciómetro 10K LOG del hardware.
    */
   _levelDialToGain(dialValue) {
-    const clamped = clamp(dialValue, 0, 10);
-    if (clamped <= 0) {
-      return 0;
-    }
-    const normalized = clamped / 10;
-    const base = this.audioConfig.levelLogBase;
-    return (Math.pow(base, normalized) - 1) / (base - 1);
+    return dialToLogGain(dialValue, this.audioConfig.levelLogBase);
   }
 
   _initAudioNodes() {

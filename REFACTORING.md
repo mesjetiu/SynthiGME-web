@@ -243,7 +243,7 @@ npm run build:web       # Verifica que el bundle no se rompe
 | ID | Descripción | Líneas aprox. resultado | Estado |
 |----|-------------|------------------------|--------|
 | R1 | `clamp()` a `utils/math.js` | pequeño | ✅ hecho |
-| R2 | `dialToLogGain()` a `utils/audioConversions.js` | pequeño | ⬜ pendiente |
+| R2 | `dialToLogGain()` a `utils/audioConversions.js` | pequeño | ✅ hecho |
 | R3 | `sendWorkletMessage()` helper en `utils/audio.js` | pequeño | ⬜ pendiente |
 | R4 | `disconnectNodes()` helper en `utils/audio.js` | pequeño | ⬜ pendiente |
 | R5 | Dormancy/applyLevel en clase base `Module` | medio | ⬜ pendiente |

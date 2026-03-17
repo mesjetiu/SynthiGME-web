@@ -68,6 +68,7 @@
 import { Module } from '../core/engine.js';
 import { createLogger } from '../utils/logger.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
+import { dialToLogGain } from '../utils/audioConversions.js';
 
 const log = createLogger('NoiseModule');
 
@@ -202,10 +203,7 @@ export class NoiseModule extends Module {
    * @returns {number} Ganancia lineal (0-1)
    */
   _levelDialToGain(dial) {
-    if (dial <= 0) return 0;
-    const base = this.config.levelCurve.logBase;
-    const normalized = dial / 10;   // 0..1
-    return (Math.pow(base, normalized) - 1) / (base - 1);
+    return dialToLogGain(dial, this.config.levelCurve.logBase);
   }
 
   /**

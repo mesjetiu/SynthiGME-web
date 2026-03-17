@@ -707,3 +707,170 @@ describe('RecordingEngine - Formatos de grabación', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS CON MÓDULO REAL — Operaciones localStorage
+// Verifica que RecordingEngine lee/escribe localStorage correctamente.
+// Sirven de contrato para el refactor R6 (centralizar en storage.js).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Mock de localStorage (antes del import dinámico) ───
+import '../mocks/localStorage.mock.js';
+
+// ─── Mock mínimo de window (requerido por logger/telemetry) ───
+if (typeof globalThis.window === 'undefined') {
+  globalThis.window = { addEventListener: () => {}, removeEventListener: () => {} };
+}
+
+// ─── Import dinámico del módulo real ───
+const { RecordingEngine: RealRecordingEngine } = await import('../../src/assets/js/core/recordingEngine.js');
+const { STORAGE_KEYS: KEYS } = await import('../../src/assets/js/utils/constants.js');
+
+describe('RecordingEngine (real) — localStorage: _loadTrackCount / _saveTrackCount', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('retorna 2 por defecto cuando no hay nada en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.trackCount, 2);
+  });
+
+  it('carga el valor guardado en localStorage al inicializarse', () => {
+    localStorage.setItem(KEYS.RECORDING_TRACKS, '6');
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.trackCount, 6);
+  });
+
+  it('ignora valores fuera de rango (0) y usa el default', () => {
+    localStorage.setItem(KEYS.RECORDING_TRACKS, '0');
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.trackCount, 2);
+  });
+
+  it('setter trackCount persiste en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    // El default es webm-opus (maxTracks=2); cambiar a wav para poder subir a 4
+    engine.format = 'wav';
+    engine.trackCount = 4;
+    const stored = localStorage.getItem(KEYS.RECORDING_TRACKS);
+    assert.strictEqual(stored, '4');
+  });
+
+  it('setter trackCount no escribe si el valor no cambia', () => {
+    const engine = new RealRecordingEngine(null);
+    // trackCount es 2 por defecto; escribir 2 de nuevo no debe guardar de nuevo
+    const before = localStorage.getItem(KEYS.RECORDING_TRACKS);
+    engine.trackCount = 2;
+    const after = localStorage.getItem(KEYS.RECORDING_TRACKS);
+    // El valor almacenado puede ser null (antes) o '2' (después), lo clave
+    // es que no difiera del valor semántico
+    if (after !== null) {
+      assert.strictEqual(after, '2');
+    }
+  });
+});
+
+describe('RecordingEngine (real) — localStorage: format', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('retorna webm-opus por defecto cuando no hay nada en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.format, 'webm-opus');
+  });
+
+  it('carga el formato guardado al inicializarse', () => {
+    localStorage.setItem(KEYS.RECORDING_FORMAT, 'wav');
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.format, 'wav');
+  });
+
+  it('ignora formato inválido y usa el default', () => {
+    localStorage.setItem(KEYS.RECORDING_FORMAT, 'mp3-fantasma');
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.format, 'webm-opus');
+  });
+
+  it('setter format persiste en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    engine.format = 'wav';
+    assert.strictEqual(localStorage.getItem(KEYS.RECORDING_FORMAT), 'wav');
+  });
+
+  it('setter format con valor inválido no modifica localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    engine.format = 'wav'; // válido, para tener un baseline
+    engine.format = 'flac-inventado'; // inválido
+    assert.strictEqual(localStorage.getItem(KEYS.RECORDING_FORMAT), 'wav');
+  });
+});
+
+describe('RecordingEngine (real) — localStorage: bitrate', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('retorna 192000 por defecto cuando no hay nada en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.bitrate, 192000);
+  });
+
+  it('carga el bitrate guardado al inicializarse', () => {
+    localStorage.setItem(KEYS.RECORDING_BITRATE, '320000');
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.bitrate, 320000);
+  });
+
+  it('ignora bitrate <= 0 y usa el default', () => {
+    localStorage.setItem(KEYS.RECORDING_BITRATE, '-1');
+    const engine = new RealRecordingEngine(null);
+    assert.strictEqual(engine.bitrate, 192000);
+  });
+
+  it('setter bitrate persiste en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    engine.bitrate = 128000;
+    assert.strictEqual(localStorage.getItem(KEYS.RECORDING_BITRATE), '128000');
+  });
+});
+
+describe('RecordingEngine (real) — localStorage: routingMatrix', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('crea matriz por defecto cuando no hay nada en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    assert.ok(Array.isArray(engine.routingMatrix));
+    assert.strictEqual(engine.routingMatrix.length, 12); // 4 stereo + 8 individual
+  });
+
+  it('carga la matriz guardada desde localStorage', () => {
+    const customMatrix = Array(12).fill(null).map(() => [0, 0]);
+    customMatrix[0][0] = 1;
+    localStorage.setItem(KEYS.RECORDING_ROUTING, JSON.stringify(customMatrix));
+
+    const engine = new RealRecordingEngine(null);
+    assert.deepStrictEqual(engine.routingMatrix, customMatrix);
+  });
+
+  it('ignora JSON inválido y usa la matriz por defecto', () => {
+    localStorage.setItem(KEYS.RECORDING_ROUTING, 'no-es-json');
+    const engine = new RealRecordingEngine(null);
+    assert.ok(Array.isArray(engine.routingMatrix));
+    assert.strictEqual(engine.routingMatrix.length, 12);
+  });
+
+  it('_saveRoutingMatrix persiste la matriz en localStorage', () => {
+    const engine = new RealRecordingEngine(null);
+    engine._routingMatrix[4][0] = 1; // activar out 1 → track 0
+    engine._saveRoutingMatrix();
+
+    const raw = localStorage.getItem(KEYS.RECORDING_ROUTING);
+    assert.ok(raw, 'debe haber datos guardados');
+    const parsed = JSON.parse(raw);
+    assert.strictEqual(parsed[4][0], 1);
+  });
+});

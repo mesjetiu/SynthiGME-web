@@ -85,7 +85,7 @@ globalThis.localStorage = {
 // IMPORTAR FUNCIONES A TESTEAR
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { exportPatchToFile } from '../../src/assets/js/state/storage.js';
+import { exportPatchToFile, saveLastState, loadLastState, clearLastState, hasLastState } from '../../src/assets/js/state/storage.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TESTS
@@ -268,5 +268,102 @@ describe('exportPatchToFile - edge cases', () => {
     const exported = JSON.parse(capturedBlobs[0].content);
     assert.deepEqual(exported.matrix.audio, []);
     assert.deepEqual(exported.matrix.control, []);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TESTS DE ÚLTIMO ESTADO (localStorage)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('saveLastState / loadLastState', () => {
+  beforeEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it('saveLastState persiste el estado en localStorage', () => {
+    const state = { modules: { osc: { freq: 440 } } };
+    saveLastState(state);
+
+    const raw = globalThis.localStorage.getItem('synthigme-last-state');
+    assert.ok(raw, 'debe haber un valor en localStorage');
+    const parsed = JSON.parse(raw);
+    assert.deepEqual(parsed.modules, state.modules);
+  });
+
+  it('saveLastState añade savedAt automáticamente', () => {
+    saveLastState({ test: true });
+
+    const raw = globalThis.localStorage.getItem('synthigme-last-state');
+    const parsed = JSON.parse(raw);
+    assert.ok(parsed.savedAt, 'savedAt debe estar presente');
+    assert.ok(new Date(parsed.savedAt).getTime() > 0, 'savedAt debe ser fecha válida');
+  });
+
+  it('loadLastState retorna null cuando no hay estado guardado', () => {
+    const result = loadLastState();
+    assert.equal(result, null);
+  });
+
+  it('loadLastState recupera el estado previamente guardado', () => {
+    const state = { modules: { osc: { freq: 880 } }, matrix: [] };
+    saveLastState(state);
+
+    const loaded = loadLastState();
+    assert.ok(loaded, 'debe retornar un objeto');
+    assert.deepEqual(loaded.modules, state.modules);
+  });
+
+  it('loadLastState retorna null si el JSON está corrupto', () => {
+    globalThis.localStorage.setItem('synthigme-last-state', 'no-es-json-valido');
+
+    const result = loadLastState();
+    assert.equal(result, null);
+  });
+
+  it('saveLastState sobrescribe el estado anterior', () => {
+    saveLastState({ version: 1 });
+    saveLastState({ version: 2 });
+
+    const loaded = loadLastState();
+    assert.equal(loaded.version, 2);
+  });
+});
+
+describe('clearLastState', () => {
+  beforeEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it('elimina el estado de localStorage', () => {
+    saveLastState({ data: 'test' });
+    clearLastState();
+
+    const raw = globalThis.localStorage.getItem('synthigme-last-state');
+    assert.equal(raw, null);
+  });
+
+  it('no lanza si no hay estado guardado', () => {
+    assert.doesNotThrow(() => clearLastState());
+  });
+});
+
+describe('hasLastState', () => {
+  beforeEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it('retorna false cuando no hay estado guardado', () => {
+    assert.equal(hasLastState(), false);
+  });
+
+  it('retorna true después de guardar estado', () => {
+    saveLastState({ test: true });
+    assert.equal(hasLastState(), true);
+  });
+
+  it('retorna false después de clearLastState', () => {
+    saveLastState({ test: true });
+    clearLastState();
+    assert.equal(hasLastState(), false);
   });
 });

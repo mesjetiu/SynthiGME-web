@@ -1,19 +1,21 @@
 /**
  * OSC Bridge - Capa de abstracción para comunicación OSC
- * 
+ *
  * Este módulo proporciona una API unificada para comunicación OSC
  * entre instancias de SynthiGME en red local. Abstrae las diferencias
  * entre Electron (UDP nativo) y navegador (futuro WebSocket).
- * 
+ *
  * Características:
  * - Envío y recepción de mensajes OSC
  * - Mecanismo anti-loop para evitar reenvíos infinitos
  * - Configuración de prefijo OSC personalizable
  * - Callbacks para mensajes entrantes
- * 
+ *
  * @module osc/oscBridge
  * @see /OSC.md - Documentación completa del protocolo
  */
+
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 /**
  * Configuración por defecto del bridge OSC
@@ -72,8 +74,7 @@ class OSCBridge {
     this.config = { ...this.config, ...config };
     
     // Leer puerto de localStorage si no se especifica
-    // Usar clave con prefijo del proyecto (synthigme_osc-port)
-    const savedPort = localStorage.getItem('synthigme_osc-port');
+    const savedPort = localStorage.getItem(STORAGE_KEYS.OSC_PORT);
     const port = config.port || (savedPort ? parseInt(savedPort, 10) : 57121);
 
     try {

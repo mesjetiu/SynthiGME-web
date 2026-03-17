@@ -247,7 +247,7 @@ npm run build:web       # Verifica que el bundle no se rompe
 | R3 | `sendWorkletMessage()` helper en `utils/audio.js` | pequeño | ✅ hecho |
 | R4 | `disconnectNodes()` helper en `utils/audio.js` | pequeño | ✅ hecho |
 | R5 | Dormancy/applyLevel en clase base `Module` | medio | ✅ hecho |
-| R6 | Centralizar `localStorage` en `storage.js` | medio | ⬜ pendiente |
+| R6 | Centralizar `localStorage` en `storage.js` | medio | ✅ hecho |
 | R7 | Split de `app.js` (9.278 → ~500 + 4 nuevos) | grande | ⬜ pendiente |
 | R8 | Split de `settingsModal.js` (4.963 → ~2.000 + 3) | grande | ⬜ pendiente |
 | R9 | Split de `pipManager.js` (3.852 → ~1.500 + 3) | grande | ⬜ pendiente |

@@ -1,7 +1,13 @@
 import { createLogger } from '../utils/logger.js';
-import { STORAGE_KEYS, MAX_RECORDING_TRACKS } from '../utils/constants.js';
+import { MAX_RECORDING_TRACKS } from '../utils/constants.js';
 import { attachProcessorErrorHandler } from '../utils/audio.js';
 import { trackEvent as telemetryTrackEvent } from '../utils/telemetry.js';
+import {
+  loadRecordingTracks, saveRecordingTracks,
+  loadRecordingFormat, saveRecordingFormat,
+  loadRecordingBitrate, saveRecordingBitrate,
+  loadRecordingRouting, saveRecordingRouting
+} from '../state/storage.js';
 
 const log = createLogger('RecordingEngine');
 
@@ -72,54 +78,42 @@ export class RecordingEngine {
    * Load track count from storage or return default
    */
   _loadTrackCount() {
-    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_TRACKS);
-    if (stored) {
-      const count = parseInt(stored, 10);
-      if (count >= 1 && count <= MAX_RECORDING_TRACKS) return count;
-    }
-    return 2; // Default: stereo
+    return loadRecordingTracks(MAX_RECORDING_TRACKS);
   }
 
   /**
    * Save track count to storage
    */
   _saveTrackCount(count) {
-    localStorage.setItem(STORAGE_KEYS.RECORDING_TRACKS, String(count));
+    saveRecordingTracks(count);
   }
 
   /**
    * Load recording format from storage
    */
   _loadFormat() {
-    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_FORMAT);
-    if (stored && RECORDING_FORMATS[stored]) return stored;
-    return DEFAULT_FORMAT;
+    return loadRecordingFormat(RECORDING_FORMATS);
   }
 
   /**
    * Save recording format to storage
    */
   _saveFormat(format) {
-    localStorage.setItem(STORAGE_KEYS.RECORDING_FORMAT, format);
+    saveRecordingFormat(format);
   }
 
   /**
    * Load bitrate from storage (for lossy formats)
    */
   _loadBitrate() {
-    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_BITRATE);
-    if (stored) {
-      const val = parseInt(stored, 10);
-      if (val > 0) return val;
-    }
-    return DEFAULT_BITRATE;
+    return loadRecordingBitrate();
   }
 
   /**
    * Save bitrate to storage
    */
   _saveBitrate(bitrate) {
-    localStorage.setItem(STORAGE_KEYS.RECORDING_BITRATE, String(bitrate));
+    saveRecordingBitrate(bitrate);
   }
 
   /**
@@ -179,16 +173,7 @@ export class RecordingEngine {
    * Default: out1 → track1, out2 → track2, etc.
    */
   _loadRoutingMatrix() {
-    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_ROUTING);
-    if (stored) {
-      try {
-        const matrix = JSON.parse(stored);
-        if (Array.isArray(matrix)) return matrix;
-      } catch (e) {
-        log.warn(' Invalid routing matrix in storage');
-      }
-    }
-    return this._createDefaultRoutingMatrix();
+    return loadRecordingRouting() ?? this._createDefaultRoutingMatrix();
   }
 
   /**
@@ -222,7 +207,7 @@ export class RecordingEngine {
    * Save routing matrix to storage
    */
   _saveRoutingMatrix() {
-    localStorage.setItem(STORAGE_KEYS.RECORDING_ROUTING, JSON.stringify(this._routingMatrix));
+    saveRecordingRouting(this._routingMatrix);
   }
 
   /**

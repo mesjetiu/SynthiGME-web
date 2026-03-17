@@ -287,16 +287,26 @@ describe('saveLastState / loadLastState', () => {
     const raw = globalThis.localStorage.getItem('synthigme-last-state');
     assert.ok(raw, 'debe haber un valor en localStorage');
     const parsed = JSON.parse(raw);
-    assert.deepEqual(parsed.modules, state.modules);
+    assert.deepEqual(parsed.state, state);
   });
 
-  it('saveLastState añade savedAt automáticamente', () => {
+  it('saveLastState añade timestamp y savedAt automáticamente', () => {
     saveLastState({ test: true });
 
     const raw = globalThis.localStorage.getItem('synthigme-last-state');
     const parsed = JSON.parse(raw);
     assert.ok(parsed.savedAt, 'savedAt debe estar presente');
     assert.ok(new Date(parsed.savedAt).getTime() > 0, 'savedAt debe ser fecha válida');
+    assert.ok(typeof parsed.timestamp === 'number', 'timestamp debe ser número');
+    assert.ok(parsed.timestamp > 0, 'timestamp debe ser positivo');
+  });
+
+  it('saveLastState acepta metadatos opcionales', () => {
+    saveLastState({ x: 1 }, { isAutoSave: true, savedOnExit: false });
+
+    const parsed = JSON.parse(globalThis.localStorage.getItem('synthigme-last-state'));
+    assert.equal(parsed.isAutoSave, true);
+    assert.equal(parsed.savedOnExit, false);
   });
 
   it('loadLastState retorna null cuando no hay estado guardado', () => {
@@ -310,7 +320,8 @@ describe('saveLastState / loadLastState', () => {
 
     const loaded = loadLastState();
     assert.ok(loaded, 'debe retornar un objeto');
-    assert.deepEqual(loaded.modules, state.modules);
+    assert.deepEqual(loaded.state, state);
+    assert.ok(loaded.timestamp > 0);
   });
 
   it('loadLastState retorna null si el JSON está corrupto', () => {
@@ -325,7 +336,7 @@ describe('saveLastState / loadLastState', () => {
     saveLastState({ version: 2 });
 
     const loaded = loadLastState();
-    assert.equal(loaded.version, 2);
+    assert.equal(loaded.state.version, 2);
   });
 });
 

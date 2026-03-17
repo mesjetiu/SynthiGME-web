@@ -198,13 +198,16 @@ export async function renamePatch(id, newName) {
 
 /**
  * Guarda el último estado de la sesión.
- * @param {Object} state - Estado a guardar
+ * @param {Object} state - Estado de la app a guardar
+ * @param {Object} [metadata={}] - Metadatos opcionales (isAutoSave, savedOnExit, etc.)
  */
-export function saveLastState(state) {
+export function saveLastState(state, metadata = {}) {
   try {
     const data = {
-      ...state,
-      savedAt: new Date().toISOString()
+      state,
+      timestamp: Date.now(),
+      savedAt: new Date().toISOString(),
+      ...metadata
     };
     localStorage.setItem(LAST_STATE_KEY, JSON.stringify(data));
   } catch (err) {
@@ -214,7 +217,7 @@ export function saveLastState(state) {
 
 /**
  * Carga el último estado de la sesión.
- * @returns {Object|null}
+ * @returns {{ state: Object, timestamp: number, savedAt: string, isAutoSave?: boolean, savedOnExit?: boolean }|null}
  */
 export function loadLastState() {
   try {
@@ -239,6 +242,110 @@ export function clearLastState() {
  */
 export function hasLastState() {
   return localStorage.getItem(LAST_STATE_KEY) !== null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN DE GRABACIÓN (LOCALSTORAGE)
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { STORAGE_KEYS } from '../utils/constants.js';
+
+/** Número de pistas por defecto */
+const DEFAULT_RECORDING_TRACKS = 2;
+/** Formato de grabación por defecto */
+const DEFAULT_RECORDING_FORMAT = 'webm-opus';
+/** Bitrate por defecto (192 kbps) */
+const DEFAULT_RECORDING_BITRATE = 192000;
+
+/**
+ * Carga el número de pistas de grabación desde localStorage.
+ * @param {number} maxTracks - Máximo permitido (para validación)
+ * @returns {number}
+ */
+export function loadRecordingTracks(maxTracks) {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_TRACKS);
+    if (stored) {
+      const count = parseInt(stored, 10);
+      if (count >= 1 && count <= maxTracks) return count;
+    }
+  } catch { /* Ignorar */ }
+  return DEFAULT_RECORDING_TRACKS;
+}
+
+/**
+ * Persiste el número de pistas de grabación.
+ * @param {number} count
+ */
+export function saveRecordingTracks(count) {
+  localStorage.setItem(STORAGE_KEYS.RECORDING_TRACKS, String(count));
+}
+
+/**
+ * Carga el formato de grabación desde localStorage.
+ * @param {Object} validFormats - Mapa de formatos válidos { [key]: {...} }
+ * @returns {string}
+ */
+export function loadRecordingFormat(validFormats) {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_FORMAT);
+    if (stored && validFormats[stored]) return stored;
+  } catch { /* Ignorar */ }
+  return DEFAULT_RECORDING_FORMAT;
+}
+
+/**
+ * Persiste el formato de grabación.
+ * @param {string} format
+ */
+export function saveRecordingFormat(format) {
+  localStorage.setItem(STORAGE_KEYS.RECORDING_FORMAT, format);
+}
+
+/**
+ * Carga el bitrate de grabación desde localStorage.
+ * @returns {number}
+ */
+export function loadRecordingBitrate() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_BITRATE);
+    if (stored) {
+      const val = parseInt(stored, 10);
+      if (val > 0) return val;
+    }
+  } catch { /* Ignorar */ }
+  return DEFAULT_RECORDING_BITRATE;
+}
+
+/**
+ * Persiste el bitrate de grabación.
+ * @param {number} bitrate
+ */
+export function saveRecordingBitrate(bitrate) {
+  localStorage.setItem(STORAGE_KEYS.RECORDING_BITRATE, String(bitrate));
+}
+
+/**
+ * Carga la matriz de routing de grabación desde localStorage.
+ * @returns {Array[]|null} Matriz si es válida, null si no hay o está corrupta
+ */
+export function loadRecordingRouting() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.RECORDING_ROUTING);
+    if (stored) {
+      const matrix = JSON.parse(stored);
+      if (Array.isArray(matrix)) return matrix;
+    }
+  } catch { /* Ignorar */ }
+  return null;
+}
+
+/**
+ * Persiste la matriz de routing de grabación.
+ * @param {Array[]} matrix
+ */
+export function saveRecordingRouting(matrix) {
+  localStorage.setItem(STORAGE_KEYS.RECORDING_ROUTING, JSON.stringify(matrix));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

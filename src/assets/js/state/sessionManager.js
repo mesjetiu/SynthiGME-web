@@ -11,7 +11,7 @@
  */
 
 import { createLogger } from '../utils/logger.js';
-import { STORAGE_KEYS } from '../utils/constants.js';
+import { saveLastState, loadLastState, clearLastState as storeClearLastState, hasLastState } from './storage.js';
 
 const log = createLogger('SessionManager');
 
@@ -68,14 +68,10 @@ class SessionManager {
     if (!this._dirty || !this._serializeCallback) {
       return;
     }
-    
+
     try {
       const state = this._serializeCallback();
-      localStorage.setItem(STORAGE_KEYS.LAST_STATE, JSON.stringify({
-        timestamp: Date.now(),
-        state,
-        isAutoSave: true
-      }));
+      saveLastState(state, { isAutoSave: true });
       log.info(' State auto-saved');
     } catch (err) {
       log.warn(' Autosave failed:', err);
@@ -91,15 +87,10 @@ class SessionManager {
       log.info(' No changes to save on exit');
       return;
     }
-    
+
     try {
       const state = this._serializeCallback();
-      localStorage.setItem(STORAGE_KEYS.LAST_STATE, JSON.stringify({
-        timestamp: Date.now(),
-        state,
-        savedOnExit: true,
-        isAutoSave: true
-      }));
+      saveLastState(state, { savedOnExit: true, isAutoSave: true });
       log.info(' State saved on exit');
     } catch (err) {
       log.warn(' Save on exit failed:', err);
@@ -151,24 +142,17 @@ class SessionManager {
    * Limpia el estado de autoguardado completamente.
    */
   clearLastState() {
-    localStorage.removeItem(STORAGE_KEYS.LAST_STATE);
+    storeClearLastState();
     this._dirty = false;
     log.info(' Last state cleared');
   }
 
   /**
    * Obtiene el último estado guardado.
-   * @returns {{state: Object, timestamp: number, isAutoSave: boolean}|null}
+   * @returns {{state: Object, timestamp: number, isAutoSave?: boolean, savedOnExit?: boolean}|null}
    */
   getLastState() {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.LAST_STATE);
-      if (!stored) return null;
-      return JSON.parse(stored);
-    } catch (err) {
-      log.warn(' Error reading last state:', err);
-      return null;
-    }
+    return loadLastState();
   }
 
   /**
@@ -176,7 +160,7 @@ class SessionManager {
    * @returns {boolean}
    */
   hasLastState() {
-    return !!localStorage.getItem(STORAGE_KEYS.LAST_STATE);
+    return hasLastState();
   }
 
   /**

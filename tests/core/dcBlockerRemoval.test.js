@@ -35,6 +35,9 @@ const ROOT = resolve(__dirname, '../..');
 
 const engineSource = readFileSync(resolve(ROOT, 'src/assets/js/core/engine.js'), 'utf-8');
 const appSource = readFileSync(resolve(ROOT, 'src/assets/js/app.js'), 'utf-8');
+// La re-entry logic fue movida a panelRouting.js (R7 refactoring)
+const panelRoutingSource = readFileSync(resolve(ROOT, 'src/assets/js/panelRouting.js'), 'utf-8');
+const appOrRoutingSource = appSource + panelRoutingSource;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. ENGINE.JS: DC BLOCKER EN RUTA DE SALIDA A ALTAVOCES
@@ -179,15 +182,15 @@ describe('App: re-entry usa postVcaNode directamente (no dcBlocker)', () => {
 
   it('app.js accede a busData.postVcaNode para re-entry', () => {
     assert.ok(
-      appSource.includes('busData.postVcaNode') || appSource.includes('busData?.postVcaNode'),
-      'app.js debe acceder a busData.postVcaNode para la re-entry.'
+      appOrRoutingSource.includes('busData.postVcaNode') || appOrRoutingSource.includes('busData?.postVcaNode'),
+      'app.js o panelRouting.js debe acceder a busData.postVcaNode para la re-entry.'
     );
   });
 
   it('app.js verifica disponibilidad de postVcaNode antes de usarlo', () => {
     assert.ok(
-      appSource.includes('busData?.postVcaNode'),
-      'app.js debe verificar busData?.postVcaNode antes de usarlo.'
+      appOrRoutingSource.includes('busData?.postVcaNode'),
+      'app.js o panelRouting.js debe verificar busData?.postVcaNode antes de usarlo.'
     );
   });
 });

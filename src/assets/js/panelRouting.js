@@ -865,6 +865,12 @@ export async function handlePanel5AudioToggle(rowIndex, colIndex, activate, pinC
       }
       const outputId = source.output || (source.channel === 0 ? 'dac1' : 'dac2');
       outNode = seqModule?.getOutputNode?.(outputId) ?? null;
+    } else if (source.kind === 'octaveFilterBank') {
+      const ofbModule = app.octaveFilterBank;
+      if (ofbModule && !ofbModule.isStarted) {
+        ofbModule.start();
+      }
+      outNode = ofbModule?.getOutputNode?.() ?? null;
     }
 
     if (!outNode) {
@@ -999,6 +1005,12 @@ export async function handlePanel5AudioToggle(rowIndex, colIndex, activate, pinC
         pvcModule.start();
       }
       destNode = pvcModule?.getInputNode?.('audio') ?? null;
+    } else if (dest.kind === 'octaveFilterBankInput') {
+      const ofbModule = app.octaveFilterBank;
+      if (ofbModule && !ofbModule.isStarted) {
+        ofbModule.start();
+      }
+      destNode = ofbModule?.getInputNode?.() ?? null;
     }
 
     if (!destNode) {

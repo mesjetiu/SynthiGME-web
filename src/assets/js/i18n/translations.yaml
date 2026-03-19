@@ -5222,6 +5222,25 @@ matrix.dest.pitchToVoltageConverterInput:
   pt: "PVC Audio In"
   cs: "PVC Audio In"
 
+# Octave Filter Bank
+matrix.source.octaveFilterBank:
+  en: "Oct. Filter Bank"
+  es: "Oct. Filter Bank"
+  fr: "Oct. Filter Bank"
+  de: "Oct. Filter Bank"
+  it: "Oct. Filter Bank"
+  pt: "Oct. Filter Bank"
+  cs: "Oct. Filter Bank"
+
+matrix.dest.octaveFilterBankInput:
+  en: "Oct. Filter Bank In"
+  es: "Oct. Filter Bank In"
+  fr: "Oct. Filter Bank In"
+  de: "Oct. Filter Bank In"
+  it: "Oct. Filter Bank In"
+  pt: "Oct. Filter Bank In"
+  cs: "Oct. Filter Bank In"
+
 # Tooltip format (assembled from source + dest)
 matrix.tooltip.format:
   en: "{source} → {dest}"

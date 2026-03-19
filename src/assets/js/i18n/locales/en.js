@@ -573,6 +573,8 @@ export default {
   "matrix.dest.sequencerInput.key": "Seq Key In",
   "matrix.source.pitchToVoltageConverter": "PVC Voltage",
   "matrix.dest.pitchToVoltageConverterInput": "PVC Audio In",
+  "matrix.source.octaveFilterBank": "Oct. Filter Bank",
+  "matrix.dest.octaveFilterBankInput": "Oct. Filter Bank In",
   "matrix.tooltip.format": "{source} → {dest}",
   "matrix.tooltip.unknownSource": "Row {row}",
   "matrix.tooltip.unknownDest": "Col {col}",

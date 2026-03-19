@@ -3,6 +3,11 @@
  *
  * Verifica la estructura y comportamiento del banco de filtros de 8 octavas.
  * Sin worklet — usa BiquadFilterNode nativos de Web Audio API.
+ *
+ * DISEÑO CORRECTO:
+ *   inputGain → filter[i] → bandGain[i] → sumNode  (SIEMPRE, para todas las bandas)
+ *   El gain del bandGain controla el nivel. El filtro siempre está en la cadena.
+ *   NO hay bypass per-banda del BiquadFilter — eso rompería la respuesta espectral.
  */
 
 import { describe, it, beforeEach, mock } from 'node:test';
@@ -65,15 +70,12 @@ describe('OctaveFilterBank — static source inspection', () => {
     assert.match(moduleSource, /kind:\s*this\.sourceKind/);
   });
 
-  it('implementa bypass de filtro (setFilterBypassEnabled, _bypassBand, _unbypassBand)', () => {
-    assert.match(moduleSource, /setFilterBypassEnabled\s*\(\s*enabled\s*\)/);
-    assert.match(moduleSource, /_bypassBand\s*\(\s*bandIndex\s*\)/);
-    assert.match(moduleSource, /_unbypassBand\s*\(\s*bandIndex\s*\)/);
-    assert.match(moduleSource, /BYPASS_THRESHOLD/);
-  });
-
-  it('usa STORAGE_KEYS.FILTER_BYPASS_ENABLED (setting compartido)', () => {
-    assert.match(moduleSource, /STORAGE_KEYS\.FILTER_BYPASS_ENABLED/);
+  it('NO tiene bypass por BiquadFilter — el filtro siempre está en la cadena', () => {
+    // El bypass per-banda del BiquadFilter fue eliminado porque provocaba
+    // que las bandas bypaseadas pasasen señal broadband, rompiendo la respuesta espectral.
+    assert.doesNotMatch(moduleSource, /_bypassBand\s*\(/);
+    assert.doesNotMatch(moduleSource, /_unbypassBand\s*\(/);
+    assert.doesNotMatch(moduleSource, /BYPASS_THRESHOLD/);
   });
 
   // Config
@@ -90,7 +92,7 @@ describe('OctaveFilterBank — static source inspection', () => {
     assert.doesNotMatch(configSource, /panel6/);
   });
 
-  it('config tiene initial: 10 (estado neutro = bypass, señal plana)', () => {
+  it('config tiene initial: 10 (estado neutro = señal plana)', () => {
     assert.match(configSource, /initial:\s*10/);
   });
 
@@ -174,9 +176,17 @@ describe('OctaveFilterBankModule — unit tests', () => {
   });
 
   describe('constructor', () => {
-    it('inicializa 8 bandas a 0', () => {
+    it('inicializa 8 bandas a 0 (sin initialBandLevel)', () => {
       assert.equal(ofb.values.bands.length, 8);
       assert.ok(ofb.values.bands.every(v => v === 0));
+    });
+
+    it('acepta initialBandLevel personalizado', () => {
+      const ofb10 = new OctaveFilterBankModule(engine, 'ofb-10', {
+        sourceKind: 'octaveFilterBank',
+        initialBandLevel: 10
+      });
+      assert.ok(ofb10.values.bands.every(v => v === 10));
     });
 
     it('no inicia los nodos de audio', () => {
@@ -276,6 +286,23 @@ describe('OctaveFilterBankModule — unit tests', () => {
       ofb.setBandLevel(2, 8);
       assert.equal(ofb.values.bands[2], 8);
       // El gain se aplica vía setParamSmooth → setTargetAtTime
+      assert.equal(ofb.bandGains[2].gain.setTargetAtTime.mock.calls.length, 1);
+    });
+
+    it('dial=0 aplica gain=0 (silencio)', () => {
+      ofb.start();
+      ofb.setBandLevel(0, 0);
+      const calls = ofb.bandGains[0].gain.setTargetAtTime.mock.calls;
+      assert.ok(calls.length > 0);
+      assert.equal(calls[calls.length - 1].arguments[0], 0);
+    });
+
+    it('dial=10 aplica gain=1.0 (máximo)', () => {
+      ofb.start();
+      ofb.setBandLevel(5, 10);
+      const calls = ofb.bandGains[5].gain.setTargetAtTime.mock.calls;
+      assert.ok(calls.length > 0);
+      assert.ok(Math.abs(calls[calls.length - 1].arguments[0] - 1.0) < 0.001);
     });
   });
 
@@ -284,7 +311,6 @@ describe('OctaveFilterBankModule — unit tests', () => {
       assert.equal(ofb.inputGain, null);
       const input = ofb.getInputNode();
       assert.ok(input !== null);
-      assert.equal(ofb.isStarted, false); // start() no se llama, pero nodos se crean
     });
 
     it('devuelve el nodo de salida', () => {
@@ -349,7 +375,6 @@ describe('OctaveFilterBankModule — unit tests', () => {
     it('_onDormancyChange(true) pone sumNode.gain a 0', () => {
       ofb.start();
       ofb._onDormancyChange(true);
-      // setTargetAtTime se llama con target 0
       const calls = ofb.sumNode.gain.setTargetAtTime.mock.calls;
       assert.ok(calls.length > 0);
       assert.equal(calls[calls.length - 1].arguments[0], 0);
@@ -364,6 +389,20 @@ describe('OctaveFilterBankModule — unit tests', () => {
       assert.ok(Math.abs(calls[0].arguments[0] - expected) < 0.01);
     });
 
+    it('_onDormancyChange(false) reaplica gain de todas las bandas', () => {
+      const ofb10 = new OctaveFilterBankModule(engine, 'ofb-wakeup', {
+        sourceKind: 'octaveFilterBank',
+        initialBandLevel: 10
+      });
+      ofb10.start();
+      ofb10._onDormancyChange(false);
+      // Cada bandGain debe recibir setTargetAtTime (gain restaurado)
+      for (let i = 0; i < 8; i++) {
+        assert.ok(ofb10.bandGains[i].gain.setTargetAtTime.mock.calls.length > 0,
+          `bandGain[${i}] debe recibir setTargetAtTime al despertar de dormancy`);
+      }
+    });
+
     it('setBandLevel no aplica audio cuando dormant', () => {
       ofb.start();
       ofb._isDormant = true;
@@ -374,16 +413,37 @@ describe('OctaveFilterBankModule — unit tests', () => {
     });
   });
 
-  describe('conexiones de audio (connect calls)', () => {
-    it('input se conecta a los 8 filtros', () => {
+  describe('conexiones de audio — filtro SIEMPRE en la cadena', () => {
+    it('inputGain se conecta a los 8 filtros (siempre, sin bypass)', () => {
       ofb.start();
+      // inputGain debe conectarse exactamente a los 8 filtros
       assert.equal(ofb.inputGain.connect.mock.calls.length, 8);
+    });
+
+    it('con initialBandLevel=10, inputGain sigue conectado a filtros (no bypass directo)', () => {
+      const ofb10 = new OctaveFilterBankModule(engine, 'ofb-10', {
+        sourceKind: 'octaveFilterBank',
+        initialBandLevel: 10
+      });
+      ofb10.start();
+      // Aunque las bandas empiecen a 10, el filtro siempre está en la cadena
+      assert.equal(ofb10.inputGain.connect.mock.calls.length, 8,
+        'inputGain debe conectarse solo a los 8 filtros, no directamente a bandGains');
+      // Verificar que conecta a los filtros, no a los gains directamente
+      const connectTargets = ofb10.inputGain.connect.mock.calls.map(c => c.arguments[0]);
+      for (let i = 0; i < 8; i++) {
+        assert.ok(connectTargets.includes(ofb10.filters[i]),
+          `inputGain debe conectar a filter[${i}]`);
+        assert.ok(!connectTargets.includes(ofb10.bandGains[i]),
+          `inputGain NO debe conectar directamente a bandGain[${i}] (bypass eliminado)`);
+      }
     });
 
     it('cada filtro se conecta a su bandGain', () => {
       ofb.start();
       for (let i = 0; i < 8; i++) {
         assert.equal(ofb.filters[i].connect.mock.calls.length, 1);
+        assert.equal(ofb.filters[i].connect.mock.calls[0].arguments[0], ofb.bandGains[i]);
       }
     });
 
@@ -391,74 +451,34 @@ describe('OctaveFilterBankModule — unit tests', () => {
       ofb.start();
       for (let i = 0; i < 8; i++) {
         assert.equal(ofb.bandGains[i].connect.mock.calls.length, 1);
+        assert.equal(ofb.bandGains[i].connect.mock.calls[0].arguments[0], ofb.sumNode);
       }
     });
 
     it('sumNode se conecta al outputGain', () => {
       ofb.start();
       assert.equal(ofb.sumNode.connect.mock.calls.length, 1);
-    });
-  });
-
-  describe('filter bypass (dial=10 → bypass bandpass)', () => {
-    it('_filterBypassEnabled es true por defecto', () => {
-      assert.equal(ofb._filterBypassEnabled, true);
+      assert.equal(ofb.sumNode.connect.mock.calls[0].arguments[0], ofb.outputGain);
     });
 
-    it('_bandBypassed inicializa todo a false', () => {
-      assert.equal(ofb._bandBypassed.length, 8);
-      assert.ok(ofb._bandBypassed.every(b => b === false));
-    });
-
-    it('setBandLevel(i, 10) activa bypass para esa banda', () => {
-      ofb.start();
-      ofb.setBandLevel(3, 10);
-      assert.equal(ofb._bandBypassed[3], true);
-    });
-
-    it('bypass: inputGain conecta directo a bandGain (sin filter)', () => {
-      ofb.start();
-      const connectsBefore = ofb.inputGain.connect.mock.calls.length; // 8 (a los filtros)
-      ofb.setBandLevel(0, 10);
-      // Después del bypass: disconnect filter + connect directo a gain
-      assert.equal(ofb._bandBypassed[0], true);
-      // inputGain ahora tiene 8 + 1 connects (el directo al bandGain[0])
-      assert.equal(ofb.inputGain.connect.mock.calls.length, connectsBefore + 1);
-    });
-
-    it('bajar de 10 desactiva bypass (reconecta filter)', () => {
-      ofb.start();
-      ofb.setBandLevel(2, 10);
-      assert.equal(ofb._bandBypassed[2], true);
-      ofb.setBandLevel(2, 9);
-      assert.equal(ofb._bandBypassed[2], false);
-    });
-
-    it('setFilterBypassEnabled(false) desactiva todos los bypass', () => {
-      ofb.start();
-      ofb.setBandLevel(0, 10);
-      ofb.setBandLevel(1, 10);
-      assert.equal(ofb._bandBypassed[0], true);
-      assert.equal(ofb._bandBypassed[1], true);
-      ofb.setFilterBypassEnabled(false);
-      assert.equal(ofb._bandBypassed[0], false);
-      assert.equal(ofb._bandBypassed[1], false);
-    });
-
-    it('setFilterBypassEnabled(true) reactiva bypass donde dial=10', () => {
-      ofb.start();
-      ofb.values.bands[5] = 10;
-      ofb.setFilterBypassEnabled(false);
-      assert.equal(ofb._bandBypassed[5], false);
-      ofb.setFilterBypassEnabled(true);
-      assert.equal(ofb._bandBypassed[5], true);
-    });
-
-    it('bypass no se activa si _filterBypassEnabled es false', () => {
-      ofb._filterBypassEnabled = false;
-      ofb.start();
-      ofb.setBandLevel(4, 10);
-      assert.equal(ofb._bandBypassed[4], false);
+    it('bajar una banda de 10 a 0 SÍ cambia el gain (cada knob es independiente)', () => {
+      const ofb10 = new OctaveFilterBankModule(engine, 'ofb-perband', {
+        sourceKind: 'octaveFilterBank',
+        initialBandLevel: 10
+      });
+      ofb10.start();
+      // Bajar banda 3 (500Hz) a 0 debe cambiar solo el gain de bandGain[3]
+      ofb10.setBandLevel(3, 0);
+      const calls3 = ofb10.bandGains[3].gain.setTargetAtTime.mock.calls;
+      assert.ok(calls3.length > 0, 'setBandLevel(3,0) debe llamar setTargetAtTime en bandGain[3]');
+      assert.equal(calls3[calls3.length - 1].arguments[0], 0, 'gain[3] debe ser 0');
+      // Las otras bandas NO deben haber cambiado
+      for (let i = 0; i < 8; i++) {
+        if (i !== 3) {
+          assert.equal(ofb10.bandGains[i].gain.setTargetAtTime.mock.calls.length, 0,
+            `bandGain[${i}] no debe verse afectado al cambiar solo banda 3`);
+        }
+      }
     });
   });
 });

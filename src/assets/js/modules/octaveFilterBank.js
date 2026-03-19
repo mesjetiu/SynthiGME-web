@@ -4,24 +4,30 @@
  * Emula el Eight-Octave Filter Bank del Synthi 100 (placa PC-22, D100-22C1).
  * Manipulador de formantes — NO controlado por voltaje.
  *
- * Cadena de audio:
+ * Cadena de audio (fija, siempre):
  *   inputGain(1) → [8× BiquadFilter(bandpass)] → [8× bandGain] → sumNode → outputGain
  *
  * Cada banda es un filtro paso-banda de 2.º orden (12 dB/oct) con frecuencias
  * centrales: 63, 125, 250, 500, 1000, 2000, 4000, 8000 Hz.
  * Los 8 potenciómetros (10K log) controlan la amplitud de cada banda.
  *
- * Bypass: cuando una banda está al máximo (dial ≈ 10), el BiquadFilter se
- * bypasea y la señal pasa directa de inputGain a bandGain (respuesta plana).
- * Comparte el setting global FILTER_BYPASS_ENABLED con outputChannel y noise.
+ * Con todos los mandos al máximo (dial=10, gain=1.0), los 8 filtros paso-banda
+ * se suman para dar una respuesta aproximadamente plana +10 dB (por diseño: Q=√2,
+ * frecuencias a intervalos de octava → solapamiento en -3 dB entre bandas adyacentes).
  *
- * @version 1.1.0
+ * Acción esencialmente sustractiva: bajar una banda crea un notch/dip en ese rango.
+ *
+ * NOTA: No se implementa bypass per-banda del BiquadFilter. Una conexión directa
+ * inputGain→bandGain (bypass) pasaría señal broadband, rompiendo la respuesta espectral:
+ * las demás bandas seguirían contribuyendo su señal completa aunque se bajara la banda,
+ * haciendo inefectivo cada knob individualmente.
+ *
+ * @version 2.0.0
  */
 
 import { Module, setParamSmooth } from '../core/engine.js';
 import { safeDisconnectAll } from '../utils/audio.js';
 import { createLogger } from '../utils/logger.js';
-import { STORAGE_KEYS } from '../utils/constants.js';
 import { clamp } from '../utils/math.js';
 import { dialToLogGain } from '../utils/audioConversions.js';
 
@@ -30,8 +36,7 @@ const log = createLogger('OctaveFilterBankModule');
 const CENTER_FREQUENCIES = [63, 125, 250, 500, 1000, 2000, 4000, 8000];
 const BAND_COUNT = CENTER_FREQUENCIES.length;
 const FILTER_Q = 1.414;         // √2 → ancho de banda ≈ 1 octava a -3 dB
-const MAKEUP_GAIN_DB = 10;      // Compensación máxima por filtrado sustractivo
-const BYPASS_THRESHOLD = 9.98;  // Dial >= este valor → bypass del bandpass
+const MAKEUP_GAIN_DB = 10;      // Compensación por filtrado sustractivo
 
 export class OctaveFilterBankModule extends Module {
   constructor(engine, id, options = {}) {
@@ -56,16 +61,9 @@ export class OctaveFilterBankModule extends Module {
     this.inputGain = null;
     this.filters = null;       // BiquadFilterNode[8]
     this.bandGains = null;     // GainNode[8]
-    this.sumNode = null;       // GainNode (sumador)
-    this.outputGain = null;    // GainNode (makeup gain)
+    this.sumNode = null;       // GainNode (sumador + makeup gain)
+    this.outputGain = null;    // GainNode (salida)
     this.isStarted = false;
-
-    // Bypass state per band (true = bypassed, filter disconnected)
-    this._bandBypassed = new Array(BAND_COUNT).fill(false);
-    const saved = typeof localStorage !== 'undefined'
-      ? localStorage.getItem(STORAGE_KEYS.FILTER_BYPASS_ENABLED)
-      : null;
-    this._filterBypassEnabled = saved === null ? true : saved === 'true';
   }
 
   _bandDialToGain(dialValue) {
@@ -84,14 +82,13 @@ export class OctaveFilterBankModule extends Module {
     this.filters = new Array(BAND_COUNT);
     this.bandGains = new Array(BAND_COUNT);
 
-    // Nodo sumador: recibe las 8 bandas
+    // Nodo sumador con ganancia de compensación: 10 dB ≈ 3.162
     this.sumNode = ctx.createGain();
-    // Ganancia de compensación: 10 dB ≈ 3.162
     const makeupLinear = Math.pow(10, this.audioConfig.makeupGainDb / 20);
     this.sumNode.gain.value = makeupLinear;
 
     for (let i = 0; i < BAND_COUNT; i++) {
-      // Filtro paso-banda de 2.º orden
+      // Filtro paso-banda de 2.º orden (siempre en la cadena)
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
       filter.frequency.value = CENTER_FREQUENCIES[i];
@@ -103,16 +100,10 @@ export class OctaveFilterBankModule extends Module {
       gain.gain.value = this._bandDialToGain(this.values.bands[i]);
       this.bandGains[i] = gain;
 
-      // Conexión normal: input → filter → bandGain → sumNode
+      // Conexión fija: inputGain → filter → bandGain → sumNode
       this.inputGain.connect(filter);
       filter.connect(gain);
       gain.connect(this.sumNode);
-
-      // Bypass inicial si el dial ya está al máximo
-      this._bandBypassed[i] = false;
-      if (this._filterBypassEnabled && this.values.bands[i] >= BYPASS_THRESHOLD) {
-        this._bypassBand(i);
-      }
     }
 
     // Nodo de salida
@@ -161,7 +152,6 @@ export class OctaveFilterBankModule extends Module {
     this.outputGain = null;
     this.outputs.length = 0;
     this.isStarted = false;
-    this._bandBypassed.fill(false);
   }
 
   /**
@@ -174,7 +164,6 @@ export class OctaveFilterBankModule extends Module {
     this.values.bands[bandIndex] = clamp(value, 0, 10);
     if (this._isDormant) return;
     this._applyBandLevel(bandIndex);
-    this._updateBandBypass(bandIndex);
   }
 
   _applyBandLevel(bandIndex) {
@@ -187,74 +176,6 @@ export class OctaveFilterBankModule extends Module {
       { ramp: this.ramps.bandLevel }
     );
   }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // FILTER BYPASS
-  // ─────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Bypass: cuando dial ≈ 10, desconecta el BiquadFilter y conecta
-   * inputGain directamente a bandGain (respuesta plana, ahorra CPU).
-   */
-  _updateBandBypass(bandIndex) {
-    if (!this._filterBypassEnabled || !this.filters) return;
-    const dial = this.values.bands[bandIndex];
-    const shouldBypass = dial >= BYPASS_THRESHOLD;
-    if (shouldBypass && !this._bandBypassed[bandIndex]) {
-      this._bypassBand(bandIndex);
-    } else if (!shouldBypass && this._bandBypassed[bandIndex]) {
-      this._unbypassBand(bandIndex);
-    }
-  }
-
-  /** Desconecta filter, conecta input directo a bandGain */
-  _bypassBand(bandIndex) {
-    const filter = this.filters[bandIndex];
-    const gain = this.bandGains[bandIndex];
-    if (!filter || !gain) return;
-
-    try {
-      this.inputGain.disconnect(filter);
-      filter.disconnect(gain);
-    } catch (_) { /* ya desconectado */ }
-
-    this.inputGain.connect(gain);
-    this._bandBypassed[bandIndex] = true;
-  }
-
-  /** Reconecta la cadena normal: input → filter → bandGain */
-  _unbypassBand(bandIndex) {
-    const filter = this.filters[bandIndex];
-    const gain = this.bandGains[bandIndex];
-    if (!filter || !gain) return;
-
-    try {
-      this.inputGain.disconnect(gain);
-    } catch (_) { /* no estaba conectado directo */ }
-
-    this.inputGain.connect(filter);
-    filter.connect(gain);
-    this._bandBypassed[bandIndex] = false;
-  }
-
-  /**
-   * Activa/desactiva el bypass global (comparte setting con outputChannel).
-   * @param {boolean} enabled
-   */
-  setFilterBypassEnabled(enabled) {
-    this._filterBypassEnabled = !!enabled;
-    if (!this.filters) return;
-
-    for (let i = 0; i < BAND_COUNT; i++) {
-      if (enabled) {
-        this._updateBandBypass(i);
-      } else if (this._bandBypassed[i]) {
-        this._unbypassBand(i);
-      }
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
 
   getInputNode() {
     if (!this.inputGain) this._initAudioNodes();

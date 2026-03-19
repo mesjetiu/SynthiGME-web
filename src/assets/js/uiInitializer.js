@@ -674,10 +674,7 @@ export function setupFilterBypass(app) {
         noiseAudio.noise1.setFilterBypassEnabled(enabled);
         noiseAudio.noise2.setFilterBypassEnabled(enabled);
       }
-      // Octave Filter Bank (bandpass nativos)
-      if (app.octaveFilterBank) {
-        app.octaveFilterBank.setFilterBypassEnabled(enabled);
-      }
+
       log.info(`⚡ Filter bypass ${enabled ? 'enabled' : 'disabled'}`);
     });
     

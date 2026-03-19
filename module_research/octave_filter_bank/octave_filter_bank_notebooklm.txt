@@ -1,0 +1,28 @@
+El **Banco de Filtros de Ocho Octavas** (*Eight-Octave Filter Bank*) es un módulo de tratamiento de señal diseñado como un manipulador de formantes para proporcionar coloraciones características al sonido. A diferencia de otros filtros del Synthi 100, este dispositivo **no está controlado por voltaje**; sus parámetros están pensados para permanecer constantes en una aplicación determinada.
+
+Aquí tienes los detalles técnicos necesarios para su implementación:
+
+### **1. Especificaciones Técnicas**
+*   **Estructura:** Se trata de un grupo de **ocho filtros de paso de banda individuales** dispuestos en paralelo.
+*   **Frecuencias de Centro:** Las frecuencias están dispuestas a intervalos de una octava: **63, 125, 250, 500, 1000, 2000, 4000 y 8000 Hz**.
+*   **Precisión de Afinación:** Las frecuencias centrales tienen una tolerancia de **± 10%**.
+*   **Pendiente (Slope):** Cada filtro tiene una caída de **12 dB por octava**.
+*   **Nivel de Entrada Máximo:** Soporta hasta **8V p-p**.
+*   **Ganancia:** Dispone de una ganancia total máxima de **10 dB (± 1.5 dB)** incorporada para compensar las pérdidas inherentes al proceso de filtrado sustractivo.
+*   **Respuesta de Frecuencia Global:** Con todos los controles al máximo, la respuesta es de **50 Hz a 12 kHz**.
+
+### **2. Funcionamiento y Respuesta**
+*   **Configuración Manual:** El panel frontal cuenta con **8 potenciómetros de nivel** (10K logarítmicos) que controlan la amplitud de cada banda antes de mezclarse en una salida común.
+*   **Respuesta Plana vs. Peine:** Si todos los mandos están al máximo, la señal emerge prácticamente inalterada (excepto por el aumento de nivel). Sin embargo, en ajustes intermedios, debido a su afinación resonante, el banco muestra una **característica de "filtro de peine"** (*comblike*).
+*   **Filtro Sustractivo:** Su acción es esencialmente sustractiva; permite eliminar secciones enteras del espectro, lo que provoca cambios profundos en el carácter del sonido.
+*   **Resonancia:** En ajustes altos, presenta un ligero efecto de resonancia que puede ayudar a dar "presencia" y viveza al audio.
+
+### **3. Detalles de Hardware para Implementación**
+*   **Componentes:** El diseño original utiliza amplificadores operacionales de bajo ruido y alta velocidad de respuesta, específicamente los modelos **NE5534** y **LF355**.
+*   **Ubicación:** En el rack físico, el PCB se identifica como **PC-22** y se encuentra en el **Rack 1**.
+*   **Conexiones:** La señal de entrada proviene de un nodo de entrada de la matriz y se aplica simultáneamente a los ocho filtros. La salida se dirige al patchboard de señales.
+
+### **4. Aplicaciones Sugeridas**
+*   **Tratamiento de Timbres Ricos:** Los resultados más dramáticos se obtienen con entradas armónicamente complejas o polifónicas; las ondas senoidales puras no se benefician de este filtrado al carecer de estructura armónica que procesar.
+*   **Mejora de Señal:** Puede utilizarse para eliminar ruidos de frecuencia fija, como el **zumbido (hum)**, sin distorsionar gravemente el resto del espectro.
+*   **Uso en la Cadena:** A menudo se coloca después de los amplificadores de salida como paso final de moldeado tímbrico.

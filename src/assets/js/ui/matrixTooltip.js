@@ -116,6 +116,9 @@ export function getLabelForSource(source) {
     case 'reverberation':
       return t('matrix.source.reverberation');
 
+    case 'octaveFilterBank':
+      return t('matrix.source.octaveFilterBank');
+
     case 'ringModulator':
       return t('matrix.source.ringModulator', { index: (source.index ?? 0) + 1 });
 
@@ -237,7 +240,10 @@ export function getLabelForDest(dest) {
 
     case 'pitchToVoltageConverterInput':
       return t('matrix.dest.pitchToVoltageConverterInput');
-    
+
+    case 'octaveFilterBankInput':
+      return t('matrix.dest.octaveFilterBankInput');
+
     default:
       return null;
   }

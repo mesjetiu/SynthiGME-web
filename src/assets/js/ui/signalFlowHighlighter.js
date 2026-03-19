@@ -82,6 +82,10 @@ function getModuleElementIds(descriptor) {
     case 'reverbMixCV':
       return ['reverberation1-module'];
 
+    case 'octaveFilterBank':
+    case 'octaveFilterBankInput':
+      return ['octave-filter-bank'];
+
     case 'ringModulator':
     case 'ringModInputA':
     case 'ringModInputB':

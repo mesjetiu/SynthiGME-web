@@ -295,6 +295,15 @@ export class DormancyManager {
     this._setModuleDormant('spring-reverb', !hasReverbUsage);
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 2 OCTAVE FILTER BANK
+    // ─────────────────────────────────────────────────────────────────────────
+    const hasOFBUsage = panel5Connections.some(c =>
+      c.source?.kind === 'octaveFilterBank'
+      || c.dest?.kind === 'octaveFilterBankInput'
+    );
+    this._setModuleDormant('panel2-octave-filter-bank', !hasOFBUsage);
+
+    // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 RING MODULATORS (3 instancias)
     // ─────────────────────────────────────────────────────────────────────────
     for (let rmIdx = 0; rmIdx < 3; rmIdx++) {

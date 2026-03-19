@@ -112,10 +112,30 @@ export default {
       offset: { x: -7, y: 81 }
     },
 
-    // ── Octave Filter Bank (placeholder) ────────────────────────────────
+    // ── Octave Filter Bank (8 knobs de frecuencia central) ──────────────
     octaveFilterBank: {
       size: { width: 744, height: 93 },
-      offset: { x: -7, y: 76 }
+      offset: { x: -7, y: 76 },
+
+      // Distribución idéntica a Input Amplifier Level (misma fila de 8 knobs)
+      knobGap: 28.5,
+      knobSize: 65,
+      knobInnerPct: 78,
+      knobsRowOffset: { x: 0, y: 18 },
+
+      // Knobs azules, tipo normal (0-10)
+      knobColor: 'blue',
+      knobType: 'normal',
+
+      // Frecuencias centrales de cada banda (Hz)
+      // Etiquetas: 63, 125, 250, 500, 1k, 2k, 4k, 8k
+      knobLabels: [63, 125, 250, 500, 1000, 2000, 4000, 8000],
+
+      // Offsets individuales por banda (1..8)
+      knobOffsets: [
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
+      ]
     },
 
     // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───
@@ -184,7 +204,7 @@ export default {
     },
 
     octaveFilterBank: {
-      visible: false
+      visible: true
     },
 
     // ── Módulo funcional: Input Amplifier Level ─────────────────────────

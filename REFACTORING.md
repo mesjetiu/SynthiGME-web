@@ -109,35 +109,30 @@ Código copiado literalmente en varios archivos. Riesgo mínimo al extraerlo.
 
 ---
 
-### R7 · `app.js` — 9.278 líneas ⚠️
+### R7 · `app.js` — 9.278 líneas ✅
 
-**Estructura actual identificada:**
+**Estado:** COMPLETADO (79% reducción: 9278 → 1918 líneas)
 
-| Sección | Líneas aprox. | Responsabilidad |
-|---------|--------------|-----------------|
-| Imports | 1-155 | 75 archivos importados |
-| Constructor | 175-374 | Init paneles, estado, listeners, OSC |
-| `_setupOutputFaders()` | 480-1173 | Panel 7 — output channels |
-| `_setupJoystickPad()` | 1174-1521 | Joystick UI |
-| `_setupUI()` + modales | 1522-3397 | Modales audio, settings, undo/redo... |
-| `_serializeCurrentState()` | 1952-2676 | Serialización de estado (~725 líneas) |
-| `_buildPanel1()` | 3485-4097 | Filtros, envelopes, reverb, ring mod |
-| `_buildPanel4()` | 4098-5051 | Voltímetros, sequencer display |
-| `_buildPanel2()` | 5052-5614 | Osciloscopio |
-| `_buildOscillatorPanel()` | 6194-6551 | Paneles 3 y 4 |
-| `_setupPanel5AudioRouting()` | 7679-8150 | Matriz audio CV (8x8) |
-| `_setupPanel6ControlRouting()` | 8200-8226 | Matriz control CV (8x8) |
-| `_buildLargeMatrices()` | 8827-9009 | Construcción matrices |
+**Módulos extraídos:**
 
-**División propuesta:**
+- ✅ `stateSerializer.js` — serializar/deserializar estado
+- ✅ `panelAssembler.js` — buildPanel1, buildPanel2, setupOutputFaders, etc.
+- ✅ `panelRouting.js` — handlePanel5AudioToggle, handlePanel6ControlToggle, ensurePanelNodes
+- ✅ `audioSetup.js` — ensureAudio, activateMultichannel*, deactivateMultichannel*
+- ✅ `moduleManager.js` — findModuleById, getModulesForPanel, reflowOscillatorPanel, resetModule, resetToDefaults
+- ✅ `uiInitializer.js` — _setupUI, modales, listeners
+- ✅ `routingSetup.js` — matrices, connectAudioMatrix, connectControlMatrix
 
-- `src/assets/js/panelAssembler.js` — `_buildPanelX()` de los 7 paneles (~2.500 líneas)
-- `src/assets/js/routingSetup.js` — matrices de audio y control (~1.500 líneas)
-- `src/assets/js/stateSerializer.js` — `_serializeCurrentState()` y `_applyPatch()` (~800 líneas)
-- `src/assets/js/uiInitializer.js` — setup de modales y componentes UI (~1.000 líneas)
-- `src/assets/js/app.js` — bootstrap delgado, orquesta los anteriores (~500 líneas)
+**Patrón de delegadores en app.js:**
+```javascript
+_buildPanel4() { buildPanel4(this); }
+_resetModule(type, ui) { return resetModule(type, ui, this); }
+async _handlePanel5AudioToggle(...) { return handlePanel5AudioToggle(..., this); }
+```
 
-> **Riesgo:** Alto. Dependencias cruzadas entre secciones. Requiere suite de tests completa antes y después.
+**Tests:** TDD completo para todos los módulos (4458 tests, 0 fallos).
+
+**Módulo nuevo (OFB):** Octave Filter Bank integrado con el mismo patrón TDD.
 
 ---
 
@@ -248,7 +243,7 @@ npm run build:web       # Verifica que el bundle no se rompe
 | R4 | `disconnectNodes()` helper en `utils/audio.js` | pequeño | ✅ hecho |
 | R5 | Dormancy/applyLevel en clase base `Module` | medio | ✅ hecho |
 | R6 | Centralizar `localStorage` en `storage.js` | medio | ✅ hecho |
-| R7 | Split de `app.js` (9.278 → ~500 + 4 nuevos) | grande | 🔄 parcial (stateSerializer.js ✅, panelAssembler.js ✅, routingSetup.js ✅, uiInitializer.js ✅) |
+| R7 | Split de `app.js` (9.278 → 1.918 + 7 nuevos) | grande | ✅ hecho (stateSerializer, moduleManager, panelAssembler, panelRouting, audioSetup, uiInitializer, routingSetup) |
 | R8 | Split de `settingsModal.js` (4.963 → ~2.000 + 3) | grande | ⬜ pendiente |
 | R9 | Split de `pipManager.js` (3.852 → ~1.500 + 3) | grande | ⬜ pendiente |
 | R10 | Split de `engine.js` (2.444 → ~900 + 2) | grande | ⬜ pendiente |

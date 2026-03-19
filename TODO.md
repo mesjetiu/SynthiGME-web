@@ -1,3 +1,20 @@
+## Octave Filter Bank (placa PC-22, D100-22C1)
+
+#### ✅ COMPLETADO
+
+- [x] **Octave Filter Bank completo**
+  - 8 filtros paso-banda BiquadFilterNode nativos en paralelo (sin worklet)
+  - Frecuencias centrales: 63, 125, 250, 500, 1000, 2000, 4000, 8000 Hz
+  - 12 dB/oct (2.º orden), Q = √2, ganancia de compensación +10 dB
+  - Potenciómetros 10K logarítmicos (base 100), rango 0-10, valor inicial 10
+  - Bypass automático por banda (dial ≥ 9.98 → inputGain directo, sin filtro activo)
+  - Entrada audio Panel 5 col 23, salida fila 109. Sin CV
+  - Dormancy automática (silencia sumNode), setting global FILTER_BYPASS_ENABLED compartido
+  - Tooltips con frecuencia central y nivel en dB (patrón factory getOFBBandTooltipInfo)
+  - 58 tests unitarios
+
+---
+
 ## Output Channels - VCA CEM 3330 (versión Cuenca 1982)
 
 #### ✅ COMPLETADO

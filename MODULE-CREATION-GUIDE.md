@@ -5,6 +5,7 @@ Checklist completo basado en tres implementaciones de referencia:
 - **Random Control Voltage Generator** — Módulo estándar con ModuleUI (Panel 3). Patrón típico para módulos con knobs en panel.
 - **Keyboard** — Módulo dual con UI flotante, eventos de nota y MIDI (Panel 4). Patrón alternativo para módulos con interacción compleja o UI no-estándar.
 - **Digital Sequencer 1000** — Módulo complejo con FSM, memoria, múltiples I/O, UI directa en dos paneles (Panel 4 + Panel 7), y conexiones simultáneas en Panel 5 y Panel 6. Patrón para módulos con lógica de estado compleja y presencia distribuida.
+- **Octave Filter Bank** — Módulo sin worklet: usa nodos nativos Web Audio (`BiquadFilterNode`) en lugar de `AudioWorkletProcessor`. Patrón para módulos de filtrado estático o efectos que no necesitan DSP sample-by-sample. Ver [sección 20](#20-patrón-sin-worklet-native-nodes-only).
 
 ---
 
@@ -29,6 +30,7 @@ Checklist completo basado en tres implementaciones de referencia:
 17. [Checklist rápido](#17-checklist-rápido)
 18. [Patrones alternativos (lecciones del Keyboard)](#18-patrones-alternativos-lecciones-del-keyboard)
 19. [Patrones del Sequencer](#19-patrones-del-sequencer)
+20. [Patrón sin worklet: Native Nodes Only](#20-patrón-sin-worklet-native-nodes-only)
 
 ---
 
@@ -1711,3 +1713,94 @@ Lecciones aprendidas de la implementación del Digital Sequencer 1000:
 7. **Clock rate vs clock input**: La frecuencia de reloj interna (`clockRate`) es un dial que genera ticks internamente. El clock input externo (Panel 5, col 51) es una entrada de audio que se procesa con Schmitt trigger. El switch `runClock` selecciona cuál se usa. Ambos pueden coexistir si el patching lo requiere.
 
 8. **Lazy start en routing bidireccional**: Como el sequencer tiene tanto outputs (fuentes) como inputs (destinos), el lazy start en `_handlePanel6AudioToggle()` se aplica tanto al conectar una fuente como un destino.
+
+---
+
+## 20. Patrón sin worklet: Native Nodes Only
+
+**Referencia**: `OctaveFilterBankModule` (`src/assets/js/modules/octaveFilterBank.js`)
+
+Cuando el módulo solo necesita filtros estáticos o procesamiento que Web Audio API cubre de forma nativa, **no crear un worklet**. Usar nodos nativos directamente es más simple, más eficiente y elimina la sobrecarga de comunicación main-thread ↔ worklet.
+
+### Cuándo NO usar worklet
+
+- Filtros IIR/FIR estáticos (BiquadFilterNode, IIRFilterNode)
+- Fuentes de señal constante (ConstantSourceNode)
+- Mezclas estáticas (GainNode + sumador)
+- Efectos donde la frecuencia de corte/Q no varían sample-by-sample
+
+### Diferencias vs patrón estándar
+
+| Aspecto | Con worklet | Sin worklet (nativo) |
+|---------|-------------|----------------------|
+| Archivos a crear | +1 worklet + test de worklet | Sin worklet ni su test |
+| Registro en engine.js | `_loadWorklets()` necesario | No registrar |
+| Comunicación | `port.postMessage()` | `AudioParam.setTargetAtTime()` directo |
+| `_initAudioNodes()` | Crea WorkletNode | Crea BiquadFilterNode/etc nativos |
+| Inicio | `ctx.audioWorklet.addModule()` async | Síncrono, sin await |
+
+### Estructura mínima (ejemplo OFB)
+
+```javascript
+_initAudioNodes() {
+  const ctx = this.getAudioCtx();
+  if (!ctx || this.filters) return;
+
+  this.inputGain = ctx.createGain();
+
+  this.filters = CENTER_FREQUENCIES.map(freq => {
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = freq;
+    f.Q.value = FILTER_Q;
+    return f;
+  });
+
+  this.bandGains = this.filters.map((f, i) => {
+    const g = ctx.createGain();
+    g.gain.value = this._bandDialToGain(this.values.bands[i]);
+    this.inputGain.connect(f);
+    f.connect(g);
+    g.connect(this.sumNode);
+    return g;
+  });
+
+  this.sumNode = ctx.createGain();
+  this.sumNode.gain.value = Math.pow(10, MAKEUP_GAIN_DB / 20);
+
+  this.outputGain = ctx.createGain();
+  this.sumNode.connect(this.outputGain);
+
+  this.outputs.push({ id: 'audio', kind: this.sourceKind, ... });
+}
+```
+
+### Bypass de nodo nativo
+
+Si un nodo nativo puede omitirse (por ejemplo, un filtro en posición neutral), se puede bypassear reconectando la señal:
+
+```javascript
+// Bypass: desconectar filtro, conectar input directo a gain
+_bypassBand(i) {
+  this.inputGain.disconnect(this.filters[i]);
+  this.filters[i].disconnect(this.bandGains[i]);
+  this.inputGain.connect(this.bandGains[i]);
+  this._bandBypassed[i] = true;
+}
+
+// Unbypass: restaurar cadena normal
+_unbypassBand(i) {
+  this.inputGain.disconnect(this.bandGains[i]);
+  this.inputGain.connect(this.filters[i]);
+  this.filters[i].connect(this.bandGains[i]);
+  this._bandBypassed[i] = false;
+}
+```
+
+### Archivos NO necesarios con este patrón
+
+Al usar nodos nativos, se omiten:
+- `src/assets/js/worklets/myModule.worklet.js`
+- `tests/worklets/myModule.worklet.test.js`
+- Registro en `engine.js` (`_loadWorklets`)
+- Helpers `sendWorkletMessage()` / `postMessage`

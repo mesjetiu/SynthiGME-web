@@ -5,6 +5,13 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+### Añadido
+- **Octave Filter Bank (PC-22)**: Banco de 8 filtros paso-banda en paralelo (63, 125, 250, 500, 1k, 2k, 4k, 8k Hz), 12 dB/oct, Q=√2. Potenciómetros 10K logarítmicos por banda. Entrada audio Panel 5 col 23, salida fila 109. Sin CV (control manual exclusivo). Bypass automático por banda cuando el dial está al máximo (respuesta plana +10 dB, ahorro de CPU). Valor inicial 10 (bypass activo = señal plana). Tooltips con frecuencia central y nivel en dB. Dormancy automática. 58 tests.
+
+---
+
 ## [0.8.0] - 2026-03-16
 
 ### Añadido

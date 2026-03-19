@@ -51,6 +51,7 @@ El motor de audio es exigente. Si notas cortes o "glitches" en el sonido:
 | **3 Envelope Shapers** | Generador de envolvente ADSR+Delay con 5 modos (Gated F/R, Free Run, Gated, Triggered, Hold). Tiempos 1ms–20s. Salida CV ±5V para modulación vía matrices. |
 | **3 Ring Modulators** | Multiplicador de señales de precisión (chip 4214AP). Soft-clip tanh, breakthrough −64dB. |
 | **Spring Reverb** | Reverberación de muelle con allpass + feedback loop (RT60=2.4s). Mix wet/dry con control CV. |
+| **Octave Filter Bank** | 8 filtros paso-banda en paralelo (63–8000 Hz, 12 dB/oct, Q=√2). Potenciómetros 10K log por banda. Bypass automático por banda cuando está al máximo (respuesta plana +10 dB). |
 | **Secuenciador Digital** | Digital Sequencer 1000: memoria de 1024 eventos, 6 pistas de voltaje (0-7V, DAC 8-bit), 4 pistas de key/gate. Grabación selectiva con overdubbing. Clock interno 0.1-500 Hz. Display hex. |
 | **Pitch to Voltage** | Convertidor de frecuencia a voltaje 1V/Oct con track & hold. Detecta el pitch de señales de audio y genera CV proporcional. |
 | **Teclados duales** | Upper y Lower keyboard con Pitch (1V/Oct), Gate y Velocity. Modos Normal/Latch/Legato. MIDI Learn. Ventana flotante PiP. |

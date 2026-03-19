@@ -171,6 +171,11 @@ export default {
     { rowSynth: 108, source: { kind: 'panel3Osc', oscIndex: 8, channelId: 'triPulse' } },
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PANEL 2 OCTAVE FILTER BANK (fila 109)
+    // ─────────────────────────────────────────────────────────────────────────
+    { rowSynth: 109, source: { kind: 'octaveFilterBank', index: 0 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
     // PANEL 1 FILTERS (filas 110-117)
     // ─────────────────────────────────────────────────────────────────────────
     { rowSynth: 110, source: { kind: 'filterLP', index: 0 } },
@@ -255,6 +260,11 @@ export default {
     { colSynth: 20, dest: { kind: 'filterHPInput', index: 1 } },
     { colSynth: 21, dest: { kind: 'filterHPInput', index: 2 } },
     { colSynth: 22, dest: { kind: 'filterHPInput', index: 3 } },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OCTAVE FILTER BANK INPUT (columna 23)
+    // ─────────────────────────────────────────────────────────────────────────
+    { colSynth: 23, dest: { kind: 'octaveFilterBankInput' } },
 
     // ─────────────────────────────────────────────────────────────────────────
     // HARD SYNC INPUTS (columnas 24-35 → Osc 1-12 sync input)

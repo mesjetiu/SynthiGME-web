@@ -17,7 +17,8 @@ import {
   inputAmplifierConfig,
   reverberationConfig,
   ringModulatorConfig,
-  envelopeShaperConfig
+  envelopeShaperConfig,
+  octaveFilterBankConfig
 } from './configs/index.js';
 
 import { SynthiFilterModule }           from './modules/synthiFilter.js';
@@ -25,6 +26,7 @@ import { SpringReverbModule }           from './modules/springReverb.js';
 import { RingModulatorModule }          from './modules/ringModulator.js';
 import { EnvelopeShaperModule }         from './modules/envelopeShaper.js';
 import { InputAmplifierModule }         from './modules/inputAmplifier.js';
+import { OctaveFilterBankModule }      from './modules/octaveFilterBank.js';
 import { OscilloscopeModule }           from './modules/oscilloscope.js';
 
 import { Panel1FilterUI }               from './ui/panel1Filter.js';
@@ -1001,26 +1003,89 @@ export function buildPanel2(app) {
     host.appendChild(freqMeterEl);
     
     // ─────────────────────────────────────────────────────────────────────────
-    // OCTAVE FILTER BANK (placeholder)
+    // OCTAVE FILTER BANK (8 knobs de frecuencia central)
     // ─────────────────────────────────────────────────────────────────────────
-    
-    const octaveFilterLayout = blueprint.layout.octaveFilterBank;
-    const octaveFilterSize = octaveFilterLayout.size;
-    const octaveFilterFrame = new ModuleFrame({
-      id: 'octave-filter-bank',
-      title: 'Octave Filter Bank',
-      className: 'panel2-placeholder'
-    });
-    const octaveFilterEl = octaveFilterFrame.createElement();
-    octaveFilterEl.style.cssText = `
-      width: ${octaveFilterSize.width}px;
-      height: ${octaveFilterSize.height}px;
+
+    const ofbLayout = blueprint.layout.octaveFilterBank || {};
+    const ofbModuleUI = blueprint.modules?.octaveFilterBank?.ui || {};
+    const ofbKnobGap = Array.isArray(ofbLayout.knobGap)
+      ? toNum(ofbLayout.knobGap[0], 8)
+      : toNum(ofbLayout.knobGap, 8);
+    const ofbUIDefaults = {
+      offset: resolveOffset(ofbLayout.offset, { x: 0, y: 0 }),
+      knobGap: ofbKnobGap,
+      knobSize: ofbLayout.knobSize ?? 'sm',
+      knobInnerPct: toNum(ofbLayout.knobInnerPct, 78),
+      knobsRowOffset: resolveOffset(ofbLayout.knobsRowOffset, { x: 0, y: 0 }),
+      knobOffsets: Array.isArray(ofbLayout.knobOffsets) ? ofbLayout.knobOffsets : []
+    };
+    const ofbUIConfig = {
+      ...ofbUIDefaults,
+      ...ofbModuleUI,
+      offset: resolveOffset(ofbModuleUI.offset, ofbUIDefaults.offset),
+      knobGap: toNum(ofbModuleUI.knobGap, ofbUIDefaults.knobGap),
+      knobSize: ofbModuleUI.knobSize ?? ofbUIDefaults.knobSize,
+      knobInnerPct: toNum(ofbModuleUI.knobInnerPct, ofbUIDefaults.knobInnerPct),
+      knobsRowOffset: resolveOffset(ofbModuleUI.knobsRowOffset, ofbUIDefaults.knobsRowOffset),
+      knobOffsets: Array.isArray(ofbModuleUI.knobOffsets)
+        ? ofbModuleUI.knobOffsets
+        : ofbUIDefaults.knobOffsets,
+      knobColor: ofbModuleUI.knobColor ?? ofbLayout.knobColor ?? 'blue',
+      knobType: ofbModuleUI.knobType ?? ofbLayout.knobType ?? 'normal'
+    };
+
+    // Formato de etiquetas: "63", "125", ..., "1k", "2k", "4k", "8k"
+    const ofbLabels = (ofbLayout.knobLabels || [63, 125, 250, 500, 1000, 2000, 4000, 8000])
+      .map(f => f >= 1000 ? `${f / 1000}k` : String(f));
+
+    // Sección contenedora
+    const ofbSection = document.createElement('div');
+    ofbSection.className = 'panel2-octave-filter-section';
+    const ofbSize = ofbLayout.size || { width: 730, height: 90 };
+    ofbSection.style.cssText = `
+      width: ${ofbSize.width}px;
+      height: ${ofbSize.height}px;
       box-sizing: border-box;
       margin-bottom: ${blueprint.layout.gap ?? 6}px;
     `;
-    applyOffset(octaveFilterEl, octaveFilterLayout.offset);
-    applyModuleVisibility(octaveFilterEl, blueprint, 'octaveFilterBank');
-    host.appendChild(octaveFilterEl);
+    applyOffset(ofbSection, ofbUIConfig.offset);
+    applyModuleVisibility(ofbSection, blueprint, 'octaveFilterBank');
+    host.appendChild(ofbSection);
+
+    // Módulo de audio (8 BiquadFilter nativos en paralelo, sin worklet)
+    const ofbModule = new OctaveFilterBankModule(app.engine, octaveFilterBankConfig.id, {
+      sourceKind: octaveFilterBankConfig.sourceKind,
+      audio: octaveFilterBankConfig.audio,
+      ramps: octaveFilterBankConfig.ramps,
+      initialBandLevel: octaveFilterBankConfig.knobs.bandLevel.initial
+    });
+    app.engine.addModule(ofbModule);
+    app.octaveFilterBank = ofbModule;
+
+    // UI con knobs (reutiliza InputAmplifierUI con labels personalizados)
+    const ofbUI = new InputAmplifierUI({
+      id: 'octave-filter-bank',
+      title: 'Octave Filter Bank',
+      channels: 8,
+      knobLabels: ofbLabels,
+      tooltipLabels: ofbLabels.map(l => `${l} Hz`),
+      knobConfig: octaveFilterBankConfig.knobs.bandLevel,
+      layout: {
+        knobGap: ofbUIConfig.knobGap,
+        knobSize: ofbUIConfig.knobSize,
+        knobInnerPct: ofbUIConfig.knobInnerPct,
+        knobsRowOffset: ofbUIConfig.knobsRowOffset,
+        knobOffsets: ofbUIConfig.knobOffsets,
+        knobColor: ofbUIConfig.knobColor,
+        knobType: ofbUIConfig.knobType
+      },
+      onLevelChange: (bandIndex, value) => {
+        ofbModule.setBandLevel(bandIndex, value);
+      }
+    });
+
+    ofbSection.appendChild(ofbUI.createElement());
+    app._octaveFilterBankUI = ofbUI;
     
     // ─────────────────────────────────────────────────────────────────────────
     // INPUT AMPLIFIER LEVEL (8 canales de entrada)
@@ -1179,7 +1244,9 @@ export function buildPanel2(app) {
       inputAmpModule,
       inputAmpUI,
       freqMeterFrame,
-      octaveFilterFrame,
+      ofbSection,
+      ofbModule,
+      ofbUI,
       extSendFrame,
       extReturnFrame
     };

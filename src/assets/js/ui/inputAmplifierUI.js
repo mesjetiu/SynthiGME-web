@@ -58,8 +58,12 @@ export class InputAmplifierUI {
       knobSize: options.layout?.knobSize ?? 'sm',
       knobInnerPct: options.layout?.knobInnerPct ?? 78,
       knobsRowOffset: options.layout?.knobsRowOffset || { x: 0, y: 0 },
-      knobOffsets: Array.isArray(options.layout?.knobOffsets) ? options.layout.knobOffsets : []
+      knobOffsets: Array.isArray(options.layout?.knobOffsets) ? options.layout.knobOffsets : [],
+      knobColor: options.layout?.knobColor ?? 'white',
+      knobType: options.layout?.knobType ?? 'normal'
     };
+    this.knobLabels = Array.isArray(options.knobLabels) ? options.knobLabels : null;
+    this.tooltipLabels = Array.isArray(options.tooltipLabels) ? options.tooltipLabels : null;
     this.onLevelChange = options.onLevelChange || null;
     
     /**
@@ -136,7 +140,7 @@ export class InputAmplifierUI {
     // Label superior "Channel N"
     const label = document.createElement('div');
     label.className = 'input-amplifier__label';
-    label.textContent = `Channel ${channel + 1}`;
+    label.textContent = this.knobLabels?.[channel] ?? `Channel ${channel + 1}`;
     wrapper.appendChild(label);
     
     // Contenedor del knob
@@ -186,7 +190,7 @@ export class InputAmplifierUI {
       scaleMax: 10,
       scaleDecimals: 1,
       valueElement: valueEl,
-      tooltipLabel: `Ch. ${channel + 1}`,
+      tooltipLabel: this.tooltipLabels?.[channel] ?? this.knobLabels?.[channel] ?? `Ch. ${channel + 1}`,
       onChange: (value) => {
         if (this.onLevelChange) {
           this.onLevelChange(channel, value);

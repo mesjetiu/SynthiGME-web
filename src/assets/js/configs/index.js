@@ -20,6 +20,7 @@ export { default as filterConfig } from './modules/filter.config.js';
 export { default as reverberationConfig } from './modules/reverberation.config.js';
 export { default as ringModulatorConfig } from './modules/ringModulator.config.js';
 export { default as envelopeShaperConfig } from './modules/envelopeShaper.config.js';
+export { default as octaveFilterBankConfig } from './modules/octaveFilterBank.config.js';
 
 // Secuenciador
 export { default as sequencerConfig } from './modules/sequencer.config.js';

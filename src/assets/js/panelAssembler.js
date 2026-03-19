@@ -53,7 +53,8 @@ import {
   getReverbMixTooltipInfo, getReverbLevelTooltipInfo, getRingModLevelTooltipInfo,
   getEnvelopeShaperTimeTooltipInfo, getEnvelopeShaperSustainTooltipInfo,
   getEnvelopeShaperEnvLevelTooltipInfo, getEnvelopeShaperSignalLevelTooltipInfo,
-  getEnvelopeShaperModeTooltipInfo
+  getEnvelopeShaperModeTooltipInfo,
+  getOFBBandTooltipInfo
 } from './utils/tooltipUtils.js';
 
 import panel3Blueprint from './panelBlueprints/panel3.blueprint.js';
@@ -1063,6 +1064,10 @@ export function buildPanel2(app) {
     app.octaveFilterBank = ofbModule;
 
     // UI con knobs (reutiliza InputAmplifierUI con labels personalizados)
+    const ofbBandTooltip = getOFBBandTooltipInfo(
+      octaveFilterBankConfig.centerFrequencies,
+      octaveFilterBankConfig.audio.levelLogBase
+    );
     const ofbUI = new InputAmplifierUI({
       id: 'octave-filter-bank',
       title: 'Octave Filter Bank',
@@ -1070,6 +1075,7 @@ export function buildPanel2(app) {
       knobLabels: ofbLabels,
       tooltipLabels: ofbLabels.map(l => `${l} Hz`),
       knobConfig: octaveFilterBankConfig.knobs.bandLevel,
+      getTooltipInfo: ofbBandTooltip,
       layout: {
         knobGap: ofbUIConfig.knobGap,
         knobSize: ofbUIConfig.knobSize,

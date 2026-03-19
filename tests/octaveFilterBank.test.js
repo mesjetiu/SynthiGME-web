@@ -65,6 +65,17 @@ describe('OctaveFilterBank — static source inspection', () => {
     assert.match(moduleSource, /kind:\s*this\.sourceKind/);
   });
 
+  it('implementa bypass de filtro (setFilterBypassEnabled, _bypassBand, _unbypassBand)', () => {
+    assert.match(moduleSource, /setFilterBypassEnabled\s*\(\s*enabled\s*\)/);
+    assert.match(moduleSource, /_bypassBand\s*\(\s*bandIndex\s*\)/);
+    assert.match(moduleSource, /_unbypassBand\s*\(\s*bandIndex\s*\)/);
+    assert.match(moduleSource, /BYPASS_THRESHOLD/);
+  });
+
+  it('usa STORAGE_KEYS.FILTER_BYPASS_ENABLED (setting compartido)', () => {
+    assert.match(moduleSource, /STORAGE_KEYS\.FILTER_BYPASS_ENABLED/);
+  });
+
   // Config
   it('config tiene las 8 frecuencias centrales', () => {
     assert.match(configSource, /centerFrequencies.*\[63.*125.*250.*500.*1000.*2000.*4000.*8000\]/);
@@ -77,6 +88,10 @@ describe('OctaveFilterBank — static source inspection', () => {
 
   it('config no tiene conexiones en panel 6', () => {
     assert.doesNotMatch(configSource, /panel6/);
+  });
+
+  it('config tiene initial: 10 (estado neutro = bypass, señal plana)', () => {
+    assert.match(configSource, /initial:\s*10/);
   });
 
   // Blueprint panel5
@@ -382,6 +397,68 @@ describe('OctaveFilterBankModule — unit tests', () => {
     it('sumNode se conecta al outputGain', () => {
       ofb.start();
       assert.equal(ofb.sumNode.connect.mock.calls.length, 1);
+    });
+  });
+
+  describe('filter bypass (dial=10 → bypass bandpass)', () => {
+    it('_filterBypassEnabled es true por defecto', () => {
+      assert.equal(ofb._filterBypassEnabled, true);
+    });
+
+    it('_bandBypassed inicializa todo a false', () => {
+      assert.equal(ofb._bandBypassed.length, 8);
+      assert.ok(ofb._bandBypassed.every(b => b === false));
+    });
+
+    it('setBandLevel(i, 10) activa bypass para esa banda', () => {
+      ofb.start();
+      ofb.setBandLevel(3, 10);
+      assert.equal(ofb._bandBypassed[3], true);
+    });
+
+    it('bypass: inputGain conecta directo a bandGain (sin filter)', () => {
+      ofb.start();
+      const connectsBefore = ofb.inputGain.connect.mock.calls.length; // 8 (a los filtros)
+      ofb.setBandLevel(0, 10);
+      // Después del bypass: disconnect filter + connect directo a gain
+      assert.equal(ofb._bandBypassed[0], true);
+      // inputGain ahora tiene 8 + 1 connects (el directo al bandGain[0])
+      assert.equal(ofb.inputGain.connect.mock.calls.length, connectsBefore + 1);
+    });
+
+    it('bajar de 10 desactiva bypass (reconecta filter)', () => {
+      ofb.start();
+      ofb.setBandLevel(2, 10);
+      assert.equal(ofb._bandBypassed[2], true);
+      ofb.setBandLevel(2, 9);
+      assert.equal(ofb._bandBypassed[2], false);
+    });
+
+    it('setFilterBypassEnabled(false) desactiva todos los bypass', () => {
+      ofb.start();
+      ofb.setBandLevel(0, 10);
+      ofb.setBandLevel(1, 10);
+      assert.equal(ofb._bandBypassed[0], true);
+      assert.equal(ofb._bandBypassed[1], true);
+      ofb.setFilterBypassEnabled(false);
+      assert.equal(ofb._bandBypassed[0], false);
+      assert.equal(ofb._bandBypassed[1], false);
+    });
+
+    it('setFilterBypassEnabled(true) reactiva bypass donde dial=10', () => {
+      ofb.start();
+      ofb.values.bands[5] = 10;
+      ofb.setFilterBypassEnabled(false);
+      assert.equal(ofb._bandBypassed[5], false);
+      ofb.setFilterBypassEnabled(true);
+      assert.equal(ofb._bandBypassed[5], true);
+    });
+
+    it('bypass no se activa si _filterBypassEnabled es false', () => {
+      ofb._filterBypassEnabled = false;
+      ofb.start();
+      ofb.setBandLevel(4, 10);
+      assert.equal(ofb._bandBypassed[4], false);
     });
   });
 });

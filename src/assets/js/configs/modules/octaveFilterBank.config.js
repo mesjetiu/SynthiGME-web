@@ -73,7 +73,7 @@ export default {
     bandLevel: {
       min: 0,
       max: 10,
-      initial: 0,
+      initial: 10,
       curve: 'log',
       pixelsForFullRange: 900
     }

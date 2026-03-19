@@ -903,6 +903,7 @@ export function getSequencerKeyLevelTooltipInfo() {
  * @returns {function(number, number): string|null}
  */
 export function getPVCRangeTooltipInfo() {
+  /** @param {number} dial */
   function rangeDialToSpread(dial) {
     if (dial <= 3.5) return -2 + (dial / 3.5) * 2;
     if (dial <= 7) return (dial - 3.5) / 3.5;
@@ -927,6 +928,35 @@ export function getPVCRangeTooltipInfo() {
       } else if (Math.abs(spread) < 0.01) {
         parts.push('sin tracking');
       }
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OCTAVE FILTER BANK
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Genera tooltip para una banda del Octave Filter Bank.
+ * Muestra: frecuencia central, ganancia (dB).
+ *
+ * @param {number[]} centerFrequencies - Frecuencias centrales por banda
+ * @param {number} logBase - Base logarítmica de la curva del potenciómetro
+ * @returns {function(number, number, number): string|null} (bandIndex, value, scaleValue) => info
+ */
+export function getOFBBandTooltipInfo(centerFrequencies, logBase = 100) {
+  return (bandIndex, value, scaleValue) => {
+    const parts = [];
+    const freq = centerFrequencies[bandIndex];
+
+    const normalised = clamp(scaleValue, 0, 10) / 10;
+    const gain = normalised <= 0 ? 0 : (Math.pow(logBase, normalised) - 1) / (logBase - 1);
+
+    if (showAudioTooltip()) {
+      parts.push(formatFrequencyHz(freq));
+      parts.push(gainToDb(gain));
     }
 
     return parts.length > 0 ? parts.join(' · ') : null;

@@ -64,6 +64,7 @@ export class InputAmplifierUI {
     };
     this.knobLabels = Array.isArray(options.knobLabels) ? options.knobLabels : null;
     this.tooltipLabels = Array.isArray(options.tooltipLabels) ? options.tooltipLabels : null;
+    this.getTooltipInfo = typeof options.getTooltipInfo === 'function' ? options.getTooltipInfo : null;
     this.onLevelChange = options.onLevelChange || null;
     
     /**
@@ -181,7 +182,7 @@ export class InputAmplifierUI {
     wrapper.appendChild(valueEl);
     
     // Crear instancia del Knob con escala Synthi 100 (0-10)
-    const knobInstance = new Knob(knobEl, {
+    const knobOpts = {
       min: this.knobConfig.min,
       max: this.knobConfig.max,
       initial: this.knobConfig.initial,
@@ -196,7 +197,11 @@ export class InputAmplifierUI {
           this.onLevelChange(channel, value);
         }
       }
-    });
+    };
+    if (this.getTooltipInfo) {
+      knobOpts.getTooltipInfo = (value, scaleValue) => this.getTooltipInfo(channel, value, scaleValue);
+    }
+    const knobInstance = new Knob(knobEl, knobOpts);
     
     this.knobs.push(knobInstance);
     

@@ -1,6 +1,9 @@
 .release-cache/
 /local/
 node_modules/
+
+# Claude Code — instrucciones privadas (no publicar en repo público)
+CLAUDE.md
 .commit_msg.txt
 
 # Estudio técnico-histórico (repositorio separado)

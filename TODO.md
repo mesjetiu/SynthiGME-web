@@ -94,6 +94,74 @@ debido a la saturación en los amplificadores de suma (I/C 6 e I/C 7).
 - [ ] Valorar transición de zoom global continuo a navegación centrada en paneles/PiP
 - [ ] Añadir batería equivalente manual para Firefox/Linux y comparar contra Chromium
 
+### Auditoría de eficiencia zoom/pan/dibujado (julio 2026) — documentado, sin acción por ahora
+
+Revisión de código y del historial de fixes de zoom/PiP/nitidez. Contexto: las buenas
+prácticas ya están aplicadas (gestos coalescidos a 1 rAF, transform-only, `contain`
+afinado, snap a píxel de dispositivo, histéresis low-zoom, `isInputPending()` en el
+commit del sharp mode, zoom residual, will-change dinámico en modo performance).
+El techo es estructural: ~45k nodos DOM / ~26k SVG / 8.442 pines → 33 FPS idle en la
+línea base propia. Hallazgos, de más barato a más ambicioso:
+
+1. **Canvas de fondo dibuja en vacío (fix trivial).** `CANVAS_BG_SVG_BY_PANEL` está
+   vacío (todo comentado; los paneles usan JPG por CSS), pero `renderCanvasBgViewport()`
+   se ejecuta en cada frame de pan/zoom cuando `shouldUseCanvasBg()` es true (táctil y
+   modo performance): crea la capa, dimensiona un canvas a 2× CSS px y hace `fillRect`
+   negro completo (~8 MP/frame en 1080p) sin dibujar nada, más la VRAM del canvas
+   permanente. Guard al inicio: si no hay URLs configuradas → return true sin tocar
+   el canvas ni crear la capa. (`canvasBackground.js:19-26,146-213`)
+
+2. **`refreshMetrics()` incondicional por frame en los bucles de zoom.**
+   `stepViewportWheelZoom` (viewportNavigation.js ~1087) y `stepViewportKeyboardZoom`
+   (~1060) hacen `metricsDirty = true; refreshMetrics()` en cada rAF, y el pinch marca
+   `metricsDirty` en cada pointermove. Durante zoom por transform ni el contenido ni el
+   outer cambian de tamaño: basta refrescar al inicio del gesto. `refreshMetrics()` hace
+   `getBoundingClientRect` + recorrido de paneles leyendo `offsetLeft/offsetWidth`; con
+   layout limpio es barato, pero si algo ensucia estilos a mitad de gesto se convierte
+   en reflow forzado por frame.
+
+3. **`dismissViewportTransientUi()` dispara evento global cada frame de gesto**
+   (throttle 16 ms = 1/frame). Mejor: flag global "navegando" que tooltipManager
+   consulte para no mostrar tooltips durante el gesto + un único dismiss al inicio.
+   Ataca de raíz el problema (tooltips reapareciendo al pasar contenido bajo el puntero)
+   y elimina trabajo por frame.
+
+4. **Experimento clave: ¿es necesario el sharp mode?** Toda la maquinaria de
+   rasterización adaptativa (CSS `zoom` + commit diferido + zoom residual) existe porque
+   Chrome escala texturas ya rasterizadas → borroso. Pero la causa probable de que Chrome
+   NO re-rasterice solo es el `will-change: transform` PERMANENTE de `#viewportInner`
+   en modo calidad (main.css ~2067): fija la escala de raster de la capa. Chromium
+   moderno re-rasteriza capas compuestas a la escala final al terminar el gesto si la
+   capa no está fijada. Experimento: en modo calidad, quitar `will-change` al quedar
+   idle (patrón `promoteWillChange`/`demoteWillChange` que ya usa el modo performance)
+   y medir con `npm run perf:ui` si la re-raster natural da la misma nitidez. Si
+   funciona, el sharp mode entero es prescindible; y CSS `zoom` invalida layout de los
+   45k nodos, mientras el re-raster del compositor no toca layout.
+
+5. **Culling manual de paneles fuera de pantalla a zoom alto.** Con foco en un panel,
+   los otros 6 siguen pintándose. `content-visibility: auto` descartado (implica
+   `contain: paint` → blur del SVG inline en Android, ya documentado). Alternativa:
+   el código de navegación ya conoce scale/offsets y geometrías → calcular en JS qué
+   paneles quedan completamente fuera del viewport (con margen) y ponerles
+   `visibility: hidden` al terminar el gesto, restaurando antes de que entren en vista.
+   Salta el paint sin tocar layout ni provocar el blur de contain:paint. A zoom de
+   panel puede sacar del paint ~85% de la escena.
+
+6. **Matrices de pines = el siguiente "knobs rasterizados".** Los 8.442 pines-botón son
+   el bloque DOM restante más grande. Mismo patrón que knobs→PNG (~17k nodos eliminados):
+   fondo pre-rasterizado por matriz (agujeros vacíos), DOM solo para pines colocados,
+   hit-testing por coordenadas para hover/click/context-menu. El proyecto más caro,
+   pero el único que ataca el techo de 33 FPS idle.
+
+7. **PiP zoom (13,6 FPS, peor punto medido).** Antes de rediseñar, confirmar con
+   `?perf=1` si durante rueda sobre PiP se escribe algo más que `transform` por frame
+   (p. ej. `scrollLeft/scrollTop`, que fuerzan layout). Enlaza con la variante A/B ya
+   pendiente arriba.
+
+Prioridad sugerida: 1-3 son una tarde y sin riesgo; 4 es medición que puede permitir
+BORRAR complejidad (hacerlo antes que optimizar más); 5-6 mueven el techo estructural,
+en línea con ARCHITECTURE.md §3.1.3.
+
 - ~~Crear menú contextual de cada mando, de cada módulo... para reiniciar, para poner un valor concreto...~~ ✅ Implementado (`contextMenuManager.js`)
 
 ## Sistema Dormancy:

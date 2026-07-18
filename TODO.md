@@ -138,19 +138,70 @@ podría ser significativo en dispositivos móviles.
 
 ## Problemas:
 
+> Auditoría 2026-07-18: se revisó cada entrada contra el historial de commits y se
+> verificó con la suite de audio Playwright (202/218 pasan; los 16 fallos tienen causa
+> identificada, ver sección "Tests de audio" más abajo).
+
+### Abiertos (verificado en código, sin fix en el historial)
+
 - Al reiniciar patch, permanece el dibujo en el osciloscopio.
+  El commit ca6f2191 (24-feb) integró knobs/toggle del osciloscopio en estado y reinicio,
+  pero nada limpia el trazo del canvas: `clearRect` solo ocurre dentro del ciclo de dibujo
+  (`oscilloscopeDisplay.js`). Falta una llamada de limpieza al aplicar/reiniciar patch.
+
+- No se conceden permisos de micro en Chrome android (móvil). Sin commits relacionados.
+
+- En móvil no importa patches (en desktop sí, probado) - testear antes. Sin commits relacionados.
+
+- Los menús contextuales de los pines son tan largos que en móvil no se ven enteros.
+  Confirmado en código: `.pip-context-menu` (main.css) no tiene `max-height` ni
+  `overflow-y`. Fix fácil. Lo mismo para la ventana desplegable de detach en el menú de la barra.
 
 - Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
+  Parcialmente mejorado (54fbb543: ya no desaparece con el ratón encima; 565664ab:
+  estilo unificado), pero el ajuste de "solo con click" sigue sin existir en settingsModal.
 
-- No se conceden permisos de micro en Chrome android (móvil)
+### Probablemente resueltos (verificar de uso antes de cerrar)
 
-- En móvil no importa patches (en desktop sí, probado) - testear antes
+- ~~Incongruencia en estado inicial en reiniciar (0) y inicio de app en freq (5).~~
+  Casi seguro resuelto por el refactor R7 (62cd8e73, 18-mar): `resetModule`/`resetToDefaults`
+  ahora leen los `initial` de los configs como fuente única de verdad
+  (oscillator.config.js → `frequency.initial: 5`). Verificar en UI y cerrar.
 
-- los menús contextuales de los pines son tan largos que en móvil no se ven enteros. Dar posibilidad de scroll. Lo mismo para la ventana desplegable de detach en el menú de la barra.
+- Asimetría DC en señales grabadas (corridas hacia el negativo, distorsión al subir volumen).
+  Se añadió un DC blocker AudioWorklet de 1er orden en los Output Channels
+  (5be9c8c8 → c636d058, 18-feb), en la ruta de altavoces: muteNode → dcBlocker → salida.
+  DUDA IMPORTANTE: la grabación de canales individuales toma la señal en `muteNode`
+  (engine.js `getRecordingNodes()`), es decir ANTES del DC blocker → las grabaciones
+  individuales podrían seguir mostrando el offset. Los stereo buses sí cuelgan de
+  `dcBlockerOut` (post-blocker). Pendiente: grabar y medir, y decidir si la toma de
+  grabación individual debe moverse post-blocker (ojo: la re-entry debe seguir
+  conservando DC para CV, eso es intencional).
 
-- Incongruencia en estado inicial en reiniciar (0) y inicio de app en freq (5).
+## Tests de audio (auditoría 2026-07-18)
 
-- Noto un problema he grabado diversas señales en un editor de ondas. veo que hay cierta asimetría en todas ellas: están corridas hacia el negativo. Subiendo el volumen al máximo se nota distorsión en una forma de onda cualquiera porque la parte negativa pica un poco. Pasa con todas las formas. Hay que descubrir en qué punto de la cadena ocurre.
+Estado: 202/218 pasan. Los 16 fallos NO son bugs de DSP en producción: todos los causa
+el suavizado anti-zipper one-pole (5 Hz, τ≈32ms) añadido el 16-mar (6af6466f, 8fed4f25).
+Verificado experimentalmente: con `_smoothAlpha = 1.0` los 16 tests pasan.
+
+Detalle de la causa:
+- El worklet inicializa `_smoothedFreq` desde `processorOptions.frequency ?? 440` y el
+  resto de parámetros suavizados (symmetry 0.5, gain 1.0, levels 0) con defaults fijos.
+- La app real (engine.js) SÍ pasa `frequency` por processorOptions → sin transitorio audible
+  en producción. El harness de tests (harness.html) NO lo pasa → los primeros ~150ms
+  barren desde 440 Hz y contaminan las mediciones (peaks, cruces por cero, octavas FM).
+- Ejemplos: cuspoide mide ratio 1.0 porque el peak se captura en los primeros ms
+  (symmetry aún ≈0.5); el E2E mide 272 Hz en vez de 261.63 (transitorio 440→261 incluido);
+  hard sync cuenta 28 cruces en vez de 22 por la misma razón.
+
+Fix pendiente (elegir uno):
+1. (Preferido) Worklet: inicializar todos los `_smoothed*` desde el primer sample de cada
+   AudioParam en el primer `process()` (lazy init) → elimina el transitorio para todos los
+   consumidores sin perder el anti-zipper.
+2. Harness: pasar todos los valores iniciales por `processorOptions` imitando a engine.js.
+3. Tests: descartar los primeros ~200ms del buffer antes de medir.
+
+Nota: `detune` NO está suavizado (correcto: la FM por matriz vía detune no se filtra).
 
 ## Documentación 
 
@@ -175,6 +226,7 @@ podría ser significativo en dispositivos móviles.
 
 - Parámetros no modificables por VC pasarlos a control rate.
 - los filtros muestran aliasing cuando pongo una señal estrecha, sinusoidal por el Q alto. Parece que sus armónicos pronto se reflejan creando el efecto clarísimo de aliasing... podemos filtrarlo o hacer algo para evitarlo?
+  (Posiblemente mitigado por 92588b72, 10-mar: 2x oversampling LP + HP, incluido en v0.8.0. Verificar de oído antes de cerrar.)
 
 
 - crear sistema de capas en pip.

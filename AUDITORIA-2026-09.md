@@ -235,7 +235,19 @@ análisis estático de arriba basta para decidir.
   Mide que un escalón de DC sale como x·Rⁿ exacto y se extingue (τ ≈ 159 ms),
   −3 dB en fc = 1 Hz, −0,04 dB a 10 Hz, dentro de 0,02 dB de 0 en 20 Hz–1 kHz,
   DC + seno → solo el seno; `reset`, k-rate y continuidad entre bloques.
-  Quedan huérfanos `scopeCapture` y `recordingCapture`.
+- `scopeCapture.worklet.test.js` (25): el worklet del osciloscopio, con un
+  seno de periodo exacto (100 muestras) por Y y una rampa por X que delata
+  la muestra de origen. Fija: un `scopeData` por `bufferSize`, ring
+  continuo, alineación al cruce ascendente de nivel + histéresis Schmitt,
+  `validLength` en ciclos enteros con relleno del último valor, imagen
+  estable entre frames, `isAuto` a partir del frame 30 sin trigger,
+  `setBufferSize` solo con 512/1024/2048/4096, dormancy y `stop`. Dos
+  QUIRK, sin efecto visible pero fijados: con `triggerHysteresis` 150 el
+  periodo que mide es 200 para una señal de 100 (el primer múltiplo que
+  supera la histéresis; `validLength` sigue siendo múltiplo del real), y
+  `setBufferSize` vacía el ring pero no `samplesSinceLastSend`, así que el
+  primer frame tras cambiar lleva ceros al principio.
+  Queda huérfano `recordingCapture`.
 - `pulse` (19; el espejo arrancaba con pw 0,5 y el módulo con 0; además
   `PulseModule` no lo usa ningún panel), `oscOscillatorSync` (34, contra la
   clase real y el `oscBridge` real con `window.oscAPI` stub) y

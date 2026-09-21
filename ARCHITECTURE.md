@@ -3595,6 +3595,7 @@ tests/
 │   └── vernierKnob.test.js          # Tests del VernierKnob rasterizado
 ├── worklets/
 │   ├── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
+│   ├── dcBlocker.worklet.test.js # Worklet dc-blocker real: R del polo, escalón DC = x·Rⁿ, −3 dB en fc, transparente en audio
 │   ├── keyboard.worklet.test.js # Tests del worklet de teclado (noteOn/Off, retrigger modes, polifonía)
 │   ├── multichannelCapture.test.js # Worklet multichannel-capture real: SAB interleaved, writeIndex atómico, overflow, fallback por puerto
 │   ├── multichannelPlayback.test.js # Worklet multichannel-playback real: lectura del SAB, readIndex, underflow con relleno de silencio

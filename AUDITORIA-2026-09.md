@@ -230,8 +230,12 @@ análisis estático de arriba basta para decidir.
   arranca en lineal) y, de paso, el primer worklet huérfano cubierto:
   `outputFilter.worklet.test.js` (26) carga el worklet real y **mide** su
   respuesta con senos contra el modelo del circuito (LP −3 dB en 677 Hz,
-  6 dB/oct, shelf +6 dB, DC intacta, metering). Quedan huérfanos `dcBlocker`,
-  `scopeCapture` y `recordingCapture`.
+  6 dB/oct, shelf +6 dB, DC intacta, metering).
+- `dcBlocker.worklet.test.js` (21): el otro worklet de la cadena de salida.
+  Mide que un escalón de DC sale como x·Rⁿ exacto y se extingue (τ ≈ 159 ms),
+  −3 dB en fc = 1 Hz, −0,04 dB a 10 Hz, dentro de 0,02 dB de 0 en 20 Hz–1 kHz,
+  DC + seno → solo el seno; `reset`, k-rate y continuidad entre bloques.
+  Quedan huérfanos `scopeCapture` y `recordingCapture`.
 - `pulse` (19; el espejo arrancaba con pw 0,5 y el módulo con 0; además
   `PulseModule` no lo usa ningún panel), `oscOscillatorSync` (34, contra la
   clase real y el `oscBridge` real con `window.oscAPI` stub) y

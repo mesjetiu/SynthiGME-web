@@ -1,89 +1,86 @@
 /**
- * Tests para core/dormancyManager.js
- * 
- * Verifica el sistema de dormancy para optimización de audio:
- * - Inicialización con valores por defecto y desde localStorage
- * - Detección de conexiones en Panel 5 y Panel 6
- * - Cambio de estado dormant en módulos
- * - Agrupación de cambios para toasts consolidados
- * - Habilitación/deshabilitación del sistema
+ * Tests para core/dormancyManager.js — contra la clase real.
+ *
+ * Hasta septiembre de 2026 este fichero (y dormancySequencer, dormancyRandomCV,
+ * dormancyKeyboard y dormancyFilters) probaba una copia de la lógica escrita
+ * dentro del test. Ahora se importa `DormancyManager` de `src/` y se le da
+ * lo mínimo que necesita del navegador: `localStorage`, `requestAnimationFrame`
+ * y un `document` de juguete para el toast de debug.
+ *
+ * Qué se verifica:
+ * - Inicialización y persistencia en localStorage (claves reales)
+ * - Qué conexión de Panel 5 / Panel 6 despierta a cada módulo
+ * - Que una conexión solo despierta a los módulos que le tocan
+ * - Agrupación de cambios por rAF y `flushPendingUpdate`
+ * - Toast consolidado solo con debug activo
+ * - `_findModule`, `isDormant`, `getStats`, `setEnabled`
+ *
+ * Los números de fila/columna de los mapas son los de este test: el manager
+ * solo lee `sourceMap`/`destMap`, no conoce la numeración real de la matriz.
  */
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import '../mocks/localStorage.mock.js';
+import { DormancyManager } from '../../src/assets/js/core/dormancyManager.js';
+import { STORAGE_KEYS } from '../../src/assets/js/utils/constants.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MOCK de localStorage
+// Entorno mínimo de navegador
 // ═══════════════════════════════════════════════════════════════════════════
 
-class MockLocalStorage {
-  constructor() {
-    this.store = {};
-  }
-  getItem(key) {
-    return this.store[key] ?? null;
-  }
-  setItem(key, value) {
-    this.store[key] = String(value);
-  }
-  removeItem(key) {
-    delete this.store[key];
-  }
-  clear() {
-    this.store = {};
-  }
+// requestAnimationFrame controlable: los callbacks se acumulan y se ejecutan
+// solo cuando el test llama a runFrames().
+const pendingFrames = new Map();
+let nextFrameId = 1;
+globalThis.requestAnimationFrame = (cb) => {
+  const id = nextFrameId++;
+  pendingFrames.set(id, cb);
+  return id;
+};
+globalThis.cancelAnimationFrame = (id) => {
+  pendingFrames.delete(id);
+};
+function runFrames() {
+  const callbacks = [...pendingFrames.values()];
+  pendingFrames.clear();
+  callbacks.forEach(cb => cb(0));
 }
 
+// document de juguete: showToast solo necesita un elemento donde escribir.
+// Se guardan los mensajes para poder comprobarlos.
+const toastMessages = [];
+const fakeToastElement = {
+  id: 'appToast',
+  className: '',
+  classList: { add() {}, remove() {} },
+  set textContent(value) { toastMessages.push(value); }
+};
+globalThis.document = {
+  getElementById: () => fakeToastElement,
+  createElement: () => fakeToastElement,
+  body: { appendChild() {} }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
-// MOCK de módulos con setDormant
+// Módulos y app simulados
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** Módulo con setDormant que registra cada llamada. */
 function createMockModule(id) {
   return {
     id,
     _isDormant: false,
+    calls: [],
     setDormant(dormant) {
       this._isDormant = dormant;
+      this.calls.push(dormant);
     }
   };
 }
-
-function createMockOscillatorEntry() {
-  return {
-    osc: {},
-    gain: { gain: { value: 1 } },
-    sawOsc: {},
-    sawGain: { gain: { value: 0 } },
-    triOsc: {},
-    triGain: { gain: { value: 0 } },
-    pulseOsc: {},
-    pulseGain: { gain: { value: 0 } },
-    _isDormant: false,
-    _savedGains: null,
-    setDormant(dormant) {
-      this._isDormant = dormant;
-    }
-  };
-}
-
-function createMockOutputBus() {
-  return {
-    input: {},
-    muteNode: { gain: { value: 1, setValueAtTime: () => {} } },
-    _isDormant: false,
-    _savedMuteValue: 1,
-    setDormant(dormant) {
-      this._isDormant = dormant;
-    }
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MOCK de App con routing
-// ═══════════════════════════════════════════════════════════════════════════
 
 function createMockApp() {
-  // Crear source y dest maps para Panel 5
+  // Panel 5 (audio): filas = fuentes, columnas = destinos
   const panel5SourceMap = new Map([
     [22, { kind: 'noiseGen', index: 0 }],
     [23, { kind: 'noiseGen', index: 1 }],
@@ -93,1425 +90,570 @@ function createMockApp() {
     [27, { kind: 'panel3Osc', oscIndex: 1, channelId: 'triPulse' }],
     [30, { kind: 'inputAmp', channel: 0 }],
     [31, { kind: 'inputAmp', channel: 1 }],
+    [43, { kind: 'filterLP', index: 0 }],
+    [44, { kind: 'filterLP', index: 1 }],
+    [45, { kind: 'filterLP', index: 2 }],
+    [46, { kind: 'filterLP', index: 3 }],
+    [47, { kind: 'filterHP', index: 0 }],
+    [48, { kind: 'filterHP', index: 1 }],
+    [49, { kind: 'filterHP', index: 2 }],
+    [50, { kind: 'filterHP', index: 3 }],
+    [60, { kind: 'reverberation', index: 0 }],
+    [61, { kind: 'octaveFilterBank' }],
+    [62, { kind: 'ringModulator', index: 0 }],
+    [63, { kind: 'ringModulator', index: 1 }],
+    [64, { kind: 'ringModulator', index: 2 }],
+    [87, { kind: 'sequencer', channel: 0 }],
+    [88, { kind: 'sequencer', channel: 1 }]
   ]);
-  
+
   const panel5DestMap = new Map([
+    [8, { kind: 'pitchToVoltageConverterInput' }],
+    [10, { kind: 'reverbInput', index: 0 }],
+    [11, { kind: 'octaveFilterBankInput' }],
+    [12, { kind: 'ringModInputA', index: 0 }],
+    [13, { kind: 'ringModInputB', index: 0 }],
+    [14, { kind: 'filterLPInput', index: 0 }],
+    [15, { kind: 'filterLPInput', index: 1 }],
+    [16, { kind: 'filterLPInput', index: 2 }],
+    [17, { kind: 'filterLPInput', index: 3 }],
+    [18, { kind: 'filterHPInput', index: 0 }],
+    [19, { kind: 'filterHPInput', index: 1 }],
+    [20, { kind: 'filterHPInput', index: 2 }],
+    [21, { kind: 'filterHPInput', index: 3 }],
     [36, { kind: 'outputBus', bus: 1 }],
     [37, { kind: 'outputBus', bus: 2 }],
     [38, { kind: 'outputBus', bus: 3 }],
+    [39, { kind: 'outputBus', bus: 4 }],
+    [40, { kind: 'outputBus', bus: 5 }],
+    [41, { kind: 'outputBus', bus: 6 }],
+    [42, { kind: 'outputBus', bus: 7 }],
+    [43, { kind: 'outputBus', bus: 8 }],
+    [51, { kind: 'sequencerControl', controlType: 'clock' }],
+    [52, { kind: 'sequencerControl', controlType: 'reset' }],
     [56, { kind: 'oscilloscope', channel: 'X' }],
-    [57, { kind: 'oscilloscope', channel: 'Y' }],
+    [57, { kind: 'oscilloscope', channel: 'Y' }]
   ]);
 
+  // Panel 6 (control)
+  const panel6SourceMap = new Map([
+    [89, { kind: 'randomCV', output: 'key' }],
+    [90, { kind: 'randomCV', output: 'voltage1' }],
+    [91, { kind: 'randomCV', output: 'voltage2' }],
+    [92, { kind: 'keyboardUpper', output: 'pitch' }],
+    [93, { kind: 'keyboardUpper', output: 'velocity' }],
+    [94, { kind: 'keyboardUpper', output: 'gate' }],
+    [95, { kind: 'keyboardLower', output: 'pitch' }],
+    [96, { kind: 'keyboardLower', output: 'velocity' }],
+    [97, { kind: 'keyboardLower', output: 'gate' }],
+    [100, { kind: 'sequencer', output: 'voltageA' }],
+    [102, { kind: 'sequencer', output: 'key1' }],
+    [110, { kind: 'sequencer', output: 'clockRate' }],
+    [111, { kind: 'joystick', side: 'left', axis: 'x' }],
+    [112, { kind: 'joystick', side: 'left', axis: 'y' }],
+    [113, { kind: 'joystick', side: 'right', axis: 'x' }],
+    [114, { kind: 'joystick', side: 'right', axis: 'y' }],
+    [115, { kind: 'pitchToVoltageConverter', output: 'pitch' }]
+  ]);
+
+  const panel6DestMap = new Map([
+    [21, { kind: 'filterLPCutoffCV', index: 0 }],
+    [22, { kind: 'filterLPCutoffCV', index: 1 }],
+    [23, { kind: 'filterLPCutoffCV', index: 2 }],
+    [24, { kind: 'filterLPCutoffCV', index: 3 }],
+    [25, { kind: 'filterHPCutoffCV', index: 0 }],
+    [26, { kind: 'filterHPCutoffCV', index: 1 }],
+    [27, { kind: 'filterHPCutoffCV', index: 2 }],
+    [28, { kind: 'filterHPCutoffCV', index: 3 }],
+    [29, { kind: 'reverbMixCV', index: 0 }],
+    [30, { kind: 'oscFreqCV', oscIndex: 0 }],
+    [31, { kind: 'oscFreqCV', oscIndex: 1 }],
+    [42, { kind: 'outputBus', bus: 1 }],
+    [43, { kind: 'outputBus', bus: 2 }],
+    [44, { kind: 'outputBus', bus: 3 }],
+    [45, { kind: 'outputBus', bus: 4 }],
+    [56, { kind: 'oscilloscope', channel: 'X' }],
+    [57, { kind: 'oscilloscope', channel: 'Y' }],
+    [60, { kind: 'sequencerInput', inputType: 'voltageACE' }],
+    [61, { kind: 'sequencerInput', inputType: 'voltageBDF' }],
+    [62, { kind: 'sequencerInput', inputType: 'key' }]
+  ]);
+
+  const octaveFilterBank = createMockModule('panel2-octave-filter-bank');
+
   return {
-    _panel3Routing: {
-      connections: {},
-      sourceMap: panel5SourceMap,
-      destMap: panel5DestMap
-    },
-    _panel6Routing: {
-      connections: {},
-      sourceMap: new Map(),
-      destMap: new Map()
-    },
+    _panel3Routing: { connections: {}, sourceMap: panel5SourceMap, destMap: panel5DestMap },
+    _panel6Routing: { connections: {}, sourceMap: panel6SourceMap, destMap: panel6DestMap },
+    // Solo 3 osciladores construidos: osc-3..8 no existen en esta app
     _panelAudios: {
-      3: {
-        nodes: [
-          createMockOscillatorEntry(), // osc-0
-          createMockOscillatorEntry(), // osc-1
-          createMockOscillatorEntry(), // osc-2
-        ]
-      }
+      3: { nodes: [createMockModule('osc-0'), createMockModule('osc-1'), createMockModule('osc-2')] }
     },
     _panel3LayoutData: {
-      noiseAudioModules: {
-        noise1: createMockModule('noise-1'),
-        noise2: createMockModule('noise-2')
-      }
+      noiseAudioModules: { noise1: createMockModule('noise-1'), noise2: createMockModule('noise-2') },
+      randomCVAudio: createMockModule('random-cv')
     },
+    _keyboardModules: { upper: createMockModule('keyboard-upper'), lower: createMockModule('keyboard-lower') },
+    _panel1FilterModules: {
+      flp1: createMockModule('filter-lp-1'), flp2: createMockModule('filter-lp-2'),
+      flp3: createMockModule('filter-lp-3'), flp4: createMockModule('filter-lp-4'),
+      fhp1: createMockModule('filter-hp-1'), fhp2: createMockModule('filter-hp-2'),
+      fhp3: createMockModule('filter-hp-3'), fhp4: createMockModule('filter-hp-4')
+    },
+    _panel1ReverbModule: createMockModule('spring-reverb'),
+    _panel1RingModModules: [createMockModule('ring-mod-1'), createMockModule('ring-mod-2'), createMockModule('ring-mod-3')],
+    _joystickModules: { left: createMockModule('joystick-left'), right: createMockModule('joystick-right') },
+    _sequencerModule: createMockModule('sequencer'),
+    _pvcModule: createMockModule('pitch-to-voltage-converter'),
     oscilloscope: createMockModule('oscilloscope'),
     inputAmplifiers: createMockModule('input-amplifiers'),
     engine: {
-      outputBuses: [
-        createMockOutputBus(), // channel 1
-        createMockOutputBus(), // channel 2
-        createMockOutputBus(), // channel 3
-        createMockOutputBus(), // channel 4
-        createMockOutputBus(), // channel 5
-        createMockOutputBus(), // channel 6
-        createMockOutputBus(), // channel 7
-        createMockOutputBus(), // channel 8
-      ]
+      outputBuses: Array.from({ length: 8 }, (_, i) => createMockModule(`output-channel-${i + 1}`)),
+      // El OFB no tiene gancho propio en _findModule: llega por engine.findModule
+      findModule: (id) => (id === 'panel2-octave-filter-bank' ? octaveFilterBank : null)
     }
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MOCK de DormancyManager (lógica replicada para testing sin DOM)
-// ═══════════════════════════════════════════════════════════════════════════
+/** Todos los módulos con estado registrado que NO están dormant. */
+function activeModules(manager) {
+  return [...manager._moduleStates.entries()]
+    .filter(([, state]) => !state.isDormant)
+    .map(([id]) => id)
+    .sort();
+}
 
-class MockDormancyManager {
-  constructor(app, localStorage) {
-    this.app = app;
-    this._localStorage = localStorage;
-    this._moduleStates = new Map();
-    this._pendingChanges = null;
-    
-    // Cargar configuración desde localStorage
-    const storedEnabled = this._localStorage.getItem('synth_dormancy_enabled');
-    this._enabled = storedEnabled === null ? true : storedEnabled === 'true';
-    
-    const storedDebug = this._localStorage.getItem('synth_dormancy_debug');
-    this._debugIndicators = storedDebug === 'true';
-  }
-  
-  isEnabled() {
-    return this._enabled;
-  }
-  
-  setEnabled(enabled) {
-    this._enabled = enabled;
-    this._localStorage.setItem('synth_dormancy_enabled', String(enabled));
-    
-    if (!enabled) {
-      this._wakeAllModules();
-    } else {
-      this.updateAllStates();
-    }
-  }
-  
-  setDebugIndicators(enabled) {
-    this._debugIndicators = enabled;
-    this._localStorage.setItem('synth_dormancy_debug', String(enabled));
-  }
-  
-  hasDebugIndicators() {
-    return this._debugIndicators;
-  }
-  
-  updateAllStates() {
-    if (!this._enabled) return;
-    
-    this._pendingChanges = { woke: [], slept: [] };
-    
-    const panel5Connections = this._getPanel5Connections();
-    
-    // Oscillators
-    for (let oscIndex = 0; oscIndex < 3; oscIndex++) {
-      const hasOutput = panel5Connections.some(c => 
-        c.source?.kind === 'panel3Osc' && c.source?.oscIndex === oscIndex
-      );
-      const module = this._findModule(`osc-${oscIndex}`);
-      if (module) {
-        this._setModuleDormant(`osc-${oscIndex}`, !hasOutput);
-      }
-    }
-    
-    // Noise generators
-    for (let noiseIndex = 0; noiseIndex < 2; noiseIndex++) {
-      const hasOutput = panel5Connections.some(c =>
-        c.source?.kind === 'noiseGen' && c.source?.index === noiseIndex
-      );
-      this._setModuleDormant(`noise-${noiseIndex + 1}`, !hasOutput);
-    }
-    
-    // Input amplifiers
-    const hasAnyInputConnected = panel5Connections.some(c =>
-      c.source?.kind === 'inputAmp'
-    );
-    this._setModuleDormant('input-amplifiers', !hasAnyInputConnected);
-    
-    // Oscilloscope
-    const hasScopeInput = panel5Connections.some(c =>
-      c.dest?.kind === 'oscilloscope'
-    );
-    this._setModuleDormant('oscilloscope', !hasScopeInput);
-    
-    // Output buses
-    for (let busIndex = 0; busIndex < 8; busIndex++) {
-      const hasInput = panel5Connections.some(c =>
-        c.dest?.kind === 'outputBus' && c.dest?.bus === busIndex + 1
-      );
-      this._setModuleDormant(`output-channel-${busIndex + 1}`, !hasInput);
-    }
-    
-    return this._pendingChanges;
-  }
-  
-  _getPanel5Connections() {
-    const routing = this.app._panel3Routing;
-    if (!routing?.connections) return [];
-    
-    const connections = [];
-    for (const key of Object.keys(routing.connections)) {
-      const [rowStr, colStr] = key.split(':');
-      const rowIndex = parseInt(rowStr, 10);
-      const colIndex = parseInt(colStr, 10);
-      
-      const source = routing.sourceMap?.get(rowIndex);
-      const dest = routing.destMap?.get(colIndex);
-      
-      if (source || dest) {
-        connections.push({ source, dest, key });
-      }
-    }
-    
-    return connections;
-  }
-  
-  _setModuleDormant(moduleId, dormant) {
-    const currentState = this._moduleStates.get(moduleId);
-    if (currentState?.isDormant === dormant) return;
-    
-    this._moduleStates.set(moduleId, { isDormant: dormant });
-    
-    const module = this._findModule(moduleId);
-    if (module?.setDormant) {
-      module.setDormant(dormant);
-      
-      if (this._pendingChanges) {
-        if (dormant) {
-          this._pendingChanges.slept.push(moduleId);
-        } else {
-          this._pendingChanges.woke.push(moduleId);
-        }
-      }
-    }
-  }
-  
-  _findModule(moduleId) {
-    if (moduleId.startsWith('osc-')) {
-      const oscIndex = parseInt(moduleId.split('-')[1], 10);
-      return this.app._panelAudios?.[3]?.nodes?.[oscIndex];
-    }
-    
-    if (moduleId === 'noise-1') {
-      return this.app._panel3LayoutData?.noiseAudioModules?.noise1;
-    }
-    if (moduleId === 'noise-2') {
-      return this.app._panel3LayoutData?.noiseAudioModules?.noise2;
-    }
-    
-    if (moduleId === 'oscilloscope') {
-      return this.app.oscilloscope;
-    }
-    
-    if (moduleId === 'input-amplifiers') {
-      return this.app.inputAmplifiers;
-    }
-    
-    if (moduleId.startsWith('output-channel-')) {
-      const busIndex = parseInt(moduleId.split('-')[2], 10) - 1;
-      return this.app.engine?.outputBuses?.[busIndex];
-    }
-    
-    return null;
-  }
-  
-  _wakeAllModules() {
-    for (const [moduleId] of this._moduleStates) {
-      const module = this._findModule(moduleId);
-      if (module?.setDormant) {
-        module.setDormant(false);
-      }
-    }
-    this._moduleStates.clear();
-  }
-  
-  isDormant(moduleId) {
-    return this._moduleStates.get(moduleId)?.isDormant ?? false;
-  }
+/** Módulos con estado registrado: 3 osc + 2 noise + RCV + 2 teclados + 8 filtros
+ *  + reverb + OFB + 3 ring mod + input amps + scope + 8 salidas + 2 joysticks
+ *  + sequencer + PVC. */
+const TOTAL_TRACKED = 35;
+
+function freshManager() {
+  localStorage.clear();
+  pendingFrames.clear();
+  toastMessages.length = 0;
+  const app = createMockApp();
+  const manager = new DormancyManager(app);
+  return { app, manager };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TESTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('DormancyManager', () => {
-  let app;
-  let localStorage;
-  let manager;
-  
-  beforeEach(() => {
-    app = createMockApp();
-    localStorage = new MockLocalStorage();
-    manager = new MockDormancyManager(app, localStorage);
+describe('DormancyManager — inicialización y persistencia', () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it('está habilitado por defecto y sin debug', () => {
+    const manager = new DormancyManager(createMockApp());
+    assert.equal(manager.isEnabled(), true);
+    assert.equal(manager.hasDebugIndicators(), false);
   });
-  
-  describe('inicialización', () => {
-    
-    it('está habilitado por defecto', () => {
-      assert.equal(manager.isEnabled(), true);
-    });
-    
-    it('debug está deshabilitado por defecto', () => {
-      assert.equal(manager.hasDebugIndicators(), false);
-    });
-    
-    it('respeta valor guardado en localStorage (enabled)', () => {
-      localStorage.setItem('synth_dormancy_enabled', 'false');
-      const manager2 = new MockDormancyManager(app, localStorage);
-      assert.equal(manager2.isEnabled(), false);
-    });
-    
-    it('respeta valor guardado en localStorage (debug)', () => {
-      localStorage.setItem('synth_dormancy_debug', 'true');
-      const manager2 = new MockDormancyManager(app, localStorage);
-      assert.equal(manager2.hasDebugIndicators(), true);
-    });
+
+  it('lee enabled=false de localStorage con la clave real', () => {
+    localStorage.setItem(STORAGE_KEYS.DORMANCY_ENABLED, 'false');
+    const manager = new DormancyManager(createMockApp());
+    assert.equal(manager.isEnabled(), false);
   });
-  
-  describe('setEnabled', () => {
-    
-    it('guarda el estado en localStorage', () => {
-      manager.setEnabled(false);
-      assert.equal(localStorage.getItem('synth_dormancy_enabled'), 'false');
-      
-      manager.setEnabled(true);
-      assert.equal(localStorage.getItem('synth_dormancy_enabled'), 'true');
-    });
-    
-    it('despierta todos los módulos al deshabilitar', () => {
-      // Primero crear una conexión y actualizar estados
-      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
-      manager.updateAllStates();
-      
-      // Verificar que algunos están dormant
-      assert.equal(manager.isDormant('osc-1'), true);
-      assert.equal(manager.isDormant('osc-2'), true);
-      
-      // Deshabilitar dormancy
-      manager.setEnabled(false);
-      
-      // Verificar que los módulos despertaron
-      const osc1 = app._panelAudios[3].nodes[1];
-      assert.equal(osc1._isDormant, false);
-    });
+
+  it('lee debug=true de localStorage con la clave real', () => {
+    localStorage.setItem(STORAGE_KEYS.DORMANCY_DEBUG, 'true');
+    const manager = new DormancyManager(createMockApp());
+    assert.equal(manager.hasDebugIndicators(), true);
   });
-  
-  describe('detección de conexiones', () => {
-    
-    it('detecta conexión osc → output', () => {
-      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
-      
-      const changes = manager.updateAllStates();
-      
-      assert.ok(changes.woke.includes('osc-0'));
-      assert.ok(changes.woke.includes('output-channel-1'));
-      assert.ok(changes.slept.includes('osc-1'));
-      assert.ok(changes.slept.includes('osc-2'));
-    });
-    
-    it('detecta conexión noise → output', () => {
-      app._panel3Routing.connections['22:37'] = {}; // noise-1 → output-2
-      
-      const changes = manager.updateAllStates();
-      
-      assert.ok(changes.woke.includes('noise-1'));
-      assert.ok(changes.woke.includes('output-channel-2'));
-      assert.ok(changes.slept.includes('noise-2'));
-    });
-    
-    it('detecta conexión → oscilloscope', () => {
-      app._panel3Routing.connections['24:56'] = {}; // osc-0 → scope X
-      
-      const changes = manager.updateAllStates();
-      
-      assert.ok(changes.woke.includes('osc-0'));
-      assert.ok(changes.woke.includes('oscilloscope'));
-    });
-    
-    it('detecta conexión input amp → output', () => {
-      app._panel3Routing.connections['30:36'] = {}; // inputAmp-0 → output-1
-      
-      const changes = manager.updateAllStates();
-      
-      assert.ok(changes.woke.includes('input-amplifiers'));
-      assert.ok(changes.woke.includes('output-channel-1'));
-    });
-    
-    it('múltiples conexiones: solo reporta cambios', () => {
-      // Primera actualización con una conexión
-      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
-      manager.updateAllStates();
-      
-      // Segunda actualización añadiendo otra conexión
-      app._panel3Routing.connections['22:37'] = {}; // noise-1 → output-2
-      const changes = manager.updateAllStates();
-      
-      // Solo debe reportar los nuevos cambios
-      assert.ok(changes.woke.includes('noise-1'));
-      assert.ok(changes.woke.includes('output-channel-2'));
-      // osc-0 y output-1 ya estaban activos, no deberían estar en woke
-      assert.ok(!changes.woke.includes('osc-0'));
-      assert.ok(!changes.woke.includes('output-channel-1'));
-    });
+
+  it('setEnabled persiste el valor', () => {
+    const manager = new DormancyManager(createMockApp());
+    manager.setEnabled(false);
+    assert.equal(localStorage.getItem(STORAGE_KEYS.DORMANCY_ENABLED), 'false');
+    manager.setEnabled(true);
+    assert.equal(localStorage.getItem(STORAGE_KEYS.DORMANCY_ENABLED), 'true');
   });
-  
-  describe('estado dormant de módulos', () => {
-    
-    it('oscilador sin conexión está dormant', () => {
-      manager.updateAllStates();
-      
-      const osc0 = app._panelAudios[3].nodes[0];
-      assert.equal(osc0._isDormant, true);
-    });
-    
-    it('oscilador con conexión está activo', () => {
-      app._panel3Routing.connections['24:36'] = {};
-      manager.updateAllStates();
-      
-      const osc0 = app._panelAudios[3].nodes[0];
-      assert.equal(osc0._isDormant, false);
-    });
-    
-    it('output channel sin entrada está dormant', () => {
-      manager.updateAllStates();
-      
-      const channel1 = app.engine.outputBuses[0];
-      assert.equal(channel1._isDormant, true);
-    });
-    
-    it('output channel con entrada está activo', () => {
-      app._panel3Routing.connections['24:36'] = {};
-      manager.updateAllStates();
-      
-      const channel1 = app.engine.outputBuses[0];
-      assert.equal(channel1._isDormant, false);
-    });
-    
-    it('oscilloscope sin entrada está dormant', () => {
-      manager.updateAllStates();
-      
-      assert.equal(app.oscilloscope._isDormant, true);
-    });
-    
-    it('oscilloscope con entrada está activo', () => {
-      app._panel3Routing.connections['24:56'] = {};
-      manager.updateAllStates();
-      
-      assert.equal(app.oscilloscope._isDormant, false);
-    });
+
+  it('setEnabled con el mismo valor no escribe nada', () => {
+    const manager = new DormancyManager(createMockApp());
+    manager.setEnabled(true); // ya estaba a true
+    assert.equal(localStorage.getItem(STORAGE_KEYS.DORMANCY_ENABLED), null);
   });
-  
-  describe('_findModule', () => {
-    
-    it('encuentra osciladores por índice', () => {
-      const osc0 = manager._findModule('osc-0');
-      assert.strictEqual(osc0, app._panelAudios[3].nodes[0]);
-      
-      const osc2 = manager._findModule('osc-2');
-      assert.strictEqual(osc2, app._panelAudios[3].nodes[2]);
-    });
-    
-    it('encuentra noise modules', () => {
-      const noise1 = manager._findModule('noise-1');
-      assert.strictEqual(noise1, app._panel3LayoutData.noiseAudioModules.noise1);
-      
-      const noise2 = manager._findModule('noise-2');
-      assert.strictEqual(noise2, app._panel3LayoutData.noiseAudioModules.noise2);
-    });
-    
-    it('encuentra oscilloscope', () => {
-      const scope = manager._findModule('oscilloscope');
-      assert.strictEqual(scope, app.oscilloscope);
-    });
-    
-    it('encuentra input-amplifiers', () => {
-      const inputAmps = manager._findModule('input-amplifiers');
-      assert.strictEqual(inputAmps, app.inputAmplifiers);
-    });
-    
-    it('encuentra output channels', () => {
-      const ch1 = manager._findModule('output-channel-1');
-      assert.strictEqual(ch1, app.engine.outputBuses[0]);
-      
-      const ch8 = manager._findModule('output-channel-8');
-      assert.strictEqual(ch8, app.engine.outputBuses[7]);
-    });
-    
-    it('retorna null para módulo desconocido', () => {
-      const unknown = manager._findModule('unknown-module');
-      assert.equal(unknown, null);
-    });
-  });
-  
-  describe('isDormant', () => {
-    
-    it('retorna false para módulo sin estado registrado', () => {
-      assert.equal(manager.isDormant('osc-0'), false);
-    });
-    
-    it('retorna true para módulo dormant', () => {
-      manager.updateAllStates();
-      assert.equal(manager.isDormant('osc-0'), true);
-    });
-    
-    it('retorna false para módulo activo', () => {
-      app._panel3Routing.connections['24:36'] = {};
-      manager.updateAllStates();
-      assert.equal(manager.isDormant('osc-0'), false);
-    });
-  });
-  
-  describe('agrupación de cambios', () => {
-    
-    it('agrupa múltiples cambios en un solo objeto', () => {
-      app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
-      app._panel3Routing.connections['22:37'] = {}; // noise-1 → output-2
-      
-      const changes = manager.updateAllStates();
-      
-      // Verificar que woke contiene los módulos activos
-      assert.ok(changes.woke.length >= 2);
-      // Verificar que slept contiene los módulos dormant
-      assert.ok(changes.slept.length >= 2);
-    });
-    
-    it('no reporta módulos que no cambiaron', () => {
-      // Primera actualización
-      app._panel3Routing.connections['24:36'] = {};
-      manager.updateAllStates();
-      
-      // Segunda actualización sin cambios
-      const changes = manager.updateAllStates();
-      
-      // No debería haber cambios
-      assert.equal(changes.woke.length, 0);
-      assert.equal(changes.slept.length, 0);
-    });
-  });
-  
-  describe('desconexión', () => {
-    
-    it('módulo vuelve a dormir al desconectar', () => {
-      // Conectar
-      app._panel3Routing.connections['24:36'] = {};
-      manager.updateAllStates();
-      assert.equal(manager.isDormant('osc-0'), false);
-      
-      // Desconectar
-      delete app._panel3Routing.connections['24:36'];
-      const changes = manager.updateAllStates();
-      
-      assert.equal(manager.isDormant('osc-0'), true);
-      assert.ok(changes.slept.includes('osc-0'));
-    });
+
+  it('setDebugIndicators persiste el valor', () => {
+    const manager = new DormancyManager(createMockApp());
+    manager.setDebugIndicators(true);
+    assert.equal(localStorage.getItem(STORAGE_KEYS.DORMANCY_DEBUG), 'true');
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Tests para flushPendingUpdate (fix: patch load race condition)
-// ═══════════════════════════════════════════════════════════════════════════
+describe('DormancyManager — sin conexiones', () => {
+  it('todos los módulos existentes duermen', () => {
+    const { manager } = freshManager();
+    manager.updateAllStates();
+    assert.deepEqual(activeModules(manager), []);
+    assert.deepEqual(manager.getStats(), { total: TOTAL_TRACKED, dormant: TOTAL_TRACKED, active: 0 });
+  });
 
-describe('DormancyManager flushPendingUpdate', () => {
-  
-  it('actualiza estados inmediatamente sin esperar rAF', () => {
-    const localStorage = new MockLocalStorage();
-    const app = createMockApp();
-    const manager = new MockDormancyManager(app, localStorage);
-    
-    // Sin conexiones → todo dormant
+  it('cada módulo recibe setDormant(true) una sola vez', () => {
+    const { app, manager } = freshManager();
     manager.updateAllStates();
-    assert.equal(manager.isDormant('noise-1'), true);
-    
-    // Añadir conexión de noise
-    app._panel3Routing.connections['22:36'] = {};
-    
-    // flushPendingUpdate sincroniza inmediatamente
     manager.updateAllStates();
-    assert.equal(manager.isDormant('noise-1'), false);
+    assert.deepEqual(app._panelAudios[3].nodes[0].calls, [true]);
+    assert.deepEqual(app.engine.outputBuses[7].calls, [true]);
+    assert.deepEqual(app._sequencerModule.calls, [true]);
   });
-  
-  it('simula escenario de patch load: noise dormant → setLevel → wake up', () => {
-    const localStorage = new MockLocalStorage();
-    const app = createMockApp();
-    const manager = new MockDormancyManager(app, localStorage);
-    
-    // Estado inicial: noise sin conexión → dormant
+
+  it('los osciladores no construidos (osc-3..8) se omiten', () => {
+    const { manager } = freshManager();
     manager.updateAllStates();
-    
-    const noiseModule = app._panel3LayoutData.noiseAudioModules.noise1;
-    assert.equal(noiseModule._isDormant, true);
-    
-    // Simular patch load:
-    // 1. Knobs restaurados (setLevel llamado pero salta AudioParam por dormant)
-    // 2. Matrix restaurada (conexión añadida)
-    app._panel3Routing.connections['22:36'] = {};
-    
-    // 3. flushPendingUpdate fuerza la actualización síncrona
-    manager.updateAllStates();
-    
-    // Noise debe estar activo ahora
-    assert.equal(noiseModule._isDormant, false);
-    assert.equal(manager.isDormant('noise-1'), false);
+    assert.equal(manager._moduleStates.has('osc-2'), true);
+    assert.equal(manager._moduleStates.has('osc-3'), false);
+    assert.equal(manager.isDormant('osc-8'), false);
   });
-  
-  it('simula escenario reset→patch: módulo pasa por dormant→active correctamente', () => {
-    const localStorage = new MockLocalStorage();
-    const app = createMockApp();
-    const manager = new MockDormancyManager(app, localStorage);
-    
-    // Estado inicial: noise conectado y activo
+
+  it('un módulo sin setDormant registra estado sin fallar', () => {
+    const { app, manager } = freshManager();
+    // Como InputAmplifiers real, que no implementa setDormant
+    app.inputAmplifiers = {};
+    assert.doesNotThrow(() => manager.updateAllStates());
+    assert.equal(manager.isDormant('input-amplifiers'), true);
+  });
+});
+
+describe('DormancyManager — qué conexión despierta a cada módulo', () => {
+  // [módulo, panel, 'fila:columna', descripción]
+  const CASES = [
+    ['osc-0', 5, '24:36', 'salida sineSaw del osc 0 → output 1'],
+    ['osc-0', 5, '25:56', 'salida triPulse del osc 0 → scope X'],
+    ['osc-1', 5, '27:37', 'salida triPulse del osc 1 → output 2'],
+    ['noise-1', 5, '22:36', 'noise 1 → output 1'],
+    ['noise-2', 5, '23:38', 'noise 2 → output 3'],
+    ['input-amplifiers', 5, '30:36', 'input amp 1 → output 1'],
+    ['input-amplifiers', 5, '31:37', 'input amp 2 → output 2'],
+    ['oscilloscope', 5, '24:56', 'audio → scope X (Panel 5)'],
+    ['oscilloscope', 5, '22:57', 'audio → scope Y (Panel 5)'],
+    ['oscilloscope', 6, '89:56', 'control → scope X (Panel 6)'],
+    ['output-channel-1', 5, '24:36', 'audio → output 1'],
+    ['output-channel-8', 5, '22:43', 'audio → output 8'],
+    ['output-channel-1', 6, '89:42', 'voltage input del output 1 (Panel 6)'],
+    ['output-channel-4', 6, '111:45', 'voltage input del output 4 (Panel 6)'],
+    ['random-cv', 6, '89:30', 'RCV key → CV'],
+    ['random-cv', 6, '90:30', 'RCV voltage 1 → CV'],
+    ['random-cv', 6, '91:31', 'RCV voltage 2 → CV'],
+    ['keyboard-upper', 6, '92:30', 'teclado superior: pitch'],
+    ['keyboard-upper', 6, '94:30', 'teclado superior: gate'],
+    ['keyboard-lower', 6, '95:30', 'teclado inferior: pitch'],
+    ['keyboard-lower', 6, '97:31', 'teclado inferior: gate'],
+    ['filter-lp-1', 5, '43:36', 'salida del LP 1'],
+    ['filter-lp-4', 5, '46:36', 'salida del LP 4'],
+    ['filter-hp-2', 5, '24:19', 'entrada de audio del HP 2'],
+    ['filter-lp-3', 6, '90:23', 'CV de cutoff del LP 3'],
+    ['filter-hp-4', 6, '90:28', 'CV de cutoff del HP 4'],
+    ['spring-reverb', 5, '60:36', 'salida de la reverb'],
+    ['spring-reverb', 5, '24:10', 'entrada de la reverb'],
+    ['spring-reverb', 6, '89:29', 'CV de mix de la reverb'],
+    ['panel2-octave-filter-bank', 5, '61:36', 'salida del OFB'],
+    ['panel2-octave-filter-bank', 5, '24:11', 'entrada del OFB'],
+    ['ring-mod-1', 5, '62:36', 'salida del ring mod 1'],
+    ['ring-mod-1', 5, '24:12', 'entrada A del ring mod 1'],
+    ['ring-mod-1', 5, '24:13', 'entrada B del ring mod 1'],
+    ['ring-mod-3', 5, '64:36', 'salida del ring mod 3'],
+    ['joystick-left', 6, '111:30', 'joystick izquierdo, eje X'],
+    ['joystick-left', 6, '112:30', 'joystick izquierdo, eje Y'],
+    ['joystick-right', 6, '114:31', 'joystick derecho, eje Y'],
+    ['sequencer', 5, '87:36', 'DAC 1 del secuenciador → output'],
+    ['sequencer', 5, '88:37', 'DAC 2 del secuenciador → output'],
+    ['sequencer', 5, '24:51', 'entrada clock del secuenciador'],
+    ['sequencer', 5, '22:52', 'entrada reset del secuenciador'],
+    ['sequencer', 6, '100:30', 'voltage A del secuenciador → CV'],
+    ['sequencer', 6, '110:30', 'clock rate del secuenciador → CV'],
+    ['sequencer', 6, '89:60', 'entrada voltage ACE del secuenciador'],
+    ['sequencer', 6, '92:62', 'entrada key del secuenciador'],
+    ['pitch-to-voltage-converter', 5, '24:8', 'audio → entrada del PVC'],
+    ['pitch-to-voltage-converter', 6, '115:30', 'salida del PVC → CV']
+  ];
+
+  for (const [moduleId, panel, key, description] of CASES) {
+    it(`${moduleId} despierta con ${description} (P${panel} ${key})`, () => {
+      const { app, manager } = freshManager();
+      const routing = panel === 5 ? app._panel3Routing : app._panel6Routing;
+      routing.connections[key] = {};
+      manager.updateAllStates();
+      assert.equal(manager.isDormant(moduleId), false);
+      assert.equal(manager._findModule(moduleId)._isDormant, false);
+    });
+  }
+
+  it('una conexión solo despierta a los módulos implicados', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
+    manager.updateAllStates();
+    assert.deepEqual(activeModules(manager), ['osc-0', 'output-channel-1']);
+  });
+
+  it('una conexión de Panel 6 no despierta módulos de audio', () => {
+    const { manager, app } = freshManager();
+    app._panel6Routing.connections['92:30'] = {}; // teclado superior → osc freq CV
+    manager.updateAllStates();
+    assert.deepEqual(activeModules(manager), ['keyboard-upper']);
+  });
+
+  it('una conexión sin fuente ni destino conocidos no despierta nada', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['1:1'] = {};
+    app._panel6Routing.connections['1:1'] = {};
+    manager.updateAllStates();
+    assert.deepEqual(activeModules(manager), []);
+  });
+
+  it('varias conexiones acumulan módulos activos', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {}; // osc-0 → output-1
+    app._panel3Routing.connections['22:37'] = {}; // noise-1 → output-2
+    app._panel6Routing.connections['111:30'] = {}; // joystick izq → CV
+    manager.updateAllStates();
+    assert.deepEqual(activeModules(manager),
+      ['joystick-left', 'noise-1', 'osc-0', 'output-channel-1', 'output-channel-2']);
+  });
+});
+
+describe('DormancyManager — transiciones', () => {
+  it('solo llama a setDormant cuando el estado cambia', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {};
+    manager.updateAllStates();
+    const osc0 = app._panelAudios[3].nodes[0];
+    assert.deepEqual(osc0.calls, [false]);
+
+    app._panel3Routing.connections['22:37'] = {}; // otra conexión, osc-0 sigue activo
+    manager.updateAllStates();
+    assert.deepEqual(osc0.calls, [false]);
+    assert.deepEqual(app._panel3LayoutData.noiseAudioModules.noise1.calls, [true, false]);
+  });
+
+  it('el módulo vuelve a dormir al desconectar', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {};
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('osc-0'), false);
+
+    delete app._panel3Routing.connections['24:36'];
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('osc-0'), true);
+    assert.deepEqual(app._panelAudios[3].nodes[0].calls, [false, true]);
+  });
+
+  it('un módulo con varias conexiones sigue activo mientras quede una', () => {
+    const { manager, app } = freshManager();
+    app._panel6Routing.connections['89:30'] = {};
+    app._panel6Routing.connections['90:31'] = {};
+    manager.updateAllStates();
+    delete app._panel6Routing.connections['89:30'];
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('random-cv'), false);
+    delete app._panel6Routing.connections['90:31'];
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('random-cv'), true);
+  });
+
+  it('reset → patch: pasa por dormant y vuelve a activo', () => {
+    const { manager, app } = freshManager();
+    const noise1 = app._panel3LayoutData.noiseAudioModules.noise1;
     app._panel3Routing.connections['22:36'] = {};
     manager.updateAllStates();
-    assert.equal(manager.isDormant('noise-1'), false);
-    
-    // 1. Reset: limpiar conexiones
-    delete app._panel3Routing.connections['22:36'];
+    delete app._panel3Routing.connections['22:36']; // reset
     manager.updateAllStates();
-    assert.equal(manager.isDormant('noise-1'), true);
-    
-    // 2. Patch load: restaurar conexiones
-    app._panel3Routing.connections['22:37'] = {};
+    assert.equal(noise1._isDormant, true);
+    app._panel3Routing.connections['22:37'] = {}; // patch nuevo
     manager.updateAllStates();
-    
-    // Noise debe estar activo con la nueva conexión
+    assert.equal(noise1._isDormant, false);
+    assert.deepEqual(noise1.calls, [false, true, false]);
+  });
+
+  it('isDormant es false para un módulo sin estado registrado', () => {
+    const { manager } = freshManager();
+    assert.equal(manager.isDormant('osc-0'), false);
+    assert.equal(manager.isDormant('lo-que-sea'), false);
+  });
+});
+
+describe('DormancyManager — setEnabled', () => {
+  it('deshabilitar despierta todo y vacía los estados', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {};
+    manager.updateAllStates();
+    assert.equal(manager.isDormant('osc-1'), true);
+
+    manager.setEnabled(false);
+    assert.equal(app._panelAudios[3].nodes[1]._isDormant, false);
+    assert.equal(app.engine.outputBuses[3]._isDormant, false);
+    assert.deepEqual(manager.getStats(), { total: 0, dormant: 0, active: 0 });
+    // osc-0 ya estaba activo: no recibe otra llamada
+    assert.deepEqual(app._panelAudios[3].nodes[0].calls, [false]);
+  });
+
+  it('deshabilitado, updateAllStates y onConnectionChange no hacen nada', () => {
+    const { manager, app } = freshManager();
+    manager.setEnabled(false);
+    manager.updateAllStates();
+    manager.onConnectionChange();
+    manager.flushPendingUpdate();
+    assert.equal(pendingFrames.size, 0);
+    assert.deepEqual(app._panelAudios[3].nodes[0].calls, []);
+    assert.deepEqual(manager.getStats(), { total: 0, dormant: 0, active: 0 });
+  });
+
+  it('volver a habilitar recalcula el estado', () => {
+    const { manager, app } = freshManager();
+    manager.setEnabled(false);
+    app._panel3Routing.connections['24:36'] = {};
+    manager.setEnabled(true);
+    assert.deepEqual(activeModules(manager), ['osc-0', 'output-channel-1']);
+    assert.equal(manager.isDormant('osc-1'), true);
+  });
+});
+
+describe('DormancyManager — agrupación por requestAnimationFrame', () => {
+  it('onConnectionChange difiere la actualización a un frame', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {};
+    manager.onConnectionChange();
+    assert.equal(manager.getStats().total, 0);
+    runFrames();
+    assert.deepEqual(activeModules(manager), ['osc-0', 'output-channel-1']);
+  });
+
+  it('varios cambios seguidos se agrupan en un solo frame', () => {
+    const { manager, app } = freshManager();
+    manager.onConnectionChange();
+    manager.onConnectionChange();
+    manager.onConnectionChange();
+    assert.equal(pendingFrames.size, 1);
+    runFrames();
+    assert.deepEqual(app._panelAudios[3].nodes[0].calls, [true]);
+    // Tras el frame se puede volver a programar
+    manager.onConnectionChange();
+    assert.equal(pendingFrames.size, 1);
+  });
+
+  it('flushPendingUpdate cancela el frame y actualiza en el acto', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['22:36'] = {};
+    manager.onConnectionChange();
+    manager.flushPendingUpdate();
+    assert.equal(pendingFrames.size, 0);
     assert.equal(manager.isDormant('noise-1'), false);
-    
-    const noiseModule = app._panel3LayoutData.noiseAudioModules.noise1;
-    assert.equal(noiseModule._isDormant, false);
+    // El frame cancelado no vuelve a aplicar nada
+    runFrames();
+    assert.deepEqual(app._panel3LayoutData.noiseAudioModules.noise1.calls, [false]);
+  });
+
+  it('flushPendingUpdate sin frame pendiente también actualiza', () => {
+    const { manager } = freshManager();
+    manager.flushPendingUpdate();
+    assert.equal(manager.getStats().total, TOTAL_TRACKED);
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Tests para setDormant en output buses
-// ═══════════════════════════════════════════════════════════════════════════
+describe('DormancyManager — toast de debug', () => {
+  it('sin debug no muestra ningún toast', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {};
+    manager.updateAllStates();
+    assert.deepEqual(toastMessages, []);
+  });
 
-describe('Output Bus setDormant', () => {
-  
-  it('silencia el bus al dormir', () => {
-    let savedValue = 1;
-    const bus = {
-      muteNode: {
-        gain: {
-          value: 1,
-          setValueAtTime: (val) => { savedValue = val; }
-        }
-      },
-      _isDormant: false,
-      _savedMuteValue: 1,
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        if (dormant) {
-          this._savedMuteValue = this.muteNode.gain.value;
-          this.muteNode.gain.setValueAtTime(0, 0);
-        } else {
-          this.muteNode.gain.setValueAtTime(this._savedMuteValue, 0);
-        }
-      }
-    };
-    
-    bus.setDormant(true);
-    
-    assert.equal(bus._isDormant, true);
-    assert.equal(savedValue, 0);
+  it('con debug muestra un toast consolidado con despiertos y dormidos', () => {
+    const { manager, app } = freshManager();
+    manager.setDebugIndicators(true);
+    toastMessages.length = 0; // setDebugIndicators ya muestra el estado actual
+    app._panel3Routing.connections['24:36'] = {};
+    manager.updateAllStates();
+    assert.equal(toastMessages.length, 1);
+    const [message] = toastMessages;
+    assert.match(message, /🔊 osc-0, output-channel-1/);
+    assert.match(message, /💤 .*osc-1/);
+    assert.match(message, /💤 .*sequencer/);
+    assert.equal(manager._pendingChanges, null);
   });
-  
-  it('restaura el nivel al despertar', () => {
-    let currentValue = 1;
-    const bus = {
-      muteNode: {
-        gain: {
-          value: 0.8,
-          setValueAtTime: (val) => { currentValue = val; }
-        }
-      },
-      _isDormant: false,
-      _savedMuteValue: 1,
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        if (dormant) {
-          this._savedMuteValue = this.muteNode.gain.value;
-          this.muteNode.gain.setValueAtTime(0, 0);
-        } else {
-          this.muteNode.gain.setValueAtTime(this._savedMuteValue, 0);
-        }
-      }
-    };
-    
-    // Dormir
-    bus.setDormant(true);
-    assert.equal(currentValue, 0);
-    
-    // Despertar
-    bus.setDormant(false);
-    assert.equal(currentValue, 0.8); // Valor guardado
+
+  it('con debug y sin cambios no muestra toast', () => {
+    const { manager } = freshManager();
+    manager.setDebugIndicators(true);
+    manager.updateAllStates();
+    toastMessages.length = 0;
+    manager.updateAllStates();
+    assert.deepEqual(toastMessages, []);
   });
-  
-  it('no hace nada si el estado no cambia', () => {
-    let callCount = 0;
-    const bus = {
-      muteNode: {
-        gain: {
-          value: 1,
-          setValueAtTime: () => { callCount++; }
-        }
-      },
-      _isDormant: true,
-      _savedMuteValue: 1,
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this.muteNode.gain.setValueAtTime(dormant ? 0 : this._savedMuteValue, 0);
-      }
-    };
-    
-    bus.setDormant(true); // Ya está dormant
-    
-    assert.equal(callCount, 0);
+
+  it('activar debug muestra el resumen del estado actual', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {};
+    app._panel3Routing.connections['22:56'] = {};
+    manager.setDebugIndicators(true);
+    assert.equal(toastMessages.length, 1);
+    assert.match(toastMessages[0], /OSCs: 1\/9/);
+    assert.match(toastMessages[0], /Outputs: 1\/8/);
+    assert.match(toastMessages[0], /Scope/);
+    assert.match(toastMessages[0], /Noise/);
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// TESTS: Mensaje setDormant al worklet (early exit real)
-// ═══════════════════════════════════════════════════════════════════════════
+describe('DormancyManager — _findModule', () => {
+  it('resuelve cada tipo de módulo a su objeto en la app', () => {
+    const { manager, app } = freshManager();
+    const expected = {
+      'osc-0': app._panelAudios[3].nodes[0],
+      'osc-2': app._panelAudios[3].nodes[2],
+      'noise-1': app._panel3LayoutData.noiseAudioModules.noise1,
+      'noise-2': app._panel3LayoutData.noiseAudioModules.noise2,
+      'random-cv': app._panel3LayoutData.randomCVAudio,
+      'keyboard-upper': app._keyboardModules.upper,
+      'keyboard-lower': app._keyboardModules.lower,
+      'filter-lp-1': app._panel1FilterModules.flp1,
+      'filter-lp-4': app._panel1FilterModules.flp4,
+      'filter-hp-2': app._panel1FilterModules.fhp2,
+      'spring-reverb': app._panel1ReverbModule,
+      'ring-mod-1': app._panel1RingModModules[0],
+      'ring-mod-3': app._panel1RingModModules[2],
+      'oscilloscope': app.oscilloscope,
+      'input-amplifiers': app.inputAmplifiers,
+      'output-channel-1': app.engine.outputBuses[0],
+      'output-channel-8': app.engine.outputBuses[7],
+      'joystick-left': app._joystickModules.left,
+      'joystick-right': app._joystickModules.right,
+      'sequencer': app._sequencerModule,
+      'pitch-to-voltage-converter': app._pvcModule,
+      'panel2-octave-filter-bank': app.engine.findModule('panel2-octave-filter-bank')
+    };
+    for (const [id, module] of Object.entries(expected)) {
+      assert.strictEqual(manager._findModule(id), module, id);
+    }
+  });
 
-describe('Oscillator setDormant - mensaje al worklet', () => {
-  
-  it('envía mensaje setDormant al port del worklet al dormir', () => {
-    const messages = [];
-    const mockWorklet = {
-      port: {
-        postMessage(msg) { messages.push(msg); }
-      },
-      setSineLevel: () => {},
-      setSawLevel: () => {},
-      setTriLevel: () => {},
-      setPulseLevel: () => {}
-    };
-    
-    let isDormant = false;
-    const entry = {
-      multiOsc: mockWorklet,
-      _isDormant: false,
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this.multiOsc.port.postMessage({ type: 'setDormant', dormant });
-      }
-    };
-    
-    entry.setDormant(true);
-    
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0], { type: 'setDormant', dormant: true });
+  it('devuelve null o undefined para lo que no existe', () => {
+    const { manager, app } = freshManager();
+    assert.equal(manager._findModule('unknown-module'), null);
+    assert.equal(manager._findModule('osc-7'), undefined);
+    assert.equal(manager._findModule('filter-lp-9'), null);
+    delete app._sequencerModule;
+    assert.equal(manager._findModule('sequencer'), null);
   });
-  
-  it('envía mensaje setDormant al port del worklet al despertar', () => {
-    const messages = [];
-    const mockWorklet = {
-      port: {
-        postMessage(msg) { messages.push(msg); }
-      },
-      setSineLevel: () => {},
-      setSawLevel: () => {},
-      setTriLevel: () => {},
-      setPulseLevel: () => {}
-    };
-    
-    const entry = {
-      multiOsc: mockWorklet,
-      _isDormant: true, // Ya está dormant
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this.multiOsc.port.postMessage({ type: 'setDormant', dormant });
-      }
-    };
-    
-    entry.setDormant(false);
-    
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0], { type: 'setDormant', dormant: false });
-  });
-  
-  it('no envía mensaje si el estado no cambia', () => {
-    const messages = [];
-    const mockWorklet = {
-      port: {
-        postMessage(msg) { messages.push(msg); }
-      }
-    };
-    
-    const entry = {
-      multiOsc: mockWorklet,
-      _isDormant: true,
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this.multiOsc.port.postMessage({ type: 'setDormant', dormant });
-      }
-    };
-    
-    entry.setDormant(true); // Ya está dormant
-    
-    assert.equal(messages.length, 0);
+
+  it('funciona con una app a medio construir', () => {
+    localStorage.clear();
+    const manager = new DormancyManager({});
+    assert.doesNotThrow(() => manager.updateAllStates());
+    assert.equal(manager._findModule('osc-0'), undefined);
+    assert.equal(manager._findModule('output-channel-1'), undefined);
+    assert.equal(manager._findModule('spring-reverb'), null);
+    assert.equal(manager._findModule('panel2-octave-filter-bank'), null);
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Tests para NoiseModule dormancy (envío mensaje al worklet + silenciar level)
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('NoiseModule dormancy', () => {
-  
-  it('envía mensaje setDormant al worklet al entrar en dormancy', () => {
-    const messages = [];
-    const mockWorklet = {
-      port: {
-        postMessage(msg) { messages.push(msg); }
-      }
-    };
-    
-    // Simular un NoiseModule con worklet y levelNode
-    const noiseModule = {
-      workletNode: mockWorklet,
-      levelNode: {
-        gain: {
-          value: 0.8,
-          cancelScheduledValues: () => {},
-          setTargetAtTime: () => {}
-        }
-      },
-      values: { level: 0.8 },
-      _isDormant: false,
-      _preDormantLevel: null,
-      getAudioCtx() { return { currentTime: 0 }; },
-      _onDormancyChange(dormant) {
-        if (this.workletNode) {
-          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-        }
-        if (!this.levelNode) return;
-        const ctx = this.getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        if (dormant) {
-          this._preDormantLevel = this.values.level;
-          this.levelNode.gain.cancelScheduledValues(now);
-          this.levelNode.gain.setTargetAtTime(0, now, 0.01);
-        } else {
-          const targetLevel = this._preDormantLevel ?? this.values.level;
-          this.levelNode.gain.cancelScheduledValues(now);
-          this.levelNode.gain.setTargetAtTime(targetLevel, now, 0.01);
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    noiseModule.setDormant(true);
-    
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0], { type: 'setDormant', dormant: true });
-  });
-  
-  it('guarda el nivel previo y silencia al entrar en dormancy', () => {
-    let currentGain = 0.8;
-    let cancelCalled = false;
-    
-    const noiseModule = {
-      workletNode: { port: { postMessage() {} } },
-      levelNode: {
-        gain: {
-          value: 0.8,
-          cancelScheduledValues: () => { cancelCalled = true; },
-          setTargetAtTime: (val) => { currentGain = val; }
-        }
-      },
-      values: { level: 0.8 },
-      _isDormant: false,
-      _preDormantLevel: null,
-      getAudioCtx() { return { currentTime: 0 }; },
-      _onDormancyChange(dormant) {
-        if (this.workletNode) {
-          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-        }
-        if (!this.levelNode) return;
-        const ctx = this.getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        if (dormant) {
-          this._preDormantLevel = this.values.level;
-          this.levelNode.gain.cancelScheduledValues(now);
-          this.levelNode.gain.setTargetAtTime(0, now, 0.01);
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    noiseModule.setDormant(true);
-    
-    assert.equal(noiseModule._preDormantLevel, 0.8);
-    assert.equal(currentGain, 0);
-    assert.equal(cancelCalled, true);
-  });
-  
-  it('restaura el nivel actual (values.level) al salir de dormancy', () => {
-    let currentGain = 0;
-    
-    const noiseModule = {
-      workletNode: { port: { postMessage() {} } },
-      levelNode: {
-        gain: {
-          value: 0,
-          cancelScheduledValues: () => {},
-          setTargetAtTime: (val) => { currentGain = val; }
-        }
-      },
-      values: { level: 0.8 },
-      _isDormant: true,
-      _preDormantLevel: 0.7,
-      getAudioCtx() { return { currentTime: 0 }; },
-      _onDormancyChange(dormant) {
-        if (this.workletNode) {
-          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-        }
-        if (!this.levelNode) return;
-        const ctx = this.getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        if (!dormant) {
-          // Usar values.level (verdad actual), no _preDormantLevel (snapshot)
-          const targetLevel = this.values.level;
-          this.levelNode.gain.cancelScheduledValues(now);
-          this.levelNode.gain.setTargetAtTime(targetLevel, now, 0.01);
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    noiseModule.setDormant(false);
-    
-    assert.equal(currentGain, 0.8); // Restaura values.level (0.8), no _preDormantLevel (0.7)
-  });
-  
-  it('restaura nivel modificado durante dormancy (patch load)', () => {
-    let currentGain = 0;
-    
-    const noiseModule = {
-      workletNode: { port: { postMessage() {} } },
-      levelNode: {
-        gain: {
-          value: 0,
-          cancelScheduledValues: () => {},
-          setTargetAtTime: (val) => { currentGain = val; }
-        }
-      },
-      values: { level: 0 },
-      _isDormant: true,
-      _preDormantLevel: 0,
-      getAudioCtx() { return { currentTime: 0 }; },
-      _onDormancyChange(dormant) {
-        if (this.workletNode) {
-          this.workletNode.port.postMessage({ type: 'setDormant', dormant });
-        }
-        if (!this.levelNode) return;
-        const ctx = this.getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        if (!dormant) {
-          const targetLevel = this.values.level;
-          this.levelNode.gain.cancelScheduledValues(now);
-          this.levelNode.gain.setTargetAtTime(targetLevel, now, 0.01);
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    // Simular patch load durante dormancy: setLevel actualiza values pero no AudioParam
-    noiseModule.values.level = 0.7;
-    noiseModule._preDormantLevel = 0.7;
-    
-    noiseModule.setDormant(false);
-    
-    // Debe restaurar el nivel del patch (0.7), no el original (0)
-    assert.equal(currentGain, 0.7);
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Tests para InputAmplifier dormancy (silenciar todos los GainNodes)
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('InputAmplifier dormancy', () => {
-  
-  it('guarda niveles y silencia todos los canales al entrar en dormancy', () => {
-    const gains = [];
-    const gainNodes = [];
-    
-    // Crear 8 GainNodes mock
-    for (let i = 0; i < 8; i++) {
-      gains.push(0.5 + i * 0.05); // 0.5, 0.55, 0.6...
-      gainNodes.push({
-        gain: {
-          value: 0.5 + i * 0.05,
-          cancelScheduledValues: () => {},
-          setTargetAtTime: function(val) { this.value = val; }
-        }
-      });
-    }
-    
-    const inputAmp = {
-      gainNodes,
-      levels: [...gains],
-      _isDormant: false,
-      _preDormantLevels: null,
-      getAudioCtx() { return { currentTime: 0 }; },
-      _onDormancyChange(dormant) {
-        const ctx = this.getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        if (dormant) {
-          this._preDormantLevels = [...this.levels];
-          for (const gain of this.gainNodes) {
-            if (gain) {
-              gain.gain.cancelScheduledValues(now);
-              gain.gain.setTargetAtTime(0, now, 0.01);
-            }
-          }
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    inputAmp.setDormant(true);
-    
-    // Verifica que se guardaron los niveles
-    assert.deepEqual(inputAmp._preDormantLevels, gains);
-    
-    // Verifica que todos están silenciados
-    for (const node of gainNodes) {
-      assert.equal(node.gain.value, 0);
-    }
-  });
-  
-  it('restaura los niveles actuales (no snapshot) al salir de dormancy', () => {
-    const originalLevels = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.3, 0.4];
-    const gainNodes = [];
-    
-    for (let i = 0; i < 8; i++) {
-      gainNodes.push({
-        gain: {
-          value: 0,
-          cancelScheduledValues: () => {},
-          setTargetAtTime: function(val) { this.value = val; }
-        }
-      });
-    }
-    
-    const inputAmp = {
-      gainNodes,
-      levels: originalLevels,
-      _isDormant: true,
-      _preDormantLevels: [...originalLevels],
-      getAudioCtx() { return { currentTime: 0 }; },
-      _onDormancyChange(dormant) {
-        const ctx = this.getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        if (!dormant) {
-          // Usar this.levels (verdad actual) en vez de _preDormantLevels (snapshot)
-          for (let i = 0; i < this.gainNodes.length; i++) {
-            const gain = this.gainNodes[i];
-            if (gain) {
-              gain.gain.cancelScheduledValues(now);
-              gain.gain.setTargetAtTime(this.levels[i] || 0, now, 0.01);
-            }
-          }
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    inputAmp.setDormant(false);
-    
-    // Verifica que se restauraron los niveles
-    for (let i = 0; i < 8; i++) {
-      assert.equal(gainNodes[i].gain.value, originalLevels[i]);
-    }
-  });
-  
-  it('restaura niveles modificados durante dormancy (patch load)', () => {
-    const gainNodes = [];
-    
-    for (let i = 0; i < 8; i++) {
-      gainNodes.push({
-        gain: {
-          value: 0,
-          cancelScheduledValues: () => {},
-          setTargetAtTime: function(val) { this.value = val; }
-        }
-      });
-    }
-    
-    const inputAmp = {
-      gainNodes,
-      levels: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
-      _isDormant: true,
-      _preDormantLevels: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
-      getAudioCtx() { return { currentTime: 0 }; },
-      _onDormancyChange(dormant) {
-        const ctx = this.getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        if (!dormant) {
-          for (let i = 0; i < this.gainNodes.length; i++) {
-            const gain = this.gainNodes[i];
-            if (gain) {
-              gain.gain.cancelScheduledValues(now);
-              gain.gain.setTargetAtTime(this.levels[i] || 0, now, 0.01);
-            }
-          }
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    // Simular patch load: cambiar niveles durante dormancy
-    const newLevels = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2];
-    inputAmp.levels = newLevels;
-    
-    // Despertar: debe usar los niveles NUEVOS, no el snapshot
-    inputAmp.setDormant(false);
-    
-    for (let i = 0; i < 8; i++) {
-      assert.equal(gainNodes[i].gain.value, newLevels[i],
-        `Canal ${i}: esperado ${newLevels[i]}, obtenido ${gainNodes[i].gain.value}`);
-    }
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Tests para Oscilloscope dormancy (envío mensaje al worklet)
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('Oscilloscope dormancy', () => {
-  
-  it('envía mensaje setDormant al captureNode al entrar en dormancy', () => {
-    const messages = [];
-    
-    const oscilloscope = {
-      captureNode: {
-        port: {
-          postMessage(msg) { messages.push(msg); }
-        }
-      },
-      _isDormant: false,
-      _onDormancyChange(dormant) {
-        if (this.captureNode) {
-          this.captureNode.port.postMessage({ type: 'setDormant', dormant });
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    oscilloscope.setDormant(true);
-    
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0], { type: 'setDormant', dormant: true });
-  });
-  
-  it('envía mensaje setDormant al captureNode al salir de dormancy', () => {
-    const messages = [];
-    
-    const oscilloscope = {
-      captureNode: {
-        port: {
-          postMessage(msg) { messages.push(msg); }
-        }
-      },
-      _isDormant: true,
-      _onDormancyChange(dormant) {
-        if (this.captureNode) {
-          this.captureNode.port.postMessage({ type: 'setDormant', dormant });
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    oscilloscope.setDormant(false);
-    
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0], { type: 'setDormant', dormant: false });
-  });
-  
-  it('no falla si captureNode es null', () => {
-    const oscilloscope = {
-      captureNode: null,
-      _isDormant: false,
-      _onDormancyChange(dormant) {
-        if (this.captureNode) {
-          this.captureNode.port.postMessage({ type: 'setDormant', dormant });
-        }
-      },
-      setDormant(dormant) {
-        if (this._isDormant === dormant) return;
-        this._isDormant = dormant;
-        this._onDormancyChange(dormant);
-      }
-    };
-    
-    // No debe lanzar excepción
-    assert.doesNotThrow(() => {
-      oscilloscope.setDormant(true);
-    });
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Tests para Output Bus dormancy (desconexión del grafo)
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('Output Bus dormancy with graph disconnection', () => {
-  
-  it('desconecta busInput de filterLP cuando no hay bypass al entrar en dormancy', () => {
-    let disconnectedFrom = null;
-    
-    const bus = {
-      input: {
-        disconnect(node) { disconnectedFrom = node; },
-        connect() {}
-      },
-      filterLP: { name: 'filterLP' },
-      levelNode: { name: 'levelNode' },
-      muteNode: { gain: { value: 1, setValueAtTime() {} } },
-      _isDormant: false,
-      _savedMuteValue: 1
-    };
-    
-    const engine = {
-      _filterBypassState: [false] // No bypass activo
-    };
-    
-    function setDormant(dormant) {
-      if (bus._isDormant === dormant) return;
-      bus._isDormant = dormant;
-      
-      const isBypassed = engine._filterBypassState?.[0] ?? false;
-      
-      if (dormant) {
-        bus._savedMuteValue = bus.muteNode.gain.value;
-        if (isBypassed) {
-          bus.input.disconnect(bus.levelNode);
-        } else {
-          bus.input.disconnect(bus.filterLP);
-        }
-      }
-    }
-    
-    setDormant(true);
-    
-    assert.equal(bus._isDormant, true);
-    assert.strictEqual(disconnectedFrom, bus.filterLP);
-  });
-  
-  it('desconecta busInput de levelNode cuando hay bypass activo', () => {
-    let disconnectedFrom = null;
-    
-    const bus = {
-      input: {
-        disconnect(node) { disconnectedFrom = node; },
-        connect() {}
-      },
-      filterLP: { name: 'filterLP' },
-      levelNode: { name: 'levelNode' },
-      muteNode: { gain: { value: 1, setValueAtTime() {} } },
-      _isDormant: false,
-      _savedMuteValue: 1
-    };
-    
-    const engine = {
-      _filterBypassState: [true] // Bypass activo
-    };
-    
-    function setDormant(dormant) {
-      if (bus._isDormant === dormant) return;
-      bus._isDormant = dormant;
-      
-      const isBypassed = engine._filterBypassState?.[0] ?? false;
-      
-      if (dormant) {
-        bus._savedMuteValue = bus.muteNode.gain.value;
-        if (isBypassed) {
-          bus.input.disconnect(bus.levelNode);
-        } else {
-          bus.input.disconnect(bus.filterLP);
-        }
-      }
-    }
-    
-    setDormant(true);
-    
-    assert.equal(bus._isDormant, true);
-    assert.strictEqual(disconnectedFrom, bus.levelNode);
-  });
-  
-  it('reconecta busInput a filterLP cuando sale de dormancy sin bypass', () => {
-    let connectedTo = null;
-    let muteRestored = false;
-    
-    const bus = {
-      input: {
-        disconnect() {},
-        connect(node) { connectedTo = node; }
-      },
-      filterLP: { name: 'filterLP' },
-      levelNode: { name: 'levelNode' },
-      muteNode: { 
-        gain: { 
-          value: 0, 
-          setValueAtTime(val) { muteRestored = val === 0.9; }
-        } 
-      },
-      _isDormant: true,
-      _savedMuteValue: 0.9
-    };
-    
-    const engine = {
-      _filterBypassState: [false],
-      audioCtx: { currentTime: 0 }
-    };
-    
-    function setDormant(dormant) {
-      if (bus._isDormant === dormant) return;
-      bus._isDormant = dormant;
-      
-      const isBypassed = engine._filterBypassState?.[0] ?? false;
-      
-      if (!dormant) {
-        if (isBypassed) {
-          bus.input.connect(bus.levelNode);
-        } else {
-          bus.input.connect(bus.filterLP);
-        }
-        bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, engine.audioCtx.currentTime);
-      }
-    }
-    
-    setDormant(false);
-    
-    assert.equal(bus._isDormant, false);
-    assert.strictEqual(connectedTo, bus.filterLP);
-    assert.equal(muteRestored, true);
-  });
-  
-  it('reconecta busInput a levelNode cuando sale de dormancy con bypass activo', () => {
-    let connectedTo = null;
-    
-    const bus = {
-      input: {
-        disconnect() {},
-        connect(node) { connectedTo = node; }
-      },
-      filterLP: { name: 'filterLP' },
-      levelNode: { name: 'levelNode' },
-      muteNode: { gain: { value: 0, setValueAtTime() {} } },
-      _isDormant: true,
-      _savedMuteValue: 1
-    };
-    
-    const engine = {
-      _filterBypassState: [true], // Bypass activo
-      audioCtx: { currentTime: 0 }
-    };
-    
-    function setDormant(dormant) {
-      if (bus._isDormant === dormant) return;
-      bus._isDormant = dormant;
-      
-      const isBypassed = engine._filterBypassState?.[0] ?? false;
-      
-      if (!dormant) {
-        if (isBypassed) {
-          bus.input.connect(bus.levelNode);
-        } else {
-          bus.input.connect(bus.filterLP);
-        }
-        bus.muteNode.gain.setValueAtTime(bus._savedMuteValue, engine.audioCtx.currentTime);
-      }
-    }
-    
-    setDormant(false);
-    
-    assert.equal(bus._isDormant, false);
-    assert.strictEqual(connectedTo, bus.levelNode);
-  });
-  
-  it('no cambia estado si ya está en el mismo estado', () => {
-    let disconnectCalled = false;
-    
-    const bus = {
-      input: {
-        disconnect() { disconnectCalled = true; },
-        connect() {}
-      },
-      filterLP: {},
-      levelNode: {},
-      muteNode: { gain: { value: 1, setValueAtTime() {} } },
-      _isDormant: true,
-      _savedMuteValue: 1
-    };
-    
-    const engine = {
-      _filterBypassState: [false]
-    };
-    
-    function setDormant(dormant) {
-      if (bus._isDormant === dormant) return;
-      bus._isDormant = dormant;
-      
-      const isBypassed = engine._filterBypassState?.[0] ?? false;
-      
-      if (dormant) {
-        bus._savedMuteValue = bus.muteNode.gain.value;
-        if (isBypassed) {
-          bus.input.disconnect(bus.levelNode);
-        } else {
-          bus.input.disconnect(bus.filterLP);
-        }
-      }
-    }
-    
-    setDormant(true); // Ya está dormant
-    
-    assert.equal(disconnectCalled, false);
+describe('DormancyManager — getStats', () => {
+  it('cuenta dormidos y activos', () => {
+    const { manager, app } = freshManager();
+    app._panel3Routing.connections['24:36'] = {};
+    app._panel6Routing.connections['89:30'] = {};
+    manager.updateAllStates();
+    assert.deepEqual(manager.getStats(),
+      { total: TOTAL_TRACKED, dormant: TOTAL_TRACKED - 3, active: 3 });
   });
 });

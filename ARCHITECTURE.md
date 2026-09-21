@@ -3518,10 +3518,7 @@ tests/
 │   └── audioContext.mock.js     # Mock de AudioContext y AudioWorklet para tests unitarios
 ├── core/
 │   ├── dcBlockerRemoval.test.js  # Tests de eliminación de DC blocker
-│   ├── dormancyFilters.test.js  # Tests de dormancy de filtros CEM3320
-│   ├── dormancyKeyboard.test.js # Tests de dormancy de teclados
-│   ├── dormancyManager.test.js  # Tests del sistema de dormancy
-│   ├── dormancyRandomCV.test.js # Tests de dormancy de random CV
+│   ├── dormancyManager.test.js  # DormancyManager real: qué conexión despierta a cada módulo
 │   ├── engine.test.js           # Tests de AudioEngine con mocks
 │   ├── oscillatorState.test.js  # Tests de estado de osciladores
 │   └── recordingEngine.test.js  # Tests de grabación multitrack

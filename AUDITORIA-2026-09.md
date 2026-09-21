@@ -27,7 +27,7 @@ expresamente.
 | `npm test` | **4458/4458** pasan (682 ficheros, ~53 s) |
 | `npm run build:web` | compila. `docs/` corresponde exactamente a `src/` (única diferencia al regenerar: timestamp del build y `TELEMETRY_URL` si no hay `.env`) |
 | `npm ci` | **fallaba**: `package-lock.json` seguía en 0.7.0 y sin `naudiodon`. Arreglado en esta auditoría |
-| Tests de audio (Playwright) | no ejecutados aquí. Según la auditoría de julio (`TODO.md`): 202/218, los 16 fallos con causa conocida y **fix pendiente** (ver abajo) |
+| Tests de audio (Playwright) | **218/218** tras el lazy init del worklet (hallazgo 1, ya aplicado). Antes: 202/218 desde julio |
 | Código fuente | ~79.900 líneas JS en `src/`, ~65.100 en `tests/` (166 ficheros de test) |
 | Ramas remotas | 5 ramas muertas de dic-2025/ene-2026, entre 800 y 1559 commits por detrás de `main` |
 
@@ -39,9 +39,9 @@ refactorizó sin actualizar la arquitectura.
 
 ## Hallazgos, por prioridad
 
-### 1. Suite de audio: 16 fallos con fix conocido y no aplicado
+### 1. Suite de audio: 16 fallos con fix conocido y no aplicado — RESUELTO
 
-`synthOscillator.worklet.js:152-160` inicializa `_smoothedGain`, `_smoothedSymmetry`
+`synthOscillator.worklet.js:152-160` inicializaba `_smoothedGain`, `_smoothedSymmetry`
 y los `_smoothed*Level` con constantes fijas. La app los pasa por
 `processorOptions` (sin transitorio en producción), el harness de tests no, y los
 primeros ~150 ms contaminan las medidas. Fix preferido: **lazy init** desde el
@@ -49,7 +49,10 @@ primer sample de cada AudioParam en el primer `process()`. Elimina el transitori
 para cualquier consumidor sin perder el anti-zipper. Detalle en `TODO.md`
 §«Tests de audio».
 
-De paso: `this.mode` se asigna dos veces en ese constructor (líneas 108 y 162).
+De paso: `this.mode` se asignaba dos veces en ese constructor (líneas 108 y 162).
+
+Aplicado el 21-sep (commit `093ba608`): lazy init con 7 tests unitarios que lo fijan;
+la suite de audio pasa entera.
 
 ### 2. Bugs de navegador/móvil confirmados en código
 
@@ -143,10 +146,10 @@ preocupan por ser lógica, no UI:
   `outputFilter` (ambos en la cadena de salida que oye todo el mundo),
   `scopeCapture`, `recordingCapture`.
 
-### Tests de audio: 16/218 en rojo
+### Tests de audio: 218/218 (desde el 21-sep)
 
-Causa conocida (hallazgo 1). Mientras estén en rojo nadie distingue una
-regresión nueva de los fallos «de siempre».
+Estaban 16 en rojo por el hallazgo 1. Ahora que pasan todos, cualquier rojo
+nuevo es una regresión.
 
 ### Medición de cobertura
 
@@ -171,6 +174,17 @@ análisis estático de arriba basta para decidir.
 
 - `package-lock.json` sincronizado con `package.json` (0.8.0 + `naudiodon`
   opcional). `npm ci` vuelve a funcionar.
+- Lazy init en `synthOscillator.worklet.js` → suite de audio 218/218.
+- Espejos de dormancy convertidos: `tests/core/dormancyManager.test.js` prueba
+  ahora el `DormancyManager` real (82 tests) y absorbe `dormancySequencer`,
+  `dormancyRandomCV`, `dormancyKeyboard` y `dormancyFilters`, que se borran.
+  Al hacerlo salieron dos cosas que los espejos ocultaban: usaban claves de
+  localStorage inventadas (`synth_dormancy_enabled`; las reales llevan el
+  prefijo `synthigme-`), y probaban un `setDormant` de InputAmplifiers **que
+  no existe**: el manager registra el estado de `input-amplifiers` pero el
+  módulo no hace nada con él (no ahorra CPU). Tampoco hay test real del
+  `setDormant` de los output buses (`engine.js:440`) ni del de los osciladores
+  (`panelRouting.js:348`): quedan para el paso 2.
 
 ## Orden propuesto
 

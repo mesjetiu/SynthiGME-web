@@ -1167,7 +1167,7 @@ const randomCVResolvedUI = resolveModuleUI(randomCVUIDefaults, randomCVBlueprint
 | `tests/modules/randomCV.test.js` | inicialización, conexiones y outputs, level dial→gain LOG, key dial→gain bipolar, control de parámetros, clamping, getOutputNode, dormancy |
 | `tests/configs/randomVoltage.config.test.js` | Estructura, Matrix rows (Panel 6), Parámetros de audio, Curva LOG, Ramps, Knobs (por cada knob), coherencia |
 | `tests/osc/oscRandomCVSync.test.js` | Direcciones OSC, MODULE_PARAMETERS, coherencia PARAM_TO_ADDRESS↔MODULE_PARAMETERS, Valores directos, Rangos |
-| `tests/core/dormancyRandomCV.test.js` | sin conexiones, con Key/V1/V2 conectados, cualquiera activa módulo, transiciones, _findModule, conexiones no-RVG |
+| `tests/core/dormancyManager.test.js` | contra el `DormancyManager` real: qué conexión despierta a cada módulo (incluido `random-cv` por Key/V1/V2), transiciones, `_findModule` |
 | `tests/panelBlueprints/panel6RandomCV.test.js` | Random CV sources |
 | `tests/utils/tooltipRandomCV.test.js` | Mean (audio+voltaje), Variance, VoltageLevel (curva LOG), Key |
 

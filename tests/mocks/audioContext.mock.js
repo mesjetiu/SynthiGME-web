@@ -177,11 +177,13 @@ export function createMockOscillatorNode() {
     type: 'sine',
     frequency: createMockAudioParam(440),
     detune: createMockAudioParam(0),
+    _periodicWave: null,
     _calls: {
       connect: 0,
       disconnect: 0,
       start: 0,
-      stop: 0
+      stop: 0,
+      setPeriodicWave: 0
     },
     connect(destination, outputIndex, inputIndex) {
       this._calls.connect++;
@@ -195,6 +197,11 @@ export function createMockOscillatorNode() {
     },
     stop(when = 0) {
       this._calls.stop++;
+    },
+    setPeriodicWave(wave) {
+      this._calls.setPeriodicWave++;
+      this._periodicWave = wave;
+      this.type = 'custom';
     }
   };
 }
@@ -439,6 +446,11 @@ export function createMockAudioContext(options = {}) {
       const node = createMockWaveShaperNode();
       this._createdNodes.waveShaper.push(node);
       return node;
+    },
+    // PeriodicWave mock: conserva los coeficientes para que los tests puedan
+    // inspeccionar la forma de onda que pidió el módulo
+    createPeriodicWave(real, imag, constraints) {
+      return { real: Float32Array.from(real), imag: Float32Array.from(imag), constraints };
     },
     resume() {
       this.state = 'running';

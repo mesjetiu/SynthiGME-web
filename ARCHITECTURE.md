@@ -3538,7 +3538,7 @@ tests/
 │   ├── oscilloscope.test.js     # Tests del osciloscopio
 │   ├── outputChannel.test.js    # OutputChannel y OutputChannelsPanel reales: serialize, CV externo, fader lineal/log
 │   ├── outputRouter.test.js     # Tests del router de salidas
-│   ├── pulse.test.js            # Tests del oscilador pulse
+│   ├── pulse.test.js            # PulseModule real (sin uso en los paneles): nodos, onda de pulso, start/stop
 │   ├── randomCV.test.js         # Tests del random CV (gain LOG, key bipolar, clamping)
 │   ├── ringModulator.test.js    # Tests del ring modulator (soft-clip, gain, dormancy)
 │   ├── springReverb.test.js     # Tests del spring reverb (mix, level, dormancy)

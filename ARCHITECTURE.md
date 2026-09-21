@@ -3523,7 +3523,7 @@ tests/
 │   ├── oscillatorState.test.js  # Tests de estado de osciladores
 │   └── recordingEngine.test.js  # Tests de grabación multitrack
 ├── modules/
-│   ├── joystick.test.js         # Tests del módulo joystick
+│   ├── joystick.test.js         # JoystickModule real: nodos, rango, posición, dormancy
 │   ├── keyboard.test.js         # Tests del módulo teclado (noteOn/Off, knobs, retrigger switch)
 │   ├── noise.test.js            # Tests del generador de ruido
 │   ├── oscillator.test.js       # Tests del oscilador

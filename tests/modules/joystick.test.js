@@ -1,512 +1,337 @@
 /**
- * Tests para modules/joystick.js
- * 
- * Verifica el módulo JoystickModule usando mocks de AudioContext:
- * - Creación de ConstantSourceNodes para X e Y
- * - GainNodes de rango para X e Y
- * - Control de posición (-1 a +1)
- * - Control de rango (dial 0-10 → gain 0-1)
- * - Clamp de valores
- * - Dormancy (silenciar/restaurar)
- * - Getters de output nodes para matriz
+ * Tests para modules/joystick.js — contra la clase real.
+ *
+ * Hasta septiembre de 2026 este fichero probaba una copia (`MockJoystickModule`)
+ * de la lógica del módulo, que además arrancaba con rango 5 cuando el módulo
+ * real arranca con rango 0. Ahora instancia `JoystickModule` con el
+ * AudioContext simulado de `tests/mocks/audioContext.mock.js` y comprueba lo
+ * que de verdad hace: ConstantSource → Gain por eje, salidas para la matriz,
+ * posición con rampa lineal, rango con rampa suave, recortes, dormancy
+ * (silenciar y restaurar) y ciclo de vida.
  */
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-
 import { createMockAudioContext } from '../mocks/audioContext.mock.js';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MOCK del módulo JoystickModule (sin DOM, replica la lógica de audio)
-// ═══════════════════════════════════════════════════════════════════════════
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  writable: true,
+  value: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+});
 
-class MockJoystickModule {
-  constructor(engine, id, config = {}) {
-    this.engine = engine;
-    this.id = id;
-    this.name = 'Joystick';
-    this.xConst = null;
-    this.yConst = null;
-    this.xGain = null;
-    this.yGain = null;
-    this.x = 0;
-    this.y = 0;
-    this._rangeX = 5;
-    this._rangeY = 5;
-    this._isDormant = false;
-    this.isStarted = false;
-    this._preDormantRangeX = null;
-    this._preDormantRangeY = null;
-    this.outputs = [];
-    this.config = {
-      ramps: {
-        position: config.ramps?.position ?? 0.01,
-        range: config.ramps?.range ?? 0.05
-      }
-    };
-  }
+const { JoystickModule } = await import('../../src/assets/js/modules/joystick.js');
+const { joystickConfig } = await import('../../src/assets/js/configs/index.js');
 
-  getAudioCtx() {
-    return this.engine?.audioCtx || null;
-  }
+describe('JoystickModule', () => {
+  let ctx;
+  let joy;
 
-  _rangeDialToGain(dial) {
-    return Math.max(0, Math.min(1, dial / 10));
-  }
-
-  _initAudioNodes() {
-    const ctx = this.getAudioCtx();
-    if (!ctx || this.xConst) return;
-    
-    this.xConst = ctx.createConstantSource();
-    this.xConst.offset.value = 0;
-    this.xGain = ctx.createGain();
-    this.xGain.gain.value = this._rangeDialToGain(this._rangeX);
-    this.xConst.connect(this.xGain);
-
-    this.yConst = ctx.createConstantSource();
-    this.yConst.offset.value = 0;
-    this.yGain = ctx.createGain();
-    this.yGain.gain.value = this._rangeDialToGain(this._rangeY);
-    this.yConst.connect(this.yGain);
-    
-    this.outputs.push(
-      { id: 'xOut', kind: 'cv', node: this.xGain, label: `${this.name} X` },
-      { id: 'yOut', kind: 'cv', node: this.yGain, label: `${this.name} Y` }
-    );
-  }
-
-  start() {
-    if (this.isStarted) return;
-    this._initAudioNodes();
-    const ctx = this.getAudioCtx();
-    if (!ctx) return;
-    const t = ctx.currentTime + 0.05;
-    try { this.xConst.start(t); } catch { /* ya iniciado */ }
-    try { this.yConst.start(t); } catch { /* ya iniciado */ }
-    this.isStarted = true;
-  }
-
-  stop(time) {
-    if (!this.isStarted || !this.xConst) return;
-    try {
-      this.xConst.stop(time);
-      this.yConst.stop(time);
-      this.xConst.disconnect();
-      this.yConst.disconnect();
-      if (this.xGain) this.xGain.disconnect();
-      if (this.yGain) this.yGain.disconnect();
-    } catch { /* error deteniendo */ }
-    this.xConst = null;
-    this.yConst = null;
-    this.xGain = null;
-    this.yGain = null;
-    this.isStarted = false;
-  }
-
-  setPosition(nx, ny) {
-    const x = Math.max(-1, Math.min(1, nx));
-    const y = Math.max(-1, Math.min(1, ny));
-    this.x = x;
-    this.y = y;
-    if (this._isDormant) return;
-    const ctx = this.getAudioCtx();
-    if (!ctx || !this.xConst || !this.yConst) return;
-    this.xConst.offset.value = x;
-    this.yConst.offset.value = y;
-  }
-
-  setRangeX(value) {
-    this._rangeX = Math.max(0, Math.min(10, value));
-    if (this._isDormant) return;
-    if (!this.xGain) return;
-    this.xGain.gain.value = this._rangeDialToGain(this._rangeX);
-  }
-
-  setRangeY(value) {
-    this._rangeY = Math.max(0, Math.min(10, value));
-    if (this._isDormant) return;
-    if (!this.yGain) return;
-    this.yGain.gain.value = this._rangeDialToGain(this._rangeY);
-  }
-
-  getX() { return this.x; }
-  getY() { return this.y; }
-  getRangeX() { return this._rangeX; }
-  getRangeY() { return this._rangeY; }
-
-  getOutputNodeX() {
-    if (!this.xGain) this._initAudioNodes();
-    return this.xGain;
-  }
-
-  getOutputNodeY() {
-    if (!this.yGain) this._initAudioNodes();
-    return this.yGain;
-  }
-
-  setDormant(dormant) {
-    if (this._isDormant === dormant) return;
-    this._isDormant = dormant;
-    this._onDormancyChange(dormant);
-  }
-
-  _onDormancyChange(dormant) {
-    if (!this.xGain || !this.yGain) return;
-    if (dormant) {
-      this._preDormantRangeX = this._rangeX;
-      this._preDormantRangeY = this._rangeY;
-      this.xGain.gain.value = 0;
-      this.yGain.gain.value = 0;
-    } else {
-      this.xGain.gain.value = this._rangeDialToGain(this._rangeX);
-      this.yGain.gain.value = this._rangeDialToGain(this._rangeY);
-      if (this.xConst && this.yConst) {
-        this.xConst.offset.value = this.x;
-        this.yConst.offset.value = this.y;
-      }
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// TESTS
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('JoystickModule (con AudioContext mock)', () => {
-  
-  let mockCtx;
-  let mockEngine;
-  let joystick;
-  
   beforeEach(() => {
-    mockCtx = createMockAudioContext();
-    mockEngine = { audioCtx: mockCtx };
-    joystick = new MockJoystickModule(mockEngine, 'joystick-left');
+    ctx = createMockAudioContext();
+    joy = new JoystickModule({ audioCtx: ctx }, 'joystick-left');
   });
 
-  describe('inicialización', () => {
-    
-    it('posición inicial es (0, 0)', () => {
-      assert.equal(joystick.x, 0);
-      assert.equal(joystick.y, 0);
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Inicialización', () => {
+    it('empieza en el centro (0, 0), con rango 0 en ambos ejes y sin nodos', () => {
+      assert.equal(joy.name, 'Joystick');
+      assert.equal(joy.id, 'joystick-left');
+      assert.equal(joy.getX(), 0);
+      assert.equal(joy.getY(), 0);
+      assert.equal(joy.getRangeX(), 0);
+      assert.equal(joy.getRangeY(), 0);
+      assert.equal(joy.isStarted, false);
+      assert.equal(joy.xConst, null);
+      assert.equal(joy.xGain, null);
     });
 
-    it('rango inicial es 5 para ambos ejes', () => {
-      assert.equal(joystick.getRangeX(), 5);
-      assert.equal(joystick.getRangeY(), 5);
+    it('sin config usa las rampas por defecto (10 ms posición, 50 ms rango)', () => {
+      assert.deepEqual(joy.config.ramps, { position: 0.01, range: 0.05 });
     });
 
-    it('no crea nodos hasta llamar a start()', () => {
-      assert.equal(joystick.xConst, null);
-      assert.equal(joystick.yConst, null);
+    it('acepta las rampas de joystick.config.js tal como se las pasa panelAssembler', () => {
+      const ramps = joystickConfig.defaults.ramps;
+      assert.ok(ramps, 'joystick.config.js debe tener defaults.ramps');
+      const custom = new JoystickModule({ audioCtx: ctx }, 'j', { ramps });
+      assert.deepEqual(custom.config.ramps, { position: ramps.position, range: ramps.range });
+      assert.notEqual(custom.config.ramps.position, 0.01, 'la config no coincide con el default: debe verse el cambio');
     });
 
-    it('start() crea ConstantSourceNodes para X e Y', () => {
-      joystick.start();
-      
-      assert.notEqual(joystick.xConst, null);
-      assert.notEqual(joystick.yConst, null);
+    it('start() crea un ConstantSource y un Gain por eje', () => {
+      joy.start();
+      assert.equal(ctx._createdNodes.constantSource.length, 2);
+      assert.equal(ctx._createdNodes.gain.length, 2);
+      assert.ok(joy.xConst && joy.yConst && joy.xGain && joy.yGain);
+      assert.equal(joy.isStarted, true);
     });
 
-    it('start() crea GainNodes para X e Y', () => {
-      joystick.start();
-      
-      assert.notEqual(joystick.xGain, null);
-      assert.notEqual(joystick.yGain, null);
+    it('los offsets arrancan en 0 (centro) y las ganancias en el rango inicial (0)', () => {
+      joy.start();
+      assert.equal(joy.xConst.offset.value, 0);
+      assert.equal(joy.yConst.offset.value, 0);
+      assert.equal(joy.xGain.gain.value, 0);
+      assert.equal(joy.yGain.gain.value, 0);
     });
 
-    it('offsets iniciales son 0', () => {
-      joystick.start();
-      
-      assert.equal(joystick.xConst.offset.value, 0);
-      assert.equal(joystick.yConst.offset.value, 0);
+    it('si el rango se fija antes de start(), la ganancia inicial lo refleja', () => {
+      joy.setRangeX(7);
+      joy.setRangeY(2);
+      joy.start();
+      assert.equal(joy.xGain.gain.value, 0.7);
+      assert.equal(joy.yGain.gain.value, 0.2);
     });
 
-    it('gains iniciales corresponden al rango por defecto (5/10 = 0.5)', () => {
-      joystick.start();
-      
-      assert.equal(joystick.xGain.gain.value, 0.5);
-      assert.equal(joystick.yGain.gain.value, 0.5);
-    });
-  });
-
-  describe('conexiones', () => {
-    
-    it('xConst se conecta a xGain', () => {
-      joystick.start();
-      
-      assert.ok(joystick.xConst._calls.connect >= 1);
+    it('start() arranca las fuentes 50 ms después del tiempo actual', () => {
+      ctx.currentTime = 1.5;
+      joy._initAudioNodes();
+      const starts = [];
+      joy.xConst.start = t => starts.push(t);
+      joy.yConst.start = t => starts.push(t);
+      joy.start();
+      assert.deepEqual(starts, [1.55, 1.55]);
     });
 
-    it('yConst se conecta a yGain', () => {
-      joystick.start();
-      
-      assert.ok(joystick.yConst._calls.connect >= 1);
+    it('start() es idempotente: no recrea nodos ni rearranca las fuentes', () => {
+      joy.start();
+      const first = joy.xConst;
+      joy.start();
+      assert.strictEqual(joy.xConst, first);
+      assert.equal(joy.xConst._calls.start, 1);
+      assert.equal(joy.outputs.length, 2);
     });
 
-    it('registra output X de CV', () => {
-      joystick.start();
-      
-      const xOut = joystick.outputs.find(o => o.id === 'xOut');
-      assert.ok(xOut);
-      assert.equal(xOut.kind, 'cv');
-      assert.equal(xOut.node, joystick.xGain);
-    });
-
-    it('registra output Y de CV', () => {
-      joystick.start();
-      
-      const yOut = joystick.outputs.find(o => o.id === 'yOut');
-      assert.ok(yOut);
-      assert.equal(yOut.kind, 'cv');
-      assert.equal(yOut.node, joystick.yGain);
+    it('sin AudioContext, start() no hace nada', () => {
+      const noCtx = new JoystickModule({ audioCtx: null }, 'j');
+      noCtx.start();
+      assert.equal(noCtx.isStarted, false);
+      assert.equal(noCtx.xConst, null);
     });
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Cableado y salidas para la matriz', () => {
+    beforeEach(() => joy.start());
+
+    it('cada ConstantSource se conecta a su Gain', () => {
+      assert.equal(joy.xConst._calls.connect, 1);
+      assert.equal(joy.yConst._calls.connect, 1);
+    });
+
+    it('registra las salidas de CV xOut e yOut sobre los Gain', () => {
+      assert.deepEqual(joy.outputs.map(o => o.id), ['xOut', 'yOut']);
+      assert.ok(joy.outputs.every(o => o.kind === 'cv'));
+      assert.strictEqual(joy.outputs[0].node, joy.xGain);
+      assert.strictEqual(joy.outputs[1].node, joy.yGain);
+      assert.deepEqual(joy.outputs.map(o => o.label), ['Joystick X', 'Joystick Y']);
+    });
+
+    it('getOutputNodeX/Y devuelven los Gain', () => {
+      assert.strictEqual(joy.getOutputNodeX(), joy.xGain);
+      assert.strictEqual(joy.getOutputNodeY(), joy.yGain);
+    });
+  });
+
+  it('getOutputNodeX/Y inicializan los nodos si aún no existen, sin arrancar', () => {
+    const x = joy.getOutputNodeX();
+    assert.ok(x);
+    assert.strictEqual(x, joy.xGain);
+    assert.ok(joy.yGain);
+    assert.equal(joy.isStarted, false);
+    assert.equal(joy.xConst._calls.start, 0);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
   describe('setPosition', () => {
-    
-    it('actualiza posición X e Y', () => {
-      joystick.start();
-      
-      joystick.setPosition(0.5, -0.3);
-      
-      assert.equal(joystick.x, 0.5);
-      assert.equal(joystick.y, -0.3);
-    });
+    beforeEach(() => joy.start());
 
-    it('aplica valores a los offsets de ConstantSource', () => {
-      joystick.start();
-      
-      joystick.setPosition(0.7, 0.2);
-      
-      assert.equal(joystick.xConst.offset.value, 0.7);
-      assert.equal(joystick.yConst.offset.value, 0.2);
-    });
-
-    it('clampea valores mayores que 1', () => {
-      joystick.start();
-      
-      joystick.setPosition(5, 10);
-      
-      assert.equal(joystick.x, 1);
-      assert.equal(joystick.y, 1);
-    });
-
-    it('clampea valores menores que -1', () => {
-      joystick.start();
-      
-      joystick.setPosition(-5, -10);
-      
-      assert.equal(joystick.x, -1);
-      assert.equal(joystick.y, -1);
-    });
-
-    it('valores en rango se mantienen exactos', () => {
-      joystick.start();
-      
-      joystick.setPosition(-1, 1);
-      assert.equal(joystick.x, -1);
-      assert.equal(joystick.y, 1);
-      
-      joystick.setPosition(0, 0);
-      assert.equal(joystick.x, 0);
-      assert.equal(joystick.y, 0);
-    });
-
-    it('no aplica a nodos sin AudioContext', () => {
-      const orphan = new MockJoystickModule(null, 'orphan');
-      orphan.setPosition(0.5, 0.5);
-      
-      // Posición se guarda pero no se aplica a nodos
-      assert.equal(orphan.x, 0.5);
-      assert.equal(orphan.y, 0.5);
-    });
-  });
-
-  describe('setRangeX / setRangeY', () => {
-    
-    it('setRangeX cambia la ganancia del eje X', () => {
-      joystick.start();
-      
-      joystick.setRangeX(10);
-      assert.equal(joystick.xGain.gain.value, 1.0);
-      
-      joystick.setRangeX(0);
-      assert.equal(joystick.xGain.gain.value, 0);
-    });
-
-    it('setRangeY cambia la ganancia del eje Y', () => {
-      joystick.start();
-      
-      joystick.setRangeY(8);
-      assert.equal(joystick.yGain.gain.value, 0.8);
-    });
-
-    it('clampea dial a 0-10', () => {
-      joystick.start();
-      
-      joystick.setRangeX(15);
-      assert.equal(joystick.getRangeX(), 10);
-      assert.equal(joystick.xGain.gain.value, 1.0);
-      
-      joystick.setRangeX(-5);
-      assert.equal(joystick.getRangeX(), 0);
-      assert.equal(joystick.xGain.gain.value, 0);
-    });
-
-    it('conversión dial→gain es lineal', () => {
-      joystick.start();
-      
-      for (let d = 0; d <= 10; d++) {
-        joystick.setRangeX(d);
-        assert.equal(joystick.xGain.gain.value, d / 10);
+    it('guarda X e Y y los lleva a los offsets con rampa lineal', () => {
+      ctx.currentTime = 2;
+      joy.setPosition(0.5, -0.3);
+      assert.equal(joy.getX(), 0.5);
+      assert.equal(joy.getY(), -0.3);
+      assert.equal(joy.xConst.offset.value, 0.5);
+      assert.equal(joy.yConst.offset.value, -0.3);
+      for (const p of [joy.xConst.offset, joy.yConst.offset]) {
+        assert.equal(p._calls.cancelScheduledValues, 1);
+        assert.equal(p._calls.setValueAtTime, 1);
+        assert.equal(p._calls.linearRampToValueAtTime, 1);
+        assert.equal(p._calls.setTargetAtTime, 0);
       }
     });
-  });
 
-  describe('getOutputNodeX / getOutputNodeY', () => {
-    
-    it('getOutputNodeX devuelve GainNode (inicializa si necesario)', () => {
-      const node = joystick.getOutputNodeX();
-      assert.notEqual(node, null);
-      assert.equal(node, joystick.xGain);
+    it('recorta a ±1', () => {
+      joy.setPosition(5, -5);
+      assert.equal(joy.getX(), 1);
+      assert.equal(joy.getY(), -1);
+      assert.equal(joy.xConst.offset.value, 1);
+      assert.equal(joy.yConst.offset.value, -1);
     });
 
-    it('getOutputNodeY devuelve GainNode', () => {
-      const node = joystick.getOutputNodeY();
-      assert.notEqual(node, null);
-      assert.equal(node, joystick.yGain);
-    });
-  });
-
-  describe('dormancy', () => {
-    
-    it('al dormir, las ganancias caen a 0', () => {
-      joystick.start();
-      joystick.setRangeX(8);
-      joystick.setRangeY(6);
-      
-      joystick.setDormant(true);
-      
-      assert.equal(joystick.xGain.gain.value, 0);
-      assert.equal(joystick.yGain.gain.value, 0);
+    it('los extremos y el centro se mantienen exactos', () => {
+      for (const [x, y] of [[1, 1], [-1, -1], [0, 0], [0.25, -0.75]]) {
+        joy.setPosition(x, y);
+        assert.equal(joy.getX(), x);
+        assert.equal(joy.getY(), y);
+      }
     });
 
-    it('al despertar, las ganancias se restauran', () => {
-      joystick.start();
-      joystick.setRangeX(8);
-      joystick.setRangeY(6);
-      
-      joystick.setDormant(true);
-      joystick.setDormant(false);
-      
-      assert.equal(joystick.xGain.gain.value, 0.8);
-      assert.equal(joystick.yGain.gain.value, 0.6);
-    });
-
-    it('setPosition durante dormancy guarda pero no aplica', () => {
-      joystick.start();
-      joystick.setDormant(true);
-      
-      joystick.setPosition(0.9, -0.7);
-      
-      // Posición guardada
-      assert.equal(joystick.x, 0.9);
-      assert.equal(joystick.y, -0.7);
-      // Offset NO actualizado (sigue en 0 del start())
-      assert.equal(joystick.xConst.offset.value, 0);
-      assert.equal(joystick.yConst.offset.value, 0);
-    });
-
-    it('al despertar restaura posición actualizada durante dormancy', () => {
-      joystick.start();
-      joystick.setDormant(true);
-      joystick.setPosition(0.9, -0.7);
-      
-      joystick.setDormant(false);
-      
-      assert.equal(joystick.xConst.offset.value, 0.9);
-      assert.equal(joystick.yConst.offset.value, -0.7);
-    });
-
-    it('setRange durante dormancy guarda valor para restaurar', () => {
-      joystick.start();
-      joystick.setDormant(true);
-      
-      joystick.setRangeX(10);
-      joystick.setRangeY(3);
-      
-      // Gain sigue en 0 (dormant)
-      assert.equal(joystick.xGain.gain.value, 0);
-      assert.equal(joystick.yGain.gain.value, 0);
-      
-      // Pero el estado interno se guardó
-      assert.equal(joystick.getRangeX(), 10);
-      assert.equal(joystick.getRangeY(), 3);
-      
-      // Al despertar, se restaura
-      joystick.setDormant(false);
-      assert.equal(joystick.xGain.gain.value, 1.0);
-      assert.equal(joystick.yGain.gain.value, 0.3);
+    it('sin nodos guarda la posición sin reventar', () => {
+      const fresh = new JoystickModule({ audioCtx: ctx }, 'j');
+      assert.doesNotThrow(() => fresh.setPosition(0.4, 0.6));
+      assert.equal(fresh.getX(), 0.4);
+      assert.equal(fresh.getY(), 0.6);
     });
   });
 
-  describe('start/stop', () => {
-    
-    it('start() llama a xConst.start() e yConst.start()', () => {
-      joystick.start();
-      
-      assert.equal(joystick.xConst._calls.start, 1);
-      assert.equal(joystick.yConst._calls.start, 1);
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('setRangeX / setRangeY', () => {
+    beforeEach(() => joy.start());
+
+    it('el dial 0-10 se convierte linealmente en ganancia 0-1', () => {
+      for (const [dial, gain] of [[0, 0], [2.5, 0.25], [5, 0.5], [10, 1]]) {
+        joy.setRangeX(dial);
+        assert.equal(joy.getRangeX(), dial);
+        assert.equal(joy.xGain.gain.value, gain);
+      }
     });
 
-    it('stop() limpia todos los nodos', () => {
-      joystick.start();
-      joystick.stop(0);
-      
-      assert.equal(joystick.xConst, null);
-      assert.equal(joystick.yConst, null);
-      assert.equal(joystick.xGain, null);
-      assert.equal(joystick.yGain, null);
-      assert.equal(joystick.isStarted, false);
+    it('cada eje va por su cuenta', () => {
+      joy.setRangeX(8);
+      joy.setRangeY(3);
+      assert.equal(joy.xGain.gain.value, 0.8);
+      assert.equal(joy.yGain.gain.value, 0.3);
     });
 
-    it('múltiples start() no fallan (idempotente)', () => {
-      joystick.start();
-      joystick.start();
-      
-      assert.equal(joystick.isStarted, true);
-      // No debe lanzar error
-      assert.ok(true);
+    it('recorta el dial a 0-10', () => {
+      joy.setRangeX(-4);
+      assert.equal(joy.getRangeX(), 0);
+      assert.equal(joy.xGain.gain.value, 0);
+      joy.setRangeY(15);
+      assert.equal(joy.getRangeY(), 10);
+      assert.equal(joy.yGain.gain.value, 1);
     });
 
-    it('stop() sin start() no falla', () => {
-      joystick.stop(0);
-      assert.ok(true);
+    it('aplica el rango con rampa suave (setTargetAtTime), no de golpe', () => {
+      joy.setRangeX(6);
+      assert.equal(joy.xGain.gain._calls.setTargetAtTime, 1);
+      assert.equal(joy.xGain.gain._calls.setValueAtTime, 0);
+    });
+
+    it('_rangeDialToGain recorta fuera de 0..10', () => {
+      assert.equal(joy._rangeDialToGain(-1), 0);
+      assert.equal(joy._rangeDialToGain(11), 1);
+      assert.equal(joy._rangeDialToGain(5), 0.5);
     });
   });
 
-  describe('conversión rangeDialToGain', () => {
-    
-    it('dial 0 → gain 0', () => {
-      assert.equal(joystick._rangeDialToGain(0), 0);
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Dormancy', () => {
+    beforeEach(() => {
+      joy.start();
+      joy.setRangeX(7);
+      joy.setRangeY(4);
+      joy.setPosition(0.5, -0.5);
     });
 
-    it('dial 5 → gain 0.5', () => {
-      assert.equal(joystick._rangeDialToGain(5), 0.5);
+    it('al dormir, las dos ganancias caen a 0 y se recuerdan los rangos', () => {
+      joy.setDormant(true);
+      assert.equal(joy.isDormant, true);
+      assert.equal(joy.xGain.gain.value, 0);
+      assert.equal(joy.yGain.gain.value, 0);
+      assert.equal(joy._preDormantRangeX, 7);
+      assert.equal(joy._preDormantRangeY, 4);
+      // La posición no se toca: el silencio lo hace la ganancia
+      assert.equal(joy.xConst.offset.value, 0.5);
     });
 
-    it('dial 10 → gain 1', () => {
-      assert.equal(joystick._rangeDialToGain(10), 1);
+    it('al despertar, restaura las ganancias y resincroniza la posición', () => {
+      joy.setDormant(true);
+      joy.setDormant(false);
+      assert.equal(joy.isDormant, false);
+      assert.equal(joy.xGain.gain.value, 0.7);
+      assert.equal(joy.yGain.gain.value, 0.4);
+      assert.equal(joy.xConst.offset.value, 0.5);
+      assert.equal(joy.yConst.offset.value, -0.5);
     });
 
-    it('valores negativos clampeados a 0', () => {
-      assert.equal(joystick._rangeDialToGain(-5), 0);
+    it('setPosition durante dormancy guarda pero no toca los offsets', () => {
+      joy.setDormant(true);
+      const before = joy.xConst.offset._calls.linearRampToValueAtTime;
+      joy.setPosition(-0.9, 0.9);
+      assert.equal(joy.getX(), -0.9);
+      assert.equal(joy.getY(), 0.9);
+      assert.equal(joy.xConst.offset.value, 0.5);
+      assert.equal(joy.xConst.offset._calls.linearRampToValueAtTime, before);
     });
 
-    it('valores > 10 clampeados a 1', () => {
-      assert.equal(joystick._rangeDialToGain(20), 1);
+    it('al despertar aplica la posición cambiada durante dormancy', () => {
+      joy.setDormant(true);
+      joy.setPosition(-0.9, 0.9);
+      joy.setDormant(false);
+      assert.equal(joy.xConst.offset.value, -0.9);
+      assert.equal(joy.yConst.offset.value, 0.9);
+    });
+
+    it('setRange durante dormancy guarda el valor sin abrir la ganancia, y se aplica al despertar', () => {
+      joy.setDormant(true);
+      joy.setRangeX(10);
+      joy.setRangeY(1);
+      assert.equal(joy.getRangeX(), 10);
+      assert.equal(joy.xGain.gain.value, 0);
+      assert.equal(joy.yGain.gain.value, 0);
+      joy.setDormant(false);
+      assert.equal(joy.xGain.gain.value, 1);
+      assert.equal(joy.yGain.gain.value, 0.1);
+    });
+
+    it('setDormant con el mismo estado no hace nada', () => {
+      joy.setDormant(true);
+      const calls = joy.xGain.gain._calls.setTargetAtTime;
+      joy.setDormant(true);
+      assert.equal(joy.xGain.gain._calls.setTargetAtTime, calls);
+    });
+
+    it('sin nodos, setDormant solo cambia la bandera', () => {
+      const fresh = new JoystickModule({ audioCtx: ctx }, 'j');
+      assert.doesNotThrow(() => fresh.setDormant(true));
+      assert.equal(fresh.isDormant, true);
+      assert.equal(fresh._preDormantRangeX, null);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Stop', () => {
+    it('stop() para las fuentes, desconecta todo y suelta los nodos', () => {
+      joy.start();
+      const { xConst, yConst, xGain, yGain } = joy;
+      joy.stop();
+      assert.equal(xConst._calls.stop, 1);
+      assert.equal(yConst._calls.stop, 1);
+      for (const node of [xConst, yConst, xGain, yGain]) {
+        assert.equal(node._calls.disconnect, 1);
+      }
+      assert.equal(joy.xConst, null);
+      assert.equal(joy.yConst, null);
+      assert.equal(joy.xGain, null);
+      assert.equal(joy.yGain, null);
+      assert.equal(joy.isStarted, false);
+    });
+
+    it('stop() sin start() no hace nada', () => {
+      assert.doesNotThrow(() => joy.stop());
+      assert.equal(joy.isStarted, false);
+    });
+
+    it('tras stop() se puede volver a arrancar con nodos nuevos y el rango guardado', () => {
+      joy.start();
+      joy.setRangeX(9);
+      const old = joy.xGain;
+      joy.stop();
+      joy.start();
+      assert.notStrictEqual(joy.xGain, old);
+      assert.equal(joy.xGain.gain.value, 0.9);
+      assert.equal(joy.isStarted, true);
     });
   });
 });

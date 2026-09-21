@@ -5,6 +5,14 @@ de EMS de 1971** (ver `../manual_ems_1971/NOTAS.md` y las páginas escaneadas; e
 dato está en `spec_pag04.jpg`, epígrafe «Two Voltage Controlled Reverberation
 Units»).
 
+> ⚠️ Fuente de 1971, no de 1982. La máquina de Cuenca es la revisión Datanomics,
+> rediseñada por dentro con chips CEM. **No hay extracto del manual de 1982 para
+> este módulo** en `module_research/` —es de los que faltan—, así que todo lo de
+> abajo son datos de la máquina vieja y hay que confirmarlos. Lo que sí tenemos
+> del 82, vía `reverberation.config.js`, va en la sección «Detalles de circuito».
+> Lo tranquilizador es que las dos fuentes **no se contradicen en nada**: los
+> 35/40 ms, los 2,4 s y el ±2 V salen igual por los dos lados.
+
 ## Lo que dice la fuente, literal
 
 > **Two Voltage Controlled Reverberation Units**

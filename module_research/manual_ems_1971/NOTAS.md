@@ -1,11 +1,23 @@
 # Especificación original EMS SYNTHI 100 (1971)
 
 Folleto de especificación de Electronic Music Studios (London) Ltd., 9 páginas.
-Es la **máquina de 1971**, anterior a la revisión de Datanomics de 1981-82 que
-es la de Cuenca: aquí el secuenciador es el de 256 eventos y hay nueve
-osciladores, no doce. Aun así es la fuente primaria más detallada que hay en
-abierto sobre niveles, impedancias y rangos, y en casi todo lo que no cambió
-sirve tal cual.
+
+> ⚠️ **FUENTE SECUNDARIA. No decidir nada solo con esto.**
+>
+> La máquina de Cuenca es la revisión de **Datanomics de 1981-82**, que Datanomics
+> **rediseñó por dentro entera con chips CEM**. Este folleto describe la máquina
+> de 1971: mismo instrumento en arquitectura y topología, electrónica distinta.
+> Aquí el secuenciador es el de 256 eventos y hay nueve osciladores, no doce.
+>
+> **Manda siempre el manual técnico de Datanomics de 1982.** Este folleto sirve
+> para dos cosas: entender la intención de diseño de cada módulo, y descubrir
+> módulos que existen y que no teníamos fichados. Para valores numéricos, es
+> orientativo y nada más.
+>
+> Ya ha pasado: por este folleto se llegó a proponer cambiar los voltios por
+> octava y la frecuencia base del banco de octavas, y **las dos propuestas eran
+> erróneas** — el material de 1982 que ya había en este mismo directorio decía
+> lo contrario. Ver «Corregido por el material de 1982» más abajo.
 
 - **Origen**: <https://anaphonic.com/wp-content/uploads/ems_synthi100_om.pdf>
   (descargado el 21-sep-2026; PDF de 9,6 MB, escaneado sin capa de texto).
@@ -57,13 +69,9 @@ Ninguna de estas es necesariamente un error nuestro: la máquina de Cuenca es la
 revisión Datanomics de 1982 y varias cosas cambiaron. Pero **hay que decidirlas
 a conciencia**, no por inercia.
 
-- **Voltios por octava.** El folleto dice «Voltage Control: 5v/octave» para los
-  osciladores de audio, «.5v/octave» para los LFO y «Keyboard voltage: 0.5V per
-  octave maximum» para los teclados. Nosotros usamos **1 V/oct**
-  (`VOLTS_PER_OCTAVE = 1.0`). El 5 frente al 0,5 huele a errata del propio
-  folleto, pero que el estándar de la casa sea 0,5 V/oct y no 1 V/oct aparece
-  dos veces y en dos módulos distintos. **Contrastar con el manual Datanomics
-  antes de tocar nada**: cambiarlo afectaría a toda la máquina.
+Las que siguen **no** están resueltas por el material de 1982 que hay en el repo,
+así que siguen siendo preguntas abiertas para cuando se tenga ese manual delante:
+
 - **Dos unidades de reverberación**, no una. Ver `../spring_reverb/NOTAS.md`.
 - **Tres generadores de ruido**, no dos: «Three Noise Generators». Nosotros
   tenemos dos (`noiseGen` índices 0 y 1). Verificar cuántos tiene el de Cuenca.
@@ -78,17 +86,39 @@ a conciencia**, no por inercia.
   per octave thereafter», y «Maximum stable Q factor — 20». Nosotros hacemos
   24 dB/oct planos (cuatro polos). La curva real no es una pendiente constante:
   arranca más suave y luego se endurece. Explicaría parte del carácter.
-- **Banco de filtros de octava**: «eight **resonating** filters, fixed-tune one
-  octave apart, in the range 62.5 Hz–8 KHz». Nosotros usamos paso-banda con
-  Q = √2 y frecuencia base 63 Hz. «Resonating» sugiere Q más alto que √2; y la
-  base exacta es 62,5 Hz (que además es 8000/128, o sea la serie de octavas
-  exacta). Cambiar 63 por 62,5 es gratis y es más fiel.
+- **Banco de filtros de octava**: «eight **resonating** filters». La palabra
+  «resonating», y el «ligero efecto de resonancia» y la «característica de
+  filtro de peine» que describe el manual de 1982, apuntan las dos a un Q mayor
+  que el √2 que usamos. Es lo único de este módulo que sigue abierto: las
+  frecuencias, la pendiente y la ganancia de compensación ya están confirmadas
+  correctas por el material de 1982 (ver abajo).
 - **Niveles de señal**: «In general, signal levels are about ±1V p-p, although
   most outputs can deliver much more than this». Nuestro modelo razona en raíles
   de ±12 V; el nivel **nominal** de trabajo es mucho menor. Relevante para
   calibrar dónde empieza a saturar cada cosa.
 - **Matrices de 60 × 60** (7.200 puntos) en la máquina de 1971. La de Cuenca es
   mayor; no tocar, pero anotado por si aparece en los manuales.
+
+## Corregido por el material de 1982 que ya había en el repo
+
+Los extractos de `../octave_filter_bank/` y `../pitch_to_voltage_converter/`
+salen de los manuales técnicos de 1982 y **resuelven en contra** dos cosas que
+este folleto de 1971 parecía poner en duda:
+
+- **Voltios por octava: 1 V/oct, y nuestra implementación es correcta.** El
+  extracto del convertidor de altura a voltaje dice literalmente «permitiendo
+  obtener el estándar de **1 V/Octava**». El folleto de 1971 habla de 0,5 V/oct
+  para teclados y LFO (y un «5v/octave» para los osciladores que es errata casi
+  seguro), pero eso es la máquina vieja. **No tocar `VOLTS_PER_OCTAVE`.**
+- **Banco de octavas: 63 Hz es correcto, no 62,5.** El extracto de 1982 lista
+  «63, 125, 250, 500, 1000, 2000, 4000 y 8000 Hz», con tolerancia de ±10 %, y
+  confirma además **12 dB/octava** de pendiente y **10 dB (±1,5)** de ganancia
+  de compensación: exactamente lo que tenemos. Añade dos datos que sí son
+  nuevos: entrada máxima de **8 V p-p** y respuesta global de **50 Hz a 12 kHz**
+  con todos los mandos al máximo.
+
+Moraleja, anotada para la próxima: **antes de proponer un cambio de valor,
+mirar si ya hay material de 1982 en `module_research/` sobre ese módulo.**
 
 ## Módulos del folleto que no existen en la emulación
 

@@ -4,6 +4,14 @@
 > de septiembre (`AUDITORIA-2026-09.md`) y de una lectura de la especificación
 > original de EMS de 1971 (`module_research/manual_ems_1971/`).
 >
+> **Jerarquía de fuentes.** La máquina de Cuenca es la revisión de **Datanomics
+> de 1981-82**, rediseñada por dentro con chips CEM. El **manual técnico de 1982
+> es el que manda**; no está en abierto (se buscó el 21-sep-2026 sin éxito), pero
+> hay extractos suyos en `module_research/*/` de los que ya salieron varios
+> módulos. El folleto de 1971 describe la misma arquitectura con otra
+> electrónica: vale para entender la intención de cada módulo y para descubrir
+> módulos que no teníamos fichados, **no para fijar valores**.
+>
 > **Esto no es una lista de tareas.** `TODO.md` ya es eso. Esto es un intento de
 > responder a otra pregunta, que es distinta: *¿qué le falta a esta emulación
 > para ser el Synthi 100 entero?* Unas cosas están verificadas en el código,
@@ -139,23 +147,30 @@ no de programación, y se puede hacer una vez y para siempre.
 ## 3. Lo que está pero podría ser más fiel
 
 Aquí no falta nada: funciona. La pregunta es si se parece bastante. Todo esto
-sale de contrastar el código con la especificación de 1971, y **nada de ello
-debería tocarse sin decidirlo con el oído y con el manual de Datanomics de 1982
-delante**, porque la máquina de Cuenca es la revisión posterior y varias cosas
-cambiaron legítimamente.
+sale de contrastar el código con la especificación de **1971**, que no es la de
+esta máquina: son **preguntas para el manual de 1982**, no conclusiones.
 
-- **Voltios por octava.** El folleto dice 0,5 V/oct para teclados y LFO (y un
-  probable errata de «5v/octave» para los osciladores de audio). Nosotros usamos
-  1 V/oct en toda la máquina. Si el estándar real de la casa es 0,5, afecta a
-  todo. Es lo primero que contrastaría con el manual de 1982.
+> **Dos avisos ya cobrados.** Al escribir la primera versión de este documento
+> se propuso, desde el folleto de 1971, cambiar los voltios por octava y la
+> frecuencia base del banco de octavas. **Las dos propuestas eran erróneas**: el
+> material de 1982 que ya estaba en `module_research/` dice 1 V/oct (extracto
+> del convertidor de altura a voltaje) y 63 Hz con pendiente de 12 dB/oct y
+> ganancia de 10 dB (extracto del banco de octavas). O sea, lo que tenemos
+> implementado. Sirva de recordatorio de lo fácil que es equivocarse con la
+> fuente equivocada.
+
 - **Pendiente de los filtros**: «12 dB for first octave and 18 dB per octave
   thereafter». No es una pendiente constante: arranca suave y se endurece.
-  Nosotros hacemos 24 dB/oct planos. Esto es carácter sonoro puro.
+  Nosotros hacemos 24 dB/oct planos. Esto es carácter sonoro puro. **Pero los
+  filtros de Cuenca son CEM 3320**, así que la curva de 1971 puede no aplicar:
+  a verificar en el manual del 82.
 - **Rango de los joysticks**: el folleto dice ±2 V; nosotros usamos ±8 V. Un
   factor cuatro en toda la profundidad de modulación que da un joystick.
-- **Banco de filtros de octava**: la base exacta es 62,5 Hz, no 63 (62,5 × 2⁷ =
-  8000, la serie de octavas cuadra exacta). Cambiarlo es gratis. Y el folleto
-  dice «resonating filters», lo que sugiere un Q mayor que el √2 que usamos.
+- **Q del banco de filtros de octava**: el folleto de 1971 los llama
+  «resonating filters», y el extracto de 1982 habla de «característica de filtro
+  de peine» y de un «ligero efecto de resonancia» en ajustes altos. Las dos
+  fuentes apuntan a un Q mayor que el √2 que usamos. Es lo único de ese módulo
+  que sigue abierto; lo demás está confirmado correcto.
 - **Tres generadores de ruido**, no dos.
 - **Damping de la reverb**: nuestro paso bajo está en 4.500 Hz y el rango útil
   de fábrica llega a 12 kHz; y por abajo no modelamos el límite de 30 Hz, que un
@@ -196,9 +211,10 @@ Mi lectura, sabiendo que la decisión no es mía:
    cambia lo que la máquina puede hacer, no solo lo que enseña.
 2. **El móvil.** Micrófono y patches en Android. Es donde más gente va a abrir
    esto y ahora mismo llegan a una pared.
-3. **Cerrar el inventario de las matrices** contra los manuales. Es barato, se
-   hace una vez, y convierte todo el punto 1 y el 2 de este documento en un plan
-   con coordenadas en vez de en una intuición.
+3. **Cerrar el inventario de las matrices** contra el manual de 1982. Es barato,
+   se hace una vez, y convierte todo el punto 1 y el 2 de este documento en un
+   plan con coordenadas en vez de en una intuición. Es también la ocasión de
+   resolver de una vez las preguntas del punto 3.
 4. **Los slew limiters y los envelope followers.** Baratos de implementar y
    añaden gestos que hoy no existen.
 5. **La fidelidad analógica**: pendiente real de los filtros, intermodulación,
@@ -213,9 +229,14 @@ frecuencímetro, el último.
 
 ## Fuentes
 
+- **Manual técnico Datanomics 1982** — la fuente que manda para esta máquina.
+  **No está en abierto**: el 21-sep-2026 se buscó en Elektrotanya (403),
+  Scribd, Audiofanzine, Archive.org y varios foros, sin resultado. Lo que hay
+  en el repo son extractos suyos, vía NotebookLM, en
+  `module_research/{envelope_shapers,octave_filter_bank,output_channels,pitch_to_voltage_converter,sequencer}/`.
 - `module_research/manual_ems_1971/` — especificación original de EMS (1971),
-  páginas de especificación escaneadas y notas con el contraste completo contra
-  nuestra implementación.
+  páginas escaneadas y notas con el contraste contra nuestra implementación.
+  **Fuente secundaria**: misma arquitectura, otra electrónica.
 - `module_research/spring_reverb/NOTAS.md` — la reverberación en detalle.
 - `AUDITORIA-2026-09.md` — estado verificado del código y prioridades.
 - `TODO.md` — la lista de tareas propiamente dicha.

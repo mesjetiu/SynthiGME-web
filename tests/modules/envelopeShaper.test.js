@@ -1,300 +1,447 @@
 /**
- * Tests para modules/envelopeShaper.js — Gate & LED (sin dormancy)
+ * Tests para modules/envelopeShaper.js — contra la clase real.
  *
- * Los Envelope Shapers no usan dormancy. Siempre despiertos gracias al
- * keepalive GainNode (gain=0 al destination), que garantiza process().
- * Coste negligible (~3 mult/sample en IDLE).
+ * Hasta septiembre de 2026 este fichero probaba una copia
+ * (`TestEnvelopeShaperModule`) de la lógica del módulo. Ahora instancia
+ * `EnvelopeShaperModule` con el AudioContext simulado de
+ * `tests/mocks/audioContext.mock.js` y comprueba lo que de verdad hace: qué
+ * nodos crea y cómo los cablea, qué salidas y entradas registra para la
+ * matriz, qué mensajes manda al worklet, cómo recorta los valores de los
+ * knobs y qué hace con el mensaje `active` del worklet (LED).
+ *
+ * Los Envelope Shapers no usan dormancy: están siempre despiertos gracias al
+ * keepalive (GainNode a 0 hacia destination), que garantiza que Chrome ejecute
+ * process() aunque ningún pin de la matriz esté conectado. Aquí se fija que
+ * `setDormant()` no toca nada.
+ *
+ * Lo que ocurre dentro del worklet lo cubre
+ * tests/worklets/envelopeShaper.worklet.test.js.
  */
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-
 import {
   createMockAudioContext,
-  createMockAudioWorkletNode,
-  createMockGainNode
+  createMockAudioWorkletNode
 } from '../mocks/audioContext.mock.js';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// FIXTURE — Réplica de la lógica de EnvelopeShaperModule (sin dormancy)
-// ═══════════════════════════════════════════════════════════════════════════
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  writable: true,
+  value: { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+});
 
-class TestEnvelopeShaperModule {
-  constructor(engine, id) {
-    this.engine = engine;
-    this.id = id;
-    this.name = 'Envelope Shaper';
-    this.inputs = [];
-    this.outputs = [];
-
-    this.workletNode = null;
-    this.merger = null;
-    this.splitter = null;
-    this.envGain = null;
-    this.audioGain = null;
-    this.audioInputGain = null;
-    this.triggerInputGain = null;
-
-    this.onActiveChange = null;
-    this._manualGateActive = false;
-
-    this.values = {
-      mode: 2,
-      delay: 0,
-      attack: 0,
-      decay: 5,
-      sustain: 7,
-      release: 3,
-      envelopeLevel: 5,
-      signalLevel: 0
-    };
-
-    this.isStarted = false;
+globalThis.AudioWorkletNode = class MockAudioWorkletNode {
+  constructor(ctx, name, options) {
+    return createMockAudioWorkletNode(name, options);
   }
+};
 
-  getAudioCtx() {
-    return this.engine.audioCtx;
-  }
+const { EnvelopeShaperModule } = await import('../../src/assets/js/modules/envelopeShaper.js');
+const { envelopeShaperConfig } = await import('../../src/assets/js/configs/index.js');
 
-  _initAudioNodes() {
-    const ctx = this.getAudioCtx();
-    if (!ctx || this.workletNode) return;
+/** Valores de fábrica del módulo (los que manda al worklet nada más arrancar). */
+const DEFAULTS = {
+  mode: 2,
+  delay: 0,
+  attack: 0,
+  decay: 5,
+  sustain: 7,
+  release: 3,
+  envelopeLevel: 5,
+  signalLevel: 0
+};
 
-    this.workletNode = createMockAudioWorkletNode('envelope-shaper', {
-      numberOfInputs: 1,
-      numberOfOutputs: 1,
-      outputChannelCount: [2],
-      channelCount: 2,
-      channelCountMode: 'explicit'
-    });
-
-    this.workletNode.port.onmessage = (e) => {
-      const msg = e.data;
-      if (msg?.type === 'active' && this.onActiveChange) {
-        this.onActiveChange(msg.value);
-      }
-    };
-
-    this.merger = ctx.createChannelMerger(2);
-    this.splitter = ctx.createChannelSplitter(2);
-    this.envGain = ctx.createGain();
-    this.audioGain = ctx.createGain();
-    this.audioInputGain = ctx.createGain();
-    this.triggerInputGain = ctx.createGain();
-
-    this.outputs.push(
-      { id: 'envelope', kind: 'envelopeShaper', node: this.envGain, label: 'Envelope CV' },
-      { id: 'audio',    kind: 'envelopeShaper', node: this.audioGain, label: 'Envelope Audio' }
-    );
-    this.inputs.push(
-      { id: 'signal',  kind: 'envelopeShaper', node: this.audioInputGain,   label: 'Signal In' },
-      { id: 'trigger', kind: 'envelopeShaper', node: this.triggerInputGain,  label: 'Trigger In' }
-    );
-
-    this._sendToWorklet('setMode', this.values.mode);
-    this._sendToWorklet('setDelay', this.values.delay);
-    this._sendToWorklet('setAttack', this.values.attack);
-    this._sendToWorklet('setDecay', this.values.decay);
-    this._sendToWorklet('setSustain', this.values.sustain);
-    this._sendToWorklet('setRelease', this.values.release);
-    this._sendToWorklet('setEnvelopeLevel', this.values.envelopeLevel);
-    this._sendToWorklet('setSignalLevel', this.values.signalLevel);
-    this._sendToWorklet('gate', this._manualGateActive);
-  }
-
-  setMode(value) {
-    this.values.mode = Math.max(0, Math.min(4, Math.round(value)));
-    this._sendToWorklet('setMode', this.values.mode);
-  }
-
-  setGate(active) {
-    this._manualGateActive = !!active;
-    this._sendToWorklet('gate', active);
-  }
-
-  start() {
-    if (this.isStarted) return;
-    this._initAudioNodes();
-    if (!this.workletNode) return;
-    this.isStarted = true;
-  }
-
-  _sendToWorklet(type, value) {
-    if (!this.workletNode) return;
-    try {
-      this.workletNode.port.postMessage({ type, value });
-    } catch (e) { /* ignore */ }
-  }
+function messages(mod) {
+  return mod.workletNode.port._messages;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
-
-function getMessages(module) {
-  return module.workletNode.port._messages;
+function messagesOfType(mod, type) {
+  return messages(mod).filter(m => m.type === type);
 }
 
-function getMessagesByType(module, type) {
-  return getMessages(module).filter(m => m.type === type);
+function clearMessages(mod) {
+  messages(mod).length = 0;
 }
 
-function clearMessages(module) {
-  module.workletNode.port._messages.length = 0;
+function fromWorklet(mod, data) {
+  mod.workletNode.port.onmessage({ data });
 }
 
-function simulateWorkletMessage(module, data) {
-  if (module.workletNode.port.onmessage) {
-    module.workletNode.port.onmessage({ data });
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// TESTS
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('EnvelopeShaperModule — Gate & LED (sin dormancy)', () => {
-  let mockCtx;
-  let mockEngine;
-  let esModule;
+describe('EnvelopeShaperModule', () => {
+  let ctx;
+  let mod;
 
   beforeEach(() => {
-    mockCtx = createMockAudioContext();
-    mockEngine = { audioCtx: mockCtx };
-    esModule = new TestEnvelopeShaperModule(mockEngine, 'es1');
+    ctx = createMockAudioContext();
+    mod = new EnvelopeShaperModule({ audioCtx: ctx }, 'envelopeShaper1');
   });
 
-  describe('inicialización', () => {
-    it('empieza con gate desactivado', () => {
-      assert.equal(esModule._manualGateActive, false);
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Inicialización', () => {
+    it('empieza parado, sin nodos, con gate manual apagado y modo 2', () => {
+      assert.equal(mod.isStarted, false);
+      assert.equal(mod.workletNode, null);
+      assert.equal(mod.name, 'Envelope Shaper');
+      assert.equal(mod.id, 'envelopeShaper1');
+      assert.equal(mod._manualGateActive, false);
+      assert.equal(mod.getMode(), 2);
+      assert.deepEqual(mod.values, DEFAULTS);
     });
 
-    it('empieza en modo GATED (mode=2)', () => {
-      assert.equal(esModule.values.mode, 2);
+    it('sin config usa las rampas por defecto (60 ms nivel, 10 ms envolvente)', () => {
+      assert.deepEqual(mod.config.ramps, { level: 0.06, envelope: 0.01 });
     });
 
-    it('start() crea workletNode y marca isStarted', () => {
-      esModule.start();
-      assert.notEqual(esModule.workletNode, null);
-      assert.equal(esModule.isStarted, true);
+    it('la config puede sobrescribir cada rampa por separado', () => {
+      const custom = new EnvelopeShaperModule({ audioCtx: ctx }, 'es', { ramps: { level: 0.2 } });
+      assert.deepEqual(custom.config.ramps, { level: 0.2, envelope: 0.01 });
     });
 
-    it('tras start() ganancias permanecen en 1 (sin dormancy)', () => {
-      esModule.start();
-      assert.equal(esModule.envGain.gain.value, 1);
-      assert.equal(esModule.audioGain.gain.value, 1);
+    it('start() crea el worklet "envelope-shaper" y marca isStarted', () => {
+      mod.start();
+      assert.equal(mod.isStarted, true);
+      assert.equal(mod.workletNode._name, 'envelope-shaper');
     });
 
-    it('tras start() no envía setDormant al worklet', () => {
-      esModule.start();
-      const dormantMsgs = getMessagesByType(esModule, 'setDormant');
-      assert.equal(dormantMsgs.length, 0);
+    it('start() es idempotente: no recrea nodos ni duplica salidas', () => {
+      mod.start();
+      const first = mod.workletNode;
+      const gainCount = ctx._createdNodes.gain.length;
+      mod.start();
+      assert.strictEqual(mod.workletNode, first);
+      assert.equal(ctx._createdNodes.gain.length, gainCount);
+      assert.equal(mod.outputs.length, 2);
+      assert.equal(mod.inputs.length, 2);
+    });
+
+    it('sin AudioContext, start() no hace nada y el módulo sigue parado', () => {
+      const noCtx = new EnvelopeShaperModule({ audioCtx: null }, 'es');
+      noCtx.start();
+      assert.equal(noCtx.isStarted, false);
+      assert.equal(noCtx.workletNode, null);
+    });
+
+    it('el worklet se crea con 1 entrada y 1 salida estéreo (audio+trigger / env+audio)', () => {
+      mod.start();
+      const opts = mod.workletNode._options;
+      assert.equal(opts.numberOfInputs, 1);
+      assert.equal(opts.numberOfOutputs, 1);
+      assert.deepEqual(opts.outputChannelCount, [2]);
+      assert.equal(opts.channelCount, 2);
+      assert.equal(opts.channelCountMode, 'explicit');
+    });
+
+    it('pasa al worklet los parámetros de audio de envelopeShaper.config.js', () => {
+      mod.start();
+      const po = mod.workletNode._options.processorOptions;
+      const audio = envelopeShaperConfig.audio;
+      for (const key of ['minTimeMs', 'maxTimeMs', 'gateThreshold', 'gateLowThreshold',
+        'gateBlankingTime', 'logBase']) {
+        assert.equal(po[key], audio[key], key);
+        assert.notEqual(po[key], undefined, `${key} sin definir en la config`);
+      }
     });
   });
 
-  describe('gate → directo al worklet', () => {
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Cableado de audio', () => {
+    beforeEach(() => mod.start());
+
+    it('las dos entradas van al merger: señal al canal 0, trigger al canal 1', () => {
+      assert.equal(mod.merger.numberOfInputs, 2);
+      assert.deepEqual(mod.audioInputGain._connections, [
+        { destination: mod.merger, outputIndex: 0, inputIndex: 0 }
+      ]);
+      assert.deepEqual(mod.triggerInputGain._connections, [
+        { destination: mod.merger, outputIndex: 0, inputIndex: 1 }
+      ]);
+      assert.equal(mod.merger._calls.connect, 1); // merger → worklet
+    });
+
+    it('el worklet sale por un splitter de 2 canales hacia envGain y audioGain', () => {
+      assert.equal(mod.splitter.numberOfOutputs, 2);
+      assert.equal(mod.splitter._calls.connect, 2);
+      // worklet → splitter y worklet → keepalive
+      assert.equal(mod.workletNode._calls.connect, 2);
+    });
+
+    it('los gains de entrada y salida son puntos de conexión a ganancia 1', () => {
+      for (const node of [mod.audioInputGain, mod.triggerInputGain, mod.envGain, mod.audioGain]) {
+        assert.equal(node.gain.value, 1);
+      }
+    });
+
+    it('mantiene un keepalive a ganancia 0 hacia destination', () => {
+      assert.equal(mod._keepaliveGain.gain.value, 0);
+      assert.deepEqual(mod._keepaliveGain._connections, [
+        { destination: ctx.destination, outputIndex: undefined, inputIndex: undefined }
+      ]);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Salidas y entradas para la matriz', () => {
+    it('registra las salidas envelope (CV) y audio (VCA)', () => {
+      mod.start();
+      assert.deepEqual(mod.outputs.map(o => o.id), ['envelope', 'audio']);
+      assert.ok(mod.outputs.every(o => o.kind === 'envelopeShaper'));
+      assert.strictEqual(mod.outputs[0].node, mod.envGain);
+      assert.strictEqual(mod.outputs[1].node, mod.audioGain);
+    });
+
+    it('registra las entradas signal y trigger', () => {
+      mod.start();
+      assert.deepEqual(mod.inputs.map(i => i.id), ['signal', 'trigger']);
+      assert.strictEqual(mod.inputs[0].node, mod.audioInputGain);
+      assert.strictEqual(mod.inputs[1].node, mod.triggerInputGain);
+    });
+
+    it('getOutputNode/getInputNode devuelven el nodo correcto y null para ids desconocidos', () => {
+      mod.start();
+      assert.strictEqual(mod.getOutputNode('envelope'), mod.envGain);
+      assert.strictEqual(mod.getOutputNode('audio'), mod.audioGain);
+      assert.strictEqual(mod.getInputNode('signal'), mod.audioInputGain);
+      assert.strictEqual(mod.getInputNode('trigger'), mod.triggerInputGain);
+      assert.equal(mod.getOutputNode('nope'), null);
+      assert.equal(mod.getInputNode('nope'), null);
+    });
+
+    it('los getters de nodo inicializan el audio si aún no se ha arrancado', () => {
+      assert.equal(mod.workletNode, null);
+      const env = mod.getEnvelopeNode();
+      assert.ok(env);
+      assert.ok(mod.workletNode);
+      assert.strictEqual(mod.getAudioNode(), mod.audioGain);
+      assert.strictEqual(mod.getAudioInputNode(), mod.audioInputGain);
+      assert.strictEqual(mod.getTriggerInputNode(), mod.triggerInputGain);
+      // Inicializa los nodos, pero no cuenta como start()
+      assert.equal(mod.isStarted, false);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Estado inicial enviado al worklet', () => {
+    it('al arrancar manda todos los valores de fábrica y el gate manual (false)', () => {
+      mod.start();
+      const expected = [
+        { type: 'setMode', value: 2 },
+        { type: 'setDelay', value: 0 },
+        { type: 'setAttack', value: 0 },
+        { type: 'setDecay', value: 5 },
+        { type: 'setSustain', value: 7 },
+        { type: 'setRelease', value: 3 },
+        { type: 'setEnvelopeLevel', value: 5 },
+        { type: 'setSignalLevel', value: 0 },
+        { type: 'gate', value: false }
+      ];
+      assert.deepEqual(messages(mod), expected);
+    });
+
+    it('no manda ningún setDormant: el módulo no usa dormancy', () => {
+      mod.start();
+      assert.equal(messagesOfType(mod, 'setDormant').length, 0);
+    });
+
+    it('si el gate manual ya estaba activo antes de start(), lo manda activo', () => {
+      mod.setGate(true);
+      mod.start();
+      const gate = messagesOfType(mod, 'gate');
+      assert.deepEqual(gate, [{ type: 'gate', value: true }]);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Knobs', () => {
     beforeEach(() => {
-      esModule.start();
-      clearMessages(esModule);
+      mod.start();
+      clearMessages(mod);
     });
 
-    it('setGate(true) pone _manualGateActive = true', () => {
-      esModule.setGate(true);
-      assert.equal(esModule._manualGateActive, true);
+    const KNOBS = [
+      ['setDelay', 'getDelay', 'delay'],
+      ['setAttack', 'getAttack', 'attack'],
+      ['setDecay', 'getDecay', 'decay'],
+      ['setSustain', 'getSustain', 'sustain'],
+      ['setRelease', 'getRelease', 'release'],
+      ['setSignalLevel', 'getSignalLevel', 'signalLevel']
+    ];
+
+    for (const [setter, getter, key] of KNOBS) {
+      it(`${setter} guarda el valor, lo recorta a 0..10 y manda un solo mensaje`, () => {
+        mod[setter](4.5);
+        assert.equal(mod[getter](), 4.5);
+        assert.equal(mod.values[key], 4.5);
+        assert.deepEqual(messages(mod), [{ type: setter, value: 4.5 }]);
+
+        mod[setter](-3);
+        assert.equal(mod[getter](), 0);
+        mod[setter](99);
+        assert.equal(mod[getter](), 10);
+        assert.equal(messages(mod).at(-1).value, 10);
+      });
+    }
+
+    it('setEnvelopeLevel es bipolar: se recorta a -5..5', () => {
+      mod.setEnvelopeLevel(-2.5);
+      assert.equal(mod.getEnvelopeLevel(), -2.5);
+      assert.deepEqual(messages(mod), [{ type: 'setEnvelopeLevel', value: -2.5 }]);
+      mod.setEnvelopeLevel(-9);
+      assert.equal(mod.getEnvelopeLevel(), -5);
+      mod.setEnvelopeLevel(9);
+      assert.equal(mod.getEnvelopeLevel(), 5);
     });
 
-    it('setGate(true) envía gate:true al worklet', () => {
-      esModule.setGate(true);
-      const gateMsgs = getMessages(esModule).filter(m => m.type === 'gate');
-      assert.equal(gateMsgs.length, 1);
-      assert.equal(gateMsgs[0].value, true);
+    it('setMode redondea al entero más cercano y se recorta a 0..4', () => {
+      mod.setMode(1.4);
+      assert.equal(mod.getMode(), 1);
+      mod.setMode(2.6);
+      assert.equal(mod.getMode(), 3);
+      mod.setMode(-1);
+      assert.equal(mod.getMode(), 0);
+      mod.setMode(7);
+      assert.equal(mod.getMode(), 4);
+      assert.deepEqual(messagesOfType(mod, 'setMode').map(m => m.value), [1, 3, 0, 4]);
     });
 
-    it('setGate(false) envía gate:false al worklet', () => {
-      esModule.setGate(true);
-      clearMessages(esModule);
-      esModule.setGate(false);
-      const gateMsgs = getMessages(esModule).filter(m => m.type === 'gate');
-      assert.equal(gateMsgs.length, 1);
-      assert.equal(gateMsgs[0].value, false);
+    it('cada setter manda exactamente un mensaje al worklet', () => {
+      mod.setMode(1);
+      assert.equal(messages(mod).length, 1);
+      assert.deepEqual(messages(mod)[0], { type: 'setMode', value: 1 });
     });
 
-    it('gate no genera mensajes de dormancy', () => {
-      esModule.setGate(true);
-      esModule.setGate(false);
-      const dormantMsgs = getMessagesByType(esModule, 'setDormant');
-      assert.equal(dormantMsgs.length, 0);
-    });
-  });
-
-  describe('LED — onActiveChange', () => {
-    it('worklet active:true invoca callback', () => {
-      esModule.start();
-      let ledState = null;
-      esModule.onActiveChange = (active) => { ledState = active; };
-      simulateWorkletMessage(esModule, { type: 'active', value: true });
-      assert.equal(ledState, true);
-    });
-
-    it('worklet active:false invoca callback', () => {
-      esModule.start();
-      let ledState = null;
-      esModule.onActiveChange = (active) => { ledState = active; };
-      simulateWorkletMessage(esModule, { type: 'active', value: true });
-      simulateWorkletMessage(esModule, { type: 'active', value: false });
-      assert.equal(ledState, false);
-    });
-  });
-
-  describe('escenario: app fresh + gate', () => {
-    it('start → gate:true → worklet recibe gate directamente', () => {
-      esModule.start();
-      clearMessages(esModule);
-
-      esModule.setGate(true);
-
-      const msgs = getMessages(esModule);
-      const gateMsgs = msgs.filter(m => m.type === 'gate');
-      assert.equal(gateMsgs.length, 1);
-      assert.equal(gateMsgs[0].value, true);
-      assert.equal(esModule.envGain.gain.value, 1);
-      assert.equal(esModule.audioGain.gain.value, 1);
-    });
-
-    it('gate on + off → solo mensajes gate, sin dormancy', () => {
-      esModule.start();
-      clearMessages(esModule);
-
-      esModule.setGate(true);
-      esModule.setGate(false);
-
-      const msgs = getMessages(esModule);
-      assert.equal(msgs.filter(m => m.type === 'gate').length, 2);
-      assert.equal(msgs.filter(m => m.type === 'setDormant').length, 0);
+    it('los setters antes de start() guardan el valor sin reventar', () => {
+      const fresh = new EnvelopeShaperModule({ audioCtx: ctx }, 'es');
+      fresh.setAttack(7);
+      fresh.setMode(0);
+      assert.equal(fresh.getAttack(), 7);
+      assert.equal(fresh.getMode(), 0);
+      fresh.start();
+      assert.deepEqual(messagesOfType(fresh, 'setAttack'), [{ type: 'setAttack', value: 7 }]);
+      assert.deepEqual(messagesOfType(fresh, 'setMode'), [{ type: 'setMode', value: 0 }]);
     });
   });
 
-  describe('guards', () => {
-    it('setGate antes de start registra estado', () => {
-      esModule.setGate(true);
-      assert.equal(esModule._manualGateActive, true);
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Gate manual', () => {
+    it('setGate manda el gate directo al worklet y recuerda el estado', () => {
+      mod.start();
+      clearMessages(mod);
+      mod.setGate(true);
+      assert.equal(mod._manualGateActive, true);
+      mod.setGate(false);
+      assert.equal(mod._manualGateActive, false);
+      assert.deepEqual(messages(mod), [
+        { type: 'gate', value: true },
+        { type: 'gate', value: false }
+      ]);
     });
 
-    it('start() no re-ejecuta si ya iniciado', () => {
-      esModule.start();
-      const msgCount = getMessages(esModule).length;
-      esModule.start();
-      assert.equal(getMessages(esModule).length, msgCount);
+    it('setGate no toca las ganancias ni manda setDormant', () => {
+      mod.start();
+      mod.setGate(true);
+      for (const node of [mod.audioInputGain, mod.triggerInputGain, mod.envGain, mod.audioGain]) {
+        assert.equal(node.gain.value, 1);
+        assert.equal(node.gain._calls.setTargetAtTime, 0);
+      }
+      assert.equal(messagesOfType(mod, 'setDormant').length, 0);
     });
 
-    it('setMode envía al worklet sin evaluar dormancy', () => {
-      esModule.start();
-      clearMessages(esModule);
-      esModule.setMode(1);
-      const msgs = getMessages(esModule);
-      assert.equal(msgs.length, 1);
-      assert.equal(msgs[0].type, 'setMode');
-      assert.equal(msgs[0].value, 1);
+    it('setGate antes de start() no revienta y guarda el estado', () => {
+      assert.doesNotThrow(() => mod.setGate(true));
+      assert.equal(mod._manualGateActive, true);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Worklet → UI (LED de actividad)', () => {
+    beforeEach(() => mod.start());
+
+    it('el mensaje active llama a onActiveChange con su valor', () => {
+      const seen = [];
+      mod.onActiveChange = v => seen.push(v);
+      fromWorklet(mod, { type: 'active', value: true });
+      fromWorklet(mod, { type: 'active', value: false });
+      assert.deepEqual(seen, [true, false]);
+    });
+
+    it('sin callback, el mensaje active no revienta', () => {
+      mod.onActiveChange = null;
+      assert.doesNotThrow(() => fromWorklet(mod, { type: 'active', value: true }));
+    });
+
+    it('otros mensajes y mensajes vacíos se ignoran', () => {
+      const seen = [];
+      mod.onActiveChange = v => seen.push(v);
+      fromWorklet(mod, { type: 'otro', value: true });
+      fromWorklet(mod, null);
+      fromWorklet(mod, undefined);
+      assert.deepEqual(seen, []);
+    });
+
+    it('escenario: gate manual → el worklet responde active → LED encendido', () => {
+      const seen = [];
+      mod.onActiveChange = v => seen.push(v);
+      mod.setGate(true);
+      assert.equal(messagesOfType(mod, 'gate').at(-1).value, true);
+      fromWorklet(mod, { type: 'active', value: true });
+      assert.deepEqual(seen, [true]);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Dormancy (no aplica)', () => {
+    it('setDormant cambia la bandera pero no toca nodos ni manda nada al worklet', () => {
+      mod.start();
+      clearMessages(mod);
+      mod.setDormant(true);
+      assert.equal(mod.isDormant, true);
+      assert.deepEqual(messages(mod), []);
+      assert.equal(mod._keepaliveGain.gain.value, 0);
+      assert.equal(mod.envGain.gain.value, 1);
+      assert.equal(mod.audioGain.gain.value, 1);
+      mod.setDormant(false);
+      assert.equal(mod.isDormant, false);
+      assert.deepEqual(messages(mod), []);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Stop y limpieza', () => {
+    it('stop() manda stop, desconecta todo y vuelve al estado inicial', () => {
+      mod.start();
+      const worklet = mod.workletNode;
+      const nodes = [mod.merger, mod.splitter, mod.envGain, mod.audioGain,
+        mod.audioInputGain, mod.triggerInputGain, mod._keepaliveGain];
+      clearMessages(mod);
+
+      mod.stop();
+
+      assert.deepEqual(worklet.port._messages, [{ type: 'stop' }]);
+      assert.equal(worklet._calls.disconnect, 1);
+      for (const node of nodes) assert.equal(node._calls.disconnect, 1);
+      assert.equal(mod.isStarted, false);
+      for (const key of ['workletNode', 'merger', 'splitter', 'envGain', 'audioGain',
+        'audioInputGain', 'triggerInputGain', '_keepaliveGain']) {
+        assert.equal(mod[key], null, key);
+      }
+      assert.equal(mod.outputs.length, 0);
+      assert.equal(mod.inputs.length, 0);
+    });
+
+    it('stop() sin haber arrancado no hace nada', () => {
+      assert.doesNotThrow(() => mod.stop());
+      assert.equal(mod.isStarted, false);
+    });
+
+    it('stop() conserva los valores: al rearrancar los vuelve a mandar', () => {
+      mod.start();
+      mod.setAttack(8);
+      mod.setGate(true);
+      mod.stop();
+      mod.start();
+      assert.deepEqual(messagesOfType(mod, 'setAttack'), [{ type: 'setAttack', value: 8 }]);
+      assert.deepEqual(messagesOfType(mod, 'gate'), [{ type: 'gate', value: true }]);
     });
   });
 });

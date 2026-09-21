@@ -95,6 +95,78 @@ infraestructura nueva: **propuesto, no decidido.**
   `back_main`, `feature/FullScreenButton`, `feature/multichannel-8ch-routing`,
   `feature/multichannel-experimental`, `issue/SVG_resolution_1`.
 
+## Testing: qué protege y qué no
+
+Cifras: 4458 tests unitarios en 166 ficheros (~65.100 líneas de test para
+~79.900 de código), más 218 tests de audio Playwright en 19 ficheros que miden
+DSP en navegador real (amplitudes, hard sync, FM por octavas, CV, ruteo por
+pines, offset DC). Los tests de marzo (R7, OFB) cargan el código real.
+
+### Tests «espejo»: 23 ficheros, 662 tests (15 % de la suite) que no protegen nada
+
+No importan nada de `src/`. Copian la lógica dentro del test (clases
+`MockDormancyManager` —«lógica replicada para testing sin DOM»—,
+`MockJoystickModule`, funciones `recalcPitch` con el comentario «deben coincidir
+con keyboard.worklet.js») y prueban la copia. Si el fichero real cambia, siguen
+en verde. Dan sensación de seguridad, no seguridad.
+
+| Ficheros espejo | Tests | Qué creen proteger |
+|---|---|---|
+| `midi/midiLearn` | 76 | MIDI Learn |
+| `worklets/keyboard.worklet` | 61 | teclados (pitch/velocity/gate) |
+| `modules/outputChannel` | 58 | Output Channels |
+| `core/dormancyManager`, `dormancySequencer`, `dormancyRandomCV`, `dormancyKeyboard`, `dormancyFilters` | 97 | sistema de dormancy |
+| `modules/sequencer`, `joystick`, `envelopeShaper`, `pulse` | 111 | esos 4 módulos |
+| `worklets/vcaProcessor`, `pitchToVoltageConverter.worklet`, `noiseGenerator.worklet`, `multichannelCapture`, `multichannelPlayback`, `smoothingFilter` | 153 | 6 worklets |
+| `ui/oscilloscopeDisplay`, `ui/recordingOverlay`, `osc/oscServer`, `osc/oscOscillatorSync`, `electron/multichannelActivation` | 106 | UI, OSC, Electron |
+
+Parte de esos worklets sí están cubiertos de verdad por Playwright (VCA,
+oscilador, filtros, CV). El hueco real está en **dormancy, teclado,
+secuenciador, joystick, envelope shaper, MIDI Learn y OSC sync**: ahí solo hay
+espejo.
+
+Cómo detectarlos: fichero de test sin ninguna referencia a `src/assets`, sin
+`readFile` ni `import()` dinámico. Comando usado:
+`grep -LE "src/assets|readFile|import\(" tests/**/*.test.js`.
+
+### Ficheros de `src/` que ningún test carga: 88 de 175 (~37.800 líneas)
+
+Muchos son UI pesada difícil de testear en Node (`settingsModal` 4963 líneas,
+`audioSettingsModal` 2569, `viewportNavigation` 2077, `app.js` 1918,
+`keyboardWindow`, `patchBrowser`, `quickbar`) y locales i18n. Los que
+preocupan por ser lógica, no UI:
+
+- `core/dormancyManager.js` (647), `midi/midiLearnManager.js` (996),
+  `modules/outputChannel.js` (918), `ui/oscilloscopeDisplay.js` (704),
+  `osc/osc*Sync.js` (5 ficheros).
+- 4 worklets sin ningún test, ni unitario ni de audio: `dcBlocker`,
+  `outputFilter` (ambos en la cadena de salida que oye todo el mundo),
+  `scopeCapture`, `recordingCapture`.
+
+### Tests de audio: 16/218 en rojo
+
+Causa conocida (hallazgo 1). Mientras estén en rojo nadie distingue una
+regresión nueva de los fallos «de siempre».
+
+### Medición de cobertura
+
+`node --test --experimental-test-coverage` se cuelga con esta suite (jsdom +
+4458 tests: una hora sin terminar). No usar hasta encontrar alternativa; el
+análisis estático de arriba basta para decidir.
+
+### Plan de testing (decidido el 21-sep-2026)
+
+1. Suite de audio verde (hallazgo 1).
+2. Convertir los espejos en tests reales, por lógica que protegen:
+   `dormancyManager`, `keyboard.worklet`, `sequencer`, `envelopeShaper`,
+   `joystick`, `midiLearn`. Los worklets se cargan en Node como ya hacen
+   `synthiFilter.worklet.test.js` o `sequencer.worklet.test.js` (mock de
+   `AudioWorkletProcessor` en `tests/mocks`); los módulos, con
+   `audioContext.mock.js`. Los espejos sirven de especificación: se conservan
+   los casos y se cambia el sujeto.
+3. Cubrir los 4 worklets huérfanos.
+4. Una comprobación automática de que ningún test nuevo sea espejo.
+
 ## Hecho en esta auditoría
 
 - `package-lock.json` sincronizado con `package.json` (0.8.0 + `naudiodon`

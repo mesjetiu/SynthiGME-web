@@ -10,6 +10,9 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ### Añadido
 - **Octave Filter Bank (PC-22)**: Banco de 8 filtros paso-banda en paralelo (63, 125, 250, 500, 1k, 2k, 4k, 8k Hz), 12 dB/oct, Q=√2. Potenciómetros 10K logarítmicos por banda. Entrada audio Panel 5 col 23, salida fila 109. Sin CV (control manual exclusivo). Bypass automático por banda cuando el dial está al máximo (respuesta plana +10 dB, ahorro de CPU). Valor inicial 10 (bypass activo = señal plana). Tooltips con frecuencia central y nivel en dB. Dormancy automática. 58 tests.
 
+### Corregido
+- **Osciloscopio**: el trazo ya no se queda dibujado al reiniciar o aplicar un patch sin conexiones al osciloscopio. Un frame de captura en vuelo llegaba después del aviso «sin señal» y se quedaba porque el worklet ya estaba dormido; ahora el módulo limpia el display al dormirse y descarta los frames que lleguen dormido.
+
 ---
 
 ## [0.8.0] - 2026-03-16

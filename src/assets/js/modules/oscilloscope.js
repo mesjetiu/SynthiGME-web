@@ -141,6 +141,11 @@ export class OscilloscopeModule extends Module {
     // Recibir datos del worklet
     this.captureNode.port.onmessage = (event) => {
       if (event.data.type === 'scopeData') {
+        // Dormido no se procesa nada: un frame que ya venía de camino con la
+        // señal de antes de desconectar pisaría el "sin señal" y se quedaría
+        // dibujado, porque el worklet dormido no manda otro que lo sustituya.
+        if (this._isDormant) return;
+
         this.lastData = {
           bufferY: event.data.bufferY,
           bufferX: event.data.bufferX,
@@ -397,6 +402,13 @@ export class OscilloscopeModule extends Module {
       } catch (e) {
         // Ignorar errores si el worklet no está listo
       }
+    }
+
+    // Sin conexiones no hay señal: limpiar el display aquí y no fiarlo solo
+    // al aviso de panelRouting, que puede quedar pisado por un frame en vuelo
+    // (ver onmessage). Es lo que hacía que el trazo se quedara al reiniciar.
+    if (dormant) {
+      this._notifyNoSignal();
     }
   }
 }

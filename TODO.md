@@ -214,11 +214,6 @@ podría ser significativo en dispositivos móviles.
 
 ### Abiertos (verificado en código, sin fix en el historial)
 
-- Al reiniciar patch, permanece el dibujo en el osciloscopio.
-  El commit ca6f2191 (24-feb) integró knobs/toggle del osciloscopio en estado y reinicio,
-  pero nada limpia el trazo del canvas: `clearRect` solo ocurre dentro del ciclo de dibujo
-  (`oscilloscopeDisplay.js`). Falta una llamada de limpieza al aplicar/reiniciar patch.
-
 - No se conceden permisos de micro en Chrome android (móvil). Sin commits relacionados.
 
 - En móvil no importa patches (en desktop sí, probado) - testear antes. Sin commits relacionados.
@@ -230,6 +225,17 @@ podría ser significativo en dispositivos móviles.
 - Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
   Parcialmente mejorado (54fbb543: ya no desaparece con el ratón encima; 565664ab:
   estilo unificado), pero el ajuste de "solo con click" sigue sin existir en settingsModal.
+
+### Resueltos
+
+- ~~Al reiniciar patch, permanece el dibujo en el osciloscopio.~~ Resuelto el
+  21-sep-2026. La causa no era el canvas: al reiniciar, panelRouting avisaba
+  «sin señal» y en el mismo tick `flushPendingUpdate()` dormía el osciloscopio,
+  pero un `scopeData` ya en vuelo con la señal de antes llegaba después, pisaba
+  el frame vacío y se quedaba porque el worklet dormido no mandaba otro. Ahora
+  `OscilloscopeModule` avisa «sin señal» al dormirse y descarta los frames que
+  lleguen dormido (`tests/modules/oscilloscope.test.js`, «frames en vuelo»).
+  Pendiente de ver en navegador.
 
 ### Probablemente resueltos (verificar de uso antes de cerrar)
 

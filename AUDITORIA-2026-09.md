@@ -56,9 +56,13 @@ la suite de audio pasa entera.
 
 ### 2. Bugs de navegador/móvil confirmados en código
 
-- **Osciloscopio no se limpia al reiniciar patch.** `clearRect` solo ocurre dentro
-  del bucle de dibujo (`oscilloscopeDisplay.js:599,630`); nada limpia el trazo al
-  aplicar/reiniciar patch.
+- **Osciloscopio no se limpia al reiniciar patch.** RESUELTO el 21-sep. El
+  diagnóstico de julio («nada limpia el trazo») era incompleto: sí había aviso
+  de «sin señal» al quitar el último pin, pero un `scopeData` en vuelo con la
+  señal anterior llegaba después, lo pisaba y se quedaba porque en el mismo
+  tick `flushPendingUpdate()` había dormido el worklet. `OscilloscopeModule`
+  ahora limpia al dormirse y descarta frames mientras duerme; 4 tests lo fijan.
+  Pendiente de comprobar en navegador.
 - **Menú contextual se sale de pantalla en móvil.** `.pip-context-menu`
   (`main.css:7512`) no tiene `max-height` ni `overflow-y`. Lo mismo para el
   desplegable de detach en la barra.

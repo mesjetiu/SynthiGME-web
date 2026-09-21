@@ -390,3 +390,64 @@ describe('OscilloscopeModule (real) — dormancy', () => {
     assert.doesNotThrow(() => scope._onDormancyChange(true));
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Trazo que se queda al reiniciar patch (bug abierto desde feb-2026)
+// ═══════════════════════════════════════════════════════════════════════════
+// Al reiniciar/aplicar patch se desconectan los pines, panelRouting avisa
+// _notifyNoSignal() y, en el mismo tick, DormancyManager.flushPendingUpdate()
+// duerme el osciloscopio. Pero el worklet ya había mandado un scopeData con
+// la señal de antes de desconectar: llega después, pisa el frame vacío y se
+// queda dibujado porque el worklet dormido no vuelve a mandar nada.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('OscilloscopeModule (real) — frames en vuelo al dormir', () => {
+  let scope;
+  let received;
+
+  const signalFrame = () => ({
+    type: 'scopeData',
+    bufferY: new Float32Array(1024).fill(0.5),
+    bufferX: new Float32Array(1024),
+    sampleRate: 48000,
+    triggered: true,
+    validLength: 1000,
+    isAuto: false
+  });
+
+  beforeEach(async () => {
+    scope = new OscilloscopeModule({ audioCtx: createMockAudioContext() }, 'scope-real');
+    await scope.start();
+    received = [];
+    scope.onData(d => received.push(d));
+  });
+
+  it('al dormir avisa al display de que no hay señal', () => {
+    scope.setDormant(true);
+    assert.equal(received.length, 1);
+    assert.equal(received[0].noSignal, true);
+  });
+
+  it('un scopeData que llega después de dormir se descarta (no pisa el frame vacío)', () => {
+    scope.captureNode.port.onmessage({ data: signalFrame() });
+    scope.setDormant(true);
+    scope.captureNode.port.onmessage({ data: signalFrame() });   // en vuelo
+    assert.equal(received.at(-1).noSignal, true, 'lo último que ve el display es "sin señal"');
+    assert.equal(received.length, 2);
+  });
+
+  it('al despertar vuelven a pasar los frames', () => {
+    scope.setDormant(true);
+    scope.setDormant(false);
+    scope.captureNode.port.onmessage({ data: signalFrame() });
+    assert.equal(received.at(-1).triggered, true);
+    assert.equal(received.at(-1).bufferY[0], 0.5);
+  });
+
+  it('sin dormancy los frames siguen llegando con normalidad', () => {
+    scope.captureNode.port.onmessage({ data: signalFrame() });
+    scope.captureNode.port.onmessage({ data: signalFrame() });
+    assert.equal(received.length, 2);
+    assert.ok(received.every(d => !d.noSignal));
+  });
+});

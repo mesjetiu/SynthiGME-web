@@ -1,4 +1,7 @@
 > Estado general y orden de prioridades: ver `AUDITORIA-2026-09.md` (21-sep-2026).
+>
+> Qué le falta al **instrumento** para estar completo (módulos ausentes, huecos
+> de las matrices, fidelidad contra los manuales): `QUE-FALTA.md`.
 
 ## Octave Filter Bank (placa PC-22, D100-22C1)
 

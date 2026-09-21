@@ -411,6 +411,16 @@ ha tocado:
 - El docblock de `_drawYT` sigue diciendo «tercios» (1/3, 2/3); el código y
   el comentario de dentro dicen cuartos. Solo documentación.
 
+## Qué le falta al instrumento
+
+Esta auditoría mira el **código**. La pregunta distinta —qué le falta a la
+emulación para ser el Synthi 100 entero— se responde en `QUE-FALTA.md`
+(21-sep-2026), escrito contra la especificación original de EMS de 1971 que se
+guardó ese día en `module_research/manual_ems_1971/`. Resumen: falta el Echo
+A.D.L. entero, la segunda unidad de reverberación, los tres slew limiters, los
+dos envelope followers y los envíos externos; y los huecos que quedan en las dos
+matrices encajan con esos módulos de forma que permite situarlos.
+
 ## Orden propuesto
 
 1. Lazy init en el worklet → suite de audio verde.

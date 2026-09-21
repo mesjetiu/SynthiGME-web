@@ -3522,13 +3522,14 @@ El proyecto utiliza dos suites complementarias:
 ```
 tests/
 ├── blueprintMapper.test.js      # Regresiones del sistema de mapeo Synthi → índice físico
+├── panelRouting.test.js         # Ruteo de paneles 5/6 y dormancy real de osciladores (entry.setDormant: niveles a 0 / restaurados, aviso al worklet)
 ├── testSuiteHygiene.test.js     # Higiene de la batería: ningún test espejo (todos cargan src/) y ninguno fuera del glob de npm test
 ├── mocks/
 │   └── audioContext.mock.js     # Mock de AudioContext y AudioWorklet para tests unitarios
 ├── core/
 │   ├── dcBlockerRemoval.test.js  # Tests de eliminación de DC blocker
 │   ├── dormancyManager.test.js  # DormancyManager real: qué conexión despierta a cada módulo
-│   ├── engine.test.js           # Tests de AudioEngine con mocks
+│   ├── engine.test.js           # Tests de AudioEngine con mocks (routing, mute, niveles, multicanal, dormancy de output buses)
 │   ├── oscillatorState.test.js  # Tests de estado de osciladores
 │   └── recordingEngine.test.js  # Tests de grabación multitrack
 ├── modules/

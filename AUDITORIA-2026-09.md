@@ -213,9 +213,9 @@ análisis estático de arriba basta para decidir.
   localStorage inventadas (`synth_dormancy_enabled`; las reales llevan el
   prefijo `synthigme-`), y probaban un `setDormant` de InputAmplifiers **que
   no existe**: el manager registra el estado de `input-amplifiers` pero el
-  módulo no hace nada con él (no ahorra CPU). Tampoco hay test real del
-  `setDormant` de los output buses (`engine.js:440`) ni del de los osciladores
-  (`panelRouting.js:348`): quedan para el paso 2.
+  módulo no hace nada con él (no ahorra CPU). Los `setDormant` reales de los
+  output buses (`engine.js`) y de los osciladores (`panelRouting.js`) tampoco
+  tenían test; ya lo tienen (ver más abajo).
 - Convertidos también los otros espejos del paso 2: `keyboard.worklet` (54
   tests contra el worklet real; el espejo tenía mal la tolerancia de cents),
   `sequencer` (35), `envelopeShaper` (40), `joystick` (32; el espejo arrancaba
@@ -253,6 +253,16 @@ análisis estático de arriba basta para decidir.
   en los canales que la entrada no trae y recorte a `channelCount`, el
   `stopped` con que `recordingEngine` finaliza el fichero, y que se puede
   volver a grabar. **Ya no queda ningún worklet sin test.**
+- Los dos `setDormant` que el espejo de dormancy no tocaba, probados contra
+  el código real con `AudioEngine` + AudioContext mock: el de los **output
+  buses** (11 tests en `core/engine.test.js`: dormir desconecta `input` de
+  la cabeza de la cadena sin tocar mute ni nivel; despertar reconecta sin
+  duplicar, resincroniza el VCA con el nivel que cambió mientras dormía y,
+  si hay worklet VCA, le manda `resync` con el voltaje del dial) y el de los
+  **osciladores** (10 tests en `panelRouting.test.js`, con
+  `createMultiOscillator` real: dormir manda `setDormant` al worklet y lleva
+  los cuatro niveles a 0 con rampa de 10 ms; despertar restaura los del
+  estado, incluidos los cambiados mientras dormía, e ignora los no finitos).
 - `pulse` (19; el espejo arrancaba con pw 0,5 y el módulo con 0; además
   `PulseModule` no lo usa ningún panel), `oscOscillatorSync` (34, contra la
   clase real y el `oscBridge` real con `window.oscAPI` stub) y

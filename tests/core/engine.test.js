@@ -9,7 +9,7 @@
  * - Output mute: estado por canal
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import '../mocks/localStorage.mock.js';
 
@@ -1899,5 +1899,144 @@ describe('Flujo multicanal completo: force + routing (integración)', () => {
     
     // El routing se preserva para los canales que existen
     assert.equal(engine.stereoBusOutputs[0].channelGains[0].gain.value, 1);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Output bus setDormant (con AudioContext mock)
+// ═══════════════════════════════════════════════════════════════════════════
+// Es lo que llama DormancyManager._setModuleDormant('output-channel-N') a
+// través de _findModule → engine.outputBuses[N-1]. Sin test hasta septiembre
+// de 2026: el espejo de dormancy probaba un setDormant inventado.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Output bus setDormant (con AudioContext mock)', () => {
+
+  let engine;
+  let mockCtx;
+  const realLog = console.log;
+
+  function setupEngine() {
+    mockCtx = createMockAudioContext({ maxChannelCount: 2 });
+    engine = new AudioEngine({ outputChannels: 8 });
+    engine.start({ audioContext: mockCtx });
+    console.log = () => {};                          // '[Dormancy] Output Bus…'
+    return engine.outputBuses[0];
+  }
+
+  afterEach(() => { console.log = realLog; });
+
+  // Primer nodo tras la entrada: el clipper híbrido (activo en la config) o, si no, el VCA.
+  const headOf = bus => bus.hybridClipShaper || bus.levelNode;
+  const inputConnectedTo = (bus, node) => bus.input._connections.some(c => c.destination === node);
+
+  it('cada bus arranca activo y con la entrada conectada a la cabeza de la cadena', () => {
+    setupEngine();
+    for (const bus of engine.outputBuses) {
+      assert.equal(typeof bus.setDormant, 'function');
+      assert.equal(bus._isDormant, false);
+      assert.equal(inputConnectedTo(bus, headOf(bus)), true);
+    }
+  });
+
+  it('dormant desconecta la entrada de la cadena (VCA y filtros dejan de recibir señal)', () => {
+    const bus = setupEngine();
+    bus.setDormant(true);
+    assert.equal(bus._isDormant, true);
+    assert.equal(inputConnectedTo(bus, headOf(bus)), false);
+  });
+
+  it('dormant corta al principio de la cadena y no toca el mute ni el nivel', () => {
+    const bus = setupEngine();
+    engine.setOutputLevel(0, 0.6);
+    const levelBefore = bus.levelNode.gain.value;
+    const muteBefore = bus.muteNode.gain.value;
+    bus.setDormant(true);
+    assert.equal(bus.levelNode.gain.value, levelBefore);
+    assert.equal(bus.muteNode.gain.value, muteBefore);
+    assert.equal(bus._savedMuteValue, muteBefore);
+    // El resto del grafo sigue conectado: solo se ha cortado input → cabeza
+    assert.ok(bus.levelNode._connections.some(c => c.destination === bus.postVcaNode));
+  });
+
+  it('activar reconecta la entrada al mismo nodo', () => {
+    const bus = setupEngine();
+    bus.setDormant(true);
+    bus.setDormant(false);
+    assert.equal(bus._isDormant, false);
+    assert.equal(inputConnectedTo(bus, headOf(bus)), true);
+    assert.equal(bus.input._connections.length, 1, 'una sola conexión, no duplicadas');
+  });
+
+  it('activar resincroniza el VCA con el nivel del fader que cambió mientras dormía', () => {
+    const bus = setupEngine();
+    bus.setDormant(true);
+    // Mientras duerme, el estado cambia pero el nodo se queda atrás
+    engine.outputLevels[0] = 0.35;
+    bus.levelNode.gain.value = 0.1;
+    const calls = bus.levelNode.gain._calls.setValueAtTime;
+    bus.setDormant(false);
+    assert.equal(bus.levelNode.gain._calls.setValueAtTime, calls + 1);
+    assert.equal(bus.levelNode.gain.value, 0.35);
+  });
+
+  it('activar no reprograma el VCA si el nivel ya coincide', () => {
+    const bus = setupEngine();
+    engine.setOutputLevel(0, 0.5);
+    bus.setDormant(true);
+    bus.levelNode.gain.value = 0.5;
+    const calls = bus.levelNode.gain._calls.setValueAtTime;
+    bus.setDormant(false);
+    assert.equal(bus.levelNode.gain._calls.setValueAtTime, calls);
+  });
+
+  it('con VCA worklet activo, al despertar le manda resync con el voltaje del dial', () => {
+    const bus = setupEngine();
+    const posted = [];
+    bus.vcaWorklet = { port: { postMessage: m => posted.push(m) } };
+    engine.outputLevels[0] = 0.5;                 // 20·log10(0.5) ≈ −6,02 V
+    bus.setDormant(true);
+    assert.equal(posted.length, 0, 'al dormir no hay resync');
+    bus.setDormant(false);
+    assert.equal(posted.length, 1);
+    assert.equal(posted[0].type, 'resync');
+    assert.ok(Math.abs(posted[0].dialVoltage - 20 * Math.log10(0.5)) < 1e-9);
+  });
+
+  it('repetir el mismo estado es un no-op (sin desconexiones ni reconexiones extra)', () => {
+    const bus = setupEngine();
+    const before = { ...bus.input._calls };
+    bus.setDormant(false);
+    assert.deepEqual(bus.input._calls, before);
+    bus.setDormant(true);
+    const afterSleep = { ...bus.input._calls };
+    bus.setDormant(true);
+    assert.deepEqual(bus.input._calls, afterSleep);
+  });
+
+  it('los buses son independientes', () => {
+    setupEngine();
+    engine.outputBuses[2].setDormant(true);
+    assert.equal(engine.outputBuses[2]._isDormant, true);
+    assert.equal(inputConnectedTo(engine.outputBuses[2], headOf(engine.outputBuses[2])), false);
+    for (const i of [0, 1, 3, 7]) {
+      const bus = engine.outputBuses[i];
+      assert.equal(bus._isDormant, false);
+      assert.equal(inputConnectedTo(bus, headOf(bus)), true);
+    }
+  });
+
+  it('sobrevive a un ciclo dormir/despertar repetido sin acumular conexiones', () => {
+    const bus = setupEngine();
+    for (let i = 0; i < 5; i++) { bus.setDormant(true); bus.setDormant(false); }
+    assert.equal(bus.input._connections.length, 1);
+    assert.equal(inputConnectedTo(bus, headOf(bus)), true);
+  });
+
+  it('un disconnect que lanza no rompe el estado (queda dormant igualmente)', () => {
+    const bus = setupEngine();
+    bus.input.disconnect = () => { throw new Error('InvalidAccessError'); };
+    assert.doesNotThrow(() => bus.setDormant(true));
+    assert.equal(bus._isDormant, true);
   });
 });

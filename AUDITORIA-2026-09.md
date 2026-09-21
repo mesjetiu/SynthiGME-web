@@ -185,6 +185,15 @@ análisis estático de arriba basta para decidir.
   módulo no hace nada con él (no ahorra CPU). Tampoco hay test real del
   `setDormant` de los output buses (`engine.js:440`) ni del de los osciladores
   (`panelRouting.js:348`): quedan para el paso 2.
+- Convertidos también los otros espejos del paso 2: `keyboard.worklet` (54
+  tests contra el worklet real; el espejo tenía mal la tolerancia de cents),
+  `sequencer` (35), `envelopeShaper` (40), `joystick` (32; el espejo arrancaba
+  con rango 5 cuando el módulo real arranca con 0) y `midiLearn` (71, contra
+  `midiAccess` y `midiLearnManager` de verdad, incluidos `init()` con puertos y
+  conexión en caliente). Con esto, el hueco que la tabla llamaba «real»
+  (dormancy, teclado, secuenciador, joystick, envelope shaper, MIDI Learn)
+  está cerrado. Quedan como espejo: `outputChannel`, `pulse`, 6 worklets
+  (parte con cobertura Playwright), UI, OSC y Electron.
 
 ## Orden propuesto
 

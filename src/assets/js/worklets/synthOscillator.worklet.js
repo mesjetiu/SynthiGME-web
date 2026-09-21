@@ -158,9 +158,15 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     this._smoothedSawLevel = 0;
     this._smoothedTriLevel = 0;
     this._smoothedPulseLevel = 0;
-    
-    this.mode = options?.processorOptions?.mode || 'single';
-    
+
+    // Los valores de arriba son solo un punto de partida provisional. En el
+    // primer process() se igualan al valor real de cada AudioParam (ver
+    // _initSmoothedFromParams): si no, el primer ~τ×5 (≈150 ms) sería un
+    // barrido audible desde 440 Hz / 0.5 / 1.0 hacia el valor que pidió el
+    // hilo principal. La app pasa `frequency` por processorOptions y lo
+    // disimula; cualquier otro consumidor (harness de tests, uso directo) no.
+    this._smoothInitialized = false;
+
     // Tipo de onda para modo single: 'pulse', 'sine', 'triangle', 'sawtooth'
     this.waveform = options?.processorOptions?.waveform || 'pulse';
     
@@ -604,10 +610,33 @@ class SynthOscillatorProcessor extends AudioWorkletProcessor {
     }
   }
 
+  /**
+   * Iguala cada _smoothed* al valor actual de su AudioParam.
+   * Se llama una sola vez, en el primer process(): a partir de ahí el one-pole
+   * solo suaviza cambios, nunca el arranque.
+   */
+  _initSmoothedFromParams(parameters) {
+    const first = (param, fallback) =>
+      (param && param.length > 0) ? param[0] : fallback;
+    this._smoothedFreq = first(parameters.frequency, this._smoothedFreq);
+    this._smoothedGain = first(parameters.gain, this._smoothedGain);
+    this._smoothedPulseWidth = first(parameters.pulseWidth, this._smoothedPulseWidth);
+    this._smoothedSymmetry = first(parameters.symmetry, this._smoothedSymmetry);
+    this._smoothedSineLevel = first(parameters.sineLevel, this._smoothedSineLevel);
+    this._smoothedSawLevel = first(parameters.sawLevel, this._smoothedSawLevel);
+    this._smoothedTriLevel = first(parameters.triLevel, this._smoothedTriLevel);
+    this._smoothedPulseLevel = first(parameters.pulseLevel, this._smoothedPulseLevel);
+    this._smoothInitialized = true;
+  }
+
   process(inputs, outputs, parameters) {
     if (!this.isRunning) return false;
 
     const numSamples = outputs[0]?.[0]?.length || 128;
+
+    if (!this._smoothInitialized) {
+      this._initSmoothedFromParams(parameters);
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // DORMANCY: Early exit - no procesar formas de onda, solo silencio

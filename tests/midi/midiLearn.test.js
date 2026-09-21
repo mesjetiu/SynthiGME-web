@@ -1,769 +1,893 @@
 /**
- * Tests del módulo MIDI Access y MIDI Learn Manager.
- * 
- * Estilo: tests unitarios de lógica pura (parsing de mensajes, buildMIDIKey,
- * conversión de valores, gestión de mappings). Sin importar módulos con
- * side effects de browser (navigator.requestMIDIAccess).
- * 
- * @module tests/midi/midiLearn.test
+ * Tests de midi/midiAccess.js y midi/midiLearnManager.js — contra el código real.
+ *
+ * Hasta septiembre de 2026 este fichero "replicaba" el parsing de mensajes,
+ * la construcción de claves, la conversión de valores y la gestión de
+ * mappings en funciones locales, con la excusa de que los módulos tenían
+ * efectos de navegador. Pasaba aunque el código real cambiara.
+ *
+ * Ahora importa los dos singletons de verdad. Lo único que hace falta es un
+ * `document` mínimo (dispatchEvent, getElementById), `CustomEvent`, un
+ * `navigator.requestMIDIAccess` falso y el `localStorage` en memoria de
+ * tests/mocks. La app se simula con `_findModuleById`, que es lo único que
+ * el manager le pide.
  */
 
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import '../mocks/localStorage.mock.js';
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// HELPERS REPLICADOS (sin importar módulos con side effects de browser)
-// La lógica de parsing y key-building se replica aquí para testear el contrato.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// ENTORNO MÍNIMO DE NAVEGADOR
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Genera la clave única para un mensaje MIDI (réplica de midiLearnManager.js)
- */
-function buildMIDIKey(deviceId, channel, type, number) {
-  const normalizedType = type === 'noteoff' ? 'noteon' : type;
-  const num = normalizedType === 'pitchbend' ? 0 : number;
-  return `${deviceId}:${channel}:${normalizedType}:${num}`;
-}
+/** Eventos despachados en `document` durante el test actual. */
+const events = [];
 
-/**
- * Genera el identificador único de un control destino (réplica)
- */
-function buildControlId(target) {
-  if (target.controlKey) {
-    return `${target.moduleId}:${target.controlType || 'knob'}:${target.controlKey}`;
+globalThis.CustomEvent = class CustomEvent {
+  constructor(type, options = {}) {
+    this.type = type;
+    this.detail = options.detail;
   }
-  return `${target.moduleId}:${target.controlType || 'knob'}:${target.knobIndex}`;
+};
+
+globalThis.document = {
+  dispatchEvent(ev) { events.push(ev); return true; },
+  getElementById() { return null; },
+  createElement() { throw new Error('createElement no debería usarse en estos tests'); }
+};
+
+function eventsOfType(type) {
+  return events.filter(e => e.type === type);
+}
+
+function lastEvent(type) {
+  return eventsOfType(type).at(-1);
+}
+
+const { midiAccess } = await import('../../src/assets/js/midi/midiAccess.js');
+const { midiLearnManager } = await import('../../src/assets/js/midi/midiLearnManager.js');
+const { STORAGE_KEYS } = await import('../../src/assets/js/utils/constants.js');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Elemento DOM falso: solo la classList que usan el manager y flashGlow. */
+function fakeEl() {
+  const classes = new Set();
+  return {
+    offsetWidth: 0,
+    classList: {
+      add: c => classes.add(c),
+      remove: c => classes.delete(c),
+      contains: c => classes.has(c)
+    },
+    has: c => classes.has(c)
+  };
+}
+
+function fakeKnob(min, max) {
+  const knob = { min, max, value: min, rootEl: fakeEl(), calls: [] };
+  knob.setValue = v => { knob.value = v; knob.calls.push(v); };
+  return knob;
 }
 
 /**
- * Parsea un mensaje MIDI raw (réplica de midiAccess.js _parseMessage)
+ * App simulada con un módulo de cada tipo que sabe resolver el manager.
+ * Devuelve la app y los controles para poder inspeccionarlos.
  */
-function parseMessage(data) {
-  if (!data || data.length < 1) return null;
+function createFakeApp() {
+  const osc = { knobs: [fakeKnob(0, 10), fakeKnob(0, 10), fakeKnob(-5, 5)] };
+  const noise = { knobs: { colour: fakeKnob(0, 10), level: fakeKnob(0, 10) } };
+  const output = {
+    slider: { min: '0', max: '10' },
+    _sliderWrapEl: fakeEl(),
+    level: null,
+    deserialize(state) { output.level = state.level; },
+    filterKnobUI: fakeKnob(-5, 5),
+    panKnobUI: fakeKnob(-1, 1),
+    powerSwitch: { element: fakeEl(), state: 'a', setState(s) { this.state = s; } }
+  };
+  const joystickModule = { element: fakeEl(), positions: [], setPosition(x, y) { this.positions.push([x, y]); } };
+  const joystick = { module: joystickModule, knobs: { rangeX: { knobInstance: fakeKnob(0, 10) } } };
+  const scope = {
+    timeKnob: { knobInstance: fakeKnob(0, 10) },
+    ampKnob: { knobInstance: fakeKnob(0, 10) },
+    levelKnob: null,
+    modeToggle: { element: fakeEl(), toggles: 0, toggle() { this.toggles++; } }
+  };
 
-  const statusByte = data[0];
-  const channel = statusByte & 0x0F;
-  const command = statusByte & 0xF0;
+  const modules = {
+    'panel1-osc-1': { type: 'oscillator', ui: osc },
+    'noise-1': { type: 'noise', ui: noise },
+    'output-1': { type: 'outputChannel', ui: output },
+    'joystick-left': { type: 'joystick', ui: joystick },
+    'keyboard-upper': { type: 'keyboard', ui: null },
+    'scope': { type: 'oscilloscope', ui: scope }
+  };
 
-  switch (command) {
-    case 0x80:
-      return { type: 'noteoff', channel, note: data[1], velocity: data[2] };
-
-    case 0x90: {
-      const velocity = data[2];
-      if (velocity === 0) {
-        return { type: 'noteoff', channel, note: data[1], velocity: 0 };
-      }
-      return { type: 'noteon', channel, note: data[1], velocity };
-    }
-
-    case 0xB0:
-      return { type: 'cc', channel, cc: data[1], value: data[2] };
-
-    case 0xE0: {
-      const value = (data[2] << 7) | data[1];
-      return { type: 'pitchbend', channel, value };
-    }
-
-    default:
-      return null;
-  }
+  return {
+    app: { _findModuleById: id => modules[id] || null },
+    osc, noise, output, joystickModule, joystick, scope
+  };
 }
 
-/**
- * Convierte nota MIDI a nombre (réplica)
- */
-function noteNumberToName(noteNumber) {
-  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const octave = Math.floor(noteNumber / 12) - 1;
-  const name = names[noteNumber % 12];
-  return `${name}${octave}`;
+/** Mensaje MIDI ya parseado, tal como lo entrega midiAccess. */
+function msg(overrides) {
+  return { channel: 0, deviceId: 'dev-1', deviceName: 'Test Controller', ...overrides };
 }
 
-/**
- * Convierte valor MIDI CC (0–127) a rango de knob
- */
-function ccToKnobValue(ccValue, min, max) {
-  const normalized = ccValue / 127;
-  return min + normalized * (max - min);
+const cc = (number, value, extra) => msg({ type: 'cc', cc: number, value, ...extra });
+const noteOn = (note, velocity, extra) => msg({ type: 'noteon', note, velocity, ...extra });
+const noteOff = (note, extra) => msg({ type: 'noteoff', note, velocity: 0, ...extra });
+const bend = (value, extra) => msg({ type: 'pitchbend', value, ...extra });
+
+/** Evento MIDIMessageEvent crudo para midiAccess. */
+function rawEvent(bytes, port = { id: 'dev-1', name: 'Test Controller' }) {
+  return { data: Uint8Array.from(bytes), target: port };
 }
 
-/**
- * Convierte valor de pitch bend (0–16383) a rango de knob
- */
-function pitchBendToKnobValue(bendValue, min, max) {
-  const normalized = bendValue / 16383;
-  return min + normalized * (max - min);
+/** Mete un mensaje parseado directamente en el manager (sin pasar por midiAccess). */
+function feed(m) {
+  midiLearnManager._onMIDIMessage(m);
 }
 
-/**
- * Convierte valor MIDI a rango de slider (réplica de _applyValueToControl para sliders).
- * Lee min/max del slider HTML → escala al rango real.
- */
-function midiToSliderValue(midiValue, midiMax, sliderMin, sliderMax) {
-  const normalized = midiValue / midiMax;
-  return sliderMin + normalized * (sliderMax - sliderMin);
+/** Completa un learn de principio a fin: startLearn + primer mensaje. */
+async function learn(target, m) {
+  await midiLearnManager.startLearn(target);
+  feed(m);
+  return midiLearnManager.getMappingForControl(target);
 }
 
-/**
- * Simula el comportamiento anti-feedback con múltiples mensajes rápidos.
- * Réplica del flujo en _applyMapping: nunca descarta mensajes MIDI entrantes,
- * siempre aplica el último valor.
- */
-function simulateRapidMessages(messages) {
-  let lastApplied = null;
-  let ignoreMIDI = false;
-  let timer = null;
-
-  for (const msg of messages) {
-    // NUNCA descartamos mensajes MIDI entrantes (el fix)
-    ignoreMIDI = true;
-    clearTimeout(timer);
-    lastApplied = msg.value;
-    timer = setTimeout(() => { ignoreMIDI = false; }, 10);
-  }
-
-  return { lastApplied, ignoreMIDI };
+/** Deja el singleton como recién construido. */
+function resetManager() {
+  midiLearnManager.destroy();
+  midiLearnManager._mappings.clear();
+  midiLearnManager._controlIndex.clear();
+  clearTimeout(midiLearnManager._antiFeedbackTimer);
+  midiLearnManager._ignoreMIDIUpdates = false;
 }
 
-/**
- * Simula el viejo comportamiento (pre-fix) que descartaba mensajes.
- */
-function simulateRapidMessagesOld(messages) {
-  let lastApplied = null;
-  let ignoreMIDI = false;
+const OSC_KNOB_1 = { moduleId: 'panel1-osc-1', controlType: 'knob', knobIndex: 1, label: 'Osc 1 Level' };
+const OSC_VERNIER = { moduleId: 'panel1-osc-1', controlType: 'knob', knobIndex: 0 };
+const NOISE_COLOUR = { moduleId: 'noise-1', controlType: 'knob', controlKey: 'colour' };
+const OUTPUT_SLIDER = { moduleId: 'output-1', controlType: 'slider' };
+const OUTPUT_SWITCH = { moduleId: 'output-1', controlType: 'switch' };
+const JOY_PAD = { moduleId: 'joystick-left', controlType: 'pad' };
+const KEYBOARD = { moduleId: 'keyboard-upper', controlType: 'keyboard' };
+const SCOPE_TOGGLE = { moduleId: 'scope', controlType: 'toggle' };
 
-  for (const msg of messages) {
-    if (ignoreMIDI) continue; // BUG: descarta mensajes
-    ignoreMIDI = true;
-    lastApplied = msg.value;
-    setTimeout(() => { ignoreMIDI = false; }, 10);
-  }
+// ═════════════════════════════════════════════════════════════════════════════
+// midiAccess
+// ═════════════════════════════════════════════════════════════════════════════
 
-  return { lastApplied };
-}
+describe('midiAccess — parsing de mensajes crudos', () => {
+  const parse = bytes => midiAccess._parseMessage(rawEvent(bytes));
 
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TESTS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-describe('MIDI — Parsing de mensajes', () => {
-
-  // ── Control Change ──────────────────────────────────────────────────────
-
-  describe('Control Change (CC)', () => {
-    it('parsea CC en canal 0 correctamente', () => {
-      // Status 0xB0 = CC, canal 0
-      const msg = parseMessage(new Uint8Array([0xB0, 74, 100]));
-      assert.strictEqual(msg.type, 'cc');
-      assert.strictEqual(msg.channel, 0);
-      assert.strictEqual(msg.cc, 74);
-      assert.strictEqual(msg.value, 100);
+  it('Control Change: canal, número y valor', () => {
+    assert.deepEqual(parse([0xB0, 7, 100]), {
+      channel: 0, deviceId: 'dev-1', deviceName: 'Test Controller', type: 'cc', cc: 7, value: 100
     });
-
-    it('parsea CC en canal 15', () => {
-      const msg = parseMessage(new Uint8Array([0xBF, 1, 64]));
-      assert.strictEqual(msg.type, 'cc');
-      assert.strictEqual(msg.channel, 15);
-      assert.strictEqual(msg.cc, 1);
-      assert.strictEqual(msg.value, 64);
-    });
-
-    it('parsea CC con valor 0 (mínimo)', () => {
-      const msg = parseMessage(new Uint8Array([0xB0, 7, 0]));
-      assert.strictEqual(msg.value, 0);
-    });
-
-    it('parsea CC con valor 127 (máximo)', () => {
-      const msg = parseMessage(new Uint8Array([0xB0, 7, 127]));
-      assert.strictEqual(msg.value, 127);
-    });
+    assert.equal(parse([0xBF, 1, 0]).channel, 15);
+    assert.equal(parse([0xB3, 1, 127]).value, 127);
   });
 
-  // ── Note On / Off ──────────────────────────────────────────────────────
-
-  describe('Note On / Off', () => {
-    it('parsea Note On correctamente', () => {
-      const msg = parseMessage(new Uint8Array([0x90, 60, 100]));
-      assert.strictEqual(msg.type, 'noteon');
-      assert.strictEqual(msg.channel, 0);
-      assert.strictEqual(msg.note, 60);
-      assert.strictEqual(msg.velocity, 100);
-    });
-
-    it('Note On con velocity 0 se interpreta como Note Off', () => {
-      const msg = parseMessage(new Uint8Array([0x90, 60, 0]));
-      assert.strictEqual(msg.type, 'noteoff');
-      assert.strictEqual(msg.velocity, 0);
-    });
-
-    it('parsea Note Off correctamente', () => {
-      const msg = parseMessage(new Uint8Array([0x80, 48, 64]));
-      assert.strictEqual(msg.type, 'noteoff');
-      assert.strictEqual(msg.note, 48);
-    });
-
-    it('parsea Note On en canal 9 (percusión)', () => {
-      const msg = parseMessage(new Uint8Array([0x99, 36, 127]));
-      assert.strictEqual(msg.channel, 9);
-      assert.strictEqual(msg.type, 'noteon');
-    });
+  it('Note On con velocidad', () => {
+    const m = parse([0x90, 60, 100]);
+    assert.equal(m.type, 'noteon');
+    assert.equal(m.note, 60);
+    assert.equal(m.velocity, 100);
+    assert.equal(parse([0x99, 36, 1]).channel, 9);
   });
 
-  // ── Pitch Bend ─────────────────────────────────────────────────────────
-
-  describe('Pitch Bend', () => {
-    it('parsea pitch bend centro (8192)', () => {
-      // Centro: LSB=0, MSB=64 → (64 << 7) | 0 = 8192
-      const msg = parseMessage(new Uint8Array([0xE0, 0, 64]));
-      assert.strictEqual(msg.type, 'pitchbend');
-      assert.strictEqual(msg.value, 8192);
-    });
-
-    it('parsea pitch bend mínimo (0)', () => {
-      const msg = parseMessage(new Uint8Array([0xE0, 0, 0]));
-      assert.strictEqual(msg.value, 0);
-    });
-
-    it('parsea pitch bend máximo (16383)', () => {
-      // Max: LSB=127, MSB=127 → (127 << 7) | 127 = 16383
-      const msg = parseMessage(new Uint8Array([0xE0, 127, 127]));
-      assert.strictEqual(msg.value, 16383);
-    });
-
-    it('parsea pitch bend en canal 5', () => {
-      const msg = parseMessage(new Uint8Array([0xE5, 0, 64]));
-      assert.strictEqual(msg.channel, 5);
-    });
+  it('Note On con velocidad 0 es Note Off (convención MIDI)', () => {
+    assert.deepEqual(parse([0x90, 60, 0]), msg({ type: 'noteoff', note: 60, velocity: 0 }));
   });
 
-  // ── Mensajes no soportados ─────────────────────────────────────────────
+  it('Note Off explícito', () => {
+    const m = parse([0x80, 60, 64]);
+    assert.equal(m.type, 'noteoff');
+    assert.equal(m.note, 60);
+  });
 
-  describe('Mensajes no soportados', () => {
-    it('ignora Program Change', () => {
-      const msg = parseMessage(new Uint8Array([0xC0, 5]));
-      assert.strictEqual(msg, null);
-    });
+  it('Pitch Bend junta LSB y MSB en 14 bits', () => {
+    assert.equal(parse([0xE0, 0x00, 0x40]).value, 8192);
+    assert.equal(parse([0xE0, 0x00, 0x00]).value, 0);
+    assert.equal(parse([0xE0, 0x7F, 0x7F]).value, 16383);
+    assert.equal(parse([0xE5, 0x00, 0x40]).channel, 5);
+    assert.equal(parse([0xE0, 0x00, 0x40]).type, 'pitchbend');
+  });
 
-    it('ignora Channel Aftertouch', () => {
-      const msg = parseMessage(new Uint8Array([0xD0, 100]));
-      assert.strictEqual(msg, null);
-    });
+  it('ignora Program Change, aftertouch y datos vacíos', () => {
+    assert.equal(parse([0xC0, 5]), null);
+    assert.equal(parse([0xD0, 64]), null);
+    assert.equal(parse([]), null);
+    assert.equal(midiAccess._parseMessage({ data: null }), null);
+  });
 
-    it('devuelve null para data vacía', () => {
-      assert.strictEqual(parseMessage(null), null);
-      assert.strictEqual(parseMessage(new Uint8Array([])), null);
-    });
+  it('sin puerto origen usa un dispositivo genérico', () => {
+    const m = midiAccess._parseMessage({ data: Uint8Array.from([0xB0, 1, 1]), target: null });
+    assert.equal(m.deviceId, 'unknown');
+    assert.equal(m.deviceName, 'MIDI Device');
   });
 });
 
+describe('midiAccess — callbacks', () => {
+  afterEach(() => midiAccess.destroy());
 
-describe('MIDI — Claves de mapping', () => {
-
-  describe('buildMIDIKey', () => {
-    it('genera clave para CC', () => {
-      const key = buildMIDIKey('device1', 0, 'cc', 74);
-      assert.strictEqual(key, 'device1:0:cc:74');
-    });
-
-    it('genera clave para Note On', () => {
-      const key = buildMIDIKey('device1', 0, 'noteon', 60);
-      assert.strictEqual(key, 'device1:0:noteon:60');
-    });
-
-    it('normaliza noteoff a noteon', () => {
-      const keyOn = buildMIDIKey('device1', 0, 'noteon', 60);
-      const keyOff = buildMIDIKey('device1', 0, 'noteoff', 60);
-      assert.strictEqual(keyOn, keyOff);
-    });
-
-    it('pitch bend usa número 0', () => {
-      const key = buildMIDIKey('device1', 3, 'pitchbend', 999);
-      assert.strictEqual(key, 'device1:3:pitchbend:0');
-    });
-
-    it('claves de distintos canales son diferentes', () => {
-      const key1 = buildMIDIKey('device1', 0, 'cc', 74);
-      const key2 = buildMIDIKey('device1', 1, 'cc', 74);
-      assert.notStrictEqual(key1, key2);
-    });
-
-    it('claves de distintos dispositivos son diferentes', () => {
-      const key1 = buildMIDIKey('devA', 0, 'cc', 74);
-      const key2 = buildMIDIKey('devB', 0, 'cc', 74);
-      assert.notStrictEqual(key1, key2);
-    });
+  it('onMessage recibe los mensajes parseados y devuelve una función para desuscribirse', () => {
+    const seen = [];
+    const off = midiAccess.onMessage(m => seen.push(m));
+    midiAccess._onMIDIMessage(rawEvent([0xB0, 7, 64]));
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].cc, 7);
+    off();
+    midiAccess._onMIDIMessage(rawEvent([0xB0, 7, 65]));
+    assert.equal(seen.length, 1);
   });
 
-  describe('buildControlId', () => {
-    it('genera ID para oscilador knob por índice', () => {
-      const id = buildControlId({ moduleId: 'panel1-osc-1', knobIndex: 3 });
-      assert.strictEqual(id, 'panel1-osc-1:knob:3');
-    });
+  it('los mensajes no parseables no llegan a los callbacks', () => {
+    const seen = [];
+    midiAccess.onMessage(m => seen.push(m));
+    midiAccess._onMIDIMessage(rawEvent([0xC0, 1]));
+    assert.equal(seen.length, 0);
+  });
 
-    it('genera ID para knob con controlKey (noise)', () => {
-      const id = buildControlId({ moduleId: 'noise-gen-1', controlType: 'knob', controlKey: 'colour' });
-      assert.strictEqual(id, 'noise-gen-1:knob:colour');
-    });
-
-    it('genera ID para slider (output)', () => {
-      const id = buildControlId({ moduleId: 'output-channel-1', controlType: 'slider', knobIndex: -1 });
-      assert.strictEqual(id, 'output-channel-1:slider:-1');
-    });
-
-    it('controlKey tiene prioridad sobre knobIndex', () => {
-      const id = buildControlId({ moduleId: 'mod', controlType: 'knob', controlKey: 'rangeX', knobIndex: 5 });
-      assert.strictEqual(id, 'mod:knob:rangeX');
-    });
+  it('un callback que revienta no impide que el resto reciba el mensaje', () => {
+    const seen = [];
+    midiAccess.onMessage(() => { throw new Error('boom'); });
+    midiAccess.onMessage(m => seen.push(m));
+    assert.doesNotThrow(() => midiAccess._onMIDIMessage(rawEvent([0x90, 60, 100])));
+    assert.equal(seen.length, 1);
   });
 });
 
+describe('midiAccess — init con Web MIDI API', () => {
+  let originalNavigator;
+  let inputs;
+  let access;
 
-describe('MIDI — Conversión de valores', () => {
-
-  describe('CC → Rango de knob', () => {
-    it('CC 0 → valor mínimo del knob', () => {
-      assert.strictEqual(ccToKnobValue(0, 0, 1), 0);
-    });
-
-    it('CC 127 → valor máximo del knob', () => {
-      assert.strictEqual(ccToKnobValue(127, 0, 1), 1);
-    });
-
-    it('CC 64 ≈ centro del rango (0–10)', () => {
-      const val = ccToKnobValue(64, 0, 10);
-      assert.ok(Math.abs(val - 5.04) < 0.1, `Esperado ~5.04, recibido ${val}`);
-    });
-
-    it('maneja rangos negativos (-5 a +5)', () => {
-      const min = ccToKnobValue(0, -5, 5);
-      const max = ccToKnobValue(127, -5, 5);
-      assert.strictEqual(min, -5);
-      assert.strictEqual(max, 5);
-    });
-
-    it('rango 0–1 (dial normalizado)', () => {
-      const mid = ccToKnobValue(63, 0, 1);
-      assert.ok(mid > 0.49 && mid < 0.51, `Esperado ~0.496, recibido ${mid}`);
-    });
-  });
-
-  describe('Pitch Bend → Rango de knob', () => {
-    it('bend 0 → valor mínimo', () => {
-      assert.strictEqual(pitchBendToKnobValue(0, 0, 1), 0);
-    });
-
-    it('bend 16383 → valor máximo', () => {
-      assert.strictEqual(pitchBendToKnobValue(16383, 0, 1), 1);
-    });
-
-    it('bend 8192 ≈ centro', () => {
-      const val = pitchBendToKnobValue(8192, -1, 1);
-      assert.ok(Math.abs(val) < 0.01, `Esperado ~0, recibido ${val}`);
-    });
-
-    it('resolución 14 bits supera a 7 bits (CC)', () => {
-      // Con pitch bend, distinguimos 16384 valores vs 128 del CC
-      const a = pitchBendToKnobValue(8192, 0, 1);
-      const b = pitchBendToKnobValue(8193, 0, 1);
-      const diff = Math.abs(b - a);
-      const ccStep = 1 / 127;
-      assert.ok(diff < ccStep, 'Pitch bend debe tener más resolución que CC');
-    });
-  });
-});
-
-
-describe('MIDI — Nombres de notas', () => {
-  it('nota 60 = C4 (Do central)', () => {
-    assert.strictEqual(noteNumberToName(60), 'C4');
-  });
-
-  it('nota 69 = A4 (La 440Hz)', () => {
-    assert.strictEqual(noteNumberToName(69), 'A4');
-  });
-
-  it('nota 0 = C-1', () => {
-    assert.strictEqual(noteNumberToName(0), 'C-1');
-  });
-
-  it('nota 127 = G9', () => {
-    assert.strictEqual(noteNumberToName(127), 'G9');
-  });
-
-  it('nota 61 = C#4', () => {
-    assert.strictEqual(noteNumberToName(61), 'C#4');
-  });
-
-  it('nota 66 = F#4', () => {
-    assert.strictEqual(noteNumberToName(66), 'F#4');
-  });
-});
-
-
-describe('MIDI — Simulación de mapa de mappings', () => {
-  let mappings;
-  let controlIndex;
+  function fakeInput(id, name, state = 'connected') {
+    return { id, name, manufacturer: 'Fake', state, connection: 'closed', onmidimessage: null,
+      opened: 0, async open() { this.opened++; this.connection = 'open'; } };
+  }
 
   beforeEach(() => {
-    mappings = new Map();
-    controlIndex = new Map();
-  });
-
-  function addMapping(deviceId, channel, type, number, target) {
-    const midiKey = buildMIDIKey(deviceId, channel, type, number);
-    const controlId = buildControlId(target);
-
-    // Si ya existía un mapping con esta clave MIDI, limpiar índice
-    if (mappings.has(midiKey)) {
-      const old = mappings.get(midiKey);
-      controlIndex.delete(buildControlId(old.target));
-    }
-
-    // Si el control ya tenía mapping, limpiar
-    const prevMidiKey = controlIndex.get(controlId);
-    if (prevMidiKey && prevMidiKey !== midiKey) {
-      mappings.delete(prevMidiKey);
-    }
-
-    mappings.set(midiKey, { midiKey, deviceId, channel, type, number, target });
-    controlIndex.set(controlId, midiKey);
-  }
-
-  it('añade un mapping correctamente', () => {
-    const target = { moduleId: 'panel1-osc-1', knobIndex: 0 };
-    addMapping('dev1', 0, 'cc', 74, target);
-    assert.strictEqual(mappings.size, 1);
-    assert.strictEqual(controlIndex.size, 1);
-  });
-
-  it('reemplaza mapping si el mismo CC se reasigna', () => {
-    const target1 = { moduleId: 'panel1-osc-1', knobIndex: 0 };
-    const target2 = { moduleId: 'panel1-osc-1', knobIndex: 1 };
-    
-    addMapping('dev1', 0, 'cc', 74, target1);
-    addMapping('dev1', 0, 'cc', 74, target2);
-    
-    assert.strictEqual(mappings.size, 1);
-    assert.strictEqual(mappings.get('dev1:0:cc:74').target.knobIndex, 1);
-  });
-
-  it('reemplaza mapping si el mismo control se reasigna a otro CC', () => {
-    const target = { moduleId: 'panel1-osc-1', knobIndex: 0 };
-    
-    addMapping('dev1', 0, 'cc', 74, target);
-    addMapping('dev1', 0, 'cc', 75, target);
-    
-    // Solo debe quedar el CC 75
-    assert.strictEqual(mappings.size, 1);
-    assert.ok(mappings.has('dev1:0:cc:75'));
-    assert.ok(!mappings.has('dev1:0:cc:74'));
-  });
-
-  it('permite mappings de distintos dispositivos al mismo CC', () => {
-    const target1 = { moduleId: 'panel1-osc-1', knobIndex: 0 };
-    const target2 = { moduleId: 'panel1-osc-2', knobIndex: 0 };
-    
-    addMapping('devA', 0, 'cc', 74, target1);
-    addMapping('devB', 0, 'cc', 74, target2);
-    
-    assert.strictEqual(mappings.size, 2);
-  });
-
-  it('eliminar mapping por clave MIDI', () => {
-    const target = { moduleId: 'panel1-osc-1', knobIndex: 0 };
-    addMapping('dev1', 0, 'cc', 74, target);
-    
-    const midiKey = 'dev1:0:cc:74';
-    const controlId = buildControlId(target);
-    controlIndex.delete(controlId);
-    mappings.delete(midiKey);
-    
-    assert.strictEqual(mappings.size, 0);
-    assert.strictEqual(controlIndex.size, 0);
-  });
-
-  it('serialización/deserialización round-trip', () => {
-    const target = { moduleId: 'panel1-osc-1', controlType: 'knob', knobIndex: 3, label: 'Shape 1' };
-    addMapping('dev1', 0, 'cc', 21, target);
-    addMapping('dev1', 1, 'pitchbend', 0, { moduleId: 'panel1-osc-2', knobIndex: 0 });
-    
-    // Serializar
-    const exported = Array.from(mappings.values()).map(m => ({
-      midiKey: m.midiKey,
-      channel: m.channel,
-      type: m.type,
-      number: m.number,
-      target: m.target
-    }));
-    const json = JSON.stringify({ version: 1, mappings: exported });
-    
-    // Deserializar
-    const data = JSON.parse(json);
-    const restored = new Map();
-    for (const m of data.mappings) {
-      restored.set(m.midiKey, m);
-    }
-    
-    assert.strictEqual(restored.size, 2);
-    assert.ok(restored.has('dev1:0:cc:21'));
-    assert.ok(restored.has('dev1:1:pitchbend:0'));
-    assert.strictEqual(restored.get('dev1:0:cc:21').target.label, 'Shape 1');
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TESTS — Escalado de rango para sliders
-// ═══════════════════════════════════════════════════════════════════════════════
-
-describe('MIDI — Escalado de rango para sliders', () => {
-
-  describe('CC → Slider Output Channel (rango 0–10)', () => {
-    it('CC 0 → slider en 0 (mínimo)', () => {
-      assert.strictEqual(midiToSliderValue(0, 127, 0, 10), 0);
-    });
-
-    it('CC 127 → slider en 10 (máximo)', () => {
-      assert.strictEqual(midiToSliderValue(127, 127, 0, 10), 10);
-    });
-
-    it('CC 64 → slider ≈ 5.04 (centro)', () => {
-      const val = midiToSliderValue(64, 127, 0, 10);
-      assert.ok(Math.abs(val - 5.04) < 0.1, `Esperado ~5.04, recibido ${val}`);
-    });
-
-    it('CC 1 → slider ≈ 0.079 (paso mínimo)', () => {
-      const val = midiToSliderValue(1, 127, 0, 10);
-      assert.ok(val > 0 && val < 0.1, `Esperado pequeño positivo, recibido ${val}`);
-    });
-
-    it('NO debe limitarse a 0–1 (bug del rango incorrecto)', () => {
-      const maxVal = midiToSliderValue(127, 127, 0, 10);
-      assert.ok(maxVal > 1, `Slider máximo debe ser >1, recibido ${maxVal}`);
-      assert.strictEqual(maxVal, 10);
+    events.length = 0;
+    originalNavigator = globalThis.navigator;
+    inputs = new Map([
+      ['in-1', fakeInput('in-1', 'Keyboard A')],
+      ['in-2', fakeInput('in-2', 'Pads B')],
+      ['in-3', fakeInput('in-3', 'Desconectado', 'disconnected')]
+    ]);
+    access = { inputs, onstatechange: null };
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true, writable: true,
+      value: { requestMIDIAccess: async () => access }
     });
   });
 
-  describe('Pitch Bend → Slider Output Channel (rango 0–10)', () => {
-    it('bend 0 → slider en 0', () => {
-      assert.strictEqual(midiToSliderValue(0, 16383, 0, 10), 0);
-    });
-
-    it('bend 16383 → slider en 10', () => {
-      assert.strictEqual(midiToSliderValue(16383, 16383, 0, 10), 10);
-    });
-
-    it('bend 8192 → slider ≈ 5.0 (centro)', () => {
-      const val = midiToSliderValue(8192, 16383, 0, 10);
-      assert.ok(Math.abs(val - 5.0) < 0.1, `Esperado ~5.0, recibido ${val}`);
-    });
+  afterEach(() => {
+    midiAccess.destroy();
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, writable: true, value: originalNavigator });
   });
 
-  describe('Velocity → Slider Output Channel (rango 0–10)', () => {
-    it('velocity 0 → slider en 0', () => {
-      assert.strictEqual(midiToSliderValue(0, 127, 0, 10), 0);
-    });
-
-    it('velocity 127 → slider en 10', () => {
-      assert.strictEqual(midiToSliderValue(127, 127, 0, 10), 10);
-    });
-
-    it('velocity 64 → slider ≈ centro', () => {
-      const val = midiToSliderValue(64, 127, 0, 10);
-      assert.ok(val > 4.5 && val < 5.5, `Esperado ~5.0, recibido ${val}`);
-    });
+  it('sin requestMIDIAccess: no soportado, init devuelve false', async () => {
+    globalThis.navigator = {};
+    assert.equal(await midiAccess.init(), false);
+    assert.equal(midiAccess.supported, false);
+    assert.equal(midiAccess.initialized, false);
+    assert.deepEqual(midiAccess.getInputs(), []);
   });
 
-  describe('Rangos de otros controles', () => {
-    it('CC → knob filter (-5 a +5) cubre rango completo', () => {
-      const min = ccToKnobValue(0, -5, 5);
-      const max = ccToKnobValue(127, -5, 5);
-      assert.strictEqual(min, -5);
-      assert.strictEqual(max, 5);
-      assert.strictEqual(max - min, 10);
-    });
+  it('con soporte: abre y vincula solo los puertos conectados y avisa por document', async () => {
+    assert.equal(await midiAccess.init(), true);
+    assert.equal(midiAccess.supported, true);
+    assert.equal(midiAccess.initialized, true);
+    assert.equal(inputs.get('in-1').opened, 1);
+    assert.equal(typeof inputs.get('in-1').onmidimessage, 'function');
+    assert.equal(inputs.get('in-3').opened, 0);
+    assert.equal(inputs.get('in-3').onmidimessage, null);
 
-    it('CC → knob pan (-1 a +1) cubre rango completo', () => {
-      const min = ccToKnobValue(0, -1, 1);
-      const max = ccToKnobValue(127, -1, 1);
-      assert.strictEqual(min, -1);
-      assert.strictEqual(max, 1);
-    });
+    const status = lastEvent('midi:statusChanged');
+    assert.ok(status);
+    assert.equal(status.detail.supported, true);
+    assert.deepEqual(status.detail.inputs.map(i => i.id), ['in-1', 'in-2', 'in-3']);
+  });
 
-    it('CC → knob oscilador (0 a 10) cubre rango completo', () => {
-      const min = ccToKnobValue(0, 0, 10);
-      const max = ccToKnobValue(127, 0, 10);
-      assert.strictEqual(min, 0);
-      assert.strictEqual(max, 10);
-    });
+  it('init() es idempotente una vez inicializado', async () => {
+    await midiAccess.init();
+    await midiAccess.init();
+    assert.equal(inputs.get('in-1').opened, 1);
+  });
 
-    it('rango genérico: MIDI siempre cubre min a max completamente', () => {
-      // Verificar con rangos arbitrarios
-      for (const [lo, hi] of [[0, 1], [0, 10], [-5, 5], [-1, 1], [20, 20000]]) {
-        assert.strictEqual(ccToKnobValue(0, lo, hi), lo);
-        assert.strictEqual(ccToKnobValue(127, lo, hi), hi);
-        assert.strictEqual(pitchBendToKnobValue(0, lo, hi), lo);
-        assert.strictEqual(pitchBendToKnobValue(16383, lo, hi), hi);
-      }
-    });
+  it('los mensajes de un puerto vinculado llegan parseados a los callbacks', async () => {
+    await midiAccess.init();
+    const seen = [];
+    midiAccess.onMessage(m => seen.push(m));
+    const port = inputs.get('in-2');
+    port.onmidimessage({ data: Uint8Array.from([0xB1, 10, 99]), target: port });
+    assert.deepEqual(seen, [{ channel: 1, deviceId: 'in-2', deviceName: 'Pads B', type: 'cc', cc: 10, value: 99 }]);
+  });
+
+  it('si requestMIDIAccess falla, init devuelve false y no queda inicializado', async () => {
+    globalThis.navigator = { requestMIDIAccess: async () => { throw new Error('denegado'); } };
+    assert.equal(await midiAccess.init(), false);
+    assert.equal(midiAccess.supported, true);
+    assert.equal(midiAccess.initialized, false);
+  });
+
+  it('un puerto que no se puede abrir no tumba al resto', async () => {
+    inputs.get('in-1').open = async () => { throw new Error('ocupado'); };
+    assert.equal(await midiAccess.init(), true);
+    assert.equal(inputs.get('in-1').onmidimessage, null);
+    assert.equal(typeof inputs.get('in-2').onmidimessage, 'function');
+  });
+
+  it('conectar un dispositivo nuevo lo vincula y avisa; desconectarlo lo suelta', async () => {
+    await midiAccess.init();
+    events.length = 0;
+    const nuevo = fakeInput('in-9', 'Nuevo');
+    nuevo.type = 'input';
+    inputs.set('in-9', nuevo);
+    access.onstatechange({ port: nuevo });
+    await Promise.resolve();
+    assert.equal(nuevo.opened, 1);
+    assert.equal(typeof nuevo.onmidimessage, 'function');
+    assert.equal(eventsOfType('midi:statusChanged').length, 1);
+
+    nuevo.state = 'disconnected';
+    access.onstatechange({ port: nuevo });
+    assert.equal(nuevo.onmidimessage, null);
+    assert.equal(midiAccess._activeInputs.has('in-9'), false);
+    assert.equal(eventsOfType('midi:statusChanged').length, 2);
+  });
+
+  it('los cambios de estado de puertos de salida se ignoran', async () => {
+    await midiAccess.init();
+    events.length = 0;
+    access.onstatechange({ port: { type: 'output', state: 'connected', id: 'out-1', name: 'Out' } });
+    assert.equal(eventsOfType('midi:statusChanged').length, 0);
+  });
+
+  it('destroy() suelta los puertos, los callbacks y el acceso', async () => {
+    await midiAccess.init();
+    midiAccess.onMessage(() => {});
+    midiAccess.destroy();
+    assert.equal(inputs.get('in-1').onmidimessage, null);
+    assert.equal(midiAccess.initialized, false);
+    assert.equal(midiAccess._messageCallbacks.size, 0);
+    assert.deepEqual(midiAccess.getInputs(), []);
   });
 });
 
+// ═════════════════════════════════════════════════════════════════════════════
+// midiLearnManager
+// ═════════════════════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// TESTS — Anti-feedback y mensajes rápidos
-// ═══════════════════════════════════════════════════════════════════════════════
+describe('midiLearnManager', () => {
+  let fake;
 
-describe('MIDI — Anti-feedback y mensajes rápidos', () => {
+  beforeEach(() => {
+    events.length = 0;
+    localStorage.clear();
+    resetManager();
+    midiAccess.destroy();
+    fake = createFakeApp();
+    midiLearnManager.init(fake.app);
+    events.length = 0;
+  });
 
-  describe('Nunca descartar mensajes MIDI entrantes', () => {
-    it('mensajes rápidos: siempre aplica el último valor', () => {
-      // Simular 10 mensajes CC rápidos (0→127 en ráfaga)
-      const messages = [];
-      for (let i = 0; i <= 127; i += 13) {
-        messages.push({ type: 'cc', value: i });
+  afterEach(() => {
+    resetManager();
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('init y enabled', () => {
+    it('arranca activo, sin mappings, escuchando a midiAccess', () => {
+      assert.equal(midiLearnManager.enabled, true);
+      assert.equal(midiLearnManager.mappingCount, 0);
+      assert.equal(midiLearnManager.isLearning, false);
+      assert.equal(midiAccess._messageCallbacks.size, 1);
+    });
+
+    it('respeta MIDI_ENABLED="false" guardado en localStorage', () => {
+      resetManager();
+      localStorage.setItem(STORAGE_KEYS.MIDI_ENABLED, 'false');
+      midiLearnManager.init(fake.app);
+      assert.equal(midiLearnManager.enabled, false);
+    });
+
+    it('setEnabled persiste el estado y avisa por document', () => {
+      midiLearnManager.setEnabled(false);
+      assert.equal(midiLearnManager.enabled, false);
+      assert.equal(localStorage.getItem(STORAGE_KEYS.MIDI_ENABLED), 'false');
+      assert.deepEqual(lastEvent('midi:enabledChanged').detail, { enabled: false });
+    });
+
+    it('desactivado, los mensajes MIDI se ignoran pero los mappings se conservan', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      midiLearnManager.setEnabled(false);
+      feed(cc(7, 127));
+      assert.deepEqual(fake.osc.knobs[1].calls, []);
+      assert.equal(midiLearnManager.mappingCount, 1);
+      midiLearnManager.setEnabled(true);
+      feed(cc(7, 127));
+      assert.deepEqual(fake.osc.knobs[1].calls, [10]);
+    });
+
+    it('destroy() cancela el learn, se desuscribe y desactiva', async () => {
+      await midiLearnManager.startLearn(OSC_KNOB_1);
+      midiLearnManager.destroy();
+      assert.equal(midiLearnManager.isLearning, false);
+      assert.equal(midiLearnManager.enabled, false);
+      assert.equal(midiAccess._messageCallbacks.size, 0);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('modo learn', () => {
+    it('startLearn marca el control, avisa con el número de dispositivos y espera', async () => {
+      await midiLearnManager.startLearn(OSC_KNOB_1);
+      assert.equal(midiLearnManager.isLearning, true);
+      assert.ok(fake.osc.knobs[1].rootEl.has('midi-learn-target'));
+      const ev = lastEvent('midi:learnStart');
+      assert.deepEqual(ev.detail.target, OSC_KNOB_1);
+      assert.equal(ev.detail.deviceCount, 0);
+    });
+
+    it('cancelLearn quita la marca y avisa; sin learn activo no hace nada', async () => {
+      await midiLearnManager.startLearn(OSC_KNOB_1);
+      midiLearnManager.cancelLearn();
+      assert.equal(midiLearnManager.isLearning, false);
+      assert.equal(fake.osc.knobs[1].rootEl.has('midi-learn-target'), false);
+      assert.equal(eventsOfType('midi:learnCancel').length, 1);
+      midiLearnManager.cancelLearn();
+      assert.equal(eventsOfType('midi:learnCancel').length, 1);
+    });
+
+    it('un segundo startLearn cancela el anterior', async () => {
+      await midiLearnManager.startLearn(OSC_KNOB_1);
+      await midiLearnManager.startLearn(NOISE_COLOUR);
+      assert.equal(fake.osc.knobs[1].rootEl.has('midi-learn-target'), false);
+      assert.ok(fake.noise.knobs.colour.rootEl.has('midi-learn-target'));
+      assert.equal(eventsOfType('midi:learnCancel').length, 1);
+    });
+
+    it('el primer mensaje completa el learn: mapping, índice, clases y evento', async () => {
+      await midiLearnManager.startLearn(OSC_KNOB_1);
+      feed(cc(7, 64));
+      assert.equal(midiLearnManager.isLearning, false);
+      const mapping = midiLearnManager.getMappingForControl(OSC_KNOB_1);
+      assert.deepEqual(mapping, {
+        midiKey: 'dev-1:0:cc:7', deviceId: 'dev-1', deviceName: 'Test Controller',
+        channel: 0, type: 'cc', number: 7, target: OSC_KNOB_1
+      });
+      const el = fake.osc.knobs[1].rootEl;
+      assert.equal(el.has('midi-learn-target'), false);
+      assert.ok(el.has('midi-mapped'));
+      const ev = lastEvent('midi:learnComplete');
+      assert.equal(ev.detail.sourceLabel, 'CC 7 (Ch 1)');
+      assert.equal(ev.detail.targetLabel, 'Osc 1 Level');
+      assert.strictEqual(ev.detail.mapping, midiLearnManager.getAllMappings()[0]);
+    });
+
+    it('el mensaje que completa el learn no se aplica al control', async () => {
+      await learn(OSC_KNOB_1, cc(7, 127));
+      assert.deepEqual(fake.osc.knobs[1].calls, []);
+    });
+
+    it('note off aprende con la misma clave que note on; el nombre de nota va en la etiqueta', async () => {
+      const m = await learn(OSC_KNOB_1, noteOff(61));
+      assert.equal(m.midiKey, 'dev-1:0:noteon:61');
+      assert.equal(m.type, 'noteon');
+      assert.equal(lastEvent('midi:learnComplete').detail.sourceLabel, 'Note C#4 (Ch 1)');
+    });
+
+    it('pitch bend aprende con número 0', async () => {
+      const m = await learn(OSC_KNOB_1, bend(8192, { channel: 3 }));
+      assert.equal(m.midiKey, 'dev-1:3:pitchbend:0');
+      assert.equal(m.number, 0);
+      assert.equal(lastEvent('midi:learnComplete').detail.sourceLabel, 'Pitch Bend (Ch 4)');
+    });
+
+    it('un teclado aprende el dispositivo+canal entero, no una nota', async () => {
+      const m = await learn(KEYBOARD, noteOn(60, 100, { channel: 2 }));
+      assert.equal(m.midiKey, 'dev-1:2:keyboard:0');
+      assert.equal(m.type, 'keyboard');
+      assert.equal(lastEvent('midi:learnComplete').detail.sourceLabel, 'Keyboard (Ch 3)');
+    });
+
+    it('sin label, la etiqueta del destino es su controlId', async () => {
+      await learn(OSC_VERNIER, cc(1, 0));
+      assert.equal(lastEvent('midi:learnComplete').detail.targetLabel, 'panel1-osc-1:knob:0');
+    });
+
+    it('si midiAccess no está inicializado, startLearn lo reintenta', async () => {
+      const original = globalThis.navigator;
+      let asked = 0;
+      Object.defineProperty(globalThis, 'navigator', {
+        configurable: true, writable: true,
+        value: { requestMIDIAccess: async () => { asked++; return { inputs: new Map(), onstatechange: null }; } }
+      });
+      try {
+        await midiLearnManager.startLearn(OSC_KNOB_1);
+        assert.equal(asked, 1);
+        assert.equal(midiAccess.initialized, true);
+      } finally {
+        Object.defineProperty(globalThis, 'navigator', { configurable: true, writable: true, value: original });
       }
-      messages.push({ type: 'cc', value: 127 }); // último
-
-      const result = simulateRapidMessages(messages);
-      assert.strictEqual(result.lastApplied, 127, 'Debe aplicar el último valor');
-    });
-
-    it('el viejo comportamiento SÍ perdía mensajes (validación del bug)', () => {
-      const messages = [
-        { type: 'cc', value: 10 },
-        { type: 'cc', value: 50 },
-        { type: 'cc', value: 100 },
-        { type: 'cc', value: 127 }
-      ];
-
-      const oldResult = simulateRapidMessagesOld(messages);
-      // El viejo código solo aplicaba el primer mensaje (10) porque el flag
-      // descartaba los demás sincrónicamente
-      assert.strictEqual(oldResult.lastApplied, 10, 'Viejo: solo aplicaba el primer mensaje');
-
-      const newResult = simulateRapidMessages(messages);
-      assert.strictEqual(newResult.lastApplied, 127, 'Nuevo: siempre aplica el último');
-    });
-
-    it('flag anti-feedback queda activo tras ráfaga (para onChange)', () => {
-      const messages = [{ type: 'cc', value: 64 }];
-      const result = simulateRapidMessages(messages);
-      // El flag está activo inmediatamente (para prevenir onChange → feedback)
-      assert.strictEqual(result.ignoreMIDI, true);
-    });
-
-    it('un solo mensaje se aplica correctamente', () => {
-      const result = simulateRapidMessages([{ type: 'cc', value: 42 }]);
-      assert.strictEqual(result.lastApplied, 42);
-    });
-
-    it('secuencia ascendente completa: último es máximo', () => {
-      const messages = Array.from({ length: 128 }, (_, i) => ({ type: 'cc', value: i }));
-      const result = simulateRapidMessages(messages);
-      assert.strictEqual(result.lastApplied, 127);
-    });
-
-    it('secuencia descendente completa: último es mínimo', () => {
-      const messages = Array.from({ length: 128 }, (_, i) => ({ type: 'cc', value: 127 - i }));
-      const result = simulateRapidMessages(messages);
-      assert.strictEqual(result.lastApplied, 0);
-    });
-
-    it('ida y vuelta: último valor es el final', () => {
-      const messages = [
-        { value: 0 }, { value: 50 }, { value: 100 }, { value: 127 },
-        { value: 100 }, { value: 50 }, { value: 25 }
-      ];
-      const result = simulateRapidMessages(messages);
-      assert.strictEqual(result.lastApplied, 25);
     });
   });
 
-  describe('clearTimeout previene acumulación de timers', () => {
-    it('solo el último timer está activo tras ráfaga', () => {
-      let timerCount = 0;
-      let activeTimer = null;
-      let ignoreMIDI = false;
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('gestión de mappings', () => {
+    it('reasignar el mismo CC a otro control sustituye al primero', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      await learn(NOISE_COLOUR, cc(7, 0));
+      assert.equal(midiLearnManager.mappingCount, 1);
+      assert.equal(midiLearnManager.getMappingForControl(OSC_KNOB_1), null);
+      assert.equal(midiLearnManager.getMappingForControl(NOISE_COLOUR).midiKey, 'dev-1:0:cc:7');
+      assert.equal(fake.osc.knobs[1].rootEl.has('midi-mapped'), false);
+      assert.ok(fake.noise.knobs.colour.rootEl.has('midi-mapped'));
+    });
 
-      // Simular ráfaga de 100 mensajes con clearTimeout
-      for (let i = 0; i < 100; i++) {
-        ignoreMIDI = true;
-        clearTimeout(activeTimer);
-        activeTimer = setTimeout(() => {
-          timerCount++;
-          ignoreMIDI = false;
-        }, 10);
-      }
+    it('reasignar el mismo control a otro CC descarta el CC anterior', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      await learn(OSC_KNOB_1, cc(8, 0));
+      assert.equal(midiLearnManager.mappingCount, 1);
+      assert.equal(midiLearnManager.getMappingForControl(OSC_KNOB_1).number, 8);
+      feed(cc(7, 127));
+      assert.deepEqual(fake.osc.knobs[1].calls, []);
+    });
 
-      // Solo debe haber 1 timer pendiente, no 100
-      // (no podemos verificar esto sincrónicamente, pero verificamos
-      // que el patrón no acumula side effects)
-      assert.strictEqual(ignoreMIDI, true, 'Flag activo durante ráfaga');
-      assert.strictEqual(timerCount, 0, 'Timer no ha disparado aún (async)');
-      clearTimeout(activeTimer); // limpiar
+    it('el mismo CC en dispositivos distintos son mappings distintos', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0, { deviceId: 'dev-1' }));
+      await learn(NOISE_COLOUR, cc(7, 0, { deviceId: 'dev-2' }));
+      assert.equal(midiLearnManager.mappingCount, 2);
+    });
+
+    it('el mismo CC en canales distintos son mappings distintos', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0, { channel: 0 }));
+      await learn(NOISE_COLOUR, cc(7, 0, { channel: 1 }));
+      assert.equal(midiLearnManager.mappingCount, 2);
+    });
+
+    it('controlKey manda sobre knobIndex al identificar un control', async () => {
+      await learn({ moduleId: 'noise-1', controlKey: 'colour', knobIndex: 5 }, cc(1, 0));
+      assert.ok(midiLearnManager.getMappingForControl({ moduleId: 'noise-1', controlKey: 'colour' }));
+    });
+
+    it('removeMappingForControl borra, limpia la clase, guarda y avisa', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      events.length = 0;
+      assert.equal(midiLearnManager.removeMappingForControl(OSC_KNOB_1), true);
+      assert.equal(midiLearnManager.mappingCount, 0);
+      assert.equal(fake.osc.knobs[1].rootEl.has('midi-mapped'), false);
+      assert.equal(eventsOfType('midi:mappingChanged').length, 1);
+      assert.equal(JSON.parse(localStorage.getItem(STORAGE_KEYS.MIDI_MAPPINGS)).mappingCount, 0);
+      assert.equal(midiLearnManager.removeMappingForControl(OSC_KNOB_1), false);
+    });
+
+    it('removeMappingByKey borra por clave MIDI', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      assert.equal(midiLearnManager.removeMappingByKey('dev-1:0:cc:7'), true);
+      assert.equal(midiLearnManager.getMappingForControl(OSC_KNOB_1), null);
+      assert.equal(midiLearnManager.removeMappingByKey('dev-1:0:cc:7'), false);
+    });
+
+    it('clearAllMappings vacía todo y quita las clases', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      await learn(NOISE_COLOUR, cc(8, 0));
+      midiLearnManager.clearAllMappings();
+      assert.equal(midiLearnManager.mappingCount, 0);
+      assert.deepEqual(midiLearnManager.getAllMappings(), []);
+      assert.equal(fake.osc.knobs[1].rootEl.has('midi-mapped'), false);
+      assert.equal(fake.noise.knobs.colour.rootEl.has('midi-mapped'), false);
+    });
+
+    it('applyVisualIndicators marca los controles con mapping', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      fake.osc.knobs[1].rootEl.classList.remove('midi-mapped');
+      midiLearnManager.applyVisualIndicators();
+      assert.ok(fake.osc.knobs[1].rootEl.has('midi-mapped'));
     });
   });
-});
 
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TESTS — Toggle desde MIDI
-// ═══════════════════════════════════════════════════════════════════════════════
-
-describe('MIDI — Toggle y switches', () => {
-
-  /**
-   * Simula la conversión de mensaje MIDI a estado de toggle
-   * (réplica de _applyValueToControl para switch/toggle)
-   */
-  function midiToToggleState(msg) {
-    if (msg.type === 'noteon' || msg.type === 'noteoff') {
-      return (msg.type === 'noteon' && (msg.velocity || 0) > 0) ? 'b' : 'a';
-    }
-    if (msg.type === 'cc') {
-      return msg.value > 63 ? 'b' : 'a';
-    }
-    // pitchbend
-    return msg.value > 8191 ? 'b' : 'a';
-  }
-
-  describe('Toggle desde Note On/Off', () => {
-    it('Note On con velocity > 0 → estado b (encendido)', () => {
-      assert.strictEqual(midiToToggleState({ type: 'noteon', velocity: 100 }), 'b');
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('persistencia, exportar e importar', () => {
+    it('cada learn queda guardado en localStorage y se recupera en init()', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      await learn(KEYBOARD, noteOn(60, 1, { channel: 2 }));
+      resetManager();
+      midiLearnManager.init(fake.app);
+      assert.equal(midiLearnManager.mappingCount, 2);
+      const m = midiLearnManager.getMappingForControl(OSC_KNOB_1);
+      assert.equal(m.midiKey, 'dev-1:0:cc:7');
+      assert.equal(m.deviceId, 'dev-1');
+      assert.equal(midiLearnManager.getMappingForControl(KEYBOARD).midiKey, 'dev-1:2:keyboard:0');
+      // Y funciona: el CC guardado mueve el knob
+      feed(cc(7, 127));
+      assert.deepEqual(fake.osc.knobs[1].calls, [10]);
     });
 
-    it('Note On con velocity 0 → estado a (apagado)', () => {
-      assert.strictEqual(midiToToggleState({ type: 'noteon', velocity: 0 }), 'a');
+    it('un localStorage corrupto no impide arrancar', () => {
+      resetManager();
+      localStorage.setItem(STORAGE_KEYS.MIDI_MAPPINGS, '{no es json');
+      assert.doesNotThrow(() => midiLearnManager.init(fake.app));
+      assert.equal(midiLearnManager.mappingCount, 0);
     });
 
-    it('Note Off → estado a (apagado)', () => {
-      assert.strictEqual(midiToToggleState({ type: 'noteoff', velocity: 64 }), 'a');
+    it('exportMappings produce el formato versionado sin deviceId suelto', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      const data = midiLearnManager.exportMappings();
+      assert.equal(data.version, 1);
+      assert.equal(data.mappingCount, 1);
+      assert.ok(!Number.isNaN(Date.parse(data.exportDate)));
+      assert.deepEqual(data.mappings[0], {
+        midiKey: 'dev-1:0:cc:7', deviceName: 'Test Controller', channel: 0, type: 'cc', number: 7,
+        target: { moduleId: 'panel1-osc-1', controlType: 'knob', controlKey: undefined, knobIndex: 1, label: 'Osc 1 Level' }
+      });
+    });
+
+    it('importMappings reemplaza los actuales y hace round-trip con el export', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      const data = JSON.parse(JSON.stringify(midiLearnManager.exportMappings()));
+      await learn(NOISE_COLOUR, cc(9, 0));
+      events.length = 0;
+
+      assert.deepEqual(midiLearnManager.importMappings(data), { success: true, count: 1 });
+      assert.equal(midiLearnManager.mappingCount, 1);
+      assert.equal(midiLearnManager.getMappingForControl(NOISE_COLOUR), null);
+      assert.equal(midiLearnManager.getMappingForControl(OSC_KNOB_1).midiKey, 'dev-1:0:cc:7');
+      assert.ok(fake.osc.knobs[1].rootEl.has('midi-mapped'));
+      assert.ok(eventsOfType('midi:mappingChanged').length >= 1);
+      feed(cc(7, 127));
+      assert.deepEqual(fake.osc.knobs[1].calls, [10]);
+    });
+
+    it('importMappings rechaza formatos inválidos y versiones desconocidas', () => {
+      assert.deepEqual(midiLearnManager.importMappings(null), { success: false, count: 0, error: 'Formato inválido' });
+      assert.deepEqual(midiLearnManager.importMappings({ version: 1 }), { success: false, count: 0, error: 'Formato inválido' });
+      assert.deepEqual(midiLearnManager.importMappings({ version: 2, mappings: [] }),
+        { success: false, count: 0, error: 'Versión no soportada: 2' });
+    });
+
+    it('importMappings salta entradas sin destino y rellena el dispositivo que falte', () => {
+      const r = midiLearnManager.importMappings({
+        version: 1,
+        mappings: [
+          { channel: 0, type: 'cc', number: 3, target: { moduleId: 'noise-1', controlKey: 'level' } },
+          { channel: 0, type: 'cc', number: 4 },
+          { channel: 0, type: 'cc', number: 5, target: {} }
+        ]
+      });
+      assert.deepEqual(r, { success: true, count: 1 });
+      const m = midiLearnManager.getAllMappings()[0];
+      assert.equal(m.deviceId, 'any');
+      assert.equal(m.deviceName, 'Imported');
+      assert.equal(m.midiKey, 'any:0:cc:3');
     });
   });
 
-  describe('Toggle desde CC', () => {
-    it('CC > 63 → estado b (encendido)', () => {
-      assert.strictEqual(midiToToggleState({ type: 'cc', value: 127 }), 'b');
-      assert.strictEqual(midiToToggleState({ type: 'cc', value: 64 }), 'b');
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('aplicar mappings a los controles', () => {
+    it('CC → knob: 0 y 127 cubren min..max, 64 queda cerca del centro', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      feed(cc(7, 0));
+      feed(cc(7, 127));
+      feed(cc(7, 64));
+      const [lo, hi, mid] = fake.osc.knobs[1].calls;
+      assert.equal(lo, 0);
+      assert.equal(hi, 10);
+      assert.ok(Math.abs(mid - 5) < 0.05);
     });
 
-    it('CC ≤ 63 → estado a (apagado)', () => {
-      assert.strictEqual(midiToToggleState({ type: 'cc', value: 63 }), 'a');
-      assert.strictEqual(midiToToggleState({ type: 'cc', value: 0 }), 'a');
+    it('CC → knob bipolar (-5..+5) cubre el rango completo', async () => {
+      const target = { moduleId: 'panel1-osc-1', knobIndex: 2 };
+      await learn(target, cc(20, 0));
+      feed(cc(20, 0));
+      feed(cc(20, 127));
+      assert.deepEqual(fake.osc.knobs[2].calls, [-5, 5]);
+    });
+
+    it('el knob 0 del oscilador se trata como vernier y también recibe el valor', async () => {
+      await learn(OSC_VERNIER, cc(1, 0));
+      feed(cc(1, 127));
+      assert.deepEqual(fake.osc.knobs[0].calls, [10]);
+    });
+
+    it('pitch bend → knob usa los 14 bits (0, 8192, 16383)', async () => {
+      await learn(OSC_KNOB_1, bend(0));
+      feed(bend(0));
+      feed(bend(16383));
+      feed(bend(8192));
+      const [lo, hi, mid] = fake.osc.knobs[1].calls;
+      assert.equal(lo, 0);
+      assert.equal(hi, 10);
+      assert.ok(Math.abs(mid - 5) < 0.001);
+    });
+
+    it('note on → knob usa la velocidad; note off vale 0', async () => {
+      await learn(OSC_KNOB_1, noteOn(60, 1));
+      feed(noteOn(60, 127));
+      feed(noteOff(60));
+      assert.deepEqual(fake.osc.knobs[1].calls, [10, 0]);
+    });
+
+    it('CC → slider de Output Channel escala al rango real del slider (0..10)', async () => {
+      await learn(OUTPUT_SLIDER, cc(7, 0));
+      feed(cc(7, 127));
+      assert.equal(fake.output.level, 10);
+      feed(cc(7, 0));
+      assert.equal(fake.output.level, 0);
+      feed(cc(7, 64));
+      assert.ok(Math.abs(fake.output.level - 5.04) < 0.01);
+      feed(bend(16383));
+    });
+
+    it('slider sin elemento asume 0..10', async () => {
+      fake.output.slider = null;
+      await learn(OUTPUT_SLIDER, cc(7, 0));
+      feed(cc(7, 127));
+      assert.equal(fake.output.level, 10);
+    });
+
+    it('switch con setState: note on → b, note off → a, CC > 63 → b, bend > 8191 → b', async () => {
+      await learn(OUTPUT_SWITCH, cc(30, 0));
+      const sw = fake.output.powerSwitch;
+      feed(cc(30, 64)); assert.equal(sw.state, 'b');
+      feed(cc(30, 63)); assert.equal(sw.state, 'a');
+      feed(cc(30, 127)); assert.equal(sw.state, 'b');
+      feed(cc(30, 0)); assert.equal(sw.state, 'a');
+
+      await learn(OUTPUT_SWITCH, noteOn(40, 1));
+      feed(noteOn(40, 100)); assert.equal(sw.state, 'b');
+      feed(noteOff(40)); assert.equal(sw.state, 'a');
+      feed(noteOn(40, 0)); assert.equal(sw.state, 'a');
+
+      await learn(OUTPUT_SWITCH, bend(0));
+      feed(bend(8192)); assert.equal(sw.state, 'b');
+      feed(bend(8191)); assert.equal(sw.state, 'a');
+    });
+
+    it('toggle sin setState pero con toggle(): alterna solo al encender', async () => {
+      await learn(SCOPE_TOGGLE, cc(31, 0));
+      feed(cc(31, 127));
+      feed(cc(31, 0));
+      feed(cc(31, 100));
+      assert.equal(fake.scope.modeToggle.toggles, 2);
+    });
+
+    it('pad del joystick: CC par mueve X, CC impar mueve Y, en -1..+1', async () => {
+      await learn(JOY_PAD, cc(16, 0));
+      feed(cc(16, 127));
+      feed(cc(16, 0));
+      assert.deepEqual(fake.joystickModule.positions, [[1, undefined], [-1, undefined]]);
+      await learn(JOY_PAD, cc(17, 0));
+      fake.joystickModule.positions.length = 0;
+      feed(cc(17, 127));
+      assert.deepEqual(fake.joystickModule.positions, [[undefined, 1]]);
+    });
+
+    it('teclado: reenvía notas, CC y pitch bend del mismo dispositivo+canal como synth:keyboardMIDI', async () => {
+      await learn(KEYBOARD, noteOn(60, 100, { channel: 2 }));
+      events.length = 0;
+      feed(noteOn(64, 90, { channel: 2 }));
+      feed(noteOff(64, { channel: 2 }));
+      feed(cc(1, 50, { channel: 2 }));
+      feed(bend(9000, { channel: 2 }));
+      const kb = eventsOfType('synth:keyboardMIDI').map(e => e.detail);
+      assert.equal(kb.length, 4);
+      assert.deepEqual(kb[0], { keyboardId: 'keyboard-upper', type: 'noteon', note: 64, velocity: 90, channel: 2, cc: undefined, value: undefined });
+      assert.equal(kb[1].type, 'noteoff');
+      assert.equal(kb[2].cc, 1);
+      assert.equal(kb[3].value, 9000);
+      // Otro canal no entra
+      feed(noteOn(64, 90, { channel: 3 }));
+      assert.equal(eventsOfType('synth:keyboardMIDI').length, 4);
+    });
+
+    it('un mapping exacto tiene prioridad sobre el teclado del mismo dispositivo+canal', async () => {
+      await learn(KEYBOARD, noteOn(60, 100));
+      await learn(OSC_KNOB_1, cc(7, 0));
+      events.length = 0;
+      feed(cc(7, 127));
+      assert.deepEqual(fake.osc.knobs[1].calls, [10]);
+      assert.equal(eventsOfType('synth:keyboardMIDI').length, 0);
+    });
+
+    it('mensajes sin mapping y mappings a controles que ya no existen no hacen nada', async () => {
+      assert.doesNotThrow(() => feed(cc(99, 1)));
+      await learn(OSC_KNOB_1, cc(7, 0));
+      fake.osc.knobs.length = 0;
+      assert.doesNotThrow(() => feed(cc(7, 127)));
+      assert.equal(midiLearnManager.shouldIgnoreMIDI(), false);
+    });
+
+    it('resuelve knobs de noise por controlKey o, si no, por índice', async () => {
+      await learn({ moduleId: 'noise-1', knobIndex: 1 }, cc(2, 0));
+      feed(cc(2, 127));
+      assert.deepEqual(fake.noise.knobs.level.calls, [10]);
+    });
+
+    it('output channel: knobs de filtro y pan por controlKey', async () => {
+      await learn({ moduleId: 'output-1', controlType: 'knob', controlKey: 'filter' }, cc(40, 0));
+      await learn({ moduleId: 'output-1', controlType: 'knob', controlKey: 'pan' }, cc(41, 0));
+      feed(cc(40, 127));
+      feed(cc(41, 0));
+      assert.deepEqual(fake.output.filterKnobUI.calls, [5]);
+      assert.deepEqual(fake.output.panKnobUI.calls, [-1]);
+    });
+
+    it('joystick: knobs de rango por controlKey; osciloscopio: knobs por índice', async () => {
+      await learn({ moduleId: 'joystick-left', controlType: 'knob', controlKey: 'rangeX' }, cc(50, 0));
+      await learn({ moduleId: 'scope', controlType: 'knob', knobIndex: 1 }, cc(51, 0));
+      feed(cc(50, 127));
+      feed(cc(51, 127));
+      assert.deepEqual(fake.joystick.knobs.rangeX.knobInstance.calls, [10]);
+      assert.deepEqual(fake.scope.ampKnob.knobInstance.calls, [10]);
+      // Un knob del osciloscopio que no existe no se puede aprender
+      await midiLearnManager.startLearn({ moduleId: 'scope', controlType: 'knob', knobIndex: 2 });
+      feed(cc(52, 0));
+      feed(cc(52, 127));
+      assert.equal(midiLearnManager.mappingCount, 3);
     });
   });
 
-  describe('Toggle desde Pitch Bend', () => {
-    it('bend > 8191 → estado b', () => {
-      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 8192 }), 'b');
-      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 16383 }), 'b');
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('anti-feedback', () => {
+    it('una ráfaga nunca pierde mensajes: se aplican todos y gana el último', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      const burst = [0, 13, 26, 39, 52, 65, 78, 91, 104, 117, 127];
+      for (const v of burst) feed(cc(7, v));
+      assert.equal(fake.osc.knobs[1].calls.length, burst.length);
+      assert.equal(fake.osc.knobs[1].value, 10);
     });
 
-    it('bend ≤ 8191 → estado a', () => {
-      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 8191 }), 'a');
-      assert.strictEqual(midiToToggleState({ type: 'pitchbend', value: 0 }), 'a');
+    it('el flag queda activo justo después de aplicar (para que el onChange no rebote)…', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      feed(cc(7, 64));
+      assert.equal(midiLearnManager.shouldIgnoreMIDI(), true);
+    });
+
+    it('…y se apaga solo pasados unos milisegundos', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      feed(cc(7, 64));
+      await new Promise(r => setTimeout(r, 30));
+      assert.equal(midiLearnManager.shouldIgnoreMIDI(), false);
+    });
+
+    it('el flag se levanta aunque el control reviente al recibir el valor', async () => {
+      await learn(OSC_KNOB_1, cc(7, 0));
+      fake.osc.knobs[1].setValue = () => { throw new Error('boom'); };
+      assert.throws(() => feed(cc(7, 64)));
+      assert.equal(midiLearnManager.shouldIgnoreMIDI(), true);
+      await new Promise(r => setTimeout(r, 30));
+      assert.equal(midiLearnManager.shouldIgnoreMIDI(), false);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('formateo', () => {
+    it('nombres de nota: C4 es el Do central, A4 el La 440', () => {
+      const name = n => midiLearnManager._noteNumberToName(n);
+      assert.equal(name(60), 'C4');
+      assert.equal(name(69), 'A4');
+      assert.equal(name(0), 'C-1');
+      assert.equal(name(127), 'G9');
+      assert.equal(name(61), 'C#4');
+      assert.equal(name(66), 'F#4');
+    });
+
+    it('_formatMIDISource muestra el canal en base 1 y un fallback para tipos raros', () => {
+      const fmt = m => midiLearnManager._formatMIDISource(m);
+      assert.equal(fmt({ type: 'cc', number: 74, channel: 0 }), 'CC 74 (Ch 1)');
+      assert.equal(fmt({ type: 'noteon', number: 69, channel: 9 }), 'Note A4 (Ch 10)');
+      assert.equal(fmt({ type: 'pitchbend', number: 0, channel: 15 }), 'Pitch Bend (Ch 16)');
+      assert.equal(fmt({ type: 'keyboard', number: 0, channel: 0 }), 'Keyboard (Ch 1)');
+      assert.equal(fmt({ type: 'sysex', number: 0, channel: 0 }), 'MIDI sysex (Ch 1)');
     });
   });
 });

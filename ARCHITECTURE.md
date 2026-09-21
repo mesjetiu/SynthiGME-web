@@ -3455,14 +3455,22 @@ La sincronización es bidireccional: cambios desde la UI web actualizan el menú
 
 ### Tests
 
-76 tests unitarios en `tests/midi/midiLearn.test.js`:
-- Parsing de mensajes (CC, Note On/Off, Pitch Bend, mensajes no soportados)
-- Claves de mapping (`buildMIDIKey`, `buildControlId`)
-- Conversión de valores (CC→knob, PitchBend→knob, rangos completos)
-- Escalado de rango para sliders (0–10, no 0–1)
-- Anti-feedback y mensajes rápidos (nunca descarta, siempre último valor)
-- Toggle desde MIDI (Note, CC, Pitch Bend)
-- Simulación de mappings (añadir, reemplazar, eliminar, serialización)
+71 tests en `tests/midi/midiLearn.test.js`, contra los singletons reales
+`midiAccess` y `midiLearnManager` (con un `document`, un `CustomEvent` y un
+`navigator.requestMIDIAccess` mínimos, y una app falsa que solo expone
+`_findModuleById`):
+- `midiAccess`: parsing de mensajes crudos (CC, Note On/Off, Pitch Bend 14 bits,
+  no soportados), callbacks, `init()` con y sin soporte, apertura de puertos,
+  conexión/desconexión en caliente, `destroy()`
+- Modo learn: marcas CSS, eventos `midi:learn*`, claves (note off = note on,
+  pitch bend = 0, teclado = dispositivo+canal), reintento de `midiAccess.init()`
+- Mappings: reasignar por CC o por control, dispositivos y canales distintos,
+  eliminar, limpiar, indicadores visuales
+- Persistencia en `localStorage`, exportar/importar (versión, formato, round-trip)
+- Aplicar a cada tipo de control: knob (CC, bend, velocidad; rangos bipolares),
+  slider de Output Channel (0–10), switch/toggle, pad del joystick, teclado
+  (`synth:keyboardMIDI`) y resolución por módulo
+- Anti-feedback: nunca descarta mensajes, flag activo tras aplicar y se apaga solo
 
 ---
 
@@ -3606,7 +3614,7 @@ tests/
 │   ├── panel6RandomCV.test.js       # Tests de salidas CV de random CV en Panel 6
 │   └── panel7Blueprint.test.js      # Tests de Panel 7 blueprint (output channels)
 ├── midi/
-│   └── midiLearn.test.js             # Tests de MIDI Learn (parsing, mappings, rangos, anti-feedback)
+│   └── midiLearn.test.js             # midiAccess y midiLearnManager reales (parsing, learn, mappings, anti-feedback)
 ├── osc/
 │   ├── oscAddressMap.test.js        # Tests del mapa de direcciones OSC
 │   ├── oscControlSync.test.js       # Tests de sincronización de control

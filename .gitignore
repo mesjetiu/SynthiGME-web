@@ -5,6 +5,10 @@ node_modules/
 # Claude Code — instrucciones privadas (no publicar en repo público)
 CLAUDE.md
 .commit_msg.txt
+# Copias de trabajo y ajustes locales de las sesiones. En el servidor el
+# servicio arranca con `--spawn worktree`: cada conversación se crea un
+# checkout del repo aquí dentro. Es entorno, no contenido.
+.claude/
 
 # Estudio técnico-histórico (repositorio separado)
 synthiGME-implementation-study/

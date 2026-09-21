@@ -77,11 +77,18 @@ la suite de audio pasa entera.
 
 ### 3. `ARCHITECTURE.md` desactualizado (8-mar-2026)
 
-No recoge el refactor R7 (`panelAssembler`, `panelRouting`, `moduleManager`,
+No recogía el refactor R7 (`panelAssembler`, `panelRouting`, `moduleManager`,
 `stateSerializer`, `audioSetup`, `uiInitializer`, `routingSetup`) ni el Octave
-Filter Bank, y enlaza `app.js#L7579-L7708` en un fichero que hoy tiene 1918
-líneas. Está previsto que sirva de base a un estudio escrito: ahora mismo
-describe una estructura que ya no existe.
+Filter Bank, y enlazaba `app.js#L7579-L7708` en un fichero que hoy tiene 1918
+líneas. Está previsto que sirva de base a un estudio escrito.
+
+**Actualizado el 21-sep**: sección nueva 3.0 (los siete módulos R7, qué exporta
+cada uno, la convención de `app` como último parámetro y el orden de arranque),
+el árbol de carpetas, el OFB en la tabla de módulos, los enlaces de
+`perfMonitor` por nombre de contador en vez de por línea, y la sección de
+cobertura de tests (~4.900 casos, sin espejos). El resto del documento
+(voltajes, secuenciador, PiP, glow…) no se ha revisado línea a línea: se da
+por válido porque describe código que no ha cambiado desde marzo.
 
 ### 4. Dependencias (secundario: casi todo es toolchain de Electron)
 
@@ -408,5 +415,5 @@ ha tocado:
 
 1. Lazy init en el worklet → suite de audio verde.
 2. Los dos bugs triviales (osciloscopio, menú móvil). **Hechos el 21-sep**, pendientes de ver en navegador/móvil.
-3. `ARCHITECTURE.md` al estado post-R7/OFB.
+3. `ARCHITECTURE.md` al estado post-R7/OFB. **Hecho el 21-sep.**
 4. Dependencias y CI: solo si se decide.

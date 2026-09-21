@@ -1,7 +1,7 @@
 # SynthiGME-web — Arquitectura del Proyecto
 
 > Emulador web del sintetizador EMS Synthi 100 usando Web Audio API.  
-> Última actualización: 8 de marzo de 2026 (PiP-first, rasterización de knobs/switches, scripts de assets y ampliación de tests)
+> Última actualización: 21 de septiembre de 2026 (refactor R7 de `app.js`, Octave Filter Bank, batería de tests sin espejos)
 
 ---
 
@@ -58,7 +58,14 @@ src/
     ├── panels/             # SVGs de paneles del sintetizador
     ├── pwa/icons/          # Iconos para PWA
     └── js/
-        ├── app.js          # Bootstrap y orquestación principal
+        ├── app.js          # Bootstrap y clase App: estado compartido y delegación (ver 3.0)
+        ├── panelAssembler.js  # buildPanel1/2/4, buildOscillatorPanel, matrices grandes (R7)
+        ├── panelRouting.js    # Toggle de pines de los paneles 5 y 6, nodos por oscilador (R7)
+        ├── moduleManager.js   # findModuleById, reset de módulo/panel/todo (R7)
+        ├── stateSerializer.js # serializeCurrentState / applyPatch (R7)
+        ├── audioSetup.js      # ensureAudio, salida y entrada multicanal (R7)
+        ├── uiInitializer.js   # Modales, grabación, dormancy, undo/redo (R7)
+        ├── routingSetup.js    # Mapas de ruteo desde los blueprints de 5 y 6 (R7)
         ├── core/           # Motor de audio y conexiones
         ├── modules/        # Módulos de audio (osciladores, ruido, etc.)
         ├── ui/             # Componentes de interfaz reutilizables
@@ -83,6 +90,40 @@ src/
 ---
 
 ## 3. Módulos JavaScript
+
+### 3.0 Orquestación: `app.js` y los módulos R7 (`src/assets/js/*.js`)
+
+Hasta el refactor **R7** `app.js` tenía más de 7.500 líneas y contenía todo el
+montaje de paneles, el ruteo de las matrices y la serialización. R7 lo partió
+en siete módulos de nivel raíz. `app.js` (≈1.900 líneas) conserva la clase
+`App`, que es el **estado compartido** (referencias a `engine`, paneles,
+módulos, mapas de ruteo, `_panelNAudio`) y el punto de entrada
+(`DOMContentLoaded`); casi todos sus métodos son *wrappers* de una línea que
+delegan en los módulos de abajo pasándose a sí mismos: la convención de R7 es
+que **cada función recibe `app` como último parámetro** en vez de usar `this`,
+lo que permite probarlas con un `app` mínimo construido en el test.
+
+| Archivo | Exporta | Qué hace |
+|---------|---------|----------|
+| `panelAssembler.js` | `buildPanel1()`, `buildPanel2()`, `buildPanel4()`, `buildOscillatorPanel()`, `setupOutputFaders()`, `setupJoystickPad()`, `buildLargeMatrices()`, `initSignalFlowHighlighter()` | Construye el DOM de cada panel a partir de su blueprint y su config, instancia los módulos de audio (`app.filters`, `app.octaveFilterBank`, `app.oscilloscope`…) y conecta knobs/switches con ellos. Es el fichero más grande del proyecto (~3.800 líneas) porque el Synthi tiene muchos módulos, no porque tenga lógica compleja |
+| `panelRouting.js` | `ensurePanelNodes()`, `handlePanel5AudioToggle()`, `handlePanel6ControlToggle()`, `getPanel5PinGain()`, `getPanel6PinGain()`, `getPanelKnobOptions()` | Lo que pasa al poner o quitar un pin: resuelve `source`/`dest` del blueprint a nodos Web Audio, crea el `GainNode` del pin con la ganancia de su resistencia (sección 3.8.9) y conecta/desconecta. `ensurePanelNodes()` crea perezosamente el worklet de cada oscilador y su `entry.setDormant` (sección 8.1). También avisa al osciloscopio de «sin señal» cuando se queda sin conexiones |
+| `routingSetup.js` | `setupAudioRouting()`, `setupControlRouting()` | Compila los blueprints de los paneles 5 y 6 (`blueprintMapper`) en los mapas `rowMap`/`colMap`/`sourceMap`/`destMap` y registra el `onToggle` de cada `LargeMatrix` |
+| `moduleManager.js` | `findModuleById()`, `getModulesForPanel()`, `reflowOscillatorPanel()`, `resetModule()`, `resetToDefaults()` | Localiza módulos por id (`panel1-filter-2`, `panel3-osc-1`…) y hace los reinicios contextuales del menú contextual: un control, un módulo, un panel o todo el patch. `resetToDefaults()` termina con `dormancyManager.flushPendingUpdate()` para que el estado dormido sea coherente en el mismo tick |
+| `stateSerializer.js` | `serializeCurrentState(app)`, `applyPatch(patchData, app, deps)` | Formato de patch v2 (sección 4): recorre los módulos que implementan `serialize()`/`deserialize()` y las dos matrices grandes. `deps` permite inyectar `sessionManager` y `flashGlow` en tests |
+| `audioSetup.js` | `ensureAudio()`, `restoreMultichannelIfSaved()`, `activateMultichannelOutput()` (+ `Fallback`), `deactivateMultichannelOutput()`, `activateMultichannelInput()`, `deactivateMultichannelInput()`, `ensureSystemAudioInput()` | Arranque del `AudioContext` y espera del worklet; activación de las 12 salidas / 8 entradas físicas (MULTICHANNEL.md) y de la entrada de micrófono/línea del sistema |
+| `uiInitializer.js` | `setupUI()`, `setupAudioSettingsModal()`, `setupSettingsModal()`, `setupPatchBrowser()`, `setupUndoRedo()`, `setupRecording()`, `setupDormancyManager()`, `setupFilterBypass()` | Cablea los modales y managers globales con la instancia de `App` (listeners de eventos `synth:*`, preferencias de `localStorage`) |
+
+Orden de arranque (`App` constructor → `DOMContentLoaded` en `app.js`):
+`new AudioEngine()` → paneles vacíos (`PanelManager`) → `buildPanel1/2/4` y
+`buildOscillatorPanel(3)` → `setupOutputFaders` → `buildLargeMatrices` →
+`setupAudioRouting`/`setupControlRouting` → `initSignalFlowHighlighter` →
+`setupUI` y demás `setup*` → restauración de la última sesión
+(`triggerRestoreLastState`) → `ensureAudio` cuando el usuario toca algo.
+
+Tests: `tests/panelRouting.test.js`, `tests/stateSerializer.test.js`,
+`tests/moduleManager.test.js`, `tests/uiInitializer.test.js`,
+`tests/routingSetup.test.js` y `tests/electron/multichannelActivation.test.js`
+(este último ejercita `audioSetup.js` con un `AudioContext` simulado).
 
 ### 3.1 Core (`src/assets/js/core/`)
 
@@ -110,9 +151,13 @@ Funciones principales:
 
 Hooks actuales:
 
-- bootstrap de app en [src/assets/js/app.js](src/assets/js/app.js#L7579-L7708)
-- navegación principal en [src/assets/js/navigation/viewportNavigation.js](src/assets/js/navigation/viewportNavigation.js#L147-L226) y [src/assets/js/navigation/viewportNavigation.js](src/assets/js/navigation/viewportNavigation.js#L487-L682)
-- PiP en [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L316-L335), [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L750-L753), [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L918-L921), [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L1184-L1216) y [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js#L1904-L1949)
+- bootstrap de app: el `DOMContentLoaded` de [src/assets/js/app.js](src/assets/js/app.js) abre el escenario `bootstrap` (`perfMonitor.beginScenario`) y lo cierra con la marca `app:initialized` o `app:init-error`
+- navegación principal: contadores y duraciones `viewport.*` (`sharpCommit`, `rasterize`, `refreshMetrics`, `requestRender`, `render`, `wheel.zoom/pan`) en [src/assets/js/navigation/viewportNavigation.js](src/assets/js/navigation/viewportNavigation.js)
+- PiP: `pip.open`, `pip.close`, `pip.wheel.zoom/pan.<panelId>` y `pip.updateScale` en [src/assets/js/ui/pipManager.js](src/assets/js/ui/pipManager.js)
+
+(Se enlaza por nombre de contador y no por número de línea: los rangos de
+líneas de la versión anterior de este documento apuntaban a un `app.js` que ya
+no existe.)
 
 Objetivo: comparar arquitecturas de navegación/zoom y detectar si el cuello está en JS, layout, paint o compositor.
 
@@ -228,6 +273,7 @@ Cada módulo representa un componente de audio del Synthi 100:
 | `joystick.js` | `JoystickModule` | Control XY bipolar (±8V DC) que emula los joysticks del Synthi 100. Usa `ConstantSourceNode` + `GainNode` por eje (X, Y) sin worklet para máxima eficiencia en señales DC. Knobs Range X/Y independientes (pot 10K LIN, dial 0-10 → gain 0-1). Dormancy: silencia gains cuando ningún eje está conectado en Panel 6, restaura al reconectar. Filas 117-120 en matriz de control. Serialización completa de posición y rangos |
 | `outputChannel.js` | `OutputChannel` | Canal de salida individual con VCA CEM 3330 y filtro RC pasivo de corrección tonal (1er orden, 6 dB/oct, fc ≈ 677 Hz). Control tonal bipolar: LP (atenúa agudos) ↔ plano (0 dB) ↔ HP shelving (+6 dB en HF). Pan, nivel y switch on/off. El VCA emula la curva logarítmica 10 dB/V con corte mecánico en posición 0 y saturación suave para CV > 0V. 8 instancias forman el panel de salida. La sincronización del estado on/off se realiza en `engine.start()` para garantizar que los buses de audio existan |
 | `outputRouter.js` | `OutputRouterModule` | Expone niveles de bus como entradas CV para modulación |
+| `octaveFilterBank.js` | `OctaveFilterBankModule` | Eight-Octave Filter Bank del Synthi 100 (placa PC-22). 1 instancia en Panel 2 (`app.octaveFilterBank`, id `panel2-octave-filter-bank`). Manipulador de formantes **sin control por voltaje**: sólo nodos nativos, sin worklet. Cadena: `inputGain(1) → 8× BiquadFilter(bandpass, Q=√2) → 8× bandGain → sumNode(+10 dB makeup) → outputGain`. Centros 63·2ⁿ Hz (63…8000); con los 8 mandos al máximo la suma es aproximadamente plana, y bajar una banda crea un notch (acción sustractiva). No hay bypass por banda: un bypass `inputGain→bandGain` metería señal de banda ancha y anularía el resto de mandos. Matriz de audio: fila 109 (salida) y columna 23 (entrada); dormancy cuando no está en ninguna de las dos (`sumNode.gain → 0`). Config en `configs/modules/octaveFilterBank.config.js`; tests en `tests/octaveFilterBank.test.js` |
 | `randomCV.js` | `RandomCVModule` | Generador de voltaje de control aleatorio. Cadena: `AudioWorkletNode(random-cv, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (voltage1, voltage2, key). Niveles V1/V2 con curva LOG (base 100, pot 10K audio taper), nivel Key lineal bipolar (±5V). Lazy start al primer pin en Panel 6. Dormancy: rampea ganancias y envía `setDormant` al worklet. Filas Panel 6: 89 (Key), 90 (V1), 91 (V2) |
 | `keyboard.js` | `KeyboardModule` | Teclado polifónico del Synthi 100 (Panel 4). Cadena: `AudioWorkletNode(keyboard, 3ch)` → `ChannelSplitter(3)` → 3× `GainNode` (pitchSpread, gateLevel, velocityLevel). Knobs: pitchSpread (0-10), velocityLevel (-5..+5), gateLevel (-5..+5). Selector retrigger (RotarySwitch): On (mode 1, legato retrigger) / Kbd (mode 0, staccato). Lazy start al primer `noteOn()`. 2 instancias: upper y lower. Filas Panel 6: 92-97 (upper: pitch 92, gate 93, vel 94; lower: pitch 95, gate 96, vel 97) |
 | `synthiFilter.js` | `SynthiFilterModule` | Filtro CEM3320 del Panel 1 (4 polos, 24 dB/oct). 8 instancias: 4 LP + 4 HP. Cadena: `inputGain(=1)` → `AudioWorkletNode(synthi-filter)` → `outputGain(=level)`. Knobs: frequency (0-10, centro 320 Hz), response (0-10, autooscilación ≥ 5.5), level (0-10, curva LOG base 100). Cutoff CV desde Panel 6 (LP cols 22-25, HP cols 26-29). Entradas/salidas audio en Panel 5 (LP in 15-18 / out 110-113, HP in 19-22 / out 114-117). Lazy start al primer pin o cambio de level. Dormancy: rampea outputGain y envía `setDormant` al worklet |
@@ -3705,7 +3751,15 @@ Opciones útiles:
 - `npm run test:audio:headed` ejecuta con navegador visible
 - `npm run test:audio:debug` activa modo debug del runner
 
-### Cobertura actual (~2800 casos)
+### Cobertura actual (~4.900 casos unitarios)
+
+Desde la auditoría de septiembre de 2026 ningún test unitario es un «espejo»
+(reescribir la lógica dentro del test y probarla contra sí misma): todos
+importan código real de `src/assets/` o `electron/`, y
+`tests/testSuiteHygiene.test.js` falla si vuelve a aparecer uno o si un
+fichero de test queda fuera del glob de `npm test`. Estado detallado en
+`AUDITORIA-2026-09.md`.
+
 
 | Área | Tests | Verificaciones principales |
 |------|-------|---------------------------|
@@ -3718,12 +3772,13 @@ Opciones útiles:
 | `panelBlueprints` | Blueprints y configs | Consistencia, proporciones, parámetros válidos |
 | `state/*` | Sistema de patches | Conversiones, migraciones, validación de esquema, persistencia |
 | `i18n/locales` | Internacionalización | Paridad en/es, claves esenciales, metadatos |
-| **`audio/worklets/*`** | **24 tests Playwright** | **Thermal slew, hybrid clipping, CV, sync, waveforms** |
+| **`audio/*`** | **12 ficheros, 218 tests Playwright** | **Thermal slew, hybrid clipping, CV, sync, waveforms** |
 | `ui/audioSettingsModal` | Modal de audio | Lógica de latencia, cálculo total, visibilidad multicanal |
 | `ui/*` | Componentes de interfaz | Matriz grande, tooltips, PiP, menú de colores, flujo de señal |
 | `worklets/multichannelCapture` | Ring buffer SharedArrayBuffer (salida) | Espacio disponible, overflow, Atomics, layout de buffer |
 | `worklets/multichannelPlayback` | Ring buffer SharedArrayBuffer (entrada) | Frames disponibles, underflow, lectura interleaved, wrap around |
-| `worklets/*` | Procesadores DSP | Matemáticas de oscilador, formas de onda, PolyBLEP |
+| `worklets/*` | Procesadores DSP reales (`registerProcessor` capturado) | Oscilador, filtro de salida, DC blocker, captura de osciloscopio (trigger Schmitt, ring buffer, AUTO), captura de grabación |
+| `panelRouting`, `stateSerializer`, `moduleManager`, `uiInitializer`, `routingSetup` | Módulos R7 con un `app` mínimo | Toggle de pines, dormancy real de osciladores, patch v2, reinicios contextuales |
 | `utils/*` | Utilidades | Constantes, logging por niveles, `deepMerge()`, voltajes |
 | `utils/errorHandler` | Error handler global | Ring buffer, deduplicación, listeners, cooldown |
 | `utils/telemetry*` | Telemetría | Cola, flush, offline, rate limiting, eventos instrumentados, consentimiento |

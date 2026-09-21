@@ -209,8 +209,8 @@ podría ser significativo en dispositivos móviles.
 ## Problemas:
 
 > Auditoría 2026-07-18: se revisó cada entrada contra el historial de commits y se
-> verificó con la suite de audio Playwright (202/218 pasan; los 16 fallos tienen causa
-> identificada, ver sección "Tests de audio" más abajo).
+> verificó con la suite de audio Playwright. Desde el 21-sep-2026 pasa entera (218/218,
+> ver sección "Tests de audio" más abajo).
 
 ### Abiertos (verificado en código, sin fix en el historial)
 
@@ -248,28 +248,18 @@ podría ser significativo en dispositivos móviles.
   grabación individual debe moverse post-blocker (ojo: la re-entry debe seguir
   conservando DC para CV, eso es intencional).
 
-## Tests de audio (auditoría 2026-07-18)
+## Tests de audio
 
-Estado: 202/218 pasan. Los 16 fallos NO son bugs de DSP en producción: todos los causa
-el suavizado anti-zipper one-pole (5 Hz, τ≈32ms) añadido el 16-mar (6af6466f, 8fed4f25).
-Verificado experimentalmente: con `_smoothAlpha = 1.0` los 16 tests pasan.
+**Estado (21-sep-2026): 218/218 pasan.** El fix fue la opción 1 de las propuestas en
+julio: el worklet del oscilador inicializa todos los `_smoothed*` desde el primer
+sample de cada AudioParam en su primer `process()` (lazy init). Sin transitorio para
+ningún consumidor y sin perder el anti-zipper. Cubierto por
+`tests/worklets/oscillatorFreqSmoothing.test.js` («Lazy init en el primer process()»).
 
-Detalle de la causa:
-- El worklet inicializa `_smoothedFreq` desde `processorOptions.frequency ?? 440` y el
-  resto de parámetros suavizados (symmetry 0.5, gain 1.0, levels 0) con defaults fijos.
-- La app real (engine.js) SÍ pasa `frequency` por processorOptions → sin transitorio audible
-  en producción. El harness de tests (harness.html) NO lo pasa → los primeros ~150ms
-  barren desde 440 Hz y contaminan las mediciones (peaks, cruces por cero, octavas FM).
-- Ejemplos: cuspoide mide ratio 1.0 porque el peak se captura en los primeros ms
-  (symmetry aún ≈0.5); el E2E mide 272 Hz en vez de 261.63 (transitorio 440→261 incluido);
-  hard sync cuenta 28 cruces en vez de 22 por la misma razón.
-
-Fix pendiente (elegir uno):
-1. (Preferido) Worklet: inicializar todos los `_smoothed*` desde el primer sample de cada
-   AudioParam en el primer `process()` (lazy init) → elimina el transitorio para todos los
-   consumidores sin perder el anti-zipper.
-2. Harness: pasar todos los valores iniciales por `processorOptions` imitando a engine.js.
-3. Tests: descartar los primeros ~200ms del buffer antes de medir.
+Historia del diagnóstico (auditoría 2026-07-18): 202/218; los 16 fallos los causaba el
+suavizado anti-zipper one-pole (5 Hz, τ≈32ms) añadido el 16-mar (6af6466f, 8fed4f25),
+que arrancaba desde defaults fijos (440 Hz, symmetry 0.5…) y contaminaba los primeros
+~150 ms de cada medida en el harness, que no pasa `processorOptions`.
 
 Nota: `detune` NO está suavizado (correcto: la FM por matriz vía detune no se filtra).
 

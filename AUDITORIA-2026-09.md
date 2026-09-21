@@ -63,9 +63,15 @@ la suite de audio pasa entera.
   tick `flushPendingUpdate()` había dormido el worklet. `OscilloscopeModule`
   ahora limpia al dormirse y descarta frames mientras duerme; 4 tests lo fijan.
   Pendiente de comprobar en navegador.
-- **Menú contextual se sale de pantalla en móvil.** `.pip-context-menu`
-  (`main.css:7512`) no tiene `max-height` ni `overflow-y`. Lo mismo para el
-  desplegable de detach en la barra.
+- **Menú contextual se sale de pantalla en móvil.** RESUELTO el 21-sep. Eran
+  dos cosas: `.pip-context-menu` no tenía `max-height` ni `overflow-y`, y el
+  recolocado de `contextMenuManager` (si no cabe abajo, `top = y - alto`)
+  dejaba `top` negativo cuando el menú era más alto que la pantalla, con las
+  primeras opciones inalcanzables. Ahora el CSS lo limita a `100dvh - 16px`
+  con scroll y el JS lo pega al margen de 8px (`VIEWPORT_MARGIN`, un test
+  comprueba que van a juego). El desplegable de paneles flotantes de la barra
+  (`.pip-menu`) tiene su propio `max-height`. 5 tests en
+  `tests/ui/contextMenuManager.test.js`. Pendiente de comprobar en móvil.
 - Sin verificar (necesitan móvil real): permisos de micro en Chrome Android;
   importar patches en móvil.
 
@@ -401,6 +407,6 @@ ha tocado:
 ## Orden propuesto
 
 1. Lazy init en el worklet → suite de audio verde.
-2. Los dos bugs triviales (osciloscopio, menú móvil).
+2. Los dos bugs triviales (osciloscopio, menú móvil). **Hechos el 21-sep**, pendientes de ver en navegador/móvil.
 3. `ARCHITECTURE.md` al estado post-R7/OFB.
 4. Dependencias y CI: solo si se decide.

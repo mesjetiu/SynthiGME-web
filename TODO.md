@@ -218,10 +218,6 @@ podría ser significativo en dispositivos móviles.
 
 - En móvil no importa patches (en desktop sí, probado) - testear antes. Sin commits relacionados.
 
-- Los menús contextuales de los pines son tan largos que en móvil no se ven enteros.
-  Confirmado en código: `.pip-context-menu` (main.css) no tiene `max-height` ni
-  `overflow-y`. Fix fácil. Lo mismo para la ventana desplegable de detach en el menú de la barra.
-
 - Pines: tooltip molesta. Dar la posibilidad de un solo click en ajustes.
   Parcialmente mejorado (54fbb543: ya no desaparece con el ratón encima; 565664ab:
   estilo unificado), pero el ajuste de "solo con click" sigue sin existir en settingsModal.
@@ -236,6 +232,13 @@ podría ser significativo en dispositivos móviles.
   `OscilloscopeModule` avisa «sin señal» al dormirse y descarta los frames que
   lleguen dormido (`tests/modules/oscilloscope.test.js`, «frames en vuelo»).
   Pendiente de ver en navegador.
+
+- ~~Los menús contextuales de los pines son tan largos que en móvil no se ven
+  enteros.~~ Resuelto el 21-sep-2026. `.pip-context-menu` no tenía `max-height`
+  ni `overflow-y`, y además `contextMenuManager`, al no caber abajo, lo abría
+  hacia arriba con `top` negativo si el menú era más alto que la pantalla.
+  Ahora cabe con 8px de margen y hace scroll; el desplegable de paneles
+  flotantes de la barra (`.pip-menu`) también. Pendiente de ver en móvil.
 
 ### Probablemente resueltos (verificar de uso antes de cerrar)
 

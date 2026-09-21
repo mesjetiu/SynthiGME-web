@@ -12,6 +12,7 @@ y este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Corregido
 - **Osciloscopio**: el trazo ya no se queda dibujado al reiniciar o aplicar un patch sin conexiones al osciloscopio. Un frame de captura en vuelo llegaba después del aviso «sin señal» y se quedaba porque el worklet ya estaba dormido; ahora el módulo limpia el display al dormirse y descarta los frames que lleguen dormido.
+- **Menús en móvil**: el menú contextual de los paneles y el desplegable de paneles flotantes de la barra ya no se salen de la pantalla. Se limitan a la altura de la ventana y hacen scroll; el contextual, que al no caber abajo se abría hacia arriba hasta quedar con las primeras opciones fuera de la pantalla, ahora se pega al borde con un margen.
 
 ---
 

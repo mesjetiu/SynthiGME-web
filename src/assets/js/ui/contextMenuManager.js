@@ -26,6 +26,13 @@ let activeContextMenu = null;
 /** Listeners pendientes de cleanup */
 let cleanupListeners = null;
 
+/**
+ * Margen mínimo entre el menú y el borde de la ventana, en px. Tiene que
+ * coincidir con la mitad de lo que resta el `max-height` de `.pip-context-menu`
+ * en main.css (calc(100dvh - 16px)) para que el menú quepa entero.
+ */
+export const VIEWPORT_MARGIN = 8;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SVG ICONS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -473,14 +480,18 @@ export function showContextMenu({ x, y, panelId, isPipped, target, onDetach, onA
   document.body.appendChild(menu);
   activeContextMenu = menu;
   
-  // Ajustar posición si se sale de la pantalla
+  // Ajustar posición si se sale de la pantalla: se abre hacia el otro lado y,
+  // si tampoco cabe (móvil: el menú es más alto que la pantalla), se pega al
+  // borde con el mismo margen que deja el max-height de .pip-context-menu,
+  // que es lo que le da el scroll. Antes quedaba con top negativo y sin
+  // manera de llegar a las primeras opciones.
   requestAnimationFrame(() => {
     const rect = menu.getBoundingClientRect();
     if (rect.right > window.innerWidth) {
-      menu.style.left = `${x - rect.width}px`;
+      menu.style.left = `${Math.max(VIEWPORT_MARGIN, x - rect.width)}px`;
     }
     if (rect.bottom > window.innerHeight) {
-      menu.style.top = `${y - rect.height}px`;
+      menu.style.top = `${Math.max(VIEWPORT_MARGIN, y - rect.height)}px`;
     }
   });
   

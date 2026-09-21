@@ -7518,6 +7518,13 @@ body.render-performance .panel-inline-bg {
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   padding: 4px 0;
+  /* En móvil el menú (con módulo, control y MIDI) es más alto que la pantalla:
+     que quepa con 8px de margen y haga scroll, en vez de quedar cortado. El
+     margen va a juego con el ajuste de posición de contextMenuManager. */
+  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: pip-context-menu-fade-in 120ms ease-out;
 }
 
@@ -7857,6 +7864,12 @@ body.render-performance .panel-inline-bg {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   padding: 4px 0;
   z-index: 9999;
+  /* Cuelga de la barra superior (safe-area + 0.4rem + botón de 40px + 8px):
+     con los siete paneles y las dos acciones no cabe en un móvil apaisado. */
+  max-height: calc(100vh - 72px - env(safe-area-inset-top, 0px));
+  max-height: calc(100dvh - 72px - env(safe-area-inset-top, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: none;
 }
 

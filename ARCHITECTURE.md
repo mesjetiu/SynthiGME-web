@@ -3620,7 +3620,7 @@ tests/
 │   ├── oscAddressMap.test.js        # Tests del mapa de direcciones OSC
 │   ├── oscControlSync.test.js       # Tests de sincronización de control
 │   ├── oscMatrixSync.test.js        # Tests de sincronización de matrices (audio+control+PWM)
-│   ├── oscOscillatorSync.test.js    # Tests de sincronización de osciladores
+│   ├── oscOscillatorSync.test.js    # OscillatorOSCSync real sobre oscBridge: envío, dedupe, recepción, anti-loop
 │   ├── oscKeyboardSync.test.js      # Tests de sincronización de teclados (upper/lower)
 │   ├── oscRandomCVSync.test.js      # Tests de sincronización de random CV
 │   ├── oscRingModSync.test.js       # Tests de sincronización de ring modulator

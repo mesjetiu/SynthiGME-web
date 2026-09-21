@@ -211,6 +211,11 @@ análisis estático de arriba basta para decidir.
 - `pitchToVoltageConverter.worklet` (28, el worklet real con senos y
   cuadradas; el espejo daba por exacta una detección que se cuantiza a
   muestras, ver hallazgo).
+- `noiseGenerator.worklet` (25): como la fuente es `Math.random()`, el test
+  la sustituye por un seno conocido y mide el filtro COLOUR real contra el
+  modelo del circuito (τ = 3,3×10⁻⁴ s, fc ≈ 965 Hz, −3 dB, 6 dB/oct, shelf
+  +6 dB); con el `Math.random` real, estadísticas del ruido blanco. Cubre
+  también a-rate, bypass, dormant, stop y error interno.
 
 ### Hallazgos al probar el Pitch-to-Voltage real (para decidir)
 

@@ -3596,7 +3596,7 @@ tests/
 ├── worklets/
 │   ├── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
 │   ├── keyboard.worklet.test.js # Tests del worklet de teclado (noteOn/Off, retrigger modes, polifonía)
-│   ├── noiseGenerator.worklet.test.js # Tests del worklet de ruido (filtro IIR, colour position)
+│   ├── noiseGenerator.worklet.test.js # Worklet real: filtro COLOUR medido con seno inyectado en Math.random, ruido blanco, bypass
 │   ├── outputFilter.worklet.test.js # Worklet output-filter real: coeficientes, respuesta medida LP/plano/shelf, metering
 │   ├── pitchToVoltageConverter.worklet.test.js # Worklet PVC real: senos → 1 V/oct dentro de la cuantización, track & hold, spread
 │   ├── randomCV.worklet.test.js # Tests del worklet de random CV (frecuencia, jitter, 3 canales)

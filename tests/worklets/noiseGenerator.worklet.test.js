@@ -1,439 +1,382 @@
 /**
- * Tests para el Noise Generator AudioWorklet Processor — Synthi 100 Cuenca
- * 
- * Verifica la lógica del filtro IIR de 1er orden (6 dB/oct) que modela
- * el circuito COLOUR del generador de ruido:
- * - Coeficientes del filtro (a1, Kinv) a partir de R·C
- * - Respuesta plana a p=0 (white noise)
- * - Respuesta LP a p=-1 (dark/pink noise)
- * - Respuesta HP a p=+1 (bright/blue noise)
- * - Atenuación 6 dB/oct en posición LP
- * 
- * Estos tests replican la matemática del worklet sin necesitar
- * AudioContext real, verificando la implementación IIR offline.
- * 
- * @version 1.0.0
+ * Tests del worklet real `noise-generator` (ruido blanco + filtro COLOUR).
+ *
+ * Hasta septiembre de 2026 este fichero replicaba la transformada bilineal
+ * del filtro y la probaba a sí misma. Ahora se carga el worklet de verdad.
+ * Como la fuente es `Math.random()`, para medir el filtro se sustituye
+ * temporalmente por una secuencia conocida (un seno): así el worklet
+ * "genera" un seno y lo que sale es la respuesta del filtro COLOUR, que se
+ * compara con el modelo analógico del circuito (τ = R·C = 3,3×10⁻⁴ s,
+ * fc ≈ 965 Hz). Con el `Math.random` real se comprueban las estadísticas
+ * del ruido blanco.
  */
 
-import { describe, test, beforeEach } from 'node:test';
-import assert from 'node:assert';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES DEL CIRCUITO (deben coincidir con noise.config.js)
-// ─────────────────────────────────────────────────────────────────────────────
-const POT_RESISTANCE = 10000;    // 10 kΩ
-const CAPACITANCE = 33e-9;       // 33 nF
-const SAMPLE_RATE = 44100;       // Hz (estándar)
+const SAMPLE_RATE = 48000;
+const BLOCK = 128;
 
-// Valores derivados
-const TAU = POT_RESISTANCE * CAPACITANCE;   // 3.3×10⁻⁴ s
-const K = 2 * SAMPLE_RATE * TAU;            // Factor bilineal
+const R = 10000;
+const C = 33e-9;
+const TAU = R * C;
+const FC = 1 / (Math.PI * TAU);          // ≈ 965 Hz
 
-// Coeficientes constantes del filtro
-const A1 = (2 - K) / (2 + K);
-const KINV = K / (2 + K);
+// ═══════════════════════════════════════════════════════════════════════════
+// Entorno de worklet en Node
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Frecuencias características
-const POLE_FREQ = 1 / (2 * Math.PI * TAU);      // ≈ 482 Hz
-const LP_CUTOFF = 1 / (Math.PI * TAU);           // ≈ 965 Hz
-
-/**
- * Calcula la respuesta en frecuencia del filtro IIR para una posición p dada.
- * Usa la evaluación de H(z) en el círculo unitario: z = e^(jω)
- * 
- * @param {number} freq - Frecuencia en Hz
- * @param {number} p - Posición del colour (-1=LP, 0=flat, +1=HP)
- * @returns {number} Magnitud de la respuesta |H(f)|
- */
-function filterMagnitude(freq, p) {
-  const omega = 2 * Math.PI * freq / SAMPLE_RATE;
-  const delta = p * KINV;
-  const b0 = 1 + delta;
-  const b1 = A1 - delta;
-  
-  // H(e^jω) = (b0 + b1·e^(-jω)) / (1 + a1·e^(-jω))
-  // Numerador: b0 + b1·cos(ω) - j·b1·sin(ω)
-  const numReal = b0 + b1 * Math.cos(omega);
-  const numImag = -b1 * Math.sin(omega);
-  const numMag2 = numReal * numReal + numImag * numImag;
-  
-  // Denominador: 1 + a1·cos(ω) - j·a1·sin(ω)
-  const denReal = 1 + A1 * Math.cos(omega);
-  const denImag = -A1 * Math.sin(omega);
-  const denMag2 = denReal * denReal + denImag * denImag;
-  
-  return Math.sqrt(numMag2 / denMag2);
-}
-
-/**
- * Convierte magnitud a dB.
- */
-function toDb(magnitude) {
-  return 20 * Math.log10(magnitude);
-}
-
-/**
- * Aplica el filtro IIR a un bloque de samples (offline).
- * Replica exactamente la lógica de process() del worklet.
- * 
- * @param {Float32Array} input - Samples de entrada (white noise)
- * @param {number} p - Posición del colour (-1..+1)
- * @returns {Float32Array} Samples filtrados
- */
-function applyFilter(input, p) {
-  const output = new Float32Array(input.length);
-  const delta = p * KINV;
-  const b0 = 1 + delta;
-  const b1 = A1 - delta;
-  let x1 = 0;
-  let y1 = 0;
-  
-  for (let i = 0; i < input.length; i++) {
-    const x = input[i];
-    const y = b0 * x + b1 * x1 - A1 * y1;
-    output[i] = y;
-    x1 = x;
-    y1 = y;
-  }
-  return output;
-}
-
-/**
- * Genera white noise determinístico usando un PRNG simple (seedable).
- * Para tests reproducibles.
- */
-function generateWhiteNoise(length, seed = 42) {
-  const buffer = new Float32Array(length);
-  let s = seed;
-  for (let i = 0; i < length; i++) {
-    // Linear congruential generator
-    s = (s * 1664525 + 1013904223) & 0xFFFFFFFF;
-    buffer[i] = (s / 0x7FFFFFFF) - 1;  // Normalizar a [-1, 1]
-  }
-  return buffer;
-}
-
-/**
- * Calcula la potencia espectral media en una banda de frecuencias
- * usando una FFT simple (DFT directa, adecuada para tests).
- */
-function bandPower(samples, freqLow, freqHigh, sampleRate = SAMPLE_RATE) {
-  const N = samples.length;
-  let power = 0;
-  let count = 0;
-  
-  const binLow = Math.floor(freqLow * N / sampleRate);
-  const binHigh = Math.ceil(freqHigh * N / sampleRate);
-  
-  for (let k = binLow; k <= binHigh && k < N / 2; k++) {
-    let re = 0, im = 0;
-    for (let n = 0; n < N; n++) {
-      const angle = -2 * Math.PI * k * n / N;
-      re += samples[n] * Math.cos(angle);
-      im += samples[n] * Math.sin(angle);
-    }
-    power += (re * re + im * im) / (N * N);
-    count++;
-  }
-  
-  return count > 0 ? power / count : 0;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE CONSTANTES DEL CIRCUITO
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Noise Generator COLOUR Filter — Constantes del circuito', () => {
-  
-  test('τ = R·C = 3.3×10⁻⁴ s', () => {
-    assert.ok(Math.abs(TAU - 3.3e-4) < 1e-7,
-      `τ esperado ≈ 3.3×10⁻⁴, obtenido ${TAU}`);
-  });
-  
-  test('Polo fundamental fp ≈ 482 Hz', () => {
-    assert.ok(Math.abs(POLE_FREQ - 482) < 2,
-      `fp esperado ≈ 482 Hz, obtenido ${POLE_FREQ.toFixed(1)} Hz`);
-  });
-  
-  test('LP fc(-3dB) ≈ 965 Hz', () => {
-    assert.ok(Math.abs(LP_CUTOFF - 965) < 5,
-      `fc esperado ≈ 965 Hz, obtenido ${LP_CUTOFF.toFixed(1)} Hz`);
-  });
-  
-  test('a1 está en rango válido (-1, 1) para estabilidad del filtro', () => {
-    assert.ok(Math.abs(A1) < 1,
-      `a1 = ${A1.toFixed(6)} debe estar entre -1 y 1`);
-  });
-  
-  test('Kinv > 0 (factor de modulación positivo)', () => {
-    assert.ok(KINV > 0, `Kinv = ${KINV.toFixed(6)} debe ser > 0`);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE RESPUESTA EN FRECUENCIA
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Noise Generator COLOUR Filter — Respuesta en frecuencia', () => {
-  
-  // ─── POSICIÓN PLANA (p=0, dial 5: white noise) ───
-  
-  describe('Posición plana (p=0, dial 5 = white noise)', () => {
-    
-    test('Respuesta plana a 100 Hz (0 dB)', () => {
-      const mag = filterMagnitude(100, 0);
-      assert.ok(Math.abs(mag - 1.0) < 0.001,
-        `|H(100Hz)| = ${mag.toFixed(4)}, esperado 1.0`);
-    });
-    
-    test('Respuesta plana a 1000 Hz (0 dB)', () => {
-      const mag = filterMagnitude(1000, 0);
-      assert.ok(Math.abs(mag - 1.0) < 0.001,
-        `|H(1kHz)| = ${mag.toFixed(4)}, esperado 1.0`);
-    });
-    
-    test('Respuesta plana a 10000 Hz (0 dB)', () => {
-      const mag = filterMagnitude(10000, 0);
-      assert.ok(Math.abs(mag - 1.0) < 0.001,
-        `|H(10kHz)| = ${mag.toFixed(4)}, esperado 1.0`);
-    });
-    
-    test('Respuesta plana en todo el rango audible (±0.01 dB)', () => {
-      const freqs = [20, 50, 100, 500, 1000, 5000, 10000, 15000, 20000];
-      for (const f of freqs) {
-        const magDb = toDb(filterMagnitude(f, 0));
-        assert.ok(Math.abs(magDb) < 0.01,
-          `A ${f} Hz: ${magDb.toFixed(4)} dB, esperado 0 dB`);
+function createWorkletEnvironment() {
+  globalThis.sampleRate = SAMPLE_RATE;
+  globalThis.currentTime = 0;
+  globalThis.currentFrame = 0;
+  if (!globalThis.AudioWorkletProcessor) {
+    globalThis.AudioWorkletProcessor = class AudioWorkletProcessor {
+      constructor() {
+        this.port = { onmessage: null, _messages: [], postMessage(m) { this._messages.push(m); } };
       }
+    };
+  }
+  const registered = {};
+  globalThis.registerProcessor = (name, cls) => { registered[name] = cls; };
+  return registered;
+}
+
+let NoiseProcessor;
+
+async function loadProcessor() {
+  const registered = createWorkletEnvironment();
+  await import(`../../src/assets/js/worklets/noiseGenerator.worklet.js?t=${Date.now()}`);
+  NoiseProcessor = registered['noise-generator'];
+  assert.ok(NoiseProcessor, 'el worklet debe registrarse como "noise-generator"');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════════════════════
+
+function createProcessor(processorOptions) {
+  const proc = new NoiseProcessor(processorOptions ? { processorOptions } : undefined);
+  if (!proc.port._messages) {
+    proc.port._messages = [];
+    proc.port.postMessage = m => proc.port._messages.push(m);
+  }
+  return proc;
+}
+
+function send(proc, data) {
+  proc.port.onmessage({ data });
+}
+
+/** Procesa un bloque con `channels` canales de salida y la posición dada (número o Float32Array). */
+function processBlock(proc, position, channels = 1) {
+  const output = Array.from({ length: channels }, () => new Float32Array(BLOCK));
+  const colourPosition = position instanceof Float32Array ? position : new Float32Array([position]);
+  const ok = proc.process([], [output], { colourPosition });
+  return { ok, output };
+}
+
+const realRandom = Math.random;
+
+/**
+ * Sustituye Math.random por una fuente determinista: el worklet hace
+ * x = random·2 − 1, así que random = (s + 1)/2 produce exactamente s.
+ */
+function injectSource(signalAt) {
+  let n = 0;
+  Math.random = () => (signalAt(n++) + 1) / 2;
+}
+
+function restoreRandom() {
+  Math.random = realRandom;
+}
+
+/** Ganancia medida a `freq` con el filtro en `position`, inyectando un seno. */
+function measureGain(position, freq, processorOptions) {
+  const proc = createProcessor(processorOptions);
+  injectSource(n => 0.5 * Math.sin(2 * Math.PI * freq * n / SAMPLE_RATE));
+  const settleBlocks = Math.ceil(SAMPLE_RATE * 0.02 / BLOCK);
+  const cycles = Math.max(20, Math.ceil(freq * 0.05));
+  const measureBlocks = Math.ceil(cycles * SAMPLE_RATE / freq / BLOCK);
+  let sumSq = 0;
+  let count = 0;
+  for (let b = 0; b < settleBlocks + measureBlocks; b++) {
+    const { output } = processBlock(proc, position);
+    if (b >= settleBlocks) {
+      for (const v of output[0]) sumSq += v * v;
+      count += BLOCK;
+    }
+  }
+  restoreRandom();
+  const rms = Math.sqrt(sumSq / count);
+  return rms / (0.5 * Math.SQRT1_2);
+}
+
+/** |H(j2πf)| del circuito analógico: H(s) = (2 + (1+p)·sτ) / (2 + sτ). */
+function analogGain(position, freq) {
+  const wt = 2 * Math.PI * freq * TAU;
+  return Math.hypot(2, (1 + position) * wt) / Math.hypot(2, wt);
+}
+
+const dB = g => 20 * Math.log10(g);
+
+function assertMatchesAnalog(position, freq, tolDb = 0.2) {
+  const measured = dB(measureGain(position, freq));
+  const expected = dB(analogGain(position, freq));
+  assert.ok(Math.abs(measured - expected) < tolDb,
+    `p=${position} f=${freq} Hz: medido ${measured.toFixed(3)} dB, modelo ${expected.toFixed(3)} dB`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('noise-generator worklet', () => {
+  beforeEach(loadProcessor);
+  afterEach(restoreRandom);
+
+  describe('Registro, parámetros y constantes', () => {
+    it('un solo AudioParam colourPosition, a-rate, −1..+1 centrado en 0', () => {
+      const [desc] = NoiseProcessor.parameterDescriptors;
+      assert.equal(NoiseProcessor.parameterDescriptors.length, 1);
+      assert.equal(desc.name, 'colourPosition');
+      assert.equal(desc.defaultValue, 0);
+      assert.equal(desc.minValue, -1);
+      assert.equal(desc.maxValue, 1);
+      assert.equal(desc.automationRate, 'a-rate');
+    });
+
+    it('a1 y Kinv salen de K = 2·fs·R·C con 10 kΩ y 33 nF', () => {
+      const proc = createProcessor();
+      const K = 2 * SAMPLE_RATE * TAU;
+      assert.ok(Math.abs(proc._a1 - (2 - K) / (2 + K)) < 1e-12);
+      assert.ok(Math.abs(proc._Kinv - K / (2 + K)) < 1e-12);
+    });
+
+    it('processorOptions cambian R y C', () => {
+      const proc = createProcessor({ potResistance: 20000, capacitance: 47e-9 });
+      const K = 2 * SAMPLE_RATE * 20000 * 47e-9;
+      assert.ok(Math.abs(proc._a1 - (2 - K) / (2 + K)) < 1e-12);
+    });
+
+    it('arranca corriendo, despierto, sin bypass y con el filtro en reposo', () => {
+      const proc = createProcessor();
+      assert.equal(proc.isRunning, true);
+      assert.equal(proc.dormant, false);
+      assert.equal(proc.filterBypassed, false);
+      assert.equal(proc._x1, 0);
+      assert.equal(proc._y1, 0);
     });
   });
-  
-  // ─── POSICIÓN LP (p=-1, dial 0: dark/pink noise) ───
-  
-  describe('Posición LP (p=-1, dial 0 = dark/pink noise)', () => {
-    
-    test('Ganancia DC = 0 dB (graves preservados)', () => {
-      // A frecuencia muy baja (quasi-DC)
-      const mag = filterMagnitude(1, -1);
-      const magDb = toDb(mag);
-      assert.ok(Math.abs(magDb) < 0.5,
-        `Ganancia DC = ${magDb.toFixed(2)} dB, esperado ≈ 0 dB`);
-    });
-    
-    test('Atenuación a 10 kHz > 15 dB', () => {
-      const magDb = toDb(filterMagnitude(10000, -1));
-      assert.ok(magDb < -15,
-        `Atenuación a 10 kHz = ${magDb.toFixed(1)} dB, esperado < -15 dB`);
-    });
-    
-    test('Pendiente ≈ 6 dB/octava (entre 2kHz y 8kHz)', () => {
-      const mag2k = toDb(filterMagnitude(2000, -1));
-      const mag4k = toDb(filterMagnitude(4000, -1));
-      const mag8k = toDb(filterMagnitude(8000, -1));
-      
-      // Entre cada octava: diferencia ≈ 6 dB (±2 dB de tolerancia)
-      const slope1 = mag2k - mag4k;  // dB por octava
-      const slope2 = mag4k - mag8k;
-      
-      assert.ok(Math.abs(slope1 - 6) < 2,
-        `Pendiente 2k-4k = ${slope1.toFixed(1)} dB/oct, esperado ≈ 6`);
-      assert.ok(Math.abs(slope2 - 6) < 2,
-        `Pendiente 4k-8k = ${slope2.toFixed(1)} dB/oct, esperado ≈ 6`);
-    });
-    
-    test('fc(-3dB) ≈ 965 Hz ±100 Hz', () => {
-      // Buscar el punto de -3 dB
-      let fc3dB = 0;
-      for (let f = 100; f <= 5000; f += 10) {
-        const magDb = toDb(filterMagnitude(f, -1));
-        if (magDb <= -3) {
-          fc3dB = f;
-          break;
+
+  describe('Ruido blanco (Math.random real)', () => {
+    it('p=0: salida dentro de ±1, media ≈ 0 y RMS ≈ 1/√3 (uniforme)', () => {
+      const proc = createProcessor();
+      let sum = 0, sumSq = 0, count = 0;
+      for (let b = 0; b < 400; b++) {
+        const { output } = processBlock(proc, 0);
+        for (const v of output[0]) {
+          assert.ok(v >= -1 && v <= 1);
+          sum += v; sumSq += v * v; count++;
         }
       }
-      assert.ok(Math.abs(fc3dB - LP_CUTOFF) < 100,
-        `fc(-3dB) = ${fc3dB} Hz, esperado ≈ ${LP_CUTOFF.toFixed(0)} Hz`);
+      assert.ok(Math.abs(sum / count) < 0.02, `media ${sum / count}`);
+      const rms = Math.sqrt(sumSq / count);
+      assert.ok(Math.abs(rms - 1 / Math.sqrt(3)) < 0.02, `RMS ${rms}`);
+    });
+
+    it('cada bloque es distinto del anterior', () => {
+      const proc = createProcessor();
+      const a = processBlock(proc, 0).output[0].slice();
+      const b = processBlock(proc, 0).output[0];
+      assert.ok(a.some((v, i) => v !== b[i]));
+    });
+
+    it('p=−1 (LP) reduce la energía; p=+1 (HP) la aumenta', () => {
+      const rmsAt = p => {
+        const proc = createProcessor();
+        let sumSq = 0;
+        for (let b = 0; b < 300; b++) for (const v of processBlock(proc, p).output[0]) sumSq += v * v;
+        return Math.sqrt(sumSq / (300 * BLOCK));
+      };
+      const flat = rmsAt(0), lp = rmsAt(-1), hp = rmsAt(1);
+      assert.ok(lp < flat * 0.6, `LP ${lp.toFixed(3)} vs plano ${flat.toFixed(3)}`);
+      assert.ok(hp > flat * 1.3, `HP ${hp.toFixed(3)} vs plano ${flat.toFixed(3)}`);
     });
   });
-  
-  // ─── POSICIÓN HP (p=+1, dial 10: bright/blue noise) ───
-  
-  describe('Posición HP (p=+1, dial 10 = bright/blue noise)', () => {
-    
-    test('Ganancia DC ≈ 0 dB (no es HPF puro, es shelving)', () => {
-      const mag = filterMagnitude(1, 1);
-      const magDb = toDb(mag);
-      // HP shelving no atenúa DC, mantiene ganancia unitaria
-      assert.ok(Math.abs(magDb) < 1,
-        `Ganancia DC = ${magDb.toFixed(2)} dB, esperado ≈ 0 dB (shelving)`);
+
+  describe('Filtro COLOUR medido (fuente inyectada)', () => {
+    it('p=0: la salida es la fuente tal cual, muestra a muestra', () => {
+      const proc = createProcessor();
+      const src = new Float32Array(BLOCK).map((_, i) => Math.sin(i * 0.41) * 0.7);
+      injectSource(n => src[n % BLOCK]);
+      const { output } = processBlock(proc, 0);
+      for (let i = 0; i < BLOCK; i++) assert.ok(Math.abs(output[0][i] - src[i]) < 1e-6, `muestra ${i}`);
     });
-    
-    test('Boost en HF ≈ +6 dB (shelving)', () => {
-      const magDb = toDb(filterMagnitude(10000, 1));
-      assert.ok(magDb > 4 && magDb < 7,
-        `Ganancia a 10 kHz = ${magDb.toFixed(1)} dB, esperado ≈ +6 dB`);
+
+    it('p=−1 (LP): −3 dB en fc ≈ 965 Hz y 6 dB/oct por encima', () => {
+      const g = dB(measureGain(-1, FC));
+      assert.ok(Math.abs(g - (-3.01)) < 0.1, `en fc: ${g.toFixed(3)} dB`);
+      const g4k = dB(measureGain(-1, 4000));
+      const g8k = dB(measureGain(-1, 8000));
+      assert.ok(Math.abs((g4k - g8k) - 6) < 0.6, `4k→8k: ${(g4k - g8k).toFixed(2)} dB/oct`);
     });
-    
-    test('Transición gradual: 100Hz < 1kHz < 10kHz', () => {
-      const mag100 = filterMagnitude(100, 1);
-      const mag1k = filterMagnitude(1000, 1);
-      const mag10k = filterMagnitude(10000, 1);
-      
-      // En HP shelving, la ganancia crece monótonamente
-      assert.ok(mag100 < mag1k,
-        `100 Hz (${toDb(mag100).toFixed(1)} dB) debe ser < 1 kHz (${toDb(mag1k).toFixed(1)} dB)`);
-      assert.ok(mag1k < mag10k,
-        `1 kHz (${toDb(mag1k).toFixed(1)} dB) debe ser < 10 kHz (${toDb(mag10k).toFixed(1)} dB)`);
+
+    it('p=+1 (HP): graves intactos, agudos hacia +6 dB', () => {
+      assert.ok(Math.abs(dB(measureGain(1, 30))) < 0.05);
+      const g8k = dB(measureGain(1, 8000));
+      assert.ok(g8k > 5.5 && g8k < 6.03, `8 kHz: ${g8k.toFixed(2)} dB`);
     });
-  });
-  
-  // ─── SIMETRÍA LP/HP ───
-  
-  describe('Simetría LP/HP', () => {
-    
-    test('LP y HP tienen efectos opuestos (atenuación vs boost)', () => {
-      // En un filtro shelving de 1er orden, LP atenúa HF y HP refuerza HF.
-      // NO son simétricos en dB: el LP tiende a -∞ dB (roll-off ilimitado)
-      // mientras que el HP satura en +6 dB (duplica la amplitud).
-      // Solo verificamos la dirección de cada efecto.
-      const freqs = [1000, 2000, 5000, 10000];
-      for (const f of freqs) {
-        const lpDb = toDb(filterMagnitude(f, -1));
-        const hpDb = toDb(filterMagnitude(f, 1));
-        // LP debe atenuar (negativo) y HP debe reforzar (positivo)
-        assert.ok(lpDb < 0, `LP a ${f} Hz debe atenuar: ${lpDb.toFixed(1)} dB`);
-        assert.ok(hpDb > 0, `HP a ${f} Hz debe reforzar: ${hpDb.toFixed(1)} dB`);
+
+    it('en todo el recorrido del dial la respuesta sigue el modelo del circuito', () => {
+      for (const p of [-1, -0.5, -0.2, 0.2, 0.5, 1]) {
+        for (const f of [100, 500, 965, 2000, 3000]) assertMatchesAnalog(p, f);
+      }
+    });
+
+    it('un R·C distinto mueve fc', () => {
+      const opts = { potResistance: 10000, capacitance: 66e-9 };   // τ doble → fc/2
+      const g = dB(measureGain(-1, FC / 2, opts));
+      assert.ok(Math.abs(g - (-3.01)) < 0.1, `-3 dB en fc/2: ${g.toFixed(3)} dB`);
+    });
+
+    it('la DC pasa intacta en cualquier posición', () => {
+      for (const p of [-1, 0, 1]) {
+        const proc = createProcessor();
+        injectSource(() => 0.4);
+        let out;
+        for (let b = 0; b < 30; b++) out = processBlock(proc, p).output[0];
+        assert.ok(Math.abs(out[BLOCK - 1] - 0.4) < 1e-4, `p=${p}: ${out[BLOCK - 1]}`);
       }
     });
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS DEL FILTRO IIR (PROCESAMIENTO OFFLINE)
-// ─────────────────────────────────────────────────────────────────────────────
+  describe('a-rate y estado', () => {
+    it('un array de 128 posiciones iguales da lo mismo que la posición constante', () => {
+      injectSource(n => 0.5 * Math.sin(n * 0.3));
+      const a = createProcessor();
+      const outA = processBlock(a, -0.6).output[0].slice();
+      injectSource(n => 0.5 * Math.sin(n * 0.3));
+      const b = createProcessor();
+      const outB = processBlock(b, new Float32Array(BLOCK).fill(-0.6)).output[0];
+      for (let i = 0; i < BLOCK; i++) assert.ok(Math.abs(outA[i] - outB[i]) < 1e-9, `muestra ${i}`);
+    });
 
-describe('Noise Generator COLOUR Filter — Procesamiento IIR offline', () => {
-  
-  let whiteNoise;
-  
-  beforeEach(() => {
-    // Generar 4096 samples de white noise determinístico
-    whiteNoise = generateWhiteNoise(4096);
-  });
-  
-  test('Filtro plano (p=0) preserva la señal sin cambios', () => {
-    const filtered = applyFilter(whiteNoise, 0);
-    
-    // Cada sample filtrado debe ser igual al input
-    for (let i = 0; i < whiteNoise.length; i++) {
-      assert.ok(Math.abs(filtered[i] - whiteNoise[i]) < 1e-10,
-        `Sample ${i}: input=${whiteNoise[i]}, filtered=${filtered[i]}`);
-    }
-  });
-  
-  test('Filtro LP (p=-1) reduce la energía total (por atenuación de HF)', () => {
-    const filtered = applyFilter(whiteNoise, -1);
-    
-    // RMS del filtrado debe ser menor que el original
-    const rmsOriginal = Math.sqrt(whiteNoise.reduce((s, x) => s + x * x, 0) / whiteNoise.length);
-    const rmsFiltered = Math.sqrt(filtered.reduce((s, x) => s + x * x, 0) / filtered.length);
-    
-    assert.ok(rmsFiltered < rmsOriginal,
-      `RMS filtrado (${rmsFiltered.toFixed(4)}) debe ser < original (${rmsOriginal.toFixed(4)})`);
-  });
-  
-  test('Filtro HP (p=+1) aumenta la energía total (por boost de HF)', () => {
-    const filtered = applyFilter(whiteNoise, 1);
-    
-    // RMS del filtrado debe ser mayor que el original
-    const rmsOriginal = Math.sqrt(whiteNoise.reduce((s, x) => s + x * x, 0) / whiteNoise.length);
-    const rmsFiltered = Math.sqrt(filtered.reduce((s, x) => s + x * x, 0) / filtered.length);
-    
-    assert.ok(rmsFiltered > rmsOriginal,
-      `RMS filtrado (${rmsFiltered.toFixed(4)}) debe ser > original (${rmsOriginal.toFixed(4)})`);
-  });
-  
-  test('Protección contra denormals: y[n] < 1e-30 se fuerza a 0', () => {
-    // Con input muy pequeño y muchas iteraciones, el filtro podría
-    // generar valores denormalizados. Verificamos la lógica de protección.
-    const tiny = new Float32Array(1024).fill(0);
-    tiny[0] = 1e-35;  // Valor extremadamente pequeño
-    
-    const filtered = applyFilter(tiny, -1);
-    
-    // Tras muchas iteraciones con input 0, y[n] debe tender a 0
-    const lastSample = filtered[filtered.length - 1];
-    assert.ok(Math.abs(lastSample) < 1e-20,
-      `Último sample = ${lastSample}, debe tender a 0`);
-  });
-});
+    it('la posición puede cambiar dentro del bloque (modulación CV)', () => {
+      // Primera mitad plano (salida = fuente), segunda mitad LP fuerte
+      const src = n => 0.5 * Math.sin(2 * Math.PI * 8000 * n / SAMPLE_RATE);
+      injectSource(src);
+      const proc = createProcessor();
+      const pos = new Float32Array(BLOCK);
+      pos.fill(0, 0, 64);
+      pos.fill(-1, 64);
+      const { output } = processBlock(proc, pos);
+      for (let i = 0; i < 64; i++) assert.ok(Math.abs(output[0][i] - src(i)) < 1e-6, `plano en ${i}`);
+      let sumSq = 0;
+      for (let i = 100; i < BLOCK; i++) sumSq += output[0][i] ** 2;
+      const rmsLP = Math.sqrt(sumSq / 28);
+      assert.ok(rmsLP < 0.5 * Math.SQRT1_2 * 0.5, `8 kHz atenuado en la mitad LP: rms ${rmsLP.toFixed(3)}`);
+    });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE POSICIONES INTERMEDIAS
-// ─────────────────────────────────────────────────────────────────────────────
+    it('el estado del filtro persiste entre bloques', () => {
+      injectSource(n => 0.5 * Math.sin(2 * Math.PI * 200 * n / SAMPLE_RATE));
+      const proc = createProcessor();
+      const first = processBlock(proc, -1).output[0].slice();
+      const second = processBlock(proc, -1).output[0];
+      assert.notEqual(proc._x1, 0);
+      assert.notEqual(proc._y1, 0);
+      // Sin discontinuidad en la frontera: el salto entre bloques es del orden del salto entre muestras
+      const intraStep = Math.abs(first[BLOCK - 1] - first[BLOCK - 2]);
+      const boundaryStep = Math.abs(second[0] - first[BLOCK - 1]);
+      assert.ok(boundaryStep < intraStep * 3 + 1e-6, `frontera ${boundaryStep} vs interno ${intraStep}`);
+    });
 
-describe('Noise Generator COLOUR Filter — Posiciones intermedias', () => {
-  
-  test('p=-0.5 (dial 2.5): LP parcial, atenuación menor que p=-1', () => {
-    const magFull = filterMagnitude(10000, -1);
-    const magHalf = filterMagnitude(10000, -0.5);
-    
-    assert.ok(magHalf > magFull,
-      `LP parcial (${toDb(magHalf).toFixed(1)} dB) debe atenuar menos que LP total (${toDb(magFull).toFixed(1)} dB)`);
-    assert.ok(magHalf < 1.0,
-      `LP parcial debe atenuar HF (mag=${magHalf.toFixed(4)}, esperado < 1.0)`);
+    it('mono → los canales extra son copia del primero', () => {
+      const proc = createProcessor();
+      const { output } = processBlock(proc, -0.3, 2);
+      assert.deepEqual(Array.from(output[1]), Array.from(output[0]));
+    });
   });
-  
-  test('p=+0.5 (dial 7.5): HP parcial, boost menor que p=+1', () => {
-    const magFull = filterMagnitude(10000, 1);
-    const magHalf = filterMagnitude(10000, 0.5);
-    
-    assert.ok(magHalf < magFull,
-      `HP parcial (${toDb(magHalf).toFixed(1)} dB) debe reforzar menos que HP total (${toDb(magFull).toFixed(1)} dB)`);
-    assert.ok(magHalf > 1.0,
-      `HP parcial debe reforzar HF (mag=${magHalf.toFixed(4)}, esperado > 1.0)`);
-  });
-  
-  test('Transición suave: posiciones cercanas tienen respuestas cercanas', () => {
-    const freqTest = 5000;
-    const mag0 = filterMagnitude(freqTest, 0);
-    const mag01 = filterMagnitude(freqTest, 0.1);
-    const magN01 = filterMagnitude(freqTest, -0.1);
-    
-    // Diferencia entre posiciones adyacentes debe ser pequeña
-    assert.ok(Math.abs(mag0 - mag01) < 0.1,
-      `Diferencia p=0 vs p=0.1 = ${Math.abs(mag0 - mag01).toFixed(4)}`);
-    assert.ok(Math.abs(mag0 - magN01) < 0.1,
-      `Diferencia p=0 vs p=-0.1 = ${Math.abs(mag0 - magN01).toFixed(4)}`);
-  });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE VALORES DE COMPONENTES PERSONALIZADOS
-// ─────────────────────────────────────────────────────────────────────────────
+  describe('Bypass del filtro', () => {
+    it('con setFilterBypassed y |p| < 0,02 saca el ruido sin filtrar y resetea el estado', () => {
+      const proc = createProcessor();
+      injectSource(n => 0.3 * Math.sin(n * 0.5));
+      processBlock(proc, -1);                            // ensuciar el estado
+      assert.notEqual(proc._y1, 0);
+      send(proc, { type: 'setFilterBypassed', bypassed: true });
+      const src = new Float32Array(BLOCK).map((_, i) => Math.sin(i * 0.2) * 0.6);
+      injectSource(n => src[n % BLOCK]);
+      const { output } = processBlock(proc, 0.01, 2);
+      for (let i = 0; i < BLOCK; i++) assert.ok(Math.abs(output[0][i] - src[i]) < 1e-6, `muestra ${i}`);
+      assert.equal(proc._x1, 0);
+      assert.equal(proc._y1, 0);
+      assert.deepEqual(Array.from(output[1]), Array.from(output[0]), 'también copia a estéreo');
+    });
 
-describe('Noise Generator COLOUR Filter — Componentes personalizados', () => {
-  
-  test('Mayor capacitancia → menor fc (filtro más oscuro)', () => {
-    // Con C más grande, τ mayor, fc menor
-    const tauBig = POT_RESISTANCE * 100e-9;   // 100 nF
-    const tauSmall = POT_RESISTANCE * 10e-9;   // 10 nF
-    
-    const fcBig = 1 / (Math.PI * tauBig);     // ≈ 318 Hz
-    const fcSmall = 1 / (Math.PI * tauSmall);  // ≈ 3183 Hz
-    
-    assert.ok(fcBig < fcSmall,
-      `C=100nF → fc=${fcBig.toFixed(0)} Hz < C=10nF → fc=${fcSmall.toFixed(0)} Hz`);
+    it('con bypass activo pero |p| ≥ 0,02 sigue filtrando', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'setFilterBypassed', bypassed: true });
+      injectSource(n => 0.5 * Math.sin(2 * Math.PI * 8000 * n / SAMPLE_RATE));
+      let out;
+      for (let b = 0; b < 10; b++) out = processBlock(proc, -1).output[0];
+      let sumSq = 0;
+      for (const v of out) sumSq += v * v;
+      assert.ok(Math.sqrt(sumSq / BLOCK) < 0.1, '8 kHz con LP a tope queda muy atenuado');
+    });
+
+    it('sin bypass, |p| < 0,02 pasa por el IIR igualmente (estado no se resetea)', () => {
+      const proc = createProcessor();
+      injectSource(n => 0.3 * Math.sin(n * 0.5));
+      processBlock(proc, 0.01);
+      assert.notEqual(proc._x1, 0);
+    });
+
+    it('con p modulado (a-rate) nunca hay bypass', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'setFilterBypassed', bypassed: true });
+      injectSource(n => 0.3 * Math.sin(n * 0.5));
+      processBlock(proc, new Float32Array(BLOCK).fill(0));
+      assert.notEqual(proc._x1, 0, 'ha pasado por el filtro');
+    });
   });
-  
-  test('Mayor resistencia → menor fc', () => {
-    const tauBig = 47000 * CAPACITANCE;   // 47kΩ
-    const tauSmall = 1000 * CAPACITANCE;  // 1kΩ
-    
-    const fcBig = 1 / (Math.PI * tauBig);
-    const fcSmall = 1 / (Math.PI * tauSmall);
-    
-    assert.ok(fcBig < fcSmall,
-      `R=47kΩ → fc=${fcBig.toFixed(0)} Hz < R=1kΩ → fc=${fcSmall.toFixed(0)} Hz`);
+
+  describe('Mensajes y ciclo de vida', () => {
+    it('setDormant: silencio en todos los canales, sin tocar el estado del filtro', () => {
+      const proc = createProcessor();
+      injectSource(n => 0.3 * Math.sin(n * 0.5));
+      processBlock(proc, -1);
+      const { x, y } = { x: proc._x1, y: proc._y1 };
+      send(proc, { type: 'setDormant', dormant: true });
+      const { ok, output } = processBlock(proc, -1, 2);
+      assert.equal(ok, true);
+      assert.ok(output[0].every(v => v === 0) && output[1].every(v => v === 0));
+      assert.equal(proc._x1, x);
+      assert.equal(proc._y1, y);
+      send(proc, { type: 'setDormant', dormant: false });
+      assert.ok(processBlock(proc, -1).output[0].some(v => v !== 0));
+    });
+
+    it('stop: process() devuelve false y el nodo muere', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'stop' });
+      assert.equal(processBlock(proc, 0).ok, false);
+    });
+
+    it('sin salida sigue vivo; mensajes desconocidos se ignoran', () => {
+      const proc = createProcessor();
+      assert.equal(proc.process([], [[]], { colourPosition: new Float32Array([0]) }), true);
+      assert.doesNotThrow(() => send(proc, { type: 'otro' }));
+      assert.equal(proc.isRunning, true);
+    });
+
+    it('si algo revienta dentro, saca silencio y avisa una sola vez', () => {
+      const proc = createProcessor();
+      const outputs = [[new Float32Array(BLOCK).fill(0.3)]];
+      const bad = { colourPosition: null };            // .length de null revienta
+      assert.equal(proc.process([], outputs, bad), true);
+      assert.ok(outputs[0][0].every(v => v === 0));
+      proc.process([], outputs, bad);
+      const errors = proc.port._messages.filter(m => m.type === 'process-error');
+      assert.equal(errors.length, 1);
+    });
   });
 });

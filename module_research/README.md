@@ -8,21 +8,22 @@ módulo, el material va a `<módulo>/`.
 
 ## Los manuales: dónde están y por qué no están aquí
 
-El 21-sep-2026 se bajaron **15 documentos** del grupo de Telegram de Carlos
-«Synthi documentación» (~395 MB). **No están en este repo**, que es público y
-son obras con derechos de autor. Viven en el servidor, fuera de git:
-
-    ~/.local/share/synthi-manuales/
-
-Lo que sí va en el repo es lo derivado: transcripciones de lo relevante, notas,
-y recortes concretos de esquemas cuando hacen falta para implementar algo.
+Los **15 documentos** de referencia (~395 MB) **no están en este repo**, que es
+público y son obras con derechos de autor. Viven en un repo privado hermano,
+**`SynthiGME-investigacion`**, donde están todos **buscables** (capa de texto
+por OCR, un `.txt` por libro y transcripciones revisadas a mano de lo que más
+importa). Lo que sí va aquí es lo derivado: notas, transcripciones de lo
+relevante para un módulo, y recortes concretos de esquemas cuando hacen falta
+para implementar algo.
 
 ### La fuente que manda
 
-**`Synthi 100 Technical Manual.pdf`** — 105 páginas escaneadas (sin capa de
-texto; las páginas están **giradas 90°**). Es el manual técnico de la serie de
-planos **D100**, la misma que citan nuestros configs (`D100-16 C1` para la
-reverb, `D100-22C1` para el banco de octavas). Índice de secciones:
+**`Synthi 100 Technical Manual.pdf`** — 105 páginas escaneadas (en el repo
+privado, ya con capa de texto y con las 15 páginas de texto transcritas y
+revisadas a mano en `transcripciones/manual_tecnico_1982.md`). Es el manual
+técnico de la serie de planos **D100**, la misma que citan nuestros configs
+(`D100-16 C1` para la reverb, `D100-22C1` para el banco de octavas). Índice de
+secciones:
 
 | Sec. | Módulo | Plano | Pág. del manual |
 |---|---|---|---|
@@ -53,18 +54,14 @@ reverb, `D100-22C1` para el banco de octavas). Índice de secciones:
 
 En negrita, los módulos que **no están implementados** en la emulación.
 
-**Las páginas 15 a 105 del PDF son los planos D100**, con el cajetín de
-Datanomics y fechas de 1982. Para localizar uno sin ir página a página, va bien
-montar una hoja de contactos recortando la esquina inferior derecha (el cajetín)
-de cada página y pegándolas en rejilla: el número de plano se lee y se llega al
-sitio en una sola pasada.
-
-La página impresa *n* del manual está más o menos en la página *n+1* del PDF.
-Para leerlo hay que rasterizar y girar; con `pypdf` + `Pillow`:
-
-```python
-im = next(iter(pagina.images)).image.rotate(-90, expand=True)
-```
+Mapa del PDF: 1 índice; 2–11 páginas impresas 1–10; 12 funda vacía; 13–15
+impresas 11–13; 16 vacía; 17–18 impresas 14–15; **19–26 hojas de datos** (CEM
+3330/3335, 3310, 3340/3345, 3320, ZN428, CA3140); **27–29 distribución de los
+racks** (qué placa `PC-nn` va en cada ranura); **30–105 planos D100** (`C`
+esquemas, `L` layouts, `W` cableado), con el cajetín de Datanomics y fechas de
+1982. Para localizar un plano sin ir página a página, va bien montar una hoja
+de contactos recortando la esquina inferior derecha (el cajetín) de cada página
+y pegándolas en rejilla.
 
 ### Los otros 14 documentos
 

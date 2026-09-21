@@ -3522,6 +3522,7 @@ El proyecto utiliza dos suites complementarias:
 ```
 tests/
 ├── blueprintMapper.test.js      # Regresiones del sistema de mapeo Synthi → índice físico
+├── testSuiteHygiene.test.js     # Higiene de la batería: ningún test espejo (todos cargan src/) y ninguno fuera del glob de npm test
 ├── mocks/
 │   └── audioContext.mock.js     # Mock de AudioContext y AudioWorklet para tests unitarios
 ├── core/

@@ -122,7 +122,11 @@ Ejecuta tests rápidos de lógica usando el test runner nativo de Node.js (`node
 Corre todo `tests/` salvo `tests/audio/` (Playwright) y
 `tests/electron/electronMenuContracts.test.js` (contrato menú ↔ bridge, en rojo
 y pendiente de decisión; ver `AUDITORIA-2026-09.md`). Un fichero nuevo en una
-subcarpeta nueva hay que añadirlo al glob de `package.json`.
+subcarpeta nueva hay que añadirlo al glob de `package.json`:
+`tests/testSuiteHygiene.test.js` falla si queda alguno fuera, y también si un
+test no carga código real (importar de `src/assets`, leer su fuente o
+importarlo dinámicamente), para que no vuelvan los «tests espejo» que
+reescribían la lógica dentro del test.
 
 ### Tests de audio (Playwright)
 ```bash

@@ -313,6 +313,13 @@ análisis estático de arriba basta para decidir.
 $(find tests -name "*.test.js")`) solo devuelve `tests/audio/*.audio.test.js`,
 que son los de Playwright y miden en navegador real.
 
+**Y no puede volver a haberlos** (paso 4 del plan): `tests/testSuiteHygiene.test.js`
+aplica ese mismo criterio a todos los ficheros de `tests/` fuera de `audio/`
+en cada `npm test`, y además comprueba que cada fichero de test cae dentro
+del glob de `package.json` (lo que evita otra tanda de tests que nadie
+corre); las exclusiones deliberadas —hoy solo `electronMenuContracts`— van en
+una lista con su motivo, y el test avisa si dejan de ser necesarias.
+
 ### Hallazgo al probar la activación multicanal real (para decidir)
 
 Fijado como `QUIRK` en `tests/electron/multichannelActivation.test.js`:

@@ -216,6 +216,14 @@ análisis estático de arriba basta para decidir.
   modelo del circuito (τ = 3,3×10⁻⁴ s, fc ≈ 965 Hz, −3 dB, 6 dB/oct, shelf
   +6 dB); con el `Math.random` real, estadísticas del ruido blanco. Cubre
   también a-rate, bypass, dormant, stop y error interno.
+- `multichannelCapture` (25) y `multichannelPlayback` (18): los worklets
+  reales con un `SharedArrayBuffer` de verdad (Node lo tiene); el test hace
+  de addon C++ moviendo el índice contrario con `Atomics`. Fijan el layout
+  (8 bytes de control + Float32 interleaved), el wrap, el slot de guarda del
+  capture, overflow (descarta el bloque) y underflow (lee lo que hay y rellena
+  con silencio), y el fallback por MessagePort. Los tests de "configuración"
+  del espejo (42 ms → 2016 frames…) eran aritmética sin código detrás y se
+  han quitado.
 
 ### Hallazgos al probar el Pitch-to-Voltage real (para decidir)
 

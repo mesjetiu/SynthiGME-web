@@ -1,259 +1,293 @@
 /**
- * Tests para worklets/multichannelPlayback.worklet.js
- * 
- * Verifica la lógica del AudioWorklet de reproducción multicanal:
- * - Ring buffer con SharedArrayBuffer (lectura desde C++)
- * - Cálculo de frames disponibles
- * - Detección de underflow
- * - Lectura de frames entrelazados
- * 
- * NOTA: No se puede instanciar AudioWorkletProcessor en Node.js,
- * pero podemos testear la lógica de buffer aislada.
+ * Tests del worklet real `multichannel-playback` (SharedArrayBuffer → 8 entradas).
+ *
+ * Hasta septiembre de 2026 este fichero reimplementaba la lectura del ring
+ * buffer y se la probaba a sí misma. Ahora carga el worklet de verdad, hace
+ * de "C++": escribe frames en un SharedArrayBuffer real y mueve `writeIndex`
+ * con `Atomics`, y comprueba lo que el worklet saca por sus canales, cómo
+ * avanza `readIndex`, y qué hace en underflow (lee lo que hay y rellena con
+ * silencio, sin bloquear).
  */
-import { describe, it, beforeEach } from 'node:test';
+
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// LÓGICA DE RING BUFFER EXTRAÍDA DEL WORKLET (LECTURA)
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Calcula frames disponibles para leer.
- * writeIndex es actualizado por C++, readIndex por el worklet.
- * 
- * @param {number} writeIndex - Posición de escritura (C++)
- * @param {number} readIndex - Posición de lectura (worklet)
- * @param {number} bufferFrames - Tamaño total del buffer
- * @returns {number} Frames disponibles para leer
- */
-function calculateAvailable(writeIndex, readIndex, bufferFrames) {
-  if (writeIndex >= readIndex) {
-    return writeIndex - readIndex;
-  } else {
-    return bufferFrames - (readIndex - writeIndex);
-  }
-}
-
-/**
- * Simula avance del readIndex (worklet consume samples)
- * @param {number} readIndex - Posición actual
- * @param {number} framesToRead - Frames a consumir
- * @param {number} bufferFrames - Tamaño del buffer
- * @returns {number} Nueva posición
- */
-function advanceReadIndex(readIndex, framesToRead, bufferFrames) {
-  return (readIndex + framesToRead) % bufferFrames;
-}
-
-/**
- * Simula lectura de frames desde buffer interleaved.
- * @param {Float32Array} audioBuffer - Buffer de audio entrelazado
- * @param {number} startIndex - Frame inicial de lectura
- * @param {number} frameCount - Número de frames a leer
- * @param {number} channels - Número de canales
- * @param {number} bufferFrames - Tamaño del ring buffer
- * @returns {Float32Array[]} Array de canales con samples
- */
-function readFrames(audioBuffer, startIndex, frameCount, channels, bufferFrames) {
-  const output = Array.from({ length: channels }, () => new Float32Array(frameCount));
-  let readPos = startIndex;
-  
-  for (let frame = 0; frame < frameCount; frame++) {
-    const baseIndex = readPos * channels;
-    
-    for (let ch = 0; ch < channels; ch++) {
-      output[ch][frame] = audioBuffer[baseIndex + ch];
-    }
-    
-    readPos = (readPos + 1) % bufferFrames;
-  }
-  
-  return output;
-}
+const BLOCK = 128;
+const CONTROL_BYTES = 8;   // writeIndex + readIndex (Int32)
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TESTS DE RING BUFFER (LECTURA)
+// Entorno de worklet en Node
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Playback Ring Buffer - Cálculo de disponibilidad', () => {
-  const BUFFER_SIZE = 8192; // Tamaño típico del ring buffer
-
-  describe('calculateAvailable', () => {
-    it('buffer vacío tiene 0 frames disponibles', () => {
-      const available = calculateAvailable(0, 0, BUFFER_SIZE);
-      assert.strictEqual(available, 0);
-    });
-
-    it('buffer con datos tiene frames disponibles', () => {
-      // C++ ha escrito hasta 1000, worklet no ha leído nada
-      const available = calculateAvailable(1000, 0, BUFFER_SIZE);
-      assert.strictEqual(available, 1000);
-    });
-
-    it('writeIndex adelante de readIndex (normal)', () => {
-      const available = calculateAvailable(5000, 3000, BUFFER_SIZE);
-      assert.strictEqual(available, 2000);
-    });
-
-    it('writeIndex detrás de readIndex (wrap around)', () => {
-      // writeIndex=500, readIndex=7000 significa que C++ ha dado la vuelta
-      const available = calculateAvailable(500, 7000, BUFFER_SIZE);
-      // Hay 8192 - 7000 + 500 = 1692 frames
-      assert.strictEqual(available, BUFFER_SIZE - (7000 - 500));
-    });
-
-    it('buffer casi lleno', () => {
-      const available = calculateAvailable(BUFFER_SIZE - 1, 0, BUFFER_SIZE);
-      assert.strictEqual(available, BUFFER_SIZE - 1);
-    });
-  });
-
-  describe('advanceReadIndex', () => {
-    it('avance simple sin wrap', () => {
-      const newIndex = advanceReadIndex(0, 128, BUFFER_SIZE);
-      assert.strictEqual(newIndex, 128);
-    });
-
-    it('avance con wrap around', () => {
-      const newIndex = advanceReadIndex(8100, 200, BUFFER_SIZE);
-      assert.strictEqual(newIndex, (8100 + 200) % BUFFER_SIZE);
-    });
-
-    it('avance exacto al final', () => {
-      const newIndex = advanceReadIndex(8000, 192, BUFFER_SIZE);
-      assert.strictEqual(newIndex, 0); // Exactamente al inicio
-    });
-  });
-});
-
-describe('Playback Ring Buffer - Lectura de frames', () => {
-  const CHANNELS = 8;
-  const BUFFER_FRAMES = 256; // Buffer pequeño para tests
-  
-  let audioBuffer;
-  
-  beforeEach(() => {
-    // Crear buffer de prueba con patrón conocido
-    audioBuffer = new Float32Array(BUFFER_FRAMES * CHANNELS);
-    
-    // Llenar con patrón: frame * 0.001 + channel * 0.1
-    for (let frame = 0; frame < BUFFER_FRAMES; frame++) {
-      for (let ch = 0; ch < CHANNELS; ch++) {
-        audioBuffer[frame * CHANNELS + ch] = frame * 0.001 + ch * 0.1;
+function createWorkletEnvironment() {
+  globalThis.sampleRate = 48000;
+  globalThis.currentTime = 0;
+  globalThis.currentFrame = 0;
+  if (!globalThis.AudioWorkletProcessor) {
+    globalThis.AudioWorkletProcessor = class AudioWorkletProcessor {
+      constructor() {
+        this.port = { onmessage: null, _messages: [], postMessage(m) { this._messages.push(m); } };
       }
-    }
+    };
+  }
+  const registered = {};
+  globalThis.registerProcessor = (name, cls) => { registered[name] = cls; };
+  return registered;
+}
+
+let PlaybackProcessor;
+const realLog = console.log;
+const realWarn = console.warn;
+
+async function loadProcessor() {
+  console.log = () => {};      // el worklet traza por consola en constructor y process
+  console.warn = () => {};
+  const registered = createWorkletEnvironment();
+  await import(`../../src/assets/js/worklets/multichannelPlayback.worklet.js?t=${Date.now()}`);
+  PlaybackProcessor = registered['multichannel-playback'];
+  assert.ok(PlaybackProcessor, 'el worklet debe registrarse como "multichannel-playback"');
+}
+
+function restoreConsole() {
+  console.log = realLog;
+  console.warn = realWarn;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Helpers: el test hace el papel del addon C++ (escritor)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function createProcessor(processorOptions = {}) {
+  const proc = new PlaybackProcessor({ processorOptions });
+  if (!proc.port._messages) {
+    proc.port._messages = [];
+    proc.port.postMessage = m => proc.port._messages.push(m);
+  }
+  return proc;
+}
+
+function send(proc, data) {
+  proc.port.onmessage({ data });
+}
+
+function attachSharedBuffer(proc, bufferFrames, channels = proc.channels) {
+  const sab = new SharedArrayBuffer(CONTROL_BYTES + bufferFrames * channels * 4);
+  send(proc, { type: 'init', sharedBuffer: sab, bufferFrames });
+  const buf = {
+    sab,
+    bufferFrames,
+    channels,
+    control: new Int32Array(sab, 0, 2),
+    audio: new Float32Array(sab, CONTROL_BYTES, bufferFrames * channels),
+  };
+  return buf;
+}
+
+const readIndex = ({ control }) => Atomics.load(control, 1);
+
+/** Como C++: escribe `frames` frames interleaved desde writeIndex y lo avanza. */
+function producerWrite(buf, frames, fill = (ch, frame) => ch * 100 + frame) {
+  let pos = Atomics.load(buf.control, 0);
+  for (let f = 0; f < frames; f++) {
+    for (let ch = 0; ch < buf.channels; ch++) buf.audio[pos * buf.channels + ch] = fill(ch, f);
+    pos = (pos + 1) % buf.bufferFrames;
+  }
+  Atomics.store(buf.control, 0, pos);
+}
+
+function processBlock(proc, outputChannels = proc.channels) {
+  const output = Array.from({ length: outputChannels }, () => new Float32Array(BLOCK).fill(NaN));
+  const ok = proc.process([], [output], {});
+  return { ok, output };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('multichannel-playback worklet', () => {
+  beforeEach(loadProcessor);
+  afterEach(restoreConsole);
+
+  describe('Arranque e init', () => {
+    it('8 canales por defecto y avisa "ready"', () => {
+      const proc = createProcessor();
+      assert.equal(proc.channels, 8);
+      assert.equal(proc.initialized, false);
+      assert.deepEqual(proc.port._messages, [{ type: 'ready' }]);
+    });
+
+    it('processorOptions cambian los canales', () => {
+      assert.equal(createProcessor({ channels: 2 }).channels, 2);
+    });
+
+    it('init mapea el SAB, pone readIndex a 0 sin tocar writeIndex (lo pone C++) y confirma', () => {
+      const proc = createProcessor({ channels: 2 });
+      const sab = new SharedArrayBuffer(CONTROL_BYTES + 100 * 2 * 4);
+      const control = new Int32Array(sab, 0, 2);
+      Atomics.store(control, 0, 40);
+      Atomics.store(control, 1, 99);
+      send(proc, { type: 'init', sharedBuffer: sab, bufferFrames: 100 });
+      assert.equal(proc.initialized, true);
+      assert.equal(proc.bufferFrames, 100);
+      assert.equal(proc.audioBuffer.byteOffset, CONTROL_BYTES);
+      assert.equal(proc.audioBuffer.length, 200);
+      assert.equal(Atomics.load(control, 0), 40);
+      assert.equal(Atomics.load(control, 1), 0);
+      assert.deepEqual(proc.port._messages.at(-1), { type: 'initialized', bufferFrames: 100 });
+    });
+
+    it('init sin sharedBuffer se ignora; un SAB demasiado pequeño no inicializa', () => {
+      const proc = createProcessor({ channels: 8 });
+      send(proc, { type: 'init', bufferFrames: 100 });
+      assert.equal(proc.initialized, false);
+      const realError = console.error;
+      console.error = () => {};
+      try {
+        send(proc, { type: 'init', sharedBuffer: new SharedArrayBuffer(64), bufferFrames: 1000 });
+      } finally {
+        console.error = realError;
+      }
+      assert.equal(proc.initialized, false);
+    });
   });
 
-  describe('readFrames', () => {
-    it('lee frames con datos correctos por canal', () => {
-      const output = readFrames(audioBuffer, 0, 4, CHANNELS, BUFFER_FRAMES);
-      
-      assert.strictEqual(output.length, CHANNELS);
-      
-      // Verificar primer frame, canal 0 (tolerancia por precisión Float32)
-      const epsilon = 1e-6;
-      assert.ok(Math.abs(output[0][0] - (0 * 0.001 + 0 * 0.1)) < epsilon);
-      
-      // Verificar primer frame, canal 5
-      assert.ok(Math.abs(output[5][0] - (0 * 0.001 + 5 * 0.1)) < epsilon);
-      
-      // Verificar frame 3, canal 2
-      assert.ok(Math.abs(output[2][3] - (3 * 0.001 + 2 * 0.1)) < epsilon);
+  describe('Lectura del ring buffer', () => {
+    it('sin inicializar saca silencio y sigue vivo', () => {
+      const proc = createProcessor({ channels: 2 });
+      const { ok, output } = processBlock(proc);
+      assert.equal(ok, true);
+      assert.ok(output.every(ch => ch.every(v => v === 0)));
     });
 
-    it('maneja wrap around correctamente', () => {
-      // Empezar cerca del final y leer más allá
-      const startFrame = BUFFER_FRAMES - 2;
-      const output = readFrames(audioBuffer, startFrame, 4, CHANNELS, BUFFER_FRAMES);
-      const epsilon = 1e-6;
-      
-      // Frame 0 del output = frame 254 del buffer
-      assert.ok(Math.abs(output[0][0] - (254 * 0.001 + 0 * 0.1)) < epsilon);
-      
-      // Frame 1 del output = frame 255 del buffer
-      assert.ok(Math.abs(output[0][1] - (255 * 0.001 + 0 * 0.1)) < epsilon);
-      
-      // Frame 2 del output = frame 0 del buffer (wrap)
-      assert.ok(Math.abs(output[0][2] - (0 * 0.001 + 0 * 0.1)) < epsilon);
-      
-      // Frame 3 del output = frame 1 del buffer
-      assert.ok(Math.abs(output[0][3] - (1 * 0.001 + 0 * 0.1)) < epsilon);
-    });
-
-    it('produce arrays del tamaño correcto', () => {
-      const frameCount = 128;
-      const output = readFrames(audioBuffer, 0, frameCount, CHANNELS, BUFFER_FRAMES);
-      
-      assert.strictEqual(output.length, CHANNELS);
-      for (const ch of output) {
-        assert.strictEqual(ch.length, frameCount);
+    it('lee un bloque interleaved por canal y avanza readIndex 128', () => {
+      const proc = createProcessor({ channels: 3 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 256);
+      const { output } = processBlock(proc);
+      assert.equal(readIndex(buf), BLOCK);
+      for (let ch = 0; ch < 3; ch++) {
+        for (let i = 0; i < BLOCK; i++) assert.equal(output[ch][i], ch * 100 + i, `ch ${ch} frame ${i}`);
       }
     });
-  });
-});
 
-describe('Playback - Detección de underflow', () => {
-  const BUFFER_SIZE = 8192;
+    it('bloques sucesivos continúan donde acabó el anterior', () => {
+      const proc = createProcessor({ channels: 1 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 300, (_, f) => f);
+      processBlock(proc);
+      const { output } = processBlock(proc);
+      assert.equal(output[0][0], BLOCK);
+      assert.equal(output[0][BLOCK - 1], 2 * BLOCK - 1);
+      assert.equal(readIndex(buf), 2 * BLOCK);
+    });
 
-  /**
-   * Simula la lógica de detección de underflow del worklet
-   */
-  function checkUnderflow(available, needed) {
-    return available < needed;
-  }
+    it('da la vuelta al final del buffer (wrap) en el productor y en el lector', () => {
+      const proc = createProcessor({ channels: 1 });
+      const buf = attachSharedBuffer(proc, 200);
+      producerWrite(buf, 128, (_, f) => f);          // [0,128)
+      processBlock(proc);                            // readIndex 128
+      producerWrite(buf, 128, (_, f) => 500 + f);    // [128,200) y [0,56); writeIndex 56
+      assert.equal(Atomics.load(buf.control, 0), 56);
+      const { output } = processBlock(proc);
+      assert.equal(output[0][0], 500);
+      assert.equal(output[0][71], 500 + 71);         // último antes del wrap (pos 199)
+      assert.equal(output[0][72], 500 + 72);         // pos 0
+      assert.equal(output[0][127], 500 + 127);
+      assert.equal(readIndex(buf), 56);
+    });
 
-  it('detecta underflow cuando no hay suficientes frames', () => {
-    assert.strictEqual(checkUnderflow(64, 128), true);
-  });
+    it('con más canales de salida que en el buffer, los extra salen a 0', () => {
+      const proc = createProcessor({ channels: 2 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 128, () => 0.5);
+      const { output } = processBlock(proc, 4);
+      assert.ok(output[0].every(v => v === 0.5));
+      assert.ok(output[1].every(v => v === 0.5));
+      assert.ok(output[2].every(v => v === 0));
+      assert.ok(output[3].every(v => v === 0));
+    });
 
-  it('no hay underflow cuando hay suficientes frames', () => {
-    assert.strictEqual(checkUnderflow(256, 128), false);
-  });
-
-  it('exactamente suficiente no es underflow', () => {
-    assert.strictEqual(checkUnderflow(128, 128), false);
-  });
-
-  it('buffer vacío es underflow', () => {
-    assert.strictEqual(checkUnderflow(0, 128), true);
-  });
-});
-
-describe('Playback vs Capture - Diferencias de rol', () => {
-  const BUFFER_SIZE = 8192;
-  
-  it('roles invertidos: C++ escribe, worklet lee', () => {
-    // En capture: worklet escribe, C++ lee
-    // En playback: C++ escribe, worklet lee
-    
-    // Simular C++ escribiendo 1000 frames
-    const writeIndex = 1000;
-    const readIndex = 0;
-    
-    const available = calculateAvailable(writeIndex, readIndex, BUFFER_SIZE);
-    assert.strictEqual(available, 1000);
-    
-    // Worklet consume 128 frames
-    const newReadIndex = advanceReadIndex(readIndex, 128, BUFFER_SIZE);
-    assert.strictEqual(newReadIndex, 128);
-    
-    // Ahora hay menos disponible
-    const newAvailable = calculateAvailable(writeIndex, newReadIndex, BUFFER_SIZE);
-    assert.strictEqual(newAvailable, 1000 - 128);
+    it('con menos canales de salida que en el buffer lee solo los primeros', () => {
+      const proc = createProcessor({ channels: 4 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 128, ch => ch + 1);
+      const { output } = processBlock(proc, 2);
+      assert.equal(output[0][0], 1);
+      assert.equal(output[1][0], 2);
+      assert.equal(readIndex(buf), BLOCK, 'el frame se consume entero aunque no se saquen todos los canales');
+    });
   });
 
-  it('C++ puede adelantar mientras worklet lee', () => {
-    let writeIndex = 500;
-    let readIndex = 0;
-    
-    // Worklet lee 128
-    readIndex = advanceReadIndex(readIndex, 128, BUFFER_SIZE);
-    
-    // C++ escribe más
-    writeIndex = 700;
-    
-    // Hay más disponible ahora
-    const available = calculateAvailable(writeIndex, readIndex, BUFFER_SIZE);
-    assert.strictEqual(available, 700 - 128);
+  describe('Underflow (el productor va lento)', () => {
+    it('buffer vacío: silencio, cuenta un underflow y readIndex no se mueve', () => {
+      const proc = createProcessor({ channels: 2 });
+      const buf = attachSharedBuffer(proc, 1000);
+      const { output } = processBlock(proc);
+      assert.equal(proc.underflowCount, 1);
+      assert.ok(output.every(ch => ch.every(v => v === 0)));
+      assert.equal(readIndex(buf), 0);
+    });
+
+    it('con menos de 128 frames saca los que hay y rellena el resto con 0', () => {
+      const proc = createProcessor({ channels: 1 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 50, (_, f) => 1 + f);
+      const { output } = processBlock(proc);
+      assert.equal(proc.underflowCount, 1);
+      for (let i = 0; i < 50; i++) assert.equal(output[0][i], 1 + i);
+      for (let i = 50; i < BLOCK; i++) assert.equal(output[0][i], 0);
+      assert.equal(readIndex(buf), 50);
+    });
+
+    it('exactamente 128 disponibles no es underflow', () => {
+      const proc = createProcessor({ channels: 1 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 128);
+      processBlock(proc);
+      assert.equal(proc.underflowCount, 0);
+    });
+
+    it('tras un underflow, cuando el productor alcanza, sigue desde donde se quedó', () => {
+      const proc = createProcessor({ channels: 1 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 50, (_, f) => f);
+      processBlock(proc);                              // underflow, readIndex 50
+      producerWrite(buf, 200, (_, f) => 50 + f);       // continúa la numeración
+      const { output } = processBlock(proc);
+      assert.equal(proc.underflowCount, 1);
+      assert.equal(output[0][0], 50);
+      assert.equal(output[0][127], 177);
+      assert.equal(readIndex(buf), 178);
+    });
+
+    it('disponibilidad con writeIndex por detrás de readIndex (tras el wrap)', () => {
+      const proc = createProcessor({ channels: 1 });
+      attachSharedBuffer(proc, 300);
+      assert.equal(proc._calculateAvailable(50, 250), 100);
+      assert.equal(proc._calculateAvailable(250, 50), 200);
+      assert.equal(proc._calculateAvailable(10, 10), 0);
+    });
+  });
+
+  describe('Ciclo de vida', () => {
+    it('sin salida conectada sigue vivo y no consume', () => {
+      const proc = createProcessor({ channels: 1 });
+      const buf = attachSharedBuffer(proc, 1000);
+      producerWrite(buf, 128);
+      assert.equal(proc.process([], [[]], {}), true);
+      assert.equal(proc.process([], [], {}), true);
+      assert.equal(readIndex(buf), 0);
+    });
+
+    it('stop: process() devuelve false', () => {
+      const proc = createProcessor({ channels: 1 });
+      send(proc, { type: 'stop' });
+      assert.equal(processBlock(proc).ok, false);
+    });
+
+    it('mensajes desconocidos se ignoran', () => {
+      const proc = createProcessor();
+      assert.doesNotThrow(() => send(proc, { type: 'otro' }));
+      assert.equal(proc.stopped, false);
+    });
   });
 });

@@ -237,6 +237,14 @@ análisis estático de arriba basta para decidir.
   graba `moveTo`/`lineTo`/`stroke`; se comprueban coordenadas y colores. El
   espejo describía otro diseño (beams a 1/3 y 2/3, Beam 2 oculto sin señal);
   la clase los pone a 1/4 y 3/4 y pinta Beam 2 siempre. Ver hallazgos.
+- `ui/recordingOverlay` (17): la clase real montada en JSDOM con el i18n
+  real y `mock.timers` de `node:test` para mover `Date.now()` y el
+  `setInterval` de 1 s. Cubre el DOM que crea, el evento
+  `synth:recordingChanged` tal como lo dispara `uiInitializer.js`, el
+  cronómetro MM:SS, el cambio de idioma de la etiqueta accesible y
+  `destroy()`. Un `QUIRK`: `show()` dos veces seguidas pierde el primer
+  `setInterval` (queda escribiendo el temporizador hasta `destroy()`); en la
+  app no ocurre porque el evento solo llega en cada cambio de estado.
 
 ### Hallazgos al probar el Pitch-to-Voltage real (para decidir)
 

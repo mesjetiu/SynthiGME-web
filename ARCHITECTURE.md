@@ -3583,7 +3583,7 @@ tests/
 │   ├── pipContainFit.test.js        # Tests del escalado frameless + cover de PiP
 │   ├── pipManager.test.js           # Tests del contrato público actual de PiP
 │   ├── pipRuntime.test.js           # Tests funcionales JSDOM de detach/return, locks, restore y atajos PiP
-│   ├── recordingOverlay.test.js     # Tests del overlay de grabación
+│   ├── recordingOverlay.test.js     # RecordingOverlay real en JSDOM: evento, cronómetro MM:SS, idioma
 │   ├── rotarySwitch.test.js         # Tests del selector rotativo rasterizado
 │   ├── sgmeOscillator.test.js       # Tests del oscilador Synthi
 │   ├── signalFlowHighlighter.test.js  # Tests del resaltado de flujo de señal

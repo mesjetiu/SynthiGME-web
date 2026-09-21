@@ -245,6 +245,35 @@ análisis estático de arriba basta para decidir.
   `destroy()`. Un `QUIRK`: `show()` dos veces seguidas pierde el primer
   `setInterval` (queda escribiendo el temporizador hasta `destroy()`); en la
   app no ocurre porque el evento solo llega en cada cambio de estado.
+- `electron/multichannelActivation` (35): era el último espejo. Ahora llama
+  a `audioSetup.js` de verdad (`activateMultichannelOutput`, el fallback
+  ScriptProcessor, `deactivateMultichannelOutput`, `ensureAudio`,
+  `restoreMultichannelIfSaved`) y al callback `onOutputModeChange` real que
+  registra `setupAudioSettingsModal`, con dobles solo en la frontera
+  (engine, AudioContext, `AudioWorkletNode`, `window.multichannelAPI`).
+  Fija el escenario que motivó el fichero (DSP apagado y sin AudioContext →
+  pedir multicanal enciende, arranca, re-aplica el patch y activa 12 ch) y
+  los fallos (open, worklet, worklet+fallback) dejando estéreo y stream
+  cerrado. Ver hallazgo.
+
+**Con esto no queda ningún test espejo.** El comando de detección de arriba
+(afinado: `grep -LE "src/assets|electron/|readFile|import\(|require\("
+$(find tests -name "*.test.js")`) solo devuelve `tests/audio/*.audio.test.js`,
+que son los de Playwright y miden en navegador real.
+
+### Hallazgo al probar la activación multicanal real (para decidir)
+
+Fijado como `QUIRK` en `tests/electron/multichannelActivation.test.js`:
+
+- Si se pide multicanal con el audio apagado y `ensureAudio` acaba
+  devolviendo `false` (el worklet no llega a estar listo), el modal vuelve a
+  estéreo con `notify=false`… pero `ensureAudio` ya había restaurado el
+  multicanal antes (lee `audioSettingsModal.outputMode`, que el radio ya
+  puso en `multichannel`, y activa la salida sin mirar `workletReady`). El
+  engine se queda en 12 canales con el stream nativo abierto mientras el
+  modal dice «estéreo». Arreglo probable: en `uiInitializer.js`, en la rama
+  `!audioReady`, llamar también a `app._deactivateMultichannelOutput()`.
+  Solo Electron; en la web no hay puente y no puede pasar.
 
 ### Hallazgos al probar el Pitch-to-Voltage real (para decidir)
 

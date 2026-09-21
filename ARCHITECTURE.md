@@ -3633,7 +3633,8 @@ tests/
 ├── integration/
 │   └── knobOscillator.test.js       # Tests de integración knob-oscilador
 ├── electron/
-│   └── electronMenuContracts.test.js  # Tests de contratos Electron-menú (IPC, i18n, sync)
+│   ├── electronMenuContracts.test.js  # Tests de contratos Electron-menú (IPC, i18n, sync)
+│   └── multichannelActivation.test.js # audioSetup.js real: activar/desactivar 12ch, fallback, ensureAudio y el callback onOutputModeChange
 └── utils/
     ├── constants.test.js        # Tests de constantes globales
     ├── errorHandler.test.js     # Tests del error handler global

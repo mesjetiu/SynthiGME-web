@@ -1,319 +1,376 @@
 /**
- * Tests para pitchToVoltageConverter.worklet.js — AudioWorkletProcessor del PVC
- * 
- * Verifica la lógica del procesador de pitch detection:
- * 
- * 1. ZERO-CROSSING: Detección de cruces por cero y medición de periodo
- * 2. RANGE MAPPING: Conversión de dial Range a factor de spread
- * 3. TRACK & HOLD: Mantiene voltaje cuando señal cae bajo umbral
- * 4. DORMANCY: Silencio de salida sin perder estado
- * 5. LOG CONVERSION: Frecuencia lineal → voltaje logarítmico (1V/Oct)
- * 
- * Referencia: Placa PC-25, plano D100-25 C1 (Cuenca/Datanomics 1982)
- * 
- * @version 1.0.0
+ * Tests del worklet real `pitch-to-voltage-converter` (placa PC-25 del
+ * Synthi 100): detector de pitch por cruces por cero → voltaje 1 V/oct.
+ *
+ * Hasta septiembre de 2026 este fichero replicaba las fórmulas
+ * (freqToVoltage, rangeDialToSpread, cruces por cero) y las probaba a sí
+ * mismas. Ahora se carga el worklet de verdad en Node y se le dan señales
+ * reales (senos, cuadradas, silencio), midiendo el voltaje que saca.
+ *
+ * Escala de salida: V = log2(f/440) · spread / 4 (la señal digital va en
+ * ±1 = ±4 V, así que 1 V/oct son 0,25 unidades por octava).
  */
 
-import { describe, test, it } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CONSTANTES (deben coincidir con pitchToVoltageConverter.worklet.js)
-// ═══════════════════════════════════════════════════════════════════════════
-
-const MIN_FREQ = 250;
-const MAX_FREQ = 8000;
-const AMPLITUDE_THRESHOLD = 0.02;
-const VOLTS_PER_OCTAVE = 1.0;
-const DIGITAL_TO_VOLTAGE = 4.0;
-const REFERENCE_FREQ = 440;  // A4 como referencia para conversión log
-const RANGE_UNITY = 7;       // Posición del dial que da 1:1
-const RANGE_MAX_SPREAD = 2;  // Factor máximo de spread en posición 10
 const SAMPLE_RATE = 48000;
+const BLOCK = 128;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FUNCIONES REPLICADAS DEL WORKLET (tests offline)
+// Entorno de worklet en Node
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * Convierte frecuencia a voltaje logarítmico (1V/Oct).
- * Fórmula: log2(freq / referenceFreq) * voltsPerOctave
- * Resultado en unidades digitales (/ DIGITAL_TO_VOLTAGE)
- */
-function freqToVoltage(freq, spreadFactor = 1) {
-  if (freq <= 0) return 0;
-  const octaves = Math.log2(freq / REFERENCE_FREQ);
-  return (octaves * VOLTS_PER_OCTAVE * spreadFactor) / DIGITAL_TO_VOLTAGE;
-}
-
-/**
- * Convierte dial Range (0-10) a factor de spread.
- * Posición 0: spread=-2 (invertido, rango completo)
- * Posición 3.5: spread=0 (punto muerto)
- * Posición 7: spread=1 (1:1)
- * Posición 10: spread=2 (2:1)
- *
- * Dos tramos lineales con punto de inflexión en 3.5:
- * - [0, 3.5] → [-2, 0]
- * - [3.5, 10] → [0, 2]
- * Para que 7→1, usamos interpolación lineal en [3.5, 10]:
- *   spread = (dial - 3.5) / (10 - 3.5) * 2
- * Esto da 7 → (3.5/6.5)*2 ≈ 1.077, así que ajustamos:
- * Usamos una tabla de 3 puntos: 3.5→0, 7→1, 10→2
- */
-function rangeDialToSpread(dial) {
-  if (dial <= 3.5) {
-    // Zona invertida: 0→-2, 3.5→0
-    return -2 * (1 - dial / 3.5);
-  }
-  if (dial <= 7) {
-    // Zona baja: 3.5→0, 7→1
-    return (dial - 3.5) / (7 - 3.5);
-  }
-  // Zona alta: 7→1, 10→2
-  return 1 + (dial - 7) / (10 - 7);
-}
-
-/**
- * Detecta si la amplitud RMS de un bloque supera el umbral.
- */
-function checkAmplitude(samples, threshold) {
-  let sum = 0;
-  for (let i = 0; i < samples.length; i++) {
-    sum += samples[i] * samples[i];
-  }
-  const rms = Math.sqrt(sum / samples.length);
-  return rms >= threshold;
-}
-
-/**
- * Estima frecuencia por conteo de cruces por cero (half-cycle).
- * Mide el periodo del primer medio ciclo detectado.
- */
-function estimateFreqFromZeroCrossings(samples, sampleRate) {
-  let lastSign = samples[0] >= 0 ? 1 : -1;
-  let firstCrossing = -1;
-  let secondCrossing = -1;
-  
-  for (let i = 1; i < samples.length; i++) {
-    const sign = samples[i] >= 0 ? 1 : -1;
-    if (sign !== lastSign) {
-      if (firstCrossing === -1) {
-        firstCrossing = i;
-      } else {
-        secondCrossing = i;
-        break;
+function createWorkletEnvironment() {
+  globalThis.sampleRate = SAMPLE_RATE;
+  globalThis.currentTime = 0;
+  globalThis.currentFrame = 0;
+  if (!globalThis.AudioWorkletProcessor) {
+    globalThis.AudioWorkletProcessor = class AudioWorkletProcessor {
+      constructor() {
+        this.port = { onmessage: null, _messages: [], postMessage(m) { this._messages.push(m); } };
       }
-      lastSign = sign;
-    }
+    };
   }
-  
-  if (firstCrossing === -1 || secondCrossing === -1) return 0;
-  
-  // Periodo de medio ciclo → frecuencia
-  const halfPeriodSamples = secondCrossing - firstCrossing;
-  return sampleRate / (halfPeriodSamples * 2);
+  const registered = {};
+  globalThis.registerProcessor = (name, cls) => { registered[name] = cls; };
+  return registered;
+}
+
+let PVCProcessor;
+
+async function loadProcessor() {
+  const registered = createWorkletEnvironment();
+  await import(`../../src/assets/js/worklets/pitchToVoltageConverter.worklet.js?t=${Date.now()}`);
+  PVCProcessor = registered['pitch-to-voltage-converter'];
+  assert.ok(PVCProcessor, 'el worklet debe registrarse como "pitch-to-voltage-converter"');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PARTE 1: CONVERSIÓN FRECUENCIA → VOLTAJE (LOG)
+// Helpers
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('PVC Worklet — freqToVoltage', () => {
-  
-  test('A4 (440 Hz) → 0V (frecuencia de referencia)', () => {
-    const v = freqToVoltage(440);
-    assert.ok(Math.abs(v) < 1e-10, `Expected 0, got ${v}`);
-  });
-  
-  test('A5 (880 Hz) → +1 octava → +0.25 digital (1V/4)', () => {
-    const v = freqToVoltage(880);
-    assert.ok(Math.abs(v - 1 / DIGITAL_TO_VOLTAGE) < 1e-10, `Got ${v}`);
-  });
-  
-  test('A3 (220 Hz) → -1 octava → -0.25 digital (-1V/4)', () => {
-    const v = freqToVoltage(220);
-    assert.ok(Math.abs(v - (-1 / DIGITAL_TO_VOLTAGE)) < 1e-10, `Got ${v}`);
-  });
-  
-  test('A6 (1760 Hz) → +2 octavas → +0.5 digital', () => {
-    const v = freqToVoltage(1760);
-    assert.ok(Math.abs(v - 2 / DIGITAL_TO_VOLTAGE) < 1e-10, `Got ${v}`);
-  });
-  
-  test('spreadFactor=2 duplica el voltaje', () => {
-    const v1 = freqToVoltage(880, 1);
-    const v2 = freqToVoltage(880, 2);
-    assert.ok(Math.abs(v2 - v1 * 2) < 1e-10);
-  });
-  
-  test('spreadFactor=-1 invierte la polaridad', () => {
-    const v1 = freqToVoltage(880, 1);
-    const v2 = freqToVoltage(880, -1);
-    assert.ok(Math.abs(v1 + v2) < 1e-10);
-  });
-  
-  test('freq <= 0 → 0 digital', () => {
-    assert.strictEqual(freqToVoltage(0), 0);
-    assert.strictEqual(freqToVoltage(-100), 0);
-  });
-});
+function createProcessor() {
+  return new PVCProcessor();
+}
+
+function send(proc, data) {
+  proc.port.onmessage({ data });
+}
+
+/** Procesa un bloque de entrada mono y devuelve el canal de salida. */
+function processBlock(proc, input) {
+  const out = new Float32Array(BLOCK);
+  const inputs = input ? [[input]] : [[]];
+  const ok = proc.process(inputs, [[out]]);
+  return { ok, out };
+}
+
+/** Genera y procesa `blocks` bloques de una señal; devuelve la última salida. */
+function feed(proc, signalAt, blocks) {
+  let out;
+  let n = 0;
+  for (let b = 0; b < blocks; b++) {
+    const input = new Float32Array(BLOCK);
+    for (let i = 0; i < BLOCK; i++) input[i] = signalAt(n++);
+    ({ out } = processBlock(proc, input));
+  }
+  return out;
+}
+
+const sine = (freq, amp = 0.5) => n => amp * Math.sin(2 * Math.PI * freq * n / SAMPLE_RATE);
+const square = (freq, amp = 0.5) => n => (Math.sin(2 * Math.PI * freq * n / SAMPLE_RATE) >= 0 ? amp : -amp);
+
+/** Error en cents entre el voltaje de salida y la frecuencia real, para un spread dado. */
+const centsError = (voltage, freq, spread = 1) => 1200 * ((voltage * 4) / spread - Math.log2(freq / 440));
+
+/**
+ * El detector mide semiperiodos en muestras enteras, sin interpolar: la
+ * lectura salta entre los dos semiperiodos vecinos y el error máximo es el
+ * de una muestra. Se acepta ese paso más 1 cent de margen.
+ */
+function quantizationCents(freq) {
+  const halfPeriod = SAMPLE_RATE / (2 * freq);
+  return 1200 * Math.log2(halfPeriod / (halfPeriod - 1)) + 1;
+}
+
+function assertPitch(voltage, freq, spread = 1) {
+  const err = centsError(voltage, freq, spread);
+  const tol = quantizationCents(freq);
+  assert.ok(Math.abs(err) < tol, `${freq} Hz (spread ${spread}): ${err.toFixed(1)} cents, tolerancia ±${tol.toFixed(1)}`);
+}
+
+/** _heldVoltage es double; la salida es Float32: comparar con la misma precisión. */
+const f32 = v => Math.fround(v);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PARTE 2: RANGE DIAL → SPREAD FACTOR
-// ═══════════════════════════════════════════════════════════════════════════
 
-describe('PVC Worklet — rangeDialToSpread', () => {
-  
-  test('dial=7 → spread=1 (1:1)', () => {
-    const s = rangeDialToSpread(7);
-    assert.ok(Math.abs(s - 1) < 1e-10, `Expected 1, got ${s}`);
-  });
-  
-  test('dial=10 → spread=2 (2:1)', () => {
-    const s = rangeDialToSpread(10);
-    assert.ok(Math.abs(s - 2) < 1e-10, `Expected 2, got ${s}`);
-  });
-  
-  test('dial=3.5 → spread=0 (punto muerto)', () => {
-    const s = rangeDialToSpread(3.5);
-    assert.ok(Math.abs(s) < 1e-10, `Expected 0, got ${s}`);
-  });
-  
-  test('dial=0 → spread=-2 (invertido, rango completo)', () => {
-    const s = rangeDialToSpread(0);
-    assert.ok(Math.abs(s - (-2)) < 1e-10, `Expected -2, got ${s}`);
-  });
-  
-  test('dial=3 → spread negativo (zona invertida)', () => {
-    const s = rangeDialToSpread(3);
-    assert.ok(s < 0, `Expected negative spread, got ${s}`);
-  });
-  
-  test('dial=5 → spread entre 0 y 1 (zona normal baja)', () => {
-    const s = rangeDialToSpread(5);
-    assert.ok(s > 0 && s < 1, `Expected 0 < spread < 1, got ${s}`);
-  });
-});
+describe('pitch-to-voltage-converter worklet', () => {
+  beforeEach(loadProcessor);
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PARTE 3: DETECCIÓN DE AMPLITUD
-// ═══════════════════════════════════════════════════════════════════════════
+  describe('Estado inicial y mensajes', () => {
+    it('arranca despierto, sin voltaje retenido y con spread 1 (dial 7)', () => {
+      const proc = createProcessor();
+      assert.equal(proc._dormant, false);
+      assert.equal(proc._stopped, false);
+      assert.equal(proc._spreadFactor, 1);
+      assert.equal(proc._heldVoltage, 0);
+    });
 
-describe('PVC Worklet — checkAmplitude', () => {
-  
-  test('señal silenciosa → bajo umbral', () => {
-    const samples = new Float32Array(128).fill(0);
-    assert.strictEqual(checkAmplitude(samples, AMPLITUDE_THRESHOLD), false);
-  });
-  
-  test('señal fuerte → sobre umbral', () => {
-    const samples = new Float32Array(128).fill(0.5);
-    assert.strictEqual(checkAmplitude(samples, AMPLITUDE_THRESHOLD), true);
-  });
-  
-  test('señal ligeramente sobre el umbral → sobre umbral', () => {
-    const samples = new Float32Array(128).fill(AMPLITUDE_THRESHOLD * 1.1);
-    assert.strictEqual(checkAmplitude(samples, AMPLITUDE_THRESHOLD), true);
-  });
-  
-  test('señal sinusoidal con pico 0.1 → sobre umbral', () => {
-    const samples = new Float32Array(128);
-    for (let i = 0; i < 128; i++) {
-      samples[i] = 0.1 * Math.sin(2 * Math.PI * 440 * i / SAMPLE_RATE);
-    }
-    assert.strictEqual(checkAmplitude(samples, AMPLITUDE_THRESHOLD), true);
-  });
-});
+    it('setRange convierte el dial 0..10 a spread −2..+2 con codo en 3,5 y 7', () => {
+      const proc = createProcessor();
+      const cases = [[0, -2], [1.75, -1], [3.5, 0], [5.25, 0.5], [7, 1], [8.5, 1.5], [10, 2]];
+      for (const [dial, spread] of cases) {
+        send(proc, { type: 'setRange', value: dial });
+        assert.ok(Math.abs(proc._spreadFactor - spread) < 1e-12, `dial ${dial} → ${proc._spreadFactor}`);
+      }
+    });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PARTE 4: ESTIMACIÓN DE FRECUENCIA POR CRUCES POR CERO
-// ═══════════════════════════════════════════════════════════════════════════
+    it('el spread es monótono creciente en todo el dial', () => {
+      const proc = createProcessor();
+      let prev = -Infinity;
+      for (let d = 0; d <= 10; d += 0.25) {
+        const s = proc._rangeDialToSpread(d);
+        assert.ok(s > prev, `dial ${d}`);
+        prev = s;
+      }
+    });
 
-describe('PVC Worklet — estimateFreqFromZeroCrossings', () => {
-  
-  test('sinusoide de 440 Hz → estimación cercana a 440 Hz', () => {
-    const numSamples = 1024;
-    const samples = new Float32Array(numSamples);
-    for (let i = 0; i < numSamples; i++) {
-      samples[i] = Math.sin(2 * Math.PI * 440 * i / SAMPLE_RATE);
-    }
-    const freq = estimateFreqFromZeroCrossings(samples, SAMPLE_RATE);
-    // Tolerancia amplia: el método de medio ciclo no es perfecto
-    assert.ok(Math.abs(freq - 440) < 20, `Expected ~440 Hz, got ${freq}`);
+    it('setDormant y stop cambian el estado; mensajes desconocidos no', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'setDormant', dormant: true });
+      assert.equal(proc._dormant, true);
+      send(proc, { type: 'setDormant', dormant: 0 });
+      assert.equal(proc._dormant, false);
+      send(proc, { type: 'otro' });
+      assert.equal(proc._stopped, false);
+      send(proc, { type: 'stop' });
+      assert.equal(proc._stopped, true);
+    });
   });
-  
-  test('sinusoide de 1000 Hz → estimación cercana a 1000 Hz', () => {
-    const numSamples = 1024;
-    const samples = new Float32Array(numSamples);
-    for (let i = 0; i < numSamples; i++) {
-      samples[i] = Math.sin(2 * Math.PI * 1000 * i / SAMPLE_RATE);
-    }
-    const freq = estimateFreqFromZeroCrossings(samples, SAMPLE_RATE);
-    assert.ok(Math.abs(freq - 1000) < 50, `Expected ~1000 Hz, got ${freq}`);
-  });
-  
-  test('señal DC (sin cruces) → 0 Hz', () => {
-    const samples = new Float32Array(128).fill(0.5);
-    const freq = estimateFreqFromZeroCrossings(samples, SAMPLE_RATE);
-    assert.strictEqual(freq, 0);
-  });
-  
-  test('silencio → 0 Hz', () => {
-    const samples = new Float32Array(128).fill(0);
-    const freq = estimateFreqFromZeroCrossings(samples, SAMPLE_RATE);
-    assert.strictEqual(freq, 0);
-  });
-});
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PARTE 5: INTEGRACIÓN — PIPELINE COMPLETO
-// ═══════════════════════════════════════════════════════════════════════════
+  describe('Ciclo de vida en process()', () => {
+    it('tras stop devuelve false (el nodo muere)', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'stop' });
+      assert.equal(processBlock(proc, new Float32Array(BLOCK)).ok, false);
+    });
 
-describe('PVC Worklet — Pipeline completo', () => {
-  
-  test('señal 440 Hz con range=7 → voltaje ~0V (referencia)', () => {
-    const spread = rangeDialToSpread(7);
-    const voltage = freqToVoltage(440, spread);
-    assert.ok(Math.abs(voltage) < 1e-10, `Expected ~0V, got ${voltage}`);
+    it('sin canal de salida sigue vivo sin hacer nada', () => {
+      const proc = createProcessor();
+      assert.equal(proc.process([[new Float32Array(BLOCK)]], [[]]), true);
+    });
+
+    it('dormido saca 0 pero conserva el voltaje retenido', () => {
+      const proc = createProcessor();
+      feed(proc, sine(880), 10);
+      const held = proc._heldVoltage;
+      assert.ok(held > 0);
+      send(proc, { type: 'setDormant', dormant: true });
+      const { ok, out } = processBlock(proc, new Float32Array(BLOCK).map((_, i) => sine(880)(i)));
+      assert.equal(ok, true);
+      assert.ok(out.every(v => v === 0));
+      assert.equal(proc._heldVoltage, held);
+      send(proc, { type: 'setDormant', dormant: false });
+      const { out: after } = processBlock(proc, new Float32Array(BLOCK));
+      assert.ok(after.every(v => v === f32(held)), 'al despertar vuelve a sacar lo retenido');
+    });
+
+    it('sin entrada conectada saca el voltaje retenido', () => {
+      const proc = createProcessor();
+      proc._heldVoltage = 0.125;
+      const { out } = processBlock(proc, null);
+      assert.ok(out.every(v => v === 0.125));
+      const { out: empty } = processBlock(proc, new Float32Array(0));
+      assert.ok(empty.every(v => v === 0.125));
+    });
   });
-  
-  test('señal 880 Hz con range=7 → voltaje positivo (1 oct up)', () => {
-    const spread = rangeDialToSpread(7);
-    const voltage = freqToVoltage(880, spread);
-    assert.ok(voltage > 0, `Expected positive voltage, got ${voltage}`);
+
+  describe('Track & hold', () => {
+    it('la señal bajo el umbral (RMS < 0,02) no cambia el voltaje', () => {
+      const proc = createProcessor();
+      feed(proc, sine(880), 10);
+      const held = proc._heldVoltage;
+      const out = feed(proc, sine(220, 0.01), 10);      // 220 Hz muy bajito
+      assert.equal(proc._heldVoltage, held);
+      assert.ok(out.every(v => v === f32(held)));
+    });
+
+    it('el silencio absoluto tampoco', () => {
+      const proc = createProcessor();
+      feed(proc, sine(1000), 10);
+      const held = proc._heldVoltage;
+      const out = feed(proc, () => 0, 20);
+      assert.ok(out.every(v => v === f32(held)));
+    });
+
+    it('sin ninguna detección previa saca 0', () => {
+      const proc = createProcessor();
+      const out = feed(proc, () => 0, 3);
+      assert.ok(out.every(v => v === 0));
+    });
   });
-  
-  test('señal 880 Hz con range=0 → voltaje negativo (invertido)', () => {
-    const spread = rangeDialToSpread(0);
-    const voltage = freqToVoltage(880, spread);
-    assert.ok(voltage < 0, `Expected negative voltage (inverted), got ${voltage}`);
+
+  describe('Detección de pitch → voltaje 1 V/oct', () => {
+    it('440 Hz → 0 V (±1 muestra de semiperiodo = ±32 cents)', () => {
+      const proc = createProcessor();
+      const out = feed(proc, sine(440), 20);
+      assertPitch(out[0], 440);
+    });
+
+    it('880 Hz → +1 octava (= +0,25 en escala digital, 1 V real)', () => {
+      const proc = createProcessor();
+      const out = feed(proc, sine(880), 20);
+      assertPitch(out[0], 880);
+      assert.ok(Math.abs(out[0] - 0.25) < 0.02);
+    });
+
+    it('la salida es DC: todo el bloque lleva el mismo valor', () => {
+      const proc = createProcessor();
+      const out = feed(proc, sine(1000), 20);
+      assert.ok(out.every(v => v === out[0]));
+    });
+
+    it('sigue 1 V/oct en todo el rango 250..8000 Hz, dentro de la cuantización', () => {
+      for (const f of [250, 300, 400, 500, 600, 750, 800, 1000, 1200, 1500, 2000, 3000, 4000, 6000, 8000]) {
+        const proc = createProcessor();
+        const out = feed(proc, sine(f), 30);
+        assertPitch(out[0], f);
+      }
+    });
+
+    it('cuando el semiperiodo es entero, la lectura es exacta', () => {
+      // 250 Hz → 96 muestras; 1000 → 24; 2000 → 12; 4000 → 6
+      for (const f of [250, 1000, 2000, 4000]) {
+        const proc = createProcessor();
+        const out = feed(proc, sine(f), 30);
+        assert.ok(Math.abs(centsError(out[0], f)) < 0.5, `${f} Hz: ${centsError(out[0], f).toFixed(2)} cents`);
+      }
+    });
+
+    it('QUIRK: sin interpolar cruces, un semiperiodo no entero sale desafinado', () => {
+      // 1100 Hz → 21,8 muestras: el detector lee 21 (+66 cents) o 22 (−14).
+      // Nunca lo justo. Se fija tal cual está; ver AUDITORIA-2026-09.md.
+      const proc = createProcessor();
+      const out = feed(proc, sine(1100), 30);
+      const err = Math.abs(centsError(out[0], 1100));
+      assert.ok(err > 5, `debería estar desafinado y da ${err.toFixed(1)} cents`);
+      assert.ok(err < quantizationCents(1100));
+    });
+
+    it('funciona igual con una cuadrada', () => {
+      const proc = createProcessor();
+      const out = feed(proc, square(1000), 20);
+      assertPitch(out[0], 1000);
+    });
+
+    it('la amplitud no afecta (es un detector de cruces, no de nivel)', () => {
+      const a = feed(createProcessor(), sine(660, 0.05), 20)[0];
+      const b = feed(createProcessor(), sine(660, 1.0), 20)[0];
+      assert.ok(Math.abs(a - b) < 1e-9);
+    });
+
+    it('por debajo de 250 Hz no se detecta nada', () => {
+      const proc = createProcessor();
+      feed(proc, sine(100), 40);
+      assert.equal(proc._heldVoltage, 0);
+      assert.equal(proc._detectedFreq, 0);
+    });
+
+    it('QUIRK: por encima de 8 kHz se lee 8 kHz (semiperiodo de 3 muestras)', () => {
+      // A 12 kHz el semiperiodo son 2 muestras (rechazado, 12 kHz), pero el
+      // muestreo alterna con tramos de 3 (= 8000 Hz, justo el máximo) y esos
+      // se aceptan. No hay filtro antialias delante del detector.
+      const proc = createProcessor();
+      feed(proc, sine(12000), 40);
+      assert.equal(proc._detectedFreq, 8000);
+    });
+
+    it('sigue un cambio de nota con fase continua: 440 → 880 → 1760', () => {
+      const proc = createProcessor();
+      let phase = 0;
+      const play = (freq, blocks) => {
+        for (let b = 0; b < blocks; b++) {
+          const input = new Float32Array(BLOCK);
+          for (let i = 0; i < BLOCK; i++) {
+            input[i] = 0.5 * Math.sin(phase);
+            phase += 2 * Math.PI * freq / SAMPLE_RATE;
+          }
+          processBlock(proc, input);
+        }
+      };
+      play(440, 20);
+      assertPitch(proc._heldVoltage, 440);
+      play(880, 20);
+      assertPitch(proc._heldVoltage, 880);
+      play(1760, 20);
+      assertPitch(proc._heldVoltage, 1760);
+    });
+
+    it('QUIRK: bajar a una nota fuera de rango deja retenido el semiperiodo de la transición', () => {
+      // De 880 Hz a 220 Hz el primer semiperiodo estirado mide ≈ 43 muestras
+      // (≈ 558 Hz), está dentro de 250..8000 y se acepta; como 220 Hz ya no
+      // se detecta, esa lectura falsa se queda en el track & hold. Sin
+      // validación de continuidad no hay forma de descartarla.
+      const proc = createProcessor();
+      let phase = 0;
+      const play = (freq, blocks) => {
+        for (let b = 0; b < blocks; b++) {
+          const input = new Float32Array(BLOCK);
+          for (let i = 0; i < BLOCK; i++) {
+            input[i] = 0.5 * Math.sin(phase);
+            phase += 2 * Math.PI * freq / SAMPLE_RATE;
+          }
+          processBlock(proc, input);
+        }
+      };
+      play(880, 20);
+      play(220, 40);
+      const readHz = 440 * Math.pow(2, proc._heldVoltage * 4);
+      assert.ok(readHz > 250 && readHz < 880, `retiene ${readHz.toFixed(0)} Hz, ni 880 ni 220`);
+    });
+
+    it('un cruce que cae justo en la frontera entre bloques se mide bien', () => {
+      // 375 Hz → semiperiodo de 64 muestras: cruces en 0, 64, 128, 192…
+      const proc = createProcessor();
+      const out = feed(proc, sine(375), 30);
+      assert.ok(Math.abs(centsError(out[0], 375)) < 0.5);
+    });
   });
-  
-  test('señal 880 Hz con range=10 → mayor voltaje que range=7', () => {
-    const spread7 = rangeDialToSpread(7);
-    const spread10 = rangeDialToSpread(10);
-    const v7 = freqToVoltage(880, spread7);
-    const v10 = freqToVoltage(880, spread10);
-    assert.ok(v10 > v7, `range=10 (${v10}) should give more voltage than range=7 (${v7})`);
-  });
-  
-  test('track & hold: señal silenciosa mantiene último voltaje válido', () => {
-    // Simular: primero señal fuerte, luego silencio
-    const strongSignal = new Float32Array(128).fill(0.5);
-    const silentSignal = new Float32Array(128).fill(0);
-    
-    const lastVoltage = 0.25; // simulando un voltaje previo
-    
-    const aboveThreshold = checkAmplitude(strongSignal, AMPLITUDE_THRESHOLD);
-    assert.strictEqual(aboveThreshold, true);
-    
-    const belowThreshold = checkAmplitude(silentSignal, AMPLITUDE_THRESHOLD);
-    assert.strictEqual(belowThreshold, false);
-    
-    // Cuando bajo umbral, devolver lastVoltage (no 0)
-    const output = belowThreshold ? 0 : lastVoltage; // esto es lo que NO haría el PVC
-    const pvcOutput = belowThreshold ? lastVoltage : lastVoltage; // esto SÍ: track & hold
-    assert.strictEqual(pvcOutput, lastVoltage);
+
+  describe('Spread (dial Range)', () => {
+    it('spread 2 (dial 10) dobla la pendiente: 880 Hz → +0,5', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'setRange', value: 10 });
+      const out = feed(proc, sine(880), 20);
+      assertPitch(out[0], 880, 2);
+      assert.ok(Math.abs(out[0] - 0.5) < 0.04);
+    });
+
+    it('spread −2 (dial 0) invierte: 880 Hz → −0,5', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'setRange', value: 0 });
+      const out = feed(proc, sine(880), 20);
+      assertPitch(out[0], 880, -2);
+      assert.ok(Math.abs(out[0] - (-0.5)) < 0.04);
+    });
+
+    it('spread 0 (dial 3,5): cualquier nota → 0 V', () => {
+      const proc = createProcessor();
+      send(proc, { type: 'setRange', value: 3.5 });
+      assert.ok(Math.abs(feed(proc, sine(880), 20)[0]) < 1e-12);
+      assert.ok(Math.abs(feed(proc, sine(3000), 20)[0]) < 1e-12);
+    });
+
+    it('cambiar el rango se aplica en la siguiente detección, no al voltaje ya retenido', () => {
+      const proc = createProcessor();
+      feed(proc, sine(880), 20);
+      send(proc, { type: 'setRange', value: 10 });
+      const heldBefore = proc._heldVoltage;
+      const silent = feed(proc, () => 0, 5);
+      assert.ok(silent.every(v => v === f32(heldBefore)), 'sin señal, sigue el valor viejo');
+      feed(proc, sine(880), 20);
+      assertPitch(proc._heldVoltage, 880, 2);
+    });
   });
 });

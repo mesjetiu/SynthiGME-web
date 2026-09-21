@@ -208,6 +208,28 @@ análisis estático de arriba basta para decidir.
   muestras, AM 5 Hz vs 1 kHz, resync, error interno). `oscServer.test.js`
   no era espejo: carga `electron/oscServer.cjs` con `require`, que el grep
   no buscaba.
+- `pitchToVoltageConverter.worklet` (28, el worklet real con senos y
+  cuadradas; el espejo daba por exacta una detección que se cuantiza a
+  muestras, ver hallazgo).
+
+### Hallazgos al probar el Pitch-to-Voltage real (para decidir)
+
+`pitchToVoltageConverter.worklet.js` mide semiperiodos por cruces por cero
+**en muestras enteras, sin interpolar ni promediar**. Consecuencias medidas
+(fijadas como `QUIRK` en `tests/worklets/pitchToVoltageConverter.worklet.test.js`):
+
+- Cuantización: a 440 Hz el semiperiodo son 54,5 muestras, así que la
+  lectura salta entre 436 y 444 Hz (±32 cents) a ritmo de bloque; a 1 kHz
+  el paso es de 74 cents y a 4 kHz de 316. Solo es exacta cuando el
+  semiperiodo es entero. Interpolar el cruce (lineal entre las dos muestras)
+  lo dejaría en pocos cents.
+- Al bajar a una nota fuera de rango (880 → 220 Hz) el semiperiodo de la
+  transición (≈ 558 Hz) se acepta y se queda retenido para siempre.
+- Por encima de 8 kHz se lee 8 kHz (tramos de 3 muestras), no se rechaza.
+- `ARCHITECTURE.md` describía un AudioParam `rangeControl` con suavizado que
+  no existe: el rango llega por mensaje `setRange`. Corregido.
+
+Nada de esto se ha tocado: es sonido, y se decide oyéndolo.
 
 ### Hallazgo al probar el VCA real (pendiente de decisión)
 

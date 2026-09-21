@@ -3575,7 +3575,7 @@ tests/
 │   ├── matrixTooltip.test.js        # Tests del sistema de tooltips
 │   ├── moduleFrame.test.js          # Tests del frame de módulos
 │   ├── moduleUI.test.js             # Tests de la clase base ModuleUI
-│   ├── oscilloscopeDisplay.test.js  # Tests del display del osciloscopio
+│   ├── oscilloscopeDisplay.test.js  # Clase real con canvas 2D falso: beams a 1/4 y 3/4, X-Y, escalas, trigger, render loop rAF
 │   ├── panelNotes.test.js           # Tests de notas post-it
 │   ├── patchBrowser.test.js         # Tests del navegador de patches
 │   ├── pinColorMenu.test.js         # Tests del menú de colores de pin

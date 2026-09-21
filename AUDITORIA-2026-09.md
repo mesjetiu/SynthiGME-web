@@ -233,6 +233,10 @@ análisis estático de arriba basta para decidir.
   encima de 10 kHz es ≈0,8 dB, no el ≥1 dB que suponía el espejo con una
   cuadrada ingenua). Comprueba además que el α del worklet y el de
   `voltageConstants.computeOnePoleAlpha` coinciden.
+- `ui/oscilloscopeDisplay` (42): la clase real con un contexto 2D falso que
+  graba `moveTo`/`lineTo`/`stroke`; se comprueban coordenadas y colores. El
+  espejo describía otro diseño (beams a 1/3 y 2/3, Beam 2 oculto sin señal);
+  la clase los pone a 1/4 y 3/4 y pinta Beam 2 siempre. Ver hallazgos.
 
 ### Hallazgos al probar el Pitch-to-Voltage real (para decidir)
 
@@ -265,6 +269,24 @@ Hay **dos curvas de saturación distintas** para el mismo VCA:
 Por debajo de 0 V coinciden (10 dB/V). El test del worklet fija la curva tal
 cual está, con un caso marcado `QUIRK`, para que unificarlas sea una decisión
 y no un accidente. Desde este servidor no se puede oír cuál suena mejor.
+
+### Hallazgos al probar el OscilloscopeDisplay real (para decidir)
+
+Fijados como `QUIRK` en `tests/ui/oscilloscopeDisplay.test.js`; ninguno se
+ha tocado:
+
+- **`destroy()` no para el render loop.** Cancela `this.animationId`, que
+  nunca se asigna; el `requestAnimationFrame` vivo está en `_rafId` y lo
+  para `stopRenderLoop()`. Un display destruido sigue pidiendo frames.
+  Arreglo de una línea (`destroy()` → `this.stopRenderLoop()`).
+- **Sin `bufferY` no se pinta Beam 2** aunque haya `bufferX`: la longitud a
+  dibujar sale de `bufferY.length` (salvo que llegue `validLength`). En la
+  app siempre llegan los dos buffers, así que hoy no se nota.
+- En Y-T el indicador TRIG/AUTO se pinta dos veces (dentro de `_drawYT` sin
+  `isAuto` y luego en `_drawInternal` con él). Inofensivo: el segundo tapa
+  al primero.
+- El docblock de `_drawYT` sigue diciendo «tercios» (1/3, 2/3); el código y
+  el comentario de dentro dicen cuartos. Solo documentación.
 
 ## Orden propuesto
 

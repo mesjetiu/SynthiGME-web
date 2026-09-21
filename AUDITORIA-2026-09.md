@@ -224,6 +224,15 @@ análisis estático de arriba basta para decidir.
   con silencio), y el fallback por MessagePort. Los tests de "configuración"
   del espejo (42 ms → 2016 frames…) eran aritmética sin código detrás y se
   han quitado.
+- `smoothingFilter` (19): el espejo recalculaba el one-pole del slew
+  inherente del oscilador y el RC de los pines. Los pines ya estaban cubiertos
+  de verdad en `tests/audio/pinFiltering.test.js`; ahora el test carga
+  `synthOscillator.worklet.js`, genera pulso y sierra con y sin slew y mide
+  rise/fall time y energía HF con los helpers de `spectralAnalysis.js`
+  (seno y triángulo salen idénticos; a 20 kHz la atenuación medida por
+  encima de 10 kHz es ≈0,8 dB, no el ≥1 dB que suponía el espejo con una
+  cuadrada ingenua). Comprueba además que el α del worklet y el de
+  `voltageConstants.computeOnePoleAlpha` coinciden.
 
 ### Hallazgos al probar el Pitch-to-Voltage real (para decidir)
 

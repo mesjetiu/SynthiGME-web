@@ -2,12 +2,15 @@
 /local/
 node_modules/
 
-# Claude Code — instrucciones privadas (no publicar en repo público)
-CLAUDE.md
+# Claude Code
+# CLAUDE.md SÍ va al repo desde el 21/09/2026: no tiene nada privado, y así
+# llega solo a todas las máquinas. Lo propio de cada máquina va en el .local.
+CLAUDE.local.md
+CLAUDE.pc-*.md
 .commit_msg.txt
-# Copias de trabajo y ajustes locales de las sesiones. En el servidor el
-# servicio arranca con `--spawn worktree`: cada conversación se crea un
-# checkout del repo aquí dentro. Es entorno, no contenido.
+# Copias de trabajo de las sesiones. En el servidor el servicio arranca con
+# `--spawn worktree`: cada conversación se crea un checkout del repo aquí
+# dentro. Es entorno, no contenido.
 .claude/
 
 # Estudio técnico-histórico (repositorio separado)

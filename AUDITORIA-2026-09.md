@@ -247,7 +247,12 @@ análisis estático de arriba basta para decidir.
   supera la histéresis; `validLength` sigue siendo múltiplo del real), y
   `setBufferSize` vacía el ring pero no `samplesSinceLastSend`, así que el
   primer frame tras cambiar lleva ceros al principio.
-  Queda huérfano `recordingCapture`.
+- `recordingCapture.worklet.test.js` (16): el último worklet huérfano, el de
+  la grabación WAV. Fija que sin `start` no manda nada, que grabando sale un
+  `samples` por bloque con una copia (transferida) de cada canal, silencio
+  en los canales que la entrada no trae y recorte a `channelCount`, el
+  `stopped` con que `recordingEngine` finaliza el fichero, y que se puede
+  volver a grabar. **Ya no queda ningún worklet sin test.**
 - `pulse` (19; el espejo arrancaba con pw 0,5 y el módulo con 0; además
   `PulseModule` no lo usa ningún panel), `oscOscillatorSync` (34, contra la
   clase real y el `oscBridge` real con `window.oscAPI` stub) y

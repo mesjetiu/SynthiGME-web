@@ -3603,6 +3603,7 @@ tests/
 │   ├── outputFilter.worklet.test.js # Worklet output-filter real: coeficientes, respuesta medida LP/plano/shelf, metering
 │   ├── pitchToVoltageConverter.worklet.test.js # Worklet PVC real: senos → 1 V/oct dentro de la cuantización, track & hold, spread
 │   ├── randomCV.worklet.test.js # Tests del worklet de random CV (frecuencia, jitter, 3 canales)
+│   ├── recordingCapture.worklet.test.js # Worklet recording-capture real: start/stop, un samples por bloque con copia transferida, silencio en canales ausentes
 │   ├── ringModulator.worklet.test.js # Tests del worklet de ring modulator (multiplicación, soft-clip)
 │   ├── scopeCapture.worklet.test.js # Worklet scope-capture real: cadencia por bufferSize, ring Y/X, trigger Schmitt, validLength en ciclos, AUTO, dormancy
 │   ├── smoothingFilter.test.js  # Slew inherente del oscilador real: α del one-pole, rise/fall time y energía HF medidos en pulso y sierra

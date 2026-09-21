@@ -66,10 +66,14 @@ mandos del panel mapean uno a uno con el circuito.
 
 ### 1.2 La segunda unidad de reverberación
 
-La máquina tiene **dos**, nosotros tenemos una. Está documentado en la
-especificación de 1971 («Two Voltage Controlled Reverberation Units») y el
-propio `reverberation.config.js` lo reconoce por escrito, así que fue una
-decisión consciente en su día. Detalle completo, con los cuatro parámetros de
+La máquina tiene **dos**, nosotros tenemos una. Lo dicen las tres fuentes: la
+especificación de 1971 («Two Voltage Controlled Reverberation Units»), la hoja
+de cableado de 1977 («MODULE WIRING **REVERB DRIVE 1&2**») y el plano de
+cableado D100-16 W del manual de 1982. Y el propio `reverberation.config.js` lo
+reconoce por escrito, así que fue una decisión consciente en su día.
+
+Como es **la misma placa dos veces**, implementarla es instanciar el módulo otra
+vez: no hay circuito nuevo que estudiar. Detalle completo, con los cuatro parámetros de
 fábrica y el contraste contra nuestro DSP, en
 `module_research/spring_reverb/NOTAS.md`.
 
@@ -194,9 +198,13 @@ esta máquina: son **preguntas para el manual de 1982**, no conclusiones.
 - ~~Tres generadores de ruido~~. **Falso para esta máquina**: el manual técnico
   titula su sección 9 «**Dual** Noise Generators». Dos, como tenemos. Tercera
   recomendación errónea salida del folleto de 1971.
-- **Damping de la reverb**: nuestro paso bajo está en 4.500 Hz y el rango útil
-  de fábrica llega a 12 kHz; y por abajo no modelamos el límite de 30 Hz, que un
-  muelle real sí tiene. Ver `module_research/spring_reverb/NOTAS.md`.
+- **Damping de la reverb**: **resuelto con el plano D100-16 C1**. La electrónica
+  corta en **12,4 kHz** (C8 330 pF ∥ R23 39 K), no en los 4.500 Hz que usamos
+  nosotros; nuestro valor modela la pérdida mecánica del muelle, que es otra
+  cosa y no está en el esquema. Sigue siendo decisión de oído, pero hay tres
+  veces más margen del que creíamos. Y **falta un paso alto**: el muelle se
+  excita a través de una red que corta hacia los 48 Hz. Detalle y esquema en
+  `module_research/spring_reverb/`.
 - **Simetría del seno**: el folleto confirma que el shaper añade armónicos
   **pares**. Conviene verificar con análisis espectral que el nuestro hace eso.
 

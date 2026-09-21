@@ -5,13 +5,11 @@ de EMS de 1971** (ver `../manual_ems_1971/NOTAS.md` y las páginas escaneadas; e
 dato está en `spec_pag04.jpg`, epígrafe «Two Voltage Controlled Reverberation
 Units»).
 
-> ⚠️ Fuente de 1971, no de 1982. La máquina de Cuenca es la revisión Datanomics,
-> rediseñada por dentro con chips CEM. **No hay extracto del manual de 1982 para
-> este módulo** en `module_research/` —es de los que faltan—, así que todo lo de
-> abajo son datos de la máquina vieja y hay que confirmarlos. Lo que sí tenemos
-> del 82, vía `reverberation.config.js`, va en la sección «Detalles de circuito».
-> Lo tranquilizador es que las dos fuentes **no se contradicen en nada**: los
-> 35/40 ms, los 2,4 s y el ±2 V salen igual por los dos lados.
+> **Resuelto el 21-sep-2026 con el plano.** Abajo se conserva el análisis hecho
+> desde el folleto de 1971, pero la pregunta que estaba abierta —la frecuencia de
+> damping— la contesta el esquema **D100-16 C1 de Datanomics, fechado 14-7-82**,
+> que está en `reverb_drive_D100-16C1.jpg` y se analiza en la sección
+> «El circuito real» al final. Las dos fuentes no se contradicen en nada.
 
 ## Lo que dice la fuente, literal
 
@@ -105,7 +103,89 @@ Existen estas pistas, sin descargar:
   páginas, en abierto: <https://researchonline.rca.ac.uk/4730/1/FrancesMorgan-LibrarySubmission-RedactedCopy.pdf>
   (contexto histórico más que técnico).
 
-Cuando se tenga delante el manual Datanomics de 1982 o el de Belgrado, lo que
-hay que mirar de la PC-16 es **el valor del condensador del filtro de damping**
-(o la respuesta del transductor del muelle): es lo único que decidiría con
-criterio si 4.500 Hz es correcto o si hay que subirlo.
+*(Resuelto: ver abajo.)*
+
+---
+
+## El circuito real — D100-16 C1, Datanomics, 14-7-82
+
+Esquema completo en `reverb_drive_D100-16C1.jpg`, titulado **«REVERB DRIVE»**.
+Sacado del `Synthi 100 Technical Manual`, página 46 del PDF (ver
+`../README.md`). El cajetín lleva el logotipo de **Datanomics Ltd., Wareham,
+Dorset**, y la fecha **14-7-82**: es exactamente la máquina de Cuenca.
+
+### Topología
+
+    SIGNAL I/P ─C1 22µ─ IC1 (LF355) ─┬─ R2 150R ─ TR1/TR2 ─ C3 100µ ─ R31 33R ─ MUELLE
+                                     │                                            │
+                                     └─ R5 100K ─ IC3 (CA3080) ── seco ──┐    (transformador)
+                                                                          │         │
+    MIX KNOB ±12V ─R8 100K─┐                                              │    IC5 (CA3080)
+    PATCHBOARD ────────────┴─ IC2 (3140) ─┬─ D1/TR3 ──→ control de IC3    │      húmedo
+                                          │                               │         │
+                                          └─ IC4 (3140, INVERSOR)         └── IC6 (3140) ──┘
+                                                 └─ D2/TR4 ──→ control de IC5
+                                                                    │
+                                          IC7 (3140) ── O/P a LEVEL CONTROL
+                                          IC8 (3140) ── O/P al patchboard
+
+- **IC1 (LF355)**: buffer de entrada, realimentación R1 68K, C2 33p.
+- **TR1 (BC169C) / TR2 (BC258B)**: par complementario que excita el muelle,
+  con R3 y R4 de 4R7 y alimentación ±12 V. Es el «high-current amplifier» de
+  la descripción.
+- **IC3 e IC5 son CA3080**, o sea **OTA**: amplificadores transconductancia
+  controlados por **corriente**, no por voltaje. Ese es el elemento no lineal
+  del módulo y el que da su curva de mezcla.
+- **IC2** suma el mando Mix y el CV del patchboard; **IC4 lo invierte**. Por eso
+  la mezcla es un crossfade complementario exacto: la misma señal de control
+  llega derecha a un OTA e invertida al otro. Confirma la frase del manual
+  («as one increases, the other decreases») a nivel de circuito.
+- **IC7** e **IC8** son las etapas de salida, con el corte por el control de
+  nivel del panel en medio (pines 32 → 25).
+
+### Las constantes de tiempo, que es lo que buscábamos
+
+| Red | Valor | Frecuencia | Qué es |
+|---|---|---|---|
+| **C8 330 pF ∥ R23 39 K** (realimentación de IC7) | — | **12,4 kHz** | **Paso bajo de salida** |
+| C3 100 µF + R31 33 Ω (excitación del muelle) | — | **48 Hz** | Paso alto al muelle |
+| C11 10 pF ∥ R27 330 K (IC8) | — | 48 kHz | Solo estabilidad, fuera de banda |
+| C12 0,47 µF + R26 100 K | — | 3,4 Hz | Acoplo, fuera de banda |
+
+**El dato que faltaba: 12,4 kHz.** Y cuadra de forma redonda con el «Useful
+Frequency Range: 30 Hz – 12 KHz» de la hoja de 1971. Las dos fuentes, separadas
+por once años y por un rediseño entero, dan el mismo número.
+
+### Qué significa para nuestro DSP
+
+1. **La electrónica no corta en 4.500 Hz, corta en 12,4 kHz.** Nuestro
+   `dampingFreqHz: 4500` **no** modela el circuito: modela la pérdida de agudos
+   **mecánica del muelle**, que es otra cosa y que el esquema no puede decirnos
+   porque no está en el esquema, está en el transductor y en el propio muelle.
+   Eso es legítimo —todo emulador de muelle lo hace—, pero conviene tenerlo
+   escrito para que nadie lo confunda con un valor sacado del plano.
+   **Sigue siendo una decisión de oído**, pero ahora se sabe que el techo del
+   aparato está tres veces más arriba, así que hay margen para subirlo si se
+   juzga que está apagado de más.
+2. **Falta el paso alto.** Hay dos limitaciones por abajo que no modelamos: los
+   **48 Hz** de la red C3/R31 que excita el muelle (el valor real será algo
+   distinto porque la impedancia del transductor entra en la cuenta) y el hecho
+   físico de que un muelle no transmite graves. Un paso alto de primer orden en
+   torno a 40-50 Hz **solo en el camino húmedo** sería fiel y de paso quitaría
+   acumulación de graves en la realimentación.
+3. **Los OTA.** Los dos VCA son CA3080 controlados por corriente a través de
+   D1/TR3 y D2/TR4. Si alguna vez la curva del mando Mix suena rara, la respuesta
+   está ahí: no es un crossfade lineal ni uno en raíz cuadrada, es la
+   transconductancia de un CA3080 excitada por un espejo de corriente con diodo.
+4. **Lo demás ya estaba bien**: el orden IC1 → driver → muelle → IC5 → IC6 →
+   IC7 → IC8 que describe `reverberation.config.js` coincide con el plano, y los
+   35/40 ms, los 2,4 s y el ±2 V siguen en pie.
+
+### La segunda unidad, ahora con respaldo de hardware
+
+El esquema se titula **«Reverb Drive»** en singular, pero en el juego de planos
+de 1977 hay una hoja de cableado titulada **«MODULE WIRING REVERB DRIVE 1&2»**
+(EMS 31/12), y en el manual de 1982 está **D100-16 W 1**, «…ERB DRIVE WIRING».
+O sea: **una misma placa, dos ejemplares**. Implementar la segunda unidad es
+instanciar el módulo otra vez, no diseñar nada nuevo. Lo que sigue sin
+confirmarse es qué fila y qué columna ocupa en cada matriz.

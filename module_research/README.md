@@ -38,8 +38,8 @@ reverb, `D100-22C1` para el banco de octavas). Índice de secciones:
 | 10 | Envelope Generator | | 6 |
 | 11 | Dual V.C.A. | | 7 |
 | 12 | Ring Modulators | D100-05 | 9 |
-| 13 | Reverb Circuit | D100-16 | 9 |
-| 14 | **Echo Circuit** | D100-09 | 9 |
+| 13 | Reverb Circuit | D100-16 (esquema en pág. **46** del PDF) | 9 |
+| 14 | **Echo Circuit** | D100-09 (esquema en pág. **38** del PDF) | 9 |
 | 15 | Meter Circuits | D100-13 | 10 |
 | 16 | **Slew-Limiters** | D100-6 | 10 |
 | 17 | Frequency Meter | D100-23W, D100-18C | 10 |
@@ -52,6 +52,12 @@ reverb, `D100-22C1` para el banco de octavas). Índice de secciones:
 | 24 | Data Sheets etc. | | — |
 
 En negrita, los módulos que **no están implementados** en la emulación.
+
+**Las páginas 15 a 105 del PDF son los planos D100**, con el cajetín de
+Datanomics y fechas de 1982. Para localizar uno sin ir página a página, va bien
+montar una hoja de contactos recortando la esquina inferior derecha (el cajetín)
+de cada página y pegándolas en rejilla: el número de plano se lee y se llega al
+sitio en una sola pasada.
 
 La página impresa *n* del manual está más o menos en la página *n+1* del PDF.
 Para leerlo hay que rasterizar y girar; con `pypdf` + `Pillow`:
@@ -105,4 +111,4 @@ im = next(iter(pagina.images)).image.rotate(-90, expand=True)
 | `output_channels/` | Implementado |
 | `pitch_to_voltage_converter/` | Implementado |
 | `sequencer/` | Implementado |
-| `spring_reverb/` | Implementado (falta la segunda unidad) |
+| `spring_reverb/` | Implementado (falta la segunda unidad). **Con el esquema D100-16 C1** |

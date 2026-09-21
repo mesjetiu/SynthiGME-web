@@ -56,6 +56,16 @@ Cosas que estaban bien y ahora tienen respaldo documental:
   y los pines llevan resistencias para poder mezclar varias salidas en una
   entrada. Coincide con `STANDARD_FEEDBACK_RESISTANCE` y el modelo de
   `calculateMatrixPinGain()`.
+- **Resistencias de los pines: confirmadas exactas** por el manual técnico D100
+  (sección 1, más una nota manuscrita al margen de esa misma página):
+  pin de parcheo estándar de **100 K**; **blanco** para la matriz de audio
+  (100 K **10 %**), **gris** para la de control (100 K **0,5 %**), y 100 K 0,5 %
+  especialmente seleccionadas «for controls requiring maximum precision (i.e.
+  multi-oscillator chords)»; **rojo de 2K7** solo para las entradas del
+  osciloscopio, que son de alta impedancia. Y: «A **shorting pin is never
+  used**; damage may be caused otherwise, however values in the range of **1M
+  OHM to 22K** may be used where special mixing is desired». Nuestro
+  `PIN_RESISTANCES` coincide en los tres valores y en las dos tolerancias.
 - **Convertidor de altura a voltaje**: «the converter measures the **period** of
   the signal», no cuenta cruces por cero en un intervalo fijo. Nuestra detección
   por cruce por cero de medio ciclo mide periodo, así que va en la línea correcta.
@@ -117,8 +127,14 @@ este folleto de 1971 parecía poner en duda:
   nuevos: entrada máxima de **8 V p-p** y respuesta global de **50 Hz a 12 kHz**
   con todos los mandos al máximo.
 
-Moraleja, anotada para la próxima: **antes de proponer un cambio de valor,
-mirar si ya hay material de 1982 en `module_research/` sobre ese módulo.**
+Y una tercera, del 21-sep por la tarde, ya con el manual técnico D100 delante:
+
+- **Generadores de ruido: dos, no tres.** El manual titula su sección 9 «**Dual**
+  Noise Generators». Lo implementado es correcto.
+
+Moraleja, anotada para la próxima: **antes de proponer un cambio de valor, mirar
+el `Synthi 100 Technical Manual` y los extractos de 1982 que ya hay en
+`module_research/`** (índice de secciones en `../README.md`).
 
 ## Módulos del folleto que no existen en la emulación
 

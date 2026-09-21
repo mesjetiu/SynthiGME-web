@@ -4,13 +4,17 @@
 > de septiembre (`AUDITORIA-2026-09.md`) y de una lectura de la especificación
 > original de EMS de 1971 (`module_research/manual_ems_1971/`).
 >
-> **Jerarquía de fuentes.** La máquina de Cuenca es la revisión de **Datanomics
-> de 1981-82**, rediseñada por dentro con chips CEM. El **manual técnico de 1982
-> es el que manda**; no está en abierto (se buscó el 21-sep-2026 sin éxito), pero
-> hay extractos suyos en `module_research/*/` de los que ya salieron varios
-> módulos. El folleto de 1971 describe la misma arquitectura con otra
-> electrónica: vale para entender la intención de cada módulo y para descubrir
-> módulos que no teníamos fichados, **no para fijar valores**.
+> **Actualizado el 21-sep-2026 por la tarde** con el `Synthi 100 Technical
+> Manual` (105 páginas, serie de planos D100 — la misma que citan nuestros
+> configs), que apareció en el grupo de Telegram «Synthi documentación» junto
+> con otros 14 documentos, entre ellos 63 páginas de esquemas de 1977. Están en
+> el servidor, fuera de este repo por ser obra con derechos: ver
+> `module_research/README.md`, que lleva el índice de secciones del manual.
+>
+> **Jerarquía de fuentes.** Manda el manual técnico D100. El folleto de EMS de
+> 1971 describe la misma arquitectura con **otra electrónica**: vale para
+> entender la intención de cada módulo, **no para fijar valores** — ya indujo
+> tres recomendaciones erróneas.
 >
 > **Esto no es una lista de tareas.** `TODO.md` ya es eso. Esto es un intento de
 > responder a otra pregunta, que es distinta: *¿qué le falta a esta emulación
@@ -50,6 +54,16 @@ en el tiempo de retardo, y de ahí sale material que no sale de ningún otro sit
 de la máquina. Es, con diferencia, lo que más cambiaría lo que se puede hacer
 con la emulación.
 
+**Ya no hay excusa de documentación**: el manual técnico lo especifica entero en
+su sección 14 (plano D100-09) y está transcrito y razonado en
+`module_research/echo/NOTAS.md`. En corto: es un **BBD de 4096 celdas** con reloj
+controlado por voltaje, medio segundo de retardo máximo, ancho de banda de 5 kHz,
+filtros de tres polos **con pico deliberado** a la entrada y a la salida, y
+realimentación. Lo importante de modelar: en un BBD el **ancho de banda depende
+del retardo** —cuanto más largo el eco, más oscuro y sucio—, y barrer el mando
+de Delay cambia el tono de las repeticiones, no hace crossfade. Los cuatro
+mandos del panel mapean uno a uno con el circuito.
+
 ### 1.2 La segunda unidad de reverberación
 
 La máquina tiene **dos**, nosotros tenemos una. Está documentado en la
@@ -63,9 +77,14 @@ Lo interesante de tener dos es poder encadenarlas o realimentar una en la otra.
 
 ### 1.3 Los tres slew limiters
 
-Este no lo sabía hasta hoy y es el hallazgo que más me ha gustado. La
-especificación describe **tres limitadores de pendiente controlados por
-voltaje**: amplificadores de ganancia unidad cuya salida sigue a la entrada con
+**Confirmados por el manual técnico**, sección 16, plano D100-6: «a summing
+buffer driving an integrator, whose time constant may be voltage controlled».
+Un detalle de comportamiento que hay que respetar: «minimum slew is obtained
+with zero slew input node current, and **negative inputs produce no further
+effect**» — el CV negativo no hace nada.
+
+La especificación de 1971 describe **tres limitadores de pendiente controlados
+por voltaje**: amplificadores de ganancia unidad cuya salida sigue a la entrada con
 una velocidad máxima definida por un voltaje de control, de 1 ms a 10 s, con
 control exponencial.
 
@@ -80,8 +99,8 @@ tiempo controlada por voltaje.
 
 ### 1.4 Los dos envelope followers
 
-También ausentes. Producen un voltaje proporcional al nivel medio de una señal
-de audio, con paso bajo de segundo orden a ~50 Hz y mando de cero central
+También ausentes, y **confirmados por el manual técnico** (sección 20). Producen
+un voltaje proporcional al nivel medio de una señal de audio, con paso bajo de segundo orden a ~50 Hz y mando de cero central
 (excursiones de hasta ±1 V por 6 dB). Son la puerta de entrada del audio al
 dominio del control: sin ellos, una señal de audio no puede modular nada en
 función de su propia amplitud.
@@ -89,8 +108,9 @@ función de su propia amplitud.
 ### 1.5 Los envíos y retornos externos
 
 El folleto habla de **cuatro** envíos y retornos («for sending out to external
-echo plates and other equipment»). Nosotros tenemos un Send Level y un Return
-Level, y los dos son placeholders sin audio.
+echo plates and other equipment»), y el manual técnico les dedica su sección 6
+(«Treatment Sends»). Nosotros tenemos un Send Level y un Return Level, y los dos
+son placeholders sin audio.
 
 En una emulación web esto es más interesante de lo que parece, porque el «equipo
 externo» podría ser cualquier cosa: un `AudioWorklet` del usuario, una entrada
@@ -99,11 +119,11 @@ a lo que hoy se puede hacer.
 
 ### 1.6 El frecuencímetro
 
-Placeholder, y además oculto (`visible: false`). Detalle útil que salió hoy: no
-es un módulo de EMS, es un instrumento de laboratorio de otra marca, el **Dawe
-3000 AR/6**, y su especificación completa está en el folleto (reloj de cristal
-de 100 kHz ±0,002 %, 0–1 MHz, tiempo de puerta de 1 ms a 10 s, además mide
-periodo y tiempo). Si algún día se hace, no hay que investigar nada más.
+Placeholder, y además oculto (`visible: false`). No es un módulo de EMS: el
+manual técnico (sección 17) dice «this meter uses a **commercial unit** with
+minor changes», y el folleto de 1971 lo identifica como un **Dawe 3000 AR/6**
+(reloj de cristal de 100 kHz ±0,002 %, 0–1 MHz, tiempo de puerta de 1 ms a 10 s).
+La entrada va por un convertidor lineal/TTL (planos D100-23W y D100-18C).
 
 De todos los que faltan, es el que menos se echa de menos tocando.
 
@@ -171,7 +191,9 @@ esta máquina: son **preguntas para el manual de 1982**, no conclusiones.
   de peine» y de un «ligero efecto de resonancia» en ajustes altos. Las dos
   fuentes apuntan a un Q mayor que el √2 que usamos. Es lo único de ese módulo
   que sigue abierto; lo demás está confirmado correcto.
-- **Tres generadores de ruido**, no dos.
+- ~~Tres generadores de ruido~~. **Falso para esta máquina**: el manual técnico
+  titula su sección 9 «**Dual** Noise Generators». Dos, como tenemos. Tercera
+  recomendación errónea salida del folleto de 1971.
 - **Damping de la reverb**: nuestro paso bajo está en 4.500 Hz y el rango útil
   de fábrica llega a 12 kHz; y por abajo no modelamos el límite de 30 Hz, que un
   muelle real sí tiene. Ver `module_research/spring_reverb/NOTAS.md`.

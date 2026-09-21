@@ -18,6 +18,7 @@ La documentación está escrita y es buena. Leerla, no deducirla:
 | `ARCHITECTURE.md` | Cómo está montado por dentro |
 | `MODULE-CREATION-GUIDE.md` | Añadir un módulo del sintetizador |
 | `TODO.md`, `REFACTORING.md` | Lo que está a medias y por qué |
+| `AUDITORIA-2026-09.md` | Estado verificado del proyecto y **criterio de prioridades**: lo que manda es la web en el navegador |
 | `OSC.md`, `MULTICHANNEL.md` | OSC y el audio multicanal (12 salidas + 8 entradas) |
 | `MOBILE-RESEARCH.md` | Rendimiento y limitaciones en móviles |
 | `module_research/` | Manuales y material previo del Synthi real, por módulo |

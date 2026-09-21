@@ -1,3 +1,5 @@
+> Estado general y orden de prioridades: ver `AUDITORIA-2026-09.md` (21-sep-2026).
+
 ## Octave Filter Bank (placa PC-22, D100-22C1)
 
 #### ✅ COMPLETADO

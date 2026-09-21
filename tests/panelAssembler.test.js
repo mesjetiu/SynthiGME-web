@@ -26,7 +26,9 @@ global.document            = dom.window.document;
 global.HTMLElement         = dom.window.HTMLElement;
 global.CustomEvent         = dom.window.CustomEvent;
 global.SVGElement          = dom.window.SVGElement;
-global.requestAnimationFrame = (cb) => setTimeout(cb, 16);
+// unref(): los bucles de render (voltímetros, osciloscopio) se re-encolan sin
+// fin y, sin esto, el proceso de test nunca termina.
+global.requestAnimationFrame = (cb) => setTimeout(cb, 16).unref();
 global.cancelAnimationFrame  = (id) => clearTimeout(id);
 global.window.matchMedia = () => ({ matches: false, addListener: () => {}, removeListener: () => {} });
 // fetch silencioso para SVG que no estén en el mapa raster

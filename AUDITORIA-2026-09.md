@@ -100,8 +100,8 @@ infraestructura nueva: **propuesto, no decidido.**
 
 ## Testing: qué protege y qué no
 
-Cifras: 4458 tests unitarios en 166 ficheros (~65.100 líneas de test para
-~79.900 de código), más 218 tests de audio Playwright en 19 ficheros que miden
+Cifras (al empezar): 4458 tests unitarios en 166 ficheros (~65.100 líneas de
+test para ~79.900 de código), más 218 tests de audio Playwright en 19 ficheros que miden
 DSP en navegador real (amplitudes, hard sync, FM por octavas, CV, ruteo por
 pines, offset DC). Los tests de marzo (R7, OFB) cargan el código real.
 
@@ -145,6 +145,37 @@ preocupan por ser lógica, no UI:
 - 4 worklets sin ningún test, ni unitario ni de audio: `dcBlocker`,
   `outputFilter` (ambos en la cadena de salida que oye todo el mundo),
   `scopeCapture`, `recordingCapture`.
+
+### 12 ficheros de test que `npm test` no ejecutaba (322 tests) — RESUELTO en parte
+
+Descubierto el 21-sep al convertir el último espejo: el glob de `npm test`
+enumeraba subcarpetas de `tests/` y dejaba fuera los 9 ficheros sueltos de
+`tests/*.test.js` (los de la refactorización R7 de marzo: `audioSetup`,
+`uiInitializer`, `panelAssembler`, `panelRouting`, `routingSetup`,
+`stateSerializer`, `moduleManager`, `blueprintMapper`, `octaveFilterBank`),
+`tests/electron/` y `tests/tools/`. Nadie los corría, ni los `release:*`.
+
+Al ejecutarlos:
+
+- 10 ficheros en verde (269 tests). **Ya están en `npm test`** (4778 tests).
+- `tests/panelAssembler.test.js` no terminaba nunca: su `requestAnimationFrame`
+  era `setTimeout(cb, 16)` y los bucles de render de voltímetros y
+  osciloscopio se re-encolaban sin fin. Arreglado en el test con `.unref()`.
+- `tests/electron/electronMenuContracts.test.js`: **4 fallos**, y por eso se
+  queda fuera de `npm test` hasta decidir. Es un test de contrato
+  menú-Electron ↔ bridge que lee los fuentes con regex. Lo que dice:
+  1. `menu.panels.keyboards` se usa en `electron/electronMenu.cjs` y no está
+     en `MENU_TRANSLATION_KEYS` del bridge → **bug real, solo Electron**: la
+     entrada «Keyboards» del menú sale siempre en inglés. Una línea.
+  2. `case 'toggleKeyboard'` en el bridge sin acción del menú que lo dispare
+     (el menú envía `setKeyboardVisible`). Código muerto, probablemente.
+  3. `singleFingerPan` y `multitouchControls` «sin sync inverso»: el bridge
+     sí escucha `synth:singleFingerPanChange` y `synth:multitouchControlsChange`
+     (línea 573), pero en un mapa que el extractor del test no reconoce.
+     Falso positivo del test.
+  4. `keyboardVisible` «sin default en readCurrentState()»: lo tiene (línea
+     120) como IIFE, que el extractor tampoco reconoce. Falso positivo.
+  Se corre a mano con `node --test tests/electron/electronMenuContracts.test.js`.
 
 ### Tests de audio: 218/218 (desde el 21-sep)
 

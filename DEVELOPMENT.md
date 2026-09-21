@@ -119,6 +119,10 @@ npm run build:all
 npm test
 ```
 Ejecuta tests rápidos de lógica usando el test runner nativo de Node.js (`node --test`).
+Corre todo `tests/` salvo `tests/audio/` (Playwright) y
+`tests/electron/electronMenuContracts.test.js` (contrato menú ↔ bridge, en rojo
+y pendiente de decisión; ver `AUDITORIA-2026-09.md`). Un fichero nuevo en una
+subcarpeta nueva hay que añadirlo al glob de `package.json`.
 
 ### Tests de audio (Playwright)
 ```bash

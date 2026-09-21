@@ -1,781 +1,377 @@
 /**
- * Tests para lógica de audio de OutputChannel y Engine
- * 
- * Verifica:
- * - Coeficientes IIR del filtro RC pasivo (modelo circuito Cuenca 1982)
- * - Respuesta en frecuencia: fc, pendiente (dB/oct), ganancia en DC y HF
- * - Shelving HP (+6 dB) y lowpass (fc ≈ 677 Hz, 6 dB/oct)
- * - Cálculo de panning equal-power
- * - Mapeo de valores de knobs
+ * Tests para modules/outputChannel.js — contra las clases reales.
+ *
+ * Hasta septiembre de 2026 este fichero replicaba en funciones locales el
+ * filtro RC del worklet, el panning de igual potencia, el VCA CEM 3330 y un
+ * `setExternalCV` de juguete. Nada de eso tocaba `src/`. Además, el
+ * `setExternalCV` copiado usaba siempre la curva logarítmica, cuando el real
+ * usa la lineal por defecto (`isFaderLinearResponseEnabled()`).
+ *
+ * Dónde vive ahora cada cosa:
+ * - VCA CEM 3330 (dial→voltaje→ganancia, corte mecánico, saturación):
+ *   tests/utils/voltageConstants.test.js, contra las funciones reales.
+ * - Panning de igual potencia: tests/core/engine.test.js (`setOutputPan`).
+ * - Filtro RC pasivo: tests/worklets/outputFilter.worklet.test.js, contra el
+ *   worklet real.
+ * - Aquí: `OutputChannel` (estado inicial desde el engine y la config,
+ *   serialize/deserialize, CV externo en los dos modos de fader) y
+ *   `OutputChannelsPanel` (número de canales, formatos de patch, getChannel).
+ *
+ * El módulo importa UI (ModuleFrame, Knob, tooltips), pero el constructor y
+ * la lógica de estado no tocan el DOM: basta un `document` mínimo para
+ * importarlo. `createPanel()` queda fuera (necesita DOM real).
  */
 
-import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import '../mocks/localStorage.mock.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MODELO DEL FILTRO RC PASIVO (réplica del worklet, para tests sin AudioContext)
-// ─────────────────────────────────────────────────────────────────────────────
-// Circuito real: Pot 10K LIN + 2× 0.047µF + buffer CA3140 (ganancia 2×)
-//
-// Función de transferencia analógica:
-//   H(s) = (2 + (1+p)·s·τ) / (2 + s·τ)  donde τ = R·C = 4.7×10⁻⁴ s
-//
-// Comportamiento en audio:
-//   p=-1 → LP: fc(-3dB) ≈ 677 Hz, atenúa HF a -6 dB/oct
-//   p= 0 → Plano: 0 dB en todo el espectro (20 Hz – 20 kHz)
-//   p=+1 → Shelving HF: +6 dB por encima de ~677 Hz, LF intactas
-//
-// Implementación digital (transformada bilineal):
-//   K = 2·fs·τ
-//   b0 = (2 + (1+p)·K) / (2 + K)
-//   b1 = (2 - (1+p)·K) / (2 + K)
-//   a1 = (2 - K) / (2 + K)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const RC_DEFAULTS = {
-  resistance: 10000,      // 10 kΩ
-  capacitance: 47e-9,     // 0.047 µF
-  sampleRate: 44100       // fs típico
+globalThis.CustomEvent ??= class CustomEvent {
+  constructor(type, options = {}) { this.type = type; this.detail = options.detail; }
+};
+globalThis.document ??= {
+  dispatchEvent() { return true; },
+  addEventListener() {},
+  getElementById() { return null; },
+  createElement() { throw new Error('createElement no debería usarse en estos tests'); },
+  body: { appendChild() {} }
+};
+globalThis.window ??= {
+  addEventListener() {},
+  matchMedia: () => ({ matches: false, addEventListener() {} })
 };
 
-/**
- * Calcula coeficientes IIR del filtro RC para una posición dada.
- * Réplica del algoritmo del worklet para verificación sin AudioContext.
- * 
- * @param {number} p - Posición bipolar (-1=LP fc≈677Hz, 0=plano, +1=HP shelf +6dB)
- * @param {Object} [opts] - Opciones de circuito (resistance, capacitance, sampleRate)
- * @returns {{ b0: number, b1: number, a1: number, K: number }} Coeficientes normalizados
- */
-function getFilterCoefficients(p, opts = {}) {
-  const R = opts.resistance || RC_DEFAULTS.resistance;
-  const C = opts.capacitance || RC_DEFAULTS.capacitance;
-  const fs = opts.sampleRate || RC_DEFAULTS.sampleRate;
-  
-  const tau = R * C;
-  const K = 2 * fs * tau;
-  const pK = (1 + p) * K;
-  const invDenom = 1 / (2 + K);
-  
+const { OutputChannel, OutputChannelsPanel } = await import('../../src/assets/js/modules/outputChannel.js');
+const { outputChannelConfig } = await import('../../src/assets/js/configs/index.js');
+const {
+  vcaCalculateGain,
+  vcaCalculateGainLinear
+} = await import('../../src/assets/js/utils/voltageConstants.js');
+
+const FADER_MODE_KEY = 'synthigme-fader-linear-response';
+
+/** Engine falso: solo lo que OutputChannel le pide. */
+function createFakeEngine({ levels = [], filters = [], pans = [] } = {}) {
+  const calls = [];
   return {
-    b0: (2 + pK) * invDenom,
-    b1: (2 - pK) * invDenom,
-    a1: (2 - K) * invDenom,
-    K
+    calls,
+    outputPans: pans,
+    getOutputLevel: i => levels[i],
+    getOutputFilter: i => filters[i],
+    setOutputLevel(i, gain, options) { calls.push({ method: 'setOutputLevel', i, gain, options }); },
+    setOutputFilter(i, value) { calls.push({ method: 'setOutputFilter', i, value }); },
+    setOutputPan(i, value) { calls.push({ method: 'setOutputPan', i, value }); }
   };
 }
 
-/**
- * Calcula la magnitud de la respuesta en frecuencia del filtro.
- * Evalúa |H(e^jω)| = |b0 + b1·e^-jω| / |1 + a1·e^-jω| a una frecuencia dada.
- * Devuelve ganancia lineal (1.0 = 0 dB, 0.5 ≈ -6 dB, 2.0 ≈ +6 dB).
- * 
- * @param {{ b0: number, b1: number, a1: number }} coeffs - Coeficientes IIR
- * @param {number} freq - Frecuencia de evaluación en Hz
- * @param {number} [fs=44100] - Frecuencia de muestreo
- * @returns {number} Magnitud de la respuesta (ganancia lineal)
- */
-function getFrequencyResponse(coeffs, freq, fs = RC_DEFAULTS.sampleRate) {
-  const omega = 2 * Math.PI * freq / fs;
-  const cosW = Math.cos(omega);
-  const sinW = Math.sin(omega);
-  
-  // Numerador: b0 + b1·e^-jω
-  const numReal = coeffs.b0 + coeffs.b1 * cosW;
-  const numImag = -coeffs.b1 * sinW;
-  const numMag = Math.sqrt(numReal * numReal + numImag * numImag);
-  
-  // Denominador: 1 + a1·e^-jω
-  const denReal = 1 + coeffs.a1 * cosW;
-  const denImag = -coeffs.a1 * sinW;
-  const denMag = Math.sqrt(denReal * denReal + denImag * denImag);
-  
-  return numMag / denMag;
+function levelCalls(engine) {
+  return engine.calls.filter(c => c.method === 'setOutputLevel');
 }
 
-/**
- * Calcula ganancias L/R para equal-power panning.
- * 
- * @param {number} pan - Valor de pan (-1 a +1)
- * @returns {{left: number, right: number}} Ganancias L/R
- */
-function calculateEqualPowerPan(pan) {
-  const angle = (pan + 1) * 0.25 * Math.PI;
-  return {
-    left: Math.cos(angle),
-    right: Math.sin(angle)
-  };
+function setFaderLinear(enabled) {
+  localStorage.setItem(FADER_MODE_KEY, String(enabled));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS: FILTRO RC PASIVO - COEFICIENTES IIR
-// ─────────────────────────────────────────────────────────────────────────────
-// Verifican que los coeficientes del filtro digital (b0, b1, a1) corresponden
-// a la transformada bilineal del circuito analógico y producen la respuesta
-// en frecuencia esperada en cada posición del dial.
-// ─────────────────────────────────────────────────────────────────────────────
+describe('OutputChannel', () => {
+  let engine;
 
-describe('Filtro RC pasivo - Coeficientes IIR', () => {
-  it('p=0 (plano) → b0=1, b1=a1 (ganancia unitaria)', () => {
-    const c = getFilterCoefficients(0);
-    assert.ok(Math.abs(c.b0 - 1) < 1e-10, `b0 debe ser 1, es ${c.b0}`);
-    assert.ok(Math.abs(c.b1 - c.a1) < 1e-10, `b1 debe igualar a1 para plano`);
+  beforeEach(() => {
+    localStorage.clear();
+    engine = createFakeEngine();
   });
 
-  it('p=-1 (LP máximo) → b0=b1 (LP puro)', () => {
-    const c = getFilterCoefficients(-1);
-    // Para LP: pK = 0, así b0 = 2/(2+K) = b1
-    assert.ok(Math.abs(c.b0 - c.b1) < 1e-10, `b0 debe igualar b1 para LP puro`);
-    assert.ok(c.b0 > 0 && c.b0 < 1, `b0 debe estar entre 0 y 1, es ${c.b0}`);
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Construcción', () => {
+    it('id y título derivan del índice (base 1)', () => {
+      const ch = new OutputChannel(engine, 2);
+      assert.equal(ch.id, 'output-channel-3');
+      assert.equal(ch.name, 'Out 3');
+      assert.equal(ch.channelIndex, 2);
+    });
+
+    it('acepta un título propio', () => {
+      const ch = new OutputChannel(engine, 0, { title: 'Main L' });
+      assert.equal(ch.name, 'Main L');
+    });
+
+    it('sin estado en el engine, arranca con los valores iniciales de la config', () => {
+      const ch = new OutputChannel(engine, 0);
+      assert.deepEqual(ch.values, {
+        level: outputChannelConfig.faders.level.initial,
+        filter: outputChannelConfig.knobs.filter.initial,
+        pan: outputChannelConfig.knobs.pan.initial,
+        power: outputChannelConfig.switches.power.initial,
+        externalCV: 0
+      });
+    });
+
+    it('si el engine ya tiene estado para ese canal, lo toma de ahí', () => {
+      engine = createFakeEngine({ levels: [0, 7.5], filters: [0, -3], pans: [0, 0.4] });
+      const ch = new OutputChannel(engine, 1);
+      assert.equal(ch.values.level, 7.5);
+      assert.equal(ch.values.filter, -3);
+      assert.equal(ch.values.pan, 0.4);
+    });
+
+    it('un engine sin getOutputFilter no rompe: el filtro sale de la config', () => {
+      delete engine.getOutputFilter;
+      const ch = new OutputChannel(engine, 0);
+      assert.equal(ch.values.filter, outputChannelConfig.knobs.filter.initial);
+    });
+
+    it('no toca el engine ni el DOM al construirse', () => {
+      const ch = new OutputChannel(engine, 0);
+      assert.deepEqual(engine.calls, []);
+      assert.equal(ch.frame, null);
+      assert.equal(ch.slider, null);
+      assert.equal(ch.filterKnobUI, null);
+      assert.equal(ch.panKnobUI, null);
+      assert.equal(ch.powerSwitch, null);
+    });
   });
 
-  it('p=+1 (HP máximo) → coeficientes correctos', () => {
-    const c = getFilterCoefficients(1);
-    const K = c.K;
-    // Para HP: pK = 2K
-    const expectedB0 = (2 + 2 * K) / (2 + K);
-    const expectedB1 = (2 - 2 * K) / (2 + K);
-    assert.ok(Math.abs(c.b0 - expectedB0) < 1e-10);
-    assert.ok(Math.abs(c.b1 - expectedB1) < 1e-10);
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('serialize / deserialize', () => {
+    it('serialize devuelve level, filter, pan y power (no el CV externo)', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.values.level = 6;
+      ch.values.filter = -2;
+      ch.values.pan = 0.5;
+      ch.values.power = true;
+      ch.values.externalCV = 3;
+      assert.deepEqual(ch.serialize(), { level: 6, filter: -2, pan: 0.5, power: true });
+    });
+
+    it('deserialize(level) guarda el valor y aplica la ganancia VCA con rampa de 60 ms', () => {
+      const ch = new OutputChannel(engine, 3);
+      ch.deserialize({ level: 5 });
+      assert.equal(ch.values.level, 5);
+      const [call] = levelCalls(engine);
+      assert.equal(call.i, 3);
+      assert.equal(call.gain, vcaCalculateGainLinear(5, 0));
+      assert.deepEqual(call.options, { ramp: 0.06 });
+    });
+
+    it('deserialize(level) tiene en cuenta el CV externo ya presente', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.values.externalCV = 2;
+      ch.deserialize({ level: 5 });
+      assert.equal(levelCalls(engine)[0].gain, vcaCalculateGainLinear(5, 2));
+    });
+
+    it('deserialize(filter) y deserialize(pan) van al engine sin transformar', () => {
+      const ch = new OutputChannel(engine, 1);
+      ch.deserialize({ filter: -4, pan: 0.25 });
+      assert.equal(ch.values.filter, -4);
+      assert.equal(ch.values.pan, 0.25);
+      assert.deepEqual(engine.calls, [
+        { method: 'setOutputFilter', i: 1, value: -4 },
+        { method: 'setOutputPan', i: 1, value: 0.25 }
+      ]);
+    });
+
+    it('deserialize(power) cambia el estado aunque no haya UI', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.deserialize({ power: true });
+      assert.equal(ch.values.power, true);
+      ch.deserialize({ power: false });
+      assert.equal(ch.values.power, false);
+    });
+
+    it('ignora campos ausentes o con tipo incorrecto', () => {
+      const ch = new OutputChannel(engine, 0);
+      const before = { ...ch.values };
+      ch.deserialize({ level: '5', filter: null, pan: undefined, power: 'true' });
+      ch.deserialize(null);
+      ch.deserialize({});
+      assert.deepEqual(ch.values, before);
+      assert.deepEqual(engine.calls, []);
+    });
+
+    it('round-trip: lo que serialize produce, deserialize lo restaura', () => {
+      const a = new OutputChannel(engine, 0);
+      a.deserialize({ level: 8, filter: 3, pan: -0.6, power: true });
+      const b = new OutputChannel(createFakeEngine(), 0);
+      b.deserialize(a.serialize());
+      assert.deepEqual(b.serialize(), { level: 8, filter: 3, pan: -0.6, power: true });
+    });
   });
 
-  it('K precalculado es correcto (2·fs·τ)', () => {
-    const c = getFilterCoefficients(0);
-    const expectedK = 2 * RC_DEFAULTS.sampleRate * RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
-    assert.ok(Math.abs(c.K - expectedK) < 1e-6, `K debe ser ${expectedK}, es ${c.K}`);
-  });
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('setExternalCV', () => {
+    it('almacena el voltaje y getExternalCV lo devuelve', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.setExternalCV(2.5);
+      assert.equal(ch.getExternalCV(), 2.5);
+      assert.equal(ch.values.externalCV, 2.5);
+    });
 
-  it('coeficientes cambian monótonamente de LP a HP', () => {
-    const positions = [-1, -0.5, 0, 0.5, 1];
-    const b0Values = positions.map(p => getFilterCoefficients(p).b0);
-    
-    // b0 debe crecer monótonamente de LP a HP
-    for (let i = 1; i < b0Values.length; i++) {
-      assert.ok(b0Values[i] > b0Values[i - 1],
-        `b0 debe crecer: p=${positions[i - 1]}→${b0Values[i - 1]}, p=${positions[i]}→${b0Values[i]}`);
+    it('por defecto (fader lineal) aplica vcaCalculateGainLinear(level, cv) con rampa de 10 ms', () => {
+      const ch = new OutputChannel(engine, 2);
+      ch.values.level = 5;
+      ch.setExternalCV(3);
+      const [call] = levelCalls(engine);
+      assert.equal(call.i, 2);
+      assert.equal(call.gain, vcaCalculateGainLinear(5, 3));
+      assert.deepEqual(call.options, { ramp: 0.01 });
+    });
+
+    it('con el fader en modo logarítmico aplica vcaCalculateGain(level, cv)', () => {
+      setFaderLinear(false);
+      const ch = new OutputChannel(engine, 0);
+      ch.values.level = 5;
+      ch.setExternalCV(3);
+      const gain = levelCalls(engine)[0].gain;
+      assert.equal(gain, vcaCalculateGain(5, 3));
+      assert.notEqual(gain, vcaCalculateGainLinear(5, 3), 'los dos modos deben distinguirse');
+    });
+
+    it('el modo se lee de localStorage en cada llamada', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.values.level = 5;
+      ch.setExternalCV(1);
+      setFaderLinear(false);
+      ch.setExternalCV(1);
+      const [lin, log] = levelCalls(engine).map(c => c.gain);
+      assert.equal(lin, vcaCalculateGainLinear(5, 1));
+      assert.equal(log, vcaCalculateGain(5, 1));
+    });
+
+    it('acepta una rampa personalizada', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.setExternalCV(1, { ramp: 0.5 });
+      assert.deepEqual(levelCalls(engine)[0].options, { ramp: 0.5 });
+    });
+
+    for (const linear of [true, false]) {
+      it(`corte mecánico (fader en 0) ignora el CV — modo ${linear ? 'lineal' : 'logarítmico'}`, () => {
+        setFaderLinear(linear);
+        const ch = new OutputChannel(engine, 0);
+        ch.values.level = 0;
+        for (const cv of [0, 5, 12, -5]) ch.setExternalCV(cv);
+        assert.deepEqual(levelCalls(engine).map(c => c.gain), [0, 0, 0, 0]);
+      });
     }
-  });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS: FILTRO RC PASIVO - RESPUESTA EN FRECUENCIA (dB, fc, pendiente)
-// ─────────────────────────────────────────────────────────────────────────────
-// Verifican el comportamiento audible del filtro: ganancia en dB a distintas
-// frecuencias, frecuencia de corte (-3 dB), pendiente (6 dB/oct), shelving
-// HP (+6 dB) y transición gradual entre posiciones.
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Filtro RC pasivo - Respuesta en frecuencia', () => {
-  it('plano (p=0): ganancia unitaria en todo el espectro', () => {
-    const c = getFilterCoefficients(0);
-    
-    for (const freq of [50, 200, 1000, 5000, 15000]) {
-      const mag = getFrequencyResponse(c, freq);
-      assert.ok(Math.abs(mag - 1) < 0.001,
-        `Plano: ganancia a ${freq}Hz debe ser ~1.0, es ${mag.toFixed(4)}`);
-    }
-  });
-
-  it('LP máximo (p=-1): ganancia DC=1, atenúa agudos', () => {
-    const c = getFilterCoefficients(-1);
-    
-    // DC debe ser 1.0
-    const magDC = getFrequencyResponse(c, 1);
-    assert.ok(Math.abs(magDC - 1) < 0.01, `LP DC debe ser ~1.0, es ${magDC.toFixed(4)}`);
-    
-    // 5kHz debe estar atenuado (>6dB)
-    const mag5k = getFrequencyResponse(c, 5000);
-    assert.ok(mag5k < 0.5, `LP 5kHz debe estar atenuado (<0.5), es ${mag5k.toFixed(4)}`);
-    
-    // 10kHz aún más atenuado
-    const mag10k = getFrequencyResponse(c, 10000);
-    assert.ok(mag10k < mag5k, `10kHz debe estar más atenuado que 5kHz`);
-  });
-
-  it('HP máximo (p=+1): atenúa graves, HF boosteado (+6dB shelf)', () => {
-    const c = getFilterCoefficients(1);
-    
-    // DC debe ser 1.0 (shelving, no pasa-altos puro)
-    const magDC = getFrequencyResponse(c, 1);
-    assert.ok(Math.abs(magDC - 1) < 0.01, `HP DC debe ser ~1.0, es ${magDC.toFixed(4)}`);
-    
-    // HF debe acercarse a 2.0 (+6dB shelf)
-    const mag10k = getFrequencyResponse(c, 10000);
-    assert.ok(mag10k > 1.5, `HP 10kHz debe ser >1.5 (shelf), es ${mag10k.toFixed(4)}`);
-    
-    // La diferencia entre HF y DC es el shelving (~6dB)
-    const shelfDb = 20 * Math.log10(mag10k / magDC);
-    assert.ok(shelfDb > 3 && shelfDb < 7,
-      `Shelving debe ser ~6dB, es ${shelfDb.toFixed(1)}dB`);
-  });
-
-  it('pendiente 6 dB/oct en LP (primer orden)', () => {
-    const c = getFilterCoefficients(-1);
-    
-    // Medir ganancia a 2kHz y 4kHz (una octava)
-    const mag2k = getFrequencyResponse(c, 2000);
-    const mag4k = getFrequencyResponse(c, 4000);
-    
-    const slopeDb = 20 * Math.log10(mag4k / mag2k);
-    // Primer orden: debe ser ~-6 dB/oct (tolerancia ±2dB por efectos de frecuencia finita)
-    assert.ok(slopeDb < -4 && slopeDb > -8,
-      `Pendiente debe ser ~-6 dB/oct, es ${slopeDb.toFixed(1)} dB/oct`);
-  });
-
-  it('transición continua: posiciones intermedias entre LP y plano', () => {
-    // A 2kHz, la atenuación debe crecer gradualmente
-    const positions = [0, -0.25, -0.5, -0.75, -1];
-    const mags = positions.map(p => getFrequencyResponse(getFilterCoefficients(p), 2000));
-    
-    for (let i = 1; i < mags.length; i++) {
-      assert.ok(mags[i] < mags[i - 1],
-        `Atenuación a 2kHz debe crecer: p=${positions[i - 1]}→${mags[i - 1].toFixed(3)}, p=${positions[i]}→${mags[i].toFixed(3)}`);
-    }
-  });
-
-  it('fc del LP ≈ 677 Hz (-3dB desde DC)', () => {
-    const c = getFilterCoefficients(-1);
-    const magDC = getFrequencyResponse(c, 1);
-    const target3dB = magDC / Math.SQRT2;
-    
-    // Buscar la frecuencia donde la magnitud cruza -3dB
-    let fc = 0;
-    for (let f = 100; f < 2000; f += 10) {
-      const mag = getFrequencyResponse(c, f);
-      if (mag <= target3dB) {
-        fc = f;
-        break;
+    it('CV positivo sube la ganancia y CV negativo la baja (ambos modos)', () => {
+      for (const linear of [true, false]) {
+        setFaderLinear(linear);
+        const e = createFakeEngine();
+        const ch = new OutputChannel(e, 0);
+        ch.values.level = 5;
+        ch.setExternalCV(0);
+        ch.setExternalCV(2);
+        ch.setExternalCV(-2);
+        const [base, up, down] = levelCalls(e).map(c => c.gain);
+        assert.ok(up > base, `modo ${linear}: CV +2 debe subir (${up} > ${base})`);
+        assert.ok(down < base, `modo ${linear}: CV -2 debe bajar (${down} < ${base})`);
       }
-    }
-    
-    // fc debe estar cerca de 1/(π·τ) ≈ 677 Hz
-    const expectedFc = 1 / (Math.PI * RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance);
-    assert.ok(Math.abs(fc - expectedFc) < 50,
-      `fc(-3dB) debe ser ~${expectedFc.toFixed(0)}Hz, es ${fc}Hz`);
-  });
-});
+    });
 
-describe('Filtro RC pasivo - Valores del circuito Cuenca', () => {
-  it('τ = R·C = 4.7e-4 s', () => {
-    const tau = RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
-    assert.ok(Math.abs(tau - 4.7e-4) < 1e-8, `τ debe ser 4.7e-4, es ${tau}`);
-  });
+    it('un cambio de fader posterior recalcula con el último CV', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.values.level = 5;
+      ch.setExternalCV(2);
+      ch.deserialize({ level: 8 });
+      const last = levelCalls(engine).at(-1);
+      assert.equal(last.gain, vcaCalculateGainLinear(8, 2));
+      assert.equal(ch.getExternalCV(), 2);
+    });
 
-  it('fc teórica = 1/(2πτ) ≈ 339 Hz (polo fundamental)', () => {
-    const tau = RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
-    const fc = 1 / (2 * Math.PI * tau);
-    assert.ok(Math.abs(fc - 339) < 1, `fc debe ser ~339Hz, es ${fc.toFixed(1)}`);
-  });
-
-  it('fc LP (-3dB) = 1/(πτ) ≈ 677 Hz (factor 2× del divisor)', () => {
-    const tau = RC_DEFAULTS.resistance * RC_DEFAULTS.capacitance;
-    const fcLP = 1 / (Math.PI * tau);
-    assert.ok(Math.abs(fcLP - 677) < 2, `fc LP debe ser ~677Hz, es ${fcLP.toFixed(1)}`);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS: EQUAL-POWER PANNING
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Equal-power panning', () => {
-  it('pan = -1 → full izquierda', () => {
-    const { left, right } = calculateEqualPowerPan(-1);
-    assert.ok(Math.abs(left - 1) < 0.0001, `left debe ser 1, es ${left}`);
-    assert.ok(Math.abs(right - 0) < 0.0001, `right debe ser 0, es ${right}`);
-  });
-
-  it('pan = +1 → full derecha', () => {
-    const { left, right } = calculateEqualPowerPan(1);
-    assert.ok(Math.abs(left - 0) < 0.0001, `left debe ser 0, es ${left}`);
-    assert.ok(Math.abs(right - 1) < 0.0001, `right debe ser 1, es ${right}`);
-  });
-
-  it('pan = 0 → centro (≈0.707 ambos lados)', () => {
-    const { left, right } = calculateEqualPowerPan(0);
-    const expected = Math.SQRT1_2; // ≈ 0.7071
-    assert.ok(Math.abs(left - expected) < 0.0001, `left debe ser ~0.707, es ${left}`);
-    assert.ok(Math.abs(right - expected) < 0.0001, `right debe ser ~0.707, es ${right}`);
-  });
-
-  it('potencia constante: left² + right² ≈ 1 para cualquier pan', () => {
-    for (const pan of [-1, -0.5, 0, 0.5, 1]) {
-      const { left, right } = calculateEqualPowerPan(pan);
-      const power = left * left + right * right;
-      assert.ok(Math.abs(power - 1) < 0.0001, `potencia con pan=${pan} debe ser 1, es ${power}`);
-    }
-  });
-
-  it('simetría: pan negativo = inverso de pan positivo', () => {
-    const neg = calculateEqualPowerPan(-0.3);
-    const pos = calculateEqualPowerPan(0.3);
-    
-    assert.ok(Math.abs(neg.left - pos.right) < 0.0001);
-    assert.ok(Math.abs(neg.right - pos.left) < 0.0001);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS: RANGOS DE VALORES DE KNOBS
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Rangos de valores de OutputChannel', () => {
-  it('filter knob: rango -5 a 5 con centro en 0', () => {
-    const min = -5;
-    const max = 5;
-    const center = 0;
-    
-    assert.strictEqual(min, -5, 'min debe ser -5 (LP máximo)');
-    assert.strictEqual(max, 5, 'max debe ser 5 (HP máximo)');
-    assert.strictEqual(center, 0, 'centro debe ser 0 (bypass)');
-  });
-
-  it('pan knob: rango -1 a +1 con centro en 0', () => {
-    const min = -1;
-    const max = 1;
-    const center = 0;
-    
-    assert.strictEqual(min, -1, 'min debe ser -1 (full L)');
-    assert.strictEqual(max, 1, 'max debe ser +1 (full R)');
-    assert.strictEqual(center, 0, 'centro debe ser 0');
-  });
-
-  it('level slider: rango 0 a 1', () => {
-    const min = 0;
-    const max = 1;
-    
-    assert.strictEqual(min, 0, 'min debe ser 0 (silencio)');
-    assert.strictEqual(max, 1, 'max debe ser 1 (máximo)');
-  });
-});
-
-describe('Valores límite de filtro RC', () => {
-  it('LP extremo (p=-1): fc ≈ 677 Hz, audible', () => {
-    const coeffs = getFilterCoefficients(-1);
-    // Buscar frecuencia de corte a -3dB
-    const refGain = getFrequencyResponse(coeffs, 10);  // ganancia DC (referencia)
-    const target = refGain * Math.SQRT1_2;  // -3dB
-    // fc nominal: 1/(2π·τ) = 1/(2π·10000·47e-9) ≈ 338 Hz (polo)
-    // fc del filtro completo (b0/b1 shape) ≈ 677 Hz
-    const fc677 = getFrequencyResponse(coeffs, 677);
-    assert.ok(fc677 < refGain, 'a 677 Hz debe haber atenuación LP');
-    assert.ok(fc677 > 0.3, 'la atenuación no debe ser extrema a 677 Hz');
-  });
-
-  it('HP extremo (p=+1): atenúa graves por debajo de fc', () => {
-    const coeffs = getFilterCoefficients(+1);
-    const refHigh = getFrequencyResponse(coeffs, 5000);
-    const low100 = getFrequencyResponse(coeffs, 100);
-    assert.ok(low100 < refHigh, '100 Hz debe tener menos ganancia que 5 kHz en HP');
-  });
-
-  it('posición neutra (p=0): respuesta plana en todo el rango', () => {
-    const coeffs = getFilterCoefficients(0);
-    const g100 = getFrequencyResponse(coeffs, 100);
-    const g1k = getFrequencyResponse(coeffs, 1000);
-    const g10k = getFrequencyResponse(coeffs, 10000);
-    // Todas deben ser cercanas a 1 (ganancia unitaria ≈ plano)
-    assert.ok(Math.abs(g100 - 1) < 0.05, `100 Hz plano: ${g100}`);
-    assert.ok(Math.abs(g1k - 1) < 0.05, `1 kHz plano: ${g1k}`);
-    assert.ok(Math.abs(g10k - 1) < 0.1, `10 kHz plano: ${g10k}`);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS: VCA CEM 3330 (Output Channels)
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// Estos tests verifican la emulación del VCA CEM 3330 usado en los Output Channels
-// de la versión Cuenca/Datanomics 1982 del Synthi 100.
-//
-// El VCA tiene:
-// - Sensibilidad de 10 dB/V
-// - Respuesta logarítmica
-// - Corte mecánico en posición 0 del fader (ignora CV externo)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Constantes del VCA replicadas de voltageConstants.js
- */
-const VCA_DB_PER_VOLT = 10;
-const VCA_SLIDER_VOLTAGE_AT_MAX = 0;  // 0V (dial=10)
-const VCA_SLIDER_VOLTAGE_AT_MIN = -12;  // -12V (dial=0)
-
-/**
- * Convierte posición del dial (0-10) a voltaje del slider.
- * Réplica de vcaDialToVoltage() para tests sin imports ES6.
- */
-function vcaDialToVoltage(dialPosition) {
-  // Lineal: 0→-12V, 10→0V
-  return VCA_SLIDER_VOLTAGE_AT_MIN + (dialPosition / 10) * (VCA_SLIDER_VOLTAGE_AT_MAX - VCA_SLIDER_VOLTAGE_AT_MIN);
-}
-
-/**
- * Convierte voltaje sumado a ganancia lineal.
- * Réplica simplificada de vcaVoltageToGain() para tests.
- */
-function vcaVoltageToGain(voltage) {
-  // 0V → 0 dB → ganancia 1.0
-  // -12V → -120 dB → ganancia ~0
-  const dB = voltage * VCA_DB_PER_VOLT;
-  if (dB <= -120) return 0;
-  return Math.pow(10, dB / 20);
-}
-
-/**
- * Calcula ganancia final del VCA con posición de dial y CV externo.
- * Réplica de vcaCalculateGain() para tests.
- */
-function vcaCalculateGain(dialPosition, externalCV = 0) {
-  // ─────────────────────────────────────────────────────────────────────────
-  // CASO CRÍTICO: Posición 0 = corte mecánico total
-  // El fader físicamente desconecta. Cualquier CV externo es IGNORADO.
-  // ─────────────────────────────────────────────────────────────────────────
-  if (dialPosition <= 0) {
-    return 0;
-  }
-  
-  const sliderVoltage = vcaDialToVoltage(dialPosition);
-  const totalVoltage = sliderVoltage + externalCV;
-  return vcaVoltageToGain(totalVoltage);
-}
-
-describe('VCA CEM 3330 - Conversión dial a voltaje', () => {
-  it('dial = 10 → 0V (ganancia unidad)', () => {
-    const voltage = vcaDialToVoltage(10);
-    assert.ok(Math.abs(voltage - 0) < 0.001, `dial 10 debe dar 0V, dio ${voltage}V`);
-  });
-
-  it('dial = 0 → -12V (silencio antes de corte mecánico)', () => {
-    const voltage = vcaDialToVoltage(0);
-    assert.ok(Math.abs(voltage - (-12)) < 0.001, `dial 0 debe dar -12V, dio ${voltage}V`);
-  });
-
-  it('dial = 5 → -6V (mitad del recorrido)', () => {
-    const voltage = vcaDialToVoltage(5);
-    assert.ok(Math.abs(voltage - (-6)) < 0.001, `dial 5 debe dar -6V, dio ${voltage}V`);
-  });
-
-  it('escala lineal: incrementos iguales en dial dan incrementos iguales en voltaje', () => {
-    const v0 = vcaDialToVoltage(0);
-    const v2 = vcaDialToVoltage(2);
-    const v4 = vcaDialToVoltage(4);
-    const v6 = vcaDialToVoltage(6);
-    
-    const delta1 = v2 - v0;
-    const delta2 = v4 - v2;
-    const delta3 = v6 - v4;
-    
-    // Todos los deltas deben ser iguales (2.4V por cada 2 unidades)
-    assert.ok(Math.abs(delta1 - delta2) < 0.001, 'delta 0→2 debe ≈ delta 2→4');
-    assert.ok(Math.abs(delta2 - delta3) < 0.001, 'delta 2→4 debe ≈ delta 4→6');
-  });
-});
-
-describe('VCA CEM 3330 - Conversión voltaje a ganancia', () => {
-  it('0V → ganancia 1.0 (0 dB)', () => {
-    const gain = vcaVoltageToGain(0);
-    assert.ok(Math.abs(gain - 1.0) < 0.001, `0V debe dar ganancia 1.0, dio ${gain}`);
-  });
-
-  it('-6V → ganancia ~0.001 (-60 dB)', () => {
-    const gain = vcaVoltageToGain(-6);
-    const expectedDB = -60;
-    const expectedGain = Math.pow(10, expectedDB / 20);
-    assert.ok(Math.abs(gain - expectedGain) < 0.0001, `-6V debe dar ~${expectedGain}, dio ${gain}`);
-  });
-
-  it('-12V → ganancia ~0 (-120 dB)', () => {
-    const gain = vcaVoltageToGain(-12);
-    // -120 dB es prácticamente 0
-    assert.ok(gain < 0.000001, `-12V debe dar ganancia ~0, dio ${gain}`);
-  });
-
-  it('curva exponencial: cada -1V reduce ganancia en 10 dB', () => {
-    const g0 = vcaVoltageToGain(0);
-    const g1 = vcaVoltageToGain(-1);
-    const g2 = vcaVoltageToGain(-2);
-    
-    // Ratio entre g0/g1 y g1/g2 debe ser igual (~3.16 = 10dB)
-    const ratio1 = g0 / g1;
-    const ratio2 = g1 / g2;
-    const expected10dB = Math.pow(10, 10 / 20);
-    
-    assert.ok(Math.abs(ratio1 - expected10dB) < 0.01, `ratio debe ser ~${expected10dB}, es ${ratio1}`);
-    assert.ok(Math.abs(ratio2 - expected10dB) < 0.01, `ratio debe ser ~${expected10dB}, es ${ratio2}`);
-  });
-});
-
-describe('VCA CEM 3330 - Función vcaCalculateGain (alto nivel)', () => {
-  it('dial = 10, CV = 0 → ganancia 1.0', () => {
-    const gain = vcaCalculateGain(10, 0);
-    assert.ok(Math.abs(gain - 1.0) < 0.001, `dial 10 sin CV debe dar 1.0, dio ${gain}`);
-  });
-
-  it('dial = 5, CV = 0 → ganancia ~0.001 (-60 dB)', () => {
-    const gain = vcaCalculateGain(5, 0);
-    const expected = Math.pow(10, -60 / 20);  // ~0.001
-    assert.ok(Math.abs(gain - expected) < 0.0001, `dial 5 debe dar ~${expected}, dio ${gain}`);
-  });
-
-  it('dial = 5, CV = +3V → ganancia ~0.03 (-30 dB)', () => {
-    // dial 5 → -6V, +3V CV → -3V total → -30 dB
-    const gain = vcaCalculateGain(5, 3);
-    const expected = Math.pow(10, -30 / 20);  // ~0.03
-    assert.ok(Math.abs(gain - expected) < 0.001, `dial 5 + CV 3V debe dar ~${expected}, dio ${gain}`);
-  });
-
-  it('dial = 5, CV = +6V → ganancia 1.0 (0 dB)', () => {
-    // dial 5 → -6V, +6V CV → 0V total → 0 dB
-    const gain = vcaCalculateGain(5, 6);
-    assert.ok(Math.abs(gain - 1.0) < 0.001, `dial 5 + CV 6V debe dar 1.0, dio ${gain}`);
-  });
-
-  it('dial = 10, CV = -3V → ganancia ~0.03 (atenuación por CV negativo)', () => {
-    // dial 10 → 0V, -3V CV → -3V total → -30 dB
-    const gain = vcaCalculateGain(10, -3);
-    const expected = Math.pow(10, -30 / 20);
-    assert.ok(Math.abs(gain - expected) < 0.001, `dial 10 - CV 3V debe dar ~${expected}, dio ${gain}`);
-  });
-});
-
-describe('VCA CEM 3330 - CORTE MECÁNICO en posición 0', () => {
-  // ─────────────────────────────────────────────────────────────────────────
-  // TESTS CRÍTICOS
-  // Estos tests verifican el comportamiento más importante del fader:
-  // en posición 0, el fader desconecta MECÁNICAMENTE y cualquier CV externo
-  // es completamente ignorado.
-  // ─────────────────────────────────────────────────────────────────────────
-
-  it('dial = 0, CV = 0 → ganancia 0 (silencio total)', () => {
-    const gain = vcaCalculateGain(0, 0);
-    assert.strictEqual(gain, 0, 'dial 0 debe dar ganancia 0');
-  });
-
-  it('dial = 0, CV = +5V → ganancia 0 (CV IGNORADO - corte mecánico)', () => {
-    const gain = vcaCalculateGain(0, 5);
-    assert.strictEqual(gain, 0, 'dial 0 + CV positivo debe seguir dando 0');
-  });
-
-  it('dial = 0, CV = +12V → ganancia 0 (CV máximo IGNORADO)', () => {
-    const gain = vcaCalculateGain(0, 12);
-    assert.strictEqual(gain, 0, 'dial 0 + CV máximo debe seguir dando 0');
-  });
-
-  it('dial = 0, CV = -5V → ganancia 0 (CV negativo también IGNORADO)', () => {
-    const gain = vcaCalculateGain(0, -5);
-    assert.strictEqual(gain, 0, 'dial 0 + CV negativo debe dar 0');
-  });
-
-  it('dial muy cercano a 0 (0.01) → ganancia NO es 0 (ya no hay corte mecánico)', () => {
-    const gain = vcaCalculateGain(0.01, 0);
-    // Dial 0.01 ya no está en corte mecánico, aunque la ganancia es muy baja
-    assert.ok(gain > 0, 'dial ligeramente > 0 debe dar ganancia > 0');
-    assert.ok(gain < 0.001, 'pero la ganancia debe ser muy pequeña');
-  });
-
-  it('dial negativo (-1) → tratado como 0, ganancia 0', () => {
-    // Valores negativos son inválidos pero deben manejarse
-    const gain = vcaCalculateGain(-1, 5);
-    assert.strictEqual(gain, 0, 'dial negativo debe tratarse como corte');
+    it('llamadas sucesivas aplican siempre el último valor', () => {
+      const ch = new OutputChannel(engine, 0);
+      ch.values.level = 5;
+      for (const cv of [1, 2, 3, -1]) ch.setExternalCV(cv);
+      assert.equal(levelCalls(engine).length, 4);
+      assert.equal(ch.getExternalCV(), -1);
+      assert.equal(levelCalls(engine).at(-1).gain, vcaCalculateGainLinear(5, -1));
+    });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// OutputChannel.setExternalCV() - API de modulación de amplitud
-// ═══════════════════════════════════════════════════════════════════════════
+describe('OutputChannelsPanel', () => {
+  let engine;
 
-describe('OutputChannel.setExternalCV() - API', () => {
-  // Mock del engine para verificar llamadas
-  function createMockEngine() {
-    const calls = [];
-    return {
-      calls,
-      setOutputLevel: (channelIndex, gain, options) => {
-        calls.push({ method: 'setOutputLevel', channelIndex, gain, options });
-      },
-      getOutputFilter: () => 0,  // Centro/bypass
-      getOutputPan: () => 0,
-      getOutputLevel: () => 0,
-      getOutputMute: () => false
-    };
+  beforeEach(() => {
+    localStorage.clear();
+    engine = createFakeEngine();
+  });
+
+  /** Panel con canales ya construidos, sin pasar por createPanel (DOM). */
+  function panelWithChannels(count) {
+    const panel = new OutputChannelsPanel(engine, count);
+    for (let i = 0; i < count; i++) panel.channels.push(new OutputChannel(engine, i));
+    return panel;
   }
 
-  // Crear instancia mínima de OutputChannel para testing
-  function createTestChannel(engine, channelIndex = 0) {
-    // Simular estructura básica del OutputChannel
-    return {
-      engine,
-      channelIndex,
-      values: {
-        level: 5,        // dial en posición media
-        externalCV: 0,
-        filter: 0,
-        pan: 0,
-        power: true
-      },
-      setExternalCV(voltage, { ramp = 0.01 } = {}) {
-        this.values.externalCV = voltage;
-        const gain = vcaCalculateGain(this.values.level, voltage);
-        this.engine.setOutputLevel(this.channelIndex, gain, { ramp });
-      },
-      getExternalCV() {
-        return this.values.externalCV;
-      }
-    };
-  }
+  describe('número de canales', () => {
+    it('sin argumento usa outputChannelConfig.count (8)', () => {
+      assert.equal(outputChannelConfig.count, 8);
+      assert.equal(new OutputChannelsPanel(engine).channelCount, 8);
+    });
 
-  it('setExternalCV() almacena el voltaje en values.externalCV', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    
-    channel.setExternalCV(3.5);
-    
-    assert.strictEqual(channel.values.externalCV, 3.5);
+    it('con argumento explícito lo respeta, incluido 0', () => {
+      assert.equal(new OutputChannelsPanel(engine, 4).channelCount, 4);
+      assert.equal(new OutputChannelsPanel(engine, 0).channelCount, 0);
+    });
+
+    it('null cuenta como "sin argumento"', () => {
+      assert.equal(new OutputChannelsPanel(engine, null).channelCount, 8);
+    });
+
+    it('empieza sin canales creados: los crea createPanel', () => {
+      assert.deepEqual(new OutputChannelsPanel(engine).channels, []);
+    });
   });
 
-  it('setExternalCV() llama a engine.setOutputLevel con ganancia calculada', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    channel.values.level = 10;  // dial máximo
-    
-    channel.setExternalCV(-3);  // CV de -3V → debería atenuar 30dB
-    
-    assert.strictEqual(engine.calls.length, 1);
-    assert.strictEqual(engine.calls[0].method, 'setOutputLevel');
-    assert.strictEqual(engine.calls[0].channelIndex, 0);
-    
-    // dial 10 → 0V, CV -3V → -3V total → -30 dB → gain ~0.0316
-    const expectedGain = Math.pow(10, -30 / 20);
-    assert.ok(Math.abs(engine.calls[0].gain - expectedGain) < 0.001);
+  describe('serialize / deserialize', () => {
+    it('serialize agrupa el estado de cada canal en channels[]', () => {
+      const panel = panelWithChannels(2);
+      panel.channels[1].deserialize({ level: 4, pan: 0.5 });
+      const data = panel.serialize();
+      assert.equal(data.channels.length, 2);
+      assert.deepEqual(data.channels[1], { level: 4, filter: 0, pan: 0.5, power: false });
+    });
+
+    it('formato nuevo { channels: [...] } restaura cada canal por índice', () => {
+      const panel = panelWithChannels(3);
+      panel.deserialize({ channels: [{ level: 1 }, { level: 2, power: true }, { filter: 5 }] });
+      assert.equal(panel.channels[0].values.level, 1);
+      assert.equal(panel.channels[1].values.level, 2);
+      assert.equal(panel.channels[1].values.power, true);
+      assert.equal(panel.channels[2].values.filter, 5);
+    });
+
+    it('formato antiguo { levels: [...] } solo restaura niveles y salta los no numéricos', () => {
+      const panel = panelWithChannels(3);
+      panel.deserialize({ levels: [3, 'x', 7] });
+      assert.equal(panel.channels[0].values.level, 3);
+      assert.equal(panel.channels[1].values.level, 0);
+      assert.equal(panel.channels[2].values.level, 7);
+      assert.equal(levelCalls(engine).length, 2);
+    });
+
+    it('más entradas que canales no revienta', () => {
+      const panel = panelWithChannels(1);
+      assert.doesNotThrow(() => panel.deserialize({ channels: [{ level: 1 }, { level: 2 }] }));
+      assert.doesNotThrow(() => panel.deserialize({ levels: [1, 2, 3] }));
+      assert.equal(panel.channels[0].values.level, 1);
+    });
+
+    it('datos vacíos o de otro formato no hacen nada', () => {
+      const panel = panelWithChannels(1);
+      panel.deserialize(null);
+      panel.deserialize({});
+      panel.deserialize({ channels: 'no' });
+      assert.deepEqual(engine.calls, []);
+    });
   });
 
-  it('setExternalCV() respeta corte mecánico (dial=0 ignora CV)', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    channel.values.level = 0;  // dial en corte
-    
-    channel.setExternalCV(10);  // CV alto
-    
-    // Debe llamar a setOutputLevel con ganancia 0
-    assert.strictEqual(engine.calls[0].gain, 0);
-  });
-
-  it('setExternalCV() con CV positivo puede aumentar ganancia (saturación)', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    channel.values.level = 8;  // dial 8 → -2.4V
-    
-    channel.setExternalCV(3);  // CV +3V → total +0.6V
-    
-    // Ganancia > 1.0 (pero saturada)
-    assert.ok(engine.calls[0].gain > 1.0, 'CV positivo debe poder superar ganancia 1.0');
-    assert.ok(engine.calls[0].gain < 2.0, 'pero saturación debe limitar');
-  });
-
-  it('getExternalCV() devuelve el voltaje almacenado', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    
-    channel.setExternalCV(-2.5);
-    
-    assert.strictEqual(channel.getExternalCV(), -2.5);
-  });
-
-  it('setExternalCV() usa rampa por defecto de 0.01s', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    
-    channel.setExternalCV(1);
-    
-    assert.deepStrictEqual(engine.calls[0].options, { ramp: 0.01 });
-  });
-
-  it('setExternalCV() acepta rampa personalizada', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    
-    channel.setExternalCV(1, { ramp: 0.05 });
-    
-    assert.deepStrictEqual(engine.calls[0].options, { ramp: 0.05 });
-  });
-
-  it('múltiples llamadas a setExternalCV() actualizan correctamente', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    channel.values.level = 10;
-    
-    channel.setExternalCV(0);
-    channel.setExternalCV(-3);
-    channel.setExternalCV(0);
-    
-    assert.strictEqual(engine.calls.length, 3);
-    // Primera: CV=0 → gain=1.0
-    assert.ok(Math.abs(engine.calls[0].gain - 1.0) < 0.001);
-    // Segunda: CV=-3 → gain~0.0316
-    assert.ok(Math.abs(engine.calls[1].gain - Math.pow(10, -30/20)) < 0.001);
-    // Tercera: CV=0 → gain=1.0 de nuevo
-    assert.ok(Math.abs(engine.calls[2].gain - 1.0) < 0.001);
-  });
-
-  it('cambio de dial recalcula ganancia con CV actual', () => {
-    const engine = createMockEngine();
-    const channel = createTestChannel(engine);
-    
-    // Establecer CV primero
-    channel.setExternalCV(3);  // +3V
-    engine.calls.length = 0;   // Limpiar llamadas
-    
-    // Simular cambio de dial (como hace flushValue)
-    channel.values.level = 5;  // dial 5 → -6V + CV 3V = -3V → -30dB
-    const gain = vcaCalculateGain(channel.values.level, channel.values.externalCV);
-    channel.engine.setOutputLevel(channel.channelIndex, gain, { ramp: 0.06 });
-    
-    const expectedGain = Math.pow(10, -30 / 20);
-    assert.ok(Math.abs(engine.calls[0].gain - expectedGain) < 0.001);
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// OutputChannelsPanel - Regresión: constructor channelCount
-// ═══════════════════════════════════════════════════════════════════════════
-//
-// Verifica que OutputChannelsPanel lee channelCount correctamente.
-// Regresión: antes del fix, el constructor referenciaba la variable
-// inexistente `channelConfig` en lugar de `outputChannelConfig`.
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('OutputChannelsPanel - channelCount constructor', () => {
-  // Réplica de la lógica del constructor para test sin DOM
-  function resolveChannelCount(explicit, configCount, fallback = 8) {
-    return explicit ?? configCount ?? fallback;
-  }
-
-  it('sin argumento: usa count del config (8)', () => {
-    const count = resolveChannelCount(undefined, 8);
-    assert.strictEqual(count, 8);
-  });
-
-  it('con argumento explícito: respeta el valor', () => {
-    const count = resolveChannelCount(4, 8);
-    assert.strictEqual(count, 4);
-  });
-
-  it('con argumento 0: respeta 0 (no cae al default)', () => {
-    // 0 ?? 8 = 0 (nullish coalescing no trata 0 como nullish)
-    const count = resolveChannelCount(0, 8);
-    assert.strictEqual(count, 0);
-  });
-
-  it('config undefined + sin argumento: fallback a 8', () => {
-    const count = resolveChannelCount(undefined, undefined);
-    assert.strictEqual(count, 8);
-  });
-
-  it('usa outputChannelConfig.count (no channelConfig que no existe)', () => {
-    // Este test documenta la regresión: channelConfig nunca existió
-    // como variable en outputChannel.js. El import correcto es outputChannelConfig.
-    const configModule = { count: 8 };
-    const count = resolveChannelCount(undefined, configModule.count);
-    assert.strictEqual(count, 8, 'debe leer count del config correcto');
+  it('getChannel devuelve el canal por índice o null', () => {
+    const panel = panelWithChannels(2);
+    assert.strictEqual(panel.getChannel(1), panel.channels[1]);
+    assert.equal(panel.getChannel(2), null);
+    assert.equal(panel.getChannel(-1), null);
   });
 });

@@ -3536,7 +3536,7 @@ tests/
 │   ├── noise.test.js            # Tests del generador de ruido
 │   ├── oscillator.test.js       # Tests del oscilador
 │   ├── oscilloscope.test.js     # Tests del osciloscopio
-│   ├── outputChannel.test.js    # Tests del canal de salida
+│   ├── outputChannel.test.js    # OutputChannel y OutputChannelsPanel reales: serialize, CV externo, fader lineal/log
 │   ├── outputRouter.test.js     # Tests del router de salidas
 │   ├── pulse.test.js            # Tests del oscilador pulse
 │   ├── randomCV.test.js         # Tests del random CV (gain LOG, key bipolar, clamping)
@@ -3597,6 +3597,7 @@ tests/
 │   ├── oscillatorMath.test.js   # Tests de matemáticas DSP del oscilador
 │   ├── keyboard.worklet.test.js # Tests del worklet de teclado (noteOn/Off, retrigger modes, polifonía)
 │   ├── noiseGenerator.worklet.test.js # Tests del worklet de ruido (filtro IIR, colour position)
+│   ├── outputFilter.worklet.test.js # Worklet output-filter real: coeficientes, respuesta medida LP/plano/shelf, metering
 │   ├── randomCV.worklet.test.js # Tests del worklet de random CV (frecuencia, jitter, 3 canales)
 │   ├── ringModulator.worklet.test.js # Tests del worklet de ring modulator (multiplicación, soft-clip)
 │   ├── springReverb.worklet.test.js # Tests del worklet de spring reverb (allpass, feedback, mix)

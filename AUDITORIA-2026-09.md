@@ -194,6 +194,13 @@ análisis estático de arriba basta para decidir.
   (dormancy, teclado, secuenciador, joystick, envelope shaper, MIDI Learn)
   está cerrado. Quedan como espejo: `outputChannel`, `pulse`, 6 worklets
   (parte con cobertura Playwright), UI, OSC y Electron.
+- `outputChannel` convertido (33 tests contra `OutputChannel` y
+  `OutputChannelsPanel`; el espejo asumía fader logarítmico cuando el módulo
+  arranca en lineal) y, de paso, el primer worklet huérfano cubierto:
+  `outputFilter.worklet.test.js` (26) carga el worklet real y **mide** su
+  respuesta con senos contra el modelo del circuito (LP −3 dB en 677 Hz,
+  6 dB/oct, shelf +6 dB, DC intacta, metering). Quedan huérfanos `dcBlocker`,
+  `scopeCapture` y `recordingCapture`.
 
 ## Orden propuesto
 

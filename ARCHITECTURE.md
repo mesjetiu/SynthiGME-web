@@ -3602,7 +3602,7 @@ tests/
 │   ├── ringModulator.worklet.test.js # Tests del worklet de ring modulator (multiplicación, soft-clip)
 │   ├── springReverb.worklet.test.js # Tests del worklet de spring reverb (allpass, feedback, mix)
 │   ├── synthiFilter.worklet.test.js # Tests del worklet de filtro CEM3320 (TPT, LP/HP, resonancia)
-│   └── vcaProcessor.test.js     # Tests del worklet de VCA CEM3330
+│   └── vcaProcessor.test.js     # Worklet vca-processor real: curva 10 dB/V, saturación, slew medido, resync
 ├── panelBlueprints/             # Tests de blueprints de paneles
 │   ├── panel1Blueprint.test.js      # Tests de Panel 1 blueprint (filtros, ring mod, reverb)
 │   ├── panel2Blueprint.test.js      # Tests de Panel 2 blueprint (osciloscopio)

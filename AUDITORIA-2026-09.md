@@ -201,6 +201,26 @@ análisis estático de arriba basta para decidir.
   respuesta con senos contra el modelo del circuito (LP −3 dB en 677 Hz,
   6 dB/oct, shelf +6 dB, DC intacta, metering). Quedan huérfanos `dcBlocker`,
   `scopeCapture` y `recordingCapture`.
+- `pulse` (19; el espejo arrancaba con pw 0,5 y el módulo con 0; además
+  `PulseModule` no lo usa ningún panel), `oscOscillatorSync` (34, contra la
+  clase real y el `oscBridge` real con `window.oscAPI` stub) y
+  `vcaProcessor` (28, el worklet real procesando bloques: slew medido en
+  muestras, AM 5 Hz vs 1 kHz, resync, error interno). `oscServer.test.js`
+  no era espejo: carga `electron/oscServer.cjs` con `require`, que el grep
+  no buscaba.
+
+### Hallazgo al probar el VCA real (pendiente de decisión)
+
+Hay **dos curvas de saturación distintas** para el mismo VCA:
+
+- `vcaProcessor.worklet.js` (`applySaturation`): `tanh(2·x/3)·3`. La
+  pendiente en 0 V es 2, así que un CV de +1 V da **+17,5 dB**, no +10.
+- `voltageConstants.js` (`vcaCalculateGain`, el que usa el fader en el hilo
+  principal): `3·r/(1+2r)`, que siempre comprime: +1 V → **+6 dB**.
+
+Por debajo de 0 V coinciden (10 dB/V). El test del worklet fija la curva tal
+cual está, con un caso marcado `QUIRK`, para que unificarlas sea una decisión
+y no un accidente. Desde este servidor no se puede oír cuál suena mejor.
 
 ## Orden propuesto
 

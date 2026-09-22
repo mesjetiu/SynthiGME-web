@@ -5,9 +5,10 @@ unificar los blueprints. Objetivo del proyecto: que cada panel se vea como el
 del Synthi 100 de Cuenca, con los controles encima de la foto (o del dibujo)
 del panel real. Por eso todo se ha ido ajustando contra la imagen de fondo.
 
-Todo lo que dice este documento está medido en la web real (Chromium
-headless, `src/`), no deducido del código. Donde un informe teórico decía otra
-cosa, manda la medición.
+Las posiciones, desvíos y encajes están medidos en la web real (Chromium
+headless, `src/`), no deducidos del código; donde un informe teórico decía
+otra cosa, manda la medición. La lista de código muerto, errores y duplicados
+sale de leer el código y está por confirmar caso a caso al tocar cada uno.
 
 ## Red de seguridad: `tests/visual/`
 

@@ -56,3 +56,6 @@ dist-app/
 *.tgz
 test-results/
 commit-msg.txt
+
+# Capturas visuales de trabajo (la referencia, tests/visual/baseline/, sí va)
+tests/visual/current/

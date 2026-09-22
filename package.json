@@ -12,6 +12,8 @@
     "test:audio:debug": "npx playwright test --config=tests/audio/playwright.config.js --debug",
     "perf:ui": "node scripts/perf/measure-ui.mjs",
     "test:all": "node scripts/test-all.mjs",
+    "visual:capture": "node tests/visual/capture.mjs",
+    "visual:compare": "node tests/visual/capture.mjs && node tests/visual/compare.mjs",
     "pretest:require": "node scripts/run-tests.mjs --require-pass",
     "dev": "npm run build:i18n && node scripts/build.mjs --outdir=dist-app && electron .",
     "dev:web": "npm run build:i18n && node scripts/build.mjs && echo 'Abre docs/index.html en navegador'",

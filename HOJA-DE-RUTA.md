@@ -29,7 +29,7 @@ detalle vive en los documentos que se citan; aquí solo el mapa.
 | 4 Voltímetros, teclado, secuenciador, slew… | foto | **descuadrados** en `main`; cuadrados en la rama `panel4-cuadrar`, a falta del ok | vectorial |
 | 5 Matriz de audio | **vectorial** | pines a <1 px | nada |
 | 6 Matriz de control | **vectorial** | pines a <1 px | nada |
-| 7 Joysticks, secuenciador, salidas | foto en `main`; **vectorial** en la rama `panel7-vectorial`, a falta del ok | cuadrados salvo el **secuenciador** (descuadrado) | ok de Carlos al vectorial; cuadrar el secuenciador |
+| 7 Joysticks, secuenciador, salidas | **vectorial** en `main` (26-nov, con el ok de Carlos) | cuadrados salvo el **secuenciador** (descuadrado) | diseñar faders y botones del secuenciador; cuadrar el secuenciador |
 | Teclados | **vectorial** | — | nada |
 
 No falta ninguna fotografía. Faltan cuatro vectoriales (1, 2, 4, 7) y cuadrar
@@ -209,34 +209,21 @@ pendientes de verse en un navegador.
     `baseline/`, `npm run visual:compare` en verde, `git commit --amend`
     (quitar del mensaje la línea de «pendiente»), a `main` con
     `merge --ff-only` y borrar la rama aquí y en origin.
-- **1.4, panel 7 vectorial: hecho y esperando el ok de Carlos**, en la rama
-  `panel7-vectorial` (dos commits, ya subidos; `main` sin tocar). Capturas a
-  2× (foto, antes, vectorial con y sin mandos, superposición) en la carpeta
-  de entregas (`synthigme-panel7/`, con un `index.html` para alternarlas).
+- **1.4, panel 7 vectorial: hecho y en `main`** (26-nov, con el ok de
+  Carlos: «me encanta»). La foto ya no se sirve (queda en
+  `design/panels/Panel7/`) y la referencia visual del 7 es la vectorial.
   - El dibujo, `design/panels/Panel7/panel7_source.svg`, lo genera
     `generar_panel7.py` (medidas en px del panel; un canal y siete clones a
-    85,5 px; el joystick derecho, clon del izquierdo a +582). Cae a menos de
-    1 px de la foto casi en todo. Investigación, tipos de letra y medidas:
+    85,5 px; el joystick derecho, clon del izquierdo a +582). Necesita
+    fontTools; se optimiza con `npm run optimize:svg --
+    design/panels/Panel7/panel7_source.svg src/assets/panels/panel7_bg.svg`.
+    Investigación, tipos de letra y medidas:
     `module_research/panel7/fondo_vectorial.md`.
   - Rótulos en Microgramma como `<text>` (igual que el panel 3); los grabados
     del secuenciador no son Microgramma (se parecen a Univers estrechada) y
     van a trazos, porque la web no carga Univers.
-  - `npm test` verde (test nuevo `tests/ui/panel7Background.test.js`);
-    `visual:compare`: los otros seis paneles idénticos, el 7 cambia solo por
-    el fondo (2 elementos nuevos, ningún mando movido).
-  - **Lo que se le pregunta a Carlos:** el secuenciador **no estaba
-    cuadrado** con la foto (interruptores ~8 px a la derecha y 16 abajo,
-    botones 19 px arriba, Clock Rate 54 px arriba, encima de RESET
-    SEQUENCE); con la foto se notaba poco y con el dibujo se ve. Y el fader
-    de los canales es más corto que la ranura real (tapa LEVEL y asoma el
-    final de la ranura). Medidas de la foto en las notas; cuadrarlo sería
-    otro commit, solo con su ok.
-  - **Al recibir el ok:** `git checkout panel7-vectorial && git rebase
-    main`; borrar `src/assets/panels/panel_7.jpg` y su línea en `src/sw.js`
-    (la foto queda en `design/panels/Panel7/`); `npm run visual:capture` y
-    copiar `panel-output.png` y `panel-output.geom.json` de
-    `tests/visual/current/` a `baseline/`; `npm run visual:compare` en verde;
-    commit, a `main` con `merge --ff-only` y borrar la rama aquí y en origin.
+  - Corregido tras verlo Carlos: las flechas curvas de low/high y
+    left/right se curvan hacia fuera del mando, siguiendo el dial.
   - **Siguiente en el 7, pedido por Carlos (26-nov): faders como los
     reales.** Hoy son un `<input type=range>` con un asa genérica de CSS
     (22×10, borde amarillo) y una pista amarilla (`.output-channel__slider`
@@ -246,7 +233,14 @@ pendientes de verse en un navegador.
     La pista sobra (la ranura ya está en el fondo) y el recorrido se ajusta
     a la ranura real (585,9–722,5): el centro del asa, de la marca 10 a la 0
     de la escala, sin tapar LEVEL. Test que fije tamaño y recorrido; commit
-    aparte en `panel7-vectorial`, regenerando la geometría del panel 7.
+    aparte, regenerando la geometría del panel 7.
+  - **Y los botones grises del secuenciador (Carlos, 26-nov).** Los
+    redondos de ahora no valen: hay que diseñar las teclas reales (forma,
+    color, relieve) calcadas de la foto, y ponerlas exactamente en su sitio.
+    Va junto con **cuadrar el secuenciador**, que Carlos quiere: medidas de
+    la foto en las notas (interruptores ~8 px a la izquierda y 16 arriba;
+    teclas de ~27 px, x≈269,5…490, y 205–237; Clock Rate, dial de ~54 px
+    centrado en ≈(380, 290)).
 - **Plan del panel 2 (siguiente vectorial):** el mismo método que el 7:
   plantilla promediada donde haya módulos repetidos (las 8 entradas, las
   bandas del banco de octavas), generador con las mismas piezas (`texto`,

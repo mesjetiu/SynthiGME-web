@@ -26,7 +26,7 @@ detalle vive en los documentos que se citan; aquí solo el mapa.
 | 1 Filtros, envolventes, ring mod, reverb, eco | foto | **descuadrados** | cuadrar y vectorial |
 | 2 Osciloscopio, frecuencímetro, octavas, entradas | foto | cuadrados | vectorial; osciloscopio con mandos provisionales; envíos sin widget |
 | 3 Osciladores, ruido, aleatorio | **vectorial** | cuadrados | nada |
-| 4 Voltímetros, teclado, secuenciador, slew… | foto | **muy descuadrados**, con recuadros de depuración a la vista | cuadrar y vectorial |
+| 4 Voltímetros, teclado, secuenciador, slew… | foto | **descuadrados** en `main`; cuadrados en la rama `panel4-cuadrar`, a falta del ok | vectorial |
 | 5 Matriz de audio | **vectorial** | pines a <1 px | nada |
 | 6 Matriz de control | **vectorial** | pines a <1 px | nada |
 | 7 Joysticks, secuenciador, salidas | foto | cuadrados | vectorial |
@@ -140,7 +140,44 @@ pendientes de verse en un navegador.
     la combinación ancho/alto del marco y de la celda de 12 px. Describir
     la rejilla por origen y paso (o casilla a casilla del SVG) movería los
     pines y la decisión es dejarlas como están.
-- **Ahora, 1.3: cuadrar los paneles 4 y 1** (en conversación nueva). Plan:
+- **1.3, panel 4, paso 1 hecho** (26-nov): los 23 módulos en cajas
+  (`layout.<módulo>.box`, voltímetros en `layout.voltmeters.boxes`); fuera
+  el árbol flex (padding, gap, fila de logo vacía, `voltmetersRow`,
+  `keyboardOutputRange` con columnas, secciones y filas). Imagen idéntica
+  en los siete paneles; geometría del panel 4 regenerada (solo
+  desaparecen los 8 contenedores flex). Test nuevo del blueprint.
+  - Una captura de `visual:compare` dio el panel 1 distinto al 99,95 %
+    sin haberlo tocado (el fondo no llegó a tiempo); la siguiente, igual.
+    Si un panel sale distinto casi entero, recapturar antes de mirar.
+- **1.3, panel 4, paso 2: hecho y esperando el ok de Carlos**, en la rama
+  `panel4-cuadrar` (un commit, ya subido; `main` sin tocar). Capturas
+  antes/después, la foto y las medidas:
+  <http://100.119.152.45:8080/synthigme-panel4/index.html>.
+  - Cómo se midió: cajas = marcos serigrafiados, detectados como líneas
+    oscuras largas (`tests/visual/lineas.py`); mandos con su centro
+    `{ x, y }` relativo a la caja, x en el eje de la columna e y en el
+    centro de la escala transparente (las dos en el plano del panel; el
+    capuchón sobresale y en la foto sale corrido por la paralaje).
+  - Lo que se le pregunta a Carlos con la entrega: (a) los capuchones de
+    color de la foto asoman por debajo de los nuestros; se pueden tapar
+    bajando los mandos ~5 px, a costa de descuadrar la escala; (b) en la
+    foto **Offset** del Invertor/Buffer tiene capuchón **azul** y el
+    blueprint lo tiene blanco; (c) las etiquetas On/Kbd del selector se
+    han ocultado porque están serigrafiadas.
+  - **Al recibir el ok:** `git checkout panel4-cuadrar && git rebase
+    main`, `npm run visual:capture` y copiar `panel-4.png` y
+    `panel-4.geom.json` de `tests/visual/current/` a `baseline/`,
+    `npm run visual:compare` en verde, `git commit --amend` (quitar del
+    mensaje la línea de «pendiente»), y a `main` con `merge --ff-only`;
+    borrar la rama aquí y en origin. Si pide cambios, se hacen en la rama.
+  - Visto de paso, sin tocar: `signalFlowHighlighter.js` busca
+    `.panel4-pitchToVoltageConverter`, pero la clase del PVC es
+    `.panel4-pitchVoltageConverter` (el resaltado del PVC no lo encuentra).
+- **Siguiente: panel 1** (conversación nueva), los mismos dos pasos.
+  Para el paso 2, el método del panel 4: `lineas.py` sobre `panel_1.jpg`
+  para los marcos, rejilla sobre la foto a 2× para los centros, y capturas
+  a 2× con el panel solo para Carlos.
+- **Plan de 1.3 (paneles 4 y 1):**
   1. **Panel 4, migración sin cambio visible.** Como en 2, 3 y 7: medir en
      `tests/visual/baseline/panel-4.geom.json` la caja efectiva de cada
      módulo (voltímetros, teclados, secuenciador, slew, inversor…), pasar

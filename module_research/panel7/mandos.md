@@ -74,3 +74,38 @@ filtro dentro de la imagen, no un `filter` de CSS (que sí cuesta en móvil,
 `MOBILE-RESEARCH.md`). Con CSS puro (degradados y `clip-path`) no salen las
 faldas en trapecio con la fidelidad de la foto, y un SVG en línea movido por
 JS obligaría a rehacer el arrastre que ya da el input.
+
+## Secuenciador: interruptores y Clock Rate
+
+La hoja de ruta los daba por cuadrados, pero con el fondo vectorial se veía
+que no (`fondo_vectorial.md`, «Lo que no cuadra»). Medido de nuevo:
+
+| Mando | Antes, en la web | En la foto |
+|---|---|---|
+| 8 interruptores | tuerca de 10 px en (277,6 + 29,25·i, 167) | tuerca de ~13 px en (269,3 + 31,43·i, 152,5) |
+| Clock Rate | vernier de 30 px en (380, 236), encima de RESET SEQUENCE | dial de 55 px en (380, 289,5), a la derecha de CLOCK RATE |
+
+- **Tuercas**: el centro, a vista con rejilla (el centroide de la oscuridad
+  se va 2 px a la derecha por la sombra). x = la columna del secuenciador
+  (+0,5 como mucho), y 152,5 (tuerca de 146 a 159,5). Las palancas de la foto
+  están en posiciones distintas; da igual, la tuerca no se mueve.
+- El dibujo del interruptor (`toggle-switch.svg`) es tan ancho como su
+  tuerca: caja de 13 × 23,25 (su proporción, 104 × 186).
+- **Clock Rate**: borde izquierdo del faldón cromado en x 352,4 (el derecho
+  se pierde en la sombra), borde de abajo en ≈ 317 (319 con sombra); con el
+  centro en el eje del secuenciador (380), radio 27,6: dial de 55 px con
+  centro (380, 289,5). Lo de arriba del dial sale más alto en la foto
+  porque sobresale y la cámara está más abajo.
+- El dial es el vernier de la web (el mismo de otros paneles), solo que a su
+  tamaño; su dibujo no se ha tocado.
+
+### Cómo se colocan
+
+Antes, filas flex con huecos y desplazamientos a ojo; ahora cada mando en su
+caja absoluta, medida: `layout.sequencer` del blueprint da las columnas
+(las mismas del fondo, `COL_SEQ` de `generar_panel7.py`), la fila de
+interruptores (centro de la tuerca), la de teclas y el dial (centro y
+diámetro). `sequencerPlacement` (`utils/panel7Geometry.js`) saca la caja de
+cada uno y `placeInModule` la pone como `--p7-x/y/w/h` relativas al módulo
+(clase `.p7-placed`; el CSS descuenta el borde del marco,
+`--synth-module-border-width`).

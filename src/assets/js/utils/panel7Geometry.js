@@ -51,3 +51,64 @@ export function faderThumbCenterY(rect, cssHeight, capHeight, ratio) {
   const cap = Math.min(capHeight * scale, rect.height);
   return rect.bottom - cap / 2 - ratio * (rect.height - cap);
 }
+
+/**
+ * Sitio de cada mando del secuenciador, en px del panel: una caja
+ * { x, y, w, h } por interruptor, por tecla y para el dial Clock Rate.
+ *
+ * Interruptores y teclas van en las columnas del secuenciador (las del
+ * fondo: x = x0 + step·i), centrados en su eje. Los interruptores se colocan
+ * por el centro de la tuerca; las teclas, por su canto de arriba; el dial,
+ * por su centro. switchOffsets/buttonOffsets, si los hay, son retoques
+ * finos por mando.
+ *
+ * @param {Object} seq  panel7.blueprint.js → layout.sequencer
+ * @returns {{switches: Object[], keys: Object[], clockRate: Object}}
+ */
+export function sequencerPlacement(seq) {
+  const { columns, switchRow, keyRow, clockRate } = seq;
+  const need = (v, name) => {
+    if (!Number.isFinite(v)) throw new Error(`panel 7: falta sequencer.${name}`);
+    return v;
+  };
+  const x0 = need(columns?.x0, 'columns.x0');
+  const step = need(columns?.step, 'columns.step');
+  const off = (list, i) => ({ x: Number(list?.[i]?.x) || 0, y: Number(list?.[i]?.y) || 0 });
+  const col = (i) => x0 + step * i;
+  const sw = { y: need(switchRow?.y, 'switchRow.y'), w: need(switchRow?.width, 'switchRow.width'), h: need(switchRow?.height, 'switchRow.height') };
+  const key = { top: need(keyRow?.top, 'keyRow.top'), w: need(keyRow?.width, 'keyRow.width'), h: need(keyRow?.height, 'keyRow.height') };
+  const size = need(clockRate?.size, 'clockRate.size');
+  return {
+    switches: seq.switches.map((_, i) => {
+      const o = off(seq.switchOffsets, i);
+      return { x: col(i) - sw.w / 2 + o.x, y: sw.y - sw.h / 2 + o.y, w: sw.w, h: sw.h };
+    }),
+    keys: seq.buttons.map((_, i) => {
+      const o = off(seq.buttonOffsets, i);
+      return { x: col(i) - key.w / 2 + o.x, y: key.top + o.y, w: key.w, h: key.h };
+    }),
+    clockRate: {
+      x: need(clockRate.cx, 'clockRate.cx') - size / 2,
+      y: need(clockRate.cy, 'clockRate.cy') - size / 2,
+      w: size,
+      h: size
+    }
+  };
+}
+
+/**
+ * Pone un mando en su caja del panel (px del panel) dentro de un módulo cuya
+ * caja es `box`, como custom properties que usa la clase .p7-placed (el CSS
+ * descuenta el borde del marco del módulo).
+ * @param {HTMLElement} el
+ * @param {{x:number,y:number,w:number,h:number}} rect caja del mando, px del panel
+ * @param {{x:number,y:number}} box caja del módulo, px del panel
+ */
+export function placeInModule(el, rect, box) {
+  const px = (v) => `${Math.round(v * 1000) / 1000}px`;
+  el.classList.add('p7-placed');
+  el.style.setProperty('--p7-x', px(rect.x - box.x));
+  el.style.setProperty('--p7-y', px(rect.y - box.y));
+  el.style.setProperty('--p7-w', px(rect.w));
+  el.style.setProperty('--p7-h', px(rect.h));
+}

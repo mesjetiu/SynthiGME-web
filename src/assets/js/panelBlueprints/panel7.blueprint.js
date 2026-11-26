@@ -102,19 +102,23 @@ export default {
         'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
       ],
 
-      // Ajuste fino del bloque de sequencer
-      contentPadding: { top: 4, right: 4, bottom: 4, left: 4 },
-      rowsGap: 8,                       // separación vertical entre filas internas del sequencer
-      switchesGap: 4,                   // gap horizontal entre switches
-      buttonsGap: 4,                    // gap horizontal entre botones
-      switchesOffset: { x: 0, y: 0 },   // offset de la fila de switches
-      buttonsOffset: { x: 0, y: 0 },    // offset de la fila de botones
-      clockRateOffset: { x: 0, y: 0 },  // offset de la fila del knob Clock Rate
-      clockRateKnobOffset: { x: 0, y: 0 }, // offset del knob Clock Rate
+      // Cada mando en su sitio de la foto, en px del panel (medido en
+      // module_research/panel7/mandos.md). Las columnas son las del fondo
+      // (generar_panel7.py, COL_SEQ): rótulos, interruptores y teclas van
+      // en x = x0 + step·i.
+      columns: { x0: 269.3, step: 31.43 },
+      // Interruptores: centro de la tuerca en y 152,5. La caja es la del
+      // dibujo del interruptor (toggle-switch.svg, que es tan ancho como su
+      // tuerca): 13 px, la tuerca de la foto.
+      switchRow: { y: 152.5, width: 13, height: 23.25 },
+      // Teclas: canto de arriba, ancho y alto. Centradas en el pie de las
+      // teclas de la foto (y 209,8–237,3): el pie apoya en la chapa y no se
+      // desplaza con la perspectiva.
+      keyRow: { top: 211.55, width: 24, height: 24 },
       clockRateKnobColor: 'white',      // color del knob Clock Rate
       clockRateKnobType: 'vernier',     // en el Synthi 100, Clock Rate es un vernier dial
 
-      // Offsets individuales por control (8 + 8)
+      // Retoques finos por mando (8 + 8), en px; se suman a su sitio
       switchOffsets: [
         { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
         { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
@@ -124,10 +128,13 @@ export default {
         { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
       ],
 
-      // Fila adicional bajo botones: knob central "Clock Rate"
+      // Dial Clock Rate (vernier de 10 vueltas), bajo RESET SEQUENCE y a la
+      // derecha de CLOCK RATE: centro y diámetro del de la foto
       clockRate: {
         label: 'Clock Rate',
-        knobSize: 'sm'
+        cx: 380,
+        cy: 289.5,
+        size: 55
       }
     },
 
@@ -253,10 +260,8 @@ export default {
     sequencer: {
       visible: true,
       // ui: { }  — overrides visuales del sequencer.
-      // Soporta: contentPadding, rowsGap, switchesGap, buttonsGap,
-      //          switchesOffset, buttonsOffset, switchOffsets, buttonOffsets,
-      //          clockRateOffset, clockRateKnobOffset,
-      //          clockRate { label, knobSize }
+      // Soporta: columns, switchRow, keyRow, switchOffsets, buttonOffsets,
+      //          clockRate { label, cx, cy, size }
     },
 
     joystickRight: {

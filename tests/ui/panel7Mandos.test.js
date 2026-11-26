@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import panel7Blueprint from '../../src/assets/js/panelBlueprints/panel7.blueprint.js';
-import { faderVars, faderThumbCenterY } from '../../src/assets/js/utils/panel7Geometry.js';
+import { faderVars, faderThumbCenterY, sequencerPlacement } from '../../src/assets/js/utils/panel7Geometry.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const leer = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
@@ -112,5 +112,59 @@ describe('Panel 7 - fader de nivel', () => {
   it('la imagen del asa es autónoma: sin texto, imágenes ni enlaces', () => {
     const svg = leer('src/assets/panels/panel7_asa.svg');
     assert.doesNotMatch(svg, /<text|<image|href=/);
+  });
+});
+
+describe('Panel 7 - secuenciador cuadrado con la foto', () => {
+  const seq = panel7Blueprint.layout.sequencer;
+  const sitio = sequencerPlacement(seq);
+  const centro = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
+
+  it('las columnas son las de los rótulos del fondo (generar_panel7.py)', () => {
+    const gen = leer('design/panels/Panel7/generar_panel7.py');
+    const [, x0, paso] = gen.match(/COL_SEQ = \[([\d.]+) \+ ([\d.]+) \* i/);
+    assert.equal(seq.columns.x0, Number(x0));
+    assert.equal(seq.columns.step, Number(paso));
+  });
+
+  it('cada interruptor tiene la tuerca de la foto (13 px) centrada en (columna, 152,5)', () => {
+    assert.equal(sitio.switches.length, 8);
+    sitio.switches.forEach((r, i) => {
+      const c = centro(r);
+      assert.ok(cerca(c.x, 269.3 + 31.43 * i, 1e-9), `interruptor ${i + 1}: x ${c.x}`);
+      assert.ok(cerca(c.y, 152.5), `interruptor ${i + 1}: y ${c.y}`);
+      assert.equal(r.w, 13);
+      // proporción del dibujo (toggle-switch.svg, viewBox 104 × 186)
+      assert.ok(cerca(r.h / r.w, 186 / 104, 0.01));
+    });
+  });
+
+  it('el dial Clock Rate es el de la foto: 55 px centrado en (380, 289,5)', () => {
+    const c = centro(sitio.clockRate);
+    assert.ok(cerca(c.x, 380) && cerca(c.y, 289.5), `centro ${c.x}, ${c.y}`);
+    assert.equal(sitio.clockRate.w, 55);
+    assert.equal(sitio.clockRate.h, 55);
+  });
+
+  it('las teclas van centradas en su columna y en el pie de las de la foto', () => {
+    assert.equal(sitio.keys.length, 8);
+    sitio.keys.forEach((r, i) => {
+      const c = centro(r);
+      assert.ok(cerca(c.x, 269.3 + 31.43 * i, 1e-9), `tecla ${i + 1}: x ${c.x}`);
+      assert.ok(cerca(c.y, (209.8 + 237.3) / 2, 1e-9), `tecla ${i + 1}: y ${c.y}`);
+    });
+  });
+
+  it('los retoques por mando se suman a su sitio', () => {
+    const offs = Array.from({ length: 8 }, (_, i) => ({ x: i === 2 ? 1.5 : 0, y: i === 2 ? -2 : 0 }));
+    const s2 = sequencerPlacement({ ...seq, switchOffsets: offs, buttonOffsets: offs });
+    assert.ok(cerca(s2.switches[2].x - sitio.switches[2].x, 1.5));
+    assert.ok(cerca(s2.keys[2].y - sitio.keys[2].y, -2));
+    assert.deepEqual(s2.switches[3], sitio.switches[3]);
+  });
+
+  it('sin medidas, falla en vez de colocar mal', () => {
+    assert.throws(() => sequencerPlacement({ ...seq, columns: undefined }));
+    assert.throws(() => sequencerPlacement({ ...seq, clockRate: { cx: 380 } }));
   });
 });

@@ -161,11 +161,11 @@ describe('Voltmeter - createElement()', () => {
     assert.ok(needle, 'debe contener el elemento de aguja');
   });
 
-  it('la aguja parte del punto de pivote (60, 68)', () => {
+  it('la aguja parte del punto de pivote (38, 44.75), medido sobre la foto', () => {
     const el = vm.createElement();
     const needle = el.querySelector('.voltmeter__needle');
-    assert.strictEqual(needle.getAttribute('x1'), '60');
-    assert.strictEqual(needle.getAttribute('y1'), '68');
+    assert.strictEqual(needle.getAttribute('x1'), '38');
+    assert.strictEqual(needle.getAttribute('y1'), '44.75');
   });
 
   it('pivote visual oculto por defecto (blueprint)', () => {
@@ -470,7 +470,7 @@ describe('Voltmeter - Ángulo de la aguja', () => {
     vm._setNeedleAngle(25);
     const transform = vm._needle.getAttribute('transform');
     assert.ok(transform.includes('25'), 'transform debe incluir el ángulo 25');
-    assert.ok(transform.includes('60, 68'), 'rotación debe ser sobre el pivote (60, 68)');
+    assert.ok(transform.includes('38, 44.75'), 'rotación debe ser sobre el pivote (38, 44.75)');
   });
 
   it('_currentAngle se actualiza en _setNeedleAngle', () => {

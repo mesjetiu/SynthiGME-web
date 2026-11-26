@@ -522,21 +522,28 @@ describe('buildPanel4 — DOM', () => {
     const byId = id => [...layout.children].find(el => el.id === id);
     const vm1 = byId('voltmeter1-module');
     assert.ok(vm1, 'voltímetro 1 es hijo directo de #panel4Layout');
-    assert.strictEqual(vm1.style.left, '10px');
-    assert.strictEqual(vm1.style.top, '118.40625px');
-    assert.strictEqual(vm1.style.width, '89.875px');
-    assert.strictEqual(byId('voltmeter8-module').style.left, '660.125px');
-    assert.strictEqual(byId('sequencerEventTime-module').style.top, '242.40625px');
+    assert.strictEqual(vm1.style.left, '45.75px');
+    assert.strictEqual(vm1.style.top, '179px');
+    assert.strictEqual(vm1.style.width, '82.75px');
+    assert.strictEqual(byId('voltmeter8-module').style.left, '625.75px');
+    assert.strictEqual(byId('sequencerEventTime-module').style.top, '299.5px');
     const upper = byId('upperKeyboard-module');
     assert.ok(upper, 'teclado superior es hijo directo de #panel4Layout');
-    assert.strictEqual(upper.style.left, '116.859375px');
-    assert.strictEqual(upper.style.height, '425.59375px');
-    assert.strictEqual(byId('key4-module').style.top, '546.140625px');
-    assert.strictEqual(byId('option1-module').style.top, '659px');
+    assert.strictEqual(upper.style.left, '142.75px');
+    assert.strictEqual(upper.style.height, '366.75px');
+    assert.strictEqual(byId('key4-module').style.top, '555.75px');
+    assert.strictEqual(byId('option1-module').style.top, '644.75px');
     // 23 módulos (8 voltímetros + 15), todos en left/top (sin translate)
     const modules = [...layout.children].filter(el => el.classList.contains('synth-module'));
     assert.strictEqual(modules.length, 23);
     for (const el of modules) assert.strictEqual(el.style.transform, '', el.id);
+    // Cada mando, por su centro dentro de la caja: Key Velocity del teclado
+    // superior (knob de 45 px) en (47, 141,75) → esquina en (24,5, 119,25)
+    const kv = upper.querySelector('[data-knob="velocityLevel"]');
+    assert.strictEqual(kv.style.position, 'absolute');
+    assert.strictEqual(kv.style.left, '24.5px');
+    assert.strictEqual(kv.style.top, '119.25px');
+    assert.strictEqual(upper.querySelector('.panel4-controls').style.inset, '-1px');
     for (const cls of ['panel4-logo-area', 'panel4-voltmeters-row', 'panel4-keyboard-output-range',
       'panel4-kor-column', 'panel4-sequencer-section', 'panel4-seq-row1', 'panel4-seq-row2']) {
       assert.strictEqual(layout.querySelector(`.${cls}`), null, `.${cls} ya no existe`);

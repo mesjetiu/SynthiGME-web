@@ -61,7 +61,7 @@ export default {
   // Mostrar/ocultar marcos de todos los módulos del panel.
   // true  → marcos visibles (útil para posicionar contra imagen de fondo)
   // false → marcos invisibles (aspecto final limpio)
-  showFrames: true,
+  showFrames: false,
 
   // ─────────────────────────────────────────────────────────────────────────
   // CONFIGURACIÓN DEL LAYOUT VISUAL
@@ -81,14 +81,14 @@ export default {
     // ── Fila 1: 8 Voltímetros (uno por canal de salida) ────────────────
     voltmeters: {
       boxes: [
-        { x: 10, y: 118.40625, w: 89.875, h: 120 },
-        { x: 102.875, y: 118.40625, w: 89.875, h: 120 },
-        { x: 195.75, y: 118.40625, w: 89.875, h: 120 },
-        { x: 288.625, y: 118.40625, w: 89.875, h: 120 },
-        { x: 381.5, y: 118.40625, w: 89.875, h: 120 },
-        { x: 474.375, y: 118.40625, w: 89.875, h: 120 },
-        { x: 567.25, y: 118.40625, w: 89.875, h: 120 },
-        { x: 660.125, y: 118.40625, w: 89.875, h: 120 }
+        { x: 45.75, y: 179, w: 82.75, h: 120.25 },
+        { x: 128.5, y: 179, w: 82.75, h: 120.25 },
+        { x: 211.25, y: 179, w: 83, h: 120.25 },
+        { x: 294.25, y: 179, w: 82.75, h: 120.25 },
+        { x: 377, y: 179, w: 82, h: 120.25 },
+        { x: 459, y: 179, w: 83.25, h: 120.25 },
+        { x: 542.25, y: 179, w: 83.5, h: 120.25 },
+        { x: 625.75, y: 179, w: 82.25, h: 120.25 }
       ]
     },
 
@@ -107,11 +107,14 @@ export default {
       // contenido del ModuleFrame. Todos los valores en píxeles.
       // Para mover el contenido (aguja, escala): ajustar viewBox.
       // Para redimensionar la ventana: ajustar width/height.
+      // Medido sobre la foto (voltímetro 1): el cristal del medidor va de
+      // (51, 184) a (124, 214,5) en px del panel; la caja empieza en
+      // (45,75, 179) y el contenido, 3 px dentro (borde + padding).
       window: {
         left: 2,
         top: 2,
-        width: 90,
-        height: 70,
+        width: 73,
+        height: 30.5,
         overflow: 'hidden',
         // Recuadro de depuración para ajustar la ventana contra la foto.
         // En la web publicada, siempre false.
@@ -123,15 +126,19 @@ export default {
       // ── ViewBox SVG — controla zoom y pan del contenido ────────────
       // Reducir width/height = zoom in; aumentar = zoom out.
       // Mover x/y = desplazar la vista (pan).
-      viewBox: { x: 0, y: 0, width: 120, height: 75 },
+      // 1 unidad = 1 px: el ancho del viewBox es el de la ventana.
+      viewBox: { x: 0, y: 0, width: 73, height: 50 },
 
       // ── Eje de la aguja (pivot) ────────────────────────────────────
-      // Centro de rotación de la aguja en coordenadas SVG.
-      pivot: { cx: 60, cy: 68 },
+      // Centro de rotación de la aguja en coordenadas SVG. Está debajo del
+      // cristal, sobre la prolongación de la aguja en reposo de la foto
+      // (que marca −50°, needleAngleMin): en reposo, la nuestra la tapa, y
+      // a ±50° la punta llega a los extremos de la escala (−5 / +5).
+      pivot: { cx: 38, cy: 44.75 },
 
       // ── Aguja ──────────────────────────────────────────────────────
       needle: {
-        length: 46,           // Longitud en unidades SVG (desde pivot hacia arriba)
+        length: 38,           // Longitud en unidades SVG (desde pivot hacia arriba)
         strokeWidth: 1,       // Grosor
         color: '#000000',     // Negro (sobre fondo del panel)
         lineCap: 'round'
@@ -190,35 +197,36 @@ export default {
       },
 
       // ── Toggle (interruptor de modo) ─────────────────────────────
-      // Centrado horizontalmente automático. top en px.
+      // Centrado horizontalmente automático. top en px. En la foto la
+      // palanca está en y 276 (centro); mide 26 px de alto.
       toggle: {
-        top: 86,
+        top: 81.25,
         scale: 1
       }
     },
 
     // ── Fila 2: Sequencer Event Time (display numérico centrado) ───────
     sequencerEventTime: {
-      box: { x: 10, y: 242.40625, w: 740, h: 80 }
+      box: { x: 293.25, y: 299.5, w: 166.75, h: 56 }
     },
 
     // ── Fila 3, columna 1: PVC + Envelope Followers ────────────────────
     pitchVoltageConverter: {
-      box: { x: 10, y: 326.40625, w: 103.859375, h: 140.53125 },
+      box: { x: 48.5, y: 367, w: 94.25, h: 125.25 },
       knobs: [
-        { name: 'Range', type: 'vernier' }
+        { name: 'Range', type: 'vernier', x: 47, y: 70.5 }
       ]
     },
     envelopeFollower1: {
-      box: { x: 10, y: 468.9375, w: 103.859375, h: 140.53125 },
+      box: { x: 48.5, y: 492.25, w: 94.25, h: 125.5 },
       knobs: [
-        { name: 'Range', type: 'normal', color: 'white' }
+        { name: 'Range', type: 'normal', color: 'white', x: 47, y: 71.75 }
       ]
     },
     envelopeFollower2: {
-      box: { x: 10, y: 611.46875, w: 103.859375, h: 140.53125 },
+      box: { x: 48.5, y: 617.75, w: 94.25, h: 128.25 },
       knobs: [
-        { name: 'Range', type: 'normal', color: 'white' }
+        { name: 'Range', type: 'normal', color: 'white', x: 47, y: 72.25 }
       ]
     },
 
@@ -256,30 +264,26 @@ export default {
     // 2 Env. Control): no cambiar el orden.
     //
     upperKeyboard: {
-      box: { x: 116.859375, y: 326.40625, w: 105.859375, h: 425.59375 },
+      box: { x: 142.75, y: 379.25, w: 94, h: 366.75 },
       knobs: [
-        { name: 'Pitch', type: 'vernier' },
-        { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
-        { name: 'Env. Control', type: 'bipolar', color: 'white' }
+        { name: 'Pitch', type: 'vernier', x: 47, y: 58.5 },
+        { name: 'Key Velocity', type: 'bipolar', color: 'yellow', x: 47, y: 141.75 },
+        { name: 'Env. Control', type: 'bipolar', color: 'white', x: 47, y: 226.25 }
       ],
       switches: [
-        { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
-      ],
-      knobGap: 4,          // Gap vertical entre knobs
-      switchGap: 4         // Gap entre último knob y selector rotativo
+        { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd', x: 47, y: 307.25 }
+      ]
     },
     lowerKeyboard: {
-      box: { x: 225.71875, y: 326.40625, w: 105.859375, h: 425.59375 },
+      box: { x: 236.75, y: 379.25, w: 94, h: 366.75 },
       knobs: [
-        { name: 'Pitch', type: 'vernier' },
-        { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
-        { name: 'Env. Control', type: 'bipolar', color: 'white' }
+        { name: 'Pitch', type: 'vernier', x: 47, y: 58.5 },
+        { name: 'Key Velocity', type: 'bipolar', color: 'yellow', x: 47, y: 141.75 },
+        { name: 'Env. Control', type: 'bipolar', color: 'white', x: 47, y: 226.25 }
       ],
       switches: [
-        { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
-      ],
-      knobGap: 4,
-      switchGap: 4
+        { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd', x: 47, y: 307.25 }
+      ]
     },
 
     // ── Fila 3, columnas 4-7: Sequencer Section ────────────────────────
@@ -292,69 +296,65 @@ export default {
     // 'Key 4'): no cambiarlo sin cambiar el montaje.
     //
     seqOutputRangeL1: {
-      box: { x: 334.578125, y: 326.40625, w: 102.09375, h: 329.59375 },
+      box: { x: 330.75, y: 379.25, w: 95, h: 265.5 },
       knobs: [
-        { name: 'Voltage A', type: 'vernier', min: 0, max: 10, default: 0 },
-        { name: 'Voltage B', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
-        { name: 'Key 1', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-      ],
-      knobGap: 4
+        { name: 'Voltage A', type: 'vernier', min: 0, max: 10, default: 0, x: 47.5, y: 58.5 },
+        { name: 'Voltage B', type: 'normal', color: 'white', min: 0, max: 10, default: 0, x: 47.5, y: 141.75 },
+        { name: 'Key 1', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0, x: 47.5, y: 226.25 }
+      ]
     },
     seqOutputRangeL2: {
-      box: { x: 439.671875, y: 326.40625, w: 102.109375, h: 329.59375 },
+      box: { x: 425.75, y: 379.25, w: 93.5, h: 265.5 },
       knobs: [
-        { name: 'Voltage C', type: 'vernier', min: 0, max: 10, default: 0 },
-        { name: 'Voltage D', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
-        { name: 'Key 2', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-      ],
-      knobGap: 4
+        { name: 'Voltage C', type: 'vernier', min: 0, max: 10, default: 0, x: 46.75, y: 58.5 },
+        { name: 'Voltage D', type: 'normal', color: 'white', min: 0, max: 10, default: 0, x: 46.75, y: 141.75 },
+        { name: 'Key 2', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0, x: 46.75, y: 226.25 }
+      ]
     },
     seqOutputRangeL3: {
-      box: { x: 544.78125, y: 326.40625, w: 102.109375, h: 329.59375 },
+      box: { x: 519.25, y: 379.25, w: 93.75, h: 265.5 },
       knobs: [
-        { name: 'Voltage E', type: 'vernier', min: 0, max: 10, default: 0 },
-        { name: 'Voltage F', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
-        { name: 'Key 3', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-      ],
-      knobGap: 4
+        { name: 'Voltage E', type: 'vernier', min: 0, max: 10, default: 0, x: 46.75, y: 58.5 },
+        { name: 'Voltage F', type: 'normal', color: 'white', min: 0, max: 10, default: 0, x: 46.75, y: 141.75 },
+        { name: 'Key 3', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0, x: 46.75, y: 226.25 }
+      ]
     },
     invertorBuffer: {
-      box: { x: 649.890625, y: 326.40625, w: 100.109375, h: 217.734375 },
+      box: { x: 613, y: 367, w: 94.5, h: 188.75 },
       knobs: [
-        { name: 'Gain', type: 'bipolar', color: 'blue', min: -5, max: 5, default: 0 },
-        { name: 'Offset', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-      ],
-      knobGap: 4
+        { name: 'Gain', type: 'bipolar', color: 'blue', min: -5, max: 5, default: 0, x: 47.25, y: 67 },
+        { name: 'Offset', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0, x: 47.25, y: 154 }
+      ]
     },
     key4: {
-      box: { x: 649.890625, y: 546.140625, w: 100.109375, h: 109.859375 },
+      box: { x: 613, y: 555.75, w: 94.5, h: 89 },
       knobs: [
-        { name: 'Key 4', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+        { name: 'Key 4', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0, x: 47.25, y: 49.75 }
       ]
     },
 
     slewLimiter1: {
-      box: { x: 334.578125, y: 659, w: 101.59375, h: 93 },
+      box: { x: 330.75, y: 644.75, w: 95, h: 101.25 },
       knobs: [
-        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0, x: 47.5, y: 68.25 }
       ]
     },
     slewLimiter2: {
-      box: { x: 439.171875, y: 659, w: 101.609375, h: 93 },
+      box: { x: 425.75, y: 644.75, w: 93.5, h: 101.25 },
       knobs: [
-        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0, x: 46.75, y: 68.25 }
       ]
     },
     slewLimiter3: {
-      box: { x: 543.78125, y: 659, w: 101.609375, h: 93 },
+      box: { x: 519.25, y: 644.75, w: 93.75, h: 101.25 },
       knobs: [
-        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0, x: 46.75, y: 68.25 }
       ]
     },
     option1: {
-      box: { x: 648.390625, y: 659, w: 101.609375, h: 93 },
+      box: { x: 613, y: 644.75, w: 94.5, h: 101.25 },
       knobs: [
-        { type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+        { type: 'normal', color: 'red', min: 0, max: 10, default: 0, x: 47.25, y: 68.25 }
       ]
     }
   },
@@ -368,7 +368,7 @@ export default {
   //
   panel4KnobUI: {
     standardKnobSize: 45,      // px — diámetro del knob estándar
-    vernierKnobSize: 55,       // px — diámetro del knob vernier (multivuelta)
+    vernierKnobSize: 60,       // px — diámetro del knob vernier (multivuelta), medido en la foto
     knobInnerPct: 76,          // % — círculo interior respecto al exterior
     toggleScale: 0.7           // factor de escala del toggle switch
   },

@@ -25,3 +25,11 @@ Panel6/   → panel6_source.svg
 - Usar guiones bajos en nombres de archivo: `panel3_source.svg`
 - Sin espacios en nombres de carpetas
 - Archivos fuente con sufijo `_source` para distinguirlos de los optimizados
+
+## Paneles generados por script
+
+- `Panel7/panel7_source.svg` lo genera `Panel7/generar_panel7.py` (medidas
+  sobre la foto, en px del panel 760×760; necesita `fontTools`). El SVG sigue
+  siendo el fuente: se puede retocar en Inkscape, y entonces el script deja de
+  ser la referencia. Cómo se midió y por qué cada cosa:
+  `module_research/panel7/fondo_vectorial.md`.

@@ -155,6 +155,10 @@ su propia posición relativa a la caja. Nada depende de flujo, centrado,
    cajas efectivas actuales (las da la captura de referencia) y se escriben
    en el blueprint nuevo. `visual:compare` debe quedar idéntico panel a
    panel. Un panel por commit.
+   Hechos el 2 y el 3 (noviembre). La caja se aplica con `left/top` si la
+   coordenada es exacta en 1/64 px y con `translate` si no: el layout del
+   navegador redondea a 1/64 px y eso remuestrea las imágenes de los mandos
+   (ver `utils/panelBox.js` y la hoja de ruta).
 2. **Un solo esquema de blueprint** para todos: mismas claves para mandos
    (`{ id, type, color, size, x, y }`), misma forma de offsets, sin arrays
    paralelos. Un validador en los tests que rechace claves desconocidas, para

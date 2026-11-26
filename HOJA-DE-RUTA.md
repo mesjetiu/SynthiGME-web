@@ -78,28 +78,44 @@ pendientes de verse en un navegador.
   test). Imagen idéntica en los siete paneles.
 - De paso, arreglado un test inestable: los de `tests/worklets/` fallaban
   1 de cada 3 veces al reimportar el worklet en el mismo milisegundo.
-- **Ahora, 1.2 panel 3.** Lo que ya se sabe:
-  - La colocación no está en el ensamblador sino en
-    `moduleManager.js` → `reflowOscillatorPanel` (centrado vertical en dos
-    `requestAnimationFrame`, con `translate`), y lee
-    `ui/layoutHelpers.js` → `getOscillatorLayoutSpec`. Tocan esto los
-    tests `moduleManager`, `uiInitializer`, `panelAssembler`,
-    `panelBlueprints/panel3Blueprint`, `ui/layoutHelpers`,
-    `electron/multichannelActivation` y `core/dormancyManager`.
-  - Cajas medidas (referencia): osciladores 1–6 en x 5 y 7–12 en x 380,
-    375×103, con y = 18,3 + fila × 103,3 (18,3 / 121,6 / 224,9 / 328,2 /
-    431,5 / 534,8); fila de ruidos y aleatorio en (5, 638,1, 750×110). Dentro
-    de esa fila, Noise 1 y 2 (169,5 de ancho) y Random CV (411) van en flex:
-    sacar sus cajas de `tests/visual/baseline/panel-3.geom.json`.
-  - Riesgo a medir primero: hoy se colocan con `translate` y las y no son
-    múltiplos de 1/64 px. Con `left/top` el navegador puede redondear
-    distinto y cambiar píxeles. Si `visual:compare` no sale idéntico,
-    aplicar la caja con `translate` (posición absoluta en 0,0) en
-    `panelBox.applyBox`, y comprobar que el panel 2 sigue idéntico.
-  - Igual que en el panel 2, quitar el contenedor de la fila (sus hijos
-    cuelgan del panel) cambia las rutas de la geometría: comparar
-    normalizando la ruta, regenerar la geometría y explicarlo en el commit.
-- Después: 7 y las matrices (5, 6), un panel por commit.
+- **1.2, panel 3 hecho** (26-nov): cada oscilador con su caja en
+  `oscillatorSlots[].box`, y los ruidos y el aleatorio en
+  `layout.<módulo>.box`; fuera `reflowOscillatorPanel` (el centrado en dos
+  `requestAnimationFrame`) y la fila flex. Geometría idéntica (797
+  elementos, ruta normalizada); los otros seis paneles, idénticos.
+  - **Cómo se aplica la caja** (medido; está en `utils/panelBox.js`): el
+    layout redondea a 1/64 px, así que cada eje va en `left/top` si la
+    coordenada es exacta en esa rejilla (enteros, ,5, ,25…) y en
+    `translate` si no (18,3). Con todo en `left/top` cambiaban 94.420
+    píxeles; con todo en `translate`, los mandos de Noise 2 (x 174,5).
+  - La imagen de referencia del panel 3 se regeneró: los mandos de la
+    fila 5 (y 431,5, que antes venía de un `translate`) se pintan ahora
+    ajustados a píxel, como cualquier caja de layout. 2,7 % de píxeles, nada
+    movido, algo más nítidos. Ninguna regla reproducía la imagen vieja
+    exacta, porque mezclaba los dos orígenes.
+- **Ahora, 1.2 panel 7** (en conversación nueva). Lo que ya se sabe:
+  - Lo monta `panelAssembler.js` → `setupOutputFaders` (hacia la línea
+    1240): `panel7Layout` es una columna flex anclada abajo, con
+    `layout.offset` (y 19) aplicado como `translate` al contenedor entero,
+    `padding` y la fila superior (`upperRow`) insertada delante de
+    `outputChannelsSection`. Blueprint: `panel7.blueprint.js`
+    (`layout.offset`, `padding`, `upperRow`, `lowerRow`, `outputChannelUI`,
+    `modules`). Tests: `panelBlueprints/panel7Blueprint`, `panelAssembler`,
+    `integration/sequencerRouting`, `ui/moduleFrame`, `ui/easterEgg`,
+    `ui/doubleTapZoom`, `ui/signalFlowHighlighter`.
+  - Cajas medidas (referencia, px del panel ya con el +19): joystick
+    izquierdo (37, 89, 215×240), secuenciador (254, 89, 252×240), joystick
+    derecho (508, 89, 215×240); canales de salida 1–8 en x 38,25 + n × 85,5,
+    y 329, 85×425. Contenedores que desaparecerían: `panel7-upper-row`
+    (10, 89, 740×240) y `outputChannelsSection` (10, 326, 740×440); ojo,
+    `outputChannelsSection` lo crea `app.js` y lo usan otros sitios
+    (`app.outputChannelsSection`): mirar antes si se puede quitar o si se
+    queda como contenedor a (0, 0, 760, 760).
+  - Todas esas coordenadas caen en la rejilla de 1/64 px (vienen del
+    flex), así que irán en `left/top` y deberían dar imagen idéntica.
+  - Cuidado con `knobSize: 65` de los joysticks: se ven a 60 (ver
+    `REVISION-VISUAL-2026-09.md`); conservar 60.
+- Después: las matrices (5, 6), un panel por commit.
 
 ## Qué documento manda en cada cosa
 

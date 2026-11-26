@@ -323,7 +323,7 @@ export default {
       box: { x: 613, y: 367, w: 94.5, h: 188.75 },
       knobs: [
         { name: 'Gain', type: 'bipolar', color: 'blue', min: -5, max: 5, default: 0, x: 47.25, y: 67 },
-        { name: 'Offset', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0, x: 47.25, y: 154 }
+        { name: 'Offset', type: 'bipolar', color: 'blue', min: -5, max: 5, default: 0, x: 47.25, y: 154 }
       ]
     },
     key4: {

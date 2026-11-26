@@ -168,6 +168,11 @@ describe('Panel 4 Blueprint - Mandos', () => {
     ]);
   });
 
+  it('el Invertor/Buffer: Gain y Offset, los dos con capuchón azul (como en la foto)', () => {
+    const knobs = panel4Blueprint.layout.invertorBuffer.knobs;
+    assert.deepStrictEqual(knobs.map(k => [k.name, k.color]), [['Gain', 'blue'], ['Offset', 'blue']]);
+  });
+
   it('el PVC tiene su vernier Range', () => {
     assert.deepStrictEqual(layout.pitchVoltageConverter.knobs.map(k => [k.name, k.type]), [['Range', 'vernier']]);
   });

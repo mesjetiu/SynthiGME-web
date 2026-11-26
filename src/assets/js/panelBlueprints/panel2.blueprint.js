@@ -35,12 +35,12 @@
 //
 // De arriba a abajo:
 //   - Oscilloscope (módulo más grande, funcional)
-//   - Frequency Meter (placeholder, sin audio aún)
+//   - Frequency Meter (placeholder: FUNCTION y RANGE sin audio aún)
 //   - Octave Filter Bank (placeholder, sin audio aún)
 //   - Input Amplifier Level (funcional, 8 canales de entrada)
 //   - External Treatment Devices (última fila, dos módulos lado a lado):
-//       · Send Level (placeholder, sin audio aún)
-//       · Return Level (placeholder, sin audio aún)
+//       · Send Level (placeholder: 4 mandos sin audio aún)
+//       · Return Level (placeholder: 4 mandos sin audio aún)
 //
 // Para conexiones a matrices de audio (Panel 5) y control (Panel 6),
 // ver la referencia cruzada al final de este archivo.
@@ -93,9 +93,28 @@ export default {
       }
     },
 
-    // ── Frequency Meter (placeholder) ───────────────────────────────────
+    // ── Frequency Meter (placeholder: mandos sin audio aún) ─────────────
+    // Los dos selectores verdes, centrados en la falda transparente de la
+    // foto (FUNCTION en 197,4 / 434,5 y RANGE en 376,3 / 434,2 px del panel).
+    // Sus posiciones apuntan a las guías serigrafiadas: FUNCTION, seis a
+    // ~29,5° (±74°); RANGE, cuatro a ~29° (±43°). Ver
+    // module_research/panel2/fondo_vectorial.md.
     frequencyMeter: {
-      box: { x: 8, y: 322, w: 744, h: 143 }
+      box: { x: 8, y: 322, w: 744, h: 143 },
+      // 36 px: el halo del selector (124 % del mando) mide 44,5 px, como la
+      // falda de la foto; el centro verde, 18 px, como su capuchón.
+      knobSize: 36,
+      knobColor: 'green',
+      selectors: {
+        function: {
+          x: 189.4, y: 112.5, minAngle: 286, maxAngle: 434, initial: 0,
+          labels: ['Frequency', 'Period', 'Frequency ratio', 'Time interval', 'Unit counter', 'Osc frequency']
+        },
+        range: {
+          x: 368.3, y: 112.2, minAngle: 317, maxAngle: 403, initial: 1,
+          labels: ['1 Hz · 0.01 s', '10 Hz · 0.1 s', '100 Hz · 1 s', '1 kHz · 10 s']
+        }
+      }
     },
 
     // ── Octave Filter Bank (8 knobs de frecuencia central) ──────────────
@@ -146,12 +165,25 @@ export default {
     },
 
     // ── External Treatment Devices (última fila, dos módulos lado a lado) ──
+    // Cuatro mandos blancos por módulo (placeholders sin audio aún), en las
+    // mismas columnas que los de Input Amplifier Level (paso 93,5 px) y con
+    // el centro a 711,5 px del panel, medido en la foto.
     extTreatmentSend: {
-      box: { x: 7.5, y: 653, w: 371, h: 94 }
+      box: { x: 7.5, y: 653, w: 371, h: 94 },
+      knobSize: 65,
+      knobColor: 'white',
+      knobs: [
+        { x: 45.25, y: 58.5 }, { x: 138.75, y: 58.5 }, { x: 232.25, y: 58.5 }, { x: 325.75, y: 58.5 }
+      ]
     },
 
     extTreatmentReturn: {
-      box: { x: 380.5, y: 653, w: 371, h: 94 }
+      box: { x: 380.5, y: 653, w: 371, h: 94 },
+      knobSize: 65,
+      knobColor: 'white',
+      knobs: [
+        { x: 46.25, y: 58.5 }, { x: 139.75, y: 58.5 }, { x: 233.25, y: 58.5 }, { x: 326.75, y: 58.5 }
+      ]
     }
   },
 
@@ -173,10 +205,10 @@ export default {
       // ui: { }  — overrides visuales del osciloscopio
     },
 
-    // ── Placeholders (sin funcionalidad aún) ────────────────────────────
+    // ── Placeholders (mandos sin funcionalidad aún) ─────────────────────
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     frequencyMeter: {
-      visible: false
+      visible: true
     },
 
     octaveFilterBank: {
@@ -192,11 +224,11 @@ export default {
 
     // ── External Treatment Devices (dos módulos en la misma fila) ───────
     extTreatmentSend: {
-      visible: false
+      visible: true
     },
 
     extTreatmentReturn: {
-      visible: false
+      visible: true
     }
   }
 

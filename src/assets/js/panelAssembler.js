@@ -909,14 +909,44 @@ export function buildPanel2(app) {
     // FREQUENCY METER (placeholder)
     // ─────────────────────────────────────────────────────────────────────────
     
+    // Sin audio aún: sus mandos están para que el panel se vea completo (el
+    // fondo vectorial solo dibuja la chapa y lo serigrafiado) y giran sin
+    // efecto, como los placeholders del panel 4.
+    const panel2InertKnob = (layout, opts, center, name) => {
+      const size = toNum(layout.knobSize, 65);
+      const knob = createKnob({
+        showValue: false,
+        centerColor: COLOR_MAP[layout.knobColor] || '',
+        ...opts
+      });
+      knob.knobEl.style.width = `${size}px`;
+      knob.knobEl.style.height = `${size}px`;
+      placeAtCenter(knob.wrapper, center, size, name);
+      return knob;
+    };
+
     const freqMeterLayout = blueprint.layout.frequencyMeter;
     const freqMeterFrame = new ModuleFrame({
       id: 'frequency-meter',
-      title: 'Frequency Meter',
+      title: null,
       className: 'panel2-placeholder'
     });
     const freqMeterEl = freqMeterFrame.createElement();
     freqMeterEl.style.cssText = boxCss(requireBox(freqMeterLayout.box, 'panel 2 frequencyMeter'));
+    const freqMeterControls = createControlsLayer('panel2-controls');
+    for (const [key, sel] of Object.entries(freqMeterLayout.selectors || {})) {
+      const steps = sel.labels.length;
+      const knob = panel2InertKnob(freqMeterLayout, {
+        svgSrc: 'assets/knobs/knob-selector.svg',
+        min: 0, max: steps - 1, initial: sel.initial ?? 0,
+        scaleMin: 0, scaleMax: steps - 1, scaleDecimals: 0,
+        minAngle: sel.minAngle, maxAngle: sel.maxAngle,
+        steps, stepLabels: sel.labels,
+        tooltipLabel: key === 'function' ? 'Function' : 'Range'
+      }, sel, `frequencyMeter ${key}`);
+      freqMeterControls.appendChild(knob.wrapper);
+    }
+    freqMeterFrame.appendToContent(freqMeterControls);
     applyModuleVisibility(freqMeterEl, blueprint, 'frequencyMeter');
     host.appendChild(freqMeterEl);
     
@@ -1084,22 +1114,38 @@ export function buildPanel2(app) {
     // ── Send Level ──
     const extSendFrame = new ModuleFrame({
       id: 'ext-treatment-send',
-      title: 'Send Level',
+      title: null,
       className: 'panel2-placeholder'
     });
     const extSendEl = extSendFrame.createElement();
     extSendEl.style.cssText = boxCss(requireBox(blueprint.layout.extTreatmentSend?.box, 'panel 2 extTreatmentSend'));
+    const extSendControls = createControlsLayer('panel2-controls');
+    (blueprint.layout.extTreatmentSend.knobs || []).forEach((center, i) => {
+      const knob = panel2InertKnob(blueprint.layout.extTreatmentSend, {
+        tooltipLabel: `Send Level ${i + 1}`
+      }, center, `extTreatmentSend ${i + 1}`);
+      extSendControls.appendChild(knob.wrapper);
+    });
+    extSendFrame.appendToContent(extSendControls);
     applyModuleVisibility(extSendEl, blueprint, 'extTreatmentSend');
     host.appendChild(extSendEl);
     
     // ── Return Level ──
     const extReturnFrame = new ModuleFrame({
       id: 'ext-treatment-return',
-      title: 'Return Level',
+      title: null,
       className: 'panel2-placeholder'
     });
     const extReturnEl = extReturnFrame.createElement();
     extReturnEl.style.cssText = boxCss(requireBox(blueprint.layout.extTreatmentReturn?.box, 'panel 2 extTreatmentReturn'));
+    const extReturnControls = createControlsLayer('panel2-controls');
+    (blueprint.layout.extTreatmentReturn.knobs || []).forEach((center, i) => {
+      const knob = panel2InertKnob(blueprint.layout.extTreatmentReturn, {
+        tooltipLabel: `Return Level ${i + 1}`
+      }, center, `extTreatmentReturn ${i + 1}`);
+      extReturnControls.appendChild(knob.wrapper);
+    });
+    extReturnFrame.appendToContent(extReturnControls);
     applyModuleVisibility(extReturnEl, blueprint, 'extTreatmentReturn');
     host.appendChild(extReturnEl);
     

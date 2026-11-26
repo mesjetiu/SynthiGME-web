@@ -224,23 +224,20 @@ pendientes de verse en un navegador.
     van a trazos, porque la web no carga Univers.
   - Corregido tras verlo Carlos: las flechas curvas de low/high y
     left/right se curvan hacia fuera del mando, siguiendo el dial.
-  - **Siguiente en el 7, pedido por Carlos (26-nov): faders como los
-    reales.** Hoy son un `<input type=range>` con un asa genérica de CSS
-    (22×10, borde amarillo) y una pista amarilla (`.output-channel__slider`
-    en `main.css`). Hay que diseñar el asa real, idéntica en los 8 canales:
-    calcarla de los canales sanos de la foto (el CH.1 está gastado y roto),
-    con su forma, su cara y su sombra, en SVG junto al dibujo del panel.
-    La pista sobra (la ranura ya está en el fondo) y el recorrido se ajusta
-    a la ranura real (585,9–722,5): el centro del asa, de la marca 10 a la 0
-    de la escala, sin tapar LEVEL. Test que fije tamaño y recorrido; commit
-    aparte, regenerando la geometría del panel 7.
-  - **Y los botones grises del secuenciador (Carlos, 26-nov).** Los
-    redondos de ahora no valen: hay que diseñar las teclas reales (forma,
-    color, relieve) calcadas de la foto, y ponerlas exactamente en su sitio.
-    Va junto con **cuadrar el secuenciador**, que Carlos quiere: medidas de
-    la foto en las notas (interruptores ~8 px a la izquierda y 16 arriba;
-    teclas de ~27 px, x≈269,5…490, y 205–237; Clock Rate, dial de ~54 px
-    centrado en ≈(380, 290)).
+  - **Mandos del 7 (26-nov): hechos en la rama `panel7-mandos`, esperando
+    el ok de Carlos** antes de regenerar la referencia visual del 7 y
+    llevarlo a `main`. Tres commits: el fader con el asa calcada de los
+    canales sanos (sin pista; el canto del asa recorre la escala del fondo,
+    de la raya del 10 a la del 0); el secuenciador cuadrado (tuercas de
+    13 px en su columna, y 152,5; Clock Rate de 55 px en (380; 289,5); cada
+    mando en su caja absoluta); y las teclas grises de frente, cuadradas
+    («como chocolate», pidió Carlos al ver la perspectiva de la foto), con
+    el hueco oscuro del teclado en el fondo. Asa y teclas son SVG como
+    imagen de fondo (barato en móvil); las genera
+    `design/panels/Panel7/generar_mandos.py`. Medidas y criterio:
+    `module_research/panel7/mandos.md`.
+  - Queda en el 7: el dial Clock Rate es el vernier común de la web (esfera
+    negra 0–90); el de la foto es otro modelo (faldón cromado, cifras 1–9).
 - **Plan del panel 2 (siguiente vectorial):** el mismo método que el 7:
   plantilla promediada donde haya módulos repetidos (las 8 entradas, las
   bandas del banco de octavas), generador con las mismas piezas (`texto`,

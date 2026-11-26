@@ -43,6 +43,7 @@ import { flashGlow } from '../ui/glowManager.js';
 import { loadSvgInline } from '../ui/svgInlineLoader.js';
 import { attachControlTooltip } from '../ui/tooltipManager.js';
 import { applyBox } from '../utils/panelBox.js';
+import { faderThumbCenterY } from '../utils/panel7Geometry.js';
 
 // Detectar si el dispositivo tiene capacidad táctil
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -53,6 +54,17 @@ const fadersConfig = outputChannelConfig.faders || {};
 const switchesConfig = outputChannelConfig.switches || {};
 const audioConfig = outputChannelConfig.audio || {};
 const rampsConfig = audioConfig.ramps || {};
+
+
+/**
+ * Alto del asa del fader en px CSS (sin la escala del visor): el de la
+ * variable --oc-fader-cap-h del canal; si no la hay, 10 (el asa antigua).
+ * @param {HTMLElement} slider
+ */
+function faderCapHeight(slider) {
+  const v = parseFloat(getComputedStyle(slider).getPropertyValue('--oc-fader-cap-h'));
+  return Number.isFinite(v) && v > 0 ? v : 10;
+}
 
 export class OutputChannel extends Module {
   /**
@@ -438,7 +450,7 @@ export class OutputChannel extends Module {
     // El thumb es vertical (writing-mode: vertical-lr, direction: rtl).
     // ─────────────────────────────────────────────────────────────────────
     let thumbGrabbed = false;
-    const THUMB_HIT_MARGIN = 14; // px extra alrededor del thumb (10px alto + margen)
+    const THUMB_HIT_MARGIN = 4; // px del panel de holgura alrededor del asa
     
     const flushValue = () => {
       rafId = null;
@@ -483,10 +495,14 @@ export class OutputChannel extends Module {
       const minVal = Number(slider.min);
       const maxVal = Number(slider.max);
       const ratio = (currentVal - minVal) / (maxVal - minVal);
-      // En vertical-lr + rtl: ratio 0 = bottom, ratio 1 = top
-      const thumbY = sliderRect.bottom - ratio * sliderRect.height;
+      // El asa recorre el input sin salirse: su centro va de bottom − alto/2
+      // (ratio 0) a top + alto/2 (ratio 1). Alto en px de pantalla: el del
+      // CSS (--oc-fader-cap-h) por la escala del visor.
+      const thumbY = faderThumbCenterY(sliderRect, slider.offsetHeight, faderCapHeight(slider), ratio);
+      const scale = slider.offsetHeight > 0 ? sliderRect.height / slider.offsetHeight : 1;
       const pointerY = ev.clientY;
-      thumbGrabbed = Math.abs(pointerY - thumbY) <= THUMB_HIT_MARGIN;
+      thumbGrabbed = Math.abs(pointerY - thumbY) <=
+        (faderCapHeight(slider) / 2 + THUMB_HIT_MARGIN) * scale;
       if (window._synthApp && window._synthApp.ensureAudio) {
         window._synthApp.ensureAudio();
       }

@@ -39,6 +39,7 @@ import { Toggle }                       from './ui/toggle.js';
 import { Knob }                         from './ui/knob.js';
 import { createKnob }                   from './ui/knobFactory.js';
 import { applyBox, boxCss, requireBox } from './utils/panelBox.js';
+import { faderVars } from './utils/panel7Geometry.js';
 
 import {
   KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK
@@ -1699,19 +1700,13 @@ export function setupOutputFaders(app) {
     // canal (no del contenedor: los interruptores del secuenciador usan las
     // mismas clases y heredarían, p. ej., --oc-button-scale).
     const contentPadding = channelUI.contentPadding || { top: 6, right: 4, bottom: 8, left: 4 };
-    const sliderSize = channelUI.sliderSize || {};
+    const fader = channelUI.fader || {};
     const buttonSize = channelUI.buttonSize || {};
     const knobGapValue = Array.isArray(channelUI.knobGap)
       ? toNum(channelUI.knobGap[0], 8)
       : toNum(channelUI.knobGap, 8);
-    const shellW = toNum(sliderSize.shellWidth, 0);
     const ocVars = {
-      '--oc-slider-height': `${toNum(sliderSize.height, 250)}px`,
-      '--oc-slider-shell-height': `${toNum(sliderSize.shellHeight, 270)}px`,
-      '--oc-slider-shell-width': shellW > 0 ? `${shellW}px` : '100%',
-      '--oc-slider-width': `${toNum(sliderSize.width, 24)}px`,
       '--oc-knob-button-gap': `${toNum(channelUI.knobButtonGap, 2)}px`,
-      '--oc-button-slider-gap': `${toNum(channelUI.buttonSliderGap, 2)}px`,
       '--oc-button-width': `${toNum(buttonSize.width, 18)}px`,
       '--oc-button-height': `${toNum(buttonSize.height, 30)}px`,
       '--oc-button-indicator-size': `${toNum(buttonSize.indicator, 8)}px`,
@@ -1731,11 +1726,12 @@ export function setupOutputFaders(app) {
       knobTypes: channelUI.knobTypes
     });
     app._outputChannelsPanel.createPanel(panel7Layout, channelBoxes);
-    for (const channel of app._outputChannelsPanel.channels) {
-      for (const [name, value] of Object.entries(ocVars)) {
+    app._outputChannelsPanel.channels.forEach((channel, i) => {
+      const vars = { ...ocVars, ...faderVars(fader, channelBoxes[i]) };
+      for (const [name, value] of Object.entries(vars)) {
         channel.frame.element.style.setProperty(name, value);
       }
-    }
+    });
     
     // Mantener referencia como _outputFadersModule para compatibilidad con serialización
     app._outputFadersModule = app._outputChannelsPanel;

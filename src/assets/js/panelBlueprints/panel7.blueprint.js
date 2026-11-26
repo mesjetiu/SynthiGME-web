@@ -198,17 +198,25 @@ export default {
       'bipolar'  // 1: Pan (-5 a +5)
     ],
 
-    // Slider (level) — tamaño visual del fader
-    sliderSize: {
-      width: 24,
-      height: 125,
-      shellWidth: 30,
-      shellHeight: 135
+    // Fader de nivel (Level). Va en su sitio exacto, en px del panel, fuera
+    // del flujo de los mandos de arriba. Medido en la foto
+    // (module_research/panel7/mandos.md): el borde de arriba del asa es el
+    // índice y recorre la escala serigrafiada del fondo, de la raya del 10 a
+    // la del 0. A cero, el pie del asa queda al final de la ranura (723,3),
+    // como en la foto; a 10 su canto llega a la raya del 10 sin tapar LEVEL.
+    fader: {
+      scaleTop: 583.7,        // raya del 10
+      scaleBottom: 697.2,     // raya del 0
+      // Imagen del asa (src/assets/panels/panel7_asa.svg, de
+      // design/panels/Panel7/generar_mandos.py): 26,1 px de asa centrada en
+      // el eje del canal, más el sitio de su sombra. Si se regenera con
+      // otro tamaño, cambiarlo aquí (lo comprueba un test).
+      capWidth: 36,
+      capHeight: 30.1
     },
 
-    // Espaciados verticales entre grupos de controles
-    knobButtonGap: 30,        // gap entre knobs y botón on/off
-    buttonSliderGap: 31,      // gap entre botón on/off y slider
+    // Espaciado vertical entre los knobs y el botón on/off
+    knobButtonGap: 30,
 
     // Botón On/Off (vertical)
     // Arriba = ON, abajo = OFF

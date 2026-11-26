@@ -709,6 +709,17 @@ describe('setupOutputFaders — módulos', () => {
     assert.strictEqual(layout.style.getPropertyValue('--oc-button-scale'), '');
     assert.strictEqual(layout.querySelector('#sequencer-control').style.getPropertyValue('--oc-button-scale'), '');
   });
+
+  it('cada canal pone su fader en la escala del fondo (raya del 10 en y 583,7)', () => {
+    const layout = app.outputPanel.element.querySelector('#panel7Layout');
+    for (const id of ['output-channel-1', 'output-channel-8']) {
+      const st = layout.querySelector(`#${id}`).style;
+      assert.strictEqual(st.getPropertyValue('--oc-fader-left'), '24.5px');
+      assert.strictEqual(st.getPropertyValue('--oc-fader-top'), '254.7px');
+      assert.strictEqual(st.getPropertyValue('--oc-fader-length'), '143.6px');
+      assert.strictEqual(st.getPropertyValue('--oc-fader-cap-h'), '30.1px');
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

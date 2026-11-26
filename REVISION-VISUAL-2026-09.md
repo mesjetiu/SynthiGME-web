@@ -98,14 +98,16 @@ bueno. El mecanismo, no:
   (`marginsSteps.left/right`) y el vertical lo fija el **alto**
   (`marginsSteps.top/bottom`). Ningún número del código dice «el paso de
   columna es 9,11 px»; sale de la combinación.
-- El «step» del marco (`squarePercent 90 / referenceSteps 67` = 10,21 px) no
-  es ni el paso de pin ni el del dibujo: es una unidad inventada.
-  `referenceSteps: 67` existe para que el panel 5 no se descuadrara cuando
-  pasó a 69 columnas; las dos columnas ocultas extra (67, 68) desplazan la
-  rejilla visible, y la diferencia de márgenes entre P5 y P6 lo compensa.
+- El «step» del marco (90 % del panel / número de columnas: 9,91 px en el
+  panel 5, 10,21 en el 6) no es ni el paso de pin ni el del dibujo: es una
+  unidad inventada. El blueprint declaraba `referenceSteps: 67` para que el
+  panel 5 no se descuadrara al pasar a 69 columnas, pero **nadie lo leía**
+  (`_normalizeFrame` lo descartaba; comprobado en noviembre): el panel 5 se
+  calculaba con 69 pasos, y la diferencia de márgenes entre P5 y P6 es la
+  que compensa las dos columnas ocultas extra (67, 68).
 - Tamaños duplicados: CSS dice celda 14 / pin 11 (`main.css`), JS dice 12 / 7
-  y gana el JS. Hay un marco de reserva en `panelAssembler.js` con valores
-  viejos del panel 5.
+  y gana el JS. Había un marco de reserva en `panelAssembler.js` con valores
+  viejos del panel 5 (quitado en noviembre).
 - El propio dibujo no es regular (casillas de 2,49 a 2,56 unidades): ninguna
   rejilla uniforme puede bajar de ~±0,5 px en todas las casillas. Sí podría
   hacerlo colocando cada fila y columna en el centro de su casilla del SVG.
@@ -175,6 +177,9 @@ su propia posición relativa a la caja. Nada depende de flujo, centrado,
    posible (paso X y paso Y explícitos que salen hoy de la medición); la que
    centra cada pin en su casilla exacta mejoraría hasta ~1 px y cambiaría la
    referencia.
+   **Hecho en noviembre, sin mover pines** (decisión: «matrices como
+   están»): el marco va en su caja de px (`ui.box`), la de los valores que
+   daban los pasos; el paso de pin sigue saliendo del encaje de la tabla.
 5. **Paneles 1 y 4 al final,** ya con el modelo nuevo: ahí sí hay que
    cambiar lo visible para encajarlos con la foto, y con cajas absolutas
    el ajuste deja de ser ensayo y error (se puede superponer la caja sobre la

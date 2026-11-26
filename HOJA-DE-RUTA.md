@@ -117,7 +117,49 @@ pendientes de verse en un navegador.
     orden de llegada de las descargas, y en una de tres capturas llegaron
     en otro orden (paneles 1 y 3 «distintos» solo de ruta). Si pasa, volver
     a capturar o comparar normalizando `#k\d+_`.
-- **Ahora, 1.2 matrices (5, 6)**, un panel por commit (en conversación nueva).
+- **1.2, matrices (5 y 6) hechas** (26-nov): en una matriz la «caja» es el
+  **marco** (`.matrix-container`) donde se encaja la tabla de pines:
+  `ui.box` en el blueprint de cada panel. Lo de dentro no cambia y **no se
+  ha movido ni un pin**: la tabla llena el ancho del marco y `resizeToFit`
+  la escala por el alto (0,999 × alto / 756). Paso medido: 9,11 × 9,67 px
+  (panel 5) y 9,10 × 9,66 px (panel 6).
+  - Las cajas son los valores que daba el marco viejo en «pasos»
+    (`squarePercent`, `translateSteps`, `marginsSteps`, `overflowPercent`,
+    `maxSizePercent`, `clip`), tal como los redondeaba el navegador a
+    1/64 px; por eso van en `left/top` y el layout es el mismo al bit.
+    Panel 5: x 12,71875, y 85,578125, w 779,65625, h 609,640625 (más ancho
+    que el panel: la rejilla visible, centrada, mide 628). Panel 6:
+    x 14,515625, y 85,96875, w 758,515625, h 609,46875.
+  - `referenceSteps: 67` no lo leía nadie (`_normalizeFrame` lo descartaba):
+    el panel 5 se calculaba con 69 pasos. Corregido en
+    `REVISION-VISUAL-2026-09.md`.
+  - Fuera también el marco de reserva de `panelAssembler.js` (valores
+    viejos) y el «modo ajuste» (`matrix-adjust`, que nunca se activaba).
+  - Imagen y geometría idénticas en los siete paneles: no se regenera nada.
+  - Lo que queda de rareza, a propósito: el paso de pin sigue saliendo de
+    la combinación ancho/alto del marco y de la celda de 12 px. Describir
+    la rejilla por origen y paso (o casilla a casilla del SVG) movería los
+    pines y la decisión es dejarlas como están.
+- **Ahora, 1.3: cuadrar los paneles 4 y 1** (en conversación nueva). Plan:
+  1. **Panel 4, migración sin cambio visible.** Como en 2, 3 y 7: medir en
+     `tests/visual/baseline/panel-4.geom.json` la caja efectiva de cada
+     módulo (voltímetros, teclados, secuenciador, slew, inversor…), pasar
+     el árbol flex (`logoArea`, `voltmetersRow`, `flex`, `gap`, `padding`,
+     `offset`) a `box: { x, y, w, h }` y dejar `visual:compare` idéntico.
+     Un commit.
+  2. **Panel 4, cuadrar sobre la foto.** Una página de ajuste (en
+     `tests/visual/`, no en la web) que pinte las cajas encima del fondo
+     y deje leer coordenadas; medir cada módulo contra la foto y escribir
+     las cajas nuevas. Aquí sí cambia la imagen: se regenera la referencia
+     del panel 4 en el mismo commit, con capturas antes/después en
+     `~/Entregas` para que Carlos lo juzgue. Al acabar, `showFrames: false`.
+  3. **Panel 1, los mismos dos pasos.** Ojo con el error ya conocido:
+     filtros, moduladores de anillo y reverb reciben `offset` y el
+     ensamblador lo borra al reescribir `el.style.cssText`; con cajas
+     desaparece. El gate y el LED, que van en px dentro del marco, pasan a
+     posición relativa a la caja de su módulo.
+  4. Dentro de cada módulo, los mandos con su posición relativa a la caja
+     (adiós `space-evenly`), solo donde haga falta para cuadrar.
 
 ## Qué documento manda en cada cosa
 

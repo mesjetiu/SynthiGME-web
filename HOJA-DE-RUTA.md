@@ -237,6 +237,16 @@ pendientes de verse en un navegador.
     copiar `panel-output.png` y `panel-output.geom.json` de
     `tests/visual/current/` a `baseline/`; `npm run visual:compare` en verde;
     commit, a `main` con `merge --ff-only` y borrar la rama aquí y en origin.
+  - **Siguiente en el 7, pedido por Carlos (26-nov): faders como los
+    reales.** Hoy son un `<input type=range>` con un asa genérica de CSS
+    (22×10, borde amarillo) y una pista amarilla (`.output-channel__slider`
+    en `main.css`). Hay que diseñar el asa real, idéntica en los 8 canales:
+    calcarla de los canales sanos de la foto (el CH.1 está gastado y roto),
+    con su forma, su cara y su sombra, en SVG junto al dibujo del panel.
+    La pista sobra (la ranura ya está en el fondo) y el recorrido se ajusta
+    a la ranura real (585,9–722,5): el centro del asa, de la marca 10 a la 0
+    de la escala, sin tapar LEVEL. Test que fije tamaño y recorrido; commit
+    aparte en `panel7-vectorial`, regenerando la geometría del panel 7.
 - **Plan del panel 2 (siguiente vectorial):** el mismo método que el 7:
   plantilla promediada donde haya módulos repetidos (las 8 entradas, las
   bandas del banco de octavas), generador con las mismas piezas (`texto`,

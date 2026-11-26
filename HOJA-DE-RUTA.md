@@ -277,6 +277,14 @@ pendientes de verse en un navegador.
   ids de los SVG en línea (imagen idéntica). Investigación, tipos de letra,
   medidas y la propuesta para el osciloscopio:
   `module_research/panel2/fondo_vectorial.md`.
+- **1.4, panel 4 vectorial: empezado y parado** (26-nov, noche, a petición
+  de Carlos). Hecha la medición de la placa de arriba, los voltímetros, los
+  marcos, las barras de título y los adornos de cada tipo de mando; falta
+  medir los rótulos sueltos de abajo, escribir `generar_panel4.py` y todo lo
+  de la web. Comprobado: los mandos cuadran y **todo tiene widget** (no hacen
+  falta mandos inertes). Dónde se quedó, medidas y decisiones:
+  `module_research/panel4/fondo_vectorial.md`. Después del 4 va el 1
+  (la conversación del 4 abre la del 1 al terminar).
 - **Plan del panel 4 (siguiente vectorial):** el mismo método que el 2:
   medir primero los tipos de letra y si los mandos cuadran, plantilla
   promediada en lo repetido, piezas de `design/panels/piezas_svg.py`, medir

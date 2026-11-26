@@ -44,7 +44,7 @@ const realLog = console.log;
 async function loadProcessor() {
   console.log = () => {};          // setDormant traza por consola
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/scopeCapture.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/scopeCapture.worklet.js?t=${Date.now()}_${Math.random()}`);
   ScopeCaptureProcessor = registered['scope-capture'];
   assert.ok(ScopeCaptureProcessor, 'el worklet debe registrarse como "scope-capture"');
 }

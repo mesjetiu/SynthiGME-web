@@ -79,7 +79,7 @@ describe('synthOscillator.worklet — protección process()', () => {
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
     // Import fresh copy
-    await import(`../../src/assets/js/worklets/synthOscillator.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/synthOscillator.worklet.js?t=${Date.now()}_${Math.random()}`);
     SynthOscillatorProcessor = registered['synth-oscillator'];
   });
   
@@ -162,7 +162,7 @@ describe('vcaProcessor.worklet — protección process()', () => {
   
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/vcaProcessor.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/vcaProcessor.worklet.js?t=${Date.now()}_${Math.random()}`);
     VCAProcessor = registered['vca-processor'];
   });
   
@@ -232,7 +232,7 @@ describe('noiseGenerator.worklet — protección process()', () => {
   
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/noiseGenerator.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/noiseGenerator.worklet.js?t=${Date.now()}_${Math.random()}`);
     NoiseGeneratorProcessor = registered['noise-generator'];
   });
   

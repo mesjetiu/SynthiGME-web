@@ -54,7 +54,7 @@ let OutputFilterProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/outputFilter.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/outputFilter.worklet.js?t=${Date.now()}_${Math.random()}`);
   OutputFilterProcessor = registered['output-filter'];
   assert.ok(OutputFilterProcessor, 'el worklet debe registrarse como "output-filter"');
 }

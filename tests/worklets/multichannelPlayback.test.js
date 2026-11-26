@@ -43,7 +43,7 @@ async function loadProcessor() {
   console.log = () => {};      // el worklet traza por consola en constructor y process
   console.warn = () => {};
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/multichannelPlayback.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/multichannelPlayback.worklet.js?t=${Date.now()}_${Math.random()}`);
   PlaybackProcessor = registered['multichannel-playback'];
   assert.ok(PlaybackProcessor, 'el worklet debe registrarse como "multichannel-playback"');
 }

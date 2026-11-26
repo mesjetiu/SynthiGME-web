@@ -388,7 +388,7 @@ describe('Spring Reverb Worklet — Import real', () => {
 
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/springReverb.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/springReverb.worklet.js?t=${Date.now()}_${Math.random()}`);
     SpringReverbProcessor = registered['spring-reverb'];
   });
 

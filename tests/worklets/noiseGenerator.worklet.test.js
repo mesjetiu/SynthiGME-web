@@ -46,7 +46,7 @@ let NoiseProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/noiseGenerator.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/noiseGenerator.worklet.js?t=${Date.now()}_${Math.random()}`);
   NoiseProcessor = registered['noise-generator'];
   assert.ok(NoiseProcessor, 'el worklet debe registrarse como "noise-generator"');
 }

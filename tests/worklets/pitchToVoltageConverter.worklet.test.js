@@ -41,7 +41,7 @@ let PVCProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/pitchToVoltageConverter.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/pitchToVoltageConverter.worklet.js?t=${Date.now()}_${Math.random()}`);
   PVCProcessor = registered['pitch-to-voltage-converter'];
   assert.ok(PVCProcessor, 'el worklet debe registrarse como "pitch-to-voltage-converter"');
 }

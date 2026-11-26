@@ -894,7 +894,7 @@ describe('EnvelopeShaper Worklet — Import real y process()', () => {
     delete globalThis._esWorkletLoaded;
     
     try {
-      await import(modulePath + `?t=${Date.now()}`);
+      await import(modulePath + `?t=${Date.now()}_${Math.random()}`);
       ProcessorClass = capturedClass;
     } catch (e) {
       // Worklet may not exist yet (TDD), skip real import tests
@@ -1017,7 +1017,7 @@ describe('EnvelopeShaper Worklet — Inmunidad a ringing (Schmitt trigger)', () 
     delete globalThis._esWorkletLoaded;
 
     try {
-      await import(modulePath + `?t=${Date.now()}`);
+      await import(modulePath + `?t=${Date.now()}_${Math.random()}`);
       ProcessorClass = capturedClass;
     } catch (e) {
       ProcessorClass = null;

@@ -309,7 +309,7 @@ describe('RandomCV Worklet — Import real', () => {
   
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/randomCV.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/randomCV.worklet.js?t=${Date.now()}_${Math.random()}`);
     RandomCVProcessor = registered['random-cv'];
   });
   
@@ -597,7 +597,7 @@ describe('RandomCV Worklet — Dormancy (preservación de fase)', () => {
   
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/randomCV.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/randomCV.worklet.js?t=${Date.now()}_${Math.random()}`);
     RandomCVProcessor = registered['random-cv'];
   });
   

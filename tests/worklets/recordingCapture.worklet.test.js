@@ -37,7 +37,7 @@ let RecordingCaptureProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/recordingCapture.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/recordingCapture.worklet.js?t=${Date.now()}_${Math.random()}`);
   RecordingCaptureProcessor = registered['recording-capture-processor'];
   assert.ok(RecordingCaptureProcessor, 'el worklet debe registrarse como "recording-capture-processor"');
 }

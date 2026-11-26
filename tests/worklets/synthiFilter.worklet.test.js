@@ -64,7 +64,7 @@ describe('synthiFilter.worklet import real', () => {
 
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/synthiFilter.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/synthiFilter.worklet.js?t=${Date.now()}_${Math.random()}`);
     Processor = registered['synthi-filter'];
   });
 
@@ -229,7 +229,7 @@ describe('synthiFilter.worklet autooscilación multifrecuencia', () => {
 
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/synthiFilter.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/synthiFilter.worklet.js?t=${Date.now()}_${Math.random()}`);
     Processor = registered['synthi-filter'];
   });
 

@@ -184,7 +184,7 @@ describe('Sequencer Worklet — Import real (clock)', () => {
 
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}_${Math.random()}`);
     SequencerProcessor = registered['sequencer'];
   });
 
@@ -848,7 +848,7 @@ describe('Sequencer Worklet — FSM Counter + Transporte (Fase 3)', () => {
 
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}_${Math.random()}`);
     SequencerProcessor = registered['sequencer'];
   });
 
@@ -1538,7 +1538,7 @@ describe('Sequencer Worklet — Grabación y Reproducción (Fase 4)', () => {
 
   beforeEach(async () => {
     const registered = createWorkletEnvironment();
-    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}`);
+    await import(`../../src/assets/js/worklets/sequencer.worklet.js?t=${Date.now()}_${Math.random()}`);
     SequencerProcessor = registered['sequencer'];
   });
 

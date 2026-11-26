@@ -42,7 +42,7 @@ async function loadProcessor() {
   console.log = () => {};      // el worklet traza por consola en constructor y process
   console.warn = () => {};
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/multichannelCapture.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/multichannelCapture.worklet.js?t=${Date.now()}_${Math.random()}`);
   CaptureProcessor = registered['multichannel-capture'];
   assert.ok(CaptureProcessor, 'el worklet debe registrarse como "multichannel-capture"');
 }

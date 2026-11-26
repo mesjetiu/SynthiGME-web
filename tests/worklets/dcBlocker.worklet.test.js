@@ -46,7 +46,7 @@ let DCBlockerProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/dcBlocker.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/dcBlocker.worklet.js?t=${Date.now()}_${Math.random()}`);
   DCBlockerProcessor = registered['dc-blocker'];
   assert.ok(DCBlockerProcessor, 'el worklet debe registrarse como "dc-blocker"');
 }

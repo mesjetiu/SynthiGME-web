@@ -45,7 +45,7 @@ let VCAProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/vcaProcessor.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/vcaProcessor.worklet.js?t=${Date.now()}_${Math.random()}`);
   VCAProcessor = registered['vca-processor'];
   assert.ok(VCAProcessor, 'el worklet debe registrarse como "vca-processor"');
 }

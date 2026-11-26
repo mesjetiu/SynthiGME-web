@@ -57,7 +57,7 @@ let OscillatorProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/synthOscillator.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/synthOscillator.worklet.js?t=${Date.now()}_${Math.random()}`);
   OscillatorProcessor = registered['synth-oscillator'];
   assert.ok(OscillatorProcessor, 'el worklet debe registrarse como "synth-oscillator"');
 }

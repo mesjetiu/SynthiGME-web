@@ -55,7 +55,7 @@ let KeyboardProcessor;
 
 async function loadProcessor() {
   const registered = createWorkletEnvironment();
-  await import(`../../src/assets/js/worklets/keyboard.worklet.js?t=${Date.now()}`);
+  await import(`../../src/assets/js/worklets/keyboard.worklet.js?t=${Date.now()}_${Math.random()}`);
   KeyboardProcessor = registered['keyboard'];
   assert.ok(KeyboardProcessor, 'el worklet debe registrarse como "keyboard"');
 }

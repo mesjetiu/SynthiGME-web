@@ -191,26 +191,12 @@ describe('Panel 7 Blueprint - Layout en cajas absolutas', () => {
   });
 
   describe('Output Channels (dentro de su caja)', () => {
-    it('tiene configuración de slider en outputChannelUI', () => {
-      const slider = panel7Blueprint.outputChannelUI.sliderSize;
-      assert.ok(slider, 'debe tener sliderSize en outputChannelUI');
-      assert.strictEqual(typeof slider.shellHeight, 'number');
-      assert.strictEqual(typeof slider.height, 'number');
-      assert.strictEqual(typeof slider.width, 'number');
-    });
-
-    it('slider height ≤ shellHeight (slider cabe dentro del shell)', () => {
-      const slider = panel7Blueprint.outputChannelUI.sliderSize;
-      assert.ok(
-        slider.height <= slider.shellHeight,
-        'height del slider no puede superar shellHeight'
-      );
-    });
-
-    it('slider shellHeight < alto de la caja del canal (cabe en el canal)', () => {
-      const slider = panel7Blueprint.outputChannelUI.sliderSize;
+    it('el fader cabe en la caja de cada canal (asa incluida)', () => {
+      const fader = panel7Blueprint.outputChannelUI.fader;
       for (const box of layout.outputChannels.boxes) {
-        assert.ok(slider.shellHeight < box.h, 'el shell del slider debe caber dentro del canal');
+        assert.ok(fader.scaleTop > box.y, 'la raya del 10 queda dentro del canal');
+        assert.ok(fader.scaleBottom + fader.capHeight < box.y + box.h, 'el asa a cero cabe en el canal');
+        assert.ok(fader.capWidth < box.w, 'el asa cabe a lo ancho');
       }
     });
   });
@@ -252,16 +238,15 @@ describe('Panel 7 Blueprint - outputChannelUI', () => {
     assert.strictEqual(typeof cp.left, 'number');
   });
 
-  it('tiene sliderSize con width/height/shellHeight numéricos', () => {
-    assert.ok(ui.sliderSize, 'debe tener sliderSize');
-    assert.strictEqual(typeof ui.sliderSize.width, 'number');
-    assert.strictEqual(typeof ui.sliderSize.height, 'number');
-    assert.strictEqual(typeof ui.sliderSize.shellHeight, 'number');
+  it('tiene fader con scaleTop/scaleBottom/capWidth/capHeight numéricos', () => {
+    assert.ok(ui.fader, 'debe tener fader');
+    for (const k of ['scaleTop', 'scaleBottom', 'capWidth', 'capHeight']) {
+      assert.strictEqual(typeof ui.fader[k], 'number', k);
+    }
   });
 
-  it('tiene gaps verticales knobButtonGap y buttonSliderGap', () => {
+  it('tiene el gap vertical knobButtonGap', () => {
     assert.strictEqual(typeof ui.knobButtonGap, 'number');
-    assert.strictEqual(typeof ui.buttonSliderGap, 'number');
   });
 
   it('tiene buttonSize vertical con width/height/indicator', () => {

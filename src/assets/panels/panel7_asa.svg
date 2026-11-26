@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="30.1" viewBox="0 0 36 30.1">
+<!-- Asa del fader de los canales de salida (panel 7). Generado por design/panels/Panel7/generar_mandos.py -->
+<defs>
+<filter id="s" x="-.3" y="-.3" width="1.6" height="1.6"><feGaussianBlur stdDeviation="1.1"/></filter>
+<linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a272d"/><stop offset=".45" stop-color="#141216"/><stop offset="1" stop-color="#0e0d10"/></linearGradient>
+<linearGradient id="i" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6c686e"/><stop offset="1" stop-color="#8a868a"/></linearGradient>
+<linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c2a2f"/><stop offset="1" stop-color="#1c1a1e"/></linearGradient>
+<linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f4f0"/><stop offset="1" stop-color="#d4d0ca"/></linearGradient>
+</defs>
+<polygon points="14,1.6 28,1.6 33.3,27.7 8.7,27.7" fill="#000" fill-opacity="0.55" filter="url(#s)"/>
+<polygon points="11,0 25,0 30.3,26.1 5.7,26.1" fill="#0b0a0d"/>
+<polygon points="11,0 12.6,1.6 8.3,25.3 5.7,26.1" fill="url(#i)"/>
+<polygon points="25,0 30.3,26.1 27.7,25.3 23.4,1.6" fill="url(#d)"/>
+<polygon points="11,0 25,0 23.4,1.6 12.6,1.6" fill="#5e5a60"/>
+<polygon points="12.6,1.6 23.4,1.6 27.7,25.3 8.3,25.3" fill="url(#c)"/>
+<polygon points="13.29,2.2 22.71,2.2 23.6,7.1 12.4,7.1" fill="url(#p)" stroke="url(#p)" stroke-width=".9" stroke-linejoin="round"/>
+<polygon points="8.3,25.3 27.7,25.3 30.3,26.1 5.7,26.1" fill="#060507"/>
+</svg>

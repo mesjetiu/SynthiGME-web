@@ -2753,6 +2753,9 @@ body.render-performance .panel-inline-bg {
 :root {
   --synth-module-bg: rgba(20, 20, 20, 0.2);
   --synth-module-border: rgba(255, 255, 255, 0.18);
+  /* Grosor del marco: los mandos colocados en px del panel lo descuentan
+     (panel 7: fader de nivel y secuenciador). */
+  --synth-module-border-width: 1px;
   --synth-module-radius: 6px;
   --synth-module-header-size: 11px;
 }
@@ -2773,7 +2776,7 @@ body.render-performance .panel-inline-bg {
 .synth-module {
   box-sizing: border-box;
   background: var(--synth-module-bg);
-  border: 1px solid var(--synth-module-border);
+  border: var(--synth-module-border-width) solid var(--synth-module-border);
   border-radius: var(--synth-module-radius);
   color: #f3f3f3;
   font-size: 11px;
@@ -6110,34 +6113,40 @@ body.render-performance .panel-inline-bg {
   box-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
 }
 
-/* ─── Slider Level ─── */
+/* ─── Fader Level ─── */
+/* Va en su sitio exacto del panel, fuera del flujo de los mandos de arriba:
+   las variables --oc-fader-* las pone panelAssembler (faderVars) desde
+   panel7.blueprint.js, en px relativos a la caja del canal; aquí se descuenta
+   el borde del marco, porque position:absolute cuenta desde dentro de él.
+   La ranura y la escala son del fondo (panel7_bg.svg): el <input> no pinta
+   pista, solo el asa (panel7_asa.svg), como imagen de su «thumb». */
 .output-channel__slider-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  margin-top: var(--oc-button-slider-gap, 2px);
+  position: absolute;
+  left: calc(var(--oc-fader-left, 24.5px) - var(--synth-module-border-width, 1px));
+  top: calc(var(--oc-fader-top, 254.7px) - var(--synth-module-border-width, 1px));
+  width: var(--oc-fader-cap-w, 36px);
+  height: var(--oc-fader-length, 143.6px);
+  margin: 0;
 }
 
 .output-channel__slider-shell {
-  height: var(--oc-slider-shell-height, 240px);
-  width: var(--oc-slider-shell-width, 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .output-channel__slider {
   writing-mode: vertical-lr;
   direction: rtl;
-  width: var(--oc-slider-width, 24px);
-  height: var(--oc-slider-height, 220px);
+  display: block;
+  width: 100%;
+  height: 100%;
   appearance: none;
   background: transparent;
   cursor: pointer;
   box-sizing: border-box;
-  margin: 0 auto;
+  margin: 0;
   padding: 0;
+  border: 0;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
   outline: none;
@@ -6145,42 +6154,37 @@ body.render-performance .panel-inline-bg {
 
 .output-channel__slider::-webkit-slider-runnable-track {
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid #3a2a08;
-  background:
-    linear-gradient(90deg, transparent calc(50% - 3px), #ffe082 calc(50% - 2px), #a37516 calc(50% + 2px), transparent calc(50% + 3px));
-  box-shadow: inset 0 0 3px rgba(0,0,0,0.5);
+  height: 100%;
+  background: transparent;
+  border: 0;
+}
+
+.output-channel__slider::-moz-range-track {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: 0;
 }
 
 .output-channel__slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 22px;
-  height: 10px;
-  border-radius: 5px;
-  background: #222;
-  border: 1px solid #ffd54f;
-  box-shadow: 0 0 4px rgba(0,0,0,0.7);
-  margin: 0 auto;
-}
-
-.output-channel__slider::-moz-range-track {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid #3a2a08;
-  background:
-    linear-gradient(90deg, transparent calc(50% - 3px), #ffe082 calc(50% - 2px), #a37516 calc(50% + 2px), transparent calc(50% + 3px));
-  box-shadow: inset 0 0 3px rgba(0,0,0,0.5);
+  width: var(--oc-fader-cap-w, 36px);
+  height: var(--oc-fader-cap-h, 30.1px);
+  border: 0;
+  border-radius: 0;
+  background: url('../panels/panel7_asa.svg') center / 100% 100% no-repeat;
+  box-shadow: none;
+  margin: 0;
 }
 
 .output-channel__slider::-moz-range-thumb {
-  width: 22px;
-  height: 10px;
-  border-radius: 5px;
-  background: #222;
-  border: 1px solid #ffd54f;
-  box-shadow: 0 0 4px rgba(0,0,0,0.7);
-  margin: 0 auto;
+  width: var(--oc-fader-cap-w, 36px);
+  height: var(--oc-fader-cap-h, 30.1px);
+  border: 0;
+  border-radius: 0;
+  background: url('../panels/panel7_asa.svg') center / 100% 100% no-repeat;
+  box-shadow: none;
 }
 
 .output-channel__value {

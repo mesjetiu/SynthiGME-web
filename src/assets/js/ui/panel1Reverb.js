@@ -46,8 +46,7 @@ export class Panel1ReverbUI {
       knobInnerPct: options.knobInnerPct ?? 78,
       knobColors: options.knobColors || ['blue', 'white'],
       knobTypes: options.knobTypes || ['normal', 'normal'],
-      knobsOffset: options.knobsOffset || { x: 0, y: 0 },
-      offset: options.offset || { x: 0, y: 0 }
+      knobsOffset: options.knobsOffset || { x: 0, y: 0 }
     };
     this.knobOptions = options.knobOptions || {};
     this.element = null;
@@ -106,8 +105,9 @@ export class Panel1ReverbUI {
       knobsContainer.appendChild(knob.wrapper);
     });
 
+    // La posición del módulo la pone el ensamblador con su caja (panelBox):
+    // aquí no se toca el transform del marco.
     this.frame.appendToContent(knobsContainer);
-    applyOffset(element, this.layout.offset);
 
     this.element = element;
     return element;

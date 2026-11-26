@@ -4,7 +4,8 @@
  * 
  * Verifica la configuración correcta de:
  * - Estructura básica (schemaVersion, panelId, showFrames)
- * - Layout: 3 secciones principales (filtersRow, envelopeShapers, bottomRow)
+ * - Layout: una caja absoluta por módulo, en px del panel, y que no vuelve
+ *   la columna flex anterior (offset, padding, filas con alto y gap)
  * - Módulos declarados (16 placeholders: 8 filtros + 3 envelopes + 3 RM + reverb + echo)
  * - Definición de knobs por tipo de módulo
  * - Separación blueprint/config (ausencia de propiedades de audio, controls, matrixMapping)
@@ -16,6 +17,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import panel1Blueprint from '../../src/assets/js/panelBlueprints/panel1.blueprint.js';
+import { isBox, PANEL_SIZE } from '../../src/assets/js/utils/panelBox.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TESTS DE ESTRUCTURA BÁSICA
@@ -47,256 +49,126 @@ describe('Panel 1 Blueprint - Estructura básica', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE LAYOUT
+// TESTS DE LAYOUT: UNA CAJA ABSOLUTA POR MÓDULO
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Panel 1 Blueprint - Layout', () => {
+const layout = panel1Blueprint.layout;
 
-  it('tiene padding general del panel', () => {
-    const padding = panel1Blueprint.layout.padding;
-    assert.ok(padding, 'debe tener padding');
-    assert.strictEqual(typeof padding.top, 'number');
-    assert.strictEqual(typeof padding.right, 'number');
-    assert.strictEqual(typeof padding.bottom, 'number');
-    assert.strictEqual(typeof padding.left, 'number');
+/** Las 16 cajas medidas, por id de módulo (migración sin cambio visible) */
+const MEASURED = {
+  flp1: { x: 5, y: 48, w: 92, h: 290 },
+  flp2: { x: 99, y: 48, w: 92, h: 290 },
+  flp3: { x: 193, y: 48, w: 92, h: 290 },
+  flp4: { x: 287, y: 48, w: 92, h: 290 },
+  fhp1: { x: 381, y: 48, w: 92, h: 290 },
+  fhp2: { x: 475, y: 48, w: 92, h: 290 },
+  fhp3: { x: 569, y: 48, w: 92, h: 290 },
+  fhp4: { x: 663, y: 48, w: 92, h: 290 },
+  envelopeShaper1: { x: 5, y: 340, w: 750, h: 100 },
+  envelopeShaper2: { x: 5, y: 442, w: 750, h: 100 },
+  envelopeShaper3: { x: 5, y: 544, w: 750, h: 100 },
+  ringModulator1: { x: 5, y: 646, w: 107, h: 100 },
+  ringModulator2: { x: 113, y: 646, w: 107, h: 100 },
+  ringModulator3: { x: 221, y: 646, w: 107, h: 100 },
+  reverberation1: { x: 329, y: 646, w: 143, h: 100 },
+  echoADL: { x: 473, y: 646, w: 282, h: 100 }
+};
+
+/** Caja de cada módulo tal como la lee el ensamblador */
+function boxesById() {
+  return {
+    ...layout.filters.boxes,
+    ...layout.envelopeShapers.boxes,
+    ...layout.ringModulators.boxes,
+    reverberation1: layout.reverberation.box,
+    echoADL: layout.echo.box
+  };
+}
+
+describe('Panel 1 Blueprint - Layout en cajas absolutas', () => {
+  const boxes = boxesById();
+
+  it('hay una caja por módulo declarado, y ninguna más', () => {
+    assert.deepStrictEqual(Object.keys(boxes).sort(), Object.keys(panel1Blueprint.modules).sort());
   });
 
-  it('tiene gap vertical entre filas', () => {
-    assert.strictEqual(typeof panel1Blueprint.layout.gap, 'number');
-    assert.ok(panel1Blueprint.layout.gap >= 0, 'gap no puede ser negativo');
-  });
-
-  it('tiene offset general con x e y numéricos', () => {
-    const offset = panel1Blueprint.layout.offset;
-    assert.ok(offset, 'debe tener offset');
-    assert.strictEqual(typeof offset.x, 'number', 'offset.x debe ser número');
-    assert.strictEqual(typeof offset.y, 'number', 'offset.y debe ser número');
-  });
-
-  // ── Fila 1: Filtros ────────────────────────────────────────────────────
-
-  describe('Sección Filters Row', () => {
-    const fr = panel1Blueprint.layout.filtersRow;
-
-    it('existe con height numérico', () => {
-      assert.ok(fr, 'debe tener sección filtersRow');
-      assert.strictEqual(typeof fr.height, 'number');
-      assert.ok(fr.height > 0, 'height debe ser positivo');
+  for (const [id, measured] of Object.entries(MEASURED)) {
+    it(`${id} tiene caja válida dentro del panel`, () => {
+      const b = boxes[id];
+      assert.ok(isBox(b), `${id}: caja inválida`);
+      assert.ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= PANEL_SIZE && b.y + b.h <= PANEL_SIZE,
+        `${id}: se sale del panel`);
     });
-
-    it('tiene gap horizontal entre filtros', () => {
-      assert.strictEqual(typeof fr.gap, 'number');
-      assert.ok(fr.gap >= 0, 'gap no puede ser negativo');
+    it(`${id} conserva la caja medida`, () => {
+      assert.deepStrictEqual(boxes[id], measured);
     });
+  }
 
-    it('tiene offset de fila con x e y numéricos', () => {
-      assert.ok(fr.offset, 'debe tener offset');
-      assert.strictEqual(typeof fr.offset.x, 'number');
-      assert.strictEqual(typeof fr.offset.y, 'number');
-    });
-
-    it('define 3 knobs por filtro: Frequency, Response, Level', () => {
-      assert.ok(Array.isArray(fr.knobs), 'knobs debe ser array');
-      assert.strictEqual(fr.knobs.length, 3);
-      assert.deepStrictEqual(fr.knobs, ['Frequency', 'Response', 'Level']);
-    });
-
-    it('tiene knobSize definido', () => {
-      assert.ok(fr.knobSize, 'debe tener knobSize');
-      assert.strictEqual(typeof fr.knobSize, 'number');
-    });
-
-    it('tiene knobInnerPct entre 0 y 100', () => {
-      assert.strictEqual(typeof fr.knobInnerPct, 'number');
-      assert.ok(fr.knobInnerPct > 0 && fr.knobInnerPct <= 100);
-    });
-
-    it('tiene knobGap numérico y knobsOffset válido', () => {
-      assert.strictEqual(typeof fr.knobGap, 'number');
-      assert.ok(fr.knobGap >= 0, 'knobGap no puede ser negativo');
-      assert.ok(fr.knobsOffset, 'debe tener knobsOffset');
-      assert.strictEqual(typeof fr.knobsOffset.x, 'number');
-      assert.strictEqual(typeof fr.knobsOffset.y, 'number');
-    });
-
-    it('tiene knobDirection vertical', () => {
-      assert.strictEqual(fr.knobDirection, 'vertical');
-    });
-  });
-
-  // ── Filas 2-4: Envelope Shapers ────────────────────────────────────────
-
-  describe('Sección Envelope Shapers', () => {
-    const es = panel1Blueprint.layout.envelopeShapers;
-
-    it('existe con height numérico', () => {
-      assert.ok(es, 'debe tener sección envelopeShapers');
-      assert.strictEqual(typeof es.height, 'number');
-      assert.ok(es.height > 0, 'height debe ser positivo');
-    });
-
-    it('tiene gap vertical entre envelopes', () => {
-      assert.strictEqual(typeof es.gap, 'number');
-      assert.ok(es.gap >= 0, 'gap no puede ser negativo');
-    });
-
-    it('tiene offset de sección con x e y numéricos', () => {
-      assert.ok(es.offset, 'debe tener offset');
-      assert.strictEqual(typeof es.offset.x, 'number');
-      assert.strictEqual(typeof es.offset.y, 'number');
-    });
-
-    it('define count = 3 (tres envelope shapers)', () => {
-      assert.strictEqual(es.count, 3);
-    });
-
-    it('define 8 knobs por envelope shaper', () => {
-      assert.ok(Array.isArray(es.knobs), 'knobs debe ser array');
-      assert.strictEqual(es.knobs.length, 8);
-    });
-
-    it('los knobs son: Mode, Delay, Attack, Decay, Sustain, Release, Env Level, Sig Level', () => {
-      assert.deepStrictEqual(es.knobs,
-        ['Mode', 'Delay', 'Attack', 'Decay', 'Sustain', 'Release', 'Env Level', 'Sig Level']);
-    });
-
-    it('tiene knobSize definido', () => {
-      assert.ok(es.knobSize, 'debe tener knobSize');
-      assert.strictEqual(typeof es.knobSize, 'number');
-    });
-
-    it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
-      assert.strictEqual(typeof es.knobInnerPct, 'number');
-      assert.ok(es.knobInnerPct > 0 && es.knobInnerPct <= 100);
-      assert.strictEqual(typeof es.knobGap, 'number');
-      assert.ok(es.knobGap >= 0, 'knobGap no puede ser negativo');
-      assert.ok(es.knobsOffset, 'debe tener knobsOffset');
-      assert.strictEqual(typeof es.knobsOffset.x, 'number');
-      assert.strictEqual(typeof es.knobsOffset.y, 'number');
-    });
-
-    it('tiene knobDirection horizontal', () => {
-      assert.strictEqual(es.knobDirection, 'horizontal');
-    });
-  });
-
-  // ── Fila 5: Bottom Row ─────────────────────────────────────────────────
-
-  describe('Sección Bottom Row', () => {
-    const br = panel1Blueprint.layout.bottomRow;
-
-    it('existe con height numérico', () => {
-      assert.ok(br, 'debe tener sección bottomRow');
-      assert.strictEqual(typeof br.height, 'number');
-      assert.ok(br.height > 0, 'height debe ser positivo');
-    });
-
-    it('tiene gap horizontal entre módulos', () => {
-      assert.strictEqual(typeof br.ringModulator.gap, 'number');
-      assert.strictEqual(typeof br.reverberation.gap, 'number');
-      assert.strictEqual(typeof br.echo.gap, 'number');
-      assert.ok(br.ringModulator.gap >= 0, 'ringModulator.gap no puede ser negativo');
-      assert.ok(br.reverberation.gap >= 0, 'reverberation.gap no puede ser negativo');
-      assert.ok(br.echo.gap >= 0, 'echo.gap no puede ser negativo');
-    });
-
-    it('tiene offset de fila con x e y numéricos', () => {
-      assert.ok(br.offset, 'debe tener offset');
-      assert.strictEqual(typeof br.offset.x, 'number');
-      assert.strictEqual(typeof br.offset.y, 'number');
-    });
-
-    describe('Ring Modulator config', () => {
-      const rm = br.ringModulator;
-
-      it('existe con count = 3', () => {
-        assert.ok(rm, 'debe tener ringModulator');
-        assert.strictEqual(rm.count, 3);
-      });
-
-      it('define 1 knob: Level', () => {
-        assert.ok(Array.isArray(rm.knobs), 'knobs debe ser array');
-        assert.deepStrictEqual(rm.knobs, ['Level']);
-      });
-
-      it('tiene knobSize definido', () => {
-        assert.ok(rm.knobSize, 'debe tener knobSize');
-      });
-
-      it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
-        assert.strictEqual(typeof rm.knobInnerPct, 'number');
-        assert.ok(rm.knobInnerPct > 0 && rm.knobInnerPct <= 100);
-        assert.strictEqual(typeof rm.knobGap, 'number');
-        assert.ok(rm.knobGap >= 0, 'knobGap no puede ser negativo');
-        assert.ok(rm.knobsOffset, 'debe tener knobsOffset');
-        assert.strictEqual(typeof rm.knobsOffset.x, 'number');
-        assert.strictEqual(typeof rm.knobsOffset.y, 'number');
-      });
-    });
-
-    describe('Reverberation config', () => {
-      const rev = br.reverberation;
-
-      it('existe con count = 1', () => {
-        assert.ok(rev, 'debe tener reverberation');
-        assert.strictEqual(rev.count, 1);
-      });
-
-      it('define 2 knobs: Mix, Level', () => {
-        assert.ok(Array.isArray(rev.knobs), 'knobs debe ser array');
-        assert.deepStrictEqual(rev.knobs, ['Mix', 'Level']);
-      });
-
-      it('tiene knobSize definido', () => {
-        assert.ok(rev.knobSize, 'debe tener knobSize');
-      });
-
-      it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
-        assert.strictEqual(typeof rev.knobInnerPct, 'number');
-        assert.ok(rev.knobInnerPct > 0 && rev.knobInnerPct <= 100);
-        assert.strictEqual(typeof rev.knobGap, 'number');
-        assert.ok(rev.knobGap >= 0, 'knobGap no puede ser negativo');
-        assert.ok(rev.knobsOffset, 'debe tener knobsOffset');
-        assert.strictEqual(typeof rev.knobsOffset.x, 'number');
-        assert.strictEqual(typeof rev.knobsOffset.y, 'number');
-      });
-    });
-
-    describe('Echo A.D.L. config', () => {
-      const echo = br.echo;
-
-      it('existe con count = 1', () => {
-        assert.ok(echo, 'debe tener echo');
-        assert.strictEqual(echo.count, 1);
-      });
-
-      it('define 4 knobs: Delay, Mix, Feedback, Level', () => {
-        assert.ok(Array.isArray(echo.knobs), 'knobs debe ser array');
-        assert.deepStrictEqual(echo.knobs, ['Delay', 'Mix', 'Feedback', 'Level']);
-      });
-
-      it('tiene knobSize definido', () => {
-        assert.ok(echo.knobSize, 'debe tener knobSize');
-      });
-
-      it('tiene knobInnerPct, knobGap y knobsOffset válidos', () => {
-        assert.strictEqual(typeof echo.knobInnerPct, 'number');
-        assert.ok(echo.knobInnerPct > 0 && echo.knobInnerPct <= 100);
-        assert.strictEqual(typeof echo.knobGap, 'number');
-        assert.ok(echo.knobGap >= 0, 'knobGap no puede ser negativo');
-        assert.ok(echo.knobsOffset, 'debe tener knobsOffset');
-        assert.strictEqual(typeof echo.knobsOffset.x, 'number');
-        assert.strictEqual(typeof echo.knobsOffset.y, 'number');
-      });
-    });
-  });
-
-  it('tiene exactamente 3 secciones principales en el layout', () => {
-    const layoutSections = ['filtersRow', 'envelopeShapers', 'bottomRow'];
-    for (const name of layoutSections) {
-      assert.ok(panel1Blueprint.layout[name],
-        `debe tener sección layout.${name}`);
+  it('las cajas caen en la rejilla de 1/64 px (van en left/top, sin remuestrear)', () => {
+    for (const [id, b] of Object.entries(boxes)) {
+      for (const k of ['x', 'y', 'w', 'h']) {
+        assert.ok(Number.isInteger(b[k] * 64), `${id}.${k} = ${b[k]}`);
+      }
     }
+  });
+
+  it('ninguna caja se solapa con otra', () => {
+    const list = Object.entries(boxes);
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const [ia, a] = list[i], [ib, b] = list[j];
+        const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+        assert.ok(!overlap, `${ia} y ${ib} se solapan`);
+      }
+    }
+  });
+
+  it('no quedan claves de la columna flex antigua', () => {
+    for (const k of ['offset', 'padding', 'gap', 'filtersRow', 'bottomRow']) {
+      assert.strictEqual(layout[k], undefined, `layout.${k}`);
+    }
+    for (const name of ['filters', 'envelopeShapers', 'ringModulators', 'reverberation', 'echo']) {
+      for (const k of ['height', 'width', 'gap', 'offset', 'count', 'knobDirection']) {
+        assert.strictEqual(layout[name][k], undefined, `layout.${name}.${k}`);
+      }
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TESTS DE MANDOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Panel 1 Blueprint - Mandos', () => {
+  const cases = [
+    ['filters', ['Frequency', 'Response', 'Level']],
+    ['envelopeShapers', ['Mode', 'Delay', 'Attack', 'Decay', 'Sustain', 'Release', 'Env Level', 'Sig Level']],
+    ['ringModulators', ['Level']],
+    ['reverberation', ['Mix', 'Level']],
+    ['echo', ['Delay', 'Mix', 'Feedback', 'Level']]
+  ];
+  for (const [name, knobs] of cases) {
+    it(`${name}: mandos ${knobs.join(', ')}`, () => {
+      const s = layout[name];
+      assert.deepStrictEqual(s.knobs, knobs);
+      assert.strictEqual(s.knobColors.length, knobs.length);
+      assert.strictEqual(s.knobTypes.length, knobs.length);
+      assert.strictEqual(typeof s.knobSize, 'number');
+      assert.ok(s.knobInnerPct > 0 && s.knobInnerPct <= 100);
+      assert.ok(s.knobGap >= 0);
+      assert.strictEqual(typeof s.knobsOffset.x, 'number');
+      assert.strictEqual(typeof s.knobsOffset.y, 'number');
+    });
+  }
+
+  it('envelope shapers: gate y LED en px dentro del marco', () => {
+    const es = layout.envelopeShapers;
+    for (const k of ['gateOffset', 'ledOffset']) {
+      assert.strictEqual(typeof es[k].x, 'number', `${k}.x`);
+      assert.strictEqual(typeof es[k].y, 'number', `${k}.y`);
+    }
+    assert.ok(es.gateSize > 0);
+    assert.ok(es.ledSize > 0);
   });
 });
 
@@ -459,54 +331,13 @@ describe('Panel 1 Blueprint - Coherencia layout/modules', () => {
   it('los 8 filtros del layout corresponden a 8 módulos (flp1-4 + fhp1-4)', () => {
     const filterModules = Object.keys(panel1Blueprint.modules)
       .filter(k => k.startsWith('flp') || k.startsWith('fhp'));
-    assert.strictEqual(filterModules.length, 8,
-      `debe haber 8 módulos de filtro, hay ${filterModules.length}`);
-  });
-
-  it('el count de envelopeShapers coincide con los módulos declarados', () => {
-    const envCount = panel1Blueprint.layout.envelopeShapers.count;
-    const envModules = Object.keys(panel1Blueprint.modules)
-      .filter(k => k.startsWith('envelopeShaper'));
-    assert.strictEqual(envModules.length, envCount,
-      `envelopeShapers.count=${envCount} pero hay ${envModules.length} módulos`);
-  });
-
-  it('el count de ringModulators coincide con los módulos declarados', () => {
-    const rmCount = panel1Blueprint.layout.bottomRow.ringModulator.count;
-    const rmModules = Object.keys(panel1Blueprint.modules)
-      .filter(k => k.startsWith('ringModulator'));
-    assert.strictEqual(rmModules.length, rmCount,
-      `ringModulator.count=${rmCount} pero hay ${rmModules.length} módulos`);
-  });
-
-  it('el count de reverberation coincide con los módulos declarados', () => {
-    const revCount = panel1Blueprint.layout.bottomRow.reverberation.count;
-    const revModules = Object.keys(panel1Blueprint.modules)
-      .filter(k => k.startsWith('reverberation'));
-    assert.strictEqual(revModules.length, revCount,
-      `reverberation.count=${revCount} pero hay ${revModules.length} módulos`);
-  });
-
-  it('el count de echo coincide con los módulos declarados', () => {
-    const echoCount = panel1Blueprint.layout.bottomRow.echo.count;
-    const echoModules = Object.keys(panel1Blueprint.modules)
-      .filter(k => k.startsWith('echo'));
-    assert.strictEqual(echoModules.length, echoCount,
-      `echo.count=${echoCount} pero hay ${echoModules.length} módulos`);
+    assert.strictEqual(filterModules.length, 8);
+    assert.deepStrictEqual(Object.keys(layout.filters.boxes).sort(), filterModules.sort());
   });
 
   it('total de knobs en el panel: 8×3 + 3×8 + 3×1 + 1×2 + 1×4 = 57', () => {
-    const filterKnobs = 8 * panel1Blueprint.layout.filtersRow.knobs.length;
-    const envKnobs = panel1Blueprint.layout.envelopeShapers.count *
-                     panel1Blueprint.layout.envelopeShapers.knobs.length;
-    const rmKnobs = panel1Blueprint.layout.bottomRow.ringModulator.count *
-                    panel1Blueprint.layout.bottomRow.ringModulator.knobs.length;
-    const revKnobs = panel1Blueprint.layout.bottomRow.reverberation.count *
-                     panel1Blueprint.layout.bottomRow.reverberation.knobs.length;
-    const echoKnobs = panel1Blueprint.layout.bottomRow.echo.count *
-                      panel1Blueprint.layout.bottomRow.echo.knobs.length;
-    const total = filterKnobs + envKnobs + rmKnobs + revKnobs + echoKnobs;
-    assert.strictEqual(total, 57,
-      `total de knobs debe ser 57, calculado ${total}`);
+    const n = name => Object.keys(layout[name].boxes ?? { one: 1 }).length * layout[name].knobs.length;
+    const total = n('filters') + n('envelopeShapers') + n('ringModulators') + n('reverberation') + n('echo');
+    assert.strictEqual(total, 57, `total de knobs debe ser 57, calculado ${total}`);
   });
 });

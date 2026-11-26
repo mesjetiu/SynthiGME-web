@@ -198,11 +198,11 @@ export function buildPanel1(app) {
       app.panel1.element.classList.add('hide-frames');
     }
 
-    // Crear contenedor principal
+    // Contenedor del layout: ocupa el panel entero; cada módulo va en su caja
+    // absoluta { x, y, w, h } en px del panel (utils/panelBox.js).
     const host = document.createElement('div');
     host.id = 'panel1Layout';
     host.className = 'panel1-layout';
-    const offset = blueprint.layout.offset || { x: 0, y: 0 };
     host.style.cssText = `
       position: absolute;
       top: 0;
@@ -210,31 +210,19 @@ export function buildPanel1(app) {
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      padding: ${blueprint.layout.padding.top}px ${blueprint.layout.padding.right}px 
-               ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
-      display: flex;
-      flex-direction: column;
-      gap: ${blueprint.layout.gap ?? 4}px;
-      transform: translate(${offset.x}px, ${offset.y}px);
     `;
     app.panel1.appendElement(host);
 
+    const layout = blueprint.layout;
+    /** Caja de un módulo (rompe al cargar si falta) */
+    const boxOf = (section, moduleId) =>
+      requireBox(section?.boxes?.[moduleId] ?? section?.box, `panel 1 ${moduleId}`);
+
     // ─────────────────────────────────────────────────────────────────────────
-    // FILA 1: FILTROS FLP 1-4 + FHP 1-4
+    // FILTROS FLP 1-4 + FHP 1-4
     // ─────────────────────────────────────────────────────────────────────────
 
-    const filtersLayout = blueprint.layout.filtersRow;
-    const filtersRow = document.createElement('div');
-    filtersRow.className = 'panel1-filters-row';
-    filtersRow.style.cssText = `
-      display: flex;
-      gap: ${filtersLayout.gap}px;
-      height: ${filtersLayout.height}px;
-      flex: 0 0 auto;
-      width: 100%;
-    `;
-    applyOffset(filtersRow, filtersLayout.offset);
-    host.appendChild(filtersRow);
+    const filtersLayout = layout.filters;
 
     const filterBanks = [
       {
@@ -295,7 +283,6 @@ export function buildPanel1(app) {
           knobColors: filterModuleUI.knobColors ?? filtersLayout.knobColors,
           knobTypes: filterModuleUI.knobTypes ?? filtersLayout.knobTypes,
           knobsOffset: filterModuleUI.knobsOffset ?? filtersLayout.knobsOffset,
-          offset: filterModuleUI.offset ?? filtersLayout.moduleOffset,
           knobOptions: {
             frequency: {
               ...filterConfig.knobs.frequency,
@@ -323,19 +310,19 @@ export function buildPanel1(app) {
         });
 
         const el = ui.createElement();
-        el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+        applyBox(el, boxOf(filtersLayout, filterId));
 
         applyModuleVisibility(el, blueprint, filterId);
-        filtersRow.appendChild(el);
+        host.appendChild(el);
         app._panel1FilterUIs[ui.id] = ui;
       });
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FILAS 2-4: ENVELOPE SHAPERS 1-3
+    // ENVELOPE SHAPERS 1-3
     // ─────────────────────────────────────────────────────────────────────────
 
-    const envLayout = blueprint.layout.envelopeShapers;
+    const envLayout = layout.envelopeShapers;
 
     // Tooltips sin dependencia de modo (compartidos por las 3 instancias)
     const esEnvLevelTooltip = getEnvelopeShaperEnvLevelTooltipInfo();
@@ -347,7 +334,7 @@ export function buildPanel1(app) {
       envelopeShaperConfig.knobs.mode.labels
     );
 
-    for (let i = 1; i <= envLayout.count; i++) {
+    for (let i = 1; i <= 3; i++) {
       const envId = `envelopeShaper${i}`;
       const envModuleUI = blueprint.modules?.[envId]?.ui || {};
 
@@ -394,11 +381,8 @@ export function buildPanel1(app) {
         className: 'panel1-placeholder panel1-envelope'
       });
       const el = frame.createElement();
-      el.style.cssText = `
-        width: 100%;
-        height: ${envLayout.height}px;
-        flex: 0 0 auto;
-      `;
+      // La caja hace de contenedor posicionado del LED y del gate
+      applyBox(el, boxOf(envLayout, envId));
 
       // Crear knobs horizontales en panel1-envelope-knobs (estructura CSS existente)
       const knobsContainer = document.createElement('div');
@@ -521,11 +505,6 @@ export function buildPanel1(app) {
 
       el.appendChild(gateBtn);
 
-      // El frame necesita position:relative para los hijos absolutos
-      el.style.position = 'relative';
-
-      applyOffset(el, envModuleUI.offset, envLayout.moduleOffset || { x: 0, y: 0 });
-
       applyModuleVisibility(el, blueprint, envId);
       host.appendChild(el);
 
@@ -561,33 +540,20 @@ export function buildPanel1(app) {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FILA 5: RING MODULATORS + REVERB + ECHO
+    // RING MODULATORS + REVERB + ECHO
     // ─────────────────────────────────────────────────────────────────────────
-
-    const bottomLayout = blueprint.layout.bottomRow;
-    const bottomRow = document.createElement('div');
-    bottomRow.className = 'panel1-bottom-row';
-    bottomRow.style.cssText = `
-      display: flex;
-      height: ${bottomLayout.height}px;
-      flex: 0 0 auto;
-      width: 100%;
-    `;
-    applyOffset(bottomRow, bottomLayout.offset);
-    host.appendChild(bottomRow);
 
     const bottomFrames = {};
 
     // Ring Modulators 1-3 (1 knob cada uno: Level) — módulo funcional
-    const rmConfig = bottomLayout.ringModulator;
-    let isFirstBottomModule = true;
+    const rmConfig = layout.ringModulators;
 
     const rmLevelTooltip = getRingModLevelTooltipInfo(
       ringModulatorConfig.audio.maxInputVpp,
       ringModulatorConfig.audio.levelLogBase
     );
 
-    for (let i = 1; i <= rmConfig.count; i++) {
+    for (let i = 1; i <= 3; i++) {
       const rmId = `ringModulator${i}`;
       const rmModuleUI = blueprint.modules?.[rmId]?.ui || {};
 
@@ -612,7 +578,6 @@ export function buildPanel1(app) {
         knobColors: rmModuleUI.knobColors ?? rmConfig.knobColors,
         knobTypes: rmModuleUI.knobTypes ?? rmConfig.knobTypes,
         knobsOffset: rmModuleUI.knobsOffset ?? rmConfig.knobsOffset,
-        offset: rmModuleUI.offset ?? rmConfig.moduleOffset,
         knobOptions: {
           level: {
             ...ringModulatorConfig.knobs.level,
@@ -629,20 +594,15 @@ export function buildPanel1(app) {
       app._panel1RingModUIs[rmId] = ringModUI;
 
       const el = ringModUI.createElement();
-      const rmWidthCss = rmConfig.width
-        ? `flex: 0 0 auto; width: ${rmConfig.width}px; height: 100%;`
-        : `flex: 1 1 0; min-width: 0; height: 100%;`;
-      const rmGap = isFirstBottomModule ? 0 : toNum(rmConfig.gap, 3);
-      el.style.cssText = `${rmWidthCss} margin-left: ${rmGap}px;`;
-      isFirstBottomModule = false;
+      applyBox(el, boxOf(rmConfig, rmId));
 
       applyModuleVisibility(el, blueprint, rmId);
-      bottomRow.appendChild(el);
+      host.appendChild(el);
       bottomFrames[rmId] = ringModUI.frame;
     }
 
     // Reverberation 1 (2 knobs: Mix, Level) — módulo funcional
-    const reverbBlueprintConfig = bottomLayout.reverberation;
+    const reverbBlueprintConfig = layout.reverberation;
     const reverbModuleUI = blueprint.modules?.reverberation1?.ui || {};
 
     const reverbModule = new SpringReverbModule(app.engine, 'reverb-1', {
@@ -671,7 +631,6 @@ export function buildPanel1(app) {
       knobColors: reverbModuleUI.knobColors ?? reverbBlueprintConfig.knobColors,
       knobTypes: reverbModuleUI.knobTypes ?? reverbBlueprintConfig.knobTypes,
       knobsOffset: reverbModuleUI.knobsOffset ?? reverbBlueprintConfig.knobsOffset,
-      offset: reverbModuleUI.offset ?? reverbBlueprintConfig.moduleOffset,
       knobOptions: {
         mix: {
           ...reverberationConfig.knobs.mix,
@@ -698,17 +657,14 @@ export function buildPanel1(app) {
     app._panel1ReverbUI = reverbUI;
 
     const reverbEl = reverbUI.createElement();
-    const reverbWidthCss = reverbBlueprintConfig.width
-      ? `flex: 0 0 auto; width: ${reverbBlueprintConfig.width}px; height: 100%;`
-      : `flex: 1 1 0; min-width: 0; height: 100%;`;
-    reverbEl.style.cssText = `${reverbWidthCss} margin-left: ${toNum(reverbBlueprintConfig.gap, 3)}px;`;
+    applyBox(reverbEl, boxOf(reverbBlueprintConfig, 'reverberation1'));
 
     applyModuleVisibility(reverbEl, blueprint, 'reverberation1');
-    bottomRow.appendChild(reverbEl);
+    host.appendChild(reverbEl);
     bottomFrames.reverberation1 = reverbUI.frame;
 
     // Echo A.D.L. (4 knobs: Delay, Mix, Feedback, Level)
-    const echoConfig = bottomLayout.echo;
+    const echoConfig = layout.echo;
     const echoFrame = new ModuleFrame({
       id: 'echoADL-module',
       title: null,
@@ -716,10 +672,7 @@ export function buildPanel1(app) {
     });
     const echoEl = echoFrame.createElement();
     const echoUI = blueprint.modules?.echoADL?.ui || {};
-    const echoWidthCss = echoConfig.width
-      ? `flex: 0 0 auto; width: ${echoConfig.width}px; height: 100%;`
-      : `flex: 1 1 0; min-width: 0; height: 100%;`;
-    echoEl.style.cssText = `${echoWidthCss} margin-left: ${toNum(echoConfig.gap, 3)}px;`;
+    applyBox(echoEl, boxOf(echoConfig, 'echoADL'));
 
     const echoKnobs = document.createElement('div');
     echoKnobs.className = 'panel1-bottom-knobs';
@@ -735,10 +688,9 @@ export function buildPanel1(app) {
       echoKnobs.appendChild(knob.wrapper);
     });
     echoFrame.appendToContent(echoKnobs);
-    applyOffset(echoEl, echoUI.offset, echoConfig.moduleOffset || { x: 0, y: 0 });
 
     applyModuleVisibility(echoEl, blueprint, 'echoADL');
-    bottomRow.appendChild(echoEl);
+    host.appendChild(echoEl);
     bottomFrames.echoADL = echoFrame;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -747,8 +699,6 @@ export function buildPanel1(app) {
 
     app._panel1Data = {
       host,
-      filtersRow,
-      bottomRow,
       bottomFrames
     };
   }

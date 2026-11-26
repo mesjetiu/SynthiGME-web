@@ -241,6 +241,48 @@ describe('buildPanel1 — DOM', () => {
     const layout = app.panel1.element.querySelector('#panel1Layout');
     assert.ok(layout.classList.contains('panel1-layout'));
   });
+
+  it('cada módulo cuelga del panel en su caja, sin filas intermedias', () => {
+    const layout = app.panel1.element.querySelector('#panel1Layout');
+    assert.strictEqual(layout.style.transform, '', 'el contenedor ya no se desplaza (antes y 40)');
+    assert.strictEqual(layout.style.display, '', 'el contenedor ya no es flex');
+    assert.strictEqual(layout.style.padding, '', 'el contenedor ya no tiene padding');
+    const byId = id => [...layout.children].find(el => el.id === id);
+    const flp1 = byId('flp1-module');
+    assert.ok(flp1, 'FLP 1 es hijo directo de #panel1Layout');
+    assert.strictEqual(flp1.style.left, '5px');
+    assert.strictEqual(flp1.style.top, '48px');
+    assert.strictEqual(flp1.style.width, '92px');
+    assert.strictEqual(flp1.style.height, '290px');
+    assert.strictEqual(byId('fhp4-module').style.left, '663px');
+    const es3 = byId('envelopeShaper3-module');
+    assert.strictEqual(es3.style.position, 'absolute', 'la caja no la pisa el position:relative de antes');
+    assert.strictEqual(es3.style.top, '544px');
+    assert.strictEqual(byId('ringModulator2-module').style.left, '113px');
+    assert.strictEqual(byId('reverberation1-module').style.width, '143px');
+    assert.strictEqual(byId('echoADL-module').style.width, '282px');
+    // 16 módulos, todos en left/top (sin translate)
+    const modules = [...layout.children].filter(el => el.classList.contains('synth-module'));
+    assert.strictEqual(modules.length, 16);
+    for (const el of modules) {
+      assert.strictEqual(el.style.transform, '', el.id);
+      assert.strictEqual(el.style.position, 'absolute', el.id);
+    }
+    for (const cls of ['panel1-filters-row', 'panel1-bottom-row']) {
+      assert.strictEqual(layout.querySelector(`.${cls}`), null, `.${cls} ya no existe`);
+    }
+  });
+
+  it('el gate y el LED de cada envolvente van en px dentro de su marco', () => {
+    const es1 = app.panel1.element.querySelector('#envelopeShaper1-module');
+    const led = es1.querySelector(':scope > .envelope-shaper__led');
+    const gate = es1.querySelector(':scope > .envelope-shaper__gate-btn');
+    assert.ok(led && gate);
+    assert.strictEqual(led.style.left, '130px');
+    assert.strictEqual(led.style.top, '8px');
+    assert.strictEqual(gate.style.left, '52px');
+    assert.strictEqual(gate.style.top, '68px');
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -359,13 +401,13 @@ describe('buildPanel1 — envelope shapers', () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe('buildPanel1 — _panel1Data', () => {
-  it('popula _panel1Data con referencias de host y filas', () => {
+  it('popula _panel1Data con el host y los marcos de la fila inferior', () => {
     const app = buildMockApp();
     buildPanel1(app);
     assert.ok(app._panel1Data !== null, '_panel1Data no debe ser null');
     assert.ok(app._panel1Data.host, 'debe tener host');
-    assert.ok(app._panel1Data.filtersRow, 'debe tener filtersRow');
-    assert.ok(app._panel1Data.bottomRow, 'debe tener bottomRow');
+    assert.deepStrictEqual(Object.keys(app._panel1Data.bottomFrames).sort(),
+      ['echoADL', 'reverberation1', 'ringModulator1', 'ringModulator2', 'ringModulator3']);
   });
 });
 

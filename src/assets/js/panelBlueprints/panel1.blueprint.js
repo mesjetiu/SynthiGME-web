@@ -29,11 +29,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // De arriba a abajo:
-//   Fila 1: FLP 1-4 | FHP 1-4 (8 filtros, cada uno con 3 knobs verticales)
-//   Fila 2: Envelope Shaper 1 (ancho completo, 8 knobs horizontales)
-//   Fila 3: Envelope Shaper 2 (ancho completo, 8 knobs horizontales)
-//   Fila 4: Envelope Shaper 3 (ancho completo, 8 knobs horizontales)
-//   Fila 5: RM 1-3 | Reverb 1 | Echo A.D.L. (5 módulos con knobs)
+//   FLP 1-4 | FHP 1-4 (8 filtros, cada uno con 3 knobs verticales)
+//   Envelope Shaper 1 (ancho completo, 8 knobs horizontales)
+//   Envelope Shaper 2 (ancho completo, 8 knobs horizontales)
+//   Envelope Shaper 3 (ancho completo, 8 knobs horizontales)
+//   RM 1-3 | Reverb 1 | Echo A.D.L. (5 módulos con knobs)
 //
 // Para conexiones a matrices de audio (Panel 5) y control (Panel 6),
 // ver la referencia cruzada al final de este archivo.
@@ -51,28 +51,31 @@ export default {
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────
   //
-  // El panel se divide en 5 filas de arriba a abajo.
-  // Fila 1: 8 filtros (4 FLP + 4 FHP) ocupando todo el ancho.
-  // Filas 2-4: 3 Envelope Shapers, cada uno a ancho completo.
-  // Fila 5: 5 módulos (3 RM + Reverb + Echo).
+  // Cada módulo se coloca con una caja absoluta { x, y, w, h } en px del
+  // panel (760×760 = la imagen de fondo; ver utils/panelBox.js), por id de
+  // módulo: layout.<tipo>.boxes.<id> (o layout.<tipo>.box si hay uno solo).
+  // Mover uno no mueve los demás. Dentro de cada caja, los mandos siguen
+  // repartidos por el CSS como antes (flex).
   //
+  // Las cajas son las que daba la columna flex anterior (offset y 40,
+  // padding 8/5, gap 2; filtros de 290 con gap 2, envolventes de 100 con
+  // gap 2, fila inferior de 100 con anchos 107/143 y gap 1), medidas en la
+  // web: el panel queda idéntico. Todavía NO están cuadradas con la foto
+  // (hoja de ruta, 1.3).
 
   layout: {
-    // Offset general del panel (px) — desplaza todos los módulos
-    // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 40 },
-
-    // Padding general del panel
-    padding: { top: 8, right: 5, bottom: 8, left: 5 },
-
-    // Gap vertical entre filas
-    gap: 2,
-
-    // ── Fila 1: Filtros FLP 1-4 + FHP 1-4 ──────────────────────────────
-    filtersRow: {
-      height: 290,
-      gap: 2,               // Gap horizontal entre filtros
-      offset: { x: 0, y: 0 },
+    // ── Filtros FLP 1-4 + FHP 1-4 ───────────────────────────────────────
+    filters: {
+      boxes: {
+        flp1: { x: 5,   y: 48, w: 92, h: 290 },
+        flp2: { x: 99,  y: 48, w: 92, h: 290 },
+        flp3: { x: 193, y: 48, w: 92, h: 290 },
+        flp4: { x: 287, y: 48, w: 92, h: 290 },
+        fhp1: { x: 381, y: 48, w: 92, h: 290 },
+        fhp2: { x: 475, y: 48, w: 92, h: 290 },
+        fhp3: { x: 569, y: 48, w: 92, h: 290 },
+        fhp4: { x: 663, y: 48, w: 92, h: 290 }
+      },
       // Cada filtro tiene 3 knobs en columna vertical:
       // Frequency, Response, Level
       knobs: ['Frequency', 'Response', 'Level'],
@@ -81,15 +84,16 @@ export default {
       knobSize: 65,
       knobInnerPct: 78,
       knobGap: 2,
-      knobsOffset: { x: 0, y: 0 },
-      knobDirection: 'vertical'
+      knobsOffset: { x: 0, y: 0 }
     },
 
-    // ── Filas 2-4: Envelope Shapers ─────────────────────────────────────
+    // ── Envelope Shapers 1-3 ────────────────────────────────────────────
     envelopeShapers: {
-      height: 100,
-      gap: 4,               // Gap vertical entre envelopes
-      offset: { x: 0, y: 0 },
+      boxes: {
+        envelopeShaper1: { x: 5, y: 340, w: 750, h: 100 },
+        envelopeShaper2: { x: 5, y: 442, w: 750, h: 100 },
+        envelopeShaper3: { x: 5, y: 544, w: 750, h: 100 }
+      },
       // Cada envelope shaper tiene 8 knobs en fila horizontal:
       // Mode, Delay, Attack, Decay, Sustain, Release, Envelope Level, Signal Level
       knobs: ['Mode', 'Delay', 'Attack', 'Decay', 'Sustain', 'Release', 'Env Level', 'Sig Level'],
@@ -99,63 +103,52 @@ export default {
       knobInnerPct: 78,
       knobGap: 2,
       knobsOffset: { x: 0, y: 0 },
-      knobDirection: 'horizontal',
-      count: 3,
-      // Gate button: posición absoluta relativa al frame (abajo a la derecha del selector)
+      // Gate button: posición absoluta dentro del marco (abajo a la derecha del selector)
       gateOffset: { x: 52, y: 68 },
       gateSize: 16,
-      // LED piloto: posición absoluta relativa al frame (arriba a la derecha de delay)
+      // LED piloto: posición absoluta dentro del marco (arriba a la derecha de delay)
       ledOffset: { x: 130, y: 8 },
       ledSize: 10
     },
 
-    // ── Fila 5: Ring Modulators + Reverb + Echo ─────────────────────────
-    bottomRow: {
-      height: 100,
-      offset: { x: 0, y: 0 },
-
-      // Definición individual de cada módulo de la fila inferior
-      // width (px): ancho fijo. Si no se indica, reparte espacio sobrante.
-      // gap (px): espacio a la izquierda del módulo (0 para el primero).
-
-      ringModulator: {
-        count: 3,
-        width: 107,
-        gap: 1,               // Gap entre ring modulators (y antes del primero si no es el 1º de la fila)
-        knobs: ['Level'],
-        knobColors: ['white'],
-        knobTypes: ['normal'],
-        knobSize: 65,
-        knobInnerPct: 78,
-        knobGap: 6,
-        knobsOffset: { x: 0, y: 0 }
+    // ── Ring Modulators 1-3 ─────────────────────────────────────────────
+    ringModulators: {
+      boxes: {
+        ringModulator1: { x: 5,   y: 646, w: 107, h: 100 },
+        ringModulator2: { x: 113, y: 646, w: 107, h: 100 },
+        ringModulator3: { x: 221, y: 646, w: 107, h: 100 }
       },
+      knobs: ['Level'],
+      knobColors: ['white'],
+      knobTypes: ['normal'],
+      knobSize: 65,
+      knobInnerPct: 78,
+      knobGap: 6,
+      knobsOffset: { x: 0, y: 0 }
+    },
 
-      reverberation: {
-        count: 1,
-        width: 143,
-        gap: 1,               // Gap antes de Reverb
-        knobs: ['Mix', 'Level'],
-        knobColors: ['blue', 'white'],
-        knobTypes: ['normal', 'normal'],
-        knobSize: 65,
-        knobInnerPct: 78,
-        knobGap: 6,
-        knobsOffset: { x: 0, y: 0 }
-      },
+    // ── Reverberation 1 ─────────────────────────────────────────────────
+    reverberation: {
+      box: { x: 329, y: 646, w: 143, h: 100 },
+      knobs: ['Mix', 'Level'],
+      knobColors: ['blue', 'white'],
+      knobTypes: ['normal', 'normal'],
+      knobSize: 65,
+      knobInnerPct: 78,
+      knobGap: 6,
+      knobsOffset: { x: 0, y: 0 }
+    },
 
-      echo: {
-        count: 1,
-        //width: 200,
-        gap: 1,               // Gap antes de Echo
-        knobs: ['Delay', 'Mix', 'Feedback', 'Level'],
-        knobColors: ['blue', 'blue', 'blue', 'white'],
-        knobTypes: ['normal', 'normal', 'normal', 'normal'],
-        knobSize: 65,
-        knobInnerPct: 78,
-        knobGap: 6,
-        knobsOffset: { x: 0, y: 0 }
-      }
+    // ── Echo A.D.L. ─────────────────────────────────────────────────────
+    echo: {
+      box: { x: 473, y: 646, w: 282, h: 100 },
+      knobs: ['Delay', 'Mix', 'Feedback', 'Level'],
+      knobColors: ['blue', 'blue', 'blue', 'white'],
+      knobTypes: ['normal', 'normal', 'normal', 'normal'],
+      knobSize: 65,
+      knobInnerPct: 78,
+      knobGap: 6,
+      knobsOffset: { x: 0, y: 0 }
     }
   },
 

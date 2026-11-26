@@ -93,29 +93,31 @@ pendientes de verse en un navegador.
     ajustados a píxel, como cualquier caja de layout. 2,7 % de píxeles, nada
     movido, algo más nítidos. Ninguna regla reproducía la imagen vieja
     exacta, porque mezclaba los dos orígenes.
-- **Ahora, 1.2 panel 7** (en conversación nueva). Lo que ya se sabe:
-  - Lo monta `panelAssembler.js` → `setupOutputFaders` (hacia la línea
-    1240): `panel7Layout` es una columna flex anclada abajo, con
-    `layout.offset` (y 19) aplicado como `translate` al contenedor entero,
-    `padding` y la fila superior (`upperRow`) insertada delante de
-    `outputChannelsSection`. Blueprint: `panel7.blueprint.js`
-    (`layout.offset`, `padding`, `upperRow`, `lowerRow`, `outputChannelUI`,
-    `modules`). Tests: `panelBlueprints/panel7Blueprint`, `panelAssembler`,
-    `integration/sequencerRouting`, `ui/moduleFrame`, `ui/easterEgg`,
-    `ui/doubleTapZoom`, `ui/signalFlowHighlighter`.
-  - Cajas medidas (referencia, px del panel ya con el +19): joystick
-    izquierdo (37, 89, 215×240), secuenciador (254, 89, 252×240), joystick
-    derecho (508, 89, 215×240); canales de salida 1–8 en x 38,25 + n × 85,5,
-    y 329, 85×425. Contenedores que desaparecerían: `panel7-upper-row`
-    (10, 89, 740×240) y `outputChannelsSection` (10, 326, 740×440); ojo,
-    `outputChannelsSection` lo crea `app.js` y lo usan otros sitios
-    (`app.outputChannelsSection`): mirar antes si se puede quitar o si se
-    queda como contenedor a (0, 0, 760, 760).
-  - Todas esas coordenadas caen en la rejilla de 1/64 px (vienen del
-    flex), así que irán en `left/top` y deberían dar imagen idéntica.
-  - Cuidado con `knobSize: 65` de los joysticks: se ven a 60 (ver
-    `REVISION-VISUAL-2026-09.md`); conservar 60.
-- Después: las matrices (5, 6), un panel por commit.
+- **1.2, panel 7 hecho** (26-nov): joysticks y secuenciador con su caja
+  en `layout.<módulo>.box`, y los 8 canales en `layout.outputChannels.boxes`
+  (x 38,25 + n × 85,5; todas en la rejilla de 1/64 px, así que van en
+  `left/top`). Fuera la columna flex anclada abajo con su `offset` (y 19) y
+  su `padding`, `upperRow`, `lowerRow` y el `offset` por módulo; la Y de
+  los joysticks ya no depende del alto de los canales.
+  - `outputChannelsSection` se ha quitado: solo la usaba el montaje del
+    panel 7. Los canales cuelgan de `#panel7Layout` como los demás
+    módulos; `OutputChannelsPanel.createPanel(container, boxes)`.
+  - Las variables `--oc-*` (medidas interiores de los canales) van ahora en
+    cada canal, no en el contenedor: los interruptores del secuenciador
+    usan las mismas clases y, con ellas en el contenedor, heredaban
+    `--oc-button-scale: 0.85` (962 píxeles distintos). Con ellas en cada
+    canal, imagen idéntica en los siete paneles.
+  - `knobSize: 65` de los joysticks se queda, con su comentario: se ve a
+    60 (no hay clase `knob--65`) y el test lo fija.
+  - Geometría: los 303 elementos que quedan, en el mismo sitio (ruta
+    normalizada); cambian `div.panel7-layout` → `#panel7Layout`, el
+    contenedor pasa de y 19 a 0 y desaparecen la fila superior y
+    `outputChannelsSection`. Se regenera la geometría del panel 7.
+  - Ojo al comparar: los prefijos `kN_` de los SVG en línea se numeran por
+    orden de llegada de las descargas, y en una de tres capturas llegaron
+    en otro orden (paneles 1 y 3 «distintos» solo de ruta). Si pasa, volver
+    a capturar o comparar normalizando `#k\d+_`.
+- **Ahora, 1.2 matrices (5, 6)**, un panel por commit (en conversación nueva).
 
 ## Qué documento manda en cada cosa
 

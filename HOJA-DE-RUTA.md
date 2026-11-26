@@ -60,12 +60,17 @@ pendientes de verse en un navegador.
 4. **Plataforma y release 0.9.** Micrófono e importar patches en Android,
    rendimiento, dependencias.
 
-## Decisiones pendientes
+## Decisiones tomadas (26-nov-2026)
 
-- Matrices: dejarlas como están o centrar cada pin en su casilla exacta
-  (mejora de hasta 1 px, cambia la referencia).
-- Vectoriales: sustituyen a las fotos o conviven como opción de aspecto.
-- Si la prueba guiada del secuenciador va antes que lo visual.
+- **Fondos: solo vectoriales.** Las fotos de 1, 2, 4 y 7 se retiran de la web
+  cuando su vectorial esté hecho; quedan en `design/` como referencia.
+- **Matrices: como están.** No se recolocan los pines.
+- **Orden: el de arriba**, empezando por lo visual.
+
+## Siguiente paso
+
+1.1: `debugBorder` de los voltímetros del panel 4 a `false`, regenerando la
+referencia visual de ese panel en el mismo commit. Después, 1.2.
 
 ## Qué documento manda en cada cosa
 

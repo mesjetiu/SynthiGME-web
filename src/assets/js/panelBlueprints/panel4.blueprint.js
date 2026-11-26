@@ -116,7 +116,9 @@ export default {
         width: 90,
         height: 70,
         overflow: 'hidden',
-        debugBorder: true,
+        // Recuadro de depuración para ajustar la ventana contra la foto.
+        // En la web publicada, siempre false.
+        debugBorder: false,
         debugBorderColor: 'cyan',
         debugBorderWidth: 1
       },

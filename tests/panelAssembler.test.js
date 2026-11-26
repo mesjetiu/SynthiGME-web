@@ -710,6 +710,23 @@ describe('setupOutputFaders — módulos', () => {
     assert.strictEqual(layout.querySelector('#sequencer-control').style.getPropertyValue('--oc-button-scale'), '');
   });
 
+  it('el secuenciador pone cada mando en su caja, relativa al módulo', () => {
+    const layout = app.outputPanel.element.querySelector('#panel7Layout');
+    const seq = layout.querySelector('#sequencer-control');
+    const sw = seq.querySelectorAll('.panel7-seq-switch');
+    assert.strictEqual(sw.length, 8);
+    // tuerca del interruptor 1 en (269,3, 152,5): caja 13 × 23,25 desde (254, 89)
+    assert.strictEqual(sw[0].style.getPropertyValue('--p7-x'), '8.8px');
+    assert.strictEqual(sw[0].style.getPropertyValue('--p7-y'), '51.875px');
+    assert.strictEqual(sw[0].style.getPropertyValue('--p7-w'), '13px');
+    assert.ok(sw[0].classList.contains('p7-placed'));
+    assert.strictEqual(seq.querySelectorAll('.panel7-seq-button.p7-placed').length, 8);
+    const clock = seq.querySelector('.panel7-seq-clock-knob');
+    assert.strictEqual(clock.style.getPropertyValue('--p7-x'), '98.5px');
+    assert.strictEqual(clock.style.getPropertyValue('--p7-y'), '173px');
+    assert.strictEqual(clock.style.getPropertyValue('--p7-w'), '55px');
+  });
+
   it('cada canal pone su fader en la escala del fondo (raya del 10 en y 583,7)', () => {
     const layout = app.outputPanel.element.querySelector('#panel7Layout');
     for (const id of ['output-channel-1', 'output-channel-8']) {

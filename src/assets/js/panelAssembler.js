@@ -39,7 +39,7 @@ import { Toggle }                       from './ui/toggle.js';
 import { Knob }                         from './ui/knob.js';
 import { createKnob }                   from './ui/knobFactory.js';
 import { applyBox, boxCss, requireBox } from './utils/panelBox.js';
-import { faderVars } from './utils/panel7Geometry.js';
+import { faderVars, sequencerPlacement, placeInModule } from './utils/panel7Geometry.js';
 
 import {
   KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK
@@ -1178,11 +1178,7 @@ export function setupOutputFaders(app) {
         ...moduleUI,
         padOffset: resolveOffset(moduleUI.padOffset, defaults.padOffset || { x: 0, y: 0 }),
         knobsOffset: resolveOffset(moduleUI.knobsOffset, defaults.knobsOffset || { x: 0, y: 0 }),
-        switchesOffset: resolveOffset(moduleUI.switchesOffset, defaults.switchesOffset || { x: 0, y: 0 }),
-        buttonsOffset: resolveOffset(moduleUI.buttonsOffset, defaults.buttonsOffset || { x: 0, y: 0 }),
-        knobOffsets: Array.isArray(moduleUI.knobOffsets) ? moduleUI.knobOffsets : (defaults.knobOffsets || []),
-        switchOffsets: Array.isArray(moduleUI.switchOffsets) ? moduleUI.switchOffsets : (defaults.switchOffsets || []),
-        buttonOffsets: Array.isArray(moduleUI.buttonOffsets) ? moduleUI.buttonOffsets : (defaults.buttonOffsets || [])
+        knobOffsets: Array.isArray(moduleUI.knobOffsets) ? moduleUI.knobOffsets : (defaults.knobOffsets || [])
       };
     };
     
@@ -1229,50 +1225,12 @@ export function setupOutputFaders(app) {
     const joystickLeftDefaults = buildJoystickDefaults(joystickLeftConfig);
     const joystickRightDefaults = buildJoystickDefaults(joystickRightConfig);
 
-    const sequencerDefaults = {
-      ...sequencerConfig,
-      contentPadding: sequencerConfig.contentPadding || { top: 4, right: 4, bottom: 4, left: 4 },
-      rowsGap: sequencerConfig.rowsGap ?? 8,
-      switchesGap: sequencerConfig.switchesGap ?? 4,
-      buttonsGap: sequencerConfig.buttonsGap ?? 4,
-      switchesOffset: resolveOffset(sequencerConfig.switchesOffset, { x: 0, y: 0 }),
-      buttonsOffset: resolveOffset(sequencerConfig.buttonsOffset, { x: 0, y: 0 }),
-      clockRateOffset: resolveOffset(
-        sequencerConfig.clockRateOffset,
-        sequencerConfig.clockRate?.rowOffset || { x: 0, y: 0 }
-      ),
-      clockRateKnobOffset: resolveOffset(
-        sequencerConfig.clockRateKnobOffset,
-        sequencerConfig.clockRate?.knobOffset || { x: 0, y: 0 }
-      ),
-      switchOffsets: Array.isArray(sequencerConfig.switchOffsets) ? sequencerConfig.switchOffsets : [],
-      buttonOffsets: Array.isArray(sequencerConfig.buttonOffsets) ? sequencerConfig.buttonOffsets : [],
-      clockRate: {
-        label: sequencerConfig.clockRate?.label || 'Clock Rate',
-        knobSize: sequencerConfig.clockRate?.knobSize || 'sm',
-        rowOffset: resolveOffset(sequencerConfig.clockRate?.rowOffset, { x: 0, y: 0 }),
-        knobOffset: resolveOffset(sequencerConfig.clockRate?.knobOffset, { x: 0, y: 0 })
-      }
-    };
-
     const joystickLeftUI = mergePanel7UI(joystickLeftDefaults, moduleOverrides.joystickLeft?.ui);
     const joystickRightUI = mergePanel7UI(joystickRightDefaults, moduleOverrides.joystickRight?.ui);
-    const sequencerUI = mergePanel7UI(sequencerDefaults, moduleOverrides.sequencer?.ui);
-    const sequencerClockOverride = moduleOverrides.sequencer?.ui?.clockRate || {};
-    sequencerUI.clockRateOffset = resolveOffset(
-      moduleOverrides.sequencer?.ui?.clockRateOffset,
-      sequencerDefaults.clockRateOffset
-    );
-    sequencerUI.clockRateKnobOffset = resolveOffset(
-      moduleOverrides.sequencer?.ui?.clockRateKnobOffset,
-      sequencerDefaults.clockRateKnobOffset
-    );
-    sequencerUI.clockRate = {
-      ...sequencerDefaults.clockRate,
-      ...sequencerClockOverride,
-      rowOffset: resolveOffset(sequencerClockOverride.rowOffset, sequencerDefaults.clockRate.rowOffset),
-      knobOffset: resolveOffset(sequencerClockOverride.knobOffset, sequencerDefaults.clockRate.knobOffset)
-    };
+    // Secuenciador: cada mando en su sitio del panel (px del panel); los
+    // overrides de modules.sequencer.ui sustituyen la clave entera.
+    const sequencerUI = { ...sequencerConfig, ...(moduleOverrides.sequencer?.ui || {}) };
+    const seqPlacement = sequencerPlacement(sequencerUI);
 
     // ── Inicializar módulos de audio de joystick ──────────────────────────
     const joyRamps = joystickConfig.defaults?.ramps || { position: 0.01, range: 0.05 };
@@ -1421,21 +1379,18 @@ export function setupOutputFaders(app) {
     applyBox(sequencerEl, sequencerBox);
     sequencerEl.dataset.moduleName = 'Sequencer';
     
+    // Capa que ocupa el módulo entero: dentro, cada mando va en su caja
+    // absoluta (placeInModule), medida en la foto.
     const seqContent = document.createElement('div');
     seqContent.className = 'panel7-sequencer-layout';
-    const seqPad = sequencerUI.contentPadding || { top: 4, right: 4, bottom: 4, left: 4 };
-    seqContent.style.padding = `${toNum(seqPad.top)}px ${toNum(seqPad.right)}px ${toNum(seqPad.bottom)}px ${toNum(seqPad.left)}px`;
-    seqContent.style.gap = `${toNum(sequencerUI.rowsGap, 8)}px`;
-    
+
     // Fila de switches
     const switchRow = document.createElement('div');
     switchRow.className = 'panel7-sequencer-switches';
-    switchRow.style.gap = `${toNum(sequencerUI.switchesGap, 4)}px`;
-    applyOffset(switchRow, sequencerUI.switchesOffset);
     for (const [idx, label] of sequencerConfig.switches.entries()) {
       const sw = document.createElement('div');
       sw.className = 'panel7-seq-switch';
-      applyOffset(sw, sequencerUI.switchOffsets?.[idx]);
+      placeInModule(sw, seqPlacement.switches[idx], sequencerBox);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'output-channel__switch output-channel__switch--svg';
@@ -1492,14 +1447,12 @@ export function setupOutputFaders(app) {
     // Fila de botones
     const buttonRow = document.createElement('div');
     buttonRow.className = 'panel7-sequencer-buttons';
-    buttonRow.style.gap = `${toNum(sequencerUI.buttonsGap, 4)}px`;
-    applyOffset(buttonRow, sequencerUI.buttonsOffset);
     for (const [idx, label] of sequencerConfig.buttons.entries()) {
       const btn = document.createElement('button');
       btn.className = 'panel7-seq-button';
       btn.type = 'button';
       btn.dataset.preventPan = 'true';
-      applyOffset(btn, sequencerUI.buttonOffsets?.[idx]);
+      placeInModule(btn, seqPlacement.keys[idx], sequencerBox);
       attachControlTooltip(btn, label);
       // Wire button click → sequencer module
       const buttonName = seqButtonNames[idx];
@@ -1515,7 +1468,6 @@ export function setupOutputFaders(app) {
     // Fila de knob central: Clock Rate
     const clockRow = document.createElement('div');
     clockRow.className = 'panel7-sequencer-clock';
-    applyOffset(clockRow, sequencerUI.clockRateOffset || sequencerUI.clockRate?.rowOffset);
 
     const clockRateColorName = sequencerUI.clockRateKnobColor || 'black';
     const clockRateColor = COLOR_MAP[clockRateColorName] || KNOB_BLACK;
@@ -1524,7 +1476,7 @@ export function setupOutputFaders(app) {
     let clockRateKnob;
     if (clockRateType === 'vernier') {
       const elements = createVernierElements({ showValue: false });
-      const vernierSize = toNum(sequencerUI.clockRate?.knobSize === 'sm' ? 30 : 55, 30);
+      const vernierSize = seqPlacement.clockRate.w;
       elements.knobEl.style.width = `${vernierSize}px`;
       elements.knobEl.style.height = `${vernierSize}px`;
       const knobInstance = new VernierKnob(elements.knobEl, {
@@ -1547,7 +1499,7 @@ export function setupOutputFaders(app) {
 
       clockRateKnob = createKnob({
         label: sequencerUI.clockRate?.label || 'Clock Rate',
-        size: sequencerUI.clockRate?.knobSize || 'sm',
+        size: 'sm',
         centerColor: clockRateColor,
         svgSrc: clockRateSvgSrc,
         showValue: false,
@@ -1563,7 +1515,7 @@ export function setupOutputFaders(app) {
     app._sequencerKnobs.clockRate = clockRateKnob.knobInstance;
     clockRateKnob.wrapper.classList.add('panel7-seq-clock-knob');
     clockRateKnob.wrapper.dataset.knob = 'clockRate';
-    applyOffset(clockRateKnob.wrapper, sequencerUI.clockRateKnobOffset || sequencerUI.clockRate?.knobOffset);
+    placeInModule(clockRateKnob.wrapper, seqPlacement.clockRate, sequencerBox);
     clockRow.appendChild(clockRateKnob.wrapper);
     seqContent.appendChild(clockRow);
     

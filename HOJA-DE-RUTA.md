@@ -23,17 +23,17 @@ detalle vive en los documentos que se citan; aquí solo el mapa.
 
 | Panel | Fondo | Mandos sobre el fondo | Falta |
 |---|---|---|---|
-| 1 Filtros, envolventes, ring mod, reverb, eco | foto | **descuadrados** en `main`; cuadrados en la rama `panel1-cuadrar`, a falta del ok | vectorial |
-| 2 Osciloscopio, frecuencímetro, octavas, entradas | foto | cuadrados | vectorial; osciloscopio con mandos provisionales; envíos sin widget |
+| 1 Filtros, envolventes, ring mod, reverb, eco | foto | cuadrados (26-nov); gate, pulsador negro como el real | vectorial |
+| 2 Osciloscopio, frecuencímetro, octavas, entradas | foto | cuadrados | **vectorial (siguiente)**; osciloscopio con mandos provisionales encima de la foto; envíos y frecuencímetro sin widget |
 | 3 Osciladores, ruido, aleatorio | **vectorial** | cuadrados | nada |
-| 4 Voltímetros, teclado, secuenciador, slew… | foto | **descuadrados** en `main`; cuadrados en la rama `panel4-cuadrar`, a falta del ok | vectorial |
+| 4 Voltímetros, teclado, secuenciador, slew… | foto | cuadrados (26-nov); Offset azul | vectorial |
 | 5 Matriz de audio | **vectorial** | pines a <1 px | nada |
 | 6 Matriz de control | **vectorial** | pines a <1 px | nada |
-| 7 Joysticks, secuenciador, salidas | **vectorial** en `main` (26-nov, con el ok de Carlos) | cuadrados salvo el **secuenciador** (descuadrado) | diseñar faders y botones del secuenciador; cuadrar el secuenciador |
+| 7 Joysticks, secuenciador, salidas | **vectorial** | cuadrados; faders, teclas y Clock Rate como los reales (26-nov) | nada |
 | Teclados | **vectorial** | — | nada |
 
-No falta ninguna fotografía. Faltan cuatro vectoriales (1, 2, 4, 7) y cuadrar
-dos paneles (1 y 4). El porqué de que cuadrar costase tanto (cinco modelos de
+No falta ninguna fotografía. Faltan tres vectoriales (2, 4, 1, en ese orden);
+todos los paneles están cuadrados. El porqué de que cuadrar costase tanto (cinco modelos de
 layout distintos) y la solución están en `REVISION-VISUAL-2026-09.md`.
 
 ## Lo que nadie ha tocado con las manos
@@ -68,6 +68,30 @@ pendientes de verse en un navegador.
 - **Orden: el de arriba**, empezando por lo visual.
 
 ## Siguiente paso
+
+- **26-nov, tarde: integrado todo** (Carlos: «lo mejor es integrar… nunca
+  echaría para atrás… siempre serían pequeñas afinaciones»). Las ramas
+  `panel1-cuadrar`, `panel4-cuadrar` y `panel7-mandos` están en `main` con
+  sus referencias visuales regeneradas; el panel 4 usa ya
+  `createControlsLayer`/`placeAtCenter` de `utils/panelBox.js`. Las tres
+  ramas siguen en origin y aquí: el control automático no dejó borrarlas
+  (están integradas; se pueden borrar sin perder nada).
+- **Clock Rate del 7**: ya no es el vernier común sino un dial de cámara
+  lenta como el de la foto (`ui/slowMotionDial.js`; detalle en
+  `module_research/panel7/mandos.md`, «Dial Clock Rate»).
+- **Repaso de widgets contra las fotos** (26-nov), panel a panel:
+  - Hecho: el **gate** de las envolventes (panel 1) es el pulsador negro de
+    19 px de la foto, sin rótulo; el **Offset** del Invertor/Buffer (panel 4),
+    azul.
+  - Pendiente, con el vectorial del 2: los **mandos del osciloscopio**
+    (TIME, AMP, LEVEL y el conmutador X-Y) son provisionales, flotan
+    encima de la foto del Gould OS300. Lo natural es que sean mandos del
+    propio osciloscopio (TIME/CM, VOLTS/CM, Trig Level, MODE) en su sitio.
+  - Sin widget, porque el módulo aún no existe: frecuencímetro (Function,
+    Range) y envíos/retornos externos (panel 2).
+  - Sin cambios: los mandos de escala transparente (todos los paneles), los
+    verniers Spectrol (paneles 3 y 4, que sí son así), interruptores de
+    palanca, selectores de modo y LEDs.
 
 - **1.1 hecho** (26-nov): recuadros de depuración del panel 4 fuera; su
   referencia visual, regenerada. Antes, la referencia de imagen se recapturó

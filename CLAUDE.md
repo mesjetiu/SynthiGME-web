@@ -14,6 +14,7 @@ La documentación está escrita y es buena. Leerla, no deducirla:
 
 | Fichero | Para qué |
 |---|---|
+| `HOJA-DE-RUTA.md` | Dónde está el proyecto y en qué orden se sigue |
 | `DEVELOPMENT.md` | Compilar, probar, los flujos de build. **Empezar aquí.** |
 | `ARCHITECTURE.md` | Cómo está montado por dentro |
 | `MODULE-CREATION-GUIDE.md` | Añadir un módulo del sintetizador |

@@ -98,14 +98,14 @@
 <g id="p7-canal" inkscape:label="Canal 1 (los otros son clones)">
 <text x="64.893" y="348.3" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:6.522px;letter-spacing:0.696px;font-kerning:none;fill:#28170b">FILTER</text>
 <path d="M 77.75,350.4 L 83.75,350.4 L 80.75,356.2 Z" style="fill:#000000"/>
-<path d="M 46.35,397.9 Q 50.89,403.603 52.031,408.48" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 52.55,410.7 L 50.419,407.296 L 51.901,407.925 L 52.95,406.704 Z" style="fill:#000000"/>
-<path d="M 115.15,397.9 Q 110.61,403.603 109.469,408.48" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 108.95,410.7 L 108.55,406.704 L 109.599,407.925 L 111.081,407.296 Z" style="fill:#000000"/>
+<path d="M 46.35,397.9 Q 48.01,404.997 51.13,408.916" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 52.55,410.7 L 49.166,408.537 L 50.775,408.47 L 51.2,406.917 Z" style="fill:#000000"/>
+<path d="M 115.15,397.9 Q 113.49,404.997 110.37,408.916" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 108.95,410.7 L 110.3,406.917 L 110.725,408.47 L 112.334,408.537 Z" style="fill:#000000"/>
 <text x="51.888" y="418.1" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:6.554px;letter-spacing:-0.249px;font-kerning:none;fill:#28170b">low</text>
 <text x="96.888" y="418.1" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:6.554px;letter-spacing:-0.677px;font-kerning:none;fill:#28170b">high</text>
 <text x="71.143" y="429.6" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:6.522px;letter-spacing:0.238px;font-kerning:none;fill:#28170b">PAN</text>
 <path d="M 77.75,432.4 L 83.75,432.4 L 80.75,438.2 Z" style="fill:#000000"/>
-<path d="M 46.35,479.9 Q 50.89,485.603 52.031,490.48" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 52.55,492.7 L 50.419,489.296 L 51.901,489.925 L 52.95,488.704 Z" style="fill:#000000"/>
-<path d="M 115.15,479.9 Q 110.61,485.603 109.469,490.48" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 108.95,492.7 L 108.55,488.704 L 109.599,489.925 L 111.081,489.296 Z" style="fill:#000000"/>
+<path d="M 46.35,479.9 Q 48.01,486.997 51.13,490.916" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 52.55,492.7 L 49.166,490.537 L 50.775,490.47 L 51.2,488.917 Z" style="fill:#000000"/>
+<path d="M 115.15,479.9 Q 113.49,486.997 110.37,490.916" style="fill:none;stroke:#000000;stroke-width:0.6;stroke-linecap:round"/><path d="M 108.95,492.7 L 110.3,488.917 L 110.725,490.47 L 112.334,490.537 Z" style="fill:#000000"/>
 <text x="51.888" y="500.1" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:6.554px;letter-spacing:-0.14px;font-kerning:none;fill:#28170b">left</text>
 <text x="96.888" y="500.1" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:6.554px;letter-spacing:-0.27px;font-kerning:none;fill:#28170b">right</text>
 <text x="73.277" y="548.9" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:5.247px;letter-spacing:0.867px;font-kerning:none;fill:#28170b">OFF</text>

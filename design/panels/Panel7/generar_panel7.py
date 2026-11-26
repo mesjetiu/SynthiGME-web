@@ -241,8 +241,8 @@ def canal_1():
         base_rot = 348.3 if nombre == 'FILTER' else 429.6
         c.append(texto(nombre, base_rot, 4.35, 'bold', cx=cx, ancho=anchos[0]))
         c.append(triangulo(cx, 350.4 + dy, 356.2 + dy, 6.0))
-        c.append(flecha_curva(cx - 34.4, 397.9 + dy, cx - 28.2, 410.7 + dy, comba=-1.6))
-        c.append(flecha_curva(cx + 34.4, 397.9 + dy, cx + 28.2, 410.7 + dy, comba=1.6))
+        c.append(flecha_curva(cx - 34.4, 397.9 + dy, cx - 28.2, 410.7 + dy, comba=1.6))
+        c.append(flecha_curva(cx + 34.4, 397.9 + dy, cx + 28.2, 410.7 + dy, comba=-1.6))
         base_min = 418.1 + dy
         c.append(texto(izq, base_min, 3.1, 'bold', x0=cx - 28.6, ancho=anchos[1], minus=True))
         c.append(texto(der, base_min, 3.1, 'bold', x0=cx + 16.4, ancho=anchos[2], minus=True))

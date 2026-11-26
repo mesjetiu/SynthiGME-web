@@ -2329,30 +2329,11 @@ export function buildPanel4(app) {
 
     // ── Colocación de cada mando dentro de la caja de su módulo ─────────
     // Cada mando lleva en el blueprint su centro { x, y } en px relativos a
-    // la caja del módulo (la medida sobre la foto). Los mandos van en una
-    // capa que cubre la caja entera: el marco tiene 1 px de borde, de ahí
-    // el inset de −1 px.
+    // la caja del módulo (la medida sobre la foto), y va en la capa común
+    // de utils/panelBox.js (createControlsLayer, placeAtCenter).
     const stdKnobSize = toNum(knobUI.standardKnobSize, 45);
     const vernierKnobSize = toNum(knobUI.vernierKnobSize, 55);
     const ROTARY_SWITCH_SIZE = 32;   // cuerpo del selector (.rotary-switch__svg-container)
-    const createControlsLayer = () => {
-      const layer = document.createElement('div');
-      layer.className = 'panel4-controls';
-      layer.style.cssText = 'position: absolute; inset: -1px;';
-      return layer;
-    };
-    const placeControl = (el, def, size, moduleId) => {
-      if (!Number.isFinite(def?.x) || !Number.isFinite(def?.y)) {
-        throw new Error(`[panel 4] ${moduleId}: falta el centro { x, y } del mando ${def?.name ?? ''}`);
-      }
-      el.style.position = 'absolute';
-      el.style.left = `${def.x - size / 2}px`;
-      el.style.top = `${def.y - size / 2}px`;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.minWidth = '0';
-      el.style.flex = 'none';
-    };
 
     // ── Columna 1: PVC + Envelope Followers (3 módulos apilados) ────────
     for (const subId of ['pitchVoltageConverter', 'envelopeFollower1', 'envelopeFollower2']) {
@@ -2366,12 +2347,12 @@ export function buildPanel4(app) {
       applyBox(el, boxOf(subId));
 
       // Crear knobs del submódulo
-      const knobsContainer = createControlsLayer();
+      const knobsContainer = createControlsLayer('panel4-controls');
 
       for (const knobDef of subDef.knobs) {
         if (knobDef.type === 'vernier') {
           const { wrapper, knobInstance } = createPanel4Vernier();
-          placeControl(wrapper, knobDef, vernierKnobSize, subId);
+          placeAtCenter(wrapper, knobDef, vernierKnobSize, `${subId} ${knobDef?.name ?? ''}`);
           knobsContainer.appendChild(wrapper);
           // Capturar vernier del PVC para wiring posterior
           if (subId === 'pitchVoltageConverter') {
@@ -2388,7 +2369,7 @@ export function buildPanel4(app) {
             inner.style.width = `${pct}%`;
             inner.style.height = `${pct}%`;
           }
-          placeControl(knob.wrapper, knobDef, stdKnobSize, subId);
+          placeAtCenter(knob.wrapper, knobDef, stdKnobSize, `${subId} ${knobDef?.name ?? ''}`);
           knobsContainer.appendChild(knob.wrapper);
         }
       }
@@ -2411,14 +2392,14 @@ export function buildPanel4(app) {
       el.dataset.moduleName = colId === 'upperKeyboard' ? 'Upper Keyboard' : 'Lower Keyboard';
       applyBox(el, boxOf(colId));
 
-      const content = createControlsLayer();
+      const content = createControlsLayer('panel4-controls');
 
       // Knobs — guardar referencias para wiring posterior
       const knobElements = [];
       for (const knobDef of colLayout.knobs) {
         if (knobDef.type === 'vernier') {
           const { wrapper, knobInstance } = createPanel4Vernier();
-          placeControl(wrapper, knobDef, vernierKnobSize, colId);
+          placeAtCenter(wrapper, knobDef, vernierKnobSize, `${colId} ${knobDef?.name ?? ''}`);
           content.appendChild(wrapper);
           knobElements.push({ type: 'vernier', knobInstance, wrapper });
         } else {
@@ -2432,7 +2413,7 @@ export function buildPanel4(app) {
             inner.style.width = `${pct}%`;
             inner.style.height = `${pct}%`;
           }
-          placeControl(knob.wrapper, knobDef, stdKnobSize, colId);
+          placeAtCenter(knob.wrapper, knobDef, stdKnobSize, `${colId} ${knobDef?.name ?? ''}`);
           content.appendChild(knob.wrapper);
           knobElements.push({ type: 'standard', knobEl: knob.knobEl, wrapper: knob.wrapper });
         }
@@ -2446,7 +2427,7 @@ export function buildPanel4(app) {
           const switchWrapper = document.createElement('div');
           switchWrapper.className = 'panel4-switch-wrapper';
           // Se coloca por el centro del cuerpo; las etiquetas, a los lados (CSS)
-          placeControl(switchWrapper, switchDef, ROTARY_SWITCH_SIZE, colId);
+          placeAtCenter(switchWrapper, switchDef, ROTARY_SWITCH_SIZE, `${colId} ${switchDef?.name ?? ''}`);
 
           if (switchDef.type === 'rotarySwitch') {
             const rs = createPanel4RotarySwitch(switchDef, colId, i);
@@ -2694,7 +2675,7 @@ export function buildPanel4(app) {
       if (colDef.knobs.some(k => seqKnobNameMap[k.name])) el.dataset.moduleName = 'Sequencer';
       applyBox(el, boxOf(colId));
 
-      const knobsContainer = createControlsLayer();
+      const knobsContainer = createControlsLayer('panel4-controls');
 
       for (const knobDef of colDef.knobs) {
         const paramName = seqKnobNameMap[knobDef.name];
@@ -2711,7 +2692,7 @@ export function buildPanel4(app) {
             knobInstance.tooltipLabel = knobDef.name;
           }
           if (paramName) wrapper.dataset.knob = paramName;
-          placeControl(wrapper, knobDef, vernierKnobSize, colId);
+          placeAtCenter(wrapper, knobDef, vernierKnobSize, `${colId} ${knobDef?.name ?? ''}`);
           knobsContainer.appendChild(wrapper);
         } else {
           const isBipolar = knobDef.type === 'bipolar';
@@ -2747,7 +2728,7 @@ export function buildPanel4(app) {
             inner.style.height = `${pct}%`;
           }
           if (paramName) knob.wrapper.dataset.knob = paramName;
-          placeControl(knob.wrapper, knobDef, stdKnobSize, colId);
+          placeAtCenter(knob.wrapper, knobDef, stdKnobSize, `${colId} ${knobDef?.name ?? ''}`);
           knobsContainer.appendChild(knob.wrapper);
         }
       }
@@ -2773,7 +2754,7 @@ export function buildPanel4(app) {
       const el = frame.createElement();
       applyBox(el, boxOf(modId));
 
-      const knobsContainer = createControlsLayer();
+      const knobsContainer = createControlsLayer('panel4-controls');
 
       for (const knobDef of modDef.knobs) {
         const knob = createPanel4Knob(knobDef);
@@ -2786,7 +2767,7 @@ export function buildPanel4(app) {
           inner.style.width = `${pct}%`;
           inner.style.height = `${pct}%`;
         }
-        placeControl(knob.wrapper, knobDef, stdKnobSize, modId);
+        placeAtCenter(knob.wrapper, knobDef, stdKnobSize, `${modId} ${knobDef?.name ?? ''}`);
         knobsContainer.appendChild(knob.wrapper);
       }
 

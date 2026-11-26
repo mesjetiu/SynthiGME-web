@@ -23,7 +23,7 @@ detalle vive en los documentos que se citan; aquí solo el mapa.
 
 | Panel | Fondo | Mandos sobre el fondo | Falta |
 |---|---|---|---|
-| 1 Filtros, envolventes, ring mod, reverb, eco | foto | **descuadrados** | cuadrar y vectorial |
+| 1 Filtros, envolventes, ring mod, reverb, eco | foto | **descuadrados** en `main`; cuadrados en la rama `panel1-cuadrar`, a falta del ok | vectorial |
 | 2 Osciloscopio, frecuencímetro, octavas, entradas | foto | cuadrados | vectorial; osciloscopio con mandos provisionales; envíos sin widget |
 | 3 Osciladores, ruido, aleatorio | **vectorial** | cuadrados | nada |
 | 4 Voltímetros, teclado, secuenciador, slew… | foto | **descuadrados** en `main`; cuadrados en la rama `panel4-cuadrar`, a falta del ok | vectorial |
@@ -174,10 +174,41 @@ pendientes de verse en un navegador.
     como `.panel4-pitchToVoltageConverter` (la clase es
     `.panel4-pitchVoltageConverter`). No se notaba, porque el marco también
     es `.synth-module` y lo encontraba por ahí; queda fijado con un test.
-- **Siguiente: panel 1** (conversación nueva), los mismos dos pasos.
-  Para el paso 2, el método del panel 4: `lineas.py` sobre `panel_1.jpg`
-  para los marcos, rejilla sobre la foto a 2× para los centros, y capturas
-  a 2× con el panel solo para Carlos.
+- **1.3, panel 1, paso 1 hecho** (26-nov): los 16 módulos en cajas, por
+  id de módulo (`layout.filters.boxes`, `envelopeShapers.boxes`,
+  `ringModulators.boxes`, `reverberation.box`, `echo.box`); fuera la
+  columna flex con su `offset` y 40, el padding, las filas y sus anchos y
+  gaps. Todas las cajas enteras, en `left/top`. Imagen idéntica en los
+  siete paneles; geometría del panel 1 regenerada (solo cambia el
+  contenedor, de y 40 a 0, y desaparecen las dos filas flex).
+  - Arreglado el error conocido: filtros, moduladores de anillo y reverb
+    ya no reciben `offset` (lo aplicaban como `transform` y el ensamblador
+    lo borraba). Las envolventes ya no se ponen `position: relative`
+    encima de su caja.
+- **1.3, panel 1, paso 2: hecho y esperando el ok de Carlos**, en la rama
+  `panel1-cuadrar` (un commit, ya subido; `main` sin tocar). Capturas
+  antes/después a 2×, la foto y las medidas, en la carpeta de entregas
+  (`synthigme-panel1/`, con un `index.html` para alternarlas).
+  - Cómo se midió: marcos con `lineas.py` y perfiles de oscuridad por
+    franjas (la foto está girada ~0,4°: en las fronteras que cruzan el
+    panel la caja va por la media de la línea, para que no se solapen);
+    mandos por la flecha ▼ serigrafiada encima de cada uno (x de la flecha;
+    y = base de la flecha + 38,9, calibrado a vista en cuatro mandos);
+    selector de modo, gate y LED, a vista.
+  - En la rama, la capa de mandos y la colocación por el centro pasan a
+    `utils/panelBox.js` (`createControlsLayer`, `placeAtCenter`). La rama
+    del panel 4 tiene su propia copia local (`placeControl`): al llevar
+    las dos a `main`, que el panel 4 use las de `panelBox.js`.
+  - Lo que se le pregunta a Carlos: (a) como en el panel 4, los capuchones
+    de la foto asoman junto a los nuestros por la paralaje; (b) nuestro
+    botón de gate (16 px, con «GATE» dentro) tapa el botón negro de la
+    foto (~20 px) y la palabra GATE ya está serigrafiada al lado.
+  - **Al recibir el ok:** igual que en el panel 4, con `panel-1.png` y
+    `panel-1.geom.json`: `git checkout panel1-cuadrar && git rebase main`,
+    `npm run visual:capture`, copiar los dos de `tests/visual/current/` a
+    `baseline/`, `npm run visual:compare` en verde, `git commit --amend`
+    (quitar del mensaje la línea de «pendiente»), a `main` con
+    `merge --ff-only` y borrar la rama aquí y en origin.
 - **Plan de 1.3 (paneles 4 y 1):**
   1. **Panel 4, migración sin cambio visible.** Como en 2, 3 y 7: medir en
      `tests/visual/baseline/panel-4.geom.json` la caja efectiva de cada

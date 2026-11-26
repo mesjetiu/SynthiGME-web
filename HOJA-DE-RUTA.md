@@ -24,15 +24,15 @@ detalle vive en los documentos que se citan; aquí solo el mapa.
 | Panel | Fondo | Mandos sobre el fondo | Falta |
 |---|---|---|---|
 | 1 Filtros, envolventes, ring mod, reverb, eco | foto | cuadrados (26-nov); gate, pulsador negro como el real | vectorial |
-| 2 Osciloscopio, frecuencímetro, octavas, entradas | foto | cuadrados | **vectorial (siguiente)**; osciloscopio con mandos provisionales encima de la foto; envíos y frecuencímetro sin widget |
+| 2 Osciloscopio, frecuencímetro, octavas, entradas | **vectorial** (26-nov) | cuadrados; frecuencímetro y envíos/retornos con mandos inertes | mandos del osciloscopio provisionales (propuesta en `module_research/panel2/fondo_vectorial.md`) |
 | 3 Osciladores, ruido, aleatorio | **vectorial** | cuadrados | nada |
-| 4 Voltímetros, teclado, secuenciador, slew… | foto | cuadrados (26-nov); Offset azul | vectorial |
+| 4 Voltímetros, teclado, secuenciador, slew… | foto | cuadrados (26-nov); Offset azul | **vectorial (siguiente)** |
 | 5 Matriz de audio | **vectorial** | pines a <1 px | nada |
 | 6 Matriz de control | **vectorial** | pines a <1 px | nada |
 | 7 Joysticks, secuenciador, salidas | **vectorial** | cuadrados; faders, teclas y Clock Rate como los reales (26-nov) | nada |
 | Teclados | **vectorial** | — | nada |
 
-No falta ninguna fotografía. Faltan tres vectoriales (2, 4, 1, en ese orden);
+No falta ninguna fotografía. Faltan dos vectoriales (4 y 1, en ese orden);
 todos los paneles están cuadrados. El porqué de que cuadrar costase tanto (cinco modelos de
 layout distintos) y la solución están en `REVISION-VISUAL-2026-09.md`.
 
@@ -83,12 +83,14 @@ pendientes de verse en un navegador.
   - Hecho: el **gate** de las envolventes (panel 1) es el pulsador negro de
     19 px de la foto, sin rótulo; el **Offset** del Invertor/Buffer (panel 4),
     azul.
-  - Pendiente, con el vectorial del 2: los **mandos del osciloscopio**
-    (TIME, AMP, LEVEL y el conmutador X-Y) son provisionales, flotan
-    encima de la foto del Gould OS300. Lo natural es que sean mandos del
-    propio osciloscopio (TIME/CM, VOLTS/CM, Trig Level, MODE) en su sitio.
-  - Sin widget, porque el módulo aún no existe: frecuencímetro (Function,
-    Range) y envíos/retornos externos (panel 2).
+  - Pendiente, **esperando a Carlos**: los **mandos del osciloscopio**
+    (TIME, AMP, LEVEL y el conmutador X-Y) son provisionales y tapan la
+    chapa del Gould OS300. Propuesta, sin hacer, con los centros medidos:
+    que sean los del propio osciloscopio (TIME/CM, VOLTS/CM, Trig Level,
+    MODE) en su sitio (`module_research/panel2/fondo_vectorial.md`).
+  - Mandos inertes (giran sin efecto, como los placeholders del panel 4),
+    porque el módulo aún no existe: frecuencímetro (FUNCTION y RANGE,
+    selectores verdes) y envíos/retornos externos (panel 2).
   - Sin cambios: los mandos de escala transparente (todos los paneles), los
     verniers Spectrol (paneles 3 y 4, que sí son así), interruptores de
     palanca, selectores de modo y LEDs.
@@ -262,14 +264,23 @@ pendientes de verse en un navegador.
     `module_research/panel7/mandos.md`.
   - Queda en el 7: el dial Clock Rate es el vernier común de la web (esfera
     negra 0–90); el de la foto es otro modelo (faldón cromado, cifras 1–9).
-- **Plan del panel 2 (siguiente vectorial):** el mismo método que el 7:
-  plantilla promediada donde haya módulos repetidos (las 8 entradas, las
-  bandas del banco de octavas), generador con las mismas piezas (`texto`,
-  `grabado`, flechas, tornillos; se puede sacar a un módulo común de
-  `design/panels/` al hacer el segundo), medir primero qué tipos de letra
-  lleva la foto, y comprobar antes de dibujar que sus mandos sí cuadran (el
-  7 no lo estaba del todo). Osciloscopio y frecuencímetro: solo la chapa,
-  la pantalla la pinta la web.
+- **1.4, panel 2 vectorial hecho** (26-nov), en `main`: la web inyecta
+  `panel2_bg.svg` y la foto ya no se sirve (queda en `design/panels/Panel2/`).
+  Lo genera `design/panels/Panel2/generar_panel2.py`; las piezas que se
+  repetían con el 7 están en `design/panels/piezas_svg.py` (el SVG del 7 sale
+  idéntico). Los mandos de la web ya cuadraban con la foto (±0,5 px en x):
+  no se ha movido ninguno. El Gould OS300 va entero en el dibujo (chapa,
+  serigrafía, retícula y los herrajes que no tienen mando en la web); la
+  pegatina del GME, no. El frecuencímetro y los envíos/retornos tienen
+  mandos inertes, porque sin la foto desaparecían. La referencia visual del 2,
+  regenerada; la de los paneles 3 y 7 cambia solo en la numeración de los
+  ids de los SVG en línea (imagen idéntica). Investigación, tipos de letra,
+  medidas y la propuesta para el osciloscopio:
+  `module_research/panel2/fondo_vectorial.md`.
+- **Plan del panel 4 (siguiente vectorial):** el mismo método que el 2:
+  medir primero los tipos de letra y si los mandos cuadran, plantilla
+  promediada en lo repetido, piezas de `design/panels/piezas_svg.py`, medir
+  siempre con rejilla o por la tinta (a ojo salen errores de 9 px).
 - **Plan de 1.3 (paneles 4 y 1):**
   1. **Panel 4, migración sin cambio visible.** Como en 2, 3 y 7: medir en
      `tests/visual/baseline/panel-4.geom.json` la caja efectiva de cada

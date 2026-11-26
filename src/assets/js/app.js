@@ -249,9 +249,10 @@ class App {
     labelPanelSlot(this.panel6, null, { row: 2, col: 3 });
 
     // Fondo SVG inline (runtime) para mejorar nitidez bajo zoom.
-    // Paneles con fondo inline desactivado: 1, 2 y 4.
+    // Paneles con fondo inline desactivado: 1 y 4.
     // injectInlinePanelSvgBackground('panel-1', './assets/panels/panel1_bg.svg');
-    // injectInlinePanelSvgBackground('panel-2', './assets/panels/panel2_bg.svg');
+    // Panel 2: fondo vectorial (design/panels/Panel2/panel2_source.svg).
+    injectInlinePanelSvgBackground('panel-2', './assets/panels/panel2_bg.svg');
     injectInlinePanelSvgBackground('panel-3', './assets/panels/panel_3.svg');
     // injectInlinePanelSvgBackground('panel-4', './assets/panels/panel4_bg.svg');
     injectInlinePanelSvgBackground('panel-5', './assets/panels/panel5_bg.svg');
@@ -269,7 +270,6 @@ class App {
 
     // Fondos JPG temporales (eliminar línea correspondiente al migrar a SVG).
     setPanelImageBackground('panel-1', './assets/panels/panel_1.jpg');
-    setPanelImageBackground('panel-2', './assets/panels/panel_2.jpg');
     // Panel 3 vuelve a SVG inline para respetar la Microgramma original.
     setPanelImageBackground('panel-4', './assets/panels/panel_4.jpg');
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });

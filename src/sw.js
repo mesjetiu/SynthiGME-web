@@ -22,7 +22,6 @@ const CORE_ASSETS = [
   './assets/panels/panel7_dial_escala.svg',
   './assets/panels/panel7_dial_capuchon.svg',
   './assets/panels/panel_1.jpg',
-  './assets/panels/panel_2.jpg',
   './assets/panels/panel_4.jpg',
   './manifest.webmanifest',
   './assets/pwa/icons/app-icon-192.png',

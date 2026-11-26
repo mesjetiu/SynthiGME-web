@@ -111,10 +111,11 @@ export default {
       // dibujo del interruptor (toggle-switch.svg, que es tan ancho como su
       // tuerca): 13 px, la tuerca de la foto.
       switchRow: { y: 152.5, width: 13, height: 23.25 },
-      // Teclas: canto de arriba, ancho y alto. Centradas en el pie de las
-      // teclas de la foto (y 209,8–237,3): el pie apoya en la chapa y no se
-      // desplaza con la perspectiva.
-      keyRow: { top: 211.55, width: 24, height: 24 },
+      // Teclas: canto de arriba, ancho y alto. De frente son cuadradas: el
+      // pie de las de la foto, que apoya en la chapa y no se desplaza con la
+      // perspectiva (27,5 de ancho, abajo en y 237,3). Imagen:
+      // src/assets/panels/panel7_tecla.svg (generar_mandos.py).
+      keyRow: { top: 209.8, width: 27.5, height: 27.5 },
       clockRateKnobColor: 'white',      // color del knob Clock Rate
       clockRateKnobType: 'vernier',     // en el Synthi 100, Clock Rate es un vernier dial
 

@@ -298,6 +298,11 @@ def secuenciador():
     s = []
     s.append(barra_titulo('p7-mask-seq', 279.9, 103.8, 480.1, 111.4,
                           'SEQUENCER OPERATIONAL CONTROL', 110.4, 4.6, 188.0, 380.0))
+    # Hueco del teclado: entre las teclas y bajo ellas se ve oscuro desde
+    # y ≈ 215 hasta la regleta de abajo (en la foto, de 215 a 241 en los
+    # siete huecos). Las teclas (panel7_tecla.svg) las pinta la web encima.
+    s.append('<rect x="255.0" y="214.2" width="250.5" height="27.0" '
+             'style="fill:url(#p7-hueco-teclas)"/>')
     # Regletas de rótulos (tiras atornilladas sobre el panel)
     for y0, y1 in ((118.0, 137.5), (176.0, 196.0), (241.0, 261.0)):
         s.append(f'<rect x="254.6" y="{f(y0)}" width="250.4" height="{f(y1 - y0)}" '
@@ -376,7 +381,11 @@ def marcos():
 def main():
     defs = ['<radialGradient id="p7-tornillo" cx="0.38" cy="0.35" r="0.75">'
             '<stop offset="0" style="stop-color:#8d8884"/>'
-            '<stop offset="1" style="stop-color:#3b3633"/></radialGradient>']
+            '<stop offset="1" style="stop-color:#3b3633"/></radialGradient>',
+            '<linearGradient id="p7-hueco-teclas" x1="0" y1="0" x2="0" y2="1">'
+            '<stop offset="0" style="stop-color:#1d1a1e;stop-opacity:0"/>'
+            '<stop offset="0.07" style="stop-color:#1d1a1e"/>'
+            '<stop offset="1" style="stop-color:#18151a"/></linearGradient>']
 
     canal = (f'<g id="p7-canal" inkscape:label="Canal 1 (los otros son clones)">\n'
              + '\n'.join(canal_1()) + '\n</g>')

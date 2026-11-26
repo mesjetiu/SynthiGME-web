@@ -8,6 +8,8 @@
 # Escribe, directamente en src/assets/panels/ (son pequeños y ya salen
 # limpios, no pasan por optimize-svg):
 #   - panel7_asa.svg           asa del fader de nivel de los 8 canales
+#   - panel7_tecla.svg         tecla gris del secuenciador, en reposo
+#   - panel7_tecla_pulsada.svg la misma, hundida
 #
 # Calcadas de la foto (panel_7.jpg) con una plantilla mediana de los
 # ejemplares sanos: los canales 2–8 para el asa (el 1 está roto) y las 8
@@ -103,9 +105,73 @@ def asa():
 '''
 
 
+# ─── Tecla del secuenciador ───────────────────────────────────────────────
+#
+# Una tecla gris de máquina de escribir vista de frente (Carlos, 26-nov: «de
+# frente se verían como chocolate»): tan alta como ancha, con el plato
+# cóncavo en el centro y cuatro faldas iguales alrededor. En la foto sale con
+# la perspectiva de la cámara, que está más abajo: el plato se va hacia
+# arriba y la falda de delante parece grande. Lo que no se desplaza es el
+# pie, que apoya en la chapa: 27,5 px de ancho y abajo en y 237,3. Entre las
+# teclas, y bajo ellas, el hueco oscuro del teclado, que es del panel
+# (generar_panel7.py). Luz de arriba a la izquierda: falda de arriba y de la
+# izquierda a la luz, la de la derecha y la de abajo a la sombra.
+
+TECLA = 27.5             # lado del pie (y de la imagen)
+PLATO = 18.0             # lado de la cara de arriba, centrada (en la foto, el plato
+                         # mide 18 × 18,5; aquí lleva un canto plano de 0,8)
+TECLA_R = 2.6            # esquinas del pie
+PLATO_R = 4.5            # esquinas del plato
+
+
+def tecla(pulsada=False):
+    L = TECLA
+    a = (L - PLATO) / 2              # ancho de cada falda
+    p0, p1 = a, L - a
+    osc = 0.88 if pulsada else 1.0   # hundida, más a la sombra
+    enc = 0.35 if pulsada else 0.0   # y el plato algo más pequeño (baja)
+
+    def gris(v):
+        v = round(v * osc)
+        return f'#{v:02x}{v:02x}{min(255, v + 2):02x}'
+
+    q0, q1 = p0 + enc, p1 - enc      # cara de arriba (cuadrada, canto plano)
+    d0, d1 = q0 + 0.8, q1 - 0.8      # y dentro, el plato cóncavo
+    # Las cuatro faldas: trapecios entre el canto del pie y el del plato
+    arriba = pts((0, 0), (L, 0), (q1, q0), (q0, q0))
+    abajo = pts((0, L), (q0, q1), (q1, q1), (L, L))
+    izq = pts((0, 0), (q0, q0), (q0, q1), (0, L))
+    der = pts((L, 0), (L, L), (q1, q1), (q1, q0))
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{f(L)}" height="{f(L)}" viewBox="0 0 {f(L)} {f(L)}">
+<!-- Tecla del secuenciador (panel 7), de frente{', hundida' if pulsada else ''}. Generado por design/panels/Panel7/generar_mandos.py -->
+<defs>
+<clipPath id="k"><rect width="{f(L)}" height="{f(L)}" rx="{f(TECLA_R)}"/></clipPath>
+<linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{gris(0xa8)}"/><stop offset="1" stop-color="{gris(0x98)}"/></linearGradient>
+<linearGradient id="l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{gris(0x96)}"/><stop offset="1" stop-color="{gris(0x8c)}"/></linearGradient>
+<linearGradient id="r" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="{gris(0x50)}"/><stop offset="1" stop-color="{gris(0x6a)}"/></linearGradient>
+<linearGradient id="b" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="{gris(0x58)}"/><stop offset="1" stop-color="{gris(0x70)}"/></linearGradient>
+<linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{gris(0x80)}"/><stop offset=".55" stop-color="{gris(0x8c)}"/><stop offset="1" stop-color="{gris(0x94)}"/></linearGradient>
+<linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".3"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".28"/></linearGradient>
+</defs>
+<g clip-path="url(#k)">
+<rect width="{f(L)}" height="{f(L)}" fill="{gris(0x7c)}"/>
+<polygon points="{arriba}" fill="url(#t)"/>
+<polygon points="{izq}" fill="url(#l)"/>
+<polygon points="{der}" fill="url(#r)"/>
+<polygon points="{abajo}" fill="url(#b)"/>
+</g>
+<rect x="{f(q0)}" y="{f(q0)}" width="{f(q1 - q0)}" height="{f(q1 - q0)}" rx="1.2" fill="{gris(0x94)}"/>
+<rect x="{f(d0)}" y="{f(d0)}" width="{f(d1 - d0)}" height="{f(d1 - d0)}" rx="{f(PLATO_R)}" fill="url(#p)"/>
+<rect x="{f(d0 + .4)}" y="{f(d0 + .4)}" width="{f(d1 - d0 - .8)}" height="{f(d1 - d0 - .8)}" rx="{f(PLATO_R - .4)}" fill="none" stroke="url(#c)" stroke-width=".8"/>
+<rect x=".25" y=".25" width="{f(L - .5)}" height="{f(L - .5)}" rx="{f(TECLA_R - .2)}" fill="none" stroke="#29272c" stroke-width=".5"/>
+</svg>
+'''
+
+
 def main():
     for nombre, svg in (('panel7_asa.svg', asa()),
-                        ):
+                        ('panel7_tecla.svg', tecla()),
+                        ('panel7_tecla_pulsada.svg', tecla(pulsada=True))):
         ruta = os.path.normpath(os.path.join(DESTINO, nombre))
         with open(ruta, 'w', encoding='utf-8') as fh:
             fh.write(svg)

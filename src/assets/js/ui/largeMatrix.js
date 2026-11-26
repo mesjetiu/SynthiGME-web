@@ -14,7 +14,7 @@ import { applyBox, requireBox } from '../utils/panelBox.js';
 const LONG_PRESS_DURATION = 500;
 
 export class LargeMatrix {
-  constructor(tableElement, { rows = 63, cols = 67, box = null, frame = null, hiddenRows = [], hiddenCols = [], sourceMap = null, destMap = null, onToggle = null, panelId = null, defaultPinColor = null, getDefaultPinColor = null } = {}) {
+  constructor(tableElement, { rows = 63, cols = 67, box = null, hiddenRows = [], hiddenCols = [], sourceMap = null, destMap = null, onToggle = null, panelId = null, defaultPinColor = null, getDefaultPinColor = null } = {}) {
     this.table = tableElement;
     this.rows = rows;
     this.cols = cols;
@@ -32,10 +32,9 @@ export class LargeMatrix {
     this._onTouchStartSecondFinger = null;  // Para cancelar long press en pinch
     this._longPressTimer = null;
     this._longPressTarget = null;
-    // Caja del marco en px del panel (utils/panelBox.js). Si no hay caja,
-    // el marco antiguo en «pasos» del cuadrado (solo el panel 6, de paso).
+    // Caja del marco en px del panel (utils/panelBox.js): la tabla se
+    // centra y se escala dentro sin deformar los pines (resizeToFit).
     this.box = box;
-    this.frame = box ? null : this._normalizeFrame(frame);
     this.onToggle = typeof onToggle === 'function' ? onToggle : null;
     
     // Configuración de colores de pines
@@ -60,57 +59,6 @@ export class LargeMatrix {
     }
   }
 
-  _normalizeFrame(frame) {
-    // La matriz (rows/cols) es inamovible.
-    // Solo transformamos el "frame" (cuadrilátero) donde encaja.
-    const defaults = {
-      // Cuadrado base representado en % del panel.
-      squarePercent: 90,
-      // Traslación del frame en "pasos" (1 paso = 1/cols del cuadrado).
-      translateSteps: { x: 0, y: 0 },
-      // Márgenes internos del frame en "pasos". Positivo recorta; negativo expande.
-      marginsSteps: { left: 0, right: 0, top: 0, bottom: 0 },
-      // Si es false, durante el ajuste permitimos que el frame se salga del panel.
-      // OJO: esto puede solapar otros paneles. Úsalo solo para ajustar a ojo.
-      clip: true,
-      // Cuánto overflow (en %) permitimos al clamp por cada lado.
-      overflowPercent: { left: 25, right: 60, top: 25, bottom: 60 },
-      // Para ajuste: permitir width/height > 100%.
-      maxSizePercent: 100
-    };
-
-    if (!frame) return defaults;
-
-    const clip = typeof frame.clip === 'boolean' ? frame.clip : defaults.clip;
-    const overflowPercent = {
-      left: typeof frame.overflowPercent?.left === 'number' ? frame.overflowPercent.left : defaults.overflowPercent.left,
-      right: typeof frame.overflowPercent?.right === 'number' ? frame.overflowPercent.right : defaults.overflowPercent.right,
-      top: typeof frame.overflowPercent?.top === 'number' ? frame.overflowPercent.top : defaults.overflowPercent.top,
-      bottom: typeof frame.overflowPercent?.bottom === 'number' ? frame.overflowPercent.bottom : defaults.overflowPercent.bottom
-    };
-
-    const maxSizePercent = typeof frame.maxSizePercent === 'number'
-      ? frame.maxSizePercent
-      : (clip ? defaults.maxSizePercent : 300);
-
-    return {
-      squarePercent: typeof frame.squarePercent === 'number' ? frame.squarePercent : defaults.squarePercent,
-      translateSteps: {
-        x: typeof frame.translateSteps?.x === 'number' ? frame.translateSteps.x : defaults.translateSteps.x,
-        y: typeof frame.translateSteps?.y === 'number' ? frame.translateSteps.y : defaults.translateSteps.y
-      },
-      marginsSteps: {
-        left: typeof frame.marginsSteps?.left === 'number' ? frame.marginsSteps.left : defaults.marginsSteps.left,
-        right: typeof frame.marginsSteps?.right === 'number' ? frame.marginsSteps.right : defaults.marginsSteps.right,
-        top: typeof frame.marginsSteps?.top === 'number' ? frame.marginsSteps.top : defaults.marginsSteps.top,
-        bottom: typeof frame.marginsSteps?.bottom === 'number' ? frame.marginsSteps.bottom : defaults.marginsSteps.bottom
-      },
-      clip,
-      overflowPercent,
-      maxSizePercent
-    };
-  }
-
   _applyMatrixStyling() {
     if (!this.table) return;
     const pinSizePx = 7;
@@ -123,68 +71,8 @@ export class LargeMatrix {
   _applyLayoutOffsets() {
     const container = this.table.closest('.matrix-container');
     if (!container) return;
-    if (this.box) {
-      // El marco en su caja; la tabla se centra y se escala dentro
-      // (resizeToFit), sin deformar los pines.
-      applyBox(container, requireBox(this.box, `${this.panelId || 'matriz'}: marco`));
-      this._applyContainerStyling(container);
-      return;
-    }
-    const squarePercent = this.frame.squarePercent;
-    const outerMargin = (100 - squarePercent) / 2;
-
-    // 1 paso = 1/referenceSteps del cuadrado (~1 columna/pin).
-    // referenceSteps permite fijar la referencia de pasos independientemente
-    // del número real de columnas del grid, para que añadir columnas
-    // reservadas no desplace el frame calibrado.
-    const steps = typeof this.frame.referenceSteps === 'number'
-      ? this.frame.referenceSteps
-      : this.cols;
-    const stepPercent = squarePercent / steps;
-
-    const m = this.frame.marginsSteps;
-    const t = this.frame.translateSteps;
-
-    let leftPercent = outerMargin + (t.x + m.left) * stepPercent;
-    let topPercent = outerMargin + (t.y + m.top) * stepPercent;
-    let widthPercent = squarePercent - (m.left + m.right) * stepPercent;
-    let heightPercent = squarePercent - (m.top + m.bottom) * stepPercent;
-
-    // Clamp defensivo para evitar valores degenerados.
-    const maxSizePercent = typeof this.frame.maxSizePercent === 'number' ? this.frame.maxSizePercent : 100;
-    widthPercent = Math.max(1, Math.min(maxSizePercent, widthPercent));
-    heightPercent = Math.max(1, Math.min(maxSizePercent, heightPercent));
-
-    // Importante: NO recortamos width/height para "hacer sitio" cuando mueves el frame.
-    // Eso crea un umbral raro donde deja de obedecer. En su lugar, clampamos left/top
-    // en función del width/height reales (solo se limita cuando de verdad tocaría el borde).
-    // Permitimos un pequeño overflow del frame fuera del panel para poder
-    // alinear a ojo con el arte (si no, se "pega" al borde y parece que deja
-    // de obedecer aunque visualmente aún quede margen útil).
-    // Puedes tocar estos valores para dar más "aire" al ajuste a ojo.
-    // En tu caso el problema suele ser el borde derecho.
-    const overflow = this.frame.overflowPercent || { left: 25, top: 25, right: 60, bottom: 60 };
-    const minLeft = -Math.abs(overflow.left || 0);
-    const minTop = -Math.abs(overflow.top || 0);
-    const maxLeft = 100 - widthPercent + Math.abs(overflow.right || 0);
-    const maxTop = 100 - heightPercent + Math.abs(overflow.bottom || 0);
-    leftPercent = Math.min(maxLeft, Math.max(minLeft, leftPercent));
-    topPercent = Math.min(maxTop, Math.max(minTop, topPercent));
-
-    container.style.position = 'absolute';
-    container.style.left = `${leftPercent}%`;
-    container.style.top = `${topPercent}%`;
-    container.style.width = `${widthPercent}%`;
-    container.style.height = `${heightPercent}%`;
+    applyBox(container, requireBox(this.box, `${this.panelId || 'matriz'}: marco`));
     this._applyContainerStyling(container);
-    container.style.overflow = this.frame.clip === false ? 'visible' : 'hidden';
-
-    // Debug (útil para ver si topas clamp o si es recorte visual)
-    container.dataset.frameLeft = leftPercent.toFixed(3);
-    container.dataset.frameTop = topPercent.toFixed(3);
-    container.dataset.frameWidth = widthPercent.toFixed(3);
-    container.dataset.frameHeight = heightPercent.toFixed(3);
-    container.dataset.frameClip = String(this.frame.clip !== false);
   }
 
   /** Estilo del marco: sin topes de tamaño, tabla centrada, sin recortar a la vista. */
@@ -555,8 +443,8 @@ export class LargeMatrix {
 
       if (!availableWidth || !availableHeight || !baseWidth || !baseHeight) return;
 
-      // Importante: los márgenes (top/bottom/left/right) deben deformar el frame
-      // SIN deformar la matriz (y sus pines). Escalar X/Y por separado convierte
+      // Importante: el marco (su caja) no tiene la proporción de la tabla, y
+      // eso no debe deformar los pines. Escalar X/Y por separado convierte
       // círculos en elipses, así que usamos un escalado uniforme (mismas
       // proporciones siempre) que quepa en ambos ejes.
       const widthScale = availableWidth / baseWidth;

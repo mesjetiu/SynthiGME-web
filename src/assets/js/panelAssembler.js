@@ -3462,18 +3462,9 @@ export function buildLargeMatrices(app) {
     app.panel5MatrixEl = app.panel5.addSection({ id: 'panel5Matrix', type: 'matrix' });
     app.panel6MatrixEl = app.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
 
-    // Panel 5: el marco en su caja, en px del panel (utils/panelBox.js).
+    // El marco de cada matriz en su caja, en px del panel (utils/panelBox.js).
     const LARGE_MATRIX_BOX_PANEL5 = requireBox(panel5AudioBlueprint.ui.box, 'panel 5: marco de la matriz');
-
-    const LARGE_MATRIX_FRAME_PANEL6 = panel6ControlBlueprint.ui.frame;
-
-    if (LARGE_MATRIX_FRAME_PANEL6.clip === false) {
-      app.panel5?.element?.classList.add('matrix-adjust');
-      app.panel6?.element?.classList.add('matrix-adjust');
-    } else {
-      app.panel5?.element?.classList.remove('matrix-adjust');
-      app.panel6?.element?.classList.remove('matrix-adjust');
-    }
+    const LARGE_MATRIX_BOX_PANEL6 = requireBox(panel6ControlBlueprint.ui.box, 'panel 6: marco de la matriz');
 
     // Compile blueprints to get routing maps for tooltips and hidden pins
     const panel5Maps = compilePanelBlueprintMappings(panel5AudioBlueprint);
@@ -3511,7 +3502,7 @@ export function buildLargeMatrices(app) {
     app.largeMatrixControl = new LargeMatrix(app.panel6MatrixEl, {
       rows: panel6ControlBlueprint.grid.rows,
       cols: panel6ControlBlueprint.grid.cols,
-      frame: LARGE_MATRIX_FRAME_PANEL6,
+      box: LARGE_MATRIX_BOX_PANEL6,
       hiddenCols: HIDDEN_COLS_PANEL6,
       hiddenRows: HIDDEN_ROWS_PANEL6,
       sourceMap: panel6Maps.sourceMap,

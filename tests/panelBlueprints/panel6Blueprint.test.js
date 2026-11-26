@@ -4,6 +4,7 @@
  * Verifica la configuración correcta de:
  * - Sources (fuentes de CV): Input Amplifiers, Output Buses, Oscillators 10-12
  * - Destinations (destinos): Osc Freq CV, Output Level CV, Voltage Input, Oscilloscope
+ * - Caja del marco de la matriz (modelo único de coordenadas)
  * 
  * @version 1.0.0
  */
@@ -13,6 +14,7 @@ import assert from 'node:assert/strict';
 
 // Importar blueprint directamente
 import panel6Blueprint from '../../src/assets/js/panelBlueprints/panel6.control.blueprint.js';
+import { isBox, boxPlacement } from '../../src/assets/js/utils/panelBox.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TESTS DE ESTRUCTURA BÁSICA
@@ -216,5 +218,30 @@ describe('Panel 6 Blueprint - Caso de uso: Slew Limiter', () => {
       s => s.source.kind === 'outputBus' && s.source.bus === 1
     );
     assert.strictEqual(outputBus1.rowSynth, 75, 'Bus 1 debe estar en fila 75');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAJA DEL MARCO (modelo único de coordenadas)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Panel 6 Blueprint - Caja del marco de la matriz', () => {
+  // Caja medida en la web (tests/visual) al migrar: con ella los pines
+  // quedan donde estaban.
+  it('el marco de la matriz va en su caja, la medida', () => {
+    assert.ok(isBox(panel6Blueprint.ui.box));
+    assert.deepStrictEqual(panel6Blueprint.ui.box,
+      { x: 14.515625, y: 85.96875, w: 758.515625, h: 609.46875 });
+  });
+
+  it('la caja cae en la rejilla de 1/64 px (left/top, sin translate)', () => {
+    assert.strictEqual(boxPlacement(panel6Blueprint.ui.box).transform, '');
+    for (const k of ['w', 'h']) {
+      assert.ok(Number.isInteger(panel6Blueprint.ui.box[k] * 64), `${k} en 1/64 px`);
+    }
+  });
+
+  it('no queda el marco antiguo en «pasos»', () => {
+    assert.strictEqual(panel6Blueprint.ui.frame, undefined);
   });
 });

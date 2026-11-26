@@ -301,9 +301,12 @@ describe('buildPanel1 — DOM', () => {
     assert.strictEqual(led.style.left, '181px');
     assert.strictEqual(led.style.top, '20.5px');
     assert.strictEqual(led.style.width, '10px');
-    // Gate: centro (90, 88), 16 px
-    assert.strictEqual(gate.style.left, '82px');
-    assert.strictEqual(gate.style.top, '80px');
+    // Gate: centro (90, 88), 19 px: el pulsador negro de la foto, sin rótulo
+    assert.strictEqual(gate.style.left, '80.5px');
+    assert.strictEqual(gate.style.top, '78.5px');
+    assert.strictEqual(gate.style.width, '19px');
+    assert.strictEqual(gate.textContent, '');
+    assert.strictEqual(gate.getAttribute('aria-label'), 'Gate');
   });
 });
 

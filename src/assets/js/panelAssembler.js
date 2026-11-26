@@ -465,7 +465,8 @@ export function buildPanel1(app) {
       const gateBtn = document.createElement('button');
       gateBtn.type = 'button';
       gateBtn.className = 'envelope-shaper__gate-btn';
-      gateBtn.textContent = 'GATE';
+      // Sin rótulo: en el panel, «GATE» está serigrafiado al lado del pulsador
+      gateBtn.setAttribute('aria-label', 'Gate');
       placeAtCenter(gateBtn, envCenters.gate, gateSz, `${envId} gate`);
 
       let gateActive = false;

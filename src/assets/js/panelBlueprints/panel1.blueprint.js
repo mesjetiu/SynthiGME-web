@@ -204,8 +204,10 @@ export default {
       knobTypes: ['selector', 'normal', 'normal', 'normal', 'normal', 'normal', 'bipolar', 'normal'],
       knobSize: 65,
       knobInnerPct: 78,
-      // Botón de gate y LED piloto (diámetro en px; centro en centers)
-      gateSize: 16,
+      // Botón de gate y LED piloto (diámetro en px; centro en centers). El
+      // gate es el pulsador negro de la foto: cara de 16 y aro de metal,
+      // 19 en total (medido a 3,4×; «GATE» va serigrafiado al lado).
+      gateSize: 19,
       ledSize: 10
     },
 

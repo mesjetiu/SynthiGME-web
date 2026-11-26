@@ -1,4 +1,6 @@
-[{"k":"panel-output>span.panel-build-version[1]","r":[756,758,0,0],"v":0},
+[{"k":"panel-output>div.panel-inline-bg[1]","r":[0,0,760,760],"v":1},
+{"k":"panel-output>div.panel-inline-bg[1]>svg[1]","r":[0,0,760,760],"v":1},
+{"k":"panel-output>span.panel-build-version[1]","r":[756,758,0,0],"v":0},
 {"k":"panel-output>#panel7Layout[1]","r":[0,0,760,760],"v":1},
 {"k":"panel-output>#panel7Layout[1]>#joystick-left[1]","r":[37,89,215,240],"v":1},
 {"k":"panel-output>#panel7Layout[1]>#joystick-left[1]>div.synth-module__content[1]","r":[38,90,213,224],"v":1},

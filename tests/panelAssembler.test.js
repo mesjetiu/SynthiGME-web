@@ -250,17 +250,17 @@ describe('buildPanel1 — DOM', () => {
     const byId = id => [...layout.children].find(el => el.id === id);
     const flp1 = byId('flp1-module');
     assert.ok(flp1, 'FLP 1 es hijo directo de #panel1Layout');
-    assert.strictEqual(flp1.style.left, '5px');
-    assert.strictEqual(flp1.style.top, '48px');
-    assert.strictEqual(flp1.style.width, '92px');
-    assert.strictEqual(flp1.style.height, '290px');
-    assert.strictEqual(byId('fhp4-module').style.left, '663px');
+    assert.strictEqual(flp1.style.left, '6.25px');
+    assert.strictEqual(flp1.style.top, '50px');
+    assert.strictEqual(flp1.style.width, '93px');
+    assert.strictEqual(flp1.style.height, '287.25px');
+    assert.strictEqual(byId('fhp4-module').style.left, '660px');
     const es3 = byId('envelopeShaper3-module');
     assert.strictEqual(es3.style.position, 'absolute', 'la caja no la pisa el position:relative de antes');
     assert.strictEqual(es3.style.top, '544px');
-    assert.strictEqual(byId('ringModulator2-module').style.left, '113px');
-    assert.strictEqual(byId('reverberation1-module').style.width, '143px');
-    assert.strictEqual(byId('echoADL-module').style.width, '282px');
+    assert.strictEqual(byId('ringModulator2-module').style.left, '112px');
+    assert.strictEqual(byId('reverberation1-module').style.width, '146.5px');
+    assert.strictEqual(byId('echoADL-module').style.width, '280.5px');
     // 16 módulos, todos en left/top (sin translate)
     const modules = [...layout.children].filter(el => el.classList.contains('synth-module'));
     assert.strictEqual(modules.length, 16);
@@ -273,15 +273,37 @@ describe('buildPanel1 — DOM', () => {
     }
   });
 
-  it('el gate y el LED de cada envolvente van en px dentro de su marco', () => {
+  it('cada mando, por su centro, en una capa que cubre la caja de su módulo', () => {
+    const flp1 = app.panel1.element.querySelector('#flp1-module');
+    const layers = flp1.querySelectorAll('.panel1-controls');
+    assert.strictEqual(layers.length, 1);
+    assert.strictEqual(layers[0].style.inset, '-1px');
+    const knobs = layers[0].querySelectorAll(':scope > .knob-wrapper');
+    assert.strictEqual(knobs.length, 3);
+    // Frequency: centro (46.75, 72.25), mando de 65 px
+    assert.strictEqual(knobs[0].style.position, 'absolute');
+    assert.strictEqual(knobs[0].style.left, '14.25px');
+    assert.strictEqual(knobs[0].style.top, '39.75px');
+    assert.strictEqual(knobs[0].style.width, '65px');
+    for (const id of ['envelopeShaper2', 'ringModulator3', 'reverberation1', 'echoADL']) {
+      const wrappers = app.panel1.element.querySelectorAll(`#${id}-module .panel1-controls > .knob-wrapper`);
+      assert.ok(wrappers.length > 0, id);
+      for (const w of wrappers) assert.strictEqual(w.style.position, 'absolute', id);
+    }
+  });
+
+  it('el gate y el LED de cada envolvente, por su centro, en la capa de mandos', () => {
     const es1 = app.panel1.element.querySelector('#envelopeShaper1-module');
-    const led = es1.querySelector(':scope > .envelope-shaper__led');
-    const gate = es1.querySelector(':scope > .envelope-shaper__gate-btn');
+    const led = es1.querySelector('.panel1-controls > .envelope-shaper__led');
+    const gate = es1.querySelector('.panel1-controls > .envelope-shaper__gate-btn');
     assert.ok(led && gate);
-    assert.strictEqual(led.style.left, '130px');
-    assert.strictEqual(led.style.top, '8px');
-    assert.strictEqual(gate.style.left, '52px');
-    assert.strictEqual(gate.style.top, '68px');
+    // LED: centro (187, 26.5); 10 px más 1 px de borde por lado
+    assert.strictEqual(led.style.left, '181px');
+    assert.strictEqual(led.style.top, '20.5px');
+    assert.strictEqual(led.style.width, '10px');
+    // Gate: centro (90, 88), 16 px
+    assert.strictEqual(gate.style.left, '82px');
+    assert.strictEqual(gate.style.top, '80px');
   });
 });
 

@@ -38,7 +38,7 @@ import { ModuleFrame }                  from './ui/moduleFrame.js';
 import { Toggle }                       from './ui/toggle.js';
 import { Knob }                         from './ui/knob.js';
 import { createKnob }                   from './ui/knobFactory.js';
-import { applyBox, boxCss, requireBox } from './utils/panelBox.js';
+import { applyBox, boxCss, requireBox, createControlsLayer, placeAtCenter } from './utils/panelBox.js';
 
 import {
   KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK
@@ -152,17 +152,6 @@ export function buildPanel1(app) {
       const num = Number(value);
       return Number.isFinite(num) ? num : fallback;
     };
-    const resolveOffset = (offset, fallback = { x: 0, y: 0 }) => ({
-      x: toNum(offset?.x, fallback.x),
-      y: toNum(offset?.y, fallback.y)
-    });
-    const applyOffset = (el, offset, fallback = { x: 0, y: 0 }) => {
-      if (!el) return;
-      const resolved = resolveOffset(offset, fallback);
-      if (resolved.x !== 0 || resolved.y !== 0) {
-        el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
-      }
-    };
     const createPanel1Knob = ({ knobSize = 'sm', knobInnerPct = 78, knobColor = '', knobType = 'normal' }) => {
       const sizePreset = typeof knobSize === 'string' ? knobSize : '';
       
@@ -216,7 +205,10 @@ export function buildPanel1(app) {
     const layout = blueprint.layout;
     /** Caja de un módulo (rompe al cargar si falta) */
     const boxOf = (section, moduleId) =>
-      requireBox(section?.boxes?.[moduleId] ?? section?.box, `panel 1 ${moduleId}`);
+      requireBox(section?.modules?.[moduleId]?.box ?? section?.box, `panel 1 ${moduleId}`);
+    /** Centros { x, y } de los mandos de un módulo, relativos a su caja */
+    const centersOf = (section, moduleId) =>
+      section?.modules?.[moduleId]?.centers ?? section?.centers ?? {};
 
     // ─────────────────────────────────────────────────────────────────────────
     // FILTROS FLP 1-4 + FHP 1-4
@@ -277,12 +269,11 @@ export function buildPanel1(app) {
 
         const ui = new Panel1FilterUI({
           id: `${filterId}-module`,
-          knobGap: filterModuleUI.knobGap ?? filtersLayout.knobGap,
           knobSize: filterModuleUI.knobSize ?? filtersLayout.knobSize,
           knobInnerPct: filterModuleUI.knobInnerPct ?? filtersLayout.knobInnerPct,
           knobColors: filterModuleUI.knobColors ?? filtersLayout.knobColors,
           knobTypes: filterModuleUI.knobTypes ?? filtersLayout.knobTypes,
-          knobsOffset: filterModuleUI.knobsOffset ?? filtersLayout.knobsOffset,
+          centers: centersOf(filtersLayout, filterId),
           knobOptions: {
             frequency: {
               ...filterConfig.knobs.frequency,
@@ -384,11 +375,9 @@ export function buildPanel1(app) {
       // La caja hace de contenedor posicionado del LED y del gate
       applyBox(el, boxOf(envLayout, envId));
 
-      // Crear knobs horizontales en panel1-envelope-knobs (estructura CSS existente)
-      const knobsContainer = document.createElement('div');
-      knobsContainer.className = 'panel1-envelope-knobs';
-      knobsContainer.style.gap = `${toNum(envModuleUI.knobGap, toNum(envLayout.knobGap, 2))}px`;
-      applyOffset(knobsContainer, envModuleUI.knobsOffset, envLayout.knobsOffset || { x: 0, y: 0 });
+      // Mandos, gate y LED, cada uno por su centro en una capa que cubre la caja
+      const envCenters = centersOf(envLayout, envId);
+      const knobsContainer = createControlsLayer('panel1-controls');
 
       // Knobs funcionales (con Knob instance para interacción + audio)
       esKnobDefs.forEach((def, idx) => {
@@ -453,29 +442,29 @@ export function buildPanel1(app) {
           knob.knobInstance._angleOffset = -150;
         }
 
+        placeAtCenter(knob.wrapper, envCenters[def.key], toNum(knobSize, 65), `${envId} ${def.key}`);
         knobsContainer.appendChild(knob.wrapper);
         esKnobs[def.key] = knob.knobInstance;
       });
       frame.appendToContent(knobsContainer);
 
-      // LED piloto — posición absoluta (arriba a la derecha de delay, según blueprint)
-      const ledX = toNum(envModuleUI.ledOffset?.x ?? envLayout.ledOffset?.x, 130);
-      const ledY = toNum(envModuleUI.ledOffset?.y ?? envLayout.ledOffset?.y, 8);
+      // LED piloto (encima, a la derecha de Delay). El borde va por fuera
+      // (content-box), como siempre: el centro es el del LED entero.
       const ledSz = toNum(envModuleUI.ledSize ?? envLayout.ledSize, 10);
       const gateLed = document.createElement('div');
       gateLed.className = 'envelope-shaper__led';
-      gateLed.style.cssText = `position:absolute;left:${ledX}px;top:${ledY}px;width:${ledSz}px;height:${ledSz}px;`;
-      el.appendChild(gateLed);
+      placeAtCenter(gateLed, envCenters.led, ledSz + 2, `${envId} led`);
+      gateLed.style.width = `${ledSz}px`;
+      gateLed.style.height = `${ledSz}px`;
+      knobsContainer.appendChild(gateLed);
 
-      // Gate button — posición absoluta (abajo a la derecha del selector, según blueprint)
-      const gateX = toNum(envModuleUI.gateOffset?.x ?? envLayout.gateOffset?.x, 52);
-      const gateY = toNum(envModuleUI.gateOffset?.y ?? envLayout.gateOffset?.y, 68);
+      // Botón de gate (abajo a la derecha del selector de modo)
       const gateSz = toNum(envModuleUI.gateSize ?? envLayout.gateSize, 16);
       const gateBtn = document.createElement('button');
       gateBtn.type = 'button';
       gateBtn.className = 'envelope-shaper__gate-btn';
       gateBtn.textContent = 'GATE';
-      gateBtn.style.cssText = `position:absolute;left:${gateX}px;top:${gateY}px;width:${gateSz}px;height:${gateSz}px;`;
+      placeAtCenter(gateBtn, envCenters.gate, gateSz, `${envId} gate`);
 
       let gateActive = false;
       const setGateActive = async (active) => {
@@ -503,7 +492,7 @@ export function buildPanel1(app) {
       gateBtn.addEventListener('pointerup', () => setGateActive(false));
       gateBtn.addEventListener('pointerleave', () => { if (gateActive) setGateActive(false); });
 
-      el.appendChild(gateBtn);
+      knobsContainer.appendChild(gateBtn);
 
       applyModuleVisibility(el, blueprint, envId);
       host.appendChild(el);
@@ -572,12 +561,11 @@ export function buildPanel1(app) {
       // Crear UI funcional
       const ringModUI = new Panel1RingModUI({
         id: `${rmId}-module`,
-        knobGap: rmModuleUI.knobGap ?? rmConfig.knobGap,
         knobSize: rmModuleUI.knobSize ?? rmConfig.knobSize,
         knobInnerPct: rmModuleUI.knobInnerPct ?? rmConfig.knobInnerPct,
         knobColors: rmModuleUI.knobColors ?? rmConfig.knobColors,
         knobTypes: rmModuleUI.knobTypes ?? rmConfig.knobTypes,
-        knobsOffset: rmModuleUI.knobsOffset ?? rmConfig.knobsOffset,
+        centers: centersOf(rmConfig, rmId),
         knobOptions: {
           level: {
             ...ringModulatorConfig.knobs.level,
@@ -625,12 +613,11 @@ export function buildPanel1(app) {
 
     const reverbUI = new Panel1ReverbUI({
       id: 'reverberation1-module',
-      knobGap: reverbModuleUI.knobGap ?? reverbBlueprintConfig.knobGap,
       knobSize: reverbModuleUI.knobSize ?? reverbBlueprintConfig.knobSize,
       knobInnerPct: reverbModuleUI.knobInnerPct ?? reverbBlueprintConfig.knobInnerPct,
       knobColors: reverbModuleUI.knobColors ?? reverbBlueprintConfig.knobColors,
       knobTypes: reverbModuleUI.knobTypes ?? reverbBlueprintConfig.knobTypes,
-      knobsOffset: reverbModuleUI.knobsOffset ?? reverbBlueprintConfig.knobsOffset,
+      centers: centersOf(reverbBlueprintConfig, 'reverberation1'),
       knobOptions: {
         mix: {
           ...reverberationConfig.knobs.mix,
@@ -674,17 +661,18 @@ export function buildPanel1(app) {
     const echoUI = blueprint.modules?.echoADL?.ui || {};
     applyBox(echoEl, boxOf(echoConfig, 'echoADL'));
 
-    const echoKnobs = document.createElement('div');
-    echoKnobs.className = 'panel1-bottom-knobs';
-    echoKnobs.style.gap = `${toNum(echoUI.knobGap, toNum(echoConfig.knobGap, 6))}px`;
-    applyOffset(echoKnobs, echoUI.knobsOffset, echoConfig.knobsOffset || { x: 0, y: 0 });
+    const echoKnobs = createControlsLayer('panel1-controls');
+    const echoCenters = centersOf(echoConfig, 'echoADL');
+    const echoKeys = ['delay', 'mix', 'feedback', 'level'];
     echoConfig.knobs.forEach((knobName, idx) => {
+      const echoKnobSize = echoUI.knobSize ?? echoConfig.knobSize;
       const knob = createPanel1Knob({
-        knobSize: echoUI.knobSize ?? echoConfig.knobSize,
+        knobSize: echoKnobSize,
         knobInnerPct: echoUI.knobInnerPct ?? echoConfig.knobInnerPct,
         knobColor: echoUI.knobColors?.[idx] ?? echoConfig.knobColors?.[idx],
         knobType: echoUI.knobTypes?.[idx] ?? echoConfig.knobTypes?.[idx]
       });
+      placeAtCenter(knob.wrapper, echoCenters[echoKeys[idx]], toNum(echoKnobSize, 65), `echoADL ${echoKeys[idx]}`);
       echoKnobs.appendChild(knob.wrapper);
     });
     echoFrame.appendToContent(echoKnobs);

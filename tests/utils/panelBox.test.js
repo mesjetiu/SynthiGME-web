@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PANEL_SIZE, isBox, requireBox, boxCss, boxPlacement, applyBox } from '../../src/assets/js/utils/panelBox.js';
+import { PANEL_SIZE, isBox, requireBox, boxCss, boxPlacement, applyBox, placeAtCenter } from '../../src/assets/js/utils/panelBox.js';
 
 describe('panelBox', () => {
   it('el panel mide 760 px', () => {
@@ -65,5 +65,19 @@ describe('panelBox', () => {
       visibility: 'hidden', position: 'absolute', left: '7.5px', top: '653px',
       width: '371px', height: '94px', boxSizing: 'border-box'
     });
+  });
+
+  it('placeAtCenter pone el mando con su centro en el punto dado', () => {
+    const el = { style: {} };
+    placeAtCenter(el, { x: 46.5, y: 72.25 }, 65, 'Frequency');
+    assert.deepEqual(el.style, {
+      position: 'absolute', left: '14px', top: '39.75px', width: '65px', height: '65px',
+      minWidth: '0', flex: 'none'
+    });
+  });
+
+  it('placeAtCenter rompe si falta el centro', () => {
+    assert.throws(() => placeAtCenter({ style: {} }, undefined, 65, 'Level'), /Level: falta el centro/);
+    assert.throws(() => placeAtCenter({ style: {} }, { x: 3 }, 65, 'Mix'), /Mix/);
   });
 });

@@ -9,6 +9,7 @@
 
 import { ModuleFrame } from './moduleFrame.js';
 import { createKnob } from './knobFactory.js';
+import { createControlsLayer, placeAtCenter } from '../utils/panelBox.js';
 import { KNOB_BLUE, KNOB_YELLOW, KNOB_WHITE, KNOB_RED, KNOB_GREEN, KNOB_BLACK } from '../configs/knobColors.js';
 
 const COLOR_MAP = {
@@ -25,28 +26,17 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-function applyOffset(element, offset, fallback = { x: 0, y: 0 }) {
-  if (!element) {
-    return;
-  }
-  const x = toNumber(offset?.x, fallback.x);
-  const y = toNumber(offset?.y, fallback.y);
-  if (x !== 0 || y !== 0) {
-    element.style.transform = `translate(${x}px, ${y}px)`;
-  }
-}
-
 export class Panel1ReverbUI {
   constructor(options = {}) {
     this.id = options.id;
     this.cssClass = options.cssClass || 'panel1-reverb-live';
     this.layout = {
-      knobGap: options.knobGap ?? 6,
       knobSize: options.knobSize ?? 65,
       knobInnerPct: options.knobInnerPct ?? 78,
       knobColors: options.knobColors || ['blue', 'white'],
       knobTypes: options.knobTypes || ['normal', 'normal'],
-      knobsOffset: options.knobsOffset || { x: 0, y: 0 }
+      // Centro { x, y } de cada mando, en px relativos a la caja del módulo
+      centers: options.centers || {}
     };
     this.knobOptions = options.knobOptions || {};
     this.element = null;
@@ -63,10 +53,8 @@ export class Panel1ReverbUI {
     });
 
     const element = this.frame.createElement();
-    const knobsContainer = document.createElement('div');
-    knobsContainer.className = 'panel1-bottom-knobs';
-    knobsContainer.style.gap = `${toNumber(this.layout.knobGap, 6)}px`;
-    applyOffset(knobsContainer, this.layout.knobsOffset);
+    // Los mandos, cada uno por su centro en una capa que cubre la caja
+    const knobsContainer = createControlsLayer('panel1-controls');
 
     this.knobKeys.forEach((key, index) => {
       const knob = createKnob({
@@ -101,6 +89,7 @@ export class Panel1ReverbUI {
         inner.style.height = `${pct}%`;
       }
 
+      placeAtCenter(knob.wrapper, this.layout.centers[key], toNumber(this.layout.knobSize, 65), `${this.id} ${key}`);
       this.knobs[key] = knob.knobInstance;
       knobsContainer.appendChild(knob.wrapper);
     });

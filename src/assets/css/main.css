@@ -6404,44 +6404,6 @@ body.render-performance .panel-inline-bg {
   min-width: 0;
 }
 
-/* Knobs de filtros: apilados verticalmente */
-.panel1-filter-knobs {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-evenly;
-  gap: 2px;
-  height: 100%;
-  padding: 2px 0;
-  box-sizing: border-box;
-}
-
-/* Knobs de envelope shapers: en fila horizontal */
-.panel1-envelope-knobs {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-evenly;
-  gap: 2px;
-  width: 100%;
-  height: 100%;
-  padding: 2px 4px;
-  box-sizing: border-box;
-}
-
-/* Knobs de fila inferior (RM, Reverb, Echo): centrados horizontal */
-.panel1-bottom-knobs {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  height: 100%;
-  padding: 4px;
-  box-sizing: border-box;
-}
-
 /* Envelope Shaper: LED piloto */
 .envelope-shaper__led {
   border-radius: 50%;

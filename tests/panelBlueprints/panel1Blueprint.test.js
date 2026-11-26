@@ -4,8 +4,9 @@
  * 
  * Verifica la configuración correcta de:
  * - Estructura básica (schemaVersion, panelId, showFrames)
- * - Layout: una caja absoluta por módulo, en px del panel, y que no vuelve
- *   la columna flex anterior (offset, padding, filas con alto y gap)
+ * - Layout: una caja absoluta por módulo, en px del panel, medida sobre la
+ *   foto, y cada mando con su centro relativo a la caja; que no vuelve la
+ *   columna flex anterior (offset, padding, filas con alto y gap)
  * - Módulos declarados (16 placeholders: 8 filtros + 3 envelopes + 3 RM + reverb + echo)
  * - Definición de knobs por tipo de módulo
  * - Separación blueprint/config (ausencia de propiedades de audio, controls, matrixMapping)
@@ -54,35 +55,57 @@ describe('Panel 1 Blueprint - Estructura básica', () => {
 
 const layout = panel1Blueprint.layout;
 
-/** Las 16 cajas medidas, por id de módulo (migración sin cambio visible) */
+/** Las 16 cajas medidas sobre panel_1.jpg (marcos serigrafiados) */
 const MEASURED = {
-  flp1: { x: 5, y: 48, w: 92, h: 290 },
-  flp2: { x: 99, y: 48, w: 92, h: 290 },
-  flp3: { x: 193, y: 48, w: 92, h: 290 },
-  flp4: { x: 287, y: 48, w: 92, h: 290 },
-  fhp1: { x: 381, y: 48, w: 92, h: 290 },
-  fhp2: { x: 475, y: 48, w: 92, h: 290 },
-  fhp3: { x: 569, y: 48, w: 92, h: 290 },
-  fhp4: { x: 663, y: 48, w: 92, h: 290 },
-  envelopeShaper1: { x: 5, y: 340, w: 750, h: 100 },
-  envelopeShaper2: { x: 5, y: 442, w: 750, h: 100 },
-  envelopeShaper3: { x: 5, y: 544, w: 750, h: 100 },
-  ringModulator1: { x: 5, y: 646, w: 107, h: 100 },
-  ringModulator2: { x: 113, y: 646, w: 107, h: 100 },
-  ringModulator3: { x: 221, y: 646, w: 107, h: 100 },
-  reverberation1: { x: 329, y: 646, w: 143, h: 100 },
-  echoADL: { x: 473, y: 646, w: 282, h: 100 }
+  flp1: { x: 6.25, y: 50, w: 93, h: 287.25 },
+  flp2: { x: 99.25, y: 50.75, w: 93.25, h: 287.25 },
+  flp3: { x: 192.5, y: 51.5, w: 94, h: 287 },
+  flp4: { x: 286.5, y: 52, w: 93.5, h: 287 },
+  fhp1: { x: 380, y: 52.75, w: 93, h: 286.25 },
+  fhp2: { x: 473, y: 53.5, w: 93.5, h: 285.5 },
+  fhp3: { x: 566.5, y: 54, w: 93.5, h: 285 },
+  fhp4: { x: 660, y: 54.75, w: 94.25, h: 284.25 },
+  envelopeShaper1: { x: 5, y: 339, w: 749.5, h: 102.5 },
+  envelopeShaper2: { x: 5, y: 441.5, w: 749.5, h: 102.5 },
+  envelopeShaper3: { x: 5, y: 544, w: 749.5, h: 102 },
+  ringModulator1: { x: 4, y: 646, w: 108, h: 101.75 },
+  ringModulator2: { x: 112, y: 646, w: 107.5, h: 102 },
+  ringModulator3: { x: 219.5, y: 646.5, w: 108, h: 102 },
+  reverberation1: { x: 327.5, y: 646.75, w: 146.5, h: 102.25 },
+  echoADL: { x: 474, y: 647, w: 280.5, h: 102.25 }
 };
 
-/** Caja de cada módulo tal como la lee el ensamblador */
+/** Secciones del layout y sus módulos */
+const SECTIONS = {
+  filters: ['flp1', 'flp2', 'flp3', 'flp4', 'fhp1', 'fhp2', 'fhp3', 'fhp4'],
+  envelopeShapers: ['envelopeShaper1', 'envelopeShaper2', 'envelopeShaper3'],
+  ringModulators: ['ringModulator1', 'ringModulator2', 'ringModulator3'],
+  reverberation: ['reverberation1'],
+  echo: ['echoADL']
+};
+
+/** Claves de los mandos de cada sección (las que lee el montaje) */
+const CONTROL_KEYS = {
+  filters: ['frequency', 'response', 'level'],
+  envelopeShapers: ['mode', 'delay', 'attack', 'decay', 'sustain', 'release',
+    'envelopeLevel', 'signalLevel', 'gate', 'led'],
+  ringModulators: ['level'],
+  reverberation: ['mix', 'level'],
+  echo: ['delay', 'mix', 'feedback', 'level']
+};
+
+/** Caja y centros de un módulo, tal como los lee el ensamblador */
+function moduleLayout(section, id) {
+  const s = layout[section];
+  return s.modules ? s.modules[id] : { box: s.box, centers: s.centers };
+}
+
 function boxesById() {
-  return {
-    ...layout.filters.boxes,
-    ...layout.envelopeShapers.boxes,
-    ...layout.ringModulators.boxes,
-    reverberation1: layout.reverberation.box,
-    echoADL: layout.echo.box
-  };
+  const out = {};
+  for (const [section, ids] of Object.entries(SECTIONS)) {
+    for (const id of ids) out[id] = moduleLayout(section, id)?.box;
+  }
+  return out;
 }
 
 describe('Panel 1 Blueprint - Layout en cajas absolutas', () => {
@@ -123,12 +146,13 @@ describe('Panel 1 Blueprint - Layout en cajas absolutas', () => {
     }
   });
 
-  it('no quedan claves de la columna flex antigua', () => {
+  it('no quedan claves de la columna flex antigua ni del reparto con flex', () => {
     for (const k of ['offset', 'padding', 'gap', 'filtersRow', 'bottomRow']) {
       assert.strictEqual(layout[k], undefined, `layout.${k}`);
     }
-    for (const name of ['filters', 'envelopeShapers', 'ringModulators', 'reverberation', 'echo']) {
-      for (const k of ['height', 'width', 'gap', 'offset', 'count', 'knobDirection']) {
+    for (const name of Object.keys(SECTIONS)) {
+      for (const k of ['height', 'width', 'gap', 'offset', 'count', 'knobDirection', 'boxes',
+        'knobGap', 'knobsOffset', 'gateOffset', 'ledOffset']) {
         assert.strictEqual(layout[name][k], undefined, `layout.${name}.${k}`);
       }
     }
@@ -153,22 +177,69 @@ describe('Panel 1 Blueprint - Mandos', () => {
       assert.deepStrictEqual(s.knobs, knobs);
       assert.strictEqual(s.knobColors.length, knobs.length);
       assert.strictEqual(s.knobTypes.length, knobs.length);
-      assert.strictEqual(typeof s.knobSize, 'number');
+      assert.strictEqual(s.knobSize, 65);
       assert.ok(s.knobInnerPct > 0 && s.knobInnerPct <= 100);
-      assert.ok(s.knobGap >= 0);
-      assert.strictEqual(typeof s.knobsOffset.x, 'number');
-      assert.strictEqual(typeof s.knobsOffset.y, 'number');
     });
   }
 
-  it('envelope shapers: gate y LED en px dentro del marco', () => {
-    const es = layout.envelopeShapers;
-    for (const k of ['gateOffset', 'ledOffset']) {
-      assert.strictEqual(typeof es[k].x, 'number', `${k}.x`);
-      assert.strictEqual(typeof es[k].y, 'number', `${k}.y`);
+  for (const [section, ids] of Object.entries(SECTIONS)) {
+    for (const id of ids) {
+      it(`${id}: cada mando con su centro dentro de la caja, en la rejilla de 1/4 px`, () => {
+        const { box, centers } = moduleLayout(section, id);
+        assert.deepStrictEqual(Object.keys(centers).sort(), [...CONTROL_KEYS[section]].sort());
+        for (const [key, c] of Object.entries(centers)) {
+          assert.ok(c.x > 0 && c.x < box.w && c.y > 0 && c.y < box.h, `${id}.${key} fuera de la caja`);
+          assert.ok(Number.isInteger(c.x * 4) && Number.isInteger(c.y * 4), `${id}.${key}`);
+        }
+      });
     }
-    assert.ok(es.gateSize > 0);
-    assert.ok(es.ledSize > 0);
+  }
+
+  it('filtros: los tres mandos en el eje de la columna y en el mismo sitio en los ocho', () => {
+    for (const id of SECTIONS.filters) {
+      const { centers } = moduleLayout('filters', id);
+      for (const key of CONTROL_KEYS.filters) {
+        assert.ok(Math.abs(centers[key].x - 47) <= 1.25, `${id}.${key}.x = ${centers[key].x}`);
+      }
+      assert.ok(Math.abs(centers.frequency.y - 71) <= 1.5, `${id} frequency.y`);
+      assert.ok(Math.abs(centers.response.y - 157) <= 1.5, `${id} response.y`);
+      assert.ok(Math.abs(centers.level.y - 243) <= 1.5, `${id} level.y`);
+    }
+  });
+
+  it('envolventes: los mandos en fila, a ~93,5 px uno de otro, igual en las tres', () => {
+    const keys = ['delay', 'attack', 'decay', 'sustain', 'release', 'envelopeLevel', 'signalLevel'];
+    for (const id of SECTIONS.envelopeShapers) {
+      const { centers } = moduleLayout('envelopeShapers', id);
+      for (let i = 1; i < keys.length; i++) {
+        const dx = centers[keys[i]].x - centers[keys[i - 1]].x;
+        assert.ok(Math.abs(dx - 93.5) <= 1.5, `${id}: ${keys[i - 1]}→${keys[i]} ${dx}`);
+      }
+      for (const k of keys) assert.ok(Math.abs(centers[k].y - 59) <= 2, `${id}.${k}.y`);
+      assert.ok(centers.mode.x < centers.gate.x && centers.gate.x < centers.delay.x, `${id}: gate entre modo y delay`);
+      assert.ok(centers.delay.x < centers.led.x && centers.led.x < centers.attack.x, `${id}: LED entre delay y attack`);
+      assert.ok(centers.led.y < centers.delay.y && centers.gate.y > centers.mode.y, `${id}: LED arriba, gate abajo`);
+    }
+  });
+
+  it('la fila inferior: todos los mandos a la misma altura', () => {
+    for (const section of ['ringModulators', 'reverberation', 'echo']) {
+      for (const id of SECTIONS[section]) {
+        const { box, centers } = moduleLayout(section, id);
+        for (const [k, c] of Object.entries(centers)) {
+          assert.ok(Math.abs(box.y + c.y - 706.5) <= 1.5, `${id}.${k}: y ${box.y + c.y}`);
+        }
+      }
+    }
+  });
+
+  it('envelope shapers: tamaño del gate y del LED', () => {
+    assert.ok(layout.envelopeShapers.gateSize > 0);
+    assert.ok(layout.envelopeShapers.ledSize > 0);
+  });
+
+  it('los marcos no se ven (showFrames: false): el panel está cuadrado con la foto', () => {
+    assert.strictEqual(panel1Blueprint.showFrames, false);
   });
 });
 
@@ -332,11 +403,11 @@ describe('Panel 1 Blueprint - Coherencia layout/modules', () => {
     const filterModules = Object.keys(panel1Blueprint.modules)
       .filter(k => k.startsWith('flp') || k.startsWith('fhp'));
     assert.strictEqual(filterModules.length, 8);
-    assert.deepStrictEqual(Object.keys(layout.filters.boxes).sort(), filterModules.sort());
+    assert.deepStrictEqual(Object.keys(layout.filters.modules).sort(), filterModules.sort());
   });
 
   it('total de knobs en el panel: 8×3 + 3×8 + 3×1 + 1×2 + 1×4 = 57', () => {
-    const n = name => Object.keys(layout[name].boxes ?? { one: 1 }).length * layout[name].knobs.length;
+    const n = name => Object.keys(layout[name].modules ?? { one: 1 }).length * layout[name].knobs.length;
     const total = n('filters') + n('envelopeShapers') + n('ringModulators') + n('reverberation') + n('echo');
     assert.strictEqual(total, 57, `total de knobs debe ser 57, calculado ${total}`);
   });

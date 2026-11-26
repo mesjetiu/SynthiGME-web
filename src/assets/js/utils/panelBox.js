@@ -94,3 +94,44 @@ export function applyBox(el, box) {
   el.style.boxSizing = 'border-box';
   if (p.transform) el.style.transform = p.transform;
 }
+
+// ─── Mandos por su centro, dentro de la caja de su módulo ──────────────────
+//
+// Cada mando se describe por su centro { x, y } en px relativos a la caja
+// del módulo (lo que se mide sobre la foto: el eje del mando y el centro de
+// su escala, que están en el plano del panel). Los mandos van en una capa
+// que cubre la caja entera: el marco tiene 1 px de borde, de ahí el inset
+// de −1 px, para que (0, 0) sea la esquina de la caja y no la del contenido.
+
+/**
+ * Capa absoluta que cubre la caja del módulo, para colgar los mandos.
+ * @param {string} className
+ * @returns {HTMLElement}
+ */
+export function createControlsLayer(className) {
+  const layer = document.createElement('div');
+  layer.className = className;
+  layer.style.cssText = 'position: absolute; inset: -1px;';
+  return layer;
+}
+
+/**
+ * Coloca un elemento de size × size px con su centro en center.
+ * Lanza un error si falta el centro (mejor romper al cargar que colocar a ciegas).
+ * @param {HTMLElement} el
+ * @param {{x:number,y:number}} center  px relativos a la caja del módulo
+ * @param {number} size
+ * @param {string} name  mando, para el mensaje de error
+ */
+export function placeAtCenter(el, center, size, name) {
+  if (!Number.isFinite(center?.x) || !Number.isFinite(center?.y)) {
+    throw new Error(`[panelBox] ${name}: falta el centro { x, y } del mando: ${JSON.stringify(center)}`);
+  }
+  el.style.position = 'absolute';
+  el.style.left = `${center.x - size / 2}px`;
+  el.style.top = `${center.y - size / 2}px`;
+  el.style.width = `${size}px`;
+  el.style.height = `${size}px`;
+  el.style.minWidth = '0';
+  el.style.flex = 'none';
+}

@@ -45,36 +45,99 @@ export default {
   panelId: 'panel-1',
 
   // Mostrar/ocultar marcos de todos los módulos del panel.
-  showFrames: true,
+  showFrames: false,
 
   // ─────────────────────────────────────────────────────────────────────────
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────
   //
-  // Cada módulo se coloca con una caja absoluta { x, y, w, h } en px del
-  // panel (760×760 = la imagen de fondo; ver utils/panelBox.js), por id de
-  // módulo: layout.<tipo>.boxes.<id> (o layout.<tipo>.box si hay uno solo).
-  // Mover uno no mueve los demás. Dentro de cada caja, los mandos siguen
-  // repartidos por el CSS como antes (flex).
+  // Cada módulo se coloca con una caja absoluta box: { x, y, w, h } en px
+  // del panel (760×760 = la imagen de fondo; ver utils/panelBox.js), y cada
+  // mando con su centro { x, y } en px relativos a esa caja (centers, por
+  // la clave del mando). Mover uno no mueve nada más.
   //
-  // Las cajas son las que daba la columna flex anterior (offset y 40,
-  // padding 8/5, gap 2; filtros de 290 con gap 2, envolventes de 100 con
-  // gap 2, fila inferior de 100 con anchos 107/143 y gap 1), medidas en la
-  // web: el panel queda idéntico. Todavía NO están cuadradas con la foto
-  // (hoja de ruta, 1.3).
+  // Medido sobre panel_1.jpg (hoja de ruta, 1.3, paso 2):
+  // - Cajas: los marcos serigrafiados, por el centro de sus líneas
+  //   (tests/visual/lineas.py y perfiles de oscuridad), a 0,25 px. La foto
+  //   está girada ~0,4° (las líneas bajan ~5 px de izquierda a derecha): en
+  //   las fronteras largas (filtros/envolventes, envolventes/fila inferior)
+  //   la caja va por la media de la línea, para que no se solapen.
+  // - Mandos: x en el eje del mando, y en el centro de su escala
+  //   transparente, las dos en el plano del panel. Se toman de la flecha ▼
+  //   serigrafiada encima de cada mando: centro = base de la flecha + 38,9
+  //   (calibrado a vista en cuatro mandos de zonas distintas). El capuchón
+  //   sobresale y en la foto sale corrido por la paralaje.
+  // - Selector de modo, botón de gate y LED de las envolventes: a vista
+  //   (el LED, por el centro de su rojo).
 
   layout: {
     // ── Filtros FLP 1-4 + FHP 1-4 ───────────────────────────────────────
     filters: {
-      boxes: {
-        flp1: { x: 5,   y: 48, w: 92, h: 290 },
-        flp2: { x: 99,  y: 48, w: 92, h: 290 },
-        flp3: { x: 193, y: 48, w: 92, h: 290 },
-        flp4: { x: 287, y: 48, w: 92, h: 290 },
-        fhp1: { x: 381, y: 48, w: 92, h: 290 },
-        fhp2: { x: 475, y: 48, w: 92, h: 290 },
-        fhp3: { x: 569, y: 48, w: 92, h: 290 },
-        fhp4: { x: 663, y: 48, w: 92, h: 290 }
+      modules: {
+        flp1: {
+          box: { x: 6.25, y: 50, w: 93, h: 287.25 },
+          centers: {
+            frequency: { x: 46.75, y: 72.25 },
+            response: { x: 46.25, y: 158 },
+            level: { x: 46, y: 243.5 }
+          }
+        },
+        flp2: {
+          box: { x: 99.25, y: 50.75, w: 93.25, h: 287.25 },
+          centers: {
+            frequency: { x: 46.75, y: 71.75 },
+            response: { x: 46.5, y: 157.75 },
+            level: { x: 46.5, y: 243.5 }
+          }
+        },
+        flp3: {
+          box: { x: 192.5, y: 51.5, w: 94, h: 287 },
+          centers: {
+            frequency: { x: 47, y: 71.25 },
+            response: { x: 46.75, y: 157 },
+            level: { x: 46.75, y: 243 }
+          }
+        },
+        flp4: {
+          box: { x: 286.5, y: 52, w: 93.5, h: 287 },
+          centers: {
+            frequency: { x: 47, y: 70.75 },
+            response: { x: 46.75, y: 157 },
+            level: { x: 46.75, y: 243 }
+          }
+        },
+        fhp1: {
+          box: { x: 380, y: 52.75, w: 93, h: 286.25 },
+          centers: {
+            frequency: { x: 47, y: 70.5 },
+            response: { x: 46.75, y: 157.25 },
+            level: { x: 46.5, y: 243 }
+          }
+        },
+        fhp2: {
+          box: { x: 473, y: 53.5, w: 93.5, h: 285.5 },
+          centers: {
+            frequency: { x: 48, y: 70 },
+            response: { x: 47.5, y: 156.5 },
+            level: { x: 47.25, y: 242.5 }
+          }
+        },
+        fhp3: {
+          box: { x: 566.5, y: 54, w: 93.5, h: 285 },
+          centers: {
+            frequency: { x: 47, y: 70.25 },
+            response: { x: 46.75, y: 156.75 },
+            level: { x: 47, y: 242 }
+          }
+        },
+        fhp4: {
+          box: { x: 660, y: 54.75, w: 94.25, h: 284.25 },
+          centers: {
+            frequency: { x: 47.25, y: 70.5 },
+            response: { x: 47, y: 156.75 },
+            level: { x: 47.25, y: 242 }
+          }
+        }
       },
       // Cada filtro tiene 3 knobs en columna vertical:
       // Frequency, Response, Level
@@ -82,17 +145,57 @@ export default {
       knobColors: ['blue', 'yellow', 'white'],
       knobTypes: ['normal', 'normal', 'normal'],
       knobSize: 65,
-      knobInnerPct: 78,
-      knobGap: 2,
-      knobsOffset: { x: 0, y: 0 }
+      knobInnerPct: 78
     },
 
     // ── Envelope Shapers 1-3 ────────────────────────────────────────────
     envelopeShapers: {
-      boxes: {
-        envelopeShaper1: { x: 5, y: 340, w: 750, h: 100 },
-        envelopeShaper2: { x: 5, y: 442, w: 750, h: 100 },
-        envelopeShaper3: { x: 5, y: 544, w: 750, h: 100 }
+      modules: {
+        envelopeShaper1: {
+          box: { x: 5, y: 339, w: 749.5, h: 102.5 },
+          centers: {
+            mode: { x: 47.25, y: 58.5 },
+            delay: { x: 140.25, y: 57.5 },
+            attack: { x: 234.75, y: 58.25 },
+            decay: { x: 328, y: 58.75 },
+            sustain: { x: 420.75, y: 59 },
+            release: { x: 514.25, y: 59.5 },
+            envelopeLevel: { x: 608, y: 60 },
+            signalLevel: { x: 701.5, y: 60 },
+            gate: { x: 90, y: 88 },
+            led: { x: 187, y: 26.5 }
+          }
+        },
+        envelopeShaper2: {
+          box: { x: 5, y: 441.5, w: 749.5, h: 102.5 },
+          centers: {
+            mode: { x: 46.75, y: 58.75 },
+            delay: { x: 139.5, y: 57.5 },
+            attack: { x: 234, y: 58 },
+            decay: { x: 327.5, y: 58 },
+            sustain: { x: 420.5, y: 58.25 },
+            release: { x: 513.75, y: 59.25 },
+            envelopeLevel: { x: 607.75, y: 59.75 },
+            signalLevel: { x: 701, y: 59.75 },
+            gate: { x: 89.5, y: 88.25 },
+            led: { x: 186, y: 26.75 }
+          }
+        },
+        envelopeShaper3: {
+          box: { x: 5, y: 544, w: 749.5, h: 102 },
+          centers: {
+            mode: { x: 46.25, y: 59.25 },
+            delay: { x: 139.25, y: 57.75 },
+            attack: { x: 233.25, y: 58.75 },
+            decay: { x: 326.75, y: 59 },
+            sustain: { x: 420.5, y: 59.5 },
+            release: { x: 514, y: 60.5 },
+            envelopeLevel: { x: 607.75, y: 61 },
+            signalLevel: { x: 700.75, y: 60.75 },
+            gate: { x: 89, y: 88.5 },
+            led: { x: 185.5, y: 28 }
+          }
+        }
       },
       // Cada envelope shaper tiene 8 knobs en fila horizontal:
       // Mode, Delay, Attack, Decay, Sustain, Release, Envelope Level, Signal Level
@@ -101,54 +204,68 @@ export default {
       knobTypes: ['selector', 'normal', 'normal', 'normal', 'normal', 'normal', 'bipolar', 'normal'],
       knobSize: 65,
       knobInnerPct: 78,
-      knobGap: 2,
-      knobsOffset: { x: 0, y: 0 },
-      // Gate button: posición absoluta dentro del marco (abajo a la derecha del selector)
-      gateOffset: { x: 52, y: 68 },
+      // Botón de gate y LED piloto (diámetro en px; centro en centers)
       gateSize: 16,
-      // LED piloto: posición absoluta dentro del marco (arriba a la derecha de delay)
-      ledOffset: { x: 130, y: 8 },
       ledSize: 10
     },
 
     // ── Ring Modulators 1-3 ─────────────────────────────────────────────
     ringModulators: {
-      boxes: {
-        ringModulator1: { x: 5,   y: 646, w: 107, h: 100 },
-        ringModulator2: { x: 113, y: 646, w: 107, h: 100 },
-        ringModulator3: { x: 221, y: 646, w: 107, h: 100 }
+      modules: {
+        ringModulator1: {
+          box: { x: 4, y: 646, w: 108, h: 101.75 },
+          centers: {
+            level: { x: 55.25, y: 59.25 }
+          }
+        },
+        ringModulator2: {
+          box: { x: 112, y: 646, w: 107.5, h: 102 },
+          centers: {
+            level: { x: 53.75, y: 59.75 }
+          }
+        },
+        ringModulator3: {
+          box: { x: 219.5, y: 646.5, w: 108, h: 102 },
+          centers: {
+            level: { x: 54.5, y: 60 }
+          }
+        }
       },
       knobs: ['Level'],
       knobColors: ['white'],
       knobTypes: ['normal'],
       knobSize: 65,
-      knobInnerPct: 78,
-      knobGap: 6,
-      knobsOffset: { x: 0, y: 0 }
+      knobInnerPct: 78
     },
 
     // ── Reverberation 1 ─────────────────────────────────────────────────
     reverberation: {
-      box: { x: 329, y: 646, w: 143, h: 100 },
+      box: { x: 327.5, y: 646.75, w: 146.5, h: 102.25 },
+      centers: {
+        mix: { x: 39.75, y: 59.75 },
+        level: { x: 107.75, y: 59.75 }
+      },
       knobs: ['Mix', 'Level'],
       knobColors: ['blue', 'white'],
       knobTypes: ['normal', 'normal'],
       knobSize: 65,
-      knobInnerPct: 78,
-      knobGap: 6,
-      knobsOffset: { x: 0, y: 0 }
+      knobInnerPct: 78
     },
 
     // ── Echo A.D.L. ─────────────────────────────────────────────────────
     echo: {
-      box: { x: 473, y: 646, w: 282, h: 100 },
+      box: { x: 474, y: 647, w: 280.5, h: 102.25 },
+      centers: {
+        delay: { x: 38.5, y: 59.5 },
+        mix: { x: 106.75, y: 60.25 },
+        feedback: { x: 174.5, y: 59.75 },
+        level: { x: 242.5, y: 59.75 }
+      },
       knobs: ['Delay', 'Mix', 'Feedback', 'Level'],
       knobColors: ['blue', 'blue', 'blue', 'white'],
       knobTypes: ['normal', 'normal', 'normal', 'normal'],
       knobSize: 65,
-      knobInnerPct: 78,
-      knobGap: 6,
-      knobsOffset: { x: 0, y: 0 }
+      knobInnerPct: 78
     }
   },
 

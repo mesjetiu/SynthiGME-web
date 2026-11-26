@@ -1251,7 +1251,7 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 | `panel4.blueprint.js` | Blueprint | Layout del Panel 4: 2 teclados (upper/lower) con 3 knobs cada uno (pitchSpread, velocityLevel, gateLevel), selector retrigger (On/Kbd), filas de matriz de control 92-97 |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
 | `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
-| `panel7.blueprint.js` | Blueprint | Layout del Panel 7: 8 Output Channels (Filter, Pan, Switch, Level Fader por canal) |
+| `panel7.blueprint.js` | Blueprint | Caja absoluta `{ x, y, w, h }` de los joysticks y el sequencer (en `layout`) y de los 8 Output Channels (`layout.outputChannels.boxes`); UI interior de cada uno (`outputChannelUI` para los canales) |
 
 > **Nota**: Los archivos de configuración (`.config.js`) están en `configs/modules/`. Ver sección 3.7.1.
 

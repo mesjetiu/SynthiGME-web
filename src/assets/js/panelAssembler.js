@@ -1198,9 +1198,7 @@ export function buildPanel2(app) {
 
 export function setupOutputFaders(app) {
     const blueprint = panel7Blueprint;
-    const panelLayout = blueprint.layout || {};
-    const upperRow = blueprint.layout.upperRow || {};
-    const lowerRow = blueprint.layout.lowerRow || {};
+    const layout = blueprint.layout;
 
     const channelUI = blueprint.outputChannelUI || {};
     const moduleOverrides = blueprint.modules || {};
@@ -1227,7 +1225,6 @@ export function setupOutputFaders(app) {
       return {
         ...defaults,
         ...moduleUI,
-        offset: resolveOffset(moduleUI.offset, defaults.offset || { x: 0, y: 0 }),
         padOffset: resolveOffset(moduleUI.padOffset, defaults.padOffset || { x: 0, y: 0 }),
         knobsOffset: resolveOffset(moduleUI.knobsOffset, defaults.knobsOffset || { x: 0, y: 0 }),
         switchesOffset: resolveOffset(moduleUI.switchesOffset, defaults.switchesOffset || { x: 0, y: 0 }),
@@ -1243,11 +1240,11 @@ export function setupOutputFaders(app) {
       app.outputPanel.element.classList.add('hide-frames');
     }
     
-    // Host interno del layout (se desplaza respecto al fondo del panel)
+    // Contenedor del layout: ocupa el panel entero; cada módulo va en su caja
+    // absoluta { x, y, w, h } en px del panel (utils/panelBox.js).
     const panel7Layout = document.createElement('div');
+    panel7Layout.id = 'panel7Layout';
     panel7Layout.className = 'panel7-layout';
-
-    const panelPadding = panelLayout.padding || { top: 0, right: 10, bottom: 10, left: 10 };
     panel7Layout.style.cssText = `
       position: absolute;
       top: 0;
@@ -1255,39 +1252,22 @@ export function setupOutputFaders(app) {
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      padding: ${panelPadding.top}px ${panelPadding.right}px ${panelPadding.bottom}px ${panelPadding.left}px;
       z-index: 1;
     `;
+    app.outputPanel.appendElement(panel7Layout);
 
-    // Offset general del layout (desde blueprint)
-    const panelOffset = panelLayout.offset || { x: 0, y: 0 };
-    panel7Layout.style.transform = `translate(${panelOffset.x}px, ${panelOffset.y}px)`;
-
-    // Re-parent de la sección inferior dentro del host para que TODO el layout
-    // (fila superior + output channels) se mueva junto con el offset.
-    app.outputPanel.element.insertBefore(panel7Layout, app.outputChannelsSection);
-    panel7Layout.appendChild(app.outputChannelsSection);
-    
     // ── Fila superior: Joystick Left | Sequencer | Joystick Right ──────
-    const upperRowEl = document.createElement('div');
-    upperRowEl.className = 'panel7-upper-row';
-    upperRowEl.style.gap = `${upperRow.gap ?? 8}px`;
-    const upperPad = upperRow.padding || { top: 0, right: 0, bottom: 0, left: 0 };
-    upperRowEl.style.padding = `${upperPad.top}px ${upperPad.right}px ${upperPad.bottom}px ${upperPad.left}px`;
-    applyOffset(upperRowEl, upperRow.offset);
-    
-    const joystickSize = upperRow.joystickSize || { width: 160, height: 180 };
-    const sequencerSize = upperRow.sequencerSize || { width: 420, height: 180 };
-    const joystickLeftConfig = upperRow.joystickLeft || { knobs: ['Range Horizontal', 'Range Vertical'], knobSize: 'sm' };
-    const joystickRightConfig = upperRow.joystickRight || { knobs: ['Range Horizontal', 'Range Vertical'], knobSize: 'sm' };
-    const sequencerConfig = upperRow.sequencer || { switches: [], buttons: [] };
+    const joystickLeftConfig = layout.joystickLeft;
+    const joystickRightConfig = layout.joystickRight;
+    const sequencerConfig = layout.sequencer;
+    const joystickLeftBox = requireBox(joystickLeftConfig?.box, 'panel 7 joystickLeft');
+    const sequencerBox = requireBox(sequencerConfig?.box, 'panel 7 sequencer');
+    const joystickRightBox = requireBox(joystickRightConfig?.box, 'panel 7 joystickRight');
+    const channelBoxes = layout.outputChannels?.boxes || [];
+    channelBoxes.forEach((box, i) => requireBox(box, `panel 7 outputChannels[${i}]`));
 
     const buildJoystickDefaults = (joystickConfig) => ({
       ...joystickConfig,
-      offset: { x: 0, y: 0 },
       layoutGap: joystickConfig.layoutGap ?? 6,
       knobsGap: joystickConfig.knobsGap ?? 8,
       padSize: toNum(joystickConfig.padSize, 100),
@@ -1300,7 +1280,6 @@ export function setupOutputFaders(app) {
 
     const sequencerDefaults = {
       ...sequencerConfig,
-      offset: { x: 0, y: 0 },
       contentPadding: sequencerConfig.contentPadding || { top: 4, right: 4, bottom: 4, left: 4 },
       rowsGap: sequencerConfig.rowsGap ?? 8,
       switchesGap: sequencerConfig.switchesGap ?? 4,
@@ -1383,10 +1362,10 @@ export function setupOutputFaders(app) {
     const joystickLeftFrame = new ModuleFrame({
       id: 'joystick-left',
       title: null,
-      className: 'panel7-placeholder panel7-joystick',
-      size: joystickSize
+      className: 'panel7-placeholder panel7-joystick'
     });
     const joystickLeftEl = joystickLeftFrame.createElement();
+    applyBox(joystickLeftEl, joystickLeftBox);
     joystickLeftEl.dataset.moduleName = joystickConfig.left.title;
 
     const joyLeftContent = document.createElement('div');
@@ -1479,17 +1458,16 @@ export function setupOutputFaders(app) {
     joyLeftContent.appendChild(joyLeftPad);
 
     joystickLeftFrame.appendToContent(joyLeftContent);
-    applyOffset(joystickLeftEl, joystickLeftUI.offset);
-    upperRowEl.appendChild(joystickLeftEl);
+    panel7Layout.appendChild(joystickLeftEl);
     
     // Sequencer Operational Control (placeholder con switches + botones)
     const sequencerFrame = new ModuleFrame({
       id: 'sequencer-control',
       title: null,
-      className: 'panel7-placeholder panel7-sequencer',
-      size: sequencerSize
+      className: 'panel7-placeholder panel7-sequencer'
     });
     const sequencerEl = sequencerFrame.createElement();
+    applyBox(sequencerEl, sequencerBox);
     sequencerEl.dataset.moduleName = 'Sequencer';
     
     const seqContent = document.createElement('div');
@@ -1639,18 +1617,17 @@ export function setupOutputFaders(app) {
     seqContent.appendChild(clockRow);
     
     sequencerFrame.appendToContent(seqContent);
-    applyOffset(sequencerEl, sequencerUI.offset);
     applyModuleVisibility(sequencerEl, blueprint, 'sequencer');
-    upperRowEl.appendChild(sequencerEl);
+    panel7Layout.appendChild(sequencerEl);
     
     // Joystick Right (knobs + pad conectados al módulo de audio, columnas invertidas)
     const joystickRightFrame = new ModuleFrame({
       id: 'joystick-right',
       title: null,
-      className: 'panel7-placeholder panel7-joystick panel7-joystick-right',
-      size: joystickSize
+      className: 'panel7-placeholder panel7-joystick panel7-joystick-right'
     });
     const joystickRightEl = joystickRightFrame.createElement();
+    applyBox(joystickRightEl, joystickRightBox);
     joystickRightEl.dataset.moduleName = joystickConfig.right.title;
     
     const joyRightContent = document.createElement('div');
@@ -1743,8 +1720,7 @@ export function setupOutputFaders(app) {
     joyRightContent.appendChild(joyRightPad);
     
     joystickRightFrame.appendToContent(joyRightContent);
-    applyOffset(joystickRightEl, joystickRightUI.offset);
-    upperRowEl.appendChild(joystickRightEl);
+    panel7Layout.appendChild(joystickRightEl);
 
     // Guardar referencias de knobs para serialización
     app._joystickKnobs = {
@@ -1768,55 +1744,48 @@ export function setupOutputFaders(app) {
       }
     };
     
-    // Insertar ANTES de la sección de output channels (orden visual: arriba → abajo)
-    panel7Layout.insertBefore(upperRowEl, app.outputChannelsSection);
-    
     // ── Fila inferior: Output Channels ─────────────────────────────────
-    // Aplicar estilos del blueprint al contenedor de la sección
-    if (app.outputChannelsSection) {
-      const rowPadding = lowerRow.padding || { top: 8, right: 8, bottom: 12, left: 8 };
-      const contentPadding = channelUI.contentPadding || { top: 6, right: 4, bottom: 8, left: 4 };
-      const channelSize = lowerRow.channelSize || { width: 80, height: 350 };
-      const sliderSize = channelUI.sliderSize || {};
-      const buttonSize = channelUI.buttonSize || {};
-      const knobGapValue = Array.isArray(channelUI.knobGap)
-        ? toNum(channelUI.knobGap[0], 8)
-        : toNum(channelUI.knobGap, 8);
-      applyOffset(app.outputChannelsSection, lowerRow.offset);
-      
-      // CSS custom properties para slider y channel (heredadas por los hijos)
-      app.outputChannelsSection.style.setProperty('--oc-slider-height', `${toNum(sliderSize.height, 250)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-slider-shell-height', `${toNum(sliderSize.shellHeight, 270)}px`);
-      const shellW = toNum(sliderSize.shellWidth, 0);
-      app.outputChannelsSection.style.setProperty('--oc-slider-shell-width', shellW > 0 ? `${shellW}px` : '100%');
-      app.outputChannelsSection.style.setProperty('--oc-slider-width', `${toNum(sliderSize.width, 24)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-channel-width', `${channelSize.width ?? 80}px`);
-      app.outputChannelsSection.style.setProperty('--oc-channel-height', `${channelSize.height ?? 350}px`);
-      app.outputChannelsSection.style.setProperty('--oc-channel-gap', `${lowerRow.gap ?? 8}px`);
-      app.outputChannelsSection.style.setProperty('--oc-knob-button-gap', `${toNum(channelUI.knobButtonGap, 2)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-button-slider-gap', `${toNum(channelUI.buttonSliderGap, 2)}px`);
-      const buttonScale = toNum(buttonSize.scale, 1);
-      app.outputChannelsSection.style.setProperty('--oc-button-width', `${toNum(buttonSize.width, 18)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-button-height', `${toNum(buttonSize.height, 30)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-button-indicator-size', `${toNum(buttonSize.indicator, 8)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-button-scale', `${buttonScale}`);
-      app.outputChannelsSection.style.setProperty('--oc-knob-size', `${toNum(channelUI.knobSize, 42)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-knob-inner-pct', `${toNum(channelUI.knobInnerPct, 78)}%`);
-      app.outputChannelsSection.style.setProperty('--oc-knob-gap', `${knobGapValue}px`);
-      app.outputChannelsSection.style.setProperty('--oc-knob-row-offset-x', `${toNum(channelUI.knobRowOffsetX, 0)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-knob-row-offset-y', `${toNum(channelUI.knobRowOffsetY, 0)}px`);
-      app.outputChannelsSection.style.setProperty('--oc-row-padding', 
-        `${rowPadding.top}px ${rowPadding.right}px ${rowPadding.bottom}px ${rowPadding.left}px`);
-      app.outputChannelsSection.style.setProperty('--oc-content-padding', 
-        `${contentPadding.top}px ${contentPadding.right}px ${contentPadding.bottom}px ${contentPadding.left}px`);
-    }
+    // Medidas interiores de los canales como CSS custom properties de cada
+    // canal (no del contenedor: los interruptores del secuenciador usan las
+    // mismas clases y heredarían, p. ej., --oc-button-scale).
+    const contentPadding = channelUI.contentPadding || { top: 6, right: 4, bottom: 8, left: 4 };
+    const sliderSize = channelUI.sliderSize || {};
+    const buttonSize = channelUI.buttonSize || {};
+    const knobGapValue = Array.isArray(channelUI.knobGap)
+      ? toNum(channelUI.knobGap[0], 8)
+      : toNum(channelUI.knobGap, 8);
+    const shellW = toNum(sliderSize.shellWidth, 0);
+    const ocVars = {
+      '--oc-slider-height': `${toNum(sliderSize.height, 250)}px`,
+      '--oc-slider-shell-height': `${toNum(sliderSize.shellHeight, 270)}px`,
+      '--oc-slider-shell-width': shellW > 0 ? `${shellW}px` : '100%',
+      '--oc-slider-width': `${toNum(sliderSize.width, 24)}px`,
+      '--oc-knob-button-gap': `${toNum(channelUI.knobButtonGap, 2)}px`,
+      '--oc-button-slider-gap': `${toNum(channelUI.buttonSliderGap, 2)}px`,
+      '--oc-button-width': `${toNum(buttonSize.width, 18)}px`,
+      '--oc-button-height': `${toNum(buttonSize.height, 30)}px`,
+      '--oc-button-indicator-size': `${toNum(buttonSize.indicator, 8)}px`,
+      '--oc-button-scale': `${toNum(buttonSize.scale, 1)}`,
+      '--oc-knob-size': `${toNum(channelUI.knobSize, 42)}px`,
+      '--oc-knob-inner-pct': `${toNum(channelUI.knobInnerPct, 78)}%`,
+      '--oc-knob-gap': `${knobGapValue}px`,
+      '--oc-knob-row-offset-x': `${toNum(channelUI.knobRowOffsetX, 0)}px`,
+      '--oc-knob-row-offset-y': `${toNum(channelUI.knobRowOffsetY, 0)}px`,
+      '--oc-content-padding':
+        `${contentPadding.top}px ${contentPadding.right}px ${contentPadding.bottom}px ${contentPadding.left}px`
+    };
     
     // Crear panel de output channels (channelCount viene del config, no del blueprint)
     app._outputChannelsPanel = new OutputChannelsPanel(app.engine, undefined, {
       knobColors: channelUI.knobColors,
       knobTypes: channelUI.knobTypes
     });
-    app._outputChannelsPanel.createPanel(app.outputChannelsSection);
+    app._outputChannelsPanel.createPanel(panel7Layout, channelBoxes);
+    for (const channel of app._outputChannelsPanel.channels) {
+      for (const [name, value] of Object.entries(ocVars)) {
+        channel.frame.element.style.setProperty(name, value);
+      }
+    }
     
     // Mantener referencia como _outputFadersModule para compatibilidad con serialización
     app._outputFadersModule = app._outputChannelsPanel;

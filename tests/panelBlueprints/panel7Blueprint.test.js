@@ -3,8 +3,8 @@
  * 
  * Verifica la configuración correcta de:
  * - Estructura básica (schemaVersion, panelId, showFrames)
- * - Layout: fila superior (joysticks con knobs + sequencer con switches/botones)
- *   e inferior (output channels)
+ * - Layout: una caja absoluta por módulo (joysticks, sequencer y los 8
+ *   output channels) y la configuración interior de cada uno
  * - Defaults visuales de output channels (outputChannelUI)
  * - Módulos declarados (3 placeholders y output channels 1-8)
  * - Separación blueprint/config (ausencia de propiedades de audio)
@@ -16,6 +16,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import panel7Blueprint from '../../src/assets/js/panelBlueprints/panel7.blueprint.js';
+import { isBox, PANEL_SIZE } from '../../src/assets/js/utils/panelBox.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TESTS DE ESTRUCTURA BÁSICA
@@ -55,166 +56,141 @@ describe('Panel 7 Blueprint - Estructura básica', () => {
 // TESTS DE LAYOUT
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Panel 7 Blueprint - Layout', () => {
+describe('Panel 7 Blueprint - Layout en cajas absolutas', () => {
+  const layout = panel7Blueprint.layout;
 
-  it('tiene padding general del panel', () => {
-    const padding = panel7Blueprint.layout.padding;
-    assert.ok(padding, 'debe tener padding');
-    assert.strictEqual(typeof padding.top, 'number');
-    assert.strictEqual(typeof padding.right, 'number');
-    assert.strictEqual(typeof padding.bottom, 'number');
-    assert.strictEqual(typeof padding.left, 'number');
+  // Cajas medidas en la web (tests/visual) al migrar al modelo único de
+  // coordenadas: con ellas el panel queda idéntico a como estaba.
+  const EXPECTED_BOXES = {
+    joystickLeft:  { x: 37,  y: 89, w: 215, h: 240 },
+    sequencer:     { x: 254, y: 89, w: 252, h: 240 },
+    joystickRight: { x: 508, y: 89, w: 215, h: 240 }
+  };
+  // Canales 1–8: 85 px de ancho, uno cada 85,5 px
+  const EXPECTED_CHANNEL_BOXES = Array.from({ length: 8 }, (_, n) => (
+    { x: 38.25 + n * 85.5, y: 329, w: 85, h: 425 }
+  ));
+
+  const assertInsidePanel = (box, name) => {
+    assert.ok(isBox(box), `${name} debe ser { x, y, w, h }`);
+    assert.ok(box.x >= 0 && box.y >= 0, `${name} empieza dentro del panel`);
+    assert.ok(box.x + box.w <= PANEL_SIZE && box.y + box.h <= PANEL_SIZE, `${name} acaba dentro del panel`);
+  };
+
+  for (const [name, expected] of Object.entries(EXPECTED_BOXES)) {
+    it(`${name} tiene caja válida dentro del panel`, () => {
+      assertInsidePanel(layout[name]?.box, `layout.${name}.box`);
+    });
+
+    it(`${name} conserva la caja medida`, () => {
+      assert.deepStrictEqual(layout[name].box, expected);
+    });
+  }
+
+  it('los 8 canales de salida tienen caja válida dentro del panel', () => {
+    const boxes = layout.outputChannels?.boxes;
+    assert.ok(Array.isArray(boxes), 'layout.outputChannels.boxes debe ser array');
+    assert.strictEqual(boxes.length, 8);
+    boxes.forEach((box, i) => assertInsidePanel(box, `outputChannels.boxes[${i}]`));
   });
 
-  it('tiene offset general con x e y numéricos', () => {
-    const offset = panel7Blueprint.layout.offset;
-    assert.ok(offset, 'debe tener offset');
-    assert.strictEqual(typeof offset.x, 'number', 'offset.x debe ser número');
-    assert.strictEqual(typeof offset.y, 'number', 'offset.y debe ser número');
+  it('los canales de salida conservan las cajas medidas', () => {
+    assert.deepStrictEqual(layout.outputChannels.boxes, EXPECTED_CHANNEL_BOXES);
   });
 
-  describe('Fila superior (upperRow)', () => {
-    const upperRow = panel7Blueprint.layout.upperRow;
+  it('las cajas caen en la rejilla de 1/64 px (van en left/top, sin remuestrear)', () => {
+    const all = [...Object.keys(EXPECTED_BOXES).map(n => layout[n].box), ...layout.outputChannels.boxes];
+    for (const box of all) {
+      assert.ok(Number.isInteger(box.x * 64) && Number.isInteger(box.y * 64), JSON.stringify(box));
+    }
+  });
 
-    it('existe con gap numérico', () => {
-      assert.ok(upperRow, 'debe tener upperRow');
-      assert.strictEqual(typeof upperRow.gap, 'number');
-      assert.ok(upperRow.gap >= 0, 'gap no puede ser negativo');
+  it('no quedan claves del modelo antiguo (columna flex + offsets)', () => {
+    for (const key of ['offset', 'padding', 'upperRow', 'lowerRow']) {
+      assert.strictEqual(layout[key], undefined, `layout.${key} ya no existe`);
+    }
+    for (const name of Object.keys(EXPECTED_BOXES)) {
+      assert.strictEqual(layout[name].offset, undefined, `layout.${name}.offset → box`);
+    }
+  });
+
+  it('los knobs de los joysticks se siguen viendo a 60 px (knobSize 65 no tiene clase)', () => {
+    // knob--65 no existe en el CSS: el knob se queda en el tamaño por
+    // defecto (60). Cambiarlo movería el aspecto 5 px (REVISION-VISUAL-2026-09.md).
+    assert.strictEqual(layout.joystickLeft.knobSize, 65);
+    assert.strictEqual(layout.joystickRight.knobSize, 65);
+  });
+
+  describe('Joystick config (left/right independientes)', () => {
+    const joyLeft = layout.joystickLeft;
+    const joyRight = layout.joystickRight;
+
+    function assertJoystickShape(joy, side) {
+      assert.ok(joy, `debe tener joystick${side}`);
+      assert.ok(Array.isArray(joy.knobs), `joystick${side}.knobs debe ser array`);
+      assert.deepStrictEqual(joy.knobs, ['Range Horizontal', 'Range Vertical']);
+      assert.strictEqual(typeof joy.knobSize, 'number', `joystick${side}.knobSize debe ser número`);
+      assert.ok(joy.knobSize > 0, `joystick${side}.knobSize debe ser positivo`);
+      assert.strictEqual(typeof joy.padSize, 'number', `joystick${side}.padSize debe ser número`);
+      assert.ok(joy.padSize > 0, `joystick${side}.padSize debe ser positivo`);
+      assert.strictEqual(typeof joy.layoutGap, 'number', `joystick${side}.layoutGap debe ser número`);
+      assert.strictEqual(typeof joy.knobsGap, 'number', `joystick${side}.knobsGap debe ser número`);
+      assert.strictEqual(typeof joy.knobsOffset?.x, 'number', `joystick${side}.knobsOffset.x debe ser número`);
+      assert.strictEqual(typeof joy.knobsOffset?.y, 'number', `joystick${side}.knobsOffset.y debe ser número`);
+      assert.strictEqual(typeof joy.padOffset?.x, 'number', `joystick${side}.padOffset.x debe ser número`);
+      assert.strictEqual(typeof joy.padOffset?.y, 'number', `joystick${side}.padOffset.y debe ser número`);
+      assert.ok(Array.isArray(joy.knobOffsets), `joystick${side}.knobOffsets debe ser array`);
+      assert.strictEqual(joy.knobOffsets.length, 2, `joystick${side}.knobOffsets debe tener 2 elementos`);
+    }
+
+    it('joystickLeft tiene estructura completa de layout', () => {
+      assertJoystickShape(joyLeft, 'Left');
     });
 
-    it('tiene padding', () => {
-      assert.ok(upperRow.padding, 'debe tener padding');
-      assert.strictEqual(typeof upperRow.padding.top, 'number');
-      assert.strictEqual(typeof upperRow.padding.left, 'number');
+    it('joystickRight tiene estructura completa de layout', () => {
+      assertJoystickShape(joyRight, 'Right');
     });
 
-    it('tiene joystickSize con width y height', () => {
-      const js = upperRow.joystickSize;
-      assert.ok(js, 'debe tener joystickSize');
-      assert.strictEqual(typeof js.width, 'number');
-      assert.strictEqual(typeof js.height, 'number');
-      assert.ok(js.width > 0, 'width debe ser positivo');
-      assert.ok(js.height > 0, 'height debe ser positivo');
-    });
-
-    it('tiene sequencerSize con width y height', () => {
-      const ss = upperRow.sequencerSize;
-      assert.ok(ss, 'debe tener sequencerSize');
-      assert.strictEqual(typeof ss.width, 'number');
-      assert.strictEqual(typeof ss.height, 'number');
-      assert.ok(ss.width > 0, 'width debe ser positivo');
-      assert.ok(ss.height > 0, 'height debe ser positivo');
-    });
-
-    it('sequencer es más ancho que joystick', () => {
-      assert.ok(
-        upperRow.sequencerSize.width > upperRow.joystickSize.width,
-        'el sequencer debe ser más ancho que un joystick'
-      );
-    });
-
-    it('joystick y sequencer tienen la misma altura', () => {
-      assert.strictEqual(
-        upperRow.joystickSize.height,
-        upperRow.sequencerSize.height,
-        'todos los módulos de la fila superior deben tener la misma altura'
-      );
-    });
-
-    describe('Joystick config (left/right independientes)', () => {
-      const joyLeft = upperRow.joystickLeft;
-      const joyRight = upperRow.joystickRight;
-
-      function assertJoystickShape(joy, side) {
-        assert.ok(joy, `debe tener joystick${side}`);
-        assert.ok(Array.isArray(joy.knobs), `joystick${side}.knobs debe ser array`);
-        assert.deepStrictEqual(joy.knobs, ['Range Horizontal', 'Range Vertical']);
-        assert.strictEqual(typeof joy.knobSize, 'number', `joystick${side}.knobSize debe ser número`);
-        assert.ok(joy.knobSize > 0, `joystick${side}.knobSize debe ser positivo`);
-        assert.strictEqual(typeof joy.padSize, 'number', `joystick${side}.padSize debe ser número`);
-        assert.ok(joy.padSize > 0, `joystick${side}.padSize debe ser positivo`);
-        assert.strictEqual(typeof joy.layoutGap, 'number', `joystick${side}.layoutGap debe ser número`);
-        assert.strictEqual(typeof joy.knobsGap, 'number', `joystick${side}.knobsGap debe ser número`);
-        assert.strictEqual(typeof joy.knobsOffset?.x, 'number', `joystick${side}.knobsOffset.x debe ser número`);
-        assert.strictEqual(typeof joy.knobsOffset?.y, 'number', `joystick${side}.knobsOffset.y debe ser número`);
-        assert.strictEqual(typeof joy.padOffset?.x, 'number', `joystick${side}.padOffset.x debe ser número`);
-        assert.strictEqual(typeof joy.padOffset?.y, 'number', `joystick${side}.padOffset.y debe ser número`);
-        assert.ok(Array.isArray(joy.knobOffsets), `joystick${side}.knobOffsets debe ser array`);
-        assert.strictEqual(joy.knobOffsets.length, 2, `joystick${side}.knobOffsets debe tener 2 elementos`);
-      }
-
-      it('joystickLeft tiene estructura completa de layout', () => {
-        assertJoystickShape(joyLeft, 'Left');
-      });
-
-      it('joystickRight tiene estructura completa de layout', () => {
-        assertJoystickShape(joyRight, 'Right');
-      });
-
-      it('left y right son configuraciones separadas (sin objeto compartido)', () => {
-        assert.notStrictEqual(joyLeft, joyRight, 'left/right no deben compartir referencia');
-        assert.notStrictEqual(joyLeft.knobOffsets, joyRight.knobOffsets,
-          'left/right no deben compartir array knobOffsets');
-      });
-    });
-
-    describe('Sequencer config', () => {
-      const seq = upperRow.sequencer;
-
-      it('existe con switches y buttons arrays', () => {
-        assert.ok(seq, 'debe tener sequencer config');
-        assert.ok(Array.isArray(seq.switches), 'switches debe ser array');
-        assert.ok(Array.isArray(seq.buttons), 'buttons debe ser array');
-      });
-
-      it('define 8 switches', () => {
-        assert.strictEqual(seq.switches.length, 8);
-      });
-
-      it('los switches son: A/B+ Key 1, B, C+ Key 2, D, E+ Key 3, F, Key 4, Run Clock / Stop Clock', () => {
-        assert.deepStrictEqual(seq.switches, [
-          'A/B+ Key 1', 'B', 'C+ Key 2', 'D',
-          'E+ Key 3', 'F', 'Key 4', 'Run Clock / Stop Clock'
-        ]);
-      });
-
-      it('define 8 botones', () => {
-        assert.strictEqual(seq.buttons.length, 8);
-      });
-
-      it('los botones son: Master Reset, Run Forward, Run Reverse, Stop, Reset Sequence, Step Forward, Step Reverse, Test O/P', () => {
-        assert.deepStrictEqual(seq.buttons, [
-          'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',
-          'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
-        ]);
-      });
+    it('left y right son configuraciones separadas (sin objeto compartido)', () => {
+      assert.notStrictEqual(joyLeft, joyRight, 'left/right no deben compartir referencia');
+      assert.notStrictEqual(joyLeft.knobOffsets, joyRight.knobOffsets,
+        'left/right no deben compartir array knobOffsets');
     });
   });
 
-  describe('Fila inferior (lowerRow)', () => {
-    const lowerRow = panel7Blueprint.layout.lowerRow;
+  describe('Sequencer config', () => {
+    const seq = layout.sequencer;
 
-    it('existe con gap numérico', () => {
-      assert.ok(lowerRow, 'debe tener lowerRow');
-      assert.strictEqual(typeof lowerRow.gap, 'number');
-      assert.ok(lowerRow.gap >= 0, 'gap no puede ser negativo');
+    it('existe con switches y buttons arrays', () => {
+      assert.ok(seq, 'debe tener sequencer config');
+      assert.ok(Array.isArray(seq.switches), 'switches debe ser array');
+      assert.ok(Array.isArray(seq.buttons), 'buttons debe ser array');
     });
 
-    it('tiene padding', () => {
-      assert.ok(lowerRow.padding, 'debe tener padding');
-      assert.strictEqual(typeof lowerRow.padding.top, 'number');
-      assert.strictEqual(typeof lowerRow.padding.bottom, 'number');
+    it('define 8 switches', () => {
+      assert.strictEqual(seq.switches.length, 8);
     });
 
-    it('tiene channelSize con width y height', () => {
-      const cs = lowerRow.channelSize;
-      assert.ok(cs, 'debe tener channelSize');
-      assert.strictEqual(typeof cs.width, 'number');
-      assert.strictEqual(typeof cs.height, 'number');
-      assert.ok(cs.width > 0, 'width debe ser positivo');
-      assert.ok(cs.height > 0, 'height debe ser positivo');
+    it('los switches son: A/B+ Key 1, B, C+ Key 2, D, E+ Key 3, F, Key 4, Run Clock / Stop Clock', () => {
+      assert.deepStrictEqual(seq.switches, [
+        'A/B+ Key 1', 'B', 'C+ Key 2', 'D',
+        'E+ Key 3', 'F', 'Key 4', 'Run Clock / Stop Clock'
+      ]);
     });
 
+    it('define 8 botones', () => {
+      assert.strictEqual(seq.buttons.length, 8);
+    });
+
+    it('los botones son: Master Reset, Run Forward, Run Reverse, Stop, Reset Sequence, Step Forward, Step Reverse, Test O/P', () => {
+      assert.deepStrictEqual(seq.buttons, [
+        'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',
+        'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
+      ]);
+    });
+  });
+
+  describe('Output Channels (dentro de su caja)', () => {
     it('tiene configuración de slider en outputChannelUI', () => {
       const slider = panel7Blueprint.outputChannelUI.sliderSize;
       assert.ok(slider, 'debe tener sliderSize en outputChannelUI');
@@ -231,12 +207,11 @@ describe('Panel 7 Blueprint - Layout', () => {
       );
     });
 
-    it('slider shellHeight < channelSize.height (cabe en el canal)', () => {
+    it('slider shellHeight < alto de la caja del canal (cabe en el canal)', () => {
       const slider = panel7Blueprint.outputChannelUI.sliderSize;
-      assert.ok(
-        slider.shellHeight < lowerRow.channelSize.height,
-        'el shell del slider debe caber dentro del canal'
-      );
+      for (const box of layout.outputChannels.boxes) {
+        assert.ok(slider.shellHeight < box.h, 'el shell del slider debe caber dentro del canal');
+      }
     });
   });
 });

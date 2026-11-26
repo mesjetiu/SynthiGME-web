@@ -141,11 +141,6 @@ function buildMockApp() {
     start:              () => {}
   };
 
-  // outputChannelsSection: sección DOM del panel de salida
-  const outputSectionEl = dom.window.document.createElement('div');
-  outputSectionEl.id = 'outputChannelsSection';
-  outputSectionEl.className = 'output-channels-section';
-
   return {
     engine:  mockEngine,
     panel1:  makePanel('panel-1'),
@@ -155,7 +150,6 @@ function buildMockApp() {
     panel5:  makePanel('panel-5'),
     panel6:  makePanel('panel-6'),
     outputPanel: makePanel('panel-output'),
-    outputChannelsSection: outputSectionEl,
 
     // Referencias que los builders populan (inicializadas en el constructor de App)
     _panel1FilterUIs:       {},
@@ -573,9 +567,6 @@ describe('setupOutputFaders — módulos', () => {
   let app;
   beforeEach(() => {
     app = buildMockApp();
-    // outputChannelsSection debe ser hijo de outputPanel.element para que
-    // panel7Layout.insertBefore(upperRowEl, outputChannelsSection) funcione
-    app.outputPanel.element.appendChild(app.outputChannelsSection);
     setupOutputFaders(app);
   });
 
@@ -594,6 +585,39 @@ describe('setupOutputFaders — módulos', () => {
 
   it('asigna _sequencerModule', () => {
     assert.ok(app._sequencerModule !== null, '_sequencerModule debe estar asignado');
+  });
+
+  it('cada módulo cuelga del panel en su caja, sin filas intermedias', () => {
+    const layout = app.outputPanel.element.querySelector('#panel7Layout');
+    assert.ok(layout, '#panel7Layout debe existir en outputPanel.element');
+    assert.strictEqual(layout.style.transform, '', 'el contenedor ya no se desplaza');
+    assert.strictEqual(layout.style.display, '', 'el contenedor ya no es flex');
+    const byId = id => [...layout.children].find(el => el.id === id);
+    const joyL = byId('joystick-left');
+    assert.ok(joyL, 'joystick izquierdo es hijo directo de #panel7Layout');
+    assert.strictEqual(joyL.style.left, '37px');
+    assert.strictEqual(joyL.style.top, '89px');
+    assert.strictEqual(joyL.style.width, '215px');
+    assert.strictEqual(byId('sequencer-control').style.left, '254px');
+    assert.strictEqual(byId('joystick-right').style.left, '508px');
+    // Canales: x = 38,25 + n × 85,5 cabe en la rejilla de 1/64 px → left
+    const oc1 = byId('output-channel-1');
+    assert.ok(oc1, 'canal 1 es hijo directo de #panel7Layout');
+    assert.strictEqual(oc1.style.left, '38.25px');
+    assert.strictEqual(oc1.style.top, '329px');
+    assert.strictEqual(oc1.style.height, '425px');
+    assert.strictEqual(oc1.style.transform, '');
+    assert.strictEqual(byId('output-channel-8').style.left, '636.75px');
+    assert.strictEqual(layout.querySelector('.panel7-upper-row'), null);
+    assert.strictEqual(layout.querySelector('#outputChannelsSection'), null);
+  });
+
+  it('las medidas interiores de los canales no se heredan al secuenciador', () => {
+    const layout = app.outputPanel.element.querySelector('#panel7Layout');
+    const oc1 = layout.querySelector('#output-channel-1');
+    assert.strictEqual(oc1.style.getPropertyValue('--oc-button-scale'), '0.85');
+    assert.strictEqual(layout.style.getPropertyValue('--oc-button-scale'), '');
+    assert.strictEqual(layout.querySelector('#sequencer-control').style.getPropertyValue('--oc-button-scale'), '');
   });
 });
 

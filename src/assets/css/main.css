@@ -5975,28 +5975,6 @@ body.render-performance .panel-inline-bg {
    Usa .synth-module como base visual.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Contenedor row para los 7 canales */
-.output-channels-row {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: var(--oc-channel-gap, 8px);
-  justify-content: center;
-  align-items: stretch;
-  width: 100%;
-  padding: var(--oc-row-padding, 8px 8px 24px);
-  box-sizing: border-box;
-}
-
-/* Cada módulo de canal */
-.output-channel-module {
-  flex: 0 0 var(--oc-channel-width, 80px);
-  width: var(--oc-channel-width, 80px);
-  min-width: var(--oc-channel-width, 80px);
-  max-width: var(--oc-channel-width, 80px);
-  height: var(--oc-channel-height, 350px);
-  min-height: var(--oc-channel-height, 350px);
-  max-height: var(--oc-channel-height, 350px);
-}
 
 .output-channel-module .synth-module__header {
   font-size: 10px;
@@ -6241,16 +6219,6 @@ body.render-performance .panel-inline-bg {
   padding: 10px;
   /* overflow visible para que las notas post-it no se recorten al sobresalir */
   overflow: visible;
-}
-
-/* Fila superior: Joystick Left | Sequencer | Joystick Right */
-.panel7-upper-row {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  width: 100%;
-  box-sizing: border-box;
-  flex-shrink: 0;
 }
 
 /* Placeholder de módulos no implementados */
@@ -6533,15 +6501,6 @@ body.render-performance .panel-inline-bg {
   align-items: center;
   justify-content: center;
   padding: 2px;
-}
-
-#panel-output .output-channels-section {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  box-sizing: border-box;
-  /* marginBottom y padding se aplican desde JS usando el blueprint */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -7145,7 +7104,6 @@ body.render-performance .panel-inline-bg {
 .panel--pipped.panel--pip-preview .panel7-seq-switch .toggle-svg-container svg,
 .panel--pipped.panel--pip-preview .panel7-sequencer-clock,
 .panel--pipped.panel--pip-preview .panel7-seq-clock-knob,
-.panel--pipped.panel--pip-preview .output-channels-section,
 .panel--pipped.panel--pip-preview .output-channel__content,
 .panel--pipped.panel--pip-preview .output-channel__switch-wrap,
 .panel--pipped.panel--pip-preview .output-channel__switch,

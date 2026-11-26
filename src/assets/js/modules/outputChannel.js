@@ -42,6 +42,7 @@ import { outputChannelOSCSync } from '../osc/oscOutputChannelSync.js';
 import { flashGlow } from '../ui/glowManager.js';
 import { loadSvgInline } from '../ui/svgInlineLoader.js';
 import { attachControlTooltip } from '../ui/tooltipManager.js';
+import { applyBox } from '../utils/panelBox.js';
 
 // Detectar si el dispositivo tiene capacidad táctil
 const hasTouchCapability = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -110,9 +111,10 @@ export class OutputChannel extends Module {
   /**
    * Crea el panel visual del canal dentro del contenedor dado.
    * @param {HTMLElement} container - Elemento contenedor
+   * @param {{x:number,y:number,w:number,h:number}} [box] - Caja en px del panel
    * @returns {HTMLElement} El elemento raíz del módulo
    */
-  createPanel(container) {
+  createPanel(container, box) {
     // Crear frame usando ModuleFrame para consistencia visual
     this.frame = new ModuleFrame({
       id: this.id,
@@ -121,6 +123,8 @@ export class OutputChannel extends Module {
     });
     
     const element = this.frame.createElement();
+    // Caja absoluta en px del panel (utils/panelBox.js), si la hay
+    if (box) applyBox(element, box);
     
     // Contenido principal: Knobs + Switch + Slider
     const content = this._createContent();
@@ -854,14 +858,13 @@ export class OutputChannelsPanel {
   
   /**
    * Crea todos los canales dentro del contenedor.
-   * @param {HTMLElement} container - Elemento contenedor (row flex)
+   * @param {HTMLElement} container - Contenedor de layout del panel
+   * @param {Array<{x:number,y:number,w:number,h:number}>} [boxes] - Caja de cada canal
    */
-  createPanel(container) {
-    container.classList.add('output-channels-row');
-    
+  createPanel(container, boxes = []) {
     for (let i = 0; i < this.channelCount; i++) {
       const channel = new OutputChannel(this.engine, i, this.options);
-      channel.createPanel(container);
+      channel.createPanel(container, boxes[i]);
       this.channels.push(channel);
     }
   }

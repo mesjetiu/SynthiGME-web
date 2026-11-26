@@ -272,12 +272,6 @@ class App {
     setPanelImageBackground('panel-output', './assets/panels/panel_7.jpg');
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
-    // Sección para output channels - posicionada en la mitad inferior del panel
-    this.outputChannelsSection = this.outputPanel.addSection({ 
-      id: 'outputChannelsSection', 
-      type: 'custom',
-      className: 'output-channels-section'
-    });
     this._heightSyncScheduled = false;
     this.largeMatrixAudio = null;
     this.largeMatrixControl = null;

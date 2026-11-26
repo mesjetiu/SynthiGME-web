@@ -58,117 +58,114 @@ export default {
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Cada módulo se coloca con una caja absoluta box: { x, y, w, h } en px
+  // del panel (760×760, la imagen de fondo estirada al 100 %): 1 px = 1/760
+  // de la imagen. Mover o redimensionar un módulo no mueve ningún otro.
+  // Ver utils/panelBox.js y REVISION-VISUAL-2026-09.md.
+  //
+
   layout: {
-    // Offset general del panel (px) — desplaza todos los módulos
-    // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 19 }, // y= 18
+    // ── Fila superior: Joystick Left | Sequencer | Joystick Right ───────
+    // Joystick Left: 2 columnas (knobs | pad)
+    joystickLeft: {
+      box: { x: 37, y: 89, w: 215, h: 240 },
 
-    // Padding general del panel
-    padding: { top: 0, right: 10, bottom: 10, left: 10 },
+      knobs: ['Range Horizontal', 'Range Vertical'],
+      knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
+      knobTypes: ['normal', 'normal'],
+      // 65 genera la clase knob--65, que no existe: se ve a 60 px (el tamaño
+      // por defecto). Se conserva así (REVISION-VISUAL-2026-09.md).
+      knobSize: 65,
+      padSize: 120,
 
-    // Fila superior: Joystick Left | Sequencer | Joystick Right
-    upperRow: {
-      gap: 2,
-      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      // Ajuste fino interno del joystick izquierdo
+      layoutGap: 6,                 // gap entre columna de knobs y joystick pad
+      knobsGap: 23,                  // gap vertical entre knobs
+      knobsOffset: { x: 15, y: 40 }, // offset de la columna de knobs
+      padOffset: { x: 13, y: 40 },    // offset del pad
+      knobOffsets: [                // offsets por knob [RangeY, RangeX]
+        { x: 0, y: 0 },
+        { x: 0, y: 0 }
+      ]
+    },
 
-      // Offset de toda la fila superior (joysticks + sequencer)
-      offset: { x: 0, y: 0 },
+    // Sequencer Operational Control
+    sequencer: {
+      box: { x: 254, y: 89, w: 252, h: 240 },
 
-      // Tamaño fijo del MARCO de cada tipo de módulo (px).
-      // El contenido se ajusta dentro sin afectar al marco.
-      joystickSize:  { width: 215, height: 240 },
-      sequencerSize: { width: 252, height: 240 },
+      switches: [// 'Record when down' serigrafiado en Synthi 100
+        'A/B+ Key 1', 'B', 'C+ Key 2', 'D',
+        'E+ Key 3', 'F', 'Key 4', 'Run Clock / Stop Clock' 
+      ],
+      buttons: [
+        'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',
+        'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
+      ],
 
-      // Joystick Left: layout de 2 columnas (knobs izq | joystick pad der)
-      // Totalmente independiente de joystickRight.
-      joystickLeft: {
-        knobs: ['Range Horizontal', 'Range Vertical'],
-        knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
-        knobTypes: ['normal', 'normal'],
-        knobSize: 65,
-        padSize: 120,
+      // Ajuste fino del bloque de sequencer
+      contentPadding: { top: 4, right: 4, bottom: 4, left: 4 },
+      rowsGap: 8,                       // separación vertical entre filas internas del sequencer
+      switchesGap: 4,                   // gap horizontal entre switches
+      buttonsGap: 4,                    // gap horizontal entre botones
+      switchesOffset: { x: 0, y: 0 },   // offset de la fila de switches
+      buttonsOffset: { x: 0, y: 0 },    // offset de la fila de botones
+      clockRateOffset: { x: 0, y: 0 },  // offset de la fila del knob Clock Rate
+      clockRateKnobOffset: { x: 0, y: 0 }, // offset del knob Clock Rate
+      clockRateKnobColor: 'white',      // color del knob Clock Rate
+      clockRateKnobType: 'vernier',     // en el Synthi 100, Clock Rate es un vernier dial
 
-        // Ajuste fino interno del joystick izquierdo
-        layoutGap: 6,                 // gap entre columna de knobs y joystick pad
-        knobsGap: 23,                  // gap vertical entre knobs
-        knobsOffset: { x: 15, y: 40 }, // offset de la columna de knobs
-        padOffset: { x: 13, y: 40 },    // offset del pad
-        knobOffsets: [                // offsets por knob [RangeY, RangeX]
-          { x: 0, y: 0 },
-          { x: 0, y: 0 }
-        ]
-      },
+      // Offsets individuales por control (8 + 8)
+      switchOffsets: [
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
+      ],
+      buttonOffsets: [
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+        { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
+      ],
 
-      // Joystick Right: layout de 2 columnas (knobs | pad en columnas invertidas por CSS)
-      // Totalmente independiente de joystickLeft.
-      joystickRight: {
-        knobs: ['Range Horizontal', 'Range Vertical'],
-        knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
-        knobTypes: ['normal', 'normal'],
-        knobSize: 65,
-        padSize: 120,
-
-        // Ajuste fino interno del joystick derecho
-        layoutGap: 6,
-        knobsGap: 23,
-        knobsOffset: { x: -15, y: 40 },
-        padOffset: { x: -13, y: 40 },
-        knobOffsets: [
-          { x: 0, y: 0 },
-          { x: 0, y: 0 }
-        ]
-      },
-
-      // Sequencer Operational Control
-      sequencer: {
-        switches: [// 'Record when down' serigrafiado en Synthi 100
-          'A/B+ Key 1', 'B', 'C+ Key 2', 'D',
-          'E+ Key 3', 'F', 'Key 4', 'Run Clock / Stop Clock' 
-        ],
-        buttons: [
-          'Master Reset', 'Run Forward', 'Run Reverse', 'Stop',
-          'Reset Sequence', 'Step Forward', 'Step Reverse', 'Test O/P'
-        ],
-
-        // Ajuste fino del bloque de sequencer
-        contentPadding: { top: 4, right: 4, bottom: 4, left: 4 },
-        rowsGap: 8,                       // separación vertical entre filas internas del sequencer
-        switchesGap: 4,                   // gap horizontal entre switches
-        buttonsGap: 4,                    // gap horizontal entre botones
-        switchesOffset: { x: 0, y: 0 },   // offset de la fila de switches
-        buttonsOffset: { x: 0, y: 0 },    // offset de la fila de botones
-        clockRateOffset: { x: 0, y: 0 },  // offset de la fila del knob Clock Rate
-        clockRateKnobOffset: { x: 0, y: 0 }, // offset del knob Clock Rate
-        clockRateKnobColor: 'white',      // color del knob Clock Rate
-        clockRateKnobType: 'vernier',     // en el Synthi 100, Clock Rate es un vernier dial
-
-        // Offsets individuales por control (8 + 8)
-        switchOffsets: [
-          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
-          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
-        ],
-        buttonOffsets: [
-          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
-          { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
-        ],
-
-        // Fila adicional bajo botones: knob central "Clock Rate"
-        clockRate: {
-          label: 'Clock Rate',
-          knobSize: 'sm'
-        }
+      // Fila adicional bajo botones: knob central "Clock Rate"
+      clockRate: {
+        label: 'Clock Rate',
+        knobSize: 'sm'
       }
     },
 
-    // Fila inferior: 8 Output Channels
-    lowerRow: {
-      gap: 0.5,
-      padding: { top: 3, right: 8, bottom: 12, left: 8 },
-      // Offset de toda la fila inferior (Output Channels)
-      offset: { x: 0, y: -3 },
+    // Joystick Right: 2 columnas invertidas por CSS (pad | knobs)
+    joystickRight: {
+      box: { x: 508, y: 89, w: 215, h: 240 },
 
-      // Tamaño fijo del MARCO de cada canal (px)
-      channelSize: { width: 85, height: 425 }
+      knobs: ['Range Horizontal', 'Range Vertical'],
+      knobColors: ['yellow', 'yellow'],  // Ambos knobs amarillos (Synthi 100 original)
+      knobTypes: ['normal', 'normal'],
+      // 65 genera la clase knob--65, que no existe: se ve a 60 px (el tamaño
+      // por defecto). Se conserva así (REVISION-VISUAL-2026-09.md).
+      knobSize: 65,
+      padSize: 120,
+
+      // Ajuste fino interno del joystick derecho
+      layoutGap: 6,
+      knobsGap: 23,
+      knobsOffset: { x: -15, y: 40 },
+      padOffset: { x: -13, y: 40 },
+      knobOffsets: [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 }
+      ]
+    },
+
+    // ── Fila inferior: 8 Output Channels, una caja por canal ────────────
+    outputChannels: {
+      boxes: [
+        { x: 38.25, y: 329, w: 85, h: 425 },  // 1
+        { x: 123.75, y: 329, w: 85, h: 425 },  // 2
+        { x: 209.25, y: 329, w: 85, h: 425 },  // 3
+        { x: 294.75, y: 329, w: 85, h: 425 },  // 4
+        { x: 380.25, y: 329, w: 85, h: 425 },  // 5
+        { x: 465.75, y: 329, w: 85, h: 425 },  // 6
+        { x: 551.25, y: 329, w: 85, h: 425 },  // 7
+        { x: 636.75, y: 329, w: 85, h: 425 }   // 8
+      ]
     }
   },
 
@@ -241,14 +238,14 @@ export default {
     joystickLeft: {
       visible: true,
       // ui: { }  — overrides visuales del joystick izquierdo.
-      // Soporta: offset, knobSize, padSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
+      // Soporta: knobSize, padSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // visible: false → módulo oculto (ocupa espacio pero invisible y no interactivo)
     sequencer: {
       visible: true,
       // ui: { }  — overrides visuales del sequencer.
-      // Soporta: offset, contentPadding, rowsGap, switchesGap, buttonsGap,
+      // Soporta: contentPadding, rowsGap, switchesGap, buttonsGap,
       //          switchesOffset, buttonsOffset, switchOffsets, buttonOffsets,
       //          clockRateOffset, clockRateKnobOffset,
       //          clockRate { label, knobSize }
@@ -257,7 +254,7 @@ export default {
     joystickRight: {
       visible: true,
       // ui: { }  — overrides visuales del joystick derecho.
-      // Soporta: offset, knobSize, padSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
+      // Soporta: knobSize, padSize, layoutGap, knobsGap, knobsOffset, padOffset, knobOffsets
     },
 
     // ── Fila inferior: Output Channels 1-8 ──────────────────────────────

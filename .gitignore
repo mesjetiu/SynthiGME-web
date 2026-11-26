@@ -59,3 +59,6 @@ commit-msg.txt
 
 # Capturas visuales de trabajo (la referencia, tests/visual/baseline/, sí va)
 tests/visual/current/
+
+# Python (generadores de design/panels/)
+__pycache__/

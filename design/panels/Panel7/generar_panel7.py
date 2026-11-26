@@ -8,6 +8,7 @@
 # module_research/panel7/fondo_vectorial.md.
 #
 #   python3 design/panels/Panel7/generar_panel7.py     (necesita fontTools)
+#   (las piezas comunes, en design/panels/piezas_svg.py)
 #   npm run optimize:svg -- design/panels/Panel7/panel7_source.svg src/assets/panels/panel7_bg.svg
 #
 # El SVG que sale es el fuente: se puede abrir y retocar en Inkscape (capas,
@@ -23,199 +24,21 @@
 #     La web no tiene esa fuente, así que van como trazos (<path>), con el
 #     texto en la etiqueta de Inkscape.
 
-import math
 import os
-from xml.sax.saxutils import escape
-
-from fontTools.pens.boundsPen import BoundsPen
-from fontTools.pens.svgPathPen import SVGPathPen
-from fontTools.pens.transformPen import TransformPen
-from fontTools.ttLib import TTFont
+import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-FUENTES = os.path.join(AQUI, '..', '..', 'fonts')
+sys.path.insert(0, os.path.join(AQUI, '..'))
+from piezas_svg import (TINTA, TEXTO, f, texto, grabado, rect, linea,  # noqa: E402
+                        triangulo, flecha_recta, flecha_curva, capa, documento,
+                        barra_titulo, degradado_tornillo)
+from piezas_svg import tornillo as _tornillo  # noqa: E402
+
 SALIDA = os.path.join(AQUI, 'panel7_source.svg')
-
-TINTA = '#000000'        # marcos, barras, flechas (como el panel 3)
-TEXTO = '#28170b'        # rótulos (el mismo marrón casi negro del panel 3)
-FAMILIA = 'Microgramma D Extended'   # optimize-svg la renombra a la de la web
-
-
-def f(v):
-    """Número corto para el SVG."""
-    s = f'{v:.3f}'.rstrip('0').rstrip('.')
-    return '0' if s == '-0' else s
-
-
-# ─── Fuentes ──────────────────────────────────────────────────────────────
-
-class Fuente:
-    def __init__(self, fichero):
-        self.t = TTFont(os.path.join(FUENTES, fichero))
-        self.gs = self.t.getGlyphSet()
-        self.cmap = self.t.getBestCmap()
-        self.upm = self.t['head'].unitsPerEm
-        self.cap = self.caja('H')[3] / self.upm
-        self.xalt = self.caja('x')[3] / self.upm
-
-    def glifo(self, c):
-        return self.gs[self.cmap[ord(c)]]
-
-    def caja(self, c):
-        bp = BoundsPen(self.gs)
-        self.glifo(c).draw(bp)
-        return bp.bounds or (0, 0, self.glifo(c).width, 0)
-
-    def tinta(self, s, tam, ls=0.0):
-        """(izquierda, derecha) de la tinta de s, con origen en 0, en px."""
-        x = 0.0
-        izq = der = None
-        for i, c in enumerate(s):
-            g = self.glifo(c)
-            b = self.caja(c)
-            if c != ' ':
-                a = x + b[0] * tam / self.upm
-                z = x + b[2] * tam / self.upm
-                izq = a if izq is None else min(izq, a)
-                der = z if der is None else max(der, z)
-            x += g.width * tam / self.upm + ls
-        return izq, der
-
-
-MG_BOLD = Fuente('microgramma/Microgramma D Extended Bold.otf')
-MG_MEDIUM = Fuente('microgramma/Microgramma D Extended Medium.otf')
-UNIVERS = Fuente('Univers 55 Roman/Univers 55 Roman.otf')
-
-
-def texto(s, base, alto, peso='bold', cx=None, x0=None, x1=None, ancho=None,
-          relleno=TEXTO, minus=False, etiqueta=None, grueso=0.0):
-    """Rótulo en Microgramma como <text>.
-
-    alto: altura de mayúscula (o de la x si minus=True) medida en la foto.
-    Se coloca por la tinta: cx (centro), x0 (borde izquierdo) o x1
-    (derecho); si se da ancho (o x0 y x1), el espaciado entre letras se
-    ajusta para que la tinta mida eso.
-    """
-    fu = MG_BOLD if peso == 'bold' else MG_MEDIUM
-    tam = alto / (fu.xalt if minus else fu.cap)
-    if x0 is not None and x1 is not None:
-        ancho = x1 - x0
-    ls = 0.0
-    if ancho is not None and len(s) > 1:
-        a, b = fu.tinta(s, tam)
-        ls = (ancho - (b - a)) / (len(s) - 1)
-    a, b = fu.tinta(s, tam, ls)
-    w = b - a
-    if cx is not None:
-        izq = cx - w / 2
-    elif x0 is not None:
-        izq = x0
-    else:
-        izq = x1 - w
-    x = izq - a
-    estilo = (f"font-family:'{FAMILIA}';font-weight:{'bold' if peso == 'bold' else 500};"
-              f"font-size:{f(tam)}px;letter-spacing:{f(ls)}px;font-kerning:none;"
-              f"fill:{relleno}")
-    if grueso:
-        # La serigrafía de la foto es más gruesa que la Microgramma: se engorda
-        # con un trazo del mismo color (la tinta crece grueso/2 por cada lado).
-        estilo += f";stroke:{relleno};stroke-width:{f(grueso)};stroke-linejoin:round"
-    lab = f' inkscape:label="{escape(etiqueta)}"' if etiqueta else ''
-    return f'<text x="{f(x)}" y="{f(base)}" style="{estilo}"{lab}>{escape(s)}</text>'
-
-
-ESTRECHO = 0.87      # Univers 55 → anchura de los rótulos grabados
-GRUESO = 0.42        # trazo que la engorda (px)
-
-
-def grabado(s, cx, base, alto=4.25, estrecho=ESTRECHO, grueso=GRUESO):
-    """Rótulo grabado del secuenciador: Univers a trazos, centrado en cx."""
-    fu = UNIVERS
-    tam = alto / fu.cap
-    a, b = fu.tinta(s, tam)
-    izq = cx - (b - a) * estrecho / 2 - a * estrecho
-    pen = SVGPathPen(fu.gs)
-    x = 0.0
-    for c in s:
-        g = fu.glifo(c)
-        if c != ' ':
-            k = tam / fu.upm
-            tp = TransformPen(pen, (k * estrecho, 0, 0, -k, izq + x * estrecho, base))
-            g.draw(tp)
-        x += g.width * tam / fu.upm
-    d = pen.getCommands()
-    return (f'<path inkscape:label="{escape(s)}" d="{d}" '
-            f'style="fill:{TEXTO};stroke:{TEXTO};stroke-width:{f(grueso)};stroke-linejoin:round"/>')
-
-
-# ─── Piezas de dibujo ─────────────────────────────────────────────────────
-
-def rect(x0, y0, x1, y1, relleno=TINTA, extra=''):
-    return (f'<rect x="{f(x0)}" y="{f(y0)}" width="{f(x1 - x0)}" height="{f(y1 - y0)}" '
-            f'style="fill:{relleno}"{extra}/>')
-
-
-def linea(x0, y0, x1, y1, grosor, color=TINTA, extremo='butt'):
-    return (f'<path d="M {f(x0)},{f(y0)} L {f(x1)},{f(y1)}" '
-            f'style="fill:none;stroke:{color};stroke-width:{f(grosor)};stroke-linecap:{extremo}"/>')
-
-
-def triangulo(cx, arriba, punta, ancho):
-    """▼ que señala el cero de un mando."""
-    return (f'<path d="M {f(cx - ancho / 2)},{f(arriba)} L {f(cx + ancho / 2)},{f(arriba)} '
-            f'L {f(cx)},{f(punta)} Z" style="fill:{TINTA}"/>')
-
-
-def punta(x, y, ang, largo=3.6, ancho=3.0):
-    """Punta de flecha rellena con el vértice en (x, y), apuntando a ang (rad)."""
-    ux, uy = math.cos(ang), math.sin(ang)
-    bx, by = x - ux * largo, y - uy * largo
-    px, py = -uy * ancho / 2, ux * ancho / 2
-    return (f'<path d="M {f(x)},{f(y)} L {f(bx + px)},{f(by + py)} '
-            f'L {f(bx + ux * largo * 0.25)},{f(by + uy * largo * 0.25)} '
-            f'L {f(bx - px)},{f(by - py)} Z" style="fill:{TINTA}"/>')
-
-
-def flecha_recta(x0, y0, x1, y1, doble=False, grosor=0.75):
-    ang = math.atan2(y1 - y0, x1 - x0)
-    largo = 3.6
-    ux, uy = math.cos(ang), math.sin(ang)
-    a = (x0 + ux * largo * 0.6, y0 + uy * largo * 0.6) if doble else (x0, y0)
-    b = (x1 - ux * largo * 0.6, y1 - uy * largo * 0.6)
-    s = linea(a[0], a[1], b[0], b[1], grosor)
-    s += punta(x1, y1, ang)
-    if doble:
-        s += punta(x0, y0, ang + math.pi)
-    return s
-
-
-def flecha_curva(x0, y0, x1, y1, comba, grosor=0.6):
-    """Flecha curva junto a un mando (low/high, left/right), punta en (x1, y1).
-
-    comba: desplazamiento del punto de control hacia fuera del mando (px,
-    con signo según el lado)."""
-    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-    dx, dy = x1 - x0, y1 - y0
-    n = math.hypot(dx, dy)
-    cxp, cyp = mx + (-dy / n) * comba, my + (dx / n) * comba
-    largo = 3.8
-    ang = math.atan2(y1 - cyp, x1 - cxp)
-    ex, ey = x1 - math.cos(ang) * largo * 0.6, y1 - math.sin(ang) * largo * 0.6
-    s = (f'<path d="M {f(x0)},{f(y0)} Q {f(cxp)},{f(cyp)} {f(ex)},{f(ey)}" '
-         f'style="fill:none;stroke:{TINTA};stroke-width:{f(grosor)};stroke-linecap:round"/>')
-    s += punta(x1, y1, ang, largo=largo, ancho=2.6)
-    return s
 
 
 def tornillo(cx, cy, r):
-    """Tornillo o piloto del panel: círculo oscuro con brillo."""
-    return (f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(r)}" '
-            f'style="fill:url(#p7-tornillo);stroke:#2b2724;stroke-width:0.5"/>')
-
-
-def capa(ident, nombre, contenido):
-    return (f'<g inkscape:groupmode="layer" id="{ident}" inkscape:label="{nombre}">\n'
-            + '\n'.join(contenido) + '\n</g>')
+    return _tornillo(cx, cy, r, 'p7-tornillo')
 
 
 # ─── Medidas (px del panel; ver module_research/panel7/) ──────────────────
@@ -266,16 +89,6 @@ def canal_1():
              f'style="fill:{TINTA}"/>')
     c.append(tornillo(cx, 740.6, 3.9))
     return c
-
-
-def barra_titulo(ident, x0, y0, x1, y1, rotulo, base, alto, ancho, cx):
-    """Barra negra con el rótulo calado (máscara, como en el panel 3)."""
-    t = texto(rotulo, base, alto, 'bold', cx=cx, ancho=ancho, relleno='#000000')
-    return (f'<mask id="{ident}" maskUnits="userSpaceOnUse">'
-            f'<rect x="{f(x0)}" y="{f(y0)}" width="{f(x1 - x0)}" height="{f(y1 - y0)}" style="fill:#ffffff"/>'
-            f'{t}</mask>'
-            f'<rect x="{f(x0)}" y="{f(y0)}" width="{f(x1 - x0)}" height="{f(y1 - y0)}" '
-            f'mask="url(#{ident})" style="fill:{TINTA}" inkscape:label="{escape(rotulo)}"/>')
 
 
 def joystick_izquierdo():
@@ -379,9 +192,7 @@ def marcos():
 
 
 def main():
-    defs = ['<radialGradient id="p7-tornillo" cx="0.38" cy="0.35" r="0.75">'
-            '<stop offset="0" style="stop-color:#8d8884"/>'
-            '<stop offset="1" style="stop-color:#3b3633"/></radialGradient>',
+    defs = [degradado_tornillo('p7-tornillo'),
             '<linearGradient id="p7-hueco-teclas" x1="0" y1="0" x2="0" y2="1">'
             '<stop offset="0" style="stop-color:#1d1a1e;stop-opacity:0"/>'
             '<stop offset="0.07" style="stop-color:#1d1a1e"/>'
@@ -400,24 +211,14 @@ def main():
     joy_der = ('<use href="#p7-joystick" transform="translate(582,0)" '
                'inkscape:label="Joystick derecho (clone)"/>')
 
-    svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Panel 7 del Synthi 100 de Cuenca: joysticks, secuenciador y 8 canales de salida.
-     Calcado de design/panels/Panel7/panel_7.jpg; generado por generar_panel7.py. -->
-<svg width="760" height="760" viewBox="0 0 760 760" version="1.1" id="p7-svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">
-<sodipodi:namedview id="namedview1" pagecolor="#e8e4e0" bordercolor="#666666" inkscape:document-units="px"/>
-<defs id="p7-defs">
-{chr(10).join(defs)}
-</defs>
-{capa('p7-capa-marcos', 'Marcos', marcos())}
-{capa('p7-capa-logo', 'Logo', logo())}
-{capa('p7-capa-joysticks', 'Joysticks', [joy, joy_der])}
-{capa('p7-capa-secuenciador', 'Secuenciador', secuenciador())}
-{capa('p7-capa-canales', 'Canales de salida', [canal] + clones + titulos)}
-</svg>
-'''
+    svg = documento(
+        'p7', 'Panel 7 del Synthi 100 de Cuenca: joysticks, secuenciador y 8 canales de salida.\n'
+        '     Calcado de design/panels/Panel7/panel_7.jpg; generado por generar_panel7.py.', defs,
+        [capa('p7-capa-marcos', 'Marcos', marcos()),
+         capa('p7-capa-logo', 'Logo', logo()),
+         capa('p7-capa-joysticks', 'Joysticks', [joy, joy_der]),
+         capa('p7-capa-secuenciador', 'Secuenciador', secuenciador()),
+         capa('p7-capa-canales', 'Canales de salida', [canal] + clones + titulos)])
     with open(SALIDA, 'w', encoding='utf-8') as fh:
         fh.write(svg)
     print('escrito', os.path.relpath(SALIDA), len(svg), 'bytes')

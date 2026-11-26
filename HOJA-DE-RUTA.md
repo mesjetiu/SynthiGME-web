@@ -69,8 +69,11 @@ pendientes de verse en un navegador.
 
 ## Siguiente paso
 
-1.1: `debugBorder` de los voltímetros del panel 4 a `false`, regenerando la
-referencia visual de ese panel en el mismo commit. Después, 1.2.
+- **1.1 hecho** (26-nov): recuadros de depuración del panel 4 fuera; su
+  referencia visual, regenerada. Antes, la referencia de imagen se recapturó
+  en `casa` (la de septiembre era de otra máquina y solo difería el
+  suavizado del texto; ver `REVISION-VISUAL-2026-09.md`).
+- **Ahora, 1.2:** modelo único de coordenadas, empezando por el panel 2.
 
 ## Qué documento manda en cada cosa
 

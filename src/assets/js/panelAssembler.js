@@ -3462,18 +3462,12 @@ export function buildLargeMatrices(app) {
     app.panel5MatrixEl = app.panel5.addSection({ id: 'panel5Matrix', type: 'matrix' });
     app.panel6MatrixEl = app.panel6.addSection({ id: 'panel6Matrix', type: 'matrix' });
 
-    const LARGE_MATRIX_FRAME_PANEL5 = panel5AudioBlueprint?.ui?.frame || {
-      squarePercent: 90,
-      translateSteps: { x: 5.1, y: 0 },
-      marginsSteps: { left: -7.47, right: -3, top: 4.7, bottom: 2.7 },
-      clip: true,
-      overflowPercent: { left: 25, top: 25, right: 200, bottom: 80 },
-      maxSizePercent: 300
-    };
+    // Panel 5: el marco en su caja, en px del panel (utils/panelBox.js).
+    const LARGE_MATRIX_BOX_PANEL5 = requireBox(panel5AudioBlueprint.ui.box, 'panel 5: marco de la matriz');
 
-    const LARGE_MATRIX_FRAME_PANEL6 = panel6ControlBlueprint?.ui?.frame || LARGE_MATRIX_FRAME_PANEL5;
+    const LARGE_MATRIX_FRAME_PANEL6 = panel6ControlBlueprint.ui.frame;
 
-    if (LARGE_MATRIX_FRAME_PANEL5.clip === false) {
+    if (LARGE_MATRIX_FRAME_PANEL6.clip === false) {
       app.panel5?.element?.classList.add('matrix-adjust');
       app.panel6?.element?.classList.add('matrix-adjust');
     } else {
@@ -3504,7 +3498,7 @@ export function buildLargeMatrices(app) {
     app.largeMatrixAudio = new LargeMatrix(app.panel5MatrixEl, {
       rows: panel5AudioBlueprint.grid.rows,
       cols: panel5AudioBlueprint.grid.cols,
-      frame: LARGE_MATRIX_FRAME_PANEL5,
+      box: LARGE_MATRIX_BOX_PANEL5,
       hiddenCols: HIDDEN_COLS_PANEL5,
       hiddenRows: HIDDEN_ROWS_PANEL5,
       sourceMap: panel5Maps.sourceMap,

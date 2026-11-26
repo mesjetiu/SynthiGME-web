@@ -8,12 +8,13 @@
 
 import { getPinColorMenu, PIN_CSS_COLORS } from './pinColorMenu.js';
 import { flashPinGlow } from './glowManager.js';
+import { applyBox, requireBox } from '../utils/panelBox.js';
 
 /** Tiempo en ms para detectar pulsación larga (touch) */
 const LONG_PRESS_DURATION = 500;
 
 export class LargeMatrix {
-  constructor(tableElement, { rows = 63, cols = 67, frame = null, hiddenRows = [], hiddenCols = [], sourceMap = null, destMap = null, onToggle = null, panelId = null, defaultPinColor = null, getDefaultPinColor = null } = {}) {
+  constructor(tableElement, { rows = 63, cols = 67, box = null, frame = null, hiddenRows = [], hiddenCols = [], sourceMap = null, destMap = null, onToggle = null, panelId = null, defaultPinColor = null, getDefaultPinColor = null } = {}) {
     this.table = tableElement;
     this.rows = rows;
     this.cols = cols;
@@ -31,7 +32,10 @@ export class LargeMatrix {
     this._onTouchStartSecondFinger = null;  // Para cancelar long press en pinch
     this._longPressTimer = null;
     this._longPressTarget = null;
-    this.frame = this._normalizeFrame(frame);
+    // Caja del marco en px del panel (utils/panelBox.js). Si no hay caja,
+    // el marco antiguo en «pasos» del cuadrado (solo el panel 6, de paso).
+    this.box = box;
+    this.frame = box ? null : this._normalizeFrame(frame);
     this.onToggle = typeof onToggle === 'function' ? onToggle : null;
     
     // Configuración de colores de pines
@@ -119,6 +123,13 @@ export class LargeMatrix {
   _applyLayoutOffsets() {
     const container = this.table.closest('.matrix-container');
     if (!container) return;
+    if (this.box) {
+      // El marco en su caja; la tabla se centra y se escala dentro
+      // (resizeToFit), sin deformar los pines.
+      applyBox(container, requireBox(this.box, `${this.panelId || 'matriz'}: marco`));
+      this._applyContainerStyling(container);
+      return;
+    }
     const squarePercent = this.frame.squarePercent;
     const outerMargin = (100 - squarePercent) / 2;
 
@@ -165,13 +176,8 @@ export class LargeMatrix {
     container.style.top = `${topPercent}%`;
     container.style.width = `${widthPercent}%`;
     container.style.height = `${heightPercent}%`;
-    container.style.maxWidth = 'none';
-    container.style.maxHeight = 'none';
-    container.style.display = 'flex';
-    container.style.alignItems = 'center';
-    container.style.justifyContent = 'center';
+    this._applyContainerStyling(container);
     container.style.overflow = this.frame.clip === false ? 'visible' : 'hidden';
-    container.style.background = 'transparent';
 
     // Debug (útil para ver si topas clamp o si es recorte visual)
     container.dataset.frameLeft = leftPercent.toFixed(3);
@@ -179,6 +185,17 @@ export class LargeMatrix {
     container.dataset.frameWidth = widthPercent.toFixed(3);
     container.dataset.frameHeight = heightPercent.toFixed(3);
     container.dataset.frameClip = String(this.frame.clip !== false);
+  }
+
+  /** Estilo del marco: sin topes de tamaño, tabla centrada, sin recortar a la vista. */
+  _applyContainerStyling(container) {
+    container.style.maxWidth = 'none';
+    container.style.maxHeight = 'none';
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    container.style.overflow = 'hidden';
+    container.style.background = 'transparent';
   }
 
   build() {

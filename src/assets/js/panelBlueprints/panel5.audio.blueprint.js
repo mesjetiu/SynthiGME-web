@@ -5,7 +5,7 @@
 // Este archivo pretende ser:
 // - Humano-legible (numeración Synthi: filas/columnas según serigrafía)
 // - Editable sin tocar lógica de ruteo
-// - Fuente única de verdad para: frame UI, pines ocultos (huecos),
+// - Fuente única de verdad para: caja del marco, pines ocultos (huecos),
 //   entradas (sources) y salidas (destinations)
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,18 +68,20 @@ export default {
   },
 
   ui: {
-    // Copia del frame que hoy se ajusta a ojo en app.js.
-    // Si necesitas retocar alineación, edita aquí.
-    frame: {
-      squarePercent: 90,
-      referenceSteps: 67,  // Referencia de pasos fija (cols originales) para que
-                           // añadir columnas reservadas no desplace el frame.
-      translateSteps: { x: 5.1, y: 0 },
-      marginsSteps: { left: -7.65, right: -2, top: 4.8, bottom: 2.7 },
-      clip: true,
-      overflowPercent: { left: 25, top: 25, right: 200, bottom: 80 },
-      maxSizePercent: 300
-    },
+    // Caja del marco de la matriz, en px del panel (760×760), como las de
+    // los módulos de los otros paneles (utils/panelBox.js). Dentro, la
+    // tabla de pines se encaja sola (ui/largeMatrix.js, resizeToFit): llena
+    // el ancho del marco (69 columnas de 11,296875 px) y se escala por el
+    // alto (0,999 × 610 / 756 = 0,806). Resultado, medido: un pin cada
+    // 9,11 px en horizontal y cada 9,67 px en vertical, a menos de 1 px del
+    // centro de su casilla del dibujo. Por eso el marco es más ancho que el
+    // panel (acaba en x 792): la rejilla visible, centrada, mide 628 px.
+    //
+    // Son los valores que daba el antiguo marco en «pasos» del cuadrado
+    // (squarePercent, translateSteps, marginsSteps…), ya redondeados a
+    // 1/64 px como los dejaba el navegador. Cambiar la caja mueve todos
+    // los pines: no se toca (HOJA-DE-RUTA.md, «Matrices: como están»).
+    box: { x: 12.71875, y: 85.578125, w: 779.65625, h: 609.640625 },
 
     // Pines que no existen / huecos del panel (NO cuentan en numeración Synth).
     // Para evitar ambigüedades, aquí se definen en índices físicos 0-based

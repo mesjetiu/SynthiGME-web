@@ -7,6 +7,7 @@
  * - Destinations: oscSync, outputBus, oscilloscope, oscPWM
  * - PWM destinations (columnas 59-64) solo para osciladores 0-5
  * - Coherencia y unicidad de coordenadas
+ * - Caja del marco de la matriz (modelo único de coordenadas)
  * 
  * @module tests/panelBlueprints/panel5Blueprint.test
  */
@@ -15,6 +16,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import blueprint from '../../src/assets/js/panelBlueprints/panel5.audio.blueprint.js';
+import { isBox, boxPlacement } from '../../src/assets/js/utils/panelBox.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ESTRUCTURA BÁSICA
@@ -52,6 +54,25 @@ describe('Panel 5 Blueprint - Estructura básica', () => {
     assert.ok(blueprint.ui);
     assert.ok(Array.isArray(blueprint.ui.hiddenCols0));
     assert.ok(Array.isArray(blueprint.ui.hiddenRows0));
+  });
+
+  // Caja medida en la web (tests/visual) al migrar al modelo único de
+  // coordenadas: con ella los pines quedan donde estaban.
+  it('el marco de la matriz va en su caja, la medida', () => {
+    assert.ok(isBox(blueprint.ui.box));
+    assert.deepStrictEqual(blueprint.ui.box,
+      { x: 12.71875, y: 85.578125, w: 779.65625, h: 609.640625 });
+  });
+
+  it('la caja cae en la rejilla de 1/64 px (left/top, sin translate)', () => {
+    assert.strictEqual(boxPlacement(blueprint.ui.box).transform, '');
+    for (const k of ['w', 'h']) {
+      assert.ok(Number.isInteger(blueprint.ui.box[k] * 64), `${k} en 1/64 px`);
+    }
+  });
+
+  it('no queda el marco antiguo en «pasos»', () => {
+    assert.strictEqual(blueprint.ui.frame, undefined);
   });
 
   it('tiene sources como array no vacío', () => {

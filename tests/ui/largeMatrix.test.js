@@ -91,6 +91,45 @@ describe('LargeMatrix constructor', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// MARCO EN SU CAJA (modelo único de coordenadas)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('LargeMatrix: marco en su caja', () => {
+  function matrixWithContainer(box) {
+    const container = { style: {} };
+    const table = {
+      classList: { add: () => {} },
+      style: { setProperty: () => {} },
+      closest: sel => (sel === '.matrix-container' ? container : null)
+    };
+    new LargeMatrix(table, { rows: 63, cols: 69, box, panelId: 'panel-5' });
+    return container;
+  }
+
+  it('coloca el marco con la caja, en px del panel', () => {
+    const c = matrixWithContainer({ x: 12.71875, y: 85.578125, w: 779.65625, h: 609.640625 });
+    assert.equal(c.style.position, 'absolute');
+    assert.equal(c.style.left, '12.71875px');
+    assert.equal(c.style.top, '85.578125px');
+    assert.equal(c.style.width, '779.65625px');
+    assert.equal(c.style.height, '609.640625px');
+    assert.equal(c.style.transform, undefined);
+  });
+
+  it('centra la tabla en el marco y recorta lo que sobre', () => {
+    const c = matrixWithContainer({ x: 0, y: 0, w: 100, h: 100 });
+    assert.equal(c.style.display, 'flex');
+    assert.equal(c.style.alignItems, 'center');
+    assert.equal(c.style.justifyContent, 'center');
+    assert.equal(c.style.overflow, 'hidden');
+  });
+
+  it('una caja mal escrita rompe al montar, con el panel en el mensaje', () => {
+    assert.throws(() => matrixWithContainer({ x: 0, y: 0, w: 0, h: 10 }), /panel-5/);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // _getPinContext
 // ═══════════════════════════════════════════════════════════════════════════
 

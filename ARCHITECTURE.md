@@ -108,7 +108,7 @@ lo que permite probarlas con un `app` mínimo construido en el test.
 | `panelAssembler.js` | `buildPanel1()`, `buildPanel2()`, `buildPanel4()`, `buildOscillatorPanel()`, `setupOutputFaders()`, `setupJoystickPad()`, `buildLargeMatrices()`, `initSignalFlowHighlighter()` | Construye el DOM de cada panel a partir de su blueprint y su config, instancia los módulos de audio (`app.filters`, `app.octaveFilterBank`, `app.oscilloscope`…) y conecta knobs/switches con ellos. Es el fichero más grande del proyecto (~3.800 líneas) porque el Synthi tiene muchos módulos, no porque tenga lógica compleja |
 | `panelRouting.js` | `ensurePanelNodes()`, `handlePanel5AudioToggle()`, `handlePanel6ControlToggle()`, `getPanel5PinGain()`, `getPanel6PinGain()`, `getPanelKnobOptions()` | Lo que pasa al poner o quitar un pin: resuelve `source`/`dest` del blueprint a nodos Web Audio, crea el `GainNode` del pin con la ganancia de su resistencia (sección 3.8.9) y conecta/desconecta. `ensurePanelNodes()` crea perezosamente el worklet de cada oscilador y su `entry.setDormant` (sección 8.1). También avisa al osciloscopio de «sin señal» cuando se queda sin conexiones |
 | `routingSetup.js` | `setupAudioRouting()`, `setupControlRouting()` | Compila los blueprints de los paneles 5 y 6 (`blueprintMapper`) en los mapas `rowMap`/`colMap`/`sourceMap`/`destMap` y registra el `onToggle` de cada `LargeMatrix` |
-| `moduleManager.js` | `findModuleById()`, `getModulesForPanel()`, `reflowOscillatorPanel()`, `resetModule()`, `resetToDefaults()` | Localiza módulos por id (`panel1-filter-2`, `panel3-osc-1`…) y hace los reinicios contextuales del menú contextual: un control, un módulo, un panel o todo el patch. `resetToDefaults()` termina con `dormancyManager.flushPendingUpdate()` para que el estado dormido sea coherente en el mismo tick |
+| `moduleManager.js` | `findModuleById()`, `getModulesForPanel()`, `resetModule()`, `resetToDefaults()` | Localiza módulos por id (`panel1-filter-2`, `panel3-osc-1`…) y hace los reinicios contextuales del menú contextual: un control, un módulo, un panel o todo el patch. `resetToDefaults()` termina con `dormancyManager.flushPendingUpdate()` para que el estado dormido sea coherente en el mismo tick |
 | `stateSerializer.js` | `serializeCurrentState(app)`, `applyPatch(patchData, app, deps)` | Formato de patch v2 (sección 4): recorre los módulos que implementan `serialize()`/`deserialize()` y las dos matrices grandes. `deps` permite inyectar `sessionManager` y `flashGlow` en tests |
 | `audioSetup.js` | `ensureAudio()`, `restoreMultichannelIfSaved()`, `activateMultichannelOutput()` (+ `Fallback`), `deactivateMultichannelOutput()`, `activateMultichannelInput()`, `deactivateMultichannelInput()`, `ensureSystemAudioInput()` | Arranque del `AudioContext` y espera del worklet; activación de las 12 salidas / 8 entradas físicas (MULTICHANNEL.md) y de la entrada de micrófono/línea del sistema |
 | `uiInitializer.js` | `setupUI()`, `setupAudioSettingsModal()`, `setupSettingsModal()`, `setupPatchBrowser()`, `setupUndoRedo()`, `setupRecording()`, `setupDormancyManager()`, `setupFilterBypass()` | Cablea los modales y managers globales con la instancia de `App` (listeners de eventos `synth:*`, preferencias de `localStorage`) |
@@ -886,7 +886,7 @@ Componentes de interfaz reutilizables:
 | `toggle.js` | `Toggle` | Interruptor de dos estados con etiquetas personalizables |
 | `glowManager.js` | `flashGlow()`, `flashPinGlow()` | Sistema centralizado de halo brillante pulsante en controles. 4 presets configurables (performance/standard/subtle/off), CSS variables dinámicas, persistencia en localStorage. Ver [sección 19](#19-sistema-de-efecto-glow) |
 | `toast.js` | `showToast()` | Notificaciones toast temporales con animación fade-out |
-| `layoutHelpers.js` | `labelPanelSlot()`, `getOscillatorLayoutSpec()` | Helpers de layout para configurar posición de paneles en la cuadrícula |
+| `layoutHelpers.js` | `labelPanelSlot()`, `getOscillatorUIDefaults()`, `resolveOscillatorUI()`, `getNoiseUIDefaults()`, `getRandomCVUIDefaults()`, `resolveModuleUI()` | Posición de los paneles en la cuadrícula y defaults de UI interior de los módulos del panel 3 (con overrides por módulo) |
 | `portraitBlocker.js` | `initPortraitBlocker()` | Bloquea la app en modo portrait, muestra hint para rotar dispositivo |
 | `moduleFrame.js` | `ModuleFrame` | Contenedor visual para módulos con título y controles |
 | `moduleUI.js` | `ModuleUI` | Clase base para módulos UI con knobs. Centraliza creación de controles, headers y gestión de valores |
@@ -1247,7 +1247,7 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 |---------|------|-----------|
 | `panel1.blueprint.js` | Blueprint | Layout del Panel 1: 16 módulos — 8 filtros CEM3320 (4 LP + 4 HP, 3 knobs: frequency, response, level), 3 Envelope Shapers CEM3310 (8 knobs: mode/delay/attack/decay/sustain/release/envelopeLevel/signalLevel + gate + LED), 3 Ring Modulators (1 knob: level), 1 Spring Reverb (2 knobs: mix, level), más 1 módulo placeholder (echo) — con 61 knobs |
 | `panel2.blueprint.js` | Blueprint | Layout del panel de osciloscopio (secciones, frame, controles, toggle Y-T/X-Y) |
-| `panel3.blueprint.js` | Blueprint | Layout del panel (grid 2×6), slots de osciladores, proporciones de módulos (Noise, RandomCV), mapeo a matriz |
+| `panel3.blueprint.js` | Blueprint | Caja absoluta `{ x, y, w, h }` de cada oscilador (en `oscillatorSlots`) y de Noise 1-2 y Random CV (en `layout`); UI interior por tipo de módulo |
 | `panel4.blueprint.js` | Blueprint | Layout del Panel 4: 2 teclados (upper/lower) con 3 knobs cada uno (pitchSpread, velocityLevel, gateLevel), selector retrigger (On/Kbd), filas de matriz de control 92-97 |
 | `panel5.audio.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de audio (filas/columnas), fuentes y destinos |
 | `panel6.control.blueprint.js` | Blueprint | Mapa de conexiones de la matriz de control |
@@ -1258,23 +1258,23 @@ Los paneles se configuran con **archivos separados** por responsabilidad:
 #### Ejemplo de Blueprint (estructura)
 ```javascript
 // panel3.blueprint.js
+// Cada módulo en su caja { x, y, w, h } en px del panel (760×760 = la
+// imagen de fondo); ver utils/panelBox.js y REVISION-VISUAL-2026-09.md.
 export default {
-  schemaVersion: 1,
+  schemaVersion: 2,
   panelId: 'panel-3',
   layout: {
-    oscillators: { columns: 2, rowsPerColumn: 6, oscSize: { width: 200, height: 90 } },
-    modulesRow: { height: 80, proportions: { noise1: 2/9, noise2: 2/9, randomCV: 5/9 } }
+    noise1:   { box: { x: 5,     y: 638.1, w: 169.5, h: 110 } },
+    noise2:   { box: { x: 174.5, y: 638.1, w: 169.5, h: 110 } },
+    randomCV: { box: { x: 344,   y: 638.1, w: 411,   h: 110 } }
   },
+  oscillatorUI: { knobSize: 45, knobGap: [9.3, 9.3, 9.3, 9.3, 9.3, 0.5], /* … */ },
   oscillatorSlots: [
-    { oscIndex: 0, col: 0, row: 0 },  // Osc 1
-    { oscIndex: 1, col: 1, row: 0 },  // Osc 2
+    { oscIndex: 0, box: { x: 5, y: 18.3,  w: 375, h: 103 } },  // Osc 1
+    { oscIndex: 1, box: { x: 5, y: 121.6, w: 375, h: 103 } },  // Osc 2
     // ...
   ],
-  modules: {
-    noise1: { id: 'noise-1', type: 'noiseGenerator', matrixRow: 89 },
-    noise2: { id: 'noise-2', type: 'noiseGenerator', matrixRow: 90 }
-  },
-  matrixMapping: { noiseGenerators: { noise1: 89, noise2: 90 } }
+  modules: { noise1: { visible: true }, noise2: { visible: true }, randomCV: { visible: true } }
 };
 ```
 

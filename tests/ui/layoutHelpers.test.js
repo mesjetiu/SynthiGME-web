@@ -2,7 +2,7 @@
  * Tests para layoutHelpers.js - Funciones de layout de paneles
  * 
  * Verifica:
- * - getOscillatorLayoutSpec(): lectura desde blueprint con fallbacks
+ * - getOscillatorUIDefaults(): defaults interiores del blueprint con fallbacks
  * - resolveOscillatorUI(): merge de defaults + overrides de slot
  * - getNoiseUIDefaults() y getRandomCVUIDefaults(): merge con fallbacks
  * - resolveModuleUI(): merge de defaults + overrides de módulo
@@ -14,7 +14,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  getOscillatorLayoutSpec,
+  getOscillatorUIDefaults,
   resolveOscillatorUI,
   getNoiseUIDefaults,
   getRandomCVUIDefaults,
@@ -22,38 +22,13 @@ import {
 } from '../../src/assets/js/ui/layoutHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE getOscillatorLayoutSpec()
+// TESTS DE getOscillatorUIDefaults()
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('layoutHelpers - getOscillatorLayoutSpec()', () => {
-  const spec = getOscillatorLayoutSpec();
+describe('layoutHelpers - getOscillatorUIDefaults()', () => {
+  const ui = getOscillatorUIDefaults();
 
-  it('devuelve oscSize con width y height positivos', () => {
-    assert.ok(spec.oscSize, 'debe tener oscSize');
-    assert.ok(spec.oscSize.width > 0, 'width positivo');
-    assert.ok(spec.oscSize.height > 0, 'height positivo');
-  });
-
-  it('devuelve gap con x e y numéricos', () => {
-    assert.strictEqual(typeof spec.gap.x, 'number');
-    assert.strictEqual(typeof spec.gap.y, 'number');
-  });
-
-  it('devuelve rowsPerColumn = 6', () => {
-    assert.strictEqual(spec.rowsPerColumn, 6);
-  });
-
-  it('devuelve padding numérico', () => {
-    assert.strictEqual(typeof spec.padding, 'number');
-  });
-
-  it('devuelve reservedHeight positivo', () => {
-    assert.ok(spec.reservedHeight > 0);
-  });
-
-  it('incluye oscUIDefaults con propiedades de knobs', () => {
-    const ui = spec.oscUIDefaults;
-    assert.ok(ui, 'debe incluir oscUIDefaults');
+  it('tiene propiedades de knobs', () => {
     assert.strictEqual(typeof ui.knobSize, 'number');
     assert.strictEqual(typeof ui.knobInnerPct, 'number');
     assert.ok(Array.isArray(ui.knobGap), 'knobGap debe ser array');
@@ -61,10 +36,13 @@ describe('layoutHelpers - getOscillatorLayoutSpec()', () => {
     assert.strictEqual(typeof ui.knobRowOffsetY, 'number');
   });
 
-  it('oscUIDefaults tiene switchOffset y slotOffset', () => {
-    const ui = spec.oscUIDefaults;
+  it('tiene switchOffset y ya no slotOffset (la posición es la caja del slot)', () => {
     assert.ok(ui.switchOffset, 'debe tener switchOffset');
-    assert.ok(ui.slotOffset, 'debe tener slotOffset');
+    assert.strictEqual(ui.slotOffset, undefined);
+  });
+
+  it('el blueprint gana sobre el fallback', () => {
+    assert.strictEqual(ui.knobSize, 45);
   });
 });
 
@@ -80,8 +58,7 @@ describe('layoutHelpers - resolveOscillatorUI()', () => {
     knobRowOffsetX: -2,
     knobRowOffsetY: -17,
     knobOffsets: [6, 6, 6, 6, 6, 6, -18],
-    switchOffset: { leftPercent: 36, topPx: 6 },
-    slotOffset: { x: 0, y: 0 }
+    switchOffset: { leftPercent: 36, topPx: 6 }
   };
 
   it('sin overrides: devuelve copia de defaults', () => {
@@ -111,12 +88,6 @@ describe('layoutHelpers - resolveOscillatorUI()', () => {
     const result = resolveOscillatorUI(defaults, { switchOffset: { topPx: 10 } });
     assert.strictEqual(result.switchOffset.topPx, 10, 'override gana');
     assert.strictEqual(result.switchOffset.leftPercent, 36, 'default se mantiene');
-  });
-
-  it('override parcial de slotOffset: merge un nivel', () => {
-    const result = resolveOscillatorUI(defaults, { slotOffset: { x: 5 } });
-    assert.strictEqual(result.slotOffset.x, 5, 'override gana');
-    assert.strictEqual(result.slotOffset.y, 0, 'default se mantiene');
   });
 
   it('no muta el objeto defaults original', () => {

@@ -38,7 +38,7 @@ import { ModuleFrame }                  from './ui/moduleFrame.js';
 import { Toggle }                       from './ui/toggle.js';
 import { Knob }                         from './ui/knob.js';
 import { createKnob }                   from './ui/knobFactory.js';
-import { boxCss, requireBox }           from './utils/panelBox.js';
+import { applyBox, boxCss, requireBox } from './utils/panelBox.js';
 
 import {
   KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK
@@ -104,7 +104,7 @@ import {
   oscillatorConfig
 } from './configs/index.js';
 
-import { getOscillatorLayoutSpec, resolveOscillatorUI, getNoiseUIDefaults, getRandomCVUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
+import { getOscillatorUIDefaults, resolveOscillatorUI, getNoiseUIDefaults, getRandomCVUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
 
 import {
   getNoiseColourTooltipInfo, getNoiseLevelTooltipInfo,
@@ -3126,15 +3126,11 @@ export function buildPanel4(app) {
 export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
     if (!panel) return;
 
+    // Contenedor principal: ocupa el panel entero; cada módulo va en su caja
+    // absoluta { x, y, w, h } en px del panel (utils/panelBox.js).
     const host = document.createElement('div');
     host.id = `panel${panelIndex}Layout`;
     host.className = 'panel3-layout';
-    
-    // Offset general del panel (desde blueprint)
-    const panelOffset = panel3Blueprint?.layout?.offset || { x: 0, y: 0 };
-    if (panelOffset.x !== 0 || panelOffset.y !== 0) {
-      host.style.transform = `translate(${panelOffset.x}px, ${panelOffset.y}px)`;
-    }
     
     // Visibilidad de marcos de módulos (desde blueprint)
     if (panel3Blueprint?.showFrames === false) {
@@ -3142,32 +3138,15 @@ export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
     }
     panel.appendElement(host);
 
-    const layout = getOscillatorLayoutSpec();
-    const { oscSize, gap, rowsPerColumn } = layout;
+    const oscUIDefaults = getOscillatorUIDefaults();
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Slots de osciladores: leer del blueprint o generar por defecto
-    // El blueprint define posición visual (col, row) para cada oscIndex
-    // ─────────────────────────────────────────────────────────────────────────
-    let oscillatorSlots;
-    if (Array.isArray(panel3Blueprint?.oscillatorSlots)) {
-      // Usar slots del blueprint (oscIndex está 0-based, convertimos a index 1-based)
-      oscillatorSlots = panel3Blueprint.oscillatorSlots.map(slot => ({
-        index: slot.oscIndex + 1,   // UI usa 1-based
-        col: slot.col,
-        row: slot.row,
-        slotUI: slot.ui || null     // overrides de UI por oscilador
-      }));
-    } else {
-      // Fallback: generar grid clásico
-      oscillatorSlots = [];
-      for (let i = 0; i < rowsPerColumn; i += 1) {
-        oscillatorSlots.push({ index: i + 1, col: 0, row: i });
-      }
-      for (let i = 0; i < rowsPerColumn; i += 1) {
-        oscillatorSlots.push({ index: i + 7, col: 1, row: i });
-      }
-    }
+    // Slots de osciladores: cada uno con su caja en el blueprint
+    // (oscIndex 0-based; la UI usa index 1-based).
+    const oscillatorSlots = (panel3Blueprint?.oscillatorSlots || []).map(slot => ({
+      index: slot.oscIndex + 1,
+      box: requireBox(slot.box, `panel 3 osc ${slot.oscIndex + 1}`),
+      slotUI: slot.ui || null     // overrides de UI por oscilador
+    }));
 
     const oscComponents = oscillatorSlots.map(slot => {
       const oscIndex = slot.index - 1;  // Convertir de 1-based a 0-based
@@ -3175,12 +3154,12 @@ export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
       const oscId = `panel${panelIndex}-osc-${slot.index}`;
       
       // Resolver UI para este oscilador: defaults + overrides del slot
-      const oscUI = resolveOscillatorUI(layout.oscUIDefaults, slot.slotUI);
+      const oscUI = resolveOscillatorUI(oscUIDefaults, slot.slotUI);
       
       const osc = new SGME_Oscillator({
         id: oscId,
         title: `Osc ${slot.index}`,
-        size: oscSize,
+        size: { width: slot.box.w, height: slot.box.h },
         knobGap: oscUI.knobGap,
         buttonSize: oscUI.buttonSize,
         buttonScale: oscUI.buttonScale,
@@ -3195,6 +3174,7 @@ export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
         onRangeChange: (rangeState) => app._onOscRangeChange(panelIndex, oscIndex, rangeState)
       });
       const el = osc.createElement();
+      applyBox(el, slot.box);
       
       // Añadir data-attribute para dormancy debug (solo Panel 3 usa índices 0-8)
       if (panelIndex === 3) {
@@ -3221,15 +3201,20 @@ export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
       app._syncOscillatorStateFromUI(panelIndex, oscIndex, osc);
     });
 
-    // Fila de módulos de ruido y Random CV (solo para Panel 3)
-    let reservedRow = null;
+    // Fila inferior: ruidos y Random CV (solo para Panel 3), cada uno en su
+    // caja del blueprint, colgando del panel igual que los osciladores.
     let noiseModules = null;
     let noiseAudioModules = null;
     let randomCVAudio = null;
     
     if (panelIndex === 3) {
-      reservedRow = document.createElement('div');
-      reservedRow.className = 'panel3-reserved-row panel3-modules-row';
+      const bottomLayout = panel3Blueprint?.layout || {};
+      const placeBottomModule = (el, name, ui) => {
+        applyBox(el, requireBox(bottomLayout[name]?.box, `panel 3 ${name}`));
+        const pad = ui.padding;
+        if (pad) el.style.padding = `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px`;
+        host.appendChild(el);
+      };
       
       // Leer configuración de módulos desde los configs de módulos
       const noiseDefaults = noiseConfig.defaults || {};
@@ -3322,7 +3307,7 @@ export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
         },
         ...noise1UI
       });
-      reservedRow.appendChild(noise1.createElement());
+      placeBottomModule(noise1.createElement(), 'noise1', noise1UI);
       app._noiseUIs[noise1Id] = noise1;
       
       // Noise Generator 2 UI
@@ -3354,7 +3339,7 @@ export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
         },
         ...noise2UI
       });
-      reservedRow.appendChild(noise2.createElement());
+      placeBottomModule(noise2.createElement(), 'noise2', noise2UI);
       app._noiseUIs[noise2Id] = noise2;
       
       // ─────────────────────────────────────────────────────────────────────
@@ -3446,36 +3431,21 @@ export function buildOscillatorPanel(panelIndex, panel, panelAudio, app) {
       app._randomVoltageUIs[randomCVId] = randomCV;
       const randomCVEl = randomCV.createElement();
       applyModuleVisibility(randomCVEl, panel3Blueprint, 'randomCV');
-      reservedRow.appendChild(randomCVEl);
-      
-      host.appendChild(reservedRow);
+      placeBottomModule(randomCVEl, 'randomCV', randomCVResolvedUI);
       
       noiseModules = { noise1, noise2, randomCV };
-    } else {
-      // Otros paneles mantienen la fila reservada vacía
-      reservedRow = document.createElement('div');
-      reservedRow.className = 'panel3-reserved-row';
-      reservedRow.textContent = 'Reserved strip for future modules';
-      host.appendChild(reservedRow);
     }
 
-    // Guardar datos del layout
-    const layoutDataKey = `_panel${panelIndex}LayoutData`;
-    const rafKey = `_panel${panelIndex}LayoutRaf`;
-    
-    app[layoutDataKey] = {
+    // Guardar datos del panel (los usan el ruteo, la dormancia y OSC)
+    app[`_panel${panelIndex}LayoutData`] = {
       host,
-      layout,
       oscillatorSlots,
       oscComponents,
-      reserved: reservedRow,
       noiseModules,
       noiseAudioModules,
       randomCVAudio
     };
     panelAudio.nodes = new Array(oscComponents.length).fill(null);
-    app[rafKey] = null;
-    app._reflowOscillatorPanel(panelIndex);
   }
 
 

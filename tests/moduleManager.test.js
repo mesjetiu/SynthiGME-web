@@ -1,8 +1,8 @@
 /**
  * Tests para moduleManager.js (R7)
  *
- * Verifica findModuleById(), getModulesForPanel(), resetModule(),
- * reflowOscillatorPanel() y resetToDefaults() extraídas de app.js.
+ * Verifica findModuleById(), getModulesForPanel(), resetModule()
+ * y resetToDefaults() extraídas de app.js.
  */
 
 import { describe, it, beforeEach } from 'node:test';
@@ -24,7 +24,6 @@ if (typeof globalThis.document === 'undefined') {
 import {
   findModuleById,
   getModulesForPanel,
-  reflowOscillatorPanel,
   resetModule,
   resetToDefaults,
 } from '../src/assets/js/moduleManager.js';
@@ -202,30 +201,6 @@ describe('getModulesForPanel — panel desconocido', () => {
     const modules = getModulesForPanel('panel-99', app);
     assert.ok(Array.isArray(modules));
     assert.equal(modules.length, 0);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// reflowOscillatorPanel
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('reflowOscillatorPanel', () => {
-  it('no lanza si no hay layoutData para el panel', () => {
-    const app = buildMockApp({ _panel3LayoutData: null });
-    global.requestAnimationFrame = (cb) => setTimeout(cb, 16);
-    global.cancelAnimationFrame  = (id) => clearTimeout(id);
-    assert.doesNotThrow(() => reflowOscillatorPanel(3, app));
-  });
-
-  it('cancela RAF previos si existen y hay layoutData', () => {
-    let cancelled = null;
-    global.cancelAnimationFrame = (id) => { cancelled = id; };
-    global.requestAnimationFrame = (cb) => { setTimeout(cb, 16); return 99; };
-    // Necesita layoutData para no salir early
-    const fakeData = { host: null, layout: {}, oscillatorSlots: [], oscComponents: [] };
-    const app = buildMockApp({ _panel3LayoutData: fakeData, _panel3LayoutRaf: 42 });
-    reflowOscillatorPanel(3, app);
-    assert.equal(cancelled, 42);
   });
 });
 

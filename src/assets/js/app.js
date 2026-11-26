@@ -1,6 +1,6 @@
 // Punto de entrada que ensambla el motor y todos los módulos de la interfaz Synthi
 import { serializeCurrentState, applyPatch as applyPatchFromSerializer } from './stateSerializer.js';
-import { findModuleById, getModulesForPanel, reflowOscillatorPanel, resetModule, resetToDefaults } from './moduleManager.js';
+import { findModuleById, getModulesForPanel, resetModule, resetToDefaults } from './moduleManager.js';
 import {
   handlePanel5AudioToggle, handlePanel6ControlToggle,
   ensurePanelNodes, getPanelKnobOptions,
@@ -150,7 +150,7 @@ import { initKeyboardWindow } from './ui/keyboardWindow.js';
 import { initPanelNotes } from './ui/panelNotes.js';
 import { initElectronMenuBridge } from './ui/electronMenuBridge.js';
 import { showToast } from './ui/toast.js';
-import { labelPanelSlot, getOscillatorLayoutSpec, resolveOscillatorUI, getNoiseUIDefaults, getRandomCVUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
+import { labelPanelSlot, getOscillatorUIDefaults, resolveOscillatorUI, getNoiseUIDefaults, getRandomCVUIDefaults, resolveModuleUI } from './ui/layoutHelpers.js';
 import { initI18n, t } from './i18n/index.js';
 import { registerServiceWorker } from './utils/serviceWorker.js';
 import { detectBuildVersion } from './utils/buildVersion.js';
@@ -1122,7 +1122,6 @@ class App {
   /**
    * Reflow unificado para paneles de osciladores.
    */
-  _reflowOscillatorPanel(panelIndex) { reflowOscillatorPanel(panelIndex, this); }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // FUNCIONES DE AUDIO PARA OSCILADORES
@@ -1661,10 +1660,6 @@ class App {
     this._heightSyncScheduled = true;
     requestAnimationFrame(() => {
       this._heightSyncScheduled = false;
-      this._reflowOscillatorPanel(1);
-      this._reflowOscillatorPanel(2);
-      this._reflowOscillatorPanel(3);
-      this._reflowOscillatorPanel(4);
       this._syncPanelHeights();
       this._scheduleCanvasBackgroundRender();
     });

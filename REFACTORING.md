@@ -119,7 +119,7 @@ Código copiado literalmente en varios archivos. Riesgo mínimo al extraerlo.
 - ✅ `panelAssembler.js` — buildPanel1, buildPanel2, setupOutputFaders, etc.
 - ✅ `panelRouting.js` — handlePanel5AudioToggle, handlePanel6ControlToggle, ensurePanelNodes
 - ✅ `audioSetup.js` — ensureAudio, activateMultichannel*, deactivateMultichannel*
-- ✅ `moduleManager.js` — findModuleById, getModulesForPanel, reflowOscillatorPanel, resetModule, resetToDefaults
+- ✅ `moduleManager.js` — findModuleById, getModulesForPanel, reflowOscillatorPanel, resetModule, resetToDefaults (reflowOscillatorPanel se quitó en nov-2026: el panel 3 pasó a cajas absolutas y ya no hay nada que recolocar)
 - ✅ `uiInitializer.js` — _setupUI, modales, listeners
 - ✅ `routingSetup.js` — matrices, connectAudioMatrix, connectControlMatrix
 

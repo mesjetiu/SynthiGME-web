@@ -3,11 +3,11 @@
  * 
  * Verifica la configuración correcta de:
  * - Estructura básica (schemaVersion, panelId, showFrames)
- * - Layout de osciladores (grid 2×6, tamaños, gap)
- * - Layout de modulesRow (noiseSize, randomCVSize)
+ * - Cajas absolutas { x, y, w, h } en px del panel: 12 osciladores
+ *   (oscillatorSlots[].box) y la fila inferior (layout.noise1/noise2/randomCV)
  * - Defaults visuales de osciladores (oscillatorUI)
  * - Defaults visuales de módulos de ruido (noiseUI) y random CV (randomCVUI)
- * - Slots de osciladores (12 slots, distribución correcta)
+ * - Slots de osciladores (12 slots, uno por oscilador)
  * - Módulos declarados (noise1, noise2, randomCV)
  * - Separación blueprint/config (ausencia de propiedades de audio)
  * 
@@ -18,6 +18,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import panel3Blueprint from '../../src/assets/js/panelBlueprints/panel3.blueprint.js';
+import { isBox, PANEL_SIZE } from '../../src/assets/js/utils/panelBox.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TESTS DE ESTRUCTURA BÁSICA
@@ -25,8 +26,8 @@ import panel3Blueprint from '../../src/assets/js/panelBlueprints/panel3.blueprin
 
 describe('Panel 3 Blueprint - Estructura básica', () => {
 
-  it('tiene schemaVersion definido', () => {
-    assert.ok(panel3Blueprint.schemaVersion >= 1, 'schemaVersion debe ser >= 1');
+  it('tiene schemaVersion 2 (cajas absolutas)', () => {
+    assert.strictEqual(panel3Blueprint.schemaVersion, 2);
   });
 
   it('tiene panelId "panel-3"', () => {
@@ -39,13 +40,6 @@ describe('Panel 3 Blueprint - Estructura básica', () => {
 
   it('tiene layout definido', () => {
     assert.ok(panel3Blueprint.layout, 'debe tener layout');
-  });
-
-  it('tiene offset general con x e y numéricos', () => {
-    const offset = panel3Blueprint.layout.offset;
-    assert.ok(offset, 'debe tener offset');
-    assert.strictEqual(typeof offset.x, 'number', 'offset.x debe ser número');
-    assert.strictEqual(typeof offset.y, 'number', 'offset.y debe ser número');
   });
 
   it('tiene oscillatorUI definido', () => {
@@ -70,75 +64,70 @@ describe('Panel 3 Blueprint - Estructura básica', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE LAYOUT - OSCILADORES
+// TESTS DE LAYOUT - CAJAS ABSOLUTAS
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Panel 3 Blueprint - Layout osciladores', () => {
-  const osc = panel3Blueprint.layout.oscillators;
+// Cajas medidas en la web (tests/visual) al migrar al modelo único de
+// coordenadas: con ellas el panel queda donde estaba. Osciladores: dos
+// columnas (x 5 y 380) de 375×103, filas a 103,3 px de paso desde 18,3.
+const OSC_Y = [18.3, 121.6, 224.9, 328.2, 431.5, 534.8];
+const EXPECTED_OSC_BOXES = Array.from({ length: 12 }, (_, i) => ({
+  x: i < 6 ? 5 : 380, y: OSC_Y[i % 6], w: 375, h: 103
+}));
+const EXPECTED_BOTTOM_BOXES = {
+  noise1:   { x: 5,     y: 638.1, w: 169.5, h: 110 },
+  noise2:   { x: 174.5, y: 638.1, w: 169.5, h: 110 },
+  randomCV: { x: 344,   y: 638.1, w: 411,   h: 110 }
+};
 
-  it('tiene grid de 2 columnas', () => {
-    assert.strictEqual(osc.columns, 2);
+const insidePanel = box =>
+  box.x >= 0 && box.y >= 0 && box.x + box.w <= PANEL_SIZE && box.y + box.h <= PANEL_SIZE;
+
+describe('Panel 3 Blueprint - Layout en cajas absolutas', () => {
+  const layout = panel3Blueprint.layout;
+  const slots = panel3Blueprint.oscillatorSlots;
+
+  for (let i = 0; i < 12; i++) {
+    it(`oscilador ${i + 1} conserva la caja medida`, () => {
+      const slot = slots.find(s => s.oscIndex === i);
+      assert.ok(slot, `falta el slot de oscIndex ${i}`);
+      assert.ok(isBox(slot.box), `oscillatorSlots[${i}].box debe ser { x, y, w, h }`);
+      assert.ok(insidePanel(slot.box), 'la caja cabe en el panel');
+      assert.deepStrictEqual(slot.box, EXPECTED_OSC_BOXES[i]);
+    });
+  }
+
+  for (const [name, expected] of Object.entries(EXPECTED_BOTTOM_BOXES)) {
+    it(`${name} conserva la caja medida`, () => {
+      const box = layout[name]?.box;
+      assert.ok(isBox(box), `layout.${name}.box debe ser { x, y, w, h }`);
+      assert.ok(insidePanel(box), 'la caja cabe en el panel');
+      assert.deepStrictEqual(box, expected);
+    });
+  }
+
+  it('los módulos no se solapan', () => {
+    const boxes = [...slots.map(s => s.box), ...Object.keys(EXPECTED_BOTTOM_BOXES).map(k => layout[k].box)];
+    for (let a = 0; a < boxes.length; a++) {
+      for (let b = a + 1; b < boxes.length; b++) {
+        const A = boxes[a], B = boxes[b];
+        const overlap = A.x < B.x + B.w - 1e-9 && B.x < A.x + A.w - 1e-9 &&
+                        A.y < B.y + B.h - 1e-9 && B.y < A.y + A.h - 1e-9;
+        assert.ok(!overlap, `se solapan ${JSON.stringify(A)} y ${JSON.stringify(B)}`);
+      }
+    }
   });
 
-  it('tiene 6 filas por columna', () => {
-    assert.strictEqual(osc.rowsPerColumn, 6);
-  });
-
-  it('tiene oscSize con width y height positivos', () => {
-    assert.ok(osc.oscSize, 'debe tener oscSize');
-    assert.ok(osc.oscSize.width > 0, 'width positivo');
-    assert.ok(osc.oscSize.height > 0, 'height positivo');
-  });
-
-  it('tiene gap con x e y numéricos', () => {
-    assert.ok(osc.gap, 'debe tener gap');
-    assert.strictEqual(typeof osc.gap.x, 'number');
-    assert.strictEqual(typeof osc.gap.y, 'number');
-  });
-
-  it('tiene reservedHeight para fila de módulos', () => {
-    assert.strictEqual(typeof osc.reservedHeight, 'number');
-    assert.ok(osc.reservedHeight > 0, 'reservedHeight debe ser positivo');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TESTS DE LAYOUT - FILA DE MÓDULOS (Noise + Random CV)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('Panel 3 Blueprint - Layout modulesRow', () => {
-  const row = panel3Blueprint.layout.modulesRow;
-
-  it('tiene gap numérico', () => {
-    assert.strictEqual(typeof row.gap, 'number');
-  });
-
-  it('tiene noiseSize con width y height', () => {
-    assert.ok(row.noiseSize, 'debe tener noiseSize');
-    assert.ok(row.noiseSize.width > 0);
-    assert.ok(row.noiseSize.height > 0);
-  });
-
-  it('tiene randomCVSize con width y height', () => {
-    assert.ok(row.randomCVSize, 'debe tener randomCVSize');
-    assert.ok(row.randomCVSize.width > 0);
-    assert.ok(row.randomCVSize.height > 0);
-  });
-
-  it('randomCV es más ancho que noise (tiene 5 knobs vs 2)', () => {
-    assert.ok(
-      row.randomCVSize.width > row.noiseSize.width,
-      'randomCVSize.width debe ser mayor que noiseSize.width'
-    );
-  });
-
-  it('tiene padding con 4 lados', () => {
-    const p = row.padding;
-    assert.ok(p, 'debe tener padding');
-    assert.strictEqual(typeof p.top, 'number');
-    assert.strictEqual(typeof p.right, 'number');
-    assert.strictEqual(typeof p.bottom, 'number');
-    assert.strictEqual(typeof p.left, 'number');
+  it('no quedan claves del modelo antiguo (rejilla centrada + fila flex)', () => {
+    assert.deepStrictEqual(Object.keys(layout).sort(), ['noise1', 'noise2', 'randomCV']);
+    for (const key of ['offset', 'oscillators', 'modulesRow']) {
+      assert.strictEqual(layout[key], undefined, `layout.${key} ya no existe`);
+    }
+    for (const slot of slots) {
+      assert.strictEqual(slot.col, undefined, 'slot.col → box');
+      assert.strictEqual(slot.row, undefined, 'slot.row → box');
+    }
+    assert.strictEqual(panel3Blueprint.oscillatorUI.slotOffset, undefined, 'slotOffset → box');
   });
 });
 
@@ -184,11 +173,6 @@ describe('Panel 3 Blueprint - oscillatorUI', () => {
     assert.strictEqual(typeof ui.switchOffset.topPx, 'number');
   });
 
-  it('tiene slotOffset con x e y', () => {
-    assert.ok(ui.slotOffset, 'debe tener slotOffset');
-    assert.strictEqual(typeof ui.slotOffset.x, 'number');
-    assert.strictEqual(typeof ui.slotOffset.y, 'number');
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -230,6 +214,10 @@ describe('Panel 3 Blueprint - noiseUI', () => {
     assert.ok(Array.isArray(ui.knobColors));
     assert.strictEqual(ui.knobColors.length, 2);
   });
+
+  it('padding interior del marco: 4 px a los lados', () => {
+    assert.deepStrictEqual(ui.padding, { top: 0, right: 4, bottom: 0, left: 4 });
+  });
 });
 
 describe('Panel 3 Blueprint - randomCVUI', () => {
@@ -270,6 +258,10 @@ describe('Panel 3 Blueprint - randomCVUI', () => {
     assert.ok(Array.isArray(ui.knobColors));
     assert.strictEqual(ui.knobColors.length, 5);
   });
+
+  it('padding interior del marco: 4 px a los lados', () => {
+    assert.deepStrictEqual(ui.padding, { top: 0, right: 4, bottom: 0, left: 4 });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -283,11 +275,10 @@ describe('Panel 3 Blueprint - oscillatorSlots', () => {
     assert.strictEqual(slots.length, 12);
   });
 
-  it('cada slot tiene oscIndex, col y row', () => {
+  it('cada slot tiene oscIndex y caja', () => {
     slots.forEach((slot, i) => {
       assert.strictEqual(typeof slot.oscIndex, 'number', `slot[${i}].oscIndex debe ser número`);
-      assert.strictEqual(typeof slot.col, 'number', `slot[${i}].col debe ser número`);
-      assert.strictEqual(typeof slot.row, 'number', `slot[${i}].row debe ser número`);
+      assert.ok(isBox(slot.box), `slot[${i}].box debe ser { x, y, w, h }`);
     });
   });
 
@@ -296,31 +287,11 @@ describe('Panel 3 Blueprint - oscillatorSlots', () => {
     assert.deepStrictEqual(indices, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 
-  it('usa 2 columnas (0 y 1)', () => {
-    const cols = new Set(slots.map(s => s.col));
-    assert.deepStrictEqual([...cols].sort(), [0, 1]);
-  });
-
-  it('usa 6 filas por columna (0-5)', () => {
-    const rows = new Set(slots.map(s => s.row));
-    assert.deepStrictEqual([...rows].sort((a, b) => a - b), [0, 1, 2, 3, 4, 5]);
-  });
-
-  it('6 osciladores por columna', () => {
-    const col0 = slots.filter(s => s.col === 0);
-    const col1 = slots.filter(s => s.col === 1);
-    assert.strictEqual(col0.length, 6, 'columna izquierda: 6 osciladores');
-    assert.strictEqual(col1.length, 6, 'columna derecha: 6 osciladores');
-  });
-
-  it('distribución secuencial: 1-6 a la izquierda, 7-12 a la derecha', () => {
-    // Columna 0: osc 1-6 (oscIndex 0,1,2,3,4,5)
-    const col0Indices = slots.filter(s => s.col === 0).map(s => s.oscIndex).sort((a, b) => a - b);
-    assert.deepStrictEqual(col0Indices, [0, 1, 2, 3, 4, 5], 'col 0: osciladores 1-6');
-
-    // Columna 1: osc 7-12 (oscIndex 6,7,8,9,10,11)
-    const col1Indices = slots.filter(s => s.col === 1).map(s => s.oscIndex).sort((a, b) => a - b);
-    assert.deepStrictEqual(col1Indices, [6, 7, 8, 9, 10, 11], 'col 1: osciladores 7-12');
+  it('distribución: 1-6 a la izquierda, 7-12 a la derecha, de arriba abajo', () => {
+    const left = slots.filter(s => s.box.x < 380).sort((a, b) => a.box.y - b.box.y);
+    const right = slots.filter(s => s.box.x >= 380).sort((a, b) => a.box.y - b.box.y);
+    assert.deepStrictEqual(left.map(s => s.oscIndex), [0, 1, 2, 3, 4, 5], 'izquierda: osciladores 1-6');
+    assert.deepStrictEqual(right.map(s => s.oscIndex), [6, 7, 8, 9, 10, 11], 'derecha: osciladores 7-12');
   });
 });
 

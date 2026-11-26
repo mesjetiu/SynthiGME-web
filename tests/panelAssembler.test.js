@@ -215,7 +215,6 @@ function buildMockApp() {
     _getPanelKnobOptions:   () => ({}),
     _onOscRangeChange:      () => {},
     _syncOscillatorStateFromUI: () => {},
-    _reflowOscillatorPanel: () => {},
 
     // Métodos requeridos por buildLargeMatrices
     _getPanel5PinGain:      () => 1,
@@ -540,6 +539,29 @@ describe('buildOscillatorPanel — osciladores', () => {
   it('crea el contenedor #panel3Layout en panel3.element', () => {
     const layout = app.panel3.element.querySelector('#panel3Layout');
     assert.ok(layout !== null, '#panel3Layout debe existir en panel3.element');
+  });
+
+  it('cada módulo cuelga del panel en su caja, sin fila intermedia ni reflow', () => {
+    const layout = app.panel3.element.querySelector('#panel3Layout');
+    const byId = id => [...layout.children].find(el => el.id === id);
+    // Osc 5: y = 431,5 cabe en la rejilla de 1/64 px → top
+    const osc5 = byId('panel3-osc-5');
+    assert.ok(osc5, 'osc 5 es hijo directo de #panel3Layout');
+    assert.strictEqual(osc5.style.left, '5px');
+    assert.strictEqual(osc5.style.top, '431.5px');
+    assert.strictEqual(osc5.style.width, '375px');
+    // Osc 8: y = 121,6 no cabe → translate
+    const osc8 = byId('panel3-osc-8');
+    assert.strictEqual(osc8.style.left, '380px');
+    assert.strictEqual(osc8.style.transform, 'translate(0px, 121.6px)');
+    // Fila inferior, con su relleno interior
+    const noise2 = byId('panel3-noise-2');
+    assert.ok(noise2, 'noise 2 es hijo directo de #panel3Layout');
+    assert.strictEqual(noise2.style.left, '174.5px');
+    assert.strictEqual(noise2.style.transform, 'translate(0px, 638.1px)');
+    assert.strictEqual(noise2.style.padding, '0px 4px');
+    assert.ok(byId('panel3-random-cv'), 'random CV es hijo directo de #panel3Layout');
+    assert.strictEqual(layout.querySelector('.panel3-reserved-row'), null);
   });
 });
 

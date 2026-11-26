@@ -56,48 +56,20 @@ const FALLBACK_OSC_UI = {
   knobRowOffsetX: 0,
   knobRowOffsetY: -6,
   knobOffsets: [0, 0, 0, 0, 0, 0, 0],
-  switchOffset: { leftPercent: 36, topPx: 6 },
-  slotOffset: { x: 0, y: 0 }
+  switchOffset: { leftPercent: 36, topPx: 6 }
 };
 
 /**
- * Devuelve la especificación de layout para paneles de osciladores.
- * Lee estructura base del blueprint y parámetros del config.
- * 
- * @returns {Object} Especificación de layout combinada
+ * Devuelve los defaults de UI interior de los osciladores del blueprint.
+ * La posición de cada oscilador no está aquí: es su caja en
+ * panel3Blueprint.oscillatorSlots[].box.
+ *
+ * @returns {Object} Defaults mergeados (FALLBACK_OSC_UI → oscillatorUI)
  */
-export function getOscillatorLayoutSpec() {
-  // Leer estructura del blueprint (o usar defaults hardcoded como fallback)
-  const blueprintLayout = panel3Blueprint?.layout?.oscillators || {};
-  
-  // Dimensiones de oscilador (blueprint o fallback)
-  const oscSize = blueprintLayout.oscSize || { width: 370, height: 110 };
-  
-  // Layout params del blueprint
-  const gap = blueprintLayout.gap || { x: 0, y: 0 };
-  const airOuter = blueprintLayout.airOuter ?? 0;
-  const airOuterY = blueprintLayout.airOuterY ?? 0;
-  const rowsPerColumn = blueprintLayout.rowsPerColumn ?? 6;
-  const topOffset = blueprintLayout.topOffset ?? 10;
-  const reservedHeight = blueprintLayout.reservedHeight ?? oscSize.height;
-  
-  // Configuración visual interior de cada oscilador (defaults generales)
-  const oscUIDefaults = {
+export function getOscillatorUIDefaults() {
+  return {
     ...FALLBACK_OSC_UI,
     ...panel3Blueprint?.oscillatorUI
-  };
-  
-  return {
-    oscSize,
-    padding: 6,
-    gap,
-    airOuter,
-    airOuterY,
-    rowsPerColumn,
-    topOffset,
-    reservedHeight,
-    // Defaults de UI interior (consumidos por _buildOscillatorPanel)
-    oscUIDefaults
   };
 }
 
@@ -106,7 +78,7 @@ export function getOscillatorLayoutSpec() {
  * Hace merge de: FALLBACK → oscillatorUI (defaults) → slot.ui (overrides).
  *
  * Merge shallow: las propiedades escalares del override ganan; para objetos
- * anidados (switchOffset, slotOffset) se hace merge un nivel.
+ * anidados (switchOffset) se hace merge un nivel.
  *
  * @param {Object} defaults - oscillatorUI del blueprint (ya mergeado con FALLBACK)
  * @param {Object} [slotUI] - overrides del slot (oscillatorSlots[i].ui)
@@ -122,10 +94,6 @@ export function resolveOscillatorUI(defaults, slotUI) {
     switchOffset: {
       ...(defaults.switchOffset || FALLBACK_OSC_UI.switchOffset),
       ...(slotUI.switchOffset || {})
-    },
-    slotOffset: {
-      ...(defaults.slotOffset || FALLBACK_OSC_UI.slotOffset),
-      ...(slotUI.slotOffset || {})
     },
     // Arrays: si el slot los redefine, ganan enteros (no se mezclan)
     knobOffsets: slotUI.knobOffsets || defaults.knobOffsets || FALLBACK_OSC_UI.knobOffsets,

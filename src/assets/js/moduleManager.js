@@ -2,12 +2,11 @@
  * Gestión de módulos del sintetizador (R7).
  *
  * Extraído de app.js — contiene findModuleById(), getModulesForPanel(),
- * reflowOscillatorPanel().
+ * resetModule() y resetToDefaults().
  *
  * @module moduleManager
  */
 
-import panel3Blueprint from './panelBlueprints/panel3.blueprint.js';
 import { flashGlow } from './ui/glowManager.js';
 import { sessionManager } from './state/sessionManager.js';
 import { undoRedoManager } from './state/undoRedoManager.js';
@@ -203,108 +202,6 @@ export function getModulesForPanel(panelId, app) {
     }
     return modules;
   }
-
-// ─── reflowOscillatorPanel ───────────────────────────────────────────────────────────
-
-export function reflowOscillatorPanel(panelIndex, app) {
-    const layoutDataKey = `_panel${panelIndex}LayoutData`;
-    const rafKey = `_panel${panelIndex}LayoutRaf`;
-    const writeRafKey = `_panel${panelIndex}LayoutWriteRaf`;
-    
-    const data = app[layoutDataKey];
-    if (!data) return;
-
-    if (app[rafKey]) {
-      cancelAnimationFrame(app[rafKey]);
-    }
-    if (app[writeRafKey]) {
-      cancelAnimationFrame(app[writeRafKey]);
-    }
-
-    app[rafKey] = requestAnimationFrame(() => {
-      app[rafKey] = null;
-
-      const { host, layout, oscillatorSlots, oscComponents, reserved, noiseModules } = data;
-      if (!host || !host.isConnected) return;
-
-      const { oscSize, gap, airOuter = 0, airOuterY = 0, topOffset, rowsPerColumn } = layout;
-      
-      const availableWidth = host.clientWidth;
-      const availableHeight = host.clientHeight;
-      
-      const columnWidth = oscSize.width;
-      const blockWidth = columnWidth * 2 + gap.x + airOuter * 2;
-      const baseLeft = Math.max(0, (availableWidth - blockWidth) / 2) + airOuter;
-      
-      const blockHeight = rowsPerColumn * (oscSize.height + gap.y) - gap.y;
-      const totalHeight = blockHeight + layout.reservedHeight + gap.y;
-      const usableHeight = availableHeight - airOuterY * 2;
-      const baseTop = (usableHeight - totalHeight) / 2 + airOuterY + topOffset;
-
-      const oscillatorTransforms = oscComponents.map(({ element, slot }) => {
-        const col = slot.col;
-        const row = slot.row;
-        const slotOffset = slot.slotUI?.slotOffset || layout.oscUIDefaults?.slotOffset || { x: 0, y: 0 };
-        const x = baseLeft + col * (columnWidth + gap.x) + (slotOffset.x || 0);
-        const y = baseTop + row * (oscSize.height + gap.y) + (slotOffset.y || 0);
-        return { element, transform: `translate(${x}px, ${y}px)` };
-      });
-
-      const reservedTop = reserved ? baseTop + blockHeight + gap.y : 0;
-      const reservedWidth = columnWidth * 2 + gap.x;
-
-      app[writeRafKey] = requestAnimationFrame(() => {
-        app[writeRafKey] = null;
-        if (!host || !host.isConnected) return;
-      
-        oscillatorTransforms.forEach(({ element, transform }) => {
-          element.style.transform = transform;
-        });
-
-        if (reserved) {
-          reserved.style.transform = `translate(${baseLeft}px, ${reservedTop}px)`;
-          reserved.style.width = `${reservedWidth}px`;
-        
-          // Aplicar altura y proporciones del blueprint si es Panel 3
-          if (panelIndex === 3) {
-            const blueprintModulesRow = panel3Blueprint?.layout?.modulesRow || {};
-            const modulesGap = blueprintModulesRow.gap ?? 4;
-            reserved.style.setProperty('--modules-row-gap', `${modulesGap}px`);
-            
-            // Aplicar tamaños fijos y padding desde el blueprint
-            if (noiseModules) {
-              const noiseSize = blueprintModulesRow.noiseSize || { width: 80, height: 110 };
-              const randomCVSize = blueprintModulesRow.randomCVSize || { width: 210, height: 110 };
-              const pad = blueprintModulesRow.padding || { top: 0, right: 4, bottom: 0, left: 4 };
-              const padStyle = `${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px`;
-              
-              for (const mod of [noiseModules.noise1, noiseModules.noise2]) {
-                if (mod?.element) {
-                  mod.element.style.width = `${noiseSize.width}px`;
-                  mod.element.style.height = `${noiseSize.height}px`;
-                  mod.element.style.padding = padStyle;
-                  mod.element.style.flex = 'none';
-                }
-              }
-              
-              if (noiseModules.randomCV?.element) {
-                noiseModules.randomCV.element.style.width = `${randomCVSize.width}px`;
-                noiseModules.randomCV.element.style.height = `${randomCVSize.height}px`;
-                noiseModules.randomCV.element.style.padding = padStyle;
-                noiseModules.randomCV.element.style.flex = 'none';
-              }
-              
-              const rowHeight = Math.max(noiseSize.height, randomCVSize.height);
-              reserved.style.height = `${rowHeight}px`;
-            }
-          } else {
-            reserved.style.height = `${layout.reservedHeight}px`;
-          }
-        }
-      });
-    });
-  }
-
 
 // ─── resetModule ──────────────────────────────────────────────────────────────
 

@@ -10,6 +10,17 @@
 //
 // La caja se aplica con position:absolute respecto al contenedor de layout
 // del panel, que ocupa el panel entero (0, 0, 760, 760).
+//
+// Cada eje va en left/top o en translate según quepa o no en la rejilla del
+// navegador (medido en el panel 3, ver HOJA-DE-RUTA.md):
+// - El layout redondea a 1/64 px. Una coordenada como 224,9 en top quedaría
+//   en 224,89 y las imágenes de los mandos se remuestrearían distinto (94.000
+//   píxeles cambiados). Esas van en translate, que no se redondea.
+// - Una coordenada exacta en 1/64 px (enteros, ,5…) va en left/top: con
+//   ,5 en translate la imagen del mando se remuestrea a medio píxel, y en
+//   left/top el navegador la ajusta a píxel entero, como siempre se ha
+//   pintado.
+// Por eso el elemento con caja no debe usar transform para otra cosa.
 
 export const PANEL_SIZE = 760;
 
@@ -46,8 +57,26 @@ export function requireBox(box, name) {
  * @returns {string}
  */
 export function boxCss(box) {
-  return `position: absolute; left: ${box.x}px; top: ${box.y}px; ` +
-    `width: ${box.w}px; height: ${box.h}px; box-sizing: border-box;`;
+  const p = boxPlacement(box);
+  return `position: absolute; left: ${p.left}px; top: ${p.top}px; ` +
+    `width: ${box.w}px; height: ${box.h}px; box-sizing: border-box;` +
+    (p.transform ? ` transform: ${p.transform};` : '');
+}
+
+/** ¿Cabe v exacto en la rejilla de layout del navegador (1/64 px)? */
+const onLayoutGrid = v => Number.isInteger(v * 64);
+
+/**
+ * Reparte la posición de la caja entre left/top y translate, eje a eje
+ * (ver la cabecera del fichero).
+ * @param {{x:number,y:number}} box
+ * @returns {{left:number, top:number, transform:string}} transform '' si no hace falta
+ */
+export function boxPlacement(box) {
+  const left = onLayoutGrid(box.x) ? box.x : 0;
+  const top = onLayoutGrid(box.y) ? box.y : 0;
+  const tx = box.x - left, ty = box.y - top;
+  return { left, top, transform: tx || ty ? `translate(${tx}px, ${ty}px)` : '' };
 }
 
 /**
@@ -56,10 +85,12 @@ export function boxCss(box) {
  * @param {{x:number,y:number,w:number,h:number}} box
  */
 export function applyBox(el, box) {
+  const p = boxPlacement(box);
   el.style.position = 'absolute';
-  el.style.left = `${box.x}px`;
-  el.style.top = `${box.y}px`;
+  el.style.left = `${p.left}px`;
+  el.style.top = `${p.top}px`;
   el.style.width = `${box.w}px`;
   el.style.height = `${box.h}px`;
   el.style.boxSizing = 'border-box';
+  if (p.transform) el.style.transform = p.transform;
 }

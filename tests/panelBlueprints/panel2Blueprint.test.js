@@ -4,7 +4,8 @@
  * Verifica la configuración correcta de:
  * - Estructura básica (schemaVersion, panelId, showFrames)
  * - Layout: 5 filas (oscilloscope, frequencyMeter, octaveFilterBank,
- *   inputAmplifierLevel, externalTreatmentRow con Send + Return)
+ *   inputAmplifierLevel, extTreatmentSend + extTreatmentReturn), cada uno
+ *   en su caja absoluta { x, y, w, h } en px del panel
  * - Módulos declarados (2 funcionales + 4 placeholders)
  * - Separación blueprint/config (ausencia de propiedades de audio, controls, matrixMapping)
  * 
@@ -15,6 +16,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import panel2Blueprint from '../../src/assets/js/panelBlueprints/panel2.blueprint.js';
+import { isBox, PANEL_SIZE } from '../../src/assets/js/utils/panelBox.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TESTS DE ESTRUCTURA BÁSICA
@@ -49,50 +51,45 @@ describe('Panel 2 Blueprint - Estructura básica', () => {
 // TESTS DE LAYOUT
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Panel 2 Blueprint - Layout', () => {
+describe('Panel 2 Blueprint - Layout en cajas absolutas', () => {
+  const layout = panel2Blueprint.layout;
 
-  it('tiene padding general del panel', () => {
-    const padding = panel2Blueprint.layout.padding;
-    assert.ok(padding, 'debe tener padding');
-    assert.strictEqual(typeof padding.top, 'number');
-    assert.strictEqual(typeof padding.right, 'number');
-    assert.strictEqual(typeof padding.bottom, 'number');
-    assert.strictEqual(typeof padding.left, 'number');
-  });
+  // Cajas medidas en la web (tests/visual) al migrar al modelo único de
+  // coordenadas: con ellas el panel queda idéntico a como estaba.
+  const EXPECTED_BOXES = {
+    oscilloscope:        { x: 120,   y: 32,  w: 527, h: 225 },
+    frequencyMeter:      { x: 8,     y: 322, w: 744, h: 143 },
+    octaveFilterBank:    { x: 8,     y: 466, w: 744, h: 93 },
+    inputAmplifierLevel: { x: 8,     y: 559, w: 744, h: 93 },
+    extTreatmentSend:    { x: 7.5,   y: 653, w: 371, h: 94 },
+    extTreatmentReturn:  { x: 380.5, y: 653, w: 371, h: 94 }
+  };
 
-  it('tiene gap vertical entre secciones', () => {
-    assert.strictEqual(typeof panel2Blueprint.layout.gap, 'number');
-    assert.ok(panel2Blueprint.layout.gap >= 0, 'gap no puede ser negativo');
-  });
-
-  it('tiene offset general con x e y numéricos', () => {
-    const offset = panel2Blueprint.layout.offset;
-    assert.ok(offset, 'debe tener offset');
-    assert.strictEqual(typeof offset.x, 'number', 'offset.x debe ser número');
-    assert.strictEqual(typeof offset.y, 'number', 'offset.y debe ser número');
-  });
-
-  describe('Sección Oscilloscope', () => {
-    const osc = panel2Blueprint.layout.oscilloscope;
-
-    it('existe con size (width y height) numéricos', () => {
-      assert.ok(osc, 'debe tener sección oscilloscope');
-      assert.ok(osc.size, 'debe tener size');
-      assert.strictEqual(typeof osc.size.width, 'number');
-      assert.ok(osc.size.width > 0, 'width debe ser positivo');
-      assert.strictEqual(typeof osc.size.height, 'number');
-      assert.ok(osc.size.height > 0, 'height debe ser positivo');
+  for (const [name, expected] of Object.entries(EXPECTED_BOXES)) {
+    it(`${name} tiene caja válida dentro del panel`, () => {
+      const box = layout[name]?.box;
+      assert.ok(isBox(box), `layout.${name}.box debe ser { x, y, w, h }`);
+      assert.ok(box.x >= 0 && box.y >= 0, 'la caja empieza dentro del panel');
+      assert.ok(box.x + box.w <= PANEL_SIZE && box.y + box.h <= PANEL_SIZE, 'la caja acaba dentro del panel');
     });
 
-    it('NO usa flex (tamaño fijo, no relativo)', () => {
-      assert.strictEqual(osc.flex, undefined, 'no debe usar flex');
+    it(`${name} conserva la caja medida`, () => {
+      assert.deepStrictEqual(layout[name].box, expected);
     });
+  }
 
-    it('tiene offset con x e y numéricos', () => {
-      assert.ok(osc.offset, 'debe tener offset');
-      assert.strictEqual(typeof osc.offset.x, 'number', 'offset.x debe ser número');
-      assert.strictEqual(typeof osc.offset.y, 'number', 'offset.y debe ser número');
-    });
+  it('no quedan claves del modelo antiguo (flujo + offsets)', () => {
+    for (const key of ['offset', 'padding', 'gap', 'externalTreatmentRow']) {
+      assert.strictEqual(layout[key], undefined, `layout.${key} ya no existe`);
+    }
+    for (const name of Object.keys(EXPECTED_BOXES)) {
+      assert.strictEqual(layout[name].size, undefined, `layout.${name}.size → box`);
+      assert.strictEqual(layout[name].offset, undefined, `layout.${name}.offset → box`);
+    }
+  });
+
+  describe('Oscilloscope (dentro de su caja)', () => {
+    const osc = layout.oscilloscope;
 
     it('tiene frame con borderRadius y padding', () => {
       assert.ok(osc.frame, 'debe tener frame');
@@ -117,65 +114,8 @@ describe('Panel 2 Blueprint - Layout', () => {
     });
   });
 
-  describe('Sección Frequency Meter (placeholder)', () => {
-    const fm = panel2Blueprint.layout.frequencyMeter;
-
-    it('existe con size (width y height) numéricos', () => {
-      assert.ok(fm, 'debe tener sección frequencyMeter');
-      assert.ok(fm.size, 'debe tener size');
-      assert.strictEqual(typeof fm.size.width, 'number');
-      assert.ok(fm.size.width > 0, 'width debe ser positivo');
-      assert.strictEqual(typeof fm.size.height, 'number');
-      assert.ok(fm.size.height > 0, 'height debe ser positivo');
-    });
-
-    it('tiene offset con x e y numéricos', () => {
-      assert.ok(fm.offset, 'debe tener offset');
-      assert.strictEqual(typeof fm.offset.x, 'number', 'offset.x debe ser número');
-      assert.strictEqual(typeof fm.offset.y, 'number', 'offset.y debe ser número');
-    });
-  });
-
-  describe('Sección Octave Filter Bank (placeholder)', () => {
-    const ofb = panel2Blueprint.layout.octaveFilterBank;
-
-    it('existe con size (width y height) numéricos', () => {
-      assert.ok(ofb, 'debe tener sección octaveFilterBank');
-      assert.ok(ofb.size, 'debe tener size');
-      assert.strictEqual(typeof ofb.size.width, 'number');
-      assert.ok(ofb.size.width > 0, 'width debe ser positivo');
-      assert.strictEqual(typeof ofb.size.height, 'number');
-      assert.ok(ofb.size.height > 0, 'height debe ser positivo');
-    });
-
-    it('tiene offset con x e y numéricos', () => {
-      assert.ok(ofb.offset, 'debe tener offset');
-      assert.strictEqual(typeof ofb.offset.x, 'number', 'offset.x debe ser número');
-      assert.strictEqual(typeof ofb.offset.y, 'number', 'offset.y debe ser número');
-    });
-  });
-
-  describe('Sección Input Amplifier Level', () => {
-    const ial = panel2Blueprint.layout.inputAmplifierLevel;
-
-    it('existe con size (width y height) numéricos', () => {
-      assert.ok(ial, 'debe tener sección inputAmplifierLevel');
-      assert.ok(ial.size, 'debe tener size');
-      assert.strictEqual(typeof ial.size.width, 'number');
-      assert.ok(ial.size.width > 0, 'width debe ser positivo');
-      assert.strictEqual(typeof ial.size.height, 'number');
-      assert.ok(ial.size.height > 0, 'height debe ser positivo');
-    });
-
-    it('NO usa height auto (tamaño fijo, no relativo)', () => {
-      assert.notStrictEqual(ial.height, 'auto', 'no debe usar height auto');
-    });
-
-    it('tiene offset general con x e y numéricos', () => {
-      assert.ok(ial.offset, 'debe tener offset');
-      assert.strictEqual(typeof ial.offset.x, 'number');
-      assert.strictEqual(typeof ial.offset.y, 'number');
-    });
+  describe('Input Amplifier Level (dentro de su caja)', () => {
+    const ial = layout.inputAmplifierLevel;
 
     it('tiene knobGap numérico', () => {
       assert.strictEqual(typeof ial.knobGap, 'number');
@@ -211,63 +151,6 @@ describe('Panel 2 Blueprint - Layout', () => {
         assert.strictEqual(typeof o.y, 'number', `knobOffsets[${i}].y debe ser número`);
       });
     });
-  });
-
-  describe('Sección External Treatment Row (última fila, dos módulos)', () => {
-    const row = panel2Blueprint.layout.externalTreatmentRow;
-
-    it('existe con gap numérico', () => {
-      assert.ok(row, 'debe tener sección externalTreatmentRow');
-      assert.strictEqual(typeof row.gap, 'number', 'gap debe ser número');
-      assert.ok(row.gap >= 0, 'gap no puede ser negativo');
-    });
-
-    describe('extTreatmentSend', () => {
-      const send = row.extTreatmentSend;
-
-      it('existe con size (width y height) numéricos', () => {
-        assert.ok(send, 'debe tener extTreatmentSend');
-        assert.ok(send.size, 'debe tener size');
-        assert.strictEqual(typeof send.size.width, 'number');
-        assert.ok(send.size.width > 0, 'width debe ser positivo');
-        assert.strictEqual(typeof send.size.height, 'number');
-        assert.ok(send.size.height > 0, 'height debe ser positivo');
-      });
-
-      it('tiene offset con x e y numéricos', () => {
-        assert.ok(send.offset, 'debe tener offset');
-        assert.strictEqual(typeof send.offset.x, 'number', 'offset.x debe ser número');
-        assert.strictEqual(typeof send.offset.y, 'number', 'offset.y debe ser número');
-      });
-    });
-
-    describe('extTreatmentReturn', () => {
-      const ret = row.extTreatmentReturn;
-
-      it('existe con size (width y height) numéricos', () => {
-        assert.ok(ret, 'debe tener extTreatmentReturn');
-        assert.ok(ret.size, 'debe tener size');
-        assert.strictEqual(typeof ret.size.width, 'number');
-        assert.ok(ret.size.width > 0, 'width debe ser positivo');
-        assert.strictEqual(typeof ret.size.height, 'number');
-        assert.ok(ret.size.height > 0, 'height debe ser positivo');
-      });
-
-      it('tiene offset con x e y numéricos', () => {
-        assert.ok(ret.offset, 'debe tener offset');
-        assert.strictEqual(typeof ret.offset.x, 'number', 'offset.x debe ser número');
-        assert.strictEqual(typeof ret.offset.y, 'number', 'offset.y debe ser número');
-      });
-    });
-  });
-
-  it('tiene exactamente 5 filas de módulos en el layout', () => {
-    const layoutSections = ['oscilloscope', 'frequencyMeter', 'octaveFilterBank',
-      'inputAmplifierLevel', 'externalTreatmentRow'];
-    for (const name of layoutSections) {
-      assert.ok(panel2Blueprint.layout[name],
-        `debe tener sección layout.${name}`);
-    }
   });
 });
 

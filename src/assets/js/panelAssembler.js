@@ -38,6 +38,7 @@ import { ModuleFrame }                  from './ui/moduleFrame.js';
 import { Toggle }                       from './ui/toggle.js';
 import { Knob }                         from './ui/knob.js';
 import { createKnob }                   from './ui/knobFactory.js';
+import { boxCss, requireBox }           from './utils/panelBox.js';
 
 import {
   KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK
@@ -769,13 +770,6 @@ export function buildPanel2(app) {
       x: toNum(offset?.x, fallback.x),
       y: toNum(offset?.y, fallback.y)
     });
-    const applyOffset = (el, offset, fallback = { x: 0, y: 0 }) => {
-      if (!el) return;
-      const resolved = resolveOffset(offset, fallback);
-      if (resolved.x !== 0 || resolved.y !== 0) {
-        el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
-      }
-    };
     // Config de osciloscopio (oscilloscopeConfig) se usa internamente en OscilloscopeDisplay
     
     // Visibilidad de marcos de módulos (desde blueprint)
@@ -783,11 +777,11 @@ export function buildPanel2(app) {
       app.panel2.element.classList.add('hide-frames');
     }
     
-    // Crear contenedor principal
+    // Contenedor principal: ocupa el panel entero; cada módulo va en su caja
+    // absoluta { x, y, w, h } en px del panel (utils/panelBox.js).
     const host = document.createElement('div');
     host.id = 'panel2Layout';
     host.className = 'panel2-layout';
-    const offset = blueprint.layout.offset || { x: 0, y: 0 };
     host.style.cssText = `
       position: absolute;
       top: 0;
@@ -795,9 +789,6 @@ export function buildPanel2(app) {
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      padding: ${blueprint.layout.padding.top}px ${blueprint.layout.padding.right}px 
-               ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
-      transform: translate(${offset.x}px, ${offset.y}px);
     `;
     app.panel2.appendElement(host);
     
@@ -806,19 +797,11 @@ export function buildPanel2(app) {
     // ─────────────────────────────────────────────────────────────────────────
     
     const scopeLayout = blueprint.layout.oscilloscope;
-    const scopeSize = scopeLayout.size;
-    const scopeOffset = scopeLayout.offset || { x: 0, y: 0 };
     const oscUIConfig = blueprint.modules?.oscilloscope?.ui || {};
     
     const scopeSection = document.createElement('div');
     scopeSection.className = 'panel2-oscilloscope-section';
-    scopeSection.style.cssText = `
-      width: ${scopeSize.width}px;
-      height: ${scopeSize.height}px;
-      box-sizing: border-box;
-      margin-bottom: ${blueprint.layout.gap ?? 6}px;
-    `;
-    applyOffset(scopeSection, scopeOffset);
+    scopeSection.style.cssText = boxCss(requireBox(scopeLayout.box, 'panel 2 oscilloscope'));
     host.appendChild(scopeSection);
     
     // Crear módulo de audio primero (necesitamos referencia para el toggle)
@@ -986,20 +969,13 @@ export function buildPanel2(app) {
     // ─────────────────────────────────────────────────────────────────────────
     
     const freqMeterLayout = blueprint.layout.frequencyMeter;
-    const freqMeterSize = freqMeterLayout.size;
     const freqMeterFrame = new ModuleFrame({
       id: 'frequency-meter',
       title: 'Frequency Meter',
       className: 'panel2-placeholder'
     });
     const freqMeterEl = freqMeterFrame.createElement();
-    freqMeterEl.style.cssText = `
-      width: ${freqMeterSize.width}px;
-      height: ${freqMeterSize.height}px;
-      box-sizing: border-box;
-      margin-bottom: ${blueprint.layout.gap ?? 6}px;
-    `;
-    applyOffset(freqMeterEl, freqMeterLayout.offset);
+    freqMeterEl.style.cssText = boxCss(requireBox(freqMeterLayout.box, 'panel 2 frequencyMeter'));
     applyModuleVisibility(freqMeterEl, blueprint, 'frequencyMeter');
     host.appendChild(freqMeterEl);
     
@@ -1013,7 +989,6 @@ export function buildPanel2(app) {
       ? toNum(ofbLayout.knobGap[0], 8)
       : toNum(ofbLayout.knobGap, 8);
     const ofbUIDefaults = {
-      offset: resolveOffset(ofbLayout.offset, { x: 0, y: 0 }),
       knobGap: ofbKnobGap,
       knobSize: ofbLayout.knobSize ?? 'sm',
       knobInnerPct: toNum(ofbLayout.knobInnerPct, 78),
@@ -1023,7 +998,6 @@ export function buildPanel2(app) {
     const ofbUIConfig = {
       ...ofbUIDefaults,
       ...ofbModuleUI,
-      offset: resolveOffset(ofbModuleUI.offset, ofbUIDefaults.offset),
       knobGap: toNum(ofbModuleUI.knobGap, ofbUIDefaults.knobGap),
       knobSize: ofbModuleUI.knobSize ?? ofbUIDefaults.knobSize,
       knobInnerPct: toNum(ofbModuleUI.knobInnerPct, ofbUIDefaults.knobInnerPct),
@@ -1042,14 +1016,7 @@ export function buildPanel2(app) {
     // Sección contenedora
     const ofbSection = document.createElement('div');
     ofbSection.className = 'panel2-octave-filter-section';
-    const ofbSize = ofbLayout.size || { width: 730, height: 90 };
-    ofbSection.style.cssText = `
-      width: ${ofbSize.width}px;
-      height: ${ofbSize.height}px;
-      box-sizing: border-box;
-      margin-bottom: ${blueprint.layout.gap ?? 6}px;
-    `;
-    applyOffset(ofbSection, ofbUIConfig.offset);
+    ofbSection.style.cssText = boxCss(requireBox(ofbLayout.box, 'panel 2 octaveFilterBank'));
     applyModuleVisibility(ofbSection, blueprint, 'octaveFilterBank');
     host.appendChild(ofbSection);
 
@@ -1103,7 +1070,6 @@ export function buildPanel2(app) {
       ? toNum(inputAmpLayout.knobGap[0], toNum(inputAmpLayout.knobsGap, 8))
       : toNum(inputAmpLayout.knobGap, toNum(inputAmpLayout.knobsGap, 8));
     const inputAmpUIDefaults = {
-      offset: resolveOffset(inputAmpLayout.offset, { x: 0, y: 0 }),
       knobGap: inputAmpKnobGap,
       knobSize: inputAmpLayout.knobSize ?? 'sm',
       knobInnerPct: toNum(inputAmpLayout.knobInnerPct, 78),
@@ -1116,7 +1082,6 @@ export function buildPanel2(app) {
     const inputAmpUIConfig = {
       ...inputAmpUIDefaults,
       ...inputAmpModuleUI,
-      offset: resolveOffset(inputAmpModuleUI.offset, inputAmpUIDefaults.offset),
       knobGap: inputAmpModuleKnobGap,
       knobSize: inputAmpModuleUI.knobSize ?? inputAmpUIDefaults.knobSize,
       knobInnerPct: toNum(inputAmpModuleUI.knobInnerPct, inputAmpUIDefaults.knobInnerPct),
@@ -1131,14 +1096,7 @@ export function buildPanel2(app) {
     // Crear sección para Input Amplifier Level
     const inputAmpSection = document.createElement('div');
     inputAmpSection.className = 'panel2-input-amp-section';
-    const inputAmpSize = inputAmpLayout.size || { width: 730, height: 90 };
-    inputAmpSection.style.cssText = `
-      width: ${inputAmpSize.width}px;
-      height: ${inputAmpSize.height}px;
-      box-sizing: border-box;
-      margin-bottom: ${blueprint.layout.gap ?? 6}px;
-    `;
-    applyOffset(inputAmpSection, inputAmpUIConfig.offset);
+    inputAmpSection.style.cssText = boxCss(requireBox(inputAmpLayout.box, 'panel 2 inputAmplifierLevel'));
     host.appendChild(inputAmpSection);
     
     // Crear módulo de audio (channels y parámetros desde config)
@@ -1182,54 +1140,27 @@ export function buildPanel2(app) {
     // EXTERNAL TREATMENT DEVICES (última fila, dos módulos lado a lado)
     // ─────────────────────────────────────────────────────────────────────────
     
-    const extRow = blueprint.layout.externalTreatmentRow;
-    const extRowGap = toNum(extRow?.gap, 6);
-    
-    // Contenedor de fila (flex horizontal)
-    const extRowSection = document.createElement('div');
-    extRowSection.className = 'panel2-ext-treatment-row';
-    extRowSection.style.cssText = `
-      display: flex;
-      gap: ${extRowGap}px;
-      box-sizing: border-box;
-    `;
-    host.appendChild(extRowSection);
-    
     // ── Send Level ──
-    const extSendLayout = extRow?.extTreatmentSend || {};
-    const extSendSize = extSendLayout.size || { width: 362, height: 60 };
     const extSendFrame = new ModuleFrame({
       id: 'ext-treatment-send',
       title: 'Send Level',
       className: 'panel2-placeholder'
     });
     const extSendEl = extSendFrame.createElement();
-    extSendEl.style.cssText = `
-      width: ${extSendSize.width}px;
-      height: ${extSendSize.height}px;
-      box-sizing: border-box;
-    `;
-    applyOffset(extSendEl, extSendLayout.offset);
+    extSendEl.style.cssText = boxCss(requireBox(blueprint.layout.extTreatmentSend?.box, 'panel 2 extTreatmentSend'));
     applyModuleVisibility(extSendEl, blueprint, 'extTreatmentSend');
-    extRowSection.appendChild(extSendEl);
+    host.appendChild(extSendEl);
     
     // ── Return Level ──
-    const extReturnLayout = extRow?.extTreatmentReturn || {};
-    const extReturnSize = extReturnLayout.size || { width: 362, height: 60 };
     const extReturnFrame = new ModuleFrame({
       id: 'ext-treatment-return',
       title: 'Return Level',
       className: 'panel2-placeholder'
     });
     const extReturnEl = extReturnFrame.createElement();
-    extReturnEl.style.cssText = `
-      width: ${extReturnSize.width}px;
-      height: ${extReturnSize.height}px;
-      box-sizing: border-box;
-    `;
-    applyOffset(extReturnEl, extReturnLayout.offset);
+    extReturnEl.style.cssText = boxCss(requireBox(blueprint.layout.extTreatmentReturn?.box, 'panel 2 extTreatmentReturn'));
     applyModuleVisibility(extReturnEl, blueprint, 'extTreatmentReturn');
-    extRowSection.appendChild(extReturnEl);
+    host.appendChild(extReturnEl);
     
     // ─────────────────────────────────────────────────────────────────────────
     // GUARDAR REFERENCIAS

@@ -60,29 +60,16 @@ export default {
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────
   //
-  // El panel (760×760 px) se divide en 5 filas de arriba a abajo.
-  // Cada fila contiene uno o más módulos con tamaño fijo (width × height) en px.
-  // offset: desplazamiento fino del módulo respecto a su posición en la fila.
-  // gap: separación vertical fija entre filas.
+  // Cada módulo se coloca con una caja absoluta box: { x, y, w, h } en px
+  // del panel (760×760, la imagen de fondo estirada al 100 %): 1 px = 1/760
+  // de la imagen. Mover o redimensionar un módulo no mueve ningún otro.
+  // Ver utils/panelBox.js y REVISION-VISUAL-2026-09.md.
   //
 
   layout: {
-    // Offset general del panel (px) — desplaza todos los módulos
-    // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 0 },
-
-    // Padding general del panel
-    padding: { top: 10, right: 15, bottom: 10, left: 15 },
-
-    // Gap vertical entre secciones de módulos
-    gap: 6,
-
     // ── Sección del osciloscopio (módulo funcional, el más grande) ──────
     oscilloscope: {
-      size: { width: 527, height: 225 },
-
-      // Ajuste fino del bloque completo del osciloscopio
-      offset: { x: 105, y: 22 },
+      box: { x: 120, y: 32, w: 527, h: 225 },
 
       // Configuración visual del marco
       // frame.padding: espacio INTERNO entre el borde del marco y su contenido
@@ -108,14 +95,12 @@ export default {
 
     // ── Frequency Meter (placeholder) ───────────────────────────────────
     frequencyMeter: {
-      size: { width: 744, height: 143 },
-      offset: { x: -7, y: 81 }
+      box: { x: 8, y: 322, w: 744, h: 143 }
     },
 
     // ── Octave Filter Bank (8 knobs de frecuencia central) ──────────────
     octaveFilterBank: {
-      size: { width: 744, height: 93 },
-      offset: { x: -7, y: 76 },
+      box: { x: 8, y: 466, w: 744, h: 93 },
 
       // Distribución idéntica a Input Amplifier Level (misma fila de 8 knobs)
       knobGap: 28.5,
@@ -140,10 +125,7 @@ export default {
 
     // ── Input Amplifier Level (módulo funcional, 8 knobs de ganancia) ───
     inputAmplifierLevel: {
-      size: { width: 744, height: 93 },
-
-      // Ajuste fino del bloque completo
-      offset: { x: -7, y: 70 },
+      box: { x: 8, y: 559, w: 744, h: 93 },
 
       // Ajuste fino interno de la fila de knobs
       knobGap: 28.5,
@@ -164,18 +146,12 @@ export default {
     },
 
     // ── External Treatment Devices (última fila, dos módulos lado a lado) ──
-    externalTreatmentRow: {
-      gap: 2,  // px — separación horizontal entre Send y Return
+    extTreatmentSend: {
+      box: { x: 7.5, y: 653, w: 371, h: 94 }
+    },
 
-      extTreatmentSend: {
-        size: { width: 371, height: 94 },
-        offset: { x: -7.5, y: 65 }
-      },
-
-      extTreatmentReturn: {
-        size: { width: 371, height: 94 },
-        offset: { x: -7.5, y: 65 }
-      }
+    extTreatmentReturn: {
+      box: { x: 380.5, y: 653, w: 371, h: 94 }
     }
   },
 
@@ -211,7 +187,7 @@ export default {
     inputAmplifierLevel: {
       visible: true,
       // ui: { }  — overrides visuales del input amplifier
-      // Soporta: offset, knobGap, knobSize, knobInnerPct, knobsRowOffset, knobOffsets
+      // Soporta: knobGap, knobSize, knobInnerPct, knobsRowOffset, knobOffsets
     },
 
     // ── External Treatment Devices (dos módulos en la misma fila) ───────

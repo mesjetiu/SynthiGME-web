@@ -170,9 +170,10 @@ pendientes de verse en un navegador.
     `npm run visual:compare` en verde, `git commit --amend` (quitar del
     mensaje la línea de «pendiente»), y a `main` con `merge --ff-only`;
     borrar la rama aquí y en origin. Si pide cambios, se hacen en la rama.
-  - Visto de paso, sin tocar: `signalFlowHighlighter.js` busca
-    `.panel4-pitchToVoltageConverter`, pero la clase del PVC es
-    `.panel4-pitchVoltageConverter` (el resaltado del PVC no lo encuentra).
+  - Arreglado de paso: `signalFlowHighlighter.js` buscaba el marco del PVC
+    como `.panel4-pitchToVoltageConverter` (la clase es
+    `.panel4-pitchVoltageConverter`). No se notaba, porque el marco también
+    es `.synth-module` y lo encontraba por ahí; queda fijado con un test.
 - **Siguiente: panel 1** (conversación nueva), los mismos dos pasos.
   Para el paso 2, el método del panel 4: `lineas.py` sobre `panel_1.jpg`
   para los marcos, rejilla sobre la foto a 2× para los centros, y capturas

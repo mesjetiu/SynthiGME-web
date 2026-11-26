@@ -51,7 +51,7 @@ global.localStorage = {
 };
 
 // ─── Import módulo bajo test ─────────────────────────────────────────────────
-const { SignalFlowHighlighter } = await import('../../src/assets/js/ui/signalFlowHighlighter.js');
+const { SignalFlowHighlighter, findModuleElement } = await import('../../src/assets/js/ui/signalFlowHighlighter.js');
 const { STORAGE_KEYS } = await import('../../src/assets/js/utils/constants.js');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1482,4 +1482,30 @@ describe('SignalFlowHighlighter — Storage keys', () => {
     assert.ok(STORAGE_KEYS.SIGNAL_FLOW_ENABLED.startsWith('synthigme-'));
     assert.ok(STORAGE_KEYS.SIGNAL_FLOW_REQUIRE_MODIFIER.startsWith('synthigme-'));
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// findModuleElement: módulos del panel 4
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('findModuleElement — panel 4', () => {
+  // Las clases de los marcos del panel 4 salen del id del blueprint
+  // (panel4-<id>); el PVC es pitchVoltageConverter, no pitchToVoltageConverter.
+  for (const id of ['pitchVoltageConverter', 'upperKeyboard', 'lowerKeyboard']) {
+    it(`desde un mando dentro de ${id} encuentra su marco`, () => {
+      const frame = document.createElement('div');
+      frame.id = `${id}-module`;
+      frame.className = `synth-module panel4-placeholder panel4-${id}`;
+      frame.innerHTML = '<div class="synth-module__content"><div class="panel4-controls"><div class="knob-wrapper"><div class="knob"></div></div></div></div>';
+      document.body.appendChild(frame);
+      try {
+        assert.strictEqual(findModuleElement(frame.querySelector('.knob')), frame);
+        // Y lo encuentra por su propia clase, no solo por .synth-module
+        frame.classList.remove('synth-module');
+        assert.strictEqual(findModuleElement(frame.querySelector('.knob')), frame);
+      } finally {
+        frame.remove();
+      }
+    });
+  }
 });

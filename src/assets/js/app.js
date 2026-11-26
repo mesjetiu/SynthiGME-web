@@ -264,12 +264,14 @@ class App {
 
     this.outputPanel = this.panelManager.createPanel({ id: 'panel-output' });
 
+    // Panel 7: fondo vectorial (design/panels/Panel7/panel7_source.svg).
+    injectInlinePanelSvgBackground('panel-output', './assets/panels/panel7_bg.svg');
+
     // Fondos JPG temporales (eliminar línea correspondiente al migrar a SVG).
     setPanelImageBackground('panel-1', './assets/panels/panel_1.jpg');
     setPanelImageBackground('panel-2', './assets/panels/panel_2.jpg');
     // Panel 3 vuelve a SVG inline para respetar la Microgramma original.
     setPanelImageBackground('panel-4', './assets/panels/panel_4.jpg');
-    setPanelImageBackground('panel-output', './assets/panels/panel_7.jpg');
     labelPanelSlot(this.outputPanel, null, { row: 2, col: 4 });
 
     this._heightSyncScheduled = false;

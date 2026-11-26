@@ -8147,3 +8147,39 @@ body.render-performance .panel-inline-bg {
   width: 3px;
   height: 16px;
 }
+
+/* ─── Panel 4: mandos colocados por su centro (ver buildPanel4) ─────────── */
+/* El selector rotativo se coloca por el centro de su cuerpo (32 px); las
+   etiquetas On/Kbd van a los lados sin mover el cuerpo. */
+.panel4-controls .rotary-switch {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+.panel4-controls .rotary-switch__label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.panel4-controls .rotary-switch__label-a {
+  right: calc(100% + 6px);
+}
+.panel4-controls .rotary-switch__label-b {
+  left: calc(100% + 6px);
+}
+
+/* Sequencer Event Time: el display llena su caja (la ventana de la foto) */
+.panel4-sequencer-event-time .synth-module__content {
+  padding: 0;
+}
+.panel4-sequencer-event-time .seq-event-time-display__bezel {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Las etiquetas On/Kbd del selector ya están serigrafiadas en la foto */
+.panel4-controls .rotary-switch__label {
+  display: none;
+}

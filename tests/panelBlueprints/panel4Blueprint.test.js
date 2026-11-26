@@ -33,33 +33,43 @@ describe('Panel 4 Blueprint - Estructura básica', () => {
   it('el voltímetro no enseña el recuadro de depuración', () => {
     assert.strictEqual(layout.voltmeter.window.debugBorder, false);
   });
+
+  it('los marcos de los módulos no se ven (ya están en la foto)', () => {
+    assert.strictEqual(panel4Blueprint.showFrames, false);
+  });
 });
 
 describe('Panel 4 Blueprint - Layout en cajas absolutas', () => {
-  // Cajas medidas en la web (tests/visual) al migrar al modelo único de
-  // coordenadas: con ellas el panel queda idéntico a como estaba con el
-  // árbol flex. Todas caen en la rejilla de 1/64 px.
+  // Cajas medidas sobre la foto (panel_4.jpg): los marcos serigrafiados,
+  // por el centro de sus líneas, redondeados a 0,25 px (rejilla de 1/64).
   const EXPECTED_BOXES = {
-    sequencerEventTime:    { x: 10, y: 242.40625, w: 740, h: 80 },
-    pitchVoltageConverter: { x: 10, y: 326.40625, w: 103.859375, h: 140.53125 },
-    envelopeFollower1:     { x: 10, y: 468.9375, w: 103.859375, h: 140.53125 },
-    envelopeFollower2:     { x: 10, y: 611.46875, w: 103.859375, h: 140.53125 },
-    upperKeyboard:         { x: 116.859375, y: 326.40625, w: 105.859375, h: 425.59375 },
-    lowerKeyboard:         { x: 225.71875, y: 326.40625, w: 105.859375, h: 425.59375 },
-    seqOutputRangeL1:      { x: 334.578125, y: 326.40625, w: 102.09375, h: 329.59375 },
-    seqOutputRangeL2:      { x: 439.671875, y: 326.40625, w: 102.109375, h: 329.59375 },
-    seqOutputRangeL3:      { x: 544.78125, y: 326.40625, w: 102.109375, h: 329.59375 },
-    invertorBuffer:        { x: 649.890625, y: 326.40625, w: 100.109375, h: 217.734375 },
-    key4:                  { x: 649.890625, y: 546.140625, w: 100.109375, h: 109.859375 },
-    slewLimiter1:          { x: 334.578125, y: 659, w: 101.59375, h: 93 },
-    slewLimiter2:          { x: 439.171875, y: 659, w: 101.609375, h: 93 },
-    slewLimiter3:          { x: 543.78125, y: 659, w: 101.609375, h: 93 },
-    option1:               { x: 648.390625, y: 659, w: 101.609375, h: 93 }
+    sequencerEventTime:    { x: 293.25, y: 299.5, w: 166.75, h: 56 },
+    pitchVoltageConverter: { x: 48.5, y: 367, w: 94.25, h: 125.25 },
+    envelopeFollower1:     { x: 48.5, y: 492.25, w: 94.25, h: 125.5 },
+    envelopeFollower2:     { x: 48.5, y: 617.75, w: 94.25, h: 128.25 },
+    upperKeyboard:         { x: 142.75, y: 379.25, w: 94, h: 366.75 },
+    lowerKeyboard:         { x: 236.75, y: 379.25, w: 94, h: 366.75 },
+    seqOutputRangeL1:      { x: 330.75, y: 379.25, w: 95, h: 265.5 },
+    seqOutputRangeL2:      { x: 425.75, y: 379.25, w: 93.5, h: 265.5 },
+    seqOutputRangeL3:      { x: 519.25, y: 379.25, w: 93.75, h: 265.5 },
+    invertorBuffer:        { x: 613, y: 367, w: 94.5, h: 188.75 },
+    key4:                  { x: 613, y: 555.75, w: 94.5, h: 89 },
+    slewLimiter1:          { x: 330.75, y: 644.75, w: 95, h: 101.25 },
+    slewLimiter2:          { x: 425.75, y: 644.75, w: 93.5, h: 101.25 },
+    slewLimiter3:          { x: 519.25, y: 644.75, w: 93.75, h: 101.25 },
+    option1:               { x: 613, y: 644.75, w: 94.5, h: 101.25 }
   };
-  // Voltímetros: 89,875 px de ancho, uno cada 92,875
-  const EXPECTED_VOLTMETER_BOXES = Array.from({ length: 8 }, (_, n) => (
-    { x: 10 + n * 92.875, y: 118.40625, w: 89.875, h: 120 }
-  ));
+  // Voltímetros: entre las líneas verticales de la serigrafía
+  const EXPECTED_VOLTMETER_BOXES = [
+    { x: 45.75, y: 179, w: 82.75, h: 120.25 },
+    { x: 128.5, y: 179, w: 82.75, h: 120.25 },
+    { x: 211.25, y: 179, w: 83, h: 120.25 },
+    { x: 294.25, y: 179, w: 82.75, h: 120.25 },
+    { x: 377, y: 179, w: 82, h: 120.25 },
+    { x: 459, y: 179, w: 83.25, h: 120.25 },
+    { x: 542.25, y: 179, w: 83.5, h: 120.25 },
+    { x: 625.75, y: 179, w: 82.25, h: 120.25 }
+  ];
 
   const assertInsidePanel = (box, name) => {
     assert.ok(isBox(box), `${name} debe ser { x, y, w, h }`);
@@ -106,12 +116,32 @@ describe('Panel 4 Blueprint - Layout en cajas absolutas', () => {
     }
   });
 
+  it('cada mando tiene su centro { x, y } dentro de la caja de su módulo', () => {
+    for (const name of Object.keys(EXPECTED_BOXES)) {
+      const { box, knobs = [], switches = [] } = layout[name];
+      for (const c of [...knobs, ...switches]) {
+        const label = `${name} / ${c.name ?? c.type}`;
+        assert.ok(Number.isFinite(c.x) && Number.isFinite(c.y), `${label}: falta { x, y }`);
+        assert.ok(c.x > 0 && c.x < box.w && c.y > 0 && c.y < box.h, `${label}: fuera de la caja`);
+      }
+    }
+  });
+
+  it('los mandos de una misma fila de la foto están a la misma altura', () => {
+    // Pitch / Voltage A·C·E, Key Velocity / Voltage B·D·F, Env. Control / Key 1·2·3
+    const ys = id => layout[id].knobs.map(k => layout[id].box.y + k.y);
+    const ref = ys('upperKeyboard');
+    for (const id of ['lowerKeyboard', 'seqOutputRangeL1', 'seqOutputRangeL2', 'seqOutputRangeL3']) {
+      assert.deepStrictEqual(ys(id), ref, id);
+    }
+  });
+
   it('no quedan claves del árbol flex antiguo', () => {
     for (const key of ['offset', 'padding', 'gap', 'logoArea', 'voltmetersRow', 'keyboardOutputRange']) {
       assert.strictEqual(layout[key], undefined, `layout.${key} ya no existe`);
     }
     for (const name of Object.keys(EXPECTED_BOXES)) {
-      for (const key of ['offset', 'flex', 'height', 'id']) {
+      for (const key of ['offset', 'flex', 'height', 'id', 'knobGap', 'switchGap']) {
         assert.strictEqual(layout[name][key], undefined, `layout.${name}.${key} → box`);
       }
     }
@@ -139,7 +169,7 @@ describe('Panel 4 Blueprint - Mandos', () => {
   });
 
   it('el PVC tiene su vernier Range', () => {
-    assert.deepStrictEqual(layout.pitchVoltageConverter.knobs, [{ name: 'Range', type: 'vernier' }]);
+    assert.deepStrictEqual(layout.pitchVoltageConverter.knobs.map(k => [k.name, k.type]), [['Range', 'vernier']]);
   });
 
   it('slew limiters y Option 1: un mando cada uno', () => {

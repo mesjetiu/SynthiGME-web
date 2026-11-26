@@ -168,3 +168,54 @@ describe('Panel 7 - secuenciador cuadrado con la foto', () => {
     assert.throws(() => sequencerPlacement({ ...seq, clockRate: { cx: 380 } }));
   });
 });
+
+describe('Panel 7 - teclas del secuenciador', () => {
+  const seq = panel7Blueprint.layout.sequencer;
+  const sitio = sequencerPlacement(seq);
+
+  it('son cuadradas, de frente: el pie de la foto, 27,5 px, abajo en y 237,3', () => {
+    for (const r of sitio.keys) {
+      assert.equal(r.w, 27.5);
+      assert.equal(r.h, 27.5);
+      assert.ok(cerca(r.y + r.h, 237.3, 1e-9));
+    }
+  });
+
+  it('entre tecla y tecla queda hueco (paso 31,43)', () => {
+    for (let i = 1; i < 8; i++) {
+      const hueco = sitio.keys[i].x - (sitio.keys[i - 1].x + sitio.keys[i - 1].w);
+      assert.ok(hueco > 3 && hueco < 4.5, `hueco ${i}-${i + 1}: ${hueco}`);
+    }
+  });
+
+  it('la imagen tiene el tamaño de la tecla y el plato en el centro', () => {
+    for (const f of ['panel7_tecla.svg', 'panel7_tecla_pulsada.svg']) {
+      const svg = leer(`src/assets/panels/${f}`);
+      const [, w, h] = svg.match(/^<svg [^>]*width="([\d.]+)" height="([\d.]+)"/);
+      assert.equal(Number(w), seq.keyRow.width, f);
+      assert.equal(Number(h), seq.keyRow.height, f);
+      // plato: el primer rect con rx grande, centrado
+      const [, x, y, pw, ph] = svg.match(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" rx="4\.5"/);
+      assert.ok(cerca(Number(x) + Number(pw) / 2, Number(w) / 2, 0.01), `${f}: plato centrado en x`);
+      assert.ok(cerca(Number(y) + Number(ph) / 2, Number(h) / 2, 0.01), `${f}: plato centrado en y`);
+      assert.doesNotMatch(svg, /<text|<image|href=/);
+    }
+  });
+
+  it('el CSS pinta la tecla y la hundida al pulsar, y el service worker las precachea', () => {
+    assert.match(css, /\.panel7-seq-button \{[^}]*url\('\.\.\/panels\/panel7_tecla\.svg'\)/);
+    assert.match(css, /\.panel7-seq-button:active \{[^}]*url\('\.\.\/panels\/panel7_tecla_pulsada\.svg'\)/);
+    const sw = leer('src/sw.js');
+    assert.match(sw, /'\.\/assets\/panels\/panel7_tecla\.svg'/);
+    assert.match(sw, /'\.\/assets\/panels\/panel7_tecla_pulsada\.svg'/);
+  });
+
+  it('el fondo tiene el hueco oscuro del teclado detrás de las teclas', () => {
+    const bg = leer('src/assets/panels/panel7_bg.svg');
+    const m = bg.match(/<rect x="255" y="214\.2" width="250\.5" height="27"[^>]*fill="url\(#p7-hueco-teclas\)"/)
+      || bg.match(/<rect x="255" y="214\.2" width="250\.5" height="27"[^>]*class="(p7c\d+)"/);
+    assert.ok(m, 'falta el hueco del teclado en panel7_bg.svg');
+    const primera = sitio.keys[0], ultima = sitio.keys[7];
+    assert.ok(255 <= primera.x && ultima.x + ultima.w <= 255 + 250.5, 'el hueco cubre las ocho teclas');
+  });
+});

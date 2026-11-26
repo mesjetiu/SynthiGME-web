@@ -8,6 +8,7 @@
 <sodipodi:namedview id="namedview1" pagecolor="#e8e4e0" bordercolor="#666666" inkscape:document-units="px"/>
 <defs id="p7-defs">
 <radialGradient id="p7-tornillo" cx="0.38" cy="0.35" r="0.75"><stop offset="0" style="stop-color:#8d8884"/><stop offset="1" style="stop-color:#3b3633"/></radialGradient>
+<linearGradient id="p7-hueco-teclas" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:#1d1a1e;stop-opacity:0"/><stop offset="0.07" style="stop-color:#1d1a1e"/><stop offset="1" style="stop-color:#18151a"/></linearGradient>
 </defs>
 <g inkscape:groupmode="layer" id="p7-capa-marcos" inkscape:label="Marcos">
 <rect x="37.45" y="88.9" width="683.45" height="663.9" style="fill:none;stroke:#000000;stroke-width:2.1"/>
@@ -49,6 +50,7 @@
 </g>
 <g inkscape:groupmode="layer" id="p7-capa-secuenciador" inkscape:label="Secuenciador">
 <mask id="p7-mask-seq" maskUnits="userSpaceOnUse"><rect x="279.9" y="103.8" width="200.2" height="7.6" style="fill:#ffffff"/><text x="285.841" y="110.4" style="font-family:'Microgramma D Extended';font-weight:bold;font-size:6.897px;letter-spacing:0.743px;font-kerning:none;fill:#000000">SEQUENCER OPERATIONAL CONTROL</text></mask><rect x="279.9" y="103.8" width="200.2" height="7.6" mask="url(#p7-mask-seq)" style="fill:#000000" inkscape:label="SEQUENCER OPERATIONAL CONTROL"/>
+<rect x="255.0" y="214.2" width="250.5" height="27.0" style="fill:url(#p7-hueco-teclas)"/>
 <rect x="254.6" y="118" width="250.4" height="19.5" style="fill:none;stroke:#6f6a66;stroke-width:0.7"/>
 <rect x="254.6" y="176" width="250.4" height="20" style="fill:none;stroke:#6f6a66;stroke-width:0.7"/>
 <rect x="254.6" y="241" width="250.4" height="20" style="fill:none;stroke:#6f6a66;stroke-width:0.7"/>

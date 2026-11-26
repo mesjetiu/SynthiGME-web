@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="27.5" height="27.5" viewBox="0 0 27.5 27.5">
+<!-- Tecla del secuenciador (panel 7), de frente, hundida. Generado por design/panels/Panel7/generar_mandos.py -->
+<defs>
+<clipPath id="k"><rect width="27.5" height="27.5" rx="2.6"/></clipPath>
+<linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#949496"/><stop offset="1" stop-color="#868688"/></linearGradient>
+<linearGradient id="l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#848486"/><stop offset="1" stop-color="#7b7b7d"/></linearGradient>
+<linearGradient id="r" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#464648"/><stop offset="1" stop-color="#5d5d5f"/></linearGradient>
+<linearGradient id="b" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#4d4d4f"/><stop offset="1" stop-color="#636365"/></linearGradient>
+<linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#717173"/><stop offset=".55" stop-color="#7b7b7d"/><stop offset="1" stop-color="#828284"/></linearGradient>
+<linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".3"/><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".28"/></linearGradient>
+</defs>
+<g clip-path="url(#k)">
+<rect width="27.5" height="27.5" fill="#6d6d6f"/>
+<polygon points="0,0 27.5,0 22.4,5.1 5.1,5.1" fill="url(#t)"/>
+<polygon points="0,0 5.1,5.1 5.1,22.4 0,27.5" fill="url(#l)"/>
+<polygon points="27.5,0 27.5,27.5 22.4,22.4 22.4,5.1" fill="url(#r)"/>
+<polygon points="0,27.5 5.1,22.4 22.4,22.4 27.5,27.5" fill="url(#b)"/>
+</g>
+<rect x="5.1" y="5.1" width="17.3" height="17.3" rx="1.2" fill="#828284"/>
+<rect x="5.9" y="5.9" width="15.7" height="15.7" rx="4.5" fill="url(#p)"/>
+<rect x="6.3" y="6.3" width="14.9" height="14.9" rx="4.1" fill="none" stroke="url(#c)" stroke-width=".8"/>
+<rect x=".25" y=".25" width="27" height="27" rx="2.4" fill="none" stroke="#29272c" stroke-width=".5"/>
+</svg>

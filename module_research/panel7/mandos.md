@@ -109,3 +109,31 @@ diámetro). `sequencerPlacement` (`utils/panel7Geometry.js`) saca la caja de
 cada uno y `placeInModule` la pone como `--p7-x/y/w/h` relativas al módulo
 (clase `.p7-placed`; el CSS descuenta el borde del marco,
 `--synth-module-border-width`).
+
+## Teclas del secuenciador
+
+Plantilla mediana de las 8 teclas, a las columnas del secuenciador: teclas
+grises de máquina de escribir, de 28 px de ancho centradas en su columna (los
+bordes izquierdos, con luz, caen a ±1 px de columna − 14).
+
+- **De frente, cuadradas** (Carlos, 26-nov: «miden igual de altos que de
+  anchos… de frente se verían como chocolate»). En la foto la cámara está
+  más abajo y al centro: el plato se va hacia arriba (y 204–223), la falda de
+  delante parece grande y las de los lados cambian según la tecla. De frente
+  se ve el pie (27,5 de lado) con la cara de arriba en el centro y las cuatro
+  faldas iguales.
+- **Dónde**: lo que no se mueve con la perspectiva es el pie, apoyado en la
+  chapa: abajo en y 237,3 y 27,5 de ancho. La tecla va de 209,8 a 237,3,
+  centrada en su columna; entre tecla y tecla quedan 3,9 px.
+- **El hueco del teclado** es del fondo: entre las teclas, y bajo ellas
+  hasta la regleta, se ve oscuro de y 215 a 241 en los siete huecos
+  (`generar_panel7.py`, rectángulo de 255 a 505,5).
+- **Dibujo** (`panel7_tecla.svg`, 27,5 × 27,5): cara de arriba de 18 px con
+  un canto plano de 0,8 y el plato cóncavo dentro (radio 4,5); faldas a la
+  luz arriba y a la izquierda, a la sombra a la derecha y abajo. Grises de la
+  plantilla (plato #82…#71, faldas #9a…#3b en la foto), algo aclarados porque
+  la chapa de la web es más clara que la de la foto.
+- **Pulsada** (`panel7_tecla_pulsada.svg`): más a la sombra y con la cara un
+  poco más pequeña, como si bajara. El CSS la pide ya a tamaño 0 para que no
+  parpadee la primera vez.
+- Como el asa: imagen de fondo del `<button>`, sin filtros de CSS.

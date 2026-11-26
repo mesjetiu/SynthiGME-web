@@ -6344,12 +6344,17 @@ body.render-performance .panel-inline-bg {
 }
 
 .panel7-seq-button {
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #888, #333);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  /* La tecla gris de la foto, de frente (panel7_tecla.svg). La hundida se
+     pide ya, a tamaño 0, para que al pulsar no parpadee mientras carga. */
+  background:
+    url('../panels/panel7_tecla.svg') 0 0 / 100% 100% no-repeat,
+    url('../panels/panel7_tecla_pulsada.svg') 0 0 / 0 0 no-repeat;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   cursor: pointer;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .panel7-seq-button:focus {
@@ -6357,8 +6362,7 @@ body.render-performance .panel-inline-bg {
 }
 
 .panel7-seq-button:active {
-  background: radial-gradient(circle at 40% 35%, #aaa, #555);
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+  background: url('../panels/panel7_tecla_pulsada.svg') 0 0 / 100% 100% no-repeat;
 }
 
 /* Content area del Panel 7 joystick y sequencer */

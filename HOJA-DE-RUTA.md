@@ -73,7 +73,33 @@ pendientes de verse en un navegador.
   referencia visual, regenerada. Antes, la referencia de imagen se recapturó
   en `casa` (la de septiembre era de otra máquina y solo difería el
   suavizado del texto; ver `REVISION-VISUAL-2026-09.md`).
-- **Ahora, 1.2:** modelo único de coordenadas, empezando por el panel 2.
+- **1.2, panel 2 hecho** (26-nov): cada módulo con `box: { x, y, w, h }` en
+  px del panel; helper común en `src/assets/js/utils/panelBox.js` (con su
+  test). Imagen idéntica en los siete paneles.
+- De paso, arreglado un test inestable: los de `tests/worklets/` fallaban
+  1 de cada 3 veces al reimportar el worklet en el mismo milisegundo.
+- **Ahora, 1.2 panel 3.** Lo que ya se sabe:
+  - La colocación no está en el ensamblador sino en
+    `moduleManager.js` → `reflowOscillatorPanel` (centrado vertical en dos
+    `requestAnimationFrame`, con `translate`), y lee
+    `ui/layoutHelpers.js` → `getOscillatorLayoutSpec`. Tocan esto los
+    tests `moduleManager`, `uiInitializer`, `panelAssembler`,
+    `panelBlueprints/panel3Blueprint`, `ui/layoutHelpers`,
+    `electron/multichannelActivation` y `core/dormancyManager`.
+  - Cajas medidas (referencia): osciladores 1–6 en x 5 y 7–12 en x 380,
+    375×103, con y = 18,3 + fila × 103,3 (18,3 / 121,6 / 224,9 / 328,2 /
+    431,5 / 534,8); fila de ruidos y aleatorio en (5, 638,1, 750×110). Dentro
+    de esa fila, Noise 1 y 2 (169,5 de ancho) y Random CV (411) van en flex:
+    sacar sus cajas de `tests/visual/baseline/panel-3.geom.json`.
+  - Riesgo a medir primero: hoy se colocan con `translate` y las y no son
+    múltiplos de 1/64 px. Con `left/top` el navegador puede redondear
+    distinto y cambiar píxeles. Si `visual:compare` no sale idéntico,
+    aplicar la caja con `translate` (posición absoluta en 0,0) en
+    `panelBox.applyBox`, y comprobar que el panel 2 sigue idéntico.
+  - Igual que en el panel 2, quitar el contenedor de la fila (sus hijos
+    cuelgan del panel) cambia las rutas de la geometría: comparar
+    normalizando la ruta, regenerar la geometría y explicarlo en el commit.
+- Después: 7 y las matrices (5, 6), un panel por commit.
 
 ## Qué documento manda en cada cosa
 

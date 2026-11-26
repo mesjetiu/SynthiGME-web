@@ -449,6 +449,35 @@ describe('buildPanel4 — DOM', () => {
     const layout = app.panel4.element.querySelector('#panel4Layout');
     assert.ok(layout.classList.contains('panel4-layout'));
   });
+
+  it('cada módulo cuelga del panel en su caja, sin filas ni columnas intermedias', () => {
+    const layout = app.panel4.element.querySelector('#panel4Layout');
+    assert.strictEqual(layout.style.transform, '', 'el contenedor ya no se desplaza');
+    assert.strictEqual(layout.style.display, '', 'el contenedor ya no es flex');
+    assert.strictEqual(layout.style.padding, '', 'el contenedor ya no tiene padding');
+    const byId = id => [...layout.children].find(el => el.id === id);
+    const vm1 = byId('voltmeter1-module');
+    assert.ok(vm1, 'voltímetro 1 es hijo directo de #panel4Layout');
+    assert.strictEqual(vm1.style.left, '10px');
+    assert.strictEqual(vm1.style.top, '118.40625px');
+    assert.strictEqual(vm1.style.width, '89.875px');
+    assert.strictEqual(byId('voltmeter8-module').style.left, '660.125px');
+    assert.strictEqual(byId('sequencerEventTime-module').style.top, '242.40625px');
+    const upper = byId('upperKeyboard-module');
+    assert.ok(upper, 'teclado superior es hijo directo de #panel4Layout');
+    assert.strictEqual(upper.style.left, '116.859375px');
+    assert.strictEqual(upper.style.height, '425.59375px');
+    assert.strictEqual(byId('key4-module').style.top, '546.140625px');
+    assert.strictEqual(byId('option1-module').style.top, '659px');
+    // 23 módulos (8 voltímetros + 15), todos en left/top (sin translate)
+    const modules = [...layout.children].filter(el => el.classList.contains('synth-module'));
+    assert.strictEqual(modules.length, 23);
+    for (const el of modules) assert.strictEqual(el.style.transform, '', el.id);
+    for (const cls of ['panel4-logo-area', 'panel4-voltmeters-row', 'panel4-keyboard-output-range',
+      'panel4-kor-column', 'panel4-sequencer-section', 'panel4-seq-row1', 'panel4-seq-row2']) {
+      assert.strictEqual(layout.querySelector(`.${cls}`), null, `.${cls} ya no existe`);
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -495,6 +524,25 @@ describe('buildPanel4 — módulos', () => {
   it('_sequencerDisplayUpdate es una función', () => {
     assert.strictEqual(typeof app._sequencerDisplayUpdate, 'function',
       '_sequencerDisplayUpdate debe ser una función');
+  });
+
+  it('enlaza los 10 mandos del secuenciador por su nombre', () => {
+    assert.deepStrictEqual(Object.keys(app._sequencerKnobs).sort(), [
+      'key1', 'key2', 'key3', 'key4',
+      'voltageA', 'voltageB', 'voltageC', 'voltageD', 'voltageE', 'voltageF'
+    ]);
+    const key4 = app.panel4.element.querySelector('#key4-module');
+    assert.strictEqual(key4.dataset.moduleName, 'Sequencer');
+    const inv = app.panel4.element.querySelector('#invertorBuffer-module');
+    assert.strictEqual(inv.dataset.moduleName, undefined, 'Invertor/Buffer no es del secuenciador');
+  });
+
+  it('enlaza los mandos de los dos teclados y el Range del PVC', () => {
+    for (const side of ['upper', 'lower']) {
+      assert.deepStrictEqual(Object.keys(app._keyboardKnobs[side]).sort(),
+        ['gateLevel', 'pitchSpread', 'retrigger', 'velocityLevel'], side);
+    }
+    assert.ok(app._pvcKnobs.range, 'Range del PVC enlazado');
   });
 });
 

@@ -28,12 +28,12 @@
 // CONTENIDO DEL PANEL 4 (Synthi 100)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// De arriba a abajo (4 filas):
+// De arriba a abajo (cada módulo en su caja, ver layout):
 //
-//   Fila 0: Logo (espacio reservado para SVG con logo Synthi 100 / EMS)
+//   Arriba: logo Synthi 100 / EMS (está en la imagen de fondo; sin módulos)
 //   Fila 1: 8 Voltímetros (Voltmeter 1-8, uno por output channel)
 //   Fila 2: Sequencer Event Time (display numérico centrado)
-//   Fila 3: Keyboard Output Range — 7 columnas iguales:
+//   Fila 3: Keyboard Output Range — 7 columnas:
 //     Col 1: Pitch Voltage Converter (vernier: Range)
 //            Envelope Follower 1 (knob blanco: Range)
 //            Envelope Follower 2 (knob blanco: Range)
@@ -66,33 +66,30 @@ export default {
   // ─────────────────────────────────────────────────────────────────────────
   // CONFIGURACIÓN DEL LAYOUT VISUAL
   // ─────────────────────────────────────────────────────────────────────────
+  //
+  // Cada módulo se coloca con una caja absoluta box: { x, y, w, h } en px
+  // del panel (760×760 = la imagen de fondo; ver utils/panelBox.js). Mover
+  // uno no mueve los demás. Dentro de cada caja, los mandos siguen apilados
+  // y centrados como antes (flex).
+  //
+  // Las cajas son las que daba el árbol flex anterior (padding 8/10, gap 4,
+  // fila de logo flex 1, voltímetros 120, Event Time 80, Keyboard Output
+  // Range flex 4…), medidas en la web: el panel queda idéntico. Todavía NO
+  // están cuadradas con la foto (hoja de ruta, 1.3).
 
   layout: {
-    // Offset general del panel (px) — desplaza todos los módulos
-    // respecto a la imagen de fondo. Útil para ajustes finos.
-    offset: { x: 0, y: 0 },
-
-    // Padding general del panel
-    padding: { top: 8, right: 10, bottom: 8, left: 10 },
-
-    // Gap vertical entre filas
-    gap: 4,
-
-    // ── Fila 0: Logo Synthi 100 / EMS ──────────────────────────────────
-    // Espacio reservado para el SVG con el logo del sintetizador.
-    // No contiene módulos; el SVG se insertará como imagen de fondo o
-    // inline posteriormente. Ocupa ~1/5 del eje vertical del panel.
-    logoArea: {
-      flex: 1,              // proporción vertical (1 de 5 partes)
-      offset: { x: 0, y: 0 }
-    },
-
-    // ── Fila 1: 8 Voltímetros ──────────────────────────────────────────
-    voltmetersRow: {
-      height: 120,
-      gap: 3,               // Gap horizontal entre voltímetros
-      offset: { x: 0, y: 0 },
-      count: 8
+    // ── Fila 1: 8 Voltímetros (uno por canal de salida) ────────────────
+    voltmeters: {
+      boxes: [
+        { x: 10, y: 118.40625, w: 89.875, h: 120 },
+        { x: 102.875, y: 118.40625, w: 89.875, h: 120 },
+        { x: 195.75, y: 118.40625, w: 89.875, h: 120 },
+        { x: 288.625, y: 118.40625, w: 89.875, h: 120 },
+        { x: 381.5, y: 118.40625, w: 89.875, h: 120 },
+        { x: 474.375, y: 118.40625, w: 89.875, h: 120 },
+        { x: 567.25, y: 118.40625, w: 89.875, h: 120 },
+        { x: 660.125, y: 118.40625, w: 89.875, h: 120 }
+      ]
     },
 
     // ── Configuración visual del voltímetro individual ─────────────────
@@ -202,220 +199,163 @@ export default {
 
     // ── Fila 2: Sequencer Event Time (display numérico centrado) ───────
     sequencerEventTime: {
-      height: 80,
-      offset: { x: 0, y: 0 }
+      box: { x: 10, y: 242.40625, w: 740, h: 80 }
     },
 
-    // ── Fila 3: Keyboard Output Range (7 columnas) ─────────────────────
-    keyboardOutputRange: {
-      flex: 4,              // proporción vertical (4 de 5 partes, logo ocupa 1)
-      gap: 3,               // Gap horizontal entre columnas
-      offset: { x: 0, y: 0 },
-      columns: 7,
+    // ── Fila 3, columna 1: PVC + Envelope Followers ────────────────────
+    pitchVoltageConverter: {
+      box: { x: 10, y: 326.40625, w: 103.859375, h: 140.53125 },
+      knobs: [
+        { name: 'Range', type: 'vernier' }
+      ]
+    },
+    envelopeFollower1: {
+      box: { x: 10, y: 468.9375, w: 103.859375, h: 140.53125 },
+      knobs: [
+        { name: 'Range', type: 'normal', color: 'white' }
+      ]
+    },
+    envelopeFollower2: {
+      box: { x: 10, y: 611.46875, w: 103.859375, h: 140.53125 },
+      knobs: [
+        { name: 'Range', type: 'normal', color: 'white' }
+      ]
+    },
 
-      // ── Columna 1: PVC + Envelope Followers ─────────────────────────
-      column1: {
-        // Subdivisión vertical: 3 submódulos apilados
-        subModules: [
-          {
-            id: 'pitchVoltageConverter',
-            flex: 1,         // Proporción de altura
-            knobs: [
-              { name: 'Range', type: 'vernier' }
-            ]
-          },
-          {
-            id: 'envelopeFollower1',
-            flex: 1,
-            knobs: [
-              { name: 'Range', type: 'normal', color: 'white' }
-            ]
-          },
-          {
-            id: 'envelopeFollower2',
-            flex: 1,
-            knobs: [
-              { name: 'Range', type: 'normal', color: 'white' }
-            ]
-          }
-        ],
-        gap: 2               // Gap vertical entre submódulos
-      },
+    // ── Fila 3, columnas 2 y 3: Upper / Lower Keyboard ─────────────────
+    //
+    // Controles de arriba a abajo (tal y como aparecen en la serigrafía
+    // del panel original del Synthi 100):
+    //
+    //   ┌─────────────────────────────────┐
+    //   │  Pitch (vernier multivuelta)    │ Rango de afinación
+    //   │  Key Velocity (knob amarillo)   │ Sensibilidad a velocidad
+    //   │  Env. Control (knob blanco)     │ CV de envelope (−/+)
+    //   │                                 │
+    //   │  ▼ RETRIGGER KEY RELEASE        │ ← texto serigrafía
+    //   │  ON ◉ KBD                       │ ← selector rotativo
+    //   │  KEY RELEASE or NEW PITCH       │ ← texto serigrafía
+    //   └─────────────────────────────────┘
+    //
+    // El selector rotativo "Retrigger Key Release" controla cuándo
+    // el envelope se redispara al tocar notas:
+    //
+    //   ON  → Retrigger activo (Key Release or New Pitch):
+    //         re-disparo automático al cambiar de pitch, aunque
+    //         mantengas la tecla anterior.  Ejecución legato.
+    //   KBD → Solo Key Release: debes soltar todas las teclas
+    //         antes de que un nuevo ataque dispare la envolvente.
+    //         Ejecución staccato clásica.
+    //
+    // En el hardware es un interruptor rotativo pequeño (no toggle
+    // de palanca). Se implementa con el componente RotarySwitch.
+    // Los textos "RETRIGGER KEY RELEASE" y "KEY RELEASE or NEW PITCH"
+    // son parte de la imagen de fondo del panel (serigrafía), no DOM.
+    //
+    // Los mandos se cablean por su índice (0 Pitch, 1 Key Velocity,
+    // 2 Env. Control): no cambiar el orden.
+    //
+    upperKeyboard: {
+      box: { x: 116.859375, y: 326.40625, w: 105.859375, h: 425.59375 },
+      knobs: [
+        { name: 'Pitch', type: 'vernier' },
+        { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
+        { name: 'Env. Control', type: 'bipolar', color: 'white' }
+      ],
+      switches: [
+        { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
+      ],
+      knobGap: 4,          // Gap vertical entre knobs
+      switchGap: 4         // Gap entre último knob y selector rotativo
+    },
+    lowerKeyboard: {
+      box: { x: 225.71875, y: 326.40625, w: 105.859375, h: 425.59375 },
+      knobs: [
+        { name: 'Pitch', type: 'vernier' },
+        { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
+        { name: 'Env. Control', type: 'bipolar', color: 'white' }
+      ],
+      switches: [
+        { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
+      ],
+      knobGap: 4,
+      switchGap: 4
+    },
 
-      // ── Columna 2: Upper Keyboard ───────────────────────────────────
-      //
-      // Controles de arriba a abajo (tal y como aparecen en la serigrafía
-      // del panel original del Synthi 100):
-      //
-      //   ┌─────────────────────────────────┐
-      //   │  Pitch (vernier multivuelta)    │ Rango de afinación
-      //   │  Key Velocity (knob amarillo)   │ Sensibilidad a velocidad
-      //   │  Env. Control (knob blanco)     │ CV de envelope (−/+)
-      //   │                                 │
-      //   │  ▼ RETRIGGER KEY RELEASE        │ ← texto serigrafía
-      //   │  ON ◉ KBD                       │ ← selector rotativo
-      //   │  KEY RELEASE or NEW PITCH       │ ← texto serigrafía
-      //   └─────────────────────────────────┘
-      //
-      // El selector rotativo "Retrigger Key Release" controla cuándo
-      // el envelope se redispara al tocar notas:
-      //
-      //   ON  → Retrigger activo (Key Release or New Pitch):
-      //         re-disparo automático al cambiar de pitch, aunque
-      //         mantengas la tecla anterior.  Ejecución legato.
-      //   KBD → Solo Key Release: debes soltar todas las teclas
-      //         antes de que un nuevo ataque dispare la envolvente.
-      //         Ejecución staccato clásica.
-      //
-      // En el hardware es un interruptor rotativo pequeño (no toggle
-      // de palanca). Se implementa con el componente RotarySwitch.
-      // Los textos "RETRIGGER KEY RELEASE" y "KEY RELEASE or NEW PITCH"
-      // son parte de la imagen de fondo del panel (serigrafía), no DOM.
-      //
-      column2: {
-        id: 'upperKeyboard',
-        knobs: [
-          { name: 'Pitch', type: 'vernier' },
-          { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
-          { name: 'Env. Control', type: 'bipolar', color: 'white' }
-        ],
-        switches: [
-          { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
-        ],
-        knobGap: 4,          // Gap vertical entre knobs
-        switchGap: 4          // Gap entre último knob y selector rotativo
-      },
+    // ── Fila 3, columnas 4-7: Sequencer Section ────────────────────────
+    //
+    // Arriba, cuatro columnas: Sequencer Output Range × 3 e
+    // Invertor/Buffer + Key 4 (2/3 y 1/3 del alto). Debajo, cuatro marcos
+    // de un solo mando: Slew Limiter × 3 y Option 1.
+    //
+    // Los mandos del secuenciador se enlazan por su nombre ('Voltage A'…
+    // 'Key 4'): no cambiarlo sin cambiar el montaje.
+    //
+    seqOutputRangeL1: {
+      box: { x: 334.578125, y: 326.40625, w: 102.09375, h: 329.59375 },
+      knobs: [
+        { name: 'Voltage A', type: 'vernier', min: 0, max: 10, default: 0 },
+        { name: 'Voltage B', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
+        { name: 'Key 1', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+      ],
+      knobGap: 4
+    },
+    seqOutputRangeL2: {
+      box: { x: 439.671875, y: 326.40625, w: 102.109375, h: 329.59375 },
+      knobs: [
+        { name: 'Voltage C', type: 'vernier', min: 0, max: 10, default: 0 },
+        { name: 'Voltage D', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
+        { name: 'Key 2', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+      ],
+      knobGap: 4
+    },
+    seqOutputRangeL3: {
+      box: { x: 544.78125, y: 326.40625, w: 102.109375, h: 329.59375 },
+      knobs: [
+        { name: 'Voltage E', type: 'vernier', min: 0, max: 10, default: 0 },
+        { name: 'Voltage F', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
+        { name: 'Key 3', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+      ],
+      knobGap: 4
+    },
+    invertorBuffer: {
+      box: { x: 649.890625, y: 326.40625, w: 100.109375, h: 217.734375 },
+      knobs: [
+        { name: 'Gain', type: 'bipolar', color: 'blue', min: -5, max: 5, default: 0 },
+        { name: 'Offset', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+      ],
+      knobGap: 4
+    },
+    key4: {
+      box: { x: 649.890625, y: 546.140625, w: 100.109375, h: 109.859375 },
+      knobs: [
+        { name: 'Key 4', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
+      ]
+    },
 
-      // ── Columna 3: Lower Keyboard ──────────────────────────────────
-      // Misma disposición que Upper Keyboard (columna 2).
-      // Ver comentarios de column2 para la descripción del selector
-      // rotativo "Retrigger Key Release" (ON / KBD).
-      column3: {
-        id: 'lowerKeyboard',
-        knobs: [
-          { name: 'Pitch', type: 'vernier' },
-          { name: 'Key Velocity', type: 'bipolar', color: 'yellow' },
-          { name: 'Env. Control', type: 'bipolar', color: 'white' }
-        ],
-        switches: [
-          { name: 'Retrigger Key Release', type: 'rotarySwitch', labelA: 'On', labelB: 'Kbd' }
-        ],
-        knobGap: 4,
-        switchGap: 4
-      },
-
-      // ── Columnas 4-7: Sequencer Section ─────────────────────────────
-      //
-      // Ocupa el espacio restante a la derecha de los keyboards.
-      // Se organiza internamente en 2 filas horizontales:
-      //
-      //   Fila 1: 4 módulos en columna (Seq Output Range × 3 + Invertor/Buffer + Key 4)
-      //   Fila 2: 4 frames de un solo knob (Slew Limiters × 3 + Option 1)
-      //
-      // Todos los knobs por defecto a 0.
-      //
-      sequencerSection: {
-        gap: 3,              // Gap entre fila 1 y fila 2
-
-        // ── Fila 1: 4 módulos con forma de columna ────────────────────
-        row1: {
-          gap: 3,            // Gap horizontal entre columnas
-
-          // ── Columna 4: Sequencer Output Range Layer 1 ───────────────
-          column4: {
-            id: 'seqOutputRangeL1',
-            knobs: [
-              { name: 'Voltage A', type: 'vernier', min: 0, max: 10, default: 0 },
-              { name: 'Voltage B', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
-              { name: 'Key 1', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-            ],
-            knobGap: 4
-          },
-
-          // ── Columna 5: Sequencer Output Range Layer 2 ───────────────
-          column5: {
-            id: 'seqOutputRangeL2',
-            knobs: [
-              { name: 'Voltage C', type: 'vernier', min: 0, max: 10, default: 0 },
-              { name: 'Voltage D', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
-              { name: 'Key 2', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-            ],
-            knobGap: 4
-          },
-
-          // ── Columna 6: Sequencer Output Range Layer 3 ───────────────
-          column6: {
-            id: 'seqOutputRangeL3',
-            knobs: [
-              { name: 'Voltage E', type: 'vernier', min: 0, max: 10, default: 0 },
-              { name: 'Voltage F', type: 'normal', color: 'white', min: 0, max: 10, default: 0 },
-              { name: 'Key 3', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-            ],
-            knobGap: 4
-          },
-
-          // ── Columna 7: Invertor/Buffer + Key 4 ──────────────────────
-          //
-          // Subdivida verticalmente en dos submódulos:
-          //   - Invertor/Buffer (2/3 del alto): Gain + Offset
-          //   - Key 4 (1/3 del alto): un solo knob
-          //
-          column7: {
-            subModules: [
-              {
-                id: 'invertorBuffer',
-                flex: 2,
-                knobs: [
-                  { name: 'Gain', type: 'bipolar', color: 'blue', min: -5, max: 5, default: 0 },
-                  { name: 'Offset', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-                ],
-                knobGap: 4
-              },
-              {
-                id: 'key4',
-                flex: 1,
-                knobs: [
-                  { name: 'Key 4', type: 'bipolar', color: 'white', min: -5, max: 5, default: 0 }
-                ]
-              }
-            ],
-            gap: 2
-          }
-        },
-
-        // ── Fila 2: 4 frames de un solo knob ──────────────────────────
-        row2: {
-          gap: 3,            // Gap horizontal entre frames
-
-          slewLimiter1: {
-            id: 'slewLimiter1',
-            knobs: [
-              { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
-            ]
-          },
-
-          slewLimiter2: {
-            id: 'slewLimiter2',
-            knobs: [
-              { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
-            ]
-          },
-
-          slewLimiter3: {
-            id: 'slewLimiter3',
-            knobs: [
-              { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
-            ]
-          },
-
-          option1: {
-            id: 'option1',
-            knobs: [
-              { type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
-            ]
-          }
-        }
-      }
+    slewLimiter1: {
+      box: { x: 334.578125, y: 659, w: 101.59375, h: 93 },
+      knobs: [
+        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+      ]
+    },
+    slewLimiter2: {
+      box: { x: 439.171875, y: 659, w: 101.609375, h: 93 },
+      knobs: [
+        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+      ]
+    },
+    slewLimiter3: {
+      box: { x: 543.78125, y: 659, w: 101.609375, h: 93 },
+      knobs: [
+        { name: 'Slew Rate', type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+      ]
+    },
+    option1: {
+      box: { x: 648.390625, y: 659, w: 101.609375, h: 93 },
+      knobs: [
+        { type: 'normal', color: 'red', min: 0, max: 10, default: 0 }
+      ]
     }
   },
 

@@ -2149,17 +2149,6 @@ export function buildPanel4(app) {
       const num = Number(value);
       return Number.isFinite(num) ? num : fallback;
     };
-    const resolveOffset = (offset, fallback = { x: 0, y: 0 }) => ({
-      x: toNum(offset?.x, fallback.x),
-      y: toNum(offset?.y, fallback.y)
-    });
-    const applyOffset = (el, offset, fallback = { x: 0, y: 0 }) => {
-      if (!el) return;
-      const resolved = resolveOffset(offset, fallback);
-      if (resolved.x !== 0 || resolved.y !== 0) {
-        el.style.transform = `translate(${resolved.x}px, ${resolved.y}px)`;
-      }
-    };
 
     const knobUI = blueprint.panel4KnobUI || {};
 
@@ -2168,11 +2157,11 @@ export function buildPanel4(app) {
       app.panel4.element.classList.add('hide-frames');
     }
 
-    // Crear contenedor principal
+    // Contenedor del layout: ocupa el panel entero; cada módulo va en su caja
+    // absoluta { x, y, w, h } en px del panel (utils/panelBox.js).
     const host = document.createElement('div');
     host.id = 'panel4Layout';
     host.className = 'panel4-layout';
-    const offset = blueprint.layout.offset || { x: 0, y: 0 };
     host.style.cssText = `
       position: absolute;
       top: 0;
@@ -2180,52 +2169,21 @@ export function buildPanel4(app) {
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      padding: ${blueprint.layout.padding.top}px ${blueprint.layout.padding.right}px 
-               ${blueprint.layout.padding.bottom}px ${blueprint.layout.padding.left}px;
-      display: flex;
-      flex-direction: column;
-      gap: ${blueprint.layout.gap ?? 4}px;
-      transform: translate(${offset.x}px, ${offset.y}px);
     `;
     app.panel4.appendElement(host);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // FILA 0: LOGO (espacio reservado para SVG Synthi 100 / EMS)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    const logoLayout = blueprint.layout.logoArea;
-    if (logoLayout) {
-      const logoArea = document.createElement('div');
-      logoArea.className = 'panel4-logo-area';
-      logoArea.style.cssText = `
-        flex: ${logoLayout.flex ?? 1} 1 0;
-        min-height: 0;
-        width: 100%;
-      `;
-      applyOffset(logoArea, logoLayout.offset);
-      host.appendChild(logoArea);
-    }
+    const layout = blueprint.layout;
+    /** Caja de un módulo del layout (rompe al cargar si falta) */
+    const boxOf = (moduleId) => requireBox(layout[moduleId]?.box, `panel 4 ${moduleId}`);
 
     // ─────────────────────────────────────────────────────────────────────────
     // FILA 1: 8 VOLTÍMETROS
     // ─────────────────────────────────────────────────────────────────────────
 
-    const vmLayout = blueprint.layout.voltmetersRow;
-    const voltmetersRow = document.createElement('div');
-    voltmetersRow.className = 'panel4-voltmeters-row';
-    voltmetersRow.style.cssText = `
-      display: flex;
-      gap: ${vmLayout.gap}px;
-      height: ${vmLayout.height}px;
-      flex: 0 0 auto;
-      width: 100%;
-    `;
-    applyOffset(voltmetersRow, vmLayout.offset);
-    host.appendChild(voltmetersRow);
-
+    const voltmeterBoxes = layout.voltmeters?.boxes || [];
     const voltmeterFrames = {};
     const voltmeters = {};
-    for (let i = 1; i <= vmLayout.count; i++) {
+    for (let i = 1; i <= voltmeterBoxes.length; i++) {
       const vmId = `voltmeter${i}`;
       const frame = new ModuleFrame({
         id: `${vmId}-module`,
@@ -2233,7 +2191,7 @@ export function buildPanel4(app) {
         className: 'panel4-placeholder panel4-voltmeter'
       });
       const el = frame.createElement();
-      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+      applyBox(el, requireBox(voltmeterBoxes[i - 1], `panel 4 voltmeters[${i - 1}]`));
 
       // Crear voltímetro funcional dentro del frame
       const vm = new Voltmeter({
@@ -2243,7 +2201,7 @@ export function buildPanel4(app) {
       frame.appendToContent(vm.createElement());
 
       applyModuleVisibility(el, blueprint, vmId);
-      voltmetersRow.appendChild(el);
+      host.appendChild(el);
       voltmeterFrames[vmId] = frame;
       voltmeters[vmId] = vm;
     }
@@ -2252,19 +2210,13 @@ export function buildPanel4(app) {
     // FILA 2: SEQUENCER EVENT TIME
     // ─────────────────────────────────────────────────────────────────────────
 
-    const seqLayout = blueprint.layout.sequencerEventTime;
     const seqFrame = new ModuleFrame({
       id: 'sequencerEventTime-module',
       title: null,
       className: 'panel4-placeholder panel4-sequencer-event-time'
     });
     const seqEl = seqFrame.createElement();
-    seqEl.style.cssText = `
-      width: 100%;
-      height: ${seqLayout.height}px;
-      flex: 0 0 auto;
-    `;
-    applyOffset(seqEl, seqLayout.offset);
+    applyBox(seqEl, boxOf('sequencerEventTime'));
 
     // ── LED display retro de 4 dígitos (7-segment real) ────────────────────
     const displayContainer = document.createElement('div');
@@ -2378,19 +2330,6 @@ export function buildPanel4(app) {
     // FILA 3: KEYBOARD OUTPUT RANGE (7 columnas)
     // ─────────────────────────────────────────────────────────────────────────
 
-    const korLayout = blueprint.layout.keyboardOutputRange;
-    const korRow = document.createElement('div');
-    korRow.className = 'panel4-keyboard-output-range';
-    korRow.style.cssText = `
-      display: flex;
-      gap: ${korLayout.gap}px;
-      flex: ${korLayout.flex ?? 1} 1 0;
-      width: 100%;
-      min-height: 0;
-    `;
-    applyOffset(korRow, korLayout.offset);
-    host.appendChild(korRow);
-
     const korFrames = {};
 
     // ── Helper: crear un knob estándar ───────────────────────────────────
@@ -2450,26 +2389,16 @@ export function buildPanel4(app) {
       });
     };
 
-    // ── Columna 1: PVC + Envelope Followers (3 submódulos apilados) ─────
-    const col1Layout = korLayout.column1;
-    const col1Container = document.createElement('div');
-    col1Container.className = 'panel4-kor-column panel4-kor-column--stacked';
-    col1Container.style.cssText = `
-      flex: 1 1 0;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: ${col1Layout.gap ?? 2}px;
-    `;
-
-    for (const subDef of col1Layout.subModules) {
+    // ── Columna 1: PVC + Envelope Followers (3 módulos apilados) ────────
+    for (const subId of ['pitchVoltageConverter', 'envelopeFollower1', 'envelopeFollower2']) {
+      const subDef = layout[subId];
       const frame = new ModuleFrame({
-        id: `${subDef.id}-module`,
+        id: `${subId}-module`,
         title: null,
-        className: `panel4-placeholder panel4-${subDef.id}`
+        className: `panel4-placeholder panel4-${subId}`
       });
       const el = frame.createElement();
-      el.style.cssText = `flex: ${subDef.flex} 1 0; min-height: 0;`;
+      applyBox(el, boxOf(subId));
 
       // Crear knobs del submódulo
       const knobsContainer = document.createElement('div');
@@ -2488,7 +2417,7 @@ export function buildPanel4(app) {
           const { wrapper, knobInstance } = createPanel4Vernier();
           knobsContainer.appendChild(wrapper);
           // Capturar vernier del PVC para wiring posterior
-          if (subDef.id === 'pitchVoltageConverter') {
+          if (subId === 'pitchVoltageConverter') {
             app._pvcVernierInstance = knobInstance;
           }
         } else {
@@ -2507,15 +2436,14 @@ export function buildPanel4(app) {
       }
 
       frame.appendToContent(knobsContainer);
-      applyModuleVisibility(el, blueprint, subDef.id);
-      col1Container.appendChild(el);
-      korFrames[subDef.id] = frame;
+      applyModuleVisibility(el, blueprint, subId);
+      host.appendChild(el);
+      korFrames[subId] = frame;
     }
-    korRow.appendChild(col1Container);
 
     // ── Helper: construir columna de teclado (Upper/Lower Keyboard) ─────
-    const buildKeyboardColumn = (colLayout) => {
-      const colId = colLayout.id;
+    const buildKeyboardColumn = (colId) => {
+      const colLayout = layout[colId];
       const frame = new ModuleFrame({
         id: `${colId}-module`,
         title: null,
@@ -2523,7 +2451,7 @@ export function buildPanel4(app) {
       });
       const el = frame.createElement();
       el.dataset.moduleName = colId === 'upperKeyboard' ? 'Upper Keyboard' : 'Lower Keyboard';
-      el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
+      applyBox(el, boxOf(colId));
 
       const content = document.createElement('div');
       content.className = 'panel4-keyboard-content';
@@ -2591,13 +2519,13 @@ export function buildPanel4(app) {
     };
 
     // ── Columna 2: Upper Keyboard ───────────────────────────────────────
-    const upperKb = buildKeyboardColumn(korLayout.column2);
-    korRow.appendChild(upperKb.el);
+    const upperKb = buildKeyboardColumn('upperKeyboard');
+    host.appendChild(upperKb.el);
     korFrames.upperKeyboard = upperKb.frame;
 
     // ── Columna 3: Lower Keyboard ───────────────────────────────────────
-    const lowerKb = buildKeyboardColumn(korLayout.column3);
-    korRow.appendChild(lowerKb.el);
+    const lowerKb = buildKeyboardColumn('lowerKeyboard');
+    host.appendChild(lowerKb.el);
     korFrames.lowerKeyboard = lowerKb.frame;
 
     // ── Crear módulos de audio de los teclados ──────────────────────────
@@ -2790,290 +2718,146 @@ export function buildPanel4(app) {
     });
 
     // ── Columnas 4-7: Sequencer Section ────────────────────────────────
-    const seqSection = korLayout.sequencerSection;
-    if (seqSection) {
-      const seqContainer = document.createElement('div');
-      seqContainer.className = 'panel4-sequencer-section';
-      seqContainer.style.cssText = `
-        flex: 4 1 0;
-        min-width: 0;
+    // Arriba Sequencer Output Range × 3 e Invertor/Buffer + Key 4; debajo
+    // Slew Limiter × 3 y Option 1. Cada uno en su caja.
+
+    // ── Helper: map knob name → sequencer param name ───────────────────
+    const seqKnobNameMap = {
+      'Voltage A': 'voltageA', 'Voltage B': 'voltageB', 'Voltage C': 'voltageC',
+      'Voltage D': 'voltageD', 'Voltage E': 'voltageE', 'Voltage F': 'voltageF',
+      'Key 1': 'key1', 'Key 2': 'key2', 'Key 3': 'key3', 'Key 4': 'key4'
+    };
+    const seqVoltageTooltip = getSequencerVoltageLevelTooltipInfo();
+    const seqKeyTooltip = getSequencerKeyLevelTooltipInfo();
+    const getSeqKnobTooltip = (pName) => pName?.startsWith('key') ? seqKeyTooltip : seqVoltageTooltip;
+
+    // ── Helper: módulo con knobs apilados verticalmente (enlazados al
+    //    secuenciador por su nombre, si lo son)
+    const buildKnobColumn = (colId) => {
+      const colDef = layout[colId];
+      const frame = new ModuleFrame({
+        id: `${colId}-module`,
+        title: null,
+        className: `panel4-placeholder panel4-${colId}`
+      });
+      const el = frame.createElement();
+      if (colDef.knobs.some(k => seqKnobNameMap[k.name])) el.dataset.moduleName = 'Sequencer';
+      applyBox(el, boxOf(colId));
+
+      const knobsContainer = document.createElement('div');
+      knobsContainer.className = 'panel4-column-knobs';
+      knobsContainer.style.cssText = `
         display: flex;
         flex-direction: column;
-        gap: ${seqSection.gap ?? 3}px;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        gap: ${colDef.knobGap ?? 4}px;
       `;
 
-      // ── Helper: map knob name → sequencer param name ───────────────
-      const seqKnobNameMap = {
-        'Voltage A': 'voltageA', 'Voltage B': 'voltageB', 'Voltage C': 'voltageC',
-        'Voltage D': 'voltageD', 'Voltage E': 'voltageE', 'Voltage F': 'voltageF',
-        'Key 1': 'key1', 'Key 2': 'key2', 'Key 3': 'key3', 'Key 4': 'key4'
-      };
-      const seqVoltageTooltip = getSequencerVoltageLevelTooltipInfo();
-      const seqKeyTooltip = getSequencerKeyLevelTooltipInfo();
-      const getSeqKnobTooltip = (pName) => pName?.startsWith('key') ? seqKeyTooltip : seqVoltageTooltip;
-
-      // ── Helper: construir una columna con knobs apilados verticalmente
-      const buildKnobColumn = (colDef) => {
-        const colId = colDef.id;
-        const frame = new ModuleFrame({
-          id: `${colId}-module`,
-          title: null,
-          className: `panel4-placeholder panel4-${colId}`
-        });
-        const el = frame.createElement();
-        el.dataset.moduleName = 'Sequencer';
-        el.style.cssText = `flex: 1 1 0; min-width: 0; height: 100%;`;
-
-        const knobsContainer = document.createElement('div');
-        knobsContainer.className = 'panel4-column-knobs';
-        knobsContainer.style.cssText = `
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          gap: ${colDef.knobGap ?? 4}px;
-        `;
-
-        for (const knobDef of colDef.knobs) {
-          const paramName = seqKnobNameMap[knobDef.name];
-          if (knobDef.type === 'vernier') {
-            const { wrapper, knobInstance } = createPanel4Vernier();
-            if (paramName && knobInstance) {
-              app._sequencerKnobs[paramName] = knobInstance;
-              knobInstance.onChange = (v) => {
-                const dial = v * 10;
-                app._sequencerModule?.setKnob(paramName, dial);
-                sequencerOSCSync.sendKnobChange(paramName, dial);
-              };
-              knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
-              knobInstance.tooltipLabel = knobDef.name;
-            }
-            if (paramName) wrapper.dataset.knob = paramName;
-            knobsContainer.appendChild(wrapper);
-          } else {
-            const isBipolar = knobDef.type === 'bipolar';
-            const knob = createKnob({
-              size: '',
-              showValue: false,
-              centerColor: COLOR_MAP[knobDef.color] || '',
-              svgSrc: isBipolar ? 'assets/knobs/knob-0-center.svg' : undefined,
-              min: 0,
-              max: 1,
-              initial: isBipolar ? 0.5 : 0,
-              scaleMin: isBipolar ? -5 : 0,
-              scaleMax: isBipolar ? 5 : 10,
-              angleOffset: isBipolar ? -150 : undefined,
-              getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
-              onChange: paramName ? (v) => {
-                const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
-                app._sequencerModule?.setKnob(paramName, dial);
-                sequencerOSCSync.sendKnobChange(paramName, dial);
-              } : undefined
-            });
-            if (paramName && knob.knobInstance) {
-              app._sequencerKnobs[paramName] = knob.knobInstance;
-              knob.knobInstance.tooltipLabel = knobDef.name;
-            }
-            const stdSize = toNum(knobUI.standardKnobSize, 45);
-            knob.knobEl.style.width = `${stdSize}px`;
-            knob.knobEl.style.height = `${stdSize}px`;
-            const inner = knob.knobEl.querySelector('.knob-inner');
-            if (inner) {
-              const pct = toNum(knobUI.knobInnerPct, 76);
-              inner.style.width = `${pct}%`;
-              inner.style.height = `${pct}%`;
-            }
-            if (paramName) knob.wrapper.dataset.knob = paramName;
-            knobsContainer.appendChild(knob.wrapper);
+      for (const knobDef of colDef.knobs) {
+        const paramName = seqKnobNameMap[knobDef.name];
+        if (knobDef.type === 'vernier') {
+          const { wrapper, knobInstance } = createPanel4Vernier();
+          if (paramName && knobInstance) {
+            app._sequencerKnobs[paramName] = knobInstance;
+            knobInstance.onChange = (v) => {
+              const dial = v * 10;
+              app._sequencerModule?.setKnob(paramName, dial);
+              sequencerOSCSync.sendKnobChange(paramName, dial);
+            };
+            knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
+            knobInstance.tooltipLabel = knobDef.name;
           }
-        }
-
-        frame.appendToContent(knobsContainer);
-        applyModuleVisibility(el, blueprint, colId);
-        korFrames[colId] = frame;
-        return el;
-      };
-
-      // ── Helper: construir columna con submódulos apilados (como col 7)
-      const buildStackedColumn = (colDef) => {
-        const container = document.createElement('div');
-        container.className = 'panel4-kor-column panel4-kor-column--stacked';
-        container.style.cssText = `
-          flex: 1 1 0;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: ${colDef.gap ?? 2}px;
-        `;
-
-        for (const subDef of colDef.subModules) {
-          const subFrame = new ModuleFrame({
-            id: `${subDef.id}-module`,
-            title: null,
-            className: `panel4-placeholder panel4-${subDef.id}`
+          if (paramName) wrapper.dataset.knob = paramName;
+          knobsContainer.appendChild(wrapper);
+        } else {
+          const isBipolar = knobDef.type === 'bipolar';
+          const knob = createKnob({
+            size: '',
+            showValue: false,
+            centerColor: COLOR_MAP[knobDef.color] || '',
+            svgSrc: isBipolar ? 'assets/knobs/knob-0-center.svg' : undefined,
+            min: 0,
+            max: 1,
+            initial: isBipolar ? 0.5 : 0,
+            scaleMin: isBipolar ? -5 : 0,
+            scaleMax: isBipolar ? 5 : 10,
+            angleOffset: isBipolar ? -150 : undefined,
+            getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
+            onChange: paramName ? (v) => {
+              const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
+              app._sequencerModule?.setKnob(paramName, dial);
+              sequencerOSCSync.sendKnobChange(paramName, dial);
+            } : undefined
           });
-          const subEl = subFrame.createElement();
-          subEl.style.cssText = `flex: ${subDef.flex ?? 1} 1 0; min-height: 0;`;
-          const hasSeqKnobs = subDef.knobs.some(k => seqKnobNameMap[k.name]);
-          if (hasSeqKnobs) subEl.dataset.moduleName = 'Sequencer';
-
-          const knobsContainer = document.createElement('div');
-          knobsContainer.className = 'panel4-column-knobs';
-          knobsContainer.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            gap: ${subDef.knobGap ?? 4}px;
-          `;
-
-          for (const knobDef of subDef.knobs) {
-            const paramName = seqKnobNameMap[knobDef.name];
-            if (knobDef.type === 'vernier') {
-              const { wrapper, knobInstance } = createPanel4Vernier();
-              if (paramName && knobInstance) {
-                app._sequencerKnobs[paramName] = knobInstance;
-                knobInstance.onChange = (v) => {
-                  const dial = v * 10;
-                  app._sequencerModule?.setKnob(paramName, dial);
-                  sequencerOSCSync.sendKnobChange(paramName, dial);
-                };
-                knobInstance.getTooltipInfo = getSeqKnobTooltip(paramName);
-                knobInstance.tooltipLabel = knobDef.name;
-              }
-              if (paramName) wrapper.dataset.knob = paramName;
-              knobsContainer.appendChild(wrapper);
-            } else {
-              const isBipolar = knobDef.type === 'bipolar';
-              const knob = createKnob({
-                size: '',
-                showValue: false,
-                centerColor: COLOR_MAP[knobDef.color] || '',
-                svgSrc: isBipolar ? 'assets/knobs/knob-0-center.svg' : undefined,
-                min: 0,
-                max: 1,
-                initial: isBipolar ? 0.5 : 0,
-                scaleMin: isBipolar ? -5 : 0,
-                scaleMax: isBipolar ? 5 : 10,
-                angleOffset: isBipolar ? -150 : undefined,
-                getTooltipInfo: paramName ? getSeqKnobTooltip(paramName) : undefined,
-                onChange: paramName ? (v) => {
-                  const dial = isBipolar ? (v - 0.5) * 10 : v * 10;
-                  app._sequencerModule?.setKnob(paramName, dial);
-                  sequencerOSCSync.sendKnobChange(paramName, dial);
-                } : undefined
-              });
-              if (paramName && knob.knobInstance) {
-                app._sequencerKnobs[paramName] = knob.knobInstance;
-                knob.knobInstance.tooltipLabel = knobDef.name;
-              }
-              const stdSize = toNum(knobUI.standardKnobSize, 45);
-              knob.knobEl.style.width = `${stdSize}px`;
-              knob.knobEl.style.height = `${stdSize}px`;
-              const inner = knob.knobEl.querySelector('.knob-inner');
-              if (inner) {
-                const pct = toNum(knobUI.knobInnerPct, 76);
-                inner.style.width = `${pct}%`;
-                inner.style.height = `${pct}%`;
-              }
-              if (paramName) knob.wrapper.dataset.knob = paramName;
-              knobsContainer.appendChild(knob.wrapper);
-            }
+          if (paramName && knob.knobInstance) {
+            app._sequencerKnobs[paramName] = knob.knobInstance;
+            knob.knobInstance.tooltipLabel = knobDef.name;
           }
-
-          subFrame.appendToContent(knobsContainer);
-          applyModuleVisibility(subEl, blueprint, subDef.id);
-          container.appendChild(subEl);
-          korFrames[subDef.id] = subFrame;
+          const stdSize = toNum(knobUI.standardKnobSize, 45);
+          knob.knobEl.style.width = `${stdSize}px`;
+          knob.knobEl.style.height = `${stdSize}px`;
+          const inner = knob.knobEl.querySelector('.knob-inner');
+          if (inner) {
+            const pct = toNum(knobUI.knobInnerPct, 76);
+            inner.style.width = `${pct}%`;
+            inner.style.height = `${pct}%`;
+          }
+          if (paramName) knob.wrapper.dataset.knob = paramName;
+          knobsContainer.appendChild(knob.wrapper);
         }
-
-        return container;
-      };
-
-      // ── Fila 1: Seq Output Range × 3 + Invertor/Buffer + Key 4 ───────
-      const row1Layout = seqSection.row1;
-      if (row1Layout) {
-        const row1 = document.createElement('div');
-        row1.className = 'panel4-seq-row1';
-        row1.style.cssText = `
-          display: flex;
-          gap: ${row1Layout.gap ?? 3}px;
-          flex: 1 1 0;
-          min-height: 0;
-        `;
-
-        // Columnas 4-6: knobs apilados
-        if (row1Layout.column4) row1.appendChild(buildKnobColumn(row1Layout.column4));
-        if (row1Layout.column5) row1.appendChild(buildKnobColumn(row1Layout.column5));
-        if (row1Layout.column6) row1.appendChild(buildKnobColumn(row1Layout.column6));
-
-        // Columna 7: submódulos apilados (Invertor/Buffer + Key 4)
-        if (row1Layout.column7) row1.appendChild(buildStackedColumn(row1Layout.column7));
-
-        seqContainer.appendChild(row1);
       }
 
-      // ── Fila 2: Slew Limiters × 3 + Option 1 (frames de un solo knob)
-      const row2Layout = seqSection.row2;
-      if (row2Layout) {
-        const row2 = document.createElement('div');
-        row2.className = 'panel4-seq-row2';
-        row2.style.cssText = `
-          display: flex;
-          gap: ${row2Layout.gap ?? 3}px;
-          flex: 0 0 auto;
-        `;
+      frame.appendToContent(knobsContainer);
+      applyModuleVisibility(el, blueprint, colId);
+      host.appendChild(el);
+      korFrames[colId] = frame;
+    };
 
-        const singleKnobModules = ['slewLimiter1', 'slewLimiter2', 'slewLimiter3', 'option1'];
-        for (const key of singleKnobModules) {
-          const modDef = row2Layout[key];
-          if (!modDef) continue;
+    for (const colId of ['seqOutputRangeL1', 'seqOutputRangeL2', 'seqOutputRangeL3', 'invertorBuffer', 'key4']) {
+      buildKnobColumn(colId);
+    }
 
-          const modId = modDef.id;
-          const frame = new ModuleFrame({
-            id: `${modId}-module`,
-            title: null,
-            className: `panel4-placeholder panel4-${modId}`
-          });
-          const el = frame.createElement();
-          el.style.cssText = `flex: 1 1 0; min-width: 0;`;
+    // ── Slew Limiters × 3 + Option 1 (marcos de un solo knob) ──────────
+    for (const modId of ['slewLimiter1', 'slewLimiter2', 'slewLimiter3', 'option1']) {
+      const modDef = layout[modId];
+      const frame = new ModuleFrame({
+        id: `${modId}-module`,
+        title: null,
+        className: `panel4-placeholder panel4-${modId}`
+      });
+      const el = frame.createElement();
+      applyBox(el, boxOf(modId));
 
-          const knobsContainer = document.createElement('div');
-          knobsContainer.className = 'panel4-column-knobs';
-          knobsContainer.style.cssText = `
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            padding: 8px 0;
-          `;
+      const knobsContainer = document.createElement('div');
+      knobsContainer.className = 'panel4-column-knobs';
+      knobsContainer.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        padding: 8px 0;
+      `;
 
-          for (const knobDef of modDef.knobs) {
-            const knob = createPanel4Knob(knobDef);
-            const stdSize = toNum(knobUI.standardKnobSize, 45);
-            knob.knobEl.style.width = `${stdSize}px`;
-            knob.knobEl.style.height = `${stdSize}px`;
-            const inner = knob.knobEl.querySelector('.knob-inner');
-            if (inner) {
-              const pct = toNum(knobUI.knobInnerPct, 76);
-              inner.style.width = `${pct}%`;
-              inner.style.height = `${pct}%`;
-            }
-            knobsContainer.appendChild(knob.wrapper);
-          }
-
-          frame.appendToContent(knobsContainer);
-          applyModuleVisibility(el, blueprint, modId);
-          row2.appendChild(el);
-          korFrames[modId] = frame;
+      for (const knobDef of modDef.knobs) {
+        const knob = createPanel4Knob(knobDef);
+        const stdSize = toNum(knobUI.standardKnobSize, 45);
+        knob.knobEl.style.width = `${stdSize}px`;
+        knob.knobEl.style.height = `${stdSize}px`;
+        const inner = knob.knobEl.querySelector('.knob-inner');
+        if (inner) {
+          const pct = toNum(knobUI.knobInnerPct, 76);
+          inner.style.width = `${pct}%`;
+          inner.style.height = `${pct}%`;
         }
-
-        seqContainer.appendChild(row2);
+        knobsContainer.appendChild(knob.wrapper);
       }
 
-      korRow.appendChild(seqContainer);
+      frame.appendToContent(knobsContainer);
+      applyModuleVisibility(el, blueprint, modId);
+      host.appendChild(el);
+      korFrames[modId] = frame;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -3082,11 +2866,9 @@ export function buildPanel4(app) {
 
     app._panel4Data = {
       host,
-      voltmetersRow,
       voltmeterFrames,
       voltmeters,
       seqFrame,
-      korRow,
       korFrames
     };
   }

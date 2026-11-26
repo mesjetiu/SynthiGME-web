@@ -1474,7 +1474,7 @@ Además de los knobs estándar, existen estos componentes de panel:
 Los colores de knobs se definen en el blueprint del panel, no en el componente UI:
 
 ```javascript
-// panel4.blueprint.js — column2.knobs
+// panel4.blueprint.js — layout.upperKeyboard.knobs
 knobs: [
   { type: 'vernier' },                                    // Pitch (vernier, sin color)
   { key: 'velocityLevel', type: 'knob', color: 'yellow', bipolar: true },

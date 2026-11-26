@@ -22,6 +22,12 @@ Antes de tocar nada se tomó una referencia del estado actual:
   tolerancia e imagen píxel a píxel, y deja un `.diff.png` donde algo cambie.
 - Dos capturas seguidas salen idénticas byte a byte, y detecta un cambio de
   0,1 px en un solo parámetro.
+- **La imagen depende de la máquina; la geometría no.** Con otras fuentes u
+  otro Chromium cambia el suavizado del texto (comprobado en noviembre: misma
+  geometría, entre 4 y 27.000 píxeles distintos por panel, todos en letras).
+  Si en una máquina nueva `visual:compare` da geometría idéntica y solo fallan
+  imágenes, se recapturan las PNG de referencia sobre `main` limpio, en su
+  propio commit, antes de tocar nada. Las actuales son de `casa`.
 
 **Regla para el refactor:** cada paso tiene que dejar `visual:compare` en
 verde. Si un paso cambia algo visible a propósito (arreglar un panel que no

@@ -33,6 +33,8 @@ Panel6/   → panel6_source.svg
   siendo el fuente: se puede retocar en Inkscape, y entonces el script deja de
   ser la referencia. Cómo se midió y por qué cada cosa:
   `module_research/panel7/fondo_vectorial.md`.
+- `Panel2/panel2_source.svg` lo genera `Panel2/generar_panel2.py`, igual:
+  `module_research/panel2/fondo_vectorial.md`.
 - Las piezas que comparten los generadores (fuentes con fontTools, rótulos en
   Microgramma como `<text>` y en otras fuentes a trazos, líneas, ▼, flechas,
   tornillos, barras con el título calado, capas) están en `piezas_svg.py`.

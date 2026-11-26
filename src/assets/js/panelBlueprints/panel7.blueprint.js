@@ -117,7 +117,7 @@ export default {
       // src/assets/panels/panel7_tecla.svg (generar_mandos.py).
       keyRow: { top: 209.8, width: 27.5, height: 27.5 },
       clockRateKnobColor: 'white',      // color del knob Clock Rate
-      clockRateKnobType: 'vernier',     // en el Synthi 100, Clock Rate es un vernier dial
+      clockRateKnobType: 'slowMotion',  // en el Synthi 100, dial de cámara lenta (cromado, 0–9)
 
       // Retoques finos por mando (8 + 8), en px; se suman a su sitio
       switchOffsets: [
@@ -129,8 +129,8 @@ export default {
         { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }
       ],
 
-      // Dial Clock Rate (vernier de 10 vueltas), bajo RESET SEQUENCE y a la
-      // derecha de CLOCK RATE: centro y diámetro del de la foto
+      // Dial Clock Rate (de cámara lenta, ui/slowMotionDial.js), bajo RESET
+      // SEQUENCE y a la derecha de CLOCK RATE: centro y diámetro del de la foto
       clockRate: {
         label: 'Clock Rate',
         cx: 380,

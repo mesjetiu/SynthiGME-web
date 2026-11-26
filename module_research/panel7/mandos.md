@@ -96,8 +96,8 @@ que no (`fondo_vectorial.md`, «Lo que no cuadra»). Medido de nuevo:
   centro en el eje del secuenciador (380), radio 27,6: dial de 55 px con
   centro (380, 289,5). Lo de arriba del dial sale más alto en la foto
   porque sobresale y la cámara está más abajo.
-- El dial es el vernier de la web (el mismo de otros paneles), solo que a su
-  tamaño; su dibujo no se ha tocado.
+- El dial era el vernier de la web (el mismo de otros paneles), solo que a
+  su tamaño. Desde el 26-nov es el suyo: ver «Dial Clock Rate», abajo.
 
 ### Cómo se colocan
 
@@ -137,3 +137,33 @@ bordes izquierdos, con luz, caen a ±1 px de columna − 14).
   poco más pequeña, como si bajara. El CSS la pide ya a tamaño 0 para que no
   parpadee la primera vez.
 - Como el asa: imagen de fondo del `<button>`, sin filtros de CSS.
+
+## Dial Clock Rate (26-nov)
+
+No es un vernier Spectrol (esfera negra con ventana de vueltas, el de los
+osciladores) sino un **dial de cámara lenta**: el manual de estudio lo llama
+«slow-motion potentiometer CLOCK RATE» (`ElectronicStudio-manual`, pág. 94).
+Carlos dio el visto bueno a cambiarlo.
+
+- **Qué se ve en la foto** (recorte a 15× en `~/trabajo`, no se guarda):
+  faldón cromado cónico hasta el borde (r 27,5); escala negra hasta r ≈ 20
+  con cien rayitas (más largas en cada cifra) y las cifras 0–9; capuchón de
+  aluminio cepillado de ~21 px; arriba, en el canto interior del faldón, un
+  **índice blanco**.
+- **Las cifras**: crecen en sentido **antihorario** (3 a las diez y media,
+  4 a las nueve, 7 abajo, 9 a las tres, 0 a la una y media; el 1 y el 2 los
+  tapa el capuchón por la perspectiva) y llevan la **cabeza hacia el
+  centro**: el 7 de abajo se lee derecho. En la foto marca 2.
+- **Cómo se mueve**: gira solo la escala, de 0° a 360° con el valor; la
+  cifra bajo el índice es la lectura (0–10; el 10 cae sobre el 0, como en
+  la foto, que tiene diez cifras). Girando a derechas, bajo el índice pasan
+  cifras mayores. El arrastre y la precisión son los de cualquier mando
+  (`Knob`), igual que con el vernier.
+- **Dibujo**: tres SVG de 55 × 55 que genera `generar_mandos.py`
+  (`panel7_dial_faldon.svg`, `_escala.svg`, `_capuchon.svg`): faldón e índice
+  fijos, la escala gira y el capuchón va encima, fijo (es de revolución). El
+  cromo, en 72 cuñas de gris (SVG no tiene degradado cónico). Cifras en
+  Univers a trazos, engordadas, como los grabados del secuenciador.
+- **Código**: `ui/slowMotionDial.js` (`SlowMotionDial`, hijo de `Knob`);
+  el blueprint lo pide con `clockRateKnobType: 'slowMotion'`. Test:
+  `tests/ui/slowMotionDial.test.js`.

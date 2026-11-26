@@ -40,6 +40,7 @@ import { Knob }                         from './ui/knob.js';
 import { createKnob }                   from './ui/knobFactory.js';
 import { applyBox, boxCss, requireBox, createControlsLayer, placeAtCenter } from './utils/panelBox.js';
 import { faderVars, sequencerPlacement, placeInModule } from './utils/panel7Geometry.js';
+import { createSlowMotionDialElements, SlowMotionDial } from './ui/slowMotionDial.js';
 
 import {
   KNOB_YELLOW, KNOB_WHITE, KNOB_BLUE, KNOB_RED, KNOB_GREEN, KNOB_BLACK
@@ -1462,7 +1463,27 @@ export function setupOutputFaders(app) {
     const clockRateType = sequencerUI.clockRateKnobType || 'normal';
 
     let clockRateKnob;
-    if (clockRateType === 'vernier') {
+    if (clockRateType === 'slowMotion') {
+      // Dial de cámara lenta, como en la foto (ui/slowMotionDial.js)
+      const elements = createSlowMotionDialElements();
+      const dialSize = seqPlacement.clockRate.w;
+      elements.knobEl.style.width = `${dialSize}px`;
+      elements.knobEl.style.height = `${dialSize}px`;
+      const knobInstance = new SlowMotionDial(elements.knobEl, {
+        min: 0, max: 1, initial: 0.5,
+        scaleMin: 0, scaleMax: 10,
+        pixelsForFullRange: 10000,
+        scaleDecimals: 1
+      });
+      knobInstance.onChange = (v) => {
+        const dial = v * 10;
+        app._sequencerModule?.setClockRate(dial);
+        sequencerOSCSync.sendKnobChange('clockRate', dial);
+      };
+      knobInstance.getTooltipInfo = getSequencerClockRateTooltipInfo();
+      knobInstance.tooltipLabel = 'Clock Rate';
+      clockRateKnob = { wrapper: elements.wrapper, knobInstance };
+    } else if (clockRateType === 'vernier') {
       const elements = createVernierElements({ showValue: false });
       const vernierSize = seqPlacement.clockRate.w;
       elements.knobEl.style.width = `${vernierSize}px`;

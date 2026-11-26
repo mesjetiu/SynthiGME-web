@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="55" height="55" viewBox="0 0 55 55">
+<!-- Dial Clock Rate (panel 7): capuchón de aluminio, fijo. Generado por design/panels/Panel7/generar_mandos.py -->
+<defs><radialGradient id="a" cx=".42" cy=".38" r=".62"><stop offset="0" stop-color="#d9d9d6"/><stop offset=".55" stop-color="#a9a9a6"/><stop offset="1" stop-color="#6e6e6c"/></radialGradient><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".35"/><stop offset=".65" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+<circle cx="28" cy="28.2" r="11.2" fill="#000" opacity=".55"/>
+<circle cx="27.5" cy="27.5" r="10.3" fill="url(#a)" stroke="#2c2c2c" stroke-width=".45"/>
+<circle cx="27.5" cy="27.5" r="9.8" fill="url(#b)"/>
+<circle cx="27.5" cy="27.5" r="3.6" fill="#fff" opacity=".08"/>
+</svg>
